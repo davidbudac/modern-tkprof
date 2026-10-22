@@ -1,0 +1,913 @@
+package analyze
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/davidbudac/modern-tkprof/internal/model"
+	"github.com/davidbudac/modern-tkprof/internal/trace"
+)
+
+// Findings are trace-level observations produced by fixed rules with fixed,
+// documented thresholds (docs/DESIGN.md § Findings). Every threshold is a
+// named constant below; overriding them is a later version.
+
+// Severities, most important first.
+const (
+	SeveritySerious = "serious"
+	SeverityNotable = "notable"
+	SeverityInfo    = "info"
+)
+
+// Rule ids (stable, used by the UI and in JSON).
+const (
+	RuleOutlierExecs = "outlier-executions"
+	RulePlanChange   = "plan-change"
+	RuleHardParses   = "hard-parses"
+	RuleParsePerExec = "parse-per-exec"
+	RuleHardCloses   = "hard-closes"
+	RuleThinkTime    = "think-time"
+	RuleSmallFetches = "small-fetches"
+	RuleCommitPerRow = "commit-per-row"
+	RuleRoundTrips   = "round-trips"
+)
+
+// ---- thresholds -------------------------------------------------------------
+
+const (
+	// OutlierFactor: an execution is an outlier when its elapsed time
+	// (EXEC + its FETCHes) is above OutlierFactor x the statement's median ...
+	OutlierFactor = 3.0
+	// OutlierMinUs: ... and above this absolute floor (100 ms).
+	OutlierMinUs = 100_000
+	// OutlierMinExecs: a median needs at least this many executions.
+	OutlierMinExecs = 3
+
+	// HardParseRatio: hard parses (library cache misses on PARSE and EXEC) per
+	// execution above this ratio ...
+	HardParseRatio = 0.5
+	// HardParseMinExecs: ... for a statement with more executions than this, or
+	HardParseMinExecs = 10
+	// HardParseMinTotal: trace-wide, more hard parses than this at the same
+	// ratio (catches literal SQL: many statements hard parsed once each).
+	HardParseMinTotal = 10
+
+	// ParseExecRatio: PARSE calls per execution above this ratio (the
+	// application re-parses instead of keeping the cursor open) ...
+	ParseExecRatio = 0.9
+	// ParseExecMinExecs: ... with more executions than this.
+	ParseExecMinExecs = 10
+
+	// HardCloseShare: CLOSE type=0 (hard close, not cached) above this share
+	// of a statement's closes, counted only for statements parsed at least
+	// HardCloseMinParses times (where the session cursor cache would help) ...
+	HardCloseShare = 0.5
+	// HardCloseMinParses: see HardCloseShare (the cache needs 3 parses).
+	HardCloseMinParses = 3
+	// HardCloseMinCount: ... with more such hard closes than this, trace-wide.
+	HardCloseMinCount = 10
+
+	// ThinkTimeShare: idle time between calls (SQL*Net message from client
+	// and other idle waits) above this share of response time.
+	ThinkTimeShare = 0.30
+
+	// SmallFetchRows: an execution fetches in small batches when its average
+	// rows per FETCH is below this (catches the SQL*Plus default arraysize 15
+	// and the JDBC default fetch size 10) ...
+	SmallFetchRows = 20
+	// SmallFetchMinFetchesPerExec: ... and it made at least this many fetches.
+	SmallFetchMinFetchesPerExec = 3
+	// SmallFetchMinFetches / SmallFetchMinRows: the statement's small-fetch
+	// executions together made more fetches and returned more rows than this.
+	SmallFetchMinFetches = 100
+	SmallFetchMinRows    = 1000
+
+	// CommitPerDMLRatio: commits (XCTEND rlbk=0 rd_only=0) per INSERT /
+	// UPDATE / DELETE / MERGE execution above this ratio ...
+	CommitPerDMLRatio = 0.5
+	// CommitMinCount: ... with more commits than this.
+	CommitMinCount = 10
+
+	// RoundTripsPerRow: "SQL*Net message to client" waits per row returned or
+	// processed by top-level calls above this ratio ...
+	RoundTripsPerRow = 0.5
+	// RoundTripsMin: ... with more round trips than this.
+	RoundTripsMin = 100
+
+	// MaxEvidenceRows caps the evidence rows of one finding.
+	MaxEvidenceRows = 10
+	// BindPreviewMax caps the bind preview of an outlier execution (bytes).
+	BindPreviewMax = 80
+)
+
+// Severity mapping. Time-based rules use timeSeverity on their impact (the
+// time the pattern costs or explains) relative to the trace response time:
+//
+//	serious: impact >= SeriousShare of response time and >= SeriousMinUs
+//	notable: impact >= NotableShare of response time and >= NotableMinUs
+//	info:    otherwise
+//
+// Count-based rules (hard closes, round trips) use countSeverity:
+// serious from SeriousCount occurrences, notable from NotableCount, else info.
+// Rule-specific floors are noted at each rule.
+const (
+	SeriousShare = 0.25
+	SeriousMinUs = 1_000_000
+	NotableShare = 0.05
+	NotableMinUs = 100_000
+	SeriousCount = 10_000
+	NotableCount = 1_000
+)
+
+// ---- types ------------------------------------------------------------------
+
+// Finding is one rule hit.
+type Finding struct {
+	Rule      string        `json:"rule"`      // stable id (Rule* constants)
+	Title     string        `json:"title"`     // human rule name
+	Severity  string        `json:"severity"`  // info | notable | serious
+	Summary   string        `json:"summary"`   // one sentence
+	Statement model.ID      `json:"statement"` // None for trace-level findings
+	ImpactUs  int64         `json:"impactUs"`  // time the finding accounts for (sort key)
+	Evidence  []EvidenceRow `json:"evidence"`
+}
+
+// EvidenceRow is one supporting fact. Label and Value are ready to print;
+// the ids let the UI link to the statement / execution / call.
+type EvidenceRow struct {
+	Label     string   `json:"label"`
+	Value     string   `json:"value"`
+	Statement model.ID `json:"statement"` // None when not about one statement
+	Cursor    model.ID `json:"cursor"`    // with ExecNo: one execution
+	ExecNo    int32    `json:"execNo,omitempty"`
+	Call      model.ID `json:"call"`
+	Line      int      `json:"line,omitempty"` // trace file line
+	Us        int64    `json:"us,omitempty"`   // the row's time
+}
+
+func row(label, value string) EvidenceRow {
+	return EvidenceRow{Label: label, Value: value, Statement: model.None, Cursor: model.None, Call: model.None}
+}
+
+func stmtRow(sid model.ID, label, value string) EvidenceRow {
+	r := row(label, value)
+	r.Statement = sid
+	return r
+}
+
+var severityRank = map[string]int{SeveritySerious: 0, SeverityNotable: 1, SeverityInfo: 2}
+
+func timeSeverity(impact, total int64) string {
+	share := 0.0
+	if total > 0 {
+		share = float64(impact) / float64(total)
+	}
+	switch {
+	case share >= SeriousShare && impact >= SeriousMinUs:
+		return SeveritySerious
+	case share >= NotableShare && impact >= NotableMinUs:
+		return SeverityNotable
+	}
+	return SeverityInfo
+}
+
+func countSeverity(n int64) string {
+	switch {
+	case n >= SeriousCount:
+		return SeveritySerious
+	case n >= NotableCount:
+		return SeverityNotable
+	}
+	return SeverityInfo
+}
+
+// atLeast raises s to the floor severity.
+func atLeast(s, floor string) string {
+	if severityRank[s] > severityRank[floor] {
+		return floor
+	}
+	return s
+}
+
+// ---- entry point ------------------------------------------------------------
+
+// Findings runs every rule over the model and returns the hits, most severe
+// first, then by impact. stats must be Statements(m).
+func Findings(m *model.Model, stats []StmtStats) []Finding {
+	f := &finder{m: m, stats: stats}
+	p := TraceProfile(m)
+	f.profile = p
+	// response time: the trace span, or the summed session time when several
+	// sessions overlap (trcsess output)
+	f.total = p.TotalUs
+	if s := p.CPUUs + p.WaitUs + p.IdleUs; s > f.total {
+		f.total = s
+	}
+	f.outliers()
+	f.planChanges()
+	f.hardParses()
+	f.parsePerExec()
+	f.hardCloses()
+	f.thinkTime()
+	f.smallFetches()
+	f.commitPerRow()
+	f.roundTrips()
+	out := f.out
+	if out == nil {
+		out = []Finding{}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := &out[i], &out[j]
+		if severityRank[a.Severity] != severityRank[b.Severity] {
+			return severityRank[a.Severity] < severityRank[b.Severity]
+		}
+		if a.ImpactUs != b.ImpactUs {
+			return a.ImpactUs > b.ImpactUs
+		}
+		if a.Rule != b.Rule {
+			return a.Rule < b.Rule
+		}
+		return a.Statement < b.Statement
+	})
+	return out
+}
+
+type finder struct {
+	m       *model.Model
+	stats   []StmtStats
+	profile Profile
+	total   int64
+	out     []Finding
+	byStmt  [][]Execution // lazily built by execs
+}
+
+// execs returns Executions(m, sid), computed for all statements in one pass
+// over the calls (calling Executions per statement is O(statements x calls)).
+func (f *finder) execs(sid model.ID) []Execution {
+	if f.byStmt == nil {
+		f.byStmt = allExecutions(f.m)
+	}
+	return f.byStmt[sid]
+}
+
+// allExecutions is Executions for every statement at once.
+func allExecutions(m *model.Model) [][]Execution {
+	out := make([][]Execution, len(m.Statements))
+	idx := map[[2]int64]int{} // cursor,execNo -> index in out[statement]
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		switch c.Kind {
+		case trace.CallExec:
+			e := Execution{Cursor: c.Cursor, Statement: c.Statement, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: c.WallUs - c.E, Context: c.Context}
+			e.Stats.add(c)
+			idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}] = len(out[c.Statement])
+			out[c.Statement] = append(out[c.Statement], e)
+		case trace.CallFetch:
+			if j, ok := idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}]; ok && j < len(out[c.Statement]) && out[c.Statement][j].Cursor == c.Cursor {
+				e := &out[c.Statement][j]
+				e.Fetches = append(e.Fetches, c.ID)
+				e.Stats.add(c)
+				if c.Tim > e.EndTim {
+					e.EndTim = c.Tim
+				}
+			}
+		}
+	}
+	return out
+}
+
+func (f *finder) add(x Finding) {
+	if x.Evidence == nil {
+		x.Evidence = []EvidenceRow{}
+	}
+	f.out = append(f.out, x)
+}
+
+func (f *finder) label(sid model.ID) string {
+	st := &f.m.Statements[sid]
+	if st.SQLID != "" {
+		return st.SQLID
+	}
+	return "(" + st.Kind.String() + ")"
+}
+
+// isSQL: statements the parse/fetch rules apply to (not commit, LOB, ...).
+func (f *finder) isSQL(sid model.ID) bool {
+	k := f.m.Statements[sid].Kind
+	return k == model.StmtSQL || k == model.StmtUnknown
+}
+
+// ---- outlier executions -----------------------------------------------------
+
+func median(xs []int64) int64 {
+	s := append([]int64(nil), xs...)
+	sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
+	n := len(s)
+	if n == 0 {
+		return 0
+	}
+	if n%2 == 1 {
+		return s[n/2]
+	}
+	return (s[n/2-1] + s[n/2]) / 2
+}
+
+func (f *finder) outliers() {
+	for i := range f.stats {
+		s := &f.stats[i]
+		if s.Executions < OutlierMinExecs {
+			continue
+		}
+		ex := f.execs(s.ID)
+		if len(ex) < OutlierMinExecs {
+			continue
+		}
+		els := make([]int64, len(ex))
+		for j := range ex {
+			els[j] = ex[j].Stats.Elapsed
+		}
+		med := median(els)
+		var hits []*Execution
+		var excess int64
+		for j := range ex {
+			e := ex[j].Stats.Elapsed
+			if float64(e) > OutlierFactor*float64(med) && e > OutlierMinUs {
+				hits = append(hits, &ex[j])
+				excess += e - med
+			}
+		}
+		if len(hits) == 0 {
+			continue
+		}
+		sort.SliceStable(hits, func(a, b int) bool { return hits[a].Stats.Elapsed > hits[b].Stats.Elapsed })
+		worst := hits[0].Stats.Elapsed
+		x := Finding{
+			Rule: RuleOutlierExecs, Title: "Outlier executions", Statement: s.ID, ImpactUs: excess,
+			Severity: timeSeverity(excess, f.total),
+			Summary: fmt.Sprintf("%s: %d of %d executions took more than %gx the median of %s (slowest %s, %.0fx); %s above the median in total",
+				f.label(s.ID), len(hits), len(ex), OutlierFactor, fmtUs(med), fmtUs(worst), float64(worst)/float64(max(med, 1)), fmtUs(excess)),
+		}
+		for k, e := range hits {
+			if k == MaxEvidenceRows {
+				x.Evidence = append(x.Evidence, row("...", fmt.Sprintf("%d more outlier executions", len(hits)-k)))
+				break
+			}
+			cur := &f.m.Cursors[e.Cursor]
+			v := fmt.Sprintf("%s  %d rows  %d disk  %d fetches  cursor at line %d", fmtUs(e.Stats.Elapsed), e.Stats.Rows, e.Stats.Disk, len(e.Fetches), cur.Line)
+			if b := f.bindPreview(e.BindSet); b != "" {
+				v += "  binds " + b
+			}
+			r := stmtRow(s.ID, fmt.Sprintf("exec %d", e.ExecNo), v)
+			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = e.Cursor, e.ExecNo, e.Exec, f.m.Calls[e.Exec].Line, e.Stats.Elapsed
+			x.Evidence = append(x.Evidence, r)
+		}
+		f.add(x)
+	}
+}
+
+// bindPreview joins the bind values of a bind set, truncated to BindPreviewMax.
+func (f *finder) bindPreview(id model.ID) string {
+	if id == model.None || int(id) >= len(f.m.BindSets) {
+		return ""
+	}
+	bs := &f.m.BindSets[id]
+	var parts []string
+	for j := bs.First; j < bs.First+bs.N; j++ {
+		b := &f.m.Binds[j]
+		switch {
+		case b.NoDef:
+			continue
+		case b.IsNull:
+			parts = append(parts, fmt.Sprintf(":%d=NULL", b.Pos))
+		case b.IsDump:
+			parts = append(parts, fmt.Sprintf(":%d=<dump>", b.Pos))
+		default:
+			parts = append(parts, fmt.Sprintf(":%d=%s", b.Pos, b.Value))
+		}
+	}
+	s := strings.Join(parts, " ")
+	if len(s) > BindPreviewMax {
+		cut := BindPreviewMax - 3
+		for cut > 0 && s[cut]&0xC0 == 0x80 {
+			cut--
+		}
+		s = s[:cut] + "..."
+	}
+	return s
+}
+
+// ---- plan change ------------------------------------------------------------
+
+// planChanges: a statement with more than one plan hash, from STAT dumps or
+// from the plh= of its EXEC calls (plh=0, e.g. PL/SQL, is ignored). Severity
+// notable; serious when the average execution time of one plan is at least
+// OutlierFactor x another's and the statement took at least NotableMinUs.
+func (f *finder) planChanges() {
+	m := f.m
+	type planAgg struct {
+		execs, elapsed int64
+		dumps, line    int
+		firstLine      int
+	}
+	for i := range f.stats {
+		s := &f.stats[i]
+		agg := map[uint64]*planAgg{}
+		var order []uint64
+		get := func(h uint64, line int) *planAgg {
+			a := agg[h]
+			if a == nil {
+				a = &planAgg{firstLine: line}
+				agg[h] = a
+				order = append(order, h)
+			}
+			return a
+		}
+		for _, pid := range s.Plans {
+			p := &m.Plans[pid]
+			if p.PLH == 0 {
+				continue
+			}
+			a := get(p.PLH, p.Line)
+			a.dumps++
+			a.line = p.Line
+		}
+		if len(s.PlanHashes) < 2 && s.Executions < 2 {
+			continue
+		}
+		var ex []Execution
+		if s.Executions > 1 {
+			ex = f.execs(s.ID)
+			for j := range ex {
+				c := &m.Calls[ex[j].Exec]
+				if c.PLH == 0 {
+					continue
+				}
+				a := get(c.PLH, c.Line)
+				a.execs++
+				a.elapsed += ex[j].Stats.Elapsed
+			}
+		}
+		if len(agg) < 2 {
+			continue
+		}
+		sort.SliceStable(order, func(a, b int) bool { return agg[order[a]].firstLine < agg[order[b]].firstLine })
+		sev := SeverityNotable
+		var minAvg, maxAvg float64 = -1, 0
+		for _, h := range order {
+			a := agg[h]
+			if a.execs == 0 {
+				continue
+			}
+			avg := float64(a.elapsed) / float64(a.execs)
+			if minAvg < 0 || avg < minAvg {
+				minAvg = avg
+			}
+			if avg > maxAvg {
+				maxAvg = avg
+			}
+		}
+		if minAvg > 0 && maxAvg >= OutlierFactor*minAvg && s.Elapsed >= NotableMinUs {
+			sev = SeveritySerious
+		}
+		var hs []string
+		for _, h := range order {
+			hs = append(hs, fmt.Sprint(h))
+		}
+		x := Finding{
+			Rule: RulePlanChange, Title: "Plan change within the trace", Statement: s.ID, Severity: sev, ImpactUs: s.Elapsed,
+			Summary: fmt.Sprintf("%s ran with %d different plans (plan hash %s)", f.label(s.ID), len(order), strings.Join(hs, ", ")),
+		}
+		if minAvg > 0 && maxAvg > minAvg {
+			x.Summary += fmt.Sprintf("; the slowest plan averages %.1fx the fastest per execution", maxAvg/minAvg)
+		}
+		for _, h := range order {
+			a := agg[h]
+			var parts []string
+			if a.execs > 0 {
+				parts = append(parts, fmt.Sprintf("%d executions, avg %s", a.execs, fmtUs(a.elapsed/a.execs)))
+			}
+			if a.dumps > 0 {
+				parts = append(parts, fmt.Sprintf("%d STAT dumps, last at line %d", a.dumps, a.line))
+			} else {
+				parts = append(parts, "no STAT dump")
+			}
+			r := stmtRow(s.ID, fmt.Sprintf("plan %d", h), strings.Join(parts, "; "))
+			r.Line, r.Us = a.firstLine, a.elapsed
+			if a.dumps > 0 {
+				r.Line = a.line
+			}
+			x.Evidence = append(x.Evidence, r)
+		}
+		f.add(x)
+	}
+}
+
+// ---- parse and cursor churn -------------------------------------------------
+
+// hardParses: trace-level. Fires when a statement with more than
+// HardParseMinExecs executions hard parses on more than HardParseRatio of
+// them, or trace-wide when more than HardParseMinTotal hard parses happen on
+// more than HardParseRatio of all executions. Hard parse = library cache miss
+// on PARSE (StmtStats.HardParses; 19c usually reports the same miss again on
+// the first EXEC, so EXEC misses are not added). Severity by the
+// elapsed time of the missing calls; at least notable when a single
+// statement qualifies (repeated hard parses of one sql_id point at
+// invalidations or cursor sharing failures).
+func (f *finder) hardParses() {
+	m := f.m
+	missUs := make([]int64, len(f.stats))
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		if c.Mis > 0 && c.Kind == trace.CallParse {
+			missUs[c.Statement] += c.E
+		}
+	}
+	var hp, ex, impact int64
+	var ids, single []model.ID
+	for i := range f.stats {
+		s := &f.stats[i]
+		if !f.isSQL(s.ID) {
+			continue
+		}
+		n := s.HardParses
+		hp += n
+		ex += s.Executions
+		impact += missUs[i]
+		if n > 0 {
+			ids = append(ids, s.ID)
+		}
+		if s.Executions > HardParseMinExecs && float64(n)/float64(s.Executions) > HardParseRatio {
+			single = append(single, s.ID)
+		}
+	}
+	traceWide := hp > HardParseMinTotal && ex > 0 && float64(hp)/float64(ex) > HardParseRatio
+	if !traceWide && len(single) == 0 {
+		return
+	}
+	misses := func(id model.ID) int64 { return f.stats[id].HardParses }
+	isSingle := map[model.ID]bool{}
+	for _, id := range single {
+		isSingle[id] = true
+	}
+	sort.SliceStable(ids, func(a, b int) bool {
+		if isSingle[ids[a]] != isSingle[ids[b]] {
+			return isSingle[ids[a]]
+		}
+		if misses(ids[a]) != misses(ids[b]) {
+			return misses(ids[a]) > misses(ids[b])
+		}
+		return missUs[ids[a]] > missUs[ids[b]]
+	})
+	once := 0
+	for _, id := range ids {
+		if misses(id) == 1 && f.stats[id].Executions <= 1 {
+			once++
+		}
+	}
+	x := Finding{Rule: RuleHardParses, Title: "Parse and cursor churn: hard parses", Statement: model.None, ImpactUs: impact, Severity: timeSeverity(impact, f.total)}
+	if len(single) > 0 {
+		x.Severity = atLeast(x.Severity, SeverityNotable)
+	}
+	if traceWide {
+		x.Summary = fmt.Sprintf("%d hard parses for %d executions (%.0f%%) in %d statements, %s in the missing calls", hp, ex, 100*float64(hp)/float64(ex), len(ids), fmtUs(impact))
+		if once > len(ids)/2 {
+			x.Summary += fmt.Sprintf("; %d statements ran only once (literals instead of binds?)", once)
+		}
+	} else {
+		x.Summary = fmt.Sprintf("%d statements hard parse on most executions", len(single))
+	}
+	if len(single) == 1 {
+		x.Statement = single[0]
+	}
+	for k, id := range ids {
+		if k == MaxEvidenceRows {
+			x.Evidence = append(x.Evidence, row("...", fmt.Sprintf("%d more statements with hard parses", len(ids)-k)))
+			break
+		}
+		s := &f.stats[id]
+		r := stmtRow(id, f.label(id), fmt.Sprintf("%d hard parses / %d executions, %s", misses(id), s.Executions, fmtUs(missUs[id])))
+		r.Us = missUs[id]
+		x.Evidence = append(x.Evidence, r)
+	}
+	f.add(x)
+}
+
+func closeTypes(m *model.Model) [][4]int64 {
+	out := make([][4]int64, len(m.Statements))
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		if c.Kind == trace.CallClose && c.Type >= 0 && c.Type < 4 {
+			out[c.Statement][c.Type]++
+		}
+	}
+	return out
+}
+
+func closeSummary(t [4]int64) string {
+	var parts []string
+	names := [4]string{"hard (type 0)", "into the session cursor cache (type 1)", "into the PL/SQL cursor cache (type 2)", "already cached (type 3)"}
+	for i, n := range t {
+		if n > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", n, names[i]))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "closes: " + strings.Join(parts, ", ")
+}
+
+// parsePerExec: trace-level, one evidence row per statement with more than
+// ParseExecMinExecs executions and more than ParseExecRatio PARSE calls per
+// execution. Severity by the parse elapsed time of those statements.
+func (f *finder) parsePerExec() {
+	var ids []model.ID
+	var impact, parses, execs int64
+	for i := range f.stats {
+		s := &f.stats[i]
+		if !f.isSQL(s.ID) || s.Executions <= ParseExecMinExecs {
+			continue
+		}
+		if float64(s.Parse.Count)/float64(s.Executions) > ParseExecRatio {
+			ids = append(ids, s.ID)
+			impact += s.Parse.Elapsed
+			parses += s.Parse.Count
+			execs += s.Executions
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	sort.SliceStable(ids, func(a, b int) bool { return f.stats[ids[a]].Parse.Count > f.stats[ids[b]].Parse.Count })
+	ct := closeTypes(f.m)
+	x := Finding{Rule: RuleParsePerExec, Title: "Parse and cursor churn: parse per execution", Statement: model.None, ImpactUs: impact, Severity: timeSeverity(impact, f.total),
+		Summary: fmt.Sprintf("%d statements are parsed on (almost) every execution: %d parses for %d executions, %s parsing; keep cursors open and re-execute them", len(ids), parses, execs, fmtUs(impact))}
+	if len(ids) == 1 {
+		x.Statement = ids[0]
+		x.Summary = fmt.Sprintf("%s is parsed on (almost) every execution: %d parses for %d executions, %s parsing; keep the cursor open and re-execute it", f.label(ids[0]), parses, execs, fmtUs(impact))
+	}
+	for k, id := range ids {
+		if k == MaxEvidenceRows {
+			x.Evidence = append(x.Evidence, row("...", fmt.Sprintf("%d more statements", len(ids)-k)))
+			break
+		}
+		s := &f.stats[id]
+		v := fmt.Sprintf("%d parses / %d executions (%.2f), %s parsing", s.Parse.Count, s.Executions, float64(s.Parse.Count)/float64(s.Executions), fmtUs(s.Parse.Elapsed))
+		if c := closeSummary(ct[id]); c != "" {
+			v += "; " + c
+		}
+		r := stmtRow(id, f.label(id), v)
+		r.Us = s.Parse.Elapsed
+		x.Evidence = append(x.Evidence, r)
+	}
+	f.add(x)
+}
+
+// hardCloses: trace-level. Counts CLOSE type=0 of statements parsed at least
+// HardCloseMinParses times whose closes are more than HardCloseShare type 0;
+// fires above HardCloseMinCount. Severity by count (countSeverity).
+func (f *finder) hardCloses() {
+	ct := closeTypes(f.m)
+	var ids []model.ID
+	var n int64
+	for i := range f.stats {
+		s := &f.stats[i]
+		t := ct[i]
+		all := t[0] + t[1] + t[2] + t[3]
+		if !f.isSQL(s.ID) || s.Parse.Count < HardCloseMinParses || all == 0 {
+			continue
+		}
+		if float64(t[0])/float64(all) > HardCloseShare {
+			ids = append(ids, s.ID)
+			n += t[0]
+		}
+	}
+	if n <= HardCloseMinCount {
+		return
+	}
+	sort.SliceStable(ids, func(a, b int) bool { return ct[ids[a]][0] > ct[ids[b]][0] })
+	x := Finding{Rule: RuleHardCloses, Title: "Parse and cursor churn: hard closes", Statement: model.None, Severity: countSeverity(n),
+		Summary: fmt.Sprintf("%d hard cursor closes (CLOSE type=0) of %d repeatedly parsed statements; the session cursor cache is not used (session_cached_cursors?)", n, len(ids))}
+	if len(ids) == 1 {
+		x.Statement = ids[0]
+	}
+	for k, id := range ids {
+		if k == MaxEvidenceRows {
+			x.Evidence = append(x.Evidence, row("...", fmt.Sprintf("%d more statements", len(ids)-k)))
+			break
+		}
+		x.Evidence = append(x.Evidence, stmtRow(id, f.label(id), fmt.Sprintf("%d parses; %s", f.stats[id].Parse.Count, closeSummary(ct[id]))))
+	}
+	f.add(x)
+}
+
+// ---- client-side time -------------------------------------------------------
+
+// thinkTime: trace-level, idle time between calls above ThinkTimeShare of
+// response time. Evidence: the top idle events and statements. Severity by the
+// idle time (timeSeverity).
+func (f *finder) thinkTime() {
+	idle := f.profile.IdleUs
+	if f.total <= 0 || float64(idle)/float64(f.total) <= ThinkTimeShare {
+		return
+	}
+	x := Finding{Rule: RuleThinkTime, Title: "Client-side time: think time", Statement: model.None, ImpactUs: idle, Severity: timeSeverity(idle, f.total),
+		Summary: fmt.Sprintf("%s of %s response time (%.0f%%) is idle wait time: the session waited for the client, the network, the user or a sleep, not for database work", fmtUs(idle), fmtUs(f.total), 100*float64(idle)/float64(f.total))}
+	n := 0
+	for _, r := range f.profile.Rows {
+		if r.Kind == "idle" && r.Us > 0 && n < 3 {
+			rr := row(r.Component, fmt.Sprintf("%s in %d waits (%.0f%%)", fmtUs(r.Us), r.Count, 100*float64(r.Us)/float64(f.total)))
+			rr.Us = r.Us
+			x.Evidence = append(x.Evidence, rr)
+			n++
+		}
+	}
+	var ids []model.ID
+	for i := range f.stats {
+		if f.stats[i].IdleUs > 0 {
+			ids = append(ids, model.ID(i))
+		}
+	}
+	sort.SliceStable(ids, func(a, b int) bool { return f.stats[ids[a]].IdleUs > f.stats[ids[b]].IdleUs })
+	for k, id := range ids {
+		if k == 5 {
+			break
+		}
+		s := &f.stats[id]
+		r := stmtRow(id, f.label(id), fmt.Sprintf("%s idle waits (%.0f%% of response time), %s elapsed in its calls", fmtUs(s.IdleUs), 100*float64(s.IdleUs)/float64(f.total), fmtUs(s.Elapsed)))
+		r.Us = s.IdleUs
+		x.Evidence = append(x.Evidence, r)
+	}
+	f.add(x)
+}
+
+// smallFetches: per statement, executions with at least
+// SmallFetchMinFetchesPerExec fetches averaging fewer than SmallFetchRows
+// rows per fetch; fires when those executions made more than
+// SmallFetchMinFetches fetches and returned more than SmallFetchMinRows rows.
+// Impact: the fetch calls' elapsed plus the idle time before them (round
+// trips); timeSeverity.
+func (f *finder) smallFetches() {
+	m := f.m
+	for i := range f.stats {
+		s := &f.stats[i]
+		if !f.isSQL(s.ID) || s.Fetch.Count <= SmallFetchMinFetches || s.Fetch.Rows <= SmallFetchMinRows {
+			continue
+		}
+		ex := f.execs(s.ID)
+		var nEx, fetches, rows, impact int64
+		var firstRow *Execution
+		for j := range ex {
+			e := &ex[j]
+			nf := int64(len(e.Fetches))
+			if nf < SmallFetchMinFetchesPerExec {
+				continue
+			}
+			var r int64
+			for _, cid := range e.Fetches {
+				r += m.Calls[cid].R
+			}
+			if float64(r)/float64(nf) >= SmallFetchRows {
+				continue
+			}
+			nEx++
+			fetches += nf
+			rows += r
+			for _, cid := range e.Fetches {
+				impact += m.Calls[cid].E + m.Calls[cid].IdleEla
+			}
+			if firstRow == nil {
+				firstRow = e
+			}
+		}
+		if fetches <= SmallFetchMinFetches || rows <= SmallFetchMinRows {
+			continue
+		}
+		avg := float64(rows) / float64(fetches)
+		x := Finding{Rule: RuleSmallFetches, Title: "Client-side time: small fetch sizes", Statement: s.ID, ImpactUs: impact, Severity: timeSeverity(impact, f.total),
+			Summary: fmt.Sprintf("%s fetches %.1f rows per call: %d fetches for %d rows in %d of %d executions, %s in those fetches and the round trips before them; raise the fetch / array size",
+				f.label(s.ID), avg, fetches, rows, nEx, len(ex), fmtUs(impact))}
+		x.Evidence = append(x.Evidence,
+			stmtRow(s.ID, "small-fetch executions", fmt.Sprintf("%d of %d (at least %d fetches, under %d rows per fetch)", nEx, len(ex), SmallFetchMinFetchesPerExec, SmallFetchRows)),
+			stmtRow(s.ID, "fetches / rows", fmt.Sprintf("%d / %d (%.1f rows per fetch)", fetches, rows, avg)),
+			stmtRow(s.ID, "whole statement", fmt.Sprintf("%d fetches / %d rows (%.1f rows per fetch)", s.Fetch.Count, s.Fetch.Rows, float64(s.Fetch.Rows)/float64(s.Fetch.Count))),
+		)
+		if firstRow != nil {
+			r := stmtRow(s.ID, fmt.Sprintf("exec %d", firstRow.ExecNo), fmt.Sprintf("first such execution: %d fetches, %d rows, %s", len(firstRow.Fetches), firstRow.Stats.Rows, fmtUs(firstRow.Stats.Elapsed)))
+			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = firstRow.Cursor, firstRow.ExecNo, firstRow.Exec, m.Calls[firstRow.Exec].Line, firstRow.Stats.Elapsed
+			x.Evidence = append(x.Evidence, r)
+		}
+		f.add(x)
+	}
+}
+
+// isDML: INSERT, UPDATE, DELETE, MERGE (Oracle command types).
+func isDML(oct int) bool { return oct == 2 || oct == 6 || oct == 7 || oct == 189 }
+
+func (f *finder) eventUs(name string) (us, n int64) {
+	for i := range f.m.Waits {
+		w := &f.m.Waits[i]
+		if f.m.Events[w.Event].Name == name {
+			us += w.Ela
+			n++
+		}
+	}
+	return
+}
+
+// commitPerRow: trace-level, more than CommitMinCount commits (XCTEND rlbk=0
+// rd_only=0) at more than CommitPerDMLRatio commits per DML execution.
+// Impact: "log file sync" time; at least notable.
+func (f *finder) commitPerRow() {
+	var commits int64
+	for i := range f.m.Transactions {
+		t := &f.m.Transactions[i]
+		if t.Rlbk == 0 && t.RdOnly == 0 {
+			commits++
+		}
+	}
+	if commits <= CommitMinCount {
+		return
+	}
+	var dmlExecs, dmlRows int64
+	var ids []model.ID
+	for i := range f.stats {
+		s := &f.stats[i]
+		if f.m.Statements[i].Kind == model.StmtSQL && isDML(f.m.Statements[i].OCT) && s.Executions > 0 {
+			dmlExecs += s.Executions
+			dmlRows += s.Exec.Rows
+			ids = append(ids, s.ID)
+		}
+	}
+	if dmlExecs == 0 || float64(commits)/float64(dmlExecs) <= CommitPerDMLRatio {
+		return
+	}
+	lfs, nlfs := f.eventUs("log file sync")
+	x := Finding{Rule: RuleCommitPerRow, Title: "Client-side time: commit per row", Statement: model.None, ImpactUs: lfs,
+		Severity: atLeast(timeSeverity(lfs, f.total), SeverityNotable),
+		Summary:  fmt.Sprintf("%d commits for %d DML executions (%d rows): the application commits (almost) every change; %s waiting on log file sync", commits, dmlExecs, dmlRows, fmtUs(lfs))}
+	x.Evidence = append(x.Evidence,
+		row("commits", fmt.Sprintf("%d (read-write, XCTEND rlbk=0 rd_only=0)", commits)),
+		row("DML executions", fmt.Sprintf("%d INSERT/UPDATE/DELETE/MERGE executions, %d rows, %.2f commits per execution", dmlExecs, dmlRows, float64(commits)/float64(dmlExecs))),
+	)
+	if nlfs > 0 {
+		r := row("log file sync", fmt.Sprintf("%s in %d waits", fmtUs(lfs), nlfs))
+		r.Us = lfs
+		x.Evidence = append(x.Evidence, r)
+	}
+	sort.SliceStable(ids, func(a, b int) bool { return f.stats[ids[a]].Executions > f.stats[ids[b]].Executions })
+	for k, id := range ids {
+		if k == 5 {
+			break
+		}
+		s := &f.stats[id]
+		x.Evidence = append(x.Evidence, stmtRow(id, f.label(id), fmt.Sprintf("%d executions, %d rows", s.Executions, s.Exec.Rows)))
+	}
+	f.add(x)
+}
+
+// roundTrips: trace-level, more than RoundTripsMin "SQL*Net message to
+// client" waits at more than RoundTripsPerRow per row of the top-level calls.
+// Severity by round-trip count (countSeverity).
+func (f *finder) roundTrips() {
+	trips, _ := f.eventUs("SQL*Net message to client")
+	if trips <= RoundTripsMin {
+		return
+	}
+	var rows int64
+	for i := range f.m.Calls {
+		c := &f.m.Calls[i]
+		if c.Parent == model.None && (c.Kind == trace.CallExec || c.Kind == trace.CallFetch) {
+			rows += c.R
+		}
+	}
+	ratio := float64(trips) / float64(max(rows, 1))
+	if ratio <= RoundTripsPerRow {
+		return
+	}
+	fromUs, fromN := f.eventUs("SQL*Net message from client")
+	x := Finding{Rule: RuleRoundTrips, Title: "Client-side time: round trips per row", Statement: model.None, ImpactUs: fromUs, Severity: countSeverity(trips),
+		Summary: fmt.Sprintf("%d SQL*Net round trips for %d rows (%.2f per row): the client talks to the database in many small calls; batch them (array DML, bigger fetches, PL/SQL)", trips, rows, ratio)}
+	x.Evidence = append(x.Evidence,
+		row("SQL*Net message to client", fmt.Sprintf("%d waits", trips)),
+		row("rows", fmt.Sprintf("%d rows returned or processed by top-level calls", rows)),
+	)
+	if fromN > 0 {
+		r := row("SQL*Net message from client", fmt.Sprintf("%s in %d waits (avg %s)", fmtUs(fromUs), fromN, fmtUs(fromUs/fromN)))
+		r.Us = fromUs
+		x.Evidence = append(x.Evidence, r)
+	}
+	f.add(x)
+}
+
+// fmtUs formats microseconds for summaries: us, ms or s (ASCII only).
+func fmtUs(us int64) string {
+	switch {
+	case us < 1000 && us > -1000:
+		return fmt.Sprintf("%d us", us)
+	case us < 1_000_000 && us > -1_000_000:
+		return fmt.Sprintf("%.1f ms", float64(us)/1e3)
+	}
+	return fmt.Sprintf("%.3f s", float64(us)/1e6)
+}

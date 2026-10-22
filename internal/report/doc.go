@@ -138,6 +138,7 @@ type Stats struct {
 	Events     []analyze.EventAgg  `json:"events"`
 	Timeline   []analyze.Bucket    `json:"timeline"`
 	BucketUs   int64               `json:"bucketUs"`
+	Findings   []analyze.Finding   `json:"findings"`
 }
 
 // DocOptions control document generation.
@@ -162,6 +163,7 @@ func BuildDocument(m *model.Model, o DocOptions) *Document {
 			BucketUs:   bucket,
 		},
 	}
+	d.Stats.Findings = analyze.Findings(m, d.Stats.Statements)
 	for i := range d.Statements {
 		if d.Statements[i].Cursors == nil {
 			d.Statements[i].Cursors = []model.ID{}

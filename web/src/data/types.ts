@@ -262,6 +262,30 @@ export interface Bucket {
   rows: number
 }
 
+/** One rule hit (internal/analyze/findings.go). */
+export type Severity = 'serious' | 'notable' | 'info'
+
+export interface EvidenceRow {
+  label: string
+  value: string
+  statement: ID // -1 when not about one statement
+  cursor: ID
+  execNo?: number
+  call: ID
+  line?: number
+  us?: number
+}
+
+export interface Finding {
+  rule: string
+  title: string
+  severity: Severity
+  summary: string
+  statement: ID // -1 for trace-level findings
+  impactUs: number
+  evidence: EvidenceRow[]
+}
+
 export interface ColumnDesc { t: 'f64' | 'i32' | 'u8'; off: number; n: number }
 export type RawColumn = number[] | ColumnDesc
 
@@ -300,6 +324,7 @@ export interface RawDocument {
     events: EventAgg[]
     timeline: Bucket[] | null
     bucketUs: number
+    findings?: Finding[] | null
   }
 }
 
