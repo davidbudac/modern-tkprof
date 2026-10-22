@@ -7,9 +7,7 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/model"
 )
 
-const fixtures = "../../testdata/traces/19c"
-
-func load(t *testing.T, name string) *model.Model {
+func loadModel(t *testing.T, name string) *model.Model {
 	t.Helper()
 	m, err := model.Build(filepath.Join(fixtures, name), model.Options{})
 	if err != nil {
@@ -21,7 +19,7 @@ func load(t *testing.T, name string) *model.Model {
 func all() Filter { return Filter{IncludeIdle: true} }
 
 func TestPivotCallsByStmtSumsAllCalls(t *testing.T) {
-	m := load(t, "plsql_recursive.trc")
+	m := loadModel(t, "plsql_recursive.trc")
 	r, err := Pivot(m, FactCalls, []string{"stmt"}, all())
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +52,7 @@ func TestPivotCallsByStmtSumsAllCalls(t *testing.T) {
 }
 
 func TestPivotWaitsByEventMatchesWaitsByEvent(t *testing.T) {
-	m := load(t, "io_waits.trc")
+	m := loadModel(t, "io_waits.trc")
 	r, err := Pivot(m, FactWaits, []string{"event"}, all())
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +78,7 @@ func TestPivotWaitsByEventMatchesWaitsByEvent(t *testing.T) {
 }
 
 func TestPivotFilters(t *testing.T) {
-	m := load(t, "multisession.trc")
+	m := loadModel(t, "multisession.trc")
 	full, _ := Pivot(m, FactWaits, []string{"session", "idle"}, all())
 	noIdle, _ := Pivot(m, FactWaits, []string{"session"}, Filter{})
 	var idleN int
@@ -119,7 +117,7 @@ func TestPivotFilters(t *testing.T) {
 }
 
 func TestPivotEveryDimension(t *testing.T) {
-	m := load(t, "basic_binds.trc")
+	m := loadModel(t, "basic_binds.trc")
 	for _, f := range []Fact{FactCalls, FactWaits} {
 		for _, d := range Dims(f) {
 			r, err := Pivot(m, f, []string{d.ID}, all())
@@ -144,7 +142,7 @@ func TestPivotEveryDimension(t *testing.T) {
 }
 
 func TestContextsMatchProfile(t *testing.T) {
-	m := load(t, "multisession.trc")
+	m := loadModel(t, "multisession.trc")
 	cs := Contexts(m)
 	var calls, ela int64
 	for _, c := range cs {
