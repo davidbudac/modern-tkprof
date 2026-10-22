@@ -105,6 +105,25 @@ plan_stat=all_executions'` (ended with `'sql_trace off'`), second half with
 5 times per half with different `:cid` values, giving 15 two-line STAT blocks for
 one sqlid (30 STAT lines).
 
+## plan_change.trc (28,589 bytes, 450 lines)
+One sql_id with two plans in the same trace: `select /* mtk_plan_change */ count(*),
+max(amount) from mtk_orders where cust_id = :cid` (sqlid `70qh8zxg4kk69`) ran 5 times
+(`:cid` 11..15, action `plan_index`) with plan hash **254283197** (`INDEX RANGE SCAN
+MTK_ORDERS_CUST_IX` + `TABLE ACCESS BY INDEX ROWID BATCHED`, cr=7), then
+`alter session set optimizer_index_cost_adj = 10000` (traced) and 5 more times
+(`:cid` 21..25, action `plan_full`) with plan hash **3570327658** (`TABLE ACCESS FULL
+MTK_ORDERS`, cr=499, cost=137). The changed optimizer environment makes the cached
+child unshareable, so the first parse after the ALTER is a hard parse (`PARSE ... mis=1`,
+`EXEC ... mis=1`) of a new child under the same parent (`ad='6f54c890'` for both).
+tkprof (aggregate=yes) prints two sections with the same `SQL ID` and different
+`Plan Hash`, 5 executions each. Oddities: only 3 of the 5 runs per plan have a
+`PARSING IN CURSOR` block and STAT lines; runs 4 and 5 are session-cursor-cache hits
+(the previous CLOSE is `type=1`, then a bare `PARSE ... mis=0` on the same cursor number,
+`CLOSE type=3`) and dump no STAT lines, giving 3 STAT blocks per plan (6 total, 15 lines);
+for this single-row aggregate the STAT lines appear right after the first FETCH (r=1),
+before the trailing `FETCH ... r=0` and the CLOSE; `PARSE` lines of the hard parses show
+`plh=0`, the plan hash appears from the EXEC on.
+
 ## level_1.trc / level_4.trc / level_8.trc (7,812 / 10,207 / 10,377 bytes; 122 / 189 / 143 lines)
 Same body (two selects with a bind, an insert + rollback, a PL/SQL call of `mtk_f`)
 traced at `level 1` (no WAIT, no BINDS), `level 4` (8 BINDS sections, no WAIT),

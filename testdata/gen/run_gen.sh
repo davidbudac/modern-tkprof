@@ -21,7 +21,7 @@ OUT=${OUT:-$PWD/out}
 CONN="mtk/${MTK_PASSWORD}@${MTK_SERVICE}"
 mkdir -p "$OUT/log" "$OUT/ref"
 
-ALL_SCENARIOS="basic_binds plsql_recursive errors io_waits lobs plan_stat_all level_4 level_8 level_1 truncated cursor_cache nasty_sql multisession parallel midtrace_start"
+ALL_SCENARIOS="basic_binds plsql_recursive errors io_waits lobs plan_stat_all level_4 level_8 level_1 truncated cursor_cache nasty_sql multisession parallel midtrace_start plan_change"
 if [ $# -eq 0 ]; then
   TARGETS="$ALL_SCENARIOS ref big"
 else
