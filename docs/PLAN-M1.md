@@ -9,7 +9,7 @@ merged into branch `m1`, then `main`.
 |---|---|---|---|
 | A. Findings (`analyze/findings.go`, JSON `stats.findings`, text section, Overview UI) | `m1-findings` | agent | in progress |
 | B. Text report sections (executions table, sessions, time buckets) + `pivot` subcommand + Go group-by | `m1-textpivot` | agent | in progress |
-| C. Bind redaction `-redact-binds` / `-binds none` on report/html/json/export | `m1-binds` | agent | in progress |
+| C. Bind redaction `-redact-binds` / `-bind-values keep|redact|none` / `-binds none` | `m1-binds` | agent | merged |
 | D. Plan-change fixture (`testdata/gen/sc_plan_change.sql`, run on dbmint) | `m1-fixture` | agent | merged (plan_change.trc, plh 254283197 → 3570327658) |
 | Integration: merge, golden tests, `make web`, screenshots, docs | `m1` | advisor | pending |
 
@@ -27,3 +27,4 @@ merged into branch `m1`, then `main`.
 
 - 2026-10-22 plan written, four packages launched in parallel.
 - 2026-10-22 D merged: plan_change fixture, golden green (16 tkprof statements).
+- 2026-10-22 C merged: bind redaction as a model post-pass (`model.RedactBinds`), flags on report/html/json/export/serve.
