@@ -101,12 +101,19 @@ few seconds. `mtkprof html` inlines the document into the embedded UI page
   with recursive children attached (nothing is lost when sorting).
 * Executions: EXEC + following FETCHes grouped, with the bind set, rows,
   elapsed, waits — the unit for "why was *this* execution slow".
-* Generic group-by over facts for the UI dimensions.
+* Pivot (`pivot.go`): `Pivot(m, FactCalls|FactWaits, by, Filter)` groups the
+  call or wait facts by dimensions and accumulates every measure. Dimension
+  and measure ids, labels and semantics mirror `web/src/views/Pivot.tsx`;
+  `Filter` mirrors the UI's time-window / context / idle filters
+  (`web/src/app/store.ts`). Used by `mtkprof pivot`. The same file has
+  `TimelineBucket` (bucket size of the timeline, shared with the JSON
+  document) and `Contexts` (per session-context stats, as in the UI Sessions
+  view, used by the report's SESSIONS section).
 
 ## Repository layout
 
 ```
-cmd/mtkprof/        CLI (report, json, html, serve, lint, export)
+cmd/mtkprof/        CLI (report, pivot, json, html, serve, lint, export)
 internal/trace/     streaming parser
 internal/model/     model + builder
 internal/analyze/   aggregations

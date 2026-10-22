@@ -148,7 +148,7 @@ type DocOptions struct {
 
 // BuildDocument assembles the document from a model.
 func BuildDocument(m *model.Model, o DocOptions) *Document {
-	bucket := timelineBucket(m)
+	bucket := analyze.TimelineBucket(m)
 	d := &Document{
 		Tool: "mtkprof", Version: Version, Generated: time.Now(), Format: 2,
 		File: m.File, Span: m.Span, Statements: m.Statements, Cursors: m.Cursors, Contexts: m.Contexts,
@@ -319,18 +319,4 @@ func JSON(w io.Writer, m *model.Model, o DocOptions) error {
 // inlined in a <script> tag).
 func DocumentBytes(m *model.Model, o DocOptions) ([]byte, error) {
 	return json.Marshal(BuildDocument(m, o))
-}
-
-// timelineBucket picks a bucket size giving roughly 200-400 buckets.
-func timelineBucket(m *model.Model) int64 {
-	span := m.Span.Us()
-	if span <= 0 {
-		return 0
-	}
-	for _, b := range []int64{1000, 10000, 100000, 1000000, 10000000, 60000000, 600000000, 3600000000} {
-		if span/b <= 400 {
-			return b
-		}
-	}
-	return span / 400
 }

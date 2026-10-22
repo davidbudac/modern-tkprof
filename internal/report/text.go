@@ -11,6 +11,7 @@ type TextOptions struct {
 	Sort  string
 	Top   int
 	Binds int
+	Execs int // executions listed per statement: 0 = none, -1 = all
 	Sys   bool
 	Width int
 }

@@ -25,7 +25,8 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `mtkprof %s - Oracle SQL trace (10046) analyzer
 
 Usage:
-  mtkprof report <trace.trc> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-sys]
+  mtkprof report <trace.trc> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys]
+  mtkprof pivot  <trace.trc> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
   mtkprof html   <trace.trc> [-o out.html]            self-contained interactive report
   mtkprof serve  <trace.trc> [-addr 127.0.0.1:8046]   interactive UI in the browser
   mtkprof json   <trace.trc> [-o out.json] [-facts=false] [-packed]
@@ -55,6 +56,8 @@ func main() {
 	switch cmd {
 	case "report":
 		err = cmdReport(args)
+	case "pivot":
+		err = cmdPivot(args)
 	case "json":
 		err = cmdJSON(args)
 	case "html":
@@ -115,6 +118,7 @@ func cmdReport(args []string) error {
 	opts := report.TextOptions{}
 	fs.StringVar(&opts.Sort, "sort", "elapsed", "statement order: elapsed|self|cpu|execs|disk|query|rows|line")
 	fs.IntVar(&opts.Top, "top", 0, "only the top N statements (0 = all)")
+	fs.IntVar(&opts.Execs, "execs", 20, "executions to list per statement (0 = none, -1 = all)")
 	opts.Binds = 5
 	bf := addReportBindFlags(fs, &opts.Binds)
 	fs.BoolVar(&opts.Sys, "sys", true, "include recursive SYS statements")
