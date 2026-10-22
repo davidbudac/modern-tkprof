@@ -69,6 +69,7 @@ type Statement struct {
 	Text      string        `json:"text"`
 	Len       int           `json:"len"`
 	OCT       int           `json:"commandType"`
+	Command   string        `json:"commandName"`
 	UID       int           `json:"parsingUserId"`
 	LID       int           `json:"privilegeUserId"`
 	MinDep    int           `json:"minDepth"`

@@ -2,17 +2,21 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"time"
+
+	"net"
+	"net/http"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 	"github.com/davidbudac/modern-tkprof/internal/trace"
+	"github.com/davidbudac/modern-tkprof/internal/ui"
 )
 
 var version = "0.1.0-dev"
@@ -22,7 +26,9 @@ func usage() {
 
 Usage:
   mtkprof report <trace.trc> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N] [-sys]
-  mtkprof json   <trace.trc> [-o out.json] [-facts]
+  mtkprof html   <trace.trc> [-o out.html]            self-contained interactive report
+  mtkprof serve  <trace.trc> [-addr 127.0.0.1:8046]   interactive UI in the browser
+  mtkprof json   <trace.trc> [-o out.json] [-facts=false] [-packed]
   mtkprof lint   <trace.trc>
   mtkprof version
 
@@ -41,6 +47,10 @@ func main() {
 		err = cmdReport(args)
 	case "json":
 		err = cmdJSON(args)
+	case "html":
+		err = cmdHTML(args)
+	case "serve":
+		err = cmdServe(args)
 	case "lint":
 		err = cmdLint(args)
 	case "version", "-v", "--version":
@@ -113,6 +123,7 @@ func cmdJSON(args []string) error {
 	fs := flag.NewFlagSet("json", flag.ExitOnError)
 	out := fs.String("o", "", "output file (default stdout)")
 	facts := fs.Bool("facts", true, "include raw fact tables (calls, waits, binds)")
+	packed := fs.Bool("packed", false, "pack fact columns into gzip+base64 blobs (smaller, faster to load)")
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
 	if err != nil {
@@ -123,7 +134,68 @@ func cmdJSON(args []string) error {
 		return err
 	}
 	defer w.Close()
-	return report.JSON(w, m, *facts)
+	return report.JSON(w, m, report.DocOptions{Facts: *facts, Packed: *packed})
+}
+
+func cmdHTML(args []string) error {
+	fs := flag.NewFlagSet("html", flag.ExitOnError)
+	out := fs.String("o", "", "output file (default <trace>.html)")
+	facts := fs.Bool("facts", true, "include raw fact tables (needed for drill-down; omit for huge traces)")
+	file := parseArgs(fs, args)
+	if !ui.Built() {
+		return fmt.Errorf("this binary was built without the web UI (run `make web` and rebuild)")
+	}
+	m, err := buildModel(file)
+	if err != nil {
+		return err
+	}
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true})
+	if err != nil {
+		return err
+	}
+	path := *out
+	if path == "" {
+		path = strings.TrimSuffix(file, ".trc") + ".html"
+	}
+	if err := os.WriteFile(path, []byte(ui.Standalone(doc)), 0o644); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "wrote %s (%.1f MB)\n", path, float64(len(doc))/1e6)
+	return nil
+}
+
+func cmdServe(args []string) error {
+	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	addr := fs.String("addr", "127.0.0.1:8046", "listen address")
+	facts := fs.Bool("facts", true, "include raw fact tables")
+	file := parseArgs(fs, args)
+	m, err := buildModel(file)
+	if err != nil {
+		return err
+	}
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true})
+	if err != nil {
+		return err
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(doc)
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		io.WriteString(w, ui.Index())
+	})
+	ln, err := net.Listen("tcp", *addr)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "mtkprof: serving %s at http://%s/\n", file, ln.Addr())
+	return http.Serve(ln, mux)
 }
 
 func buildModel(path string) (*model.Model, error) {
@@ -251,5 +323,3 @@ func cmdLint(args []string) error {
 	}
 	return nil
 }
-
-var _ = json.Marshal

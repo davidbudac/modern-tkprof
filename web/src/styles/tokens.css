@@ -1,0 +1,60 @@
+/* Design tokens. Chrome is neutral on purpose: hue is reserved for data. */
+:root {
+  color-scheme: light dark;
+
+  --surface: light-dark(oklch(98.4% 0.004 240), oklch(17.5% 0.007 240));
+  --surface-raised: light-dark(oklch(100% 0 none), oklch(20.5% 0.007 240));
+  --surface-sunken: light-dark(oklch(96.5% 0.005 240), oklch(15% 0.007 240));
+  --ink: light-dark(oklch(22% 0.015 240), oklch(92% 0.008 240));
+  --ink-2: light-dark(oklch(46% 0.015 240), oklch(72% 0.01 240));
+  --ink-3: light-dark(oklch(62% 0.012 240), oklch(56% 0.01 240));
+  --hairline: light-dark(oklch(88% 0.006 240), oklch(29% 0.007 240));
+  --hairline-strong: light-dark(oklch(78% 0.008 240), oklch(38% 0.008 240));
+  --wash: color-mix(in oklch, var(--ink) 6%, transparent);
+  --wash-strong: color-mix(in oklch, var(--ink) 11%, transparent);
+  --focus: var(--ink);
+
+  /* data colors: validated categorical slots (dataviz palette), by role */
+  --c-cpu: light-dark(#2a78d6, #3987e5);
+  --c-userio: light-dark(#eb6834, #d95926);
+  --c-sysio: light-dark(#1baf7a, #199e70);
+  --c-commit: light-dark(#eda100, #c98500);
+  --c-concurrency: light-dark(#e87ba4, #d55181);
+  --c-network: light-dark(#008300, #008300);
+  --c-other: light-dark(#6250d6, #9085e9);
+  --c-idle: light-dark(oklch(78% 0.01 240), oklch(42% 0.01 240));
+  --c-unaccounted: light-dark(oklch(90% 0.006 240), oklch(30% 0.008 240));
+  --c-grid: light-dark(#e1e0d9, #2c2c2a);
+  --c-axis: light-dark(#c3c2b7, #383835);
+
+  --s-good: #0ca30c;
+  --s-warning: #fab219;
+  --s-serious: #ec835a;
+  --s-critical: #d03b3b;
+
+  --font-ui: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.375rem;
+  --text-hero: clamp(2rem, 1.5rem + 1.5vw, 2.75rem);
+
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --radius: 3px;
+  --rail-w: 11rem;
+  --inspector-w: clamp(24rem, 36vw, 40rem);
+  --topbar-h: 2.75rem;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 160ms;
+}
+
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }

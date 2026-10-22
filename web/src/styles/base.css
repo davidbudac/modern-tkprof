@@ -1,0 +1,72 @@
+*, *::before, *::after { box-sizing: border-box; min-width: 0; }
+
+:root {
+  interpolate-size: allow-keywords;
+  scrollbar-gutter: stable;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+@media (any-pointer: coarse) { :root { overscroll-behavior-y: auto; } }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--text-md) / 1.45 var(--font-ui);
+}
+
+h1, h2, h3, h4 { text-wrap: balance; margin: 0; font-weight: 600; }
+h1 { font-size: var(--text-xl); }
+h2 { font-size: var(--text-lg); }
+h3 { font-size: var(--text-md); }
+p { margin: 0; }
+
+img, svg, video, canvas { display: block; max-width: 100%; }
+input, textarea, select { font-size: max(16px, 1rem); font-family: inherit; }
+input[type="search"], input[type="text"] {
+  font-size: var(--text-sm);
+  background: var(--surface-raised);
+  color: inherit;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  padding-block: 0.25rem;
+  padding-inline: 0.5rem;
+}
+button, a, [role="button"] { touch-action: manipulation; }
+button, [role="button"] { user-select: none; -webkit-user-select: none; }
+
+button {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: inherit;
+  background: none;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  padding-block: 0.2rem;
+  padding-inline: 0.6rem;
+  cursor: pointer;
+}
+button:active { background: var(--wash-strong); }
+@media (hover: hover) and (pointer: fine) { button:hover { background: var(--wash); } }
+button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+button.link { border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px; color: inherit; }
+button.link:active, button.link:hover { background: none; }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+code, pre, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+pre { margin: 0; white-space: pre-wrap; }
+
+table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: start; padding-block: 0.3rem; padding-inline: 0.5rem; vertical-align: top; }
+th { font-weight: 600; color: var(--ink-2); font-size: var(--text-xs); }
+td.num, th.num { text-align: end; }
+
+::selection { background: color-mix(in oklch, var(--c-cpu) 30%, transparent); }

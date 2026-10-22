@@ -254,7 +254,7 @@ func (b *Builder) Cursor(c trace.CursorHeader) {
 	}
 	sid := b.statement(key, func() Statement {
 		return Statement{Kind: StmtSQL, SQLID: c.SQLID, HV: c.HV, Text: c.Text, Len: c.Len,
-			OCT: c.OCT, UID: c.UID, LID: c.LID, MinDep: c.Dep, FirstLine: c.Line}
+			OCT: c.OCT, Command: ref.CommandName(c.OCT), UID: c.UID, LID: c.LID, MinDep: c.Dep, FirstLine: c.Line}
 	})
 	st := &b.m.Statements[sid]
 	if c.Dep < st.MinDep {
@@ -651,7 +651,7 @@ func (b *Builder) Error(e trace.Error) {
 func (b *Builder) ParseError(p trace.ParseError) {
 	key := "parse-error:" + strconv.FormatUint(textHash(p.Text), 16)
 	sid := b.statement(key, func() Statement {
-		return Statement{Kind: StmtParseError, Text: p.Text, Len: p.Len, OCT: p.OCT, UID: p.UID, LID: p.LID, MinDep: p.Dep, FirstLine: p.Line}
+		return Statement{Kind: StmtParseError, Text: p.Text, Len: p.Len, OCT: p.OCT, Command: ref.CommandName(p.OCT), UID: p.UID, LID: p.LID, MinDep: p.Dep, FirstLine: p.Line}
 	})
 	cur := Cursor{ID: ID(len(b.m.Cursors)), Number: p.Cursor, Statement: sid, Line: p.Line, Dep: p.Dep, Tim: p.Tim, Context: b.context()}
 	b.m.Cursors = append(b.m.Cursors, cur)
