@@ -29,6 +29,7 @@ Usage:
   mtkprof html   <trace.trc> [-o out.html]            self-contained interactive report
   mtkprof serve  <trace.trc> [-addr 127.0.0.1:8046]   interactive UI in the browser
   mtkprof json   <trace.trc> [-o out.json] [-facts=false] [-packed]
+  mtkprof export <trace.trc> [-o dir]                 CSV tables for DuckDB / Excel / Python
   mtkprof lint   <trace.trc>
   mtkprof version
 
@@ -49,6 +50,8 @@ func main() {
 		err = cmdJSON(args)
 	case "html":
 		err = cmdHTML(args)
+	case "export":
+		err = cmdExport(args)
 	case "serve":
 		err = cmdServe(args)
 	case "lint":
@@ -162,6 +165,25 @@ func cmdHTML(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "wrote %s (%.1f MB)\n", path, float64(len(doc))/1e6)
 	return nil
+}
+
+func cmdExport(args []string) error {
+	fs := flag.NewFlagSet("export", flag.ExitOnError)
+	out := fs.String("o", "", "output directory (default <trace>.csv/)")
+	file := parseArgs(fs, args)
+	m, err := buildModel(file)
+	if err != nil {
+		return err
+	}
+	dir := *out
+	if dir == "" {
+		dir = strings.TrimSuffix(file, ".trc") + ".csv"
+	}
+	files, err := report.ExportCSV(m, dir)
+	for _, f := range files {
+		fmt.Fprintln(os.Stderr, "wrote", f)
+	}
+	return err
 }
 
 func cmdServe(args []string) error {
