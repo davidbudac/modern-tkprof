@@ -7,6 +7,7 @@ import { Stat } from '../components/Stat'
 import { DataTable, type Column } from '../components/DataTable'
 import { traceSegments } from '../data/derive'
 import { TimelineChart } from './TimelineChart'
+import { Findings } from './Findings'
 import { roleOfClass } from '../components/colors'
 import type { ProfileRow, StmtStats } from '../data/types'
 
@@ -49,6 +50,8 @@ export function Overview({ doc }: { doc: TraceDoc }) {
         <Stat label="transactions" value={fmtInt(doc.transactions.length)} title="XCTEND lines (commits + rollbacks)" />
         <Stat label="errors" value={fmtInt(doc.errors.length)} />
       </div>
+
+      <Findings doc={doc} />
 
       <section className="section">
         <header><h2>Activity over time</h2><span className="hint">drag the slider below the chart to focus on a window; every view follows</span></header>

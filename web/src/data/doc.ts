@@ -1,6 +1,6 @@
 import type {
   RawDocument, Statement, Cursor, Context, Event, Plan, PlanLine, Transaction, ErrorEvent,
-  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID,
+  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding,
 } from './types'
 import { NONE } from './types'
 import { unpackTable, type NumCol } from './columns'
@@ -55,7 +55,7 @@ export class TraceDoc {
   readonly markers: Marker[]
   readonly diag: Diagnostics
   readonly unknown: { line: number; text: string }[]
-  readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number }
+  readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[] }
 
   readonly hasFacts: boolean
   readonly calls: Calls
@@ -91,7 +91,7 @@ export class TraceDoc {
     this.markers = raw.markers ?? []
     this.diag = raw.diag
     this.unknown = raw.unknown ?? []
-    this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [] }
+    this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [] }
     this.hasFacts = !!raw.facts
     this.calls = calls
     this.waits = waits

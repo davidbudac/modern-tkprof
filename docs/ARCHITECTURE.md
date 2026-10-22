@@ -97,6 +97,35 @@ few seconds. `mtkprof html` inlines the document into the embedded UI page
   elapsed, waits — the unit for "why was *this* execution slow".
 * Generic group-by over facts for the UI dimensions.
 
+#### Findings (`findings.go`)
+
+`Findings(m, Statements(m))` runs fixed rules and returns `[]Finding{Rule,
+Title, Severity, Summary, Statement, ImpactUs, Evidence[]}`, most severe
+first, then by impact. Evidence rows carry a printable label/value plus
+statement / cursor / exec# / call / line ids for linking. Shown in the JSON
+document (`stats.findings`), the text report (FINDINGS, after the statement
+ranking) and on the UI Overview. Thresholds are named constants:
+
+| Rule | Fires when | Constants |
+|---|---|---|
+| `outlier-executions` (per statement) | execution (EXEC + its FETCHes) > 3x the median and > 100 ms; needs >= 3 executions | `OutlierFactor`, `OutlierMinUs`, `OutlierMinExecs` |
+| `plan-change` (per statement) | > 1 plan hash from STAT dumps or EXEC `plh` (0 ignored) | serious when one plan's avg exec >= 3x another's and the statement took >= 100 ms |
+| `hard-parses` | PARSE `mis` per execution > 0.5 for a statement with > 10 executions, or trace-wide with > 10 hard parses | `HardParseRatio`, `HardParseMinExecs`, `HardParseMinTotal` |
+| `parse-per-exec` | PARSE calls per execution > 0.9 with > 10 executions | `ParseExecRatio`, `ParseExecMinExecs` |
+| `hard-closes` | > 10 CLOSE type=0 of statements parsed >= 3 times whose closes are > 50 % type 0 | `HardCloseShare`, `HardCloseMinParses`, `HardCloseMinCount` |
+| `think-time` | idle waits > 30 % of response time | `ThinkTimeShare` |
+| `small-fetches` (per statement) | executions with >= 3 fetches at < 20 rows per fetch, together > 100 fetches and > 1000 rows | `SmallFetchRows`, `SmallFetchMinFetchesPerExec`, `SmallFetchMinFetches`, `SmallFetchMinRows` |
+| `commit-per-row` | > 10 read-write commits at > 0.5 commits per INSERT/UPDATE/DELETE/MERGE execution | `CommitPerDMLRatio`, `CommitMinCount` |
+| `round-trips` | > 100 `SQL*Net message to client` at > 0.5 per row of top-level calls | `RoundTripsPerRow`, `RoundTripsMin` |
+
+Severity: time-based rules map their impact against the response time
+(trace span, or summed session time when sessions overlap): serious >= 25 %
+and >= 1 s, notable >= 5 % and >= 100 ms, else info (`SeriousShare`,
+`SeriousMinUs`, `NotableShare`, `NotableMinUs`). `hard-closes` and
+`round-trips` are count-based (notable from 1,000, serious from 10,000).
+Floors: `commit-per-row` and single-statement `hard-parses` are at least
+notable; `plan-change` is notable or serious as above.
+
 ## Repository layout
 
 ```
