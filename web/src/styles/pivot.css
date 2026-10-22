@@ -1,0 +1,16 @@
+/* Pivot view controls: one filter row above the table. */
+.pv-controls { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); align-items: center; }
+.pv-ctl { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
+.pv-ctl select {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  padding-block: 0.2rem;
+  padding-inline: 0.4rem;
+  max-inline-size: 16rem;
+}
+.pv-ctl select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pv-controls .pv-push { margin-inline-start: auto; }

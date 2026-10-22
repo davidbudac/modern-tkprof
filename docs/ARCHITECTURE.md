@@ -76,6 +76,17 @@ Rules that give the model its meaning:
 * **Wall clock**: `tim` is microseconds from an unspecified origin; every
   `*** <timestamp>` marker re-anchors it.
 
+### internal/report — document for the UI
+
+`BuildDocument` emits format 2: dimension tables as JSON objects, fact tables
+(calls, waits, bind sets, binds) as typed columns. With `Packed`, every
+numeric column of a table is laid out in one little-endian buffer, gzip
+compressed and base64 encoded (`blob`); the column descriptors keep
+`{t, off, n}`. The browser decodes with `DecompressionStream` and creates
+typed-array views, so a 600k-call trace is a 6.5 MB document that loads in a
+few seconds. `mtkprof html` inlines the document into the embedded UI page
+(`internal/ui`); `mtkprof serve` serves it from `/api/doc`.
+
 ### internal/analyze
 
 * Resource profile (Millsap): CPU, each wait event, unaccounted-for, over any

@@ -14,20 +14,32 @@
   with recursive children, per-statement call table (tkprof-compatible
   exclusive numbers), profile, wait detail by object, executions, binds,
   plans, recursive links, errors.
-- JSON document for the UI (`mtkprof json`).
+- JSON document for the UI (`mtkprof json`): dimension tables + fact tables
+  as gzip-packed typed columns (118 MB trace -> 6.5 MB document).
+- **Web UI** (`web/`, Vite + React + TypeScript, embedded in the binary via
+  `mtkprof serve`, standalone via `mtkprof html`): Overview (response-time
+  profile bar, stat strip, activity timeline with window brushing, resource
+  profile, top statements), Statements table + inspector (SQL, response-time
+  profile, self/inclusive call table, executions with binds, plans, recursive
+  links, errors), Waits + event inspector (log histogram, by statement /
+  object / p1), Timeline swimlane of calls, Sessions (contexts, roll-ups,
+  context filter), Pivot (calls or waits × one or two dimensions × measures,
+  CSV download). Light and dark, keyboard navigation in tables.
+- `mtkprof export`: CSV tables (statements, cursors, contexts, events, calls,
+  waits, binds, plan lines, transactions, errors) for DuckDB / Excel / Python.
+- CI workflow: tests, web build check, release binaries on tags.
 - Cross-compiles for linux/amd64, linux/arm64, windows/amd64, aix/ppc64,
   solaris/amd64 (pure Go).
 
 ## Next
 
-1. **Web UI** (`web/`, Vite + TypeScript): overview (profile, timeline),
-   statements table with drill-down, executions with binds, plans with row
-   source stats, waits by event/object/file, recursive tree, session/module
-   dimensions, time-window filtering. Embedded in the binary
-   (`mtkprof serve`) and in a self-contained HTML (`mtkprof html`).
-2. **Dimension slicing API**: generic group-by (statement × event × object ×
-   module × time bucket × exec) exposed to the UI and as `mtkprof export`
-   (CSV / NDJSON for DuckDB, Excel).
+1. **UI polish**: raw trace line viewer (jump to line from any row; needs the
+   server or an embedded line index), resizable inspector, column chooser,
+   URL state (deep links to a statement / window), bind-value search,
+   wait-event scatter over time, "compare two executions".
+2. **Server-side slicing** for huge traces: `serve` answering group-by
+   queries so the browser never holds millions of rows; `-facts=false`
+   documents then stay fully interactive.
 3. **Multi-file input**: follow `TRACE CONTINUES IN FILE`, merge PX slave
    traces with the QC trace, accept directories.
 4. **Memory**: 118 MB trace -> ~600 MB RSS. Compact the fact structs, intern

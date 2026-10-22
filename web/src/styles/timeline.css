@@ -1,0 +1,3 @@
+.chart.lanes { block-size: 100%; }
+.lane-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); font-size: var(--text-sm); }
+.lane-legend .k { display: inline-flex; align-items: center; gap: 0.4rem; }
