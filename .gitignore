@@ -1,0 +1,12 @@
+# build output
+/bin/
+/dist/
+*.exe
+# big perf fixtures (generated, not committed)
+/testdata/big/
+# web
+/web/node_modules/
+/web/dist/
+# editor/os
+.DS_Store
+*.swp

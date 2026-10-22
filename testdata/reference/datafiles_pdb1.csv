@@ -1,0 +1,12 @@
+"FILE#","NAME","TABLESPACE_NAME","FILE_TYPE","ABS_FILE#"
+9,"/u01/oradata/CDB1/pdb1/system01.dbf","SYSTEM","DATAFILE",9
+10,"/u01/oradata/CDB1/pdb1/sysaux01.dbf","SYSAUX","DATAFILE",10
+11,"/u01/oradata/CDB1/pdb1/undotbs01.dbf","UNDOTBS1","DATAFILE",11
+12,"/u01/oradata/CDB1/pdb1/users01.dbf","USERS","DATAFILE",12
+13,"/u01/oradata/CDB1/583AFD1867BE5FF4E0636538A8C06D6E/datafile/o1_mf_soetbs_o8ppqbr3_.dbf","SOETBS","DATAFILE",13
+14,"/u01/oradata/CDB1/583AFD1867BE5FF4E0636538A8C06D6E/datafile/o1_mf_shtbs_o8ppqf26_.dbf","SHTBS","DATAFILE",14
+15,"/u01/oradata/CDB1/pdb1/chaos_ts01.dbf","CHAOS_TS","DATAFILE",15
+16,"/u01/oradata/CDB1/pdb1/orastats_ts01.dbf","ORASTATS_TS","DATAFILE",16
+17,"/u01/oradata/CDB1/pdb1/logbook_app_ts01.dbf","LOGBOOK_APP_TS","DATAFILE",17
+18,"/u01/oradata/CDB1/583AFD1867BE5FF4E0636538A8C06D6E/datafile/o1_mf_rcat_ts_ofms7yjd_.dbf","RCAT_TS","DATAFILE",18
+3,"/u01/oradata/CDB1/pdb1/temp01.dbf","TEMP","TEMPFILE",203

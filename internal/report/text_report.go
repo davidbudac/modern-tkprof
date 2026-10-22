@@ -1,0 +1,642 @@
+package report
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/davidbudac/modern-tkprof/internal/analyze"
+	"github.com/davidbudac/modern-tkprof/internal/model"
+	"github.com/davidbudac/modern-tkprof/internal/ref"
+	"github.com/davidbudac/modern-tkprof/internal/trace"
+)
+
+type textWriter struct {
+	w     *bufio.Writer
+	m     *model.Model
+	o     TextOptions
+	stats []analyze.StmtStats
+	rank  map[model.ID]int // statement -> rank number in the listing
+	loc   *time.Location
+}
+
+func writeText(out io.Writer, m *model.Model, o TextOptions) error {
+	if o.Width < 80 {
+		o.Width = 120
+	}
+	t := &textWriter{w: bufio.NewWriter(out), m: m, o: o, stats: analyze.Statements(m), rank: map[model.ID]int{}, loc: zone(m)}
+	t.header()
+	t.traceProfile()
+	order := t.ranking()
+	for i, sid := range order {
+		t.statement(i+1, sid)
+	}
+	t.footer()
+	return t.w.Flush()
+}
+
+// ---- formatting helpers ---------------------------------------------------
+
+func secs(us int64) string { return fmt.Sprintf("%.3f", float64(us)/1e6) }
+func ms(us float64) string { return fmt.Sprintf("%.3f", us/1e3) }
+
+func commas(n int64) string {
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	s := fmt.Sprint(n)
+	if len(s) > 3 {
+		var b strings.Builder
+		pre := len(s) % 3
+		if pre > 0 {
+			b.WriteString(s[:pre])
+		}
+		for i := pre; i < len(s); i += 3 {
+			if b.Len() > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(s[i : i+3])
+		}
+		s = b.String()
+	}
+	if neg {
+		return "-" + s
+	}
+	return s
+}
+
+func pct(part, total int64) string {
+	if total <= 0 {
+		return "   -  "
+	}
+	return fmt.Sprintf("%5.1f%%", 100*float64(part)/float64(total))
+}
+
+// zone returns the time zone the trace file was written in.
+func zone(m *model.Model) *time.Location {
+	for _, mk := range m.Markers {
+		if mk.HasTime {
+			return mk.Time.Location()
+		}
+	}
+	return time.UTC
+}
+
+func (t *textWriter) wall(us int64) string {
+	if us == 0 {
+		return "-"
+	}
+	return time.UnixMicro(us).In(t.loc).Format("2006-01-02 15:04:05.000")
+}
+
+func (t *textWriter) wallZ(us int64) string {
+	if us == 0 {
+		return "-"
+	}
+	return time.UnixMicro(us).In(t.loc).Format("2006-01-02 15:04:05.000 -07:00")
+}
+
+func dash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
+// preview collapses the statement text to one line of at most max bytes.
+func preview(s string, max int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) > max {
+		if max < 4 {
+			return s[:max]
+		}
+		cut := max - 3
+		for cut > 0 && s[cut]&0xC0 == 0x80 { // do not split a UTF-8 sequence
+			cut--
+		}
+		return s[:cut] + "..."
+	}
+	return s
+}
+
+func (t *textWriter) p(format string, a ...any) { fmt.Fprintf(t.w, format, a...) }
+func (t *textWriter) nl()                       { t.w.WriteByte('\n') }
+func (t *textWriter) rule(c byte) {
+	t.w.WriteString(strings.Repeat(string(c), t.o.Width))
+	t.nl()
+}
+
+// ---- sections -------------------------------------------------------------
+
+func (t *textWriter) header() {
+	m := t.m
+	t.p("mtkprof %s - Oracle SQL trace profile\n", Version)
+	t.rule('=')
+	t.p("Trace file : %s\n", dash(m.File.TraceFile))
+	t.p("Database   : Oracle %s  instance %s  node %s (%s %s)\n", dash(m.File.Version), dash(m.File.Instance), dash(m.File.Node), dash(m.File.SystemName), dash(m.File.Machine))
+	if len(m.Contexts) > 0 {
+		c := m.Contexts[0]
+		t.p("Session    : %s  service %s  module %s  action %s  client id %s  container %s  driver %s\n",
+			dash(c.SessionID), dash(c.Service), dash(c.Module), dash(c.Action), dash(c.ClientID), dash(c.ContainerID), dash(c.ClientDriver))
+		if len(m.Contexts) > 1 {
+			t.p("             (%d context changes in the file: session / module / action switches)\n", len(m.Contexts)-1)
+		}
+	}
+	span := m.Span
+	if span.FirstWallUs != 0 {
+		t.p("Span       : %s -> %s  (%s s)\n", t.wallZ(span.FirstWallUs), t.wallZ(span.LastWallUs), secs(span.Us()))
+	} else {
+		t.p("Span       : tim %d -> %d  (%s s, no wall-clock marker found)\n", span.FirstTim, span.LastTim, secs(span.Us()))
+	}
+	t.p("Volume     : %s lines (%.1f MB)  calls %s  waits %s  cursors %s  statements %s  bind sets %s  plans %s  transactions %s  errors %s\n",
+		commas(int64(m.Diag.Lines)), float64(m.Diag.Bytes)/1e6, commas(int64(len(m.Calls))), commas(int64(len(m.Waits))), commas(int64(len(m.Cursors))),
+		commas(int64(len(m.Statements))), commas(int64(len(m.BindSets))), commas(int64(len(m.Plans))), commas(int64(len(m.Transactions))), commas(int64(len(m.Errors))))
+	var notes []string
+	if m.File.Truncated {
+		notes = append(notes, fmt.Sprintf("trace truncated by max_dump_file_size (%d bytes)", m.File.DumpSizeLimit))
+	}
+	if len(m.File.ContinuedFrom) > 0 {
+		notes = append(notes, "continues an earlier trace file")
+	}
+	if len(m.File.ContinuesIn) > 0 {
+		notes = append(notes, "continues in "+m.File.ContinuesIn[0])
+	}
+	if m.Diag.UnknownLines > 0 {
+		notes = append(notes, fmt.Sprintf("%d unrecognised lines", m.Diag.UnknownLines))
+	}
+	if m.Diag.ImplicitCursors > 0 {
+		notes = append(notes, fmt.Sprintf("%d cursors used before being parsed in this file", m.Diag.ImplicitCursors))
+	}
+	if m.Diag.OrphanCalls > 0 {
+		notes = append(notes, fmt.Sprintf("%d recursive calls without a parent call", m.Diag.OrphanCalls))
+	}
+	if m.Diag.UnattributedWaits > 0 {
+		notes = append(notes, fmt.Sprintf("%d waits after the last call of their cursor", m.Diag.UnattributedWaits))
+	}
+	if len(notes) > 0 {
+		t.p("Notes      : %s\n", strings.Join(notes, "; "))
+	}
+	t.nl()
+}
+
+func (t *textWriter) profileTable(p analyze.Profile, title string) {
+	t.p("%s\n", title)
+	t.rule('-')
+	t.p("%-52s %12s %7s %10s %10s %10s  %s\n", "Component", "Seconds", "%", "Count", "Avg ms", "Max ms", "Class")
+	for _, r := range p.Rows {
+		if r.Us == 0 && r.Count == 0 {
+			continue
+		}
+		name := r.Component
+		if r.Kind == "idle" {
+			name += " (idle)"
+		}
+		if len(name) > 52 {
+			name = name[:49] + "..."
+		}
+		cnt, avg, max := "", "", ""
+		if r.Count > 0 {
+			cnt, avg, max = commas(r.Count), ms(r.AvgUs), ms(float64(r.MaxUs))
+		}
+		t.p("%-52s %12s %6.1f%% %10s %10s %10s  %s\n", name, secs(r.Us), r.Pct, cnt, avg, max, r.Class)
+	}
+	t.rule('-')
+	t.p("%-52s %12s %6.1f%%\n", "Total response time", secs(p.TotalUs), 100.0)
+	t.nl()
+}
+
+func (t *textWriter) traceProfile() {
+	p := analyze.TraceProfile(t.m)
+	t.profileTable(p, "RESOURCE PROFILE - whole trace (response time = trace span; CPU of top-level calls; every wait)")
+}
+
+func (t *textWriter) sortKey(s *analyze.StmtStats) int64 {
+	switch t.o.Sort {
+	case "self":
+		return s.SelfElapsed
+	case "cpu":
+		return s.CPU
+	case "execs":
+		return s.Executions
+	case "disk":
+		return s.AllCalls.Disk
+	case "query":
+		return s.AllCalls.Query
+	case "rows":
+		return s.AllCalls.Rows
+	case "line":
+		return -int64(t.m.Statements[s.ID].FirstLine)
+	}
+	return s.Elapsed + s.IdleUs
+}
+
+func (t *textWriter) include(s *analyze.StmtStats) bool {
+	if s.AllCalls.Count == 0 && s.Errors == 0 {
+		return false
+	}
+	if !t.o.Sys {
+		st := &t.m.Statements[s.ID]
+		if st.UID == 0 && s.MinDep > 0 && st.Kind == model.StmtSQL {
+			return false
+		}
+	}
+	return true
+}
+
+// ranking prints the statement summary and returns the statement order.
+func (t *textWriter) ranking() []model.ID {
+	m := t.m
+	var ids []model.ID
+	for i := range t.stats {
+		if t.include(&t.stats[i]) {
+			ids = append(ids, model.ID(i))
+		}
+	}
+	sort.SliceStable(ids, func(a, b int) bool { return t.sortKey(&t.stats[ids[a]]) > t.sortKey(&t.stats[ids[b]]) })
+	if t.o.Top > 0 && len(ids) > t.o.Top {
+		ids = ids[:t.o.Top]
+	}
+	for i, id := range ids {
+		t.rank[id] = i + 1
+	}
+	span := m.Span.Us()
+	t.p("STATEMENTS BY %s  (elapsed includes recursive children and idle time between the statement's calls)\n", strings.ToUpper(t.o.Sort))
+	t.rule('-')
+	t.p("%4s %11s %6s %11s %10s %9s %11s %9s %11s  %-13s %3s  %s\n", "#", "Elapsed s", "%", "Self s", "CPU s", "Execs", "Rows", "Disk", "Query", "SQL ID", "Dep", "Statement")
+	for i, id := range ids {
+		s := &t.stats[id]
+		st := &m.Statements[id]
+		textW := t.o.Width - 112
+		if textW < 20 {
+			textW = 20
+		}
+		t.p("%4d %11s %6s %11s %10s %9s %11s %9s %11s  %-13s %3d  %s\n", i+1, secs(s.Elapsed+s.IdleUs), pct(s.Elapsed+s.IdleUs, span), secs(s.SelfElapsed), secs(s.CPU),
+			commas(s.Executions), commas(s.AllCalls.Rows), commas(s.AllCalls.Disk), commas(s.AllCalls.Query), t.sqlID(st), s.MinDep, preview(st.Text, textW))
+		for _, ch := range s.Children {
+			cs := &m.Statements[ch.Statement]
+			t.p("%4s %11s %6s %-58s %-13s  %s\n", "", secs(ch.Elapsed), pct(ch.Elapsed, s.Elapsed), fmt.Sprintf("  \\ recursive: %s calls", commas(ch.Calls)), t.sqlID(cs), preview(cs.Text, textW))
+		}
+	}
+	t.nl()
+	return ids
+}
+
+func (t *textWriter) sqlID(st *model.Statement) string {
+	switch st.Kind {
+	case model.StmtSQL:
+		if st.SQLID != "" {
+			return st.SQLID
+		}
+		return fmt.Sprintf("hv:%d", st.HV)
+	case model.StmtCommit:
+		return "(commit)"
+	case model.StmtRollback:
+		return "(rollback)"
+	case model.StmtLob:
+		return "(lob)"
+	case model.StmtRPC:
+		return "(rpc)"
+	case model.StmtUnknown:
+		return "(unknown)"
+	case model.StmtParseError:
+		return "(parse err)"
+	}
+	return "?"
+}
+
+func (t *textWriter) statement(rank int, sid model.ID) {
+	m := t.m
+	s := &t.stats[sid]
+	st := &m.Statements[sid]
+	t.rule('=')
+	plans := "-"
+	if len(s.PlanHashes) > 0 {
+		var hs []string
+		for _, h := range s.PlanHashes {
+			hs = append(hs, fmt.Sprint(h))
+		}
+		plans = strings.Join(hs, ",")
+	} else if len(st.Cursors) > 0 && m.Cursors[st.Cursors[0]].PLH != 0 {
+		plans = fmt.Sprint(m.Cursors[st.Cursors[0]].PLH)
+	}
+	t.p("STATEMENT %d   sql_id %s   hash %d   plan %s   %s   dep %d", rank, t.sqlID(st), st.HV, plans, ref.CommandName(st.OCT), s.MinDep)
+	if s.MaxDep != s.MinDep {
+		t.p("-%d", s.MaxDep)
+	}
+	t.p("   uid %d\n", st.UID)
+	t.p("elapsed %s s (%s of trace)   self %s s   cpu %s s   waits %s s   idle between calls %s s   execs %s   rows %s   cursors %d   errors %d\n",
+		secs(s.Elapsed), strings.TrimSpace(pct(s.Elapsed, m.Span.Us())), secs(s.SelfElapsed), secs(s.CPU), secs(s.WaitUs), secs(s.IdleUs), commas(s.Executions), commas(s.AllCalls.Rows), s.Cursors, s.Errors)
+	if s.FirstWallUs != 0 {
+		t.p("first call %s   last call %s   first line %d\n", t.wall(s.FirstWallUs), t.wall(s.LastWallUs), st.FirstLine)
+	} else {
+		t.p("first line %d\n", st.FirstLine)
+	}
+	if len(st.Cursors) > 0 {
+		c := m.Contexts[m.Cursors[st.Cursors[0]].Context]
+		t.p("module %s   action %s   client id %s   session %s   service %s\n", dash(c.Module), dash(c.Action), dash(c.ClientID), dash(c.SessionID), dash(c.Service))
+	}
+	t.rule('-')
+	t.p("%s\n\n", strings.TrimRight(st.Text, "\n"))
+
+	t.callTable(s)
+	p := analyze.StatementProfile(m, s)
+	t.profileTable(p, fmt.Sprintf("Resource profile - statement %d (response time %s s + %s s idle between calls)", rank, secs(s.Elapsed), secs(s.IdleUs)))
+	t.waitDetail(sid)
+	t.executions(sid, s)
+	t.binds(sid)
+	t.plans(sid, s)
+	t.links(s)
+	t.errors(sid)
+	t.nl()
+}
+
+func (t *textWriter) callTable(s *analyze.StmtStats) {
+	row := func(name string, c analyze.CallStats, hasRes bool) {
+		if c.Count == 0 {
+			return
+		}
+		if hasRes {
+			t.p("%-8s %7s %7s %10s %10s %10s %11s %10s %11s\n", name, commas(c.Count), commas(c.Misses), secs(c.CPU), secs(c.Elapsed), commas(c.Disk), commas(c.Query), commas(c.Current), commas(c.Rows))
+		} else {
+			t.p("%-8s %7s %7s %10s %10s %10s %11s %10s %11s\n", name, commas(c.Count), "-", secs(c.CPU), secs(c.Elapsed), "-", "-", "-", "-")
+		}
+	}
+	t.p("%-8s %7s %7s %10s %10s %10s %11s %10s %11s\n", "call", "count", "misses", "cpu s", "elapsed s", "disk", "query", "current", "rows")
+	t.p("%-8s %7s %7s %10s %10s %10s %11s %10s %11s\n", "--------", "-------", "-------", "----------", "----------", "----------", "-----------", "----------", "-----------")
+	row("Parse", s.Parse, true)
+	row("Execute", s.Exec, true)
+	row("Fetch", s.Fetch, true)
+	row("Close", s.Close, false)
+	row("Other", s.Other, true)
+	t.p("%-8s %7s %7s %10s %10s %10s %11s %10s %11s\n", "--------", "-------", "-------", "----------", "----------", "----------", "-----------", "----------", "-----------")
+	row("Total", s.Total, true)
+	t.nl()
+}
+
+// waitDetail breaks the statement's top I/O events down by object.
+func (t *textWriter) waitDetail(sid model.ID) {
+	m := t.m
+	in := func(w *model.Wait) bool { return w.Statement == sid && !w.Idle && !w.Between }
+	evs := analyze.WaitsByEvent(m, in)
+	shown := 0
+	for _, ev := range evs {
+		if shown >= 3 || ev.Us < 1000 {
+			break
+		}
+		e := &m.Events[ev.Event]
+		byObj := analyze.WaitsBy(m, func(w *model.Wait) bool { return in(w) && w.Event == ev.Event }, func(w *model.Wait) (int64, bool) { return w.ObjID, w.ObjID > 0 })
+		if len(byObj) == 0 {
+			continue
+		}
+		if shown == 0 {
+			t.p("Wait detail by object (obj# from the WAIT lines; map with dba_objects.object_id)\n")
+		}
+		shown++
+		t.p("  %s - %s s in %s waits\n", e.Name, secs(ev.Us), commas(ev.Count))
+		for i, o := range byObj {
+			if i >= 8 {
+				t.p("    ... %d more objects\n", len(byObj)-8)
+				break
+			}
+			t.p("    obj# %-10d %10s s %9s waits %8s ms avg\n", o.Key, secs(o.Us), commas(o.Count), ms(float64(o.Us)/float64(o.Count)))
+		}
+	}
+	if shown > 0 {
+		t.nl()
+	}
+}
+
+func (t *textWriter) executions(sid model.ID, s *analyze.StmtStats) {
+	ex := analyze.Executions(t.m, sid)
+	if len(ex) < 2 {
+		return
+	}
+	var min, max, sum int64
+	var slow *analyze.Execution
+	for i := range ex {
+		e := ex[i].Stats.Elapsed
+		sum += e
+		if i == 0 || e < min {
+			min = e
+		}
+		if e > max {
+			max = e
+			slow = &ex[i]
+		}
+	}
+	t.p("Executions: %d   elapsed min %s s  avg %s s  max %s s", len(ex), secs(min), secs(sum/int64(len(ex))), secs(max))
+	if slow != nil {
+		t.p("   slowest: exec %d of cursor at line %d (%s s, %s rows, %s disk)", slow.ExecNo, t.m.Cursors[slow.Cursor].Line, secs(slow.Stats.Elapsed), commas(slow.Stats.Rows), commas(slow.Stats.Disk))
+	}
+	t.nl()
+	t.nl()
+}
+
+func (t *textWriter) binds(sid model.ID) {
+	if t.o.Binds <= 0 {
+		return
+	}
+	m := t.m
+	n := 0
+	for i := range m.BindSets {
+		bs := &m.BindSets[i]
+		if bs.Statement != sid {
+			continue
+		}
+		if n == 0 {
+			t.p("Bind values (first %d bind sets)\n", t.o.Binds)
+		}
+		n++
+		if n > t.o.Binds {
+			continue
+		}
+		var parts []string
+		for j := bs.First; j < bs.First+bs.N; j++ {
+			b := &m.Binds[j]
+			switch {
+			case b.NoDef:
+				parts = append(parts, fmt.Sprintf(":%d=(same as earlier bind)", b.Pos))
+			case b.IsNull:
+				parts = append(parts, fmt.Sprintf(":%d %s=NULL", b.Pos, b.TypeName))
+			case b.IsDump:
+				parts = append(parts, fmt.Sprintf(":%d %s=<%d-byte dump>", b.Pos, b.TypeName, b.Avl))
+			default:
+				v := b.Value
+				if len(v) > 60 {
+					v = v[:57] + "..."
+				}
+				if b.Mal > 0 {
+					parts = append(parts, fmt.Sprintf(":%d %s[%d]=%q", b.Pos, b.TypeName, b.Mal, v))
+				} else {
+					parts = append(parts, fmt.Sprintf(":%d %s=%q", b.Pos, b.TypeName, v))
+				}
+			}
+		}
+		ela := "-"
+		if bs.Call != model.None {
+			ela = secs(m.Calls[bs.Call].E) + " s exec"
+		}
+		t.p("  line %-8d %-14s %s\n", bs.Line, ela, strings.Join(parts, "  "))
+	}
+	if n > t.o.Binds {
+		t.p("  ... %d more bind sets\n", n-t.o.Binds)
+	}
+	if n > 0 {
+		t.nl()
+	}
+}
+
+func (t *textWriter) plans(sid model.ID, s *analyze.StmtStats) {
+	m := t.m
+	if len(s.Plans) == 0 {
+		return
+	}
+	// print the last dump of each distinct plan hash
+	last := map[uint64]model.ID{}
+	for _, pid := range s.Plans {
+		last[m.Plans[pid].PLH] = pid
+	}
+	for _, h := range s.PlanHashes {
+		pid := last[h]
+		p := &m.Plans[pid]
+		t.p("Execution plan (plan hash %d, row source statistics from STAT lines at line %d; %d dumps of this plan)\n", p.PLH, p.Line, countPlans(m, s, h))
+		t.p("%4s %11s %8s %10s %9s %9s %11s  %s\n", "Id", "Rows", "Starts", "CR", "PR", "PW", "Time ms", "Operation")
+		for i := p.First; i < p.First+p.N; i++ {
+			l := &m.PlanLines[i]
+			op := strings.Repeat(" ", l.Depth) + l.Op
+			if l.Object != "" {
+				op += " " + l.Object
+			}
+			if l.Obj != 0 {
+				op += fmt.Sprintf(" (obj %d)", l.Obj)
+			}
+			if l.Cost >= 0 {
+				op += fmt.Sprintf("  [cost %d card %d]", l.Cost, l.Card)
+			}
+			t.p("%4d %11s %8s %10s %9s %9s %11s  %s\n", l.ID, commas(l.Cnt), commas(l.Str), commas(l.CR), commas(l.PR), commas(l.PW), ms(float64(l.TimeUs)), op)
+		}
+		t.nl()
+	}
+}
+
+func countPlans(m *model.Model, s *analyze.StmtStats, h uint64) int {
+	n := 0
+	for _, pid := range s.Plans {
+		if m.Plans[pid].PLH == h {
+			n++
+		}
+	}
+	return n
+}
+
+func (t *textWriter) links(s *analyze.StmtStats) {
+	m := t.m
+	if len(s.Children) > 0 {
+		t.p("Recursive statements executed by this statement (their time is included above):\n")
+		for _, l := range s.Children {
+			cs := &m.Statements[l.Statement]
+			t.p("  %10s s %6s  %6s calls  %-13s #%-4s %s\n", secs(l.Elapsed), pct(l.Elapsed, s.Elapsed), commas(l.Calls), t.sqlID(cs), rankStr(t.rank[l.Statement]), preview(cs.Text, t.o.Width-60))
+		}
+	}
+	if len(s.Parents) > 0 {
+		t.p("Called recursively from:\n")
+		for _, l := range s.Parents {
+			ps := &m.Statements[l.Statement]
+			t.p("  %10s s %6s calls  %-13s #%-4s %s\n", secs(l.Elapsed), commas(l.Calls), t.sqlID(ps), rankStr(t.rank[l.Statement]), preview(ps.Text, t.o.Width-52))
+		}
+	}
+	if len(s.Children) > 0 || len(s.Parents) > 0 {
+		t.nl()
+	}
+}
+
+func rankStr(r int) string {
+	if r == 0 {
+		return "-"
+	}
+	return fmt.Sprint(r)
+}
+
+func (t *textWriter) errors(sid model.ID) {
+	n := 0
+	for i := range t.m.Errors {
+		e := &t.m.Errors[i]
+		if e.Statement != sid {
+			continue
+		}
+		if n == 0 {
+			t.p("Errors:\n")
+		}
+		n++
+		if n > 10 {
+			continue
+		}
+		kind := "ORA-"
+		if e.ParseError {
+			kind = "parse error ORA-"
+		}
+		t.p("  line %-8d %s%05d at %s\n", e.Line, kind, e.Err, t.wall(e.WallUs))
+	}
+	if n > 10 {
+		t.p("  ... %d more\n", n-10)
+	}
+	if n > 0 {
+		t.nl()
+	}
+}
+
+func (t *textWriter) footer() {
+	m := t.m
+	t.rule('=')
+	if len(m.Transactions) > 0 {
+		var commits, rollbacks, ro int
+		for _, x := range m.Transactions {
+			if x.Rlbk != 0 {
+				rollbacks++
+			} else {
+				commits++
+			}
+			if x.RdOnly != 0 {
+				ro++
+			}
+		}
+		t.p("Transactions: %d commits, %d rollbacks (%d read-only)\n", commits, rollbacks, ro)
+	}
+	if len(m.Contexts) > 1 {
+		t.p("Context changes:\n")
+		for i, c := range m.Contexts {
+			if i > 50 {
+				t.p("  ... %d more\n", len(m.Contexts)-50)
+				break
+			}
+			t.p("  line %-8d session %s  module %s  action %s  client id %s  service %s  container %s\n", c.Line, dash(c.SessionID), dash(c.Module), dash(c.Action), dash(c.ClientID), dash(c.Service), dash(c.ContainerID))
+		}
+	}
+	if len(m.Unknown) > 0 {
+		t.p("Unrecognised lines (first %d of %d):\n", len(m.Unknown), m.Diag.UnknownLines)
+		for _, u := range m.Unknown {
+			if len(u.Text) > 100 {
+				u.Text = u.Text[:97] + "..."
+			}
+			t.p("  %7d: %s\n", u.Line, u.Text)
+		}
+	}
+	t.p("Call kinds: ")
+	kinds := map[trace.CallKind]int{}
+	for i := range m.Calls {
+		kinds[m.Calls[i].Kind]++
+	}
+	var ks []trace.CallKind
+	for k := range kinds {
+		ks = append(ks, k)
+	}
+	sort.Slice(ks, func(i, j int) bool { return ks[i] < ks[j] })
+	for _, k := range ks {
+		t.p("%s=%d ", k, kinds[k])
+	}
+	t.nl()
+}

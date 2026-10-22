@@ -1,0 +1,36 @@
+# Wait events treated as idle (client/think time, background sleeps) until the
+# full v$event_name export (event_name_19c.csv) replaces this list.
+SQL*Net message from client
+SQL*Net message from dblink
+SQL*Net more data from client
+SQL*Net break/reset to client
+pipe get
+PL/SQL lock timer
+jobq slave wait
+rdbms ipc message
+pmon timer
+smon timer
+PX Deq: Execution Msg
+PX Deq: Execute Reply
+PX Deq Credit: send blkd
+PX Deq Credit: need buffer
+PX Deq: Table Q Normal
+PX Deq: Parse Reply
+PX Deq: Join ACK
+PX Deq: Signal ACK EXT
+PX Deq: Slave Session Stats
+PX Idle Wait
+Streams AQ: waiting for messages in the queue
+Streams AQ: waiting for time management or cleanup tasks
+wait for unread message on broadcast channel
+single-task message
+dispatcher timer
+virtual circuit wait
+shared server idle wait
+class slave wait
+VKTM Logical Idle Wait
+EMON slave idle wait
+DIAG idle wait
+LogMiner: client waiting for transaction
+Space Manager: slave idle wait
+watchdog main loop

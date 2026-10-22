@@ -1,0 +1,702 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_133580_mtk_parallel.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 68
+Unix process pid: 133580, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-10-22T11:35:43.817889+00:00 (PDB1(3))
+*** SESSION ID:(51.35751) 2026-10-22T11:35:43.817909+00:00
+*** CLIENT ID:(mtk_client_parallel) 2026-10-22T11:35:43.817912+00:00
+*** SERVICE NAME:(pdb1) 2026-10-22T11:35:43.817915+00:00
+*** MODULE NAME:(mtk_parallel) 2026-10-22T11:35:43.817918+00:00
+*** ACTION NAME:(start) 2026-10-22T11:35:43.817921+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-10-22T11:35:43.817923+00:00
+*** CONTAINER ID:(3) 2026-10-22T11:35:43.817926+00:00
+ 
+WAIT #140692641443888: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819125681
+WAIT #140692641443888: nam='SQL*Net message from client' ela= 122 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819126112
+CLOSE #140692641443888:c=1,e=1,dep=0,type=1,tim=10819126131
+=====================
+PARSING IN CURSOR #140692640455400 len=57 dep=0 uid=165 oct=47 lid=165 tim=10819126792 hv=1635788579 ad='86a36aa8' sqlid='bm29b1dhs09t3'
+BEGIN dbms_application_info.set_action('px_count'); END;
+
+END OF STMT
+PARSE #140692640455400:c=297,e=651,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=10819126792
+*** ACTION NAME:(px_count) 2026-10-22T11:35:43.818839+00:00
+ 
+EXEC #140692640455400:c=27,e=27,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=10819126855
+WAIT #140692640455400: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819126875
+WAIT #140692640455400: nam='SQL*Net message from client' ela= 140 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819127036
+CLOSE #140692640455400:c=4,e=4,dep=0,type=0,tim=10819127057
+=====================
+PARSING IN CURSOR #140692640455400 len=74 dep=0 uid=165 oct=3 lid=165 tim=10819128120 hv=266388888 ad='79222670' sqlid='gqdutdn7y1jcs'
+select /*+ parallel(mtk_orders 4) */ count(*), max(amount) from mtk_orders
+END OF STMT
+PARSE #140692640455400:c=1107,e=1052,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=2662252726,tim=10819128120
+WAIT #140692640455400: nam='PX Deq: Join ACK' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819130132
+WAIT #140692640455400: nam='PX Deq: Join ACK' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819131265
+WAIT #140692640455400: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819131274
+WAIT #140692640455400: nam='PX Deq: Join ACK' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819131281
+WAIT #140692640455400: nam='PX Deq: Parse Reply' ela= 2173 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=10819134292
+WAIT #140692640455400: nam='PX Deq: Parse Reply' ela= 2383 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819136920
+WAIT #140692640455400: nam='PX Deq: Parse Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819136938
+WAIT #140692640455400: nam='PX Deq: Parse Reply' ela= 1750 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819138694
+EXEC #140692640455400:c=1523,e=11164,p=0,cr=5,cu=0,mis=0,r=0,dep=0,og=1,plh=2662252726,tim=10819139321
+WAIT #140692640455400: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819139357
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 6 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139377
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139392
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139468
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139553
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139632
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139662
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139750
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139834
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139915
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139929
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819139994
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140098
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140156
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140170
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140241
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140326
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140393
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140405
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140498
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140576
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140662
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140676
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140741
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140817
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140894
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140906
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819140973
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141074
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141152
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141165
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141262
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141348
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141418
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141430
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141533
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141618
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141702
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141716
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141814
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141899
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141969
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819141982
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142084
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142165
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142237
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142249
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142336
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142386
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142427
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142439
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142477
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142487
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142493
+WAIT #140692640455400: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819142499
+WAIT #140692640455400: nam='PX Deq: Signal ACK EXT' ela= 5 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819143058
+WAIT #140692640455400: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819143073
+WAIT #140692640455400: nam='PX Deq: Signal ACK EXT' ela= 4 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819143082
+WAIT #140692640455400: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819143088
+WAIT #140692640455400: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819143520
+WAIT #140692640455400: nam='PX Deq: Slave Session Stats' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819143536
+WAIT #140692640455400: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819143541
+WAIT #140692640455400: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819143548
+FETCH #140692640455400:c=804,e=4214,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=2662252726,tim=10819143581
+STAT #140692640455400 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=5 pr=0 pw=0 str=1 time=15312 us)'
+STAT #140692640455400 id=2 cnt=4 pid=1 pos=1 obj=0 op='PX COORDINATOR  (cr=5 pr=0 pw=0 str=1 time=14225 us)'
+STAT #140692640455400 id=3 cnt=0 pid=2 pos=1 obj=0 op='PX SEND QC (RANDOM) :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #140692640455400 id=4 cnt=0 pid=3 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #140692640455400 id=5 cnt=0 pid=4 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=500000 card=100000)'
+STAT #140692640455400 id=6 cnt=0 pid=5 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=500000 card=100000)'
+WAIT #140692640455400: nam='SQL*Net message from client' ela= 385 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819144120
+FETCH #140692640455400:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=2662252726,tim=10819144139
+WAIT #140692640455400: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819144148
+WAIT #140692640455400: nam='SQL*Net message from client' ela= 145 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819144299
+CLOSE #140692640455400:c=3,e=3,dep=0,type=1,tim=10819144319
+=====================
+PARSING IN CURSOR #140692640400992 len=60 dep=0 uid=165 oct=47 lid=165 tim=10819144843 hv=1485044840 ad='7920cc08' sqlid='g9myj3jc87z38'
+BEGIN dbms_application_info.set_action('px_group_by'); END;
+
+END OF STMT
+PARSE #140692640400992:c=83,e=515,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=10819144843
+*** ACTION NAME:(px_group_by) 2026-10-22T11:35:43.836894+00:00
+ 
+EXEC #140692640400992:c=0,e=34,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=10819144910
+WAIT #140692640400992: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819144931
+WAIT #140692640400992: nam='SQL*Net message from client' ela= 153 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819145095
+CLOSE #140692640400992:c=4,e=4,dep=0,type=0,tim=10819145117
+=====================
+PARSING IN CURSOR #140692640400992 len=116 dep=0 uid=165 oct=3 lid=165 tim=10819146477 hv=2764381330 ad='79225e88' sqlid='0cw5dgqkca74k'
+select /*+ parallel(o 4) full(o) */ o.status, count(*), sum(o.amount) from mtk_orders o group by o.status order by 1
+END OF STMT
+PARSE #140692640400992:c=493,e=1348,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=2501486902,tim=10819146476
+WAIT #140692640400992: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819147709
+WAIT #140692640400992: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819147744
+WAIT #140692640400992: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819147751
+WAIT #140692640400992: nam='PX Deq: Join ACK' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819147756
+WAIT #140692640400992: nam='oracle thread bootstrap' ela= 10230 pname=5910576 p2=0 p3=0 obj#=-1 tim=10819158073
+WAIT #140692640400992: nam='oracle thread bootstrap' ela= 12 pname=1345335349 p2=0 p3=0 obj#=-1 tim=10819158146
+WAIT #140692640400992: nam='oracle thread bootstrap' ela= 8910 pname=1345335350 p2=0 p3=0 obj#=-1 tim=10819167065
+WAIT #140692640400992: nam='oracle thread bootstrap' ela= 552 pname=1345335351 p2=0 p3=0 obj#=-1 tim=10819167660
+WAIT #140692640400992: nam='PX Deq: Join ACK' ela= 2131 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819169871
+WAIT #140692640400992: nam='PX Deq: Join ACK' ela= 653 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819170552
+WAIT #140692640400992: nam='PX Deq: Join ACK' ela= 22417 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=10819192988
+WAIT #140692640400992: nam='PX Deq: Join ACK' ela= 478 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819193496
+WAIT #140692640400992: nam='PX Deq: Parse Reply' ela= 1202 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819194781
+WAIT #140692640400992: nam='PX Deq: Parse Reply' ela= 1466 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819196296
+WAIT #140692640400992: nam='PX Deq: Parse Reply' ela= 654 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819196964
+WAIT #140692640400992: nam='PX Deq: Parse Reply' ela= 73 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819197049
+WAIT #140692640400992: nam='PX Deq: Parse Reply' ela= 2081 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819199177
+WAIT #140692640400992: nam='PX Deq: Parse Reply' ela= 2120 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819201356
+WAIT #140692640400992: nam='PX Deq: Parse Reply' ela= 34 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819201408
+WAIT #140692640400992: nam='PX Deq: Parse Reply' ela= 2025 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819203443
+EXEC #140692640400992:c=1376,e=57037,p=0,cr=5,cu=0,mis=0,r=0,dep=0,og=1,plh=2501486902,tim=10819203551
+WAIT #140692640400992: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819203580
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 962 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819204558
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819204585
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 143 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=10819204737
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 177 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819204932
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819204950
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 208 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819205166
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819205186
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 204 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819205398
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 15 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=10819205429
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 195 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819205635
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819205650
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 185 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819205843
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819205860
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 219 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819206087
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819206107
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 192 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819206308
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819206324
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 187 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819206519
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 11 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819206546
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 166 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819206723
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 38 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819206776
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 153 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819206938
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 72 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207026
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 60 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207100
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 151 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207266
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 34 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207310
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 132 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207456
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 60 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207531
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 102 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207643
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 96 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207756
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 48 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207815
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 144 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819207974
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 34 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208019
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 158 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208195
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 32 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208237
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 147 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208399
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 11 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208434
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 186 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208632
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 13 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208663
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 164 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208836
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 38 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819208889
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 140 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209040
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 59 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209118
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 121 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209249
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 94 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209359
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 78 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209447
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819209464
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 34 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209508
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 115 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209633
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 25 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209668
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 37 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209713
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 38 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819209768
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 670 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819210449
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 35 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819210506
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 309 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819210858
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819210870
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819210877
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819210891
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 134 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819211030
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819211045
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819211052
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819211059
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 94 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=10819211172
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 107 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819211307
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 6949 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819218267
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 3991 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819222274
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819222412
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819222424
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819222429
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819222435
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 140 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819222580
+FETCH #140692640400992:c=6868,e=19007,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=2501486902,tim=10819222600
+WAIT #140692640400992: nam='SQL*Net message from client' ela= 224 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819222854
+WAIT #140692640400992: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819222874
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819222892
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819222899
+WAIT #140692640400992: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819222905
+WAIT #140692640400992: nam='PX Deq: Signal ACK EXT' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819223637
+WAIT #140692640400992: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819223650
+WAIT #140692640400992: nam='PX Deq: Signal ACK EXT' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819223656
+WAIT #140692640400992: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819223662
+WAIT #140692640400992: nam='PX Deq: Signal ACK EXT' ela= 24242 sleeptime/senderid=3 passes=3 p3=0 obj#=-1 tim=10819247909
+WAIT #140692640400992: nam='PX Deq: Signal ACK EXT' ela= 477 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819248412
+WAIT #140692640400992: nam='PX Deq: Signal ACK EXT' ela= 746 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819249175
+WAIT #140692640400992: nam='PX Deq: Signal ACK EXT' ela= 1616 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=10819250805
+WAIT #140692640400992: nam='PX qref latch' ela= 519 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251364
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251384
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251391
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251397
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251403
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251409
+WAIT #140692640400992: nam='PX qref latch' ela= 0 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251414
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251420
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251426
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251432
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251438
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251444
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251450
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251456
+WAIT #140692640400992: nam='PX qref latch' ela= 0 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251461
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251467
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251473
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251479
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251485
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251490
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251496
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251502
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251508
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251518
+WAIT #140692640400992: nam='PX qref latch' ela= 0 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251524
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251530
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251536
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251542
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251548
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251554
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251560
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251566
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251571
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251577
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251583
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251589
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251595
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251601
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251606
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251612
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251618
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251624
+WAIT #140692640400992: nam='PX qref latch' ela= 0 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251629
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251635
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251641
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251647
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251653
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251658
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251664
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251670
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251676
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251682
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251687
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251693
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251699
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251705
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251710
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251716
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251722
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251730
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251736
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251742
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251748
+WAIT #140692640400992: nam='PX qref latch' ela= 2 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251771
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251778
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251784
+WAIT #140692640400992: nam='PX qref latch' ela= 0 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251789
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251795
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251801
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251807
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251813
+WAIT #140692640400992: nam='PX qref latch' ela= 0 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251818
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251824
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251830
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251836
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251842
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251847
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251853
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251859
+WAIT #140692640400992: nam='PX qref latch' ela= 0 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251864
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251870
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251876
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251890
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251896
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251902
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251907
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251913
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251919
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251925
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251930
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251936
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251942
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251948
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251953
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251959
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251968
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251974
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251980
+WAIT #140692640400992: nam='PX qref latch' ela= 1 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819251986
+WAIT #140692640400992: nam='PX qref latch' ela= 1022 function=2415348976 sleeptime=0 qref=0 obj#=-1 tim=10819253013
+WAIT #140692640400992: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819253040
+WAIT #140692640400992: nam='PX Deq: Slave Session Stats' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819253048
+WAIT #140692640400992: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819253053
+WAIT #140692640400992: nam='PX Deq: Slave Session Stats' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819253059
+WAIT #140692640400992: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819253064
+WAIT #140692640400992: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=10819253069
+WAIT #140692640400992: nam='PX Deq: Slave Session Stats' ela= 14 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=10819253088
+WAIT #140692640400992: nam='PX Deq: Slave Session Stats' ela= 731 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=10819253829
+WAIT #140692640400992: nam='enq: PS - contention' ela= 247 name|mode=1347616774 instance=1 slave ID=7 obj#=-1 tim=10819254095
+WAIT #140692640400992: nam='enq: PS - contention' ela= 803 name|mode=1347616774 instance=1 slave ID=6 obj#=-1 tim=10819254921
+FETCH #140692640400992:c=867,e=32080,p=0,cr=0,cu=0,mis=0,r=5,dep=0,og=1,plh=2501486902,tim=10819254951
+STAT #140692640400992 id=1 cnt=6 pid=0 pos=1 obj=0 op='PX COORDINATOR  (cr=5 pr=0 pw=0 str=1 time=75992 us)'
+STAT #140692640400992 id=2 cnt=0 pid=1 pos=1 obj=0 op='PX SEND QC (ORDER) :TQ10001 (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=60 card=5)'
+STAT #140692640400992 id=3 cnt=0 pid=2 pos=1 obj=0 op='SORT GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=60 card=5)'
+STAT #140692640400992 id=4 cnt=0 pid=3 pos=1 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=60 card=5)'
+STAT #140692640400992 id=5 cnt=0 pid=4 pos=1 obj=0 op='PX SEND RANGE :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=60 card=5)'
+STAT #140692640400992 id=6 cnt=0 pid=5 pos=1 obj=0 op='HASH GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=60 card=5)'
+STAT #140692640400992 id=7 cnt=0 pid=6 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1200000 card=100000)'
+STAT #140692640400992 id=8 cnt=0 pid=7 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1200000 card=100000)'
+WAIT #140692640400992: nam='SQL*Net message from client' ela= 381 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819255558
+CLOSE #140692640400992:c=5,e=5,dep=0,type=1,tim=10819255582
+=====================
+PARSING IN CURSOR #140692640463208 len=332 dep=1 uid=0 oct=3 lid=0 tim=10819255894 hv=2698389488 ad='8c7bcd10' sqlid='acmvv4fhdc9zh'
+select obj#,type#,ctime,mtime,stime, status, dataobj#, flags, oid$, spare1, spare2, spare3, signature, spare7, spare8, spare9, nvl(dflcollid, 16382), creappid, creverid, modappid, modverid, crepatchid, modpatchid from obj$ where owner#=:1 and name=:2 and namespace=:3 and remoteowner is null and linkname is null and subname is null
+END OF STMT
+PARSE #140692640463208:c=51,e=50,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=813480514,tim=10819255893
+BINDS #140692640463208:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=80 off=0
+  kxsbbbfp=7ff58ee5a890  bln=22  avl=03  flg=05
+  value=165
+ Bind#1
+  oacdty=01 mxl=32(12) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=0 off=24
+  kxsbbbfp=7ff58ee5a8a8  bln=32  avl=12  flg=01
+  value="V$PQ_SESSTAT"
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=56
+  kxsbbbfp=7ff58ee5a8c8  bln=22  avl=02  flg=01
+  value=1
+EXEC #140692640463208:c=0,e=129,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=813480514,tim=10819256073
+FETCH #140692640463208:c=0,e=51,p=0,cr=4,cu=0,mis=0,r=0,dep=1,og=4,plh=813480514,tim=10819256132
+STAT #140692640463208 id=1 cnt=0 pid=0 pos=1 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=4 pr=0 pw=0 str=1 time=57 us cost=4 size=111 card=1)'
+STAT #140692640463208 id=2 cnt=0 pid=1 pos=1 obj=37 op='INDEX RANGE SCAN I_OBJ2 (cr=4 pr=0 pw=0 str=1 time=56 us cost=3 size=0 card=1)'
+CLOSE #140692640463208:c=0,e=2,dep=1,type=3,tim=10819256199
+BINDS #140692640463208:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=80 off=0
+  kxsbbbfp=7ff58ee5a090  bln=22  avl=02  flg=05
+  value=1
+ Bind#1
+  oacdty=01 mxl=32(12) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=0 off=24
+  kxsbbbfp=7ff58ee5a0a8  bln=32  avl=12  flg=01
+  value="V$PQ_SESSTAT"
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=56
+  kxsbbbfp=7ff58ee5a0c8  bln=22  avl=02  flg=01
+  value=1
+EXEC #140692640463208:c=0,e=72,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=813480514,tim=10819256325
+WAIT #140692640463208: nam='asynch descriptor resize' ela= 6 outstanding #aio=0 current aio limit=0 new aio limit=128 obj#=37 tim=10819256386
+WAIT #140692640463208: nam='Disk file operations I/O' ela= 67 FileOperation=2 fileno=9 filetype=2 obj#=37 tim=10819256449
+WAIT #140692640463208: nam='db file sequential read' ela= 1502 file#=9 block#=2525 blocks=1 obj#=37 tim=10819257969
+FETCH #140692640463208:c=315,e=1716,p=1,cr=4,cu=0,mis=0,r=1,dep=1,og=4,plh=813480514,tim=10819258048
+CLOSE #140692640463208:c=3,e=3,dep=1,type=3,tim=10819258068
+=====================
+PARSING IN CURSOR #140692641121664 len=191 dep=1 uid=0 oct=3 lid=0 tim=10819259246 hv=1070240621 ad='8c797a40' sqlid='3un99a0zwp4vd'
+select owner#,name,namespace,remoteowner,linkname,p_timestamp,p_obj#, nvl(property,0),subname,type#,flags,d_attrs from dependency$ d, obj$ o where d_obj#=:1 and p_obj#=obj#(+) order by order#
+END OF STMT
+PARSE #140692641121664:c=401,e=564,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819259246
+BINDS #140692641121664:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ee58138  bln=22  avl=03  flg=05
+  value=2090
+EXEC #140692641121664:c=2096,e=2142,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=1475428744,tim=10819261466
+FETCH #140692641121664:c=96,e=96,p=0,cr=7,cu=0,mis=0,r=1,dep=1,og=4,plh=1475428744,tim=10819261583
+FETCH #140692641121664:c=3,e=3,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=1475428744,tim=10819261608
+STAT #140692641121664 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=7 pr=0 pw=0 str=1 time=388 us cost=13 size=552 card=4)'
+STAT #140692641121664 id=2 cnt=1 pid=1 pos=1 obj=0 op='HASH JOIN OUTER (cr=7 pr=0 pw=0 str=1 time=378 us cost=12 size=552 card=4)'
+STAT #140692641121664 id=3 cnt=1 pid=2 pos=1 obj=0 op='NESTED LOOPS OUTER (cr=7 pr=0 pw=0 str=1 time=367 us cost=12 size=552 card=4)'
+STAT #140692641121664 id=4 cnt=1 pid=3 pos=1 obj=0 op='STATISTICS COLLECTOR  (cr=4 pr=0 pw=0 str=1 time=343 us)'
+STAT #140692641121664 id=5 cnt=1 pid=4 pos=1 obj=83 op='TABLE ACCESS BY INDEX ROWID BATCHED DEPENDENCY$ (cr=4 pr=0 pw=0 str=1 time=34 us cost=4 size=108 card=4)'
+STAT #140692641121664 id=6 cnt=1 pid=5 pos=1 obj=85 op='INDEX RANGE SCAN I_DEPENDENCY1 (cr=3 pr=0 pw=0 str=1 time=26 us cost=3 size=0 card=4)'
+STAT #140692641121664 id=7 cnt=1 pid=3 pos=2 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=3 pr=0 pw=0 str=1 time=20 us cost=2 size=111 card=1)'
+STAT #140692641121664 id=8 cnt=1 pid=7 pos=1 obj=36 op='INDEX RANGE SCAN I_OBJ1 (cr=2 pr=0 pw=0 str=1 time=17 us cost=1 size=0 card=1)'
+STAT #140692641121664 id=9 cnt=0 pid=2 pos=2 obj=18 op='TABLE ACCESS FULL OBJ$ (cr=0 pr=0 pw=0 str=0 time=0 us cost=2 size=111 card=1)'
+CLOSE #140692641121664:c=2,e=2,dep=1,type=0,tim=10819261805
+=====================
+PARSING IN CURSOR #140692639329000 len=56 dep=1 uid=0 oct=3 lid=0 tim=10819262088 hv=3993603298 ad='8c788160' sqlid='8swypbbr0m372'
+select order#,columns,types from access$ where d_obj#=:1
+END OF STMT
+PARSE #140692639329000:c=273,e=274,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819262088
+BINDS #140692639329000:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ee58668  bln=22  avl=03  flg=05
+  value=2090
+EXEC #140692639329000:c=0,e=390,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=570326988,tim=10819262523
+FETCH #140692639329000:c=0,e=18,p=0,cr=2,cu=0,mis=0,r=0,dep=1,og=4,plh=570326988,tim=10819262553
+STAT #140692639329000 id=1 cnt=0 pid=0 pos=1 obj=84 op='TABLE ACCESS BY INDEX ROWID BATCHED ACCESS$ (cr=2 pr=0 pw=0 str=1 time=18 us cost=3 size=171 card=3)'
+STAT #140692639329000 id=2 cnt=0 pid=1 pos=1 obj=87 op='INDEX RANGE SCAN I_ACCESS1 (cr=2 pr=0 pw=0 str=1 time=17 us cost=2 size=0 card=3)'
+CLOSE #140692639329000:c=0,e=1,dep=1,type=0,tim=10819262610
+=====================
+PARSING IN CURSOR #140692641121160 len=316 dep=1 uid=0 oct=3 lid=0 tim=10819263274 hv=2851274006 ad='8c68d700' sqlid='6h3cwmunz5z8q'
+select col#, grantee#, privilege#,max(mod(nvl(option$,0),2)), max(bitand(nvl(option$,0), 8) /8), max(bitand(nvl(option$,0), 16) /16), max(bitand(nvl(option$,0),64) /64), max(bitand(nvl(option$,0), 128) /128) from objauth$ where obj#=:1 and col# is not null group by privilege#, col#, grantee# order by col#, grantee#
+END OF STMT
+PARSE #140692641121160:c=253,e=253,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819263274
+BINDS #140692641121160:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58eca4ef0  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692641121160:c=656,e=656,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=2968095032,tim=10819263974
+FETCH #140692641121160:c=32,e=32,p=0,cr=2,cu=0,mis=0,r=0,dep=1,og=4,plh=2968095032,tim=10819264015
+STAT #140692641121160 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT GROUP BY (cr=2 pr=0 pw=0 str=1 time=38 us cost=4 size=16 card=1)'
+STAT #140692641121160 id=2 cnt=0 pid=1 pos=1 obj=61 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJAUTH$ (cr=2 pr=0 pw=0 str=1 time=30 us cost=3 size=16 card=1)'
+STAT #140692641121160 id=3 cnt=0 pid=2 pos=1 obj=62 op='INDEX RANGE SCAN I_OBJAUTH1 (cr=2 pr=0 pw=0 str=1 time=30 us cost=2 size=0 card=1)'
+CLOSE #140692641121160:c=0,e=1,dep=1,type=3,tim=10819264102
+=====================
+PARSING IN CURSOR #140692639336784 len=298 dep=1 uid=0 oct=3 lid=0 tim=10819264303 hv=3498487326 ad='8c6848b8' sqlid='a4n4ayr88dbhy'
+select grantee#,privilege#,nvl(col#,0),max(mod(nvl(option$,0),2)),max(bitand(nvl(option$,0), 8) /8), max(bitand(nvl(option$,0), 16) /16), max(bitand(nvl(option$,0),64) /64), max(bitand(nvl(option$,0), 128) /128) from objauth$ where obj#=:1 group by grantee#,privilege#,nvl(col#,0) order by grantee#
+END OF STMT
+PARSE #140692639336784:c=0,e=190,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819264303
+BINDS #140692639336784:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ed14f08  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692639336784:c=0,e=509,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=2968095032,tim=10819264850
+FETCH #140692639336784:c=0,e=79,p=0,cr=4,cu=0,mis=0,r=1,dep=1,og=4,plh=2968095032,tim=10819264938
+FETCH #140692639336784:c=3,e=3,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=4,plh=2968095032,tim=10819264960
+FETCH #140692639336784:c=3,e=3,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=2968095032,tim=10819264970
+STAT #140692639336784 id=1 cnt=2 pid=0 pos=1 obj=0 op='SORT GROUP BY (cr=4 pr=0 pw=0 str=1 time=81 us cost=4 size=16 card=1)'
+STAT #140692639336784 id=2 cnt=2 pid=1 pos=1 obj=61 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJAUTH$ (cr=4 pr=0 pw=0 str=1 time=53 us cost=3 size=16 card=1)'
+STAT #140692639336784 id=3 cnt=2 pid=2 pos=1 obj=62 op='INDEX RANGE SCAN I_OBJAUTH1 (cr=2 pr=0 pw=0 str=1 time=3 us cost=2 size=0 card=1)'
+CLOSE #140692639336784:c=0,e=0,dep=1,type=3,tim=10819265066
+=====================
+PARSING IN CURSOR #140692639789952 len=141 dep=1 uid=0 oct=3 lid=0 tim=10819265338 hv=793605046 ad='8c526248' sqlid='7nuw4xwrnuwxq'
+select col#,intcol#,toid,version#,packed,intcols,intcol#s,flags, synobj#, nvl(typidcol#, 0) from coltype$ where obj#=:1 order by intcol# desc
+END OF STMT
+PARSE #140692639789952:c=257,e=257,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819265338
+BINDS #140692639789952:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ed14f08  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692639789952:c=519,e=788,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=1720483994,tim=10819266173
+FETCH #140692639789952:c=34,e=34,p=0,cr=3,cu=0,mis=0,r=0,dep=1,og=4,plh=1720483994,tim=10819266220
+STAT #140692639789952 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=3 pr=0 pw=0 str=1 time=35 us cost=3 size=192 card=4)'
+STAT #140692639789952 id=2 cnt=0 pid=1 pos=1 obj=112 op='TABLE ACCESS CLUSTER COLTYPE$ (cr=3 pr=0 pw=0 str=1 time=31 us cost=2 size=192 card=4)'
+STAT #140692639789952 id=3 cnt=1 pid=2 pos=1 obj=3 op='INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 str=1 time=23 us cost=1 size=0 card=1)'
+CLOSE #140692639789952:c=0,e=0,dep=1,type=3,tim=10819266296
+=====================
+PARSING IN CURSOR #140692639400248 len=117 dep=1 uid=0 oct=3 lid=0 tim=10819266509 hv=3141366592 ad='8c50b188' sqlid='9rfqm06xmuwu0'
+select intcol#, toid, version#, intcols, intcol#s, flags, synobj# from subcoltype$ where obj#=:1 order by intcol# asc
+END OF STMT
+PARSE #140692639400248:c=203,e=203,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819266509
+BINDS #140692639400248:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ed03028  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692639400248:c=502,e=502,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=832500465,tim=10819267054
+FETCH #140692639400248:c=7,e=7,p=0,cr=3,cu=0,mis=0,r=0,dep=1,og=4,plh=832500465,tim=10819267073
+STAT #140692639400248 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=3 pr=0 pw=0 str=1 time=9 us cost=3 size=1710 card=38)'
+STAT #140692639400248 id=2 cnt=0 pid=1 pos=1 obj=115 op='TABLE ACCESS CLUSTER SUBCOLTYPE$ (cr=3 pr=0 pw=0 str=1 time=4 us cost=2 size=1710 card=38)'
+STAT #140692639400248 id=3 cnt=1 pid=2 pos=1 obj=3 op='INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 str=1 time=3 us cost=1 size=0 card=1)'
+CLOSE #140692639400248:c=1,e=1,dep=1,type=3,tim=10819267147
+=====================
+PARSING IN CURSOR #140692639656176 len=71 dep=1 uid=0 oct=3 lid=0 tim=10819267352 hv=2470471216 ad='8c5030a8' sqlid='f3g84j69n0tjh'
+select col#,intcol#,ntab# from ntab$ where obj#=:1 order by intcol# asc
+END OF STMT
+PARSE #140692639656176:c=2,e=195,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819267351
+BINDS #140692639656176:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ecf24a8  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692639656176:c=421,e=421,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=914792125,tim=10819267812
+FETCH #140692639656176:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=0,dep=1,og=4,plh=914792125,tim=10819267830
+STAT #140692639656176 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=3 pr=0 pw=0 str=1 time=8 us cost=3 size=28 card=2)'
+STAT #140692639656176 id=2 cnt=0 pid=1 pos=1 obj=117 op='TABLE ACCESS CLUSTER NTAB$ (cr=3 pr=0 pw=0 str=1 time=5 us cost=2 size=28 card=2)'
+STAT #140692639656176 id=3 cnt=1 pid=2 pos=1 obj=3 op='INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 str=1 time=2 us cost=1 size=0 card=1)'
+CLOSE #140692639656176:c=0,e=0,dep=1,type=3,tim=10819267913
+=====================
+PARSING IN CURSOR #140692639647584 len=191 dep=1 uid=0 oct=3 lid=0 tim=10819268185 hv=1930451687 ad='8c4f57e8' sqlid='6qz82dptj0qr7'
+select l.col#, l.intcol#, l.lobj#, l.ind#, l.ts#, l.file#, l.block#, l.chunk, l.pctversion$, l.flags, l.property, l.retention, l.freepools from lob$ l where l.obj# = :1 order by l.intcol# asc
+END OF STMT
+PARSE #140692639647584:c=264,e=264,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819268185
+BINDS #140692639647584:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ecef4c8  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692639647584:c=105,e=593,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=2819763574,tim=10819268826
+FETCH #140692639647584:c=10,e=10,p=0,cr=3,cu=0,mis=0,r=0,dep=1,og=4,plh=2819763574,tim=10819268849
+STAT #140692639647584 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=3 pr=0 pw=0 str=1 time=11 us cost=3 size=102 card=2)'
+STAT #140692639647584 id=2 cnt=0 pid=1 pos=1 obj=109 op='TABLE ACCESS CLUSTER LOB$ (cr=3 pr=0 pw=0 str=1 time=7 us cost=2 size=102 card=2)'
+STAT #140692639647584 id=3 cnt=1 pid=2 pos=1 obj=3 op='INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 str=1 time=3 us cost=1 size=0 card=1)'
+CLOSE #140692639647584:c=2,e=2,dep=1,type=0,tim=10819268939
+=====================
+PARSING IN CURSOR #140692639646984 len=90 dep=1 uid=0 oct=3 lid=0 tim=10819269173 hv=673844243 ad='8afeb978' sqlid='9g485acn2n30m'
+select col#,intcol#,reftyp,stabid,expctoid from refcon$ where obj#=:1 order by intcol# asc
+END OF STMT
+PARSE #140692639646984:c=206,e=206,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819269173
+BINDS #140692639646984:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58eceff68  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692639646984:c=400,e=400,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=3483575214,tim=10819269619
+FETCH #140692639646984:c=10,e=10,p=0,cr=1,cu=0,mis=0,r=0,dep=1,og=4,plh=3483575214,tim=10819269641
+STAT #140692639646984 id=1 cnt=0 pid=0 pos=1 obj=121 op='TABLE ACCESS BY INDEX ROWID REFCON$ (cr=1 pr=0 pw=0 str=1 time=11 us cost=0 size=72 card=1)'
+STAT #140692639646984 id=2 cnt=0 pid=1 pos=1 obj=123 op='INDEX RANGE SCAN I_REFCON2 (cr=1 pr=0 pw=0 str=1 time=10 us cost=0 size=0 card=1)'
+CLOSE #140692639646984:c=0,e=0,dep=1,type=3,tim=10819269696
+=====================
+PARSING IN CURSOR #140692639637448 len=86 dep=1 uid=0 oct=3 lid=0 tim=10819269922 hv=2195287067 ad='8afe40f8' sqlid='32bhha21dkv0v'
+select col#,intcol#,charsetid,charsetform from col$ where obj#=:1 order by intcol# asc
+END OF STMT
+PARSE #140692639637448:c=113,e=216,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819269921
+BINDS #140692639637448:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ecedb80  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692639637448:c=466,e=466,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=3765558045,tim=10819270444
+FETCH #140692639637448:c=14,e=14,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=4,plh=3765558045,tim=10819270469
+FETCH #140692639637448:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=4,plh=3765558045,tim=10819270479
+FETCH #140692639637448:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=4,plh=3765558045,tim=10819270486
+FETCH #140692639637448:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=4,plh=3765558045,tim=10819270492
+FETCH #140692639637448:c=2,e=2,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=3765558045,tim=10819270501
+STAT #140692639637448 id=1 cnt=4 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=3 pr=0 pw=0 str=1 time=14 us cost=3 size=180 card=10)'
+STAT #140692639637448 id=2 cnt=4 pid=1 pos=1 obj=21 op='TABLE ACCESS CLUSTER COL$ (cr=3 pr=0 pw=0 str=1 time=5 us cost=2 size=180 card=10)'
+STAT #140692639637448 id=3 cnt=1 pid=2 pos=1 obj=3 op='INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 str=1 time=3 us cost=1 size=0 card=1)'
+CLOSE #140692639637448:c=0,e=0,dep=1,type=3,tim=10819270577
+=====================
+PARSING IN CURSOR #140692639628256 len=119 dep=1 uid=0 oct=3 lid=0 tim=10819270782 hv=166324347 ad='8afe0050' sqlid='0fr8zhn4ymu3v'
+select intcol#,type,flags,lobcol,objcol,extracol,schemaoid,  elemnum from opqtype$ where obj# = :1 order by intcol# asc
+END OF STMT
+PARSE #140692639628256:c=195,e=195,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819270782
+BINDS #140692639628256:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58eceb640  bln=22  avl=03  flg=05
+  value=2089
+EXEC #140692639628256:c=1066,e=544,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=1231101765,tim=10819271377
+FETCH #140692639628256:c=10,e=10,p=0,cr=1,cu=0,mis=0,r=0,dep=1,og=4,plh=1231101765,tim=10819271399
+STAT #140692639628256 id=1 cnt=0 pid=0 pos=1 obj=124 op='TABLE ACCESS BY INDEX ROWID OPQTYPE$ (cr=1 pr=0 pw=0 str=1 time=10 us cost=2 size=25 card=1)'
+STAT #140692639628256 id=2 cnt=0 pid=1 pos=1 obj=125 op='INDEX RANGE SCAN I_OPQTYPE1 (cr=1 pr=0 pw=0 str=1 time=10 us cost=1 size=0 card=1)'
+CLOSE #140692639628256:c=0,e=0,dep=1,type=3,tim=10819271455
+=====================
+PARSING IN CURSOR #140692639614352 len=226 dep=2 uid=0 oct=3 lid=0 tim=10819271859 hv=1011610568 ad='8c791d10' sqlid='9tgj4g8y4rwy8'
+select type#,blocks,extents,minexts,maxexts,extsize,extpct,user#,iniexts,NVL(lists,65535),NVL(groups,65535),cachehint,hwmincr, NVL(spare1,0),NVL(scanhint,0),NVL(bitmapranges,0) from seg$ where ts#=:1 and file#=:2 and block#=:3
+END OF STMT
+PARSE #140692639614352:c=30,e=30,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=4,plh=3755742892,tim=10819271859
+BINDS #140692639614352:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=72 off=0
+  kxsbbbfp=7ff58ece6250  bln=22  avl=02  flg=05
+  value=1
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7ff58ece6268  bln=22  avl=02  flg=01
+  value=4
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=48
+  kxsbbbfp=7ff58ece6280  bln=22  avl=04  flg=01
+  value=55714
+EXEC #140692639614352:c=112,e=112,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=4,plh=3755742892,tim=10819272030
+FETCH #140692639614352:c=39,e=39,p=0,cr=3,cu=0,mis=0,r=1,dep=2,og=4,plh=3755742892,tim=10819272076
+STAT #140692639614352 id=1 cnt=1 pid=0 pos=1 obj=14 op='TABLE ACCESS CLUSTER SEG$ (cr=3 pr=0 pw=0 str=1 time=38 us cost=2 size=68 card=1)'
+STAT #140692639614352 id=2 cnt=1 pid=1 pos=1 obj=9 op='INDEX UNIQUE SCAN I_FILE#_BLOCK# (cr=2 pr=0 pw=0 str=1 time=23 us cost=1 size=0 card=1)'
+CLOSE #140692639614352:c=49,e=49,dep=2,type=3,tim=10819272137
+=====================
+PARSING IN CURSOR #140692639616624 len=89 dep=1 uid=0 oct=3 lid=0 tim=10819272203 hv=3901160166 ad='8a2cd2b0' sqlid='d7zvk9bn8dyr6'
+select /* QOSD */ /*+ index(do) */ dir_cnt from opt_directive_own$ do where dir_own# = :1
+END OF STMT
+PARSE #140692639616624:c=552,e=552,p=0,cr=3,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10819272203
+BINDS #140692639616624:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7ff58ece5a50  bln=22  avl=11  flg=05
+  value=15399667345355916633
+EXEC #140692639616624:c=130,e=330,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=3646447030,tim=10819272568
+FETCH #140692639616624:c=18,e=18,p=0,cr=1,cu=0,mis=0,r=0,dep=1,og=4,plh=3646447030,tim=10819272594
+STAT #140692639616624 id=1 cnt=0 pid=0 pos=1 obj=702 op='TABLE ACCESS BY INDEX ROWID OPT_DIRECTIVE_OWN$ (cr=1 pr=0 pw=0 str=1 time=19 us cost=1 size=15 card=1)'
+STAT #140692639616624 id=2 cnt=0 pid=1 pos=1 obj=703 op='INDEX UNIQUE SCAN I_OPT_DIRECTIVE_OWN# (cr=1 pr=0 pw=0 str=1 time=18 us cost=0 size=0 card=1)'
+CLOSE #140692639616624:c=1,e=1,dep=1,type=3,tim=10819272654
+=====================
+PARSING IN CURSOR #140692640391416 len=129 dep=0 uid=165 oct=3 lid=165 tim=10819273162 hv=2561200038 ad='78cc7b28' sqlid='df18q3ycajmx6'
+select statistic, last_query from v$pq_sesstat where statistic in ('Queries Parallelized', 'Allocation Height', 'Server Threads')
+END OF STMT
+PARSE #140692640391416:c=14804,e=17569,p=3,cr=56,cu=0,mis=1,r=0,dep=0,og=1,plh=4157282648,tim=10819273162
+EXEC #140692640391416:c=23,e=23,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=4157282648,tim=10819273223
+WAIT #140692640391416: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819273242
+FETCH #140692640391416:c=15,e=15,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=4157282648,tim=10819273268
+WAIT #140692640391416: nam='SQL*Net message from client' ela= 150 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819273438
+WAIT #140692640391416: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819273460
+FETCH #140692640391416:c=14,e=14,p=0,cr=0,cu=0,mis=0,r=2,dep=0,og=1,plh=4157282648,tim=10819273469
+STAT #140692640391416 id=1 cnt=3 pid=0 pos=1 obj=0 op='FIXED TABLE FULL X$KXFPSST (cr=0 pr=0 pw=0 str=1 time=29 us cost=0 size=72 card=3)'
+WAIT #140692640391416: nam='SQL*Net message from client' ela= 220 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10819273726
+CLOSE #140692640391416:c=2,e=2,dep=0,type=0,tim=10819273746
+=====================
+PARSING IN CURSOR #140692640391416 len=55 dep=0 uid=165 oct=42 lid=165 tim=10819273770 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #140692640391416:c=11,e=11,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10819273770
+EXEC #140692640391416:c=127,e=127,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10819273924

@@ -1,0 +1,398 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_134416_mtk_midtrace_start.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 68
+Unix process pid: 134416, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-10-22T11:39:28.369317+00:00 (PDB1(3))
+*** SESSION ID:(51.18220) 2026-10-22T11:39:28.369332+00:00
+*** CLIENT ID:(mtk_client_midtrace_start) 2026-10-22T11:39:28.369336+00:00
+*** SERVICE NAME:(pdb1) 2026-10-22T11:39:28.369340+00:00
+*** MODULE NAME:(mtk_midtrace_start) 2026-10-22T11:39:28.369345+00:00
+*** ACTION NAME:(switch_file_mid_fetch) 2026-10-22T11:39:28.369349+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-10-22T11:39:28.369352+00:00
+*** CONTAINER ID:(3) 2026-10-22T11:39:28.369356+00:00
+ 
+
+*** TRACE CONTINUED FROM FILE /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_134416_mtk_midtrace_start_part1.trc ***
+
+EXEC #139660687088072:c=13,e=13,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=0,plh=0,tim=11043677086
+CLOSE #139660687088072:c=2,e=2,dep=1,type=0,tim=11043677400
+FETCH #139660687918112:c=3,e=3,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677417
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677430
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677442
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677452
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677463
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677474
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677484
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677495
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677506
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677516
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677527
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677538
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677549
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677560
+FETCH #139660687918112:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677570
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677581
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677591
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677602
+FETCH #139660687918112:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677613
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677624
+FETCH #139660687918112:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677634
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677645
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677656
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677667
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677678
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677688
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677699
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677716
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677727
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677738
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677748
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677758
+FETCH #139660687918112:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677768
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677779
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677789
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677799
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677809
+FETCH #139660687918112:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677819
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677830
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677840
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677850
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677860
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677870
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677880
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043677890
+=====================
+PARSING IN CURSOR #139660687088072 len=52 dep=1 uid=165 oct=3 lid=165 tim=11043678057 hv=1760519726 ad='61f05018' sqlid='4wxkvdpnfytjf'
+SELECT COUNT(*) FROM MTK_ORDERS WHERE CUST_ID = :B1 
+END OF STMT
+PARSE #139660687088072:c=139,e=139,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=0,tim=11043678057
+BINDS #139660687088072:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a49580  bln=22  avl=04  flg=05
+  value=34469
+EXEC #139660687088072:c=1805,e=1138,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=3981820700,tim=11043679247
+FETCH #139660687088072:c=14,e=14,p=0,cr=2,cu=0,mis=0,r=1,dep=1,og=1,plh=3981820700,tim=11043679277
+STAT #139660687088072 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=2 pr=0 pw=0 str=1 time=16 us)'
+STAT #139660687088072 id=2 cnt=0 pid=1 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=2 pr=0 pw=0 str=1 time=13 us cost=1 size=5 card=1)'
+CLOSE #139660687088072:c=0,e=0,dep=1,type=3,tim=11043679355
+FETCH #139660687918112:c=2,e=2,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679370
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679383
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679394
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679405
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679417
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679427
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679438
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679448
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679458
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679468
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679478
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679488
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679498
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679508
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679526
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679536
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679546
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679557
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679567
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679577
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679587
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679597
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679607
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679618
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679629
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679640
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679651
+FETCH #139660687918112:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679661
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679672
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679682
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679693
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679703
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679713
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679723
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679733
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679743
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679753
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679763
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679773
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679784
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679794
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679804
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679814
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679824
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679834
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679844
+FETCH #139660687918112:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679854
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679864
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679874
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043679884
+BINDS #139660687088072:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a44070  bln=22  avl=04  flg=05
+  value=67506
+EXEC #139660687088072:c=51,e=52,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=3981820700,tim=11043679948
+FETCH #139660687088072:c=5,e=5,p=0,cr=2,cu=0,mis=0,r=1,dep=1,og=1,plh=3981820700,tim=11043679975
+CLOSE #139660687088072:c=0,e=0,dep=1,type=3,tim=11043679993
+FETCH #139660687918112:c=2,e=2,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680024
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680045
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680057
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680068
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680078
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680088
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680098
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680108
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680119
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680131
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680142
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680153
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680164
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680176
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680187
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680197
+FETCH #139660687918112:c=1,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680207
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680218
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680228
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680238
+FETCH #139660687918112:c=2,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680248
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680260
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680272
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680283
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680293
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680303
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680313
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680323
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680333
+FETCH #139660687918112:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680343
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680354
+FETCH #139660687918112:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680364
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680375
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680385
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680396
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680406
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680416
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680426
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680437
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680448
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680459
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680469
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680479
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680489
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680504
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680514
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680524
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680534
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680544
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680554
+BINDS #139660687088072:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a44070  bln=22  avl=02  flg=05
+  value=100000
+EXEC #139660687088072:c=48,e=48,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=3981820700,tim=11043680614
+FETCH #139660687088072:c=5,e=5,p=0,cr=2,cu=0,mis=0,r=1,dep=1,og=1,plh=3981820700,tim=11043680631
+CLOSE #139660687088072:c=0,e=0,dep=1,type=3,tim=11043680647
+FETCH #139660687918112:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=2503715236,tim=11043680658
+FETCH #139660687918112:c=16,e=16,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=2503715236,tim=11043680685
+STAT #139660687918112 id=1 cnt=151 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=499 pr=0 pw=0 str=1 time=4817 us cost=138 size=2250 card=150)'
+STAT #139660687918112 id=2 cnt=151 pid=1 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=499 pr=0 pw=0 str=1 time=12651 us cost=137 size=2250 card=150)'
+CLOSE #139660687918112:c=1,e=0,dep=1,type=3,tim=11043680774
+EXEC #139660687910608:c=10422,e=10119,p=0,cr=505,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=11043680785
+WAIT #139660687910608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043680806
+WAIT #139660687910608: nam='SQL*Net message from client' ela= 255 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043681075
+CLOSE #139660687910608:c=5,e=5,dep=0,type=0,tim=11043681108
+=====================
+PARSING IN CURSOR #139660687910608 len=74 dep=0 uid=165 oct=47 lid=165 tim=11043681709 hv=1763447245 ad='7491f018' sqlid='ab0qjkpnjs4fd'
+BEGIN dbms_application_info.set_action('part2_cached_cursor_calls'); END;
+
+END OF STMT
+PARSE #139660687910608:c=0,e=582,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=11043681708
+*** ACTION NAME:(part2_cached_cursor_calls) 2026-10-22T11:39:28.373752+00:00
+ 
+EXEC #139660687910608:c=0,e=26,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=11043681768
+WAIT #139660687910608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043681790
+WAIT #139660687910608: nam='SQL*Net message from client' ela= 126 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043681927
+CLOSE #139660687910608:c=4,e=4,dep=0,type=0,tim=11043681944
+=====================
+PARSING IN CURSOR #139660687910608 len=20 dep=0 uid=165 oct=47 lid=165 tim=11043681993 hv=3471937799 ad='78f7e158' sqlid='bt36bbg7g3487'
+BEGIN :c := 3; END;
+
+END OF STMT
+PARSE #139660687910608:c=24,e=24,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=11043681993
+BINDS #139660687910608:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1400000 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a4afe8  bln=22  avl=02  flg=05
+  value=2
+WAIT #139660687910608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043682083
+EXEC #139660687910608:c=52,e=52,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=11043682091
+WAIT #139660687910608: nam='SQL*Net message from client' ela= 108 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043682210
+CLOSE #139660687910608:c=4,e=4,dep=0,type=1,tim=11043682226
+PARSE #139660687944424:c=6,e=6,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=11043682242
+BINDS #139660687944424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7f0549a4afd0  bln=22  avl=02  flg=05
+  value=3
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1400000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7f0549a4afe8  bln=22  avl=02  flg=01
+  value=6
+BINDS #139660687088072:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a2df08  bln=22  avl=02  flg=05
+  value=3
+EXEC #139660687088072:c=34,e=34,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=3981820700,tim=11043682350
+FETCH #139660687088072:c=7,e=7,p=0,cr=2,cu=0,mis=0,r=1,dep=1,og=1,plh=3981820700,tim=11043682365
+CLOSE #139660687088072:c=1,e=1,dep=1,type=3,tim=11043682379
+WAIT #139660687944424: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043682386
+EXEC #139660687944424:c=142,e=142,p=0,cr=2,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=11043682393
+WAIT #139660687944424: nam='SQL*Net message from client' ela= 100 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043682503
+CLOSE #139660687944424:c=3,e=3,dep=0,type=3,tim=11043682519
+=====================
+PARSING IN CURSOR #139660687921624 len=20 dep=0 uid=165 oct=47 lid=165 tim=11043682558 hv=2240607839 ad='78fab7d8' sqlid='at504x22stxkz'
+BEGIN :c := 4; END;
+
+END OF STMT
+PARSE #139660687921624:c=29,e=29,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=11043682557
+BINDS #139660687921624:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1400000 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a4afe8  bln=22  avl=02  flg=05
+  value=3
+WAIT #139660687921624: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043682625
+EXEC #139660687921624:c=46,e=46,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=11043682632
+WAIT #139660687921624: nam='SQL*Net message from client' ela= 105 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043682747
+CLOSE #139660687921624:c=4,e=3,dep=0,type=1,tim=11043682762
+PARSE #139660687944424:c=5,e=5,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=11043682777
+BINDS #139660687944424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7f0549a49568  bln=22  avl=02  flg=05
+  value=4
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1400000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7f0549a49580  bln=22  avl=02  flg=01
+  value=5
+BINDS #139660687088072:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a2cef0  bln=22  avl=02  flg=05
+  value=4
+EXEC #139660687088072:c=33,e=33,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=3981820700,tim=11043682877
+FETCH #139660687088072:c=5,e=5,p=0,cr=2,cu=0,mis=0,r=1,dep=1,og=1,plh=3981820700,tim=11043682890
+CLOSE #139660687088072:c=1,e=1,dep=1,type=3,tim=11043682903
+WAIT #139660687944424: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043682910
+EXEC #139660687944424:c=130,e=130,p=0,cr=2,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=11043682916
+WAIT #139660687944424: nam='SQL*Net message from client' ela= 134 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043683060
+CLOSE #139660687944424:c=0,e=3,dep=0,type=3,tim=11043683080
+=====================
+PARSING IN CURSOR #139660687919952 len=20 dep=0 uid=165 oct=47 lid=165 tim=11043683120 hv=1502044133 ad='74f0d6f0' sqlid='1p8n6t1csfrz5'
+BEGIN :c := 5; END;
+
+END OF STMT
+PARSE #139660687919952:c=0,e=30,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=11043683120
+BINDS #139660687919952:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1400000 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a4afe8  bln=22  avl=02  flg=05
+  value=4
+WAIT #139660687919952: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043683187
+EXEC #139660687919952:c=0,e=45,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=11043683194
+WAIT #139660687919952: nam='SQL*Net message from client' ela= 166 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043683371
+CLOSE #139660687919952:c=3,e=3,dep=0,type=0,tim=11043683387
+PARSE #139660687944424:c=4,e=4,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=11043683402
+BINDS #139660687944424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7f0549a49568  bln=22  avl=02  flg=05
+  value=5
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1400000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7f0549a49580  bln=22  avl=02  flg=01
+  value=5
+BINDS #139660687088072:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a2cef0  bln=22  avl=02  flg=05
+  value=5
+EXEC #139660687088072:c=33,e=33,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=3981820700,tim=11043683506
+FETCH #139660687088072:c=5,e=5,p=0,cr=2,cu=0,mis=0,r=1,dep=1,og=1,plh=3981820700,tim=11043683519
+CLOSE #139660687088072:c=1,e=1,dep=1,type=3,tim=11043683532
+WAIT #139660687944424: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043683539
+EXEC #139660687944424:c=134,e=134,p=0,cr=2,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=11043683545
+WAIT #139660687944424: nam='SQL*Net message from client' ela= 102 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043683656
+CLOSE #139660687944424:c=3,e=3,dep=0,type=3,tim=11043683671
+=====================
+PARSING IN CURSOR #139660687919952 len=26 dep=0 uid=165 oct=3 lid=165 tim=11043683695 hv=991376949 ad='78ef9ad8' sqlid='9nn0huhxjfdjp'
+SELECT :n n FROM SYS.DUAL
+END OF STMT
+PARSE #139660687919952:c=15,e=15,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=1388734953,tim=11043683695
+BINDS #139660687919952:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0549a4afe8  bln=22  avl=02  flg=05
+  value=5
+EXEC #139660687919952:c=33,e=33,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=1388734953,tim=11043683755
+WAIT #139660687919952: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043683766
+FETCH #139660687919952:c=2,e=2,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=1388734953,tim=11043683776
+STAT #139660687919952 id=1 cnt=1 pid=0 pos=1 obj=0 op='FAST DUAL  (cr=0 pr=0 pw=0 str=1 time=0 us cost=2 size=0 card=1)'
+WAIT #139660687919952: nam='SQL*Net message from client' ela= 90 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043683896
+FETCH #139660687919952:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=1388734953,tim=11043683908
+WAIT #139660687919952: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043683916
+WAIT #139660687919952: nam='SQL*Net message from client' ela= 173 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=11043684094
+CLOSE #139660687919952:c=2,e=2,dep=0,type=1,tim=11043684111
+=====================
+PARSING IN CURSOR #139660687092456 len=55 dep=0 uid=165 oct=42 lid=165 tim=11043684129 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #139660687092456:c=10,e=10,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=11043684129
+EXEC #139660687092456:c=106,e=106,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=11043684260

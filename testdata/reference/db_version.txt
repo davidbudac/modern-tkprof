@@ -1,0 +1,22 @@
+
+BANNER_FULL
+------------------------------------------------------------------------------------------------------------------------
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+
+
+NAME                           OPEN_MODE      CON_ID
+------------------------------ ---------- ----------
+PDB1                           READ WRITE          3
+
+NAME                           VALUE
+------------------------------ ------------------------------
+db_block_size                  8192
+compatible                     19.0.0
+db_files                       200
+session_cached_cursors         50
+max_dump_file_size             unlimited
+
+HOST_NAME                                                        INSTANCE_NAME    VERSION_FULL
+---------------------------------------------------------------- ---------------- -----------------
+ol9-19-dg1.localdomain                                           cdb1             19.27.0.0.0

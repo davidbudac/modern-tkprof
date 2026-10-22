@@ -1,0 +1,2063 @@
+"EVENT#","NAME","WAIT_CLASS","WAIT_CLASS_ID","PARAMETER1","PARAMETER2","PARAMETER3"
+0,"null event","Other",1893977003,,,
+1,"logout restrictor","Concurrency",3875070507,,,
+2,"VKTM Logical Idle Wait","Idle",2723168908,,,
+3,"VKTM Init Wait for GSGA","Idle",2723168908,,,
+4,"IORM Scheduler Slave Idle Wait","Idle",2723168908,,,
+5,"acknowledge over PGA limit","Scheduler",2396326234,"limit","margin","growth"
+6,"Parameter File I/O","User I/O",1740759767,"blkno","#blks","read/write"
+7,"rdbms ipc message","Idle",2723168908,"timeout",,
+8,"remote db operation","Network",2000153315,"clientid","operation","timeout"
+9,"remote db file read","Network",2000153315,"clientid","count","intr"
+10,"remote db file write","Network",2000153315,"clientid","count","intr"
+11,"io done","System I/O",4108307767,"msg ptr",,
+12,"i/o slave wait","Idle",2723168908,"msg ptr",,
+13,"RMAN Disk slave I/O","System I/O",4108307767,"wait count","wait flags","timeout"
+14,"RMAN Tape slave I/O","System I/O",4108307767,"tape operation","operation flags","timeout"
+15,"DBWR slave I/O","System I/O",4108307767,"wait count","wait flags","timeout"
+16,"LGWR slave I/O","System I/O",4108307767,"wait count","wait flags","timeout"
+17,"Archiver slave I/O","System I/O",4108307767,"wait count","wait flags","timeout"
+18,"Disk file operations I/O","User I/O",1740759767,"FileOperation","fileno","filetype"
+19,"Disk file I/O Calibration","User I/O",1740759767,"count",,
+20,"Disk file Mirror Read","User I/O",1740759767,"fileno","blkno","filetype"
+21,"Disk file Mirror/Media Repair Write","User I/O",1740759767,"fileno","blkno","filetype"
+22,"direct path sync","User I/O",1740759767,"File number","Flags",
+23,"Clonedb bitmap file write","System I/O",4108307767,"blkno","size",
+24,"Datapump dump file I/O","User I/O",1740759767,"count","intr","timeout"
+25,"dbms_file_transfer I/O","User I/O",1740759767,"count","intr","timeout"
+26,"DG Broker configuration file I/O","User I/O",1740759767,"count","intr","timeout"
+27,"Data file init write","User I/O",1740759767,"count","intr","timeout"
+28,"Log file init write","User I/O",1740759767,"count","intr","timeout"
+29,"Log archive I/O","System I/O",4108307767,"count","intr","timeout"
+30,"RMAN backup & recovery I/O","System I/O",4108307767,"count","intr","timeout"
+31,"RMAN lost write reread","System I/O",4108307767,"count","intr","timeout"
+32,"Standby redo I/O","System I/O",4108307767,"count","intr","timeout"
+33,"Network file transfer","System I/O",4108307767,"count","intr","timeout"
+34,"Pluggable Database file copy","User I/O",1740759767,"count","intr","timeout"
+35,"File Copy","User I/O",1740759767,"count","intr","timeout"
+36,"Backup: MML initialization","Administrative",4166625743,,,
+37,"Backup: MML v1 open backup piece","Administrative",4166625743,,,
+38,"Backup: MML v1 read backup piece","Administrative",4166625743,,,
+39,"Backup: MML v1 write backup piece","Administrative",4166625743,,,
+40,"Backup: MML v1 close backup piece","Administrative",4166625743,,,
+41,"Backup: MML v1 query backup piece","Administrative",4166625743,,,
+42,"Backup: MML v1 delete backup piece","Administrative",4166625743,,,
+43,"Backup: MML create a backup piece","Administrative",4166625743,,,
+44,"Backup: MML commit backup piece","Administrative",4166625743,,,
+45,"Backup: MML command to channel","Administrative",4166625743,,,
+46,"Backup: MML shutdown","Administrative",4166625743,,,
+47,"Backup: MML obtain textual error","Administrative",4166625743,,,
+48,"Backup: MML query backup piece","Administrative",4166625743,,,
+49,"Backup: MML extended initialization","Administrative",4166625743,,,
+50,"Backup: MML read backup piece","Administrative",4166625743,,,
+51,"Backup: MML delete backup piece","Administrative",4166625743,,,
+52,"Backup: MML restore backup piece","Administrative",4166625743,,,
+53,"Backup: MML write backup piece","Administrative",4166625743,,,
+54,"Backup: MML proxy initialize backup","Administrative",4166625743,,,
+55,"Backup: MML proxy cancel","Administrative",4166625743,,,
+56,"Backup: MML proxy commit backup piece","Administrative",4166625743,,,
+57,"Backup: MML proxy session end","Administrative",4166625743,,,
+58,"Backup: MML datafile proxy backup?","Administrative",4166625743,,,
+59,"Backup: MML datafile proxy restore?","Administrative",4166625743,,,
+60,"Backup: MML proxy initialize restore","Administrative",4166625743,,,
+61,"Backup: MML proxy start data movement","Administrative",4166625743,,,
+62,"Backup: MML data movement done?","Administrative",4166625743,,,
+63,"Backup: MML proxy prepare to start","Administrative",4166625743,,,
+64,"Backup: MML obtain a direct buffer","Administrative",4166625743,,,
+65,"Backup: MML release a direct buffer","Administrative",4166625743,,,
+66,"Backup: MML get base address","Administrative",4166625743,,,
+67,"Backup: MML query for direct buffers","Administrative",4166625743,,,
+68,"OFS Receive Queue","Idle",2723168908,,,
+69,"OFS operation completion","Administrative",4166625743,,,
+70,"OFS idle","Idle",2723168908,,,
+71,"VKRM Idle","Idle",2723168908,,,
+72,"resmgr: redo throttle","Scheduler",2396326234,,,
+73,"wait for unread message on broadcast channel","Idle",2723168908,"channel context","channel handle",
+74,"wait for unread message on multiple broadcast channels","Idle",2723168908,"channel context","channel handle count",
+75,"class slave wait","Idle",2723168908,"slave id",,
+76,"RMA: IPC0 completion sync","Idle",2723168908,"send count",,
+77,"IPC group service call","Network",2000153315,"function id",,
+78,"PING","Idle",2723168908,,,
+79,"Service operation completion","Cluster",3871361733,,,
+80,"service monitor: inst recovery completion","Cluster",3871361733,,,
+81,"watchdog main loop","Idle",2723168908,,,
+82,"process in prespawned state","Idle",2723168908,,,
+83,"BA: Performance API","Administrative",4166625743,,,
+84,"File Repopulation Write","System I/O",4108307767,"filename_hash","blkno",
+85,"pmon timer","Idle",2723168908,"duration",,
+86,"pman timer","Idle",2723168908,,,
+87,"latch: MGA shared context root latch","Concurrency",3875070507,"address","number","why"
+88,"latch: MGA shared context latch","Concurrency",3875070507,"address","number","why"
+89,"latch: MGA heap latch","Concurrency",3875070507,"address","number","why"
+90,"latch: MGA pid alloc latch","Concurrency",3875070507,"address","number","why"
+91,"latch: MGA asr alloc latch","Concurrency",3875070507,"address","number","why"
+92,"DNFS disp IO slave idle","Idle",2723168908,,,
+93,"DIAG idle wait","Idle",2723168908,"component","where","wait time(millisec)"
+94,"ges remote message","Idle",2723168908,"waittime","loop","p3"
+95,"enq: RI - Reader Farm SQL Isolation","Concurrency",3875070507,"name|mode","0","0"
+96,"SCM slave idle","Idle",2723168908,,,
+97,"LMS CR slave timer","Idle",2723168908,"type",,
+98,"gcs remote message","Idle",2723168908,"waittime","poll","event"
+99,"gcs yield cpu","Idle",2723168908,,,
+100,"heartbeat monitor sleep","Idle",2723168908,,,
+101,"GCR sleep","Idle",2723168908,,,
+102,"PBR logfile IO","System I/O",4108307767,"File ID","blk","nbytes"
+103,"PBR logfile block write","System I/O",4108307767,"File ID","blk","pbridx"
+104,"SGA: MMAN sleep for component shrink","Idle",2723168908,"component id","current size","target size"
+105,"retry contact SCN lock master","Cluster",3871361733,,,
+106,"control file sequential read","System I/O",4108307767,"file#","block#","blocks"
+107,"control file single write","System I/O",4108307767,"file#","block#","blocks"
+108,"control file parallel write","System I/O",4108307767,"files","block#","requests"
+109,"control file backup creation","Administrative",4166625743,,,
+110,"Shared IO Pool Memory","Concurrency",3875070507,,,
+111,"Shared IO Pool IO Completion","User I/O",1740759767,,,
+112,"enq: PW - flush prewarm buffers","Application",4217450380,"name|mode","0","0"
+113,"latch: cache buffers chains","Concurrency",3875070507,"address","number","why"
+114,"free buffer waits","Configuration",3290255840,"file#","block#","set-id#"
+115,"local write wait","User I/O",1740759767,"file#","block#",
+116,"checkpoint completed","Configuration",3290255840,,,
+117,"write complete waits","Configuration",3290255840,"file#","block#",
+118,"write complete waits: flash cache","Configuration",3290255840,"file#","block#",
+119,"buffer read retry","User I/O",1740759767,"file#","block#",
+120,"buffer busy waits","Concurrency",3875070507,"file#","block#","class#"
+121,"gc buffer busy acquire","Cluster",3871361733,"file#","block#","class#"
+122,"gc buffer busy release","Cluster",3871361733,"file#","block#","class#"
+123,"read by other session","User I/O",1740759767,"file#","block#","class#"
+124,"multiple dbwriter suspend/resume for file offline","Administrative",4166625743,,,
+125,"recovery read","System I/O",4108307767,,,
+126,"pi renounce write complete","Cluster",3871361733,"file#","block#",
+127,"db flash cache single block physical read","User I/O",1740759767,,,
+128,"db flash cache multiblock physical read","User I/O",1740759767,,,
+129,"db flash cache write","User I/O",1740759767,,,
+130,"db flash cache invalidate wait","Concurrency",3875070507,"file#","block#",
+131,"db flash cache dynamic disabling wait","Administrative",4166625743,,,
+132,"remote log force - commit","Commit",3386400367,"thread#","thread scn","session scn"
+133,"remote log force - buffer update","Cluster",3871361733,"file#","block#","class#"
+134,"remote log force - buffer read","Cluster",3871361733,"file#","block#","class#"
+135,"remote log force - SCN range","Cluster",3871361733,"file#","block#","class#"
+136,"remote log force - session cleanout","Cluster",3871361733,"thread#","thread scn","session scn"
+137,"DBWR timer","Idle",2723168908,,,
+138,"enq: RO - contention","Application",4217450380,"name|mode","2","0"
+139,"enq: RO - fast object reuse","Application",4217450380,"name|mode","2","0"
+140,"enq: KO - fast object checkpoint","Application",4217450380,"name|mode","2","0"
+141,"Data Guard network buffer stall reap","Network",2000153315,,,
+142,"Data Guard: Gap Manager","Idle",2723168908,,,
+143,"Data Guard: controlfile update","Idle",2723168908,,,
+144,"MRP redo arrival","Idle",2723168908,,,
+145,"RFS sequential i/o","System I/O",4108307767,,,
+146,"RFS random i/o","System I/O",4108307767,,,
+147,"RFS write","System I/O",4108307767,,,
+148,"Data Guard: Timer","Idle",2723168908,,,
+149,"ARCH wait for net re-connect","Network",2000153315,,,
+150,"ARCH wait for netserver start","Network",2000153315,,,
+151,"LNS wait on LGWR","Network",2000153315,,,
+152,"LGWR wait on LNS","Network",2000153315,,,
+153,"ARCH wait for netserver init 2","Network",2000153315,,,
+154,"ARCH wait for flow-control","Network",2000153315,,,
+155,"ARCH wait for netserver detach","Network",2000153315,,,
+156,"LNS ASYNC archive log","Idle",2723168908,,,
+157,"LNS ASYNC dest activation","Idle",2723168908,,,
+158,"LNS ASYNC end of log","Idle",2723168908,,,
+159,"log file sequential read","System I/O",4108307767,"log#","block#","blocks"
+160,"log file single write","System I/O",4108307767,"log#","block#","blocks"
+161,"log file parallel write","System I/O",4108307767,"files","blocks","requests"
+162,"log file pmem persist write","System I/O",4108307767,"thread","group","member"
+163,"log file pmem persist read","System I/O",4108307767,"thread","group","member"
+164,"latch: redo writing","Configuration",3290255840,"address","number","why"
+165,"latch: redo copy","Configuration",3290255840,"address","number","why"
+166,"log buffer space","Configuration",3290255840,,,
+167,"log file switch (checkpoint incomplete)","Configuration",3290255840,,,
+168,"log file switch (private strand flush incomplete)","Configuration",3290255840,,,
+169,"log file switch (archiving needed)","Configuration",3290255840,,,
+170,"switch logfile command","Administrative",4166625743,,,
+171,"log file switch completion","Configuration",3290255840,,,
+172,"log file sync","Commit",3386400367,"buffer#","sync scn",
+173,"log file sync: SCN ordering","Concurrency",3875070507,"buffer#","sync scn",
+174,"simulated log write delay","Idle",2723168908,,,
+175,"heartbeat redo informer","Idle",2723168908,,,
+176,"LGWR real time apply sync","Idle",2723168908,,,
+177,"LGWR worker group idle","Idle",2723168908,"group_id","slave_id",
+178,"remote log force - log switch/recovery","Cluster",3871361733,"thread#","thread SCN","force SCN"
+179,"db file sequential read","User I/O",1740759767,"file#","block#","blocks"
+180,"db file scattered read","User I/O",1740759767,"file#","block#","blocks"
+181,"db file single write","User I/O",1740759767,"file#","block#","blocks"
+182,"db file parallel write","System I/O",4108307767,"requests","interrupt","timeout"
+183,"db file async I/O submit","System I/O",4108307767,"requests","interrupt","timeout"
+184,"db file parallel read","User I/O",1740759767,"files","blocks","requests"
+185,"enq: MV - datafile move","Administrative",4166625743,"name|mode","type","file #"
+186,"gc current request","Cluster",3871361733,"file#","block#","id#"
+187,"gc cr request","Cluster",3871361733,"file#","block#","class#"
+188,"gc cr disk request","Cluster",3871361733,"file#","block#","class#"
+189,"gc cr multi block request","Cluster",3871361733,"file#","block#","class#"
+190,"gc cr multi block mixed","Cluster",3871361733,,,
+191,"gc cr multi block grant","Cluster",3871361733,,,
+192,"gc current multi block request","Cluster",3871361733,"file#","block#","id#"
+193,"gc block recovery request","Cluster",3871361733,"file#","block#","class#"
+194,"gc imc multi block request","Cluster",3871361733,"file#","block#",
+195,"gc imc multi block quiesce","Cluster",3871361733,"file#","block#",
+196,"gc cr block remote read","Cluster",3871361733,"file#","block#","class#"
+197,"gc cr block 2-way","Cluster",3871361733,,,
+198,"gc cr block 3-way","Cluster",3871361733,,,
+199,"gc cr block busy","Cluster",3871361733,,,
+200,"gc cr block congested","Cluster",3871361733,,,
+201,"gc cr failure","Cluster",3871361733,,,
+202,"gc cr block lost","Cluster",3871361733,,,
+203,"gc current block 2-way","Cluster",3871361733,,,
+204,"gc current block 3-way","Cluster",3871361733,,,
+205,"gc current block busy","Cluster",3871361733,,,
+206,"gc current block congested","Cluster",3871361733,,,
+207,"gc current retry","Cluster",3871361733,,,
+208,"gc current block lost","Cluster",3871361733,,,
+209,"gc current split","Cluster",3871361733,,,
+210,"gc cr grant 2-way","Cluster",3871361733,,,
+211,"gc cr grant 3-way","Cluster",3871361733,,,
+212,"gc cr grant busy","Cluster",3871361733,,,
+213,"gc cr grant congested","Cluster",3871361733,,,
+214,"gc cr disk read","Cluster",3871361733,,,
+215,"gc cr grant ka","Cluster",3871361733,,,
+216,"gc cr grant cluster flash cache read","Cluster",3871361733,,,
+217,"gc cr cluster flash cache read","Cluster",3871361733,,,
+218,"gc cr flash cache copy","Cluster",3871361733,,,
+219,"gc cr grant read-mostly invalidation","Cluster",3871361733,,,
+220,"gc cr grant read-only instance invalidation","Cluster",3871361733,,,
+221,"gc current grant 2-way","Cluster",3871361733,,,
+222,"gc current grant 3-way","Cluster",3871361733,,,
+223,"gc current grant busy","Cluster",3871361733,,,
+224,"gc current grant congested","Cluster",3871361733,,,
+225,"gc current grant ka","Cluster",3871361733,,,
+226,"gc current grant cluster flash cache read","Cluster",3871361733,,,
+227,"gc current grant read-mostly invalidation","Cluster",3871361733,,,
+228,"gc current grant read-only instance invalidation","Cluster",3871361733,,,
+229,"gc transaction table","Cluster",3871361733,"count",,
+230,"gc index operation","Cluster",3871361733,"usn#","slot#","seq#"
+231,"gc freelist","Cluster",3871361733,,,
+232,"gc remaster","Cluster",3871361733,"file#","block#","class#"
+233,"gc quiesce","Cluster",3871361733,,,
+234,"gc recovery","Cluster",3871361733,,,
+235,"gc flushed buffer","Cluster",3871361733,,,
+236,"gc send complete","Cluster",3871361733,,,
+237,"gc current cancel","Cluster",3871361733,"le",,
+238,"gc cr cancel","Cluster",3871361733,"le",,
+239,"gc assume","Cluster",3871361733,"le",,
+240,"gc current index split","Cluster",3871361733,"le",,
+241,"gc domain validation","Cluster",3871361733,"file#","block#","class#"
+242,"gc recovery free","Cluster",3871361733,,,
+243,"gc recovery quiesce","Cluster",3871361733,"file#","block#","class#"
+244,"gc claim","Cluster",3871361733,"file#","block#","class#"
+245,"gc cancel retry","Cluster",3871361733,,,
+246,"direct path read","User I/O",1740759767,"file number","first dba","block cnt"
+247,"direct path read temp","User I/O",1740759767,"file number","first dba","block cnt"
+248,"direct path write","User I/O",1740759767,"file number","first dba","block cnt"
+249,"direct path write temp","User I/O",1740759767,"file number","first dba","block cnt"
+250,"datafile pre-create","Administrative",4166625743,,,
+251,"parallel recovery slave idle wait","Idle",2723168908,,,
+252,"Backup Appliance waiting for work","Idle",2723168908,"session_id","serial",
+253,"Backup Appliance waiting restore start","Idle",2723168908,"session_id","serial",
+254,"Backup Appliance Surrogate wait","Idle",2723168908,"session_id","serial",
+255,"Backup Appliance Servlet wait","Idle",2723168908,"session_id","serial",
+256,"Backup Appliance Comm SGA setup wait","Idle",2723168908,"session_id","serial",
+257,"LogMiner builder: idle","Idle",2723168908,"Session ID",,
+258,"LogMiner builder: memory","Queueing",644977587,"Session ID",,
+259,"LogMiner builder: DDL","Queueing",644977587,"Session ID",,
+260,"LogMiner builder: branch","Idle",2723168908,"Session ID",,
+261,"LogMiner preparer: idle","Idle",2723168908,"Session ID",,
+262,"LogMiner preparer: memory","Queueing",644977587,"Session ID",,
+263,"LogMiner reader: buffer","Queueing",644977587,"Session ID",,
+264,"LogMiner reader: log (idle)","Idle",2723168908,"Session ID","Thread","Sequence"
+265,"LogMiner reader: redo (idle)","Idle",2723168908,"Session ID","Thread","Sequence"
+266,"LogMiner merger: idle","Idle",2723168908,"Session ID","Thread",
+267,"LogMiner client: transaction","Idle",2723168908,"Session ID",,
+268,"LogMiner: other","Idle",2723168908,"Session ID",,
+269,"LogMiner: activate","Idle",2723168908,"Session ID",,
+270,"LogMiner: reset","Idle",2723168908,"Caller ID",,
+271,"LogMiner: find session","Idle",2723168908,"Session ID",,
+272,"LogMiner: internal","Idle",2723168908,"Caller ID",,
+273,"Logical Standby Apply Delay","Idle",2723168908,,,
+274,"wait for possible quiesce finish","Administrative",4166625743,,,
+275,"parallel recovery coordinator waits for slave cleanup","Idle",2723168908,,,
+276,"flashback log file write","System I/O",4108307767,"log#","block#","Bytes"
+277,"flashback log file read","System I/O",4108307767,"log#","block#","Bytes"
+278,"flashback buf free by RVWR","Configuration",3290255840,,,
+279,"flashback log file sync","User I/O",1740759767,,,
+280,"parallel recovery coordinator idle wait","Idle",2723168908,,,
+281,"parallel recovery control message reply","Idle",2723168908,,,
+282,"cell smart table scan","User I/O",1740759767,"cellhash#",,
+283,"cell smart index scan","User I/O",1740759767,"cellhash#",,
+284,"cell external table smart scan","User I/O",1740759767,"cellhash#",,
+285,"cell statistics gather","User I/O",1740759767,"cellhash#",,
+286,"cell smart incremental backup","System I/O",4108307767,"cellhash#",,
+287,"cell smart file creation","User I/O",1740759767,"cellhash#",,
+288,"cell smart restore from backup","System I/O",4108307767,"cellhash#",,
+289,"parallel recovery slave next change","Idle",2723168908,,,
+290,"concurrent I/O completion","Administrative",4166625743,,,
+291,"datafile copy range completion","Administrative",4166625743,,,
+292,"nologging fetch slave idle","Idle",2723168908,,,
+293,"Nologging standby progress","Commit",3386400367,"Primary client SCN","Max wait in centi-seconds",
+294,"nologging standby txn commit","Commit",3386400367,,,
+295,"nologging range consumption list","Configuration",3290255840,,,
+296,"recovery sender idle","Idle",2723168908,,,
+297,"recovery receiver idle","Idle",2723168908,,,
+298,"recovery coordinator idle","Idle",2723168908,,,
+299,"recovery logmerger idle","Idle",2723168908,,,
+300,"block compare coord process idle","Idle",2723168908,,,
+301,"enq: TM - contention","Application",4217450380,"name|mode","object #","table/partition"
+302,"enq: ST - contention","Configuration",3290255840,"name|mode","0","0"
+303,"undo segment extension","Configuration",3290255840,"segment#",,
+304,"undo segment tx slot","Configuration",3290255840,"segment#",,
+305,"switch undo - offline","Administrative",4166625743,"usn|slt","sqn","reason"
+306,"alter rbs offline","Administrative",4166625743,,,
+307,"enq: TX - row lock contention","Application",4217450380,"name|mode","usn<<16 | slot","sequence"
+308,"enq: TX - allocate ITL entry","Configuration",3290255840,"name|mode","usn<<16 | slot","sequence"
+309,"enq: TX - index contention","Concurrency",3875070507,"name|mode","usn<<16 | slot","sequence"
+310,"enq: TW - contention","Administrative",4166625743,"name|mode","0","operation"
+311,"PX Deq: Txn Recovery Start","Idle",2723168908,"sleeptime/senderid","passes",
+312,"PX Deq: Txn Recovery Reply","Idle",2723168908,"sleeptime/senderid","passes",
+313,"latch: Undo Hint Latch","Concurrency",3875070507,"address","number","why"
+314,"statement suspended, wait error to be cleared","Configuration",3290255840,,,
+315,"latch: In memory undo latch","Concurrency",3875070507,"address","number","why"
+316,"latch: MQL Tracking Latch","Concurrency",3875070507,"address","number","why"
+317,"fbar timer","Idle",2723168908,"sleep time","failed",
+318,"Archive Manager file transfer I/O","User I/O",1740759767,"count","intr","timeout"
+319,"SecureFile log buffer","Configuration",3290255840,,,
+320,"IM buffer busy","Concurrency",3875070507,,,
+321,"IM buffer busy TXN","Concurrency",3875070507,,,
+322,"IM buffer busy SHR","Concurrency",3875070507,,,
+323,"securefile chain update","Concurrency",3875070507,"seghdr","fsb",
+324,"enq: HW - contention","Configuration",3290255840,"name|mode","table space #","block"
+325,"enq: BE - Critical Block Allocation","Concurrency",3875070507,"name|mode","tablespace#","block#"
+326,"enq: SS - contention","Configuration",3290255840,"name|mode","tablespace #","dba"
+327,"sort segment request","Configuration",3290255840,"tsn#","status flag","pending mask"
+328,"smon timer","Idle",2723168908,"sleep time","failed",
+329,"PX Deq: Metadata Update","Idle",2723168908,"ktelc_wait1s",,
+330,"Space Manager: slave idle wait","Idle",2723168908,"Slave ID",,
+331,"enq: SQ - contention","Configuration",3290255840,"name|mode","object #","0"
+332,"enq: SV -  contention","Configuration",3290255840,"type|mode","id1","id2"
+333,"PX Deq: Index Merge Reply","Idle",2723168908,"sleeptime/senderid","passes",
+334,"PX Deq: Index Merge Execute","Idle",2723168908,"sleeptime/senderid","passes",
+335,"PX Deq: Index Merge Close","Idle",2723168908,"sleeptime/senderid","passes",
+336,"enq: HV - contention","Concurrency",3875070507,"name|mode","object #","0"
+337,"PX Deq: kdcph_mai","Idle",2723168908,"kdcph_mai",,
+338,"PX Deq: kdcphc_ack","Idle",2723168908,"kdcphc_ack",,
+339,"index (re)build online start","Administrative",4166625743,"object","mode","wait"
+340,"index (re)build online cleanup","Administrative",4166625743,"object","mode","wait"
+341,"index (re)build online merge","Administrative",4166625743,"object","mode","wait"
+342,"index (re)build lock or pin object","Administrative",4166625743,"namespace","lock_mode","pin_mode"
+343,"securefile direct-read completion","User I/O",1740759767,,,
+344,"securefile direct-write completion","User I/O",1740759767,,,
+345,"SecureFile mutex","Concurrency",3875070507,,,
+346,"enq: WG - lock fso","Concurrency",3875070507,"name|mode","kdlw lobid first half","kdlw lobid sec half"
+347,"imco timer","Idle",2723168908,"sleep time","failed",
+348,"Inmemory Populate: get loadscn","Concurrency",3875070507,,,
+349,"IMFS defer writes scheduler","Idle",2723168908,,,
+350,"memoptimize write buffer get","Configuration",3290255840,,,
+351,"memoptimize write drain idle","Idle",2723168908,,,
+352,"latch: row cache objects","Concurrency",3875070507,"address","number","why"
+353,"row cache mutex","Concurrency",3875070507,"cache id","where requested",
+354,"row cache lock","Concurrency",3875070507,"cache id","mode","request"
+355,"row cache read","Concurrency",3875070507,"cache id",,
+356,"libcache interrupt action by LCK","Concurrency",3875070507,"location",,
+357,"enq: IV - cross instance invalidation","Concurrency",3875070507,"lock idx",,
+358,"cursor: mutex X","Concurrency",3875070507,"idn","value","where"
+359,"cursor: mutex S","Concurrency",3875070507,"idn","value","where"
+360,"cursor: pin X","Concurrency",3875070507,"idn","value","where"
+361,"cursor: pin S","Concurrency",3875070507,"idn","value","where"
+362,"cursor: pin S wait on X","Concurrency",3875070507,"idn","value","where"
+363,"enq: CB - role operation","Concurrency",3875070507,"name|mode","0","0"
+364,"Global transaction acquire instance locks","Configuration",3290255840,"retries",,
+365,"enq: BB - 2PC across RAC instances","Commit",3386400367,"name|mode","gtrid hash value","bqual hash value"
+366,"latch: shared pool","Concurrency",3875070507,"address","number","why"
+367,"LCK0 row cache object free","Concurrency",3875070507,"heap ds","min_size","clatch"
+368,"Unpin a recreatable chunk","Concurrency",3875070507,"chunk addr","max attempt","attempted"
+369,"library cache pin","Concurrency",3875070507,"handle address","pin address","(identifier<<32)+(namespace<<16)+mode"
+370,"library cache lock","Concurrency",3875070507,"handle address","lock address","(identifier<<32)+(namespace<<16)+mode"
+371,"library cache load lock","Concurrency",3875070507,"object address","lock address","(identifier<<32)+(namespace<<16)+mode"
+372,"library cache: mutex X","Concurrency",3875070507,"idn","value","where"
+373,"library cache: bucket mutex X","Concurrency",3875070507,"idn","value","where"
+374,"library cache: dependency mutex X","Concurrency",3875070507,"idn","value","where"
+375,"library cache: mutex S","Concurrency",3875070507,"idn","value","where"
+376,"BFILE read","User I/O",1740759767," "," "," "
+377,"resmgr:cpu quantum","Scheduler",2396326234,"consumer group id","PDB id","plan index"
+378,"resmgr:large I/O queued","Scheduler",2396326234,"location"," "," "
+379,"resmgr: I/O rate limit","Scheduler",2396326234,"location"," "," "
+380,"resmgr:internal state change","Concurrency",3875070507,"location"," "," "
+381,"resmgr:sessions to exit","Concurrency",3875070507,"location"," "," "
+382,"resmgr:become active","Scheduler",2396326234,"location"," "," "
+383,"resmgr:pq queued","Scheduler",2396326234,"location"," "," "
+384,"TCP Socket (KGAS)","Network",2000153315," "," "," "
+385,"utl_file I/O","User I/O",1740759767,,,
+386,"DNFS disp IO slave completion","User I/O",1740759767,"pnum"," "," "
+387,"alter system set dispatcher","Administrative",4166625743,"waited",,
+388,"virtual circuit wait","Network",2000153315,"circuit#","type",
+389,"virtual circuit next request","Idle",2723168908,"circuit#","type",
+390,"shared server idle wait","Idle",2723168908,,,
+391,"dispatcher timer","Idle",2723168908,"sleep time",,
+392,"dispatcher listen timer","Network",2000153315,"sleep time",,
+393,"dedicated server timer","Network",2000153315,"wait event",,
+394,"cmon timer","Idle",2723168908,"sleep time",,
+395,"pool server timer","Idle",2723168908,"sleep time",,
+396,"connection pool wait","Administrative",4166625743,"op","num procs",
+397,"connection broker handoff","Network",2000153315,"connection broker","connection","op"
+398,"lreg timer","Idle",2723168908,"succ","wait","fail"
+399,"JOX Jit Process Sleep","Idle",2723168908,,,
+400,"jobq slave wait","Idle",2723168908,,,
+401,"Wait for Table Lock","Application",4217450380,,,
+402,"pipe get","Idle",2723168908,"handle address","buffer length","timeout"
+403,"pipe put","Concurrency",3875070507,"handle address","record length","timeout"
+404,"enq: DB - contention","Administrative",4166625743,"name|mode","EnqMode","0"
+405,"PX Deque wait","Idle",2723168908,"sleeptime/senderid","passes",
+406,"PX Idle Wait","Idle",2723168908,"sleeptime/senderid","passes",
+407,"PX Deq Credit: need buffer","Idle",2723168908,"sleeptime/senderid","passes","qref"
+408,"PX Deq Credit: send blkd","Idle",2723168908,"sleeptime/senderid","passes","qref"
+409,"PX Deq: Msg Fragment","Idle",2723168908,"sleeptime/senderid","passes",
+410,"PX Deq: Parse Reply","Idle",2723168908,"sleeptime/senderid","passes",
+411,"PX Deq: Execute Reply","Idle",2723168908,"sleeptime/senderid","passes",
+412,"PX Deq: Execution Msg","Idle",2723168908,"sleeptime/senderid","passes",
+413,"PX Deq: Table Q Normal","Idle",2723168908,"sleeptime/senderid","passes",
+414,"PX Deq: Table Q Sample","Idle",2723168908,"sleeptime/senderid","passes",
+415,"enq: TG - IMCDT global resource","Concurrency",3875070507,"name|mode","container id #","0"
+416,"enq: TI - IMCDT object HT","Concurrency",3875070507,"name|mode","query exec id #","qc session id #"
+417,"external table read","User I/O",1740759767,"filectx","file#","size"
+418,"external table write","User I/O",1740759767,"filectx","file#","size"
+419,"external table open","User I/O",1740759767,"filectx","file#",
+420,"external table seek","User I/O",1740759767,"filectx","file#","pos"
+421,"external table misc IO","User I/O",1740759767,"filectx","iocode","P3"
+422,"enq: RC - Result Cache: Contention","Application",4217450380,"name|mode","chunkNo","blockNo"
+423,"result cache lock wait","Concurrency",3875070507,"object no",,
+424,"enq: JX - SQL statement queue","Scheduler",2396326234,"name|mode","sqlid","execid"
+425,"enq: JX - cleanup of  queue","Scheduler",2396326234,"name|mode","sqlid","execid"
+426,"PX Queuing: statement queue","Scheduler",2396326234,"sleeptime","passes",
+427,"enq: KV - IMA key vector access","Concurrency",3875070507,"name|mode","node#+sess#,cursor#+kv#","kv #"
+428,"dbverify reads","User I/O",1740759767,"count","intr","timeout"
+429,"REPL Apply: txns","Idle",2723168908,,,
+430,"REPL Capture: subscribers to catch up","Queueing",644977587,"2=>GoldenGate 1=>XStream 0=>Streams","TYPE",
+431,"REPL Capture/Apply: memory","Queueing",644977587,"2=>GoldenGate 1=>XStream 0=>Streams",,
+432,"REPL Apply: commit","Configuration",3290255840,"2=>GoldenGate 1=>XStream 0=>Streams",,
+433,"REPL Apply: dependency","Concurrency",3875070507,"2=>GoldenGate 1=>XStream 0=>Streams",,
+434,"REPL Capture/Apply: flow control","Queueing",644977587,"2=>GoldenGate 1=>XStream 0=>Streams",,
+435,"REPL Capture/Apply: messages","Idle",2723168908,"2=>GoldenGate 1=>XStream 0=>Streams",,
+436,"REPL Capture: archive log","Idle",2723168908,"2=>GoldenGate 1=>XStream 0=>Streams","TYPE",
+437,"cell single block physical read: flash cache","User I/O",1740759767,"cellhash#","diskhash#","bytes"
+438,"REPL Apply: apply DDL","Application",4217450380,"2=>GoldenGate 1=>XStream 0=>Streams","sleep time",
+439,"enq: ZG - contention","Administrative",4166625743,"name|mode","file group id","version id"
+440,"single-task message","Idle",2723168908,,,
+441,"SQL*Net message to client","Network",2000153315,"driver id","#bytes",
+442,"SQL*Net message to dblink","Network",2000153315,"driver id","#bytes",
+443,"SQL*Net more data to client","Network",2000153315,"driver id","#bytes",
+444,"SQL*Net more data to dblink","Network",2000153315,"driver id","#bytes",
+445,"SQL*Net message from client","Idle",2723168908,"driver id","#bytes",
+446,"SQL*Net more data from client","Network",2000153315,"driver id","#bytes",
+447,"SQL*Net message from dblink","Network",2000153315,"driver id","#bytes",
+448,"SQL*Net more data from dblink","Network",2000153315,"driver id","#bytes",
+449,"SQL*Net vector message from client","Idle",2723168908,"driver id","#bytes",
+450,"SQL*Net vector message from dblink","Idle",2723168908,"driver id","#bytes",
+451,"SQL*Net vector data to client","Network",2000153315,"driver id","#bytes",
+452,"SQL*Net vector data from client","Network",2000153315,"driver id","#bytes",
+453,"SQL*Net vector data to dblink","Network",2000153315,"driver id","#bytes",
+454,"SQL*Net vector data from dblink","Network",2000153315,"driver id","#bytes",
+455,"SQL*Net break/reset to client","Application",4217450380,"driver id","break?",
+456,"SQL*Net break/reset to dblink","Application",4217450380,"driver id","break?",
+457,"External Procedure initial connection","Application",4217450380,,,
+458,"External Procedure call","Application",4217450380,"HS_SESSION_ID",,
+459,"PL/SQL lock timer","Idle",2723168908,"duration",,
+460,"wait for EMON to process ntfns","Configuration",3290255840,,,
+461,"Streams AQ: emn coordinator idle wait","Idle",2723168908,,,
+462,"EMON slave idle wait","Idle",2723168908,,,
+463,"Emon coordinator main loop","Idle",2723168908,,,
+464,"Emon slave main loop","Idle",2723168908,,,
+465,"enq: UL - contention","Application",4217450380,"name|mode","id","0"
+466,"Streams AQ: waiting for messages in the queue","Idle",2723168908,"queue id","process#","wait time"
+467,"Streams AQ: waiting for time management or cleanup tasks","Idle",2723168908,,,
+468,"Streams AQ: enqueue blocked on low memory","Queueing",644977587,,,
+469,"Streams AQ: enqueue blocked due to flow control","Queueing",644977587,,,
+470,"Streams AQ: delete acknowledged messages","Idle",2723168908,,,
+471,"Streams AQ: deallocate messages from Streams Pool","Idle",2723168908,,,
+472,"Streams AQ: qmn coordinator idle wait","Idle",2723168908,,,
+473,"Streams AQ: qmn slave idle wait","Idle",2723168908,"Type",,
+474,"AQ: 12c message cache init wait","Idle",2723168908,,,
+475,"AQ Cross Master idle","Idle",2723168908,,,
+476,"AQPC idle","Idle",2723168908,,,
+477,"Streams AQ: load balancer idle","Idle",2723168908,,,
+478,"Sharded  Queues : Part Maintenance idle","Idle",2723168908,,,
+479,"Sharded  Queues : Part Truncate idle","Idle",2723168908,,,
+480,"REPL Capture/Apply: RAC AQ qmn coordinator","Idle",2723168908,"1=>MASTER 2=>SLAVE",,
+481,"Streams AQ: opt idle","Idle",2723168908,"1=>SLAVE0 2=>SLAVE1 3=>SLAVE2 4=>SLAVE3 5=>MASTER",,
+482,"HS message to agent","Idle",2723168908,,,
+483,"TEXT: URL_DATASTORE network wait","Network",2000153315,,,
+484,"TEXT: File System I/O","User I/O",1740759767,,,
+485,"OLAP DML Sleep","Application",4217450380,"duration",,
+486,"Cube Build Master Wait for Jobs","Concurrency",3875070507,,,
+487,"ASM sync cache disk read","User I/O",1740759767,"group","obj","block"
+488,"ASM sync relocation I/O","System I/O",4108307767,"count","where","file"
+489,"ASM async relocation I/O","System I/O",4108307767,"count","where","file"
+490,"ASM COD rollback operation completion","Administrative",4166625743,"dismount force",,
+491,"kfk: async disk IO","System I/O",4108307767,"count","where","timeout"
+492,"ASM IO for non-blocking poll","User I/O",1740759767,"count","where","timeout"
+493,"ASM remote SQL","Network",2000153315,,,
+494,"ASM background timer","Idle",2723168908,,,
+495,"ASM cluster membership changes","Idle",2723168908,,,
+496,"iowp io","System I/O",4108307767,"count","intr","timeout"
+497,"iowp msg","Idle",2723168908,"iowp id",,
+498,"iowp file id","Idle",2723168908,"iowp id",,
+499,"netp network","Idle",2723168908,"netp id",,
+500,"gopp msg","Idle",2723168908,"gopp id",,
+501,"ASM Fixed Package I/O","User I/O",1740759767,"blkno","bytes","filetype"
+502,"ASM mount : wait for heartbeat","Administrative",4166625743,,,
+503,"ASM PST query : wait for [PM][grp][0] grant","Cluster",3871361733,,,
+504,"lock remastering","Cluster",3871361733,,,
+505,"ASM Staleness File I/O","User I/O",1740759767,"blkno","#blks","diskno"
+506,"ASM File Group Sync","User I/O",1740759767,"op","gn","pdbid"
+507,"auto-sqltune: wait graph update","Idle",2723168908,,,
+508,"WCR: replay client notify","Idle",2723168908,"who am I",,
+509,"WCR: replay clock","Idle",2723168908,"wait for scn's hi 4 bytes","wait for scn's lo 4 bytes","schedule capture ID"
+510,"WCR: replay lock order","Application",4217450380,"wait for scn's hi 4 bytes","wait for scn's lo 4 bytes",
+511,"WCR: replay paused","Idle",2723168908,,,
+512,"JS kgl get object wait","Administrative",4166625743,,,
+513,"JS external job","Idle",2723168908,,,
+514,"JS kill job wait","Administrative",4166625743,,,
+515,"JS coord start wait","Administrative",4166625743,,,
+516,"cell single block physical read","User I/O",1740759767,"cellhash#","diskhash#","bytes"
+517,"cell multiblock physical read","User I/O",1740759767,"cellhash#","diskhash#","bytes"
+518,"cell list of blocks physical read","User I/O",1740759767,"cellhash#","diskhash#","blocks"
+519,"cell physical read no I/O","User I/O",1740759767,"cellhash#","diskhash#","bytes"
+520,"cell single block read request","User I/O",1740759767,"cellhash#","diskhash#","bytes"
+521,"cell multiblock read request","User I/O",1740759767,"cellhash#","diskhash#","bytes"
+522,"cell list of blocks read request","User I/O",1740759767,"cellhash#","diskhash#","blocks"
+523,"cell manager opening cell","System I/O",4108307767,"cellhash#",,
+524,"cell manager closing cell","System I/O",4108307767,"cellhash#",,
+525,"cell manager discovering disks","System I/O",4108307767,"cellhash#",,
+526,"cell worker idle","Idle",2723168908,,,
+527,"events in waitclass Other","Other",1893977003,,,
+528,"enq: WM - WLM Plan activation","Other",1893977003,"name|mode","0","0"
+529,"latch free","Other",1893977003,"address","number","why"
+530,"latch activity","Other",1893977003,"address","number","process#"
+531,"wait list latch free","Other",1893977003,"address","number",
+532,"kslwait unit test event 1","Other",1893977003,"p1","p2","p3"
+533,"kslwait unit test event 2","Other",1893977003,"p1","p2","p3"
+534,"kslwait unit test event 3","Other",1893977003,"p1","p2","p3"
+535,"unspecified wait event","Other",1893977003,,,
+536,"global enqueue expand wait","Other",1893977003,,,
+537,"free process state object","Other",1893977003,,,
+538,"inactive session","Other",1893977003,"session#","serial","instance"
+539,"process terminate","Other",1893977003,,,
+540,"latch: call allocation","Other",1893977003,"address","number","why"
+541,"latch: session allocation","Other",1893977003,"address","number","why"
+542,"check CPU wait times","Other",1893977003,,,
+543,"ADG switchover completion","Other",1893977003,"pdbid",,
+544,"process allocation slot","Other",1893977003,,,
+545,"session allocation inc count","Other",1893977003,,,
+546,"enq: CI - contention","Other",1893977003,"name|mode","opcode","type"
+547,"enq: PR - contention","Other",1893977003,"name|mode","type","dtp"
+548,"enq: AK -  contention","Other",1893977003,"type|mode","id1","id2"
+549,"enq: XK -  contention","Other",1893977003,"type|mode","id1","id2"
+550,"enq: DI -  contention","Other",1893977003,"type|mode","id1","id2"
+551,"enq: RM -  contention","Other",1893977003,"type|mode","id1","id2"
+552,"enq: BO -  contention","Other",1893977003,"type|mode","id1","id2"
+553,"ges resource enqueue open retry sleep","Other",1893977003,,,
+554,"ksim generic wait event","Other",1893977003,"where","wait_count",
+555,"enq: DE - Update Draining Test","Other",1893977003,"name|mode","0","0"
+556,"debugger command","Other",1893977003,,,
+557,"oradebug request slot","Other",1893977003,,,
+558,"oradebug request completion","Other",1893977003,,,
+559,"latch: ksm sga alloc latch","Other",1893977003,"address","number","why"
+560,"defer SGA allocation slave","Other",1893977003,"defer segment index","allocation mode",
+561,"SGA Allocator termination","Other",1893977003,,,
+562,"PGA memory operation","Other",1893977003,"which","bytes","where"
+563,"enq: PE - contention","Other",1893977003,"name|mode","parno","0"
+564,"enq: PG - contention","Other",1893977003,"name|mode","0","0"
+565,"ksbsrv","Other",1893977003,,,
+566,"ksbcic","Other",1893977003,,,
+567,"process startup","Other",1893977003,"type","process#",
+568,"process shutdown","Other",1893977003,"type","process#",
+569,"prior spawner clean up","Other",1893977003,"process_pid","process_sno",
+570,"latch: messages","Other",1893977003,"address","number","why"
+571,"rdbms ipc message block","Other",1893977003,,,
+572,"rdbms ipc reply","Other",1893977003,"from_process",,
+573,"latch: pdb enqueue hash chains","Other",1893977003,"address","number","why"
+574,"latch: enqueue hash chains","Other",1893977003,"address","number","why"
+575,"imm op","Other",1893977003,"msg ptr",,
+576,"slave exit","Other",1893977003,"nalive","sleeptime","loop"
+577,"enq: FP - global fob contention","Other",1893977003,"name|mode","low file obj add","high file obj add"
+578,"enq: RE - block repair contention","Other",1893977003,"name|mode","File Type or File number","block number"
+579,"enq: BM - clonedb bitmap file write","Other",1893977003,"name|mode","block number","number of blocks"
+580,"asynch descriptor resize","Other",1893977003,"outstanding #aio","current aio limit","new aio limit"
+581,"OFS interrupted req not found","Other",1893977003,,,
+582,"enq: FO - file system operation contention","Other",1893977003,"name|mode","0","0"
+583,"resmgr:plan change","Other",1893977003,"con_id","location",
+584,"enq: KM - contention","Other",1893977003,"name|mode","type","type"
+585,"enq: KT - contention","Other",1893977003,"name|mode","plan #","0"
+586,"enq: CA - contention","Other",1893977003,"name|mode","0","0"
+587,"enq: KD - determine DBRM master","Other",1893977003,"name|mode","0","0"
+588,"reliable message","Other",1893977003,"channel context","channel handle","broadcast message"
+589,"broadcast mesg queue transition","Other",1893977003,"channel handle","message","location"
+590,"broadcast mesg recovery queue transition","Other",1893977003,"channel handle","message","location"
+591,"KSV master wait","Other",1893977003,"indicator",,
+592,"master exit","Other",1893977003,"alive slaves",,
+593,"ksv slave avail wait","Other",1893977003,,,
+594,"enq: PV - syncstart","Other",1893977003,"name|mode","class id","0"
+595,"enq: PV - syncshut","Other",1893977003,"name|mode","class id","0"
+596,"enq: SP - TS online or offline rekey","Other",1893977003,"name|mode","id1","id2"
+597,"enq: SP - close wallet","Other",1893977003,"name|mode","id1","id2"
+598,"enq: SP - iso or unite keystore","Other",1893977003,"name|mode","id1","id2"
+599,"enq: SP - contention 4","Other",1893977003,"name|mode","id1","id2"
+600,"enq: SX - ASM Scrubbing","Other",1893977003,"name|mode","id1","id2"
+601,"enq: SX - contention 6","Other",1893977003,"name|mode","id1","id2"
+602,"CLSR call completion","Other",1893977003,"service hash id","call out type","call out number"
+603,"unified memory allocation","Other",1893977003,"p1","p2","p3"
+604,"Memory: Reg/Dereg","Other",1893977003,"ksmsq context","address","length"
+605,"IPC send completion sync","Other",1893977003,"send count",,
+606,"OSD IPC library","Other",1893977003,"rolling mig",,
+607,"IPC wait for name service busy","Other",1893977003,,,
+608,"IPC busy async request","Other",1893977003,,,
+609,"IPC waiting for OSD resources","Other",1893977003,,,
+610,"ksxr poll remote instances","Other",1893977003,,,
+611,"ksxr wait for mount shared","Other",1893977003,,,
+612,"DBMS_LDAP: LDAP operation ","Other",1893977003,,,
+613,"wait for FMON to come up","Other",1893977003,,,
+614,"enq: FM - contention","Other",1893977003,"name|mode","0","0"
+615,"enq: XY - contention","Other",1893977003,"name|mode","id1","id2"
+616,"latch: active service list","Other",1893977003,"address","number","why"
+617,"latch: service drain list","Other",1893977003,"address","number","why"
+618,"latch: last service list","Other",1893977003,"address","number","why"
+619,"latch: java patching","Other",1893977003,"address","number","why"
+620,"enq: AS - service activation","Other",1893977003,"name|mode","0","0"
+621,"JAVA patching","Other",1893977003,,,
+622,"enq: PD - contention","Other",1893977003,"name|mode","property name","key hash"
+623,"oracle thread bootstrap","Other",1893977003,"pname",,
+624,"os thread creation","Other",1893977003,"pname","is_process",
+625,"cleanup of aborted process","Other",1893977003,"location",,
+626,"enq: XM -  contention","Other",1893977003,"type|mode","id1","id2"
+627,"enq: RU - contention","Other",1893977003,"name|mode","0","0"
+628,"enq: RU - waiting","Other",1893977003,"name|mode","0","0"
+629,"rolling migration: cluster quiesce","Other",1893977003,"location","waits",
+630,"LMON global data update","Other",1893977003,,,
+631,"rolling migration: orphans detected","Other",1893977003,,,
+632,"process diagnostic dump","Other",1893977003,,,
+633,"enq: MX - sync storage server info","Other",1893977003,"name|mode","nodeid","instanceid"
+634,"master diskmon startup","Other",1893977003,,,
+635,"master diskmon read","Other",1893977003,,,
+636,"DSKM to complete cell health check","Other",1893977003,,,
+637,"pmon dblkr tst event","Other",1893977003,"index",,
+638,"latch: ksolt lwth alloc","Other",1893977003,"address","number","why"
+639,"lightweight thread operation","Other",1893977003,"PURPOSE","ARG1","ARG2"
+640,"lightweight thread task completion","Other",1893977003,"Tasks left","task_count","ARG3"
+641,"enq: WN - rw snapshot synchronization","Other",1893977003,"name|mode","pluggable database id","snapshot name"
+642,"read/write snapshot completion","Other",1893977003,"file object handle","snapshot scn","pluggable database id"
+643,"enq: ZX - repopulation file write","Other",1893977003,"name|mode","filename","block number"
+644,"pmon cleanup","Other",1893977003,"op",,
+645,"pmon shutdown","Other",1893977003,"type","num",
+646,"GL: cross instance latch free","Other",1893977003,,,
+647,"RMA: rlog allocate","Other",1893977003,"State Object","Instance",
+648,"RMA: RAC reconfig","Other",1893977003,,,
+649,"RMA: latch","Other",1893977003,"RMA Latch","Latch Val",
+650,"DNFS disp IO slave cleanup","Other",1893977003,"clmn pnum",,
+651,"enq: KA - ACL control status","Other",1893977003,"name|mode","0","0"
+652,"Nest operation","Other",1893977003,,,
+653,"DIAG lock acquisition","Other",1893977003,"where",,
+654,"latch: ges resource hash list","Other",1893977003,"address","number","why"
+655,"DFS lock handle","Other",1893977003,"type|mode","id1","id2"
+656,"ges server process to shutdown","Other",1893977003,"type",,
+657,"ges client process to exit","Other",1893977003,,,
+658,"ges global resource directory to be frozen","Other",1893977003,"location",,
+659,"ges resource directory to be unfrozen","Other",1893977003,,,
+660,"gcs resource directory to be unfrozen","Other",1893977003,,,
+661,"ges LMD to inherit communication channels","Other",1893977003,,,
+662,"ges lmd sync during reconfig","Other",1893977003,"location",,
+663,"ges wait for lmon to be ready","Other",1893977003,,,
+664,"ges cgs registration","Other",1893977003,"where",,
+665,"wait for master scn","Other",1893977003,"waittime","startscn","ackscn"
+666,"ges yield cpu in reconfig","Other",1893977003,"location",,
+667,"ges2 proc latch in rm latch get 1","Other",1893977003,,,
+668,"ges2 proc latch in rm latch get 2","Other",1893977003,,,
+669,"ges lmd/lmses to freeze in rcfg","Other",1893977003,"lmd/lms id",,
+670,"ges lmd/lmses to unfreeze in rcfg","Other",1893977003,"lmd/lms id",,
+671,"ges lms sync during dynamic remastering and reconfig","Other",1893977003,"location","lms id",
+672,"ges LMON to join CGS group","Other",1893977003,,,
+673,"ges pmon to exit","Other",1893977003,,,
+674,"ges lmd and pmon to attach","Other",1893977003,,,
+675,"gcs drm freeze begin","Other",1893977003,,,
+676,"gcs retry nowait latch get","Other",1893977003,"location",,
+677,"gcs remastering wait for read latch","Other",1893977003,"flags","idx1","idx2"
+678,"ges cached resource cleanup","Other",1893977003,"waittime",,
+679,"ges generic event","Other",1893977003,,,
+680,"ges instance reconfig name entry query","Other",1893977003,"retry","inst",
+681,"ges process with outstanding i/o","Other",1893977003,"pid",,
+682,"ges user error","Other",1893977003,"error",,
+683,"ges enter server mode","Other",1893977003,,,
+684,"gcs enter server mode","Other",1893977003,,,
+685,"ges ipc enter server mode","Other",1893977003,,,
+686,"gcs drm freeze in enter server mode","Other",1893977003,,,
+687,"gcs ddet enter server mode","Other",1893977003,,,
+688,"ges cancel","Other",1893977003,,,
+689,"ges resource cleanout during enqueue open","Other",1893977003,,,
+690,"ges resource cleanout during enqueue open-cvt","Other",1893977003,,,
+691,"ges master to get established for SCN op","Other",1893977003,,,
+692,"ges LMON to get to FTDONE ","Other",1893977003,,,
+693,"ges1 LMON to wake up LMD - mrcvr","Other",1893977003,,,
+694,"ges2 LMON to wake up LMD - mrcvr","Other",1893977003,,,
+695,"ges2 LMON to wake up lms - mrcvr 2","Other",1893977003,,,
+696,"ges2 LMON to wake up lms - mrcvr 3","Other",1893977003,,,
+697,"ges inquiry response","Other",1893977003,"type|mode|where","id1","id2"
+698,"ges reusing os pid","Other",1893977003,"pid","count",
+699,"ges LMON for send queues","Other",1893977003,,,
+700,"ges LMD suspend for testing event","Other",1893977003,,,
+701,"ges performance test completion","Other",1893977003,,,
+702,"kjbopen wait for recovery domain attach","Other",1893977003,,,
+703,"kjudomatt wait for recovery domain attach","Other",1893977003,,,
+704,"kjudomdet wait for recovery domain detach","Other",1893977003,,,
+705,"kjbdomalc allocate recovery domain - retry","Other",1893977003,,,
+706,"kjbdrmcvtq lmon drm quiesce: ping completion","Other",1893977003,"location","lms id",
+707,"ges RMS0 retry add redo log","Other",1893977003,,,
+708,"readable standby redo apply remastering","Other",1893977003,,,
+709,"ges DFS hang analysis phase 2 acks","Other",1893977003,,,
+710,"ges/gcs diag dump","Other",1893977003,"location",,
+711,"global plug and play automatic resource creation","Other",1893977003,"where",,
+712,"gcs lmon dirtydetach step completion","Other",1893977003,"domain id","location",
+713,"recovery instance recovery completion","Other",1893977003,,,
+714,"ack for a broadcasted res from a remote instance","Other",1893977003,,,
+715,"kill all read-only instances in cluster","Other",1893977003,,,
+716,"latch: kjci process context latch","Other",1893977003,"address","number","why"
+717,"latch: kjci request sequence latch","Other",1893977003,"address","number","why"
+718,"DLM cross inst call completion","Other",1893977003,"caller inst num|Opcode","cluster incarnation number","request identifier"
+719,"DLM: shared instance mode init","Other",1893977003,,,
+720,"enq: KI - contention","Other",1893977003,"name|mode","client opcode","0"
+721,"latch: kjoeq omni enqueue hash bucket latch","Other",1893977003,"address","number","why"
+722,"DLM enqueue copy completion","Other",1893977003,"Owner ID","op|restype","id1|id2"
+723,"latch: kjoer owner hash bucket","Other",1893977003,"address","number","why"
+724,"DLM Omni Enq Owner replication","Other",1893977003,"Owner ID",,
+725,"KJC: Wait for msg sends to complete","Other",1893977003,"msg","dest|rcvr","mtype"
+726,"ges message buffer allocation","Other",1893977003,"pool","request","allocated"
+727,"kjctssqmg: quick message send wait","Other",1893977003,,,
+728,"gcs domain validation","Other",1893977003,"cluinc","rcvinc",
+729,"latch: gcs resource hash","Other",1893977003,"address","number","why"
+730,"affinity expansion in replay","Other",1893977003,,,
+731,"wait for sync ack","Other",1893977003,"cluinc","pending_nd",
+732,"wait for verification ack","Other",1893977003,"cluinc","pending_insts",
+733,"wait for assert messages to be sent","Other",1893977003,,,
+734,"wait for scn ack","Other",1893977003,"pending_nd","scn",
+735,"lms flush message acks","Other",1893977003,"id",,
+736,"name-service call wait","Other",1893977003,"waittime","op","loc"
+737,"CGS wait for IPC msg","Other",1893977003,,,
+738,"IMR hang simulation","Other",1893977003,,,
+739,"IMR mount phase II completion","Other",1893977003,,,
+740,"IMR disk votes","Other",1893977003,,,
+741,"IMR rr lock release","Other",1893977003,,,
+742,"IMR net-check message ack","Other",1893977003,,,
+743,"IMR rr update","Other",1893977003,,,
+744,"IMR membership resolution","Other",1893977003,,,
+745,"IMR CSS join retry","Other",1893977003,"retry count",,
+746,"IMR slave process init","Other",1893977003,,,
+747,"IMR slave process shutdown","Other",1893977003,"location",,
+748,"IMR slave acknowledgement msg","Other",1893977003,,,
+749,"CGS skgxn join retry","Other",1893977003,"retry count",,
+750,"CGS ping operation","Other",1893977003,"location",,
+751,"gcs to be enabled","Other",1893977003,,,
+752,"gcs log flush sync","Other",1893977003,"waittime","poll","event"
+753,"KA: shared KGA not initialized","Other",1893977003,,,
+754,"enq: PP -  contention","Other",1893977003,"type|mode","id1","id2"
+755,"enq: HM -  contention","Other",1893977003,"type|mode","id1","id2"
+756,"GCR ctx lock acquisition","Other",1893977003,"retry count",,
+757,"GCR CSS group lock","Other",1893977003,,,
+758,"GCR CSS group join","Other",1893977003,"retry count",,
+759,"GCR CSS group leave","Other",1893977003,,,
+760,"GCR CSS group update","Other",1893977003,,,
+761,"GCR CSS group query","Other",1893977003,,,
+762,"enq: AC - acquiring partition id","Other",1893977003,"name|mode","0","0"
+763,"LMA glob lock acquisition","Other",1893977003,"lock","retry count",
+764,"LMA KGA glob lock acquisition","Other",1893977003,"lock","retry count",
+765,"latch: GCS logfile block","Other",1893977003,"address","number","why"
+766,"latch: GCS logfile write queue","Other",1893977003,"address","number","why"
+767,"LMFC reconfig operation","Other",1893977003,"RCFG State","Operation",
+768,"PCFC: recovery domain valid","Other",1893977003,,,
+769,"SGA: allocation forcing component growth","Other",1893977003,,,
+770,"SGA: sga_target resize","Other",1893977003,,,
+771,"enq: SC -  contention","Other",1893977003,"type|mode","id1","id2"
+772,"control file heartbeat","Other",1893977003,,,
+773,"control file diagnostic dump","Other",1893977003,"type","param",
+774,"enq: CF - contention","Other",1893977003,"name|mode","0","operation"
+775,"enq: SW - contention","Other",1893977003,"name|mode","0","0"
+776,"enq: DS - contention","Other",1893977003,"name|mode","0","0"
+777,"enq: TC - contention","Other",1893977003,"name|mode","checkpoint ID","0"
+778,"enq: TC - contention2","Other",1893977003,"name|mode","checkpoint ID","0"
+779,"buffer exterminate","Other",1893977003,"file#","block#","buf_ptr"
+780,"kcbw: cache protect wait","Other",1893977003,,,
+781,"latch: cache buffers lru chain","Other",1893977003,"address","number","why"
+782,"enq: PW - perwarm status in dbw0","Other",1893977003,"name|mode","0","0"
+783,"latch: checkpoint queue latch","Other",1893977003,"address","number","why"
+784,"latch: cache buffer handles","Other",1893977003,"address","number","why"
+785,"kcbzps","Other",1893977003,,,
+786,"DBWR range invalidation sync","Other",1893977003,"dbwr#",,
+787,"buffer deadlock","Other",1893977003,"dba","class*10+mode","flag"
+788,"buffer latch","Other",1893977003,"latch addr","chain#",
+789,"cr request retry","Other",1893977003,"file#","block#",
+790,"influx scn","Other",1893977003,"file#","block#","class#"
+791,"writes stopped by instance recovery or database suspension","Other",1893977003,"by thread#","our thread#",
+792,"lock escalate retry","Other",1893977003,,,
+793,"lock deadlock retry","Other",1893977003,,,
+794,"prefetch warmup block being transferred","Other",1893977003,"file#","block#","id#"
+795,"recovery buffer pinned","Other",1893977003,"file#","block#",
+796,"tablespace key change","Other",1893977003,"pdb#","ts#","file#"
+797,"TSE SSO wallet reopen","Other",1893977003,,,
+798,"force-cr-override flush","Other",1893977003,"file#","block#",
+799,"enq: CR - block range reuse ckpt","Other",1893977003,"name|mode","2","0"
+800,"enq: TR - serialize TS rekeys","Other",1893977003,"name|mode","pdbid","ts#"
+801,"enq: TR - database key open check","Other",1893977003,"name|mode","pdbid","ts#"
+802,"enq: TR - serialize system rekeys","Other",1893977003,"name|mode","pdbid","ts#"
+803,"wait for MTTR advisory state object","Other",1893977003,,,
+804,"latch: object queue header operation","Other",1893977003,"address","number","why"
+805,"enq: BU - recovery set construct","Other",1893977003,"name|mode","0","0"
+806,"enq: BU - recovery set takeover","Other",1893977003,"name|mode","0","0"
+807,"retry CFTXN during close","Other",1893977003,,,
+808,"get branch/thread/sequence enqueue","Other",1893977003,,,
+809,"enq: WL - Test access/locking","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+810,"Data Guard server operation completion","Other",1893977003,,,
+811,"FAL archive wait 1 sec for REOPEN minimum","Other",1893977003,,,
+812,"TEST: action sync","Other",1893977003,,,
+813,"TEST: action hang","Other",1893977003,,,
+814,"RSGA: RAC reconfiguration","Other",1893977003,,,
+815,"enq: WL - RAC-wide SGA initialize","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+816,"enq: WL - RAC-wide SGA write","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+817,"enq: WL - RAC-wide SGA dump","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+818,"MRP stop","Other",1893977003,,,
+819,"enq: SA - standby redo logfiles","Other",1893977003,"name|mode","0","0"
+820,"enq: WS -  contention","Other",1893977003,"type|mode","id1","id2"
+821,"MRP wait on process start","Other",1893977003,,,
+822,"MRP wait on process restart","Other",1893977003,,,
+823,"MRP wait on startup clear","Other",1893977003,,,
+824,"MRP inactivation","Other",1893977003,,,
+825,"MRP wait on archivelog arrival","Other",1893977003,,,
+826,"MRP wait on archivelog archival","Other",1893977003,,,
+827,"enq: WL - Far Sync Fail Over","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+828,"enq: SA - MRP SRL access","Other",1893977003,"name|mode","0","0"
+829,"Monitor testing","Other",1893977003,,,
+830,"enq: WL - redo_db table update","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+831,"enq: WL - redo_log table update","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+832,"log switch/archive","Other",1893977003,"thread#",,
+833,"enq: WL - Switchover To Primary","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+834,"ARCH wait on c/f tx acquire 1","Other",1893977003,,,
+835,"RFS attach","Other",1893977003,,,
+836,"RFS create","Other",1893977003,,,
+837,"RFS close","Other",1893977003,,,
+838,"RFS announce","Other",1893977003,,,
+839,"RFS register","Other",1893977003,,,
+840,"RFS detach","Other",1893977003,,,
+841,"RFS ping","Other",1893977003,,,
+842,"RFS dispatch","Other",1893977003,,,
+843,"enq: WL - RFS global state contention","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+844,"enq: WL - SNA access/locking","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+845,"LGWR simulation latency wait","Other",1893977003,,,
+846,"LNS simulation latency wait","Other",1893977003,,,
+847,"ASYNC Remote Write","Other",1893977003,,,
+848,"SYNC Remote Write","Other",1893977003,,,
+849,"ARCH Remote Write","Other",1893977003,,,
+850,"Redo Transport Attach","Other",1893977003,,,
+851,"Redo Transport Detach","Other",1893977003,,,
+852,"Redo Transport Open","Other",1893977003,,,
+853,"Redo Transport Close","Other",1893977003,,,
+854,"Redo Transport Ping","Other",1893977003,,,
+855,"Remote SYNC Ping","Other",1893977003,,,
+856,"Redo Transport Slave Startup","Other",1893977003,,,
+857,"Redo Transport Slave Shutdown","Other",1893977003,,,
+858,"Redo Writer Remote Sync Notify","Other",1893977003,,,
+859,"Redo Writer Remote Sync Complete","Other",1893977003,,,
+860,"Redo Transport MISC","Other",1893977003,,,
+861,"Redo Transport Network Throttle","Other",1893977003,,,
+862,"enq: WL - Network Throttle","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+863,"LGWR-LNS wait on channel","Other",1893977003,,,
+864,"enq: WR - contention","Other",1893977003,"name|mode","thread id #","sequence #"
+865,"Data Guard: rtrt work","Other",1893977003,,,
+866,"Redo transport testing","Other",1893977003,,,
+867,"enq: RZ - add element","Other",1893977003,"name|mode","0","0"
+868,"enq: RZ - remove element","Other",1893977003,"name|mode","0","0"
+869,"Image redo gen delay","Other",1893977003,,,
+870,"Long operation CF pause","Other",1893977003,,,
+871,"LGWR wait for redo copy","Other",1893977003,"copy latch #",,
+872,"latch: redo allocation","Other",1893977003,"address","number","why"
+873,"log file switch (clearing log file)","Other",1893977003,,,
+874,"log file sync: PDB shutdown abort","Other",1893977003,"sync scn",,
+875,"target log write size","Other",1893977003,,,
+876,"LGWR any worker group","Other",1893977003,,,
+877,"LGWR all worker groups","Other",1893977003,,,
+878,"LGWR worker group ordering","Other",1893977003,"lwn_id","phase",
+879,"LGWR intra group sync","Other",1893977003,"where","groupid","slaveid"
+880,"LGWR intra group IO completion","Other",1893977003,"where","groupid","slaveid"
+881,"enq: WL - contention","Other",1893977003,"name|mode","log # / thread id #","sequence #"
+882,"enq: RN - contention","Other",1893977003,"name|mode","thread number","log number"
+883,"DFS db file lock","Other",1893977003,"file#",,
+884,"PDB close/open on another instance","Other",1893977003,,,
+885,"database open on read-write instance","Other",1893977003,,,
+886,"enq: DF - contention","Other",1893977003,"name|mode","0","file #"
+887,"enq: IS - contention","Other",1893977003,"name|mode","0 or pdbid","type"
+888,"enq: IP - open/close PDB","Other",1893977003,"name|mode","type","pdbuid"
+889,"enq: PX - PDB instance recovery","Other",1893977003,"name|mode","0 or thread#","type"
+890,"enq: FS - contention","Other",1893977003,"name|mode","0 or pdbid","type"
+891,"enq: FS - online log operation","Other",1893977003,"name|mode","0 or pdbid","type"
+892,"enq: DM - contention","Other",1893977003,"name|mode","type","type"
+893,"enq: DM - access control","Other",1893977003,"name|mode","type","type"
+894,"enq: RP - contention","Other",1893977003,"name|mode","file #","1 or block"
+895,"latch: gc element","Other",1893977003,"address","number","why"
+896,"redo log switch request completion","Other",1893977003,,,
+897,"enq: RT - contention","Other",1893977003,"name|mode","redo thread","type"
+898,"enq: RT - thread internal enable/disable","Other",1893977003,"name|mode","redo thread","type"
+899,"enq: IR - contention","Other",1893977003,"name|mode","0","0/1"
+900,"enq: IR - contention2","Other",1893977003,"name|mode","0","0/1"
+901,"enq: IR - global serialization","Other",1893977003,"name|mode","0","0/1"
+902,"enq: IR - local serialization","Other",1893977003,"name|mode","0","0/1"
+903,"enq: IR - arbitrate instance recovery","Other",1893977003,"name|mode","0","0/1"
+904,"enq: MR - contention","Other",1893977003,"name|mode","0 or file #","type"
+905,"enq: MR - standby role transition","Other",1893977003,"name|mode","0 or file #","type"
+906,"enq: MR - multi instance redo apply","Other",1893977003,"name|mode","0 or file #","type"
+907,"enq: MR - any role transition","Other",1893977003,"name|mode","0 or file #","type"
+908,"enq: MR - PDB open","Other",1893977003,"name|mode","0 or file #","type"
+909,"enq: MR - datafile online","Other",1893977003,"name|mode","0 or file #","type"
+910,"enq: MR - adg instance recovery","Other",1893977003,"name|mode","0 or file #","type"
+911,"enq: MR - preplugin recovery","Other",1893977003,"name|mode","0 or file #","type"
+912,"enq: MR - datafile pre-create","Other",1893977003,"name|mode","0 or file #","type"
+913,"shutdown after switchover to standby","Other",1893977003,,,
+914,"cancel media recovery on switchover","Other",1893977003,,,
+915,"PDB lock domain invalidation","Other",1893977003,,,
+916,"Recovery: scn growth limit","Other",1893977003,,,
+917,"parallel recovery coord wait for reply","Other",1893977003,,,
+918,"parallel recovery coord send blocked","Other",1893977003,,,
+919,"parallel recovery slave wait for change","Other",1893977003,,,
+920,"enq: BR - file shrink","Other",1893977003,"name|mode","operation","file #"
+921,"enq: BR - proxy-copy","Other",1893977003,"name|mode","operation","file #"
+922,"enq: BR - multi-section restore header","Other",1893977003,"name|mode","operation","file #"
+923,"enq: BR - multi-section restore section","Other",1893977003,"name|mode","operation","file #"
+924,"enq: BR - space info datafile hdr update","Other",1893977003,"name|mode","operation","file #"
+925,"enq: BR - request autobackup","Other",1893977003,"name|mode","operation","file #"
+926,"enq: BR - perform autobackup","Other",1893977003,"name|mode","operation","file #"
+927,"enq: BR - perform catalog recovery area","Other",1893977003,"name|mode","operation","file #"
+928,"enq: ID - contention","Other",1893977003,"name|mode","0","0"
+929,"Backup Restore Throttle sleep","Other",1893977003,"session_id","serial",
+930,"Backup Restore Switch Bitmap sleep","Other",1893977003,"session_id","serial",
+931,"Backup Restore Event sleep","Other",1893977003,"session_id","serial",
+932,"RMAN wallet access limit","Other",1893977003,,,
+933,"enq: BS - Backup spare1","Other",1893977003,"name|mode","id1","id2"
+934,"enq: BS - Backup spare2","Other",1893977003,"name|mode","id1","id2"
+935,"enq: BS - Backup spare3","Other",1893977003,"name|mode","id1","id2"
+936,"enq: BS - Backup spare4","Other",1893977003,"name|mode","id1","id2"
+937,"enq: BS - Backup spare5","Other",1893977003,"name|mode","id1","id2"
+938,"enq: BS - Backup spare6","Other",1893977003,"name|mode","id1","id2"
+939,"enq: BS - Backup spare7","Other",1893977003,"name|mode","id1","id2"
+940,"enq: BS - Backup spare8","Other",1893977003,"name|mode","id1","id2"
+941,"enq: BS - Backup spare9","Other",1893977003,"name|mode","id1","id2"
+942,"enq: BS - Backup spare0","Other",1893977003,"name|mode","id1","id2"
+943,"enq: AB - ABMR process start/stop","Other",1893977003,"name|mode","operation","operation parm"
+944,"enq: AB - ABMR process initialized","Other",1893977003,"name|mode","operation","operation parm"
+945,"Auto BMR completion","Other",1893977003,"file#","block#",
+946,"Auto BMR RPC standby catchup","Other",1893977003,"wrap","base",
+947,"enq: ZR - ZDLRA lock db","Other",1893977003,"name|mode","operation","id"
+948,"enq: ZR - ZDLRA lock storage loc","Other",1893977003,"name|mode","operation","id"
+949,"enq: ZR - ZDLRA lock timer queue","Other",1893977003,"name|mode","operation","id"
+950,"enq: ZR - ZDLRA lock scheduler","Other",1893977003,"name|mode","operation","id"
+951,"enq: ZR - ZDLRA lock API","Other",1893977003,"name|mode","operation","id"
+952,"enq: ZR - ZDLRA quiesce tasks ","Other",1893977003,"name|mode","operation","id"
+953,"enq: ZR - ZDLRA check quiesce tasks","Other",1893977003,"name|mode","operation","id"
+954,"enq: ZR - ZDLRA quiesce servlets","Other",1893977003,"name|mode","operation","id"
+955,"enq: ZR - ZDLRA check servlet quiescence","Other",1893977003,"name|mode","operation","id"
+956,"enq: ZR - ZDLRA serialize unregister db","Other",1893977003,"name|mode","operation","id"
+957,"enq: ZR - ZDLRA run scheduler","Other",1893977003,"name|mode","operation","id"
+958,"enq: ZR - ZDLRA purge storage loc","Other",1893977003,"name|mode","operation","id"
+959,"enq: ZR - ZDLRA spare enq 10","Other",1893977003,"name|mode","operation","id"
+960,"enq: ZR - ZDLRA invalidate plans","Other",1893977003,"name|mode","operation","id"
+961,"enq: ZR - ZDLRA protect plans","Other",1893977003,"name|mode","operation","id"
+962,"enq: BC - drop container group","Other",1893977003,"name|mode","container group","container id"
+963,"enq: BC - create container","Other",1893977003,"name|mode","container group","container id"
+964,"enq: BC - group - create container","Other",1893977003,"name|mode","container group","container id"
+965,"enq: BC - drop container","Other",1893977003,"name|mode","container group","container id"
+966,"enq: BC - group - create file","Other",1893977003,"name|mode","container group","container id"
+967,"enq: BI - create file","Other",1893977003,"name|mode","group ID / file ID","file ID"
+968,"enq: BI - identify file","Other",1893977003,"name|mode","group ID / file ID","file ID"
+969,"enq: BI - delete file","Other",1893977003,"name|mode","group ID / file ID","file ID"
+970,"enq: BZ - resize file","Other",1893977003,"name|mode","group ID / file ID","file ID"
+971,"enq: BV - rebuild/validate group","Other",1893977003,"name|mode","amrv$ key",
+972,"Backup Appliance container synchronous read","Other",1893977003,"block#","blocks",
+973,"Backup Appliance container synchronous write","Other",1893977003,"block#","blocks",
+974,"Backup Appliance container I/O","Other",1893977003,"requests",,
+975,"Supplemental logging roles","Other",1893977003,"role id",,
+976,"LogMiner builder: queue full","Other",1893977003,"Session ID",,
+977,"LogMiner reader: redo slot","Other",1893977003,"Session ID","Thread",
+978,"LogMiner reader: memory","Other",1893977003,"Session ID",,
+979,"LogMiner merger: redo slot","Other",1893977003,"Session ID",,
+980,"LogMiner: txn","Other",1893977003,"Session ID","Lock","State"
+981,"LogMiner: queue","Other",1893977003,"Session ID","Lock","State"
+982,"LogMiner: session audit list","Other",1893977003,"Session ID","Lock","State"
+983,"LogMiner FSC: dictionary load completion","Other",1893977003,"Session ID",,
+984,"enq: MN - contention","Other",1893977003,"name|mode","session ID","0"
+985,"enq: ZL - LogMiner foreign log metadata","Other",1893977003,"name|mode","session ID","0"
+986,"enq: PL - contention","Other",1893977003,"name|mode","0","0"
+987,"enq: CP - Pluggable database resetlogs","Other",1893977003,"name|mode","Internal","Internal"
+988,"enq: SB - logical standby metadata","Other",1893977003,"name|mode","0","0"
+989,"enq: SB - table instantiation","Other",1893977003,"name|mode","0","0"
+990,"Logical Standby Apply shutdown","Other",1893977003,,,
+991,"Logical Standby pin transaction","Other",1893977003,"xidusn","xidslt","xidsqn"
+992,"Logical Standby dictionary build","Other",1893977003,,,
+993,"Logical Standby Terminal Apply","Other",1893977003,"stage",,
+994,"Logical Standby Debug","Other",1893977003,"event",,
+995,"Resolution of in-doubt txns","Other",1893977003,"SCN",,
+996,"enq: XR - quiesce database","Other",1893977003,"name|mode","operation","0"
+997,"enq: XR - database force logging","Other",1893977003,"name|mode","operation","0"
+998,"ADG query scn advance","Other",1893977003,,,
+999,"ADG instance recovery complete","Other",1893977003,,,
+1000,"latch: obj/range reuse redo processing","Other",1893977003,"address","number","why"
+1001,"standby query scn advance","Other",1893977003,,,
+1002,"change tracking file synchronous read","Other",1893977003,"block#","blocks",
+1003,"change tracking file synchronous write","Other",1893977003,"block#","blocks",
+1004,"change tracking file parallel write","Other",1893977003,"blocks","requests",
+1005,"block change tracking buffer space","Other",1893977003,,,
+1006,"CTWR media recovery checkpoint request","Other",1893977003,,,
+1007,"enq: CT - global space management","Other",1893977003,"name|mode","operation","operation parm"
+1008,"enq: CT - local space management","Other",1893977003,"name|mode","operation","operation parm"
+1009,"enq: CT - change stream ownership","Other",1893977003,"name|mode","operation","operation parm"
+1010,"enq: CT - state","Other",1893977003,"name|mode","operation","operation parm"
+1011,"enq: CT - state change gate 1","Other",1893977003,"name|mode","operation","operation parm"
+1012,"enq: CT - state change gate 2","Other",1893977003,"name|mode","operation","operation parm"
+1013,"enq: CT - CTWR process start/stop","Other",1893977003,"name|mode","operation","operation parm"
+1014,"enq: CT - reading","Other",1893977003,"name|mode","operation","operation parm"
+1015,"recovery area: computing dropped files","Other",1893977003,,,
+1016,"recovery area: computing obsolete files","Other",1893977003,,,
+1017,"recovery area: computing backed up files","Other",1893977003,,,
+1018,"recovery area: computing applied logs","Other",1893977003,,,
+1019,"enq: RS - file delete","Other",1893977003,"name|mode","record type","record id"
+1020,"enq: RS - record reuse","Other",1893977003,"name|mode","record type","record id"
+1021,"enq: RS - prevent file delete","Other",1893977003,"name|mode","record type","record id"
+1022,"enq: RS - prevent aging list update","Other",1893977003,"name|mode","record type","record id"
+1023,"enq: RS - persist alert level","Other",1893977003,"name|mode","record type","record id"
+1024,"enq: RS - read alert level","Other",1893977003,"name|mode","record type","record id"
+1025,"enq: RS - write alert level","Other",1893977003,"name|mode","record type","record id"
+1026,"enq: FL - Flashback database log","Other",1893977003,"name|mode","Log #","zero"
+1027,"enq: FL - Flashback db command","Other",1893977003,"name|mode","Log #","zero"
+1028,"enq: FD - Marker generation","Other",1893977003,"name|mode","Internal","Internal"
+1029,"enq: FD - Tablespace flashback on/off","Other",1893977003,"name|mode","Internal","Internal"
+1030,"enq: FD - Flashback coordinator","Other",1893977003,"name|mode","Internal","Internal"
+1031,"enq: FD - Flashback on/off","Other",1893977003,"name|mode","Internal","Internal"
+1032,"enq: FD - Restore point create/drop","Other",1893977003,"name|mode","Internal","Internal"
+1033,"enq: FD - Flashback logical operations","Other",1893977003,"name|mode","Internal","Internal"
+1034,"flashback free VI log","Other",1893977003,,,
+1035,"flashback log switch","Other",1893977003,,,
+1036,"enq: FW -  contention","Other",1893977003,"type|mode","id1","id2"
+1037,"RVWR wait for flashback copy","Other",1893977003,"copy latch #",,
+1038,"parallel recovery read buffer free","Other",1893977003,,,
+1039,"parallel recovery redo cache buffer free","Other",1893977003,,,
+1040,"parallel recovery change buffer free","Other",1893977003,,,
+1041,"parallel recovery push change","Other",1893977003,,,
+1042,"cell smart flash keep","Other",1893977003,"cellhash#",,
+1043,"cell smart flash unkeep","Other",1893977003,"cellhash#",,
+1044,"cell ram cache population","Other",1893977003,"cellhash#",,
+1045,"parallel recovery coord: all replies","Other",1893977003,,,
+1046,"datafile move cleanup during resize","Other",1893977003,,,
+1047,"Nologging Standby Unit Test","Other",1893977003,,,
+1048,"Nonlogged block fetch","Other",1893977003,"Absolute file","Start block","RCVID or Request"
+1049,"recovery receive buffer free","Other",1893977003,,,
+1050,"recovery cancel ","Other",1893977003,,,
+1051,"recovery remote file verification ","Other",1893977003,,,
+1052,"recovery active instance mapping setup","Other",1893977003,,,
+1053,"recovery new thread enable","Other",1893977003,,,
+1054,"recovery file header update for checkpoint","Other",1893977003,,,
+1055,"recovery file header update for fuzziness","Other",1893977003,,,
+1056,"recovery coordinator apply  pending","Other",1893977003,,,
+1057,"recovery coordinator marker apply","Other",1893977003,,,
+1058,"recovery coordinator message","Other",1893977003,,,
+1059,"recovery merge pending","Other",1893977003,,,
+1060,"recovery metadata latch","Other",1893977003,,,
+1061,"recovery checkpoint","Other",1893977003,,,
+1062,"recovery apply pending","Other",1893977003,,,
+1063,"recovery fuzzy update","Other",1893977003,,,
+1064,"recovery shutdown","Other",1893977003,,,
+1065,"recovery message","Other",1893977003,,,
+1066,"recovery slaves to be informed","Other",1893977003,,,
+1067,"recovery move influx buffers","Other",1893977003,,,
+1068,"recovery marker apply","Other",1893977003,,,
+1069,"recovery timestamp","Other",1893977003,,,
+1070,"recovery send buffer free","Other",1893977003,,,
+1071,"DBMS_ROLLING instruction completion","Other",1893977003,"Instruction id",,
+1072,"Shadow lost write","Other",1893977003,,,
+1073,"blocking txn id for DDL","Other",1893977003,"table","scn","only dml"
+1074,"transaction","Other",1893977003,"undo seg#|slot#","wrap#","count"
+1075,"inactive transaction branch","Other",1893977003,"branch#","waited",
+1076,"txn to complete","Other",1893977003,,,
+1077,"PMON to cleanup pseudo-branches at svc stop time","Other",1893977003,,,
+1078,"PMON to cleanup detached branches at shutdown","Other",1893977003,,,
+1079,"test long ops","Other",1893977003,,,
+1080,"latch: undo global data","Other",1893977003,"address","number","why"
+1081,"undo segment recovery","Other",1893977003,"segment#","tx flags",
+1082,"unbound tx","Other",1893977003,,,
+1083,"wait for change","Other",1893977003,,,
+1084,"wait for another txn - undo rcv abort","Other",1893977003,,,
+1085,"wait for another txn - txn abort","Other",1893977003,,,
+1086,"wait for another txn - rollback to savepoint","Other",1893977003,,,
+1087,"undo_retention publish retry","Other",1893977003,"where","retry_count",
+1088,"txn cache read version","Other",1893977003,,,
+1089,"enq: TA - contention","Other",1893977003,"name|mode","operation","undo segment # / other"
+1090,"enq: TX - contention","Other",1893977003,"name|mode","usn<<16 | slot","sequence"
+1091,"enq: US - contention","Other",1893977003,"name|mode","undo segment #","0"
+1092,"wait for stopper event to be increased","Other",1893977003,,,
+1093,"wait for a undo record","Other",1893977003,,,
+1094,"wait for a paralle reco to abort","Other",1893977003,,,
+1095,"enq: IM - contention for blr","Other",1893977003,"name|mode","pool #","0"
+1096,"enq: TD - KTF dump entries","Other",1893977003,"name|mode","0","0"
+1097,"enq: TE - KTF broadcast","Other",1893977003,"name|mode","0","0"
+1098,"enq: CN - race with txn","Other",1893977003,"name|mode","reg id","0"
+1099,"enq: CN - race with reg","Other",1893977003,"name|mode","reg id","0"
+1100,"enq: CN - race with init","Other",1893977003,"name|mode","reg id","0"
+1101,"latch: Change Notification Hash table latch","Other",1893977003,"address","number","why"
+1102,"enq: CO - master slave det","Other",1893977003,"name|mode","inst id","0"
+1103,"enq: FE - contention","Other",1893977003,"name|mode","0","0"
+1104,"latch: change notification client cache latch","Other",1893977003,"address","number","why"
+1105,"latch: SGA Logging Log Latch","Other",1893977003,"address","number","why"
+1106,"latch: SGA Logging Bkt Latch","Other",1893977003,"address","number","why"
+1107,"enq: MC - Securefile log","Other",1893977003,"name|mode","0","hash(logname)"
+1108,"enq: MF - flush bkgnd periodic","Other",1893977003,"name|mode","logid","bktId<<16|instid"
+1109,"enq: MF - creating swap in instance","Other",1893977003,"name|mode","logid","bktId<<16|instid"
+1110,"enq: MF - flush space","Other",1893977003,"name|mode","logid","bktId<<16|instid"
+1111,"enq: MF - flush client","Other",1893977003,"name|mode","logid","bktId<<16|instid"
+1112,"enq: MF - flush prior error","Other",1893977003,"name|mode","logid","bktId<<16|instid"
+1113,"enq: MF - flush destroy","Other",1893977003,"name|mode","logid","bktId<<16|instid"
+1114,"latch: ILM activity tracking latch","Other",1893977003,"address","number","why"
+1115,"latch: ILM access tracking extent","Other",1893977003,"address","number","why"
+1116,"IM CU busy","Other",1893977003,,,
+1117,"enq: ZQ - register","Other",1893977003,"name|mode","ts#","dba"
+1118,"enq: ZQ - quiesce","Other",1893977003,"name|mode","ts#","dba"
+1119,"IM ADG space pressure","Other",1893977003,"bucket#|slave#","retry#","count"
+1120,"enq: TF - contention","Other",1893977003,"name|mode","PDB ID & tablespace #","relative file #"
+1121,"latch: lob segment hash table latch","Other",1893977003,"address","number","why"
+1122,"latch: lob segment query latch","Other",1893977003,"address","number","why"
+1123,"latch: lob segment dispenser latch","Other",1893977003,"address","number","why"
+1124,"Wait for shrink lock2","Other",1893977003,"object_id","lock_mode",
+1125,"Wait for shrink lock","Other",1893977003,"object_id","lock_mode",
+1126,"L1 validation","Other",1893977003,"seghdr","l1bmb",
+1127,"Wait for TT enqueue","Other",1893977003,"tsn",,
+1128,"kttm2d","Other",1893977003,,,
+1129,"ktsambl","Other",1893977003,,,
+1130,"ktfbtgex","Other",1893977003,"tsn",,
+1131,"enq: DT - contention","Other",1893977003,"name|mode","0","0"
+1132,"enq: TS - contention","Other",1893977003,"name|mode","tablespace ID","dba"
+1133,"enq: FB - contention","Other",1893977003,"name|mode","tablespace #","dba"
+1134,"enq: SK - contention","Other",1893977003,"name|mode","tablespace #","dba"
+1135,"enq: DW - contention","Other",1893977003,"name|mode","tablespace #","dba"
+1136,"enq: SU - contention","Other",1893977003,"name|mode","table space #","0"
+1137,"enq: TT - contention","Other",1893977003,"name|mode","tablespace ID","operation"
+1138,"ktm: instance recovery","Other",1893977003,"undo segment#",,
+1139,"instance state change","Other",1893977003,"layer","value","waited"
+1140,"enq: SM -  contention","Other",1893977003,"type|mode","id1","id2"
+1141,"enq: SJ - Slave Task Cancel","Other",1893977003,"name|mode","Slave process id","task id"
+1142,"Space Manager: slave messages","Other",1893977003,,,
+1143,"enq: FH - contention","Other",1893977003,"name|mode","Instance ID",
+1144,"latch: IM area scb latch","Other",1893977003,"address","number","why"
+1145,"latch: IM area sb latch","Other",1893977003,"address","number","why"
+1146,"enq: TZ - contention","Other",1893977003,"name|mode","tablespace #","dba"
+1147,"enq: IN - contention","Other",1893977003,"name|mode","tablespace #","dba"
+1148,"enq: ZB - contention","Other",1893977003,"name|mode","tablespace #","dba"
+1149,"latch: IM seg hdr latch","Other",1893977003,"address","number","why"
+1150,"latch: IM emb latch","Other",1893977003,"address","number","why"
+1151,"Analyze hash compare","Other",1893977003,,,
+1152,"index block split","Other",1893977003,"rootdba","level","childdba"
+1153,"internal test event (index split branch)","Other",1893977003,,,
+1154,"internal test event (index split leaf)","Other",1893977003,,,
+1155,"kdblil wait before retrying ORA-54","Other",1893977003,,,
+1156,"dupl. cluster key","Other",1893977003,"dba",,
+1157,"internal test event (index merge)","Other",1893977003,,,
+1158,"enq: DL - contention","Other",1893977003,"name|mode","object #","0"
+1159,"enq: HQ - contention","Other",1893977003,"name|mode","object #","hash value"
+1160,"enq: HP - contention","Other",1893977003,"name|mode","tablespace #","dba"
+1161,"Securefile Write Gather Cache Yield Process","Other",1893977003,,,
+1162,"enq: KL -  contention","Other",1893977003,"type|mode","id1","id2"
+1163,"enq: WG - delete fso","Other",1893977003,"name|mode","kdlw lobid first half","kdlw lobid sec half"
+1164,"enq: SL - get lock","Other",1893977003,"name|mode","kdlw lobid first half","kdlw lobid sec half"
+1165,"enq: SL - escalate lock","Other",1893977003,"name|mode","kdlw lobid first half","kdlw lobid sec half"
+1166,"enq: SL - get lock for undo","Other",1893977003,"name|mode","kdlw lobid first half","kdlw lobid sec half"
+1167,"enq: ZH - compression analysis","Other",1893977003,"name|mode","obj#","ulevel"
+1168,"Compression analysis","Other",1893977003,,,
+1169,"enq: SZ - contention","Other",1893977003,"name|mode","tablespace #","rdba"
+1170,"enq: ZC - FS Seg contention","Other",1893977003,"name|mode","tsn#","objd#"
+1171,"enq: ZD - FS CU mod","Other",1893977003,"name|mode","segid","startdba"
+1172,"enq: SY - IM populate by other session","Other",1893977003,"name|mode","tablespace # & objd","rdba"
+1173,"enq: JZ - Join group dictionary","Other",1893977003,"name|mode","0","0"
+1174,"IM populate completion","Other",1893977003,,,
+1175,"IMXT Populate - drop HT","Other",1893977003,,,
+1176,"IM FastStart deadlock retry","Other",1893977003,,,
+1177,"IM ADO scheduler retry","Other",1893977003,,,
+1178,"latch: IMFS defer write list","Other",1893977003,"address","number","why"
+1179,"IMFS Flush defer writes","Other",1893977003,,,
+1180,"In-Memory populate: over pga limit","Other",1893977003,"process number","serial number",
+1181,"latch: Column stats entry latch","Other",1893977003,"address","number","why"
+1182,"row cache cleanup","Other",1893977003,,,
+1183,"row cache process","Other",1893977003,"location",,
+1184,"enq: QA -  contention","Other",1893977003,"type|mode","id1","id2"
+1185,"enq: QB -  contention","Other",1893977003,"type|mode","id1","id2"
+1186,"enq: QC -  contention","Other",1893977003,"type|mode","id1","id2"
+1187,"enq: QD -  contention","Other",1893977003,"type|mode","id1","id2"
+1188,"enq: QE -  contention","Other",1893977003,"type|mode","id1","id2"
+1189,"enq: QF -  contention","Other",1893977003,"type|mode","id1","id2"
+1190,"enq: QG -  contention","Other",1893977003,"type|mode","id1","id2"
+1191,"enq: QH -  contention","Other",1893977003,"type|mode","id1","id2"
+1192,"enq: QI -  contention","Other",1893977003,"type|mode","id1","id2"
+1193,"enq: QJ -  contention","Other",1893977003,"type|mode","id1","id2"
+1194,"enq: QK -  contention","Other",1893977003,"type|mode","id1","id2"
+1195,"enq: QL -  contention","Other",1893977003,"type|mode","id1","id2"
+1196,"enq: QM -  contention","Other",1893977003,"type|mode","id1","id2"
+1197,"enq: QN -  contention","Other",1893977003,"type|mode","id1","id2"
+1198,"enq: QO -  contention","Other",1893977003,"type|mode","id1","id2"
+1199,"enq: QP -  contention","Other",1893977003,"type|mode","id1","id2"
+1200,"enq: QQ -  contention","Other",1893977003,"type|mode","id1","id2"
+1201,"enq: QR -  contention","Other",1893977003,"type|mode","id1","id2"
+1202,"enq: QS -  contention","Other",1893977003,"type|mode","id1","id2"
+1203,"enq: QT -  contention","Other",1893977003,"type|mode","id1","id2"
+1204,"enq: QU -  contention","Other",1893977003,"type|mode","id1","id2"
+1205,"enq: QV -  contention","Other",1893977003,"type|mode","id1","id2"
+1206,"enq: QX -  contention","Other",1893977003,"type|mode","id1","id2"
+1207,"enq: QY -  contention","Other",1893977003,"type|mode","id1","id2"
+1208,"enq: QZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1209,"enq: DV - contention","Other",1893977003,"name|mode","object #","0"
+1210,"enq: SO - contention","Other",1893977003,"name|mode","object #","0"
+1211,"RAC: row cache lock nowait retry","Other",1893977003,"stub handle","attempt count",
+1212,"enq: VA -  contention","Other",1893977003,"type|mode","id1","id2"
+1213,"enq: VB -  contention","Other",1893977003,"type|mode","id1","id2"
+1214,"enq: VC -  contention","Other",1893977003,"type|mode","id1","id2"
+1215,"enq: VD -  contention","Other",1893977003,"type|mode","id1","id2"
+1216,"enq: VE -  contention","Other",1893977003,"type|mode","id1","id2"
+1217,"enq: VF -  contention","Other",1893977003,"type|mode","id1","id2"
+1218,"enq: VG -  contention","Other",1893977003,"type|mode","id1","id2"
+1219,"enq: VH -  contention","Other",1893977003,"type|mode","id1","id2"
+1220,"enq: VI -  contention","Other",1893977003,"type|mode","id1","id2"
+1221,"enq: VJ -  contention","Other",1893977003,"type|mode","id1","id2"
+1222,"enq: VK -  contention","Other",1893977003,"type|mode","id1","id2"
+1223,"enq: VL -  contention","Other",1893977003,"type|mode","id1","id2"
+1224,"enq: VM -  contention","Other",1893977003,"type|mode","id1","id2"
+1225,"enq: VN -  contention","Other",1893977003,"type|mode","id1","id2"
+1226,"enq: VO -  contention","Other",1893977003,"type|mode","id1","id2"
+1227,"enq: VP -  contention","Other",1893977003,"type|mode","id1","id2"
+1228,"enq: VQ -  contention","Other",1893977003,"type|mode","id1","id2"
+1229,"enq: VR -  contention","Other",1893977003,"type|mode","id1","id2"
+1230,"enq: VS -  contention","Other",1893977003,"type|mode","id1","id2"
+1231,"enq: VT -  contention","Other",1893977003,"type|mode","id1","id2"
+1232,"enq: VU -  contention","Other",1893977003,"type|mode","id1","id2"
+1233,"enq: VV -  contention","Other",1893977003,"type|mode","id1","id2"
+1234,"enq: VX -  contention","Other",1893977003,"type|mode","id1","id2"
+1235,"enq: VY -  contention","Other",1893977003,"type|mode","id1","id2"
+1236,"enq: VZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1237,"enq: EA -  contention","Other",1893977003,"type|mode","id1","id2"
+1238,"enq: EB -  contention","Other",1893977003,"type|mode","id1","id2"
+1239,"enq: EC -  contention","Other",1893977003,"type|mode","id1","id2"
+1240,"enq: ED -  contention","Other",1893977003,"type|mode","id1","id2"
+1241,"enq: EE -  contention","Other",1893977003,"type|mode","id1","id2"
+1242,"enq: EF -  contention","Other",1893977003,"type|mode","id1","id2"
+1243,"enq: EG -  contention","Other",1893977003,"type|mode","id1","id2"
+1244,"enq: EH -  contention","Other",1893977003,"type|mode","id1","id2"
+1245,"enq: EI -  contention","Other",1893977003,"type|mode","id1","id2"
+1246,"enq: EJ -  contention","Other",1893977003,"type|mode","id1","id2"
+1247,"enq: EK -  contention","Other",1893977003,"type|mode","id1","id2"
+1248,"enq: EL -  contention","Other",1893977003,"type|mode","id1","id2"
+1249,"enq: EM -  contention","Other",1893977003,"type|mode","id1","id2"
+1250,"enq: EN -  contention","Other",1893977003,"type|mode","id1","id2"
+1251,"enq: EO -  contention","Other",1893977003,"type|mode","id1","id2"
+1252,"enq: EP -  contention","Other",1893977003,"type|mode","id1","id2"
+1253,"enq: EQ -  contention","Other",1893977003,"type|mode","id1","id2"
+1254,"enq: ER -  contention","Other",1893977003,"type|mode","id1","id2"
+1255,"enq: ES -  contention","Other",1893977003,"type|mode","id1","id2"
+1256,"enq: ET -  contention","Other",1893977003,"type|mode","id1","id2"
+1257,"enq: EU -  contention","Other",1893977003,"type|mode","id1","id2"
+1258,"enq: EV -  contention","Other",1893977003,"type|mode","id1","id2"
+1259,"enq: EX -  contention","Other",1893977003,"type|mode","id1","id2"
+1260,"enq: EY -  contention","Other",1893977003,"type|mode","id1","id2"
+1261,"enq: EZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1262,"enq: LA -  contention","Other",1893977003,"type|mode","id1","id2"
+1263,"enq: LB -  contention","Other",1893977003,"type|mode","id1","id2"
+1264,"enq: LC -  contention","Other",1893977003,"type|mode","id1","id2"
+1265,"enq: LD -  contention","Other",1893977003,"type|mode","id1","id2"
+1266,"enq: LE -  contention","Other",1893977003,"type|mode","id1","id2"
+1267,"enq: LF -  contention","Other",1893977003,"type|mode","id1","id2"
+1268,"enq: LG -  contention","Other",1893977003,"type|mode","id1","id2"
+1269,"enq: LH -  contention","Other",1893977003,"type|mode","id1","id2"
+1270,"enq: LI -  contention","Other",1893977003,"type|mode","id1","id2"
+1271,"enq: LJ -  contention","Other",1893977003,"type|mode","id1","id2"
+1272,"enq: LK -  contention","Other",1893977003,"type|mode","id1","id2"
+1273,"enq: LL -  contention","Other",1893977003,"type|mode","id1","id2"
+1274,"enq: LM -  contention","Other",1893977003,"type|mode","id1","id2"
+1275,"enq: LN -  contention","Other",1893977003,"type|mode","id1","id2"
+1276,"enq: LO -  contention","Other",1893977003,"type|mode","id1","id2"
+1277,"enq: LP -  contention","Other",1893977003,"type|mode","id1","id2"
+1278,"enq: LQ -  contention","Other",1893977003,"type|mode","id1","id2"
+1279,"enq: LR -  contention","Other",1893977003,"type|mode","id1","id2"
+1280,"enq: LS -  contention","Other",1893977003,"type|mode","id1","id2"
+1281,"enq: LT -  contention","Other",1893977003,"type|mode","id1","id2"
+1282,"enq: LU -  contention","Other",1893977003,"type|mode","id1","id2"
+1283,"enq: LV -  contention","Other",1893977003,"type|mode","id1","id2"
+1284,"enq: LX -  contention","Other",1893977003,"type|mode","id1","id2"
+1285,"enq: LY -  contention","Other",1893977003,"type|mode","id1","id2"
+1286,"enq: LZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1287,"enq: YA -  contention","Other",1893977003,"type|mode","id1","id2"
+1288,"enq: YB -  contention","Other",1893977003,"type|mode","id1","id2"
+1289,"enq: YC -  contention","Other",1893977003,"type|mode","id1","id2"
+1290,"enq: YD -  contention","Other",1893977003,"type|mode","id1","id2"
+1291,"enq: YE -  contention","Other",1893977003,"type|mode","id1","id2"
+1292,"enq: YF -  contention","Other",1893977003,"type|mode","id1","id2"
+1293,"enq: YG -  contention","Other",1893977003,"type|mode","id1","id2"
+1294,"enq: YH -  contention","Other",1893977003,"type|mode","id1","id2"
+1295,"enq: YI -  contention","Other",1893977003,"type|mode","id1","id2"
+1296,"enq: YJ -  contention","Other",1893977003,"type|mode","id1","id2"
+1297,"enq: YK -  contention","Other",1893977003,"type|mode","id1","id2"
+1298,"enq: YL -  contention","Other",1893977003,"type|mode","id1","id2"
+1299,"enq: YM -  contention","Other",1893977003,"type|mode","id1","id2"
+1300,"enq: YN -  contention","Other",1893977003,"type|mode","id1","id2"
+1301,"enq: YO -  contention","Other",1893977003,"type|mode","id1","id2"
+1302,"enq: YP -  contention","Other",1893977003,"type|mode","id1","id2"
+1303,"enq: YQ -  contention","Other",1893977003,"type|mode","id1","id2"
+1304,"enq: YR -  contention","Other",1893977003,"type|mode","id1","id2"
+1305,"enq: YS -  contention","Other",1893977003,"type|mode","id1","id2"
+1306,"enq: YT -  contention","Other",1893977003,"type|mode","id1","id2"
+1307,"enq: YU -  contention","Other",1893977003,"type|mode","id1","id2"
+1308,"enq: YV -  contention","Other",1893977003,"type|mode","id1","id2"
+1309,"enq: YX -  contention","Other",1893977003,"type|mode","id1","id2"
+1310,"enq: YY -  contention","Other",1893977003,"type|mode","id1","id2"
+1311,"enq: YZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1312,"enq: GA -  contention","Other",1893977003,"type|mode","id1","id2"
+1313,"enq: GB -  contention","Other",1893977003,"type|mode","id1","id2"
+1314,"enq: GC -  contention","Other",1893977003,"type|mode","id1","id2"
+1315,"enq: GD -  contention","Other",1893977003,"type|mode","id1","id2"
+1316,"enq: GE -  contention","Other",1893977003,"type|mode","id1","id2"
+1317,"enq: GF -  contention","Other",1893977003,"type|mode","id1","id2"
+1318,"enq: GG -  contention","Other",1893977003,"type|mode","id1","id2"
+1319,"enq: GH -  contention","Other",1893977003,"type|mode","id1","id2"
+1320,"enq: GI -  contention","Other",1893977003,"type|mode","id1","id2"
+1321,"enq: GJ -  contention","Other",1893977003,"type|mode","id1","id2"
+1322,"enq: GK -  contention","Other",1893977003,"type|mode","id1","id2"
+1323,"enq: GL -  contention","Other",1893977003,"type|mode","id1","id2"
+1324,"enq: GM -  contention","Other",1893977003,"type|mode","id1","id2"
+1325,"enq: GN -  contention","Other",1893977003,"type|mode","id1","id2"
+1326,"enq: GO -  contention","Other",1893977003,"type|mode","id1","id2"
+1327,"enq: GP -  contention","Other",1893977003,"type|mode","id1","id2"
+1328,"enq: GQ -  contention","Other",1893977003,"type|mode","id1","id2"
+1329,"enq: GR -  contention","Other",1893977003,"type|mode","id1","id2"
+1330,"enq: GS -  contention","Other",1893977003,"type|mode","id1","id2"
+1331,"enq: GT -  contention","Other",1893977003,"type|mode","id1","id2"
+1332,"enq: GU -  contention","Other",1893977003,"type|mode","id1","id2"
+1333,"enq: GV -  contention","Other",1893977003,"type|mode","id1","id2"
+1334,"enq: GX -  contention","Other",1893977003,"type|mode","id1","id2"
+1335,"enq: GY -  contention","Other",1893977003,"type|mode","id1","id2"
+1336,"enq: GZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1337,"enq: NA -  contention","Other",1893977003,"type|mode","id1","id2"
+1338,"enq: NB -  contention","Other",1893977003,"type|mode","id1","id2"
+1339,"enq: NC -  contention","Other",1893977003,"type|mode","id1","id2"
+1340,"enq: ND -  contention","Other",1893977003,"type|mode","id1","id2"
+1341,"enq: NE -  contention","Other",1893977003,"type|mode","id1","id2"
+1342,"enq: NF -  contention","Other",1893977003,"type|mode","id1","id2"
+1343,"enq: NG -  contention","Other",1893977003,"type|mode","id1","id2"
+1344,"enq: NH -  contention","Other",1893977003,"type|mode","id1","id2"
+1345,"enq: NI -  contention","Other",1893977003,"type|mode","id1","id2"
+1346,"enq: NJ -  contention","Other",1893977003,"type|mode","id1","id2"
+1347,"enq: NK -  contention","Other",1893977003,"type|mode","id1","id2"
+1348,"enq: NL -  contention","Other",1893977003,"type|mode","id1","id2"
+1349,"enq: NM -  contention","Other",1893977003,"type|mode","id1","id2"
+1350,"enq: NN -  contention","Other",1893977003,"type|mode","id1","id2"
+1351,"enq: NO -  contention","Other",1893977003,"type|mode","id1","id2"
+1352,"enq: NP -  contention","Other",1893977003,"type|mode","id1","id2"
+1353,"enq: NQ -  contention","Other",1893977003,"type|mode","id1","id2"
+1354,"enq: NR -  contention","Other",1893977003,"type|mode","id1","id2"
+1355,"enq: NS -  contention","Other",1893977003,"type|mode","id1","id2"
+1356,"enq: NT -  contention","Other",1893977003,"type|mode","id1","id2"
+1357,"enq: NU -  contention","Other",1893977003,"type|mode","id1","id2"
+1358,"enq: NV -  contention","Other",1893977003,"type|mode","id1","id2"
+1359,"enq: NX -  contention","Other",1893977003,"type|mode","id1","id2"
+1360,"enq: NY -  contention","Other",1893977003,"type|mode","id1","id2"
+1361,"enq: NZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1362,"enq: IV -  contention","Other",1893977003,"type|mode","id1","id2"
+1363,"enq: TP - contention","Other",1893977003,"name|mode","0","0"
+1364,"enq: RW - MV metadata contention","Other",1893977003,"name|mode","table obj#","0"
+1365,"enq: OC - contention","Other",1893977003,"name|mode","1","2"
+1366,"enq: OL - contention","Other",1893977003,"name|mode","hash value","0"
+1367,"kkdlgon","Other",1893977003,,,
+1368,"kkdlsipon","Other",1893977003,,,
+1369,"kkdlhpon","Other",1893977003,,,
+1370,"Remote Tool Request Reply","Other",1893977003,,,
+1371,"Remote Tool Request Free List","Other",1893977003,,,
+1372,"kgltwait","Other",1893977003,,,
+1373,"kksfbc research","Other",1893977003,,,
+1374,"kksscl hash split","Other",1893977003,,,
+1375,"kksfbc child completion","Other",1893977003,,,
+1376,"enq: CU - contention","Other",1893977003,"name|mode","handle","handle"
+1377,"enq: AE - lock","Other",1893977003,"name|mode","edition obj#","pdbuid"
+1378,"Revoke: get object","Other",1893977003,"maximum time","amount of time",
+1379,"enq: PF - contention","Other",1893977003,"name|mode","0","0"
+1380,"enq: PZ - flush passwordfile metadata","Other",1893977003,"name|mode","0","0"
+1381,"enq: PZ - load passwordfile metadata","Other",1893977003,"name|mode","0","0"
+1382,"enq: IL - contention","Other",1893977003,"name|mode","object #","0"
+1383,"enq: CL - drop label","Other",1893977003,"name|mode","object #","0"
+1384,"enq: CL - compare labels","Other",1893977003,"name|mode","object #","0"
+1385,"enq: SG - OLS Add Group","Other",1893977003,"name|mode","object #","0"
+1386,"enq: SG - OLS Create Group","Other",1893977003,"name|mode","object #","0"
+1387,"enq: SG - OLS Drop Group","Other",1893977003,"name|mode","object #","0"
+1388,"enq: SG - OLS Alter Group Parent","Other",1893977003,"name|mode","object #","0"
+1389,"enq: OP - OLS Store user entries","Other",1893977003,"name|mode","object #","0"
+1390,"enq: OP - OLS Cleanup unused profiles","Other",1893977003,"name|mode","object #","0"
+1391,"move audit tablespace delay","Other",1893977003,,,
+1392,"enq: CC - decryption","Other",1893977003,"name|mode","0","0"
+1393,"enq: MK - contention","Other",1893977003,"name|mode","0","0"
+1394,"enq: OW - initialization","Other",1893977003,"name|mode","0","0"
+1395,"enq: OW - termination","Other",1893977003,"name|mode","0","0"
+1396,"enq: RK - set key","Other",1893977003,"name|mode","0","0"
+1397,"enq: RK - queue wallet and TS keys","Other",1893977003,"name|mode","0","0"
+1398,"enq: HC - HSM cache write","Other",1893977003,"name|mode","0","0"
+1399,"enq: HC - HSM cache read","Other",1893977003,"name|mode","0","0"
+1400,"enq: RL - RAC wallet lock","Other",1893977003,"name|mode","0","0"
+1401,"enq: PJ - modify DV policy","Other",1893977003,"name|mode","0","0"
+1402,"enq: PJ - read DV policy","Other",1893977003,"name|mode","0","0"
+1403,"Row cache for Grant or Revoke","Other",1893977003,"maximum time","amount of time",
+1404,"enq: ZZ - update hash tables","Other",1893977003,"name|mode","KSBXIC Action","0"
+1405,"Failed Logon Delay","Other",1893977003,,,
+1406,"enq: ZA - add std audit table partition","Other",1893977003,"name|mode","KZAM Aud Partition","0"
+1407,"enq: ZF - add fga audit table partition","Other",1893977003,"name|mode","KZAM Fga Partition","0"
+1408,"enq: ZS - excl access to spill audit file","Other",1893977003,"name|mode","Spillover audit file","0"
+1409,"enq: UT - transfer audit records","Other",1893977003,"name|mode","TRANSFER AUDIT RECORDS","0"
+1410,"enq: PA - modify a privilege capture","Other",1893977003,"name|mode","0","0"
+1411,"enq: PA - read a privilege capture","Other",1893977003,"name|mode","0","0"
+1412,"enq: PC - update privilege capture info","Other",1893977003,"name|mode","0","0"
+1413,"enq: PC - read privilege capture info","Other",1893977003,"name|mode","0","0"
+1414,"enq: KZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1415,"enq: DX - contention","Other",1893977003,"name|mode","transaction entry #","0"
+1416,"enq: DR - contention","Other",1893977003,"name|mode","0","0"
+1417,"pending global transaction(s)","Other",1893977003,"scans",,
+1418,"free global transaction table entry","Other",1893977003,"tries",,
+1419,"library cache revalidation","Other",1893977003," "," "," "
+1420,"library cache shutdown","Other",1893977003," "," "," "
+1421,"BFILE closure","Other",1893977003," "," "," "
+1422,"BFILE check if exists","Other",1893977003," "," "," "
+1423,"BFILE check if open","Other",1893977003," "," "," "
+1424,"BFILE get length","Other",1893977003," "," "," "
+1425,"BFILE get name object","Other",1893977003," "," "," "
+1426,"BFILE get path object","Other",1893977003," "," "," "
+1427,"BFILE open","Other",1893977003," "," "," "
+1428,"BFILE internal seek","Other",1893977003," "," "," "
+1429,"resmgr:internal state cleanup","Other",1893977003,"location"," "," "
+1430,"xdb schema cache initialization","Other",1893977003,,,
+1431,"ASM cluster file access","Other",1893977003,"lock","mode",
+1432,"CSS initialization","Other",1893977003,,,
+1433,"CSS group registration","Other",1893977003,"group_name1","group_name2","mem_id"
+1434,"CSS group membership query","Other",1893977003,"group_name1","group_name2","group_name3"
+1435,"CSS operation: data query","Other",1893977003,"function_id",,
+1436,"CSS operation: data update","Other",1893977003,"function_id",,
+1437,"CSS Xgrp shared operation","Other",1893977003,"function_id",,
+1438,"CSS operation: query","Other",1893977003,"function_id",,
+1439,"CSS operation: action","Other",1893977003,"function_id",,
+1440,"CSS operation: diagnostic","Other",1893977003,"function_id",,
+1441,"GIPC operation: dump","Other",1893977003,"function_id",,
+1442,"GPnP Initialization","Other",1893977003,,,
+1443,"GPnP Termination","Other",1893977003,,,
+1444,"GPnP Get Item","Other",1893977003,,,
+1445,"GPnP Set Item","Other",1893977003,,,
+1446,"GPnP Get Error","Other",1893977003,,,
+1447,"ADR file lock","Other",1893977003," "," "," "
+1448,"ADR block file read","Other",1893977003," "," "," "
+1449,"ADR block file write","Other",1893977003," "," "," "
+1450,"CRS call completion","Other",1893977003,"clsrrestype","kjha_action",
+1451,"ASM: OFS Cluster membership update","Other",1893977003,,,
+1452,"dispatcher shutdown","Other",1893977003,"waited",,
+1453,"latch: virtual circuit queues","Other",1893977003,"address","number","why"
+1454,"listen endpoint status","Other",1893977003,"end-point#","status",
+1455,"listener registration dump","Other",1893977003,"dump",,
+1456,"OJVM: Generic","Other",1893977003,,,
+1457,"select wait","Other",1893977003,,,
+1458,"jobq slave shutdown wait","Other",1893977003,,,
+1459,"jobq slave TJ process wait","Other",1893977003,,,
+1460,"job scheduler coordinator slave wait","Other",1893977003,,,
+1461,"enq: JD - contention","Other",1893977003,"name|mode","0","0"
+1462,"enq: JQ - contention","Other",1893977003,"name|mode","0","0"
+1463,"enq: OD - Serializing DDLs","Other",1893977003,"name|mode","object #","0"
+1464,"RAC referential constraint parent lock","Other",1893977003,"maximum attempts","attempt count",
+1465,"RAC: constraint DDL lock","Other",1893977003,"maximum attempts","attempt count",
+1466,"kkshgnc reloop","Other",1893977003,,,
+1467,"optimizer stats update retry","Other",1893977003,,,
+1468,"wait active processes","Other",1893977003,,,
+1469,"SUPLOG PL wait for inflight pragma-d PL/SQL","Other",1893977003,"session_num",,
+1470,"enq: MD - contention","Other",1893977003,"name|mode","master object #","0"
+1471,"enq: MS - contention","Other",1893977003,"name|mode","master object #","purpose"
+1472,"online DDL delay","Other",1893977003,"table obj#","phase",
+1473,"RAC reference partitioning descendants lock","Other",1893977003,"maximum attempts","attempt count",
+1474,"enq: AP - contention","Other",1893977003,"name|mode","0","0"
+1475,"enq: RH - quarantine","Other",1893977003,"name|mode","0","0"
+1476,"PX slave connection","Other",1893977003,,,
+1477,"PX slave release","Other",1893977003,,,
+1478,"PX Send Wait","Other",1893977003,,,
+1479,"PX qref latch","Other",1893977003,"function","sleeptime","qref"
+1480,"PX server shutdown","Other",1893977003,"nalive","sleeptime","loop"
+1481,"PX create server","Other",1893977003,"nservers","sleeptime","enqueue"
+1482,"PX signal server","Other",1893977003,"serial","error","nbusy"
+1483,"PX Deq: Join ACK","Other",1893977003,"sleeptime/senderid","passes",
+1484,"PX Deq Credit: free buffer","Other",1893977003,"sleeptime/senderid","passes","qref"
+1485,"PX Deq: Test for msg","Other",1893977003,"sleeptime/senderid","passes",
+1486,"PX Deq: Test for credit","Other",1893977003,"sleeptime/senderid","passes",
+1487,"PX Deq: Signal ACK RSG","Other",1893977003,"sleeptime/senderid","passes",
+1488,"PX Deq: Signal ACK EXT","Other",1893977003,"sleeptime/senderid","passes",
+1489,"PX Deq: reap credit","Other",1893977003,,,
+1490,"PX Nsq: PQ descriptor query","Other",1893977003,,,
+1491,"PX Nsq: PQ load info query","Other",1893977003,,,
+1492,"PX Deq Credit: Session Stats","Other",1893977003,"sleeptime/senderid","passes",
+1493,"PX Deq: Slave Session Stats","Other",1893977003,"sleeptime/senderid","passes",
+1494,"PX Deq: Slave Join Frag","Other",1893977003,"sleeptime/senderid","passes",
+1495,"enq: PI - contention","Other",1893977003,"name|mode","operation","serial #"
+1496,"enq: PS - contention","Other",1893977003,"name|mode","instance","slave ID"
+1497,"enq: DA - Slave Process Array","Other",1893977003,"name|mode","0","0"
+1498,"latch: parallel query alloc buffer","Other",1893977003,"address","number","why"
+1499,"kxfxse","Other",1893977003,"kxfxse debug wait: stalling for slave 0",,
+1500,"kxfxsp","Other",1893977003,"kxfxsp debug wait: stalling for slave 0",,
+1501,"PX Deq: Table Q qref","Other",1893977003,"sleeptime/senderid","passes",
+1502,"PX Deq: Table Q Get Keys","Other",1893977003,"sleeptime/senderid","passes",
+1503,"PX Deq: Table Q Close","Other",1893977003,"sleeptime/senderid","passes",
+1504,"GV$: slave acquisition retry wait time","Other",1893977003,,,
+1505,"PX hash elem being inserted","Other",1893977003,"hashid","element","insert/update"
+1506,"latch: PX hash array latch","Other",1893977003,"address","number","why"
+1507,"enq: AY - contention","Other",1893977003,"name|mode","Op1","Op2"
+1508,"enq: TO - contention","Other",1893977003,"name|mode","object #","1"
+1509,"enq: ZP - Private Temporary Table","Other",1893977003,"name|mode","sess#","ser#"
+1510,"IMCDT end of scans cleanup","Other",1893977003,"session id",,
+1511,"enq: IT - contention","Other",1893977003,"name|mode","object #","0"
+1512,"enq: BF - allocation contention","Other",1893977003,"name|mode","node#/parallelizer#","bloom#"
+1513,"enq: BF - PMON Join Filter cleanup","Other",1893977003,"name|mode","node#/parallelizer#","bloom#"
+1514,"enq: RD - RAC load","Other",1893977003,"name|mode","sqlid","execid"
+1515,"PX key vector flatten","Other",1893977003,"sleeptime","passes",
+1516,"PX hash key vector cell","Other",1893977003,"sleeptime","passes",
+1517,"PX hash key vector merge","Other",1893977003,"sleeptime","passes",
+1518,"PX key vector use load","Other",1893977003,"sleeptime","passes",
+1519,"PX key vector create dgk init","Other",1893977003,"sleeptime","passes",
+1520,"enq: MG - MGA allocation","Other",1893977003,"name|mode","qcserial#","rowsource#/mgacode#"
+1521,"enq: MG - client shared context allocation","Other",1893977003,"name|mode","qcserial#","rowsource#/mgacode#"
+1522,"timer in sksawat","Other",1893977003,,,
+1523,"scginq AST call","Other",1893977003,,,
+1524,"kupp process wait","Other",1893977003,,,
+1525,"Kupp process shutdown","Other",1893977003,"nalive","sleeptime","loop"
+1526,"Data Pump slave startup","Other",1893977003,,,
+1527,"Data Pump slave init","Other",1893977003,,,
+1528,"enq: KP - contention","Other",1893977003,"name|mode","0","0"
+1529,"Replication Dequeue ","Other",1893977003,"sleeptime/senderid","passes",
+1530,"knpc_acwm_AwaitChangedWaterMark","Other",1893977003,,,
+1531,"knpc_anq_AwaitNonemptyQueue","Other",1893977003,,,
+1532,"knpsmai","Other",1893977003,,,
+1533,"enq: SR - contention","Other",1893977003,"name|mode","operation","sequence # / apply #"
+1534,"enq: RG - Apply coord start/stop","Other",1893977003,"name|mode","0","0"
+1535,"REPL Capture/Apply: database startup","Other",1893977003,"2=>GoldenGate 1=>XStream 0=>Streams",,
+1536,"REPL Capture/Apply: miscellaneous","Other",1893977003,"2=>GoldenGate 1=>XStream 0=>Streams","TYPE",
+1537,"enq: SI - contention","Other",1893977003,"name|mode","object #","0"
+1538,"REPL Capture/Apply: RAC inter-instance ack","Other",1893977003,"2=>GoldenGate 1=>XStream 0=>Streams",,
+1539,"enq: IA - contention","Other",1893977003,"name|mode","0","0"
+1540,"enq: JI - contention","Other",1893977003,"name|mode","view object #","0"
+1541,"qerex_gdml","Other",1893977003,,,
+1542,"enq: AT - contention","Other",1893977003,"name|mode","0","0"
+1543,"Retry DB Audit Record Insertion Delay","Other",1893977003,,,
+1544,"opishd","Other",1893977003,,,
+1545,"secure protocol error delay","Other",1893977003,,,
+1546,"kpodplck wait before retrying ORA-54","Other",1893977003,,,
+1547,"enq: CQ - contention","Other",1893977003,"name|mode","0","0"
+1548,"wait for EMON to spawn","Other",1893977003,,,
+1549,"EMON termination","Other",1893977003,,,
+1550,"enq: AZ - AQ_SRVNTFN_Q Creation","Other",1893977003,"name|mode","0","0"
+1551,"Emon coordinator startup","Other",1893977003,,,
+1552,"enq: SE - contention","Other",1893977003,"name|mode","Session-id","Serial#"
+1553,"tsm with timeout","Other",1893977003,,,
+1554,"Streams AQ: waiting for busy instance for instance_name","Other",1893977003,"where","wait_count",
+1555,"Streams AQ: index block pin/row lock","Other",1893977003,"Other",,
+1556,"enq: TQ - TM contention","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1557,"enq: TQ - DDL contention","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1558,"enq: TQ - INI contention","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1559,"enq: TQ - DDL-INI contention","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1560,"enq: TQ - INI sq contention","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1561,"enq: TQ - MC free sync at cross job start","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1562,"enq: TQ - MC free sync at cross job stop","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1563,"enq: TQ - MC free sync at cross job end","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1564,"enq: TQ - MC free sync at export subshard","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1565,"enq: TQ - create eviction table","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1566,"enq: TQ - TM Job cache initialization","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1567,"enq: TQ - TM Job cache use","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1568,"enq: TQ -  sq TM contention","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1569,"enq: TQ - LB drop volatile shard","Other",1893977003,"name|mode","QT_OBJ#","Other=>0 pdbOpen=>1"
+1570,"AQ reload SO release","Other",1893977003,,,
+1571,"enq: RQ - Enqueue commit uncached","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1572,"enq: RQ - Enqueue commit cached","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1573,"enq: RQ - Dequeue update scn","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1574,"enq: RQ - Parallel cross update scn","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1575,"enq: RQ - Cross update scn","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1576,"enq: RQ - Trucate subshard","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1577,"enq: RQ - Cross export subshard","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1578,"enq: RQ - Cross import subshard","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1579,"enq: RQ - Free shadow shard","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1580,"enq: RQ - AQ indexed cached commit","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1581,"enq: RQ - AQ uncached commit WM update","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1582,"enq: RQ - AQ uncached dequeue","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1583,"enq: RQ - AQ Eq Ptn Mapping","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1584,"enq: RQ - AQ Dq Ptn Mapping","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1585,"enq: RQ - AQ Trnc mem free","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1586,"enq: RQ - AQ Trnc mem free remote","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1587,"enq: RQ - AQ Trnc mem free by LB","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1588,"enq: RQ - AQ Trnc mem free by CP","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1589,"enq: RQ - AQ Enq commit incarnation wrap","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1590,"enq: RQ - AQ Rule evaluation segment load","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1591,"enq: RQ - AQ Evict: block truncate","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1592,"enq: RQ - AQ Unevict PGA: setup subscriber","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1593,"enq: RQ - AQ Unevict PGA: Queue View","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1594,"enq: RQ - AQ Shid Gen","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1595,"enq: RQ - AQ Enq commit block truncate","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1596,"enq: RQ - AQ Cross update scn for delay","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1597,"enq: RQ - AQ Cross Shard mem free","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1598,"enq: RQ - AQ rollback retry count update","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1599,"enq: RQ - AQ cached commit WM update","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1600,"enq: RQ - AQ cached dequeue by condition","Other",1893977003,"name|mode","Q_OBJ#","shard:mode"
+1601,"AQ propagation connection","Other",1893977003,,,
+1602,"enq: KR - Drop rule force","Other",1893977003,"name|mode","R_OBJ#","0"
+1603,"enq: KR - Add rule to ruleset","Other",1893977003,"name|mode","R_OBJ#","0"
+1604,"enq: KR - Remove rule from ruleset","Other",1893977003,"name|mode","R_OBJ#","0"
+1605,"enq: DP - contention","Other",1893977003,"name|mode","0","0"
+1606,"enq: MH - contention","Other",1893977003,"name|mode","0","0"
+1607,"enq: ML - contention","Other",1893977003,"name|mode","0","0"
+1608,"enq: PH - contention","Other",1893977003,"name|mode","0","0"
+1609,"enq: SF - contention","Other",1893977003,"name|mode","0","0"
+1610,"enq: XH - contention","Other",1893977003,"name|mode","0","0"
+1611,"enq: WA - contention","Other",1893977003,"name|mode","0","0"
+1612,"Streams AQ: QueueTable kgl locks","Other",1893977003,,,
+1613,"AQ spill debug idle","Other",1893977003,,,
+1614,"AQ master shutdown","Other",1893977003,,,
+1615,"AQPC: new master","Other",1893977003,,,
+1616,"AQ Background Master: slave start","Other",1893977003,,,
+1617,"enq: AQ - QPT fg map dqpt","Other",1893977003,"name|mode","QT_OBJ#","0"
+1618,"enq: AQ - QPT fg map qpt","Other",1893977003,"name|mode","QT_OBJ#","0"
+1619,"enq: PQ - QPT add qpt","Other",1893977003,"name|mode","QT_OBJ#","0"
+1620,"enq: PQ - QPT drop qpt","Other",1893977003,"name|mode","QT_OBJ#","0"
+1621,"enq: PQ - QPT add dqpt","Other",1893977003,"name|mode","QT_OBJ#","0"
+1622,"enq: PQ - QPT drop dqpt","Other",1893977003,"name|mode","QT_OBJ#","0"
+1623,"enq: PQ - QPT add qpt fg","Other",1893977003,"name|mode","QT_OBJ#","0"
+1624,"enq: PQ - QPT add dqpt fg","Other",1893977003,"name|mode","QT_OBJ#","0"
+1625,"enq: PQ - QPT Trunc","Other",1893977003,"name|mode","QT_OBJ#","0"
+1626,"enq: PQ - QPT LB Trunc sync","Other",1893977003,"name|mode","QT_OBJ#","0"
+1627,"enq: PQ - QPT XSTART Trunc sync","Other",1893977003,"name|mode","QT_OBJ#","0"
+1628,"AQ master: time mgmt/task cleanup","Other",1893977003,,,
+1629,"AQ slave: time mgmt/task cleanup","Other",1893977003,,,
+1630,"enq: BA - SUBBMAP contention","Other",1893977003,"name|mode","0","0"
+1631,"AQ:non durable subscriber add or drop","Other",1893977003,,,
+1632,"AQ: RAC AQ Network","Other",1893977003,,,
+1633,"latch: AQ Sharded subscriber statistics latch","Other",1893977003,"address","number","why"
+1634,"AQ OPT Operation Complete","Other",1893977003,"subshard","skiplist",
+1635,"latch: AQ OPT Background Master Latch","Other",1893977003,"address","number","why"
+1636,"enq: CX - TEXT: Index Specific Lock","Other",1893977003,"name|mode","Index Id","Partition Id"
+1637,"enq: OT - TEXT: Generic Lock","Other",1893977003,"name|mode","0","0"
+1638,"XDB SGA initialization","Other",1893977003,,,
+1639,"enq: XC - XDB Configuration","Other",1893977003,"name|mode",,
+1640,"NFS read delegation outstanding","Other",1893977003,"delegation count",,
+1641,"Data Guard Broker Wait","Other",1893977003,"Broker Component","Wait Argument 1","Wait Argument 2"
+1642,"enq: RF - synch: DG Broker metadata","Other",1893977003,"name|mode","lock operation","lock value"
+1643,"enq: RF - atomicity","Other",1893977003,"name|mode","lock operation","lock value"
+1644,"enq: RF - Broker Chief Lock","Other",1893977003,"name|mode","lock operation","lock value"
+1645,"enq: RF - synchronization: aifo master","Other",1893977003,"name|mode","lock operation","lock value"
+1646,"enq: RF - new AI","Other",1893977003,"name|mode","lock operation","lock value"
+1647,"enq: RF - synchronization: critical ai","Other",1893977003,"name|mode","lock operation","lock value"
+1648,"enq: RF - RF - Database Automatic Disable","Other",1893977003,"name|mode","lock operation","lock value"
+1649,"enq: RF - FSFO Observer Heartbeat","Other",1893977003,"name|mode","lock operation","lock value"
+1650,"enq: RF - DG Broker Current File ID","Other",1893977003,"name|mode","lock operation","lock value"
+1651,"enq: RF - FSFO Primary Shutdown suspended","Other",1893977003,"name|mode","lock operation","lock value"
+1652,"enq: RF - Broker State Lock","Other",1893977003,"name|mode","lock operation","lock value"
+1653,"enq: RF - FSFO string buffer","Other",1893977003,"name|mode","lock operation","lock value"
+1654,"enq: RF - Broker NSV Lock","Other",1893977003,"name|mode","lock operation","lock value"
+1655,"enq: RF - Broker LSBY FO Lock","Other",1893977003,"name|mode","lock operation","lock value"
+1656,"PX Deq: OLAP Update Reply","Other",1893977003,"sleeptime/senderid","passes",
+1657,"PX Deq: OLAP Update Execute","Other",1893977003,"sleeptime/senderid","passes",
+1658,"PX Deq: OLAP Update Close","Other",1893977003,"sleeptime/senderid","passes",
+1659,"enq: AW - AW$ table lock","Other",1893977003,"name|mode","operation","workspace #"
+1660,"enq: AW - AW state lock","Other",1893977003,"name|mode","operation","workspace #"
+1661,"enq: AW - user access for AW","Other",1893977003,"name|mode","operation","workspace #"
+1662,"enq: AW - AW generation lock","Other",1893977003,"name|mode","operation","workspace #"
+1663,"enq: AG - contention","Other",1893977003,"name|mode","workspace #","generation"
+1664,"enq: AO - contention","Other",1893977003,"name|mode","workspace #","object #"
+1665,"enq: OQ - xsoqhiAlloc","Other",1893977003,"name|mode","resource id","0"
+1666,"enq: OQ - xsoqhiFlush","Other",1893977003,"name|mode","resource id","0"
+1667,"enq: OQ - xsoq*histrecb","Other",1893977003,"name|mode","resource id","0"
+1668,"enq: OQ - xsoqhiClose","Other",1893977003,"name|mode","resource id","0"
+1669,"enq: OQ - xsoqhistrecb","Other",1893977003,"name|mode","resource id","0"
+1670,"enq: IZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1671,"enq: AM - client registration","Other",1893977003,"name|mode","id1","id2"
+1672,"enq: AM - shutdown","Other",1893977003,"name|mode","id1","id2"
+1673,"enq: AM - rollback COD reservation","Other",1893977003,"name|mode","id1","id2"
+1674,"enq: AM - background COD reservation","Other",1893977003,"name|mode","id1","id2"
+1675,"enq: AM - ASM cache freeze","Other",1893977003,"name|mode","id1","id2"
+1676,"enq: AM - ASM ACD Relocation","Other",1893977003,"name|mode","id1","id2"
+1677,"enq: AM - group use","Other",1893977003,"name|mode","id1","id2"
+1678,"enq: AM - group block","Other",1893977003,"name|mode","id1","id2"
+1679,"enq: AM - ASM File Destroy","Other",1893977003,"name|mode","id1","id2"
+1680,"enq: AM - ASM User","Other",1893977003,"name|mode","id1","id2"
+1681,"enq: AM - ASM Password File Update","Other",1893977003,"name|mode","id1","id2"
+1682,"enq: AM - ASM Amdu Dump","Other",1893977003,"name|mode","id1","id2"
+1683,"enq: AM - disk offline","Other",1893977003,"name|mode","id1","id2"
+1684,"enq: AM - ASM reserved","Other",1893977003,"name|mode","id1","id2"
+1685,"enq: AM - block repair","Other",1893977003,"name|mode","id1","id2"
+1686,"enq: AM - ASM disk based alloc/dealloc","Other",1893977003,"name|mode","id1","id2"
+1687,"enq: AM - ASM file descriptor","Other",1893977003,"name|mode","id1","id2"
+1688,"enq: AM - ASM file relocation","Other",1893977003,"name|mode","id1","id2"
+1689,"enq: AM - ASM SR relocation","Other",1893977003,"name|mode","id1","id2"
+1690,"enq: AM - ASM Grow ACD","Other",1893977003,"name|mode","id1","id2"
+1691,"enq: AM - ASM DD update SrRloc","Other",1893977003,"name|mode","id1","id2"
+1692,"enq: AM - ASM file chown","Other",1893977003,"name|mode","id1","id2"
+1693,"enq: AM - Register with IOServer","Other",1893977003,"name|mode","id1","id2"
+1694,"enq: AM - ASM metadata replication","Other",1893977003,"name|mode","id1","id2"
+1695,"enq: AM - SR slice Clear/Mark","Other",1893977003,"name|mode","id1","id2"
+1696,"enq: AM - Enable Remote ASM","Other",1893977003,"name|mode","id1","id2"
+1697,"enq: AM - Disable Remote ASM","Other",1893977003,"name|mode","id1","id2"
+1698,"enq: AM - Credential creation","Other",1893977003,"name|mode","id1","id2"
+1699,"enq: AM - Credential deletion","Other",1893977003,"name|mode","id1","id2"
+1700,"enq: AM - ASM file access req","Other",1893977003,"name|mode","id1","id2"
+1701,"enq: AM - ASM client operation","Other",1893977003,"name|mode","id1","id2"
+1702,"enq: AM - ASM client check","Other",1893977003,"name|mode","id1","id2"
+1703,"enq: AM - ASM ATB COD creation","Other",1893977003,"name|mode","id1","id2"
+1704,"enq: AM - Create default DG key in OCR","Other",1893977003,"name|mode","id1","id2"
+1705,"enq: AM - ASM Audit file Delete","Other",1893977003,"name|mode","id1","id2"
+1706,"enq: AM - ASM Audit file Cleanup","Other",1893977003,"name|mode","id1","id2"
+1707,"enq: AM - ASM VAT migration","Other",1893977003,"name|mode","id1","id2"
+1708,"enq: AM - Update SR nomark flag","Other",1893977003,"name|mode","id1","id2"
+1709,"enq: AM - ASM VAL cache","Other",1893977003,"name|mode","id1","id2"
+1710,"enq: AM - ASM SR Segment Reuse","Other",1893977003,"name|mode","id1","id2"
+1711,"enq: AM - ASM SR Segment Reuse Lookup","Other",1893977003,"name|mode","id1","id2"
+1712,"enq: AM - ASM SR Batch Allocation","Other",1893977003,"name|mode","id1","id2"
+1713,"enq: AM - ASM Sparse Disk IOCTL","Other",1893977003,"name|mode","id1","id2"
+1714,"enq: AM - ASM VAM Active","Other",1893977003,"name|mode","id1","id2"
+1715,"enq: AM - ASM Split Mirror File Create","Other",1893977003,"name|mode","id1","id2"
+1716,"enq: AM - ASM Split Mirror File Delete","Other",1893977003,"name|mode","id1","id2"
+1717,"enq: AM - ASM Mirror Prepare","Other",1893977003,"name|mode","id1","id2"
+1718,"enq: AM - ASM Mirror Split","Other",1893977003,"name|mode","id1","id2"
+1719,"enq: AM - ASM Drop Mirror","Other",1893977003,"name|mode","id1","id2"
+1720,"enq: AM - ASM PDB Mirror Split","Other",1893977003,"name|mode","id1","id2"
+1721,"enq: AM - DB Mirror Prepare","Other",1893977003,"name|mode","id1","id2"
+1722,"enq: AM - DB Drop Mirror Copy","Other",1893977003,"name|mode","id1","id2"
+1723,"enq: AM - DB Mirror Split","Other",1893977003,"name|mode","id1","id2"
+1724,"enq: AM - PDB Mirror Split","Other",1893977003,"name|mode","id1","id2"
+1725,"enq: AM - Create Prepare Child file group","Other",1893977003,"name|mode","id1","id2"
+1726,"enq: AM - Change file group redundancy","Other",1893977003,"name|mode","id1","id2"
+1727,"enq: AM - ASM Split Mirror ODM File Crt","Other",1893977003,"name|mode","id1","id2"
+1728,"enq: AM - ASM Split Mirror ODM File Del","Other",1893977003,"name|mode","id1","id2"
+1729,"enq: AM - ASMB Startup","Other",1893977003,"name|mode","id1","id2"
+1730,"enq: AM - ASMB Renew","Other",1893977003,"name|mode","id1","id2"
+1731,"enq: AM - ASM: group unblock","Other",1893977003,"name|mode","id1","id2"
+1732,"enq: AM - ASM file create","Other",1893977003,"name|mode","id1","id2"
+1733,"enq: AM - ASM ATE conversion","Other",1893977003,"name|mode","id1","id2"
+1734,"enq: AM - ASM resync from ATE","Other",1893977003,"name|mode","id1","id2"
+1735,"enq: AM - ASM Split Status Write","Other",1893977003,"name|mode","id1","id2"
+1736,"enq: AM - ASM Split Status Read","Other",1893977003,"name|mode","id1","id2"
+1737,"enq: AM - ASM Client Assisted Offline","Other",1893977003,"name|mode","id1","id2"
+1738,"enq: AM - ASM Client Assisted Offline Chk","Other",1893977003,"name|mode","id1","id2"
+1739,"ASM internal hang test","Other",1893977003,"test #",,
+1740,"ASM Instance startup","Other",1893977003,,,
+1741,"buffer busy","Other",1893977003,"group#","obj#","block#"
+1742,"buffer freelistbusy","Other",1893977003,"group#","obj#","block#"
+1743,"buffer rememberlist busy","Other",1893977003,"group#","obj#","block#"
+1744,"buffer writeList full","Other",1893977003,"group#","obj#","block#"
+1745,"no free buffers","Other",1893977003,"group#","obj#","block#"
+1746,"buffer write wait","Other",1893977003,"group#","obj#","block#"
+1747,"buffer invalidation wait","Other",1893977003,"group#","obj#","block#"
+1748,"buffer dirty disabled","Other",1893977003,"group#",,
+1749,"ASM metadata cache frozen","Other",1893977003,"group#","obj#","block#"
+1750,"enq: FZ -  contention","Other",1893977003,"type|mode","id1","id2"
+1751,"enq: CM - gate","Other",1893977003,"name|mode","disk group #","type"
+1752,"enq: CM - instance","Other",1893977003,"name|mode","disk group #","type"
+1753,"enq: CM - diskgroup dismount","Other",1893977003,"name|mode","disk group #","type"
+1754,"enq: XQ - recovery","Other",1893977003,"name|mode","disk group #","unused"
+1755,"enq: XQ - relocation","Other",1893977003,"name|mode","disk group #","unused"
+1756,"enq: XQ - purification","Other",1893977003,"name|mode","disk group #","unused"
+1757,"enq: AD - allocate AU","Other",1893977003,"name|mode","group and disk number","AU number"
+1758,"enq: AD - deallocate AU","Other",1893977003,"name|mode","group and disk number","AU number"
+1759,"enq: AD - relocate AU","Other",1893977003,"name|mode","group and disk number","AU number"
+1760,"enq: AD - flush writes to AU","Other",1893977003,"name|mode","group and disk number","AU number"
+1761,"enq: DO - disk online","Other",1893977003,"name|mode","disk group #","disk #"
+1762,"enq: DO - disk online recovery","Other",1893977003,"name|mode","disk group #","disk #"
+1763,"enq: DO - Staleness Registry create","Other",1893977003,"name|mode","disk group #","disk #"
+1764,"enq: DO - startup of MARK process","Other",1893977003,"name|mode","disk group #","disk #"
+1765,"extent map load/unlock","Other",1893977003,"group","file","extent"
+1766,"extent map locked","Other",1893977003,"mid",,
+1767,"enq: XL - fault extent map","Other",1893977003,"name|mode","map id","nothing"
+1768,"Sync ASM rebalance","Other",1893977003,,,
+1769,"Sync ASM discovery","Other",1893977003,,,
+1770,"File Directory Use","Other",1893977003,,,
+1771,"enq: DG - contention","Other",1893977003,"name|mode","disk group","type"
+1772,"enq: DD - contention","Other",1893977003,"name|mode","disk group","type"
+1773,"enq: HD - contention","Other",1893977003,"name|mode","disk group","0"
+1774,"enq: DQ -  contention","Other",1893977003,"type|mode","id1","id2"
+1775,"ASM ioctl to dematerialize blocks","Other",1893977003,"OSS FD","where","timeout"
+1776,"enq: DN - contention","Other",1893977003,"name|mode","0","0"
+1777,"Cluster stabilization wait","Other",1893977003,,,
+1778,"Cluster Suspension wait","Other",1893977003,,,
+1779,"ASMB cookie valid check","Other",1893977003,,,
+1780,"ASM background starting","Other",1893977003,"locn","asmbidx","group"
+1781,"CSS cookie check","Other",1893977003,,,
+1782,"ASM db client exists","Other",1893977003,,,
+1783,"ASM file metadata operation","Other",1893977003,"msgop","locn",
+1784,"ASM network foreground exits","Other",1893977003,"group#",,
+1785,"ASM check disk slices","Other",1893977003,"group#",,
+1786,"enq: XB -  contention","Other",1893977003,"type|mode","id1","id2"
+1787,"enq: FA - access file","Other",1893977003,"name|mode","disk group number","file number"
+1788,"enq: RX - relocate extent","Other",1893977003,"name|mode","disk group #:file #","virtual extent number"
+1789,"enq: RX - unlock extent","Other",1893977003,"name|mode","disk group #:file #","virtual extent number"
+1790,"enq: AR -  contention","Other",1893977003,"type|mode","id1","id2"
+1791,"enq: AH -  contention","Other",1893977003,"type|mode","id1","id2"
+1792,"log write(odd)","Other",1893977003,"group#",,
+1793,"log write(even)","Other",1893977003,"group#",,
+1794,"checkpoint advanced","Other",1893977003,"group#",,
+1795,"enq: FR - contention","Other",1893977003,"name|mode","disk group","thread"
+1796,"enq: FR - use the thread","Other",1893977003,"name|mode","disk group","thread"
+1797,"enq: FR - recover the thread","Other",1893977003,"name|mode","disk group","thread"
+1798,"enq: FG - serialize ACD relocate","Other",1893977003,"name|mode","disk group","type"
+1799,"enq: FG - FG redo generation enq race","Other",1893977003,"name|mode","disk group","type"
+1800,"enq: FG - LGWR redo generation enq race","Other",1893977003,"name|mode","disk group","type"
+1801,"enq: FT - allow LGWR writes","Other",1893977003,"name|mode","disk group","thread"
+1802,"enq: FT - disable LGWR writes","Other",1893977003,"name|mode","disk group","thread"
+1803,"enq: FC - open an ACD thread","Other",1893977003,"name|mode","disk group","thread"
+1804,"enq: FC - recover an ACD thread","Other",1893977003,"name|mode","disk group","thread"
+1805,"enq: FX - issue ACD Xtnt Relocation CIC","Other",1893977003,"name|mode","disk group","unused"
+1806,"rollback operations block full","Other",1893977003,"max operations",,
+1807,"rollback operations active","Other",1893977003,"operation count",,
+1808,"enq: RB - contention","Other",1893977003,"name|mode","disk group","0"
+1809,"ASM: MARK subscribe to msg channel","Other",1893977003,,,
+1810,"ASM: Send msg to MARK","Other",1893977003,"group#","dginc",
+1811,"IOS client reconnect to dif IOS","Other",1893977003,,,
+1812,"enq: II -  contention","Other",1893977003,"type|mode","id1","id2"
+1813,"enq: IK -  contention","Other",1893977003,"type|mode","id1","id2"
+1814,"IOS worker process startup","Other",1893977003,"process type","process number",
+1815,"IOS worker process exit","Other",1893977003,"process type","process number",
+1816,"call","Other",1893977003,"action",,
+1817,"enq: IC - IOServer clientID","Other",1893977003,"name|mode","client id","none"
+1818,"enq: IF - file open","Other",1893977003,"name|mode","client id/group num","File number"
+1819,"enq: IF - file close","Other",1893977003,"name|mode","client id/group num","File number"
+1820,"enq: PT - contention","Other",1893977003,"name|mode","disk group #","type"
+1821,"enq: PT - ASM Storage May Split","Other",1893977003,"name|mode","disk group #","type"
+1822,"enq: PM -  contention","Other",1893977003,"type|mode","id1","id2"
+1823,"ASM concurrent diskgroup dismount","Other",1893977003,,,
+1824,"ASM PST operation","Other",1893977003,"op",,
+1825,"global cache busy","Other",1893977003,"group","file#","block#"
+1826,"lock release pending","Other",1893977003,"group","file#","block#"
+1827,"dma prepare busy","Other",1893977003,"group","obj#","block#"
+1828,"GCS lock cancel","Other",1893977003,"le",,
+1829,"GCS lock open S","Other",1893977003,"group","obj#","block#"
+1830,"GCS lock open X","Other",1893977003,"group","obj#","block#"
+1831,"GCS lock open","Other",1893977003,"group","obj#","block#"
+1832,"GCS lock cvt S","Other",1893977003,"group","obj#","block#"
+1833,"GCS lock cvt X","Other",1893977003,"group","obj#","block#"
+1834,"GCS lock esc X","Other",1893977003,"group","obj#","block#"
+1835,"GCS lock esc","Other",1893977003,"group","obj#","block#"
+1836,"GCS recovery lock open","Other",1893977003,"group","obj#","block#"
+1837,"GCS recovery lock convert","Other",1893977003,"group","obj#","block#"
+1838,"kfcl: instance recovery","Other",1893977003,"group","obj#","block#"
+1839,"no free locks","Other",1893977003,,,
+1840,"lock close","Other",1893977003,"group","lms#",
+1841,"enq: KE -  contention","Other",1893977003,"type|mode","id1","id2"
+1842,"enq: KQ - access ASM attribute","Other",1893977003,"name|mode","group","entry"
+1843,"ASM Volume Background","Other",1893977003,,,
+1844,"ASM volume directive send","Other",1893977003,"msgop","dg","vol"
+1845,"ASM Volume Resource Action","Other",1893977003,,,
+1846,"enq: AV - persistent DG number","Other",1893977003,"name|mode","persistent DG number","non-DG number enqs"
+1847,"enq: AV - volume relocate","Other",1893977003,"name|mode","persistent DG number","non-DG number enqs"
+1848,"enq: AV - AVD client registration","Other",1893977003,"name|mode","persistent DG number","non-DG number enqs"
+1849,"enq: AV - add/enable first volume in DG","Other",1893977003,"name|mode","persistent DG number","non-DG number enqs"
+1850,"ASM Scrubbing I/O","Other",1893977003,"blkno","bytes","filetype"
+1851,"ASM Async Scrub","Other",1893977003,,,
+1852,"ASM Scrub Stop","Other",1893977003,,,
+1853,"ASM Scrub Running","Other",1893977003,,,
+1854,"ASM: VAM activation","Other",1893977003,"group#",,
+1855,"DB Split Delay","Other",1893977003,,,
+1856,"enq: WF - contention","Other",1893977003,"name|mode","0","0"
+1857,"enq: WT - contention","Other",1893977003,"name|mode","0","0"
+1858,"enq: WP - contention","Other",1893977003,"name|mode","0","0"
+1859,"enq: FU - contention","Other",1893977003,"name|mode","0","0"
+1860,"enq: UF - undo stat flush per PDB","Other",1893977003,"name|mode","0","0"
+1861,"enq: WI - AWR import","Other",1893977003,"name|mode","0","0"
+1862,"enq: WE - AWR auto-export","Other",1893977003,"name|mode","0","0"
+1863,"enq: WD - AWR mail package retrieval","Other",1893977003,"name|mode","0","0"
+1864,"AWR Flush","Other",1893977003,,,
+1865,"AWR Metric Capture","Other",1893977003,,,
+1866,"enq: TB - SQL Tuning Base Cache Update","Other",1893977003,"name|mode","1","2"
+1867,"enq: TB - SQL Tuning Base Cache Load","Other",1893977003,"name|mode","1","2"
+1868,"enq: SH - contention","Other",1893977003,"name|mode","0","0"
+1869,"enq: AF - task serialization","Other",1893977003,"name|mode","task id","0"
+1870,"MMON slave messages","Other",1893977003,,,
+1871,"MMON (Lite) shutdown","Other",1893977003,"process#","waited",
+1872,"enq: MO - contention","Other",1893977003,"name|mode","0","0"
+1873,"enq: MM - MMON Autotask scheduling","Other",1893977003,"name|mode","0","0"
+1874,"enq: TL - contention","Other",1893977003,"name|mode","0","0"
+1875,"enq: TH - metric threshold evaluation","Other",1893977003,"name|mode","0","0"
+1876,"enq: TK - Auto Task Serialization","Other",1893977003,"name|mode","0-MMON, 1-MMON Slave","0"
+1877,"enq: TK - Auto Task Slave Lockout","Other",1893977003,"name|mode","0-MMON, 1-MMON Slave","0"
+1878,"enq: RR - contention","Other",1893977003,"name|mode","lock#","not used"
+1879,"WCR: RAC message context busy","Other",1893977003,,,
+1880,"WCR: capture file IO write","Other",1893977003,,,
+1881,"WCR: Sync context busy","Other",1893977003,,,
+1882,"latch: WCR: sync","Other",1893977003,"address","number","why"
+1883,"latch: WCR: processes HT","Other",1893977003,"address","number","why"
+1884,"enq: RA - RT ADDM flood control","Other",1893977003,"name|mode","0","0"
+1885,"enq: MW - contention","Other",1893977003,"name|mode","Schedule Id","0"
+1886,"enq: TU - UMF topology","Other",1893977003,"name|mode","0","0"
+1887,"SPA slave messages","Other",1893977003,,,
+1888,"enq: JS - job run lock - synchronize","Other",1893977003,"name|mode","service ID","queue type"
+1889,"enq: JS - job recov lock","Other",1893977003,"name|mode","service ID","queue type"
+1890,"enq: JS - wdw op","Other",1893977003,"name|mode","service ID","queue type"
+1891,"enq: JS - evt notify","Other",1893977003,"name|mode","service ID","queue type"
+1892,"enq: JS - aq sync","Other",1893977003,"name|mode","service ID","queue type"
+1893,"enq: JG - queue lock","Other",1893977003,"name|mode","service ID","queue type"
+1894,"enq: JG - q mem clnup lck","Other",1893977003,"name|mode","service ID","queue type"
+1895,"enq: JG - contention","Other",1893977003,"name|mode","service ID","queue type"
+1896,"enq: JG - sch locl enqs","Other",1893977003,"name|mode","service ID","queue type"
+1897,"enq: JG - evt notify","Other",1893977003,"name|mode","service ID","queue type"
+1898,"enq: JG - evtsub add","Other",1893977003,"name|mode","service ID","queue type"
+1899,"enq: JG - evtsub drop","Other",1893977003,"name|mode","service ID","queue type"
+1900,"enq: AU - ADR Purge Operation","Other",1893977003,"name|mode","0","0"
+1901,"enq: XD - ASM disk drop/add","Other",1893977003,"name|mode","opcode","notused"
+1902,"enq: XD - ASM disk ONLINE","Other",1893977003,"name|mode","opcode","notused"
+1903,"enq: XD - ASM disk OFFLINE","Other",1893977003,"name|mode","opcode","notused"
+1904,"cell single block physical read: RDMA","Other",1893977003,"cellhash#","diskhash#","bytes"
+1905,"cell single block physical read: xrmem cache","Other",1893977003,"cellhash#","diskhash#","bytes"
+1906,"cell manager cancel work request","Other",1893977003,,,
+1907,"cell manager: CRS DG unmounted list","Other",1893977003,,,
+1908,"cell manager: CRS DG start","Other",1893977003,,,
+1909,"opening cell offload device","Other",1893977003,"cellhash#",,
+1910,"ioctl to cell offload device","Other",1893977003,"cellhash#",,
+1911,"reap block level offload operations","Other",1893977003,"slowcellhash#",,
+1912,"enq: SN - PDB SGA allocation","Other",1893977003,"name|mode","pdbid","0"
+1913,"enq: SN - PDB SGA free","Other",1893977003,"name|mode","pdbid","0"
+1914,"enq: SN - PDB SGA protection","Other",1893977003,"name|mode","pdbid","0"
+1915,"CDB: Per Instance Query for PDB Info","Other",1893977003,,,
+1916,"PDB relocate completion","Other",1893977003,"pdbid",,
+1917,"enq: PB - PDB Lock","Other",1893977003,"name|mode","0","type"
+1918,"chunk move metadata prefetch","Other",1893977003,,,
+1919,"enq: UB - enq why ci spare 1","Other",1893977003,"name|mode","id1","id2"
+1920,"enq: ZJ - enq why ci spare 2","Other",1893977003,"name|mode","id1","id2"
+1921,"enq: UC - enq why ci spare 3","Other",1893977003,"name|mode","id1","id2"
+1922,"enq: UD - enq why ci spare 4","Other",1893977003,"name|mode","id1","id2"
+1923,"enq: WB - enq why ci spare 5","Other",1893977003,"name|mode","id1","id2"
+1924,"enq: WC - enq why ci spare 6","Other",1893977003,"name|mode","id1","id2"
+1925,"enq: WH - enq why ci spare 7","Other",1893977003,"name|mode","id1","id2"
+1926,"enq: WJ - enq why ci spare 8","Other",1893977003,"name|mode","id1","id2"
+1927,"enq: XA - enq why ci spare 9","Other",1893977003,"name|mode","id1","id2"
+1928,"enq: XE - enq why ci spare 10","Other",1893977003,"name|mode","id1","id2"
+1929,"enq: XF - enq why ci spare 11","Other",1893977003,"name|mode","id1","id2"
+1930,"enq: XG - enq why ci spare 12","Other",1893977003,"name|mode","id1","id2"
+1931,"enq: UA - enq why ci spare 13","Other",1893977003,"name|mode","id1","id2"
+1932,"enq: ZI - enq why ci spare 14","Other",1893977003,"name|mode","id1","id2"
+1933,"enq: ZI - enq why ci spare 15","Other",1893977003,"name|mode","id1","id2"
+1934,"enq: ZI - enq why ci spare 16","Other",1893977003,"name|mode","id1","id2"
+1935,"enq: ZI - enq why ci spare 17","Other",1893977003,"name|mode","id1","id2"
+1936,"enq: ZI - enq why ci spare 18","Other",1893977003,"name|mode","id1","id2"
+1937,"enq: ZI - enq why ci spare 19","Other",1893977003,"name|mode","id1","id2"
+1938,"enq: ZI - enq why ci spare 20","Other",1893977003,"name|mode","id1","id2"
+1939,"enq: ZI - enq why ci spare 21","Other",1893977003,"name|mode","id1","id2"
+1940,"enq: ZI - enq why ci spare 22","Other",1893977003,"name|mode","id1","id2"
+1941,"enq: ZI - enq why ci spare 23","Other",1893977003,"name|mode","id1","id2"
+1942,"enq: ZI - enq why ci spare 24","Other",1893977003,"name|mode","id1","id2"
+1943,"enq: ZI - enq why ci spare 25","Other",1893977003,"name|mode","id1","id2"
+1944,"enq: ZI - enq why ci spare 26","Other",1893977003,"name|mode","id1","id2"
+1945,"enq: ZI - enq why ci spare 27","Other",1893977003,"name|mode","id1","id2"
+1946,"enq: ZI - enq why ci spare 28","Other",1893977003,"name|mode","id1","id2"
+1947,"enq: ZI - enq why ci spare 29","Other",1893977003,"name|mode","id1","id2"
+1948,"enq: ZI - enq why ci spare 30","Other",1893977003,"name|mode","id1","id2"
+1949,"enq: ZI - enq why ci spare 31","Other",1893977003,"name|mode","id1","id2"
+1950,"enq: ZI - enq why ci spare 32","Other",1893977003,"name|mode","id1","id2"
+1951,"enq: ZI - enq why ci spare 33","Other",1893977003,"name|mode","id1","id2"
+1952,"enq: ZI - enq why ci spare 34","Other",1893977003,"name|mode","id1","id2"
+1953,"enq: ZI - enq why ci spare 35","Other",1893977003,"name|mode","id1","id2"
+1954,"enq: ZI - enq why ci spare 36","Other",1893977003,"name|mode","id1","id2"
+1955,"enq: ZI - enq why ci spare 37","Other",1893977003,"name|mode","id1","id2"
+1956,"enq: ZI - enq why ci spare 38","Other",1893977003,"name|mode","id1","id2"
+1957,"enq: ZI - enq why ci spare 39","Other",1893977003,"name|mode","id1","id2"
+1958,"enq: ZI - enq why ci spare 40","Other",1893977003,"name|mode","id1","id2"
+1959,"enq: ZI - enq why ci spare 41","Other",1893977003,"name|mode","id1","id2"
+1960,"enq: ZI - enq why ci spare 42","Other",1893977003,"name|mode","id1","id2"
+1961,"cell disk open","Other",1893977003,"cellid#","where",
+1962,"gcs LSR while entering server mode","Other",1893977003,"id1","id2","state"
+1963,"ci spare wait event 3","Other",1893977003,"p1","p2","p3"
+1964,"ci spare wait event 4","Other",1893977003,"p1","p2","p3"
+1965,"ci spare wait event 5","Other",1893977003,"p1","p2","p3"
+1966,"ci spare wait event 6","Other",1893977003,"p1","p2","p3"
+1967,"ci spare wait event 7","Other",1893977003,"p1","p2","p3"
+1968,"ci spare wait event 8","Other",1893977003,"p1","p2","p3"
+1969,"ci spare wait event 9","Other",1893977003,"p1","p2","p3"
+1970,"ci spare wait event 10","Other",1893977003,"p1","p2","p3"
+1971,"ci spare wait event 11","Other",1893977003,"p1","p2","p3"
+1972,"ci spare wait event 12","Other",1893977003,"p1","p2","p3"
+1973,"ci spare wait event 13","Other",1893977003,"p1","p2","p3"
+1974,"ci spare wait event 14","Other",1893977003,"p1","p2","p3"
+1975,"ci spare wait event 15","Other",1893977003,"p1","p2","p3"
+1976,"ci spare wait event 16","Other",1893977003,"p1","p2","p3"
+1977,"ci spare wait event 17","Other",1893977003,"p1","p2","p3"
+1978,"ci spare wait event 18","Other",1893977003,"p1","p2","p3"
+1979,"ci spare wait event 19","Other",1893977003,"p1","p2","p3"
+1980,"ci spare wait event 20","Other",1893977003,"p1","p2","p3"
+1981,"ci spare wait event 21","Other",1893977003,"p1","p2","p3"
+1982,"ci spare wait event 22","Other",1893977003,"p1","p2","p3"
+1983,"ci spare wait event 23","Other",1893977003,"p1","p2","p3"
+1984,"ci spare wait event 24","Other",1893977003,"p1","p2","p3"
+1985,"ci spare wait event 25","Other",1893977003,"p1","p2","p3"
+1986,"ci spare wait event 26","Other",1893977003,"p1","p2","p3"
+1987,"ci spare wait event 27","Other",1893977003,"p1","p2","p3"
+1988,"ci spare wait event 28","Other",1893977003,"p1","p2","p3"
+1989,"ci spare wait event 29","Other",1893977003,"p1","p2","p3"
+1990,"ci spare wait event 30","Other",1893977003,"p1","p2","p3"
+1991,"ci spare wait event 31","Other",1893977003,"p1","p2","p3"
+1992,"ci spare wait event 32","Other",1893977003,"p1","p2","p3"
+1993,"ci spare wait event 33","Other",1893977003,"p1","p2","p3"
+1994,"ci spare wait event 34","Other",1893977003,"p1","p2","p3"
+1995,"ci spare wait event 35","Other",1893977003,"p1","p2","p3"
+1996,"ci spare wait event 36","Other",1893977003,"p1","p2","p3"
+1997,"ci spare wait event 37","Other",1893977003,"p1","p2","p3"
+1998,"ci spare wait event 38","Other",1893977003,"p1","p2","p3"
+1999,"ci spare wait event 39","Other",1893977003,"p1","p2","p3"
+2000,"ci spare wait event 40","Other",1893977003,"p1","p2","p3"
+2001,"ci spare wait event 41","Other",1893977003,"p1","p2","p3"
+2002,"ci spare wait event 42","Other",1893977003,"p1","p2","p3"
+2003,"ci spare wait event 43","Other",1893977003,"p1","p2","p3"
+2004,"ci spare wait event 44","Other",1893977003,"p1","p2","p3"
+2005,"ci spare wait event 45","Other",1893977003,"p1","p2","p3"
+2006,"ci spare wait event 46","Other",1893977003,"p1","p2","p3"
+2007,"ci spare wait event 47","Other",1893977003,"p1","p2","p3"
+2008,"ci spare wait event 48","Other",1893977003,"p1","p2","p3"
+2009,"ci spare wait event 49","Other",1893977003,"p1","p2","p3"
+2010,"ci spare wait event 50","Other",1893977003,"p1","p2","p3"
+2011,"ci spare wait event 51","Other",1893977003,"p1","p2","p3"
+2012,"ci spare wait event 52","Other",1893977003,"p1","p2","p3"
+2013,"ci spare wait event 53","Other",1893977003,"p1","p2","p3"
+2014,"ci spare wait event 54","Other",1893977003,"p1","p2","p3"
+2015,"ci spare wait event 55","Other",1893977003,"p1","p2","p3"
+2016,"ci spare wait event 56","Other",1893977003,"p1","p2","p3"
+2017,"ci spare wait event 57","Other",1893977003,"p1","p2","p3"
+2018,"ci spare wait event 58","Other",1893977003,"p1","p2","p3"
+2019,"ci spare wait event 59","Other",1893977003,"p1","p2","p3"
+2020,"ci spare wait event 60","Other",1893977003,"p1","p2","p3"
+2021,"ci spare wait event 61","Other",1893977003,"p1","p2","p3"
+2022,"ci spare wait event 62","Other",1893977003,"p1","p2","p3"
+2023,"ci spare wait event 63","Other",1893977003,"p1","p2","p3"
+2024,"ci spare wait event 64","Other",1893977003,"p1","p2","p3"
+2025,"ci spare wait event 65","Other",1893977003,"p1","p2","p3"
+2026,"ci spare wait event 66","Other",1893977003,"p1","p2","p3"
+2027,"ci spare wait event 67","Other",1893977003,"p1","p2","p3"
+2028,"ci spare wait event 68","Other",1893977003,"p1","p2","p3"
+2029,"ci spare wait event 69","Other",1893977003,"p1","p2","p3"
+2030,"ci spare wait event 70","Other",1893977003,"p1","p2","p3"
+2031,"ci spare wait event 71","Other",1893977003,"p1","p2","p3"
+2032,"ci spare wait event 72","Other",1893977003,"p1","p2","p3"
+2033,"ci spare wait event 73","Other",1893977003,"p1","p2","p3"
+2034,"ci spare wait event 74","Other",1893977003,"p1","p2","p3"
+2035,"ci spare wait event 75","Other",1893977003,"p1","p2","p3"
+2036,"ci spare wait event 76","Other",1893977003,"p1","p2","p3"
+2037,"ci spare wait event 77","Other",1893977003,"p1","p2","p3"
+2038,"ci spare wait event 78","Other",1893977003,"p1","p2","p3"
+2039,"ci spare wait event 79","Other",1893977003,"p1","p2","p3"
+2040,"ci spare wait event 80","Other",1893977003,"p1","p2","p3"
+2041,"ci spare wait event 81","Other",1893977003,"p1","p2","p3"
+2042,"ci spare wait event 82","Other",1893977003,"p1","p2","p3"
+2043,"ci spare wait event 83","Other",1893977003,"p1","p2","p3"
+2044,"ci spare wait event 84","Other",1893977003,"p1","p2","p3"
+2045,"ci spare wait event 85","Other",1893977003,"p1","p2","p3"
+2046,"ci spare wait event 86","Other",1893977003,"p1","p2","p3"
+2047,"ci spare wait event 87","Other",1893977003,"p1","p2","p3"
+2048,"ci spare wait event 88","Other",1893977003,"p1","p2","p3"
+2049,"ci spare wait event 89","Other",1893977003,"p1","p2","p3"
+2050,"ci spare wait event 90","Other",1893977003,"p1","p2","p3"
+2051,"ci spare wait event 91","Other",1893977003,"p1","p2","p3"
+2052,"ci spare wait event 92","Other",1893977003,"p1","p2","p3"
+2053,"ci spare wait event 93","Other",1893977003,"p1","p2","p3"
+2054,"ci spare wait event 94","Other",1893977003,"p1","p2","p3"
+2055,"ci spare wait event 95","Other",1893977003,"p1","p2","p3"
+2056,"ci spare wait event 96","Other",1893977003,"p1","p2","p3"
+2057,"ci spare wait event 97","Other",1893977003,"p1","p2","p3"
+2058,"ci spare wait event 98","Other",1893977003,"p1","p2","p3"
+2059,"ci spare wait event 99","Other",1893977003,"p1","p2","p3"
+2060,"ci spare wait event 100","Other",1893977003,"p1","p2","p3"
+2061,"secondary event","Other",1893977003,"event #","wait time",

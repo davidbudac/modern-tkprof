@@ -1,0 +1,122 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_133470_mtk_level_1.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 68
+Unix process pid: 133470, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-10-22T11:35:37.718206+00:00 (PDB1(3))
+*** SESSION ID:(51.14366) 2026-10-22T11:35:37.718226+00:00
+*** CLIENT ID:(mtk_client_level_1) 2026-10-22T11:35:37.718230+00:00
+*** SERVICE NAME:(pdb1) 2026-10-22T11:35:37.718233+00:00
+*** MODULE NAME:(mtk_level_1) 2026-10-22T11:35:37.718235+00:00
+*** ACTION NAME:(start) 2026-10-22T11:35:37.718238+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-10-22T11:35:37.718241+00:00
+*** CONTAINER ID:(3) 2026-10-22T11:35:37.718243+00:00
+ 
+CLOSE #140365886663800:c=2,e=2,dep=0,type=1,tim=10813025969
+=====================
+PARSING IN CURSOR #140365886648024 len=22 dep=0 uid=165 oct=47 lid=165 tim=10813026345 hv=1526946288 ad='8cf16998' sqlid='f9p8d99dh6qgh'
+BEGIN :cid := 5; END;
+
+END OF STMT
+PARSE #140365886648024:c=31,e=31,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=10813026344
+EXEC #140365886648024:c=33,e=33,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=10813026410
+CLOSE #140365886648024:c=3,e=4,dep=0,type=1,tim=10813026566
+=====================
+PARSING IN CURSOR #140365886646352 len=82 dep=0 uid=165 oct=3 lid=165 tim=10813026607 hv=43170786 ad='8cf5ad20' sqlid='ct57cc8195fz2'
+select /* mtk_levels */ count(*), sum(amount) from mtk_orders where cust_id = :cid
+END OF STMT
+PARSE #140365886646352:c=27,e=27,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=10813026607
+EXEC #140365886646352:c=28,e=28,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=10813026664
+FETCH #140365886646352:c=64,e=64,p=0,cr=7,cu=0,mis=0,r=1,dep=0,og=1,plh=254283197,tim=10813026746
+STAT #140365886646352 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=7 pr=0 pw=0 str=1 time=69 us)'
+STAT #140365886646352 id=2 cnt=5 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=7 pr=0 pw=0 str=1 time=63 us cost=6 size=50 card=5)'
+STAT #140365886646352 id=3 cnt=5 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=2 pr=0 pw=0 str=1 time=22 us cost=1 size=0 card=5)'
+FETCH #140365886646352:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=254283197,tim=10813026946
+CLOSE #140365886646352:c=0,e=3,dep=0,type=1,tim=10813027094
+=====================
+PARSING IN CURSOR #140365885647592 len=22 dep=0 uid=165 oct=47 lid=165 tim=10813027140 hv=3306447345 ad='8af48058' sqlid='4msk1vz2j8sgj'
+BEGIN :cid := 6; END;
+
+END OF STMT
+PARSE #140365885647592:c=0,e=29,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=10813027140
+EXEC #140365885647592:c=0,e=14,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=10813027184
+CLOSE #140365885647592:c=4,e=4,dep=0,type=1,tim=10813027339
+PARSE #140365886646352:c=5,e=5,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=10813027356
+EXEC #140365886646352:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=10813027373
+FETCH #140365886646352:c=47,e=47,p=0,cr=7,cu=0,mis=0,r=1,dep=0,og=1,plh=254283197,tim=10813027434
+FETCH #140365886646352:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=254283197,tim=10813027530
+CLOSE #140365886646352:c=2,e=2,dep=0,type=3,tim=10813027656
+=====================
+PARSING IN CURSOR #140365885646264 len=114 dep=0 uid=165 oct=2 lid=165 tim=10813027692 hv=2747869268 ad='8c6e32b0' sqlid='1137u96jwka2n'
+insert into mtk_orders (id, cust_id, order_date, amount, status) values (mtk_seq.nextval, :cid, sysdate, 1, 'LVL')
+END OF STMT
+PARSE #140365885646264:c=24,e=24,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=26777049,tim=10813027691
+=====================
+PARSING IN CURSOR #140365885630040 len=132 dep=1 uid=165 oct=2 lid=165 tim=10813027834 hv=4142847048 ad='61ef1cb8' sqlid='7jf4xk7vfxp28'
+INSERT INTO MTK_AUDIT (ID, TABLE_NAME, ROW_ID, CUST_TOTAL, USERNAME) VALUES (MTK_SEQ.NEXTVAL, 'MTK_ORDERS', :B1 , MTK_F(:B2 ), USER)
+END OF STMT
+PARSE #140365885630040:c=23,e=23,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=26777049,tim=10813027834
+=====================
+PARSING IN CURSOR #140365885607592 len=56 dep=2 uid=165 oct=3 lid=165 tim=10813027982 hv=4005627691 ad='61f0c3e0' sqlid='5zdrtngrc21tb'
+SELECT NVL(MAX(AMOUNT), 0) FROM MTK_CUST WHERE ID = :B1 
+END OF STMT
+PARSE #140365885607592:c=21,e=21,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=1,plh=251783013,tim=10813027982
+EXEC #140365885607592:c=30,e=30,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=1,plh=251783013,tim=10813028069
+FETCH #140365885607592:c=24,e=24,p=0,cr=3,cu=0,mis=0,r=1,dep=2,og=1,plh=251783013,tim=10813028107
+STAT #140365885607592 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=3 pr=0 pw=0 str=1 time=29 us)'
+STAT #140365885607592 id=2 cnt=1 pid=1 pos=1 obj=108609 op='TABLE ACCESS BY INDEX ROWID MTK_CUST (cr=3 pr=0 pw=0 str=1 time=23 us cost=2 size=11 card=1)'
+STAT #140365885607592 id=3 cnt=1 pid=2 pos=1 obj=108610 op='INDEX UNIQUE SCAN MTK_CUST_PK (cr=2 pr=0 pw=0 str=1 time=14 us cost=1 size=0 card=1)'
+CLOSE #140365885607592:c=1,e=1,dep=2,type=3,tim=10813028185
+EXEC #140365885630040:c=436,e=436,p=0,cr=4,cu=4,mis=0,r=1,dep=1,og=1,plh=26777049,tim=10813028307
+STAT #140365885630040 id=1 cnt=0 pid=0 pos=1 obj=108614 op='LOAD TABLE CONVENTIONAL  MTK_AUDIT (cr=4 pr=0 pw=0 str=1 time=407 us)'
+STAT #140365885630040 id=2 cnt=1 pid=1 pos=1 obj=108621 op='SEQUENCE  MTK_SEQ (cr=0 pr=0 pw=0 str=1 time=3 us)'
+CLOSE #140365885630040:c=0,e=0,dep=1,type=3,tim=10813028371
+EXEC #140365885646264:c=588,e=742,p=0,cr=5,cu=13,mis=0,r=1,dep=0,og=1,plh=26777049,tim=10813028461
+STAT #140365885646264 id=1 cnt=0 pid=0 pos=1 obj=108611 op='LOAD TABLE CONVENTIONAL  MTK_ORDERS (cr=5 pr=0 pw=0 str=1 time=699 us)'
+STAT #140365885646264 id=2 cnt=1 pid=1 pos=1 obj=108621 op='SEQUENCE  MTK_SEQ (cr=0 pr=0 pw=0 str=1 time=18 us)'
+CLOSE #140365885646264:c=4,e=4,dep=0,type=1,tim=10813028634
+=====================
+PARSING IN CURSOR #140365885623888 len=8 dep=0 uid=165 oct=45 lid=165 tim=10813028656 hv=686288168 ad='0' sqlid='18grqd4nfgv98'
+rollback
+END OF STMT
+PARSE #140365885623888:c=10,e=10,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10813028656
+XCTEND rlbk=1, rd_only=0, tim=10813028686
+EXEC #140365885623888:c=211,e=211,p=0,cr=1,cu=9,mis=0,r=0,dep=0,og=0,plh=0,tim=10813028894
+CLOSE #140365885623888:c=2,e=2,dep=0,type=1,tim=10813035221
+=====================
+PARSING IN CURSOR #140365885622216 len=47 dep=0 uid=165 oct=47 lid=165 tim=10813035290 hv=1487103586 ad='8c7c0e18' sqlid='3k4m61xca6tm2'
+declare
+  v number;
+begin
+  v := mtk_f(3);
+end;
+END OF STMT
+PARSE #140365885622216:c=49,e=49,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=10813035289
+EXEC #140365885607592:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=251783013,tim=10813035348
+FETCH #140365885607592:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=251783013,tim=10813035364
+CLOSE #140365885607592:c=1,e=1,dep=1,type=3,tim=10813035377
+EXEC #140365885622216:c=64,e=64,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=10813035383
+CLOSE #140365885622216:c=4,e=4,dep=0,type=1,tim=10813035578
+=====================
+PARSING IN CURSOR #140365885620544 len=55 dep=0 uid=165 oct=42 lid=165 tim=10813035601 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #140365885620544:c=10,e=10,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10813035601
+EXEC #140365885620544:c=86,e=86,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10813035713

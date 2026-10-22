@@ -1,0 +1,506 @@
+// Package analyze computes profiles and statistics over a model.Model.
+package analyze
+
+import (
+	"sort"
+
+	"github.com/davidbudac/modern-tkprof/internal/model"
+	"github.com/davidbudac/modern-tkprof/internal/trace"
+)
+
+// CallStats are tkprof-style totals for one call kind.
+type CallStats struct {
+	Count   int64 `json:"count"`
+	Misses  int64 `json:"misses"`
+	CPU     int64 `json:"cpu"`
+	Elapsed int64 `json:"elapsed"`
+	Disk    int64 `json:"disk"`
+	Query   int64 `json:"query"`
+	Current int64 `json:"current"`
+	Rows    int64 `json:"rows"`
+	Waits   int64 `json:"waitUs"` // in-call waits attributed to these calls
+	Idle    int64 `json:"idleUs"` // between-call waits attributed to these calls
+	// Self* exclude the recursive child calls (this is what tkprof prints).
+	SelfCPU     int64 `json:"selfCpu"`
+	SelfElapsed int64 `json:"selfElapsed"`
+	SelfDisk    int64 `json:"selfDisk"`
+	SelfQuery   int64 `json:"selfQuery"`
+	SelfCurrent int64 `json:"selfCurrent"`
+}
+
+func (s *CallStats) add(c *model.Call) {
+	s.Count++
+	s.Misses += c.Mis
+	s.CPU += c.C
+	s.Elapsed += c.E
+	s.Disk += c.P
+	s.Query += c.CR
+	s.Current += c.CU
+	s.Rows += c.R
+	s.Waits += c.WaitEla
+	s.Idle += c.IdleEla
+	s.SelfCPU += c.SelfC
+	s.SelfElapsed += c.SelfE
+	s.SelfDisk += c.SelfP
+	s.SelfQuery += c.SelfCR
+	s.SelfCurrent += c.SelfCU
+}
+
+func (s *CallStats) addStats(o CallStats) {
+	s.Count += o.Count
+	s.Misses += o.Misses
+	s.CPU += o.CPU
+	s.Elapsed += o.Elapsed
+	s.Disk += o.Disk
+	s.Query += o.Query
+	s.Current += o.Current
+	s.Rows += o.Rows
+	s.Waits += o.Waits
+	s.Idle += o.Idle
+	s.SelfCPU += o.SelfCPU
+	s.SelfElapsed += o.SelfElapsed
+	s.SelfDisk += o.SelfDisk
+	s.SelfQuery += o.SelfQuery
+	s.SelfCurrent += o.SelfCurrent
+}
+
+// Link is a recursive relationship between two statements with the time share.
+type Link struct {
+	Statement model.ID `json:"statement"`
+	Calls     int64    `json:"calls"`
+	Elapsed   int64    `json:"elapsed"`
+}
+
+// StmtStats is everything tkprof prints per statement, plus response-time
+// accounting that respects the recursive hierarchy.
+type StmtStats struct {
+	ID       model.ID  `json:"id"`
+	Parse    CallStats `json:"parse"`
+	Exec     CallStats `json:"exec"`
+	Fetch    CallStats `json:"fetch"`
+	Close    CallStats `json:"close"`
+	Other    CallStats `json:"other"` // LOB / RPC / XCTEND
+	Total    CallStats `json:"total"` // parse+exec+fetch (tkprof "total" row)
+	AllCalls CallStats `json:"allCalls"`
+
+	// Response time: Σ e over calls of this statement not nested in another
+	// call of the same statement; includes recursive children of other statements.
+	Elapsed     int64 `json:"elapsed"`
+	SelfElapsed int64 `json:"selfElapsed"` // Σ SelfE: elapsed excluding recursive children
+	CPU         int64 `json:"cpu"`
+	SelfCPU     int64 `json:"selfCpu"`
+	WaitUs      int64 `json:"waitUs"` // in-call waits
+	IdleUs      int64 `json:"idleUs"` // between-call waits (think time)
+	ChildUs     int64 `json:"childUs"`
+
+	Executions int64 `json:"executions"`
+	HardParses int64 `json:"hardParses"`
+	Cursors    int   `json:"cursors"`
+	Errors     int   `json:"errors"`
+	MinDep     int   `json:"minDepth"`
+	MaxDep     int   `json:"maxDepth"`
+	TopLevel   bool  `json:"topLevel"` // has calls with no parent
+
+	FirstWallUs int64 `json:"firstWallUs"`
+	LastWallUs  int64 `json:"lastWallUs"`
+	FirstTim    int64 `json:"firstTim"`
+	LastTim     int64 `json:"lastTim"`
+
+	Parents    []Link     `json:"parents"`
+	Children   []Link     `json:"children"`
+	Plans      []model.ID `json:"plans"`
+	PlanHashes []uint64   `json:"planHashes"`
+}
+
+// Statements computes StmtStats for every statement, in statement id order.
+func Statements(m *model.Model) []StmtStats {
+	out := make([]StmtStats, len(m.Statements))
+	for i := range out {
+		out[i].ID = model.ID(i)
+		out[i].MinDep = 1 << 30
+		out[i].MaxDep = -1
+		out[i].Cursors = len(m.Statements[i].Cursors)
+	}
+	type edge struct{ parent, child model.ID }
+	edges := make(map[edge]*Link)
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		s := &out[c.Statement]
+		switch c.Kind {
+		case trace.CallParse:
+			s.Parse.add(c)
+			if c.Mis > 0 {
+				s.HardParses += c.Mis
+			}
+		case trace.CallExec:
+			s.Exec.add(c)
+			s.Executions++
+		case trace.CallFetch:
+			s.Fetch.add(c)
+		case trace.CallClose:
+			s.Close.add(c)
+		default:
+			s.Other.add(c)
+		}
+		s.AllCalls.add(c)
+		if c.Dep < s.MinDep {
+			s.MinDep = c.Dep
+		}
+		if c.Dep > s.MaxDep {
+			s.MaxDep = c.Dep
+		}
+		nestedInSelf := c.Parent != model.None && m.Calls[c.Parent].Statement == c.Statement
+		if !nestedInSelf {
+			s.Elapsed += c.E
+			s.CPU += c.C
+		}
+		s.SelfElapsed += c.SelfE
+		s.SelfCPU += c.SelfC
+		s.WaitUs += c.WaitEla
+		s.IdleUs += c.IdleEla
+		if c.Parent == model.None {
+			s.TopLevel = true
+		} else {
+			p := &m.Calls[c.Parent]
+			if p.Statement != c.Statement {
+				e := edge{p.Statement, c.Statement}
+				l, ok := edges[e]
+				if !ok {
+					l = &Link{}
+					edges[e] = l
+				}
+				l.Calls++
+				l.Elapsed += c.E
+				out[p.Statement].ChildUs += c.E
+			}
+		}
+		if c.Tim != 0 {
+			if s.FirstTim == 0 || c.Tim-c.E < s.FirstTim {
+				s.FirstTim = c.Tim - c.E
+				s.FirstWallUs = c.WallUs - c.E
+			}
+			if c.Tim > s.LastTim {
+				s.LastTim = c.Tim
+				s.LastWallUs = c.WallUs
+			}
+		}
+	}
+	for e, l := range edges {
+		out[e.parent].Children = append(out[e.parent].Children, Link{Statement: e.child, Calls: l.Calls, Elapsed: l.Elapsed})
+		out[e.child].Parents = append(out[e.child].Parents, Link{Statement: e.parent, Calls: l.Calls, Elapsed: l.Elapsed})
+	}
+	for i := range out {
+		s := &out[i]
+		s.Total.addStats(s.Parse)
+		s.Total.addStats(s.Exec)
+		s.Total.addStats(s.Fetch)
+		if s.MinDep == 1<<30 {
+			s.MinDep = m.Statements[i].MinDep
+			s.MaxDep = s.MinDep
+		}
+		sort.Slice(s.Children, func(a, b int) bool { return s.Children[a].Elapsed > s.Children[b].Elapsed })
+		sort.Slice(s.Parents, func(a, b int) bool { return s.Parents[a].Elapsed > s.Parents[b].Elapsed })
+	}
+	for i := range m.Errors {
+		if sid := m.Errors[i].Statement; sid != model.None {
+			out[sid].Errors++
+		}
+	}
+	seen := map[model.ID]map[uint64]bool{}
+	for i := range m.Plans {
+		p := &m.Plans[i]
+		s := &out[p.Statement]
+		s.Plans = append(s.Plans, p.ID)
+		if seen[p.Statement] == nil {
+			seen[p.Statement] = map[uint64]bool{}
+		}
+		if !seen[p.Statement][p.PLH] {
+			seen[p.Statement][p.PLH] = true
+			s.PlanHashes = append(s.PlanHashes, p.PLH)
+		}
+	}
+	return out
+}
+
+// ProfileRow is one component of a resource profile.
+type ProfileRow struct {
+	Component string  `json:"component"`
+	Kind      string  `json:"kind"` // cpu | wait | idle | unaccounted
+	Class     string  `json:"class,omitempty"`
+	Us        int64   `json:"us"`
+	Pct       float64 `json:"pct"`
+	Count     int64   `json:"count"`
+	AvgUs     float64 `json:"avgUs"`
+	MinUs     int64   `json:"minUs"`
+	MaxUs     int64   `json:"maxUs"`
+}
+
+// Profile is a Millsap-style resource profile: response time split into
+// CPU, each wait event, and the unaccounted-for remainder.
+type Profile struct {
+	Label         string       `json:"label"`
+	TotalUs       int64        `json:"totalUs"`
+	CPUUs         int64        `json:"cpuUs"`
+	WaitUs        int64        `json:"waitUs"` // non-idle waits
+	IdleUs        int64        `json:"idleUs"` // idle / between-call waits
+	UnaccountedUs int64        `json:"unaccountedUs"`
+	Rows          []ProfileRow `json:"rows"`
+}
+
+// TraceProfile profiles the whole file: total = trace span, CPU = Σ c of
+// top-level calls, waits = every wait line.
+func TraceProfile(m *model.Model) Profile {
+	var cpu int64
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		if c.Parent == model.None {
+			cpu += c.C
+		}
+	}
+	total := m.Span.Us()
+	p := buildProfile(m, "whole trace", total, cpu, func(w *model.Wait) bool { return true })
+	return p
+}
+
+// StatementProfile profiles one statement: total = its response time plus
+// the between-call (idle) waits attributed to it.
+func StatementProfile(m *model.Model, st *StmtStats) Profile {
+	total := st.Elapsed + st.IdleUs
+	sid := st.ID
+	return buildProfile(m, m.Statements[sid].SQLID, total, st.CPU, func(w *model.Wait) bool {
+		return w.Statement == sid
+	})
+}
+
+func buildProfile(m *model.Model, label string, total, cpu int64, in func(*model.Wait) bool) Profile {
+	type acc struct {
+		us, n, min, max int64
+	}
+	byEvent := map[model.ID]*acc{}
+	var waitUs, idleUs int64
+	for i := range m.Waits {
+		w := &m.Waits[i]
+		if !in(w) {
+			continue
+		}
+		a := byEvent[w.Event]
+		if a == nil {
+			a = &acc{min: w.Ela}
+			byEvent[w.Event] = a
+		}
+		a.us += w.Ela
+		a.n++
+		if w.Ela < a.min {
+			a.min = w.Ela
+		}
+		if w.Ela > a.max {
+			a.max = w.Ela
+		}
+		if w.Idle || w.Between {
+			idleUs += w.Ela
+		} else {
+			waitUs += w.Ela
+		}
+	}
+	p := Profile{Label: label, TotalUs: total, CPUUs: cpu, WaitUs: waitUs, IdleUs: idleUs}
+	p.Rows = append(p.Rows, ProfileRow{Component: "CPU", Kind: "cpu", Us: cpu})
+	for eid, a := range byEvent {
+		ev := &m.Events[eid]
+		kind := "wait"
+		if ev.Idle {
+			kind = "idle"
+		}
+		p.Rows = append(p.Rows, ProfileRow{Component: ev.Name, Kind: kind, Class: ev.Class, Us: a.us, Count: a.n, AvgUs: float64(a.us) / float64(a.n), MinUs: a.min, MaxUs: a.max})
+	}
+	p.UnaccountedUs = total - cpu - waitUs - idleUs
+	p.Rows = append(p.Rows, ProfileRow{Component: "unaccounted-for", Kind: "unaccounted", Us: p.UnaccountedUs})
+	sort.SliceStable(p.Rows, func(i, j int) bool { return p.Rows[i].Us > p.Rows[j].Us })
+	if total > 0 {
+		for i := range p.Rows {
+			p.Rows[i].Pct = 100 * float64(p.Rows[i].Us) / float64(total)
+		}
+	}
+	return p
+}
+
+// EventAgg aggregates waits by event.
+type EventAgg struct {
+	Event model.ID `json:"event"`
+	Name  string   `json:"name"`
+	Class string   `json:"class"`
+	Idle  bool     `json:"idle"`
+	Count int64    `json:"count"`
+	Us    int64    `json:"us"`
+	MinUs int64    `json:"minUs"`
+	MaxUs int64    `json:"maxUs"`
+}
+
+// WaitsByEvent aggregates the waits accepted by in (nil = all), sorted by time desc.
+func WaitsByEvent(m *model.Model, in func(*model.Wait) bool) []EventAgg {
+	aggs := make([]EventAgg, len(m.Events))
+	for i := range aggs {
+		aggs[i] = EventAgg{Event: model.ID(i), Name: m.Events[i].Name, Class: m.Events[i].Class, Idle: m.Events[i].Idle}
+	}
+	for i := range m.Waits {
+		w := &m.Waits[i]
+		if in != nil && !in(w) {
+			continue
+		}
+		a := &aggs[w.Event]
+		if a.Count == 0 || w.Ela < a.MinUs {
+			a.MinUs = w.Ela
+		}
+		if w.Ela > a.MaxUs {
+			a.MaxUs = w.Ela
+		}
+		a.Count++
+		a.Us += w.Ela
+	}
+	out := aggs[:0]
+	for _, a := range aggs {
+		if a.Count > 0 {
+			out = append(out, a)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Us > out[j].Us })
+	return out
+}
+
+// KeyAgg is a generic group-by result.
+type KeyAgg struct {
+	Key   int64 `json:"key"`
+	Count int64 `json:"count"`
+	Us    int64 `json:"us"`
+}
+
+// WaitsBy groups waits by an integer key (object id, file#, ...).
+func WaitsBy(m *model.Model, in func(*model.Wait) bool, key func(*model.Wait) (int64, bool)) []KeyAgg {
+	acc := map[int64]*KeyAgg{}
+	for i := range m.Waits {
+		w := &m.Waits[i]
+		if in != nil && !in(w) {
+			continue
+		}
+		k, ok := key(w)
+		if !ok {
+			continue
+		}
+		a := acc[k]
+		if a == nil {
+			a = &KeyAgg{Key: k}
+			acc[k] = a
+		}
+		a.Count++
+		a.Us += w.Ela
+	}
+	out := make([]KeyAgg, 0, len(acc))
+	for _, a := range acc {
+		out = append(out, *a)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Us > out[j].Us })
+	return out
+}
+
+// Execution groups one EXEC with its FETCH calls.
+type Execution struct {
+	Cursor    model.ID   `json:"cursor"`
+	Statement model.ID   `json:"statement"`
+	ExecNo    int32      `json:"execNo"`
+	Exec      model.ID   `json:"exec"`
+	Fetches   []model.ID `json:"fetches"`
+	BindSet   model.ID   `json:"bindSet"`
+	Stats     CallStats  `json:"stats"`
+	StartTim  int64      `json:"startTim"`
+	EndTim    int64      `json:"endTim"`
+	WallUs    int64      `json:"wallUs"`
+	Context   model.ID   `json:"context"`
+}
+
+// Executions lists the executions of one statement in file order.
+func Executions(m *model.Model, sid model.ID) []Execution {
+	var out []Execution
+	idx := map[[2]int64]int{} // cursor,execNo -> index
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		if c.Statement != sid {
+			continue
+		}
+		switch c.Kind {
+		case trace.CallExec:
+			e := Execution{Cursor: c.Cursor, Statement: sid, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: c.WallUs - c.E, Context: c.Context}
+			e.Stats.add(c)
+			idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}] = len(out)
+			out = append(out, e)
+		case trace.CallFetch:
+			if j, ok := idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}]; ok {
+				e := &out[j]
+				e.Fetches = append(e.Fetches, c.ID)
+				e.Stats.add(c)
+				if c.Tim > e.EndTim {
+					e.EndTim = c.Tim
+				}
+			}
+		}
+	}
+	return out
+}
+
+// Bucket is one slice of the timeline.
+type Bucket struct {
+	StartUs int64 `json:"startUs"` // wall-clock µs (or tim when no anchor)
+	Calls   int64 `json:"calls"`
+	CPUUs   int64 `json:"cpuUs"`
+	ElaUs   int64 `json:"elaUs"`
+	WaitUs  int64 `json:"waitUs"`
+	IdleUs  int64 `json:"idleUs"`
+	Disk    int64 `json:"disk"`
+	Query   int64 `json:"query"`
+	Rows    int64 `json:"rows"`
+}
+
+// Timeline buckets top-level call activity and waits by their completion time.
+func Timeline(m *model.Model, bucketUs int64) []Bucket {
+	if bucketUs <= 0 || m.Span.Us() == 0 {
+		return nil
+	}
+	n := int(m.Span.Us()/bucketUs) + 1
+	if n > 100000 {
+		return nil
+	}
+	out := make([]Bucket, n)
+	base := m.Span.FirstTim
+	for i := range out {
+		out[i].StartUs = m.WallOf(base + int64(i)*bucketUs)
+		if out[i].StartUs == 0 {
+			out[i].StartUs = base + int64(i)*bucketUs
+		}
+	}
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		if c.Tim == 0 {
+			continue
+		}
+		b := &out[int((c.Tim-base)/bucketUs)]
+		b.Calls++
+		if c.Parent == model.None {
+			b.CPUUs += c.C
+			b.ElaUs += c.E
+		}
+		b.Disk += c.P
+		b.Query += c.CR
+		b.Rows += c.R
+	}
+	for i := range m.Waits {
+		w := &m.Waits[i]
+		if w.Tim == 0 {
+			continue
+		}
+		b := &out[int((w.Tim-base)/bucketUs)]
+		if w.Idle || w.Between {
+			b.IdleUs += w.Ela
+		} else {
+			b.WaitUs += w.Ela
+		}
+	}
+	return out
+}
