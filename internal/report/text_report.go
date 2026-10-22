@@ -31,6 +31,7 @@ func writeText(out io.Writer, m *model.Model, o TextOptions) error {
 	t.header()
 	t.traceProfile()
 	order := t.ranking()
+	t.findings()
 	for i, sid := range order {
 		t.statement(i+1, sid)
 	}
