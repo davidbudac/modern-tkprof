@@ -7,11 +7,11 @@ merged into branch `m1`, then `main`.
 
 | Package | Branch | Owner | Status |
 |---|---|---|---|
-| A. Findings (`analyze/findings.go`, JSON `stats.findings`, text section, Overview UI) | `m1-findings` | agent | in progress |
+| A. Findings (`analyze/findings.go`, JSON `stats.findings`, text section, Overview UI) | `m1-findings` | agent | merged |
 | B. Text report sections (executions table, sessions, time buckets) + `pivot` subcommand + Go group-by | `m1-textpivot` | agent | merged |
 | C. Bind redaction `-redact-binds` / `-bind-values keep|redact|none` / `-binds none` | `m1-binds` | agent | merged |
 | D. Plan-change fixture (`testdata/gen/sc_plan_change.sql`, run on dbmint) | `m1-fixture` | agent | merged (plan_change.trc, plh 254283197 → 3570327658) |
-| Integration: merge, golden tests, `make web`, screenshots, docs | `m1` | advisor | pending |
+| Integration: merge, golden tests, `make web`, screenshots, docs | `m1` | advisor | done |
 
 ## Integration rules
 
@@ -30,3 +30,5 @@ merged into branch `m1`, then `main`.
 - 2026-10-22 C merged: bind redaction as a model post-pass (`model.RedactBinds`), flags on report/html/json/export/serve.
 - 2026-10-22 B merged: `analyze.Pivot` (same dims/measures as the UI), `mtkprof pivot`, executions table (`-execs`), SESSIONS and TIME BUCKETS sections; one conflict in `cmdReport` flags resolved by hand.
   Follow-ups noted by the implementer (not in M1): UI Pivot buckets with `pickBucket` while the CLI uses `analyze.TimelineBucket`; JSON `stats` could carry `contexts`; executions table shows the per-cursor exec# (1 for every cursor when SQL*Plus reopens the cursor) and relies on the cursor line column to disambiguate.
+- 2026-10-22 A merged: 9 findings rules, text FINDINGS section, Overview Findings component; two test-helper name clashes with B resolved (`loadModel`, shared `fixtures` const).
+- 2026-10-22 integration: `make web` (pnpm 12 needed `web/pnpm-workspace.yaml` with `allowBuilds`), UI rebuilt and embedded, Overview with the plan-change finding verified by screenshot, HANDOFF updated. Milestone 1 complete; merged to `main`.

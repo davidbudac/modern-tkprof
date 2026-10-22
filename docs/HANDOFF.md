@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-10-22
+# Handoff — state of mtkprof on 2026-10-22 (after milestone 1)
 
 Read this, then `docs/DESIGN.md` (the decisions), then `docs/ARCHITECTURE.md`
 (how the code is shaped) and `docs/trace-format-19c.md` (what the parser
@@ -18,9 +18,12 @@ Working and tested:
 | Aggregations (profiles, statement stats, executions, group-bys, timeline) | `internal/analyze` | done |
 | Golden comparison against Oracle's tkprof | `internal/golden` | passes on all 19 fixtures |
 | Text report, JSON document (format 2, packed columns), CSV export | `internal/report` | done |
-| CLI: `report`, `html`, `serve`, `json`, `export`, `lint` | `cmd/mtkprof` | done |
+| CLI: `report`, `pivot`, `html`, `serve`, `json`, `export`, `lint` | `cmd/mtkprof` | done |
+| Findings (9 rules, fixed thresholds) in JSON, text report and Overview | `internal/analyze/findings.go`, `internal/report/text_findings.go`, `web/src/views/Findings.tsx` | done; unit tests on fixtures + hand-built models |
+| Go group-by with the UI Pivot's dims/measures; sessions and time-bucket stats | `internal/analyze/pivot.go` | done; unit tests |
+| Bind redaction (`-redact-binds`, `-bind-values keep\|redact\|none`, `-binds none`) as a model post-pass | `internal/model/redact.go`, `cmd/mtkprof/bindflags.go` | done; tests prove no value leaks into text/JSON/CSV |
 | Web UI (Overview, Statements + inspector, Waits + event inspector, Timeline, Sessions, Pivot), light/dark | `web/` → embedded as `internal/ui/dist/index.html` | first version, reviewed by screenshot |
-| Real 19.27 fixtures + tkprof output + generator + v$ exports | `testdata/` | done |
+| Real 19.27 fixtures (20, incl. `plan_change`) + tkprof output + generator + v$ exports | `testdata/` | done |
 | CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | written, never run (repo private, no push of a tag) |
 
 Numbers: parse ~340 MB/s; 118 MB trace → text report in 0.96 s, standalone
@@ -71,42 +74,41 @@ committed on purpose so `go build` alone works.
   `MTK` exists in `PDB1`; `testdata/gen/run_gen.sh` regenerates the fixtures
   idempotently and runs tkprof on them. Never run destructive SQL there.
 
-## Milestone 1 (next): text-report parity, findings, bind redaction
+## Milestone 1: done (2026-10-22)
 
-Decisions are in `docs/DESIGN.md`. Concretely:
+Delivered on `main` (see `docs/PLAN-M1.md` for how the work was split):
+text report executions table (`-execs N`), SESSIONS and TIME BUCKETS
+sections, FINDINGS section; `mtkprof pivot` sharing `analyze.Pivot` with the
+same dimension/measure ids as `web/src/views/Pivot.tsx`; findings in
+`stats.findings` of the JSON document and on the Overview; bind redaction on
+every output; `plan_change.trc` fixture (one sql_id, two plan hashes, forced
+with `optimizer_index_cost_adj`).
 
-1. **Text report sections** (`internal/report/text_report.go`): add per
-   statement an executions table (exec #, start wall time, elapsed, cpu,
-   rows, disk, query, fetches, bind preview; `-execs N` to cap) reusing
-   `analyze.Executions`; a sessions section (one row per `model.Context`
-   with calls, response, cpu, waits, idle, first/last time); a time-bucket
-   section (from `analyze.Timeline` with the same bucket choice as the UI,
-   `report.timelineBucket`); and a findings section (below).
-2. **`pivot` subcommand** (`cmd/mtkprof`): `mtkprof pivot trace.trc -fact
-   calls|waits -by dim[,dim] -measure m [-top N] [-window start,end]
-   [-context id,...]`. Dimensions and measures must match
-   `web/src/views/Pivot.tsx` (lists are in that file's `callDims`,
-   `waitDims`, `callMeasures`, `waitMeasures`). Implement the group-by once
-   in Go (`internal/analyze`, `KeyAgg` is a start) and have both the text
-   report and the CLI use it.
-3. **Findings** (`internal/analyze/findings.go`, new): rules and defaults from
-   `docs/DESIGN.md` § Findings; output a `[]Finding{Rule, Severity, Summary,
-   Evidence []Row, Statement ID}`; add to `report.Stats` (JSON) and to the
-   text report; UI section on the Overview (`web/src/views/Overview.tsx`)
-   with evidence rows linking to statements. Add fixtures to exercise each
-   rule (the `cursor_cache`, `basic_binds` and `io_waits` fixtures already
-   trigger churn, outliers and client-time cases; a plan-change fixture needs
-   a new scenario in `testdata/gen` — e.g. gather stats between executions).
-4. **Bind redaction**: `-redact-binds` (type + length + stable hash) and
-   `-binds none` on `report`, `html`, `json`, `export`; implement in the
-   builder or as a post-pass over `model.Binds` so every output agrees.
-5. Golden tests must stay green; add unit tests for the findings rules.
+Follow-ups left open by milestone 1 (small, not blocking):
 
-Milestones 2–6 (plan JSON + "Open in plan viz", ref bundle, file sets + PX,
-size/memory, comparison) are specified in `docs/DESIGN.md`; the visualizer's
-JSON contract and parser entry points were researched and are summarised in
-`docs/DESIGN.md` § Plans (repo `davidbudac/ora-explain-plan-viz`,
-`src/lib/parser/jsonPlanParser.ts`, `src/lib/url.ts`).
+- Findings thresholds are constants in `internal/analyze/findings.go`
+  (`docs/ARCHITECTURE.md` lists them). The trace-wide `hard-parses` rule fires
+  as *info* on most lab fixtures because every statement there runs once.
+  `think-time` counts in-call idle waits too (PL/SQL lock timer from
+  `dbms_session.sleep`).
+- Executions table: exec # is per cursor (SQL*Plus reopens the cursor, so it
+  is 1 on every row); the cursor line column disambiguates.
+- UI Pivot buckets time with its own `pickBucket`; the CLI uses
+  `analyze.TimelineBucket`. Pick one.
+- JSON `stats` could carry `analyze.Contexts` (the SESSIONS numbers) so the UI
+  Sessions view stops recomputing them.
+- Redaction: an optional salt, and literal redaction inside SQL text, were
+  deliberately not done.
+- `web/pnpm-workspace.yaml` (`allowBuilds: esbuild`) is what pnpm 12 needs to
+  run esbuild's postinstall; the old `pnpm` field in `package.json` is ignored.
+
+## Milestone 2 (next): plan JSON and "Open in plan viz"
+
+Specified in `docs/DESIGN.md` § Plans; the visualizer's JSON contract and
+parser entry points are summarised there (repo
+`davidbudac/ora-explain-plan-viz`, `src/lib/parser/jsonPlanParser.ts`,
+`src/lib/url.ts`). Milestones 3–6 (ref bundle, file sets + PX, size/memory,
+comparison) follow.
 
 ## Known gaps and small bugs
 
@@ -119,6 +121,12 @@ JSON contract and parser entry points were researched and are summarised in
 - The CI workflow has never run; expect small fixes (pnpm version pin,
   frozen lockfile) on first push to a public repo.
 - Memory: ~600 MB RSS for a 118 MB trace (milestone 5).
+- `mtkprof json` without `-packed` writes `u8` columns (call kind, flags) as
+  base64 strings (Go marshals `[]byte` that way); the UI loader rejects such
+  a document ("column kind: unexpected value"). `-packed` (what `html` and
+  `serve` use) is fine.
+- `mtkprof serve` sends no CORS header, so the Vite dev server cannot load
+  `?doc=http://127.0.0.1:8046/api/doc`; copy the JSON into `web/` meanwhile.
 - `commandName` is empty for synthetic statements (commit, LOB, unknown) by
   design; the UI shows the kind instead.
 
