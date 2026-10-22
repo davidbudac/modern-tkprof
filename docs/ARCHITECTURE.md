@@ -75,6 +75,12 @@ Rules that give the model its meaning:
   profiles like everything else (tkprof silently drops them).
 * **Wall clock**: `tim` is microseconds from an unspecified origin; every
   `*** <timestamp>` marker re-anchors it.
+* **Bind redaction**: `RedactBinds` (`redact.go`) is a post-pass over
+  `Binds` run by the CLI before any output, so every format agrees. `redact`
+  replaces values with `<TYPE len=N h=8-hex SHA-256>` (dumps:
+  `<TYPE dump len=N>`; NULLs and metadata kept); `none` empties `Binds` and
+  `BindSets` and sets every `Call.BindSet` to `None`. The mode is recorded
+  in `Diag.BindMode` (`kept|redacted|none`) and in `Diag.Notes`.
 
 ### internal/report — document for the UI
 

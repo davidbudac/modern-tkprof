@@ -25,13 +25,22 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `mtkprof %s - Oracle SQL trace (10046) analyzer
 
 Usage:
-  mtkprof report <trace.trc> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N] [-sys]
+  mtkprof report <trace.trc> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-sys]
   mtkprof html   <trace.trc> [-o out.html]            self-contained interactive report
   mtkprof serve  <trace.trc> [-addr 127.0.0.1:8046]   interactive UI in the browser
   mtkprof json   <trace.trc> [-o out.json] [-facts=false] [-packed]
   mtkprof export <trace.trc> [-o dir]                 CSV tables for DuckDB / Excel / Python
   mtkprof lint   <trace.trc>
   mtkprof version
+
+Bind values (report, html, json, export, serve):
+  -bind-values keep|redact|none   keep (default); redact = type, length and a stable
+                                  hash per value; none = drop bind values entirely
+  -redact-binds                   shorthand for -bind-values redact
+  -binds none                     shorthand for -bind-values none (on report, -binds N
+                                  is still the number of bind sets printed per statement)
+  The hash is for spotting equal values across executions, not for secrecy: short
+  values can be recovered by brute force. SQL text (and its literals) is kept.
 
 `, version)
 	os.Exit(2)
@@ -106,7 +115,8 @@ func cmdReport(args []string) error {
 	opts := report.TextOptions{}
 	fs.StringVar(&opts.Sort, "sort", "elapsed", "statement order: elapsed|self|cpu|execs|disk|query|rows|line")
 	fs.IntVar(&opts.Top, "top", 0, "only the top N statements (0 = all)")
-	fs.IntVar(&opts.Binds, "binds", 5, "bind sets to print per statement (0 = none)")
+	opts.Binds = 5
+	bf := addReportBindFlags(fs, &opts.Binds)
 	fs.BoolVar(&opts.Sys, "sys", true, "include recursive SYS statements")
 	fs.IntVar(&opts.Width, "width", 120, "report width")
 	file := parseArgs(fs, args)
@@ -114,6 +124,7 @@ func cmdReport(args []string) error {
 	if err != nil {
 		return err
 	}
+	bf.apply(m)
 	w, err := openOut(*out)
 	if err != nil {
 		return err
@@ -127,11 +138,13 @@ func cmdJSON(args []string) error {
 	out := fs.String("o", "", "output file (default stdout)")
 	facts := fs.Bool("facts", true, "include raw fact tables (calls, waits, binds)")
 	packed := fs.Bool("packed", false, "pack fact columns into gzip+base64 blobs (smaller, faster to load)")
+	bf := addBindFlags(fs)
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
 	if err != nil {
 		return err
 	}
+	bf.apply(m)
 	w, err := openOut(*out)
 	if err != nil {
 		return err
@@ -144,6 +157,7 @@ func cmdHTML(args []string) error {
 	fs := flag.NewFlagSet("html", flag.ExitOnError)
 	out := fs.String("o", "", "output file (default <trace>.html)")
 	facts := fs.Bool("facts", true, "include raw fact tables (needed for drill-down; omit for huge traces)")
+	bf := addBindFlags(fs)
 	file := parseArgs(fs, args)
 	if !ui.Built() {
 		return fmt.Errorf("this binary was built without the web UI (run `make web` and rebuild)")
@@ -152,6 +166,7 @@ func cmdHTML(args []string) error {
 	if err != nil {
 		return err
 	}
+	bf.apply(m)
 	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true})
 	if err != nil {
 		return err
@@ -170,11 +185,13 @@ func cmdHTML(args []string) error {
 func cmdExport(args []string) error {
 	fs := flag.NewFlagSet("export", flag.ExitOnError)
 	out := fs.String("o", "", "output directory (default <trace>.csv/)")
+	bf := addBindFlags(fs)
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
 	if err != nil {
 		return err
 	}
+	bf.apply(m)
 	dir := *out
 	if dir == "" {
 		dir = strings.TrimSuffix(file, ".trc") + ".csv"
@@ -190,11 +207,13 @@ func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	addr := fs.String("addr", "127.0.0.1:8046", "listen address")
 	facts := fs.Bool("facts", true, "include raw fact tables")
+	bf := addBindFlags(fs)
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
 	if err != nil {
 		return err
 	}
+	bf.apply(m)
 	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true})
 	if err != nil {
 		return err

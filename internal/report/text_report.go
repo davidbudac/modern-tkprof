@@ -177,6 +177,9 @@ func (t *textWriter) header() {
 	if m.Diag.UnattributedWaits > 0 {
 		notes = append(notes, fmt.Sprintf("%d waits after the last call of their cursor", m.Diag.UnattributedWaits))
 	}
+	if bm := m.Diag.BindMode; bm == "redacted" || bm == "none" {
+		notes = append(notes, "bind values "+map[string]string{"redacted": "redacted (type, length, stable hash)", "none": "dropped"}[bm])
+	}
 	if len(notes) > 0 {
 		t.p("Notes      : %s\n", strings.Join(notes, "; "))
 	}
