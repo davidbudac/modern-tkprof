@@ -29,6 +29,15 @@ mtkprof json   trace.trc -o trace.json   # the full document (dimension tables +
 mtkprof lint   trace.trc                 # what the parser saw: line kinds, events, unknown lines
 ```
 
+Bind values are kept by default. On `report`, `html`, `serve`, `json` and
+`export`, `-redact-binds` (or `-bind-values redact`) replaces each value with
+its type, length and a stable hash, e.g. `<VARCHAR2 len=11 h=a2334142>`, so
+equal values stay recognisable across executions; `-binds none` (or
+`-bind-values none`) drops bind values entirely. On `report`, `-binds N` still
+sets how many bind sets to print per statement. The hash is for correlation,
+not secrecy: short values (numbers, codes) can be recovered by brute force,
+and SQL text, including its literals, is not redacted.
+
 ### The report
 
 The text and HTML reports share one model:

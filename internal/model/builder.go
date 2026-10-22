@@ -94,6 +94,7 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 	m.Diag.Lines = st.Lines
 	m.Diag.Bytes = st.Bytes
 	m.Diag.UnknownLines = st.Unknown
+	m.Diag.BindMode = BindsKeep.String()
 	for k := trace.Kind(0); int(k) < len(st.Kinds); k++ {
 		if st.Kinds[k] > 0 {
 			m.Diag.LineKinds[k.String()] = st.Kinds[k]

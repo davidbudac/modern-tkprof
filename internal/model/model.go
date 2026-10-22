@@ -316,6 +316,7 @@ type Diagnostics struct {
 	Anchors           int            `json:"timeAnchors"`
 	LineKinds         map[string]int `json:"lineKinds"`
 	Notes             []string       `json:"notes,omitempty"`
+	BindMode          string         `json:"bindMode"` // kept|redacted|none (see RedactBinds)
 }
 
 // Model is the complete in-memory representation of one trace file.
