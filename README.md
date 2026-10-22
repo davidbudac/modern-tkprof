@@ -21,8 +21,10 @@ interactive UI, offline, from one file.
 ## Usage
 
 ```
-mtkprof report trace.trc                 # text report (resource profile, statements, binds, plans)
-mtkprof report trace.trc -sort cpu -top 20 -binds 3
+mtkprof report trace.trc                 # text report (profile, statements, executions, binds, plans, sessions, time buckets)
+mtkprof report trace.trc -sort cpu -top 20 -binds 3 -execs 10   # -execs N: executions listed per statement (0 none, -1 all)
+mtkprof pivot  trace.trc -fact waits -by event,obj -top 10       # group-by like the UI Pivot; -by '?' lists dims/measures
+mtkprof pivot  trace.trc -by module,stmt -measure e,c,count -window 10:15:00,10:20:00 -csv
 mtkprof html   trace.trc                 # trace.html: interactive report, self-contained
 mtkprof serve  trace.trc                 # same UI served at http://127.0.0.1:8046/
 mtkprof json   trace.trc -o trace.json   # the full document (dimension tables + fact columns)
@@ -47,7 +49,9 @@ The text and HTML reports share one model:
 * **Sessions**: module / action / client id / service / session contexts, with
   filtering (trcsess merges included).
 * **Pivot**: pick a fact table (calls or waits), one or two dimensions and the
-  measures; download as CSV.
+  measures; download as CSV. `mtkprof pivot` gives the same group-by on the
+  command line (any number of `-by` dimensions up to 4, `-window` as wall
+  clock or seconds from the start, `-context` ids from the SESSIONS section).
 
 ## Build
 

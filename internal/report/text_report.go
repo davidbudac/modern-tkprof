@@ -34,6 +34,8 @@ func writeText(out io.Writer, m *model.Model, o TextOptions) error {
 	for i, sid := range order {
 		t.statement(i+1, sid)
 	}
+	t.sessions()
+	t.timeBuckets()
 	t.footer()
 	return t.w.Flush()
 }
@@ -433,6 +435,231 @@ func (t *textWriter) executions(sid model.ID, s *analyze.StmtStats) {
 		t.p("   slowest: exec %d of cursor at line %d (%s s, %s rows, %s disk)", slow.ExecNo, t.m.Cursors[slow.Cursor].Line, secs(slow.Stats.Elapsed), commas(slow.Stats.Rows), commas(slow.Stats.Disk))
 	}
 	t.nl()
+	t.execTable(ex)
+	t.nl()
+}
+
+// pickExecs chooses which executions to list: all of them when they fit in
+// n, otherwise the first n/2 in file order plus the slowest of the rest
+// (marked). The result is in file order.
+func pickExecs(ex []analyze.Execution, n int) (idx []int, slow map[int]bool) {
+	if n < 0 || len(ex) <= n {
+		idx = make([]int, len(ex))
+		for i := range idx {
+			idx[i] = i
+		}
+		return idx, nil
+	}
+	first := (n + 1) / 2
+	rest := make([]int, 0, len(ex)-first)
+	for i := first; i < len(ex); i++ {
+		rest = append(rest, i)
+	}
+	sort.SliceStable(rest, func(a, b int) bool { return ex[rest[a]].Stats.Elapsed > ex[rest[b]].Stats.Elapsed })
+	rest = rest[:n-first]
+	slow = map[int]bool{}
+	for _, i := range rest {
+		slow[i] = true
+	}
+	sort.Ints(rest)
+	for i := 0; i < first; i++ {
+		idx = append(idx, i)
+	}
+	return append(idx, rest...), slow
+}
+
+func (t *textWriter) execTable(ex []analyze.Execution) {
+	n := t.o.Execs
+	if n == 0 {
+		return
+	}
+	m := t.m
+	idx, slow := pickExecs(ex, n)
+	if slow != nil {
+		t.p("%d of %d executions: the first %d in file order and the %d slowest of the rest (marked *)\n", len(idx), len(ex), len(idx)-len(slow), len(slow))
+	}
+	const fixed = 87 // width of the columns before the binds
+	bindW := t.o.Width - fixed
+	if bindW < 20 {
+		bindW = 20
+	}
+	t.p("%6s %7s %-12s %9s %9s %9s %8s %9s %7s  %s\n", "exec#", "cursor", "start", "elapsed s", "cpu s", "rows", "disk", "query", "fetches", "binds")
+	prev := -1
+	for _, i := range idx {
+		if prev >= 0 && i != prev+1 {
+			t.p("%6s\n", "...")
+		}
+		prev = i
+		e := &ex[i]
+		mark := " "
+		if slow[i] {
+			mark = "*"
+		}
+		start := "-"
+		if w := m.WallOf(e.StartTim); w != 0 {
+			start = time.UnixMicro(w).In(t.loc).Format("15:04:05.000")
+		} else if e.StartTim != 0 {
+			start = fmt.Sprintf("+%.3f", float64(e.StartTim-m.Span.FirstTim)/1e6)
+		}
+		t.p("%5d%s %7d %-12s %9s %9s %9s %8s %9s %7s  %s\n", e.ExecNo, mark, m.Cursors[e.Cursor].Line, start, secs(e.Stats.Elapsed), secs(e.Stats.CPU),
+			commas(e.Stats.Rows), commas(e.Stats.Disk), commas(e.Stats.Query), commas(int64(len(e.Fetches))), bindPreview(m, e.BindSet, bindW))
+	}
+	if len(idx) < len(ex) && prev != len(ex)-1 {
+		t.p("%6s\n", "...")
+	}
+}
+
+// bindPreview renders a bind set compactly (:1=42 :2="abc"), cut to max bytes.
+func bindPreview(m *model.Model, set model.ID, max int) string {
+	if set == model.None || int(set) >= len(m.BindSets) {
+		return ""
+	}
+	bs := &m.BindSets[set]
+	var b strings.Builder
+	for j := bs.First; j < bs.First+bs.N; j++ {
+		x := &m.Binds[j]
+		var v string
+		switch {
+		case x.NoDef:
+			v = "(same)"
+		case x.IsNull:
+			v = "NULL"
+		case x.IsDump:
+			v = fmt.Sprintf("<%d bytes>", x.Avl)
+		case quotedBind(x.Dty):
+			v = fmt.Sprintf("%q", x.Value)
+		default:
+			v = x.Value
+		}
+		if b.Len() > 0 {
+			b.WriteByte(' ')
+		}
+		fmt.Fprintf(&b, ":%d=%s", x.Pos, v)
+		if b.Len() > max {
+			break
+		}
+	}
+	out := b.String()
+	if len(out) > max {
+		cut := max - 3
+		for cut > 0 && out[cut]&0xC0 == 0x80 {
+			cut--
+		}
+		out = out[:cut] + "..."
+	}
+	return out
+}
+
+// quotedBind: character, LOB and similar values print quoted.
+func quotedBind(dty int) bool {
+	switch dty {
+	case 1, 5, 8, 9, 96, 97, 112, 119:
+		return true
+	}
+	return false
+}
+
+// sessions prints one row per session context.
+func (t *textWriter) sessions() {
+	m := t.m
+	if len(m.Contexts) == 0 {
+		return
+	}
+	cs := analyze.Contexts(m)
+	t.rule('=')
+	t.p("SESSIONS  (one row per session context; a *** marker changing session/module/action/client id/service starts one)\n")
+	t.p("response = Σ elapsed of top-level calls; waits = non-idle wait events; idle = Idle-class events\n")
+	t.rule('-')
+	t.p("%4s %8s %-14s %8s %10s %10s %10s %10s %-12s %-12s  %s\n", "#", "line", "session", "calls", "response s", "cpu s", "waits s", "idle s", "first", "last", "module / action / client id / service")
+	var tot analyze.ContextStats
+	for i, c := range cs {
+		x := &m.Contexts[i]
+		if i >= 200 {
+			t.p("  ... %d more contexts\n", len(cs)-200)
+			break
+		}
+		attrs := []string{dash(x.Module), dash(x.Action), dash(x.ClientID), dash(x.Service)}
+		if x.ContainerID != "" {
+			attrs = append(attrs, "container "+x.ContainerID)
+		}
+		sess := analyze.SessionName(x)
+		if len(sess) > 14 {
+			sess = sess[:14]
+		}
+		t.p("%4d %8d %-14s %8s %10s %10s %10s %10s %-12s %-12s  %s\n", i, x.Line, sess, commas(c.Calls), secs(c.Elapsed), secs(c.CPU), secs(c.WaitUs), secs(c.IdleUs),
+			t.clock(c.FirstTim), t.clock(c.LastTim), strings.Join(attrs, " / "))
+	}
+	for _, c := range cs {
+		tot.Calls += c.Calls
+		tot.Elapsed += c.Elapsed
+		tot.CPU += c.CPU
+		tot.WaitUs += c.WaitUs
+		tot.IdleUs += c.IdleUs
+	}
+	t.rule('-')
+	t.p("%4s %8s %-14s %8s %10s %10s %10s %10s\n", "", "", "total", commas(tot.Calls), secs(tot.Elapsed), secs(tot.CPU), secs(tot.WaitUs), secs(tot.IdleUs))
+	t.nl()
+}
+
+// clock formats a tim value as wall-clock time of day, or +seconds from the
+// trace start without a time anchor.
+func (t *textWriter) clock(tim int64) string {
+	if tim == 0 {
+		return "-"
+	}
+	if w := t.m.WallOf(tim); w != 0 {
+		return time.UnixMicro(w).In(t.loc).Format("15:04:05.000")
+	}
+	return fmt.Sprintf("+%.3f", float64(tim-t.m.Span.FirstTim)/1e6)
+}
+
+// timeBuckets prints the activity timeline in fixed buckets (same bucket
+// size as the UI document).
+func (t *textWriter) timeBuckets() {
+	m := t.m
+	bucket := analyze.TimelineBucket(m)
+	bs := analyze.Timeline(m, bucket)
+	if len(bs) < 2 {
+		return
+	}
+	t.rule('=')
+	// sub-second buckets read better in milliseconds
+	unit, div, each := "s", 1e6, secs(bucket)+" s"
+	if bucket < 1000000 {
+		unit, div, each = "ms", 1e3, fmt.Sprintf("%g ms", float64(bucket)/1e3)
+	}
+	tm := func(us int64) string { return fmt.Sprintf("%.3f", float64(us)/div) }
+	t.p("TIME BUCKETS  (%s each; calls and I/O by completion time; cpu/elapsed of top-level calls; busy = elapsed / bucket)\n", each)
+	t.rule('-')
+	const fixed = 113
+	barW := t.o.Width - fixed
+	if barW < 10 {
+		barW = 10
+	}
+	if barW > 50 {
+		barW = 50
+	}
+	t.p("%-12s %8s %9s %10s %9s %9s %9s %10s %10s %6s\n", "start", "calls", "cpu "+unit, "elapsed "+unit, "waits "+unit, "idle "+unit, "disk", "query", "rows", "busy")
+	for _, b := range bs {
+		start := "-"
+		if m.Span.FirstWallUs != 0 {
+			start = time.UnixMicro(b.StartUs).In(t.loc).Format("15:04:05.000")
+		} else {
+			start = fmt.Sprintf("+%.3f", float64(b.StartUs-m.Span.FirstTim)/1e6)
+		}
+		busy := float64(b.ElaUs) / float64(bucket)
+		n := int(busy*float64(barW) + 0.5)
+		if n > barW {
+			n = barW
+		}
+		bar := strings.Repeat("#", n)
+		if busy > 1 {
+			bar += "+"
+		}
+		line := fmt.Sprintf("%-12s %8s %9s %10s %9s %9s %9s %10s %10s %5.0f%%  %s", start, commas(b.Calls), tm(b.CPUUs), tm(b.ElaUs), tm(b.WaitUs), tm(b.IdleUs),
+			commas(b.Disk), commas(b.Query), commas(b.Rows), 100*busy, bar)
+		t.p("%s\n", strings.TrimRight(line, " "))
+	}
 	t.nl()
 }
 
@@ -605,16 +832,6 @@ func (t *textWriter) footer() {
 			}
 		}
 		t.p("Transactions: %d commits, %d rollbacks (%d read-only)\n", commits, rollbacks, ro)
-	}
-	if len(m.Contexts) > 1 {
-		t.p("Context changes:\n")
-		for i, c := range m.Contexts {
-			if i > 50 {
-				t.p("  ... %d more\n", len(m.Contexts)-50)
-				break
-			}
-			t.p("  line %-8d session %s  module %s  action %s  client id %s  service %s  container %s\n", c.Line, dash(c.SessionID), dash(c.Module), dash(c.Action), dash(c.ClientID), dash(c.Service), dash(c.ContainerID))
-		}
 	}
 	if len(m.Unknown) > 0 {
 		t.p("Unrecognised lines (first %d of %d):\n", len(m.Unknown), m.Diag.UnknownLines)
