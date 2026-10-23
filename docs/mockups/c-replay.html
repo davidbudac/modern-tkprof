@@ -1,0 +1,126 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Mockup C — session replay</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="_base.css">
+<style>
+.top{display:flex;align-items:center;gap:22px;padding:0 28px;height:46px;border-bottom:1px solid var(--rule);background:var(--raised)}
+.top .brand{font-weight:600} .top .file{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.tabs{display:flex;gap:2px;margin-left:auto}
+.tabs a{padding:5px 11px;border-radius:5px;color:var(--ink2);text-decoration:none} .tabs a small{color:var(--ink3);margin-left:5px} .tabs a.on{background:var(--wash);color:var(--ink);font-weight:500}
+main{padding:26px 28px 50px;display:flex;flex-direction:column;gap:30px}
+.hero h1{font-size:22px;font-weight:500;letter-spacing:-.01em}
+.hero .lede{color:var(--ink2);font-size:14px;margin-top:4px}
+.tl{display:grid;grid-template-columns:230px 1fr;margin-top:22px;border-top:1px solid var(--rule)}
+.tl .lbl{padding:0 12px 0 0;font-size:12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--rule);height:34px;overflow:hidden;white-space:nowrap}
+.tl .lbl .m{font-family:var(--mono);font-size:11px;color:var(--ink2);flex:none} .tl .lbl .t{overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.tl .lane{position:relative;border-bottom:1px solid var(--rule);height:34px;background-image:linear-gradient(to right,var(--rule) 1px,transparent 1px);background-size:calc(100%/6.459) 100%}
+.tl .lane .sp{position:absolute;top:8px;height:18px;border-radius:2px;color:#fff;font-size:11px;font-weight:500;line-height:18px;padding:0 6px;white-space:nowrap;overflow:hidden}
+.tl .lane .sp.thin{min-width:2px;padding:0}
+.tl .lane .sp .after{position:absolute;left:100%;margin-left:6px;color:var(--ink2);font-weight:400}
+.tl .ax{height:22px;display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);padding-top:4px;grid-column:2}
+.tl .ax span:last-child{color:var(--ink)}
+.tl .strip{height:26px}
+.tl .strip .lbl{height:26px}
+.ticks{position:relative;height:26px;border-bottom:1px solid var(--rule)}
+.ticks i{position:absolute;bottom:3px;width:1px;background:var(--userio);opacity:.55}
+.cpu{position:relative;height:26px;border-bottom:1px solid var(--rule);display:flex;align-items:flex-end;gap:1px}
+.cpu i{flex:1;background:var(--cpu);opacity:.8}
+.brush{position:absolute;top:0;height:256px;z-index:1;left:47.4%;width:43.4%;background:rgba(42,120,214,.07);border-left:1px solid var(--cpu);border-right:1px solid var(--cpu);pointer-events:none}
+.brush b{position:absolute;top:238px;right:6px;font-size:11px;color:var(--cpu);font-weight:500;white-space:nowrap}
+
+.two{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:48px}
+h2{font-size:15px;font-weight:600}
+.story{list-style:none;display:flex;flex-direction:column;margin-top:12px}
+.story li{display:grid;grid-template-columns:92px 14px 1fr;gap:0 12px;padding:10px 0;border-top:1px solid var(--rule)}
+.story .ts{font-family:var(--mono);font-size:11.5px;color:var(--ink2);padding-top:2px}
+.story .dot{width:10px;height:10px;border-radius:50%;margin-top:4px}
+.story p{line-height:1.5} .story p b{font-weight:500} .story p .m{font-family:var(--mono);font-size:11.5px;color:var(--ink2)}
+.story .sub{color:var(--ink2);font-size:12px;margin-top:2px}
+.badge{display:inline-block;font-size:10.5px;font-weight:600;padding:0 6px;border-radius:3px;line-height:16px;background:#e9ecf0;color:var(--ink2);margin-right:4px}
+
+.win{border:1px solid var(--rule);border-radius:6px;background:var(--raised);padding:16px 18px;display:flex;flex-direction:column;gap:14px;margin-top:12px}
+.win .hd{display:flex;align-items:baseline;gap:10px} .win .hd b{font-size:18px;font-weight:500} .win .hd span{color:var(--ink2);font-size:12px} .win .hd button{margin-left:auto}
+.track{display:flex;height:20px;border-radius:3px;overflow:hidden}
+.track i{display:block;height:100%;color:#fff;font-size:11px;font-weight:500;padding:0 7px;line-height:20px;white-space:nowrap;overflow:hidden}
+.win table{font-size:12px} .win td,.win th{padding:4px 6px}
+.win td.m{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.win .bar{display:inline-block;height:7px;background:var(--userio);vertical-align:middle;margin-right:6px;border-radius:1px}
+</style></head><body>
+<header class="top">
+  <span class="brand">mtkprof</span><span class="file">cdb1_ora_133382_mtk_io_waits.trc</span>
+  <span class="dim" style="font-size:12px">Oracle 19.27 · cdb1 · session 51.14688 · mtk_io_waits · 2026-10-22</span>
+  <nav class="tabs"><a class="on" href="#">Overview</a><a href="#">Statements<small>24</small></a><a href="#">Waits<small>12</small></a><a href="#">Sessions<small>5</small></a><a href="#">Pivot</a></nav>
+  <button class="quiet">◐</button>
+</header>
+<main>
+<section class="hero">
+  <h1>6.459 s, 11:35:29.191 → 11:35:35.649</h1>
+  <p class="lede">Six top-level statements ran one after another; two of them took 80 % of the time. Drag across the timeline to look at a window.</p>
+  <div class="tl">
+    <div class="lbl"></div><div class="ax"><span>11:35:29.19</span><span>:30</span><span>:31</span><span>:32</span><span>:33</span><span>:34</span><span>:35</span><span>35.65</span></div>
+
+    <div class="lbl"><span class="m">4w3wvjbkvq24v</span><span class="t">select count(*)… from mtk_cust</span></div>
+    <div class="lane"><div class="brush"><b>window 2.80 s · 11:35:32.25 → 35.05</b></div><div class="sp" style="left:0.9%;width:36.5%;background:var(--other)">enq: KO – fast object checkpoint 2.32 s</div></div>
+
+    <div class="lbl"><span class="m">c7ry5gr75qv4b</span><span class="t">select count(*)… from mtk_orders</span></div>
+    <div class="lane"><div class="sp" style="left:37.6%;width:9.9%;background:var(--other)">enq: KO 0.63 s</div></div>
+
+    <div class="lbl"><span class="m">52nzchs09dgn1</span><span class="t">select … order by o.amount desc</span></div>
+    <div class="lane"><div class="sp" style="left:47.4%;width:43.3%;background:var(--userio)">direct path write temp 2.38 s · 202 fetches</div></div>
+
+    <div class="lbl"><span class="m">7r10y07tqpg98</span><span class="t">select /*+ use_hash */ … </span></div>
+    <div class="lane"><div class="sp" style="left:90.8%;width:9.2%;background:var(--userio)">hash spill</div></div>
+
+    <div class="lbl"><span class="m">dcxgz5g2j9ts2</span><span class="t">declare … for i in 1..300 loop</span></div>
+    <div class="lane"><div class="sp thin" style="left:0.2%;width:0.6%;background:var(--cpu)"><span class="after">39 ms, 600 recursive lookups</span></div></div>
+
+    <div class="lbl"><span class="m">64y0jakbjfvm9</span><span class="t">select /*+ index */ … between :b1 and :b2</span></div>
+    <div class="lane"><div class="sp thin" style="left:0.0%;width:0.2%;background:var(--cpu)"><span class="after">13 ms · <span class="badge">info</span>small fetches</span></div></div>
+
+    <div class="lbl strip"><span class="dim">waits (9,615)</span></div><div class="ticks" id="ticks"></div>
+    <div class="lbl strip"><span class="dim">CPU</span></div><div class="cpu" id="cpu"></div>
+  </div>
+</section>
+
+<div class="two">
+  <section>
+    <h2>What happened</h2>
+    <ol class="story">
+      <li><span class="ts">11:35:29.191</span><i class="dot" style="background:var(--idle)"></i><div><p>Tracing starts. <span class="m">alter session</span> ×5, module set to <b>mtk_io_waits</b>, a PL/SQL loop runs 600 single-row lookups in 39 ms.</p></div></li>
+      <li><span class="ts">11:35:29.25</span><i class="dot" style="background:var(--other)"></i><div><p><b>Full scan of MTK_CUST</b> <span class="m">4w3wvjbkvq24v</span> asks for a direct path read and waits <b>2.32 s on enq: KO – fast object checkpoint</b>: dirty blocks of the table had to be written by DBWR first.</p><p class="sub">Afterwards the scan itself takes 27 ms CPU and 1,205 direct path reads.</p></div></li>
+      <li><span class="ts">11:35:31.62</span><i class="dot" style="background:var(--other)"></i><div><p><b>Full scan of MTK_ORDERS</b> <span class="m">c7ry5gr75qv4b</span>, same pattern: 0.63 s checkpoint wait, 5 ms of work.</p></div></li>
+      <li><span class="ts">11:35:32.25</span><i class="dot" style="background:var(--userio)"></i><div><p><b>Sort of 100,001 rows spills to temp</b> <span class="m">52nzchs09dgn1</span>: 1,331 direct path write temp, 2.38 s. The client fetches the result in 202 round trips of ~500 rows, 307 ms idle between them.</p><p class="sub">Plan 2503715236 · SORT ORDER BY, 2.448 s in the row source · <a href="#">open plan</a></p></div></li>
+      <li><span class="ts">11:35:35.05</span><i class="dot" style="background:var(--userio)"></i><div><p><b>Hash join spills too</b> <span class="m">7r10y07tqpg98</span>: 599 ms, 7,313 disk reads for a single row.</p></div></li>
+      <li><span class="ts">11:35:35.649</span><i class="dot" style="background:var(--idle)"></i><div><p>Trace ends. No commit, no errors; 61 ms unaccounted.</p></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Selected window</h2>
+    <div class="win">
+      <div class="hd"><b>2.800 s</b><span>11:35:32.250 → 35.050 · 43 % of the trace</span><button class="quiet">clear ×</button></div>
+      <div class="track"><i style="width:85%;background:var(--userio)">direct path write temp 2.379 s</i><i style="width:11%;background:var(--idle);color:var(--ink)">idle</i><i style="width:5.4%;background:var(--cpu)">CPU</i></div>
+      <table>
+        <tr><th>statement</th><th class="num">time</th><th class="num">execs</th><th class="num">rows</th></tr>
+        <tr><td><span class="bar" style="width:120px"></span><span class="m">52nzchs09dgn1</span> select … order by</td><td class="num">2.793 s</td><td class="num">1</td><td class="num">100,001</td></tr>
+        <tr><td><span class="bar" style="width:1px"></span><span class="m">10gywwmwk6xfy</span> select /* QOSD */ …</td><td class="num">0.4 ms</td><td class="num">3</td><td class="num">0</td></tr>
+        <tr><td><span class="bar" style="width:1px"></span><span class="m">dbvj6jc977hqh</span> insert /* QOSD */ …</td><td class="num">0.1 ms</td><td class="num">2</td><td class="num">2</td></tr>
+      </table>
+      <table>
+        <tr><th>wait</th><th class="num">time</th><th class="num">count</th><th class="num">avg</th><th class="num">max</th></tr>
+        <tr><td>direct path write temp</td><td class="num">2.379 s</td><td class="num">1,331</td><td class="num">1.8 ms</td><td class="num">7.9 ms</td></tr>
+        <tr><td>SQL*Net message from client <span class="faint">idle</span></td><td class="num">307 ms</td><td class="num">202</td><td class="num">1.5 ms</td><td class="num">3.1 ms</td></tr>
+        <tr><td>direct path read temp</td><td class="num">4 ms</td><td class="num">1,331</td><td class="num">3 µs</td><td class="num">97 µs</td></tr>
+        <tr><td>SQL*Net more data to client</td><td class="num">6 ms</td><td class="num">200</td><td class="num">31 µs</td><td class="num">54 µs</td></tr>
+      </table>
+      <p class="dim" style="font-size:12px">Statements, Waits, Sessions and Pivot follow this window.</p>
+    </div>
+  </section>
+</div>
+</main>
+<script>
+const t=document.getElementById('ticks');function tick(x,h,c){const i=document.createElement('i');i.style.left=x+'%';i.style.height=h+'px';if(c)i.style.background=c;t.appendChild(i)}
+tick(0.9,18,'var(--other)');tick(37.4,14,'var(--other)');tick(47.2,10,'var(--other)');
+for(let x=37.6;x<47.4;x+=0.25)tick(x,4+Math.random()*6);for(let x=47.4;x<90.8;x+=0.18)tick(x,6+Math.random()*12);for(let x=90.8;x<100;x+=0.2)tick(x,5+Math.random()*9);
+const c=document.getElementById('cpu');for(let i=0;i<120;i++){const x=i/120*100;const b=document.createElement('i');let h=0;if(x<1)h=18;else if(x<37)h=0.5;else if(x<47.4)h=3+Math.random()*3;else if(x<90.8)h=1.5+Math.random()*2.5;else h=6+Math.random()*5;b.style.height=h+'px';c.appendChild(b)}
+</script>
+</body></html>

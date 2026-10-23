@@ -11,7 +11,7 @@ export function Findings({ doc }: { doc: TraceDoc }) {
   const hint = (['serious', 'notable', 'info'] as const).filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ')
   return (
     <section className="section">
-      <header><h2>Findings</h2><span className="hint">{hint}; fixed thresholds, whole trace (the time window does not apply)</span></header>
+      <header><h2>Findings</h2><span className="hint">{hint} · fixed thresholds over the whole trace; the time window does not apply</span></header>
       <ul className="findings">
         {findings.map((f, i) => <FindingItem key={`${f.rule}-${f.statement}-${i}`} doc={doc} f={f} />)}
       </ul>
@@ -30,13 +30,17 @@ function StmtLink({ doc, id }: { doc: TraceDoc; id: ID }) {
   )
 }
 
-function FindingItem({ doc, f }: { doc: TraceDoc; f: Finding }) {
-  // statement findings start with the sql_id, which the link already shows
+/** The summary without the leading sql_id (the UI shows the statement separately). */
+export function findingText(doc: TraceDoc, f: Finding): string {
   const lbl = f.statement >= 0 && doc.statements[f.statement] ? doc.label(doc.statements[f.statement]) : ''
-  const summary = lbl && f.summary.startsWith(lbl) ? f.summary.slice(lbl.length).replace(/^[:\s]+/, '') : f.summary
+  return lbl && f.summary.startsWith(lbl) ? f.summary.slice(lbl.length).replace(/^[:\s]+/, '') : f.summary
+}
+
+function FindingItem({ doc, f }: { doc: TraceDoc; f: Finding }) {
+  const summary = findingText(doc, f)
   return (
     <li className={`finding sev-${f.severity}`}>
-      <details open={f.severity !== 'info'}>
+      <details open={f.severity === 'serious'}>
         <summary>
           <span className="sev">{f.severity}</span>
           <span className="finding-text">

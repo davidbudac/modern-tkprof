@@ -207,3 +207,119 @@ export function pickBucket(spanUs: number, target = 300): number {
 }
 
 export { sumOver }
+
+/** One row of the response-time ledger: CPU, a wait event, or the unaccounted remainder. */
+export interface ComponentRow { label: string; role: Role; us: number; count: number; maxUs: number; event: ID; kind: 'cpu' | 'wait' | 'unaccounted' }
+
+/** Response-time components (per event, not per class) for the current filters, largest first. */
+export function componentRows(doc: TraceDoc, callFilter: RowFilter, waitFilter: RowFilter, totalUs: number): ComponentRow[] {
+  const out: ComponentRow[] = []
+  let accounted = 0
+  if (!doc.hasFacts) {
+    for (const r of doc.stats.profile.rows) {
+      if (r.kind === 'unaccounted') continue
+      const role: Role = r.kind === 'cpu' ? 'cpu' : roleOfClass(r.class ?? '', r.kind === 'idle')
+      const ev = r.kind === 'cpu' ? NONE : doc.events.findIndex((e) => e.name === r.component)
+      out.push({ label: r.component, role, us: r.us, count: r.count, maxUs: r.maxUs, event: ev, kind: r.kind === 'cpu' ? 'cpu' : 'wait' })
+      accounted += r.us
+    }
+  } else {
+    const cpu = topLevelCpu(doc, callFilter)
+    out.push({ label: 'CPU', role: 'cpu', us: cpu, count: 0, maxUs: 0, event: NONE, kind: 'cpu' })
+    accounted += cpu
+    for (const a of waitsByEvent(doc, waitFilter)) {
+      const ev = doc.events[a.key]
+      out.push({ label: ev?.name ?? `event ${a.key}`, role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: a.sum, count: a.count, maxUs: a.max, event: a.key, kind: 'wait' })
+      accounted += a.sum
+    }
+  }
+  out.sort((a, b) => b.us - a.us)
+  const un = totalUs - accounted
+  if (un !== 0) out.push({ label: 'unaccounted', role: 'unaccounted', us: un, count: 0, maxUs: 0, event: NONE, kind: 'unaccounted' })
+  return out
+}
+
+const roleTotalsCache = new WeakMap<TraceDoc, Float64Array>()
+const NROLES = roleOrder.length
+
+/**
+ * Wait time per statement and color role, one pass over the waits (cached per document).
+ * Row = statement id, column = roleOrder index.
+ */
+export function statementRoleUs(doc: TraceDoc): Float64Array {
+  let t = roleTotalsCache.get(doc)
+  if (t) return t
+  t = new Float64Array(doc.statements.length * NROLES)
+  const w = doc.waits
+  const roleIdx = doc.events.map((ev) => roleOrder.indexOf(roleOfClass(ev.class, ev.idle)))
+  for (let i = 0; i < w.n; i++) {
+    const s = w.stmt[i]
+    if (s < 0) continue
+    t[s * NROLES + roleIdx[w.event[i]]] += w.ela[i]
+  }
+  roleTotalsCache.set(doc, t)
+  return t
+}
+
+/** Cheap profile of one statement from the cached role totals: CPU + waits by role (no unaccounted). */
+export function quickSegments(doc: TraceDoc, st: StmtStats): Segment[] {
+  const segs: Segment[] = [{ role: 'cpu', label: 'CPU', us: st.cpu }]
+  if (!doc.hasFacts) {
+    if (st.waitUs > 0) segs.push({ role: 'other', label: 'Waits', us: st.waitUs })
+    if (st.idleUs > 0) segs.push({ role: 'idle', label: 'Idle', us: st.idleUs })
+    return segs
+  }
+  const t = statementRoleUs(doc)
+  for (let r = 1; r < NROLES; r++) {
+    const us = t[st.id * NROLES + r]
+    if (us > 0) segs.push({ role: roleOrder[r], label: roleLabel[roleOrder[r]], us })
+  }
+  return segs
+}
+
+/** The role a statement's time mostly went to (CPU, a wait class, or idle). */
+export function dominantRole(doc: TraceDoc, st: StmtStats): Role {
+  let best: Role = 'cpu', bestUs = -1
+  for (const s of quickSegments(doc, st)) if (s.us > bestUs) { best = s.role; bestUs = s.us }
+  return best
+}
+
+/** Top wait events of one statement, with the object they were on when every wait names the same one. */
+export function statementWaits(doc: TraceDoc, sid: ID, max = 6): { event: ID; name: string; role: Role; us: number; count: number; maxUs: number; obj: number }[] {
+  if (!doc.hasFacts) return []
+  const w = doc.waits
+  const ids = doc.waitsByStmt.get(sid)
+  const byEvent = groupBy({ n: ids.length, key: (k) => w.event[ids[k]], value: (k) => w.ela[ids[k]] })
+  return byEvent.slice(0, max).map((a) => {
+    const ev = doc.events[a.key]
+    let obj = -1
+    for (let k = 0; k < ids.length; k++) {
+      const i = ids[k]
+      if (w.event[i] !== a.key) continue
+      const o = w.obj[i]
+      if (obj === -1) obj = o; else if (obj !== o) { obj = -2; break }
+    }
+    return { event: a.key, name: ev?.name ?? '?', role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: a.sum, count: a.count, maxUs: a.max, obj: obj > 0 ? obj : -1 }
+  })
+}
+
+export interface Span2 { start: number; end: number }
+
+/** Time intervals a statement was executing (its calls, merged; gaps shorter than `gapUs` closed). */
+export function statementSpans(doc: TraceDoc, sid: ID, gapUs: number): Span2[] {
+  const c = doc.calls
+  const ids = doc.callsByStmt.get(sid)
+  const iv: Span2[] = []
+  for (let k = 0; k < ids.length; k++) {
+    const i = ids[k]
+    if (!c.tim[i]) continue
+    iv.push({ start: c.tim[i] - c.e[i], end: c.tim[i] })
+  }
+  iv.sort((a, b) => a.start - b.start)
+  const out: Span2[] = []
+  for (const s of iv) {
+    const last = out[out.length - 1]
+    if (last && s.start - last.end <= gapUs) { if (s.end > last.end) last.end = s.end } else out.push({ ...s })
+  }
+  return out
+}

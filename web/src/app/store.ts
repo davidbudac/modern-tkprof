@@ -49,7 +49,10 @@ export function useStore<T>(selector: (s: State) => T): T {
 
 export const actions = {
   setView(view: View) { setState({ view }) },
-  selectStmt(stmt: ID | null) { setState((s) => ({ selection: { ...s.selection, stmt, event: stmt === null ? s.selection.event : null, call: null, exec: null } })) },
+  /** Select a statement; selecting one opens it in the Statements workbench. */
+  selectStmt(stmt: ID | null) { setState((s) => ({ view: stmt === null ? s.view : 'statements', selection: { ...s.selection, stmt, event: stmt === null ? s.selection.event : null, call: null, exec: null } })) },
+  /** Select a statement without leaving the current view (list navigation inside the workbench). */
+  pickStmt(stmt: ID) { setState((s) => ({ selection: { ...s.selection, stmt, event: null, call: null, exec: null } })) },
   selectEvent(event: ID | null) { setState((s) => ({ selection: { ...s.selection, event, stmt: event === null ? s.selection.stmt : null } })) },
   selectExec(exec: Selection['exec']) { setState((s) => ({ selection: { ...s.selection, exec } })) },
   setWindow(window: TimeWindow | null) { setState({ window }) },

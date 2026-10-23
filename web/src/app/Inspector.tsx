@@ -1,28 +1,19 @@
 import type { TraceDoc } from '../data/doc'
 import { useStore, actions } from './store'
-import { StatementDetail } from '../views/StatementDetail'
 import { EventDetail } from '../views/EventDetail'
 
+/** Right-hand panel for a selected wait event (statements open in the Statements workbench instead). */
 export function Inspector({ doc }: { doc: TraceDoc }) {
-  const stmt = useStore((s) => s.selection.stmt)
   const event = useStore((s) => s.selection.event)
-  const close = () => { actions.selectStmt(null); actions.selectEvent(null) }
-  let title = '', body = null
-  if (stmt !== null) {
-    const s = doc.statements[stmt]
-    title = s ? doc.label(s) : 'Statement'
-    body = <StatementDetail doc={doc} id={stmt} />
-  } else if (event !== null) {
-    title = doc.events[event]?.name ?? 'Event'
-    body = <EventDetail doc={doc} id={event} />
-  }
+  if (event === null) return null
+  const title = doc.events[event]?.name ?? 'Event'
   return (
     <aside className="inspector" aria-label="Details">
       <div className="inspector-head">
-        <h2 className="mono">{title}</h2>
-        <button onClick={close} aria-label="Close details">Close</button>
+        <h2>{title}</h2>
+        <button onClick={() => actions.selectEvent(null)} aria-label="Close details">Close</button>
       </div>
-      <div className="inspector-body">{body}</div>
+      <div className="inspector-body"><EventDetail doc={doc} id={event} /></div>
     </aside>
   )
 }

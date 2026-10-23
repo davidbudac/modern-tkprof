@@ -1,36 +1,38 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { ID, StmtStats, CallStats, Plan } from '../data/types'
-import { fmtDur, fmtInt, fmtPct, fmtWall, fmtCompact, oraErr, preview } from '../data/format'
+import { fmtDur, fmtInt, fmtPct, fmtWall, fmtCompact, oraErr } from '../data/format'
 import { useStore, actions } from '../app/store'
 import { SqlText } from '../components/SqlText'
 import { ProfileBar } from '../components/ProfileBar'
 import { DataTable, type Column } from '../components/DataTable'
-import { statementSegments, executions, bindsOf, bindPreview, type Execution } from '../data/derive'
+import { executions, bindsOf, bindPreview, statementWaits, type Execution } from '../data/derive'
+import type { Segment } from '../components/ProfileBar'
 
 export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
   const st = doc.statements[id]
   const stats = doc.stats.statements[id]
   if (!st || !stats) return <p className="muted">Unknown statement.</p>
-  const ctx = st.cursors.length ? doc.contexts[doc.cursors[st.cursors[0]].context] : undefined
   const planHashes = stats.planHashes ?? []
-  const assumed = st.cursors.some((c) => doc.cursors[c].assumed)
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(st.text); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch { /* clipboard unavailable */ }
+  }
   return (
     <>
-      <dl className="kv">
-        <dt>Kind</dt><dd>{st.kind === 0 ? st.commandName : kindName(st.kind)}{st.kind === 0 && ` · depth ${stats.minDepth}${stats.maxDepth !== stats.minDepth ? `–${stats.maxDepth}` : ''}`}</dd>
-        {st.kind === 0 && <><dt>Hash</dt><dd className="mono">{st.hashValue}</dd></>}
-        {planHashes.length > 0 && <><dt>Plan hash</dt><dd className="mono">{planHashes.join(', ')}</dd></>}
-        <dt>Parsed by</dt><dd>user id {st.parsingUserId}{ctx?.module ? ` · module ${ctx.module}` : ''}{ctx?.action ? ` · action ${ctx.action}` : ''}{ctx?.sessionId ? ` · session ${ctx.sessionId}` : ''}</dd>
-        <dt>Seen</dt><dd>line {fmtInt(st.firstLine)} · {st.cursors.length} cursor{st.cursors.length === 1 ? '' : 's'}{stats.firstWallUs ? ` · ${fmtWall(stats.firstWallUs, doc.tzOffsetMin)} → ${fmtWall(stats.lastWallUs, doc.tzOffsetMin)}` : ''}</dd>
-      </dl>
-      {assumed && <p className="callout">A cursor of this statement was open before tracing started; its earlier calls are attributed here (same cursor number), as tkprof does.</p>}
+      <div className="title">
+        <h1 className="mono">{doc.label(st)}</h1>
+        <span className="chip-q">{st.kind === 0 ? st.commandName || 'SQL' : kindName(st.kind)}</span>
+        <span className="chip-q">depth {stats.minDepth}{stats.maxDepth !== stats.minDepth ? `–${stats.maxDepth}` : ''}</span>
+        {planHashes.map((h) => <span key={h} className="chip-q">plan {h}</span>)}
+        {st.kind === 0 && <span className="chip-q" title="hash value">hv {st.hashValue}</span>}
+        <span className="acts"><button onClick={copy}>{copied ? 'Copied' : 'Copy SQL'}</button></span>
+      </div>
       <SqlText text={st.text} />
       <ResponseTime doc={doc} stats={stats} />
       <CallTable doc={doc} stats={stats} />
       {doc.hasFacts && <Executions doc={doc} id={id} />}
       <Plans doc={doc} id={id} />
-      <Links doc={doc} stats={stats} />
       <Errors doc={doc} id={id} />
     </>
   )
@@ -40,12 +42,26 @@ function kindName(k: number): string { return ['SQL', 'unknown statement', 'comm
 
 function ResponseTime({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
   const total = stats.elapsed + stats.idleUs
-  const segs = useMemo(() => (doc.hasFacts ? statementSegments(doc, stats) : []), [doc, stats])
+  const waits = useMemo(() => statementWaits(doc, stats.id, 4), [doc, stats])
+  const segs = useMemo<Segment[]>(() => {
+    const out: Segment[] = [{ role: 'cpu', label: 'CPU', us: stats.cpu }]
+    let shown = 0
+    for (const w of waits) { out.push({ role: w.role, label: w.name, us: w.us, count: w.count }); shown += w.us }
+    const rest = stats.waitUs + stats.idleUs - shown
+    if (rest > 0) out.push({ role: 'other', label: 'other waits', us: rest })
+    return out
+  }, [stats, waits])
+  const top = waits[0]
+  const trips = waits.find((w) => /message from client/.test(w.name))
+  const notes: string[] = []
+  if (top && top.role !== 'idle') notes.push(`${fmtInt(top.count)} × ${top.name}, avg ${fmtDur(top.us / top.count)}, max ${fmtDur(top.maxUs)}${top.obj > 0 && (top.role === 'userio' || top.role === 'sysio') ? `, all on obj# ${top.obj}` : ''}`)
+  if (trips) notes.push(`${fmtInt(trips.count)} round trip${trips.count === 1 ? '' : 's'} to the client, ${fmtDur(trips.us)} idle`)
+  if (stats.childUs > 0) notes.push(`${fmtDur(stats.childUs)} (${fmtPct(stats.childUs, stats.elapsed)}) in recursive statements`)
   return (
     <section className="section">
       <header><h2>Response time {fmtDur(total)}</h2><span className="hint">{fmtPct(total, doc.spanUs())} of the trace · {fmtDur(stats.elapsed)} in calls + {fmtDur(stats.idleUs)} idle between them</span></header>
-      {segs.length > 0 && <ProfileBar segments={segs} totalUs={total} compact />}
-      {stats.childUs > 0 && <p className="small muted">{fmtDur(stats.childUs)} ({fmtPct(stats.childUs, stats.elapsed)}) of the elapsed time was spent in recursive statements.</p>}
+      {doc.hasFacts ? <ProfileBar segments={segs} totalUs={total} /> : <ProfileBar segments={[{ role: 'cpu', label: 'CPU', us: stats.cpu }, { role: 'other', label: 'Waits', us: stats.waitUs }, { role: 'idle', label: 'Idle', us: stats.idleUs }]} totalUs={total} />}
+      {notes.length > 0 && <p className="small muted">{notes.join(' · ')}</p>}
     </section>
   )
 }
@@ -89,7 +105,9 @@ function CallTable({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
 
 function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
   const exs = useMemo(() => executions(doc, id), [doc, id])
+  const wanted = useStore((s) => s.selection.exec)
   const [sel, setSel] = useState<Execution | null>(null)
+  useEffect(() => { if (wanted) { const e = exs.find((x) => x.cursor === wanted.cursor && x.execNo === wanted.execNo); if (e) setSel(e) } }, [wanted, exs])
   if (exs.length === 0) return null
   const cols: Column<Execution>[] = [
     { key: 'n', header: '#', align: 'end', render: (e) => e.execNo, sort: (e) => e.execNo },
@@ -168,34 +186,6 @@ function PlanTable({ doc, plan }: { doc: TraceDoc; plan: Plan }) {
         </tr>
       ))}</tbody>
     </table></div>
-  )
-}
-
-function Links({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
-  const children = stats.children ?? [], parents = stats.parents ?? []
-  if (children.length === 0 && parents.length === 0) return null
-  const row = (l: { statement: ID; calls: number; elapsed: number }, base: number) => {
-    const s = doc.statements[l.statement]
-    return (
-      <tr key={l.statement} className="row-click" onClick={() => actions.selectStmt(l.statement)}>
-        <td className="num">{fmtDur(l.elapsed)}</td><td className="num dim">{fmtPct(l.elapsed, base)}</td><td className="num">{fmtInt(l.calls)}</td>
-        <td className="mono">{doc.label(s)}</td><td className="clip">{preview(s.text, 60)}</td>
-      </tr>
-    )
-  }
-  return (
-    <section className="section">
-      <header><h2>Recursive relations</h2><span className="hint">click to navigate</span></header>
-      <div className="tbl-wrap"><table className="tbl">
-        <thead><tr><th className="num">time</th><th className="num">share</th><th className="num">calls</th><th>sql id</th><th>statement</th></tr></thead>
-        <tbody>
-          {children.length > 0 && <tr><td colSpan={5} className="dim">executed by this statement (time included above)</td></tr>}
-          {children.map((l) => row(l, stats.elapsed))}
-          {parents.length > 0 && <tr><td colSpan={5} className="dim">called from</td></tr>}
-          {parents.map((l) => row(l, l.elapsed))}
-        </tbody>
-      </table></div>
-    </section>
   )
 }
 

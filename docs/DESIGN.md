@@ -46,10 +46,14 @@ in the UI is reachable from the CLI.
   same dimensions and measures as the UI Pivot.
 - `html`: self-contained interactive explorer (curated views: Overview,
   Statements, Waits, Timeline, Sessions; Pivot and CSV export as the escape
-  hatch). `serve`: the same UI from a local server. The Overview activity
-  chart stacks CPU plus waits per event by default (top 10 events, the rest
-  folded into "Other events"; events share their wait class's hue in
-  shades), with a toggle back to wait classes.
+  hatch). `serve`: the same UI from a local server. The Overview answers
+  "where did the time go" first: a sentence, the response-time bar on a true
+  time axis with a per-event ledger, the top statements on the same axis,
+  then the session on wall-clock lanes (drag = time window). A bucket chart
+  (CPU plus waits per event, top 10, the rest folded; or per class) is the
+  alternative time view. Statements is a workbench: ranked list, the
+  statement's tkprof table/plan/executions in the centre, context on the
+  right. Chrome is neutral (IBM Plex); hue is reserved for wait classes.
 - `json` and `export` (CSV tables) for other tools.
 - Bind values are kept by default; `-redact-binds` replaces them with type,
   length and a stable hash; `-binds none` drops them.

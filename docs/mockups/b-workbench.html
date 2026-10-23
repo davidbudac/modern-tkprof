@@ -1,0 +1,135 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Mockup B — workbench</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="_base.css">
+<style>
+body{height:1000px;display:grid;grid-template-rows:44px 1fr;overflow:hidden}
+.top{display:flex;align-items:center;gap:18px;padding:0 16px;border-bottom:1px solid var(--rule);background:var(--raised)}
+.top .brand{font-weight:600}
+.top .file{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.mini{display:flex;align-items:center;gap:10px;font-size:12px;white-space:nowrap}
+.mini .bar{display:flex;width:260px;height:12px;border-radius:2px;overflow:hidden}
+.mini .bar i{display:block;height:100%}
+.tabs{display:flex;gap:2px;margin-left:auto}
+.tabs a{padding:5px 11px;border-radius:5px;color:var(--ink2);text-decoration:none}
+.tabs a small{color:var(--ink3);margin-left:5px}
+.tabs a.on{background:var(--wash);color:var(--ink);font-weight:500}
+.body{display:grid;grid-template-columns:330px minmax(0,1fr) 300px;min-height:0}
+.list{border-right:1px solid var(--rule);background:var(--raised);display:flex;flex-direction:column;min-height:0}
+.list .hd{padding:10px 14px 8px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--rule)}
+.list .hd .t{display:flex;align-items:baseline;gap:8px} .list .hd h2{font-size:14px;font-weight:600}
+.list .hd .t span{color:var(--ink2);font-size:12px;margin-left:auto}
+.list input{font:inherit;font-size:12px;border:1px solid var(--rule2);border-radius:4px;padding:4px 8px;width:100%}
+.list .opts{display:flex;gap:6px;font-size:11.5px;color:var(--ink2)} .list .opts b{color:var(--ink);font-weight:500}
+.item{padding:9px 14px 9px 12px;border-left:2px solid transparent;border-bottom:1px solid var(--rule);cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:3px 10px}
+.item:hover{background:var(--wash)}
+.item.on{border-left-color:var(--ink);background:var(--sunken)}
+.item .txt{font-family:var(--mono);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;grid-column:1/-1}
+.item .bar{display:flex;height:6px;align-self:center;background:var(--wash)}
+.item .bar i{display:block;height:100%}
+.item .n{font-size:12px;text-align:right;white-space:nowrap} .item .n small{color:var(--ink3);margin-left:4px}
+.item .id{font-family:var(--mono);font-size:10.5px;color:var(--ink3);grid-column:1/-1}
+.list .more{padding:10px 14px;font-size:12px;color:var(--ink2)}
+
+.detail{overflow:auto;padding:20px 28px 40px;display:flex;flex-direction:column;gap:26px}
+.title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.title h1{font-family:var(--mono);font-size:20px;font-weight:500}
+.chip{font-size:11.5px;color:var(--ink2);border:1px solid var(--rule2);border-radius:3px;padding:1px 7px}
+.title .acts{margin-left:auto;display:flex;gap:6px}
+.sqlbox{background:var(--sunken);border-radius:4px;padding:12px 14px;max-height:160px;overflow:auto}
+h2{font-size:14px;font-weight:600}
+.sec>header{display:flex;align-items:baseline;gap:10px;margin-bottom:8px} .sec>header .hint{color:var(--ink2);font-size:12px} .sec>header .tools{margin-left:auto;display:flex;gap:4px}
+.track{display:flex;height:22px;border-radius:3px;overflow:hidden}
+.track i{display:block;height:100%;color:#fff;font-size:11px;font-weight:500;padding:0 7px;line-height:22px;white-space:nowrap;overflow:hidden}
+.ledger{display:flex;gap:22px;font-size:12px;margin-top:8px;color:var(--ink2)} .ledger b{color:var(--ink);font-weight:500}
+.tbl{border:1px solid var(--rule);border-radius:4px;overflow:hidden;background:var(--raised)}
+.tbl th{background:var(--sunken)} .tbl tr:last-child td{border-bottom:0}
+.tbl tr.total td{font-weight:600;border-top:1px solid var(--rule2)}
+.plan td{white-space:nowrap} .plan td.op{font-family:var(--mono);font-size:11.5px;white-space:nowrap} .plan td.op .o{color:var(--ink2)}
+.heat{display:inline-block;width:70px;height:7px;background:var(--wash);border-radius:2px;vertical-align:middle;margin-right:6px;overflow:hidden} .heat i{display:block;height:100%;background:var(--userio)}
+.seg{display:inline-flex;border:1px solid var(--rule2);border-radius:4px;overflow:hidden} .seg button{border:0;border-radius:0;font-size:11.5px;padding:1px 8px} .seg button.on{background:var(--ink);color:#fff}
+
+.ctx{border-left:1px solid var(--rule);background:var(--raised);overflow:auto;padding:16px 16px 30px;display:flex;flex-direction:column;gap:22px;font-size:12px}
+.ctx h3{font-size:12.5px;font-weight:600;margin-bottom:6px}
+.ctx dl{display:grid;grid-template-columns:max-content 1fr;gap:3px 10px} .ctx dt{color:var(--ink2)} .ctx dd{overflow-wrap:anywhere}
+.ctx .obj{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:6px 0;border-top:1px solid var(--rule)}
+.ctx .obj .n{text-align:right} .ctx .obj small{color:var(--ink3);grid-column:1/-1}
+.ctx a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--rule2)}
+.rel{display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:baseline}
+.rel .m{font-family:var(--mono);font-size:11px}
+</style></head><body>
+<header class="top">
+  <span class="brand">mtkprof</span>
+  <span class="file">cdb1_ora_133382_mtk_io_waits.trc</span>
+  <span class="mini"><b>6.459 s</b><span class="bar"><i style="width:45.8%;background:var(--other)"></i><i style="width:44.6%;background:var(--userio)"></i><i style="width:5.2%;background:var(--cpu)"></i><i style="width:4.9%;background:var(--idle)"></i></span><span class="dim">46 % enq: KO · 45 % direct path write temp · 5 % CPU</span></span>
+  <nav class="tabs"><a href="#">Overview</a><a class="on" href="#">Statements<small>24</small></a><a href="#">Waits<small>12</small></a><a href="#">Timeline</a><a href="#">Sessions<small>5</small></a><a href="#">Pivot</a></nav>
+  <button class="quiet">◐</button>
+</header>
+<div class="body">
+  <aside class="list">
+    <div class="hd">
+      <div class="t"><h2>Statements</h2><span>24 · by response time</span></div>
+      <input placeholder="filter by sql_id, text or object">
+      <div class="opts"><span><b>self</b> / inclusive</span><span>·</span><span>hide SYS recursive</span><span>·</span><span>j k to move</span></div>
+    </div>
+    <div class="item on"><div class="txt">select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status from mtk_orders o …</div><div class="bar"><i style="width:85%;background:var(--userio)"></i><i style="width:11%;background:var(--idle)"></i><i style="width:4%;background:var(--cpu)"></i></div><div class="n">2.793 s<small>43 %</small></div><div class="id">52nzchs09dgn1 · 1 exec · 100,001 rows</div></div>
+    <div class="item"><div class="txt">select /*+ full(c) mtk_full_scan_cust */ count(*), sum(length(notes)) from mtk_cust c</div><div class="bar" style="width:84%"><i style="width:99%;background:var(--other)"></i><i style="width:1%;background:var(--cpu)"></i></div><div class="n">2.355 s<small>37 %</small></div><div class="id">4w3wvjbkvq24v · 1 exec · 1 row</div></div>
+    <div class="item"><div class="txt">select /*+ full(o) mtk_full_scan_orders */ count(*), sum(amount), max(order_date) from mtk_orders o</div><div class="bar" style="width:23%"><i style="width:99%;background:var(--other)"></i></div><div class="n">638 ms<small>10 %</small></div><div class="id">c7ry5gr75qv4b · 1 exec · 1 row</div></div>
+    <div class="item"><div class="txt">select /*+ use_hash(c o) mtk_hash_spill */ count(*), sum(o.amount * c.amount) from mtk_cust c, mtk_orders o</div><div class="bar" style="width:21%"><i style="width:83%;background:var(--userio)"></i><i style="width:17%;background:var(--cpu)"></i></div><div class="n">599 ms<small>9 %</small></div><div class="id">7r10y07tqpg98 · 1 exec · 1 row</div></div>
+    <div class="item"><div class="txt">declare v_amt number; v_id number; begin for i in 1..300 loop select amount into v_amt from …</div><div class="bar" style="width:2%"><i style="width:100%;background:var(--cpu)"></i></div><div class="n">39 ms<small>0.6 %</small></div><div class="id">dcxgz5g2j9ts2 · 1 exec · 600 recursive calls</div></div>
+    <div class="item"><div class="txt">select /*+ index(o mtk_orders_cust_ix) */ o.* from mtk_orders o where o.cust_id between :b1 and :b2</div><div class="bar" style="width:1%"><i style="width:100%;background:var(--cpu)"></i></div><div class="n">13 ms<small>0.2 %</small></div><div class="id">64y0jakbjfvm9 · 1 exec · 1,505 rows · ⓘ small fetches</div></div>
+    <div class="item"><div class="txt">SELECT AMOUNT FROM MTK_ORDERS WHERE ID = :B1</div><div class="bar" style="width:1%"><i style="width:100%;background:var(--cpu)"></i></div><div class="n">11 ms<small>0.2 %</small></div><div class="id">dk21j71dpu26c · 300 execs · depth 1</div></div>
+    <div class="item"><div class="txt">SELECT AMOUNT FROM MTK_ORDERS WHERE ID = :B1 + 1</div><div class="bar" style="width:1%"><i style="width:100%;background:var(--cpu)"></i></div><div class="n">11 ms<small>0.2 %</small></div><div class="id">f9xbak7zf0a4a · 300 execs · depth 1</div></div>
+    <div class="more">16 more under 5 ms</div>
+  </aside>
+
+  <section class="detail">
+    <div class="title"><h1>52nzchs09dgn1</h1><span class="chip">SELECT</span><span class="chip">depth 0</span><span class="chip">plan 2503715236</span><span class="chip">uid 165</span>
+      <span class="acts"><button>Copy SQL</button><button>Open plan ↗</button><button>Pivot this statement</button></span></div>
+    <pre class="sql sqlbox">select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status
+  from mtk_orders o order by o.amount desc, o.order_date, o.id</pre>
+
+    <div class="sec"><header><h2>Response time 2.793 s</h2><span class="hint">43.2 % of the trace · 2.486 s in calls + 307 ms idle between them</span></header>
+      <div class="track"><i style="width:85.2%;background:var(--userio)">direct path write temp 2.379 s</i><i style="width:11%;background:var(--idle);color:var(--ink)">idle 307 ms</i><i style="width:5.4%;background:var(--cpu)">CPU</i></div>
+      <div class="ledger"><span><b>1,331</b> direct path write temp, avg 1.8 ms, max 7.9 ms, all on obj 108611</span><span><b>202</b> fetch round trips, 1.5 ms each</span><span><b>496 µs</b> in recursive statements</span></div>
+    </div>
+
+    <div class="sec"><header><h2>Calls</h2><span class="hint">tkprof numbers; self excludes recursive children</span><span class="tools"><span class="seg"><button class="on">self</button><button>inclusive</button></span></span></header>
+      <div class="tbl"><table>
+        <tr><th>call</th><th class="num">count</th><th class="num">misses</th><th class="num">cpu</th><th class="num">elapsed</th><th class="num">disk</th><th class="num">query</th><th class="num">current</th><th class="num">rows</th></tr>
+        <tr><td>Parse</td><td class="num">1</td><td class="num">1</td><td class="num">695 µs</td><td class="num">852 µs</td><td class="num">1</td><td class="num">2</td><td class="num">5</td><td class="num">0</td></tr>
+        <tr><td>Execute</td><td class="num">1</td><td class="num">0</td><td class="num">13 µs</td><td class="num">13 µs</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr><td>Fetch</td><td class="num">202</td><td class="num">0</td><td class="num">151 ms</td><td class="num">2.484 s</td><td class="num">1,827</td><td class="num">498</td><td class="num">147</td><td class="num">100,001</td></tr>
+        <tr><td>Close</td><td class="num">1</td><td class="num dim">–</td><td class="num">4 µs</td><td class="num">4 µs</td><td class="num dim">–</td><td class="num dim">–</td><td class="num dim">–</td><td class="num dim">–</td></tr>
+        <tr class="total"><td>Total</td><td class="num">204</td><td class="num">1</td><td class="num">152 ms</td><td class="num">2.486 s</td><td class="num">1,828</td><td class="num">500</td><td class="num">152</td><td class="num">100,001</td></tr>
+      </table></div>
+    </div>
+
+    <div class="sec"><header><h2>Plan 2503715236</h2><span class="hint">row source statistics from the STAT lines at line 10,383</span></header>
+      <div class="tbl"><table class="plan">
+        <tr><th class="num">id</th><th>operation</th><th class="num">rows</th><th class="num">starts</th><th class="num">cr</th><th class="num">pr</th><th class="num">pw</th><th>time</th><th class="num">cost</th><th class="num">card</th></tr>
+        <tr><td class="num dim">1</td><td class="op">SORT ORDER BY</td><td class="num">100,001</td><td class="num">1</td><td class="num">498</td><td class="num">1,827</td><td class="num">1,331</td><td><span class="heat"><i style="width:100%"></i></span>2.448 s</td><td class="num dim">2,014</td><td class="num dim">100 K</td></tr>
+        <tr><td class="num dim">2</td><td class="op">&nbsp;&nbsp;TABLE ACCESS FULL <span class="o">MTK_ORDERS</span></td><td class="num">100,001</td><td class="num">1</td><td class="num">498</td><td class="num">496</td><td class="num">0</td><td><span class="heat"><i style="width:0.2%"></i></span>2.4 ms</td><td class="num dim">137</td><td class="num dim">100 K</td></tr>
+      </table></div>
+    </div>
+
+    <div class="sec"><header><h2>Executions</h2><span class="hint">1 · 11:35:32.250 → 35.050 · no bind variables</span></header>
+      <div class="tbl"><table>
+        <tr><th class="num">#</th><th>start</th><th class="num">elapsed</th><th class="num">cpu</th><th class="num">waits</th><th class="num">rows</th><th class="num">disk</th><th class="num">fetches</th><th>binds</th></tr>
+        <tr><td class="num">1</td><td>11:35:32.250</td><td class="num">2.486 s</td><td class="num">152 ms</td><td class="num">2.390 s</td><td class="num">100,001</td><td class="num">1,828</td><td class="num">202</td><td class="dim">—</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <aside class="ctx">
+    <div><h3>Where it ran</h3><dl><dt>first call</dt><dd>11:35:32.250</dd><dt>last call</dt><dd>11:35:35.050</dd><dt>trace line</dt><dd>6,878</dd><dt>module</dt><dd>mtk_io_waits</dd><dt>action</dt><dd>sort_spill</dd><dt>session</dt><dd>51.14688 · pdb1</dd></dl></div>
+    <div><h3>Waits by object</h3>
+      <div class="obj"><span>direct path write temp</span><span class="n">2.379 s</span><small>obj 108611 · 1,331 waits · 1.8 ms avg</small></div>
+      <div class="obj"><span>direct path read temp</span><span class="n">4 ms</span><small>obj 108611 · 1,331 waits</small></div>
+      <div class="obj"><span>direct path read</span><span class="n">1 ms</span><small>obj 108611 · 26 waits</small></div>
+      <p class="faint" style="margin-top:6px">obj# → name needs the reference bundle (<a href="#">generate refscript</a>)</p>
+    </div>
+    <div><h3>Recursive statements</h3><div class="rel"><span class="m">10gywwmwk6xfy</span><span class="dim">select /* QOSD */ …</span><span>3 calls</span><span class="m">dbvj6jc977hqh</span><span class="dim">insert /* QOSD */ …</span><span>2 calls</span></div></div>
+    <div><h3>In the text report</h3><p class="dim">STATEMENT 1 · <a href="#">copy tkprof section</a></p></div>
+  </aside>
+</div>
+</body></html>

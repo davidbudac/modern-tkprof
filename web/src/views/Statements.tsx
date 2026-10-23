@@ -1,63 +1,123 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, preview, fmtCompact } from '../data/format'
 import { useStore, actions } from '../app/store'
-import { DataTable, type Column } from '../components/DataTable'
+import { quickSegments } from '../data/derive'
+import { StatementDetail } from './StatementDetail'
+import { StatementContext } from './StatementContext'
 
+type SortKey = 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
+const sorts: { id: SortKey; label: string; of: (s: StmtStats, inclusive: boolean) => number }[] = [
+  { id: 'resp', label: 'response time', of: (s) => s.elapsed + s.idleUs },
+  { id: 'self', label: 'self time', of: (s) => s.selfElapsed },
+  { id: 'cpu', label: 'CPU', of: (s, inc) => (inc ? s.cpu : s.selfCpu) },
+  { id: 'waits', label: 'wait time', of: (s) => s.waitUs },
+  { id: 'idle', label: 'idle time', of: (s) => s.idleUs },
+  { id: 'execs', label: 'executions', of: (s) => s.executions },
+  { id: 'rows', label: 'rows', of: (s) => s.allCalls.rows },
+  { id: 'disk', label: 'disk reads', of: (s, inc) => (inc ? s.allCalls.disk : s.allCalls.selfDisk) },
+  { id: 'query', label: 'consistent gets', of: (s, inc) => (inc ? s.allCalls.query : s.allCalls.selfQuery) },
+  { id: 'hard', label: 'hard parses', of: (s) => s.hardParses },
+  { id: 'errors', label: 'errors', of: (s) => s.errors },
+]
+const ROW_H = 76
+
+/** Three panes: ranked statement list, the selected statement, its context. */
 export function Statements({ doc }: { doc: TraceDoc }) {
   const sel = useStore((s) => s.selection.stmt)
   const inclusive = useStore((s) => s.inclusive)
   const [q, setQ] = useState('')
   const [hideSys, setHideSys] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey>('resp')
   const totalUs = doc.spanUs()
+  const sort = sorts.find((s) => s.id === sortKey)!
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    return doc.stats.statements.filter((s) => {
+    const list = doc.stats.statements.filter((s) => {
       if (s.allCalls.count === 0 && s.errors === 0) return false
       const st = doc.statements[s.id]
       if (hideSys && st.parsingUserId === 0 && s.minDepth > 0) return false
       if (needle && !(st.sqlId.toLowerCase().includes(needle) || st.text.toLowerCase().includes(needle))) return false
       return true
     })
-  }, [doc, q, hideSys])
-  const pick = (s: StmtStats, inc: keyof StmtStats['allCalls'], self: keyof StmtStats['allCalls']) => (inclusive ? s.allCalls[inc] : s.allCalls[self]) as number
-  const cols: Column<StmtStats>[] = [
-    { key: 'id', header: 'SQL ID', className: 'mono', render: (s) => doc.label(doc.statements[s.id]), sort: (s) => doc.label(doc.statements[s.id]) },
-    { key: 'txt', header: 'Statement', className: 'clip', render: (s) => preview(doc.statements[s.id].text, 90), sort: (s) => doc.statements[s.id].text },
-    { key: 'resp', header: 'Response', title: 'elapsed of the statement\'s calls plus idle time between them; recursive children included', align: 'end', render: (s) => fmtDur(s.elapsed + s.idleUs), sort: (s) => s.elapsed + s.idleUs, bar: true },
-    { key: 'pct', header: '%', align: 'end', render: (s) => fmtPct(s.elapsed + s.idleUs, totalUs), sort: (s) => s.elapsed + s.idleUs },
-    { key: 'self', header: 'Self', title: 'elapsed excluding recursive children and idle', align: 'end', render: (s) => fmtDur(s.selfElapsed), sort: (s) => s.selfElapsed },
-    { key: 'cpu', header: 'CPU', align: 'end', render: (s) => fmtDur(inclusive ? s.cpu : s.selfCpu), sort: (s) => (inclusive ? s.cpu : s.selfCpu) },
-    { key: 'wait', header: 'Waits', title: 'non-idle waits inside the calls', align: 'end', render: (s) => fmtDur(s.waitUs), sort: (s) => s.waitUs },
-    { key: 'idle', header: 'Idle', title: 'SQL*Net message from client and other idle waits between the calls', align: 'end', render: (s) => fmtDur(s.idleUs), sort: (s) => s.idleUs },
-    { key: 'x', header: 'Execs', align: 'end', render: (s) => fmtInt(s.executions), sort: (s) => s.executions },
-    { key: 'rows', header: 'Rows', align: 'end', render: (s) => fmtCompact(s.allCalls.rows), sort: (s) => s.allCalls.rows },
-    { key: 'disk', header: 'Disk', align: 'end', render: (s) => fmtCompact(pick(s, 'disk', 'selfDisk')), sort: (s) => pick(s, 'disk', 'selfDisk') },
-    { key: 'cr', header: 'Query', align: 'end', render: (s) => fmtCompact(pick(s, 'query', 'selfQuery')), sort: (s) => pick(s, 'query', 'selfQuery') },
-    { key: 'cu', header: 'Current', align: 'end', render: (s) => fmtCompact(pick(s, 'current', 'selfCurrent')), sort: (s) => pick(s, 'current', 'selfCurrent') },
-    { key: 'mis', header: 'Hard', title: 'library cache misses during parse', align: 'end', render: (s) => (s.hardParses ? fmtInt(s.hardParses) : ''), sort: (s) => s.hardParses },
-    { key: 'dep', header: 'Dep', align: 'end', render: (s) => (s.minDepth === s.maxDepth ? s.minDepth : `${s.minDepth}–${s.maxDepth}`), sort: (s) => s.minDepth },
-    { key: 'err', header: 'Err', align: 'end', render: (s) => (s.errors ? s.errors : ''), sort: (s) => s.errors },
-  ]
-  const tot = rows.reduce((a, s) => ({ e: a.e + s.elapsed + s.idleUs, x: a.x + s.executions, r: a.r + s.allCalls.rows }), { e: 0, x: 0, r: 0 })
+    return list.sort((a, b) => sort.of(b, inclusive) - sort.of(a, inclusive) || b.elapsed - a.elapsed)
+  }, [doc, q, hideSys, sort, inclusive])
+  const maxResp = rows.reduce((a, s) => Math.max(a, s.elapsed + s.idleUs), 0)
+  const findingsOf = useMemo(() => { const m = new Map<number, number>(); for (const f of doc.stats.findings) if (f.statement >= 0) m.set(f.statement, (m.get(f.statement) ?? 0) + 1); return m }, [doc])
+
+  useEffect(() => { if ((sel === null || !doc.stats.statements[sel]) && rows.length) actions.pickStmt(rows[0].id) }, [rows, sel, doc])
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const virt = useVirtualizer({ count: rows.length, getScrollElement: () => scrollRef.current, estimateSize: () => ROW_H, overscan: 10 })
+  const move = (d: number) => {
+    const i = rows.findIndex((r) => r.id === sel)
+    const j = Math.min(rows.length - 1, Math.max(0, i + d))
+    if (rows[j]) { actions.pickStmt(rows[j].id); virt.scrollToIndex(j) }
+  }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return
+      if (e.key === 'j' || e.key === 'ArrowDown') { move(1); e.preventDefault() }
+      if (e.key === 'k' || e.key === 'ArrowUp') { move(-1); e.preventDefault() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   return (
-    <section className="section">
-      <header>
-        <h2>Statements</h2>
-        <span className="hint">{rows.length} of {doc.statements.length}; click a row for details</span>
-        <span className="tools">
-          <input type="search" placeholder="filter sql_id or text" value={q} onChange={(e) => setQ(e.target.value)} />
-          <button aria-pressed={hideSys} onClick={() => setHideSys(!hideSys)} title="hide recursive statements parsed by SYS">hide SYS recursive</button>
-          <span className="seg" role="group" aria-label="Statistics mode">
-            <button aria-pressed={!inclusive} onClick={() => actions.setInclusive(false)} title="exclude recursive children, like tkprof">self</button>
-            <button aria-pressed={inclusive} onClick={() => actions.setInclusive(true)} title="include recursive children, as in the raw trace lines">inclusive</button>
-          </span>
-        </span>
-      </header>
-      <DataTable columns={cols} rows={rows} rowKey={(s) => s.id} defaultSort={{ key: 'resp', dir: 'desc' }} maxHeight="calc(100dvh - 12rem)"
-        selectedKey={sel} onRowClick={(s) => actions.selectStmt(s.id)}
-        footer={<><span>response {fmtDur(tot.e)}</span><span>executions {fmtInt(tot.x)}</span><span>rows {fmtInt(tot.r)}</span></>} />
-    </section>
+    <div className="wb">
+      <aside className="wb-list" aria-label="Statements">
+        <div className="wb-head">
+          <div className="t"><h2>Statements</h2><span className="dim">{rows.length === doc.statements.length ? rows.length : `${rows.length} of ${doc.statements.length}`}</span></div>
+          <input type="search" placeholder="filter by sql_id or text" value={q} onChange={(e) => setQ(e.target.value)} />
+          <div className="opts">
+            <label>by <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>{sorts.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+            <span className="seg" role="group" aria-label="Statistics mode">
+              <button aria-pressed={!inclusive} onClick={() => actions.setInclusive(false)} title="exclude recursive children, like tkprof">self</button>
+              <button aria-pressed={inclusive} onClick={() => actions.setInclusive(true)} title="include recursive children">inclusive</button>
+            </span>
+            <button className={'quiet' + (hideSys ? ' on' : '')} aria-pressed={hideSys} onClick={() => setHideSys(!hideSys)} title="hide recursive statements parsed by SYS">no SYS</button>
+          </div>
+        </div>
+        <div className="wb-scroll" ref={scrollRef}>
+          <div style={{ height: virt.getTotalSize(), position: 'relative' }}>
+            {virt.getVirtualItems().map((vi) => {
+              const st = rows[vi.index]
+              const s = doc.statements[st.id]
+              const resp = st.elapsed + st.idleUs
+              const segs = quickSegments(doc, st).filter((x) => x.us > 0)
+              const segTotal = Math.max(resp, segs.reduce((a, x) => a + x.us, 0))
+              const nf = findingsOf.get(st.id) ?? 0
+              return (
+                <div key={st.id} className={'item' + (sel === st.id ? ' on' : '')} style={{ position: 'absolute', top: vi.start, height: ROW_H, left: 0, right: 0 }}
+                  onClick={() => actions.pickStmt(st.id)} role="button" tabIndex={-1}>
+                  <div className="txt mono" title={preview(s.text, 300)}>{preview(s.text, 120)}</div>
+                  <div className="bar" style={{ width: `${(100 * resp) / (maxResp || 1)}%` }}>{segs.map((x) => <i key={x.role} style={{ width: `${(100 * x.us) / segTotal}%`, background: `var(--c-${x.role})` }} />)}</div>
+                  <div className="n">{sortKey === 'resp' || sortKey === 'self' || sortKey === 'cpu' || sortKey === 'waits' || sortKey === 'idle' ? fmtDur(sort.of(st, inclusive)) : fmtCompact(sort.of(st, inclusive))}<small>{sortKey === 'resp' ? fmtPct(resp, totalUs, 0) : fmtDur(resp)}</small></div>
+                  <div className="id">
+                    <span className="mono">{doc.label(s)}</span>
+                    <span>{fmtInt(st.executions)} exec{st.executions === 1 ? '' : 's'}</span>
+                    {st.allCalls.rows > 0 && <span>{fmtCompact(st.allCalls.rows)} row{st.allCalls.rows === 1 ? '' : 's'}</span>}
+                    {st.minDepth > 0 && <span>depth {st.minDepth}</span>}
+                    {st.errors > 0 && <span className="err">{st.errors} error{st.errors === 1 ? '' : 's'}</span>}
+                    {nf > 0 && <span className="fl" title={`${nf} finding${nf === 1 ? '' : 's'}`}>ⓘ {nf}</span>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {rows.length === 0 && <p className="muted small" style={{ padding: '1rem' }}>No statement matches.</p>}
+        </div>
+      </aside>
+      <section className="wb-detail">
+        {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} /> : <p className="muted">Pick a statement on the left.</p>}
+      </section>
+      <aside className="wb-ctx" aria-label="Context">
+        {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} />}
+      </aside>
+    </div>
   )
 }

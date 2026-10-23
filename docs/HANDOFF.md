@@ -22,7 +22,7 @@ Working and tested:
 | Findings (9 rules, fixed thresholds) in JSON, text report and Overview | `internal/analyze/findings.go`, `internal/report/text_findings.go`, `web/src/views/Findings.tsx` | done; unit tests on fixtures + hand-built models |
 | Go group-by with the UI Pivot's dims/measures; sessions and time-bucket stats | `internal/analyze/pivot.go` | done; unit tests |
 | Bind redaction (`-redact-binds`, `-bind-values keep\|redact\|none`, `-binds none`) as a model post-pass | `internal/model/redact.go`, `cmd/mtkprof/bindflags.go` | done; tests prove no value leaks into text/JSON/CSV |
-| Web UI (Overview, Statements + inspector, Waits + event inspector, Timeline, Sessions, Pivot), light/dark | `web/` → embedded as `internal/ui/dist/index.html` | first version, reviewed by screenshot |
+| Web UI (Overview ledger + lanes, Statements workbench, Waits + event inspector, Timeline, Sessions, Pivot), light/dark, IBM Plex embedded | `web/` → embedded as `internal/ui/dist/index.html` | redesigned 2026-10-23 (`docs/mockups/`), reviewed by screenshot |
 | Real 19.27 fixtures (20, incl. `plan_change`) + tkprof output + generator + v$ exports | `testdata/` | done |
 | CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | written, never run (repo private, no push of a tag) |
 
@@ -102,6 +102,28 @@ Follow-ups left open by milestone 1 (small, not blocking):
 - `web/pnpm-workspace.yaml` (`allowBuilds: esbuild`) is what pnpm 12 needs to
   run esbuild's postinstall; the old `pnpm` field in `package.json` is ignored.
 
+## UI redesign (2026-10-23)
+
+Shell: top bar (file, mini profile bar, tabs, filter chips, theme) + sub-bar
+(database, session, module, span); no rail. Selecting a statement anywhere
+opens it in the Statements workbench (`actions.selectStmt`); `pickStmt`
+selects without leaving the view. Only wait events use the right-hand
+inspector.
+
+- Overview (`views/Overview.tsx`): generated summary sentence, response-time
+  bar on a true time axis with a per-component ledger (`derive.componentRows`),
+  top statements drawn on the same axis (`derive.quickSegments`, one pass over
+  the waits cached per document), findings, lanes on wall-clock time
+  (`views/Lanes.tsx`, drag = window, click = open) with a bucket-chart
+  alternative, trace facts.
+- Statements (`views/Statements.tsx`): virtualized ranked list (sort select,
+  self/inclusive, no SYS, j/k), `StatementDetail` in the centre,
+  `StatementContext` on the right (where it ran, waits with obj#, recursive
+  links, findings with evidence).
+- Fonts: IBM Plex Sans/Mono latin subsets in `web/src/fonts` (OFL), inlined
+  by the single-file build (~100 KB).
+- Mockups that led here: `docs/mockups/` (A ledger, B workbench, C replay).
+
 ## Milestone 2 (next): plan JSON and "Open in plan viz"
 
 Specified in `docs/DESIGN.md` § Plans; the visualizer's JSON contract and
@@ -112,10 +134,13 @@ comparison) follow.
 
 ## Known gaps and small bugs
 
-- Overview timeline y-axis can exceed 100 % (CPU is spread over a call's
-  duration and Oracle's `c` can exceed `e`); label says "% of time busy".
-- Statements table scrolls horizontally when the inspector is open; no
-  column chooser yet.
+- Overview bucket chart ("by event" / "by class") y-axis can exceed 100 %
+  (CPU is spread over a call's duration and Oracle's `c` can exceed `e`).
+- The Statements workbench replaced the wide sortable table; the list sorts
+  by one measure at a time (select). The Pivot is the escape hatch for
+  multi-column comparisons.
+- Overview "The session over time" lanes show the top 12 statements by
+  response time; the others have no lane (the Timeline tab folds them).
 - `Chart.tsx` re-resolves CSS colours on theme change via a probe element;
   the Timeline swimlane caches colours per render.
 - The CI workflow has never run; expect small fixes (pnpm version pin,
