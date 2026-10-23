@@ -46,7 +46,10 @@ in the UI is reachable from the CLI.
   same dimensions and measures as the UI Pivot.
 - `html`: self-contained interactive explorer (curated views: Overview,
   Statements, Waits, Timeline, Sessions; Pivot and CSV export as the escape
-  hatch). `serve`: the same UI from a local server.
+  hatch). `serve`: the same UI from a local server. The Overview activity
+  chart stacks CPU plus waits per event by default (top 10 events, the rest
+  folded into "Other events"; events share their wait class's hue in
+  shades), with a toggle back to wait classes.
 - `json` and `export` (CSV tables) for other tools.
 - Bind values are kept by default; `-redact-binds` replaces them with type,
   length and a stable hash; `-binds none` drops them.

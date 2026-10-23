@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { fmtDur, fmtInt, fmtCompact, fmtPct, preview, fmtWall } from '../data/format'
 import { useStore, actions, callFilter, waitFilter } from '../app/store'
@@ -13,6 +13,7 @@ import type { ProfileRow, StmtStats } from '../data/types'
 
 export function Overview({ doc }: { doc: TraceDoc }) {
   const state = useStore((s) => s)
+  const [timelineBy, setTimelineBy] = useState<'event' | 'class'>('event')
   const cf = callFilter(state), wf = waitFilter(state)
   const totalUs = state.window ? state.window.endTim - state.window.startTim : doc.spanUs()
   const segments = useMemo(() => traceSegments(doc, cf, wf, totalUs), [doc, state.window, state.contexts, state.includeIdle, totalUs])
@@ -54,8 +55,14 @@ export function Overview({ doc }: { doc: TraceDoc }) {
       <Findings doc={doc} />
 
       <section className="section">
-        <header><h2>Activity over time</h2><span className="hint">drag the slider below the chart to focus on a window; every view follows</span></header>
-        <TimelineChart doc={doc} />
+        <header><h2>Activity over time</h2><span className="hint">drag the slider below the chart to focus on a window; every view follows</span>
+          <span className="tools">
+            <span className="seg" role="group" aria-label="Break down waits by">
+              <button aria-pressed={timelineBy === 'event'} onClick={() => setTimelineBy('event')} title="one series per wait event (top 10, rest folded)">events</button>
+              <button aria-pressed={timelineBy === 'class'} onClick={() => setTimelineBy('class')} title="waits folded into wait classes">classes</button>
+            </span>
+          </span></header>
+        <TimelineChart doc={doc} by={timelineBy} />
       </section>
 
       <div className="grid-2">

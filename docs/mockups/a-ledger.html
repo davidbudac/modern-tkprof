@@ -1,0 +1,166 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Mockup A — ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="_base.css">
+<style>
+.top{display:flex;align-items:center;gap:22px;padding:0 32px;height:46px;border-bottom:1px solid var(--rule);background:var(--raised)}
+.top .brand{font-weight:600;letter-spacing:.01em}
+.top .file{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.top .file b{color:var(--ink);font-weight:500}
+.tabs{display:flex;gap:2px;margin-left:auto}
+.tabs a{padding:5px 11px;border-radius:5px;color:var(--ink2);text-decoration:none}
+.tabs a small{color:var(--ink3);margin-left:5px}
+.tabs a.on{background:var(--wash);color:var(--ink);font-weight:500}
+.top .util{display:flex;gap:6px;margin-left:16px}
+.sub{display:flex;gap:26px;padding:7px 32px;color:var(--ink2);font-size:12px;border-bottom:1px solid var(--rule)}
+.sub b{color:var(--ink);font-weight:500}
+main{max-width:1180px;padding:34px 32px 60px;display:flex;flex-direction:column;gap:40px}
+
+h1{font-size:26px;font-weight:500;letter-spacing:-.01em;line-height:1.2}
+.lede{font-size:15px;line-height:1.5;max-width:70ch;color:var(--ink2);margin-top:8px}
+.lede b{color:var(--ink);font-weight:500}
+
+/* the shared time axis */
+.axis{position:relative;height:18px;color:var(--ink3);font-size:11px}
+.axis i{position:absolute;top:0;transform:translateX(-50%);font-style:normal}
+.axis i:first-child{transform:none} .axis i:last-child{transform:translateX(-100%);color:var(--ink)}
+.ruled{position:relative;background-image:linear-gradient(to right,var(--rule) 1px,transparent 1px);background-size:calc(100%/6.459) 100%}
+.track{display:flex;height:40px;margin-top:4px}
+.seg{position:relative;height:100%;color:#fff;font-size:12px;font-weight:500;padding:0 8px;display:flex;align-items:center;white-space:nowrap;overflow:hidden;border-right:1px solid var(--paper)}
+.seg.on-light{color:var(--ink)}
+.ledger{display:grid;grid-template-columns:max-content 1fr;gap:4px 18px;margin-top:12px;font-size:12px}
+.ledger dt{color:var(--ink2)} .ledger dd{display:flex;gap:14px}
+.ledger dd span{min-width:7ch;text-align:right} .ledger dd .n{color:var(--ink3);min-width:9ch;text-align:left}
+
+h2{font-size:15px;font-weight:600}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.sec-head .hint{color:var(--ink2);font-size:12px}
+.sec-head .more{margin-left:auto;color:var(--ink2);font-size:12px}
+
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:1fr;padding:9px 0 9px;border-top:1px solid var(--rule);cursor:pointer}
+.row:hover{background:var(--wash)}
+.row .meta{display:grid;grid-template-columns:120px minmax(0,1fr) 80px 56px;gap:0 16px;align-items:baseline}
+.row .id{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.row .txt{font-family:var(--mono);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t{text-align:right;font-weight:500} .row .p{text-align:right;color:var(--ink2)}
+.row .bar{display:flex;height:9px;margin-top:6px}
+.row .bar i{height:100%;display:block}
+.row .note{grid-column:1/-1;font-size:12px;color:var(--ink2);margin-top:5px;display:flex;gap:8px;align-items:baseline}
+.row .note .k{font-weight:500;color:var(--ink)}
+.badge{display:inline-block;font-size:10.5px;font-weight:600;padding:0 6px;border-radius:3px;line-height:16px;letter-spacing:.02em}
+.badge.info{background:#e9ecf0;color:var(--ink2)} .badge.notable{background:#fff1cc;color:#8a5b00} .badge.serious{background:#fde2e2;color:#9d1e23}
+.rest{padding:10px 0;color:var(--ink2);font-size:12px;border-top:1px solid var(--rule)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.chart{height:150px;display:flex;align-items:flex-end;gap:2px;border-bottom:1px solid var(--rule2);position:relative}
+.chart .b{flex:1;display:flex;flex-direction:column-reverse;height:100%}
+.chart .b i{display:block}
+.chart .y{position:absolute;left:0;right:0;border-top:1px dashed var(--rule2);font-size:10px;color:var(--ink3)}
+.xlab{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-top:4px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 20px}
+.fact .v{font-size:19px;font-weight:500} .fact .l{color:var(--ink2);font-size:12px}
+.facts p{grid-column:1/-1;color:var(--ink2);font-size:12px;margin-top:4px}
+</style></head><body>
+<header class="top">
+  <span class="brand">mtkprof</span>
+  <span class="file"><b>cdb1_ora_133382_mtk_io_waits.trc</b> · 1.5 MB</span>
+  <nav class="tabs">
+    <a class="on" href="#">Overview</a><a href="#">Statements<small>24</small></a><a href="#">Waits<small>12</small></a><a href="#">Timeline</a><a href="#">Sessions<small>5</small></a><a href="#">Pivot</a>
+  </nav>
+  <span class="util"><button class="quiet">Find ⌘K</button><button class="quiet">◐</button></span>
+</header>
+<div class="sub">
+  <span>Oracle <b>19.27</b> · instance <b>cdb1</b> on ol9-19-dg1</span>
+  <span>session <b>51.14688</b> · service pdb1 · SQL*Plus</span>
+  <span>module <b>mtk_io_waits</b> · 4 context switches</span>
+  <span><b>2026-10-22</b> 11:35:29.191 → 11:35:35.649 UTC</span>
+</div>
+
+<main>
+<section>
+  <h1>Where 6.459 s went</h1>
+  <p class="lede">The session spent <b>2.96 s waiting for an object checkpoint</b> (enq: KO) before full scans could start, and <b>2.88 s writing a 100,001-row sort to temp</b>. CPU work is 337 ms, 5 % of the response time. Two statements account for 80 %.</p>
+
+  <div style="margin-top:26px">
+    <div class="axis"><i style="left:0">0 s</i><i style="left:15.48%">1</i><i style="left:30.96%">2</i><i style="left:46.45%">3</i><i style="left:61.93%">4</i><i style="left:77.41%">5</i><i style="left:92.89%">6</i><i style="left:100%">6.459 s</i></div>
+    <div class="track">
+      <div class="seg" style="width:45.8%;background:var(--other)">enq: KO – fast object checkpoint</div>
+      <div class="seg" style="width:44.6%;background:var(--userio)">direct path write temp</div>
+      <div class="seg" style="width:5.2%;background:var(--cpu)">CPU</div>
+      <div class="seg on-light" style="width:4.9%;background:var(--idle)">idle</div>
+      <div class="seg" style="width:0.4%;background:var(--sysio)"></div>
+    </div>
+    <dl class="ledger">
+      <dt><i class="sw" style="background:var(--other)"></i>enq: KO – fast object checkpoint</dt><dd><span>2.957 s</span><span>45.8 %</span><span class="n">3 waits, longest 2.32 s</span></dd>
+      <dt><i class="sw" style="background:var(--userio)"></i>direct path write temp</dt><dd><span>2.881 s</span><span>44.6 %</span><span class="n">1,607 waits, avg 1.8 ms</span></dd>
+      <dt><i class="sw" style="background:var(--cpu)"></i>CPU</dt><dd><span>337 ms</span><span>5.2 %</span><span class="n"></span></dd>
+      <dt><i class="sw" style="background:var(--idle)"></i>SQL*Net message from client</dt><dd><span>319 ms</span><span>4.9 %</span><span class="n">328 round trips</span></dd>
+      <dt class="dim">9 more components under 15 ms · unaccounted −61 ms</dt><dd><span class="dim">25 ms</span><span class="dim">0.4 %</span><span class="n"><a href="#" style="color:var(--ink2)">full resource profile</a></span></dd>
+    </dl>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Statements</h2><span class="hint">response time on the same scale as above · recursive children and idle time included</span><span class="more">24 statements · view all</span></div>
+  <div class="rows ruled">
+    <div class="row">
+      <div class="meta"><span class="id">52nzchs09dgn1</span><span class="txt">select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status from mtk_orders o order by o.amount desc, …</span><span class="t">2.793 s</span><span class="p">43.2 %</span></div>
+      <div class="bar"><i style="width:36.8%;background:var(--userio)"></i><i style="width:4.8%;background:var(--idle)"></i><i style="width:2.4%;background:var(--cpu)"></i></div>
+      <div class="note"><span class="k">Sort spills to temp</span> 1,331 direct path writes, 2.38 s · 100,001 rows in 202 fetches · plan 2503715236</div>
+    </div>
+    <div class="row">
+      <div class="meta"><span class="id">4w3wvjbkvq24v</span><span class="txt">select /*+ full(c) mtk_full_scan_cust */ count(*), sum(length(notes)) from mtk_cust c</span><span class="t">2.355 s</span><span class="p">36.5 %</span></div>
+      <div class="bar"><i style="width:36%;background:var(--other)"></i><i style="width:0.5%;background:var(--cpu)"></i></div>
+      <div class="note"><span class="k">Blocked before the scan</span> one enq: KO wait of 2.32 s (fast object checkpoint of MTK_CUST) · 1,205 direct path reads afterwards</div>
+    </div>
+    <div class="row">
+      <div class="meta"><span class="id">c7ry5gr75qv4b</span><span class="txt">select /*+ full(o) mtk_full_scan_orders */ count(*), sum(amount), max(order_date) from mtk_orders o</span><span class="t">638 ms</span><span class="p">9.9 %</span></div>
+      <div class="bar"><i style="width:9.8%;background:var(--other)"></i><i style="width:0.1%;background:var(--cpu)"></i></div>
+    </div>
+    <div class="row">
+      <div class="meta"><span class="id">7r10y07tqpg98</span><span class="txt">select /*+ use_hash(c o) mtk_hash_spill */ count(*), sum(o.amount * c.amount) from mtk_cust c, mtk_orders o where …</span><span class="t">599 ms</span><span class="p">9.3 %</span></div>
+      <div class="bar"><i style="width:7.7%;background:var(--userio)"></i><i style="width:1.6%;background:var(--cpu)"></i></div>
+      <div class="note"><span class="k">Hash join spills</span> 7,313 disk reads for 1 row</div>
+    </div>
+    <div class="row">
+      <div class="meta"><span class="id">dcxgz5g2j9ts2</span><span class="txt">declare v_amt number; v_id number; begin for i in 1..300 loop select amount into v_amt from mtk_orders where id = …</span><span class="t">39 ms</span><span class="p">0.6 %</span></div>
+      <div class="bar"><i style="width:0.6%;background:var(--cpu)"></i></div>
+      <div class="note">runs <span class="mono">dk21j71dpu26c</span> and <span class="mono">f9xbak7zf0a4a</span> 300 times each (recursive, 58 % of its time)</div>
+    </div>
+    <div class="row">
+      <div class="meta"><span class="id">64y0jakbjfvm9</span><span class="txt">select /*+ index(o mtk_orders_cust_ix) */ o.* from mtk_orders o where o.cust_id between :b1 and :b2</span><span class="t">13 ms</span><span class="p">0.2 %</span></div>
+      <div class="bar"><i style="width:0.2%;background:var(--cpu)"></i></div>
+      <div class="note"><span class="badge info">info</span><span class="k">Small fetch size</span> 14.8 rows per fetch, 102 fetches for 1,505 rows; raise the array size</div>
+    </div>
+    <div class="rest">18 more statements, 36 ms together: 600 single-row lookups from the PL/SQL loop, session setup, alter session.</div>
+  </div>
+</section>
+
+<div class="two">
+  <section>
+    <div class="sec-head"><h2>Activity over time</h2><span class="hint">drag to focus a window</span></div>
+    <div class="chart" id="chart"><div class="y" style="top:0">100 %</div><div class="y" style="top:50%">50 %</div></div>
+    <div class="xlab"><span>11:35:29.2</span><span>:31</span><span>:33</span><span>:35.6</span></div>
+    <p class="dim" style="font-size:12px;margin-top:8px">The checkpoint wait fills the first 2.7 s; the temp writes run from 11:35:32.3 to 35.1 with fetch round trips in between.</p>
+  </section>
+  <section>
+    <div class="sec-head"><h2>The trace</h2></div>
+    <div class="facts">
+      <div class="fact"><div class="v">24</div><div class="l">statements</div></div>
+      <div class="fact"><div class="v">628</div><div class="l">executions</div></div>
+      <div class="fact"><div class="v">9,615</div><div class="l">waits</div></div>
+      <div class="fact"><div class="v">102 K</div><div class="l">rows</div></div>
+      <div class="fact"><div class="v">11.3 K</div><div class="l">disk reads</div></div>
+      <div class="fact"><div class="v">9,660</div><div class="l">consistent gets</div></div>
+      <p>No errors, no commits. 16,428 lines, every one recognised. One cursor was open before tracing started; its earlier calls are attributed as tkprof does.</p>
+    </div>
+  </section>
+</div>
+</main>
+<script>
+const c=document.getElementById('chart');const N=64;
+for(let i=0;i<N;i++){const t=i/N*6.459;const b=document.createElement('div');b.className='b';let segs=[];
+ if(t<2.75){segs=[['other',0.92]]} else if(t<3.05){segs=[['cpu',0.4],['userio',0.3]]} else if(t<5.85){const idle=(t>5.4&&t<5.75)?0.6:0;segs=[['cpu',0.06],['userio',0.85-idle],['idle',idle]]} else {segs=[['cpu',0.2],['userio',0.7]]}
+ for(const [k,h] of segs){const s=document.createElement('i');s.style.height=(h*100)+'%';s.style.background=`var(--${k})`;b.appendChild(s)}c.appendChild(b)}
+</script>
+</body></html>

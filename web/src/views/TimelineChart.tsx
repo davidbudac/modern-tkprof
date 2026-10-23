@@ -3,22 +3,24 @@ import type { EChartsOption } from 'echarts'
 import type { TraceDoc } from '../data/doc'
 import { Chart } from '../components/Chart'
 import { useStore, actions, waitFilter } from '../app/store'
-import { timelineByRole, pickBucket } from '../data/derive'
-import { cssColor, resolveVar, roleLabel } from '../components/colors'
+import { timeline, pickBucket } from '../data/derive'
+import { resolveVar, roleShade, type Role } from '../components/colors'
 import { fmtDur, fmtWall } from '../data/format'
 
-/** Stacked activity per time bucket (CPU + waits by class) with a zoom slider that sets the global window. */
-export function TimelineChart({ doc }: { doc: TraceDoc }) {
+/** Stacked activity per time bucket (CPU + waits by event or by class) with a zoom slider that sets the global window. */
+export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'event' | 'class' }) {
   const state = useStore((s) => s)
   const bucketUs = useMemo(() => pickBucket(doc.spanUs()), [doc])
-  const data = useMemo(() => timelineByRole(doc, bucketUs, undefined, waitFilter({ ...state, window: null })), [doc, bucketUs, state.contexts, state.includeIdle])
+  const data = useMemo(() => timeline(doc, bucketUs, undefined, waitFilter({ ...state, window: null }), by), [doc, bucketUs, by, state.contexts, state.includeIdle])
   const option = useMemo<EChartsOption>(() => {
-    const roles = data.roles.filter((r) => { const s = data.series.get(r)!; for (let i = 0; i < s.length; i++) if (s[i] > 0) return true; return false })
+    const series = data.series.filter((s) => s.values.some((v) => v > 0))
+    const nth = new Map<Role, number>()
+    const colors = series.map((s) => { const k = nth.get(s.role) ?? 0; nth.set(s.role, k + 1); return roleShade(s.role, k) })
     const labels = data.starts.map((t) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(t), doc.tzOffsetMin) : fmtDur(t - doc.span.firstTim)))
     const bucketSec = bucketUs / 1e6
     return {
       grid: { left: 8, right: 16, top: 36, bottom: 56, containLabel: true },
-      legend: { data: roles.map((r) => roleLabel[r]), left: 'right', top: 0 },
+      legend: { type: 'scroll', data: series.map((s) => s.label), left: 120, right: 0, top: 0, itemGap: 14 },
       tooltip: {
         trigger: 'axis',
         formatter: (params: unknown) => {
@@ -30,10 +32,10 @@ export function TimelineChart({ doc }: { doc: TraceDoc }) {
       xAxis: { type: 'category', data: labels, axisLabel: { hideOverlap: true } },
       yAxis: { type: 'value', name: '% of time busy', nameLocation: 'end', nameTextStyle: { align: 'left', padding: [0, 0, 0, -30] }, axisLabel: { formatter: (v: number) => `${Math.round((100 * v) / bucketSec)}%` }, max: (v: { max: number }) => Math.max(v.max, bucketSec) },
       dataZoom: [{ type: 'slider', height: 20, bottom: 6, brushSelect: true, borderColor: 'transparent', fillerColor: 'rgba(120,120,120,0.15)' }, { type: 'inside' }],
-      series: roles.map((r) => ({
-        name: roleLabel[r], type: 'bar', stack: 'time', barCategoryGap: '20%',
-        itemStyle: { color: cssColor(r), borderColor: resolveVar('--surface-raised'), borderWidth: 1 },
-        data: Array.from(data.series.get(r)!, (v) => Math.round(v) / 1e6),
+      series: series.map((s, i) => ({
+        name: s.label, type: 'bar', stack: 'time', barCategoryGap: '20%',
+        itemStyle: { color: colors[i], borderColor: resolveVar('--surface-raised'), borderWidth: 1 },
+        data: Array.from(s.values, (v) => Math.round(v) / 1e6),
       })),
     }
   }, [data, doc, bucketUs])

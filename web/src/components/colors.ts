@@ -47,3 +47,25 @@ export function chromeColors() {
 export function lightFill(role: Role): boolean {
   return role === 'commit' || role === 'idle' || role === 'unaccounted' || role === 'concurrency' || role === 'sysio'
 }
+
+let pixel: CanvasRenderingContext2D | null = null
+
+/** Any CSS color → [r, g, b] (via a 1px canvas, so oklch() and friends work too). */
+function rgbOf(color: string): [number, number, number] {
+  pixel ??= document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+  if (!pixel) return [128, 128, 128]
+  pixel.clearRect(0, 0, 1, 1)
+  pixel.fillStyle = color
+  pixel.fillRect(0, 0, 1, 1)
+  const d = pixel.getImageData(0, 0, 1, 1).data
+  return [d[0], d[1], d[2]]
+}
+
+/** The k-th shade of a role's color: k = 0 is the role color, higher k steps towards the surface (several events of one class). */
+export function roleShade(role: Role, k: number): string {
+  const base = cssColor(role)
+  if (k === 0) return base
+  const t = Math.min(0.6, 0.2 * k)
+  const a = rgbOf(base), s = rgbOf(resolveVar('--surface-raised'))
+  return `rgb(${a.map((v, i) => Math.round(v + (s[i] - v) * t)).join(', ')})`
+}

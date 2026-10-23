@@ -1,0 +1,19 @@
+/* shared mockup tokens — chrome is neutral, hue is reserved for data */
+:root{
+  --paper:#fbfbfc; --raised:#ffffff; --sunken:#f2f4f6; --wash:#eef0f3;
+  --ink:#1b1f26; --ink2:#5a6270; --ink3:#8e96a3; --rule:#e2e5e9; --rule2:#c9ced6;
+  --cpu:#2a78d6; --userio:#eb6834; --sysio:#1baf7a; --commit:#eda100; --conc:#e87ba4; --net:#0a8a2a; --other:#6250d6; --idle:#b4bac3; --unacc:repeating-linear-gradient(135deg,transparent 0 3px,#b4bac3 3px 4px);
+  --serious:#c9343a; --notable:#d7930a; --info:#5a6270;
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0}
+html{font:13px/1.45 var(--sans);color:var(--ink);background:var(--paper);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+b,strong{font-weight:600}
+.mono{font-family:var(--mono);font-size:.92em}
+.dim{color:var(--ink2)} .faint{color:var(--ink3)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+button{font:inherit;color:inherit;background:none;border:1px solid var(--rule2);border-radius:4px;padding:2px 9px;cursor:pointer}
+button.quiet{border-color:transparent;color:var(--ink2)}
+table{border-collapse:collapse;width:100%} th,td{padding:5px 9px;vertical-align:baseline} th{font-weight:500;color:var(--ink2);text-align:left;white-space:nowrap;border-bottom:1px solid var(--rule2)} td{border-bottom:1px solid var(--rule)} th.num,td.num{text-align:right}
+.sql{font-family:var(--mono);font-size:12px;line-height:1.55;white-space:pre-wrap;tab-size:4}

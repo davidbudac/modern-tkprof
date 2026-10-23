@@ -3,7 +3,7 @@ import type { TraceDoc } from './doc'
 import type { ID, StmtStats } from './types'
 import { CallKind, NONE } from './types'
 import { groupBy, sumOver } from './groupby'
-import { roleOfClass, roleLabel, type Role } from '../components/colors'
+import { roleOfClass, roleLabel, roleOrder, type Role } from '../components/colors'
 import type { Segment } from '../components/ProfileBar'
 
 export type RowFilter = ((i: number) => boolean) | undefined
@@ -139,41 +139,66 @@ export function bindPreview(doc: TraceDoc, set: ID, max = 60): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s
 }
 
-/** Timeline buckets by role (CPU of top-level calls at completion time; waits by class). */
-export function timelineByRole(doc: TraceDoc, bucketUs: number, callFilter: RowFilter, waitFilter: RowFilter) {
-  const roles: Role[] = ['cpu', 'userio', 'sysio', 'commit', 'concurrency', 'network', 'other', 'idle']
+export interface TimelineSeries { key: string; label: string; role: Role; values: Float64Array }
+
+/**
+ * Timeline buckets: CPU of top-level calls (spread over the call's duration) plus waits,
+ * either folded into wait classes or one series per event. In event mode the top
+ * `topEvents` events by time get their own series; the rest fold into "Other events".
+ */
+export function timeline(doc: TraceDoc, bucketUs: number, callFilter: RowFilter, waitFilter: RowFilter, by: 'class' | 'event' = 'class', topEvents = 10) {
   const base = doc.span.firstTim
   const span = doc.spanUs()
-  if (bucketUs <= 0 || span <= 0) return { roles, starts: [] as number[], series: new Map<Role, Float64Array>() }
+  if (bucketUs <= 0 || span <= 0) return { starts: [] as number[], series: [] as TimelineSeries[] }
   const n = Math.floor(span / bucketUs) + 1
-  const series = new Map<Role, Float64Array>()
-  for (const r of roles) series.set(r, new Float64Array(n))
+  const add = (arr: Float64Array, tim: number, dur: number, v: number) => {
+    if (dur <= bucketUs || v === 0) { arr[Math.min(n - 1, Math.max(0, Math.floor((tim - base) / bucketUs)))] += v; return }
+    const b0 = Math.max(0, Math.floor((tim - dur - base) / bucketUs)), b1 = Math.min(n - 1, Math.floor((tim - base) / bucketUs))
+    const per = v / (b1 - b0 + 1)
+    for (let b = b0; b <= b1; b++) arr[b] += per
+  }
   const c = doc.calls
-  const cpu = series.get('cpu')!
+  const cpu = new Float64Array(n)
   for (let i = 0; i < c.n; i++) {
     if (c.parent[i] !== NONE || !c.tim[i]) continue
     if (callFilter && !callFilter(i)) continue
-    // spread CPU over the call's duration so long calls do not spike one bucket
-    const e = c.e[i], cv = c.c[i]
-    if (e <= bucketUs || cv === 0) { cpu[Math.min(n - 1, Math.max(0, Math.floor((c.tim[i] - base) / bucketUs)))] += cv; continue }
-    const b0 = Math.max(0, Math.floor((c.tim[i] - e - base) / bucketUs)), b1 = Math.min(n - 1, Math.floor((c.tim[i] - base) / bucketUs))
-    const per = cv / (b1 - b0 + 1)
-    for (let b = b0; b <= b1; b++) cpu[b] += per
+    add(cpu, c.tim[i], c.e[i], c.c[i])
   }
   const w = doc.waits
-  const roleOfEvent = doc.events.map((ev) => roleOfClass(ev.class, ev.idle))
+  const perEvent: (Float64Array | undefined)[] = new Array(doc.events.length)
+  const totals = new Float64Array(doc.events.length)
   for (let i = 0; i < w.n; i++) {
     if (!w.tim[i]) continue
     if (waitFilter && !waitFilter(i)) continue
-    const arr = series.get(roleOfEvent[w.event[i]])!
-    const ela = w.ela[i]
-    if (ela <= bucketUs) { arr[Math.min(n - 1, Math.max(0, Math.floor((w.tim[i] - base) / bucketUs)))] += ela; continue }
-    const b0 = Math.max(0, Math.floor((w.tim[i] - ela - base) / bucketUs)), b1 = Math.min(n - 1, Math.floor((w.tim[i] - base) / bucketUs))
-    const per = ela / (b1 - b0 + 1)
-    for (let b = b0; b <= b1; b++) arr[b] += per
+    const ev = w.event[i]
+    const arr = (perEvent[ev] ??= new Float64Array(n))
+    add(arr, w.tim[i], w.ela[i], w.ela[i])
+    totals[ev] += w.ela[i]
   }
   const starts = Array.from({ length: n }, (_, i) => base + i * bucketUs)
-  return { roles, starts, series }
+  const series: TimelineSeries[] = [{ key: 'cpu', label: roleLabel.cpu, role: 'cpu', values: cpu }]
+  const roleOf = doc.events.map((ev) => roleOfClass(ev.class, ev.idle))
+  const used = doc.events.map((_, e) => e).filter((e) => totals[e] > 0)
+  if (by === 'class') {
+    const byRole = new Map<Role, Float64Array>()
+    for (const e of used) {
+      const arr = byRole.get(roleOf[e]) ?? new Float64Array(n)
+      byRole.set(roleOf[e], arr)
+      const src = perEvent[e]!
+      for (let b = 0; b < n; b++) arr[b] += src[b]
+    }
+    for (const r of roleOrder) { const arr = byRole.get(r); if (arr) series.push({ key: r, label: roleLabel[r], role: r, values: arr }) }
+    return { starts, series }
+  }
+  const ranked = [...used].sort((x, y) => totals[y] - totals[x])
+  const top = ranked.slice(0, topEvents).sort((x, y) => roleOrder.indexOf(roleOf[x]) - roleOrder.indexOf(roleOf[y]) || totals[y] - totals[x])
+  for (const e of top) series.push({ key: `ev${e}`, label: doc.events[e].name, role: roleOf[e], values: perEvent[e]! })
+  if (ranked.length > topEvents) {
+    const rest = new Float64Array(n)
+    for (const e of ranked.slice(topEvents)) { const src = perEvent[e]!; for (let b = 0; b < n; b++) rest[b] += src[b] }
+    series.push({ key: 'rest', label: `Other events (${ranked.length - topEvents})`, role: 'unaccounted', values: rest })
+  }
+  return { starts, series }
 }
 
 export function pickBucket(spanUs: number, target = 300): number {
