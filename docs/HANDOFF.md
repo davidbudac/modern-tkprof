@@ -252,6 +252,16 @@ left out of remote executions; remote pivot labels are formatted by Go.
 - **Multi-file line viewer**: links pass `?file=i`; drawer names the file.
 - **LICENSE**: Apache-2.0 added (publishing the repo is still the user's call).
 
+## Spill mode: done (2026-10-24)
+
+`serve -spill[=DIR]` builds in aggregate mode and writes the fact rows to
+compact columnar temp files (`internal/slice` `diskSource`, plain ReadAt, no
+mmap; per-statement indexes; stale-dir cleanup; removed on exit/signals).
+Every slice endpoint answers from disk with the same JSON as the in-memory
+source (`TestSpillAllFixtures`). 1 GB trace: 66 MB RSS idle, pivot 290 ms,
+executions page 174 ms, 1.06 GB of spill files. `trace.LineIndex` is now
+sparse (every 64th line). `/api/executions` streams one page.
+
 ## Still open
 
 - Publish the repo; push a tag to exercise the release job.
@@ -260,7 +270,6 @@ left out of remote executions; remote pivot labels are formatted by Go.
 - Shared core package with the visualizer (DESIGN.md v2 note); the overlay
   is a Go port instead.
 - 12.2 / 21c / 23ai fixtures: no lab exists.
-- Spill facts to disk for drill-down on traces that do not fit in memory.
 
 ## Known gaps and small bugs
 
