@@ -87,7 +87,7 @@ size"). `-lowmem` (`report`, `pivot`, `html`, `json`, `serve`, `export`) does
 not retain bind values: no BINDS sections, no binds column in the executions
 tables, no bind evidence in findings, no `binds.csv` rows and no bind views in
 the UI. Every other number is identical; calls and waits are always kept, because
-every aggregation reads them. `html`/`serve`/`json` also take `-facts=false` to
+every aggregation reads them (unless you use `-aggregate`, below). `html`/`serve`/`json` also take `-facts=false` to
 leave the raw fact tables (and with them the UI's drill-down) out of the
 document. For `html`/`json` that makes the Pivot, Timeline, executions and
 event drill-downs unavailable; for `serve` it does the opposite: with
@@ -98,6 +98,17 @@ few hundred kB and stays fully interactive on a trace whose fact tables would
 be millions of rows. The server then holds the model in memory (big_loop,
 118 MB trace: ~300 MB RSS instead of ~40 MB), and `Download CSV` of the Pivot
 asks it for every group.
+
+For traces of 10 GB and up use `-aggregate` (`report`, `html`, `json`, `serve`;
+implies `-lowmem` and `-facts=false`): calls and waits are folded into
+aggregates while the trace is read and never stored, so memory is independent
+of the trace size (a 10 GB trace: about 0.5 GB, 32 s, instead of ~20 GB).
+Statement call tables, resource profiles, sessions, time buckets, recursive
+links and findings are the same as without it. Left out: the per-execution
+tables and bind sections of the text report (the `Executions: n, min, avg, max,
+slowest` line stays) and the raw fact tables of the document (no drill-down,
+no Pivot; `serve -aggregate` serves the document without slicing). The report
+header says so. Details: `docs/ARCHITECTURE.md`, "Aggregation-only mode".
 
 Reference bundle: a trace carries only numbers (obj#, file#, user ids) and
 no plan text. `mtkprof refscript` writes a read-only SQL*Plus script tailored
