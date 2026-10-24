@@ -145,7 +145,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
     ),
   }
   const identityCols: Column<CtxRow>[] = [
-    { key: 'line', header: multiFile ? 'File:line' : 'Line', align: 'end', render: (r) => (multiFile ? <>{r.ctx.fileIdx ?? 0}:<LineRef line={r.ctx.line} bare /></> : <LineRef line={r.ctx.line} bare />), sort: (r) => r.order },
+    { key: 'line', header: multiFile ? 'File:line' : 'Line', align: 'end', render: (r) => (multiFile ? <>{r.ctx.fileIdx ?? 0}:<LineRef line={r.ctx.line} file={r.ctx.fileIdx ?? 0} bare /></> : <LineRef line={r.ctx.line} bare />), sort: (r) => r.order },
     { key: 'sess', header: 'Session', className: 'mono', render: (r) => (
       <>{r.child && <span className="dim" title="PX slave, attached to its query coordinator">↳ </span>}{sessionLabel(r.ctx)}{r.ctx.px && <span className="chip-q" style={{ marginLeft: '0.4rem' }}>PX</span>}</>
     ), sort: (r) => sessionLabel(r.ctx) },

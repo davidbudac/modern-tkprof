@@ -2,11 +2,11 @@ import { actions, useStore } from '../app/store'
 import { fmtInt } from '../data/format'
 
 /**
- * A trace line number. Under `mtkprof serve` it is a link that opens the raw line viewer;
+ * A trace line number (`file` = input file index of a multi-file trace). Under `mtkprof serve` it is a link that opens the raw line viewer;
  * in the standalone HTML (no server to read the file) it is plain text.
  * `bare` shows just the number (table cells); otherwise "line N".
  */
-export function LineRef({ line, bare, className }: { line: number; bare?: boolean; className?: string }) {
+export function LineRef({ line, file = 0, bare, className }: { line: number; file?: number; bare?: boolean; className?: string }) {
   const available = useStore((s) => s.linesAvailable)
   if (!line || line <= 0) return null
   const text = bare ? fmtInt(line) : `line ${fmtInt(line)}`
@@ -14,7 +14,7 @@ export function LineRef({ line, bare, className }: { line: number; bare?: boolea
   return (
     <button className={'link lineref' + (className ? ' ' + className : '')} title={`view trace line ${fmtInt(line)}`}
       onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); actions.openLines(line) }}>
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); actions.openLines(line, file) }}>
       {text}
     </button>
   )

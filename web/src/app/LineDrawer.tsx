@@ -14,13 +14,16 @@ export function LineDrawer() {
   const bodyRef = useRef<HTMLDivElement>(null)
   const center = viewer?.center ?? 1
   const target = viewer?.target ?? 1
+  const file = viewer?.file ?? 0
+  const doc = useStore((s) => s.doc)
+  const fileName = doc?.traceFileName(file) ?? ''
 
   useEffect(() => {
     const ac = new AbortController()
     setError(null)
-    fetchLines(Math.max(1, center - HALF), LINES_PAGE, ac.signal, side).then(setPage, (e) => { if (!ac.signal.aborted) setError(String(e)) })
+    fetchLines(Math.max(1, center - HALF), LINES_PAGE, ac.signal, side, file).then(setPage, (e) => { if (!ac.signal.aborted) setError(String(e)) })
     return () => ac.abort()
-  }, [center, side])
+  }, [center, side, file])
 
   // bring the target line (or the page start when paging) into view
   useEffect(() => {
@@ -36,7 +39,7 @@ export function LineDrawer() {
   return (
     <aside className="linedrawer" aria-label="Trace lines">
       <div className="linedrawer-head">
-        <h2>Trace lines</h2>
+        <h2>Trace lines{fileName && <small className="mono"> · {fileName}</small>}</h2>
         <span className="hint">{page && page.lines.length ? `${fmtInt(page.from)}–${fmtInt(last)}${page.total ? ` of ${fmtInt(page.total)}` : ''}` : ''}</span>
         <span className="tools">
           <button onClick={() => actions.pageLines(center - LINES_PAGE + 1)} disabled={!page || page.from <= 1} title="the 80 lines before">‹ Prev</button>

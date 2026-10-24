@@ -133,6 +133,16 @@ export class TraceDoc {
     return new TraceDoc(raw, calls, waits, bindSets, binds)
   }
 
+  /** input file (index into `file.files`) a context came from; 0 for a single-file trace */
+  fileOfCtx(ctx: ID): number { return this.contexts[ctx]?.fileIdx ?? 0 }
+  fileOfCursor(cursor: ID): number { return this.fileOfCtx(this.cursors[cursor]?.context ?? -1) }
+  /** a statement's file: that of its first cursor (a statement seen in several files shows its first) */
+  fileOfStmt(stmt: ID): number { const c = this.statements[stmt]?.cursors[0]; return c === undefined ? 0 : this.fileOfCursor(c) }
+  /** the trace has more than one input file */
+  get multiFile(): boolean { return (this.file.files?.length ?? 1) > 1 }
+  /** display name of input file `i` (empty for a single-file trace) */
+  traceFileName(i: number): string { const fs = this.file.files; return fs && fs.length > 1 ? fs[i]?.name ?? `file ${i}` : '' }
+
   get callsByStmt(): Index { return (this._callsByStmt ??= new Index(this.calls.stmt, this.statements.length)) }
   get waitsByStmt(): Index { return (this._waitsByStmt ??= new Index(this.waits.stmt, this.statements.length)) }
   get waitsByCall(): Index { return (this._waitsByCall ??= new Index(this.waits.call, this.calls.n)) }

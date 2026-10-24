@@ -85,7 +85,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       if (start <= 0 && end >= 100) { if (getState().window) actions.setWindow(null); return }
       actions.setWindow({ startTim: doc.span.firstTim + (span * start) / 100, endTim: doc.span.firstTim + (span * end) / 100 })
     },
-    click: (p: unknown) => { const d = (p as { data?: number[] }).data; if (d && getState().linesAvailable) actions.openLines(dots[d[2]].line) },
+    click: (p: unknown) => { const d = (p as { data?: number[] }).data; if (d && getState().linesAvailable) actions.openLines(dots[d[2]].line, dots[d[2]].file ?? doc.fileOfStmt(dots[d[2]].stmt)) },
   }), [doc, span, dots])
   const slowest = slowestQ.data ?? []
   const byStmt: KeyAgg[] = byStmtQ.data ?? []
@@ -124,7 +124,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
                   <td>{doc.wallOffsetUs ? fmtWall(doc.wallOf(t), doc.tzOffsetMin) : `+${fmtDur(t - doc.span.firstTim)}`}</td>
                   <td className="num">{fmtDur(x.ela)}</td>
                   <td>{st ? <StmtLink doc={doc} id={x.stmt} /> : '–'}</td>
-                  <td className="num"><LineRef line={x.line} bare /></td>
+                  <td className="num"><LineRef line={x.line} file={x.file ?? doc.fileOfStmt(x.stmt)} bare /></td>
                 </tr>) })}
             </tbody>
           </table></div>

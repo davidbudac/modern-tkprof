@@ -34,7 +34,7 @@ export interface State {
   /** `mtkprof serve` is answering GET /api/lines (the standalone HTML has no server). */
   linesAvailable: boolean
   /** Raw trace line viewer: `target` is highlighted, `center` is the middle of the page shown. */
-  lineViewer: { target: number; center: number } | null
+  lineViewer: { target: number; center: number; file: number } | null
 }
 
 const initial: State = {
@@ -99,7 +99,7 @@ export const actions = {
   setContexts(contexts: Set<ID> | null) { setState({ contexts }) },
   toggleIdle() { setState((s) => ({ includeIdle: !s.includeIdle })) },
   setInclusive(inclusive: boolean) { setState({ inclusive }) },
-  openLines(line: number) { setState({ lineViewer: { target: line, center: line } }) },
+  openLines(line: number, file = 0) { setState({ lineViewer: { target: line, center: line, file } }) },
   pageLines(center: number) { setState((s) => (s.lineViewer ? { lineViewer: { ...s.lineViewer, center: Math.max(1, center) } } : {})) },
   closeLines() { setState({ lineViewer: null }) },
   setTheme(theme: State['theme']) {

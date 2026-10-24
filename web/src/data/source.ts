@@ -58,7 +58,9 @@ export interface PivotData {
 }
 
 /** A call as the Timeline view draws it. */
-export interface Bar { id: number; stmt: ID; kind: number; tim: number; e: number; c: number; r: number; line: number; dep: number; execNo: number }
+export interface Bar { id: number; stmt: ID; kind: number; tim: number; e: number; c: number; r: number; line: number; dep: number; execNo: number
+  /** input file of a multi-file trace when known (else take the statement's) */
+  file?: number }
 
 export interface CallsPicked {
   /** calls with a time stamp in scope */
@@ -101,9 +103,9 @@ export interface ExecDetail {
 }
 
 export interface WaitHist { count: number; us: number; counts: number[]; sums: number[] }
-export interface ScatterPoint { tim: number; ela: number; line: number; stmt: ID }
+export interface ScatterPoint { tim: number; ela: number; line: number; stmt: ID; file?: number }
 export interface ScatterData { total: number; points: ScatterPoint[] }
-export interface WaitRow { tim: number; ela: number; line: number; stmt: ID }
+export interface WaitRow { tim: number; ela: number; line: number; stmt: ID; file?: number }
 export interface KeyAgg { key: number; count: number; sum: number }
 
 export interface DataSource {
@@ -244,7 +246,7 @@ export class LocalSource implements DataSource {
       return idx.filter((i) => c.e[i] >= th)
     })()
     longest.sort((a, b) => c.e[b] - c.e[a])
-    const bar = (i: number): Bar => ({ id: i, stmt: c.stmt[i], kind: c.kind[i], tim: c.tim[i], e: c.e[i], c: c.c[i], r: c.r[i], line: c.line[i], dep: c.dep[i], execNo: c.execNo[i] })
+    const bar = (i: number): Bar => ({ id: i, stmt: c.stmt[i], kind: c.kind[i], tim: c.tim[i], e: c.e[i], c: c.c[i], r: c.r[i], line: c.line[i], dep: c.dep[i], execNo: c.execNo[i], file: this.doc.fileOfCtx(c.ctx[i]) })
     return { total, sampled, bars: keep.map(bar), longest: longest.slice(0, 20).map(bar) }
   }
 
@@ -315,7 +317,7 @@ export class LocalSource implements DataSource {
     const ids: number[] = []
     for (let i = 0; i < w.n; i++) if (w.event[i] === event && w.tim[i] && (!wf || wf(i))) ids.push(i)
     const dots = sampleWaits(ids, w.ela, MAX_DOTS)
-    return { total: ids.length, points: dots.map((i) => ({ tim: w.tim[i], ela: w.ela[i], line: w.line[i], stmt: w.stmt[i] })) }
+    return { total: ids.length, points: dots.map((i) => ({ tim: w.tim[i], ela: w.ela[i], line: w.line[i], stmt: w.stmt[i], file: this.doc.fileOfCtx(w.ctx[i]) })) }
   }
 
   private waitIds(event: ID, scope: Scope): number[] {
@@ -329,7 +331,7 @@ export class LocalSource implements DataSource {
   waitTop(event: ID, scope: Scope, limit: number): WaitRow[] {
     const w = this.doc.waits
     return this.waitIds(event, scope).sort((a, b) => w.ela[b] - w.ela[a]).slice(0, limit)
-      .map((i) => ({ tim: w.tim[i], ela: w.ela[i], line: w.line[i], stmt: w.stmt[i] }))
+      .map((i) => ({ tim: w.tim[i], ela: w.ela[i], line: w.line[i], stmt: w.stmt[i], file: this.doc.fileOfCtx(w.ctx[i]) }))
   }
 
   waitsBy(event: ID, scope: Scope, by: 'stmt' | 'obj' | 'p1', limit: number): KeyAgg[] {
