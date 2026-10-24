@@ -68,7 +68,7 @@ func TestFindingsAllFixtures(t *testing.T) {
 					t.Errorf("finding %d: statement %d out of range", i, x.Statement)
 				}
 			}
-			all := allExecutions(m)
+			all := AllExecutions(m)
 			for sid := range m.Statements {
 				want := Executions(m, model.ID(sid))
 				if len(want) == 0 && len(all[sid]) == 0 {

@@ -21,6 +21,17 @@ type textWriter struct {
 	stats []analyze.StmtStats
 	rank  map[model.ID]int // statement -> rank number in the listing
 	loc   *time.Location
+	execs [][]analyze.Execution // executions of every statement, built on first use
+}
+
+// allExecs builds the executions of all statements in one pass over the calls
+// (per statement it would be statements x calls) and shares them between the
+// per-statement tables and the findings.
+func (t *textWriter) allExecs() [][]analyze.Execution {
+	if t.execs == nil {
+		t.execs = analyze.AllExecutions(t.m)
+	}
+	return t.execs
 }
 
 func writeText(out io.Writer, m *model.Model, o TextOptions) error {
@@ -490,7 +501,7 @@ func (t *textWriter) waitDetail(sid model.ID) {
 }
 
 func (t *textWriter) executions(sid model.ID, s *analyze.StmtStats) {
-	ex := analyze.Executions(t.m, sid)
+	ex := t.allExecs()[sid]
 	if len(ex) < 2 {
 		return
 	}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"sort"
 	"strconv"
@@ -81,6 +82,7 @@ func main() {
 		usage()
 	}
 	cmd, args := os.Args[1], os.Args[2:]
+	tuneGC()
 	stopProf := startProfiles()
 	var err error
 	switch cmd {
@@ -114,6 +116,17 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
+	}
+}
+
+// tuneGC lowers the collector's heap growth target from the default 100 %.
+// The memory of a big trace is a few huge pointer-free slices (the fact
+// tables), which the collector does not scan, so collecting earlier costs
+// little and keeps the peak close to the live size. GOGC in the environment
+// wins.
+func tuneGC() {
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(40)
 	}
 }
 
@@ -410,6 +423,13 @@ func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	what := files[0]
 	if n := len(m.File.Files); n > 1 {
 		what = fmt.Sprintf("%d files (%s ...)", n, m.File.Files[0].Name)
+	}
+	if p := os.Getenv("MTKPROF_HEAPPROFILE"); p != "" { // heap in use right after the build
+		if f, err := os.Create(p); err == nil {
+			runtime.GC()
+			pprof.WriteHeapProfile(f)
+			f.Close()
+		}
 	}
 	fmt.Fprintf(os.Stderr, "parsed %s: %d lines, %.1f MB in %s\n", what, m.Diag.Lines, float64(m.Diag.Bytes)/1e6, time.Since(start).Round(time.Millisecond))
 	return m, nil

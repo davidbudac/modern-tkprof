@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/davidbudac/modern-tkprof/internal/ref"
 	"github.com/davidbudac/modern-tkprof/internal/trace"
@@ -73,6 +74,37 @@ func NewBuilder(path string, opts Options) *Builder {
 	}
 	b.m.Diag.LineKinds = make(map[string]int)
 	return b
+}
+
+// Reserve pre-sizes the fact tables for the given expected row counts so that
+// the big slices are allocated once instead of growing by repeated copies
+// (each growth step briefly holds the old and the new array and costs a
+// quarter more than the table is worth, which is where most of the peak
+// memory of a large parse used to go). The reservation is capped; a wrong
+// guess costs a growth step, never a failure, and untouched capacity is not
+// resident memory.
+func (b *Builder) Reserve(calls, waits, binds, bindSets int64) {
+	const capBytes = 4 << 30
+	room := func(n, elem int64) int {
+		if n < 0 {
+			n = 0
+		}
+		if n*elem > capBytes {
+			n = capBytes / elem
+		}
+		return int(n)
+	}
+	m := b.m
+	if len(m.Calls) == 0 {
+		m.Calls = make([]Call, 0, room(calls, int64(unsafe.Sizeof(Call{}))))
+	}
+	if len(m.Waits) == 0 {
+		m.Waits = make([]Wait, 0, room(waits, int64(unsafe.Sizeof(Wait{}))))
+	}
+	if len(m.Binds) == 0 {
+		m.Binds = make([]Bind, 0, room(binds, int64(unsafe.Sizeof(Bind{}))))
+		m.BindSets = make([]BindSet, 0, room(bindSets, int64(unsafe.Sizeof(BindSet{}))))
+	}
 }
 
 // Build parses the single file at path into a Model; chains are not followed
