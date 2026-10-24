@@ -250,8 +250,6 @@ left out of remote executions; remote pivot labels are formatted by Go.
 - **Web unit tests**: vitest (27 tests: planviz, columns format 3, pickBucket
   parity with Go, delta); `pnpm test` runs inside `make test` and CI.
 - **Multi-file line viewer**: links pass `?file=i`; drawer names the file.
-  Rows from the slice API carry no context yet and fall back to the
-  statement's first cursor's file.
 - **LICENSE**: Apache-2.0 added (publishing the repo is still the user's call).
 
 ## Still open
@@ -263,7 +261,6 @@ left out of remote executions; remote pivot labels are formatted by Go.
   is a Go port instead.
 - 12.2 / 21c / 23ai fixtures: no lab exists.
 - Spill facts to disk for drill-down on traces that do not fit in memory.
-- Slice API: return `ctx` on calls/waits so multi-file line links are exact.
 
 ## Known gaps and small bugs
 
