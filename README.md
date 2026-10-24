@@ -33,6 +33,8 @@ mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -o plan.json   # plan(s) as JSON 
 mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -viz           # "Open in plan viz" link (plan stays in the URL fragment)
 mtkprof refscript trace.trc -o ref.sql  # SQL*Plus script for the DBA: names for the trace's obj#/file#/uid, DBMS_XPLAN per sql_id (-lite: ALL_ views only)
 mtkprof report trace.trc -ref ref/       # apply the spooled bundle (also html, serve, json, export, pivot, plan): object/datafile/user names + DBMS_XPLAN
+mtkprof compare a.trc b.trc -n 30       # text report of B against A: totals, profiles, changed/new/missing statements, wait events
+mtkprof serve  a.trc b.trc -compare      # the UI with a Compare tab (also html, json): A/B toggle in the top bar switches the trace the views show
 mtkprof lint   trace.trc                 # what the parser saw: line kinds, events, unknown lines
 ```
 
@@ -70,6 +72,16 @@ The text and HTML reports share one model:
 * **Timeline**: activity over time; brush a window and every view follows.
 * **Sessions**: module / action / client id / service / session contexts, with
   filtering (trcsess merges included).
+* **Compare** (two traces, before/after a change): `mtkprof compare a.trc b.trc`
+  or `html|serve|json a.trc b.trc -compare`. Statements are matched by sql_id
+  (statements without one by kind and normalised text), wait events by name.
+  The Compare tab shows totals (A, B, Δ with a coloured sign), both profiles on
+  one time scale, the statements ranked by |Δ elapsed| (new, missing, slower,
+  faster, plan changed) and the wait-event deltas; click a statement to open it
+  in the Statements workbench of trace A or B (A/B toggle in the top bar).
+  In the Statements workbench any two executions of one statement can be ticked
+  (or shift-clicked) for an "Execution A vs B" panel: call statistics, waits by
+  event, bind values (differing ones highlighted) and plan hash.
 * **Pivot**: pick a fact table (calls or waits), one or two dimensions and the
   measures; download as CSV. `mtkprof pivot` gives the same group-by on the
   command line (any number of `-by` dimensions up to 4, `-window` as wall

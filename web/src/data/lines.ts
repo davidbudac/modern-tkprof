@@ -13,8 +13,9 @@ export async function probeLines(): Promise<boolean> {
 
 export interface LinePage { from: number; lines: string[]; total: number }
 
-export async function fetchLines(from: number, n: number, signal?: AbortSignal): Promise<LinePage> {
-  const res = await fetch(`/api/lines?from=${from}&n=${n}`, { signal })
+/** `side` picks the trace of a comparison served by `mtkprof serve a b -compare`. */
+export async function fetchLines(from: number, n: number, signal?: AbortSignal, side?: 'a' | 'b'): Promise<LinePage> {
+  const res = await fetch(`/api/lines?from=${from}&n=${n}${side ? `&side=${side}` : ''}`, { signal })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   const text = await res.text()
   const lines = text === '' ? [] : text.replace(/\r?\n$/, '').split('\n').map((l) => l.replace(/\r$/, ''))

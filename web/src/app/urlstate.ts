@@ -1,5 +1,5 @@
 import type { TraceDoc } from '../data/doc'
-import { getState, setState, subscribeStore, type State, type View } from './store'
+import { getState, setState, subscribeStore, type Side, type State, type View } from './store'
 
 /**
  * View, selected statement / wait event and time window live in the URL hash:
@@ -8,9 +8,9 @@ import { getState, setState, subscribeStore, type State, type View } from './sto
  * event name, `win` the window as microseconds from the start of the trace.
  * The `?doc=` query string is left alone.
  */
-const views: View[] = ['overview', 'statements', 'waits', 'timeline', 'sessions', 'pivot']
+const views: View[] = ['overview', 'statements', 'waits', 'timeline', 'sessions', 'pivot', 'compare']
 
-type Wanted = { view: View; sql: string; ev: string; win: [number, number] | null }
+type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null }
 
 function sqlKey(doc: TraceDoc, id: number | null): string {
   if (id === null) return ''
@@ -24,6 +24,7 @@ function wanted(doc: TraceDoc, s: State): Wanted {
   const w = s.window
   return {
     view: s.view,
+    side: s.compare ? s.side : 'a',
     sql: sqlKey(doc, s.selection.stmt),
     ev: s.selection.event === null ? '' : doc.events[s.selection.event]?.name ?? '',
     win: w ? [Math.round(w.startTim - doc.span.firstTim), Math.round(w.endTim - doc.span.firstTim)] : null,
@@ -33,6 +34,7 @@ function wanted(doc: TraceDoc, s: State): Wanted {
 function format(w: Wanted): string {
   const p = new URLSearchParams()
   if (w.view !== 'overview') p.set('view', w.view)
+  if (w.side === 'b') p.set('side', 'b')
   if (w.sql) p.set('sql', w.sql)
   if (w.ev) p.set('ev', w.ev)
   if (w.win) p.set('win', `${w.win[0]}-${w.win[1]}`)
@@ -45,6 +47,7 @@ function parse(hash: string): Partial<Wanted> {
   const out: Partial<Wanted> = {}
   const v = p.get('view')
   if (v && (views as string[]).includes(v)) out.view = v as View
+  if (p.get('side') === 'b') out.side = 'b'
   if (p.has('sql')) out.sql = p.get('sql')!
   if (p.has('ev')) out.ev = p.get('ev')!
   const m = /^(-?\d+)-(\d+)$/.exec(p.get('win') ?? '')
@@ -53,8 +56,11 @@ function parse(hash: string): Partial<Wanted> {
 }
 
 /** Applies a hash to the store (unknown sql_ids / events are ignored). */
-function apply(doc: TraceDoc, hash: string): void {
+function apply(doc: TraceDoc, hash: string): TraceDoc {
   const w = parse(hash)
+  const cmp = getState().compare
+  const side: Side = cmp && w.side === 'b' ? 'b' : 'a'
+  if (cmp) doc = cmp[side]
   let stmt: number | null = null
   if (w.sql) {
     stmt = w.sql.startsWith('@') ? Number(w.sql.slice(1)) : doc.statements.findIndex((x) => x.sqlId === w.sql)
@@ -62,11 +68,14 @@ function apply(doc: TraceDoc, hash: string): void {
   }
   const ev = w.ev ? doc.events.findIndex((e) => e.name === w.ev) : -1
   const base = doc.span.firstTim
+  const view = w.view === 'compare' && !cmp ? undefined : w.view
   setState({
-    view: w.view ?? (stmt !== null ? 'statements' : 'overview'),
+    doc, side: cmp ? side : 'a',
+    view: view ?? (stmt !== null ? 'statements' : 'overview'),
     selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: null },
     window: w.win && w.win[1] > w.win[0] ? { startTim: base + w.win[0], endTim: base + w.win[1] } : null,
   })
+  return doc
 }
 
 /**
@@ -80,7 +89,7 @@ export function startUrlSync(): void {
   let last = '' // the hash the store currently corresponds to
   let prev: State | null = null
   let applying = false // store updates caused by a hash must not write one back
-  const restore = (d: TraceDoc) => { applying = true; try { apply(d, location.hash) } finally { applying = false } }
+  const restore = (d: TraceDoc) => { applying = true; try { doc = apply(d, location.hash) } finally { applying = false } }
   const write = (replace: boolean) => {
     if (!doc) return
     const hash = format(wanted(doc, getState()))
@@ -92,6 +101,13 @@ export function startUrlSync(): void {
   subscribeStore(() => {
     if (applying) return
     const s = getState()
+    if (s.doc !== doc && doc && s.doc && s.compare && (s.doc === s.compare.a || s.doc === s.compare.b) && (doc === s.compare.a || doc === s.compare.b)) {
+      // the A/B toggle (or "open on side X"): the store already holds the new selection, record it
+      doc = s.doc
+      prev = s
+      write(false)
+      return
+    }
     if (s.doc !== doc) {
       doc = s.doc
       prev = null

@@ -18,7 +18,7 @@ export interface TableProps<T> {
   columns: Column<T>[]
   rows: T[]
   rowKey: (row: T) => string | number
-  onRowClick?: (row: T) => void
+  onRowClick?: (row: T, e?: React.MouseEvent) => void
   selectedKey?: string | number | null
   defaultSort?: { key: string; dir: 'asc' | 'desc' }
   rowHeight?: number
@@ -84,7 +84,7 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, d
               const k = rowKey(row)
               return (
                 <tr key={k} className={onRowClick ? 'row-click' : undefined} aria-selected={selectedKey === k ? 'true' : undefined}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined} style={{ height: rowHeight }}>
+                  onClick={onRowClick ? (e) => onRowClick(row, e) : undefined} style={{ height: rowHeight }}>
                   {columns.map((c) => {
                     const cls = [c.align === 'end' ? 'num' : '', c.className ?? '', c.bar ? 'bar' : ''].join(' ').trim()
                     const v = c.bar && c.sort ? Number(c.sort(row)) || 0 : 0

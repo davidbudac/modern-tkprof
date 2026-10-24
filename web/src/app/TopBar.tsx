@@ -13,12 +13,16 @@ const tabs: { id: View; label: string }[] = [
   { id: 'pivot', label: 'Pivot' },
 ]
 
+const compareTab = { id: 'compare' as View, label: 'Compare' }
+
 const themeNext = { auto: 'light', light: 'dark', dark: 'auto' } as const
 const themeGlyph = { auto: '◐', light: '○', dark: '●' } as const
 
 /** File, the whole-trace profile in miniature, the views, filters and theme. */
 export function TopBar({ doc }: { doc: TraceDoc }) {
   const state = useStore((s) => s)
+  const compare = state.compare
+  const shownTabs = compare ? [compareTab, ...tabs] : tabs
   const name = (doc.file.traceFile || doc.file.path).split(/[\\/]/).pop()
   const totalUs = doc.spanUs()
   const segs = useMemo(() => traceSegments(doc, callFilter({ ...state, window: null }), waitFilter({ ...state, window: null }), totalUs).filter((s) => s.us > 0), [doc, state.contexts, state.includeIdle, totalUs])
@@ -26,8 +30,15 @@ export function TopBar({ doc }: { doc: TraceDoc }) {
   const counts: Partial<Record<View, number>> = { statements: doc.statements.length, waits: doc.events.length, sessions: doc.contexts.length }
   const win = state.window
   return (
-    <header className="topbar">
+    <header className={'topbar' + (compare ? ' cmp' : '')}>
       <span className="brand">mtkprof</span>
+      {compare && (
+        <span className="seg side" role="group" aria-label="Trace shown by the views" title="which trace the Overview, Statements, Waits, ... show">
+          {(['a', 'b'] as const).map((k) => (
+            <button key={k} aria-pressed={state.side === k} onClick={() => actions.setSide(k)} title={(compare[k].file.traceFile || compare[k].file.path).split(/[\\/]/).pop()}>{k.toUpperCase()}</button>
+          ))}
+        </span>
+      )}
       <span className="file mono" title={doc.file.traceFile || doc.file.path}>{name}<span className="dim"> · {fmtBytes(doc.diag.bytes)}</span></span>
       <span className="mini" title="response time of the whole trace, by class">
         <b>{fmtDur(totalUs)}</b>
@@ -37,7 +48,7 @@ export function TopBar({ doc }: { doc: TraceDoc }) {
         <span className="dim">{top.map((s) => `${fmtPct(s.us, totalUs, 0)} ${s.label}`).join(' · ')}</span>
       </span>
       <nav className="tabs" aria-label="Views">
-        {tabs.map((t) => (
+        {shownTabs.map((t) => (
           <button key={t.id} className="tab" aria-current={state.view === t.id ? 'page' : undefined} onClick={() => actions.setView(t.id)}>
             {t.label}{counts[t.id] !== undefined && <small>{counts[t.id]}</small>}
           </button>

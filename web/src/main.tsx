@@ -6,7 +6,7 @@ import './styles/base.css'
 import './styles/app.css'
 import { App } from './app/App'
 import { loadInitial } from './data/load'
-import { setState } from './app/store'
+import { setState, setLoaded } from './app/store'
 import { startUrlSync } from './app/urlstate'
 import { probeLines } from './data/lines'
 
@@ -16,5 +16,5 @@ startUrlSync()
 void probeLines().then((linesAvailable) => setState({ linesAvailable }))
 
 loadInitial()
-  .then((doc) => setState({ doc, loading: false, error: null }))
+  .then((l) => (l ? setLoaded(l) : setState({ doc: null, loading: false, error: null })))
   .catch((e) => setState({ loading: false, error: String(e) }))

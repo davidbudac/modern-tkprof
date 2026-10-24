@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useStore, actions, getState, setState } from './store'
+import { useStore, actions, getState, setState, setLoaded } from './store'
 import { TopBar, SubBar } from './TopBar'
 import { Inspector } from './Inspector'
 import { LineDrawer } from './LineDrawer'
@@ -12,6 +12,7 @@ import { Waits } from '../views/Waits'
 import { Timeline } from '../views/Timeline'
 import { Sessions } from '../views/Sessions'
 import { Pivot } from '../views/Pivot'
+import { Compare } from '../views/Compare'
 import { loadFile } from '../data/load'
 
 export function App() {
@@ -19,6 +20,7 @@ export function App() {
   const loading = useStore((s) => s.loading)
   const error = useStore((s) => s.error)
   const view = useStore((s) => s.view)
+  const compare = useStore((s) => s.compare)
   const event = useStore((s) => s.selection.event)
   const lines = useStore((s) => s.lineViewer !== null)
   const [inspectorW, setInspectorW] = usePersisted<number | null>('mtkprof.inspectorW', null)
@@ -53,6 +55,7 @@ export function App() {
           {view === 'timeline' && <Timeline doc={doc} />}
           {view === 'sessions' && <Sessions doc={doc} />}
           {view === 'pivot' && <Pivot doc={doc} />}
+          {view === 'compare' && compare && <Compare data={compare} />}
         </main>
         {hasInspector && <Inspector doc={doc} />}
         {hasInspector && <ResizeHandle anchor="end" className="resizer-inspector" label="Resize details pane" onChange={setInspectorW} />}
@@ -66,13 +69,13 @@ function Landing({ error }: { error: string | null }) {
   const onFile = async (f: File | undefined) => {
     if (!f) return
     setState({ loading: true })
-    try { setState({ doc: await loadFile(f), loading: false, error: null }) } catch (e) { setState({ loading: false, error: String(e) }) }
+    try { setLoaded(await loadFile(f)) } catch (e) { setState({ loading: false, error: String(e) }) }
   }
   return (
     <div className="loading">
       <div className="drop" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void onFile(e.dataTransfer.files[0]) }}>
         <h1>mtkprof</h1>
-        <p className="muted">Open a trace document (<code>mtkprof json -packed</code>) to explore it, or run <code>mtkprof serve trace.trc</code>.</p>
+        <p className="muted">Open a trace document (<code>mtkprof json -packed</code>, or <code>mtkprof json a.trc b.trc -compare -packed</code>) to explore it, or run <code>mtkprof serve trace.trc</code>.</p>
         {error && <p className="muted small">Could not load the embedded document: {error}</p>}
         <p><input type="file" accept=".json,application/json" onChange={(e) => void onFile(e.target.files?.[0])} /></p>
       </div>
