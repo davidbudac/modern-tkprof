@@ -9,6 +9,7 @@ build: ## build the binary for this machine into bin/
 
 test:
 	$(GO) test ./...
+	@if [ -d web/node_modules ]; then cd web && pnpm test; else echo "web/node_modules missing: skipping UI unit tests (cd web && pnpm install)"; fi
 
 web: ## build the web UI and embed it (needs node + pnpm)
 	cd web && pnpm install --silent && pnpm build
