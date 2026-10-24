@@ -15,6 +15,10 @@ func (b *Builder) aggCall(call *Call, c trace.Call, curID ID, cur *Cursor) {
 	case trace.CallExec:
 		cur.Execs++
 		call.ExecNo = cur.Execs
+		if bs, ok := b.pendingBinds[c.Cursor]; ok {
+			delete(b.pendingBinds, c.Cursor)
+			call.BindSet = bs
+		}
 	case trace.CallFetch:
 		call.ExecNo = cur.Execs
 	case trace.CallClose:
@@ -42,7 +46,7 @@ func (b *Builder) completeCall(call *Call, dep int) {
 		b.pendA = append(b.pendA, nil)
 		b.pendSum = append(b.pendSum, [5]int64{})
 	}
-	b.pendA[dep] = append(b.pendA[dep], ChildRec{Cursor: call.Cursor, Context: call.Context, Tim: call.Tim, E: call.E, C: call.C, R: call.R, Kind: call.Kind})
+	b.pendA[dep] = append(b.pendA[dep], ChildRec{ID: call.ID, Cursor: call.Cursor, Context: call.Context, Tim: call.Tim, E: call.E, C: call.C, R: call.R, Kind: call.Kind})
 	s := &b.pendSum[dep]
 	s[0] += call.E
 	s[1] += call.C

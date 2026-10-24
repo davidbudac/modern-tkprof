@@ -7,6 +7,7 @@ import "github.com/davidbudac/modern-tkprof/internal/trace"
 // a long PL/SQL block can hold millions of children back, so the pending ones
 // are kept in this compact form (48 bytes) instead of as Calls.
 type ChildRec struct {
+	ID              ID // the call's own id (Call.ID), so a sink that stored it can attach the parent
 	Cursor, Context ID
 	Tim, E, C, R    int64
 	Kind            trace.CallKind
@@ -34,6 +35,16 @@ type Sink interface {
 	Wait(w *Wait, c *Call)
 	Adopt(cur, to ID)
 	Finish()
+}
+
+// BindSink is implemented by a Sink that also takes the bind values of a
+// build with Options.SpillBinds (the model keeps none of them). BindSet is
+// called once per BINDS block, in id order (set.ID counts from 0); the binds
+// slice is only valid during the call. set.First counts binds in int32 and
+// wraps beyond 2G binds: a sink keeps its own count. The EXEC call that
+// follows the block carries the set id in Call.BindSet.
+type BindSink interface {
+	BindSet(set *BindSet, binds []Bind)
 }
 
 // CallCount is the number of calls of the trace (the fact table is empty in

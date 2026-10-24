@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -252,9 +253,15 @@ func (r *PivotResult) Project(ids []string) {
 // dimImpl resolves a dimension for the rows of one model.
 type dimImpl struct {
 	Dim
-	key   func(i int) int64
+	key   func(r factRow) int64
 	name  func(k int64) string
 	extra func(k int64) string
+}
+
+// factRow is the fact row a dimension keys: r.c for a calls pivot, r.w for waits.
+type factRow struct {
+	c *model.Call
+	w *model.Wait
 }
 
 // interner hands out dense ids for arbitrary comparable keys.
@@ -286,7 +293,7 @@ func SessionName(c *model.Context) string {
 	return "(unknown session)"
 }
 
-func ctxDim(m *model.Model, d Dim, ctx func(i int) model.ID, get func(c *model.Context) string, none string) dimImpl {
+func ctxDim(m *model.Model, d Dim, ctx func(r factRow) model.ID, get func(c *model.Context) string, none string) dimImpl {
 	names := newInterner[string]()
 	keyOf := make([]int64, len(m.Contexts))
 	for i := range m.Contexts {
@@ -297,8 +304,8 @@ func ctxDim(m *model.Model, d Dim, ctx func(i int) model.ID, get func(c *model.C
 		keyOf[i] = names.id(v)
 	}
 	return dimImpl{Dim: d,
-		key: func(i int) int64 {
-			c := ctx(i)
+		key: func(r factRow) int64 {
+			c := ctx(r)
 			if c < 0 || int(c) >= len(keyOf) {
 				return -1
 			}
@@ -332,15 +339,15 @@ func TimeLabel(m *model.Model, tim int64) string {
 	return fmt.Sprintf("+%.3fs", float64(tim-m.Span.FirstTim)/1e6)
 }
 
-func timeDim(m *model.Model, d Dim, tim func(i int) int64) dimImpl {
+func timeDim(m *model.Model, d Dim, tim func(r factRow) int64) dimImpl {
 	bucket := TimelineBucket(m)
 	base := m.Span.FirstTim
 	if bucket > 0 {
 		d.Label = fmt.Sprintf("Time (%s buckets)", fmtBucket(bucket))
 	}
 	return dimImpl{Dim: d,
-		key: func(i int) int64 {
-			t := tim(i)
+		key: func(r factRow) int64 {
+			t := tim(r)
 			if t <= 0 || bucket <= 0 || t < base {
 				return -1
 			}
@@ -399,9 +406,9 @@ func Preview(s string, max int) string {
 	return s[:cut] + "..."
 }
 
-func stmtDim(m *model.Model, d Dim, stmt func(i int) model.ID, none string) dimImpl {
+func stmtDim(m *model.Model, d Dim, stmt func(r factRow) model.ID, none string) dimImpl {
 	return dimImpl{Dim: d,
-		key: func(i int) int64 { return int64(stmt(i)) },
+		key: func(r factRow) int64 { return int64(stmt(r)) },
 		name: func(k int64) string {
 			if k < 0 || int(k) >= len(m.Statements) {
 				return none
@@ -437,8 +444,7 @@ func kindName(k int64) string {
 }
 
 func callDims(m *model.Model) map[string]dimImpl {
-	c := m.Calls
-	ctx := func(i int) model.ID { return c[i].Context }
+	ctx := func(r factRow) model.ID { return r.c.Context }
 	d := func(id string) Dim {
 		for _, x := range callDimList {
 			if x.ID == id {
@@ -449,22 +455,22 @@ func callDims(m *model.Model) map[string]dimImpl {
 	}
 	plh := newInterner[uint64]()
 	out := []dimImpl{
-		stmtDim(m, d("stmt"), func(i int) model.ID { return c[i].Statement }, "(no statement)"),
-		{Dim: d("kind"), key: func(i int) int64 { return int64(c[i].Kind) }, name: kindName},
-		{Dim: d("dep"), key: func(i int) int64 { return int64(c[i].Dep) }, name: intName("dep ", "(none)", 0)},
+		stmtDim(m, d("stmt"), func(r factRow) model.ID { return r.c.Statement }, "(no statement)"),
+		{Dim: d("kind"), key: func(r factRow) int64 { return int64(r.c.Kind) }, name: kindName},
+		{Dim: d("dep"), key: func(r factRow) int64 { return int64(r.c.Dep) }, name: intName("dep ", "(none)", 0)},
 		ctxDim(m, d("session"), ctx, func(x *model.Context) string { return SessionName(x) }, "(no session)"),
 		ctxDim(m, d("module"), ctx, func(x *model.Context) string { return x.Module }, "(no module)"),
 		ctxDim(m, d("action"), ctx, func(x *model.Context) string { return x.Action }, "(no action)"),
 		ctxDim(m, d("client"), ctx, func(x *model.Context) string { return x.ClientID }, "(no client id)"),
 		ctxDim(m, d("service"), ctx, func(x *model.Context) string { return x.Service }, "(no service)"),
-		{Dim: d("plh"), key: func(i int) int64 { return plh.id(uint64(c[i].PLH)) }, name: func(k int64) string {
+		{Dim: d("plh"), key: func(r factRow) int64 { return plh.id(uint64(r.c.PLH)) }, name: func(k int64) string {
 			if v := plh.keys[k]; v != 0 {
 				return fmt.Sprint(v)
 			}
 			return "(no plan)"
 		}},
-		{Dim: d("execNo"), key: func(i int) int64 { return int64(c[i].ExecNo) }, name: intName("exec ", "(not an execution)", 1)},
-		{Dim: d("cursor"), key: func(i int) int64 { return int64(c[i].Cursor) }, name: func(k int64) string {
+		{Dim: d("execNo"), key: func(r factRow) int64 { return int64(r.c.ExecNo) }, name: intName("exec ", "(not an execution)", 1)},
+		{Dim: d("cursor"), key: func(r factRow) int64 { return int64(r.c.Cursor) }, name: func(k int64) string {
 			if k < 0 || int(k) >= len(m.Cursors) {
 				return "(no cursor)"
 			}
@@ -475,11 +481,11 @@ func callDims(m *model.Model) map[string]dimImpl {
 			}
 			return fmt.Sprintf("#%d (line %s)", n, commas(int64(cu.Line)))
 		}},
-		{Dim: d("closeType"), key: func(i int) int64 {
-			if c[i].Kind != trace.CallClose {
+		{Dim: d("closeType"), key: func(r factRow) int64 {
+			if r.c.Kind != trace.CallClose {
 				return -1
 			}
-			return int64(c[i].Type)
+			return int64(r.c.Type)
 		}, name: func(k int64) string {
 			if k < 0 {
 				return "(not a close)"
@@ -489,8 +495,8 @@ func callDims(m *model.Model) map[string]dimImpl {
 			}
 			return fmt.Sprintf("type %d", k)
 		}},
-		timeDim(m, d("time"), func(i int) int64 { return c[i].Tim }),
-		{Dim: d("og"), key: func(i int) int64 { return int64(c[i].OG) }, name: func(k int64) string {
+		timeDim(m, d("time"), func(r factRow) int64 { return r.c.Tim }),
+		{Dim: d("og"), key: func(r factRow) int64 { return int64(r.c.OG) }, name: func(k int64) string {
 			if s, ok := ogNames[k]; ok {
 				return s
 			}
@@ -503,9 +509,8 @@ func callDims(m *model.Model) map[string]dimImpl {
 	return index(out)
 }
 
-func waitDims(m *model.Model) map[string]dimImpl {
-	w := m.Waits
-	ctx := func(i int) model.ID { return w[i].Context }
+func waitDims(m *model.Model, src Facts) map[string]dimImpl {
+	ctx := func(r factRow) model.ID { return r.w.Context }
 	d := func(id string) Dim {
 		for _, x := range waitDimList {
 			if x.ID == id {
@@ -555,7 +560,7 @@ func waitDims(m *model.Model) map[string]dimImpl {
 		}
 	}
 	out := []dimImpl{
-		{Dim: d("event"), key: func(i int) int64 { return int64(w[i].Event) }, name: func(k int64) string {
+		{Dim: d("event"), key: func(r factRow) int64 { return int64(r.w.Event) }, name: func(k int64) string {
 			if k < 0 || int(k) >= len(m.Events) {
 				return fmt.Sprintf("event %d", k)
 			}
@@ -566,8 +571,8 @@ func waitDims(m *model.Model) map[string]dimImpl {
 			}
 			return className(&m.Events[k])
 		}},
-		{Dim: d("class"), key: func(i int) int64 {
-			e := w[i].Event
+		{Dim: d("class"), key: func(r factRow) int64 {
+			e := r.w.Event
 			if e < 0 || int(e) >= len(classOf) {
 				return -1
 			}
@@ -578,9 +583,9 @@ func waitDims(m *model.Model) map[string]dimImpl {
 			}
 			return classes.keys[k]
 		}},
-		stmtDim(m, d("stmt"), func(i int) model.ID { return w[i].Statement }, "(no cursor)"),
-		{Dim: d("obj"), key: func(i int) int64 {
-			if o := w[i].ObjID; o > 0 {
+		stmtDim(m, d("stmt"), func(r factRow) model.ID { return r.w.Statement }, "(no cursor)"),
+		{Dim: d("obj"), key: func(r factRow) int64 {
+			if o := r.w.ObjID; o > 0 {
 				return objs.id(o)
 			}
 			return -1
@@ -593,33 +598,33 @@ func waitDims(m *model.Model) map[string]dimImpl {
 			}
 			return fmt.Sprintf("obj# %d", objs.keys[k])
 		}},
-		{Dim: d("p1"), key: func(i int) int64 { return p1.id([2]int64{int64(w[i].Event), w[i].P1}) }, name: param(p1, false)},
-		{Dim: d("p2"), key: func(i int) int64 { return p2.id([2]int64{int64(w[i].Event), w[i].P2}) }, name: param(p2, true)},
-		{Dim: d("between"), key: func(i int) int64 { return b2i(w[i].Between) }, name: func(k int64) string {
+		{Dim: d("p1"), key: func(r factRow) int64 { return p1.id([2]int64{int64(r.w.Event), r.w.P1}) }, name: param(p1, false)},
+		{Dim: d("p2"), key: func(r factRow) int64 { return p2.id([2]int64{int64(r.w.Event), r.w.P2}) }, name: param(p2, true)},
+		{Dim: d("between"), key: func(r factRow) int64 { return b2i(r.w.Between) }, name: func(k int64) string {
 			if k == 1 {
 				return "between calls"
 			}
 			return "inside a call"
 		}},
-		{Dim: d("idle"), key: func(i int) int64 { return b2i(w[i].Idle) }, name: func(k int64) string {
+		{Dim: d("idle"), key: func(r factRow) int64 { return b2i(r.w.Idle) }, name: func(k int64) string {
 			if k == 1 {
 				return "idle"
 			}
 			return "non-idle"
 		}},
-		{Dim: d("dep"), key: func(i int) int64 { return int64(w[i].Dep) }, name: intName("dep ", "(none)", 0)},
+		{Dim: d("dep"), key: func(r factRow) int64 { return int64(r.w.Dep) }, name: intName("dep ", "(none)", 0)},
 		ctxDim(m, d("session"), ctx, func(x *model.Context) string { return SessionName(x) }, "(no session)"),
 		ctxDim(m, d("module"), ctx, func(x *model.Context) string { return x.Module }, "(no module)"),
 		ctxDim(m, d("action"), ctx, func(x *model.Context) string { return x.Action }, "(no action)"),
 		ctxDim(m, d("client"), ctx, func(x *model.Context) string { return x.ClientID }, "(no client id)"),
 		ctxDim(m, d("service"), ctx, func(x *model.Context) string { return x.Service }, "(no service)"),
-		{Dim: d("callKind"), key: func(i int) int64 {
-			if c := w[i].Call; c >= 0 && int(c) < len(m.Calls) {
-				return int64(m.Calls[c].Kind)
+		{Dim: d("callKind"), key: func(r factRow) int64 {
+			if k, ok := src.CallKind(r.w.Call); ok {
+				return int64(k)
 			}
 			return -1
 		}, name: kindName},
-		timeDim(m, d("time"), func(i int) int64 { return w[i].Tim }),
+		timeDim(m, d("time"), func(r factRow) int64 { return r.w.Tim }),
 	}
 	return index(out)
 }
@@ -688,6 +693,11 @@ const maxPivotDims = 4
 // Dims(fact)), over the rows accepted by f. Rows come sorted by the default
 // measure (DefaultMeasure); use SortBy for another order.
 func Pivot(m *model.Model, fact Fact, by []string, f Filter) (*PivotResult, error) {
+	return PivotOn(context.Background(), m, ModelFacts(m), fact, by, f)
+}
+
+// PivotOn is Pivot over any Facts (m supplies the dimension tables).
+func PivotOn(ctx context.Context, m *model.Model, src Facts, fact Fact, by []string, f Filter) (*PivotResult, error) {
 	if len(by) == 0 {
 		return nil, fmt.Errorf("pivot: no dimension given")
 	}
@@ -696,7 +706,7 @@ func Pivot(m *model.Model, fact Fact, by []string, f Filter) (*PivotResult, erro
 	}
 	var all map[string]dimImpl
 	if fact == FactWaits {
-		all = waitDims(m)
+		all = waitDims(m, src)
 	} else {
 		all = callDims(m)
 	}
@@ -736,22 +746,11 @@ func Pivot(m *model.Model, fact Fact, by []string, f Filter) (*PivotResult, erro
 	}
 	mt := f.Matcher()
 	rows := 0
-	n := len(m.Calls)
-	if fact == FactWaits {
-		n = len(m.Waits)
-	}
-	for i := 0; i < n; i++ {
-		if fact == FactCalls {
-			if !mt.Call(&m.Calls[i]) {
-				continue
-			}
-		} else if !mt.Wait(&m.Waits[i]) {
-			continue
-		}
+	add := func(rw factRow) {
 		rows++
 		var k [maxPivotDims]int64
 		for j := range dims {
-			k[j] = dims[j].key(i)
+			k[j] = dims[j].key(rw)
 		}
 		g := groups[k]
 		if g == nil {
@@ -760,12 +759,31 @@ func Pivot(m *model.Model, fact Fact, by []string, f Filter) (*PivotResult, erro
 			order = append(order, g)
 		}
 		if fact == FactCalls {
-			addCall(g.acc, &m.Calls[i])
-			addCall(total, &m.Calls[i])
+			addCall(g.acc, rw.c)
+			addCall(total, rw.c)
 		} else {
-			addWait(g.acc, m.Waits[i].Ela)
-			addWait(total, m.Waits[i].Ela)
+			addWait(g.acc, rw.w.Ela)
+			addWait(total, rw.w.Ela)
 		}
+	}
+	var err error
+	if fact == FactCalls {
+		err = src.EachCall(ctx, f.Scan(), func(c *model.Call) bool {
+			if mt.Call(c) {
+				add(factRow{c: c})
+			}
+			return true
+		})
+	} else {
+		err = src.EachWait(ctx, f.Scan(), func(w *model.Wait) bool {
+			if mt.Wait(w) {
+				add(factRow{w: w})
+			}
+			return true
+		})
+	}
+	if err != nil {
+		return nil, err
 	}
 	r := &PivotResult{Fact: fact, Measures: Measures(fact), Facts: rows, BucketUs: TimelineBucket(m)}
 	for _, d := range dims {

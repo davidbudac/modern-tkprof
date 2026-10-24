@@ -41,6 +41,16 @@ type Options struct {
 	// NewSink creates the Sink of an Aggregate build once the model exists
 	// (nil: the facts are counted and dropped).
 	NewSink func(m *Model) Sink
+	// NewTee creates a second Sink of an Aggregate build that receives every
+	// fact the first one does (internal/slice's disk spill). When it also
+	// implements BindSink and SpillBinds is set, it receives the bind values.
+	// The model's Agg stays the first sink.
+	NewTee func(m *Model) Sink
+	// SpillBinds keeps the bind handling of a full build in an Aggregate build:
+	// BINDS blocks are decoded and handed to the NewTee sink (a BindSink),
+	// EXEC calls carry their set id in Call.BindSet. Model.Binds and BindSets
+	// stay empty. Without it an Aggregate build implies NoFacts.
+	SpillBinds bool
 }
 
 // Builder implements trace.Handler and produces a Model.
@@ -72,6 +82,9 @@ type Builder struct {
 	pendSum  [][5]int64   // E, C, P, CR, CU of the pending calls at each depth
 	waitBuf  []Wait       // waits not yet attached (pendingWaits indexes it)
 	pendWait int          // how many waitBuf entries are still in pendingWaits
+	bindSink BindSink     // aggregate build with SpillBinds
+	nSets    int64        // bind sets handed to bindSink
+	bindBuf  []Bind       // reused by Binds in a spilling build
 	ext      []ctxExtent  // tim extent per context, for attachPX
 
 	ctx      Context
@@ -96,8 +109,9 @@ func NewBuilder(path string, opts Options) *Builder {
 	if opts.MaxUnknown == 0 {
 		opts.MaxUnknown = 200
 	}
-	if opts.Aggregate {
+	if opts.Aggregate && !(opts.SpillBinds && opts.NewTee != nil) {
 		opts.NoFacts = true
+		opts.SpillBinds = false
 	}
 	b := &Builder{
 		m:            &Model{File: FileInfo{Path: path, Files: []FileEntry{{Path: path, Name: filepath.Base(path)}}}},
@@ -122,9 +136,27 @@ func NewBuilder(path string, opts Options) *Builder {
 			b.sink = nopSink{}
 		}
 		b.m.Agg = b.sink
+		if opts.NewTee != nil {
+			tee := opts.NewTee(b.m)
+			b.sink = teeSink{b.sink, tee}
+			if bs, ok := tee.(BindSink); ok && opts.SpillBinds {
+				b.bindSink = bs
+			} else {
+				b.opts.NoFacts = true
+			}
+		}
 	}
 	return b
 }
+
+// teeSink hands every fact to two sinks, the first one (the accumulator) first.
+type teeSink struct{ a, b Sink }
+
+func (t teeSink) Call(c *Call)                { t.a.Call(c); t.b.Call(c) }
+func (t teeSink) Child(ch *ChildRec, p *Call) { t.a.Child(ch, p); t.b.Child(ch, p) }
+func (t teeSink) Wait(w *Wait, c *Call)       { t.a.Wait(w, c); t.b.Wait(w, c) }
+func (t teeSink) Adopt(cur, to ID)            { t.a.Adopt(cur, to); t.b.Adopt(cur, to) }
+func (t teeSink) Finish()                     { t.a.Finish(); t.b.Finish() }
 
 type nopSink struct{}
 
@@ -233,7 +265,11 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 	b.flushPending()
 	if b.agg {
 		m.AggCalls, m.AggWaits, m.aggExt = b.nCalls, b.nWaits, b.ext
-		m.Diag.Notes = append(m.Diag.Notes, "aggregate mode: calls and waits were folded into aggregates, not retained; per-execution tables, bind values and the drill-down fact tables are not available")
+		if b.opts.NewTee != nil {
+			m.Diag.Notes = append(m.Diag.Notes, "spill mode: calls, waits and binds were folded into aggregates and spilled to disk; drill-downs are answered by scanning the spill files")
+		} else {
+			m.Diag.Notes = append(m.Diag.Notes, "aggregate mode: calls and waits were folded into aggregates, not retained; per-execution tables, bind values and the drill-down fact tables are not available")
+		}
 	}
 	m.Diag.Lines = st.Lines
 	m.Diag.Bytes = st.Bytes
@@ -883,6 +919,10 @@ func (b *Builder) Binds(bs trace.BindSet) {
 	}
 	stmt = b.m.Cursors[curID].Statement
 	set := BindSet{ID: ID(len(b.m.BindSets)), Line: bs.Line, Cursor: curID, Statement: stmt, Call: None, First: int32(len(b.m.Binds)), IsRPC: bs.IsRPC}
+	if b.bindSink != nil {
+		set.ID = ID(b.nSets)
+		b.bindBuf = b.bindBuf[:0]
+	}
 	for i := range bs.Binds {
 		tb := &bs.Binds[i]
 		bind := Bind{Set: set.ID, Pos: int32(tb.Pos), Dty: int32(tb.Dty), NoDef: tb.NoOacdef, IsDump: tb.IsDump,
@@ -898,10 +938,19 @@ func (b *Builder) Binds(bs trace.BindSet) {
 		} else if !tb.NoOacdef {
 			bind.IsNull = true
 		}
-		b.m.Binds = append(b.m.Binds, bind)
+		if b.bindSink != nil {
+			b.bindBuf = append(b.bindBuf, bind)
+		} else {
+			b.m.Binds = append(b.m.Binds, bind)
+		}
 		set.N++
 	}
-	b.m.BindSets = append(b.m.BindSets, set)
+	if b.bindSink != nil {
+		b.bindSink.BindSet(&set, b.bindBuf)
+		b.nSets++
+	} else {
+		b.m.BindSets = append(b.m.BindSets, set)
+	}
 	if !bs.IsRPC {
 		b.pendingBinds[bs.Cursor] = set.ID
 	}

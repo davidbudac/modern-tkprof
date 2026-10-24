@@ -365,7 +365,7 @@ func AllExecutions(m *model.Model) [][]Execution {
 		switch c.Kind {
 		case trace.CallExec:
 			k := key{c.Cursor, c.ExecNo}
-			e := Execution{Cursor: c.Cursor, Statement: c.Statement, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context}
+			e := Execution{Cursor: c.Cursor, Statement: c.Statement, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context, Line: c.Line}
 			if n := int(fetches[k]); n > 0 && len(backing)+n <= cap(backing) {
 				e.Fetches = backing[len(backing) : len(backing) : len(backing)+n]
 				backing = backing[:len(backing)+n]
