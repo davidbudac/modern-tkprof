@@ -326,7 +326,21 @@ export interface RawDocument {
     timeline: Bucket[] | null
     bucketUs: number
     findings?: Finding[] | null
+    contexts?: ContextStats[] | null
   }
+}
+
+/** analyze.ContextStats: activity of one session context (the SESSIONS numbers). */
+export interface ContextStats {
+  context: ID
+  calls: number
+  rows: number
+  elapsed: number // Σ e of top-level calls
+  cpu: number // Σ c of top-level calls
+  waitUs: number // non-idle waits
+  idleUs: number // idle waits
+  firstTim: number
+  lastTim: number
 }
 
 // Call kinds (trace.CallKind)

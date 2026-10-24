@@ -53,7 +53,12 @@ func (c Column) MarshalJSON() ([]byte, error) {
 		case "i32":
 			return json.Marshal(c.I32)
 		default:
-			return json.Marshal(c.U8)
+			// []uint8 would marshal as a base64 string; emit numbers.
+			a := make([]int, len(c.U8))
+			for i, v := range c.U8 {
+				a[i] = int(v)
+			}
+			return json.Marshal(a)
 		}
 	}
 	return json.Marshal(struct {

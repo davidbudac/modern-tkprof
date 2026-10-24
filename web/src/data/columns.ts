@@ -39,6 +39,9 @@ export async function unpackTable<K extends string>(raw: RawTable, cols: readonl
         if (x < 0 || x > 255) u8 = false
       }
       out[name] = f64 ? Float64Array.from(v as number[]) : u8 ? Uint8Array.from(v as number[]) : Int32Array.from(v as number[])
+    } else if (typeof v === 'string') {
+      // u8 column from an older unpacked `mtkprof json` (Go marshalled []byte as base64)
+      out[name] = b64ToBytes(v)
     } else if (v === undefined || v === null) {
       out[name] = new Int32Array(0)
     } else {

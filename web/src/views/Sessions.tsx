@@ -63,6 +63,8 @@ function addStats(a: CtxStats, b: CtxStats): void {
 
 function computeStats(doc: TraceDoc): CtxStats[] {
   const n = doc.contexts.length
+  // the CLI ships these (analyze.Contexts); recompute only for older documents
+  if (doc.stats.contexts.length === n && n > 0) return doc.stats.contexts
   const out: CtxStats[] = Array.from({ length: n }, emptyStats)
   if (!doc.hasFacts) return out
   const c = doc.calls

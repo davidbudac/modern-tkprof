@@ -201,9 +201,16 @@ export function timeline(doc: TraceDoc, bucketUs: number, callFilter: RowFilter,
   return { starts, series }
 }
 
-export function pickBucket(spanUs: number, target = 300): number {
-  for (const b of [1000, 10000, 100000, 500000, 1e6, 5e6, 10e6, 60e6, 300e6, 600e6, 3600e6]) if (spanUs / b <= target) return b
-  return Math.ceil(spanUs / target)
+/**
+ * Timeline/pivot bucket size in µs. Same rule as `analyze.BucketForSpan`
+ * (internal/analyze/pivot.go) - keep the two identical: the smallest of
+ * 1 ms, 10 ms, 100 ms, 1 s, 10 s, 1 min, 10 min, 1 h with floor(span/bucket)
+ * <= 400, else span/400; 0 when the span is unknown.
+ */
+export function pickBucket(spanUs: number): number {
+  if (spanUs <= 0) return 0
+  for (const b of [1000, 10000, 100000, 1e6, 10e6, 60e6, 600e6, 3600e6]) if (Math.floor(spanUs / b) <= 400) return b
+  return Math.floor(spanUs / 400)
 }
 
 export { sumOver }

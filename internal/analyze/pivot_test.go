@@ -159,3 +159,23 @@ func TestContextsMatchProfile(t *testing.T) {
 		t.Fatalf("contexts: calls %d/%d, elapsed %d/%d", calls, len(m.Calls), ela, want)
 	}
 }
+
+// The UI's pickBucket (web/src/data/derive.ts) implements the same rule; keep
+// the cases in sync when changing either.
+func TestBucketForSpan(t *testing.T) {
+	for _, c := range []struct{ span, want int64 }{
+		{-5, 0}, {0, 0},
+		{1, 1000}, {400_999, 1000}, {401_000, 10_000},
+		{4_009_999, 10_000}, {4_010_000, 100_000},
+		{40_100_000, 1_000_000},
+		{24_000_000_000, 60_000_000},
+		{24_060_000_000, 600_000_000},
+		{240_600_000_000, 3_600_000_000},
+		{1_443_599_999_999, 3_600_000_000},           // floor(span/1h) = 400
+		{1_443_600_000_000, 1_443_600_000_000 / 400}, // 401 h: span/400
+	} {
+		if got := BucketForSpan(c.span); got != c.want {
+			t.Errorf("BucketForSpan(%d) = %d, want %d", c.span, got, c.want)
+		}
+	}
+}

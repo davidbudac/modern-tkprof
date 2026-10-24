@@ -137,12 +137,13 @@ type BindColumns struct {
 
 // Stats are the pre-computed aggregations.
 type Stats struct {
-	Statements []analyze.StmtStats `json:"statements"`
-	Profile    analyze.Profile     `json:"profile"`
-	Events     []analyze.EventAgg  `json:"events"`
-	Timeline   []analyze.Bucket    `json:"timeline"`
-	BucketUs   int64               `json:"bucketUs"`
-	Findings   []analyze.Finding   `json:"findings"`
+	Statements []analyze.StmtStats    `json:"statements"`
+	Profile    analyze.Profile        `json:"profile"`
+	Events     []analyze.EventAgg     `json:"events"`
+	Timeline   []analyze.Bucket       `json:"timeline"`
+	BucketUs   int64                  `json:"bucketUs"`
+	Findings   []analyze.Finding      `json:"findings"`
+	Contexts   []analyze.ContextStats `json:"contexts"` // per session context, in id order (Sessions view)
 }
 
 // DocOptions control document generation.
@@ -167,6 +168,7 @@ func BuildDocument(m *model.Model, o DocOptions) *Document {
 			Events:     analyze.WaitsByEvent(m, nil),
 			Timeline:   analyze.Timeline(m, bucket),
 			BucketUs:   bucket,
+			Contexts:   analyze.Contexts(m),
 		},
 	}
 	d.Stats.Findings = analyze.Findings(m, d.Stats.Statements)

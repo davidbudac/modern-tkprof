@@ -237,6 +237,14 @@ func cmdServe(args []string) error {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
+		// local dev server: let `pnpm dev` load ?doc=http://127.0.0.1:8046/api/doc
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(doc)
 	})

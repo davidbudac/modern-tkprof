@@ -1,6 +1,6 @@
 import type {
   RawDocument, Statement, Cursor, Context, Event, Plan, PlanLine, Transaction, ErrorEvent,
-  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding,
+  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding, ContextStats,
 } from './types'
 import { NONE } from './types'
 import { unpackTable, type NumCol } from './columns'
@@ -55,7 +55,7 @@ export class TraceDoc {
   readonly markers: Marker[]
   readonly diag: Diagnostics
   readonly unknown: { line: number; text: string }[]
-  readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[] }
+  readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[]; contexts: ContextStats[] }
 
   readonly hasFacts: boolean
   /** base URL of the plan visualizer set by the CLI (optional) */
@@ -93,7 +93,7 @@ export class TraceDoc {
     this.markers = raw.markers ?? []
     this.diag = raw.diag
     this.unknown = raw.unknown ?? []
-    this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [] }
+    this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [], contexts: raw.stats.contexts ?? [] }
     this.hasFacts = !!raw.facts
     this.planViz = raw.planViz || undefined
     this.calls = calls

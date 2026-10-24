@@ -789,19 +789,26 @@ func values(fact Fact, a, total []int64) []float64 {
 	return []float64{float64(a[wCount]), float64(a[wEla]), avg, min, float64(a[wMax]), share}
 }
 
-// TimelineBucket picks a bucket size giving roughly 200-400 buckets over the
-// trace span (0 when the span is unknown).
+// TimelineBucket picks the bucket size for the trace span; see BucketForSpan.
 func TimelineBucket(m *model.Model) int64 {
-	span := m.Span.Us()
-	if span <= 0 {
+	return BucketForSpan(m.Span.Us())
+}
+
+// BucketForSpan is THE bucket rule, shared by the CLI (timeline, pivot) and
+// the UI (pickBucket in web/src/data/derive.ts must stay identical): the
+// smallest of 1 ms, 10 ms, 100 ms, 1 s, 10 s, 1 min, 10 min, 1 h with
+// floor(span/bucket) <= 400 (so 200-400 buckets once the span exceeds 2x the
+// smallest size), else span/400. 0 when the span is unknown (<= 0).
+func BucketForSpan(spanUs int64) int64 {
+	if spanUs <= 0 {
 		return 0
 	}
 	for _, b := range []int64{1000, 10000, 100000, 1000000, 10000000, 60000000, 600000000, 3600000000} {
-		if span/b <= 400 {
+		if spanUs/b <= 400 {
 			return b
 		}
 	}
-	return span / 400
+	return spanUs / 400
 }
 
 // ContextStats summarises the activity of one session context (same

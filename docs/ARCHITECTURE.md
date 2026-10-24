@@ -91,7 +91,14 @@ compressed and base64 encoded (`blob`); the column descriptors keep
 `{t, off, n}`. The browser decodes with `DecompressionStream` and creates
 typed-array views, so a 600k-call trace is a 6.5 MB document that loads in a
 few seconds. `mtkprof html` inlines the document into the embedded UI page
-(`internal/ui`); `mtkprof serve` serves it from `/api/doc`.
+(`internal/ui`); `mtkprof serve` serves it from `/api/doc` (always with
+`Access-Control-Allow-Origin: *` and an OPTIONS reply, so `pnpm dev` can load
+`?doc=http://127.0.0.1:8046/api/doc`; it is a local dev server).
+Unpacked documents (`mtkprof json` without `-packed`) carry u8 columns as
+number arrays, like the other columns. `stats.contexts` is `analyze.Contexts`
+(the SESSIONS numbers); the Sessions view uses it and only recomputes from the
+fact tables for documents without it. `stats.bucketUs` / the time bucket of
+pivot and timeline follow `analyze.BucketForSpan` (UI: `pickBucket`).
 
 `planjson.go` turns each STAT dump (`model.Plan`) into the JSON row array that
 `davidbudac/ora-explain-plan-viz` auto-detects (`PlanRows` / `PlanJSON`:
