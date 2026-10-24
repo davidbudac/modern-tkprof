@@ -142,13 +142,24 @@ slaves' calls under their own contexts.
 
 ### internal/report — document for the UI
 
-`BuildDocument` emits format 2: dimension tables as JSON objects, fact tables
-(calls, waits, bind sets, binds) as typed columns. With `Packed`, every
-numeric column of a table is laid out in one little-endian buffer, gzip
-compressed and base64 encoded (`blob`); the column descriptors keep
-`{t, off, n}`. The browser decodes with `DecompressionStream` and creates
-typed-array views, so a 600k-call trace is a 6.5 MB document that loads in a
-few seconds. `mtkprof html` inlines the document into the embedded UI page
+The document is format 3: dimension tables as JSON objects, fact tables
+(calls, waits, bind sets, binds) as typed columns. In the packed form
+(`WriteDocument` / `DocumentBytes` / `JSON` with `Packed`), every numeric
+column of a table is laid out in one little-endian buffer, gzip compressed and
+base64 encoded (`blob`); the column descriptors keep `{t, off, n}`, plus
+`"d":1` for columns stored as differences to the previous row (`line` and `tim`
+of calls and waits, the bind-set links `line`/`call`/`first`, the bind `set`
+column): sorted ids and times gzip to a fraction as deltas, which took the
+big_loop document from 20.1 to 11.5 MB (-43 %). The loader integrates them in
+place (`web/src/data/columns.ts`; `Int32Array` wraps like the writer's `int32`
+subtraction). The browser decodes with `DecompressionStream` and creates
+typed-array views, so a 600k-call trace is a ~11 MB document that loads in a
+few seconds. The packed form is **streamed** (`stream.go`): the writer reads
+the model column by column through getters, feeds gzip in 16k-row chunks and
+base64-encodes straight into the output, so no column copy, packed buffer or
+document string exists; `mtkprof html` writes the page around it
+(`ui.WriteStandalone`). `BuildDocument` (unpacked arrays, used by `json`
+without `-packed` and tests) still builds the columns in memory. `mtkprof html` inlines the document into the embedded UI page
 (`internal/ui`); `mtkprof serve` serves it from `/api/doc` (always with
 `Access-Control-Allow-Origin: *` and an OPTIONS reply, so `pnpm dev` can load
 `?doc=http://127.0.0.1:8046/api/doc`; it is a local dev server).
@@ -203,6 +214,68 @@ The pivot's `obj` and file-number `p1` groups print names. The UI maps
 obj# / file# / user ids through `TraceDoc.objectName/fileName/userName` and
 shows `refPlan` in a collapsible block under the plan tables. See
 `docs/REF-BUNDLE.md`.
+
+### Memory and size
+
+Targets (DESIGN § Inputs): 1 GB trace → HTML under 15 s and under 4 GB; 10 GB →
+report and HTML in minutes. What the model costs and how it is kept small:
+
+* Fact structs are laid out for size: `Call` 168 bytes (was ~290), `Wait` 88
+  (~140), `Bind` 56 (~120). 64-bit measures first, then `int32` ids and line
+  numbers (per file; 2 billion lines), then `uint8` codes. `WallUs` is not
+  stored: `Model.CallWall` / `WaitWall` derive it from `tim` and the table of
+  `*** timestamp` anchors (`Model.anchors`, found by (file, line)), identical
+  to what the builder used to store (CSV `wall_us` and `Execution.WallUs` are
+  byte-identical). `Bind.TypeName()` is derived from `Dty`; the unused
+  `Call.LobType/Bytes/Op` were dropped; the parser no longer keeps the bind
+  buffer address and interns `oacflg`/`fl2`; bind values are copied into 64 KB
+  arena chunks (`Parser.str`) instead of one allocation each, and the parser
+  reuses its `BindSet` buffer (so handlers must not keep `BindSet.Binds`).
+* `BuildFiles` samples the file (whole file up to 8 MB, else 8 windows of 1 MB,
+  +25 %) for the number of calls, waits and binds and pre-sizes the slices
+  (`Builder.Reserve`, capped at 24 GB each). A wrong guess costs one
+  append-growth step, which used to hold 2.25x the table for a moment and was
+  most of the peak.
+* `analyze.AllExecutions` builds the executions of all statements in two passes
+  with exact sizes (one backing array for all `Fetches`), and the text report
+  shares one copy between the executions tables and the findings
+  (`FindingsExec`); the per-statement `analyze.Executions` is O(statements x
+  calls).
+* GC target 40 % (20 % with `-lowmem`; `GOGC` in the environment wins): the
+  heap is a few huge pointer-free slices, so collecting early is cheap.
+* `-lowmem` = `model.Options.NoFacts`: bind values are not retained
+  (`Binds`/`BindSets` empty, `Diag.BindMode` = none). Calls and waits stay:
+  every aggregation (statements, profiles, executions, findings, pivot) reads
+  them, so the numbers are identical (`TestNoFactsKeepsNumbers`). A real
+  aggregation-only mode would need the analyses rewritten as streaming
+  accumulators fed by the builder; not done.
+* Hidden developer hooks: `MTKPROF_CPUPROFILE`, `MTKPROF_MEMPROFILE` (allocs at
+  exit) and `MTKPROF_HEAPPROFILE` (heap in use right after the build) write
+  pprof files.
+
+Measured on this machine (16 cores, SSD, file cache warm; `/usr/bin/time -v`),
+before = commit e705298:
+
+| trace | command | before RSS / wall | after RSS / wall |
+|---|---|---|---|
+| big_loop (118 MB, 600k calls, 360k binds) | `report` | 540 MB / 1.04 s | 220 MB / 0.61 s |
+| | `html` (document 20.1 → 11.5 MB, file 21.2 → 12.6 MB) | 607 MB / 1.15 s | 255 MB / 0.78 s |
+| 1 GB (big_loop body x9) | `report` | 5.47 GB / 10.1 s | 2.05 GB / 6.0 s |
+| | `report -lowmem` | | 1.58 GB / 5.6 s |
+| | `html` (file 181.9 → 104.3 MB) | 5.67 GB / 10.6 s | 2.08 GB / 7.3 s |
+| | `html -lowmem` (file 39.5 MB) | | 1.57 GB / 6.5 s |
+| | `pivot -by stmt -lowmem` | | 0.93 GB / 3.3 s |
+| 10 GB (x10 of the 1 GB file, 259M lines) | `report` | not run (~55 GB extrapolated) | 20.1 GB / 64 s |
+| | `report -lowmem` | | 15.3 GB / 59 s |
+| | `html` (file 1.03 GB) | | 20.7 GB / 74 s |
+
+The 1 GB targets (HTML under 15 s and 4 GB) are met with room to spare. The
+10 GB run finishes in about a minute but needs ~2 GB of RAM per GB of trace
+for this bind-heavy shape (53M calls x 168 B plus executions and binds); a
+trace with fewer, wider calls needs less. Cutting that further needs the
+analyses to stream (see "not done" above).
+
+Parse speed on big_loop (bind heavy) went from 161 to 310 MB/s.
 
 ### internal/analyze
 

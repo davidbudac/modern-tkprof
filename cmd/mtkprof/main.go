@@ -40,6 +40,7 @@ Usage:
   mtkprof export <trace...> [-o dir]                 CSV tables for DuckDB / Excel / Python
   mtkprof refscript <trace...> [-lite] [-o ref.sql]  SQL*Plus script that collects names and plans for the trace
   mtkprof lint   <trace...>
+  -lowmem (report pivot html json serve export): do not retain bind values; less memory, same numbers
   mtkprof version
 
 Trace sets (every command that takes <trace...>):
@@ -176,8 +177,15 @@ func parseArgs(fs *flag.FlagSet, args []string) []string {
 	return files
 }
 
-// addFollowFlag registers -no-follow, shared by every command that reads traces.
+// lowMem is -lowmem: build the model without bind values and collect garbage
+// more eagerly (see model.Options.NoFacts). Set by addFollowFlag, read by
+// buildModel and the commands that print binds.
+var lowMem bool
+
+// addFollowFlag registers -no-follow and -lowmem, shared by every command that
+// reads traces.
 func addFollowFlag(fs *flag.FlagSet) *bool {
+	fs.BoolVar(&lowMem, "lowmem", false, "low-memory mode: do not retain bind values (no BINDS sections, binds columns or binds.csv rows); all other numbers are unchanged")
 	return fs.Bool("no-follow", false, "do not follow TRACE CONTINUES IN / CONTINUED FROM chains to files that were not named")
 }
 
@@ -431,7 +439,10 @@ func cmdServe(args []string) error {
 
 func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	start := time.Now()
-	m, err := model.BuildFiles(files, model.Options{NoFollow: noFollow})
+	if lowMem && os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(20)
+	}
+	m, err := model.BuildFiles(files, model.Options{NoFollow: noFollow, NoFacts: lowMem})
 	if err != nil {
 		return nil, err
 	}

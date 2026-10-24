@@ -18,6 +18,16 @@ import (
 type Options struct {
 	MaxUnknown int  // how many unknown lines to keep verbatim (default 200)
 	NoFollow   bool // BuildFiles: do not follow TRACE CONTINUES IN / CONTINUED FROM chains
+
+	// NoFacts is the low-memory build: bind values are not retained
+	// (Model.Binds and BindSets stay empty, Call.BindSet is None, Diag.BindMode
+	// is "none"). Calls and waits are still kept in full: every aggregation
+	// (statement stats, profiles, executions, findings, pivot) reads them, so
+	// the numbers of the text report are identical with and without it. What it
+	// drops is everything that needs bind values: BINDS sections, the binds
+	// column of the executions tables, the bind evidence of findings,
+	// binds.csv and the UI's bind views.
+	NoFacts bool
 }
 
 // Builder implements trace.Handler and produces a Model.
@@ -84,7 +94,7 @@ func NewBuilder(path string, opts Options) *Builder {
 // guess costs a growth step, never a failure, and untouched capacity is not
 // resident memory.
 func (b *Builder) Reserve(calls, waits, binds, bindSets int64) {
-	const capBytes = 4 << 30
+	const capBytes = 24 << 30
 	room := func(n, elem int64) int {
 		if n < 0 {
 			n = 0
@@ -101,7 +111,7 @@ func (b *Builder) Reserve(calls, waits, binds, bindSets int64) {
 	if len(m.Waits) == 0 {
 		m.Waits = make([]Wait, 0, room(waits, int64(unsafe.Sizeof(Wait{}))))
 	}
-	if len(m.Binds) == 0 {
+	if len(m.Binds) == 0 && !b.opts.NoFacts {
 		m.Binds = make([]Bind, 0, room(binds, int64(unsafe.Sizeof(Bind{}))))
 		m.BindSets = make([]BindSet, 0, room(bindSets, int64(unsafe.Sizeof(BindSet{}))))
 	}
@@ -170,6 +180,10 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 	m.Diag.Bytes = st.Bytes
 	m.Diag.UnknownLines = st.Unknown
 	m.Diag.BindMode = BindsKeep.String()
+	if b.opts.NoFacts {
+		m.Diag.BindMode = BindsNone.String()
+		m.Diag.Notes = append(m.Diag.Notes, "bind values not retained (low-memory mode)")
+	}
 	for k := trace.Kind(0); int(k) < len(st.Kinds); k++ {
 		if st.Kinds[k] > 0 {
 			m.Diag.LineKinds[k.String()] = st.Kinds[k]
@@ -761,6 +775,9 @@ func (b *Builder) Stat(s trace.Stat) {
 // ---- binds ----------------------------------------------------------------
 
 func (b *Builder) Binds(bs trace.BindSet) {
+	if b.opts.NoFacts {
+		return
+	}
 	var curID, stmt ID = None, None
 	if bs.IsRPC {
 		curID = b.syntheticCursor("rpc", StmtRPC, "RPC EXEC (remote procedure call)", bs.Line)
