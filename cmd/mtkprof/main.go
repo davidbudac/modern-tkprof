@@ -37,7 +37,7 @@ Usage:
   mtkprof report <trace...> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys] [-aggregate]
   mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
   mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained interactive report
-  mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate]   interactive UI in the browser
+  mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate] [-spill[=DIR]]   interactive UI in the browser
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
   mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text comparison of B against A
   mtkprof html|serve|json <a.trc> <b.trc> -compare ...    UI / document with both traces and their diff (Compare tab)
@@ -54,6 +54,13 @@ Usage:
              executions tables, bind sections and every fact table (drill-down, pivots,
              server-side slicing); summary lines, call tables, profiles, sessions, time buckets
              and findings are the same as without it.
+  -spill[=DIR] (serve): for traces that do not fit in memory but should stay drillable. Builds
+             like -aggregate, and writes calls, waits and bind values to fixed-width temporary
+             files in DIR (default: the system temp dir) while reading; Pivot, Timeline,
+             executions, event drill-downs are answered by scanning them (memory stays at
+             the aggregates' size, disk use is about the size of the trace). The files are
+             removed on exit; -lowmem leaves out the bind values, -bind-values redact/none
+             applies to the spilled values. Write the directory as -spill=DIR.
   mtkprof version
 
 Trace sets (every command that takes <trace...>):

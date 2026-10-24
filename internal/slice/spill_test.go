@@ -2,6 +2,7 @@ package slice
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -363,5 +364,45 @@ func TestRecordCodecs(t *testing.T) {
 	getWait(wb, &wg)
 	if !reflect.DeepEqual(w, wg) {
 		t.Errorf("wait round trip\n got %+v\nwant %+v", wg, w)
+	}
+}
+
+func TestSpillScanStopsOnCancelAndEarlyExit(t *testing.T) {
+	_, sp := buildSpilled(t, []string{traces + "io_waits.trc"}, t.TempDir())
+	defer sp.Close()
+	src, err := sp.Source()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := src.EachCall(ctx, analyze.Scan{}, func(*model.Call) bool { return true }); err == nil {
+		t.Errorf("a canceled scan returned no error")
+	}
+	n := 0
+	if err := src.EachWait(context.Background(), analyze.Scan{}, func(*model.Wait) bool { n++; return n < 3 }); err != nil || n != 3 {
+		t.Errorf("early exit: %d rows, %v", n, err)
+	}
+	// a context scan reads only the rows of its contexts
+	m := 0
+	src.EachCall(context.Background(), analyze.Scan{Contexts: []model.ID{0}}, func(c *model.Call) bool {
+		if c.Context != 0 {
+			m++
+		}
+		return true
+	})
+	if m != 0 {
+		t.Errorf("%d calls of other contexts in a scan of context 0", m)
+	}
+}
+
+func TestExecutionsWindowIsBounded(t *testing.T) {
+	m, h := setup(t)
+	_ = m
+	if code, _ := fetch(h, fmt.Sprintf("/api/executions?stmt=0&limit=5000&offset=%d", maxExecWindow)); code != 400 {
+		t.Errorf("offset+limit above the window: status %d, want 400", code)
+	}
+	if code, _ := fetch(h, "/api/executions?stmt=0&limit=5000&offset=90000&sort=e"); code != 200 {
+		t.Errorf("offset+limit inside the window: status %d", code)
 	}
 }

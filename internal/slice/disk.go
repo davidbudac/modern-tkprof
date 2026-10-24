@@ -77,6 +77,9 @@ func (d *diskSource) scan(ctx context.Context, f *os.File, recSize int, n int64,
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+	if err := ctx.Err(); err != nil { // both select cases can be ready
+		return err
+	}
 	if n == 0 {
 		return nil
 	}
