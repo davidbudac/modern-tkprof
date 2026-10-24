@@ -162,7 +162,9 @@ document string exists; `mtkprof html` writes the page around it
 without `-packed` and tests) still builds the columns in memory. `mtkprof html` inlines the document into the embedded UI page
 (`internal/ui`); `mtkprof serve` serves it from `/api/doc` (always with
 `Access-Control-Allow-Origin: *` and an OPTIONS reply, so `pnpm dev` can load
-`?doc=http://127.0.0.1:8046/api/doc`; it is a local dev server).
+`?doc=http://127.0.0.1:8046/api/doc`; it is a local dev server). With
+`-facts=false` (or `-slice`) the document carries `slice: true`, no fact tables,
+and `serve` keeps the model to answer the slicing API below.
 Unpacked documents (`mtkprof json` without `-packed`) carry u8 columns as
 number arrays, like the other columns. `stats.contexts` is `analyze.Contexts`
 (the SESSIONS numbers); the Sessions view uses it and only recomputes from the
@@ -235,6 +237,61 @@ contract) adds `access_predicates`, `filter_predicates`, `object_alias`,
 `access_predicates`, `filter_predicates`, `e_rows`. The UI plan table shows a
 flag per row with predicates (click to expand the text) and a header hint
 when overlaid. See `docs/REF-BUNDLE.md`.
+
+### Server-side slicing (`internal/slice`, `web/src/data/source.ts`)
+
+`mtkprof serve -facts=false` (or `-slice`, which also works with facts) keeps the
+parsed model after building the document instead of freeing it, and mounts
+`slice.New(m).Handler()` under `/api/`. The document has no fact tables and is
+flagged `slice: true`; the UI then asks the server for everything it used to
+compute from the fact columns. The model is read-only after the build, so the
+handlers run concurrently without locks; answers are JSON, CORS-open like
+`/api/doc`, bounded, and cached by query (128 entries, < 4 MB each). A bad
+parameter is a `400` with a plain-text reason. Common scope parameters: `from`,
+`to` (`tim` µs; a row is in when its `[tim-ela, tim]` interval overlaps, as the
+UI's window), `contexts` (comma separated ids), `stmt`, `event` (waits only) and
+`idle=0|1` (waits, default 1). They map to `analyze.Filter` / `Matcher`, which
+`analyze.Pivot` uses too.
+
+| endpoint | answers | limits |
+|---|---|---|
+| `/api/pivot?fact=calls\|waits&by=dim[,dim]&measure=m[,m]&limit=N` | `analyze.Pivot` (rows, labels, extra, values, total, `groups`, `truncated`); `measure` sorts by the first and keeps only the listed measures | `limit` 1000 (max 100 000), 4 dims |
+| `/api/timeline?bucket=µs` | CPU of top-level calls and wait time per event per bucket, spread over the buckets a call or wait covers and clamped to 100 % (`analyze.SpreadTimeline` = the UI's old `timeline()`); the UI folds it into classes / top events | default bucket = `TimelineBucket`; 400 above 100 000 buckets |
+| `/api/calls?limit=&longest=` | the longest calls in scope (columns `id, stmt, kind, tim, e, c, r, line, dep, execNo`), total in scope, the longest N: the Timeline view | 20 000 calls, 100 longest |
+| `/api/executions?stmt=&limit=&offset=&sort=` | executions of one statement (`analyze.Executions`) with bind values, total, avg and slowest; `sort` = `file` (default) `e c waitEla r p cr fetches start` (largest first) | 5000 rows |
+| `/api/executions/detail?stmt=&cursor=&execNo=` | one execution: parse / exec / fetch call sums, waits per event, binds, plan hash (A/B comparison and the bind panel) | |
+| `/api/waits?event=\|stmt=&sort=ela\|tim&limit=` | wait rows with total and time in scope | 1000 rows |
+| `/api/waits/hist?event=` | log2 histogram (24 bins, counts and sums) | |
+| `/api/waits/scatter?event=&max=` | waits over time: the 2000 slowest plus an even sample (`analyze.ScatterWaits`), rows `[tim, ela, line, stmt]` | 50 000 points |
+| `/api/waits/by?event=&by=stmt\|obj\|p1\|p2&limit=` | `analyze.WaitsBy` with real keys (the event inspector's tables) | |
+| `/api/profile` | CPU of top-level calls and waits per event in scope (the ledger, the top bar, the Waits table) | |
+| `/api/stmt/roles` | wait time per statement and wait class (the bars of the Statements list) | |
+| `/api/stmt/waits?stmt=1,2&max=` / `/api/stmt/spans?stmt=1,2&gap=µs` | top wait events of statements / their merged call intervals (Overview notes, Lanes) | 200 statements |
+
+`internal/slice/slice_test.go` runs every endpoint through `httptest` on
+`io_waits.trc` and compares with the in-process `analyze` results, and checks
+that every bad parameter is a 400. Differences to the in-browser numbers: the
+executions list leaves out PX slave calls (`analyze.Executions`); the activity
+chart and the lane strips apply the context filter to the CPU as well (the
+in-browser path never did); the Pivot's time and p1/obj labels are the Go ones
+(`HH:MM:SS.mmm` in the trace's zone).
+
+UI side: `web/src/data/source.ts` defines `DataSource`, the questions the views
+ask of the facts (`pivot`, `profile`, `timeline`, `calls`, `executions`,
+`executionDetail`, `waitHist`, `waitScatter`, `waitTop`, `waitsBy`,
+`stmtWaits`, `stmtRoles`, `stmtSpans`), with a `Scope` (window, contexts, idle)
+instead of row-filter closures. Each returns `T | Promise<T>`.
+`LocalSource` runs the code the views always ran over the fact columns
+(synchronously: standalone HTML and `serve` with facts behave exactly as
+before); `RemoteSource` fetches `/api/*` (base URL = where the document came
+from, `load.ts`), caches answers by URL and is attached to documents with
+`slice && !facts`. `sourceOf(doc)` picks one; `useSourceQuery(source, key, run,
+keep)` runs a method, aborts the request of a stale key (`AbortController`) and
+keeps the previous answer on screen while the next loads (same `keep` string).
+Views show `loading…` or the error; a document without facts and without a
+server still gets the "no fact tables" notes. `pnpm dev` proxies `/api` to
+`MTKPROF_API` (default `http://127.0.0.1:8048`). Compare documents are not
+sliced.
 
 ### Memory and size
 

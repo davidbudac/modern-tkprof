@@ -89,7 +89,15 @@ tables, no bind evidence in findings, no `binds.csv` rows and no bind views in
 the UI. Every other number is identical; calls and waits are always kept, because
 every aggregation reads them. `html`/`serve`/`json` also take `-facts=false` to
 leave the raw fact tables (and with them the UI's drill-down) out of the
-document.
+document. For `html`/`json` that makes the Pivot, Timeline, executions and
+event drill-downs unavailable; for `serve` it does the opposite: with
+`mtkprof serve huge.trc -facts=false` (or `-slice`) the server keeps the parsed
+model and answers the UI's group-by and detail queries itself (`/api/pivot`,
+`/api/timeline`, `/api/executions`, ...), so the browser loads a document of a
+few hundred kB and stays fully interactive on a trace whose fact tables would
+be millions of rows. The server then holds the model in memory (big_loop,
+118 MB trace: ~300 MB RSS instead of ~40 MB), and `Download CSV` of the Pivot
+asks it for every group.
 
 Reference bundle: a trace carries only numbers (obj#, file#, user ids) and
 no plan text. `mtkprof refscript` writes a read-only SQL*Plus script tailored

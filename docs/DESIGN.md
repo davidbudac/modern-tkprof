@@ -34,7 +34,11 @@ Comparison of two traces or two executions is v2.
 - Size targets: a 1 GB trace produces the interactive HTML in under 15 s and
   under 4 GB RAM; a 10 GB trace produces the text report and HTML in
   minutes. HTML reports are **always written in full** (no sampling);
-  server-side slicing in `serve` mode is v2.
+  for traces whose fact tables are too big for a browser, `serve -facts=false`
+  slices on the server (done 2026-10-24: the browser holds only the dimension
+  tables and statistics; the Go server answers the Pivot, timeline, executions
+  and event queries from the fact columns; see ARCHITECTURE § Server-side
+  slicing).
 
 ## Outputs
 
@@ -126,9 +130,9 @@ database.
 
 ## Deferred to v2
 
-Comparison mode; server-side slicing in `serve`; raw trace line viewer
-(serve mode only); DBMS_XPLAN overlay via the shared package; configurable
-finding thresholds.
+Comparison mode; raw trace line viewer (serve mode only); DBMS_XPLAN overlay
+via the shared package; configurable finding thresholds. (Server-side slicing
+in `serve` is done: see Inputs.)
 
 ## Project
 

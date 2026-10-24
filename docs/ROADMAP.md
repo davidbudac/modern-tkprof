@@ -37,9 +37,9 @@
    server or an embedded line index), resizable inspector, column chooser,
    URL state (deep links to a statement / window), bind-value search,
    wait-event scatter over time, "compare two executions".
-2. **Server-side slicing** for huge traces: `serve` answering group-by
-   queries so the browser never holds millions of rows; `-facts=false`
-   documents then stay fully interactive.
+2. ~~**Server-side slicing** for huge traces~~ (done): `serve -facts=false`
+   answers the UI's group-by and detail queries from the model
+   (`internal/slice`), the browser never holds the fact rows.
 3. **Multi-file input**: follow `TRACE CONTINUES IN FILE`, merge PX slave
    traces with the QC trace, accept directories.
 4. **Memory**: 118 MB trace -> ~600 MB RSS. Compact the fact structs, intern
