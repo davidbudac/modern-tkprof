@@ -445,6 +445,65 @@ func TestTrcsessProcessMarker(t *testing.T) {
 	}
 }
 
+// 23ai: trcsess copies the multi-line 23ai pid header without brackets.
+func TestTrcsessProcessMarker23ai(t *testing.T) {
+	r, st := parseSample(t, "*** Unix process pid:       2013\n*** CLIENT IP:(127.0.0.1) 2026-10-24T10:36:00.136145+00:00\n*** CONNECTION ID:(XpSprEWLB9HgYwIAEayK9g==) 2026-10-24T10:36:00.136152+00:00\n")
+	if len(r.markers) != 3 || st.Unknown != 0 {
+		t.Fatalf("markers: %+v unknown=%d", r.markers, st.Unknown)
+	}
+	if m := r.markers[0]; m.Kind != MarkerProcess || m.Value != "2013" || m.Key != "Unix process pid" {
+		t.Errorf("process: %+v", m)
+	}
+	if m := r.markers[1]; m.Kind != MarkerClientIP || m.Value != "127.0.0.1" || !m.HasTime {
+		t.Errorf("client ip: %+v", m)
+	}
+	if m := r.markers[2]; m.Kind != MarkerConnectionID || m.Value != "XpSprEWLB9HgYwIAEayK9g==" {
+		t.Errorf("connection id: %+v", m)
+	}
+}
+
+// 23ai prints the unprintable-datatype value line with one leading space (not two)
+// and the memory dump rows with extra padding; the following binds must still parse.
+func TestBindUnhandledOneSpace23ai(t *testing.T) {
+	const s = `BINDS #5:
+
+ Bind#0
+  oacdty=183 mxl=11(11) mxlc=00 mal=00 scl=06 pre=02
+  oacflg=01 fl2=9206001 frm=02 csi=06 siz=0 off=72
+  kxsbbbfp=759c1013dd48  bln=11  avl=11  flg=01
+ value=Unhandled datatype (-73) found in kxsbndinf
+Dumping '' addr=0x759c1013dd48 size=11 bytes
+Dump of memory from 0x759c1013dd48 to 0x759c1013dd54
+759C1013DD40                   03000080 AF424140          [....@AB.]
+759C1013DD50 00402F07                             [./@.]            
+ Bind#1
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=206001 frm=00 csi=00 siz=0 off=128
+  kxsbbbfp=759c1013dd80  bln=22  avl=02  flg=01
+  value=8
+EXEC #5:c=0,e=147,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=10804210460
+`
+	r, st := parseSample(t, s)
+	if st.Unknown != 0 || len(r.binds) != 1 || len(r.binds[0].Binds) != 2 {
+		t.Fatalf("binds: %+v unknown=%d (%v)", r.binds, st.Unknown, r.unknown)
+	}
+	b := r.binds[0].Binds
+	if !strings.HasPrefix(b[0].Value, "Unhandled datatype (-73)") || !b[0].IsDump || !strings.Contains(b[0].Value, "00402F07") {
+		t.Errorf("bind 0: %+v", b[0])
+	}
+	if b[1].Value != "8" {
+		t.Errorf("bind 1: %+v", b[1])
+	}
+}
+
+// 23ai renamed the banner ("Oracle AI Database 26ai Free Release 23.26.3.0.0 ...").
+func TestBanner23ai(t *testing.T) {
+	r, _ := parseSample(t, "Trace file /x.trc\nOracle AI Database 26ai Free Release 23.26.3.0.0 - Develop, Learn, and Run for Free\nVersion 23.26.3.0.0\n")
+	if len(r.headers) != 3 || r.headers[1].Key != "Oracle Database" || r.headers[2].Value != "23.26.3.0.0" {
+		t.Errorf("headers: %+v", r.headers)
+	}
+}
+
 func itoa(n int) string { return fmt.Sprint(n) }
 
 // A wall-clock marker can land inside a BINDS block; it must not end it.

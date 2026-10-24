@@ -1,0 +1,217 @@
+
+TKPROF: Release 21.0.0.0.0 - Development on Sat Oct 24 10:42:44 2026
+
+Copyright (c) 1982, 2021, Oracle and/or its affiliates.  All rights reserved.
+
+Trace file: out/bind_types.trc
+Sort options: prsela  exeela  fchela  
+********************************************************************************
+count    = number of times OCI procedure was executed
+cpu      = cpu time in seconds executing 
+elapsed  = elapsed time in seconds executing
+disk     = number of physical reads of buffers from disk
+query    = number of buffers gotten for consistent read
+current  = number of buffers gotten in current mode (usually for update)
+rows     = number of rows processed by the fetch or execute call
+--------------------------------------------------------------------------------
+
+*** SESSION ID:(300.60295) 2026-10-24T10:42:44.063875+00:00
+
+********************************************************************************
+
+declare
+  v_cnt number;
+  procedure run(
+    p_ts    timestamp,
+    p_tstz  timestamp with time zone,
+    p_tsltz timestamp with local time zone,
+    p_ds    varchar2,
+    p_ym    varchar2,
+    p_raw   raw,
+    p_date  date) is
+    v_ds interval day(9) to second(9) := to_dsinterval(p_ds);
+    v_ym interval year(9) to month    := to_yminterval(p_ym);
+  begin
+    execute immediate
+      'select /* mtk_bind_types */ count(*) from dual where :ts is not null and :tstz is not null ' ||
+      ' and :tsltz is not null and :ds is not null and :ym is not null and :r is not null and :d is not null'
+      into v_cnt using p_ts, p_tstz, p_tsltz, v_ds, v_ym, p_raw, p_date;
+  end;
+begin
+  -- set 1: fractional seconds, positive offsets, positive intervals
+  run(timestamp '2024-02-29 13:14:15.123456789',
+      timestamp '2024-02-29 13:14:15.123456 +02:00',
+      timestamp '2024-07-01 23:59:59.5',
+      '3 04:05:06.789',
+      '1-6',
+      hextoraw('DEADBEEF00112233445566778899AABBCCDDEEFF'),
+      date '1999-12-31');
+  -- set 2: no fraction, negative offset with minutes, region id, negative and large intervals
+  run(timestamp '1970-01-01 00:00:00',
+      timestamp '2031-11-05 08:30:00 America/Los_Angeles',
+      timestamp '2000-01-01 00:00:00',
+      '-12 23:59:58.000001',
+      '-123-11',
+      hextoraw('00'),
+      date '2024-10-22' + 12/24 + 35/1440 + 31/86400);
+  -- set 3: tz offset with minutes, zero and 9-digit day interval
+  run(timestamp '2024-12-31 23:59:59.999999999',
+      timestamp '2024-12-31 23:59:59.999999 -03:30',
+      timestamp '2024-12-31 23:59:59.999999',
+      '0 00:00:00',
+      '0-0',
+      hextoraw('FF'),
+      date '0001-01-01');
+  -- set 4: numeric extremes of the interval types
+  run(timestamp '2024-02-29 12:00:00',
+      timestamp '2024-02-29 12:00:00 UTC',
+      timestamp '2024-02-29 12:00:00',
+      '999999999 23:59:59.999999999',
+      '999999999-11',
+      hextoraw('0102030405060708090A0B0C0D0E0F10'),
+      date '2024-02-29');
+end;
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: dxrf47v7hr7yq Plan Hash: 3937172027
+
+select /* mtk_bind_types */ count(*) 
+from
+ dual where :ts is not null and :tstz is not null  and :tsltz is not null and 
+  :ds is not null and :ym is not null and :r is not null and :d is not null
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      4      0.00       0.00          0          0          0           0
+Fetch        4      0.00       0.00          0          0          0           4
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        9      0.00       0.00          0          0          0           4
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110     (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  SORT AGGREGATE (cr=0 pr=0 pw=0 time=6 us starts=1)
+         1          1          1   FILTER  (cr=0 pr=0 pw=0 time=2 us starts=1)
+         1          1          1    FAST DUAL  (cr=0 pr=0 pw=0 time=0 us starts=1 cost=2 size=0 card=1)
+
+--------------------------------------------------------------------------------
+
+SQL ID: c1r6pz6txz52w Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('bind_types'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+  PGA memory operation                            7        0.00          0.00
+********************************************************************************
+
+SQL ID: 06nvwn223659v Plan Hash: 0
+
+alter session set events '10046 trace name context off'
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+Parsing user id: 110  
+
+
+
+********************************************************************************
+
+OVERALL TOTALS FOR ALL NON-RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        3      0.00       0.00          0          0          0           0
+Execute      3      0.00       0.00          0          0          0           2
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        6      0.00       0.00          0          0          0           2
+
+Misses in library cache during parse: 2
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       3        0.00          0.00
+  SQL*Net message from client                     3        0.00          0.00
+  PGA memory operation                            7        0.00          0.00
+
+
+OVERALL TOTALS FOR ALL RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      4      0.00       0.00          0          0          0           0
+Fetch        4      0.00       0.00          0          0          0           4
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        9      0.00       0.00          0          0          0           4
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+
+    4  user  SQL statements in session.
+    0  internal SQL statements in session.
+    4  SQL statements in session.
+********************************************************************************
+Trace file: out/bind_types.trc
+Trace file compatibility: 12.2.0.0
+Sort options: prsela  exeela  fchela  
+       1  session in tracefile.
+       4  user  SQL statements in trace file.
+       0  internal SQL statements in trace file.
+       4  SQL statements in trace file.
+       4  unique SQL statements in trace file.
+     319  lines in trace file.
+       0  elapsed seconds in trace file.
+
+

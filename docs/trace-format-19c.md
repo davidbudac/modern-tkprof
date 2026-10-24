@@ -2,7 +2,9 @@
 
 Everything below was verified against real 19.27 traces generated in the
 dbmint lab (`testdata/traces/19c/`, generator in `testdata/gen/`). Line kinds
-not seen in those fixtures are marked *(unverified)*.
+not seen in those fixtures are marked *(unverified)*. 21c XE and 23ai Free
+traces (`testdata/traces/21c/`, `23ai/`) were generated in docker; their
+differences are collected in the last section.
 
 ## File prologue
 
@@ -219,3 +221,32 @@ LOBWRITE, LOBAPPEND, LOBPGSIZE *(unverified)* share the layout. `RPC CALL:`,
 
 ORA-01722 raised during the first FETCH produces **no** `ERROR #` line, only
 `FETCH … r=0` and `SQL*Net break/reset to client` waits.
+
+## 21c / 23ai differences
+
+Verified against `testdata/traces/21c/` (21.3 XE) and `testdata/traces/23ai/`
+(Oracle AI Database 26ai Free, 23.26.3, `tkprof` "Release 23.0"). All line kinds
+of the 19c format are unchanged (`PARSING IN CURSOR`, `PARSE/EXEC/FETCH/CLOSE`,
+`WAIT`, `STAT`, `BINDS`, `XCTEND`, `ERROR`, `LOB*`); `mtkprof lint` reports 0
+unknown lines on both sets. What changed:
+
+| Where | 19c | 21c | 23ai |
+|---|---|---|---|
+| Banner | `Oracle Database 19c ...` | `Oracle Database 21c Express Edition ...` | `Oracle AI Database 26ai Free Release 23.26.3.0.0 - ...` (key `Oracle Database` is kept for both spellings) |
+| Pid header | `Unix process pid: 133440, image: oracle@host` | `Unix process pid: 759, NID: 4026532333, image: oracle@host` | block: `Unix process pid:       1756`, `             NID:       4026532333`, `             created:   2026-10-24T10:35:56.9600-7358+00:00` (garbage zone offset), `             image:     oracle@host`; PX detection reads the `image:` line (`(P000)`) |
+| Extra header lines | `Database name/id/role`, `Oracle process number` | no `Database *` lines | one more line, `Oracle binary inode:`; otherwise as 19c |
+| Markers after `*** CONTAINER ID` | – | `*** CLIENT IP:(127.0.0.1) <ts>`, `*** CONNECTION ID:(XpTCBiyDAvXgYwIAEazlbg==) <ts>` | same as 21c (kinds `CLIENT IP`, `CONNECTION ID`) |
+| STAT row source stats | `(cr= pr= pw= str= time= us cost= size= card=)` | same | `(cr= pr= pw= str= time= dr=0 dw=0 us cost= size= card=)`; `dr`/`dw` (direct reads/writes) are ignored by the parser |
+| Unprintable bind value | `  value=Unhandled datatype (-73) found in kxsbndinf` (2 spaces) | same | ` value=Unhandled datatype (-73) found in kxsbndinf` (**1 space**), followed by the unindented `Dumping ''` / `Dump of memory` / hex rows; the hex rows carry extra padding before the `[...]` ASCII column |
+| Waits | – | `SQL*Net vector data to client` (large results) | `Allocate UGA/PGA/CGA/DGA memory from OS` (`Bytes=65536 where=1`), `Free private memory to OS`, `sequence cache replenishment` (extra `objn=` `pdbid=` fields), `SQL*Net vector data to client` |
+| `trcsess` process switch | `*** [ Unix process pid: 133531 ]` | same | `*** Unix process pid:       2013` (no brackets: trcsess copies the block-form header line) |
+
+Notes:
+- `parallel` could not be generated: XE and Free run `PARALLEL` hints serially
+  (`Queries Parallelized = 0`), so there is no 21c/23ai PX coordinator or slave
+  trace; the PX handling is only verified against 19c.
+- `tkprof` parity (`internal/golden`) holds on 21c and 23ai with one deliberate
+  deviation, see the comment on `assumedNumbers` in the test.
+- The 23ai Free trace of `midtrace_start` re-dumps `PARSING IN CURSOR` for the
+  PL/SQL block in the continuation file (it only occurred in part 1 on 19c);
+  the parser treats it like any other cursor text.

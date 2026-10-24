@@ -1,0 +1,2136 @@
+
+TKPROF: Release 23.0.0.0.0 - Development on Sat Oct 24 10:39:23 2026
+
+Copyright (c) 1982, 2026, Oracle and/or its affiliates.  All rights reserved.
+
+Trace file: out/lobs.trc
+Trace file version:
+   Version 23.26.3.0.0
+   Build label:    RDBMS_23.26.3.0.0DBRU_LINUX.X64_260704
+Sort options: prsela  exeela  fchela  
+********************************************************************************
+count    = number of times OCI procedure was executed
+cpu      = cpu time in seconds executing 
+elapsed  = elapsed time in seconds executing
+disk     = number of physical reads of buffers from disk
+query    = number of buffers gotten for consistent read
+current  = number of buffers gotten in current mode (usually for update)
+rows     = number of rows processed by the fetch or execute call
+********************************************************************************
+
+SQL ID: 65w0g52p3ph40 Plan Hash: 0
+
+declare
+  v_c    clob;
+  v_b    blob;
+  v_tmp  clob;
+  v_buf  varchar2(4000);
+  v_raw  raw(4000);
+  v_amt  number;
+  v_len  number;
+begin
+  select c, b into v_c, v_b from mtk_lob where id = 1 for update;
+  v_buf := rpad('appended by mtk_lobs scenario ', 4000, 'z');
+  v_raw := utl_raw.cast_to_raw(v_buf);
+  for i in 1 .. 5 loop
+    dbms_lob.writeappend(v_c, length(v_buf), v_buf);
+    dbms_lob.writeappend(v_b, utl_raw.length(v_raw), v_raw);
+  end loop;
+  v_len := dbms_lob.getlength(v_c);
+  dbms_output.put_line('clob length after append = ' || v_len);
+  v_amt := 4000;
+  dbms_lob.read(v_c, v_amt, 1, v_buf);
+  dbms_lob.write(v_c, 10, 1, 'OVERWRITE!');
+  dbms_lob.createtemporary(v_tmp, true);
+  dbms_lob.copy(v_tmp, v_c, 20000);
+  dbms_lob.append(v_tmp, v_c);
+  dbms_output.put_line('temp lob length = ' || dbms_lob.getlength(v_tmp));
+  dbms_lob.freetemporary(v_tmp);
+  rollback;   -- keep the fixture data unchanged
+end;
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.05       0.05          0         29          0           0
+Execute      1      0.00       0.02         28         56         46           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.05       0.07         28         85         46           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  write complete waits                            1        0.01          0.01
+  direct path read                                7        0.00          0.00
+  log file sync                                   1        0.00          0.00
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 8sst43uk9rk8q Plan Hash: 0
+
+ROLLBACK
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.01          9          2         49           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.01          9          2         49           0
+
+Misses in library cache during parse: 0
+Parsing user id: 136     (recursive depth: 1)
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  write complete waits                            1        0.01          0.01
+  db file sequential read                         9        0.00          0.00
+  local write wait                                9        0.00          0.00
+********************************************************************************
+
+SQL ID: 6bvg5d2g7jd60 Plan Hash: 935509901
+
+SELECT o.name 
+FROM
+ (SELECT :1 as obj# FROM dual UNION ALL SELECT d.d_obj# as obj# FROM 
+  dependency$ d JOIN obj$ o ON d.d_obj# = o.obj# AND o.type# = 5 START WITH 
+  d.p_obj# = :1 CONNECT BY PRIOR d.d_obj# = d.p_obj# ) bo, obj$ o, 
+  dependency$ d, jsonmap_view$ j WHERE d.p_obj# = bo.obj# AND d.d_obj# = 
+  j.obj# AND bitand(j.flags,1)=1 AND o.status NOT IN (3,5) AND o.obj# = 
+  j.obj# FETCH FIRST 1 ROW ONLY
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0         22          0           0
+Execute      1      0.00       0.00          0          4          0           0
+Fetch        1      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.01          0         26          0           0
+
+Misses in library cache during parse: 1
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  COUNT STOPKEY (cr=0 pr=0 pw=0 time=110 us starts=1 direct read=0 direct write=0)
+         0          0          0   HASH JOIN  (cr=0 pr=0 pw=0 time=109 us starts=1 direct read=0 direct write=0 cost=48 size=78 card=1)
+         0          0          0    HASH JOIN  (cr=0 pr=0 pw=0 time=30 us starts=1 direct read=0 direct write=0 cost=4 size=65 card=1)
+         0          0          0     NESTED LOOPS  (cr=0 pr=0 pw=0 time=29 us starts=1 direct read=0 direct write=0 cost=4 size=65 card=1)
+         0          0          0      NESTED LOOPS  (cr=0 pr=0 pw=0 time=29 us starts=1 direct read=0 direct write=0 cost=4 size=65 card=2)
+         0          0          0       STATISTICS COLLECTOR  (cr=0 pr=0 pw=0 time=28 us starts=1 direct read=0 direct write=0)
+         0          0          0        HASH JOIN  (cr=0 pr=0 pw=0 time=14 us starts=1 direct read=0 direct write=0 cost=3 size=55 card=1)
+         0          0          0         NESTED LOOPS  (cr=0 pr=0 pw=0 time=12 us starts=1 direct read=0 direct write=0 cost=3 size=55 card=1)
+         0          0          0          STATISTICS COLLECTOR  (cr=0 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0)
+         0          0          0           TABLE ACCESS FULL JSONMAP_VIEW$ (cr=0 pr=0 pw=0 time=2 us starts=1 direct read=0 direct write=0 cost=2 size=26 card=1)
+         0          0          0          TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=29 card=1)
+         0          0          0           INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 36)
+         0          0          0         TABLE ACCESS FULL OBJ$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=29 card=1)
+         0          0          0       INDEX RANGE SCAN I_DEPENDENCY1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=0 card=2)(object id 85)
+         0          0          0      TABLE ACCESS BY INDEX ROWID DEPENDENCY$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=10 card=1)
+         0          0          0     TABLE ACCESS FULL DEPENDENCY$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=10 card=1)
+         0          0          0    VIEW  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=46 size=78 card=6)
+         0          0          0     UNION-ALL  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=46 size=130 card=6)
+         0          0          0      FAST DUAL  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=2 size=0 card=1)
+         0          0          0      CONNECT BY WITH FILTERING (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0)
+         0          0          0       HASH JOIN  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=8 size=76 card=4)
+         0          0          0        NESTED LOOPS  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=8 size=76 card=4)
+         0          0          0         STATISTICS COLLECTOR  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0)
+         0          0          0          TABLE ACCESS BY INDEX ROWID BATCHED DEPENDENCY$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=4 size=40 card=4)
+         0          0          0           INDEX RANGE SCAN I_DEPENDENCY2 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=2 size=0 card=4)(object id 86)
+         0          0          0         INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=9 card=1)(object id 36)
+         0          0          0        INDEX FAST FULL SCAN I_OBJ1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=9 card=1)(object id 36)
+         0          0          0       HASH JOIN  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=34 size=32 card=1)
+         0          0          0        NESTED LOOPS  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=34 size=32 card=1)
+         0          0          0         STATISTICS COLLECTOR  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0)
+         0          0          0          HASH JOIN  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=20 size=322 card=14)
+         0          0          0           NESTED LOOPS  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=20 size=322 card=14)
+         0          0          0            STATISTICS COLLECTOR  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0)
+         0          0          0             CONNECT BY PUMP  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0)
+         0          0          0            TABLE ACCESS BY INDEX ROWID BATCHED DEPENDENCY$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=3 size=40 card=4)
+         0          0          0             INDEX RANGE SCAN I_DEPENDENCY2 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=0 card=4)(object id 86)
+         0          0          0           TABLE ACCESS FULL DEPENDENCY$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=3 size=40 card=4)
+         0          0          0         INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=9 card=1)(object id 36)
+         0          0          0        INDEX FAST FULL SCAN I_OBJ1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=9 card=1)(object id 36)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate CGA memory from OS                     9        0.00          0.00
+********************************************************************************
+
+SQL ID: 67t3r46anjj7v Plan Hash: 4024250663
+
+insert into mtk_lob (id, c, b) select id + 100, c, b from mtk_lob where id in 
+  (1, 2)
+
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00         60          9         19           2
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00         60          9         19           2
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  LOAD TABLE CONVENTIONAL  MTK_LOB (cr=9 pr=60 pw=60 time=3306 us starts=1 direct read=0 direct write=0)
+         2          2          2   INLIST ITERATOR  (cr=3 pr=0 pw=0 time=14 us starts=1 direct read=0 direct write=0)
+         2          2          2    TABLE ACCESS BY INDEX ROWID MTK_LOB (cr=3 pr=0 pw=0 time=13 us starts=2 direct read=0 direct write=0 cost=2 size=570 card=2)
+         2          2          2     INDEX UNIQUE SCAN MTK_LOB_PK (cr=2 pr=0 pw=0 time=6 us starts=2 direct read=0 direct write=0 cost=1 size=0 card=2)(object id 73356)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate PGA memory from OS                     1        0.00          0.00
+  direct path read                                6        0.00          0.00
+  direct path write                               4        0.00          0.00
+  Free private memory to OS                       1        0.00          0.00
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 5txnkj68hhbwx Plan Hash: 2791777032
+
+select id, dbms_lob.getlength(c) as clen, dbms_lob.getlength(b) as blen 
+from
+ mtk_lob order by id
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          4          0           5
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          4          0           5
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         5          5          5  TABLE ACCESS BY INDEX ROWID MTK_LOB (cr=4 pr=0 pw=0 time=48 us starts=1 direct read=0 direct write=0 cost=2 size=1425 card=5)
+         5          5          5   INDEX FULL SCAN MTK_LOB_PK (cr=2 pr=0 pw=0 time=44 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=5)(object id 73356)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate CGA memory from OS                     3        0.00          0.00
+  Allocate UGA memory from OS                     1        0.00          0.00
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 9babjv8yq8ru3 Plan Hash: 0
+
+BEGIN DBMS_OUTPUT.GET_LINES(:LINES, :NUMLINES); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse       23      0.00       0.00          0          0          0           0
+Execute     23      0.00       0.00          0          0          0          23
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total       46      0.00       0.00          0          0          0          23
+
+Misses in library cache during parse: 0
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate UGA memory from OS                     1        0.00          0.00
+  Allocate PGA memory from OS                     1        0.00          0.00
+  SQL*Net message to client                      23        0.00          0.00
+  SQL*Net message from client                    23        0.00          0.00
+********************************************************************************
+
+SQL ID: 9m7hagjdv5pgs Plan Hash: 131142392
+
+select id, dbms_lob.getlength(c) as clen 
+from
+ mtk_lob where id > 100
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          4          0           2
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          4          0           2
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         2          2          2  TABLE ACCESS BY INDEX ROWID BATCHED MTK_LOB (cr=4 pr=0 pw=0 time=7 us starts=1 direct read=0 direct write=0 cost=2 size=143 card=1)
+         2          2          2   INDEX RANGE SCAN MTK_LOB_PK (cr=2 pr=0 pw=0 time=6 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 73356)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 1bu5jwtngzrym Plan Hash: 2791777032
+
+select /* mtk_lob_substr */ id, substr(c, 1, 100) as head 
+from
+ mtk_lob order by id
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00         10          2          0           5
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00         10          2          0           5
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         5          5          5  TABLE ACCESS BY INDEX ROWID MTK_LOB (cr=2 pr=0 pw=0 time=15 us starts=1 direct read=0 direct write=0 cost=2 size=715 card=5)
+         5          5          5   INDEX FULL SCAN MTK_LOB_PK (cr=1 pr=0 pw=0 time=3 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=5)(object id 73356)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+  Allocate UGA memory from OS                     8        0.00          0.00
+  direct path read                               10        0.00          0.00
+  Allocate PGA memory from OS                     6        0.00          0.00
+********************************************************************************
+
+SQL ID: 2318x9284zm9j Plan Hash: 2518668288
+
+update mtk_lob set c = c || ' (updated)' 
+where
+ id = 101
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          8          3          5           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          8          3          5           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  UPDATE  MTK_LOB (cr=3 pr=8 pw=8 time=728 us starts=1 direct read=0 direct write=0)
+         1          1          1   INDEX UNIQUE SCAN MTK_LOB_PK (cr=1 pr=0 pw=0 time=2 us starts=1 direct read=0 direct write=0 cost=0 size=143 card=1)(object id 73356)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  direct path read                                2        0.00          0.00
+  direct path write                               1        0.00          0.00
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: b44f1vb28jtcd Plan Hash: 143215012
+
+SELECT C, B 
+FROM
+ MTK_LOB WHERE ID = 1 FOR UPDATE
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          2          3           0
+Fetch        1      0.00       0.00          0          3          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          5          3           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136     (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  FOR UPDATE  (cr=5 pr=0 pw=0 time=92 us starts=1 direct read=0 direct write=0)
+         2          2          2   TABLE ACCESS BY INDEX ROWID MTK_LOB (cr=5 pr=0 pw=0 time=49 us starts=2 direct read=0 direct write=0 cost=1 size=285 card=1)
+         2          2          2    INDEX UNIQUE SCAN MTK_LOB_PK (cr=2 pr=0 pw=0 time=5 us starts=2 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 73356)
+
+********************************************************************************
+
+SQL ID: 4gb315zua6sdz Plan Hash: 0
+
+BEGIN dbms_lob.freetemporary(:vc); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 10r5vf5bpkdna Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('plsql_lob_write'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+  Allocate UGA memory from OS                     1        0.00          0.00
+  Allocate CGA memory from OS                     6        0.00          0.00
+********************************************************************************
+
+SQL ID: 121ffmrc95v7g Plan Hash: 2007068531
+
+select i.obj#,i.ts#,i.file#,i.block#,i.intcols,i.type#,i.flags,i.property,
+  i.pctfree$,i.initrans,i.maxtrans,i.blevel,i.leafcnt,i.distkey,i.lblkkey,
+  i.dblkkey,i.clufac,i.cols,i.analyzetime,i.samplesize,i.dataobj#,
+  nvl(i.degree,1),nvl(i.instances,1),i.rowcnt,mod(i.pctthres$,256),
+  i.indmethod#,i.trunccnt,nvl(c.unicols,0),nvl(c.deferrable#+c.valid#,0),
+  nvl(i.spare1,i.intcols),i.spare4,i.spare2,i.spare6,decode(i.pctthres$,null,
+  null,mod(trunc(i.pctthres$/256),256)),nvl(i.evaledition#,1),
+  nvl(i.unusablebefore#,0),nvl(i.unusablebeginning#,0), ist.cachedblk,
+  ist.cachehit,ist.logicalread 
+from
+ ind$ i, ind_stats$ ist, (select enabled, min(intcols) unicols,
+  min(to_number(bitand(defer,1))) deferrable#,min(to_number(bitand(defer,4))) 
+  valid# from cdef$ where obj#=:1 and enabled > 1 group by enabled) c where 
+  i.obj#=c.enabled(+) and i.obj# = ist.obj#(+) and i.bo#=:1 order by i.obj#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        3      0.00       0.00          0          7          0           2
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        5      0.00       0.00          0          7          0           2
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         2          2          2  SORT ORDER BY (cr=7 pr=0 pw=0 time=338 us starts=1 direct read=0 direct write=0 cost=6 size=184 card=1)
+         2          2          2   HASH JOIN OUTER (cr=7 pr=0 pw=0 time=315 us starts=1 direct read=0 direct write=0 cost=5 size=184 card=1)
+         2          2          2    JOIN FILTER CREATE :BF0000 (cr=4 pr=0 pw=0 time=27 us starts=1 direct read=0 direct write=0 cost=2 size=141 card=1)
+         2          2          2     NESTED LOOPS OUTER (cr=4 pr=0 pw=0 time=16 us starts=1 direct read=0 direct write=0 cost=2 size=141 card=1)
+         2          2          2      TABLE ACCESS CLUSTER IND$ (cr=3 pr=0 pw=0 time=6 us starts=1 direct read=0 direct write=0 cost=2 size=89 card=1)
+         1          1          1       INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 time=2 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 3)
+         0          0          0      TABLE ACCESS BY INDEX ROWID IND_STATS$ (cr=1 pr=0 pw=0 time=9 us starts=2 direct read=0 direct write=0 cost=0 size=52 card=1)
+         0          0          0       INDEX UNIQUE SCAN I_IND_STATS$_OBJ# (cr=1 pr=0 pw=0 time=8 us starts=2 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 76)
+         0          0          0    VIEW  (cr=3 pr=0 pw=0 time=67 us starts=1 direct read=0 direct write=0 cost=3 size=172 card=4)
+         0          0          0     SORT GROUP BY (cr=3 pr=0 pw=0 time=65 us starts=1 direct read=0 direct write=0 cost=3 size=60 card=4)
+         0          0          0      JOIN FILTER USE :BF0000 (cr=3 pr=0 pw=0 time=39 us starts=1 direct read=0 direct write=0 cost=2 size=60 card=4)
+         0          0          0       TABLE ACCESS CLUSTER CDEF$ (cr=3 pr=0 pw=0 time=38 us starts=1 direct read=0 direct write=0 cost=2 size=60 card=4)
+         1          1          1        INDEX UNIQUE SCAN I_COBJ# (cr=2 pr=0 pw=0 time=24 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 30)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate UGA memory from OS                    11        0.00          0.00
+********************************************************************************
+
+SQL ID: av0w0w4767mdy Plan Hash: 0
+
+begin select c into :vc2 from mtk_lob where id = 2; end;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          1          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          1          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: gw2rxnmbwuww2 Plan Hash: 0
+
+begin
+  dbms_lob.createtemporary(:vc, true);
+  dbms_lob.writeappend(:vc, 30, 'client side temp lob content..');
+end;
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 5pz47rg125tpq Plan Hash: 3237674455
+
+select /* mtk_lob_blob_client */ id, b 
+from
+ mtk_lob where id = 2
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          2          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          2          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID MTK_LOB (cr=2 pr=0 pw=0 time=5 us starts=1 direct read=0 direct write=0 cost=1 size=146 card=1)
+         1          1          1   INDEX UNIQUE SCAN MTK_LOB_PK (cr=1 pr=0 pw=0 time=3 us starts=1 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 73356)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 72tus327uzmh3 Plan Hash: 4024250663
+
+select /* mtk_lob_clob_client */ id, c 
+from
+ mtk_lob where id in (2, 3) order by id
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          3          0           2
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          3          0           2
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         2          2          2  INLIST ITERATOR  (cr=3 pr=0 pw=0 time=8 us starts=1 direct read=0 direct write=0)
+         2          2          2   TABLE ACCESS BY INDEX ROWID MTK_LOB (cr=3 pr=0 pw=0 time=9 us starts=2 direct read=0 direct write=0 cost=2 size=286 card=2)
+         2          2          2    INDEX UNIQUE SCAN MTK_LOB_PK (cr=2 pr=0 pw=0 time=3 us starts=2 direct read=0 direct write=0 cost=1 size=0 card=2)(object id 73356)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 941wpsu46wanp Plan Hash: 4024250663
+
+select /* mtk_lob_partial_read */ id, c 
+from
+ mtk_lob where id in (4, 5) order by id
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          3          0           2
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          3          0           2
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         2          2          2  INLIST ITERATOR  (cr=3 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0)
+         2          2          2   TABLE ACCESS BY INDEX ROWID MTK_LOB (cr=3 pr=0 pw=0 time=8 us starts=2 direct read=0 direct write=0 cost=2 size=286 card=2)
+         2          2          2    INDEX UNIQUE SCAN MTK_LOB_PK (cr=2 pr=0 pw=0 time=2 us starts=2 direct read=0 direct write=0 cost=1 size=0 card=2)(object id 73356)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: cx1grha48cs08 Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('client_temp_lob'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 6pfzuj9sr3pms Plan Hash: 0
+
+BEGIN :vc := empty_clob();  END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: fmtqwtyhz91ht Plan Hash: 0
+
+BEGIN :vc2 := empty_clob();  END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 5nahp00n7fz45 Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('insert_select_lob'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: g6jhtuvkhd3tp Plan Hash: 1388734953
+
+SELECT :vc2 vc2 
+FROM
+ SYS.DUAL
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          1          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          1          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  FAST DUAL  (cr=0 pr=0 pw=0 time=1 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 10gywwmwk6xfy Plan Hash: 1426583507
+
+select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, 
+  flags, ctime 
+from
+ exp_head$ eh where exp_id = :1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      8      0.00       0.00          0          0          0           0
+Fetch        8      0.00       0.00          0         16          0           8
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total       17      0.00       0.00          0         16          0           8
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID EXP_HEAD$ (cr=2 pr=0 pw=0 time=22 us starts=1 direct read=0 direct write=0 cost=0 size=4078 card=1)
+         1          1          1   INDEX UNIQUE SCAN I_EXP_HEAD$ (cr=1 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 860)
+
+********************************************************************************
+
+SQL ID: 9dkz31zhbfbnr Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('client_select_lob'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: cww3s7zdmdth6 Plan Hash: 0
+
+insert into mtk_lob (id, c) 
+values
+ (200, :vc)
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          7           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          7           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  LOAD TABLE CONVENTIONAL  MTK_LOB (cr=0 pr=0 pw=0 time=69 us starts=1 direct read=0 direct write=0)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: c3333fu2qh3q2 Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('client_partial_read'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 1db2uhwwbqrcb Plan Hash: 1388734953
+
+SELECT :vc vc 
+FROM
+ SYS.DUAL
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          0          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  FAST DUAL  (cr=0 pr=0 pw=0 time=0 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 8u4y7y01n9kz1 Plan Hash: 3237674455
+
+SELECT C 
+FROM
+ MTK_LOB WHERE ID = 2
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          2          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          2          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136     (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID MTK_LOB (cr=2 pr=0 pw=0 time=5 us starts=1 direct read=0 direct write=0 cost=1 size=143 card=1)
+         1          1          1   INDEX UNIQUE SCAN MTK_LOB_PK (cr=1 pr=0 pw=0 time=1 us starts=1 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 73356)
+
+********************************************************************************
+
+SQL ID: 720t5q1mswfxd Plan Hash: 1388734953
+
+select length(:vc) as tmp_len 
+from
+ dual
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          0          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  FAST DUAL  (cr=0 pr=0 pw=0 time=2 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: ajyuz252n1fu6 Plan Hash: 3765558045
+
+select name,intcol#,segcol#,type#,length,nvl(precision#,0),decode(type#,2,
+  nvl(scale,-127/*MAXSB1MINAL*/),178,scale,179,scale,180,scale,181,scale,182,
+  scale,183,scale,231,scale,119,nvl(scale,0),127,nvl(scale,0),0),null$,
+  fixedstorage,nvl(deflength,0),default$,rowid,col#,property, nvl(charsetid,0)
+  ,nvl(charsetform,0),spare1,spare2,nvl(spare3,0), nvl(evaledition#,1),
+  nvl(unusablebefore#,0),nvl(unusablebeginning#,0), case when (type# in (1,8,
+  9,96,112)) then nvl(collid, 16382) else (case when (type# in (119)) then  
+  nvl(collid, 0) else 0 end ) end case, nvl(collintcol#,0), nvl(acdrrescol#, 
+  0), nvl(spare7, 0), nvl(spare9, 0), nvl(spare10, 0) 
+from
+ col$ where obj#=:1 order by intcol#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        5      0.00       0.00          0          4          0           4
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        7      0.00       0.00          0          4          0           4
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         4          4          4  SORT ORDER BY (cr=3 pr=0 pw=0 time=27 us starts=1 direct read=0 direct write=0 cost=3 size=980 card=14)
+         4          4          4   TABLE ACCESS CLUSTER COL$ (cr=3 pr=0 pw=0 time=7 us starts=1 direct read=0 direct write=0 cost=2 size=980 card=14)
+         1          1          1    INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 time=3 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 3)
+
+********************************************************************************
+
+SQL ID: 3un99a0zwp4vd Plan Hash: 1475428744
+
+select owner#,name,namespace,remoteowner,linkname,p_timestamp,p_obj#, 
+  nvl(property,0),subname,type#,flags,d_attrs 
+from
+ dependency$ d, obj$ o where d_obj#=:1 and p_obj#=obj#(+) order by order#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        3      0.00       0.00          0          8          0           2
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        5      0.00       0.00          0          8          0           2
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         2          2          2  SORT ORDER BY (cr=8 pr=0 pw=0 time=97 us starts=1 direct read=0 direct write=0 cost=8 size=278 card=2)
+         2          2          2   HASH JOIN OUTER (cr=8 pr=0 pw=0 time=86 us starts=1 direct read=0 direct write=0 cost=7 size=278 card=2)
+         2          2          2    NESTED LOOPS OUTER (cr=8 pr=0 pw=0 time=83 us starts=1 direct read=0 direct write=0 cost=7 size=278 card=2)
+         2          2          2     STATISTICS COLLECTOR  (cr=3 pr=0 pw=0 time=38 us starts=1 direct read=0 direct write=0)
+         2          2          2      TABLE ACCESS BY INDEX ROWID BATCHED DEPENDENCY$ (cr=3 pr=0 pw=0 time=37 us starts=1 direct read=0 direct write=0 cost=3 size=60 card=2)
+         2          2          2       INDEX RANGE SCAN I_DEPENDENCY1 (cr=2 pr=0 pw=0 time=22 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=2)(object id 85)
+         2          2          2     TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=5 pr=0 pw=0 time=39 us starts=2 direct read=0 direct write=0 cost=2 size=109 card=1)
+         2          2          2      INDEX RANGE SCAN I_OBJ1 (cr=4 pr=0 pw=0 time=30 us starts=2 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 36)
+         0          0          0    TABLE ACCESS FULL OBJ$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=2 size=109 card=1)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate UGA memory from OS                     9        0.00          0.00
+********************************************************************************
+
+SQL ID: 28mak3w35jy68 Plan Hash: 1388734953
+
+select :vc as tmp_clob 
+from
+ dual
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          0          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 136  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  FAST DUAL  (cr=0 pr=0 pw=0 time=0 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: acmvv4fhdc9zh Plan Hash: 813480514
+
+select obj#,type#,ctime,mtime,stime, status, dataobj#, flags, oid$, spare1, 
+  spare2, spare3, signature, spare7, spare8, spare9, nvl(dflcollid, 16382), 
+  creappid, creverid, modappid, modverid, crepatchid, modpatchid 
+from
+ obj$ where owner#=:1 and name=:2 and namespace=:3 and remoteowner is null 
+  and linkname is null and subname is null
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute      3      0.00       0.00          0          0          0           0
+Fetch        3      0.00       0.00          0         12          0           3
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        6      0.00       0.00          0         12          0           3
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=4 pr=0 pw=0 time=34 us starts=1 direct read=0 direct write=0 cost=3 size=109 card=1)
+         1          1          1   INDEX RANGE SCAN I_OBJ2 (cr=3 pr=0 pw=0 time=32 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 37)
+
+********************************************************************************
+
+SQL ID: 18grqd4nfgv98 Plan Hash: 0
+
+rollback
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        2      0.00       0.00          0          0          0           0
+Execute      2      0.00       0.00          0          4         24           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          4         24           0
+
+Misses in library cache during parse: 0
+Parsing user id: 136  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  log file sync                                   2        0.00          0.00
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 87gaftwrm2h68 Plan Hash: 1072382624
+
+select o.owner#,o.name,o.namespace,o.remoteowner,o.linkname,o.subname 
+from
+ obj$ o where o.obj#=:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      6      0.00       0.00          0          0          0           0
+Fetch        6      0.00       0.00          0         15          0           3
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total       13      0.00       0.00          0         15          0           3
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=3 pr=0 pw=0 time=16 us starts=1 direct read=0 direct write=0 cost=3 size=109 card=1)
+         1          1          1   INDEX RANGE SCAN I_OBJ1 (cr=2 pr=0 pw=0 time=13 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 36)
+
+********************************************************************************
+
+SQL ID: 04kug40zbu4dm Plan Hash: 4006480256
+
+select policy#, action# 
+from
+ aud_object_opt$ where object# = :1 and type = 2
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute      2      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0         28          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0         28          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS FULL AUD_OBJECT_OPT$ (cr=14 pr=0 pw=0 time=114 us starts=1 direct read=0 direct write=0 cost=2 size=114 card=1)
+
+********************************************************************************
+
+SQL ID: 45m20xjbh4rnx Plan Hash: 727816792
+
+select decode(u.type#, 2, u.ext_username, u.name), o.name,        t.update$, 
+  t.insert$, t.delete$, t.enabled,        decode(bitand(t.property, 8192),
+  8192, 1, 0),        decode(bitand(t.property, 65536), 65536, 1, 0),       
+  decode(bitand(t.property, 131072), 131072, 1, 0),       (select o.name 
+from
+ obj$ o          where o.obj# = u.spare2 and o.type# =57),        
+  decode(bitand(t.property, 524288), 524288, 1, 0),        
+  decode(bitand(t.property, 4096),4096, 1, 0),        t.type#,        
+  decode(bitand(t.property, 33554432), 33554432, 1, 0),        
+  decode(bitand(t.property, 67108864), 67108864, 1, 0)  from sys.obj$ o, 
+  sys.user$ u, sys.trigger$ t, sys.obj$ bo where t.baseobject=bo.obj# and 
+  bo.name = :1 and bo.spare3 = :2  and bo.type# = :3 and bo.namespace = 1  
+  and t.obj#=o.obj# and o.owner#=u.user#  and o.type# = 12 and 
+  bitand(property,16)=0 and bitand(property,8)=0  order by o.obj#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0         18          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0         18          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=3 size=30 card=1)
+         0          0          0   INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 36)
+         0          0          0  NESTED LOOPS  (cr=18 pr=0 pw=0 time=114 us starts=1 direct read=0 direct write=0 cost=6 size=235 card=1)
+         0          0          0   NESTED LOOPS  (cr=18 pr=0 pw=0 time=114 us starts=1 direct read=0 direct write=0 cost=5 size=99 card=1)
+         0          0          0    NESTED LOOPS  (cr=18 pr=0 pw=0 time=113 us starts=1 direct read=0 direct write=0 cost=3 size=66 card=1)
+        15         15         15     TABLE ACCESS BY INDEX ROWID TRIGGER$ (cr=5 pr=0 pw=0 time=48 us starts=1 direct read=0 direct write=0 cost=2 size=29 card=1)
+        23         23         23      INDEX FULL SCAN I_TRIGGER2 (cr=1 pr=0 pw=0 time=15 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=6)(object id 384)
+         0          0          0     INDEX RANGE SCAN I_OBJ5 (cr=13 pr=0 pw=0 time=45 us starts=15 direct read=0 direct write=0 cost=1 size=37 card=1)(object id 40)
+         0          0          0    TABLE ACCESS BY INDEX ROWID OBJ$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=2 size=33 card=1)
+         0          0          0     INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 36)
+         0          0          0   TABLE ACCESS CLUSTER USER$ (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=136 card=1)
+         0          0          0    INDEX UNIQUE SCAN I_USER# (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 11)
+
+********************************************************************************
+
+SQL ID: a3jpjzh7mtwwp Plan Hash: 2317816222
+
+select /*+ index(idl_ub2$ i_idl_ub21) */ piece#,length,piece 
+from
+ idl_ub2$ where obj#=:1 and part=:2 and version=:3 order by piece#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        6      0.00       0.00          0         23          0           6
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        8      0.00       0.00          0         23          0           6
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         6          6          6  TABLE ACCESS BY INDEX ROWID IDL_UB2$ (cr=13 pr=0 pw=0 time=25 us starts=1 direct read=0 direct write=0 cost=3 size=42 card=2)
+         6          6          6   INDEX RANGE SCAN I_IDL_UB21 (cr=7 pr=0 pw=0 time=31 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=2)(object id 497)
+
+********************************************************************************
+
+SQL ID: gngtvs38t0060 Plan Hash: 3679945446
+
+SELECT /*+ CONNECT_BY_FILTERING */ s.privilege# 
+FROM
+ sys.sysauth$ s        CONNECT BY s.grantee# = PRIOR s.privilege#             
+                      AND (s.privilege# > 0 OR s.privilege# = -352)           
+                     START WITH (s.privilege# > 0 OR s.privilege# = -352) AND 
+  s.grantee# IN     (SELECT c1.privilege# FROM sys.codeauth$ c1 WHERE c1.obj# 
+  = :1)            UNION                                                      
+                  SELECT c2.privilege# FROM sys.codeauth$ c2 WHERE c2.obj# = 
+  :2              ORDER BY 1 ASC
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          2          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          2          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  SORT UNIQUE (cr=2 pr=0 pw=0 time=42 us starts=1 direct read=0 direct write=0 cost=8 size=242 card=10)
+         0          0          0   UNION-ALL  (cr=2 pr=0 pw=0 time=32 us starts=1 direct read=0 direct write=0 cost=8 size=242 card=10)
+         0          0          0    CONNECT BY WITH FILTERING (UNIQUE) (cr=1 pr=0 pw=0 time=27 us starts=1 direct read=0 direct write=0)
+         0          0          0     HASH JOIN  (cr=1 pr=0 pw=0 time=17 us starts=1 direct read=0 direct write=0 cost=2 size=32 card=2)
+         0          0          0      NESTED LOOPS  (cr=1 pr=0 pw=0 time=16 us starts=1 direct read=0 direct write=0 cost=2 size=32 card=2)
+         0          0          0       STATISTICS COLLECTOR  (cr=1 pr=0 pw=0 time=16 us starts=1 direct read=0 direct write=0)
+         0          0          0        INDEX RANGE SCAN I_CODEAUTH1 (cr=1 pr=0 pw=0 time=14 us starts=1 direct read=0 direct write=0 cost=1 size=8 card=1)(object id 647)
+         0          0          0       INDEX RANGE SCAN I_SYSAUTH1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=24 card=3)(object id 154)
+         0          0          0      INDEX FAST FULL SCAN I_SYSAUTH2 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=24 card=3)(object id 285)
+         0          0          0     HASH JOIN  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=4 size=147 card=7)
+         0          0          0      NESTED LOOPS  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=4 size=147 card=7)
+         0          0          0       STATISTICS COLLECTOR  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0)
+         0          0          0        CONNECT BY PUMP  (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0)
+         0          0          0       INDEX RANGE SCAN I_SYSAUTH1 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=24 card=3)(object id 154)
+         0          0          0      INDEX FAST FULL SCAN I_SYSAUTH2 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=1 size=24 card=3)(object id 285)
+         0          0          0    INDEX RANGE SCAN I_CODEAUTH1 (cr=1 pr=0 pw=0 time=5 us starts=1 direct read=0 direct write=0 cost=1 size=8 card=1)(object id 647)
+
+********************************************************************************
+
+SQL ID: fh5ufah919kun Plan Hash: 1697022209
+
+select /*+ index(idl_sb4$ i_idl_sb41) */ piece#,length,piece 
+from
+ idl_sb4$ where obj#=:1 and part=:2 and version=:3 order by piece#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        3      0.00       0.00          0          8          0           2
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        5      0.00       0.00          0          8          0           2
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         2          2          2  TABLE ACCESS BY INDEX ROWID IDL_SB4$ (cr=6 pr=0 pw=0 time=44 us starts=1 direct read=0 direct write=0 cost=3 size=19 card=1)
+         2          2          2   INDEX RANGE SCAN I_IDL_SB41 (cr=4 pr=0 pw=0 time=33 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 498)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate UGA memory from OS                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 6h3cwmunz5z8q Plan Hash: 2968095032
+
+select col#, grantee#, privilege#,max(mod(nvl(option$,0),2)), 
+  max(bitand(nvl(option$,0), 8) /8), max(bitand(nvl(option$,0), 16) /16), 
+  max(bitand(nvl(option$,0),64) /64), max(bitand(nvl(option$,0), 128) /128) 
+from
+ objauth$ where obj#=:1 and col# is not null group by privilege#, col#, 
+  grantee# order by col#, grantee#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          2          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          2          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  SORT GROUP BY (cr=2 pr=0 pw=0 time=35 us starts=1 direct read=0 direct write=0 cost=4 size=17 card=1)
+         0          0          0   TABLE ACCESS BY INDEX ROWID BATCHED OBJAUTH$ (cr=2 pr=0 pw=0 time=31 us starts=1 direct read=0 direct write=0 cost=3 size=17 card=1)
+         0          0          0    INDEX RANGE SCAN I_OBJAUTH1 (cr=2 pr=0 pw=0 time=30 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 62)
+
+********************************************************************************
+
+SQL ID: 0yn07bvqs30qj Plan Hash: 866645418
+
+select pctfree_stg, pctused_stg, size_stg,initial_stg, next_stg, minext_stg, 
+  maxext_stg, maxsiz_stg, lobret_stg,mintim_stg, pctinc_stg, initra_stg, 
+  maxtra_stg, optimal_stg, maxins_stg,frlins_stg, flags_stg, bfp_stg, enc_stg,
+   cmpflag_stg, cmplvl_stg,imcflag_stg, ccflag_stg, flags2_stg 
+from
+ deferred_stg$  where obj# =:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      2      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          6          0           2
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        5      0.00       0.00          0          6          0           2
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID DEFERRED_STG$ (cr=3 pr=0 pw=0 time=35 us starts=1 direct read=0 direct write=0 cost=2 size=31 card=1)
+         1          1          1   INDEX UNIQUE SCAN I_DEFERRED_STG1 (cr=2 pr=0 pw=0 time=25 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 82)
+
+********************************************************************************
+
+SQL ID: 9tt2m0mpc2qqp Plan Hash: 1319326155
+
+select /*+ index(idl_char$ i_idl_char1) */ piece#,length,piece 
+from
+ idl_char$ where obj#=:1 and part=:2 and version=:3 order by piece#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          6          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          6          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID IDL_CHAR$ (cr=4 pr=0 pw=0 time=29 us starts=1 direct read=0 direct write=0 cost=3 size=21 card=1)
+         1          1          1   INDEX RANGE SCAN I_IDL_CHAR1 (cr=3 pr=0 pw=0 time=20 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 496)
+
+********************************************************************************
+
+SQL ID: 03guhbfpak0w7 Plan Hash: 3246118364
+
+select /*+ index(idl_ub1$ i_idl_ub11) */ piece#,length,piece 
+from
+ idl_ub1$ where obj#=:1 and part=:2 and version=:3 order by piece#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          5          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          5          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID IDL_UB1$ (cr=4 pr=0 pw=0 time=28 us starts=1 direct read=0 direct write=0 cost=3 size=21 card=1)
+         1          1          1   INDEX RANGE SCAN I_IDL_UB11 (cr=3 pr=0 pw=0 time=16 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 495)
+
+********************************************************************************
+
+SQL ID: dkpbcdcp1bwpb Plan Hash: 2013599597
+
+select policy#, action#, intcol# 
+from
+ sys.aud_objcol_opt$           where object# = :1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute      2      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          2          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          2          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS FULL AUD_OBJCOL_OPT$ (cr=1 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0 cost=2 size=91 card=1)
+
+********************************************************************************
+
+SQL ID: gg4269s70kbra Plan Hash: 3526770254
+
+select /*+ rule */ t.ts#,t.file#,t.block#,nvl(t.bobj#,0),nvl(t.tab#,0),
+  t.intcols,nvl(t.clucols,0),t.flags,t.pctfree$,t.pctused$,t.initrans,
+  t.maxtrans,t.rowcnt,t.blkcnt,t.empcnt,t.avgspc,t.chncnt,t.avgrln,
+  t.analyzetime,t.samplesize,t.cols,t.property,nvl(t.degree,1),
+  nvl(t.instances,1),t.avgspc_flb,t.flbcnt,t.kernelcols,nvl(t.trigflag, 0),
+  nvl(t.spare1,0),nvl(t.spare2,0),t.spare4,t.spare6,nvl(t.spare7,0),
+  ts.cachedblk,ts.cachehit,ts.logicalread,ts.im_imcu_count,ts.im_block_count,
+  ts.im_sys_incarnation,ts.im_stat_update_time,ts.scanrate,nvl(t.acdrflags, 0)
+  ,nvl(t.acdrtsobj#, 0),t.acdrdefaulttime,nvl(t.acdrrowtsintcol#, 0) 
+from
+ tab$ t, tab_stats$ ts where t.obj#= :1 and t.obj# = ts.obj# (+)
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          4          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          4          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: RULE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  NESTED LOOPS OUTER (cr=4 pr=0 pw=0 time=54 us starts=1 direct read=0 direct write=0)
+         1          1          1   TABLE ACCESS CLUSTER TAB$ (cr=3 pr=0 pw=0 time=43 us starts=1 direct read=0 direct write=0)
+         1          1          1    INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 time=22 us starts=1 direct read=0 direct write=0)(object id 3)
+         0          0          0   TABLE ACCESS BY INDEX ROWID TAB_STATS$ (cr=1 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0)
+         0          0          0    INDEX UNIQUE SCAN I_TAB_STATS$_OBJ# (cr=1 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0)(object id 74)
+
+********************************************************************************
+
+SQL ID: 0gwaa0289rasu Plan Hash: 299250003
+
+select /*+ rule */ pos#,intcol#,col#,spare1,bo#,spare2,spare3 
+from
+ icol$ where obj#=:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      2      0.00       0.00          0          0          0           0
+Fetch        3      0.00       0.00          0          6          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        6      0.00       0.00          0          6          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: RULE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID ICOL$ (cr=2 pr=0 pw=0 time=26 us starts=1 direct read=0 direct write=0)
+         0          0          0   INDEX RANGE SCAN I_ICOL1 (cr=2 pr=0 pw=0 time=23 us starts=1 direct read=0 direct write=0)(object id 42)
+
+********************************************************************************
+
+SQL ID: 8swypbbr0m372 Plan Hash: 570326988
+
+select order#,columns,types 
+from
+ access$ where d_obj#=:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          4          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          4          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID BATCHED ACCESS$ (cr=4 pr=0 pw=0 time=27 us starts=1 direct read=0 direct write=0 cost=3 size=267 card=3)
+         1          1          1   INDEX RANGE SCAN I_ACCESS1 (cr=3 pr=0 pw=0 time=22 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=3)(object id 88)
+
+********************************************************************************
+
+SQL ID: 4xwymf8zkh5xs Plan Hash: 1457651150
+
+select user#,password,datats#,tempts#,type#,defrole,resource$,ptime,
+  decode(defschclass,NULL,'DEFAULT_CONSUMER_GROUP',defschclass),spare1,spare4,
+  ext_username,spare2,nvl(spare3,16382),spare9,spare10,spare7,spare12 
+from
+ user$ where name=:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          1          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          1          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID USER$ (cr=1 pr=0 pw=0 time=17 us starts=1 direct read=0 direct write=0 cost=1 size=136 card=1)
+         0          0          0   INDEX UNIQUE SCAN I_USER1 (cr=1 pr=0 pw=0 time=16 us starts=1 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 46)
+
+********************************************************************************
+
+SQL ID: 8fkf44w2uz074 Plan Hash: 3480746234
+
+select l.col#, l.intcol#, l.lobj#, l.ind#, l.ts#, l.file#, l.block#, l.chunk, 
+  l.pctversion$, l.flags, l.property, l.retention, l.freepools, l.maxinl 
+from
+ lob$ l where l.obj# = :1 order by l.intcol# asc
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          4          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          4          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID LOB$ (cr=4 pr=0 pw=0 time=26 us starts=1 direct read=0 direct write=0 cost=2 size=52 card=1)
+         1          1          1   INDEX RANGE SCAN I_LOB1 (cr=3 pr=0 pw=0 time=24 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 115)
+
+********************************************************************************
+
+SQL ID: 53saa2zkr6wc3 Plan Hash: 3038981986
+
+select intcol#,nvl(pos#,0),col#,nvl(spare1,0) 
+from
+ ccol$ where con#=:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          4          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          4          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID BATCHED CCOL$ (cr=4 pr=0 pw=0 time=25 us starts=1 direct read=0 direct write=0 cost=3 size=15 card=1)
+         1          1          1   INDEX RANGE SCAN I_CCOL1 (cr=3 pr=0 pw=0 time=23 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 57)
+
+********************************************************************************
+
+SQL ID: 06nvwn223659v Plan Hash: 0
+
+alter session set events '10046 trace name context off'
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+Parsing user id: 136  
+********************************************************************************
+
+SQL ID: a4n4ayr88dbhy Plan Hash: 2968095032
+
+select grantee#,privilege#,nvl(col#,0),max(mod(nvl(option$,0),2)),
+  max(bitand(nvl(option$,0), 8) /8), max(bitand(nvl(option$,0), 16) /16), 
+  max(bitand(nvl(option$,0),64) /64), max(bitand(nvl(option$,0), 128) /128) 
+from
+ objauth$ where obj#=:1 group by grantee#,privilege#,nvl(col#,0) order by 
+  grantee#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          2          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          2          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  SORT GROUP BY (cr=2 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0 cost=4 size=17 card=1)
+         0          0          0   TABLE ACCESS BY INDEX ROWID BATCHED OBJAUTH$ (cr=2 pr=0 pw=0 time=5 us starts=1 direct read=0 direct write=0 cost=3 size=17 card=1)
+         0          0          0    INDEX RANGE SCAN I_OBJAUTH1 (cr=2 pr=0 pw=0 time=3 us starts=1 direct read=0 direct write=0 cost=2 size=0 card=1)(object id 62)
+
+********************************************************************************
+
+SQL ID: 7nuw4xwrnuwxq Plan Hash: 1720483994
+
+select col#,intcol#,toid,version#,packed,intcols,intcol#s,flags, synobj#, 
+  nvl(typidcol#, 0) 
+from
+ coltype$ where obj#=:1 order by intcol# desc
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          3          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          3          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  SORT ORDER BY (cr=3 pr=0 pw=0 time=8 us starts=1 direct read=0 direct write=0 cost=3 size=192 card=4)
+         0          0          0   TABLE ACCESS CLUSTER COLTYPE$ (cr=3 pr=0 pw=0 time=6 us starts=1 direct read=0 direct write=0 cost=2 size=192 card=4)
+         1          1          1    INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 time=2 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 3)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate UGA memory from OS                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: gx4mv66pvj3xz Plan Hash: 2570921597
+
+select con#,type#,condlength,intcols,robj#,rcon#,match#,refact,nvl(enabled,0),
+  rowid,cols,nvl(defer,0),mtime,nvl(spare1,0),spare2,spare3 
+from
+ cdef$ where obj#=:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          4          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          4          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS CLUSTER CDEF$ (cr=4 pr=0 pw=0 time=6 us starts=1 direct read=0 direct write=0 cost=2 size=196 card=4)
+         1          1          1   INDEX UNIQUE SCAN I_COBJ# (cr=2 pr=0 pw=0 time=2 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 30)
+
+********************************************************************************
+
+SQL ID: asp0p496wn0hk Plan Hash: 4177538615
+
+select count(*) 
+from
+ annotations_usage$ where obj#=:1 and intcol_id is NULL 
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          1          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          1          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  SORT AGGREGATE (cr=1 pr=0 pw=0 time=14 us starts=1 direct read=0 direct write=0)
+         0          0          0   INDEX RANGE SCAN I_ANNOTATIONS_USAGE_MULTCOL1 (cr=1 pr=0 pw=0 time=8 us starts=1 direct read=0 direct write=0 cost=1 size=15 card=1)(object id 331)
+
+********************************************************************************
+
+SQL ID: 9g485acn2n30m Plan Hash: 3483575214
+
+select col#,intcol#,reftyp,stabid,expctoid 
+from
+ refcon$ where obj#=:1 order by intcol# asc
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          1          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          1          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID REFCON$ (cr=1 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0 cost=0 size=72 card=1)
+         0          0          0   INDEX RANGE SCAN I_REFCON2 (cr=1 pr=0 pw=0 time=10 us starts=1 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 129)
+
+********************************************************************************
+
+SQL ID: 0fr8zhn4ymu3v Plan Hash: 1231101765
+
+select intcol#,type,flags,lobcol,objcol,extracol,schemaoid,  elemnum 
+from
+ opqtype$ where obj# = :1 order by intcol# asc
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          1          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          1          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID OPQTYPE$ (cr=1 pr=0 pw=0 time=13 us starts=1 direct read=0 direct write=0 cost=2 size=20 card=1)
+         0          0          0   INDEX RANGE SCAN I_OPQTYPE1 (cr=1 pr=0 pw=0 time=12 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 131)
+
+********************************************************************************
+
+SQL ID: 9rfqm06xmuwu0 Plan Hash: 832500465
+
+select intcol#, toid, version#, intcols, intcol#s, flags, synobj# 
+from
+ subcoltype$ where obj#=:1 order by intcol# asc
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          3          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          3          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  SORT ORDER BY (cr=3 pr=0 pw=0 time=6 us starts=1 direct read=0 direct write=0 cost=3 size=910 card=26)
+         0          0          0   TABLE ACCESS CLUSTER SUBCOLTYPE$ (cr=3 pr=0 pw=0 time=3 us starts=1 direct read=0 direct write=0 cost=2 size=910 card=26)
+         1          1          1    INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 time=1 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 3)
+
+********************************************************************************
+
+SQL ID: 32bhha21dkv0v Plan Hash: 3765558045
+
+select col#,intcol#,charsetid,charsetform 
+from
+ col$ where obj#=:1 order by intcol# asc
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        5      0.00       0.00          0          3          0           4
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        7      0.00       0.00          0          3          0           4
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         4          4          4  SORT ORDER BY (cr=3 pr=0 pw=0 time=14 us starts=1 direct read=0 direct write=0 cost=3 size=252 card=14)
+         4          4          4   TABLE ACCESS CLUSTER COL$ (cr=3 pr=0 pw=0 time=4 us starts=1 direct read=0 direct write=0 cost=2 size=252 card=14)
+         1          1          1    INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 time=3 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 3)
+
+********************************************************************************
+
+SQL ID: 1mj5mwu640z8r Plan Hash: 3758055931
+
+select obj# 
+from
+ directive$ where base_objn = :1 order by obj#
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID DIRECTIVE$ (cr=0 pr=0 pw=0 time=1 us starts=1 direct read=0 direct write=0 cost=0 size=26 card=1)
+         0          0          0   INDEX FULL SCAN I_DIRECTIVE2 (cr=0 pr=0 pw=0 time=0 us starts=0 direct read=0 direct write=0 cost=0 size=0 card=1)(object id 341)
+
+********************************************************************************
+
+SQL ID: f3g84j69n0tjh Plan Hash: 914792125
+
+select col#,intcol#,ntab# 
+from
+ ntab$ where obj#=:1 order by intcol# asc
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          3          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          3          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  SORT ORDER BY (cr=3 pr=0 pw=0 time=8 us starts=1 direct read=0 direct write=0 cost=3 size=42 card=3)
+         0          0          0   TABLE ACCESS CLUSTER NTAB$ (cr=3 pr=0 pw=0 time=6 us starts=1 direct read=0 direct write=0 cost=2 size=42 card=3)
+         1          1          1    INDEX UNIQUE SCAN I_OBJ# (cr=2 pr=0 pw=0 time=2 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 3)
+
+********************************************************************************
+
+SQL ID: 47r1y8yn34jmj Plan Hash: 2191121161
+
+select default$ 
+from
+ col$ where rowid=:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          2          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          2          0           1
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY USER ROWID COL$ (cr=1 pr=0 pw=0 time=6 us starts=1 direct read=0 direct write=0 cost=1 size=15 card=1)
+
+********************************************************************************
+
+SQL ID: 5tpf45n13db7c Plan Hash: 4004164974
+
+select annotation_name, annotation_value, annotation_type, intcol_id 
+from
+ annotations_usage$ where obj#=:1 order by intcol_id, annotation_name
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          1          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          1          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID ANNOTATIONS_USAGE$ (cr=1 pr=0 pw=0 time=3 us starts=1 direct read=0 direct write=0 cost=2 size=15 card=1)
+         0          0          0   INDEX RANGE SCAN I_ANNOTATIONS_USAGE_MULTCOL1 (cr=1 pr=0 pw=0 time=3 us starts=1 direct read=0 direct write=0 cost=1 size=0 card=1)(object id 331)
+
+********************************************************************************
+
+SQL ID: cw1mnps0mfazc Plan Hash: 1224215794
+
+select /*+ rule */ con#,obj#,rcon#,enabled,nvl(defer,0),spare2,spare3,refact 
+from
+ cdef$ where robj#=:1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          1          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          1          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: RULE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID CDEF$ (cr=1 pr=0 pw=0 time=11 us starts=1 direct read=0 direct write=0)
+         0          0          0   INDEX RANGE SCAN I_CDEF3 (cr=1 pr=0 pw=0 time=11 us starts=1 direct read=0 direct write=0)(object id 55)
+
+
+
+
+********************************************************************************
+
+OVERALL TOTALS FOR ALL NON-RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse       50      0.06       0.06          0         29          0           0
+Execute     50      0.01       0.03         96         73        101          38
+Fetch       13      0.00       0.00         10         19          0          21
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total      113      0.07       0.09        106        121        101          59
+
+Misses in library cache during parse: 24
+Misses in library cache during execute: 10
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                      78        0.00          0.00
+  SQL*Net message from client                   154        0.00          0.04
+  Allocate UGA memory from OS                    13        0.00          0.00
+  Allocate PGA memory from OS                     8        0.00          0.00
+  Allocate CGA memory from OS                     9        0.00          0.00
+  asynch descriptor resize                        1        0.00          0.00
+  Allocate DGA memory from OS                     1        0.00          0.00
+  Disk file operations I/O                        1        0.00          0.00
+  direct path read                              178        0.00          0.00
+  SQL*Net vector data to client                 201        0.00          0.00
+  db file sequential read                         7        0.00          0.00
+  direct path write                              12        0.00          0.00
+  write complete waits                            1        0.01          0.01
+  log file sync                                   3        0.00          0.00
+  Free private memory to OS                       1        0.00          0.00
+
+
+OVERALL TOTALS FOR ALL RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse       36      0.00       0.00          0         22          0           0
+Execute     57      0.00       0.02          9          8         52           0
+Fetch       82      0.00       0.00          0        215          0          48
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total      175      0.01       0.03          9        245         52          48
+
+Misses in library cache during parse: 3
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Allocate UGA memory from OS                    22        0.00          0.00
+  Allocate CGA memory from OS                     9        0.00          0.00
+  db file sequential read                         9        0.00          0.00
+  write complete waits                            1        0.01          0.01
+  local write wait                                9        0.00          0.00
+
+   30  user  SQL statements in session.
+   36  internal SQL statements in session.
+   66  SQL statements in session.
+********************************************************************************
+Trace file: out/lobs.trc
+Trace file compatibility: 12.2.0.0
+Sort options: prsela  exeela  fchela  
+       1  session in tracefile.
+      30  user  SQL statements in trace file.
+      36  internal SQL statements in trace file.
+      66  SQL statements in trace file.
+      66  unique SQL statements in trace file.
+    2589  lines in trace file.
+       0  elapsed seconds in trace file.
+
+

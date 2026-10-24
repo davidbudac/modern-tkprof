@@ -441,6 +441,10 @@ func (b *Builder) HeaderLine(h trace.Header) {
 		if b.multi {
 			b.setCtx(&b.ctx.Process, leadingDigits(h.Value), h.Line)
 		}
+	case "image": // 21c+: the pid line is followed by "NID:", "created:" and "image:     oracle@host (P000)"
+		if isPXImage(h.Value) {
+			fe.PX = true
+		}
 	}
 	if b.curFile > 0 {
 		return // File describes the first file; Files[i] the others

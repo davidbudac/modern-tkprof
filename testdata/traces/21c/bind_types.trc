@@ -1,0 +1,319 @@
+Trace file /opt/oracle/diag/rdbms/xe/XE/trace/XE_ora_431_mtk_bind_types.trc
+Oracle Database 21c Express Edition Release 21.0.0.0.0 - Production
+Version 21.3.0.0.0
+Build label:    RDBMS_21.3.0.0.0_LINUX.X64_210727.XE
+ORACLE_HOME:    /opt/oracle/product/21c/dbhomeXE
+System name:	Linux
+Node name:	89f544161580
+Release:	7.0.0-34-generic
+Version:	#34~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 15:38:29 UTC 2
+Machine:	x86_64
+Instance name: XE
+Redo thread mounted by this instance: 1
+Oracle process number: 85
+Unix process pid: 431, NID: 4026532333, image: oracle@89f544161580
+
+
+*** 2026-10-24T10:42:44.063862+00:00 (XEPDB1(3))
+*** SESSION ID:(300.60295) 2026-10-24T10:42:44.063875+00:00
+*** CLIENT ID:(mtk_client_bind_types) 2026-10-24T10:42:44.063882+00:00
+*** SERVICE NAME:(xepdb1) 2026-10-24T10:42:44.063889+00:00
+*** MODULE NAME:(mtk_bind_types) 2026-10-24T10:42:44.063896+00:00
+*** ACTION NAME:(start) 2026-10-24T10:42:44.063902+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-10-24T10:42:44.063909+00:00
+*** CONTAINER ID:(3) 2026-10-24T10:42:44.063915+00:00
+*** CLIENT IP:(127.0.0.1) 2026-10-24T10:42:44.063923+00:00
+*** CONNECTION ID:(XpTBv4iwAa3gYwIAEayj+w==) 2026-10-24T10:42:44.063930+00:00
+ 
+WAIT #126814614629648: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=31569515099
+WAIT #126814614629648: nam='SQL*Net message from client' ela= 69 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=31569515533
+CLOSE #126814614629648:c=1,e=1,dep=0,type=1,tim=31569515549
+=====================
+PARSING IN CURSOR #126814614627904 len=59 dep=0 uid=110 oct=47 lid=110 tim=31569516052 hv=3017774172 ad='67b9ca00' sqlid='c1r6pz6txz52w'
+BEGIN dbms_application_info.set_action('bind_types'); END;
+
+END OF STMT
+PARSE #126814614627904:c=412,e=490,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=31569516052
+*** ACTION NAME:(bind_types) 2026-10-24T10:42:44.064654+00:00
+ 
+EXEC #126814614627904:c=29,e=29,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=31569516125
+WAIT #126814614627904: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=31569516152
+WAIT #126814614627904: nam='SQL*Net message from client' ela= 179 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=31569516341
+CLOSE #126814614627904:c=3,e=3,dep=0,type=0,tim=31569516357
+WAIT #126814614627904: nam='PGA memory operation' ela= 9 p1=65536 p2=1 p3=0 obj#=-1 tim=31569517889
+WAIT #126814614627904: nam='PGA memory operation' ela= 6 p1=65536 p2=1 p3=0 obj#=-1 tim=31569518077
+WAIT #126814614627904: nam='PGA memory operation' ela= 7 p1=65536 p2=1 p3=0 obj#=-1 tim=31569518349
+WAIT #126814614627904: nam='PGA memory operation' ela= 7 p1=65536 p2=1 p3=0 obj#=-1 tim=31569518670
+WAIT #126814614627904: nam='PGA memory operation' ela= 8 p1=65536 p2=1 p3=0 obj#=-1 tim=31569519106
+WAIT #126814614627904: nam='PGA memory operation' ela= 4 p1=65536 p2=1 p3=0 obj#=-1 tim=31569519207
+WAIT #126814614627904: nam='PGA memory operation' ela= 6 p1=65536 p2=1 p3=0 obj#=-1 tim=31569519390
+=====================
+PARSING IN CURSOR #126814614627904 len=1980 dep=0 uid=110 oct=47 lid=110 tim=31569519596 hv=1879176333 ad='6aa25e90' sqlid='7a3rjnjs03x4d'
+declare
+  v_cnt number;
+  procedure run(
+    p_ts    timestamp,
+    p_tstz  timestamp with time zone,
+    p_tsltz timestamp with local time zone,
+    p_ds    varchar2,
+    p_ym    varchar2,
+    p_raw   raw,
+    p_date  date) is
+    v_ds interval day(9) to second(9) := to_dsinterval(p_ds);
+    v_ym interval year(9) to month    := to_yminterval(p_ym);
+  begin
+    execute immediate
+      'select /* mtk_bind_types */ count(*) from dual where :ts is not null and :tstz is not null ' ||
+      ' and :tsltz is not null and :ds is not null and :ym is not null and :r is not null and :d is not null'
+      into v_cnt using p_ts, p_tstz, p_tsltz, v_ds, v_ym, p_raw, p_date;
+  end;
+begin
+  -- set 1: fractional seconds, positive offsets, positive intervals
+  run(timestamp '2024-02-29 13:14:15.123456789',
+      timestamp '2024-02-29 13:14:15.123456 +02:00',
+      timestamp '2024-07-01 23:59:59.5',
+      '3 04:05:06.789',
+      '1-6',
+      hextoraw('DEADBEEF00112233445566778899AABBCCDDEEFF'),
+      date '1999-12-31');
+  -- set 2: no fraction, negative offset with minutes, region id, negative and large intervals
+  run(timestamp '1970-01-01 00:00:00',
+      timestamp '2031-11-05 08:30:00 America/Los_Angeles',
+      timestamp '2000-01-01 00:00:00',
+      '-12 23:59:58.000001',
+      '-123-11',
+      hextoraw('00'),
+      date '2024-10-22' + 12/24 + 35/1440 + 31/86400);
+  -- set 3: tz offset with minutes, zero and 9-digit day interval
+  run(timestamp '2024-12-31 23:59:59.999999999',
+      timestamp '2024-12-31 23:59:59.999999 -03:30',
+      timestamp '2024-12-31 23:59:59.999999',
+      '0 00:00:00',
+      '0-0',
+      hextoraw('FF'),
+      date '0001-01-01');
+  -- set 4: numeric extremes of the interval types
+  run(timestamp '2024-02-29 12:00:00',
+      timestamp '2024-02-29 12:00:00 UTC',
+      timestamp '2024-02-29 12:00:00',
+      '999999999 23:59:59.999999999',
+      '999999999-11',
+      hextoraw('0102030405060708090A0B0C0D0E0F10'),
+      date '2024-02-29');
+end;
+END OF STMT
+PARSE #126814614627904:c=3006,e=3226,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=31569519596
+=====================
+PARSING IN CURSOR #126814614617312 len=192 dep=1 uid=110 oct=3 lid=110 tim=31569519869 hv=3473645526 ad='67b5c510' sqlid='dxrf47v7hr7yq'
+select /* mtk_bind_types */ count(*) from dual where :ts is not null and :tstz is not null  and :tsltz is not null and :ds is not null and :ym is not null and :r is not null and :d is not null
+END OF STMT
+PARSE #126814614617312:c=198,e=198,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=0,tim=31569519869
+BINDS #126814614617312:
+
+ Bind#0
+  oacdty=180 mxl=11(11) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=112 off=0
+  kxsbbbfp=7356540e72b0  bln=11  avl=11  flg=05
+  value=29-FEB-24 01.14.15.123457 PM
+ Bind#1
+  oacdty=181 mxl=13(13) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=0 off=16
+  kxsbbbfp=7356540e72c0  bln=13  avl=13  flg=01
+  value=29-FEB-24 01.14.15.123456 PM +02:00
+ Bind#2
+  oacdty=231 mxl=11(11) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=0 off=32
+  kxsbbbfp=7356540e72d0  bln=11  avl=11  flg=01
+  value=Unhandled datatype (-25) found in kxsbndinf
+Dumping '' addr=0x7356540e72d0 size=11 bytes
+Dump of memory from 0x7356540e72d0 to 0x7356540e72dc
+7356540E72D0 01077C78 1D3C3C17 000065CD           [x|...<<..e..]    
+ Bind#3
+  oacdty=183 mxl=11(11) mxlc=00 mal=00 scl=09 pre=09
+  oacflg=01 fl2=9206001 frm=09 csi=09 siz=0 off=48
+  kxsbbbfp=7356540e72e0  bln=11  avl=11  flg=01
+  value=Unhandled datatype (-73) found in kxsbndinf
+Dumping '' addr=0x7356540e72e0 size=11 bytes
+Dump of memory from 0x7356540e72e0 to 0x7356540e72ec
+7356540E72E0 03000080 AF424140 00402F07           [....@AB../@.]    
+ Bind#4
+  oacdty=182 mxl=05(05) mxlc=00 mal=00 scl=00 pre=09
+  oacflg=01 fl2=1206001 frm=09 csi=00 siz=0 off=64
+  kxsbbbfp=7356540e72f0  bln=05  avl=05  flg=01
+  value=Unhandled datatype (-74) found in kxsbndinf
+Dumping '' addr=0x7356540e72f0 size=5 bytes
+Dump of memory from 0x7356540e72f0 to 0x7356540e72f8
+7356540E72F0 01000080 00000042                    [....B...]        
+ Bind#5
+  oacdty=23 mxl=32(20) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=0 off=72
+  kxsbbbfp=7356540e72f8  bln=32  avl=20  flg=01
+  value=DEADBEEF00112233445566778899AABBCCDDEE
+ Bind#6
+  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=206001 frm=00 csi=00 siz=0 off=104
+  kxsbbbfp=7356540e7318  bln=07  avl=07  flg=01
+  value="12/31/1999 0:0:0"
+EXEC #126814614617312:c=191,e=1013,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=3937172027,tim=31569520921
+FETCH #126814614617312:c=6,e=5,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=3937172027,tim=31569520937
+STAT #126814614617312 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=6 us)'
+STAT #126814614617312 id=2 cnt=1 pid=1 pos=1 obj=0 op='FILTER  (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #126814614617312 id=3 cnt=1 pid=2 pos=1 obj=0 op='FAST DUAL  (cr=0 pr=0 pw=0 str=1 time=0 us cost=2 size=0 card=1)'
+CLOSE #126814614617312:c=1,e=1,dep=1,type=3,tim=31569521027
+BINDS #126814614617312:
+
+ Bind#0
+  oacdty=180 mxl=11(11) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=112 off=0
+  kxsbbbfp=7356540e6290  bln=11  avl=07  flg=05
+  value=01-JAN-70 12.00.00 AM
+ Bind#1
+  oacdty=181 mxl=13(13) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=0 off=16
+  kxsbbbfp=7356540e62a0  bln=13  avl=13  flg=01
+  value=05-NOV-31 08.30.00.000000 AM AMERICA/LOS_ANGELES
+ Bind#2
+  oacdty=231 mxl=11(11) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=0 off=32
+  kxsbbbfp=7356540e62b0  bln=11  avl=07  flg=01
+  value=Unhandled datatype (-25) found in kxsbndinf
+Dumping '' addr=0x7356540e62b0 size=7 bytes
+Dump of memory from 0x7356540e62b0 to 0x7356540e62b8
+7356540E62B0 1F0CC777 00010118                    [w.......]        
+ Bind#3
+  oacdty=183 mxl=11(11) mxlc=00 mal=00 scl=09 pre=09
+  oacflg=01 fl2=9206001 frm=09 csi=09 siz=0 off=48
+  kxsbbbfp=7356540e62c0  bln=11  avl=11  flg=01
+  value=Unhandled datatype (-73) found in kxsbndinf
+Dumping '' addr=0x7356540e62c0 size=11 bytes
+Dump of memory from 0x7356540e62c0 to 0x7356540e62cc
+7356540E62C0 F4FFFF7F 7F020125 0018FCFF           [....%.......]    
+ Bind#4
+  oacdty=182 mxl=05(05) mxlc=00 mal=00 scl=00 pre=09
+  oacflg=01 fl2=1206001 frm=09 csi=00 siz=0 off=64
+  kxsbbbfp=7356540e62d0  bln=05  avl=05  flg=01
+  value=Unhandled datatype (-74) found in kxsbndinf
+Dumping '' addr=0x7356540e62d0 size=5 bytes
+Dump of memory from 0x7356540e62d0 to 0x7356540e62d8
+7356540E62D0 85FFFF7F 00000031                    [....1...]        
+ Bind#5
+  oacdty=23 mxl=32(01) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=0 off=72
+  kxsbbbfp=7356540e62d8  bln=32  avl=01  flg=01
+  value=
+ Bind#6
+  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=206001 frm=00 csi=00 siz=0 off=104
+  kxsbbbfp=7356540e62f8  bln=07  avl=07  flg=01
+  value="10/22/2024 12:35:31"
+EXEC #126814614617312:c=219,e=219,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=3937172027,tim=31569521277
+FETCH #126814614617312:c=2,e=2,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=3937172027,tim=31569521287
+CLOSE #126814614617312:c=1,e=0,dep=1,type=3,tim=31569521297
+BINDS #126814614617312:
+
+ Bind#0
+  oacdty=180 mxl=11(11) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=112 off=0
+  kxsbbbfp=7356540e6290  bln=11  avl=07  flg=05
+  value=01-JAN-25 12.00.00 AM
+ Bind#1
+  oacdty=181 mxl=13(13) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=0 off=16
+  kxsbbbfp=7356540e62a0  bln=13  avl=13  flg=01
+  value=31-DEC-24 11.59.59.999999 PM -03:30
+ Bind#2
+  oacdty=231 mxl=11(11) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=0 off=32
+  kxsbbbfp=7356540e62b0  bln=11  avl=11  flg=01
+  value=Unhandled datatype (-25) found in kxsbndinf
+Dumping '' addr=0x7356540e62b0 size=11 bytes
+Dump of memory from 0x7356540e62b0 to 0x7356540e62bc
+7356540E62B0 1F0C7C78 3B3C3C17 0018C69A           [x|...<<;....]    
+ Bind#3
+  oacdty=183 mxl=11(11) mxlc=00 mal=00 scl=09 pre=09
+  oacflg=01 fl2=9206001 frm=09 csi=09 siz=0 off=48
+  kxsbbbfp=7356540e62c0  bln=11  avl=11  flg=01
+  value=Unhandled datatype (-73) found in kxsbndinf
+Dumping '' addr=0x7356540e62c0 size=11 bytes
+Dump of memory from 0x7356540e62c0 to 0x7356540e62cc
+7356540E62C0 00000080 803C3C3C 00000000           [....<<<.....]    
+ Bind#4
+  oacdty=182 mxl=05(05) mxlc=00 mal=00 scl=00 pre=09
+  oacflg=01 fl2=1206001 frm=09 csi=00 siz=0 off=64
+  kxsbbbfp=7356540e62d0  bln=05  avl=05  flg=01
+  value=Unhandled datatype (-74) found in kxsbndinf
+Dumping '' addr=0x7356540e62d0 size=5 bytes
+Dump of memory from 0x7356540e62d0 to 0x7356540e62d8
+7356540E62D0 00000080 0000003C                    [....<...]        
+ Bind#5
+  oacdty=23 mxl=32(01) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=0 off=72
+  kxsbbbfp=7356540e62d8  bln=32  avl=01  flg=01
+  value=
+ Bind#6
+  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=206001 frm=00 csi=00 siz=0 off=104
+  kxsbbbfp=7356540e62f8  bln=07  avl=07  flg=01
+  value="1/1/1 0:0:0"
+EXEC #126814614617312:c=229,e=229,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=3937172027,tim=31569521540
+FETCH #126814614617312:c=2,e=2,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=3937172027,tim=31569521550
+CLOSE #126814614617312:c=0,e=0,dep=1,type=3,tim=31569521561
+BINDS #126814614617312:
+
+ Bind#0
+  oacdty=180 mxl=11(11) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=112 off=0
+  kxsbbbfp=7356540e6290  bln=11  avl=07  flg=05
+  value=29-FEB-24 12.00.00 PM
+ Bind#1
+  oacdty=181 mxl=13(13) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=0 off=16
+  kxsbbbfp=7356540e62a0  bln=13  avl=13  flg=01
+  value=29-FEB-24 12.00.00.000000 PM UTC
+ Bind#2
+  oacdty=231 mxl=11(11) mxlc=00 mal=00 scl=06 pre=00
+  oacflg=01 fl2=9206001 frm=00 csi=06 siz=0 off=32
+  kxsbbbfp=7356540e62b0  bln=11  avl=07  flg=01
+  value=Unhandled datatype (-25) found in kxsbndinf
+Dumping '' addr=0x7356540e62b0 size=7 bytes
+Dump of memory from 0x7356540e62b0 to 0x7356540e62b8
+7356540E62B0 1D027C78 3B01010C                    [x|.....;]        
+ Bind#3
+  oacdty=183 mxl=11(11) mxlc=00 mal=00 scl=09 pre=09
+  oacflg=01 fl2=9206001 frm=09 csi=09 siz=0 off=48
+  kxsbbbfp=7356540e62c0  bln=11  avl=11  flg=01
+  value=Unhandled datatype (-73) found in kxsbndinf
+Dumping '' addr=0x7356540e62c0 size=11 bytes
+Dump of memory from 0x7356540e62c0 to 0x7356540e62cc
+7356540E62C0 FFC99ABB BB777753 00FFC99A           [....Sww.....]    
+ Bind#4
+  oacdty=182 mxl=05(05) mxlc=00 mal=00 scl=00 pre=09
+  oacflg=01 fl2=1206001 frm=09 csi=00 siz=0 off=64
+  kxsbbbfp=7356540e62d0  bln=05  avl=05  flg=01
+  value=Unhandled datatype (-74) found in kxsbndinf
+Dumping '' addr=0x7356540e62d0 size=5 bytes
+Dump of memory from 0x7356540e62d0 to 0x7356540e62d8
+7356540E62D0 FFC99ABB 00000047                    [....G...]        
+ Bind#5
+  oacdty=23 mxl=32(16) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=0 off=72
+  kxsbbbfp=7356540e62d8  bln=32  avl=16  flg=01
+  value=0102030405060708090A0B0C0D0E0F
+ Bind#6
+  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=206001 frm=00 csi=00 siz=0 off=104
+  kxsbbbfp=7356540e62f8  bln=07  avl=07  flg=01
+  value="2/29/2024 0:0:0"
+EXEC #126814614617312:c=209,e=209,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=3937172027,tim=31569521786
+FETCH #126814614617312:c=2,e=2,p=0,cr=0,cu=0,mis=0,r=1,dep=1,og=1,plh=3937172027,tim=31569521795
+CLOSE #126814614617312:c=0,e=0,dep=1,type=3,tim=31569521804
+EXEC #126814614627904:c=1353,e=2175,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=31569521812
+WAIT #126814614627904: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=31569521823
+WAIT #126814614627904: nam='SQL*Net message from client' ela= 110 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=31569521942
+CLOSE #126814614627904:c=3,e=3,dep=0,type=0,tim=31569521956
+=====================
+PARSING IN CURSOR #126814614620848 len=55 dep=0 uid=110 oct=42 lid=110 tim=31569521980 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #126814614620848:c=13,e=13,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=31569521980
+EXEC #126814614620848:c=90,e=90,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=31569522111

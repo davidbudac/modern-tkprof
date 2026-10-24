@@ -142,6 +142,8 @@ const (
 	MarkerActionName
 	MarkerClientDriver
 	MarkerContainerID
+	MarkerClientIP           // "*** CLIENT IP:(127.0.0.1)", 21c+
+	MarkerConnectionID       // "*** CONNECTION ID:(base64==)", 21c+
 	MarkerTraceContinuedFrom // "*** TRACE CONTINUED FROM FILE x ***"
 	MarkerTraceContinuesIn   // "*** TRACE DUMP CONTINUES IN FILE x ***"
 	MarkerDumpSizeLimit      // "*** DUMP FILE SIZE IS LIMITED TO n BYTES ***"
@@ -159,6 +161,8 @@ var markerKindNames = [...]string{
 	MarkerActionName:         "ACTION NAME",
 	MarkerClientDriver:       "CLIENT DRIVER",
 	MarkerContainerID:        "CONTAINER ID",
+	MarkerClientIP:           "CLIENT IP",
+	MarkerConnectionID:       "CONNECTION ID",
 	MarkerTraceContinuedFrom: "TRACE CONTINUED FROM FILE",
 	MarkerTraceContinuesIn:   "TRACE DUMP CONTINUES IN FILE",
 	MarkerDumpSizeLimit:      "DUMP FILE SIZE IS LIMITED",
