@@ -69,7 +69,7 @@ function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Exe
       <header>
         <h2>Execution A vs B</h2>
         <span className="hint">
-          <b className="side-tag">A</b> #{a.execNo} at <LineRef line={a.line} /> · <b className="side-tag">B</b> #{b.execNo} at <LineRef line={b.line} />
+          <b className="side-tag">A</b> #{a.execNo} at <LineRef line={a.line} file={doc.fileOfCursor(a.cursor)} /> · <b className="side-tag">B</b> #{b.execNo} at <LineRef line={b.line} file={doc.fileOfCursor(b.cursor)} />
         </span>
         <span className="tools"><button onClick={onClear}>Clear</button></span>
       </header>

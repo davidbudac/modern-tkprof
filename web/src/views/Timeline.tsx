@@ -172,7 +172,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
     { key: 'e', header: 'Elapsed', align: 'end', render: (b) => fmtDur(b.e), sort: (b) => b.e, bar: true },
     { key: 'c', header: 'CPU', align: 'end', render: (b) => fmtDur(b.c), sort: (b) => b.c },
     { key: 'r', header: 'Rows', align: 'end', render: (b) => fmtCompact(b.r), sort: (b) => b.r },
-    { key: 'l', header: 'Line', align: 'end', render: (b) => <LineRef line={b.line} bare />, sort: (b) => b.line },
+    { key: 'l', header: 'Line', align: 'end', render: (b) => <LineRef line={b.line} file={b.file ?? doc.fileOfStmt(b.stmt)} bare />, sort: (b) => b.line },
   ]
 
   return (

@@ -154,7 +154,7 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
     { key: 'cr', header: 'Query', align: 'end', render: (e) => fmtCompact(e.cr), sort: (e) => e.cr },
     { key: 'f', header: 'Fetches', align: 'end', render: (e) => e.fetches, sort: (e) => e.fetches },
     { key: 'b', header: 'Binds', className: 'clip mono', render: (e) => previewOfBinds(bindsFor(e)), sort: (e) => previewOfBinds(bindsFor(e)) },
-    { key: 'l', header: 'Line', align: 'end', title: 'trace line of the EXEC call', render: (e) => <LineRef line={e.line} bare />, sort: (e) => e.line },
+    { key: 'l', header: 'Line', align: 'end', title: 'trace line of the EXEC call', render: (e) => <LineRef line={e.line} file={doc.fileOfCursor(e.cursor)} bare />, sort: (e) => e.line },
   ]
   const cols = [pickCol, ...all.filter((c) => c.key === 'n' || !hidden.includes(c.key))]
   const { total, avgE: avg, slowest: slow } = page.data
@@ -174,9 +174,10 @@ function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
   const detail = useSourceQuery(source, `detail:${stmt}:${ex.cursor}:${ex.execNo}`, (signal) => source.executionDetail(stmt, ex, signal), 'detail')
   const d = detail.data
   const binds = d?.binds ?? []
+  const file = doc.fileOfCursor(ex.cursor)
   return (
     <div className="section">
-      <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} /> · EXEC at <LineRef line={ex.line} />{d && d.bindLine > 0 && <> · binds at <LineRef line={d.bindLine} /></>}{d ? ` · ${d.execWaits} waits on the EXEC` : detail.loading ? ' · loading…' : ''}</span></header>
+      <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} file={file} /> · EXEC at <LineRef line={ex.line} file={file} />{d && d.bindLine > 0 && <> · binds at <LineRef line={d.bindLine} file={file} /></>}{d ? ` · ${d.execWaits} waits on the EXEC` : detail.loading ? ' · loading…' : ''}</span></header>
       {detail.error ? <p className="callout">{detail.error}</p> : !d ? null : binds.length === 0 ? <p className="small muted">No bind values were captured for this execution (trace level without binds, or no binds).</p> : (
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th className="num">pos</th><th>type</th><th>value</th></tr></thead>
@@ -228,7 +229,7 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
     <section className="section">
       <header>
         <h2>Plan {hash || ''}</h2>
-        <span className="hint">row source statistics from the STAT lines at <LineRef line={plan.line} />{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
+        <span className="hint">row source statistics from the STAT lines at <LineRef line={plan.line} file={doc.fileOfCursor(plan.cursor)} />{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
         {plan.xPlanMatched && <span className="hint">predicates and estimates overlaid from ref bundle</span>}
         <span className="tools plan-acts">
           {dumps.length > 1 && (
@@ -299,7 +300,7 @@ function Errors({ doc, id }: { doc: TraceDoc; id: ID }) {
     <section className="section">
       <header><h2>Errors</h2></header>
       <ul className="small" style={{ margin: 0, paddingInlineStart: '1.2rem' }}>
-        {errs.slice(0, 20).map((e) => <li key={e.id}>{e.parseError ? 'parse error ' : ''}{oraErr(e.err)} at <LineRef line={e.line} />{e.wallUs ? ` (${fmtWall(e.wallUs, doc.tzOffsetMin)})` : ''}</li>)}
+        {errs.slice(0, 20).map((e) => <li key={e.id}>{e.parseError ? 'parse error ' : ''}{oraErr(e.err)} at <LineRef line={e.line} file={doc.fileOfCtx(e.context)} />{e.wallUs ? ` (${fmtWall(e.wallUs, doc.tzOffsetMin)})` : ''}</li>)}
         {errs.length > 20 && <li className="muted">… {errs.length - 20} more</li>}
       </ul>
     </section>
