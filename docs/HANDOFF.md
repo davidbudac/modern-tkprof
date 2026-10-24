@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-10-24 (milestones 1–6 and the v1 tail done)
+# Handoff — state of mtkprof on 2026-10-24 (milestones 1–6, the v1 tail and the follow-up round done)
 
 Read this, then `docs/DESIGN.md` (the decisions), then `docs/ARCHITECTURE.md`
 (how the code is shaped) and `docs/trace-format-19c.md` (what the parser
@@ -236,15 +236,34 @@ UI's `DataSource` (`web/src/data/source.ts`) picks `RemoteSource` then,
 pivots in ~20 ms. Executions lists cap at the 5000 slowest; PX slave calls are
 left out of remote executions; remote pivot labels are formatted by Go.
 
-## Still open after this round
+## Follow-up round: done (2026-10-24)
 
-- Licence file and publishing the repo (user decision; Apache-2.0 recommended).
-- Push of the visualizer commit `7e52b2d` (deploys the hosted site).
-- Aggregation-only mode for 10 GB-class traces (streaming accumulators).
-- Shared core package with the visualizer (DESIGN.md v2 note).
-- 12.2 / 21c / 23ai fixtures when a lab exists; bind decoding of
-  TIMESTAMP/INTERVAL dumps (agentboard #28 leftover).
-- UI line viewer asks `/api/lines` for file 0 only in multi-file sets.
+- **Aggregation-only mode** `-aggregate` on report/html/json/serve
+  (`model.Options.Aggregate` → `analyze.Accumulator`): no calls/waits
+  retained; 10 GB trace → text report in 32 s / 454 MB (was 18 GB); output
+  equals `report -lowmem -execs 0`. Not on pivot/export/plan/compare.
+- **Bind value decoding** (`internal/model/bindtypes.go`): TSLTZ, INTERVAL
+  YM/DS memory dumps decoded; DATE/TIMESTAMP/TSTZ/ROWID get typed ISO forms;
+  JSON/CSV/API binds carry `kind` and `typed`. New real fixture
+  `bind_types.trc` (scenario `testdata/gen/sc_bind_types.sql`). Collections
+  stay hex; TSTZ region ids are not mapped to names.
+- **Web unit tests**: vitest (27 tests: planviz, columns format 3, pickBucket
+  parity with Go, delta); `pnpm test` runs inside `make test` and CI.
+- **Multi-file line viewer**: links pass `?file=i`; drawer names the file.
+  Rows from the slice API carry no context yet and fall back to the
+  statement's first cursor's file.
+- **LICENSE**: Apache-2.0 added (publishing the repo is still the user's call).
+
+## Still open
+
+- Publish the repo; push a tag to exercise the release job.
+- Push visualizer commit `7e52b2d` in `~/github/ora-explain-plan-viz`
+  (deploys the hosted site).
+- Shared core package with the visualizer (DESIGN.md v2 note); the overlay
+  is a Go port instead.
+- 12.2 / 21c / 23ai fixtures: no lab exists.
+- Spill facts to disk for drill-down on traces that do not fit in memory.
+- Slice API: return `ctx` on calls/waits so multi-file line links are exact.
 
 ## Known gaps and small bugs
 
