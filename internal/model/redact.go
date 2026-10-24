@@ -36,12 +36,23 @@ func (m BindMode) String() string {
 // value. The hash is unsalted and stable across runs and platforms, so equal
 // values stay recognisable as equal (executions can be correlated); it is not
 // meant to keep secrets: short or low-entropy values (numbers, codes, dates)
-// can be recovered by brute force. Memory dumps become "<TYPE dump len=N>".
+// can be recovered by brute force. With a salt (RedactBindsSalt, -redact-salt)
+// h is the first 8 hex digits of SHA-256(salt + 0x00 + value): equal values
+// still match within and across traces redacted with the same salt, but
+// tokens cannot be matched against a table of hashes of known values without
+// the salt (a guessable value is still brute-forceable by someone who has
+// the salt). Memory dumps become "<TYPE dump len=N>".
 // NULLs, "no oacdef" duplicates and all bind metadata (type, dty, lengths)
 // are kept. SQL text, which can contain literals, is not touched.
 //
 // BindsNone empties Binds and BindSets and unlinks every call from its bind set.
 func RedactBinds(m *Model, mode BindMode) {
+	RedactBindsSalt(m, mode, "")
+}
+
+// RedactBindsSalt is RedactBinds with a salt for the BindsRedact hash (empty:
+// unsalted, as RedactBinds).
+func RedactBindsSalt(m *Model, mode BindMode, salt string) {
 	switch mode {
 	case BindsRedact:
 		for i := range m.Binds {
@@ -49,9 +60,13 @@ func RedactBinds(m *Model, mode BindMode) {
 			if b.IsNull || b.NoDef {
 				continue
 			}
-			b.Value = RedactedValue(b)
+			b.Value = RedactedValueSalt(b, salt)
 		}
-		m.Diag.Notes = append(m.Diag.Notes, "bind values redacted (type, length and a stable hash are kept)")
+		note := "bind values redacted (type, length and a stable hash are kept)"
+		if salt != "" {
+			note = "bind values redacted (type, length and a salted hash are kept)"
+		}
+		m.Diag.Notes = append(m.Diag.Notes, note)
 	case BindsNone:
 		m.Binds = []Bind{}
 		m.BindSets = []BindSet{}
@@ -67,6 +82,11 @@ func RedactBinds(m *Model, mode BindMode) {
 
 // RedactedValue is the token that replaces a bind value under BindsRedact.
 func RedactedValue(b *Bind) string {
+	return RedactedValueSalt(b, "")
+}
+
+// RedactedValueSalt is RedactedValue with a salted hash (see RedactBindsSalt).
+func RedactedValueSalt(b *Bind, salt string) string {
 	typ := b.TypeName
 	if typ == "" {
 		typ = fmt.Sprintf("dty%d", b.Dty)
@@ -78,6 +98,10 @@ func RedactedValue(b *Bind) string {
 	if b.IsDump {
 		return fmt.Sprintf("<%s dump len=%d>", typ, n)
 	}
-	sum := sha256.Sum256([]byte(b.Value))
+	in := b.Value
+	if salt != "" {
+		in = salt + "\x00" + in
+	}
+	sum := sha256.Sum256([]byte(in))
 	return fmt.Sprintf("<%s len=%d h=%s>", typ, n, hex.EncodeToString(sum[:4]))
 }

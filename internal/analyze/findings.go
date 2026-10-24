@@ -28,6 +28,7 @@ const (
 	RuleParsePerExec = "parse-per-exec"
 	RuleHardCloses   = "hard-closes"
 	RuleThinkTime    = "think-time"
+	RuleInCallIdle   = "in-call-idle"
 	RuleSmallFetches = "small-fetches"
 	RuleCommitPerRow = "commit-per-row"
 	RuleRoundTrips   = "round-trips"
@@ -49,9 +50,10 @@ const (
 	HardParseRatio = 0.5
 	// HardParseMinExecs: ... for a statement with more executions than this, or
 	HardParseMinExecs = 10
-	// HardParseMinTotal: trace-wide, more hard parses than this at the same
-	// ratio (catches literal SQL: many statements hard parsed once each).
-	HardParseMinTotal = 10
+	// HardParseMinTotal: trace-wide, at least this many hard parses at the same
+	// ratio (catches literal SQL: many statements hard parsed once each; a
+	// handful of once-run statements is just a short trace).
+	HardParseMinTotal = 20
 
 	// ParseExecRatio: PARSE calls per execution above this ratio (the
 	// application re-parses instead of keeping the cursor open) ...
@@ -69,8 +71,11 @@ const (
 	HardCloseMinCount = 10
 
 	// ThinkTimeShare: idle time between calls (SQL*Net message from client
-	// and other idle waits) above this share of response time.
+	// and other idle waits outside calls) above this share of response time.
 	ThinkTimeShare = 0.30
+	// InCallIdleShare: idle waits inside a call's own time window (PL/SQL lock
+	// timer from dbms_session.sleep, ...) above this share of response time.
+	InCallIdleShare = 0.10
 
 	// SmallFetchRows: an execution fetches in small batches when its average
 	// rows per FETCH is below this (catches the SQL*Plus default arraysize 15
@@ -210,6 +215,7 @@ func Findings(m *model.Model, stats []StmtStats) []Finding {
 	f.parsePerExec()
 	f.hardCloses()
 	f.thinkTime()
+	f.inCallIdle()
 	f.smallFetches()
 	f.commitPerRow()
 	f.roundTrips()
@@ -507,7 +513,7 @@ func (f *finder) planChanges() {
 
 // hardParses: trace-level. Fires when a statement with more than
 // HardParseMinExecs executions hard parses on more than HardParseRatio of
-// them, or trace-wide when more than HardParseMinTotal hard parses happen on
+// them, or trace-wide when at least HardParseMinTotal hard parses happen on
 // more than HardParseRatio of all executions. Hard parse = library cache miss
 // on PARSE (StmtStats.HardParses; 19c usually reports the same miss again on
 // the first EXEC, so EXEC misses are not added). Severity by the
@@ -541,7 +547,7 @@ func (f *finder) hardParses() {
 			single = append(single, s.ID)
 		}
 	}
-	traceWide := hp > HardParseMinTotal && ex > 0 && float64(hp)/float64(ex) > HardParseRatio
+	traceWide := hp >= HardParseMinTotal && ex > 0 && float64(hp)/float64(ex) > HardParseRatio
 	if !traceWide && len(single) == 0 {
 		return
 	}
@@ -704,42 +710,117 @@ func (f *finder) hardCloses() {
 
 // ---- client-side time -------------------------------------------------------
 
-// thinkTime: trace-level, idle time between calls above ThinkTimeShare of
-// response time. Evidence: the top idle events and statements. Severity by the
-// idle time (timeSeverity).
+// inCallIdleWait reports whether w is an idle wait that happened inside the
+// time window of the call it is attributed to (the builder marks every idle
+// wait Between, so this looks at the timestamps again): the session slept or
+// waited inside the call (dbms_session.sleep, a PX dequeue in a slave call)
+// rather than waiting for the next call.
+func inCallIdleWait(m *model.Model, w *model.Wait) bool {
+	if !w.Idle || w.Call == model.None || w.Tim == 0 {
+		return false
+	}
+	c := &m.Calls[w.Call]
+	return !c.Synthetic && c.Tim != 0 && w.Tim > c.Tim-c.E && w.Tim <= c.Tim
+}
+
+// idleSplit sums the idle/between-call waits of the trace into think time
+// (between calls) and in-call idle time, in total and by event and statement.
+type idleSplit struct {
+	us      int64
+	n       map[model.ID]int64 // waits by event
+	byEvent map[model.ID]int64
+	byStmt  map[model.ID]int64
+}
+
+func (f *finder) splitIdle() (think, inCall idleSplit) {
+	mk := func() idleSplit {
+		return idleSplit{n: map[model.ID]int64{}, byEvent: map[model.ID]int64{}, byStmt: map[model.ID]int64{}}
+	}
+	think, inCall = mk(), mk()
+	for i := range f.m.Waits {
+		w := &f.m.Waits[i]
+		if !w.Idle && !w.Between {
+			continue
+		}
+		a := &think
+		if inCallIdleWait(f.m, w) {
+			a = &inCall
+		}
+		a.us += w.Ela
+		if f.m.Events[w.Event].Idle { // evidence lists idle events only
+			a.n[w.Event]++
+			a.byEvent[w.Event] += w.Ela
+		}
+		if w.Statement != model.None {
+			a.byStmt[w.Statement] += w.Ela
+		}
+	}
+	return think, inCall
+}
+
+// topIDs returns the keys of m by descending value (ties by id), at most k.
+func topIDs(m map[model.ID]int64, k int) []model.ID {
+	ids := make([]model.ID, 0, len(m))
+	for id, v := range m {
+		if v > 0 {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(a, b int) bool {
+		if m[ids[a]] != m[ids[b]] {
+			return m[ids[a]] > m[ids[b]]
+		}
+		return ids[a] < ids[b]
+	})
+	if len(ids) > k {
+		ids = ids[:k]
+	}
+	return ids
+}
+
+// thinkTime: trace-level, idle time between calls (waits outside any call:
+// SQL*Net message from client, ...; in-call idle waits are the separate
+// in-call-idle finding) above ThinkTimeShare of response time. Evidence: the
+// top idle events and statements. Severity by the idle time (timeSeverity).
 func (f *finder) thinkTime() {
-	idle := f.profile.IdleUs
+	think, _ := f.splitIdle()
+	idle := think.us
 	if f.total <= 0 || float64(idle)/float64(f.total) <= ThinkTimeShare {
 		return
 	}
 	x := Finding{Rule: RuleThinkTime, Title: "Client-side time: think time", Statement: model.None, ImpactUs: idle, Severity: timeSeverity(idle, f.total),
-		Summary: fmt.Sprintf("%s of %s response time (%.0f%%) is idle wait time: the session waited for the client, the network, the user or a sleep, not for database work", fmtUs(idle), fmtUs(f.total), 100*float64(idle)/float64(f.total))}
-	n := 0
-	for _, r := range f.profile.Rows {
-		if r.Kind == "idle" && r.Us > 0 && n < 3 {
-			rr := row(r.Component, fmt.Sprintf("%s in %d waits (%.0f%%)", fmtUs(r.Us), r.Count, 100*float64(r.Us)/float64(f.total)))
-			rr.Us = r.Us
-			x.Evidence = append(x.Evidence, rr)
-			n++
-		}
+		Summary: fmt.Sprintf("%s of %s response time (%.0f%%) is idle wait time between calls: the session waited for the client, the network or the user, not for database work", fmtUs(idle), fmtUs(f.total), 100*float64(idle)/float64(f.total))}
+	f.idleEvidence(&x, think, 3, 5)
+	f.add(x)
+}
+
+// inCallIdle: trace-level, idle waits inside calls (PL/SQL lock timer from
+// dbms_session.sleep, ...) above InCallIdleShare of response time. Always
+// info: it is time the call spent sleeping, not work or client think time.
+func (f *finder) inCallIdle() {
+	_, in := f.splitIdle()
+	if f.total <= 0 || in.us == 0 || float64(in.us)/float64(f.total) <= InCallIdleShare {
+		return
 	}
-	var ids []model.ID
-	for i := range f.stats {
-		if f.stats[i].IdleUs > 0 {
-			ids = append(ids, model.ID(i))
-		}
+	x := Finding{Rule: RuleInCallIdle, Title: "Idle waits inside calls (PL/SQL lock timer / sleep, dequeue)", Statement: model.None, ImpactUs: in.us, Severity: SeverityInfo,
+		Summary: fmt.Sprintf("%s of %s response time (%.0f%%) is idle waiting inside calls (PL/SQL lock timer / sleep, dequeue), included in the elapsed time of those calls", fmtUs(in.us), fmtUs(f.total), 100*float64(in.us)/float64(f.total))}
+	f.idleEvidence(&x, in, 3, 5)
+	f.add(x)
+}
+
+func (f *finder) idleEvidence(x *Finding, a idleSplit, nEvents, nStmts int) {
+	for _, ev := range topIDs(a.byEvent, nEvents) {
+		us := a.byEvent[ev]
+		rr := row(f.m.Events[ev].Name, fmt.Sprintf("%s in %d waits (%.0f%%)", fmtUs(us), a.n[ev], 100*float64(us)/float64(f.total)))
+		rr.Us = us
+		x.Evidence = append(x.Evidence, rr)
 	}
-	sort.SliceStable(ids, func(a, b int) bool { return f.stats[ids[a]].IdleUs > f.stats[ids[b]].IdleUs })
-	for k, id := range ids {
-		if k == 5 {
-			break
-		}
+	for _, id := range topIDs(a.byStmt, nStmts) {
 		s := &f.stats[id]
-		r := stmtRow(id, f.label(id), fmt.Sprintf("%s idle waits (%.0f%% of response time), %s elapsed in its calls", fmtUs(s.IdleUs), 100*float64(s.IdleUs)/float64(f.total), fmtUs(s.Elapsed)))
-		r.Us = s.IdleUs
+		r := stmtRow(id, f.label(id), fmt.Sprintf("%s idle waits (%.0f%% of response time), %s elapsed in its calls", fmtUs(a.byStmt[id]), 100*float64(a.byStmt[id])/float64(f.total), fmtUs(s.Elapsed)))
+		r.Us = a.byStmt[id]
 		x.Evidence = append(x.Evidence, r)
 	}
-	f.add(x)
 }
 
 // smallFetches: per statement, executions with at least

@@ -41,7 +41,10 @@ equal values stay recognisable across executions; `-binds none` (or
 `-bind-values none`) drops bind values entirely. On `report`, `-binds N` still
 sets how many bind sets to print per statement. The hash is for correlation,
 not secrecy: short values (numbers, codes) can be recovered by brute force,
-and SQL text, including its literals, is not redacted.
+and SQL text, including its literals, is not redacted. `-redact-salt <string>`
+(implies redaction) mixes a salt into the hash: equal values still match across
+traces redacted with the same salt, but tokens cannot be looked up in a table of
+hashes of known values without it.
 
 ### The report
 

@@ -182,3 +182,60 @@ func TestBindsNone(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRedactBindsSalt(t *testing.T) {
+	redact := func(salt string) *model.Model {
+		m := build(t)
+		model.RedactBindsSalt(m, model.BindsRedact, salt)
+		return m
+	}
+	unsalted, a1, a2, b := redact(""), redact("pepper"), redact("pepper"), redact("other")
+	if !reflect.DeepEqual(a1.Binds, a2.Binds) {
+		t.Error("same salt: tokens differ between runs")
+	}
+	tok := regexp.MustCompile(`^<[A-Z0-9_ ]+ len=\d+ h=[0-9a-f]{8}>$`)
+	differs, same := 0, 0
+	byValue := map[string]string{}
+	for i := range a1.Binds {
+		o := &unsalted.Binds[i]
+		if o.IsNull || o.NoDef || o.IsDump {
+			continue
+		}
+		if !tok.MatchString(a1.Binds[i].Value) {
+			t.Errorf("bind %d: salted token %q", i, a1.Binds[i].Value)
+		}
+		if a1.Binds[i].Value != o.Value {
+			differs++
+		}
+		if a1.Binds[i].Value == b.Binds[i].Value {
+			same++
+		}
+		// equal values stay equal within the salt
+		k := o.TypeName + "\x00" + o.Value
+		if prev, ok := byValue[k]; ok && prev != a1.Binds[i].Value {
+			t.Errorf("value redacted to %q and %q under one salt", prev, a1.Binds[i].Value)
+		}
+		byValue[k] = a1.Binds[i].Value
+	}
+	if differs == 0 || same != 0 {
+		t.Errorf("salted tokens equal to unsalted for %d binds fewer than expected (differs=%d), equal under another salt for %d", len(a1.Binds)-differs, differs, same)
+	}
+	text, doc, csv := render(t, a1)
+	for _, s := range secrets {
+		for name, out := range map[string]string{"text": text, "json": doc, "csv": csv} {
+			if strings.Contains(out, s) {
+				t.Errorf("%s output still contains bind value %q", name, s)
+			}
+		}
+	}
+	if strings.Contains(text, "pepper") || strings.Contains(doc, "pepper") || strings.Contains(csv, "pepper") {
+		t.Error("the salt leaks into the output")
+	}
+	if n := a1.Diag.Notes; len(n) == 0 || !strings.Contains(n[len(n)-1], "salted hash") {
+		t.Errorf("salted redaction is not announced in Diag.Notes: %v", n)
+	}
+	// the empty salt is the unsalted behaviour
+	if !reflect.DeepEqual(redact("").Binds, unsalted.Binds) {
+		t.Error("empty salt changed the tokens")
+	}
+}

@@ -326,3 +326,61 @@ func TestSeverityMapping(t *testing.T) {
 		t.Error("atLeast")
 	}
 }
+
+// hard-parses needs HardParseMinTotal missed parses trace-wide: short traces
+// where every statement runs (and misses) once stay quiet.
+func TestFindingsHardParsesTraceWideThreshold(t *testing.T) {
+	for _, c := range []struct {
+		n    int
+		want bool
+	}{{HardParseMinTotal - 1, false}, {HardParseMinTotal, true}} {
+		b := newModel(c.n)
+		for i := 0; i < c.n; i++ {
+			b.call(model.ID(i), trace.CallParse, 50, 0, 0, 0)
+			b.m.Calls[len(b.m.Calls)-1].Mis = 1
+			b.exec(model.ID(i), 100, 0, 1)
+		}
+		got := len(byRule(Findings(b.m, Statements(b.m)), RuleHardParses)) == 1
+		if got != c.want {
+			t.Errorf("%d once-run statements, all hard parsed: hard-parses fired = %v, want %v", c.n, got, c.want)
+		}
+	}
+	for _, name := range []string{"plan_stat_all.trc", "parallel.trc"} { // 13 and 17 once-run statements
+		if _, fs := load(t, name); len(byRule(fs, RuleHardParses)) != 0 {
+			t.Errorf("%s: hard-parses fired on a short trace", name)
+		}
+	}
+}
+
+// dbms_session.sleep waits (PL/SQL lock timer) happen inside the EXEC: they are
+// in-call idle time, not think time.
+func TestFindingsInCallIdleNotThinkTime(t *testing.T) {
+	for _, name := range []string{"multisession.trc", "multisession_b.trc"} {
+		m, fs := load(t, name)
+		if n := len(byRule(fs, RuleThinkTime)); n != 0 {
+			t.Errorf("%s: think-time fired %d times for in-call sleeps", name, n)
+		}
+		ic := byRule(fs, RuleInCallIdle)
+		if len(ic) != 1 || ic[0].Severity != SeverityInfo {
+			t.Fatalf("%s: in-call-idle = %+v, want one info finding", name, ic)
+		}
+		if len(ic[0].Evidence) == 0 || ic[0].Evidence[0].Label != "PL/SQL lock timer" {
+			t.Errorf("%s: in-call-idle evidence = %+v", name, ic[0].Evidence)
+		}
+		var sleep int64
+		for i := range m.Waits {
+			if m.Events[m.Waits[i].Event].Name == "PL/SQL lock timer" {
+				sleep += m.Waits[i].Ela
+			}
+		}
+		if ic[0].ImpactUs < sleep {
+			t.Errorf("%s: in-call-idle impact %d < PL/SQL lock timer total %d", name, ic[0].ImpactUs, sleep)
+		}
+	}
+	// between-call idle (SQL*Net message from client) is still think time and
+	// is not reported as in-call idle
+	_, fs := load(t, "basic_binds.trc")
+	if len(byRule(fs, RuleThinkTime)) != 1 || len(byRule(fs, RuleInCallIdle)) != 0 {
+		t.Errorf("basic_binds: think-time/in-call-idle = %d/%d, want 1/0", len(byRule(fs, RuleThinkTime)), len(byRule(fs, RuleInCallIdle)))
+	}
+}

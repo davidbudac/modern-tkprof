@@ -13,6 +13,7 @@ import (
 // (none > redact > keep).
 type bindFlags struct {
 	mode model.BindMode
+	salt string
 }
 
 const bindModeHelp = "keep|redact|none: redact replaces values with type, length and a stable hash " +
@@ -48,6 +49,11 @@ func (b *bindFlags) register(fs *flag.FlagSet) {
 		return nil
 	})
 	fs.Func("bind-values", bindModeHelp+" (default keep)", b.set)
+	fs.Func("redact-salt", "salt for the redaction hash (implies -bind-values redact): equal values still match across traces redacted with the same salt, "+
+		"but tokens cannot be compared with hashes of known values without it", func(v string) error {
+		b.salt = v
+		return b.set("redact")
+	})
 }
 
 // addBindFlags registers -redact-binds, -bind-values and -binds keep|redact|none.
@@ -81,5 +87,5 @@ func addReportBindFlags(fs *flag.FlagSet, n *int) *bindFlags {
 
 // apply redacts or drops the model's bind values as requested.
 func (b *bindFlags) apply(m *model.Model) {
-	model.RedactBinds(m, b.mode)
+	model.RedactBindsSalt(m, b.mode, b.salt)
 }

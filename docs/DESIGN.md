@@ -56,7 +56,8 @@ in the UI is reachable from the CLI.
   right. Chrome is neutral (IBM Plex); hue is reserved for wait classes.
 - `json` and `export` (CSV tables) for other tools.
 - Bind values are kept by default; `-redact-binds` replaces them with type,
-  length and a stable hash; `-binds none` drops them.
+  length and a stable hash (`-redact-salt S` salts the hash); `-binds none`
+  drops them.
 
 ## Correctness contract
 

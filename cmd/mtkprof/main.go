@@ -46,6 +46,9 @@ Bind values (report, html, json, export, serve):
   -bind-values keep|redact|none   keep (default); redact = type, length and a stable
                                   hash per value; none = drop bind values entirely
   -redact-binds                   shorthand for -bind-values redact
+  -redact-salt STRING             redact with a salted hash: equal values still match
+                                  across traces using the same salt, but the tokens cannot
+                                  be compared with hashes of known values without it
   -binds none                     shorthand for -bind-values none (on report, -binds N
                                   is still the number of bind sets printed per statement)
   The hash is for spotting equal values across executions, not for secrecy: short

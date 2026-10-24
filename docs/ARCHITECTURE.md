@@ -78,7 +78,10 @@ Rules that give the model its meaning:
 * **Bind redaction**: `RedactBinds` (`redact.go`) is a post-pass over
   `Binds` run by the CLI before any output, so every format agrees. `redact`
   replaces values with `<TYPE len=N h=8-hex SHA-256>` (dumps:
-  `<TYPE dump len=N>`; NULLs and metadata kept); `none` empties `Binds` and
+  `<TYPE dump len=N>`; NULLs and metadata kept). `-redact-salt S` (implies
+  `redact`; `RedactBindsSalt`) hashes `S + 0x00 + value` instead, so equal
+  values still match across traces with the same salt but cannot be looked up
+  in a table of known-value hashes without it. `none` empties `Binds` and
   `BindSets` and sets every `Call.BindSet` to `None`. The mode is recorded
   in `Diag.BindMode` (`kept|redacted|none`) and in `Diag.Notes`.
 
@@ -143,10 +146,11 @@ ranking) and on the UI Overview. Thresholds are named constants:
 |---|---|---|
 | `outlier-executions` (per statement) | execution (EXEC + its FETCHes) > 3x the median and > 100 ms; needs >= 3 executions | `OutlierFactor`, `OutlierMinUs`, `OutlierMinExecs` |
 | `plan-change` (per statement) | > 1 plan hash from STAT dumps or EXEC `plh` (0 ignored) | serious when one plan's avg exec >= 3x another's and the statement took >= 100 ms |
-| `hard-parses` | PARSE `mis` per execution > 0.5 for a statement with > 10 executions, or trace-wide with > 10 hard parses | `HardParseRatio`, `HardParseMinExecs`, `HardParseMinTotal` |
+| `hard-parses` | PARSE `mis` per execution > 0.5 for a statement with > 10 executions, or trace-wide with >= 20 hard parses at that ratio (short traces where every statement runs once stay quiet) | `HardParseRatio`, `HardParseMinExecs`, `HardParseMinTotal` |
 | `parse-per-exec` | PARSE calls per execution > 0.9 with > 10 executions | `ParseExecRatio`, `ParseExecMinExecs` |
 | `hard-closes` | > 10 CLOSE type=0 of statements parsed >= 3 times whose closes are > 50 % type 0 | `HardCloseShare`, `HardCloseMinParses`, `HardCloseMinCount` |
-| `think-time` | idle waits > 30 % of response time | `ThinkTimeShare` |
+| `think-time` | idle waits *between* calls (SQL*Net message from client, ...) > 30 % of response time; idle waits inside a call's time window are excluded | `ThinkTimeShare` |
+| `in-call-idle` (always info) | idle waits inside calls (PL/SQL lock timer from `dbms_session.sleep`, PX dequeues) > 10 % of response time | `InCallIdleShare` |
 | `small-fetches` (per statement) | executions with >= 3 fetches at < 20 rows per fetch, together > 100 fetches and > 1000 rows | `SmallFetchRows`, `SmallFetchMinFetchesPerExec`, `SmallFetchMinFetches`, `SmallFetchMinRows` |
 | `commit-per-row` | > 10 read-write commits at > 0.5 commits per INSERT/UPDATE/DELETE/MERGE execution | `CommitPerDMLRatio`, `CommitMinCount` |
 | `round-trips` | > 100 `SQL*Net message to client` at > 0.5 per row of top-level calls | `RoundTripsPerRow`, `RoundTripsMin` |
