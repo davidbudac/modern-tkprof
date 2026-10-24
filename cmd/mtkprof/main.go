@@ -17,6 +17,8 @@ import (
 
 	"net"
 	"net/http"
+	"os/signal"
+	"syscall"
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/model"
@@ -214,6 +216,45 @@ var (
 func addAggregateFlag(fs *flag.FlagSet) {
 	fs.BoolVar(&aggregate, "aggregate", false, "aggregation-only mode for huge traces: fold calls and waits into aggregates instead of keeping them (implies -lowmem and -facts=false; no executions tables, bind sections or fact tables)")
 }
+
+// spillFlag is -spill[=DIR] (serve): aggregation-only build plus the fact rows
+// on disk (internal/slice Spill). Bare -spill uses os.TempDir(); the directory
+// goes in the same argument (-spill=DIR) because a following word is a trace.
+type spillFlag struct {
+	on  bool
+	dir string
+}
+
+func (f *spillFlag) String() string {
+	if f == nil || !f.on {
+		return "false"
+	}
+	if f.dir == "" {
+		return "true"
+	}
+	return f.dir
+}
+
+func (f *spillFlag) Set(v string) error {
+	switch v {
+	case "", "true":
+		f.on, f.dir = true, ""
+	case "false":
+		f.on, f.dir = false, ""
+	default:
+		f.on, f.dir = true, v
+	}
+	return nil
+}
+
+func (f *spillFlag) IsBoolFlag() bool { return true }
+
+// spillCfg is set by serve -spill before the model is built; spill is the
+// spill the build created (nil until then).
+var (
+	spillCfg spillFlag
+	spill    *slicepkg.Spill
+)
 
 // useThresholds makes the thresholds of -findings-config known to buildModel.
 func useThresholds(th *analyze.Thresholds) {
@@ -432,15 +473,20 @@ func cmdServe(args []string) error {
 	slice := fs.Bool("slice", false, "answer the UI's group-by queries from the server (/api/pivot, ...); implied by -facts=false")
 	pv := planVizFlag(fs)
 	fc := findingsFlag(fs)
-	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
 	addAggregateFlag(fs)
+	fs.Var(&spillCfg, "spill", "for traces that do not fit in memory: aggregation-only build (-aggregate) that also spills calls, waits and binds to temporary files in DIR (default the system temp dir; write -spill=DIR) and answers the UI's drill-downs by scanning them; the files are removed on exit")
+	bf := addBindFlags(fs)
 	files := parseArgs(fs, args)
 	// Without the fact tables in the document the browser has nothing to slice: the
 	// server keeps the model and answers the queries (docs/ARCHITECTURE.md § Server-side slicing).
-	// An aggregation-only model has no facts to slice either: the document is all there is.
+	// An aggregation-only model has no facts to slice either: the document is all there is,
+	// unless -spill keeps the facts on disk.
 	slicing := (*slice || !*facts) && !aggregate
-	if aggregate {
+	if spillCfg.on {
+		slicing = true
+	}
+	if aggregate || spillCfg.on {
 		*facts = false
 	}
 	th, err := loadThresholds(*fc)
@@ -448,10 +494,13 @@ func cmdServe(args []string) error {
 		return err
 	}
 	useThresholds(th)
+	bindMode, bindSalt = bf.mode, bf.salt
 	m, err := buildModel(files, *nf)
 	if err != nil {
+		closeSpill()
 		return err
 	}
+	defer closeSpill()
 	if err := applyRef(m, *rf); err != nil {
 		return err
 	}
@@ -459,6 +508,20 @@ func cmdServe(args []string) error {
 	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th, Slice: slicing})
 	if err != nil {
 		return err
+	}
+	var src slicepkg.FactSource
+	if spill != nil {
+		debug.FreeOSMemory() // the build churned through the heap; give the pages back before idling
+		if src, err = spill.Source(); err != nil {
+			return fmt.Errorf("spill: %w", err)
+		}
+		sz := spill.Sizes()
+		var total int64
+		for _, n := range sz {
+			total += n
+		}
+		fmt.Fprintf(os.Stderr, "mtkprof: spilled %d calls, %d waits to %s: %.1f MB (calls %.1f, waits %.1f, binds %.1f, indexes %.1f)\n", src.NumCalls(), src.NumWaits(), spill.Dir(),
+			float64(total)/1e6, float64(sz["calls.bin"])/1e6, float64(sz["waits.bin"])/1e6, float64(sz["bindsets.bin"]+sz["binds.bin"]+sz["bindvals.bin"])/1e6, float64(sz["calls.stmt"]+sz["waits.stmt"])/1e6)
 	}
 	// One line index per input file; ?file=i selects it (0 = first file).
 	var lis []*trace.LineIndex
@@ -472,7 +535,9 @@ func cmdServe(args []string) error {
 		lis = append(lis, li)
 	}
 	mux := http.NewServeMux()
-	if slicing {
+	if src != nil {
+		mux.Handle("/api/", slicepkg.NewServer(m, src).Handler())
+	} else if slicing {
 		mux.Handle("/api/", slicepkg.New(m).Handler()) // /api/doc and /api/lines below are the longer patterns' exceptions
 	} else {
 		m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
@@ -527,16 +592,53 @@ func cmdServe(args []string) error {
 	return http.Serve(ln, mux)
 }
 
+// bindMode and bindSalt are the bind flags as serve -spill needs them while
+// the model is built (the spill writes the values, so it redacts them).
+var (
+	bindMode model.BindMode
+	bindSalt string
+)
+
+// closeSpill removes the spill files (no-op without -spill).
+func closeSpill() {
+	if spill != nil {
+		spill.Close()
+	}
+}
+
+// removeSpillOnSignal removes the spill files when the process is told to stop,
+// also while the trace is still being read.
+func removeSpillOnSignal(sp *slicepkg.Spill) {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	go func() {
+		<-ch
+		sp.Close()
+		os.Exit(130)
+	}()
+}
+
 func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	start := time.Now()
-	if (lowMem || aggregate) && os.Getenv("GOGC") == "" {
+	aggMode := aggregate || spillCfg.on
+	if (lowMem || aggMode) && os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(20)
 	}
-	opts := model.Options{NoFollow: noFollow, NoFacts: lowMem || aggregate}
-	if aggregate {
+	opts := model.Options{NoFollow: noFollow, NoFacts: lowMem || aggMode}
+	if aggMode {
 		th := aggTh
 		opts.Aggregate = true
 		opts.NewSink = func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) }
+	}
+	if spillCfg.on {
+		var err error
+		spill, err = slicepkg.NewSpill(slicepkg.SpillOptions{Dir: spillCfg.dir, Key: slicepkg.SpillKey(files), BindMode: bindMode, Salt: bindSalt})
+		if err != nil {
+			return nil, fmt.Errorf("spill: %w", err)
+		}
+		removeSpillOnSignal(spill)
+		opts.SpillBinds = !lowMem && bindMode != model.BindsNone
+		opts.NewTee = spill.Attach
 	}
 	m, err := model.BuildFiles(files, opts)
 	if err != nil {

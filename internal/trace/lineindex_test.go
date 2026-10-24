@@ -73,3 +73,43 @@ func TestLineIndexMatchesParser(t *testing.T) {
 		t.Errorf("index lines %d, parser lines %d", li.Lines(), st.Lines)
 	}
 }
+
+// Reads across checkpoints, chunk boundaries and the unterminated tail must
+// give the same bytes as splitting the file in memory.
+func TestLineIndexSparse(t *testing.T) {
+	for _, tail := range []string{"", "x"} {
+		var sb strings.Builder
+		var lines []string
+		for i := 1; i <= 5*lineStride+17; i++ {
+			l := strings.Repeat("ab", i%700) + "\n" // some lines longer than the read chunk
+			if i%11 == 0 {
+				l = "\n"
+			}
+			lines = append(lines, l)
+			sb.WriteString(l)
+		}
+		if tail == "x" {
+			lines = append(lines, tail)
+			sb.WriteString(tail)
+		}
+		p := filepath.Join(t.TempDir(), "s.trc")
+		os.WriteFile(p, []byte(sb.String()), 0o644)
+		li, err := OpenLineIndex(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if li.Lines() != len(lines) {
+			t.Fatalf("tail %q: %d lines, want %d", tail, li.Lines(), len(lines))
+		}
+		for _, from := range []int{1, 2, lineStride - 1, lineStride, lineStride + 1, 2*lineStride + 5, len(lines) - 1, len(lines)} {
+			for _, n := range []int{1, 3, lineStride, 100, 1000} {
+				end := min(from-1+n, len(lines))
+				want := strings.Join(lines[from-1:end], "")
+				if got, _ := li.Read(from, n); string(got) != want {
+					t.Fatalf("tail %q: Read(%d,%d) = %d bytes, want %d", tail, from, n, len(got), len(want))
+				}
+			}
+		}
+		li.Close()
+	}
+}

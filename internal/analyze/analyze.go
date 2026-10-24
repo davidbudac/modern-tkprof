@@ -592,6 +592,59 @@ func ExecutionsOn(ctx context.Context, m *model.Model, src Facts, sid model.ID) 
 	return out, err
 }
 
+// ExecInfo is an execution seen by EachExecution: the EXEC and the sum of its
+// FETCHes, without the list of fetch calls.
+type ExecInfo struct {
+	Execution
+	Seq        int // position among the statement's executions in file order
+	NumFetches int
+}
+
+// EachExecution calls fn once for every execution of a statement (the ones
+// Executions lists) in the order they are complete, not in file order: an
+// execution is complete when the next EXEC of its cursor comes (or at the end).
+// Memory is that of the open executions, one per cursor, however many
+// executions the statement has. e is only valid during the call.
+func EachExecution(ctx context.Context, m *model.Model, src Facts, sid model.ID, fn func(e *ExecInfo)) error {
+	open := map[model.ID]*ExecInfo{} // cursor -> its latest execution; only that one can still get fetches
+	seq := 0
+	err := src.EachCall(ctx, Scan{Statements: []model.ID{sid}}, func(c *model.Call) bool {
+		if c.Statement != sid || m.PXChild(c.Context) {
+			return true
+		}
+		switch c.Kind {
+		case trace.CallExec:
+			e := open[c.Cursor]
+			if e != nil {
+				fn(e)
+			} else {
+				e = &ExecInfo{}
+				open[c.Cursor] = e
+			}
+			*e = ExecInfo{Execution: Execution{Cursor: c.Cursor, Statement: sid, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E,
+				EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context, Line: c.Line}, Seq: seq}
+			seq++
+			e.Stats.add(c)
+		case trace.CallFetch:
+			if e := open[c.Cursor]; e != nil && e.ExecNo == c.ExecNo {
+				e.NumFetches++
+				e.Stats.add(c)
+				if c.Tim > e.EndTim {
+					e.EndTim = c.Tim
+				}
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return err
+	}
+	for _, e := range open { // map order: the consumer must not depend on it
+		fn(e)
+	}
+	return nil
+}
+
 // Bucket is one slice of the timeline.
 type Bucket struct {
 	StartUs int64 `json:"startUs"` // wall-clock µs (or tim when no anchor)

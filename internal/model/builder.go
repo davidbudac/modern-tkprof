@@ -109,9 +109,10 @@ func NewBuilder(path string, opts Options) *Builder {
 	if opts.MaxUnknown == 0 {
 		opts.MaxUnknown = 200
 	}
-	if opts.Aggregate && !(opts.SpillBinds && opts.NewTee != nil) {
-		opts.NoFacts = true
-		opts.SpillBinds = false
+	if opts.Aggregate {
+		// without a spill sink the binds go nowhere
+		opts.SpillBinds = opts.SpillBinds && opts.NewTee != nil
+		opts.NoFacts = !opts.SpillBinds
 	}
 	b := &Builder{
 		m:            &Model{File: FileInfo{Path: path, Files: []FileEntry{{Path: path, Name: filepath.Base(path)}}}},

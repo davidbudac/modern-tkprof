@@ -24,6 +24,7 @@ type pagedFile struct {
 	margin   int64 // pages this close to the newest count as recent
 
 	pages map[int64]*page
+	spare []byte // buffer of the last evicted page, reused by the next one
 	tick  uint64
 	top   int64 // newest page number touched
 	n     int64 // rows: highest row written + 1
@@ -48,7 +49,8 @@ type lateOp struct {
 
 const (
 	pageBytes = 256 << 10
-	lateBytes = 16 << 20
+	lateBytes = 8 << 20
+	lateOps   = 1 << 18
 )
 
 func newPagedFile(f *os.File, recSize, maxPages int) *pagedFile {
@@ -93,7 +95,7 @@ func (p *pagedFile) write(idx int64, off int, data []byte) {
 	}
 	p.late = append(p.late, lateOp{idx: idx, off: int32(off), n: int32(len(data)), at: len(p.arena)})
 	p.arena = append(p.arena, data...)
-	if len(p.arena) >= lateBytes {
+	if len(p.arena) >= lateBytes || len(p.late) >= lateOps {
 		p.flushLate()
 	}
 }
@@ -103,7 +105,13 @@ func (p *pagedFile) load(no int64) *page {
 	if len(p.pages) >= p.maxPages && !p.evict() {
 		return nil
 	}
-	pg := &page{no: no, buf: make([]byte, p.pageSize)}
+	pg := &page{no: no, buf: p.spare}
+	p.spare = nil
+	if pg.buf == nil {
+		pg.buf = make([]byte, p.pageSize)
+	} else {
+		clear(pg.buf)
+	}
 	if no <= p.top {
 		if _, err := p.f.ReadAt(pg.buf, no*int64(p.pageSize)); err != nil && !errors.Is(err, io.EOF) {
 			p.err = err
@@ -132,6 +140,7 @@ func (p *pagedFile) evict() bool {
 		return false
 	}
 	delete(p.pages, lru.no)
+	p.spare = lru.buf
 	return true
 }
 

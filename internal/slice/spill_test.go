@@ -23,23 +23,16 @@ const traces = "../../testdata/traces/19c/"
 // model, facts and binds spilled to dir.
 func buildSpilled(t *testing.T, paths []string, dir string) (*model.Model, *Spill) {
 	t.Helper()
-	var sp *Spill
-	var spErr error
+	sp, err := NewSpill(SpillOptions{Dir: dir, Key: SpillKey(paths)})
+	if err != nil {
+		t.Fatal(err)
+	}
 	th := analyze.DefaultThresholds()
 	m, err := model.BuildFiles(paths, model.Options{
 		Aggregate: true, SpillBinds: true,
 		NewSink: func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) },
-		NewTee: func(m *model.Model) model.Sink {
-			sp, spErr = NewSpill(m, SpillOptions{Dir: dir, Key: SpillKey(paths)})
-			if spErr != nil {
-				return nil
-			}
-			return sp
-		},
+		NewTee:  func(m *model.Model) model.Sink { return sp.Attach(m) },
 	})
-	if spErr != nil {
-		t.Fatal(spErr)
-	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,13 +258,13 @@ func TestSpillRedactsBinds(t *testing.T) {
 	paths := []string{traces + "basic_binds.trc"}
 	dir := t.TempDir()
 	th := analyze.DefaultThresholds()
-	var sp *Spill
+	sp, err := NewSpill(SpillOptions{Dir: dir, BindMode: model.BindsRedact, Salt: "s"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	m, err := model.BuildFiles(paths, model.Options{Aggregate: true, SpillBinds: true,
 		NewSink: func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) },
-		NewTee: func(m *model.Model) model.Sink {
-			sp, _ = NewSpill(m, SpillOptions{Dir: dir, BindMode: model.BindsRedact, Salt: "s"})
-			return sp
-		}})
+		NewTee:  func(m *model.Model) model.Sink { return sp.Attach(m) }})
 	if err != nil {
 		t.Fatal(err)
 	}

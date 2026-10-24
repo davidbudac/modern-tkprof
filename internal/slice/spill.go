@@ -81,8 +81,9 @@ type Spill struct {
 type rowRange struct{ lo, hi int64 }
 
 // NewSpill creates the spill directory (removing leftovers of the same trace
-// from dead processes) and its files.
-func NewSpill(m *model.Model, o SpillOptions) (*Spill, error) {
+// from dead processes) and its files. Attach it to the model with
+// model.Options.NewTee: func(m) { return sp.Attach(m) }.
+func NewSpill(o SpillOptions) (*Spill, error) {
 	base := o.Dir
 	if base == "" {
 		base = os.TempDir()
@@ -101,7 +102,7 @@ func NewSpill(m *model.Model, o SpillOptions) (*Spill, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Spill{m: m, opts: o, dir: dir}
+	s := &Spill{opts: o, dir: dir}
 	open := func(name string) *os.File {
 		if err != nil {
 			return nil
@@ -123,6 +124,13 @@ func NewSpill(m *model.Model, o SpillOptions) (*Spill, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+// Attach gives the spill the model whose cursors tell the statement of a row;
+// it is the Sink of the build.
+func (s *Spill) Attach(m *model.Model) model.Sink {
+	s.m = m
+	return s
 }
 
 // Dir is the spill directory.

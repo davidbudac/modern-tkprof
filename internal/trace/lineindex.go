@@ -9,33 +9,45 @@ import (
 // LineIndex maps 1-based line numbers of a trace file to byte offsets so a
 // range of raw lines can be read back without keeping the file in memory.
 // It splits on '\n' exactly like Parser.Run (a final unterminated line counts).
+// Only the offset of every lineStride-th line is kept (an eighth of a byte per
+// line: 32 MB for a 10 GB trace of 259 million lines instead of 2 GB); Read
+// scans forward from the nearest one.
 type LineIndex struct {
-	f    *os.File
-	offs []int64 // offs[i] = start of line i+1; one extra entry = file size
+	f     *os.File
+	cps   []int64 // cps[i] = start of line i*lineStride+1
+	lines int
 }
 
-// OpenLineIndex scans path once and keeps 8 bytes per line.
+const lineStride = 64
+
+// OpenLineIndex scans path once.
 func OpenLineIndex(path string) (*LineIndex, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	li := &LineIndex{f: f, offs: []int64{0}}
+	li := &LineIndex{f: f}
 	buf := make([]byte, 1<<20)
-	var pos int64
+	var base int64 // offset of buf[0]
+	inLine := false
 	for {
 		n, err := f.Read(buf)
-		for b := buf[:n]; ; {
-			i := bytes.IndexByte(b, '\n')
+		for off := 0; off < n; {
+			if !inLine {
+				if li.lines%lineStride == 0 {
+					li.cps = append(li.cps, base+int64(off))
+				}
+				inLine = true
+			}
+			i := bytes.IndexByte(buf[off:n], '\n')
 			if i < 0 {
 				break
 			}
-			li.offs = append(li.offs, pos+int64(i)+1)
-			pos += int64(i) + 1
-			b = b[i+1:]
-			n -= i + 1
+			li.lines++
+			inLine = false
+			off += i + 1
 		}
-		pos += int64(n)
+		base += int64(n)
 		if err == io.EOF {
 			break
 		}
@@ -44,14 +56,14 @@ func OpenLineIndex(path string) (*LineIndex, error) {
 			return nil, err
 		}
 	}
-	if last := li.offs[len(li.offs)-1]; last != pos { // unterminated final line
-		li.offs = append(li.offs, pos)
+	if inLine { // unterminated final line
+		li.lines++
 	}
 	return li, nil
 }
 
 // Lines is the number of lines in the file.
-func (li *LineIndex) Lines() int { return len(li.offs) - 1 }
+func (li *LineIndex) Lines() int { return li.lines }
 
 // Close releases the file.
 func (li *LineIndex) Close() error { return li.f.Close() }
@@ -63,16 +75,50 @@ func (li *LineIndex) Read(from, n int) ([]byte, error) {
 		from = 1
 	}
 	last := from + n - 1
-	if last > li.Lines() {
-		last = li.Lines()
+	if last > li.lines {
+		last = li.lines
 	}
 	if n <= 0 || from > last {
 		return nil, nil
 	}
-	start, end := li.offs[from-1], li.offs[last]
-	buf := make([]byte, end-start)
-	if _, err := li.f.ReadAt(buf, start); err != nil && err != io.EOF {
-		return nil, err
+	k := (from - 1) / lineStride
+	pos := li.cps[k]
+	skip := from - 1 - k*lineStride // lines before the first wanted one
+	want := last - from + 1         // lines still to copy
+	var out []byte
+	buf := make([]byte, 64<<10)
+	for want > 0 {
+		m, err := li.f.ReadAt(buf, pos)
+		chunk := buf[:m]
+		for len(chunk) > 0 && want > 0 {
+			i := bytes.IndexByte(chunk, '\n')
+			switch {
+			case skip > 0:
+				if i < 0 {
+					chunk = nil
+				} else {
+					skip--
+					chunk = chunk[i+1:]
+				}
+			case i < 0: // a wanted line goes on in the next chunk (or ends the file)
+				out = append(out, chunk...)
+				chunk = nil
+			default:
+				out = append(out, chunk[:i+1]...)
+				want--
+				chunk = chunk[i+1:]
+			}
+		}
+		pos += int64(m)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		if m == 0 {
+			break
+		}
 	}
-	return buf, nil
+	return out, nil
 }

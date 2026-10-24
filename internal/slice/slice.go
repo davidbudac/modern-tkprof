@@ -26,6 +26,7 @@
 package slice
 
 import (
+	"container/heap"
 	"context"
 	"encoding/json"
 	"errors"
@@ -61,12 +62,9 @@ type Server struct {
 	m   *model.Model
 	src FactSource
 
-	maxExecs int // executions lists kept (they grow with the statement)
-
 	mu    sync.Mutex
 	cache map[string][]byte // GET query -> response body
 	order []string
-	execs map[model.ID][]analyze.Execution
 }
 
 // New returns the server for a model that holds its fact rows.
@@ -75,11 +73,7 @@ func New(m *model.Model) *Server { return NewServer(m, MemSource(m)) }
 // NewServer returns the server for the dimension tables of m and the fact
 // rows of src (the spilled rows of an aggregation-only model, see Spill).
 func NewServer(m *model.Model, src FactSource) *Server {
-	s := &Server{m: m, src: src, maxExecs: 16, cache: map[string][]byte{}, execs: map[model.ID][]analyze.Execution{}}
-	if _, ok := src.(*diskSource); ok {
-		s.maxExecs = 2 // an execution list of a hot statement is millions of rows
-	}
-	return s
+	return &Server{m: m, src: src, cache: map[string][]byte{}}
 }
 
 // Close releases the fact source (the spill files are removed).
@@ -469,29 +463,9 @@ type ExecResponse struct {
 	Rows    []ExecRow `json:"rows"`
 }
 
-func (s *Server) execsOf(ctx context.Context, sid model.ID) ([]analyze.Execution, error) {
-	s.mu.Lock()
-	if e, ok := s.execs[sid]; ok {
-		s.mu.Unlock()
-		return e, nil
-	}
-	s.mu.Unlock()
-	e, err := analyze.ExecutionsOn(ctx, s.m, s.src, sid)
-	if err != nil {
-		return nil, err
-	}
-	s.mu.Lock()
-	if len(s.execs) >= s.maxExecs {
-		s.execs = map[model.ID][]analyze.Execution{}
-	}
-	s.execs[sid] = e
-	s.mu.Unlock()
-	return e, nil
-}
-
-func (s *Server) execRow(e *analyze.Execution, binds bool) ExecRow {
+func (s *Server) execRow(e *analyze.ExecInfo, binds bool) ExecRow {
 	r := ExecRow{
-		Line: e.Line, Cursor: e.Cursor, ExecNo: e.ExecNo, Exec: e.Exec, Fetches: len(e.Fetches),
+		Line: e.Line, Cursor: e.Cursor, ExecNo: e.ExecNo, Exec: e.Exec, Fetches: e.NumFetches,
 		StartTim: e.StartTim, EndTim: e.EndTim, E: e.Stats.Elapsed, C: e.Stats.CPU, P: e.Stats.Disk, CR: e.Stats.Query,
 		CU: e.Stats.Current, R: e.Stats.Rows, WaitEla: e.Stats.Waits, IdleEla: e.Stats.Idle, BindSet: e.BindSet, Ctx: e.Context,
 	}
@@ -504,15 +478,44 @@ func (s *Server) execRow(e *analyze.Execution, binds bool) ExecRow {
 	return r
 }
 
-var execSorts = map[string]func(e *analyze.Execution) int64{
-	"e":       func(e *analyze.Execution) int64 { return e.Stats.Elapsed },
-	"c":       func(e *analyze.Execution) int64 { return e.Stats.CPU },
-	"waitEla": func(e *analyze.Execution) int64 { return e.Stats.Waits },
-	"r":       func(e *analyze.Execution) int64 { return e.Stats.Rows },
-	"p":       func(e *analyze.Execution) int64 { return e.Stats.Disk },
-	"cr":      func(e *analyze.Execution) int64 { return e.Stats.Query },
-	"fetches": func(e *analyze.Execution) int64 { return int64(len(e.Fetches)) },
-	"start":   func(e *analyze.Execution) int64 { return e.StartTim },
+var execSorts = map[string]func(e *analyze.ExecInfo) int64{
+	"e":       func(e *analyze.ExecInfo) int64 { return e.Stats.Elapsed },
+	"c":       func(e *analyze.ExecInfo) int64 { return e.Stats.CPU },
+	"waitEla": func(e *analyze.ExecInfo) int64 { return e.Stats.Waits },
+	"r":       func(e *analyze.ExecInfo) int64 { return e.Stats.Rows },
+	"p":       func(e *analyze.ExecInfo) int64 { return e.Stats.Disk },
+	"cr":      func(e *analyze.ExecInfo) int64 { return e.Stats.Query },
+	"fetches": func(e *analyze.ExecInfo) int64 { return int64(e.NumFetches) },
+	"start":   func(e *analyze.ExecInfo) int64 { return e.StartTim },
+}
+
+// maxExecWindow bounds offset+limit of /api/executions: the page is picked
+// while the executions stream by, so the server holds that many.
+const maxExecWindow = 100000
+
+// execHeap keeps the best executions by a sort key (largest first, ties in
+// file order); the root is the worst of them.
+type execHeap struct {
+	rows []analyze.ExecInfo
+	key  func(e *analyze.ExecInfo) int64
+}
+
+func (h *execHeap) worse(a, b *analyze.ExecInfo) bool {
+	ka, kb := h.key(a), h.key(b)
+	if ka != kb {
+		return ka < kb
+	}
+	return a.Seq > b.Seq
+}
+func (h *execHeap) Len() int           { return len(h.rows) }
+func (h *execHeap) Less(i, j int) bool { return h.worse(&h.rows[i], &h.rows[j]) }
+func (h *execHeap) Swap(i, j int)      { h.rows[i], h.rows[j] = h.rows[j], h.rows[i] }
+func (h *execHeap) Push(x any)         { h.rows = append(h.rows, x.(analyze.ExecInfo)) }
+func (h *execHeap) Pop() any {
+	n := len(h.rows)
+	v := h.rows[n-1]
+	h.rows = h.rows[:n-1]
+	return v
 }
 
 func (s *Server) executions(ctx context.Context, q url.Values) (any, error) {
@@ -532,42 +535,61 @@ func (s *Server) executions(ctx context.Context, q url.Values) (any, error) {
 		return nil, err
 	}
 	sortBy := q.Get("sort")
-	var key func(e *analyze.Execution) int64
+	var key func(e *analyze.ExecInfo) int64
 	if sortBy != "" && sortBy != "file" {
 		if key = execSorts[sortBy]; key == nil {
 			return nil, bad("sort: unknown %q (file, e, c, waitEla, r, p, cr, fetches, start)", sortBy)
 		}
 	}
-	exs, err := s.execsOf(ctx, *sp)
+	if offset+limit > maxExecWindow {
+		return nil, bad("offset+limit: %d is above %d", offset+limit, maxExecWindow)
+	}
+	// One pass over the statement's calls: count, total and slowest, and the page.
+	resp := &ExecResponse{Stmt: *sp, Offset: int(offset), Rows: []ExecRow{}}
+	var sum int64
+	var slow analyze.ExecInfo
+	h := &execHeap{key: key}
+	var page []analyze.ExecInfo // key == nil: the executions with Seq in [offset, offset+limit)
+	err = analyze.EachExecution(ctx, s.m, s.src, *sp, func(e *analyze.ExecInfo) {
+		if resp.Total == 0 || e.Stats.Elapsed > slow.Stats.Elapsed || (e.Stats.Elapsed == slow.Stats.Elapsed && e.Seq < slow.Seq) {
+			slow = *e
+		}
+		resp.Total++
+		sum += e.Stats.Elapsed
+		switch {
+		case key == nil:
+			if e.Seq >= int(offset) && e.Seq < int(offset+limit) {
+				page = append(page, *e)
+			}
+		case h.Len() < int(offset+limit):
+			heap.Push(h, *e)
+		case h.worse(&h.rows[0], e):
+			h.rows[0] = *e
+			heap.Fix(h, 0)
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
-	resp := &ExecResponse{Stmt: *sp, Total: len(exs), Offset: int(offset), Rows: []ExecRow{}}
-	if len(exs) == 0 {
+	if resp.Total == 0 {
 		return resp, nil
 	}
-	order := make([]int, len(exs))
-	var sum float64
-	slow := 0
-	for i := range exs {
-		order[i] = i
-		sum += float64(exs[i].Stats.Elapsed)
-		if exs[i].Stats.Elapsed > exs[slow].Stats.Elapsed {
-			slow = i
-		}
-	}
-	resp.AvgE = sum / float64(len(exs))
-	sr := s.execRow(&exs[slow], false)
+	resp.AvgE = float64(sum) / float64(resp.Total)
+	sr := s.execRow(&slow, false)
 	resp.Slowest = &sr
 	if key != nil { // largest first; ties in file order
-		sort.SliceStable(order, func(a, b int) bool { return key(&exs[order[a]]) > key(&exs[order[b]]) })
+		page = h.rows
+		sort.Slice(page, func(a, b int) bool { return h.worse(&page[b], &page[a]) })
+		if int(offset) < len(page) {
+			page = page[offset:]
+		} else {
+			page = nil
+		}
+	} else {
+		sort.Slice(page, func(a, b int) bool { return page[a].Seq < page[b].Seq })
 	}
-	end := int(offset) + int(limit)
-	if end > len(order) {
-		end = len(order)
-	}
-	for k := int(offset); k < end; k++ {
-		resp.Rows = append(resp.Rows, s.execRow(&exs[order[k]], true))
+	for i := range page {
+		resp.Rows = append(resp.Rows, s.execRow(&page[i], true))
 	}
 	return resp, nil
 }
