@@ -1,4 +1,5 @@
 import type { TraceDoc } from '../data/doc'
+import { StmtLink, LinkText } from '../components/StmtLink'
 import type { ID } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, preview } from '../data/format'
 import { actions } from '../app/store'
@@ -46,11 +47,11 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
           <h3>Recursive statements</h3>
           {children.length > 0 && <p className="xs dim">run by this statement, {fmtPct(stats.childUs, stats.elapsed)} of its time</p>}
           <div className="rel">
-            {children.map((l) => { const s = doc.statements[l.statement]; return <RelRow key={'c' + l.statement} id={l.statement} label={doc.label(s)} text={preview(s.text, 40)} right={`${fmtInt(l.calls)} call${l.calls === 1 ? '' : 's'} · ${fmtDur(l.elapsed)}`} /> })}
+            {children.map((l) => { const s = doc.statements[l.statement]; return <RelRow key={'c' + l.statement} doc={doc} id={l.statement} text={preview(s.text, 40)} right={`${fmtInt(l.calls)} call${l.calls === 1 ? '' : 's'} · ${fmtDur(l.elapsed)}`} /> })}
           </div>
           {parents.length > 0 && <p className="xs dim" style={{ marginTop: children.length ? '0.6rem' : 0 }}>called from</p>}
           <div className="rel">
-            {parents.map((l) => { const s = doc.statements[l.statement]; return <RelRow key={'p' + l.statement} id={l.statement} label={doc.label(s)} text={preview(s.text, 40)} right={`${fmtInt(l.calls)} call${l.calls === 1 ? '' : 's'}`} /> })}
+            {parents.map((l) => { const s = doc.statements[l.statement]; return <RelRow key={'p' + l.statement} doc={doc} id={l.statement} text={preview(s.text, 40)} right={`${fmtInt(l.calls)} call${l.calls === 1 ? '' : 's'}`} /> })}
           </div>
         </div>
       )}
@@ -60,13 +61,13 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
           {findings.map((f, i) => (
             <div key={i} className="cfind">
               <div><span className={`badge ${f.severity}`}>{f.severity}</span> <b>{f.title}</b></div>
-              <p className="small">{findingText(doc, f)}</p>
+              <p className="small"><LinkText doc={doc} text={findingText(doc, f)} /></p>
               {f.evidence.length > 0 && (
                 <table className="tbl evidence">
                   <tbody>{f.evidence.map((r, j) => (
                     <tr key={j} className={r.statement >= 0 && r.cursor >= 0 && r.execNo ? 'row-click' : undefined}
                       onClick={r.statement >= 0 && r.cursor >= 0 && r.execNo ? () => { actions.pickStmt(r.statement); actions.selectExec({ cursor: r.cursor, execNo: r.execNo! }) } : undefined}>
-                      <td className="ev-label">{r.label}</td><td className="text">{r.value}</td>
+                      <td className="ev-label">{r.label}</td><td className="text"><LinkText doc={doc} text={r.value} /></td>
                     </tr>))}</tbody>
                 </table>
               )}
@@ -78,10 +79,10 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
   )
 }
 
-function RelRow({ id, label, text, right }: { id: ID; label: string; text: string; right: string }) {
+function RelRow({ doc, id, text, right }: { doc: TraceDoc; id: ID; text: string; right: string }) {
   return (
     <div className="relrow row-click" onClick={() => actions.pickStmt(id)}>
-      <span className="mono">{label}</span><span className="dim clip">{text}</span><span className="r">{right}</span>
+      <StmtLink doc={doc} id={id} /><span className="dim clip">{text}</span><span className="r">{right}</span>
     </div>
   )
 }

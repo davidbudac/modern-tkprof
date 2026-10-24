@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
+import { StmtLink } from '../components/StmtLink'
 import type { NumCol } from '../data/columns'
 import type { Context } from '../data/types'
 import { callKindName, CallKind } from '../data/types'
@@ -330,11 +331,11 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
   }
 
   const cols: Column<Group>[] = [
-    { key: 'd1', header: d1.label, className: d1.mono ? 'mono clip' : 'clip', render: (g) => d1.name(g.k1), sort: (g) => d1.name(g.k1) },
+    { key: 'd1', header: d1.label, className: d1.mono ? 'mono clip' : 'clip', render: (g) => d1.id === 'stmt' && doc.statements[g.k1] ? <StmtLink doc={doc} id={g.k1} /> : d1.name(g.k1), sort: (g) => d1.name(g.k1) },
   ]
   if (d1.extra) cols.push({ key: 'd1x', header: d1.extra.header, className: 'clip', render: (g) => d1.extra!.get(g.k1), sort: (g) => d1.extra!.get(g.k1) })
   if (d2) {
-    cols.push({ key: 'd2', header: d2.label, className: d2.mono ? 'mono clip' : 'clip', render: (g) => d2.name(g.k2), sort: (g) => d2.name(g.k2) })
+    cols.push({ key: 'd2', header: d2.label, className: d2.mono ? 'mono clip' : 'clip', render: (g) => d2.id === 'stmt' && doc.statements[g.k2] ? <StmtLink doc={doc} id={g.k2} /> : d2.name(g.k2), sort: (g) => d2.name(g.k2) })
     if (d2.extra) cols.push({ key: 'd2x', header: d2.extra.header, className: 'clip', render: (g) => d2.extra!.get(g.k2), sort: (g) => d2.extra!.get(g.k2) })
   }
   for (const m of measures) {

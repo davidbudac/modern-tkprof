@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { EChartsOption } from 'echarts'
 import type { TraceDoc } from '../data/doc'
+import { StmtLink } from '../components/StmtLink'
 import type { ID } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, preview, fmtCompact } from '../data/format'
 import { actions, useStore, waitFilter } from '../app/store'
@@ -61,7 +62,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
             {byStmt.map((a) => { const s = doc.statements[a.key]; return (
               <tr key={a.key} className="row-click" onClick={() => actions.selectStmt(a.key)}>
                 <td className="num">{fmtDur(a.sum)}</td><td className="num dim">{fmtPct(a.sum, total)}</td><td className="num">{fmtInt(a.count)}</td>
-                <td className="mono">{s ? doc.label(s) : '–'}</td><td className="clip">{s ? preview(s.text, 50) : 'no cursor'}</td>
+                <td>{s ? <StmtLink doc={doc} id={a.key} /> : '–'}</td><td className="clip">{s ? preview(s.text, 50) : 'no cursor'}</td>
               </tr>) })}
           </tbody></table></div>
         </section>

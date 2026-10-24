@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { TimelineChart } from './TimelineChart'
 import type { TraceDoc } from '../data/doc'
+import { StmtLink, LinkText } from '../components/StmtLink'
 import { fmtDur, fmtInt, fmtCompact, fmtPct, preview } from '../data/format'
 import { useStore, actions, callFilter, waitFilter } from '../app/store'
 import { componentRows, quickSegments, statementWaits, type ComponentRow } from '../data/derive'
@@ -40,7 +41,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
 
       <section className="section">
         <header><h2>The session over time</h2>
-          <span className="hint">{timeView === 'lanes' ? 'one lane per statement, in order of first call; drag across the lanes to focus every view on a window, click a lane to open the statement' : 'busy time per bucket; drag the slider below the chart to focus every view on a window'}</span>
+          <span className="hint">{timeView === 'lanes' ? 'one lane per statement, in order of first call; drag across the lanes to focus every view on a window, click empty space or press Esc to clear it; click a bar or sql_id to open the statement' : 'busy time per bucket; drag the slider below the chart to focus every view on a window, press Esc to clear it'}</span>
           <span className="tools"><span className="seg" role="group" aria-label="Time view">
             <button aria-pressed={timeView === 'lanes'} onClick={() => setTimeView('lanes')}>lanes</button>
             <button aria-pressed={timeView === 'event'} onClick={() => setTimeView('event')} title="stacked buckets, one series per wait event (top 10, rest folded)">by event</button>
@@ -173,7 +174,7 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
         return (
           <div key={st.id} className="srow row-click" onClick={() => actions.selectStmt(st.id)}>
             <div className="meta">
-              <span className="id mono">{doc.label(s)}</span>
+              <span className="id"><StmtLink doc={doc} id={st.id} /></span>
               <span className="txt mono">{preview(s.text, 140)}</span>
               <span className="t">{fmtDur(resp)}</span>
               <span className="p">{fmtPct(resp, totalUs)}</span>
@@ -181,7 +182,7 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
             <div className="bar">{segs.map((x) => <i key={x.role} style={{ width: `${(100 * x.us) / totalUs}%`, background: `var(--c-${x.role})` }} title={`${x.label} ${fmtDur(x.us)}`} />)}</div>
             <div className="note">
               <Note doc={doc} st={st} />
-              {own.map((f, i) => <span key={i} className="fnote"><span className={`badge ${f.severity}`}>{f.severity}</span><b>{f.title}</b> {findingText(doc, f)}</span>)}
+              {own.map((f, i) => <span key={i} className="fnote"><span className={`badge ${f.severity}`}>{f.severity}</span><b>{f.title}</b> <LinkText doc={doc} text={findingText(doc, f)} /></span>)}
             </div>
           </div>
         )

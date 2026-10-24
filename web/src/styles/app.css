@@ -167,9 +167,12 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .lanes-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, var(--ruling) 1px, transparent 1px); background-repeat: repeat-x; pointer-events: none; }
 .lane { position: relative; border-block-end: 1px solid var(--hairline); }
 .lane .span { position: absolute; inset-block: 0.45rem; border-radius: 2px; display: block; }
+.lane .span::after { content: ""; position: absolute; inset: -0.45rem -3px; } /* hit area wider than a thin bar */
 .strip { display: block; inline-size: 100%; border-block-end: 1px solid var(--hairline); }
 .brush { position: absolute; inset-block: 0; background: color-mix(in oklch, var(--c-cpu) 9%, transparent); border-inline: 1px solid var(--c-cpu); pointer-events: none; }
 .brush b { position: absolute; inset-block-end: 0.2rem; inset-inline-start: 0.35rem; font-size: var(--text-xs); color: var(--c-cpu); font-weight: 500; white-space: nowrap; }
+.brush b .brush-clear { pointer-events: auto; margin-inline-start: 0.4rem; padding: 0 0.3rem; border: 0; background: none; color: inherit; font: inherit; line-height: 1; cursor: pointer; }
+.brush b .brush-clear:hover { background: color-mix(in oklch, var(--c-cpu) 18%, transparent); }
 .brush.dragging { background: color-mix(in oklch, var(--c-cpu) 14%, transparent); }
 
 /* ---- trace facts -------------------------------------------------------- */
@@ -341,3 +344,7 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .finding .evidence tr:last-child { border-block-end: 0; }
 .finding .evidence .ev-label { inline-size: 1%; font-family: var(--font-mono); font-size: 0.9em; white-space: nowrap; }
 .finding .evidence td.text { max-inline-size: none; }
+
+/* sql_ids are links to the statement's detail */
+button.link.sqlid { text-decoration-color: color-mix(in oklch, currentColor 35%, transparent); cursor: pointer; }
+button.link.sqlid:hover { text-decoration-color: currentColor; }

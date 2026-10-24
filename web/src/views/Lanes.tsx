@@ -2,7 +2,8 @@ import { useMemo, useRef, useState, type PointerEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtWall, preview } from '../data/format'
-import { useStore, actions, waitFilter } from '../app/store'
+import { useStore, actions, getState, waitFilter } from '../app/store'
+import { StmtLink } from '../components/StmtLink'
 import { statementSpans, dominantRole, timeline, type Span2 } from '../data/derive'
 import { ticks } from '../data/scale'
 import { roleOrder, type Role } from '../components/colors'
@@ -81,6 +82,7 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
       const t = e.target as HTMLElement
       const id = t.closest<HTMLElement>('[data-stmt]')?.dataset.stmt
       if (id !== undefined) actions.selectStmt(Number(id))
+      else if (getState().window) actions.setWindow(null) // a click on empty space clears the window
       return
     }
     actions.setWindow(b - a < span * 0.999 ? { startTim: a, endTim: b } : null)
@@ -101,7 +103,7 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
         <div className="lanes-axis-pad" style={{ height: AXIS_H }} />
         {lanes.map((l) => (
           <div key={l.st.id} className={'lane-label' + (sel === l.st.id ? ' on' : '')} style={{ height: LANE_H }} title={`${l.label} ${l.text}`}>
-            <span className="mono">{l.label}</span><span className="t">{l.text}</span>
+            <StmtLink doc={doc} id={l.st.id} /><span className="t">{l.text}</span>
           </div>
         ))}
         {strips && <><div className="lane-label strip" style={{ height: STRIP_H }}><span className="dim">waits by class</span></div><div className="lane-label strip" style={{ height: STRIP_H }}><span className="dim">CPU</span></div></>}
@@ -113,9 +115,9 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
         </div>
         <div className="lanes-grid" style={{ backgroundSize: `${(100 * tk.step) / span}% 100%` }} />
         {lanes.map((l) => (
-          <div key={l.st.id} className="lane" style={{ height: LANE_H }} data-stmt={l.st.id}>
+          <div key={l.st.id} className="lane" style={{ height: LANE_H }}>
             {l.spans.map((s, i) => (
-              <i key={i} className="span" style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(--c-${l.role})` }}
+              <i key={i} className="span" data-stmt={l.st.id} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(--c-${l.role})` }}
                 title={`${l.label} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}`} />
             ))}
           </div>
@@ -123,7 +125,8 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
         {strips && <Strips strips={strips} span={span} base={base} />}
         {win && !drag && (
           <div className="brush" style={{ left: x(win.startTim), width: `${(100 * (win.endTim - win.startTim)) / span}%` }}>
-            <b>window {fmtDur(win.endTim - win.startTim)} · {wall(win.startTim)} → {wall(win.endTim)}</b>
+            <b>window {fmtDur(win.endTim - win.startTim)} · {wall(win.startTim)} → {wall(win.endTim)}
+              <button className="brush-clear" onPointerDown={(e) => e.stopPropagation()} onClick={() => actions.setWindow(null)} aria-label="Clear time window" title="clear the window (Esc)">×</button></b>
           </div>
         )}
         {dragRect && dragRect.width > 3 && <div className="brush dragging" style={dragRect} />}

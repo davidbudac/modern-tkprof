@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useStore, actions, setState } from './store'
+import { useStore, actions, getState, setState } from './store'
 import { TopBar, SubBar } from './TopBar'
 import { Inspector } from './Inspector'
 import { Overview } from '../views/Overview'
@@ -18,7 +18,13 @@ export function App() {
   const event = useStore((s) => s.selection.event)
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') actions.selectEvent(null) }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      // Esc closes the inspector first, then clears the time window
+      const s = getState()
+      if (s.selection.event !== null) actions.selectEvent(null)
+      else if (s.window) actions.setWindow(null)
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])

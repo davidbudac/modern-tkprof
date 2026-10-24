@@ -1,6 +1,7 @@
 import type { TraceDoc } from '../data/doc'
-import type { EvidenceRow, Finding, ID } from '../data/types'
+import type { EvidenceRow, Finding } from '../data/types'
 import { actions } from '../app/store'
+import { StmtLink, LinkText } from '../components/StmtLink'
 
 /** Rule hits from the Go analyzer (fixed thresholds), most severe first. */
 export function Findings({ doc }: { doc: TraceDoc }) {
@@ -16,17 +17,6 @@ export function Findings({ doc }: { doc: TraceDoc }) {
         {findings.map((f, i) => <FindingItem key={`${f.rule}-${f.statement}-${i}`} doc={doc} f={f} />)}
       </ul>
     </section>
-  )
-}
-
-function StmtLink({ doc, id }: { doc: TraceDoc; id: ID }) {
-  const st = doc.statements[id]
-  if (!st) return null
-  return (
-    <button className="link mono"
-      onClick={(e) => { e.preventDefault(); actions.selectStmt(id) }} title="inspect this statement">
-      {doc.label(st)}
-    </button>
   )
 }
 
@@ -46,7 +36,7 @@ function FindingItem({ doc, f }: { doc: TraceDoc; f: Finding }) {
           <span className="finding-text">
             <b>{f.title}</b>
             {f.statement >= 0 && <> <StmtLink doc={doc} id={f.statement} /></>}
-            <span className="muted"> {summary}</span>
+            <span className="muted"> <LinkText doc={doc} text={summary} /></span>
           </span>
         </summary>
         {f.evidence.length > 0 && (
@@ -73,7 +63,7 @@ function Evidence({ doc, f, r }: { doc: TraceDoc; f: Finding; r: EvidenceRow }) 
   return (
     <tr className={r.statement >= 0 ? 'row-click' : undefined} onClick={r.statement >= 0 ? open : undefined}>
       <td className="ev-label">{own && <StmtLink doc={doc} id={r.statement} />}{own && label ? ' ' : null}{label}</td>
-      <td className="text">{r.value}</td>
+      <td className="text"><LinkText doc={doc} text={r.value} /></td>
       <td className="dim tabular">{r.line ? `line ${r.line}` : ''}</td>
     </tr>
   )

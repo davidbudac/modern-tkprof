@@ -3,6 +3,7 @@ import * as echarts from 'echarts/core'
 import { CustomChart } from 'echarts/charts'
 import type { EChartsOption, CustomSeriesRenderItemParams, CustomSeriesRenderItemAPI, CustomSeriesRenderItemReturn } from 'echarts'
 import type { TraceDoc } from '../data/doc'
+import { StmtLink } from '../components/StmtLink'
 import { CallKind, callKindName, NONE, type ID } from '../data/types'
 import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
 import { useStore, actions, callFilter } from '../app/store'
@@ -158,7 +159,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
         },
       },
       xAxis: { type: 'value', min: xMin, max: xMax, axisLabel: { formatter: (v: number) => fmtDur(v), hideOverlap: true } },
-      yAxis: { type: 'category', data: lanes.list.map((l) => l.label), inverse: true, axisLabel: { width: 240, overflow: 'truncate', fontFamily: getComputedStyle(document.body).getPropertyValue('--font-mono') || undefined, fontSize: 11 }, splitLine: { show: true } },
+      yAxis: { type: 'category', data: lanes.list.map((l) => l.label), inverse: true, triggerEvent: true, axisLabel: {  width: 240, overflow: 'truncate', fontFamily: getComputedStyle(document.body).getPropertyValue('--font-mono') || undefined, fontSize: 11 }, splitLine: { show: true } },
       dataZoom: [
         { type: 'inside', xAxisIndex: 0, filterMode: 'weakFilter' },
         { type: 'slider', xAxisIndex: 0, filterMode: 'weakFilter', height: 20, bottom: 6, borderColor: 'transparent', fillerColor: 'rgba(120,120,120,0.15)', labelFormatter: (v: number) => fmtDur(v) },
@@ -172,12 +173,18 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
 
   const events = useMemo(() => ({
     click: (p: unknown) => {
-      const d = (p as { data?: number[] }).data
+      const e = p as { componentType?: string; value?: string; data?: number[] }
+      if (e.componentType === 'yAxis') { // lane label: the statement's sql_id
+        const one = lanes.list.find((l) => l.label === e.value)?.stmts
+        if (one?.size === 1) actions.selectStmt([...one][0])
+        return
+      }
+      const d = e.data
       if (!d) return
       const stmt = doc.calls.stmt[d[3]]
       if (stmt !== NONE) actions.selectStmt(stmt)
     },
-  }), [doc])
+  }), [doc, lanes])
 
   if (!doc.hasFacts) {
     return (
@@ -192,7 +199,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
   const c = doc.calls
   const longestCols: Column<number>[] = [
     { key: 'k', header: 'Call', render: (i) => callKindName[c.kind[i]] ?? 'CALL', sort: (i) => c.kind[i] },
-    { key: 's', header: 'Statement', className: 'clip', render: (i) => { const st = doc.statements[c.stmt[i]]; return st ? <><span className="mono">{doc.label(st)}</span> {preview(st.text, 60)}</> : '–' }, sort: (i) => c.stmt[i] },
+    { key: 's', header: 'Statement', className: 'clip', render: (i) => { const st = doc.statements[c.stmt[i]]; return st ? <><StmtLink doc={doc} id={c.stmt[i]} /> {preview(st.text, 60)}</> : '–' }, sort: (i) => c.stmt[i] },
     { key: 't', header: 'Start', render: (i) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(c.tim[i] - c.e[i]), doc.tzOffsetMin) : `+${fmtDur(c.tim[i] - c.e[i] - base)}`), sort: (i) => c.tim[i] - c.e[i] },
     { key: 'e', header: 'Elapsed', align: 'end', render: (i) => fmtDur(c.e[i]), sort: (i) => c.e[i], bar: true },
     { key: 'c', header: 'CPU', align: 'end', render: (i) => fmtDur(c.c[i]), sort: (i) => c.c[i] },
