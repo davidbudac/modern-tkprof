@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { ID, StmtStats, CallStats, Plan } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, fmtCompact, oraErr } from '../data/format'
@@ -13,6 +13,7 @@ import { LineRef } from '../components/LineRef'
 import { ColumnChooser } from '../components/ColumnChooser'
 import { usePersisted } from '../app/persist'
 import { ExecCompare } from './ExecCompare'
+import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 
 export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
@@ -210,6 +211,9 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
   const [copied, setCopied] = useState(false)
   const base = override || doc.planViz || DEFAULT_PLAN_VIZ
   const rows = useMemo(() => planRows(doc, plan), [doc, plan])
+  const findings = useMemo(() => planFindings(rows), [rows])
+  const [focus, setFocus] = useState<{ id: number; seq: number } | null>(null)
+  useEffect(() => setFocus(null), [plan])
   const [link, setLink] = useState<Link>({ state: 'pending' })
   useEffect(() => {
     let live = true
@@ -257,13 +261,50 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
           <span className="small muted">stored in this browser (localStorage); the plan is sent only in the URL fragment.</span>
         </form>
       )}
-      <PlanTable doc={doc} plan={plan} />
+      <PlanAdvisor findings={findings} onNode={(id) => setFocus((f) => ({ id, seq: (f?.seq ?? 0) + 1 }))} />
+      <PlanTable doc={doc} plan={plan} focus={focus} />
     </section>
   )
 }
 
-function PlanTable({ doc, plan }: { doc: TraceDoc; plan: Plan }) {
+const ADVICE_CLASS = { critical: 'serious', warning: 'notable', info: 'info' } as const
+
+/** Plan-level findings from the visualizer's advisor (shared core package); nothing is rendered when there are none. */
+function PlanAdvisor({ findings, onNode }: { findings: PlanFinding[]; onNode: (id: number) => void }) {
+  if (findings.length === 0) return null
+  const counts = { critical: 0, warning: 0, info: 0 }
+  for (const f of findings) counts[f.severity]++
+  const hint = (['critical', 'warning', 'info'] as const).filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`).join(', ')
+  return (
+    <div className="plan-advisor">
+      <header><h3>Plan advisor</h3><span className="hint">{hint} · from the visualizer's rules, metadata-free · click an id to jump to its row</span></header>
+      <ul className="findings">
+        {findings.map((f, i) => (
+          <li key={`${f.ruleId}-${i}`} className={`finding sev-${ADVICE_CLASS[f.severity]}`}>
+            <details open={f.severity === 'critical'}>
+              <summary>
+                <span className="sev">{f.severity}</span>
+                <span className="finding-text">
+                  <b>{f.title}</b>
+                  {f.nodeIds.map((n) => <Fragment key={n}> <button type="button" className="link node-ref" title={`jump to plan line ${n}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onNode(n) }}>id {n}</button></Fragment>)}
+                </span>
+              </summary>
+              <div className="advice small">
+                <p>{f.explanation}</p>
+                {f.suggestion && <p className="muted">{f.suggestion}</p>}
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function PlanTable({ doc, plan, focus }: { doc: TraceDoc; plan: Plan; focus: { id: number; seq: number } | null }) {
   const lines = doc.planLines.slice(plan.first, plan.first + plan.n)
+  const focusRow = useRef<HTMLTableRowElement | null>(null)
+  useEffect(() => { if (focus) focusRow.current?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }) }, [focus])
   const maxT = lines.reduce((a, l) => Math.max(a, l.timeUs), 0)
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   const toggle = (id: number) => setOpen((o) => { const n = new Set(o); if (!n.delete(id)) n.add(id); return n })
@@ -275,7 +316,7 @@ function PlanTable({ doc, plan }: { doc: TraceDoc; plan: Plan }) {
         const shown = open.has(l.id)
         return (
           <Fragment key={l.id}>
-            <tr className={maxT > 0 && l.timeUs >= 0.5 * maxT ? 'hot' : undefined}>
+            <tr ref={focus?.id === l.id ? focusRow : undefined} className={[maxT > 0 && l.timeUs >= 0.5 * maxT ? 'hot' : '', focus?.id === l.id ? 'focus' : ''].filter(Boolean).join(' ') || undefined}>
               <td className="num dim">{l.id}</td>
               <td className="op" style={{ paddingInlineStart: `${0.5 + l.depth * 0.9}rem` }}>{l.op}{l.object && <span className="obj"> {l.object}</span>}{l.alias && <span className="obj dim"> {l.alias}</span>}
                 {preds.length > 0 && <button className={`quiet pred${shown ? ' on' : ''}`} title={preds.join('\n')} aria-label="Predicates" aria-expanded={shown} onClick={() => toggle(l.id)}>⚑</button>}</td>

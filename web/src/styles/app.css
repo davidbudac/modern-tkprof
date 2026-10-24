@@ -316,6 +316,15 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .plan .heat { display: inline-block; inline-size: 3.5rem; block-size: 0.45rem; border-radius: 2px; background: var(--surface-sunken); vertical-align: middle; margin-inline-end: 0.4rem; overflow: clip; }
 .plan .heat > i { display: block; block-size: 100%; background: var(--c-userio); }
 
+.plan tr.focus > td { background: color-mix(in oklch, var(--focus) 18%, transparent); }
+.plan-advisor { display: flex; flex-direction: column; gap: var(--sp-2); }
+.plan-advisor > header { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+.plan-advisor .hint { color: var(--ink-2); font-size: var(--text-sm); }
+.plan-advisor h3 { margin: 0; font-size: var(--text-sm); }
+.plan-advisor button.node-ref { font-family: var(--font-mono); font-size: var(--text-xs); cursor: pointer; }
+.plan-advisor .advice { padding-block: 0 var(--sp-2); padding-inline: var(--sp-3); }
+.plan-advisor .advice p { margin: 0 0 var(--sp-1); overflow-wrap: anywhere; }
+
 .callout { border-inline-start: 2px solid var(--hairline-strong); padding-inline-start: var(--sp-3); color: var(--ink-2); font-size: var(--text-sm); }
 .loading { display: grid; place-items: center; block-size: 100dvh; color: var(--ink-2); gap: var(--sp-4); align-content: center; }
 .drop { border: 1px dashed var(--hairline-strong); border-radius: var(--radius); padding: var(--sp-6); text-align: center; max-inline-size: 40rem; }

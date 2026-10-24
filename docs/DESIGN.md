@@ -94,10 +94,15 @@ in the UI is reachable from the CLI.
   travels only in the URL fragment.
 - Plan-level findings (misestimates, spills, nested-loop volume, pruning)
   stay in the visualizer's advisor.
-- v2: give the visualizer a LICENSE file and extract a shared core package
-  (types, parsers, analysis, advisor) consumed by both apps. Small changes in
-  the visualizer repo are made as part of this project when the integration
-  needs them.
+- Done (2026-10-24): the shared core package `@davidbudac/ora-plan-core`
+  (types, parsers, analysis, advisor; no React/DOM) lives in
+  `packages/ora-plan-core` of the visualizer repo and is **vendored** into
+  `web/vendor/ora-plan-core` (synced by `web/scripts/sync-core.sh`, nothing
+  is published). The Plans section of the statement detail shows the
+  advisor's findings per STAT plan, inline (see ARCHITECTURE § Plan advisor).
+  Still open: a LICENSE file in the visualizer repo (the README says MIT).
+  Small changes in the visualizer repo are made as part of this project when
+  the integration needs them.
 - Done via a Go port (no code sharing): the visualizer's DBMS_XPLAN parser is
   ported to `internal/ref/xplan.go`, and `ApplyRef` overlays predicates,
   query block / alias and estimates from the ref bundle's `plans/<sql_id>.txt`
@@ -133,7 +138,7 @@ database.
 ## Deferred to v2
 
 Comparison mode; raw trace line viewer (serve mode only); DBMS_XPLAN overlay
-via the shared package; configurable finding thresholds. (Server-side slicing
+via the shared package (the core's `dbmsXplanParser` is vendored, not wired up yet); configurable finding thresholds. (Server-side slicing
 in `serve` is done: see Inputs.)
 
 ## Project

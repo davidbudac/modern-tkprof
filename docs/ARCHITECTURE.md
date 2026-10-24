@@ -202,6 +202,22 @@ plan viz" link (`<base>#gz=` + gzip + base64url of
 `-plan-hash`, `-exec`, `-viz`); `html`/`serve`/`json` take `-plan-viz-url`,
 stored as `Document.planViz` for the UI.
 
+### Plan advisor (`web/vendor/ora-plan-core`, `web/src/data/advisor.ts`)
+
+The UI depends on `@davidbudac/ora-plan-core` (`"file:./vendor/ora-plan-core"` in `web/package.json`), the pure
+part of the visualizer extracted into `packages/ora-plan-core` of `davidbudac/ora-explain-plan-viz` (types, parsers,
+analysis helpers, advisor; no React or DOM; unpublished). It is **vendored**: `web/vendor/ora-plan-core/` holds its
+`package.json`, built `dist/` and a README with the source commit; `web/scripts/sync-core.sh` refreshes it from a
+checkout of the visualizer (`npm run build:core` there first; then `pnpm install`, since pnpm copies `file:` deps
+into `node_modules`). A clean clone needs only `pnpm install --frozen-lockfile`.
+
+Per STAT plan, `StatementDetail` feeds `planRows(doc, plan)` (the same JSON rows as "Open in plan viz") to the
+core's `parsePlanRows` and runs `runAdvisor(plan, null)` (no metadata bundle: only metadata-free rules run;
+cardinality mismatch needs `card=` on the STAT lines). Findings (severity, title, explanation, suggestion, node
+ids) render as a "Plan advisor" block above the plan table, in the Findings ledger style; node ids jump to and
+highlight the plan row; nothing renders without findings. Only `parsePlanRows`/`runAdvisor` are imported, so the
+text and XML parsers tree-shake away (bundle +59 kB, +20 kB gzip).
+
 ### Reference bundle (`internal/ref/bundle.go`, `internal/model/ref.go`, `internal/report/refscript.go`)
 
 mtkprof never connects to a database. `report.RefScript(m, opts)` (`mtkprof
@@ -666,7 +682,7 @@ internal/model/     model + builder
 internal/analyze/   aggregations (+ the streaming Accumulator of the aggregation-only mode)
 internal/report/    text / json / csv renderers
 internal/ref/       embedded reference data (wait classes, command types, bind datatypes) + the reference-bundle loader
-web/                Vite + TypeScript UI
+web/                Vite + TypeScript UI (web/vendor/ora-plan-core: vendored shared plan core)
 testdata/           real 19c fixtures (+ tkprof output as golden reference), generator scripts
 docs/               this file, trace-format-19c.md, ROADMAP.md
 ```

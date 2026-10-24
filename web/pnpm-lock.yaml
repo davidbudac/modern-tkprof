@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@davidbudac/ora-plan-core':
+        specifier: file:./vendor/ora-plan-core
+        version: file:vendor/ora-plan-core
       '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
@@ -139,6 +142,9 @@ packages:
   '@babel/types@7.29.8':
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
+
+  '@davidbudac/ora-plan-core@file:vendor/ora-plan-core':
+    resolution: {directory: vendor/ora-plan-core, type: directory}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -939,6 +945,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@davidbudac/ora-plan-core@file:vendor/ora-plan-core': {}
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
