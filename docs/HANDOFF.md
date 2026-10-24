@@ -149,10 +149,43 @@ Left open: no UI unit test (web/ has no vitest); the "too large for a link"
 path is untested in the browser; visualizer shows "0ms" for µs-scale plans
 (its display rounds to ms).
 
-## Milestone 3 (next): ref bundle
+## Milestone 1 follow-ups: done (2026-10-24)
 
-Milestones 3–6 (ref bundle, file sets + PX, size/memory, comparison) follow;
-see `docs/DESIGN.md` and `docs/ROADMAP.md`.
+Unpacked `json` writes u8 columns as number arrays (loader also accepts
+base64); `serve` sends CORS on `/api/doc`; one bucket rule
+(`analyze.BucketForSpan`, mirrored by `derive.pickBucket`); `stats.contexts`
+feeds the Sessions view; `hard-parses` needs >= 20 hard parses trace-wide;
+`think-time` excludes in-call idle (new `in-call-idle` info finding);
+`-redact-salt` (sha256(salt+value)[:4] tokens).
+
+## Milestone 3: done (2026-10-24) — ref bundle
+
+`mtkprof refscript <trace> [-lite] [-o ref.sql]` writes a read-only SQL*Plus
+script (objects, datafiles, users, DBMS_XPLAN per sql_id, chunked IN-lists);
+`-ref dir` on every output applies it as a post-pass (`model.ApplyRef`,
+`internal/ref/bundle.go`): plan lines get owner.object, waits get object and
+datafile names (text report, CSV, JSON `objects`/`files`/`users` tables, UI),
+`Statement.RefPlan` shows the DBMS_XPLAN text. `testdata/reference/bundle/`
+holds a real run from dbmint. See `docs/REF-BUNDLE.md`.
+
+## Milestone 4: done (2026-10-24) — trace sets and PX
+
+Every command takes files and directories; `model.BuildFiles` follows
+`TRACE CONTINUES IN FILE` chains (parsed as one stream, `-no-follow` to
+disable) and parses independent files as separate sessions (`Context.FileIdx`,
+`File.Files`). PX slave files (`(P000)` header image or `_p000_` name) attach
+to a coordinator context of another file by time-window overlap plus client
+id / module / action (`Context.PX`, `Context.Parent`); slave work is reported
+as `pxEla`/`pxCpu`/`pxSessions` per statement and nested in SESSIONS, not in
+the profile. Pivot/timeline still include slave calls in their own contexts.
+`serve` keeps one line index per file (`/api/lines?file=i&from=N&n=M`); the
+UI line viewer only asks for file 0 so far.
+
+## UI polish round 2: done (2026-10-24)
+
+Raw line viewer drawer (serve only), resizable panes (localStorage), column
+chooser on Pivot and executions, URL hash state (`#view=&sql=&ev=&win=`),
+wait scatter over time in the event inspector, bucket chart clamped to 100 %.
 
 ## Known gaps and small bugs
 
