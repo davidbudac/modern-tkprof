@@ -190,3 +190,7 @@ docs/               architecture, trace format reference, roadmap
 
 Early. The parser and model are solid (tested against real traces and
 tkprof); the UI is a first version. See `docs/ROADMAP.md`.
+
+## Licence
+
+Apache-2.0, see `LICENSE`.

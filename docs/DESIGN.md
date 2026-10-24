@@ -137,7 +137,8 @@ in `serve` is done: see Inputs.)
 ## Project
 
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each
-  milestone; licence chosen at publish time (Apache-2.0 recommended).
+  milestone; licence Apache-2.0 (`LICENSE`, added 2026-10-24); publishing is a
+  separate decision.
 - Every feature lands with unit or golden tests; UI work is verified with
   screenshots; commits go to main with concise messages. The user sets scope
   and priorities; implementation details are the implementer's, reported
