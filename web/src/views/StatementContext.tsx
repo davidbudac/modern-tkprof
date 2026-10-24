@@ -27,7 +27,7 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
           {ctx?.module && <><dt>module</dt><dd>{ctx.module}</dd></>}
           {ctx?.action && <><dt>action</dt><dd>{ctx.action}</dd></>}
           {ctx?.sessionId && <><dt>session</dt><dd>{ctx.sessionId}{ctx.service ? ` · ${ctx.service}` : ''}</dd></>}
-          <dt>parsed by</dt><dd>user id {st.parsingUserId}</dd>
+          <dt>parsed by</dt><dd>user id {st.parsingUserId}{doc.userName(st.parsingUserId) ? ` · ${doc.userName(st.parsingUserId)}` : ''}</dd>
         </dl>
       </div>
       {waits.length > 0 && (
@@ -36,10 +36,10 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
           {waits.map((w) => (
             <div key={w.event} className="wobj row-click" onClick={() => actions.selectEvent(w.event)}>
               <span className="nm"><i className="swatch" style={{ background: `var(--c-${w.role})` }} />{w.name}</span><span className="n">{fmtDur(w.us)}</span>
-              <small>{w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? `obj# ${w.obj} · ` : ''}{fmtInt(w.count)} wait{w.count === 1 ? '' : 's'} · avg {fmtDur(w.us / w.count)} · max {fmtDur(w.maxUs)}</small>
+              <small>{w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? `obj# ${w.obj}${doc.objectName(w.obj) ? ` ${doc.objectName(w.obj)}` : ''} · ` : ''}{fmtInt(w.count)} wait{w.count === 1 ? '' : 's'} · avg {fmtDur(w.us / w.count)} · max {fmtDur(w.maxUs)}</small>
             </div>
           ))}
-          {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio')) && <p className="faint xs">obj# → name needs the reference bundle (planned).</p>}
+          {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio')) && <p className="faint xs">obj# → name needs a reference bundle (<code>mtkprof refscript</code>, then <code>-ref</code>).</p>}
         </div>
       )}
       {(children.length > 0 || parents.length > 0) && (

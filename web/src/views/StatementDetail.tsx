@@ -34,6 +34,14 @@ export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       <CallTable doc={doc} stats={stats} />
       {doc.hasFacts && <Executions doc={doc} id={id} />}
       <Plans doc={doc} id={id} />
+      {st.refPlan && (
+        <section className="section">
+          <details>
+            <summary><b>DBMS_XPLAN from ref bundle</b> <span className="hint">plans/{st.sqlId}.txt</span></summary>
+            <pre className="mono small" style={{ overflowX: 'auto' }}>{st.refPlan}</pre>
+          </details>
+        </section>
+      )}
       <Errors doc={doc} id={id} />
     </>
   )
@@ -55,7 +63,7 @@ function ResponseTime({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
   const top = waits[0]
   const trips = waits.find((w) => /message from client/.test(w.name))
   const notes: string[] = []
-  if (top && top.role !== 'idle') notes.push(`${fmtInt(top.count)} × ${top.name}, avg ${fmtDur(top.us / top.count)}, max ${fmtDur(top.maxUs)}${top.obj > 0 && (top.role === 'userio' || top.role === 'sysio') ? `, all on obj# ${top.obj}` : ''}`)
+  if (top && top.role !== 'idle') notes.push(`${fmtInt(top.count)} × ${top.name}, avg ${fmtDur(top.us / top.count)}, max ${fmtDur(top.maxUs)}${top.obj > 0 && (top.role === 'userio' || top.role === 'sysio') ? `, all on obj# ${top.obj}${doc.objectName(top.obj) ? ` (${doc.objectName(top.obj)})` : ''}` : ''}`)
   if (trips) notes.push(`${fmtInt(trips.count)} round trip${trips.count === 1 ? '' : 's'} to the client, ${fmtDur(trips.us)} idle`)
   if (stats.childUs > 0) notes.push(`${fmtDur(stats.childUs)} (${fmtPct(stats.childUs, stats.elapsed)}) in recursive statements`)
   return (
