@@ -19,6 +19,28 @@ export interface FileInfo {
   continuesIn?: string[]
   dumpSizeLimit?: number
   truncated: boolean
+  files?: FileEntry[]
+}
+
+/** One input file of a trace set (a single-file trace has one entry). */
+export interface FileEntry {
+  idx: number
+  path: string
+  name: string
+  size: number
+  lines: number
+  firstTim: number
+  lastTim: number
+  firstWallUs: number
+  lastWallUs: number
+  processPid: string
+  instance: string
+  traceFile: string
+  px: boolean
+  chain: number
+  followed: boolean
+  continuedFrom?: string[]
+  continuesIn?: string[]
 }
 
 export interface Span {
@@ -78,6 +100,10 @@ export interface Context {
   clientDriver: string
   containerId: string
   process: string
+  fileIdx?: number
+  /** PX slave trace; `parent` is then the coordinator's context (-1 = unattached) */
+  px?: boolean
+  parent?: ID
 }
 
 export interface Event {
@@ -213,6 +239,10 @@ export interface StmtStats {
   lastWallUs: number
   firstTim: number
   lastTim: number
+  /** work of attached PX slaves (not part of the figures above) */
+  pxEla?: number
+  pxCpu?: number
+  pxSessions?: number
   parents: Link[] | null
   children: Link[] | null
   plans: ID[] | null

@@ -17,6 +17,19 @@ type Stats struct {
 	MaxLine int // longest physical line in bytes
 }
 
+// Add accumulates o into s (summing the runs of several files).
+func (s *Stats) Add(o Stats) {
+	s.Lines += o.Lines
+	s.Bytes += o.Bytes
+	s.Unknown += o.Unknown
+	for i := range s.Kinds {
+		s.Kinds[i] += o.Kinds[i]
+	}
+	if o.MaxLine > s.MaxLine {
+		s.MaxLine = o.MaxLine
+	}
+}
+
 // Count returns the number of lines of the given kind.
 func (s *Stats) Count(k Kind) int { return s.Kinds[k] }
 

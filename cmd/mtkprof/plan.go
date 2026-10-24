@@ -28,8 +28,9 @@ func cmdPlan(args []string) error {
 	list := fs.Bool("list", false, "list statements that have plans and exit")
 	viz := fs.Bool("viz", false, "print the \"Open in plan viz\" URL instead of the JSON (one `hash<TAB>url` line per plan when several)")
 	base := planVizFlag(fs)
-	file := parseArgs(fs, args)
-	m, err := buildModel(file)
+	nf := addFollowFlag(fs)
+	files := parseArgs(fs, args)
+	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
 	}
@@ -55,7 +56,7 @@ func cmdPlan(args []string) error {
 		}
 	}
 	if stmt == model.None {
-		return fmt.Errorf("sql_id %s not found in %s", *sqlID, file)
+		return fmt.Errorf("sql_id %s not found in %s", *sqlID, strings.Join(files, " "))
 	}
 	plans, err := selectPlans(m, stmt, *hash, *execN)
 	if err != nil {

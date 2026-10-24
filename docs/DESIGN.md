@@ -28,7 +28,9 @@ Comparison of two traces or two executions is v2.
   file's process becomes a session-context dimension (as in `trcsess`
   output); PX slave traces attach to their query coordinator as child
   sessions, matched by time window and the coordinator's client id, module
-  and action.
+  and action (done 2026-10-24, milestone 4: see ARCHITECTURE § Trace sets;
+  slave work is shown per statement as `PX slaves: N sessions, X s` and kept
+  out of the coordinator's response time).
 - Size targets: a 1 GB trace produces the interactive HTML in under 15 s and
   under 4 GB RAM; a 10 GB trace produces the text report and HTML in
   minutes. HTML reports are **always written in full** (no sampling);

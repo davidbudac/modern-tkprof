@@ -2,6 +2,7 @@
 package analyze
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
@@ -106,6 +107,13 @@ type StmtStats struct {
 	FirstTim    int64 `json:"firstTim"`
 	LastTim     int64 `json:"lastTim"`
 
+	// PX slave work attached to this statement (see model.Context.Parent):
+	// kept out of every field above so a coordinator's response time is not
+	// double counted.
+	PXElapsed  int64 `json:"pxEla"`      // Σ self elapsed of the slaves' calls of this statement
+	PXCPU      int64 `json:"pxCpu"`      // Σ self cpu
+	PXSessions int   `json:"pxSessions"` // distinct slave processes that ran it
+
 	Parents    []Link     `json:"parents"`
 	Children   []Link     `json:"children"`
 	Plans      []model.ID `json:"plans"`
@@ -123,9 +131,19 @@ func Statements(m *model.Model) []StmtStats {
 	}
 	type edge struct{ parent, child model.ID }
 	edges := make(map[edge]*Link)
+	pxProcs := map[model.ID]map[string]bool{}
 	for i := range m.Calls {
 		c := &m.Calls[i]
 		s := &out[c.Statement]
+		if m.PXChild(c.Context) {
+			s.PXElapsed += c.SelfE
+			s.PXCPU += c.SelfC
+			if pxProcs[c.Statement] == nil {
+				pxProcs[c.Statement] = map[string]bool{}
+			}
+			pxProcs[c.Statement][PXProcess(m, c.Context)] = true
+			continue
+		}
 		switch c.Kind {
 		case trace.CallParse:
 			s.Parse.add(c)
@@ -184,6 +202,9 @@ func Statements(m *model.Model) []StmtStats {
 				s.LastWallUs = c.WallUs
 			}
 		}
+	}
+	for sid, procs := range pxProcs {
+		out[sid].PXSessions = len(procs)
 	}
 	for e, l := range edges {
 		out[e.parent].Children = append(out[e.parent].Children, Link{Statement: e.child, Calls: l.Calls, Elapsed: l.Elapsed})
@@ -247,18 +268,67 @@ type Profile struct {
 	Rows          []ProfileRow `json:"rows"`
 }
 
+// PXProcess names the slave process a PX context ran in (its pid, else the
+// file), for counting slave sessions.
+func PXProcess(m *model.Model, ctx model.ID) string {
+	c := &m.Contexts[ctx]
+	if c.Process != "" {
+		return "pid " + c.Process
+	}
+	return fmt.Sprintf("file %d", c.FileIdx)
+}
+
+// PXTotals is the work of the PX slaves attached to coordinators.
+type PXTotals struct {
+	Sessions int   `json:"sessions"` // slave processes
+	CPUUs    int64 `json:"cpuUs"`    // Σ c of the slaves' top-level calls
+	WaitUs   int64 `json:"waitUs"`   // non-idle waits
+	IdleUs   int64 `json:"idleUs"`   // idle waits (PX Deq: ...)
+}
+
+// PX sums what the attached PX slaves did. TraceProfile leaves it out of the
+// coordinator's profile.
+func PX(m *model.Model) PXTotals {
+	var t PXTotals
+	procs := map[string]bool{}
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		if m.PXChild(c.Context) {
+			procs[PXProcess(m, c.Context)] = true
+			if c.Parent == model.None {
+				t.CPUUs += c.C
+			}
+		}
+	}
+	for i := range m.Waits {
+		w := &m.Waits[i]
+		if m.PXChild(w.Context) {
+			procs[PXProcess(m, w.Context)] = true
+			if w.Idle || w.Between {
+				t.IdleUs += w.Ela
+			} else {
+				t.WaitUs += w.Ela
+			}
+		}
+	}
+	t.Sessions = len(procs)
+	return t
+}
+
 // TraceProfile profiles the whole file: total = trace span, CPU = Σ c of
-// top-level calls, waits = every wait line.
+// top-level calls, waits = every wait line. PX slaves attached to a
+// coordinator are left out (see PX): their time runs in parallel with the
+// coordinator's.
 func TraceProfile(m *model.Model) Profile {
 	var cpu int64
 	for i := range m.Calls {
 		c := &m.Calls[i]
-		if c.Parent == model.None {
+		if c.Parent == model.None && !m.PXChild(c.Context) {
 			cpu += c.C
 		}
 	}
 	total := m.Span.Us()
-	p := buildProfile(m, "whole trace", total, cpu, func(w *model.Wait) bool { return true })
+	p := buildProfile(m, "whole trace", total, cpu, func(w *model.Wait) bool { return !m.PXChild(w.Context) })
 	return p
 }
 
@@ -268,7 +338,7 @@ func StatementProfile(m *model.Model, st *StmtStats) Profile {
 	total := st.Elapsed + st.IdleUs
 	sid := st.ID
 	return buildProfile(m, m.Statements[sid].SQLID, total, st.CPU, func(w *model.Wait) bool {
-		return w.Statement == sid
+		return w.Statement == sid && !m.PXChild(w.Context)
 	})
 }
 
@@ -422,7 +492,7 @@ func Executions(m *model.Model, sid model.ID) []Execution {
 	idx := map[[2]int64]int{} // cursor,execNo -> index
 	for i := range m.Calls {
 		c := &m.Calls[i]
-		if c.Statement != sid {
+		if c.Statement != sid || m.PXChild(c.Context) {
 			continue
 		}
 		switch c.Kind {

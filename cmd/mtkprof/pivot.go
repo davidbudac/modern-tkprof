@@ -53,7 +53,8 @@ func cmdPivot(args []string) error {
 		printDims(os.Stdout, f, flagValue(args, "fact") == "")
 		return nil
 	}
-	file := parseArgs(fs, args)
+	nf := addFollowFlag(fs)
+	files := parseArgs(fs, args)
 	fact, err := analyze.ParseFact(*factS)
 	if err != nil {
 		return err
@@ -75,7 +76,7 @@ func cmdPivot(args []string) error {
 			sortM = measures[0]
 		}
 	}
-	m, err := buildModel(file)
+	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
 	}
