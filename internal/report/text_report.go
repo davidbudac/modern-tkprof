@@ -603,7 +603,7 @@ func bindPreview(m *model.Model, set model.ID, max int) string {
 			v = "NULL"
 		case x.IsDump:
 			v = fmt.Sprintf("<%d bytes>", x.Avl)
-		case quotedBind(x.Dty):
+		case quotedBind(int(x.Dty)):
 			v = fmt.Sprintf("%q", x.Value)
 		default:
 			v = x.Value
@@ -800,18 +800,18 @@ func (t *textWriter) binds(sid model.ID) {
 			case b.NoDef:
 				parts = append(parts, fmt.Sprintf(":%d=(same as earlier bind)", b.Pos))
 			case b.IsNull:
-				parts = append(parts, fmt.Sprintf(":%d %s=NULL", b.Pos, b.TypeName))
+				parts = append(parts, fmt.Sprintf(":%d %s=NULL", b.Pos, b.TypeName()))
 			case b.IsDump:
-				parts = append(parts, fmt.Sprintf(":%d %s=<%d-byte dump>", b.Pos, b.TypeName, b.Avl))
+				parts = append(parts, fmt.Sprintf(":%d %s=<%d-byte dump>", b.Pos, b.TypeName(), b.Avl))
 			default:
 				v := b.Value
 				if len(v) > 60 {
 					v = v[:57] + "..."
 				}
 				if b.Mal > 0 {
-					parts = append(parts, fmt.Sprintf(":%d %s[%d]=%q", b.Pos, b.TypeName, b.Mal, v))
+					parts = append(parts, fmt.Sprintf(":%d %s[%d]=%q", b.Pos, b.TypeName(), b.Mal, v))
 				} else {
-					parts = append(parts, fmt.Sprintf(":%d %s=%q", b.Pos, b.TypeName, v))
+					parts = append(parts, fmt.Sprintf(":%d %s=%q", b.Pos, b.TypeName(), v))
 				}
 			}
 		}

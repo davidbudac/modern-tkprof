@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unsafe"
 )
 
 // Stats summarises one parse run.
@@ -57,6 +58,7 @@ type Parser struct {
 	crlf    bool // file uses CRLF line endings (decided on the first line)
 	textGot int  // bytes of statement text collected so far (PARSING IN CURSOR)
 	intern  map[string]string
+	arena   []byte // chunk that bind values are copied into (see str)
 }
 
 // lenSlack is how many bytes short of len= the collected statement text may
@@ -905,7 +907,7 @@ func (p *Parser) bindLine(line []byte) bool {
 		return true
 	case hasPrefix(line, "  value="):
 		if b := p.curBind(); b != nil {
-			b.Value = string(line[8:])
+			b.Value = p.str(line[8:])
 			b.HasValue = true
 			if strings.HasSuffix(b.Value, `"...`) {
 				b.Truncated = true
@@ -1028,9 +1030,9 @@ func (p *Parser) bindFields(b *Bind, line []byte) {
 			n, _ := atoi(v)
 			b.Pre = int(n)
 		case "oacflg":
-			b.Oacflg = string(v)
+			b.Oacflg = p.internBytes(v)
 		case "fl2", "oacfl2":
-			b.Fl2 = string(v)
+			b.Fl2 = p.internBytes(v)
 		case "frm":
 			n, _ := atoi(v)
 			b.Frm = int(n)
@@ -1044,7 +1046,7 @@ func (p *Parser) bindFields(b *Bind, line []byte) {
 			n, _ := atoi(v)
 			b.Off = int(n)
 		case "kxsbbbfp", "bfp":
-			b.Bfp = string(v)
+			// the buffer address is distinct per bind and nothing reads it: not kept
 		case "bln":
 			n, _ := atoi(v)
 			b.Bln = int(n)
@@ -1056,6 +1058,29 @@ func (p *Parser) bindFields(b *Bind, line []byte) {
 			b.Flg = int(n)
 		}
 	})
+}
+
+// arenaChunk is the size of the chunks bind values are packed into: one
+// allocation per ~64 KB of values instead of one per value.
+const arenaChunk = 64 << 10
+
+// str copies b into the current arena chunk and returns it as a string. The
+// chunk is never reused, so the string stays valid; values that outlive the
+// parse keep their chunk alive, which is what a retained bind value costs
+// anyway.
+func (p *Parser) str(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	if len(b) > arenaChunk/4 {
+		return string(b)
+	}
+	if cap(p.arena)-len(p.arena) < len(b) {
+		p.arena = make([]byte, 0, arenaChunk)
+	}
+	n := len(p.arena)
+	p.arena = append(p.arena, b...)
+	return unsafe.String(&p.arena[n], len(b))
 }
 
 func (p *Parser) internBytes(b []byte) string {

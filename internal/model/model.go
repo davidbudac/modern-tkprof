@@ -5,8 +5,10 @@
 package model
 
 import (
+	"sort"
 	"time"
 
+	"github.com/davidbudac/modern-tkprof/internal/ref"
 	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
@@ -123,65 +125,68 @@ type Cursor struct {
 	Closed    bool   `json:"closed"`
 }
 
-// Call is one database call line, or a synthetic XCTEND call.
+// Call is one database call line, or a synthetic XCTEND call. A trace of 1 GB
+// holds several million of them, so the struct is laid out for size: 64-bit
+// measures first, then 32-bit ids and line numbers, then one-byte codes and
+// flags (168 bytes). Line numbers are per file and int32 (2 billion lines, far
+// beyond any trace file); wall-clock time is not stored, see Model.CallWall.
 type Call struct {
-	ID        ID             `json:"id"`
-	Line      int            `json:"line"`
-	Kind      trace.CallKind `json:"kind"`
-	Cursor    ID             `json:"cursor"`
-	Statement ID             `json:"statement"`
-	C         int64          `json:"cpu"`
-	E         int64          `json:"ela"`
-	P         int64          `json:"disk"`
-	CR        int64          `json:"query"`
-	CU        int64          `json:"current"`
-	Mis       int64          `json:"misses"`
-	R         int64          `json:"rows"`
-	Dep       int            `json:"depth"`
-	OG        int            `json:"optGoal"`
-	PLH       uint64         `json:"planHash"`
-	Tim       int64          `json:"tim"`
-	WallUs    int64          `json:"wallUs"` // microseconds since Unix epoch, 0 if unknown
-	Type      int            `json:"closeType"`
-	Parent    ID             `json:"parent"`
-	SelfE     int64          `json:"selfEla"` // ela minus attached recursive children
-	SelfC     int64          `json:"selfCpu"`
-	SelfP     int64          `json:"selfDisk"`
-	SelfCR    int64          `json:"selfQuery"`
-	SelfCU    int64          `json:"selfCurrent"`
-	Context   ID             `json:"context"`
-	ExecNo    int32          `json:"execNo"`
-	BindSet   ID             `json:"bindSet"`
-	WaitEla   int64          `json:"waitEla"`   // sum of attributed in-call waits
-	IdleEla   int64          `json:"idleEla"`   // sum of attributed between-call (idle/think) waits
-	NWaits    int32          `json:"waits"`     // attributed waits (both kinds)
-	Orphan    bool           `json:"orphan"`    // dep>0 call that found no parent
-	Synthetic bool           `json:"synthetic"` // XCTEND pseudo call
-	LobType   string         `json:"lobType,omitempty"`
-	Bytes     int64          `json:"bytes,omitempty"`
-	Op        string         `json:"op,omitempty"`
-}
+	Tim     int64 `json:"tim"`
+	C       int64 `json:"cpu"`
+	E       int64 `json:"ela"`
+	P       int64 `json:"disk"`
+	CR      int64 `json:"query"`
+	CU      int64 `json:"current"`
+	R       int64 `json:"rows"`
+	SelfE   int64 `json:"selfEla"` // ela minus attached recursive children
+	SelfC   int64 `json:"selfCpu"`
+	SelfP   int64 `json:"selfDisk"`
+	SelfCR  int64 `json:"selfQuery"`
+	SelfCU  int64 `json:"selfCurrent"`
+	WaitEla int64 `json:"waitEla"` // sum of attributed in-call waits
+	IdleEla int64 `json:"idleEla"` // sum of attributed between-call (idle/think) waits
 
-// Wait is one WAIT line.
-type Wait struct {
 	ID        ID     `json:"id"`
-	Line      int    `json:"line"`
 	Cursor    ID     `json:"cursor"`
 	Statement ID     `json:"statement"`
-	Call      ID     `json:"call"`
-	Event     ID     `json:"event"`
-	Ela       int64  `json:"ela"`
-	P1        int64  `json:"p1"`
-	P2        int64  `json:"p2"`
-	P3        int64  `json:"p3"`
-	ObjID     int64  `json:"obj"`
-	Tim       int64  `json:"tim"`
-	WallUs    int64  `json:"wallUs"`
+	Parent    ID     `json:"parent"`
 	Context   ID     `json:"context"`
-	Dep       int    `json:"depth"`
-	Between   bool   `json:"between"` // ended before the attributed call started (think time)
-	Idle      bool   `json:"idle"`    // event belongs to the Idle wait class
-	Number    uint64 `json:"number"`  // raw cursor number (#n) on the line
+	BindSet   ID     `json:"bindSet"`
+	Line      int32  `json:"line"`
+	ExecNo    int32  `json:"execNo"`
+	NWaits    int32  `json:"waits"` // attributed waits (both kinds)
+	Mis       int32  `json:"misses"`
+	PLH       uint32 `json:"planHash"` // plh= is a ub4
+
+	Kind      trace.CallKind `json:"kind"`
+	Dep       uint8          `json:"depth"`
+	OG        uint8          `json:"optGoal"`
+	Type      uint8          `json:"closeType"`
+	Orphan    bool           `json:"orphan"`    // dep>0 call that found no parent
+	Synthetic bool           `json:"synthetic"` // XCTEND pseudo call
+}
+
+// Wait is one WAIT line (88 bytes; wall-clock time: see Model.WaitWall).
+type Wait struct {
+	Tim    int64  `json:"tim"`
+	Ela    int64  `json:"ela"`
+	P1     int64  `json:"p1"`
+	P2     int64  `json:"p2"`
+	P3     int64  `json:"p3"`
+	ObjID  int64  `json:"obj"`
+	Number uint64 `json:"number"` // raw cursor number (#n) on the line
+
+	ID        ID    `json:"id"`
+	Cursor    ID    `json:"cursor"`
+	Statement ID    `json:"statement"`
+	Call      ID    `json:"call"`
+	Event     ID    `json:"event"`
+	Context   ID    `json:"context"`
+	Line      int32 `json:"line"`
+
+	Dep     uint8 `json:"depth"`
+	Between bool  `json:"between"` // ended before the attributed call started (think time)
+	Idle    bool  `json:"idle"`    // event belongs to the Idle wait class
 }
 
 // Event is the wait-event dimension.
@@ -231,22 +236,31 @@ type BindSet struct {
 	IsRPC     bool  `json:"rpc"`
 }
 
-// Bind is one bind value.
+// Bind is one bind value (56 bytes; the type name is derived, see TypeName).
 type Bind struct {
-	Set      ID     `json:"set"`
-	Pos      int    `json:"pos"`
-	Dty      int    `json:"dty"`
-	TypeName string `json:"type"`
-	Value    string `json:"value"`
-	IsNull   bool   `json:"null"`
-	NoDef    bool   `json:"noDef"` // "No oacdef for this bind." (repeated bind name)
-	IsDump   bool   `json:"dump"`
-	Mal      int    `json:"maxArrayLen"`
-	Mxl      int    `json:"maxLen"`
-	Avl      int    `json:"actualLen"`
-	Scl      int    `json:"scale"`
-	Pre      int    `json:"precision"`
-	Csi      int    `json:"charsetId"`
+	Value  string `json:"value"`
+	Set    ID     `json:"set"`
+	Pos    int32  `json:"pos"`
+	Dty    int32  `json:"dty"`
+	Mal    int32  `json:"maxArrayLen"`
+	Mxl    int32  `json:"maxLen"`
+	Avl    int32  `json:"actualLen"`
+	Scl    int32  `json:"scale"`
+	Pre    int32  `json:"precision"`
+	Csi    int32  `json:"charsetId"`
+	IsNull bool   `json:"null"`
+	NoDef  bool   `json:"noDef"` // "No oacdef for this bind." (repeated bind name)
+	IsDump bool   `json:"dump"`
+}
+
+// TypeName is the datatype name of the bind ("" for a NoDef bind, which has no
+// definition of its own). It is derived from Dty so the Bind does not carry a
+// string header per value.
+func (b *Bind) TypeName() string {
+	if b.NoDef {
+		return ""
+	}
+	return ref.BindTypeName(int(b.Dty))
 }
 
 // Plan is one STAT block (row source statistics dumped at cursor close).
@@ -383,6 +397,57 @@ type Model struct {
 	Users   []RefUser   `json:"users,omitempty"`
 
 	objIdx, fileIdx, userIdx map[int64]int
+
+	// wall-clock anchors in parse order: from (file, line) on, wall = tim + off
+	anchors []wallAnchor
+}
+
+type wallAnchor struct {
+	file, line int32
+	off        int64
+}
+
+// wallAt converts a tim seen at (file, line) to wall-clock microseconds with the
+// offset in force there: the offset of the last `*** timestamp` anchor applied
+// at or before that line (0 when there is none yet or tim is 0). Calls and
+// waits do not store it: they are in file order, so (context file, line) finds
+// the anchor.
+func (m *Model) wallAt(file int32, line int32, tim int64) int64 {
+	if tim == 0 {
+		return 0
+	}
+	a := m.anchors
+	i := sort.Search(len(a), func(i int) bool {
+		return a[i].file > file || (a[i].file == file && a[i].line > line)
+	})
+	if i == 0 {
+		return 0
+	}
+	return tim + a[i-1].off
+}
+
+// CallWall is the wall clock of a call's completion (microseconds since the
+// Unix epoch, 0 if unknown).
+func (m *Model) CallWall(c *Call) int64 {
+	if len(m.anchors) == 0 || c.Tim == 0 {
+		return 0
+	}
+	return m.wallAt(m.fileOf(c.Context), c.Line, c.Tim)
+}
+
+func (m *Model) fileOf(ctx ID) int32 {
+	if ctx < 0 || int(ctx) >= len(m.Contexts) {
+		return 0
+	}
+	return int32(m.Contexts[ctx].FileIdx)
+}
+
+// WaitWall is the wall clock of the end of a wait (0 if unknown).
+func (m *Model) WaitWall(w *Wait) int64 {
+	if len(m.anchors) == 0 || w.Tim == 0 {
+		return 0
+	}
+	return m.wallAt(m.fileOf(w.Context), w.Line, w.Tim)
 }
 
 // WallOf converts a tim value to wall-clock microseconds using the span anchor.

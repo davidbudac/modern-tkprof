@@ -268,7 +268,7 @@ func allExecutions(m *model.Model) [][]Execution {
 		}
 		switch c.Kind {
 		case trace.CallExec:
-			e := Execution{Cursor: c.Cursor, Statement: c.Statement, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: c.WallUs - c.E, Context: c.Context}
+			e := Execution{Cursor: c.Cursor, Statement: c.Statement, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context}
 			e.Stats.add(c)
 			idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}] = len(out[c.Statement])
 			out[c.Statement] = append(out[c.Statement], e)
@@ -368,7 +368,7 @@ func (f *finder) outliers() {
 				v += "  binds " + b
 			}
 			r := stmtRow(s.ID, fmt.Sprintf("exec %d", e.ExecNo), v)
-			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = e.Cursor, e.ExecNo, e.Exec, f.m.Calls[e.Exec].Line, e.Stats.Elapsed
+			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = e.Cursor, e.ExecNo, e.Exec, int(f.m.Calls[e.Exec].Line), e.Stats.Elapsed
 			x.Evidence = append(x.Evidence, r)
 		}
 		f.add(x)
@@ -452,7 +452,7 @@ func (f *finder) planChanges() {
 				if c.PLH == 0 {
 					continue
 				}
-				a := get(c.PLH, c.Line)
+				a := get(uint64(c.PLH), int(c.Line))
 				a.execs++
 				a.elapsed += ex[j].Stats.Elapsed
 			}
@@ -879,7 +879,7 @@ func (f *finder) smallFetches() {
 		)
 		if firstRow != nil {
 			r := stmtRow(s.ID, fmt.Sprintf("exec %d", firstRow.ExecNo), fmt.Sprintf("first such execution: %d fetches, %d rows, %s", len(firstRow.Fetches), firstRow.Stats.Rows, fmtUs(firstRow.Stats.Elapsed)))
-			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = firstRow.Cursor, firstRow.ExecNo, firstRow.Exec, m.Calls[firstRow.Exec].Line, firstRow.Stats.Elapsed
+			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = firstRow.Cursor, firstRow.ExecNo, firstRow.Exec, int(m.Calls[firstRow.Exec].Line), firstRow.Stats.Elapsed
 			x.Evidence = append(x.Evidence, r)
 		}
 		f.add(x)

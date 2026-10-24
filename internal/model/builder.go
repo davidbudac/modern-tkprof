@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"hash/fnv"
+	"math"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -231,6 +232,7 @@ func (b *Builder) observeTim(tim int64, line int) int64 {
 		b.offsetUs = b.anchorWall.UnixMicro() - tim
 		b.needAnchor = false
 		m.Diag.Anchors++
+		m.anchors = append(m.anchors, wallAnchor{file: int32(b.curFile), line: int32(line), off: b.offsetUs})
 		if !fe.offsetSet {
 			fe.offsetSet, fe.offsetUs = true, b.offsetUs
 		}
@@ -251,6 +253,26 @@ func (b *Builder) observeTim(tim int64, line int) int64 {
 		return wall
 	}
 	return 0
+}
+
+func clamp32(v int64) int32 {
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if v < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(v)
+}
+
+func clampU8(v int) uint8 {
+	if v < 0 {
+		return 0
+	}
+	if v > math.MaxUint8 {
+		return math.MaxUint8
+	}
+	return uint8(v)
 }
 
 // ---- trace.Handler --------------------------------------------------------
@@ -523,12 +545,11 @@ func (b *Builder) Call(c trace.Call) {
 		cur.PLH = c.PLH
 	}
 	call := Call{
-		ID: ID(len(b.m.Calls)), Line: c.Line, Kind: c.Kind, Cursor: curID, Statement: cur.Statement,
-		C: c.C, E: c.E, P: c.P, CR: c.CR, CU: c.CU, Mis: c.Mis, R: c.R, Dep: c.Dep, OG: c.OG, PLH: c.PLH,
-		Tim: c.Tim, Type: c.Type, Parent: None, SelfE: c.E, SelfC: c.C, SelfP: c.P, SelfCR: c.CR, SelfCU: c.CU, Context: b.context(), BindSet: None,
-		LobType: c.LobType, Bytes: c.Bytes, Op: c.Op,
+		ID: ID(len(b.m.Calls)), Line: int32(c.Line), Kind: c.Kind, Cursor: curID, Statement: cur.Statement,
+		C: c.C, E: c.E, P: c.P, CR: c.CR, CU: c.CU, Mis: clamp32(c.Mis), R: c.R, Dep: clampU8(c.Dep), OG: clampU8(c.OG), PLH: uint32(c.PLH),
+		Tim: c.Tim, Type: clampU8(c.Type), Parent: None, SelfE: c.E, SelfC: c.C, SelfP: c.P, SelfCR: c.CR, SelfCU: c.CU, Context: b.context(), BindSet: None,
 	}
-	call.WallUs = b.observeTim(c.Tim, c.Line)
+	b.observeTim(c.Tim, c.Line)
 	switch c.Kind {
 	case trace.CallExec:
 		cur.Execs++
@@ -656,14 +677,14 @@ func (b *Builder) Wait(w trace.Wait) {
 		stmt = b.m.Cursors[id].Statement
 	}
 	wait := Wait{
-		ID: ID(len(b.m.Waits)), Line: w.Line, Cursor: curID, Statement: stmt, Call: None, Event: eid,
+		ID: ID(len(b.m.Waits)), Line: int32(w.Line), Cursor: curID, Statement: stmt, Call: None, Event: eid,
 		Ela: w.Ela, P1: w.Params[0].Value, P2: w.Params[1].Value, P3: w.Params[2].Value,
 		ObjID: w.ObjID, Tim: w.Tim, Context: b.context(), Idle: ev.Idle, Number: w.Cursor,
 	}
 	if !w.HasObj {
 		wait.ObjID = -1
 	}
-	wait.WallUs = b.observeTim(w.Tim, w.Line)
+	b.observeTim(w.Tim, w.Line)
 	b.m.Waits = append(b.m.Waits, wait)
 	if w.Cursor == 0 && b.lastXctend != None {
 		b.attachWait(&b.m.Waits[wait.ID], b.lastXctend)
@@ -716,12 +737,10 @@ func (b *Builder) Binds(bs trace.BindSet) {
 	}
 	stmt = b.m.Cursors[curID].Statement
 	set := BindSet{ID: ID(len(b.m.BindSets)), Line: bs.Line, Cursor: curID, Statement: stmt, Call: None, First: int32(len(b.m.Binds)), IsRPC: bs.IsRPC}
-	for _, tb := range bs.Binds {
-		bind := Bind{Set: set.ID, Pos: tb.Pos, Dty: tb.Dty, TypeName: ref.BindTypeName(tb.Dty), NoDef: tb.NoOacdef, IsDump: tb.IsDump,
-			Mal: tb.Mal, Mxl: tb.Mxl, Avl: tb.Avl, Scl: tb.Scl, Pre: tb.Pre, Csi: tb.Csi}
-		if tb.NoOacdef {
-			bind.TypeName = ""
-		}
+	for i := range bs.Binds {
+		tb := &bs.Binds[i]
+		bind := Bind{Set: set.ID, Pos: int32(tb.Pos), Dty: int32(tb.Dty), NoDef: tb.NoOacdef, IsDump: tb.IsDump,
+			Mal: int32(tb.Mal), Mxl: int32(tb.Mxl), Avl: int32(tb.Avl), Scl: int32(tb.Scl), Pre: int32(tb.Pre), Csi: int32(tb.Csi)}
 		if tb.HasValue {
 			bind.Value = decodeValue(tb)
 		} else if !tb.NoOacdef {
@@ -737,7 +756,7 @@ func (b *Builder) Binds(bs trace.BindSet) {
 }
 
 // decodeValue strips the quoting Oracle puts around character values.
-func decodeValue(tb trace.Bind) string {
+func decodeValue(tb *trace.Bind) string {
 	v := tb.Value
 	if tb.IsDump {
 		return v
@@ -757,15 +776,15 @@ func (b *Builder) Xctend(x trace.Xctend) {
 	}
 	curID := b.syntheticCursor(key, kind, text, x.Line)
 	cur := b.m.Cursors[curID]
-	call := Call{ID: ID(len(b.m.Calls)), Line: x.Line, Kind: trace.CallXctend, Cursor: curID, Statement: cur.Statement,
+	call := Call{ID: ID(len(b.m.Calls)), Line: int32(x.Line), Kind: trace.CallXctend, Cursor: curID, Statement: cur.Statement,
 		Dep: 1, Tim: x.Tim, Parent: None, Context: b.context(), BindSet: None, Synthetic: true}
-	call.WallUs = b.observeTim(x.Tim, x.Line)
+	wall := b.observeTim(x.Tim, x.Line)
 	b.m.Calls = append(b.m.Calls, call)
 	b.attachWaits(0, call.ID, curID) // waits logged on #0 before the XCTEND
 	b.lastXctend = call.ID           // ... and the ones after it (log file sync)
 	b.attachChildren(call.ID, 1)
 	c := &b.m.Calls[call.ID]
-	t := Transaction{ID: ID(len(b.m.Transactions)), Line: x.Line, Rlbk: x.Rlbk, RdOnly: x.RdOnly, Tim: x.Tim, WallUs: c.WallUs, Call: call.ID, Context: c.Context}
+	t := Transaction{ID: ID(len(b.m.Transactions)), Line: x.Line, Rlbk: x.Rlbk, RdOnly: x.RdOnly, Tim: x.Tim, WallUs: wall, Call: call.ID, Context: c.Context}
 	b.m.Transactions = append(b.m.Transactions, t)
 }
 

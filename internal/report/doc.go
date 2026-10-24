@@ -208,7 +208,7 @@ func buildFacts(m *model.Model, packed bool) (*Facts, error) {
 		P:       i32col(n, func(i int) int64 { return calls[i].P }),
 		CR:      i32col(n, func(i int) int64 { return calls[i].CR }),
 		CU:      i32col(n, func(i int) int64 { return calls[i].CU }),
-		Mis:     i32col(n, func(i int) int64 { return calls[i].Mis }),
+		Mis:     i32col(n, func(i int) int64 { return int64(calls[i].Mis) }),
 		R:       i32col(n, func(i int) int64 { return calls[i].R }),
 		Dep:     u8col(n, func(i int) uint8 { return uint8(calls[i].Dep) }),
 		OG:      u8col(n, func(i int) uint8 { return uint8(calls[i].OG) }),
@@ -306,7 +306,7 @@ func buildFacts(m *model.Model, packed bool) (*Facts, error) {
 		Avl: i32col(n, func(i int) int64 { return int64(binds[i].Avl) }),
 	}
 	for i := range binds {
-		bc.Type[i] = binds[i].TypeName
+		bc.Type[i] = binds[i].TypeName()
 		bc.Value[i] = binds[i].Value
 	}
 	if packed {

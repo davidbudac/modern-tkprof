@@ -194,7 +194,7 @@ func newModel(nStmts int) *mb {
 
 func (b *mb) call(sid model.ID, kind trace.CallKind, e, r int64, plh uint64, execNo int32) {
 	id := model.ID(len(b.m.Calls))
-	b.m.Calls = append(b.m.Calls, model.Call{ID: id, Line: int(id) + 10, Kind: kind, Cursor: sid, Statement: sid, E: e, SelfE: e, R: r, PLH: plh,
+	b.m.Calls = append(b.m.Calls, model.Call{ID: id, Line: int32(id) + 10, Kind: kind, Cursor: sid, Statement: sid, E: e, SelfE: e, R: r, PLH: uint32(plh),
 		Tim: int64(id+1) * 1000, Parent: model.None, ExecNo: execNo, BindSet: model.None, Context: 0})
 }
 

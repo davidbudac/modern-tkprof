@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"runtime/pprof"
 	"sort"
 	"strconv"
 	"strings"
@@ -79,6 +81,7 @@ func main() {
 		usage()
 	}
 	cmd, args := os.Args[1], os.Args[2:]
+	stopProf := startProfiles()
 	var err error
 	switch cmd {
 	case "report":
@@ -107,9 +110,36 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", cmd)
 		usage()
 	}
+	stopProf()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
+	}
+}
+
+// startProfiles is a hidden developer hook: MTKPROF_CPUPROFILE / MTKPROF_MEMPROFILE
+// name files for `go tool pprof`. The heap profile is taken at exit with
+// alloc_space available (inuse_space is the heap at the end of the command).
+func startProfiles() (stop func()) {
+	var cpu *os.File
+	if p := os.Getenv("MTKPROF_CPUPROFILE"); p != "" {
+		if f, err := os.Create(p); err == nil {
+			cpu = f
+			pprof.StartCPUProfile(f)
+		}
+	}
+	return func() {
+		if cpu != nil {
+			pprof.StopCPUProfile()
+			cpu.Close()
+		}
+		if p := os.Getenv("MTKPROF_MEMPROFILE"); p != "" {
+			if f, err := os.Create(p); err == nil {
+				runtime.GC()
+				pprof.Lookup("allocs").WriteTo(f, 0)
+				f.Close()
+			}
+		}
 	}
 }
 

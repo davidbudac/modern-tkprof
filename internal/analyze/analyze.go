@@ -31,7 +31,7 @@ type CallStats struct {
 
 func (s *CallStats) add(c *model.Call) {
 	s.Count++
-	s.Misses += c.Mis
+	s.Misses += int64(c.Mis)
 	s.CPU += c.C
 	s.Elapsed += c.E
 	s.Disk += c.P
@@ -148,7 +148,7 @@ func Statements(m *model.Model) []StmtStats {
 		case trace.CallParse:
 			s.Parse.add(c)
 			if c.Mis > 0 {
-				s.HardParses += c.Mis
+				s.HardParses += int64(c.Mis)
 			}
 		case trace.CallExec:
 			s.Exec.add(c)
@@ -161,11 +161,11 @@ func Statements(m *model.Model) []StmtStats {
 			s.Other.add(c)
 		}
 		s.AllCalls.add(c)
-		if c.Dep < s.MinDep {
-			s.MinDep = c.Dep
+		if dep := int(c.Dep); dep < s.MinDep {
+			s.MinDep = dep
 		}
-		if c.Dep > s.MaxDep {
-			s.MaxDep = c.Dep
+		if dep := int(c.Dep); dep > s.MaxDep {
+			s.MaxDep = dep
 		}
 		nestedInSelf := c.Parent != model.None && m.Calls[c.Parent].Statement == c.Statement
 		if !nestedInSelf {
@@ -195,18 +195,29 @@ func Statements(m *model.Model) []StmtStats {
 		if c.Tim != 0 {
 			if s.FirstTim == 0 || c.Tim-c.E < s.FirstTim {
 				s.FirstTim = c.Tim - c.E
-				s.FirstWallUs = c.WallUs - c.E
+				s.FirstWallUs = m.CallWall(c) - c.E
 			}
 			if c.Tim > s.LastTim {
 				s.LastTim = c.Tim
-				s.LastWallUs = c.WallUs
+				s.LastWallUs = m.CallWall(c)
 			}
 		}
 	}
 	for sid, procs := range pxProcs {
 		out[sid].PXSessions = len(procs)
 	}
-	for e, l := range edges {
+	keys := make([]edge, 0, len(edges))
+	for e := range edges {
+		keys = append(keys, e)
+	}
+	sort.Slice(keys, func(i, j int) bool { // map order is random; keep the output reproducible
+		if keys[i].parent != keys[j].parent {
+			return keys[i].parent < keys[j].parent
+		}
+		return keys[i].child < keys[j].child
+	})
+	for _, e := range keys {
+		l := edges[e]
 		out[e.parent].Children = append(out[e.parent].Children, Link{Statement: e.child, Calls: l.Calls, Elapsed: l.Elapsed})
 		out[e.child].Parents = append(out[e.child].Parents, Link{Statement: e.parent, Calls: l.Calls, Elapsed: l.Elapsed})
 	}
@@ -374,7 +385,13 @@ func buildProfile(m *model.Model, label string, total, cpu int64, in func(*model
 	}
 	p := Profile{Label: label, TotalUs: total, CPUUs: cpu, WaitUs: waitUs, IdleUs: idleUs}
 	p.Rows = append(p.Rows, ProfileRow{Component: "CPU", Kind: "cpu", Us: cpu})
-	for eid, a := range byEvent {
+	eids := make([]model.ID, 0, len(byEvent))
+	for eid := range byEvent {
+		eids = append(eids, eid)
+	}
+	sort.Slice(eids, func(i, j int) bool { return eids[i] < eids[j] }) // map order is random; ties must not reorder rows
+	for _, eid := range eids {
+		a := byEvent[eid]
 		ev := &m.Events[eid]
 		kind := "wait"
 		if ev.Idle {
@@ -467,7 +484,12 @@ func WaitsBy(m *model.Model, in func(*model.Wait) bool, key func(*model.Wait) (i
 	for _, a := range acc {
 		out = append(out, *a)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Us > out[j].Us })
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Us != out[j].Us {
+			return out[i].Us > out[j].Us
+		}
+		return out[i].Key < out[j].Key
+	})
 	return out
 }
 
@@ -497,7 +519,7 @@ func Executions(m *model.Model, sid model.ID) []Execution {
 		}
 		switch c.Kind {
 		case trace.CallExec:
-			e := Execution{Cursor: c.Cursor, Statement: sid, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: c.WallUs - c.E, Context: c.Context}
+			e := Execution{Cursor: c.Cursor, Statement: sid, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context}
 			e.Stats.add(c)
 			idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}] = len(out)
 			out = append(out, e)
