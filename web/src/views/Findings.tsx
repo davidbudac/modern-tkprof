@@ -2,6 +2,7 @@ import type { TraceDoc } from '../data/doc'
 import type { EvidenceRow, Finding } from '../data/types'
 import { actions } from '../app/store'
 import { StmtLink, LinkText } from '../components/StmtLink'
+import { LineRef } from '../components/LineRef'
 
 /** Rule hits from the Go analyzer (fixed thresholds), most severe first. */
 export function Findings({ doc }: { doc: TraceDoc }) {
@@ -64,7 +65,7 @@ function Evidence({ doc, f, r }: { doc: TraceDoc; f: Finding; r: EvidenceRow }) 
     <tr className={r.statement >= 0 ? 'row-click' : undefined} onClick={r.statement >= 0 ? open : undefined}>
       <td className="ev-label">{own && <StmtLink doc={doc} id={r.statement} />}{own && label ? ' ' : null}{label}</td>
       <td className="text"><LinkText doc={doc} text={r.value} /></td>
-      <td className="dim tabular">{r.line ? `line ${r.line}` : ''}</td>
+      <td className="dim tabular"><LineRef line={r.line ?? 0} /></td>
     </tr>
   )
 }

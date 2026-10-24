@@ -30,7 +30,7 @@ export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'even
         },
       },
       xAxis: { type: 'category', data: labels, axisLabel: { hideOverlap: true } },
-      yAxis: { type: 'value', name: '% of time busy', nameLocation: 'end', nameTextStyle: { align: 'left', padding: [0, 0, 0, -30] }, axisLabel: { formatter: (v: number) => `${Math.round((100 * v) / bucketSec)}%` }, max: (v: { max: number }) => Math.max(v.max, bucketSec) },
+      yAxis: { type: 'value', name: '% of time busy', nameLocation: 'end', nameTextStyle: { align: 'left', padding: [0, 0, 0, -30] }, axisLabel: { formatter: (v: number) => `${Math.round((100 * v) / bucketSec)}%` }, max: bucketSec },
       dataZoom: [{ type: 'slider', height: 20, bottom: 6, brushSelect: true, borderColor: 'transparent', fillerColor: 'rgba(120,120,120,0.15)' }, { type: 'inside' }],
       series: series.map((s, i) => ({
         name: s.label, type: 'bar', stack: 'time', barCategoryGap: '20%',

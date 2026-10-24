@@ -7,6 +7,8 @@ import { callKindName, CallKind } from '../data/types'
 import { fmtDur, fmtInt, fmtCompact, fmtWall, preview } from '../data/format'
 import { useStore, actions, callFilter, waitFilter, type State } from '../app/store'
 import { DataTable, type Column } from '../components/DataTable'
+import { ColumnChooser } from '../components/ColumnChooser'
+import { usePersisted } from '../app/persist'
 import { pickBucket } from '../data/derive'
 import '../styles/pivot.css'
 
@@ -292,6 +294,7 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
   const [fact, setFact] = useState<Fact>('calls')
   const [d1Id, setD1] = useState('stmt')
   const [d2Id, setD2] = useState('')
+  const [hiddenCols, setHiddenCols] = usePersisted<Record<Fact, string[]>>('mtkprof.cols.pivot', { calls: [], waits: [] })
   const [sortId, setSortId] = useState<{ calls: string; waits: string }>({ calls: 'e', waits: 'ela' })
 
   const dims = useMemo(() => (fact === 'calls' ? callDims(doc) : waitDims(doc)), [doc, fact])
@@ -338,7 +341,9 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
     cols.push({ key: 'd2', header: d2.label, className: d2.mono ? 'mono clip' : 'clip', render: (g) => d2.id === 'stmt' && doc.statements[g.k2] ? <StmtLink doc={doc} id={g.k2} /> : d2.name(g.k2), sort: (g) => d2.name(g.k2) })
     if (d2.extra) cols.push({ key: 'd2x', header: d2.extra.header, className: 'clip', render: (g) => d2.extra!.get(g.k2), sort: (g) => d2.extra!.get(g.k2) })
   }
-  for (const m of measures) {
+  const hiddenM = hiddenCols[fact] ?? []
+  const shownMeasures = measures.filter((m) => !hiddenM.includes(m.id))
+  for (const m of shownMeasures) {
     cols.push({ key: m.id, header: m.label, title: m.title, align: 'end', render: (g) => m.fmt(m.value(g.acc, total)), sort: (g) => m.value(g.acc, total), bar: m.id === sortM.id })
   }
 
@@ -397,10 +402,11 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
             {measures.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </label>
-        <button className="pv-push" onClick={exportCsv} disabled={result.groups.length === 0}>Download CSV</button>
+        <span className="pv-push"><ColumnChooser all={measures.map((m) => ({ key: m.id, label: m.label }))} hidden={hiddenM} onChange={(h) => setHiddenCols({ ...hiddenCols, [fact]: h })} /></span>
+        <button onClick={exportCsv} disabled={result.groups.length === 0}>Download CSV</button>
       </div>
       <DataTable
-        key={`${fact}:${d1.id}:${d2?.id ?? ''}:${sortM.id}`}
+        key={`${fact}:${d1.id}:${d2?.id ?? ''}:${sortM.id}:${hiddenM.join(',')}`}
         columns={cols}
         rows={sorted}
         rowKey={(g) => g.key}
@@ -411,7 +417,7 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
         empty="No rows in scope"
         footer={<>
           <span>total</span>
-          {measures.map((m) => <span key={m.id}>{m.label} {m.id === 'share' ? '100%' : m.fmt(m.value(total, total))}</span>)}
+          {shownMeasures.map((m) => <span key={m.id}>{m.label} {m.id === 'share' ? '100%' : m.fmt(m.value(total, total))}</span>)}
         </>}
       />
     </section>

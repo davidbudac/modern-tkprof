@@ -74,6 +74,7 @@ export function statementSegments(doc: TraceDoc, st: StmtStats): Segment[] {
 }
 
 export interface Execution {
+  line: number // trace line of the EXEC call
   cursor: ID
   execNo: number
   exec: number // call index
@@ -102,7 +103,7 @@ export function executions(doc: TraceDoc, sid: ID): Execution[] {
     const i = ids[k]
     const kind = c.kind[i]
     if (kind === CallKind.exec) {
-      const ex: Execution = { cursor: c.cursor[i], execNo: c.execNo[i], exec: i, fetches: 0, startTim: c.tim[i] - c.e[i], endTim: c.tim[i],
+      const ex: Execution = { line: c.line[i], cursor: c.cursor[i], execNo: c.execNo[i], exec: i, fetches: 0, startTim: c.tim[i] - c.e[i], endTim: c.tim[i],
         e: c.e[i], c: c.c[i], p: c.p[i], cr: c.cr[i], cu: c.cu[i], r: c.r[i], waitEla: c.waitEla[i], idleEla: c.idleEla[i], bindSet: c.bindSet[i], ctx: c.ctx[i] }
       idx.set(`${ex.cursor}:${ex.execNo}`, out.length)
       out.push(ex)
@@ -174,6 +175,20 @@ export function timeline(doc: TraceDoc, bucketUs: number, callFilter: RowFilter,
     const arr = (perEvent[ev] ??= new Float64Array(n))
     add(arr, w.tim[i], w.ela[i], w.ela[i])
     totals[ev] += w.ela[i]
+  }
+  // Oracle's `c` can exceed `e` and CPU is spread evenly over a call's duration, so a bucket's CPU
+  // plus waits can pass the bucket's own length. A bucket cannot be more than 100 % busy: CPU is
+  // clamped to the time the waits leave free (and waits scaled down if they alone overflow), so
+  // stacks and the % axis never exceed 100 %.
+  for (let b = 0; b < n; b++) {
+    let waitUs = 0
+    for (const arr of perEvent) if (arr) waitUs += arr[b]
+    if (waitUs > bucketUs) { // a short wait straddling a boundary is counted whole in one bucket
+      const k = bucketUs / waitUs
+      for (const arr of perEvent) if (arr) arr[b] *= k
+      waitUs = bucketUs
+    }
+    cpu[b] = Math.min(cpu[b], Math.max(0, bucketUs - waitUs))
   }
   const starts = Array.from({ length: n }, (_, i) => base + i * bucketUs)
   const series: TimelineSeries[] = [{ key: 'cpu', label: roleLabel.cpu, role: 'cpu', values: cpu }]
@@ -285,21 +300,22 @@ export function dominantRole(doc: TraceDoc, st: StmtStats): Role {
 }
 
 /** Top wait events of one statement, with the object they were on when every wait names the same one. */
-export function statementWaits(doc: TraceDoc, sid: ID, max = 6): { event: ID; name: string; role: Role; us: number; count: number; maxUs: number; obj: number }[] {
+export function statementWaits(doc: TraceDoc, sid: ID, max = 6): { event: ID; name: string; role: Role; us: number; count: number; maxUs: number; obj: number; maxLine: number }[] {
   if (!doc.hasFacts) return []
   const w = doc.waits
   const ids = doc.waitsByStmt.get(sid)
   const byEvent = groupBy({ n: ids.length, key: (k) => w.event[ids[k]], value: (k) => w.ela[ids[k]] })
   return byEvent.slice(0, max).map((a) => {
     const ev = doc.events[a.key]
-    let obj = -1
+    let obj = -1, maxLine = 0, maxEla = -1
     for (let k = 0; k < ids.length; k++) {
       const i = ids[k]
       if (w.event[i] !== a.key) continue
+      if (w.ela[i] > maxEla) { maxEla = w.ela[i]; maxLine = w.line[i] }
       const o = w.obj[i]
-      if (obj === -1) obj = o; else if (obj !== o) { obj = -2; break }
+      if (obj === -1) obj = o; else if (obj !== o) obj = -2
     }
-    return { event: a.key, name: ev?.name ?? '?', role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: a.sum, count: a.count, maxUs: a.max, obj: obj > 0 ? obj : -1 }
+    return { event: a.key, name: ev?.name ?? '?', role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: a.sum, count: a.count, maxUs: a.max, obj: obj > 0 ? obj : -1, maxLine }
   })
 }
 
