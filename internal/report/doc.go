@@ -49,6 +49,11 @@ type Document struct {
 	// PlanViz is the base URL of the plan visualizer ("Open in plan viz");
 	// empty means the UI uses its own default.
 	PlanViz string `json:"planViz,omitempty"`
+
+	// Slice says that the server that sent this document answers the
+	// /api/pivot, /api/timeline, ... queries (internal/slice), so a document
+	// without fact tables is still fully interactive.
+	Slice bool `json:"slice,omitempty"`
 }
 
 // Facts are the columnar fact tables as plain JSON arrays. The packed form
@@ -173,6 +178,8 @@ type DocOptions struct {
 	Thresholds *analyze.Thresholds // finding thresholds; nil = defaults
 
 	PlanVizURL string // base URL of the plan visualizer, carried into Document.PlanViz
+
+	Slice bool // the serving process answers the slicing API: sets Document.Slice
 }
 
 // BuildDocument assembles the document from a model. Fact tables, if asked
@@ -216,6 +223,7 @@ func buildDocument(m *model.Model, o DocOptions, withFacts bool) *Document {
 		d.Facts = buildFacts(m)
 	}
 	d.PlanViz = o.PlanVizURL
+	d.Slice = o.Slice
 	return d
 }
 

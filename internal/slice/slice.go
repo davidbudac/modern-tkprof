@@ -1,0 +1,768 @@
+// Package slice answers the UI's group-by and detail queries from the fact
+// tables of a model.Model, so `mtkprof serve -facts=false` keeps the browser
+// free of millions of fact rows (docs/ARCHITECTURE.md § Server-side slicing).
+//
+// Every endpoint is a GET returning JSON, bounded (limit caps, a 400 with a
+// plain-text reason on a bad parameter) and read-only. The model must not be
+// modified after New.
+//
+//	/api/pivot           analyze.Pivot with the UI's dimensions and measures
+//	/api/timeline        CPU and waits per time bucket and event
+//	/api/calls           the longest calls in scope (Timeline swimlanes)
+//	/api/executions      the executions of one statement, with binds
+//	/api/executions/detail  one execution taken apart (A/B comparison)
+//	/api/waits           wait rows (slowest or earliest)
+//	/api/waits/hist      log2 histogram of wait durations
+//	/api/waits/scatter   sampled waits over time
+//	/api/profile         CPU and waits per event in scope
+//	/api/stmt/roles      wait time per statement and wait class
+//	/api/stmt/waits      top wait events of statements
+//	/api/stmt/spans      merged time intervals of statements' calls
+//
+// Common scope parameters: from, to (tim in µs, a row is in when its
+// [tim-ela, tim] interval overlaps), contexts (comma separated ids), stmt,
+// event (waits only) and idle=0|1 (waits; default 1).
+package slice
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/davidbudac/modern-tkprof/internal/analyze"
+	"github.com/davidbudac/modern-tkprof/internal/model"
+)
+
+// Limits of one response.
+const (
+	DefaultPivotRows = 1000
+	MaxPivotRows     = 100000
+	MaxCalls         = 20000
+	MaxLongest       = 100
+	MaxExecutions    = 5000
+	MaxWaitRows      = 1000
+	MaxScatter       = 50000
+	MaxStmtList      = 200
+	maxContexts      = 10000
+	maxCacheEntries  = 128
+	maxCacheBytes    = 4 << 20
+)
+
+// Server serves the slicing endpoints over one model.
+type Server struct {
+	m *model.Model
+
+	mu    sync.Mutex
+	cache map[string][]byte // GET query -> response body
+	order []string
+	execs map[model.ID][]analyze.Execution
+}
+
+// New returns the server for m.
+func New(m *model.Model) *Server {
+	return &Server{m: m, cache: map[string][]byte{}, execs: map[model.ID][]analyze.Execution{}}
+}
+
+type badRequest string
+
+func (e badRequest) Error() string { return string(e) }
+
+func bad(format string, a ...any) error { return badRequest(fmt.Sprintf(format, a...)) }
+
+// Handler returns the mux of the endpoints; CORS is open like /api/doc (the
+// dev server of `pnpm dev` loads the document from this one).
+func (s *Server) Handler() http.Handler {
+	mux := http.NewServeMux()
+	routes := map[string]func(url.Values) (any, error){
+		"/api/pivot":             s.pivot,
+		"/api/timeline":          s.timeline,
+		"/api/calls":             s.calls,
+		"/api/executions":        s.executions,
+		"/api/executions/detail": s.executionDetail,
+		"/api/waits":             s.waits,
+		"/api/waits/hist":        s.waitHist,
+		"/api/waits/scatter":     s.waitScatter,
+		"/api/profile":           s.profile,
+		"/api/stmt/roles":        s.stmtRoles,
+		"/api/stmt/waits":        s.stmtWaits,
+		"/api/stmt/spans":        s.stmtSpans,
+	}
+	for path, fn := range routes {
+		mux.HandleFunc(path, s.wrap(fn))
+	}
+	return mux
+}
+
+func (s *Server) wrap(fn func(url.Values) (any, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		key := r.URL.Path + "?" + r.URL.RawQuery
+		body, ok := s.cached(key)
+		if !ok {
+			v, err := fn(r.URL.Query())
+			if err != nil {
+				var br badRequest
+				if errors.As(err, &br) {
+					http.Error(w, br.Error(), http.StatusBadRequest)
+				} else {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+			var merr error
+			body, merr = json.Marshal(v)
+			if merr != nil {
+				http.Error(w, merr.Error(), http.StatusInternalServerError)
+				return
+			}
+			s.store(key, body)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(body)
+	}
+}
+
+func (s *Server) cached(key string) ([]byte, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b, ok := s.cache[key]
+	return b, ok
+}
+
+func (s *Server) store(key string, body []byte) {
+	if len(body) > maxCacheBytes {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.cache[key]; ok {
+		return
+	}
+	if len(s.order) >= maxCacheEntries {
+		delete(s.cache, s.order[0])
+		s.order = s.order[1:]
+	}
+	s.cache[key] = body
+	s.order = append(s.order, key)
+}
+
+// ---- parameters --------------------------------------------------------------
+
+func intParam(q url.Values, name string, def, min, max int64) (int64, error) {
+	v := q.Get(name)
+	if v == "" {
+		return def, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return 0, bad("%s: %q is not an integer", name, v)
+	}
+	if n < min || n > max {
+		return 0, bad("%s: %d is out of range %d..%d", name, n, min, max)
+	}
+	return n, nil
+}
+
+func idList(q url.Values, name string, n int, max int) ([]model.ID, error) {
+	v := q.Get(name)
+	if v == "" {
+		return nil, nil
+	}
+	parts := strings.Split(v, ",")
+	if len(parts) > max {
+		return nil, bad("%s: at most %d ids", name, max)
+	}
+	out := make([]model.ID, 0, len(parts))
+	for _, p := range parts {
+		x, err := strconv.Atoi(strings.TrimSpace(p))
+		if err != nil || x < 0 || x >= n {
+			return nil, bad("%s: %q is not a valid id (0..%d)", name, p, n-1)
+		}
+		out = append(out, model.ID(x))
+	}
+	return out, nil
+}
+
+func (s *Server) stmtParam(q url.Values) (*model.ID, error) {
+	if q.Get("stmt") == "" {
+		return nil, nil
+	}
+	ids, err := idList(q, "stmt", len(s.m.Statements), 1)
+	if err != nil {
+		return nil, err
+	}
+	return &ids[0], nil
+}
+
+// filter reads the scope parameters. Waits-only ones (event, idle) are read
+// when forWaits, calls reject an event.
+func (s *Server) filter(q url.Values, forWaits bool) (analyze.Filter, error) {
+	var f analyze.Filter
+	var err error
+	if f.StartTim, err = intParam(q, "from", 0, 0, 1<<62); err != nil {
+		return f, err
+	}
+	if f.EndTim, err = intParam(q, "to", 0, 0, 1<<62); err != nil {
+		return f, err
+	}
+	if f.EndTim != 0 && f.EndTim < f.StartTim {
+		return f, bad("to: %d is before from: %d", f.EndTim, f.StartTim)
+	}
+	if f.Contexts, err = idList(q, "contexts", len(s.m.Contexts), maxContexts); err != nil {
+		return f, err
+	}
+	if f.Statement, err = s.stmtParam(q); err != nil {
+		return f, err
+	}
+	f.IncludeIdle = true
+	if v := q.Get("idle"); v != "" {
+		switch v {
+		case "0":
+			f.IncludeIdle = false
+		case "1":
+		default:
+			return f, bad("idle: %q (want 0 or 1)", v)
+		}
+	}
+	if q.Get("event") != "" {
+		if !forWaits {
+			return f, bad("event: only applies to waits")
+		}
+		ids, err := idList(q, "event", len(s.m.Events), 1)
+		if err != nil {
+			return f, err
+		}
+		f.Event = &ids[0]
+	}
+	return f, nil
+}
+
+// ---- /api/pivot ----------------------------------------------------------------
+
+// PivotResponse is the pivot with every group counted and the rows capped.
+type PivotResponse struct {
+	*analyze.PivotResult
+	Groups    int  `json:"groups"`    // groups before the row cap
+	Truncated bool `json:"truncated"` // Rows holds only the first `limit` groups
+}
+
+func (s *Server) pivot(q url.Values) (any, error) {
+	fact, err := analyze.ParseFact(q.Get("fact"))
+	if err != nil {
+		return nil, bad("%v", err)
+	}
+	if q.Get("by") == "" {
+		return nil, bad("by: no dimension given (have %s)", dimList(fact))
+	}
+	by := strings.Split(q.Get("by"), ",")
+	f, err := s.filter(q, fact == analyze.FactWaits)
+	if err != nil {
+		return nil, err
+	}
+	limit, err := intParam(q, "limit", DefaultPivotRows, 1, MaxPivotRows)
+	if err != nil {
+		return nil, err
+	}
+	var measures []string
+	if v := q.Get("measure"); v != "" {
+		measures = strings.Split(v, ",")
+		for _, id := range measures {
+			if analyze.MeasureIndex(fact, id) < 0 {
+				return nil, bad("measure: unknown %s measure %q", fact, id)
+			}
+		}
+	}
+	r, err := analyze.Pivot(s.m, fact, by, f)
+	if err != nil {
+		return nil, bad("%v", err)
+	}
+	if len(measures) > 0 {
+		if err := r.SortBy(measures[0]); err != nil {
+			return nil, bad("%v", err)
+		}
+		r.Project(measures)
+	}
+	resp := &PivotResponse{PivotResult: r, Groups: len(r.Rows)}
+	if len(r.Rows) > int(limit) {
+		r.Rows = r.Rows[:limit]
+		resp.Truncated = true
+	}
+	return resp, nil
+}
+
+func dimList(f analyze.Fact) string {
+	var ids []string
+	for _, d := range analyze.Dims(f) {
+		ids = append(ids, d.ID)
+	}
+	return strings.Join(ids, ",")
+}
+
+// ---- /api/timeline -------------------------------------------------------------
+
+func (s *Server) timeline(q url.Values) (any, error) {
+	f, err := s.filter(q, true)
+	if err != nil {
+		return nil, err
+	}
+	if f.Event != nil {
+		return nil, bad("event: not supported by timeline")
+	}
+	bucket, err := intParam(q, "bucket", analyze.TimelineBucket(s.m), 1, 1<<62)
+	if err != nil {
+		return nil, err
+	}
+	out := analyze.SpreadTimeline(s.m, bucket, f)
+	if out == nil {
+		if s.m.Span.Us() <= 0 {
+			return &analyze.SpanSeries{BucketUs: bucket, CPU: []float64{}, Events: []analyze.EventSeries{}}, nil
+		}
+		return nil, bad("bucket: %d µs gives more than %d buckets for this trace", bucket, analyze.MaxBuckets)
+	}
+	if out.Events == nil {
+		out.Events = []analyze.EventSeries{}
+	}
+	return out, nil
+}
+
+// ---- /api/calls ----------------------------------------------------------------
+
+// CallRows lists calls as arrays in the order of Cols.
+type CallRows struct {
+	Total   int64     `json:"total"`   // calls with a time stamp in scope
+	Sampled bool      `json:"sampled"` // Rows holds only the longest `limit`
+	Cols    []string  `json:"cols"`
+	Rows    [][]int64 `json:"rows"`
+	Longest []int32   `json:"longest"` // call ids of the longest calls, longest first (subset of Rows)
+}
+
+var callCols = []string{"id", "stmt", "kind", "tim", "e", "c", "r", "line", "dep", "execNo"}
+
+func (s *Server) calls(q url.Values) (any, error) {
+	f, err := s.filter(q, false)
+	if err != nil {
+		return nil, err
+	}
+	limit, err := intParam(q, "limit", MaxCalls, 1, MaxCalls)
+	if err != nil {
+		return nil, err
+	}
+	nlong, err := intParam(q, "longest", 20, 0, MaxLongest)
+	if err != nil {
+		return nil, err
+	}
+	ids, total := analyze.TopCalls(s.m, f, int(limit))
+	out := &CallRows{Total: total, Sampled: total > int64(len(ids)), Cols: callCols, Rows: make([][]int64, 0, len(ids))}
+	if int(nlong) < len(ids) {
+		out.Longest = append([]int32(nil), ids[:nlong]...)
+	} else {
+		out.Longest = append([]int32(nil), ids...)
+	}
+	sort.Slice(ids, func(a, b int) bool { return ids[a] < ids[b] })
+	for _, i := range ids {
+		c := &s.m.Calls[i]
+		out.Rows = append(out.Rows, []int64{int64(i), int64(c.Statement), int64(c.Kind), c.Tim, c.E, c.C, c.R, int64(c.Line), int64(c.Dep), int64(c.ExecNo)})
+	}
+	return out, nil
+}
+
+// ---- /api/executions -----------------------------------------------------------
+
+// BindRow is one bind value of an execution.
+type BindRow struct {
+	Pos    int32  `json:"pos"`
+	Type   string `json:"type"`
+	Value  string `json:"value"`
+	IsNull bool   `json:"isNull"`
+	NoDef  bool   `json:"noDef"`
+	Dump   bool   `json:"dump"`
+	Mal    int32  `json:"mal"`
+}
+
+func (s *Server) bindsOf(set model.ID) []BindRow {
+	m := s.m
+	if set < 0 || int(set) >= len(m.BindSets) {
+		return nil
+	}
+	bs := &m.BindSets[set]
+	first, n := int(bs.First), int(bs.N)
+	if first < 0 || first+n > len(m.Binds) {
+		return nil
+	}
+	out := make([]BindRow, 0, n)
+	for i := first; i < first+n; i++ {
+		b := &m.Binds[i]
+		out = append(out, BindRow{Pos: b.Pos, Type: b.TypeName(), Value: b.Value, IsNull: b.IsNull, NoDef: b.NoDef, Dump: b.IsDump, Mal: b.Mal})
+	}
+	return out
+}
+
+// ExecRow is one execution (EXEC plus its FETCHes) of a statement.
+type ExecRow struct {
+	Line     int32     `json:"line"`
+	Cursor   model.ID  `json:"cursor"`
+	ExecNo   int32     `json:"execNo"`
+	Exec     model.ID  `json:"exec"`
+	Fetches  int       `json:"fetches"`
+	StartTim int64     `json:"startTim"`
+	EndTim   int64     `json:"endTim"`
+	E        int64     `json:"e"`
+	C        int64     `json:"c"`
+	P        int64     `json:"p"`
+	CR       int64     `json:"cr"`
+	CU       int64     `json:"cu"`
+	R        int64     `json:"r"`
+	WaitEla  int64     `json:"waitEla"`
+	IdleEla  int64     `json:"idleEla"`
+	BindSet  model.ID  `json:"bindSet"`
+	Ctx      model.ID  `json:"ctx"`
+	Binds    []BindRow `json:"binds"`
+}
+
+// ExecResponse is a page of the executions of one statement.
+type ExecResponse struct {
+	Stmt    model.ID  `json:"stmt"`
+	Total   int       `json:"total"`
+	Offset  int       `json:"offset"`
+	AvgE    float64   `json:"avgE"`
+	Slowest *ExecRow  `json:"slowest"` // without binds
+	Rows    []ExecRow `json:"rows"`
+}
+
+func (s *Server) execsOf(sid model.ID) []analyze.Execution {
+	s.mu.Lock()
+	if e, ok := s.execs[sid]; ok {
+		s.mu.Unlock()
+		return e
+	}
+	s.mu.Unlock()
+	e := analyze.Executions(s.m, sid)
+	s.mu.Lock()
+	if len(s.execs) >= 16 {
+		s.execs = map[model.ID][]analyze.Execution{}
+	}
+	s.execs[sid] = e
+	s.mu.Unlock()
+	return e
+}
+
+func (s *Server) execRow(e *analyze.Execution, binds bool) ExecRow {
+	r := ExecRow{
+		Line: s.m.Calls[e.Exec].Line, Cursor: e.Cursor, ExecNo: e.ExecNo, Exec: e.Exec, Fetches: len(e.Fetches),
+		StartTim: e.StartTim, EndTim: e.EndTim, E: e.Stats.Elapsed, C: e.Stats.CPU, P: e.Stats.Disk, CR: e.Stats.Query,
+		CU: e.Stats.Current, R: e.Stats.Rows, WaitEla: e.Stats.Waits, IdleEla: e.Stats.Idle, BindSet: e.BindSet, Ctx: e.Context,
+	}
+	if binds {
+		r.Binds = s.bindsOf(e.BindSet)
+		if r.Binds == nil {
+			r.Binds = []BindRow{}
+		}
+	}
+	return r
+}
+
+var execSorts = map[string]func(e *analyze.Execution) int64{
+	"e":       func(e *analyze.Execution) int64 { return e.Stats.Elapsed },
+	"c":       func(e *analyze.Execution) int64 { return e.Stats.CPU },
+	"waitEla": func(e *analyze.Execution) int64 { return e.Stats.Waits },
+	"r":       func(e *analyze.Execution) int64 { return e.Stats.Rows },
+	"p":       func(e *analyze.Execution) int64 { return e.Stats.Disk },
+	"cr":      func(e *analyze.Execution) int64 { return e.Stats.Query },
+	"fetches": func(e *analyze.Execution) int64 { return int64(len(e.Fetches)) },
+	"start":   func(e *analyze.Execution) int64 { return e.StartTim },
+}
+
+func (s *Server) executions(q url.Values) (any, error) {
+	if q.Get("stmt") == "" {
+		return nil, bad("stmt: required")
+	}
+	sp, err := s.stmtParam(q)
+	if err != nil {
+		return nil, err
+	}
+	limit, err := intParam(q, "limit", 1000, 1, MaxExecutions)
+	if err != nil {
+		return nil, err
+	}
+	offset, err := intParam(q, "offset", 0, 0, 1<<40)
+	if err != nil {
+		return nil, err
+	}
+	sortBy := q.Get("sort")
+	var key func(e *analyze.Execution) int64
+	if sortBy != "" && sortBy != "file" {
+		if key = execSorts[sortBy]; key == nil {
+			return nil, bad("sort: unknown %q (file, e, c, waitEla, r, p, cr, fetches, start)", sortBy)
+		}
+	}
+	exs := s.execsOf(*sp)
+	resp := &ExecResponse{Stmt: *sp, Total: len(exs), Offset: int(offset), Rows: []ExecRow{}}
+	if len(exs) == 0 {
+		return resp, nil
+	}
+	order := make([]int, len(exs))
+	var sum float64
+	slow := 0
+	for i := range exs {
+		order[i] = i
+		sum += float64(exs[i].Stats.Elapsed)
+		if exs[i].Stats.Elapsed > exs[slow].Stats.Elapsed {
+			slow = i
+		}
+	}
+	resp.AvgE = sum / float64(len(exs))
+	sr := s.execRow(&exs[slow], false)
+	resp.Slowest = &sr
+	if key != nil { // largest first; ties in file order
+		sort.SliceStable(order, func(a, b int) bool { return key(&exs[order[a]]) > key(&exs[order[b]]) })
+	}
+	end := int(offset) + int(limit)
+	if end > len(order) {
+		end = len(order)
+	}
+	for k := int(offset); k < end; k++ {
+		resp.Rows = append(resp.Rows, s.execRow(&exs[order[k]], true))
+	}
+	return resp, nil
+}
+
+// ExecDetailResponse is analyze.ExecDetail with its bind values.
+type ExecDetailResponse struct {
+	analyze.ExecDetail
+	Binds []BindRow `json:"binds"`
+}
+
+func (s *Server) executionDetail(q url.Values) (any, error) {
+	sp, err := s.stmtParam(q)
+	if err != nil {
+		return nil, err
+	}
+	if sp == nil {
+		return nil, bad("stmt: required")
+	}
+	cur, err := intParam(q, "cursor", -1, 0, int64(len(s.m.Cursors))-1)
+	if err != nil {
+		return nil, err
+	}
+	if cur < 0 {
+		return nil, bad("cursor: required")
+	}
+	no, err := intParam(q, "execNo", 0, 1, 1<<31-1)
+	if err != nil {
+		return nil, err
+	}
+	d, ok := analyze.ExecutionDetail(s.m, *sp, model.ID(cur), int32(no))
+	if !ok {
+		return nil, bad("no execution #%d of cursor %d in statement %d", no, cur, *sp)
+	}
+	if d.Waits == nil {
+		d.Waits = []analyze.WaitPart{}
+	}
+	b := s.bindsOf(d.BindSet)
+	if b == nil {
+		b = []BindRow{}
+	}
+	return &ExecDetailResponse{ExecDetail: d, Binds: b}, nil
+}
+
+// ---- /api/waits ----------------------------------------------------------------
+
+// WaitRow is one wait line.
+type WaitRow struct {
+	Line  int32    `json:"line"`
+	Tim   int64    `json:"tim"`
+	Ela   int64    `json:"ela"`
+	Stmt  model.ID `json:"stmt"`
+	Event model.ID `json:"event"`
+	P1    int64    `json:"p1"`
+	P2    int64    `json:"p2"`
+	P3    int64    `json:"p3"`
+	Obj   int64    `json:"obj"`
+	Call  model.ID `json:"call"`
+	Ctx   model.ID `json:"ctx"`
+	Dep   uint8    `json:"dep"`
+	Flags int      `json:"flags"` // 1 = between calls, 2 = idle
+}
+
+// WaitsResponse is the wait rows in scope, capped.
+type WaitsResponse struct {
+	Total int64     `json:"total"`
+	Us    int64     `json:"us"`
+	Rows  []WaitRow `json:"rows"`
+}
+
+func (s *Server) waitScope(q url.Values) (analyze.Filter, error) {
+	f, err := s.filter(q, true)
+	if err != nil {
+		return f, err
+	}
+	if f.Event == nil && f.Statement == nil && q.Get("scope") != "all" {
+		return f, bad("event or stmt: required (scope=all for every wait)")
+	}
+	return f, nil
+}
+
+func (s *Server) waits(q url.Values) (any, error) {
+	f, err := s.waitScope(q)
+	if err != nil {
+		return nil, err
+	}
+	limit, err := intParam(q, "limit", 100, 1, MaxWaitRows)
+	if err != nil {
+		return nil, err
+	}
+	byTim := false
+	switch q.Get("sort") {
+	case "", "ela":
+	case "tim":
+		byTim = true
+	default:
+		return nil, bad("sort: %q (want ela or tim)", q.Get("sort"))
+	}
+	ids, total, us := analyze.TopWaits(s.m, f, int(limit), byTim)
+	out := &WaitsResponse{Total: total, Us: us, Rows: make([]WaitRow, 0, len(ids))}
+	for _, i := range ids {
+		w := &s.m.Waits[i]
+		fl := 0
+		if w.Between {
+			fl |= 1
+		}
+		if w.Idle {
+			fl |= 2
+		}
+		out.Rows = append(out.Rows, WaitRow{Line: w.Line, Tim: w.Tim, Ela: w.Ela, Stmt: w.Statement, Event: w.Event, P1: w.P1, P2: w.P2, P3: w.P3,
+			Obj: w.ObjID, Call: w.Call, Ctx: w.Context, Dep: w.Dep, Flags: fl})
+	}
+	return out, nil
+}
+
+func (s *Server) waitHist(q url.Values) (any, error) {
+	f, err := s.waitScope(q)
+	if err != nil {
+		return nil, err
+	}
+	return analyze.WaitHist(s.m, f), nil
+}
+
+// ScatterResponse is a sample of waits over time: rows are [tim, ela, line, stmt].
+type ScatterResponse struct {
+	Total   int       `json:"total"`
+	Sampled bool      `json:"sampled"`
+	Cols    []string  `json:"cols"`
+	Rows    [][]int64 `json:"rows"`
+}
+
+func (s *Server) waitScatter(q url.Values) (any, error) {
+	f, err := s.waitScope(q)
+	if err != nil {
+		return nil, err
+	}
+	max, err := intParam(q, "max", 20000, 1, MaxScatter)
+	if err != nil {
+		return nil, err
+	}
+	ids, total := analyze.ScatterWaits(s.m, f, int(max))
+	out := &ScatterResponse{Total: total, Sampled: total > len(ids), Cols: []string{"tim", "ela", "line", "stmt"}, Rows: make([][]int64, 0, len(ids))}
+	for _, i := range ids {
+		w := &s.m.Waits[i]
+		out.Rows = append(out.Rows, []int64{w.Tim, w.Ela, int64(w.Line), int64(w.Statement)})
+	}
+	return out, nil
+}
+
+// ---- /api/profile, /api/stmt/* -------------------------------------------------
+
+func (s *Server) profile(q url.Values) (any, error) {
+	f, err := s.filter(q, true)
+	if err != nil {
+		return nil, err
+	}
+	p := analyze.ProfileOf(s.m, f)
+	if p.Events == nil {
+		p.Events = []analyze.EventAgg{}
+	}
+	return p, nil
+}
+
+func (s *Server) stmtRoles(url.Values) (any, error) {
+	classes, rows := analyze.WaitsByStmtClass(s.m)
+	flat := make([][3]int64, len(rows))
+	for i, r := range rows {
+		flat[i] = [3]int64{int64(r.Statement), int64(r.Class), r.Us}
+	}
+	if classes == nil {
+		classes = []string{}
+	}
+	return struct {
+		Classes []string   `json:"classes"`
+		Rows    [][3]int64 `json:"rows"` // [statement, class index, µs]
+	}{classes, flat}, nil
+}
+
+func (s *Server) stmtWaits(q url.Values) (any, error) {
+	if q.Get("stmt") == "" {
+		return nil, bad("stmt: required")
+	}
+	ids, err := idList(q, "stmt", len(s.m.Statements), MaxStmtList)
+	if err != nil {
+		return nil, err
+	}
+	max, err := intParam(q, "max", 6, 1, 50)
+	if err != nil {
+		return nil, err
+	}
+	res := analyze.TopStmtWaits(s.m, ids, int(max))
+	out := make(map[string][]analyze.StmtEventWait, len(ids))
+	for _, id := range ids {
+		l := res[id]
+		if l == nil {
+			l = []analyze.StmtEventWait{}
+		}
+		out[strconv.Itoa(int(id))] = l
+	}
+	return struct {
+		Waits map[string][]analyze.StmtEventWait `json:"waits"`
+	}{out}, nil
+}
+
+func (s *Server) stmtSpans(q url.Values) (any, error) {
+	if q.Get("stmt") == "" {
+		return nil, bad("stmt: required")
+	}
+	ids, err := idList(q, "stmt", len(s.m.Statements), MaxStmtList)
+	if err != nil {
+		return nil, err
+	}
+	gap, err := intParam(q, "gap", 0, 0, 1<<62)
+	if err != nil {
+		return nil, err
+	}
+	res := analyze.StmtSpans(s.m, ids, gap)
+	out := make(map[string][]analyze.Interval, len(ids))
+	for _, id := range ids {
+		l := res[id]
+		if l == nil {
+			l = []analyze.Interval{}
+		}
+		out[strconv.Itoa(int(id))] = l
+	}
+	return struct {
+		Spans map[string][]analyze.Interval `json:"spans"`
+	}{out}, nil
+}

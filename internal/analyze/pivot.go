@@ -43,27 +43,55 @@ type Filter struct {
 	StartTim, EndTim int64      // tim range, 0 = unbounded
 	Contexts         []model.ID // session contexts; empty = all
 	IncludeIdle      bool       // waits only: keep events of the Idle class
+	Statement        *model.ID  // only rows of this statement (nil = all)
+	Event            *model.ID  // waits only: only this event (nil = all)
 }
 
-func (f *Filter) ctxSet() map[model.ID]bool {
-	if len(f.Contexts) == 0 {
-		return nil
-	}
-	s := make(map[model.ID]bool, len(f.Contexts))
-	for _, c := range f.Contexts {
-		s[c] = true
-	}
-	return s
+// Matcher is a compiled Filter: the context set is built once.
+type Matcher struct {
+	f    Filter
+	ctxs map[model.ID]bool
 }
 
-func (f *Filter) inWindow(tim, ela int64) bool {
-	if f.EndTim != 0 && tim-ela > f.EndTim {
+// Matcher compiles the filter for use over many rows.
+func (f Filter) Matcher() *Matcher {
+	mt := &Matcher{f: f}
+	if len(f.Contexts) > 0 {
+		mt.ctxs = make(map[model.ID]bool, len(f.Contexts))
+		for _, c := range f.Contexts {
+			mt.ctxs[c] = true
+		}
+	}
+	return mt
+}
+
+func (mt *Matcher) inWindow(tim, ela int64) bool {
+	if mt.f.EndTim != 0 && tim-ela > mt.f.EndTim {
 		return false
 	}
-	if f.StartTim != 0 && tim < f.StartTim {
+	if mt.f.StartTim != 0 && tim < mt.f.StartTim {
 		return false
 	}
 	return true
+}
+
+// Call reports whether the call is in scope (Event is ignored: calls have none).
+func (mt *Matcher) Call(c *model.Call) bool {
+	if !mt.inWindow(c.Tim, c.E) || (mt.ctxs != nil && !mt.ctxs[c.Context]) {
+		return false
+	}
+	return mt.f.Statement == nil || c.Statement == *mt.f.Statement
+}
+
+// Wait reports whether the wait is in scope.
+func (mt *Matcher) Wait(w *model.Wait) bool {
+	if (!mt.f.IncludeIdle && w.Idle) || !mt.inWindow(w.Tim, w.Ela) || (mt.ctxs != nil && !mt.ctxs[w.Context]) {
+		return false
+	}
+	if mt.f.Statement != nil && w.Statement != *mt.f.Statement {
+		return false
+	}
+	return mt.f.Event == nil || w.Event == *mt.f.Event
 }
 
 // Dim describes a pivot dimension. Extra names a second, descriptive column
@@ -196,6 +224,29 @@ func (r *PivotResult) SortBy(measure string) error {
 		return strings.Join(r.Rows[a].Labels, "\x00") < strings.Join(r.Rows[b].Labels, "\x00")
 	})
 	return nil
+}
+
+// Project keeps only the measures with the given ids, in that order (rows and
+// totals included). The "share" measure is computed before, over all rows.
+func (r *PivotResult) Project(ids []string) {
+	idx := make([]int, len(ids))
+	ms := make([]Measure, len(ids))
+	for i, id := range ids {
+		idx[i] = MeasureIndex(r.Fact, id)
+		ms[i] = Measures(r.Fact)[idx[i]]
+	}
+	pick := func(v []float64) []float64 {
+		out := make([]float64, len(idx))
+		for i, k := range idx {
+			out[i] = v[k]
+		}
+		return out
+	}
+	r.Measures = ms
+	r.Total = pick(r.Total)
+	for i := range r.Rows {
+		r.Rows[i].Values = pick(r.Rows[i].Values)
+	}
 }
 
 // dimImpl resolves a dimension for the rows of one model.
@@ -680,7 +731,10 @@ func Pivot(m *model.Model, fact Fact, by []string, f Filter) (*PivotResult, erro
 	groups := map[[maxPivotDims]int64]*group{}
 	var order []*group
 	total := newAcc()
-	ctxs := f.ctxSet()
+	if fact == FactCalls && f.Event != nil {
+		return nil, fmt.Errorf("pivot: an event filter only applies to waits")
+	}
+	mt := f.Matcher()
 	rows := 0
 	n := len(m.Calls)
 	if fact == FactWaits {
@@ -688,15 +742,11 @@ func Pivot(m *model.Model, fact Fact, by []string, f Filter) (*PivotResult, erro
 	}
 	for i := 0; i < n; i++ {
 		if fact == FactCalls {
-			c := &m.Calls[i]
-			if !f.inWindow(c.Tim, c.E) || (ctxs != nil && !ctxs[c.Context]) {
+			if !mt.Call(&m.Calls[i]) {
 				continue
 			}
-		} else {
-			w := &m.Waits[i]
-			if (!f.IncludeIdle && w.Idle) || !f.inWindow(w.Tim, w.Ela) || (ctxs != nil && !ctxs[w.Context]) {
-				continue
-			}
+		} else if !mt.Wait(&m.Waits[i]) {
+			continue
 		}
 		rows++
 		var k [maxPivotDims]int64

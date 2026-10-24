@@ -20,6 +20,7 @@ import (
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/report"
+	slicepkg "github.com/davidbudac/modern-tkprof/internal/slice"
 	"github.com/davidbudac/modern-tkprof/internal/trace"
 	"github.com/davidbudac/modern-tkprof/internal/ui"
 )
@@ -393,12 +394,16 @@ func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	rf := refFlag(fs)
 	addr := fs.String("addr", "127.0.0.1:8046", "listen address")
-	facts := fs.Bool("facts", true, "include raw fact tables")
+	facts := fs.Bool("facts", true, "send the raw fact tables to the browser")
+	slice := fs.Bool("slice", false, "answer the UI's group-by queries from the server (/api/pivot, ...); implied by -facts=false")
 	pv := planVizFlag(fs)
 	fc := findingsFlag(fs)
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
 	files := parseArgs(fs, args)
+	// Without the fact tables in the document the browser has nothing to slice: the
+	// server keeps the model and answers the queries (docs/ARCHITECTURE.md § Server-side slicing).
+	slicing := *slice || !*facts
 	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
@@ -411,7 +416,7 @@ func cmdServe(args []string) error {
 	if err != nil {
 		return err
 	}
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th})
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th, Slice: slicing})
 	if err != nil {
 		return err
 	}
@@ -426,9 +431,13 @@ func cmdServe(args []string) error {
 		defer li.Close()
 		lis = append(lis, li)
 	}
-	m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
-	debug.FreeOSMemory()
 	mux := http.NewServeMux()
+	if slicing {
+		mux.Handle("/api/", slicepkg.New(m).Handler()) // /api/doc and /api/lines below are the longer patterns' exceptions
+	} else {
+		m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
+		debug.FreeOSMemory()
+	}
 	mux.HandleFunc("/api/lines", func(w http.ResponseWriter, r *http.Request) {
 		fi, _ := strconv.Atoi(r.URL.Query().Get("file"))
 		if fi < 0 || fi >= len(lis) {
