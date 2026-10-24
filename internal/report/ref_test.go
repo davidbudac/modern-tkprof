@@ -151,10 +151,18 @@ func TestApplyRefDocument(t *testing.T) {
 		t.Fatal(err)
 	}
 	pj, _ := DocumentBytes(plain, DocOptions{})
-	for _, k := range []string{`"objects"`, `"files"`, `"users"`, `"refPlan"`} {
-		if bytes.Contains(pj, []byte(k)) {
-			t.Errorf("document without -ref has %s", k)
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(pj, &top); err != nil {
+		t.Fatal(err)
+	}
+	// "files" also names the trace-set entries under "file", so check top-level keys.
+	for _, k := range []string{"objects", "files", "users"} {
+		if _, ok := top[k]; ok {
+			t.Errorf("document without -ref has top-level %q", k)
 		}
+	}
+	if bytes.Contains(pj, []byte(`"refPlan"`)) {
+		t.Errorf("document without -ref has refPlan")
 	}
 }
 
