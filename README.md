@@ -31,6 +31,8 @@ mtkprof json   trace.trc -o trace.json   # the full document (dimension tables +
 mtkprof plan   trace.trc -list          # statements with STAT plans (sql_id, plan hash, dumps, root cost/time)
 mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -o plan.json   # plan(s) as JSON rows for ora-explain-plan-viz; -plan-hash, -exec N
 mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -viz           # "Open in plan viz" link (plan stays in the URL fragment)
+mtkprof refscript trace.trc -o ref.sql  # SQL*Plus script for the DBA: names for the trace's obj#/file#/uid, DBMS_XPLAN per sql_id (-lite: ALL_ views only)
+mtkprof report trace.trc -ref ref/       # apply the spooled bundle (also html, serve, json, export, pivot, plan): object/datafile/user names + DBMS_XPLAN
 mtkprof lint   trace.trc                 # what the parser saw: line kinds, events, unknown lines
 ```
 
@@ -42,6 +44,11 @@ equal values stay recognisable across executions; `-binds none` (or
 sets how many bind sets to print per statement. The hash is for correlation,
 not secrecy: short values (numbers, codes) can be recovered by brute force,
 and SQL text, including its literals, is not redacted.
+
+Reference bundle: a trace carries only numbers (obj#, file#, user ids) and
+no plan text. `mtkprof refscript` writes a read-only SQL*Plus script tailored
+to the trace; the DBA runs it and `-ref dir` applies what it spooled to every
+output. mtkprof never connects to a database. See `docs/REF-BUNDLE.md`.
 
 ### The report
 
