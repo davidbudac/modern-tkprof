@@ -46,7 +46,7 @@ Facts (slices of structs, referenced by index):
 |---|---|---|
 | `Call` | one PARSE/EXEC/FETCH/CLOSE/LOB*/RPC/XCTEND line | c, e, p, cr, cu, mis, r, plus self-time (e minus recursive children) |
 | `Wait` | one WAIT line | ela, p1..p3, obj#, attributed call |
-| `Bind` | one bind value in one BINDS block | position, type, value |
+| `Bind` | one bind value in one BINDS block | position, type, value (TIMESTAMP / INTERVAL memory dumps are decoded at build time: `model/bindtypes.go`), kind, typed (ISO 8601) |
 | `PlanLine` | one STAT line | cnt (rows), str (starts), cr, pr, pw, time, cost, size, card |
 | `Transaction` | one XCTEND | rlbk, rd_only |
 | `Error` | ERROR / PARSE ERROR | err code |
@@ -84,6 +84,24 @@ Rules that give the model its meaning:
   in a table of known-value hashes without it. `none` empties `Binds` and
   `BindSets` and sets every `Call.BindSet` to `None`. The mode is recorded
   in `Diag.BindMode` (`kept|redacted|none`) and in `Diag.Notes`.
+
+* **Bind value decoding** (`bindtypes.go`): `Builder.Binds` turns the memory
+  dump of a TSLTZ / INTERVAL YM / INTERVAL DS (and, should a version print
+  them, TIMESTAMP / TSTZ / DATE) bind into text (`+03 04:05:06.789000000`,
+  `-123-11`, `2024-07-01 22:59:59.5 (database time zone)`) and clears
+  `IsDump`; an undecodable dump stays a dump. `Bind.Kind()` (from `Dty`) and
+  `Bind.Typed()` (computed from `Value` on demand, so a redacted value never
+  has one) give the ISO 8601 form: `P3DT4H5M6.789S`, `-P1Y6M`,
+  `2024-02-29T13:14:15.123456+02:00`, `1999-12-31T00:00:00`; a restricted
+  ROWID prints as the base-64 rowid with data object `AAAAAA`. The JSON binds
+  table has a `kind` column (0 string, 1 number, 2 date, 3 timestamp,
+  4 interval, 5 raw, 6 rowid, 7 other) and a `typed` string array (omitted when
+  no bind can have one); `/api/executions` binds and `binds.csv` carry
+  `kind` / `typed` too. Limits: RAW is printed by 19c one byte short (shown
+  with a trailing `…`, no typed form); timestamps printed as NLS text keep the
+  2-digit year (typed uses the RR rule), DATE text cut at 18 characters
+  yields minute precision; TSLTZ has no offset (database time zone unknown);
+  TSTZ regions show the UTC instant and the region id.
 
 ### Trace sets: file chains, sessions, PX (`internal/model/files.go`, `px.go`)
 

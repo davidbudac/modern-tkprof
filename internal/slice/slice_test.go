@@ -304,7 +304,7 @@ func TestExecutionsMatchAnalyze(t *testing.T) {
 			}
 			for k, b := range r.Binds {
 				mb := &m.Binds[int(bs.First)+k]
-				if b.Pos != mb.Pos || b.Value != mb.Value || b.Type != mb.TypeName() || b.IsNull != mb.IsNull {
+				if b.Pos != mb.Pos || b.Value != mb.Value || b.Type != mb.TypeName() || b.IsNull != mb.IsNull || b.Kind != mb.Kind().String() || b.Typed != mb.Typed() {
 					t.Fatalf("execution %d bind %d: %+v vs %+v", i, k, b, mb)
 				}
 			}

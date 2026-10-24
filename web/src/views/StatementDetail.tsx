@@ -182,7 +182,7 @@ function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
           <thead><tr><th className="num">pos</th><th>type</th><th>value</th></tr></thead>
           <tbody>{binds.map((b) => (
             <tr key={b.pos}><td className="num">{b.pos}</td><td className="dim">{b.type}{b.mal > 0 ? `[${b.mal}]` : ''}</td>
-              <td className="mono text">{b.noDef ? <span className="dim">same as an earlier bind</span> : b.isNull ? <span className="dim">NULL</span> : b.dump ? <span className="dim" title={b.value}>memory dump</span> : b.value}</td></tr>
+              <td className="mono text" title={b.typed}>{b.noDef ? <span className="dim">same as an earlier bind</span> : b.isNull ? <span className="dim">NULL</span> : b.dump ? <span className="dim" title={b.value}>memory dump</span> : b.value}</td></tr>
           ))}</tbody>
         </table></div>
       )}

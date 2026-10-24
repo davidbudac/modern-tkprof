@@ -335,7 +335,7 @@ export interface RawFacts {
   calls: RawTable
   waits: RawTable
   bindSets: RawTable
-  binds: RawTable & { type: string[]; value: string[] }
+  binds: RawTable & { type: string[]; value: string[]; typed?: string[] }
 }
 
 /** Names from a reference bundle (mtkprof -ref); the fact tables keep raw numbers. */

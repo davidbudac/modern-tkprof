@@ -351,8 +351,9 @@ func factTables(m *model.Model) []tableSpec {
 		}),
 		cI32("mal", func(i int) int64 { return int64(binds[i].Mal) }),
 		cI32("avl", func(i int) int64 { return int64(binds[i].Avl) }),
+		cU8("kind", func(i int) uint8 { return uint8(binds[i].Kind()) }),
 	}
-	// JSON order: set, pos, dty, type, value, flags, mal, avl
+	// JSON order: set, pos, dty, type, value, flags, mal, avl, kind, typed
 	mb := members(bcols)
 	byName := map[string]member{}
 	for _, x := range mb {
@@ -361,7 +362,10 @@ func factTables(m *model.Model) []tableSpec {
 	bm := []member{byName["set"], byName["pos"], byName["dty"],
 		{name: "type", raw: rawStrings(len(binds), func(i int) string { return binds[i].TypeName() })},
 		{name: "value", raw: rawStrings(len(binds), func(i int) string { return binds[i].Value })},
-		byName["flags"], byName["mal"], byName["avl"]}
+		byName["flags"], byName["mal"], byName["avl"], byName["kind"]}
+	if hasTypedBinds(binds) {
+		bm = append(bm, member{name: "typed", raw: rawStrings(len(binds), func(i int) string { return binds[i].Typed() })})
+	}
 	return append(out, tableSpec{"binds", len(binds), bm})
 }
 

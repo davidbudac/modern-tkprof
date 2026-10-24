@@ -792,6 +792,12 @@ func (b *Builder) Binds(bs trace.BindSet) {
 			Mal: int32(tb.Mal), Mxl: int32(tb.Mxl), Avl: int32(tb.Avl), Scl: int32(tb.Scl), Pre: int32(tb.Pre), Csi: int32(tb.Csi)}
 		if tb.HasValue {
 			bind.Value = decodeValue(tb)
+			if tb.IsDump {
+				// a dump of a type we can read becomes its value (no longer a dump)
+				if v, ok := decodeBindDump(tb.Dty, tb.Scl, tb.Value); ok {
+					bind.Value, bind.IsDump = v, false
+				}
+			}
 		} else if !tb.NoOacdef {
 			bind.IsNull = true
 		}
@@ -813,7 +819,21 @@ func decodeValue(tb *trace.Bind) string {
 	if n := len(v); n >= 2 && v[0] == '"' && v[n-1] == '"' {
 		return v[1 : n-1]
 	}
+	if tb.Dty == 23 && len(v) < 2*tb.Avl && isHexString(v) {
+		// 19c prints one byte fewer than avl of a RAW value; mark the cut
+		return v + "…"
+	}
 	return v
+}
+
+func isHexString(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !(c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // ---- transactions & errors -----------------------------------------------

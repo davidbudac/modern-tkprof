@@ -9,12 +9,12 @@ const callCols = ['line', 'kind', 'cursor', 'stmt', 'c', 'e', 'p', 'cr', 'cu', '
   'parent', 'selfE', 'selfC', 'selfP', 'selfCR', 'selfCU', 'ctx', 'execNo', 'bindSet', 'waitEla', 'idleEla', 'nWaits', 'flags'] as const
 const waitCols = ['line', 'cursor', 'stmt', 'call', 'event', 'ela', 'p1', 'p2', 'p3', 'obj', 'tim', 'ctx', 'dep', 'flags'] as const
 const bindSetCols = ['line', 'cursor', 'stmt', 'call', 'first', 'count', 'flags'] as const
-const bindCols = ['set', 'pos', 'dty', 'flags', 'mal', 'avl'] as const
+const bindCols = ['set', 'pos', 'dty', 'flags', 'mal', 'avl', 'kind'] as const
 
 export type Calls = Record<(typeof callCols)[number], NumCol> & { n: number }
 export type Waits = Record<(typeof waitCols)[number], NumCol> & { n: number }
 export type BindSets = Record<(typeof bindSetCols)[number], NumCol> & { n: number }
-export type Binds = Record<(typeof bindCols)[number], NumCol> & { n: number; type: string[]; value: string[] }
+export type Binds = Record<(typeof bindCols)[number], NumCol> & { n: number; type: string[]; value: string[]; /** ISO 8601 / base-64 ROWID form of date, timestamp, interval and rowid values ("" if none); absent when the document has none */ typed?: string[] }
 
 /** CSR index: ids grouped by an integer key. */
 export class Index {
@@ -129,7 +129,7 @@ export class TraceDoc {
     const calls = Object.assign(c, { n: f?.calls.n ?? 0 }) as Calls
     const waits = Object.assign(w, { n: f?.waits.n ?? 0 }) as Waits
     const bindSets = Object.assign(s, { n: f?.bindSets.n ?? 0 }) as BindSets
-    const binds = Object.assign(b, { n: f?.binds.n ?? 0, type: f?.binds.type ?? [], value: f?.binds.value ?? [] }) as Binds
+    const binds = Object.assign(b, { n: f?.binds.n ?? 0, type: f?.binds.type ?? [], value: f?.binds.value ?? [], typed: f?.binds.typed }) as Binds
     return new TraceDoc(raw, calls, waits, bindSets, binds)
   }
 

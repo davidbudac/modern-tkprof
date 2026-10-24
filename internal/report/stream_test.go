@@ -75,7 +75,7 @@ func decodePacked(t *testing.T, table map[string]json.RawMessage) map[string][]f
 // The packed document, decoded the way the UI does it, must carry exactly the
 // columns of the unpacked one.
 func TestPackedDocumentRoundTrip(t *testing.T) {
-	for _, fx := range []string{"basic_binds.trc", "io_waits.trc", "lobs.trc", "plsql_recursive.trc", "multisession_a.trc", "cursor_cache.trc"} {
+	for _, fx := range []string{"basic_binds.trc", "io_waits.trc", "lobs.trc", "plsql_recursive.trc", "multisession_a.trc", "cursor_cache.trc", "bind_types.trc"} {
 		m := buildFixture(t, fx)
 		var pk, up bytes.Buffer
 		if err := WriteDocument(&pk, m, DocOptions{Facts: true, Packed: true}); err != nil {
@@ -112,7 +112,7 @@ func TestPackedDocumentRoundTrip(t *testing.T) {
 				if col == "n" {
 					continue
 				}
-				if tbl == "binds" && (col == "type" || col == "value") {
+				if tbl == "binds" && (col == "type" || col == "value" || col == "typed") {
 					if !bytes.Equal(rm, ptb[col]) {
 						t.Errorf("%s %s.%s: strings differ", fx, tbl, col)
 					}
