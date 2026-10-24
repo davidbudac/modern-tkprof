@@ -14,6 +14,7 @@
 //	/api/waits           wait rows (slowest or earliest)
 //	/api/waits/hist      log2 histogram of wait durations
 //	/api/waits/scatter   sampled waits over time
+//	/api/waits/by        wait time by statement, object, p1 or p2 (real keys)
 //	/api/profile         CPU and waits per event in scope
 //	/api/stmt/roles      wait time per statement and wait class
 //	/api/stmt/waits      top wait events of statements
@@ -88,6 +89,7 @@ func (s *Server) Handler() http.Handler {
 		"/api/waits":             s.waits,
 		"/api/waits/hist":        s.waitHist,
 		"/api/waits/scatter":     s.waitScatter,
+		"/api/waits/by":          s.waitsBy,
 		"/api/profile":           s.profile,
 		"/api/stmt/roles":        s.stmtRoles,
 		"/api/stmt/waits":        s.stmtWaits,
@@ -682,6 +684,45 @@ func (s *Server) waitScatter(q url.Values) (any, error) {
 	for _, i := range ids {
 		w := &s.m.Waits[i]
 		out.Rows = append(out.Rows, []int64{w.Tim, w.Ela, int64(w.Line), int64(w.Statement)})
+	}
+	return out, nil
+}
+
+// WaitsByResponse is the groups of /api/waits/by, largest wait time first.
+type WaitsByResponse struct {
+	Groups int              `json:"groups"` // groups before the cap
+	Rows   []analyze.KeyAgg `json:"rows"`
+}
+
+func (s *Server) waitsBy(q url.Values) (any, error) {
+	f, err := s.waitScope(q)
+	if err != nil {
+		return nil, err
+	}
+	limit, err := intParam(q, "limit", 12, 1, 1000)
+	if err != nil {
+		return nil, err
+	}
+	var key func(w *model.Wait) (int64, bool)
+	switch q.Get("by") {
+	case "stmt":
+		key = func(w *model.Wait) (int64, bool) { return int64(w.Statement), true }
+	case "obj":
+		key = func(w *model.Wait) (int64, bool) { return w.ObjID, w.ObjID > 0 }
+	case "p1":
+		key = func(w *model.Wait) (int64, bool) { return w.P1, true }
+	case "p2":
+		key = func(w *model.Wait) (int64, bool) { return w.P2, true }
+	default:
+		return nil, bad("by: %q (want stmt, obj, p1 or p2)", q.Get("by"))
+	}
+	rows := analyze.WaitsBy(s.m, f.Matcher().Wait, key)
+	out := &WaitsByResponse{Groups: len(rows), Rows: rows}
+	if len(rows) > int(limit) {
+		out.Rows = rows[:limit]
+	}
+	if out.Rows == nil {
+		out.Rows = []analyze.KeyAgg{}
 	}
 	return out, nil
 }

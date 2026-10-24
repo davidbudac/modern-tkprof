@@ -3,8 +3,9 @@ import { TimelineChart } from './TimelineChart'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink, LinkText } from '../components/StmtLink'
 import { fmtDur, fmtInt, fmtCompact, fmtPct, preview } from '../data/format'
-import { useStore, actions, callFilter, waitFilter } from '../app/store'
-import { componentRows, quickSegments, statementWaits, type ComponentRow } from '../data/derive'
+import { useStore, actions, scopeOf } from '../app/store'
+import { sourceOf, useSourceQuery } from '../data/source'
+import { componentRowsFrom, quickSegments, type ComponentRow, type StmtWait } from '../data/derive'
 import { ticks, tickLabel, tickUnit, numberWord } from '../data/scale'
 import { lightFill } from '../components/colors'
 import { Findings, findingText } from './Findings'
@@ -16,9 +17,12 @@ const LEDGER_ROWS = 5
 
 export function Overview({ doc }: { doc: TraceDoc }) {
   const state = useStore((s) => s)
-  const cf = callFilter(state), wf = waitFilter(state)
+  const source = sourceOf(doc)
+  const scope = scopeOf(state)
   const totalUs = state.window ? state.window.endTim - state.window.startTim : doc.spanUs()
-  const rows = useMemo(() => componentRows(doc, cf, wf, totalUs), [doc, state.window, state.contexts, state.includeIdle, totalUs])
+  const profile = useSourceQuery(source, `profile:${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}|${scope.includeIdle ? 1 : 0}`,
+    (signal) => source.profile(scope, signal), 'profile')
+  const rows = useMemo(() => componentRowsFrom(doc, profile.data ?? null, totalUs), [doc, profile.data, totalUs])
   const stmts = useMemo(() => [...doc.stats.statements].filter((s) => s.allCalls.count > 0).sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)), [doc])
   const [timeView, setTimeView] = useState<'lanes' | 'event' | 'class'>('lanes')
   return (
@@ -159,7 +163,11 @@ function Ledger({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
 
 /** Top statements, each with its own profile bar drawn on the shared time axis. */
 function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtStats[]; totalUs: number }) {
+  const source = sourceOf(doc)
   const top = stmts.slice(0, TOP_STATEMENTS)
+  const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
+  const topIds = top.map((s) => s.id)
+  const waits = useSourceQuery(source, `waits:${topIds.join(',')}`, (signal) => (source.ready ? source.stmtWaits(topIds, 3, signal) : null)).data
   const rest = stmts.slice(TOP_STATEMENTS)
   const restUs = rest.reduce((a, s) => a + s.elapsed + s.idleUs, 0)
   const tk = ticks(totalUs)
@@ -169,7 +177,7 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
       {top.map((st) => {
         const s = doc.statements[st.id]
         const resp = st.elapsed + st.idleUs
-        const segs = quickSegments(doc, st).filter((x) => x.us > 0)
+        const segs = quickSegments(doc, st, roles).filter((x) => x.us > 0)
         const own = findings.filter((f) => f.statement === st.id)
         return (
           <div key={st.id} className="srow row-click" onClick={() => actions.selectStmt(st.id)}>
@@ -181,7 +189,7 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
             </div>
             <div className="bar">{segs.map((x) => <i key={x.role} style={{ width: `${(100 * x.us) / totalUs}%`, background: `var(--c-${x.role})` }} title={`${x.label} ${fmtDur(x.us)}`} />)}</div>
             <div className="note">
-              <Note doc={doc} st={st} />
+              <Note doc={doc} st={st} waits={waits?.get(st.id)} />
               {own.map((f, i) => <span key={i} className="fnote"><span className={`badge ${f.severity}`}>{f.severity}</span><b>{f.title}</b> <LinkText doc={doc} text={findingText(doc, f)} /></span>)}
             </div>
           </div>
@@ -193,9 +201,9 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
 }
 
 /** What the statement did, in one line: its top wait, its volume, its plan, its recursive work. */
-function Note({ doc, st }: { doc: TraceDoc; st: StmtStats }) {
+function Note({ doc, st, waits }: { doc: TraceDoc; st: StmtStats; waits?: StmtWait[] }) {
   const parts: string[] = []
-  const w = statementWaits(doc, st.id, 3).find((x) => x.role !== 'idle')
+  const w = (waits ?? []).find((x) => x.role !== 'idle')
   const resp = st.elapsed + st.idleUs
   if (w && w.us / resp >= 0.2) parts.push(`${w.name} ${fmtDur(w.us)} in ${fmtInt(w.count)} wait${w.count === 1 ? '' : 's'}${w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? ` on obj# ${w.obj}${doc.objectName(w.obj) ? ` (${doc.objectName(w.obj)})` : ''}` : ''}`)
   else if (st.cpu / resp >= 0.5) parts.push(`${fmtDur(st.cpu)} CPU`)

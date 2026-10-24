@@ -1,15 +1,15 @@
 import { useMemo } from 'react'
 import type { TraceDoc } from '../data/doc'
-import { CallKind, NONE } from '../data/types'
+import { NONE } from '../data/types'
 import { fmtDur, fmtInt, fmtCompact } from '../data/format'
 import { fmtDurDelta, fmtIntDelta, worse } from '../data/delta'
-import { bindsOf, type BindRow, type Execution } from '../data/derive'
+import type { BindRow, Execution } from '../data/derive'
 import { LineRef } from '../components/LineRef'
 import '../styles/compare.css'
 
-/** Resources of one call kind within one execution. */
-interface Part { calls: number; c: number; e: number; p: number; cr: number; cu: number; r: number }
-const zero = (): Part => ({ calls: 0, c: 0, e: 0, p: 0, cr: 0, cu: 0, r: 0 })
+import { sourceOf, useSourceQuery, type CallPart, type ExecDetail } from '../data/source'
+
+type Part = CallPart
 
 interface Facts {
   ex: Execution
@@ -23,51 +23,31 @@ interface Facts {
   plh: number
 }
 
-function add(part: Part, doc: TraceDoc, i: number) {
-  const c = doc.calls
-  part.calls++; part.c += c.c[i]; part.e += c.e[i]; part.p += c.p[i]; part.cr += c.cr[i]; part.cu += c.cu[i]; part.r += c.r[i]
-}
-
-/** The calls of one execution: the PARSE just before its EXEC on the same cursor, the EXEC, and its FETCHes. */
-function factsOf(doc: TraceDoc, ex: Execution): Facts {
-  const c = doc.calls
-  const ids = doc.callsByStmt.get(c.stmt[ex.exec])
-  const calls: number[] = []
-  const at = ids.indexOf(ex.exec)
-  for (let k = at - 1; k >= 0; k--) {
-    const i = ids[k]
-    if (c.cursor[i] !== ex.cursor) continue
-    if (c.kind[i] === CallKind.parse) calls.push(i)
-    break // the nearest earlier call of this cursor: a parse belongs to this execution, anything else to the previous one
-  }
-  calls.push(ex.exec)
-  for (let k = at + 1; k < ids.length; k++) {
-    const i = ids[k]
-    if (c.cursor[i] !== ex.cursor) continue
-    if (c.kind[i] !== CallKind.fetch || c.execNo[i] !== ex.execNo) { if (c.kind[i] === CallKind.exec || c.kind[i] === CallKind.close || c.kind[i] === CallKind.parse) break; continue }
-    calls.push(i)
-  }
-  const f: Facts = { ex, parse: zero(), exec: zero(), fetch: zero(), total: zero(), waits: new Map(), binds: bindsOf(doc, ex.bindSet), plh: c.plh[ex.exec] }
-  for (const i of calls) {
-    const part = c.kind[i] === CallKind.parse ? f.parse : c.kind[i] === CallKind.exec ? f.exec : f.fetch
-    add(part, doc, i)
-    add(f.total, doc, i)
-    for (const w of doc.waitsByCall.get(i)) {
-      const a = f.waits.get(doc.waits.event[w]) ?? { count: 0, us: 0 }
-      a.count++; a.us += doc.waits.ela[w]
-      f.waits.set(doc.waits.event[w], a)
-    }
-  }
-  return f
+function factsFrom(ex: Execution, d: ExecDetail): Facts {
+  return { ex, parse: d.parse, exec: d.exec, fetch: d.fetch, total: d.total, waits: new Map(d.waits.map((w) => [w.event, { count: w.count, us: w.us }])), binds: d.binds, plh: d.plh }
 }
 
 const bindText = (b: BindRow | undefined): string => (!b ? '' : b.noDef ? '(same as an earlier bind)' : b.isNull ? 'NULL' : b.dump ? '(memory dump)' : b.value)
 const bindKey = (b: BindRow | undefined): string => (!b ? 'absent' : b.noDef ? 'nodef' : b.isNull ? 'null' : (b.dump ? 'dump:' : 'val:') + b.value)
 
 /** Two executions of one statement side by side: call statistics, waits by event, binds, plan hash. */
-export function ExecCompare({ doc, a, b, onClear }: { doc: TraceDoc; a: Execution; b: Execution; onClear: () => void }) {
-  const fa = useMemo(() => factsOf(doc, a), [doc, a])
-  const fb = useMemo(() => factsOf(doc, b), [doc, b])
+export function ExecCompare({ doc, stmt, a, b, onClear }: { doc: TraceDoc; stmt: number; a: Execution; b: Execution; onClear: () => void }) {
+  const source = sourceOf(doc)
+  const qa = useSourceQuery(source, `cmp:${stmt}:${a.cursor}:${a.execNo}`, (signal) => source.executionDetail(stmt, a, signal))
+  const qb = useSourceQuery(source, `cmp:${stmt}:${b.cursor}:${b.execNo}`, (signal) => source.executionDetail(stmt, b, signal))
+  const fa = useMemo(() => (qa.data ? factsFrom(a, qa.data) : null), [a, qa.data])
+  const fb = useMemo(() => (qb.data ? factsFrom(b, qb.data) : null), [b, qb.data])
+  if (!fa || !fb) {
+    return (
+      <section className="section exec-cmp" aria-label="Execution A vs B">
+        <header><h2>Execution A vs B</h2><span className="hint">{qa.error || qb.error || 'loading…'}</span><span className="tools"><button onClick={onClear}>Clear</button></span></header>
+      </section>
+    )
+  }
+  return <ExecCompareView doc={doc} a={a} b={b} fa={fa} fb={fb} onClear={onClear} />
+}
+
+function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Execution; b: Execution; fa: Facts; fb: Facts; onClear: () => void }) {
   const all: { name: string; get: (f: Facts) => Part }[] = [
     { name: 'Parse', get: (f) => f.parse }, { name: 'Execute', get: (f) => f.exec }, { name: 'Fetch', get: (f) => f.fetch }, { name: 'Total', get: (f) => f.total },
   ]

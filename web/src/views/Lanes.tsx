@@ -2,9 +2,10 @@ import { useMemo, useRef, useState, type PointerEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtWall, preview } from '../data/format'
-import { useStore, actions, getState, waitFilter } from '../app/store'
+import { useStore, actions, getState, scopeOf } from '../app/store'
+import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
-import { statementSpans, dominantRole, timeline, type Span2 } from '../data/derive'
+import { dominantRole, foldTimeline, type Span2 } from '../data/derive'
 import { ticks } from '../data/scale'
 import { roleOrder, type Role } from '../components/colors'
 
@@ -33,24 +34,28 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
   const drag = dragRef.current
   const setDrag = (d: { x0: number; x1: number } | null) => { dragRef.current = d; repaint((n) => n + 1) }
 
-  const lanes = useMemo<Lane[]>(() => {
-    const top = doc.stats.statements.filter((s) => s.allCalls.count > 0 && s.firstTim > 0)
-      .sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)).slice(0, MAX_LANES)
-      .sort((a, b) => a.firstTim - b.firstTim)
-    const gap = span / 600
-    return top.map((st) => {
-      const s = doc.statements[st.id]
-      const spans = doc.hasFacts ? statementSpans(doc, st.id, gap) : [{ start: st.firstTim, end: st.lastTim }]
-      return { st, label: doc.label(s), text: preview(s.text, 60), role: dominantRole(doc, st), spans }
-    })
-  }, [doc, span])
+  const source = sourceOf(doc)
+  const top = useMemo(() => doc.stats.statements.filter((s) => s.allCalls.count > 0 && s.firstTim > 0)
+    .sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)).slice(0, MAX_LANES)
+    .sort((a, b) => a.firstTim - b.firstTim), [doc])
+  const topIds = top.map((s) => s.id)
+  const gap = span / 600
+  const spansQ = useSourceQuery(source, `spans:${topIds.join(',')}:${gap}`, (signal) => (source.ready ? source.stmtSpans(topIds, gap, signal) : null), 'spans')
+  const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
+  const lanes = useMemo<Lane[]>(() => top.map((st) => {
+    const s = doc.statements[st.id]
+    const spans = spansQ.data?.get(st.id) ?? [{ start: st.firstTim, end: st.lastTim }]
+    return { st, label: doc.label(s), text: preview(s.text, 60), role: dominantRole(doc, st, roles), spans }
+  }), [doc, top, spansQ.data, roles])
 
+  const scope = scopeOf(state)
+  const bucketUs = Math.max(1, Math.ceil(span / BUCKETS))
+  const stripsQ = useSourceQuery(source, `strips:${bucketUs}:${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}:${scope.includeIdle ? 1 : 0}`,
+    (signal) => (source.ready && span > 0 ? source.timeline(bucketUs, { ...scope, window: null }, signal) : null), 'strips')
   const strips = useMemo(() => {
-    if (!doc.hasFacts || span <= 0) return null
-    const bucketUs = Math.max(1, Math.ceil(span / BUCKETS))
-    const t = timeline(doc, bucketUs, undefined, waitFilter({ ...state, window: null }), 'class')
-    return { bucketUs, ...t }
-  }, [doc, span, state.contexts, state.includeIdle])
+    if (!stripsQ.data) return null
+    return { bucketUs, ...foldTimeline(doc, stripsQ.data, 'class') }
+  }, [doc, stripsQ.data, bucketUs])
 
   const tk = useMemo(() => ticks(span, 8), [span])
   const x = (tim: number) => `${(100 * (tim - base)) / span}%`

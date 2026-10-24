@@ -2,19 +2,22 @@ import { useMemo } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { EventAgg } from '../data/types'
 import { fmtDur, fmtInt, fmtPct } from '../data/format'
-import { useStore, actions, waitFilter } from '../app/store'
+import { useStore, actions, scopeOf } from '../app/store'
+import { sourceOf, useSourceQuery } from '../data/source'
 import { DataTable, type Column } from '../components/DataTable'
-import { waitsByEvent } from '../data/derive'
 import { roleOfClass } from '../components/colors'
 
 export function Waits({ doc }: { doc: TraceDoc }) {
   const state = useStore((s) => s)
   const sel = state.selection.event
+  const source = sourceOf(doc)
+  const scope = scopeOf(state)
+  const profile = useSourceQuery(source, `profile:${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}|${scope.includeIdle ? 1 : 0}`,
+    (signal) => source.profile(scope, signal), 'profile')
   const rows = useMemo<EventAgg[]>(() => {
-    if (!doc.hasFacts) return doc.stats.events
-    const wf = waitFilter(state)
-    return waitsByEvent(doc, wf).map((a) => { const ev = doc.events[a.key]; return { event: a.key, name: ev.name, class: ev.class, idle: ev.idle, count: a.count, us: a.sum, minUs: a.min, maxUs: a.max } })
-  }, [doc, state.window, state.contexts, state.includeIdle])
+    if (!profile.data) return profile.loading ? [] : doc.stats.events
+    return profile.data.events.map((a) => { const ev = doc.events[a.key]; return { event: a.key, name: ev.name, class: ev.class, idle: ev.idle, count: a.count, us: a.sum, minUs: a.min, maxUs: a.max } })
+  }, [doc, profile.data, profile.loading])
   const total = rows.reduce((a, r) => a + r.us, 0)
   const cols: Column<EventAgg>[] = [
     { key: 'n', header: 'Event', render: (r) => <span className="evname" title={r.name}><i className="swatch" style={{ background: `var(--c-${roleOfClass(r.class, r.idle)})` }} /><span>{r.name}</span></span>, sort: (r) => r.name, className: 'clip', width: '22rem' },

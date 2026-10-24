@@ -363,6 +363,8 @@ export interface RawDocument {
   unknown: { line: number; text: string }[] | null
   facts?: RawFacts
   planViz?: string
+  /** the server that sent the document answers the /api/pivot, /api/timeline, ... queries (`serve -facts=false`) */
+  slice?: boolean
   objects?: RefObject[] | null
   files?: RefFile[] | null
   users?: RefUser[] | null

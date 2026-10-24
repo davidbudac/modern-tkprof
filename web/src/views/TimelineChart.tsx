@@ -2,8 +2,9 @@ import { useMemo } from 'react'
 import type { EChartsOption } from 'echarts'
 import type { TraceDoc } from '../data/doc'
 import { Chart } from '../components/Chart'
-import { useStore, actions, waitFilter } from '../app/store'
-import { timeline, pickBucket } from '../data/derive'
+import { useStore, actions, scopeOf } from '../app/store'
+import { sourceOf, useSourceQuery } from '../data/source'
+import { foldTimeline, pickBucket } from '../data/derive'
 import { resolveVar, roleShade, type Role } from '../components/colors'
 import { fmtDur, fmtWall } from '../data/format'
 
@@ -11,7 +12,11 @@ import { fmtDur, fmtWall } from '../data/format'
 export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'event' | 'class' }) {
   const state = useStore((s) => s)
   const bucketUs = useMemo(() => pickBucket(doc.spanUs()), [doc])
-  const data = useMemo(() => timeline(doc, bucketUs, undefined, waitFilter({ ...state, window: null }), by), [doc, bucketUs, by, state.contexts, state.includeIdle])
+  const source = sourceOf(doc)
+  const scope = { ...scopeOf(state), window: null }
+  const raw = useSourceQuery(source, `chart:${bucketUs}:${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}:${scope.includeIdle ? 1 : 0}`,
+    (signal) => (source.ready ? source.timeline(bucketUs, scope, signal) : null), 'chart')
+  const data = useMemo(() => (raw.data ? foldTimeline(doc, raw.data, by) : { starts: [] as number[], series: [] as { key: string; label: string; role: Role; values: Float64Array }[] }), [doc, raw.data, by])
   const option = useMemo<EChartsOption>(() => {
     const series = data.series.filter((s) => s.values.some((v) => v > 0))
     const nth = new Map<Role, number>()
@@ -48,6 +53,8 @@ export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'even
       actions.setWindow({ startTim: doc.span.firstTim + (span * start) / 100, endTim: doc.span.firstTim + (span * end) / 100 })
     },
   }), [doc])
+  if (raw.loading && data.starts.length === 0) return <p className="muted small">loading…</p>
+  if (raw.error) return <p className="callout">{raw.error}</p>
   if (data.starts.length === 0) return <p className="muted small">No time information in this trace.</p>
   return <Chart option={option} onEvents={events} />
 }

@@ -5,38 +5,34 @@ import { StmtLink } from '../components/StmtLink'
 import type { ID } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, preview, fmtCompact, fmtWall } from '../data/format'
 import { LineRef } from '../components/LineRef'
-import { actions, getState, useStore, waitFilter } from '../app/store'
+import { actions, getState, useStore, scopeOf } from '../app/store'
+import { sourceOf, useSourceQuery, KEEP_SLOWEST, type KeyAgg } from '../data/source'
 import { Chart } from '../components/Chart'
-import { groupBy, logHistogram } from '../data/groupby'
 import { cssColor, roleOfClass } from '../components/colors'
 
-const MAX_DOTS = 20000
-const KEEP_SLOWEST = 2000
-
-/** At most `cap` of the indices: the slowest waits are always kept, the rest evenly strided. */
-function sampleWaits(ids: number[], ela: ArrayLike<number>, cap: number): number[] {
-  if (ids.length <= cap) return ids
-  const byEla = [...ids].sort((a, b) => ela[b] - ela[a])
-  const keep = byEla.slice(0, KEEP_SLOWEST)
-  const rest = byEla.slice(KEEP_SLOWEST)
-  const stride = rest.length / (cap - KEEP_SLOWEST)
-  for (let k = 0; k < cap - KEEP_SLOWEST; k++) keep.push(rest[Math.floor(k * stride)])
-  return keep
-}
+const scopeKey = (s: ReturnType<typeof scopeOf>, window = true) =>
+  `${window && s.window ? `${s.window.startTim}:${s.window.endTim}` : ''}|${s.contexts ? [...s.contexts].sort((a, b) => a - b).join(',') : ''}|${s.includeIdle ? 1 : 0}`
 
 export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
   const ev = doc.events[id]
   const state = useStore((s) => s)
+  const source = sourceOf(doc)
   const agg = doc.stats.events.find((e) => e.event === id)
-  const w = doc.waits
-  const filtered = useMemo(() => {
-    const wf = waitFilter(state)
-    const ids: number[] = []
-    for (let i = 0; i < w.n; i++) if (w.event[i] === id && (!wf || wf(i))) ids.push(i)
-    return ids
-  }, [doc, id, state.window, state.contexts])
-  const hist = useMemo(() => logHistogram(filtered.map((i) => w.ela[i])), [filtered])
-  const total = filtered.reduce((a, i) => a + w.ela[i], 0)
+  const scope = scopeOf(state)
+  const noWindow = { ...scope, window: null }
+  const k = `${id}:${scopeKey(scope)}`
+  const histQ = useSourceQuery(source, `hist:${k}`, (signal) => (source.ready ? source.waitHist(id, scope, signal) : null), `hist:${id}`)
+  const scatterQ = useSourceQuery(source, `scatter:${id}:${scopeKey(noWindow, false)}`, (signal) => (source.ready ? source.waitScatter(id, noWindow, signal) : null), `scatter:${id}`)
+  const slowestQ = useSourceQuery(source, `slowest:${k}`, (signal) => (source.ready ? source.waitTop(id, scope, 12, signal) : null), `slowest:${id}`)
+  const byStmtQ = useSourceQuery(source, `bystmt:${k}`, (signal) => (source.ready ? source.waitsBy(id, scope, 'stmt', 12, signal) : null), `bystmt:${id}`)
+  const byObjQ = useSourceQuery(source, `byobj:${k}`, (signal) => (source.ready ? source.waitsBy(id, scope, 'obj', 12, signal) : null), `byobj:${id}`)
+  const byP1Q = useSourceQuery(source, `byp1:${k}`, (signal) => (source.ready ? source.waitsBy(id, scope, 'p1', 12, signal) : null), `byp1:${id}`)
+  const hist = useMemo(() => {
+    const h = histQ.data
+    return h ? { edges: h.counts.map((_, i) => 2 ** i), counts: h.counts, sums: h.sums } : { edges: [] as number[], counts: [] as number[], sums: [] as number[] }
+  }, [histQ.data])
+  const filteredCount = histQ.data?.count ?? 0
+  const total = histQ.data?.us ?? 0
   const role = roleOfClass(ev.class, ev.idle)
   const histOpt = useMemo<EChartsOption>(() => {
     let lo = 0, hi = hist.counts.length - 1
@@ -53,27 +49,23 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
   }, [hist, role])
   // scatter: every wait over trace time, ela on a log axis; the slider sets the global time window
   const linesAvailable = state.linesAvailable
-  const allIds = useMemo(() => {
-    const wf = waitFilter({ ...state, window: null })
-    const ids: number[] = []
-    for (let i = 0; i < w.n; i++) if (w.event[i] === id && w.tim[i] && (!wf || wf(i))) ids.push(i)
-    return ids
-  }, [doc, id, state.contexts, state.includeIdle])
-  const dots = useMemo(() => sampleWaits(allIds, w.ela, MAX_DOTS), [allIds])
+  const allCount = scatterQ.data?.total ?? 0
+  const dots = useMemo(() => scatterQ.data?.points ?? [], [scatterQ.data])
   const span = doc.spanUs()
   const scatterOpt = useMemo<EChartsOption>(() => {
     const base = doc.span.firstTim
     const label = (v: number) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(base + v), doc.tzOffsetMin) : `+${fmtDur(v)}`)
-    const pts = dots.map((i) => [w.tim[i] - w.ela[i] - base, Math.max(w.ela[i], 0.5), i])
+    const pts = dots.map((d, i) => [d.tim - d.ela - base, Math.max(d.ela, 0.5), i])
     const win = state.window
     return {
       grid: { left: 8, right: 16, top: 12, bottom: 56, containLabel: true },
       tooltip: {
         trigger: 'item',
         formatter: (p: unknown) => {
-          const i = (p as { data: number[] }).data[2]
-          const st = doc.statements[w.stmt[i]]
-          return `${label(w.tim[i] - w.ela[i] - base)}<br><b>${fmtDur(w.ela[i])}</b>${st ? `<br>${doc.label(st)}` : ''}<br>line ${fmtInt(w.line[i])}${linesAvailable ? ' (click to view)' : ''}`
+          const d = dots[(p as { data: number[] }).data[2]]
+          if (!d) return ''
+          const st = doc.statements[d.stmt]
+          return `${label(d.tim - d.ela - base)}<br><b>${fmtDur(d.ela)}</b>${st ? `<br>${doc.label(st)}` : ''}<br>line ${fmtInt(d.line)}${linesAvailable ? ' (click to view)' : ''}`
         },
       },
       xAxis: { type: 'value', min: 0, max: span, splitNumber: 5, axisLabel: { hideOverlap: true, formatter: (v: number) => label(v) } },
@@ -93,13 +85,13 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       if (start <= 0 && end >= 100) { if (getState().window) actions.setWindow(null); return }
       actions.setWindow({ startTim: doc.span.firstTim + (span * start) / 100, endTim: doc.span.firstTim + (span * end) / 100 })
     },
-    click: (p: unknown) => { const d = (p as { data?: number[] }).data; if (d && getState().linesAvailable) actions.openLines(w.line[d[2]]) },
-  }), [doc, span])
-  const slowest = useMemo(() => [...filtered].sort((a, b) => w.ela[b] - w.ela[a]).slice(0, 12), [filtered])
-  const byStmt = useMemo(() => groupBy({ n: filtered.length, key: (k) => w.stmt[filtered[k]], value: (k) => w.ela[filtered[k]] }).slice(0, 12), [filtered])
-  const byObj = useMemo(() => groupBy({ n: filtered.length, key: (k) => { const o = w.obj[filtered[k]]; return o > 0 ? o : NaN }, value: (k) => w.ela[filtered[k]] }).slice(0, 12), [filtered])
+    click: (p: unknown) => { const d = (p as { data?: number[] }).data; if (d && getState().linesAvailable) actions.openLines(dots[d[2]].line) },
+  }), [doc, span, dots])
+  const slowest = slowestQ.data ?? []
+  const byStmt: KeyAgg[] = byStmtQ.data ?? []
+  const byObj: KeyAgg[] = byObjQ.data ?? []
   const p1Name = ev.p1Name || 'p1'
-  const byP1 = useMemo(() => groupBy({ n: filtered.length, key: (k) => w.p1[filtered[k]], value: (k) => w.ela[filtered[k]] }).slice(0, 12), [filtered])
+  const byP1: KeyAgg[] = byP1Q.data ?? []
   const isFile = /file/i.test(p1Name)
   return (
     <>
@@ -107,17 +99,17 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
         <dt>Class</dt><dd>{ev.class || 'unknown'}{ev.idle ? ' (idle)' : ''}</dd>
         <dt>Parameters</dt><dd className="mono">{[ev.p1Name, ev.p2Name, ev.p3Name].filter(Boolean).join(' · ') || '–'}</dd>
         {agg && <><dt>Whole trace</dt><dd>{fmtInt(agg.count)} waits · {fmtDur(agg.us)} · avg {fmtDur(agg.us / agg.count)} · max {fmtDur(agg.maxUs)}</dd></>}
-        {(state.window || state.contexts) && <><dt>In filter</dt><dd>{fmtInt(filtered.length)} waits · {fmtDur(total)}</dd></>}
+        {(state.window || state.contexts) && <><dt>In filter</dt><dd>{fmtInt(filteredCount)} waits · {fmtDur(total)}</dd></>}
       </dl>
-      {filtered.length > 0 && (
+      {filteredCount > 0 && (
         <section className="section">
           <header><h2>Duration distribution</h2><span className="hint">log scale buckets</span></header>
           <Chart option={histOpt} className="short" />
         </section>
       )}
-      {allIds.length > 0 && span > 0 && (
+      {allCount > 0 && span > 0 && (
         <section className="section">
-          <header><h2>Waits over time</h2><span className="hint">{dots.length < allIds.length ? `${fmtInt(dots.length)} of ${fmtInt(allIds.length)} waits (the ${fmtInt(KEEP_SLOWEST)} slowest + an even sample)` : `${fmtInt(allIds.length)} waits`} · elapsed on a log scale · drag the slider to set the time window</span></header>
+          <header><h2>Waits over time</h2><span className="hint">{dots.length < allCount ? `${fmtInt(dots.length)} of ${fmtInt(allCount)} waits (the ${fmtInt(KEEP_SLOWEST)} slowest + an even sample)` : `${fmtInt(allCount)} waits`} · elapsed on a log scale · drag the slider to set the time window</span></header>
           <Chart option={scatterOpt} onEvents={scatterEvents} className="short" />
         </section>
       )}
@@ -127,12 +119,12 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
           <div className="tbl-wrap"><table className="tbl">
             <thead><tr><th>start</th><th className="num">elapsed</th><th>statement</th><th className="num">line</th></tr></thead>
             <tbody>
-              {slowest.map((i) => { const st = doc.statements[w.stmt[i]]; const t = w.tim[i] - w.ela[i]; return (
-                <tr key={i}>
+              {slowest.map((x, k) => { const st = doc.statements[x.stmt]; const t = x.tim - x.ela; return (
+                <tr key={k}>
                   <td>{doc.wallOffsetUs ? fmtWall(doc.wallOf(t), doc.tzOffsetMin) : `+${fmtDur(t - doc.span.firstTim)}`}</td>
-                  <td className="num">{fmtDur(w.ela[i])}</td>
-                  <td>{st ? <StmtLink doc={doc} id={w.stmt[i]} /> : '–'}</td>
-                  <td className="num"><LineRef line={w.line[i]} bare /></td>
+                  <td className="num">{fmtDur(x.ela)}</td>
+                  <td>{st ? <StmtLink doc={doc} id={x.stmt} /> : '–'}</td>
+                  <td className="num"><LineRef line={x.line} bare /></td>
                 </tr>) })}
             </tbody>
           </table></div>

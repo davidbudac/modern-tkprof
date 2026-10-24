@@ -4,16 +4,18 @@ import type { ID } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, preview } from '../data/format'
 import { actions } from '../app/store'
 import { LineRef } from '../components/LineRef'
-import { statementWaits } from '../data/derive'
+import { sourceOf, useSourceQuery } from '../data/source'
 import { findingText } from './Findings'
 
 /** The right-hand column of the workbench: where the statement ran, its waits, its relatives, its findings. */
 export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
   const st = doc.statements[id]
   const stats = doc.stats.statements[id]
+  const source = sourceOf(doc)
+  const waitsQ = useSourceQuery(source, `waits:${id}`, (signal) => (source.ready ? source.stmtWaits([id], 6, signal) : null), 'waits')
   if (!st || !stats) return null
   const ctx = st.cursors.length ? doc.contexts[doc.cursors[st.cursors[0]].context] : undefined
-  const waits = statementWaits(doc, id, 6)
+  const waits = waitsQ.data?.get(id) ?? []
   const children = stats.children ?? [], parents = stats.parents ?? []
   const findings = doc.stats.findings.filter((f) => f.statement === id)
   const assumed = st.cursors.some((c) => doc.cursors[c].assumed)

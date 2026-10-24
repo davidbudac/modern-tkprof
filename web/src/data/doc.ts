@@ -58,6 +58,8 @@ export class TraceDoc {
   readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[]; findingsConfig: Record<string, number>; contexts: ContextStats[] }
 
   readonly hasFacts: boolean
+  /** the server that sent this document answers the slicing queries; without fact tables the views ask it (see source.ts) */
+  readonly slice: boolean
   /** a reference bundle (mtkprof -ref) named some objects, files or users */
   readonly hasRef: boolean
   private readonly objNames = new Map<number, RefObject>()
@@ -100,6 +102,7 @@ export class TraceDoc {
     this.unknown = raw.unknown ?? []
     this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [], findingsConfig: raw.stats.findingsConfig ?? {}, contexts: raw.stats.contexts ?? [] }
     this.hasFacts = !!raw.facts
+    this.slice = !!raw.slice
     this.hasRef = !!(raw.objects?.length || raw.files?.length || raw.users?.length)
     for (const o of raw.objects ?? []) this.objNames.set(o.id, o)
     for (const f of raw.files ?? []) this.fileNames.set(f.file, f)

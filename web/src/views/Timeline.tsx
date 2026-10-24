@@ -7,7 +7,8 @@ import { StmtLink } from '../components/StmtLink'
 import { LineRef } from '../components/LineRef'
 import { CallKind, callKindName, NONE, type ID } from '../data/types'
 import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
-import { useStore, actions, callFilter } from '../app/store'
+import { useStore, actions, scopeOf } from '../app/store'
+import { sourceOf, useSourceQuery, type Bar } from '../data/source'
 import { Chart } from '../components/Chart'
 import { DataTable, type Column } from '../components/DataTable'
 import { resolveVar } from '../components/colors'
@@ -15,7 +16,6 @@ import '../styles/timeline.css'
 
 echarts.use([CustomChart])
 
-const MAX_BARS = 20000
 const MAX_LANES = 25
 const LANE_PX = 26
 
@@ -41,14 +41,6 @@ function groupOf(kind: number): KindGroup {
 }
 
 interface Lane { label: string; stmts: Set<ID> | null } // null = fold-everything-else lane
-
-interface Picked {
-  /** [lane, startUs, endUs, callIndex, groupIndex] per bar */
-  rows: number[][]
-  total: number
-  sampled: boolean
-  longest: number[] // call indexes, longest first (max 20)
-}
 
 export function Timeline({ doc }: { doc: TraceDoc }) {
   const state = useStore((s) => s)
@@ -76,52 +68,19 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
     return { list, byStmt }
   }, [doc])
 
-  const picked = useMemo<Picked>(() => {
-    const c = doc.calls
-    const cf = callFilter(state)
-    const idx: number[] = []
-    for (let i = 0; i < c.n; i++) {
-      if (!c.tim[i]) continue
-      if (cf && !cf(i)) continue
-      idx.push(i)
-    }
-    const total = idx.length
-    let keep = idx
-    let sampled = false
-    if (total > MAX_BARS) {
-      sampled = true
-      const es = new Float64Array(total)
-      for (let k = 0; k < total; k++) es[k] = c.e[idx[k]]
-      es.sort()
-      const threshold = es[total - MAX_BARS]
-      const above: number[] = [], equal: number[] = []
-      for (const i of idx) {
-        const e = c.e[i]
-        if (e > threshold) above.push(i)
-        else if (e === threshold) equal.push(i)
-      }
-      keep = above.concat(equal.slice(0, MAX_BARS - above.length))
-    }
-    const rows: number[][] = new Array(keep.length)
-    for (let k = 0; k < keep.length; k++) {
-      const i = keep[k]
-      const end = c.tim[i] - base
-      rows[k] = [lanes.byStmt[c.stmt[i]], end - c.e[i], end, i, groupIndex[groupOf(c.kind[i])]]
-    }
-    // longest calls in the window (from the unsampled set)
-    const longest = idx.length <= 20 ? idx.slice() : (() => {
-      const es = new Float64Array(total)
-      for (let k = 0; k < total; k++) es[k] = c.e[idx[k]]
-      const sorted = es.slice().sort()
-      const th = sorted[total - 20]
-      return idx.filter((i) => c.e[i] >= th)
-    })()
-    longest.sort((a, b) => c.e[b] - c.e[a])
-    return { rows, total, sampled, longest: longest.slice(0, 20) }
-  }, [doc, lanes, state.window, state.contexts, base])
+  const source = sourceOf(doc)
+  const scope = scopeOf(state)
+  const query = useSourceQuery(source, `${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}`,
+    (signal) => (source.ready ? source.calls(scope, signal) : null), 'calls')
+  const picked = useMemo(() => {
+    const p = query.data
+    if (!p) return null
+    // [lane, startUs, endUs, bar index, group] per bar
+    const rows = p.bars.map((b, k) => [lanes.byStmt[b.stmt], b.tim - b.e - base, b.tim - base, k, groupIndex[groupOf(b.kind)]])
+    return { rows, bars: p.bars, total: p.total, sampled: p.sampled, longest: p.longest }
+  }, [query.data, lanes, base])
 
   const option = useMemo<EChartsOption>(() => {
-    const c = doc.calls
     const span = doc.spanUs()
     const xMin = win ? win.startTim - base : 0
     const xMax = win ? win.endTim - base : span
@@ -146,15 +105,16 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
         axisPointer: { type: 'none' },
         formatter: (p: unknown) => {
           const d = (p as { data: number[] }).data
-          const i = d[3]
-          const st = doc.statements[c.stmt[i]]
-          const startTim = c.tim[i] - c.e[i]
+          const b = picked?.bars[d[3]]
+          if (!b) return ''
+          const st = doc.statements[b.stmt]
+          const startTim = b.tim - b.e
           const when = doc.wallOffsetUs ? fmtWall(doc.wallOf(startTim), doc.tzOffsetMin, { micros: true }) : `+${fmtDur(startTim - base)}`
           const lines = [
-            `<b>${callKindName[c.kind[i]] ?? 'CALL'}</b> ${st ? doc.label(st) : ''}${c.execNo[i] ? ` · exec #${c.execNo[i]}` : ''}`,
+            `<b>${callKindName[b.kind] ?? 'CALL'}</b> ${st ? doc.label(st) : ''}${b.execNo ? ` · exec #${b.execNo}` : ''}`,
             `start ${when}`,
-            `elapsed ${fmtDur(c.e[i])} · cpu ${fmtDur(c.c[i])} · rows ${fmtInt(c.r[i])}`,
-            `line ${fmtInt(c.line[i])}${c.dep[i] ? ` · depth ${c.dep[i]}` : ''}`,
+            `elapsed ${fmtDur(b.e)} · cpu ${fmtDur(b.c)} · rows ${fmtInt(b.r)}`,
+            `line ${fmtInt(b.line)}${b.dep ? ` · depth ${b.dep}` : ''}`,
           ]
           return lines.join('<br>')
         },
@@ -166,7 +126,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
         { type: 'slider', xAxisIndex: 0, filterMode: 'weakFilter', height: 20, bottom: 6, borderColor: 'transparent', fillerColor: 'rgba(120,120,120,0.15)', labelFormatter: (v: number) => fmtDur(v) },
       ],
       series: [{
-        type: 'custom', name: 'calls', renderItem, encode: { x: [1, 2], y: 0 }, data: picked.rows,
+        type: 'custom', name: 'calls', renderItem, encode: { x: [1, 2], y: 0 }, data: picked?.rows ?? [],
         progressive: 5000, progressiveThreshold: 5000, clip: true,
       }],
     }
@@ -182,30 +142,37 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
       }
       const d = e.data
       if (!d) return
-      const stmt = doc.calls.stmt[d[3]]
-      if (stmt !== NONE) actions.selectStmt(stmt)
+      const stmt = picked?.bars[d[3]]?.stmt
+      if (stmt !== undefined && stmt !== NONE) actions.selectStmt(stmt)
     },
-  }), [doc, lanes])
+  }), [lanes, picked])
 
-  if (!doc.hasFacts) {
+  if (!source.ready) {
     return (
       <section className="section">
         <header><h2>Timeline</h2></header>
-        <p className="callout">This document was generated without fact tables (<code>-facts=false</code>), so individual calls are not available. Re-run <code>mtkprof html</code> or <code>mtkprof serve</code> without that flag to see the timeline.</p>
+        <p className="callout">This document was generated without fact tables (<code>-facts=false</code>), so individual calls are not available. Re-run <code>mtkprof html</code> or <code>mtkprof serve</code> without that flag, or use <code>mtkprof serve -facts=false</code> to have the server slice them, to see the timeline.</p>
+      </section>
+    )
+  }
+  if (!picked) {
+    return (
+      <section className="section">
+        <header><h2>Timeline</h2><span className="hint">{query.error ? `failed: ${query.error}` : 'loading…'}</span></header>
+        {query.error && <p className="callout">{query.error}</p>}
       </section>
     )
   }
 
   const height = Math.max(240, lanes.list.length * LANE_PX + 70)
-  const c = doc.calls
-  const longestCols: Column<number>[] = [
-    { key: 'k', header: 'Call', render: (i) => callKindName[c.kind[i]] ?? 'CALL', sort: (i) => c.kind[i] },
-    { key: 's', header: 'Statement', className: 'clip', render: (i) => { const st = doc.statements[c.stmt[i]]; return st ? <><StmtLink doc={doc} id={c.stmt[i]} /> {preview(st.text, 60)}</> : '–' }, sort: (i) => c.stmt[i] },
-    { key: 't', header: 'Start', render: (i) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(c.tim[i] - c.e[i]), doc.tzOffsetMin) : `+${fmtDur(c.tim[i] - c.e[i] - base)}`), sort: (i) => c.tim[i] - c.e[i] },
-    { key: 'e', header: 'Elapsed', align: 'end', render: (i) => fmtDur(c.e[i]), sort: (i) => c.e[i], bar: true },
-    { key: 'c', header: 'CPU', align: 'end', render: (i) => fmtDur(c.c[i]), sort: (i) => c.c[i] },
-    { key: 'r', header: 'Rows', align: 'end', render: (i) => fmtCompact(c.r[i]), sort: (i) => c.r[i] },
-    { key: 'l', header: 'Line', align: 'end', render: (i) => <LineRef line={c.line[i]} bare />, sort: (i) => c.line[i] },
+  const longestCols: Column<Bar>[] = [
+    { key: 'k', header: 'Call', render: (b) => callKindName[b.kind] ?? 'CALL', sort: (b) => b.kind },
+    { key: 's', header: 'Statement', className: 'clip', render: (b) => { const st = doc.statements[b.stmt]; return st ? <><StmtLink doc={doc} id={b.stmt} /> {preview(st.text, 60)}</> : '–' }, sort: (b) => b.stmt },
+    { key: 't', header: 'Start', render: (b) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(b.tim - b.e), doc.tzOffsetMin) : `+${fmtDur(b.tim - b.e - base)}`), sort: (b) => b.tim - b.e },
+    { key: 'e', header: 'Elapsed', align: 'end', render: (b) => fmtDur(b.e), sort: (b) => b.e, bar: true },
+    { key: 'c', header: 'CPU', align: 'end', render: (b) => fmtDur(b.c), sort: (b) => b.c },
+    { key: 'r', header: 'Rows', align: 'end', render: (b) => fmtCompact(b.r), sort: (b) => b.r },
+    { key: 'l', header: 'Line', align: 'end', render: (b) => <LineRef line={b.line} bare />, sort: (b) => b.line },
   ]
 
   return (
@@ -215,7 +182,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
           <h2>Timeline</h2>
           <span className="hint">
             {picked.sampled
-              ? `showing the ${fmtInt(MAX_BARS)} longest of ${fmtInt(picked.total)} calls; set a window on the Overview to see all of them`
+              ? `showing the ${fmtInt(picked.bars.length)} longest of ${fmtInt(picked.total)} calls; set a window on the Overview to see all of them`
               : `${fmtInt(picked.total)} calls${win ? ' in the selected window' : ''}`}
             {lanes.list.length > MAX_LANES ? ` · top ${MAX_LANES} statements have their own lane` : ''}
           </span>
@@ -232,8 +199,8 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
       {picked.longest.length > 0 && (
         <section className="section">
           <header><h2>Longest calls</h2><span className="hint">{win ? 'in the selected window' : 'in the whole trace'}; click to open the statement</span></header>
-          <DataTable columns={longestCols} rows={picked.longest} rowKey={(i) => i} maxHeight="24rem" rowHeight={28}
-            selectedKey={null} onRowClick={(i) => { const s = c.stmt[i]; if (s !== NONE) actions.selectStmt(s) }} />
+          <DataTable columns={longestCols} rows={picked.longest} rowKey={(b) => b.id} maxHeight="24rem" rowHeight={28}
+            selectedKey={null} onRowClick={(b) => { if (b.stmt !== NONE) actions.selectStmt(b.stmt) }} />
         </section>
       )}
     </>

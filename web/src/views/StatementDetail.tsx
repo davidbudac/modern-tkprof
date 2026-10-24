@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
-import { NONE, type ID, type StmtStats, type CallStats, type Plan } from '../data/types'
+import type { ID, StmtStats, CallStats, Plan } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, fmtCompact, oraErr } from '../data/format'
 import { useStore, actions } from '../app/store'
 import { SqlText } from '../components/SqlText'
 import { ProfileBar } from '../components/ProfileBar'
 import { DataTable, type Column } from '../components/DataTable'
-import { executions, bindsOf, bindPreview, statementWaits, type Execution } from '../data/derive'
+import { bindsOf, previewOfBinds, type Execution } from '../data/derive'
+import { sourceOf, useSourceQuery } from '../data/source'
 import type { Segment } from '../components/ProfileBar'
 import { LineRef } from '../components/LineRef'
 import { ColumnChooser } from '../components/ColumnChooser'
@@ -36,7 +37,7 @@ export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       <SqlText text={st.text} />
       <ResponseTime doc={doc} stats={stats} />
       <CallTable doc={doc} stats={stats} />
-      {doc.hasFacts && <Executions doc={doc} id={id} />}
+      {sourceOf(doc).ready && <Executions doc={doc} id={id} />}
       <Plans doc={doc} id={id} />
       {st.refPlan && (
         <section className="section">
@@ -55,7 +56,9 @@ function kindName(k: number): string { return ['SQL', 'unknown statement', 'comm
 
 function ResponseTime({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
   const total = stats.elapsed + stats.idleUs
-  const waits = useMemo(() => statementWaits(doc, stats.id, 4), [doc, stats])
+  const source = sourceOf(doc)
+  const waitsQ = useSourceQuery(source, `waits:${stats.id}`, (signal) => (source.ready ? source.stmtWaits([stats.id], 4, signal) : null), 'waits')
+  const waits = useMemo(() => waitsQ.data?.get(stats.id) ?? [], [waitsQ.data, stats.id])
   const segs = useMemo<Segment[]>(() => {
     const out: Segment[] = [{ role: 'cpu', label: 'CPU', us: stats.cpu }]
     let shown = 0
@@ -74,7 +77,7 @@ function ResponseTime({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
   return (
     <section className="section">
       <header><h2>Response time {fmtDur(total)}</h2><span className="hint">{fmtPct(total, doc.spanUs())} of the trace · {fmtDur(stats.elapsed)} in calls + {fmtDur(stats.idleUs)} idle between them</span></header>
-      {doc.hasFacts ? <ProfileBar segments={segs} totalUs={total} /> : <ProfileBar segments={[{ role: 'cpu', label: 'CPU', us: stats.cpu }, { role: 'other', label: 'Waits', us: stats.waitUs }, { role: 'idle', label: 'Idle', us: stats.idleUs }]} totalUs={total} />}
+      {source.ready && waitsQ.data ? <ProfileBar segments={segs} totalUs={total} /> : <ProfileBar segments={[{ role: 'cpu', label: 'CPU', us: stats.cpu }, { role: 'other', label: 'Waits', us: stats.waitUs }, { role: 'idle', label: 'Idle', us: stats.idleUs }]} totalUs={total} />}
       {notes.length > 0 && <p className="small muted">{notes.join(' · ')}</p>}
     </section>
   )
@@ -118,14 +121,21 @@ function CallTable({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
 }
 
 function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
-  const exs = useMemo(() => executions(doc, id), [doc, id])
+  const source = sourceOf(doc)
+  const page = useSourceQuery(source, `executions:${id}`, (signal) => source.executions(id, signal), 'executions')
+  const exs = useMemo(() => page.data?.rows ?? [], [page.data])
   const [hidden, setHidden] = usePersisted<string[]>('mtkprof.cols.executions', [])
   const wanted = useStore((s) => s.selection.exec)
   const [sel, setSel] = useState<Execution | null>(null)
   const [picked, setPicked] = useState<string[]>([]) // up to two execution keys: A (older pick) and B
   useEffect(() => { if (wanted) { const e = exs.find((x) => x.cursor === wanted.cursor && x.execNo === wanted.execNo); if (e) setSel(e) } }, [wanted, exs])
   useEffect(() => setPicked([]), [id, doc])
+  if (!page.data) {
+    return page.error ? <section className="section"><header><h2>Executions</h2></header><p className="callout">{page.error}</p></section>
+      : page.loading ? <section className="section"><header><h2>Executions</h2><span className="hint">loading…</span></header></section> : null
+  }
   if (exs.length === 0) return null
+  const bindsFor = (e: Execution) => e.binds ?? bindsOf(doc, e.bindSet)
   const keyOf = (e: Execution) => `${e.cursor}:${e.execNo}`
   const togglePick = (e: Execution) => setPicked((p) => (p.includes(keyOf(e)) ? p.filter((k) => k !== keyOf(e)) : [...p.slice(-1), keyOf(e)]))
   const pa = exs.find((e) => keyOf(e) === picked[0]), pb = exs.find((e) => keyOf(e) === picked[1])
@@ -143,30 +153,31 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
     { key: 'p', header: 'Disk', align: 'end', render: (e) => fmtCompact(e.p), sort: (e) => e.p },
     { key: 'cr', header: 'Query', align: 'end', render: (e) => fmtCompact(e.cr), sort: (e) => e.cr },
     { key: 'f', header: 'Fetches', align: 'end', render: (e) => e.fetches, sort: (e) => e.fetches },
-    { key: 'b', header: 'Binds', className: 'clip mono', render: (e) => bindPreview(doc, e.bindSet), sort: (e) => bindPreview(doc, e.bindSet) },
+    { key: 'b', header: 'Binds', className: 'clip mono', render: (e) => previewOfBinds(bindsFor(e)), sort: (e) => previewOfBinds(bindsFor(e)) },
     { key: 'l', header: 'Line', align: 'end', title: 'trace line of the EXEC call', render: (e) => <LineRef line={e.line} bare />, sort: (e) => e.line },
   ]
   const cols = [pickCol, ...all.filter((c) => c.key === 'n' || !hidden.includes(c.key))]
-  const slow = exs.reduce((a, e) => (e.e > a.e ? e : a), exs[0])
-  const avg = exs.reduce((a, e) => a + e.e, 0) / exs.length
+  const { total, avgE: avg, slowest: slow } = page.data
   return (
     <section className="section">
-      <header><h2>Executions</h2><span className="hint">{exs.length} · avg {fmtDur(avg)} · slowest {fmtDur(slow.e)} (#{slow.execNo}){exs.length > 1 && ' · tick two to compare them'}</span>
+      <header><h2>Executions</h2><span className="hint">{page.data.partial ? `the ${exs.length} slowest of ${total}` : total} · avg {fmtDur(avg)} · slowest {fmtDur(slow?.e ?? 0)} (#{slow?.execNo}){exs.length > 1 && ' · tick two to compare them'}</span>
         <span className="tools"><ColumnChooser all={all.filter((c) => c.key !== 'n').map((c) => ({ key: c.key, label: c.header }))} hidden={hidden} onChange={setHidden} /></span></header>
       <DataTable columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
         selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e, ev) => (ev?.shiftKey ? togglePick(e) : setSel(sel && sel.exec === e.exec ? null : e))} />
-      {pa && pb ? <ExecCompare doc={doc} a={pa} b={pb} onClear={() => setPicked([])} /> : sel && <Binds doc={doc} ex={sel} />}
+      {pa && pb ? <ExecCompare doc={doc} stmt={id} a={pa} b={pb} onClear={() => setPicked([])} /> : sel && <Binds doc={doc} stmt={id} ex={sel} />}
     </section>
   )
 }
 
-function Binds({ doc, ex }: { doc: TraceDoc; ex: Execution }) {
-  const binds = bindsOf(doc, ex.bindSet)
-  const waits = doc.waitsByCall.get(ex.exec)
+function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
+  const source = sourceOf(doc)
+  const detail = useSourceQuery(source, `detail:${stmt}:${ex.cursor}:${ex.execNo}`, (signal) => source.executionDetail(stmt, ex, signal), 'detail')
+  const d = detail.data
+  const binds = d?.binds ?? []
   return (
     <div className="section">
-      <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} /> · EXEC at <LineRef line={doc.calls.line[ex.exec]} />{ex.bindSet !== NONE && doc.bindSets.line[ex.bindSet] > 0 && <> · binds at <LineRef line={doc.bindSets.line[ex.bindSet]} /></>} · {waits.length} waits on the EXEC</span></header>
-      {binds.length === 0 ? <p className="small muted">No bind values were captured for this execution (trace level without binds, or no binds).</p> : (
+      <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} /> · EXEC at <LineRef line={ex.line} />{d && d.bindLine > 0 && <> · binds at <LineRef line={d.bindLine} /></>}{d ? ` · ${d.execWaits} waits on the EXEC` : detail.loading ? ' · loading…' : ''}</span></header>
+      {detail.error ? <p className="callout">{detail.error}</p> : !d ? null : binds.length === 0 ? <p className="small muted">No bind values were captured for this execution (trace level without binds, or no binds).</p> : (
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th className="num">pos</th><th>type</th><th>value</th></tr></thead>
           <tbody>{binds.map((b) => (

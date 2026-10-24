@@ -109,8 +109,15 @@ export const actions = {
   },
 }
 
+/** What narrows the fact rows: the time window, the session contexts and (waits) the idle toggle. */
+export interface Scope { window: TimeWindow | null; contexts: Set<ID> | null; includeIdle: boolean }
+
+export function scopeOf(s: Pick<State, 'window' | 'contexts' | 'includeIdle'>): Scope {
+  return { window: s.window, contexts: s.contexts, includeIdle: s.includeIdle }
+}
+
 /** Row predicate for the current filters (time window + context). */
-export function callFilter(s: State): ((i: number) => boolean) | undefined {
+export function callFilter(s: Pick<State, 'doc' | 'window' | 'contexts'>): ((i: number) => boolean) | undefined {
   const d = s.doc
   if (!d || (!s.window && !s.contexts)) return undefined
   const { tim, e, ctx } = d.calls
@@ -122,7 +129,7 @@ export function callFilter(s: State): ((i: number) => boolean) | undefined {
   }
 }
 
-export function waitFilter(s: State): ((i: number) => boolean) | undefined {
+export function waitFilter(s: Pick<State, 'doc' | 'window' | 'contexts' | 'includeIdle'>): ((i: number) => boolean) | undefined {
   const d = s.doc
   if (!d || (!s.window && !s.contexts && s.includeIdle)) return undefined
   const { tim, ela, ctx, flags } = d.waits

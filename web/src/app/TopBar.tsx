@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct } from '../data/format'
-import { useStore, actions, callFilter, waitFilter, type View } from './store'
-import { traceSegments } from '../data/derive'
+import { useStore, actions, scopeOf, type View } from './store'
+import { traceSegmentsFrom } from '../data/derive'
+import { sourceOf, useSourceQuery } from '../data/source'
 
 const tabs: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -25,7 +26,10 @@ export function TopBar({ doc }: { doc: TraceDoc }) {
   const shownTabs = compare ? [compareTab, ...tabs] : tabs
   const name = (doc.file.traceFile || doc.file.path).split(/[\\/]/).pop()
   const totalUs = doc.spanUs()
-  const segs = useMemo(() => traceSegments(doc, callFilter({ ...state, window: null }), waitFilter({ ...state, window: null }), totalUs).filter((s) => s.us > 0), [doc, state.contexts, state.includeIdle, totalUs])
+  const source = sourceOf(doc)
+  const scope = { ...scopeOf(state), window: null }
+  const profile = useSourceQuery(source, `top:${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}:${scope.includeIdle ? 1 : 0}`, (signal) => source.profile(scope, signal), 'top')
+  const segs = useMemo(() => traceSegmentsFrom(doc, profile.data ?? null, totalUs).filter((s) => s.us > 0), [doc, profile.data, totalUs])
   const top = [...segs].filter((s) => s.role !== 'unaccounted').sort((a, b) => b.us - a.us).slice(0, 3)
   const counts: Partial<Record<View, number>> = { statements: doc.statements.length, waits: doc.events.length, sessions: doc.contexts.length }
   const win = state.window

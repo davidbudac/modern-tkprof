@@ -6,6 +6,7 @@ import type { StmtStats } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, preview, fmtCompact } from '../data/format'
 import { useStore, actions } from '../app/store'
 import { quickSegments } from '../data/derive'
+import { sourceOf, useSourceQuery } from '../data/source'
 import { StatementDetail } from './StatementDetail'
 import { StatementContext } from './StatementContext'
 import { ResizeHandle } from '../components/ResizeHandle'
@@ -38,6 +39,8 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   const [listW, setListW] = usePersisted<number | null>('mtkprof.listW', null)
   const [ctxW, setCtxW] = usePersisted<number | null>('mtkprof.contextW', null)
   const totalUs = doc.spanUs()
+  const source = sourceOf(doc)
+  const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
   const sort = sorts.find((s) => s.id === sortKey)!
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -94,7 +97,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
               const st = rows[vi.index]
               const s = doc.statements[st.id]
               const resp = st.elapsed + st.idleUs
-              const segs = quickSegments(doc, st).filter((x) => x.us > 0)
+              const segs = quickSegments(doc, st, roles).filter((x) => x.us > 0)
               const segTotal = Math.max(resp, segs.reduce((a, x) => a + x.us, 0))
               const nf = findingsOf.get(st.id) ?? 0
               return (

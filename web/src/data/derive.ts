@@ -2,7 +2,7 @@
 import type { TraceDoc } from './doc'
 import type { ID, StmtStats } from './types'
 import { CallKind, NONE } from './types'
-import { groupBy, sumOver } from './groupby'
+import { groupBy, sumOver, type Agg } from './groupby'
 import { roleOfClass, roleLabel, roleOrder, type Role } from '../components/colors'
 import type { Segment } from '../components/ProfileBar'
 
@@ -14,9 +14,18 @@ export function waitsByEvent(doc: TraceDoc, filter: RowFilter) {
   return groupBy({ n: w.n, filter, key: (i) => w.event[i], value: (i) => w.ela[i] })
 }
 
+/** CPU of the top-level calls and the waits per event of some scope (a window, some contexts), whoever computed it. */
+export interface ScopeProfile { cpuUs: number; events: Agg[] }
+
 /** Segments by color role for a set of calls (CPU) and waits. */
 export function segmentsFor(doc: TraceDoc, opts: { cpuUs: number; totalUs: number; waitFilter: RowFilter }): Segment[] {
-  const byEvent = waitsByEvent(doc, opts.waitFilter)
+  return segmentsOfProfile(doc, { cpuUs: opts.cpuUs, events: waitsByEvent(doc, opts.waitFilter) }, opts.totalUs)
+}
+
+/** Segments by color role from the CPU and the waits per event. */
+export function segmentsOfProfile(doc: TraceDoc, p: ScopeProfile, totalUs: number): Segment[] {
+  const byEvent = p.events
+  const opts = { cpuUs: p.cpuUs, totalUs }
   const byRole = new Map<Role, { us: number; count: number }>()
   let waitUs = 0
   for (const a of byEvent) {
@@ -47,7 +56,12 @@ export function topLevelCpu(doc: TraceDoc, filter: RowFilter): number {
 
 /** Profile segments for the whole trace (falls back to server stats without facts). */
 export function traceSegments(doc: TraceDoc, callFilter: RowFilter, waitFilter: RowFilter, totalUs: number): Segment[] {
-  if (!doc.hasFacts) {
+  return traceSegmentsFrom(doc, doc.hasFacts ? { cpuUs: topLevelCpu(doc, callFilter), events: waitsByEvent(doc, waitFilter) } : null, totalUs)
+}
+
+/** Profile segments from a scope profile; null = none available, use the document's whole-trace stats. */
+export function traceSegmentsFrom(doc: TraceDoc, profile: ScopeProfile | null, totalUs: number): Segment[] {
+  if (!profile) {
     const p = doc.stats.profile
     const segs: Segment[] = []
     const byRole = new Map<Role, Segment>()
@@ -63,7 +77,7 @@ export function traceSegments(doc: TraceDoc, callFilter: RowFilter, waitFilter: 
     if (p.unaccountedUs > 0) segs.push({ role: 'unaccounted', label: 'Unaccounted', us: p.unaccountedUs })
     return segs
   }
-  return segmentsFor(doc, { cpuUs: topLevelCpu(doc, callFilter), totalUs, waitFilter })
+  return segmentsOfProfile(doc, profile, totalUs)
 }
 
 /** Profile segments for one statement: response time = elapsed + idle between its calls. */
@@ -91,6 +105,8 @@ export interface Execution {
   idleEla: number
   bindSet: ID
   ctx: ID
+  /** the bind values, when the server sent them with the row; else read them with bindsOf(doc, bindSet) */
+  binds?: BindRow[]
 }
 
 /** EXEC + following FETCH calls of a statement, in file order. */
@@ -135,7 +151,11 @@ export function bindsOf(doc: TraceDoc, set: ID): BindRow[] {
 
 /** Short "k=v k=v" preview of a bind set. */
 export function bindPreview(doc: TraceDoc, set: ID, max = 60): string {
-  const parts = bindsOf(doc, set).map((b) => `:${b.pos}=${b.noDef ? '(dup)' : b.isNull ? 'NULL' : b.dump ? '<dump>' : b.value}`)
+  return previewOfBinds(bindsOf(doc, set), max)
+}
+
+export function previewOfBinds(binds: BindRow[], max = 60): string {
+  const parts = binds.map((b) => `:${b.pos}=${b.noDef ? '(dup)' : b.isNull ? 'NULL' : b.dump ? '<dump>' : b.value}`)
   const s = parts.join(' ')
   return s.length > max ? s.slice(0, max - 1) + '…' : s
 }
@@ -148,9 +168,24 @@ export interface TimelineSeries { key: string; label: string; role: Role; values
  * `topEvents` events by time get their own series; the rest fold into "Other events".
  */
 export function timeline(doc: TraceDoc, bucketUs: number, callFilter: RowFilter, waitFilter: RowFilter, by: 'class' | 'event' = 'class', topEvents = 10) {
+  const raw = timelineRaw(doc, bucketUs, callFilter, waitFilter)
+  return raw ? foldTimeline(doc, raw, by, topEvents) : { starts: [] as number[], series: [] as TimelineSeries[] }
+}
+
+/** CPU and wait time per bucket and event, before they are folded into series. */
+export interface TimelineRaw {
+  bucketUs: number
+  starts: number[] // tim of each bucket
+  cpu: Float64Array
+  perEvent: (Float64Array | undefined)[] // by event id
+  totals: Float64Array // by event id
+}
+
+/** The buckets of `timeline()` before folding; null when the span or the bucket is unknown. */
+export function timelineRaw(doc: TraceDoc, bucketUs: number, callFilter: RowFilter, waitFilter: RowFilter): TimelineRaw | null {
   const base = doc.span.firstTim
   const span = doc.spanUs()
-  if (bucketUs <= 0 || span <= 0) return { starts: [] as number[], series: [] as TimelineSeries[] }
+  if (bucketUs <= 0 || span <= 0) return null
   const n = Math.floor(span / bucketUs) + 1
   const add = (arr: Float64Array, tim: number, dur: number, v: number) => {
     if (dur <= bucketUs || v === 0) { arr[Math.min(n - 1, Math.max(0, Math.floor((tim - base) / bucketUs)))] += v; return }
@@ -191,6 +226,13 @@ export function timeline(doc: TraceDoc, bucketUs: number, callFilter: RowFilter,
     cpu[b] = Math.min(cpu[b], Math.max(0, bucketUs - waitUs))
   }
   const starts = Array.from({ length: n }, (_, i) => base + i * bucketUs)
+  return { bucketUs, starts, cpu, perEvent, totals }
+}
+
+/** Folds the raw buckets into series: waits by class, or the top events and the rest. */
+export function foldTimeline(doc: TraceDoc, raw: TimelineRaw, by: 'class' | 'event' = 'class', topEvents = 10) {
+  const { starts, cpu, perEvent, totals } = raw
+  const n = cpu.length
   const series: TimelineSeries[] = [{ key: 'cpu', label: roleLabel.cpu, role: 'cpu', values: cpu }]
   const roleOf = doc.events.map((ev) => roleOfClass(ev.class, ev.idle))
   const used = doc.events.map((_, e) => e).filter((e) => totals[e] > 0)
@@ -235,9 +277,14 @@ export interface ComponentRow { label: string; role: Role; us: number; count: nu
 
 /** Response-time components (per event, not per class) for the current filters, largest first. */
 export function componentRows(doc: TraceDoc, callFilter: RowFilter, waitFilter: RowFilter, totalUs: number): ComponentRow[] {
+  return componentRowsFrom(doc, doc.hasFacts ? { cpuUs: topLevelCpu(doc, callFilter), events: waitsByEvent(doc, waitFilter) } : null, totalUs)
+}
+
+/** The ledger from a scope profile; null = none available, use the document's whole-trace stats. */
+export function componentRowsFrom(doc: TraceDoc, profile: ScopeProfile | null, totalUs: number): ComponentRow[] {
   const out: ComponentRow[] = []
   let accounted = 0
-  if (!doc.hasFacts) {
+  if (!profile) {
     for (const r of doc.stats.profile.rows) {
       if (r.kind === 'unaccounted') continue
       const role: Role = r.kind === 'cpu' ? 'cpu' : roleOfClass(r.class ?? '', r.kind === 'idle')
@@ -246,10 +293,10 @@ export function componentRows(doc: TraceDoc, callFilter: RowFilter, waitFilter: 
       accounted += r.us
     }
   } else {
-    const cpu = topLevelCpu(doc, callFilter)
+    const cpu = profile.cpuUs
     out.push({ label: 'CPU', role: 'cpu', us: cpu, count: 0, maxUs: 0, event: NONE, kind: 'cpu' })
     accounted += cpu
-    for (const a of waitsByEvent(doc, waitFilter)) {
+    for (const a of profile.events) {
       const ev = doc.events[a.key]
       out.push({ label: ev?.name ?? `event ${a.key}`, role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: a.sum, count: a.count, maxUs: a.max, event: a.key, kind: 'wait' })
       accounted += a.sum
@@ -262,7 +309,7 @@ export function componentRows(doc: TraceDoc, callFilter: RowFilter, waitFilter: 
 }
 
 const roleTotalsCache = new WeakMap<TraceDoc, Float64Array>()
-const NROLES = roleOrder.length
+export const NROLES = roleOrder.length
 
 /**
  * Wait time per statement and color role, one pass over the waits (cached per document).
@@ -283,15 +330,18 @@ export function statementRoleUs(doc: TraceDoc): Float64Array {
   return t
 }
 
-/** Cheap profile of one statement from the cached role totals: CPU + waits by role (no unaccounted). */
-export function quickSegments(doc: TraceDoc, st: StmtStats): Segment[] {
+/**
+ * Cheap profile of one statement from the role totals (`statementRoleUs`, or the server's equivalent
+ * as `table`): CPU + waits by role (no unaccounted). Without totals: CPU, waits and idle from the stats.
+ */
+export function quickSegments(doc: TraceDoc, st: StmtStats, table?: Float64Array | null): Segment[] {
   const segs: Segment[] = [{ role: 'cpu', label: 'CPU', us: st.cpu }]
-  if (!doc.hasFacts) {
+  const t = table ?? (doc.hasFacts ? statementRoleUs(doc) : null)
+  if (!t) {
     if (st.waitUs > 0) segs.push({ role: 'other', label: 'Waits', us: st.waitUs })
     if (st.idleUs > 0) segs.push({ role: 'idle', label: 'Idle', us: st.idleUs })
     return segs
   }
-  const t = statementRoleUs(doc)
   for (let r = 1; r < NROLES; r++) {
     const us = t[st.id * NROLES + r]
     if (us > 0) segs.push({ role: roleOrder[r], label: roleLabel[roleOrder[r]], us })
@@ -300,14 +350,16 @@ export function quickSegments(doc: TraceDoc, st: StmtStats): Segment[] {
 }
 
 /** The role a statement's time mostly went to (CPU, a wait class, or idle). */
-export function dominantRole(doc: TraceDoc, st: StmtStats): Role {
+export function dominantRole(doc: TraceDoc, st: StmtStats, table?: Float64Array | null): Role {
   let best: Role = 'cpu', bestUs = -1
-  for (const s of quickSegments(doc, st)) if (s.us > bestUs) { best = s.role; bestUs = s.us }
+  for (const s of quickSegments(doc, st, table)) if (s.us > bestUs) { best = s.role; bestUs = s.us }
   return best
 }
 
+export interface StmtWait { event: ID; name: string; role: Role; us: number; count: number; maxUs: number; obj: number; maxLine: number }
+
 /** Top wait events of one statement, with the object they were on when every wait names the same one. */
-export function statementWaits(doc: TraceDoc, sid: ID, max = 6): { event: ID; name: string; role: Role; us: number; count: number; maxUs: number; obj: number; maxLine: number }[] {
+export function statementWaits(doc: TraceDoc, sid: ID, max = 6): StmtWait[] {
   if (!doc.hasFacts) return []
   const w = doc.waits
   const ids = doc.waitsByStmt.get(sid)

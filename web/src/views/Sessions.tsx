@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
+import { sourceOf } from '../data/source'
 import type { Context, ID } from '../data/types'
 import { fmtDur, fmtInt, fmtCompact, fmtWall } from '../data/format'
 import { useStore, actions } from '../app/store'
@@ -105,6 +106,8 @@ function computeStats(doc: TraceDoc): CtxStats[] {
 }
 
 export function Sessions({ doc }: { doc: TraceDoc }) {
+  // per-context numbers come from the document (stats.contexts) when a server stands behind it, else from the fact columns
+  const hasStats = sourceOf(doc).ready
   const checked = useStore((s) => s.contexts)
   const [dim, setDim] = useState<Dim>('module')
   const stats = useMemo(() => computeStats(doc), [doc])
@@ -163,7 +166,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
     { key: 'first', header: 'First', render: (r) => (get(r).firstTim ? time(get(r).firstTim) : <span className="dim">–</span>), sort: (r) => get(r).firstTim },
     { key: 'last', header: 'Last', render: (r) => (get(r).lastTim ? time(get(r).lastTim) : <span className="dim">–</span>), sort: (r) => get(r).lastTim },
   ]
-  const ctxCols: Column<CtxRow>[] = [checkCol, ...identityCols, ...(doc.hasFacts ? statCols((r) => r.stats) : [])]
+  const ctxCols: Column<CtxRow>[] = [checkCol, ...identityCols, ...(hasStats ? statCols((r) => r.stats) : [])]
 
   // roll-ups by the chosen dimension
   interface GroupRow { key: string; ids: ID[]; stats: CtxStats }
@@ -181,7 +184,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   const groupCols: Column<GroupRow>[] = [
     { key: 'k', header: dimLabel[dim], className: 'mono', render: (g) => g.key, sort: (g) => g.key },
     { key: 'n', header: 'Contexts', align: 'end', render: (g) => fmtInt(g.ids.length), sort: (g) => g.ids.length },
-    ...(doc.hasFacts ? (statCols((r) => r.stats) as unknown as Column<GroupRow>[]) : []),
+    ...(hasStats ? (statCols((r) => r.stats) as unknown as Column<GroupRow>[]) : []),
   ]
   const groupSelectedKey = useMemo(() => {
     if (!checked) return null
@@ -204,7 +207,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
             <button onClick={() => actions.setContexts(null)} disabled={selectedCount === 0}>none</button>
           </span>
         </header>
-        {!doc.hasFacts && <p className="callout">This document was written without fact tables, so per-context statistics are not available.</p>}
+        {!hasStats && <p className="callout">This document was written without fact tables, so per-context statistics are not available.</p>}
         <DataTable columns={ctxCols} rows={rows} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="45dvh"
           onRowClick={(r) => toggle(r.id)} empty="No session context markers in this trace." />
       </section>
@@ -219,7 +222,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
             </select>
           </span>
         </header>
-        <DataTable columns={groupCols} rows={groups} rowKey={(g) => g.key} defaultSort={doc.hasFacts ? { key: 'resp', dir: 'desc' } : { key: 'k', dir: 'asc' }} maxHeight="40dvh"
+        <DataTable columns={groupCols} rows={groups} rowKey={(g) => g.key} defaultSort={hasStats ? { key: 'resp', dir: 'desc' } : { key: 'k', dir: 'asc' }} maxHeight="40dvh"
           selectedKey={groupSelectedKey} onRowClick={(g) => setChecked(new Set(g.ids))} />
       </section>
     </>

@@ -466,6 +466,38 @@ func TestWaitsHistScatter(t *testing.T) {
 	}
 }
 
+func TestWaitsByMatchesAnalyze(t *testing.T) {
+	m, h := setup(t)
+	ev := busiestEvent(m)
+	for _, by := range []string{"stmt", "obj", "p1", "p2"} {
+		var got WaitsByResponse
+		if code := get(t, h, fmt.Sprintf("/api/waits/by?event=%d&by=%s&limit=3", ev, by), &got); code != 200 {
+			t.Fatalf("%s: status %d", by, code)
+		}
+		want := analyze.WaitsBy(m, func(w *model.Wait) bool { return w.Event == ev }, func(w *model.Wait) (int64, bool) {
+			switch by {
+			case "stmt":
+				return int64(w.Statement), true
+			case "obj":
+				return w.ObjID, w.ObjID > 0
+			case "p1":
+				return w.P1, true
+			}
+			return w.P2, true
+		})
+		if got.Groups != len(want) {
+			t.Errorf("%s: %d groups want %d", by, got.Groups, len(want))
+		}
+		n := len(want)
+		if n > 3 {
+			n = 3
+		}
+		if !reflect.DeepEqual(got.Rows, want[:n]) && n > 0 {
+			t.Errorf("%s: rows %v want %v", by, got.Rows, want[:n])
+		}
+	}
+}
+
 func findWait(m *model.Model, line int32) int {
 	for i := range m.Waits {
 		if m.Waits[i].Line == line {
@@ -571,7 +603,7 @@ func TestBadParametersAre400(t *testing.T) {
 		"/api/calls?limit=0", "/api/calls?limit=20001", "/api/calls?longest=101",
 		"/api/executions", "/api/executions?stmt=-1", "/api/executions?stmt=0&sort=nope", "/api/executions?stmt=0&limit=5001", "/api/executions?stmt=0&offset=-1",
 		"/api/executions/detail?stmt=0", "/api/executions/detail?stmt=0&cursor=0",
-		"/api/waits", "/api/waits?event=0&sort=nope", "/api/waits?event=0&limit=1001", "/api/waits/hist", "/api/waits/scatter?event=0&max=50001",
+		"/api/waits", "/api/waits?event=0&sort=nope", "/api/waits?event=0&limit=1001", "/api/waits/hist", "/api/waits/scatter?event=0&max=50001", "/api/waits/by?event=0", "/api/waits/by?event=0&by=nope", "/api/waits/by?event=0&by=stmt&limit=0",
 		"/api/stmt/waits", "/api/stmt/waits?stmt=9999", "/api/stmt/spans", "/api/stmt/spans?stmt=0&gap=-1",
 	} {
 		rec := httptest.NewRecorder()
