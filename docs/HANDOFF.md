@@ -23,7 +23,7 @@ Working and tested:
 | Go group-by with the UI Pivot's dims/measures; sessions and time-bucket stats | `internal/analyze/pivot.go` | done; unit tests |
 | Bind redaction (`-redact-binds`, `-bind-values keep\|redact\|none`, `-binds none`) as a model post-pass | `internal/model/redact.go`, `cmd/mtkprof/bindflags.go` | done; tests prove no value leaks into text/JSON/CSV |
 | Web UI (Overview ledger + lanes, Statements workbench, Waits + event inspector, Timeline, Sessions, Pivot), light/dark, IBM Plex embedded | `web/` → embedded as `internal/ui/dist/index.html` | redesigned 2026-10-23 (`docs/mockups/`), reviewed by screenshot |
-| Real 19.27 fixtures (20, incl. `plan_change`) + tkprof output + generator + v$ exports | `testdata/` | done |
+| Real fixtures: 19.27 (21), 21c XE (19), 23ai Free (19) + tkprof output + generators (dbmint, docker) + v$ exports | `testdata/` | done |
 | CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | green on every push; release job verified with tag `v0.2.0-rc.1` |
 
 Numbers (after milestone 5): 118 MB trace → text report in 0.61 s / 220 MB
@@ -262,15 +262,30 @@ source (`TestSpillAllFixtures`). 1 GB trace: 66 MB RSS idle, pivot 290 ms,
 executions page 174 ms, 1.06 GB of spill files. `trace.LineIndex` is now
 sparse (every 64th line). `/api/executions` streams one page.
 
-## Still open
+## Shared core package and multi-version fixtures: done (2026-10-24)
 
-- Publish the repo (user decision). The release job is verified: tag
-  `v0.2.0-rc.1` produced the GitHub release with 7 binaries + SHA256SUMS.
-- Push visualizer commit `7e52b2d` in `~/github/ora-explain-plan-viz`
-  (deploys the hosted site).
-- Shared core package with the visualizer (DESIGN.md v2 note); the overlay
-  is a Go port instead.
-- 12.2 / 21c / 23ai fixtures: no lab exists.
+- **`@davidbudac/ora-plan-core`**: extracted in the visualizer repo
+  (`packages/ora-plan-core`, commits `16b687d`, `8e08600` on its local main,
+  **not pushed**: the auto-mode classifier denies pushes to that repo as a
+  production deploy). mtkprof vendors the built package in
+  `web/vendor/ora-plan-core` (`web/scripts/sync-core.sh` refreshes it) and
+  shows the visualizer's advisor findings per STAT plan ("Plan advisor" in
+  the Statements workbench). Bundle +59 KB.
+- **21c / 23ai fixtures**: `testdata/gen/run_gen_docker.sh` generates the
+  19 scenarios in `gvenzl/oracle-xe:21-slim` and `gvenzl/oracle-free:23-slim`
+  (the latter is 26ai Free, 23.26.3); `testdata/traces/21c`, `testdata/traces/23ai`.
+  Parser fixes: unprintable bind value line, unbracketed trcsess pid marker,
+  CLIENT IP / CONNECTION ID markers, "Oracle AI Database" banner, 23ai
+  `image:` PX header. Golden enumerates every version directory; one
+  documented deviation (23ai `midtrace_start`, assumed-cursor exemption). PX
+  scenarios skipped on XE/Free (serial). 12.2 has no free image.
+
+## Still open (need the user)
+
+- Push the visualizer repo (`7e52b2d`, `16b687d`, `8e08600`): deploys the
+  hosted site; denied for the agent as a production deploy.
+- Publish this repo (Apache-2.0 LICENSE is in; release job verified).
+- Visualizer LICENSE file.
 
 ## Known gaps and small bugs
 
