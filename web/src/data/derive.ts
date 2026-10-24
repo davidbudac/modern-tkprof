@@ -361,7 +361,7 @@ export function dominantRole(doc: TraceDoc, st: StmtStats, table?: Float64Array 
   return best
 }
 
-export interface StmtWait { event: ID; name: string; role: Role; us: number; count: number; maxUs: number; obj: number; maxLine: number }
+export interface StmtWait { event: ID; name: string; role: Role; us: number; count: number; maxUs: number; obj: number; maxLine: number; maxFile?: number }
 
 /** Top wait events of one statement, with the object they were on when every wait names the same one. */
 export function statementWaits(doc: TraceDoc, sid: ID, max = 6): StmtWait[] {
@@ -371,15 +371,15 @@ export function statementWaits(doc: TraceDoc, sid: ID, max = 6): StmtWait[] {
   const byEvent = groupBy({ n: ids.length, key: (k) => w.event[ids[k]], value: (k) => w.ela[ids[k]] })
   return byEvent.slice(0, max).map((a) => {
     const ev = doc.events[a.key]
-    let obj = -1, maxLine = 0, maxEla = -1
+    let obj = -1, maxLine = 0, maxCtx: ID = -1, maxEla = -1
     for (let k = 0; k < ids.length; k++) {
       const i = ids[k]
       if (w.event[i] !== a.key) continue
-      if (w.ela[i] > maxEla) { maxEla = w.ela[i]; maxLine = w.line[i] }
+      if (w.ela[i] > maxEla) { maxEla = w.ela[i]; maxLine = w.line[i]; maxCtx = w.ctx[i] }
       const o = w.obj[i]
       if (obj === -1) obj = o; else if (obj !== o) obj = -2
     }
-    return { event: a.key, name: ev?.name ?? '?', role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: a.sum, count: a.count, maxUs: a.max, obj: obj > 0 ? obj : -1, maxLine }
+    return { event: a.key, name: ev?.name ?? '?', role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: a.sum, count: a.count, maxUs: a.max, obj: obj > 0 ? obj : -1, maxLine, maxFile: doc.fileOfCtx(maxCtx) }
   })
 }
 

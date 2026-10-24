@@ -239,7 +239,7 @@ func TestCallsAreTheLongest(t *testing.T) {
 	var gotE []int64
 	for k, r := range got.Rows {
 		c := &m.Calls[r[0]]
-		if r[1] != int64(c.Statement) || r[3] != c.Tim || r[4] != c.E || r[7] != int64(c.Line) {
+		if r[1] != int64(c.Statement) || r[3] != c.Tim || r[4] != c.E || r[7] != int64(c.Line) || r[10] != int64(c.Context) {
 			t.Fatalf("row %d does not match call %d: %v", k, r[0], r)
 		}
 		if k > 0 && r[0] <= got.Rows[k-1][0] {
@@ -292,7 +292,7 @@ func TestExecutionsMatchAnalyze(t *testing.T) {
 	for i, e := range want {
 		r := got.Rows[i]
 		c := &m.Calls[e.Exec]
-		if r.ExecNo != e.ExecNo || r.Exec != e.Exec || r.Cursor != e.Cursor || r.Line != c.Line || r.E != e.Stats.Elapsed || r.C != e.Stats.CPU ||
+		if r.ExecNo != e.ExecNo || r.Exec != e.Exec || r.Cursor != e.Cursor || r.Line != c.Line || r.Ctx != c.Context || r.E != e.Stats.Elapsed || r.C != e.Stats.CPU ||
 			r.R != e.Stats.Rows || r.WaitEla != e.Stats.Waits || r.Fetches != len(e.Fetches) || r.StartTim != e.StartTim || r.EndTim != e.EndTim {
 			t.Fatalf("execution %d differs: %+v vs %+v", i, r, e)
 		}
@@ -338,7 +338,7 @@ func TestExecutionDetailMatchesExecutions(t *testing.T) {
 	if code := get(t, h, fmt.Sprintf("/api/executions/detail?stmt=%d&cursor=%d&execNo=%d", sid, e.Cursor, e.ExecNo), &d); code != 200 {
 		t.Fatalf("status %d", code)
 	}
-	if d.Exec != e.Exec || d.Line != m.Calls[e.Exec].Line {
+	if d.Exec != e.Exec || d.Line != m.Calls[e.Exec].Line || d.Ctx != m.Calls[e.Exec].Context {
 		t.Errorf("exec %d line %d", d.Exec, d.Line)
 	}
 	// parse + exec + fetch of the detail cover at least the execution's own EXEC and FETCH calls
@@ -425,7 +425,7 @@ func TestWaitsHistScatter(t *testing.T) {
 		t.Fatalf("waits: total %d us %d rows %d", rows.Total, rows.Us, len(rows.Rows))
 	}
 	for k, r := range rows.Rows {
-		if r.Ela != all[k] || r.Event != ev || r.Line != m.Waits[findWait(m, r.Line)].Line {
+		if r.Ela != all[k] || r.Event != ev || r.Ctx != m.Waits[findWait(m, r.Line)].Context || r.Line != m.Waits[findWait(m, r.Line)].Line {
 			t.Errorf("row %d: %+v want ela %d", k, r, all[k])
 		}
 	}
@@ -443,6 +443,11 @@ func TestWaitsHistScatter(t *testing.T) {
 	}
 	if sc.Total != len(all) || sc.Sampled || len(sc.Rows) != len(all) {
 		t.Fatalf("scatter total %d rows %d sampled %v", sc.Total, len(sc.Rows), sc.Sampled)
+	}
+	for k, r := range sc.Rows {
+		if w := &m.Waits[findWait(m, int32(r[2]))]; r[4] != int64(w.Context) {
+			t.Fatalf("scatter row %d ctx %d want %d", k, r[4], w.Context)
+		}
 	}
 	// forced sampling keeps the slowest wait and the cap
 	var small ScatterResponse
@@ -553,6 +558,11 @@ func TestStatementEndpoints(t *testing.T) {
 			if w.Ela > maxUs {
 				maxUs = w.Ela
 			}
+		}
+	}
+	for i := range m.Waits {
+		if w := &m.Waits[i]; w.Line == l[0].MaxLin && w.Statement == sid && w.Event == l[0].Event && w.Context != l[0].MaxCtx {
+			t.Errorf("maxCtx %d want %d", l[0].MaxCtx, w.Context)
 		}
 	}
 	if l[0].Count != n || l[0].Us != us || l[0].MaxUs != maxUs {

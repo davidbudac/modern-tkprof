@@ -431,8 +431,8 @@ export class RemoteSource implements DataSource {
   async calls(scope: Scope, signal?: AbortSignal): Promise<CallsPicked> {
     const r = await this.get<{ total: number; sampled: boolean; cols: string[]; rows: number[][]; longest: number[] }>('calls', { limit: MAX_BARS, longest: 20, ...scopeParams(scope, false) }, signal)
     const at = (name: string) => r.cols.indexOf(name)
-    const [iId, iStmt, iKind, iTim, iE, iC, iR, iLine, iDep, iExec] = ['id', 'stmt', 'kind', 'tim', 'e', 'c', 'r', 'line', 'dep', 'execNo'].map(at)
-    const bars = r.rows.map((x): Bar => ({ id: x[iId], stmt: x[iStmt], kind: x[iKind], tim: x[iTim], e: x[iE], c: x[iC], r: x[iR], line: x[iLine], dep: x[iDep], execNo: x[iExec] }))
+    const [iId, iStmt, iKind, iTim, iE, iC, iR, iLine, iDep, iExec, iCtx] = ['id', 'stmt', 'kind', 'tim', 'e', 'c', 'r', 'line', 'dep', 'execNo', 'ctx'].map(at)
+    const bars = r.rows.map((x): Bar => ({ id: x[iId], stmt: x[iStmt], kind: x[iKind], tim: x[iTim], e: x[iE], c: x[iC], r: x[iR], line: x[iLine], dep: x[iDep], execNo: x[iExec], file: iCtx >= 0 ? this.doc.fileOfCtx(x[iCtx]) : undefined }))
     const byId = new Map(bars.map((b) => [b.id, b]))
     return { total: r.total, sampled: r.sampled, bars, longest: r.longest.map((id) => byId.get(id)).filter((b): b is Bar => !!b) }
   }
@@ -460,12 +460,12 @@ export class RemoteSource implements DataSource {
 
   async waitScatter(event: ID, scope: Scope, signal?: AbortSignal): Promise<ScatterData> {
     const r = await this.get<{ total: number; rows: number[][] }>('waits/scatter', { event, max: MAX_DOTS, ...scopeParams(scope, true) }, signal)
-    return { total: r.total, points: r.rows.map((x) => ({ tim: x[0], ela: x[1], line: x[2], stmt: x[3] })) }
+    return { total: r.total, points: r.rows.map((x) => ({ tim: x[0], ela: x[1], line: x[2], stmt: x[3], file: x.length > 4 ? this.doc.fileOfCtx(x[4]) : undefined })) }
   }
 
   async waitTop(event: ID, scope: Scope, limit: number, signal?: AbortSignal): Promise<WaitRow[]> {
-    const r = await this.get<{ rows: { tim: number; ela: number; line: number; stmt: number }[] }>('waits', { event, limit, sort: 'ela', ...scopeParams(scope, true) }, signal)
-    return r.rows.map((x) => ({ tim: x.tim, ela: x.ela, line: x.line, stmt: x.stmt }))
+    const r = await this.get<{ rows: { tim: number; ela: number; line: number; stmt: number; ctx?: number }[] }>('waits', { event, limit, sort: 'ela', ...scopeParams(scope, true) }, signal)
+    return r.rows.map((x) => ({ tim: x.tim, ela: x.ela, line: x.line, stmt: x.stmt, file: x.ctx !== undefined ? this.doc.fileOfCtx(x.ctx) : undefined }))
   }
 
   async waitsBy(event: ID, scope: Scope, by: 'stmt' | 'obj' | 'p1', limit: number, signal?: AbortSignal): Promise<KeyAgg[]> {
@@ -476,11 +476,11 @@ export class RemoteSource implements DataSource {
   async stmtWaits(stmts: ID[], max: number, signal?: AbortSignal): Promise<Map<ID, StmtWait[]>> {
     const out = new Map<ID, StmtWait[]>()
     if (stmts.length === 0) return out
-    const r = await this.get<{ waits: Record<string, { event: number; us: number; count: number; maxUs: number; obj: number; maxLine: number }[]> }>('stmt/waits', { stmt: stmts.join(','), max }, signal)
+    const r = await this.get<{ waits: Record<string, { event: number; us: number; count: number; maxUs: number; obj: number; maxLine: number; maxCtx?: number }[]> }>('stmt/waits', { stmt: stmts.join(','), max }, signal)
     for (const s of stmts) {
       out.set(s, (r.waits[String(s)] ?? []).map((w) => {
         const ev = this.doc.events[w.event]
-        return { event: w.event, name: ev?.name ?? '?', role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: w.us, count: w.count, maxUs: w.maxUs, obj: w.obj > 0 ? w.obj : -1, maxLine: w.maxLine }
+        return { event: w.event, name: ev?.name ?? '?', role: roleOfClass(ev?.class ?? '', ev?.idle ?? false), us: w.us, count: w.count, maxUs: w.maxUs, obj: w.obj > 0 ? w.obj : -1, maxLine: w.maxLine, maxFile: w.maxCtx !== undefined ? this.doc.fileOfCtx(w.maxCtx) : undefined }
       }))
     }
     return out

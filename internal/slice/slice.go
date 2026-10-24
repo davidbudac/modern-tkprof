@@ -354,7 +354,7 @@ type CallRows struct {
 	Longest []int32   `json:"longest"` // call ids of the longest calls, longest first (subset of Rows)
 }
 
-var callCols = []string{"id", "stmt", "kind", "tim", "e", "c", "r", "line", "dep", "execNo"}
+var callCols = []string{"id", "stmt", "kind", "tim", "e", "c", "r", "line", "dep", "execNo", "ctx"}
 
 func (s *Server) calls(q url.Values) (any, error) {
 	f, err := s.filter(q, false)
@@ -379,7 +379,7 @@ func (s *Server) calls(q url.Values) (any, error) {
 	sort.Slice(ids, func(a, b int) bool { return ids[a] < ids[b] })
 	for _, i := range ids {
 		c := &s.m.Calls[i]
-		out.Rows = append(out.Rows, []int64{int64(i), int64(c.Statement), int64(c.Kind), c.Tim, c.E, c.C, c.R, int64(c.Line), int64(c.Dep), int64(c.ExecNo)})
+		out.Rows = append(out.Rows, []int64{int64(i), int64(c.Statement), int64(c.Kind), c.Tim, c.E, c.C, c.R, int64(c.Line), int64(c.Dep), int64(c.ExecNo), int64(c.Context)})
 	}
 	return out, nil
 }
@@ -664,7 +664,7 @@ func (s *Server) waitHist(q url.Values) (any, error) {
 	return analyze.WaitHist(s.m, f), nil
 }
 
-// ScatterResponse is a sample of waits over time: rows are [tim, ela, line, stmt].
+// ScatterResponse is a sample of waits over time: rows are [tim, ela, line, stmt, ctx].
 type ScatterResponse struct {
 	Total   int       `json:"total"`
 	Sampled bool      `json:"sampled"`
@@ -682,10 +682,10 @@ func (s *Server) waitScatter(q url.Values) (any, error) {
 		return nil, err
 	}
 	ids, total := analyze.ScatterWaits(s.m, f, int(max))
-	out := &ScatterResponse{Total: total, Sampled: total > len(ids), Cols: []string{"tim", "ela", "line", "stmt"}, Rows: make([][]int64, 0, len(ids))}
+	out := &ScatterResponse{Total: total, Sampled: total > len(ids), Cols: []string{"tim", "ela", "line", "stmt", "ctx"}, Rows: make([][]int64, 0, len(ids))}
 	for _, i := range ids {
 		w := &s.m.Waits[i]
-		out.Rows = append(out.Rows, []int64{w.Tim, w.Ela, int64(w.Line), int64(w.Statement)})
+		out.Rows = append(out.Rows, []int64{w.Tim, w.Ela, int64(w.Line), int64(w.Statement), int64(w.Context)})
 	}
 	return out, nil
 }

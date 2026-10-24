@@ -412,6 +412,7 @@ type StmtEventWait struct {
 	MaxUs  int64    `json:"maxUs"`
 	Obj    int64    `json:"obj"`     // the object every wait named, else -1
 	MaxLin int32    `json:"maxLine"` // trace line of the longest wait
+	MaxCtx model.ID `json:"maxCtx"`  // context of that wait
 }
 
 // TopStmtWaits returns, for each statement in sids, its (at most) max events
@@ -450,6 +451,7 @@ func TopStmtWaits(m *model.Model, sids []model.ID, max int) map[model.ID][]StmtE
 		if w.Ela > a.maxEla {
 			a.maxEla = w.Ela
 			a.MaxLin = w.Line
+			a.MaxCtx = w.Context
 		}
 		if !a.objSet {
 			a.objSet, a.obj = true, w.ObjID
@@ -547,6 +549,7 @@ type ExecDetail struct {
 	ExecNo    int32      `json:"execNo"`
 	Exec      model.ID   `json:"exec"` // call id of the EXEC
 	Line      int32      `json:"line"`
+	Ctx       model.ID   `json:"ctx"` // context of the EXEC (and of its BINDS)
 	PLH       uint32     `json:"planHash"`
 	Parse     CallPart   `json:"parse"`
 	ExecPart  CallPart   `json:"execPart"`
@@ -610,7 +613,7 @@ func ExecutionDetail(m *model.Model, sid, cursor model.ID, execNo int32) (d Exec
 		}
 		picked = append(picked, calls[k])
 	}
-	d = ExecDetail{Cursor: cursor, ExecNo: execNo, Exec: ex.ID, Line: ex.Line, PLH: ex.PLH, BindSet: ex.BindSet}
+	d = ExecDetail{Cursor: cursor, ExecNo: execNo, Exec: ex.ID, Line: ex.Line, Ctx: m.Calls[ex.ID].Context, PLH: ex.PLH, BindSet: ex.BindSet}
 	if ex.BindSet >= 0 && int(ex.BindSet) < len(m.BindSets) {
 		d.BindLine = m.BindSets[ex.BindSet].Line
 	}

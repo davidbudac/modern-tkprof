@@ -154,7 +154,7 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
     { key: 'cr', header: 'Query', align: 'end', render: (e) => fmtCompact(e.cr), sort: (e) => e.cr },
     { key: 'f', header: 'Fetches', align: 'end', render: (e) => e.fetches, sort: (e) => e.fetches },
     { key: 'b', header: 'Binds', className: 'clip mono', render: (e) => previewOfBinds(bindsFor(e)), sort: (e) => previewOfBinds(bindsFor(e)) },
-    { key: 'l', header: 'Line', align: 'end', title: 'trace line of the EXEC call', render: (e) => <LineRef line={e.line} file={doc.fileOfCursor(e.cursor)} bare />, sort: (e) => e.line },
+    { key: 'l', header: 'Line', align: 'end', title: 'trace line of the EXEC call', render: (e) => <LineRef line={e.line} file={e.ctx !== undefined ? doc.fileOfCtx(e.ctx) : doc.fileOfCursor(e.cursor)} bare />, sort: (e) => e.line },
   ]
   const cols = [pickCol, ...all.filter((c) => c.key === 'n' || !hidden.includes(c.key))]
   const { total, avgE: avg, slowest: slow } = page.data
@@ -174,7 +174,7 @@ function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
   const detail = useSourceQuery(source, `detail:${stmt}:${ex.cursor}:${ex.execNo}`, (signal) => source.executionDetail(stmt, ex, signal), 'detail')
   const d = detail.data
   const binds = d?.binds ?? []
-  const file = doc.fileOfCursor(ex.cursor)
+  const file = ex.ctx !== undefined ? doc.fileOfCtx(ex.ctx) : doc.fileOfCursor(ex.cursor)
   return (
     <div className="section">
       <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} file={file} /> · EXEC at <LineRef line={ex.line} file={file} />{d && d.bindLine > 0 && <> · binds at <LineRef line={d.bindLine} file={file} /></>}{d ? ` · ${d.execWaits} waits on the EXEC` : detail.loading ? ' · loading…' : ''}</span></header>

@@ -39,7 +39,7 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
           {waits.map((w) => (
             <div key={w.event} className="wobj row-click" onClick={() => actions.selectEvent(w.event)}>
               <span className="nm"><i className="swatch" style={{ background: `var(--c-${w.role})` }} />{w.name}</span><span className="n">{fmtDur(w.us)}</span>
-              <small>{w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? `obj# ${w.obj}${doc.objectName(w.obj) ? ` ${doc.objectName(w.obj)}` : ''} · ` : ''}{fmtInt(w.count)} wait{w.count === 1 ? '' : 's'} · avg {fmtDur(w.us / w.count)} · max {fmtDur(w.maxUs)}{w.maxLine > 0 && <> at <LineRef line={w.maxLine} file={doc.fileOfStmt(id)} /></>}</small>
+              <small>{w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? `obj# ${w.obj}${doc.objectName(w.obj) ? ` ${doc.objectName(w.obj)}` : ''} · ` : ''}{fmtInt(w.count)} wait{w.count === 1 ? '' : 's'} · avg {fmtDur(w.us / w.count)} · max {fmtDur(w.maxUs)}{w.maxLine > 0 && <> at <LineRef line={w.maxLine} file={w.maxFile ?? doc.fileOfStmt(id)} /></>}</small>
             </div>
           ))}
           {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio')) && <p className="faint xs">obj# → name needs a reference bundle (<code>mtkprof refscript</code>, then <code>-ref</code>).</p>}
