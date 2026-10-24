@@ -58,6 +58,7 @@ type Parser struct {
 	crlf    bool // file uses CRLF line endings (decided on the first line)
 	textGot int  // bytes of statement text collected so far (PARSING IN CURSOR)
 	intern  map[string]string
+	bindBuf BindSet
 	arena   []byte // chunk that bind values are copied into (see str)
 }
 
@@ -365,7 +366,7 @@ func (p *Parser) classify(line []byte) {
 			return
 		case hasPrefix(line, "RPC BINDS:"):
 			p.count(KindRPC)
-			p.binds = &BindSet{Line: p.line, IsRPC: true}
+			p.newBinds(BindSet{Line: p.line, IsRPC: true})
 			p.inValue = false
 			return
 		case hasPrefix(line, "RPC EXEC:"):
@@ -857,8 +858,17 @@ func (p *Parser) startBinds(b []byte, rpc bool) {
 		return
 	}
 	p.count(KindBinds)
-	p.binds = &BindSet{Line: p.line, Cursor: num, IsRPC: rpc}
+	p.newBinds(BindSet{Line: p.line, Cursor: num, IsRPC: rpc})
 	p.inValue = false
+}
+
+// newBinds starts a BINDS block in the parser's reusable BindSet: the Binds
+// slice keeps its capacity from block to block (the handler gets a view that
+// is only valid during the Binds callback, see Handler).
+func (p *Parser) newBinds(bs BindSet) {
+	bs.Binds = p.bindBuf.Binds[:0]
+	p.bindBuf = bs
+	p.binds = &p.bindBuf
 }
 
 func (p *Parser) flushBinds() {
@@ -1000,7 +1010,25 @@ func isHexDumpLine(line []byte) bool {
 }
 
 func (p *Parser) bindFields(b *Bind, line []byte) {
-	eachKV(line, ' ', func(k, v []byte) {
+	// a hand-rolled scan of "key=value key=value ..." (a bind block has about
+	// ten such lines per bind, so this is the hottest loop of a bind-heavy trace)
+	for len(line) > 0 {
+		i := 0
+		for i < len(line) && line[i] == ' ' {
+			i++
+		}
+		line = line[i:]
+		j := 0
+		for j < len(line) && line[j] != ' ' {
+			j++
+		}
+		tok := line[:j]
+		line = line[j:]
+		eq := bytes.IndexByte(tok, '=')
+		if eq <= 0 {
+			continue
+		}
+		k, v := tok[:eq], tok[eq+1:]
 		switch string(k) {
 		case "oacdty", "dty":
 			n, _ := atoi(v)
@@ -1057,7 +1085,7 @@ func (p *Parser) bindFields(b *Bind, line []byte) {
 			n, _ := atoi(v)
 			b.Flg = int(n)
 		}
-	})
+	}
 }
 
 // arenaChunk is the size of the chunks bind values are packed into: one

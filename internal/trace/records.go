@@ -340,7 +340,9 @@ type RPCCall struct {
 	Text string
 }
 
-// Handler receives parsed records in file order.
+// Handler receives parsed records in file order. Slices inside a record (the
+// Binds of a BindSet) are only valid during the callback: the parser reuses
+// them for the next record, so a handler that keeps them must copy.
 type Handler interface {
 	HeaderLine(h Header)
 	Marker(m Marker)
