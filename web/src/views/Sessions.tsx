@@ -147,7 +147,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   const identityCols: Column<CtxRow>[] = [
     { key: 'line', header: multiFile ? 'File:line' : 'Line', align: 'end', render: (r) => (multiFile ? <>{r.ctx.fileIdx ?? 0}:<LineRef line={r.ctx.line} file={r.ctx.fileIdx ?? 0} bare /></> : <LineRef line={r.ctx.line} bare />), sort: (r) => r.order },
     { key: 'sess', header: 'Session', className: 'mono', render: (r) => (
-      <>{r.child && <span className="dim" title="PX slave, attached to its query coordinator">↳ </span>}{sessionLabel(r.ctx)}{r.ctx.px && <span className="chip-q" style={{ marginLeft: '0.4rem' }}>PX</span>}</>
+      <>{r.child && <span className="dim" title="PX slave of the coordinator above">↳ </span>}{sessionLabel(r.ctx)}{r.ctx.px && <span className="chip-q" style={{ marginLeft: '0.4rem' }}>PX</span>}</>
     ), sort: (r) => sessionLabel(r.ctx) },
     { key: 'mod', header: 'Module', className: 'clip', render: (r) => r.ctx.module || <span className="dim">–</span>, sort: (r) => r.ctx.module },
     { key: 'act', header: 'Action', className: 'clip', render: (r) => r.ctx.action || <span className="dim">–</span>, sort: (r) => r.ctx.action },
@@ -158,7 +158,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   ]
   const statCols = (get: (r: CtxRow) => CtxStats): Column<CtxRow>[] => [
     { key: 'calls', header: 'Calls', align: 'end', render: (r) => fmtInt(get(r).calls), sort: (r) => get(r).calls },
-    { key: 'resp', header: 'Response', title: 'elapsed of top-level calls in this context', align: 'end', render: (r) => fmtDur(get(r).elapsed), sort: (r) => get(r).elapsed, bar: true },
+    { key: 'resp', header: 'Response', title: 'elapsed of top-level calls', align: 'end', render: (r) => fmtDur(get(r).elapsed), sort: (r) => get(r).elapsed, bar: true },
     { key: 'cpu', header: 'CPU', align: 'end', render: (r) => fmtDur(get(r).cpu), sort: (r) => get(r).cpu },
     { key: 'wait', header: 'Waits', title: 'non-idle wait time', align: 'end', render: (r) => fmtDur(get(r).waitUs), sort: (r) => get(r).waitUs },
     { key: 'idle', header: 'Idle', align: 'end', render: (r) => fmtDur(get(r).idleUs), sort: (r) => get(r).idleUs },
@@ -199,23 +199,23 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
         <header>
           <h2>Session contexts</h2>
           <span className="hint">
-            {doc.contexts.length} context{doc.contexts.length === 1 ? '' : 's'}; one row per change of session, module, action, client id, service or process.
-            {selectedCount > 0 ? ` ${selectedCount} selected: every view shows only their calls and waits.` : ' Tick rows to filter every view to them.'}
+            {doc.contexts.length} context{doc.contexts.length === 1 ? '' : 's'} · row per change of session, module, action, client id, service or process
+            {selectedCount > 0 ? ` · ${selectedCount} selected, all views filtered` : ' · tick to filter all views'}
           </span>
           <span className="tools">
             <button onClick={() => setChecked(new Set(rows.map((r) => r.id)))} disabled={rows.length === 0}>select all</button>
             <button onClick={() => actions.setContexts(null)} disabled={selectedCount === 0}>none</button>
           </span>
         </header>
-        {!hasStats && <p className="callout">This document was written without fact tables, so per-context statistics are not available.</p>}
+        {!hasStats && <p className="callout">No fact tables: per-context statistics unavailable.</p>}
         <DataTable columns={ctxCols} rows={rows} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="45dvh"
-          onRowClick={(r) => toggle(r.id)} empty="No session context markers in this trace." />
+          onRowClick={(r) => toggle(r.id)} empty="No session context markers." />
       </section>
 
       <section className="section">
         <header>
           <h2>By {dimLabel[dim]}</h2>
-          <span className="hint">contexts rolled up; click a row to filter every view to that {dimLabel[dim]}</span>
+          <span className="hint">click: filter all views</span>
           <span className="tools">
             <select value={dim} onChange={(e) => setDim(e.target.value as Dim)} aria-label="Roll-up dimension">
               {(Object.keys(dimLabel) as Dim[]).map((d) => <option key={d} value={d}>{dimLabel[d]}</option>)}

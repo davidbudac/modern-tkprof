@@ -32,7 +32,7 @@ export function Waits({ doc }: { doc: TraceDoc }) {
   ]
   return (
     <section className="section">
-      <header><h2>Wait events</h2><span className="hint">{rows.length} events · {fmtDur(total)} total; click one for its distribution and where it happened</span>
+      <header><h2>Wait events</h2><span className="hint">{rows.length} events · {fmtDur(total)} total</span>
         <span className="tools"><button aria-pressed={!state.includeIdle} onClick={() => actions.toggleIdle()}>hide idle</button></span></header>
       <DataTable columns={cols} rows={rows} rowKey={(r) => r.event} defaultSort={{ key: 'us', dir: 'desc' }} maxHeight="calc(100dvh - 12rem)"
         selectedKey={sel} onRowClick={(r) => actions.selectEvent(r.event)} />

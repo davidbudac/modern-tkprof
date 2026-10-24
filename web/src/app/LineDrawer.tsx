@@ -49,8 +49,8 @@ export function LineDrawer() {
         </span>
       </div>
       <div className="linedrawer-body" ref={bodyRef} tabIndex={0}>
-        {error && <p className="small muted">Could not read the trace: {error}</p>}
-        {page && page.lines.length === 0 && !error && <p className="small muted">Line {fmtInt(target)} is past the end of the file{page.total ? ` (${fmtInt(page.total)} lines)` : ''}.</p>}
+        {error && <p className="small muted">Trace read failed: {error}</p>}
+        {page && page.lines.length === 0 && !error && <p className="small muted">Line {fmtInt(target)} past end of file{page.total ? ` (${fmtInt(page.total)} lines)` : ''}</p>}
         {page && page.lines.length > 0 && (
           <ol className="tracelines" start={page.from}>
             {page.lines.map((text, i) => {

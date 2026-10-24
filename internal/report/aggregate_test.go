@@ -50,7 +50,7 @@ func TestAggregateTextReportEqualsFull(t *testing.T) {
 				t.Errorf("%s: line %d differs:\n  full %s\n  agg  %s", fx, i+1, la[i], lb[i])
 			}
 		}
-		if !strings.Contains(b.String(), "aggregate mode: calls and waits are not retained") {
+		if !strings.Contains(b.String(), "aggregate mode: calls/waits not retained") {
 			t.Errorf("%s: the aggregate report does not say what it leaves out", fx)
 		}
 		if len(agg.Calls) != 0 || len(agg.Waits) != 0 {

@@ -62,9 +62,9 @@ func RedactBindsSalt(m *Model, mode BindMode, salt string) {
 			}
 			b.Value = RedactedValueSalt(b, salt)
 		}
-		note := "bind values redacted (type, length and a stable hash are kept)"
+		note := "bind values redacted (type, length, stable hash)"
 		if salt != "" {
-			note = "bind values redacted (type, length and a salted hash are kept)"
+			note = "bind values redacted (type, length, salted hash)"
 		}
 		m.Diag.Notes = append(m.Diag.Notes, note)
 	case BindsNone:

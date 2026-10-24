@@ -37,14 +37,14 @@ export function TopBar({ doc }: { doc: TraceDoc }) {
     <header className={'topbar' + (compare ? ' cmp' : '')}>
       <span className="brand">mtkprof</span>
       {compare && (
-        <span className="seg side" role="group" aria-label="Trace shown by the views" title="which trace the Overview, Statements, Waits, ... show">
+        <span className="seg side" role="group" aria-label="Trace shown by the views" title="trace shown in the views">
           {(['a', 'b'] as const).map((k) => (
             <button key={k} aria-pressed={state.side === k} onClick={() => actions.setSide(k)} title={(compare[k].file.traceFile || compare[k].file.path).split(/[\\/]/).pop()}>{k.toUpperCase()}</button>
           ))}
         </span>
       )}
       <span className="file mono" title={doc.file.traceFile || doc.file.path}>{name}<span className="dim"> · {fmtBytes(doc.diag.bytes)}</span></span>
-      <span className="mini" title="response time of the whole trace, by class">
+      <span className="mini" title="whole-trace response time by class">
         <b>{fmtDur(totalUs)}</b>
         <span className="mini-track" role="img" aria-label={segs.map((s) => `${s.label} ${fmtPct(s.us, totalUs, 0)}`).join(', ')}>
           {segs.map((s) => <i key={s.role} className={s.role === 'unaccounted' ? 'unaccounted' : undefined} style={{ flex: `${s.us} 1 0`, background: s.role === 'unaccounted' ? undefined : `var(--c-${s.role})` }} />)}
@@ -62,7 +62,7 @@ export function TopBar({ doc }: { doc: TraceDoc }) {
         {win && <span className="chip">window {fmtDur(win.endTim - win.startTim)} <button onClick={() => actions.setWindow(null)} aria-label="Clear time window">×</button></span>}
         {state.contexts && <span className="chip">{state.contexts.size} session context{state.contexts.size === 1 ? '' : 's'} <button onClick={() => actions.setContexts(null)} aria-label="Clear context filter">×</button></span>}
       </span>
-      <button className="quiet theme" onClick={() => actions.setTheme(themeNext[state.theme])} title={`theme: ${state.theme} (click to change)`} aria-label={`Theme ${state.theme}`}>{themeGlyph[state.theme]}</button>
+      <button className="quiet theme" onClick={() => actions.setTheme(themeNext[state.theme])} title={`theme: ${state.theme}`} aria-label={`Theme ${state.theme}`}>{themeGlyph[state.theme]}</button>
     </header>
   )
 }
@@ -79,7 +79,7 @@ export function SubBar({ doc }: { doc: TraceDoc }) {
       <span>
         {doc.span.firstWallUs
           ? <><b>{fmtWall(doc.span.firstWallUs, doc.tzOffsetMin, { date: true }).slice(0, 10)}</b> {fmtWall(doc.span.firstWallUs, doc.tzOffsetMin)} → {fmtWall(doc.span.lastWallUs, doc.tzOffsetMin)} {fmtTz(doc.tzOffsetMin)}</>
-          : <>no wall clock in this trace</>}
+          : <>no wall clock</>}
       </span>
       {doc.file.truncated && <span className="warn">cut by max_dump_file_size</span>}
       {doc.file.continuedFrom?.length ? <span className="warn">continues an earlier file</span> : null}

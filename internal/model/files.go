@@ -240,7 +240,7 @@ func planFiles(paths []string, opts Options) ([]plannedFile, []string, error) {
 						next[i], prev[j] = j, i
 					}
 				} else if len(files) > 1 || len(paths) > 1 {
-					notes = append(notes, fmt.Sprintf("%s continues in %s, which was not found", filepath.Base(files[i]), baseName(to)))
+					notes = append(notes, fmt.Sprintf("%s continues in %s: not found", filepath.Base(files[i]), baseName(to)))
 				}
 			}
 			if from != "" {
@@ -249,7 +249,7 @@ func planFiles(paths []string, opts Options) ([]plannedFile, []string, error) {
 						next[j], prev[i] = i, j
 					}
 				} else if len(files) > 1 || len(paths) > 1 {
-					notes = append(notes, fmt.Sprintf("%s continues %s, which was not found", filepath.Base(files[i]), baseName(from)))
+					notes = append(notes, fmt.Sprintf("%s continues %s: not found", filepath.Base(files[i]), baseName(from)))
 				}
 			}
 		}
@@ -324,7 +324,7 @@ func BuildFiles(paths []string, opts Options) (*Model, error) {
 	m := b.Finish(total)
 	for i, pf := range plan {
 		if pf.followed {
-			m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("%s was not named but is part of the chain; followed", filepath.Base(plan[i].path)))
+			m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("%s: not named, followed as part of the chain", filepath.Base(plan[i].path)))
 		}
 	}
 	m.Diag.Notes = append(m.Diag.Notes, notes...)

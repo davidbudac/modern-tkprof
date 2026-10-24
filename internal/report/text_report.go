@@ -166,14 +166,14 @@ func (t *textWriter) header() {
 		if len(m.File.Files) > 1 {
 			t.p("             (first of %d session contexts in %d files; see SESSIONS)\n", len(m.Contexts), len(m.File.Files))
 		} else if len(m.Contexts) > 1 {
-			t.p("             (%d context changes in the file: session / module / action switches)\n", len(m.Contexts)-1)
+			t.p("             (%d context changes: session/module/action)\n", len(m.Contexts)-1)
 		}
 	}
 	span := m.Span
 	if span.FirstWallUs != 0 {
 		t.p("Span       : %s -> %s  (%s s)\n", t.wallZ(span.FirstWallUs), t.wallZ(span.LastWallUs), secs(span.Us()))
 	} else {
-		t.p("Span       : tim %d -> %d  (%s s, no wall-clock marker found)\n", span.FirstTim, span.LastTim, secs(span.Us()))
+		t.p("Span       : tim %d -> %d  (%s s, no wall clock)\n", span.FirstTim, span.LastTim, secs(span.Us()))
 	}
 	t.p("Volume     : %s lines (%.1f MB)  calls %s  waits %s  cursors %s  statements %s  bind sets %s  plans %s  transactions %s  errors %s\n",
 		commas(int64(m.Diag.Lines)), float64(m.Diag.Bytes)/1e6, commas(m.CallCount()), commas(m.WaitCount()), commas(int64(len(m.Cursors))),
@@ -196,14 +196,14 @@ func (t *textWriter) header() {
 		}
 		notes = append(notes, fmt.Sprintf("%d files in %d chain(s)/sessions", len(m.File.Files), len(chains)))
 		if px := analyze.PX(m); px.Sessions > 0 {
-			notes = append(notes, fmt.Sprintf("%d PX slave process(es) attached to their coordinator", px.Sessions))
+			notes = append(notes, fmt.Sprintf("%d PX slave process(es)", px.Sessions))
 		}
 	}
 	if m.Diag.UnknownLines > 0 {
 		notes = append(notes, fmt.Sprintf("%d unrecognised lines", m.Diag.UnknownLines))
 	}
 	if m.Diag.ImplicitCursors > 0 {
-		notes = append(notes, fmt.Sprintf("%d cursors used before being parsed in this file", m.Diag.ImplicitCursors))
+		notes = append(notes, fmt.Sprintf("%d cursors used before PARSE", m.Diag.ImplicitCursors))
 	}
 	if m.Diag.OrphanCalls > 0 {
 		notes = append(notes, fmt.Sprintf("%d recursive calls without a parent call", m.Diag.OrphanCalls))
@@ -212,7 +212,7 @@ func (t *textWriter) header() {
 		notes = append(notes, fmt.Sprintf("%d waits after the last call of their cursor", m.Diag.UnattributedWaits))
 	}
 	if m.Aggregate {
-		notes = append(notes, "aggregate mode: calls and waits are not retained; the executions tables and the bind sections are left out (summary lines stay)")
+		notes = append(notes, "aggregate mode: calls/waits not retained; no executions tables or bind sections")
 	}
 	if bm := m.Diag.BindMode; bm == "redacted" || bm == "none" {
 		notes = append(notes, "bind values "+map[string]string{"redacted": "redacted (type, length, stable hash)", "none": "dropped"}[bm])
@@ -229,7 +229,7 @@ func (t *textWriter) files() {
 	if len(m.File.Files) < 2 {
 		return
 	}
-	t.p("FILES  (one logical trace; files of a chain are parsed as one stream, independent files are separate sessions)\n")
+	t.p("FILES  (chained files: one stream; independent files: separate sessions)\n")
 	t.rule('-')
 	t.p("%3s %5s %-44s %10s %9s  %-12s %-12s  %s\n", "#", "chain", "file", "bytes", "lines", "first", "last", "process")
 	for _, f := range m.File.Files {
@@ -287,8 +287,8 @@ func (t *textWriter) traceProfile() {
 	p := analyze.TraceProfile(t.m)
 	t.profileTable(p, "RESOURCE PROFILE - whole trace (response time = trace span; CPU of top-level calls; every wait)")
 	if px := analyze.PX(t.m); px.Sessions > 0 {
-		t.p("PX slaves: %d process(es) attached to their coordinator, run in parallel with it and are not in the profile above:\n", px.Sessions)
-		t.p("           cpu %s s, waits %s s, idle %s s (their own sessions are listed under the coordinator in SESSIONS)\n\n", secs(px.CPUUs), secs(px.WaitUs), secs(px.IdleUs))
+		t.p("PX slaves: %d process(es), parallel to the coordinator, not in the profile above:\n", px.Sessions)
+		t.p("           cpu %s s, waits %s s, idle %s s\n\n", secs(px.CPUUs), secs(px.WaitUs), secs(px.IdleUs))
 	}
 }
 
@@ -342,7 +342,7 @@ func (t *textWriter) ranking() []model.ID {
 		t.rank[id] = i + 1
 	}
 	span := m.Span.Us()
-	t.p("STATEMENTS BY %s  (elapsed includes recursive children and idle time between the statement's calls)\n", strings.ToUpper(t.o.Sort))
+	t.p("STATEMENTS BY %s  (elapsed includes recursive children and idle between calls)\n", strings.ToUpper(t.o.Sort))
 	t.rule('-')
 	t.p("%4s %11s %6s %11s %10s %9s %11s %9s %11s  %-13s %3s  %s\n", "#", "Elapsed s", "%", "Self s", "CPU s", "Execs", "Rows", "Disk", "Query", "SQL ID", "Dep", "Statement")
 	for i, id := range ids {
@@ -355,7 +355,7 @@ func (t *textWriter) ranking() []model.ID {
 		t.p("%4d %11s %6s %11s %10s %9s %11s %9s %11s  %-13s %3d  %s\n", i+1, secs(s.Elapsed+s.IdleUs), pct(s.Elapsed+s.IdleUs, span), secs(s.SelfElapsed), secs(s.CPU),
 			commas(s.Executions), commas(s.AllCalls.Rows), commas(s.AllCalls.Disk), commas(s.AllCalls.Query), t.sqlID(st), s.MinDep, preview(st.Text, textW))
 		if s.PXElapsed > 0 || s.PXSessions > 0 {
-			t.p("%4s %11s %6s %s\n", "", secs(s.PXElapsed), "", fmt.Sprintf("  \\ PX slaves: %d sessions (work in their own sessions, not in the elapsed above)", s.PXSessions))
+			t.p("%4s %11s %6s %s\n", "", secs(s.PXElapsed), "", fmt.Sprintf("  \\ PX slaves: %d sessions (not in elapsed above)", s.PXSessions))
 		}
 		for _, ch := range s.Children {
 			cs := &m.Statements[ch.Statement]
@@ -416,7 +416,7 @@ func (t *textWriter) statement(rank int, sid model.ID) {
 	t.p("elapsed %s s (%s of trace)   self %s s   cpu %s s   waits %s s   idle between calls %s s   execs %s   rows %s   cursors %d   errors %d\n",
 		secs(s.Elapsed), strings.TrimSpace(pct(s.Elapsed, m.Span.Us())), secs(s.SelfElapsed), secs(s.CPU), secs(s.WaitUs), secs(s.IdleUs), commas(s.Executions), commas(s.AllCalls.Rows), s.Cursors, s.Errors)
 	if s.PXSessions > 0 {
-		t.p("PX slaves: %d sessions, %s s elapsed, %s s cpu (their own sessions, not included above)\n", s.PXSessions, secs(s.PXElapsed), secs(s.PXCPU))
+		t.p("PX slaves: %d sessions, %s s elapsed, %s s cpu (not included above)\n", s.PXSessions, secs(s.PXElapsed), secs(s.PXCPU))
 	}
 	if s.FirstWallUs != 0 {
 		t.p("first call %s   last call %s   first line %d\n", t.wall(s.FirstWallUs), t.wall(s.LastWallUs), st.FirstLine)
@@ -480,7 +480,7 @@ func (t *textWriter) waitDetail(sid model.ID) {
 			continue
 		}
 		if shown == 0 {
-			t.p("Wait detail by object (obj# from the WAIT lines; map with dba_objects.object_id)\n")
+			t.p("Wait detail by object (obj# = dba_objects.object_id)\n")
 		}
 		shown++
 		t.p("  %s - %s s in %s waits\n", e.Name, secs(ev.Us), commas(ev.Count))
@@ -577,7 +577,7 @@ func (t *textWriter) execTable(ex []analyze.Execution) {
 	m := t.m
 	idx, slow := pickExecs(ex, n)
 	if slow != nil {
-		t.p("%d of %d executions: the first %d in file order and the %d slowest of the rest (marked *)\n", len(idx), len(ex), len(idx)-len(slow), len(slow))
+		t.p("%d of %d executions: first %d in file order + %d slowest of the rest (*)\n", len(idx), len(ex), len(idx)-len(slow), len(slow))
 	}
 	const fixed = 87 // width of the columns before the binds
 	bindW := t.o.Width - fixed
@@ -668,7 +668,7 @@ func (t *textWriter) sessions() {
 	}
 	cs := analyze.Contexts(m)
 	t.rule('=')
-	t.p("SESSIONS  (one row per session context; a *** marker changing session/module/action/client id/service starts one)\n")
+	t.p("SESSIONS  (one row per session context: *** session/module/action/client id/service marker)\n")
 	t.p("response = Σ elapsed of top-level calls; waits = non-idle wait events; idle = Idle-class events\n")
 	t.rule('-')
 	t.p("%4s %8s %-14s %8s %10s %10s %10s %10s %-12s %-12s  %s\n", "#", "line", "session", "calls", "response s", "cpu s", "waits s", "idle s", "first", "last", "module / action / client id / service")
@@ -732,7 +732,7 @@ func (t *textWriter) sessions() {
 	t.rule('-')
 	t.p("%4s %8s %-14s %8s %10s %10s %10s %10s\n", "", "", "total", commas(tot.Calls), secs(tot.Elapsed), secs(tot.CPU), secs(tot.WaitUs), secs(tot.IdleUs))
 	if pxTot.Calls > 0 {
-		t.p("%4s %8s %-14s %8s %10s %10s %10s %10s   (PX slaves, run in parallel; not in the total)\n", "", "", "PX slaves", commas(pxTot.Calls), secs(pxTot.Elapsed), secs(pxTot.CPU), secs(pxTot.WaitUs), secs(pxTot.IdleUs))
+		t.p("%4s %8s %-14s %8s %10s %10s %10s %10s   (PX slaves, parallel; not in total)\n", "", "", "PX slaves", commas(pxTot.Calls), secs(pxTot.Elapsed), secs(pxTot.CPU), secs(pxTot.WaitUs), secs(pxTot.IdleUs))
 	}
 	t.nl()
 }
@@ -822,7 +822,7 @@ func (t *textWriter) binds(sid model.ID) {
 			b := &m.Binds[j]
 			switch {
 			case b.NoDef:
-				parts = append(parts, fmt.Sprintf(":%d=(same as earlier bind)", b.Pos))
+				parts = append(parts, fmt.Sprintf(":%d=(= earlier bind)", b.Pos))
 			case b.IsNull:
 				parts = append(parts, fmt.Sprintf(":%d %s=NULL", b.Pos, b.TypeName()))
 			case b.IsDump:
@@ -936,7 +936,7 @@ func countPlans(m *model.Model, s *analyze.StmtStats, h uint64) int {
 func (t *textWriter) links(s *analyze.StmtStats) {
 	m := t.m
 	if len(s.Children) > 0 {
-		t.p("Recursive statements executed by this statement (their time is included above):\n")
+		t.p("Recursive statements (time included above):\n")
 		for _, l := range s.Children {
 			cs := &m.Statements[l.Statement]
 			t.p("  %10s s %6s  %6s calls  %-13s #%-4s %s\n", secs(l.Elapsed), pct(l.Elapsed, s.Elapsed), commas(l.Calls), t.sqlID(cs), rankStr(t.rank[l.Statement]), preview(cs.Text, t.o.Width-60))

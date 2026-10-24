@@ -92,7 +92,7 @@ func attachPX(m *Model) {
 			continue
 		}
 		s.Parent = best
-		m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("PX slave %s (context %d, session %s) attached to coordinator context %d (%s)",
+		m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("PX slave %s (context %d, session %s) -> coordinator context %d (%s)",
 			m.File.Files[s.FileIdx].Name, i, s.SessionID, best, m.File.Files[m.Contexts[best].FileIdx].Name))
 	}
 }

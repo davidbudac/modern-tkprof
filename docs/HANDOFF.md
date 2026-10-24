@@ -111,7 +111,7 @@ opens it in the Statements workbench (`actions.selectStmt`); `pickStmt`
 selects without leaving the view. Only wait events use the right-hand
 inspector.
 
-- Overview (`views/Overview.tsx`): generated summary sentence, response-time
+- Overview (`views/Overview.tsx`): statement-concentration line, response-time
   bar on a true time axis with a per-component ledger (`derive.componentRows`),
   top statements drawn on the same axis (`derive.quickSegments`, one pass over
   the waits cached per document), findings, lanes on wall-clock time

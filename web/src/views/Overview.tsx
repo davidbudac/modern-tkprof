@@ -6,7 +6,7 @@ import { fmtDur, fmtInt, fmtCompact, fmtPct, preview } from '../data/format'
 import { useStore, actions, scopeOf } from '../app/store'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { componentRowsFrom, quickSegments, type ComponentRow, type StmtWait } from '../data/derive'
-import { ticks, tickLabel, tickUnit, numberWord } from '../data/scale'
+import { ticks, tickLabel, tickUnit } from '../data/scale'
 import { lightFill } from '../components/colors'
 import { Findings, findingText } from './Findings'
 import { Lanes } from './Lanes'
@@ -24,19 +24,20 @@ export function Overview({ doc }: { doc: TraceDoc }) {
     (signal) => source.profile(scope, signal), 'profile')
   const rows = useMemo(() => componentRowsFrom(doc, profile.data ?? null, totalUs), [doc, profile.data, totalUs])
   const stmts = useMemo(() => [...doc.stats.statements].filter((s) => s.allCalls.count > 0).sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)), [doc])
+  const lede = summary(totalUs, state.window ? [] : stmts)
   const [timeView, setTimeView] = useState<'lanes' | 'event' | 'class'>('lanes')
   return (
     <>
       <section className="hero">
-        <h1>Where {fmtDur(totalUs)} went{state.window ? <span className="dim"> in the selected window</span> : null}</h1>
-        <p className="lede">{summary(rows, totalUs, state.window ? [] : stmts)}</p>
+        <h1>Response time {fmtDur(totalUs)}{state.window ? <span className="dim"> · window</span> : null}</h1>
+        {lede && <p className="lede">{lede}</p>}
         <Axis totalUs={totalUs} />
         <Track rows={rows} totalUs={totalUs} />
         <Ledger rows={rows} totalUs={totalUs} />
       </section>
 
       <section className="section">
-        <header><h2>Statements</h2><span className="hint">{state.window ? 'whole trace, on the trace\'s time scale (statement numbers do not follow the window)' : 'response time on the same scale as above'}; recursive children and idle time between calls included</span>
+        <header><h2>Statements</h2><span className="hint">incl. recursive children and idle between calls{state.window ? ' · whole trace, window not applied' : ''}</span>
           <span className="tools"><button className="link" onClick={() => actions.setView('statements')}>all {stmts.length} statements</button></span></header>
         <StatementLedger doc={doc} stmts={stmts} totalUs={doc.spanUs()} />
       </section>
@@ -44,12 +45,12 @@ export function Overview({ doc }: { doc: TraceDoc }) {
       <Findings doc={doc} />
 
       <section className="section">
-        <header><h2>The session over time</h2>
-          <span className="hint">{timeView === 'lanes' ? 'one lane per statement, in order of first call; drag across the lanes to focus every view on a window, click empty space or press Esc to clear it; click a bar or sql_id to open the statement' : 'busy time per bucket; drag the slider below the chart to focus every view on a window, press Esc to clear it'}</span>
+        <header><h2>Timeline</h2>
+          <span className="hint">{timeView === 'lanes' ? 'lane per statement, by first call · drag: set window · Esc: clear' : 'busy time per bucket · slider: set window · Esc: clear'}</span>
           <span className="tools"><span className="seg" role="group" aria-label="Time view">
             <button aria-pressed={timeView === 'lanes'} onClick={() => setTimeView('lanes')}>lanes</button>
-            <button aria-pressed={timeView === 'event'} onClick={() => setTimeView('event')} title="stacked buckets, one series per wait event (top 10, rest folded)">by event</button>
-            <button aria-pressed={timeView === 'class'} onClick={() => setTimeView('class')} title="stacked buckets, waits folded into wait classes">by class</button>
+            <button aria-pressed={timeView === 'event'} onClick={() => setTimeView('event')} title="top 10 events, rest folded">by event</button>
+            <button aria-pressed={timeView === 'class'} onClick={() => setTimeView('class')} title="by wait class">by class</button>
           </span></span></header>
         {timeView === 'lanes' ? <Lanes doc={doc} /> : <TimelineChart doc={doc} by={timeView} />}
       </section>
@@ -59,25 +60,12 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   )
 }
 
-/** One or two sentences that say what the numbers say. */
-function summary(rows: ComponentRow[], totalUs: number, stmts: StmtStats[]): string {
-  if (totalUs <= 0) return 'The trace has no time information.'
-  const waits = rows.filter((r) => r.kind === 'wait' && r.role !== 'idle' && r.us / totalUs >= 0.05).slice(0, 2)
-  const cpu = rows.find((r) => r.kind === 'cpu')?.us ?? 0
-  const idle = rows.filter((r) => r.role === 'idle').reduce((a, r) => a + r.us, 0)
-  const part = (r: ComponentRow) => `${fmtDur(r.us)} (${fmtPct(r.us, totalUs, 0)}) on ${r.label}`
-  const out: string[] = []
-  if (waits.length) out.push(`The session spent ${waits.map(part).join(' and ')}.`)
-  if (cpu / totalUs >= 0.5) out.push(`Most of the time is CPU work: ${fmtDur(cpu)}, ${fmtPct(cpu, totalUs, 0)}.`)
-  else out.push(`CPU work is ${fmtDur(cpu)}, ${fmtPct(cpu, totalUs, 0)}.`)
-  if (idle / totalUs >= 0.05) out.push(`${fmtDur(idle)} (${fmtPct(idle, totalUs, 0)}) was idle, waiting for the client between calls.`)
+/** How many statements make up 80% of the response time. */
+function summary(totalUs: number, stmts: StmtStats[]): string {
+  if (totalUs <= 0) return 'no time information'
   let acc = 0, k = 0
   for (const s of stmts) { acc += s.elapsed + s.idleUs; k++; if (acc >= 0.8 * totalUs) break }
-  if (stmts.length > 1 && acc >= 0.8 * totalUs) {
-    if (k <= 5) out.push(`${k === 1 ? 'One statement accounts' : `${numberWord(k)[0].toUpperCase() + numberWord(k).slice(1)} statements account`} for ${fmtPct(acc, totalUs, 0)} of it.`)
-    else out.push(`No single statement dominates: it takes ${k} to reach ${fmtPct(acc, totalUs, 0)}.`)
-  }
-  return out.join(' ')
+  return stmts.length > 1 && acc >= 0.8 * totalUs ? `top ${k} statement${k === 1 ? '' : 's'}: ${fmtPct(acc, totalUs, 0)}` : ''
 }
 
 function Axis({ totalUs }: { totalUs: number }) {
@@ -127,7 +115,7 @@ function Track({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
           </div>
         )
       })}
-      {rest > 0 && <div className="seg rest" style={{ width: `${(100 * rest) / scale}%` }} title={`other components: ${fmtDur(rest)}`} />}
+      {rest > 0 && <div className="seg rest" style={{ width: `${(100 * rest) / scale}%` }} title={`other: ${fmtDur(rest)}`} />}
     </div>
   )
 }
@@ -153,8 +141,8 @@ function Ledger({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
       ))}
       {(rest.length > 0 || un) && (
         <div className="rest">
-          <dt className="dim">{rest.length > 0 ? `${rest.length} more component${rest.length === 1 ? '' : 's'}` : ''}{rest.length > 0 && un ? ' · ' : ''}{un ? `unaccounted ${un.us < 0 ? '−' : ''}${fmtDur(Math.abs(un.us))}` : ''}</dt>
-          <dd><span className="dim">{rest.length > 0 ? fmtDur(restUs) : ''}</span><span className="dim">{rest.length > 0 ? fmtPct(restUs, totalUs) : ''}</span><span className="n"><button className="link" onClick={() => actions.setView('waits')}>all wait events</button></span></dd>
+          <dt className="dim">{rest.length > 0 ? `${rest.length} more` : ''}{rest.length > 0 && un ? ' · ' : ''}{un ? `unaccounted ${un.us < 0 ? '−' : ''}${fmtDur(Math.abs(un.us))}` : ''}</dt>
+          <dd><span className="dim">{rest.length > 0 ? fmtDur(restUs) : ''}</span><span className="dim">{rest.length > 0 ? fmtPct(restUs, totalUs) : ''}</span><span className="n"><button className="link" onClick={() => actions.setView('waits')}>all waits</button></span></dd>
         </div>
       )}
     </dl>
@@ -195,12 +183,12 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
           </div>
         )
       })}
-      {rest.length > 0 && <div className="srest">{rest.length} more statement{rest.length === 1 ? '' : 's'}, {fmtDur(restUs)} together ({fmtPct(restUs, totalUs)}). <button className="link" onClick={() => actions.setView('statements')}>Open the list</button></div>}
+      {rest.length > 0 && <div className="srest">{rest.length} more statement{rest.length === 1 ? '' : 's'} · {fmtDur(restUs)} ({fmtPct(restUs, totalUs)}) <button className="link" onClick={() => actions.setView('statements')}>all</button></div>}
     </div>
   )
 }
 
-/** What the statement did, in one line: its top wait, its volume, its plan, its recursive work. */
+/** One line per statement: top wait, volume, plan, recursive work. */
 function Note({ doc, st, waits }: { doc: TraceDoc; st: StmtStats; waits?: StmtWait[] }) {
   const parts: string[] = []
   const w = (waits ?? []).find((x) => x.role !== 'idle')
@@ -210,7 +198,7 @@ function Note({ doc, st, waits }: { doc: TraceDoc; st: StmtStats; waits?: StmtWa
   if (st.executions > 1) parts.push(`${fmtInt(st.executions)} executions`)
   if (st.allCalls.rows > 0) parts.push(`${fmtCompact(st.allCalls.rows)} row${st.allCalls.rows === 1 ? '' : 's'}${st.fetch.count > 1 ? ` in ${fmtInt(st.fetch.count)} fetches` : ''}`)
   if (st.allCalls.disk > 0) parts.push(`${fmtCompact(st.allCalls.disk)} disk reads`)
-  if (st.childUs >= 0.01 * st.elapsed && st.children?.length) parts.push(`runs ${st.children.length} recursive statement${st.children.length === 1 ? '' : 's'} (${fmtPct(st.childUs, st.elapsed, 0)} of its time)`)
+  if (st.childUs >= 0.01 * st.elapsed && st.children?.length) parts.push(`${st.children.length} recursive statement${st.children.length === 1 ? '' : 's'} ${fmtPct(st.childUs, st.elapsed, 0)}`)
   if (st.planHashes?.length) parts.push(`plan ${st.planHashes.join(', ')}`)
   if (st.errors > 0) parts.push(`${st.errors} error${st.errors === 1 ? '' : 's'}`)
   return <span>{parts.join(' · ')}</span>
@@ -225,14 +213,16 @@ function TraceFacts({ doc }: { doc: TraceDoc }) {
   const calls = doc.hasFacts ? doc.calls.n : stats.statements.reduce((a, s) => a + s.allCalls.count, 0)
   const waits = doc.hasFacts ? doc.waits.n : stats.events.reduce((a, e) => a + e.count, 0)
   const commits = doc.transactions.filter((t) => !t.rollback).length, rollbacks = doc.transactions.length - commits
-  const sentences: string[] = []
-  sentences.push(`${doc.errors.length === 0 ? 'No errors' : `${fmtInt(doc.errors.length)} error${doc.errors.length === 1 ? '' : 's'}`}, ${doc.transactions.length === 0 ? 'no commits' : `${fmtInt(commits)} commit${commits === 1 ? '' : 's'}${rollbacks ? ` and ${fmtInt(rollbacks)} rollback${rollbacks === 1 ? '' : 's'}` : ''}`}.`)
-  sentences.push(`${fmtInt(doc.diag.lines)} lines${doc.diag.unknownLines ? `, ${fmtInt(doc.diag.unknownLines)} not recognised (first at line ${fmtInt(doc.unknown[0]?.line ?? 0)})` : ', every one recognised'}.`)
-  if (doc.diag.assumedCursors) sentences.push(`${doc.diag.assumedCursors} cursor${doc.diag.assumedCursors === 1 ? ' was' : 's were'} open before tracing started; earlier calls are attributed as tkprof does.`)
-  if (doc.file.truncated) sentences.push('The trace was cut by max_dump_file_size.')
+  const facts: string[] = []
+  facts.push(`${fmtInt(doc.errors.length)} error${doc.errors.length === 1 ? '' : 's'}`)
+  facts.push(`${fmtInt(commits)} commit${commits === 1 ? '' : 's'}${rollbacks ? `, ${fmtInt(rollbacks)} rollback${rollbacks === 1 ? '' : 's'}` : ''}`)
+  facts.push(`${fmtInt(doc.diag.lines)} lines${doc.diag.unknownLines ? `, ${fmtInt(doc.diag.unknownLines)} unrecognised (first: line ${fmtInt(doc.unknown[0]?.line ?? 0)})` : ''}`)
+  if (doc.diag.assumedCursors) facts.push(`${doc.diag.assumedCursors} cursor${doc.diag.assumedCursors === 1 ? '' : 's'} opened before trace start (attributed as tkprof)`)
+  if (doc.file.truncated) facts.push('cut by max_dump_file_size')
+  facts.push(...(doc.diag.notes ?? []))
   return (
     <section className="section facts-sec">
-      <header><h2>The trace</h2></header>
+      <header><h2>Trace</h2></header>
       <div className="facts">
         <div className="fact"><span className="v">{fmtInt(doc.statements.length)}</span><span className="l">statements</span></div>
         <div className="fact"><span className="v">{fmtCompact(nExec)}</span><span className="l">executions</span></div>
@@ -242,7 +232,7 @@ function TraceFacts({ doc }: { doc: TraceDoc }) {
         <div className="fact" title="physical block reads (p=)"><span className="v">{fmtCompact(disk)}</span><span className="l">disk reads</span></div>
         <div className="fact" title="buffer gets in consistent mode (cr=)"><span className="v">{fmtCompact(query)}</span><span className="l">consistent gets</span></div>
       </div>
-      <p className="small muted">{sentences.join(' ')}{doc.diag.notes?.length ? ' ' + doc.diag.notes.join(' ') : ''}</p>
+      <p className="small muted">{facts.join(' · ')}</p>
     </section>
   )
 }

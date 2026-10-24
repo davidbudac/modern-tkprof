@@ -42,7 +42,7 @@ func TestTextReportSections(t *testing.T) {
 	}
 
 	capped := renderText(t, "../../testdata/traces/19c/basic_binds.trc", TextOptions{Sort: "elapsed", Execs: 4, Sys: true, Width: 120})
-	if !strings.Contains(capped, "4 of 10 executions: the first 2 in file order and the 2 slowest of the rest (marked *)") {
+	if !strings.Contains(capped, "4 of 10 executions: first 2 in file order + 2 slowest of the rest (*)") {
 		t.Error("capped executions header missing")
 	}
 	none := renderText(t, "../../testdata/traces/19c/basic_binds.trc", TextOptions{Sort: "elapsed", Execs: 0, Sys: true, Width: 120})
@@ -77,7 +77,7 @@ func TestTextReportPX(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := b.String()
-	for _, want := range []string{"\nFILES  (", "parallel_slave.trc", "PX slave", "\nPX slaves: 1 sessions, ", "\\ PX slaves: 1 sessions", "(PX slaves, run in parallel; not in the total)"} {
+	for _, want := range []string{"\nFILES  (", "parallel_slave.trc", "PX slave", "\nPX slaves: 1 sessions, ", "\\ PX slaves: 1 sessions", "(PX slaves, parallel; not in total)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("report lacks %q", want)
 		}

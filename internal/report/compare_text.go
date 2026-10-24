@@ -89,8 +89,8 @@ func (t *cmpWriter) header(a, b *model.Model, c analyze.Comparison) {
 		t.p("   Oracle %s  instance %s  span %s s  %s lines  %s statements  %s calls  %s waits\n", dash(s.m.File.Version), dash(s.m.File.Instance), secs(s.i.SpanUs),
 			commas(int64(s.m.Diag.Lines)), commas(int64(len(s.m.Statements))), commas(int64(len(s.m.Calls))), commas(int64(len(s.m.Waits))))
 	}
-	t.p("Statements are matched by sql_id (statements without one by kind and normalised text); wait events by name.\n")
-	t.p("Δ = B - A; Δ%% is relative to A. Statement elapsed includes recursive children, not think time.\n")
+	t.p("Matching: statements by sql_id (else kind and normalised text); wait events by name.\n")
+	t.p("Δ = B - A; Δ%% relative to A. Statement elapsed includes recursive children, excludes think time.\n")
 	t.nl()
 }
 

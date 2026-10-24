@@ -36,69 +36,64 @@ func usage() {
 Usage:
   mtkprof report <trace...> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys] [-aggregate]
   mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
-  mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained interactive report
-  mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate] [-spill[=DIR]]   interactive UI in the browser
+  mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained HTML report
+  mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate] [-spill[=DIR]]   browser UI
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
-  mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text comparison of B against A
-  mtkprof html|serve|json <a.trc> <b.trc> -compare ...    UI / document with both traces and their diff (Compare tab)
+  mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text diff, B against A
+  mtkprof html|serve|json <a.trc> <b.trc> -compare ...    both traces + diff (Compare tab)
   mtkprof plan   <trace...> -sql_id X [-plan-hash H] [-exec N] [-o out.json] [-viz] [-plan-viz-url URL]
   mtkprof plan   <trace...> -list                    statements with STAT plans
-  mtkprof export <trace...> [-o dir]                 CSV tables for DuckDB / Excel / Python
-  mtkprof refscript <trace...> [-lite] [-o ref.sql]  SQL*Plus script that collects names and plans for the trace
-  mtkprof findings-config                            print the default finding thresholds as JSON
+  mtkprof export <trace...> [-o dir]                 CSV tables
+  mtkprof refscript <trace...> [-lite] [-o ref.sql]  SQL*Plus script collecting names and plans
+  mtkprof findings-config                            default finding thresholds as JSON
   mtkprof lint   <trace...>
-  -lowmem (report pivot html json serve export): do not retain bind values; less memory, same numbers
-  -aggregate (report html json serve): 10 GB-class traces. Calls and waits are folded into
-             aggregates while the trace is read, never stored (implies -lowmem and -facts=false):
-             memory stays at the size of the statements, not of the trace. Left out: the
-             executions tables, bind sections and every fact table (drill-down, pivots,
-             server-side slicing); summary lines, call tables, profiles, sessions, time buckets
-             and findings are the same as without it.
-  -spill[=DIR] (serve): for traces that do not fit in memory but should stay drillable. Builds
-             like -aggregate, and writes calls, waits and bind values to fixed-width temporary
-             files in DIR (default: the system temp dir) while reading; Pivot, Timeline,
-             executions, event drill-downs are answered by scanning them (memory stays at
-             the aggregates' size, disk use is about the size of the trace). The files are
-             removed on exit; -lowmem leaves out the bind values, -bind-values redact/none
-             applies to the spilled values. Write the directory as -spill=DIR.
   mtkprof version
 
-Trace sets (every command that takes <trace...>):
-  Several files and/or directories (all *.trc, not recursive) form one logical trace.
-  Files linked by "TRACE CONTINUES IN FILE" / "TRACE CONTINUED FROM FILE" are followed
-  (path in the marker, else its name next to the file, else among the inputs, else a
-  sibling whose header names it) and parsed as one stream; -no-follow turns this off.
-  Independent files become separate session contexts; PX slave traces (P000...) attach
-  to their query coordinator by time window, client id, module and action.
+Memory modes:
+  -lowmem (report pivot html json serve export): bind values not retained; numbers unchanged
+  -aggregate (report html json serve): calls and waits folded into aggregates while reading,
+             not stored; implies -lowmem and -facts=false; memory ~ statement count.
+             Omitted: executions tables, bind sections, fact tables (drill-down, pivot,
+             server-side slicing). Unchanged: summary lines, call tables, profiles,
+             sessions, time buckets, findings.
+  -spill[=DIR] (serve): -aggregate build + calls, waits and binds written to fixed-width
+             temp files in DIR (default system temp dir); Pivot, Timeline, executions and
+             event drill-downs answered by scanning them. Disk ~ trace size; files removed
+             on exit. -lowmem omits binds; -bind-values redact|none applies. DIR needs
+             the = form.
+
+Trace sets (<trace...>):
+  Files and/or directories (*.trc, not recursive) form one logical trace.
+  "TRACE CONTINUES IN FILE" / "TRACE CONTINUED FROM FILE" chains are followed (marker
+  path, else same name next to the file, else among the inputs, else a sibling whose
+  header names it) and parsed as one stream; -no-follow disables. Independent files:
+  separate session contexts. PX slave traces (P000...) attach to their query
+  coordinator by time window, client id, module and action.
 
 Plans (plan):
-  Exports STAT dumps as the JSON row array that ora-explain-plan-viz auto-detects.
-  One plan selected -> the array; several plan hashes (no -plan-hash) -> an object
-  {"<plan hash>": [rows], ...}. -viz prints an "Open in plan viz" link instead
-  (the plan travels in the URL fragment only). -exec N picks the N-th dump of a hash.
+  Output: STAT dumps as the ora-explain-plan-viz JSON row array. One plan: the array;
+  several plan hashes (no -plan-hash): {"<plan hash>": [rows], ...}. -viz: "Open in
+  plan viz" URL instead (plan in the URL fragment only). -exec N: N-th dump of a hash.
 
 Reference bundle (report, html, json, export, serve, pivot, plan):
-  -ref dir   directory spooled by the script of `+"`mtkprof refscript`"+` (objects.csv, datafiles.csv,
-             users.csv, plans/<sql_id>.txt; every file optional): names for obj#, file# and
-             user ids, DBMS_XPLAN text. mtkprof never connects to a database; -lite makes a
-             script that only needs ALL_ views. See docs/REF-BUNDLE.md.
+  -ref dir   output of the `+"`mtkprof refscript`"+` script: objects.csv, datafiles.csv,
+             users.csv, plans/<sql_id>.txt (each optional). Names for obj#, file#, user
+             ids; DBMS_XPLAN text. mtkprof never connects to a database. -lite: ALL_
+             views only. See docs/REF-BUNDLE.md.
 
 Finding thresholds (report, html, serve, json):
-  -findings-config file.json   JSON object with any subset of the threshold keys (unknown
-                               keys are an error); "-" reads stdin. `+"`mtkprof findings-config`"+`
-                               prints the defaults to start from.
+  -findings-config file.json   any subset of the threshold keys (unknown keys: error);
+                               "-" = stdin. Defaults: `+"`mtkprof findings-config`"+`.
 
 Bind values (report, html, json, export, serve):
-  -bind-values keep|redact|none   keep (default); redact = type, length and a stable
-                                  hash per value; none = drop bind values entirely
-  -redact-binds                   shorthand for -bind-values redact
-  -redact-salt STRING             redact with a salted hash: equal values still match
-                                  across traces using the same salt, but the tokens cannot
-                                  be compared with hashes of known values without it
-  -binds none                     shorthand for -bind-values none (on report, -binds N
-                                  is still the number of bind sets printed per statement)
-  The hash is for spotting equal values across executions, not for secrecy: short
-  values can be recovered by brute force. SQL text (and its literals) is kept.
+  -bind-values keep|redact|none   keep (default); redact = type, length, stable hash per
+                                  value; none = dropped
+  -redact-binds                   = -bind-values redact
+  -redact-salt STRING             salted redaction hash: equal values match across traces
+                                  with the same salt; not comparable to unsalted hashes
+  -binds none                     = -bind-values none (report: -binds N = bind sets
+                                  printed per statement)
+  Hashes are not secret: short values are brute-forceable. SQL text and literals are kept.
 
 `, version)
 	os.Exit(2)
@@ -221,7 +216,7 @@ var (
 
 // addAggregateFlag registers -aggregate (report, html, json, serve).
 func addAggregateFlag(fs *flag.FlagSet) {
-	fs.BoolVar(&aggregate, "aggregate", false, "aggregation-only mode for huge traces: fold calls and waits into aggregates instead of keeping them (implies -lowmem and -facts=false; no executions tables, bind sections or fact tables)")
+	fs.BoolVar(&aggregate, "aggregate", false, "fold calls and waits into aggregates, do not store them (implies -lowmem and -facts=false; no executions tables, bind sections or fact tables)")
 }
 
 // spillFlag is -spill[=DIR] (serve): aggregation-only build plus the fact rows
@@ -273,8 +268,8 @@ func useThresholds(th *analyze.Thresholds) {
 // addFollowFlag registers -no-follow and -lowmem, shared by every command that
 // reads traces.
 func addFollowFlag(fs *flag.FlagSet) *bool {
-	fs.BoolVar(&lowMem, "lowmem", false, "low-memory mode: do not retain bind values (no BINDS sections, binds columns or binds.csv rows); all other numbers are unchanged")
-	return fs.Bool("no-follow", false, "do not follow TRACE CONTINUES IN / CONTINUED FROM chains to files that were not named")
+	fs.BoolVar(&lowMem, "lowmem", false, "do not retain bind values (no BINDS sections, binds columns or binds.csv rows); other numbers unchanged")
+	return fs.Bool("no-follow", false, "do not follow TRACE CONTINUES IN / CONTINUED FROM to unnamed files")
 }
 
 // outBase is the default output name stem for a trace set: the first input
@@ -390,7 +385,7 @@ func cmdHTML(args []string) error {
 	fs := flag.NewFlagSet("html", flag.ExitOnError)
 	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default <trace>.html)")
-	facts := fs.Bool("facts", true, "include raw fact tables (needed for drill-down; omit for huge traces)")
+	facts := fs.Bool("facts", true, "include raw fact tables (needed for drill-down)")
 	pv := planVizFlag(fs)
 	fc := findingsFlag(fs)
 	bf := addBindFlags(fs)
@@ -398,7 +393,7 @@ func cmdHTML(args []string) error {
 	addAggregateFlag(fs)
 	files := parseArgs(fs, args)
 	if !ui.Built() {
-		return fmt.Errorf("this binary was built without the web UI (run `make web` and rebuild)")
+		return fmt.Errorf("built without the web UI (make web, then rebuild)")
 	}
 	th, err := loadThresholds(*fc)
 	if err != nil {
@@ -477,12 +472,12 @@ func cmdServe(args []string) error {
 	rf := refFlag(fs)
 	addr := fs.String("addr", "127.0.0.1:8046", "listen address")
 	facts := fs.Bool("facts", true, "send the raw fact tables to the browser")
-	slice := fs.Bool("slice", false, "answer the UI's group-by queries from the server (/api/pivot, ...); implied by -facts=false")
+	slice := fs.Bool("slice", false, "server answers the UI's group-by queries (/api/pivot, ...); implied by -facts=false")
 	pv := planVizFlag(fs)
 	fc := findingsFlag(fs)
 	nf := addFollowFlag(fs)
 	addAggregateFlag(fs)
-	fs.Var(&spillCfg, "spill", "for traces that do not fit in memory: aggregation-only build (-aggregate) that also spills calls, waits and binds to temporary files in DIR (default the system temp dir; write -spill=DIR) and answers the UI's drill-downs by scanning them; the files are removed on exit")
+	fs.Var(&spillCfg, "spill", "-aggregate build + calls, waits and binds spilled to temp files in DIR (default system temp dir; -spill=DIR form); drill-downs scan them; removed on exit")
 	bf := addBindFlags(fs)
 	files := parseArgs(fs, args)
 	// Without the fact tables in the document the browser has nothing to slice: the

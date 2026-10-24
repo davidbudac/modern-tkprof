@@ -118,11 +118,11 @@ export function Statements({ doc }: { doc: TraceDoc }) {
               )
             })}
           </div>
-          {rows.length === 0 && <p className="muted small" style={{ padding: '1rem' }}>No statement matches.</p>}
+          {rows.length === 0 && <p className="muted small" style={{ padding: '1rem' }}>No match.</p>}
         </div>
       </aside>
       <section className="wb-detail">
-        {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} /> : <p className="muted">Pick a statement on the left.</p>}
+        {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} /> : <p className="muted">No statement selected.</p>}
       </section>
       <aside className="wb-ctx" aria-label="Context">
         {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} />}

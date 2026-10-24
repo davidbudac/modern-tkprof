@@ -213,8 +213,8 @@ into `node_modules`). A clean clone needs only `pnpm install --frozen-lockfile`.
 
 Per STAT plan, `StatementDetail` feeds `planRows(doc, plan)` (the same JSON rows as "Open in plan viz") to the
 core's `parsePlanRows` and runs `runAdvisor(plan, null)` (no metadata bundle: only metadata-free rules run;
-cardinality mismatch needs `card=` on the STAT lines). Findings (severity, title, explanation, suggestion, node
-ids) render as a "Plan advisor" block above the plan table, in the Findings ledger style; node ids jump to and
+cardinality mismatch needs `card=` on the STAT lines). Findings (severity, title, explanation, node ids; the
+suggestion is not shown) render as a "Plan advisor" block above the plan table, in the Findings ledger style; node ids jump to and
 highlight the plan row; nothing renders without findings. Only `parsePlanRows`/`runAdvisor` are imported, so the
 text and XML parsers tree-shake away (bundle +59 kB, +20 kB gzip).
 

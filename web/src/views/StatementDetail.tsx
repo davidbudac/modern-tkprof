@@ -19,7 +19,7 @@ import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEF
 export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
   const st = doc.statements[id]
   const stats = doc.stats.statements[id]
-  if (!st || !stats) return <p className="muted">Unknown statement.</p>
+  if (!st || !stats) return <p className="muted">Unknown statement</p>
   const planHashes = stats.planHashes ?? []
   const [copied, setCopied] = useState(false)
   const copy = async () => {
@@ -72,12 +72,12 @@ function ResponseTime({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
   const trips = waits.find((w) => /message from client/.test(w.name))
   const notes: string[] = []
   if (top && top.role !== 'idle') notes.push(`${fmtInt(top.count)} × ${top.name}, avg ${fmtDur(top.us / top.count)}, max ${fmtDur(top.maxUs)}${top.obj > 0 && (top.role === 'userio' || top.role === 'sysio') ? `, all on obj# ${top.obj}${doc.objectName(top.obj) ? ` (${doc.objectName(top.obj)})` : ''}` : ''}`)
-  if (trips) notes.push(`${fmtInt(trips.count)} round trip${trips.count === 1 ? '' : 's'} to the client, ${fmtDur(trips.us)} idle`)
-  if (stats.pxSessions) notes.push(`PX slaves: ${stats.pxSessions} session${stats.pxSessions === 1 ? '' : 's'}, ${fmtDur(stats.pxEla ?? 0)} (own sessions, not included above)`)
-  if (stats.childUs > 0) notes.push(`${fmtDur(stats.childUs)} (${fmtPct(stats.childUs, stats.elapsed)}) in recursive statements`)
+  if (trips) notes.push(`${fmtInt(trips.count)} round trip${trips.count === 1 ? '' : 's'}, ${fmtDur(trips.us)} idle`)
+  if (stats.pxSessions) notes.push(`PX slaves: ${stats.pxSessions} session${stats.pxSessions === 1 ? '' : 's'}, ${fmtDur(stats.pxEla ?? 0)} (not included)`)
+  if (stats.childUs > 0) notes.push(`recursive ${fmtDur(stats.childUs)} (${fmtPct(stats.childUs, stats.elapsed)})`)
   return (
     <section className="section">
-      <header><h2>Response time {fmtDur(total)}</h2><span className="hint">{fmtPct(total, doc.spanUs())} of the trace · {fmtDur(stats.elapsed)} in calls + {fmtDur(stats.idleUs)} idle between them</span></header>
+      <header><h2>Response time {fmtDur(total)}</h2><span className="hint">{fmtPct(total, doc.spanUs())} of trace · calls {fmtDur(stats.elapsed)} + idle {fmtDur(stats.idleUs)}</span></header>
       {source.ready && waitsQ.data ? <ProfileBar segments={segs} totalUs={total} /> : <ProfileBar segments={[{ role: 'cpu', label: 'CPU', us: stats.cpu }, { role: 'other', label: 'Waits', us: stats.waitUs }, { role: 'idle', label: 'Idle', us: stats.idleUs }]} totalUs={total} />}
       {notes.length > 0 && <p className="small muted">{notes.join(' · ')}</p>}
     </section>
@@ -161,7 +161,7 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
   const { total, avgE: avg, slowest: slow } = page.data
   return (
     <section className="section">
-      <header><h2>Executions</h2><span className="hint">{page.data.partial ? `the ${exs.length} slowest of ${total}` : total} · avg {fmtDur(avg)} · slowest {fmtDur(slow?.e ?? 0)} (#{slow?.execNo}){exs.length > 1 && ' · tick two to compare them'}</span>
+      <header><h2>Executions</h2><span className="hint">{page.data.partial ? `${exs.length} slowest of ${total}` : total} · avg {fmtDur(avg)} · max {fmtDur(slow?.e ?? 0)} (#{slow?.execNo}){exs.length > 1 && ' · tick two to compare'}</span>
         <span className="tools"><ColumnChooser all={all.filter((c) => c.key !== 'n').map((c) => ({ key: c.key, label: c.header }))} hidden={hidden} onChange={setHidden} /></span></header>
       <DataTable columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
         selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e, ev) => (ev?.shiftKey ? togglePick(e) : setSel(sel && sel.exec === e.exec ? null : e))} />
@@ -179,12 +179,12 @@ function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
   return (
     <div className="section">
       <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} file={file} /> · EXEC at <LineRef line={ex.line} file={file} />{d && d.bindLine > 0 && <> · binds at <LineRef line={d.bindLine} file={file} /></>}{d ? ` · ${d.execWaits} waits on the EXEC` : detail.loading ? ' · loading…' : ''}</span></header>
-      {detail.error ? <p className="callout">{detail.error}</p> : !d ? null : binds.length === 0 ? <p className="small muted">No bind values were captured for this execution (trace level without binds, or no binds).</p> : (
+      {detail.error ? <p className="callout">{detail.error}</p> : !d ? null : binds.length === 0 ? <p className="small muted">No binds captured.</p> : (
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th className="num">pos</th><th>type</th><th>value</th></tr></thead>
           <tbody>{binds.map((b) => (
             <tr key={b.pos}><td className="num">{b.pos}</td><td className="dim">{b.type}{b.mal > 0 ? `[${b.mal}]` : ''}</td>
-              <td className="mono text" title={b.typed}>{b.noDef ? <span className="dim">same as an earlier bind</span> : b.isNull ? <span className="dim">NULL</span> : b.dump ? <span className="dim" title={b.value}>memory dump</span> : b.value}</td></tr>
+              <td className="mono text" title={b.typed}>{b.noDef ? <span className="dim">dup</span> : b.isNull ? <span className="dim">NULL</span> : b.dump ? <span className="dim" title={b.value}>memory dump</span> : b.value}</td></tr>
           ))}</tbody>
         </table></div>
       )}
@@ -233,8 +233,8 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
     <section className="section">
       <header>
         <h2>Plan {hash || ''}</h2>
-        <span className="hint">row source statistics from the STAT lines at <LineRef line={plan.line} file={doc.fileOfCursor(plan.cursor)} />{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
-        {plan.xPlanMatched && <span className="hint">predicates and estimates overlaid from ref bundle</span>}
+        <span className="hint">STAT at <LineRef line={plan.line} file={doc.fileOfCursor(plan.cursor)} />{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
+        {plan.xPlanMatched && <span className="hint">predicates, estimates: ref bundle</span>}
         <span className="tools plan-acts">
           {dumps.length > 1 && (
             <label className="small muted">dump:{' '}
@@ -244,21 +244,21 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
             </label>
           )}
           {link.state === 'ok'
-            ? <a className="btn" href={link.url} target="_blank" rel="noopener" title={`opens ${base} with the plan in the URL fragment only`}>Open in plan viz ↗</a>
-            : <button disabled title={link.state === 'big' ? 'plan too large for a link' : link.state === 'nogzip' ? 'this browser has no CompressionStream' : 'encoding…'}>Open in plan viz ↗</button>}
-          <button onClick={copyJson} title="the plan as the visualizer's JSON row array">{copied ? 'Copied' : 'Copy JSON'}</button>
+            ? <a className="btn" href={link.url} target="_blank" rel="noopener" title={`${base} (plan in URL fragment)`}>Open in plan viz ↗</a>
+            : <button disabled title={link.state === 'big' ? 'plan too large for a link' : link.state === 'nogzip' ? 'no CompressionStream' : 'encoding…'}>Open in plan viz ↗</button>}
+          <button onClick={copyJson} title="visualizer JSON rows">{copied ? 'Copied' : 'Copy JSON'}</button>
           <button className={`quiet${editing ? ' on' : ''}`} aria-label="Plan viz URL" title={`plan viz URL: ${base}`} aria-expanded={editing} onClick={() => { setDraft(override); setEditing(!editing) }}>⚙</button>
         </span>
       </header>
-      {link.state === 'big' && <p className="small plan-note">plan too large for a link ({rows.length} rows) — use “Copy JSON” and paste it into the visualizer.</p>}
-      {link.state === 'nogzip' && <p className="small plan-note">This browser cannot compress the link — use “Copy JSON” and paste it into the visualizer.</p>}
+      {link.state === 'big' && <p className="small plan-note">plan too large for a link ({rows.length} rows); use Copy JSON.</p>}
+      {link.state === 'nogzip' && <p className="small plan-note">No CompressionStream; use Copy JSON.</p>}
       {editing && (
         <form className="plan-cfg" onSubmit={(e) => { e.preventDefault(); save(draft) }}>
           <label className="small muted" htmlFor={`pv-${plan.id}`}>plan viz URL</label>
           <input id={`pv-${plan.id}`} type="text" value={draft} placeholder={doc.planViz || DEFAULT_PLAN_VIZ} onChange={(e) => setDraft(e.target.value)} spellCheck={false} />
           <button type="submit">Save</button>
           <button type="button" onClick={() => { setDraft(''); save('') }}>reset to default</button>
-          <span className="small muted">stored in this browser (localStorage); the plan is sent only in the URL fragment.</span>
+          <span className="small muted">localStorage; plan sent in URL fragment only</span>
         </form>
       )}
       <PlanAdvisor findings={findings} onNode={(id) => setFocus((f) => ({ id, seq: (f?.seq ?? 0) + 1 }))} />
@@ -269,7 +269,7 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
 
 const ADVICE_CLASS = { critical: 'serious', warning: 'notable', info: 'info' } as const
 
-/** Plan-level findings from the visualizer's advisor (shared core package); nothing is rendered when there are none. */
+/** Plan-level findings from the visualizer's advisor (shared core package); facts only, no suggestions. */
 function PlanAdvisor({ findings, onNode }: { findings: PlanFinding[]; onNode: (id: number) => void }) {
   if (findings.length === 0) return null
   const counts = { critical: 0, warning: 0, info: 0 }
@@ -277,7 +277,7 @@ function PlanAdvisor({ findings, onNode }: { findings: PlanFinding[]; onNode: (i
   const hint = (['critical', 'warning', 'info'] as const).filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`).join(', ')
   return (
     <div className="plan-advisor">
-      <header><h3>Plan advisor</h3><span className="hint">{hint} · from the visualizer's rules, metadata-free · click an id to jump to its row</span></header>
+      <header><h3>Plan advisor</h3><span className="hint">{hint} · metadata-free rules</span></header>
       <ul className="findings">
         {findings.map((f, i) => (
           <li key={`${f.ruleId}-${i}`} className={`finding sev-${ADVICE_CLASS[f.severity]}`}>
@@ -291,7 +291,6 @@ function PlanAdvisor({ findings, onNode }: { findings: PlanFinding[]; onNode: (i
               </summary>
               <div className="advice small">
                 <p>{f.explanation}</p>
-                {f.suggestion && <p className="muted">{f.suggestion}</p>}
               </div>
             </details>
           </li>

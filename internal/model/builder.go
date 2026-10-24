@@ -267,9 +267,9 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 	if b.agg {
 		m.AggCalls, m.AggWaits, m.aggExt = b.nCalls, b.nWaits, b.ext
 		if b.opts.NewTee != nil {
-			m.Diag.Notes = append(m.Diag.Notes, "spill mode: calls, waits and binds were folded into aggregates and spilled to disk; drill-downs are answered by scanning the spill files")
+			m.Diag.Notes = append(m.Diag.Notes, "spill mode: calls, waits, binds aggregated and spilled to disk; drill-downs scan the spill files")
 		} else {
-			m.Diag.Notes = append(m.Diag.Notes, "aggregate mode: calls and waits were folded into aggregates, not retained; per-execution tables, bind values and the drill-down fact tables are not available")
+			m.Diag.Notes = append(m.Diag.Notes, "aggregate mode: calls/waits not retained; no per-execution tables, binds or drill-down facts")
 		}
 	}
 	m.Diag.Lines = st.Lines
@@ -278,7 +278,7 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 	m.Diag.BindMode = BindsKeep.String()
 	if b.opts.NoFacts {
 		m.Diag.BindMode = BindsNone.String()
-		m.Diag.Notes = append(m.Diag.Notes, "bind values not retained (low-memory mode)")
+		m.Diag.Notes = append(m.Diag.Notes, "bind values not retained (-lowmem)")
 	}
 	for k := trace.Kind(0); int(k) < len(st.Kinds); k++ {
 		if st.Kinds[k] > 0 {
@@ -332,7 +332,7 @@ func (b *Builder) checkClocks() {
 		n++
 	}
 	if n > 1 && hi-lo > 2_000_000 {
-		b.m.Diag.Notes = append(b.m.Diag.Notes, fmt.Sprintf("files disagree on the tim clock by %.1f s (traces from different hosts?); cross-file ordering and PX matching are unreliable", float64(hi-lo)/1e6))
+		b.m.Diag.Notes = append(b.m.Diag.Notes, fmt.Sprintf("files disagree on the tim clock by %.1f s; cross-file ordering and PX matching unreliable", float64(hi-lo)/1e6))
 	}
 }
 
@@ -648,10 +648,10 @@ func (b *Builder) adoptImplicit(curID, sid ID, c trace.CursorHeader, assumed boo
 	m.Diag.ImplicitCursors--
 	how := "re-parsed in place"
 	if assumed {
-		how = "parsed again after a close"
+		how = "re-parsed after a close"
 		m.Diag.AssumedCursors++
 	}
-	m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("line %d: cursor #%d was open before tracing started and %s; its earlier calls are attributed to %s", c.Line, c.Cursor, how, c.SQLID))
+	m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("line %d: cursor #%d open before tracing started, %s; earlier calls attributed to %s", c.Line, c.Cursor, how, c.SQLID))
 }
 
 // cursorFor resolves the open instance for a cursor number, creating an

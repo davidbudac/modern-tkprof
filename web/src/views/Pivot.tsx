@@ -14,10 +14,10 @@ const CAP = 1000
 
 function scopeHint(state: State, fact: Fact): string {
   const parts: string[] = []
-  if (state.window) parts.push('in the selected time window')
-  if (state.contexts) parts.push(`in ${state.contexts.size} selected session context${state.contexts.size === 1 ? '' : 's'}`)
-  if (fact === 'waits' && !state.includeIdle) parts.push('idle events hidden')
-  return parts.join(', ')
+  if (state.window) parts.push('window')
+  if (state.contexts) parts.push(`${state.contexts.size} context${state.contexts.size === 1 ? '' : 's'}`)
+  if (fact === 'waits' && !state.includeIdle) parts.push('idle hidden')
+  return parts.join(' · ')
 }
 
 function csvCell(v: string | number): string {
@@ -67,7 +67,7 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
     return (
       <section className="section">
         <header><h2>Pivot</h2></header>
-        <p className="callout">This document was generated without fact tables (<code>-facts=false</code>) and was not served by <code>mtkprof serve</code>, so there is nothing to slice. Regenerate it with the facts included, or open it with <code>mtkprof serve -facts=false</code>.</p>
+        <p className="callout">No fact tables (<code>-facts=false</code>) and no server. Regenerate with facts or open with <code>mtkprof serve -facts=false</code>.</p>
       </section>
     )
   }
@@ -137,8 +137,8 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
         <span className="hint">
           {fmtInt(result.facts)} {fact} in {fmtInt(result.groups)} group{result.groups === 1 ? '' : 's'}
           {hint ? ` · ${hint}` : ''}
-          {capped ? ` · showing the top ${fmtInt(rows.length)} of ${fmtInt(result.groups)} groups` : ''}
-          {source.remote ? ' · computed by the server' : ''}
+          {capped ? ` · top ${fmtInt(rows.length)} shown` : ''}
+          {source.remote ? ' · server' : ''}
           {query.loading ? ' · loading…' : ''}
         </span>
       </header>

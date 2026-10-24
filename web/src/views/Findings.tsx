@@ -14,13 +14,13 @@ export function Findings({ doc }: { doc: TraceDoc }) {
   const hint = (['serious', 'notable', 'info'] as const).filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ')
   return (
     <section className="section">
-      <header><h2>Findings</h2><span className="hint">{hint} · thresholds over the whole trace; the time window does not apply</span></header>
+      <header><h2>Findings</h2><span className="hint">{hint} · whole trace, window not applied</span></header>
       <ul className="findings">
         {findings.map((f, i) => <FindingItem key={`${f.rule}-${f.statement}-${i}`} doc={doc} f={f} />)}
       </ul>
       {cfg.length > 0 && (
         <details className="thresholds">
-          <summary className="muted">thresholds ({cfg.length}; change with <code>-findings-config</code>)</summary>
+          <summary className="muted">thresholds ({cfg.length}, <code>-findings-config</code>)</summary>
           <table className="tbl evidence">
             <tbody>
               {cfg.map(([k, v]) => <tr key={k}><td className="ev-label">{k}</td><td className="tabular">{v}</td></tr>)}

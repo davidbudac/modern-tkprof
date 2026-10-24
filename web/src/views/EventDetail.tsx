@@ -103,13 +103,13 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       </dl>
       {filteredCount > 0 && (
         <section className="section">
-          <header><h2>Duration distribution</h2><span className="hint">log scale buckets</span></header>
+          <header><h2>Duration distribution</h2><span className="hint">log-scale buckets</span></header>
           <Chart option={histOpt} className="short" />
         </section>
       )}
       {allCount > 0 && span > 0 && (
         <section className="section">
-          <header><h2>Waits over time</h2><span className="hint">{dots.length < allCount ? `${fmtInt(dots.length)} of ${fmtInt(allCount)} waits (the ${fmtInt(KEEP_SLOWEST)} slowest + an even sample)` : `${fmtInt(allCount)} waits`} · elapsed on a log scale · drag the slider to set the time window</span></header>
+          <header><h2>Waits over time</h2><span className="hint">{dots.length < allCount ? `${fmtInt(dots.length)} of ${fmtInt(allCount)} waits (${fmtInt(KEEP_SLOWEST)} slowest + even sample)` : `${fmtInt(allCount)} waits`} · log scale · slider: set window</span></header>
           <Chart option={scatterOpt} onEvents={scatterEvents} className="short" />
         </section>
       )}
@@ -144,7 +144,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       )}
       {byObj.length > 0 && (
         <section className="section">
-          <header><h2>By object</h2><span className="hint">{doc.hasRef ? 'obj# from the trace, named from the reference bundle' : 'obj# from the trace; map with dba_objects.object_id, or pass a reference bundle (mtkprof -ref)'}</span></header>
+          <header><h2>By object</h2><span className="hint">{doc.hasRef ? 'names: ref bundle' : 'obj# = dba_objects.object_id; names need -ref'}</span></header>
           <div className="tbl-wrap"><table className="tbl"><tbody>
             {byObj.map((a) => <tr key={a.key}><td className="num">{fmtDur(a.sum)}</td><td className="num dim">{fmtPct(a.sum, total)}</td><td className="num">{fmtInt(a.count)}</td><td className="mono">obj# {a.key}{doc.objectName(a.key) && <> <span className="obj">{doc.objectName(a.key)}</span></>}</td></tr>)}
           </tbody></table></div>
@@ -152,7 +152,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       )}
       {byP1.length > 1 && (
         <section className="section">
-          <header><h2>By {p1Name}</h2>{isFile && <span className="hint">{doc.hasRef ? 'file# from the trace, named from the reference bundle' : 'file# from the trace; map with v$datafile, or pass a reference bundle (mtkprof -ref)'}</span>}</header>
+          <header><h2>By {p1Name}</h2>{isFile && <span className="hint">{doc.hasRef ? 'names: ref bundle' : 'file# = v$datafile.file#; names need -ref'}</span>}</header>
           <div className="tbl-wrap"><table className="tbl"><tbody>
             {byP1.map((a) => <tr key={a.key}><td className="num">{fmtDur(a.sum)}</td><td className="num dim">{fmtPct(a.sum, total)}</td><td className="num">{fmtInt(a.count)}</td><td className="mono">{p1Name} {fmtCompact(a.key)}{isFile && doc.fileName(a.key) && <> <span className="obj" title={doc.fileName(a.key)?.tablespace}>{doc.fileName(a.key)?.name}</span></>}</td></tr>)}
           </tbody></table></div>

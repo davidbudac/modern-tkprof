@@ -18,15 +18,14 @@ import (
 const pivotHelp = `Usage: mtkprof pivot <trace.trc> [-fact calls|waits] [-by dim[,dim]] [-measure m[,m]]
                      [-sort m] [-top N] [-window start,end] [-context id,...] [-idle=false] [-csv] [-o file]
 
-Groups the call or wait facts by one or more dimensions, like the UI Pivot view.
-  -by '?'          list the dimensions and measures (quote the ? for the shell)
-  -window a,b      keep facts whose [start, end] overlaps the window; each side is
-                   either a wall-clock time HH:MM:SS[.fff] (or YYYY-MM-DDTHH:MM:SS[.fff])
-                   in the trace's time zone, or seconds from the trace start (12.5);
-                   either side may be empty: -window 10:15:00, or -window ,30
-  -context ids     session context ids (the # column of the report's SESSIONS section)
-Text output prints times in seconds (sums) or milliseconds (avg/min/max);
-CSV output prints times in raw microseconds (columns *_us).
+Groups call or wait facts by dimensions (UI Pivot view).
+  -by '?'          list dimensions and measures (quote ? for the shell)
+  -window a,b      facts whose [start, end] overlaps the window; each side: wall clock
+                   HH:MM:SS[.fff] or YYYY-MM-DDTHH:MM:SS[.fff] (trace time zone), or
+                   seconds from trace start (12.5); either side may be empty
+                   (-window 10:15:00, -window ,30)
+  -context ids     session context ids (# column of the report's SESSIONS)
+Times: text in s (sums) / ms (avg/min/max); CSV in us (*_us columns).
 
 Flags:
 `

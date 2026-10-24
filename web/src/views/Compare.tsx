@@ -24,7 +24,7 @@ export function Compare({ data }: { data: CompareData }) {
   return (
     <>
       <section className="hero">
-        <h1>B against A</h1>
+        <h1>B vs A</h1>
         <p className="lede cmp-files">
           <span><b className="side-tag">A</b> <span className="mono">{fileName(a)}</span></span>
           <span><b className="side-tag">B</b> <span className="mono">{fileName(b)}</span></span>
@@ -96,12 +96,12 @@ function Profiles({ a, b }: { a: TraceDoc; b: TraceDoc }) {
 
 type Filter = 'all' | 'slower' | 'faster' | 'new' | 'gone' | 'plan'
 const filters: { id: Filter; label: string; title: string; test: (d: CmpStmt) => boolean }[] = [
-  { id: 'all', label: 'all', title: 'every statement', test: () => true },
-  { id: 'slower', label: 'slower', title: 'in both traces, more elapsed time in B', test: (d) => d.status === 'both' && d.dElapsed > 0 },
-  { id: 'faster', label: 'faster', title: 'in both traces, less elapsed time in B', test: (d) => d.status === 'both' && d.dElapsed < 0 },
+  { id: 'all', label: 'all', title: 'all statements', test: () => true },
+  { id: 'slower', label: 'slower', title: 'in both, more elapsed in B', test: (d) => d.status === 'both' && d.dElapsed > 0 },
+  { id: 'faster', label: 'faster', title: 'in both, less elapsed in B', test: (d) => d.status === 'both' && d.dElapsed < 0 },
   { id: 'new', label: 'new in B', title: 'only in trace B', test: (d) => d.status === 'onlyB' },
   { id: 'gone', label: 'gone from B', title: 'only in trace A', test: (d) => d.status === 'onlyA' },
-  { id: 'plan', label: 'plan changed', title: 'the plan hash values differ between the traces', test: (d) => d.planChanged },
+  { id: 'plan', label: 'plan changed', title: 'plan hash values differ', test: (d) => d.planChanged },
 ]
 
 function StatementsDelta({ data }: { data: CompareData }) {
@@ -119,7 +119,7 @@ function StatementsDelta({ data }: { data: CompareData }) {
     { key: 'text', header: 'Statement', className: 'clip', render: (d) => <span title={d.text}>{preview(d.text, 90)}</span>, sort: (d) => d.text },
     { key: 'ea', header: 'A elapsed', align: 'end', render: (d) => (d.a ? fmtDur(d.a.elapsed) : ''), sort: (d) => d.a?.elapsed ?? -1 },
     { key: 'eb', header: 'B elapsed', align: 'end', render: (d) => (d.b ? fmtDur(d.b.elapsed) : ''), sort: (d) => d.b?.elapsed ?? -1 },
-    { key: 'd', header: 'Δ', align: 'end', title: 'B − A, elapsed (click: biggest increase first, again: biggest decrease first)', render: (d) => <span className={'delta ' + worse(d.dElapsed)}>{fmtDurDelta(d.dElapsed)}</span>, sort: (d) => d.dElapsed },
+    { key: 'd', header: 'Δ', align: 'end', title: 'B − A, elapsed', render: (d) => <span className={'delta ' + worse(d.dElapsed)}>{fmtDurDelta(d.dElapsed)}</span>, sort: (d) => d.dElapsed },
     { key: 'p', header: 'Δ%', align: 'end', render: (d) => <span className={'delta ' + worse(d.dElapsed)}>{fmtPctDelta(d.a?.elapsed ?? 0, d.b?.elapsed ?? 0)}</span>, sort: (d) => (d.a && d.a.elapsed ? d.dElapsed / d.a.elapsed : d.dElapsed > 0 ? Infinity : 0) },
     { key: 'x', header: 'Execs A → B', align: 'end', render: (d) => `${d.a ? fmtInt(d.a.executions) : '–'} → ${d.b ? fmtInt(d.b.executions) : '–'}`, sort: (d) => d.dExecutions },
     { key: 'pa', header: 'Per exec A', align: 'end', render: (d) => perExec(d.a), sort: (d) => d.a?.perExecUs ?? -1 },
@@ -128,8 +128,8 @@ function StatementsDelta({ data }: { data: CompareData }) {
     { key: 'plan', header: 'Plan', render: (d) => (d.planChanged ? <span className="chip-q cmp-chip plan" title={`${d.a?.planHashes.join(', ')} → ${d.b?.planHashes.join(', ')}`}>changed</span> : ''), sort: (d) => (d.planChanged ? 1 : 0) },
     { key: 'open', header: 'Open', render: (d) => (
       <span className="cmp-open" onClick={(e) => e.stopPropagation()}>
-        <button disabled={!d.a} onClick={() => open(d, 'a')} title="open in the Statements workbench of trace A">A</button>
-        <button disabled={!d.b} onClick={() => open(d, 'b')} title="open in the Statements workbench of trace B">B</button>
+        <button disabled={!d.a} onClick={() => open(d, 'a')} title="open in trace A">A</button>
+        <button disabled={!d.b} onClick={() => open(d, 'b')} title="open in trace B">B</button>
       </span>
     ) },
   ]
@@ -137,7 +137,7 @@ function StatementsDelta({ data }: { data: CompareData }) {
     <section className="section">
       <header>
         <h2>Statements</h2>
-        <span className="hint">{all.length} matched by sql_id · ranked by |Δ elapsed| (click a header to re-sort) · elapsed includes recursive children, not think time · click a row to open it</span>
+        <span className="hint">{all.length} matched by sql_id · by |Δ elapsed| · elapsed incl. recursive children, excl. think time</span>
         <span className="tools"><span className="seg" role="group" aria-label="Statement filter">
           {filters.map((f) => <button key={f.id} aria-pressed={filter === f.id} title={f.title} onClick={() => setFilter(f.id)}>{f.label} {counts[f.id]}</button>)}
         </span></span>
@@ -163,7 +163,7 @@ function EventsDelta({ events }: { events: CmpEvent[] }) {
   ]
   return (
     <section className="section">
-      <header><h2>Wait events</h2><span className="hint">{rows.length} matched by name · ranked by |Δ time|; idle events carry no good/bad colour</span></header>
+      <header><h2>Wait events</h2><span className="hint">{rows.length} matched by name · by |Δ time| · idle events uncoloured</span></header>
       <DataTable columns={columns} rows={rows} rowKey={(e) => e.name} rowHeight={30} maxHeight="22rem" empty="No wait events" />
     </section>
   )

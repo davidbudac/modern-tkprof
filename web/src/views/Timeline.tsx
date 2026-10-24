@@ -151,7 +151,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
     return (
       <section className="section">
         <header><h2>Timeline</h2></header>
-        <p className="callout">This document was generated without fact tables (<code>-facts=false</code>), so individual calls are not available. Re-run <code>mtkprof html</code> or <code>mtkprof serve</code> without that flag, or use <code>mtkprof serve -facts=false</code> to have the server slice them, to see the timeline.</p>
+        <p className="callout">No fact tables (<code>-facts=false</code>): no individual calls. Regenerate with facts or open with <code>mtkprof serve -facts=false</code>.</p>
       </section>
     )
   }
@@ -182,9 +182,9 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
           <h2>Timeline</h2>
           <span className="hint">
             {picked.sampled
-              ? `showing the ${fmtInt(picked.bars.length)} longest of ${fmtInt(picked.total)} calls; set a window on the Overview to see all of them`
-              : `${fmtInt(picked.total)} calls${win ? ' in the selected window' : ''}`}
-            {lanes.list.length > MAX_LANES ? ` · top ${MAX_LANES} statements have their own lane` : ''}
+              ? `${fmtInt(picked.bars.length)} longest of ${fmtInt(picked.total)} calls; set a window for all`
+              : `${fmtInt(picked.total)} calls${win ? ' in window' : ''}`}
+            {lanes.list.length > MAX_LANES ? ` · lanes for top ${MAX_LANES} statements` : ''}
           </span>
         </header>
         <div className="lane-legend" role="list" aria-label="Call kinds">
@@ -193,12 +193,12 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
           ))}
         </div>
         {picked.rows.length === 0
-          ? <p className="muted small">No calls in the selected window.</p>
+          ? <p className="muted small">No calls in window.</p>
           : <div style={{ blockSize: height }}><Chart option={option} className="lanes" onEvents={events} /></div>}
       </section>
       {picked.longest.length > 0 && (
         <section className="section">
-          <header><h2>Longest calls</h2><span className="hint">{win ? 'in the selected window' : 'in the whole trace'}; click to open the statement</span></header>
+          <header><h2>Longest calls</h2><span className="hint">{win ? 'window' : 'whole trace'}</span></header>
           <DataTable columns={longestCols} rows={picked.longest} rowKey={(b) => b.id} maxHeight="24rem" rowHeight={28}
             selectedKey={null} onRowClick={(b) => { if (b.stmt !== NONE) actions.selectStmt(b.stmt) }} />
         </section>

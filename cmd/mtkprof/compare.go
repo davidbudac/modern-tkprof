@@ -93,7 +93,7 @@ func cmdCompare(args []string) error {
 // cmdCompareDoc is `json|html|serve a.trc b.trc -compare`.
 func cmdCompareDoc(kind string, args []string) error {
 	fs := flag.NewFlagSet(kind+" -compare", flag.ExitOnError)
-	fs.Bool("compare", true, "compare two traces: the document carries both and their diff")
+	fs.Bool("compare", true, "compare two traces: both traces + diff")
 	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default stdout for json, <a>-vs-<b>.html for html)")
 	facts := fs.Bool("facts", true, "include raw fact tables")
@@ -106,7 +106,7 @@ func cmdCompareDoc(kind string, args []string) error {
 		return err
 	}
 	if kind == "html" && !ui.Built() {
-		return fmt.Errorf("this binary was built without the web UI (run `make web` and rebuild)")
+		return fmt.Errorf("built without the web UI (make web, then rebuild)")
 	}
 	a, b, err := buildPair(fa, fb, *rf, bf)
 	if err != nil {

@@ -363,7 +363,7 @@ func (f *finder) outliersAgg() {
 		x := Finding{
 			Rule: RuleOutlierExecs, Title: "Outlier executions", Statement: s.ID, ImpactUs: excess,
 			Severity: f.timeSeverity(excess, f.total),
-			Summary: fmt.Sprintf("%s: %d of %d executions took more than %gx the median of %s (slowest %s, %.0fx); %s above the median in total",
+			Summary: fmt.Sprintf("%s: %d of %d executions over %gx the median %s; slowest %s (%.0fx); %s over the median in total",
 				f.label(s.ID), hits, ea.n, f.th.OutlierFactor, fmtUs(med), fmtUs(worst), float64(worst)/float64(max(med, 1)), fmtUs(excess)),
 		}
 		for k := int64(0); k < hits; k++ {
@@ -392,15 +392,15 @@ func (f *finder) smallFetchesAgg(s *StmtStats) {
 	nEx, fetches, rows, impact := ea.smallN, ea.smallFetches, ea.smallRows, ea.smallImpact
 	first := &ea.smallFirst
 	avg := float64(rows) / float64(fetches)
-	x := Finding{Rule: RuleSmallFetches, Title: "Client-side time: small fetch sizes", Statement: s.ID, ImpactUs: impact, Severity: f.timeSeverity(impact, f.total),
-		Summary: fmt.Sprintf("%s fetches %.1f rows per call: %d fetches for %d rows in %d of %d executions, %s in those fetches and the round trips before them; raise the fetch / array size",
+	x := Finding{Rule: RuleSmallFetches, Title: "Small fetches", Statement: s.ID, ImpactUs: impact, Severity: f.timeSeverity(impact, f.total),
+		Summary: fmt.Sprintf("%s: %.1f rows per fetch; %d fetches, %d rows in %d of %d executions; %s in these fetches and preceding round trips",
 			f.label(s.ID), avg, fetches, rows, nEx, ea.n, fmtUs(impact))}
 	x.Evidence = append(x.Evidence,
 		stmtRow(s.ID, "small-fetch executions", fmt.Sprintf("%d of %d (at least %d fetches, under %g rows per fetch)", nEx, ea.n, f.th.SmallFetchMinFetchesPerExec, f.th.SmallFetchRows)),
 		stmtRow(s.ID, "fetches / rows", fmt.Sprintf("%d / %d (%.1f rows per fetch)", fetches, rows, avg)),
 		stmtRow(s.ID, "whole statement", fmt.Sprintf("%d fetches / %d rows (%.1f rows per fetch)", s.Fetch.Count, s.Fetch.Rows, float64(s.Fetch.Rows)/float64(s.Fetch.Count))),
 	)
-	r := stmtRow(s.ID, fmt.Sprintf("exec %d", first.execNo), fmt.Sprintf("first such execution: %d fetches, %d rows, %s", first.nFetch, first.rows, fmtUs(first.elapsed)))
+	r := stmtRow(s.ID, fmt.Sprintf("exec %d", first.execNo), fmt.Sprintf("first: %d fetches, %d rows, %s", first.nFetch, first.rows, fmtUs(first.elapsed)))
 	r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = first.cursor, first.execNo, model.None, int(first.line), first.elapsed
 	x.Evidence = append(x.Evidence, r)
 	f.add(x)

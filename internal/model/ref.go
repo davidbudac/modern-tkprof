@@ -169,7 +169,7 @@ func ApplyRef(m *Model, b *ref.Bundle) {
 			}
 		}
 	}
-	m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("reference bundle applied: %d of %d obj#, %d of %d file#, %d of %d user ids named; %d DBMS_XPLAN plans attached, %d of %d STAT plans overlaid with predicates and estimates",
+	m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("ref bundle: %d/%d obj#, %d/%d file#, %d/%d user ids named; %d DBMS_XPLAN plans; %d/%d STAT plans with predicates and estimates",
 		foundObj, len(seenObj), foundFile, len(seenFile), foundUser, len(seenUser), plans, xp.matched, xp.considered))
 }
 
@@ -220,7 +220,7 @@ func overlayXPlans(m *Model, b *ref.Bundle) xplanStats {
 					}
 					have = "plan hash " + strings.Join(hs, ", ")
 				}
-				m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("ref bundle plans/%s.txt has %s; trace plan hash %d differs, predicates not overlaid", sqlID, have, p.PLH))
+				m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("ref bundle plans/%s.txt: %s; trace plan hash %d differs; predicates not overlaid", sqlID, have, p.PLH))
 			}
 			continue
 		}

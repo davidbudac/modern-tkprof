@@ -112,7 +112,7 @@ func TestAggregateMatchesFullModel(t *testing.T) {
 					t.Errorf("counts: full %d calls %d waits, agg %d calls %d waits", full.CallCount(), full.WaitCount(), agg.CallCount(), agg.WaitCount())
 				}
 				// the clock of independent files can differ: the buckets are approximate then (and say so)
-				if approx := strings.Contains(strings.Join(agg.Diag.Notes, "\n"), "time buckets are built from"); !approx {
+				if approx := strings.Contains(strings.Join(agg.Diag.Notes, "\n"), "time buckets built from"); !approx {
 					b := TimelineBucket(full)
 					if x, y := j(t, Timeline(full, b)), j(t, Timeline(agg, b)); x != y {
 						t.Errorf("Timeline differ\nfull %s\nagg  %s", x, y)

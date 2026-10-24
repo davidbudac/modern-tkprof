@@ -75,8 +75,8 @@ function Landing({ error }: { error: string | null }) {
     <div className="loading">
       <div className="drop" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void onFile(e.dataTransfer.files[0]) }}>
         <h1>mtkprof</h1>
-        <p className="muted">Open a trace document (<code>mtkprof json -packed</code>, or <code>mtkprof json a.trc b.trc -compare -packed</code>) to explore it, or run <code>mtkprof serve trace.trc</code>.</p>
-        {error && <p className="muted small">Could not load the embedded document: {error}</p>}
+        <p className="muted">Open a document from <code>mtkprof json -packed</code> or <code>mtkprof json a.trc b.trc -compare -packed</code>, or run <code>mtkprof serve trace.trc</code>.</p>
+        {error && <p className="muted small">Embedded document load failed: {error}</p>}
         <p><input type="file" accept=".json,application/json" onChange={(e) => void onFile(e.target.files?.[0])} /></p>
       </div>
     </div>

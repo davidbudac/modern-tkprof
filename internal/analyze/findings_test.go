@@ -173,7 +173,7 @@ func TestFindingsPlanStatAllNoPlanChange(t *testing.T) {
 func TestFindingsTruncatedLiterals(t *testing.T) {
 	_, fs := load(t, "truncated.trc")
 	hp := byRule(fs, RuleHardParses)
-	if len(hp) != 1 || !strings.Contains(hp[0].Summary, "ran only once") {
+	if len(hp) != 1 || !strings.Contains(hp[0].Summary, "executed once") {
 		t.Fatalf("hard-parses = %+v", hp)
 	}
 }

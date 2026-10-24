@@ -38,7 +38,7 @@ func (b *bindFlags) set(v string) error {
 }
 
 func (b *bindFlags) register(fs *flag.FlagSet) {
-	fs.BoolFunc("redact-binds", "shorthand for -bind-values redact", func(v string) error {
+	fs.BoolFunc("redact-binds", "= -bind-values redact", func(v string) error {
 		on, err := strconv.ParseBool(v)
 		if err != nil {
 			return err
@@ -49,8 +49,7 @@ func (b *bindFlags) register(fs *flag.FlagSet) {
 		return nil
 	})
 	fs.Func("bind-values", bindModeHelp+" (default keep)", b.set)
-	fs.Func("redact-salt", "salt for the redaction hash (implies -bind-values redact): equal values still match across traces redacted with the same salt, "+
-		"but tokens cannot be compared with hashes of known values without it", func(v string) error {
+	fs.Func("redact-salt", "salt for the redaction hash (implies -bind-values redact); equal values match across traces with the same salt", func(v string) error {
 		b.salt = v
 		return b.set("redact")
 	})

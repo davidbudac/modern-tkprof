@@ -22,11 +22,11 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
   return (
     <>
       <div className="ctx-sec">
-        <h3>Where it ran</h3>
+        <h3>Context</h3>
         <dl className="kv">
           {stats.firstWallUs ? <><dt>first call</dt><dd>{fmtWall(stats.firstWallUs, doc.tzOffsetMin)}</dd><dt>last call</dt><dd>{fmtWall(stats.lastWallUs, doc.tzOffsetMin)}</dd></> : null}
           <dt>trace line</dt><dd><LineRef line={st.firstLine} file={doc.fileOfStmt(id)} bare /></dd>
-          <dt>cursors</dt><dd>{st.cursors.length}{assumed ? ' · one open before tracing started' : ''}</dd>
+          <dt>cursors</dt><dd>{st.cursors.length}{assumed ? ' · one opened before trace start' : ''}</dd>
           {ctx?.module && <><dt>module</dt><dd>{ctx.module}</dd></>}
           {ctx?.action && <><dt>action</dt><dd>{ctx.action}</dd></>}
           {ctx?.sessionId && <><dt>session</dt><dd>{ctx.sessionId}{ctx.service ? ` · ${ctx.service}` : ''}</dd></>}
@@ -42,13 +42,13 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
               <small>{w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? `obj# ${w.obj}${doc.objectName(w.obj) ? ` ${doc.objectName(w.obj)}` : ''} · ` : ''}{fmtInt(w.count)} wait{w.count === 1 ? '' : 's'} · avg {fmtDur(w.us / w.count)} · max {fmtDur(w.maxUs)}{w.maxLine > 0 && <> at <LineRef line={w.maxLine} file={w.maxFile ?? doc.fileOfStmt(id)} /></>}</small>
             </div>
           ))}
-          {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio')) && <p className="faint xs">obj# → name needs a reference bundle (<code>mtkprof refscript</code>, then <code>-ref</code>).</p>}
+          {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio')) && <p className="faint xs">obj# names need a ref bundle (<code>mtkprof refscript</code>, <code>-ref</code>)</p>}
         </div>
       )}
       {(children.length > 0 || parents.length > 0) && (
         <div className="ctx-sec">
           <h3>Recursive statements</h3>
-          {children.length > 0 && <p className="xs dim">run by this statement, {fmtPct(stats.childUs, stats.elapsed)} of its time</p>}
+          {children.length > 0 && <p className="xs dim">children: {fmtPct(stats.childUs, stats.elapsed)} of elapsed</p>}
           <div className="rel">
             {children.map((l) => { const s = doc.statements[l.statement]; return <RelRow key={'c' + l.statement} doc={doc} id={l.statement} text={preview(s.text, 40)} right={`${fmtInt(l.calls)} call${l.calls === 1 ? '' : 's'} · ${fmtDur(l.elapsed)}`} /> })}
           </div>

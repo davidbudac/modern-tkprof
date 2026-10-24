@@ -57,13 +57,16 @@ in the UI is reachable from the CLI.
 - `html`: self-contained interactive explorer (curated views: Overview,
   Statements, Waits, Timeline, Sessions; Pivot and CSV export as the escape
   hatch). `serve`: the same UI from a local server. The Overview answers
-  "where did the time go" first: a sentence, the response-time bar on a true
+  "where did the time go" first: the statement concentration (top k = 80%),
+  the response-time bar on a true
   time axis with a per-event ledger, the top statements on the same axis,
   then the session on wall-clock lanes (drag = time window). A bucket chart
   (CPU plus waits per event, top 10, the rest folded; or per class) is the
   alternative time view. Statements is a workbench: ranked list, the
   statement's tkprof table/plan/executions in the centre, context on the
   right. Chrome is neutral (IBM Plex); hue is reserved for wait classes.
+  UI, findings and CLI text state facts only: numbers, names, terse fragments;
+  no narration, no remedies or advice (plan advisor suggestions are not shown).
 - `json` and `export` (CSV tables) for other tools.
 - Bind values are kept by default; `-redact-binds` replaces them with type,
   length and a stable hash (`-redact-salt S` salts the hash); `-binds none`

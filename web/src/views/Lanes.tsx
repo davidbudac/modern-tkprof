@@ -93,7 +93,7 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
     actions.setWindow(b - a < span * 0.999 ? { startTim: a, endTim: b } : null)
   }
 
-  if (span <= 0 || lanes.length === 0) return <p className="muted small">No time information in this trace.</p>
+  if (span <= 0 || lanes.length === 0) return <p className="muted small">No time information.</p>
   const dragRect = drag && ref.current ? (() => {
     const r = ref.current!.getBoundingClientRect()
     const l = Math.max(0, Math.min(drag.x0, drag.x1) - r.left), w = Math.min(r.width, Math.abs(drag.x1 - drag.x0))
@@ -131,7 +131,7 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
         {win && !drag && (
           <div className="brush" style={{ left: x(win.startTim), width: `${(100 * (win.endTim - win.startTim)) / span}%` }}>
             <b>window {fmtDur(win.endTim - win.startTim)} · {wall(win.startTim)} → {wall(win.endTim)}
-              <button className="brush-clear" onPointerDown={(e) => e.stopPropagation()} onClick={() => actions.setWindow(null)} aria-label="Clear time window" title="clear the window (Esc)">×</button></b>
+              <button className="brush-clear" onPointerDown={(e) => e.stopPropagation()} onClick={() => actions.setWindow(null)} aria-label="Clear time window" title="clear (Esc)">×</button></b>
           </div>
         )}
         {dragRect && dragRect.width > 3 && <div className="brush dragging" style={dragRect} />}

@@ -662,7 +662,7 @@ func (a *Accumulator) Finish() {
 		}
 	}
 	if a.tl.set && a.tl.base != m.Span.FirstTim {
-		m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("aggregate mode: the files start at different tim values; the time buckets are built from %g ms cells and an event can land in the neighbouring bucket", float64(a.tl.g)/1e3))
+		m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("aggregate mode: files start at different tim values; time buckets built from %g ms cells, events may land in the neighbouring bucket", float64(a.tl.g)/1e3))
 	}
 	a.stats = a.buildStats(kids)
 	for len(a.ctx) < len(m.Contexts) {

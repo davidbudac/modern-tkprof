@@ -19,10 +19,10 @@ func (t *textWriter) findings() {
 		ex = t.allExecs()
 	}
 	fs := analyze.FindingsExec(t.m, t.stats, th, ex)
-	t.p("FINDINGS  (thresholds, see docs/ARCHITECTURE.md; serious > notable > info)\n")
+	t.p("FINDINGS  (serious > notable > info)\n")
 	t.rule('-')
 	if len(fs) == 0 {
-		t.p("none: no rule reached its threshold\n\n")
+		t.p("none\n\n")
 		return
 	}
 	for i, f := range fs {

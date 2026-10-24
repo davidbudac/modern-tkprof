@@ -76,7 +76,7 @@ function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Exe
 
       <div className="exec-cmp-sum">
         <span>elapsed <b>{fmtDur(a.e)}</b> → <b>{fmtDur(b.e)}</b> <span className={'delta ' + worse(b.e - a.e)}>{fmtDurDelta(b.e - a.e)}</span></span>
-        <span>plan {fa.plh || fb.plh ? <><b className="mono">{fa.plh || '–'}</b> {samePlan ? '= same' : <>→ <b className="mono delta up">{fb.plh || '–'}</b> changed</>}</> : 'hash not in the trace'}</span>
+        <span>plan {fa.plh || fb.plh ? <><b className="mono">{fa.plh || '–'}</b> {samePlan ? '= same' : <>→ <b className="mono delta up">{fb.plh || '–'}</b> changed</>}</> : 'hash not in trace'}</span>
         <span>{positions.length === 0 ? 'no bind values' : differing === 0 ? 'identical binds' : `${differing} of ${positions.length} binds differ`}</span>
       </div>
 
@@ -107,7 +107,7 @@ function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Exe
       </table></div>
 
       <h3>Waits by event</h3>
-      {events.length === 0 ? <p className="small muted">No waits were attached to these executions.</p> : (
+      {events.length === 0 ? <p className="small muted">No waits.</p> : (
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th>event</th><th className="num">A waits</th><th className="num">A time</th><th className="num">B waits</th><th className="num">B time</th><th className="num">B − A</th></tr></thead>
           <tbody>{events.map((e) => {
@@ -126,7 +126,7 @@ function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Exe
       )}
 
       <h3>Binds</h3>
-      {positions.length === 0 ? <p className="small muted">No bind values were captured for these executions.</p> : (
+      {positions.length === 0 ? <p className="small muted">No binds captured.</p> : (
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th className="num">pos</th><th>type</th><th>A · #{a.execNo}</th><th>B · #{b.execNo}</th></tr></thead>
           <tbody>{positions.map((p) => {
@@ -141,7 +141,7 @@ function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Exe
           })}</tbody>
         </table></div>
       )}
-      {a.bindSet === NONE && b.bindSet === NONE ? null : <p className="small muted">Rows with a differing value are highlighted.</p>}
+      {a.bindSet === NONE && b.bindSet === NONE ? null : <p className="small muted">Differing values highlighted.</p>}
     </section>
   )
 }

@@ -11,7 +11,7 @@ import (
 
 // refFlag registers -ref dir (report, html, serve, json, export, pivot, plan).
 func refFlag(fs *flag.FlagSet) *string {
-	return fs.String("ref", "", "reference bundle directory spooled by the script that mtkprof refscript writes (names for obj#, file#, user ids; DBMS_XPLAN text)")
+	return fs.String("ref", "", "reference bundle directory (output of the mtkprof refscript script): names for obj#, file#, user ids; DBMS_XPLAN text")
 }
 
 // applyRef loads the bundle in dir (if any) and applies it to the model.

@@ -55,6 +55,6 @@ export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'even
   }), [doc])
   if (raw.loading && data.starts.length === 0) return <p className="muted small">loading…</p>
   if (raw.error) return <p className="callout">{raw.error}</p>
-  if (data.starts.length === 0) return <p className="muted small">No time information in this trace.</p>
+  if (data.starts.length === 0) return <p className="muted small">No time information.</p>
   return <Chart option={option} onEvents={events} />
 }

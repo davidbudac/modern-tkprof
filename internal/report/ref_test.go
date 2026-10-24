@@ -141,7 +141,7 @@ func TestApplyRefDocument(t *testing.T) {
 	if named == 0 {
 		t.Error("plan lines on obj 108611 have no object name")
 	}
-	if len(doc.Diag.Notes) == 0 || !strings.Contains(doc.Diag.Notes[len(doc.Diag.Notes)-1], "reference bundle applied") {
+	if len(doc.Diag.Notes) == 0 || !strings.Contains(doc.Diag.Notes[len(doc.Diag.Notes)-1], "ref bundle: ") {
 		t.Errorf("notes = %v", doc.Diag.Notes)
 	}
 

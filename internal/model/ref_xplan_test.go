@@ -55,10 +55,10 @@ func TestApplyRefOverlaysXPlanByHash(t *testing.T) {
 		t.Errorf("plan with another hash was overlaid: %+v", o)
 	}
 	notes := strings.Join(m.Diag.Notes, "\n")
-	if !strings.Contains(notes, "plans/q1.txt has plan hash 555; trace plan hash 999 differs") {
+	if !strings.Contains(notes, "plans/q1.txt: plan hash 555; trace plan hash 999 differs") {
 		t.Errorf("no mismatch note in %q", notes)
 	}
-	if !strings.Contains(notes, "1 of 2 STAT plans overlaid") {
+	if !strings.Contains(notes, "1/2 STAT plans with predicates") {
 		t.Errorf("no summary in %q", notes)
 	}
 }
