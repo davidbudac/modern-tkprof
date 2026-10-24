@@ -140,11 +140,11 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 		return written, err
 	}
 	if err := write("binds.csv",
-		[]string{"bind_set_id", "line", "cursor_id", "statement_id", "sql_id", "call_id", "position", "dty", "type", "value", "is_null", "no_def", "is_dump", "max_array_len", "actual_len"},
+		[]string{"bind_set_id", "line", "cursor_id", "statement_id", "sql_id", "call_id", "position", "dty", "type", "value", "is_null", "no_def", "is_dump", "max_array_len", "actual_len", "kind", "typed"},
 		len(m.Binds), func(k int) []string {
 			bd := &m.Binds[k]
 			bs := &m.BindSets[bd.Set]
-			return []string{id(bs.ID), i(bs.Line), id(bs.Cursor), id(bs.Statement), sqlid(bs.Statement), id(bs.Call), n32(bd.Pos), n32(bd.Dty), bd.TypeName(), bd.Value, b(bd.IsNull), b(bd.NoDef), b(bd.IsDump), n32(bd.Mal), n32(bd.Avl)}
+			return []string{id(bs.ID), i(bs.Line), id(bs.Cursor), id(bs.Statement), sqlid(bs.Statement), id(bs.Call), n32(bd.Pos), n32(bd.Dty), bd.TypeName(), bd.Value, b(bd.IsNull), b(bd.NoDef), b(bd.IsDump), n32(bd.Mal), n32(bd.Avl), bd.Kind().String(), bd.Typed()}
 		}); err != nil {
 		return written, err
 	}

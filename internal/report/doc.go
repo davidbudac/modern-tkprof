@@ -155,6 +155,12 @@ type BindColumns struct {
 	Flags Column   `json:"flags"` // bit0 null, bit1 noDef, bit2 dump
 	Mal   Column   `json:"mal"`
 	Avl   Column   `json:"avl"`
+	// Kind is the model.BindKind of each bind (0 string, 1 number, 2 date, 3 timestamp,
+	// 4 interval, 5 raw, 6 rowid, 7 other); Typed the ISO 8601 / base-64 ROWID form of
+	// date, timestamp, interval and rowid values ("" if none). Typed is omitted when
+	// the document has no such bind.
+	Kind  Column   `json:"kind"`
+	Typed []string `json:"typed,omitempty"`
 }
 
 // Stats are the pre-computed aggregations.
@@ -334,12 +340,19 @@ func buildFacts(m *model.Model) *Facts {
 			}
 			return f
 		}),
-		Mal: i32col(n, func(i int) int64 { return int64(binds[i].Mal) }),
-		Avl: i32col(n, func(i int) int64 { return int64(binds[i].Avl) }),
+		Mal:  i32col(n, func(i int) int64 { return int64(binds[i].Mal) }),
+		Avl:  i32col(n, func(i int) int64 { return int64(binds[i].Avl) }),
+		Kind: u8col(n, func(i int) uint8 { return uint8(binds[i].Kind()) }),
 	}
 	for i := range binds {
 		bc.Type[i] = binds[i].TypeName()
 		bc.Value[i] = binds[i].Value
+	}
+	if hasTypedBinds(binds) {
+		bc.Typed = make([]string, n)
+		for i := range binds {
+			bc.Typed[i] = binds[i].Typed()
+		}
 	}
 	return &Facts{Calls: cc, Waits: wc, BindSets: sc, Binds: bc}
 }
@@ -364,4 +377,18 @@ func DocumentBytes(m *model.Model, o DocOptions) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// hasTypedBinds reports whether any bind can have a Typed form (so the
+// "typed" column is worth writing).
+func hasTypedBinds(binds []model.Bind) bool {
+	for i := range binds {
+		if b := &binds[i]; !b.IsNull && !b.NoDef {
+			switch b.Kind() {
+			case model.BindDate, model.BindTimestamp, model.BindInterval, model.BindRowid:
+				return true
+			}
+		}
+	}
+	return false
 }

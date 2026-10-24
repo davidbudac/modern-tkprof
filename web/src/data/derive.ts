@@ -135,7 +135,12 @@ export function executions(doc: TraceDoc, sid: ID): Execution[] {
   return out
 }
 
-export interface BindRow { pos: number; type: string; value: string; isNull: boolean; noDef: boolean; dump: boolean; mal: number }
+/** The kind column of the bind table (model.BindKind). */
+export const BIND_KINDS = ['string', 'number', 'date', 'timestamp', 'interval', 'raw', 'rowid', 'other'] as const
+export type BindKind = (typeof BIND_KINDS)[number]
+
+/** `kind` and `typed` are optional so older documents and servers still fit: typed is the ISO 8601 form of a date / timestamp / interval (P3DT4H5M6.789S) or the base-64 ROWID. */
+export interface BindRow { pos: number; type: string; value: string; isNull: boolean; noDef: boolean; dump: boolean; mal: number; kind?: BindKind; typed?: string }
 
 export function bindsOf(doc: TraceDoc, set: ID): BindRow[] {
   if (set === NONE || set >= doc.bindSets.n) return []
@@ -144,7 +149,7 @@ export function bindsOf(doc: TraceDoc, set: ID): BindRow[] {
   const out: BindRow[] = []
   for (let i = first; i < first + n; i++) {
     const f = b.flags[i]
-    out.push({ pos: b.pos[i], type: b.type[i], value: b.value[i], isNull: !!(f & 1), noDef: !!(f & 2), dump: !!(f & 4), mal: b.mal[i] })
+    out.push({ pos: b.pos[i], type: b.type[i], value: b.value[i], isNull: !!(f & 1), noDef: !!(f & 2), dump: !!(f & 4), mal: b.mal[i], kind: BIND_KINDS[b.kind[i]], typed: b.typed?.[i] || undefined })
   }
   return out
 }

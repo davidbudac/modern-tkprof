@@ -395,6 +395,8 @@ type BindRow struct {
 	NoDef  bool   `json:"noDef"`
 	Dump   bool   `json:"dump"`
 	Mal    int32  `json:"mal"`
+	Kind   string `json:"kind"`
+	Typed  string `json:"typed,omitempty"`
 }
 
 func (s *Server) bindsOf(set model.ID) []BindRow {
@@ -410,7 +412,7 @@ func (s *Server) bindsOf(set model.ID) []BindRow {
 	out := make([]BindRow, 0, n)
 	for i := first; i < first+n; i++ {
 		b := &m.Binds[i]
-		out = append(out, BindRow{Pos: b.Pos, Type: b.TypeName(), Value: b.Value, IsNull: b.IsNull, NoDef: b.NoDef, Dump: b.IsDump, Mal: b.Mal})
+		out = append(out, BindRow{Pos: b.Pos, Type: b.TypeName(), Value: b.Value, IsNull: b.IsNull, NoDef: b.NoDef, Dump: b.IsDump, Mal: b.Mal, Kind: b.Kind().String(), Typed: b.Typed()})
 	}
 	return out
 }

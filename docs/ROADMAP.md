@@ -45,8 +45,9 @@
 4. **Memory**: 118 MB trace -> ~600 MB RSS. Compact the fact structs, intern
    more, add an aggregation-only mode for multi-GB files, optionally spill
    facts to disk.
-5. **Bind value decoding**: TIMESTAMP / TSTZ / INTERVAL memory dumps, RAW,
-   collections; typed values in JSON.
+5. ~~**Bind value decoding**~~ (done): TSLTZ / INTERVAL memory dumps (and
+   TIMESTAMP / TSTZ / DATE dumps), RAW, ROWID; `kind` / `typed` in JSON.
+   Collections (dty 123) stay hex dumps.
 6. **Reference data at runtime**: optional `--objects objects.csv` /
    `--datafiles` to map obj# and file# to names (query templates provided).
 7. **More formats**: 12.1/12.2 traces (should mostly work, untested),

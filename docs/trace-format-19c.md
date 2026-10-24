@@ -146,19 +146,61 @@ BINDS #139851226503912:
   then no `value=` line), `bln` buffer length.
 * Character values are quoted: `value="10/22/2026 11:35:3"`. Values can
   span lines. Long values are cut: `value="Long text, ..."...`.
-* TIMESTAMP / TSTZ / INTERVAL values are memory dumps:
+* TSLTZ and INTERVAL values are memory dumps (see "Bind dump formats"):
   ```
-    value=
+    value=Unhandled datatype (-73) found in kxsbndinf
   Dumping '' addr=0x7f713ee967a0 size=11 bytes
   Dump of memory from 0x7f713ee967a0 to 0x7f713ee967ac
   7F713EE967A0 03000080 AF424140 00402F07           [....@AB../@.]
   ```
-* INTERVAL DAY TO SECOND may print `value=Unhandled datatype (-73) found in kxsbndinf`.
+  `Unhandled datatype (-25)` is TSLTZ (231), `(-73)` INTERVAL DAY TO SECOND (183),
+  `(-74)` INTERVAL YEAR TO MONTH (182).
 * Collections (dty 123): `toid ptr value=61F11290 length=16` + a hex line.
 * `No oacdef for this bind.` = the bind is a repeated occurrence of an
   earlier bind name; no value is printed.
 * FORALL array binds show `mal=00` and only the first row's values; the
   EXEC `r=` reveals the array size.
+
+### Bind dump formats
+
+Fixtures: `basic_binds.trc` (scenario block `typed_binds_plsql`) and `bind_types.trc`
+(`testdata/gen/sc_bind_types.sql`: four executions with 2-digit-year, negative,
+zero, 9-digit and region/offset variations of every type).
+
+| oacdty | type | what the trace prints | verified |
+|---|---|---|---|
+| 12 | DATE | text, `value="12/31/1999 0:0:0"` (`M/D/YYYY H:M:S`, no padding). Some bind paths cut it at 18 characters (`"10/22/2026 11:35:3"`), the seconds may be incomplete | fixtures |
+| 180 | TIMESTAMP | text in the session's NLS_TIMESTAMP_FORMAT: `29-FEB-24 01.14.15.123457 PM` (2-digit year, rounded to `scl` fraction digits) | fixtures |
+| 181 | TSTZ | text: `29-FEB-24 01.14.15.123456 PM +02:00`, `... PM UTC`, or the region name `... AM AMERICA/LOS_ANGELES` | fixtures |
+| 231 | TSLTZ | **dump** (`Unhandled datatype (-25)`), 7 or 11 bytes of the internal timestamp in the **database** time zone (the trace does not record it) | fixtures |
+| 182 | INTERVAL YEAR TO MONTH | **dump** (`-74`), 5 bytes | fixtures |
+| 183 | INTERVAL DAY TO SECOND | **dump** (`-73`), 11 bytes | fixtures |
+| 23 | RAW | hex text `value=DEADBEEF...`. 19c prints **one byte fewer than `avl`** (`avl=20` shows 19 bytes, `avl=1` shows nothing) | fixtures |
+| 208 / 69 | UROWID / ROWID | text `00028F76.0006.000C`: block, row, file in hex (the restricted ROWID; the data object number is not printed) | fixtures (208) |
+| 1 | a ROWID bound as VARCHAR2 | quoted base-64 text `"AAAahBAAMAAAo92AAG"` | fixtures |
+
+Memory dump layout. The hex words are printed in host byte order: on x86 the 4
+bytes in memory `80 00 00 03` print as `03000080`, so reverse every 8-hex-digit word
+to get the memory order (big-endian hosts print it as is; mtkprof tries both and
+keeps the reading that validates). `size=N bytes` is the length of the value, the
+last word is padded. The first row can be indented to the data start
+(`Dump of memory from` address), blank words are not part of the data. Internal
+formats (all multi-byte integers big endian):
+
+| type | bytes | layout |
+|---|---|---|
+| DATE | 7 | century+100, year+100, month, day, hour+1, minute+1, second+1 |
+| TIMESTAMP, TSLTZ | 7 or 11 | the DATE bytes; 11 adds nanoseconds as uint32 |
+| TSTZ | 13 | the TIMESTAMP bytes in **UTC**; byte 11 = time zone hour+20, byte 12 = minute+60. If bit 7 of byte 11 is set it is a region: id = (byte11 & 0x7F) << 6 \| byte12 >> 2 (mapping the id to a name needs the time zone file) |
+| INTERVAL YEAR TO MONTH | 5 | years as int32 xor 0x80000000, months+60 |
+| INTERVAL DAY TO SECOND | 11 | days as int32 xor 0x80000000, hour+60, minute+60, second+60, nanoseconds as int32 xor 0x80000000 (negative intervals have negative components) |
+
+Example (`bind_types.trc`, `interval '-12 23:59:58.000001' day to second`):
+`F4FFFF7F 7F020125 0018FCFF` -> memory `7F FF FF F4 | 25 01 02 | 7F FF FC 18` -> days
+-12, 25h-60 = -23, -59, -58, -1000 ns -> `-12 23:59:58.000001`.
+
+Stored formats of TIMESTAMP / TSTZ / DATE were verified with `DUMP()` of a table
+column on dbmint (`mtk_tsdump_ref`), the trace formats them as text in 19c.
 
 ## Other lines
 
