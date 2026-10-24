@@ -110,6 +110,18 @@ slowest` line stays) and the raw fact tables of the document (no drill-down,
 no Pivot; `serve -aggregate` serves the document without slicing). The report
 header says so. Details: `docs/ARCHITECTURE.md`, "Aggregation-only mode".
 
+To keep the drill-down on such a trace use `serve -spill` (or `-spill=DIR` for a
+directory with room; the default is the system temp dir). It reads the trace
+like `-aggregate` (memory independent of the trace) and writes calls, waits and
+bind values to fixed-width temporary files, about the size of the trace, while
+reading; Pivot, Timeline, executions with bind values and the event drill-downs
+are answered from them by sequential scans (a statement's executions through an
+index). A 1 GB trace serves in 66 MB RSS (160 MB at the peak of the build) with
+the Pivot in about 0.3 s, against 1.9 GB for `-facts=false`. The files are
+removed on exit (also on Ctrl-C), and leftovers of a crashed run on the same
+trace on the next start; `-lowmem` leaves out the bind values, `-bind-values
+redact` writes them redacted. Details: `docs/ARCHITECTURE.md`, "Spill mode".
+
 Reference bundle: a trace carries only numbers (obj#, file#, user ids) and
 no plan text. `mtkprof refscript` writes a read-only SQL*Plus script tailored
 to the trace; the DBA runs it and `-ref dir` applies what it spooled to every

@@ -2,6 +2,7 @@
 package analyze
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -448,14 +449,20 @@ func WaitsByEvent(m *model.Model, in func(*model.Wait) bool) []EventAgg {
 			return nil
 		})
 	}
+	out, _ := WaitsByEventOn(context.Background(), m, ModelFacts(m), Scan{}, in)
+	return out
+}
+
+// WaitsByEventOn is WaitsByEvent over any Facts (it always scans: sc narrows
+// the scan to the rows in can accept).
+func WaitsByEventOn(ctx context.Context, m *model.Model, src Facts, sc Scan, in func(*model.Wait) bool) ([]EventAgg, error) {
 	aggs := make([]EventAgg, len(m.Events))
 	for i := range aggs {
 		aggs[i] = EventAgg{Event: model.ID(i), Name: m.Events[i].Name, Class: m.Events[i].Class, Idle: m.Events[i].Idle}
 	}
-	for i := range m.Waits {
-		w := &m.Waits[i]
+	err := src.EachWait(ctx, sc, func(w *model.Wait) bool {
 		if in != nil && !in(w) {
-			continue
+			return true
 		}
 		a := &aggs[w.Event]
 		if a.Count == 0 || w.Ela < a.MinUs {
@@ -466,6 +473,10 @@ func WaitsByEvent(m *model.Model, in func(*model.Wait) bool) []EventAgg {
 		}
 		a.Count++
 		a.Us += w.Ela
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 	out := aggs[:0]
 	for _, a := range aggs {
@@ -474,7 +485,7 @@ func WaitsByEvent(m *model.Model, in func(*model.Wait) bool) []EventAgg {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Us > out[j].Us })
-	return out
+	return out, nil
 }
 
 // KeyAgg is a generic group-by result.
@@ -486,15 +497,20 @@ type KeyAgg struct {
 
 // WaitsBy groups waits by an integer key (object id, file#, ...).
 func WaitsBy(m *model.Model, in func(*model.Wait) bool, key func(*model.Wait) (int64, bool)) []KeyAgg {
+	out, _ := WaitsByOn(context.Background(), ModelFacts(m), Scan{}, in, key)
+	return out
+}
+
+// WaitsByOn is WaitsBy over any Facts (sc narrows the scan to the rows in can accept).
+func WaitsByOn(ctx context.Context, src Facts, sc Scan, in func(*model.Wait) bool, key func(*model.Wait) (int64, bool)) ([]KeyAgg, error) {
 	acc := map[int64]*KeyAgg{}
-	for i := range m.Waits {
-		w := &m.Waits[i]
+	err := src.EachWait(ctx, sc, func(w *model.Wait) bool {
 		if in != nil && !in(w) {
-			continue
+			return true
 		}
 		k, ok := key(w)
 		if !ok {
-			continue
+			return true
 		}
 		a := acc[k]
 		if a == nil {
@@ -503,6 +519,10 @@ func WaitsBy(m *model.Model, in func(*model.Wait) bool, key func(*model.Wait) (i
 		}
 		a.Count++
 		a.Us += w.Ela
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 	out := make([]KeyAgg, 0, len(acc))
 	for _, a := range acc {
@@ -514,7 +534,7 @@ func WaitsBy(m *model.Model, in func(*model.Wait) bool, key func(*model.Wait) (i
 		}
 		return out[i].Key < out[j].Key
 	})
-	return out
+	return out, nil
 }
 
 // Execution groups one EXEC with its FETCH calls.
@@ -530,6 +550,7 @@ type Execution struct {
 	EndTim    int64      `json:"endTim"`
 	WallUs    int64      `json:"wallUs"`
 	Context   model.ID   `json:"context"`
+	Line      int32      `json:"-"` // trace line of the EXEC
 }
 
 // Executions lists the executions of one statement in file order.
@@ -537,16 +558,22 @@ func Executions(m *model.Model, sid model.ID) []Execution {
 	if AggOf(m) != nil {
 		return nil // no per-execution facts: see ExecSummaryOf
 	}
+	out, _ := ExecutionsOn(context.Background(), m, ModelFacts(m), sid)
+	return out
+}
+
+// ExecutionsOn is Executions over any Facts (m for the PX contexts and wall
+// clock anchors).
+func ExecutionsOn(ctx context.Context, m *model.Model, src Facts, sid model.ID) ([]Execution, error) {
 	var out []Execution
 	idx := map[[2]int64]int{} // cursor,execNo -> index
-	for i := range m.Calls {
-		c := &m.Calls[i]
+	err := src.EachCall(ctx, Scan{Statements: []model.ID{sid}}, func(c *model.Call) bool {
 		if c.Statement != sid || m.PXChild(c.Context) {
-			continue
+			return true
 		}
 		switch c.Kind {
 		case trace.CallExec:
-			e := Execution{Cursor: c.Cursor, Statement: sid, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context}
+			e := Execution{Cursor: c.Cursor, Statement: sid, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context, Line: c.Line}
 			e.Stats.add(c)
 			idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}] = len(out)
 			out = append(out, e)
@@ -560,8 +587,62 @@ func Executions(m *model.Model, sid model.ID) []Execution {
 				}
 			}
 		}
+		return true
+	})
+	return out, err
+}
+
+// ExecInfo is an execution seen by EachExecution: the EXEC and the sum of its
+// FETCHes, without the list of fetch calls.
+type ExecInfo struct {
+	Execution
+	Seq        int // position among the statement's executions in file order
+	NumFetches int
+}
+
+// EachExecution calls fn once for every execution of a statement (the ones
+// Executions lists) in the order they are complete, not in file order: an
+// execution is complete when the next EXEC of its cursor comes (or at the end).
+// Memory is that of the open executions, one per cursor, however many
+// executions the statement has. e is only valid during the call.
+func EachExecution(ctx context.Context, m *model.Model, src Facts, sid model.ID, fn func(e *ExecInfo)) error {
+	open := map[model.ID]*ExecInfo{} // cursor -> its latest execution; only that one can still get fetches
+	seq := 0
+	err := src.EachCall(ctx, Scan{Statements: []model.ID{sid}}, func(c *model.Call) bool {
+		if c.Statement != sid || m.PXChild(c.Context) {
+			return true
+		}
+		switch c.Kind {
+		case trace.CallExec:
+			e := open[c.Cursor]
+			if e != nil {
+				fn(e)
+			} else {
+				e = &ExecInfo{}
+				open[c.Cursor] = e
+			}
+			*e = ExecInfo{Execution: Execution{Cursor: c.Cursor, Statement: sid, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E,
+				EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context, Line: c.Line}, Seq: seq}
+			seq++
+			e.Stats.add(c)
+		case trace.CallFetch:
+			if e := open[c.Cursor]; e != nil && e.ExecNo == c.ExecNo {
+				e.NumFetches++
+				e.Stats.add(c)
+				if c.Tim > e.EndTim {
+					e.EndTim = c.Tim
+				}
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return err
 	}
-	return out
+	for _, e := range open { // map order: the consumer must not depend on it
+		fn(e)
+	}
+	return nil
 }
 
 // Bucket is one slice of the timeline.

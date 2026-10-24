@@ -44,8 +44,8 @@
    traces with the QC trace, accept directories.
 4. **Memory**: ~~118 MB trace -> ~600 MB RSS~~ (done: compact facts, and
    `-aggregate`, an aggregation-only mode that keeps no calls or waits;
-   a 10 GB trace in ~0.5 GB). Left: optionally spill facts to disk for
-   drill-down on traces that do not fit in memory.
+   a 10 GB trace in ~0.5 GB, and ~~spilling the facts to disk for drill-down~~
+   done: `serve -spill`, a 1 GB trace drillable in 66 MB RSS).
 5. ~~**Bind value decoding**~~ (done): TSLTZ / INTERVAL memory dumps (and
    TIMESTAMP / TSTZ / DATE dumps), RAW, ROWID; `kind` / `typed` in JSON.
    Collections (dty 123) stay hex dumps.

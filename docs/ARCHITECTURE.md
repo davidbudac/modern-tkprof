@@ -260,7 +260,10 @@ when overlaid. See `docs/REF-BUNDLE.md`.
 
 `mtkprof serve -facts=false` (or `-slice`, which also works with facts) keeps the
 parsed model after building the document instead of freeing it, and mounts
-`slice.New(m).Handler()` under `/api/`. The document has no fact tables and is
+`slice.New(m).Handler()` under `/api/`. The endpoints read the fact rows through
+`slice.FactSource` (`analyze.Facts` for calls and waits, plus bind values):
+`memSource` over the model's tables, `diskSource` over the spill files of
+`serve -spill` (next sections), same JSON either way. The document has no fact tables and is
 flagged `slice: true`; the UI then asks the server for everything it used to
 compute from the fact columns. The model is read-only after the build, so the
 handlers run concurrently without locks; answers are JSON, CORS-open like
@@ -460,6 +463,118 @@ recursive call whose parent has not been seen and 88 bytes per wait that has
 no call yet (cursor-#0 waits that no `XCTEND` claims accumulate until the file
 ends). A trace whose size comes from many distinct statements (literal SQL)
 still pays for each statement (~1 KB of accumulator plus its text).
+
+### Spill mode (`serve -spill`)
+
+`-aggregate` keeps a 10 GB trace in 0.5 GB but throws the rows away. `serve
+-spill[=DIR]` builds the same aggregation-only model (so the memory during the
+build is the same, and the document is the aggregate one plus `slice: true`) and
+writes every call, wait and bind value to temporary files while the trace is
+read; the slicing endpoints then answer by scanning those files. Memory stays at
+the size of the dimensions and aggregates whatever the trace size; the price is
+disk of about the size of the trace (1.0x for the bind-heavy big_loop shape) and
+a scan per drill-down (seconds on 10 GB instead of milliseconds in memory).
+`-lowmem` leaves the binds out, `-bind-values redact|none` applies to the
+spilled values (the spill writes the redacted text, `none` spills no binds).
+`-aggregate` and `-spill` together mean `-spill`. The directory is written
+`-spill=DIR` (a bare word after `-spill` is a trace file); the default is
+`os.TempDir()`.
+
+**Writing** (`internal/slice/spill.go`, `pagedfile.go`, `layout.go`). The
+builder feeds the first sink (the `Accumulator`) and, with `Options.NewTee`, a
+second one, `Spill`, through a `teeSink`; `Options.SpillBinds` also decodes the
+BINDS blocks and hands them to the tee as `model.BindSink`, and the EXEC call
+carries its set id in `Call.BindSet`. Files, in the directory
+`mtkprof-spill-<key>-<pid>-<random>` (`key` = hash of the paths, sizes and
+mtimes of the trace files, `SpillKey`):
+
+| file | contents |
+|---|---|
+| `calls.bin` | one 154-byte record per call, by call id: 14 int64 measures (tim, c, e, p, cr, cu, r, self*, wait/idle ela), 9 int32 ids and counts, 6 byte codes. Little endian, fixed width |
+| `waits.bin` | 70 bytes per wait, by wait id |
+| `bindsets.bin`, `binds.bin`, `bindvals.bin` | 21-byte set records (line, cursor, first bind, n), 45-byte bind records (type, lengths, flags, offset into the value heap), the value text |
+| `calls.stmt`, `waits.stmt` | uint32 row numbers grouped by statement (the per-statement index), written when the build ends |
+
+Not stored: the statement of a row (it is the statement of its cursor, which an
+implicit cursor adopted later changes, so it is looked up at read time through
+`Model.Cursors`), `Wait.Number`, `BindSet.Call`. Two things make a plain
+append impossible, and `pagedFile` (a cache of 48 pages of 256 KB per file)
+handles them: a wait settles when its call arrives, so waits reach the sink out
+of id order (a wait of an idle session can wait for the next call of its cursor
+for the rest of the trace), and a call's `Parent` / `Orphan` are only known when
+the parent completes (`model.ChildRec` now carries the call id for that). Writes
+to a page near the newest go to the cache; older ones (a PL/SQL block that ends
+after 600k children) are queued, sorted and applied page by page when 256k are
+queued or 8 MB of data, so a straggler never costs a page read. A randomised
+test compares the file with a byte slice. The indexes need no extra pass over
+the trace: the number of rows per cursor is counted while writing, the layout of
+the statement index follows, and one sequential pass over each table places the
+row numbers (1M rows per chunk, sorted, one write per statement and chunk).
+Session contexts are opened in file order, so the rows of a context are one
+range (kept per context while writing). Write errors (disk full) are kept and
+reported when the build ends; `Spill.Close` removes the directory.
+
+**Reading** (`disk.go`). `diskSource` implements `analyze.Facts`: `EachCall` /
+`EachWait` visit the rows a `Scan` hint can match in row order, decoding into one
+reused `model.Call` / `Wait` (with `ID` and `Statement` filled in), and the
+caller's `Matcher` still decides. A scan of everything or of some contexts
+(their row ranges) reads sequentially through a 1 MB window with `ReadAt`
+(no mmap, which is not portable); a scan of one statement walks its posting
+list and reads the rows through a 64 KB window (several statements: their lists
+merged in memory up to 8M rows, else a full scan). At most two scans run at a
+time, a canceled request stops its scan within 4096 rows. `CallKind` (the
+Pivot's "call kind" of a wait) reads 4096-row windows of the call file through a
+four-window cache. Bind values: three reads per set. The analyze queries behind
+the endpoints were rewritten once over `Facts` (`PivotOn`, `SpreadTimelineOn`,
+`TopCallsOn`, ..., the old names are wrappers over the model), so there is one
+implementation of every query, and two changes keep their memory independent of
+the data: `/api/executions` streams the statement's calls once
+(`analyze.EachExecution`, one open execution per cursor), counts, sums, tracks
+the slowest and keeps only the requested page (a heap of offset+limit; `offset +
+limit` is capped at 100,000), and `ScatterWaitsOn` finds the strided waits of the
+elapsed-time order with two passes (a histogram per elapsed value, then the
+waits at the wanted ranks) instead of sorting every wait. Still proportional to
+the data, as before: `stmt/spans` keeps the call intervals of the asked
+statements (<= 200), the scatter histogram has one entry per distinct elapsed
+time. The 8 bytes per line of the raw-line index (`trace.LineIndex`, behind
+`/api/lines`) were 2 GB for a 10 GB trace, as much as everything else; it now
+keeps the offset of every 64th line (32 MB) and reads forward from it.
+
+**Lifecycle.** The directory is created before the trace is read (a bad
+`-spill=DIR` fails at once), removed on exit, on a failed build and on
+SIGINT / SIGTERM / SIGHUP (also during the build). On start, directories of the
+same trace key whose process is gone (a crash or kill -9) are removed;
+directories of live processes are left alone (two servers on one trace work).
+`TestSpillMatchesModel` builds io_waits, basic_binds, bind_types, plsql_recursive,
+cursor_cache, midtrace, errors, lobs, multisession (one file and a + b) and a PX
+coordinator + slave set both ways (model tables, spill files) and requires the
+same canonical JSON from ~200-700 requests each (every pivot dimension, scope
+filter, statement and event, every execution in detail with binds);
+`TestSpillAllFixtures` does the same for every fixture; further tests cover the
+codecs, `pagedFile`, stale and removed directories, redacted binds and
+cancellation.
+
+Measured (this machine: 16 cores, NVMe, spill files in the page cache;
+`/api/pivot?fact=calls&by=stmt`, `/api/executions?stmt=<busiest>` = 1000 rows
+with binds; each answer computed once, the response cache makes a repeat ~6 ms):
+
+| | big_loop (118 MB, 600k calls, 360k binds) | 1 GB (big_loop body x9, 5.40M calls) |
+|---|---|---|
+| start to serving (parse, indexes, document) | 0.8 s | 5.6 s |
+| RSS at the end of the build / idle | 161 MB peak / 35 MB | 160 MB peak / 66 MB |
+| RSS after pivot / executions / the whole request sequence | 36 / 37 / 41 MB | 67 / 68 / 71 MB |
+| pivot calls by stmt | 38 ms | 290 ms (cold files: 750 ms) |
+| executions of the busiest statement (default, `sort=e&limit=100`) | 28, 23 ms | 174, 174 ms |
+| execution detail | 7 ms | 6 ms |
+| waits by event / by call kind | 5 / 21 ms | 6 / 93 ms |
+| timeline / calls / profile | 20 / 62 / 22 ms | 132 / 190 / 135 ms |
+| spill files | 118 MB: calls 92.5, binds 23.3, indexes 2.4, waits 0.04 | 1,064 MB: calls 832, binds 210, indexes 21.6, waits 0.4 |
+| `serve -facts=false` (model in memory) for comparison | ~300 MB RSS | 1.88 GB RSS; pivot 172 ms, executions 62 ms |
+
+A 10 GB trace of this shape (not measured): ~10 GB of disk, ~0.2-0.5 GB RSS
+(the aggregates: 454 MB at 10 GB with `-aggregate`), a full scan about ten times
+the 1 GB column (a few seconds warm, bound by the disk when cold); statement
+questions stay fast through the index.
 
 ### internal/analyze
 

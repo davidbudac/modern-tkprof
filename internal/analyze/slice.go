@@ -2,6 +2,7 @@ package analyze
 
 import (
 	"container/heap"
+	"context"
 	"math/bits"
 	"sort"
 
@@ -47,13 +48,19 @@ const MaxBuckets = 100000
 // the bucket, CPU gets what the waits leave free (as derive.ts timeline()).
 // It returns nil when the span or bucket is unknown or n exceeds MaxBuckets.
 func SpreadTimeline(m *model.Model, bucketUs int64, f Filter) *SpanSeries {
+	out, _ := SpreadTimelineOn(context.Background(), m, ModelFacts(m), bucketUs, f)
+	return out
+}
+
+// SpreadTimelineOn is SpreadTimeline over any Facts.
+func SpreadTimelineOn(ctx context.Context, m *model.Model, src Facts, bucketUs int64, f Filter) (*SpanSeries, error) {
 	span := m.Span.LastTim - m.Span.FirstTim
 	if bucketUs <= 0 || span <= 0 {
-		return nil
+		return nil, nil
 	}
 	n64 := span/bucketUs + 1
 	if n64 > MaxBuckets {
-		return nil
+		return nil, nil
 	}
 	n := int(n64)
 	base := m.Span.FirstTim
@@ -84,19 +91,21 @@ func SpreadTimeline(m *model.Model, bucketUs int64, f Filter) *SpanSeries {
 		}
 	}
 	cpu := make([]float64, n)
-	for i := range m.Calls {
-		c := &m.Calls[i]
+	err := src.EachCall(ctx, f.Scan(), func(c *model.Call) bool {
 		if c.Parent != model.None || c.Tim == 0 || !mt.Call(c) {
-			continue
+			return true
 		}
 		add(cpu, c.Tim, c.E, float64(c.C))
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 	perEvent := make([][]float64, len(m.Events))
 	totals := make([]float64, len(m.Events))
-	for i := range m.Waits {
-		w := &m.Waits[i]
+	err = src.EachWait(ctx, f.Scan(), func(w *model.Wait) bool {
 		if w.Tim == 0 || w.Event < 0 || int(w.Event) >= len(perEvent) || !mt.Wait(w) {
-			continue
+			return true
 		}
 		arr := perEvent[w.Event]
 		if arr == nil {
@@ -105,6 +114,10 @@ func SpreadTimeline(m *model.Model, bucketUs int64, f Filter) *SpanSeries {
 		}
 		add(arr, w.Tim, w.Ela, float64(w.Ela))
 		totals[w.Event] += float64(w.Ela)
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 	bk := float64(bucketUs)
 	for b := 0; b < n; b++ {
@@ -137,7 +150,7 @@ func SpreadTimeline(m *model.Model, bucketUs int64, f Filter) *SpanSeries {
 			out.Events = append(out.Events, EventSeries{Event: model.ID(e), Us: arr})
 		}
 	}
-	return out
+	return out, nil
 }
 
 // HistBins is the number of log2 buckets of a wait-duration histogram.
@@ -166,20 +179,26 @@ func HistBin(ela int64) int {
 
 // WaitHist histograms the waits in scope.
 func WaitHist(m *model.Model, f Filter) LogHist {
+	h, _ := WaitHistOn(context.Background(), ModelFacts(m), f)
+	return h
+}
+
+// WaitHistOn is WaitHist over any Facts.
+func WaitHistOn(ctx context.Context, src Facts, f Filter) (LogHist, error) {
 	var h LogHist
 	mt := f.Matcher()
-	for i := range m.Waits {
-		w := &m.Waits[i]
+	err := src.EachWait(ctx, f.Scan(), func(w *model.Wait) bool {
 		if !mt.Wait(w) {
-			continue
+			return true
 		}
 		b := HistBin(w.Ela)
 		h.Count++
 		h.Us += w.Ela
 		h.Counts[b]++
 		h.Sums[b] += w.Ela
-	}
-	return h
+		return true
+	})
+	return h, err
 }
 
 // ScopeProfile is the response-time ledger of a scope: CPU of the top-level
@@ -193,47 +212,55 @@ type ScopeProfile struct {
 
 // ProfileOf aggregates the calls and waits in scope.
 func ProfileOf(m *model.Model, f Filter) ScopeProfile {
+	p, _ := ProfileOfOn(context.Background(), m, ModelFacts(m), f)
+	return p
+}
+
+// ProfileOfOn is ProfileOf over any Facts.
+func ProfileOfOn(ctx context.Context, m *model.Model, src Facts, f Filter) (ScopeProfile, error) {
 	var p ScopeProfile
 	mt := f.Matcher()
-	for i := range m.Calls {
-		c := &m.Calls[i]
+	err := src.EachCall(ctx, f.Scan(), func(c *model.Call) bool {
 		if !mt.Call(c) {
-			continue
+			return true
 		}
 		p.Calls++
 		if c.Parent == model.None {
 			p.CPUUs += c.C
 		}
+		return true
+	})
+	if err != nil {
+		return p, err
 	}
-	p.Events = WaitsByEvent(m, mt.Wait)
+	p.Events, err = WaitsByEventOn(ctx, m, src, f.Scan(), mt.Wait)
+	if err != nil {
+		return p, err
+	}
 	for _, e := range p.Events {
 		p.Waits += e.Count
 	}
-	return p
+	return p, nil
 }
 
 // callHeap keeps the N calls with the largest elapsed time; the root is the
 // worst of them (smallest e, then largest index).
-type callHeap struct {
-	ids []int32
-	m   *model.Model
-}
+type callHeap struct{ calls []model.Call }
 
-func (h *callHeap) worse(a, b int32) bool {
-	ea, eb := h.m.Calls[a].E, h.m.Calls[b].E
-	if ea != eb {
-		return ea < eb
+func (h *callHeap) worse(a, b *model.Call) bool {
+	if a.E != b.E {
+		return a.E < b.E
 	}
-	return a > b
+	return a.ID > b.ID
 }
-func (h *callHeap) Len() int           { return len(h.ids) }
-func (h *callHeap) Less(i, j int) bool { return h.worse(h.ids[i], h.ids[j]) }
-func (h *callHeap) Swap(i, j int)      { h.ids[i], h.ids[j] = h.ids[j], h.ids[i] }
-func (h *callHeap) Push(x any)         { h.ids = append(h.ids, x.(int32)) }
+func (h *callHeap) Len() int           { return len(h.calls) }
+func (h *callHeap) Less(i, j int) bool { return h.worse(&h.calls[i], &h.calls[j]) }
+func (h *callHeap) Swap(i, j int)      { h.calls[i], h.calls[j] = h.calls[j], h.calls[i] }
+func (h *callHeap) Push(x any)         { h.calls = append(h.calls, x.(model.Call)) }
 func (h *callHeap) Pop() any {
-	n := len(h.ids)
-	v := h.ids[n-1]
-	h.ids = h.ids[:n-1]
+	n := len(h.calls)
+	v := h.calls[n-1]
+	h.calls = h.calls[:n-1]
 	return v
 }
 
@@ -241,107 +268,247 @@ func (h *callHeap) Pop() any {
 // time stamp in scope, longest first (ties: file order), and the number of
 // calls in scope.
 func TopCalls(m *model.Model, f Filter, limit int) (ids []int32, total int64) {
+	calls, total, _ := TopCallsOn(context.Background(), ModelFacts(m), f, limit)
+	ids = make([]int32, len(calls))
+	for i := range calls {
+		ids[i] = int32(calls[i].ID)
+	}
+	return ids, total
+}
+
+// TopCallsOn is TopCalls over any Facts, returning the calls themselves.
+func TopCallsOn(ctx context.Context, src Facts, f Filter, limit int) (out []model.Call, total int64, err error) {
 	mt := f.Matcher()
-	h := &callHeap{m: m}
-	for i := range m.Calls {
-		c := &m.Calls[i]
+	h := &callHeap{}
+	err = src.EachCall(ctx, f.Scan(), func(c *model.Call) bool {
 		if c.Tim == 0 || !mt.Call(c) {
-			continue
+			return true
 		}
 		total++
 		if limit <= 0 {
-			continue
+			return true
 		}
-		if len(h.ids) < limit {
-			heap.Push(h, int32(i))
-		} else if h.worse(h.ids[0], int32(i)) {
-			h.ids[0] = int32(i)
+		if len(h.calls) < limit {
+			heap.Push(h, *c)
+		} else if h.worse(&h.calls[0], c) {
+			h.calls[0] = *c
 			heap.Fix(h, 0)
 		}
-	}
-	ids = h.ids
-	sort.Slice(ids, func(a, b int) bool {
-		ea, eb := m.Calls[ids[a]].E, m.Calls[ids[b]].E
-		if ea != eb {
-			return ea > eb
-		}
-		return ids[a] < ids[b]
+		return true
 	})
-	return ids, total
+	if err != nil {
+		return nil, 0, err
+	}
+	out = h.calls
+	sort.Slice(out, func(a, b int) bool {
+		if out[a].E != out[b].E {
+			return out[a].E > out[b].E
+		}
+		return out[a].ID < out[b].ID
+	})
+	return out, total, nil
 }
 
 // TopWaits returns the (at most) limit waits in scope with the largest
 // elapsed time (ties: file order) or, with byTim, the earliest ones, and the
 // number of waits and their total time in scope.
 func TopWaits(m *model.Model, f Filter, limit int, byTim bool) (ids []int32, total, sumUs int64) {
-	mt := f.Matcher()
-	less := func(a, b int32) bool { // a ranks before b
-		wa, wb := &m.Waits[a], &m.Waits[b]
-		if byTim {
-			if wa.Tim != wb.Tim {
-				return wa.Tim < wb.Tim
-			}
-		} else if wa.Ela != wb.Ela {
-			return wa.Ela > wb.Ela
-		}
-		return a < b
+	waits, total, sumUs, _ := TopWaitsOn(context.Background(), ModelFacts(m), f, limit, byTim)
+	ids = make([]int32, len(waits))
+	for i := range waits {
+		ids[i] = int32(waits[i].ID)
 	}
-	var cand []int32
-	for i := range m.Waits {
-		w := &m.Waits[i]
+	return ids, total, sumUs
+}
+
+// TopWaitsOn is TopWaits over any Facts, returning the waits themselves.
+func TopWaitsOn(ctx context.Context, src Facts, f Filter, limit int, byTim bool) (out []model.Wait, total, sumUs int64, err error) {
+	mt := f.Matcher()
+	less := func(a, b *model.Wait) bool { // a ranks before b
+		if byTim {
+			if a.Tim != b.Tim {
+				return a.Tim < b.Tim
+			}
+		} else if a.Ela != b.Ela {
+			return a.Ela > b.Ela
+		}
+		return a.ID < b.ID
+	}
+	var cand []model.Wait
+	err = src.EachWait(ctx, f.Scan(), func(w *model.Wait) bool {
 		if !mt.Wait(w) {
-			continue
+			return true
 		}
 		total++
 		sumUs += w.Ela
-		cand = append(cand, int32(i))
+		cand = append(cand, *w)
 		if len(cand) >= 4*limit+1024 { // keep the buffer bounded: trim to the best `limit`
-			sort.Slice(cand, func(a, b int) bool { return less(cand[a], cand[b]) })
+			sort.Slice(cand, func(a, b int) bool { return less(&cand[a], &cand[b]) })
 			cand = cand[:limit]
 		}
+		return true
+	})
+	if err != nil {
+		return nil, 0, 0, err
 	}
-	sort.Slice(cand, func(a, b int) bool { return less(cand[a], cand[b]) })
+	sort.Slice(cand, func(a, b int) bool { return less(&cand[a], &cand[b]) })
 	if len(cand) > limit {
 		cand = cand[:limit]
 	}
-	return cand, total, sumUs
+	return cand, total, sumUs, nil
 }
 
 // KeepSlowest is how many of the slowest waits ScatterWaits always keeps.
 const KeepSlowest = 2000
+
+// ScatterPoint is a wait picked for the scatter plot.
+type ScatterPoint struct {
+	ID   model.ID
+	Tim  int64
+	Ela  int64
+	Line int32
+	Stmt model.ID
+	Ctx  model.ID
+}
+
+func pointOf(w *model.Wait) ScatterPoint {
+	return ScatterPoint{ID: w.ID, Tim: w.Tim, Ela: w.Ela, Line: w.Line, Stmt: w.Statement, Ctx: w.Context}
+}
 
 // ScatterWaits picks at most max of the waits in scope that have a time
 // stamp, for a scatter plot: the KeepSlowest slowest are kept, the rest is
 // strided evenly (EventDetail.tsx sampleWaits). Result in file order; total is
 // the number in scope.
 func ScatterWaits(m *model.Model, f Filter, max int) (ids []int32, total int) {
+	pts, total, _ := ScatterWaitsOn(context.Background(), ModelFacts(m), f, max)
+	ids = make([]int32, len(pts))
+	for i := range pts {
+		ids[i] = int32(pts[i].ID)
+	}
+	return ids, total
+}
+
+// pointHeap keeps the n slowest points (the root is the worst: smallest ela,
+// then largest index).
+type pointHeap []ScatterPoint
+
+func pointWorse(a, b ScatterPoint) bool {
+	if a.Ela != b.Ela {
+		return a.Ela < b.Ela
+	}
+	return a.ID > b.ID
+}
+func (h pointHeap) Len() int           { return len(h) }
+func (h pointHeap) Less(i, j int) bool { return pointWorse(h[i], h[j]) }
+func (h pointHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *pointHeap) Push(x any)        { *h = append(*h, x.(ScatterPoint)) }
+func (h *pointHeap) Pop() any {
+	old := *h
+	v := old[len(old)-1]
+	*h = old[:len(old)-1]
+	return v
+}
+
+// ScatterWaitsOn is ScatterWaits over any Facts. The strided part picks the
+// waits at fixed ranks of the list sorted by elapsed time (ties in file
+// order), which a table of millions of waits cannot hold: the first pass
+// keeps the slowest, counts the waits per elapsed time and finds the value of
+// every wanted rank, the second pass collects the waits at those ranks.
+func ScatterWaitsOn(ctx context.Context, src Facts, f Filter, max int) (out []ScatterPoint, total int, err error) {
 	mt := f.Matcher()
-	var all []int32
-	for i := range m.Waits {
-		w := &m.Waits[i]
-		if w.Tim == 0 || !mt.Wait(w) {
-			continue
+	scan := func(fn func(w *model.Wait)) error {
+		return src.EachWait(ctx, f.Scan(), func(w *model.Wait) bool {
+			if w.Tim == 0 || !mt.Wait(w) {
+				return true
+			}
+			fn(w)
+			return true
+		})
+	}
+	keepN := KeepSlowest
+	if max < keepN {
+		keepN = max
+	}
+	var all []ScatterPoint // while total <= max: every wait in scope
+	top := pointHeap{}
+	byEla := map[int64]int64{}
+	err = scan(func(w *model.Wait) {
+		total++
+		p := pointOf(w)
+		if total <= max {
+			all = append(all, p)
+		} else {
+			all = nil
 		}
-		all = append(all, int32(i))
+		byEla[p.Ela]++
+		if len(top) < keepN {
+			heap.Push(&top, p)
+		} else if keepN > 0 && pointWorse(top[0], p) {
+			top[0] = p
+			heap.Fix(&top, 0)
+		}
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	total = len(all)
 	if total <= max {
-		return all, total
+		return all, total, nil
 	}
-	byEla := append([]int32(nil), all...)
-	sort.SliceStable(byEla, func(a, b int) bool { return m.Waits[byEla[a]].Ela > m.Waits[byEla[b]].Ela })
-	keep := byEla
+	sort.Slice(top, func(a, b int) bool { return pointWorse(top[b], top[a]) }) // slowest first
 	if max < KeepSlowest {
-		return append([]int32(nil), keep[:max]...), total
+		return []ScatterPoint(top), total, nil
 	}
-	rest := byEla[KeepSlowest:]
-	out := append([]int32(nil), byEla[:KeepSlowest]...)
-	stride := float64(len(rest)) / float64(max-KeepSlowest)
-	for k := 0; k < max-KeepSlowest; k++ {
-		out = append(out, rest[int(float64(k)*stride)])
+	// ranks (0-based, slowest first) to fetch from the rest
+	nrest := total - KeepSlowest
+	want := max - KeepSlowest
+	stride := float64(nrest) / float64(want)
+	elas := make([]int64, 0, len(byEla))
+	for e := range byEla {
+		elas = append(elas, e)
 	}
-	sort.Slice(out, func(a, b int) bool { return out[a] < out[b] })
-	return out, total
+	sort.Slice(elas, func(a, b int) bool { return elas[a] > elas[b] })
+	type need struct {
+		js   []int64 // occurrences (0-based, file order) of this elapsed time to take
+		next int
+		seen int64
+	}
+	needs := map[int64]*need{}
+	var cum int64 // waits slower than elas[ei]
+	ei := 0
+	for k := 0; k < want; k++ {
+		rank := int64(KeepSlowest) + int64(float64(k)*stride)
+		for ei < len(elas) && cum+byEla[elas[ei]] <= rank {
+			cum += byEla[elas[ei]]
+			ei++
+		}
+		if ei >= len(elas) {
+			break
+		}
+		n := needs[elas[ei]]
+		if n == nil {
+			n = &need{}
+			needs[elas[ei]] = n
+		}
+		n.js = append(n.js, rank-cum)
+	}
+	byEla = nil
+	out = append(out, top...)
+	err = scan(func(w *model.Wait) {
+		n := needs[w.Ela]
+		if n == nil {
+			return
+		}
+		if n.next < len(n.js) && n.seen == n.js[n.next] {
+			out = append(out, pointOf(w))
+			n.next++
+		}
+		n.seen++
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].ID < out[b].ID })
+	return out, total, nil
 }
 
 // StmtClassWait is the wait time of one statement in one wait class.
@@ -366,6 +533,12 @@ func ClassOf(ev *model.Event) string {
 // waits, idle included, as derive.ts statementRoleUs); classes lists the
 // class names the Class indexes refer to.
 func WaitsByStmtClass(m *model.Model) (classes []string, rows []StmtClassWait) {
+	classes, rows, _ = WaitsByStmtClassOn(context.Background(), m, ModelFacts(m))
+	return classes, rows
+}
+
+// WaitsByStmtClassOn is WaitsByStmtClass over any Facts.
+func WaitsByStmtClassOn(ctx context.Context, m *model.Model, src Facts) (classes []string, rows []StmtClassWait, err error) {
 	cls := newInterner[string]()
 	classOf := make([]int, len(m.Events))
 	for i := range m.Events {
@@ -377,10 +550,9 @@ func WaitsByStmtClass(m *model.Model) (classes []string, rows []StmtClassWait) {
 	}
 	acc := map[key]*StmtClassWait{}
 	var order []*StmtClassWait
-	for i := range m.Waits {
-		w := &m.Waits[i]
+	err = src.EachWait(ctx, Scan{}, func(w *model.Wait) bool {
 		if w.Statement < 0 || w.Event < 0 || int(w.Event) >= len(classOf) {
-			continue
+			return true
 		}
 		k := key{w.Statement, classOf[w.Event]}
 		a := acc[k]
@@ -390,6 +562,10 @@ func WaitsByStmtClass(m *model.Model) (classes []string, rows []StmtClassWait) {
 			order = append(order, a)
 		}
 		a.Us += w.Ela
+		return true
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 	rows = make([]StmtClassWait, len(order))
 	for i, a := range order {
@@ -401,7 +577,7 @@ func WaitsByStmtClass(m *model.Model) (classes []string, rows []StmtClassWait) {
 		}
 		return rows[i].Class < rows[j].Class
 	})
-	return cls.keys, rows
+	return cls.keys, rows, nil
 }
 
 // StmtEventWait is the top-waits row of a statement (derive.ts statementWaits).
@@ -419,6 +595,12 @@ type StmtEventWait struct {
 // by wait time. Obj is the common obj# of all waits of the event (-1 when
 // they differ or name none).
 func TopStmtWaits(m *model.Model, sids []model.ID, max int) map[model.ID][]StmtEventWait {
+	out, _ := TopStmtWaitsOn(context.Background(), ModelFacts(m), sids, max)
+	return out
+}
+
+// TopStmtWaitsOn is TopStmtWaits over any Facts.
+func TopStmtWaitsOn(ctx context.Context, src Facts, sids []model.ID, max int) (map[model.ID][]StmtEventWait, error) {
 	want := make(map[model.ID]bool, len(sids))
 	for _, s := range sids {
 		want[s] = true
@@ -432,10 +614,9 @@ func TopStmtWaits(m *model.Model, sids []model.ID, max int) map[model.ID][]StmtE
 		mixed  bool
 	}
 	byKey := map[key]*acc{}
-	for i := range m.Waits {
-		w := &m.Waits[i]
+	err := src.EachWait(ctx, Scan{Statements: sids}, func(w *model.Wait) bool {
 		if !want[w.Statement] {
-			continue
+			return true
 		}
 		k := key{w.Statement, w.Event}
 		a := byKey[k]
@@ -458,6 +639,10 @@ func TopStmtWaits(m *model.Model, sids []model.ID, max int) map[model.ID][]StmtE
 		} else if a.obj != w.ObjID {
 			a.mixed = true
 		}
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 	out := make(map[model.ID][]StmtEventWait, len(sids))
 	for k, a := range byKey {
@@ -479,7 +664,7 @@ func TopStmtWaits(m *model.Model, sids []model.ID, max int) map[model.ID][]StmtE
 		}
 		out[s] = l
 	}
-	return out
+	return out, nil
 }
 
 // Interval is a [Start, End] range of tim values.
@@ -491,17 +676,26 @@ type Interval struct {
 // StmtSpans returns, for each statement in sids, the time intervals its calls
 // covered (tim-e .. tim), merged where they are at most gapUs apart.
 func StmtSpans(m *model.Model, sids []model.ID, gapUs int64) map[model.ID][]Interval {
+	out, _ := StmtSpansOn(context.Background(), ModelFacts(m), sids, gapUs)
+	return out
+}
+
+// StmtSpansOn is StmtSpans over any Facts.
+func StmtSpansOn(ctx context.Context, src Facts, sids []model.ID, gapUs int64) (map[model.ID][]Interval, error) {
 	want := make(map[model.ID]bool, len(sids))
 	for _, s := range sids {
 		want[s] = true
 	}
 	raw := map[model.ID][]Interval{}
-	for i := range m.Calls {
-		c := &m.Calls[i]
+	err := src.EachCall(ctx, Scan{Statements: sids}, func(c *model.Call) bool {
 		if c.Tim == 0 || !want[c.Statement] {
-			continue
+			return true
 		}
 		raw[c.Statement] = append(raw[c.Statement], Interval{c.Tim - c.E, c.Tim})
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 	out := make(map[model.ID][]Interval, len(raw))
 	for s, iv := range raw {
@@ -518,7 +712,7 @@ func StmtSpans(m *model.Model, sids []model.ID, gapUs int64) map[model.ID][]Inte
 		}
 		out[s] = merged
 	}
-	return out
+	return out, nil
 }
 
 // CallPart sums the resources of the calls of one kind within an execution.
@@ -572,55 +766,26 @@ type WaitPart struct {
 // factsOf): the PARSE just before its EXEC on the same cursor, the EXEC and the
 // FETCHes of the execution. ok is false when the statement has no such EXEC.
 func ExecutionDetail(m *model.Model, sid, cursor model.ID, execNo int32) (d ExecDetail, ok bool) {
-	var calls []int32 // calls of the statement, in file order
-	at := -1
-	for i := range m.Calls {
-		c := &m.Calls[i]
-		if c.Statement != sid {
-			continue
-		}
-		if c.Kind == trace.CallExec && c.Cursor == cursor && c.ExecNo == execNo && at < 0 {
-			at = len(calls)
-		}
-		calls = append(calls, int32(i))
+	d, ok, _ = ExecutionDetailOn(context.Background(), ModelFacts(m), sid, cursor, execNo)
+	if ok && d.BindSet >= 0 && int(d.BindSet) < len(m.BindSets) {
+		d.BindLine = m.BindSets[d.BindSet].Line
 	}
-	if at < 0 {
-		return d, false
-	}
-	ex := &m.Calls[calls[at]]
-	var picked []int32
-	for k := at - 1; k >= 0; k-- {
-		c := &m.Calls[calls[k]]
-		if c.Cursor != cursor {
-			continue
-		}
-		if c.Kind == trace.CallParse {
-			picked = append(picked, calls[k])
-		}
-		break // the nearest earlier call of this cursor: a parse belongs to this execution, anything else to the previous one
-	}
-	picked = append(picked, calls[at])
-	for k := at + 1; k < len(calls); k++ {
-		c := &m.Calls[calls[k]]
-		if c.Cursor != cursor {
-			continue
-		}
-		if c.Kind != trace.CallFetch || c.ExecNo != execNo {
-			if c.Kind == trace.CallExec || c.Kind == trace.CallClose || c.Kind == trace.CallParse {
-				break
-			}
-			continue
-		}
-		picked = append(picked, calls[k])
-	}
-	d = ExecDetail{Cursor: cursor, ExecNo: execNo, Exec: ex.ID, Line: ex.Line, Ctx: m.Calls[ex.ID].Context, PLH: ex.PLH, BindSet: ex.BindSet}
-	if ex.BindSet >= 0 && int(ex.BindSet) < len(m.BindSets) {
-		d.BindLine = m.BindSets[ex.BindSet].Line
-	}
-	in := make(map[int32]bool, len(picked))
-	for _, i := range picked {
-		in[i] = true
-		c := &m.Calls[i]
+	return d, ok
+}
+
+// ExecutionDetailOn is ExecutionDetail over any Facts. BindLine is left 0:
+// bind sets are not part of Facts.
+func ExecutionDetailOn(ctx context.Context, src Facts, sid, cursor model.ID, execNo int32) (d ExecDetail, ok bool, err error) {
+	// One pass over the calls of the statement in file order. Before the EXEC
+	// only the latest call of the cursor matters (a PARSE right before the
+	// EXEC belongs to it, anything else to the previous execution); after it
+	// the calls of the cursor up to the next EXEC, CLOSE or PARSE.
+	var prev model.Call
+	havePrev, found := false, false
+	var ex model.Call
+	var picked []model.ID // ascending
+	pick := func(c *model.Call) {
+		picked = append(picked, c.ID)
 		switch c.Kind {
 		case trace.CallParse:
 			d.Parse.add(c)
@@ -631,11 +796,52 @@ func ExecutionDetail(m *model.Model, sid, cursor model.ID, execNo int32) (d Exec
 		}
 		d.Total.add(c)
 	}
+	err = src.EachCall(ctx, Scan{Statements: []model.ID{sid}}, func(c *model.Call) bool {
+		if c.Statement != sid {
+			return true
+		}
+		if !found {
+			if c.Kind == trace.CallExec && c.Cursor == cursor && c.ExecNo == execNo {
+				found = true
+				ex = *c
+				if havePrev && prev.Kind == trace.CallParse {
+					pick(&prev)
+				}
+				pick(c)
+				return true
+			}
+			if c.Cursor == cursor {
+				prev, havePrev = *c, true
+			}
+			return true
+		}
+		if c.Cursor != cursor {
+			return true
+		}
+		if c.Kind != trace.CallFetch || c.ExecNo != execNo {
+			if c.Kind == trace.CallExec || c.Kind == trace.CallClose || c.Kind == trace.CallParse {
+				return false
+			}
+			return true
+		}
+		pick(c)
+		return true
+	})
+	if err != nil {
+		return d, false, err
+	}
+	if !found {
+		return d, false, nil
+	}
+	d.Cursor, d.ExecNo, d.Exec, d.Line, d.Ctx, d.PLH, d.BindSet = cursor, execNo, ex.ID, ex.Line, ex.Context, ex.PLH, ex.BindSet
+	in := func(id model.ID) bool {
+		i := sort.Search(len(picked), func(i int) bool { return picked[i] >= id })
+		return i < len(picked) && picked[i] == id
+	}
 	byEvent := map[model.ID]*WaitPart{}
-	for i := range m.Waits {
-		w := &m.Waits[i]
-		if w.Call < 0 || !in[int32(w.Call)] {
-			continue
+	err = src.EachWait(ctx, Scan{Statements: []model.ID{sid}}, func(w *model.Wait) bool {
+		if w.Call < 0 || !in(w.Call) {
+			return true
 		}
 		if w.Call == ex.ID {
 			d.ExecWaits++
@@ -647,10 +853,14 @@ func ExecutionDetail(m *model.Model, sid, cursor model.ID, execNo int32) (d Exec
 		}
 		a.Count++
 		a.Us += w.Ela
+		return true
+	})
+	if err != nil {
+		return d, false, err
 	}
 	for _, a := range byEvent {
 		d.Waits = append(d.Waits, *a)
 	}
 	sort.Slice(d.Waits, func(i, j int) bool { return d.Waits[i].Event < d.Waits[j].Event })
-	return d, true
+	return d, true, nil
 }
