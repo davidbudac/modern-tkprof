@@ -303,6 +303,11 @@ func BuildFiles(paths []string, opts Options) (*Model, error) {
 	b.m.File.Files[0].Chain = plan[0].chain
 	b.m.File.Files[0].Followed = plan[0].followed
 	var total trace.Stats
+	var est rowEstimate
+	for _, pf := range plan {
+		est.add(sampleRows(pf.path))
+	}
+	b.Reserve(est.calls, est.waits, est.binds, est.bindSets)
 	for i, pf := range plan {
 		if i > 0 {
 			b.NextFile(pf.path, pf.cont)
@@ -344,4 +349,91 @@ func leadingDigits(v string) string {
 		i++
 	}
 	return v[:i]
+}
+
+// rowEstimate is an expected number of fact rows.
+type rowEstimate struct{ calls, waits, binds, bindSets int64 }
+
+func (r *rowEstimate) add(o rowEstimate) {
+	r.calls += o.calls
+	r.waits += o.waits
+	r.binds += o.binds
+	r.bindSets += o.bindSets
+}
+
+// Sampling the rows of a file: files up to fullScanMax are counted whole, bigger
+// ones from sampleN windows of sampleSize bytes spread over the file, scaled to
+// the file size with a safety margin. A trace is far from uniform (setup at
+// the start, one loop that dominates), so the margin is generous: too much
+// capacity is virtual memory nobody touches, too little is a regrow of the
+// whole table.
+const (
+	fullScanMax = 8 << 20
+	sampleN     = 8
+	sampleSize  = 1 << 20
+	sampleSlack = 1.25
+)
+
+func sampleRows(path string) rowEstimate {
+	f, err := os.Open(path)
+	if err != nil {
+		return rowEstimate{}
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil || fi.Size() < 1<<20 {
+		return rowEstimate{}
+	}
+	size := fi.Size()
+	var got rowEstimate
+	var sampled int64
+	buf := make([]byte, sampleSize)
+	read := func(off, n int64) {
+		k, _ := f.ReadAt(buf[:n], off)
+		got.add(countRows(buf[:k], off > 0))
+		sampled += int64(k)
+	}
+	if size <= fullScanMax {
+		for off := int64(0); off < size; off += sampleSize {
+			read(off, min(sampleSize, size-off))
+		}
+		return got // exact
+	}
+	for i := int64(0); i < sampleN; i++ {
+		read((size-sampleSize)*i/(sampleN-1), sampleSize)
+	}
+	scale := float64(size) / float64(sampled) * sampleSlack
+	return rowEstimate{calls: int64(float64(got.calls) * scale), waits: int64(float64(got.waits) * scale),
+		binds: int64(float64(got.binds) * scale), bindSets: int64(float64(got.bindSets) * scale)}
+}
+
+// countRows counts the lines of buf that become fact rows. When partial the
+// first (cut) line is skipped.
+func countRows(buf []byte, partial bool) rowEstimate {
+	var r rowEstimate
+	if partial {
+		if i := bytes.IndexByte(buf, '\n'); i >= 0 {
+			buf = buf[i+1:]
+		}
+	}
+	for len(buf) > 0 {
+		var line []byte
+		if i := bytes.IndexByte(buf, '\n'); i >= 0 {
+			line, buf = buf[:i], buf[i+1:]
+		} else {
+			line, buf = buf, nil
+		}
+		switch {
+		case bytes.HasPrefix(line, []byte("WAIT #")):
+			r.waits++
+		case bytes.HasPrefix(line, []byte("EXEC #")), bytes.HasPrefix(line, []byte("FETCH #")), bytes.HasPrefix(line, []byte("PARSE #")),
+			bytes.HasPrefix(line, []byte("CLOSE #")), bytes.HasPrefix(line, []byte("XCTEND")), bytes.HasPrefix(line, []byte("LOB")):
+			r.calls++
+		case bytes.HasPrefix(line, []byte(" Bind#")):
+			r.binds++
+		case bytes.HasPrefix(line, []byte("BINDS #")):
+			r.bindSets++
+		}
+	}
+	return r
 }

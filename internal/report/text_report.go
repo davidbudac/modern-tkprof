@@ -21,6 +21,17 @@ type textWriter struct {
 	stats []analyze.StmtStats
 	rank  map[model.ID]int // statement -> rank number in the listing
 	loc   *time.Location
+	execs [][]analyze.Execution // executions of every statement, built on first use
+}
+
+// allExecs builds the executions of all statements in one pass over the calls
+// (per statement it would be statements x calls) and shares them between the
+// per-statement tables and the findings.
+func (t *textWriter) allExecs() [][]analyze.Execution {
+	if t.execs == nil {
+		t.execs = analyze.AllExecutions(t.m)
+	}
+	return t.execs
 }
 
 func writeText(out io.Writer, m *model.Model, o TextOptions) error {
@@ -490,7 +501,7 @@ func (t *textWriter) waitDetail(sid model.ID) {
 }
 
 func (t *textWriter) executions(sid model.ID, s *analyze.StmtStats) {
-	ex := analyze.Executions(t.m, sid)
+	ex := t.allExecs()[sid]
 	if len(ex) < 2 {
 		return
 	}
@@ -603,7 +614,7 @@ func bindPreview(m *model.Model, set model.ID, max int) string {
 			v = "NULL"
 		case x.IsDump:
 			v = fmt.Sprintf("<%d bytes>", x.Avl)
-		case quotedBind(x.Dty):
+		case quotedBind(int(x.Dty)):
 			v = fmt.Sprintf("%q", x.Value)
 		default:
 			v = x.Value
@@ -800,18 +811,18 @@ func (t *textWriter) binds(sid model.ID) {
 			case b.NoDef:
 				parts = append(parts, fmt.Sprintf(":%d=(same as earlier bind)", b.Pos))
 			case b.IsNull:
-				parts = append(parts, fmt.Sprintf(":%d %s=NULL", b.Pos, b.TypeName))
+				parts = append(parts, fmt.Sprintf(":%d %s=NULL", b.Pos, b.TypeName()))
 			case b.IsDump:
-				parts = append(parts, fmt.Sprintf(":%d %s=<%d-byte dump>", b.Pos, b.TypeName, b.Avl))
+				parts = append(parts, fmt.Sprintf(":%d %s=<%d-byte dump>", b.Pos, b.TypeName(), b.Avl))
 			default:
 				v := b.Value
 				if len(v) > 60 {
 					v = v[:57] + "..."
 				}
 				if b.Mal > 0 {
-					parts = append(parts, fmt.Sprintf(":%d %s[%d]=%q", b.Pos, b.TypeName, b.Mal, v))
+					parts = append(parts, fmt.Sprintf(":%d %s[%d]=%q", b.Pos, b.TypeName(), b.Mal, v))
 				} else {
-					parts = append(parts, fmt.Sprintf(":%d %s=%q", b.Pos, b.TypeName, v))
+					parts = append(parts, fmt.Sprintf(":%d %s=%q", b.Pos, b.TypeName(), v))
 				}
 			}
 		}

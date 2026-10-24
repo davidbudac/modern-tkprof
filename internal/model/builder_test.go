@@ -171,7 +171,7 @@ func TestBindsAndPlans(t *testing.T) {
 	if exec.Kind != trace.CallExec || exec.Statement != 0 || exec.BindSet != bs.ID || exec.ExecNo != 1 {
 		t.Errorf("bind set call: %+v", exec)
 	}
-	if b := m.Binds[0]; b.Value != "7" || b.TypeName != "NUMBER" || b.IsNull {
+	if b := m.Binds[0]; b.Value != "7" || b.TypeName() != "NUMBER" || b.IsNull {
 		t.Errorf("bind: %+v", b)
 	}
 	if len(m.Plans) != 1 || m.Plans[0].N != 2 || m.Plans[0].Statement != 1 || m.Plans[0].PLH != 333 {
@@ -197,8 +197,8 @@ func TestSpanAndWallClock(t *testing.T) {
 	}
 	first := m.Calls[0] // PARSE #10 tim=1000150
 	wantUs := m.Span.FirstWallUs + 150
-	if first.WallUs != wantUs {
-		t.Errorf("wall: got %d want %d", first.WallUs, wantUs)
+	if m.CallWall(&first) != wantUs {
+		t.Errorf("wall: got %d want %d", m.CallWall(&first), wantUs)
 	}
 	if m.Diag.Anchors != 2 {
 		t.Errorf("anchors: %d", m.Diag.Anchors)

@@ -2,10 +2,14 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"runtime/debug"
+	"runtime/pprof"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,6 +43,7 @@ Usage:
   mtkprof refscript <trace...> [-lite] [-o ref.sql]  SQL*Plus script that collects names and plans for the trace
   mtkprof findings-config                            print the default finding thresholds as JSON
   mtkprof lint   <trace...>
+  -lowmem (report pivot html json serve export): do not retain bind values; less memory, same numbers
   mtkprof version
 
 Trace sets (every command that takes <trace...>):
@@ -87,6 +92,8 @@ func main() {
 		usage()
 	}
 	cmd, args := os.Args[1], os.Args[2:]
+	tuneGC()
+	stopProf := startProfiles()
 	var err error
 	switch cmd {
 	case "report":
@@ -119,9 +126,47 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", cmd)
 		usage()
 	}
+	stopProf()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
+	}
+}
+
+// tuneGC lowers the collector's heap growth target from the default 100 %.
+// The memory of a big trace is a few huge pointer-free slices (the fact
+// tables), which the collector does not scan, so collecting earlier costs
+// little and keeps the peak close to the live size. GOGC in the environment
+// wins.
+func tuneGC() {
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(40)
+	}
+}
+
+// startProfiles is a hidden developer hook: MTKPROF_CPUPROFILE / MTKPROF_MEMPROFILE
+// name files for `go tool pprof`. The heap profile is taken at exit with
+// alloc_space available (inuse_space is the heap at the end of the command).
+func startProfiles() (stop func()) {
+	var cpu *os.File
+	if p := os.Getenv("MTKPROF_CPUPROFILE"); p != "" {
+		if f, err := os.Create(p); err == nil {
+			cpu = f
+			pprof.StartCPUProfile(f)
+		}
+	}
+	return func() {
+		if cpu != nil {
+			pprof.StopCPUProfile()
+			cpu.Close()
+		}
+		if p := os.Getenv("MTKPROF_MEMPROFILE"); p != "" {
+			if f, err := os.Create(p); err == nil {
+				runtime.GC()
+				pprof.Lookup("allocs").WriteTo(f, 0)
+				f.Close()
+			}
+		}
 	}
 }
 
@@ -144,8 +189,15 @@ func parseArgs(fs *flag.FlagSet, args []string) []string {
 	return files
 }
 
-// addFollowFlag registers -no-follow, shared by every command that reads traces.
+// lowMem is -lowmem: build the model without bind values and collect garbage
+// more eagerly (see model.Options.NoFacts). Set by addFollowFlag, read by
+// buildModel and the commands that print binds.
+var lowMem bool
+
+// addFollowFlag registers -no-follow and -lowmem, shared by every command that
+// reads traces.
 func addFollowFlag(fs *flag.FlagSet) *bool {
+	fs.BoolVar(&lowMem, "lowmem", false, "low-memory mode: do not retain bind values (no BINDS sections, binds columns or binds.csv rows); all other numbers are unchanged")
 	return fs.Bool("no-follow", false, "do not follow TRACE CONTINUES IN / CONTINUED FROM chains to files that were not named")
 }
 
@@ -278,18 +330,30 @@ func cmdHTML(args []string) error {
 	if err != nil {
 		return err
 	}
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th})
-	if err != nil {
-		return err
-	}
 	path := *out
 	if path == "" {
 		path = outBase(files) + ".html"
 	}
-	if err := os.WriteFile(path, []byte(ui.Standalone(doc)), 0o644); err != nil {
+	f, err := os.Create(path)
+	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "wrote %s (%.1f MB)\n", path, float64(len(doc))/1e6)
+	bw := bufio.NewWriterSize(f, 1<<20)
+	err = ui.WriteStandalone(bw, func(w io.Writer) error {
+		return report.WriteDocument(w, m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th})
+	})
+	if err == nil {
+		err = bw.Flush()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		return err
+	}
+	if fi, serr := os.Stat(path); serr == nil {
+		fmt.Fprintf(os.Stderr, "wrote %s (%.1f MB)\n", path, float64(fi.Size())/1e6)
+	}
 	return nil
 }
 
@@ -362,6 +426,8 @@ func cmdServe(args []string) error {
 		defer li.Close()
 		lis = append(lis, li)
 	}
+	m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
+	debug.FreeOSMemory()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/lines", func(w http.ResponseWriter, r *http.Request) {
 		fi, _ := strconv.Atoi(r.URL.Query().Get("file"))
@@ -414,13 +480,23 @@ func cmdServe(args []string) error {
 
 func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	start := time.Now()
-	m, err := model.BuildFiles(files, model.Options{NoFollow: noFollow})
+	if lowMem && os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(20)
+	}
+	m, err := model.BuildFiles(files, model.Options{NoFollow: noFollow, NoFacts: lowMem})
 	if err != nil {
 		return nil, err
 	}
 	what := files[0]
 	if n := len(m.File.Files); n > 1 {
 		what = fmt.Sprintf("%d files (%s ...)", n, m.File.Files[0].Name)
+	}
+	if p := os.Getenv("MTKPROF_HEAPPROFILE"); p != "" { // heap in use right after the build
+		if f, err := os.Create(p); err == nil {
+			runtime.GC()
+			pprof.WriteHeapProfile(f)
+			f.Close()
+		}
 	}
 	fmt.Fprintf(os.Stderr, "parsed %s: %d lines, %.1f MB in %s\n", what, m.Diag.Lines, float64(m.Diag.Bytes)/1e6, time.Since(start).Round(time.Millisecond))
 	return m, nil

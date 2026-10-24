@@ -1,6 +1,8 @@
 package report
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"io"
 	"time"
@@ -49,20 +51,32 @@ type Document struct {
 	PlanViz string `json:"planViz,omitempty"`
 }
 
-// Facts are the columnar fact tables. With Packed, every numeric column of a
-// table lives in that table's Blob (gzip+base64, see columns.go).
+// Facts are the columnar fact tables as plain JSON arrays. The packed form
+// (every numeric column of a table in one gzip+base64 blob, see stream.go) is
+// only written by WriteDocument; Packed is true on documents carrying it.
 type Facts struct {
 	Packed   bool           `json:"packed"`
 	Calls    CallColumns    `json:"calls"`
 	Waits    WaitColumns    `json:"waits"`
 	BindSets BindSetColumns `json:"bindSets"`
 	Binds    BindColumns    `json:"binds"`
+
+	stream bool // marshals as a placeholder; see writeDocument
+}
+
+// MarshalJSON writes the plain struct, or the placeholder that writeDocument
+// replaces with the streamed tables.
+func (f *Facts) MarshalJSON() ([]byte, error) {
+	if f.stream {
+		return json.Marshal(factsPlaceholder)
+	}
+	type plain Facts
+	return json.Marshal((*plain)(f))
 }
 
 // CallColumns: one entry per model.Call, same order/index.
 type CallColumns struct {
 	N       int    `json:"n"`
-	Blob    string `json:"blob,omitempty"`
 	Line    Column `json:"line"`
 	Kind    Column `json:"kind"`
 	Cursor  Column `json:"cursor"`
@@ -97,7 +111,6 @@ type CallColumns struct {
 // WaitColumns: one entry per model.Wait.
 type WaitColumns struct {
 	N      int    `json:"n"`
-	Blob   string `json:"blob,omitempty"`
 	Line   Column `json:"line"`
 	Cursor Column `json:"cursor"`
 	Stmt   Column `json:"stmt"`
@@ -117,7 +130,6 @@ type WaitColumns struct {
 // BindSetColumns: one entry per model.BindSet.
 type BindSetColumns struct {
 	N      int    `json:"n"`
-	Blob   string `json:"blob,omitempty"`
 	Line   Column `json:"line"`
 	Cursor Column `json:"cursor"`
 	Stmt   Column `json:"stmt"`
@@ -130,7 +142,6 @@ type BindSetColumns struct {
 // BindColumns: one entry per model.Bind (strings stay JSON arrays).
 type BindColumns struct {
 	N     int      `json:"n"`
-	Blob  string   `json:"blob,omitempty"`
 	Set   Column   `json:"set"`
 	Pos   Column   `json:"pos"`
 	Dty   Column   `json:"dty"`
@@ -157,18 +168,26 @@ type Stats struct {
 // DocOptions control document generation.
 type DocOptions struct {
 	Facts  bool // include the fact tables
-	Packed bool // pack fact columns into gzip+base64 blobs
+	Packed bool // pack fact columns into gzip+base64 blobs (WriteDocument, JSON, DocumentBytes)
 
 	Thresholds *analyze.Thresholds // finding thresholds; nil = defaults
 
 	PlanVizURL string // base URL of the plan visualizer, carried into Document.PlanViz
 }
 
-// BuildDocument assembles the document from a model.
+// BuildDocument assembles the document from a model. Fact tables, if asked
+// for, are unpacked arrays whatever o.Packed says; WriteDocument writes the
+// packed form without building it.
 func BuildDocument(m *model.Model, o DocOptions) *Document {
+	return buildDocument(m, o, o.Facts)
+}
+
+// buildDocument is BuildDocument; withFacts says whether the fact tables are
+// built in memory (the streaming writer sends them separately).
+func buildDocument(m *model.Model, o DocOptions, withFacts bool) *Document {
 	bucket := analyze.TimelineBucket(m)
 	d := &Document{
-		Tool: "mtkprof", Version: Version, Generated: time.Now(), Format: 2,
+		Tool: "mtkprof", Version: Version, Generated: time.Now(), Format: 3,
 		File: m.File, Span: m.Span, Statements: m.Statements, Cursors: m.Cursors, Contexts: m.Contexts,
 		Events: m.Events, Plans: m.Plans, PlanLines: m.PlanLines, Transactions: m.Transactions,
 		Errors: m.Errors, Markers: m.Markers, Diag: m.Diag, Unknown: m.Unknown,
@@ -193,18 +212,14 @@ func BuildDocument(m *model.Model, o DocOptions) *Document {
 			d.Statements[i].Cursors = []model.ID{}
 		}
 	}
-	if o.Facts {
-		f, err := buildFacts(m, o.Packed)
-		if err != nil {
-			panic(err) // only gzip of an in-memory buffer can fail here
-		}
-		d.Facts = f
+	if withFacts {
+		d.Facts = buildFacts(m)
 	}
 	d.PlanViz = o.PlanVizURL
 	return d
 }
 
-func buildFacts(m *model.Model, packed bool) (*Facts, error) {
+func buildFacts(m *model.Model) *Facts {
 	calls := m.Calls
 	n := len(calls)
 	cc := CallColumns{N: n,
@@ -217,7 +232,7 @@ func buildFacts(m *model.Model, packed bool) (*Facts, error) {
 		P:       i32col(n, func(i int) int64 { return calls[i].P }),
 		CR:      i32col(n, func(i int) int64 { return calls[i].CR }),
 		CU:      i32col(n, func(i int) int64 { return calls[i].CU }),
-		Mis:     i32col(n, func(i int) int64 { return calls[i].Mis }),
+		Mis:     i32col(n, func(i int) int64 { return int64(calls[i].Mis) }),
 		R:       i32col(n, func(i int) int64 { return calls[i].R }),
 		Dep:     u8col(n, func(i int) uint8 { return uint8(calls[i].Dep) }),
 		OG:      u8col(n, func(i int) uint8 { return uint8(calls[i].OG) }),
@@ -315,35 +330,30 @@ func buildFacts(m *model.Model, packed bool) (*Facts, error) {
 		Avl: i32col(n, func(i int) int64 { return int64(binds[i].Avl) }),
 	}
 	for i := range binds {
-		bc.Type[i] = binds[i].TypeName
+		bc.Type[i] = binds[i].TypeName()
 		bc.Value[i] = binds[i].Value
 	}
-	if packed {
-		var err error
-		if cc.Blob, err = pack([]*Column{&cc.Line, &cc.Kind, &cc.Cursor, &cc.Stmt, &cc.C, &cc.E, &cc.P, &cc.CR, &cc.CU, &cc.Mis, &cc.R, &cc.Dep, &cc.OG, &cc.PLH, &cc.Tim, &cc.Type, &cc.Parent, &cc.SelfE, &cc.SelfC, &cc.SelfP, &cc.SelfCR, &cc.SelfCU, &cc.Ctx, &cc.ExecNo, &cc.BindSet, &cc.WaitEla, &cc.IdleEla, &cc.NWaits, &cc.Flags}); err != nil {
-			return nil, err
-		}
-		if wc.Blob, err = pack([]*Column{&wc.Line, &wc.Cursor, &wc.Stmt, &wc.Call, &wc.Event, &wc.Ela, &wc.P1, &wc.P2, &wc.P3, &wc.Obj, &wc.Tim, &wc.Ctx, &wc.Dep, &wc.Flags}); err != nil {
-			return nil, err
-		}
-		if sc.Blob, err = pack([]*Column{&sc.Line, &sc.Cursor, &sc.Stmt, &sc.Call, &sc.First, &sc.Count, &sc.Flags}); err != nil {
-			return nil, err
-		}
-		if bc.Blob, err = pack([]*Column{&bc.Set, &bc.Pos, &bc.Dty, &bc.Flags, &bc.Mal, &bc.Avl}); err != nil {
-			return nil, err
-		}
-	}
-	return &Facts{Packed: packed, Calls: cc, Waits: wc, BindSets: sc, Binds: bc}, nil
+	return &Facts{Calls: cc, Waits: wc, BindSets: sc, Binds: bc}
 }
 
-// JSON writes the document to w.
+// JSON writes the document to w (one line, newline-terminated).
 func JSON(w io.Writer, m *model.Model, o DocOptions) error {
-	enc := json.NewEncoder(w)
-	return enc.Encode(BuildDocument(m, o))
+	bw := bufio.NewWriterSize(w, 256<<10)
+	if err := writeDocument(bw, m, o); err != nil {
+		return err
+	}
+	if _, err := bw.WriteString("\n"); err != nil {
+		return err
+	}
+	return bw.Flush()
 }
 
 // DocumentBytes marshals the document (HTML-safe escaping, so it can be
 // inlined in a <script> tag).
 func DocumentBytes(m *model.Model, o DocOptions) ([]byte, error) {
-	return json.Marshal(BuildDocument(m, o))
+	var buf bytes.Buffer
+	if err := writeDocument(&buf, m, o); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

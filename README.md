@@ -81,6 +81,16 @@ and SQL text, including its literals, is not redacted. `-redact-salt <string>`
 traces redacted with the same salt, but tokens cannot be looked up in a table of
 hashes of known values without it.
 
+Big traces: a 1 GB trace takes about 7 s and 2 GB of memory for the HTML
+report (and the text report about 6 s; 10 GB: about a minute, ~20 GB) (see `docs/ARCHITECTURE.md`, "Memory and
+size"). `-lowmem` (`report`, `pivot`, `html`, `json`, `serve`, `export`) does
+not retain bind values: no BINDS sections, no binds column in the executions
+tables, no bind evidence in findings, no `binds.csv` rows and no bind views in
+the UI. Every other number is identical; calls and waits are always kept, because
+every aggregation reads them. `html`/`serve`/`json` also take `-facts=false` to
+leave the raw fact tables (and with them the UI's drill-down) out of the
+document.
+
 Reference bundle: a trace carries only numbers (obj#, file#, user ids) and
 no plan text. `mtkprof refscript` writes a read-only SQL*Plus script tailored
 to the trace; the DBA runs it and `-ref dir` applies what it spooled to every

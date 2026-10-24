@@ -244,7 +244,15 @@ func Findings(m *model.Model, stats []StmtStats) []Finding {
 
 // FindingsWith is Findings with explicit thresholds.
 func FindingsWith(m *model.Model, stats []StmtStats, th Thresholds) []Finding {
-	f := &finder{m: m, stats: stats, th: th}
+	return FindingsExec(m, stats, th, nil)
+}
+
+// FindingsExec is FindingsWith with the executions of every statement already
+// computed (AllExecutions); nil computes them. A caller that needs the
+// executions itself (the text report) shares one copy instead of building
+// two.
+func FindingsExec(m *model.Model, stats []StmtStats, th Thresholds, ex [][]Execution) []Finding {
+	f := &finder{m: m, stats: stats, th: th, byStmt: ex}
 	p := TraceProfile(m)
 	f.profile = p
 	// response time: the trace span, or the summed session time when several
@@ -297,15 +305,24 @@ type finder struct {
 // over the calls (calling Executions per statement is O(statements x calls)).
 func (f *finder) execs(sid model.ID) []Execution {
 	if f.byStmt == nil {
-		f.byStmt = allExecutions(f.m)
+		f.byStmt = AllExecutions(f.m)
 	}
 	return f.byStmt[sid]
 }
 
-// allExecutions is Executions for every statement at once.
-func allExecutions(m *model.Model) [][]Execution {
+// AllExecutions is Executions for every statement (indexed by statement id) at once. Two passes so that
+// every per-statement slice and every Fetches list is allocated once at its
+// final size (a trace with millions of fetches would otherwise spend more
+// memory on append garbage than on the executions themselves).
+func AllExecutions(m *model.Model) [][]Execution {
 	out := make([][]Execution, len(m.Statements))
-	idx := map[[2]int64]int{} // cursor,execNo -> index in out[statement]
+	type key struct {
+		cursor model.ID
+		execNo int32
+	}
+	// pass 1: count executions per statement and fetches per execution
+	nExec := make([]int, len(m.Statements))
+	fetches := map[key]int32{}
 	for i := range m.Calls {
 		c := &m.Calls[i]
 		if m.PXChild(c.Context) {
@@ -313,12 +330,44 @@ func allExecutions(m *model.Model) [][]Execution {
 		}
 		switch c.Kind {
 		case trace.CallExec:
-			e := Execution{Cursor: c.Cursor, Statement: c.Statement, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: c.WallUs - c.E, Context: c.Context}
+			nExec[c.Statement]++
+			fetches[key{c.Cursor, c.ExecNo}] = 0
+		case trace.CallFetch:
+			k := key{c.Cursor, c.ExecNo}
+			if n, ok := fetches[k]; ok {
+				fetches[k] = n + 1
+			}
+		}
+	}
+	total := 0
+	for sid, n := range nExec {
+		if n > 0 {
+			out[sid] = make([]Execution, 0, n)
+		}
+	}
+	for _, n := range fetches {
+		total += int(n)
+	}
+	backing := make([]model.ID, 0, total)
+	idx := map[key]int{} // cursor,execNo -> index in out[statement]
+	for i := range m.Calls {
+		c := &m.Calls[i]
+		if m.PXChild(c.Context) {
+			continue
+		}
+		switch c.Kind {
+		case trace.CallExec:
+			k := key{c.Cursor, c.ExecNo}
+			e := Execution{Cursor: c.Cursor, Statement: c.Statement, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: m.CallWall(c) - c.E, Context: c.Context}
+			if n := int(fetches[k]); n > 0 && len(backing)+n <= cap(backing) {
+				e.Fetches = backing[len(backing) : len(backing) : len(backing)+n]
+				backing = backing[:len(backing)+n]
+			}
 			e.Stats.add(c)
-			idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}] = len(out[c.Statement])
+			idx[k] = len(out[c.Statement])
 			out[c.Statement] = append(out[c.Statement], e)
 		case trace.CallFetch:
-			if j, ok := idx[[2]int64{int64(c.Cursor), int64(c.ExecNo)}]; ok && j < len(out[c.Statement]) && out[c.Statement][j].Cursor == c.Cursor {
+			if j, ok := idx[key{c.Cursor, c.ExecNo}]; ok && j < len(out[c.Statement]) && out[c.Statement][j].Cursor == c.Cursor {
 				e := &out[c.Statement][j]
 				e.Fetches = append(e.Fetches, c.ID)
 				e.Stats.add(c)
@@ -413,7 +462,7 @@ func (f *finder) outliers() {
 				v += "  binds " + b
 			}
 			r := stmtRow(s.ID, fmt.Sprintf("exec %d", e.ExecNo), v)
-			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = e.Cursor, e.ExecNo, e.Exec, f.m.Calls[e.Exec].Line, e.Stats.Elapsed
+			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = e.Cursor, e.ExecNo, e.Exec, int(f.m.Calls[e.Exec].Line), e.Stats.Elapsed
 			x.Evidence = append(x.Evidence, r)
 		}
 		f.add(x)
@@ -497,7 +546,7 @@ func (f *finder) planChanges() {
 				if c.PLH == 0 {
 					continue
 				}
-				a := get(c.PLH, c.Line)
+				a := get(uint64(c.PLH), int(c.Line))
 				a.execs++
 				a.elapsed += ex[j].Stats.Elapsed
 			}
@@ -924,7 +973,7 @@ func (f *finder) smallFetches() {
 		)
 		if firstRow != nil {
 			r := stmtRow(s.ID, fmt.Sprintf("exec %d", firstRow.ExecNo), fmt.Sprintf("first such execution: %d fetches, %d rows, %s", len(firstRow.Fetches), firstRow.Stats.Rows, fmtUs(firstRow.Stats.Elapsed)))
-			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = firstRow.Cursor, firstRow.ExecNo, firstRow.Exec, m.Calls[firstRow.Exec].Line, firstRow.Stats.Elapsed
+			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = firstRow.Cursor, firstRow.ExecNo, firstRow.Exec, int(m.Calls[firstRow.Exec].Line), firstRow.Stats.Elapsed
 			x.Evidence = append(x.Evidence, r)
 		}
 		f.add(x)

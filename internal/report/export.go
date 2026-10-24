@@ -52,6 +52,7 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 		return i64(v)
 	}
 	i := func(v int) string { return strconv.Itoa(v) }
+	n32 := func(v int32) string { return strconv.FormatInt(int64(v), 10) }
 	id := func(v model.ID) string {
 		if v == model.None {
 			return ""
@@ -117,7 +118,7 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 		[]string{"call_id", "line", "kind", "cursor_id", "statement_id", "sql_id", "cpu_us", "ela_us", "disk", "query", "current", "misses", "rows", "depth", "opt_goal", "plan_hash", "tim", "wall_us", "close_type", "parent_call_id", "self_ela_us", "self_cpu_us", "self_disk", "self_query", "self_current", "context_id", "exec_no", "bind_set_id", "wait_ela_us", "idle_ela_us", "waits", "orphan", "synthetic"},
 		len(m.Calls), func(k int) []string {
 			c := &m.Calls[k]
-			return []string{id(c.ID), i(c.Line), c.Kind.String(), id(c.Cursor), id(c.Statement), sqlid(c.Statement), i64(c.C), i64(c.E), i64(c.P), i64(c.CR), i64(c.CU), i64(c.Mis), i64(c.R), i(c.Dep), i(c.OG), strconv.FormatUint(c.PLH, 10), i64(c.Tim), wall(c.WallUs), i(c.Type), id(c.Parent), i64(c.SelfE), i64(c.SelfC), i64(c.SelfP), i64(c.SelfCR), i64(c.SelfCU), id(c.Context), i(int(c.ExecNo)), id(c.BindSet), i64(c.WaitEla), i64(c.IdleEla), i(int(c.NWaits)), b(c.Orphan), b(c.Synthetic)}
+			return []string{id(c.ID), n32(c.Line), c.Kind.String(), id(c.Cursor), id(c.Statement), sqlid(c.Statement), i64(c.C), i64(c.E), i64(c.P), i64(c.CR), i64(c.CU), n32(c.Mis), i64(c.R), i(int(c.Dep)), i(int(c.OG)), strconv.FormatUint(uint64(c.PLH), 10), i64(c.Tim), wall(m.CallWall(c)), i(int(c.Type)), id(c.Parent), i64(c.SelfE), i64(c.SelfC), i64(c.SelfP), i64(c.SelfCR), i64(c.SelfCU), id(c.Context), i(int(c.ExecNo)), id(c.BindSet), i64(c.WaitEla), i64(c.IdleEla), i(int(c.NWaits)), b(c.Orphan), b(c.Synthetic)}
 		}); err != nil {
 		return written, err
 	}
@@ -134,7 +135,7 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 			if f, ok := m.WaitFile(w); ok {
 				fileName = m.FileName(f)
 			}
-			return []string{id(w.ID), i(w.Line), ev.Name, ev.Class, i64(w.Ela), i64(w.P1), i64(w.P2), i64(w.P3), i64(w.ObjID), i64(w.Tim), wall(w.WallUs), id(w.Cursor), id(w.Statement), sqlid(w.Statement), id(w.Call), kind, id(w.Context), i(w.Dep), b(w.Between), b(w.Idle), m.ObjectName(w.ObjID), fileName}
+			return []string{id(w.ID), n32(w.Line), ev.Name, ev.Class, i64(w.Ela), i64(w.P1), i64(w.P2), i64(w.P3), i64(w.ObjID), i64(w.Tim), wall(m.WaitWall(w)), id(w.Cursor), id(w.Statement), sqlid(w.Statement), id(w.Call), kind, id(w.Context), i(int(w.Dep)), b(w.Between), b(w.Idle), m.ObjectName(w.ObjID), fileName}
 		}); err != nil {
 		return written, err
 	}
@@ -143,7 +144,7 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 		len(m.Binds), func(k int) []string {
 			bd := &m.Binds[k]
 			bs := &m.BindSets[bd.Set]
-			return []string{id(bs.ID), i(bs.Line), id(bs.Cursor), id(bs.Statement), sqlid(bs.Statement), id(bs.Call), i(bd.Pos), i(bd.Dty), bd.TypeName, bd.Value, b(bd.IsNull), b(bd.NoDef), b(bd.IsDump), i(bd.Mal), i(bd.Avl)}
+			return []string{id(bs.ID), i(bs.Line), id(bs.Cursor), id(bs.Statement), sqlid(bs.Statement), id(bs.Call), n32(bd.Pos), n32(bd.Dty), bd.TypeName(), bd.Value, b(bd.IsNull), b(bd.NoDef), b(bd.IsDump), n32(bd.Mal), n32(bd.Avl)}
 		}); err != nil {
 		return written, err
 	}

@@ -87,11 +87,11 @@ func RedactedValue(b *Bind) string {
 
 // RedactedValueSalt is RedactedValue with a salted hash (see RedactBindsSalt).
 func RedactedValueSalt(b *Bind, salt string) string {
-	typ := b.TypeName
+	typ := b.TypeName()
 	if typ == "" {
 		typ = fmt.Sprintf("dty%d", b.Dty)
 	}
-	n := b.Avl
+	n := int(b.Avl)
 	if n <= 0 {
 		n = len(b.Value)
 	}

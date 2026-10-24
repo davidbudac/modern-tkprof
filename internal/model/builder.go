@@ -3,10 +3,12 @@ package model
 import (
 	"fmt"
 	"hash/fnv"
+	"math"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/davidbudac/modern-tkprof/internal/ref"
 	"github.com/davidbudac/modern-tkprof/internal/trace"
@@ -16,6 +18,16 @@ import (
 type Options struct {
 	MaxUnknown int  // how many unknown lines to keep verbatim (default 200)
 	NoFollow   bool // BuildFiles: do not follow TRACE CONTINUES IN / CONTINUED FROM chains
+
+	// NoFacts is the low-memory build: bind values are not retained
+	// (Model.Binds and BindSets stay empty, Call.BindSet is None, Diag.BindMode
+	// is "none"). Calls and waits are still kept in full: every aggregation
+	// (statement stats, profiles, executions, findings, pivot) reads them, so
+	// the numbers of the text report are identical with and without it. What it
+	// drops is everything that needs bind values: BINDS sections, the binds
+	// column of the executions tables, the bind evidence of findings,
+	// binds.csv and the UI's bind views.
+	NoFacts bool
 }
 
 // Builder implements trace.Handler and produces a Model.
@@ -72,6 +84,37 @@ func NewBuilder(path string, opts Options) *Builder {
 	}
 	b.m.Diag.LineKinds = make(map[string]int)
 	return b
+}
+
+// Reserve pre-sizes the fact tables for the given expected row counts so that
+// the big slices are allocated once instead of growing by repeated copies
+// (each growth step briefly holds the old and the new array and costs a
+// quarter more than the table is worth, which is where most of the peak
+// memory of a large parse used to go). The reservation is capped; a wrong
+// guess costs a growth step, never a failure, and untouched capacity is not
+// resident memory.
+func (b *Builder) Reserve(calls, waits, binds, bindSets int64) {
+	const capBytes = 24 << 30
+	room := func(n, elem int64) int {
+		if n < 0 {
+			n = 0
+		}
+		if n*elem > capBytes {
+			n = capBytes / elem
+		}
+		return int(n)
+	}
+	m := b.m
+	if len(m.Calls) == 0 {
+		m.Calls = make([]Call, 0, room(calls, int64(unsafe.Sizeof(Call{}))))
+	}
+	if len(m.Waits) == 0 {
+		m.Waits = make([]Wait, 0, room(waits, int64(unsafe.Sizeof(Wait{}))))
+	}
+	if len(m.Binds) == 0 && !b.opts.NoFacts {
+		m.Binds = make([]Bind, 0, room(binds, int64(unsafe.Sizeof(Bind{}))))
+		m.BindSets = make([]BindSet, 0, room(bindSets, int64(unsafe.Sizeof(BindSet{}))))
+	}
 }
 
 // Build parses the single file at path into a Model; chains are not followed
@@ -137,6 +180,10 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 	m.Diag.Bytes = st.Bytes
 	m.Diag.UnknownLines = st.Unknown
 	m.Diag.BindMode = BindsKeep.String()
+	if b.opts.NoFacts {
+		m.Diag.BindMode = BindsNone.String()
+		m.Diag.Notes = append(m.Diag.Notes, "bind values not retained (low-memory mode)")
+	}
 	for k := trace.Kind(0); int(k) < len(st.Kinds); k++ {
 		if st.Kinds[k] > 0 {
 			m.Diag.LineKinds[k.String()] = st.Kinds[k]
@@ -231,6 +278,7 @@ func (b *Builder) observeTim(tim int64, line int) int64 {
 		b.offsetUs = b.anchorWall.UnixMicro() - tim
 		b.needAnchor = false
 		m.Diag.Anchors++
+		m.anchors = append(m.anchors, wallAnchor{file: int32(b.curFile), line: int32(line), off: b.offsetUs})
 		if !fe.offsetSet {
 			fe.offsetSet, fe.offsetUs = true, b.offsetUs
 		}
@@ -251,6 +299,26 @@ func (b *Builder) observeTim(tim int64, line int) int64 {
 		return wall
 	}
 	return 0
+}
+
+func clamp32(v int64) int32 {
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if v < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(v)
+}
+
+func clampU8(v int) uint8 {
+	if v < 0 {
+		return 0
+	}
+	if v > math.MaxUint8 {
+		return math.MaxUint8
+	}
+	return uint8(v)
 }
 
 // ---- trace.Handler --------------------------------------------------------
@@ -523,12 +591,11 @@ func (b *Builder) Call(c trace.Call) {
 		cur.PLH = c.PLH
 	}
 	call := Call{
-		ID: ID(len(b.m.Calls)), Line: c.Line, Kind: c.Kind, Cursor: curID, Statement: cur.Statement,
-		C: c.C, E: c.E, P: c.P, CR: c.CR, CU: c.CU, Mis: c.Mis, R: c.R, Dep: c.Dep, OG: c.OG, PLH: c.PLH,
-		Tim: c.Tim, Type: c.Type, Parent: None, SelfE: c.E, SelfC: c.C, SelfP: c.P, SelfCR: c.CR, SelfCU: c.CU, Context: b.context(), BindSet: None,
-		LobType: c.LobType, Bytes: c.Bytes, Op: c.Op,
+		ID: ID(len(b.m.Calls)), Line: int32(c.Line), Kind: c.Kind, Cursor: curID, Statement: cur.Statement,
+		C: c.C, E: c.E, P: c.P, CR: c.CR, CU: c.CU, Mis: clamp32(c.Mis), R: c.R, Dep: clampU8(c.Dep), OG: clampU8(c.OG), PLH: uint32(c.PLH),
+		Tim: c.Tim, Type: clampU8(c.Type), Parent: None, SelfE: c.E, SelfC: c.C, SelfP: c.P, SelfCR: c.CR, SelfCU: c.CU, Context: b.context(), BindSet: None,
 	}
-	call.WallUs = b.observeTim(c.Tim, c.Line)
+	b.observeTim(c.Tim, c.Line)
 	switch c.Kind {
 	case trace.CallExec:
 		cur.Execs++
@@ -656,14 +723,14 @@ func (b *Builder) Wait(w trace.Wait) {
 		stmt = b.m.Cursors[id].Statement
 	}
 	wait := Wait{
-		ID: ID(len(b.m.Waits)), Line: w.Line, Cursor: curID, Statement: stmt, Call: None, Event: eid,
+		ID: ID(len(b.m.Waits)), Line: int32(w.Line), Cursor: curID, Statement: stmt, Call: None, Event: eid,
 		Ela: w.Ela, P1: w.Params[0].Value, P2: w.Params[1].Value, P3: w.Params[2].Value,
 		ObjID: w.ObjID, Tim: w.Tim, Context: b.context(), Idle: ev.Idle, Number: w.Cursor,
 	}
 	if !w.HasObj {
 		wait.ObjID = -1
 	}
-	wait.WallUs = b.observeTim(w.Tim, w.Line)
+	b.observeTim(w.Tim, w.Line)
 	b.m.Waits = append(b.m.Waits, wait)
 	if w.Cursor == 0 && b.lastXctend != None {
 		b.attachWait(&b.m.Waits[wait.ID], b.lastXctend)
@@ -708,6 +775,9 @@ func (b *Builder) Stat(s trace.Stat) {
 // ---- binds ----------------------------------------------------------------
 
 func (b *Builder) Binds(bs trace.BindSet) {
+	if b.opts.NoFacts {
+		return
+	}
 	var curID, stmt ID = None, None
 	if bs.IsRPC {
 		curID = b.syntheticCursor("rpc", StmtRPC, "RPC EXEC (remote procedure call)", bs.Line)
@@ -716,12 +786,10 @@ func (b *Builder) Binds(bs trace.BindSet) {
 	}
 	stmt = b.m.Cursors[curID].Statement
 	set := BindSet{ID: ID(len(b.m.BindSets)), Line: bs.Line, Cursor: curID, Statement: stmt, Call: None, First: int32(len(b.m.Binds)), IsRPC: bs.IsRPC}
-	for _, tb := range bs.Binds {
-		bind := Bind{Set: set.ID, Pos: tb.Pos, Dty: tb.Dty, TypeName: ref.BindTypeName(tb.Dty), NoDef: tb.NoOacdef, IsDump: tb.IsDump,
-			Mal: tb.Mal, Mxl: tb.Mxl, Avl: tb.Avl, Scl: tb.Scl, Pre: tb.Pre, Csi: tb.Csi}
-		if tb.NoOacdef {
-			bind.TypeName = ""
-		}
+	for i := range bs.Binds {
+		tb := &bs.Binds[i]
+		bind := Bind{Set: set.ID, Pos: int32(tb.Pos), Dty: int32(tb.Dty), NoDef: tb.NoOacdef, IsDump: tb.IsDump,
+			Mal: int32(tb.Mal), Mxl: int32(tb.Mxl), Avl: int32(tb.Avl), Scl: int32(tb.Scl), Pre: int32(tb.Pre), Csi: int32(tb.Csi)}
 		if tb.HasValue {
 			bind.Value = decodeValue(tb)
 		} else if !tb.NoOacdef {
@@ -737,7 +805,7 @@ func (b *Builder) Binds(bs trace.BindSet) {
 }
 
 // decodeValue strips the quoting Oracle puts around character values.
-func decodeValue(tb trace.Bind) string {
+func decodeValue(tb *trace.Bind) string {
 	v := tb.Value
 	if tb.IsDump {
 		return v
@@ -757,15 +825,15 @@ func (b *Builder) Xctend(x trace.Xctend) {
 	}
 	curID := b.syntheticCursor(key, kind, text, x.Line)
 	cur := b.m.Cursors[curID]
-	call := Call{ID: ID(len(b.m.Calls)), Line: x.Line, Kind: trace.CallXctend, Cursor: curID, Statement: cur.Statement,
+	call := Call{ID: ID(len(b.m.Calls)), Line: int32(x.Line), Kind: trace.CallXctend, Cursor: curID, Statement: cur.Statement,
 		Dep: 1, Tim: x.Tim, Parent: None, Context: b.context(), BindSet: None, Synthetic: true}
-	call.WallUs = b.observeTim(x.Tim, x.Line)
+	wall := b.observeTim(x.Tim, x.Line)
 	b.m.Calls = append(b.m.Calls, call)
 	b.attachWaits(0, call.ID, curID) // waits logged on #0 before the XCTEND
 	b.lastXctend = call.ID           // ... and the ones after it (log file sync)
 	b.attachChildren(call.ID, 1)
 	c := &b.m.Calls[call.ID]
-	t := Transaction{ID: ID(len(b.m.Transactions)), Line: x.Line, Rlbk: x.Rlbk, RdOnly: x.RdOnly, Tim: x.Tim, WallUs: c.WallUs, Call: call.ID, Context: c.Context}
+	t := Transaction{ID: ID(len(b.m.Transactions)), Line: x.Line, Rlbk: x.Rlbk, RdOnly: x.RdOnly, Tim: x.Tim, WallUs: wall, Call: call.ID, Context: c.Context}
 	b.m.Transactions = append(b.m.Transactions, t)
 }
 

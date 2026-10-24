@@ -14,7 +14,7 @@ func (t *textWriter) findings() {
 	if t.o.Thresholds != nil {
 		th = *t.o.Thresholds
 	}
-	fs := analyze.FindingsWith(t.m, t.stats, th)
+	fs := analyze.FindingsExec(t.m, t.stats, th, t.allExecs())
 	t.p("FINDINGS  (thresholds, see docs/ARCHITECTURE.md; serious > notable > info)\n")
 	t.rule('-')
 	if len(fs) == 0 {

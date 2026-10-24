@@ -103,7 +103,7 @@ func TestRedactBinds(t *testing.T) {
 	for i := range m.Binds {
 		o, r := &orig.Binds[i], &m.Binds[i]
 		// metadata is kept
-		if o.TypeName != r.TypeName || o.Avl != r.Avl || o.Mxl != r.Mxl || o.Dty != r.Dty || o.IsNull != r.IsNull || o.NoDef != r.NoDef || o.IsDump != r.IsDump {
+		if o.TypeName() != r.TypeName() || o.Avl != r.Avl || o.Mxl != r.Mxl || o.Dty != r.Dty || o.IsNull != r.IsNull || o.NoDef != r.NoDef || o.IsDump != r.IsDump {
 			t.Fatalf("bind %d: metadata changed: %+v -> %+v", i, *o, *r)
 		}
 		switch {
@@ -119,7 +119,7 @@ func TestRedactBinds(t *testing.T) {
 			if !tok.MatchString(r.Value) {
 				t.Errorf("bind %d: redacted to %q", i, r.Value)
 			}
-			k := o.TypeName + "\x00" + o.Value
+			k := o.TypeName() + "\x00" + o.Value
 			if prev, ok := byValue[k]; ok && prev != r.Value {
 				t.Errorf("value %q redacted to %q and %q", o.Value, prev, r.Value)
 			}
@@ -211,7 +211,7 @@ func TestRedactBindsSalt(t *testing.T) {
 			same++
 		}
 		// equal values stay equal within the salt
-		k := o.TypeName + "\x00" + o.Value
+		k := o.TypeName() + "\x00" + o.Value
 		if prev, ok := byValue[k]; ok && prev != a1.Binds[i].Value {
 			t.Errorf("value redacted to %q and %q under one salt", prev, a1.Binds[i].Value)
 		}

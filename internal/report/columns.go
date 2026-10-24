@@ -1,117 +1,34 @@
 package report
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"math"
 )
 
-// Column is a typed fact column. In plain mode it marshals as a JSON array.
-// In packed mode every column of a table is written into one little-endian
-// buffer, gzip-compressed and base64-encoded ("blob"), and the column only
-// marshals its descriptor {t, off, n}; the browser decompresses the blob with
-// DecompressionStream and creates typed-array views. Packed tables are 5-10x
-// smaller than JSON numbers and decode instantly.
+// Column is a typed fact column of an unpacked document: a JSON array. (The
+// packed layout the UI normally loads is written by the streaming writer in
+// stream.go, which never materialises columns.)
 type Column struct {
 	Type string // "f64" | "i32" | "u8"
 	F64  []float64
 	I32  []int32
 	U8   []uint8
-
-	packed bool
-	off    int
-}
-
-func (c Column) len() int {
-	switch c.Type {
-	case "f64":
-		return len(c.F64)
-	case "i32":
-		return len(c.I32)
-	}
-	return len(c.U8)
-}
-
-func (c Column) width() int {
-	switch c.Type {
-	case "f64":
-		return 8
-	case "i32":
-		return 4
-	}
-	return 1
 }
 
 func (c Column) MarshalJSON() ([]byte, error) {
-	if !c.packed {
-		switch c.Type {
-		case "f64":
-			return json.Marshal(c.F64)
-		case "i32":
-			return json.Marshal(c.I32)
-		default:
-			// []uint8 would marshal as a base64 string; emit numbers.
-			a := make([]int, len(c.U8))
-			for i, v := range c.U8 {
-				a[i] = int(v)
-			}
-			return json.Marshal(a)
-		}
-	}
-	return json.Marshal(struct {
-		T   string `json:"t"`
-		Off int    `json:"off"`
-		N   int    `json:"n"`
-	}{c.Type, c.off, c.len()})
-}
-
-func (c Column) write(buf []byte) {
 	switch c.Type {
 	case "f64":
-		for i, v := range c.F64 {
-			binary.LittleEndian.PutUint64(buf[8*i:], math.Float64bits(v))
-		}
+		return json.Marshal(c.F64)
 	case "i32":
-		for i, v := range c.I32 {
-			binary.LittleEndian.PutUint32(buf[4*i:], uint32(v))
-		}
+		return json.Marshal(c.I32)
 	default:
-		copy(buf, c.U8)
-	}
-}
-
-// pack lays the columns out in one buffer (each aligned to its width), sets
-// their offsets and returns the gzip+base64 blob.
-func pack(cols []*Column) (string, error) {
-	size := 0
-	for _, c := range cols {
-		w := c.width()
-		if r := size % w; r != 0 {
-			size += w - r
+		// []uint8 would marshal as a base64 string; emit numbers.
+		a := make([]int, len(c.U8))
+		for i, v := range c.U8 {
+			a[i] = int(v)
 		}
-		c.off = size
-		c.packed = true
-		size += c.len() * w
+		return json.Marshal(a)
 	}
-	buf := make([]byte, size)
-	for _, c := range cols {
-		c.write(buf[c.off:])
-	}
-	var out bytes.Buffer
-	gz, err := gzip.NewWriterLevel(&out, gzip.BestSpeed)
-	if err != nil {
-		return "", err
-	}
-	if _, err := gz.Write(buf); err != nil {
-		return "", err
-	}
-	if err := gz.Close(); err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(out.Bytes()), nil
 }
 
 const maxI32 = math.MaxInt32

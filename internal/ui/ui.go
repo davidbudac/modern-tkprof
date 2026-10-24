@@ -4,6 +4,7 @@ package ui
 
 import (
 	_ "embed"
+	"io"
 	"strings"
 )
 
@@ -39,6 +40,28 @@ func Standalone(docJSON []byte) string {
 	b.WriteString("</script>")
 	b.WriteString(indexHTML[i+len(Placeholder):])
 	return b.String()
+}
+
+// WriteStandalone is Standalone writing to w: the page up to the data, whatever
+// doc writes (the JSON document), and the rest of the page. A large document
+// is never held in memory next to the page.
+func WriteStandalone(w io.Writer, doc func(io.Writer) error) error {
+	head, tail := indexHTML, ""
+	if i := strings.Index(indexHTML, Placeholder); i >= 0 {
+		head, tail = indexHTML[:i], indexHTML[i+len(Placeholder):]
+	} else if i := strings.Index(indexHTML, "</head>"); i >= 0 {
+		head, tail = indexHTML[:i], indexHTML[i:]
+	} else {
+		head, tail = "", indexHTML
+	}
+	if _, err := io.WriteString(w, head+`<script id="mtkprof-data" type="application/json">`); err != nil {
+		return err
+	}
+	if err := doc(w); err != nil { // encoding/json escapes <, > and & so "</script>" cannot occur
+		return err
+	}
+	_, err := io.WriteString(w, "</script>"+tail)
+	return err
 }
 
 // Built reports whether a real UI build is embedded.

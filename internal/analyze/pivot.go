@@ -406,7 +406,7 @@ func callDims(m *model.Model) map[string]dimImpl {
 		ctxDim(m, d("action"), ctx, func(x *model.Context) string { return x.Action }, "(no action)"),
 		ctxDim(m, d("client"), ctx, func(x *model.Context) string { return x.ClientID }, "(no client id)"),
 		ctxDim(m, d("service"), ctx, func(x *model.Context) string { return x.Service }, "(no service)"),
-		{Dim: d("plh"), key: func(i int) int64 { return plh.id(c[i].PLH) }, name: func(k int64) string {
+		{Dim: d("plh"), key: func(i int) int64 { return plh.id(uint64(c[i].PLH)) }, name: func(k int64) string {
 			if v := plh.keys[k]; v != 0 {
 				return fmt.Sprint(v)
 			}
@@ -756,7 +756,7 @@ func addCall(a []int64, c *model.Call) {
 	a[cCR] += c.CR
 	a[cCU] += c.CU
 	a[cR] += c.R
-	a[cMis] += c.Mis
+	a[cMis] += int64(c.Mis)
 	a[cWait] += c.WaitEla
 	a[cIdle] += c.IdleEla
 	if c.E > a[cMaxE] {

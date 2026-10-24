@@ -87,5 +87,8 @@ func addReportBindFlags(fs *flag.FlagSet, n *int) *bindFlags {
 
 // apply redacts or drops the model's bind values as requested.
 func (b *bindFlags) apply(m *model.Model) {
+	if lowMem {
+		return // no bind values were retained
+	}
 	model.RedactBindsSalt(m, b.mode, b.salt)
 }

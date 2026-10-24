@@ -385,7 +385,7 @@ func execPlans(m *model.Model) map[model.ID]map[uint64]bool {
 			s = map[uint64]bool{}
 			out[c.Statement] = s
 		}
-		s[c.PLH] = true
+		s[uint64(c.PLH)] = true
 	}
 	return out
 }
