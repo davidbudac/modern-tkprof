@@ -58,6 +58,8 @@ export class TraceDoc {
   readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[] }
 
   readonly hasFacts: boolean
+  /** base URL of the plan visualizer set by the CLI (optional) */
+  readonly planViz?: string
   readonly calls: Calls
   readonly waits: Waits
   readonly bindSets: BindSets
@@ -93,6 +95,7 @@ export class TraceDoc {
     this.unknown = raw.unknown ?? []
     this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [] }
     this.hasFacts = !!raw.facts
+    this.planViz = raw.planViz || undefined
     this.calls = calls
     this.waits = waits
     this.bindSets = bindSets

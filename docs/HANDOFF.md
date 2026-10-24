@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-10-22 (after milestone 1)
+# Handoff — state of mtkprof on 2026-10-24 (after milestone 2)
 
 Read this, then `docs/DESIGN.md` (the decisions), then `docs/ARCHITECTURE.md`
 (how the code is shaped) and `docs/trace-format-19c.md` (what the parser
@@ -124,13 +124,35 @@ inspector.
   by the single-file build (~100 KB).
 - Mockups that led here: `docs/mockups/` (A ledger, B workbench, C replay).
 
-## Milestone 2 (next): plan JSON and "Open in plan viz"
+## Milestone 2: done (2026-10-24) — plan JSON and "Open in plan viz"
 
-Specified in `docs/DESIGN.md` § Plans; the visualizer's JSON contract and
-parser entry points are summarised there (repo
-`davidbudac/ora-explain-plan-viz`, `src/lib/parser/jsonPlanParser.ts`,
-`src/lib/url.ts`). Milestones 3–6 (ref bundle, file sets + PX, size/memory,
-comparison) follow.
+Specified in `docs/DESIGN.md` § Plans. Delivered on `main`:
+
+- `internal/report/planjson.go`: each STAT dump becomes the V$SQL_PLAN-style
+  row array the visualizer auto-detects (`PlanRows`, `PlanJSON`,
+  `LatestPlans`, `PlansOf`); the root row has `parent_id: null`; the first
+  row carries `sql_text`, `execution` (ordinal of the dump for that plan
+  hash) and `trace_line`. `PlanVizURL` builds the deep link (payload →
+  gzip → base64url → `<base>#gz=`), error above 100 000 chars.
+- `mtkprof plan <trace> -sql_id X [-plan-hash H] [-exec N] [-viz] [-list]`.
+- `-plan-viz-url` on `html`, `serve`, `json`, `plan`; the document carries it
+  as top-level `planViz` (empty flag drops it).
+- UI (`web/src/data/planviz.ts`, `views/StatementDetail.tsx`): per plan hash
+  a dump picker (when several), "Open in plan viz ↗", "Copy JSON", ⚙ to set
+  the base URL (localStorage `mtkprof.planVizUrl` > document `planViz` >
+  hosted default). Verified end to end against the hosted visualizer.
+- Visualizer repo: `jsonPlanParser` now reads `sql_text` from the first row
+  (commit `7e52b2d` on its main, **not pushed yet**; pushing deploys the
+  site).
+
+Left open: no UI unit test (web/ has no vitest); the "too large for a link"
+path is untested in the browser; visualizer shows "0ms" for µs-scale plans
+(its display rounds to ms).
+
+## Milestone 3 (next): ref bundle
+
+Milestones 3–6 (ref bundle, file sets + PX, size/memory, comparison) follow;
+see `docs/DESIGN.md` and `docs/ROADMAP.md`.
 
 ## Known gaps and small bugs
 

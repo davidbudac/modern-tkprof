@@ -318,6 +318,7 @@ export interface RawDocument {
   diag: Diagnostics
   unknown: { line: number; text: string }[] | null
   facts?: RawFacts
+  planViz?: string
   stats: {
     statements: StmtStats[]
     profile: Profile

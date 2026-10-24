@@ -93,6 +93,19 @@ typed-array views, so a 600k-call trace is a 6.5 MB document that loads in a
 few seconds. `mtkprof html` inlines the document into the embedded UI page
 (`internal/ui`); `mtkprof serve` serves it from `/api/doc`.
 
+`planjson.go` turns each STAT dump (`model.Plan`) into the JSON row array that
+`davidbudac/ora-explain-plan-viz` auto-detects (`PlanRows` / `PlanJSON`:
+`id, parent_id` (null for the root), `depth, operation, object_name, object_id,
+cardinality, bytes, cost, actual_rows, starts, actual_elapsed_time` (µs),
+`cr_buffer_gets, physical_reads, physical_writes, sql_id, plan_hash_value`; the
+first row also carries `sql_text`, `execution` and `trace_line`). `LatestPlans`
+/ `PlansOf` select dumps per statement, and `PlanVizURL` builds the "Open in
+plan viz" link (`<base>#gz=` + gzip + base64url of
+`{"plans":[{"rawInput":rows}],"viewMode":"hierarchical"}`, refused above
+100 000 chars). `mtkprof plan` is the CLI front end (`-list`, `-sql_id`,
+`-plan-hash`, `-exec`, `-viz`); `html`/`serve`/`json` take `-plan-viz-url`,
+stored as `Document.planViz` for the UI.
+
 ### internal/analyze
 
 * Resource profile (Millsap): CPU, each wait event, unaccounted-for, over any

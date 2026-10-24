@@ -37,6 +37,10 @@ type Document struct {
 	Facts *Facts `json:"facts,omitempty"`
 
 	Stats Stats `json:"stats"`
+
+	// PlanViz is the base URL of the plan visualizer ("Open in plan viz");
+	// empty means the UI uses its own default.
+	PlanViz string `json:"planViz,omitempty"`
 }
 
 // Facts are the columnar fact tables. With Packed, every numeric column of a
@@ -145,6 +149,8 @@ type Stats struct {
 type DocOptions struct {
 	Facts  bool // include the fact tables
 	Packed bool // pack fact columns into gzip+base64 blobs
+
+	PlanVizURL string // base URL of the plan visualizer, carried into Document.PlanViz
 }
 
 // BuildDocument assembles the document from a model.
@@ -176,6 +182,7 @@ func BuildDocument(m *model.Model, o DocOptions) *Document {
 		}
 		d.Facts = f
 	}
+	d.PlanViz = o.PlanVizURL
 	return d
 }
 

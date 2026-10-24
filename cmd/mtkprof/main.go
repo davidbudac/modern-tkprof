@@ -27,12 +27,20 @@ func usage() {
 Usage:
   mtkprof report <trace.trc> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys]
   mtkprof pivot  <trace.trc> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
-  mtkprof html   <trace.trc> [-o out.html]            self-contained interactive report
-  mtkprof serve  <trace.trc> [-addr 127.0.0.1:8046]   interactive UI in the browser
-  mtkprof json   <trace.trc> [-o out.json] [-facts=false] [-packed]
+  mtkprof html   <trace.trc> [-o out.html] [-plan-viz-url URL]   self-contained interactive report
+  mtkprof serve  <trace.trc> [-addr 127.0.0.1:8046] [-plan-viz-url URL]   interactive UI in the browser
+  mtkprof json   <trace.trc> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL]
+  mtkprof plan   <trace.trc> -sql_id X [-plan-hash H] [-exec N] [-o out.json] [-viz] [-plan-viz-url URL]
+  mtkprof plan   <trace.trc> -list                    statements with STAT plans
   mtkprof export <trace.trc> [-o dir]                 CSV tables for DuckDB / Excel / Python
   mtkprof lint   <trace.trc>
   mtkprof version
+
+Plans (plan):
+  Exports STAT dumps as the JSON row array that ora-explain-plan-viz auto-detects.
+  One plan selected -> the array; several plan hashes (no -plan-hash) -> an object
+  {"<plan hash>": [rows], ...}. -viz prints an "Open in plan viz" link instead
+  (the plan travels in the URL fragment only). -exec N picks the N-th dump of a hash.
 
 Bind values (report, html, json, export, serve):
   -bind-values keep|redact|none   keep (default); redact = type, length and a stable
@@ -68,6 +76,8 @@ func main() {
 		err = cmdServe(args)
 	case "lint":
 		err = cmdLint(args)
+	case "plan":
+		err = cmdPlan(args)
 	case "version", "-v", "--version":
 		fmt.Println("mtkprof", version)
 	case "-h", "--help", "help":
@@ -142,6 +152,7 @@ func cmdJSON(args []string) error {
 	out := fs.String("o", "", "output file (default stdout)")
 	facts := fs.Bool("facts", true, "include raw fact tables (calls, waits, binds)")
 	packed := fs.Bool("packed", false, "pack fact columns into gzip+base64 blobs (smaller, faster to load)")
+	pv := planVizFlag(fs)
 	bf := addBindFlags(fs)
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
@@ -154,13 +165,14 @@ func cmdJSON(args []string) error {
 		return err
 	}
 	defer w.Close()
-	return report.JSON(w, m, report.DocOptions{Facts: *facts, Packed: *packed})
+	return report.JSON(w, m, report.DocOptions{Facts: *facts, Packed: *packed, PlanVizURL: *pv})
 }
 
 func cmdHTML(args []string) error {
 	fs := flag.NewFlagSet("html", flag.ExitOnError)
 	out := fs.String("o", "", "output file (default <trace>.html)")
 	facts := fs.Bool("facts", true, "include raw fact tables (needed for drill-down; omit for huge traces)")
+	pv := planVizFlag(fs)
 	bf := addBindFlags(fs)
 	file := parseArgs(fs, args)
 	if !ui.Built() {
@@ -171,7 +183,7 @@ func cmdHTML(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true})
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv})
 	if err != nil {
 		return err
 	}
@@ -211,6 +223,7 @@ func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	addr := fs.String("addr", "127.0.0.1:8046", "listen address")
 	facts := fs.Bool("facts", true, "include raw fact tables")
+	pv := planVizFlag(fs)
 	bf := addBindFlags(fs)
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
@@ -218,7 +231,7 @@ func cmdServe(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true})
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv})
 	if err != nil {
 		return err
 	}

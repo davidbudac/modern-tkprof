@@ -8,6 +8,7 @@ import { ProfileBar } from '../components/ProfileBar'
 import { DataTable, type Column } from '../components/DataTable'
 import { executions, bindsOf, bindPreview, statementWaits, type Execution } from '../data/derive'
 import type { Segment } from '../components/ProfileBar'
+import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 
 export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
   const st = doc.statements[id]
@@ -155,17 +156,70 @@ function Binds({ doc, ex }: { doc: TraceDoc; ex: Execution }) {
 function Plans({ doc, id }: { doc: TraceDoc; id: ID }) {
   const plans = doc.plansOf(id)
   if (plans.length === 0) return null
-  const last = new Map<number, Plan>()
-  for (const p of plans) last.set(p.planHash, p)
+  const byHash = new Map<number, Plan[]>()
+  for (const p of plans) { const l = byHash.get(p.planHash); if (l) l.push(p); else byHash.set(p.planHash, [p]) }
+  return <>{[...byHash.entries()].map(([h, dumps]) => <PlanSection key={`${id}:${h}`} doc={doc} hash={h} dumps={dumps} />)}</>
+}
+
+type Link = { state: 'pending' } | { state: 'ok'; url: string } | { state: 'big' } | { state: 'nogzip' }
+
+function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps: Plan[] }) {
+  const [pick, setPick] = useState(dumps.length - 1) // latest by default
+  const plan = dumps[Math.min(pick, dumps.length - 1)]
+  const [override, setOverride] = useState(planVizOverride)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [copied, setCopied] = useState(false)
+  const base = override || doc.planViz || DEFAULT_PLAN_VIZ
+  const rows = useMemo(() => planRows(doc, plan), [doc, plan])
+  const [link, setLink] = useState<Link>({ state: 'pending' })
+  useEffect(() => {
+    let live = true
+    if (!canGzip) { setLink({ state: 'nogzip' }); return }
+    setLink({ state: 'pending' })
+    planVizUrl(base, rows).then(
+      (url) => { if (live) setLink(url.length > MAX_LINK_CHARS ? { state: 'big' } : { state: 'ok', url }) },
+      () => { if (live) setLink({ state: 'nogzip' }) },
+    )
+    return () => { live = false }
+  }, [base, rows])
+  const copyJson = async () => {
+    try { await navigator.clipboard.writeText(JSON.stringify(rows, null, 1)); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch { /* clipboard unavailable */ }
+  }
+  const save = (v: string) => { setPlanVizOverride(v); setOverride(planVizOverride()); setEditing(false) }
   return (
-    <>
-      {[...last.values()].map((p) => (
-        <section className="section" key={p.id}>
-          <header><h2>Plan {p.planHash || ''}</h2><span className="hint">row source statistics from the STAT lines at line {fmtInt(p.line)}{plans.filter((x) => x.planHash === p.planHash).length > 1 ? ` · ${plans.filter((x) => x.planHash === p.planHash).length} dumps, last shown` : ''}</span></header>
-          <PlanTable doc={doc} plan={p} />
-        </section>
-      ))}
-    </>
+    <section className="section">
+      <header>
+        <h2>Plan {hash || ''}</h2>
+        <span className="hint">row source statistics from the STAT lines at line {fmtInt(plan.line)}{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
+        <span className="tools plan-acts">
+          {dumps.length > 1 && (
+            <label className="small muted">dump:{' '}
+              <select value={pick} onChange={(e) => setPick(Number(e.target.value))} aria-label="Plan dump">
+                {dumps.map((d, i) => <option key={d.id} value={i}>{i === dumps.length - 1 ? `latest (line ${fmtInt(d.line)})` : `#${i + 1} · line ${fmtInt(d.line)}`}</option>)}
+              </select>
+            </label>
+          )}
+          {link.state === 'ok'
+            ? <a className="btn" href={link.url} target="_blank" rel="noopener" title={`opens ${base} with the plan in the URL fragment only`}>Open in plan viz ↗</a>
+            : <button disabled title={link.state === 'big' ? 'plan too large for a link' : link.state === 'nogzip' ? 'this browser has no CompressionStream' : 'encoding…'}>Open in plan viz ↗</button>}
+          <button onClick={copyJson} title="the plan as the visualizer's JSON row array">{copied ? 'Copied' : 'Copy JSON'}</button>
+          <button className={`quiet${editing ? ' on' : ''}`} aria-label="Plan viz URL" title={`plan viz URL: ${base}`} aria-expanded={editing} onClick={() => { setDraft(override); setEditing(!editing) }}>⚙</button>
+        </span>
+      </header>
+      {link.state === 'big' && <p className="small plan-note">plan too large for a link ({rows.length} rows) — use “Copy JSON” and paste it into the visualizer.</p>}
+      {link.state === 'nogzip' && <p className="small plan-note">This browser cannot compress the link — use “Copy JSON” and paste it into the visualizer.</p>}
+      {editing && (
+        <form className="plan-cfg" onSubmit={(e) => { e.preventDefault(); save(draft) }}>
+          <label className="small muted" htmlFor={`pv-${plan.id}`}>plan viz URL</label>
+          <input id={`pv-${plan.id}`} type="text" value={draft} placeholder={doc.planViz || DEFAULT_PLAN_VIZ} onChange={(e) => setDraft(e.target.value)} spellCheck={false} />
+          <button type="submit">Save</button>
+          <button type="button" onClick={() => { setDraft(''); save('') }}>reset to default</button>
+          <span className="small muted">stored in this browser (localStorage); the plan is sent only in the URL fragment.</span>
+        </form>
+      )}
+      <PlanTable doc={doc} plan={plan} />
+    </section>
   )
 }
 

@@ -28,6 +28,9 @@ mtkprof pivot  trace.trc -by module,stmt -measure e,c,count -window 10:15:00,10:
 mtkprof html   trace.trc                 # trace.html: interactive report, self-contained
 mtkprof serve  trace.trc                 # same UI served at http://127.0.0.1:8046/
 mtkprof json   trace.trc -o trace.json   # the full document (dimension tables + fact columns)
+mtkprof plan   trace.trc -list          # statements with STAT plans (sql_id, plan hash, dumps, root cost/time)
+mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -o plan.json   # plan(s) as JSON rows for ora-explain-plan-viz; -plan-hash, -exec N
+mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -viz           # "Open in plan viz" link (plan stays in the URL fragment)
 mtkprof lint   trace.trc                 # what the parser saw: line kinds, events, unknown lines
 ```
 
