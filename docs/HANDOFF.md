@@ -24,7 +24,7 @@ Working and tested:
 | Bind redaction (`-redact-binds`, `-bind-values keep\|redact\|none`, `-binds none`) as a model post-pass | `internal/model/redact.go`, `cmd/mtkprof/bindflags.go` | done; tests prove no value leaks into text/JSON/CSV |
 | Web UI (Overview ledger + lanes, Statements workbench, Waits + event inspector, Timeline, Sessions, Pivot), light/dark, IBM Plex embedded | `web/` → embedded as `internal/ui/dist/index.html` | redesigned 2026-10-23 (`docs/mockups/`), reviewed by screenshot |
 | Real 19.27 fixtures (20, incl. `plan_change`) + tkprof output + generator + v$ exports | `testdata/` | done |
-| CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | runs green on every push to main (no tag pushed yet) |
+| CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | green on every push; release job verified with tag `v0.2.0-rc.1` |
 
 Numbers (after milestone 5): 118 MB trace → text report in 0.61 s / 220 MB
 RSS, standalone HTML 12.7 MB in 0.78 s / 255 MB RSS; 1 GB trace → HTML in
@@ -264,7 +264,8 @@ sparse (every 64th line). `/api/executions` streams one page.
 
 ## Still open
 
-- Publish the repo; push a tag to exercise the release job.
+- Publish the repo (user decision). The release job is verified: tag
+  `v0.2.0-rc.1` produced the GitHub release with 7 binaries + SHA256SUMS.
 - Push visualizer commit `7e52b2d` in `~/github/ora-explain-plan-viz`
   (deploys the hosted site).
 - Shared core package with the visualizer (DESIGN.md v2 note); the overlay
