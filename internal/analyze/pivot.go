@@ -885,6 +885,9 @@ type ContextStats struct {
 
 // Contexts computes ContextStats for every model.Context, in id order.
 func Contexts(m *model.Model) []ContextStats {
+	if a := AggOf(m); a != nil {
+		return a.ctx
+	}
 	out := make([]ContextStats, len(m.Contexts))
 	for i := range out {
 		out[i].Context = model.ID(i)

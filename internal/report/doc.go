@@ -186,7 +186,7 @@ type DocOptions struct {
 // for, are unpacked arrays whatever o.Packed says; WriteDocument writes the
 // packed form without building it.
 func BuildDocument(m *model.Model, o DocOptions) *Document {
-	return buildDocument(m, o, o.Facts)
+	return buildDocument(m, o, o.Facts && !m.Aggregate)
 }
 
 // buildDocument is BuildDocument; withFacts says whether the fact tables are

@@ -11,7 +11,6 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/ref"
-	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
 type textWriter struct {
@@ -177,7 +176,7 @@ func (t *textWriter) header() {
 		t.p("Span       : tim %d -> %d  (%s s, no wall-clock marker found)\n", span.FirstTim, span.LastTim, secs(span.Us()))
 	}
 	t.p("Volume     : %s lines (%.1f MB)  calls %s  waits %s  cursors %s  statements %s  bind sets %s  plans %s  transactions %s  errors %s\n",
-		commas(int64(m.Diag.Lines)), float64(m.Diag.Bytes)/1e6, commas(int64(len(m.Calls))), commas(int64(len(m.Waits))), commas(int64(len(m.Cursors))),
+		commas(int64(m.Diag.Lines)), float64(m.Diag.Bytes)/1e6, commas(m.CallCount()), commas(m.WaitCount()), commas(int64(len(m.Cursors))),
 		commas(int64(len(m.Statements))), commas(int64(len(m.BindSets))), commas(int64(len(m.Plans))), commas(int64(len(m.Transactions))), commas(int64(len(m.Errors))))
 	var notes []string
 	if m.File.Truncated {
@@ -211,6 +210,9 @@ func (t *textWriter) header() {
 	}
 	if m.Diag.UnattributedWaits > 0 {
 		notes = append(notes, fmt.Sprintf("%d waits after the last call of their cursor", m.Diag.UnattributedWaits))
+	}
+	if m.Aggregate {
+		notes = append(notes, "aggregate mode: calls and waits are not retained; the executions tables and the bind sections are left out (summary lines stay)")
 	}
 	if bm := m.Diag.BindMode; bm == "redacted" || bm == "none" {
 		notes = append(notes, "bind values "+map[string]string{"redacted": "redacted (type, length, stable hash)", "none": "dropped"}[bm])
@@ -466,15 +468,14 @@ func (t *textWriter) callTable(s *analyze.StmtStats) {
 // waitDetail breaks the statement's top I/O events down by object.
 func (t *textWriter) waitDetail(sid model.ID) {
 	m := t.m
-	in := func(w *model.Wait) bool { return w.Statement == sid && !w.Idle && !w.Between && !m.PXChild(w.Context) }
-	evs := analyze.WaitsByEvent(m, in)
+	evs := analyze.WaitDetailEvents(m, sid)
 	shown := 0
 	for _, ev := range evs {
 		if shown >= 3 || ev.Us < 1000 {
 			break
 		}
 		e := &m.Events[ev.Event]
-		byObj := analyze.WaitsBy(m, func(w *model.Wait) bool { return in(w) && w.Event == ev.Event }, func(w *model.Wait) (int64, bool) { return w.ObjID, w.ObjID > 0 })
+		byObj := analyze.WaitDetailObjects(m, sid, ev.Event)
 		if len(byObj) == 0 {
 			continue
 		}
@@ -501,6 +502,18 @@ func (t *textWriter) waitDetail(sid model.ID) {
 }
 
 func (t *textWriter) executions(sid model.ID, s *analyze.StmtStats) {
+	if es, ok := analyze.ExecSummaryOf(t.m, sid); ok { // aggregation-only model: the summary line, no table
+		if es.N < 2 {
+			return
+		}
+		t.p("Executions: %d   elapsed min %s s  avg %s s  max %s s", es.N, secs(es.Min), secs(es.Sum/es.N), secs(es.Max))
+		if es.HasSlowest {
+			t.p("   slowest: exec %d of cursor at line %d (%s s, %s rows, %s disk)", es.SlowestExecNo, t.m.Cursors[es.SlowestCursor].Line, secs(es.SlowestElapsed), commas(es.SlowestRows), commas(es.SlowestDisk))
+		}
+		t.nl()
+		t.nl()
+		return
+	}
 	ex := t.allExecs()[sid]
 	if len(ex) < 2 {
 		return
@@ -1003,17 +1016,8 @@ func (t *textWriter) footer() {
 		}
 	}
 	t.p("Call kinds: ")
-	kinds := map[trace.CallKind]int{}
-	for i := range m.Calls {
-		kinds[m.Calls[i].Kind]++
-	}
-	var ks []trace.CallKind
-	for k := range kinds {
-		ks = append(ks, k)
-	}
-	sort.Slice(ks, func(i, j int) bool { return ks[i] < ks[j] })
-	for _, k := range ks {
-		t.p("%s=%d ", k, kinds[k])
+	for _, k := range analyze.CallKinds(m) {
+		t.p("%s=%d ", k.Kind, k.Count)
 	}
 	t.nl()
 }
