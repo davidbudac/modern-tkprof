@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-10-24 (after milestone 2)
+# Handoff — state of mtkprof on 2026-10-24 (milestones 1–6 and the v1 tail done)
 
 Read this, then `docs/DESIGN.md` (the decisions), then `docs/ARCHITECTURE.md`
 (how the code is shaped) and `docs/trace-format-19c.md` (what the parser
@@ -24,11 +24,12 @@ Working and tested:
 | Bind redaction (`-redact-binds`, `-bind-values keep\|redact\|none`, `-binds none`) as a model post-pass | `internal/model/redact.go`, `cmd/mtkprof/bindflags.go` | done; tests prove no value leaks into text/JSON/CSV |
 | Web UI (Overview ledger + lanes, Statements workbench, Waits + event inspector, Timeline, Sessions, Pivot), light/dark, IBM Plex embedded | `web/` → embedded as `internal/ui/dist/index.html` | redesigned 2026-10-23 (`docs/mockups/`), reviewed by screenshot |
 | Real 19.27 fixtures (20, incl. `plan_change`) + tkprof output + generator + v$ exports | `testdata/` | done |
-| CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | written, never run (repo private, no push of a tag) |
+| CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | runs green on every push to main (no tag pushed yet) |
 
-Numbers: parse ~340 MB/s; 118 MB trace → text report in 0.96 s, standalone
-HTML of 20 MB that loads in ~6 s; AIX, Windows, arm64, Solaris builds verified
-to compile.
+Numbers (after milestone 5): 118 MB trace → text report in 0.61 s / 220 MB
+RSS, standalone HTML 12.7 MB in 0.78 s / 255 MB RSS; 1 GB trace → HTML in
+7.3 s / 2.1 GB (1.6 GB with `-lowmem`); 10 GB → report or HTML in ~1 min but
+~20 GB RSS (bind-heavy shape). AIX, Windows, arm64, Solaris builds compile.
 
 ## Build, test, run
 
@@ -187,30 +188,80 @@ Raw line viewer drawer (serve only), resizable panes (localStorage), column
 chooser on Pivot and executions, URL hash state (`#view=&sql=&ev=&win=`),
 wait scatter over time in the event inspector, bucket chart clamped to 100 %.
 
+## Configurable finding thresholds: done (2026-10-24)
+
+`analyze.Thresholds` (29 numeric keys, `DefaultThresholds`), `-findings-config
+file.json|-` on report/html/serve/json, `mtkprof findings-config` prints the
+defaults, document `stats.findingsConfig`, Findings view shows them.
+
+## Milestone 6: done (2026-10-24) — comparison
+
+`analyze.Compare` (statements by sql_id, else kind + normalised text; events
+by name). `mtkprof compare a b [-n 30]` text report; `html|serve|json a b
+-compare` writes `{compare:{a,b,diff}}`; UI Compare tab (totals, profile
+bars, statement and event deltas, A/B toggle in the top bar, `side=b` in the
+hash) and "Execution A vs B" panel in the executions table (tick two rows).
+Compare documents are not server-sliced.
+
+## DBMS_XPLAN overlay: done (2026-10-24)
+
+`internal/ref/xplan.go` is a Go port of the visualizer's DBMS_XPLAN parser.
+With `-ref`, a plan file whose plan hash matches a STAT plan overlays access
+and filter predicates, alias, query block and (when STAT has no card) the
+estimate onto `PlanLine`; text report prints a Predicates block, plan JSON
+rows carry `access_predicates`/`filter_predicates`/`object_alias`/
+`qblock_name`, UI shows ⚑ per row. The shared-package extraction from the
+visualizer repo was not done (DESIGN.md § Plans updated).
+
+## Milestone 5: done (2026-10-24) — memory and size
+
+Compact facts (Call 168 B, Wait 88 B, Bind 56 B; `WallUs` derived from tim
+and the anchor table; bind values in arena chunks), pre-sized fact tables,
+shared executions index, GOGC 40 % (20 % with `-lowmem`), streamed packed
+document (`report.WriteDocument`, `ui.WriteStandalone`), document **format
+3** with delta-coded monotonic columns (loader in `web/src/data/columns.ts`).
+`-lowmem` on report/pivot/html/json/serve/export drops bind values only.
+Analysis ordering is now deterministic (map-iteration dependence removed).
+Not done: an aggregation-only mode (calls and waits must be retained for the
+analyses); `MTKPROF_CPUPROFILE|MEMPROFILE|HEAPPROFILE` env hooks exist.
+
+## Server-side slicing: done (2026-10-24)
+
+`serve -facts=false` (or `-slice`) keeps the model and answers
+`/api/pivot|timeline|executions|executions/detail|calls|waits|waits/hist|
+waits/scatter|waits/by|profile|stmt/roles|stmt/waits|stmt/spans`
+(`internal/slice`, httptest-covered). The document carries `slice: true`; the
+UI's `DataSource` (`web/src/data/source.ts`) picks `RemoteSource` then,
+`LocalSource` for standalone HTML. big_loop: 284 KB document, ~290 MB RSS,
+pivots in ~20 ms. Executions lists cap at the 5000 slowest; PX slave calls are
+left out of remote executions; remote pivot labels are formatted by Go.
+
+## Still open after this round
+
+- Licence file and publishing the repo (user decision; Apache-2.0 recommended).
+- Push of the visualizer commit `7e52b2d` (deploys the hosted site).
+- Aggregation-only mode for 10 GB-class traces (streaming accumulators).
+- Shared core package with the visualizer (DESIGN.md v2 note).
+- 12.2 / 21c / 23ai fixtures when a lab exists; bind decoding of
+  TIMESTAMP/INTERVAL dumps (agentboard #28 leftover).
+- UI line viewer asks `/api/lines` for file 0 only in multi-file sets.
+
 ## Known gaps and small bugs
 
-- Overview bucket chart ("by event" / "by class") y-axis can exceed 100 %
-  (CPU is spread over a call's duration and Oracle's `c` can exceed `e`).
-- The Statements workbench replaced the wide sortable table; the list sorts
-  by one measure at a time (select). The Pivot is the escape hatch for
-  multi-column comparisons.
-- Overview "The session over time" lanes show the top 12 statements by
-  response time; the others have no lane (the Timeline tab folds them).
-- `Chart.tsx` re-resolves CSS colours on theme change via a probe element;
-  the Timeline swimlane caches colours per render.
-- The CI workflow has never run; expect small fixes (pnpm version pin,
-  frozen lockfile) on first push to a public repo.
-- Memory: ~600 MB RSS for a 118 MB trace (milestone 5).
-- `mtkprof json` without `-packed` writes `u8` columns (call kind, flags) as
-  base64 strings (Go marshals `[]byte` that way); the UI loader rejects such
-  a document ("column kind: unexpected value"). `-packed` (what `html` and
-  `serve` use) is fine.
-- `mtkprof serve` sends no CORS header, so the Vite dev server cannot load
-  `?doc=http://127.0.0.1:8046/api/doc`; copy the JSON into `web/` meanwhile.
+- The Statements workbench sorts by one measure at a time; the Pivot is the
+  escape hatch for multi-column comparisons (column chooser exists now).
+- Overview lanes show the top 12 statements by response time.
+- `Chart.tsx` re-resolves CSS colours on theme change via a probe element.
 - `commandName` is empty for synthetic statements (commit, LOB, unknown) by
   design; the UI shows the kind instead.
+- Compare mode: the UI has no per-component profile table (the text report
+  has one); dark theme of the Compare tab not reviewed.
+- PX matching exercised on one QC + one slave fixture only; cross-file `tim`
+  ordering assumes one host (a note is emitted when offsets differ > 2 s).
+- Remote (sliced) activity chart applies the context filter to CPU too; the
+  local path never did.
 
 ## Agentboard
 
-Todos #27 (memory), #28 (UI polish round 2), #29 (multi-file / PX merge)
-exist for the repo; close or update them as work lands.
+Todos #27 (memory), #28 (UI polish round 2), #29 (multi-file / PX merge),
+#30 (M1 follow-ups) were delivered in this round and closed on 2026-10-24.
