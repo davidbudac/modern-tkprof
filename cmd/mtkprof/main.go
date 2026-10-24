@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -288,18 +289,30 @@ func cmdHTML(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv})
-	if err != nil {
-		return err
-	}
 	path := *out
 	if path == "" {
 		path = outBase(files) + ".html"
 	}
-	if err := os.WriteFile(path, []byte(ui.Standalone(doc)), 0o644); err != nil {
+	f, err := os.Create(path)
+	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "wrote %s (%.1f MB)\n", path, float64(len(doc))/1e6)
+	bw := bufio.NewWriterSize(f, 1<<20)
+	err = ui.WriteStandalone(bw, func(w io.Writer) error {
+		return report.WriteDocument(w, m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv})
+	})
+	if err == nil {
+		err = bw.Flush()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		return err
+	}
+	if fi, serr := os.Stat(path); serr == nil {
+		fmt.Fprintf(os.Stderr, "wrote %s (%.1f MB)\n", path, float64(fi.Size())/1e6)
+	}
 	return nil
 }
 
@@ -364,6 +377,8 @@ func cmdServe(args []string) error {
 		defer li.Close()
 		lis = append(lis, li)
 	}
+	m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
+	debug.FreeOSMemory()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/lines", func(w http.ResponseWriter, r *http.Request) {
 		fi, _ := strconv.Atoi(r.URL.Query().Get("file"))

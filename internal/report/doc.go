@@ -1,6 +1,8 @@
 package report
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"io"
 	"time"
@@ -57,6 +59,18 @@ type Facts struct {
 	Waits    WaitColumns    `json:"waits"`
 	BindSets BindSetColumns `json:"bindSets"`
 	Binds    BindColumns    `json:"binds"`
+
+	stream bool // marshals as a placeholder; see writeDocument
+}
+
+// MarshalJSON writes the plain struct, or the placeholder that writeDocument
+// replaces with the streamed tables.
+func (f *Facts) MarshalJSON() ([]byte, error) {
+	if f.stream {
+		return json.Marshal(factsPlaceholder)
+	}
+	type plain Facts
+	return json.Marshal((*plain)(f))
 }
 
 // CallColumns: one entry per model.Call, same order/index.
@@ -162,6 +176,12 @@ type DocOptions struct {
 
 // BuildDocument assembles the document from a model.
 func BuildDocument(m *model.Model, o DocOptions) *Document {
+	return buildDocument(m, o, o.Facts)
+}
+
+// buildDocument is BuildDocument; withFacts says whether the fact tables are
+// built in memory (the streaming writer sends them separately).
+func buildDocument(m *model.Model, o DocOptions, withFacts bool) *Document {
 	bucket := analyze.TimelineBucket(m)
 	d := &Document{
 		Tool: "mtkprof", Version: Version, Generated: time.Now(), Format: 2,
@@ -184,7 +204,7 @@ func BuildDocument(m *model.Model, o DocOptions) *Document {
 			d.Statements[i].Cursors = []model.ID{}
 		}
 	}
-	if o.Facts {
+	if withFacts {
 		f, err := buildFacts(m, o.Packed)
 		if err != nil {
 			panic(err) // only gzip of an in-memory buffer can fail here
@@ -327,14 +347,24 @@ func buildFacts(m *model.Model, packed bool) (*Facts, error) {
 	return &Facts{Packed: packed, Calls: cc, Waits: wc, BindSets: sc, Binds: bc}, nil
 }
 
-// JSON writes the document to w.
+// JSON writes the document to w (one line, newline-terminated).
 func JSON(w io.Writer, m *model.Model, o DocOptions) error {
-	enc := json.NewEncoder(w)
-	return enc.Encode(BuildDocument(m, o))
+	bw := bufio.NewWriterSize(w, 256<<10)
+	if err := writeDocument(bw, m, o); err != nil {
+		return err
+	}
+	if _, err := bw.WriteString("\n"); err != nil {
+		return err
+	}
+	return bw.Flush()
 }
 
 // DocumentBytes marshals the document (HTML-safe escaping, so it can be
 // inlined in a <script> tag).
 func DocumentBytes(m *model.Model, o DocOptions) ([]byte, error) {
-	return json.Marshal(BuildDocument(m, o))
+	var buf bytes.Buffer
+	if err := writeDocument(&buf, m, o); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
