@@ -310,6 +310,9 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 
 .plan .op { white-space: nowrap; font-family: var(--font-mono); font-size: 0.92em; }
 .plan .obj { color: var(--ink-2); }
+.plan .op button.pred { padding: 0 0.3rem; margin-inline-start: 0.4rem; font-size: var(--text-xs); line-height: 1.3; }
+.plan .pred-row td { padding-block: 0.15rem 0.45rem; white-space: normal; }
+.plan .pred-row code { display: block; font-size: var(--text-xs); color: var(--ink-2); overflow-wrap: anywhere; }
 .plan .heat { display: inline-block; inline-size: 3.5rem; block-size: 0.45rem; border-radius: 2px; background: var(--surface-sunken); vertical-align: middle; margin-inline-end: 0.4rem; overflow: clip; }
 .plan .heat > i { display: block; block-size: 100%; background: var(--c-userio); }
 

@@ -88,11 +88,15 @@ in the UI is reachable from the CLI.
   travels only in the URL fragment.
 - Plan-level findings (misestimates, spills, nested-loop volume, pruning)
   stay in the visualizer's advisor.
-- v2: give the visualizer a LICENSE file, extract a shared core package
-  (types, parsers, analysis, advisor) consumed by both apps, and use its
-  DBMS_XPLAN parser to overlay predicates and estimates from the ref bundle
-  onto trace plans. Small changes in the visualizer repo are made as part of
-  this project when the integration needs them.
+- v2: give the visualizer a LICENSE file and extract a shared core package
+  (types, parsers, analysis, advisor) consumed by both apps. Small changes in
+  the visualizer repo are made as part of this project when the integration
+  needs them.
+- Done via a Go port (no code sharing): the visualizer's DBMS_XPLAN parser is
+  ported to `internal/ref/xplan.go`, and `ApplyRef` overlays predicates,
+  query block / alias and estimates from the ref bundle's `plans/<sql_id>.txt`
+  onto the STAT lines of plans with the same plan hash, by operation id
+  (see `docs/REF-BUNDLE.md`).
 
 ## Findings (v1)
 

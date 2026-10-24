@@ -258,6 +258,8 @@ type Plan struct {
 	PLH       uint64 `json:"planHash"`
 	First     int32  `json:"first"` // index into Model.PlanLines
 	N         int32  `json:"n"`
+	// XPlanMatched: a ref-bundle DBMS_XPLAN of the same plan hash was overlaid on the lines (ApplyRef).
+	XPlanMatched bool `json:"xPlanMatched,omitempty"`
 }
 
 // PlanLine is one STAT line.
@@ -280,6 +282,12 @@ type PlanLine struct {
 	Size     int64  `json:"size"`
 	Card     int64  `json:"card"`
 	HasStats bool   `json:"hasStats"`
+	// Overlaid by ApplyRef from a ref-bundle DBMS_XPLAN of the same plan hash.
+	Access string `json:"access,omitempty"`
+	Filter string `json:"filter,omitempty"`
+	Alias  string `json:"alias,omitempty"`
+	QBlock string `json:"qblock,omitempty"`
+	ERows  int64  `json:"eRows,omitempty"` // DBMS_XPLAN estimate, set only where STAT has no card; 0 = none
 }
 
 // Transaction is one XCTEND.

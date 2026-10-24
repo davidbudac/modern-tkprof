@@ -45,6 +45,12 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 		return f.Close()
 	}
 	i64 := func(v int64) string { return strconv.FormatInt(v, 10) }
+	nz := func(v int64) string { // blank for "not set"
+		if v == 0 {
+			return ""
+		}
+		return i64(v)
+	}
 	i := func(v int) string { return strconv.Itoa(v) }
 	id := func(v model.ID) string {
 		if v == model.None {
@@ -142,11 +148,11 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 		return written, err
 	}
 	if err := write("plan_lines.csv",
-		[]string{"plan_id", "plan_line_no", "statement_id", "sql_id", "plan_hash", "cursor_id", "stat_line", "id", "parent_id", "depth", "operation", "object_name", "obj", "rows", "starts", "cr", "pr", "pw", "time_us", "cost", "size", "card", "owner"},
+		[]string{"plan_id", "plan_line_no", "statement_id", "sql_id", "plan_hash", "cursor_id", "stat_line", "id", "parent_id", "depth", "operation", "object_name", "obj", "rows", "starts", "cr", "pr", "pw", "time_us", "cost", "size", "card", "owner", "access_predicates", "filter_predicates", "e_rows"},
 		len(m.PlanLines), func(k int) []string {
 			l := &m.PlanLines[k]
 			p := &m.Plans[l.Plan]
-			return []string{id(p.ID), i(k - int(p.First)), id(p.Statement), sqlid(p.Statement), strconv.FormatUint(p.PLH, 10), id(p.Cursor), i(p.Line), i(l.ID), i(l.ParentID), i(l.Depth), l.Op, l.Object, i64(l.Obj), i64(l.Cnt), i64(l.Str), i64(l.CR), i64(l.PR), i64(l.PW), i64(l.TimeUs), i64(l.Cost), i64(l.Size), i64(l.Card), m.ObjectOwner(l.Obj)}
+			return []string{id(p.ID), i(k - int(p.First)), id(p.Statement), sqlid(p.Statement), strconv.FormatUint(p.PLH, 10), id(p.Cursor), i(p.Line), i(l.ID), i(l.ParentID), i(l.Depth), l.Op, l.Object, i64(l.Obj), i64(l.Cnt), i64(l.Str), i64(l.CR), i64(l.PR), i64(l.PW), i64(l.TimeUs), i64(l.Cost), i64(l.Size), i64(l.Card), m.ObjectOwner(l.Obj), l.Access, l.Filter, nz(l.ERows)}
 		}); err != nil {
 		return written, err
 	}

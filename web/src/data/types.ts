@@ -124,6 +124,7 @@ export interface Plan {
   planHash: number
   first: number
   n: number
+  xPlanMatched?: boolean
 }
 
 export interface PlanLine {
@@ -145,6 +146,11 @@ export interface PlanLine {
   size: number
   card: number
   hasStats: boolean
+  access?: string
+  filter?: string
+  alias?: string
+  qblock?: string
+  eRows?: number
 }
 
 export interface Transaction {

@@ -859,7 +859,31 @@ func (t *textWriter) plans(sid model.ID, s *analyze.StmtStats) {
 			}
 			t.p("%4d %11s %8s %10s %9s %9s %11s  %s\n", l.ID, commas(l.Cnt), commas(l.Str), commas(l.CR), commas(l.PR), commas(l.PW), ms(float64(l.TimeUs)), op)
 		}
+		t.predicates(p)
 		t.nl()
+	}
+}
+
+// predicates prints the access / filter predicates a ref-bundle DBMS_XPLAN
+// overlaid on a plan, one line per operation id.
+func (t *textWriter) predicates(p *model.Plan) {
+	m := t.m
+	first := true
+	for i := p.First; i < p.First+p.N; i++ {
+		l := &m.PlanLines[i]
+		if l.Access == "" && l.Filter == "" {
+			continue
+		}
+		if first {
+			t.p("Predicates (from ref bundle DBMS_XPLAN):\n")
+			first = false
+		}
+		if l.Access != "" {
+			t.p("  %4d: access(%s)\n", l.ID, l.Access)
+		}
+		if l.Filter != "" {
+			t.p("  %4d: filter(%s)\n", l.ID, l.Filter)
+		}
 	}
 }
 

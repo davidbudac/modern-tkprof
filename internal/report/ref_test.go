@@ -243,3 +243,68 @@ func TestApplyRefExport(t *testing.T) {
 		t.Error("no tempfile wait resolved to a file_name")
 	}
 }
+
+// io_waits.trc + the bundle: the sort-spill statement's STAT plan has the
+// plan hash of plans/52nzchs09dgn1.txt, so query block / alias are overlaid
+// and show in the plan JSON (the visualizer contract) and the CSV. The lab
+// plan has no Predicate Information block (no access/filter on that plan);
+// predicates are covered by the hand-written text in the model tests.
+func TestApplyRefXPlanOverlay(t *testing.T) {
+	m := refModel(t, "../../testdata/reference/bundle")
+	var plan *model.Plan
+	for i := range m.Plans {
+		if m.Plans[i].PLH == 2503715236 {
+			plan = &m.Plans[i]
+		}
+	}
+	if plan == nil || !plan.XPlanMatched {
+		t.Fatalf("plan 2503715236 not matched: %+v", plan)
+	}
+	rows := PlanRows(m, plan)
+	if len(rows) != 2 || rows[0].QBlockName != "SEL$1" || rows[1].ObjectAlias != "O@SEL$1" || rows[1].QBlockName != "SEL$1" {
+		t.Errorf("plan rows = %+v", rows)
+	}
+	js, err := PlanJSON(m, plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(js, []byte(`"object_alias": "O@SEL$1"`)) || bytes.Contains(js, []byte(`"access_predicates"`)) {
+		t.Errorf("plan json = %s", js)
+	}
+	// other plans (other hashes, no plan file) are untouched
+	for i := range m.Plans {
+		if m.Plans[i].PLH != 2503715236 && m.Plans[i].XPlanMatched {
+			t.Errorf("plan %d matched without a plan file", i)
+		}
+	}
+	dir := t.TempDir()
+	if _, err := ExportCSV(m, dir); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "plan_lines.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hdr := strings.SplitN(string(raw), "\n", 2)[0]; !strings.HasSuffix(hdr, "access_predicates,filter_predicates,e_rows") {
+		t.Errorf("plan_lines.csv header = %s", hdr)
+	}
+}
+
+// Predicates print as a sub-block under the plan table when present.
+func TestTextReportPredicates(t *testing.T) {
+	m := refModel(t, "../../testdata/reference/bundle")
+	for i := range m.PlanLines {
+		if m.Plans[m.PlanLines[i].Plan].PLH == 2503715236 && m.PlanLines[i].ID == 2 {
+			m.PlanLines[i].Filter = `"O"."ID">5`
+		}
+	}
+	var b bytes.Buffer
+	if err := Text(&b, m, TextOptions{Sort: "elapsed", Binds: 5, Execs: 20, Sys: true, Width: 120}); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	i, j := strings.Index(out, "Predicates (from ref bundle DBMS_XPLAN):\n     2: filter(\"O\".\"ID\">5)"), strings.Index(out, "DBMS_XPLAN from ref bundle")
+	if i < 0 || j < i {
+		t.Errorf("predicates block missing or misplaced (%d, %d)", i, j)
+	}
+}

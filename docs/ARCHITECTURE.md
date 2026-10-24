@@ -201,8 +201,29 @@ name after `uid`, the DBMS_XPLAN text under the statement's plan. CSV:
 `waits.csv` gets `object_name`, `file_name`; `plan_lines.csv` gets `owner`.
 The pivot's `obj` and file-number `p1` groups print names. The UI maps
 obj# / file# / user ids through `TraceDoc.objectName/fileName/userName` and
-shows `refPlan` in a collapsible block under the plan tables. See
-`docs/REF-BUNDLE.md`.
+shows `refPlan` in a collapsible block under the plan tables.
+
+**DBMS_XPLAN overlay** (`internal/ref/xplan.go`, `overlayXPlans` in
+`internal/model/ref.go`). `ref.ParseXPlans(text)` is a Go port of the
+visualizer's `dbmsXplanParser.ts`: per plan (one per `Plan hash value:` line)
+the plan hash, the table rows (Id, Operation depth from its indent, Name,
+Rows/E-Rows, Bytes, Cost, Starts, A-Rows, A-Time, Buffers, Reads, Writes,
+OMem/1Mem/Used-Mem; columns are located from the header line, missing ones are
+-1), the Predicate Information block (id -> access / filter / storage, wrapped
+lines joined, quotes respected), the Query Block Name / Object Alias block and
+the Note section. `ApplyRef` overlays a parsed plan on every STAT `Plan` of
+the statement whose `PLH` equals its hash, matching `PlanLine.ID` to the Id:
+`Access`, `Filter`, `Alias`, `QBlock`, and `ERows` where STAT has no `card`
+(`card < 0`); the plan gets `XPlanMatched`. A different hash overlays nothing
+(a `Diag.Notes` line says so). No measure changes. Outputs: the text report
+prints a `Predicates (from ref bundle DBMS_XPLAN):` block under the plan
+table; the document's plan lines carry `access/filter/alias/qblock/eRows`
+(omitted when empty) and plans `xPlanMatched`; `PlanRows` (the visualizer
+contract) adds `access_predicates`, `filter_predicates`, `object_alias`,
+`qblock_name` and fills `cardinality` from `ERows`; `plan_lines.csv` gets
+`access_predicates`, `filter_predicates`, `e_rows`. The UI plan table shows a
+flag per row with predicates (click to expand the text) and a header hint
+when overlaid. See `docs/REF-BUNDLE.md`.
 
 ### internal/analyze
 

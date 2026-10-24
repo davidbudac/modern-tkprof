@@ -29,6 +29,10 @@ type PlanRow struct {
 	Operation       string `json:"operation"`
 	ObjectName      string `json:"object_name,omitempty"`
 	ObjectID        int64  `json:"object_id,omitempty"`
+	ObjectAlias     string `json:"object_alias,omitempty"`      // from a ref-bundle DBMS_XPLAN
+	QBlockName      string `json:"qblock_name,omitempty"`       // ditto
+	AccessPreds     string `json:"access_predicates,omitempty"` // ditto
+	FilterPreds     string `json:"filter_predicates,omitempty"` // ditto
 	Cardinality     *int64 `json:"cardinality,omitempty"`
 	Bytes           *int64 `json:"bytes,omitempty"`
 	Cost            *int64 `json:"cost,omitempty"`
@@ -106,7 +110,8 @@ func PlanRows(m *model.Model, p *model.Plan) []PlanRow {
 	}
 	rows := make([]PlanRow, len(lines))
 	for i, l := range lines {
-		r := PlanRow{ID: l.ID, Depth: l.Depth, Operation: l.Op, ObjectName: l.Object, SQLID: sqlID, PlanHashValue: plh}
+		r := PlanRow{ID: l.ID, Depth: l.Depth, Operation: l.Op, ObjectName: l.Object, SQLID: sqlID, PlanHashValue: plh,
+			ObjectAlias: l.Alias, QBlockName: l.QBlock, AccessPreds: l.Access, FilterPreds: l.Filter}
 		if ids[l.ParentID] {
 			r.ParentID = ptr(l.ParentID)
 		}
@@ -119,6 +124,9 @@ func PlanRows(m *model.Model, p *model.Plan) []PlanRow {
 			r.CRBufferGets, r.PhysicalReads, r.PhysicalWrites = ptr(l.CR), ptr(l.PR), ptr(l.PW)
 		} else {
 			r.ActualRows = ptr(l.Cnt)
+		}
+		if r.Cardinality == nil && l.ERows > 0 { // estimate from the ref bundle where STAT has none
+			r.Cardinality = ptr(l.ERows)
 		}
 		rows[i] = r
 	}
