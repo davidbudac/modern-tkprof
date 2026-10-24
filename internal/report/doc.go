@@ -34,6 +34,12 @@ type Document struct {
 	Diag         model.Diagnostics   `json:"diag"`
 	Unknown      []model.UnknownLine `json:"unknown"`
 
+	// Reference-bundle dimensions (mtkprof -ref): names for the obj#, file#
+	// and user ids that the fact tables carry. Omitted without a bundle.
+	Objects []model.RefObject `json:"objects,omitempty"`
+	Files   []model.RefFile   `json:"files,omitempty"`
+	Users   []model.RefUser   `json:"users,omitempty"`
+
 	Facts *Facts `json:"facts,omitempty"`
 
 	Stats Stats `json:"stats"`
@@ -161,6 +167,7 @@ func BuildDocument(m *model.Model, o DocOptions) *Document {
 		File: m.File, Span: m.Span, Statements: m.Statements, Cursors: m.Cursors, Contexts: m.Contexts,
 		Events: m.Events, Plans: m.Plans, PlanLines: m.PlanLines, Transactions: m.Transactions,
 		Errors: m.Errors, Markers: m.Markers, Diag: m.Diag, Unknown: m.Unknown,
+		Objects: m.Objects, Files: m.Files, Users: m.Users,
 		Stats: Stats{
 			Statements: analyze.Statements(m),
 			Profile:    analyze.TraceProfile(m),

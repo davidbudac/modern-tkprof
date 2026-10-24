@@ -20,6 +20,7 @@ func planVizFlag(fs *flag.FlagSet) *string {
 
 func cmdPlan(args []string) error {
 	fs := flag.NewFlagSet("plan", flag.ExitOnError)
+	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default stdout)")
 	sqlID := fs.String("sql_id", "", "statement to export (required unless -list)")
 	hash := fs.String("plan-hash", "", "plan hash value (default: every plan hash of the statement; with several, the output is a JSON object keyed by plan hash)")
@@ -30,6 +31,9 @@ func cmdPlan(args []string) error {
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
 	if err != nil {
+		return err
+	}
+	if err := applyRef(m, *rf); err != nil {
 		return err
 	}
 	w, err := openOut(*out)
