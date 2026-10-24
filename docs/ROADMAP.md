@@ -51,7 +51,9 @@
    Collections (dty 123) stay hex dumps.
 6. **Reference data at runtime**: optional `--objects objects.csv` /
    `--datafiles` to map obj# and file# to names (query templates provided).
-7. **More formats**: 12.1/12.2 traces (should mostly work, untested),
-   23ai additions, Windows trace files, `RPC CALL` lines, LOB write ops.
+7. **More formats**: 21c and 23ai are done (docker fixtures, `testdata/traces/21c`,
+   `23ai`, differences in `docs/trace-format-19c.md`; PX on 21c/23ai is untested
+   as XE/Free have no parallel execution). Open: 12.1/12.2 traces (should mostly
+   work, untested), Windows trace files, `RPC CALL` lines, LOB write ops.
 8. **Compare mode**: two traces side by side (before/after a change).
 9. **Packaging**: GitHub release workflow building all targets, checksums.

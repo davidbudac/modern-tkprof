@@ -404,7 +404,7 @@ func (p *Parser) header(line []byte) {
 	switch {
 	case hasPrefix(line, "Trace file "):
 		h.Key, h.Value = "Trace file", string(bytes.TrimSpace(line[11:]))
-	case hasPrefix(line, "Oracle Database "):
+	case hasPrefix(line, "Oracle Database "), hasPrefix(line, "Oracle AI Database "): // 23ai+ renamed the banner
 		h.Key, h.Value = "Oracle Database", string(line)
 	case hasPrefix(line, "Version ") && !bytes.Contains(line, []byte(":")):
 		h.Key, h.Value = "Oracle Version", string(bytes.TrimSpace(line[8:]))
@@ -455,6 +455,15 @@ func (p *Parser) marker(rest []byte) {
 		return
 	}
 	text := bytes.TrimSpace(rest)
+	if hasPrefix(text, "Unix process pid:") {
+		// trcsess from 23ai: "*** Unix process pid:       2013" (no brackets)
+		m.Kind = MarkerProcess
+		m.Key = "Unix process pid"
+		m.Value = string(bytes.TrimSpace(text[len("Unix process pid:"):]))
+		m.Text = string(text)
+		p.h.Marker(m)
+		return
+	}
 	if hasPrefix(text, "[ ") && bytes.HasSuffix(text, []byte(" ]")) {
 		// trcsess session switch: "*** [ Unix process pid: 133531 ]"
 		inner := bytes.TrimSpace(text[2 : len(text)-2])
@@ -512,6 +521,10 @@ func markerKindFor(key []byte) MarkerKind {
 		return MarkerClientDriver
 	case "CONTAINER ID":
 		return MarkerContainerID
+	case "CLIENT IP":
+		return MarkerClientIP
+	case "CONNECTION ID":
+		return MarkerConnectionID
 	}
 	return MarkerOther
 }
@@ -923,9 +936,13 @@ func (p *Parser) bindLine(line []byte) bool {
 		p.inValue = false
 		p.count(KindBindLine)
 		return true
-	case hasPrefix(line, "  value="):
+	case hasPrefix(line, "  value="), hasPrefix(line, " value=Unhandled datatype"): // 23ai indents the latter by one space
 		if b := p.curBind(); b != nil {
-			b.Value = p.str(line[8:])
+			off := 8
+			if line[1] != ' ' {
+				off = 7
+			}
+			b.Value = p.str(line[off:])
 			b.HasValue = true
 			if strings.HasSuffix(b.Value, `"...`) {
 				b.Truncated = true

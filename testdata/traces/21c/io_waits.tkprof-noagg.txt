@@ -1,0 +1,843 @@
+
+TKPROF: Release 21.0.0.0.0 - Development on Sat Oct 24 10:42:46 2026
+
+Copyright (c) 1982, 2021, Oracle and/or its affiliates.  All rights reserved.
+
+Trace file: out/io_waits.trc
+Sort options: prsela  exeela  fchela  
+********************************************************************************
+count    = number of times OCI procedure was executed
+cpu      = cpu time in seconds executing 
+elapsed  = elapsed time in seconds executing
+disk     = number of physical reads of buffers from disk
+query    = number of buffers gotten for consistent read
+current  = number of buffers gotten in current mode (usually for update)
+rows     = number of rows processed by the fetch or execute call
+--------------------------------------------------------------------------------
+
+*** SESSION ID:(300.18022) 2026-10-24T10:42:45.407731+00:00
+
+********************************************************************************
+
+select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status
+  from mtk_orders o order by o.amount desc, o.order_date, o.id
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          1           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch      201      0.12       0.60       1826        848        156      100000
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total      203      0.12       0.60       1826        848        157      100000
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+    100000     100000     100000  SORT ORDER BY (cr=848 pr=1826 pw=1330 time=574019 us starts=1 cost=2013 size=2800000 card=100000)
+    100000     100000     100000   TABLE ACCESS FULL MTK_ORDERS (cr=848 pr=496 pw=0 time=2567 us starts=1 cost=137 size=2800000 card=100000)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                     201        0.00          0.00
+  reliable message                                1        0.00          0.00
+  enq: KO - fast object checkpoint                1        0.00          0.00
+  PGA memory operation                            6        0.00          0.00
+  direct path read                               17        0.00          0.00
+  Disk file operations I/O                        6        0.00          0.00
+  direct path write temp                       1330        0.00          0.50
+  control file sequential read                   11        0.00          0.00
+  db file sequential read                         2        0.00          0.00
+  datafile move cleanup during resize             1        0.00          0.00
+  db file single write                            1        0.00          0.00
+  control file parallel write                     3        0.00          0.00
+  DLM cross inst call completion                  1        0.00          0.00
+  local write wait                               10        0.00          0.00
+  direct path read temp                        1330        0.00          0.00
+  SQL*Net message from client                   201        0.00          0.28
+  SQL*Net more data to client                   200        0.00          0.00
+********************************************************************************
+
+select /*+ use_hash(c o) mtk_hash_spill */ count(*), sum(o.amount * c.amount)
+  from mtk_cust c join mtk_orders o on o.cust_id = c.id
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          1           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.11       0.21       7298       2137          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.12       0.21       7298       2137          1           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  SORT AGGREGATE (cr=2137 pr=7298 pw=276 time=210389 us starts=1)
+    100000     100000     100000   HASH JOIN  (cr=2137 pr=7298 pw=276 time=217000 us starts=1 cost=1342 size=2086644 card=99364)
+     20000      20000      20000    TABLE ACCESS FULL MTK_CUST (cr=1289 pr=1190 pw=0 time=1532 us starts=1 cost=341 size=220000 card=20000)
+    100000     100000     100000    TABLE ACCESS FULL MTK_ORDERS (cr=848 pr=496 pw=0 time=2274 us starts=1 cost=137 size=1000000 card=100000)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  reliable message                                2        0.00          0.00
+  enq: KO - fast object checkpoint                2        0.00          0.00
+  PGA memory operation                            4        0.00          0.00
+  direct path read                               35        0.00          0.00
+  direct path write temp                        276        0.00          0.09
+  direct path read temp                        5612        0.00          0.01
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 4w3wvjbkvq24v Plan Hash: 2604036564
+
+select /*+ full(c) mtk_full_scan_cust */ count(*), sum(length(notes)) 
+from
+ mtk_cust c
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          2           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.02       0.02       1190       1289          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.02       0.02       1190       1289          2           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  SORT AGGREGATE (cr=1289 pr=1190 pw=0 time=25785 us starts=1)
+     20000      20000      20000   TABLE ACCESS FULL MTK_CUST (cr=1289 pr=1190 pw=0 time=2320 us starts=1 cost=341 size=7020000 card=20000)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PGA memory operation                            5        0.00          0.00
+  SQL*Net message to client                       2        0.00          0.00
+  reliable message                                1        0.00          0.00
+  enq: KO - fast object checkpoint                1        0.00          0.00
+  direct path read                               18        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+declare
+  v_amt number;
+  v_id  number;
+begin
+  for i in 1 .. 300 loop
+    v_id := trunc(dbms_random.value(1, 20000));
+    select amount into v_amt from mtk_cust where id = v_id;
+  end loop;
+  for i in 1 .. 300 loop
+    v_id := trunc(dbms_random.value(1, 100000));
+    select amount into v_amt from mtk_orders where id = v_id;
+  end loop;
+end;
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.01       0.01          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.01       0.01          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: dk21j71dpu26c Plan Hash: 1276914333
+
+SELECT AMOUNT 
+FROM
+ MTK_CUST WHERE ID = :B1 
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute    300      0.01       0.01          0          0          0           0
+Fetch      300      0.00       0.00          0        900          0         300
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total      601      0.01       0.01          0        900          0         300
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110     (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID MTK_CUST (cr=3 pr=0 pw=0 time=24 us starts=1 cost=2 size=11 card=1)
+         1          1          1   INDEX UNIQUE SCAN MTK_CUST_PK (cr=2 pr=0 pw=0 time=17 us starts=1 cost=1 size=0 card=1)(object id 75963)
+
+--------------------------------------------------------------------------------
+
+SQL ID: f9xbak7zf0a4a Plan Hash: 3261971822
+
+SELECT AMOUNT 
+FROM
+ MTK_ORDERS WHERE ID = :B1 
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute    300      0.01       0.01          0          0          0           0
+Fetch      300      0.00       0.00          0        900          0         300
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total      601      0.01       0.01          0        900          0         300
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110     (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS BY INDEX ROWID MTK_ORDERS (cr=3 pr=0 pw=0 time=14 us starts=1 cost=2 size=10 card=1)
+         1          1          1   INDEX UNIQUE SCAN MTK_ORDERS_PK (cr=2 pr=0 pw=0 time=11 us starts=1 cost=1 size=0 card=1)(object id 75965)
+
+--------------------------------------------------------------------------------
+
+SQL ID: c7ry5gr75qv4b Plan Hash: 3570327658
+
+select /*+ full(o) mtk_full_scan_orders */ count(*), sum(amount), 
+  max(order_date) 
+from
+ mtk_orders o
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00        496        848          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00        496        848          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  SORT AGGREGATE (cr=848 pr=496 pw=0 time=7672 us starts=1)
+    100000     100000     100000   TABLE ACCESS FULL MTK_ORDERS (cr=848 pr=496 pw=0 time=4977 us starts=1 cost=137 size=1300000 card=100000)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PGA memory operation                            5        0.00          0.00
+  SQL*Net message to client                       2        0.00          0.00
+  reliable message                                1        0.00          0.00
+  enq: KO - fast object checkpoint                1        0.00          0.00
+  asynch descriptor resize                        1        0.00          0.00
+  Disk file operations I/O                        1        0.00          0.00
+  direct path read                               17        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 64y0jakbjfvm9 Plan Hash: 1600978577
+
+select /*+ index(o mtk_orders_cust_ix) mtk_index_range_wide */ o.id, o.amount 
+from
+ mtk_orders o where o.cust_id between 100 and 400
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch      102      0.00       0.00          0       1611          0        1505
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total      104      0.00       0.00          0       1611          0        1505
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+      1505       1505       1505  TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=1611 pr=0 pw=0 time=2481 us starts=1 cost=1516 size=22650 card=1510)
+      1505       1505       1505   INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=106 pr=0 pw=0 time=388 us starts=1 cost=5 size=0 card=1510)(object id 75966)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                     102        0.00          0.00
+  SQL*Net message from client                   102        0.00          0.00
+********************************************************************************
+
+SQL ID: dx9pb9j3623tw Plan Hash: 3570327658
+
+select /*+ full(o) mtk_full_scan_orders2 */ count(*) 
+from
+ mtk_orders o where status = 'PAID'
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00        496        848          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00        496        848          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  SORT AGGREGATE (cr=848 pr=496 pw=0 time=2630 us starts=1)
+     20000      20000      20000   TABLE ACCESS FULL MTK_ORDERS (cr=848 pr=496 pw=0 time=1908 us starts=1 cost=137 size=140000 card=20000)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PGA memory operation                            8        0.00          0.00
+  SQL*Net message to client                       2        0.00          0.00
+  reliable message                                1        0.00          0.00
+  enq: KO - fast object checkpoint                1        0.00          0.00
+  direct path read                               17        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: dbvj6jc977hqh Plan Hash: 0
+
+insert /* QOSD */ into exp_head$ (exp_id, objn, sub_id, fixed_cost, text, 
+  col_list, flags, ctime) 
+values
+ (:1, :2, :3, :4, :5, :6, :7, :8)
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      4      0.00       0.00          0          2         29           4
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        5      0.00       0.00          0          2         29           4
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  LOAD TABLE CONVENTIONAL  EXP_HEAD$ (cr=2 pr=0 pw=0 time=272 us starts=1)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  Disk file operations I/O                        1        0.00          0.00
+  PGA memory operation                            1        0.00          0.00
+--------------------------------------------------------------------------------
+
+SQL ID: 9tgj4g8y4rwy8 Plan Hash: 3755742892
+
+select type#,blocks,extents,minexts,maxexts,extsize,extpct,user#,iniexts,
+  NVL(lists,65535),NVL(groups,65535),cachehint,hwmincr, NVL(spare1,0),
+  NVL(scanhint,0),NVL(bitmapranges,0) 
+from
+ seg$ where ts#=:1 and file#=:2 and block#=:3
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        1      0.00       0.00          0          3          0           1
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        3      0.00       0.00          0          3          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 2)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         1          1          1  TABLE ACCESS CLUSTER SEG$ (cr=3 pr=0 pw=0 time=58 us starts=1 cost=2 size=64 card=1)
+         1          1          1   INDEX UNIQUE SCAN I_FILE#_BLOCK# (cr=2 pr=0 pw=0 time=33 us starts=1 cost=1 size=0 card=1)(object id 9)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PGA memory operation                            5        0.00          0.00
+--------------------------------------------------------------------------------
+
+SQL ID: 10gywwmwk6xfy Plan Hash: 1426583507
+
+select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, 
+  flags, ctime 
+from
+ exp_head$ eh where exp_id = :1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      4      0.00       0.00          0          0          0           0
+Fetch        4      0.00       0.00          0          4          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        9      0.00       0.00          0          4          0           0
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: CHOOSE
+Parsing user id: SYS   (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  TABLE ACCESS BY INDEX ROWID EXP_HEAD$ (cr=1 pr=0 pw=0 time=12 us starts=1 cost=0 size=4078 card=1)
+         0          0          0   INDEX UNIQUE SCAN I_EXP_HEAD$ (cr=1 pr=0 pw=0 time=11 us starts=1 cost=0 size=0 card=1)(object id 740)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PGA memory operation                            1        0.00          0.00
+--------------------------------------------------------------------------------
+
+SQL ID: 4r9x21mb0nhkq Plan Hash: 1600978577
+
+select /*+ index(o mtk_orders_cust_ix) mtk_index_range */ o.id, o.amount 
+from
+ mtk_orders o where o.cust_id = :cid
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          8          0           5
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          8          0           5
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         5          5          5  TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=8 pr=0 pw=0 time=30 us starts=1 cost=6 size=75 card=5)
+         5          5          5   INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=3 pr=0 pw=0 time=26 us starts=1 cost=1 size=0 card=5)(object id 75966)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 19pctsstqdgn5 Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('index_range'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: gpzx10kh9gr4f Plan Hash: 0
+
+BEGIN :cid := 17; END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: f2xpbhw4n24pt Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('full_scan'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 9wgtc7nfd142y Plan Hash: 0
+
+BEGIN :cid := 4242; END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Misses in library cache during execute: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 2wmkxs5arpj0h Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('single_row'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+  PGA memory operation                            4        0.00          0.00
+********************************************************************************
+
+SQL ID: fvnvyaby642k8 Plan Hash: 0
+
+BEGIN dbms_application_info.set_action('sort_spill'); END;
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           1
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           1
+
+Misses in library cache during parse: 1
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: fc0b4krw7fd9v Plan Hash: 0
+
+alter session set sort_area_size = 65536
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 06nvwn223659v Plan Hash: 0
+
+alter session set events '10046 trace name context off'
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PGA memory operation                            1        0.00          0.00
+********************************************************************************
+
+SQL ID: 942xwb5hn658p Plan Hash: 0
+
+alter session set workarea_size_policy = manual
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 4r9x21mb0nhkq Plan Hash: 1600978577
+
+select /*+ index(o mtk_orders_cust_ix) mtk_index_range */ o.id, o.amount 
+from
+ mtk_orders o where o.cust_id = :cid
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        2      0.00       0.00          0          8          0           5
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.00       0.00          0          8          0           5
+
+Misses in library cache during parse: 0
+Optimizer mode: ALL_ROWS
+Parsing user id: 110  
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         5          5          5  TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=8 pr=0 pw=0 time=22 us starts=1 cost=6 size=75 card=5)
+         5          5          5   INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=3 pr=0 pw=0 time=22 us starts=1 cost=1 size=0 card=5)(object id 75966)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       2        0.00          0.00
+  SQL*Net message from client                     2        0.00          0.00
+********************************************************************************
+
+SQL ID: 1h7h96h7gnvbj Plan Hash: 0
+
+alter session set "_serial_direct_read" = always
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+********************************************************************************
+
+SQL ID: 7t9g1m9fxtjuq Plan Hash: 0
+
+alter session set hash_area_size = 131072
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+Parsing user id: 110  
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                       1        0.00          0.00
+  SQL*Net message from client                     1        0.00          0.00
+
+
+
+********************************************************************************
+
+OVERALL TOTALS FOR ALL NON-RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse       20      0.00       0.00          0          0          4           0
+Execute     20      0.01       0.01          0          0          0           7
+Fetch      315      0.28       0.85      11306       7597        156      101519
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total      355      0.30       0.88      11306       7597        160      101526
+
+Misses in library cache during parse: 14
+Misses in library cache during execute: 3
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  SQL*Net message to client                     327        0.00          0.00
+  SQL*Net message from client                   327        0.00          0.28
+  PGA memory operation                           40        0.00          0.00
+  reliable message                                6        0.00          0.00
+  enq: KO - fast object checkpoint                6        0.00          0.00
+  asynch descriptor resize                        1        0.00          0.00
+  Disk file operations I/O                        7        0.00          0.00
+  direct path read                              104        0.00          0.00
+  direct path write temp                       1606        0.00          0.60
+  control file sequential read                   11        0.00          0.00
+  db file sequential read                         2        0.00          0.00
+  datafile move cleanup during resize             1        0.00          0.00
+  db file single write                            1        0.00          0.00
+  control file parallel write                     3        0.00          0.00
+  DLM cross inst call completion                  1        0.00          0.00
+  local write wait                               10        0.00          0.00
+  direct path read temp                        6942        0.00          0.02
+  SQL*Net more data to client                   200        0.00          0.00
+
+
+OVERALL TOTALS FOR ALL RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        5      0.00       0.00          0          0          0           0
+Execute    609      0.02       0.02          0          2         29           4
+Fetch      605      0.00       0.00          0       1807          0         601
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total     1219      0.02       0.02          0       1809         29         605
+
+Misses in library cache during parse: 5
+Misses in library cache during execute: 5
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PGA memory operation                            3        0.00          0.00
+  Disk file operations I/O                        1        0.00          0.00
+
+   22  user  SQL statements in session.
+    3  internal SQL statements in session.
+   25  SQL statements in session.
+********************************************************************************
+Trace file: out/io_waits.trc
+Trace file compatibility: 12.2.0.0
+Sort options: prsela  exeela  fchela  
+       1  session in tracefile.
+      22  user  SQL statements in trace file.
+       3  internal SQL statements in trace file.
+      25  SQL statements in trace file.
+      24  unique SQL statements in trace file.
+   16428  lines in trace file.
+       1  elapsed seconds in trace file.
+
+

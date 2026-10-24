@@ -180,10 +180,11 @@ GOOS=windows GOARCH=amd64 go build -o mtkprof.exe ./cmd/mtkprof
 
 ## Trace files
 
-Oracle 19c and later (12c mostly works, untested). The parser understands
+Oracle 19c, 21c and 23ai (tested against real traces and `tkprof` output for
+all three; 12c mostly works, untested). The parser understands
 every line kind of the 19c format, including bind memory dumps, truncated and
-split files, `trcsess` output and PX slave traces; see
-`docs/trace-format-19c.md`. Enable tracing with, for example:
+split files, `trcsess` output and PX slave traces, plus the 21c / 23ai
+differences; see `docs/trace-format-19c.md`. Enable tracing with, for example:
 
 ```sql
 alter session set tracefile_identifier = 'mytest';

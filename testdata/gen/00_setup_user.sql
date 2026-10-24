@@ -1,8 +1,14 @@
--- Run as SYSDBA (lands in CDB$ROOT). Usage: sqlplus / as sysdba @00_setup_user.sql <mtk_password>
--- Idempotent: creates user MTK inside PDB1 only if missing, (re)applies grants.
+-- Run as SYSDBA (lands in CDB$ROOT). Usage: sqlplus / as sysdba @00_setup_user.sql <mtk_password> [<pdb>]
+-- Idempotent: creates user MTK inside the PDB (default PDB1; FREEPDB1 / XEPDB1 in the
+-- gvenzl docker images, see run_gen_docker.sh) only if missing, (re)applies grants.
 set echo off feedback on verify off
 whenever sqlerror continue
-alter session set container = PDB1;
+-- make &2 optional: when absent this defines it as empty instead of prompting
+column p2 new_value 2 noprint
+select '' p2 from dual where 1 = 0;
+column pdbn new_value PDBNAME noprint
+select nvl('&2', 'PDB1') pdbn from dual;
+alter session set container = &PDBNAME;
 declare
   v_cnt number;
 begin

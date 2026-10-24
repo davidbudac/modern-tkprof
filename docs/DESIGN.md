@@ -21,8 +21,10 @@ Comparison of two traces or two executions is v2.
 ## Inputs
 
 - Oracle 19c and later, event 10046 / `sql_trace` / `DBMS_MONITOR` only.
-  No 10053, ASH or AWR inputs. 12.2 / 21c / 23ai are "should work,
-  untested" until fixtures exist.
+  No 10053, ASH or AWR inputs. 19c, 21c (XE) and 23ai (Free) are tested
+  with real fixtures and tkprof parity (`testdata/traces/{19c,21c,23ai}`; no
+  PX traces on 21c/23ai, XE/Free have no parallel execution); 12.x is "should
+  work, untested".
 - A trace is a **set of files** forming one logical trace: several paths or a
   directory; `TRACE CONTINUES IN FILE` chains followed automatically; each
   file's process becomes a session-context dimension (as in `trcsess`

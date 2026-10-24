@@ -1,0 +1,128 @@
+Trace file /opt/oracle/diag/rdbms/free/FREE/trace/FREE_ora_2711_mtk_level_1.trc
+Oracle AI Database 26ai Free Release 23.26.3.0.0 - Develop, Learn, and Run for Free
+Version 23.26.3.0.0
+Build label:    RDBMS_23.26.3.0.0DBRU_LINUX.X64_260704
+ORACLE_HOME:    /opt/oracle/product/26ai/dbhomeFree
+System name:	Linux
+Node name:	7fba242c68f1
+Release:	7.0.0-34-generic
+Version:	#34~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 15:38:29 UTC 2
+Machine:	x86_64
+CLID:	P
+Instance name: FREE
+Instance number: 1
+Database name: FREE 
+Database unique name: FREE 
+Database id: 1514744704
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle binary inode: 	78729236
+Oracle process number: 81
+Unix process pid:       2711
+             NID:       4026532333
+             created:   2026-10-24T10:39:24.281622817+00:00
+             image:     oracle@7fba242c68f1
+
+
+*** 2026-10-24T10:39:25.162712+00:00 (FREEPDB1(3))
+*** SESSION ID:(222.62683) 2026-10-24T10:39:25.162720+00:00
+*** CLIENT ID:(mtk_client_level_1) 2026-10-24T10:39:25.162727+00:00
+*** SERVICE NAME:(freepdb1) 2026-10-24T10:39:25.162733+00:00
+*** MODULE NAME:(mtk_level_1) 2026-10-24T10:39:25.162740+00:00
+*** ACTION NAME:(start) 2026-10-24T10:39:25.162747+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-10-24T10:39:25.162753+00:00
+*** CONTAINER ID:(3) 2026-10-24T10:39:25.162759+00:00
+*** CLIENT IP:(127.0.0.1) 2026-10-24T10:39:25.162766+00:00
+*** CONNECTION ID:(XpS15LkLCpXgYwIAEawISA==) 2026-10-24T10:39:25.162772+00:00
+ 
+CLOSE #129849076110280:c=2,e=2,dep=0,type=1,tim=31370613839
+=====================
+PARSING IN CURSOR #129849076074328 len=22 dep=0 uid=136 oct=47 lid=136 tim=31370614349 hv=1526946288 ad='75e42660' sqlid='f9p8d99dh6qgh'
+BEGIN :cid := 5; END;
+
+END OF STMT
+PARSE #129849076074328:c=36,e=36,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=31370614349
+EXEC #129849076074328:c=17,e=17,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=31370614407
+CLOSE #129849076074328:c=3,e=3,dep=0,type=1,tim=31370614536
+=====================
+PARSING IN CURSOR #129849076071048 len=82 dep=0 uid=136 oct=3 lid=136 tim=31370614578 hv=43170786 ad='7b99c6e8' sqlid='ct57cc8195fz2'
+select /* mtk_levels */ count(*), sum(amount) from mtk_orders where cust_id = :cid
+END OF STMT
+PARSE #129849076071048:c=30,e=30,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=31370614578
+EXEC #129849076071048:c=36,e=36,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=31370614647
+FETCH #129849076071048:c=64,e=64,p=0,cr=7,cu=0,mis=0,r=1,dep=0,og=1,plh=254283197,tim=31370614728
+STAT #129849076071048 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=7 pr=0 pw=0 str=1 time=83 dr=0 dw=0 us)'
+STAT #129849076071048 id=2 cnt=5 pid=1 pos=1 obj=73347 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=7 pr=0 pw=0 str=1 time=76 dr=0 dw=0 us cost=6 size=50 card=5)'
+STAT #129849076071048 id=3 cnt=5 pid=2 pos=1 obj=73349 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=2 pr=0 pw=0 str=1 time=22 dr=0 dw=0 us cost=1 size=0 card=5)'
+FETCH #129849076071048:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=254283197,tim=31370614923
+CLOSE #129849076071048:c=2,e=2,dep=0,type=1,tim=31370615027
+=====================
+PARSING IN CURSOR #129849076067768 len=22 dep=0 uid=136 oct=47 lid=136 tim=31370615071 hv=3306447345 ad='7b52e470' sqlid='4msk1vz2j8sgj'
+BEGIN :cid := 6; END;
+
+END OF STMT
+PARSE #129849076067768:c=32,e=32,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=31370615071
+EXEC #129849076067768:c=16,e=16,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=31370615120
+CLOSE #129849076067768:c=3,e=3,dep=0,type=1,tim=31370615211
+PARSE #129849076071048:c=4,e=4,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=31370615227
+EXEC #129849076071048:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=31370615244
+FETCH #129849076071048:c=0,e=61,p=0,cr=7,cu=0,mis=0,r=1,dep=0,og=1,plh=254283197,tim=31370615319
+FETCH #129849076071048:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=254283197,tim=31370615387
+CLOSE #129849076071048:c=2,e=2,dep=0,type=3,tim=31370615486
+=====================
+PARSING IN CURSOR #129849076064488 len=114 dep=0 uid=136 oct=2 lid=136 tim=31370615530 hv=2747869268 ad='7b5e4b80' sqlid='1137u96jwka2n'
+insert into mtk_orders (id, cust_id, order_date, amount, status) values (mtk_seq.nextval, :cid, sysdate, 1, 'LVL')
+END OF STMT
+PARSE #129849076064488:c=33,e=33,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=26777049,tim=31370615530
+=====================
+PARSING IN CURSOR #129849076045304 len=132 dep=1 uid=136 oct=2 lid=136 tim=31370615693 hv=4142847048 ad='71605728' sqlid='7jf4xk7vfxp28'
+INSERT INTO MTK_AUDIT (ID, TABLE_NAME, ROW_ID, CUST_TOTAL, USERNAME) VALUES (MTK_SEQ.NEXTVAL, 'MTK_ORDERS', :B1 , MTK_F(:B2 ), USER)
+END OF STMT
+PARSE #129849076045304:c=29,e=29,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=26777049,tim=31370615693
+=====================
+PARSING IN CURSOR #129849064172592 len=56 dep=2 uid=136 oct=3 lid=136 tim=31370615854 hv=4005627691 ad='75e7a710' sqlid='5zdrtngrc21tb'
+SELECT NVL(MAX(AMOUNT), 0) FROM MTK_CUST WHERE ID = :B1 
+END OF STMT
+PARSE #129849064172592:c=29,e=29,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=1,plh=251783013,tim=31370615853
+EXEC #129849064172592:c=17,e=18,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=1,plh=251783013,tim=31370615910
+FETCH #129849064172592:c=34,e=34,p=0,cr=3,cu=0,mis=0,r=1,dep=2,og=1,plh=251783013,tim=31370615954
+STAT #129849064172592 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=3 pr=0 pw=0 str=1 time=34 dr=0 dw=0 us)'
+STAT #129849064172592 id=2 cnt=1 pid=1 pos=1 obj=73345 op='TABLE ACCESS BY INDEX ROWID MTK_CUST (cr=3 pr=0 pw=0 str=1 time=31 dr=0 dw=0 us cost=2 size=11 card=1)'
+STAT #129849064172592 id=3 cnt=1 pid=2 pos=1 obj=73346 op='INDEX UNIQUE SCAN MTK_CUST_PK (cr=2 pr=0 pw=0 str=1 time=22 dr=0 dw=0 us cost=1 size=0 card=1)'
+CLOSE #129849064172592:c=0,e=0,dep=2,type=3,tim=31370616055
+EXEC #129849076045304:c=455,e=455,p=0,cr=4,cu=6,mis=0,r=1,dep=1,og=1,plh=26777049,tim=31370616200
+STAT #129849076045304 id=1 cnt=0 pid=0 pos=1 obj=73350 op='LOAD TABLE CONVENTIONAL  MTK_AUDIT (cr=4 pr=0 pw=0 str=1 time=435 dr=0 dw=0 us)'
+STAT #129849076045304 id=2 cnt=1 pid=1 pos=1 obj=73357 op='SEQUENCE  MTK_SEQ (cr=0 pr=0 pw=0 str=1 time=4 dr=0 dw=0 us)'
+CLOSE #129849076045304:c=0,e=0,dep=1,type=3,tim=31370616269
+EXEC #129849076064488:c=800,e=800,p=0,cr=5,cu=16,mis=0,r=1,dep=0,og=1,plh=26777049,tim=31370616369
+STAT #129849076064488 id=1 cnt=0 pid=0 pos=1 obj=73347 op='LOAD TABLE CONVENTIONAL  MTK_ORDERS (cr=5 pr=0 pw=0 str=1 time=754 dr=0 dw=0 us)'
+STAT #129849076064488 id=2 cnt=1 pid=1 pos=1 obj=73357 op='SEQUENCE  MTK_SEQ (cr=0 pr=0 pw=0 str=1 time=18 dr=0 dw=0 us)'
+CLOSE #129849076064488:c=3,e=3,dep=0,type=1,tim=31370616508
+=====================
+PARSING IN CURSOR #129849064146248 len=8 dep=0 uid=136 oct=45 lid=136 tim=31370616535 hv=686288168 ad='0' sqlid='18grqd4nfgv98'
+rollback
+END OF STMT
+PARSE #129849064146248:c=13,e=14,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=31370616534
+XCTEND rlbk=1, rd_only=0, tim=31370616573
+EXEC #129849064146248:c=92,e=91,p=0,cr=1,cu=11,mis=0,r=0,dep=0,og=0,plh=0,tim=31370616657
+CLOSE #129849064146248:c=1,e=1,dep=0,type=1,tim=31370617149
+=====================
+PARSING IN CURSOR #129849076059880 len=47 dep=0 uid=136 oct=47 lid=136 tim=31370617203 hv=1487103586 ad='77fb9e50' sqlid='3k4m61xca6tm2'
+declare
+  v number;
+begin
+  v := mtk_f(3);
+end;
+END OF STMT
+PARSE #129849076059880:c=38,e=38,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=31370617203
+EXEC #129849064172592:c=10,e=10,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=251783013,tim=31370617263
+FETCH #129849064172592:c=4,e=5,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=251783013,tim=31370617277
+CLOSE #129849064172592:c=0,e=0,dep=1,type=3,tim=31370617290
+EXEC #129849076059880:c=63,e=63,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=31370617298
+CLOSE #129849076059880:c=3,e=3,dep=0,type=1,tim=31370617451
+=====================
+PARSING IN CURSOR #129849076054184 len=55 dep=0 uid=136 oct=42 lid=136 tim=31370617474 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #129849076054184:c=11,e=11,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=31370617474
+EXEC #129849076054184:c=0,e=86,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=31370617592

@@ -12,7 +12,8 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/model"
 )
 
-const fixtures = "../../testdata/traces/19c"
+// every version directory under testdata/traces (19c, 21c, 23ai, ...) is compared
+const fixtures = "../../testdata/traces"
 
 func secs(us int64) float64 { return float64(us) / 1e6 }
 
@@ -23,12 +24,12 @@ func closeEnough(got, want float64, sections int) bool {
 }
 
 func TestAgainstTkprof(t *testing.T) {
-	files, _ := filepath.Glob(filepath.Join(fixtures, "*.trc"))
+	files, _ := filepath.Glob(filepath.Join(fixtures, "*", "*.trc"))
 	if len(files) == 0 {
 		t.Skip("no fixtures")
 	}
 	for _, trc := range files {
-		name := strings.TrimSuffix(filepath.Base(trc), ".trc")
+		name := filepath.Base(filepath.Dir(trc)) + "/" + strings.TrimSuffix(filepath.Base(trc), ".trc")
 		tk := strings.TrimSuffix(trc, ".trc") + ".tkprof.txt"
 		if _, err := os.Stat(tk); err != nil {
 			continue
@@ -69,6 +70,12 @@ func TestAgainstTkprof(t *testing.T) {
 					}
 				}
 			}
+			assumedNumbers := map[uint64]bool{}
+			for i := range m.Cursors {
+				if m.Cursors[i].Assumed {
+					assumedNumbers[m.Cursors[i].Number] = true
+				}
+			}
 			for _, id := range ref.Order {
 				r := ref.Stmts[id]
 				s, ok := bySQLID[id]
@@ -96,9 +103,13 @@ func TestAgainstTkprof(t *testing.T) {
 				// Split traces (TRACE CONTINUED FROM FILE): a parent call that started
 				// before this file does not get its children subtracted by tkprof; we
 				// do subtract them (the children demonstrably ran inside it).
+				// Cursor numbers are reused: a later statement that runs on the number of
+				// an assumed cursor deviates the same way (23ai midtrace_start: tkprof
+				// reports 2 query for 3 executes that all ran, with their children,
+				// inside the file; the model's 0 self is the arithmetic the trace gives).
 				adopted := false
 				for _, cid := range m.Statements[s.ID].Cursors {
-					if m.Cursors[cid].Assumed {
+					if assumedNumbers[m.Cursors[cid].Number] {
 						adopted = true
 					}
 				}
