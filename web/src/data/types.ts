@@ -366,6 +366,8 @@ export interface RawDocument {
     timeline: Bucket[] | null
     bucketUs: number
     findings?: Finding[] | null
+    /** effective finding thresholds (analyze.Thresholds JSON keys); absent in older documents */
+    findingsConfig?: Record<string, number> | null
     contexts?: ContextStats[] | null
   }
 }

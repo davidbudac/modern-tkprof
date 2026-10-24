@@ -10,8 +10,12 @@ import (
 // findings prints the FINDINGS section. It must run after ranking(), which
 // fills t.rank.
 func (t *textWriter) findings() {
-	fs := analyze.Findings(t.m, t.stats)
-	t.p("FINDINGS  (fixed thresholds, see docs/ARCHITECTURE.md; serious > notable > info)\n")
+	th := analyze.DefaultThresholds()
+	if t.o.Thresholds != nil {
+		th = *t.o.Thresholds
+	}
+	fs := analyze.FindingsWith(t.m, t.stats, th)
+	t.p("FINDINGS  (thresholds, see docs/ARCHITECTURE.md; serious > notable > info)\n")
 	t.rule('-')
 	if len(fs) == 0 {
 		t.p("none: no rule reached its threshold\n\n")

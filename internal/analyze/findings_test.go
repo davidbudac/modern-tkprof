@@ -58,7 +58,7 @@ func TestFindingsAllFixtures(t *testing.T) {
 				if x.Summary == "" || x.Title == "" || x.Evidence == nil {
 					t.Errorf("finding %d (%s): empty summary/title/evidence", i, x.Rule)
 				}
-				if len(x.Evidence) > MaxEvidenceRows+5 {
+				if len(x.Evidence) > DefaultThresholds().MaxEvidenceRows+5 {
 					t.Errorf("finding %d (%s): %d evidence rows", i, x.Rule, len(x.Evidence))
 				}
 				if i > 0 && severityRank[fs[i-1].Severity] > severityRank[x.Severity] {
@@ -318,7 +318,7 @@ func TestSeverityMapping(t *testing.T) {
 		{0, 0, SeverityInfo},
 	}
 	for _, c := range cases {
-		if got := timeSeverity(c.impact, c.total); got != c.want {
+		if got := (&finder{th: DefaultThresholds()}).timeSeverity(c.impact, c.total); got != c.want {
 			t.Errorf("timeSeverity(%d, %d) = %s, want %s", c.impact, c.total, got, c.want)
 		}
 	}
@@ -333,7 +333,7 @@ func TestFindingsHardParsesTraceWideThreshold(t *testing.T) {
 	for _, c := range []struct {
 		n    int
 		want bool
-	}{{HardParseMinTotal - 1, false}, {HardParseMinTotal, true}} {
+	}{{int(DefaultThresholds().HardParseMinTotal) - 1, false}, {int(DefaultThresholds().HardParseMinTotal), true}} {
 		b := newModel(c.n)
 		for i := 0; i < c.n; i++ {
 			b.call(model.ID(i), trace.CallParse, 50, 0, 0, 0)
@@ -382,5 +382,60 @@ func TestFindingsInCallIdleNotThinkTime(t *testing.T) {
 	_, fs := load(t, "basic_binds.trc")
 	if len(byRule(fs, RuleThinkTime)) != 1 || len(byRule(fs, RuleInCallIdle)) != 0 {
 		t.Errorf("basic_binds: think-time/in-call-idle = %d/%d, want 1/0", len(byRule(fs, RuleThinkTime)), len(byRule(fs, RuleInCallIdle)))
+	}
+}
+
+func TestThresholdsConfig(t *testing.T) {
+	// the 25 ms execution is under 3 x the median, so the default run reports
+	// 1 outlier; lowering the factor and floor adds it
+	b := newModel(1)
+	els := []int64{10_000, 11_000, 9_000, 10_000, 500_000, 12_000, 25_000}
+	for i, e := range els {
+		b.exec(0, e, 0, int32(i+1))
+		b.call(0, trace.CallFetch, 1000, 5, 0, int32(i+1))
+	}
+	st := Statements(b.m)
+	def := byRule(Findings(b.m, st), RuleOutlierExecs)
+	th, err := ParseThresholds([]byte(`{"outlier_factor": 2, "outlier_min_us": 10000}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if th.OutlierMinExecs != DefaultThresholds().OutlierMinExecs {
+		t.Errorf("unset key changed: %+v", th)
+	}
+	low := byRule(FindingsWith(b.m, st, th), RuleOutlierExecs)
+	if len(def) != 1 || len(low) != 1 || len(low[0].Evidence) <= len(def[0].Evidence) {
+		t.Errorf("default evidence %d, lowered evidence %d", len(def[0].Evidence), len(low[0].Evidence))
+	}
+
+	// a rule that did not fire at all fires with a lowered threshold
+	b = newModel(1)
+	for i, e := range []int64{10_000, 11_000, 12_000, 60_000} {
+		b.exec(0, e, 0, int32(i+1))
+	}
+	st = Statements(b.m)
+	th, _ = ParseThresholds([]byte(`{"outlier_min_us": 10000}`))
+	if n := len(byRule(Findings(b.m, st), RuleOutlierExecs)); n != 0 {
+		t.Errorf("default fired: %d", n)
+	}
+	if n := len(byRule(FindingsWith(b.m, st, th), RuleOutlierExecs)); n != 1 {
+		t.Errorf("lowered outlier_min_us: %d findings, want 1", n)
+	}
+}
+
+func TestThresholdsConfigErrors(t *testing.T) {
+	_, err := ParseThresholds([]byte(`{"outlier_factr": 2}`))
+	if err == nil || !strings.Contains(err.Error(), "outlier_factr") || !strings.Contains(err.Error(), "outlier_factor") {
+		t.Errorf("unknown key error = %v", err)
+	}
+	if _, err := ParseThresholds([]byte(`{"outlier_factor": "x"}`)); err == nil {
+		t.Error("wrong type accepted")
+	}
+	th, err := ParseThresholds([]byte(`{}`))
+	if err != nil || th != DefaultThresholds() {
+		t.Errorf("empty object: %v %+v", err, th)
+	}
+	if len(ThresholdKeys()) != reflect.TypeOf(Thresholds{}).NumField() {
+		t.Error("ThresholdKeys out of sync with Thresholds")
 	}
 }

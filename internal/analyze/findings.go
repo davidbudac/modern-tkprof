@@ -1,6 +1,8 @@
 package analyze
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -9,9 +11,9 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
-// Findings are trace-level observations produced by fixed rules with fixed,
-// documented thresholds (docs/DESIGN.md § Findings). Every threshold is a
-// named constant below; overriding them is a later version.
+// Findings are trace-level observations produced by fixed rules with
+// documented thresholds (docs/DESIGN.md § Findings). The thresholds default to
+// DefaultThresholds and can be overridden (Thresholds, FindingsWith).
 
 // Severities, most important first.
 const (
@@ -36,94 +38,131 @@ const (
 
 // ---- thresholds -------------------------------------------------------------
 
-const (
-	// OutlierFactor: an execution is an outlier when its elapsed time
-	// (EXEC + its FETCHes) is above OutlierFactor x the statement's median ...
-	OutlierFactor = 3.0
-	// OutlierMinUs: ... and above this absolute floor (100 ms).
-	OutlierMinUs = 100_000
+// Thresholds are the tunable numbers of the finding rules. The JSON keys
+// (snake_case) are the keys of a -findings-config file; see
+// docs/ARCHITECTURE.md for which rule uses which. Severity mapping: time-based
+// rules use timeSeverity on their impact relative to the trace response time
+// (serious: >= SeriousShare and >= SeriousMinUs; notable: >= NotableShare and
+// >= NotableMinUs; else info); count-based rules (hard closes, round trips)
+// use countSeverity (serious from SeriousCount, notable from NotableCount).
+type Thresholds struct {
+	// OutlierFactor: execution is an outlier above this x the statement's median ....
+	OutlierFactor float64 `json:"outlier_factor"`
+	// OutlierMinUs: ... and above this absolute floor (us).
+	OutlierMinUs int64 `json:"outlier_min_us"`
 	// OutlierMinExecs: a median needs at least this many executions.
-	OutlierMinExecs = 3
-
-	// HardParseRatio: hard parses (library cache misses on PARSE and EXEC) per
-	// execution above this ratio ...
-	HardParseRatio = 0.5
-	// HardParseMinExecs: ... for a statement with more executions than this, or
-	HardParseMinExecs = 10
-	// HardParseMinTotal: trace-wide, at least this many hard parses at the same
-	// ratio (catches literal SQL: many statements hard parsed once each; a
-	// handful of once-run statements is just a short trace).
-	HardParseMinTotal = 20
-
-	// ParseExecRatio: PARSE calls per execution above this ratio (the
-	// application re-parses instead of keeping the cursor open) ...
-	ParseExecRatio = 0.9
+	OutlierMinExecs int64 `json:"outlier_min_execs"`
+	// HardParseRatio: hard parses per execution above this ratio ....
+	HardParseRatio float64 `json:"hard_parse_ratio"`
+	// HardParseMinExecs: ... for a statement with more executions than this, or.
+	HardParseMinExecs int64 `json:"hard_parse_min_execs"`
+	// HardParseMinTotal: trace-wide, at least this many hard parses at the same ratio (catches literal SQL; a handful of once-run statements is just a short trace).
+	HardParseMinTotal int64 `json:"hard_parse_min_total"`
+	// ParseExecRatio: PARSE calls per execution above this ratio ....
+	ParseExecRatio float64 `json:"parse_exec_ratio"`
 	// ParseExecMinExecs: ... with more executions than this.
-	ParseExecMinExecs = 10
-
-	// HardCloseShare: CLOSE type=0 (hard close, not cached) above this share
-	// of a statement's closes, counted only for statements parsed at least
-	// HardCloseMinParses times (where the session cursor cache would help) ...
-	HardCloseShare = 0.5
-	// HardCloseMinParses: see HardCloseShare (the cache needs 3 parses).
-	HardCloseMinParses = 3
+	ParseExecMinExecs int64 `json:"parse_exec_min_execs"`
+	// HardCloseShare: CLOSE type=0 above this share of a statement's closes ....
+	HardCloseShare float64 `json:"hard_close_share"`
+	// HardCloseMinParses: ... counted only for statements parsed at least this often (the session cursor cache needs 3).
+	HardCloseMinParses int64 `json:"hard_close_min_parses"`
 	// HardCloseMinCount: ... with more such hard closes than this, trace-wide.
-	HardCloseMinCount = 10
-
-	// ThinkTimeShare: idle time between calls (SQL*Net message from client
-	// and other idle waits outside calls) above this share of response time.
-	ThinkTimeShare = 0.30
-	// InCallIdleShare: idle waits inside a call's own time window (PL/SQL lock
-	// timer from dbms_session.sleep, ...) above this share of response time.
-	InCallIdleShare = 0.10
-
-	// SmallFetchRows: an execution fetches in small batches when its average
-	// rows per FETCH is below this (catches the SQL*Plus default arraysize 15
-	// and the JDBC default fetch size 10) ...
-	SmallFetchRows = 20
-	// SmallFetchMinFetchesPerExec: ... and it made at least this many fetches.
-	SmallFetchMinFetchesPerExec = 3
-	// SmallFetchMinFetches / SmallFetchMinRows: the statement's small-fetch
-	// executions together made more fetches and returned more rows than this.
-	SmallFetchMinFetches = 100
-	SmallFetchMinRows    = 1000
-
-	// CommitPerDMLRatio: commits (XCTEND rlbk=0 rd_only=0) per INSERT /
-	// UPDATE / DELETE / MERGE execution above this ratio ...
-	CommitPerDMLRatio = 0.5
+	HardCloseMinCount int64 `json:"hard_close_min_count"`
+	// ThinkTimeShare: idle time between calls above this share of response time.
+	ThinkTimeShare float64 `json:"think_time_share"`
+	// InCallIdleShare: idle waits inside a call's own window above this share of response time.
+	InCallIdleShare float64 `json:"in_call_idle_share"`
+	// SmallFetchRows: average rows per FETCH below this is a small-fetch execution ....
+	SmallFetchRows float64 `json:"small_fetch_rows"`
+	// SmallFetchMinFetchesPerExec: ... that made at least this many fetches.
+	SmallFetchMinFetchesPerExec int64 `json:"small_fetch_min_fetches_per_exec"`
+	// SmallFetchMinFetches: the statement's small-fetch executions together made more fetches than this ....
+	SmallFetchMinFetches int64 `json:"small_fetch_min_fetches"`
+	// SmallFetchMinRows: ... and returned more rows than this.
+	SmallFetchMinRows int64 `json:"small_fetch_min_rows"`
+	// CommitPerDMLRatio: read-write commits per INSERT/UPDATE/DELETE/MERGE execution above this ....
+	CommitPerDMLRatio float64 `json:"commit_per_dml_ratio"`
 	// CommitMinCount: ... with more commits than this.
-	CommitMinCount = 10
-
-	// RoundTripsPerRow: "SQL*Net message to client" waits per row returned or
-	// processed by top-level calls above this ratio ...
-	RoundTripsPerRow = 0.5
+	CommitMinCount int64 `json:"commit_min_count"`
+	// RoundTripsPerRow: SQL*Net message to client waits per row above this ratio ....
+	RoundTripsPerRow float64 `json:"round_trips_per_row"`
 	// RoundTripsMin: ... with more round trips than this.
-	RoundTripsMin = 100
+	RoundTripsMin int64 `json:"round_trips_min"`
+	// MaxEvidenceRows: caps the evidence rows of one finding.
+	MaxEvidenceRows int `json:"max_evidence_rows"`
+	// BindPreviewMax: caps the bind preview of an outlier execution (bytes).
+	BindPreviewMax int `json:"bind_preview_max"`
+	// SeriousShare: time-based severity: serious from this share of response time ....
+	SeriousShare float64 `json:"serious_share"`
+	// SeriousMinUs: ... and this absolute impact (us).
+	SeriousMinUs int64 `json:"serious_min_us"`
+	// NotableShare: notable from this share of response time ....
+	NotableShare float64 `json:"notable_share"`
+	// NotableMinUs: ... and this absolute impact (us).
+	NotableMinUs int64 `json:"notable_min_us"`
+	// SeriousCount: count-based severity: serious from this many occurrences.
+	SeriousCount int64 `json:"serious_count"`
+	// NotableCount: notable from this many occurrences.
+	NotableCount int64 `json:"notable_count"`
+}
 
-	// MaxEvidenceRows caps the evidence rows of one finding.
-	MaxEvidenceRows = 10
-	// BindPreviewMax caps the bind preview of an outlier execution (bytes).
-	BindPreviewMax = 80
-)
+// DefaultThresholds returns the built-in thresholds.
+func DefaultThresholds() Thresholds {
+	return Thresholds{
+		OutlierFactor:               3.0,
+		OutlierMinUs:                100_000,
+		OutlierMinExecs:             3,
+		HardParseRatio:              0.5,
+		HardParseMinExecs:           10,
+		HardParseMinTotal:           20,
+		ParseExecRatio:              0.9,
+		ParseExecMinExecs:           10,
+		HardCloseShare:              0.5,
+		HardCloseMinParses:          3,
+		HardCloseMinCount:           10,
+		ThinkTimeShare:              0.30,
+		InCallIdleShare:             0.10,
+		SmallFetchRows:              20,
+		SmallFetchMinFetchesPerExec: 3,
+		SmallFetchMinFetches:        100,
+		SmallFetchMinRows:           1000,
+		CommitPerDMLRatio:           0.5,
+		CommitMinCount:              10,
+		RoundTripsPerRow:            0.5,
+		RoundTripsMin:               100,
+		MaxEvidenceRows:             10,
+		BindPreviewMax:              80,
+		SeriousShare:                0.25,
+		SeriousMinUs:                1_000_000,
+		NotableShare:                0.05,
+		NotableMinUs:                100_000,
+		SeriousCount:                10_000,
+		NotableCount:                1_000,
+	}
+}
 
-// Severity mapping. Time-based rules use timeSeverity on their impact (the
-// time the pattern costs or explains) relative to the trace response time:
-//
-//	serious: impact >= SeriousShare of response time and >= SeriousMinUs
-//	notable: impact >= NotableShare of response time and >= NotableMinUs
-//	info:    otherwise
-//
-// Count-based rules (hard closes, round trips) use countSeverity:
-// serious from SeriousCount occurrences, notable from NotableCount, else info.
-// Rule-specific floors are noted at each rule.
-const (
-	SeriousShare = 0.25
-	SeriousMinUs = 1_000_000
-	NotableShare = 0.05
-	NotableMinUs = 100_000
-	SeriousCount = 10_000
-	NotableCount = 1_000
-)
+// ThresholdKeys lists the valid JSON keys in struct order.
+func ThresholdKeys() []string {
+	return []string{"outlier_factor", "outlier_min_us", "outlier_min_execs", "hard_parse_ratio", "hard_parse_min_execs", "hard_parse_min_total", "parse_exec_ratio", "parse_exec_min_execs", "hard_close_share", "hard_close_min_parses", "hard_close_min_count", "think_time_share", "in_call_idle_share", "small_fetch_rows", "small_fetch_min_fetches_per_exec", "small_fetch_min_fetches", "small_fetch_min_rows", "commit_per_dml_ratio", "commit_min_count", "round_trips_per_row", "round_trips_min", "max_evidence_rows", "bind_preview_max", "serious_share", "serious_min_us", "notable_share", "notable_min_us", "serious_count", "notable_count"}
+}
+
+// ParseThresholds overlays a JSON object onto the defaults. Keys that are not
+// thresholds are an error that lists the valid ones.
+func ParseThresholds(data []byte) (Thresholds, error) {
+	th := DefaultThresholds()
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&th); err != nil {
+		if strings.Contains(err.Error(), "unknown field") {
+			return th, fmt.Errorf("findings config: %v; valid keys: %s", err, strings.Join(ThresholdKeys(), ", "))
+		}
+		return th, fmt.Errorf("findings config: %w", err)
+	}
+	if dec.More() {
+		return th, fmt.Errorf("findings config: trailing data after the JSON object")
+	}
+	return th, nil
+}
 
 // ---- types ------------------------------------------------------------------
 
@@ -163,25 +202,25 @@ func stmtRow(sid model.ID, label, value string) EvidenceRow {
 
 var severityRank = map[string]int{SeveritySerious: 0, SeverityNotable: 1, SeverityInfo: 2}
 
-func timeSeverity(impact, total int64) string {
+func (f *finder) timeSeverity(impact, total int64) string {
 	share := 0.0
 	if total > 0 {
 		share = float64(impact) / float64(total)
 	}
 	switch {
-	case share >= SeriousShare && impact >= SeriousMinUs:
+	case share >= f.th.SeriousShare && impact >= f.th.SeriousMinUs:
 		return SeveritySerious
-	case share >= NotableShare && impact >= NotableMinUs:
+	case share >= f.th.NotableShare && impact >= f.th.NotableMinUs:
 		return SeverityNotable
 	}
 	return SeverityInfo
 }
 
-func countSeverity(n int64) string {
+func (f *finder) countSeverity(n int64) string {
 	switch {
-	case n >= SeriousCount:
+	case n >= f.th.SeriousCount:
 		return SeveritySerious
-	case n >= NotableCount:
+	case n >= f.th.NotableCount:
 		return SeverityNotable
 	}
 	return SeverityInfo
@@ -200,7 +239,12 @@ func atLeast(s, floor string) string {
 // Findings runs every rule over the model and returns the hits, most severe
 // first, then by impact. stats must be Statements(m).
 func Findings(m *model.Model, stats []StmtStats) []Finding {
-	f := &finder{m: m, stats: stats}
+	return FindingsWith(m, stats, DefaultThresholds())
+}
+
+// FindingsWith is Findings with explicit thresholds.
+func FindingsWith(m *model.Model, stats []StmtStats, th Thresholds) []Finding {
+	f := &finder{m: m, stats: stats, th: th}
 	p := TraceProfile(m)
 	f.profile = p
 	// response time: the trace span, or the summed session time when several
@@ -240,6 +284,7 @@ func Findings(m *model.Model, stats []StmtStats) []Finding {
 }
 
 type finder struct {
+	th      Thresholds
 	m       *model.Model
 	stats   []StmtStats
 	profile Profile
@@ -325,11 +370,11 @@ func median(xs []int64) int64 {
 func (f *finder) outliers() {
 	for i := range f.stats {
 		s := &f.stats[i]
-		if s.Executions < OutlierMinExecs {
+		if s.Executions < f.th.OutlierMinExecs {
 			continue
 		}
 		ex := f.execs(s.ID)
-		if len(ex) < OutlierMinExecs {
+		if int64(len(ex)) < f.th.OutlierMinExecs {
 			continue
 		}
 		els := make([]int64, len(ex))
@@ -341,7 +386,7 @@ func (f *finder) outliers() {
 		var excess int64
 		for j := range ex {
 			e := ex[j].Stats.Elapsed
-			if float64(e) > OutlierFactor*float64(med) && e > OutlierMinUs {
+			if float64(e) > f.th.OutlierFactor*float64(med) && e > f.th.OutlierMinUs {
 				hits = append(hits, &ex[j])
 				excess += e - med
 			}
@@ -353,12 +398,12 @@ func (f *finder) outliers() {
 		worst := hits[0].Stats.Elapsed
 		x := Finding{
 			Rule: RuleOutlierExecs, Title: "Outlier executions", Statement: s.ID, ImpactUs: excess,
-			Severity: timeSeverity(excess, f.total),
+			Severity: f.timeSeverity(excess, f.total),
 			Summary: fmt.Sprintf("%s: %d of %d executions took more than %gx the median of %s (slowest %s, %.0fx); %s above the median in total",
-				f.label(s.ID), len(hits), len(ex), OutlierFactor, fmtUs(med), fmtUs(worst), float64(worst)/float64(max(med, 1)), fmtUs(excess)),
+				f.label(s.ID), len(hits), len(ex), f.th.OutlierFactor, fmtUs(med), fmtUs(worst), float64(worst)/float64(max(med, 1)), fmtUs(excess)),
 		}
 		for k, e := range hits {
-			if k == MaxEvidenceRows {
+			if k == f.th.MaxEvidenceRows {
 				x.Evidence = append(x.Evidence, row("...", fmt.Sprintf("%d more outlier executions", len(hits)-k)))
 				break
 			}
@@ -396,8 +441,8 @@ func (f *finder) bindPreview(id model.ID) string {
 		}
 	}
 	s := strings.Join(parts, " ")
-	if len(s) > BindPreviewMax {
-		cut := BindPreviewMax - 3
+	if len(s) > f.th.BindPreviewMax {
+		cut := f.th.BindPreviewMax - 3
 		for cut > 0 && s[cut]&0xC0 == 0x80 {
 			cut--
 		}
@@ -476,7 +521,7 @@ func (f *finder) planChanges() {
 				maxAvg = avg
 			}
 		}
-		if minAvg > 0 && maxAvg >= OutlierFactor*minAvg && s.Elapsed >= NotableMinUs {
+		if minAvg > 0 && maxAvg >= f.th.OutlierFactor*minAvg && s.Elapsed >= f.th.NotableMinUs {
 			sev = SeveritySerious
 		}
 		var hs []string
@@ -546,11 +591,11 @@ func (f *finder) hardParses() {
 		if n > 0 {
 			ids = append(ids, s.ID)
 		}
-		if s.Executions > HardParseMinExecs && float64(n)/float64(s.Executions) > HardParseRatio {
+		if s.Executions > f.th.HardParseMinExecs && float64(n)/float64(s.Executions) > f.th.HardParseRatio {
 			single = append(single, s.ID)
 		}
 	}
-	traceWide := hp >= HardParseMinTotal && ex > 0 && float64(hp)/float64(ex) > HardParseRatio
+	traceWide := hp >= f.th.HardParseMinTotal && ex > 0 && float64(hp)/float64(ex) > f.th.HardParseRatio
 	if !traceWide && len(single) == 0 {
 		return
 	}
@@ -574,7 +619,7 @@ func (f *finder) hardParses() {
 			once++
 		}
 	}
-	x := Finding{Rule: RuleHardParses, Title: "Parse and cursor churn: hard parses", Statement: model.None, ImpactUs: impact, Severity: timeSeverity(impact, f.total)}
+	x := Finding{Rule: RuleHardParses, Title: "Parse and cursor churn: hard parses", Statement: model.None, ImpactUs: impact, Severity: f.timeSeverity(impact, f.total)}
 	if len(single) > 0 {
 		x.Severity = atLeast(x.Severity, SeverityNotable)
 	}
@@ -590,7 +635,7 @@ func (f *finder) hardParses() {
 		x.Statement = single[0]
 	}
 	for k, id := range ids {
-		if k == MaxEvidenceRows {
+		if k == f.th.MaxEvidenceRows {
 			x.Evidence = append(x.Evidence, row("...", fmt.Sprintf("%d more statements with hard parses", len(ids)-k)))
 			break
 		}
@@ -635,10 +680,10 @@ func (f *finder) parsePerExec() {
 	var impact, parses, execs int64
 	for i := range f.stats {
 		s := &f.stats[i]
-		if !f.isSQL(s.ID) || s.Executions <= ParseExecMinExecs {
+		if !f.isSQL(s.ID) || s.Executions <= f.th.ParseExecMinExecs {
 			continue
 		}
-		if float64(s.Parse.Count)/float64(s.Executions) > ParseExecRatio {
+		if float64(s.Parse.Count)/float64(s.Executions) > f.th.ParseExecRatio {
 			ids = append(ids, s.ID)
 			impact += s.Parse.Elapsed
 			parses += s.Parse.Count
@@ -650,14 +695,14 @@ func (f *finder) parsePerExec() {
 	}
 	sort.SliceStable(ids, func(a, b int) bool { return f.stats[ids[a]].Parse.Count > f.stats[ids[b]].Parse.Count })
 	ct := closeTypes(f.m)
-	x := Finding{Rule: RuleParsePerExec, Title: "Parse and cursor churn: parse per execution", Statement: model.None, ImpactUs: impact, Severity: timeSeverity(impact, f.total),
+	x := Finding{Rule: RuleParsePerExec, Title: "Parse and cursor churn: parse per execution", Statement: model.None, ImpactUs: impact, Severity: f.timeSeverity(impact, f.total),
 		Summary: fmt.Sprintf("%d statements are parsed on (almost) every execution: %d parses for %d executions, %s parsing; keep cursors open and re-execute them", len(ids), parses, execs, fmtUs(impact))}
 	if len(ids) == 1 {
 		x.Statement = ids[0]
 		x.Summary = fmt.Sprintf("%s is parsed on (almost) every execution: %d parses for %d executions, %s parsing; keep the cursor open and re-execute it", f.label(ids[0]), parses, execs, fmtUs(impact))
 	}
 	for k, id := range ids {
-		if k == MaxEvidenceRows {
+		if k == f.th.MaxEvidenceRows {
 			x.Evidence = append(x.Evidence, row("...", fmt.Sprintf("%d more statements", len(ids)-k)))
 			break
 		}
@@ -684,25 +729,25 @@ func (f *finder) hardCloses() {
 		s := &f.stats[i]
 		t := ct[i]
 		all := t[0] + t[1] + t[2] + t[3]
-		if !f.isSQL(s.ID) || s.Parse.Count < HardCloseMinParses || all == 0 {
+		if !f.isSQL(s.ID) || s.Parse.Count < f.th.HardCloseMinParses || all == 0 {
 			continue
 		}
-		if float64(t[0])/float64(all) > HardCloseShare {
+		if float64(t[0])/float64(all) > f.th.HardCloseShare {
 			ids = append(ids, s.ID)
 			n += t[0]
 		}
 	}
-	if n <= HardCloseMinCount {
+	if n <= f.th.HardCloseMinCount {
 		return
 	}
 	sort.SliceStable(ids, func(a, b int) bool { return ct[ids[a]][0] > ct[ids[b]][0] })
-	x := Finding{Rule: RuleHardCloses, Title: "Parse and cursor churn: hard closes", Statement: model.None, Severity: countSeverity(n),
+	x := Finding{Rule: RuleHardCloses, Title: "Parse and cursor churn: hard closes", Statement: model.None, Severity: f.countSeverity(n),
 		Summary: fmt.Sprintf("%d hard cursor closes (CLOSE type=0) of %d repeatedly parsed statements; the session cursor cache is not used (session_cached_cursors?)", n, len(ids))}
 	if len(ids) == 1 {
 		x.Statement = ids[0]
 	}
 	for k, id := range ids {
-		if k == MaxEvidenceRows {
+		if k == f.th.MaxEvidenceRows {
 			x.Evidence = append(x.Evidence, row("...", fmt.Sprintf("%d more statements", len(ids)-k)))
 			break
 		}
@@ -788,10 +833,10 @@ func topIDs(m map[model.ID]int64, k int) []model.ID {
 func (f *finder) thinkTime() {
 	think, _ := f.splitIdle()
 	idle := think.us
-	if f.total <= 0 || float64(idle)/float64(f.total) <= ThinkTimeShare {
+	if f.total <= 0 || float64(idle)/float64(f.total) <= f.th.ThinkTimeShare {
 		return
 	}
-	x := Finding{Rule: RuleThinkTime, Title: "Client-side time: think time", Statement: model.None, ImpactUs: idle, Severity: timeSeverity(idle, f.total),
+	x := Finding{Rule: RuleThinkTime, Title: "Client-side time: think time", Statement: model.None, ImpactUs: idle, Severity: f.timeSeverity(idle, f.total),
 		Summary: fmt.Sprintf("%s of %s response time (%.0f%%) is idle wait time between calls: the session waited for the client, the network or the user, not for database work", fmtUs(idle), fmtUs(f.total), 100*float64(idle)/float64(f.total))}
 	f.idleEvidence(&x, think, 3, 5)
 	f.add(x)
@@ -802,7 +847,7 @@ func (f *finder) thinkTime() {
 // info: it is time the call spent sleeping, not work or client think time.
 func (f *finder) inCallIdle() {
 	_, in := f.splitIdle()
-	if f.total <= 0 || in.us == 0 || float64(in.us)/float64(f.total) <= InCallIdleShare {
+	if f.total <= 0 || in.us == 0 || float64(in.us)/float64(f.total) <= f.th.InCallIdleShare {
 		return
 	}
 	x := Finding{Rule: RuleInCallIdle, Title: "Idle waits inside calls (PL/SQL lock timer / sleep, dequeue)", Statement: model.None, ImpactUs: in.us, Severity: SeverityInfo,
@@ -836,7 +881,7 @@ func (f *finder) smallFetches() {
 	m := f.m
 	for i := range f.stats {
 		s := &f.stats[i]
-		if !f.isSQL(s.ID) || s.Fetch.Count <= SmallFetchMinFetches || s.Fetch.Rows <= SmallFetchMinRows {
+		if !f.isSQL(s.ID) || s.Fetch.Count <= f.th.SmallFetchMinFetches || s.Fetch.Rows <= f.th.SmallFetchMinRows {
 			continue
 		}
 		ex := f.execs(s.ID)
@@ -845,14 +890,14 @@ func (f *finder) smallFetches() {
 		for j := range ex {
 			e := &ex[j]
 			nf := int64(len(e.Fetches))
-			if nf < SmallFetchMinFetchesPerExec {
+			if nf < f.th.SmallFetchMinFetchesPerExec {
 				continue
 			}
 			var r int64
 			for _, cid := range e.Fetches {
 				r += m.Calls[cid].R
 			}
-			if float64(r)/float64(nf) >= SmallFetchRows {
+			if float64(r)/float64(nf) >= f.th.SmallFetchRows {
 				continue
 			}
 			nEx++
@@ -865,15 +910,15 @@ func (f *finder) smallFetches() {
 				firstRow = e
 			}
 		}
-		if fetches <= SmallFetchMinFetches || rows <= SmallFetchMinRows {
+		if fetches <= f.th.SmallFetchMinFetches || rows <= f.th.SmallFetchMinRows {
 			continue
 		}
 		avg := float64(rows) / float64(fetches)
-		x := Finding{Rule: RuleSmallFetches, Title: "Client-side time: small fetch sizes", Statement: s.ID, ImpactUs: impact, Severity: timeSeverity(impact, f.total),
+		x := Finding{Rule: RuleSmallFetches, Title: "Client-side time: small fetch sizes", Statement: s.ID, ImpactUs: impact, Severity: f.timeSeverity(impact, f.total),
 			Summary: fmt.Sprintf("%s fetches %.1f rows per call: %d fetches for %d rows in %d of %d executions, %s in those fetches and the round trips before them; raise the fetch / array size",
 				f.label(s.ID), avg, fetches, rows, nEx, len(ex), fmtUs(impact))}
 		x.Evidence = append(x.Evidence,
-			stmtRow(s.ID, "small-fetch executions", fmt.Sprintf("%d of %d (at least %d fetches, under %d rows per fetch)", nEx, len(ex), SmallFetchMinFetchesPerExec, SmallFetchRows)),
+			stmtRow(s.ID, "small-fetch executions", fmt.Sprintf("%d of %d (at least %d fetches, under %g rows per fetch)", nEx, len(ex), f.th.SmallFetchMinFetchesPerExec, f.th.SmallFetchRows)),
 			stmtRow(s.ID, "fetches / rows", fmt.Sprintf("%d / %d (%.1f rows per fetch)", fetches, rows, avg)),
 			stmtRow(s.ID, "whole statement", fmt.Sprintf("%d fetches / %d rows (%.1f rows per fetch)", s.Fetch.Count, s.Fetch.Rows, float64(s.Fetch.Rows)/float64(s.Fetch.Count))),
 		)
@@ -911,7 +956,7 @@ func (f *finder) commitPerRow() {
 			commits++
 		}
 	}
-	if commits <= CommitMinCount {
+	if commits <= f.th.CommitMinCount {
 		return
 	}
 	var dmlExecs, dmlRows int64
@@ -924,12 +969,12 @@ func (f *finder) commitPerRow() {
 			ids = append(ids, s.ID)
 		}
 	}
-	if dmlExecs == 0 || float64(commits)/float64(dmlExecs) <= CommitPerDMLRatio {
+	if dmlExecs == 0 || float64(commits)/float64(dmlExecs) <= f.th.CommitPerDMLRatio {
 		return
 	}
 	lfs, nlfs := f.eventUs("log file sync")
 	x := Finding{Rule: RuleCommitPerRow, Title: "Client-side time: commit per row", Statement: model.None, ImpactUs: lfs,
-		Severity: atLeast(timeSeverity(lfs, f.total), SeverityNotable),
+		Severity: atLeast(f.timeSeverity(lfs, f.total), SeverityNotable),
 		Summary:  fmt.Sprintf("%d commits for %d DML executions (%d rows): the application commits (almost) every change; %s waiting on log file sync", commits, dmlExecs, dmlRows, fmtUs(lfs))}
 	x.Evidence = append(x.Evidence,
 		row("commits", fmt.Sprintf("%d (read-write, XCTEND rlbk=0 rd_only=0)", commits)),
@@ -956,7 +1001,7 @@ func (f *finder) commitPerRow() {
 // Severity by round-trip count (countSeverity).
 func (f *finder) roundTrips() {
 	trips, _ := f.eventUs("SQL*Net message to client")
-	if trips <= RoundTripsMin {
+	if trips <= f.th.RoundTripsMin {
 		return
 	}
 	var rows int64
@@ -967,11 +1012,11 @@ func (f *finder) roundTrips() {
 		}
 	}
 	ratio := float64(trips) / float64(max(rows, 1))
-	if ratio <= RoundTripsPerRow {
+	if ratio <= f.th.RoundTripsPerRow {
 		return
 	}
 	fromUs, fromN := f.eventUs("SQL*Net message from client")
-	x := Finding{Rule: RuleRoundTrips, Title: "Client-side time: round trips per row", Statement: model.None, ImpactUs: fromUs, Severity: countSeverity(trips),
+	x := Finding{Rule: RuleRoundTrips, Title: "Client-side time: round trips per row", Statement: model.None, ImpactUs: fromUs, Severity: f.countSeverity(trips),
 		Summary: fmt.Sprintf("%d SQL*Net round trips for %d rows (%.2f per row): the client talks to the database in many small calls; batch them (array DML, bigger fetches, PL/SQL)", trips, rows, ratio)}
 	x.Evidence = append(x.Evidence,
 		row("SQL*Net message to client", fmt.Sprintf("%d waits", trips)),

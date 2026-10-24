@@ -35,6 +35,7 @@ Usage:
   mtkprof plan   <trace...> -list                    statements with STAT plans
   mtkprof export <trace...> [-o dir]                 CSV tables for DuckDB / Excel / Python
   mtkprof refscript <trace...> [-lite] [-o ref.sql]  SQL*Plus script that collects names and plans for the trace
+  mtkprof findings-config                            print the default finding thresholds as JSON
   mtkprof lint   <trace...>
   mtkprof version
 
@@ -57,6 +58,11 @@ Reference bundle (report, html, json, export, serve, pivot, plan):
              users.csv, plans/<sql_id>.txt; every file optional): names for obj#, file# and
              user ids, DBMS_XPLAN text. mtkprof never connects to a database; -lite makes a
              script that only needs ALL_ views. See docs/REF-BUNDLE.md.
+
+Finding thresholds (report, html, serve, json):
+  -findings-config file.json   JSON object with any subset of the threshold keys (unknown
+                               keys are an error); "-" reads stdin. `+"`mtkprof findings-config`"+`
+                               prints the defaults to start from.
 
 Bind values (report, html, json, export, serve):
   -bind-values keep|redact|none   keep (default); redact = type, length and a stable
@@ -93,6 +99,8 @@ func main() {
 		err = cmdExport(args)
 	case "serve":
 		err = cmdServe(args)
+	case "findings-config":
+		err = cmdFindingsConfig(args)
 	case "lint":
 		err = cmdLint(args)
 	case "plan":
@@ -174,6 +182,7 @@ func cmdReport(args []string) error {
 	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default stdout)")
 	opts := report.TextOptions{}
+	fc := findingsFlag(fs)
 	fs.StringVar(&opts.Sort, "sort", "elapsed", "statement order: elapsed|self|cpu|execs|disk|query|rows|line")
 	fs.IntVar(&opts.Top, "top", 0, "only the top N statements (0 = all)")
 	fs.IntVar(&opts.Execs, "execs", 20, "executions to list per statement (0 = none, -1 = all)")
@@ -191,6 +200,10 @@ func cmdReport(args []string) error {
 		return err
 	}
 	bf.apply(m)
+	opts.Thresholds, err = loadThresholds(*fc)
+	if err != nil {
+		return err
+	}
 	w, err := openOut(*out)
 	if err != nil {
 		return err
@@ -206,6 +219,7 @@ func cmdJSON(args []string) error {
 	facts := fs.Bool("facts", true, "include raw fact tables (calls, waits, binds)")
 	packed := fs.Bool("packed", false, "pack fact columns into gzip+base64 blobs (smaller, faster to load)")
 	pv := planVizFlag(fs)
+	fc := findingsFlag(fs)
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
 	files := parseArgs(fs, args)
@@ -217,12 +231,16 @@ func cmdJSON(args []string) error {
 		return err
 	}
 	bf.apply(m)
+	th, err := loadThresholds(*fc)
+	if err != nil {
+		return err
+	}
 	w, err := openOut(*out)
 	if err != nil {
 		return err
 	}
 	defer w.Close()
-	return report.JSON(w, m, report.DocOptions{Facts: *facts, Packed: *packed, PlanVizURL: *pv})
+	return report.JSON(w, m, report.DocOptions{Facts: *facts, Packed: *packed, PlanVizURL: *pv, Thresholds: th})
 }
 
 func cmdHTML(args []string) error {
@@ -231,6 +249,7 @@ func cmdHTML(args []string) error {
 	out := fs.String("o", "", "output file (default <trace>.html)")
 	facts := fs.Bool("facts", true, "include raw fact tables (needed for drill-down; omit for huge traces)")
 	pv := planVizFlag(fs)
+	fc := findingsFlag(fs)
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
 	files := parseArgs(fs, args)
@@ -245,7 +264,11 @@ func cmdHTML(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv})
+	th, err := loadThresholds(*fc)
+	if err != nil {
+		return err
+	}
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th})
 	if err != nil {
 		return err
 	}
@@ -295,6 +318,7 @@ func cmdServe(args []string) error {
 	addr := fs.String("addr", "127.0.0.1:8046", "listen address")
 	facts := fs.Bool("facts", true, "include raw fact tables")
 	pv := planVizFlag(fs)
+	fc := findingsFlag(fs)
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
 	files := parseArgs(fs, args)
@@ -306,7 +330,11 @@ func cmdServe(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv})
+	th, err := loadThresholds(*fc)
+	if err != nil {
+		return err
+	}
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th})
 	if err != nil {
 		return err
 	}

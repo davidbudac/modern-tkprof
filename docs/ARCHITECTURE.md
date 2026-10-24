@@ -228,26 +228,32 @@ Title, Severity, Summary, Statement, ImpactUs, Evidence[]}`, most severe
 first, then by impact. Evidence rows carry a printable label/value plus
 statement / cursor / exec# / call / line ids for linking. Shown in the JSON
 document (`stats.findings`), the text report (FINDINGS, after the statement
-ranking) and on the UI Overview. Thresholds are named constants:
+ranking) and on the UI Overview. Thresholds are the `analyze.Thresholds`
+struct (`DefaultThresholds()`); `FindingsWith(m, stats, th)` takes custom ones
+(`Findings` = defaults). `-findings-config file.json` (report, html, serve,
+json; `-` = stdin) overlays a JSON object with any subset of the keys below
+(unknown keys are an error listing the valid ones), `mtkprof findings-config`
+prints the defaults, and the effective values are in `stats.findingsConfig`
+(shown in a disclosure under the UI Findings). Pivot emits no findings. JSON key per constant:
 
 | Rule | Fires when | Constants |
 |---|---|---|
-| `outlier-executions` (per statement) | execution (EXEC + its FETCHes) > 3x the median and > 100 ms; needs >= 3 executions | `OutlierFactor`, `OutlierMinUs`, `OutlierMinExecs` |
-| `plan-change` (per statement) | > 1 plan hash from STAT dumps or EXEC `plh` (0 ignored) | serious when one plan's avg exec >= 3x another's and the statement took >= 100 ms |
-| `hard-parses` | PARSE `mis` per execution > 0.5 for a statement with > 10 executions, or trace-wide with >= 20 hard parses at that ratio (short traces where every statement runs once stay quiet) | `HardParseRatio`, `HardParseMinExecs`, `HardParseMinTotal` |
-| `parse-per-exec` | PARSE calls per execution > 0.9 with > 10 executions | `ParseExecRatio`, `ParseExecMinExecs` |
-| `hard-closes` | > 10 CLOSE type=0 of statements parsed >= 3 times whose closes are > 50 % type 0 | `HardCloseShare`, `HardCloseMinParses`, `HardCloseMinCount` |
-| `think-time` | idle waits *between* calls (SQL*Net message from client, ...) > 30 % of response time; idle waits inside a call's time window are excluded | `ThinkTimeShare` |
-| `in-call-idle` (always info) | idle waits inside calls (PL/SQL lock timer from `dbms_session.sleep`, PX dequeues) > 10 % of response time | `InCallIdleShare` |
-| `small-fetches` (per statement) | executions with >= 3 fetches at < 20 rows per fetch, together > 100 fetches and > 1000 rows | `SmallFetchRows`, `SmallFetchMinFetchesPerExec`, `SmallFetchMinFetches`, `SmallFetchMinRows` |
-| `commit-per-row` | > 10 read-write commits at > 0.5 commits per INSERT/UPDATE/DELETE/MERGE execution | `CommitPerDMLRatio`, `CommitMinCount` |
-| `round-trips` | > 100 `SQL*Net message to client` at > 0.5 per row of top-level calls | `RoundTripsPerRow`, `RoundTripsMin` |
+| `outlier-executions` (per statement) | execution (EXEC + its FETCHes) > 3x the median and > 100 ms; needs >= 3 executions | `OutlierFactor` (`outlier_factor`), `OutlierMinUs` (`outlier_min_us`), `OutlierMinExecs` (`outlier_min_execs`) |
+| `plan-change` (per statement) | > 1 plan hash from STAT dumps or EXEC `plh` (0 ignored) | serious when one plan's avg exec >= 3x another's and the statement took >= 100 ms (`outlier_factor`, `notable_min_us`) |
+| `hard-parses` | PARSE `mis` per execution > 0.5 for a statement with > 10 executions, or trace-wide with >= 20 hard parses at that ratio (short traces where every statement runs once stay quiet) | `HardParseRatio` (`hard_parse_ratio`), `HardParseMinExecs` (`hard_parse_min_execs`), `HardParseMinTotal` (`hard_parse_min_total`) |
+| `parse-per-exec` | PARSE calls per execution > 0.9 with > 10 executions | `ParseExecRatio` (`parse_exec_ratio`), `ParseExecMinExecs` (`parse_exec_min_execs`) |
+| `hard-closes` | > 10 CLOSE type=0 of statements parsed >= 3 times whose closes are > 50 % type 0 | `HardCloseShare` (`hard_close_share`), `HardCloseMinParses` (`hard_close_min_parses`), `HardCloseMinCount` (`hard_close_min_count`) |
+| `think-time` | idle waits *between* calls (SQL*Net message from client, ...) > 30 % of response time; idle waits inside a call's time window are excluded | `ThinkTimeShare` (`think_time_share`) |
+| `in-call-idle` (always info) | idle waits inside calls (PL/SQL lock timer from `dbms_session.sleep`, PX dequeues) > 10 % of response time | `InCallIdleShare` (`in_call_idle_share`) |
+| `small-fetches` (per statement) | executions with >= 3 fetches at < 20 rows per fetch, together > 100 fetches and > 1000 rows | `SmallFetchRows` (`small_fetch_rows`), `SmallFetchMinFetchesPerExec` (`small_fetch_min_fetches_per_exec`), `SmallFetchMinFetches` (`small_fetch_min_fetches`), `SmallFetchMinRows` (`small_fetch_min_rows`) |
+| `commit-per-row` | > 10 read-write commits at > 0.5 commits per INSERT/UPDATE/DELETE/MERGE execution | `CommitPerDMLRatio` (`commit_per_dml_ratio`), `CommitMinCount` (`commit_min_count`) |
+| `round-trips` | > 100 `SQL*Net message to client` at > 0.5 per row of top-level calls | `RoundTripsPerRow` (`round_trips_per_row`), `RoundTripsMin` (`round_trips_min`) |
 
 Severity: time-based rules map their impact against the response time
 (trace span, or summed session time when sessions overlap): serious >= 25 %
-and >= 1 s, notable >= 5 % and >= 100 ms, else info (`SeriousShare`,
-`SeriousMinUs`, `NotableShare`, `NotableMinUs`). `hard-closes` and
-`round-trips` are count-based (notable from 1,000, serious from 10,000).
+and >= 1 s, notable >= 5 % and >= 100 ms, else info (`SeriousShare` (`serious_share`),
+`SeriousMinUs` (`serious_min_us`), `NotableShare` (`notable_share`), `NotableMinUs` (`notable_min_us`)). `hard-closes` and
+`round-trips` are count-based (notable from 1,000, serious from 10,000: `notable_count`, `serious_count`). `max_evidence_rows` and `bind_preview_max` cap evidence rows per finding and the outlier bind preview.
 Floors: `commit-per-row` and single-statement `hard-parses` are at least
 notable; `plan-change` is notable or serious as above.
 

@@ -55,7 +55,7 @@ export class TraceDoc {
   readonly markers: Marker[]
   readonly diag: Diagnostics
   readonly unknown: { line: number; text: string }[]
-  readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[]; contexts: ContextStats[] }
+  readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[]; findingsConfig: Record<string, number>; contexts: ContextStats[] }
 
   readonly hasFacts: boolean
   /** a reference bundle (mtkprof -ref) named some objects, files or users */
@@ -98,7 +98,7 @@ export class TraceDoc {
     this.markers = raw.markers ?? []
     this.diag = raw.diag
     this.unknown = raw.unknown ?? []
-    this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [], contexts: raw.stats.contexts ?? [] }
+    this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [], findingsConfig: raw.stats.findingsConfig ?? {}, contexts: raw.stats.contexts ?? [] }
     this.hasFacts = !!raw.facts
     this.hasRef = !!(raw.objects?.length || raw.files?.length || raw.users?.length)
     for (const o of raw.objects ?? []) this.objNames.set(o.id, o)

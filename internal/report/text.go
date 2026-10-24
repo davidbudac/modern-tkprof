@@ -1,6 +1,7 @@
 package report
 
 import (
+	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"io"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
@@ -14,6 +15,8 @@ type TextOptions struct {
 	Execs int // executions listed per statement: 0 = none, -1 = all
 	Sys   bool
 	Width int
+
+	Thresholds *analyze.Thresholds // finding thresholds; nil = defaults
 }
 
 // Text writes the human-readable report (implemented in text_report.go).

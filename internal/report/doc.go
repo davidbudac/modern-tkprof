@@ -150,12 +150,16 @@ type Stats struct {
 	BucketUs   int64                  `json:"bucketUs"`
 	Findings   []analyze.Finding      `json:"findings"`
 	Contexts   []analyze.ContextStats `json:"contexts"` // per session context, in id order (Sessions view)
+
+	FindingsConfig analyze.Thresholds `json:"findingsConfig"` // effective finding thresholds
 }
 
 // DocOptions control document generation.
 type DocOptions struct {
 	Facts  bool // include the fact tables
 	Packed bool // pack fact columns into gzip+base64 blobs
+
+	Thresholds *analyze.Thresholds // finding thresholds; nil = defaults
 
 	PlanVizURL string // base URL of the plan visualizer, carried into Document.PlanViz
 }
@@ -178,7 +182,12 @@ func BuildDocument(m *model.Model, o DocOptions) *Document {
 			Contexts:   analyze.Contexts(m),
 		},
 	}
-	d.Stats.Findings = analyze.Findings(m, d.Stats.Statements)
+	th := analyze.DefaultThresholds()
+	if o.Thresholds != nil {
+		th = *o.Thresholds
+	}
+	d.Stats.FindingsConfig = th
+	d.Stats.Findings = analyze.FindingsWith(m, d.Stats.Statements, th)
 	for i := range d.Statements {
 		if d.Statements[i].Cursors == nil {
 			d.Statements[i].Cursors = []model.ID{}
