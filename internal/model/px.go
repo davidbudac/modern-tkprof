@@ -28,6 +28,7 @@ func contextExtents(m *Model) []ctxExtent {
 		}
 		e.ok = true
 	}
+	copy(out, m.aggExt) // aggregate build: the facts are gone, the builder kept the extents
 	for i := range m.Calls {
 		c := &m.Calls[i]
 		see(c.Context, c.Tim-c.E, c.Tim)

@@ -28,6 +28,19 @@ type Options struct {
 	// column of the executions tables, the bind evidence of findings,
 	// binds.csv and the UI's bind views.
 	NoFacts bool
+
+	// Aggregate is the aggregation-only build for traces too big to hold their
+	// facts: Model.Calls, Waits, Binds and BindSets stay empty (it implies
+	// NoFacts); statements, cursors, contexts, events, plans, transactions
+	// and errors are kept. Every call and wait is handed to the Sink the
+	// moment the builder has settled it (waits attached, recursive children
+	// subtracted), so the memory is that of the dimensions plus the sink's
+	// aggregates, not of the trace. Call.ID / Transaction.Call are not
+	// resolvable then (Transaction.Call is None).
+	Aggregate bool
+	// NewSink creates the Sink of an Aggregate build once the model exists
+	// (nil: the facts are counted and dropped).
+	NewSink func(m *Model) Sink
 }
 
 // Builder implements trace.Handler and produces a Model.
@@ -46,6 +59,20 @@ type Builder struct {
 	curPlanCur   uint64
 	lastStatLine int
 	lastXctend   ID // XCTEND that cursor-#0 waits (log file sync) belong to until the next call
+
+	// Aggregate build (Options.Aggregate); see Sink.
+	agg      bool
+	sink     Sink
+	nCalls   int64
+	nWaits   int64
+	cur      Call         // the call being completed
+	openX    *Call        // the XCTEND that cursor-#0 waits can still join; completed by closeX
+	xbuf     Call         // storage of openX
+	pendA    [][]ChildRec // pendingDepth of an aggregate build, by depth
+	pendSum  [][5]int64   // E, C, P, CR, CU of the pending calls at each depth
+	waitBuf  []Wait       // waits not yet attached (pendingWaits indexes it)
+	pendWait int          // how many waitBuf entries are still in pendingWaits
+	ext      []ctxExtent  // tim extent per context, for attachPX
 
 	ctx      Context
 	ctxDirty bool
@@ -69,6 +96,9 @@ func NewBuilder(path string, opts Options) *Builder {
 	if opts.MaxUnknown == 0 {
 		opts.MaxUnknown = 200
 	}
+	if opts.Aggregate {
+		opts.NoFacts = true
+	}
 	b := &Builder{
 		m:            &Model{File: FileInfo{Path: path, Files: []FileEntry{{Path: path, Name: filepath.Base(path)}}}},
 		opts:         opts,
@@ -83,8 +113,26 @@ func NewBuilder(path string, opts Options) *Builder {
 		ctxID:        None,
 	}
 	b.m.Diag.LineKinds = make(map[string]int)
+	if opts.Aggregate {
+		b.agg = true
+		b.m.Aggregate = true
+		if opts.NewSink != nil {
+			b.sink = opts.NewSink(b.m)
+		} else {
+			b.sink = nopSink{}
+		}
+		b.m.Agg = b.sink
+	}
 	return b
 }
+
+type nopSink struct{}
+
+func (nopSink) Call(*Call)             {}
+func (nopSink) Child(*ChildRec, *Call) {}
+func (nopSink) Wait(*Wait, *Call)      {}
+func (nopSink) Adopt(ID, ID)           {}
+func (nopSink) Finish()                {}
 
 // Reserve pre-sizes the fact tables for the given expected row counts so that
 // the big slices are allocated once instead of growing by repeated copies
@@ -105,6 +153,9 @@ func (b *Builder) Reserve(calls, waits, binds, bindSets int64) {
 		return int(n)
 	}
 	m := b.m
+	if b.agg {
+		return
+	}
 	if len(m.Calls) == 0 {
 		m.Calls = make([]Call, 0, room(calls, int64(unsafe.Sizeof(Call{}))))
 	}
@@ -159,6 +210,10 @@ func (b *Builder) EndFile(st trace.Stats) {
 // flushPending accounts for what is still waiting for a parent or a call.
 func (b *Builder) flushPending() {
 	m := b.m
+	if b.agg {
+		b.flushAgg()
+		return
+	}
 	for d := 1; d < len(b.pendingDepth); d++ {
 		for _, id := range b.pendingDepth[d] {
 			m.Calls[id].Orphan = true
@@ -176,6 +231,10 @@ func (b *Builder) flushPending() {
 func (b *Builder) Finish(st trace.Stats) *Model {
 	m := b.m
 	b.flushPending()
+	if b.agg {
+		m.AggCalls, m.AggWaits, m.aggExt = b.nCalls, b.nWaits, b.ext
+		m.Diag.Notes = append(m.Diag.Notes, "aggregate mode: calls and waits were folded into aggregates, not retained; per-execution tables, bind values and the drill-down fact tables are not available")
+	}
 	m.Diag.Lines = st.Lines
 	m.Diag.Bytes = st.Bytes
 	m.Diag.UnknownLines = st.Unknown
@@ -210,6 +269,9 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 	if len(m.File.Files) > 1 {
 		b.checkClocks()
 		attachPX(m)
+	}
+	if b.agg {
+		b.sink.Finish()
 	}
 	return m
 }
@@ -484,6 +546,16 @@ func (b *Builder) Cursor(c trace.CursorHeader) {
 // it) to the statement that was just parsed under the same cursor number.
 func (b *Builder) adoptImplicit(curID, sid ID, c trace.CursorHeader, assumed bool) {
 	m := b.m
+	if b.agg {
+		b.sink.Adopt(curID, sid)
+		for _, ids := range b.pendingWaits {
+			for _, wid := range ids {
+				if w := &b.waitBuf[wid]; w.Cursor == curID {
+					w.Statement = sid
+				}
+			}
+		}
+	}
 	cur := &m.Cursors[curID]
 	old := cur.Statement
 	cur.Statement = sid
@@ -596,6 +668,10 @@ func (b *Builder) Call(c trace.Call) {
 		Tim: c.Tim, Type: clampU8(c.Type), Parent: None, SelfE: c.E, SelfC: c.C, SelfP: c.P, SelfCR: c.CR, SelfCU: c.CU, Context: b.context(), BindSet: None,
 	}
 	b.observeTim(c.Tim, c.Line)
+	if b.agg {
+		b.aggCall(&call, c, curID, cur)
+		return
+	}
 	switch c.Kind {
 	case trace.CallExec:
 		cur.Execs++
@@ -613,35 +689,48 @@ func (b *Builder) Call(c trace.Call) {
 	b.m.Calls = append(b.m.Calls, call)
 	id := call.ID
 	b.lastXctend = None
-	b.attachWaits(c.Cursor, id, curID)
-	b.attachChildren(id, c.Dep)
+	b.attachWaits(c.Cursor, &b.m.Calls[id], curID)
+	b.attachChildren(&b.m.Calls[id], c.Dep)
 }
 
 // attachWaits links the waits pending for a cursor number to call id.
-func (b *Builder) attachWaits(num uint64, id ID, curID ID) {
+func (b *Builder) attachWaits(num uint64, call *Call, curID ID) {
 	ids := b.pendingWaits[num]
 	if len(ids) == 0 {
 		return
 	}
 	for _, wid := range ids {
-		w := &b.m.Waits[wid]
+		var w *Wait
+		if b.agg {
+			w = &b.waitBuf[wid]
+		} else {
+			w = &b.m.Waits[wid]
+		}
 		if w.Cursor != curID && w.Cursor != None {
 			// the cursor number was re-parsed in between: the wait belongs to
 			// the previous instance; keep it there but do not pretend it was
 			// inside this call
 			w.Between = true
+			if b.agg {
+				b.foldWait(w, nil)
+			}
 			continue
 		}
-		b.attachWait(w, id)
+		b.attachWait(w, call)
+		if b.agg {
+			b.foldWait(w, call)
+		}
+	}
+	if b.agg {
+		b.pendWait -= len(ids)
 	}
 	b.pendingWaits[num] = ids[:0]
 }
 
 // attachWait links one wait to a call and classifies it as inside the call
 // or between calls (think time).
-func (b *Builder) attachWait(w *Wait, id ID) {
-	call := &b.m.Calls[id]
-	w.Call = id
+func (b *Builder) attachWait(w *Wait, call *Call) {
+	w.Call = call.ID
 	w.Dep = call.Dep
 	if w.Cursor == None {
 		// logged before the cursor was parsed (e.g. latch waits during a hard parse)
@@ -669,11 +758,15 @@ func (b *Builder) attachWait(w *Wait, id ID) {
 }
 
 // attachChildren makes every pending deeper call a child of call id.
-func (b *Builder) attachChildren(id ID, dep int) {
+func (b *Builder) attachChildren(call *Call, dep int) {
+	if b.agg {
+		b.attachChildrenAgg(call, dep)
+		return
+	}
+	id := call.ID
 	for len(b.pendingDepth) <= dep {
 		b.pendingDepth = append(b.pendingDepth, nil)
 	}
-	call := &b.m.Calls[id]
 	for d := dep + 1; d < len(b.pendingDepth); d++ {
 		for _, cid := range b.pendingDepth[d] {
 			child := &b.m.Calls[cid]
@@ -731,9 +824,13 @@ func (b *Builder) Wait(w trace.Wait) {
 		wait.ObjID = -1
 	}
 	b.observeTim(w.Tim, w.Line)
+	if b.agg {
+		b.aggWait(wait, w.Cursor)
+		return
+	}
 	b.m.Waits = append(b.m.Waits, wait)
 	if w.Cursor == 0 && b.lastXctend != None {
-		b.attachWait(&b.m.Waits[wait.ID], b.lastXctend)
+		b.attachWait(&b.m.Waits[wait.ID], &b.m.Calls[b.lastXctend])
 		return
 	}
 	b.pendingWaits[w.Cursor] = append(b.pendingWaits[w.Cursor], wait.ID)
@@ -825,13 +922,17 @@ func (b *Builder) Xctend(x trace.Xctend) {
 	}
 	curID := b.syntheticCursor(key, kind, text, x.Line)
 	cur := b.m.Cursors[curID]
+	if b.agg {
+		b.aggXctend(x, curID)
+		return
+	}
 	call := Call{ID: ID(len(b.m.Calls)), Line: int32(x.Line), Kind: trace.CallXctend, Cursor: curID, Statement: cur.Statement,
 		Dep: 1, Tim: x.Tim, Parent: None, Context: b.context(), BindSet: None, Synthetic: true}
 	wall := b.observeTim(x.Tim, x.Line)
 	b.m.Calls = append(b.m.Calls, call)
-	b.attachWaits(0, call.ID, curID) // waits logged on #0 before the XCTEND
-	b.lastXctend = call.ID           // ... and the ones after it (log file sync)
-	b.attachChildren(call.ID, 1)
+	b.attachWaits(0, &b.m.Calls[call.ID], curID) // waits logged on #0 before the XCTEND
+	b.lastXctend = call.ID                       // ... and the ones after it (log file sync)
+	b.attachChildren(&b.m.Calls[call.ID], 1)
 	c := &b.m.Calls[call.ID]
 	t := Transaction{ID: ID(len(b.m.Transactions)), Line: x.Line, Rlbk: x.Rlbk, RdOnly: x.RdOnly, Tim: x.Tim, WallUs: wall, Call: call.ID, Context: c.Context}
 	b.m.Transactions = append(b.m.Transactions, t)
@@ -867,7 +968,12 @@ func (b *Builder) ParseError(p trace.ParseError) {
 func (b *Builder) attachWaitsToCursor(num uint64, curID ID) {
 	ids := b.pendingWaits[num]
 	for _, wid := range ids {
-		w := &b.m.Waits[wid]
+		var w *Wait
+		if b.agg {
+			w = &b.waitBuf[wid]
+		} else {
+			w = &b.m.Waits[wid]
+		}
 		if w.Cursor == None {
 			w.Cursor = curID
 			w.Statement = b.m.Cursors[curID].Statement

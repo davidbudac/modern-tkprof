@@ -230,3 +230,77 @@ PARSE #5:c=0,e=10,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=2,tim=222
 		t.Errorf("wait across instances: %+v", w)
 	}
 }
+
+// An aggregation-only build keeps no calls, waits or binds, but the builder's
+// call-stack logic still runs: the counts and diagnostics are those of the
+// full build, and a sink sees every call and wait exactly once.
+type countSink struct {
+	calls, waits, children, orphans, attached int
+	selfE                                     int64
+}
+
+func (s *countSink) Call(c *Call) {
+	s.calls++
+	s.selfE += c.SelfE
+}
+func (s *countSink) Child(_ *ChildRec, parent *Call) {
+	if parent == nil {
+		s.orphans++
+	} else {
+		s.children++
+	}
+}
+func (s *countSink) Wait(_ *Wait, c *Call) {
+	s.waits++
+	if c != nil {
+		s.attached++
+	}
+}
+func (*countSink) Adopt(ID, ID) {}
+func (*countSink) Finish()      {}
+
+func TestAggregateKeepsNoFacts(t *testing.T) {
+	full := build(t, sample)
+	sink := &countSink{}
+	b := NewBuilder("test.trc", Options{Aggregate: true, NewSink: func(*Model) Sink { return sink }})
+	st, err := trace.Parse(strings.NewReader(sample), b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := b.Finish(st)
+	if len(m.Calls) != 0 || len(m.Waits) != 0 || len(m.Binds) != 0 || len(m.BindSets) != 0 {
+		t.Fatalf("facts retained: %d calls %d waits %d binds %d bind sets", len(m.Calls), len(m.Waits), len(m.Binds), len(m.BindSets))
+	}
+	if !m.Aggregate || m.Diag.BindMode != BindsNone.String() {
+		t.Errorf("aggregate %v, bind mode %q", m.Aggregate, m.Diag.BindMode)
+	}
+	if m.CallCount() != int64(len(full.Calls)) || m.WaitCount() != int64(len(full.Waits)) {
+		t.Errorf("counts %d/%d, want %d/%d", m.CallCount(), m.WaitCount(), len(full.Calls), len(full.Waits))
+	}
+	if sink.calls != len(full.Calls) || sink.waits != len(full.Waits) {
+		t.Errorf("sink saw %d calls %d waits, want %d / %d", sink.calls, sink.waits, len(full.Calls), len(full.Waits))
+	}
+	var selfE int64
+	attached, children := 0, 0
+	for i := range full.Calls {
+		selfE += full.Calls[i].SelfE
+		if full.Calls[i].Parent != None {
+			children++
+		}
+	}
+	for i := range full.Waits {
+		if full.Waits[i].Call != None {
+			attached++
+		}
+	}
+	if sink.selfE != selfE || sink.attached != attached || sink.children != children {
+		t.Errorf("self time %d/%d, attached waits %d/%d, children %d/%d (sink/full)", sink.selfE, selfE, sink.attached, attached, sink.children, children)
+	}
+	if m.Diag.OrphanCalls != full.Diag.OrphanCalls || m.Diag.UnattributedWaits != full.Diag.UnattributedWaits || sink.orphans != full.Diag.OrphanCalls {
+		t.Errorf("orphans %d/%d, unattributed waits %d/%d (aggregate/full)", m.Diag.OrphanCalls, full.Diag.OrphanCalls, m.Diag.UnattributedWaits, full.Diag.UnattributedWaits)
+	}
+	if len(m.Statements) != len(full.Statements) || len(m.Cursors) != len(full.Cursors) || len(m.Transactions) != len(full.Transactions) ||
+		len(m.Plans) != len(full.Plans) || len(m.Contexts) != len(full.Contexts) {
+		t.Errorf("dimensions differ: %d/%d statements, %d/%d cursors, %d/%d transactions", len(m.Statements), len(full.Statements), len(m.Cursors), len(full.Cursors), len(m.Transactions), len(full.Transactions))
+	}
+}

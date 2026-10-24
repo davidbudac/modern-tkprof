@@ -406,6 +406,16 @@ type Model struct {
 
 	objIdx, fileIdx, userIdx map[int64]int
 
+	// Aggregate: built with Options.Aggregate. Calls, Waits, Binds and BindSets are
+	// empty; AggCalls / AggWaits say how many there were, and Agg holds the
+	// accumulated aggregates (internal/analyze reads them instead of the facts).
+	Aggregate bool  `json:"-"`
+	AggCalls  int64 `json:"-"`
+	AggWaits  int64 `json:"-"`
+	Agg       Sink  `json:"-"`
+
+	aggExt []ctxExtent // aggregate build: tim extent of the facts of every context (see attachPX)
+
 	// wall-clock anchors in parse order: from (file, line) on, wall = tim + off
 	anchors []wallAnchor
 }
