@@ -2,6 +2,7 @@ package trace
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -445,3 +446,58 @@ func TestTrcsessProcessMarker(t *testing.T) {
 }
 
 func itoa(n int) string { return fmt.Sprint(n) }
+
+// A wall-clock marker can land inside a BINDS block; it must not end it.
+func TestMarkerInsideBinds(t *testing.T) {
+	const s = `PARSING IN CURSOR #5 len=6 dep=0 uid=1 oct=3 lid=1 tim=1 hv=1 ad='0' sqlid='a'
+select
+END OF STMT
+BINDS #5:
+*** 2026-10-22T11:39:57.866870+00:00 (PDB1(3))
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f8b1c0a0e68  bln=22  avl=02  flg=05
+  value=1
+ Bind#1
+*** 2026-10-22T11:39:58.000000+00:00 (PDB1(3))
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f8b1c0a0e80  bln=22  avl=02  flg=05
+  value=2
+EXEC #5:c=0,e=1,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=5
+`
+	r, _ := parseSample(t, s)
+	if len(r.unknown) != 0 {
+		t.Errorf("unknown lines: %q", r.unknown)
+	}
+	if len(r.markers) != 2 {
+		t.Errorf("markers: %d", len(r.markers))
+	}
+	if len(r.binds) != 1 || len(r.binds[0].Binds) != 2 {
+		t.Fatalf("bind sets: %+v", r.binds)
+	}
+	for i, b := range r.binds[0].Binds {
+		if want := fmt.Sprint(i + 1); b.Value != want || !b.HasValue || b.Dty != 2 {
+			t.Errorf("bind %d: %+v", i, b)
+		}
+	}
+	if len(r.calls) != 1 {
+		t.Errorf("calls: %d", len(r.calls))
+	}
+}
+
+func TestBigLoopNoUnknown(t *testing.T) {
+	f, err := os.Open("../../testdata/big/big_loop.trc")
+	if err != nil {
+		t.Skip("big_loop.trc not present")
+	}
+	defer f.Close()
+	r := &recorder{}
+	if _, err := Parse(f, r); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.unknown) != 0 {
+		t.Errorf("%d unknown lines, first: %q", len(r.unknown), r.unknown[0])
+	}
+}

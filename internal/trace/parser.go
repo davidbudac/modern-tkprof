@@ -166,6 +166,14 @@ func (p *Parser) processLine(line []byte) {
 		}
 	}
 	if p.binds != nil {
+		if hasPrefix(line, "*** ") {
+			// a wall-clock marker can land inside a BINDS block (between
+			// "BINDS #" and " Bind#0", or between " Bind#0" and its oacdty):
+			// handle it as a marker and keep collecting binds
+			p.inHeader = false
+			p.marker(line[4:])
+			return
+		}
 		if p.bindLine(line) {
 			return
 		}
