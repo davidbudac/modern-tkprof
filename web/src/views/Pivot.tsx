@@ -181,13 +181,14 @@ function waitDims(doc: TraceDoc): Dim[] {
   const p2 = new PairInterner()
   const paramName = (pair: [number, number], which: 'p1Name' | 'p2Name', fallback: string) => {
     const ev = doc.events[pair[0]]
-    return `${ev?.[which] || fallback}=${fmtIntKey(pair[1])}`
+    const file = which === 'p1Name' && (ev?.p1Name === 'file#' || ev?.p1Name === 'file number') ? doc.fileName(pair[1])?.name : undefined
+    return `${ev?.[which] || fallback}=${fmtIntKey(pair[1])}${file ? ` (${file})` : ''}`
   }
   return [
     { id: 'event', label: 'Event', click: 'event', raw: (i) => w.event[i], name: (k) => doc.events[k]?.name ?? `event ${k}`, extra: { header: 'Class', get: (k) => { const ev = doc.events[k]; return ev ? (ev.idle ? 'Idle' : ev.class || 'unknown') : '' } } },
     { id: 'class', label: 'Wait class', raw: (i) => { const e = w.event[i]; return e >= 0 && e < classOfEvent.length ? classOfEvent[e] : -1 }, name: (k) => (k < 0 ? 'unknown' : classes[k]) },
     stmtDim(doc, w.stmt, '(no cursor)'),
-    { id: 'obj', label: 'Object', mono: true, raw: (i) => { const o = w.obj[i]; return o > 0 ? objs.id(o) : -1 }, name: (k) => (k < 0 ? '(none)' : `obj# ${objs.keys[k]}`) },
+    { id: 'obj', label: 'Object', mono: true, raw: (i) => { const o = w.obj[i]; return o > 0 ? objs.id(o) : -1 }, name: (k) => { if (k < 0) return '(none)'; const n = doc.objectName(objs.keys[k]); return n ? `${n} (obj# ${objs.keys[k]})` : `obj# ${objs.keys[k]}` } },
     { id: 'p1', label: 'p1 (by event)', mono: true, raw: (i) => p1.id(w.event[i], w.p1[i]), name: (k) => paramName(p1.pairs[k], 'p1Name', 'p1') },
     { id: 'p2', label: 'p2 (by event)', mono: true, raw: (i) => p2.id(w.event[i], w.p2[i]), name: (k) => paramName(p2.pairs[k], 'p2Name', 'p2') },
     { id: 'between', label: 'Inside / between calls', raw: (i) => w.flags[i] & 1, name: (k) => (k ? 'between calls' : 'inside a call') },

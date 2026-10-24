@@ -1,6 +1,6 @@
 import type {
   RawDocument, Statement, Cursor, Context, Event, Plan, PlanLine, Transaction, ErrorEvent,
-  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding, ContextStats,
+  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding, ContextStats, RefObject, RefFile,
 } from './types'
 import { NONE } from './types'
 import { unpackTable, type NumCol } from './columns'
@@ -58,6 +58,11 @@ export class TraceDoc {
   readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[]; contexts: ContextStats[] }
 
   readonly hasFacts: boolean
+  /** a reference bundle (mtkprof -ref) named some objects, files or users */
+  readonly hasRef: boolean
+  private readonly objNames = new Map<number, RefObject>()
+  private readonly fileNames = new Map<number, RefFile>()
+  private readonly userNames = new Map<number, string>()
   /** base URL of the plan visualizer set by the CLI (optional) */
   readonly planViz?: string
   readonly calls: Calls
@@ -95,6 +100,10 @@ export class TraceDoc {
     this.unknown = raw.unknown ?? []
     this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [], contexts: raw.stats.contexts ?? [] }
     this.hasFacts = !!raw.facts
+    this.hasRef = !!(raw.objects?.length || raw.files?.length || raw.users?.length)
+    for (const o of raw.objects ?? []) this.objNames.set(o.id, o)
+    for (const f of raw.files ?? []) this.fileNames.set(f.file, f)
+    for (const u of raw.users ?? []) this.userNames.set(u.id, u.name)
     this.planViz = raw.planViz || undefined
     this.calls = calls
     this.waits = waits
@@ -136,6 +145,15 @@ export class TraceDoc {
     }
     return this._plansByStmt.get(stmt) ?? []
   }
+
+  /** owner.name[.subobject] of an obj# when the document carries a reference bundle, else undefined */
+  objectName(obj: number): string | undefined {
+    const o = this.objNames.get(obj)
+    return o ? `${o.owner ? o.owner + '.' : ''}${o.name}${o.subobject ? '.' + o.subobject : ''}` : undefined
+  }
+  /** datafile of a file number (p1 of file I/O waits) from the reference bundle */
+  fileName(file: number): RefFile | undefined { return this.fileNames.get(file) }
+  userName(uid: number): string | undefined { return this.userNames.get(uid) }
 
   wallOf(tim: number): number { return this.wallOffsetUs ? tim + this.wallOffsetUs : 0 }
   spanUs(): number { return Math.max(0, this.span.lastTim - this.span.firstTim) }

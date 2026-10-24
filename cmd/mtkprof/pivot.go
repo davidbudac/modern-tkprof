@@ -33,6 +33,7 @@ Flags:
 
 func cmdPivot(args []string) error {
 	fs := flag.NewFlagSet("pivot", flag.ExitOnError)
+	rf := refFlag(fs)
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, pivotHelp)
 		fs.PrintDefaults()
@@ -76,6 +77,9 @@ func cmdPivot(args []string) error {
 	}
 	m, err := buildModel(file)
 	if err != nil {
+		return err
+	}
+	if err := applyRef(m, *rf); err != nil {
 		return err
 	}
 	f := analyze.Filter{IncludeIdle: *idle}

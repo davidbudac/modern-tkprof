@@ -197,7 +197,7 @@ function Note({ doc, st }: { doc: TraceDoc; st: StmtStats }) {
   const parts: string[] = []
   const w = statementWaits(doc, st.id, 3).find((x) => x.role !== 'idle')
   const resp = st.elapsed + st.idleUs
-  if (w && w.us / resp >= 0.2) parts.push(`${w.name} ${fmtDur(w.us)} in ${fmtInt(w.count)} wait${w.count === 1 ? '' : 's'}${w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? ` on obj# ${w.obj}` : ''}`)
+  if (w && w.us / resp >= 0.2) parts.push(`${w.name} ${fmtDur(w.us)} in ${fmtInt(w.count)} wait${w.count === 1 ? '' : 's'}${w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? ` on obj# ${w.obj}${doc.objectName(w.obj) ? ` (${doc.objectName(w.obj)})` : ''}` : ''}`)
   else if (st.cpu / resp >= 0.5) parts.push(`${fmtDur(st.cpu)} CPU`)
   if (st.executions > 1) parts.push(`${fmtInt(st.executions)} executions`)
   if (st.allCalls.rows > 0) parts.push(`${fmtCompact(st.allCalls.rows)} row${st.allCalls.rows === 1 ? '' : 's'}${st.fetch.count > 1 ? ` in ${fmtInt(st.fetch.count)} fetches` : ''}`)

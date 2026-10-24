@@ -116,6 +116,39 @@ plan viz" link (`<base>#gz=` + gzip + base64url of
 `-plan-hash`, `-exec`, `-viz`); `html`/`serve`/`json` take `-plan-viz-url`,
 stored as `Document.planViz` for the UI.
 
+### Reference bundle (`internal/ref/bundle.go`, `internal/model/ref.go`, `internal/report/refscript.go`)
+
+mtkprof never connects to a database. `report.RefScript(m, opts)` (`mtkprof
+refscript`) writes a read-only SQL*Plus script for one trace: the distinct
+obj# (wait `obj#`, STAT `obj=`), file# (p1 of events whose first parameter is
+`file#` / `file number`), parsing user ids and sql_ids with text are put into
+chunked (<= 1000) IN-lists; it spools `ref/objects.csv`, `ref/datafiles.csv`
+(datafiles plus tempfiles keyed by `file# + db_files`, the number waits
+report), `ref/users.csv` and `ref/plans/<sql_id>.txt`
+(DBMS_XPLAN.DISPLAY_CURSOR, DISPLAY_AWR fallback inside a PL/SQL block).
+`-lite` reads ALL_ views and skips the datafiles. sql_ids are validated before
+they reach the script.
+
+`ref.LoadBundle(dir)` reads that layout into `ref.Bundle{Objects, Files,
+Users, Plans}`; every file is optional, headers are case-insensitive, quoted
+and BOM-tolerant, `*_objects.csv` / `datafiles_*.csv` are accepted too (the
+raw lab exports), and a plan file without `Plan hash value` (aged-out cursor)
+is dropped. `model.ApplyRef(m, b)` is a post-pass like `RedactBinds`: it only
+adds names. It fills `Model.Objects`, `Files`, `Users` (only entries the
+trace references, keyed by the trace's obj# / file# / uid), fills empty
+`PlanLine.Object` with `owner.name[.subobject]`, sets `Statement.RefPlan` and
+adds a `Diag.Notes` line. Lookups: `m.ObjectName`, `ObjectOwner`, `FileName`,
+`UserName`, `WaitFile`. The document gets `objects[{id, owner, name,
+subobject, type}]`, `files[{file, name, tablespace, type}]`, `users[{id,
+name}]` (omitted without `-ref`; fact tables are unchanged) and `refPlan` on
+statements. Text report: object names in "Wait detail by object", the user
+name after `uid`, the DBMS_XPLAN text under the statement's plan. CSV:
+`waits.csv` gets `object_name`, `file_name`; `plan_lines.csv` gets `owner`.
+The pivot's `obj` and file-number `p1` groups print names. The UI maps
+obj# / file# / user ids through `TraceDoc.objectName/fileName/userName` and
+shows `refPlan` in a collapsible block under the plan tables. See
+`docs/REF-BUNDLE.md`.
+
 ### internal/analyze
 
 * Resource profile (Millsap): CPU, each wait event, unaccounted-for, over any
@@ -166,12 +199,12 @@ notable; `plan-change` is notable or serious as above.
 ## Repository layout
 
 ```
-cmd/mtkprof/        CLI (report, pivot, json, html, serve, lint, export)
+cmd/mtkprof/        CLI (report, pivot, json, html, serve, plan, refscript, lint, export)
 internal/trace/     streaming parser
 internal/model/     model + builder
 internal/analyze/   aggregations
 internal/report/    text / json / csv renderers
-internal/ref/       embedded reference data (wait classes, command types, bind datatypes)
+internal/ref/       embedded reference data (wait classes, command types, bind datatypes) + the reference-bundle loader
 web/                Vite + TypeScript UI
 testdata/           real 19c fixtures (+ tkprof output as golden reference), generator scripts
 docs/               this file, trace-format-19c.md, ROADMAP.md

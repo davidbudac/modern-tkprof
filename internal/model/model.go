@@ -75,6 +75,7 @@ type Statement struct {
 	MinDep    int           `json:"minDepth"`
 	FirstLine int           `json:"firstLine"`
 	Cursors   []ID          `json:"cursors"`
+	RefPlan   string        `json:"refPlan,omitempty"` // DBMS_XPLAN text from a reference bundle (see ApplyRef)
 }
 
 // Cursor is one cursor instance: a PARSING IN CURSOR block, or an implicit
@@ -338,6 +339,13 @@ type Model struct {
 	Markers      []Marker      `json:"markers"`
 	Unknown      []UnknownLine `json:"unknown"`
 	Diag         Diagnostics   `json:"diag"`
+
+	// Reference-bundle dimensions, filled by ApplyRef (empty without -ref).
+	Objects []RefObject `json:"objects,omitempty"`
+	Files   []RefFile   `json:"files,omitempty"`
+	Users   []RefUser   `json:"users,omitempty"`
+
+	objIdx, fileIdx, userIdx map[int64]int
 }
 
 // WallOf converts a tim value to wall-clock microseconds using the span anchor.

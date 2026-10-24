@@ -47,6 +47,8 @@ export interface Statement {
   minDepth: number
   firstLine: number
   cursors: ID[]
+  /** DBMS_XPLAN text from a reference bundle (mtkprof -ref) */
+  refPlan?: string
 }
 
 export interface Cursor {
@@ -299,6 +301,11 @@ export interface RawFacts {
   binds: RawTable & { type: string[]; value: string[] }
 }
 
+/** Names from a reference bundle (mtkprof -ref); the fact tables keep raw numbers. */
+export interface RefObject { id: number; owner: string; name: string; subobject?: string; type?: string }
+export interface RefFile { file: number; name: string; tablespace?: string; type?: string }
+export interface RefUser { id: number; name: string }
+
 export interface RawDocument {
   tool: string
   version: string
@@ -319,6 +326,9 @@ export interface RawDocument {
   unknown: { line: number; text: string }[] | null
   facts?: RawFacts
   planViz?: string
+  objects?: RefObject[] | null
+  files?: RefFile[] | null
+  users?: RefUser[] | null
   stats: {
     statements: StmtStats[]
     profile: Profile

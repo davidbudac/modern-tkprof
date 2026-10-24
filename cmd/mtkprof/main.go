@@ -33,6 +33,7 @@ Usage:
   mtkprof plan   <trace.trc> -sql_id X [-plan-hash H] [-exec N] [-o out.json] [-viz] [-plan-viz-url URL]
   mtkprof plan   <trace.trc> -list                    statements with STAT plans
   mtkprof export <trace.trc> [-o dir]                 CSV tables for DuckDB / Excel / Python
+  mtkprof refscript <trace.trc> [-lite] [-o ref.sql]  SQL*Plus script that collects names and plans for the trace
   mtkprof lint   <trace.trc>
   mtkprof version
 
@@ -41,6 +42,12 @@ Plans (plan):
   One plan selected -> the array; several plan hashes (no -plan-hash) -> an object
   {"<plan hash>": [rows], ...}. -viz prints an "Open in plan viz" link instead
   (the plan travels in the URL fragment only). -exec N picks the N-th dump of a hash.
+
+Reference bundle (report, html, json, export, serve, pivot, plan):
+  -ref dir   directory spooled by the script of `+"`mtkprof refscript`"+` (objects.csv, datafiles.csv,
+             users.csv, plans/<sql_id>.txt; every file optional): names for obj#, file# and
+             user ids, DBMS_XPLAN text. mtkprof never connects to a database; -lite makes a
+             script that only needs ALL_ views. See docs/REF-BUNDLE.md.
 
 Bind values (report, html, json, export, serve):
   -bind-values keep|redact|none   keep (default); redact = type, length and a stable
@@ -81,6 +88,8 @@ func main() {
 		err = cmdLint(args)
 	case "plan":
 		err = cmdPlan(args)
+	case "refscript":
+		err = cmdRefScript(args)
 	case "version", "-v", "--version":
 		fmt.Println("mtkprof", version)
 	case "-h", "--help", "help":
@@ -125,8 +134,27 @@ func openOut(path string) (io.WriteCloser, error) {
 	return os.Create(path)
 }
 
+func cmdRefScript(args []string) error {
+	fs := flag.NewFlagSet("refscript", flag.ExitOnError)
+	out := fs.String("o", "", "output file (default stdout)")
+	lite := fs.Bool("lite", false, "ALL_ views only, runnable by any schema (no datafile names)")
+	file := parseArgs(fs, args)
+	m, err := buildModel(file)
+	if err != nil {
+		return err
+	}
+	w, err := openOut(*out)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	_, err = io.WriteString(w, report.RefScript(m, report.RefScriptOptions{Lite: *lite}))
+	return err
+}
+
 func cmdReport(args []string) error {
 	fs := flag.NewFlagSet("report", flag.ExitOnError)
+	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default stdout)")
 	opts := report.TextOptions{}
 	fs.StringVar(&opts.Sort, "sort", "elapsed", "statement order: elapsed|self|cpu|execs|disk|query|rows|line")
@@ -141,6 +169,9 @@ func cmdReport(args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := applyRef(m, *rf); err != nil {
+		return err
+	}
 	bf.apply(m)
 	w, err := openOut(*out)
 	if err != nil {
@@ -152,6 +183,7 @@ func cmdReport(args []string) error {
 
 func cmdJSON(args []string) error {
 	fs := flag.NewFlagSet("json", flag.ExitOnError)
+	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default stdout)")
 	facts := fs.Bool("facts", true, "include raw fact tables (calls, waits, binds)")
 	packed := fs.Bool("packed", false, "pack fact columns into gzip+base64 blobs (smaller, faster to load)")
@@ -160,6 +192,9 @@ func cmdJSON(args []string) error {
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
 	if err != nil {
+		return err
+	}
+	if err := applyRef(m, *rf); err != nil {
 		return err
 	}
 	bf.apply(m)
@@ -173,6 +208,7 @@ func cmdJSON(args []string) error {
 
 func cmdHTML(args []string) error {
 	fs := flag.NewFlagSet("html", flag.ExitOnError)
+	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default <trace>.html)")
 	facts := fs.Bool("facts", true, "include raw fact tables (needed for drill-down; omit for huge traces)")
 	pv := planVizFlag(fs)
@@ -183,6 +219,9 @@ func cmdHTML(args []string) error {
 	}
 	m, err := buildModel(file)
 	if err != nil {
+		return err
+	}
+	if err := applyRef(m, *rf); err != nil {
 		return err
 	}
 	bf.apply(m)
@@ -203,11 +242,15 @@ func cmdHTML(args []string) error {
 
 func cmdExport(args []string) error {
 	fs := flag.NewFlagSet("export", flag.ExitOnError)
+	rf := refFlag(fs)
 	out := fs.String("o", "", "output directory (default <trace>.csv/)")
 	bf := addBindFlags(fs)
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
 	if err != nil {
+		return err
+	}
+	if err := applyRef(m, *rf); err != nil {
 		return err
 	}
 	bf.apply(m)
@@ -224,6 +267,7 @@ func cmdExport(args []string) error {
 
 func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	rf := refFlag(fs)
 	addr := fs.String("addr", "127.0.0.1:8046", "listen address")
 	facts := fs.Bool("facts", true, "include raw fact tables")
 	pv := planVizFlag(fs)
@@ -231,6 +275,9 @@ func cmdServe(args []string) error {
 	file := parseArgs(fs, args)
 	m, err := buildModel(file)
 	if err != nil {
+		return err
+	}
+	if err := applyRef(m, *rf); err != nil {
 		return err
 	}
 	bf.apply(m)

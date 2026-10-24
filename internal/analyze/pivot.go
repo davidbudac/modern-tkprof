@@ -495,6 +495,11 @@ func waitDims(m *model.Model) map[string]dimImpl {
 					name = ev.P1Name
 				}
 			}
+			if !p2nd && pr[0] >= 0 && int(pr[0]) < len(m.Events) && m.Events[pr[0]].IsFileP1() {
+				if fn := m.FileName(pr[1]); fn != "" {
+					return fmt.Sprintf("%s=%d (%s)", name, pr[1], fn)
+				}
+			}
 			return fmt.Sprintf("%s=%d", name, pr[1])
 		}
 	}
@@ -531,6 +536,9 @@ func waitDims(m *model.Model) map[string]dimImpl {
 		}, name: func(k int64) string {
 			if k < 0 {
 				return "(none)"
+			}
+			if n := m.ObjectName(objs.keys[k]); n != "" {
+				return fmt.Sprintf("%s (obj# %d)", n, objs.keys[k])
 			}
 			return fmt.Sprintf("obj# %d", objs.keys[k])
 		}},

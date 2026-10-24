@@ -116,7 +116,7 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 		return written, err
 	}
 	if err := write("waits.csv",
-		[]string{"wait_id", "line", "event", "wait_class", "ela_us", "p1", "p2", "p3", "obj", "tim", "wall_us", "cursor_id", "statement_id", "sql_id", "call_id", "call_kind", "context_id", "depth", "between_calls", "idle"},
+		[]string{"wait_id", "line", "event", "wait_class", "ela_us", "p1", "p2", "p3", "obj", "tim", "wall_us", "cursor_id", "statement_id", "sql_id", "call_id", "call_kind", "context_id", "depth", "between_calls", "idle", "object_name", "file_name"},
 		len(m.Waits), func(k int) []string {
 			w := &m.Waits[k]
 			ev := &m.Events[w.Event]
@@ -124,7 +124,11 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 			if w.Call != model.None {
 				kind = m.Calls[w.Call].Kind.String()
 			}
-			return []string{id(w.ID), i(w.Line), ev.Name, ev.Class, i64(w.Ela), i64(w.P1), i64(w.P2), i64(w.P3), i64(w.ObjID), i64(w.Tim), wall(w.WallUs), id(w.Cursor), id(w.Statement), sqlid(w.Statement), id(w.Call), kind, id(w.Context), i(w.Dep), b(w.Between), b(w.Idle)}
+			fileName := ""
+			if f, ok := m.WaitFile(w); ok {
+				fileName = m.FileName(f)
+			}
+			return []string{id(w.ID), i(w.Line), ev.Name, ev.Class, i64(w.Ela), i64(w.P1), i64(w.P2), i64(w.P3), i64(w.ObjID), i64(w.Tim), wall(w.WallUs), id(w.Cursor), id(w.Statement), sqlid(w.Statement), id(w.Call), kind, id(w.Context), i(w.Dep), b(w.Between), b(w.Idle), m.ObjectName(w.ObjID), fileName}
 		}); err != nil {
 		return written, err
 	}
@@ -138,11 +142,11 @@ func ExportCSV(m *model.Model, dir string) ([]string, error) {
 		return written, err
 	}
 	if err := write("plan_lines.csv",
-		[]string{"plan_id", "plan_line_no", "statement_id", "sql_id", "plan_hash", "cursor_id", "stat_line", "id", "parent_id", "depth", "operation", "object_name", "obj", "rows", "starts", "cr", "pr", "pw", "time_us", "cost", "size", "card"},
+		[]string{"plan_id", "plan_line_no", "statement_id", "sql_id", "plan_hash", "cursor_id", "stat_line", "id", "parent_id", "depth", "operation", "object_name", "obj", "rows", "starts", "cr", "pr", "pw", "time_us", "cost", "size", "card", "owner"},
 		len(m.PlanLines), func(k int) []string {
 			l := &m.PlanLines[k]
 			p := &m.Plans[l.Plan]
-			return []string{id(p.ID), i(k - int(p.First)), id(p.Statement), sqlid(p.Statement), strconv.FormatUint(p.PLH, 10), id(p.Cursor), i(p.Line), i(l.ID), i(l.ParentID), i(l.Depth), l.Op, l.Object, i64(l.Obj), i64(l.Cnt), i64(l.Str), i64(l.CR), i64(l.PR), i64(l.PW), i64(l.TimeUs), i64(l.Cost), i64(l.Size), i64(l.Card)}
+			return []string{id(p.ID), i(k - int(p.First)), id(p.Statement), sqlid(p.Statement), strconv.FormatUint(p.PLH, 10), id(p.Cursor), i(p.Line), i(l.ID), i(l.ParentID), i(l.Depth), l.Op, l.Object, i64(l.Obj), i64(l.Cnt), i64(l.Str), i64(l.CR), i64(l.PR), i64(l.PW), i64(l.TimeUs), i64(l.Cost), i64(l.Size), i64(l.Card), m.ObjectOwner(l.Obj)}
 		}); err != nil {
 		return written, err
 	}

@@ -69,17 +69,17 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       )}
       {byObj.length > 0 && (
         <section className="section">
-          <header><h2>By object</h2><span className="hint">obj# from the trace; map with dba_objects.object_id</span></header>
+          <header><h2>By object</h2><span className="hint">{doc.hasRef ? 'obj# from the trace, named from the reference bundle' : 'obj# from the trace; map with dba_objects.object_id, or pass a reference bundle (mtkprof -ref)'}</span></header>
           <div className="tbl-wrap"><table className="tbl"><tbody>
-            {byObj.map((a) => <tr key={a.key}><td className="num">{fmtDur(a.sum)}</td><td className="num dim">{fmtPct(a.sum, total)}</td><td className="num">{fmtInt(a.count)}</td><td className="mono">obj# {a.key}</td></tr>)}
+            {byObj.map((a) => <tr key={a.key}><td className="num">{fmtDur(a.sum)}</td><td className="num dim">{fmtPct(a.sum, total)}</td><td className="num">{fmtInt(a.count)}</td><td className="mono">obj# {a.key}{doc.objectName(a.key) && <> <span className="obj">{doc.objectName(a.key)}</span></>}</td></tr>)}
           </tbody></table></div>
         </section>
       )}
       {byP1.length > 1 && (
         <section className="section">
-          <header><h2>By {p1Name}</h2>{isFile && <span className="hint">file# from the trace; map with v$datafile</span>}</header>
+          <header><h2>By {p1Name}</h2>{isFile && <span className="hint">{doc.hasRef ? 'file# from the trace, named from the reference bundle' : 'file# from the trace; map with v$datafile, or pass a reference bundle (mtkprof -ref)'}</span>}</header>
           <div className="tbl-wrap"><table className="tbl"><tbody>
-            {byP1.map((a) => <tr key={a.key}><td className="num">{fmtDur(a.sum)}</td><td className="num dim">{fmtPct(a.sum, total)}</td><td className="num">{fmtInt(a.count)}</td><td className="mono">{p1Name} {fmtCompact(a.key)}</td></tr>)}
+            {byP1.map((a) => <tr key={a.key}><td className="num">{fmtDur(a.sum)}</td><td className="num dim">{fmtPct(a.sum, total)}</td><td className="num">{fmtInt(a.count)}</td><td className="mono">{p1Name} {fmtCompact(a.key)}{isFile && doc.fileName(a.key) && <> <span className="obj" title={doc.fileName(a.key)?.tablespace}>{doc.fileName(a.key)?.name}</span></>}</td></tr>)}
           </tbody></table></div>
         </section>
       )}

@@ -333,7 +333,11 @@ func (t *textWriter) statement(rank int, sid model.ID) {
 	if s.MaxDep != s.MinDep {
 		t.p("-%d", s.MaxDep)
 	}
-	t.p("   uid %d\n", st.UID)
+	t.p("   uid %d", st.UID)
+	if u := m.UserName(int64(st.UID)); u != "" {
+		t.p(" (%s)", u)
+	}
+	t.nl()
 	t.p("elapsed %s s (%s of trace)   self %s s   cpu %s s   waits %s s   idle between calls %s s   execs %s   rows %s   cursors %d   errors %d\n",
 		secs(s.Elapsed), strings.TrimSpace(pct(s.Elapsed, m.Span.Us())), secs(s.SelfElapsed), secs(s.CPU), secs(s.WaitUs), secs(s.IdleUs), commas(s.Executions), commas(s.AllCalls.Rows), s.Cursors, s.Errors)
 	if s.FirstWallUs != 0 {
@@ -407,6 +411,10 @@ func (t *textWriter) waitDetail(sid model.ID) {
 			if i >= 8 {
 				t.p("    ... %d more objects\n", len(byObj)-8)
 				break
+			}
+			if name := m.ObjectName(o.Key); name != "" {
+				t.p("    obj# %-10d %-30s %10s s %9s waits %8s ms avg\n", o.Key, name, secs(o.Us), commas(o.Count), ms(float64(o.Us)/float64(o.Count)))
+				continue
 			}
 			t.p("    obj# %-10d %10s s %9s waits %8s ms avg\n", o.Key, secs(o.Us), commas(o.Count), ms(float64(o.Us)/float64(o.Count)))
 		}
@@ -723,6 +731,7 @@ func (t *textWriter) binds(sid model.ID) {
 
 func (t *textWriter) plans(sid model.ID, s *analyze.StmtStats) {
 	m := t.m
+	defer t.refPlan(&m.Statements[sid])
 	if len(s.Plans) == 0 {
 		return
 	}
@@ -752,6 +761,18 @@ func (t *textWriter) plans(sid model.ID, s *analyze.StmtStats) {
 		}
 		t.nl()
 	}
+}
+
+// refPlan prints the DBMS_XPLAN text a reference bundle carries for the statement.
+func (t *textWriter) refPlan(st *model.Statement) {
+	if st.RefPlan == "" {
+		return
+	}
+	t.p("DBMS_XPLAN from ref bundle (plans/%s.txt)\n", st.SQLID)
+	for _, ln := range strings.Split(st.RefPlan, "\n") {
+		t.p("  %s\n", strings.TrimRight(ln, " \t"))
+	}
+	t.nl()
 }
 
 func countPlans(m *model.Model, s *analyze.StmtStats, h uint64) int {

@@ -1,0 +1,28 @@
+SQL_ID 52nzchs09dgn1
+--------------------
+select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date,
+o.status   from mtk_orders o order by o.amount desc, o.order_date, o.id
+
+Plan hash value: 2503715236
+
+-----------------------------------------------------------------------------------------
+| Id  | Operation          | Name       | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
+-----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT   |            |       |       |       |  2014 (100)|          |
+|   1 |  SORT ORDER BY     |            |   100K|  2734K|  4336K|  2014   (1)| 00:00:01 |
+|   2 |   TABLE ACCESS FULL| MTK_ORDERS |   100K|  2734K|       |   137   (1)| 00:00:01 |
+-----------------------------------------------------------------------------------------
+
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+
+   1 - SEL$1
+   2 - SEL$1 / O@SEL$1
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 1 (E - Syntax error (1))
+---------------------------------------------------------------------------
+
+   1 -  SEL$1
+         E -  mtk_sort_spill
+
