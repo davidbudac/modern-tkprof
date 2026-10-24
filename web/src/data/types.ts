@@ -397,3 +397,32 @@ export const callKindName: string[] = [
   'UNKNOWN', 'PARSE', 'EXEC', 'FETCH', 'CLOSE', 'LOBREAD', 'LOBWRITE', 'LOBGETLEN', 'LOBPGSIZE', 'LOBAPPEND',
   'LOBTMPFRE', 'LOBARRTMPFRE', 'LOBARRREAD', 'LOBARRWRITE', 'LOBTRIM', 'LOB', 'RPC EXEC', 'UNMAP', 'XCTEND',
 ]
+
+// ---- comparison (internal/analyze/compare.go; the diff of `mtkprof ... -compare`) ----
+
+export interface CmpMetric { key: string; label: string; unit: 'us' | 'count'; a: number; b: number; delta: number }
+export interface CmpProfileRow { component: string; kind: string; class?: string; aUs: number; bUs: number; deltaUs: number; aPct: number; bPct: number }
+export interface CmpStmtSide {
+  id: ID; elapsed: number; selfElapsed: number; cpu: number; executions: number; perExecUs: number; parses: number; hardParses: number
+  fetches: number; rows: number; disk: number; query: number; current: number; planHashes: number[]
+}
+export type CmpStatus = 'both' | 'onlyA' | 'onlyB'
+export interface CmpStmt {
+  key: string; sqlId: string; kind: StatementKind; text: string; status: CmpStatus
+  a: CmpStmtSide | null; b: CmpStmtSide | null
+  dElapsed: number; dPerExecUs: number; dExecutions: number; dCpu: number; dDisk: number; dQuery: number; dRows: number; planChanged: boolean
+}
+export interface CmpEvent { name: string; class: string; idle: boolean; a: { count: number; us: number }; b: { count: number; us: number }; deltaUs: number; dCount: number }
+export interface CmpSide { path: string; traceFile: string; version: string; instance: string; spanUs: number; firstWallUs: number }
+export interface Comparison {
+  a: CmpSide; b: CmpSide
+  totals: CmpMetric[]; classes: CmpMetric[]; profile: CmpProfileRow[]; statements: CmpStmt[]; events: CmpEvent[]
+}
+
+/** The document of `-compare`: both trace documents and the diff. */
+export interface RawCompareDocument {
+  tool: string
+  version: string
+  format: number
+  compare: { a: RawDocument; b: RawDocument; diff: Comparison }
+}

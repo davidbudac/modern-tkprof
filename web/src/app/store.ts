@@ -1,10 +1,13 @@
 import { useSyncExternalStore } from 'react'
 import type { TraceDoc } from '../data/doc'
+import type { CompareData } from '../data/load'
 import type { ID } from '../data/types'
 
-export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw'
+export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'compare'
 
 export interface TimeWindow { startTim: number; endTim: number }
+
+export type Side = 'a' | 'b'
 
 export interface Selection {
   stmt: ID | null
@@ -14,7 +17,11 @@ export interface Selection {
 }
 
 export interface State {
+  /** the document the views show: with `compare`, the active side */
   doc: TraceDoc | null
+  /** both traces of a comparison (`-compare`); null for a single trace */
+  compare: CompareData | null
+  side: Side
   loading: boolean
   error: string | null
   view: View
@@ -31,7 +38,7 @@ export interface State {
 }
 
 const initial: State = {
-  doc: null, loading: true, error: null, view: 'overview',
+  doc: null, compare: null, side: 'a', loading: true, error: null, view: 'overview',
   selection: { stmt: null, event: null, call: null, exec: null },
   window: null, contexts: null, includeIdle: true, inclusive: false, theme: 'auto',
   linesAvailable: false, lineViewer: null,
@@ -53,6 +60,19 @@ export function useStore<T>(selector: (s: State) => T): T {
   return useSyncExternalStore(subscribe, () => selector(state), () => selector(state))
 }
 
+/** Opens a loaded document (a comparison starts on side A). */
+export function setLoaded(l: { doc: TraceDoc; compare: CompareData | null }): void {
+  setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', loading: false, error: null })
+}
+
+/** The statement of the other side that matches `stmt` of side `from` (via the Go diff), else null. */
+function counterpart(c: CompareData, from: Side, stmt: ID | null): ID | null {
+  if (stmt === null) return null
+  const to: Side = from === 'a' ? 'b' : 'a'
+  for (const d of c.diff.statements) if (d[from]?.id === stmt) return d[to]?.id ?? null
+  return null
+}
+
 export const actions = {
   setView(view: View) { setState({ view }) },
   /** Select a statement; selecting one opens it in the Statements workbench. */
@@ -61,6 +81,20 @@ export const actions = {
   pickStmt(stmt: ID) { setState((s) => ({ selection: { ...s.selection, stmt, event: null, call: null, exec: null } })) },
   selectEvent(event: ID | null) { setState((s) => ({ selection: { ...s.selection, event } })) }, // keeps the statement: the Statements view re-picks one when it is null, which closed the inspector at once
   selectExec(exec: Selection['exec']) { setState((s) => ({ selection: { ...s.selection, exec } })) },
+  /** Switch the document the views show between the two traces of a comparison; the selected statement follows by sql_id. */
+  setSide(side: Side) {
+    setState((s) => {
+      if (!s.compare || s.side === side) return {}
+      return { side, doc: s.compare[side], window: null, contexts: null, lineViewer: null, selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
+    })
+  },
+  /** Open a statement of side `side` in the Statements workbench. */
+  openStmtOn(side: Side, stmt: ID) {
+    setState((s) => {
+      if (!s.compare) return { view: 'statements', selection: { stmt, event: null, call: null, exec: null } }
+      return { side, doc: s.compare[side], view: 'statements', window: null, contexts: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
+    })
+  },
   setWindow(window: TimeWindow | null) { setState({ window }) },
   setContexts(contexts: Set<ID> | null) { setState({ contexts }) },
   toggleIdle() { setState((s) => ({ includeIdle: !s.includeIdle })) },

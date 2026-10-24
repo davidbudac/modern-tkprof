@@ -221,6 +221,34 @@ shows `refPlan` in a collapsible block under the plan tables. See
   document) and `Contexts` (per session-context stats, as in the UI Sessions
   view, used by the report's SESSIONS section).
 
+#### Comparison (`compare.go`)
+
+`Compare(a, b *model.Model) Comparison` lines up two traces (B against A,
+every delta is B - A): `Totals` (response time, CPU, in-call waits, idle,
+unaccounted, parse/hard parse/execute/fetch counts, rows, disk/query/current
+from the exclusive columns, statement and error counts), `Classes` (wait time
+per event class), `Profile` (resource-profile components matched by name,
+ranked by |delta|), `Statements` and `Events` (wait events matched by name,
+ranked by |delta time|). Statements are keyed by sql_id; those without one
+(commit, LOB, unknown, ...) by kind plus an FNV hash of the lower-cased,
+whitespace-collapsed text; statements sharing a key in one trace are summed.
+Each `StmtDelta` has `Status` `both|onlyA|onlyB`, per-side `StmtSide` numbers
+(inclusive elapsed without think time, CPU, executions, per-execution elapsed,
+parses, fetches, rows, disk/query/current, plan hashes from STAT dumps plus
+EXEC `plh`), the deltas and `PlanChanged` (both sides know plan hashes and the
+sets differ). The list is ranked by |delta elapsed|; `OnlyA()`, `OnlyB()` and
+`Matched()` split it. `report.CompareText` (`mtkprof compare a b -n 30`) prints
+it with the text report's helpers. `report.CompareDocument` is the JSON of
+`html|serve|json a b -compare`: `{tool, version, format, compare:{a: Document,
+b: Document, diff: Comparison}}`; `-compare` is explicit so it cannot clash with
+other multi-file inputs, `serve` answers `/api/lines?side=a|b`. The UI loader
+(`web/src/data/load.ts`) detects `compare`, loads both `TraceDoc`s and the store
+keeps `compare` + `side`; `doc` is the active side, so every view works on it
+(`actions.setSide` maps the selected statement through the diff). The Compare
+tab is `web/src/views/Compare.tsx`; two executions of one statement are
+compared in `web/src/views/ExecCompare.tsx` (derived from the fact columns, no
+Go involved).
+
 #### Findings (`findings.go`)
 
 `Findings(m, Statements(m))` runs fixed rules and returns `[]Finding{Rule,
@@ -260,7 +288,7 @@ notable; `plan-change` is notable or serious as above.
 ## Repository layout
 
 ```
-cmd/mtkprof/        CLI (report, pivot, json, html, serve, plan, refscript, lint, export); trace arguments are files and directories
+cmd/mtkprof/        CLI (report, compare, pivot, json, html, serve, plan, refscript, findings-config, lint, export); trace arguments are files and directories
 internal/trace/     streaming parser
 internal/model/     model + builder
 internal/analyze/   aggregations

@@ -11,6 +11,7 @@ import type { Segment } from '../components/ProfileBar'
 import { LineRef } from '../components/LineRef'
 import { ColumnChooser } from '../components/ColumnChooser'
 import { usePersisted } from '../app/persist'
+import { ExecCompare } from './ExecCompare'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 
 export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
@@ -121,8 +122,17 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
   const [hidden, setHidden] = usePersisted<string[]>('mtkprof.cols.executions', [])
   const wanted = useStore((s) => s.selection.exec)
   const [sel, setSel] = useState<Execution | null>(null)
+  const [picked, setPicked] = useState<string[]>([]) // up to two execution keys: A (older pick) and B
   useEffect(() => { if (wanted) { const e = exs.find((x) => x.cursor === wanted.cursor && x.execNo === wanted.execNo); if (e) setSel(e) } }, [wanted, exs])
+  useEffect(() => setPicked([]), [id, doc])
   if (exs.length === 0) return null
+  const keyOf = (e: Execution) => `${e.cursor}:${e.execNo}`
+  const togglePick = (e: Execution) => setPicked((p) => (p.includes(keyOf(e)) ? p.filter((k) => k !== keyOf(e)) : [...p.slice(-1), keyOf(e)]))
+  const pa = exs.find((e) => keyOf(e) === picked[0]), pb = exs.find((e) => keyOf(e) === picked[1])
+  const pickCol: Column<Execution> = {
+    key: 'pick', header: '', className: 'pick', title: 'tick two executions to compare them (or shift-click rows)',
+    render: (e) => <input type="checkbox" checked={picked.includes(keyOf(e))} aria-label={`Compare execution #${e.execNo}`} onClick={(ev) => ev.stopPropagation()} onChange={() => togglePick(e)} />,
+  }
   const all: Column<Execution>[] = [
     { key: 'n', header: '#', align: 'end', render: (e) => e.execNo, sort: (e) => e.execNo },
     { key: 't', header: 'Start', render: (e) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(e.startTim), doc.tzOffsetMin) : `+${fmtDur(e.startTim - doc.span.firstTim)}`), sort: (e) => e.startTim },
@@ -136,16 +146,16 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
     { key: 'b', header: 'Binds', className: 'clip mono', render: (e) => bindPreview(doc, e.bindSet), sort: (e) => bindPreview(doc, e.bindSet) },
     { key: 'l', header: 'Line', align: 'end', title: 'trace line of the EXEC call', render: (e) => <LineRef line={e.line} bare />, sort: (e) => e.line },
   ]
-  const cols = all.filter((c) => c.key === 'n' || !hidden.includes(c.key))
+  const cols = [pickCol, ...all.filter((c) => c.key === 'n' || !hidden.includes(c.key))]
   const slow = exs.reduce((a, e) => (e.e > a.e ? e : a), exs[0])
   const avg = exs.reduce((a, e) => a + e.e, 0) / exs.length
   return (
     <section className="section">
-      <header><h2>Executions</h2><span className="hint">{exs.length} · avg {fmtDur(avg)} · slowest {fmtDur(slow.e)} (#{slow.execNo})</span>
+      <header><h2>Executions</h2><span className="hint">{exs.length} · avg {fmtDur(avg)} · slowest {fmtDur(slow.e)} (#{slow.execNo}){exs.length > 1 && ' · tick two to compare them'}</span>
         <span className="tools"><ColumnChooser all={all.filter((c) => c.key !== 'n').map((c) => ({ key: c.key, label: c.header }))} hidden={hidden} onChange={setHidden} /></span></header>
       <DataTable columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
-        selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e) => setSel(sel && sel.exec === e.exec ? null : e)} />
-      {sel && <Binds doc={doc} ex={sel} />}
+        selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e, ev) => (ev?.shiftKey ? togglePick(e) : setSel(sel && sel.exec === e.exec ? null : e))} />
+      {pa && pb ? <ExecCompare doc={doc} a={pa} b={pb} onClear={() => setPicked([])} /> : sel && <Binds doc={doc} ex={sel} />}
     </section>
   )
 }

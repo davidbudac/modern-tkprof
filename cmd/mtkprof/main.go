@@ -31,6 +31,8 @@ Usage:
   mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL]   self-contained interactive report
   mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL]   interactive UI in the browser
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL]
+  mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text comparison of B against A
+  mtkprof html|serve|json <a.trc> <b.trc> -compare ...    UI / document with both traces and their diff (Compare tab)
   mtkprof plan   <trace...> -sql_id X [-plan-hash H] [-exec N] [-o out.json] [-viz] [-plan-viz-url URL]
   mtkprof plan   <trace...> -list                    statements with STAT plans
   mtkprof export <trace...> [-o dir]                 CSV tables for DuckDB / Excel / Python
@@ -89,6 +91,8 @@ func main() {
 	switch cmd {
 	case "report":
 		err = cmdReport(args)
+	case "compare":
+		err = cmdCompare(args)
 	case "pivot":
 		err = cmdPivot(args)
 	case "json":
@@ -213,6 +217,9 @@ func cmdReport(args []string) error {
 }
 
 func cmdJSON(args []string) error {
+	if hasCompareFlag(args) {
+		return cmdCompareDoc("json", args)
+	}
 	fs := flag.NewFlagSet("json", flag.ExitOnError)
 	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default stdout)")
@@ -244,6 +251,9 @@ func cmdJSON(args []string) error {
 }
 
 func cmdHTML(args []string) error {
+	if hasCompareFlag(args) {
+		return cmdCompareDoc("html", args)
+	}
 	fs := flag.NewFlagSet("html", flag.ExitOnError)
 	rf := refFlag(fs)
 	out := fs.String("o", "", "output file (default <trace>.html)")
@@ -313,6 +323,9 @@ func cmdExport(args []string) error {
 const maxLinesPerRequest = 2000
 
 func cmdServe(args []string) error {
+	if hasCompareFlag(args) {
+		return cmdCompareDoc("serve", args)
+	}
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	rf := refFlag(fs)
 	addr := fs.String("addr", "127.0.0.1:8046", "listen address")
