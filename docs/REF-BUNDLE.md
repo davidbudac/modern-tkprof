@@ -62,8 +62,24 @@ mtkprof html   trace.trc -ref ref
 |---|---|
 | text report | "Wait detail by object" prints `owner.name` after the obj#; `uid 165 (MTK)`; the DBMS_XPLAN text under the statement's plan |
 | JSON / HTML / serve | `objects`, `files`, `users` tables (only entries the trace uses), `refPlan` on statements; the UI shows names for obj# / file# / user ids and a collapsible "DBMS_XPLAN from ref bundle" |
-| CSV export | `waits.csv`: `object_name`, `file_name`; `plan_lines.csv`: `owner`, and `object_name` filled when the trace left it empty |
-| pivot, plan | object and datafile names in group labels; plan JSON `object_name` filled |
+| CSV export | `waits.csv`: `object_name`, `file_name`; `plan_lines.csv`: `owner`, `access_predicates`, `filter_predicates`, `e_rows`, and `object_name` filled when the trace left it empty |
+| pivot, plan | object and datafile names in group labels; plan JSON `object_name` filled, plus `access_predicates`, `filter_predicates`, `object_alias`, `qblock_name` (see below) |
+
+### Predicates and estimates on the trace plan
+
+A `plans/<sql_id>.txt` whose `Plan hash value` equals the plan hash of a STAT
+plan of that statement is parsed and overlaid on the STAT lines by operation
+id: access / filter predicates, query block, object alias, and the optimizer
+estimate (`E-Rows` / `Rows`) on lines where the STAT line has no `card=`.
+The trace's own numbers (rows, starts, time, cost, card) are never replaced.
+With a different hash (the cursor was re-optimised since the trace) nothing
+is overlaid and the diagnostics say so; the DBMS_XPLAN text is still shown.
+
+| Output | What appears |
+|---|---|
+| text report | `Predicates (from ref bundle DBMS_XPLAN):` with `id: access(...)` / `id: filter(...)` lines under the plan table |
+| JSON / HTML / serve | plan lines `access`, `filter`, `alias`, `qblock`, `eRows`; plans `xPlanMatched`; the UI plan table gets a flag per operation with predicates (click for the text), `~n` for an overlaid estimate, and a header hint |
+| plan JSON / "Open in plan viz" | `access_predicates`, `filter_predicates`, `object_alias`, `qblock_name`; `cardinality` from the estimate where STAT has none |
 
 ## Privacy
 

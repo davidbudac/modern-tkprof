@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { NONE, type ID, type StmtStats, type CallStats, type Plan } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, fmtCompact, oraErr } from '../data/format'
@@ -208,6 +208,7 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
       <header>
         <h2>Plan {hash || ''}</h2>
         <span className="hint">row source statistics from the STAT lines at <LineRef line={plan.line} />{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
+        {plan.xPlanMatched && <span className="hint">predicates and estimates overlaid from ref bundle</span>}
         <span className="tools plan-acts">
           {dumps.length > 1 && (
             <label className="small muted">dump:{' '}
@@ -242,19 +243,30 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
 function PlanTable({ doc, plan }: { doc: TraceDoc; plan: Plan }) {
   const lines = doc.planLines.slice(plan.first, plan.first + plan.n)
   const maxT = lines.reduce((a, l) => Math.max(a, l.timeUs), 0)
+  const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
+  const toggle = (id: number) => setOpen((o) => { const n = new Set(o); if (!n.delete(id)) n.add(id); return n })
   return (
     <div className="tbl-wrap"><table className="tbl plan">
       <thead><tr><th className="num">id</th><th>operation</th><th className="num">rows</th><th className="num">starts</th><th className="num">cr</th><th className="num">pr</th><th className="num">pw</th><th className="num">time</th><th className="num">cost</th><th className="num">card</th></tr></thead>
-      <tbody>{lines.map((l) => (
-        <tr key={l.id} className={maxT > 0 && l.timeUs >= 0.5 * maxT ? 'hot' : undefined}>
-          <td className="num dim">{l.id}</td>
-          <td className="op" style={{ paddingInlineStart: `${0.5 + l.depth * 0.9}rem` }}>{l.op}{l.object && <span className="obj"> {l.object}</span>}</td>
-          <td className="num">{fmtCompact(l.rows)}</td><td className="num">{fmtCompact(l.starts)}</td>
-          <td className="num">{fmtCompact(l.cr)}</td><td className="num">{fmtCompact(l.pr)}</td><td className="num">{fmtCompact(l.pw)}</td>
-          <td className="num"><span className="heat"><i style={{ inlineSize: maxT ? `${(100 * l.timeUs) / maxT}%` : 0 }} /></span>{fmtDur(l.timeUs)}</td>
-          <td className="num dim">{l.cost >= 0 ? fmtCompact(l.cost) : ''}</td><td className="num dim">{l.card >= 0 ? fmtCompact(l.card) : ''}</td>
-        </tr>
-      ))}</tbody>
+      <tbody>{lines.map((l) => {
+        const preds = [l.access && `access(${l.access})`, l.filter && `filter(${l.filter})`].filter(Boolean) as string[]
+        const shown = open.has(l.id)
+        return (
+          <Fragment key={l.id}>
+            <tr className={maxT > 0 && l.timeUs >= 0.5 * maxT ? 'hot' : undefined}>
+              <td className="num dim">{l.id}</td>
+              <td className="op" style={{ paddingInlineStart: `${0.5 + l.depth * 0.9}rem` }}>{l.op}{l.object && <span className="obj"> {l.object}</span>}{l.alias && <span className="obj dim"> {l.alias}</span>}
+                {preds.length > 0 && <button className={`quiet pred${shown ? ' on' : ''}`} title={preds.join('\n')} aria-label="Predicates" aria-expanded={shown} onClick={() => toggle(l.id)}>⚑</button>}</td>
+              <td className="num">{fmtCompact(l.rows)}</td><td className="num">{fmtCompact(l.starts)}</td>
+              <td className="num">{fmtCompact(l.cr)}</td><td className="num">{fmtCompact(l.pr)}</td><td className="num">{fmtCompact(l.pw)}</td>
+              <td className="num"><span className="heat"><i style={{ inlineSize: maxT ? `${(100 * l.timeUs) / maxT}%` : 0 }} /></span>{fmtDur(l.timeUs)}</td>
+              <td className="num dim">{l.cost >= 0 ? fmtCompact(l.cost) : ''}</td>
+              <td className="num dim">{l.card >= 0 ? fmtCompact(l.card) : l.eRows ? <span title="estimate from the ref bundle DBMS_XPLAN">~{fmtCompact(l.eRows)}</span> : ''}</td>
+            </tr>
+            {shown && <tr className="pred-row"><td /><td colSpan={9}>{preds.map((p) => <code key={p}>{p}</code>)}</td></tr>}
+          </Fragment>
+        )
+      })}</tbody>
     </table></div>
   )
 }

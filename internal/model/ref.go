@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/davidbudac/modern-tkprof/internal/ref"
 )
@@ -92,8 +93,9 @@ func (m *Model) UserName(uid int64) string {
 // thing. It fills the Objects, Files and Users dimension tables with the
 // bundle entries the trace references (obj# of waits and plan lines, file
 // numbers in file I/O waits, parsing user ids), fills PlanLine.Object when
-// empty, and attaches DBMS_XPLAN text as Statement.RefPlan. A nil or empty
-// bundle does nothing.
+// empty, and attaches DBMS_XPLAN text as Statement.RefPlan. DBMS_XPLAN
+// plans with the same plan hash as a STAT plan are overlaid line by line
+// (see overlayXPlans). A nil or empty bundle does nothing.
 func ApplyRef(m *Model, b *ref.Bundle) {
 	if b.Empty() {
 		return
@@ -157,6 +159,7 @@ func ApplyRef(m *Model, b *ref.Bundle) {
 		}
 	}
 	plans := 0
+	xp := overlayXPlans(m, b)
 	for i := range m.Statements {
 		st := &m.Statements[i]
 		if st.Kind == StmtSQL && st.SQLID != "" {
@@ -166,6 +169,74 @@ func ApplyRef(m *Model, b *ref.Bundle) {
 			}
 		}
 	}
-	m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("reference bundle applied: %d of %d obj#, %d of %d file#, %d of %d user ids named; %d DBMS_XPLAN plans attached",
-		foundObj, len(seenObj), foundFile, len(seenFile), foundUser, len(seenUser), plans))
+	m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("reference bundle applied: %d of %d obj#, %d of %d file#, %d of %d user ids named; %d DBMS_XPLAN plans attached, %d of %d STAT plans overlaid with predicates and estimates",
+		foundObj, len(seenObj), foundFile, len(seenFile), foundUser, len(seenUser), plans, xp.matched, xp.considered))
+}
+
+type xplanStats struct{ matched, considered int }
+
+// overlayXPlans copies predicates, query block / alias and the optimizer
+// estimate from the DBMS_XPLAN of a statement onto the STAT plan lines of
+// every plan with the same plan hash value, matching by operation id. A
+// different hash means a different plan: nothing is overlaid and a note says
+// so. STAT carries card for most lines; ERows is only set where it does not
+// (card < 0).
+func overlayXPlans(m *Model, b *ref.Bundle) xplanStats {
+	var st xplanStats
+	parsed := map[string][]*ref.XPlan{}
+	noted := map[string]bool{}
+	for i := range m.Plans {
+		p := &m.Plans[i]
+		if p.Statement < 0 || int(p.Statement) >= len(m.Statements) || p.PLH == 0 {
+			continue
+		}
+		sqlID := m.Statements[p.Statement].SQLID
+		text, ok := b.Plans[sqlID]
+		if !ok || sqlID == "" {
+			continue
+		}
+		xs, done := parsed[sqlID]
+		if !done {
+			xs = ref.ParseXPlans(text)
+			parsed[sqlID] = xs
+		}
+		st.considered++
+		var x *ref.XPlan
+		for _, c := range xs {
+			if c.HasHash && c.PlanHash == p.PLH {
+				x = c
+				break
+			}
+		}
+		if x == nil {
+			key := fmt.Sprintf("%s/%d", sqlID, p.PLH)
+			if !noted[key] {
+				noted[key] = true
+				have := "no parsable plan table"
+				if len(xs) > 0 {
+					hs := make([]string, 0, len(xs))
+					for _, c := range xs {
+						hs = append(hs, fmt.Sprint(c.PlanHash))
+					}
+					have = "plan hash " + strings.Join(hs, ", ")
+				}
+				m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("ref bundle plans/%s.txt has %s; trace plan hash %d differs, predicates not overlaid", sqlID, have, p.PLH))
+			}
+			continue
+		}
+		p.XPlanMatched = true
+		st.matched++
+		for j := p.First; j < p.First+p.N; j++ {
+			l := &m.PlanLines[j]
+			r := x.Row(l.ID)
+			if r == nil {
+				continue
+			}
+			l.Access, l.Filter, l.Alias, l.QBlock = r.Access, r.Filter, r.Alias, r.QBlock
+			if l.Card < 0 && r.ERows > 0 {
+				l.ERows = r.ERows
+			}
+		}
+	}
+	return st
 }
