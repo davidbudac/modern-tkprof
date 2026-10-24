@@ -122,6 +122,9 @@ type StmtStats struct {
 
 // Statements computes StmtStats for every statement, in statement id order.
 func Statements(m *model.Model) []StmtStats {
+	if a := AggOf(m); a != nil {
+		return a.stats
+	}
 	out := make([]StmtStats, len(m.Statements))
 	for i := range out {
 		out[i].ID = model.ID(i)
@@ -300,6 +303,9 @@ type PXTotals struct {
 // PX sums what the attached PX slaves did. TraceProfile leaves it out of the
 // coordinator's profile.
 func PX(m *model.Model) PXTotals {
+	if a := AggOf(m); a != nil {
+		return a.pxTotals
+	}
 	var t PXTotals
 	procs := map[string]bool{}
 	for i := range m.Calls {
@@ -331,6 +337,15 @@ func PX(m *model.Model) PXTotals {
 // coordinator are left out (see PX): their time runs in parallel with the
 // coordinator's.
 func TraceProfile(m *model.Model) Profile {
+	if a := AggOf(m); a != nil {
+		by := map[model.ID]*evAgg{}
+		for i := range a.main.events {
+			if e := &a.main.events[i]; e.n > 0 {
+				by[model.ID(i)] = e
+			}
+		}
+		return profileOf(m, "whole trace", m.Span.Us(), a.main.topCPU, by, a.main.waitUs, a.main.idleUs)
+	}
 	var cpu int64
 	for i := range m.Calls {
 		c := &m.Calls[i]
@@ -348,16 +363,19 @@ func TraceProfile(m *model.Model) Profile {
 func StatementProfile(m *model.Model, st *StmtStats) Profile {
 	total := st.Elapsed + st.IdleUs
 	sid := st.ID
+	if a := AggOf(m); a != nil {
+		if s := a.acc(sid); s != nil {
+			return profileOf(m, m.Statements[sid].SQLID, total, st.CPU, s.byEvent, s.profWait, s.profIdle)
+		}
+		return profileOf(m, m.Statements[sid].SQLID, total, st.CPU, nil, 0, 0)
+	}
 	return buildProfile(m, m.Statements[sid].SQLID, total, st.CPU, func(w *model.Wait) bool {
 		return w.Statement == sid && !m.PXChild(w.Context)
 	})
 }
 
 func buildProfile(m *model.Model, label string, total, cpu int64, in func(*model.Wait) bool) Profile {
-	type acc struct {
-		us, n, min, max int64
-	}
-	byEvent := map[model.ID]*acc{}
+	byEvent := map[model.ID]*evAgg{}
 	var waitUs, idleUs int64
 	for i := range m.Waits {
 		w := &m.Waits[i]
@@ -366,23 +384,21 @@ func buildProfile(m *model.Model, label string, total, cpu int64, in func(*model
 		}
 		a := byEvent[w.Event]
 		if a == nil {
-			a = &acc{min: w.Ela}
+			a = &evAgg{}
 			byEvent[w.Event] = a
 		}
-		a.us += w.Ela
-		a.n++
-		if w.Ela < a.min {
-			a.min = w.Ela
-		}
-		if w.Ela > a.max {
-			a.max = w.Ela
-		}
+		a.add(w.Ela)
 		if w.Idle || w.Between {
 			idleUs += w.Ela
 		} else {
 			waitUs += w.Ela
 		}
 	}
+	return profileOf(m, label, total, cpu, byEvent, waitUs, idleUs)
+}
+
+// profileOf builds the profile from the waits aggregated by event.
+func profileOf(m *model.Model, label string, total, cpu int64, byEvent map[model.ID]*evAgg, waitUs, idleUs int64) Profile {
 	p := Profile{Label: label, TotalUs: total, CPUUs: cpu, WaitUs: waitUs, IdleUs: idleUs}
 	p.Rows = append(p.Rows, ProfileRow{Component: "CPU", Kind: "cpu", Us: cpu})
 	eids := make([]model.ID, 0, len(byEvent))
@@ -424,6 +440,14 @@ type EventAgg struct {
 
 // WaitsByEvent aggregates the waits accepted by in (nil = all), sorted by time desc.
 func WaitsByEvent(m *model.Model, in func(*model.Wait) bool) []EventAgg {
+	if a := AggOf(m); a != nil && in == nil {
+		return a.waitsByEvent(func(ev model.ID) *evAgg {
+			if int(ev) < len(a.events) {
+				return &a.events[ev]
+			}
+			return nil
+		})
+	}
 	aggs := make([]EventAgg, len(m.Events))
 	for i := range aggs {
 		aggs[i] = EventAgg{Event: model.ID(i), Name: m.Events[i].Name, Class: m.Events[i].Class, Idle: m.Events[i].Idle}
@@ -510,6 +534,9 @@ type Execution struct {
 
 // Executions lists the executions of one statement in file order.
 func Executions(m *model.Model, sid model.ID) []Execution {
+	if AggOf(m) != nil {
+		return nil // no per-execution facts: see ExecSummaryOf
+	}
 	var out []Execution
 	idx := map[[2]int64]int{} // cursor,execNo -> index
 	for i := range m.Calls {
@@ -552,6 +579,9 @@ type Bucket struct {
 
 // Timeline buckets top-level call activity and waits by their completion time.
 func Timeline(m *model.Model, bucketUs int64) []Bucket {
+	if a := AggOf(m); a != nil {
+		return a.timeline(bucketUs)
+	}
 	if bucketUs <= 0 || m.Span.Us() == 0 {
 		return nil
 	}

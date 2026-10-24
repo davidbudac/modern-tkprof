@@ -342,9 +342,8 @@ report and HTML in minutes. What the model costs and how it is kept small:
 * `-lowmem` = `model.Options.NoFacts`: bind values are not retained
   (`Binds`/`BindSets` empty, `Diag.BindMode` = none). Calls and waits stay:
   every aggregation (statements, profiles, executions, findings, pivot) reads
-  them, so the numbers are identical (`TestNoFactsKeepsNumbers`). A real
-  aggregation-only mode would need the analyses rewritten as streaming
-  accumulators fed by the builder; not done.
+  them, so the numbers are identical (`TestNoFactsKeepsNumbers`). The
+  aggregation-only mode (`-aggregate`, below) is what removes them.
 * Hidden developer hooks: `MTKPROF_CPUPROFILE`, `MTKPROF_MEMPROFILE` (allocs at
   exit) and `MTKPROF_HEAPPROFILE` (heap in use right after the build) write
   pprof files.
@@ -365,13 +364,100 @@ before = commit e705298:
 | | `report -lowmem` | | 15.3 GB / 59 s |
 | | `html` (file 1.03 GB) | | 20.7 GB / 74 s |
 
+With `-aggregate` (same machine, same files, 18 GB baseline re-measured for the
+10 GB row):
+
+| trace | command | `report` RSS / wall | `report -aggregate` RSS / wall |
+|---|---|---|---|
+| big_loop (118 MB) | | 220 MB / 0.59 s | 116 MB / 0.43 s |
+| 1 GB (x9) | | 2.05 GB / 5.8 s (`-lowmem` 1.58 GB / 5.5 s) | 116 MB / 3.2 s |
+| 10 GB (x90, 262M lines, 54.6M calls) | | 18.0 GB / 60.8 s | 454 MB / 32.3 s |
+
 The 1 GB targets (HTML under 15 s and 4 GB) are met with room to spare. The
 10 GB run finishes in about a minute but needs ~2 GB of RAM per GB of trace
 for this bind-heavy shape (53M calls x 168 B plus executions and binds); a
-trace with fewer, wider calls needs less. Cutting that further needs the
-analyses to stream (see "not done" above).
+trace with fewer, wider calls needs less. Cutting that further is what the
+streaming `-aggregate` mode does (next section).
 
 Parse speed on big_loop (bind heavy) went from 161 to 310 MB/s.
+
+### Aggregation-only mode (`-aggregate`)
+
+For traces whose calls and waits do not fit in memory (10 GB: 454 MB and 32 s instead of 18 GB and 61 s, table above).
+`model.Options{Aggregate: true}` (implies `NoFacts`) keeps `Model.Calls`,
+`Waits`, `Binds` and `BindSets` empty. The builder runs its normal call-stack
+logic (waits attach to the next call of their cursor, `XCTEND` joins the
+`log file sync` waits that follow it, a call's children are the pending deeper
+calls, `Self*` = own minus children) and hands every fact to a `model.Sink`
+the moment it is settled; `analyze.Accumulator` is the sink. What stays in
+memory is the dimensions (statements, cursors, contexts, events, plans,
+transactions, errors: small) plus the accumulators; what is open stays open:
+the call being completed, the `XCTEND` that cursor-#0 waits can still join,
+the recursive calls waiting for a parent (`model.ChildRec`, 48 bytes each: a
+PL/SQL block that runs for an hour holds its children back until it ends) and
+the waits waiting for a call.
+
+The accumulator folds in two steps. A call is folded when complete: call
+tables per statement and kind (count, misses, c, e, p, cr, cu, rows, self and
+inclusive), first/last time, close types, hard-parse time, the session and time
+bucket numbers, the call-kind counts, and (for `dep 0`) the top-level
+quantities. The parts that depend on the parent (response time that excludes
+calls nested in the same statement, recursive parent/child links, "has no
+parent") are folded when the parent shows up (`Sink.Child`) or at the end for
+orphans. Waits fold into the trace profile, the per-statement profile and wait
+detail (by event and by obj#), the sessions, the time buckets and the idle
+split of the findings. Executions (EXEC plus its FETCH calls; one open record
+per cursor, since FETCH carries the number of the latest EXEC) fold into
+per-statement count/min/avg/max, the slowest execution, the slowest
+`max_evidence_rows`, the small-fetch totals and the plan hashes in order of
+appearance; the elapsed time of every execution is kept (8 bytes each) for the
+median of the outlier rule. `Statements`, `TraceProfile`, `StatementProfile`,
+`PX`, `Contexts`, `Timeline`, `WaitsByEvent(m, nil)`, `WaitDetailEvents` /
+`WaitDetailObjects`, `CallKinds`, `ExecSummaryOf` and the finding rules answer
+from the aggregates when the model has them (`analyze.AggOf`), with the same
+code for the rest (`profileOf`, the rule bodies) and the same ordering;
+`TestAggregateMatchesFullModel` compares them with the full model on every
+fixture and trace set, with default and eager thresholds, and the text report
+test compares the reports line by line.
+
+Details that make the numbers equal:
+
+* Implicit cursors (used before their PARSING IN CURSOR) accumulate in a slot
+  of their own (`-2-cursor`); when the builder adopts the cursor into the
+  statement parsed later (`Sink.Adopt`) the slot is merged into the statement,
+  edges included. Slots left over resolve to their (unknown) statement at the end.
+* PX slave contexts are only known to be attached to a coordinator after the
+  last file is read (`attachPX`). Each PX-flagged context accumulates in a
+  shadow set; at the end the attached ones become `PXElapsed`/`PXCPU`/`PXSessions`
+  and the PX totals, the others merge into the main set. The builder keeps the
+  tim extent of every context's facts (`Model.aggExt`) for the matching.
+* The time buckets need the bucket size, which depends on the whole span. The
+  accumulator keeps 1 ms cells on an absolute grid from the first tim and
+  coarsens by 10 above 20,000 cells (bounded memory for any span); the
+  buckets of `BucketForSpan` are multiples of every cell size it can reach, so
+  the buckets are exact when the first tim is the minimum (a monotonic
+  trace). Files of one set whose tim clocks start apart, or spans beyond 16
+  days, can move an event to the neighbouring bucket; a note says so.
+
+What the report loses (and says in its header): the executions tables and
+the BINDS sections (the `Executions: n, min, avg, max, slowest` summary line
+stays), bind values everywhere (`NoFacts`), the evidence rows' call ids (they
+point at nothing: `Call` is `None`; the executions of outlier and small-fetch
+evidence are still identified by cursor line and exec number) and, in
+documents, the fact tables and with them every drill-down that needs rows
+(Pivot, Timeline details, event scatter, server-side slicing; `serve
+-aggregate` serves the document only). `Transaction.Call` is `None`. The
+per-execution finding rules (outliers, small fetches, plan changes) are
+decided with the thresholds given when the model is built (`-findings-config`
+is read before the trace). Everything else in the text report, the document
+statistics and the findings equals the full model.
+
+Memory is the dimensions plus the accumulators: independent of the number of
+calls and waits except for 8 bytes per execution (`els`), 32-48 bytes per
+recursive call whose parent has not been seen and 88 bytes per wait that has
+no call yet (cursor-#0 waits that no `XCTEND` claims accumulate until the file
+ends). A trace whose size comes from many distinct statements (literal SQL)
+still pays for each statement (~1 KB of accumulator plus its text).
 
 ### internal/analyze
 
@@ -460,7 +546,7 @@ notable; `plan-change` is notable or serious as above.
 cmd/mtkprof/        CLI (report, compare, pivot, json, html, serve, plan, refscript, findings-config, lint, export); trace arguments are files and directories
 internal/trace/     streaming parser
 internal/model/     model + builder
-internal/analyze/   aggregations
+internal/analyze/   aggregations (+ the streaming Accumulator of the aggregation-only mode)
 internal/report/    text / json / csv renderers
 internal/ref/       embedded reference data (wait classes, command types, bind datatypes) + the reference-bundle loader
 web/                Vite + TypeScript UI

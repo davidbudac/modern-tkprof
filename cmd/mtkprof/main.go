@@ -18,6 +18,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 	slicepkg "github.com/davidbudac/modern-tkprof/internal/slice"
@@ -31,11 +32,11 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `mtkprof %s - Oracle SQL trace (10046) analyzer
 
 Usage:
-  mtkprof report <trace...> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys]
+  mtkprof report <trace...> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys] [-aggregate]
   mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
-  mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL]   self-contained interactive report
-  mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL]   interactive UI in the browser
-  mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL]
+  mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained interactive report
+  mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate]   interactive UI in the browser
+  mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
   mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text comparison of B against A
   mtkprof html|serve|json <a.trc> <b.trc> -compare ...    UI / document with both traces and their diff (Compare tab)
   mtkprof plan   <trace...> -sql_id X [-plan-hash H] [-exec N] [-o out.json] [-viz] [-plan-viz-url URL]
@@ -45,6 +46,12 @@ Usage:
   mtkprof findings-config                            print the default finding thresholds as JSON
   mtkprof lint   <trace...>
   -lowmem (report pivot html json serve export): do not retain bind values; less memory, same numbers
+  -aggregate (report html json serve): 10 GB-class traces. Calls and waits are folded into
+             aggregates while the trace is read, never stored (implies -lowmem and -facts=false):
+             memory stays at the size of the statements, not of the trace. Left out: the
+             executions tables, bind sections and every fact table (drill-down, pivots,
+             server-side slicing); summary lines, call tables, profiles, sessions, time buckets
+             and findings are the same as without it.
   mtkprof version
 
 Trace sets (every command that takes <trace...>):
@@ -195,6 +202,26 @@ func parseArgs(fs *flag.FlagSet, args []string) []string {
 // buildModel and the commands that print binds.
 var lowMem bool
 
+// aggregate is -aggregate: build the aggregation-only model (model.Options.Aggregate).
+// aggTh are the finding thresholds its accumulator decides the per-execution
+// rules with (set by the commands before the model is built).
+var (
+	aggregate bool
+	aggTh     = analyze.DefaultThresholds()
+)
+
+// addAggregateFlag registers -aggregate (report, html, json, serve).
+func addAggregateFlag(fs *flag.FlagSet) {
+	fs.BoolVar(&aggregate, "aggregate", false, "aggregation-only mode for huge traces: fold calls and waits into aggregates instead of keeping them (implies -lowmem and -facts=false; no executions tables, bind sections or fact tables)")
+}
+
+// useThresholds makes the thresholds of -findings-config known to buildModel.
+func useThresholds(th *analyze.Thresholds) {
+	if th != nil {
+		aggTh = *th
+	}
+}
+
 // addFollowFlag registers -no-follow and -lowmem, shared by every command that
 // reads traces.
 func addFollowFlag(fs *flag.FlagSet) *bool {
@@ -248,7 +275,14 @@ func cmdReport(args []string) error {
 	fs.BoolVar(&opts.Sys, "sys", true, "include recursive SYS statements")
 	fs.IntVar(&opts.Width, "width", 120, "report width")
 	nf := addFollowFlag(fs)
+	addAggregateFlag(fs)
 	files := parseArgs(fs, args)
+	var err error
+	opts.Thresholds, err = loadThresholds(*fc)
+	if err != nil {
+		return err
+	}
+	useThresholds(opts.Thresholds)
 	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
@@ -257,10 +291,6 @@ func cmdReport(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	opts.Thresholds, err = loadThresholds(*fc)
-	if err != nil {
-		return err
-	}
 	w, err := openOut(*out)
 	if err != nil {
 		return err
@@ -282,7 +312,13 @@ func cmdJSON(args []string) error {
 	fc := findingsFlag(fs)
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
+	addAggregateFlag(fs)
 	files := parseArgs(fs, args)
+	th, err := loadThresholds(*fc)
+	if err != nil {
+		return err
+	}
+	useThresholds(th)
 	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
@@ -291,16 +327,12 @@ func cmdJSON(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	th, err := loadThresholds(*fc)
-	if err != nil {
-		return err
-	}
 	w, err := openOut(*out)
 	if err != nil {
 		return err
 	}
 	defer w.Close()
-	return report.JSON(w, m, report.DocOptions{Facts: *facts, Packed: *packed, PlanVizURL: *pv, Thresholds: th})
+	return report.JSON(w, m, report.DocOptions{Facts: *facts && !aggregate, Packed: *packed, PlanVizURL: *pv, Thresholds: th})
 }
 
 func cmdHTML(args []string) error {
@@ -315,10 +347,16 @@ func cmdHTML(args []string) error {
 	fc := findingsFlag(fs)
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
+	addAggregateFlag(fs)
 	files := parseArgs(fs, args)
 	if !ui.Built() {
 		return fmt.Errorf("this binary was built without the web UI (run `make web` and rebuild)")
 	}
+	th, err := loadThresholds(*fc)
+	if err != nil {
+		return err
+	}
+	useThresholds(th)
 	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
@@ -327,10 +365,6 @@ func cmdHTML(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	th, err := loadThresholds(*fc)
-	if err != nil {
-		return err
-	}
 	path := *out
 	if path == "" {
 		path = outBase(files) + ".html"
@@ -341,7 +375,7 @@ func cmdHTML(args []string) error {
 	}
 	bw := bufio.NewWriterSize(f, 1<<20)
 	err = ui.WriteStandalone(bw, func(w io.Writer) error {
-		return report.WriteDocument(w, m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th})
+		return report.WriteDocument(w, m, report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th})
 	})
 	if err == nil {
 		err = bw.Flush()
@@ -400,10 +434,20 @@ func cmdServe(args []string) error {
 	fc := findingsFlag(fs)
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
+	addAggregateFlag(fs)
 	files := parseArgs(fs, args)
 	// Without the fact tables in the document the browser has nothing to slice: the
 	// server keeps the model and answers the queries (docs/ARCHITECTURE.md § Server-side slicing).
-	slicing := *slice || !*facts
+	// An aggregation-only model has no facts to slice either: the document is all there is.
+	slicing := (*slice || !*facts) && !aggregate
+	if aggregate {
+		*facts = false
+	}
+	th, err := loadThresholds(*fc)
+	if err != nil {
+		return err
+	}
+	useThresholds(th)
 	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
@@ -412,10 +456,6 @@ func cmdServe(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	th, err := loadThresholds(*fc)
-	if err != nil {
-		return err
-	}
 	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th, Slice: slicing})
 	if err != nil {
 		return err
@@ -489,10 +529,16 @@ func cmdServe(args []string) error {
 
 func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	start := time.Now()
-	if lowMem && os.Getenv("GOGC") == "" {
+	if (lowMem || aggregate) && os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(20)
 	}
-	m, err := model.BuildFiles(files, model.Options{NoFollow: noFollow, NoFacts: lowMem})
+	opts := model.Options{NoFollow: noFollow, NoFacts: lowMem || aggregate}
+	if aggregate {
+		th := aggTh
+		opts.Aggregate = true
+		opts.NewSink = func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) }
+	}
+	m, err := model.BuildFiles(files, opts)
 	if err != nil {
 		return nil, err
 	}

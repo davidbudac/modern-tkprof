@@ -33,7 +33,9 @@ Comparison of two traces or two executions is v2.
   out of the coordinator's response time).
 - Size targets: a 1 GB trace produces the interactive HTML in under 15 s and
   under 4 GB RAM; a 10 GB trace produces the text report and HTML in
-  minutes. HTML reports are **always written in full** (no sampling);
+  minutes (`-aggregate` keeps no calls or waits: a 10 GB trace in ~0.5 GB;
+  the report then lacks the executions tables, bind sections and fact
+  tables). HTML reports are **always written in full** (no sampling);
   for traces whose fact tables are too big for a browser, `serve -facts=false`
   slices on the server (done 2026-10-24: the browser holds only the dimension
   tables and statistics; the Go server answers the Pivot, timeline, executions

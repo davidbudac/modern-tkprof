@@ -252,7 +252,13 @@ func FindingsWith(m *model.Model, stats []StmtStats, th Thresholds) []Finding {
 // executions itself (the text report) shares one copy instead of building
 // two.
 func FindingsExec(m *model.Model, stats []StmtStats, th Thresholds, ex [][]Execution) []Finding {
-	f := &finder{m: m, stats: stats, th: th, byStmt: ex}
+	f := &finder{m: m, stats: stats, th: th, byStmt: ex, acc: AggOf(m)}
+	if f.acc != nil {
+		// an aggregation-only model decided the per-execution rules while it
+		// was built: those thresholds are the ones it was built with
+		b := f.acc.th
+		f.th.MaxEvidenceRows, f.th.SmallFetchRows, f.th.SmallFetchMinFetchesPerExec = b.MaxEvidenceRows, b.SmallFetchRows, b.SmallFetchMinFetchesPerExec
+	}
 	p := TraceProfile(m)
 	f.profile = p
 	// response time: the trace span, or the summed session time when several
@@ -299,6 +305,7 @@ type finder struct {
 	total   int64
 	out     []Finding
 	byStmt  [][]Execution // lazily built by execs
+	acc     *Accumulator  // aggregation-only model: the rules read the aggregates, not the facts
 }
 
 // execs returns Executions(m, sid), computed for all statements in one pass
@@ -417,6 +424,10 @@ func median(xs []int64) int64 {
 }
 
 func (f *finder) outliers() {
+	if f.acc != nil {
+		f.outliersAgg()
+		return
+	}
 	for i := range f.stats {
 		s := &f.stats[i]
 		if s.Executions < f.th.OutlierMinExecs {
@@ -539,7 +550,15 @@ func (f *finder) planChanges() {
 			continue
 		}
 		var ex []Execution
-		if s.Executions > 1 {
+		if s.Executions > 1 && f.acc != nil {
+			if ea := f.acc.execAggOf(s.ID); ea != nil {
+				for _, p := range ea.plans {
+					a := get(p.plh, p.line)
+					a.execs += p.execs
+					a.elapsed += p.elapsed
+				}
+			}
+		} else if s.Executions > 1 {
 			ex = f.execs(s.ID)
 			for j := range ex {
 				c := &m.Calls[ex[j].Exec]
@@ -620,6 +639,13 @@ func (f *finder) planChanges() {
 func (f *finder) hardParses() {
 	m := f.m
 	missUs := make([]int64, len(f.stats))
+	if f.acc != nil {
+		for i := range missUs {
+			if s := f.acc.acc(model.ID(i)); s != nil {
+				missUs[i] = s.missUs
+			}
+		}
+	}
 	for i := range m.Calls {
 		c := &m.Calls[i]
 		if c.Mis > 0 && c.Kind == trace.CallParse && !m.PXChild(c.Context) {
@@ -696,8 +722,17 @@ func (f *finder) hardParses() {
 	f.add(x)
 }
 
-func closeTypes(m *model.Model) [][4]int64 {
+func (f *finder) closeTypes() [][4]int64 {
+	m := f.m
 	out := make([][4]int64, len(m.Statements))
+	if f.acc != nil {
+		for i := range out {
+			if s := f.acc.acc(model.ID(i)); s != nil {
+				out[i] = s.closes
+			}
+		}
+		return out
+	}
 	for i := range m.Calls {
 		c := &m.Calls[i]
 		if c.Kind == trace.CallClose && c.Type >= 0 && c.Type < 4 && !m.PXChild(c.Context) {
@@ -743,7 +778,7 @@ func (f *finder) parsePerExec() {
 		return
 	}
 	sort.SliceStable(ids, func(a, b int) bool { return f.stats[ids[a]].Parse.Count > f.stats[ids[b]].Parse.Count })
-	ct := closeTypes(f.m)
+	ct := f.closeTypes()
 	x := Finding{Rule: RuleParsePerExec, Title: "Parse and cursor churn: parse per execution", Statement: model.None, ImpactUs: impact, Severity: f.timeSeverity(impact, f.total),
 		Summary: fmt.Sprintf("%d statements are parsed on (almost) every execution: %d parses for %d executions, %s parsing; keep cursors open and re-execute them", len(ids), parses, execs, fmtUs(impact))}
 	if len(ids) == 1 {
@@ -771,7 +806,7 @@ func (f *finder) parsePerExec() {
 // HardCloseMinParses times whose closes are more than HardCloseShare type 0;
 // fires above HardCloseMinCount. Severity by count (countSeverity).
 func (f *finder) hardCloses() {
-	ct := closeTypes(f.m)
+	ct := f.closeTypes()
 	var ids []model.ID
 	var n int64
 	for i := range f.stats {
@@ -834,6 +869,16 @@ func (f *finder) splitIdle() (think, inCall idleSplit) {
 		return idleSplit{n: map[model.ID]int64{}, byEvent: map[model.ID]int64{}, byStmt: map[model.ID]int64{}}
 	}
 	think, inCall = mk(), mk()
+	if f.acc != nil {
+		conv := func(a *idleAcc) idleSplit {
+			o := idleSplit{us: a.us, n: a.n, byEvent: a.byEvent, byStmt: make(map[model.ID]int64, len(a.byStmt))}
+			for sl, v := range a.byStmt {
+				o.byStmt[model.ID(sl)] = v
+			}
+			return o
+		}
+		return conv(&f.acc.think), conv(&f.acc.inCall)
+	}
 	for i := range f.m.Waits {
 		w := &f.m.Waits[i]
 		if !w.Idle && !w.Between {
@@ -933,6 +978,10 @@ func (f *finder) smallFetches() {
 		if !f.isSQL(s.ID) || s.Fetch.Count <= f.th.SmallFetchMinFetches || s.Fetch.Rows <= f.th.SmallFetchMinRows {
 			continue
 		}
+		if f.acc != nil {
+			f.smallFetchesAgg(s)
+			continue
+		}
 		ex := f.execs(s.ID)
 		var nEx, fetches, rows, impact int64
 		var firstRow *Execution
@@ -984,6 +1033,15 @@ func (f *finder) smallFetches() {
 func isDML(oct int) bool { return oct == 2 || oct == 6 || oct == 7 || oct == 189 }
 
 func (f *finder) eventUs(name string) (us, n int64) {
+	if f.acc != nil {
+		for i := range f.m.Events {
+			if f.m.Events[i].Name == name && i < len(f.acc.main.events) {
+				us += f.acc.main.events[i].us
+				n += f.acc.main.events[i].n
+			}
+		}
+		return
+	}
 	for i := range f.m.Waits {
 		w := &f.m.Waits[i]
 		if f.m.Events[w.Event].Name == name && !f.m.PXChild(w.Context) {
@@ -1054,6 +1112,9 @@ func (f *finder) roundTrips() {
 		return
 	}
 	var rows int64
+	if f.acc != nil {
+		rows = f.acc.topRows
+	}
 	for i := range f.m.Calls {
 		c := &f.m.Calls[i]
 		if c.Parent == model.None && (c.Kind == trace.CallExec || c.Kind == trace.CallFetch) {

@@ -384,6 +384,9 @@ const factsPlaceholder = "@mtkprof-facts-stream@"
 
 // writeDocument streams the document (no trailing newline) to w.
 func writeDocument(w io.Writer, m *model.Model, o DocOptions) error {
+	if m.Aggregate {
+		o.Facts = false // an aggregation-only model has no fact tables to write
+	}
 	if !o.Facts || !o.Packed {
 		b, err := json.Marshal(BuildDocument(m, o))
 		if err != nil {

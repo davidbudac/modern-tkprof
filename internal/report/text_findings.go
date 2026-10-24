@@ -14,7 +14,11 @@ func (t *textWriter) findings() {
 	if t.o.Thresholds != nil {
 		th = *t.o.Thresholds
 	}
-	fs := analyze.FindingsExec(t.m, t.stats, th, t.allExecs())
+	var ex [][]analyze.Execution
+	if !t.m.Aggregate {
+		ex = t.allExecs()
+	}
+	fs := analyze.FindingsExec(t.m, t.stats, th, ex)
 	t.p("FINDINGS  (thresholds, see docs/ARCHITECTURE.md; serious > notable > info)\n")
 	t.rule('-')
 	if len(fs) == 0 {
