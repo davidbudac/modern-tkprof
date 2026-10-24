@@ -114,7 +114,7 @@ export class TraceDoc {
   }
 
   static async fromRaw(raw: RawDocument): Promise<TraceDoc> {
-    if (raw.format !== 2) throw new Error(`unsupported document format ${raw.format}`)
+    if (raw.format !== 2 && raw.format !== 3) throw new Error(`unsupported document format ${raw.format}`)
     const empty = { n: 0 } as Record<string, unknown> & { n: number }
     const f = raw.facts
     const [c, w, s, b] = await Promise.all([

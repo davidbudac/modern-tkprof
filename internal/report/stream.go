@@ -13,14 +13,14 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/model"
 )
 
-// Streaming the packed fact tables. The in-memory route (buildFacts) copies
+// Streaming the packed fact tables. Building the document in memory copies
 // every column three times (typed column, packed buffer, base64 text) and
 // holds the whole document before a byte is written; for a 10 GB trace that is
-// more than the model itself. The streaming route reads the model column by
-// column through small getters, feeds gzip in chunks and base64-encodes
-// straight into the writer, so the memory it adds is a few buffers. Its output
-// is byte-identical to marshalling the Facts built by buildFacts with
-// Packed: true (the test compares them).
+// more than the model itself. The writer here reads the model column by column
+// through small getters, feeds gzip in chunks and base64-encodes straight into
+// the output, so what it adds to the model is a few buffers. A few monotonic
+// columns (line, tim, ids that grow with the file) are stored as deltas
+// (descriptor "d":1; document format 3), which gzip squeezes to a fraction.
 
 // colSpec is one numeric column of a packed table.
 type colSpec struct {
@@ -29,6 +29,12 @@ type colSpec struct {
 	f64  func(i int) float64
 	i32  func(i int) int32
 	u8   func(i int) uint8
+	// delta stores differences to the previous row (modular for i32) instead of
+	// the values; the loader (web/src/data/columns.ts) integrates them back.
+	// Only for columns that are (nearly) monotonic: line numbers, tim, ids that
+	// grow with the file. gzip then sees a few distinct small numbers instead of
+	// an ever-growing one.
+	delta bool
 }
 
 func (c *colSpec) width() int {
@@ -51,6 +57,12 @@ func cI32(name string, get func(i int) int64) colSpec {
 
 func cU8(name string, get func(i int) uint8) colSpec {
 	return colSpec{name: name, typ: "u8", u8: get}
+}
+
+// d marks a column as delta-coded.
+func (c colSpec) d() colSpec {
+	c.delta = true
+	return c
 }
 
 // member is one JSON member of a table after "n" and "blob": a numeric column
@@ -109,17 +121,27 @@ func writePackedTable(w io.Writer, n int, members []member) error {
 			return err
 		}
 		wd := c.width()
+		var prevF float64
+		var prevI int32
 		for i := 0; i < n; i += streamChunk {
 			end := min(i+streamChunk, n)
 			out := buf[:(end-i)*wd]
 			switch c.typ {
 			case "f64":
 				for j := i; j < end; j++ {
-					binary.LittleEndian.PutUint64(out[8*(j-i):], math.Float64bits(c.f64(j)))
+					v := c.f64(j)
+					if c.delta {
+						v, prevF = v-prevF, v
+					}
+					binary.LittleEndian.PutUint64(out[8*(j-i):], math.Float64bits(v))
 				}
 			case "i32":
 				for j := i; j < end; j++ {
-					binary.LittleEndian.PutUint32(out[4*(j-i):], uint32(c.i32(j)))
+					v := c.i32(j)
+					if c.delta {
+						v, prevI = v-prevI, v
+					}
+					binary.LittleEndian.PutUint32(out[4*(j-i):], uint32(v))
 				}
 			default:
 				for j := i; j < end; j++ {
@@ -154,7 +176,11 @@ func writePackedTable(w io.Writer, n int, members []member) error {
 			}
 			continue
 		}
-		if _, err := io.WriteString(w, `{"t":"`+mb.col.typ+`","off":`+strconv.Itoa(offs[k])+`,"n":`+strconv.Itoa(n)+`}`); err != nil {
+		desc := `{"t":"` + mb.col.typ + `","off":` + strconv.Itoa(offs[k]) + `,"n":` + strconv.Itoa(n)
+		if mb.col.delta {
+			desc += `,"d":1`
+		}
+		if _, err := io.WriteString(w, desc+`}`); err != nil {
 			return err
 		}
 	}
@@ -192,11 +218,33 @@ func rawStrings(n int, get func(i int) string) func(w io.Writer) error {
 	}
 }
 
+// tableSpec is one fact table of the document: its JSON name, row count and
+// members in JSON order.
+type tableSpec struct {
+	name    string
+	n       int
+	members []member
+}
+
 // writeFactsPacked writes the "facts" object of a packed document.
 func writeFactsPacked(w io.Writer, m *model.Model) error {
-	if _, err := io.WriteString(w, `{"packed":true,"calls":`); err != nil {
+	if _, err := io.WriteString(w, `{"packed":true`); err != nil {
 		return err
 	}
+	for _, t := range factTables(m) {
+		if _, err := io.WriteString(w, `,"`+t.name+`":`); err != nil {
+			return err
+		}
+		if err := writePackedTable(w, t.n, t.members); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(w, "}")
+	return err
+}
+
+// factTables describes the fact tables of the model in document order.
+func factTables(m *model.Model) []tableSpec {
 	calls := m.Calls
 	flags := func(orphan, synth bool) uint8 {
 		var f uint8
@@ -209,7 +257,7 @@ func writeFactsPacked(w io.Writer, m *model.Model) error {
 		return f
 	}
 	cols := []colSpec{
-		cI32("line", func(i int) int64 { return int64(calls[i].Line) }),
+		cI32("line", func(i int) int64 { return int64(calls[i].Line) }).d(),
 		cU8("kind", func(i int) uint8 { return uint8(calls[i].Kind) }),
 		cI32("cursor", func(i int) int64 { return int64(calls[i].Cursor) }),
 		cI32("stmt", func(i int) int64 { return int64(calls[i].Statement) }),
@@ -223,7 +271,7 @@ func writeFactsPacked(w io.Writer, m *model.Model) error {
 		cU8("dep", func(i int) uint8 { return calls[i].Dep }),
 		cU8("og", func(i int) uint8 { return calls[i].OG }),
 		cF64("plh", func(i int) int64 { return int64(calls[i].PLH) }),
-		cF64("tim", func(i int) int64 { return calls[i].Tim }),
+		cF64("tim", func(i int) int64 { return calls[i].Tim }).d(),
 		cU8("type", func(i int) uint8 { return calls[i].Type }),
 		cI32("parent", func(i int) int64 { return int64(calls[i].Parent) }),
 		cI32("selfE", func(i int) int64 { return calls[i].SelfE }),
@@ -239,16 +287,10 @@ func writeFactsPacked(w io.Writer, m *model.Model) error {
 		cI32("nWaits", func(i int) int64 { return int64(calls[i].NWaits) }),
 		cU8("flags", func(i int) uint8 { return flags(calls[i].Orphan, calls[i].Synthetic) }),
 	}
-	if err := writePackedTable(w, len(calls), members(cols)); err != nil {
-		return err
-	}
-
-	if _, err := io.WriteString(w, `,"waits":`); err != nil {
-		return err
-	}
+	out := []tableSpec{{"calls", len(calls), members(cols)}}
 	waits := m.Waits
 	cols = []colSpec{
-		cI32("line", func(i int) int64 { return int64(waits[i].Line) }),
+		cI32("line", func(i int) int64 { return int64(waits[i].Line) }).d(),
 		cI32("cursor", func(i int) int64 { return int64(waits[i].Cursor) }),
 		cI32("stmt", func(i int) int64 { return int64(waits[i].Statement) }),
 		cI32("call", func(i int) int64 { return int64(waits[i].Call) }),
@@ -258,7 +300,7 @@ func writeFactsPacked(w io.Writer, m *model.Model) error {
 		cF64("p2", func(i int) int64 { return waits[i].P2 }),
 		cF64("p3", func(i int) int64 { return waits[i].P3 }),
 		cI32("obj", func(i int) int64 { return waits[i].ObjID }),
-		cF64("tim", func(i int) int64 { return waits[i].Tim }),
+		cF64("tim", func(i int) int64 { return waits[i].Tim }).d(),
 		cI32("ctx", func(i int) int64 { return int64(waits[i].Context) }),
 		cU8("dep", func(i int) uint8 { return waits[i].Dep }),
 		cU8("flags", func(i int) uint8 {
@@ -272,20 +314,14 @@ func writeFactsPacked(w io.Writer, m *model.Model) error {
 			return f
 		}),
 	}
-	if err := writePackedTable(w, len(waits), members(cols)); err != nil {
-		return err
-	}
-
-	if _, err := io.WriteString(w, `,"bindSets":`); err != nil {
-		return err
-	}
+	out = append(out, tableSpec{"waits", len(waits), members(cols)})
 	sets := m.BindSets
 	cols = []colSpec{
-		cI32("line", func(i int) int64 { return int64(sets[i].Line) }),
+		cI32("line", func(i int) int64 { return int64(sets[i].Line) }).d(),
 		cI32("cursor", func(i int) int64 { return int64(sets[i].Cursor) }),
 		cI32("stmt", func(i int) int64 { return int64(sets[i].Statement) }),
-		cI32("call", func(i int) int64 { return int64(sets[i].Call) }),
-		cI32("first", func(i int) int64 { return int64(sets[i].First) }),
+		cI32("call", func(i int) int64 { return int64(sets[i].Call) }).d(),
+		cI32("first", func(i int) int64 { return int64(sets[i].First) }).d(),
 		cI32("count", func(i int) int64 { return int64(sets[i].N) }),
 		cU8("flags", func(i int) uint8 {
 			if sets[i].IsRPC {
@@ -294,16 +330,10 @@ func writeFactsPacked(w io.Writer, m *model.Model) error {
 			return 0
 		}),
 	}
-	if err := writePackedTable(w, len(sets), members(cols)); err != nil {
-		return err
-	}
-
-	if _, err := io.WriteString(w, `,"binds":`); err != nil {
-		return err
-	}
+	out = append(out, tableSpec{"bindSets", len(sets), members(cols)})
 	binds := m.Binds
 	bcols := []colSpec{
-		cI32("set", func(i int) int64 { return int64(binds[i].Set) }),
+		cI32("set", func(i int) int64 { return int64(binds[i].Set) }).d(),
 		cI32("pos", func(i int) int64 { return int64(binds[i].Pos) }),
 		cI32("dty", func(i int) int64 { return int64(binds[i].Dty) }),
 		cU8("flags", func(i int) uint8 {
@@ -332,11 +362,7 @@ func writeFactsPacked(w io.Writer, m *model.Model) error {
 		{name: "type", raw: rawStrings(len(binds), func(i int) string { return binds[i].TypeName() })},
 		{name: "value", raw: rawStrings(len(binds), func(i int) string { return binds[i].Value })},
 		byName["flags"], byName["mal"], byName["avl"]}
-	if err := writePackedTable(w, len(binds), bm); err != nil {
-		return err
-	}
-	_, err := io.WriteString(w, "}")
-	return err
+	return append(out, tableSpec{"binds", len(binds), bm})
 }
 
 func members(cols []colSpec) []member {

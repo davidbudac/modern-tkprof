@@ -28,9 +28,12 @@ export async function unpackTable<K extends string>(raw: RawTable, cols: readonl
     const v = raw[name]
     if (isDesc(v)) {
       if (!buf) throw new Error(`column ${name} is packed but the table has no blob`)
-      out[name] = v.t === 'f64' ? new Float64Array(buf, v.off, v.n)
+      const col = v.t === 'f64' ? new Float64Array(buf, v.off, v.n)
         : v.t === 'i32' ? new Int32Array(buf, v.off, v.n)
         : new Uint8Array(buf, v.off, v.n)
+      // delta-coded column: running sum in place (Int32Array wraps like the Go writer's int32 subtraction)
+      if (v.d === 1 && !(col instanceof Uint8Array)) for (let i = 1; i < col.length; i++) col[i] += col[i - 1]
+      out[name] = col
     } else if (Array.isArray(v)) {
       // plain JSON arrays: pick a type that holds the values
       let f64 = false, u8 = true

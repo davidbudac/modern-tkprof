@@ -1,4 +1,4 @@
-// Mirrors the JSON document written by internal/report/doc.go (format 2).
+// Mirrors the JSON document written by internal/report/doc.go (format 3).
 
 export type ID = number // -1 = none
 export const NONE: ID = -1
@@ -318,7 +318,8 @@ export interface Finding {
   evidence: EvidenceRow[]
 }
 
-export interface ColumnDesc { t: 'f64' | 'i32' | 'u8'; off: number; n: number }
+// d: 1 = the column holds differences to the previous row (format 3); integrate after reading
+export interface ColumnDesc { t: 'f64' | 'i32' | 'u8'; off: number; n: number; d?: 1 }
 export type RawColumn = number[] | ColumnDesc
 
 export interface RawTable { n: number; blob?: string; [col: string]: unknown }
