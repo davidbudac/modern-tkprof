@@ -32,7 +32,37 @@ mtkprof plan   trace.trc -list          # statements with STAT plans (sql_id, pl
 mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -o plan.json   # plan(s) as JSON rows for ora-explain-plan-viz; -plan-hash, -exec N
 mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -viz           # "Open in plan viz" link (plan stays in the URL fragment)
 mtkprof lint   trace.trc                 # what the parser saw: line kinds, events, unknown lines
+mtkprof report a.trc b.trc dir/          # several files / directories = one trace set (see "Trace sets")
 ```
+
+### Trace sets
+
+A trace can be several files. Every command that takes a trace accepts any
+number of files and directories (a directory contributes its `*.trc`, not
+recursive, sorted):
+
+```
+mtkprof report trace_part1.trc trace_part2.trc      # one logical trace
+mtkprof html   /u01/.../trace/ -o all.html          # all *.trc in a directory
+mtkprof report qc.trc cdb1_p000_8505.trc            # query coordinator + PX slave
+mtkprof report start.trc -no-follow                 # do not follow split-file chains
+```
+
+* **Split traces** (`*** TRACE CONTINUES IN FILE x ***` at the end of a file,
+  `*** TRACE CONTINUED FROM FILE x ***` at the start of the next) are followed
+  automatically, even from one end only: the named path, else its name next to
+  the file, else among the inputs, else a neighbour whose own `Trace file`
+  header has that name. The files are parsed as one stream, so calls after the
+  split still belong to cursors opened before it. `-no-follow` disables this.
+* **Independent files** are separate sessions: each file's process and session
+  become session contexts, the same as in `trcsess` output (`FILES` in the
+  text report, `file.files` / `contexts[].fileIdx` in the JSON).
+* **PX slaves** (`...p000...` traces) are attached to their query coordinator
+  by time window, client id, module and action. They are shown nested under
+  it, and their work is reported as `PX slaves: N sessions, X s` on the
+  statement instead of being added to the coordinator's response time.
+  Pivot, timeline and the UI's fact-based views still contain the slaves'
+  calls (separate contexts); filter on the context to separate them.
 
 Bind values are kept by default. On `report`, `html`, `serve`, `json` and
 `export`, `-redact-binds` (or `-bind-values redact`) replaces each value with

@@ -257,6 +257,9 @@ func allExecutions(m *model.Model) [][]Execution {
 	idx := map[[2]int64]int{} // cursor,execNo -> index in out[statement]
 	for i := range m.Calls {
 		c := &m.Calls[i]
+		if m.PXChild(c.Context) {
+			continue
+		}
 		switch c.Kind {
 		case trace.CallExec:
 			e := Execution{Cursor: c.Cursor, Statement: c.Statement, ExecNo: c.ExecNo, Exec: c.ID, BindSet: c.BindSet, StartTim: c.Tim - c.E, EndTim: c.Tim, WallUs: c.WallUs - c.E, Context: c.Context}
@@ -519,7 +522,7 @@ func (f *finder) hardParses() {
 	missUs := make([]int64, len(f.stats))
 	for i := range m.Calls {
 		c := &m.Calls[i]
-		if c.Mis > 0 && c.Kind == trace.CallParse {
+		if c.Mis > 0 && c.Kind == trace.CallParse && !m.PXChild(c.Context) {
 			missUs[c.Statement] += c.E
 		}
 	}
@@ -597,7 +600,7 @@ func closeTypes(m *model.Model) [][4]int64 {
 	out := make([][4]int64, len(m.Statements))
 	for i := range m.Calls {
 		c := &m.Calls[i]
-		if c.Kind == trace.CallClose && c.Type >= 0 && c.Type < 4 {
+		if c.Kind == trace.CallClose && c.Type >= 0 && c.Type < 4 && !m.PXChild(c.Context) {
 			out[c.Statement][c.Type]++
 		}
 	}
@@ -808,7 +811,7 @@ func isDML(oct int) bool { return oct == 2 || oct == 6 || oct == 7 || oct == 189
 func (f *finder) eventUs(name string) (us, n int64) {
 	for i := range f.m.Waits {
 		w := &f.m.Waits[i]
-		if f.m.Events[w.Event].Name == name {
+		if f.m.Events[w.Event].Name == name && !f.m.PXChild(w.Context) {
 			us += w.Ela
 			n++
 		}

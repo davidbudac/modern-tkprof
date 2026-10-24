@@ -36,6 +36,33 @@ type FileInfo struct {
 	ContinuesIn   []string `json:"continuesIn,omitempty"`
 	DumpSizeLimit int64    `json:"dumpSizeLimit,omitempty"`
 	Truncated     bool     `json:"truncated"`
+	// Files lists every file of the trace set in parse order (one entry for a
+	// single-file trace). The fields above describe the first file.
+	Files []FileEntry `json:"files"`
+}
+
+// FileEntry describes one input file of the trace set.
+type FileEntry struct {
+	Idx           int      `json:"idx"`
+	Path          string   `json:"path"`
+	Name          string   `json:"name"`
+	Size          int64    `json:"size"`
+	Lines         int      `json:"lines"`
+	FirstTim      int64    `json:"firstTim"`
+	LastTim       int64    `json:"lastTim"`
+	FirstWallUs   int64    `json:"firstWallUs"`
+	LastWallUs    int64    `json:"lastWallUs"`
+	ProcessPID    string   `json:"processPid"`
+	Instance      string   `json:"instance"`
+	TraceFile     string   `json:"traceFile"`
+	PX            bool     `json:"px"`       // trace of a parallel execution slave (P000...)
+	Chain         int      `json:"chain"`    // files of one TRACE CONTINUES IN chain share the number
+	Followed      bool     `json:"followed"` // pulled in by following a chain, not named by the user
+	ContinuedFrom []string `json:"continuedFrom,omitempty"`
+	ContinuesIn   []string `json:"continuesIn,omitempty"`
+
+	offsetUs  int64 // wall µs - tim of the first anchor in this file
+	offsetSet bool
 }
 
 // StatementKind distinguishes real SQL from synthetic statements.
@@ -178,7 +205,17 @@ type Context struct {
 	Action       string `json:"action"`
 	ClientDriver string `json:"clientDriver"`
 	ContainerID  string `json:"containerId"`
-	Process      string `json:"process"` // server process pid (trcsess "*** [ Unix process pid: n ]")
+	Process      string `json:"process"` // server process pid (trcsess "*** [ Unix process pid: n ]"; the file header's pid when several files are built)
+	FileIdx      int    `json:"fileIdx"` // index into File.Files of the file the context was announced in
+	PX           bool   `json:"px"`      // belongs to a parallel execution slave trace
+	Parent       ID     `json:"parent"`  // PX slave: the query coordinator's context, else None
+}
+
+// PXChild reports whether context id is a PX slave attached to its query
+// coordinator: its calls and waits are accounted separately (analyze.PX*)
+// and kept out of the coordinator's statement totals.
+func (m *Model) PXChild(id ID) bool {
+	return id >= 0 && int(id) < len(m.Contexts) && m.Contexts[id].PX && m.Contexts[id].Parent != None
 }
 
 // BindSet is one BINDS block, attached to the EXEC that followed it.

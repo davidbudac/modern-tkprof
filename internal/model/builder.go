@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"hash/fnv"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +14,8 @@ import (
 
 // Options tune the builder.
 type Options struct {
-	MaxUnknown int // how many unknown lines to keep verbatim (default 200)
+	MaxUnknown int  // how many unknown lines to keep verbatim (default 200)
+	NoFollow   bool // BuildFiles: do not follow TRACE CONTINUES IN / CONTINUED FROM chains
 }
 
 // Builder implements trace.Handler and produces a Model.
@@ -37,6 +39,10 @@ type Builder struct {
 	ctxDirty bool
 	ctxID    ID
 
+	curFile     int  // index into m.File.Files of the file being parsed
+	multi       bool // more than one file: the header pid becomes Context.Process
+	firstOffset int64
+
 	// wall-clock anchoring
 	anchorWall  time.Time
 	anchorValid bool
@@ -52,7 +58,7 @@ func NewBuilder(path string, opts Options) *Builder {
 		opts.MaxUnknown = 200
 	}
 	b := &Builder{
-		m:            &Model{File: FileInfo{Path: path}},
+		m:            &Model{File: FileInfo{Path: path, Files: []FileEntry{{Path: path, Name: filepath.Base(path)}}}},
 		opts:         opts,
 		open:         make(map[uint64]ID),
 		pendingWaits: make(map[uint64][]ID),
@@ -68,29 +74,65 @@ func NewBuilder(path string, opts Options) *Builder {
 	return b
 }
 
-// Build parses the file at path into a Model.
+// Build parses the single file at path into a Model; chains are not followed
+// (see BuildFiles).
 func Build(path string, opts Options) (*Model, error) {
-	b := NewBuilder(path, opts)
-	st, err := trace.ParseFile(path, b)
-	if err != nil {
-		return nil, err
-	}
-	return b.Finish(st), nil
+	opts.NoFollow = true
+	return BuildFiles([]string{path}, opts)
 }
 
-// Finish completes the model after the parser has delivered every record.
-func (b *Builder) Finish(st trace.Stats) *Model {
+// NextFile switches the builder to the next file of the set. A continuation
+// (same process, trace file split by Oracle) keeps all cursor and call state,
+// so calls after the split still belong to the cursors opened before it. An
+// independent file starts a new session: cursor numbers, pending waits and
+// binds and the context are reset. Either way the next record opens a new
+// Context carrying the file index.
+func (b *Builder) NextFile(path string, continuation bool) {
+	if !continuation {
+		b.flushPending()
+		b.open = make(map[uint64]ID)
+		b.pendingWaits = make(map[uint64][]ID)
+		b.pendingBinds = make(map[uint64]ID)
+		b.pendingDepth = nil
+		b.synthCursor = make(map[string]ID)
+		b.curPlan = None
+		b.lastXctend = None
+		b.ctx = Context{}
+		b.ctxID = None
+	}
+	b.m.File.Files = append(b.m.File.Files, FileEntry{Idx: len(b.m.File.Files), Path: path, Name: filepath.Base(path)})
+	b.curFile = len(b.m.File.Files) - 1
+	b.ctxDirty = true
+	b.anchorValid = false
+	b.needAnchor = false
+}
+
+// EndFile records the parser statistics of the file just parsed.
+func (b *Builder) EndFile(st trace.Stats) {
+	fe := &b.m.File.Files[b.curFile]
+	fe.Lines, fe.Size = st.Lines, st.Bytes
+}
+
+// flushPending accounts for what is still waiting for a parent or a call.
+func (b *Builder) flushPending() {
 	m := b.m
-	// orphans: dep>0 calls that never found a parent
 	for d := 1; d < len(b.pendingDepth); d++ {
 		for _, id := range b.pendingDepth[d] {
 			m.Calls[id].Orphan = true
 			m.Diag.OrphanCalls++
 		}
+		b.pendingDepth[d] = nil
 	}
-	for _, ids := range b.pendingWaits {
+	for num, ids := range b.pendingWaits {
 		m.Diag.UnattributedWaits += len(ids)
+		b.pendingWaits[num] = nil
 	}
+}
+
+// Finish completes the model after the parser has delivered every record.
+func (b *Builder) Finish(st trace.Stats) *Model {
+	m := b.m
+	b.flushPending()
 	m.Diag.Lines = st.Lines
 	m.Diag.Bytes = st.Bytes
 	m.Diag.UnknownLines = st.Unknown
@@ -100,10 +142,52 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 			m.Diag.LineKinds[k.String()] = st.Kinds[k]
 		}
 	}
+	if len(m.File.Files) == 1 {
+		fe := &m.File.Files[0]
+		fe.Lines, fe.Size = st.Lines, st.Bytes
+	}
 	if b.offsetSet {
 		m.Span.LastWallUs = m.Span.LastTim + b.offsetUs
+		if len(m.File.Files) > 1 {
+			// the earliest tim may belong to a later file than the first anchor:
+			// anchor it with the offset of the file that holds it
+			m.Span.FirstWallUs = m.Span.FirstTim + b.firstOffset
+			for i := range m.File.Files {
+				if fe := &m.File.Files[i]; fe.FirstTim == m.Span.FirstTim && fe.offsetSet {
+					m.Span.FirstWallUs = m.Span.FirstTim + fe.offsetUs
+					break
+				}
+			}
+		}
+	}
+	if len(m.File.Files) > 1 {
+		b.checkClocks()
+		attachPX(m)
 	}
 	return m
+}
+
+// checkClocks notes files whose wall-clock/tim relation differs: tim values
+// of independent files are only comparable when they come from one host.
+func (b *Builder) checkClocks() {
+	files := b.m.File.Files
+	var lo, hi int64
+	n := 0
+	for i := range files {
+		if !files[i].offsetSet {
+			continue
+		}
+		if n == 0 || files[i].offsetUs < lo {
+			lo = files[i].offsetUs
+		}
+		if n == 0 || files[i].offsetUs > hi {
+			hi = files[i].offsetUs
+		}
+		n++
+	}
+	if n > 1 && hi-lo > 2_000_000 {
+		b.m.Diag.Notes = append(b.m.Diag.Notes, fmt.Sprintf("files disagree on the tim clock by %.1f s (traces from different hosts?); cross-file ordering and PX matching are unreliable", float64(hi-lo)/1e6))
+	}
 }
 
 // ---- context & time -------------------------------------------------------
@@ -112,6 +196,9 @@ func (b *Builder) context() ID {
 	if b.ctxDirty || b.ctxID == None {
 		c := b.ctx
 		c.ID = ID(len(b.m.Contexts))
+		c.FileIdx = b.curFile
+		c.PX = b.m.File.Files[b.curFile].PX
+		c.Parent = None
 		b.m.Contexts = append(b.m.Contexts, c)
 		b.ctxID = c.ID
 		b.ctxDirty = false
@@ -133,17 +220,35 @@ func (b *Builder) observeTim(tim int64, line int) int64 {
 		m.Span.LastTim = tim
 		m.Span.LastLine = line
 	}
+	fe := &m.File.Files[b.curFile]
+	if fe.FirstTim == 0 || tim < fe.FirstTim {
+		fe.FirstTim = tim
+	}
+	if tim > fe.LastTim {
+		fe.LastTim = tim
+	}
 	if b.needAnchor && b.anchorValid {
 		b.offsetUs = b.anchorWall.UnixMicro() - tim
 		b.needAnchor = false
 		m.Diag.Anchors++
+		if !fe.offsetSet {
+			fe.offsetSet, fe.offsetUs = true, b.offsetUs
+		}
 		if !b.offsetSet {
 			b.offsetSet = true
+			b.firstOffset = b.offsetUs
 			m.Span.FirstWallUs = m.Span.FirstTim + b.offsetUs
 		}
 	}
 	if b.offsetSet {
-		return tim + b.offsetUs
+		wall := tim + b.offsetUs
+		if fe.FirstWallUs == 0 || wall < fe.FirstWallUs {
+			fe.FirstWallUs = wall
+		}
+		if wall > fe.LastWallUs {
+			fe.LastWallUs = wall
+		}
+		return wall
 	}
 	return 0
 }
@@ -152,6 +257,27 @@ func (b *Builder) observeTim(tim int64, line int) int64 {
 
 func (b *Builder) HeaderLine(h trace.Header) {
 	f := &b.m.File
+	fe := &f.Files[b.curFile]
+	switch h.Key {
+	case "Trace file":
+		fe.TraceFile = h.Value
+		if isPXName(h.Value) {
+			fe.PX = true
+		}
+	case "Instance name":
+		fe.Instance = h.Value
+	case "Unix process pid", "Windows thread id":
+		fe.ProcessPID = h.Value
+		if isPXImage(h.Value) {
+			fe.PX = true
+		}
+		if b.multi {
+			b.setCtx(&b.ctx.Process, leadingDigits(h.Value), h.Line)
+		}
+	}
+	if b.curFile > 0 {
+		return // File describes the first file; Files[i] the others
+	}
 	f.Headers = append(f.Headers, KV{h.Key, h.Value})
 	switch h.Key {
 	case "Trace file":
@@ -200,9 +326,13 @@ func (b *Builder) Marker(mk trace.Marker) {
 		b.m.Markers = append(b.m.Markers, Marker{Line: mk.Line, Kind: mk.Kind, Text: mk.Value})
 	case trace.MarkerTraceContinuedFrom:
 		b.m.File.ContinuedFrom = append(b.m.File.ContinuedFrom, mk.Value)
+		fe := &b.m.File.Files[b.curFile]
+		fe.ContinuedFrom = append(fe.ContinuedFrom, mk.Value)
 		b.m.Markers = append(b.m.Markers, Marker{Line: mk.Line, Kind: mk.Kind, Text: mk.Value})
 	case trace.MarkerTraceContinuesIn:
 		b.m.File.ContinuesIn = append(b.m.File.ContinuesIn, mk.Value)
+		fe := &b.m.File.Files[b.curFile]
+		fe.ContinuesIn = append(fe.ContinuesIn, mk.Value)
 		b.m.Markers = append(b.m.Markers, Marker{Line: mk.Line, Kind: mk.Kind, Text: mk.Value})
 	case trace.MarkerDumpSizeLimit:
 		b.m.File.DumpSizeLimit, _ = strconv.ParseInt(mk.Value, 10, 64)

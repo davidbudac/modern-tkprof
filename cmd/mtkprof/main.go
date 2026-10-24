@@ -25,16 +25,24 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `mtkprof %s - Oracle SQL trace (10046) analyzer
 
 Usage:
-  mtkprof report <trace.trc> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys]
-  mtkprof pivot  <trace.trc> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
-  mtkprof html   <trace.trc> [-o out.html] [-plan-viz-url URL]   self-contained interactive report
-  mtkprof serve  <trace.trc> [-addr 127.0.0.1:8046] [-plan-viz-url URL]   interactive UI in the browser
-  mtkprof json   <trace.trc> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL]
-  mtkprof plan   <trace.trc> -sql_id X [-plan-hash H] [-exec N] [-o out.json] [-viz] [-plan-viz-url URL]
-  mtkprof plan   <trace.trc> -list                    statements with STAT plans
-  mtkprof export <trace.trc> [-o dir]                 CSV tables for DuckDB / Excel / Python
-  mtkprof lint   <trace.trc>
+  mtkprof report <trace...> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys]
+  mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
+  mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL]   self-contained interactive report
+  mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL]   interactive UI in the browser
+  mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL]
+  mtkprof plan   <trace...> -sql_id X [-plan-hash H] [-exec N] [-o out.json] [-viz] [-plan-viz-url URL]
+  mtkprof plan   <trace...> -list                    statements with STAT plans
+  mtkprof export <trace...> [-o dir]                 CSV tables for DuckDB / Excel / Python
+  mtkprof lint   <trace...>
   mtkprof version
+
+Trace sets (every command that takes <trace...>):
+  Several files and/or directories (all *.trc, not recursive) form one logical trace.
+  Files linked by "TRACE CONTINUES IN FILE" / "TRACE CONTINUED FROM FILE" are followed
+  (path in the marker, else its name next to the file, else among the inputs, else a
+  sibling whose header names it) and parsed as one stream; -no-follow turns this off.
+  Independent files become separate session contexts; PX slave traces (P000...) attach
+  to their query coordinator by time window, client id, module and action.
 
 Plans (plan):
   Exports STAT dumps as the JSON row array that ora-explain-plan-viz auto-detects.
@@ -92,27 +100,34 @@ func main() {
 	}
 }
 
-// parseArgs parses flags that may appear before or after the single
-// positional trace file argument (Go's flag package stops at the first
-// positional otherwise).
-func parseArgs(fs *flag.FlagSet, args []string) string {
-	file := ""
+// parseArgs parses flags that may appear before, between or after the
+// positional trace paths (Go's flag package stops at the first positional
+// otherwise). At least one path is required.
+func parseArgs(fs *flag.FlagSet, args []string) []string {
+	var files []string
 	for {
 		fs.Parse(args)
 		if fs.NArg() == 0 {
 			break
 		}
-		if file != "" {
-			fmt.Fprintf(os.Stderr, "unexpected argument %q\n", fs.Arg(0))
-			usage()
-		}
-		file = fs.Arg(0)
+		files = append(files, fs.Arg(0))
 		args = fs.Args()[1:]
 	}
-	if file == "" {
+	if len(files) == 0 {
 		usage()
 	}
-	return file
+	return files
+}
+
+// addFollowFlag registers -no-follow, shared by every command that reads traces.
+func addFollowFlag(fs *flag.FlagSet) *bool {
+	return fs.Bool("no-follow", false, "do not follow TRACE CONTINUES IN / CONTINUED FROM chains to files that were not named")
+}
+
+// outBase is the default output name stem for a trace set: the first input
+// without its .trc extension (or the directory name).
+func outBase(files []string) string {
+	return strings.TrimSuffix(strings.TrimRight(files[0], "/\\"), ".trc")
 }
 
 func openOut(path string) (io.WriteCloser, error) {
@@ -133,8 +148,9 @@ func cmdReport(args []string) error {
 	bf := addReportBindFlags(fs, &opts.Binds)
 	fs.BoolVar(&opts.Sys, "sys", true, "include recursive SYS statements")
 	fs.IntVar(&opts.Width, "width", 120, "report width")
-	file := parseArgs(fs, args)
-	m, err := buildModel(file)
+	nf := addFollowFlag(fs)
+	files := parseArgs(fs, args)
+	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
 	}
@@ -154,8 +170,9 @@ func cmdJSON(args []string) error {
 	packed := fs.Bool("packed", false, "pack fact columns into gzip+base64 blobs (smaller, faster to load)")
 	pv := planVizFlag(fs)
 	bf := addBindFlags(fs)
-	file := parseArgs(fs, args)
-	m, err := buildModel(file)
+	nf := addFollowFlag(fs)
+	files := parseArgs(fs, args)
+	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
 	}
@@ -174,11 +191,12 @@ func cmdHTML(args []string) error {
 	facts := fs.Bool("facts", true, "include raw fact tables (needed for drill-down; omit for huge traces)")
 	pv := planVizFlag(fs)
 	bf := addBindFlags(fs)
-	file := parseArgs(fs, args)
+	nf := addFollowFlag(fs)
+	files := parseArgs(fs, args)
 	if !ui.Built() {
 		return fmt.Errorf("this binary was built without the web UI (run `make web` and rebuild)")
 	}
-	m, err := buildModel(file)
+	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
 	}
@@ -189,7 +207,7 @@ func cmdHTML(args []string) error {
 	}
 	path := *out
 	if path == "" {
-		path = strings.TrimSuffix(file, ".trc") + ".html"
+		path = outBase(files) + ".html"
 	}
 	if err := os.WriteFile(path, []byte(ui.Standalone(doc)), 0o644); err != nil {
 		return err
@@ -202,18 +220,19 @@ func cmdExport(args []string) error {
 	fs := flag.NewFlagSet("export", flag.ExitOnError)
 	out := fs.String("o", "", "output directory (default <trace>.csv/)")
 	bf := addBindFlags(fs)
-	file := parseArgs(fs, args)
-	m, err := buildModel(file)
+	nf := addFollowFlag(fs)
+	files := parseArgs(fs, args)
+	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
 	}
 	bf.apply(m)
 	dir := *out
 	if dir == "" {
-		dir = strings.TrimSuffix(file, ".trc") + ".csv"
+		dir = outBase(files) + ".csv"
 	}
-	files, err := report.ExportCSV(m, dir)
-	for _, f := range files {
+	written, err := report.ExportCSV(m, dir)
+	for _, f := range written {
 		fmt.Fprintln(os.Stderr, "wrote", f)
 	}
 	return err
@@ -225,8 +244,9 @@ func cmdServe(args []string) error {
 	facts := fs.Bool("facts", true, "include raw fact tables")
 	pv := planVizFlag(fs)
 	bf := addBindFlags(fs)
-	file := parseArgs(fs, args)
-	m, err := buildModel(file)
+	nf := addFollowFlag(fs)
+	files := parseArgs(fs, args)
+	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
 	}
@@ -252,17 +272,21 @@ func cmdServe(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "mtkprof: serving %s at http://%s/\n", file, ln.Addr())
+	fmt.Fprintf(os.Stderr, "mtkprof: serving %s at http://%s/\n", strings.Join(files, " "), ln.Addr())
 	return http.Serve(ln, mux)
 }
 
-func buildModel(path string) (*model.Model, error) {
+func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	start := time.Now()
-	m, err := model.Build(path, model.Options{})
+	m, err := model.BuildFiles(files, model.Options{NoFollow: noFollow})
 	if err != nil {
 		return nil, err
 	}
-	fmt.Fprintf(os.Stderr, "parsed %s: %d lines, %.1f MB in %s\n", path, m.Diag.Lines, float64(m.Diag.Bytes)/1e6, time.Since(start).Round(time.Millisecond))
+	what := files[0]
+	if n := len(m.File.Files); n > 1 {
+		what = fmt.Sprintf("%d files (%s ...)", n, m.File.Files[0].Name)
+	}
+	fmt.Fprintf(os.Stderr, "parsed %s: %d lines, %.1f MB in %s\n", what, m.Diag.Lines, float64(m.Diag.Bytes)/1e6, time.Since(start).Round(time.Millisecond))
 	return m, nil
 }
 
@@ -322,7 +346,20 @@ func (h *lintHandler) Binds(b trace.BindSet) {
 
 func cmdLint(args []string) error {
 	fs := flag.NewFlagSet("lint", flag.ExitOnError)
-	file := parseArgs(fs, args)
+	files := parseArgs(fs, args)
+	paths, err := model.ExpandInputs(files)
+	if err != nil {
+		return err
+	}
+	for _, file := range paths {
+		if err := lintFile(file); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func lintFile(file string) error {
 	h := &lintHandler{markers: map[string]int{}, calls: map[string]int{}, events: map[string]int{}, lobOps: map[string]int{}, bindDty: map[int]int{}, closeTyp: map[int]int{}}
 	start := time.Now()
 	st, err := trace.ParseFile(file, h)

@@ -21,6 +21,8 @@ interface CtxRow {
   ctx: Context
   id: ID
   stats: CtxStats
+  order: number // position with PX slave contexts listed under their coordinator
+  child: boolean // attached PX slave
 }
 
 type Dim = 'session' | 'module' | 'action' | 'client' | 'service' | 'moduleAction'
@@ -103,7 +105,21 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   const checked = useStore((s) => s.contexts)
   const [dim, setDim] = useState<Dim>('module')
   const stats = useMemo(() => computeStats(doc), [doc])
-  const rows = useMemo<CtxRow[]>(() => doc.contexts.map((ctx, i) => ({ ctx, id: ctx.id ?? i, stats: stats[i] })), [doc, stats])
+  const rows = useMemo<CtxRow[]>(() => {
+    const kids = new Map<number, number[]>()
+    doc.contexts.forEach((c, i) => {
+      if (c.px && c.parent != null && c.parent >= 0) kids.set(c.parent, [...(kids.get(c.parent) ?? []), i])
+    })
+    const out: CtxRow[] = []
+    const add = (i: number, child: boolean) => {
+      const ctx = doc.contexts[i]
+      out.push({ ctx, id: ctx.id ?? i, stats: stats[i], order: out.length, child })
+      for (const k of kids.get(i) ?? []) add(k, true)
+    }
+    doc.contexts.forEach((c, i) => { if (!(c.px && c.parent != null && c.parent >= 0)) add(i, false) })
+    return out
+  }, [doc, stats])
+  const multiFile = (doc.file.files?.length ?? 1) > 1
 
   const isChecked = (id: ID) => checked?.has(id) ?? false
   const setChecked = (next: Set<ID>) => actions.setContexts(next.size === 0 ? null : next)
@@ -123,8 +139,10 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
     ),
   }
   const identityCols: Column<CtxRow>[] = [
-    { key: 'line', header: 'Line', align: 'end', render: (r) => fmtInt(r.ctx.line), sort: (r) => r.ctx.line },
-    { key: 'sess', header: 'Session', className: 'mono', render: (r) => sessionLabel(r.ctx), sort: (r) => sessionLabel(r.ctx) },
+    { key: 'line', header: multiFile ? 'File:line' : 'Line', align: 'end', render: (r) => (multiFile ? `${r.ctx.fileIdx ?? 0}:${fmtInt(r.ctx.line)}` : fmtInt(r.ctx.line)), sort: (r) => r.order },
+    { key: 'sess', header: 'Session', className: 'mono', render: (r) => (
+      <>{r.child && <span className="dim" title="PX slave, attached to its query coordinator">↳ </span>}{sessionLabel(r.ctx)}{r.ctx.px && <span className="chip-q" style={{ marginLeft: '0.4rem' }}>PX</span>}</>
+    ), sort: (r) => sessionLabel(r.ctx) },
     { key: 'mod', header: 'Module', className: 'clip', render: (r) => r.ctx.module || <span className="dim">–</span>, sort: (r) => r.ctx.module },
     { key: 'act', header: 'Action', className: 'clip', render: (r) => r.ctx.action || <span className="dim">–</span>, sort: (r) => r.ctx.action },
     { key: 'cid', header: 'Client id', className: 'clip', render: (r) => r.ctx.clientId || <span className="dim">–</span>, sort: (r) => r.ctx.clientId },

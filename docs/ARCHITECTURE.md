@@ -82,6 +82,61 @@ Rules that give the model its meaning:
   `BindSets` and sets every `Call.BindSet` to `None`. The mode is recorded
   in `Diag.BindMode` (`kept|redacted|none`) and in `Diag.Notes`.
 
+### Trace sets: file chains, sessions, PX (`internal/model/files.go`, `px.go`)
+
+`model.BuildFiles(paths, opts)` is the entry point for everything the CLI
+builds; `model.Build(path)` is the single-file case (`NoFollow`) and produces
+the same model as before. Steps:
+
+1. `ExpandInputs`: directories become their `*.trc` (non-recursive, sorted),
+   duplicates (by absolute path) are dropped.
+2. Chains (`planFiles`): each file's head (64 KB) and tail are scanned for
+   `TRACE CONTINUED FROM FILE` / `TRACE CONTINUES IN FILE`. A reference is
+   resolved by the path in the marker, then its base name in the directory of
+   the file that names it, then among the inputs (by file name, then by the
+   file's own `Trace file` header, which survives renames), then among the
+   neighbours in that directory by header name. Files found this way are added
+   (`FileEntry.Followed`). Chains are ordered head to tail, chains and
+   independent files in input order. Unresolved references are noted in
+   `Diag.Notes` (only when several files are involved). `Options.NoFollow`
+   skips all of it.
+3. Parsing: one `trace.Parser` per file feeding one `Builder`.
+   `Builder.NextFile(path, continuation)`: a **continuation** keeps all state
+   (`open` cursors, pending waits/binds/parents, wall-clock offset), so calls
+   after the split attribute to cursors parsed before it and there are no
+   implicit/assumed cursors for them; an **independent** file first flushes
+   orphan/unattributed counts and then resets cursor numbers, pending state and
+   the session context (cursor addresses are only unique per process). In both
+   cases the next record opens a new `Context` carrying `FileIdx`, and in a
+   multi-file build the header's `Unix process pid` becomes `Context.Process`
+   (as `trcsess` markers do). `tim` values are assumed to share a clock (same
+   host); the wall-clock anchor of each file is its own, and a note is added
+   when the files' wall-minus-tim offsets differ by more than 2 s.
+4. `FileInfo.Files` (`FileEntry`: name, size, lines, first/last tim and wall
+   time, pid, instance, `PX`, `Chain`, `Followed`, the chain markers) lists the
+   files; `FileInfo` itself still describes the first file. Line numbers
+   (`Call.Line`, ...) are per file; `Context.FileIdx` says which. `Diag.Lines`
+   and `Bytes` are summed. `Span` covers all files.
+5. PX (`attachPX`, only when several files were built): a file is a PX slave
+   when its header says `(P000)`/`(PZ99)` or its name is `..._p000_...`;
+   its contexts get `Context.PX`. Each slave context is matched to a
+   coordinator context: a non-PX context of another file whose tim window
+   (widened by 0.5 s) overlaps the slave context's, without a contradicting
+   client id or module (empty is neutral); the best candidate by equal action,
+   equal client id, equal module, then overlap length becomes `Context.Parent`.
+   (PX wait events carry no qcsid in 19c, so the QC's identity cannot be read
+   from the slave's lines.) `Model.PXChild(ctx)` = slave with a parent.
+
+Attached slaves stay in their own contexts, but analysis keeps them out of the
+coordinator's numbers: `analyze.Statements` accumulates their calls into
+`StmtStats.PXElapsed` (Σ self elapsed), `PXCPU` and `PXSessions` (distinct
+slave processes) instead of Parse/Exec/Fetch/Elapsed/Waits; the whole-trace
+profile, statement profiles, executions and findings skip them
+(`analyze.PX` totals their CPU/waits/idle for the report). Unattached slave
+traces (no coordinator in the set) are analysed like any session, which keeps
+tkprof parity. Pivot, the timeline and the UI's fact-based views contain the
+slaves' calls under their own contexts.
+
 ### internal/report — document for the UI
 
 `BuildDocument` emits format 2: dimension tables as JSON objects, fact tables
@@ -155,7 +210,7 @@ notable; `plan-change` is notable or serious as above.
 ## Repository layout
 
 ```
-cmd/mtkprof/        CLI (report, pivot, json, html, serve, lint, export)
+cmd/mtkprof/        CLI (report, pivot, json, html, serve, lint, export, plan); trace arguments are files and directories
 internal/trace/     streaming parser
 internal/model/     model + builder
 internal/analyze/   aggregations

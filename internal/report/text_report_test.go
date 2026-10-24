@@ -65,3 +65,35 @@ func TestPickExecs(t *testing.T) {
 		t.Fatalf("all: got %v %v", idx, slow)
 	}
 }
+
+func TestTextReportPX(t *testing.T) {
+	fx := "../../testdata/traces/19c/"
+	m, err := model.BuildFiles([]string{fx + "parallel.trc", fx + "parallel_slave.trc"}, model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	if err := Text(&b, m, TextOptions{Sort: "elapsed", Binds: 5, Execs: 20, Sys: true, Width: 120}); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	for _, want := range []string{"\nFILES  (", "parallel_slave.trc", "PX slave", "\nPX slaves: 1 sessions, ", "\\ PX slaves: 1 sessions", "(PX slaves, run in parallel; not in the total)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("report lacks %q", want)
+		}
+	}
+	// slave sessions are nested under their coordinator context
+	if !regexp.MustCompile(`(?m)^\s+3\s+1:30\s+\\ 50\.29851 .*PX slave`).MatchString(out) {
+		t.Error("nested slave row not found in SESSIONS")
+	}
+	// JSON carries the new fields
+	var j bytes.Buffer
+	if err := JSON(&j, m, DocOptions{Facts: false}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"pxEla":`, `"pxSessions":1`, `"px":true`, `"fileIdx":1`, `"files":[`} {
+		if !strings.Contains(j.String(), want) {
+			t.Errorf("json lacks %s", want)
+		}
+	}
+}
