@@ -24,12 +24,17 @@ export interface State {
   includeIdle: boolean
   inclusive: boolean // call statistics: inclusive of recursive children (true) or self (false)
   theme: 'auto' | 'light' | 'dark'
+  /** `mtkprof serve` is answering GET /api/lines (the standalone HTML has no server). */
+  linesAvailable: boolean
+  /** Raw trace line viewer: `target` is highlighted, `center` is the middle of the page shown. */
+  lineViewer: { target: number; center: number } | null
 }
 
 const initial: State = {
   doc: null, loading: true, error: null, view: 'overview',
   selection: { stmt: null, event: null, call: null, exec: null },
   window: null, contexts: null, includeIdle: true, inclusive: false, theme: 'auto',
+  linesAvailable: false, lineViewer: null,
 }
 
 let state: State = initial
@@ -42,6 +47,7 @@ export function setState(patch: Partial<State> | ((s: State) => Partial<State>))
   for (const l of listeners) l()
 }
 function subscribe(l: () => void): () => void { listeners.add(l); return () => listeners.delete(l) }
+export const subscribeStore = subscribe
 
 export function useStore<T>(selector: (s: State) => T): T {
   return useSyncExternalStore(subscribe, () => selector(state), () => selector(state))
@@ -53,12 +59,15 @@ export const actions = {
   selectStmt(stmt: ID | null) { setState((s) => ({ view: stmt === null ? s.view : 'statements', selection: { ...s.selection, stmt, event: stmt === null ? s.selection.event : null, call: null, exec: null } })) },
   /** Select a statement without leaving the current view (list navigation inside the workbench). */
   pickStmt(stmt: ID) { setState((s) => ({ selection: { ...s.selection, stmt, event: null, call: null, exec: null } })) },
-  selectEvent(event: ID | null) { setState((s) => ({ selection: { ...s.selection, event, stmt: event === null ? s.selection.stmt : null } })) },
+  selectEvent(event: ID | null) { setState((s) => ({ selection: { ...s.selection, event } })) }, // keeps the statement: the Statements view re-picks one when it is null, which closed the inspector at once
   selectExec(exec: Selection['exec']) { setState((s) => ({ selection: { ...s.selection, exec } })) },
   setWindow(window: TimeWindow | null) { setState({ window }) },
   setContexts(contexts: Set<ID> | null) { setState({ contexts }) },
   toggleIdle() { setState((s) => ({ includeIdle: !s.includeIdle })) },
   setInclusive(inclusive: boolean) { setState({ inclusive }) },
+  openLines(line: number) { setState({ lineViewer: { target: line, center: line } }) },
+  pageLines(center: number) { setState((s) => (s.lineViewer ? { lineViewer: { ...s.lineViewer, center: Math.max(1, center) } } : {})) },
+  closeLines() { setState({ lineViewer: null }) },
   setTheme(theme: State['theme']) {
     setState({ theme })
     const root = document.documentElement

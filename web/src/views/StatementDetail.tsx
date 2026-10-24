@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
-import type { ID, StmtStats, CallStats, Plan } from '../data/types'
+import { NONE, type ID, type StmtStats, type CallStats, type Plan } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, fmtCompact, oraErr } from '../data/format'
 import { useStore, actions } from '../app/store'
 import { SqlText } from '../components/SqlText'
@@ -8,6 +8,9 @@ import { ProfileBar } from '../components/ProfileBar'
 import { DataTable, type Column } from '../components/DataTable'
 import { executions, bindsOf, bindPreview, statementWaits, type Execution } from '../data/derive'
 import type { Segment } from '../components/ProfileBar'
+import { LineRef } from '../components/LineRef'
+import { ColumnChooser } from '../components/ColumnChooser'
+import { usePersisted } from '../app/persist'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 
 export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
@@ -114,11 +117,12 @@ function CallTable({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
 
 function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
   const exs = useMemo(() => executions(doc, id), [doc, id])
+  const [hidden, setHidden] = usePersisted<string[]>('mtkprof.cols.executions', [])
   const wanted = useStore((s) => s.selection.exec)
   const [sel, setSel] = useState<Execution | null>(null)
   useEffect(() => { if (wanted) { const e = exs.find((x) => x.cursor === wanted.cursor && x.execNo === wanted.execNo); if (e) setSel(e) } }, [wanted, exs])
   if (exs.length === 0) return null
-  const cols: Column<Execution>[] = [
+  const all: Column<Execution>[] = [
     { key: 'n', header: '#', align: 'end', render: (e) => e.execNo, sort: (e) => e.execNo },
     { key: 't', header: 'Start', render: (e) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(e.startTim), doc.tzOffsetMin) : `+${fmtDur(e.startTim - doc.span.firstTim)}`), sort: (e) => e.startTim },
     { key: 'e', header: 'Elapsed', align: 'end', render: (e) => fmtDur(e.e), sort: (e) => e.e, bar: true },
@@ -129,12 +133,15 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
     { key: 'cr', header: 'Query', align: 'end', render: (e) => fmtCompact(e.cr), sort: (e) => e.cr },
     { key: 'f', header: 'Fetches', align: 'end', render: (e) => e.fetches, sort: (e) => e.fetches },
     { key: 'b', header: 'Binds', className: 'clip mono', render: (e) => bindPreview(doc, e.bindSet), sort: (e) => bindPreview(doc, e.bindSet) },
+    { key: 'l', header: 'Line', align: 'end', title: 'trace line of the EXEC call', render: (e) => <LineRef line={e.line} bare />, sort: (e) => e.line },
   ]
+  const cols = all.filter((c) => c.key === 'n' || !hidden.includes(c.key))
   const slow = exs.reduce((a, e) => (e.e > a.e ? e : a), exs[0])
   const avg = exs.reduce((a, e) => a + e.e, 0) / exs.length
   return (
     <section className="section">
-      <header><h2>Executions</h2><span className="hint">{exs.length} · avg {fmtDur(avg)} · slowest {fmtDur(slow.e)} (#{slow.execNo})</span></header>
+      <header><h2>Executions</h2><span className="hint">{exs.length} · avg {fmtDur(avg)} · slowest {fmtDur(slow.e)} (#{slow.execNo})</span>
+        <span className="tools"><ColumnChooser all={all.filter((c) => c.key !== 'n').map((c) => ({ key: c.key, label: c.header }))} hidden={hidden} onChange={setHidden} /></span></header>
       <DataTable columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
         selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e) => setSel(sel && sel.exec === e.exec ? null : e)} />
       {sel && <Binds doc={doc} ex={sel} />}
@@ -147,7 +154,7 @@ function Binds({ doc, ex }: { doc: TraceDoc; ex: Execution }) {
   const waits = doc.waitsByCall.get(ex.exec)
   return (
     <div className="section">
-      <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at line {fmtInt(doc.cursors[ex.cursor]?.line ?? 0)} · EXEC at line {fmtInt(doc.calls.line[ex.exec])} · {waits.length} waits on the EXEC</span></header>
+      <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} /> · EXEC at <LineRef line={doc.calls.line[ex.exec]} />{ex.bindSet !== NONE && doc.bindSets.line[ex.bindSet] > 0 && <> · binds at <LineRef line={doc.bindSets.line[ex.bindSet]} /></>} · {waits.length} waits on the EXEC</span></header>
       {binds.length === 0 ? <p className="small muted">No bind values were captured for this execution (trace level without binds, or no binds).</p> : (
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th className="num">pos</th><th>type</th><th>value</th></tr></thead>
@@ -199,7 +206,7 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
     <section className="section">
       <header>
         <h2>Plan {hash || ''}</h2>
-        <span className="hint">row source statistics from the STAT lines at line {fmtInt(plan.line)}{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
+        <span className="hint">row source statistics from the STAT lines at <LineRef line={plan.line} />{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
         <span className="tools plan-acts">
           {dumps.length > 1 && (
             <label className="small muted">dump:{' '}
@@ -258,7 +265,7 @@ function Errors({ doc, id }: { doc: TraceDoc; id: ID }) {
     <section className="section">
       <header><h2>Errors</h2></header>
       <ul className="small" style={{ margin: 0, paddingInlineStart: '1.2rem' }}>
-        {errs.slice(0, 20).map((e) => <li key={e.id}>{e.parseError ? 'parse error ' : ''}{oraErr(e.err)} at line {fmtInt(e.line)}{e.wallUs ? ` (${fmtWall(e.wallUs, doc.tzOffsetMin)})` : ''}</li>)}
+        {errs.slice(0, 20).map((e) => <li key={e.id}>{e.parseError ? 'parse error ' : ''}{oraErr(e.err)} at <LineRef line={e.line} />{e.wallUs ? ` (${fmtWall(e.wallUs, doc.tzOffsetMin)})` : ''}</li>)}
         {errs.length > 20 && <li className="muted">… {errs.length - 20} more</li>}
       </ul>
     </section>

@@ -15,5 +15,6 @@ export default defineConfig({
     assetsInlineLimit: 100000000,
     chunkSizeWarningLimit: 5000,
   },
-  server: { port: 5173 },
+  // `mtkprof serve -addr 127.0.0.1:8048` answers /api/doc and /api/lines during `pnpm dev`
+  server: { port: 5173, proxy: { '/api': 'http://127.0.0.1:8048' } },
 })

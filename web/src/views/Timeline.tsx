@@ -4,6 +4,7 @@ import { CustomChart } from 'echarts/charts'
 import type { EChartsOption, CustomSeriesRenderItemParams, CustomSeriesRenderItemAPI, CustomSeriesRenderItemReturn } from 'echarts'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
+import { LineRef } from '../components/LineRef'
 import { CallKind, callKindName, NONE, type ID } from '../data/types'
 import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
 import { useStore, actions, callFilter } from '../app/store'
@@ -204,7 +205,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
     { key: 'e', header: 'Elapsed', align: 'end', render: (i) => fmtDur(c.e[i]), sort: (i) => c.e[i], bar: true },
     { key: 'c', header: 'CPU', align: 'end', render: (i) => fmtDur(c.c[i]), sort: (i) => c.c[i] },
     { key: 'r', header: 'Rows', align: 'end', render: (i) => fmtCompact(c.r[i]), sort: (i) => c.r[i] },
-    { key: 'l', header: 'Line', align: 'end', render: (i) => fmtInt(c.line[i]), sort: (i) => c.line[i] },
+    { key: 'l', header: 'Line', align: 'end', render: (i) => <LineRef line={c.line[i]} bare />, sort: (i) => c.line[i] },
   ]
 
   return (

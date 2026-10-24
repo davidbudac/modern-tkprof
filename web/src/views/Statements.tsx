@@ -8,6 +8,9 @@ import { useStore, actions } from '../app/store'
 import { quickSegments } from '../data/derive'
 import { StatementDetail } from './StatementDetail'
 import { StatementContext } from './StatementContext'
+import { ResizeHandle } from '../components/ResizeHandle'
+import { usePersisted } from '../app/persist'
+import type { CSSProperties } from 'react'
 
 type SortKey = 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
 const sorts: { id: SortKey; label: string; of: (s: StmtStats, inclusive: boolean) => number }[] = [
@@ -32,6 +35,8 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   const [q, setQ] = useState('')
   const [hideSys, setHideSys] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('resp')
+  const [listW, setListW] = usePersisted<number | null>('mtkprof.listW', null)
+  const [ctxW, setCtxW] = usePersisted<number | null>('mtkprof.contextW', null)
   const totalUs = doc.spanUs()
   const sort = sorts.find((s) => s.id === sortKey)!
   const rows = useMemo(() => {
@@ -69,7 +74,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   })
 
   return (
-    <div className="wb">
+    <div className="wb" style={{ ...(listW ? { '--list-w': `${listW}px` } : null), ...(ctxW ? { '--context-w': `${ctxW}px` } : null) } as CSSProperties}>
       <aside className="wb-list" aria-label="Statements">
         <div className="wb-head">
           <div className="t"><h2>Statements</h2><span className="dim">{rows.length === doc.statements.length ? rows.length : `${rows.length} of ${doc.statements.length}`}</span></div>
@@ -119,6 +124,8 @@ export function Statements({ doc }: { doc: TraceDoc }) {
       <aside className="wb-ctx" aria-label="Context">
         {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} />}
       </aside>
+      <ResizeHandle anchor="start" className="resizer-list" label="Resize statement list" min={240} maxFrac={0.4} onChange={setListW} />
+      <ResizeHandle anchor="end" className="resizer-ctx" label="Resize context pane" min={240} maxFrac={0.4} onChange={setCtxW} />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import type { Context, ID } from '../data/types'
 import { fmtDur, fmtInt, fmtCompact, fmtWall } from '../data/format'
 import { useStore, actions } from '../app/store'
 import { DataTable, type Column } from '../components/DataTable'
+import { LineRef } from '../components/LineRef'
 
 /** Per-context statistics computed in one pass over the fact columns. */
 interface CtxStats {
@@ -125,7 +126,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
     ),
   }
   const identityCols: Column<CtxRow>[] = [
-    { key: 'line', header: 'Line', align: 'end', render: (r) => fmtInt(r.ctx.line), sort: (r) => r.ctx.line },
+    { key: 'line', header: 'Line', align: 'end', render: (r) => <LineRef line={r.ctx.line} bare />, sort: (r) => r.ctx.line },
     { key: 'sess', header: 'Session', className: 'mono', render: (r) => sessionLabel(r.ctx), sort: (r) => sessionLabel(r.ctx) },
     { key: 'mod', header: 'Module', className: 'clip', render: (r) => r.ctx.module || <span className="dim">–</span>, sort: (r) => r.ctx.module },
     { key: 'act', header: 'Action', className: 'clip', render: (r) => r.ctx.action || <span className="dim">–</span>, sort: (r) => r.ctx.action },

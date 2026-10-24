@@ -2,6 +2,10 @@ import { useEffect } from 'react'
 import { useStore, actions, getState, setState } from './store'
 import { TopBar, SubBar } from './TopBar'
 import { Inspector } from './Inspector'
+import { LineDrawer } from './LineDrawer'
+import { ResizeHandle } from '../components/ResizeHandle'
+import { usePersisted } from './persist'
+import type { CSSProperties } from 'react'
 import { Overview } from '../views/Overview'
 import { Statements } from '../views/Statements'
 import { Waits } from '../views/Waits'
@@ -16,13 +20,16 @@ export function App() {
   const error = useStore((s) => s.error)
   const view = useStore((s) => s.view)
   const event = useStore((s) => s.selection.event)
+  const lines = useStore((s) => s.lineViewer !== null)
+  const [inspectorW, setInspectorW] = usePersisted<number | null>('mtkprof.inspectorW', null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      // Esc closes the inspector first, then clears the time window
+      // Esc closes the line viewer first, then the inspector, then clears the time window
       const s = getState()
-      if (s.selection.event !== null) actions.selectEvent(null)
+      if (s.lineViewer) actions.closeLines()
+      else if (s.selection.event !== null) actions.selectEvent(null)
       else if (s.window) actions.setWindow(null)
     }
     window.addEventListener('keydown', onKey)
@@ -35,18 +42,22 @@ export function App() {
   const hasInspector = event !== null
   const full = view === 'statements'
   return (
-    <div className={'shell' + (hasInspector ? ' has-inspector' : '')}>
+    <div className={'shell' + (hasInspector ? ' has-inspector' : '') + (lines ? ' has-lines' : '')}>
       <TopBar doc={doc} />
       <SubBar doc={doc} />
-      <main className={'main' + (full ? ' full' : '')}>
-        {view === 'overview' && <Overview doc={doc} />}
-        {view === 'statements' && <Statements doc={doc} />}
-        {view === 'waits' && <Waits doc={doc} />}
-        {view === 'timeline' && <Timeline doc={doc} />}
-        {view === 'sessions' && <Sessions doc={doc} />}
-        {view === 'pivot' && <Pivot doc={doc} />}
-      </main>
-      {hasInspector && <Inspector doc={doc} />}
+      <div className="body" style={inspectorW ? ({ '--inspector-w': `${inspectorW}px` } as CSSProperties) : undefined}>
+        <main className={'main' + (full ? ' full' : '')}>
+          {view === 'overview' && <Overview doc={doc} />}
+          {view === 'statements' && <Statements doc={doc} />}
+          {view === 'waits' && <Waits doc={doc} />}
+          {view === 'timeline' && <Timeline doc={doc} />}
+          {view === 'sessions' && <Sessions doc={doc} />}
+          {view === 'pivot' && <Pivot doc={doc} />}
+        </main>
+        {hasInspector && <Inspector doc={doc} />}
+        {hasInspector && <ResizeHandle anchor="end" className="resizer-inspector" label="Resize details pane" onChange={setInspectorW} />}
+      </div>
+      {lines && <LineDrawer />}
     </div>
   )
 }

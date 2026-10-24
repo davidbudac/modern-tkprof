@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -265,6 +266,9 @@ func cmdExport(args []string) error {
 	return err
 }
 
+// maxLinesPerRequest caps GET /api/lines.
+const maxLinesPerRequest = 2000
+
 func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	rf := refFlag(fs)
@@ -285,7 +289,27 @@ func cmdServe(args []string) error {
 	if err != nil {
 		return err
 	}
+	li, err := trace.OpenLineIndex(file)
+	if err != nil {
+		return err
+	}
+	defer li.Close()
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/lines", func(w http.ResponseWriter, r *http.Request) {
+		from, _ := strconv.Atoi(r.URL.Query().Get("from"))
+		n, err := strconv.Atoi(r.URL.Query().Get("n"))
+		if err != nil || n > maxLinesPerRequest {
+			n = maxLinesPerRequest
+		}
+		b, err := li.Read(from, n)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Total-Lines", strconv.Itoa(li.Lines()))
+		w.Write(b)
+	})
 	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
 		// local dev server: let `pnpm dev` load ?doc=http://127.0.0.1:8046/api/doc
 		w.Header().Set("Access-Control-Allow-Origin", "*")
