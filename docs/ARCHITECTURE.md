@@ -220,8 +220,10 @@ text and XML parsers tree-shake away (bundle +59 kB, +20 kB gzip).
 
 ### Reference bundle (`internal/ref/bundle.go`, `internal/model/ref.go`, `internal/report/refscript.go`)
 
-mtkprof never connects to a database. `report.RefScript(m, opts)` (`mtkprof
-refscript`) writes a read-only SQL*Plus script for one trace: the distinct
+`report.RefQueries(m, lite)` holds the SQL per bundle file as values;
+`report.RefScript(m, opts)` (`mtkprof refscript`) renders them into a
+read-only SQL*Plus script and `internal/remote/db` `FetchRef` (`mtkprof ref
+-db`) runs them directly, writing the same files. Per trace: the distinct
 obj# (wait `obj#`, STAT `obj=`), file# (p1 of events whose first parameter is
 `file#` / `file number`), parsing user ids and sql_ids with text are put into
 chunked (<= 1000) IN-lists; it spools `ref/objects.csv`, `ref/datafiles.csv`
@@ -901,7 +903,8 @@ internal/report/    text / json / csv renderers
 internal/slice/     server-side slicing: in-memory and spill (disk, persistable) FactSources, the /api endpoints
 internal/engine/    `mtkprof engine`: control plane (sessions, jobs, SSE events, prompts), persistent index cache, content identity
 internal/binfmt/    explicit versioned binary reader/writer used by the persistence code
-internal/remote/    remote-access plumbing shared by the engine and CLI subcommands (so far the Prompter interface)
+internal/remote/    remote-access plumbing shared by the engine and CLI subcommands (the Prompter interface)
+internal/remote/db/ Oracle connection (go-ora): sessions, trace files, ADR fetch, DBMS_MONITOR, ref bundle
 internal/ref/       embedded reference data (wait classes, command types, bind datatypes) + the reference-bundle loader
 api/                engine.openapi.yaml (the engine protocol, checked by internal/engine/contract_test.go)
 web/                Vite + TypeScript UI (web/vendor/ora-plan-core: vendored shared plan core)

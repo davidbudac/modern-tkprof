@@ -37,5 +37,10 @@ grant select on sys.v_$process     to mtk;
 grant select on sys.v_$px_session  to mtk;
 grant select on sys.v_$pq_sesstat  to mtk;
 grant select on sys.v_$parameter   to mtk;
+-- mtkprof db connection (internal/remote/db, docs/REMOTE-db.md)
+grant select on sys.v_$diag_trace_file          to mtk;
+grant select on sys.v_$diag_trace_file_contents to mtk;
+grant select on sys.v_$instance                 to mtk;
+grant execute on sys.dbms_monitor               to mtk;
 select username, account_status, default_tablespace, created from dba_users where username = 'MTK';
 exit
