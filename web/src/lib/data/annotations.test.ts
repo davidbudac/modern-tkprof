@@ -91,3 +91,15 @@ describe('file format', () => {
     expect(md).toContain('### f0.trc line 12: `PARSING IN CURSOR`')
   })
 })
+
+describe('execution notes', () => {
+  it('tell executions of different cursors apart', async () => {
+    const { execNotes, execKey } = await import('./annotations')
+    const ref = { sqlId: 'abc', hash: '1' }
+    const mk = (id: string, cursorLine: number): Annotation => ({ id, kind: 'execution', note: id, created: 0, updated: 0, stmt: ref, execNo: 1, cursorLine })
+    const m = execNotes([mk('a', 10), mk('b', 90)], ref)
+    expect(m.get(execKey(10, 1))?.note).toBe('a')
+    expect(m.get(execKey(90, 1))?.note).toBe('b')
+    expect(m.get(execKey(50, 1))).toBeUndefined()
+  })
+})

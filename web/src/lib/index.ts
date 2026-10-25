@@ -45,7 +45,7 @@ export { fmtInt, fmtCompact, fmtDur, fmtSecs, fmtMs, fmtPct, fmtBytes, fmtWall, 
 export type * from './data/types'
 // annotations (notes on statements, executions, windows, lines) and saved Pivot configurations
 export {
-  textHash, stmtRef, resolveStmt, resolveExec, stmtNote, execNotes, makeAnnotation, newAnnotationId, bookmarkToAnnotation, annotationToBookmark,
+  textHash, stmtRef, resolveStmt, resolveExec, stmtNote, execNotes, execKey, makeAnnotation, newAnnotationId, bookmarkToAnnotation, annotationToBookmark,
   mergeAnnotations, mergeBookmarks, annotationsFile, parseAnnotationsFile, annotationsMarkdown,
 } from './data/annotations'
 export type { Annotation, AnnotationKind, StmtRef, AnnotationsFile, MarkdownOptions } from './data/annotations'

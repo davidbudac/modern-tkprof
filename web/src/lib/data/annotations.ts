@@ -76,10 +76,13 @@ const sameRef = (a: StmtRef | undefined, b: StmtRef) => !!a && a.sqlId === b.sql
 /** The note on a statement (not its executions). */
 export const stmtNote = (list: Annotation[], ref: StmtRef) => list.find((a) => a.kind === 'statement' && sameRef(a.stmt, ref))
 
-/** The notes on a statement's executions, by execution number. */
-export function execNotes(list: Annotation[], ref: StmtRef): Map<number, Annotation> {
-  const m = new Map<number, Annotation>()
-  for (const a of list) if (a.kind === 'execution' && a.execNo !== undefined && sameRef(a.stmt, ref)) m.set(a.execNo, a)
+/** An execution of a statement: execution numbers count per cursor, so the cursor's trace line goes with it. */
+export const execKey = (cursorLine: number | undefined, execNo: number) => `${cursorLine ?? ''}:${execNo}`
+
+/** The notes on a statement's executions, by `execKey`. */
+export function execNotes(list: Annotation[], ref: StmtRef): Map<string, Annotation> {
+  const m = new Map<string, Annotation>()
+  for (const a of list) if (a.kind === 'execution' && a.execNo !== undefined && sameRef(a.stmt, ref)) m.set(execKey(a.cursorLine, a.execNo), a)
   return m
 }
 

@@ -15,7 +15,7 @@ import { usePersisted } from '../state/persist'
 import { ExecCompare } from './ExecCompare'
 import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { NoteEditor, NoteBox } from '../components/Note'
-import { stmtRef, stmtNote, execNotes, makeAnnotation, type StmtRef } from '../data/annotations'
+import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 
 export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
@@ -195,14 +195,14 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
   const noteCol: Column<Execution> = {
     key: 'note', header: '', className: 'pick', title: 'notes on executions',
     render: (e) => {
-      const n = notes.get(e.execNo)
+      const n = notes.get(execKey(doc.cursors[e.cursor]?.line, e.execNo))
       if (!n && !notesOn) return null
       return <button className={'quiet note-btn' + (n ? ' on' : '')} title={n ? n.note : 'add a note on this execution'} aria-label={`${n ? 'Edit the note' : 'Add a note'} on execution #${e.execNo}`}
         onClick={(ev) => { ev.stopPropagation(); setNoteFor(noteFor && keyOf(noteFor) === keyOf(e) ? null : e) }}>✎</button>
     },
   }
   const cols = [pickCol, ...(notesOn || notes.size ? [noteCol] : []), ...all.filter((c) => c.key === 'n' || !hidden.includes(c.key))]
-  const editing = noteFor ? notes.get(noteFor.execNo) : undefined
+  const editing = noteFor ? notes.get(execKey(doc.cursors[noteFor.cursor]?.line, noteFor.execNo)) : undefined
   const { total, avgE: avg, slowest: slow } = page.data
   return (
     <section className="section">
