@@ -417,7 +417,9 @@ restores). Pieces:
   flips it; the drawer has an "In Lines tab" button. What the view keeps while another
   tab is shown (position, query, hits, panel) lives in a `WeakMap` keyed by store and
   file, so switching tabs does not lose a search.
-- The selected row shows Copy (its text) and Link (`linePermalink`: the page URL +
+- The selected row shows Copy (its text) and Link (in `.lv-gut`, a fixed-width gutter that ends every row, sticky at the
+  viewport's right edge: the row's text ends before it, so a long line is not laid under the buttons;
+  `linePermalink`: the page URL +
   `#view=lines&file=&line=`, opened by the URL sync like any deep link; not offered where
   `lineRefTarget` is `'view'`, the desktop shell). `data/clipboard.ts` falls back to a
   hidden textarea on plain http.
@@ -430,7 +432,9 @@ applied configuration. A saved `PivotConfig` keeps its window as offsets and, wh
 save form's "window by clock time" is ticked, also as `windowClock` (wall µs): applying
 it to a trace with timestamps selects that clock window (cut to the trace; outside it
 the window is dropped with a notice), otherwise the offsets apply. The field is
-optional; the library file stays version 1.
+optional; the library file stays version 1. The Pivot controls are three groups (shape
+pickers, "only" filters, saved / columns / CSV) that wrap as a whole, so a row never
+breaks inside a group (checked at 1280, 1500 and 1920 px).
 
 #### Notes and saved Pivot configurations (store additions, desktop plan S8/S9)
 
@@ -526,6 +530,22 @@ on screen.
 - **Other views.** Sessions groups the contexts by file (header row with the file's checkbox; contexts of unselected files are
   dimmed and cannot be ticked; the roll-ups count the selected files). The Lines view's file picker lists the selected files
   and moves to the first selected one when the selection changes (a deep link or bookmark to another file stays).
+- **Time axis** (`selectionSpan` in `data/fileset.ts`, `useAxis` in `data/scopedstmts.ts`). With files or sessions selected, the
+  Overview lanes (and their wait / CPU strips), the by-event / by-class chart and the Timeline view span the selection's own
+  range: the min first tim to the max last tim of the selected files (`FileEntry`) or, with an explicit session selection, of
+  those contexts (`stats.contexts`, within the selected files); a PX slave file alone is the slave's range, with its coordinator
+  file the union; no times = the whole trace. An explicit time window narrows further (a brush inside the axis; a window outside
+  the range is ignored). The minimap keeps the whole-set axis and shades the selection's range (`.minimap-sel`) beside the
+  window's shade. Buckets are counted from the trace's start, so the chart / strips pick the bucket of the selection
+  (`selectionBucket`, `pickBucket` of its span) raised until the whole trace fits in 20000 buckets (the engine refuses more
+  than 100000) and show only the buckets inside the range.
+- **Saved Pivot configurations.** `PivotConfig.files?: string[]` stores the file selection as file *names* (not indexes: they
+  apply to another set); the save form shows "with file selection" when a subset of several files is selected, next to "window
+  by clock time". Applying selects the files of that name (`State.files`; every file = no selection); names the set does not
+  have are reported in the Pivot notice ("2 of 3 files (a.trc, b.trc)", or "file selection (...)" when none exist, selection
+  unchanged). A configuration without `files` leaves the selection as it is; its session contexts are checked against the
+  selection that stays (contexts outside the selected files are dropped with a note). Old library files load unchanged; a
+  malformed or empty list is ignored.
 - Desktop shell: `FilesPane`, `FilesPanel`, `FilesToggle`, `filesPanelOpen` and `useScopedStatements` are exported from
   `@lib`; the shell puts `FilesPane` first in its `.body` grid and adds `has-files` to `.shell` (see `app/App.tsx`).
 
