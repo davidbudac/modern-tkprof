@@ -41,14 +41,6 @@ export function Overview({ doc }: { doc: TraceDoc }) {
       </section>
 
       <section className="section">
-        <header><h2>Statements</h2><span className="hint">incl. recursive children and idle between calls{state.window ? ' · whole trace, window not applied' : ''}</span>
-          <span className="tools"><button className="link" onClick={() => actions.setView('statements')}>all {stmts.length} statements</button></span></header>
-        <StatementLedger doc={doc} stmts={stmts} totalUs={doc.spanUs()} />
-      </section>
-
-      <Findings doc={doc} />
-
-      <section className="section">
         <header><h2>Timeline</h2>
           <span className="hint">{timeView === 'lanes' ? 'lane per statement, by first call · drag: set window · Esc: clear' : 'busy time per bucket · slider: set window · Esc: clear'}</span>
           <span className="tools"><span className="seg" role="group" aria-label="Time view">
@@ -58,6 +50,14 @@ export function Overview({ doc }: { doc: TraceDoc }) {
           </span></span></header>
         {timeView === 'lanes' ? <Lanes doc={doc} /> : <TimelineChart doc={doc} by={timeView} />}
       </section>
+
+      <section className="section">
+        <header><h2>Statements</h2><span className="hint">incl. recursive children and idle between calls{state.window ? ' · whole trace, window not applied' : ''}</span>
+          <span className="tools"><button className="link" onClick={() => actions.setView('statements')}>all {stmts.length} statements</button></span></header>
+        <StatementLedger doc={doc} stmts={stmts} totalUs={doc.spanUs()} />
+      </section>
+
+      <Findings doc={doc} />
 
       <TraceFacts doc={doc} />
     </>
