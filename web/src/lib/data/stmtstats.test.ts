@@ -73,6 +73,33 @@ describe('scopedStatements (the in-browser api/statements)', () => {
     expect(scopedStatements(doc, scope(doc, [2]))[1].errors).toBe(1)
   })
 
+  it('cursors and plans are those of the cursors in scope', async () => {
+    const doc = await makeDoc(calls)
+    ;(doc.plans as unknown as unknown[]).push({ id: 0, line: 5, cursor: 0, statement: 0, planHash: 7, first: 0, n: 0 }, { id: 1, line: 6, cursor: 1, statement: 1, planHash: 9, first: 0, n: 0 })
+    const f2 = scopedStatements(doc, scope(doc, [2])) // ctx 3 only: its calls are on cursor 1
+    expect(f2[0].cursors).toBe(0); expect(f2[0].plans).toBeNull(); expect(f2[0].planHashes).toBeNull()
+    expect(f2[1].cursors).toBe(1); expect(f2[1].plans).toEqual([1]); expect(f2[1].planHashes).toEqual([9])
+    // both cursors are opened in ctx 0 (file 0): without a window every cursor of the contexts counts
+    const f0 = scopedStatements(doc, scope(doc, [0]))
+    expect(f0.map((x) => x.cursors)).toEqual([1, 1]); expect(f0[0].plans).toEqual([0]); expect(f0[1].planHashes).toEqual([9])
+    // a window keeps only the cursors called in it (the PX slave call of stmt 0 counts, as in the engine)
+    const w = scopedStatements(doc, scope(doc, null, { startTim: 1900, endTim: 2100 }))
+    expect(w[0].cursors).toBe(1); expect(w[1].cursors).toBe(1); expect(w[1].plans).toEqual([1])
+  })
+
+  it('LocalSource lists follow the scope: executions, spans, roles', async () => {
+    const doc = await makeDoc(calls)
+    const src = new LocalSource(doc)
+    expect(src.executions(1, scope(doc, null)).total).toBe(3)
+    const one = src.executions(1, scope(doc, [2]))
+    expect(one.total).toBe(1); expect(one.rows[0].e).toBe(300); expect(one.slowest?.e).toBe(300)
+    expect(src.executions(1, { window: null, files: new Set(), contexts: new Set(), includeIdle: true }).total).toBe(0)
+    expect(src.stmtSpans([1], 0, scope(doc, null)).get(1)!.length).toBe(3)
+    expect(src.stmtSpans([1], 0, scope(doc, [2])).get(1)).toEqual([{ start: 2700, end: 3000 }])
+    expect(src.stmtWaits([1], 5, scope(doc, [2])).get(1)).toEqual([])
+    expect(src.stmtRoles(scope(doc, [2]))).toBeInstanceOf(Float64Array)
+  })
+
   it('LocalSource.statements answers it (null without fact tables)', async () => {
     const doc = await makeDoc(calls)
     expect(new LocalSource(doc).statements(scope(doc, [2]))![1].elapsed).toBe(300)
@@ -98,11 +125,28 @@ describe('RemoteSource.statements', () => {
     expect(fetch.mock.calls[0][0]).toBe('/api/statements?from=5&to=9&contexts=0%2C1')
   })
 
-  it('no context at all becomes an empty window: the server reads an empty contexts list as "all"', async () => {
+  it('no context at all is `contexts=-`: an empty contexts list means "all" to the server', async () => {
     const doc = await makeDoc(calls)
     const { client, fetch } = fakeClient(() => new Response('{"statements":[]}'))
     await new RemoteSource(doc, client).statements({ window: null, files: new Set(), contexts: new Set(), includeIdle: true })
-    expect(fetch.mock.calls[0][0]).toBe('/api/statements?from=1&to=1')
+    expect(fetch.mock.calls[0][0]).toBe('/api/statements?contexts=-')
+  })
+
+  it('the per-statement lists carry the scope: contexts, window, `contexts=-` for none; the idle toggle only where it counts', async () => {
+    const doc = await makeDoc(calls)
+    const { client, fetch } = fakeClient(() => new Response(JSON.stringify({ total: 0, avgE: 0, slowest: null, rows: [], waits: {}, spans: {}, classes: [], rows2: [] })))
+    const src = new RemoteSource(doc, client)
+    const sc: Scope = { window: { startTim: 5, endTim: 9 }, files: new Set([0]), contexts: new Set([1, 0]), includeIdle: false }
+    await src.executions(3, sc)
+    await src.stmtWaits([3, 4], 6, sc)
+    await src.stmtSpans([3], 100, sc)
+    await src.stmtRoles({ ...sc, contexts: new Set() })
+    expect(fetch.mock.calls.map((c) => c[0])).toEqual([
+      '/api/executions?stmt=3&limit=5000&sort=file&from=5&to=9&contexts=0%2C1',
+      '/api/stmt/waits?stmt=3%2C4&max=6&from=5&to=9&contexts=0%2C1',
+      '/api/stmt/spans?stmt=3&gap=100&from=5&to=9&contexts=0%2C1',
+      '/api/stmt/roles?from=5&to=9&contexts=-',
+    ])
   })
 
   it('a 404 (an engine without the endpoint) is "not available", asked once', async () => {

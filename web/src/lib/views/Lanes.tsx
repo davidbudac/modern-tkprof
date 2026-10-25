@@ -4,7 +4,8 @@ import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtWall, preview } from '../data/format'
 import { scopeOf } from '../state/store'
-import { useScopedStatements } from '../data/scopedstmts'
+import { scopeKey, useScope, useScopedStatements } from '../data/scopedstmts'
+import { responseUs } from '../data/response'
 import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
@@ -41,13 +42,15 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
 
   const source = sourceOf(doc)
   const ss = useScopedStatements(doc, { withWindow: false })
-  const top = useMemo(() => ss.stats.filter((s) => s.allCalls.count > 0 && s.firstTim > 0)
-    .sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)).slice(0, MAX_LANES)
-    .sort((a, b) => a.firstTim - b.firstTim), [ss.stats])
+  const laneScope = useScope(doc, { withWindow: false }) // the lanes keep their rows when a window is dragged
+  // only statements with calls in the scope get a lane (none while the scope's table is on its way)
+  const top = useMemo(() => (ss.pending ? [] : ss.stats.filter((s) => s.allCalls.count > 0 && s.firstTim > 0)
+    .sort((a, b) => responseUs(b) - responseUs(a)).slice(0, MAX_LANES)
+    .sort((a, b) => a.firstTim - b.firstTim)), [ss.stats, ss.pending])
   const topIds = top.map((s) => s.id)
   const gap = span / 600
-  const spansQ = useSourceQuery(source, `spans:${topIds.join(',')}:${gap}`, (signal) => (source.ready ? source.stmtSpans(topIds, gap, signal) : null), 'spans')
-  const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
+  const spansQ = useSourceQuery(source, `spans:${topIds.join(',')}:${gap}:${scopeKey(laneScope)}`, (signal) => (source.ready ? source.stmtSpans(topIds, gap, laneScope, signal) : null), 'spans')
+  const roles = useSourceQuery(source, `roles:${scopeKey(laneScope)}`, (signal) => source.stmtRoles(laneScope, signal), 'roles').data
   const lanes = useMemo<Lane[]>(() => top.map((st) => {
     const s = doc.statements[st.id]
     const spans = spansQ.data?.get(st.id) ?? [{ start: st.firstTim, end: st.lastTim }]

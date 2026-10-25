@@ -22,8 +22,9 @@ const pxProcess = (doc: TraceDoc, ctx: ID): string => { const c = doc.contexts[c
 
 /**
  * StmtStats of every statement over the calls in `scope` (window and effective contexts; the idle toggle is for waits only and
- * does not apply). Needs the fact columns. Links, plans and cursor counts of the whole trace are kept for the statements that
- * have calls; errors are counted in the scope's contexts.
+ * does not apply). Needs the fact columns. Cursors and plans are those of the cursors in scope (every cursor of the scope's
+ * contexts without a window, else the cursors with a call in the window), as the engine's `StatementsOn`; errors are counted in
+ * the scope's contexts.
  */
 export function scopedStatements(doc: TraceDoc, scope: Scope): StmtStats[] {
   const base = doc.stats.statements
@@ -35,6 +36,9 @@ export function scopedStatements(doc: TraceDoc, scope: Scope): StmtStats[] {
   }))
   const c = doc.calls
   const keep = callFilter({ doc, window: scope.window, contexts: scope.contexts })
+  const narrows = !!(scope.window || scope.contexts)
+  const cursorIn = new Uint8Array(doc.cursors.length)
+  if (!scope.window) doc.cursors.forEach((cu, i) => { if (!scope.contexts || scope.contexts.has(cu.context)) cursorIn[i] = 1 })
   const seenDep = new Uint8Array(out.length)
   const edges = new Map<number, Link>() // parent * N + child
   const nStmt = out.length
@@ -49,6 +53,8 @@ export function scopedStatements(doc: TraceDoc, scope: Scope): StmtStats[] {
     const sid = c.stmt[i]
     const s = out[sid]
     if (!s) continue
+    const cur = c.cursor[i]
+    if (cur >= 0 && cur < cursorIn.length) cursorIn[cur] = 1
     const ctx = doc.contexts[c.ctx[i]]
     if (ctx?.px && ctx.parent != null && ctx.parent >= 0) { // an attached PX slave: kept out of the coordinator's figures
       s.pxEla = (s.pxEla ?? 0) + c.selfE[i]
@@ -98,6 +104,20 @@ export function scopedStatements(doc: TraceDoc, scope: Scope): StmtStats[] {
     addStats(s.total, s.parse); addStats(s.total, s.exec); addStats(s.total, s.fetch)
     s.children?.sort((a, b) => b.elapsed - a.elapsed)
     s.parents?.sort((a, b) => b.elapsed - a.elapsed)
+  }
+  if (narrows) {
+    const seenPlh = new Map<ID, Set<number>>()
+    for (const s of out) { s.cursors = 0; s.plans = null; s.planHashes = null }
+    doc.statements.forEach((st, i) => { for (const cu of st.cursors) if (cursorIn[cu]) out[i].cursors++ })
+    for (const p of doc.plans) {
+      if (p.cursor < 0 || p.cursor >= cursorIn.length || !cursorIn[p.cursor]) continue // no cursor to scope it by: only the whole set has it
+      const s = out[p.statement]
+      if (!s) continue
+      ;(s.plans ??= []).push(p.id)
+      let seen = seenPlh.get(p.statement)
+      if (!seen) seenPlh.set(p.statement, (seen = new Set()))
+      if (!seen.has(p.planHash)) { seen.add(p.planHash); (s.planHashes ??= []).push(p.planHash) }
+    }
   }
   for (const e of doc.errors) {
     if (e.statement < 0 || !out[e.statement]) continue

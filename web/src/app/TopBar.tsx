@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, traceSegmentsFrom, sourceOf, useSourceQuery, type TraceDoc, type View } from '@lib'
+import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, traceSegmentsFrom, sourceOf, useSourceQuery, useScopedStatements, type TraceDoc, type View } from '@lib'
 
 const tabs: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -30,8 +30,22 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
   const profile = useSourceQuery(source, `top:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`, (signal) => source.profile(scope, signal), 'top')
   const segs = useMemo(() => traceSegmentsFrom(doc, profile.data ?? null, totalUs).filter((s) => s.us > 0), [doc, profile.data, totalUs])
   const top = [...segs].filter((s) => s.role !== 'unaccounted').sort((a, b) => b.us - a.us).slice(0, 3)
-  const counts: Partial<Record<View, number>> = { statements: doc.statements.length, waits: doc.events.length, sessions: doc.contexts.length }
   const win = state.window
+  // the tab counts follow the scope: statements with calls in it, events with waits in it (the window counts when set), its sessions
+  const ss = useScopedStatements(doc)
+  const full = scopeOf(state)
+  const waitsQ = useSourceQuery(source, `topw:${full.window ? `${full.window.startTim}:${full.window.endTim}` : ''}|${ctxKey(full.contexts)}|${full.includeIdle ? 1 : 0}`,
+    (signal) => (full.window ? source.profile(full, signal) : null), 'topw')
+  const waitsProfile = full.window ? waitsQ.data : profile.data
+  const narrowsWaits = !!(full.window || full.contexts)
+  const nStmts = ss.narrowed ? ss.inScope : doc.statements.length
+  const nEvents = narrowsWaits && waitsProfile ? waitsProfile.events.filter((e) => e.count > 0).length : doc.events.length
+  const nSessions = full.contexts ? full.contexts.size : doc.contexts.length
+  const counts: Partial<Record<View, string>> = {
+    statements: ss.narrowed ? `${nStmts} of ${ss.total}` : `${nStmts}`,
+    waits: narrowsWaits && waitsProfile ? `${nEvents} of ${doc.events.length}` : `${doc.events.length}`,
+    sessions: full.contexts ? `${nSessions} of ${doc.contexts.length}` : `${doc.contexts.length}`,
+  }
   return (
     <header className={'topbar' + (compare ? ' cmp' : '')}>
       <span className="brand">mtkprof</span>

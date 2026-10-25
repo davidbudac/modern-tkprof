@@ -109,14 +109,19 @@ export interface Execution {
   binds?: BindRow[]
 }
 
-/** EXEC + following FETCH calls of a statement, in file order. */
-export function executions(doc: TraceDoc, sid: ID): Execution[] {
+/**
+ * EXEC + following FETCH calls of a statement, in file order. With `keep` (a call-row predicate: the scope's `callFilter`)
+ * only the calls it lets through count: an execution exists when its EXEC call is kept and sums the kept FETCH calls
+ * (the server's `EachExecutionIn`).
+ */
+export function executions(doc: TraceDoc, sid: ID, keep?: (call: number) => boolean): Execution[] {
   const c = doc.calls
   const ids = doc.callsByStmt.get(sid)
   const out: Execution[] = []
   const idx = new Map<string, number>()
   for (let k = 0; k < ids.length; k++) {
     const i = ids[k]
+    if (keep && !keep(i)) continue
     const kind = c.kind[i]
     if (kind === CallKind.exec) {
       const ex: Execution = { line: c.line[i], cursor: c.cursor[i], execNo: c.execNo[i], exec: i, fetches: 0, startTim: c.tim[i] - c.e[i], endTim: c.tim[i],
@@ -320,18 +325,18 @@ export const NROLES = roleOrder.length
  * Wait time per statement and color role, one pass over the waits (cached per document).
  * Row = statement id, column = roleOrder index.
  */
-export function statementRoleUs(doc: TraceDoc): Float64Array {
-  let t = roleTotalsCache.get(doc)
+export function statementRoleUs(doc: TraceDoc, keep?: (wait: number) => boolean): Float64Array {
+  let t = keep ? undefined : roleTotalsCache.get(doc)
   if (t) return t
   t = new Float64Array(doc.statements.length * NROLES)
   const w = doc.waits
   const roleIdx = doc.events.map((ev) => roleOrder.indexOf(roleOfClass(ev.class, ev.idle)))
   for (let i = 0; i < w.n; i++) {
     const s = w.stmt[i]
-    if (s < 0) continue
+    if (s < 0 || (keep && !keep(i))) continue
     t[s * NROLES + roleIdx[w.event[i]]] += w.ela[i]
   }
-  roleTotalsCache.set(doc, t)
+  if (!keep) roleTotalsCache.set(doc, t)
   return t
 }
 
@@ -365,10 +370,11 @@ export function dominantRole(doc: TraceDoc, st: StmtStats, table?: Float64Array 
 export interface StmtWait { event: ID; name: string; role: Role; us: number; count: number; maxUs: number; obj: number; maxLine: number; maxFile?: number }
 
 /** Top wait events of one statement, with the object they were on when every wait names the same one. */
-export function statementWaits(doc: TraceDoc, sid: ID, max = 6): StmtWait[] {
+export function statementWaits(doc: TraceDoc, sid: ID, max = 6, keep?: (wait: number) => boolean): StmtWait[] {
   if (!doc.hasFacts) return []
   const w = doc.waits
-  const ids = doc.waitsByStmt.get(sid)
+  const all = doc.waitsByStmt.get(sid)
+  const ids = keep ? all.filter((i) => keep(i)) : all
   const byEvent = groupBy({ n: ids.length, key: (k) => w.event[ids[k]], value: (k) => w.ela[ids[k]] })
   return byEvent.slice(0, max).map((a) => {
     const ev = doc.events[a.key]
@@ -387,13 +393,13 @@ export function statementWaits(doc: TraceDoc, sid: ID, max = 6): StmtWait[] {
 export interface Span2 { start: number; end: number }
 
 /** Time intervals a statement was executing (its calls, merged; gaps shorter than `gapUs` closed). */
-export function statementSpans(doc: TraceDoc, sid: ID, gapUs: number): Span2[] {
+export function statementSpans(doc: TraceDoc, sid: ID, gapUs: number, keep?: (call: number) => boolean): Span2[] {
   const c = doc.calls
   const ids = doc.callsByStmt.get(sid)
   const iv: Span2[] = []
   for (let k = 0; k < ids.length; k++) {
     const i = ids[k]
-    if (!c.tim[i]) continue
+    if (!c.tim[i] || (keep && !keep(i))) continue
     iv.push({ start: c.tim[i] - c.e[i], end: c.tim[i] })
   }
   iv.sort((a, b) => a.start - b.start)

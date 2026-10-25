@@ -5,29 +5,40 @@ import { fmtDur, fmtInt, fmtPct, fmtWall, preview } from '../data/format'
 import { useActions } from '../state/session'
 import { LineRef } from '../components/LineRef'
 import { sourceOf, useSourceQuery } from '../data/source'
+import { scopeKey, useScope } from '../data/scopedstmts'
+import type { Scope } from '../state/store'
 import { findingText } from './Findings'
 
-/** The right-hand column of the workbench: where the statement ran, its waits, its relatives, its findings. */
-export function StatementContext({ doc, id, stats: scoped }: { doc: TraceDoc; id: ID; stats?: StmtStats }) {
+const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
+
+/**
+ * The right-hand column of the workbench: where the statement ran, its waits, its relatives, its findings. `stats` are the
+ * numbers of the scope when `narrowed` (first and last call come from them, the cursors are those in scope, the waits are the
+ * scope's); findings stay whole-trace.
+ */
+export function StatementContext({ doc, id, stats: scoped, narrowed = false }: { doc: TraceDoc; id: ID; stats?: StmtStats; narrowed?: boolean }) {
   const actions = useActions()
   const st = doc.statements[id]
   const stats = scoped ?? doc.stats.statements[id]
   const source = sourceOf(doc)
-  const waitsQ = useSourceQuery(source, `waits:${id}`, (signal) => (source.ready ? source.stmtWaits([id], 6, signal) : null), 'waits')
+  const stateScope = useScope(doc)
+  const scope = narrowed ? stateScope : WHOLE
+  const waitsQ = useSourceQuery(source, `waits:${id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([id], 6, scope, signal) : null), 'waits')
   if (!st || !stats) return null
-  const ctx = st.cursors.length ? doc.contexts[doc.cursors[st.cursors[0]].context] : undefined
+  const cursorsIn = narrowed ? st.cursors.filter((c) => inScopeCursor(doc, c, stateScope)) : st.cursors
+  const ctx = cursorsIn.length ? doc.contexts[doc.cursors[cursorsIn[0]].context] : undefined
   const waits = waitsQ.data?.get(id) ?? []
   const children = stats.children ?? [], parents = stats.parents ?? []
   const findings = doc.stats.findings.filter((f) => f.statement === id)
-  const assumed = st.cursors.some((c) => doc.cursors[c].assumed)
+  const assumed = cursorsIn.some((c) => doc.cursors[c].assumed)
   return (
     <>
       <div className="ctx-sec">
         <h3>Context</h3>
         <dl className="kv">
           {stats.firstWallUs ? <><dt>first call</dt><dd>{fmtWall(stats.firstWallUs, doc.tzOffsetMin)}</dd><dt>last call</dt><dd>{fmtWall(stats.lastWallUs, doc.tzOffsetMin)}</dd></> : null}
-          <dt>trace line</dt><dd><LineRef line={st.firstLine} file={doc.fileOfStmt(id)} bare /></dd>
-          <dt>cursors</dt><dd>{st.cursors.length}{assumed ? ' · one opened before trace start' : ''}</dd>
+          <dt>trace line</dt><dd>{cursorsIn.length && narrowed ? <LineRef line={doc.cursors[cursorsIn[0]].line} file={doc.fileOfCursor(cursorsIn[0])} bare /> : <LineRef line={st.firstLine} file={doc.fileOfStmt(id)} bare />}</dd>
+          <dt>cursors</dt><dd>{narrowed ? stats.cursors : st.cursors.length}{assumed ? ' · one opened before trace start' : ''}</dd>
           {ctx?.module && <><dt>module</dt><dd>{ctx.module}</dd></>}
           {ctx?.action && <><dt>action</dt><dd>{ctx.action}</dd></>}
           {ctx?.sessionId && <><dt>session</dt><dd>{ctx.sessionId}{ctx.service ? ` · ${ctx.service}` : ''}</dd></>}
@@ -81,6 +92,11 @@ export function StatementContext({ doc, id, stats: scoped }: { doc: TraceDoc; id
       )}
     </>
   )
+}
+
+/** A cursor of the scope: opened in one of its contexts (the window is applied through `StmtStats.cursors`, which counts those called in it). */
+function inScopeCursor(doc: TraceDoc, cursor: ID, scope: Scope): boolean {
+  return !scope.contexts || scope.contexts.has(doc.cursors[cursor].context)
 }
 
 function RelRow({ doc, id, text, right }: { doc: TraceDoc; id: ID; text: string; right: string }) {

@@ -4,18 +4,19 @@ import { TimelineChart } from './TimelineChart'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink, LinkText } from '../components/StmtLink'
 import { fmtDur, fmtInt, fmtCompact, fmtPct, preview } from '../data/format'
-import { scopeOf } from '../state/store'
+import { scopeOf, type Scope } from '../state/store'
 import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
-import { componentRowsFrom, quickSegments, type ComponentRow, type StmtWait } from '../data/derive'
+import { componentRowsFrom, quickSegments, type ComponentRow, type ScopeProfile, type StmtWait } from '../data/derive'
 import { ticks, tickLabel, tickUnit } from '../data/scale'
 import { lightFill } from '../components/colors'
 import { Findings, findingText } from './Findings'
 import { Lanes } from './Lanes'
 import { Minimap } from '../components/Minimap'
 import { NONE, type StmtStats } from '../data/types'
-import { useScopedStatements } from '../data/scopedstmts'
+import { scopeKey, useScope, useScopedStatements, type ScopedStatements } from '../data/scopedstmts'
 import { scopeSpanUs, selectedCount, fileCount } from '../data/fileset'
+import { responseShare, responseUs, shareNote } from '../data/response'
 
 const TOP_STATEMENTS = 8
 const LEDGER_ROWS = 5
@@ -30,7 +31,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
     (signal) => source.profile(scope, signal), 'profile')
   const rows = useMemo(() => componentRowsFrom(doc, profile.data ?? null, totalUs), [doc, profile.data, totalUs])
   const ss = useScopedStatements(doc)
-  const stmts = useMemo(() => [...ss.stats].filter((s) => s.allCalls.count > 0).sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)), [ss.stats])
+  const stmts = useMemo(() => [...ss.stats].filter((s) => s.allCalls.count > 0).sort((a, b) => responseUs(b) - responseUs(a)), [ss.stats])
   const lede = summary(totalUs, stmts)
   const [timeView, setTimeView] = useState<'lanes' | 'event' | 'class'>('lanes')
   return (
@@ -59,12 +60,12 @@ export function Overview({ doc }: { doc: TraceDoc }) {
         <header><h2>Statements</h2><span className="hint">incl. recursive children and idle between calls{ss.narrowed ? ` · ${ss.inScope} of ${ss.total} statements in scope` : ''}</span>
           <span className="tools"><button className="link" onClick={() => actions.setView('statements')}>all {stmts.length} statements</button></span></header>
         {ss.notice && <p className="callout">{ss.notice}</p>}
-        <StatementLedger doc={doc} stmts={stmts} totalUs={totalUs} narrowed={ss.narrowed} />
+        <StatementLedger doc={doc} stmts={stmts} totalUs={totalUs} />
       </section>
 
       <Findings doc={doc} />
 
-      <TraceFacts doc={doc} />
+      <TraceFacts doc={doc} ss={ss} scope={scope} profile={profile.data ?? null} />
     </>
   )
 }
@@ -73,7 +74,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
 function summary(totalUs: number, stmts: StmtStats[]): string {
   if (totalUs <= 0) return 'no time information'
   let acc = 0, k = 0
-  for (const s of stmts) { acc += s.elapsed + s.idleUs; k++; if (acc >= 0.8 * totalUs) break }
+  for (const s of stmts) { acc += responseUs(s); k++; if (acc >= 0.8 * totalUs) break }
   return stmts.length > 1 && acc >= 0.8 * totalUs ? `top ${k} statement${k === 1 ? '' : 's'}: ${fmtPct(acc, totalUs, 0)}` : ''
 }
 
@@ -161,23 +162,24 @@ function Ledger({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
 }
 
 /** Top statements, each with its own profile bar drawn on the shared time axis. */
-function StatementLedger({ doc, stmts, totalUs, narrowed }: { doc: TraceDoc; stmts: StmtStats[]; totalUs: number; narrowed: boolean }) {
+function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtStats[]; totalUs: number }) {
   const actions = useActions()
   const source = sourceOf(doc)
   const top = stmts.slice(0, TOP_STATEMENTS)
-  const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
+  const scope = useScope(doc)
+  const roles = useSourceQuery(source, `roles:${scopeKey(scope)}`, (signal) => source.stmtRoles(scope, signal), 'roles').data
   const topIds = top.map((s) => s.id)
-  const waits = useSourceQuery(source, `waits:${topIds.join(',')}:${narrowed ? 1 : 0}`, (signal) => (source.ready && !narrowed ? source.stmtWaits(topIds, 3, signal) : null)).data
+  const waits = useSourceQuery(source, `waits:${topIds.join(',')}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits(topIds, 3, scope, signal) : null)).data
   const rest = stmts.slice(TOP_STATEMENTS)
-  const restUs = rest.reduce((a, s) => a + s.elapsed + s.idleUs, 0)
+  const restUs = rest.reduce((a, s) => a + responseUs(s), 0)
   const tk = ticks(totalUs)
   const findings = doc.stats.findings
   return (
     <div className="stmt-ledger ruled" style={{ backgroundSize: `${(100 * tk.step) / totalUs}% 100%` }}>
       {top.map((st) => {
         const s = doc.statements[st.id]
-        const resp = st.elapsed + st.idleUs
-        const segs = quickSegments(doc, st, roles, narrowed).filter((x) => x.us > 0)
+        const resp = responseUs(st)
+        const segs = quickSegments(doc, st, roles).filter((x) => x.us > 0)
         const own = findings.filter((f) => f.statement === st.id)
         return (
           <div key={st.id} className="srow row-click" onClick={() => actions.selectStmt(st.id)}>
@@ -185,7 +187,7 @@ function StatementLedger({ doc, stmts, totalUs, narrowed }: { doc: TraceDoc; stm
               <span className="id"><StmtLink doc={doc} id={st.id} /></span>
               <span className="txt mono">{preview(s.text, 140)}</span>
               <span className="t">{fmtDur(resp)}</span>
-              <span className="p">{fmtPct(resp, totalUs)}</span>
+              <span className="p" title={shareNote(responseShare(st, totalUs))}>{fmtPct(resp, totalUs)}</span>
             </div>
             <div className="bar">{segs.map((x) => <i key={x.role} style={{ width: `${(100 * x.us) / totalUs}%`, background: `var(--c-${x.role})` }} title={`${x.label} ${fmtDur(x.us)}`} />)}</div>
             <div className="note">
@@ -204,7 +206,7 @@ function StatementLedger({ doc, stmts, totalUs, narrowed }: { doc: TraceDoc; stm
 function Note({ doc, st, waits }: { doc: TraceDoc; st: StmtStats; waits?: StmtWait[] }) {
   const parts: string[] = []
   const w = (waits ?? []).find((x) => x.role !== 'idle')
-  const resp = st.elapsed + st.idleUs
+  const resp = responseUs(st)
   if (w && w.us / resp >= 0.2) parts.push(`${w.name} ${fmtDur(w.us)} in ${fmtInt(w.count)} wait${w.count === 1 ? '' : 's'}${w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? ` on obj# ${w.obj}${doc.objectName(w.obj) ? ` (${doc.objectName(w.obj)})` : ''}` : ''}`)
   else if (st.cpu / resp >= 0.5) parts.push(`${fmtDur(st.cpu)} CPU`)
   if (st.executions > 1) parts.push(`${fmtInt(st.executions)} executions`)
@@ -216,27 +218,37 @@ function Note({ doc, st, waits }: { doc: TraceDoc; st: StmtStats; waits?: StmtWa
   return <span>{parts.join(' · ')}</span>
 }
 
-function TraceFacts({ doc }: { doc: TraceDoc }) {
+/**
+ * The facts of the trace; with a scope (window, sessions, files) the counts that the scope can answer are the scope's:
+ * the statement table's sums, the waits of the profile, the errors, commits and lines of its contexts and files. The rest
+ * (unrecognised lines, notes) stays whole-trace.
+ */
+function TraceFacts({ doc, ss, scope, profile }: { doc: TraceDoc; ss: ScopedStatements; scope: Scope; profile: ScopeProfile | null }) {
   const stats = doc.stats
-  const nExec = stats.statements.reduce((a, s) => a + s.executions, 0)
-  const rows = stats.statements.reduce((a, s) => a + s.allCalls.rows, 0)
-  const disk = stats.statements.reduce((a, s) => a + s.allCalls.disk, 0)
-  const query = stats.statements.reduce((a, s) => a + s.allCalls.query, 0)
-  const calls = doc.hasFacts ? doc.calls.n : stats.statements.reduce((a, s) => a + s.allCalls.count, 0)
-  const waits = doc.hasFacts ? doc.waits.n : stats.events.reduce((a, e) => a + e.count, 0)
-  const commits = doc.transactions.filter((t) => !t.rollback).length, rollbacks = doc.transactions.length - commits
+  const narrows = ss.narrowed
+  const rowsOf = ss.stats
+  const nExec = rowsOf.reduce((a, s) => a + s.executions, 0)
+  const rows = rowsOf.reduce((a, s) => a + s.allCalls.rows, 0)
+  const disk = rowsOf.reduce((a, s) => a + s.allCalls.disk, 0)
+  const query = rowsOf.reduce((a, s) => a + s.allCalls.query, 0)
+  const calls = narrows ? rowsOf.reduce((a, s) => a + s.allCalls.count, 0) : doc.hasFacts ? doc.calls.n : rowsOf.reduce((a, s) => a + s.allCalls.count, 0)
+  const waits = narrows && profile ? profile.events.reduce((a, e) => a + e.count, 0) : doc.hasFacts ? doc.waits.n : stats.events.reduce((a, e) => a + e.count, 0)
+  const errors = narrows ? rowsOf.reduce((a, s) => a + s.errors, 0) : doc.errors.length
+  const txs = narrows ? doc.transactions.filter((t) => (!scope.contexts || scope.contexts.has(t.context)) && (!scope.window || (t.tim >= scope.window.startTim && t.tim <= scope.window.endTim))) : doc.transactions
+  const commits = txs.filter((t) => !t.rollback).length, rollbacks = txs.length - commits
+  const lines = scope.files ? (doc.file.files ?? []).reduce((a, f, i) => a + (scope.files!.has(i) ? f.lines : 0), 0) : doc.diag.lines
   const facts: string[] = []
-  facts.push(`${fmtInt(doc.errors.length)} error${doc.errors.length === 1 ? '' : 's'}`)
+  facts.push(`${fmtInt(errors)} error${errors === 1 ? '' : 's'}`)
   facts.push(`${fmtInt(commits)} commit${commits === 1 ? '' : 's'}${rollbacks ? `, ${fmtInt(rollbacks)} rollback${rollbacks === 1 ? '' : 's'}` : ''}`)
-  facts.push(`${fmtInt(doc.diag.lines)} lines${doc.diag.unknownLines ? `, ${fmtInt(doc.diag.unknownLines)} unrecognised (first: line ${fmtInt(doc.unknown[0]?.line ?? 0)})` : ''}`)
+  facts.push(`${fmtInt(lines)} lines${doc.diag.unknownLines ? `, ${fmtInt(doc.diag.unknownLines)} unrecognised (first: line ${fmtInt(doc.unknown[0]?.line ?? 0)})` : ''}`)
   if (doc.diag.assumedCursors) facts.push(`${doc.diag.assumedCursors} cursor${doc.diag.assumedCursors === 1 ? '' : 's'} opened before trace start (attributed as tkprof)`)
   if (doc.file.truncated) facts.push('cut by max_dump_file_size')
   facts.push(...(doc.diag.notes ?? []))
   return (
     <section className="section facts-sec">
-      <header><h2>Trace</h2></header>
+      <header><h2>Trace</h2>{narrows && <span className="hint">counts of the selection · notes are for the whole set</span>}</header>
       <div className="facts">
-        <div className="fact"><span className="v">{fmtInt(doc.statements.length)}</span><span className="l">statements</span></div>
+        <div className="fact"><span className="v">{fmtInt(narrows ? ss.inScope : doc.statements.length)}</span><span className="l">statements</span></div>
         <div className="fact"><span className="v">{fmtCompact(nExec)}</span><span className="l">executions</span></div>
         <div className="fact"><span className="v">{fmtCompact(calls)}</span><span className="l">db calls</span></div>
         <div className="fact"><span className="v">{fmtCompact(waits)}</span><span className="l">waits</span></div>

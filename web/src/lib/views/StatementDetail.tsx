@@ -12,19 +12,26 @@ import type { Segment } from '../components/ProfileBar'
 import { LineRef } from '../components/LineRef'
 import { ColumnChooser } from '../components/ColumnChooser'
 import { usePersisted } from '../state/persist'
-import { scopeSpanUs } from '../data/fileset'
+import { scopeKey, useScope } from '../data/scopedstmts'
+import { responseBaseUs, responseShare, responseUs, shareNote } from '../data/response'
+import type { Scope } from '../state/store'
 import { ExecCompare } from './ExecCompare'
 import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { NoteEditor, NoteBox } from '../components/Note'
 import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 
-/** `stats` are the numbers to show (the scope's when `narrowed`, else the document's); the waits, executions and plans below are of the whole trace. */
+/** What the lists below are asked for when the statistics are the whole trace's (no scope, or an engine that cannot answer for one). */
+const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
+
+/** `stats` are the numbers to show (the scope's when `narrowed`, else the document's); the waits, executions and plans below follow them. */
 export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { doc: TraceDoc; id: ID; stats?: StmtStats; narrowed?: boolean }) {
   const st = doc.statements[id]
   const stats = scoped ?? doc.stats.statements[id]
   if (!st || !stats) return <p className="muted">Unknown statement</p>
   const planHashes = stats.planHashes ?? []
+  const stateScope = useScope(doc)
+  const scope = narrowed ? stateScope : WHOLE
   const [copied, setCopied] = useState(false)
   const [noteOpen, setNoteOpen] = useState(false)
   useEffect(() => setNoteOpen(false), [id])
@@ -51,10 +58,10 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
       <StmtNote stmt={ref} open={noteOpen} setOpen={setNoteOpen} title={doc.label(st)} />
       <SqlText text={st.text} />
       {narrowed && stats.allCalls.count === 0 && <p className="callout">No calls of this statement in the selection.</p>}
-      <ResponseTime doc={doc} stats={stats} narrowed={narrowed} />
+      <ResponseTime doc={doc} stats={stats} narrowed={narrowed} scope={scope} />
       <CallTable doc={doc} stats={stats} />
-      {sourceOf(doc).ready && <Executions doc={doc} id={id} />}
-      <Plans doc={doc} id={id} />
+      {sourceOf(doc).ready && <Executions doc={doc} id={id} scope={scope} />}
+      <Plans doc={doc} id={id} inScope={narrowed ? stats.plans ?? [] : null} />
       {st.refPlan && (
         <section className="section">
           <details>
@@ -86,12 +93,12 @@ function StmtNote({ stmt, open, setOpen, title }: { stmt: StmtRef; open: boolean
 
 function kindName(k: number): string { return ['SQL', 'unknown statement', 'commit', 'rollback', 'LOB operation', 'RPC call', 'parse error'][k] ?? '?' }
 
-function ResponseTime({ doc, stats, narrowed }: { doc: TraceDoc; stats: StmtStats; narrowed: boolean }) {
-  const total = stats.elapsed + stats.idleUs
-  const win = useStore((s) => s.window), files = useStore((s) => s.files)
-  const traceUs = narrowed ? scopeSpanUs(doc, win, files) : doc.spanUs()
+/** The response time and its share of the scope's response time: `response.ts` has the one definition the Overview ledger shares. */
+function ResponseTime({ doc, stats, narrowed, scope }: { doc: TraceDoc; stats: StmtStats; narrowed: boolean; scope: Scope }) {
+  const total = responseUs(stats)
+  const base = responseBaseUs(doc, scope.window, scope.files, narrowed)
   const source = sourceOf(doc)
-  const waitsQ = useSourceQuery(source, `waits:${stats.id}`, (signal) => (source.ready ? source.stmtWaits([stats.id], 4, signal) : null), 'waits')
+  const waitsQ = useSourceQuery(source, `waits:${stats.id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([stats.id], 4, scope, signal) : null), 'waits')
   const waits = useMemo(() => waitsQ.data?.get(stats.id) ?? [], [waitsQ.data, stats.id])
   const segs = useMemo<Segment[]>(() => {
     const out: Segment[] = [{ role: 'cpu', label: 'CPU', us: stats.cpu }]
@@ -104,14 +111,14 @@ function ResponseTime({ doc, stats, narrowed }: { doc: TraceDoc; stats: StmtStat
   const top = waits[0]
   const trips = waits.find((w) => /message from client/.test(w.name))
   const notes: string[] = []
-  if (!narrowed && top && top.role !== 'idle') notes.push(`${fmtInt(top.count)} × ${top.name}, avg ${fmtDur(top.us / top.count)}, max ${fmtDur(top.maxUs)}${top.obj > 0 && (top.role === 'userio' || top.role === 'sysio') ? `, all on obj# ${top.obj}${doc.objectName(top.obj) ? ` (${doc.objectName(top.obj)})` : ''}` : ''}`)
-  if (!narrowed && trips) notes.push(`${fmtInt(trips.count)} round trip${trips.count === 1 ? '' : 's'}, ${fmtDur(trips.us)} idle`)
+  if (top && top.role !== 'idle') notes.push(`${fmtInt(top.count)} × ${top.name}, avg ${fmtDur(top.us / top.count)}, max ${fmtDur(top.maxUs)}${top.obj > 0 && (top.role === 'userio' || top.role === 'sysio') ? `, all on obj# ${top.obj}${doc.objectName(top.obj) ? ` (${doc.objectName(top.obj)})` : ''}` : ''}`)
+  if (trips) notes.push(`${fmtInt(trips.count)} round trip${trips.count === 1 ? '' : 's'}, ${fmtDur(trips.us)} idle`)
   if (stats.pxSessions) notes.push(`PX slaves: ${stats.pxSessions} session${stats.pxSessions === 1 ? '' : 's'}, ${fmtDur(stats.pxEla ?? 0)} (not included)`)
   if (stats.childUs > 0) notes.push(`recursive ${fmtDur(stats.childUs)} (${fmtPct(stats.childUs, stats.elapsed)})`)
   return (
     <section className="section">
-      <header><h2>Response time {fmtDur(total)}</h2><span className="hint">{fmtPct(total, traceUs)} of {narrowed ? 'selection' : 'trace'} · calls {fmtDur(stats.elapsed)} + idle {fmtDur(stats.idleUs)}</span></header>
-      {source.ready && waitsQ.data && !narrowed ? <ProfileBar segments={segs} totalUs={total} /> : <ProfileBar segments={[{ role: 'cpu', label: 'CPU', us: stats.cpu }, { role: 'other', label: 'Waits', us: stats.waitUs }, { role: 'idle', label: 'Idle', us: stats.idleUs }]} totalUs={total} />}
+      <header><h2>Response time {fmtDur(total)}</h2><span className="hint"><span title={shareNote(responseShare(stats, base))}>{fmtPct(total, base)} of {narrowed ? 'selection' : 'trace'}</span> · calls {fmtDur(stats.elapsed)} + idle {fmtDur(stats.idleUs)}</span></header>
+      {source.ready && waitsQ.data ? <ProfileBar segments={segs} totalUs={total} /> : <ProfileBar segments={[{ role: 'cpu', label: 'CPU', us: stats.cpu }, { role: 'other', label: 'Waits', us: stats.waitUs }, { role: 'idle', label: 'Idle', us: stats.idleUs }]} totalUs={total} />}
       {notes.length > 0 && <p className="small muted">{notes.join(' · ')}</p>}
     </section>
   )
@@ -155,10 +162,10 @@ function CallTable({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
   )
 }
 
-function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
+function Executions({ doc, id, scope }: { doc: TraceDoc; id: ID; scope: Scope }) {
   const actions = useActions()
   const source = sourceOf(doc)
-  const page = useSourceQuery(source, `executions:${id}`, (signal) => source.executions(id, signal), 'executions')
+  const page = useSourceQuery(source, `executions:${id}:${scopeKey(scope)}`, (signal) => source.executions(id, scope, signal), 'executions')
   const exs = useMemo(() => page.data?.rows ?? [], [page.data])
   const [hidden, setHidden] = usePersisted<string[]>('mtkprof.cols.executions', [])
   const wanted = useStore((s) => s.selection.exec)
@@ -252,8 +259,14 @@ function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
   )
 }
 
-function Plans({ doc, id }: { doc: TraceDoc; id: ID }) {
-  const plans = doc.plansOf(id)
+/** `inScope`: the plan dumps of cursors in scope (`StmtStats.plans`); null = all of them. */
+function Plans({ doc, id, inScope }: { doc: TraceDoc; id: ID; inScope: ID[] | null }) {
+  const plans = useMemo(() => {
+    const all = doc.plansOf(id)
+    if (!inScope) return all
+    const keep = new Set(inScope)
+    return all.filter((p) => keep.has(p.id))
+  }, [doc, id, inScope])
   if (plans.length === 0) return null
   const byHash = new Map<number, Plan[]>()
   for (const p of plans) { const l = byHash.get(p.planHash); if (l) l.push(p); else byHash.set(p.planHash, [p]) }

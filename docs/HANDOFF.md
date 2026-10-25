@@ -13,13 +13,15 @@ shows. Design and code map: `docs/ARCHITECTURE.md` § "Files panel". In short: `
 context filter in `scopeOf`, `FilesPanel` / `FilesPane` / `FilesToggle` (lib exports for the desktop shell, which still has to
 mount `FilesPane` and the toggle), scoped statement statistics through `DataSource.statements` and `useScopedStatements`.
 
-- Needs F1 (the engine's `GET api/statements`) for the remote (`-spill`/engine) case; until then the UI shows the whole-trace
-  statement table with a notice (404 fallback, tested). The in-browser source (plain `serve`, standalone HTML) computes the
-  same from the fact columns and works today. When F1 lands, check one thing: it must treat an empty `contexts=` like the
-  other endpoints (all) and use the same window rule; the UI sends `from=1&to=1` for "no file selected".
-- Not scoped (whole set, by design or for now): findings (the Findings heading says so), a statement's wait list /
-  executions / plans, the Overview lanes' per-statement spans, the Trace facts counts, saved Pivot configurations (the file
-  selection is not part of them).
+- Package F3 (2026-10-25) finished the scoping: the lists under a statement (executions, waits, plans, Context header), the
+  lanes, the top-bar counts and the Trace facts follow the file / session / window scope; "no file selected" is the server
+  parameter `contexts=-`; narrow layout and dark theme checked. Details: `docs/ARCHITECTURE.md` § "Files panel".
+- Still whole set, by design or for now: findings (the Findings heading says so), saved Pivot configurations (the file
+  selection is not part of them), the Lanes' time axis (the whole trace's span even for a short file selection).
+- Open (core, not UI): a statement's response time is `elapsed + idleUs`, and the builder counts an idle-class wait *inside* a
+  call (`PL/SQL lock timer` of `dbms_session.sleep`) in both the call's `e` and `Call.IdleEla`, so a sleeping statement shows
+  twice its real time ("4.001 s, 159 % of selection" for two `sleep(1)`). Fixing it means deciding where such waits belong
+  (`WaitEla` vs `IdleEla`) and touches goldens, findings and the persisted aggregates; the UI only explains it in a tooltip.
 - Verified by screenshot on a six-file set (two multisession files, a PX coordinator + slave, a two-part chain) in `/tmp/f2-shots`
   (not kept in the repo).
 

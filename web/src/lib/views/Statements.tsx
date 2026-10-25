@@ -12,13 +12,13 @@ import { StatementContext } from './StatementContext'
 import { ResizeHandle } from '../components/ResizeHandle'
 import { PaneToggle } from '../components/PaneToggle'
 import { usePersisted } from '../state/persist'
-import { useScopedStatements } from '../data/scopedstmts'
-import { scopeSpanUs } from '../data/fileset'
+import { scopeKey, useScope, useScopedStatements } from '../data/scopedstmts'
+import { responseBaseUs, responseShare, responseUs, shareNote } from '../data/response'
 import type { CSSProperties } from 'react'
 
 type SortKey = 'first' | 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
 const sorts: { id: SortKey; label: string; of: (s: StmtStats, inclusive: boolean) => number }[] = [
-  { id: 'resp', label: 'response time', of: (s) => s.elapsed + s.idleUs },
+  { id: 'resp', label: 'response time', of: (s) => responseUs(s) },
   // earliest first, as in the Overview timeline lanes; statements never called sort last
   { id: 'first', label: 'first call', of: (s) => (s.firstTim > 0 ? -s.firstTim : -Infinity) },
   { id: 'self', label: 'self time', of: (s) => s.selfElapsed },
@@ -46,12 +46,12 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   const [ctxW, setCtxW] = usePersisted<number | null>('mtkprof.contextW', null)
   const [ctxOpen, setCtxOpen] = usePersisted<boolean>('mtkprof.contextOpen', true)
   const source = sourceOf(doc)
-  const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
+  const scope = useScope(doc)
+  const roles = useSourceQuery(source, `roles:${scopeKey(scope)}`, (signal) => source.stmtRoles(scope, signal), 'roles').data
   const sort = sorts.find((s) => s.id === sortKey)!
   const ss = useScopedStatements(doc)
   const { stats, narrowed } = ss
-  const win = useStore((s) => s.window), files = useStore((s) => s.files)
-  const totalUs = narrowed ? scopeSpanUs(doc, win, files) : doc.spanUs() // percentages are of the scope's span only when the numbers are the scope's
+  const totalUs = responseBaseUs(doc, scope.window, scope.files, narrowed) // percentages are of the scope's response time only when the numbers are the scope's
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
     const list = stats.filter((s) => {
@@ -63,7 +63,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
     })
     return list.sort((a, b) => sort.of(b, inclusive) - sort.of(a, inclusive) || b.elapsed - a.elapsed)
   }, [doc, stats, narrowed, q, hideSys, sort, inclusive])
-  const maxResp = rows.reduce((a, s) => Math.max(a, s.elapsed + s.idleUs), 0)
+  const maxResp = rows.reduce((a, s) => Math.max(a, responseUs(s)), 0)
   const findingsOf = useMemo(() => { const m = new Map<number, number>(); for (const f of doc.stats.findings) if (f.statement >= 0) m.set(f.statement, (m.get(f.statement) ?? 0) + 1); return m }, [doc])
 
   useEffect(() => { if ((sel === null || !stats[sel]) && rows.length) actions.pickStmt(rows[0].id) }, [rows, sel, stats])
@@ -108,8 +108,8 @@ export function Statements({ doc }: { doc: TraceDoc }) {
             {virt.getVirtualItems().map((vi) => {
               const st = rows[vi.index]
               const s = doc.statements[st.id]
-              const resp = st.elapsed + st.idleUs
-              const segs = quickSegments(doc, st, roles, narrowed).filter((x) => x.us > 0)
+              const resp = responseUs(st)
+              const segs = quickSegments(doc, st, roles).filter((x) => x.us > 0)
               const segTotal = Math.max(resp, segs.reduce((a, x) => a + x.us, 0))
               const nf = findingsOf.get(st.id) ?? 0
               return (
@@ -117,7 +117,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
                   onClick={() => actions.pickStmt(st.id)} role="button" tabIndex={-1}>
                   <div className="txt mono" title={preview(s.text, 300)}>{preview(s.text, 120)}</div>
                   <div className="bar" style={{ width: `${(100 * resp) / (maxResp || 1)}%` }}>{segs.map((x) => <i key={x.role} style={{ width: `${(100 * x.us) / segTotal}%`, background: `var(--c-${x.role})` }} />)}</div>
-                  <div className="n">{sortKey === 'first' ? firstCall(doc, st) : sortKey === 'resp' || sortKey === 'self' || sortKey === 'cpu' || sortKey === 'waits' || sortKey === 'idle' ? fmtDur(sort.of(st, inclusive)) : fmtCompact(sort.of(st, inclusive))}<small>{sortKey === 'resp' ? fmtPct(resp, totalUs, 0) : fmtDur(resp)}</small></div>
+                  <div className="n">{sortKey === 'first' ? firstCall(doc, st) : sortKey === 'resp' || sortKey === 'self' || sortKey === 'cpu' || sortKey === 'waits' || sortKey === 'idle' ? fmtDur(sort.of(st, inclusive)) : fmtCompact(sort.of(st, inclusive))}<small title={sortKey === 'resp' ? shareNote(responseShare(st, totalUs)) : undefined}>{sortKey === 'resp' ? fmtPct(resp, totalUs, 0) : fmtDur(resp)}</small></div>
                   <div className="id">
                     <StmtLink doc={doc} id={st.id} />
                     <span>{fmtInt(st.executions)} exec{st.executions === 1 ? '' : 's'}</span>
@@ -137,7 +137,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
         {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} stats={stats[sel]} narrowed={narrowed} /> : <p className="muted">No statement selected.</p>}
       </section>
       {ctxOpen && <aside className="wb-ctx" aria-label="Context">
-        {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} stats={stats[sel]} />}
+        {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} stats={stats[sel]} narrowed={narrowed} />}
       </aside>}
       <ResizeHandle anchor="start" className="resizer-list" label="Resize statement list" min={240} maxFrac={0.4} onChange={setListW} />
       {ctxOpen && <ResizeHandle anchor="end" className="resizer-ctx" label="Resize context pane" min={240} maxFrac={0.4} onChange={setCtxW} />}

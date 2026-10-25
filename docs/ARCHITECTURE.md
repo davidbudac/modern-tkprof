@@ -478,7 +478,10 @@ The standalone app keeps notes for the page lifetime and hides every affordance.
 For a document of several input files (`doc.multiFile`) the shell shows a collapsible left pane (`FilesPane`: panel, resize
 handle, `PaneToggle side="start"`; open by default for several files, `State.filesOpen` remembers the choice) and a top-bar
 entry (`FilesToggle`, which reads "3 of 7 files" with a clear button when a subset is selected). A single-file document has
-neither. The Overview heading repeats the count.
+neither; a `TRACE CONTINUES IN FILE` chain that was followed lists its parts in `file.files`, so it counts as several
+files. The Overview heading repeats the count. Below 64rem the panel stacks above the view (a short scrolling list, no resize
+handle or edge tab; the top-bar chip opens and closes it) and the top bar drops its mini profile so the tabs and chips stay
+on screen.
 
 - **State.** `State.files: Set<number> | null` (null = all; a set of every file is normalised to null, an empty set shows
   nothing). `actions.setFiles` drops a context selection that falls outside the files. `Scope` gains `files`, and
@@ -486,7 +489,8 @@ neither. The Overview heading repeats the count.
   intersected with the contexts of the selected files (`doc.contexts[i].fileIdx`), memoised on identity. Everything that
   filters or queries by scope (`callFilter`, `waitFilter`, `scopeParams` -> `contexts=`, the views' cache keys through
   `ctxKey`) therefore follows the file selection without knowing about files. No file selected is an empty set: the
-  remote source sends `from=1&to=1` for it because an empty `contexts=` means "all" to the server. Hash: `#files=0,2`
+  remote source sends `contexts=-` for it (an empty `contexts=` means "all" to the server; `-` is the explicit empty set,
+  `analyze.Filter.NoContexts`, accepted by every scoped endpoint). Hash: `#files=0,2`
   (`app/urlstate.ts`; indexes the trace does not have are ignored, none left = all).
 - **The panel.** One row per `doc.file.files` entry, PX slave files indented under the coordinator file their contexts attach
   to (`fileTree`: most `Context.parent` votes, no coordinator = top level). Checkbox, name, size, lines, contexts, pid,
@@ -503,8 +507,22 @@ neither. The Overview heading repeats the count.
   answer (404, no facts) it returns the whole-trace table with a notice. Used by the Statements list ("n of m statements in
   scope", zero-call statements hidden), the statement detail and context headers, the Overview top statements, the lede and
   percentages (`scopeSpanUs`: the window, else the span of the selected files), and, without the window, the Overview lanes
-  and the Timeline lanes. Not scoped, still whole trace: findings (the Findings heading says so when files are selected),
-  a statement's wait list, executions and plans, the lanes' statement spans.
+  and the Timeline lanes. The lists under a statement follow the same scope: `executions(stmt, scope)` (`api/executions` with
+  `contexts`/`from`/`to`: an execution is in when its EXEC call is), `stmtWaits`, `stmtRoles` and `stmtSpans` (the matching
+  `api/stmt/*`; in the browser the fact columns through the same call / wait filters), the Context header (first and last
+  call, cursors, trace line come from the scoped `StmtStats`), and the plans (`StmtStats.plans` = dumps of the cursors in
+  scope; the in-browser `scopedStatements` derives `cursors`, `plans` and `planHashes` as `analyze.StatementsOn` does). The
+  lanes (Overview and Timeline) list statements with calls in scope only (none while the scope's table is on its way,
+  `ScopedStatements.pending`); the Timeline folds the other statements of the scope into one lane. The top-bar tab counts read
+  "13 of 59" (statements with calls in scope, events with waits in scope, sessions in scope) and the Overview "Trace" facts
+  (statements, executions, calls, waits, rows, reads, errors, commits, lines) are the scope's. Not scoped, still whole trace:
+  findings (the Findings heading says so when files or sessions are selected) and the notes under the facts.
+- **Share of the response time** (`data/response.ts`: one definition for the Statements list, the statement detail and the
+  Overview ledger). A statement's response time is `elapsed + idleUs` (`StmtStats`); its share is measured against the scope's
+  response time, the Overview heading (`scopeSpanUs`: the window, else the span of the selected files, else the trace's). It is
+  not capped: the time is summed over sessions (two sessions running a statement at once count twice against the wall clock) and
+  an idle wait inside a call (a `PL/SQL lock timer` in a sleep) is part of the call's `e` and of `idleUs`, so a statement can
+  exceed 100 % of its scope; the percentage then carries a tooltip saying so.
 - **Other views.** Sessions groups the contexts by file (header row with the file's checkbox; contexts of unselected files are
   dimmed and cannot be ticked; the roll-ups count the selected files). The Lines view's file picker lists the selected files
   and moves to the first selected one when the selection changes (a deep link or bookmark to another file stays).

@@ -57,8 +57,8 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
   // Lanes: top statements by response time, ordered by first call; the rest folded into one lane.
   const ss = useScopedStatements(doc, { withWindow: false })
   const lanes = useMemo<{ list: Lane[]; byStmt: Int32Array }>(() => {
-    const top = ss.stats
-      .filter((s) => s.allCalls.count > 0)
+    const inScope = ss.pending ? [] : ss.stats.filter((s) => s.allCalls.count > 0)
+    const top = [...inScope]
       .sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs))
       .slice(0, MAX_LANES)
       .sort((a, b) => a.firstTim - b.firstTim)
@@ -68,13 +68,13 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
     })
     const byStmt = new Int32Array(doc.statements.length).fill(-1)
     top.forEach((s, i) => { byStmt[s.id] = i })
-    const rest = doc.statements.length - top.length
+    const rest = inScope.length - top.length // statements with calls in the scope that have no lane of their own
     if (rest > 0) {
       list.push({ label: `other statements (${rest})`, stmts: null })
       for (let i = 0; i < byStmt.length; i++) if (byStmt[i] < 0) byStmt[i] = list.length - 1
     }
     return { list, byStmt }
-  }, [doc, ss.stats])
+  }, [doc, ss.stats, ss.pending])
 
   const source = sourceOf(doc)
   const scope = scopeOf(state)

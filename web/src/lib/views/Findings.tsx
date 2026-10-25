@@ -6,7 +6,7 @@ import { LineRef } from '../components/LineRef'
 
 /** Rule hits from the Go analyzer (configurable thresholds), most severe first. */
 export function Findings({ doc }: { doc: TraceDoc }) {
-  const subset = useStore((s) => s.files !== null)
+  const subset = useStore((s) => s.files !== null || s.contexts !== null)
   const findings = doc.stats.findings
   const cfg = Object.entries(doc.stats.findingsConfig)
   if (!findings.length && !cfg.length) return null
@@ -15,7 +15,7 @@ export function Findings({ doc }: { doc: TraceDoc }) {
   const hint = (['serious', 'notable', 'info'] as const).filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ')
   return (
     <section className="section">
-      <header><h2>Findings</h2><span className="hint">{hint} · whole trace, window not applied{subset ? ' · findings are for the whole set' : ''}</span></header>
+      <header><h2>Findings</h2><span className="hint">{hint} · whole trace, window not applied{subset ? ' · not narrowed by the file or session selection' : ''}</span></header>
       <ul className="findings">
         {findings.map((f, i) => <FindingItem key={`${f.rule}-${f.statement}-${i}`} doc={doc} f={f} />)}
       </ul>

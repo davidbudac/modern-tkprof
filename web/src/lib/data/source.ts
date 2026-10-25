@@ -128,16 +128,19 @@ export interface DataSource {
   profile(scope: Scope, signal?: AbortSignal): Maybe<ScopeProfile | null>
   timeline(bucketUs: number, scope: Scope, signal?: AbortSignal): Maybe<TimelineRaw | null>
   calls(scope: Scope, signal?: AbortSignal): Maybe<CallsPicked>
-  executions(stmt: ID, signal?: AbortSignal): Maybe<ExecPage>
+  /** the executions of a statement whose EXEC call is in scope (window and contexts) */
+  executions(stmt: ID, scope: Scope, signal?: AbortSignal): Maybe<ExecPage>
   executionDetail(stmt: ID, ex: Execution, signal?: AbortSignal): Maybe<ExecDetail>
   waitHist(event: ID, scope: Scope, signal?: AbortSignal): Maybe<WaitHist>
   waitScatter(event: ID, scope: Scope, signal?: AbortSignal): Maybe<ScatterData>
   waitTop(event: ID, scope: Scope, limit: number, signal?: AbortSignal): Maybe<WaitRow[]>
   waitsBy(event: ID, scope: Scope, by: 'stmt' | 'obj' | 'p1', limit: number, signal?: AbortSignal): Maybe<KeyAgg[]>
-  stmtWaits(stmts: ID[], max: number, signal?: AbortSignal): Maybe<Map<ID, StmtWait[]>>
-  /** wait time per statement and color role (row = statement, column = roleOrder index); null = not available */
-  stmtRoles(signal?: AbortSignal): Maybe<Float64Array | null>
-  stmtSpans(stmts: ID[], gapUs: number, signal?: AbortSignal): Maybe<Map<ID, Span2[]>>
+  /** top wait events of statements over the waits in scope (the idle toggle does not apply: idle waits count) */
+  stmtWaits(stmts: ID[], max: number, scope: Scope, signal?: AbortSignal): Maybe<Map<ID, StmtWait[]>>
+  /** wait time per statement and color role over the waits in scope (row = statement, column = roleOrder index); null = not available */
+  stmtRoles(scope: Scope, signal?: AbortSignal): Maybe<Float64Array | null>
+  /** merged call intervals of statements over the calls in scope */
+  stmtSpans(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Maybe<Map<ID, Span2[]>>
   /** the trace lines of one statement's calls and waits; null = not available */
   stmtMarks(stmt: ID, signal?: AbortSignal): Maybe<StmtMarks | null>
   /**
@@ -268,8 +271,8 @@ export class LocalSource implements DataSource {
     return { total, sampled, bars: keep.map(bar), longest: longest.slice(0, 20).map(bar) }
   }
 
-  executions(stmt: ID): ExecPage {
-    const rows = localExecutions(this.doc, stmt)
+  executions(stmt: ID, scope: Scope): ExecPage {
+    const rows = localExecutions(this.doc, stmt, this.cf(scope))
     let sum = 0, slow: Execution | null = null
     for (const e of rows) { sum += e.e; if (!slow || e.e > slow.e) slow = e }
     return { total: rows.length, avgE: rows.length ? sum / rows.length : 0, slowest: slow ? { execNo: slow.execNo, e: slow.e } : null, rows, partial: false }
@@ -361,14 +364,17 @@ export class LocalSource implements DataSource {
     return groupBy({ n: ids.length, key, value: (k) => w.ela[ids[k]] }).slice(0, limit).map((a: Agg) => ({ key: a.key, count: a.count, sum: a.sum }))
   }
 
-  stmtWaits(stmts: ID[], max: number): Map<ID, StmtWait[]> {
-    return new Map(stmts.map((s) => [s, statementWaits(this.doc, s, max)]))
+  // these three count idle waits whatever the idle toggle says, as the server does without `idle=`
+  stmtWaits(stmts: ID[], max: number, scope: Scope): Map<ID, StmtWait[]> {
+    const keep = this.wf({ ...scope, includeIdle: true })
+    return new Map(stmts.map((s) => [s, statementWaits(this.doc, s, max, keep)]))
   }
 
-  stmtRoles(): Float64Array | null { return this.doc.hasFacts ? statementRoleUs(this.doc) : null }
+  stmtRoles(scope: Scope): Float64Array | null { return this.doc.hasFacts ? statementRoleUs(this.doc, this.wf({ ...scope, includeIdle: true })) : null }
 
-  stmtSpans(stmts: ID[], gapUs: number): Map<ID, Span2[]> {
-    return new Map(stmts.map((s) => [s, this.doc.hasFacts ? statementSpans(this.doc, s, gapUs) : []]))
+  stmtSpans(stmts: ID[], gapUs: number, scope: Scope): Map<ID, Span2[]> {
+    const keep = this.cf(scope)
+    return new Map(stmts.map((s) => [s, this.doc.hasFacts ? statementSpans(this.doc, s, gapUs, keep) : []]))
   }
 
   stmtMarks(stmt: ID): StmtMarks | null {
@@ -398,7 +404,7 @@ export class HttpError extends Error {
 function scopeParams(scope: Scope, waits: boolean): Params {
   const p: Params = {}
   if (scope.window) { p.from = Math.floor(scope.window.startTim); p.to = Math.ceil(scope.window.endTim) }
-  if (scope.contexts && scope.contexts.size === 0) { p.from = 1; p.to = 1 } // no context selected: the server reads an empty `contexts` as "all", so ask for a window with no rows
+  if (scope.contexts && scope.contexts.size === 0) p.contexts = '-' // no context selected: an empty `contexts=` means "all" to the server, `-` is the empty set
   else if (scope.contexts) p.contexts = [...scope.contexts].sort((a, b) => a - b).join(',')
   if (waits) p.idle = scope.includeIdle ? 1 : 0
   return p
@@ -410,7 +416,6 @@ export class RemoteSource implements DataSource {
   readonly remote = true
   readonly ready = true
   private readonly cache = new Map<string, unknown>()
-  private roles?: Promise<Float64Array>
   /** the server answered 404 to `api/statements`: it is an older engine, do not ask again */
   private noStatements = false
 
@@ -478,13 +483,14 @@ export class RemoteSource implements DataSource {
     return { total: r.total, sampled: r.sampled, bars, longest: r.longest.map((id) => byId.get(id)).filter((b): b is Bar => !!b) }
   }
 
-  async executions(stmt: ID, signal?: AbortSignal): Promise<ExecPage> {
+  async executions(stmt: ID, scope: Scope, signal?: AbortSignal): Promise<ExecPage> {
     type Page = { total: number; avgE: number; slowest: { execNo: number; e: number } | null; rows: Execution[] }
     const cap = 5000
-    let r = await this.get<Page>('executions', { stmt, limit: cap, sort: 'file' }, signal)
+    const sp = scopeParams(scope, false)
+    let r = await this.get<Page>('executions', { stmt, limit: cap, sort: 'file', ...sp }, signal)
     let partial = false
     if (r.total > r.rows.length) { // too many to list: the slowest ones
-      r = await this.get<Page>('executions', { stmt, limit: cap, sort: 'e' }, signal)
+      r = await this.get<Page>('executions', { stmt, limit: cap, sort: 'e', ...sp }, signal)
       partial = true
     }
     return { total: r.total, avgE: r.avgE, slowest: r.slowest ? { execNo: r.slowest.execNo, e: r.slowest.e } : null, rows: r.rows, partial }
@@ -514,10 +520,10 @@ export class RemoteSource implements DataSource {
     return r.rows.map((x) => ({ key: x.key, count: x.count, sum: x.us }))
   }
 
-  async stmtWaits(stmts: ID[], max: number, signal?: AbortSignal): Promise<Map<ID, StmtWait[]>> {
+  async stmtWaits(stmts: ID[], max: number, scope: Scope, signal?: AbortSignal): Promise<Map<ID, StmtWait[]>> {
     const out = new Map<ID, StmtWait[]>()
     if (stmts.length === 0) return out
-    const r = await this.get<{ waits: Record<string, { event: number; us: number; count: number; maxUs: number; obj: number; maxLine: number; maxCtx?: number }[]> }>('stmt/waits', { stmt: stmts.join(','), max }, signal)
+    const r = await this.get<{ waits: Record<string, { event: number; us: number; count: number; maxUs: number; obj: number; maxLine: number; maxCtx?: number }[]> }>('stmt/waits', { stmt: stmts.join(','), max, ...scopeParams(scope, false) }, signal)
     for (const s of stmts) {
       out.set(s, (r.waits[String(s)] ?? []).map((w) => {
         const ev = this.doc.events[w.event]
@@ -527,19 +533,18 @@ export class RemoteSource implements DataSource {
     return out
   }
 
-  stmtRoles(signal?: AbortSignal): Promise<Float64Array> {
-    return (this.roles ??= this.get<{ classes: string[]; rows: [number, number, number][] }>('stmt/roles', {}, signal).then((r) => {
-      const roleIdx = r.classes.map((cl) => roleOrder.indexOf(roleOfClass(cl, cl === 'Idle')))
-      const t = new Float64Array(this.doc.statements.length * NROLES)
-      for (const [s, cl, us] of r.rows) if (s >= 0 && s < this.doc.statements.length) t[s * NROLES + roleIdx[cl]] += us
-      return t
-    }, (err) => { this.roles = undefined; throw err }))
+  async stmtRoles(scope: Scope, signal?: AbortSignal): Promise<Float64Array> {
+    const r = await this.get<{ classes: string[]; rows: [number, number, number][] }>('stmt/roles', scopeParams(scope, false), signal)
+    const roleIdx = r.classes.map((cl) => roleOrder.indexOf(roleOfClass(cl, cl === 'Idle')))
+    const t = new Float64Array(this.doc.statements.length * NROLES)
+    for (const [s, cl, us] of r.rows) if (s >= 0 && s < this.doc.statements.length) t[s * NROLES + roleIdx[cl]] += us
+    return t
   }
 
-  async stmtSpans(stmts: ID[], gapUs: number, signal?: AbortSignal): Promise<Map<ID, Span2[]>> {
+  async stmtSpans(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Promise<Map<ID, Span2[]>> {
     const out = new Map<ID, Span2[]>()
     if (stmts.length === 0) return out
-    const r = await this.get<{ spans: Record<string, { start: number; end: number }[]> }>('stmt/spans', { stmt: stmts.join(','), gap: Math.max(0, Math.floor(gapUs)) }, signal)
+    const r = await this.get<{ spans: Record<string, { start: number; end: number }[]> }>('stmt/spans', { stmt: stmts.join(','), gap: Math.max(0, Math.floor(gapUs)), ...scopeParams(scope, false) }, signal)
     for (const s of stmts) out.set(s, r.spans[String(s)] ?? [])
     return out
   }

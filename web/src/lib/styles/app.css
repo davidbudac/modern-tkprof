@@ -13,7 +13,12 @@
 @media (width < 64rem) {
   .shell.has-inspector .body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
   .shell.has-files.has-inspector .body { grid-template-columns: var(--files-w) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
-  .resizer-inspector, .inspector-toggle { display: none; }
+  .shell .resizer-inspector, .shell .inspector-toggle { display: none; }
+  /* the Files panel stacks above the view (a short scrolling list) like the inspector below it; the top bar's files chip opens and closes it */
+  .shell.has-files .body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .shell.has-files.has-inspector .body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
+  .files-panel { max-block-size: 13rem; border-inline-end: 0; border-block-end: 1px solid var(--hairline); }
+  .shell .resizer-files, .shell .files-toggle { display: none; }
 }
 
 /* drag handles on pane edges: a wide hit area around a hairline that shows on hover/drag/focus */
@@ -67,6 +72,8 @@
 .topbar .chips { display: inline-flex; gap: var(--sp-2); }
 .topbar .chips:empty { display: none; }
 .topbar .theme { font-size: 0.9rem; line-height: 1; padding-inline: 0.45rem; }
+/* narrow: the whole-trace mini profile gives way so the tabs and the chips (files, window, sessions) stay on screen */
+@media (width < 64rem) { .topbar .mini { display: none; } .topbar .file { max-inline-size: 14ch; } }
 button.quiet { border-color: transparent; color: var(--ink-2); }
 button.quiet.on { background: var(--wash); color: var(--ink); }
 
@@ -82,6 +89,7 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
   scrollbar-width: none;
   white-space: nowrap;
 }
+.subbar > * { flex: none; }
 .subbar b { color: var(--ink); font-weight: 500; }
 .subbar .warn, .topbar .theme.warn { color: var(--s-critical); }
 /* stays at the bar's end while the bar scrolls sideways */
@@ -211,7 +219,7 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 
 /* ---- workbench (Statements) --------------------------------------------- */
 .wb { position: relative; display: grid; grid-template-columns: var(--list-w) minmax(0, 1fr) var(--context-w); block-size: 100%; min-block-size: 0; }
-@media (width < 80rem) { .wb { grid-template-columns: var(--list-w) minmax(0, 1fr); } .wb-ctx, .resizer-ctx, .ctx-toggle { display: none; } }
+@media (width < 80rem) { .wb { grid-template-columns: var(--list-w) minmax(0, 1fr); } .wb .wb-ctx, .wb .resizer-ctx, .wb .ctx-toggle { display: none; } } /* .wb prefix: .wb-ctx's own display below would win */
 .wb.ctx-closed { grid-template-columns: var(--list-w) minmax(0, 1fr); }
 .resizer-list { inset-inline-start: var(--list-w); }
 .resizer-ctx { inset-inline-start: calc(100% - var(--context-w)); }
