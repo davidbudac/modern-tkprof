@@ -19,8 +19,10 @@ and keeps the selection in `workspace.json`, packages D2/D3, desktop pin `95c52a
   parameter `contexts=-`; narrow layout and dark theme checked. Details: `docs/ARCHITECTURE.md` § "Files panel".
 - Package W2 (2026-10-25): the Overview lanes, strips, chart and Timeline span the selection's own time range (the minimap
   shades it); saved Pivot configurations can store the file selection by file name ("with file selection").
-- Still whole set, by design or for now: findings (the Findings heading says so; package F4 is making them per scope) and the
-  notes under the facts.
+- Package F4 (2026-10-25): findings follow the scope too (`analyze.FindingsOn`, engine `api/findings`, in the browser
+  `data/findings.ts`; heading "15 findings for 1 of 6 files"); no longer whole set. `TestFindingsDocsCurrent` pins the TS
+  port's fixtures (`go test ./internal/report -run FindingsDocs -update-findings-docs` after a rule change).
+- Still whole set: the notes under the facts.
 - Done (core): an idle-class wait *inside* a call (`PL/SQL lock timer` of `dbms_session.sleep`) used to count in both the call's
   `e` and `Call.IdleEla` ("4.001 s, 159 % of selection" for two `sleep(1)`). Decision: in-call waits belong to the call whatever
   their class (`WaitEla`); `IdleEla`/`IdleUs`/profile idle are between-call waits only; the class stays for the ledger and

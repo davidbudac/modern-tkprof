@@ -129,7 +129,9 @@ in the UI is reachable from the CLI.
 
 Trace-level only, with fixed documented thresholds (overrides are a later
 version), severity info / notable / serious, evidence rows, shown on the
-Overview and in the text report:
+Overview and in the text report. In the UI they follow the file / session /
+window selection (computed over the rows in scope, severities against the
+scope's response time); a finding about the whole set is tagged "whole set".
 
 - Outlier executions: far slower than the statement's median (default:
   above 3x the median and above 100 ms), with their binds.

@@ -8,13 +8,14 @@ import { sourceOf, useSourceQuery } from '../data/source'
 import { scopeKey, useScope } from '../data/scopedstmts'
 import type { Scope } from '../state/store'
 import { findingText } from './Findings'
+import { useScopedFindings } from '../data/scopedfindings'
 
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
 
 /**
  * The right-hand column of the workbench: where the statement ran, its waits, its relatives, its findings. `stats` are the
  * numbers of the scope when `narrowed` (first and last call come from them, the cursors are those in scope, the waits are the
- * scope's); findings stay whole-trace.
+ * scope's, and so are the findings).
  */
 export function StatementContext({ doc, id, stats: scoped, narrowed = false }: { doc: TraceDoc; id: ID; stats?: StmtStats; narrowed?: boolean }) {
   const actions = useActions()
@@ -22,6 +23,8 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
   const stats = scoped ?? doc.stats.statements[id]
   const source = sourceOf(doc)
   const stateScope = useScope(doc)
+  const sf = useScopedFindings(doc)
+  const scopedFindings = narrowed ? sf.findings : doc.stats.findings
   const scope = narrowed ? stateScope : WHOLE
   const waitsQ = useSourceQuery(source, `waits:${id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([id], 6, scope, signal) : null), 'waits')
   if (!st || !stats) return null
@@ -29,7 +32,7 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
   const ctx = cursorsIn.length ? doc.contexts[doc.cursors[cursorsIn[0]].context] : undefined
   const waits = waitsQ.data?.get(id) ?? []
   const children = stats.children ?? [], parents = stats.parents ?? []
-  const findings = doc.stats.findings.filter((f) => f.statement === id)
+  const findings = scopedFindings.filter((f) => f.statement === id)
   const assumed = cursorsIn.some((c) => doc.cursors[c].assumed)
   return (
     <>

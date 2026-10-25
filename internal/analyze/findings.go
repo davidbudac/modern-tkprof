@@ -175,7 +175,13 @@ type Finding struct {
 	Statement model.ID      `json:"statement"` // None for trace-level findings
 	ImpactUs  int64         `json:"impactUs"`  // time the finding accounts for (sort key)
 	Evidence  []EvidenceRow `json:"evidence"`
+	// Scope is ScopeSet for a finding FindingsOn could not narrow to the
+	// scope (it is about the whole trace set); "" otherwise.
+	Scope string `json:"scope,omitempty"`
 }
+
+// ScopeSet marks a finding that is about the whole trace set (Finding.Scope).
+const ScopeSet = "set"
 
 // EvidenceRow is one supporting fact. Label and Value are ready to print;
 // the ids let the UI link to the statement / execution / call.
@@ -260,13 +266,17 @@ func FindingsExec(m *model.Model, stats []StmtStats, th Thresholds, ex [][]Execu
 		f.th.MaxEvidenceRows, f.th.SmallFetchRows, f.th.SmallFetchMinFetchesPerExec = b.MaxEvidenceRows, b.SmallFetchRows, b.SmallFetchMinFetchesPerExec
 	}
 	p := TraceProfile(m)
-	f.profile = p
 	// response time: the trace span, or the summed session time when several
 	// sessions overlap (trcsess output)
 	f.total = p.TotalUs
 	if s := p.CPUUs + p.WaitUs + p.IdleUs; s > f.total {
 		f.total = s
 	}
+	return f.run()
+}
+
+// run applies every rule and sorts the hits.
+func (f *finder) run() []Finding {
 	f.outliers()
 	f.planChanges()
 	f.hardParses()
@@ -298,14 +308,22 @@ func FindingsExec(m *model.Model, stats []StmtStats, th Thresholds, ex [][]Execu
 }
 
 type finder struct {
-	th      Thresholds
-	m       *model.Model
-	stats   []StmtStats
-	profile Profile
-	total   int64
-	out     []Finding
-	byStmt  [][]Execution // lazily built by execs
-	acc     *Accumulator  // aggregation-only model: the rules read the aggregates, not the facts
+	th     Thresholds
+	m      *model.Model
+	stats  []StmtStats
+	total  int64
+	out    []Finding
+	byStmt [][]Execution // lazily built by execs
+	acc    *Accumulator  // aggregation-only model: the rules read the aggregates, not the facts
+	sc     *scopeIn      // FindingsOn: the rules read the scope's inputs, not the model's tables or aggregates
+}
+
+// execAgg is the execution aggregate of a statement (aggregation-only model).
+func (f *finder) execAgg(sid model.ID) *execAgg {
+	if f.sc != nil {
+		return f.sc.ex[sid]
+	}
+	return f.acc.execAggOf(sid)
 }
 
 // execs returns Executions(m, sid), computed for all statements in one pass
@@ -551,7 +569,7 @@ func (f *finder) planChanges() {
 		}
 		var ex []Execution
 		if s.Executions > 1 && f.acc != nil {
-			if ea := f.acc.execAggOf(s.ID); ea != nil {
+			if ea := f.execAgg(s.ID); ea != nil {
 				for _, p := range ea.plans {
 					a := get(p.plh, p.line)
 					a.execs += p.execs
@@ -639,17 +657,21 @@ func (f *finder) planChanges() {
 func (f *finder) hardParses() {
 	m := f.m
 	missUs := make([]int64, len(f.stats))
-	if f.acc != nil {
+	switch {
+	case f.sc != nil:
+		copy(missUs, f.sc.missUs)
+	case f.acc != nil:
 		for i := range missUs {
 			if s := f.acc.acc(model.ID(i)); s != nil {
 				missUs[i] = s.missUs
 			}
 		}
-	}
-	for i := range m.Calls {
-		c := &m.Calls[i]
-		if c.Mis > 0 && c.Kind == trace.CallParse && !m.PXChild(c.Context) {
-			missUs[c.Statement] += c.E
+	default:
+		for i := range m.Calls {
+			c := &m.Calls[i]
+			if c.Mis > 0 && c.Kind == trace.CallParse && !m.PXChild(c.Context) {
+				missUs[c.Statement] += c.E
+			}
 		}
 	}
 	var hp, ex, impact int64
@@ -724,6 +746,9 @@ func (f *finder) hardParses() {
 
 func (f *finder) closeTypes() [][4]int64 {
 	m := f.m
+	if f.sc != nil {
+		return f.sc.closes
+	}
 	out := make([][4]int64, len(m.Statements))
 	if f.acc != nil {
 		for i := range out {
@@ -862,6 +887,9 @@ type idleSplit struct {
 func (f *finder) splitIdle() (think, inCall idleSplit) {
 	mk := func() idleSplit {
 		return idleSplit{n: map[model.ID]int64{}, byEvent: map[model.ID]int64{}, byStmt: map[model.ID]int64{}}
+	}
+	if f.sc != nil {
+		return f.sc.think, f.sc.inCall
 	}
 	think, inCall = mk(), mk()
 	if f.acc != nil {
@@ -1028,6 +1056,15 @@ func (f *finder) smallFetches() {
 func isDML(oct int) bool { return oct == 2 || oct == 6 || oct == 7 || oct == 189 }
 
 func (f *finder) eventUs(name string) (us, n int64) {
+	if f.sc != nil {
+		for i := range f.m.Events {
+			if f.m.Events[i].Name == name {
+				us += f.sc.events[i].us
+				n += f.sc.events[i].n
+			}
+		}
+		return
+	}
 	if f.acc != nil {
 		for i := range f.m.Events {
 			if f.m.Events[i].Name == name && i < len(f.acc.main.events) {
@@ -1054,7 +1091,7 @@ func (f *finder) commitPerRow() {
 	var commits int64
 	for i := range f.m.Transactions {
 		t := &f.m.Transactions[i]
-		if t.Rlbk == 0 && t.RdOnly == 0 {
+		if t.Rlbk == 0 && t.RdOnly == 0 && (f.sc == nil || f.sc.txIn(t)) {
 			commits++
 		}
 	}
@@ -1107,13 +1144,17 @@ func (f *finder) roundTrips() {
 		return
 	}
 	var rows int64
-	if f.acc != nil {
+	switch {
+	case f.sc != nil:
+		rows = f.sc.topRows
+	case f.acc != nil:
 		rows = f.acc.topRows
-	}
-	for i := range f.m.Calls {
-		c := &f.m.Calls[i]
-		if c.Parent == model.None && (c.Kind == trace.CallExec || c.Kind == trace.CallFetch) {
-			rows += c.R
+	default:
+		for i := range f.m.Calls {
+			c := &f.m.Calls[i]
+			if c.Parent == model.None && (c.Kind == trace.CallExec || c.Kind == trace.CallFetch) {
+				rows += c.R
+			}
 		}
 	}
 	ratio := float64(trips) / float64(max(rows, 1))

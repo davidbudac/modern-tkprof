@@ -578,10 +578,13 @@ func cmdServe(args []string) error {
 	mux := http.NewServeMux()
 	// The slicing modes serve the line endpoints too (lines incl. annot=1,
 	// lines/at, at, search); /api/doc below is the longer pattern's exception.
-	if src != nil {
-		mux.Handle("/api/", slicepkg.NewServer(m, src).WithLines(lis).Handler())
-	} else if slicing {
-		mux.Handle("/api/", slicepkg.New(m).WithLines(lis).Handler())
+	if src != nil || slicing {
+		if src == nil {
+			src = slicepkg.MemSource(m)
+		}
+		ss := slicepkg.NewServer(m, src).WithLines(lis)
+		ss.Thresholds = th // api/findings: those of the document's findings
+		mux.Handle("/api/", ss.Handler())
 	} else {
 		m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
 		debug.FreeOSMemory()

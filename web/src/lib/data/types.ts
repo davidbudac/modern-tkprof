@@ -329,6 +329,8 @@ export interface Finding {
   statement: ID // -1 for trace-level findings
   impactUs: number
   evidence: EvidenceRow[]
+  /** 'set': the finding is about the whole trace set and was not narrowed to the scope (api/findings, findings.ts) */
+  scope?: 'set'
 }
 
 // d: 1 = the column holds differences to the previous row (format 3); integrate after reading

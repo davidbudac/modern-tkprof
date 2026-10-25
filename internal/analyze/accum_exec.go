@@ -344,7 +344,7 @@ func (f *finder) outliersAgg() {
 		if s.Executions < f.th.OutlierMinExecs {
 			continue
 		}
-		ea := f.acc.execAggOf(s.ID)
+		ea := f.execAgg(s.ID)
 		if ea == nil || ea.n < f.th.OutlierMinExecs {
 			continue
 		}
@@ -385,7 +385,7 @@ func (f *finder) outliersAgg() {
 // smallFetchesAgg is the body of smallFetches() for one statement (the
 // caller checked the statement-level thresholds) over the execution aggregates.
 func (f *finder) smallFetchesAgg(s *StmtStats) {
-	ea := f.acc.execAggOf(s.ID)
+	ea := f.execAgg(s.ID)
 	if ea == nil || ea.smallFetches <= f.th.SmallFetchMinFetches || ea.smallRows <= f.th.SmallFetchMinRows {
 		return
 	}

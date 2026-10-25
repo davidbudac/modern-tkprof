@@ -13,6 +13,7 @@ import { ResizeHandle } from '../components/ResizeHandle'
 import { PaneToggle } from '../components/PaneToggle'
 import { usePersisted } from '../state/persist'
 import { scopeKey, useScope, useScopedStatements } from '../data/scopedstmts'
+import { useScopedFindings } from '../data/scopedfindings'
 import { responseBaseUs, responseShare, responseUs, shareNote } from '../data/response'
 import type { CSSProperties } from 'react'
 
@@ -64,7 +65,8 @@ export function Statements({ doc }: { doc: TraceDoc }) {
     return list.sort((a, b) => sort.of(b, inclusive) - sort.of(a, inclusive) || b.elapsed - a.elapsed)
   }, [doc, stats, narrowed, q, hideSys, sort, inclusive])
   const maxResp = rows.reduce((a, s) => Math.max(a, responseUs(s)), 0)
-  const findingsOf = useMemo(() => { const m = new Map<number, number>(); for (const f of doc.stats.findings) if (f.statement >= 0) m.set(f.statement, (m.get(f.statement) ?? 0) + 1); return m }, [doc])
+  const scopedFindings = useScopedFindings(doc).findings
+  const findingsOf = useMemo(() => { const m = new Map<number, number>(); for (const f of scopedFindings) if (f.statement >= 0) m.set(f.statement, (m.get(f.statement) ?? 0) + 1); return m }, [scopedFindings])
 
   useEffect(() => { if ((sel === null || !stats[sel]) && rows.length) actions.pickStmt(rows[0].id) }, [rows, sel, stats])
 
