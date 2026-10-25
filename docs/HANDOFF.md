@@ -238,9 +238,9 @@ Deferred by the agents (small, none blocks v1):
   followed backwards too (`TRACE CONTINUED FROM`: earlier files read first,
   for a remote follow fetched once from the host). Still open there: the
   remote chain tests run on the lib transport only (the cli `tail` cleanup
-  is the same stream close that `TestOpenSSHFollowAndThroughput` checks);
-  the desktop shell still reloads live tabs on `session` events instead of
-  `followLive` and has no `LiveBadge` (mtkprof-desktop).
+  is the same stream close that `TestOpenSSHFollowAndThroughput` checks).
+  The desktop shell follows live tabs with `followLive` + `LiveBadge` since
+  package D5 (desktop pin 62916ec; background tabs keep following).
 - Done in package G1: adaptive db fetch ranges (50 000
   to 400 000 numbers; on dbmint a 50 000 query takes ~5 s so it never grows
   there, REMOTE.md "Second round"),
