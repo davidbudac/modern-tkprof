@@ -441,6 +441,13 @@ code for the rest (`profileOf`, the rule bodies) and the same ordering;
 fixture and trace set, with default and eager thresholds, and the text report
 test compares the reports line by line.
 
+`analyze.TraceMinimap` (`stats.minimap`: 1024 buckets of top-level CPU and
+wait µs per `Event.Class` over the whole span, PX slaves left out like
+`TraceProfile`, so the sums equal the profile) is exact from the facts in a
+full build; the accumulator keeps its own 100 µs cell grid (class per cell,
+the timeline cells have none) and reduces it in `Finish`, a cell landing in
+the bucket of its start (at most `ceil(100/bucketUs)` buckets early).
+
 Details that make the numbers equal:
 
 * Implicit cursors (used before their PARSING IN CURSOR) accumulate in a slot

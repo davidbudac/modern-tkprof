@@ -169,6 +169,7 @@ type Stats struct {
 	Profile    analyze.Profile        `json:"profile"`
 	Events     []analyze.EventAgg     `json:"events"`
 	Timeline   []analyze.Bucket       `json:"timeline"`
+	Minimap    *analyze.Minimap       `json:"minimap,omitempty"` // 1024-bucket overview of the whole span
 	BucketUs   int64                  `json:"bucketUs"`
 	Findings   []analyze.Finding      `json:"findings"`
 	Contexts   []analyze.ContextStats `json:"contexts"` // per session context, in id order (Sessions view)
@@ -210,6 +211,7 @@ func buildDocument(m *model.Model, o DocOptions, withFacts bool) *Document {
 			Profile:    analyze.TraceProfile(m),
 			Events:     analyze.WaitsByEvent(m, nil),
 			Timeline:   analyze.Timeline(m, bucket),
+			Minimap:    analyze.TraceMinimap(m),
 			BucketUs:   bucket,
 			Contexts:   analyze.Contexts(m),
 		},

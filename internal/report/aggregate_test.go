@@ -73,6 +73,7 @@ func TestAggregateDocumentStats(t *testing.T) {
 		t.Fatal("the fact tables are not part of this comparison")
 	}
 	norm := func(d *Document) string {
+		d.Stats.Minimap = nil // cell grid vs exact: compared within a tolerance in analyze.TestMinimapFixtures
 		for i := range d.Stats.Findings {
 			for k := range d.Stats.Findings[i].Evidence {
 				d.Stats.Findings[i].Evidence[k].Call = model.None

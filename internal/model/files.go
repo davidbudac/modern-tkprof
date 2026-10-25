@@ -303,6 +303,10 @@ func BuildFiles(paths []string, opts Options) (*Model, error) {
 	b.m.File.Files[0].Chain = plan[0].chain
 	b.m.File.Files[0].Followed = plan[0].followed
 	var total trace.Stats
+	var prog *progress
+	if opts.OnProgress != nil {
+		prog = &progress{fn: opts.OnProgress, stmts: func() int64 { return int64(len(b.m.Statements)) }}
+	}
 	var est rowEstimate
 	for _, pf := range plan {
 		est.add(sampleRows(pf.path))
@@ -314,7 +318,7 @@ func BuildFiles(paths []string, opts Options) (*Model, error) {
 			fe := &b.m.File.Files[i]
 			fe.Chain, fe.Followed = pf.chain, pf.followed
 		}
-		st, err := trace.ParseFile(pf.path, b)
+		st, err := parseFile(pf.path, b, prog)
 		if err != nil {
 			return nil, err
 		}
@@ -322,6 +326,7 @@ func BuildFiles(paths []string, opts Options) (*Model, error) {
 		total.Add(st)
 	}
 	m := b.Finish(total)
+	prog.done(total.Bytes, int64(total.Lines), int64(len(m.Statements)))
 	for i, pf := range plan {
 		if pf.followed {
 			m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("%s: not named, followed as part of the chain", filepath.Base(plan[i].path)))

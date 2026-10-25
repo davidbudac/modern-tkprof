@@ -51,6 +51,13 @@ type Options struct {
 	// EXEC calls carry their set id in Call.BindSet. Model.Binds and BindSets
 	// stay empty. Without it an Aggregate build implies NoFacts.
 	SpillBinds bool
+
+	// OnProgress, when set, is called by BuildFiles with the cumulative input
+	// consumed over the files of the set (bytes, lines) and the statements
+	// found so far: at least every 64 MiB of input and once at the end with
+	// the final totals (equal to Diag.Bytes, Diag.Lines and len(Statements)).
+	// It runs on the parsing goroutine; keep it short. Nil costs nothing.
+	OnProgress func(bytes, lines, statements int64)
 }
 
 // Builder implements trace.Handler and produces a Model.
