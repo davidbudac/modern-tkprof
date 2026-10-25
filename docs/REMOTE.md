@@ -255,7 +255,8 @@ to `<trace>.ref/` (or `-o`), applies it and prints the `report -ref` line.
 | `-sessions` | `SELECT` on `V$SESSION`, `V$PROCESS` |
 | `-files`, `fetch -db` | `SELECT` on `V$DIAG_TRACE_FILE`, `V$DIAG_TRACE_FILE_CONTENTS` (12.2+), `V$PROCESS`, `V$SESSION`. Without `V$DIAG_TRACE_FILE` (ORA-00942) `-files` lists `V$PROCESS.TRACEFILE` of live sessions instead (marked `fromProcess`; usable for an SSH fetch) |
 | `trace -on/-off` | `EXECUTE` on `DBMS_MONITOR` |
-| own-session trace (`MyTrace`, tests) | `DBMS_SESSION` (granted to PUBLIC) and `ALTER SESSION` (`mtk` has it; whether `DBMS_SESSION` works without it is unverified, "Open") |
+| own-session trace (`MyTrace`, tests) | `DBMS_SESSION` (granted to PUBLIC) **and** `ALTER SESSION`: without it `SESSION_TRACE_ENABLE` fails with ORA-01031 (verified on 19.27 with a `CREATE SESSION`-only user) |
+| from `CDB$ROOT` on a PDB session | a common user (`C##…`) with the grants above `CONTAINER=ALL` **and** `ALTER USER c##u SET CONTAINER_DATA=ALL CONTAINER=CURRENT`; without `CONTAINER_DATA` `V$SESSION` in the root shows only root sessions (verified: `trace -sessions/-on/-off` on a PDB1 session through `cdb1.world`) |
 | `ref -db` (full) | as the refscript: `SELECT_CATALOG_ROLE` or `SELECT ANY DICTIONARY` for `DBA_OBJECTS`, `DBA_USERS`; `V$DATAFILE`, `V$TEMPFILE`, `V$TABLESPACE`, `V$PARAMETER` for the datafiles; `V$SQL`, `V$SQL_PLAN`... for DBMS_XPLAN (`DISPLAY_CURSOR`, `DISPLAY_AWR`) |
 | `ref -db -lite` | nothing beyond `CREATE SESSION`: `ALL_OBJECTS`, `ALL_USERS` (only what the user may see), no datafiles; plans as far as DBMS_XPLAN is allowed |
 
@@ -518,6 +519,19 @@ Through an ssh tunnel (`-L 15210`). Gated test `TestDBMint` plus CLI runs.
 | `ref -db -lite` on `io_waits.trc` | clean: 5 objects, 2 users; applied, `report -ref` shows the names |
 | `ref -db` (full) as `mtk` | ORA-00942 for `DBA_OBJECTS`, `DBA_USERS` (answered by the lite query, notes printed) and `V$DATAFILE` (`datafiles.csv` missing, no lite form). No plans: `mtk` cannot read `V$SQL_PLAN` |
 
+Second round (2026-10-25, users `mtkcat` = `mtk` + `SELECT_CATALOG_ROLE`,
+`mtknoalt` = `CREATE SESSION` + the V$ views, `c##mtkroot` common; all
+created by hand as SYSDBA, not by `00_setup_user.sql`):
+
+| Question | Result |
+|---|---|
+| Full `ref -db` as `mtkcat` vs the `refscript` bundle run with sqlplus | same file set (`objects.csv`, `users.csv`, `datafiles.csv`, 23 `plans/*.txt`); CSVs identical but for the spool's leading blank line; every plan text identical; `report -ref` output identical. 7 objects, 3 datafiles, 2 users, 6 plans found for `io_waits.trc` |
+| `TestDBMint` as `mtkcat` | passes (7 s, `basic_binds.trc` fixture byte-equal) |
+| `DBMS_SESSION.SESSION_TRACE_ENABLE` without `ALTER SESSION` | ORA-01031 at `SYS.DBMS_SESSION` line 343: `ALTER SESSION` is required (table above) |
+| `modify_time` vs `-since` | `V$DIAG_TRACE_FILE.MODIFY_TIME` is `TIMESTAMP(3) WITH TIME ZONE`; the CLI prints it as UTC (`2026-10-22T11:40:12Z`) equal to the file's mtime on the host; `-since 72h`/`96h` exclude/include a 74 h old file correctly from a CET client against a UTC server. `trace -since` now accepts `Nd` like the engine |
+| Tracing a PDB session from `CDB$ROOT` | works as `c##mtkroot` through the root service once `CONTAINER_DATA=ALL` is set: the PDB1 session is listed, `trace -on` / `-off` by sid/serial succeed (`DBMS_MONITOR` from the root) |
+| 2 GB trace through the engine (the 117 MB lab trace concatenated 17×, 49 M lines, on this laptop) | open 13 s (cache build included), peak RSS 146 MB, cache entry 1.9 GB; reopen from the cache 0.25 s (`hit: true`), RSS 98 MB; `api/doc` 0.7 ms (469 KB), `lines` 0.3 ms, `at` 0.4 ms, `search` 4 ms, `pivot` 0.9 ms, text report 79 ms |
+
 ## Open
 
 Not verified yet:
@@ -525,18 +539,13 @@ Not verified yet:
 - **Windows 11**: whether `ssh.exe` ignores `SSH_ASKPASS` (the detection
   and the switch to lib are tested with a fake ssh), and the OpenSSH agent
   pipe for the lib transport. Needs a real machine; record the result here.
-- **Full `ref -db`** with `SELECT_CATALOG_ROLE` (datafiles, plans), compared
-  with a `refscript` bundle of the same database.
 - **TCPS**: dbmint has no TCPS listener; the certificate and
   `-tls-skip-verify` paths are untested, as are native network encryption and
   old password verifiers.
-- `DBMS_SESSION.SESSION_TRACE_ENABLE` without `ALTER SESSION`.
-- `modify_time` time zone against `-since` (`TraceFile.Modified`).
 - The engine's db routes end to end with curl (one password prompt for
   test + sessions + fetch + ref; killing the tunnel mid-fetch and resuming).
 - AIX and Solaris remote scripts (read from the man pages, not run); a
   > 2 GB file through AIX `tail -c`.
-- Tracing another PDB's session from CDB$ROOT.
 
 Deferred by design: adaptive fetch ranges; wallet, sysdba and Kerberos
 authentication; `ProxyJump`/`Include`/`Match` in the lib transport (use cli).

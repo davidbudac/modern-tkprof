@@ -185,10 +185,14 @@ Needs a person or a machine:
   full binaries and `mtkprof-lite-<os>-<arch>` (`-tags nooracle`, ~12 MB)
   for linux/aix/solaris, the database hosts. The desktop sidecar is always
   the full build.
-- REMOTE.md "Open": full `ref -db` with `SELECT_CATALOG_ROLE`, TCPS,
-  `DBMS_SESSION` without `ALTER SESSION`, time zones of `-since`, the engine's
-  db routes with curl, AIX/Solaris scripts.
-- Not measured: a 2 GB trace through the engine, WebView2 frame rates.
+- REMOTE.md "Open": TCPS (dbmint has no TCPS listener: setting one up
+  needs a wallet and a listener restart), AIX/Solaris scripts. Verified
+  2026-10-25 (REMOTE.md "Second round"): full `ref -db` equals the refscript
+  bundle, `DBMS_SESSION` needs `ALTER SESSION`, `-since` time zones, tracing
+  a PDB session from `CDB$ROOT` (`CONTAINER_DATA=ALL`), the engine's db
+  routes end to end.
+- 2 GB trace through the engine: measured (REMOTE.md table): 13 s open,
+  146 MB peak RSS, 0.25 s reopen. Not measured: WebView2 frame rates.
 
 Deferred by the agents (small, none blocks v1):
 
