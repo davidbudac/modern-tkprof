@@ -41,6 +41,7 @@ type Accumulator struct {
 	ctx     []ContextStats
 	events  []evAgg // every wait, by event id
 	tl      timeline
+	mm      mmAcc // minimap cells (minimap.go)
 	kinds   [32]int64
 	topRows int64 // Σ rows of top-level EXEC / FETCH calls (round-trips rule)
 	think   idleAcc
@@ -462,6 +463,7 @@ func span(s *ContextStats, from, to int64) {
 // topLevel counts a call that has no parent (depth 0, or an orphan).
 func (a *Accumulator) topLevel(f *facts, s *aggStmt, ctx model.ID, tim, e, c, r int64, kind trace.CallKind) {
 	s.TopLevel = true
+	a.mm.cpu(a.m, ctx, tim, c)
 	s.Elapsed += e
 	s.CPU += c
 	f.topCPU += c
@@ -503,6 +505,7 @@ func (a *Accumulator) Wait(w *model.Wait, call *model.Call) {
 	f := a.factsFor(w.Context)
 	f.any = true
 	idle := w.Idle || w.Between
+	a.mm.wait(a.m, w.Context, w.Tim, w.Event, w.Ela)
 	evAt(&a.events, w.Event).add(w.Ela)
 	if cs := a.ctxStat(w.Context); cs != nil {
 		if w.Idle {
@@ -668,6 +671,7 @@ func (a *Accumulator) Finish() {
 	for len(a.ctx) < len(m.Contexts) {
 		a.ctx = append(a.ctx, ContextStats{Context: model.ID(len(a.ctx))})
 	}
+	a.mm.finish(m)
 	a.fin = true
 }
 

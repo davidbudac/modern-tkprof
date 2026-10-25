@@ -198,6 +198,13 @@ export interface Diagnostics {
   notes?: string[]
 }
 
+/** stats.minimap: bucket i covers tim [span.firstTim + i·bucketUs, +bucketUs) */
+export interface Minimap {
+  bucketUs: number
+  cpu: number[]
+  waits: Record<string, number[]>
+}
+
 export interface CallStats {
   count: number
   misses: number
@@ -374,6 +381,8 @@ export interface RawDocument {
     events: EventAgg[]
     timeline: Bucket[] | null
     bucketUs: number
+    /** 1024-bucket overview of the whole span: CPU and wait µs per wait class (absent in older documents) */
+    minimap?: Minimap | null
     findings?: Finding[] | null
     /** effective finding thresholds (analyze.Thresholds JSON keys); absent in older documents */
     findingsConfig?: Record<string, number> | null
