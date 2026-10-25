@@ -371,7 +371,7 @@ CLI's existing commands stay offline.
 Repo `mtkprof-desktop` (private, Apache-2.0).
 
 ```
-src-tauri/        tauri.conf.json: externalBin ["engine/mtkprof"], CSP connect-src 127.0.0.1:*
+src-tauri/        tauri.conf.json: externalBin ["binaries/mtkprof-engine"] (built by `pnpm build:engine` from the submodule), CSP connect-src 127.0.0.1:*
                   commands: engine_start (random token → env, parse ready line, health check), engine_restart,
                   pick_files, recent files, window state, open_releases_page
                   plugins: shell, dialog, fs (scoped), store, window-state, log, process, single-instance
