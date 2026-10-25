@@ -188,6 +188,11 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each
   milestone; licence Apache-2.0 (`LICENSE`, added 2026-10-24); publishing is a
   separate decision.
+- CI and releases run locally (`scripts/ci-local.sh`, `scripts/release-local.sh`);
+  GitHub Actions is not used, by the owner's decision (cost). The scripts
+  mirror the former workflow: vet, tests (golden and engine contract
+  included), web build, embedded-UI check, `make release`; the release script
+  needs a clean tree at the tag and uploads with `gh release create`.
 - Every feature lands with unit or golden tests; UI work is verified with
   screenshots; commits go to main with concise messages. The user sets scope
   and priorities; implementation details are the implementer's, reported

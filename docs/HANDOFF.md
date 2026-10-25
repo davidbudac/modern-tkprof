@@ -12,7 +12,8 @@ Phases 1–5 of `docs/PLAN-DESKTOP.md` are implemented in two repos:
 `davidbudac/modern-tkprof` (this one: engine, cache, remote, shared UI
 library, CLI) and the private `davidbudac/mtkprof-desktop` (Tauri 2 shell and
 the desktop UI; pins this repo as the submodule `engine/`). Phase 6 (tag both,
-publish the installers) waits for CI billing, see "Open". Design of the
+publish the installers) is run with the local scripts (no GitHub Actions), see
+"Open". Design of the
 engine side: `docs/ARCHITECTURE.md` § "Engine mode" and § "Persistent index
 cache".
 
@@ -73,9 +74,10 @@ standalone app looks and works as before.
   `engine/api/engine.openapi.yaml`; CI fails when it is stale. A breaking
   protocol change here bumps `engine.Protocol` and the app's `APP_PROTOCOL`.
 - Shared UI dependencies: the desktop package repeats the runtime
-  dependencies of `web/package.json`; `pnpm check:deps` (also in CI) fails on
+  dependencies of `web/package.json`; `pnpm check:deps` (also in the desktop CI) fails on
   drift after a bump.
-- CI (`.github/workflows/build.yml`, desk): matrix windows-x64 (NSIS),
+- Former desktop CI (`.github/workflows/build.yml`, desk; replaced by the
+  desktop repo's local scripts, see "Open"): matrix windows-x64 (NSIS),
   macos-arm64 and macos-x64 (DMG), linux-x64 (AppImage, deb). Steps: submodule
   over ssh with the read-only deploy key on `modern-tkprof` (secret
   `ENGINE_DEPLOY_KEY`), `pnpm check:deps`, `gen:api` diff, `cargo fmt`,
@@ -131,9 +133,12 @@ Needs a person or a machine:
 - **Windows 11**: `ssh.exe` and `SSH_ASKPASS`, the OpenSSH agent pipe. The plan's
   rule "UI verified by screenshot on Windows first" has no record here: no
   Windows screenshot is documented. macOS is done (see below).
-- **GitHub Actions billing** blocked the last desktop CI run: no CI-built
-  installer or smoke result exists for the final desktop commit
-  (`63564b5`). Phase 6 (tag both repos, release notes) follows once it runs.
+- **No GitHub Actions** (owner's decision, cost; `docs/DESIGN.md` § Project).
+  CI and releases are local: `scripts/ci-local.sh` and
+  `scripts/release-local.sh <tag>` here, `mtkprof-desktop/scripts/ci-local.sh`
+  and `scripts/release-local.sh` there. Phase 6 (tag both repos, release
+  notes, installers) = run those; the Windows installer and the AppImage have
+  no local build yet (see below).
 - Local Linux Tauri build needs `sudo apt install` of the webkit2gtk dev libs;
   without them the Linux leg runs in Docker (`docs/PLAN-DESKTOP.md` § "Status
   and how to continue"): the Rust build and the `.deb` (10.8 MB, ships
@@ -242,7 +247,7 @@ Working and tested:
 | Real fixtures: 19.27 (21), 21c XE (19), 23ai Free (19) + tkprof output + generators (dbmint, docker) + v$ exports | `testdata/` | done |
 | Engine: sessions, jobs, SSE events, prompts, per-session `/s/{id}/api/*`, OpenAPI contract | `internal/engine`, `api/engine.openapi.yaml` | done (desktop phases 1 to 4 engine side: remote connections ssh and db, lines, report, ref) |
 | Persistent index cache (content identity, LRU, manifest, `engine cache`) | `internal/engine/cache*.go`, `identity.go`, `internal/{model,analyze,slice}/*persist*.go`, `internal/binfmt` | done; round-trip tests on every fixture |
-| CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | green on every push; release job verified with tag `v0.2.0-rc.1` |
+| CI (test, web build check, cross-build) and release | `scripts/ci-local.sh`, `scripts/release-local.sh` | replaced the GitHub Actions workflow (removed 2026-10-25); `ci-local.sh` passes |
 
 Numbers (after milestone 5): 118 MB trace → text report in 0.61 s / 220 MB
 RSS, standalone HTML 12.7 MB in 0.78 s / 255 MB RSS; 1 GB trace → HTML in

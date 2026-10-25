@@ -27,7 +27,7 @@
   CSV download). Light and dark, keyboard navigation in tables.
 - `mtkprof export`: CSV tables (statements, cursors, contexts, events, calls,
   waits, binds, plan lines, transactions, errors) for DuckDB / Excel / Python.
-- CI workflow: tests, web build check, release binaries on tags.
+- Local CI and release scripts (`scripts/ci-local.sh`, `scripts/release-local.sh`): tests, web build check, release binaries.
 - Cross-compiles for linux/amd64, linux/arm64, windows/amd64, aix/ppc64,
   solaris/amd64 (pure Go).
 
@@ -56,7 +56,7 @@
    as XE/Free have no parallel execution). Open: 12.1/12.2 traces (should mostly
    work, untested), Windows trace files, `RPC CALL` lines, LOB write ops.
 8. **Compare mode**: two traces side by side (before/after a change).
-9. **Packaging**: GitHub release workflow building all targets, checksums.
+9. **Packaging**: `scripts/release-local.sh` builds all targets with checksums and creates the GitHub release.
 10. **Desktop app** (`docs/PLAN-DESKTOP.md`): `mtkprof engine` sidecar with
     persistent index cache, progress, minimap, line drill-down (`at`,
     `search`), SSH/ADR fetch and live follow, DB trace control, the same

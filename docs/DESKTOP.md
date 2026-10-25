@@ -10,7 +10,7 @@ traces from other machines. It is a Tauri shell around the `mtkprof engine` proc
 ## Install
 
 Installers come from the releases page of `mtkprof-desktop` (a prerelease per `v*` tag) or from
-the artifacts of a CI run.
+a local build (`scripts/ci-local.sh` in that repo).
 
 | System | File | Notes |
 |---|---|---|

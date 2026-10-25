@@ -32,10 +32,10 @@ repo.
 
 **Blocked on the user.**
 
-1. GitHub Actions billing (Settings → Billing & plans → spending limit).
-   Then re-run the latest `mtkprof-desktop` workflow and the `v0.3.0` tag
-   run; the release job publishes the unsigned installers as a prerelease.
-   That completes phase 6.
+1. ~~GitHub Actions billing~~ Decided: no GitHub Actions (cost). CI and
+   releases run locally: `scripts/ci-local.sh` / `scripts/release-local.sh
+   <tag>` in `modern-tkprof` and in `mtkprof-desktop`. Phase 6 = run those
+   for `v0.3.0` (the desktop one uploads the installers as a prerelease).
 2. `sudo apt install libwebkit2gtk-4.1-dev librsvg2-dev libgtk-3-dev patchelf`
    if `pnpm tauri dev` is wanted on this Linux box without Docker.
 3. A Windows 11 machine for the `SSH_ASKPASS` / agent-pipe check
@@ -580,7 +580,8 @@ when E2 lands). E3 and E4 after E1.
 
 ### Phase 6: release
 
-Unsigned installers published to the private desktop repo's releases by CI on
+Unsigned installers published to the private desktop repo's releases by its local
+release script (no GitHub Actions) on
 tags; release notes template; both repos tagged together; the About link.
 No updater, no signing.
 
