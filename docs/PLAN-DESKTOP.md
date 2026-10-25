@@ -25,17 +25,27 @@ screenshots matched the CI legs' earlier ones. Not run locally: the Windows
 and macOS legs (impossible here) and the AppImage: linuxdeploy's static-pie AppImage runtime does not execute
 at all inside Docker on this host (`cannot execute: required file not
 found`, even with `/dev/fuse` and `APPIMAGE_EXTRACT_AND_RUN=1`); the
-AppImage is produced only by the GitHub runner. macOS legs: built and
-smoke-tested by hand on the MacBook on 2026-10-25 (both DMGs, arm64 smoke
-passed; HANDOFF "Open"), recipe `docs/HANDOFF-macos-build.md` in the desktop
-repo.
+AppImage does not build in Docker on this Linux box; it does build in the
+desktop repo's `mtkprof-ci:local` image under OrbStack on the MacBook (that
+is how v0.3.1 got one). macOS legs: built and smoke-tested by hand on the
+MacBook on 2026-10-25 (both DMGs, arm64 smoke passed; HANDOFF "Open"),
+recipe `docs/HANDOFF-macos-build.md` in the desktop repo.
+
+**Phase 6 done for v0.3.1** (2026-10-25, MacBook): desktop
+`scripts/release-local.sh v0.3.1` built all five installers (DMG arm64/x64,
+deb, AppImage, NSIS cross-build) and published them as a prerelease with
+`SHA256SUMS`; engine submodule still `53042d0` (= engine v0.3.0). Fixes in
+v0.3.1: Gatekeeper "damaged" (ad-hoc `signingIdentity: "-"`), status-bar
+session count re-polled on session events. Still untested: the Windows
+installer and smoke, macOS x64 smoke, installing from the installers.
 
 **Blocked on the user.**
 
 1. ~~GitHub Actions billing~~ Decided: no GitHub Actions (cost). CI and
    releases run locally: `scripts/ci-local.sh` / `scripts/release-local.sh
-   <tag>` in `modern-tkprof` and in `mtkprof-desktop`. Phase 6 = run those
-   for `v0.3.0` (the desktop one uploads the installers as a prerelease).
+   <tag>` in `modern-tkprof` and in `mtkprof-desktop`. Phase 6 ran for
+   desktop `v0.3.1` (see above); next engine release = tag, then
+   `scripts/release-local.sh <tag>` here.
 2. `sudo apt install libwebkit2gtk-4.1-dev librsvg2-dev libgtk-3-dev patchelf`
    if `pnpm tauri dev` is wanted on this Linux box without Docker.
 3. A Windows 11 machine for the `SSH_ASKPASS` / agent-pipe check
