@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useStore, actions } from './store'
-import { fetchLines, LINES_PAGE, type LinePage } from '../data/lines'
-import { fmtInt } from '../data/format'
+import { useStore, useActions, useClient, fetchLines, LINES_PAGE, fmtInt, type LinePage } from '@lib'
 
 const HALF = (LINES_PAGE - 1) / 2
 
 /** Bottom pane with the raw trace lines around a line number (±40), target highlighted, paged by Prev/Next. */
 export function LineDrawer() {
+  const actions = useActions()
+  const client = useClient()
   const viewer = useStore((s) => s.lineViewer)
   const side = useStore((s) => (s.compare ? s.side : undefined))
   const [page, setPage] = useState<LinePage | null>(null)
@@ -21,9 +21,9 @@ export function LineDrawer() {
   useEffect(() => {
     const ac = new AbortController()
     setError(null)
-    fetchLines(Math.max(1, center - HALF), LINES_PAGE, ac.signal, side, file).then(setPage, (e) => { if (!ac.signal.aborted) setError(String(e)) })
+    fetchLines(client, Math.max(1, center - HALF), LINES_PAGE, ac.signal, side, file).then(setPage, (e) => { if (!ac.signal.aborted) setError(String(e)) })
     return () => ac.abort()
-  }, [center, side, file])
+  }, [client, center, side, file])
 
   // bring the target line (or the page start when paging) into view
   useEffect(() => {

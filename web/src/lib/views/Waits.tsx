@@ -2,12 +2,14 @@ import { useMemo } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { EventAgg } from '../data/types'
 import { fmtDur, fmtInt, fmtPct } from '../data/format'
-import { useStore, actions, scopeOf } from '../app/store'
+import { scopeOf } from '../state/store'
+import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { DataTable, type Column } from '../components/DataTable'
 import { roleOfClass } from '../components/colors'
 
 export function Waits({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   const state = useStore((s) => s)
   const sel = state.selection.event
   const source = sourceOf(doc)

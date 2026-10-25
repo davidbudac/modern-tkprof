@@ -1,6 +1,6 @@
 import type { TraceDoc } from '../data/doc'
 import type { EvidenceRow, Finding } from '../data/types'
-import { actions } from '../app/store'
+import { useActions } from '../state/session'
 import { StmtLink, LinkText } from '../components/StmtLink'
 import { LineRef } from '../components/LineRef'
 
@@ -64,6 +64,7 @@ function FindingItem({ doc, f }: { doc: TraceDoc; f: Finding }) {
 }
 
 function Evidence({ doc, f, r }: { doc: TraceDoc; f: Finding; r: EvidenceRow }) {
+  const actions = useActions()
   const own = r.statement >= 0 && r.statement !== f.statement
   const exec = r.statement >= 0 && r.cursor >= 0 && r.execNo
   const open = () => {

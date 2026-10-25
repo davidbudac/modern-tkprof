@@ -1,4 +1,4 @@
-import { actions, useStore } from '../app/store'
+import { useStore, useActions } from '../state/session'
 import { fmtInt } from '../data/format'
 
 /**
@@ -7,6 +7,7 @@ import { fmtInt } from '../data/format'
  * `bare` shows just the number (table cells); otherwise "line N".
  */
 export function LineRef({ line, file = 0, bare, className }: { line: number; file?: number; bare?: boolean; className?: string }) {
+  const actions = useActions()
   const available = useStore((s) => s.linesAvailable)
   if (!line || line <= 0) return null
   const text = bare ? fmtInt(line) : `line ${fmtInt(line)}`

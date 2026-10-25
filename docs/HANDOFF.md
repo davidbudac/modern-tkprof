@@ -24,7 +24,7 @@ Working and tested:
 | Golden comparison against Oracle's tkprof | `internal/golden` | passes on all 19 fixtures |
 | Text report, JSON document (format 2, packed columns), CSV export | `internal/report` | done |
 | CLI: `report`, `pivot`, `html`, `serve`, `json`, `export`, `lint` | `cmd/mtkprof` | done |
-| Findings (9 rules, fixed thresholds) in JSON, text report and Overview | `internal/analyze/findings.go`, `internal/report/text_findings.go`, `web/src/views/Findings.tsx` | done; unit tests on fixtures + hand-built models |
+| Findings (9 rules, fixed thresholds) in JSON, text report and Overview | `internal/analyze/findings.go`, `internal/report/text_findings.go`, `web/src/lib/views/Findings.tsx` | done; unit tests on fixtures + hand-built models |
 | Go group-by with the UI Pivot's dims/measures; sessions and time-bucket stats | `internal/analyze/pivot.go` | done; unit tests |
 | Bind redaction (`-redact-binds`, `-bind-values keep\|redact\|none`, `-binds none`) as a model post-pass | `internal/model/redact.go`, `cmd/mtkprof/bindflags.go` | done; tests prove no value leaks into text/JSON/CSV |
 | Web UI (Overview ledger + lanes, Statements workbench, Waits + event inspector, Timeline, Sessions, Pivot), light/dark, IBM Plex embedded | `web/` → embedded as `internal/ui/dist/index.html` | redesigned 2026-10-23 (`docs/mockups/`), reviewed by screenshot |
@@ -48,6 +48,12 @@ make web                                    # pnpm build in web/, copies the sin
 ./bin/mtkprof serve  testdata/traces/19c/io_waits.trc            # http://127.0.0.1:8046/
 cd web && pnpm typecheck && pnpm dev                              # UI dev; set ?doc=http://127.0.0.1:8046/api/doc or run serve first (vite proxy not configured)
 ```
+
+`web/src/lib` is the UI library (views, components, data, state, styles; imported as `@lib`
+by the standalone shell `web/src/app` and by the desktop repo); `lib/` never imports `app/`.
+One `Store` per open trace is created by `createSession()` and provided through
+`SessionProvider`; views read it with `useStore`/`useActions`. Server calls go through an
+`ApiClient` (`lib/data/client.ts`, base = server root, paths `/api/...`).
 
 After any change under `web/src`, run `make web` and rebuild Go, otherwise
 the binary serves the old UI. The built `internal/ui/dist/index.html` is
@@ -85,7 +91,7 @@ committed on purpose so `go build` alone works.
 Delivered on `main` (see `docs/PLAN-M1.md` for how the work was split):
 text report executions table (`-execs N`), SESSIONS and TIME BUCKETS
 sections, FINDINGS section; `mtkprof pivot` sharing `analyze.Pivot` with the
-same dimension/measure ids as `web/src/views/Pivot.tsx`; findings in
+same dimension/measure ids as `web/src/lib/views/Pivot.tsx`; findings in
 `stats.findings` of the JSON document and on the Overview; bind redaction on
 every output; `plan_change.trc` fixture (one sql_id, two plan hashes, forced
 with `optimizer_index_cost_adj`).
@@ -143,7 +149,7 @@ Specified in `docs/DESIGN.md` § Plans. Delivered on `main`:
 - `mtkprof plan <trace> -sql_id X [-plan-hash H] [-exec N] [-viz] [-list]`.
 - `-plan-viz-url` on `html`, `serve`, `json`, `plan`; the document carries it
   as top-level `planViz` (empty flag drops it).
-- UI (`web/src/data/planviz.ts`, `views/StatementDetail.tsx`): per plan hash
+- UI (`web/src/lib/data/planviz.ts`, `views/StatementDetail.tsx`): per plan hash
   a dump picker (when several), "Open in plan viz ↗", "Copy JSON", ⚙ to set
   the base URL (localStorage `mtkprof.planVizUrl` > document `planViz` >
   hosted default). Verified end to end against the hosted visualizer.
@@ -224,7 +230,7 @@ Compact facts (Call 168 B, Wait 88 B, Bind 56 B; `WallUs` derived from tim
 and the anchor table; bind values in arena chunks), pre-sized fact tables,
 shared executions index, GOGC 40 % (20 % with `-lowmem`), streamed packed
 document (`report.WriteDocument`, `ui.WriteStandalone`), document **format
-3** with delta-coded monotonic columns (loader in `web/src/data/columns.ts`).
+3** with delta-coded monotonic columns (loader in `web/src/lib/data/columns.ts`).
 `-lowmem` on report/pivot/html/json/serve/export drops bind values only.
 Analysis ordering is now deterministic (map-iteration dependence removed).
 Not done: an aggregation-only mode (calls and waits must be retained for the
@@ -236,7 +242,7 @@ analyses); `MTKPROF_CPUPROFILE|MEMPROFILE|HEAPPROFILE` env hooks exist.
 `/api/pivot|timeline|executions|executions/detail|calls|waits|waits/hist|
 waits/scatter|waits/by|profile|stmt/roles|stmt/waits|stmt/spans`
 (`internal/slice`, httptest-covered). The document carries `slice: true`; the
-UI's `DataSource` (`web/src/data/source.ts`) picks `RemoteSource` then,
+UI's `DataSource` (`web/src/lib/data/source.ts`) picks `RemoteSource` then,
 `LocalSource` for standalone HTML. big_loop: 284 KB document, ~290 MB RSS,
 pivots in ~20 ms. Executions lists cap at the 5000 slowest; PX slave calls are
 left out of remote executions; remote pivot labels are formatted by Go.

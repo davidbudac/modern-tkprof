@@ -1,9 +1,8 @@
-import type { TraceDoc } from '../data/doc'
-import { useStore, actions } from './store'
-import { EventDetail } from '../views/EventDetail'
+import { useStore, useActions, EventDetail, type TraceDoc } from '@lib'
 
 /** Right-hand panel for a selected wait event (statements open in the Statements workbench instead). */
 export function Inspector({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   const event = useStore((s) => s.selection.event)
   if (event === null) return null
   const title = doc.events[event]?.name ?? 'Event'

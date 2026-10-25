@@ -1,21 +1,13 @@
 import { useEffect } from 'react'
-import { useStore, actions, getState, setState, setLoaded } from './store'
+import { useStore, useActions, useStoreApi, usePersisted, ResizeHandle, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, loadFile } from '@lib'
 import { TopBar, SubBar } from './TopBar'
 import { Inspector } from './Inspector'
 import { LineDrawer } from './LineDrawer'
-import { ResizeHandle } from '../components/ResizeHandle'
-import { usePersisted } from './persist'
 import type { CSSProperties } from 'react'
-import { Overview } from '../views/Overview'
-import { Statements } from '../views/Statements'
-import { Waits } from '../views/Waits'
-import { Timeline } from '../views/Timeline'
-import { Sessions } from '../views/Sessions'
-import { Pivot } from '../views/Pivot'
-import { Compare } from '../views/Compare'
-import { loadFile } from '../data/load'
 
 export function App() {
+  const store = useStoreApi()
+  const actions = useActions()
   const doc = useStore((s) => s.doc)
   const loading = useStore((s) => s.loading)
   const error = useStore((s) => s.error)
@@ -29,14 +21,14 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       // Esc closes the line viewer first, then the inspector, then clears the time window
-      const s = getState()
+      const s = store.getState()
       if (s.lineViewer) actions.closeLines()
       else if (s.selection.event !== null) actions.selectEvent(null)
       else if (s.window) actions.setWindow(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [store, actions])
 
   if (loading) return <div className="loading"><p>Loading trace…</p></div>
   if (!doc) return <Landing error={error} />
@@ -66,10 +58,11 @@ export function App() {
 }
 
 function Landing({ error }: { error: string | null }) {
+  const store = useStoreApi()
   const onFile = async (f: File | undefined) => {
     if (!f) return
-    setState({ loading: true })
-    try { setLoaded(await loadFile(f)) } catch (e) { setState({ loading: false, error: String(e) }) }
+    store.setState({ loading: true })
+    try { store.setLoaded(await loadFile(f)) } catch (e) { store.setState({ loading: false, error: String(e) }) }
   }
   return (
     <div className="loading">

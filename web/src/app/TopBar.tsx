@@ -1,9 +1,5 @@
 import { useMemo } from 'react'
-import type { TraceDoc } from '../data/doc'
-import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct } from '../data/format'
-import { useStore, actions, scopeOf, type View } from './store'
-import { traceSegmentsFrom } from '../data/derive'
-import { sourceOf, useSourceQuery } from '../data/source'
+import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, traceSegmentsFrom, sourceOf, useSourceQuery, type TraceDoc, type View } from '@lib'
 
 const tabs: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -21,6 +17,7 @@ const themeGlyph = { auto: '◐', light: '○', dark: '●' } as const
 
 /** File, the whole-trace profile in miniature, the views, filters and theme. */
 export function TopBar({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   const state = useStore((s) => s)
   const compare = state.compare
   const shownTabs = compare ? [compareTab, ...tabs] : tabs

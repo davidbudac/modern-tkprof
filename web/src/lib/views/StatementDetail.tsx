@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { ID, StmtStats, CallStats, Plan } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, fmtCompact, oraErr } from '../data/format'
-import { useStore, actions } from '../app/store'
+import { useStore, useActions } from '../state/session'
 import { SqlText } from '../components/SqlText'
 import { ProfileBar } from '../components/ProfileBar'
 import { DataTable, type Column } from '../components/DataTable'
@@ -11,7 +11,7 @@ import { sourceOf, useSourceQuery } from '../data/source'
 import type { Segment } from '../components/ProfileBar'
 import { LineRef } from '../components/LineRef'
 import { ColumnChooser } from '../components/ColumnChooser'
-import { usePersisted } from '../app/persist'
+import { usePersisted } from '../state/persist'
 import { ExecCompare } from './ExecCompare'
 import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
@@ -85,6 +85,7 @@ function ResponseTime({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
 }
 
 function CallTable({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
+  const actions = useActions()
   const inclusive = useStore((s) => s.inclusive)
   const rows: { name: string; c: CallStats; res: boolean }[] = [
     { name: 'Parse', c: stats.parse, res: true }, { name: 'Execute', c: stats.exec, res: true }, { name: 'Fetch', c: stats.fetch, res: true },

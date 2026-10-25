@@ -7,7 +7,8 @@ import { fmtDurDelta, fmtIntDelta, fmtPctDelta, worse } from '../data/delta'
 import { traceSegments } from '../data/derive'
 import { roleLabel } from '../components/colors'
 import { DataTable, type Column } from '../components/DataTable'
-import { actions, useStore, type Side } from '../app/store'
+import { type Side } from '../state/store'
+import { useStore, useActions } from '../state/session'
 import '../styles/compare.css'
 
 /** Count metrics where more is worse (the rest are volume: executions, rows, statements). */
@@ -105,6 +106,7 @@ const filters: { id: Filter; label: string; title: string; test: (d: CmpStmt) =>
 ]
 
 function StatementsDelta({ data }: { data: CompareData }) {
+  const actions = useActions()
   const side = useStore((s) => s.side)
   const [filter, setFilter] = useState<Filter>('all')
   const all = data.diff.statements

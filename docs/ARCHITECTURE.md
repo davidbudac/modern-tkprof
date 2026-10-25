@@ -169,7 +169,7 @@ base64 encoded (`blob`); the column descriptors keep `{t, off, n}`, plus
 of calls and waits, the bind-set links `line`/`call`/`first`, the bind `set`
 column): sorted ids and times gzip to a fraction as deltas, which took the
 big_loop document from 20.1 to 11.5 MB (-43 %). The loader integrates them in
-place (`web/src/data/columns.ts`; `Int32Array` wraps like the writer's `int32`
+place (`web/src/lib/data/columns.ts`; `Int32Array` wraps like the writer's `int32`
 subtraction). The browser decodes with `DecompressionStream` and creates
 typed-array views, so a 600k-call trace is a ~11 MB document that loads in a
 few seconds. The packed form is **streamed** (`stream.go`): the writer reads
@@ -202,7 +202,7 @@ plan viz" link (`<base>#gz=` + gzip + base64url of
 `-plan-hash`, `-exec`, `-viz`); `html`/`serve`/`json` take `-plan-viz-url`,
 stored as `Document.planViz` for the UI.
 
-### Plan advisor (`web/vendor/ora-plan-core`, `web/src/data/advisor.ts`)
+### Plan advisor (`web/vendor/ora-plan-core`, `web/src/lib/data/advisor.ts`)
 
 The UI depends on `@davidbudac/ora-plan-core` (`"file:./vendor/ora-plan-core"` in `web/package.json`), the pure
 part of the visualizer extracted into `packages/ora-plan-core` of `davidbudac/ora-explain-plan-viz` (types, parsers,
@@ -272,7 +272,7 @@ contract) adds `access_predicates`, `filter_predicates`, `object_alias`,
 flag per row with predicates (click to expand the text) and a header hint
 when overlaid. See `docs/REF-BUNDLE.md`.
 
-### Server-side slicing (`internal/slice`, `web/src/data/source.ts`)
+### Server-side slicing (`internal/slice`, `web/src/lib/data/source.ts`)
 
 `mtkprof serve -facts=false` (or `-slice`, which also works with facts) keeps the
 parsed model after building the document instead of freeing it, and mounts
@@ -315,7 +315,7 @@ chart and the lane strips apply the context filter to the CPU as well (the
 in-browser path never did); the Pivot's time and p1/obj labels are the Go ones
 (`HH:MM:SS.mmm` in the trace's zone).
 
-UI side: `web/src/data/source.ts` defines `DataSource`, the questions the views
+UI side: `web/src/lib/data/source.ts` defines `DataSource`, the questions the views
 ask of the facts (`pivot`, `profile`, `timeline`, `calls`, `executions`,
 `executionDetail`, `waitHist`, `waitScatter`, `waitTop`, `waitsBy`,
 `stmtWaits`, `stmtRoles`, `stmtSpans`), with a `Scope` (window, contexts, idle)
@@ -602,9 +602,9 @@ questions stay fast through the index.
   elapsed, waits — the unit for "why was *this* execution slow".
 * Pivot (`pivot.go`): `Pivot(m, FactCalls|FactWaits, by, Filter)` groups the
   call or wait facts by dimensions and accumulates every measure. Dimension
-  and measure ids, labels and semantics mirror `web/src/views/Pivot.tsx`;
+  and measure ids, labels and semantics mirror `web/src/lib/views/Pivot.tsx`;
   `Filter` mirrors the UI's time-window / context / idle filters
-  (`web/src/app/store.ts`). Used by `mtkprof pivot`. The same file has
+  (`web/src/lib/state/store.ts`). Used by `mtkprof pivot`. The same file has
   `TimelineBucket` (bucket size of the timeline, shared with the JSON
   document) and `Contexts` (per session-context stats, as in the UI Sessions
   view, used by the report's SESSIONS section).
@@ -630,11 +630,11 @@ it with the text report's helpers. `report.CompareDocument` is the JSON of
 `html|serve|json a b -compare`: `{tool, version, format, compare:{a: Document,
 b: Document, diff: Comparison}}`; `-compare` is explicit so it cannot clash with
 other multi-file inputs, `serve` answers `/api/lines?side=a|b`. The UI loader
-(`web/src/data/load.ts`) detects `compare`, loads both `TraceDoc`s and the store
+(`web/src/lib/data/load.ts`) detects `compare`, loads both `TraceDoc`s and the store
 keeps `compare` + `side`; `doc` is the active side, so every view works on it
 (`actions.setSide` maps the selected statement through the diff). The Compare
-tab is `web/src/views/Compare.tsx`; two executions of one statement are
-compared in `web/src/views/ExecCompare.tsx` (derived from the fact columns, no
+tab is `web/src/lib/views/Compare.tsx`; two executions of one statement are
+compared in `web/src/lib/views/ExecCompare.tsx` (derived from the fact columns, no
 Go involved).
 
 #### Findings (`findings.go`)

@@ -1,6 +1,6 @@
 import type {
   RawDocument, Statement, Cursor, Context, Event, Plan, PlanLine, Transaction, ErrorEvent,
-  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding, ContextStats, RefObject, RefFile,
+  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding, ContextStats, RefObject, RefFile, Minimap,
 } from './types'
 import { NONE } from './types'
 import { unpackTable, type NumCol } from './columns'
@@ -55,7 +55,7 @@ export class TraceDoc {
   readonly markers: Marker[]
   readonly diag: Diagnostics
   readonly unknown: { line: number; text: string }[]
-  readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[]; findingsConfig: Record<string, number>; contexts: ContextStats[] }
+  readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[]; findingsConfig: Record<string, number>; contexts: ContextStats[]; minimap?: Minimap }
 
   readonly hasFacts: boolean
   /** the server that sent this document answers the slicing queries; without fact tables the views ask it (see source.ts) */
