@@ -199,11 +199,11 @@ Deferred by the agents (small, none blocks v1):
 - Tab reorder (Tauri's drop handler disables HTML5 drag on Windows).
 - A dev-server reload leaves engine sessions behind (dev mode only).
 - No React error boundary around a tab's views.
-- "Statement / event only" picker in the Pivot view (the filter exists, set by
-  an applied configuration).
-- Export everything together (connections + library); clock-time windows in
-  saved configurations (offsets only); clock-time input in "Jump to time";
-  search-match highlighting in the Lines rows; per-line copy/permalink.
+- Done in package D1 (desktop): export everything together (connections +
+  library, Settings → Backup), tab error boundary, dev-reload session
+  cleanup. Done in W1: Pivot statement/event-only pickers, clock-time
+  windows in saved configurations, clock time in "Jump to time",
+  search-match highlighting and per-line copy/permalink in Lines.
 - Live sessions: done in package G2 (cursor index of
   the live spill, `TRACE CONTINUES IN` chains, `mtkprof follow -serve`; see
   ARCHITECTURE "Live sessions"). Still open there: the UI does not long-poll

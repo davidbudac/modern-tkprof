@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type K
 import { LINE_KINDS, type PageCache } from '../data/linecache'
 import { clampTop, revealTop, scrollFromTop, scrollGeometry, topFromScroll } from '../data/scrollmap'
 import { lineTone } from './colors'
+import { highlightRuns, matchSpans } from '../data/lines'
 
 /** Height of a row in pixels; the rows are laid out by this component, the scroll bar only maps to the first visible line (see data/scrollmap.ts). */
 export const ROW_H = 20
@@ -13,6 +14,9 @@ const MAX_TEXT = 10_000
 
 const toneClass = LINE_KINDS.map((k) => `lv-tone-${lineTone[k] ?? 'ink'}`)
 const baseOf = (top: number) => Math.max(0, Math.floor(top / STEP) * STEP - OVERSCAN)
+
+/** The search whose matches are highlighted inside the rows. */
+export interface RowHighlight { q: string; regex: boolean; caseSensitive: boolean }
 
 /** What the owner can ask of the viewer. */
 export interface ViewerApi {
@@ -34,6 +38,11 @@ interface Props {
   notes?: ReadonlyMap<number, string>
   selected: number
   wrap: boolean
+  /** highlight the matches of this search inside the rows (keep the object stable: rows are memoised on it) */
+  highlight?: RowHighlight | null
+  /** per-line actions on the selected row: copy the text, copy a permalink (omit `onLink` where there is no URL to link to) */
+  onCopy?(line: number): void
+  onLink?(line: number): void
   apiRef: MutableRefObject<ViewerApi | null>
   /** first visible line offset (0-based, fractional); the owner keeps it across mounts */
   topRef: MutableRefObject<number>
@@ -46,7 +55,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, onCopy, onLink, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -151,6 +160,12 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, api
     return row ? { n: Number(row.dataset.ln), gutter: !!t.closest('.lv-ln') } : null
   }
   const onClick = (e: MouseEvent) => {
+    const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')
+    if (act) {
+      const n = Number(act.closest<HTMLElement>('[data-ln]')?.dataset.ln)
+      if (act.dataset.act === 'copy') onCopy?.(n); else onLink?.(n)
+      return
+    }
     const hit = lineOfEvent(e)
     if (hit && !(window.getSelection()?.toString() && !hit.gutter)) onSelect(hit.n)
   }
@@ -184,7 +199,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, api
   for (let i = base; i < end; i++) {
     const n = i + 1
     const l = cache.line(n)
-    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} />)
+    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} />)
   }
   const digits = String(Math.max(total, 1000)).length
   return (
@@ -200,14 +215,31 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, api
   )
 }
 
-const Row = memo(function Row({ n, text, kind, mk, sel, bm, note }: { n: number; text: string | undefined; kind: number; mk: number; sel: boolean; bm: boolean; note?: string }) {
+const Row = memo(function Row({ n, text, kind, mk, sel, bm, note, hl, acts }: {
+  n: number; text: string | undefined; kind: number; mk: number; sel: boolean; bm: boolean; note?: string; hl?: RowHighlight
+  /** the selected row's actions: 0 none, 1 copy, 2 copy and permalink */
+  acts: number
+}) {
   const cut = text !== undefined && text.length > MAX_TEXT
   const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '')
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>{n}</span>
-      <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : text || ' '}</span>
+      <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl ? marked(text, hl) : text || ' '}</span>
+      {acts > 0 && (
+        <span className="lv-act" role="group" aria-label={`Line ${n}`}>
+          <button type="button" data-act="copy" title="copy the line's text" aria-label={`Copy the text of line ${n}`}>Copy</button>
+          {acts > 1 && <button type="button" data-act="link" title="copy a link that opens this line" aria-label={`Copy a link to line ${n}`}>Link</button>}
+        </span>
+      )}
     </div>
   )
 })
 
+
+/** The line's text with the matches of the search wrapped in <mark>. */
+function marked(text: string, hl: RowHighlight) {
+  const spans = matchSpans(text, hl.q, hl.regex, hl.caseSensitive)
+  if (spans.length === 0) return text || ' '
+  return highlightRuns(text, spans).map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text))
+}

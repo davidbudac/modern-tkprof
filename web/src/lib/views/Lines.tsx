@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { PageCache } from '../data/linecache'
-import { fetchLinesAnnot, lineAt, objectsAt, parseJump, search, type AtObjects, type SearchEnd, type SearchHit } from '../data/lines'
-import { fmtInt, preview } from '../data/format'
+import { fetchLinesAnnot, lineAt, linePermalink, objectsAt, parseJump, search, type AtObjects, type SearchEnd, type SearchHit } from '../data/lines'
+import { fmtInt, fmtTz, preview } from '../data/format'
+import { copyText } from '../data/clipboard'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
@@ -90,6 +91,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
   const [jumpError, setJumpError] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
   const selected = lv.line
   const total = cache.total
 
@@ -209,13 +211,30 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     else if (e.key === 'F3') { e.preventDefault(); stepHit(e.shiftKey ? -1 : 1) }
   }
 
+  // ---- per-line actions: copy the text, copy a link that opens the line ---------------------------------------------------
+  const copyTimer = useRef(0)
+  useEffect(() => () => window.clearTimeout(copyTimer.current), [])
+  const copyWhat = useCallback(async (what: string, text: string) => {
+    const ok = await copyText(text)
+    setCopied(ok ? `Copied ${what}` : `Could not copy ${what}`)
+    window.clearTimeout(copyTimer.current)
+    copyTimer.current = window.setTimeout(() => setCopied(null), 1500)
+  }, [])
+  const copyLine = useCallback((line: number) => {
+    const text = cache.line(line)?.text
+    if (text !== undefined) void copyWhat(`line ${fmtInt(line)}`, text)
+  }, [cache, copyWhat])
+  const copyLink = useCallback((line: number) => void copyWhat(`link to line ${fmtInt(line)}`, linePermalink(window.location, file, line)), [copyWhat, file])
+  const canLink = useStore((s) => s.lineRefTarget !== 'view') // the desktop shell has no URL to link to
+  const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
+
   // ---- jump to time ----------------------------------------------------------------------------------------------------
   const jumpToTim = async (tim: number) => {
     try { setJumpError(null); goTo(await lineAt(client, file, tim)) } catch (e) { setJumpError(e instanceof Error ? e.message : String(e)) }
   }
   const runJump = () => {
-    const tim = parseJump(ui.jump, doc.span.firstTim)
-    if (tim === null) setJumpError('use 1.5s, 250ms, 900us or an absolute tim')
+    const tim = parseJump(ui.jump, doc.span.firstTim, doc.wallOffsetUs ? doc : undefined)
+    if (tim === null) setJumpError(doc.wallOffsetUs ? 'use 1.5s, 250ms, 900us, a tim or a clock time 14:03:07.250' : 'use 1.5s, 250ms, 900us or an absolute tim')
     else void jumpToTim(tim)
   }
 
@@ -252,7 +271,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             : <button type="submit" disabled={ui.q === ''}>Search</button>}
         </form>
         <form className="lines-jump" onSubmit={(e) => { e.preventDefault(); runJump() }}>
-          <input type="text" value={ui.jump} placeholder="Time: 1.5s, 250ms, tim" aria-label="Jump to time" onChange={(e) => set({ jump: e.target.value })} />
+          <input type="text" value={ui.jump} placeholder={doc.wallOffsetUs ? 'Time: 1.5s, 14:03:07' : 'Time: 1.5s, 250ms, tim'} title={doc.wallOffsetUs ? `1.5s / 250ms / 900us from the start, a tim, or a clock time HH:MM:SS[.fff] or YYYY-MM-DD HH:MM:SS in the trace file's zone (${fmtTz(doc.tzOffsetMin)})` : '1.5s / 250ms / 900us from the start, or a tim'} aria-label="Jump to time" onChange={(e) => set({ jump: e.target.value })} />
           <button type="submit" disabled={ui.jump.trim() === ''}>Go</button>
           <button type="button" disabled={!win} onClick={() => win && void jumpToTim(win.startTim)} title="the first line of the time window set in the Timeline">Window start</button>
           {jumpError && <small className="lines-note" role="alert">{jumpError}</small>}
@@ -302,7 +321,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className={'lines-body' + (ui.panel ? ' has-panel' : '')}>
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} highlight={highlight} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
@@ -348,6 +367,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className="lines-status-bar small">
         <span className="mono">{fmtInt(selected)} / {fmtInt(total)}</span>
+        {copied && <span role="status" aria-live="polite" className="lines-copied">{copied}</span>}
         {files.length > 1 && <span className="muted">{doc.traceFileName(file)}</span>}
         <span className="lines-legend" aria-label="Line colours">
           {lineToneLegend.map((l) => <span key={l.tone}><i style={{ background: `var(${l.token})` }} />{l.label}</span>)}

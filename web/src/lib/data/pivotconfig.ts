@@ -18,6 +18,12 @@ export interface PivotConfig {
   limit: number
   /** the time window as offsets from the trace's first tim (µs) */
   window?: { fromUs: number; toUs: number }
+  /**
+   * The same window as absolute wall-clock times (µs since the epoch, as `TraceDoc.wallOf`), saved on request.
+   * Applying the configuration to a trace with timestamps then selects that time of day on that day, whatever the trace's start;
+   * `window` stays the fallback for traces without. Optional: configurations saved before it load unchanged.
+   */
+  windowClock?: { fromWallUs: number; toWallUs: number }
   contexts?: ContextKey[]
   includeIdle: boolean
   /** only the rows of this statement / event */
@@ -26,18 +32,21 @@ export interface PivotConfig {
 }
 
 /** What resolving a config needs (a TraceDoc has all of it). */
-export interface PivotDoc { statements: Statement[]; events: Event[]; contexts: Context[]; span: Span }
+export interface PivotDoc { statements: Statement[]; events: Event[]; contexts: Context[]; span: Span; /** see TraceDoc; absent or 0: no timestamps */ wallOffsetUs?: number }
 
 const ctxKey = (c: Context): ContextKey => ({ session: c.sessionId, module: c.module, action: c.action })
 const sameCtx = (a: ContextKey, b: ContextKey) => a.session === b.session && a.module === b.module && a.action === b.action
 
 /** The current Pivot configuration of a store's state, with stable keys. */
-export function pivotConfigOf(s: Pick<State, 'doc' | 'pivot' | 'window' | 'contexts' | 'includeIdle'>): PivotConfig {
+export function pivotConfigOf(s: Pick<State, 'doc' | 'pivot' | 'window' | 'contexts' | 'includeIdle'>, opts: { clock?: boolean } = {}): PivotConfig {
   const p = s.pivot, doc = s.doc
   const cfg: PivotConfig = { fact: p.fact, by: [...p.by], sort: p.sort[p.fact], limit: p.limit, includeIdle: s.includeIdle }
   if (!doc) return cfg
   const base = doc.span.firstTim
-  if (s.window) cfg.window = { fromUs: s.window.startTim - base, toUs: s.window.endTim - base }
+  if (s.window) {
+    cfg.window = { fromUs: s.window.startTim - base, toUs: s.window.endTim - base }
+    if (opts.clock && doc.wallOffsetUs) cfg.windowClock = { fromWallUs: doc.wallOf(s.window.startTim), toWallUs: doc.wallOf(s.window.endTim) }
+  }
   if (s.contexts) {
     const keys: ContextKey[] = []
     for (const id of [...s.contexts].sort((a, b) => a - b)) {
@@ -67,7 +76,11 @@ export function resolvePivotConfig(doc: PivotDoc, cfg: PivotConfig, cur: PivotSt
   }
   const patch: Partial<State> = { pivot, view: 'pivot', includeIdle: cfg.includeIdle, window: null, contexts: null }
 
-  if (cfg.window) {
+  if (cfg.windowClock && doc.wallOffsetUs) {
+    const from = cfg.windowClock.fromWallUs - doc.wallOffsetUs, to = cfg.windowClock.toWallUs - doc.wallOffsetUs
+    if (to <= doc.span.firstTim || from >= doc.span.lastTim) dropped.push('time window (that clock time is outside this trace)')
+    else patch.window = { startTim: Math.max(doc.span.firstTim, from), endTim: Math.min(doc.span.lastTim, to) }
+  } else if (cfg.window) {
     const span = Math.max(0, doc.span.lastTim - doc.span.firstTim)
     if (cfg.window.fromUs >= span) dropped.push('time window (after the end of this trace)')
     else patch.window = { startTim: doc.span.firstTim + Math.max(0, cfg.window.fromUs), endTim: doc.span.firstTim + Math.min(span, cfg.window.toUs) }
@@ -123,6 +136,11 @@ function validSaved(x: unknown): x is SavedPivot {
     && !!c && typeof c === 'object' && (c.fact === 'calls' || c.fact === 'waits') && Array.isArray(c.by) && c.by.every((b) => typeof b === 'string') && typeof c.sort === 'string'
 }
 
+const validClock = (w: unknown): w is NonNullable<PivotConfig['windowClock']> => {
+  const c = w as PivotConfig['windowClock'] | null | undefined
+  return !!c && typeof c === 'object' && Number.isFinite(c.fromWallUs) && Number.isFinite(c.toWallUs) && c.toWallUs > c.fromWallUs
+}
+
 /** Reads a library file (or the `library` part of an export of everything); invalid entries are counted in `skipped`. */
 export function parseLibraryFile(text: string): { pivots: SavedPivot[]; skipped: number } {
   let f: LibraryFile & { library?: LibraryFile }
@@ -134,7 +152,9 @@ export function parseLibraryFile(text: string): { pivots: SavedPivot[]; skipped:
   let skipped = 0
   for (const p of lib.pivots) {
     if (!validSaved(p)) { skipped++; continue }
-    pivots.push({ ...p, created: typeof p.created === 'number' ? p.created : p.updated, config: { ...p.config, limit: Number(p.config.limit) || 1000, includeIdle: p.config.includeIdle !== false } })
+    const config: PivotConfig = { ...p.config, limit: Number(p.config.limit) || 1000, includeIdle: p.config.includeIdle !== false }
+    if (!validClock(config.windowClock)) delete config.windowClock
+    pivots.push({ ...p, created: typeof p.created === 'number' ? p.created : p.updated, config })
   }
   return { pivots, skipped }
 }
@@ -152,7 +172,7 @@ export function mergeLibrary(cur: SavedPivot[], incoming: SavedPivot[]): SavedPi
 /** A one-line summary of a config (the library list). */
 export function describePivotConfig(c: PivotConfig): string {
   const parts = [`${c.fact} by ${c.by.join(' → ')}`, `sort ${c.sort}`]
-  if (c.window) parts.push('window')
+  if (c.window) parts.push(c.windowClock ? 'window (clock time)' : 'window')
   if (c.contexts?.length) parts.push(`${c.contexts.length} context${c.contexts.length === 1 ? '' : 's'}`)
   if (c.stmt) parts.push(`statement ${c.stmt.sqlId || c.stmt.hash}`)
   if (c.event) parts.push(`event ${c.event}`)

@@ -50,6 +50,9 @@
 .lv-mk1 .lv-ln::before, .lv-mk2 .lv-ln::before, .lv-mk3 .lv-ln::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--c-cpu); }
 .lv-mk2 .lv-ln::before { background: var(--c-userio); }
 .lv-bm .lv-ln::after { content: "◆"; position: absolute; inset-inline-start: 7px; font-size: 0.55rem; color: var(--c-commit); }
+.lv-tx mark { background: color-mix(in oklch, var(--c-commit) 38%, transparent); color: inherit; border-radius: 2px; }
+.lv-act { position: sticky; inset-inline-end: 0; margin-inline-start: auto; align-self: flex-start; display: flex; gap: 2px; padding-inline: var(--sp-2); background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-raised)); }
+.lv-act button { font: inherit; font-size: var(--text-xs, 0.7rem); line-height: 1.2; padding: 0 var(--sp-2); block-size: calc(var(--lv-row) - 4px); align-self: center; }
 .lv-sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
 .lv-sel .lv-ln { color: var(--ink); font-weight: 600; background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-sunken)); }
 
@@ -79,3 +82,4 @@
 .lines-bms li { flex-wrap: wrap; }
 .lines-bm-note { flex-basis: 100%; margin: 0; padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--c-note); color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .lines-root > .note-edit, section > .note-edit { margin: var(--sp-2) var(--sp-4); }
+.lines-copied { color: var(--ink); font-weight: 500; }
