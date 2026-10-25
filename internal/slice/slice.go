@@ -62,10 +62,18 @@ type Server struct {
 	m   *model.Model
 	src FactSource
 
+	// AllowOrigin is the Access-Control-Allow-Origin of every answer: "" is
+	// "*" (serve, and the dev server of `pnpm dev`); NoCORS sets no CORS
+	// headers and leaves OPTIONS to the caller's middleware (the engine).
+	AllowOrigin string
+
 	mu    sync.Mutex
 	cache map[string][]byte // GET query -> response body
 	order []string
 }
+
+// NoCORS is the Server.AllowOrigin that turns the server's own CORS handling off.
+const NoCORS = "-"
 
 // New returns the server for a model that holds its fact rows.
 func New(m *model.Model) *Server { return NewServer(m, MemSource(m)) }
@@ -112,12 +120,18 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		if r.Method == http.MethodOptions {
-			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
-			w.WriteHeader(http.StatusNoContent)
-			return
+		if s.AllowOrigin != NoCORS {
+			origin := s.AllowOrigin
+			if origin == "" {
+				origin = "*"
+			}
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			if r.Method == http.MethodOptions {
+				w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "*")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.Error(w, "GET only", http.StatusMethodNotAllowed)

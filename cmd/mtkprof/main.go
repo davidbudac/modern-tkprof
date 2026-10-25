@@ -11,7 +11,6 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -38,6 +37,7 @@ Usage:
   mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
   mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained HTML report
   mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate] [-spill[=DIR]]   browser UI
+  mtkprof engine [-listen 127.0.0.1:0] [-cache DIR] [-allow-origin O,...] [-idle-exit D] [-detach]   desktop sidecar (token: env MTKPROF_TOKEN)
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
   mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text diff, B against A
   mtkprof html|serve|json <a.trc> <b.trc> -compare ...    both traces + diff (Compare tab)
@@ -122,6 +122,8 @@ func main() {
 		err = cmdExport(args)
 	case "serve":
 		err = cmdServe(args)
+	case "engine":
+		err = cmdEngine(args)
 	case "findings-config":
 		err = cmdFindingsConfig(args)
 	case "lint":
@@ -462,7 +464,7 @@ func cmdExport(args []string) error {
 }
 
 // maxLinesPerRequest caps GET /api/lines.
-const maxLinesPerRequest = 2000
+const maxLinesPerRequest = slicepkg.MaxLines
 
 func cmdServe(args []string) error {
 	if hasCompareFlag(args) {
@@ -545,27 +547,7 @@ func cmdServe(args []string) error {
 		m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
 		debug.FreeOSMemory()
 	}
-	mux.HandleFunc("/api/lines", func(w http.ResponseWriter, r *http.Request) {
-		fi, _ := strconv.Atoi(r.URL.Query().Get("file"))
-		if fi < 0 || fi >= len(lis) {
-			http.Error(w, "no such file", http.StatusNotFound)
-			return
-		}
-		li := lis[fi]
-		from, _ := strconv.Atoi(r.URL.Query().Get("from"))
-		n, err := strconv.Atoi(r.URL.Query().Get("n"))
-		if err != nil || n > maxLinesPerRequest {
-			n = maxLinesPerRequest
-		}
-		b, err := li.Read(from, n)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Total-Lines", strconv.Itoa(li.Lines()))
-		w.Write(b)
-	})
+	mux.Handle("/api/lines", slicepkg.LinesHandler(lis))
 	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
 		// local dev server: let `pnpm dev` load ?doc=http://127.0.0.1:8046/api/doc
 		w.Header().Set("Access-Control-Allow-Origin", "*")
