@@ -1,15 +1,16 @@
+import { contextsWithin, formatFilesParam, normalizeFiles, parseFilesParam } from '@lib/data/fileset'
 import type { Store, TraceDoc, Side, State, View } from '@lib'
 
 /**
  * View, selected statement / wait event and time window live in the URL hash:
  *   #view=statements&sql=abc123def4567&ev=db+file+sequential+read&win=1200000-3400000
  * `sql` is the sql_id (`@N` = statement index for statements without one), `ev` the
- * event name, `win` the window as microseconds from the start of the trace; the Lines view adds `file` (input file index) and `line`.
+ * event name, `win` the window as microseconds from the start of the trace, `files` the shown input files (indexes, `0,2`; absent = all); the Lines view adds `file` (input file index) and `line`.
  * The `?doc=` query string is left alone.
  */
 const views: View[] = ['overview', 'statements', 'waits', 'timeline', 'sessions', 'pivot', 'lines', 'compare']
 
-type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null; file: number; line: number }
+type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null; files: string; file: number; line: number }
 
 function sqlKey(doc: TraceDoc, id: number | null): string {
   if (id === null) return ''
@@ -27,6 +28,7 @@ function wanted(doc: TraceDoc, s: State): Wanted {
     sql: sqlKey(doc, s.selection.stmt),
     ev: s.selection.event === null ? '' : doc.events[s.selection.event]?.name ?? '',
     win: w ? [Math.round(w.startTim - doc.span.firstTim), Math.round(w.endTim - doc.span.firstTim)] : null,
+    files: formatFilesParam(s.files),
     file: s.view === 'lines' ? s.linesView.file : 0,
     line: s.view === 'lines' ? s.linesView.line : 0,
   }
@@ -39,6 +41,7 @@ function format(w: Wanted): string {
   if (w.sql) p.set('sql', w.sql)
   if (w.ev) p.set('ev', w.ev)
   if (w.win) p.set('win', `${w.win[0]}-${w.win[1]}`)
+  if (w.files) p.set('files', w.files)
   if (w.view === 'lines') {
     if (w.file) p.set('file', String(w.file))
     if (w.line > 1) p.set('line', String(w.line))
@@ -47,9 +50,12 @@ function format(w: Wanted): string {
   return t ? '#' + t : ''
 }
 
-function parse(hash: string): Partial<Wanted> {
+/** What parse() found, with `files` as a set. */
+type Parsed = Omit<Partial<Wanted>, 'files'> & { files?: Set<number> | null }
+
+function parse(hash: string): Parsed {
   const p = new URLSearchParams(hash.replace(/^#/, ''))
-  const out: Partial<Wanted> = {}
+  const out: Parsed = {}
   const v = p.get('view')
   if (v && (views as string[]).includes(v)) out.view = v as View
   if (p.get('side') === 'b') out.side = 'b'
@@ -57,13 +63,17 @@ function parse(hash: string): Partial<Wanted> {
   if (p.has('ev')) out.ev = p.get('ev')!
   const m = /^(-?\d+)-(\d+)$/.exec(p.get('win') ?? '')
   if (m) out.win = [Number(m[1]), Number(m[2])]
+  if (p.has('files')) out.files = parseFilesParam(p.get('files'))
   if (/^\d+$/.test(p.get('file') ?? '')) out.file = Number(p.get('file'))
   if (/^\d+$/.test(p.get('line') ?? '')) out.line = Number(p.get('line'))
   return out
 }
 
+/** The hash that stands for the store's state. */
+export function hashOf(doc: TraceDoc, s: State): string { return format(wanted(doc, s)) }
+
 /** Applies a hash to the store (unknown sql_ids / events are ignored). */
-function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
+export function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   const w = parse(hash)
   const cmp = store.getState().compare
   const side: Side = cmp && w.side === 'b' ? 'b' : 'a'
@@ -78,11 +88,14 @@ function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   const st = store.getState()
   const view = (w.view === 'compare' && !cmp) || (w.view === 'lines' && !(st.linesApi && doc.slice)) ? undefined : w.view
   const files = doc.file.files?.length ?? 1
-  const file = w.file !== undefined && w.file < files ? w.file : 0
+  const known = w.files ? new Set([...w.files].filter((f) => f < files)) : null // indexes this trace does not have are ignored; none left = all files
+  const shown = normalizeFiles(doc, known && known.size > 0 ? known : null)
+  const file = w.file !== undefined && w.file < files ? w.file : shown ? Math.min(...shown) : 0 // the Lines view starts on the first shown file
   store.setState({
     doc, side: cmp ? side : 'a',
     view: view ?? (stmt !== null ? 'statements' : 'overview'),
     selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: null },
+    files: shown, contexts: contextsWithin(doc, st.contexts, shown),
     window: w.win && w.win[1] > w.win[0] ? { startTim: base + w.win[0], endTim: base + w.win[1] } : null,
     ...(view === 'lines' ? { linesView: { file, line: Math.max(1, w.line ?? 1), seq: st.linesView.seq + 1 } } : {}),
   })

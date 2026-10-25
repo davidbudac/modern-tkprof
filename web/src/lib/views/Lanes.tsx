@@ -1,8 +1,10 @@
 import { useMemo, useRef, useState, type PointerEvent } from 'react'
+import { ctxKey } from '../data/fileset'
 import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtWall, preview } from '../data/format'
 import { scopeOf } from '../state/store'
+import { useScopedStatements } from '../data/scopedstmts'
 import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
@@ -38,9 +40,10 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
   const setDrag = (d: { x0: number; x1: number } | null) => { dragRef.current = d; repaint((n) => n + 1) }
 
   const source = sourceOf(doc)
-  const top = useMemo(() => doc.stats.statements.filter((s) => s.allCalls.count > 0 && s.firstTim > 0)
+  const ss = useScopedStatements(doc, { withWindow: false })
+  const top = useMemo(() => ss.stats.filter((s) => s.allCalls.count > 0 && s.firstTim > 0)
     .sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)).slice(0, MAX_LANES)
-    .sort((a, b) => a.firstTim - b.firstTim), [doc])
+    .sort((a, b) => a.firstTim - b.firstTim), [ss.stats])
   const topIds = top.map((s) => s.id)
   const gap = span / 600
   const spansQ = useSourceQuery(source, `spans:${topIds.join(',')}:${gap}`, (signal) => (source.ready ? source.stmtSpans(topIds, gap, signal) : null), 'spans')
@@ -53,7 +56,7 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
 
   const scope = scopeOf(state)
   const bucketUs = Math.max(1, Math.ceil(span / BUCKETS))
-  const stripsQ = useSourceQuery(source, `strips:${bucketUs}:${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}:${scope.includeIdle ? 1 : 0}`,
+  const stripsQ = useSourceQuery(source, `strips:${bucketUs}:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`,
     (signal) => (source.ready && span > 0 ? source.timeline(bucketUs, { ...scope, window: null }, signal) : null), 'strips')
   const strips = useMemo(() => {
     if (!stripsQ.data) return null

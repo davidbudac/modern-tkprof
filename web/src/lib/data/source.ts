@@ -9,7 +9,7 @@
 // the screen on the previous answer while the next one is on its way.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TraceDoc } from './doc'
-import type { ID } from './types'
+import type { ID, StmtStats } from './types'
 import { CallKind, NONE } from './types'
 import { callFilter, waitFilter, type Scope } from '../state/store'
 import type { ApiClient } from './client'
@@ -20,6 +20,7 @@ import {
 } from './derive'
 import { pivotDims, pivotMeasures, runPivot, type Fact } from './pivot'
 import { roleOfClass, roleOrder } from '../components/colors'
+import { scopedStatements } from './stmtstats'
 
 export type Maybe<T> = T | Promise<T>
 
@@ -139,6 +140,11 @@ export interface DataSource {
   stmtSpans(stmts: ID[], gapUs: number, signal?: AbortSignal): Maybe<Map<ID, Span2[]>>
   /** the trace lines of one statement's calls and waits; null = not available */
   stmtMarks(stmt: ID, signal?: AbortSignal): Maybe<StmtMarks | null>
+  /**
+   * Statement statistics over the calls in scope (window and contexts), one per statement id in id order, zero numbers when a
+   * statement has no call in scope; null = not available (no facts, or an engine without `api/statements`): use `doc.stats.statements`.
+   */
+  statements(scope: Scope, signal?: AbortSignal): Maybe<StmtStats[] | null>
 }
 
 // ---- registry ----------------------------------------------------------------
@@ -374,16 +380,26 @@ export class LocalSource implements DataSource {
     const waits = Array.from(ws.subarray(0, MARK_WAITS), (i) => ({ line: w.line[i], file: doc.fileOfCtx(w.ctx[i]) }))
     return { calls, waits, partial: cs.length > MARK_CALLS || ws.length > MARK_WAITS }
   }
+
+  statements(scope: Scope): StmtStats[] | null {
+    return this.doc.hasFacts ? scopedStatements(this.doc, scope) : null
+  }
 }
 
 // ---- RemoteSource --------------------------------------------------------------
 
 type Params = Record<string, string | number | undefined>
 
+/** An answer other than 2xx; `status` tells a missing endpoint (404, an older engine) from a failure. */
+export class HttpError extends Error {
+  constructor(message: string, readonly status: number) { super(message) }
+}
+
 function scopeParams(scope: Scope, waits: boolean): Params {
   const p: Params = {}
   if (scope.window) { p.from = Math.floor(scope.window.startTim); p.to = Math.ceil(scope.window.endTim) }
-  if (scope.contexts) p.contexts = [...scope.contexts].sort((a, b) => a - b).join(',')
+  if (scope.contexts && scope.contexts.size === 0) { p.from = 1; p.to = 1 } // no context selected: the server reads an empty `contexts` as "all", so ask for a window with no rows
+  else if (scope.contexts) p.contexts = [...scope.contexts].sort((a, b) => a - b).join(',')
   if (waits) p.idle = scope.includeIdle ? 1 : 0
   return p
 }
@@ -395,6 +411,8 @@ export class RemoteSource implements DataSource {
   readonly ready = true
   private readonly cache = new Map<string, unknown>()
   private roles?: Promise<Float64Array>
+  /** the server answered 404 to `api/statements`: it is an older engine, do not ask again */
+  private noStatements = false
 
   /** `client` is the server root, e.g. `http://127.0.0.1:8046` or `.../s/1`; the queries are `/api/<path>`. */
   constructor(private readonly doc: TraceDoc, private readonly client: ApiClient) {}
@@ -411,7 +429,7 @@ export class RemoteSource implements DataSource {
       return v
     }
     const res = await this.client.fetch(key, { signal, headers: { accept: 'application/json' } })
-    if (!res.ok) throw new Error(`${path}: ${(await res.text()).trim() || res.statusText}`)
+    if (!res.ok) throw new HttpError(`${path}: ${(await res.text()).trim() || res.statusText}`, res.status)
     const v = (await res.json()) as T
     this.cache.set(key, v)
     if (this.cache.size > MAX_CACHE) this.cache.delete(this.cache.keys().next().value as string)
@@ -536,6 +554,17 @@ export class RemoteSource implements DataSource {
       calls: c.rows.map((x) => ({ line: x[iLine], file: iCtx >= 0 ? this.doc.fileOfCtx(x[iCtx]) : 0 })),
       waits: w.rows.map((x) => ({ line: x.line, file: this.doc.fileOfCtx(x.ctx) })),
       partial: c.total > c.rows.length || w.total > w.rows.length,
+    }
+  }
+
+  async statements(scope: Scope, signal?: AbortSignal): Promise<StmtStats[] | null> {
+    if (this.noStatements) return null
+    try {
+      const r = await this.get<{ statements: StmtStats[] }>('statements', scopeParams(scope, false), signal)
+      return r.statements
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) { this.noStatements = true; return null }
+      throw err
     }
   }
 }

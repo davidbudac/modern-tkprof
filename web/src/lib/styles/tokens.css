@@ -52,6 +52,7 @@
   --radius: 4px;
   --list-w: 21rem;
   --context-w: 19rem;
+  --files-w: clamp(17rem, 22vw, 23rem);
   --inspector-w: clamp(24rem, 34vw, 38rem);
   --topbar-h: 2.75rem;
   --subbar-h: 1.9rem;

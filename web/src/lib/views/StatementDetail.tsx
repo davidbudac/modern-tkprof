@@ -12,15 +12,17 @@ import type { Segment } from '../components/ProfileBar'
 import { LineRef } from '../components/LineRef'
 import { ColumnChooser } from '../components/ColumnChooser'
 import { usePersisted } from '../state/persist'
+import { scopeSpanUs } from '../data/fileset'
 import { ExecCompare } from './ExecCompare'
 import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { NoteEditor, NoteBox } from '../components/Note'
 import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 
-export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
+/** `stats` are the numbers to show (the scope's when `narrowed`, else the document's); the waits, executions and plans below are of the whole trace. */
+export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { doc: TraceDoc; id: ID; stats?: StmtStats; narrowed?: boolean }) {
   const st = doc.statements[id]
-  const stats = doc.stats.statements[id]
+  const stats = scoped ?? doc.stats.statements[id]
   if (!st || !stats) return <p className="muted">Unknown statement</p>
   const planHashes = stats.planHashes ?? []
   const [copied, setCopied] = useState(false)
@@ -48,7 +50,8 @@ export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       </div>
       <StmtNote stmt={ref} open={noteOpen} setOpen={setNoteOpen} title={doc.label(st)} />
       <SqlText text={st.text} />
-      <ResponseTime doc={doc} stats={stats} />
+      {narrowed && stats.allCalls.count === 0 && <p className="callout">No calls of this statement in the selection.</p>}
+      <ResponseTime doc={doc} stats={stats} narrowed={narrowed} />
       <CallTable doc={doc} stats={stats} />
       {sourceOf(doc).ready && <Executions doc={doc} id={id} />}
       <Plans doc={doc} id={id} />
@@ -83,8 +86,10 @@ function StmtNote({ stmt, open, setOpen, title }: { stmt: StmtRef; open: boolean
 
 function kindName(k: number): string { return ['SQL', 'unknown statement', 'commit', 'rollback', 'LOB operation', 'RPC call', 'parse error'][k] ?? '?' }
 
-function ResponseTime({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
+function ResponseTime({ doc, stats, narrowed }: { doc: TraceDoc; stats: StmtStats; narrowed: boolean }) {
   const total = stats.elapsed + stats.idleUs
+  const win = useStore((s) => s.window), files = useStore((s) => s.files)
+  const traceUs = narrowed ? scopeSpanUs(doc, win, files) : doc.spanUs()
   const source = sourceOf(doc)
   const waitsQ = useSourceQuery(source, `waits:${stats.id}`, (signal) => (source.ready ? source.stmtWaits([stats.id], 4, signal) : null), 'waits')
   const waits = useMemo(() => waitsQ.data?.get(stats.id) ?? [], [waitsQ.data, stats.id])
@@ -99,14 +104,14 @@ function ResponseTime({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
   const top = waits[0]
   const trips = waits.find((w) => /message from client/.test(w.name))
   const notes: string[] = []
-  if (top && top.role !== 'idle') notes.push(`${fmtInt(top.count)} × ${top.name}, avg ${fmtDur(top.us / top.count)}, max ${fmtDur(top.maxUs)}${top.obj > 0 && (top.role === 'userio' || top.role === 'sysio') ? `, all on obj# ${top.obj}${doc.objectName(top.obj) ? ` (${doc.objectName(top.obj)})` : ''}` : ''}`)
-  if (trips) notes.push(`${fmtInt(trips.count)} round trip${trips.count === 1 ? '' : 's'}, ${fmtDur(trips.us)} idle`)
+  if (!narrowed && top && top.role !== 'idle') notes.push(`${fmtInt(top.count)} × ${top.name}, avg ${fmtDur(top.us / top.count)}, max ${fmtDur(top.maxUs)}${top.obj > 0 && (top.role === 'userio' || top.role === 'sysio') ? `, all on obj# ${top.obj}${doc.objectName(top.obj) ? ` (${doc.objectName(top.obj)})` : ''}` : ''}`)
+  if (!narrowed && trips) notes.push(`${fmtInt(trips.count)} round trip${trips.count === 1 ? '' : 's'}, ${fmtDur(trips.us)} idle`)
   if (stats.pxSessions) notes.push(`PX slaves: ${stats.pxSessions} session${stats.pxSessions === 1 ? '' : 's'}, ${fmtDur(stats.pxEla ?? 0)} (not included)`)
   if (stats.childUs > 0) notes.push(`recursive ${fmtDur(stats.childUs)} (${fmtPct(stats.childUs, stats.elapsed)})`)
   return (
     <section className="section">
-      <header><h2>Response time {fmtDur(total)}</h2><span className="hint">{fmtPct(total, doc.spanUs())} of trace · calls {fmtDur(stats.elapsed)} + idle {fmtDur(stats.idleUs)}</span></header>
-      {source.ready && waitsQ.data ? <ProfileBar segments={segs} totalUs={total} /> : <ProfileBar segments={[{ role: 'cpu', label: 'CPU', us: stats.cpu }, { role: 'other', label: 'Waits', us: stats.waitUs }, { role: 'idle', label: 'Idle', us: stats.idleUs }]} totalUs={total} />}
+      <header><h2>Response time {fmtDur(total)}</h2><span className="hint">{fmtPct(total, traceUs)} of {narrowed ? 'selection' : 'trace'} · calls {fmtDur(stats.elapsed)} + idle {fmtDur(stats.idleUs)}</span></header>
+      {source.ready && waitsQ.data && !narrowed ? <ProfileBar segments={segs} totalUs={total} /> : <ProfileBar segments={[{ role: 'cpu', label: 'CPU', us: stats.cpu }, { role: 'other', label: 'Waits', us: stats.waitUs }, { role: 'idle', label: 'Idle', us: stats.idleUs }]} totalUs={total} />}
       {notes.length > 0 && <p className="small muted">{notes.join(' · ')}</p>}
     </section>
   )

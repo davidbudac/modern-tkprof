@@ -78,3 +78,61 @@ describe('annotations', () => {
     expect(getState().pivot).toMatchObject({ fact: 'waits', by: ['event', 'obj'], notice: null })
   })
 })
+
+describe('file selection', () => {
+  it('setFiles normalises, and clears a context selection outside the files', async () => {
+    const { makeDoc } = await import('../data/testdoc')
+    const doc = await makeDoc([])
+    const store = createStore()
+    store.setLoaded({ doc, compare: null })
+    const { getState, actions } = store
+    expect(getState().files).toBeNull()
+    actions.setContexts(new Set([0, 2, 3])) // contexts 0 (file 0), 2 (file 1), 3 (file 2)
+    actions.setFiles(new Set([0, 2]))
+    expect([...getState().files!]).toEqual([0, 2])
+    expect([...getState().contexts!].sort()).toEqual([0, 3])
+    actions.setFiles(new Set([1]))
+    expect(getState().contexts).toBeNull() // nothing left of the selection
+    actions.setFiles(new Set([0, 1, 2]))
+    expect(getState().files).toBeNull()
+  })
+
+  it('scopeOf sends the intersection of the context pick and the files as the context filter, and keeps setContexts working', async () => {
+    const { makeDoc } = await import('../data/testdoc')
+    const { scopeOf, scopeNarrows, filesPanelOpen } = await import('./store')
+    const doc = await makeDoc([])
+    const store = createStore()
+    store.setLoaded({ doc, compare: null })
+    const { getState, actions } = store
+    expect(scopeOf(getState()).contexts).toBeNull()
+    expect(scopeNarrows(scopeOf(getState()))).toBe(false)
+    actions.setContexts(new Set([1, 3]))
+    expect([...scopeOf(getState()).contexts!].sort()).toEqual([1, 3])
+    actions.setFiles(new Set([0, 1]))
+    const sc = scopeOf(getState())
+    expect([...sc.contexts!]).toEqual([1]) // contexts of files 0,1 are 0,1,2; picked 1,3 -> 1 (3 was cleared by setFiles)
+    expect([...sc.files!].sort()).toEqual([0, 1])
+    expect(scopeOf(getState()).contexts).toBe(sc.contexts) // same inputs, same Set (views key on it)
+    actions.setContexts(null)
+    expect([...scopeOf(getState()).contexts!].sort()).toEqual([0, 1, 2])
+    expect(scopeNarrows(scopeOf(getState()))).toBe(true)
+    actions.setFiles(new Set())
+    expect(scopeOf(getState()).contexts!.size).toBe(0)
+    actions.setFiles(null)
+    expect(scopeOf(getState()).contexts).toBeNull()
+    // the panel is on by default for several files, until the user closes it
+    expect(filesPanelOpen(getState())).toBe(true)
+    actions.setFilesOpen(false)
+    expect(filesPanelOpen(getState())).toBe(false)
+  })
+
+  it('a new document starts with every file selected', async () => {
+    const { makeDoc } = await import('../data/testdoc')
+    const doc = await makeDoc([])
+    const store = createStore()
+    store.setLoaded({ doc, compare: null })
+    store.actions.setFiles(new Set([2]))
+    store.setLoaded({ doc, compare: null })
+    expect(store.getState().files).toBeNull()
+  })
+})

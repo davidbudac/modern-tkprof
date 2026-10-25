@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, traceSegmentsFrom, sourceOf, useSourceQuery, type TraceDoc, type View } from '@lib'
+import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, traceSegmentsFrom, sourceOf, useSourceQuery, type TraceDoc, type View } from '@lib'
 
 const tabs: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -27,7 +27,7 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
   const totalUs = doc.spanUs()
   const source = sourceOf(doc)
   const scope = { ...scopeOf(state), window: null }
-  const profile = useSourceQuery(source, `top:${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}:${scope.includeIdle ? 1 : 0}`, (signal) => source.profile(scope, signal), 'top')
+  const profile = useSourceQuery(source, `top:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`, (signal) => source.profile(scope, signal), 'top')
   const segs = useMemo(() => traceSegmentsFrom(doc, profile.data ?? null, totalUs).filter((s) => s.us > 0), [doc, profile.data, totalUs])
   const top = [...segs].filter((s) => s.role !== 'unaccounted').sort((a, b) => b.us - a.us).slice(0, 3)
   const counts: Partial<Record<View, number>> = { statements: doc.statements.length, waits: doc.events.length, sessions: doc.contexts.length }
@@ -58,6 +58,7 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
         ))}
       </nav>
       <span className="chips">
+        <FilesToggle doc={doc} />
         {win && <span className="chip">window {fmtDur(win.endTim - win.startTim)} <button onClick={() => actions.setWindow(null)} aria-label="Clear time window">×</button></span>}
         {state.contexts && <span className="chip">{state.contexts.size} session context{state.contexts.size === 1 ? '' : 's'} <button onClick={() => actions.setContexts(null)} aria-label="Clear context filter">×</button></span>}
       </span>
