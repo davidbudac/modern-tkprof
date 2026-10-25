@@ -1,5 +1,11 @@
 # Desktop app: implementation plan
 
+**Status (2026-10-25):** phases 1–5 are implemented in both repos; phase 6
+(tag both repos, publish the installers) is pending: GitHub Actions billing
+blocked the last desktop CI run. Package status, workflow, measured budgets
+and the open list: `docs/HANDOFF.md` § "Desktop app v1". User guide:
+`docs/DESKTOP.md`.
+
 Written 2026-10-25 after the architecture review; revised the same day after a
 design interview (33 decisions, § 11). This is the handoff for implementation.
 Read `docs/HANDOFF.md`, `docs/DESIGN.md` and `docs/ARCHITECTURE.md` first;
