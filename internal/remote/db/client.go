@@ -25,6 +25,7 @@ const passwordTries = 3
 type Client struct {
 	conn Conn
 	spec Spec
+	now  func() time.Time // the clock of Fetch's range sizing; nil = time.Now (tests)
 }
 
 // Open connects with the go-ora driver; see OpenWith.

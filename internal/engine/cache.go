@@ -119,6 +119,8 @@ type Cache struct {
 	mu       sync.Mutex
 	refs     map[string]int           // open entries (Load without Close)
 	building map[string]chan struct{} // identities being built by OpenTrace
+	list     *listing                 // Entries without a readdir while it is fresh (listing.go)
+	scans    int                      // readdir + manifest scans done (tests)
 }
 
 // CacheEntry is an entry found by Lookup.
@@ -243,7 +245,9 @@ func (c *Cache) removeUnlessOpen(identity string) bool {
 	if c.refs[identity] > 0 {
 		return false
 	}
+	pre := c.dirStamp()
 	os.RemoveAll(c.entryDir(identity))
+	c.noteChangeLocked(pre, func(items map[string]CacheEntrySummary) { delete(items, identity) })
 	return true
 }
 
@@ -261,10 +265,12 @@ func (c *Cache) Begin(identity string) (*CacheBuild, error) {
 	if !validIdentity(identity) {
 		return nil, fmt.Errorf("cache: bad identity %q", identity)
 	}
+	pre := c.dirStamp()
 	dir, err := os.MkdirTemp(c.dir, cacheBuildPfx+strconv.Itoa(os.Getpid())+"-")
 	if err != nil {
 		return nil, err
 	}
+	c.noteChange(pre, nil)
 	return &CacheBuild{c: c, identity: identity, dir: dir}, nil
 }
 
@@ -318,7 +324,9 @@ func (b *CacheBuild) Commit(m Manifest) error {
 	}
 	b.done = true
 	fail := func(err error) error {
+		pre := b.c.dirStamp()
 		os.RemoveAll(b.dir)
+		b.c.noteChange(pre, nil)
 		return err
 	}
 	now := time.Now().UTC()
@@ -354,19 +362,23 @@ func (b *CacheBuild) Commit(m Manifest) error {
 		return fail(err)
 	}
 	final := b.c.entryDir(b.identity)
+	pre := b.c.dirStamp()
 	if err := os.Rename(b.dir, final); err != nil {
 		if _, ok := b.c.Lookup(b.identity); ok {
 			os.RemoveAll(b.dir) // someone else's commit won
+			b.c.invalidate()
 			return nil
 		}
 		if !b.c.removeUnlessOpen(b.identity) {
 			return fail(fmt.Errorf("cache: commit: %w", ErrCacheInUse))
 		}
+		pre = b.c.dirStamp()
 		if err := os.Rename(b.dir, final); err != nil {
 			return fail(err)
 		}
 	}
 	syncDir(b.c.dir)
+	b.c.noteChange(pre, func(items map[string]CacheEntrySummary) { items[b.identity] = summaryOf(&m) })
 	return nil
 }
 
@@ -374,7 +386,9 @@ func (b *CacheBuild) Commit(m Manifest) error {
 func (b *CacheBuild) Abort() {
 	if !b.done {
 		b.done = true
+		pre := b.c.dirStamp()
 		os.RemoveAll(b.dir)
+		b.c.noteChange(pre, nil)
 	}
 }
 
@@ -553,39 +567,24 @@ func (c *Cache) Touch(identity string) error {
 		return err
 	}
 	m.LastUsed = time.Now().UTC()
-	return writeManifest(dir, m)
-}
-
-// Entries lists the entries with a readable manifest, most recently used first.
-func (c *Cache) Entries() []CacheEntrySummary {
-	ents, err := os.ReadDir(c.dir)
-	if err != nil {
-		return nil
+	if err := writeManifest(dir, m); err != nil {
+		return err
 	}
 	c.mu.Lock()
-	open := make(map[string]bool, len(c.refs))
-	for id := range c.refs {
-		open[id] = true
+	if c.list != nil { // the manifest is rewritten in place: the directory's mtime does not move
+		if it, ok := c.list.items[identity]; ok {
+			it.LastUsed = m.LastUsed
+			c.list.items[identity] = it
+		}
 	}
 	c.mu.Unlock()
-	var out []CacheEntrySummary
-	for _, e := range ents {
-		if !e.IsDir() || !validIdentity(e.Name()) {
-			continue
-		}
-		m, err := readManifest(filepath.Join(c.dir, e.Name()))
-		if err != nil || m.Identity != e.Name() {
-			continue
-		}
-		s := CacheEntrySummary{Identity: m.Identity, Bytes: m.Bytes, Created: m.Created, LastUsed: m.LastUsed, Open: open[m.Identity]}
-		for _, src := range m.Sources {
-			s.Sources = append(s.Sources, src.Path)
-		}
-		out = append(out, s)
-	}
-	slices.SortFunc(out, func(a, b CacheEntrySummary) int { return b.LastUsed.Compare(a.LastUsed) })
-	return out
+	return nil
 }
+
+// Entries lists the entries with a readable manifest, most recently used
+// first. The listing is kept in memory (listing.go): a readdir and a manifest
+// read per entry only when the cache directory changed behind the cache's back.
+func (c *Cache) Entries() []CacheEntrySummary { return c.entries() }
 
 // Remove deletes an entry (ErrCacheInUse while it is open).
 func (c *Cache) Remove(identity string) error {
@@ -604,6 +603,7 @@ func (c *Cache) Remove(identity string) error {
 // Wipe deletes every entry that is not open and every build directory of a
 // dead process; it returns ErrCacheInUse (wrapped) when it had to keep some.
 func (c *Cache) Wipe() error {
+	defer c.invalidate()
 	ents, err := os.ReadDir(c.dir)
 	if err != nil {
 		return err

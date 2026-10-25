@@ -734,6 +734,7 @@ CLI's.
 | `-cache-cap SIZE` | LRU limit, default `20G` (suffixes K, M, G, T = powers of 1024) |
 | `-allow-origin O,…` | CORS origins, exact match; none = no CORS headers |
 | `-idle-exit D` | default 0 (never) |
+| `-idle D` | close a ready session after D without a request on its `/s/{id}/` mount (a pending `api/doc` long poll counts) and without a running job of its own; same as `DELETE /engine/sessions/{id}` (a `session` event with state `closed`, one log line, the cache entry stays). Opening and live (`follow`) sessions never. Default 0 (never) |
 | `-detach` | keep running when stdin closes |
 
 GC is set to 20 % unless `GOGC` is set (every session is a spill build).
@@ -747,7 +748,7 @@ not `EventSource`.
 
 **Routes.** The control plane (`routes` in `internal/engine/server.go`):
 health, `events` (SSE), `prompts/{id}`, `sessions` (open, list, get, close),
-`jobs` (list, cancel), `cache` (list, remove one, wipe). Per session
+`jobs` (list, cancel), `cache` (list, remove one, wipe). `GET /engine/cache` is served from an in-memory listing (`cache_listing.go`) built by one scan and updated by the cache's own commits, removals and touches; it is trusted while the mtime of `<cache>/index` is the one it saw (and at least 50 ms old), so another process's `engine cache rm` is noticed on the next call. Per session
 (`sessionRoutes` in `session.go`, mounted under `/s/{id}`): `api/doc`,
 `api/report` (`internal/engine/report.go`), and the endpoints of
 `internal/slice`: the 14 JSON ones (the 13 above and `api/plan`, `plan.go`)

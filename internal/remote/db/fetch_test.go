@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The view of basic_binds.trc as read on dbmint (testdata/db/basic_binds.view):
@@ -102,9 +103,43 @@ func chunks(fc *fakeConn) [][2]int64 {
 	return out
 }
 
+// fakeClock advances by the next of durs between the two readings Fetch
+// takes around a range (the last duration repeats); a nil durs is a clock
+// that never moves, so every range is "fast".
+type fakeClock struct {
+	t    time.Time
+	durs []time.Duration
+	i    int
+	odd  bool
+}
+
+func (f *fakeClock) now() time.Time {
+	if f.odd && len(f.durs) > 0 {
+		f.t = f.t.Add(f.durs[min(f.i, len(f.durs)-1)])
+		f.i++
+	}
+	f.odd = !f.odd
+	return f.t
+}
+
+// steady is a clock for which every range takes 2 s: between FetchFast and
+// FetchSlow, so the range stays FetchChunk.
+func steady() *fakeClock { return &fakeClock{durs: []time.Duration{2 * time.Second}} }
+
+func clientWith(fc *fakeConn, clk *fakeClock) *Client {
+	c := NewClient(fc)
+	c.now = clk.now
+	return c
+}
+
+// fetchAll fetches with FetchChunk ranges throughout.
 func fetchAll(t *testing.T, view []viewRow, from Resume, w *bytes.Buffer) (int64, *fakeConn, error) {
+	return fetchAllClock(t, view, from, w, steady())
+}
+
+func fetchAllClock(t *testing.T, view []viewRow, from Resume, w *bytes.Buffer, clk *fakeClock) (int64, *fakeConn, error) {
 	fc := traceView(t, view, 0)
-	n, err := NewClient(fc).Fetch(ctx, "/adr/home", "cdb1_ora_1.trc", w, from, nil)
+	n, err := clientWith(fc, clk).Fetch(ctx, "/adr/home", "cdb1_ora_1.trc", w, from, nil)
 	return n, fc, err
 }
 
@@ -128,7 +163,7 @@ func TestFetchFixtureBytes(t *testing.T) {
 	var buf bytes.Buffer
 	var prog []int64
 	fc := traceView(t, view, 0)
-	n, err := NewClient(fc).Fetch(ctx, "/adr/home", "cdb1_ora_1.trc", &buf, Resume{}, func(l int64) { prog = append(prog, l) })
+	n, err := clientWith(fc, steady()).Fetch(ctx, "/adr/home", "cdb1_ora_1.trc", &buf, Resume{}, func(l int64) { prog = append(prog, l) })
 	if err != nil || n != 3059 || buf.String() != want {
 		t.Fatalf("Fetch = %d, %v; equal: %v", n, err, buf.String() == want)
 	}
@@ -268,7 +303,7 @@ func TestFetchErrorThenResume(t *testing.T) {
 	big := scaled(view, 40, 3059)
 	full := strings.Repeat(want, 40)
 	var buf bytes.Buffer
-	n, err := NewClient(traceView(t, big, 60000)).Fetch(ctx, "/adr/home", "cdb1_ora_1.trc", &buf, Resume{}, nil)
+	n, err := clientWith(traceView(t, big, 60000), steady()).Fetch(ctx, "/adr/home", "cdb1_ora_1.trc", &buf, Resume{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "lines 50001-100000") || !IsORA(err, 3113) {
 		t.Fatalf("Fetch = %d, %v", n, err)
 	}
@@ -315,5 +350,108 @@ func TestOpenResume(t *testing.T) {
 func TestFetchArgs(t *testing.T) {
 	if _, err := NewClient(&fakeConn{}).Fetch(ctx, "", "x.trc", &bytes.Buffer{}, Resume{}, nil); err == nil {
 		t.Error("empty adr_home accepted")
+	}
+}
+
+// The chunk size doubles after a range under FetchFast (up to FetchChunkMax),
+// halves after one over FetchSlow (down to FetchChunk) and stays in between;
+// the limits themselves are not "fast" or "slow".
+func TestChunkSizer(t *testing.T) {
+	s := newChunkSizer()
+	var got []int64
+	for _, d := range []time.Duration{0, time.Second - 1, 100 * time.Millisecond, 0, 0, 0, FetchFast, FetchSlow, FetchSlow + 1, FetchSlow + 1, FetchSlow + 1, FetchSlow + 1, FetchSlow + 1, FetchSlow + 1} {
+		got = append(got, s.size)
+		s.done(d)
+	}
+	want := []int64{50000, 100000, 200000, 400000, 400000, 400000, 400000, 400000, 400000, 200000, 100000, 50000, 50000, 50000}
+	if !reflect.DeepEqual(got, want) || s.size != FetchChunk {
+		t.Errorf("sizes %v, want %v (last %d)", got, want, s.size)
+	}
+}
+
+// synthetic is a trace of n lines in records of 100 lines (line_number 100,
+// 200, ...), and its bytes.
+func synthetic(n int) ([]viewRow, string) {
+	var rows []viewRow
+	var sb strings.Builder
+	for ln := 100; ln <= n; ln += 100 {
+		p := strings.Repeat("line "+strconv.Itoa(ln)+"\n", 100)
+		rows = append(rows, viewRow{int64(ln), p})
+		sb.WriteString(p)
+	}
+	return rows, sb.String()
+}
+
+// Fetch grows the range while the server is fast and shrinks it when it is
+// slow; the bytes are the file either way.
+func TestFetchAdaptiveRanges(t *testing.T) {
+	view, wantAll := synthetic(1000000)
+	s := time.Second
+	// fast, fast, slow, slow, slow, in between, ...
+	clk := &fakeClock{durs: []time.Duration{s / 2, s / 2, 5 * s, 5 * s, 5 * s, 2 * s}}
+	var buf bytes.Buffer
+	n, fc, err := fetchAllClock(t, view, Resume{}, &buf, clk)
+	if err != nil || n != 1000000 || buf.String() != wantAll {
+		t.Fatalf("Fetch = %d, %v", n, err)
+	}
+	want := [][2]int64{{1, 50000}, {50001, 150000}, {150001, 350000}, // 50k, 100k, 200k
+		{350001, 450000}, {450001, 500000}, {500001, 550000}, // 100k, 50k, 50k (floor)
+		{550001, 600000}}
+	// ... then 2 s keeps 50k to the end
+	for a := int64(600001); a <= 1000000; a += FetchChunk {
+		want = append(want, [2]int64{a, a + FetchChunk - 1})
+	}
+	if got := chunks(fc); !reflect.DeepEqual(got, want) {
+		t.Errorf("ranges %v\nwant %v", got, want)
+	}
+
+	// always fast: up to FetchChunkMax and no further
+	buf.Reset()
+	n, fc, err = fetchAllClock(t, view, Resume{}, &buf, &fakeClock{})
+	if err != nil || n != 1000000 || buf.String() != wantAll {
+		t.Fatalf("Fetch (fast) = %d, %v", n, err)
+	}
+	want = [][2]int64{{1, 50000}, {50001, 150000}, {150001, 350000}, {350001, 750000}, {750001, 1150000}}
+	if got := chunks(fc); !reflect.DeepEqual(got, want) {
+		t.Errorf("fast ranges %v, want %v", got, want)
+	}
+}
+
+// Resume and the prefix match do not depend on the range sizes of the first
+// run: a copy cut at a line resumes to the same bytes with growing ranges, and
+// a failure in a grown range keeps whole ranges.
+func TestFetchAdaptiveResume(t *testing.T) {
+	view, want := loadView(t)
+	big := scaled(view, 200, 3059) // 611 800 lines
+	full := strings.Repeat(want, 200)
+	var buf bytes.Buffer
+	n, fc, err := fetchAllClock(t, big, Resume{}, &buf, &fakeClock{})
+	if err != nil || n != 200*3059 || buf.String() != full {
+		t.Fatalf("Fetch = %d, %v", n, err)
+	}
+	if got := chunks(fc); got[1] != [2]int64{50001, 150000} || len(got) != 4 {
+		t.Errorf("ranges %v", got)
+	}
+	// dropped inside the second (doubled) range
+	buf.Reset()
+	fc = traceView(t, big, 60000)
+	n, err = clientWith(fc, &fakeClock{}).Fetch(ctx, "/adr/home", "cdb1_ora_1.trc", &buf, Resume{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "lines 50001-150000") || !IsORA(err, 3113) {
+		t.Fatalf("Fetch = %d, %v", n, err)
+	}
+	if !strings.HasPrefix(full, buf.String()) || int64(strings.Count(buf.String(), "\n")) != n || n < 49000 || n > 50000 {
+		t.Fatalf("partial copy: %d lines", n)
+	}
+	local := buf.String()
+	m, _, err := fetchAllClock(t, big, resumeOf(local), &buf, &fakeClock{})
+	if err != nil || n+m != 200*3059 || buf.String() != full {
+		t.Errorf("resume = %d after %d, %v; equal %v", m, n, err, buf.String() == full)
+	}
+	// a copy ending past the first range of a run resumes from there
+	cut := full[:strings.Index(full[len(full)/2:], "\n")+len(full)/2+1]
+	buf.Reset()
+	m, _, err = fetchAllClock(t, big, resumeOf(cut), &buf, &fakeClock{})
+	if err != nil || cut+buf.String() != full || m != int64(strings.Count(full[len(cut):], "\n")) {
+		t.Errorf("resume from the middle: %d, %v, equal %v", m, err, cut+buf.String() == full)
 	}
 }

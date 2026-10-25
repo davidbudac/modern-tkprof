@@ -38,6 +38,7 @@ func cmdEngine(args []string) error {
 	cacheCap := fs.String("cache-cap", "20G", "index cache size limit (bytes; suffixes K, M, G, T = powers of 1024)")
 	origins := fs.String("allow-origin", "", "comma-separated CORS origins (e.g. tauri://localhost,http://tauri.localhost)")
 	idle := fs.Duration("idle-exit", 0, "exit after this long without sessions and requests (0 = never)")
+	evict := fs.Duration("idle", 0, "close a session after this long without requests on it and without a running job (cache entry stays; live sessions never; 0 = never)")
 	pv := planVizFlag(fs)
 	detach := fs.Bool("detach", false, "keep running when stdin closes")
 	fs.Parse(args)
@@ -68,7 +69,7 @@ func cmdEngine(args []string) error {
 			allow = append(allow, o)
 		}
 	}
-	eng, err := engine.New(engine.Options{Token: token, AllowOrigins: allow, CacheDir: dir, CacheCap: capBytes, Version: version, PlanVizURL: *pv,
+	eng, err := engine.New(engine.Options{Token: token, AllowOrigins: allow, CacheDir: dir, CacheCap: capBytes, Version: version, PlanVizURL: *pv, IdleEvict: *evict,
 		Logf: func(format string, a ...any) { fmt.Fprintf(os.Stderr, "mtkprof engine: "+format+"\n", a...) }})
 	if err != nil {
 		return fmt.Errorf("engine: %w", err)

@@ -817,3 +817,85 @@ func TestIdleFor(t *testing.T) {
 		t.Errorf("idle after the last session: %s", d)
 	}
 }
+
+// TestIdleEviction: a ready session with no request on its mount for
+// IdleEvict is closed like a DELETE (event, cache entry stays); a request
+// resets the clock; a pending request and a running job keep it.
+func TestIdleEviction(t *testing.T) {
+	const idle = 300 * time.Millisecond
+	e := newEnv(t, func(o *Options) { o.IdleEvict = idle })
+	id := e.openReady([]string{traces + "io_waits.trc"}, nil)
+	keep := e.openReady([]string{traces + "basic_binds.trc"}, nil)
+	ev, cancel := e.srv.bc.subscribe()
+	defer cancel()
+
+	// requests on keep's mount postpone its eviction past several idle periods
+	t0 := time.Now()
+	for time.Since(t0) < 3*idle {
+		if r := e.req("GET", "/s/"+keep+"/api/doc", nil); r.code != 200 {
+			t.Fatalf("doc: %d %s", r.code, r.body)
+		}
+		time.Sleep(idle / 6)
+	}
+	// id was never requested: gone by now, keep is still there
+	if r := e.req("GET", "/engine/sessions/"+id, nil); r.code != http.StatusNotFound {
+		t.Errorf("idle session still there: %d", r.code)
+	}
+	closed := false
+	for len(ev) > 0 {
+		if x := <-ev; x.Type == "session" && strings.Contains(string(x.Data), `"id":"`+id+`","state":"closed"`) {
+			closed = true
+		}
+	}
+	if !closed {
+		t.Errorf("no session event with the closed state for %s", id)
+	}
+	if r := e.req("GET", "/engine/sessions/"+keep, nil); r.code != 200 {
+		t.Errorf("busy session evicted: %d", r.code)
+	}
+	if n := len(e.entries()); n != 2 {
+		t.Errorf("%d cache entries after the eviction, want 2", n)
+	}
+	// keep goes too once it is left alone
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if e.req("GET", "/engine/sessions/"+keep, nil).code == http.StatusNotFound {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Errorf("idle session %s never evicted", keep)
+}
+
+// TestEvictIdleRules drives evictIdle with a fake clock: a request in flight,
+// a running job and a session that is not ready are never evicted.
+func TestEvictIdleRules(t *testing.T) {
+	e := newEnv(t)
+	a := e.openReady([]string{traces + "io_waits.trc"}, nil)
+	b := e.openReady([]string{traces + "basic_binds.trc"}, nil)
+	c := e.openReady([]string{traces + "io_waits.trc", traces + "basic_binds.trc"}, nil)
+	get := func(id string) *Session {
+		e.srv.mu.Lock()
+		defer e.srv.mu.Unlock()
+		return e.srv.sessions[id]
+	}
+	later := time.Now().Add(time.Hour)
+	get(a).begin() // a request in flight (a doc long poll)
+	e.srv.mu.Lock()
+	j := e.srv.newJobLocked("ref", c) // a running job of c
+	e.srv.mu.Unlock()
+	if n := e.srv.evictIdle(time.Minute, later); n != 1 {
+		t.Fatalf("evicted %d, want only b", n)
+	}
+	if get(a) == nil || get(b) != nil || get(c) == nil {
+		t.Errorf("sessions after the pass: a %v, b %v, c %v", get(a) != nil, get(b) != nil, get(c) != nil)
+	}
+	if n := e.srv.evictIdle(time.Minute, time.Now()); n != 0 {
+		t.Errorf("evicted %d sessions that were just used", n)
+	}
+	get(a).end()
+	j.finish(nil)
+	if n := e.srv.evictIdle(time.Minute, later); n != 2 {
+		t.Errorf("evicted %d, want a and c", n)
+	}
+}

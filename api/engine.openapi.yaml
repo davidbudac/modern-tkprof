@@ -14,11 +14,15 @@ info:
     the shell refuses an engine whose protocol it does not know.
 
     Process: `mtkprof engine [-listen 127.0.0.1:0] [-cache DIR] [-cache-cap 20G]
-    [-allow-origin O,...] [-idle-exit D] [-detach]`, token in the environment
+    [-allow-origin O,...] [-idle-exit D] [-idle D] [-detach]`, token in the environment
     (`MTKPROF_TOKEN`, 32+ bytes). Once listening it prints one line on stdout:
     `{"ready":true,"addr":"127.0.0.1:41233","version":"...","protocol":1}`.
     It exits when stdin closes (unless -detach), on SIGINT/SIGTERM, or after
-    -idle-exit without sessions and requests.
+    -idle-exit without sessions and requests. With `-idle D` a ready session
+    that has had no request on its `/s/{id}/` mount (a pending `api/doc`
+    long poll counts) and no running job for D is closed as by `DELETE` (a
+    `session` event with state `closed`; the cache entry stays); opening and
+    live sessions are never closed. Default: never.
 
     Every request but `GET /engine/health` needs `Authorization: Bearer <token>`;
     that includes the event stream, so a browser client reads it with
@@ -194,6 +198,7 @@ paths:
       description: |
         A live session stops following (its job ends cancelled; a remote
         follow's mirror job is cancelled) and its spill directory is removed.
+        The engine does the same for a ready session idle for `-idle`.
       parameters:
         - $ref: "#/components/parameters/SessionID"
       responses:

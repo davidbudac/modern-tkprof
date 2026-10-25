@@ -10,12 +10,37 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 )
 
-// FetchChunk is the number of line numbers one Fetch query covers
-// (line_number between a and a+FetchChunk-1; about 43 700 rows on a real
-// trace, see docs/REMOTE.md).
-const FetchChunk = 50000
+// The range of one Fetch query is adaptive (chunkSizer): it starts at
+// FetchChunk line numbers (line_number between a and a+FetchChunk-1; about
+// 43 700 rows on a real trace, see docs/REMOTE.md), doubles after a range that
+// took less than FetchFast up to FetchChunkMax, and halves after one that took
+// more than FetchSlow down to FetchChunk. Larger ranges are about 1.6 times
+// faster per line when the server answers quickly; a slow answer (a busy
+// database, a thin link) is not made worse by a long range.
+const (
+	FetchChunk    = 50000
+	FetchChunkMax = 400000
+	FetchFast     = time.Second
+	FetchSlow     = 4 * time.Second
+)
+
+// chunkSizer is the size of the next range, from how long the last one took.
+type chunkSizer struct{ size int64 }
+
+func newChunkSizer() *chunkSizer { return &chunkSizer{size: FetchChunk} }
+
+// done records that a range took d and sets the size of the next.
+func (s *chunkSizer) done(d time.Duration) {
+	switch {
+	case d < FetchFast:
+		s.size = min(s.size*2, FetchChunkMax)
+	case d > FetchSlow:
+		s.size = max(s.size/2, FetchChunk)
+	}
+}
 
 // ResumeBack is how many line numbers before the end of the local copy a
 // resumed Fetch reads again, to find where the copy stops.
@@ -45,8 +70,8 @@ const fetchMaxSQL = "select max(line_number) from v$diag_trace_file_contents whe
 // gives the file byte for byte. line_number is the file's line count at the
 // end of the record (one less for some STAT lines; several records share a
 // number), so it is only a coarse position: Fetch reads max(line_number)
-// first and walks 1..max in FetchChunk ranges, every range a query of its
-// own, ordered by line_number and then by the order the view returned the
+// first and walks 1..max in ranges of FetchChunk to FetchChunkMax line
+// numbers (adaptive), every range a query of its own, ordered by line_number and then by the order the view returned the
 // rows in.
 //
 // from continues a partial copy: the first range starts ResumeBack line
@@ -74,9 +99,17 @@ func (c *Client) Fetch(ctx context.Context, adrHome, traceFilename string, w io.
 	}
 	bw := bufio.NewWriterSize(w, 1<<20)
 	first := from.Lines > 0
-	for ; first || a <= max.Int64; a += FetchChunk {
-		b := a + FetchChunk - 1
+	now := c.now
+	if now == nil {
+		now = time.Now
+	}
+	sz := newChunkSizer()
+	for step := int64(0); first || a <= max.Int64; a += step {
+		step = sz.size
+		b := a + step - 1
+		t0 := now()
 		data, recs, err := c.fetchChunk(ctx, adrHome, traceFilename, a, b)
+		sz.done(now().Sub(t0))
 		if err == nil && first {
 			var skip int
 			if skip, err = resumeSkip(data, recs, from); err == nil {
