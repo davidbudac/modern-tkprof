@@ -257,7 +257,6 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 	return q
 }
 
-
 // TestParityWithServeSpill: every answer under /s/{id}/ equals the one of
 // `serve -spill` byte for byte (the document apart from its timestamp).
 func TestParityWithServeSpill(t *testing.T) {

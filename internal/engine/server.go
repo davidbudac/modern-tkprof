@@ -33,7 +33,7 @@ type Options struct {
 	Cache    *Cache
 	CacheDir string
 	CacheCap int64
-	Version      string   // engine version, reported by health
+	Version  string // engine version, reported by health
 	// Logf receives the engine's log lines (also sent as log events); nil = discarded.
 	Logf func(format string, a ...any)
 	// KeepAlive is the interval of the SSE keepalive comment (0 = 15 s).

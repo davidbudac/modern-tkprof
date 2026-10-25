@@ -48,21 +48,21 @@ type FileInfo struct {
 
 // SessionInfo is a session as the engine reports it.
 type SessionInfo struct {
-	ID       string     `json:"id"`
-	Paths    []string   `json:"paths"`
-	State    string     `json:"state"`
-	Rev      int        `json:"rev"`
-	Identity string     `json:"identity"` // content identity of the trace files (TraceIdentity, no options): the key of annotations
+	ID       string   `json:"id"`
+	Paths    []string `json:"paths"`
+	State    string   `json:"state"`
+	Rev      int      `json:"rev"`
+	Identity string   `json:"identity"` // content identity of the trace files (TraceIdentity, no options): the key of annotations
 	// CacheIdentity is the identity of the cache entry (files and the build
 	// options), the {identity} of /engine/cache.
 	CacheIdentity string     `json:"cacheIdentity"`
 	Hit           bool       `json:"hit"` // opened from the cache without a parse (false while opening)
 	Files         []FileInfo `json:"files"`
-	Opened   string     `json:"opened"` // RFC 3339
-	Bytes    int64      `json:"bytes"`
-	Lines    int64      `json:"lines"`
-	Job      string     `json:"job,omitempty"` // the open job
-	Error    string     `json:"error,omitempty"`
+	Opened        string     `json:"opened"` // RFC 3339
+	Bytes         int64      `json:"bytes"`
+	Lines         int64      `json:"lines"`
+	Job           string     `json:"job,omitempty"` // the open job
+	Error         string     `json:"error,omitempty"`
 }
 
 // SessionEvent is the payload of a session event.
