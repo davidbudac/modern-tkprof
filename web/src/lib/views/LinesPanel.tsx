@@ -37,8 +37,10 @@ export function HitList({ hits, count, selected, q, regex, caseSensitive, onGo }
   )
 }
 
-export function BookmarkList({ bookmarks, fileName, onGo, onLabel, onRemove }: {
+export function BookmarkList({ bookmarks, fileName, onGo, onLabel, onRemove, onNote }: {
   bookmarks: Bookmark[]; fileName(file: number): string; onGo(b: Bookmark): void; onLabel(b: Bookmark, label: string): void; onRemove(b: Bookmark): void
+  /** edit the bookmark's note (notes enabled) */
+  onNote?(b: Bookmark): void
 }) {
   if (bookmarks.length === 0) return <p className="small muted lines-empty">No bookmarks. Right-click a line number, or press <kbd>b</kbd> on the selected line.</p>
   return (
@@ -49,7 +51,9 @@ export function BookmarkList({ bookmarks, fileName, onGo, onLabel, onRemove }: {
           <input type="text" defaultValue={b.label} aria-label={`Label of the bookmark at line ${b.line}`}
             onBlur={(e) => { if (e.target.value !== b.label) onLabel(b, e.target.value) }}
             onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+          {(onNote || b.note) && <button className={'quiet note-btn' + (b.note ? ' on' : '')} disabled={!onNote} onClick={() => onNote?.(b)} title={b.note || 'add a note'} aria-label={`${b.note ? 'Edit the note' : 'Add a note'} at line ${b.line}`}>✎</button>}
           <button className="quiet" onClick={() => onRemove(b)} aria-label={`Remove the bookmark at line ${b.line}`}>×</button>
+          {b.note && <p className="small lines-bm-note">{b.note}</p>}
         </li>
       ))}
     </ul>

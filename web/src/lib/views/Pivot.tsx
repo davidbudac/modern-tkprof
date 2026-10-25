@@ -1,17 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
 import { fmtInt } from '../data/format'
 import { scopeOf, type State } from '../state/store'
-import { useStore, useActions } from '../state/session'
+import { useStore, useActions, useStoreApi, useLibrary, type PivotLibrary } from '../state/session'
 import { DataTable, type Column } from '../components/DataTable'
 import { ColumnChooser } from '../components/ColumnChooser'
 import { usePersisted } from '../state/persist'
 import { pivotDims, pivotMeasures, type Fact } from '../data/pivot'
 import { sourceOf, useSourceQuery, type PivotRowData } from '../data/source'
+import { describePivotConfig } from '../data/pivotconfig'
 import '../styles/pivot.css'
-
-const CAP = 1000
 
 function scopeHint(state: State, fact: Fact): string {
   const parts: string[] = []
@@ -42,13 +41,19 @@ function download(name: string, text: string) {
 
 export function Pivot({ doc }: { doc: TraceDoc }) {
   const actions = useActions()
+  const library = useLibrary()
   const state = useStore((s) => s)
   const source = sourceOf(doc)
-  const [fact, setFact] = useState<Fact>('calls')
-  const [d1Id, setD1] = useState('stmt')
-  const [d2Id, setD2] = useState('')
+  const pv = state.pivot
+  const fact = pv.fact
+  const d1Id = pv.by[0] ?? 'stmt'
+  const d2Id = pv.by[1] ?? ''
+  const setD1 = (id: string) => actions.setPivot({ by: id === d2Id || !d2Id ? [id] : [id, d2Id] })
+  const setD2 = (id: string) => actions.setPivot({ by: id ? [d1Id, id] : [d1Id] })
   const [hiddenCols, setHiddenCols] = usePersisted<Record<Fact, string[]>>('mtkprof.cols.pivot', { calls: [], waits: [] })
-  const [sortId, setSortId] = useState<{ calls: string; waits: string }>({ calls: 'e', waits: 'ela' })
+  const sortId = pv.sort
+  const fStmt = pv.stmt !== null && doc.statements[pv.stmt] ? pv.stmt : undefined
+  const fEvent = fact === 'waits' && pv.event !== null && doc.events[pv.event] ? pv.event : undefined
 
   // dimension metadata; with a remote source the fact columns are empty and only ids, labels and click targets are read
   const dims = useMemo(() => pivotDims(doc, fact), [doc, fact])
@@ -60,8 +65,9 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
   const scope = scopeOf(state)
   const scopeKey = `${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}|${fact === 'waits' && scope.includeIdle ? 1 : 0}`
   const shape = `${fact}:${d1.id}:${d2?.id ?? ''}`
-  const query = useSourceQuery(source, `${shape}:${sortM.id}:${scopeKey}`,
-    (signal) => (source.ready ? source.pivot({ fact, by: d2 ? [d1.id, d2.id] : [d1.id], scope, sort: sortM.id, limit: CAP }, signal) : null),
+  const only = { stmt: fStmt, event: fEvent }
+  const query = useSourceQuery(source, `${shape}:${sortM.id}:${scopeKey}:${pv.limit}:${fStmt ?? ''}:${fEvent ?? ''}`,
+    (signal) => (source.ready ? source.pivot({ fact, by: d2 ? [d1.id, d2.id] : [d1.id], scope, sort: sortM.id, limit: pv.limit, ...only }, signal) : null),
     shape)
   const result = query.data
 
@@ -87,9 +93,7 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
 
   const onFact = (f: Fact) => {
     if (f === fact) return
-    setFact(f)
-    setD1(f === 'calls' ? 'stmt' : 'event')
-    setD2('')
+    actions.setPivot({ fact: f, by: [f === 'calls' ? 'stmt' : 'event'] })
   }
 
   const cols: Column<PivotRowData>[] = [
@@ -117,7 +121,7 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
 
   const exportCsv = async () => {
     // every group, not just the rows on screen
-    const all = result.groups > rows.length ? await Promise.resolve(source.pivot({ fact, by: d2 ? [d1.id, d2.id] : [d1.id], scope, sort: sortM.id, limit: Infinity })) : result
+    const all = result.groups > rows.length ? await Promise.resolve(source.pivot({ fact, by: d2 ? [d1.id, d2.id] : [d1.id], scope, sort: sortM.id, limit: Infinity, ...only })) : result
     const header = [d1.label, ...(d1.extra ? [d1.extra.header] : []), ...(d2 ? [d2.label, ...(d2.extra ? [d2.extra.header] : [])] : []), ...measures.map((m) => m.label)]
     const lines = [header.map(csvCell).join(',')]
     for (const g of all.rows) {
@@ -150,7 +154,7 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
           <button aria-pressed={fact === 'waits'} onClick={() => onFact('waits')}>waits</button>
         </span>
         <label className="pv-ctl">Rows by
-          <select value={d1.id} onChange={(e) => { setD1(e.target.value); if (e.target.value === d2Id) setD2('') }}>
+          <select value={d1.id} onChange={(e) => setD1(e.target.value)}>
             {dims.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
         </label>
@@ -161,13 +165,17 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
           </select>
         </label>
         <label className="pv-ctl">Sort by
-          <select value={sortM.id} onChange={(e) => setSortId({ ...sortId, [fact]: e.target.value })}>
+          <select value={sortM.id} onChange={(e) => actions.setPivot({ sort: { ...sortId, [fact]: e.target.value } })}>
             {measures.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </label>
+        {fStmt !== undefined && <span className="chip">statement {doc.label(doc.statements[fStmt])} <button onClick={() => actions.setPivot({ stmt: null })} aria-label="Show every statement">×</button></span>}
+        {fEvent !== undefined && <span className="chip">event {doc.events[fEvent].name} <button onClick={() => actions.setPivot({ event: null })} aria-label="Show every event">×</button></span>}
+        {state.libraryEnabled && library && <SavedMenu library={library} />}
         <span className="pv-push"><ColumnChooser all={measures.map((m) => ({ key: m.id, label: m.label }))} hidden={hiddenM} onChange={(h) => setHiddenCols({ ...hiddenCols, [fact]: h })} /></span>
         <button onClick={exportCsv} disabled={result.groups === 0}>Download CSV</button>
       </div>
+      {pv.notice && <p className="callout pv-notice" role="status">{pv.notice} <button className="quiet" onClick={() => actions.setPivot({})} aria-label="Dismiss">×</button></p>}
       <DataTable
         key={`${fact}:${d1.id}:${d2?.id ?? ''}:${sortM.id}:${hiddenM.join(',')}`}
         columns={cols}
@@ -184,5 +192,43 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
         </>}
       />
     </section>
+  )
+}
+
+/** The saved Pivot configurations (desktop library): apply one, save the current one. */
+function SavedMenu({ library }: { library: PivotLibrary }) {
+  const store = useStoreApi()
+  const saved = useSyncExternalStore(library.subscribe, library.getSnapshot)
+  const [naming, setNaming] = useState<string | null>(null)
+  const apply = (id: string) => {
+    const p = saved.find((x) => x.id === id)
+    if (p) store.applyPivotConfig(p.config)
+  }
+  if (naming !== null) {
+    return (
+      <form className="pv-ctl pv-save" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) { library.save(naming.trim(), store.getPivotConfig()); setNaming(null) } }}
+        onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setNaming(null) } }}>
+        <input type="text" value={naming} autoFocus placeholder="Name" aria-label="Name of the saved pivot" onChange={(e) => setNaming(e.target.value)} list="pv-saved-names" />
+        <datalist id="pv-saved-names">{saved.map((p) => <option key={p.id} value={p.name} />)}</datalist>
+        <button type="submit" disabled={!naming.trim()}>Save</button>
+        <button type="button" onClick={() => setNaming(null)}>Cancel</button>
+      </form>
+    )
+  }
+  return (
+    <label className="pv-ctl">Saved
+      <select value="" className="pv-saved" aria-label="Saved pivots" onChange={(e) => {
+        const v = e.target.value
+        if (v === '+save') setNaming('')
+        else if (v === '+manage') library.manage?.()
+        else if (v) apply(v)
+      }}>
+        <option value="">{saved.length ? `${saved.length} saved…` : 'none saved'}</option>
+        {saved.map((p) => <option key={p.id} value={p.id} title={describePivotConfig(p.config)}>{p.name}</option>)}
+        <option disabled>──────────</option>
+        <option value="+save">Save current as…</option>
+        {library.manage && <option value="+manage">Manage library…</option>}
+      </select>
+    </label>
   )
 }

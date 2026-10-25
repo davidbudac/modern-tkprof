@@ -10,6 +10,7 @@ import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import type { Store } from '../state/store'
 import { BookmarkList, HitList } from './LinesPanel'
+import { NoteEditor } from '../components/Note'
 import '../styles/lines.css'
 
 type SearchStatus = 'idle' | 'running' | 'done' | 'cancelled' | 'error'
@@ -73,6 +74,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const stmt = useStore((s) => s.selection.stmt)
   const win = useStore((s) => s.window)
   const allBookmarks = useStore((s) => s.bookmarks)
+  const notesOn = useStore((s) => s.annotationsEnabled)
+  const [noting, setNoting] = useState<number | null>(null) // the line whose note is being written
   const ui = uiOf(store, file)
   const [, bump] = useReducer((x: number) => x + 1, 0)
   const set = useCallback((patch: Partial<LinesUi>) => { Object.assign(ui, patch); bump() }, [ui])
@@ -162,6 +165,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   // ---- bookmarks -------------------------------------------------------------------------------------------------------
   const bookmarks = useMemo(() => allBookmarks.filter((b) => b.file === file), [allBookmarks, file])
   const bmSet = useMemo(() => new Set(bookmarks.map((b) => b.line)), [bookmarks])
+  const noteSet = useMemo(() => new Map(bookmarks.filter((b) => b.note).map((b) => [b.line, b.note!])), [bookmarks])
   const toggleBookmark = useCallback((line: number) => {
     if (store.getState().bookmarks.some((b) => b.file === file && b.line === line)) actions.removeBookmark(file, line)
     else actions.addBookmark(file, line, preview(cache.line(line)?.text ?? '', 80).trim())
@@ -261,11 +265,21 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         </span>
         <span className="lines-tools">
           <button className="quiet" onClick={() => toggleBookmark(selected)} aria-pressed={bmSet.has(selected)} title="bookmark the selected line (b)">◆ Bookmark</button>
+          {notesOn && <button className="quiet" onClick={() => setNoting(noting === selected ? null : selected)} aria-pressed={noting === selected} title="a note on the selected line (bookmarks it)">✎ Note</button>}
           <button className="quiet" onClick={() => set({ wrap: !ui.wrap })} aria-pressed={ui.wrap} title="wrap long lines">Wrap</button>
           <button className="quiet" onClick={() => set({ panel: !ui.panel })} aria-pressed={ui.panel} title="hits and bookmarks">Panel</button>
         </span>
       </div>
 
+      {noting !== null && (() => {
+        const bm = bookmarks.find((b) => b.line === noting)
+        return (
+          <NoteEditor key={noting} label={`Note on line ${noting}`} title={`Note on line ${fmtInt(noting)}${bm?.label ? `: ${bm.label}` : ''}`} text={bm?.note}
+            onSave={(t) => { actions.setBookmarkNote(file, noting, t, preview(cache.line(noting)?.text ?? '', 80).trim()); setNoting(null); set({ panel: true, tab: 'bookmarks' }) }}
+            onCancel={() => setNoting(null)}
+            onDelete={bm?.note ? () => { actions.setBookmarkNote(file, noting, ''); setNoting(null) } : undefined} />
+        )
+      })()}
       <div className="lines-at" aria-live="polite">
         {!at && <span className="muted">Click a line to see the statement, execution and wait it belongs to.</span>}
         {at && o && (
@@ -287,7 +301,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className={'lines-body' + (ui.panel ? ' has-panel' : '')}>
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} selected={selected} wrap={ui.wrap} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} apiRef={apiRef} topRef={topRef}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
@@ -323,7 +337,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               <BookmarkList bookmarks={allBookmarks} fileName={fileName}
                 onGo={(b) => (b.file === file ? goTo(b.line) : actions.openLinesAt(b.file, b.line))}
                 onLabel={(b, label) => actions.addBookmark(b.file, b.line, label)}
-                onRemove={(b) => actions.removeBookmark(b.file, b.line)} />
+                onRemove={(b) => actions.removeBookmark(b.file, b.line)}
+                onNote={notesOn ? (b) => { if (b.file !== file) actions.openLinesAt(b.file, b.line); else { goTo(b.line); setNoting(b.line) } } : undefined} />
             )}
           </aside>
         )}

@@ -19,11 +19,11 @@ export { Minimap } from './components/Minimap'
 
 // state: one store per open trace, provided through the context
 export { createStore, scopeOf, callFilter, waitFilter } from './state/store'
-export type { Store, Actions, State, View, Side, Selection, TimeWindow, Scope, Bookmark, LinesView } from './state/store'
+export type { Store, Actions, State, View, Side, Selection, TimeWindow, Scope, Bookmark, LinesView, PivotState } from './state/store'
 export {
-  SessionContext, SessionProvider, createSession, useSession, useStore, useStoreApi, useActions, useClient,
+  SessionContext, SessionProvider, createSession, useSession, useStore, useStoreApi, useActions, useClient, useLibrary,
 } from './state/session'
-export type { Session } from './state/session'
+export type { Session, PivotLibrary } from './state/session'
 export { usePersisted } from './state/persist'
 
 // data
@@ -43,3 +43,12 @@ export type { DataSource, QueryState, StmtMarks } from './data/source'
 export { traceSegmentsFrom } from './data/derive'
 export { fmtInt, fmtCompact, fmtDur, fmtSecs, fmtMs, fmtPct, fmtBytes, fmtWall, fmtTz, preview, oraErr } from './data/format'
 export type * from './data/types'
+// annotations (notes on statements, executions, windows, lines) and saved Pivot configurations
+export {
+  textHash, stmtRef, resolveStmt, resolveExec, stmtNote, execNotes, execKey, makeAnnotation, newAnnotationId, bookmarkToAnnotation, annotationToBookmark,
+  mergeAnnotations, mergeBookmarks, annotationsFile, parseAnnotationsFile, annotationsMarkdown,
+} from './data/annotations'
+export type { Annotation, AnnotationKind, StmtRef, AnnotationsFile, MarkdownOptions } from './data/annotations'
+export { pivotConfigOf, resolvePivotConfig, libraryFile, parseLibraryFile, mergeLibrary, describePivotConfig } from './data/pivotconfig'
+export type { PivotConfig, ContextKey, SavedPivot, LibraryFile } from './data/pivotconfig'
+export { NoteEditor, NoteBox } from './components/Note'

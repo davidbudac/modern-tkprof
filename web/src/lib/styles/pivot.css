@@ -14,3 +14,4 @@
 }
 .pv-ctl select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pv-controls .pv-push { margin-inline-start: auto; }
+.pv-ctl select.pv-saved { max-inline-size: 9rem; }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import * as echarts from 'echarts/core'
 import { CustomChart } from 'echarts/charts'
 import type { EChartsOption, CustomSeriesRenderItemParams, CustomSeriesRenderItemAPI, CustomSeriesRenderItemReturn } from 'echarts'
@@ -14,6 +14,8 @@ import { Chart } from '../components/Chart'
 import { DataTable, type Column } from '../components/DataTable'
 import { resolveVar } from '../components/colors'
 import { Minimap } from '../components/Minimap'
+import { NoteEditor, NoteBox } from '../components/Note'
+import { makeAnnotation } from '../data/annotations'
 import '../styles/timeline.css'
 
 echarts.use([CustomChart])
@@ -190,6 +192,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
             {lanes.list.length > MAX_LANES ? ` · lanes for top ${MAX_LANES} statements` : ''}
           </span>
         </header>
+        <WindowNotes doc={doc} />
         <Minimap doc={doc} height={40} />
         <div className="lane-legend" role="list" aria-label="Call kinds">
           {kindGroups.map((g) => (
@@ -208,5 +211,46 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
         </section>
       )}
     </>
+  )
+}
+
+/** Notes on time windows: a chip per note (applies its window), the current window's note, "annotate window". */
+function WindowNotes({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
+  const win = useStore((s) => s.window)
+  const enabled = useStore((s) => s.annotationsEnabled)
+  const all = useStore((s) => s.annotations)
+  const notes = useMemo(() => all.filter((a) => a.kind === 'window' && a.from !== undefined && a.to !== undefined).sort((a, b) => a.from! - b.from!), [all])
+  const [editing, setEditing] = useState(false)
+  const [label, setLabel] = useState('')
+  const base = doc.span.firstTim
+  const cur = win ? notes.find((a) => a.from === win.startTim && a.to === win.endTim) : undefined
+  if (notes.length === 0 && !(enabled && win)) return null
+  const at = (tim: number) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(tim), doc.tzOffsetMin) : `+${fmtDur(tim - base)}`)
+  const open = () => { setLabel(cur?.label ?? ''); setEditing(true) }
+  return (
+    <div className="win-notes">
+      <span className="chips" role="list" aria-label="Notes on time windows">
+        {notes.map((a) => (
+          <button key={a.id} role="listitem" className={'chip note-chip' + (a === cur ? ' on' : '')} aria-pressed={a === cur}
+            title={`${at(a.from!)} → ${at(a.to!)}\n${a.note}`} onClick={() => actions.setWindow({ startTim: a.from!, endTim: a.to! })}>
+            ✎ {a.label || preview(a.note, 28)}
+          </button>
+        ))}
+        {enabled && win && !editing && <button className="quiet" onClick={open} title="a note on the current time window, kept with the trace">✎ {cur ? 'Edit window note' : 'Annotate window'}</button>}
+      </span>
+      {editing && win ? (
+        <NoteEditor label="Note on the time window" title={`Window ${at(win.startTim)} → ${at(win.endTim)} (${fmtDur(win.endTim - win.startTim)})`} text={cur?.note}
+          onSave={(t) => {
+            if (cur) actions.updateAnnotation(cur.id, { note: t, label: label.trim() || undefined })
+            else actions.addAnnotation(makeAnnotation({ kind: 'window', note: t, from: win.startTim, to: win.endTim, ...(label.trim() ? { label: label.trim() } : {}) }))
+            setEditing(false)
+          }}
+          onCancel={() => setEditing(false)}
+          onDelete={cur ? () => { actions.removeAnnotation(cur.id); setEditing(false) } : undefined}>
+          <input type="text" value={label} placeholder="Label (optional)" aria-label="Label of the time window" onChange={(e) => setLabel(e.target.value)} />
+        </NoteEditor>
+      ) : cur && <NoteBox text={cur.label ? `${cur.label}: ${cur.note}` : cur.note} when={cur.updated} onEdit={enabled ? open : undefined} />}
+    </div>
   )
 }

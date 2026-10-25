@@ -30,6 +30,8 @@ interface Props {
   /** line → 1 (a call of the selected statement), 2 (a wait), 3 (both) */
   marks: ReadonlyMap<number, number>
   bookmarks: ReadonlySet<number>
+  /** line → the note of its bookmark (a gutter mark with the note as tooltip) */
+  notes?: ReadonlyMap<number, string>
   selected: number
   wrap: boolean
   apiRef: MutableRefObject<ViewerApi | null>
@@ -44,7 +46,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, selected, wrap, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -182,7 +184,7 @@ export function LineViewer({ cache, marks, bookmarks, selected, wrap, apiRef, to
   for (let i = base; i < end; i++) {
     const n = i + 1
     const l = cache.line(n)
-    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} />)
+    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} />)
   }
   const digits = String(Math.max(total, 1000)).length
   return (
@@ -198,12 +200,12 @@ export function LineViewer({ cache, marks, bookmarks, selected, wrap, apiRef, to
   )
 }
 
-const Row = memo(function Row({ n, text, kind, mk, sel, bm }: { n: number; text: string | undefined; kind: number; mk: number; sel: boolean; bm: boolean }) {
+const Row = memo(function Row({ n, text, kind, mk, sel, bm, note }: { n: number; text: string | undefined; kind: number; mk: number; sel: boolean; bm: boolean; note?: string }) {
   const cut = text !== undefined && text.length > MAX_TEXT
-  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '')
+  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '')
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
-      <span className="lv-ln">{n}</span>
+      <span className="lv-ln" title={note}>{n}</span>
       <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : text || ' '}</span>
     </div>
   )
