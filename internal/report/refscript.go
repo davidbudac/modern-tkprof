@@ -18,12 +18,54 @@ type RefScriptOptions struct {
 // refInListMax is Oracle's limit for an expression list (ORA-01795).
 const refInListMax = 1000
 
-// RefScript writes a SQL*Plus script that collects the reference data the
-// trace needs: names for its obj#, file# and user ids, and DBMS_XPLAN output
-// for its sql_ids. The script only reads. mtkprof itself never connects to a
-// database: the DBA runs the script and gives the spooled directory back with
-// -ref (see internal/model/ref.go and docs/REF-BUNDLE.md).
-func RefScript(m *model.Model, o RefScriptOptions) string {
+// RefColumn is one column of a CSV a RefQuery fills, named as SQL*Plus
+// prints it in the header. Number columns are written unquoted, the others
+// quoted (set markup csv on quote on).
+type RefColumn struct {
+	Name   string
+	Number bool
+}
+
+// RefQuery is one query of the reference bundle. RefScript prints it inside
+// a SPOOL; internal/remote/db runs it directly and writes the same file.
+type RefQuery struct {
+	Name    string      // objects, datafiles, users or plan
+	SQL     string      // one statement without the terminating semicolon
+	Columns []RefColumn // CSV header; nil for plans
+	Target  string      // file in the bundle: objects.csv, datafiles.csv, users.csv, plans/<sql_id>.txt
+
+	// plans only: SQL is the DBMS_XPLAN.DISPLAY_CURSOR query; when its first
+	// row says the cursor "cannot be found" (RefPlanMissing) or it returns no
+	// rows, Fallback (DISPLAY_AWR) is run instead.
+	SQLID    string
+	Fallback string
+}
+
+// Texts of the plan step, shared by the script and the direct fetch.
+const (
+	// RefPlanMissing is what DISPLAY_CURSOR prints for an aged-out cursor.
+	RefPlanMissing = "cannot be found"
+)
+
+// RefPlanNone is the plan file's line when neither query found a plan.
+func RefPlanNone(sqlID string) string { return "-- no plan found for " + sqlID }
+
+// RefPlanError is the plan file's line when the plan queries failed.
+func RefPlanError(sqlID, err string) string { return "-- no plan for " + sqlID + ": " + err }
+
+var (
+	refObjectColumns = []RefColumn{{"OBJECT_ID", true}, {"DATA_OBJECT_ID", true}, {"OWNER", false}, {"OBJECT_NAME", false}, {"SUBOBJECT_NAME", false}, {"OBJECT_TYPE", false}}
+	refFileColumns   = []RefColumn{{"FILE#", true}, {"NAME", false}, {"TABLESPACE_NAME", false}, {"FILE_TYPE", false}, {"ABS_FILE#", true}}
+	refUserColumns   = []RefColumn{{"USER_ID", true}, {"USERNAME", false}}
+)
+
+// refIDs are the numbers and ids of a trace the bundle resolves.
+type refIDs struct {
+	objs, files, uids []int64
+	sqlIDs            []string
+}
+
+func collectRefIDs(m *model.Model) refIDs {
 	objs := map[int64]bool{}
 	for i := range m.Waits {
 		if id := m.Waits[i].ObjID; id > 0 {
@@ -56,16 +98,85 @@ func RefScript(m *model.Model, o RefScriptOptions) string {
 			sqlIDs[st.SQLID] = true
 		}
 	}
-	objList, fileList, uidList := sortedKeys(objs), sortedKeys(files), sortedKeys(uids)
-	idList := make([]string, 0, len(sqlIDs))
+	r := refIDs{objs: sortedKeys(objs), files: sortedKeys(files), uids: sortedKeys(uids)}
+	r.sqlIDs = make([]string, 0, len(sqlIDs))
 	for id := range sqlIDs {
-		idList = append(idList, id)
+		r.sqlIDs = append(r.sqlIDs, id)
 	}
-	sort.Strings(idList)
+	sort.Strings(r.sqlIDs)
+	return r
+}
 
+// RefQueries are the queries that collect the reference data the trace
+// needs: names for its obj#, file# and user ids, and DBMS_XPLAN output for
+// its sql_ids. Only SELECTs; ids are literals (numbers, and sql_ids checked
+// by validSQLID). A part with nothing to look up has no query. lite: ALL_
+// views, no datafiles.
+func RefQueries(m *model.Model, lite bool) []RefQuery {
+	return collectRefIDs(m).queries(lite)
+}
+
+func (r refIDs) queries(lite bool) []RefQuery {
 	views := struct{ objects, users string }{"dba_objects", "dba_users"}
-	if o.Lite {
+	if lite {
 		views.objects, views.users = "all_objects", "all_users"
+	}
+	var qs []RefQuery
+	if len(r.objs) > 0 {
+		var terms []string
+		for _, col := range []string{"object_id", "data_object_id"} {
+			for _, c := range chunk(r.objs, refInListMax) {
+				terms = append(terms, col+" in ("+numList(c)+")")
+			}
+		}
+		qs = append(qs, RefQuery{Name: "objects", Target: "objects.csv", Columns: refObjectColumns,
+			SQL: "select object_id, data_object_id, owner, object_name, subobject_name, object_type\n" +
+				"  from " + views.objects + "\n where " + strings.Join(terms, "\n    or ") + "\n order by object_id"})
+	}
+	if !lite && len(r.files) > 0 {
+		var terms []string
+		for _, c := range chunk(r.files, refInListMax) {
+			terms = append(terms, "abs_file# in ("+numList(c)+")")
+		}
+		qs = append(qs, RefQuery{Name: "datafiles", Target: "datafiles.csv", Columns: refFileColumns,
+			SQL: "select file#, name, tablespace_name, file_type, abs_file#\n  from (\n" +
+				"    select d.file# as file#, d.name as name, t.name as tablespace_name, 'DATAFILE' as file_type, d.file# as abs_file#\n" +
+				"      from v$datafile d join v$tablespace t on t.ts# = d.ts#\n" +
+				"    union all\n" +
+				"    select f.file#, f.name, t.name, 'TEMPFILE', f.file# + (select to_number(value) from v$parameter where name = 'db_files')\n" +
+				"      from v$tempfile f join v$tablespace t on t.ts# = f.ts#\n" +
+				"  )\n where " + strings.Join(terms, "\n    or ") + "\n order by file_type, file#"})
+	}
+	if len(r.uids) > 0 {
+		var terms []string
+		for _, c := range chunk(r.uids, refInListMax) {
+			terms = append(terms, "user_id in ("+numList(c)+")")
+		}
+		qs = append(qs, RefQuery{Name: "users", Target: "users.csv", Columns: refUserColumns,
+			SQL: "select user_id, username\n  from " + views.users + "\n where " + strings.Join(terms, "\n    or ") + "\n order by user_id"})
+	}
+	for _, id := range r.sqlIDs {
+		qs = append(qs, RefQuery{Name: "plan", Target: "plans/" + id + ".txt", SQLID: id,
+			SQL:      "select plan_table_output p from table(dbms_xplan.display_cursor('" + id + "', null, 'ALLSTATS LAST +PREDICATE +ALIAS'))",
+			Fallback: "select plan_table_output p from table(dbms_xplan.display_awr('" + id + "', null, null, 'TYPICAL +PREDICATE +ALIAS'))"})
+	}
+	return qs
+}
+
+// RefScript writes a SQL*Plus script that runs RefQueries and spools their
+// output into ref/. The script only reads. The DBA runs it and gives the
+// spooled directory back with -ref (see internal/model/ref.go and
+// docs/REF-BUNDLE.md); internal/remote/db runs the same queries directly.
+func RefScript(m *model.Model, o RefScriptOptions) string {
+	ids := collectRefIDs(m)
+	byName := map[string]RefQuery{}
+	var plans []RefQuery
+	for _, q := range ids.queries(o.Lite) {
+		if q.Name == "plan" {
+			plans = append(plans, q)
+		} else {
+			byName[q.Name] = q
+		}
 	}
 
 	var b strings.Builder
@@ -90,12 +201,12 @@ func RefScript(m *model.Model, o RefScriptOptions) string {
 	w("-- READ-ONLY: only SELECTs and DBMS_XPLAN calls; nothing is created or changed.\n")
 	w("--\n")
 	w("-- It looks up what the trace refers to by number or id:\n")
-	w("--   %4d obj#     -> ref/objects.csv    (owner, name, partition, type)\n", len(objList))
+	w("--   %4d obj#     -> ref/objects.csv    (owner, name, partition, type)\n", len(ids.objs))
 	if !o.Lite {
-		w("--   %4d file#    -> ref/datafiles.csv  (datafile / tempfile name, tablespace)\n", len(fileList))
+		w("--   %4d file#    -> ref/datafiles.csv  (datafile / tempfile name, tablespace)\n", len(ids.files))
 	}
-	w("--   %4d user id  -> ref/users.csv\n", len(uidList))
-	w("--   %4d sql_id   -> ref/plans/<sql_id>.txt  (DBMS_XPLAN.DISPLAY_CURSOR, ALLSTATS LAST\n", len(idList))
+	w("--   %4d user id  -> ref/users.csv\n", len(ids.uids))
+	w("--   %4d sql_id   -> ref/plans/<sql_id>.txt  (DBMS_XPLAN.DISPLAY_CURSOR, ALLSTATS LAST\n", len(ids.sqlIDs))
 	w("--                       +PREDICATE +ALIAS; DISPLAY_AWR when the cursor has aged out)\n")
 	w("--\n")
 	w("-- Run it from a directory that has ref/ and ref/plans/ (SPOOL does not create\n")
@@ -110,93 +221,63 @@ func RefScript(m *model.Model, o RefScriptOptions) string {
 	w("set echo off feedback off verify off heading on trimspool on\n")
 	w("set linesize 32767 pagesize 50000 long 1000000\n")
 	w("set markup csv on quote on\n")
+	spool := func(q RefQuery) {
+		w("spool ref/%s\n%s;\nspool off\n", q.Target, q.SQL)
+	}
 
-	// objects
 	w("\n-- objects\n")
-	if len(objList) == 0 {
-		w("-- (no obj# in this trace)\n")
+	if q, ok := byName["objects"]; ok {
+		spool(q)
 	} else {
-		w("spool ref/objects.csv\n")
-		w("select object_id, data_object_id, owner, object_name, subobject_name, object_type\n")
-		w("  from %s\n where ", views.objects)
-		var terms []string
-		for _, col := range []string{"object_id", "data_object_id"} {
-			for _, c := range chunk(objList, refInListMax) {
-				terms = append(terms, col+" in ("+numList(c)+")")
-			}
-		}
-		w("%s\n order by object_id;\n", strings.Join(terms, "\n    or "))
-		w("spool off\n")
+		w("-- (no obj# in this trace)\n")
 	}
 
 	// datafiles (DBA only)
 	if !o.Lite {
 		w("\n-- datafiles and tempfiles; wait events report tempfiles as file# + db_files\n")
-		if len(fileList) == 0 {
-			w("-- (no file I/O waits with a file# in this trace)\n")
+		if q, ok := byName["datafiles"]; ok {
+			spool(q)
 		} else {
-			w("spool ref/datafiles.csv\n")
-			w("select file#, name, tablespace_name, file_type, abs_file#\n  from (\n")
-			w("    select d.file# as file#, d.name as name, t.name as tablespace_name, 'DATAFILE' as file_type, d.file# as abs_file#\n")
-			w("      from v$datafile d join v$tablespace t on t.ts# = d.ts#\n")
-			w("    union all\n")
-			w("    select f.file#, f.name, t.name, 'TEMPFILE', f.file# + (select to_number(value) from v$parameter where name = 'db_files')\n")
-			w("      from v$tempfile f join v$tablespace t on t.ts# = f.ts#\n")
-			w("  )\n where ")
-			var terms []string
-			for _, c := range chunk(fileList, refInListMax) {
-				terms = append(terms, "abs_file# in ("+numList(c)+")")
-			}
-			w("%s\n order by file_type, file#;\n", strings.Join(terms, "\n    or "))
-			w("spool off\n")
+			w("-- (no file I/O waits with a file# in this trace)\n")
 		}
 	}
 
-	// users
 	w("\n-- users (the uid= of the PARSING IN CURSOR lines)\n")
-	if len(uidList) == 0 {
-		w("-- (no parsing user ids in this trace)\n")
+	if q, ok := byName["users"]; ok {
+		spool(q)
 	} else {
-		w("spool ref/users.csv\n")
-		w("select user_id, username\n  from %s\n where ", views.users)
-		var terms []string
-		for _, c := range chunk(uidList, refInListMax) {
-			terms = append(terms, "user_id in ("+numList(c)+")")
-		}
-		w("%s\n order by user_id;\n", strings.Join(terms, "\n    or "))
-		w("spool off\n")
+		w("-- (no parsing user ids in this trace)\n")
 	}
 
-	// plans
 	w("\n-- execution plans, one file per sql_id. An aged-out cursor makes DISPLAY_CURSOR\n")
-	w("-- print \"cannot be found\"; the block then tries the AWR repository. Failures are\n")
+	w("-- print \"%s\"; the block then tries the AWR repository. Failures are\n", RefPlanMissing)
 	w("-- caught per sql_id, so one missing plan does not stop the others.\n")
-	if len(idList) == 0 {
+	if len(plans) == 0 {
 		w("-- (no sql_id with text in this trace)\n")
 	} else {
 		w("set markup csv off\n")
 		w("set serveroutput on size unlimited format wrapped\n")
 		w("set linesize 1000 pagesize 0 heading off tab off\n")
-		for _, id := range idList {
-			w("\nspool ref/plans/%s.txt\n", id)
+		for _, q := range plans {
+			w("\nspool ref/%s\n", q.Target)
 			w("declare\n")
 			w("  l_n    pls_integer := 0;\n")
 			w("  l_miss boolean := false;\n")
 			w("begin\n")
-			w("  for r in (select plan_table_output p from table(dbms_xplan.display_cursor('%s', null, 'ALLSTATS LAST +PREDICATE +ALIAS'))) loop\n", id)
-			w("    if l_n = 0 and r.p like '%%cannot be found%%' then l_miss := true; exit; end if;\n")
+			w("  for r in (%s) loop\n", q.SQL)
+			w("    if l_n = 0 and r.p like '%%%s%%' then l_miss := true; exit; end if;\n", RefPlanMissing)
 			w("    l_n := l_n + 1;\n")
 			w("    dbms_output.put_line(r.p);\n")
 			w("  end loop;\n")
 			w("  if l_miss or l_n = 0 then\n")
-			w("    for r in (select plan_table_output p from table(dbms_xplan.display_awr('%s', null, null, 'TYPICAL +PREDICATE +ALIAS'))) loop\n", id)
+			w("    for r in (%s) loop\n", q.Fallback)
 			w("      l_n := l_n + 1;\n")
 			w("      dbms_output.put_line(r.p);\n")
 			w("    end loop;\n")
 			w("  end if;\n")
-			w("  if l_n = 0 then dbms_output.put_line('-- no plan found for %s'); end if;\n", id)
+			w("  if l_n = 0 then dbms_output.put_line('%s'); end if;\n", RefPlanNone(q.SQLID))
 			w("exception when others then\n")
-			w("  dbms_output.put_line('-- no plan for %s: ' || sqlerrm);\n", id)
+			w("  dbms_output.put_line('%s' || sqlerrm);\n", RefPlanError(q.SQLID, ""))
 			w("end;\n/\n")
 			w("spool off\n")
 		}

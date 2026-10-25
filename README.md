@@ -146,7 +146,9 @@ redact` writes them redacted. Details: `docs/ARCHITECTURE.md`, "Spill mode".
 Reference bundle: a trace carries only numbers (obj#, file#, user ids) and
 no plan text. `mtkprof refscript` writes a read-only SQL*Plus script tailored
 to the trace; the DBA runs it and `-ref dir` applies what it spooled to every
-output. mtkprof never connects to a database. See `docs/REF-BUNDLE.md`.
+output. Only `mtkprof ref -db` (same queries, run directly) and the `trace` /
+`fetch -db` commands connect to a database. See `docs/REF-BUNDLE.md` and
+`docs/REMOTE-db.md`.
 
 ### The report
 

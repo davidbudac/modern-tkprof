@@ -137,9 +137,11 @@ the trace (its obj#, file#, uid and sql_ids). The DBA runs it; it spools
 objects, datafiles, users and DBMS_XPLAN output (DISPLAY_CURSOR with
 DISPLAY_AWR fallback). Default uses DBA views and V$ (SELECT_CATALOG_ROLE);
 `refscript -lite` emits an ALL_ views variant any schema can run.
-`--ref dir` applies the bundle to every output. The CLI never connects to a
-database; the desktop engine does (see Desktop app below), and runs the same
-queries to fetch the bundle directly.
+`--ref dir` applies the bundle to every output. The analysis commands never
+connect to a database; `mtkprof ref -db` / `trace` / `fetch -db` and the
+desktop engine do (`internal/remote/db`, docs/REMOTE-db.md), and `ref -db`
+runs the same queries (`report.RefQueries`, the values `RefScript` prints)
+to fetch the bundle directly.
 
 ## Deferred to v2
 
