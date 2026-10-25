@@ -1,6 +1,8 @@
 package trace
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,5 +113,46 @@ func TestLineIndexSparse(t *testing.T) {
 			}
 		}
 		li.Close()
+	}
+}
+
+// A saved and loaded index reads the same lines as a fresh one.
+func TestLineIndexSaveLoad(t *testing.T) {
+	p := "../../testdata/traces/19c/io_waits.trc"
+	fresh, err := OpenLineIndex(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fresh.Close()
+	var buf bytes.Buffer
+	if err := fresh.Save(&buf); err != nil {
+		t.Fatal(err)
+	}
+	saved := buf.Bytes()
+	li, err := LoadLineIndex(p, bytes.NewReader(saved))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer li.Close()
+	if li.Lines() != fresh.Lines() {
+		t.Fatalf("Lines = %d, want %d", li.Lines(), fresh.Lines())
+	}
+	for _, r := range [][2]int{{1, 1}, {1, 2000}, {63, 3}, {64, 1}, {65, 130}, {fresh.Lines() - 5, 10}, {fresh.Lines() + 1, 3}} {
+		a, _ := fresh.Read(r[0], r[1])
+		b, _ := li.Read(r[0], r[1])
+		if !bytes.Equal(a, b) {
+			t.Errorf("Read(%d, %d) differs", r[0], r[1])
+		}
+	}
+	bad := append([]byte(nil), saved...)
+	bad[len(lineIndexMagic)+8]++ // stride
+	if _, err := LoadLineIndex(p, bytes.NewReader(bad)); !errors.Is(err, ErrLineIndexFormat) {
+		t.Errorf("other stride: %v", err)
+	}
+	if _, err := LoadLineIndex("../../testdata/traces/19c/errors.trc", bytes.NewReader(saved)); !errors.Is(err, ErrLineIndexFormat) {
+		t.Errorf("other file: %v", err)
+	}
+	if _, err := LoadLineIndex(p, bytes.NewReader(saved[:len(saved)-3])); !errors.Is(err, ErrLineIndexFormat) {
+		t.Errorf("truncated: %v", err)
 	}
 }
