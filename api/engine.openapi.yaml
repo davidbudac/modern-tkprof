@@ -298,7 +298,16 @@ paths:
   /s/{id}/api/lines:
     get:
       operationId: sessionLines
-      summary: Raw lines of one input file
+      summary: Raw lines of one input file (optionally annotated with the line kinds)
+      description: |
+        Up to `n` lines (at most 2000) of input file `file`, starting at line
+        `from`. Plain: `text/plain` with the file's line count in
+        `X-Total-Lines`. With `annot=1`: JSON `{from, total, lines: [{t, k}]}`,
+        each line without its terminator and its kind `k` (`trace.Classify`,
+        see `LineKind`). A page that starts in the middle of a statement is
+        classified from the 64 lines before it; a statement longer than both
+        that and the page has wrong kinds until its `END OF STMT` (bind value
+        continuation lines and PARSE ERROR text come out as `unknown`).
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - name: file
@@ -322,24 +331,347 @@ paths:
             type: integer
             maximum: 2000
             default: 2000
+        - name: annot
+          in: query
+          description: "1: the JSON form with a kind per line"
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "0"
       responses:
         "200":
           description: the lines
           headers:
             X-Total-Lines:
-              description: the line count of the file
+              description: the line count of the file (plain form)
               schema:
                 type: integer
           content:
             text/plain:
               schema:
                 type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinesPage"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           description: no such session (envelope) or no such file (plain text)
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/lines/at:
+    get:
+      operationId: sessionLinesAt
+      summary: The first line whose call or wait has tim >= the given one
+      description: |
+        Binary search over the call rows of the file, then over its waits;
+        the smaller line wins (a call's WAIT lines come before its own line).
+        A `tim` past the last record gives the line of the last call or wait.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: tim
+          in: query
+          required: true
+          description: trace clock value in µs
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "{line}: 1-based line number"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  line:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope), no such file or a file without call and wait rows (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/at:
+    get:
+      operationId: sessionAt
+      summary: The model objects a trace line belongs to
+      description: |
+        Ids are -1 where there is no such object (`execNo` and `planLine`
+        too). By `kind` of the line: WAIT: the wait and the call it is
+        attributed to; PARSING IN CURSOR, SQL text, END OF STMT: only the
+        cursor (and its statement and context); STAT: `planLine`, the index
+        into the document's `planLines`, and the cursor; BINDS block: the
+        call (EXEC) it is attached to; anything else: the last call at or
+        before the line.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: line
+          in: query
+          required: true
+          description: 1-based line number
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: the objects at the line
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtAnswer"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope), no such file or no such line (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/search:
+    get:
+      operationId: sessionSearch
+      summary: Search the text of one input file (NDJSON stream)
+      description: |
+        Scans the file from line `from` in 4 MB chunks and streams one JSON
+        object per matching line, in line order, flushed as they are found:
+        `{line, col, text}` (`col` is the 0-based byte offset of the first
+        match, `text` the line without its terminator, cut to 400 bytes). The
+        last record is `{done: true, scanned, truncated}`: `scanned` is the
+        number of lines examined from `from`, `truncated` is true when
+        `limit` stopped the scan. A request that is cancelled (the client
+        closes the connection) stops within a chunk and ends without the done
+        record. A literal `q` cannot contain a newline.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: q
+          in: query
+          required: true
+          description: the text, or the regular expression (Go RE2 syntax) with regex=1
+          schema:
+            type: string
+        - name: regex
+          in: query
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "0"
+        - name: case
+          in: query
+          description: "1: case-sensitive; 0 folds ASCII letters (regex: (?i))"
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "1"
+        - name: from
+          in: query
+          description: 1-based first line to search
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: matches to report (above 10000 = 10000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 1000
+      responses:
+        "200":
+          description: newline-delimited JSON, SearchHit records then one SearchEnd
+          content:
+            application/x-ndjson:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SearchHit"
+                  - $ref: "#/components/schemas/SearchEnd"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope) or no such file (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/plan:
+    get:
+      operationId: sessionPlan
+      summary: The rows of one STAT plan dump (what `mtkprof plan` prints)
+      description: |
+        The statement is `stmt` (its id in the document's `statements`) or
+        `sql_id`. With `plh` the answer is the array of `PlanRow` of one
+        dump of that plan hash (visualizer input, the V$SQL_PLAN_STATISTICS_ALL
+        row format); `exec` picks the n-th STAT dump of the hash in trace
+        order, the latest when missing. Without `plh` the statement's plan
+        hashes are answered: the array when it has one, otherwise an object
+        `{"<plan hash>": [rows]}` in order of first appearance (hashes with
+        fewer than `exec` dumps are left out). The first row carries
+        `sql_text`, `execution` (the dump's number among those of the hash)
+        and `trace_line`. Compact JSON; `mtkprof plan` prints the same
+        indented.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: stmt
+          in: query
+          description: statement id (document statements index); give this or sql_id
+          schema:
+            type: integer
+            minimum: 0
+        - name: sql_id
+          in: query
+          description: the Oracle sql_id (the first statement with it)
+          schema:
+            type: string
+        - name: plh
+          in: query
+          description: plan hash value, decimal
+          schema:
+            type: string
+        - name: exec
+          in: query
+          description: n-th STAT dump of the plan hash, 1-based (0 or missing = the latest)
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: the rows of one dump, or an object of them keyed by plan hash
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/PlanRow"
+                  - type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/PlanRow"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope), no such sql_id, no STAT plan for the statement, no such plan hash or dump (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/report:
+    get:
+      operationId: sessionReport
+      summary: The CLI's outputs for this session (download)
+      description: |
+        Streams what `mtkprof report`, `json`, `export` and `html` write for
+        the session's trace, as an attachment (`Content-Disposition` names it
+        after the first input file). The session's model is the aggregate one
+        `mtkprof serve -spill` has, which shapes the outputs:
+
+        - `text`: the report of `mtkprof report -aggregate`: everything but the
+          per-statement executions tables, which it says it leaves out
+          (`execs` is accepted and has no effect). Bind values are in or out
+          as the session was opened (`options.binds`).
+        - `json`: the document with `facts: false` and `packed: false` (an
+          aggregate model has no fact tables), the plan visualizer URL of the
+          engine (`-plan-viz-url`).
+        - `csv`: a zip of the files `mtkprof export` writes (`statements.csv`
+          ... `errors.csv`, flat in the archive); calls, waits and binds are
+          read from the spill and equal the CLI's.
+        - `html`: the single-file report, the UI page with the document of
+          `json` (packed, no fact tables) inlined; the drill-downs that need
+          fact tables have nothing to show.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [text, json, csv, html]
+            default: text
+        - name: sort
+          in: query
+          description: text only, statement order
+          schema:
+            type: string
+            enum: [elapsed, self, cpu, execs, disk, query, rows, line]
+            default: elapsed
+        - name: top
+          in: query
+          description: text only, only the top N statements (0 = all)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: execs
+          in: query
+          description: text only, executions to list per statement (0 = none, -1 = all)
+          schema:
+            type: integer
+            minimum: -1
+            default: 20
+        - name: binds
+          in: query
+          description: text only, bind sets to print per statement (0 = none)
+          schema:
+            type: integer
+            minimum: 0
+            default: 5
+        - name: sys
+          in: query
+          description: text only, include recursive SYS statements
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "1"
+        - name: width
+          in: query
+          description: text only, report width (below 80 = 120)
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000
+            default: 120
+      responses:
+        "200":
+          description: the report, as an attachment
+          headers:
+            Content-Disposition:
+              description: attachment; filename="<first input without .trc>.txt|.json|.csv.zip|.html"
+              schema:
+                type: string
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+            application/zip:
+              schema:
+                type: string
+                format: binary
+            text/html:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          description: the report could not be produced (before the first byte; a failure later ends the stream short)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /s/{id}/api/pivot:
     get:
       operationId: slicePivot
@@ -901,6 +1233,14 @@ components:
       description: prompt id (p + 12 hex digits)
       schema:
         type: string
+    File:
+      name: file
+      in: query
+      description: index of the input file (document file.files order)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
     From:
       name: from
       in: query
@@ -1022,6 +1362,127 @@ components:
               truncated:
                 type: boolean
   schemas:
+    LineKind:
+      type: string
+      description: the parser's kind of a trace line (trace.Kind.String())
+      enum: [unknown, blank, header, separator, marker, parsing-in-cursor, sql-text, end-of-stmt, call, wait, stat, binds, bind-line, xctend, error, parse-error, lob, rpc]
+    LinesPage:
+      type: object
+      properties:
+        from:
+          type: integer
+        total:
+          type: integer
+          description: the line count of the file
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              t:
+                type: string
+                description: the line without its terminator
+              k:
+                $ref: "#/components/schemas/LineKind"
+    AtAnswer:
+      type: object
+      description: ids are -1 where absent
+      properties:
+        call:
+          type: integer
+        stmt:
+          type: integer
+        cursor:
+          type: integer
+        execNo:
+          type: integer
+        wait:
+          type: integer
+        bindSet:
+          type: integer
+        ctx:
+          type: integer
+        planLine:
+          type: integer
+          description: index into the document's planLines
+        kind:
+          $ref: "#/components/schemas/LineKind"
+    SearchHit:
+      type: object
+      properties:
+        line:
+          type: integer
+        col:
+          type: integer
+          description: 0-based byte offset of the first match
+        text:
+          type: string
+          description: the line, cut to 400 bytes
+    SearchEnd:
+      type: object
+      properties:
+        done:
+          type: boolean
+        scanned:
+          type: integer
+        truncated:
+          type: boolean
+    PlanRow:
+      type: object
+      description: one STAT line in the V$SQL_PLAN_STATISTICS_ALL-style row format of ora-explain-plan-viz; numbers are omitted where unknown
+      properties:
+        id:
+          type: integer
+        parent_id:
+          type: [integer, "null"]
+        depth:
+          type: integer
+        operation:
+          type: string
+        object_name:
+          type: string
+        object_id:
+          type: integer
+        object_alias:
+          type: string
+        qblock_name:
+          type: string
+        access_predicates:
+          type: string
+        filter_predicates:
+          type: string
+        cardinality:
+          type: integer
+        bytes:
+          type: integer
+        cost:
+          type: integer
+        actual_rows:
+          type: integer
+        starts:
+          type: integer
+        actual_elapsed_time:
+          type: integer
+          description: µs
+        cr_buffer_gets:
+          type: integer
+        physical_reads:
+          type: integer
+        physical_writes:
+          type: integer
+        sql_id:
+          type: string
+        plan_hash_value:
+          type: string
+        sql_text:
+          type: string
+          description: first row only
+        execution:
+          type: integer
+          description: first row only, the dump's number among those of the plan hash
+        trace_line:
+          type: integer
+          description: first row only, line of the first STAT line
     ErrorCode:
       type: string
       enum: [bad_request, unauthorized, not_found, conflict, cancelled, needs_prompt, internal]

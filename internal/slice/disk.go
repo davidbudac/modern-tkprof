@@ -351,6 +351,21 @@ func (d *diskSource) BindSetLine(set model.ID) (int, bool) {
 	return int(int32(le.Uint32(b[0:]))), true
 }
 
+func (d *diskSource) NumBindSets() int64 { return d.nSets }
+
+func (d *diskSource) BindSetAt(set model.ID) (model.BindSet, bool) {
+	var b [setRec]byte
+	if set < 0 || int64(set) >= d.nSets {
+		return model.BindSet{}, false
+	}
+	if _, err := d.sets.ReadAt(b[:], int64(set)*setRec); err != nil {
+		return model.BindSet{}, false
+	}
+	cur := model.ID(int32(le.Uint32(b[4:])))
+	return model.BindSet{ID: set, Line: int(int32(le.Uint32(b[0:]))), Cursor: cur, Statement: d.stmtOf(cur),
+		Call: model.None, N: int32(le.Uint32(b[16:])), IsRPC: b[20] != 0}, true
+}
+
 func (d *diskSource) Binds(set model.ID) []model.Bind {
 	var sb [setRec]byte
 	if set < 0 || int64(set) >= d.nSets {

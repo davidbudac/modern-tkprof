@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
 )
@@ -175,4 +176,98 @@ func PlanVizURL(base string, rows []byte) (string, error) {
 		return "", fmt.Errorf("plan is too big for a link (%d chars, limit %d); use the JSON output and paste it into the visualizer", len(url), maxPlanVizURL)
 	}
 	return url, nil
+}
+
+// PlanError is why SelectPlans found no dump: NotFound when the statement or
+// the asked-for hash/dump is not in the trace, else the request is malformed.
+type PlanError struct {
+	Msg      string
+	NotFound bool
+}
+
+func (e *PlanError) Error() string { return e.Msg }
+
+func planNotFound(format string, a ...any) error {
+	return &PlanError{Msg: fmt.Sprintf(format, a...), NotFound: true}
+}
+
+// SelectPlans picks the STAT dump to export for each requested plan hash of a
+// statement (`mtkprof plan`, GET api/plan). hash "" is every plan hash of the
+// statement in order of first appearance; otherwise the one decimal hash.
+// execN is the 1-based dump of the hash; <= 0 is the latest. Without a hash,
+// hashes with fewer than execN dumps are skipped; the result is empty only as
+// an error.
+func SelectPlans(m *model.Model, stmt model.ID, hash string, execN int) ([]*model.Plan, error) {
+	all := PlansOf(m, stmt)
+	if len(all) == 0 {
+		return nil, planNotFound("statement %d (%s) has no STAT plan in this trace", stmt, m.Statements[stmt].SQLID)
+	}
+	var hashes []uint64
+	if hash != "" {
+		h, err := strconv.ParseUint(strings.TrimSpace(hash), 10, 64)
+		if err != nil {
+			return nil, &PlanError{Msg: fmt.Sprintf("bad plan hash %q: want the decimal plan hash value", hash)}
+		}
+		hashes = []uint64{h}
+	} else {
+		for _, p := range LatestPlans(m, stmt) {
+			hashes = append(hashes, p.PLH)
+		}
+	}
+	var out []*model.Plan
+	for _, h := range hashes {
+		var dumps []*model.Plan
+		for _, p := range all {
+			if p.PLH == h {
+				dumps = append(dumps, p)
+			}
+		}
+		switch {
+		case len(dumps) == 0:
+			return nil, planNotFound("plan hash %d not found for %s (have: %s)", h, m.Statements[stmt].SQLID, hashList(m, stmt))
+		case execN <= 0:
+			out = append(out, dumps[len(dumps)-1])
+		case execN > len(dumps):
+			if hash != "" {
+				return nil, planNotFound("plan hash %d has %d dump(s), no exec %d", h, len(dumps), execN)
+			}
+		default:
+			out = append(out, dumps[execN-1])
+		}
+	}
+	if len(out) == 0 {
+		return nil, planNotFound("no plan hash of %s has %d dumps", m.Statements[stmt].SQLID, execN)
+	}
+	return out, nil
+}
+
+func hashList(m *model.Model, stmt model.ID) string {
+	var hs []string
+	for _, p := range LatestPlans(m, stmt) {
+		hs = append(hs, strconv.FormatUint(p.PLH, 10))
+	}
+	return strings.Join(hs, ", ")
+}
+
+// PlansJSON is what `mtkprof plan` prints for the selected dumps, compact:
+// the row array for one dump, else {"<hash>": rows, ...} in the order of
+// plans (a hash twice keeps the later).
+func PlansJSON(m *model.Model, plans []*model.Plan) ([]byte, error) {
+	if len(plans) == 1 {
+		return json.Marshal(PlanRows(m, plans[0]))
+	}
+	var b bytes.Buffer
+	b.WriteByte('{')
+	for i, p := range plans {
+		rows, err := json.Marshal(PlanRows(m, p))
+		if err != nil {
+			return nil, err
+		}
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(&b, "%q:%s", strconv.FormatUint(p.PLH, 10), rows)
+	}
+	b.WriteByte('}')
+	return b.Bytes(), nil
 }

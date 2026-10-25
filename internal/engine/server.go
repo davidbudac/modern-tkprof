@@ -34,6 +34,9 @@ type Options struct {
 	CacheDir string
 	CacheCap int64
 	Version  string // engine version, reported by health
+	// PlanVizURL is the plan visualizer base URL of the JSON and HTML
+	// reports ("" = report.DefaultPlanVizURL, the CLI's default).
+	PlanVizURL string
 	// Logf receives the engine's log lines (also sent as log events); nil = discarded.
 	Logf func(format string, a ...any)
 	// KeepAlive is the interval of the SSE keepalive comment (0 = 15 s).

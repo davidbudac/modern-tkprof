@@ -304,10 +304,11 @@ UI's window), `contexts` (comma separated ids), `stmt`, `event` (waits only) and
 | `/api/profile` | CPU of top-level calls and waits per event in scope (the ledger, the top bar, the Waits table) | |
 | `/api/stmt/roles` | wait time per statement and wait class (the bars of the Statements list) | |
 | `/api/stmt/waits?stmt=1,2&max=` / `/api/stmt/spans?stmt=1,2&gap=µs` | top wait events of statements (with `maxLine` + `maxCtx`) / their merged call intervals (Overview notes, Lanes) | 200 statements |
+| `/api/plan?stmt\|sql_id&plh&exec` | the rows of one STAT dump as `mtkprof plan` prints them (`report.PlanRow`; several plan hashes without `plh`: `{hash: rows}`); needs only the model | |
 
 Every row that carries a trace `line` also carries `ctx` (the context id; `/api/executions` rows and `executions/detail` have it too), so the UI maps it to the input file with `doc.fileOfCtx` and line links open the right file of a multi-file trace set. `stmt/spans` has no lines, hence no `ctx`.
 
-**Line endpoints** (`Server.WithLines(lis)` adds them to `Handler()`; they need the line indexes, so the slice server alone does not serve them):
+**Line endpoints** (`Server.WithLines(lis)` adds them to `Handler()`; they need the line indexes, so the slice server alone does not serve them; the engine and `serve`'s slicing modes call it):
 
 | endpoint | answers |
 |---|---|
@@ -646,13 +647,26 @@ not `EventSource`.
 health, `events` (SSE), `prompts/{id}`, `sessions` (open, list, get, close),
 `jobs` (list, cancel), `cache` (list, remove one, wipe). Per session
 (`sessionRoutes` in `session.go`, mounted under `/s/{id}`): `api/doc`,
-`api/lines` and the 13 endpoints of `internal/slice`. Request and response
+`api/report` (`internal/engine/report.go`), and the endpoints of
+`internal/slice`: the 14 JSON ones (the 13 above and `api/plan`, `plan.go`)
+and the line endpoints (`lines` incl. `annot=1`, `lines/at`, `at`, `search`,
+mounted with `WithLines(co.Lines)`). Request and response
 shapes, status codes and error codes are in `api/engine.openapi.yaml`
 (protocol 1); `internal/engine/contract_test.go` walks `Server.Routes()` and
 fails when a route is missing from the schema or the schema has a route the
 engine does not serve (it also checks the protocol number and the schemas).
-Change the YAML and the code together. Not built yet: the lines/search/at
-routes (E6), ref, report, connections (see `docs/PLAN-DESKTOP.md` § 2).
+Change the YAML and the code together. Not built yet: ref, connections
+(see `docs/PLAN-DESKTOP.md` § 2).
+
+`api/report?format=text|json|csv|html` streams the CLI outputs of the
+session's (aggregate) model: `report.Text` with the CLI's defaults (so no
+executions tables, as `report -aggregate`), `report.JSON` without facts,
+`report.ExportCSVZip` (same tables and bytes as `export`; calls, waits and
+binds come from the spill through `report.CSVFacts` = `slice.FactSource`),
+and the standalone HTML. `api/plan?stmt|sql_id&plh&exec` is `mtkprof plan`
+(`report.SelectPlans`). `mtkprof serve` has the line endpoints and `plan` in
+its slicing modes (`-spill`, `-facts=false`, `-slice`); plain `serve` keeps
+the standalone `/api/lines`.
 
 **Sessions, jobs, events, prompts**
 

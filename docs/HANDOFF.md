@@ -134,7 +134,8 @@ Endpoints and query parameters of the per-session API are the ones of `serve
 | engine RSS idle | < 300 MB with 2 GB open | 27 MB after a hit on `big_loop.trc` |
 | cache entry size | | ≈ the trace size |
 | pivot on 1 GB / 2 GB | ≤ 300 ms / ≤ 600 ms | spill numbers from "Spill mode" (290 ms at 1 GB); not re-measured through the engine |
-| `api/lines` page, search, follow, minimap 60 fps | | not built / not measured (E6, S5) |
+| `api/report` on `big_loop.trc` (118 MB, session open) | | text/json/html 5-8 ms (`html` 1.3 MB), csv 1.9 s (16 MB zip); `MTKPROF_BIG=... go test ./internal/engine -run ReportBig -v` |
+| `api/lines` page, search, follow, minimap 60 fps | | lines/at/at/search measured in `TestMeasureBig` (`internal/slice`); follow, minimap and the UI (S5) not built |
 
 **What the next phases need**
 
@@ -148,12 +149,15 @@ Endpoints and query parameters of the per-session API are the ones of `serve
   `EventSource`. Things the shell must handle: `failed` sessions with
   `error: "cancelled"`, 409 on removing an open cache entry, `options.follow`
   not implemented (400).
-- E6 (lines API: `lines annot`, `lines/at`, `at`, `search`, `trace.Classify`)
-  is in progress on branch `t3/lines-api` by another agent; it adds routes to
-  the OpenAPI file and the contract test, and needs no cache format change
-  unless it adds index files (then bump `CacheIndexFormat`).
-- E7–E10 (prompts + ssh, db, CLI subcommands, report endpoint) have not
-  started; `internal/remote` only holds the `Prompter` interface so far.
+- E6 (lines API) and E10 (`api/report`) are done, plus `api/plan`: the session
+  mounts `lines` (also `annot=1`), `lines/at`, `at`, `search`, `plan` and
+  `report` (see "As built" in `docs/PLAN-DESKTOP.md` § 2); `mtkprof serve`
+  serves the first five in its slicing modes. No cache format change.
+  Report limits: a session's model is the aggregate one, so the text report
+  has no executions tables and says "bind sets 0" in its Volume line, the
+  JSON and HTML documents have no fact tables.
+- E7–E9 (prompts + ssh, db, CLI subcommands) have not started;
+  `internal/remote` only holds the `Prompter` interface so far.
 - Known limits: sessions are never evicted (closing is the client's job);
   `rev` stays 1; `GET /engine/cache` costs one `readdir` + manifest read per
   entry; a 2 GB trace has not been run through the engine.

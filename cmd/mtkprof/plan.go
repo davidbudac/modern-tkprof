@@ -58,7 +58,7 @@ func cmdPlan(args []string) error {
 	if stmt == model.None {
 		return fmt.Errorf("sql_id %s not found in %s", *sqlID, strings.Join(files, " "))
 	}
-	plans, err := selectPlans(m, stmt, *hash, *execN)
+	plans, err := report.SelectPlans(m, stmt, *hash, *execN)
 	if err != nil {
 		return err
 	}
@@ -90,78 +90,16 @@ func cmdPlan(args []string) error {
 		return err
 	}
 	// several hashes: {"<hash>": [rows], ...} in first-seen order
-	var b bytes.Buffer
-	b.WriteByte('{')
-	for i, p := range plans {
-		rows, err := json.Marshal(report.PlanRows(m, p))
-		if err != nil {
-			return err
-		}
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		fmt.Fprintf(&b, "%q:%s", strconv.FormatUint(p.PLH, 10), rows)
+	compact, err := report.PlansJSON(m, plans)
+	if err != nil {
+		return err
 	}
-	b.WriteByte('}')
 	var ind bytes.Buffer
-	if err := json.Indent(&ind, b.Bytes(), "", "  "); err != nil {
+	if err := json.Indent(&ind, compact, "", "  "); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(w, "%s\n", ind.Bytes())
 	return err
-}
-
-// selectPlans picks the dump to export for each requested plan hash.
-func selectPlans(m *model.Model, stmt model.ID, hash string, execN int) ([]*model.Plan, error) {
-	all := report.PlansOf(m, stmt)
-	if len(all) == 0 {
-		return nil, fmt.Errorf("statement %s has no STAT plan in this trace", m.Statements[stmt].SQLID)
-	}
-	var hashes []uint64
-	if hash != "" {
-		h, err := strconv.ParseUint(strings.TrimSpace(hash), 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("bad -plan-hash %q: want the decimal plan hash value", hash)
-		}
-		hashes = []uint64{h}
-	} else {
-		for _, p := range report.LatestPlans(m, stmt) {
-			hashes = append(hashes, p.PLH)
-		}
-	}
-	var out []*model.Plan
-	for _, h := range hashes {
-		var dumps []*model.Plan
-		for _, p := range all {
-			if p.PLH == h {
-				dumps = append(dumps, p)
-			}
-		}
-		switch {
-		case len(dumps) == 0:
-			return nil, fmt.Errorf("plan hash %d not found for %s (have: %s)", h, m.Statements[stmt].SQLID, hashList(m, stmt))
-		case execN <= 0:
-			out = append(out, dumps[len(dumps)-1])
-		case execN > len(dumps):
-			if hash != "" {
-				return nil, fmt.Errorf("plan hash %d has %d dump(s), no -exec %d", h, len(dumps), execN)
-			}
-		default:
-			out = append(out, dumps[execN-1])
-		}
-	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("no plan hash of %s has %d dumps", m.Statements[stmt].SQLID, execN)
-	}
-	return out, nil
-}
-
-func hashList(m *model.Model, stmt model.ID) string {
-	var hs []string
-	for _, p := range report.LatestPlans(m, stmt) {
-		hs = append(hs, strconv.FormatUint(p.PLH, 10))
-	}
-	return strings.Join(hs, ", ")
 }
 
 func listPlans(w interface{ Write([]byte) (int, error) }, m *model.Model) error {
