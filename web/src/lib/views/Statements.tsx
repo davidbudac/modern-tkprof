@@ -39,6 +39,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   const [sortKey, setSortKey] = useState<SortKey>('resp')
   const [listW, setListW] = usePersisted<number | null>('mtkprof.listW', null)
   const [ctxW, setCtxW] = usePersisted<number | null>('mtkprof.contextW', null)
+  const [ctxOpen, setCtxOpen] = usePersisted<boolean>('mtkprof.contextOpen', true)
   const totalUs = doc.spanUs()
   const source = sourceOf(doc)
   const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
@@ -78,7 +79,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   })
 
   return (
-    <div className="wb" style={{ ...(listW ? { '--list-w': `${listW}px` } : null), ...(ctxW ? { '--context-w': `${ctxW}px` } : null) } as CSSProperties}>
+    <div className={'wb' + (ctxOpen ? '' : ' ctx-closed')} style={{ ...(listW ? { '--list-w': `${listW}px` } : null), ...(ctxW ? { '--context-w': `${ctxW}px` } : null) } as CSSProperties}>
       <aside className="wb-list" aria-label="Statements">
         <div className="wb-head">
           <div className="t"><h2>Statements</h2><span className="dim">{rows.length === doc.statements.length ? rows.length : `${rows.length} of ${doc.statements.length}`}</span></div>
@@ -125,11 +126,13 @@ export function Statements({ doc }: { doc: TraceDoc }) {
       <section className="wb-detail">
         {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} /> : <p className="muted">No statement selected.</p>}
       </section>
-      <aside className="wb-ctx" aria-label="Context">
+      {ctxOpen && <aside className="wb-ctx" aria-label="Context">
         {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} />}
-      </aside>
+      </aside>}
       <ResizeHandle anchor="start" className="resizer-list" label="Resize statement list" min={240} maxFrac={0.4} onChange={setListW} />
-      <ResizeHandle anchor="end" className="resizer-ctx" label="Resize context pane" min={240} maxFrac={0.4} onChange={setCtxW} />
+      {ctxOpen && <ResizeHandle anchor="end" className="resizer-ctx" label="Resize context pane" min={240} maxFrac={0.4} onChange={setCtxW} />}
+      <button className="ctx-toggle" onClick={() => setCtxOpen(!ctxOpen)} aria-expanded={ctxOpen}
+        aria-label={ctxOpen ? 'Hide context pane' : 'Show context pane'} title={ctxOpen ? 'Hide context pane' : 'Show context pane'}>{ctxOpen ? '›' : '‹'}</button>
     </div>
   )
 }
