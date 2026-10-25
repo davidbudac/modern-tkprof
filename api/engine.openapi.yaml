@@ -1716,6 +1716,66 @@ paths:
                       $ref: "#/components/schemas/StmtStats"
         "400":
           $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/findings:
+    get:
+      operationId: sliceFindings
+      summary: The document's findings (doc.stats.findings) over the scope
+      description: |
+        `analyze.FindingsOn`: the finding rules over the rows in scope, with
+        the thresholds of the document's findings, the same JSON as
+        `doc.stats.findings` (most severe first). Without parameters it
+        equals `doc.stats.findings`. The statement table is that of
+        `api/statements`, the executions are those whose EXEC call is in
+        scope, the waits, commits and round trips those in scope, and the
+        response time the severities are measured against is the window,
+        else the span of the files of the selected contexts. A finding with
+        `scope: "set"` is about the whole trace set and was not narrowed
+        (no current rule is). `idle` is accepted and changes nothing.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Idle"
+      responses:
+        "200":
+          description: "{findings: [Finding]}"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [findings]
+                properties:
+                  findings:
+                    type: array
+                    items:
+                      type: object
+                      required: [rule, title, severity, summary, statement, impactUs, evidence]
+                      properties:
+                        rule:
+                          type: string
+                        title:
+                          type: string
+                        severity:
+                          type: string
+                          enum: [serious, notable, info]
+                        summary:
+                          type: string
+                        statement:
+                          type: integer
+                          description: statement id, -1 for a trace-level finding
+                        impactUs:
+                          type: integer
+                        evidence:
+                          type: array
+                          items:
+                            type: object
+                        scope:
+                          type: string
+                          enum: [set]
+                          description: present when the finding is about the whole set (not narrowed)
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
   /s/{id}/api/stmt/roles:
     get:
       operationId: sliceStmtRoles

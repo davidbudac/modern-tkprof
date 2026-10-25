@@ -172,8 +172,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 22 {
-		t.Errorf("%d session routes, want doc, report, the 15 slice endpoints, the 4 line endpoints and ref", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 23 {
+		t.Errorf("%d session routes, want doc, report, the 16 slice endpoints, the 4 line endpoints and ref", n)
 	}
 }
 

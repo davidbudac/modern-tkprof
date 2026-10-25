@@ -17,6 +17,7 @@
 //	/api/waits/by        wait time by statement, object, p1 or p2 (real keys)
 //	/api/profile         CPU and waits per event in scope
 //	/api/statements      the document's statement table over the scope
+//	/api/findings        the document's findings over the scope
 //	/api/stmt/roles      wait time per statement and wait class
 //	/api/stmt/waits      top wait events of statements
 //	/api/stmt/spans      merged time intervals of statements' calls
@@ -68,6 +69,10 @@ type Server struct {
 	// "*" (serve, and the dev server of `pnpm dev`); NoCORS sets no CORS
 	// headers and leaves OPTIONS to the caller's middleware (the engine).
 	AllowOrigin string
+
+	// Thresholds are those of /api/findings (nil: analyze.DefaultThresholds),
+	// the ones the document's findings were built with.
+	Thresholds *analyze.Thresholds
 
 	mu    sync.Mutex
 	cache map[string][]byte // GET query -> response body
@@ -144,6 +149,7 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		"/api/waits/by":          s.waitsBy,
 		"/api/profile":           s.profile,
 		"/api/statements":        s.statements,
+		"/api/findings":          s.findings,
 		"/api/stmt/roles":        s.stmtRoles,
 		"/api/stmt/waits":        s.stmtWaits,
 		"/api/stmt/spans":        s.stmtSpans,
@@ -932,6 +938,32 @@ func (s *Server) statements(ctx context.Context, q url.Values) (any, error) {
 	return struct {
 		Statements []analyze.StmtStats `json:"statements"`
 	}{st}, nil
+}
+
+// ---- /api/findings -------------------------------------------------------------
+
+// findings is doc.stats.findings (analyze.Findings) over the scope
+// (analyze.FindingsOn). idle is accepted and has no effect (the idle-time
+// rules always count idle waits).
+func (s *Server) findings(ctx context.Context, q url.Values) (any, error) {
+	if q.Get("stmt") != "" {
+		return nil, bad("stmt: not supported by findings")
+	}
+	f, err := s.filter(q, false)
+	if err != nil {
+		return nil, err
+	}
+	th := analyze.DefaultThresholds()
+	if s.Thresholds != nil {
+		th = *s.Thresholds
+	}
+	fs, err := analyze.FindingsOnWith(ctx, s.m, s.src, f, th)
+	if err != nil {
+		return nil, err
+	}
+	return struct {
+		Findings []analyze.Finding `json:"findings"`
+	}{fs}, nil
 }
 
 func (s *Server) stmtRoles(ctx context.Context, q url.Values) (any, error) {

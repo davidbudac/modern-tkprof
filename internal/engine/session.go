@@ -444,6 +444,7 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) http.Handler {
 	ssrv := slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
 	ssrv.AllowOrigin = slice.NoCORS                                  // the engine's middleware sets CORS
+	ssrv.Thresholds = ss.th                                          // api/findings: those of the document's findings
 	handlers := map[string]http.Handler{
 		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
