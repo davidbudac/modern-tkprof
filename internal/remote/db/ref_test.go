@@ -280,4 +280,3 @@ func TestFetchRefLite(t *testing.T) {
 		t.Errorf("first query %q", fc.calls[0].SQL)
 	}
 }
-

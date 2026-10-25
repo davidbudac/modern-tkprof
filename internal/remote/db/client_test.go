@@ -290,7 +290,9 @@ func TestTrace(t *testing.T) {
 	if !ValidPlanStat("FIRST_EXECUTION") || !ValidPlanStat("never") || ValidPlanStat("all") {
 		t.Error("ValidPlanStat")
 	}
-	fc.exec = func(string, []any) error { return oraErr(6550, "PLS-00201: identifier 'DBMS_MONITOR' must be declared") }
+	fc.exec = func(string, []any) error {
+		return oraErr(6550, "PLS-00201: identifier 'DBMS_MONITOR' must be declared")
+	}
 	if err := c.Trace(ctx, 1, 2, true, TraceOptions{}); !IsORA(err, 6550) || !strings.Contains(err.Error(), "session_trace_enable(1, 2)") {
 		t.Errorf("err %v", err)
 	}
