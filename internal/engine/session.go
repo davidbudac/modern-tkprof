@@ -332,8 +332,9 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 		th = *ss.th
 	}
 	opts := model.Options{NoFacts: true, Aggregate: true, SpillBinds: ss.bindMode != model.BindsNone,
-		NewSink: func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) },
-		NewTee:  func(m *model.Model) model.Sink { return &cancelSink{ctx: ctx, sink: sp.Attach(m), binds: sp} },
+		NewSink:    func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) },
+		NewTee:     func(m *model.Model) model.Sink { return &cancelSink{ctx: ctx, sink: sp.Attach(m), binds: sp} },
+		OnProgress: job.Progress,
 	}
 	m, err := buildFiles(ss.paths, opts)
 	if err != nil {
