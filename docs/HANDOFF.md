@@ -141,8 +141,12 @@ Needs a person or a machine:
   way for `834d7e4`, and `scripts/smoke.sh` passed under `xvfb-run` +
   `dbus-run-session` in that container (open, kill, restart, re-open from
   the cache); the AppImage fails in Docker (`failed to run
-  linuxdeploy`: no FUSE; `APPIMAGE_EXTRACT_AND_RUN=1` was not enough) and is
-  only produced by GitHub's runner.
+  linuxdeploy`: the linuxdeploy plugin's static-pie runtime does not execute
+  in the container at all, with or without `/dev/fuse` and
+  `APPIMAGE_EXTRACT_AND_RUN=1`) and is only produced by GitHub's runner.
+  macOS legs: `mtkprof-desktop/docs/HANDOFF-macos-build.md` is the recipe
+  for a session on the MacBook (no T3 session there is reachable from
+  dbmint).
 - Stray 32 MB binary in history (`mtkprof` at the repo root, removed in
   `a89bc12`); a history rewrite is the user's call, relevant before the repo is
   published.

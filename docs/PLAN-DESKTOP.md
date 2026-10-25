@@ -22,8 +22,11 @@ below) and the CI smoke test under Xvfb in the same container for `834d7e4`:
 the app opened `io_waits.trc`, the simulated engine crash was followed by a
 restart within 1 s and the trace re-opened from the cache (6 ms); the
 screenshots matched the CI legs' earlier ones. Not run locally: the Windows
-and macOS legs (impossible here) and the AppImage (linuxdeploy needs FUSE;
-`APPIMAGE_EXTRACT_AND_RUN=1` alone did not help, see HANDOFF "Open").
+and macOS legs (impossible here) and the AppImage: linuxdeploy's static-pie AppImage runtime does not execute
+at all inside Docker on this host (`cannot execute: required file not
+found`, even with `/dev/fuse` and `APPIMAGE_EXTRACT_AND_RUN=1`); the
+AppImage is produced only by the GitHub runner. macOS legs: a handoff for a
+session on the MacBook is in the desktop repo, `docs/HANDOFF-macos-build.md`.
 
 **Blocked on the user.**
 
