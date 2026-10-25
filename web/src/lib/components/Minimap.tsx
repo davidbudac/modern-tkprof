@@ -6,7 +6,7 @@ import { cssColor } from './colors'
 
 /**
  * The whole trace in a strip: CPU and wait classes stacked per bucket, the current time window shaded.
- * Drag sets the window; a click with a window set re-centres it. Renders nothing for documents without `stats.minimap`.
+ * Drag sets the window; a click inside the window re-centres it, a click outside clears it. Renders nothing for documents without `stats.minimap`.
  */
 export function Minimap({ doc, height = 28 }: { doc: TraceDoc; height?: number }) {
   const mm = doc.stats.minimap
@@ -74,8 +74,10 @@ export function Minimap({ doc, height = 28 }: { doc: TraceDoc; height?: number }
     setDrag(null)
     if (Math.abs(d.x1 - d.x0) < 4) {
       if (!win) return
+      const t = timAt(d.x1)
+      if (t < win.startTim || t > win.endTim) { actions.setWindow(null); return }
       const half = (win.endTim - win.startTim) / 2
-      const mid = Math.min(base + spanUs - half, Math.max(base + half, timAt(d.x1)))
+      const mid = Math.min(base + spanUs - half, Math.max(base + half, t))
       actions.setWindow({ startTim: mid - half, endTim: mid + half })
       return
     }
