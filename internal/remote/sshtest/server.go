@@ -270,8 +270,14 @@ func (s *Server) session(ch ssh.Channel, reqs <-chan *ssh.Request) {
 // SIGPIPE on the next write) but does not kill it; a process still running
 // 3 s later is counted as lingering (Lingered) and killed.
 func (s *Server) exec(ch ssh.Channel, reqs <-chan *ssh.Request, cmd string) {
-	p := exec.Command("sh", "-c", cmd)
-	p.Env = append(os.Environ(), s.o.Env...)
+	shell := "sh"
+	env := os.Environ()
+	if _, err := os.Stat("/bin/sh"); err == nil {
+		// as sshd: a default PATH, whatever the test set
+		shell, env = "/bin/sh", append(env, "PATH=/usr/local/bin:/usr/bin:/bin")
+	}
+	p := exec.Command(shell, "-c", cmd)
+	p.Env = append(env, s.o.Env...)
 	newGroup(p)
 	stdin, err1 := p.StdinPipe()
 	stdout, err2 := p.StdoutPipe()
