@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useStore, useActions, useStoreApi, usePersisted, ResizeHandle, PaneToggle, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, Lines, loadFile } from '@lib'
+import { useStore, useActions, useStoreApi, usePersisted, filesPanelOpen, ResizeHandle, PaneToggle, FilesPane, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, Lines, loadFile } from '@lib'
 import { TopBar, SubBar } from './TopBar'
 import { Inspector } from './Inspector'
 import { LineDrawer } from './LineDrawer'
@@ -17,6 +17,8 @@ export function App() {
   const lines = useStore((s) => s.lineViewer !== null)
   const [infoBar, setInfoBar] = usePersisted<boolean>('mtkprof.infoBar', true)
   const [inspectorW, setInspectorW] = usePersisted<number | null>('mtkprof.inspectorW', null)
+  const [filesW, setFilesW] = usePersisted<number | null>('mtkprof.filesW', null)
+  const filesOpen = useStore((s) => filesPanelOpen(s))
   // the event whose inspector was collapsed: picking another event opens it again
   const [collapsedFor, setCollapsedFor] = useState<number | null>(null)
 
@@ -39,10 +41,11 @@ export function App() {
   const inspectorOpen = event !== null && collapsedFor !== event
   const full = view === 'statements' || view === 'lines'
   return (
-    <div className={'shell' + (inspectorOpen ? ' has-inspector' : '') + (lines ? ' has-lines' : '') + (infoBar ? '' : ' no-subbar')}>
+    <div className={'shell' + (filesOpen ? ' has-files' : '') + (inspectorOpen ? ' has-inspector' : '') + (lines ? ' has-lines' : '') + (infoBar ? '' : ' no-subbar')}>
       <TopBar doc={doc} onShowInfo={infoBar ? undefined : () => setInfoBar(true)} />
       {infoBar && <SubBar doc={doc} onClose={() => setInfoBar(false)} />}
-      <div className="body" style={inspectorW ? ({ '--inspector-w': `${inspectorW}px` } as CSSProperties) : undefined}>
+      <div className="body" style={{ ...(inspectorW ? { '--inspector-w': `${inspectorW}px` } : null), ...(filesW ? { '--files-w': `${filesW}px` } : null) } as CSSProperties}>
+        <FilesPane doc={doc} onWidth={setFilesW} />
         <main className={'main' + (full ? ' full' : '')}>
           {view === 'overview' && <Overview doc={doc} />}
           {view === 'statements' && <Statements doc={doc} />}

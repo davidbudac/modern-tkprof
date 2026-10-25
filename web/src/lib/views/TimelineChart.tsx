@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { ctxKey } from '../data/fileset'
 import type { EChartsOption } from 'echarts'
 import type { TraceDoc } from '../data/doc'
 import { Chart } from '../components/Chart'
@@ -16,7 +17,7 @@ export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'even
   const bucketUs = useMemo(() => pickBucket(doc.spanUs()), [doc])
   const source = sourceOf(doc)
   const scope = { ...scopeOf(state), window: null }
-  const raw = useSourceQuery(source, `chart:${bucketUs}:${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}:${scope.includeIdle ? 1 : 0}`,
+  const raw = useSourceQuery(source, `chart:${bucketUs}:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`,
     (signal) => (source.ready ? source.timeline(bucketUs, scope, signal) : null), 'chart')
   const data = useMemo(() => (raw.data ? foldTimeline(doc, raw.data, by) : { starts: [] as number[], series: [] as { key: string; label: string; role: Role; values: Float64Array }[] }), [doc, raw.data, by])
   const option = useMemo<EChartsOption>(() => {

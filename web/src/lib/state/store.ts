@@ -4,6 +4,7 @@ import type { ID } from '../data/types'
 import type { Fact } from '../data/pivot'
 import type { Annotation } from '../data/annotations'
 import { pivotConfigOf, resolvePivotConfig, type PivotConfig } from '../data/pivotconfig'
+import { contextsWithin, effectiveContexts, normalizeFiles } from '../data/fileset'
 
 export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
   | 'annotations' | 'reports' // desktop shell views
@@ -55,7 +56,11 @@ export interface State {
   view: View
   selection: Selection
   window: TimeWindow | null
-  contexts: Set<ID> | null // context filter; null = all
+  contexts: Set<ID> | null // explicit context selection (Sessions view); null = all
+  /** input files whose traces the views show (Files panel); null = all. The server filter is `scopeOf(state).contexts`. */
+  files: Set<number> | null
+  /** the Files panel is open (null = the default: open for a document of several files) */
+  filesOpen: boolean | null
   includeIdle: boolean
   inclusive: boolean // call statistics: inclusive of recursive children (true) or self (false)
   theme: 'auto' | 'light' | 'dark'
@@ -81,7 +86,7 @@ export interface State {
 const initial: State = {
   doc: null, compare: null, side: 'a', loading: true, error: null, view: 'overview',
   selection: { stmt: null, event: null, call: null, exec: null },
-  window: null, contexts: null, includeIdle: true, inclusive: false, theme: 'auto',
+  window: null, contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, theme: 'auto',
   linesAvailable: false, lineViewer: null,
   linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
@@ -123,7 +128,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 } })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 } })
   }
   const getPivotConfig = (opts?: { clock?: boolean }) => pivotConfigOf(state, opts)
   const applyPivotConfig = (cfg: PivotConfig) => {
@@ -148,18 +153,29 @@ function makeActions(setState: Store['setState']) {
     setSide(side: Side) {
       setState((s) => {
         if (!s.compare || s.side === side) return {}
-        return { side, doc: s.compare[side], window: null, contexts: null, lineViewer: null, bookmarks: [], selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], window: null, contexts: null, files: null, lineViewer: null, bookmarks: [], selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
       })
     },
     /** Open a statement of side `side` in the Statements workbench. */
     openStmtOn(side: Side, stmt: ID) {
       setState((s) => {
         if (!s.compare) return { view: 'statements', selection: { stmt, event: null, call: null, exec: null } }
-        return { side, doc: s.compare[side], view: 'statements', window: null, contexts: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], view: 'statements', window: null, contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
       })
     },
     setWindow(window: TimeWindow | null) { setState({ window }) },
     setContexts(contexts: Set<ID> | null) { setState({ contexts }) },
+    setFilesOpen(filesOpen: boolean) { setState({ filesOpen }) },
+    /**
+     * Show only the traces of these input files (null = all; a set holding every file is the same as null). A context selection
+     * outside the files is dropped. An empty set shows nothing.
+     */
+    setFiles(files: Set<number> | null) {
+      setState((s) => {
+        const f = normalizeFiles(s.doc, files)
+        return { files: f, contexts: contextsWithin(s.doc, s.contexts, f) }
+      })
+    },
     toggleIdle() { setState((s) => ({ includeIdle: !s.includeIdle })) },
     setInclusive(inclusive: boolean) { setState({ inclusive }) },
     openLines(line: number, file = 0) { setState({ lineViewer: { target: line, center: line, file } }) },
@@ -207,12 +223,29 @@ function makeActions(setState: Store['setState']) {
     },
   }
 }
-/** What narrows the fact rows: the time window, the session contexts and (waits) the idle toggle. */
-export interface Scope { window: TimeWindow | null; contexts: Set<ID> | null; includeIdle: boolean }
+/**
+ * What narrows the fact rows: the time window, the session contexts and (waits) the idle toggle. `contexts` is the effective
+ * context filter (explicit selection and the contexts of the selected `files`, see `effectiveContexts`), so every consumer
+ * that filters or queries by contexts follows the file selection; `files` is carried for the views that show it.
+ */
+export interface Scope { window: TimeWindow | null; files: Set<number> | null; contexts: Set<ID> | null; includeIdle: boolean }
 
-export function scopeOf(s: Pick<State, 'window' | 'contexts' | 'includeIdle'>): Scope {
-  return { window: s.window, contexts: s.contexts, includeIdle: s.includeIdle }
+let lastEffective: { doc: TraceDoc | null; files: Set<number> | null; contexts: Set<ID> | null; out: Set<ID> | null } | null = null
+
+export function scopeOf(s: Pick<State, 'doc' | 'window' | 'files' | 'contexts' | 'includeIdle'>): Scope {
+  // memoised on identity: the same state gives the same Set (views key effects on it)
+  const m = lastEffective
+  let contexts: Set<ID> | null
+  if (m && m.doc === s.doc && m.files === s.files && m.contexts === s.contexts) contexts = m.out
+  else {
+    contexts = effectiveContexts(s.doc, s.files, s.contexts)
+    lastEffective = { doc: s.doc, files: s.files, contexts: s.contexts, out: contexts }
+  }
+  return { window: s.window, files: s.files, contexts, includeIdle: s.includeIdle }
 }
+
+/** The scope narrows the fact rows to less than the whole trace (a time window, or contexts: a selection of sessions or of files). */
+export const scopeNarrows = (sc: Pick<Scope, 'window' | 'contexts'>): boolean => !!(sc.window || sc.contexts)
 
 /** Row predicate for the current filters (time window + context). */
 export function callFilter(s: Pick<State, 'doc' | 'window' | 'contexts'>): ((i: number) => boolean) | undefined {
@@ -238,4 +271,9 @@ export function waitFilter(s: Pick<State, 'doc' | 'window' | 'contexts' | 'inclu
     if (c && !c.has(ctx[i])) return false
     return true
   }
+}
+
+/** Whether the Files panel is shown: the user's choice, else open for a document of several files (none for a single file). */
+export function filesPanelOpen(s: Pick<State, 'doc' | 'filesOpen'>): boolean {
+  return !!s.doc?.multiFile && (s.filesOpen ?? true)
 }

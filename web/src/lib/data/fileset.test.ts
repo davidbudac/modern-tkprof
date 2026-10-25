@@ -1,0 +1,131 @@
+import { describe, expect, it } from 'vitest'
+import {
+  ctxKey, clickFile, contextsOfFiles, contextsWithin, effectiveContexts, fileTree, formatFilesParam, invert, normalizeFiles, parseFilesParam, scopeSpanUs, toggleFile,
+  type FileSetDoc,
+} from './fileset'
+import type { FileEntry } from './types'
+
+const f = (idx: number, extra: Partial<FileEntry> = {}): FileEntry => ({ idx, name: `f${idx}`, firstTim: 0, lastTim: 0, ...extra } as FileEntry)
+
+// files: 0 (contexts 0,1), 1 (PX slave of context 0), 2 (context 3), 3 (PX slave of context 3), 4 (PX slave, no coordinator)
+const doc: FileSetDoc & { spanUs(): number } = {
+  file: { files: [f(0), f(1, { px: true }), f(2), f(3, { px: true }), f(4, { px: true })] },
+  contexts: [
+    { fileIdx: 0 }, { fileIdx: 0 }, { fileIdx: 1, px: true, parent: 0 }, { fileIdx: 2 },
+    { fileIdx: 3, px: true, parent: 3 }, { fileIdx: 4, px: true, parent: -1 },
+  ],
+  spanUs: () => 9000,
+}
+
+describe('effective context filter', () => {
+  it('is the contexts of the selected files when no context is picked', () => {
+    expect([...effectiveContexts(doc, new Set([0]), null)!].sort()).toEqual([0, 1])
+    expect([...effectiveContexts(doc, new Set([1, 2]), null)!].sort()).toEqual([2, 3])
+  })
+  it('intersects an explicit context selection with the files', () => {
+    expect([...effectiveContexts(doc, new Set([0, 2]), new Set([1, 2, 3]))!].sort()).toEqual([1, 3])
+    expect(effectiveContexts(doc, new Set([0]), new Set([3]))!.size).toBe(0)
+  })
+  it('is the explicit selection alone without a file selection, and null with neither', () => {
+    expect([...effectiveContexts(doc, null, new Set([4, 1]))!].sort()).toEqual([1, 4])
+    expect(effectiveContexts(doc, null, null)).toBeNull()
+    expect(effectiveContexts(null, null, new Set([0]))!.has(0)).toBe(true)
+  })
+  it('no file selected lets nothing through', () => {
+    expect(effectiveContexts(doc, new Set(), null)!.size).toBe(0)
+    expect(contextsOfFiles(doc, new Set()).size).toBe(0)
+  })
+  it('contextsWithin drops the picked contexts outside the files', () => {
+    expect([...contextsWithin(doc, new Set([0, 3]), new Set([0, 1]))!]).toEqual([0])
+    expect(contextsWithin(doc, new Set([3]), new Set([0]))).toBeNull()
+    expect([...contextsWithin(doc, new Set([3]), null)!]).toEqual([3])
+    expect(contextsWithin(doc, null, new Set([0]))).toBeNull()
+  })
+})
+
+describe('normalizeFiles', () => {
+  it('turns "every file" into null and drops unknown indexes', () => {
+    expect(normalizeFiles(doc, new Set([0, 1, 2, 3, 4]))).toBeNull()
+    expect(normalizeFiles(doc, new Set([0, 1, 2, 3, 4, 9]))).toBeNull()
+    expect([...normalizeFiles(doc, new Set([0, 9]))!]).toEqual([0])
+    expect(normalizeFiles(doc, null)).toBeNull()
+    expect(normalizeFiles(doc, new Set())!.size).toBe(0)
+  })
+})
+
+describe('fileTree (PX grouping)', () => {
+  it('lists a PX slave file right under its coordinator file', () => {
+    expect(fileTree(doc)).toEqual([
+      { idx: 0, depth: 0, parent: null }, { idx: 1, depth: 1, parent: 0 },
+      { idx: 2, depth: 0, parent: null }, { idx: 3, depth: 1, parent: 2 },
+      { idx: 4, depth: 0, parent: null }, // a slave with no coordinator in the set stays on top level
+    ])
+  })
+  it('keeps plain files in input order and puts a slave under the coordinator most of its contexts attach to', () => {
+    const d: FileSetDoc = {
+      file: { files: [f(0), f(1), f(2, { px: true })] },
+      contexts: [{ fileIdx: 0 }, { fileIdx: 1 }, { fileIdx: 2, px: true, parent: 1 }, { fileIdx: 2, px: true, parent: 1 }, { fileIdx: 2, px: true, parent: 0 }],
+    }
+    expect(fileTree(d).map((n) => [n.idx, n.depth])).toEqual([[0, 0], [1, 0], [2, 1]])
+    expect(fileTree(d)[2].parent).toBe(1)
+  })
+  it('a single file is one row', () => {
+    expect(fileTree({ file: {}, contexts: [{ fileIdx: 0 }] })).toEqual([{ idx: 0, depth: 0, parent: null }])
+  })
+})
+
+describe('clicking files', () => {
+  const order = [0, 1, 2, 3, 4]
+  const click = (files: Set<number> | null, idx: number, anchor: number | null, mods: Partial<{ toggle: boolean; range: boolean }> = {}) =>
+    [...clickFile(doc, files, order, idx, anchor, { toggle: false, range: false, ...mods })].sort()
+  it('a plain click selects only that file', () => { expect(click(null, 2, null)).toEqual([2]) })
+  it('ctrl/cmd toggles; from "all" it removes the file', () => {
+    expect(click(null, 2, null, { toggle: true })).toEqual([0, 1, 3, 4])
+    expect(click(new Set([0, 2]), 2, 0, { toggle: true })).toEqual([0])
+    expect(click(new Set([0]), 3, 0, { toggle: true })).toEqual([0, 3])
+  })
+  it('shift extends from the last click over the rows in between', () => {
+    expect(click(new Set([1]), 3, 1, { range: true })).toEqual([1, 2, 3])
+    expect(click(new Set([4]), 2, 4, { range: true })).toEqual([2, 3, 4])
+    expect(click(new Set([1]), 3, null, { range: true })).toEqual([3]) // no anchor: a plain click
+  })
+  it('invert and toggle helpers', () => {
+    expect([...invert(doc, new Set([0, 1]))].sort()).toEqual([2, 3, 4])
+    expect(invert(doc, null).size).toBe(0)
+    expect([...toggleFile(doc, null, 1)].sort()).toEqual([0, 2, 3, 4])
+  })
+})
+
+describe('files= URL parameter', () => {
+  it('round trips', () => {
+    for (const s of [new Set([0, 2]), new Set([3]), new Set([0, 1, 4])]) expect(parseFilesParam(formatFilesParam(s))).toEqual(s)
+    expect(formatFilesParam(new Set([2, 0]))).toBe('0,2')
+    expect(formatFilesParam(null)).toBe('')
+  })
+  it('accepts ranges and ignores junk', () => {
+    expect([...parseFilesParam('1-3,5')!]).toEqual([1, 2, 3, 5])
+    expect([...parseFilesParam('x,2,-1')!]).toEqual([2])
+    expect(parseFilesParam('')).toBeNull()
+    expect(parseFilesParam('abc')).toBeNull()
+    expect(parseFilesParam(null)).toBeNull()
+  })
+})
+
+describe('scopeSpanUs', () => {
+  const d = { file: { files: [f(0, { firstTim: 100, lastTim: 300 }), f(1, { firstTim: 500, lastTim: 900 }), f(2)] }, spanUs: () => 5000 }
+  it('is the window, else the span of the selected files, else the trace', () => {
+    expect(scopeSpanUs(d, { startTim: 10, endTim: 60 }, new Set([0]))).toBe(50)
+    expect(scopeSpanUs(d, null, null)).toBe(5000)
+    expect(scopeSpanUs(d, null, new Set([0]))).toBe(200)
+    expect(scopeSpanUs(d, null, new Set([0, 1]))).toBe(800)
+    expect(scopeSpanUs(d, null, new Set([2]))).toBe(5000) // a file with no time stamps: the trace's span
+  })
+})
+
+describe('ctxKey', () => {
+  it('keeps "no filter", "empty filter" and a filter apart (views key their queries on it)', () => {
+    expect(ctxKey(null)).toBe('')
+    expect(ctxKey(new Set())).toBe('none')
+    expect(ctxKey(new Set([3, 1]))).toBe('1,3')
+  })
+})

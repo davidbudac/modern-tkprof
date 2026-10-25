@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { ctxKey } from '../data/fileset'
 import type { EChartsOption } from 'echarts'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
@@ -12,7 +13,7 @@ import { Chart } from '../components/Chart'
 import { cssColor, roleOfClass } from '../components/colors'
 
 const scopeKey = (s: ReturnType<typeof scopeOf>, window = true) =>
-  `${window && s.window ? `${s.window.startTim}:${s.window.endTim}` : ''}|${s.contexts ? [...s.contexts].sort((a, b) => a - b).join(',') : ''}|${s.includeIdle ? 1 : 0}`
+  `${window && s.window ? `${s.window.startTim}:${s.window.endTim}` : ''}|${ctxKey(s.contexts)}|${s.includeIdle ? 1 : 0}`
 
 export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
   const actions = useActions()
@@ -102,7 +103,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
         <dt>Class</dt><dd>{ev.class || 'unknown'}{ev.idle ? ' (idle)' : ''}</dd>
         <dt>Parameters</dt><dd className="mono">{[ev.p1Name, ev.p2Name, ev.p3Name].filter(Boolean).join(' · ') || '–'}</dd>
         {agg && <><dt>Whole trace</dt><dd>{fmtInt(agg.count)} waits · {fmtDur(agg.us)} · avg {fmtDur(agg.us / agg.count)} · max {fmtDur(agg.maxUs)}</dd></>}
-        {(state.window || state.contexts) && <><dt>In filter</dt><dd>{fmtInt(filteredCount)} waits · {fmtDur(total)}</dd></>}
+        {(state.window || state.contexts || state.files) && <><dt>In filter</dt><dd>{fmtInt(filteredCount)} waits · {fmtDur(total)}</dd></>}
       </dl>
       {filteredCount > 0 && (
         <section className="section">

@@ -12,6 +12,8 @@ import { StatementContext } from './StatementContext'
 import { ResizeHandle } from '../components/ResizeHandle'
 import { PaneToggle } from '../components/PaneToggle'
 import { usePersisted } from '../state/persist'
+import { useScopedStatements } from '../data/scopedstmts'
+import { scopeSpanUs } from '../data/fileset'
 import type { CSSProperties } from 'react'
 
 type SortKey = 'first' | 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
@@ -43,25 +45,28 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   const [listW, setListW] = usePersisted<number | null>('mtkprof.listW', null)
   const [ctxW, setCtxW] = usePersisted<number | null>('mtkprof.contextW', null)
   const [ctxOpen, setCtxOpen] = usePersisted<boolean>('mtkprof.contextOpen', true)
-  const totalUs = doc.spanUs()
   const source = sourceOf(doc)
   const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
   const sort = sorts.find((s) => s.id === sortKey)!
+  const ss = useScopedStatements(doc)
+  const { stats, narrowed } = ss
+  const win = useStore((s) => s.window), files = useStore((s) => s.files)
+  const totalUs = narrowed ? scopeSpanUs(doc, win, files) : doc.spanUs() // percentages are of the scope's span only when the numbers are the scope's
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    const list = doc.stats.statements.filter((s) => {
-      if (s.allCalls.count === 0 && s.errors === 0) return false
+    const list = stats.filter((s) => {
+      if (s.allCalls.count === 0 && (narrowed || s.errors === 0)) return false
       const st = doc.statements[s.id]
       if (hideSys && st.parsingUserId === 0 && s.minDepth > 0) return false
       if (needle && !(st.sqlId.toLowerCase().includes(needle) || st.text.toLowerCase().includes(needle))) return false
       return true
     })
     return list.sort((a, b) => sort.of(b, inclusive) - sort.of(a, inclusive) || b.elapsed - a.elapsed)
-  }, [doc, q, hideSys, sort, inclusive])
+  }, [doc, stats, narrowed, q, hideSys, sort, inclusive])
   const maxResp = rows.reduce((a, s) => Math.max(a, s.elapsed + s.idleUs), 0)
   const findingsOf = useMemo(() => { const m = new Map<number, number>(); for (const f of doc.stats.findings) if (f.statement >= 0) m.set(f.statement, (m.get(f.statement) ?? 0) + 1); return m }, [doc])
 
-  useEffect(() => { if ((sel === null || !doc.stats.statements[sel]) && rows.length) actions.pickStmt(rows[0].id) }, [rows, sel, doc])
+  useEffect(() => { if ((sel === null || !stats[sel]) && rows.length) actions.pickStmt(rows[0].id) }, [rows, sel, stats])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const virt = useVirtualizer({ count: rows.length, getScrollElement: () => scrollRef.current, estimateSize: () => ROW_H, overscan: 10 })
@@ -85,7 +90,9 @@ export function Statements({ doc }: { doc: TraceDoc }) {
     <div className={'wb' + (ctxOpen ? '' : ' ctx-closed')} style={{ ...(listW ? { '--list-w': `${listW}px` } : null), ...(ctxW ? { '--context-w': `${ctxW}px` } : null) } as CSSProperties}>
       <aside className="wb-list" aria-label="Statements">
         <div className="wb-head">
-          <div className="t"><h2>Statements</h2><span className="dim">{rows.length === doc.statements.length ? rows.length : `${rows.length} of ${doc.statements.length}`}</span></div>
+          <div className="t"><h2>Statements</h2><span className="dim">{narrowed ? rows.length : rows.length === doc.statements.length ? rows.length : `${rows.length} of ${doc.statements.length}`}</span></div>
+          {narrowed && <p className="xs dim" title="window, selected files and session contexts">{rows.length} of {ss.total} statements in scope{ss.loading ? ' …' : ''}</p>}
+          {ss.notice && <p className="xs callout">{ss.notice}</p>}
           <input type="search" placeholder="filter by sql_id or text" value={q} onChange={(e) => setQ(e.target.value)} />
           <div className="opts">
             <label>by <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>{sorts.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
@@ -102,7 +109,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
               const st = rows[vi.index]
               const s = doc.statements[st.id]
               const resp = st.elapsed + st.idleUs
-              const segs = quickSegments(doc, st, roles).filter((x) => x.us > 0)
+              const segs = quickSegments(doc, st, roles, narrowed).filter((x) => x.us > 0)
               const segTotal = Math.max(resp, segs.reduce((a, x) => a + x.us, 0))
               const nf = findingsOf.get(st.id) ?? 0
               return (
@@ -127,10 +134,10 @@ export function Statements({ doc }: { doc: TraceDoc }) {
         </div>
       </aside>
       <section className="wb-detail">
-        {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} /> : <p className="muted">No statement selected.</p>}
+        {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} stats={stats[sel]} narrowed={narrowed} /> : <p className="muted">No statement selected.</p>}
       </section>
       {ctxOpen && <aside className="wb-ctx" aria-label="Context">
-        {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} />}
+        {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} stats={stats[sel]} />}
       </aside>}
       <ResizeHandle anchor="start" className="resizer-list" label="Resize statement list" min={240} maxFrac={0.4} onChange={setListW} />
       {ctxOpen && <ResizeHandle anchor="end" className="resizer-ctx" label="Resize context pane" min={240} maxFrac={0.4} onChange={setCtxW} />}

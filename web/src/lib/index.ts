@@ -12,6 +12,7 @@ export { Compare } from './views/Compare'
 export { EventDetail } from './views/EventDetail'
 export { Findings } from './views/Findings'
 export { Lines } from './views/Lines'
+export { FilesPanel, FilesPane, FilesToggle, filesLabel } from './views/FilesPanel'
 
 // components
 export { ResizeHandle } from './components/ResizeHandle'
@@ -19,7 +20,7 @@ export { PaneToggle } from './components/PaneToggle'
 export { Minimap } from './components/Minimap'
 
 // state: one store per open trace, provided through the context
-export { createStore, scopeOf, callFilter, waitFilter } from './state/store'
+export { createStore, scopeOf, scopeNarrows, callFilter, waitFilter, filesPanelOpen } from './state/store'
 export type { Store, Actions, State, View, Side, Selection, TimeWindow, Scope, Bookmark, LinesView, PivotState } from './state/store'
 export {
   SessionContext, SessionProvider, createSession, useSession, useStore, useStoreApi, useActions, useClient, useLibrary,
@@ -42,6 +43,9 @@ export { PageCache } from './data/linecache'
 export { sourceOf, attachRemote, LocalSource, RemoteSource, useSourceQuery } from './data/source'
 export type { DataSource, QueryState, StmtMarks } from './data/source'
 export { traceSegmentsFrom } from './data/derive'
+export { ctxKey, effectiveContexts, contextsWithin, contextsOfFiles, fileTree, normalizeFiles, formatFilesParam, parseFilesParam } from './data/fileset'
+export { useScopedStatements } from './data/scopedstmts'
+export type { ScopedStatements } from './data/scopedstmts'
 export { fmtInt, fmtCompact, fmtDur, fmtSecs, fmtMs, fmtPct, fmtBytes, fmtWall, fmtTz, preview, oraErr } from './data/format'
 export type * from './data/types'
 // annotations (notes on statements, executions, windows, lines) and saved Pivot configurations

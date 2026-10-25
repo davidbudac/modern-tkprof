@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { ctxKey } from '../data/fileset'
 import type { TraceDoc } from '../data/doc'
 import type { EventAgg } from '../data/types'
 import { fmtDur, fmtInt, fmtPct } from '../data/format'
@@ -14,7 +15,7 @@ export function Waits({ doc }: { doc: TraceDoc }) {
   const sel = state.selection.event
   const source = sourceOf(doc)
   const scope = scopeOf(state)
-  const profile = useSourceQuery(source, `profile:${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}|${scope.includeIdle ? 1 : 0}`,
+  const profile = useSourceQuery(source, `profile:${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${ctxKey(scope.contexts)}|${scope.includeIdle ? 1 : 0}`,
     (signal) => source.profile(scope, signal), 'profile')
   const rows = useMemo<EventAgg[]>(() => {
     if (!profile.data) return profile.loading ? [] : doc.stats.events

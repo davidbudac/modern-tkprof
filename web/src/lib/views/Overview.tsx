@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ctxKey } from '../data/fileset'
 import { TimelineChart } from './TimelineChart'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink, LinkText } from '../components/StmtLink'
@@ -13,6 +14,8 @@ import { Findings, findingText } from './Findings'
 import { Lanes } from './Lanes'
 import { Minimap } from '../components/Minimap'
 import { NONE, type StmtStats } from '../data/types'
+import { useScopedStatements } from '../data/scopedstmts'
+import { scopeSpanUs, selectedCount, fileCount } from '../data/fileset'
 
 const TOP_STATEMENTS = 8
 const LEDGER_ROWS = 5
@@ -22,17 +25,18 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   const state = useStore((s) => s)
   const source = sourceOf(doc)
   const scope = scopeOf(state)
-  const totalUs = state.window ? state.window.endTim - state.window.startTim : doc.spanUs()
-  const profile = useSourceQuery(source, `profile:${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}|${scope.includeIdle ? 1 : 0}`,
+  const totalUs = scopeSpanUs(doc, state.window, state.files)
+  const profile = useSourceQuery(source, `profile:${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${ctxKey(scope.contexts)}|${scope.includeIdle ? 1 : 0}`,
     (signal) => source.profile(scope, signal), 'profile')
   const rows = useMemo(() => componentRowsFrom(doc, profile.data ?? null, totalUs), [doc, profile.data, totalUs])
-  const stmts = useMemo(() => [...doc.stats.statements].filter((s) => s.allCalls.count > 0).sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)), [doc])
-  const lede = summary(totalUs, state.window ? [] : stmts)
+  const ss = useScopedStatements(doc)
+  const stmts = useMemo(() => [...ss.stats].filter((s) => s.allCalls.count > 0).sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs)), [ss.stats])
+  const lede = summary(totalUs, stmts)
   const [timeView, setTimeView] = useState<'lanes' | 'event' | 'class'>('lanes')
   return (
     <>
       <section className="hero">
-        <h1>Response time {fmtDur(totalUs)}{state.window ? <span className="dim"> · window</span> : null}</h1>
+        <h1>Response time {fmtDur(totalUs)}{state.window ? <span className="dim"> · window</span> : null}{state.files ? <span className="dim"> · {selectedCount(doc, state.files)} of {fileCount(doc)} files</span> : null}</h1>
         {lede && <p className="lede">{lede}</p>}
         <Minimap doc={doc} />
         <Axis totalUs={totalUs} />
@@ -52,9 +56,10 @@ export function Overview({ doc }: { doc: TraceDoc }) {
       </section>
 
       <section className="section">
-        <header><h2>Statements</h2><span className="hint">incl. recursive children and idle between calls{state.window ? ' · whole trace, window not applied' : ''}</span>
+        <header><h2>Statements</h2><span className="hint">incl. recursive children and idle between calls{ss.narrowed ? ` · ${ss.inScope} of ${ss.total} statements in scope` : ''}</span>
           <span className="tools"><button className="link" onClick={() => actions.setView('statements')}>all {stmts.length} statements</button></span></header>
-        <StatementLedger doc={doc} stmts={stmts} totalUs={doc.spanUs()} />
+        {ss.notice && <p className="callout">{ss.notice}</p>}
+        <StatementLedger doc={doc} stmts={stmts} totalUs={totalUs} narrowed={ss.narrowed} />
       </section>
 
       <Findings doc={doc} />
@@ -156,13 +161,13 @@ function Ledger({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
 }
 
 /** Top statements, each with its own profile bar drawn on the shared time axis. */
-function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtStats[]; totalUs: number }) {
+function StatementLedger({ doc, stmts, totalUs, narrowed }: { doc: TraceDoc; stmts: StmtStats[]; totalUs: number; narrowed: boolean }) {
   const actions = useActions()
   const source = sourceOf(doc)
   const top = stmts.slice(0, TOP_STATEMENTS)
   const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data
   const topIds = top.map((s) => s.id)
-  const waits = useSourceQuery(source, `waits:${topIds.join(',')}`, (signal) => (source.ready ? source.stmtWaits(topIds, 3, signal) : null)).data
+  const waits = useSourceQuery(source, `waits:${topIds.join(',')}:${narrowed ? 1 : 0}`, (signal) => (source.ready && !narrowed ? source.stmtWaits(topIds, 3, signal) : null)).data
   const rest = stmts.slice(TOP_STATEMENTS)
   const restUs = rest.reduce((a, s) => a + s.elapsed + s.idleUs, 0)
   const tk = ticks(totalUs)
@@ -172,7 +177,7 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
       {top.map((st) => {
         const s = doc.statements[st.id]
         const resp = st.elapsed + st.idleUs
-        const segs = quickSegments(doc, st, roles).filter((x) => x.us > 0)
+        const segs = quickSegments(doc, st, roles, narrowed).filter((x) => x.us > 0)
         const own = findings.filter((f) => f.statement === st.id)
         return (
           <div key={st.id} className="srow row-click" onClick={() => actions.selectStmt(st.id)}>

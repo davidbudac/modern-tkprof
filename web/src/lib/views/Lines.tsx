@@ -12,6 +12,7 @@ import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import type { Store } from '../state/store'
 import { BookmarkList, HitList } from './LinesPanel'
+import { isSelected } from '../data/fileset'
 import { NoteEditor } from '../components/Note'
 import '../styles/lines.css'
 
@@ -64,7 +65,18 @@ function firstAbove(a: ArrayLike<number>, x: number): number {
  * Needs the engine / `serve -spill` (the `linesApi` state, probed once).
  */
 export function Lines({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   const file = useStore((s) => s.linesView.file)
+  const fresh = useStore((s) => s.linesView.seq === 0)
+  const selected = useStore((s) => s.files)
+  // the file picker follows the Files panel: a file outside the selection gives way to the first selected one when the selection
+  // changes (and when the view was never moved before); a deep link or bookmark to another file is left alone
+  const prev = useRef<{ files: Set<number> | null; mounted: boolean }>({ files: selected, mounted: false })
+  useEffect(() => {
+    const changed = prev.current.files !== selected, first = !prev.current.mounted
+    prev.current = { files: selected, mounted: true }
+    if (selected && selected.size > 0 && !selected.has(file) && (changed || (first && fresh))) actions.openLinesAt(Math.min(...selected), 1)
+  }, [selected]) // eslint-disable-line react-hooks/exhaustive-deps
   return <LinesOfFile key={file} doc={doc} file={file} />
 }
 
@@ -239,6 +251,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }
 
   const files = doc.file.files ?? []
+  const selectedFiles = useStore((s) => s.files)
   const selStmt = at?.objs.stmt !== undefined && at.objs.stmt >= 0 ? doc.statements[at.objs.stmt] : undefined
   const o = at?.objs
   const planLine = o && o.planLine >= 0 ? doc.planLines[o.planLine] : undefined
@@ -256,7 +269,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       <div className="lines-bar">
         {files.length > 1 && (
           <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
-            {files.map((f, i) => <option key={i} value={i}>{f.name}</option>)}
+            {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}</option> : null))}
           </select>
         )}
         <form className="lines-search" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>

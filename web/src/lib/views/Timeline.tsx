@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ctxKey } from '../data/fileset'
 import * as echarts from 'echarts/core'
 import { CustomChart } from 'echarts/charts'
 import type { EChartsOption, CustomSeriesRenderItemParams, CustomSeriesRenderItemAPI, CustomSeriesRenderItemReturn } from 'echarts'
@@ -8,6 +9,7 @@ import { LineRef } from '../components/LineRef'
 import { CallKind, callKindName, NONE, type ID } from '../data/types'
 import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
 import { scopeOf } from '../state/store'
+import { useScopedStatements } from '../data/scopedstmts'
 import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery, type Bar } from '../data/source'
 import { Chart } from '../components/Chart'
@@ -53,8 +55,9 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
   const base = doc.span.firstTim
 
   // Lanes: top statements by response time, ordered by first call; the rest folded into one lane.
+  const ss = useScopedStatements(doc, { withWindow: false })
   const lanes = useMemo<{ list: Lane[]; byStmt: Int32Array }>(() => {
-    const top = doc.stats.statements
+    const top = ss.stats
       .filter((s) => s.allCalls.count > 0)
       .sort((a, b) => b.elapsed + b.idleUs - (a.elapsed + a.idleUs))
       .slice(0, MAX_LANES)
@@ -71,11 +74,11 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
       for (let i = 0; i < byStmt.length; i++) if (byStmt[i] < 0) byStmt[i] = list.length - 1
     }
     return { list, byStmt }
-  }, [doc])
+  }, [doc, ss.stats])
 
   const source = sourceOf(doc)
   const scope = scopeOf(state)
-  const query = useSourceQuery(source, `${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}`,
+  const query = useSourceQuery(source, `${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${ctxKey(scope.contexts)}`,
     (signal) => (source.ready ? source.calls(scope, signal) : null), 'calls')
   const picked = useMemo(() => {
     const p = query.data

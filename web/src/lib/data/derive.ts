@@ -337,11 +337,12 @@ export function statementRoleUs(doc: TraceDoc): Float64Array {
 
 /**
  * Cheap profile of one statement from the role totals (`statementRoleUs`, or the server's equivalent
- * as `table`): CPU + waits by role (no unaccounted). Without totals: CPU, waits and idle from the stats.
+ * as `table`): CPU + waits by role (no unaccounted). Without totals (or `fromStats`): CPU, waits and idle from the stats.
  */
-export function quickSegments(doc: TraceDoc, st: StmtStats, table?: Float64Array | null): Segment[] {
+export function quickSegments(doc: TraceDoc, st: StmtStats, table?: Float64Array | null, fromStats = false): Segment[] {
   const segs: Segment[] = [{ role: 'cpu', label: 'CPU', us: st.cpu }]
-  const t = table ?? (doc.hasFacts ? statementRoleUs(doc) : null)
+  // `fromStats`: the numbers are those of a scope, the role totals are of the whole trace
+  const t = fromStats ? null : table ?? (doc.hasFacts ? statementRoleUs(doc) : null)
   if (!t) {
     if (st.waitUs > 0) segs.push({ role: 'other', label: 'Waits', us: st.waitUs })
     if (st.idleUs > 0) segs.push({ role: 'idle', label: 'Idle', us: st.idleUs })

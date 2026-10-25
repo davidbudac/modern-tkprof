@@ -1,4 +1,5 @@
 import { useMemo, useState, useSyncExternalStore } from 'react'
+import { ctxKey } from '../data/fileset'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
 import { fmtInt, preview } from '../data/format'
@@ -15,6 +16,7 @@ import '../styles/pivot.css'
 function scopeHint(state: State, fact: Fact): string {
   const parts: string[] = []
   if (state.window) parts.push('window')
+  if (state.files) parts.push(`${state.files.size} of ${state.doc?.file.files?.length ?? 1} files`)
   if (state.contexts) parts.push(`${state.contexts.size} context${state.contexts.size === 1 ? '' : 's'}`)
   if (fact === 'waits' && !state.includeIdle) parts.push('idle hidden')
   return parts.join(' · ')
@@ -63,7 +65,7 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
   const sortM = measures.find((m) => m.id === sortId[fact]) ?? measures[1]
 
   const scope = scopeOf(state)
-  const scopeKey = `${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : ''}|${fact === 'waits' && scope.includeIdle ? 1 : 0}`
+  const scopeKey = `${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${ctxKey(scope.contexts)}|${fact === 'waits' && scope.includeIdle ? 1 : 0}`
   const shape = `${fact}:${d1.id}:${d2?.id ?? ''}`
   const only = { stmt: fStmt, event: fEvent }
   const query = useSourceQuery(source, `${shape}:${sortM.id}:${scopeKey}:${pv.limit}:${fStmt ?? ''}:${fEvent ?? ''}`,

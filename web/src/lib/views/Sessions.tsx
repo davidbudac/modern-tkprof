@@ -6,6 +6,7 @@ import { fmtDur, fmtInt, fmtCompact, fmtWall } from '../data/format'
 import { useStore, useActions } from '../state/session'
 import { DataTable, type Column } from '../components/DataTable'
 import { LineRef } from '../components/LineRef'
+import { fileTree, isSelected, toggleFile } from '../data/fileset'
 
 /** Per-context statistics computed in one pass over the fact columns. */
 interface CtxStats {
@@ -110,6 +111,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   // per-context numbers come from the document (stats.contexts) when a server stands behind it, else from the fact columns
   const hasStats = sourceOf(doc).ready
   const checked = useStore((s) => s.contexts)
+  const filesSel = useStore((s) => s.files)
   const [dim, setDim] = useState<Dim>('module')
   const stats = useMemo(() => computeStats(doc), [doc])
   const rows = useMemo<CtxRow[]>(() => {
@@ -126,7 +128,16 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
     doc.contexts.forEach((c, i) => { if (!(c.px && c.parent != null && c.parent >= 0)) add(i, false) })
     return out
   }, [doc, stats])
-  const multiFile = (doc.file.files?.length ?? 1) > 1
+  const multiFile = doc.multiFile
+  const fileOf = (r: CtxRow) => r.ctx.fileIdx ?? 0
+  const inSel = (r: CtxRow) => isSelected(filesSel, fileOf(r))
+  const selectable = useMemo(() => rows.filter(inSel), [rows, filesSel]) // eslint-disable-line react-hooks/exhaustive-deps
+  const tree = useMemo(() => fileTree(doc), [doc])
+  const byFile = useMemo(() => {
+    const m = new Map<number, CtxRow[]>()
+    for (const r of rows) { const f = r.ctx.fileIdx ?? 0; const l = m.get(f); if (l) l.push(r); else m.set(f, [r]) }
+    return m
+  }, [rows])
 
   const isChecked = (id: ID) => checked?.has(id) ?? false
   const setChecked = (next: Set<ID>) => actions.setContexts(next.size === 0 ? null : next)
@@ -141,7 +152,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   const checkCol: Column<CtxRow> = {
     key: 'sel', header: '', width: '2rem',
     render: (r) => (
-      <input type="checkbox" checked={isChecked(r.id)} aria-label={`include context from line ${r.ctx.line}`}
+      <input type="checkbox" checked={isChecked(r.id)} aria-label={`include context from line ${r.ctx.line}`} disabled={!inSel(r)} title={inSel(r) ? undefined : 'its file is not selected'}
         onClick={(e) => e.stopPropagation()} onChange={() => toggle(r.id)} />
     ),
   }
@@ -173,7 +184,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   interface GroupRow { key: string; ids: ID[]; stats: CtxStats }
   const groups = useMemo<GroupRow[]>(() => {
     const m = new Map<string, GroupRow>()
-    for (const r of rows) {
+    for (const r of selectable) {
       const k = dimKey(r.ctx, dim)
       let g = m.get(k)
       if (!g) { g = { key: k, ids: [], stats: emptyStats() }; m.set(k, g) }
@@ -181,7 +192,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
       addStats(g.stats, r.stats)
     }
     return [...m.values()]
-  }, [rows, dim])
+  }, [selectable, dim])
   const groupCols: Column<GroupRow>[] = [
     { key: 'k', header: dimLabel[dim], className: 'mono', render: (g) => g.key, sort: (g) => g.key },
     { key: 'n', header: 'Contexts', align: 'end', render: (g) => fmtInt(g.ids.length), sort: (g) => g.ids.length },
@@ -204,13 +215,35 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
             {selectedCount > 0 ? ` · ${selectedCount} selected, all views filtered` : ' · tick to filter all views'}
           </span>
           <span className="tools">
-            <button onClick={() => setChecked(new Set(rows.map((r) => r.id)))} disabled={rows.length === 0}>select all</button>
+            <button onClick={() => setChecked(new Set(selectable.map((r) => r.id)))} disabled={selectable.length === 0}>select all</button>
             <button onClick={() => actions.setContexts(null)} disabled={selectedCount === 0}>none</button>
           </span>
         </header>
         {!hasStats && <p className="callout">No fact tables: per-context statistics unavailable.</p>}
-        <DataTable columns={ctxCols} rows={rows} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="45dvh"
-          onRowClick={(r) => toggle(r.id)} empty="No session context markers." />
+        {multiFile ? (
+          <div className="file-groups">
+            {tree.map((n) => {
+              const list = byFile.get(n.idx) ?? []
+              const f = doc.file.files?.[n.idx]
+              const on = isSelected(filesSel, n.idx)
+              return (
+                <div key={n.idx} className={'file-group' + (on ? '' : ' off')} style={{ marginInlineStart: `${n.depth * 1.25}rem` }}>
+                  <div className="file-group-head">
+                    <input type="checkbox" checked={on} aria-label={`show file ${f?.name ?? n.idx}`} onChange={() => actions.setFiles(toggleFile(doc, filesSel, n.idx))} />
+                    <b className="mono">{n.depth > 0 && <span className="dim">↳ </span>}{f?.name ?? `file ${n.idx}`}</b>
+                    {f?.px && <span className="chip-q">PX</span>}
+                    <span className="dim">{list.length} context{list.length === 1 ? '' : 's'}{on ? '' : ' · file not selected'}</span>
+                  </div>
+                  <DataTable columns={ctxCols} rows={list} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="16rem"
+                    onRowClick={(r) => { if (inSel(r)) toggle(r.id) }} empty="No session context markers." />
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <DataTable columns={ctxCols} rows={rows} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="45dvh"
+            onRowClick={(r) => toggle(r.id)} empty="No session context markers." />
+        )}
       </section>
 
       <section className="section">
