@@ -120,27 +120,36 @@ func (c *conn) Transport() string {
 	return c.cur.Transport()
 }
 
-// pick returns the transport to use; an unverified cli transport (auto
-// only) is verified first with Test so an askpass failure switches before
-// a stream starts.
-func (c *conn) pick(ctx context.Context) (remote.SSH, error) {
+// do runs op on the transport in use. An auto connection whose cli
+// transport has not authenticated yet moves to the library for good when
+// op fails with sshcli.ErrAskpassIgnored, and op runs again there. stream
+// ops (Follow), whose failure shows only while reading, first verify the
+// cli transport with Test.
+func (c *conn) do(ctx context.Context, stream bool, op func(remote.SSH) error) error {
 	c.mu.Lock()
 	cur, cli, verified := c.cur, c.cli, c.verified
 	c.mu.Unlock()
 	if cli == nil || verified || c.o.Transport == CLI {
-		return cur, nil
+		return op(cur)
 	}
-	_, err := cli.Test(ctx)
-	if err == nil {
+	var err error
+	if stream {
+		if _, err = cli.Test(ctx); err == nil {
+			err = op(cli)
+		}
+	} else {
+		err = op(cli)
+	}
+	switch {
+	case err == nil:
 		c.mu.Lock()
 		c.verified = true
 		c.mu.Unlock()
-		return cli, nil
+		return nil
+	case errors.Is(err, sshcli.ErrAskpassIgnored):
+		return op(c.switchToLib(err))
 	}
-	if errors.Is(err, sshcli.ErrAskpassIgnored) {
-		return c.switchToLib(err), nil
-	}
-	return nil, err
+	return err
 }
 
 func (c *conn) switchToLib(why error) remote.SSH {
@@ -162,40 +171,27 @@ func (c *conn) switchToLib(why error) remote.SSH {
 	return cur
 }
 
-// do runs op on the transport, switching once on ErrAskpassIgnored (auto).
-func (c *conn) do(ctx context.Context, op func(remote.SSH) error) error {
-	s, err := c.pick(ctx)
-	if err != nil {
-		return err
-	}
-	err = op(s)
-	if errors.Is(err, sshcli.ErrAskpassIgnored) && c.o.Transport != CLI {
-		return op(c.switchToLib(err))
-	}
-	return err
-}
-
 func (c *conn) Test(ctx context.Context) (out string, err error) {
-	err = c.do(ctx, func(s remote.SSH) (e error) { out, e = s.Test(ctx); return })
+	err = c.do(ctx, false, func(s remote.SSH) (e error) { out, e = s.Test(ctx); return })
 	return
 }
 
 func (c *conn) Ls(ctx context.Context, p string) (out []remote.Entry, err error) {
-	err = c.do(ctx, func(s remote.SSH) (e error) { out, e = s.Ls(ctx, p); return })
+	err = c.do(ctx, false, func(s remote.SSH) (e error) { out, e = s.Ls(ctx, p); return })
 	return
 }
 
 func (c *conn) Diag(ctx context.Context) (out []string, err error) {
-	err = c.do(ctx, func(s remote.SSH) (e error) { out, e = s.Diag(ctx); return })
+	err = c.do(ctx, false, func(s remote.SSH) (e error) { out, e = s.Diag(ctx); return })
 	return
 }
 
 func (c *conn) Fetch(ctx context.Context, p string, w io.Writer, o remote.FetchOptions) error {
-	return c.do(ctx, func(s remote.SSH) error { return s.Fetch(ctx, p, w, o) })
+	return c.do(ctx, false, func(s remote.SSH) error { return s.Fetch(ctx, p, w, o) })
 }
 
 func (c *conn) Follow(ctx context.Context, p string, from int64) (r io.ReadCloser, err error) {
-	err = c.do(ctx, func(s remote.SSH) (e error) { r, e = s.Follow(ctx, p, from); return })
+	err = c.do(ctx, true, func(s remote.SSH) (e error) { r, e = s.Follow(ctx, p, from); return })
 	return
 }
 

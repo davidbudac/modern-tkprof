@@ -430,3 +430,26 @@ func TestConfigApplied(t *testing.T) {
 		t.Errorf("password prompt %q", p)
 	}
 }
+
+// TestCloseDuringPrompt: Close does not wait for a prompt the user has not answered.
+func TestCloseDuringPrompt(t *testing.T) {
+	srv := sshtest.Start(t, sshtest.Options{Password: "pw"})
+	block := &blockingPrompter{asked: make(chan struct{}, 1)}
+	c := client(t, srv, t.TempDir(), block)
+	done := make(chan error, 1)
+	go func() { _, err := c.Test(context.Background()); done <- err }()
+	<-block.asked
+	start := time.Now()
+	c.Close()
+	if err := <-done; !errors.Is(err, context.Canceled) || time.Since(start) > time.Second {
+		t.Errorf("Test after Close: %v (%s)", err, time.Since(start))
+	}
+}
+
+type blockingPrompter struct{ asked chan struct{} }
+
+func (b *blockingPrompter) Ask(ctx context.Context, p remote.Prompt) (string, error) {
+	b.asked <- struct{}{}
+	<-ctx.Done()
+	return "", ctx.Err()
+}

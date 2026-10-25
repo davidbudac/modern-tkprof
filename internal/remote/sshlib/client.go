@@ -64,10 +64,15 @@ type Client struct {
 	sf    *sftp.Client
 	dead  chan struct{} // closed when sc's connection ends
 	creds map[string]string
+
+	abortMu sync.Mutex
+	abort   chan struct{} // closed by Close: ends a dial waiting on a prompt
 }
 
 // New returns a client; nothing is dialled yet.
-func New(o Options) *Client { return &Client{o: o, creds: map[string]string{}} }
+func New(o Options) *Client {
+	return &Client{o: o, creds: map[string]string{}, abort: make(chan struct{})}
+}
 
 // Transport implements remote.SSH.
 func (c *Client) Transport() string { return "lib" }
@@ -167,6 +172,18 @@ func (c *Client) ask(ctx context.Context, p remote.Prompt) (string, error) {
 
 // connect returns the live connection, dialling it if needed.
 func (c *Client) connect(ctx context.Context) (*ssh.Client, *sftp.Client, error) {
+	c.abortMu.Lock()
+	abort := c.abort
+	c.abortMu.Unlock()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		select {
+		case <-abort:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.sc != nil {
@@ -516,6 +533,10 @@ func contains(s []string, x string) bool {
 
 // Close implements remote.SSH: drops the connection and forgets the credentials.
 func (c *Client) Close() error {
+	c.abortMu.Lock()
+	close(c.abort) // a dial waiting on a prompt gives up, so the lock below is free soon
+	c.abort = make(chan struct{})
+	c.abortMu.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.sf != nil {
