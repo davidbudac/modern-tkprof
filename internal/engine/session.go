@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
@@ -104,6 +105,23 @@ type Session struct {
 
 	use sync.RWMutex // requests hold it shared, close exclusively
 	op  *opened      // set when ready; nil after close
+
+	// Idle eviction (Options.IdleEvict): requests of the session's mount in
+	// flight (a doc long-poll counts) and when the last one started or ended.
+	// begin runs under Server.mu so the evictor never races a new request.
+	reqs     atomic.Int32
+	lastUsed atomic.Int64 // unix ns
+}
+
+// begin marks a request on the session's mount; the caller defers end.
+func (ss *Session) begin() {
+	ss.reqs.Add(1)
+	ss.lastUsed.Store(time.Now().UnixNano())
+}
+
+func (ss *Session) end() {
+	ss.lastUsed.Store(time.Now().UnixNano())
+	ss.reqs.Add(-1)
 }
 
 // opened is what a ready session serves from.
@@ -307,6 +325,7 @@ func (s *Server) runOpen(ss *Session) {
 	for i, fe := range m.File.Files {
 		files[i] = FileInfo{Path: fe.Path, Name: fe.Name, Size: fe.Size}
 	}
+	ss.lastUsed.Store(time.Now().UnixNano())
 	ss.mu.Lock()
 	ss.state, ss.files, ss.bytes, ss.lines, ss.hit = SessionReady, files, m.Diag.Bytes, int64(m.Diag.Lines), op.co.Hit
 	ss.mu.Unlock()
@@ -497,11 +516,15 @@ func (s *Server) sessionAPI(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	s.mu.Lock()
 	ss := s.sessions[id]
+	if ss != nil {
+		ss.begin()
+	}
 	s.mu.Unlock()
 	if ss == nil {
 		writeError(w, errorf(CodeNotFound, "no session %q", id))
 		return
 	}
+	defer ss.end()
 	ss.use.RLock()
 	defer ss.use.RUnlock()
 	if ss.op == nil {
@@ -561,10 +584,61 @@ func (s *Server) deleteSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeNotFound, "no session %q", r.PathValue("id")))
 		return
 	}
+	s.closeSession(ss)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// closeSession stops a session already removed from s.sessions: cancels its
+// jobs, waits for them, releases its files and publishes the closed state.
+func (s *Server) closeSession(ss *Session) {
 	ss.job.cancel()
 	s.cancelRefJobs(ss.id)
 	<-ss.done
 	ss.close()
 	s.bc.publish("session", ss.event())
-	w.WriteHeader(http.StatusNoContent)
+}
+
+// evictIdle closes the sessions idle for at least d at now (Options.IdleEvict):
+// ready, no request on their mount in flight, no running job of their own
+// (so never an opening or a live session). It returns how many it closed.
+func (s *Server) evictIdle(d time.Duration, now time.Time) int {
+	s.mu.Lock()
+	busy := map[string]bool{}
+	for _, j := range s.jobs {
+		if info := j.Info(); info.Session != "" && info.State == JobRunning {
+			busy[info.Session] = true
+		}
+	}
+	var gone []*Session
+	for id, ss := range s.sessions {
+		if busy[id] || ss.reqs.Load() > 0 || ss.Info().State != SessionReady {
+			continue
+		}
+		if now.Sub(time.Unix(0, ss.lastUsed.Load())) < d {
+			continue
+		}
+		delete(s.sessions, id)
+		gone = append(gone, ss)
+	}
+	s.mu.Unlock()
+	for _, ss := range gone {
+		s.closeSession(ss)
+		s.logf("info", "session %s: closed after %s idle (cache entry kept)", ss.id, d)
+	}
+	return len(gone)
+}
+
+// evictLoop runs evictIdle until the engine closes.
+func (s *Server) evictLoop(d time.Duration) {
+	defer s.wg.Done()
+	tick := time.NewTicker(max(min(d/4, 30*time.Second), 5*time.Millisecond))
+	defer tick.Stop()
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case now := <-tick.C:
+			s.evictIdle(d, now)
+		}
+	}
 }

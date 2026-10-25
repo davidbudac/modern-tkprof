@@ -51,7 +51,7 @@ It is not meant for interactive use; run it by hand to try the protocol:
 
 ```
 export MTKPROF_TOKEN=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')   # 32+ bytes, required
-mtkprof engine -detach &                  # prints {"ready":true,"addr":"127.0.0.1:PORT",...}; -cache DIR, -cache-cap 20G, -allow-origin, -idle-exit
+mtkprof engine -detach &                  # prints {"ready":true,"addr":"127.0.0.1:PORT",...}; -cache DIR, -cache-cap 20G, -allow-origin, -idle-exit, -idle
 curl -H "Authorization: Bearer $MTKPROF_TOKEN" -d '{"paths":["trace.trc"]}' http://127.0.0.1:PORT/engine/sessions
 mtkprof engine cache ls                   # also: rm <identity-prefix>, wipe (-cache DIR)
 ```

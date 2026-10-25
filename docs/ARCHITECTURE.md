@@ -734,6 +734,7 @@ CLI's.
 | `-cache-cap SIZE` | LRU limit, default `20G` (suffixes K, M, G, T = powers of 1024) |
 | `-allow-origin O,…` | CORS origins, exact match; none = no CORS headers |
 | `-idle-exit D` | default 0 (never) |
+| `-idle D` | close a ready session after D without a request on its `/s/{id}/` mount (a pending `api/doc` long poll counts) and without a running job of its own; same as `DELETE /engine/sessions/{id}` (a `session` event with state `closed`, one log line, the cache entry stays). Opening and live (`follow`) sessions never. Default 0 (never) |
 | `-detach` | keep running when stdin closes |
 
 GC is set to 20 % unless `GOGC` is set (every session is a spill build).

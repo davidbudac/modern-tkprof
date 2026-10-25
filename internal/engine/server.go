@@ -41,6 +41,10 @@ type Options struct {
 	Logf func(format string, a ...any)
 	// KeepAlive is the interval of the SSE keepalive comment (0 = 15 s).
 	KeepAlive time.Duration
+	// IdleEvict closes a ready session that has had no request on its /s/{id}
+	// mount (a pending doc long-poll counts) and no running job for this
+	// long, as DELETE does (its cache entry stays). 0 = never.
+	IdleEvict time.Duration
 }
 
 // Server is the engine. It is safe for concurrent use.
@@ -93,6 +97,10 @@ func New(o Options) (*Server, error) {
 		}
 	}
 	s.lastActive.Store(time.Now().UnixNano())
+	if o.IdleEvict > 0 {
+		s.wg.Add(1)
+		go s.evictLoop(o.IdleEvict)
+	}
 	return s, nil
 }
 
