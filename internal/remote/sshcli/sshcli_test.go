@@ -55,7 +55,7 @@ func bridged(t *testing.T, p remote.Prompter) *Client {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { b.Close() })
-	return &Client{Target: remote.Target{Host: "dbmint", Port: 2200, User: "oracle"}, Askpass: b.Env("c1"), ControlDir: filepath.Join(t.TempDir(), "cm")}
+	return &Client{Target: remote.Target{Host: "dbmint", Port: 2200, User: "oracle"}, Askpass: b.Env("c1"), ControlDir: shortDir(t)}
 }
 
 func TestArgvAndEnv(t *testing.T) {
