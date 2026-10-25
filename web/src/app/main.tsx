@@ -4,7 +4,7 @@ import '@lib/styles/fonts.css'
 import '@lib/styles/tokens.css'
 import '@lib/styles/base.css'
 import '@lib/styles/app.css'
-import { SessionProvider, createClient, createSession, loadInitial, probeLines, probeLinesApi } from '@lib'
+import { SessionProvider, createClient, createSession, followLive, loadInitial, probeLines, probeLinesApi } from '@lib'
 import { App } from './App'
 import { startUrlSync } from './urlstate'
 
@@ -21,5 +21,10 @@ const linesApi = probeLinesApi(client).then((ok) => store.setState({ linesApi: o
 
 loadInitial(client)
   .then(async (l) => { await linesApi; return l })
-  .then((l) => (l ? store.setLoaded(l) : store.setState({ doc: null, loading: false, error: null })))
+  .then((l) => {
+    if (!l) return store.setState({ doc: null, loading: false, error: null })
+    store.setLoaded(l)
+    // a live session (`mtkprof follow -serve`, an engine follow session): keep the document on the server's latest snapshot
+    if (l.rev !== undefined && l.live === 'live') followLive({ store, client: l.client ?? client }, l.rev)
+  })
   .catch((e) => store.setState({ loading: false, error: String(e) }))

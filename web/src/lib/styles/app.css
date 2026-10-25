@@ -77,6 +77,19 @@
 button.quiet { border-color: transparent; color: var(--ink-2); }
 button.quiet.on { background: var(--wash); color: var(--ink); }
 
+/* a live session (follow): state, revision, time of the document shown; pause/resume */
+.live-badge { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--hairline-strong); border-radius: 999px; padding-block: 0.05rem; padding-inline: 0.55rem 0.15rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.live-badge b { font-weight: 600; }
+.live-badge .dim { color: var(--ink-2); }
+.live-badge button { font-size: 0.6rem; line-height: 1; padding-block: 0.2rem; padding-inline: 0.35rem; border-radius: 999px; }
+.live-badge[data-state="ended"] { padding-inline-end: 0.55rem; }
+.live-dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; background: var(--ink-3); }
+.live-badge[data-state="live"] .live-dot { background: var(--s-good); box-shadow: 0 0 0 0 color-mix(in oklch, var(--s-good) 50%, transparent); animation: live-pulse 2s var(--ease-out) infinite; }
+.live-badge[data-state="error"] .live-dot { background: var(--s-warning); }
+.live-badge[data-state="error"] b { color: var(--s-warning); }
+@keyframes live-pulse { 70% { box-shadow: 0 0 0 0.35rem transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .live-badge .live-dot { animation: none; } }
+
 .subbar {
   display: flex;
   gap: var(--sp-5);

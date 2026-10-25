@@ -227,12 +227,15 @@ Deferred by the agents (small, none blocks v1):
   search-match highlighting and per-line copy/permalink in Lines.
 - Live sessions: done in package G2 (cursor index of
   the live spill, `TRACE CONTINUES IN` chains, `mtkprof follow -serve`; see
-  ARCHITECTURE "Live sessions"). Still open there: the UI does not long-poll
-  `api/doc?rev=` (reload shows new data); the remote chain test runs on the
-  lib transport only (the cli `tail` cleanup is the same stream close that
-  `TestOpenSSHFollowAndThroughput` checks); a chain is followed forward only
-  (following a file that has `CONTINUED FROM` does not pull in the earlier
-  file).
+  ARCHITECTURE "Live sessions"). Done in package G3: the UI follows a live
+  session itself (`followLive`: `api/doc?rev=` long poll, `X-Live`, live
+  badge with pause/resume, scope and selection kept), and chains are
+  followed backwards too (`TRACE CONTINUED FROM`: earlier files read first,
+  for a remote follow fetched once from the host). Still open there: the
+  remote chain tests run on the lib transport only (the cli `tail` cleanup
+  is the same stream close that `TestOpenSSHFollowAndThroughput` checks);
+  the desktop shell still reloads live tabs on `session` events instead of
+  `followLive` and has no `LiveBadge` (mtkprof-desktop).
 - Done in package G1: adaptive db fetch ranges (50 000
   to 400 000 numbers; on dbmint a 50 000 query takes ~5 s so it never grows
   there, REMOTE.md "Second round"),

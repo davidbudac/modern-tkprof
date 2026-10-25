@@ -136,3 +136,51 @@ describe('file selection', () => {
     expect(store.getState().files).toBeNull()
   })
 })
+
+describe('swapDoc (a live session next snapshot)', () => {
+  const doc = (stmts: number, events: number, ctxs: number, files: number) => ({
+    statements: new Array(stmts).fill(null), events: new Array(events).fill(null), cursors: new Array(stmts).fill(null),
+    contexts: new Array(ctxs).fill({ fileIdx: 0 }), file: { files: new Array(files).fill(null) },
+  }) as unknown as import('../data/doc').TraceDoc
+
+  it('keeps the view, scope and selection whose ids still exist, and counts the documents', () => {
+    const store = createStore()
+    store.setLoaded({ doc: doc(3, 2, 2, 1), compare: null })
+    const { actions } = store
+    actions.selectStmt(2)
+    actions.selectEvent(1)
+    actions.selectExec({ cursor: 2, execNo: 4 })
+    actions.setWindow({ startTim: 1, endTim: 9 })
+    actions.setContexts(new Set([0, 1]))
+    actions.openLinesAt(0, 120)
+    const before = store.getState()
+    store.swapDoc({ doc: doc(5, 3, 3, 2), compare: null })
+    const s = store.getState()
+    expect(s.rev).toBe(before.rev + 1)
+    expect(s.doc?.statements.length).toBe(5)
+    expect(s.view).toBe('lines')
+    expect(s.selection).toBe(before.selection) // unchanged: the same object
+    expect(s.contexts).toBe(before.contexts)
+    expect(s.window).toBe(before.window)
+    expect(s.linesView).toBe(before.linesView)
+  })
+
+  it('drops the ids the new document does not have (a restarted server)', () => {
+    const store = createStore()
+    store.setLoaded({ doc: doc(5, 3, 3, 2), compare: null })
+    store.actions.selectStmt(4)
+    store.actions.selectEvent(2)
+    store.actions.setContexts(new Set([0, 2]))
+    store.actions.setFiles(new Set([1]))
+    store.actions.setPivot({ stmt: 4, event: 1 })
+    store.actions.openLinesAt(1, 7)
+    store.swapDoc({ doc: doc(2, 2, 1, 1), compare: null })
+    const s = store.getState()
+    expect(s.selection.stmt).toBeNull()
+    expect(s.selection.event).toBeNull()
+    expect(s.files).toEqual(new Set())
+    expect(s.pivot.stmt).toBeNull()
+    expect(s.pivot.event).toBe(1)
+    expect(s.linesView.file).toBe(0)
+  })
+})
