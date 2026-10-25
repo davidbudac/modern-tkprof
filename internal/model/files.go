@@ -82,7 +82,7 @@ func probeChain(path string) (from, to string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	const window = 64 << 10
+	const window = HeadWindow
 	head := make([]byte, window)
 	n, err := io.ReadFull(f, head)
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
@@ -135,7 +135,12 @@ func headerName(path string) string {
 	defer f.Close()
 	buf := make([]byte, 1024)
 	n, _ := f.Read(buf)
-	line := buf[:n]
+	return HeaderName(buf[:n])
+}
+
+// HeaderName is headerName of the first bytes of a trace file.
+func HeaderName(head []byte) string {
+	line := head
 	if i := bytes.IndexByte(line, '\n'); i >= 0 {
 		line = line[:i]
 	}
@@ -146,15 +151,52 @@ func headerName(path string) string {
 	return baseName(strings.TrimSpace(string(line[len(key):])))
 }
 
+// HeadWindow is how much of the start of a file is searched for its
+// "TRACE CONTINUED FROM FILE" marker.
+const HeadWindow = 64 << 10
+
+// ContinuedFrom is the file named by the "*** TRACE CONTINUED FROM FILE x
+// ***" marker in head (the first HeadWindow bytes of a trace file), ""
+// without one.
+func ContinuedFrom(head []byte) string { return lastMarker(head, "CONTINUED FROM FILE ") }
+
+// HeadSettled reports whether head, the start of a file still being
+// written, holds everything that can carry a TRACE CONTINUED FROM marker:
+// Oracle writes the marker after the header block and the session lines
+// ("*** ..."), before the first record. So: the marker, a complete line
+// after the first blank one that is neither blank nor "*** ...", or
+// HeadWindow bytes.
+func HeadSettled(head []byte) bool {
+	if len(head) >= HeadWindow || ContinuedFrom(head) != "" {
+		return true
+	}
+	blank := false
+	for {
+		i := bytes.IndexByte(head, '\n')
+		if i < 0 {
+			return false
+		}
+		line := bytes.TrimSpace(head[:i])
+		head = head[i+1:]
+		switch {
+		case len(line) == 0:
+			blank = true
+		case blank && !bytes.HasPrefix(line, []byte("***")):
+			return true
+		}
+	}
+}
+
 // maxSiblingScan bounds how many neighbouring files are opened to find a
 // chain member by its header name.
 const maxSiblingScan = 2000
 
-// FindContinuation finds the file a "TRACE CONTINUES IN FILE ref" marker of
-// the file from names, as BuildFiles follows a chain: the path in the
-// marker, a file of that name next to from, or a *.trc file next to from
-// whose header names it (renamed or copied files); skip excludes files (the
-// chain so far). "" when there is none (yet).
+// FindContinuation finds the file a "TRACE CONTINUES IN FILE ref" (or
+// "TRACE CONTINUED FROM FILE ref") marker of the file from names, as
+// BuildFiles follows a chain: the path in the marker, a file of that name
+// next to from, or a *.trc file next to from whose header names it (renamed
+// or copied files); skip excludes files (the chain so far). "" when there is
+// none (yet).
 func FindContinuation(ref, from string, skip func(string) bool) string {
 	dir := filepath.Dir(from)
 	ok := func(c string) bool {

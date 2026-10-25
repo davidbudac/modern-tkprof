@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/remote"
 	"github.com/davidbudac/modern-tkprof/internal/remote/sshcli"
 	"github.com/davidbudac/modern-tkprof/internal/remote/sshconn"
@@ -765,12 +766,112 @@ func (s *Server) startRemoteFollow(conn string, cl remote.SSH, p, local string, 
 		}
 		return nextMirror{remote: rp, local: l, job: j, started: started}, nil
 	}
+	spec.earlier = func(ctx context.Context, ref, from string, skip func(string) bool) (string, string, error) { // a TRACE CONTINUED FROM chain
+		rp, err := remoteChainFile(ctx, cl, ref, from, skip)
+		if err != nil || rp == "" {
+			return "", "", err
+		}
+		l, err := localOf(rp)
+		if err != nil {
+			return "", "", err
+		}
+		if !s.claim([]string{l}) {
+			return "", "", fmt.Errorf("a job is writing %s already", l)
+		}
+		defer s.release([]string{l})
+		e, err := remote.Stat(ctx, cl, rp)
+		if err != nil {
+			return "", "", err
+		}
+		if _, err := remote.FetchFile(ctx, cl, rp, l, e.Size, false, nil); err != nil {
+			return "", "", err
+		}
+		return l, rp, nil
+	}
 	ss, err := s.startLive(*spec)
 	if err != nil {
 		j.cancel()
 		return nil, nil, err
 	}
 	return j, ss, nil
+}
+
+// remoteHeaderScan bounds how many files next to a remote file are read to
+// find a chain member by the name in its header.
+const remoteHeaderScan = 64
+
+// remoteChainFile finds on the host the file a chain marker ref of the
+// remote file from names, as model.FindContinuation does locally: the path
+// in the marker, that name in from's directory, else a *.trc file there
+// (newest first, at most remoteHeaderScan) whose header names it. skip
+// excludes remote paths (the chain so far); "" when there is none.
+func remoteChainFile(ctx context.Context, cl remote.SSH, ref, from string, skip func(string) bool) (string, error) {
+	ref = strings.ReplaceAll(ref, `\`, "/")
+	dir, want := path.Dir(from), path.Base(ref)
+	for _, c := range []string{ref, path.Join(dir, want)} {
+		if skip(c) {
+			continue
+		}
+		if _, err := remote.Stat(ctx, cl, c); err == nil {
+			return c, nil
+		}
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+	}
+	ents, err := cl.Ls(ctx, dir)
+	if err != nil {
+		return "", err
+	}
+	sort.SliceStable(ents, func(i, j int) bool { return ents[i].ModTime.After(ents[j].ModTime) })
+	n := 0
+	for _, e := range ents {
+		if e.Dir || e.Link || !strings.HasSuffix(strings.ToLower(e.Name), ".trc") || skip(e.Path) {
+			continue
+		}
+		if n++; n > remoteHeaderScan {
+			break
+		}
+		if head, err := remoteHead(ctx, cl, e.Path, 1024); err == nil && model.HeaderName(head) == want {
+			return e.Path, nil
+		}
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+	}
+	return "", nil
+}
+
+// remoteHead is the first n bytes of the remote file p (fewer when it is
+// shorter).
+func remoteHead(ctx context.Context, cl remote.SSH, p string, n int) ([]byte, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	w := &headWriter{max: n, full: cancel}
+	err := cl.Fetch(ctx, p, w, remote.FetchOptions{NoGzip: true})
+	if len(w.b) >= n || err == nil {
+		return w.b, nil
+	}
+	return nil, err
+}
+
+// headWriter keeps the first max bytes written and then stops the writer.
+type headWriter struct {
+	b    []byte
+	max  int
+	full func()
+}
+
+var errHeadFull = errors.New("enough")
+
+func (w *headWriter) Write(p []byte) (int, error) {
+	k := min(len(p), w.max-len(w.b))
+	w.b = append(w.b, p[:k]...)
+	if len(w.b) >= w.max {
+		w.full()
+		return k, errHeadFull
+	}
+	return len(p), nil
 }
 
 // followWaitPoll is how often a follow job waiting for its file looks.

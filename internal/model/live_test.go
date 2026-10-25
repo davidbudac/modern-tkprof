@@ -121,9 +121,11 @@ func TestSnapshotEqualsPrefixBuild(t *testing.T) {
 // TRACE CONTINUES IN chain (ContinueLive) snapshots, at cuts in both files,
 // the model BuildFiles makes of the first file and the prefix of the next
 // one (found by its header name, as a chain is followed), and ends equal to
-// the build of the whole chain.
+// the build of the whole chain. Backwards (the second file is the one
+// followed, the first one is complete and read first, MarkFollowed): the
+// snapshots in the second file, from its TRACE CONTINUED FROM marker on,
+// equal BuildFiles of the second file, which pulls in the first.
 func TestSnapshotOfChain(t *testing.T) {
-	dir := t.TempDir()
 	part1, err := os.ReadFile("../../testdata/traces/19c/midtrace_start_part1.trc")
 	if err != nil {
 		t.Fatal(err)
@@ -132,65 +134,92 @@ func TestSnapshotOfChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p1, p2 := filepath.Join(dir, "part1.trc"), filepath.Join(dir, "part2.trc")
-	b := model.NewLiveBuilder(p1, aggOptions())
-	var done trace.Stats
-	n := 0
-	cutsOf := func(data []byte) []int {
-		first := bytes.IndexByte(data, '\n') + 1 // the header line names the file
-		var cuts []int
-		for i := first; i < len(data); i++ {
-			if data[i] == '\n' && (len(cuts) == 0 || i+1-cuts[len(cuts)-1] > len(data)/12) {
-				cuts = append(cuts, i+1)
-			}
+	for _, backward := range []bool{false, true} {
+		dir := t.TempDir()
+		p1, p2 := filepath.Join(dir, "part1.trc"), filepath.Join(dir, "part2.trc")
+		named := p1
+		if backward {
+			named = p2
+			os.WriteFile(p1, part1, 0o644)
 		}
-		return cuts
-	}
-	parse := func(data []byte, file string, written func(int)) trace.Stats {
-		p := trace.New(b)
-		r := &cutReader{data: data, cuts: cutsOf(data), at: func(off int) {
-			written(off)
-			st := p.Stats()
-			total := done
-			total.Add(st)
-			m := b.Snapshot(st, total, p.Pending, nil)
-			want, err := model.BuildFiles([]string{p1}, aggOptions())
+		b := model.NewLiveBuilder(p1, aggOptions())
+		if backward {
+			b.MarkFollowed()
+		}
+		var done trace.Stats
+		n := 0
+		cutsOf := func(data []byte, from int) []int {
+			var cuts []int
+			for i := from; i < len(data); i++ {
+				if data[i] == '\n' && (len(cuts) == 0 || i+1-cuts[len(cuts)-1] > len(data)/12) {
+					cuts = append(cuts, i+1)
+				}
+			}
+			return cuts
+		}
+		parse := func(data []byte, file string, from int, written func(int)) trace.Stats {
+			p := trace.New(b)
+			var cuts []int
+			if from >= 0 { // else no snapshots
+				cuts = cutsOf(data, from)
+			}
+			r := &cutReader{data: data, cuts: cuts, at: func(off int) {
+				written(off)
+				st := p.Stats()
+				total := done
+				total.Add(st)
+				m := b.Snapshot(st, total, p.Pending, nil)
+				want, err := model.BuildFiles([]string{named}, aggOptions())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if a, b := docOf(t, want), docOf(t, m); !bytes.Equal(a, b) {
+					t.Fatalf("backward %v, %s: snapshot at byte %d differs from the build of the chain so far (%d vs %d bytes)\n%s\n%s", backward, file, off, len(b), len(a), a, b)
+				}
+				n++
+			}}
+			st, err := p.Run(r)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if a, b := docOf(t, want), docOf(t, m); !bytes.Equal(a, b) {
-				t.Fatalf("%s: snapshot at byte %d differs from the build of the chain so far (%d vs %d bytes)\n%s\n%s", file, off, len(b), len(a), a, b)
+			return st
+		}
+		first := bytes.IndexByte(part1, '\n') + 1 // the header line names the file
+		if backward {
+			first = -1
+		}
+		st := parse(part1, "part 1", first, func(off int) { os.WriteFile(p1, part1[:off], 0o644) })
+		os.WriteFile(p1, part1, 0o644)
+		if got := b.ContinuesIn(); !strings.HasSuffix(got, "_mtk_midtrace_start.trc") {
+			t.Fatalf("ContinuesIn %q", got)
+		}
+		b.EndFile(st)
+		done.Add(st)
+		b.ContinueLive(p2, !backward)
+		first = bytes.IndexByte(part2, '\n') + 1
+		if backward { // the live build reads the earlier file once the marker is there
+			const key = "TRACE CONTINUED FROM FILE "
+			i := bytes.Index(part2, []byte(key))
+			first = i + bytes.IndexByte(part2[i:], '\n') + 1
+			if !model.HeadSettled(part2[:first]) || model.HeadSettled(part2[:i]) {
+				t.Errorf("HeadSettled: not at the marker")
 			}
-			n++
-		}}
-		st, err := p.Run(r)
+		}
+		st = parse(part2, "part 2", first, func(off int) { os.WriteFile(p2, part2[:off], 0o644) })
+		b.EndFile(st)
+		done.Add(st)
+		os.WriteFile(p2, part2, 0o644)
+		got := b.Snapshot(st, done, nil, nil)
+		want, err := model.BuildFiles([]string{named}, aggOptions())
 		if err != nil {
 			t.Fatal(err)
 		}
-		return st
+		if len(want.File.Files) != 2 {
+			t.Fatalf("BuildFiles did not follow the chain: %d files", len(want.File.Files))
+		}
+		if !bytes.Equal(docOf(t, want), docOf(t, got)) {
+			t.Errorf("backward %v: the live build of the chain differs from BuildFiles", backward)
+		}
+		t.Logf("backward %v: %d snapshots equal", backward, n)
 	}
-	st := parse(part1, "part 1", func(off int) { os.WriteFile(p1, part1[:off], 0o644) })
-	os.WriteFile(p1, part1, 0o644)
-	if got := b.ContinuesIn(); !strings.HasSuffix(got, "_mtk_midtrace_start.trc") {
-		t.Fatalf("ContinuesIn %q", got)
-	}
-	b.EndFile(st)
-	done.Add(st)
-	b.ContinueLive(p2)
-	st = parse(part2, "part 2", func(off int) { os.WriteFile(p2, part2[:off], 0o644) })
-	b.EndFile(st)
-	done.Add(st)
-	os.WriteFile(p2, part2, 0o644)
-	got := b.Snapshot(st, done, nil, nil)
-	want, err := model.BuildFiles([]string{p1}, aggOptions())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(want.File.Files) != 2 {
-		t.Fatalf("BuildFiles did not follow the chain: %d files", len(want.File.Files))
-	}
-	if !bytes.Equal(docOf(t, want), docOf(t, got)) {
-		t.Errorf("the live build of the chain differs from BuildFiles")
-	}
-	t.Logf("%d snapshots equal", n)
 }

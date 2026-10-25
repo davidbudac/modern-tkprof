@@ -69,6 +69,18 @@ func TestChainFollowedFromEitherEnd(t *testing.T) {
 	if len(m.File.Files) != 2 || m.File.Files[0].Name != "midtrace_start_part1.trc" || m.File.Files[0].Followed || m.File.Files[1].Followed {
 		t.Errorf("explicit pair: %+v", m.File.Files)
 	}
+	// the second file alone (TRACE CONTINUED FROM, found by its header
+	// name) is the same model as the pair, apart from what says which file
+	// was named
+	back := buildFiles(t, Options{}, "midtrace_start.trc")
+	if !back.File.Files[0].Followed || back.File.Files[1].Followed {
+		t.Errorf("second file alone: followed flags %+v", back.File.Files)
+	}
+	back.File.Files[0].Followed = false
+	back.Diag.Notes, m.Diag.Notes = nil, nil
+	if !reflect.DeepEqual(back, m) {
+		t.Errorf("second file alone: the model differs from the pair's")
+	}
 	// -no-follow keeps just the named file
 	m = buildFiles(t, Options{NoFollow: true}, "midtrace_start_part1.trc")
 	if len(m.File.Files) != 1 {

@@ -46,6 +46,10 @@ import (
 // of x on the same connection, the old one is stopped): the parser of the
 // file ends, the builder continues in the next file as BuildFiles parses a
 // chain (model.(*Builder).ContinueLive), and the snapshots list both files.
+// A file that starts with "*** TRACE CONTINUED FROM FILE x ***" is read
+// after x (and the files x continues), found as BuildFiles finds them (for
+// a remote follow on the host, fetched once next to the mirror), so the
+// snapshots list the chain head to tail.
 
 // Batch limits.
 const (
@@ -56,6 +60,8 @@ const (
 	livePollMax      = 100 * time.Millisecond
 	liveDocWait      = 25 * time.Second       // longest wait of GET api/doc?rev=
 	liveProbe        = 250 * time.Millisecond // looking for the next file of a chain at most this often
+	liveHeadIdle     = 500 * time.Millisecond // a file's start that has not grown for this long is all of its header
+	liveEarlierMax   = 100                    // files a chain is followed back at most
 )
 
 // liveSpec is what a live session is started with.
@@ -76,6 +82,12 @@ type liveSpec struct {
 	// starts the mirror of the next file of a chain (remote follow only).
 	remote string
 	follow func(remotePath string) (nextMirror, error)
+
+	// earlier finds on the host the file a "TRACE CONTINUED FROM FILE ref"
+	// marker of the remote file from names (skip: remote paths of the
+	// chain so far) and fetches it once next to the mirror: its local and
+	// remote path, "" when the host has none (remote follow only).
+	earlier func(ctx context.Context, ref, from string, skip func(string) bool) (local, remote string, err error)
 }
 
 // nextMirror is the mirror of the next file of a chain.
@@ -107,6 +119,7 @@ type live struct {
 	// parser goroutine only
 	spill    *slice.Spill
 	files    []*liveFile // the chain so far; the last one is being read
+	queue    []string    // the files still to read before the followed one's tail: the rest of the earlier (complete) files, then the followed file
 	done     trace.Stats // of the files before the last
 	f        *os.File    // the last file, read by the parser
 	read     int64       // bytes read from f
@@ -280,9 +293,15 @@ func (lv *live) run(ctx context.Context) (err error) {
 			return ctx.Err()
 		}
 	}
-	if err := lv.openFile(lv.path); err != nil {
+	chain, err := lv.earlierFiles(ctx)
+	if err != nil {
 		return err
 	}
+	chain = append(chain, lv.path)
+	if err := lv.openFile(chain[0]); err != nil {
+		return err
+	}
+	lv.queue = chain[1:]
 	ss := lv.ss
 	sp, err := slice.NewSpill(slice.SpillOptions{Dir: lv.srv.liveDir(), Key: "live", BindMode: ss.bindMode, Salt: ss.salt, Live: true})
 	if err != nil {
@@ -293,9 +312,12 @@ func (lv *live) run(ctx context.Context) (err error) {
 	if ss.th != nil {
 		th = *ss.th
 	}
-	lv.b = model.NewLiveBuilder(lv.path, model.Options{NoFacts: true, Aggregate: true, SpillBinds: ss.bindMode != model.BindsNone,
+	lv.b = model.NewLiveBuilder(chain[0], model.Options{NoFacts: true, Aggregate: true, SpillBinds: ss.bindMode != model.BindsNone,
 		NewSink: func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) },
 		NewTee:  sp.Attach})
+	if len(chain) > 1 {
+		lv.b.MarkFollowed()
+	}
 	lv.lastSnap = time.Now()
 	for {
 		lv.p = trace.New(lv.b)
@@ -346,7 +368,7 @@ func (lv *live) switchFile(st trace.Stats) error {
 	if err := lv.openFile(next); err != nil {
 		return err
 	}
-	lv.b.ContinueLive(next)
+	lv.b.ContinueLive(next, next != lv.path)
 	if nm := lv.pending; nm != nil {
 		lv.mirror, lv.remote, lv.pending = nm.job, nm.remote, nil
 	}
@@ -398,6 +420,10 @@ func (t tailReader) Read(buf []byte) (int, error) {
 		}
 		if err != nil && err != io.EOF {
 			return 0, err
+		}
+		if len(lv.queue) > 0 { // an earlier file of the chain is read: on to the next one
+			lv.nextPath, lv.queue = lv.queue[0], lv.queue[1:]
+			return 0, io.EOF
 		}
 		// at the end of what is written
 		if lv.draining { // the old mirror has stopped and all it wrote is read
@@ -496,6 +522,108 @@ func (lv *live) nextReady(ctx context.Context) (bool, error) {
 	}
 	lv.nextPath = nm.local
 	return true, nil
+}
+
+// earlierFiles are the files the followed one continues ("TRACE CONTINUED
+// FROM FILE", and the files those continue), earliest first: found next
+// to it as BuildFiles finds them (model.FindContinuation), for a remote
+// follow on the host and fetched next to the mirror (spec.earlier). The
+// marker comes before the first record, so the start of the file is read
+// once it is settled (model.HeadSettled) or has not grown for
+// liveHeadIdle. A file that cannot be found is logged and left out.
+func (lv *live) earlierFiles(ctx context.Context) ([]string, error) {
+	head, err := lv.waitHead(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var chain []string
+	cur, rcur := lv.path, lv.remote
+	locals, remotes := []string{lv.path}, map[string]bool{lv.remote: true}
+	known := func(p string) bool {
+		for _, l := range locals {
+			if sameFile(l, p) {
+				return true
+			}
+		}
+		return false
+	}
+	for len(chain) < liveEarlierMax {
+		ref := model.ContinuedFrom(head)
+		if ref == "" {
+			break
+		}
+		var p string
+		if lv.spec.earlier == nil {
+			p = model.FindContinuation(ref, cur, known)
+		} else {
+			var rp string
+			p, rp, err = lv.spec.earlier(ctx, ref, rcur, func(r string) bool { return remotes[r] })
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			if err != nil {
+				lv.srv.logf("error", "session %s: %s continues %s: %v", lv.ss.id, filepath.Base(cur), ref, err)
+				break
+			}
+			if p != "" && known(p) { // two remote files of one name
+				p = ""
+			}
+			rcur, remotes[rp] = rp, true
+		}
+		if p == "" {
+			lv.srv.logf("info", "session %s: %s continues %s: not found", lv.ss.id, filepath.Base(cur), ref)
+			break
+		}
+		lv.srv.logf("info", "session %s: %s continues %s; reading it first", lv.ss.id, filepath.Base(cur), filepath.Base(p))
+		chain = append([]string{p}, chain...)
+		locals = append(locals, p)
+		cur = p
+		if head, err = readHead(p); err != nil {
+			return nil, err
+		}
+	}
+	return chain, nil
+}
+
+// waitHead is the start of the followed file once it holds what can carry
+// a TRACE CONTINUED FROM marker (model.HeadSettled), or has not grown for
+// liveHeadIdle, or its mirror has ended (the reader reports that).
+func (lv *live) waitHead(ctx context.Context) ([]byte, error) {
+	last, since := -1, time.Now()
+	for {
+		head, err := readHead(lv.path)
+		if err != nil {
+			return nil, err
+		}
+		if model.HeadSettled(head) || lv.mirror != nil && lv.mirror.Context().Err() != nil {
+			return head, nil
+		}
+		if len(head) != last {
+			last, since = len(head), time.Now()
+		} else if len(head) > 0 && time.Since(since) >= liveHeadIdle {
+			return head, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(lv.poll):
+		}
+	}
+}
+
+// readHead is the first model.HeadWindow bytes of the file at p.
+func readHead(p string) ([]byte, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	b := make([]byte, model.HeadWindow)
+	n, err := io.ReadFull(f, b)
+	if err == io.EOF || err == io.ErrUnexpectedEOF {
+		err = nil
+	}
+	return b[:n], err
 }
 
 // inChain reports whether p is a file of the chain already.
@@ -623,9 +751,12 @@ func (lv *live) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // serveDoc is GET api/doc: the latest snapshot's document, its revision in
-// the X-Rev header. With ?rev=N and no newer revision than N yet, it waits
-// up to liveDocWait for the next snapshot (or the end of the follow) and
-// answers the document it has then.
+// the X-Rev header and the session's state in X-Live ("live" while it
+// follows, "failed" or "closed" once the follow has stopped: no newer
+// revision will come). With ?rev=N and no newer revision than N yet, it
+// waits up to liveDocWait for the next snapshot (or the end of the follow)
+// and answers the document it has then (200 either way; the same X-Rev
+// after the wait).
 func (lv *live) serveDoc(w http.ResponseWriter, r *http.Request) {
 	snap := lv.cur.Load()
 	if q := r.URL.Query().Get("rev"); q != "" {
@@ -657,8 +788,19 @@ func (lv *live) serveDoc(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	state := SessionLive
+	select {
+	case <-lv.stopped:
+		lv.ss.mu.Lock()
+		if state = lv.ss.state; state == SessionLive { // stopped, its state not set yet
+			state = SessionClosed
+		}
+		lv.ss.mu.Unlock()
+	default:
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Rev", strconv.Itoa(snap.rev))
+	w.Header().Set("X-Live", string(state))
 	w.Write(snap.doc)
 }
 
