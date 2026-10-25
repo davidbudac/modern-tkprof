@@ -113,6 +113,10 @@ func (s *Server) refHandler(ss *Session) http.HandlerFunc {
 			writeError(w, errorf(CodeBadRequest, "body: want {dir} or {connection}"))
 			return
 		}
+		if ss.identity == "" { // a live session has no content identity (no stable file) and no bundle dir
+			writeError(w, errorf(CodeBadRequest, "reference data cannot be applied to a live session; open the file normally when the follow ends"))
+			return
+		}
 		if body.Dir != "" && body.Lite {
 			writeError(w, errorf(CodeBadRequest, "lite: connection only"))
 			return
