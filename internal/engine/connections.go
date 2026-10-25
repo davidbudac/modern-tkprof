@@ -586,16 +586,13 @@ func (s *Server) runFetch(j *Job, cl remote.SSH, paths, locals []string, noGzip 
 	sizes := make([]int64, len(paths))
 	var total, done int64
 	for i, p := range paths {
-		ents, err := cl.Ls(ctx, p)
+		e, err := remote.Stat(ctx, cl, p)
 		if err != nil {
 			return err
 		}
-		if len(ents) != 1 || ents[0].Dir || path.Base(ents[0].Path) != path.Base(p) {
-			return fmt.Errorf("%s: not a file", p)
-		}
-		sizes[i] = ents[0].Size
-		total += sizes[i]
-		if fi, err := os.Stat(locals[i]); err == nil && fi.Size() <= sizes[i] {
+		sizes[i] = e.Size
+		total += e.Size
+		if fi, err := os.Stat(locals[i]); err == nil && fi.Size() <= e.Size {
 			done += fi.Size()
 		}
 	}
@@ -605,27 +602,11 @@ func (s *Server) runFetch(j *Job, cl remote.SSH, paths, locals []string, noGzip 
 	var last time.Time
 	j.progress(done, true, &last)
 	for i, p := range paths {
-		f, err := os.OpenFile(locals[i], os.O_RDWR|os.O_CREATE, 0o600)
-		if err != nil {
-			return err
+		base := done
+		if fi, err := os.Stat(locals[i]); err == nil && fi.Size() <= sizes[i] {
+			base -= fi.Size()
 		}
-		from, err := f.Seek(0, io.SeekEnd)
-		if err == nil && from > sizes[i] { // replaced or rotated on the host: start over
-			if err = f.Truncate(0); err == nil {
-				from, err = f.Seek(0, io.SeekStart)
-			}
-		}
-		if err != nil {
-			f.Close()
-			return err
-		}
-		base := done - min(from, sizes[i])
-		err = cl.Fetch(ctx, p, f, remote.FetchOptions{From: from, NoGzip: noGzip,
-			Progress: func(pos int64) { j.progress(base+pos, false, &last) }})
-		end, _ := f.Seek(0, io.SeekCurrent)
-		if cerr := f.Close(); err == nil {
-			err = cerr
-		}
+		end, err := remote.FetchFile(ctx, cl, p, locals[i], sizes[i], noGzip, func(pos int64) { j.progress(base+pos, false, &last) })
 		done = base + end
 		j.progress(done, true, &last)
 		if err != nil {
@@ -680,12 +661,13 @@ func (s *Server) followConnection(w http.ResponseWriter, r *http.Request) {
 	}{j.Info(), locals[0]})
 }
 
-// followRetries is how many failures in a row end a follow job.
-const followRetries = 5
-
 func (s *Server) runFollow(j *Job, cl remote.SSH, p, local string) error {
 	ctx := j.Context()
 	if err := os.MkdirAll(filepath.Dir(local), 0o700); err != nil {
+		return err
+	}
+	e, err := remote.Stat(ctx, cl, p)
+	if err != nil {
 		return err
 	}
 	f, err := os.OpenFile(local, os.O_RDWR|os.O_CREATE, 0o600)
@@ -693,68 +675,23 @@ func (s *Server) runFollow(j *Job, cl remote.SSH, p, local string) error {
 		return err
 	}
 	defer f.Close()
-	ents, err := cl.Ls(ctx, p)
-	if err != nil {
-		return err
-	}
-	if len(ents) != 1 || ents[0].Dir {
-		return fmt.Errorf("%s: not a file", p)
-	}
 	off, err := f.Seek(0, io.SeekEnd)
+	if err == nil && off > e.Size {
+		if err = f.Truncate(0); err == nil {
+			off, err = f.Seek(0, io.SeekStart)
+		}
+	}
 	if err != nil {
 		return err
-	}
-	if off > ents[0].Size {
-		if err := f.Truncate(0); err != nil {
-			return err
-		}
-		off = 0
 	}
 	j.mu.Lock()
 	j.info.LocalPaths = []string{local}
 	j.mu.Unlock()
 	var last time.Time
 	j.progress(off, true, &last)
-	buf := make([]byte, 256<<10)
-	fails := 0
-	for ctx.Err() == nil {
-		rc, err := cl.Follow(ctx, p, off)
-		if err == nil {
-			for {
-				n, rerr := rc.Read(buf)
-				if n > 0 {
-					if _, werr := f.WriteAt(buf[:n], off); werr != nil {
-						rc.Close()
-						return werr
-					}
-					off += int64(n)
-					fails = 0
-					j.progress(off, false, &last)
-				}
-				if rerr != nil {
-					if rerr != io.EOF {
-						err = rerr
-					}
-					break
-				}
-			}
-			rc.Close()
-			j.progress(off, true, &last)
-		}
-		if ctx.Err() != nil {
-			break
-		}
-		if fails++; fails >= followRetries {
-			if err == nil {
-				err = errors.New("the stream keeps ending")
-			}
-			return err
-		}
-		s.logf("info", "follow %s: %v; reconnecting", p, err)
-		select {
-		case <-ctx.Done():
-		case <-time.After(time.Duration(fails) * time.Second):
-		}
-	}
-	return ctx.Err()
+	err = remote.FollowTo(ctx, cl, p, f, off, func(pos int64) { j.progress(pos, false, &last) },
+		func(format string, a ...any) { s.logf("info", format, a...) })
+	end, _ := f.Seek(0, io.SeekCurrent)
+	j.progress(end, true, &last)
+	return err
 }

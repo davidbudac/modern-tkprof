@@ -39,6 +39,9 @@ Usage:
   mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate] [-spill[=DIR]]   browser UI
   mtkprof engine [-listen 127.0.0.1:0] [-cache DIR] [-cache-cap 20G] [-allow-origin O,...] [-idle-exit D] [-detach]   desktop sidecar (token: env MTKPROF_TOKEN)
   mtkprof engine cache ls|rm <identity>|wipe [-cache DIR]   the engine's index cache
+  mtkprof fetch  <user@host[:port]> <remote-path>... [-o dir] [-transport auto|cli|lib] [-no-gzip]   copy traces over SSH (resumes)
+  mtkprof follow <user@host[:port]> <remote-path> [-o file|-] [-transport auto|cli|lib]   stream a growing trace (tail -f)
+  mtkprof askpass "<prompt>"                         SSH_ASKPASS helper (asks the engine, else the terminal)
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
   mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text diff, B against A
   mtkprof html|serve|json <a.trc> <b.trc> -compare ...    both traces + diff (Compare tab)
@@ -125,6 +128,12 @@ func main() {
 		err = cmdServe(args)
 	case "engine":
 		err = cmdEngine(args)
+	case "askpass":
+		err = cmdAskpass(args)
+	case "fetch":
+		err = cmdFetch(args)
+	case "follow":
+		err = cmdFollow(args)
 	case "findings-config":
 		err = cmdFindingsConfig(args)
 	case "lint":
