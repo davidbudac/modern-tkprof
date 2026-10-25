@@ -33,6 +33,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `mtkprof %s - Oracle SQL trace (10046) analyzer
 
 Usage:
+  mtkprof <trace...> [report and html flags]   writes <trace>.txt (text report) and <trace>.html next to the trace
   mtkprof report <trace...> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys] [-aggregate]
   mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
   mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained HTML report
@@ -164,8 +165,11 @@ func main() {
 	case "-h", "--help", "help":
 		usage()
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command %q\n", cmd)
-		usage()
+		if !isTraceArg(cmd) {
+			fmt.Fprintf(os.Stderr, "unknown command %q\n", cmd)
+			usage()
+		}
+		err = cmdDefault(os.Args[1:])
 	}
 	stopProf()
 	if err != nil {
@@ -441,13 +445,18 @@ func cmdHTML(args []string) error {
 	if path == "" {
 		path = outBase(files) + ".html"
 	}
+	return writeHTML(path, m, report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th})
+}
+
+// writeHTML writes the self-contained HTML report of m to path.
+func writeHTML(path string, m *model.Model, opts report.DocOptions) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	bw := bufio.NewWriterSize(f, 1<<20)
 	err = ui.WriteStandalone(bw, func(w io.Writer) error {
-		return report.WriteDocument(w, m, report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th})
+		return report.WriteDocument(w, m, opts)
 	})
 	if err == nil {
 		err = bw.Flush()

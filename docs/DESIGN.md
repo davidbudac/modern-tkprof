@@ -49,6 +49,11 @@ Comparison of two traces or two executions is v2.
 Text and HTML are **equal in numbers, not in form**: every number reachable
 in the UI is reachable from the CLI.
 
+- Default command: `mtkprof <trace...>` (no subcommand) parses once and
+  writes both reports next to the trace, named by appending to the first
+  input: `trace.trc.txt` and `trace.trc.html` (the full file name is kept so
+  an existing `trace.txt` is never overwritten). It takes the flags of
+  `report` and `html`; the subcommands remain for stdout, `-o` and the rest.
 - `report`: text report with resource profile, statements, call tables
   (tkprof-style exclusive numbers), executions with binds, plans, recursive
   links, sessions, time buckets, findings.

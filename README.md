@@ -15,12 +15,13 @@ interactive UI, offline, from one file.
   Oracle's own `tkprof` on every fixture (`internal/golden`), while keeping
   what tkprof throws away: per-execution binds, recursive hierarchy, commits,
   LOB calls, session/module/action context, wall-clock time.
-* **Interactive**: `mtkprof html trace.trc` writes a single self-contained
-  HTML file with the explorer and the data inside; nothing leaves the machine.
+* **Interactive**: `mtkprof trace.trc` writes the text report and a single
+  self-contained HTML file with the explorer and the data inside; nothing leaves the machine.
 
 ## Usage
 
 ```
+mtkprof trace.trc                        # trace.trc.txt (text report) + trace.trc.html (interactive), next to the trace
 mtkprof report trace.trc                 # text report (profile, statements, executions, binds, plans, sessions, time buckets)
 mtkprof report trace.trc -sort cpu -top 20 -binds 3 -execs 10   # -execs N: executions listed per statement (0 none, -1 all)
 mtkprof pivot  trace.trc -fact waits -by event,obj -top 10       # group-by like the UI Pivot; -by '?' lists dims/measures
