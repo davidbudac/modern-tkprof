@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,7 +27,12 @@ const Protocol = 1
 type Options struct {
 	Token        string   // bearer token every request but GET /engine/health must carry
 	AllowOrigins []string // CORS origins (exact match); none = no CORS headers
-	CacheDir     string   // parent of the session spill directories ("" = os.TempDir())
+	// Cache is the persistent index cache every session is opened from; nil:
+	// New opens the one at CacheDir ("" = CacheDefaultDir()) with CacheCap
+	// (<= 0 = CacheDefaultCap).
+	Cache    *Cache
+	CacheDir string
+	CacheCap int64
 	Version      string   // engine version, reported by health
 	// Logf receives the engine's log lines (also sent as log events); nil = discarded.
 	Logf func(format string, a ...any)
@@ -39,6 +43,7 @@ type Options struct {
 // Server is the engine. It is safe for concurrent use.
 type Server struct {
 	opts      Options
+	cache     *Cache
 	token     []byte
 	origins   map[string]bool
 	keepAlive time.Duration
@@ -60,15 +65,20 @@ type Server struct {
 }
 
 // New returns the engine server.
-func New(o Options) *Server {
-	if o.CacheDir == "" {
-		o.CacheDir = os.TempDir()
+func New(o Options) (*Server, error) {
+	c := o.Cache
+	if c == nil {
+		var err error
+		if c, err = OpenCache(o.CacheDir, o.CacheCap); err != nil {
+			return nil, fmt.Errorf("cache: %w", err)
+		}
 	}
+	c.Protocol = Protocol
 	ka := o.KeepAlive
 	if ka <= 0 {
 		ka = 15 * time.Second
 	}
-	s := &Server{opts: o, token: []byte(o.Token), origins: map[string]bool{}, keepAlive: ka, started: time.Now(),
+	s := &Server{opts: o, cache: c, token: []byte(o.Token), origins: map[string]bool{}, keepAlive: ka, started: time.Now(),
 		bc: newBroadcaster(), sessions: map[string]*Session{}, jobs: map[string]*Job{}}
 	s.prompts = newPrompts(s.bc)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -78,27 +88,61 @@ func New(o Options) *Server {
 		}
 	}
 	s.lastActive.Store(time.Now().UnixNano())
-	sweepSpills(o.CacheDir)
-	return s
+	return s, nil
 }
+
+// Cache is the server's index cache.
+func (s *Server) Cache() *Cache { return s.cache }
 
 // Prompter is the engine's prompt mechanism: Ask raises a prompt event and
 // waits for POST /engine/prompts/{id}.
 func (s *Server) Prompter() remote.Prompter { return s.prompts }
 
+// routes is the control plane: the one table the mux and Routes (and so the
+// contract test against api/engine.openapi.yaml) are built from.
+var routes = []struct {
+	pattern string
+	handler func(*Server, http.ResponseWriter, *http.Request)
+}{
+	{"GET /engine/health", (*Server).health},
+	{"GET /engine/events", (*Server).events},
+	{"POST /engine/prompts/{id}", (*Server).answerPrompt},
+	{"POST /engine/sessions", (*Server).openSession},
+	{"GET /engine/sessions", (*Server).listSessions},
+	{"GET /engine/sessions/{id}", (*Server).getSession},
+	{"DELETE /engine/sessions/{id}", (*Server).deleteSession},
+	{"GET /engine/jobs", (*Server).listJobs},
+	{"DELETE /engine/jobs/{id}", (*Server).cancelJob},
+	{"GET /engine/cache", (*Server).listCache},
+	{"DELETE /engine/cache", (*Server).wipeCache},
+	{"DELETE /engine/cache/{identity}", (*Server).deleteCacheEntry},
+}
+
+// sessionPrefix is where a session's routes (sessionRoutes) are mounted.
+const sessionPrefix = "/s/{id}"
+
+// Routes are the patterns the engine serves ("METHOD /path"): the control
+// plane and every route of a session under /s/{id}.
+func (s *Server) Routes() []string {
+	var out []string
+	for _, r := range routes {
+		out = append(out, r.pattern)
+	}
+	for _, p := range sessionRoutes() {
+		method, path, _ := strings.Cut(p, " ")
+		out = append(out, method+" "+sessionPrefix+path)
+	}
+	return out
+}
+
 // Handler returns the engine's HTTP handler.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /engine/health", s.health)
-	mux.HandleFunc("GET /engine/events", s.events)
-	mux.HandleFunc("POST /engine/prompts/{id}", s.answerPrompt)
-	mux.HandleFunc("POST /engine/sessions", s.openSession)
-	mux.HandleFunc("GET /engine/sessions", s.listSessions)
-	mux.HandleFunc("GET /engine/sessions/{id}", s.getSession)
-	mux.HandleFunc("DELETE /engine/sessions/{id}", s.deleteSession)
-	mux.HandleFunc("GET /engine/jobs", s.listJobs)
-	mux.HandleFunc("DELETE /engine/jobs/{id}", s.cancelJob)
-	mux.HandleFunc("/s/{id}/", s.sessionAPI)
+	for _, r := range routes {
+		h := r.handler
+		mux.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) { h(s, w, r) })
+	}
+	mux.HandleFunc(sessionPrefix+"/", s.sessionAPI)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeNotFound, "no route %s %s", r.Method, r.URL.Path))
 	})
@@ -186,7 +230,7 @@ type Health struct {
 	Cache    CacheHealth `json:"cache"`
 }
 
-// CacheHealth is the index cache's size (filled by the persistent cache).
+// CacheHealth is the index cache's size.
 type CacheHealth struct {
 	Bytes   int64 `json:"bytes"`
 	Entries int   `json:"entries"`
@@ -197,13 +241,15 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	n := len(s.sessions)
 	s.mu.Unlock()
+	bytes, entries, capBytes := s.cache.Stats()
 	writeJSON(w, http.StatusOK, Health{Version: s.opts.Version, Protocol: Protocol,
-		Uptime: int64(time.Since(s.started) / time.Second), Sessions: n})
+		Uptime: int64(time.Since(s.started) / time.Second), Sessions: n,
+		Cache: CacheHealth{Bytes: bytes, Entries: entries, Cap: capBytes}})
 }
 
 // Close stops the engine: cancels every job and prompt, ends the event
 // streams, waits for the open goroutines and closes every session (their
-// spill directories are removed). Requests still running on a session may
+// cache entries stay). Requests still running on a session may
 // fail.
 func (s *Server) Close() error {
 	s.mu.Lock()

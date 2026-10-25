@@ -52,7 +52,7 @@ func TestEngineTokenRequired(t *testing.T) {
 
 // TestEngineProcess starts `mtkprof engine`, reads the ready line, opens a
 // trace, compares answers with a `mtkprof serve -spill` process on the same
-// trace, and closes stdin: the engine exits and removes its spill directory.
+// trace, and closes stdin: the engine exits and keeps the cache entry.
 func TestEngineProcess(t *testing.T) {
 	trc, _ := filepath.Abs("../../testdata/traces/19c/basic_binds.trc")
 	cache := t.TempDir()
@@ -141,8 +141,9 @@ func TestEngineProcess(t *testing.T) {
 		}
 	}
 
-	if ents, _ := os.ReadDir(cache); len(ents) != 1 {
-		t.Errorf("cache dir while open: %v", ents)
+	index := filepath.Join(cache, "index")
+	if ents, _ := os.ReadDir(index); len(ents) != 1 {
+		t.Errorf("cache index while open: %v", ents)
 	}
 	stdin.Close()
 	done := make(chan error, 1)
@@ -155,7 +156,10 @@ func TestEngineProcess(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("engine did not exit after stdin EOF")
 	}
-	if ents, _ := os.ReadDir(cache); len(ents) != 0 {
-		t.Errorf("cache dir after exit: %v", ents)
+	// the entry persists: a second open is a hit
+	if ents, _ := os.ReadDir(index); len(ents) != 1 {
+		t.Errorf("cache index after exit: %v", ents)
+	} else if _, err := os.Stat(filepath.Join(index, ents[0].Name(), "manifest.json")); err != nil {
+		t.Errorf("cache entry without a manifest after exit: %v", err)
 	}
 }

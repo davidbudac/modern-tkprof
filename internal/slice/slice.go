@@ -97,7 +97,24 @@ func bad(format string, a ...any) error { return badRequest(fmt.Sprintf(format, 
 // dev server of `pnpm dev` loads the document from this one).
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	routes := map[string]func(context.Context, url.Values) (any, error){
+	for path, fn := range s.routes() {
+		mux.HandleFunc(path, s.wrap(fn))
+	}
+	return mux
+}
+
+// Endpoints are the paths Handler serves (GET), sorted.
+func Endpoints() []string {
+	var out []string
+	for path := range (&Server{}).routes() {
+		out = append(out, path)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (s *Server) routes() map[string]func(context.Context, url.Values) (any, error) {
+	return map[string]func(context.Context, url.Values) (any, error){
 		"/api/pivot":             s.pivot,
 		"/api/timeline":          s.timeline,
 		"/api/calls":             s.calls,
@@ -112,10 +129,6 @@ func (s *Server) Handler() http.Handler {
 		"/api/stmt/waits":        s.stmtWaits,
 		"/api/stmt/spans":        s.stmtSpans,
 	}
-	for path, fn := range routes {
-		mux.HandleFunc(path, s.wrap(fn))
-	}
-	return mux
 }
 
 func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.HandlerFunc {

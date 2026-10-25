@@ -45,7 +45,10 @@ func newEnv(t *testing.T, mod ...func(*Options)) *env {
 	for _, f := range mod {
 		f(&o)
 	}
-	s := New(o)
+	s, err := New(o)
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() { s.Close() })
 	return &env{t: t, srv: s, h: s.Handler(), cache: o.CacheDir}
 }
@@ -133,14 +136,23 @@ func (e *env) openReady(paths []string, opts map[string]any) string {
 	return o.Session.ID
 }
 
-// spillDirs lists the spill directories in the cache dir.
-func (e *env) spillDirs() []string {
-	ents, _ := os.ReadDir(e.cache)
+// buildDirs lists the cache's build directories (entries being written).
+func (e *env) buildDirs() []string {
+	ents, _ := os.ReadDir(filepath.Join(e.cache, cacheIndexDir))
 	var out []string
 	for _, x := range ents {
-		if strings.HasPrefix(x.Name(), "mtkprof-spill-") {
+		if strings.HasPrefix(x.Name(), cacheBuildPfx) {
 			out = append(out, x.Name())
 		}
+	}
+	return out
+}
+
+// entries lists the identities of the committed cache entries.
+func (e *env) entries() []string {
+	var out []string
+	for _, x := range e.srv.Cache().Entries() {
+		out = append(out, x.Identity)
 	}
 	return out
 }
@@ -326,8 +338,12 @@ func TestTwoSessionsAtOnce(t *testing.T) {
 			t.Fatalf("%s: %s %s", si.ID, si.State, si.Error)
 		}
 	}
-	if n := len(e.spillDirs()); n != 3 {
-		t.Fatalf("%d spill dirs, want 3: %v", n, e.spillDirs())
+	// the two sessions of basic_binds share one entry
+	if n := len(e.entries()); n != 2 || len(e.buildDirs()) != 0 {
+		t.Fatalf("%d cache entries (want 2), build dirs %v", n, e.buildDirs())
+	}
+	if a.Session.CacheIdentity != b.Session.CacheIdentity || a.Session.Identity != b.Session.Identity || a.Session.CacheIdentity == c.Session.CacheIdentity {
+		t.Errorf("identities: %+v %+v %+v", a.Session, b.Session, c.Session)
 	}
 	docOf := func(id string) string {
 		r := e.req("GET", "/s/"+id+"/api/doc", nil)
@@ -343,13 +359,8 @@ func TestTwoSessionsAtOnce(t *testing.T) {
 	if r := e.req("DELETE", "/engine/sessions/"+a.Session.ID, nil); r.code != http.StatusNoContent {
 		t.Fatalf("delete: %d %s", r.code, r.body)
 	}
-	for _, d := range e.spillDirs() {
-		if strings.Contains(d, a.Session.ID) {
-			t.Errorf("spill dir %s of the deleted session is still there", d)
-		}
-	}
-	if n := len(e.spillDirs()); n != 2 {
-		t.Errorf("%d spill dirs after delete, want 2", n)
+	if n := len(e.entries()); n != 2 {
+		t.Errorf("%d cache entries after delete, want 2 (closing keeps the entry)", n)
 	}
 	if r := e.req("GET", "/s/"+a.Session.ID+"/api/doc", nil); r.code != 404 {
 		t.Errorf("deleted session answers: %d", r.code)
@@ -365,8 +376,8 @@ func TestTwoSessionsAtOnce(t *testing.T) {
 		t.Errorf("%d sessions listed, want 2", len(l.Sessions))
 	}
 	e.srv.Close()
-	if d := e.spillDirs(); len(d) != 0 {
-		t.Errorf("spill dirs after Close: %v", d)
+	if n := len(e.entries()); n != 2 || len(e.buildDirs()) != 0 {
+		t.Errorf("after Close: %d entries (want 2), build dirs %v", n, e.buildDirs())
 	}
 }
 
@@ -378,8 +389,8 @@ func TestCancelMidParse(t *testing.T) {
 	before := runtime.NumGoroutine()
 	o := e.open([]string{bigTrace}, nil)
 	time.Sleep(200 * time.Millisecond) // the parse takes about a second
-	if n := len(e.spillDirs()); n != 1 {
-		t.Fatalf("%d spill dirs while parsing", n)
+	if n := len(e.buildDirs()); n != 1 {
+		t.Fatalf("%d build dirs while parsing", n)
 	}
 	t0 := time.Now()
 	if r := e.req("DELETE", "/engine/jobs/"+o.Job.ID, nil); r.code != http.StatusAccepted {
@@ -398,8 +409,11 @@ func TestCancelMidParse(t *testing.T) {
 		t.Errorf("cancel took %s", took)
 	}
 	t.Logf("cancelled after 200 ms of parsing, stopped %s later", took.Round(time.Millisecond))
-	if d := e.spillDirs(); len(d) != 0 {
-		t.Errorf("spill dirs after cancel: %v", d)
+	if d, n := e.buildDirs(), len(e.entries()); len(d) != 0 || n != 0 {
+		t.Errorf("after cancel: build dirs %v, %d entries", d, n)
+	}
+	if ents, _ := os.ReadDir(filepath.Join(e.cache, cacheIndexDir)); len(ents) != 0 {
+		t.Errorf("index dir after cancel: %v", ents)
 	}
 	if r := e.req("GET", "/s/"+o.Session.ID+"/api/doc", nil); r.code != http.StatusConflict {
 		t.Errorf("doc of a failed session: %d", r.code)
@@ -434,8 +448,8 @@ func TestDeleteWhileOpening(t *testing.T) {
 	if r := e.req("DELETE", "/engine/sessions/"+o.Session.ID, nil); r.code != http.StatusNoContent {
 		t.Fatalf("delete: %d %s", r.code, r.body)
 	}
-	if d := e.spillDirs(); len(d) != 0 {
-		t.Errorf("spill dirs after delete: %v", d)
+	if d, n := e.buildDirs(), len(e.entries()); len(d) != 0 || n != 0 {
+		t.Errorf("after delete: build dirs %v, %d entries", d, n)
 	}
 	if r := e.req("GET", "/engine/sessions/"+o.Session.ID, nil); r.code != 404 {
 		t.Errorf("deleted session still listed: %d", r.code)
@@ -699,7 +713,7 @@ func TestOpenEvents(t *testing.T) {
 	ev := openSSE(t, ts)
 	o := e.open([]string{traces + "basic_binds.trc"}, nil)
 	var phases, sessions []string
-	var last JobInfo
+	var last, parse JobInfo
 	for last.State == "" || last.State == JobRunning || len(sessions) < 2 {
 		ty, d := ev.next()
 		switch ty {
@@ -712,6 +726,9 @@ func TestOpenEvents(t *testing.T) {
 				phases = append(phases, j.Phase)
 			}
 			last = j
+			if j.Phase == "parse" {
+				parse = j
+			}
 		case "session":
 			se := decode[SessionEvent](t, []byte(d))
 			if se.ID != o.Session.ID || se.Rev != 1 {
@@ -720,14 +737,17 @@ func TestOpenEvents(t *testing.T) {
 			sessions = append(sessions, se.State)
 		}
 	}
-	if strings.Join(phases, ",") != "parse,index,ready" || last.State != JobDone || last.Kind != "open" || last.Session != o.Session.ID {
+	if strings.Join(phases, ",") != "open,parse,index,ready" || last.State != JobDone || last.Kind != "open" || last.Session != o.Session.ID {
 		t.Errorf("job events: phases %v, last %+v", phases, last)
 	}
 	if strings.Join(sessions, ",") != "opening,ready" {
 		t.Errorf("session events: %v", sessions)
 	}
-	if o.Job.Total != 213689 || o.Job.Unit != "bytes" || o.Job.Phase != "parse" {
+	if o.Job.Phase != "open" || o.Session.Hit {
 		t.Errorf("job at open: %+v", o.Job)
+	}
+	if parse.Total != 213689 || parse.Unit != "bytes" || parse.Done != 213689 || parse.Lines == 0 {
+		t.Errorf("last parse event: %+v", parse)
 	}
 	ev.until("log", func(d string) bool { return strings.Contains(d, "ready in") })
 	for {
@@ -774,25 +794,5 @@ func TestIdleFor(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 	if d := e.srv.IdleFor(); d <= 0 || d > time.Second {
 		t.Errorf("idle after the last session: %s", d)
-	}
-}
-
-func TestSweepSpills(t *testing.T) {
-	dir := t.TempDir()
-	dead := filepath.Join(dir, "mtkprof-spill-abc.s1-2000000000-1")
-	live := filepath.Join(dir, fmt.Sprintf("mtkprof-spill-abc.s2-%d-1", os.Getppid()))
-	serve := filepath.Join(dir, "mtkprof-spill-abc-2000000000-1") // serve -spill's, not the engine's
-	for _, d := range []string{dead, live, serve} {
-		os.Mkdir(d, 0o700)
-	}
-	New(Options{Token: testToken, CacheDir: dir}).Close()
-	if _, err := os.Stat(dead); err == nil {
-		t.Errorf("dead engine's spill kept")
-	}
-	if _, err := os.Stat(live); err != nil {
-		t.Errorf("live process's spill removed")
-	}
-	if _, err := os.Stat(serve); err != nil {
-		t.Errorf("serve's spill removed")
 	}
 }
