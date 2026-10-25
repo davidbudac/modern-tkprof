@@ -138,6 +138,21 @@ paths:
         (unit bytes, with lines and statements) and `index` (writing the cache
         entry), then `ready`. A hit goes from `open` straight to `ready`. The
         session becomes `ready` or `failed`.
+
+        With `options.follow` (one file) the session is a live session over
+        a growing file (not cached; spilled to a temporary directory under
+        `<cache>/live/`): its job (kind `live`, phase `follow`, unit bytes,
+        `done` = bytes parsed) runs until the session is deleted. The file is
+        parsed as it grows (a line counts once its newline is written); at
+        every settled batch (`batchMs`, default 1000, at least 3x the cost of
+        the last snapshot; or after `batchMB` of new input) the session
+        serves a new snapshot: `rev` increments, a session event
+        `{state: live, rev}` goes out, and every route under `/s/{id}/`
+        answers what a normal open of the input so far would. The first
+        snapshot is taken as soon as the reader has caught up with the file
+        (state `opening` until then). A stream error (the file shrank, the
+        mirror of a remote follow ended) makes it `failed` with the error;
+        the last snapshot is still served until DELETE.
       requestBody:
         required: true
         content:
@@ -176,6 +191,9 @@ paths:
     delete:
       operationId: closeSession
       summary: Close a session (cancels its open job); the cache entry stays
+      description: |
+        A live session stops following (its job ends cancelled; a remote
+        follow's mirror job is cancelled) and its spill directory is removed.
       parameters:
         - $ref: "#/components/parameters/SessionID"
       responses:
@@ -519,16 +537,23 @@ paths:
   /engine/connections/{id}/follow:
     post:
       operationId: followConnection
-      summary: Mirror a growing remote file into the cache (job kind follow)
+      summary: Follow a growing remote file in a live session (mirror job kind follow)
       description: |
-        Follow (file mirror); the live session is pending. The job copies the
-        file to `<cache>/remote/<connection>/<basename>` (resuming at the
-        local size) and keeps appending what the host writes (ssh/cli:
-        `tail -c +N -f -- path`, stopped on the host when the stream ends;
-        lib: SFTP size poll every 500 ms), reconnecting after a drop (5
-        failures in a row end it). `done` is the local size, `total` 0. It
-        runs until `DELETE /engine/jobs/{id}` (state cancelled). A later
-        version opens a `live` session fed by the streaming parser instead.
+        The job (kind follow) copies the file to
+        `<cache>/remote/<connection>/<basename>` (resuming at the local size)
+        and keeps appending what the host writes (ssh/cli: `tail -c +N -f --
+        path`, stopped on the host when the stream ends; lib: SFTP size poll
+        every 500 ms), reconnecting after a drop (5 failures in a row end
+        it). `done` is the local size, `total` 0. The session is a live
+        session over the local mirror (as `POST /engine/sessions` with
+        `options.follow`; `options` as there, `follow` ignored): DELETE of
+        the session cancels the job; the end of the job (cancelled with
+        `DELETE /engine/jobs/{id}`, or failed) fails the session after the
+        mirrored bytes are parsed, its last snapshot still served. Latency
+        from a write on the host to a snapshot: the transport's delay (lib:
+        up to 500 ms) + up to `batchMs` + 100 ms + the snapshot (< 2 s with
+        the defaults). `mirrorOnly: true`: the mirror job alone, no
+        session (answer without `session`).
       parameters:
         - $ref: "#/components/parameters/ConnectionID"
       requestBody:
@@ -542,15 +567,21 @@ paths:
               properties:
                 path:
                   type: string
+                options:
+                  $ref: "#/components/schemas/SessionOptions"
+                mirrorOnly:
+                  type: boolean
       responses:
         "202":
-          description: the job and the local file
+          description: the live session (unless mirrorOnly), the mirror job and the local file
           content:
             application/json:
               schema:
                 type: object
                 required: [job, localPath]
                 properties:
+                  session:
+                    $ref: "#/components/schemas/SessionInfo"
                   job:
                     $ref: "#/components/schemas/JobInfo"
                   localPath:
@@ -570,8 +601,13 @@ paths:
       description: |
         The document `mtkprof serve -spill` serves at `/api/doc`. `stats.minimap`
         holds 1024 buckets of CPU and wait time per wait class over the whole
-        span. `rev` is accepted; every session has revision 1 until reference
-        data or follow exist.
+        span. `rev` is accepted; a session that is not live has revision 1
+        until reference data exist. A live session answers its latest
+        snapshot, the revision in the `X-Rev` header; with `rev=N` and no
+        revision newer than N yet, the answer waits up to 25 s for the next
+        snapshot (or the end of the follow) and is the document it has then
+        (a long poll: compare `X-Rev`). A `rev` that is not a number is a 400
+        on a live session.
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - name: rev
@@ -581,6 +617,11 @@ paths:
       responses:
         "200":
           description: the document
+          headers:
+            X-Rev:
+              description: the revision of the document (live sessions)
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -1849,13 +1890,13 @@ components:
           type: string
         kind:
           type: string
-          enum: [open, fetch, follow]
+          enum: [open, fetch, follow, live]
         state:
           type: string
           enum: [running, done, failed, cancelled]
         phase:
           type: string
-          description: "open: open (cache lookup), parse (miss only), index (miss only), ready; fetch: fetch; follow: follow"
+          description: "open: open (cache lookup), parse (miss only), index (miss only), ready; fetch: fetch; follow, live: follow"
           enum: [open, parse, index, ready, fetch, follow]
         done:
           type: integer
@@ -1864,7 +1905,7 @@ components:
           description: 0 = unknown
         unit:
           type: string
-          description: bytes in phases parse, fetch and follow, empty otherwise
+          description: bytes in phases parse, fetch and follow, empty otherwise (live: bytes parsed at the last snapshot)
           enum: [bytes, ""]
         message:
           type: string
@@ -1880,7 +1921,7 @@ components:
           description: parse progress
         connection:
           type: string
-          description: "fetch, follow: the connection"
+          description: "fetch, follow, live (of a remote follow): the connection"
         localPaths:
           type: array
           items:
@@ -1908,7 +1949,8 @@ components:
           type: integer
     SessionState:
       type: string
-      enum: [opening, ready, failed, closed]
+      description: "opening → ready | failed; a live session: opening → live (from its first snapshot) → failed on a stream error; closed only in the event of a DELETE"
+      enum: [opening, ready, live, failed, closed]
     SessionInfo:
       type: object
       required: [id, paths, state, rev, identity, cacheIdentity, hit, files, opened, bytes, lines]
@@ -1925,12 +1967,15 @@ components:
           $ref: "#/components/schemas/SessionState"
         rev:
           type: integer
+          description: document revision; a live session counts its snapshots (0 before the first)
         identity:
-          $ref: "#/components/schemas/Identity"
-          description: content identity of the trace files without options (sha256 of size and first MiB per file, order-independent); the key of annotations
+          type: string
+          pattern: "^([0-9a-f]{64})?$"
+          description: content identity of the trace files without options (sha256 of size and first MiB per file, order-independent); the key of annotations. Empty for a live session (a growing file has no identity)
         cacheIdentity:
-          $ref: "#/components/schemas/Identity"
-          description: identity of the cache entry (files plus bind mode, salt, thresholds, index format); the {identity} of /engine/cache
+          type: string
+          pattern: "^([0-9a-f]{64})?$"
+          description: identity of the cache entry (files plus bind mode, salt, thresholds, index format); the {identity} of /engine/cache. Empty for a live session (not cached)
         hit:
           type: boolean
           description: opened from the cache without a parse (false while opening)
@@ -1967,7 +2012,18 @@ components:
       properties:
         follow:
           type: boolean
-          description: not implemented yet (400)
+          description: a live session over one growing file (see POST /engine/sessions)
+        batchMs:
+          type: integer
+          minimum: 50
+          maximum: 60000
+          default: 1000
+          description: "live: the batch period: a snapshot at most this often (and at least 3x the cost of the last one apart)"
+        batchMB:
+          type: integer
+          minimum: 0
+          default: 0
+          description: "live: also a snapshot after this many MiB of new input (0 = off)"
         binds:
           type: string
           enum: [keep, redact, none]

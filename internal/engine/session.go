@@ -26,6 +26,7 @@ const (
 	SessionReady   = "ready"
 	SessionFailed  = "failed"
 	SessionClosed  = "closed"
+	SessionLive    = "live" // a follow session that has served a snapshot (live.go)
 )
 
 // maxPaths bounds the inputs of one session.
@@ -37,6 +38,10 @@ type SessionOptions struct {
 	Binds      string          `json:"binds"` // keep (default), redact, none
 	Salt       string          `json:"salt"`  // redaction salt (implies redact)
 	Thresholds json.RawMessage `json:"thresholds"`
+	// Live sessions (Follow, live.go): a snapshot every BatchMs (default
+	// 1000) and, when BatchMB > 0, after every BatchMB of new input.
+	BatchMs int `json:"batchMs,omitempty"`
+	BatchMB int `json:"batchMB,omitempty"`
 }
 
 // FileInfo is one input file of a session.
@@ -104,11 +109,18 @@ type Session struct {
 type opened struct {
 	co      *CacheOpened
 	handler http.Handler
+	release func() // instead of co.Close (a live session, live.go)
 }
 
 // close releases the line indexes and the spill files and unpins the cache
 // entry (its files stay).
-func (o *opened) close() { o.co.Close() }
+func (o *opened) close() {
+	if o.release != nil {
+		o.release()
+		return
+	}
+	o.co.Close()
+}
 
 // Info is a snapshot of the session.
 func (ss *Session) Info() SessionInfo {
@@ -176,10 +188,6 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeBadRequest, "paths: want 1 to %d paths", maxPaths))
 		return
 	}
-	if o.Follow {
-		writeError(w, errorf(CodeBadRequest, "follow is not implemented yet"))
-		return
-	}
 	mode, err := parseBinds(o.Binds, o.Salt)
 	if err != nil {
 		writeError(w, errorf(CodeBadRequest, "%v", err))
@@ -205,6 +213,18 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		paths[i] = abs
+	}
+	if o.Follow {
+		ss, err := s.startLive(liveSpec{paths: paths, opts: o, mode: mode, th: th})
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, struct {
+			Session SessionInfo `json:"session"`
+			Job     JobInfo     `json:"job"`
+		}{ss.Info(), ss.job.Info()})
+		return
 	}
 	inputs, err := model.ExpandInputs(paths)
 	if err != nil {
@@ -389,12 +409,20 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 	if !co.Hit {
 		debug.FreeOSMemory() // the build churned through the heap; give the pages back before idling
 	}
-	ssrv := slice.NewServer(m, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
-	ssrv.AllowOrigin = slice.NoCORS                           // the engine's middleware sets CORS
+	op.handler = s.sessionMux(ss, co, doc)
+	return op, nil
+}
+
+// sessionMux serves the routes of a session (sessionRoutes) from an opened
+// trace and its document.
+func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) http.Handler {
+	ssrv := slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
+	ssrv.AllowOrigin = slice.NoCORS                                  // the engine's middleware sets CORS
 	handlers := map[string]http.Handler{
 		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// ?rev= is accepted; there is one revision until ref data or follow exist
+			// ?rev= is accepted; there is one revision until ref data exists
+			// (a live session answers api/doc itself, live.go)
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(doc)
 		}),
@@ -408,8 +436,7 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 		}
 		mux.Handle(p, h)
 	}
-	op.handler = mux
-	return op, nil
+	return mux
 }
 
 // buildFiles is model.BuildFiles that turns a cancellation (cancelSink) or a

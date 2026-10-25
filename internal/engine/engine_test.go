@@ -545,7 +545,6 @@ func TestBadRequests(t *testing.T) {
 		body any
 		want string
 	}{
-		{map[string]any{"paths": []string{traces + "io_waits.trc"}, "options": map[string]any{"follow": true}}, "follow is not implemented yet"},
 		{map[string]any{"paths": []string{}}, "paths"},
 		{map[string]any{"paths": []string{traces + "missing.trc"}}, "missing.trc"},
 		{map[string]any{"paths": []string{traces + "io_waits.trc"}, "options": map[string]any{"binds": "maybe"}}, "binds"},

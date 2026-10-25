@@ -135,7 +135,7 @@ Endpoints and query parameters of the per-session API are the ones of `serve
 | cache entry size | | ≈ the trace size |
 | pivot on 1 GB / 2 GB | ≤ 300 ms / ≤ 600 ms | spill numbers from "Spill mode" (290 ms at 1 GB); not re-measured through the engine |
 | `api/report` on `big_loop.trc` (118 MB, session open) | | text/json/html 5-8 ms (`html` 1.3 MB), csv 1.9 s (16 MB zip); `MTKPROF_BIG=... go test ./internal/engine -run ReportBig -v` |
-| `api/lines` page, search, follow, minimap 60 fps | | lines/at/at/search measured in `TestMeasureBig` (`internal/slice`); follow, minimap and the UI (S5) not built |
+| `api/lines` page, search, follow, minimap 60 fps | | lines/at/at/search measured in `TestMeasureBig` (`internal/slice`); follow: a live snapshot at 100 MB of `big_loop.trc` 55-85 ms, write → snapshot 0.2-1.0 s through the in-process SSH server (`TestLiveFollowRemote`, budget 2 s); minimap and the UI (S5) not built |
 
 **What the next phases need**
 
@@ -147,8 +147,9 @@ Endpoints and query parameters of the per-session API are the ones of `serve
   `-allow-origin tauri://localhost,http://tauri.localhost`. Refuse an engine
   whose `protocol` is not 1. Read the event stream with `fetch`, not
   `EventSource`. Things the shell must handle: `failed` sessions with
-  `error: "cancelled"`, 409 on removing an open cache entry, `options.follow`
-  not implemented (400).
+  `error: "cancelled"`, 409 on removing an open cache entry, live sessions
+  (`options.follow`, state `live`, `rev` per snapshot, `api/doc?rev=` long
+  poll with `X-Rev`; ARCHITECTURE § Engine mode, "Live sessions").
 - E6 (lines API) and E10 (`api/report`) are done, plus `api/plan`: the session
   mounts `lines` (also `annot=1`), `lines/at`, `at`, `search`, `plan` and
   `report` (see "As built" in `docs/PLAN-DESKTOP.md` § 2); `mtkprof serve`

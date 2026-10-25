@@ -196,6 +196,14 @@ As built (phase 1, protocol 1; the YAML is authoritative):
   envelopes. Tests compare bytes with the CLI paths on `basic_binds` and
   `io_waits`.
 - `mtkprof engine -cache-cap 20G`; `mtkprof engine cache ls|rm|wipe`.
+- Live sessions: `options.follow` (one local file) and
+  `POST /engine/connections/{id}/follow {path, options, mirrorOnly}` →
+  202 `{session, job, localPath}` (the job is E7's mirror; `mirrorOnly`
+  answers without a session). Options `batchMs` (default 1000) and
+  `batchMB`; state `live`; job kind `live`; `api/doc` sends `X-Rev` and
+  long-polls on `?rev=` (25 s). Snapshot = deep copy of builder +
+  accumulator finished at a line boundary, spilled to `<cache>/live/`
+  (ARCHITECTURE § Engine mode, "Live sessions").
 
 ## 3. Persistent index cache
 

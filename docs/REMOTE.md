@@ -157,10 +157,11 @@ SFTP listing and fetch would work; diag and follow would not).
   is fetched again from 0. Resume does not compare content: a remote file
   replaced by a longer different one would be appended to wrongly (rare
   for traces, which only grow).
-- Follow (E7: file mirror): the engine job appends to the same local
-  file, reopening the stream at the local size after a drop (1 s, 2 s, …;
-  5 failures in a row end the job). The live session fed by the streaming
-  parser is a later package.
+- Follow: the engine job appends to the same local file, reopening the
+  stream at the local size after a drop (1 s, 2 s, …; 5 failures in a row
+  end the job), and a live session parses the mirror as it grows
+  (`docs/ARCHITECTURE.md` § Engine mode, "Live sessions"); `mirrorOnly`
+  keeps the plain mirror.
 
 ## Measurements (loopback, in-process server, this laptop)
 

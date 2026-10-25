@@ -619,20 +619,24 @@ func (s *Server) runFetch(j *Job, cl remote.SSH, paths, locals []string, noGzip 
 	return nil
 }
 
-// followConnection serves POST /engine/connections/{id}/follow {path}: 202
-// {job, localPath}. In this version the job (kind follow) mirrors the
-// remote file into <cache>/remote/<id>/<basename> (resuming at the local
-// size) and keeps appending what the host writes, reconnecting after a
-// drop, until it is cancelled (DELETE /engine/jobs/{id}); progress is the
-// local size. The live session fed by the streaming parser is a later
-// package.
+// followConnection serves POST /engine/connections/{id}/follow {path,
+// options, mirrorOnly}: 202 {session, job, localPath}. The job (kind follow)
+// mirrors the remote file into <cache>/remote/<id>/<basename> (resuming at
+// the local size) and keeps appending what the host writes, reconnecting
+// after a drop, until it is cancelled (DELETE /engine/jobs/{id}); progress
+// is the local size. The session is a live session over the local mirror
+// (live.go, options as for POST /engine/sessions): DELETE of the session
+// cancels the mirror, the end of the mirror fails the session (its last
+// snapshot stays served). mirrorOnly: just the mirror, no session.
 func (s *Server) followConnection(w http.ResponseWriter, r *http.Request) {
 	c := s.connection(w, r)
 	if c == nil {
 		return
 	}
 	var body struct {
-		Path string `json:"path"`
+		Path       string         `json:"path"`
+		Options    SessionOptions `json:"options"`
+		MirrorOnly bool           `json:"mirrorOnly"`
 	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
 	dec.DisallowUnknownFields()
@@ -645,23 +649,48 @@ func (s *Server) followConnection(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeBadRequest, "path: %v", err))
 		return
 	}
+	var spec liveSpec
+	if !body.MirrorOnly {
+		if spec, err = liveSpecOf([]string{locals[0]}, body.Options); err != nil {
+			writeError(w, err)
+			return
+		}
+	}
 	cl, err := s.sshOf(c)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
 	p := body.Path
-	j := s.startRemoteJob(w, "follow", c, locals, func(j *Job) error { return s.runFollow(j, cl, p, locals[0]) })
+	started := make(chan struct{})
+	j := s.startRemoteJob(w, "follow", c, locals, func(j *Job) error { return s.runFollow(j, cl, p, locals[0], started) })
 	if j == nil {
 		return
 	}
+	if body.MirrorOnly {
+		writeJSON(w, http.StatusAccepted, struct {
+			Job       JobInfo `json:"job"`
+			LocalPath string  `json:"localPath"`
+		}{j.Info(), locals[0]})
+		return
+	}
+	spec.mirror, spec.started = j, started
+	ss, err := s.startLive(spec)
+	if err != nil {
+		j.cancel()
+		writeError(w, err)
+		return
+	}
 	writeJSON(w, http.StatusAccepted, struct {
-		Job       JobInfo `json:"job"`
-		LocalPath string  `json:"localPath"`
-	}{j.Info(), locals[0]})
+		Session   SessionInfo `json:"session"`
+		Job       JobInfo     `json:"job"`
+		LocalPath string      `json:"localPath"`
+	}{ss.Info(), j.Info(), locals[0]})
 }
 
-func (s *Server) runFollow(j *Job, cl remote.SSH, p, local string) error {
+// runFollow is the follow job; started (if not nil) is closed once the
+// local file is open at the offset the mirror appends at.
+func (s *Server) runFollow(j *Job, cl remote.SSH, p, local string, started chan<- struct{}) error {
 	ctx := j.Context()
 	if err := os.MkdirAll(filepath.Dir(local), 0o700); err != nil {
 		return err
@@ -687,6 +716,9 @@ func (s *Server) runFollow(j *Job, cl remote.SSH, p, local string) error {
 	j.mu.Lock()
 	j.info.LocalPaths = []string{local}
 	j.mu.Unlock()
+	if started != nil {
+		close(started)
+	}
 	var last time.Time
 	j.progress(off, true, &last)
 	err = remote.FollowTo(ctx, cl, p, f, off, func(pos int64) { j.progress(pos, false, &last) },
