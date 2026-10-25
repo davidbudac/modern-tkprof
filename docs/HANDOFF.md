@@ -204,9 +204,15 @@ Deferred by the agents (small, none blocks v1):
 - Export everything together (connections + library); clock-time windows in
   saved configurations (offsets only); clock-time input in "Jump to time";
   search-match highlighting in the Lines rows; per-line copy/permalink.
-- Live sessions: statement indexes for the spill; following continuation
-  chains (`TRACE CONTINUES IN FILE`); `mtkprof follow -serve`.
-- Done on branch `t3/engine-idle-cache-fetch`: adaptive db fetch ranges (50 000
+- Live sessions: done in package G2 (cursor index of
+  the live spill, `TRACE CONTINUES IN` chains, `mtkprof follow -serve`; see
+  ARCHITECTURE "Live sessions"). Still open there: the UI does not long-poll
+  `api/doc?rev=` (reload shows new data); the remote chain test runs on the
+  lib transport only (the cli `tail` cleanup is the same stream close that
+  `TestOpenSSHFollowAndThroughput` checks); a chain is followed forward only
+  (following a file that has `CONTINUED FROM` does not pull in the earlier
+  file).
+- Done in package G1: adaptive db fetch ranges (50 000
   to 400 000 numbers; fake-conn tests only, the dbmint run is still to do),
   `mtkprof engine -idle D` (opt-in session eviction), an in-memory cache
   listing.

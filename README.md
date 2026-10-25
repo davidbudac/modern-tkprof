@@ -41,6 +41,24 @@ mtkprof lint   trace.trc                 # what the parser saw: line kinds, even
 mtkprof report a.trc b.trc dir/          # several files / directories = one trace set (see "Trace sets")
 ```
 
+### Following a growing trace
+
+```
+mtkprof follow oracle@dbhost /u01/.../cdb1_ora_4711.trc -o live.trc          # mirror it (tail -f over ssh); Ctrl-C stops, rerun resumes
+mtkprof follow oracle@dbhost /u01/.../cdb1_ora_4711.trc -serve                # live report at http://127.0.0.1:8046/ while it grows
+mtkprof follow oracle@dbhost /u01/.../cdb1_ora_4711.trc -serve=127.0.0.1:9000 -o live.trc -batch-ms 2000
+```
+
+`-serve` parses the stream as it arrives and serves the report of everything
+so far: the browser UI at `/` (reload for newer data) and the engine's
+per-session `/api/*` routes (read-only), a new snapshot at most every
+`-batch-ms` (default 1000). `GET /api/doc` carries the snapshot's revision in
+`X-Rev`; `GET /api/doc?rev=N` waits up to 25 s for a newer one. When the
+trace continues in another file (`*** TRACE CONTINUES IN FILE x ***`), x is
+mirrored next to the first and followed too. The mirror is temporary unless
+`-o` names it. It listens on 127.0.0.1 unless `-serve=ADDR` says otherwise.
+Details: `docs/REMOTE.md`, `docs/ARCHITECTURE.md` ("Live sessions").
+
 ### Engine (desktop app backend)
 
 `mtkprof engine` is the local backend of the desktop app (`mtkprof-desktop`):

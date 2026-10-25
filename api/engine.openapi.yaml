@@ -156,7 +156,12 @@ paths:
         snapshot is taken as soon as the reader has caught up with the file
         (state `opening` until then). A stream error (the file shrank, the
         mirror of a remote follow ended) makes it `failed` with the error;
-        the last snapshot is still served until DELETE.
+        the last snapshot is still served until DELETE. A file that ends with
+        `*** TRACE CONTINUES IN FILE x ***` is followed into x once x exists
+        (the path in the marker, the same name next to the file, or a
+        `*.trc` there whose header names it), as a normal open follows a
+        chain: `files` lists both, `bytes`/`lines` count all, a `log` event
+        and a session event tell of the switch.
       requestBody:
         required: true
         content:
@@ -567,7 +572,13 @@ paths:
         from a write on the host to a snapshot: the transport's delay (lib:
         up to 500 ms) + up to `batchMs` + 100 ms + the snapshot (< 2 s with
         the defaults). `mirrorOnly: true`: the mirror job alone, no
-        session (answer without `session`).
+        session (answer without `session`). When the file continues in
+        another (`TRACE CONTINUES IN FILE x`), the session starts a second
+        follow job on the same connection for the file of that name in the
+        same remote directory (it polls every 500 ms until the host has it),
+        cancels the first one once the second has opened its local file,
+        and parses on into it; DELETE of the session cancels the current
+        one.
       parameters:
         - $ref: "#/components/parameters/ConnectionID"
       requestBody:

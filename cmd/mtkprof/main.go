@@ -43,6 +43,7 @@ Usage:
   mtkprof fetch  <user@host[:port]> <remote-path>... [-o dir] [-transport auto|cli|lib] [-no-gzip]   copy traces over SSH (resumes)
   mtkprof fetch -db <db-spec> -name F [-adr-home H] [-o file] [-resume]   copy a trace out of the database via V$DIAG_TRACE_FILE_CONTENTS
   mtkprof follow <user@host[:port]> <remote-path> [-o file|-] [-transport auto|cli|lib]   stream a growing trace (tail -f)
+  mtkprof follow <user@host[:port]> <remote-path> -serve[=127.0.0.1:8046] [-o file] [-batch-ms 1000]   live report of it in the browser
   mtkprof askpass "<prompt>"                         SSH_ASKPASS helper (asks the engine, else the terminal)
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
   mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text diff, B against A

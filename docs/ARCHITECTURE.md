@@ -827,14 +827,41 @@ alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
   under `<cache>/live/` (`slice.NewSpill`, key `live`, so leftovers of a dead
   engine are removed by the next one) that `DELETE` removes. Reopen the file
   normally once it stops growing to get a cache entry.
-* **Input.** One file, no chain following, the builder `BuildFiles` uses
-  for a single file (`model.NewLiveBuilder`). The parser reads a
+* **Input.** One file, the builder `BuildFiles` uses for a single file
+  (`model.NewLiveBuilder`), and the files it continues in. The parser reads a
   `tailReader` that never returns EOF: at the end of the file it polls (100
   ms, a quarter of `batchMs` if shorter) until more is written, so a line
   still being written waits for its newline (`tail -f` and the mirror deliver
   partial lines). A file that shrinks (truncated, replaced) fails the
   session; the end of a remote follow's mirror job fails it after the bytes
   the mirror wrote are parsed, with a last snapshot.
+* **Chains.** When the current file has a `*** TRACE CONTINUES IN FILE x
+  ***` marker (`(*Builder).ContinuesIn`) and the reader is at its end, it
+  looks for x (`model.FindContinuation`, at most every 250 ms: the path in
+  the marker, the same name next to the file, a `*.trc` there whose header
+  names it; never a file of the chain already). Once x is there the reader
+  returns EOF, the parser of the file ends (flushing its open records, as
+  `BuildFiles` parses each file of a chain with its own parser), the
+  builder takes `EndFile` and `ContinueLive(x)` (`NextFile` as a
+  continuation, `Followed`; the first switch makes the build multi-file, so
+  the header pid becomes `Context.Process`, also of the contexts so far),
+  and a new parser reads x with its own line scan and line view. Snapshots
+  take the current file's and the total statistics (`Snapshot(file,
+  total, …)`), list every file and note the followed ones as `BuildFiles`
+  does; a `log` and a `session` event go out at the switch. A remote
+  follow (`liveSpec.follow`) starts a second follow job on the same
+  connection for x's name in the remote file's directory (`runFollow` with
+  `wait`: it polls `Stat` every 500 ms until the host has it); once that
+  job has opened its local file, the first job is cancelled (its stream is
+  closed, which stops `tail` on the host) and the reader waits until it has
+  finished, reads what it wrote last, then switches. The session's end
+  cancels the current and a pending mirror. `TestSnapshotOfChain`
+  (`internal/model`: snapshots across the switch equal `BuildFiles` of the
+  chain so far), `TestLiveFollowChain` (every slice and line endpoint of
+  both files equals a normal open of the chain) and
+  `TestLiveFollowRemoteChain` (lib transport: the first mirror is
+  cancelled, the second cancelled by DELETE, nothing lingers on the host)
+  cover it, on the real `midtrace_start` pair.
 * **Snapshot point.** `bufio` calls `Read` only when no complete line is
   buffered, so inside `Read` every complete line has been delivered and the
   builder is between two records: that is where snapshots are taken, in the
@@ -863,8 +890,20 @@ alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
   truncate) and returns a source over every row so far. Readers `ReadAt`
   the files while the build goes on writing; rows below a snapshot's counts
   only ever change to their settled values. The statement indexes are built
-  at `Finish`, which a live build never reaches: a statement-scoped scan reads
-  the whole table (the Matcher decides; same answers, slower on big files).
+  at `Finish`, which a live build never reaches; a live spill
+  (`SpillOptions.Live`) keeps a cursor index instead (`curIndex`,
+  `calls.cur` / `waits.cur`): every row the build settles is appended to its
+  cursor's list (the cursor of a settled row never changes, its statement
+  can: an implicit cursor is adopted later). A cursor buffers up to 64k row
+  numbers in memory, then writes them as a block; all buffers are written
+  once they hold 1M ids together, so memory is bounded and nothing is
+  rebuilt per snapshot. A snapshot's statement scan maps the statements to
+  their cursors in its own model, adds the rows its overlay wrote (not
+  settled, their cursor may still change), sorts and dedupes them below its
+  row counts and reads those rows (more than 8M: a full scan, as for a
+  finished spill). `TestLivePostings` (`internal/slice`, tiny buffers)
+  checks at 25 cuts per fixture that the postings hold every row a full
+  scan finds and that the scoped scan answers the same.
   Bind sets of the open BINDS block are left out of the copy (the next
   snapshot has them). The line index grows with the bytes read
   (`trace.LineScan`); each snapshot gets a view bounded by its line count.
@@ -884,6 +923,17 @@ alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
 * **`api/doc`.** The latest snapshot, its revision in `X-Rev` (exposed to
   CORS). `?rev=N` with nothing newer than N waits up to 25 s for the next
   snapshot or the end of the follow (a long poll; compare `X-Rev`).
+* **`mtkprof follow -serve`** (`cmd/mtkprof/fetch.go` `followServe`,
+  `internal/engine/standalone.go`). The CLI runs an engine in-process
+  (cache and live spill in a temporary directory, no token, no control
+  plane): `FollowRemote(cl, path, local, options)` starts the follow job
+  and the live session exactly as `POST /engine/connections/{id}/follow`
+  does (`startRemoteFollow`, connection `""`; chain files next to `local`),
+  and `SessionHandler(id)` serves the session's routes at the root, which
+  the CLI mounts under `/api/` (GET and HEAD only) next to the UI at `/`.
+  So its answers, `X-Rev` and the long poll are the engine's.
+  `TestCLIFollowServe` (in-process SSH server, lib transport) follows the
+  real `midtrace_start` pair through it.
 
 Measured (`MTKPROF_BIG=… go test ./internal/engine -run LiveBig -v`; 100 MB
 prefix of `big_loop.trc`): catch-up 1.3 s (one snapshot); a snapshot on
