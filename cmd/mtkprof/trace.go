@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -85,7 +86,7 @@ func parseTraceArgs(args []string) (*traceCmd, error) {
 	fs.StringVar(&c.planStat, "plan-stat", "all_executions", "-on: STAT lines: never|first_execution|all_executions")
 	fs.BoolVar(&c.sessions, "sessions", false, "list user sessions (V$SESSION)")
 	fs.BoolVar(&c.files, "files", false, "list trace files (V$DIAG_TRACE_FILE; -sid/-serial: of that session)")
-	fs.DurationVar(&c.since, "since", 0, "-files: only files modified within this duration (e.g. 2h)")
+	fs.Var((*sinceFlag)(&c.since), "since", "-files: only files modified within this duration (2h, 30m, 3d)")
 	fs.BoolVar(&c.diag, "diag", false, "show the server version and V$DIAG_INFO")
 	fs.BoolVar(&c.json, "json", false, "-sessions, -files, -diag: JSON output")
 	pos, err := splitPositional(fs, args)
@@ -239,4 +240,25 @@ func writeJSON(w io.Writer, v any) error {
 	e := json.NewEncoder(w)
 	e.SetIndent("", "  ")
 	return e.Encode(v)
+}
+
+// sinceFlag is -since: a Go duration or Nd for days, as the engine's
+// tracefiles?since= parameter.
+type sinceFlag time.Duration
+
+func (f *sinceFlag) String() string { return time.Duration(*f).String() }
+
+func (f *sinceFlag) Set(v string) error {
+	if n, ok := strings.CutSuffix(v, "d"); ok {
+		if days, err := strconv.ParseFloat(n, 64); err == nil && days > 0 {
+			*f = sinceFlag(time.Duration(days * 24 * float64(time.Hour)))
+			return nil
+		}
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return fmt.Errorf("want a positive duration such as 2h or 3d")
+	}
+	*f = sinceFlag(d)
+	return nil
 }

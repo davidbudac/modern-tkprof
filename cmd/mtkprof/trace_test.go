@@ -28,6 +28,12 @@ func TestParseTraceArgs(t *testing.T) {
 	if err != nil || !c.off || !c.conn.tcps || c.planStat != "all_executions" || !c.waits || !c.binds {
 		t.Errorf("%+v %v", c, err)
 	}
+	if c, err := parseTraceArgs([]string{"u@h/s", "-files", "-since", "3d"}); err != nil || c.since.Hours() != 72 {
+		t.Fatalf("-since 3d: %+v %v", c, err)
+	}
+	if _, err := parseTraceArgs([]string{"u@h/s", "-files", "-since", "-1h"}); err == nil {
+		t.Fatal("-since -1h accepted")
+	}
 	if c, err := parseTraceArgs([]string{"u@h/s", "-files", "-since", "2h", "-json"}); err != nil || !c.files || c.since.Hours() != 2 || !c.json {
 		t.Errorf("%+v %v", c, err)
 	}
