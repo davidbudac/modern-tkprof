@@ -136,9 +136,17 @@ Needs a person or a machine:
 - **No GitHub Actions** (owner's decision, cost; `docs/DESIGN.md` § Project).
   CI and releases are local: `scripts/ci-local.sh` and
   `scripts/release-local.sh <tag>` here, `mtkprof-desktop/scripts/ci-local.sh`
-  and `scripts/release-local.sh` there. Phase 6 (tag both repos, release
-  notes, installers) = run those; the Windows installer and the AppImage have
-  no local build yet (see below).
+  and `scripts/release-local.sh` there. **desk:** v0.3.1 released that way on
+  2026-10-25 (prerelease, engine still `53042d0` = v0.3.0, no engine tag
+  needed): all five installers built on the MacBook (DMGs native; deb,
+  AppImage and the Windows NSIS cross-build in the `mtkprof-ci:local` amd64
+  OrbStack image, NSIS 3.11 built in because bookworm's 3.08 lacks
+  `RestartManager.nsh`); smokes passed on macOS arm64 and Linux, skipped on
+  macOS x64 (no Rosetta 2) and Windows (no machine). The installers
+  themselves were not installed or launched; a Windows run
+  (`scripts/smoke.sh x86_64-pc-windows-msvc windows-x64` from Git Bash) is
+  still open. Actions is not disabled in the repo settings (the CLI call was
+  refused in the agent session); with no workflow files nothing runs.
 - Local Linux Tauri build needs `sudo apt install` of the webkit2gtk dev libs;
   without them the Linux leg runs in Docker (`docs/PLAN-DESKTOP.md` § "Status
   and how to continue"): the Rust build and the `.deb` (10.8 MB, ships
