@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
 import { fmtInt } from '../data/format'
-import { useStore, actions, scopeOf, type State } from '../app/store'
+import { scopeOf, type State } from '../state/store'
+import { useStore, useActions } from '../state/session'
 import { DataTable, type Column } from '../components/DataTable'
 import { ColumnChooser } from '../components/ColumnChooser'
-import { usePersisted } from '../app/persist'
+import { usePersisted } from '../state/persist'
 import { pivotDims, pivotMeasures, type Fact } from '../data/pivot'
 import { sourceOf, useSourceQuery, type PivotRowData } from '../data/source'
 import '../styles/pivot.css'
@@ -40,6 +41,7 @@ function download(name: string, text: string) {
 // ---- view --------------------------------------------------------------------
 
 export function Pivot({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   const state = useStore((s) => s)
   const source = sourceOf(doc)
   const [fact, setFact] = useState<Fact>('calls')

@@ -3,7 +3,7 @@ import type { TraceDoc } from '../data/doc'
 import { sourceOf } from '../data/source'
 import type { Context, ID } from '../data/types'
 import { fmtDur, fmtInt, fmtCompact, fmtWall } from '../data/format'
-import { useStore, actions } from '../app/store'
+import { useStore, useActions } from '../state/session'
 import { DataTable, type Column } from '../components/DataTable'
 import { LineRef } from '../components/LineRef'
 
@@ -106,6 +106,7 @@ function computeStats(doc: TraceDoc): CtxStats[] {
 }
 
 export function Sessions({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   // per-context numbers come from the document (stats.contexts) when a server stands behind it, else from the fact columns
   const hasStats = sourceOf(doc).ready
   const checked = useStore((s) => s.contexts)

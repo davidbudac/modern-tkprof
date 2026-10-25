@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import type { EChartsOption } from 'echarts'
 import type { TraceDoc } from '../data/doc'
 import { Chart } from '../components/Chart'
-import { useStore, actions, scopeOf } from '../app/store'
+import { scopeOf } from '../state/store'
+import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { foldTimeline, pickBucket } from '../data/derive'
 import { resolveVar, roleShade, type Role } from '../components/colors'
@@ -10,6 +11,7 @@ import { fmtDur, fmtWall } from '../data/format'
 
 /** Stacked activity per time bucket (CPU + waits by event or by class) with a zoom slider that sets the global window. */
 export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'event' | 'class' }) {
+  const actions = useActions()
   const state = useStore((s) => s)
   const bucketUs = useMemo(() => pickBucket(doc.spanUs()), [doc])
   const source = sourceOf(doc)

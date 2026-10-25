@@ -7,11 +7,13 @@ import { StmtLink } from '../components/StmtLink'
 import { LineRef } from '../components/LineRef'
 import { CallKind, callKindName, NONE, type ID } from '../data/types'
 import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
-import { useStore, actions, scopeOf } from '../app/store'
+import { scopeOf } from '../state/store'
+import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery, type Bar } from '../data/source'
 import { Chart } from '../components/Chart'
 import { DataTable, type Column } from '../components/DataTable'
 import { resolveVar } from '../components/colors'
+import { Minimap } from '../components/Minimap'
 import '../styles/timeline.css'
 
 echarts.use([CustomChart])
@@ -43,6 +45,7 @@ function groupOf(kind: number): KindGroup {
 interface Lane { label: string; stmts: Set<ID> | null } // null = fold-everything-else lane
 
 export function Timeline({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   const state = useStore((s) => s)
   const win = state.window
   const base = doc.span.firstTim
@@ -187,6 +190,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
             {lanes.list.length > MAX_LANES ? ` · lanes for top ${MAX_LANES} statements` : ''}
           </span>
         </header>
+        <Minimap doc={doc} height={40} />
         <div className="lane-legend" role="list" aria-label="Call kinds">
           {kindGroups.map((g) => (
             <span className="k" role="listitem" key={g.id}><i className="swatch" style={{ background: `var(${g.token})` }} />{g.label}</span>

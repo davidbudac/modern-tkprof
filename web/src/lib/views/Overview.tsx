@@ -3,19 +3,22 @@ import { TimelineChart } from './TimelineChart'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink, LinkText } from '../components/StmtLink'
 import { fmtDur, fmtInt, fmtCompact, fmtPct, preview } from '../data/format'
-import { useStore, actions, scopeOf } from '../app/store'
+import { scopeOf } from '../state/store'
+import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { componentRowsFrom, quickSegments, type ComponentRow, type StmtWait } from '../data/derive'
 import { ticks, tickLabel, tickUnit } from '../data/scale'
 import { lightFill } from '../components/colors'
 import { Findings, findingText } from './Findings'
 import { Lanes } from './Lanes'
+import { Minimap } from '../components/Minimap'
 import { NONE, type StmtStats } from '../data/types'
 
 const TOP_STATEMENTS = 8
 const LEDGER_ROWS = 5
 
 export function Overview({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   const state = useStore((s) => s)
   const source = sourceOf(doc)
   const scope = scopeOf(state)
@@ -31,6 +34,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
       <section className="hero">
         <h1>Response time {fmtDur(totalUs)}{state.window ? <span className="dim"> · window</span> : null}</h1>
         {lede && <p className="lede">{lede}</p>}
+        <Minimap doc={doc} />
         <Axis totalUs={totalUs} />
         <Track rows={rows} totalUs={totalUs} />
         <Ledger rows={rows} totalUs={totalUs} />
@@ -97,6 +101,7 @@ const MIN_SEG = 0.004
 
 /** The response-time bar: one segment per component, on the axis above it. */
 function Track({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
+  const actions = useActions()
   const [ref, width] = useWidth<HTMLDivElement>()
   const shown = rows.filter((r) => r.kind !== 'unaccounted' && r.us > 0)
   const big = shown.filter((r) => r.us / totalUs >= MIN_SEG)
@@ -121,6 +126,7 @@ function Track({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
 }
 
 function Ledger({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
+  const actions = useActions()
   const main = rows.filter((r) => r.kind !== 'unaccounted' && r.us > 0)
   const top = main.slice(0, LEDGER_ROWS)
   const rest = main.slice(LEDGER_ROWS)
@@ -151,6 +157,7 @@ function Ledger({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
 
 /** Top statements, each with its own profile bar drawn on the shared time axis. */
 function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtStats[]; totalUs: number }) {
+  const actions = useActions()
   const source = sourceOf(doc)
   const top = stmts.slice(0, TOP_STATEMENTS)
   const roles = useSourceQuery(source, 'roles', (signal) => source.stmtRoles(signal)).data

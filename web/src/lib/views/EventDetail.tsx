@@ -5,7 +5,8 @@ import { StmtLink } from '../components/StmtLink'
 import type { ID } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, preview, fmtCompact, fmtWall } from '../data/format'
 import { LineRef } from '../components/LineRef'
-import { actions, getState, useStore, scopeOf } from '../app/store'
+import { scopeOf } from '../state/store'
+import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery, KEEP_SLOWEST, type KeyAgg } from '../data/source'
 import { Chart } from '../components/Chart'
 import { cssColor, roleOfClass } from '../components/colors'
@@ -14,6 +15,8 @@ const scopeKey = (s: ReturnType<typeof scopeOf>, window = true) =>
   `${window && s.window ? `${s.window.startTim}:${s.window.endTim}` : ''}|${s.contexts ? [...s.contexts].sort((a, b) => a - b).join(',') : ''}|${s.includeIdle ? 1 : 0}`
 
 export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
+  const actions = useActions()
+  const store = useStoreApi()
   const ev = doc.events[id]
   const state = useStore((s) => s)
   const source = sourceOf(doc)
@@ -82,10 +85,10 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
     datazoom: (p: unknown) => {
       const z = p as { start?: number; end?: number; batch?: { start: number; end: number }[] }
       const start = z.batch?.[0]?.start ?? z.start ?? 0, end = z.batch?.[0]?.end ?? z.end ?? 100
-      if (start <= 0 && end >= 100) { if (getState().window) actions.setWindow(null); return }
+      if (start <= 0 && end >= 100) { if (store.getState().window) actions.setWindow(null); return }
       actions.setWindow({ startTim: doc.span.firstTim + (span * start) / 100, endTim: doc.span.firstTim + (span * end) / 100 })
     },
-    click: (p: unknown) => { const d = (p as { data?: number[] }).data; if (d && getState().linesAvailable) actions.openLines(dots[d[2]].line, dots[d[2]].file ?? doc.fileOfStmt(dots[d[2]].stmt)) },
+    click: (p: unknown) => { const d = (p as { data?: number[] }).data; if (d && store.getState().linesAvailable) actions.openLines(dots[d[2]].line, dots[d[2]].file ?? doc.fileOfStmt(dots[d[2]].stmt)) },
   }), [doc, span, dots])
   const slowest = slowestQ.data ?? []
   const byStmt: KeyAgg[] = byStmtQ.data ?? []

@@ -1,10 +1,11 @@
 import { Fragment, type ReactNode } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { ID } from '../data/types'
-import { actions } from '../app/store'
+import { useActions } from '../state/session'
 
 /** A statement's sql_id (or synthetic label) as a link to its detail in the Statements workbench. */
 export function StmtLink({ doc, id, className }: { doc: TraceDoc; id: ID; className?: string }) {
+  const actions = useActions()
   const st = doc.statements[id]
   if (!st) return null
   return (

@@ -2,13 +2,14 @@ import type { TraceDoc } from '../data/doc'
 import { StmtLink, LinkText } from '../components/StmtLink'
 import type { ID } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, preview } from '../data/format'
-import { actions } from '../app/store'
+import { useActions } from '../state/session'
 import { LineRef } from '../components/LineRef'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { findingText } from './Findings'
 
 /** The right-hand column of the workbench: where the statement ran, its waits, its relatives, its findings. */
 export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
+  const actions = useActions()
   const st = doc.statements[id]
   const stats = doc.stats.statements[id]
   const source = sourceOf(doc)
@@ -83,6 +84,7 @@ export function StatementContext({ doc, id }: { doc: TraceDoc; id: ID }) {
 }
 
 function RelRow({ doc, id, text, right }: { doc: TraceDoc; id: ID; text: string; right: string }) {
+  const actions = useActions()
   return (
     <div className="relrow row-click" onClick={() => actions.pickStmt(id)}>
       <StmtLink doc={doc} id={id} /><span className="dim clip">{text}</span><span className="r">{right}</span>

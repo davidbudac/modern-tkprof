@@ -11,7 +11,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TraceDoc } from './doc'
 import type { ID } from './types'
 import { CallKind, NONE } from './types'
-import { callFilter, waitFilter, type Scope } from '../app/store'
+import { callFilter, waitFilter, type Scope } from '../state/store'
+import type { ApiClient } from './client'
 import { groupBy, logHistogram, type Agg } from './groupby'
 import {
   executions as localExecutions, bindsOf, statementRoleUs, statementWaits, statementSpans, timelineRaw, topLevelCpu, waitsByEvent, NROLES,
@@ -140,9 +141,9 @@ export function sourceOf(doc: TraceDoc): DataSource {
   return s
 }
 
-/** The server at `apiBase` answers the fact-level questions of `doc` (a document served with the slicing API). */
-export function attachRemote(doc: TraceDoc, apiBase: string): void {
-  sources.set(doc, new RemoteSource(doc, apiBase))
+/** The server behind `client` answers the fact-level questions of `doc` (a document served with the slicing API). */
+export function attachRemote(doc: TraceDoc, client: ApiClient): void {
+  sources.set(doc, new RemoteSource(doc, client))
 }
 
 // ---- LocalSource ---------------------------------------------------------------
@@ -374,20 +375,21 @@ export class RemoteSource implements DataSource {
   private readonly cache = new Map<string, unknown>()
   private roles?: Promise<Float64Array>
 
-  /** `base` is the URL of the API root, e.g. `http://127.0.0.1:8046/api/` (relative paths resolve against it). */
-  constructor(private readonly doc: TraceDoc, private readonly base: string) {}
+  /** `client` is the server root, e.g. `http://127.0.0.1:8046` or `.../s/1`; the queries are `/api/<path>`. */
+  constructor(private readonly doc: TraceDoc, private readonly client: ApiClient) {}
 
   /** GET base+path?params as JSON; answers are cached by URL, a cancelled request leaves nothing behind. */
   private async get<T>(path: string, params: Params, signal?: AbortSignal): Promise<T> {
-    const u = new URL(path, new URL(this.base, location.href))
-    for (const [k, v] of Object.entries(params)) if (v !== undefined) u.searchParams.set(k, String(v))
-    const key = u.toString()
+    const q = new URLSearchParams()
+    for (const [k, v] of Object.entries(params)) if (v !== undefined) q.set(k, String(v))
+    const qs = q.toString()
+    const key = `/api/${path}${qs ? `?${qs}` : ''}`
     if (this.cache.has(key)) {
       const v = this.cache.get(key) as T
       this.cache.delete(key); this.cache.set(key, v) // most recently used last
       return v
     }
-    const res = await fetch(key, { signal, headers: { accept: 'application/json' } })
+    const res = await this.client.fetch(key, { signal, headers: { accept: 'application/json' } })
     if (!res.ok) throw new Error(`${path}: ${(await res.text()).trim() || res.statusText}`)
     const v = (await res.json()) as T
     this.cache.set(key, v)

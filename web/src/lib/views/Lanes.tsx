@@ -2,7 +2,8 @@ import { useMemo, useRef, useState, type PointerEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtWall, preview } from '../data/format'
-import { useStore, actions, getState, scopeOf } from '../app/store'
+import { scopeOf } from '../state/store'
+import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
 import { dominantRole, foldTimeline, type Span2 } from '../data/derive'
@@ -23,6 +24,8 @@ interface Lane { st: StmtStats; label: string; text: string; role: Role; spans: 
  * then a strip of waits by class and a strip of CPU. Drag to set the global window.
  */
 export function Lanes({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
+  const store = useStoreApi()
   const state = useStore((s) => s)
   const win = state.window
   const base = doc.span.firstTim
@@ -87,7 +90,7 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
       const t = e.target as HTMLElement
       const id = t.closest<HTMLElement>('[data-stmt]')?.dataset.stmt
       if (id !== undefined) actions.selectStmt(Number(id))
-      else if (getState().window) actions.setWindow(null) // a click on empty space clears the window
+      else if (store.getState().window) actions.setWindow(null) // a click on empty space clears the window
       return
     }
     actions.setWindow(b - a < span * 0.999 ? { startTim: a, endTim: b } : null)

@@ -1,5 +1,4 @@
-import type { TraceDoc } from '../data/doc'
-import { getState, setState, subscribeStore, type Side, type State, type View } from './store'
+import type { Store, TraceDoc, Side, State, View } from '@lib'
 
 /**
  * View, selected statement / wait event and time window live in the URL hash:
@@ -56,9 +55,9 @@ function parse(hash: string): Partial<Wanted> {
 }
 
 /** Applies a hash to the store (unknown sql_ids / events are ignored). */
-function apply(doc: TraceDoc, hash: string): TraceDoc {
+function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   const w = parse(hash)
-  const cmp = getState().compare
+  const cmp = store.getState().compare
   const side: Side = cmp && w.side === 'b' ? 'b' : 'a'
   if (cmp) doc = cmp[side]
   let stmt: number | null = null
@@ -69,7 +68,7 @@ function apply(doc: TraceDoc, hash: string): TraceDoc {
   const ev = w.ev ? doc.events.findIndex((e) => e.name === w.ev) : -1
   const base = doc.span.firstTim
   const view = w.view === 'compare' && !cmp ? undefined : w.view
-  setState({
+  store.setState({
     doc, side: cmp ? side : 'a',
     view: view ?? (stmt !== null ? 'statements' : 'overview'),
     selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: null },
@@ -84,12 +83,13 @@ function apply(doc: TraceDoc, hash: string): TraceDoc {
  * (a changed window or a first auto-picked statement only replaces the current one,
  * so brushing does not flood Back), and Back/Forward re-apply the hash.
  */
-export function startUrlSync(): void {
+export function startUrlSync(store: Store): void {
+  const { getState, subscribe } = store
   let doc: TraceDoc | null = null
   let last = '' // the hash the store currently corresponds to
   let prev: State | null = null
   let applying = false // store updates caused by a hash must not write one back
-  const restore = (d: TraceDoc) => { applying = true; try { doc = apply(d, location.hash) } finally { applying = false } }
+  const restore = (d: TraceDoc) => { applying = true; try { doc = apply(store, d, location.hash) } finally { applying = false } }
   const write = (replace: boolean) => {
     if (!doc) return
     const hash = format(wanted(doc, getState()))
@@ -98,7 +98,7 @@ export function startUrlSync(): void {
     const url = location.pathname + location.search + hash
     if (replace) history.replaceState(null, '', url); else history.pushState(null, '', url)
   }
-  subscribeStore(() => {
+  subscribe(() => {
     if (applying) return
     const s = getState()
     if (s.doc !== doc && doc && s.doc && s.compare && (s.doc === s.compare.a || s.doc === s.compare.b) && (doc === s.compare.a || doc === s.compare.b)) {

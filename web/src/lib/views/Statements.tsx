@@ -4,13 +4,13 @@ import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, preview, fmtCompact } from '../data/format'
-import { useStore, actions } from '../app/store'
+import { useStore, useActions } from '../state/session'
 import { quickSegments } from '../data/derive'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StatementDetail } from './StatementDetail'
 import { StatementContext } from './StatementContext'
 import { ResizeHandle } from '../components/ResizeHandle'
-import { usePersisted } from '../app/persist'
+import { usePersisted } from '../state/persist'
 import type { CSSProperties } from 'react'
 
 type SortKey = 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
@@ -31,6 +31,7 @@ const ROW_H = 76
 
 /** Three panes: ranked statement list, the selected statement, its context. */
 export function Statements({ doc }: { doc: TraceDoc }) {
+  const actions = useActions()
   const sel = useStore((s) => s.selection.stmt)
   const inclusive = useStore((s) => s.inclusive)
   const [q, setQ] = useState('')

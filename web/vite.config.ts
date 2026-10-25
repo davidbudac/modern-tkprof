@@ -1,12 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { viteSingleFile } from 'vite-plugin-singlefile'
+import { fileURLToPath } from 'node:url'
 
 // The build produces a single self-contained index.html (JS + CSS inlined),
 // which the Go binary embeds and serves, and which `mtkprof html` turns
 // into a standalone report by injecting the trace document.
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
+  resolve: { alias: { '@lib': fileURLToPath(new URL('./src/lib', import.meta.url)) } },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

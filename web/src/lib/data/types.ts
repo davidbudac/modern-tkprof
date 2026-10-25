@@ -387,7 +387,16 @@ export interface RawDocument {
     /** effective finding thresholds (analyze.Thresholds JSON keys); absent in older documents */
     findingsConfig?: Record<string, number> | null
     contexts?: ContextStats[] | null
+    /** 1024 buckets over the span: CPU µs and wait µs per wait class; absent in older documents */
+    minimap?: Minimap
   }
+}
+
+/** analyze.Minimap: the whole trace reduced to a fixed number of buckets of `bucketUs` µs (the overview strip). */
+export interface Minimap {
+  bucketUs: number
+  cpu: number[]
+  waits: Record<string, number[]>
 }
 
 /** analyze.ContextStats: activity of one session context (the SESSIONS numbers). */
