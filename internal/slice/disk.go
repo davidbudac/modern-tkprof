@@ -228,8 +228,11 @@ type rowIDs struct {
 const maxMergeIDs = 8 << 20
 
 // postings returns the rows of the statements, or nil when a full scan is
-// cheaper (too many rows to merge).
+// cheaper (too many rows to merge) or there is no index.
 func (d *diskSource) postings(x *stmtIndex, sts []model.ID, n int64) (*rowIDs, error) {
+	if x == nil { // a live source has no statement index yet (spill_live.go)
+		return nil, nil
+	}
 	var total int64
 	for _, s := range sts {
 		total += x.count(s)

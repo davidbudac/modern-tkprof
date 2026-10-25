@@ -166,7 +166,7 @@ func (s *Server) cors(next http.Handler) http.Handler {
 		}
 		if allowed {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Expose-Headers", "X-Total-Lines")
+			w.Header().Set("Access-Control-Expose-Headers", "X-Total-Lines, X-Rev")
 		}
 		if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
 			if allowed {

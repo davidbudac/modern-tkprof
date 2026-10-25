@@ -78,6 +78,7 @@ type Spill struct {
 
 	callsByCur, waitsByCur []int64
 	callCtx, waitCtx       []rowRange
+	live                   bool // an Overlay has written: orphan marks may need clearing (spill_live.go)
 
 	mu     sync.Mutex
 	err    error
@@ -217,6 +218,9 @@ func (s *Spill) Child(ch *model.ChildRec, parent *model.Call) {
 	var b [4]byte
 	le.PutUint32(b[:], uint32(parent.ID))
 	s.calls.patch(int64(ch.ID), cOffParent, b[:])
+	if s.live { // a snapshot may have marked it orphan
+		s.calls.patch(int64(ch.ID), cOffOrphan, []byte{0})
+	}
 }
 
 func (s *Spill) Wait(w *model.Wait, _ *model.Call) {

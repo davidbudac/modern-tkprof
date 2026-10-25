@@ -677,10 +677,10 @@ the standalone `/api/lines`.
   only appears in the event of a `DELETE`. `identity` is the content identity
   of the files without options (the key annotations will use),
   `cacheIdentity` the cache entry, `hit` whether it opened without a parse,
-  `rev` the document revision (1 so far; `?rev=` on `api/doc` is accepted and
-  ignored; later it increments when a reference bundle is applied or a live
-  session advances). `options.follow=true` is refused (400) until live
-  sessions exist. Directories in `paths` are
+  `rev` the document revision (1 for an opened trace; `?rev=` on `api/doc`
+  is accepted and ignored there; it will increment when a reference bundle
+  is applied; a live session counts its snapshots, see "Live sessions").
+  `options.follow=true` makes a live session. Directories in `paths` are
   expanded as on the CLI, at most 1000 inputs.
 * Job: a cancelable piece of work with its own `context.Context` (child of
   the engine's). Kind `open`; phases `parse` (unit bytes, `done/total`, plus
@@ -709,6 +709,88 @@ down) and returns it. `OpenTrace` also checks the context before and after the
 build, so a cancelled build is never committed: the build directory is
 aborted and the session ends `failed` with `cancelled`. `DELETE
 /engine/jobs/{id}` answers 202 and 409 when the job already finished.
+
+#### Live sessions
+
+`POST /engine/sessions {paths:[file], options:{follow:true, batchMs, batchMB}}`
+follows a local growing file; `POST /engine/connections/{id}/follow {path,
+options}` does it over the local mirror of a remote file that E7's follow job
+writes (`<cache>/remote/<conn>/<name>`; the session waits until the job has
+opened the mirror at its resume offset, `mirrorOnly:true` is the mirror
+alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
+`internal/slice/spill_live.go`, `internal/trace/live.go`,
+`internal/deepcopy`.
+
+* **Not cached.** A growing file has no identity (`identity` and
+  `cacheIdentity` are empty): the build spills into a temporary directory
+  under `<cache>/live/` (`slice.NewSpill`, key `live`, so leftovers of a dead
+  engine are removed by the next one) that `DELETE` removes. Reopen the file
+  normally once it stops growing to get a cache entry.
+* **Input.** One file, no chain following, the builder `BuildFiles` uses
+  for a single file (`model.NewLiveBuilder`). The parser reads a
+  `tailReader` that never returns EOF: at the end of the file it polls (100
+  ms, a quarter of `batchMs` if shorter) until more is written, so a line
+  still being written waits for its newline (`tail -f` and the mirror deliver
+  partial lines). A file that shrinks (truncated, replaced) fails the
+  session; the end of a remote follow's mirror job fails it after the bytes
+  the mirror wrote are parsed, with a last snapshot.
+* **Snapshot point.** `bufio` calls `Read` only when no complete line is
+  buffered, so inside `Read` every complete line has been delivered and the
+  builder is between two records: that is where snapshots are taken, in the
+  parser goroutine, with nothing to lock.
+* **Snapshot** (`(*Builder).Snapshot`). The builder with its model and its
+  first sink (the `analyze.Accumulator`) is deep-copied by reflection
+  (`internal/deepcopy`: unexported fields, shared objects stay shared,
+  strings and pointer-free blocks copied as blocks), the parser's open
+  records (a cursor text, a PARSE ERROR text, a BINDS block:
+  `Parser.Pending`) are handed to the copy, and the copy is finished
+  (`EndFile`, `Finish`) as if the input ended there; the live builder goes
+  on untouched. A new field of `Builder`, `Model` or the accumulator is
+  copied automatically; one that must stay shared (a func, a channel) is
+  shared, and an alias into the middle of another object (`openX` →
+  `xbuf`) becomes a copy of its own, which the finishing code must not
+  mind. `TestSnapshotEqualsPrefixBuild` (`internal/model`, ~150 cuts per
+  fixture) and `TestLivePrefixesMatchOpen` (`internal/engine`, every slice
+  and line endpoint at 7 cuts of 12 fixtures) prove a snapshot equals a
+  normal open of the prefix, byte for byte.
+* **Spill.** What the copy settles on finishing (the open XCTEND, the waits
+  still looking for a call, the recursive calls still waiting for a parent)
+  goes to a `slice.LiveOverlay` instead of the spill's sink: it writes those
+  rows at their ids without counting them (the live build writes the same ids
+  again when it settles them; a later parent clears an orphan mark), then
+  `Source` writes the cached pages out (`pagedFile.sync`: no drop, no
+  truncate) and returns a source over every row so far. Readers `ReadAt`
+  the files while the build goes on writing; rows below a snapshot's counts
+  only ever change to their settled values. The statement indexes are built
+  at `Finish`, which a live build never reaches: a statement-scoped scan reads
+  the whole table (the Matcher decides; same answers, slower on big files).
+  Bind sets of the open BINDS block are left out of the copy (the next
+  snapshot has them). The line index grows with the bytes read
+  (`trace.LineScan`); each snapshot gets a view bounded by its line count.
+* **Batches.** A snapshot is due when lines were added since the last one
+  and `batchMs` (default 1000, 50..60000) has passed, or `batchMB` MiB of
+  input (0 = off), never sooner than 3× the cost of the last snapshot
+  (adaptive: a big state snapshots less often); the first one as soon as the
+  reader has caught up with the file. Each swaps the session's handlers
+  atomically (requests in flight finish on the snapshot they started on; old
+  snapshots are garbage once unused), `rev++`, a `session` event
+  `{state: live, rev}`, and job progress (`done` = bytes parsed).
+* **States.** `opening` (until the first snapshot) → `live` → `failed` on a
+  stream error (the last snapshot is still served) or `closed` by `DELETE`,
+  which cancels the job (and a remote follow's mirror job), waits for the
+  requests in flight and removes the spill. Job kind `live`, phase
+  `follow`, ends `cancelled` on `DELETE`.
+* **`api/doc`.** The latest snapshot, its revision in `X-Rev` (exposed to
+  CORS). `?rev=N` with nothing newer than N waits up to 25 s for the next
+  snapshot or the end of the follow (a long poll; compare `X-Rev`).
+
+Measured (`MTKPROF_BIG=… go test ./internal/engine -run LiveBig -v`; 100 MB
+prefix of `big_loop.trc`): catch-up 1.3 s (one snapshot); a snapshot on
+top of 100 MB costs 55-85 ms (deep copy ≈ 10-20 ms, finishing the copy
+most of the rest, the document a few ms), far below the 1 s batch.
+Latency from a write to a snapshot is ≤ poll (100 ms) + the rest of the
+batch period + the snapshot; through the in-process SSH server on the lib
+transport (500 ms SFTP poll) 0.2-1.0 s in `TestLiveFollowRemote`.
 
 #### Persistent index cache
 
