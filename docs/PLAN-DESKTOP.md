@@ -1,10 +1,63 @@
 # Desktop app: implementation plan
 
-**Status (2026-10-25):** phases 1–5 are implemented in both repos; phase 6
-(tag both repos, publish the installers) is pending: GitHub Actions billing
-blocked the last desktop CI run. Package status, workflow, measured budgets
-and the open list: `docs/HANDOFF.md` § "Desktop app v1". User guide:
-`docs/DESKTOP.md`.
+## Status and how to continue (2026-10-25, end of day)
+
+**Done.** Phases 1–5 are implemented and merged in both repos, tagged
+`v0.3.0` on both (`modern-tkprof` `53042d0`, `mtkprof-desktop` `834d7e4`,
+submodule pinned to `53042d0`). Every package of § 8 (E1–E10, I1–I3, E7b,
+U1, S1–S9, D1) has landed; status table, measured budgets, dbmint
+verification and the open list live in `docs/HANDOFF.md` § "Desktop app v1";
+user guide in `docs/DESKTOP.md`; remote details in `docs/REMOTE.md`.
+
+**Verified.** Engine: `make test` green (Go + 92 web tests), cross-builds
+(windows, aix, solaris, darwin, `CGO_ENABLED=0`); SSH and Oracle paths
+against dbmint. Desktop: CI was green on all four legs through the S6 merge
+(`6d23ea4`); the last three desktop commits (S7–S9 `904f0bf`, pins
+`63564b5`, `834d7e4`) were refused by GitHub Actions ("recent account
+payments have failed or your spending limit needs to be increased"). For
+those, the CI steps were run locally instead: typecheck, 35 unit tests,
+bundle, `check:deps`, `gen:api`, `cargo fmt --check`, engine build, and the
+Linux Tauri build + `.deb` bundle inside Docker (image `mtk-ci:linux`, see
+below). Not run locally: the Windows and macOS legs (impossible here) and
+the AppImage (linuxdeploy needs FUSE; `APPIMAGE_EXTRACT_AND_RUN=1` alone did
+not help, see HANDOFF "Open").
+
+**Blocked on the user.**
+
+1. GitHub Actions billing (Settings → Billing & plans → spending limit).
+   Then re-run the latest `mtkprof-desktop` workflow and the `v0.3.0` tag
+   run; the release job publishes the unsigned installers as a prerelease.
+   That completes phase 6.
+2. `sudo apt install libwebkit2gtk-4.1-dev librsvg2-dev libgtk-3-dev patchelf`
+   if `pnpm tauri dev` is wanted on this Linux box without Docker.
+3. A Windows 11 machine for the `SSH_ASKPASS` / agent-pipe check
+   (`docs/REMOTE.md` § Open).
+
+**Local CI without GitHub (Linux leg).** Dockerfile at `/tmp/mtk-ci/`
+(recreate: `FROM rust:1-bookworm`, apt `libwebkit2gtk-4.1-dev libgtk-3-dev
+librsvg2-dev libayatana-appindicator3-dev patchelf file xvfb dbus-x11
+x11-apps imagemagick xauth x11-xserver-utils`, nodesource node 22 +
+`corepack prepare pnpm@10`). Run from the desktop clone:
+
+```
+docker run --rm -v $PWD:/src -v mtk-cargo-target:/cargo-target \
+  -v mtk-cargo-registry:/usr/local/cargo/registry -e CI=true \
+  -e CARGO_TARGET_DIR=/cargo-target \
+  -e PATH=/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin -w /src mtk-ci:linux \
+  bash -c 'pnpm install --frozen-lockfile && pnpm tauri build --target x86_64-unknown-linux-gnu --bundles deb --ci'
+```
+
+(`bash -lc` drops cargo from PATH in that image; pass PATH explicitly.) The
+smoke step runs as `xvfb-run -a dbus-run-session -- bash scripts/smoke.sh
+x86_64-unknown-linux-gnu <name>` with `src-tauri/target/<triple>` symlinked
+to `/cargo-target/<triple>`.
+
+**Next work, in order.** (a) Phase 6 once billing is restored. (b) The
+deferred items in HANDOFF "Open" (none blocks v1). (c) Post-v1 backlog (§
+"Post-v1 backlog" below). The orchestration pattern that worked: one
+package per worktree branch, Opus 5.5 for E1/E2/E7/E8/S-shell packages,
+Sonnet 5.5 for the rest, the integrator merges to `main`, `make test` green
+before every merge (see `docs/PLAN-M1.md` rules).
 
 Written 2026-10-25 after the architecture review; revised the same day after a
 design interview (33 decisions, § 11). This is the handoff for implementation.

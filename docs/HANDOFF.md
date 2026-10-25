@@ -134,7 +134,13 @@ Needs a person or a machine:
 - **GitHub Actions billing** blocked the last desktop CI run: no CI-built
   installer or smoke result exists for the final desktop commit
   (`63564b5`). Phase 6 (tag both repos, release notes) follows once it runs.
-- Local Linux Tauri build needs `sudo apt install` of the webkit2gtk dev libs.
+- Local Linux Tauri build needs `sudo apt install` of the webkit2gtk dev libs;
+  without them the Linux leg runs in Docker (`docs/PLAN-DESKTOP.md` § "Status
+  and how to continue"): the Rust build and the `.deb` (10.8 MB, ships
+  `/usr/bin/mtkprof-desktop` + `/usr/bin/mtkprof-engine`) were produced that
+  way for `834d7e4`; the AppImage fails in Docker (`failed to run
+  linuxdeploy`: no FUSE; `APPIMAGE_EXTRACT_AND_RUN=1` was not enough) and is
+  only produced by GitHub's runner.
 - Stray 32 MB binary in history (`mtkprof` at the repo root, removed in
   `a89bc12`); a history rewrite is the user's call, relevant before the repo is
   published.
