@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
 import type { StmtStats } from '../data/types'
-import { fmtDur, fmtInt, fmtPct, preview, fmtCompact } from '../data/format'
+import { fmtDur, fmtInt, fmtPct, fmtWall, preview, fmtCompact } from '../data/format'
 import { useStore, useActions } from '../state/session'
 import { quickSegments } from '../data/derive'
 import { sourceOf, useSourceQuery } from '../data/source'
@@ -14,9 +14,11 @@ import { PaneToggle } from '../components/PaneToggle'
 import { usePersisted } from '../state/persist'
 import type { CSSProperties } from 'react'
 
-type SortKey = 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
+type SortKey = 'first' | 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
 const sorts: { id: SortKey; label: string; of: (s: StmtStats, inclusive: boolean) => number }[] = [
   { id: 'resp', label: 'response time', of: (s) => s.elapsed + s.idleUs },
+  // earliest first, as in the Overview timeline lanes; statements never called sort last
+  { id: 'first', label: 'first call', of: (s) => (s.firstTim > 0 ? -s.firstTim : -Infinity) },
   { id: 'self', label: 'self time', of: (s) => s.selfElapsed },
   { id: 'cpu', label: 'CPU', of: (s, inc) => (inc ? s.cpu : s.selfCpu) },
   { id: 'waits', label: 'wait time', of: (s) => s.waitUs },
@@ -108,7 +110,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
                   onClick={() => actions.pickStmt(st.id)} role="button" tabIndex={-1}>
                   <div className="txt mono" title={preview(s.text, 300)}>{preview(s.text, 120)}</div>
                   <div className="bar" style={{ width: `${(100 * resp) / (maxResp || 1)}%` }}>{segs.map((x) => <i key={x.role} style={{ width: `${(100 * x.us) / segTotal}%`, background: `var(--c-${x.role})` }} />)}</div>
-                  <div className="n">{sortKey === 'resp' || sortKey === 'self' || sortKey === 'cpu' || sortKey === 'waits' || sortKey === 'idle' ? fmtDur(sort.of(st, inclusive)) : fmtCompact(sort.of(st, inclusive))}<small>{sortKey === 'resp' ? fmtPct(resp, totalUs, 0) : fmtDur(resp)}</small></div>
+                  <div className="n">{sortKey === 'first' ? firstCall(doc, st) : sortKey === 'resp' || sortKey === 'self' || sortKey === 'cpu' || sortKey === 'waits' || sortKey === 'idle' ? fmtDur(sort.of(st, inclusive)) : fmtCompact(sort.of(st, inclusive))}<small>{sortKey === 'resp' ? fmtPct(resp, totalUs, 0) : fmtDur(resp)}</small></div>
                   <div className="id">
                     <StmtLink doc={doc} id={st.id} />
                     <span>{fmtInt(st.executions)} exec{st.executions === 1 ? '' : 's'}</span>
@@ -135,4 +137,10 @@ export function Statements({ doc }: { doc: TraceDoc }) {
       <PaneToggle open={ctxOpen} onToggle={() => setCtxOpen(!ctxOpen)} label="context pane" className="ctx-toggle" />
     </div>
   )
+}
+
+/** When a statement was first called: wall clock, or the offset into the trace when there is none. */
+function firstCall(doc: TraceDoc, st: StmtStats): string {
+  if (st.firstTim <= 0) return '–'
+  return st.firstWallUs ? fmtWall(st.firstWallUs, doc.tzOffsetMin) : `+${fmtDur(st.firstTim - doc.span.firstTim)}`
 }
