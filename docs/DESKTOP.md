@@ -23,8 +23,10 @@ The builds are not signed. The first start needs one extra step:
 
 - **Windows**: SmartScreen says "Windows protected your PC". Click *More info*, then *Run
   anyway*. Only the first start asks.
-- **macOS**: Gatekeeper says the developer cannot be verified (or that the app is damaged).
-  Right-click the app in Applications, *Open*, *Open*. Or in a terminal:
+- **macOS**: Gatekeeper says "mtkprof.app" Not Opened ("Apple could not verify…"). Click
+  *Done*, open System Settings → Privacy & Security, scroll to Security and click *Open
+  Anyway* next to "mtkprof.app was blocked", then confirm. Only the first start asks.
+  (Right-click → *Open* no longer does this since macOS 15.) Or in a terminal:
   `xattr -dr com.apple.quarantine /Applications/mtkprof.app`.
 - **Linux**: AppImage: `chmod +x mtkprof_*.AppImage`, then run it. It needs FUSE 2
   (`sudo apt install libfuse2` on Ubuntu 22.04+). deb: `sudo apt install ./mtkprof_*.deb`.

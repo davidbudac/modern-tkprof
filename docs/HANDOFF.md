@@ -153,8 +153,18 @@ Needs a person or a machine:
   "restarts 1"). Notes: Node 26 / pnpm 12.9.1 there (the recipe says 22/10,
   CI uses 24); `screencapture` needs Screen Recording permission for the
   host app; `--bundles dmg` deletes the `.app`, so the recipe's `xattr` path
-  does not exist (not needed: the smoke runs `release/` directly). The DMG
-  hand install (Gatekeeper) and the x64 smoke were not run.
+  does not exist (not needed: the smoke runs `release/` directly). Follow-up
+  the same day, **desk:** branch `macos-v0.3.0-fixes` (`a38c276`, not merged):
+  the v0.3.0 DMG app is "damaged" for Gatekeeper on Apple Silicon (only the
+  linker's ad-hoc signature, bundle unsigned; no Open Anyway), fixed with
+  `bundle.macOS.signingIdentity: "-"` (now "Not Opened" + Open Anyway in
+  Privacy & Security, both seen on screen, Open Anyway not clicked); the
+  status bar showed "0 sessions" with a trace open until the next 5 s health
+  poll, now re-polled on session events (smoke screenshot shows "1
+  sessions"); the bundled sidecar starts from the DMG copy; user docs say
+  Open Anyway instead of right-click → Open (gone since macOS 15). Still
+  open: x64 smoke (no Rosetta on the MacBook), the drag-to-Applications
+  hand install.
 - Stray 32 MB binary in history (`mtkprof` at the repo root, removed in
   `a89bc12`); a history rewrite is the user's call, relevant before the repo is
   published.
