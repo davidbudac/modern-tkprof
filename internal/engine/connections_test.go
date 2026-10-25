@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/davidbudac/modern-tkprof/internal/remote"
+	"github.com/davidbudac/modern-tkprof/internal/remote/db"
 	"github.com/davidbudac/modern-tkprof/internal/remote/sshcli"
 	"github.com/davidbudac/modern-tkprof/internal/remote/sshtest"
 )
@@ -65,6 +66,17 @@ type answerer struct {
 
 func autoAnswer(t *testing.T, e *env, ts *httptest.Server, answers map[string]string) *answerer {
 	t.Helper()
+	return autoAnswerFn(t, ts, func(pe PromptEvent) map[string]any {
+		if ans, ok := answers[pe.Kind]; ok {
+			return map[string]any{"answer": ans}
+		}
+		return map[string]any{"cancel": true}
+	})
+}
+
+// autoAnswerFn answers every open prompt with the body fn returns.
+func autoAnswerFn(t *testing.T, ts *httptest.Server, fn func(PromptEvent) map[string]any) *answerer {
+	t.Helper()
 	ev := openSSE(t, ts)
 	a := &answerer{}
 	go func() {
@@ -94,11 +106,7 @@ func autoAnswer(t *testing.T, e *env, ts *httptest.Server, answers map[string]st
 			a.mu.Lock()
 			a.seen = append(a.seen, pe)
 			a.mu.Unlock()
-			body := map[string]any{"cancel": true}
-			if ans, ok := answers[pe.Kind]; ok {
-				body = map[string]any{"answer": ans}
-			}
-			b, _ := json.Marshal(body)
+			b, _ := json.Marshal(fn(pe))
 			req, _ := http.NewRequest("POST", ts.URL+"/engine/prompts/"+pe.ID, bytes.NewReader(b))
 			req.Header.Set("Authorization", "Bearer "+testToken)
 			if r, err := http.DefaultClient.Do(req); err == nil {
@@ -200,10 +208,10 @@ func TestConnectionRoutes(t *testing.T) {
 			t.Errorf("%v: %d %s", bad, r.code, r.body)
 		}
 	}
-	// db operations are not wired yet
-	for _, rq := range [][2]string{{"POST", "/engine/connections/ora/test"}, {"GET", "/engine/connections/ora/ls?path=/x"},
-		{"GET", "/engine/connections/ora/diag"}} {
-		if r := e.req(rq[0], rq[1], nil); r.code != 400 || !strings.Contains(string(r.body), "not implemented") {
+	// ssh-only routes on a db connection, db-only routes on an ssh one
+	for _, rq := range [][2]string{{"GET", "/engine/connections/ora/ls?path=/x"}, {"GET", "/engine/connections/lab/sessions"},
+		{"GET", "/engine/connections/lab/tracefiles"}} {
+		if r := e.req(rq[0], rq[1], nil); r.code != 400 || !strings.Contains(string(r.body), "only") {
 			t.Errorf("%s %s: %d %s", rq[0], rq[1], r.code, r.body)
 		}
 	}
@@ -482,6 +490,7 @@ func TestConnectionSchemas(t *testing.T) {
 	for name, v := range map[string]any{
 		"ConnectionDef": ConnectionDef{}, "ConnectionInfo": ConnectionInfo{}, "ConnectionTest": ConnectionTest{},
 		"RemoteListing": RemoteListing{}, "RemoteEntry": remote.Entry{}, "AskpassRequest": sshcli.AskpassRequest{},
+		"DBDiag": DBDiag{}, "DBTraceFile": db.TraceFile{}, "DBSession": db.Session{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

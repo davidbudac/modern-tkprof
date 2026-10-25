@@ -1,6 +1,8 @@
 package model
 
 import (
+	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -72,5 +74,42 @@ func TestApplyRefXPlanKeepsStatCard(t *testing.T) {
 	ApplyRef(m, &ref.Bundle{Plans: map[string]string{"q1": xplanText}})
 	if l := m.PlanLines[0]; l.Card != 7 || l.ERows != 0 || l.Filter == "" {
 		t.Errorf("line = %+v", l)
+	}
+}
+
+// ApplyRef replaces a bundle applied before: A, then B, then A again gives
+// what A alone gives, and B after A what B alone gives.
+func TestApplyRefReplacesEarlierBundle(t *testing.T) {
+	a, err := ref.LoadBundle("../../testdata/reference/bundle")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &ref.Bundle{Objects: map[int64]ref.ObjectRef{}, Files: map[int64]ref.FileRef{}, Users: map[int64]string{0: "ONLY"}, Plans: map[string]string{}}
+	build := func(bs ...*ref.Bundle) []byte {
+		m, err := Build("../../testdata/traces/19c/io_waits.trc", Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, x := range bs {
+			ApplyRef(m, x)
+		}
+		out, err := json.Marshal(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	none, onlyA, onlyB := build(), build(a), build(b)
+	if bytes.Equal(none, onlyA) || bytes.Equal(onlyA, onlyB) {
+		t.Fatal("the bundles change nothing (test is vacuous)")
+	}
+	if !bytes.Equal(build(a, b), onlyB) {
+		t.Error("B after A differs from B alone")
+	}
+	if !bytes.Equal(build(a, b, a), onlyA) {
+		t.Error("A after B after A differs from A alone")
+	}
+	if !bytes.Equal(build(a, a), onlyA) {
+		t.Error("A twice differs from A once")
 	}
 }

@@ -1,5 +1,5 @@
 // Package db reaches trace files and reference data through an Oracle
-// connection (docs/PLAN-DESKTOP.md § 6, docs/REMOTE-db.md): the ADR views
+// connection (docs/PLAN-DESKTOP.md § 6, docs/REMOTE.md): the ADR views
 // V$DIAG_INFO / V$DIAG_TRACE_FILE / V$DIAG_TRACE_FILE_CONTENTS, V$SESSION and
 // V$PROCESS, DBMS_MONITOR for trace on/off, and the reference-bundle queries
 // of report.RefQueries. Username/password over TCP or TCPS only; the

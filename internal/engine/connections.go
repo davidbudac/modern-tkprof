@@ -68,18 +68,23 @@ type ConnectionDef struct {
 	Service   string `json:"service,omitempty"`   // db
 	AdrHome   string `json:"adrHome,omitempty"`   // db
 	Transport string `json:"transport,omitempty"` // ssh: auto (default), cli or lib
+	// db: TCPS (TLS) and, with it, accepting any server certificate.
+	TCPS          bool `json:"tcps,omitempty"`
+	TLSSkipVerify bool `json:"tlsSkipVerify,omitempty"`
 }
 
 // ConnectionInfo is a connection as the engine reports it.
 type ConnectionInfo struct {
-	ID        string `json:"id"`
-	Kind      string `json:"kind"`
-	Host      string `json:"host"`
-	Port      int    `json:"port"`
-	User      string `json:"user"`
-	Service   string `json:"service,omitempty"`
-	AdrHome   string `json:"adrHome,omitempty"`
-	Transport string `json:"transport"`
+	ID            string `json:"id"`
+	Kind          string `json:"kind"`
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	User          string `json:"user"`
+	Service       string `json:"service,omitempty"`
+	AdrHome       string `json:"adrHome,omitempty"`
+	Transport     string `json:"transport"`
+	TCPS          bool   `json:"tcps,omitempty"`
+	TLSSkipVerify bool   `json:"tlsSkipVerify,omitempty"`
 	// Active is the SSH transport in use ("cli" or "lib"; "" before the
 	// first operation). auto starts with cli and moves to lib for good when
 	// ssh ignores SSH_ASKPASS.
@@ -88,8 +93,10 @@ type ConnectionInfo struct {
 
 // ConnectionTest is the answer of POST /engine/connections/{id}/test.
 type ConnectionTest struct {
-	Server    string `json:"server"`    // the host's uname -sr (and the SSH server version on lib)
-	Transport string `json:"transport"` // cli or lib
+	Server    string `json:"server"`    // ssh: the host's uname -sr (and the SSH server version on lib); db: the server version
+	Transport string `json:"transport"` // ssh: cli or lib; db: tcp or tcps
+	// Diag is V$DIAG_INFO of a db connection (absent when the user cannot read it).
+	Diag *DBDiag `json:"diag,omitempty"`
 }
 
 // RemoteListing is the answer of GET /engine/connections/{id}/ls.
@@ -105,6 +112,8 @@ type connection struct {
 
 	mu  sync.Mutex
 	ssh remote.SSH // dialled on first use
+
+	dbs dbState // db connections (connections_db.go)
 }
 
 // connRegistry is the engine's connections; the zero value is ready.
@@ -137,7 +146,8 @@ func (s *Server) noteAddr(r *http.Request) {
 
 func (c *connection) info() ConnectionInfo {
 	d := c.def
-	ci := ConnectionInfo{ID: d.ID, Kind: d.Kind, Host: d.Host, Port: d.Port, User: d.User, Service: d.Service, AdrHome: d.AdrHome, Transport: d.Transport}
+	ci := ConnectionInfo{ID: d.ID, Kind: d.Kind, Host: d.Host, Port: d.Port, User: d.User, Service: d.Service, AdrHome: d.AdrHome, Transport: d.Transport,
+		TCPS: d.TCPS, TLSSkipVerify: d.TLSSkipVerify}
 	c.mu.Lock()
 	if c.ssh != nil {
 		ci.Active = c.ssh.Transport()
@@ -156,6 +166,7 @@ func (c *connection) close() {
 		s.Close()
 	}
 	c.ans.Forget()
+	c.dbs.close()
 }
 
 // closeConnections closes every connection (engine shutdown).
@@ -181,10 +192,10 @@ func (s *Server) connection(w http.ResponseWriter, r *http.Request) *connection 
 }
 
 // sshOf returns the connection's SSH client (created on first use); a db
-// connection is a bad request until internal/remote/db is wired (E8).
+// connection has none (its routes are in connections_db.go).
 func (s *Server) sshOf(c *connection) (remote.SSH, error) {
 	if c.def.Kind != ConnSSH {
-		return nil, errorf(CodeBadRequest, "%s connections: not implemented yet", c.def.Kind)
+		return nil, errorf(CodeBadRequest, "%s connections do not do this (ssh connections only)", c.def.Kind)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -289,12 +300,12 @@ func checkDef(d *ConnectionDef) error {
 		if err := (remote.Target{Host: d.Host, Port: d.Port, User: d.User}).Check(); err != nil {
 			return fmt.Errorf("ssh: %v", err)
 		}
-	case ConnDB:
-		if d.Host == "" || d.Port < 0 || d.Port > 65535 {
-			return fmt.Errorf("db: want host and port")
+		if d.TCPS || d.TLSSkipVerify {
+			return fmt.Errorf("tcps, tlsSkipVerify: db connections only")
 		}
-		if d.Transport != "" {
-			return fmt.Errorf("transport: ssh connections only")
+	case ConnDB:
+		if err := checkDBDef(d); err != nil {
+			return err
 		}
 	default:
 		return fmt.Errorf("kind: want ssh or db")
@@ -373,6 +384,10 @@ func (s *Server) testConnection(w http.ResponseWriter, r *http.Request) {
 	if c == nil {
 		return
 	}
+	if c.def.Kind == ConnDB {
+		s.testDB(w, r, c)
+		return
+	}
 	cl, err := s.sshOf(c)
 	if err != nil {
 		writeError(w, err)
@@ -414,6 +429,10 @@ func (s *Server) lsConnection(w http.ResponseWriter, r *http.Request) {
 func (s *Server) diagConnection(w http.ResponseWriter, r *http.Request) {
 	c := s.connection(w, r)
 	if c == nil {
+		return
+	}
+	if c.def.Kind == ConnDB {
+		s.diagDB(w, r, c)
 		return
 	}
 	cl, err := s.sshOf(c)
@@ -484,9 +503,15 @@ func (s *Server) release(files []string) {
 	}
 }
 
-// startRemoteJob registers a job of kind for connection c writing files,
-// and runs work in the background (the job finishes with its error).
+// startRemoteJob registers a job of kind (counting bytes) for connection c
+// writing files, and runs work in the background (the job finishes with its
+// error).
 func (s *Server) startRemoteJob(w http.ResponseWriter, kind string, c *connection, files []string, work func(*Job) error) *Job {
+	return s.startRemoteJobUnit(w, kind, "bytes", c, files, work)
+}
+
+// startRemoteJobUnit is startRemoteJob counting in unit (bytes, lines).
+func (s *Server) startRemoteJobUnit(w http.ResponseWriter, kind, unit string, c *connection, files []string, work func(*Job) error) *Job {
 	if !s.claim(files) {
 		writeError(w, errorf(CodeConflict, "a job is writing %s already", strings.Join(files, ", ")))
 		return nil
@@ -499,7 +524,7 @@ func (s *Server) startRemoteJob(w http.ResponseWriter, kind string, c *connectio
 		return nil
 	}
 	j := s.newJobLocked(kind, "")
-	j.info.Connection, j.info.Phase, j.info.Unit = c.def.ID, kind, "bytes"
+	j.info.Connection, j.info.Phase, j.info.Unit = c.def.ID, kind, unit
 	s.wg.Add(1)
 	s.mu.Unlock()
 	j.publish()
@@ -538,6 +563,10 @@ func (j *Job) progress(done int64, force bool, last *time.Time) {
 func (s *Server) fetchConnection(w http.ResponseWriter, r *http.Request) {
 	c := s.connection(w, r)
 	if c == nil {
+		return
+	}
+	if c.def.Kind == ConnDB {
+		s.fetchDB(w, r, c)
 		return
 	}
 	var body struct {

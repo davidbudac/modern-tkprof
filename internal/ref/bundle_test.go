@@ -95,3 +95,21 @@ func TestLoadBundleErrors(t *testing.T) {
 		t.Errorf("an empty directory is an empty bundle: %v %v", b, err)
 	}
 }
+
+func TestCopyBundle(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "plans"), 0o755)
+	for _, f := range []string{"objects.csv", "x_objects.csv", "datafiles.csv", "users.csv", "other.csv", "plans/a.txt", "plans/b.log"} {
+		os.WriteFile(filepath.Join(src, f), []byte(f), 0o644)
+	}
+	dst := filepath.Join(t.TempDir(), "d")
+	n, err := CopyBundle(src, dst)
+	if err != nil || n != 5 {
+		t.Fatalf("copied %d: %v", n, err)
+	}
+	for f, want := range map[string]bool{"objects.csv": true, "x_objects.csv": true, "datafiles.csv": true, "users.csv": true, "plans/a.txt": true, "other.csv": false, "plans/b.log": false} {
+		if _, err := os.Stat(filepath.Join(dst, f)); (err == nil) != want {
+			t.Errorf("%s: copied %v, want %v", f, err == nil, want)
+		}
+	}
+}

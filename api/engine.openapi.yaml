@@ -374,6 +374,11 @@ paths:
     post:
       operationId: testConnection
       summary: Connect (prompting as needed) and report the host
+      description: |
+        db connections: opens the connection's database session (asking for the
+        password through a prompt unless it is cached), reports the server
+        version and `diag` (V$DIAG_INFO). The session stays open until the
+        connection is deleted.
       parameters:
         - $ref: "#/components/parameters/ConnectionID"
       responses:
@@ -398,7 +403,7 @@ paths:
       operationId: lsConnection
       summary: List a remote directory (or one file)
       description: |
-        ssh: `sftp -b -` running `ls -ln path` (cli) or SFTP ReadDir (lib).
+        ssh connections only (db: 400). ssh: `sftp -b -` running `ls -ln path` (cli) or SFTP ReadDir (lib).
         Hidden files are not listed; symbolic links are not followed.
       parameters:
         - $ref: "#/components/parameters/ConnectionID"
@@ -430,7 +435,10 @@ paths:
       operationId: diagConnection
       summary: Candidate trace directories on the host
       description: |
-        `$ORACLE_BASE/diag/rdbms/*/*/trace`, the same under the ORACLE_BASE of
+        db connections: the `Diag Trace` of V$DIAG_INFO (one directory) and
+        the `adrHome`.
+
+        ssh: `$ORACLE_BASE/diag/rdbms/*/*/trace`, the same under the ORACLE_BASE of
         every home in /etc/oratab (/var/opt/oracle/oratab), then
         `/u01/app/oracle/diag/rdbms/*/*/trace`; existing directories only,
         without duplicates.
@@ -449,6 +457,9 @@ paths:
                     type: array
                     items:
                       type: string
+                  adrHome:
+                    type: string
+                    description: db connections only
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -464,7 +475,15 @@ paths:
       operationId: fetchConnection
       summary: Copy remote files into the cache (job kind fetch)
       description: |
-        Files go to `<cache>/remote/<connection>/<basename>` (base names must
+        db connections: body `{adrHome, name}` (see `DBFetchRequest`); the trace
+        is read out of `V$DIAG_TRACE_FILE_CONTENTS`, 50 000 lines per query, on
+        a database session of the job's own, into
+        `<cache>/remote/<connection>/<name>`. The job counts `lines` (total
+        unknown); a partial local file is continued after its last complete
+        line (the file is cut there, so cancel and refetch resume). Past 200 MB
+        the job's `message` says SSH is faster. `localPaths` has the one file.
+
+        ssh connections: files go to `<cache>/remote/<connection>/<basename>` (base names must
         differ). A local file shorter than the remote one is resumed at its
         size; a longer one is fetched again from the start. ssh/cli streams
         `tail -c +N -- path`, through `gzip -1 -c` when the host has gzip
@@ -480,19 +499,9 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [paths]
-              additionalProperties: false
-              properties:
-                paths:
-                  type: array
-                  minItems: 1
-                  maxItems: 100
-                  items:
-                    type: string
-                gzip:
-                  type: boolean
-                  default: true
+              oneOf:
+                - $ref: "#/components/schemas/SSHFetchRequest"
+                - $ref: "#/components/schemas/DBFetchRequest"
       responses:
         "202":
           description: the job and where the files will be
@@ -563,6 +572,148 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /engine/connections/{id}/tracefiles:
+    get:
+      operationId: tracefilesConnection
+      summary: Trace files of the ADR home (db connections)
+      description: |
+        V$DIAG_TRACE_FILE (12.2+) joined to V$PROCESS and V$SESSION for the
+        session writing each file, newest first. Without access to the view
+        (ORA-00942) the live sessions' V$PROCESS.TRACEFILE are listed instead
+        (`fromProcess`; `since` does not apply). Needs the grants of
+        docs/REMOTE.md.
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+        - name: sid
+          in: query
+          description: only the file of this session's server process
+          schema:
+            type: integer
+        - name: serial
+          in: query
+          schema:
+            type: integer
+        - name: since
+          in: query
+          description: "only files modified within a duration (2h, 30m, 1d) or since an RFC 3339 time"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: the files
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [files]
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DBTraceFile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          $ref: "#/components/responses/Remote"
+  /engine/connections/{id}/sessions:
+    get:
+      operationId: sessionsConnection
+      summary: The user sessions of the database (db connections)
+      description: V$SESSION of type USER, newest logon first; `self` marks the connection's own session.
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "200":
+          description: the sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DBSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          $ref: "#/components/responses/Remote"
+  /engine/connections/{id}/trace:
+    post:
+      operationId: traceConnection
+      summary: Switch SQL trace of a session on or off (db connections)
+      description: |
+        `DBMS_MONITOR.SESSION_TRACE_ENABLE` / `SESSION_TRACE_DISABLE` for the
+        session sid,serial (needs EXECUTE on DBMS_MONITOR), or with `self`
+        `DBMS_SESSION` for the connection's own session (waits, binds,
+        plan_stat ALL_EXECUTIONS). Enabling answers with the trace file the
+        session writes when it can tell.
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enable]
+              additionalProperties: false
+              properties:
+                sid:
+                  type: integer
+                serial:
+                  type: integer
+                enable:
+                  type: boolean
+                waits:
+                  type: boolean
+                  default: true
+                binds:
+                  type: boolean
+                  default: true
+                planStat:
+                  type: string
+                  enum: [never, first_execution, all_executions]
+                  default: all_executions
+                self:
+                  type: boolean
+                  description: the connection's own session; no sid or serial
+      responses:
+        "200":
+          description: done
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled]
+                properties:
+                  enabled:
+                    type: boolean
+                  traceFile:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          $ref: "#/components/responses/Remote"
   /s/{id}/api/doc:
     get:
       operationId: sessionDoc
@@ -570,8 +721,11 @@ paths:
       description: |
         The document `mtkprof serve -spill` serves at `/api/doc`. `stats.minimap`
         holds 1024 buckets of CPU and wait time per wait class over the whole
-        span. `rev` is accepted; every session has revision 1 until reference
-        data or follow exist.
+        span. `rev` is accepted and ignored: the current document is served.
+        The session's `rev` (SessionInfo, session events) is 1 when it opens
+        and rises by one whenever a reference bundle is applied
+        (`POST /s/{id}/api/ref`); fetch the document again after a session
+        event with a new `rev`.
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - name: rev
@@ -585,6 +739,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Document"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/ref:
+    post:
+      operationId: sessionRef
+      summary: Apply a reference bundle to the session (job kind ref)
+      description: |
+        Names for obj#, file# and user ids and DBMS_XPLAN plans
+        (docs/REF-BUNDLE.md). `{dir}`: the files of a bundle directory
+        (objects.csv, datafiles.csv, users.csv, plans/*.txt) are copied to the
+        engine. `{connection}`: the reference queries of the session's trace
+        are run on that db connection (own database session; `lite` = ALL_
+        views only, no datafiles); queries that fail are skipped and named in
+        the finished job's `message`. The bundle is kept at
+        `<cache>/ref/<SessionInfo.identity>/` and applied to the model, the
+        document is rebuilt and `rev` rises by one (a session event); the
+        job ends `done` with the bundle's size in `message`. Opening the same
+        trace again applies the kept bundle before the first document.
+        Applying another bundle replaces the first. One ref job per session
+        at a time (409). `DELETE /engine/cache` drops the kept bundles of the
+        traces no session has open.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                dir:
+                  type: string
+                  description: a bundle directory on the engine's machine
+                connection:
+                  type: string
+                  description: id of a db connection
+                lite:
+                  type: boolean
+                  description: with connection only
+      responses:
+        "202":
+          description: the job
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job]
+                properties:
+                  job:
+                    $ref: "#/components/schemas/JobInfo"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1849,14 +2060,14 @@ components:
           type: string
         kind:
           type: string
-          enum: [open, fetch, follow]
+          enum: [open, fetch, follow, ref]
         state:
           type: string
           enum: [running, done, failed, cancelled]
         phase:
           type: string
-          description: "open: open (cache lookup), parse (miss only), index (miss only), ready; fetch: fetch; follow: follow"
-          enum: [open, parse, index, ready, fetch, follow]
+          description: "open: open (cache lookup), parse (miss only), index (miss only), ready; fetch: fetch; follow: follow; ref: ref (obtaining the bundle), apply"
+          enum: [open, parse, index, ready, fetch, follow, ref, apply]
         done:
           type: integer
         total:
@@ -1864,14 +2075,14 @@ components:
           description: 0 = unknown
         unit:
           type: string
-          description: bytes in phases parse, fetch and follow, empty otherwise
-          enum: [bytes, ""]
+          description: "bytes in phases parse, fetch (ssh) and follow; lines in fetch of a db connection; files and queries in ref; empty otherwise"
+          enum: [bytes, lines, files, queries, ""]
         message:
           type: string
-          description: the error of a failed job, "cancelled" for a cancelled one
+          description: "the error of a failed job, \"cancelled\" for a cancelled one. A finished ref job: what the bundle holds, and the reference queries it skipped. A running db fetch: a note once it is past 200 MB"
         session:
           type: string
-          description: the session the job opens
+          description: the session the job opens (kind open) or applies to (kind ref)
         lines:
           type: integer
           description: parse progress
@@ -1880,7 +2091,7 @@ components:
           description: parse progress
         connection:
           type: string
-          description: "fetch, follow: the connection"
+          description: "fetch, follow, and ref of a db connection: the connection"
         localPaths:
           type: array
           items:
@@ -2148,10 +2359,16 @@ components:
           description: empty = ~/.ssh/config or the local user
         service:
           type: string
-          description: db service name
+          description: db service name (required for db)
         adrHome:
           type: string
-          description: db ADR home
+          description: db ADR home, the default of a fetch that names none (else V$DIAG_INFO's)
+        tcps:
+          type: boolean
+          description: db only. Connect with TCPS (TLS); the port is then usually 2484
+        tlsSkipVerify:
+          type: boolean
+          description: db only, needs tcps. Do not verify the server certificate (encrypts, does not authenticate)
         transport:
           type: string
           enum: [auto, cli, lib]
@@ -2177,6 +2394,10 @@ components:
           type: string
         adrHome:
           type: string
+        tcps:
+          type: boolean
+        tlsSkipVerify:
+          type: boolean
         transport:
           type: string
           enum: [auto, cli, lib, ""]
@@ -2191,10 +2412,113 @@ components:
       properties:
         server:
           type: string
-          description: the host's `uname -sr` (lib adds the SSH server version)
+          description: "ssh: the host's `uname -sr` (lib adds the SSH server version); db: the server version (V$INSTANCE.VERSION_FULL, else the V$VERSION banner)"
         transport:
           type: string
-          enum: [cli, lib]
+          enum: [cli, lib, tcp, tcps]
+        diag:
+          $ref: "#/components/schemas/DBDiag"
+    SSHFetchRequest:
+      type: object
+      required: [paths]
+      additionalProperties: false
+      properties:
+        paths:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+        gzip:
+          type: boolean
+          default: true
+    DBFetchRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        adrHome:
+          type: string
+          description: "the file's ADR home (DBTraceFile.adrHome); default the connection's adrHome, else V$DIAG_INFO's"
+        name:
+          type: string
+          description: "TRACE_FILENAME, a file name (no path)"
+    DBDiag:
+      type: object
+      description: V$DIAG_INFO of a db connection
+      required: [adrHome, traceDir]
+      additionalProperties: false
+      properties:
+        adrHome:
+          type: string
+          description: "ADR Home: the adrHome of a fetch"
+        traceDir:
+          type: string
+          description: "Diag Trace: the trace directory on the database host"
+    DBTraceFile:
+      type: object
+      description: a trace file of the ADR home (V$DIAG_TRACE_FILE, with the session writing it)
+      required: [adrHome, name]
+      properties:
+        adrHome:
+          type: string
+        name:
+          type: string
+          description: TRACE_FILENAME, the name of a fetch
+        path:
+          type: string
+          description: full path on the host, when a live process writes the file (V$PROCESS.TRACEFILE)
+        modified:
+          type: string
+          format: date-time
+        conId:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        username:
+          type: string
+        fromProcess:
+          type: boolean
+          description: V$DIAG_TRACE_FILE was not readable (ORA-00942); the row is the file a live session would write
+    DBSession:
+      type: object
+      description: a user session (V$SESSION type USER) with its server process' trace file
+      required: [sid, serial, username, status, sqlTrace, traceFile, self]
+      properties:
+        sid:
+          type: integer
+        serial:
+          type: integer
+        username:
+          type: string
+        osuser:
+          type: string
+        machine:
+          type: string
+        program:
+          type: string
+        module:
+          type: string
+        action:
+          type: string
+        status:
+          type: string
+        sqlId:
+          type: string
+        logonTime:
+          type: string
+          format: date-time
+        sqlTrace:
+          type: string
+          description: V$SESSION.SQL_TRACE, ENABLED or DISABLED
+        traceFile:
+          type: string
+          description: V$PROCESS.TRACEFILE of the server process
+        self:
+          type: boolean
+          description: the session the connection itself runs on
     RemoteEntry:
       type: object
       required: [name, path, size, mode, modTime, dir, link]

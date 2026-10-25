@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -93,7 +94,7 @@ func TestParseFetchDBArgs(t *testing.T) {
 func TestOpenResume(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "x.trc")
 	os.WriteFile(p, []byte("one\ntwo\nthr"), 0o644)
-	f, next, err := openResume(p)
+	f, next, err := db.OpenResume(p, 0o644)
 	if err != nil || next != 3 {
 		t.Fatalf("next %d, %v", next, err)
 	}
@@ -102,7 +103,7 @@ func TestOpenResume(t *testing.T) {
 	if b, _ := os.ReadFile(p); string(b) != "one\ntwo\nthree\n" {
 		t.Errorf("%q", b)
 	}
-	f, next, _ = openResume(filepath.Join(t.TempDir(), "new.trc"))
+	f, next, _ = db.OpenResume(filepath.Join(t.TempDir(), "new.trc"), 0o644)
 	f.Close()
 	if next != 1 {
 		t.Errorf("new file: next %d", next)
@@ -137,6 +138,10 @@ func (r *cliRows) Err() error   { return nil }
 func (r *cliRows) Close() error { return nil }
 func (r *cliRows) Scan(dest ...any) error {
 	for i, d := range dest {
+		if p, ok := d.(*int64); ok {
+			*p = r.rows[r.i-1][i].(int64)
+			continue
+		}
 		if err := d.(sql.Scanner).Scan(r.rows[r.i-1][i]); err != nil {
 			return err
 		}
@@ -185,5 +190,37 @@ func TestRefDBRun(t *testing.T) {
 	}
 	if st, err := os.Stat(filepath.Join(dir, "plans")); err != nil || !st.IsDir() {
 		t.Errorf("bundle dir: %v", err)
+	}
+}
+
+// fetchConn answers V$DIAG_INFO and three lines of one trace file.
+type fetchConn struct{ cliConn }
+
+func (c *fetchConn) Query(ctx context.Context, q string, args ...any) (db.Rows, error) {
+	switch {
+	case strings.Contains(q, "from v$diag_info"):
+		return &cliRows{rows: [][]any{{"ADR Home", "/adr"}}}, nil
+	case strings.Contains(q, "from v$diag_trace_file_contents"):
+		if args[0] != "/adr" || args[1] != "x.trc" {
+			return &cliRows{}, nil
+		}
+		return &cliRows{rows: [][]any{{int64(1), "one"}, {int64(2), "two"}, {int64(3), "three"}}}, nil
+	}
+	return c.cliConn.Query(ctx, q, args...)
+}
+
+// `mtkprof fetch -db ...` is cmdFetchDB, whatever the argument order.
+func TestFetchDispatchesDB(t *testing.T) {
+	old := openDB
+	defer func() { openDB = old }()
+	openDB = func(context.Context, db.Spec, bool) (*db.Client, error) {
+		return db.NewClient(&fetchConn{}), nil
+	}
+	out := filepath.Join(t.TempDir(), "x.trc")
+	if err := fetchMain([]string{"-name", "x.trc", "-o", out, "-db", "mtk@h/s"}, io.Discard, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(out); string(b) != "one\ntwo\nthree\n" {
+		t.Errorf("file %q", b)
 	}
 }

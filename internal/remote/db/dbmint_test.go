@@ -8,7 +8,7 @@ package db
 //	                                                  home, fetched to measure throughput
 //
 // The password in the variable is for this test only; mtkprof itself never
-// takes one from the environment. See docs/REMOTE-db.md for the grants.
+// takes one from the environment. See docs/REMOTE.md for the grants.
 
 import (
 	"context"

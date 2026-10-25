@@ -5,7 +5,7 @@ and no execution plan text. The reference bundle adds names and DBMS_XPLAN
 output. mtkprof writes a script, a DBA runs it, and mtkprof reads what the
 script spooled. With a database login, `mtkprof ref -db user@host:port/service
 trace.trc` runs the same queries itself and writes the same files
-(docs/REMOTE-db.md).
+(docs/REMOTE.md).
 
 ## 1. Make the script
 

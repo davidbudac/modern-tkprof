@@ -357,6 +357,31 @@ Verify on dbmint first (`dbmint-oracle-test` skill): which `V$DIAG_*` a
 PDB-local user sees, the grants above, and throughput of
 `V$DIAG_TRACE_FILE_CONTENTS` on a 100 MB trace. Record in `docs/REMOTE.md`.
 
+As built (E7, E8, E9; `docs/REMOTE.md` is authoritative):
+
+- ssh connections (E7): `Prompter` (engine, terminal, fake), askpass bridge,
+  `sshcli`, `sshlib`, `sshconn` (auto/cli/lib), jobs `fetch` (bytes) and
+  `follow` (a file mirror; the live session is E7b, in progress).
+- db connections (E8 in the engine, `internal/engine/connections_db.go`):
+  `test`, `diag`, `tracefiles`, `sessions`, `trace` and the `fetch` job
+  (unit lines, resumed by counting the complete lines of the partial local
+  file) next to the ssh routes of the same names; `tcps` / `tlsSkipVerify`
+  on the definition. The password is asked once per connection through the
+  engine prompts and kept in memory; long jobs use database sessions of their
+  own. The SSH-only routes (`ls`, `follow`) answer 400 for a db connection.
+- Reference data: `POST /s/{id}/api/ref {dir}` or `{connection, lite}` (job
+  kind `ref`) keeps the bundle at `<cache>/ref/<trace identity>/`, applies it
+  to the session's model (`ApplyRef` now replaces an earlier bundle), bumps
+  the session's `rev` and `api/doc` serves the new document (`?rev=` is still
+  ignored). Opening the same trace again applies the kept bundle. A failed
+  reference query is skipped and named in the job message.
+- CLI (E9): `fetch -db` is part of `mtkprof fetch`; `remote.TerminalPrompter`
+  is the only terminal prompter (one line of stdin per question when stdin is
+  a pipe).
+- Not verified (needs dbmint, checklist at the end of `docs/REMOTE.md`): every
+  real-database behaviour (PDB visibility, `V$DIAG_TRACE_FILE_CONTENTS` line
+  semantics and throughput, TCPS), real OpenSSH/Windows behaviour.
+
 ### CLI subcommands (same packages, terminal prompts)
 
 `mtkprof fetch <conn-spec> <remote-path>... [-o dir]`, `mtkprof follow

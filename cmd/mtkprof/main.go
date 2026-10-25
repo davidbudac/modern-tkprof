@@ -40,6 +40,7 @@ Usage:
   mtkprof engine [-listen 127.0.0.1:0] [-cache DIR] [-cache-cap 20G] [-allow-origin O,...] [-idle-exit D] [-detach]   desktop sidecar (token: env MTKPROF_TOKEN)
   mtkprof engine cache ls|rm <identity>|wipe [-cache DIR]   the engine's index cache
   mtkprof fetch  <user@host[:port]> <remote-path>... [-o dir] [-transport auto|cli|lib] [-no-gzip]   copy traces over SSH (resumes)
+  mtkprof fetch -db <db-spec> -name F [-adr-home H] [-o file] [-resume]   copy a trace out of the database via V$DIAG_TRACE_FILE_CONTENTS
   mtkprof follow <user@host[:port]> <remote-path> [-o file|-] [-transport auto|cli|lib]   stream a growing trace (tail -f)
   mtkprof askpass "<prompt>"                         SSH_ASKPASS helper (asks the engine, else the terminal)
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
@@ -50,9 +51,8 @@ Usage:
   mtkprof export <trace...> [-o dir]                 CSV tables
   mtkprof refscript <trace...> [-lite] [-o ref.sql]  SQL*Plus script collecting names and plans
   mtkprof ref -db <db-spec> <trace...> [-o dir] [-lite]  run those queries on the database, write the bundle
-  mtkprof trace <db-spec> -sid S -serial N -on|-off [-waits=true] [-binds=true] [-plan-stat all_executions]
+  mtkprof trace <db-spec> -sid S -serial N -on|-off [-waits=true] [-binds=true] [-plan-stat all_executions]   SQL trace of a session
   mtkprof trace <db-spec> -sessions | -files [-sid S -serial N] [-since 2h] | -diag   [-json]
-  mtkprof fetch -db <db-spec> -name F [-adr-home H] [-o file] [-resume]   trace via V$DIAG_TRACE_FILE_CONTENTS
   mtkprof findings-config                            default finding thresholds as JSON
   mtkprof lint   <trace...>
   mtkprof version
@@ -89,10 +89,14 @@ Reference bundle (report, html, json, export, serve, pivot, plan):
              ids; DBMS_XPLAN text. Only `+"`ref -db`"+` connects to a database. -lite: ALL_
              views only. See docs/REF-BUNDLE.md.
 
-Database (ref -db, trace, fetch -db):
-  <db-spec> is user@host[:port]/service (Easy Connect, port 1521 by default). The password
-  is prompted (or one line of stdin), never a flag. -tcps: TLS (-tls-skip-verify: do not
-  check the certificate). Privileges: docs/REMOTE-db.md. The other commands stay offline.
+Remote (fetch, follow, trace, ref -db, askpass):
+  <user@host[:port]> is SSH (system ssh, or the Go library with -transport lib); <db-spec>
+  is user@host[:port]/service (Easy Connect, port 1521 by default). Passwords, passphrases
+  and host-key questions are asked on the terminal (or one line of stdin per question when
+  stdin is a pipe), never a flag or an argument; nothing is stored. -tcps: TLS
+  (-tls-skip-verify: do not check the certificate). fetch -db and fetch resume a partial
+  file (-resume for -db with -o). Grants, transports, verification: docs/REMOTE.md. The
+  other commands stay offline.
 
 Finding thresholds (report, html, serve, json):
   -findings-config file.json   any subset of the threshold keys (unknown keys: error);
