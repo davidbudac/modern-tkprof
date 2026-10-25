@@ -307,6 +307,17 @@ UI's window), `contexts` (comma separated ids), `stmt`, `event` (waits only) and
 
 Every row that carries a trace `line` also carries `ctx` (the context id; `/api/executions` rows and `executions/detail` have it too), so the UI maps it to the input file with `doc.fileOfCtx` and line links open the right file of a multi-file trace set. `stmt/spans` has no lines, hence no `ctx`.
 
+**Line endpoints** (`Server.WithLines(lis)` adds them to `Handler()`; they need the line indexes, so the slice server alone does not serve them):
+
+| endpoint | answers |
+|---|---|
+| `/api/lines?file&from&n[&annot=1]` | raw lines as `text/plain` (`X-Total-Lines`); with `annot=1` JSON `{from,total,lines:[{t,k}]}`, `k` = `trace.Kind.String()` from `trace.Classify`. A page that starts mid-file seeds the "inside SQL text" state from the 64 lines before it and from an `END OF STMT` seen before any `PARSING IN CURSOR` in the page; a statement longer than both is wrong until its `END OF STMT`. Bind value continuation lines and PARSE ERROR text come out as `unknown` |
+| `/api/lines/at?file&tim` | `{line}`: first line whose call or wait has `tim >=` (binary search over the file's call rows, then waits, smaller line wins; past the end: the last record's line; 404 without rows) |
+| `/api/at?file&line` | `{call,stmt,cursor,execNo,wait,bindSet,ctx,planLine,kind}`, -1 where absent; `kind` is the line's. WAIT line: its wait and attributed call; PARSING IN CURSOR / SQL text / END OF STMT: only the cursor; STAT: `planLine` (index into `Model.PlanLines`) and its cursor; BINDS block: the EXEC it is attached to; otherwise the last call at or before the line |
+| `/api/search?file&q&regex&case&from&limit` | NDJSON `{line,col,text}` per matching line (first match, byte column, text cut at 400 bytes), then `{done,scanned,truncated}`; 4 MB chunks from the line-index checkpoint, `bytes.Index` (ASCII-folded for `case=0`) or `regexp` per line; `limit` 1000 (max 10 000); stops within a chunk of a cancel |
+
+`FactSource` gained `RowsOfContext`, `CallAt` and `WaitAt` for this: a binary search reads single fixed-width spill records, it never scans. `at` assumes the calls of one file are adjacent rows in line order, which holds for the builder's output; a plan's file is inferred (see `files()` in `at.go`) because `Plan` has no context.
+
 `internal/slice/slice_test.go` runs every endpoint through `httptest` on
 `io_waits.trc` and compares with the in-process `analyze` results, and checks
 that every bad parameter is a 400. Differences to the in-browser numbers: the

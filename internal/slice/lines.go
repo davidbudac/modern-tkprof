@@ -12,7 +12,10 @@ const MaxLines = 2000
 
 // LinesHandler answers GET /api/lines?file=i&from=L&n=N: up to N (at most
 // MaxLines) raw lines of input file i (0 = first) starting at 1-based line L,
-// as text/plain with the file's line count in X-Total-Lines.
+// as text/plain with the file's line count in X-Total-Lines. With annot=1 the
+// answer is JSON {"from","total","lines":[{"t","k"}]}: each line without its
+// terminator and its kind (trace.Kind.String(), see trace.Classify and
+// annotate for how the SQL-text state of a page that starts mid-file is seeded).
 func LinesHandler(lis []*trace.LineIndex) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fi, _ := strconv.Atoi(r.URL.Query().Get("file"))
@@ -25,6 +28,10 @@ func LinesHandler(lis []*trace.LineIndex) http.Handler {
 		n, err := strconv.Atoi(r.URL.Query().Get("n"))
 		if err != nil || n > MaxLines {
 			n = MaxLines
+		}
+		if r.URL.Query().Get("annot") == "1" {
+			serveAnnotated(w, li, from, n)
+			return
 		}
 		b, err := li.Read(from, n)
 		if err != nil {

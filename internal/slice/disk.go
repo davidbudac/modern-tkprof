@@ -65,6 +65,41 @@ func (d *diskSource) EachWait(ctx context.Context, sc analyze.Scan, fn func(w *m
 	})
 }
 
+func (d *diskSource) RowsOfContext(ctx model.ID) (calls, waits rowRange) {
+	return ctxRows(d.callCtx, ctx), ctxRows(d.waitCtx, ctx)
+}
+
+// CallAt reads one fixed-width record by row number.
+func (d *diskSource) CallAt(row int64) (model.Call, bool) {
+	var c model.Call
+	if row < 0 || row >= d.nCalls {
+		return c, false
+	}
+	var b [callRec]byte
+	if _, err := d.calls.ReadAt(b[:], row*callRec); err != nil {
+		return c, false
+	}
+	getCall(b[:], &c)
+	c.ID = model.ID(row)
+	c.Statement = d.stmtOf(c.Cursor)
+	return c, true
+}
+
+func (d *diskSource) WaitAt(row int64) (model.Wait, bool) {
+	var w model.Wait
+	if row < 0 || row >= d.nWaits {
+		return w, false
+	}
+	var b [waitRec]byte
+	if _, err := d.waits.ReadAt(b[:], row*waitRec); err != nil {
+		return w, false
+	}
+	getWait(b[:], &w)
+	w.ID = model.ID(row)
+	w.Statement = d.stmtOf(w.Cursor)
+	return w, true
+}
+
 func (d *diskSource) CallKind(id model.ID) (trace.CallKind, bool) {
 	return d.kinds.kind(int64(id))
 }

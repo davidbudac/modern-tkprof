@@ -40,6 +40,7 @@ import (
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/model"
+	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
 // Limits of one response.
@@ -70,6 +71,10 @@ type Server struct {
 	mu    sync.Mutex
 	cache map[string][]byte // GET query -> response body
 	order []string
+
+	lis      []*trace.LineIndex // WithLines
+	fileOnce sync.Once
+	fileInfo []fileInfo
 }
 
 // NoCORS is the Server.AllowOrigin that turns the server's own CORS handling off.
@@ -94,16 +99,23 @@ func (e badRequest) Error() string { return string(e) }
 func bad(format string, a ...any) error { return badRequest(fmt.Sprintf(format, a...)) }
 
 // Handler returns the mux of the endpoints; CORS is open like /api/doc (the
-// dev server of `pnpm dev` loads the document from this one).
+// dev server of `pnpm dev` loads the document from this one). With WithLines
+// set it also serves /api/lines (incl. annot=1), /api/lines/at, /api/at and
+// /api/search.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	for path, fn := range s.routes() {
 		mux.HandleFunc(path, s.wrap(fn))
 	}
+	if s.lis != nil { // the endpoints that read the trace text (WithLines)
+		mux.Handle("/api/lines", s.cors(LinesHandler(s.lis)))
+		mux.Handle("/api/search", s.cors(http.HandlerFunc(s.search)))
+	}
 	return mux
 }
 
-// Endpoints are the paths Handler serves (GET), sorted.
+// Endpoints are the JSON query paths Handler always serves (GET), sorted;
+// the line endpoints (WithLines) are listed by LineEndpoints.
 func Endpoints() []string {
 	var out []string
 	for path := range (&Server{}).routes() {
@@ -113,8 +125,13 @@ func Endpoints() []string {
 	return out
 }
 
+// LineEndpoints are the paths Handler serves in addition when WithLines is set.
+func LineEndpoints() []string {
+	return []string{"/api/at", "/api/lines", "/api/lines/at", "/api/search"}
+}
+
 func (s *Server) routes() map[string]func(context.Context, url.Values) (any, error) {
-	return map[string]func(context.Context, url.Values) (any, error){
+	routes := map[string]func(context.Context, url.Values) (any, error){
 		"/api/pivot":             s.pivot,
 		"/api/timeline":          s.timeline,
 		"/api/calls":             s.calls,
@@ -129,6 +146,11 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		"/api/stmt/waits":        s.stmtWaits,
 		"/api/stmt/spans":        s.stmtSpans,
 	}
+	if s.lis != nil {
+		routes["/api/lines/at"] = s.linesAt
+		routes["/api/at"] = s.at
+	}
+	return routes
 }
 
 func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.HandlerFunc {
@@ -156,8 +178,11 @@ func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.Ha
 			v, err := fn(r.Context(), r.URL.Query())
 			if err != nil {
 				var br badRequest
+				var nf notFound
 				if errors.As(err, &br) {
 					http.Error(w, br.Error(), http.StatusBadRequest)
+				} else if errors.As(err, &nf) {
+					http.Error(w, nf.Error(), http.StatusNotFound)
 				} else {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
@@ -174,6 +199,31 @@ func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.Ha
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(body)
 	}
+}
+
+// cors wraps a handler that does not go through wrap with the same CORS
+// handling (AllowOrigin) and the GET-only rule.
+func (s *Server) cors(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.AllowOrigin != NoCORS {
+			origin := s.AllowOrigin
+			if origin == "" {
+				origin = "*"
+			}
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			if r.Method == http.MethodOptions {
+				w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "*")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) cached(key string) ([]byte, bool) {
