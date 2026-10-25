@@ -11,6 +11,7 @@ const tabs: { id: View; label: string }[] = [
 ]
 
 const compareTab = { id: 'compare' as View, label: 'Compare' }
+const linesTab = { id: 'lines' as View, label: 'Lines' }
 
 const themeNext = { auto: 'light', light: 'dark', dark: 'auto' } as const
 const themeGlyph = { auto: '◐', light: '○', dark: '●' } as const
@@ -20,7 +21,8 @@ export function TopBar({ doc }: { doc: TraceDoc }) {
   const actions = useActions()
   const state = useStore((s) => s)
   const compare = state.compare
-  const shownTabs = compare ? [compareTab, ...tabs] : tabs
+  const hasLines = !!doc.slice && state.linesApi
+  const shownTabs = [...(compare ? [compareTab] : []), ...tabs, ...(hasLines ? [linesTab] : [])]
   const name = (doc.file.traceFile || doc.file.path).split(/[\\/]/).pop()
   const totalUs = doc.spanUs()
   const source = sourceOf(doc)

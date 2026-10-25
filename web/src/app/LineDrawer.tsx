@@ -16,6 +16,7 @@ export function LineDrawer() {
   const target = viewer?.target ?? 1
   const file = viewer?.file ?? 0
   const doc = useStore((s) => s.doc)
+  const tab = useStore((s) => s.linesApi && !!s.doc?.slice)
   const fileName = doc?.traceFileName(file) ?? ''
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export function LineDrawer() {
         <span className="tools">
           <button onClick={() => actions.pageLines(center - LINES_PAGE + 1)} disabled={!page || page.from <= 1} title="the 80 lines before">‹ Prev</button>
           <button onClick={() => actions.pageLines(center + LINES_PAGE - 1)} disabled={!page || atEnd} title="the 80 lines after">Next ›</button>
+          {tab && <button onClick={() => actions.openLinesAt(file, target)} title="open the whole trace in the Lines tab">In Lines tab</button>}
           {center !== target && <button onClick={() => actions.pageLines(target)}>Back to line {fmtInt(target)}</button>}
           <button onClick={() => actions.closeLines()} aria-label="Close trace lines">Close</button>
         </span>

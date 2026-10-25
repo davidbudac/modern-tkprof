@@ -103,6 +103,15 @@ export interface ExecDetail {
   line: number
 }
 
+/** The trace lines of a statement's calls and waits (gutter marks of the Lines view), in file order, bounded: `partial` = more exist. */
+export interface StmtMarks {
+  calls: { line: number; file: number }[]
+  waits: { line: number; file: number }[]
+  partial: boolean
+}
+export const MARK_CALLS = 5000
+export const MARK_WAITS = 1000
+
 export interface WaitHist { count: number; us: number; counts: number[]; sums: number[] }
 export interface ScatterPoint { tim: number; ela: number; line: number; stmt: ID; file?: number }
 export interface ScatterData { total: number; points: ScatterPoint[] }
@@ -128,6 +137,8 @@ export interface DataSource {
   /** wait time per statement and color role (row = statement, column = roleOrder index); null = not available */
   stmtRoles(signal?: AbortSignal): Maybe<Float64Array | null>
   stmtSpans(stmts: ID[], gapUs: number, signal?: AbortSignal): Maybe<Map<ID, Span2[]>>
+  /** the trace lines of one statement's calls and waits; null = not available */
+  stmtMarks(stmt: ID, signal?: AbortSignal): Maybe<StmtMarks | null>
 }
 
 // ---- registry ----------------------------------------------------------------
@@ -353,6 +364,16 @@ export class LocalSource implements DataSource {
   stmtSpans(stmts: ID[], gapUs: number): Map<ID, Span2[]> {
     return new Map(stmts.map((s) => [s, this.doc.hasFacts ? statementSpans(this.doc, s, gapUs) : []]))
   }
+
+  stmtMarks(stmt: ID): StmtMarks | null {
+    const doc = this.doc
+    if (!doc.hasFacts) return null
+    const c = doc.calls, w = doc.waits
+    const cs = doc.callsByStmt.get(stmt), ws = doc.waitsByStmt.get(stmt)
+    const calls = Array.from(cs.subarray(0, MARK_CALLS), (i) => ({ line: c.line[i], file: doc.fileOfCtx(c.ctx[i]) }))
+    const waits = Array.from(ws.subarray(0, MARK_WAITS), (i) => ({ line: w.line[i], file: doc.fileOfCtx(w.ctx[i]) }))
+    return { calls, waits, partial: cs.length > MARK_CALLS || ws.length > MARK_WAITS }
+  }
 }
 
 // ---- RemoteSource --------------------------------------------------------------
@@ -503,6 +524,19 @@ export class RemoteSource implements DataSource {
     const r = await this.get<{ spans: Record<string, { start: number; end: number }[]> }>('stmt/spans', { stmt: stmts.join(','), gap: Math.max(0, Math.floor(gapUs)) }, signal)
     for (const s of stmts) out.set(s, r.spans[String(s)] ?? [])
     return out
+  }
+
+  async stmtMarks(stmt: ID, signal?: AbortSignal): Promise<StmtMarks> {
+    const [c, w] = await Promise.all([
+      this.get<{ total: number; cols: string[]; rows: number[][] }>('calls', { stmt, limit: MARK_CALLS, longest: 0 }, signal),
+      this.get<{ total: number; rows: { line: number; ctx: number }[] }>('waits', { stmt, limit: MARK_WAITS, sort: 'tim' }, signal),
+    ])
+    const iLine = c.cols.indexOf('line'), iCtx = c.cols.indexOf('ctx')
+    return {
+      calls: c.rows.map((x) => ({ line: x[iLine], file: iCtx >= 0 ? this.doc.fileOfCtx(x[iCtx]) : 0 })),
+      waits: w.rows.map((x) => ({ line: x.line, file: this.doc.fileOfCtx(x.ctx) })),
+      partial: c.total > c.rows.length || w.total > w.rows.length,
+    }
   }
 }
 

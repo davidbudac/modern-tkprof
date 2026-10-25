@@ -332,7 +332,7 @@ in-browser path never did); the Pivot's time and p1/obj labels are the Go ones
 UI side: `web/src/lib/data/source.ts` defines `DataSource`, the questions the views
 ask of the facts (`pivot`, `profile`, `timeline`, `calls`, `executions`,
 `executionDetail`, `waitHist`, `waitScatter`, `waitTop`, `waitsBy`,
-`stmtWaits`, `stmtRoles`, `stmtSpans`), with a `Scope` (window, contexts, idle)
+`stmtWaits`, `stmtRoles`, `stmtSpans`, `stmtMarks`), with a `Scope` (window, contexts, idle)
 instead of row-filter closures. Each returns `T | Promise<T>`.
 `LocalSource` runs the code the views always ran over the fact columns
 (synchronously: standalone HTML and `serve` with facts behave exactly as
@@ -345,6 +345,64 @@ Views show `loading…` or the error; a document without facts and without a
 server still gets the "no fact tables" notes. `pnpm dev` proxies `/api` to
 `MTKPROF_API` (default `http://127.0.0.1:8048`). Compare documents are not
 sliced.
+
+#### Lines view (`web/src/lib/views/Lines.tsx`, desktop plan S5)
+
+The raw trace as a full tab, in the shared library (the standalone app and the
+desktop shell both mount `Lines`). It needs the line endpoints above, so the tab
+exists only when the document has `slice` and the `linesApi` state is true
+(`probeLinesApi`: one `GET /api/at?line=1` at load that must answer JSON;
+`app/main.tsx` awaits it before the document opens so `#view=lines&file=&line=`
+restores). Pieces:
+
+- `data/lines.ts`: `fetchLinesAnnot`, `lineAt`, `objectsAt`, `search` (NDJSON read
+  incrementally with `fetch` + `ReadableStream`, `onHit` per line, resolves with
+  `{scanned, truncated, done}`; abort rejects with `AbortError`), `parseJump`
+  (`1.5s`, `250ms`, `900us` = offset from the trace start, a bare number >= the first
+  tim = absolute) and `matchSpan` (the hit's byte column to a highlight range).
+- `data/linecache.ts` `PageCache`: pages of 2000 lines (the API's maximum) per file,
+  LRU of 20, one request per page shared by all askers, prefetch of the neighbours,
+  `keepOnly` aborts the requests of pages the user scrolled past. Kinds are kept as a
+  `Uint8Array` per page.
+- `components/LineViewer.tsx` + `data/scrollmap.ts`: **not** react-virtual. A 2.9 M
+  line trace is 58 M px at 20 px a row and browsers stop scrolling an element near
+  33 M px (Firefox 18 M), a 2 GB trace has tens of millions of lines. So the scroll
+  bar covers at most 8 M px and maps linearly to the first visible line (exactly
+  pixel per row below the cap); wheel and keys move by lines; the component renders
+  a window of ~100 rows that shifts in steps of 20 lines and moves with a
+  `transform`. No React state changes per line or per pixel; rows are memoised on
+  `(line, text, kind, mark, selected, bookmark)`. Horizontal scroll is native (the
+  gutter is `position: sticky`), wrap mode only changes the row CSS. react-virtual
+  is used for the hit list (up to 10 000 hits).
+- `components/colors.ts` `lineTone`: kind -> role colour (calls `cpu`, waits `userio`,
+  cursor lines `sysio`, binds `network`, STAT/commit `commit`, lob/rpc `other`,
+  errors `--s-critical`, framing lines dim); `lines.css` mixes it 55 % into the ink.
+- Gutter marks: `DataSource.stmtMarks(stmt)` (local: the document's fact columns;
+  remote: `api/calls?stmt=&limit=5000&longest=0` and `api/waits?stmt=&sort=tim&limit=1000`,
+  so the 5000 longest calls and the first 1000 waits; `partial` says so). Previous/next
+  mark buttons step through them. Opening the tab with a statement selected starts at
+  its first mark.
+- Click (or arrow keys) -> `api/at` (60 ms debounce) -> the at bar (statement link,
+  exec#, cursor, wait event from the line's `nam='...'`, bind set, plan line) and the
+  store: `pickStmt`, `selectExec`, `selectEvent`. Selecting from a click does not
+  re-jump to the statement's first mark.
+- Search box: literal/regex, case, "from here" (selected line + 1), Enter runs it,
+  hits stream into a virtualized list (flushed every 100 ms, the first at once, the
+  first hit is selected), Esc or Cancel aborts, F3 / Shift+F3 step through the hits.
+  Jump to time (`lines/at`) and "Window start" (the store's time window).
+- Bookmarks live in `State.bookmarks` (`addBookmark`, `removeBookmark`,
+  `setBookmarks`; `{file, line, label}`); b, the toolbar button or a right-click on
+  the line number toggles one; the second panel tab edits them. Not persisted here
+  (the desktop shell stores them as annotations).
+- Store: `view: 'lines'`, `linesApi`, `lineRefTarget` (`'drawer'` default, the desktop
+  shell sets `'view'`), `linesView {file, line, seq}` (`openLinesAt(file, line)` bumps
+  `seq`, which makes the view scroll and resolve the line; `setLinesLine` does not),
+  `bookmarks`. `LineRef` opens the drawer, or the tab as `lineRefTarget` says; Shift
+  flips it; the drawer has an "In Lines tab" button. What the view keeps while another
+  tab is shown (position, query, hits, panel) lives in a `WeakMap` keyed by store and
+  file, so switching tabs does not lose a search.
+- URL: `#view=lines&file=1&line=4711` (file only for a multi-file trace; clicking
+  through lines replaces the history entry).
 
 ### Memory and size
 

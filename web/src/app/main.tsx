@@ -4,7 +4,7 @@ import '@lib/styles/fonts.css'
 import '@lib/styles/tokens.css'
 import '@lib/styles/base.css'
 import '@lib/styles/app.css'
-import { SessionProvider, createClient, createSession, loadInitial, probeLines } from '@lib'
+import { SessionProvider, createClient, createSession, loadInitial, probeLines, probeLinesApi } from '@lib'
 import { App } from './App'
 import { startUrlSync } from './urlstate'
 
@@ -16,7 +16,10 @@ createRoot(document.getElementById('root')!).render(<StrictMode><SessionProvider
 
 startUrlSync(store)
 void probeLines(client).then((linesAvailable) => store.setState({ linesAvailable }))
+// the Lines tab needs the engine's line endpoints; probe before the document opens, so a #view=lines link restores
+const linesApi = probeLinesApi(client).then((ok) => store.setState({ linesApi: ok }))
 
 loadInitial(client)
+  .then(async (l) => { await linesApi; return l })
   .then((l) => (l ? store.setLoaded(l) : store.setState({ doc: null, loading: false, error: null })))
   .catch((e) => store.setState({ loading: false, error: String(e) }))
