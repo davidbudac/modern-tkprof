@@ -280,6 +280,20 @@ export function pickBucket(spanUs: number): number {
   return Math.floor(spanUs / 400)
 }
 
+/**
+ * The chart's bucket for a selection spanning `selUs` of a trace of `wholeUs`: the bucket `pickBucket` picks for the selection,
+ * raised until the whole trace still fits in `maxBuckets` (the buckets are counted from the trace's start; the engine
+ * refuses more than `analyze.MaxBuckets` = 100000).
+ */
+export function selectionBucket(wholeUs: number, selUs: number, maxBuckets = 20000): number {
+  let b = pickBucket(selUs)
+  if (b <= 0) return pickBucket(wholeUs)
+  for (const step of [1000, 10000, 100000, 1e6, 10e6, 60e6, 600e6, 3600e6]) {
+    if (step >= b && Math.floor(wholeUs / b) > maxBuckets) b = step
+  }
+  return Math.floor(wholeUs / b) > maxBuckets ? Math.ceil(wholeUs / maxBuckets) : b
+}
+
 export { sumOver }
 
 /** One row of the response-time ledger: CPU, a wait event, or the unaccounted remainder. */

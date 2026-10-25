@@ -6,7 +6,8 @@ import { Chart } from '../components/Chart'
 import { scopeOf } from '../state/store'
 import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
-import { foldTimeline, pickBucket } from '../data/derive'
+import { foldTimeline, selectionBucket } from '../data/derive'
+import { useAxis } from '../data/scopedstmts'
 import { resolveVar, roleShade, type Role } from '../components/colors'
 import { fmtDur, fmtWall } from '../data/format'
 
@@ -14,12 +15,23 @@ import { fmtDur, fmtWall } from '../data/format'
 export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'event' | 'class' }) {
   const actions = useActions()
   const state = useStore((s) => s)
-  const bucketUs = useMemo(() => pickBucket(doc.spanUs()), [doc])
+  const axis = useAxis(doc) // the selected files' / sessions' range, else the whole trace
+  const bucketUs = useMemo(() => selectionBucket(doc.spanUs(), axis.span), [doc, axis.span])
   const source = sourceOf(doc)
   const scope = { ...scopeOf(state), window: null }
   const raw = useSourceQuery(source, `chart:${bucketUs}:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`,
     (signal) => (source.ready ? source.timeline(bucketUs, scope, signal) : null), 'chart')
-  const data = useMemo(() => (raw.data ? foldTimeline(doc, raw.data, by) : { starts: [] as number[], series: [] as { key: string; label: string; role: Role; values: Float64Array }[] }), [doc, raw.data, by])
+  const data = useMemo(() => {
+    if (!raw.data) return { starts: [] as number[], series: [] as { key: string; label: string; role: Role; values: Float64Array }[] }
+    const all = foldTimeline(doc, raw.data, by)
+    if (!axis.narrowed) return all
+    // only the buckets of the axis (the others are empty: the scope has no rows there)
+    let lo = all.starts.findIndex((t) => t + bucketUs > axis.base)
+    if (lo < 0) lo = 0
+    let hi = all.starts.length
+    while (hi > lo + 1 && all.starts[hi - 1] >= axis.base + axis.span) hi--
+    return { starts: all.starts.slice(lo, hi), series: all.series.map((s) => ({ ...s, values: s.values.subarray(lo, hi) })) }
+  }, [doc, raw.data, by, axis, bucketUs])
   const option = useMemo<EChartsOption>(() => {
     const series = data.series.filter((s) => s.values.some((v) => v > 0))
     const nth = new Map<Role, number>()
@@ -52,10 +64,11 @@ export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'even
       const z = p as { start?: number; end?: number; batch?: { start: number; end: number }[] }
       const start = z.batch?.[0]?.start ?? z.start ?? 0, end = z.batch?.[0]?.end ?? z.end ?? 100
       if (start <= 0 && end >= 100) { actions.setWindow(null); return }
-      const span = doc.spanUs()
-      actions.setWindow({ startTim: doc.span.firstTim + (span * start) / 100, endTim: doc.span.firstTim + (span * end) / 100 })
+      // percent of the buckets shown: the axis' first bucket to the end of its last
+      const lo = data.starts[0] ?? axis.base, span = data.starts.length * bucketUs
+      actions.setWindow({ startTim: Math.max(axis.base, lo + (span * start) / 100), endTim: Math.min(axis.base + axis.span, lo + (span * end) / 100) })
     },
-  }), [doc])
+  }), [data.starts, bucketUs, axis.base, axis.span])
   if (raw.loading && data.starts.length === 0) return <p className="muted small">loading…</p>
   if (raw.error) return <p className="callout">{raw.error}</p>
   if (data.starts.length === 0) return <p className="muted small">No time information.</p>

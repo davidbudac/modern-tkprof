@@ -9,7 +9,7 @@ import { LineRef } from '../components/LineRef'
 import { CallKind, callKindName, NONE, type ID } from '../data/types'
 import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
 import { scopeOf } from '../state/store'
-import { useScopedStatements } from '../data/scopedstmts'
+import { useAxis, useScopedStatements } from '../data/scopedstmts'
 import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery, type Bar } from '../data/source'
 import { Chart } from '../components/Chart'
@@ -53,6 +53,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
   const state = useStore((s) => s)
   const win = state.window
   const base = doc.span.firstTim
+  const axis = useAxis(doc) // the selected files' / sessions' range, else the whole trace
 
   // Lanes: top statements by response time, ordered by first call; the rest folded into one lane.
   const ss = useScopedStatements(doc, { withWindow: false })
@@ -89,9 +90,9 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
   }, [query.data, lanes, base])
 
   const option = useMemo<EChartsOption>(() => {
-    const span = doc.spanUs()
-    const xMin = win ? win.startTim - base : 0
-    const xMax = win ? win.endTim - base : span
+    const inAxis = win && win.endTim > axis.base && win.startTim < axis.base + axis.span ? win : null // a window narrows the selection's range further
+    const xMin = (inAxis ? Math.max(inAxis.startTim, axis.base) : axis.base) - base
+    const xMax = (inAxis ? Math.min(inAxis.endTim, axis.base + axis.span) : axis.base + axis.span) - base
     const colorCache: string[] = []
     const colorOf = (g: number) => (colorCache[g] ??= resolveVar(kindGroups[g].token))
     const renderItem = (params: CustomSeriesRenderItemParams, api: CustomSeriesRenderItemAPI): CustomSeriesRenderItemReturn => {
@@ -138,7 +139,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
         progressive: 5000, progressiveThreshold: 5000, clip: true,
       }],
     }
-  }, [doc, lanes, picked, win, base])
+  }, [doc, lanes, picked, win, base, axis])
 
   const events = useMemo(() => ({
     click: (p: unknown) => {

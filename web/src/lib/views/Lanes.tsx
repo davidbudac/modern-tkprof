@@ -4,7 +4,7 @@ import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtWall, preview } from '../data/format'
 import { scopeOf } from '../state/store'
-import { scopeKey, useScope, useScopedStatements } from '../data/scopedstmts'
+import { scopeKey, useAxis, useScope, useScopedStatements } from '../data/scopedstmts'
 import { responseUs } from '../data/response'
 import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
@@ -19,6 +19,7 @@ const STRIP_H = 26
 const AXIS_H = 20
 const LABEL_W = 230
 const BUCKETS = 240
+const MAX_BUCKETS = 20000 // the engine refuses a timeline of more than 100000 buckets
 
 interface Lane { st: StmtStats; label: string; text: string; role: Role; spans: Span2[] }
 
@@ -31,8 +32,7 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
   const store = useStoreApi()
   const state = useStore((s) => s)
   const win = state.window
-  const base = doc.span.firstTim
-  const span = doc.spanUs()
+  const { base, span } = useAxis(doc) // the selected files' / sessions' range, else the whole trace
   const ref = useRef<HTMLDivElement>(null)
   // the drag lives in a ref (pointer events can arrive before React re-renders); state only triggers a repaint
   const dragRef = useRef<{ x0: number; x1: number } | null>(null)
@@ -58,7 +58,8 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
   }), [doc, top, spansQ.data, roles])
 
   const scope = scopeOf(state)
-  const bucketUs = Math.max(1, Math.ceil(span / BUCKETS))
+  // buckets are counted from the trace's start, so a short selection of a long trace needs a coarser bucket than span / BUCKETS
+  const bucketUs = Math.max(1, Math.ceil(span / BUCKETS), Math.ceil(doc.spanUs() / MAX_BUCKETS))
   const stripsQ = useSourceQuery(source, `strips:${bucketUs}:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`,
     (signal) => (source.ready && span > 0 ? source.timeline(bucketUs, { ...scope, window: null }, signal) : null), 'strips')
   const strips = useMemo(() => {
@@ -137,8 +138,8 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
           </div>
         ))}
         {strips && <Strips strips={strips} span={span} base={base} />}
-        {win && !drag && (
-          <div className="brush" style={{ left: x(win.startTim), width: `${(100 * (win.endTim - win.startTim)) / span}%` }}>
+        {win && !drag && win.endTim > base && win.startTim < base + span && (
+          <div className="brush" style={{ left: x(Math.max(base, win.startTim)), width: `${(100 * (Math.min(base + span, win.endTim) - Math.max(base, win.startTim))) / span}%` }}>
             <b>window {fmtDur(win.endTim - win.startTim)} · {wall(win.startTim)} → {wall(win.endTim)}
               <button className="brush-clear" onPointerDown={(e) => e.stopPropagation()} onClick={() => actions.setWindow(null)} aria-label="Clear time window" title="clear (Esc)">×</button></b>
           </div>
@@ -151,14 +152,16 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
 
 function Strips({ strips, span, base }: { strips: { bucketUs: number; starts: number[]; series: { role: Role; values: Float64Array }[] }; span: number; base: number }) {
   const n = strips.starts.length
-  const w = 100 / n
+  const w = (100 * strips.bucketUs) / span // a bucket's share of the axis (the buckets run from the trace start, past the axis)
   const waits = strips.series.filter((s) => s.role !== 'cpu')
   const cpu = strips.series.find((s) => s.role === 'cpu')
+  const out = (b: number) => strips.starts[b] + strips.bucketUs <= base || strips.starts[b] >= base + span // outside the axis
   const order = [...waits].sort((a, b) => roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role))
   return (
     <>
-      <svg className="strip" style={{ height: STRIP_H }} viewBox={`0 0 100 ${STRIP_H}`} preserveAspectRatio="none" aria-label="waits by class over time">
+      <svg className="strip" shapeRendering="crispEdges" style={{ height: STRIP_H }} viewBox={`0 0 100 ${STRIP_H}`} preserveAspectRatio="none" aria-label="waits by class over time">
         {Array.from({ length: n }, (_, b) => {
+          if (out(b)) return null
           let y = STRIP_H - 2
           return order.map((s) => {
             const v = Math.min(1, s.values[b] / strips.bucketUs)
@@ -169,8 +172,9 @@ function Strips({ strips, span, base }: { strips: { bucketUs: number; starts: nu
           })
         })}
       </svg>
-      <svg className="strip" style={{ height: STRIP_H }} viewBox={`0 0 100 ${STRIP_H}`} preserveAspectRatio="none" aria-label="CPU over time">
+      <svg className="strip" shapeRendering="crispEdges" style={{ height: STRIP_H }} viewBox={`0 0 100 ${STRIP_H}`} preserveAspectRatio="none" aria-label="CPU over time">
         {cpu && Array.from({ length: n }, (_, b) => {
+          if (out(b)) return null
           const v = Math.min(1, cpu.values[b] / strips.bucketUs)
           if (v <= 0) return null
           const h = v * (STRIP_H - 4)

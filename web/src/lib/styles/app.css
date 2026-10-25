@@ -446,6 +446,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* activity overview strip (stats.minimap): stacked CPU and wait classes, window shaded */
 .minimap { position: relative; inline-size: 100%; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); cursor: crosshair; touch-action: none; }
 .minimap canvas { display: block; }
+.minimap-sel { position: absolute; inset-block: 0; min-inline-size: 3px; background: color-mix(in oklch, var(--ink) 6%, transparent); border-block: 2px solid color-mix(in oklch, var(--ink) 45%, transparent); box-sizing: border-box; pointer-events: none; }
 .minimap-window { position: absolute; inset-block: 0; background: color-mix(in oklch, var(--ink) 9%, transparent); border-inline: 1px solid var(--ink-2); pointer-events: none; }
 
 /* ---- notes (annotations) ------------------------------------------------- */
