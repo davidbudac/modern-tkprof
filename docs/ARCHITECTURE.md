@@ -314,6 +314,7 @@ sends for "None"), `stmt`, `event` (waits only) and
 | `/api/waits/by?event=&by=stmt\|obj\|p1\|p2&limit=` | `analyze.WaitsBy` with real keys (the event inspector's tables) | |
 | `/api/profile` | CPU of top-level calls and waits per event in scope (the ledger, the top bar, the Waits table) | |
 | `/api/statements` | `doc.stats.statements` over the scope (`from`, `to`, `contexts`; `idle` changes nothing): `{statements: [StmtStats]}`, one per statement in id order, the JSON of the document's entries, from `analyze.StatementsOn` (the call rows of the scope; a recursive call in scope counts in the links and `childUs` of its parent's statement whether or not the parent call is in scope; cursors, plans and errors follow the scope; equal to `Statements(m)` without parameters, model or spill). The Statements table of a file or session subset | one entry per statement |
+| `/api/findings` | `doc.stats.findings` over the scope (`from`, `to`, `contexts`, `contexts=-`; `idle` changes nothing; `stmt` is a 400): `{findings: [Finding]}`, from `analyze.FindingsOnWith` with the thresholds of the document's findings (`Server.Thresholds`: `serve -findings-config`, the engine session's); equal to `doc.stats.findings` without parameters, model or spill. The Findings of a file, session or window selection | the rules' evidence caps |
 | `/api/stmt/roles` (+ scope) | wait time per statement and wait class (the bars of the Statements list); every wait, idle included, unless `idle=0` | |
 | `/api/stmt/waits?stmt=1,2&max=` / `/api/stmt/spans?stmt=1,2&gap=µs` (+ scope) | top wait events of statements (with `maxLine` + `maxCtx`; idle waits count unless `idle=0`) / their merged call intervals (Overview notes, Lanes), over the rows in scope | 200 statements |
 | `/api/plan?stmt\|sql_id&plh&exec` | the rows of one STAT dump as `mtkprof plan` prints them (`report.PlanRow`; several plan hashes without `plh`: `{hash: rows}`); needs only the model | |
@@ -515,8 +516,11 @@ on screen.
   lanes (Overview and Timeline) list statements with calls in scope only (none while the scope's table is on its way,
   `ScopedStatements.pending`); the Timeline folds the other statements of the scope into one lane. The top-bar tab counts read
   "13 of 59" (statements with calls in scope, events with waits in scope, sessions in scope) and the Overview "Trace" facts
-  (statements, executions, calls, waits, rows, reads, errors, commits, lines) are the scope's. Not scoped, still whole trace:
-  findings (the Findings heading says so when files or sessions are selected) and the notes under the facts.
+  (statements, executions, calls, waits, rows, reads, errors, commits, lines) are the scope's. So are the findings
+  (`DataSource.findings(scope)`, `useScopedFindings`: the engine's `api/findings`, or `data/findings.ts` over the fact columns;
+  the heading reads "15 findings for 1 of 6 files"; the Overview ledger notes, the Statements finding counts and the
+  statement Context follow; an engine that answers 404 leaves the whole set's with a notice). Not scoped, still whole trace:
+  the notes under the facts.
 - **Share of the response time** (`data/response.ts`: one definition for the Statements list, the statement detail and the
   Overview ledger). A statement's response time is `elapsed + idleUs` (`StmtStats`); its share is measured against the scope's
   response time, the Overview heading (`scopeSpanUs`: the window, else the span of the selected files, else the trace's). It is
@@ -1199,7 +1203,23 @@ struct (`DefaultThresholds()`); `FindingsWith(m, stats, th)` takes custom ones
 json; `-` = stdin) overlays a JSON object with any subset of the keys below
 (unknown keys are an error listing the valid ones), `mtkprof findings-config`
 prints the defaults, and the effective values are in `stats.findingsConfig`
-(shown in a disclosure under the UI Findings). Pivot emits no findings. JSON key per constant:
+(shown in a disclosure under the UI Findings). Pivot emits no findings.
+
+`FindingsOn(ctx, m, src, f)` / `FindingsOnWith(..., th)` (`findings_on.go`) run the same rules over the rows of a scope
+(window, contexts): the statement table is `StatementsOn`; one scan of the calls in scope collects the hard-parse time and
+close types per statement, the top-level CPU and rows and the executions whose EXEC is in scope (as `AllExecutions` for a
+model with facts, as the `Accumulator`'s execution aggregates for an aggregation-only one, so the evidence has the same
+shape as that model's document); one scan of the waits in scope collects the think-time / in-call idle split (an idle wait's
+call is read through `CallRows.CallAt`), the per-event time and the profile; commits are the transactions of the scope's
+contexts in the window. The response time severities and shares are measured against is the window, else the span of the
+files of the contexts, else the trace span (or the summed session time when larger, as `Findings`). With an empty filter it
+equals `FindingsWith` field for field, from the model and from a spill (`internal/slice/findings_test.go`, every fixture and
+the multi-file sets, default thresholds and thresholds that make every rule fire); a file of a set gives the findings of the
+file alone. `Finding.Scope` is `"set"` for a finding that is about the whole set and not narrowed (none of the ten rules is;
+the UI tags such a finding "whole set"). The UI twin is `web/src/lib/data/findings.ts` (`scopedFindings`), checked against
+documents and engine answers written by `internal/report` `TestFindingsDocsCurrent` (`-update-findings-docs` rewrites
+`web/src/lib/data/testdata/findings-*.json.gz`; a rule change makes that test fail until they are rewritten and the TS rules
+follow). JSON key per constant:
 
 | Rule | Fires when | Constants |
 |---|---|---|
