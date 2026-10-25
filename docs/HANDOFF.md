@@ -10,8 +10,9 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 
 For a trace set (several files or a directory) the standalone UI has a Files side panel: which source traces every view
 shows. Design and code map: `docs/ARCHITECTURE.md` § "Files panel". In short: `State.files` (+ `#files=0,2`), the effective
-context filter in `scopeOf`, `FilesPanel` / `FilesPane` / `FilesToggle` (lib exports for the desktop shell, which still has to
-mount `FilesPane` and the toggle), scoped statement statistics through `DataSource.statements` and `useScopedStatements`.
+context filter in `scopeOf`, `FilesPanel` / `FilesPane` / `FilesToggle` (lib exports; the desktop shell mounts them per tab
+and keeps the selection in `workspace.json`, packages D2/D3, desktop pin `95c52a8`), scoped statement statistics through
+`DataSource.statements` and `useScopedStatements` (engine `api/statements`, package F1, `analyze.StatementsOn`).
 
 - Package F3 (2026-10-25) finished the scoping: the lists under a statement (executions, waits, plans, Context header), the
   lanes, the top-bar counts and the Trace facts follow the file / session / window scope; "no file selected" is the server
