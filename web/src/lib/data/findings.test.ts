@@ -8,6 +8,7 @@ import { fmtUsGo, goFixed, goG, scopedFindings } from './findings'
 import { LocalSource, RemoteSource } from './source'
 import type { ApiClient } from './client'
 import { effectiveContexts } from './fileset'
+import { scopeResponse, type ScopeResponse } from './response'
 
 // Documents written by internal/report TestFindingsDocsCurrent (`go test ./internal/report -run FindingsDocs
 // -update-findings-docs`): real trace sets with thresholds that make the rules fire, plus the engine's
@@ -15,7 +16,7 @@ import { effectiveContexts } from './fileset'
 const dir = fileURLToPath(new URL('./testdata/', import.meta.url))
 const fixtures = readdirSync(dir).filter((f) => f.startsWith('findings-') && f.endsWith('.json.gz'))
 
-interface Fixture { doc: RawDocument; scopes: { contexts: number[] | null; from: number; to: number; findings: Finding[] }[] }
+interface Fixture { doc: RawDocument; scopes: { contexts: number[] | null; from: number; to: number; findings: Finding[]; response: ScopeResponse }[] }
 const load = (f: string): Fixture => JSON.parse(gunzipSync(readFileSync(dir + f)).toString('utf8'))
 
 describe('scopedFindings (the in-browser api/findings)', () => {
@@ -31,7 +32,11 @@ describe('scopedFindings (the in-browser api/findings)', () => {
         const window = sc.from || sc.to ? { startTim: sc.from, endTim: sc.to } : null
         const got = scopedFindings(doc, { window, contexts: sc.contexts ? new Set(sc.contexts) : null })
         expect(got, `${f} contexts ${sc.contexts} window ${sc.from}..${sc.to}`).toEqual(sc.findings)
+        // the base of the severities: analyze.ResponseOf
+        expect(scopeResponse(doc, { window, contexts: sc.contexts ? new Set(sc.contexts) : null }), `${f} response, contexts ${sc.contexts} window ${sc.from}..${sc.to}`).toEqual(sc.response)
       }
+      const p = doc.stats.profile
+      expect(scopeResponse(doc, { window: null, contexts: null })).toEqual({ responseUs: p.responseUs, wallUs: p.wallUs, sessions: p.sessions })
     })
   }
 

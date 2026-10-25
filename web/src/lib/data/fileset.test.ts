@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ctxKey, clickFile, contextsOfFiles, contextsWithin, effectiveContexts, fileTree, formatFilesParam, invert, normalizeFiles, parseFilesParam, scopeSpanUs, selectionSpan, toggleFile,
+  ctxKey, clickFile, contextsOfFiles, contextsWithin, effectiveContexts, fileTree, formatFilesParam, invert, normalizeFiles, parseFilesParam, selectionSpan, toggleFile,
   type FileSetDoc,
 } from './fileset'
 import type { FileEntry } from './types'
@@ -108,17 +108,6 @@ describe('files= URL parameter', () => {
     expect(parseFilesParam('')).toBeNull()
     expect(parseFilesParam('abc')).toBeNull()
     expect(parseFilesParam(null)).toBeNull()
-  })
-})
-
-describe('scopeSpanUs', () => {
-  const d = { file: { files: [f(0, { firstTim: 100, lastTim: 300 }), f(1, { firstTim: 500, lastTim: 900 }), f(2)] }, spanUs: () => 5000 }
-  it('is the window, else the span of the selected files, else the trace', () => {
-    expect(scopeSpanUs(d, { startTim: 10, endTim: 60 }, new Set([0]))).toBe(50)
-    expect(scopeSpanUs(d, null, null)).toBe(5000)
-    expect(scopeSpanUs(d, null, new Set([0]))).toBe(200)
-    expect(scopeSpanUs(d, null, new Set([0, 1]))).toBe(800)
-    expect(scopeSpanUs(d, null, new Set([2]))).toBe(5000) // a file with no time stamps: the trace's span
   })
 })
 

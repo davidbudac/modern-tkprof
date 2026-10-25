@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, traceSegmentsFrom, sourceOf, useSourceQuery, useScopedStatements, type TraceDoc, type View } from '@lib'
+import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, traceSegmentsFrom, sourceOf, useSourceQuery, useScopedStatements, responseOf, type TraceDoc, type View } from '@lib'
 
 const tabs: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -24,10 +24,11 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
   const hasLines = !!doc.slice && state.linesApi
   const shownTabs = [...(compare ? [compareTab] : []), ...tabs, ...(hasLines ? [linesTab] : [])]
   const name = (doc.file.traceFile || doc.file.path).split(/[\\/]/).pop()
-  const totalUs = doc.spanUs()
   const source = sourceOf(doc)
   const scope = { ...scopeOf(state), window: null }
   const profile = useSourceQuery(source, `top:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`, (signal) => source.profile(scope, signal), 'top')
+  const resp = responseOf(doc, scope, profile.data) // Σ session spans of the selected files: the Overview's base without the window
+  const totalUs = resp.responseUs
   const segs = useMemo(() => traceSegmentsFrom(doc, profile.data ?? null, totalUs).filter((s) => s.us > 0), [doc, profile.data, totalUs])
   const top = [...segs].filter((s) => s.role !== 'unaccounted').sort((a, b) => b.us - a.us).slice(0, 3)
   const win = state.window
@@ -58,7 +59,7 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
       )}
       <span className="file mono" title={doc.file.traceFile || doc.file.path}>{name}<span className="dim"> · {fmtBytes(doc.diag.bytes)}</span></span>
       <LiveBadge />
-      <span className="mini" title="whole-trace response time by class">
+      <span className="mini" title={`response time by class${resp.sessions > 1 ? `: sum over ${resp.sessions} sessions, wall clock ${fmtDur(resp.wallUs)}` : ''}`}>
         <b>{fmtDur(totalUs)}</b>
         <span className="mini-track" role="img" aria-label={segs.map((s) => `${s.label} ${fmtPct(s.us, totalUs, 0)}`).join(', ')}>
           {segs.map((s) => <i key={s.role} className={s.role === 'unaccounted' ? 'unaccounted' : undefined} style={{ flex: `${s.us} 1 0`, background: s.role === 'unaccounted' ? undefined : `var(--c-${s.role})` }} />)}

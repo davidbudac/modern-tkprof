@@ -202,12 +202,21 @@ func WaitHistOn(ctx context.Context, src Facts, f Filter) (LogHist, error) {
 }
 
 // ScopeProfile is the response-time ledger of a scope: CPU of the top-level
-// calls plus the waits per event (web/src/data/derive.ts componentRows).
+// calls plus the waits per event (web/src/data/derive.ts componentRows), the
+// rows of PX slaves attached to a coordinator in scope left out (PXOut: their
+// work runs in parallel with the coordinator's, as in TraceProfile), and
+// the scope's response time the ledger is measured against (Response: Σ
+// session spans over the window and the contexts; the row filters stmt,
+// event and idle do not change it).
 type ScopeProfile struct {
 	Calls  int64      `json:"calls"` // calls in scope
 	Waits  int64      `json:"waits"` // waits in scope
 	CPUUs  int64      `json:"cpuUs"`
 	Events []EventAgg `json:"events"`
+	// Response of the scope
+	ResponseUs int64 `json:"responseUs"`
+	WallUs     int64 `json:"wallUs"`
+	Sessions   int   `json:"sessions"`
 }
 
 // ProfileOf aggregates the calls and waits in scope.
@@ -218,10 +227,12 @@ func ProfileOf(m *model.Model, f Filter) ScopeProfile {
 
 // ProfileOfOn is ProfileOf over any Facts.
 func ProfileOfOn(ctx context.Context, m *model.Model, src Facts, f Filter) (ScopeProfile, error) {
-	var p ScopeProfile
+	r := ResponseOf(m, Contexts(m), f)
+	p := ScopeProfile{ResponseUs: r.ResponseUs, WallUs: r.WallUs, Sessions: r.Sessions}
 	mt := f.Matcher()
+	px := PXOut(m, f)
 	err := src.EachCall(ctx, f.Scan(), func(c *model.Call) bool {
-		if !mt.Call(c) {
+		if !mt.Call(c) || px(c.Context) {
 			return true
 		}
 		p.Calls++
@@ -233,7 +244,7 @@ func ProfileOfOn(ctx context.Context, m *model.Model, src Facts, f Filter) (Scop
 	if err != nil {
 		return p, err
 	}
-	p.Events, err = WaitsByEventOn(ctx, m, src, f.Scan(), mt.Wait)
+	p.Events, err = WaitsByEventOn(ctx, m, src, f.Scan(), func(w *model.Wait) bool { return mt.Wait(w) && !px(w.Context) })
 	if err != nil {
 		return p, err
 	}

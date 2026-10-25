@@ -7,18 +7,7 @@ import { useStore, useActions } from '../state/session'
 import { DataTable, type Column } from '../components/DataTable'
 import { LineRef } from '../components/LineRef'
 import { fileTree, isSelected, toggleFile } from '../data/fileset'
-
-/** Per-context statistics computed in one pass over the fact columns. */
-interface CtxStats {
-  calls: number
-  elapsed: number // Σ e of top-level calls
-  cpu: number // Σ c of top-level calls
-  waitUs: number // waits inside calls (idle-class ones included)
-  idleUs: number // waits between calls (think time)
-  rows: number
-  firstTim: number
-  lastTim: number
-}
+import { contextStats, emptyStats, type CtxStats } from '../data/ctxstats'
 
 interface CtxRow {
   ctx: Context
@@ -51,10 +40,6 @@ function dimKey(c: Context, dim: Dim): string {
   }
 }
 
-function emptyStats(): CtxStats {
-  return { calls: 0, elapsed: 0, cpu: 0, waitUs: 0, idleUs: 0, rows: 0, firstTim: 0, lastTim: 0 }
-}
-
 function addStats(a: CtxStats, b: CtxStats): void {
   a.calls += b.calls
   a.elapsed += b.elapsed
@@ -66,46 +51,6 @@ function addStats(a: CtxStats, b: CtxStats): void {
   if (b.lastTim > a.lastTim) a.lastTim = b.lastTim
 }
 
-function computeStats(doc: TraceDoc): CtxStats[] {
-  const n = doc.contexts.length
-  // the CLI ships these (analyze.Contexts); recompute only for older documents
-  if (doc.stats.contexts.length === n && n > 0) return doc.stats.contexts
-  const out: CtxStats[] = Array.from({ length: n }, emptyStats)
-  if (!doc.hasFacts) return out
-  const c = doc.calls
-  for (let i = 0; i < c.n; i++) {
-    const k = c.ctx[i]
-    if (k < 0 || k >= n) continue
-    const s = out[k]
-    s.calls++
-    s.rows += c.r[i]
-    if (c.parent[i] === -1) {
-      s.elapsed += c.e[i]
-      s.cpu += c.c[i]
-    }
-    const tim = c.tim[i]
-    if (tim) {
-      const start = tim - c.e[i]
-      if (!s.firstTim || start < s.firstTim) s.firstTim = start
-      if (tim > s.lastTim) s.lastTim = tim
-    }
-  }
-  const w = doc.waits
-  for (let i = 0; i < w.n; i++) {
-    const k = w.ctx[i]
-    if (k < 0 || k >= n) continue
-    const s = out[k]
-    if (w.flags[i] & 1) s.idleUs += w.ela[i] // between calls; an idle-class wait inside a call is a wait of the call
-    else s.waitUs += w.ela[i]
-    const tim = w.tim[i]
-    if (tim) {
-      if (!s.firstTim || tim < s.firstTim) s.firstTim = tim
-      if (tim > s.lastTim) s.lastTim = tim
-    }
-  }
-  return out
-}
-
 export function Sessions({ doc }: { doc: TraceDoc }) {
   const actions = useActions()
   // per-context numbers come from the document (stats.contexts) when a server stands behind it, else from the fact columns
@@ -113,7 +58,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   const checked = useStore((s) => s.contexts)
   const filesSel = useStore((s) => s.files)
   const [dim, setDim] = useState<Dim>('module')
-  const stats = useMemo(() => computeStats(doc), [doc])
+  const stats = useMemo(() => contextStats(doc), [doc])
   const rows = useMemo<CtxRow[]>(() => {
     const kids = new Map<number, number[]>()
     doc.contexts.forEach((c, i) => {

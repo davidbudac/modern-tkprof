@@ -224,7 +224,7 @@ func TestContractSchemas(t *testing.T) {
 		"Health": Health{}, "CacheHealth": CacheHealth{}, "JobInfo": JobInfo{}, "FileInfo": FileInfo{},
 		"SessionInfo": SessionInfo{}, "SessionEvent": SessionEvent{}, "PromptEvent": PromptEvent{}, "LogEvent": LogEvent{},
 		"CacheItem": CacheItem{}, "CacheList": CacheList{}, "CacheWipe": CacheWipe{}, "SessionOptions": SessionOptions{},
-		"StmtStats": analyze.StmtStats{}, "CallStats": analyze.CallStats{}, "Link": analyze.Link{},
+		"StmtStats": analyze.StmtStats{}, "ScopeProfile": analyze.ScopeProfile{}, "CallStats": analyze.CallStats{}, "Link": analyze.Link{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

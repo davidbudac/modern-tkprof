@@ -22,6 +22,7 @@ import { pivotDims, pivotMeasures, runPivot, type Fact } from './pivot'
 import { roleOfClass, roleOrder } from '../components/colors'
 import { scopedStatements } from './stmtstats'
 import { scopedFindings } from './findings'
+import { pxOut, responseOf, scopeResponse } from './response'
 
 export type Maybe<T> = T | Promise<T>
 
@@ -234,7 +235,12 @@ export class LocalSource implements DataSource {
   profile(scope: Scope): ScopeProfile | null {
     const doc = this.doc
     if (!doc.hasFacts) return null
-    return { cpuUs: topLevelCpu(doc, this.cf(scope)), events: waitsByEvent(doc, this.wf(scope)) }
+    // attached PX slaves whose coordinator is in scope are left out, as from the base (analyze.PXOut)
+    const out = pxOut(doc, scope)
+    const cf = this.cf(scope), wf = this.wf(scope)
+    const calls = (i: number) => (!cf || cf(i)) && !out(doc.calls.ctx[i])
+    const waits = (i: number) => (!wf || wf(i)) && !out(doc.waits.ctx[i])
+    return { cpuUs: topLevelCpu(doc, calls), events: waitsByEvent(doc, waits), ...scopeResponse(doc, scope) }
   }
 
   // The chart and the lanes strips have always drawn the CPU of every context: only waits follow the filter.
@@ -479,8 +485,11 @@ export class RemoteSource implements DataSource {
   }
 
   async profile(scope: Scope, signal?: AbortSignal): Promise<ScopeProfile> {
-    const r = await this.get<{ cpuUs: number; events: { event: number; count: number; us: number; minUs: number; maxUs: number }[] }>('profile', scopeParams(scope, true), signal)
-    return { cpuUs: r.cpuUs, events: r.events.map((e) => ({ key: e.event, count: e.count, sum: e.us, min: e.minUs, max: e.maxUs, extra: new Float64Array(0) })) }
+    const r = await this.get<{ cpuUs: number; events: { event: number; count: number; us: number; minUs: number; maxUs: number }[]; responseUs?: number; wallUs?: number; sessions?: number }>('profile', scopeParams(scope, true), signal)
+    return {
+      cpuUs: r.cpuUs, events: r.events.map((e) => ({ key: e.event, count: e.count, sum: e.us, min: e.minUs, max: e.maxUs, extra: new Float64Array(0) })),
+      ...responseOf(this.doc, scope, r), // an engine before responseUs: the same numbers computed here
+    }
   }
 
   async timeline(bucketUs: number, scope: Scope, signal?: AbortSignal): Promise<TimelineRaw | null> {

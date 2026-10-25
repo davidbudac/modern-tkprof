@@ -3,7 +3,7 @@ import type { TraceDoc } from '../data/doc'
 import type { FileEntry } from '../data/types'
 import { fmtBytes, fmtCompact, fmtDur, fmtPct, fmtWall } from '../data/format'
 import { clickFile, fileCount, fileTree, invert, isSelected, selectedCount } from '../data/fileset'
-import { useFileShares, type FileShare } from '../data/fileshares'
+import { shareTotals, useFileShares, type FileShare } from '../data/fileshares'
 import { filesPanelOpen } from '../state/store'
 import { useStore, useActions } from '../state/session'
 import { PaneToggle } from '../components/PaneToggle'
@@ -37,12 +37,8 @@ export function FilesPanel({ doc }: { doc: TraceDoc }) {
     return m
   }, [doc])
   const anchor = useRef<number | null>(null)
-  const totals = useMemo(() => {
-    let busy = 0, wait = 0
-    for (const s of shares) if (s) { busy += s.cpuUs + s.waitUs; wait += s.waitUs }
-    return { busy, wait }
-  }, [shares])
-  const maxBusy = useMemo(() => shares.reduce((a, s) => Math.max(a, s ? s.cpuUs + s.waitUs : 0), 0), [shares])
+  const totals = useMemo(() => shareTotals(doc, shares), [doc, shares])
+  const maxResp = useMemo(() => shares.reduce((a, s) => Math.max(a, s ? s.responseUs : 0), 0), [shares])
   const n = fileCount(doc)
   const list = doc.file.files ?? []
 
@@ -83,7 +79,7 @@ export function FilesPanel({ doc }: { doc: TraceDoc }) {
                   {f.followed && <span className="chip-q" title="not named by the user: found by following TRACE CONTINUES IN / CONTINUED FROM">Followed</span>}
                   {(chainSize.get(f.chain) ?? 1) === 1 && f.continuedFrom?.length ? <span className="chip-q" title={`continues ${f.continuedFrom.join(', ')}, which is not in the set`}>Continued</span> : null}
                 </div>
-                <Share sh={sh} totals={totals} maxBusy={maxBusy} />
+                <Share sh={sh} totals={totals} maxResp={maxResp} px={f.px && node.parent !== null} />
               </div>
             </li>
           )
@@ -115,15 +111,16 @@ function chainTitle(f: FileEntry, list: readonly FileEntry[]): string {
   return `part ${chainPos(f, list)} of a TRACE CONTINUES IN chain: ${list.filter((x) => x.chain === f.chain).map((x) => x.name).join(' → ')}`
 }
 
-function Share({ sh, totals, maxBusy }: { sh: FileShare | null | undefined; totals: { busy: number; wait: number }; maxBusy: number }) {
+/** The file's response time (its own rows) against the set's, and its non-idle waits against the files' sum. */
+function Share({ sh, totals, maxResp, px }: { sh: FileShare | null | undefined; totals: { responseUs: number; waitUs: number }; maxResp: number; px: boolean }) {
   if (sh === undefined) return <div className="share dim">…</div>
   if (sh === null) return null
-  const busy = sh.cpuUs + sh.waitUs
+  const title = `response time ${fmtDur(sh.responseUs)} of ${fmtDur(totals.responseUs)} (the set: sum over its sessions)${px ? '; PX slave: runs in parallel with its coordinator, whose response time covers it' : ''} · non-idle waits ${fmtDur(sh.waitUs)}`
   return (
-    <div className="share" title={`CPU ${fmtDur(sh.cpuUs)} + waits ${fmtDur(sh.waitUs)} (idle waits not counted)`}>
-      <span className="bar"><i style={{ inlineSize: `${maxBusy ? (100 * busy) / maxBusy : 0}%` }} /></span>
-      <span className="tabular">{fmtPct(busy, totals.busy, 0)} time</span>
-      <span className="tabular dim">{fmtPct(sh.waitUs, totals.wait, 0)} waits</span>
+    <div className="share" title={title}>
+      <span className="bar"><i style={{ inlineSize: `${maxResp ? (100 * sh.responseUs) / maxResp : 0}%` }} /></span>
+      <span className="tabular">{fmtPct(sh.responseUs, totals.responseUs, 0)} time</span>
+      <span className="tabular dim">{fmtPct(sh.waitUs, totals.waitUs, 0)} waits</span>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import type { EvidenceRow, Finding, ID, Severity, StmtStats } from './types'
 import { CallKind, NONE } from './types'
 import { callFilter, waitFilter, type Scope } from '../state/store'
 import { scopedStatements } from './stmtstats'
+import { scopeResponse } from './response'
 
 // ---- thresholds (analyze.Thresholds; doc.stats.findingsConfig has the effective ones) ----
 
@@ -70,25 +71,6 @@ const bump = (m: Map<ID, number>, k: ID, v: number) => m.set(k, (m.get(k) ?? 0) 
 const STMT_KINDS = ['sql', 'unknown', 'commit', 'rollback', 'lob', 'rpc', 'parse-error']
 const SEV_RANK: Record<Severity, number> = { serious: 0, notable: 1, info: 2 }
 
-/** The response time a scope's severities are measured against: the window, else the span of the files of the contexts, else the trace span. */
-export function findingsSpanUs(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>): number {
-  if (scope.window) return Math.max(0, scope.window.endTim - scope.window.startTim)
-  if (!scope.contexts) return doc.spanUs()
-  if (scope.contexts.size === 0) return 0
-  const files = doc.file.files ?? []
-  let lo = 0, hi = 0, seen = false
-  for (const id of scope.contexts) {
-    const ctx = doc.contexts[id]
-    if (!ctx) continue
-    const f = files[ctx.fileIdx ?? 0]
-    if (!f || f.firstTim <= 0 || f.lastTim < f.firstTim) continue
-    if (!seen || f.firstTim < lo) lo = f.firstTim
-    if (!seen || f.lastTim > hi) hi = f.lastTim
-    seen = true
-  }
-  return !seen || hi <= lo ? doc.spanUs() : hi - lo
-}
-
 /**
  * The findings over the rows of `scope` (window and effective contexts; the idle toggle does not apply: the idle-time rules
  * always count idle waits), most severe first. Needs the fact columns. Thresholds: the document's (`findingsConfig`).
@@ -149,7 +131,7 @@ export function scopedFindings(doc: TraceDoc, scope: Pick<Scope, 'window' | 'con
     if (doc.events[ev]?.idle) { bump(a.n, ev, 1); bump(a.byEvent, ev, ela) }
     if (w.stmt[i] !== NONE) bump(a.byStmt, w.stmt[i], ela)
   }
-  let total = findingsSpanUs(doc, scope)
+  let total = scopeResponse(doc, scope).responseUs // Σ session spans (analyze.ResponseOf), never below the ledger's sum
   if (cpu + waitUs + idleUs > total) total = cpu + waitUs + idleUs
 
   const r = new Rules(doc, stats, th, total, { missUs, closes, byStmt, think, inCall, evUs, evN, topRows, keepTx: txFilter(scope) })

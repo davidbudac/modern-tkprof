@@ -282,6 +282,10 @@ export interface Profile {
   idleUs: number
   unaccountedUs: number
   rows: ProfileRow[]
+  /** the whole set's response time (Σ session spans, = totalUs), its wall-clock span and sessions (`analyze.TraceProfile`; absent in older documents) */
+  responseUs?: number
+  wallUs?: number
+  sessions?: number
 }
 
 export interface EventAgg {

@@ -15,7 +15,8 @@ export function waitsByEvent(doc: TraceDoc, filter: RowFilter) {
 }
 
 /** CPU of the top-level calls and the waits per event of some scope (a window, some contexts), whoever computed it. */
-export interface ScopeProfile { cpuUs: number; events: Agg[] }
+/** CPU and waits per event of a scope, and (`api/profile`, `LocalSource`) the scope's response time (`response.ts`). */
+export interface ScopeProfile { cpuUs: number; events: Agg[]; responseUs?: number; wallUs?: number; sessions?: number }
 
 /** Segments by color role for a set of calls (CPU) and waits. */
 export function segmentsFor(doc: TraceDoc, opts: { cpuUs: number; totalUs: number; waitFilter: RowFilter }): Segment[] {

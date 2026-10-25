@@ -124,6 +124,7 @@ func TestSpillMatchesModel(t *testing.T) {
 		"midtrace":     {traces + "midtrace_start.trc"},
 		"errors":       {traces + "errors.trc"},
 		"lobs":         {traces + "lobs.trc"},
+		"workload":     {"../../testdata/sets/workload"},
 	}
 	for name, paths := range sets {
 		t.Run(name, func(t *testing.T) { compareSources(t, paths) })

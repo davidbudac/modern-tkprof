@@ -35,6 +35,7 @@ type findingsScope struct {
 	From     int64             `json:"from"`
 	To       int64             `json:"to"`
 	Findings []analyze.Finding `json:"findings"`
+	Response analyze.Response  `json:"response"` // the base of the severities (response.ts scopeResponse is checked against it)
 }
 
 // TestFindingsDocsCurrent: the fixtures carry the findings the rules give
@@ -54,6 +55,7 @@ func TestFindingsDocsCurrent(t *testing.T) {
 		"parallel":        {tr + "parallel.trc", tr + "parallel_slave.trc"},
 		"plan_change":     {tr + "plan_change.trc"},
 		"plsql_recursive": {tr + "plsql_recursive.trc"},
+		"workload":        {"../../testdata/sets/workload"},
 	}
 	for name, paths := range sets {
 		t.Run(name, func(t *testing.T) {
@@ -81,10 +83,12 @@ func TestFindingsDocsCurrent(t *testing.T) {
 			scopes = append(scopes, findingsScope{From: first, To: mid}, findingsScope{From: mid, To: last}, findingsScope{Contexts: byFile[0], From: mid, To: last})
 			for i := range scopes {
 				sc := &scopes[i]
-				sc.Findings, err = analyze.FindingsOnWith(context.Background(), m, analyze.ModelFacts(m), analyze.Filter{Contexts: sc.Contexts, StartTim: sc.From, EndTim: sc.To}, th)
+				f := analyze.Filter{Contexts: sc.Contexts, StartTim: sc.From, EndTim: sc.To}
+				sc.Findings, err = analyze.FindingsOnWith(context.Background(), m, analyze.ModelFacts(m), f, th)
 				if err != nil {
 					t.Fatal(err)
 				}
+				sc.Response = analyze.ResponseOf(m, analyze.Contexts(m), f)
 			}
 			path := filepath.Join(findingsDocsDir, "findings-"+name+".json.gz")
 			if *updateFindingsDocs {

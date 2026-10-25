@@ -16,8 +16,8 @@ import { Minimap } from '../components/Minimap'
 import { NONE, type StmtStats } from '../data/types'
 import { scopeKey, useScope, useScopedStatements, type ScopedStatements } from '../data/scopedstmts'
 import { useScopedFindings } from '../data/scopedfindings'
-import { scopeSpanUs, selectedCount, fileCount } from '../data/fileset'
-import { responseShare, responseUs, shareNote } from '../data/response'
+import { selectedCount, fileCount } from '../data/fileset'
+import { concentrationLede, responseOf, responseShare, responseUs, sessionsLabel, shareNote } from '../data/response'
 
 const TOP_STATEMENTS = 8
 const LEDGER_ROWS = 5
@@ -27,19 +27,22 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   const state = useStore((s) => s)
   const source = sourceOf(doc)
   const scope = scopeOf(state)
-  const totalUs = scopeSpanUs(doc, state.window, state.files)
   const profile = useSourceQuery(source, `profile:${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${ctxKey(scope.contexts)}|${scope.includeIdle ? 1 : 0}`,
     (signal) => source.profile(scope, signal), 'profile')
+  // the base of every percentage here: Σ session spans of the scope (response.ts), with the wall clock beside it
+  const resp = useMemo(() => responseOf(doc, scope, profile.data), [doc, scope, profile.data])
+  const totalUs = resp.responseUs
+  const sessions = sessionsLabel(resp, fmtDur)
   const rows = useMemo(() => componentRowsFrom(doc, profile.data ?? null, totalUs), [doc, profile.data, totalUs])
   const ss = useScopedStatements(doc)
   const stmts = useMemo(() => [...ss.stats].filter((s) => s.allCalls.count > 0).sort((a, b) => responseUs(b) - responseUs(a)), [ss.stats])
-  const lede = summary(totalUs, stmts)
+  const lede = concentrationLede(totalUs, stmts)
   const [timeView, setTimeView] = useState<'lanes' | 'event' | 'class'>('lanes')
   return (
     <>
       <section className="hero">
         <div className="hero-head">
-          <h1>Response time {fmtDur(totalUs)}{state.window ? <span className="dim"> · window</span> : null}{state.files ? <span className="dim"> · {selectedCount(doc, state.files)} of {fileCount(doc)} files</span> : null}</h1>
+          <h1>Response time {fmtDur(totalUs)}{sessions ? <span className="dim" title="sum over the sessions of each session's span; wall: the clock time the scope covers"> · {sessions}</span> : null}{state.window ? <span className="dim"> · window</span> : null}{state.files ? <span className="dim"> · {selectedCount(doc, state.files)} of {fileCount(doc)} files</span> : null}</h1>
           {lede && <p className="lede">{lede}</p>}
         </div>
         <Minimap doc={doc} />
@@ -71,14 +74,6 @@ export function Overview({ doc }: { doc: TraceDoc }) {
       <TraceFacts doc={doc} ss={ss} scope={scope} profile={profile.data ?? null} />
     </>
   )
-}
-
-/** How many statements make up 80% of the response time. */
-function summary(totalUs: number, stmts: StmtStats[]): string {
-  if (totalUs <= 0) return 'no time information'
-  let acc = 0, k = 0
-  for (const s of stmts) { acc += responseUs(s); k++; if (acc >= 0.8 * totalUs) break }
-  return stmts.length > 1 && acc >= 0.8 * totalUs ? `top ${k} statement${k === 1 ? '' : 's'}: ${fmtPct(acc, totalUs, 0)}` : ''
 }
 
 function Axis({ totalUs }: { totalUs: number }) {

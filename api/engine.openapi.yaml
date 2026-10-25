@@ -1681,13 +1681,23 @@ paths:
         - $ref: "#/components/parameters/Stmt"
         - $ref: "#/components/parameters/Idle"
         - $ref: "#/components/parameters/Event"
+      description: |
+        `analyze.ProfileOfOn`: the CPU of the top-level calls and the waits
+        per event in scope (the ledger), and the scope's response time the
+        ledger is measured against (`analyze.ResponseOf`): the sum over the
+        scope's sessions (a process of a file chain) of each session's span
+        from its first call start to its last row, clipped to the window;
+        PX slaves attached to a coordinator in scope are left out. `wallUs`
+        is the wall-clock span (the window, else the span of the files of
+        the contexts, else the trace's). `stmt`, `event` and `idle` filter
+        the ledger rows only.
       responses:
         "200":
           description: the profile of the scope
           content:
             application/json:
               schema:
-                type: object
+                $ref: "#/components/schemas/ScopeProfile"
         "400":
           $ref: "#/components/responses/SliceBadRequest"
   /s/{id}/api/statements:
@@ -2231,6 +2241,33 @@ components:
         elapsed:
           type: integer
           description: µs
+    ScopeProfile:
+      type: object
+      description: analyze.ScopeProfile, the answer of api/profile
+      properties:
+        calls:
+          type: integer
+          description: calls in scope
+        waits:
+          type: integer
+          description: waits in scope
+        cpuUs:
+          type: integer
+          description: Σ c of the top-level calls in scope, µs
+        events:
+          type: array
+          description: analyze.EventAgg per event with waits in scope (event, name, class, idle, count, us, minUs, maxUs)
+          items:
+            type: object
+        responseUs:
+          type: integer
+          description: the scope's response time, Σ session spans, µs (the trace span for a single session)
+        wallUs:
+          type: integer
+          description: wall-clock span of the scope, µs
+        sessions:
+          type: integer
+          description: sessions with time in scope
     StmtStats:
       type: object
       description: analyze.StmtStats, one entry of doc.stats.statements

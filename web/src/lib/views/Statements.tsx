@@ -52,7 +52,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   const sort = sorts.find((s) => s.id === sortKey)!
   const ss = useScopedStatements(doc)
   const { stats, narrowed } = ss
-  const totalUs = responseBaseUs(doc, scope.window, scope.files, narrowed) // percentages are of the scope's response time only when the numbers are the scope's
+  const totalUs = responseBaseUs(doc, scope, narrowed) // percentages are of the scope's response time only when the numbers are the scope's
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
     const list = stats.filter((s) => {

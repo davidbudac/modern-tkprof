@@ -281,6 +281,12 @@ type Profile struct {
 	IdleUs        int64        `json:"idleUs"` // idle / between-call waits
 	UnaccountedUs int64        `json:"unaccountedUs"`
 	Rows          []ProfileRow `json:"rows"`
+	// TraceProfile: TotalUs is the set's response time (Response: Σ session
+	// spans), equal to the trace span for a single session; WallUs is the
+	// trace span. Zero in a statement profile.
+	ResponseUs int64 `json:"responseUs"`
+	WallUs     int64 `json:"wallUs"`
+	Sessions   int   `json:"sessions"`
 }
 
 // PXProcess names the slave process a PX context ran in (its pid, else the
@@ -333,11 +339,19 @@ func PX(m *model.Model) PXTotals {
 	return t
 }
 
-// TraceProfile profiles the whole file: total = trace span, CPU = Σ c of
+// TraceProfile profiles the whole set: total = the response time (Σ session
+// spans, TraceResponse; the trace span for a single session), CPU = Σ c of
 // top-level calls, waits = every wait line. PX slaves attached to a
 // coordinator are left out (see PX): their time runs in parallel with the
 // coordinator's.
 func TraceProfile(m *model.Model) Profile {
+	r := TraceResponse(m)
+	p := traceProfile(m, r.ResponseUs)
+	p.ResponseUs, p.WallUs, p.Sessions = r.ResponseUs, r.WallUs, r.Sessions
+	return p
+}
+
+func traceProfile(m *model.Model, total int64) Profile {
 	if a := AggOf(m); a != nil {
 		by := map[model.ID]*evAgg{}
 		for i := range a.main.events {
@@ -345,7 +359,7 @@ func TraceProfile(m *model.Model) Profile {
 				by[model.ID(i)] = e
 			}
 		}
-		return profileOf(m, "whole trace", m.Span.Us(), a.main.topCPU, by, a.main.waitUs, a.main.idleUs)
+		return profileOf(m, "whole trace", total, a.main.topCPU, by, a.main.waitUs, a.main.idleUs)
 	}
 	var cpu int64
 	for i := range m.Calls {
@@ -354,9 +368,7 @@ func TraceProfile(m *model.Model) Profile {
 			cpu += c.C
 		}
 	}
-	total := m.Span.Us()
-	p := buildProfile(m, "whole trace", total, cpu, func(w *model.Wait) bool { return !m.PXChild(w.Context) })
-	return p
+	return buildProfile(m, "whole trace", total, cpu, func(w *model.Wait) bool { return !m.PXChild(w.Context) })
 }
 
 // StatementProfile profiles one statement: total = its response time plus

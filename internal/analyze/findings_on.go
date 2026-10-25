@@ -58,9 +58,9 @@ func FindingsOn(ctx context.Context, m *model.Model, src Facts, f Filter) ([]Fin
 // ignored): the statement table is StatementsOn, the executions are those
 // whose EXEC call is in scope (with their FETCH calls in scope), the waits,
 // the commits and the round trips are those in scope, and the response time
-// the severities are measured against is that of the scope: the window, else
-// the span of the files of the selected contexts, else the trace span, or
-// the summed session time when larger (as Findings). With an empty filter it
+// the severities are measured against is that of the scope (ResponseOf: Σ
+// session spans clipped to the window), or the ledger's sum when larger (as
+// Findings). With an empty filter it
 // returns what Findings / FindingsWith returns for the model with the same
 // thresholds (the thresholds an aggregation-only model was built with for
 // the per-execution rules, as there). Every rule is narrowed; Finding.Scope
@@ -276,7 +276,7 @@ func scanScope(ctx context.Context, m *model.Model, src Facts, f Filter, th *Thr
 	if err != nil {
 		return nil, err
 	}
-	sc.total = scopeSpan(m, f)
+	sc.total = ResponseOf(m, Contexts(m), f).ResponseUs
 	if s := cpu + waitUs + idleUs; s > sc.total {
 		sc.total = s
 	}

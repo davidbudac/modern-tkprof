@@ -266,8 +266,8 @@ func FindingsExec(m *model.Model, stats []StmtStats, th Thresholds, ex [][]Execu
 		f.th.MaxEvidenceRows, f.th.SmallFetchRows, f.th.SmallFetchMinFetchesPerExec = b.MaxEvidenceRows, b.SmallFetchRows, b.SmallFetchMinFetchesPerExec
 	}
 	p := TraceProfile(m)
-	// response time: the trace span, or the summed session time when several
-	// sessions overlap (trcsess output)
+	// response time: Σ session spans (TraceResponse), or the ledger's sum when
+	// larger (a call that started before the trace)
 	f.total = p.TotalUs
 	if s := p.CPUUs + p.WaitUs + p.IdleUs; s > f.total {
 		f.total = s

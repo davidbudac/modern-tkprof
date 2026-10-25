@@ -151,18 +151,6 @@ export function parseFilesParam(text: string | null): Set<number> | null {
   return out.size ? out : null
 }
 
-/** The microseconds the Overview calls its response time: the time window, else the span of the selected files (all files = the trace's span). */
-export function scopeSpanUs(doc: Pick<FileSetDoc, 'file'> & { spanUs(): number }, window: { startTim: number; endTim: number } | null, files: ReadonlySet<number> | null): number {
-  if (window) return window.endTim - window.startTim
-  if (!files) return doc.spanUs()
-  let lo = Infinity, hi = -Infinity
-  doc.file.files?.forEach((f, i) => {
-    if (!files.has(i) || !(f.firstTim > 0) || !(f.lastTim >= f.firstTim)) return
-    lo = Math.min(lo, f.firstTim); hi = Math.max(hi, f.lastTim)
-  })
-  return hi > lo ? hi - lo : doc.spanUs()
-}
-
 /** What `selectionSpan` reads of a document (a `TraceDoc` fits). */
 export interface SpanDoc extends FileSetDoc {
   span: { firstTim: number; lastTim: number }

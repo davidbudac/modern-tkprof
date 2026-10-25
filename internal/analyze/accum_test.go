@@ -38,6 +38,7 @@ func fixtureSets(t *testing.T) map[string][]string {
 	sets := map[string][]string{
 		"parallel+slave":   {filepath.Join(dir, "parallel.trc"), filepath.Join(dir, "parallel_slave.trc")},
 		"multisession-a+b": {filepath.Join(dir, "multisession_a.trc"), filepath.Join(dir, "multisession_b.trc")},
+		"workload":         {"../../testdata/sets/workload"},
 	}
 	for _, f := range all {
 		sets[strings.TrimSuffix(filepath.Base(f), ".trc")] = []string{f}

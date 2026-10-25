@@ -21,6 +21,7 @@ type textWriter struct {
 	rank  map[model.ID]int // statement -> rank number in the listing
 	loc   *time.Location
 	execs [][]analyze.Execution // executions of every statement, built on first use
+	prof  analyze.Profile       // the whole-set profile; TotalUs is the base of the percentages
 }
 
 // allExecs builds the executions of all statements in one pass over the calls
@@ -37,7 +38,7 @@ func writeText(out io.Writer, m *model.Model, o TextOptions) error {
 	if o.Width < 80 {
 		o.Width = 120
 	}
-	t := &textWriter{w: bufio.NewWriter(out), m: m, o: o, stats: analyze.Statements(m), rank: map[model.ID]int{}, loc: zone(m)}
+	t := &textWriter{w: bufio.NewWriter(out), m: m, o: o, stats: analyze.Statements(m), rank: map[model.ID]int{}, loc: zone(m), prof: analyze.TraceProfile(m)}
 	t.header()
 	t.files()
 	t.traceProfile()
@@ -284,8 +285,12 @@ func (t *textWriter) profileTable(p analyze.Profile, title string) {
 }
 
 func (t *textWriter) traceProfile() {
-	p := analyze.TraceProfile(t.m)
-	t.profileTable(p, "RESOURCE PROFILE - whole trace (response time = trace span; CPU of top-level calls; every wait)")
+	p := t.prof
+	base := "response time = trace span"
+	if p.Sessions > 1 {
+		base = fmt.Sprintf("response time = sum of %d session spans, wall clock %s s", p.Sessions, secs(p.WallUs))
+	}
+	t.profileTable(p, "RESOURCE PROFILE - whole trace ("+base+"; CPU of top-level calls; every wait)")
 	if px := analyze.PX(t.m); px.Sessions > 0 {
 		t.p("PX slaves: %d process(es), parallel to the coordinator, not in the profile above:\n", px.Sessions)
 		t.p("           cpu %s s, waits %s s, idle %s s\n\n", secs(px.CPUUs), secs(px.WaitUs), secs(px.IdleUs))
@@ -341,7 +346,7 @@ func (t *textWriter) ranking() []model.ID {
 	for i, id := range ids {
 		t.rank[id] = i + 1
 	}
-	span := m.Span.Us()
+	span := t.prof.TotalUs
 	t.p("STATEMENTS BY %s  (elapsed includes recursive children and idle between calls)\n", strings.ToUpper(t.o.Sort))
 	t.rule('-')
 	t.p("%4s %11s %6s %11s %10s %9s %11s %9s %11s  %-13s %3s  %s\n", "#", "Elapsed s", "%", "Self s", "CPU s", "Execs", "Rows", "Disk", "Query", "SQL ID", "Dep", "Statement")
@@ -414,7 +419,7 @@ func (t *textWriter) statement(rank int, sid model.ID) {
 	}
 	t.nl()
 	t.p("elapsed %s s (%s of trace)   self %s s   cpu %s s   waits %s s   idle between calls %s s   execs %s   rows %s   cursors %d   errors %d\n",
-		secs(s.Elapsed), strings.TrimSpace(pct(s.Elapsed, m.Span.Us())), secs(s.SelfElapsed), secs(s.CPU), secs(s.WaitUs), secs(s.IdleUs), commas(s.Executions), commas(s.AllCalls.Rows), s.Cursors, s.Errors)
+		secs(s.Elapsed), strings.TrimSpace(pct(s.Elapsed, t.prof.TotalUs)), secs(s.SelfElapsed), secs(s.CPU), secs(s.WaitUs), secs(s.IdleUs), commas(s.Executions), commas(s.AllCalls.Rows), s.Cursors, s.Errors)
 	if s.PXSessions > 0 {
 		t.p("PX slaves: %d sessions, %s s elapsed, %s s cpu (not included above)\n", s.PXSessions, secs(s.PXElapsed), secs(s.PXCPU))
 	}

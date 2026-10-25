@@ -161,7 +161,7 @@ func Compare(a, b *model.Model) Comparison {
 
 	c := Comparison{A: sideInfo(a), B: sideInfo(b)}
 	c.Totals = []Metric{
-		metric("response", "Response time", "us", a.Span.Us(), b.Span.Us()),
+		metric("response", "Response time", "us", pa.TotalUs, pb.TotalUs),
 		metric("cpu", "CPU", "us", pa.CPUUs, pb.CPUUs),
 		metric("wait", "Wait time (in call)", "us", pa.WaitUs, pb.WaitUs),
 		metric("idle", "Idle / think time", "us", pa.IdleUs, pb.IdleUs),

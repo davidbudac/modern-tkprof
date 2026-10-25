@@ -96,7 +96,7 @@ function kindName(k: number): string { return ['SQL', 'unknown statement', 'comm
 /** The response time and its share of the scope's response time: `response.ts` has the one definition the Overview ledger shares. */
 function ResponseTime({ doc, stats, narrowed, scope }: { doc: TraceDoc; stats: StmtStats; narrowed: boolean; scope: Scope }) {
   const total = responseUs(stats)
-  const base = responseBaseUs(doc, scope.window, scope.files, narrowed)
+  const base = responseBaseUs(doc, scope, narrowed)
   const source = sourceOf(doc)
   const waitsQ = useSourceQuery(source, `waits:${stats.id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([stats.id], 4, scope, signal) : null), 'waits')
   const waits = useMemo(() => waitsQ.data?.get(stats.id) ?? [], [waitsQ.data, stats.id])
