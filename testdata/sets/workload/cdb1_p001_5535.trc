@@ -1,0 +1,62 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_p001_5535.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 56
+Unix process pid: 5535, image: oracle@ol9-19-dg1.localdomain (P001)
+
+
+*** 2026-10-25T13:49:40.847697+00:00 (CDB$ROOT(1))
+*** SESSION ID:(30.50880) 2026-10-25T13:49:40.847713+00:00
+*** CLIENT ID:() 2026-10-25T13:49:40.847716+00:00
+*** SERVICE NAME:() 2026-10-25T13:49:40.848565+00:00
+*** MODULE NAME:(sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)) 2026-10-25T13:49:40.848570+00:00
+*** ACTION NAME:() 2026-10-25T13:49:40.848574+00:00
+*** CLIENT DRIVER:(SERVER) 2026-10-25T13:49:40.848577+00:00
+*** CONTAINER ID:(1) 2026-10-25T13:49:40.848581+00:00
+ 
+Using largest hash table of 262144 entries (2Mb), htbl_size = 2097232, max_alloc = 1073729536
+
+*** 2026-10-25T13:49:40.899944+00:00 (CDB$ROOT(1))
+KCRP: blocks claimed = 0, eliminated = 0
+----- Recovery Hash Table Statistics ---------
+Hash table buckets = 262144
+Longest hash chain = 0
+Average hash chain = 0/0 = 0.0
+Max compares per lookup = 0
+Avg compares per lookup = 0/0 = 0.0
+----------------------------------------------
+----- Recovery Hash Table Statistics ---------
+Hash table buckets = 262144
+Longest hash chain = 0
+Average hash chain = 0/0 = 0.0
+Max compares per lookup = 0
+Avg compares per lookup = 0/0 = 0.0
+----------------------------------------------
+WAIT #0: nam='PX Deq: Execution Msg' ela= 2915 sleeptime/senderid=268566527 passes=2 p3=2391404840 obj#=-1 tim=12128934230
+
+*** 2026-10-25T17:03:20.618828+00:00 (PDB1(3))
+*** SESSION ID:(33.54781) 2026-10-25T17:03:20.618847+00:00
+*** CLIENT ID:(mtk_client_wl_report) 2026-10-25T17:03:20.618851+00:00
+*** SERVICE NAME:(pdb1) 2026-10-25T17:03:20.618854+00:00
+*** MODULE NAME:(mtk_wl_report) 2026-10-25T17:03:20.618856+00:00
+*** ACTION NAME:(px_totals) 2026-10-25T17:03:20.618859+00:00
+*** CONTAINER ID:(3) 2026-10-25T17:03:20.618861+00:00
+ 
+
+*** TRACE CONTINUES IN FILE /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_p001_5535_mtk_wl_report.trc ***
+

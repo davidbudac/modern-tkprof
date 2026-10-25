@@ -1,0 +1,278 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_p000_5533_mtk_wl_report.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 54
+Unix process pid: 5533, image: oracle@ol9-19-dg1.localdomain (P000)
+
+
+*** 2026-10-25T17:03:20.615103+00:00 (PDB1(3))
+*** SESSION ID:(44.47648) 2026-10-25T17:03:20.615121+00:00
+*** CLIENT ID:(mtk_client_wl_report) 2026-10-25T17:03:20.615123+00:00
+*** SERVICE NAME:(pdb1) 2026-10-25T17:03:20.615139+00:00
+*** MODULE NAME:(mtk_wl_report) 2026-10-25T17:03:20.615142+00:00
+*** ACTION NAME:(px_totals) 2026-10-25T17:03:20.615144+00:00
+*** CLIENT DRIVER:(SERVER) 2026-10-25T17:03:20.615146+00:00
+*** CONTAINER ID:(3) 2026-10-25T17:03:20.615149+00:00
+ 
+
+*** TRACE CONTINUED FROM FILE /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_p000_5533.trc ***
+
+=====================
+PARSING IN CURSOR #139868199117272 len=96 dep=1 uid=165 oct=3 lid=165 tim=12128933673 hv=3098341972 ad='6d4eb6b0' sqlid='1b8rq42watwkn'
+select /*+ parallel(o 4) full(o) */ count(*), sum(o.amount), max(o.order_date) from mtk_orders o
+END OF STMT
+PARSE #139868199117272:c=55,e=55,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=2662252726,tim=12128933673
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 4485 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128938601
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 243 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128939027
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 184 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128939336
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 162 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128939648
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 192 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128939935
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 113 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128940232
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 370 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128940759
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 96 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128940946
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 436 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128941548
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 241 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128941955
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 357 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128942486
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 23 sleeptime/senderid=268566527 passes=1 p3=2391408264 obj#=-1 tim=12128942632
+EXEC #139868199117272:c=2320,e=8595,p=0,cr=139,cu=0,mis=0,r=0,dep=1,og=1,plh=2662252726,tim=12128942653
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 49 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128942725
+STAT #139868199117272 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139868199117272 id=2 cnt=0 pid=1 pos=1 obj=0 op='PX COORDINATOR  (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139868199117272 id=3 cnt=0 pid=2 pos=1 obj=0 op='PX SEND QC (RANDOM) :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139868199117272 id=4 cnt=1 pid=3 pos=1 obj=0 op='SORT AGGREGATE (cr=139 pr=0 pw=0 str=1 time=4014 us)'
+STAT #139868199117272 id=5 cnt=19318 pid=4 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=139 pr=0 pw=0 str=1 time=573 us cost=38 size=1300013 card=100001)'
+STAT #139868199117272 id=6 cnt=19318 pid=5 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=139 pr=0 pw=0 str=11 time=1026 us cost=38 size=1300013 card=100001)'
+CLOSE #139868199117272:c=110,e=110,dep=1,type=1,tim=12128942852
+WAIT #0: nam='PX Deq: Slave Session Stats' ela= 711 sleeptime/senderid=268566527 passes=2 p3=2391408264 obj#=-1 tim=12128943583
+*** SESSION ID:(33.49895) 2026-10-25T17:03:20.654778+00:00
+*** SERVICE NAME:(pdb1) 2026-10-25T17:03:20.654790+00:00
+*** MODULE NAME:(mtk_wl_report) 2026-10-25T17:03:20.654794+00:00
+*** ACTION NAME:(px_by_status) 2026-10-25T17:03:20.654797+00:00
+*** CONTAINER ID:(3) 2026-10-25T17:03:20.654799+00:00
+ 
+WAIT #0: nam='PX Deq: Execution Msg' ela= 26752 sleeptime/senderid=268566527 passes=2 p3=2293592592 obj#=-1 tim=12128973636
+*** CLIENT ID:(mtk_client_wl_report) 2026-10-25T17:03:20.655858+00:00
+ 
+=====================
+PARSING IN CURSOR #139868199117272 len=116 dep=1 uid=165 oct=3 lid=165 tim=12128974727 hv=2764381330 ad='6d4e2560' sqlid='0cw5dgqkca74k'
+select /*+ parallel(o 4) full(o) */ o.status, count(*), sum(o.amount) from mtk_orders o group by o.status order by 1
+END OF STMT
+PARSE #139868199117272:c=51,e=51,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=2501486902,tim=12128974726
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 17675 sleeptime/senderid=268566527 passes=2 p3=2293592592 obj#=-1 tim=12128992499
+WAIT #139868199117272: nam='latch: parallel query alloc buffer' ela= 66 address=2428133384 number=714 why=1841014736 obj#=-1 tim=12128992629
+WAIT #139868199117272: nam='PX Deq Credit: send blkd' ela= 105 sleeptime/senderid=268566527 passes=1 qref=2293592592 obj#=-1 tim=12128992820
+WAIT #139868199117272: nam='PX Deq: Table Q Sample' ela= 6889 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128999720
+WAIT #139868199117272: nam='PX Deq Credit: send blkd' ela= 93 sleeptime/senderid=268566527 passes=1 qref=2293592592 obj#=-1 tim=12128999851
+EXEC #139868199117272:c=2341,e=25091,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=2501486902,tim=12128999862
+WAIT #139868199117272: nam='PX Deq: Execution Msg' ela= 377 sleeptime/senderid=268566527 passes=1 p3=2293592592 obj#=-1 tim=12129000258
+STAT #139868199117272 id=1 cnt=0 pid=0 pos=1 obj=0 op='PX COORDINATOR  (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139868199117272 id=2 cnt=0 pid=1 pos=1 obj=0 op='PX SEND QC (ORDER) :TQ10001 (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=72 card=6)'
+STAT #139868199117272 id=3 cnt=2 pid=2 pos=1 obj=0 op='SORT GROUP BY (cr=0 pr=0 pw=0 str=1 time=7049 us cost=40 size=72 card=6)'
+STAT #139868199117272 id=4 cnt=8 pid=3 pos=1 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=1 time=7032 us cost=40 size=72 card=6)'
+STAT #139868199117272 id=5 cnt=0 pid=4 pos=1 obj=0 op='PX SEND RANGE :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=72 card=6)'
+STAT #139868199117272 id=6 cnt=0 pid=5 pos=1 obj=0 op='HASH GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=72 card=6)'
+STAT #139868199117272 id=7 cnt=0 pid=6 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1200012 card=100001)'
+STAT #139868199117272 id=8 cnt=0 pid=7 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1200012 card=100001)'
+CLOSE #139868199117272:c=174,e=174,dep=1,type=1,tim=12129000502
+WAIT #0: nam='PX Deq: Slave Session Stats' ela= 31246 sleeptime/senderid=268566527 passes=3 p3=2293592592 obj#=-1 tim=12129031769
+*** SESSION ID:(54.41644) 2026-10-25T17:03:20.725108+00:00
+*** SERVICE NAME:(pdb1) 2026-10-25T17:03:20.725138+00:00
+*** MODULE NAME:(mtk_wl_report) 2026-10-25T17:03:20.725143+00:00
+*** ACTION NAME:(px_join) 2026-10-25T17:03:20.725146+00:00
+*** CONTAINER ID:(3) 2026-10-25T17:03:20.725148+00:00
+ 
+WAIT #0: nam='PX Deq: Execution Msg' ela= 1398 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129043973
+*** CLIENT ID:(mtk_client_wl_report) 2026-10-25T17:03:20.726184+00:00
+ 
+=====================
+PARSING IN CURSOR #139868199113048 len=188 dep=1 uid=165 oct=3 lid=165 tim=12129045054 hv=1995627350 ad='6d3354a0' sqlid='7stbd5dvg5quq'
+select /*+ parallel(o 4) full(o) full(c) */ c.name, count(*), sum(o.amount)
+  from mtk_orders o join mtk_cust c on c.id = o.cust_id group by c.name order by 3 desc fetch first 10 rows only
+END OF STMT
+PARSE #139868199113048:c=59,e=59,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=2143179539,tim=12129045053
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 28072 sleeptime/senderid=268566527 passes=2 p3=2293610344 obj#=-1 tim=12129073232
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 434 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129073750
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 67 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129073836
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 246 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129074219
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 199 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129074582
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 3911 sleeptime/senderid=268566527 passes=4 p3=2293610344 obj#=-1 tim=12129078662
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 493 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129079334
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 771 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129080253
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 664 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129081068
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 5400 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129086540
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 92 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129086776
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 787 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129087693
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 217 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129088067
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 188 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129088403
+WAIT #139868199113048: nam='PX Deq Credit: send blkd' ela= 1521 sleeptime/senderid=268500997 passes=1 qref=2293591928 obj#=-1 tim=12129089965
+WAIT #139868199113048: nam='PX qref latch' ela= 10 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129089990
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090008
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090017
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090023
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090028
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090034
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090039
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090045
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090050
+WAIT #139868199113048: nam='PX qref latch' ela= 0 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090055
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090061
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090066
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090072
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090077
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090083
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090089
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090097
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090103
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090108
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090114
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090119
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090125
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090130
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090136
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090141
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090146
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090152
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090157
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090163
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090168
+WAIT #139868199113048: nam='PX qref latch' ela= 0 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090173
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090179
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090186
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090191
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090197
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090202
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090208
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090213
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090219
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090224
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090230
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090235
+WAIT #139868199113048: nam='PX qref latch' ela= 0 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090240
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090246
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090251
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090257
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090262
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090268
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090273
+WAIT #139868199113048: nam='PX qref latch' ela= 0 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090278
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090284
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090289
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090311
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090317
+WAIT #139868199113048: nam='PX qref latch' ela= 0 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090322
+WAIT #139868199113048: nam='PX qref latch' ela= 14 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090341
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090349
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090355
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090360
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090366
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090371
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090377
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090382
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090388
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090393
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090399
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090405
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090410
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090416
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090421
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090427
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090432
+WAIT #139868199113048: nam='PX qref latch' ela= 0 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090437
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090443
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090449
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090454
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090460
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090465
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090470
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090476
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090481
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090487
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090492
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090498
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090503
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090509
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090514
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090520
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090525
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090544
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090550
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090556
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090561
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090567
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090572
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090578
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090583
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090588
+WAIT #139868199113048: nam='PX qref latch' ela= 1 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129090594
+WAIT #139868199113048: nam='PX qref latch' ela= 1292 function=2391446424 sleeptime=0 qref=0 obj#=-1 tim=12129091890
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 138 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129092177
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 421 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129092735
+WAIT #139868199113048: nam='PX Deq Credit: send blkd' ela= 2498 sleeptime/senderid=268500997 passes=1 qref=2293591928 obj#=-1 tim=12129095353
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 22 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129095435
+WAIT #139868199113048: nam='PX Deq Credit: send blkd' ela= 2542 sleeptime/senderid=268500997 passes=1 qref=2293591928 obj#=-1 tim=12129097994
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 1217 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129099262
+WAIT #139868199113048: nam='PX Deq Credit: send blkd' ela= 111 sleeptime/senderid=268566527 passes=1 qref=2293610344 obj#=-1 tim=12129099439
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 230 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129099682
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129099744
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 100 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129099915
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 129 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129100071
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129100113
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 53 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129100191
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 108 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129100337
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 48 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129100420
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 56 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129100508
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 121 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129100654
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 108 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129100787
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 60 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129100872
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 113 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129101006
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 155 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129101194
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 146 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129101372
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 95 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129101501
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 114 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129101641
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129101668
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 255 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129101939
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 80 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129102044
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 84 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129102155
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 115 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129102293
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 123 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129102441
+WAIT #139868199113048: nam='PX Deq: Table Q Normal' ela= 52 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129102562
+WAIT #139868199113048: nam='PX Deq Credit: send blkd' ela= 36 sleeptime/senderid=268566527 passes=1 qref=2293610344 obj#=-1 tim=12129103194
+EXEC #139868199113048:c=4753,e=58107,p=0,cr=182,cu=0,mis=0,r=0,dep=1,og=1,plh=2143179539,tim=12129103211
+WAIT #139868199113048: nam='PX Deq: Execution Msg' ela= 1404 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129104637
+STAT #139868199113048 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=661 size=1040 card=10)'
+STAT #139868199113048 id=2 cnt=0 pid=1 pos=1 obj=0 op='VIEW  (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1040 card=10)'
+STAT #139868199113048 id=3 cnt=0 pid=2 pos=1 obj=0 op='WINDOW SORT PUSHED RANK (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139868199113048 id=4 cnt=0 pid=3 pos=1 obj=0 op='PX COORDINATOR  (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139868199113048 id=5 cnt=0 pid=4 pos=1 obj=0 op='PX SEND QC (RANDOM) :TQ10003 (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139868199113048 id=6 cnt=10 pid=5 pos=1 obj=0 op='WINDOW CHILD PUSHED RANK (cr=0 pr=0 pw=0 str=1 time=3866 us cost=660 size=1020000 card=20000)'
+STAT #139868199113048 id=7 cnt=4946 pid=6 pos=1 obj=0 op='HASH GROUP BY (cr=0 pr=0 pw=0 str=1 time=3524 us cost=660 size=1020000 card=20000)'
+STAT #139868199113048 id=8 cnt=4946 pid=7 pos=1 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=1 time=706 us cost=660 size=1020000 card=20000)'
+STAT #139868199113048 id=9 cnt=0 pid=8 pos=1 obj=0 op='PX SEND HASH :TQ10002 (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139868199113048 id=10 cnt=0 pid=9 pos=1 obj=0 op='HASH GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139868199113048 id=11 cnt=0 pid=10 pos=1 obj=0 op='HASH JOIN  (cr=0 pr=0 pw=0 str=0 time=0 us cost=380 size=5067615 card=99365)'
+STAT #139868199113048 id=12 cnt=0 pid=11 pos=1 obj=0 op='BUFFER SORT (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139868199113048 id=13 cnt=0 pid=12 pos=1 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=0 time=0 us cost=341 size=820000 card=20000)'
+STAT #139868199113048 id=14 cnt=0 pid=13 pos=1 obj=0 op='PX SEND HYBRID HASH :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us cost=341 size=820000 card=20000)'
+STAT #139868199113048 id=15 cnt=0 pid=14 pos=1 obj=0 op='STATISTICS COLLECTOR  (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139868199113048 id=16 cnt=0 pid=15 pos=1 obj=108609 op='TABLE ACCESS FULL MTK_CUST (cr=0 pr=0 pw=0 str=0 time=0 us cost=341 size=820000 card=20000)'
+STAT #139868199113048 id=17 cnt=0 pid=11 pos=2 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1000010 card=100001)'
+STAT #139868199113048 id=18 cnt=0 pid=17 pos=1 obj=0 op='PX SEND HYBRID HASH :TQ10001 (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1000010 card=100001)'
+STAT #139868199113048 id=19 cnt=28881 pid=18 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=182 pr=0 pw=0 str=1 time=107354 us cost=38 size=1000010 card=100001)'
+STAT #139868199113048 id=20 cnt=28881 pid=19 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=182 pr=0 pw=0 str=14 time=904 us cost=38 size=1000010 card=100001)'
+CLOSE #139868199113048:c=359,e=359,dep=1,type=1,tim=12129105068
+WAIT #0: nam='PX Deq: Slave Session Stats' ela= 1372 sleeptime/senderid=268566527 passes=1 p3=2293610344 obj#=-1 tim=12129106459

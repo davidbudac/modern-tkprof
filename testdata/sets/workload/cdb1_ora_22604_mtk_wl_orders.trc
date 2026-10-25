@@ -1,0 +1,2439 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_22604_mtk_wl_orders.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 67
+Unix process pid: 22604, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-10-25T17:03:20.472421+00:00 (PDB1(3))
+*** SESSION ID:(256.44774) 2026-10-25T17:03:20.472437+00:00
+*** CLIENT ID:(mtk_client_wl_orders) 2026-10-25T17:03:20.472440+00:00
+*** SERVICE NAME:(pdb1) 2026-10-25T17:03:20.472443+00:00
+*** MODULE NAME:(mtk_wl_orders) 2026-10-25T17:03:20.472445+00:00
+*** ACTION NAME:(start) 2026-10-25T17:03:20.472448+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-10-25T17:03:20.472450+00:00
+*** CONTAINER ID:(3) 2026-10-25T17:03:20.472453+00:00
+ 
+WAIT #139698263466408: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128791045
+WAIT #139698263466408: nam='SQL*Net message from client' ela= 127 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128791499
+CLOSE #139698263466408:c=2,e=2,dep=0,type=1,tim=12128791517
+=====================
+PARSING IN CURSOR #139698263449976 len=55 dep=0 uid=165 oct=47 lid=165 tim=12128792084 hv=3549028117 ad='6d50d3f0' sqlid='7mxa0cr9smrsp'
+BEGIN dbms_application_info.set_action('lookup'); END;
+
+END OF STMT
+PARSE #139698263449976:c=269,e=455,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128792082
+*** ACTION NAME:(lookup) 2026-10-25T17:03:20.473450+00:00
+ 
+EXEC #139698263449976:c=197,e=197,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128792317
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128792350
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 156 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128792521
+CLOSE #139698263449976:c=3,e=3,dep=0,type=0,tim=12128792540
+=====================
+PARSING IN CURSOR #139698263449976 len=475 dep=0 uid=165 oct=47 lid=165 tim=12128792887 hv=3058965822 ad='6d509248' sqlid='65myq0fv5879y'
+begin
+  for i in 1 .. 25 loop
+    :cid := mod(i, 40) + 1;
+    for r in (select /* mtk_wl_orders_lookup */ id, amount, status from mtk_orders where cust_id = :cid order by id) loop
+      null;
+    end loop;
+    insert into mtk_orders (id, cust_id, order_date, amount, status)
+      values (mtk_seq.nextval, :cid, sysdate, i * 10, 'WL') returning id into :oid;
+    update mtk_orders set status = 'WLX' where id = :oid;
+    commit;
+    dbms_session.sleep(0.15);
+  end loop;
+end;
+END OF STMT
+PARSE #139698263449976:c=335,e=335,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128792887
+BINDS #139698263449976:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=00  flg=05
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=01
+=====================
+PARSING IN CURSOR #139698263446656 len=73 dep=1 uid=165 oct=3 lid=165 tim=12128795173 hv=336560462 ad='6d5041a0' sqlid='fzssn8wa0z0af'
+SELECT ID, AMOUNT, STATUS FROM MTK_ORDERS WHERE CUST_ID = :B1 ORDER BY ID
+END OF STMT
+PARSE #139698263446656:c=143,e=144,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=0,tim=12128795173
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f1960  bln=22  avl=02  flg=05
+  value=2
+EXEC #139698263446656:c=1649,e=992,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=1181527510,tim=12128796212
+FETCH #139698263446656:c=92,e=92,p=0,cr=8,cu=0,mis=0,r=6,dep=1,og=1,plh=1181527510,tim=12128796316
+STAT #139698263446656 id=1 cnt=6 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=8 pr=0 pw=0 str=1 time=82 us cost=7 size=110 card=5)'
+STAT #139698263446656 id=2 cnt=6 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=8 pr=0 pw=0 str=1 time=60 us cost=6 size=110 card=5)'
+STAT #139698263446656 id=3 cnt=6 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=2 pr=0 pw=0 str=1 time=18 us cost=1 size=0 card=5)'
+CLOSE #139698263446656:c=0,e=1,dep=1,type=3,tim=12128801306
+=====================
+PARSING IN CURSOR #139698262447040 len=142 dep=1 uid=165 oct=2 lid=165 tim=12128801458 hv=1448595168 ad='6d503e70' sqlid='a4r2fwpb5gmr0'
+INSERT INTO MTK_ORDERS (ID, CUST_ID, ORDER_DATE, AMOUNT, STATUS) VALUES (MTK_SEQ.NEXTVAL, :B1, SYSDATE, :B2 * 10, 'WL') RETURNING ID INTO :O0 
+END OF STMT
+PARSE #139698262447040:c=141,e=141,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=0,tim=12128801457
+=====================
+PARSING IN CURSOR #139698262657768 len=768 dep=2 uid=0 oct=3 lid=0 tim=12128801855 hv=2300185736 ad='88479c28' sqlid='1v3pmj64jn348'
+select decode(u.type#, 2, u.ext_username, u.name), o.name,        t.update$, t.insert$, t.delete$, t.enabled,        decode(bitand(t.property, 8192),8192, 1, 0),        decode(bitand(t.property, 65536), 65536, 1, 0),       decode(bitand(t.property, 131072), 131072, 1, 0),       (select o.name from obj$ o          where o.obj# = u.spare2 and o.type# =57),        decode(bitand(t.property, 524288), 524288, 1, 0),        decode(bitand(t.property, 4096),4096, 1, 0),        t.type#  from sys.obj$ o, sys.user$ u, sys.trigger$ t, sys.obj$ bo where t.baseobject=bo.obj# and bo.name = :1 and bo.spare3 = :2  and bo.type# = :3 and bo.namespace = 1  and t.obj#=o.obj# and o.owner#=u.user#  and o.type# = 12 and bitand(property,16)=0 and bitand(property,8)=0  order by o.obj#
+END OF STMT
+PARSE #139698262657768:c=207,e=207,p=0,cr=0,cu=0,mis=1,r=0,dep=2,og=4,plh=0,tim=12128801855
+BINDS #139698262657768:
+
+ Bind#0
+  oacdty=01 mxl=32(10) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=80 off=0
+  kxsbbbfp=7f0e093c4fb0  bln=32  avl=10  flg=05
+  value="MTK_ORDERS"
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=32
+  kxsbbbfp=7f0e093c4fd0  bln=22  avl=03  flg=01
+  value=165
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=56
+  kxsbbbfp=7f0e093c4fe8  bln=22  avl=02  flg=01
+  value=2
+EXEC #139698262657768:c=3216,e=3682,p=0,cr=0,cu=0,mis=1,r=0,dep=2,og=4,plh=381121033,tim=12128805573
+FETCH #139698262657768:c=108,e=108,p=0,cr=10,cu=0,mis=0,r=1,dep=2,og=4,plh=381121033,tim=12128805690
+FETCH #139698262657768:c=3,e=3,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=4,plh=381121033,tim=12128805710
+STAT #139698262657768 id=1 cnt=0 pid=0 pos=1 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=0 pr=0 pw=0 str=1 time=1 us cost=3 size=43 card=1)'
+STAT #139698262657768 id=2 cnt=0 pid=1 pos=1 obj=36 op='INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 str=1 time=0 us cost=2 size=0 card=1)'
+STAT #139698262657768 id=3 cnt=1 pid=0 pos=2 obj=0 op='SORT ORDER BY (cr=10 pr=0 pw=0 str=1 time=110 us cost=11 size=299 card=1)'
+STAT #139698262657768 id=4 cnt=1 pid=3 pos=1 obj=0 op='NESTED LOOPS  (cr=10 pr=0 pw=0 str=1 time=71 us cost=7 size=299 card=1)'
+STAT #139698262657768 id=5 cnt=1 pid=4 pos=1 obj=0 op='NESTED LOOPS  (cr=8 pr=0 pw=0 str=1 time=61 us cost=6 size=124 card=1)'
+STAT #139698262657768 id=6 cnt=1 pid=5 pos=1 obj=0 op='NESTED LOOPS  (cr=5 pr=0 pw=0 str=1 time=39 us cost=4 size=78 card=1)'
+STAT #139698262657768 id=7 cnt=1 pid=6 pos=1 obj=40 op='INDEX RANGE SCAN I_OBJ5 (cr=3 pr=0 pw=0 str=1 time=23 us cost=3 size=49 card=1)'
+STAT #139698262657768 id=8 cnt=1 pid=6 pos=2 obj=279 op='TABLE ACCESS BY INDEX ROWID BATCHED TRIGGER$ (cr=2 pr=0 pw=0 str=1 time=14 us cost=1 size=58 card=2)'
+STAT #139698262657768 id=9 cnt=1 pid=8 pos=1 obj=281 op='INDEX RANGE SCAN I_TRIGGER1 (cr=1 pr=0 pw=0 str=1 time=9 us cost=0 size=0 card=2)'
+STAT #139698262657768 id=10 cnt=1 pid=5 pos=2 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=3 pr=0 pw=0 str=1 time=22 us cost=2 size=46 card=1)'
+STAT #139698262657768 id=11 cnt=1 pid=10 pos=1 obj=36 op='INDEX RANGE SCAN I_OBJ1 (cr=2 pr=0 pw=0 str=1 time=15 us cost=1 size=0 card=1)'
+STAT #139698262657768 id=12 cnt=1 pid=4 pos=2 obj=22 op='TABLE ACCESS CLUSTER USER$ (cr=2 pr=0 pw=0 str=1 time=7 us cost=1 size=175 card=1)'
+STAT #139698262657768 id=13 cnt=1 pid=12 pos=1 obj=11 op='INDEX UNIQUE SCAN I_USER# (cr=1 pr=0 pw=0 str=1 time=2 us cost=0 size=0 card=1)'
+CLOSE #139698262657768:c=2,e=2,dep=2,type=0,tim=12128805965
+=====================
+PARSING IN CURSOR #139698262652000 len=76 dep=2 uid=0 oct=3 lid=0 tim=12128813387 hv=1052578227 ad='8bc3f530' sqlid='04kug40zbu4dm'
+select policy#, action# from aud_object_opt$ where object# = :1 and type = 2
+END OF STMT
+PARSE #139698262652000:c=215,e=214,p=0,cr=0,cu=0,mis=1,r=0,dep=2,og=4,plh=0,tim=12128813386
+BINDS #139698262652000:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093c4fe8  bln=22  avl=04  flg=05
+  value=108621
+EXEC #139698262652000:c=380,e=380,p=0,cr=0,cu=0,mis=1,r=0,dep=2,og=4,plh=4006480256,tim=12128813808
+FETCH #139698262652000:c=62,e=62,p=0,cr=8,cu=0,mis=0,r=0,dep=2,og=4,plh=4006480256,tim=12128813877
+STAT #139698262652000 id=1 cnt=0 pid=0 pos=1 obj=531 op='TABLE ACCESS FULL AUD_OBJECT_OPT$ (cr=8 pr=0 pw=0 str=1 time=63 us cost=4 size=114 card=1)'
+CLOSE #139698262652000:c=0,e=0,dep=2,type=3,tim=12128813914
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=2
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09524fe8  bln=22  avl=02  flg=05
+  value=1
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+=====================
+PARSING IN CURSOR #139698261210208 len=102 dep=2 uid=0 oct=3 lid=0 tim=12128814342 hv=3967354608 ad='8cd2b2a8' sqlid='axmdf8vq7k1rh'
+select increment$,minvalue,maxvalue,cycle#,order$,cache,highwater,audit$,flags from seq$ where obj#=:1
+END OF STMT
+PARSE #139698261210208:c=62,e=231,p=0,cr=0,cu=0,mis=1,r=0,dep=2,og=4,plh=0,tim=12128814342
+BINDS #139698261210208:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093c1d18  bln=22  avl=04  flg=05
+  value=108621
+EXEC #139698261210208:c=445,e=445,p=0,cr=0,cu=0,mis=1,r=0,dep=2,og=4,plh=2203911306,tim=12128814822
+FETCH #139698261210208:c=15,e=15,p=0,cr=2,cu=0,mis=0,r=1,dep=2,og=4,plh=2203911306,tim=12128814844
+STAT #139698261210208 id=1 cnt=1 pid=0 pos=1 obj=100 op='TABLE ACCESS BY INDEX ROWID SEQ$ (cr=2 pr=0 pw=0 str=1 time=15 us cost=1 size=70 card=1)'
+STAT #139698261210208 id=2 cnt=1 pid=1 pos=1 obj=105 op='INDEX UNIQUE SCAN I_SEQ1 (cr=1 pr=0 pw=0 str=1 time=9 us cost=0 size=0 card=1)'
+CLOSE #139698261210208:c=0,e=0,dep=2,type=3,tim=12128814898
+=====================
+PARSING IN CURSOR #139698261202368 len=129 dep=2 uid=0 oct=6 lid=0 tim=12128815144 hv=2635489469 ad='8bc40a58' sqlid='4m7m0t6fjcs5x'
+update seq$ set increment$=:2,minvalue=:3,maxvalue=:4,cycle#=:5,order$=:6,cache=:7,highwater=:8,audit$=:9,flags=:10 where obj#=:1
+END OF STMT
+PARSE #139698261202368:c=229,e=230,p=0,cr=0,cu=0,mis=1,r=0,dep=2,og=4,plh=0,tim=12128815144
+BINDS #139698261202368:
+
+ Bind#0
+  oacdty=02 mxl=22(02) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=6d4d9757  bln=22  avl=02  flg=09
+  value=1
+ Bind#1
+  oacdty=02 mxl=22(02) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=6d4d9769  bln=22  avl=02  flg=09
+  value=1
+ Bind#2
+  oacdty=02 mxl=22(15) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=6d4d977b  bln=22  avl=15  flg=09
+  value=9999999999999999999999999999
+ Bind#3
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7f0e094af958  bln=22  avl=01  flg=05
+  value=0
+ Bind#4
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7f0e094af970  bln=22  avl=01  flg=01
+  value=0
+ Bind#5
+  oacdty=02 mxl=22(02) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=6d4d978d  bln=22  avl=02  flg=09
+  value=100
+ Bind#6
+  oacdty=02 mxl=22(05) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=6d4d979f  bln=22  avl=05  flg=09
+  value=1176489
+ Bind#7
+  oacdty=01 mxl=32(32) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0
+  kxsbbbfp=6d4d97b1  bln=32  avl=32  flg=09
+  value="--------------------------------"
+ Bind#8
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7f0e094af910  bln=22  avl=02  flg=05
+  value=8
+ Bind#9
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7f0e094af928  bln=22  avl=04  flg=01
+  value=108621
+EXEC #139698261202368:c=139,e=646,p=0,cr=1,cu=2,mis=1,r=1,dep=2,og=4,plh=1935744642,tim=12128815830
+STAT #139698261202368 id=1 cnt=0 pid=0 pos=1 obj=100 op='UPDATE  SEQ$ (cr=1 pr=0 pw=0 str=1 time=80 us)'
+STAT #139698261202368 id=2 cnt=1 pid=1 pos=1 obj=105 op='INDEX UNIQUE SCAN I_SEQ1 (cr=1 pr=0 pw=0 str=1 time=1 us cost=0 size=70 card=1)'
+CLOSE #139698261202368:c=0,e=0,dep=2,type=3,tim=12128815884
+=====================
+PARSING IN CURSOR #139698261191472 len=132 dep=2 uid=165 oct=2 lid=165 tim=12128816320 hv=4142847048 ad='6d9b3820' sqlid='7jf4xk7vfxp28'
+INSERT INTO MTK_AUDIT (ID, TABLE_NAME, ROW_ID, CUST_TOTAL, USERNAME) VALUES (MTK_SEQ.NEXTVAL, 'MTK_ORDERS', :B1 , MTK_F(:B2 ), USER)
+END OF STMT
+PARSE #139698261191472:c=146,e=146,p=0,cr=0,cu=0,mis=1,r=0,dep=2,og=1,plh=0,tim=12128816320
+=====================
+PARSING IN CURSOR #139698261189096 len=131 dep=3 uid=0 oct=3 lid=0 tim=12128816781 hv=303352660 ad='8c9e02e0' sqlid='fh5ufah919kun'
+select /*+ index(idl_sb4$ i_idl_sb41) */ piece#,length,piece from idl_sb4$ where obj#=:1 and part=:2 and version=:3 order by piece#
+END OF STMT
+PARSE #139698261189096:c=239,e=238,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128816780
+BINDS #139698261189096:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdda0  bln=22  avl=04  flg=05
+  value=108622
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdd70  bln=24  avl=02  flg=05
+  value=2
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdd40  bln=24  avl=06  flg=05
+  value=318767104
+EXEC #139698261189096:c=871,e=511,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=1697022209,tim=12128817342
+FETCH #139698261189096:c=24,e=24,p=0,cr=4,cu=0,mis=0,r=1,dep=3,og=4,plh=1697022209,tim=12128817379
+FETCH #139698261189096:c=1,e=2,p=0,cr=1,cu=0,mis=0,r=0,dep=3,og=4,plh=1697022209,tim=12128817405
+STAT #139698261189096 id=1 cnt=1 pid=0 pos=1 obj=372 op='TABLE ACCESS BY INDEX ROWID IDL_SB4$ (cr=4 pr=0 pw=0 str=1 time=24 us cost=3 size=19 card=1)'
+STAT #139698261189096 id=2 cnt=1 pid=1 pos=1 obj=383 op='INDEX RANGE SCAN I_IDL_SB41 (cr=3 pr=0 pw=0 str=1 time=17 us cost=2 size=0 card=1)'
+CLOSE #139698261189096:c=1,e=1,dep=3,type=0,tim=12128817465
+=====================
+PARSING IN CURSOR #139698261189096 len=131 dep=3 uid=0 oct=3 lid=0 tim=12128817698 hv=2863203207 ad='8c772580' sqlid='03guhbfpak0w7'
+select /*+ index(idl_ub1$ i_idl_ub11) */ piece#,length,piece from idl_ub1$ where obj#=:1 and part=:2 and version=:3 order by piece#
+END OF STMT
+PARSE #139698261189096:c=226,e=227,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128817698
+BINDS #139698261189096:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdda0  bln=22  avl=04  flg=05
+  value=108622
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdd70  bln=24  avl=02  flg=05
+  value=2
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdd40  bln=24  avl=06  flg=05
+  value=318767104
+EXEC #139698261189096:c=552,e=552,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=3246118364,tim=12128818289
+FETCH #139698261189096:c=26,e=26,p=0,cr=4,cu=0,mis=0,r=1,dep=3,og=4,plh=3246118364,tim=12128818330
+FETCH #139698261189096:c=4,e=4,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=4,plh=3246118364,tim=12128818349
+STAT #139698261189096 id=1 cnt=2 pid=0 pos=1 obj=369 op='TABLE ACCESS BY INDEX ROWID IDL_UB1$ (cr=5 pr=0 pw=0 str=1 time=26 us cost=3 size=21 card=1)'
+STAT #139698261189096 id=2 cnt=2 pid=1 pos=1 obj=380 op='INDEX RANGE SCAN I_IDL_UB11 (cr=3 pr=0 pw=0 str=1 time=18 us cost=2 size=0 card=1)'
+CLOSE #139698261189096:c=43,e=43,dep=3,type=0,tim=12128818400
+=====================
+PARSING IN CURSOR #139698261189096 len=134 dep=3 uid=0 oct=3 lid=0 tim=12128820978 hv=3938540245 ad='8c7649c0' sqlid='9tt2m0mpc2qqp'
+select /*+ index(idl_char$ i_idl_char1) */ piece#,length,piece from idl_char$ where obj#=:1 and part=:2 and version=:3 order by piece#
+END OF STMT
+PARSE #139698261189096:c=443,e=2572,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128820978
+BINDS #139698261189096:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdda0  bln=22  avl=04  flg=05
+  value=108622
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdd70  bln=24  avl=02  flg=05
+  value=2
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdd40  bln=24  avl=06  flg=05
+  value=318767104
+EXEC #139698261189096:c=577,e=577,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=1319326155,tim=12128821817
+FETCH #139698261189096:c=13,e=13,p=0,cr=2,cu=0,mis=0,r=0,dep=3,og=4,plh=1319326155,tim=12128821841
+STAT #139698261189096 id=1 cnt=0 pid=0 pos=1 obj=370 op='TABLE ACCESS BY INDEX ROWID IDL_CHAR$ (cr=2 pr=0 pw=0 str=1 time=14 us cost=3 size=21 card=1)'
+STAT #139698261189096 id=2 cnt=0 pid=1 pos=1 obj=381 op='INDEX RANGE SCAN I_IDL_CHAR1 (cr=2 pr=0 pw=0 str=1 time=14 us cost=2 size=0 card=1)'
+CLOSE #139698261189096:c=1,e=1,dep=3,type=0,tim=12128821894
+=====================
+PARSING IN CURSOR #139698261189096 len=131 dep=3 uid=0 oct=3 lid=0 tim=12128822160 hv=255652757 ad='8c75aeb0' sqlid='a3jpjzh7mtwwp'
+select /*+ index(idl_ub2$ i_idl_ub21) */ piece#,length,piece from idl_ub2$ where obj#=:1 and part=:2 and version=:3 order by piece#
+END OF STMT
+PARSE #139698261189096:c=104,e=260,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128822160
+BINDS #139698261189096:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdda0  bln=22  avl=04  flg=05
+  value=108622
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdd70  bln=24  avl=02  flg=05
+  value=2
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=08 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093bdd40  bln=24  avl=06  flg=05
+  value=318767104
+EXEC #139698261189096:c=455,e=454,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=2317816222,tim=12128822658
+FETCH #139698261189096:c=16,e=16,p=0,cr=2,cu=0,mis=0,r=0,dep=3,og=4,plh=2317816222,tim=12128822685
+STAT #139698261189096 id=1 cnt=0 pid=0 pos=1 obj=371 op='TABLE ACCESS BY INDEX ROWID IDL_UB2$ (cr=2 pr=0 pw=0 str=1 time=17 us cost=3 size=42 card=2)'
+STAT #139698261189096 id=2 cnt=0 pid=1 pos=1 obj=382 op='INDEX RANGE SCAN I_IDL_UB21 (cr=2 pr=0 pw=0 str=1 time=16 us cost=2 size=0 card=2)'
+CLOSE #139698261189096:c=1,e=1,dep=3,type=0,tim=12128822737
+=====================
+PARSING IN CURSOR #139698261186960 len=768 dep=3 uid=0 oct=3 lid=0 tim=12128823141 hv=2300185736 ad='88479c28' sqlid='1v3pmj64jn348'
+select decode(u.type#, 2, u.ext_username, u.name), o.name,        t.update$, t.insert$, t.delete$, t.enabled,        decode(bitand(t.property, 8192),8192, 1, 0),        decode(bitand(t.property, 65536), 65536, 1, 0),       decode(bitand(t.property, 131072), 131072, 1, 0),       (select o.name from obj$ o          where o.obj# = u.spare2 and o.type# =57),        decode(bitand(t.property, 524288), 524288, 1, 0),        decode(bitand(t.property, 4096),4096, 1, 0),        t.type#  from sys.obj$ o, sys.user$ u, sys.trigger$ t, sys.obj$ bo where t.baseobject=bo.obj# and bo.name = :1 and bo.spare3 = :2  and bo.type# = :3 and bo.namespace = 1  and t.obj#=o.obj# and o.owner#=u.user#  and o.type# = 12 and bitand(property,16)=0 and bitand(property,8)=0  order by o.obj#
+END OF STMT
+PARSE #139698261186960:c=18,e=18,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=4,plh=381121033,tim=12128823141
+BINDS #139698261186960:
+
+ Bind#0
+  oacdty=01 mxl=32(09) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=80 off=0
+  kxsbbbfp=7f0e093b81c8  bln=32  avl=09  flg=05
+  value="MTK_AUDIT"
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=32
+  kxsbbbfp=7f0e093b81e8  bln=22  avl=03  flg=01
+  value=165
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=56
+  kxsbbbfp=7f0e093b8200  bln=22  avl=02  flg=01
+  value=2
+EXEC #139698261186960:c=97,e=97,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=4,plh=381121033,tim=12128823282
+FETCH #139698261186960:c=13,e=13,p=0,cr=4,cu=0,mis=0,r=0,dep=3,og=4,plh=381121033,tim=12128823302
+STAT #139698261186960 id=1 cnt=0 pid=0 pos=1 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=0 pr=0 pw=0 str=0 time=0 us cost=3 size=43 card=1)'
+STAT #139698261186960 id=2 cnt=0 pid=1 pos=1 obj=36 op='INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 str=0 time=0 us cost=2 size=0 card=1)'
+STAT #139698261186960 id=3 cnt=0 pid=0 pos=2 obj=0 op='SORT ORDER BY (cr=4 pr=0 pw=0 str=1 time=15 us cost=11 size=299 card=1)'
+STAT #139698261186960 id=4 cnt=0 pid=3 pos=1 obj=0 op='NESTED LOOPS  (cr=4 pr=0 pw=0 str=1 time=11 us cost=7 size=299 card=1)'
+STAT #139698261186960 id=5 cnt=0 pid=4 pos=1 obj=0 op='NESTED LOOPS  (cr=4 pr=0 pw=0 str=1 time=10 us cost=6 size=124 card=1)'
+STAT #139698261186960 id=6 cnt=0 pid=5 pos=1 obj=0 op='NESTED LOOPS  (cr=4 pr=0 pw=0 str=1 time=10 us cost=4 size=78 card=1)'
+STAT #139698261186960 id=7 cnt=1 pid=6 pos=1 obj=40 op='INDEX RANGE SCAN I_OBJ5 (cr=3 pr=0 pw=0 str=1 time=7 us cost=3 size=49 card=1)'
+STAT #139698261186960 id=8 cnt=0 pid=6 pos=2 obj=279 op='TABLE ACCESS BY INDEX ROWID BATCHED TRIGGER$ (cr=1 pr=0 pw=0 str=1 time=3 us cost=1 size=58 card=2)'
+STAT #139698261186960 id=9 cnt=0 pid=8 pos=1 obj=281 op='INDEX RANGE SCAN I_TRIGGER1 (cr=1 pr=0 pw=0 str=1 time=2 us cost=0 size=0 card=2)'
+STAT #139698261186960 id=10 cnt=0 pid=5 pos=2 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=0 pr=0 pw=0 str=0 time=0 us cost=2 size=46 card=1)'
+STAT #139698261186960 id=11 cnt=0 pid=10 pos=1 obj=36 op='INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 str=0 time=0 us cost=1 size=0 card=1)'
+STAT #139698261186960 id=12 cnt=0 pid=4 pos=2 obj=22 op='TABLE ACCESS CLUSTER USER$ (cr=0 pr=0 pw=0 str=0 time=0 us cost=1 size=175 card=1)'
+STAT #139698261186960 id=13 cnt=0 pid=12 pos=1 obj=11 op='INDEX UNIQUE SCAN I_USER# (cr=0 pr=0 pw=0 str=0 time=0 us cost=0 size=0 card=1)'
+CLOSE #139698261186960:c=1,e=1,dep=3,type=0,tim=12128823541
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176389
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=2
+=====================
+PARSING IN CURSOR #139698261159144 len=143 dep=3 uid=0 oct=3 lid=0 tim=12128830546 hv=2206365737 ad='8c749098' sqlid='9fjf75a1s4y19'
+select procedure#,procedurename,properties,itypeobj#, properties2 from procedureinfo$ where obj#=:1 order by procedurename desc, overload# desc
+END OF STMT
+PARSE #139698261159144:c=136,e=136,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128830546
+BINDS #139698261159144:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09564fe8  bln=22  avl=04  flg=05
+  value=108622
+EXEC #139698261159144:c=609,e=609,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=3798950322,tim=12128831203
+WAIT #139698261159144: nam='asynch descriptor resize' ela= 5 outstanding #aio=0 current aio limit=0 new aio limit=128 obj#=376 tim=12128831259
+WAIT #139698261159144: nam='Disk file operations I/O' ela= 60 FileOperation=2 fileno=9 filetype=2 obj#=376 tim=12128831315
+WAIT #139698261159144: nam='db file sequential read' ela= 118 file#=9 block#=2929 blocks=1 obj#=376 tim=12128831451
+WAIT #139698261159144: nam='db file sequential read' ela= 267 file#=9 block#=72854 blocks=1 obj#=376 tim=12128831941
+WAIT #139698261159144: nam='db file sequential read' ela= 254 file#=9 block#=72892 blocks=1 obj#=366 tim=12128832222
+FETCH #139698261159144:c=1123,e=1035,p=3,cr=3,cu=0,mis=0,r=1,dep=3,og=4,plh=3798950322,tim=12128832245
+=====================
+PARSING IN CURSOR #139698262911672 len=279 dep=3 uid=0 oct=3 lid=0 tim=12128832419 hv=2853793152 ad='8c72f5c8' sqlid='5pnxt7ap1kvc0'
+select position#,sequence#,level#,argument,type#,charsetid,charsetform,properties,nvl(length, 0), nvl(precision#, 0),nvl(scale, 0),nvl(radix, 0), type_owner,type_name,type_subname,type_linkname,pls_type,type_type# from argument$ where obj#=:1 and procedure#=:2 order by sequence#
+END OF STMT
+PARSE #139698262911672:c=159,e=159,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128832419
+BINDS #139698262911672:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7f0e095611e8  bln=22  avl=04  flg=05
+  value=108622
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7f0e09561200  bln=22  avl=02  flg=01
+  value=1
+EXEC #139698262911672:c=330,e=793,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=2582313431,tim=12128833242
+WAIT #139698262911672: nam='db file sequential read' ela= 107 file#=9 block#=2945 blocks=1 obj#=378 tim=12128833369
+WAIT #139698262911672: nam='db file sequential read' ela= 241 file#=9 block#=72949 blocks=1 obj#=378 tim=12128833642
+WAIT #139698262911672: nam='db file sequential read' ela= 173 file#=9 block#=74136 blocks=1 obj#=367 tim=12128833842
+FETCH #139698262911672:c=612,e=612,p=3,cr=3,cu=0,mis=0,r=1,dep=3,og=4,plh=2582313431,tim=12128833861
+FETCH #139698262911672:c=3,e=3,p=0,cr=2,cu=0,mis=0,r=1,dep=3,og=4,plh=2582313431,tim=12128833879
+FETCH #139698262911672:c=1,e=1,p=0,cr=1,cu=0,mis=0,r=0,dep=3,og=4,plh=2582313431,tim=12128833888
+STAT #139698262911672 id=1 cnt=2 pid=0 pos=1 obj=367 op='TABLE ACCESS BY INDEX ROWID ARGUMENT$ (cr=6 pr=3 pw=0 str=1 time=610 us cost=3 size=78 card=1)'
+STAT #139698262911672 id=2 cnt=2 pid=1 pos=1 obj=378 op='INDEX RANGE SCAN I_ARGUMENT2 (cr=4 pr=2 pw=0 str=1 time=410 us cost=2 size=0 card=1)'
+WAIT #139698261159144: nam='db file sequential read' ela= 254 file#=9 block#=72851 blocks=1 obj#=376 tim=12128834200
+FETCH #139698261159144:c=284,e=284,p=1,cr=1,cu=0,mis=0,r=0,dep=3,og=4,plh=3798950322,tim=12128834222
+STAT #139698261159144 id=1 cnt=1 pid=0 pos=1 obj=366 op='TABLE ACCESS BY INDEX ROWID PROCEDUREINFO$ (cr=4 pr=4 pw=0 str=1 time=1036 us cost=6 size=828 card=23)'
+STAT #139698261159144 id=2 cnt=1 pid=1 pos=1 obj=376 op='INDEX RANGE SCAN DESCENDING I_PROCEDUREINFO1 (cr=3 pr=3 pw=0 str=1 time=1031 us cost=2 size=0 card=23)'
+CLOSE #139698261159144:c=0,e=2,dep=3,type=0,tim=12128834281
+CLOSE #139698262911672:c=0,e=1,dep=3,type=0,tim=12128834289
+=====================
+PARSING IN CURSOR #139698261159144 len=53 dep=3 uid=0 oct=3 lid=0 tim=12128834433 hv=1552457782 ad='8c70ca58' sqlid='8wutkrpf8j81q'
+select max(procedure#) from procedurec$ where obj#=:1
+END OF STMT
+PARSE #139698261159144:c=0,e=132,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128834433
+BINDS #139698261159144:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09564fe8  bln=22  avl=04  flg=05
+  value=108622
+EXEC #139698261159144:c=0,e=378,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=1011998884,tim=12128834852
+WAIT #139698261159144: nam='db file sequential read' ela= 94 file#=9 block#=11665 blocks=1 obj#=393 tim=12128834967
+FETCH #139698261159144:c=245,e=137,p=1,cr=1,cu=0,mis=0,r=1,dep=3,og=4,plh=1011998884,tim=12128834996
+STAT #139698261159144 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=1 pr=1 pw=0 str=1 time=138 us)'
+STAT #139698261159144 id=2 cnt=0 pid=1 pos=1 obj=0 op='FIRST ROW  (cr=1 pr=1 pw=0 str=1 time=135 us cost=1 size=9 card=1)'
+STAT #139698261159144 id=3 cnt=0 pid=2 pos=1 obj=393 op='INDEX RANGE SCAN (MIN/MAX) I_PROCEDUREC$ (cr=1 pr=1 pw=0 str=1 time=135 us cost=1 size=9 card=1)'
+CLOSE #139698261159144:c=1,e=1,dep=3,type=0,tim=12128835077
+=====================
+PARSING IN CURSOR #139698261159144 len=57 dep=3 uid=0 oct=3 lid=0 tim=12128835197 hv=2515040609 ad='8c700428' sqlid='2xgubd6ayhyb1'
+select max(procedure#) from procedureplsql$ where obj#=:1
+END OF STMT
+PARSE #139698261159144:c=112,e=112,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128835197
+BINDS #139698261159144:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09564fe8  bln=22  avl=04  flg=05
+  value=108622
+EXEC #139698261159144:c=388,e=388,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=3418045132,tim=12128835612
+WAIT #139698261159144: nam='db file sequential read' ela= 88 file#=9 block#=2977 blocks=1 obj#=395 tim=12128835718
+WAIT #139698261159144: nam='db file sequential read' ela= 221 file#=9 block#=68763 blocks=1 obj#=395 tim=12128835968
+FETCH #139698261159144:c=373,e=372,p=2,cr=2,cu=0,mis=0,r=1,dep=3,og=4,plh=3418045132,tim=12128835991
+STAT #139698261159144 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=2 pr=2 pw=0 str=1 time=374 us)'
+STAT #139698261159144 id=2 cnt=1 pid=1 pos=1 obj=0 op='FIRST ROW  (cr=2 pr=2 pw=0 str=1 time=372 us cost=2 size=9 card=1)'
+STAT #139698261159144 id=3 cnt=1 pid=2 pos=1 obj=395 op='INDEX RANGE SCAN (MIN/MAX) I_PROCEDUREPLSQL$ (cr=2 pr=2 pw=0 str=1 time=371 us cost=2 size=9 card=1)'
+CLOSE #139698261159144:c=0,e=2,dep=3,type=0,tim=12128836073
+=====================
+PARSING IN CURSOR #139698261159144 len=56 dep=3 uid=0 oct=3 lid=0 tim=12128836185 hv=4110536835 ad='8c6f3df8' sqlid='5km6gkvuh3n43'
+select max(procedure#) from procedurejava$ where obj#=:1
+END OF STMT
+PARSE #139698261159144:c=0,e=105,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128836185
+BINDS #139698261159144:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09564fe8  bln=22  avl=04  flg=05
+  value=108622
+EXEC #139698261159144:c=0,e=321,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=2075413643,tim=12128836533
+WAIT #139698261159144: nam='db file sequential read' ela= 1472 file#=9 block#=28833 blocks=1 obj#=391 tim=12128838021
+FETCH #139698261159144:c=370,e=1512,p=1,cr=1,cu=0,mis=0,r=1,dep=3,og=4,plh=2075413643,tim=12128838052
+STAT #139698261159144 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=1 pr=1 pw=0 str=1 time=1513 us)'
+STAT #139698261159144 id=2 cnt=0 pid=1 pos=1 obj=0 op='FIRST ROW  (cr=1 pr=1 pw=0 str=1 time=1512 us cost=1 size=9 card=1)'
+STAT #139698261159144 id=3 cnt=0 pid=2 pos=1 obj=391 op='INDEX RANGE SCAN (MIN/MAX) I_PROCEDUREJAVA$ (cr=1 pr=1 pw=0 str=1 time=1511 us cost=1 size=9 card=1)'
+CLOSE #139698261159144:c=1,e=1,dep=3,type=0,tim=12128838119
+=====================
+PARSING IN CURSOR #139698261159144 len=80 dep=3 uid=0 oct=3 lid=0 tim=12128838242 hv=861121043 ad='8c6e9bb8' sqlid='971vpk0tp7ahm'
+select procedure#,entrypoint# from procedurec$ where obj#=:1 order by procedure#
+END OF STMT
+PARSE #139698261159144:c=115,e=115,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128838242
+BINDS #139698261159144:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09564fe8  bln=22  avl=04  flg=05
+  value=108622
+EXEC #139698261159144:c=364,e=365,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=726556434,tim=12128838634
+FETCH #139698261159144:c=2,e=2,p=0,cr=1,cu=0,mis=0,r=0,dep=3,og=4,plh=726556434,tim=12128838643
+STAT #139698261159144 id=1 cnt=0 pid=0 pos=1 obj=392 op='TABLE ACCESS BY INDEX ROWID PROCEDUREC$ (cr=1 pr=0 pw=0 str=1 time=3 us cost=2 size=242 card=22)'
+STAT #139698261159144 id=2 cnt=0 pid=1 pos=1 obj=393 op='INDEX RANGE SCAN I_PROCEDUREC$ (cr=1 pr=0 pw=0 str=1 time=3 us cost=1 size=0 card=22)'
+CLOSE #139698261159144:c=2,e=2,dep=3,type=0,tim=12128838700
+=====================
+PARSING IN CURSOR #139698261159144 len=84 dep=3 uid=0 oct=3 lid=0 tim=12128838805 hv=2708662576 ad='8c6e57e0' sqlid='bgjhtnqhr5u9h'
+select procedure#,entrypoint# from procedureplsql$ where obj#=:1 order by procedure#
+END OF STMT
+PARSE #139698261159144:c=99,e=99,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128838805
+BINDS #139698261159144:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09564fe8  bln=22  avl=04  flg=05
+  value=108622
+EXEC #139698261159144:c=207,e=337,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=4040384485,tim=12128839177
+WAIT #139698261159144: nam='db file sequential read' ela= 91 file#=9 block#=31532 blocks=1 obj#=394 tim=12128839291
+FETCH #139698261159144:c=126,e=126,p=1,cr=3,cu=0,mis=0,r=1,dep=3,og=4,plh=4040384485,tim=12128839311
+FETCH #139698261159144:c=3,e=3,p=0,cr=1,cu=0,mis=0,r=0,dep=3,og=4,plh=4040384485,tim=12128839327
+STAT #139698261159144 id=1 cnt=1 pid=0 pos=1 obj=394 op='TABLE ACCESS BY INDEX ROWID PROCEDUREPLSQL$ (cr=4 pr=1 pw=0 str=1 time=127 us cost=3 size=231 card=21)'
+STAT #139698261159144 id=2 cnt=1 pid=1 pos=1 obj=395 op='INDEX RANGE SCAN I_PROCEDUREPLSQL$ (cr=3 pr=0 pw=0 str=1 time=7 us cost=2 size=0 card=21)'
+CLOSE #139698261159144:c=2,e=2,dep=3,type=0,tim=12128839380
+=====================
+PARSING IN CURSOR #139698261159144 len=142 dep=3 uid=0 oct=3 lid=0 tim=12128839495 hv=224838358 ad='8c6e1408' sqlid='5j4c2v06qdhqq'
+select procedure#,ownerlength,classlength,methodlength,siglength, flagslength,cookiesize from procedurejava$ where obj#=:1 order by procedure#
+END OF STMT
+PARSE #139698261159144:c=109,e=109,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128839495
+BINDS #139698261159144:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09564bd0  bln=22  avl=04  flg=05
+  value=108622
+EXEC #139698261159144:c=351,e=351,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=423935871,tim=12128839872
+FETCH #139698261159144:c=2,e=2,p=0,cr=1,cu=0,mis=0,r=0,dep=3,og=4,plh=423935871,tim=12128839881
+STAT #139698261159144 id=1 cnt=0 pid=0 pos=1 obj=390 op='TABLE ACCESS BY INDEX ROWID PROCEDUREJAVA$ (cr=1 pr=0 pw=0 str=1 time=3 us cost=3 size=290 card=10)'
+STAT #139698261159144 id=2 cnt=0 pid=1 pos=1 obj=391 op='INDEX RANGE SCAN I_PROCEDUREJAVA$ (cr=1 pr=0 pw=0 str=1 time=3 us cost=1 size=0 card=10)'
+CLOSE #139698261159144:c=1,e=1,dep=3,type=0,tim=12128839939
+=====================
+PARSING IN CURSOR #139698261159144 len=125 dep=3 uid=0 oct=3 lid=0 tim=12128840160 hv=2747448943 ad='8c6dc040' sqlid='83cq1aqjw5gmg'
+select ownername,classname,methodname,signature,flags from procedurejava$ where obj#=:1 and procedure#=:2 order by procedure#
+END OF STMT
+PARSE #139698261159144:c=213,e=213,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=4,plh=0,tim=12128840160
+CLOSE #139698261159144:c=0,e=3,dep=3,type=0,tim=12128840199
+BINDS #139698262652000:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093b6f98  bln=22  avl=04  flg=05
+  value=108622
+EXEC #139698262652000:c=0,e=34,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=4,plh=4006480256,tim=12128840258
+FETCH #139698262652000:c=0,e=22,p=0,cr=8,cu=0,mis=0,r=0,dep=3,og=4,plh=4006480256,tim=12128840287
+CLOSE #139698262652000:c=0,e=1,dep=3,type=3,tim=12128840300
+=====================
+PARSING IN CURSOR #139698262915992 len=56 dep=3 uid=165 oct=3 lid=165 tim=12128840468 hv=4005627691 ad='6d4c7438' sqlid='5zdrtngrc21tb'
+SELECT NVL(MAX(AMOUNT), 0) FROM MTK_CUST WHERE ID = :B1 
+END OF STMT
+PARSE #139698262915992:c=313,e=143,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=1,plh=0,tim=12128840468
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09563750  bln=22  avl=02  flg=05
+  value=2
+EXEC #139698262915992:c=426,e=426,p=0,cr=0,cu=0,mis=1,r=0,dep=3,og=1,plh=251783013,tim=12128840939
+FETCH #139698262915992:c=22,e=22,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12128840971
+STAT #139698262915992 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=3 pr=0 pw=0 str=1 time=22 us)'
+STAT #139698262915992 id=2 cnt=1 pid=1 pos=1 obj=108609 op='TABLE ACCESS BY INDEX ROWID MTK_CUST (cr=3 pr=0 pw=0 str=1 time=20 us cost=2 size=11 card=1)'
+STAT #139698262915992 id=3 cnt=1 pid=2 pos=1 obj=108610 op='INDEX UNIQUE SCAN MTK_CUST_PK (cr=2 pr=0 pw=0 str=1 time=15 us cost=1 size=0 card=1)'
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12128841063
+WAIT #139698261191472: nam='Disk file operations I/O' ela= 13 FileOperation=2 fileno=12 filetype=2 obj#=108614 tim=12128841138
+WAIT #139698261191472: nam='db file sequential read' ela= 12 file#=12 block#=172376 blocks=1 obj#=108614 tim=12128841159
+EXEC #139698261191472:c=13672,e=24884,p=13,cr=52,cu=4,mis=1,r=1,dep=2,og=1,plh=26777049,tim=12128841250
+STAT #139698261191472 id=1 cnt=0 pid=0 pos=1 obj=108614 op='LOAD TABLE CONVENTIONAL  MTK_AUDIT (cr=32 pr=13 pw=0 str=1 time=10880 us)'
+STAT #139698261191472 id=2 cnt=1 pid=1 pos=1 obj=108621 op='SEQUENCE  MTK_SEQ (cr=0 pr=0 pw=0 str=1 time=6 us)'
+CLOSE #139698261191472:c=0,e=1,dep=2,type=3,tim=12128841308
+WAIT #139698262447040: nam='db file sequential read' ela= 3475 file#=12 block#=169945 blocks=1 obj#=108611 tim=12128844817
+WAIT #139698262447040: nam='db file sequential read' ela= 263 file#=12 block#=172160 blocks=1 obj#=108611 tim=12128845119
+EXEC #139698262447040:c=21627,e=43773,p=15,cr=74,cu=16,mis=1,r=1,dep=1,og=1,plh=26777049,tim=12128845260
+STAT #139698262447040 id=1 cnt=1 pid=0 pos=1 obj=108611 op='LOAD TABLE CONVENTIONAL  MTK_ORDERS (cr=56 pr=15 pw=0 str=1 time=31208 us)'
+STAT #139698262447040 id=2 cnt=1 pid=1 pos=1 obj=108621 op='SEQUENCE  MTK_SEQ (cr=3 pr=0 pw=0 str=1 time=2035 us)'
+CLOSE #139698262447040:c=1,e=1,dep=1,type=3,tim=12128845325
+=====================
+PARSING IN CURSOR #139698261185424 len=51 dep=1 uid=165 oct=6 lid=165 tim=12128845457 hv=1817161752 ad='6d503b40' sqlid='bbsmfmjq4zc0s'
+UPDATE MTK_ORDERS SET STATUS = 'WLX' WHERE ID = :B1
+END OF STMT
+PARSE #139698261185424:c=120,e=120,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=0,tim=12128845457
+=====================
+PARSING IN CURSOR #139698262656560 len=124 dep=2 uid=0 oct=3 lid=0 tim=12128845889 hv=4179850718 ad='88346588' sqlid='10gywwmwk6xfy'
+select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, flags, ctime from exp_head$ eh where exp_id = :1
+END OF STMT
+PARSE #139698262656560:c=0,e=26,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=4,plh=1426583507,tim=12128845889
+BINDS #139698262656560:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09562320  bln=22  avl=11  flg=05
+  value=17725570411999660571
+EXEC #139698262656560:c=0,e=37,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=4,plh=1426583507,tim=12128845961
+WAIT #139698262656560: nam='Disk file operations I/O' ela= 11 FileOperation=2 fileno=10 filetype=2 obj#=721 tim=12128846058
+WAIT #139698262656560: nam='db file sequential read' ela= 82 file#=10 block#=66327 blocks=1 obj#=721 tim=12128846156
+FETCH #139698262656560:c=455,e=233,p=1,cr=3,cu=0,mis=0,r=1,dep=2,og=4,plh=1426583507,tim=12128846200
+STAT #139698262656560 id=1 cnt=1 pid=0 pos=1 obj=720 op='TABLE ACCESS BY INDEX ROWID EXP_HEAD$ (cr=3 pr=1 pw=0 str=1 time=231 us cost=2 size=67 card=1)'
+STAT #139698262656560 id=2 cnt=1 pid=1 pos=1 obj=721 op='INDEX UNIQUE SCAN I_EXP_HEAD$ (cr=2 pr=1 pw=0 str=1 time=227 us cost=1 size=0 card=1)'
+CLOSE #139698262656560:c=0,e=0,dep=2,type=3,tim=12128846274
+BINDS #139698262656560:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09562320  bln=22  avl=11  flg=05
+  value=2265377515520905922
+EXEC #139698262656560:c=35,e=34,p=0,cr=0,cu=0,mis=0,r=0,dep=2,og=4,plh=1426583507,tim=12128846339
+WAIT #139698262656560: nam='db file sequential read' ela= 67 file#=10 block#=66381 blocks=1 obj#=721 tim=12128846424
+FETCH #139698262656560:c=97,e=97,p=1,cr=3,cu=0,mis=0,r=1,dep=2,og=4,plh=1426583507,tim=12128846443
+CLOSE #139698262656560:c=0,e=0,dep=2,type=3,tim=12128846456
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176389
+EXEC #139698261185424:c=917,e=1164,p=2,cr=8,cu=1,mis=1,r=1,dep=1,og=1,plh=3268618683,tim=12128846662
+STAT #139698261185424 id=1 cnt=0 pid=0 pos=1 obj=108611 op='UPDATE  MTK_ORDERS (cr=2 pr=0 pw=0 str=1 time=26 us)'
+STAT #139698261185424 id=2 cnt=1 pid=1 pos=1 obj=108612 op='INDEX UNIQUE SCAN MTK_ORDERS_PK (cr=2 pr=0 pw=0 str=1 time=15 us cost=1 size=12 card=1)'
+CLOSE #139698261185424:c=1,e=1,dep=1,type=3,tim=12128846719
+=====================
+PARSING IN CURSOR #139698261214768 len=6 dep=1 uid=165 oct=44 lid=165 tim=12128846734 hv=255718823 ad='0' sqlid='8ggw94h7mvxd7'
+COMMIT
+END OF STMT
+PARSE #139698261214768:c=6,e=6,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=0,plh=0,tim=12128846734
+XCTEND rlbk=0, rd_only=0, tim=12128846760
+EXEC #139698261214768:c=176,e=176,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12128846933
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12128846950
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150043 duration=0 p2=0 p3=0 obj#=108611 tim=12128997011
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=3
+EXEC #139698263446656:c=0,e=53,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12128997117
+FETCH #139698263446656:c=0,e=59,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12128997187
+CLOSE #139698263446656:c=0,e=1,dep=1,type=3,tim=12128997214
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=3
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=2
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176391
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=3
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=3
+EXEC #139698262915992:c=0,e=38,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12128997448
+FETCH #139698262915992:c=0,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12128997466
+CLOSE #139698262915992:c=0,e=1,dep=3,type=3,tim=12128997479
+EXEC #139698261191472:c=0,e=200,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12128997529
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12128997546
+EXEC #139698262447040:c=0,e=359,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12128997583
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12128997598
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176391
+EXEC #139698261185424:c=0,e=60,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12128997667
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12128997681
+XCTEND rlbk=0, rd_only=0, tim=12128997700
+EXEC #139698261214768:c=0,e=40,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12128997730
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12128997742
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150067 duration=0 p2=0 p3=0 obj#=-1 tim=12129147818
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=4
+EXEC #139698263446656:c=54,e=54,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12129147925
+FETCH #139698263446656:c=73,e=72,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12129148010
+CLOSE #139698263446656:c=1,e=1,dep=1,type=3,tim=12129148038
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=4
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=3
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176393
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=4
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=4
+EXEC #139698262915992:c=38,e=38,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12129148263
+FETCH #139698262915992:c=9,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12129148281
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12129148324
+EXEC #139698261191472:c=225,e=225,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12129148375
+CLOSE #139698261191472:c=0,e=1,dep=2,type=3,tim=12129148390
+EXEC #139698262447040:c=384,e=384,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12129148433
+CLOSE #139698262447040:c=1,e=0,dep=1,type=3,tim=12129148447
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176393
+EXEC #139698261185424:c=49,e=49,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12129148505
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12129148519
+XCTEND rlbk=0, rd_only=0, tim=12129148535
+EXEC #139698261214768:c=36,e=36,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12129148563
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12129148573
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150064 duration=0 p2=0 p3=0 obj#=-1 tim=12129298646
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=5
+EXEC #139698263446656:c=47,e=47,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12129298738
+FETCH #139698263446656:c=60,e=60,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12129298809
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12129298829
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=5
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=4
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176395
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=5
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=5
+EXEC #139698262915992:c=36,e=36,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12129299075
+FETCH #139698262915992:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12129299089
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12129299101
+EXEC #139698261191472:c=214,e=214,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12129299156
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12129299171
+EXEC #139698262447040:c=372,e=372,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12129299210
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12129299224
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176395
+EXEC #139698261185424:c=48,e=48,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12129299281
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12129299292
+XCTEND rlbk=0, rd_only=0, tim=12129299304
+EXEC #139698261214768:c=33,e=33,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12129299332
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12129299344
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150084 duration=0 p2=0 p3=0 obj#=-1 tim=12129449435
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=6
+EXEC #139698263446656:c=43,e=43,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12129449531
+FETCH #139698263446656:c=51,e=51,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12129449592
+CLOSE #139698263446656:c=0,e=1,dep=1,type=3,tim=12129449611
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=6
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=5
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176397
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=6
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=6
+EXEC #139698262915992:c=32,e=32,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12129449803
+FETCH #139698262915992:c=5,e=5,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12129449816
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12129449828
+EXEC #139698261191472:c=165,e=165,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12129449868
+CLOSE #139698261191472:c=1,e=1,dep=2,type=3,tim=12129449882
+EXEC #139698262447040:c=290,e=290,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12129449909
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12129449922
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176397
+EXEC #139698261185424:c=47,e=47,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12129449977
+CLOSE #139698261185424:c=0,e=1,dep=1,type=3,tim=12129450013
+XCTEND rlbk=0, rd_only=0, tim=12129450029
+EXEC #139698261214768:c=27,e=27,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12129450052
+CLOSE #139698261214768:c=1,e=1,dep=1,type=3,tim=12129450063
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150067 duration=0 p2=0 p3=0 obj#=-1 tim=12129600137
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=7
+EXEC #139698263446656:c=40,e=40,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12129600208
+FETCH #139698263446656:c=45,e=45,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12129600263
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12129600280
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=7
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=6
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176399
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=7
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=7
+EXEC #139698262915992:c=33,e=33,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12129600475
+FETCH #139698262915992:c=5,e=5,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12129600488
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12129600500
+EXEC #139698261191472:c=175,e=175,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12129600540
+CLOSE #139698261191472:c=0,e=1,dep=2,type=3,tim=12129600554
+EXEC #139698262447040:c=291,e=291,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12129600579
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12129600591
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176399
+EXEC #139698261185424:c=40,e=40,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12129600639
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12129600652
+XCTEND rlbk=0, rd_only=0, tim=12129600662
+EXEC #139698261214768:c=114,e=114,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12129600772
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12129600817
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150069 duration=0 p2=0 p3=0 obj#=-1 tim=12129750895
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=8
+EXEC #139698263446656:c=0,e=41,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12129750967
+FETCH #139698263446656:c=53,e=69,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12129751045
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12129751068
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=8
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=7
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176401
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=8
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=8
+EXEC #139698262915992:c=32,e=32,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12129751266
+FETCH #139698262915992:c=8,e=8,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12129751282
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12129751294
+EXEC #139698261191472:c=160,e=160,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12129751328
+CLOSE #139698261191472:c=1,e=0,dep=2,type=3,tim=12129751341
+EXEC #139698262447040:c=291,e=292,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12129751368
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12129751380
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176401
+EXEC #139698261185424:c=45,e=45,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12129751432
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12129751443
+XCTEND rlbk=0, rd_only=0, tim=12129751453
+EXEC #139698261214768:c=128,e=128,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12129751578
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12129751626
+
+*** 2026-10-25T17:03:21.582839+00:00 (PDB1(3))
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150066 duration=0 p2=0 p3=0 obj#=-1 tim=12129901703
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=9
+EXEC #139698263446656:c=0,e=46,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12129901796
+FETCH #139698263446656:c=0,e=47,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12129901854
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12129901875
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=9
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=8
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176403
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=9
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=9
+EXEC #139698262915992:c=247,e=34,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12129902081
+FETCH #139698262915992:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12129902096
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12129902108
+EXEC #139698261191472:c=320,e=188,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12129902154
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12129902167
+EXEC #139698262447040:c=360,e=310,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12129902194
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12129902206
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176403
+EXEC #139698261185424:c=43,e=43,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12129902261
+CLOSE #139698261185424:c=0,e=1,dep=1,type=3,tim=12129902273
+XCTEND rlbk=0, rd_only=0, tim=12129902282
+EXEC #139698261214768:c=146,e=146,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12129902425
+CLOSE #139698261214768:c=1,e=0,dep=1,type=3,tim=12129902442
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150073 duration=0 p2=0 p3=0 obj#=-1 tim=12130052524
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=10
+EXEC #139698263446656:c=0,e=62,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12130052673
+FETCH #139698263446656:c=0,e=70,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12130052759
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12130052785
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=10
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=9
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176405
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=10
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=10
+EXEC #139698262915992:c=473,e=63,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12130053038
+FETCH #139698262915992:c=10,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12130053056
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12130053069
+EXEC #139698261191472:c=554,e=216,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12130053119
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12130053133
+EXEC #139698262447040:c=609,e=377,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12130053174
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12130053188
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176405
+EXEC #139698261185424:c=49,e=49,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12130053246
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12130053259
+XCTEND rlbk=0, rd_only=0, tim=12130053273
+EXEC #139698261214768:c=37,e=37,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12130053304
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12130053316
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150078 duration=0 p2=0 p3=0 obj#=-1 tim=12130203403
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=11
+EXEC #139698263446656:c=75,e=75,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12130203612
+FETCH #139698263446656:c=81,e=80,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12130203711
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12130203751
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=11
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=10
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176407
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=11
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=11
+EXEC #139698262915992:c=60,e=60,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12130204127
+FETCH #139698262915992:c=13,e=14,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12130204153
+CLOSE #139698262915992:c=1,e=1,dep=3,type=3,tim=12130204171
+EXEC #139698261191472:c=308,e=308,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12130204239
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12130204269
+EXEC #139698262447040:c=563,e=563,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12130204331
+CLOSE #139698262447040:c=1,e=1,dep=1,type=3,tim=12130204353
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176407
+EXEC #139698261185424:c=72,e=72,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12130204437
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12130204455
+XCTEND rlbk=0, rd_only=0, tim=12130204474
+EXEC #139698261214768:c=0,e=53,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12130204519
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12130204545
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150066 duration=0 p2=0 p3=0 obj#=-1 tim=12130354625
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=12
+EXEC #139698263446656:c=52,e=52,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12130354742
+FETCH #139698263446656:c=59,e=59,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12130354814
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12130354838
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=12
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=11
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176409
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=12
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=12
+EXEC #139698262915992:c=38,e=37,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12130355072
+FETCH #139698262915992:c=10,e=10,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12130355091
+CLOSE #139698262915992:c=1,e=1,dep=3,type=3,tim=12130355104
+EXEC #139698261191472:c=204,e=204,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12130355145
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12130355161
+EXEC #139698262447040:c=347,e=347,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12130355194
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12130355211
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176409
+EXEC #139698261185424:c=58,e=58,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12130355278
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12130355290
+XCTEND rlbk=0, rd_only=0, tim=12130355302
+EXEC #139698261214768:c=31,e=31,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12130355328
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12130355339
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150085 duration=0 p2=0 p3=0 obj#=-1 tim=12130505437
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=13
+EXEC #139698263446656:c=63,e=63,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12130505567
+FETCH #139698263446656:c=65,e=65,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12130505647
+CLOSE #139698263446656:c=1,e=1,dep=1,type=3,tim=12130505673
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=13
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=12
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176411
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=13
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=13
+EXEC #139698262915992:c=38,e=38,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12130505915
+FETCH #139698262915992:c=9,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12130505932
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12130505945
+EXEC #139698261191472:c=212,e=212,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12130506017
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12130506039
+EXEC #139698262447040:c=378,e=378,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12130506080
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12130506093
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176411
+EXEC #139698261185424:c=53,e=53,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12130506154
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12130506165
+XCTEND rlbk=0, rd_only=0, tim=12130506177
+EXEC #139698261214768:c=33,e=33,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12130506205
+CLOSE #139698261214768:c=1,e=1,dep=1,type=3,tim=12130506217
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150066 duration=0 p2=0 p3=0 obj#=-1 tim=12130656296
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=14
+EXEC #139698263446656:c=42,e=42,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12130656369
+FETCH #139698263446656:c=44,e=44,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12130656423
+CLOSE #139698263446656:c=1,e=1,dep=1,type=3,tim=12130656440
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=14
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=13
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176413
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=14
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=14
+EXEC #139698262915992:c=32,e=32,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12130656624
+FETCH #139698262915992:c=5,e=5,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12130656637
+CLOSE #139698262915992:c=1,e=1,dep=3,type=3,tim=12130656650
+EXEC #139698261191472:c=159,e=159,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12130656693
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12130656708
+EXEC #139698262447040:c=286,e=286,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12130656734
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12130656746
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176413
+EXEC #139698261185424:c=44,e=44,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12130656798
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12130656810
+XCTEND rlbk=0, rd_only=0, tim=12130656820
+EXEC #139698261214768:c=27,e=27,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12130656844
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12130656854
+
+*** 2026-10-25T17:03:22.488119+00:00 (PDB1(3))
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150089 duration=0 p2=0 p3=0 obj#=-1 tim=12130806950
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=15
+EXEC #139698263446656:c=63,e=63,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12130807147
+FETCH #139698263446656:c=63,e=64,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12130807226
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12130807254
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=14
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176415
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=15
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=15
+EXEC #139698262915992:c=39,e=39,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12130807480
+FETCH #139698262915992:c=9,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12130807497
+CLOSE #139698262915992:c=1,e=1,dep=3,type=3,tim=12130807509
+EXEC #139698261191472:c=197,e=197,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12130807566
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12130807587
+EXEC #139698262447040:c=360,e=360,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12130807624
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12130807638
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176415
+EXEC #139698261185424:c=48,e=48,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12130807694
+CLOSE #139698261185424:c=1,e=1,dep=1,type=3,tim=12130807706
+XCTEND rlbk=0, rd_only=0, tim=12130807718
+EXEC #139698261214768:c=35,e=35,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12130807748
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12130807760
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150065 duration=0 p2=0 p3=0 obj#=-1 tim=12130957900
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=16
+EXEC #139698263446656:c=0,e=72,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12130958021
+FETCH #139698263446656:c=57,e=57,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12130958091
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12130958112
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=16
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=15
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176417
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=16
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=16
+EXEC #139698262915992:c=36,e=36,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12130958335
+FETCH #139698262915992:c=7,e=7,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12130958350
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12130958362
+EXEC #139698261191472:c=192,e=192,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12130958418
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12130958433
+EXEC #139698262447040:c=345,e=345,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12130958467
+CLOSE #139698262447040:c=1,e=1,dep=1,type=3,tim=12130958481
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176417
+EXEC #139698261185424:c=45,e=45,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12130958534
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12130958546
+XCTEND rlbk=0, rd_only=0, tim=12130958558
+EXEC #139698261214768:c=38,e=38,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12130958591
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12130958608
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150069 duration=0 p2=0 p3=0 obj#=-1 tim=12131108749
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=17
+EXEC #139698263446656:c=0,e=66,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12131108909
+FETCH #139698263446656:c=0,e=90,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12131109015
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12131109043
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=17
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=16
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176419
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=17
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=17
+EXEC #139698262915992:c=39,e=39,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12131109279
+FETCH #139698262915992:c=9,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12131109296
+CLOSE #139698262915992:c=1,e=1,dep=3,type=3,tim=12131109309
+EXEC #139698261191472:c=192,e=192,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12131109356
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12131109372
+EXEC #139698262447040:c=355,e=355,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12131109408
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12131109421
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176419
+EXEC #139698261185424:c=47,e=47,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12131109476
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12131109489
+XCTEND rlbk=0, rd_only=0, tim=12131109501
+EXEC #139698261214768:c=35,e=35,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12131109531
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12131109543
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150067 duration=0 p2=0 p3=0 obj#=-1 tim=12131259618
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=18
+EXEC #139698263446656:c=66,e=66,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12131259760
+FETCH #139698263446656:c=66,e=65,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12131259842
+CLOSE #139698263446656:c=1,e=1,dep=1,type=3,tim=12131259871
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=18
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=17
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176421
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=18
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=18
+EXEC #139698262915992:c=38,e=37,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12131260123
+FETCH #139698262915992:c=9,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12131260141
+CLOSE #139698262915992:c=1,e=1,dep=3,type=3,tim=12131260154
+EXEC #139698261191472:c=212,e=212,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12131260208
+CLOSE #139698261191472:c=0,e=1,dep=2,type=3,tim=12131260230
+EXEC #139698262447040:c=385,e=385,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12131260266
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12131260286
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176421
+EXEC #139698261185424:c=47,e=47,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12131260341
+CLOSE #139698261185424:c=1,e=1,dep=1,type=3,tim=12131260354
+XCTEND rlbk=0, rd_only=0, tim=12131260366
+EXEC #139698261214768:c=34,e=34,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12131260395
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12131260409
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150082 duration=0 p2=0 p3=0 obj#=-1 tim=12131410500
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=19
+EXEC #139698263446656:c=49,e=49,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12131410608
+FETCH #139698263446656:c=50,e=49,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12131410669
+CLOSE #139698263446656:c=1,e=1,dep=1,type=3,tim=12131410691
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=19
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=18
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176423
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=19
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=19
+EXEC #139698262915992:c=34,e=34,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12131410886
+FETCH #139698262915992:c=7,e=7,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12131410901
+CLOSE #139698262915992:c=1,e=1,dep=3,type=3,tim=12131410912
+WAIT #139698261191472: nam='Disk file operations I/O' ela= 20 FileOperation=2 fileno=11 filetype=2 obj#=-1 tim=12131410976
+WAIT #139698261191472: nam='db file parallel read' ela= 151 files=1 blocks=1 requests=1 obj#=-1 tim=12131411158
+EXEC #139698261191472:c=427,e=426,p=1,cr=3,cu=3,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12131411214
+CLOSE #139698261191472:c=0,e=1,dep=2,type=3,tim=12131411233
+EXEC #139698262447040:c=567,e=567,p=1,cr=3,cu=10,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12131411266
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12131411279
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176423
+EXEC #139698261185424:c=45,e=45,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12131411333
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12131411346
+XCTEND rlbk=0, rd_only=0, tim=12131411358
+EXEC #139698261214768:c=30,e=30,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12131411383
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12131411394
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150066 duration=0 p2=0 p3=0 obj#=-1 tim=12131561468
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=20
+EXEC #139698263446656:c=0,e=62,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12131561588
+FETCH #139698263446656:c=0,e=55,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12131561658
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12131561682
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=20
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=19
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176425
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=20
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=20
+EXEC #139698262915992:c=0,e=36,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12131561909
+FETCH #139698262915992:c=0,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12131561926
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12131561939
+EXEC #139698261191472:c=500,e=209,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12131562012
+CLOSE #139698261191472:c=0,e=1,dep=2,type=3,tim=12131562040
+EXEC #139698262447040:c=565,e=385,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12131562077
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12131562090
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176425
+EXEC #139698261185424:c=48,e=48,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12131562146
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12131562158
+XCTEND rlbk=0, rd_only=0, tim=12131562170
+EXEC #139698261214768:c=36,e=36,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12131562201
+CLOSE #139698261214768:c=1,e=1,dep=1,type=3,tim=12131562218
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150063 duration=0 p2=0 p3=0 obj#=-1 tim=12131712293
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=21
+EXEC #139698263446656:c=43,e=43,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12131712387
+FETCH #139698263446656:c=40,e=40,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12131712437
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12131712456
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=21
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=20
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176427
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=21
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=21
+EXEC #139698262915992:c=37,e=37,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12131712642
+FETCH #139698262915992:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12131712656
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12131712667
+EXEC #139698261191472:c=159,e=159,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12131712705
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12131712719
+EXEC #139698262447040:c=282,e=282,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12131712746
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12131712759
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176427
+EXEC #139698261185424:c=42,e=42,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12131712809
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12131712822
+XCTEND rlbk=0, rd_only=0, tim=12131712832
+EXEC #139698261214768:c=32,e=31,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12131712860
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12131712876
+
+*** 2026-10-25T17:03:23.544157+00:00 (PDB1(3))
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150073 duration=0 p2=0 p3=0 obj#=-1 tim=12131863020
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=22
+EXEC #139698263446656:c=0,e=45,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12131863118
+FETCH #139698263446656:c=0,e=51,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12131863181
+CLOSE #139698263446656:c=0,e=1,dep=1,type=3,tim=12131863202
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=22
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=21
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176429
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=22
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=22
+EXEC #139698262915992:c=0,e=36,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12131863395
+FETCH #139698262915992:c=0,e=7,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12131863410
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12131863423
+EXEC #139698261191472:c=0,e=163,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12131863459
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12131863472
+EXEC #139698262447040:c=0,e=292,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12131863502
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12131863516
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176429
+EXEC #139698261185424:c=0,e=48,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12131863571
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12131863584
+XCTEND rlbk=0, rd_only=0, tim=12131863595
+EXEC #139698261214768:c=0,e=30,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12131863621
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12131863632
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150084 duration=0 p2=0 p3=0 obj#=-1 tim=12132013780
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=23
+EXEC #139698263446656:c=69,e=69,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12132013932
+FETCH #139698263446656:c=87,e=87,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12132014034
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12132014061
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=23
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=22
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176431
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=23
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=23
+EXEC #139698262915992:c=37,e=36,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12132014277
+FETCH #139698262915992:c=9,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12132014294
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12132014306
+EXEC #139698261191472:c=181,e=182,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12132014352
+CLOSE #139698261191472:c=1,e=1,dep=2,type=3,tim=12132014366
+EXEC #139698262447040:c=328,e=328,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12132014399
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12132014412
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176431
+EXEC #139698261185424:c=48,e=48,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12132014468
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12132014478
+XCTEND rlbk=0, rd_only=0, tim=12132014491
+EXEC #139698261214768:c=34,e=35,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12132014520
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12132014532
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150074 duration=0 p2=0 p3=0 obj#=-1 tim=12132164674
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=24
+EXEC #139698263446656:c=68,e=68,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12132164827
+FETCH #139698263446656:c=71,e=71,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12132164915
+CLOSE #139698263446656:c=0,e=0,dep=1,type=3,tim=12132164943
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=24
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=23
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176433
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=24
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=24
+EXEC #139698262915992:c=44,e=44,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12132165204
+FETCH #139698262915992:c=10,e=10,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12132165222
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12132165235
+EXEC #139698261191472:c=206,e=206,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12132165291
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12132165305
+EXEC #139698262447040:c=389,e=389,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12132165343
+CLOSE #139698262447040:c=1,e=1,dep=1,type=3,tim=12132165357
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176433
+EXEC #139698261185424:c=48,e=48,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12132165413
+CLOSE #139698261185424:c=0,e=0,dep=1,type=3,tim=12132165424
+XCTEND rlbk=0, rd_only=0, tim=12132165438
+EXEC #139698261214768:c=36,e=36,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12132165468
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12132165480
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150068 duration=0 p2=0 p3=0 obj#=-1 tim=12132315556
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=25
+EXEC #139698263446656:c=59,e=59,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12132315676
+FETCH #139698263446656:c=59,e=59,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12132315748
+CLOSE #139698263446656:c=0,e=1,dep=1,type=3,tim=12132315773
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=25
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=24
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09516590  bln=22  avl=05  flg=09
+  value=1176435
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=25
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=25
+EXEC #139698262915992:c=68,e=68,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12132316021
+FETCH #139698262915992:c=9,e=9,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12132316045
+CLOSE #139698262915992:c=0,e=1,dep=3,type=3,tim=12132316059
+EXEC #139698261191472:c=224,e=224,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12132316106
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12132316120
+EXEC #139698262447040:c=372,e=373,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12132316155
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12132316168
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176435
+EXEC #139698261185424:c=48,e=48,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12132316224
+CLOSE #139698261185424:c=0,e=1,dep=1,type=3,tim=12132316237
+XCTEND rlbk=0, rd_only=0, tim=12132316249
+EXEC #139698261214768:c=35,e=35,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12132316279
+CLOSE #139698261214768:c=0,e=0,dep=1,type=3,tim=12132316291
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150068 duration=0 p2=0 p3=0 obj#=-1 tim=12132466431
+BINDS #139698263446656:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09560ef0  bln=22  avl=02  flg=05
+  value=26
+EXEC #139698263446656:c=0,e=57,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1181527510,tim=12132466550
+FETCH #139698263446656:c=0,e=59,p=0,cr=7,cu=0,mis=0,r=5,dep=1,og=1,plh=1181527510,tim=12132466623
+CLOSE #139698263446656:c=0,e=1,dep=1,type=3,tim=12132466646
+BINDS #139698262447040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=26
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09561f08  bln=22  avl=02  flg=05
+  value=25
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=602001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=00  flg=09
+BINDS #139698261191472:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e09519638  bln=22  avl=05  flg=09
+  value=1176437
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f45f8  bln=22  avl=02  flg=09
+  value=26
+BINDS #139698262915992:
+
+ Bind#0
+  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1206001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e0955bdc8  bln=22  avl=02  flg=05
+  value=26
+EXEC #139698262915992:c=0,e=36,p=0,cr=0,cu=0,mis=0,r=0,dep=3,og=1,plh=251783013,tim=12132466858
+FETCH #139698262915992:c=0,e=8,p=0,cr=3,cu=0,mis=0,r=1,dep=3,og=1,plh=251783013,tim=12132466875
+CLOSE #139698262915992:c=0,e=0,dep=3,type=3,tim=12132466888
+EXEC #139698261191472:c=0,e=184,p=0,cr=3,cu=2,mis=0,r=1,dep=2,og=1,plh=26777049,tim=12132466937
+CLOSE #139698261191472:c=0,e=0,dep=2,type=3,tim=12132466952
+EXEC #139698262447040:c=0,e=340,p=0,cr=3,cu=9,mis=0,r=1,dep=1,og=1,plh=26777049,tim=12132466995
+CLOSE #139698262447040:c=0,e=0,dep=1,type=3,tim=12132467025
+BINDS #139698261185424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=13 fl2=202001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e094f4610  bln=22  avl=05  flg=09
+  value=1176437
+EXEC #139698261185424:c=0,e=49,p=0,cr=2,cu=1,mis=0,r=1,dep=1,og=1,plh=3268618683,tim=12132467083
+CLOSE #139698261185424:c=1,e=1,dep=1,type=3,tim=12132467096
+XCTEND rlbk=0, rd_only=0, tim=12132467107
+EXEC #139698261214768:c=30,e=30,p=0,cr=0,cu=1,mis=0,r=0,dep=1,og=0,plh=0,tim=12132467133
+CLOSE #139698261214768:c=1,e=1,dep=1,type=3,tim=12132467145
+WAIT #139698263449976: nam='PL/SQL lock timer' ela= 150065 duration=0 p2=0 p3=0 obj#=-1 tim=12132617217
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132617245
+EXEC #139698263449976:c=44528,e=3824336,p=18,cr=378,cu=283,mis=1,r=1,dep=0,og=1,plh=0,tim=12132617254
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 228 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132617515
+CLOSE #139698263449976:c=7,e=7,dep=0,type=0,tim=12132617539
+=====================
+PARSING IN CURSOR #139698263449976 len=57 dep=0 uid=165 oct=47 lid=165 tim=12132618196 hv=789708827 ad='6d35fba8' sqlid='cxrz8tnrj400v'
+BEGIN dbms_application_info.set_action('customer'); END;
+
+END OF STMT
+PARSE #139698263449976:c=643,e=644,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12132618196
+*** ACTION NAME:(customer) 2026-10-25T17:03:24.299396+00:00
+ 
+EXEC #139698263449976:c=0,e=32,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12132618263
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132618288
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 152 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132618451
+CLOSE #139698263449976:c=0,e=4,dep=0,type=0,tim=12132618471
+=====================
+PARSING IN CURSOR #139698261212936 len=137 dep=1 uid=0 oct=3 lid=0 tim=12132620542 hv=2423459000 ad='81cf20d0' sqlid='23s96rf87635s'
+select count(*) from sys.col_group_usage$  where obj# = :1 and cols = :2 and trunc(sysdate) = trunc(timestamp) and bitand(flags, :3) = :3
+END OF STMT
+PARSE #139698261212936:c=227,e=227,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=12132620541
+BINDS #139698261212936:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=80 off=0
+  kxsbbbfp=7f0e094f33d0  bln=22  avl=04  flg=05
+  value=108609
+ Bind#1
+  oacdty=01 mxl=32(03) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=0 off=24
+  kxsbbbfp=7f0e094f33e8  bln=32  avl=03  flg=01
+  value="1,2"
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=56
+  kxsbbbfp=7f0e094f3408  bln=22  avl=03  flg=01
+  value=132
+ Bind#3
+  No oacdef for this bind.
+EXEC #139698261212936:c=710,e=710,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=1347681019,tim=12132621300
+WAIT #139698261212936: nam='db file sequential read' ela= 106 file#=9 block#=60681 blocks=1 obj#=672 tim=12132621433
+WAIT #139698261212936: nam='db file sequential read' ela= 82 file#=9 block#=65672 blocks=1 obj#=672 tim=12132621556
+FETCH #139698261212936:c=254,e=269,p=2,cr=2,cu=0,mis=0,r=1,dep=1,og=4,plh=1347681019,tim=12132621577
+STAT #139698261212936 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=2 pr=2 pw=0 str=1 time=271 us)'
+STAT #139698261212936 id=2 cnt=0 pid=1 pos=1 obj=671 op='TABLE ACCESS BY INDEX ROWID COL_GROUP_USAGE$ (cr=2 pr=2 pw=0 str=1 time=266 us cost=2 size=24 card=1)'
+STAT #139698261212936 id=3 cnt=0 pid=2 pos=1 obj=672 op='INDEX UNIQUE SCAN PK_COL_GROUP_USAGE$ (cr=2 pr=2 pw=0 str=1 time=265 us cost=1 size=0 card=1)'
+CLOSE #139698261212936:c=1,e=1,dep=1,type=3,tim=12132621649
+=====================
+PARSING IN CURSOR #139698262453424 len=291 dep=1 uid=0 oct=189 lid=0 tim=12132622046 hv=4200462351 ad='6d3e90e0' sqlid='0mqcv3mx5vy0g'
+merge into sys.col_group_usage$ d using (select :1 obj#, :2 cols from dual) s on (d.obj# = s.obj# and d.cols = s.cols) when matched then update set d.timestamp = :3, d.flags = d.flags + :4 - bitand(d.flags, :4) when not matched then insert (obj#, cols, timestamp, flags) values (:1,:2,:3,:4)
+END OF STMT
+PARSE #139698262453424:c=384,e=384,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=12132622046
+BINDS #139698262453424:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093f8678  bln=22  avl=04  flg=05
+  value=108609
+ Bind#1
+  oacdty=01 mxl=32(03) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0
+  kxsbbbfp=7fff81c19c40  bln=32  avl=03  flg=09
+  value="1,2"
+ Bind#2
+  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0
+  kxsbbbfp=7fff81c19c10  bln=07  avl=07  flg=09
+  value="10/25/2026 17:3:24"
+ Bind#3
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0e093f8648  bln=22  avl=03  flg=05
+  value=132
+ Bind#4
+  No oacdef for this bind.
+ Bind#5
+  No oacdef for this bind.
+ Bind#6
+  No oacdef for this bind.
+ Bind#7
+  No oacdef for this bind.
+ Bind#8
+  No oacdef for this bind.
+WAIT #139698262453424: nam='db file sequential read' ela= 115 file#=9 block#=60136 blocks=1 obj#=671 tim=12132623579
+WAIT #139698262453424: nam='db file sequential read' ela= 117 file#=9 block#=60137 blocks=1 obj#=671 tim=12132623733
+EXEC #139698262453424:c=1548,e=1809,p=2,cr=3,cu=4,mis=1,r=1,dep=1,og=4,plh=2584145072,tim=12132623896
+STAT #139698262453424 id=1 cnt=0 pid=0 pos=1 obj=671 op='MERGE  COL_GROUP_USAGE$ (cr=3 pr=2 pw=0 str=1 time=467 us)'
+STAT #139698262453424 id=2 cnt=1 pid=1 pos=1 obj=0 op='VIEW  (cr=2 pr=0 pw=0 str=1 time=7 us)'
+STAT #139698262453424 id=3 cnt=1 pid=2 pos=1 obj=0 op='NESTED LOOPS OUTER (cr=2 pr=0 pw=0 str=1 time=7 us cost=3 size=24 card=1)'
+STAT #139698262453424 id=4 cnt=1 pid=3 pos=1 obj=0 op='FAST DUAL  (cr=0 pr=0 pw=0 str=1 time=1 us cost=2 size=0 card=1)'
+STAT #139698262453424 id=5 cnt=0 pid=3 pos=2 obj=671 op='TABLE ACCESS BY INDEX ROWID COL_GROUP_USAGE$ (cr=2 pr=0 pw=0 str=1 time=3 us cost=1 size=24 card=1)'
+STAT #139698262453424 id=6 cnt=0 pid=5 pos=1 obj=672 op='INDEX UNIQUE SCAN PK_COL_GROUP_USAGE$ (cr=2 pr=0 pw=0 str=1 time=3 us cost=0 size=0 card=1)'
+CLOSE #139698262453424:c=0,e=0,dep=1,type=3,tim=12132624096
+=====================
+PARSING IN CURSOR #139698263449976 len=212 dep=0 uid=165 oct=3 lid=165 tim=12132624621 hv=370708624 ad='6d3f7c90' sqlid='24an7g8b1j44h'
+select /* mtk_wl_orders_cust */ c.id, c.name, count(o.id) orders, sum(o.amount) amount
+  from mtk_cust c left join mtk_orders o on o.cust_id = c.id
+ where c.id between 1 and 40 group by c.id, c.name order by c.id
+END OF STMT
+PARSE #139698263449976:c=5169,e=6139,p=4,cr=5,cu=5,mis=1,r=0,dep=0,og=1,plh=3738585480,tim=12132624621
+EXEC #139698263449976:c=49,e=49,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=3738585480,tim=12132624706
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132624726
+FETCH #139698263449976:c=542,e=542,p=0,cr=238,cu=0,mis=0,r=1,dep=0,og=1,plh=3738585480,tim=12132625279
+WAIT #139698263449976: nam='log file sync' ela= 2186 buffer#=533 sync scn=27807353 p3=0 obj#=-1 tim=12132627481
+WAIT #139698263449976: nam='PGA memory operation' ela= 88 which=5 bytes=1310700 where=4 obj#=-1 tim=12132627611
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 134 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132627760
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132627778
+FETCH #139698263449976:c=11,e=11,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132627786
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 108 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132627903
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132627921
+FETCH #139698263449976:c=10,e=10,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132627927
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 115 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628050
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628071
+FETCH #139698263449976:c=10,e=10,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628078
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 76 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628162
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628178
+FETCH #139698263449976:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628184
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 72 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628264
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628280
+FETCH #139698263449976:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628286
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 72 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628366
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628381
+FETCH #139698263449976:c=8,e=9,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628387
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 72 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628467
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628482
+FETCH #139698263449976:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628488
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 72 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628567
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628583
+FETCH #139698263449976:c=0,e=8,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628588
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 72 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628668
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628686
+FETCH #139698263449976:c=0,e=9,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628692
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 74 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628774
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628790
+FETCH #139698263449976:c=0,e=9,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628796
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 72 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628876
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628892
+FETCH #139698263449976:c=0,e=9,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132628898
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 71 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132628977
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132629012
+FETCH #139698263449976:c=0,e=14,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132629022
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 82 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132629112
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132629128
+FETCH #139698263449976:c=0,e=9,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=3738585480,tim=12132629134
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 72 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132629214
+FETCH #139698263449976:c=0,e=4,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=3738585480,tim=12132629231
+STAT #139698263449976 id=1 cnt=40 pid=0 pos=1 obj=0 op='SORT GROUP BY (cr=238 pr=0 pw=0 str=1 time=546 us cost=86 size=2240 card=40)'
+STAT #139698263449976 id=2 cnt=226 pid=1 pos=1 obj=0 op='NESTED LOOPS OUTER (cr=238 pr=0 pw=0 str=1 time=583 us cost=85 size=2240 card=40)'
+STAT #139698263449976 id=3 cnt=40 pid=2 pos=1 obj=108609 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_CUST (cr=4 pr=0 pw=0 str=1 time=12 us cost=5 size=1640 card=40)'
+STAT #139698263449976 id=4 cnt=40 pid=3 pos=1 obj=108610 op='INDEX RANGE SCAN MTK_CUST_PK (cr=2 pr=0 pw=0 str=1 time=8 us cost=2 size=0 card=40)'
+STAT #139698263449976 id=5 cnt=226 pid=2 pos=2 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=234 pr=0 pw=0 str=40 time=493 us cost=2 size=15 card=1)'
+STAT #139698263449976 id=6 cnt=226 pid=5 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=8 pr=0 pw=0 str=40 time=49 us cost=1 size=0 card=1)'
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132629373
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 114 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132629494
+CLOSE #139698263449976:c=3,e=2,dep=0,type=0,tim=12132629512
+=====================
+PARSING IN CURSOR #139698263449976 len=56 dep=0 uid=165 oct=47 lid=165 tim=12132630045 hv=2715025236 ad='6d3dec10' sqlid='d2xksukhx7zun'
+BEGIN dbms_application_info.set_action('cleanup'); END;
+
+END OF STMT
+PARSE #139698263449976:c=521,e=521,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12132630045
+*** ACTION NAME:(cleanup) 2026-10-25T17:03:24.311230+00:00
+ 
+EXEC #139698263449976:c=22,e=22,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12132630100
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132630120
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 122 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132630252
+CLOSE #139698263449976:c=4,e=4,dep=0,type=0,tim=12132630271
+=====================
+PARSING IN CURSOR #139698263449976 len=52 dep=0 uid=165 oct=7 lid=165 tim=12132630799 hv=2298798525 ad='6d354b50' sqlid='g60n82a4h9sdx'
+delete from mtk_orders where status in ('WL', 'WLX')
+END OF STMT
+PARSE #139698263449976:c=65,e=517,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=257351139,tim=12132630799
+WAIT #139698263449976: nam='db file parallel read' ela= 41 files=1 blocks=1 requests=1 obj#=-1 tim=12132634268
+EXEC #139698263449976:c=4575,e=4466,p=1,cr=500,cu=129,mis=0,r=25,dep=0,og=1,plh=257351139,tim=12132635297
+STAT #139698263449976 id=1 cnt=0 pid=0 pos=1 obj=108611 op='DELETE  MTK_ORDERS (cr=500 pr=1 pw=0 str=1 time=4451 us)'
+STAT #139698263449976 id=2 cnt=25 pid=1 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=499 pr=0 pw=0 str=1 time=3253 us cost=137 size=17 card=1)'
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132635365
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 114 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132635486
+CLOSE #139698263449976:c=2,e=2,dep=0,type=0,tim=12132635503
+=====================
+PARSING IN CURSOR #139698263449976 len=6 dep=0 uid=165 oct=44 lid=165 tim=12132635551 hv=3480936638 ad='0' sqlid='23wm3kz7rps5y'
+commit
+END OF STMT
+PARSE #139698263449976:c=37,e=37,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12132635551
+XCTEND rlbk=0, rd_only=0, tim=12132635580
+EXEC #139698263449976:c=33,e=33,p=0,cr=0,cu=1,mis=0,r=0,dep=0,og=0,plh=0,tim=12132635609
+WAIT #139698263449976: nam='log file sync' ela= 4120 buffer#=537 sync scn=27807356 p3=0 obj#=-1 tim=12132639736
+WAIT #139698263449976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132639758
+WAIT #139698263449976: nam='SQL*Net message from client' ela= 161 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12132639927
+CLOSE #139698263449976:c=2,e=2,dep=0,type=1,tim=12132639944
+=====================
+PARSING IN CURSOR #139698262899152 len=55 dep=0 uid=165 oct=42 lid=165 tim=12132639960 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #139698262899152:c=7,e=7,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12132639960
+EXEC #139698262899152:c=178,e=178,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12132640171

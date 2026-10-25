@@ -1,0 +1,37 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_p004_22616.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 68
+Unix process pid: 22616, image: oracle@ol9-19-dg1.localdomain (P004)
+
+
+*** 2026-10-25T17:03:20.658224+00:00 (PDB1(3))
+*** SESSION ID:(37.15672) 2026-10-25T17:03:20.658253+00:00
+*** CLIENT ID:() 2026-10-25T17:03:20.658256+00:00
+*** SERVICE NAME:(pdb1) 2026-10-25T17:03:20.658259+00:00
+*** MODULE NAME:(mtk_wl_report) 2026-10-25T17:03:20.658261+00:00
+*** ACTION NAME:(px_by_status) 2026-10-25T17:03:20.658264+00:00
+*** CLIENT DRIVER:(SERVER) 2026-10-25T17:03:20.658266+00:00
+*** CONTAINER ID:(3) 2026-10-25T17:03:20.658268+00:00
+ 
+WAIT #0: nam='PX Deq: Execution Msg' ela= 4281 sleeptime/senderid=268566527 passes=1 p3=2391406936 obj#=-1 tim=12128976870
+*** CLIENT ID:(mtk_client_wl_report) 2026-10-25T17:03:20.659862+00:00
+ 
+
+*** TRACE CONTINUES IN FILE /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_p004_22616_mtk_wl_report.trc ***
+

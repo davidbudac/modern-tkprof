@@ -1,0 +1,664 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_22606_mtk_wl_admin.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 68
+Unix process pid: 22606, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-10-25T17:03:20.512191+00:00 (PDB1(3))
+*** SESSION ID:(33.58818) 2026-10-25T17:03:20.512206+00:00
+*** CLIENT ID:(mtk_client_wl_admin) 2026-10-25T17:03:20.512209+00:00
+*** SERVICE NAME:(pdb1) 2026-10-25T17:03:20.512212+00:00
+*** MODULE NAME:(mtk_wl_admin) 2026-10-25T17:03:20.512214+00:00
+*** ACTION NAME:(start) 2026-10-25T17:03:20.512217+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-10-25T17:03:20.512219+00:00
+*** CONTAINER ID:(3) 2026-10-25T17:03:20.512221+00:00
+ 
+WAIT #139685779718688: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128830809
+WAIT #139685779718688: nam='SQL*Net message from client' ela= 642 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128831777
+=====================
+PARSING IN CURSOR #139685778596608 len=52 dep=0 uid=165 oct=47 lid=165 tim=12128831828 hv=1029988163 ad='753fd3c8' sqlid='9babjv8yq8ru3'
+BEGIN DBMS_OUTPUT.GET_LINES(:LINES, :NUMLINES); END;
+END OF STMT
+PARSE #139685778596608:c=31,e=32,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128831828
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213654e8  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b21365778  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128832233
+EXEC #139685778596608:c=156,e=156,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128832247
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 698 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128832961
+CLOSE #139685779718688:c=2,e=2,dep=0,type=1,tim=12128832980
+CLOSE #139685778596608:c=16,e=16,dep=0,type=1,tim=12128833011
+=====================
+PARSING IN CURSOR #139685778555176 len=55 dep=0 uid=165 oct=47 lid=165 tim=12128833525 hv=3090513336 ad='6d4ab8d0' sqlid='6xa8up2w3azds'
+BEGIN dbms_application_info.set_action('errors'); END;
+
+END OF STMT
+PARSE #139685778555176:c=501,e=501,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128833525
+*** ACTION NAME:(errors) 2026-10-25T17:03:20.514709+00:00
+ 
+EXEC #139685778555176:c=22,e=22,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128833578
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128833598
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 358 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128833969
+PARSE #139685778596608:c=973,e=973,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128834968
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b21364638  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213648c8  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128835111
+EXEC #139685778596608:c=0,e=132,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128835123
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 127 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128835263
+CLOSE #139685778555176:c=0,e=4,dep=0,type=0,tim=12128835293
+CLOSE #139685778596608:c=0,e=1,dep=0,type=3,tim=12128835305
+=====================
+PARSING IN CURSOR #139685778553688 len=332 dep=1 uid=0 oct=3 lid=0 tim=12128835912 hv=2698389488 ad='8ca175d8' sqlid='acmvv4fhdc9zh'
+select obj#,type#,ctime,mtime,stime, status, dataobj#, flags, oid$, spare1, spare2, spare3, signature, spare7, spare8, spare9, nvl(dflcollid, 16382), creappid, creverid, modappid, modverid, crepatchid, modpatchid from obj$ where owner#=:1 and name=:2 and namespace=:3 and remoteowner is null and linkname is null and subname is null
+END OF STMT
+PARSE #139685778553688:c=0,e=410,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=12128835912
+BINDS #139685778553688:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=80 off=0
+  kxsbbbfp=7f0b213a9050  bln=22  avl=03  flg=05
+  value=165
+ Bind#1
+  oacdty=01 mxl=32(17) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=0 off=24
+  kxsbbbfp=7f0b213a9068  bln=32  avl=17  flg=01
+  value="MTK_NO_SUCH_TABLE"
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=56
+  kxsbbbfp=7f0b213a9088  bln=22  avl=02  flg=01
+  value=1
+EXEC #139685778553688:c=967,e=2495,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=813480514,tim=12128838447
+FETCH #139685778553688:c=25,e=25,p=0,cr=3,cu=0,mis=0,r=0,dep=1,og=4,plh=813480514,tim=12128838481
+STAT #139685778553688 id=1 cnt=0 pid=0 pos=1 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=3 pr=0 pw=0 str=1 time=26 us cost=4 size=111 card=1)'
+STAT #139685778553688 id=2 cnt=0 pid=1 pos=1 obj=37 op='INDEX RANGE SCAN I_OBJ2 (cr=3 pr=0 pw=0 str=1 time=26 us cost=3 size=0 card=1)'
+CLOSE #139685778553688:c=0,e=0,dep=1,type=3,tim=12128838542
+BINDS #139685778553688:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=80 off=0
+  kxsbbbfp=7f0b213a8850  bln=22  avl=02  flg=05
+  value=1
+ Bind#1
+  oacdty=01 mxl=32(17) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=0 off=24
+  kxsbbbfp=7f0b213a8868  bln=32  avl=17  flg=01
+  value="MTK_NO_SUCH_TABLE"
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=56
+  kxsbbbfp=7f0b213a8888  bln=22  avl=02  flg=01
+  value=1
+EXEC #139685778553688:c=81,e=81,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=813480514,tim=12128838689
+WAIT #139685778553688: nam='asynch descriptor resize' ela= 4 outstanding #aio=0 current aio limit=0 new aio limit=128 obj#=37 tim=12128838738
+WAIT #139685778553688: nam='Disk file operations I/O' ela= 38 FileOperation=2 fileno=9 filetype=2 obj#=37 tim=12128838773
+WAIT #139685778553688: nam='db file sequential read' ela= 1244 file#=9 block#=10246 blocks=1 obj#=37 tim=12128840032
+FETCH #139685778553688:c=557,e=1378,p=1,cr=3,cu=0,mis=0,r=0,dep=1,og=4,plh=813480514,tim=12128840074
+CLOSE #139685778553688:c=1,e=1,dep=1,type=3,tim=12128840091
+=====================
+PARSE ERROR #139685778555176:len=31 dep=0 uid=165 oct=3 lid=165 tim=12128840169 err=942
+select * from mtk_no_such_table
+WAIT #139685778555176: nam='SQL*Net break/reset to client' ela= 2 driver id=1952673792 break?=1 p3=0 obj#=-1 tim=12128840224
+WAIT #139685778555176: nam='SQL*Net break/reset to client' ela= 87 driver id=1952673792 break?=0 p3=0 obj#=-1 tim=12128840322
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128840333
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 188 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128841224
+PARSE #139685778596608:c=0,e=7,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128841252
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213a85f8  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213a8888  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128841373
+EXEC #139685778596608:c=0,e=122,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128841385
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 114 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128841513
+CLOSE #139685778555176:c=0,e=1,dep=0,type=0,tim=12128841530
+CLOSE #139685778596608:c=0,e=3,dep=0,type=3,tim=12128841543
+=====================
+PARSING IN CURSOR #139685778854888 len=124 dep=1 uid=0 oct=3 lid=0 tim=12128842310 hv=4179850718 ad='88346588' sqlid='10gywwmwk6xfy'
+select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, flags, ctime from exp_head$ eh where exp_id = :1
+END OF STMT
+PARSE #139685778854888:c=253,e=253,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=12128842310
+BINDS #139685778854888:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0b213a6570  bln=22  avl=11  flg=05
+  value=8480628474941641410
+EXEC #139685778854888:c=433,e=433,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=1426583507,tim=12128842794
+WAIT #139685778854888: nam='Disk file operations I/O' ela= 11 FileOperation=2 fileno=10 filetype=2 obj#=721 tim=12128842843
+WAIT #139685778854888: nam='db file sequential read' ela= 1208 file#=10 block#=66383 blocks=1 obj#=721 tim=12128844061
+FETCH #139685778854888:c=92,e=1295,p=1,cr=3,cu=0,mis=0,r=1,dep=1,og=4,plh=1426583507,tim=12128844096
+STAT #139685778854888 id=1 cnt=1 pid=0 pos=1 obj=720 op='TABLE ACCESS BY INDEX ROWID EXP_HEAD$ (cr=3 pr=1 pw=0 str=1 time=1294 us cost=2 size=67 card=1)'
+STAT #139685778854888 id=2 cnt=1 pid=1 pos=1 obj=721 op='INDEX UNIQUE SCAN I_EXP_HEAD$ (cr=2 pr=1 pw=0 str=1 time=1288 us cost=1 size=0 card=1)'
+CLOSE #139685778854888:c=0,e=0,dep=1,type=3,tim=12128844155
+BINDS #139685778854888:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0b213a6570  bln=22  avl=11  flg=05
+  value=12329691080966954075
+EXEC #139685778854888:c=38,e=38,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=12128844335
+WAIT #139685778854888: nam='db file sequential read' ela= 380 file#=10 block#=66171 blocks=1 obj#=721 tim=12128844739
+WAIT #139685778854888: nam='db file sequential read' ela= 299 file#=10 block#=66346 blocks=1 obj#=720 tim=12128845067
+FETCH #139685778854888:c=752,e=752,p=2,cr=3,cu=0,mis=0,r=1,dep=1,og=4,plh=1426583507,tim=12128845093
+CLOSE #139685778854888:c=0,e=1,dep=1,type=3,tim=12128845108
+=====================
+PARSING IN CURSOR #139685778555176 len=88 dep=0 uid=165 oct=3 lid=165 tim=12128845160 hv=1002166449 ad='6d4864d0' sqlid='9htfqsnxvrq5j'
+select /* mtk_wl_admin_divzero */ id, 1/(id - 3) from mtk_cust where id <= 5 order by id
+END OF STMT
+PARSE #139685778555176:c=1923,e=3607,p=3,cr=6,cu=0,mis=1,r=0,dep=0,og=1,plh=1617868800,tim=12128845159
+EXEC #139685778555176:c=0,e=7,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=1617868800,tim=12128845192
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128845205
+FETCH #139685778555176:c=0,e=16,p=0,cr=2,cu=0,mis=0,r=1,dep=0,og=1,plh=1617868800,tim=12128845230
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 105 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128845346
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128845368
+FETCH #139685778555176:c=0,e=25,p=0,cr=1,cu=0,mis=0,r=1,dep=0,og=1,plh=1617868800,tim=12128845387
+STAT #139685778555176 id=1 cnt=3 pid=0 pos=1 obj=108610 op='INDEX RANGE SCAN MTK_CUST_PK (cr=3 pr=0 pw=0 str=1 time=14 us cost=2 size=25 card=5)'
+WAIT #139685778555176: nam='SQL*Net break/reset to client' ela= 1 driver id=1952673792 break?=1 p3=0 obj#=-1 tim=12128846072
+WAIT #139685778555176: nam='SQL*Net break/reset to client' ela= 42 driver id=1952673792 break?=0 p3=0 obj#=-1 tim=12128846122
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 139 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128847216
+PARSE #139685778596608:c=0,e=6,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128847244
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213a3c80  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213a3f10  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128847355
+EXEC #139685778596608:c=0,e=112,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128847368
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 98 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128847480
+CLOSE #139685778555176:c=2,e=2,dep=0,type=0,tim=12128847498
+CLOSE #139685778596608:c=3,e=3,dep=0,type=3,tim=12128847511
+=====================
+PARSING IN CURSOR #139685778555176 len=57 dep=0 uid=165 oct=47 lid=165 tim=12128847964 hv=2155668125 ad='6d473dc0' sqlid='ad0sjq207tsnx'
+BEGIN dbms_application_info.set_action('literals'); END;
+
+END OF STMT
+PARSE #139685778555176:c=443,e=443,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128847963
+*** ACTION NAME:(literals) 2026-10-25T17:03:20.529164+00:00
+ 
+EXEC #139685778555176:c=19,e=19,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128848033
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128848056
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 100 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128848166
+PARSE #139685778596608:c=6,e=6,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128848189
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b2139dbe0  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b2139de70  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128848284
+EXEC #139685778596608:c=87,e=87,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128848295
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 134 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128848442
+CLOSE #139685778555176:c=4,e=3,dep=0,type=0,tim=12128848460
+CLOSE #139685778596608:c=2,e=2,dep=0,type=3,tim=12128848470
+=====================
+PARSING IN CURSOR #139685778555176 len=183 dep=0 uid=165 oct=47 lid=165 tim=12128850307 hv=411026354 ad='6d46fd18' sqlid='26mag2cc7zhxk'
+begin
+  for i in 1 .. 20 loop
+    execute immediate 'select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = ' || i || ' and amount > ' || (i * 3);
+  end loop;
+end;
+END OF STMT
+PARSE #139685778555176:c=469,e=1828,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128850306
+=====================
+PARSING IN CURSOR #139685778838480 len=91 dep=1 uid=165 oct=3 lid=165 tim=12128850989 hv=1098579281 ad='6d46bc70' sqlid='cr899090rpzaj'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 1 and amount > 3
+END OF STMT
+PARSE #139685778838480:c=632,e=632,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128850989
+EXEC #139685778838480:c=18,e=18,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128851051
+STAT #139685778838480 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778838480 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778838480 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778838480:c=236,e=892,dep=1,type=3,tim=12128851959
+=====================
+PARSING IN CURSOR #139685778835600 len=91 dep=1 uid=165 oct=3 lid=165 tim=12128852539 hv=2899812303 ad='6d4627a0' sqlid='1fftc8kqdg7yg'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 2 and amount > 6
+END OF STMT
+PARSE #139685778835600:c=566,e=566,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128852539
+EXEC #139685778835600:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128852592
+STAT #139685778835600 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778835600 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778835600 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778835600:c=54,e=54,dep=1,type=3,tim=12128852661
+=====================
+PARSING IN CURSOR #139685778815928 len=91 dep=1 uid=165 oct=3 lid=165 tim=12128854237 hv=431345925 ad='6d4592d0' sqlid='dvj7zpccvbn85'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 3 and amount > 9
+END OF STMT
+PARSE #139685778815928:c=484,e=1565,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128854237
+EXEC #139685778815928:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128854280
+STAT #139685778815928 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778815928 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778815928 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778815928:c=55,e=54,dep=1,type=3,tim=12128854349
+=====================
+PARSING IN CURSOR #139685778813392 len=92 dep=1 uid=165 oct=3 lid=165 tim=12128854861 hv=20246495 ad='6d44fe00' sqlid='9rwt9hn0m9vyz'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 4 and amount > 12
+END OF STMT
+PARSE #139685778813392:c=501,e=501,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128854861
+EXEC #139685778813392:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128854900
+STAT #139685778813392 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778813392 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778813392 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778813392:c=55,e=55,dep=1,type=3,tim=12128854969
+=====================
+PARSING IN CURSOR #139685778810512 len=92 dep=1 uid=165 oct=3 lid=165 tim=12128856549 hv=1480307998 ad='6d446930' sqlid='2x0rzc1c3rd8y'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 5 and amount > 15
+END OF STMT
+PARSE #139685778810512:c=432,e=1570,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128856549
+EXEC #139685778810512:c=9,e=10,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128856593
+STAT #139685778810512 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778810512 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778810512 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778810512:c=56,e=56,dep=1,type=3,tim=12128856663
+=====================
+PARSING IN CURSOR #139685778806344 len=92 dep=1 uid=165 oct=3 lid=165 tim=12128858249 hv=3159554221 ad='6d43d460' sqlid='9pcatguy55y5d'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 6 and amount > 18
+END OF STMT
+PARSE #139685778806344:c=705,e=1574,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128858248
+EXEC #139685778806344:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128858299
+STAT #139685778806344 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778806344 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778806344 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778806344:c=55,e=55,dep=1,type=3,tim=12128858369
+=====================
+PARSING IN CURSOR #139685778803808 len=92 dep=1 uid=165 oct=3 lid=165 tim=12128858937 hv=256369222 ad='6d432f90' sqlid='51yg2s07ngsk6'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 7 and amount > 21
+END OF STMT
+PARSE #139685778803808:c=557,e=557,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128858937
+EXEC #139685778803808:c=9,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128858975
+STAT #139685778803808 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778803808 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778803808 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778803808:c=60,e=60,dep=1,type=3,tim=12128859066
+=====================
+PARSING IN CURSOR #139685778801176 len=92 dep=1 uid=165 oct=3 lid=165 tim=12128860657 hv=2025002561 ad='6d429ac0' sqlid='gr2jxcjwb65k1'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 8 and amount > 24
+END OF STMT
+PARSE #139685778801176:c=351,e=1580,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128860657
+EXEC #139685778801176:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128860700
+STAT #139685778801176 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778801176 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=2 us cost=6 size=50 card=5)'
+STAT #139685778801176 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778801176:c=55,e=55,dep=1,type=3,tim=12128860770
+=====================
+PARSING IN CURSOR #139685778928856 len=92 dep=1 uid=165 oct=3 lid=165 tim=12128862374 hv=2742748240 ad='6d4205f0' sqlid='gf5htz6jrq12h'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 9 and amount > 27
+END OF STMT
+PARSE #139685778928856:c=750,e=1593,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128862374
+EXEC #139685778928856:c=10,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128862418
+STAT #139685778928856 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778928856 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778928856 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778928856:c=56,e=55,dep=1,type=3,tim=12128862488
+=====================
+PARSING IN CURSOR #139685778925976 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128863093 hv=3138671082 ad='6d417120' sqlid='bhbkn9uxj8nga'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 10 and amount > 30
+END OF STMT
+PARSE #139685778925976:c=594,e=594,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128863093
+EXEC #139685778925976:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128863136
+STAT #139685778925976 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778925976 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778925976 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778925976:c=211,e=1109,dep=1,type=3,tim=12128864259
+=====================
+PARSING IN CURSOR #139685778921496 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128864807 hv=1215599109 ad='6d40dc50' sqlid='97cwu414794h5'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 11 and amount > 33
+END OF STMT
+PARSE #139685778921496:c=534,e=534,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128864807
+EXEC #139685778921496:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128864846
+STAT #139685778921496 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778921496 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778921496 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778921496:c=59,e=59,dep=1,type=3,tim=12128864920
+=====================
+PARSING IN CURSOR #139685778920008 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128866617 hv=4008408478 ad='6d404780' sqlid='2hy34h7rfqxcy'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 12 and amount > 36
+END OF STMT
+PARSE #139685778920008:c=531,e=1685,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128866617
+EXEC #139685778920008:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128866660
+STAT #139685778920008 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778920008 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=2 us cost=6 size=50 card=5)'
+STAT #139685778920008 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=0 us cost=1 size=0 card=5)'
+CLOSE #139685778920008:c=66,e=66,dep=1,type=3,tim=12128866741
+=====================
+PARSING IN CURSOR #139685778915096 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128868392 hv=2457675035 ad='6d3f1480' sqlid='6dr9uwf97u98v'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 13 and amount > 39
+END OF STMT
+PARSE #139685778915096:c=664,e=1636,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128868391
+EXEC #139685778915096:c=10,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128868435
+STAT #139685778915096 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778915096 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=2 us cost=6 size=50 card=5)'
+STAT #139685778915096 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778915096:c=55,e=55,dep=1,type=3,tim=12128868505
+=====================
+PARSING IN CURSOR #139685778912216 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128869601 hv=85763007 ad='6d3d8780' sqlid='0hjbd1w2jt8xz'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 14 and amount > 42
+END OF STMT
+PARSE #139685778912216:c=545,e=1084,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128869600
+EXEC #139685778912216:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128869644
+STAT #139685778912216 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778912216 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778912216 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778912216:c=55,e=55,dep=1,type=3,tim=12128869714
+=====================
+PARSING IN CURSOR #139685778896888 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128871364 hv=3625171470 ad='6d3ce2b0' sqlid='6fj3g3mc17fhf'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 15 and amount > 45
+END OF STMT
+PARSE #139685778896888:c=599,e=1630,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128871363
+EXEC #139685778896888:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128871410
+STAT #139685778896888 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778896888 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778896888 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778896888:c=61,e=61,dep=1,type=3,tim=12128871488
+=====================
+PARSING IN CURSOR #139685778894008 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128873086 hv=3106003522 ad='6d3c4de0' sqlid='f8k3h4qwk3qk2'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 16 and amount > 48
+END OF STMT
+PARSE #139685778894008:c=586,e=1588,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128873086
+EXEC #139685778894008:c=10,e=10,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128873130
+STAT #139685778894008 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778894008 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778894008 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778894008:c=55,e=55,dep=1,type=3,tim=12128873200
+=====================
+PARSING IN CURSOR #139685778891472 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128873737 hv=3813791835 ad='6d3bb910' sqlid='5cg05m7jp3q2v'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 17 and amount > 51
+END OF STMT
+PARSE #139685778891472:c=525,e=525,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128873736
+EXEC #139685778891472:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128873776
+STAT #139685778891472 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=2 us)'
+STAT #139685778891472 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778891472 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778891472:c=54,e=55,dep=1,type=3,tim=12128873845
+=====================
+PARSING IN CURSOR #139685778907944 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128875395 hv=3817090835 ad='6d3b2440' sqlid='abzt2vrjs8bsm'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 18 and amount > 54
+END OF STMT
+PARSE #139685778907944:c=487,e=1539,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128875395
+EXEC #139685778907944:c=9,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128875438
+STAT #139685778907944 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778907944 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=2 us cost=6 size=50 card=5)'
+STAT #139685778907944 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=0 us cost=1 size=0 card=5)'
+CLOSE #139685778907944:c=54,e=54,dep=1,type=3,tim=12128875507
+=====================
+PARSING IN CURSOR #139685778903544 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128876560 hv=109237329 ad='6d3a8f70' sqlid='2qpwx64385p2j'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 19 and amount > 57
+END OF STMT
+PARSE #139685778903544:c=875,e=1042,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128876560
+EXEC #139685778903544:c=0,e=10,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128876611
+STAT #139685778903544 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778903544 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=1 us cost=6 size=50 card=5)'
+STAT #139685778903544 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778903544:c=0,e=55,dep=1,type=3,tim=12128876681
+=====================
+PARSING IN CURSOR #139685778901008 len=93 dep=1 uid=165 oct=3 lid=165 tim=12128877197 hv=2583511840 ad='6d39faa0' sqlid='2ckyfrqczuht0'
+select /* mtk_wl_admin_literal */ count(*) from mtk_orders where cust_id = 20 and amount > 60
+END OF STMT
+PARSE #139685778901008:c=355,e=504,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=254283197,tim=12128877197
+EXEC #139685778901008:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=254283197,tim=12128877240
+STAT #139685778901008 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=1 time=3 us)'
+STAT #139685778901008 id=2 cnt=0 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=0 pr=0 pw=0 str=1 time=2 us cost=6 size=50 card=5)'
+STAT #139685778901008 id=3 cnt=0 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=0 pr=0 pw=0 str=1 time=1 us cost=1 size=0 card=5)'
+CLOSE #139685778901008:c=80,e=1084,dep=1,type=3,tim=12128878339
+EXEC #139685778555176:c=14093,e=28010,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128878351
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128878367
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 129 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128878504
+PARSE #139685778596608:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128878529
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213b1b88  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213b1e18  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128878640
+EXEC #139685778596608:c=110,e=109,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128878653
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 675 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128879342
+CLOSE #139685778555176:c=0,e=5,dep=0,type=0,tim=12128879370
+CLOSE #139685778596608:c=0,e=2,dep=0,type=3,tim=12128879380
+=====================
+PARSING IN CURSOR #139685778555176 len=60 dep=0 uid=165 oct=47 lid=165 tim=12128879935 hv=3659778341 ad='6d3955d0' sqlid='ds59favd27k95'
+BEGIN dbms_application_info.set_action('plan_change'); END;
+
+END OF STMT
+PARSE #139685778555176:c=0,e=547,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128879935
+*** ACTION NAME:(plan_change) 2026-10-25T17:03:20.561123+00:00
+ 
+EXEC #139685778555176:c=0,e=28,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128879992
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128880367
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 93 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128880470
+PARSE #139685778596608:c=6,e=6,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128880493
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213b1770  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213b1a00  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128880599
+EXEC #139685778596608:c=108,e=108,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128880611
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 732 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128881356
+CLOSE #139685778555176:c=0,e=4,dep=0,type=0,tim=12128881381
+CLOSE #139685778596608:c=0,e=1,dep=0,type=3,tim=12128881390
+=====================
+PARSING IN CURSOR #139685778555176 len=98 dep=0 uid=165 oct=3 lid=165 tim=12128881939 hv=3705312706 ad='6d38af58' sqlid='42tn07vfdp5f2'
+select /* mtk_wl_admin_plan */ count(*), sum(amount) from mtk_orders where cust_id between 1 and 5
+END OF STMT
+PARSE #139685778555176:c=0,e=540,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=254283197,tim=12128881939
+EXEC #139685778555176:c=0,e=27,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=254283197,tim=12128882008
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128882369
+FETCH #139685778555176:c=245,e=7681,p=0,cr=29,cu=0,mis=0,r=1,dep=0,og=1,plh=254283197,tim=12128890060
+STAT #139685778555176 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=29 pr=0 pw=0 str=1 time=7690 us)'
+STAT #139685778555176 id=2 cnt=27 pid=1 pos=1 obj=108611 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_ORDERS (cr=29 pr=0 pw=0 str=1 time=220 us cost=27 size=250 card=25)'
+STAT #139685778555176 id=3 cnt=27 pid=2 pos=1 obj=108613 op='INDEX RANGE SCAN MTK_ORDERS_CUST_IX (cr=2 pr=0 pw=0 str=1 time=68 us cost=2 size=0 card=25)'
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 112 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128890260
+FETCH #139685778555176:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=254283197,tim=12128890276
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128890285
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 127 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128890417
+PARSE #139685778596608:c=7,e=7,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128890441
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213b1b88  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213b1e18  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128890555
+EXEC #139685778596608:c=115,e=115,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128890568
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 566 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128891148
+CLOSE #139685778555176:c=0,e=3,dep=0,type=0,tim=12128891172
+CLOSE #139685778596608:c=0,e=3,dep=0,type=3,tim=12128891183
+=====================
+PARSING IN CURSOR #139685778555176 len=50 dep=0 uid=165 oct=42 lid=165 tim=12128891288 hv=3254934902 ad='0' sqlid='cjz605b104rbq'
+alter session set optimizer_index_cost_adj = 10000
+END OF STMT
+PARSE #139685778555176:c=0,e=97,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12128891288
+EXEC #139685778555176:c=0,e=20,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12128891334
+WAIT #139685778555176: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128891343
+WAIT #139685778555176: nam='SQL*Net message from client' ela= 81 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128891431
+=====================
+PARSING IN CURSOR #139685778841712 len=52 dep=0 uid=165 oct=47 lid=165 tim=12128891622 hv=1029988163 ad='753fd3c8' sqlid='9babjv8yq8ru3'
+BEGIN DBMS_OUTPUT.GET_LINES(:LINES, :NUMLINES); END;
+END OF STMT
+PARSE #139685778841712:c=174,e=174,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128891622
+BINDS #139685778841712:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=6D36FF60 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213af618  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213af8a8  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778841712: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128894525
+EXEC #139685778841712:c=933,e=2892,p=0,cr=18,cu=0,mis=1,r=1,dep=0,og=1,plh=0,tim=12128894546
+WAIT #139685778841712: nam='SQL*Net message from client' ela= 150 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128894714
+CLOSE #139685778555176:c=2,e=2,dep=0,type=1,tim=12128894731
+CLOSE #139685778841712:c=3,e=3,dep=0,type=0,tim=12128894740
+BINDS #139685778854888:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7f0b213af8a8  bln=22  avl=11  flg=05
+  value=6823969684381497439
+EXEC #139685778854888:c=46,e=46,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=12128895205
+WAIT #139685778854888: nam='db file sequential read' ela= 301 file#=10 block#=66326 blocks=1 obj#=721 tim=12128895531
+FETCH #139685778854888:c=20,e=353,p=1,cr=3,cu=0,mis=0,r=1,dep=1,og=4,plh=1426583507,tim=12128895564
+CLOSE #139685778854888:c=0,e=0,dep=1,type=3,tim=12128895581
+=====================
+PARSING IN CURSOR #139685778841712 len=98 dep=0 uid=165 oct=3 lid=165 tim=12128895720 hv=3705312706 ad='6d38af58' sqlid='42tn07vfdp5f2'
+select /* mtk_wl_admin_plan */ count(*), sum(amount) from mtk_orders where cust_id between 1 and 5
+END OF STMT
+PARSE #139685778841712:c=480,e=968,p=1,cr=3,cu=0,mis=1,r=0,dep=0,og=1,plh=3570327658,tim=12128895719
+EXEC #139685778841712:c=0,e=17,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=3570327658,tim=12128895765
+WAIT #139685778841712: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128895778
+FETCH #139685778841712:c=2887,e=4229,p=0,cr=499,cu=0,mis=0,r=1,dep=0,og=1,plh=3570327658,tim=12128900016
+STAT #139685778841712 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=499 pr=0 pw=0 str=1 time=4231 us)'
+STAT #139685778841712 id=2 cnt=27 pid=1 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=499 pr=0 pw=0 str=1 time=3676 us cost=137 size=250 card=25)'
+WAIT #139685778841712: nam='SQL*Net message from client' ela= 104 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128900195
+FETCH #139685778841712:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=3570327658,tim=12128900211
+WAIT #139685778841712: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128900220
+WAIT #139685778841712: nam='SQL*Net message from client' ela= 118 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128900344
+=====================
+PARSING IN CURSOR #139685778998744 len=52 dep=0 uid=165 oct=47 lid=165 tim=12128900427 hv=1029988163 ad='753fd3c8' sqlid='9babjv8yq8ru3'
+BEGIN DBMS_OUTPUT.GET_LINES(:LINES, :NUMLINES); END;
+END OF STMT
+PARSE #139685778998744:c=64,e=64,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128900427
+BINDS #139685778998744:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=6D36FF60 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213cdc78  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213cdf08  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778998744: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128900543
+EXEC #139685778998744:c=97,e=97,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128900555
+WAIT #139685778998744: nam='SQL*Net message from client' ela= 112 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128900683
+CLOSE #139685778841712:c=2,e=2,dep=0,type=0,tim=12128900704
+CLOSE #139685778998744:c=3,e=3,dep=0,type=0,tim=12128900715
+=====================
+PARSING IN CURSOR #139685778871144 len=48 dep=0 uid=165 oct=42 lid=165 tim=12128900862 hv=4196484540 ad='0' sqlid='d8yjkx7x22jdw'
+alter session set optimizer_index_cost_adj = 100
+END OF STMT
+PARSE #139685778871144:c=138,e=138,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12128900862
+EXEC #139685778871144:c=7,e=7,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12128900899
+WAIT #139685778871144: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128900907
+WAIT #139685778871144: nam='SQL*Net message from client' ela= 106 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128901020
+PARSE #139685778596608:c=0,e=6,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=12128901052
+BINDS #139685778596608:
+
+ Bind#0
+  oacdty=123 mxl=656(656) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1400000 frm=00 csi=00 siz=680 off=0
+toid ptr value=753FB4F0 length=16
+86B64B66F23D012EE053F706E80A06
+  kxsbbbfp=7f0b213cdc78  bln=656  avl=00  flg=15
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=656
+  kxsbbbfp=7f0b213cdf08  bln=22  avl=02  flg=01
+  value=15
+WAIT #139685778596608: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128901147
+EXEC #139685778596608:c=0,e=95,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128901158
+WAIT #139685778596608: nam='SQL*Net message from client' ela= 177 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128901348
+CLOSE #139685778871144:c=0,e=1,dep=0,type=1,tim=12128901366
+CLOSE #139685778596608:c=0,e=3,dep=0,type=3,tim=12128901375
+=====================
+PARSING IN CURSOR #139685778841712 len=55 dep=0 uid=165 oct=42 lid=165 tim=12128901426 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #139685778841712:c=0,e=43,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12128901426
+EXEC #139685778841712:c=0,e=111,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12128901562

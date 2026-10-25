@@ -3,6 +3,7 @@
 #
 #   ./run_gen.sh                 -> setup user, schema, every scenario, reference CSVs, big loop
 #   ./run_gen.sh errors lobs     -> only those scenarios (schema setup still runs; it is idempotent)
+#   ./run_gen.sh workload        -> four concurrent sessions into out/workload/ (a directory test set)
 #   ./run_gen.sh big             -> only the big loop  (BIG_ITER=120000 by default, ~990 bytes of trace per iteration)
 #
 # Env: MTK_PASSWORD (default mtk), MTK_SERVICE (default //localhost:1521/pdb1.world),
@@ -100,6 +101,22 @@ for t in $TARGETS; do
       : > "$OUT/midtrace_start_part1.tracefile"
       run_scenario midtrace_start && tkprof_both midtrace_start
       collect midtrace_start_part1 && tkprof_both midtrace_start_part1
+      ;;
+    workload)
+      # A directory of traces from one run: four concurrent sessions (orders, report with PX slaves,
+      # batch whose trace continues in a second file, admin), kept under their original ADR names.
+      log "scenario workload (four concurrent sessions -> $OUT/workload/)"
+      mkdir -p "$OUT/workload"; touch "$OUT/.wl_marker"; sleep 1
+      for s in wl_orders wl_report wl_batch wl_admin; do
+        : > "$OUT/$s.tracefile"
+        sqlplus -S -L "$CONN" "@sc_$s.sql" > "$OUT/log/$s.log" 2>&1 &
+      done
+      wait
+      find "$TRACE_DIR" -maxdepth 1 -name "*.trc" -newer "$OUT/.wl_marker" \
+        \( -name "*_mtk_wl_*" -o -name "${ORACLE_SID}_p0*" \) | sort | while read -r tf; do
+        cp -p "$tf" "$OUT/workload/"
+        log "workload: $(basename "$tf") ($(stat -c %s "$tf") bytes)"
+      done
       ;;
     big)
       log "big loop ($BIG_ITER iterations)"

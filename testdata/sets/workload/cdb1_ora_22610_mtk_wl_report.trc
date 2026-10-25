@@ -1,0 +1,501 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_22610_mtk_wl_report.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 70
+Unix process pid: 22610, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-10-25T17:03:20.608708+00:00 (PDB1(3))
+*** SESSION ID:(36.31294) 2026-10-25T17:03:20.608725+00:00
+*** CLIENT ID:(mtk_client_wl_report) 2026-10-25T17:03:20.608728+00:00
+*** SERVICE NAME:(pdb1) 2026-10-25T17:03:20.608731+00:00
+*** MODULE NAME:(mtk_wl_report) 2026-10-25T17:03:20.608733+00:00
+*** ACTION NAME:(start) 2026-10-25T17:03:20.608735+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-10-25T17:03:20.608738+00:00
+*** CONTAINER ID:(3) 2026-10-25T17:03:20.608740+00:00
+ 
+WAIT #139936595578928: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128927262
+WAIT #139936595578928: nam='SQL*Net message from client' ela= 110 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128927764
+CLOSE #139936595578928:c=2,e=2,dep=0,type=1,tim=12128927782
+=====================
+PARSING IN CURSOR #139936594590440 len=58 dep=0 uid=165 oct=47 lid=165 tim=12128928250 hv=711736599 ad='6d4ef758' sqlid='0g2ddw4p6sg8r'
+BEGIN dbms_application_info.set_action('px_totals'); END;
+
+END OF STMT
+PARSE #139936594590440:c=459,e=459,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128928250
+*** ACTION NAME:(px_totals) 2026-10-25T17:03:20.609459+00:00
+ 
+EXEC #139936594590440:c=32,e=32,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128928326
+WAIT #139936594590440: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128928353
+WAIT #139936594590440: nam='SQL*Net message from client' ela= 133 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128928495
+CLOSE #139936594590440:c=4,e=4,dep=0,type=0,tim=12128928515
+=====================
+PARSING IN CURSOR #139936594590440 len=96 dep=0 uid=165 oct=3 lid=165 tim=12128929486 hv=3098341972 ad='6d4eb6b0' sqlid='1b8rq42watwkn'
+select /*+ parallel(o 4) full(o) */ count(*), sum(o.amount), max(o.order_date) from mtk_orders o
+END OF STMT
+PARSE #139936594590440:c=577,e=960,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=2662252726,tim=12128929486
+WAIT #139936594590440: nam='PX Deq: Join ACK' ela= 7 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128931342
+WAIT #139936594590440: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128931369
+WAIT #139936594590440: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128931382
+WAIT #139936594590440: nam='PX Deq: Join ACK' ela= 301 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12128931695
+WAIT #139936594590440: nam='PX Deq: Parse Reply' ela= 1749 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128934123
+WAIT #139936594590440: nam='PX Deq: Parse Reply' ela= 1770 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128936009
+WAIT #139936594590440: nam='PX Deq: Parse Reply' ela= 2183 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128938209
+WAIT #139936594590440: nam='PX Deq: Parse Reply' ela= 161 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128938383
+EXEC #139936594590440:c=2161,e=9273,p=0,cr=5,cu=0,mis=0,r=0,dep=0,og=1,plh=2662252726,tim=12128938793
+WAIT #139936594590440: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128938821
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 6 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128938840
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128938969
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128938989
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939126
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939142
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939267
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939279
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939399
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939411
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939530
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939541
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939659
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939670
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939789
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939800
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128939920
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940070
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940204
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940216
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940340
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940352
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940473
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940512
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940523
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940644
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940655
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940747
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940869
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940881
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128940889
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941035
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941190
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941202
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941329
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941341
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941459
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941471
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941590
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941605
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941724
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941736
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941857
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128941977
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128942042
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128942183
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128942196
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 117 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12128942320
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128942335
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 40 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128942382
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128942394
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 26 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12128942429
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 33 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128942469
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 140 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128942616
+WAIT #139936594590440: nam='PX Deq: Execute Reply' ela= 26 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128942654
+WAIT #139936594590440: nam='PX Deq: Signal ACK EXT' ela= 160 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128942832
+WAIT #139936594590440: nam='PX Deq: Signal ACK EXT' ela= 26 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128942874
+WAIT #139936594590440: nam='PX Deq: Signal ACK EXT' ela= 275 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128943159
+WAIT #139936594590440: nam='PX Deq: Signal ACK EXT' ela= 122 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128943294
+WAIT #139936594590440: nam='PX Deq: Slave Session Stats' ela= 160 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128943473
+WAIT #139936594590440: nam='PX Deq: Slave Session Stats' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128943490
+WAIT #139936594590440: nam='PX Deq: Slave Session Stats' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128943497
+WAIT #139936594590440: nam='PX Deq: Slave Session Stats' ela= 109 sleeptime/senderid=3 passes=3 p3=0 obj#=-1 tim=12128943611
+WAIT #139936594590440: nam='enq: PS - contention' ela= 100 name|mode=1347616774 instance=1 slave ID=0 obj#=-1 tim=12128943733
+FETCH #139936594590440:c=1292,e=4920,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=2662252726,tim=12128943751
+STAT #139936594590440 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=5 pr=0 pw=0 str=1 time=13860 us)'
+STAT #139936594590440 id=2 cnt=4 pid=1 pos=1 obj=0 op='PX COORDINATOR  (cr=5 pr=0 pw=0 str=1 time=12596 us)'
+STAT #139936594590440 id=3 cnt=0 pid=2 pos=1 obj=0 op='PX SEND QC (RANDOM) :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139936594590440 id=4 cnt=0 pid=3 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139936594590440 id=5 cnt=0 pid=4 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1300013 card=100001)'
+STAT #139936594590440 id=6 cnt=0 pid=5 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1300013 card=100001)'
+WAIT #139936594590440: nam='SQL*Net message from client' ela= 234 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128944108
+FETCH #139936594590440:c=0,e=0,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=2662252726,tim=12128944126
+WAIT #139936594590440: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128944134
+WAIT #139936594590440: nam='SQL*Net message from client' ela= 249 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128944393
+CLOSE #139936594590440:c=0,e=2,dep=0,type=1,tim=12128944408
+=====================
+PARSING IN CURSOR #139936594535976 len=61 dep=0 uid=165 oct=47 lid=165 tim=12128944930 hv=1976167610 ad='6d4e6608' sqlid='4t53ygxuwmv5u'
+BEGIN dbms_application_info.set_action('px_by_status'); END;
+
+END OF STMT
+PARSE #139936594535976:c=0,e=513,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12128944930
+*** ACTION NAME:(px_by_status) 2026-10-25T17:03:20.626151+00:00
+ 
+EXEC #139936594535976:c=0,e=37,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12128944996
+WAIT #139936594535976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128945048
+WAIT #139936594535976: nam='SQL*Net message from client' ela= 134 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128945192
+CLOSE #139936594535976:c=3,e=4,dep=0,type=0,tim=12128945208
+=====================
+PARSING IN CURSOR #139936594535976 len=116 dep=0 uid=165 oct=3 lid=165 tim=12128946127 hv=2764381330 ad='6d4e2560' sqlid='0cw5dgqkca74k'
+select /*+ parallel(o 4) full(o) */ o.status, count(*), sum(o.amount) from mtk_orders o group by o.status order by 1
+END OF STMT
+PARSE #139936594535976:c=625,e=909,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=2501486902,tim=12128946127
+WAIT #139936594535976: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128946612
+WAIT #139936594535976: nam='PX Deq: Join ACK' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128946625
+WAIT #139936594535976: nam='PX Deq: Join ACK' ela= 209 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12128946840
+WAIT #139936594535976: nam='PX Deq: Join ACK' ela= 330 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128947178
+WAIT #139936594535976: nam='oracle thread bootstrap' ela= 11086 pname=1345335348 p2=0 p3=0 obj#=-1 tim=12128958357
+WAIT #139936594535976: nam='oracle thread bootstrap' ela= 2129 pname=1345335349 p2=0 p3=0 obj#=-1 tim=12128960554
+WAIT #139936594535976: nam='oracle thread bootstrap' ela= 7347 pname=1345335350 p2=0 p3=0 obj#=-1 tim=12128967941
+WAIT #139936594535976: nam='oracle thread bootstrap' ela= 3099 pname=1345335351 p2=0 p3=0 obj#=-1 tim=12128971078
+WAIT #139936594535976: nam='PX Deq: Join ACK' ela= 1414 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128972609
+WAIT #139936594535976: nam='PX Deq: Join ACK' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128972632
+WAIT #139936594535976: nam='PX Deq: Join ACK' ela= 896 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128973534
+WAIT #139936594535976: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128973554
+WAIT #139936594535976: nam='PX Deq: Parse Reply' ela= 1204 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12128974831
+WAIT #139936594535976: nam='PX Deq: Parse Reply' ela= 1119 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128976010
+WAIT #139936594535976: nam='PX Deq: Parse Reply' ela= 776 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128976801
+WAIT #139936594535976: nam='PX Deq: Parse Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128976815
+WAIT #139936594535976: nam='PX Deq: Parse Reply' ela= 2616 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128979473
+WAIT #139936594535976: nam='PX Deq: Parse Reply' ela= 2002 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128981522
+WAIT #139936594535976: nam='PX Deq: Parse Reply' ela= 508 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128982047
+WAIT #139936594535976: nam='PX Deq: Parse Reply' ela= 1382 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128983446
+EXEC #139936594535976:c=1745,e=37394,p=0,cr=5,cu=0,mis=0,r=0,dep=0,og=1,plh=2501486902,tim=12128983555
+WAIT #139936594535976: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12128983584
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 871 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128984472
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 205 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128984706
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128984725
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 139 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128984872
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128984888
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 212 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128985107
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128985128
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 191 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128985326
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128985341
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 176 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128985525
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128985542
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 176 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128985725
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128985741
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 189 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128985937
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128985954
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 160 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986122
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 40 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986184
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 164 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986358
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 15 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986389
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 174 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986572
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 14 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986603
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 167 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986779
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 23 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986816
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 85 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128986911
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 125 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128987050
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 57 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128987122
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 123 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128987259
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 20 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128987292
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 151 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128987451
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 2545 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128990013
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128990039
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128990052
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 176 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128990236
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 222 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128990471
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 226 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128990709
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 215 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128990942
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 116 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991073
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 66 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991155
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 148 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991317
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 20 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991348
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 161 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991521
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 18 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991550
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 59 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991620
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 117 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991750
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 16 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991776
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 168 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128991955
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128991968
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 182 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12128992159
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 18 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992195
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 16 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992221
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 11 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992240
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 33 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992281
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 119 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992409
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 29 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992452
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 236 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992729
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128992742
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128992748
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128992754
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 88 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992846
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128992857
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128992862
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128992869
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 112 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128992996
+WAIT #139936594535976: nam='PX qref latch' ela= 15 function=2391408264 sleeptime=0 qref=0 obj#=-1 tim=12128993211
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 136 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128993223
+WAIT #139936594535976: nam='PX qref latch' ela= 9 function=2391408264 sleeptime=0 qref=0 obj#=-1 tim=12128994215
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1431 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12128994671
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 5006 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128999690
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128999804
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128999816
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128999822
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12128999837
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 95 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12128999938
+FETCH #139936594535976:c=4268,e=16352,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=2501486902,tim=12128999949
+WAIT #139936594535976: nam='SQL*Net message from client' ela= 225 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129000198
+WAIT #139936594535976: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129000220
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129000228
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129000234
+WAIT #139936594535976: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129000240
+WAIT #139936594535976: nam='PX Deq: Signal ACK EXT' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129000721
+WAIT #139936594535976: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129000730
+WAIT #139936594535976: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129000736
+WAIT #139936594535976: nam='PX Deq: Signal ACK EXT' ela= 540 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129001280
+WAIT #139936594535976: nam='PX Deq: Signal ACK EXT' ela= 12277 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129013573
+WAIT #139936594535976: nam='PX Deq: Signal ACK EXT' ela= 13087 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129026680
+WAIT #139936594535976: nam='PX Deq: Signal ACK EXT' ela= 2858 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129029561
+WAIT #139936594535976: nam='PX Deq: Signal ACK EXT' ela= 2151 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129031734
+WAIT #139936594535976: nam='PX Deq: Slave Session Stats' ela= 1451 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129033234
+WAIT #139936594535976: nam='PX Deq: Slave Session Stats' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129033254
+WAIT #139936594535976: nam='PX Deq: Slave Session Stats' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129033261
+WAIT #139936594535976: nam='PX Deq: Slave Session Stats' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129033266
+WAIT #139936594535976: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129033271
+WAIT #139936594535976: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129033276
+WAIT #139936594535976: nam='PX Deq: Slave Session Stats' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129033281
+WAIT #139936594535976: nam='PX Deq: Slave Session Stats' ela= 37 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129033323
+WAIT #139936594535976: nam='enq: PS - contention' ela= 934 name|mode=1347616774 instance=1 slave ID=7 obj#=-1 tim=12129034272
+WAIT #139936594535976: nam='enq: PS - contention' ela= 90 name|mode=1347616774 instance=1 slave ID=6 obj#=-1 tim=12129034384
+FETCH #139936594535976:c=523,e=34196,p=0,cr=0,cu=0,mis=0,r=6,dep=0,og=1,plh=2501486902,tim=12129034413
+STAT #139936594535976 id=1 cnt=7 pid=0 pos=1 obj=0 op='PX COORDINATOR  (cr=5 pr=0 pw=0 str=1 time=53679 us)'
+STAT #139936594535976 id=2 cnt=0 pid=1 pos=1 obj=0 op='PX SEND QC (ORDER) :TQ10001 (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=72 card=6)'
+STAT #139936594535976 id=3 cnt=0 pid=2 pos=1 obj=0 op='SORT GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=72 card=6)'
+STAT #139936594535976 id=4 cnt=0 pid=3 pos=1 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=72 card=6)'
+STAT #139936594535976 id=5 cnt=0 pid=4 pos=1 obj=0 op='PX SEND RANGE :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=72 card=6)'
+STAT #139936594535976 id=6 cnt=0 pid=5 pos=1 obj=0 op='HASH GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=40 size=72 card=6)'
+STAT #139936594535976 id=7 cnt=0 pid=6 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1200012 card=100001)'
+STAT #139936594535976 id=8 cnt=0 pid=7 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1200012 card=100001)'
+WAIT #139936594535976: nam='SQL*Net message from client' ela= 434 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129035050
+CLOSE #139936594535976:c=0,e=4,dep=0,type=1,tim=12129035078
+=====================
+PARSING IN CURSOR #139936595253768 len=56 dep=0 uid=165 oct=47 lid=165 tim=12129035795 hv=3099680825 ad='6d4dd4b8' sqlid='6r0us8uwc2s1t'
+BEGIN dbms_application_info.set_action('px_join'); END;
+
+END OF STMT
+PARSE #139936595253768:c=0,e=702,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12129035794
+*** ACTION NAME:(px_join) 2026-10-25T17:03:20.716996+00:00
+ 
+EXEC #139936595253768:c=0,e=38,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12129035864
+WAIT #139936595253768: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129035892
+WAIT #139936595253768: nam='SQL*Net message from client' ela= 202 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129036107
+CLOSE #139936595253768:c=4,e=4,dep=0,type=0,tim=12129036132
+=====================
+PARSING IN CURSOR #139936595253768 len=188 dep=0 uid=165 oct=3 lid=165 tim=12129041659 hv=1995627350 ad='6d3354a0' sqlid='7stbd5dvg5quq'
+select /*+ parallel(o 4) full(o) full(c) */ c.name, count(*), sum(o.amount)
+  from mtk_orders o join mtk_cust c on c.id = o.cust_id group by c.name order by 3 desc fetch first 10 rows only
+END OF STMT
+PARSE #139936595253768:c=4643,e=5514,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=2143179539,tim=12129041659
+WAIT #139936595253768: nam='PX Deq: Join ACK' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129042790
+WAIT #139936595253768: nam='PX Deq: Join ACK' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129042809
+WAIT #139936595253768: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129042816
+WAIT #139936595253768: nam='PX Deq: Join ACK' ela= 280 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129043101
+WAIT #139936595253768: nam='PX Deq: Join ACK' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129043511
+WAIT #139936595253768: nam='PX Deq: Join ACK' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129043524
+WAIT #139936595253768: nam='PX Deq: Join ACK' ela= 335 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129043864
+WAIT #139936595253768: nam='PX Deq: Join ACK' ela= 32 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129043910
+WAIT #139936595253768: nam='PX Deq: Parse Reply' ela= 1204 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129045170
+WAIT #139936595253768: nam='PX Deq: Parse Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129047054
+WAIT #139936595253768: nam='PX Deq: Parse Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129047070
+WAIT #139936595253768: nam='PX Deq: Parse Reply' ela= 336 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129047412
+WAIT #139936595253768: nam='PX Deq: Parse Reply' ela= 1171 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129048633
+WAIT #139936595253768: nam='PX Deq: Parse Reply' ela= 1157 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129049841
+WAIT #139936595253768: nam='PX Deq: Parse Reply' ela= 81 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129049937
+WAIT #139936595253768: nam='PX Deq: Parse Reply' ela= 1109 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129051059
+EXEC #139936595253768:c=1655,e=9507,p=0,cr=5,cu=0,mis=0,r=0,dep=0,og=1,plh=2143179539,tim=12129051203
+WAIT #139936595253768: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129051231
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 188 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129051477
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129051493
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 142 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129051641
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 139 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129051801
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 3618 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129055433
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 5 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129055456
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 332 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129055797
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 550 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129056358
+WAIT #139936595253768: nam='PX Deq Credit: need buffer' ela= 385 sleeptime/senderid=268500997 passes=3 qref=2293609680 obj#=-1 tim=12129059287
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073145
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073163
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073184
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073191
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073418
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073431
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 90 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129073526
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073573
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073612
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073653
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073661
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073666
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073671
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073681
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073687
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 44 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129073736
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073823
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129073980
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129074013
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129074027
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129074204
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129074391
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129074405
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129074413
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129074569
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129077107
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129077947
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129078466
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129078486
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129078503
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129078922
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129079148
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129079163
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129079173
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129079292
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129079447
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129079461
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129079661
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129079991
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129080017
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129080032
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 4 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129081044
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 5164 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129086227
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129086393
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129086522
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129086535
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129086635
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129086759
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129086771
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129087331
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129087675
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129087688
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129087857
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129088044
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129088063
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129088236
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129088386
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129088399
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2125 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129090891
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 218 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129091140
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 208 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129091366
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 283 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129091660
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 251 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129091925
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 104 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129092044
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 642 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129092708
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129092724
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1698 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129094430
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 710 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129095189
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 211 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129095418
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 284 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129095715
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 38 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129095796
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 14 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129095821
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 2647 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129098476
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 21 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129098511
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 50 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129098570
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 19 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129098599
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 575 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129099182
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 44 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129099239
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 127 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129099385
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129099396
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129099401
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129099406
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 41 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129099452
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129099461
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129099466
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129099471
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 3675 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129103159
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129103180
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 52 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129103238
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129103266
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 591 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129103865
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 42 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129103918
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 48 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129103979
+WAIT #139936595253768: nam='PX Deq: Execute Reply' ela= 594 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129104601
+WAIT #139936595253768: nam='PX Deq: Signal ACK EXT' ela= 1274 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129105910
+WAIT #139936595253768: nam='PX Deq: Signal ACK EXT' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129105927
+WAIT #139936595253768: nam='PX Deq: Signal ACK EXT' ela= 0 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129105932
+WAIT #139936595253768: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129105938
+WAIT #139936595253768: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129105943
+WAIT #139936595253768: nam='PX Deq: Signal ACK EXT' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129105951
+WAIT #139936595253768: nam='PX Deq: Signal ACK EXT' ela= 434 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129106390
+WAIT #139936595253768: nam='PX Deq: Signal ACK EXT' ela= 34 sleeptime/senderid=2 passes=2 p3=0 obj#=-1 tim=12129106438
+WAIT #139936595253768: nam='PX Deq: Slave Session Stats' ela= 142 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129106625
+WAIT #139936595253768: nam='PX Deq: Slave Session Stats' ela= 184 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129106829
+WAIT #139936595253768: nam='PX Deq: Slave Session Stats' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129106844
+WAIT #139936595253768: nam='PX Deq: Slave Session Stats' ela= 217 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129107066
+WAIT #139936595253768: nam='PX Deq: Slave Session Stats' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129107085
+WAIT #139936595253768: nam='PX Deq: Slave Session Stats' ela= 1 sleeptime/senderid=0 passes=0 p3=0 obj#=-1 tim=12129107091
+WAIT #139936595253768: nam='PX Deq: Slave Session Stats' ela= 154 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129107250
+WAIT #139936595253768: nam='PX Deq: Slave Session Stats' ela= 150 sleeptime/senderid=1 passes=1 p3=0 obj#=-1 tim=12129107412
+FETCH #139936595253768:c=11397,e=56232,p=0,cr=1212,cu=0,mis=0,r=1,dep=0,og=1,plh=2143179539,tim=12129107476
+WAIT #139936595253768: nam='SQL*Net message from client' ela= 210 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129107721
+WAIT #139936595253768: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129107745
+FETCH #139936595253768:c=0,e=15,p=0,cr=0,cu=0,mis=0,r=9,dep=0,og=1,plh=2143179539,tim=12129107755
+STAT #139936595253768 id=1 cnt=10 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=1217 pr=0 pw=0 str=1 time=65576 us cost=661 size=1040 card=10)'
+STAT #139936595253768 id=2 cnt=10 pid=1 pos=1 obj=0 op='VIEW  (cr=1217 pr=0 pw=0 str=1 time=65562 us cost=660 size=1040 card=10)'
+STAT #139936595253768 id=3 cnt=10 pid=2 pos=1 obj=0 op='WINDOW SORT PUSHED RANK (cr=1217 pr=0 pw=0 str=1 time=65545 us cost=660 size=1020000 card=20000)'
+STAT #139936595253768 id=4 cnt=40 pid=3 pos=1 obj=0 op='PX COORDINATOR  (cr=1217 pr=0 pw=0 str=1 time=61328 us)'
+STAT #139936595253768 id=5 cnt=0 pid=4 pos=1 obj=0 op='PX SEND QC (RANDOM) :TQ10003 (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139936595253768 id=6 cnt=0 pid=5 pos=1 obj=0 op='WINDOW CHILD PUSHED RANK (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139936595253768 id=7 cnt=0 pid=6 pos=1 obj=0 op='HASH GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139936595253768 id=8 cnt=0 pid=7 pos=1 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139936595253768 id=9 cnt=0 pid=8 pos=1 obj=0 op='PX SEND HASH :TQ10002 (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139936595253768 id=10 cnt=0 pid=9 pos=1 obj=0 op='HASH GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=660 size=1020000 card=20000)'
+STAT #139936595253768 id=11 cnt=0 pid=10 pos=1 obj=0 op='HASH JOIN  (cr=0 pr=0 pw=0 str=0 time=0 us cost=380 size=5067615 card=99365)'
+STAT #139936595253768 id=12 cnt=0 pid=11 pos=1 obj=0 op='BUFFER SORT (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139936595253768 id=13 cnt=0 pid=12 pos=1 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=0 time=0 us cost=341 size=820000 card=20000)'
+STAT #139936595253768 id=14 cnt=0 pid=13 pos=1 obj=0 op='PX SEND HYBRID HASH :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us cost=341 size=820000 card=20000)'
+STAT #139936595253768 id=15 cnt=20000 pid=14 pos=1 obj=0 op='STATISTICS COLLECTOR  (cr=1212 pr=0 pw=0 str=1 time=7773 us)'
+STAT #139936595253768 id=16 cnt=20000 pid=15 pos=1 obj=108609 op='TABLE ACCESS FULL MTK_CUST (cr=1212 pr=0 pw=0 str=1 time=5680 us cost=341 size=820000 card=20000)'
+STAT #139936595253768 id=17 cnt=0 pid=11 pos=2 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1000010 card=100001)'
+STAT #139936595253768 id=18 cnt=0 pid=17 pos=1 obj=0 op='PX SEND HYBRID HASH :TQ10001 (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1000010 card=100001)'
+STAT #139936595253768 id=19 cnt=0 pid=18 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1000010 card=100001)'
+STAT #139936595253768 id=20 cnt=0 pid=19 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=0 pr=0 pw=0 str=0 time=0 us cost=38 size=1000010 card=100001)'
+WAIT #139936595253768: nam='SQL*Net message from client' ela= 284 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129108422
+CLOSE #139936595253768:c=5,e=6,dep=0,type=1,tim=12129108446
+=====================
+PARSING IN CURSOR #139936594526344 len=59 dep=0 uid=165 oct=47 lid=165 tim=12129109148 hv=396283678 ad='6d32f3f8' sqlid='1mm47zcbtxmsy'
+BEGIN dbms_application_info.set_action('serial_top'); END;
+
+END OF STMT
+PARSE #139936594526344:c=437,e=690,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=12129109147
+*** ACTION NAME:(serial_top) 2026-10-25T17:03:20.790352+00:00
+ 
+EXEC #139936594526344:c=38,e=38,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=12129109221
+WAIT #139936594526344: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129109246
+WAIT #139936594526344: nam='SQL*Net message from client' ela= 157 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129109415
+CLOSE #139936594526344:c=5,e=5,dep=0,type=0,tim=12129109435
+=====================
+PARSING IN CURSOR #139936594526344 len=137 dep=0 uid=165 oct=3 lid=165 tim=12129110472 hv=3996945652 ad='6d32a350' sqlid='1g8f90zr3t37n'
+select /* mtk_wl_report_serial */ cust_id, count(*), sum(amount) from mtk_orders group by cust_id order by 3 desc fetch first 5 rows only
+END OF STMT
+PARSE #139936594526344:c=574,e=1025,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=434279994,tim=12129110472
+EXEC #139936594526344:c=62,e=62,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=434279994,tim=12129110568
+WAIT #139936594526344: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129110586
+FETCH #139936594526344:c=10821,e=10927,p=0,cr=499,cu=0,mis=0,r=1,dep=0,og=1,plh=434279994,tim=12129121524
+WAIT #139936594526344: nam='PGA memory operation' ela= 137 which=5 bytes=3932160 where=4 obj#=-1 tim=12129121699
+WAIT #139936594526344: nam='SQL*Net message from client' ela= 110 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129121825
+WAIT #139936594526344: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129121843
+FETCH #139936594526344:c=12,e=12,p=0,cr=0,cu=0,mis=0,r=4,dep=0,og=1,plh=434279994,tim=12129121852
+STAT #139936594526344 id=1 cnt=5 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=499 pr=0 pw=0 str=1 time=10966 us cost=145 size=325 card=5)'
+STAT #139936594526344 id=2 cnt=5 pid=1 pos=1 obj=0 op='VIEW  (cr=499 pr=0 pw=0 str=1 time=10936 us cost=144 size=325 card=5)'
+STAT #139936594526344 id=3 cnt=5 pid=2 pos=1 obj=0 op='WINDOW SORT PUSHED RANK (cr=499 pr=0 pw=0 str=1 time=10919 us cost=144 size=201280 card=20128)'
+STAT #139936594526344 id=4 cnt=20000 pid=3 pos=1 obj=0 op='HASH GROUP BY (cr=499 pr=0 pw=0 str=1 time=9907 us cost=144 size=201280 card=20128)'
+STAT #139936594526344 id=5 cnt=100003 pid=4 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=499 pr=0 pw=0 str=1 time=3405 us cost=137 size=1000010 card=100001)'
+WAIT #139936594526344: nam='SQL*Net message from client' ela= 232 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=12129122187
+CLOSE #139936594526344:c=2,e=2,dep=0,type=0,tim=12129122210
+=====================
+PARSING IN CURSOR #139936594526344 len=55 dep=0 uid=165 oct=42 lid=165 tim=12129122229 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #139936594526344:c=7,e=7,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12129122229
+EXEC #139936594526344:c=115,e=115,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=12129122395
