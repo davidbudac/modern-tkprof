@@ -217,7 +217,7 @@ function SavedMenu({ library }: { library: PivotLibrary }) {
   }
   return (
     <label className="pv-ctl">Saved
-      <select value="" aria-label="Saved pivots" onChange={(e) => {
+      <select value="" className="pv-saved" aria-label="Saved pivots" onChange={(e) => {
         const v = e.target.value
         if (v === '+save') setNaming('')
         else if (v === '+manage') library.manage?.()
