@@ -149,25 +149,35 @@ in `serve` is done: see Inputs.)
 
 ## Desktop app (decided 2026-10-25)
 
-Plan and protocol: `docs/PLAN-DESKTOP.md`.
+Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
 
-- The Go core is the engine: `mtkprof engine` runs as a sidecar process,
-  holds N open traces, always builds in aggregate + spill mode, and keeps the
-  spill directory as a persistent index cache keyed by trace identity. No
-  Rust rewrite of the parser or model.
-- The shell is Tauri 2 (Rust) around the React/TS UI, in a separate
+- Internal team tool for Windows, macOS and Linux (all first-class); private,
+  unsigned GitHub releases; no updater. Traces of 1–2 GB are the ceiling.
+- The Go core is the engine: `mtkprof engine` runs locally as a sidecar
+  process, holds N open traces, always builds in aggregate + spill mode, and
+  keeps the spill directory as a persistent index cache (user cache dir,
+  20 GB LRU) keyed by trace content identity. No Rust rewrite of the parser
+  or model; no remote-engine mode; no LOD tiles (a 1024-bucket minimap in the
+  document instead).
+- The shell is Tauri 2 (Rust) around the React/TS UI, in a separate private
   repository (`mtkprof-desktop`) that pins this repo as a git submodule.
-  GPUI stays an option if webview rendering limits the Lines or Timeline
-  views; decide after phase 3 with measurements.
-- Transport: loopback HTTP with a bearer token, SSE events, the existing
-  `/api/*` handlers per session, OpenAPI contract in `api/engine.openapi.yaml`
-  with a protocol version.
-- Remote access lives in the engine: SSH/SFTP (fetch, follow a live trace)
-  and Oracle through a pure-Go thin driver (ADR views, trace enable/disable,
-  reference data). Secrets are the shell's (OS keychain), passed per request,
-  never persisted or logged by the engine.
+  Committed; GPUI is not revisited.
+- Transport: loopback HTTP with a bearer token, SSE events (jobs, sessions,
+  prompts), the existing `/api/*` handlers per session, OpenAPI contract in
+  `api/engine.openapi.yaml` with a protocol version.
+- Remote access lives in the engine and is also exposed as CLI subcommands
+  (`fetch`, `follow`, `trace`, `ref -db`): SSH through the system `ssh`/`sftp`
+  binaries with an `SSH_ASKPASS` bridge (Go library fallback), Oracle through
+  a pure-Go thin driver with username/password over TCP/TCPS (ADR views, trace
+  enable/disable, reference data). Live follow over SSH only. No secret is
+  ever stored: every credential is prompted through one prompt mechanism.
+  Connection definitions (no secrets) are an import/export file plus a
+  watched team file.
 - `web/` stays the single source of the views: split into `lib` (shared) and
-  `app` (standalone shell); `mtkprof html` and `serve` keep working unchanged.
+  `app` (standalone shell); `mtkprof html` and `serve` keep working; views
+  that need the engine (Lines, connections, annotations) are desktop-only.
+- v1 = phases 1–5 of the plan (engine, shell, Lines, remote, report download
+  + annotations + saved pivots); cross-trace compare is post-v1.
 - Every engine answer equals the CLI's (`serve -spill` parity test); the
   golden test stays the correctness contract.
 

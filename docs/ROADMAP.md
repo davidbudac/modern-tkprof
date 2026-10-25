@@ -58,6 +58,7 @@
 8. **Compare mode**: two traces side by side (before/after a change).
 9. **Packaging**: GitHub release workflow building all targets, checksums.
 10. **Desktop app** (`docs/PLAN-DESKTOP.md`): `mtkprof engine` sidecar with
-    persistent index cache, progress, line drill-down (`at`, `search`), LOD
-    tiles, SSH/ADR fetch and live follow, DB trace control; Tauri 2 shell in
-    `mtkprof-desktop`.
+    persistent index cache, progress, minimap, line drill-down (`at`,
+    `search`), SSH/ADR fetch and live follow, DB trace control, the same
+    fetchers as CLI subcommands; Tauri 2 shell in `mtkprof-desktop`
+    (internal team, Windows/macOS/Linux).

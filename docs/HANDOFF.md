@@ -4,9 +4,10 @@ Read this, then `docs/DESIGN.md` (the decisions), then `docs/ARCHITECTURE.md`
 (how the code is shaped) and `docs/trace-format-19c.md` (what the parser
 must accept). `docs/ROADMAP.md` lists the longer tail.
 
-Next body of work: the desktop app. `docs/PLAN-DESKTOP.md` (2026-10-25) is
-the implementation plan: engine mode in this repo, Tauri shell in a new repo,
-phases E1–E9 / S1–S10, protocol, cache layout, budgets.
+Next body of work: the desktop app. `docs/PLAN-DESKTOP.md` (2026-10-25,
+revised after a 33-question design interview, § 11 there) is the
+implementation plan: engine mode in this repo, Tauri shell in a new private
+repo, phases E1–E10 / U1 / S1–S9, protocol, cache layout, budgets.
 
 ## Where things stand
 
