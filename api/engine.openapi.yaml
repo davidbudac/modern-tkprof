@@ -1679,6 +1679,40 @@ paths:
                 type: object
         "400":
           $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/statements:
+    get:
+      operationId: sliceStatements
+      summary: The document's statement table (doc.stats.statements) over the scope
+      description: |
+        `analyze.StatementsOn`: one `StmtStats` per statement in id order,
+        computed from the calls in scope (zero numbers where none is; `id`
+        is always set), the same JSON as the entries of
+        `doc.stats.statements`. Without parameters it equals
+        `doc.stats.statements`. The UI's file selection sends the contexts of
+        the selected files. `idle` is accepted and changes nothing: the wait
+        times are those attributed to the calls in scope. Cursors, plans and
+        errors follow the scope too (see `analyze.StatementsOn`).
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Idle"
+      responses:
+        "200":
+          description: "{statements: [StmtStats]}"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [statements]
+                properties:
+                  statements:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StmtStats"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
   /s/{id}/api/stmt/roles:
     get:
       operationId: sliceStmtRoles
@@ -2060,6 +2094,149 @@ components:
         trace_line:
           type: integer
           description: first row only, line of the first STAT line
+    CallStats:
+      type: object
+      description: analyze.CallStats, tkprof-style totals of one call kind
+      properties:
+        count:
+          type: integer
+          description: "calls"
+        misses:
+          type: integer
+          description: "library cache misses (Σ mis)"
+        cpu:
+          type: integer
+          description: "µs"
+        elapsed:
+          type: integer
+          description: "µs"
+        disk:
+          type: integer
+        query:
+          type: integer
+        current:
+          type: integer
+        rows:
+          type: integer
+        waitUs:
+          type: integer
+          description: "in-call waits attributed to these calls, µs"
+        idleUs:
+          type: integer
+          description: "between-call waits attributed to these calls, µs"
+        selfCpu:
+          type: integer
+          description: "µs, excluding recursive children"
+        selfElapsed:
+          type: integer
+          description: "µs, excluding recursive children"
+        selfDisk:
+          type: integer
+        selfQuery:
+          type: integer
+        selfCurrent:
+          type: integer
+    Link:
+      type: object
+      description: analyze.Link, a recursive relationship between two statements
+      properties:
+        statement:
+          type: integer
+        calls:
+          type: integer
+        elapsed:
+          type: integer
+          description: µs
+    StmtStats:
+      type: object
+      description: analyze.StmtStats, one entry of doc.stats.statements
+      properties:
+        id:
+          type: integer
+          description: statement id (index into the document's statements)
+        parse:
+          $ref: "#/components/schemas/CallStats"
+        exec:
+          $ref: "#/components/schemas/CallStats"
+        fetch:
+          $ref: "#/components/schemas/CallStats"
+        close:
+          $ref: "#/components/schemas/CallStats"
+        other:
+          $ref: "#/components/schemas/CallStats"
+        total:
+          $ref: "#/components/schemas/CallStats"
+        allCalls:
+          $ref: "#/components/schemas/CallStats"
+        elapsed:
+          type: integer
+          description: "response time, µs: Σ e of calls not nested in a call of the same statement"
+        selfElapsed:
+          type: integer
+          description: "µs"
+        cpu:
+          type: integer
+          description: "µs"
+        selfCpu:
+          type: integer
+          description: "µs"
+        waitUs:
+          type: integer
+          description: "in-call waits, µs"
+        idleUs:
+          type: integer
+          description: "between-call waits, µs"
+        childUs:
+          type: integer
+          description: "µs in recursive children"
+        executions:
+          type: integer
+        hardParses:
+          type: integer
+        cursors:
+          type: integer
+          description: "cursors in scope"
+        errors:
+          type: integer
+        minDepth:
+          type: integer
+        maxDepth:
+          type: integer
+        topLevel:
+          type: boolean
+        firstWallUs:
+          type: integer
+        lastWallUs:
+          type: integer
+        firstTim:
+          type: integer
+        lastTim:
+          type: integer
+        pxEla:
+          type: integer
+          description: "attached PX slaves: Σ self elapsed, µs"
+        pxCpu:
+          type: integer
+          description: "attached PX slaves: Σ self cpu, µs"
+        pxSessions:
+          type: integer
+          description: "distinct slave processes"
+        parents:
+          type: [array, "null"]
+          items:
+            $ref: "#/components/schemas/Link"
+        children:
+          type: [array, "null"]
+          items:
+            $ref: "#/components/schemas/Link"
+        plans:
+          type: [array, "null"]
+          items:
+            type: integer
+        planHashes:
+          type: [array, "null"]
+          items:
+            type: integer
     ErrorCode:
       type: string
       enum: [bad_request, unauthorized, not_found, conflict, cancelled, needs_prompt, internal, remote]

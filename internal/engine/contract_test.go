@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/davidbudac/modern-tkprof/internal/analyze"
 )
 
 // The contract test reads api/engine.openapi.yaml with a line scanner (no
@@ -170,8 +172,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 21 {
-		t.Errorf("%d session routes, want doc, report, the 14 slice endpoints, the 4 line endpoints and ref", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 22 {
+		t.Errorf("%d session routes, want doc, report, the 15 slice endpoints, the 4 line endpoints and ref", n)
 	}
 }
 
@@ -222,6 +224,7 @@ func TestContractSchemas(t *testing.T) {
 		"Health": Health{}, "CacheHealth": CacheHealth{}, "JobInfo": JobInfo{}, "FileInfo": FileInfo{},
 		"SessionInfo": SessionInfo{}, "SessionEvent": SessionEvent{}, "PromptEvent": PromptEvent{}, "LogEvent": LogEvent{},
 		"CacheItem": CacheItem{}, "CacheList": CacheList{}, "CacheWipe": CacheWipe{}, "SessionOptions": SessionOptions{},
+		"StmtStats": analyze.StmtStats{}, "CallStats": analyze.CallStats{}, "Link": analyze.Link{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

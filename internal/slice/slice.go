@@ -16,6 +16,7 @@
 //	/api/waits/scatter   sampled waits over time
 //	/api/waits/by        wait time by statement, object, p1 or p2 (real keys)
 //	/api/profile         CPU and waits per event in scope
+//	/api/statements      the document's statement table over the scope
 //	/api/stmt/roles      wait time per statement and wait class
 //	/api/stmt/waits      top wait events of statements
 //	/api/stmt/spans      merged time intervals of statements' calls
@@ -142,6 +143,7 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		"/api/waits/scatter":     s.waitScatter,
 		"/api/waits/by":          s.waitsBy,
 		"/api/profile":           s.profile,
+		"/api/statements":        s.statements,
 		"/api/stmt/roles":        s.stmtRoles,
 		"/api/stmt/waits":        s.stmtWaits,
 		"/api/stmt/spans":        s.stmtSpans,
@@ -888,6 +890,28 @@ func (s *Server) profile(ctx context.Context, q url.Values) (any, error) {
 		p.Events = []analyze.EventAgg{}
 	}
 	return p, nil
+}
+
+// ---- /api/statements -----------------------------------------------------------
+
+// statements is doc.stats.statements (analyze.Statements) over the scope:
+// one entry per statement in id order. idle is accepted and has no effect
+// (the wait times are those attributed to the calls in scope).
+func (s *Server) statements(ctx context.Context, q url.Values) (any, error) {
+	if q.Get("stmt") != "" {
+		return nil, bad("stmt: not supported by statements")
+	}
+	f, err := s.filter(q, false)
+	if err != nil {
+		return nil, err
+	}
+	st, err := analyze.StatementsOn(ctx, s.m, s.src, f)
+	if err != nil {
+		return nil, err
+	}
+	return struct {
+		Statements []analyze.StmtStats `json:"statements"`
+	}{st}, nil
 }
 
 func (s *Server) stmtRoles(ctx context.Context, _ url.Values) (any, error) {
