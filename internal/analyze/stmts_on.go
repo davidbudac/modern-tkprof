@@ -72,7 +72,7 @@ func StatementsOn(ctx context.Context, m *model.Model, src Facts, f Filter) ([]S
 		}
 		delete(pending, parent)
 	}
-	err := src.EachCall(ctx, Scan{Contexts: f.Contexts}, func(c *model.Call) bool {
+	err := src.EachCall(ctx, Scan{Contexts: f.Contexts, NoContexts: f.NoContexts}, func(c *model.Call) bool {
 		if len(pending) > 0 {
 			if _, ok := pending[c.ID]; ok {
 				resolve(c.ID, c.Statement)

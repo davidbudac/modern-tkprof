@@ -301,9 +301,13 @@ func (s *Server) stmtParam(q url.Values) (*model.ID, error) {
 	return &ids[0], nil
 }
 
-// filter reads the scope parameters. Waits-only ones (event, idle) are read
-// when forWaits, calls reject an event.
-func (s *Server) filter(q url.Values, forWaits bool) (analyze.Filter, error) {
+// NoContexts is the value of `contexts` that selects no session context at all
+// (an empty `contexts=` means all of them): every scoped endpoint then sees no
+// row.
+const NoContexts = "-"
+
+// scope reads the scope parameters from, to, contexts and idle.
+func (s *Server) scope(q url.Values) (analyze.Filter, error) {
 	var f analyze.Filter
 	var err error
 	if f.StartTim, err = intParam(q, "from", 0, 0, 1<<62); err != nil {
@@ -315,10 +319,9 @@ func (s *Server) filter(q url.Values, forWaits bool) (analyze.Filter, error) {
 	if f.EndTim != 0 && f.EndTim < f.StartTim {
 		return f, bad("to: %d is before from: %d", f.EndTim, f.StartTim)
 	}
-	if f.Contexts, err = idList(q, "contexts", len(s.m.Contexts), maxContexts); err != nil {
-		return f, err
-	}
-	if f.Statement, err = s.stmtParam(q); err != nil {
+	if q.Get("contexts") == NoContexts {
+		f.NoContexts = true
+	} else if f.Contexts, err = idList(q, "contexts", len(s.m.Contexts), maxContexts); err != nil {
 		return f, err
 	}
 	f.IncludeIdle = true
@@ -330,6 +333,19 @@ func (s *Server) filter(q url.Values, forWaits bool) (analyze.Filter, error) {
 		default:
 			return f, bad("idle: %q (want 0 or 1)", v)
 		}
+	}
+	return f, nil
+}
+
+// filter reads the scope parameters and the row selectors: stmt (one id) and,
+// when forWaits, event (calls reject an event).
+func (s *Server) filter(q url.Values, forWaits bool) (analyze.Filter, error) {
+	f, err := s.scope(q)
+	if err != nil {
+		return f, err
+	}
+	if f.Statement, err = s.stmtParam(q); err != nil {
+		return f, err
 	}
 	if q.Get("event") != "" {
 		if !forWaits {
@@ -630,7 +646,11 @@ func (s *Server) executions(ctx context.Context, q url.Values) (any, error) {
 	var slow analyze.ExecInfo
 	h := &execHeap{key: key}
 	var page []analyze.ExecInfo // key == nil: the executions with Seq in [offset, offset+limit)
-	err = analyze.EachExecution(ctx, s.m, s.src, *sp, func(e *analyze.ExecInfo) {
+	f, err := s.scope(q)
+	if err != nil {
+		return nil, err
+	}
+	err = analyze.EachExecutionIn(ctx, s.m, s.src, f, *sp, func(e *analyze.ExecInfo) {
 		if resp.Total == 0 || e.Stats.Elapsed > slow.Stats.Elapsed || (e.Stats.Elapsed == slow.Stats.Elapsed && e.Seq < slow.Seq) {
 			slow = *e
 		}
@@ -914,8 +934,16 @@ func (s *Server) statements(ctx context.Context, q url.Values) (any, error) {
 	}{st}, nil
 }
 
-func (s *Server) stmtRoles(ctx context.Context, _ url.Values) (any, error) {
-	classes, rows, err := analyze.WaitsByStmtClassOn(ctx, s.m, s.src)
+func (s *Server) stmtRoles(ctx context.Context, q url.Values) (any, error) {
+	f, err := s.scope(q)
+	if err != nil {
+		return nil, err
+	}
+	f.IncludeIdle = true // the bars count every wait, idle included, unless idle=0 is asked
+	if q.Get("idle") == "0" {
+		f.IncludeIdle = false
+	}
+	classes, rows, err := analyze.WaitsByStmtClassOn(ctx, s.m, s.src, f)
 	if err != nil {
 		return nil, err
 	}
@@ -944,7 +972,11 @@ func (s *Server) stmtWaits(ctx context.Context, q url.Values) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := analyze.TopStmtWaitsOn(ctx, s.src, ids, int(max))
+	f, err := s.scope(q)
+	if err != nil {
+		return nil, err
+	}
+	res, err := analyze.TopStmtWaitsOn(ctx, s.src, f, ids, int(max))
 	if err != nil {
 		return nil, err
 	}
@@ -973,7 +1005,11 @@ func (s *Server) stmtSpans(ctx context.Context, q url.Values) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := analyze.StmtSpansOn(ctx, s.src, ids, gap)
+	f, err := s.scope(q)
+	if err != nil {
+		return nil, err
+	}
+	res, err := analyze.StmtSpansOn(ctx, s.src, f, ids, gap)
 	if err != nil {
 		return nil, err
 	}

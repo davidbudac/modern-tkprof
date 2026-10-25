@@ -295,7 +295,9 @@ handlers run concurrently without locks; answers are JSON, CORS-open like
 `/api/doc`, bounded, and cached by query (128 entries, < 4 MB each). A bad
 parameter is a `400` with a plain-text reason. Common scope parameters: `from`,
 `to` (`tim` µs; a row is in when its `[tim-ela, tim]` interval overlaps, as the
-UI's window), `contexts` (comma separated ids), `stmt`, `event` (waits only) and
+UI's window), `contexts` (comma separated ids; absent or empty = all; `-` = the
+explicit empty set, no row: `analyze.Filter.NoContexts`, which the Files panel
+sends for "None"), `stmt`, `event` (waits only) and
 `idle=0|1` (waits, default 1). They map to `analyze.Filter` / `Matcher`, which
 `analyze.Pivot` uses too.
 
@@ -304,7 +306,7 @@ UI's window), `contexts` (comma separated ids), `stmt`, `event` (waits only) and
 | `/api/pivot?fact=calls\|waits&by=dim[,dim]&measure=m[,m]&limit=N` | `analyze.Pivot` (rows, labels, extra, values, total, `groups`, `truncated`); `measure` sorts by the first and keeps only the listed measures | `limit` 1000 (max 100 000), 4 dims |
 | `/api/timeline?bucket=µs` | CPU of top-level calls and wait time per event per bucket, spread over the buckets a call or wait covers and clamped to 100 % (`analyze.SpreadTimeline` = the UI's old `timeline()`); the UI folds it into classes / top events | default bucket = `TimelineBucket`; 400 above 100 000 buckets |
 | `/api/calls?limit=&longest=` | the longest calls in scope (columns `id, stmt, kind, tim, e, c, r, line, dep, execNo, ctx`), total in scope, the longest N: the Timeline view | 20 000 calls, 100 longest |
-| `/api/executions?stmt=&limit=&offset=&sort=` | executions of one statement (`analyze.Executions`) with bind values, total, avg and slowest; `sort` = `file` (default) `e c waitEla r p cr fetches start` (largest first) | 5000 rows |
+| `/api/executions?stmt=&limit=&offset=&sort=` (+ scope) | executions of one statement (`analyze.Executions`; with a scope: those whose EXEC call is in scope, summing the fetches in scope: `EachExecutionIn`) with bind values, total, avg and slowest; `sort` = `file` (default) `e c waitEla r p cr fetches start` (largest first) | 5000 rows |
 | `/api/executions/detail?stmt=&cursor=&execNo=` | one execution: parse / exec / fetch call sums, waits per event, binds, plan hash (A/B comparison and the bind panel) | |
 | `/api/waits?event=\|stmt=&sort=ela\|tim&limit=` | wait rows with total and time in scope | 1000 rows |
 | `/api/waits/hist?event=` | log2 histogram (24 bins, counts and sums) | |
@@ -312,8 +314,8 @@ UI's window), `contexts` (comma separated ids), `stmt`, `event` (waits only) and
 | `/api/waits/by?event=&by=stmt\|obj\|p1\|p2&limit=` | `analyze.WaitsBy` with real keys (the event inspector's tables) | |
 | `/api/profile` | CPU of top-level calls and waits per event in scope (the ledger, the top bar, the Waits table) | |
 | `/api/statements` | `doc.stats.statements` over the scope (`from`, `to`, `contexts`; `idle` changes nothing): `{statements: [StmtStats]}`, one per statement in id order, the JSON of the document's entries, from `analyze.StatementsOn` (the call rows of the scope; a recursive call in scope counts in the links and `childUs` of its parent's statement whether or not the parent call is in scope; cursors, plans and errors follow the scope; equal to `Statements(m)` without parameters, model or spill). The Statements table of a file or session subset | one entry per statement |
-| `/api/stmt/roles` | wait time per statement and wait class (the bars of the Statements list) | |
-| `/api/stmt/waits?stmt=1,2&max=` / `/api/stmt/spans?stmt=1,2&gap=µs` | top wait events of statements (with `maxLine` + `maxCtx`) / their merged call intervals (Overview notes, Lanes) | 200 statements |
+| `/api/stmt/roles` (+ scope) | wait time per statement and wait class (the bars of the Statements list); every wait, idle included, unless `idle=0` | |
+| `/api/stmt/waits?stmt=1,2&max=` / `/api/stmt/spans?stmt=1,2&gap=µs` (+ scope) | top wait events of statements (with `maxLine` + `maxCtx`; idle waits count unless `idle=0`) / their merged call intervals (Overview notes, Lanes), over the rows in scope | 200 statements |
 | `/api/plan?stmt\|sql_id&plh&exec` | the rows of one STAT dump as `mtkprof plan` prints them (`report.PlanRow`; several plan hashes without `plh`: `{hash: rows}`); needs only the model | |
 
 Every row that carries a trace `line` also carries `ctx` (the context id; `/api/executions` rows and `executions/detail` have it too), so the UI maps it to the input file with `doc.fileOfCtx` and line links open the right file of a multi-file trace set. `stmt/spans` has no lines, hence no `ctx`.

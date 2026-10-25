@@ -38,7 +38,9 @@ func ParityQueries(m *model.Model, h http.Handler) ([]string, error) {
 		"/api/waits/scatter?scope=all", "/api/waits/scatter?scope=all&max=5", "/api/waits/by?scope=all&by=stmt",
 		"/api/waits/by?scope=all&by=obj", "/api/waits/by?scope=all&by=p1&limit=3", "/api/waits/by?scope=all&by=p2",
 		"/api/profile", "/api/profile?idle=0&contexts=0", fmt.Sprintf("/api/profile?from=%d", mid), "/api/stmt/roles",
-		"/api/statements", "/api/statements?contexts=0", fmt.Sprintf("/api/statements?contexts=%d", len(m.Contexts)-1),
+		"/api/statements", "/api/statements?contexts=-", "/api/statements?contexts=0", "/api/stmt/roles?contexts=0", "/api/stmt/roles?contexts=-&idle=0",
+		"/api/timeline?contexts=-", "/api/profile?contexts=-", "/api/calls?contexts=-", "/api/pivot?fact=calls&by=stmt&contexts=-",
+		"/api/pivot?fact=waits&by=event&contexts=-", "/api/waits?scope=all&contexts=-", fmt.Sprintf("/api/statements?contexts=%d", len(m.Contexts)-1),
 		fmt.Sprintf("/api/statements?from=%d&to=%d", mid, m.Span.LastTim))
 	for e := range m.Events {
 		q = append(q, fmt.Sprintf("/api/waits?event=%d", e), fmt.Sprintf("/api/waits/hist?event=%d", e),
@@ -54,7 +56,11 @@ func ParityQueries(m *model.Model, h http.Handler) ([]string, error) {
 			fmt.Sprintf("/api/timeline?stmt=%d", s), fmt.Sprintf("/api/profile?stmt=%d", s),
 			fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s),
 			fmt.Sprintf("/api/executions?stmt=%d", s), fmt.Sprintf("/api/executions?stmt=%d&sort=e&limit=5&offset=1", s),
-			fmt.Sprintf("/api/executions?stmt=%d&sort=fetches", s))
+			fmt.Sprintf("/api/executions?stmt=%d&sort=fetches", s),
+			fmt.Sprintf("/api/executions?stmt=%d&contexts=0", s), fmt.Sprintf("/api/executions?stmt=%d&contexts=-", s),
+			fmt.Sprintf("/api/executions?stmt=%d&from=%d&to=%d", s, mid, m.Span.LastTim),
+			fmt.Sprintf("/api/stmt/waits?stmt=%d&contexts=0", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000&contexts=0", s),
+			fmt.Sprintf("/api/waits?stmt=%d&contexts=0", s), fmt.Sprintf("/api/waits?stmt=%d&contexts=-", s))
 	}
 	if len(all) > 0 {
 		q = append(q, "/api/stmt/waits?stmt="+strings.Join(all, ","), "/api/stmt/spans?stmt="+strings.Join(all, ",")+"&gap=0")

@@ -13,6 +13,7 @@ import (
 type Scan struct {
 	Statements []model.ID // only rows of these statements (nil = all)
 	Contexts   []model.ID // only rows of these session contexts (nil = all)
+	NoContexts bool       // no row can match (an explicit empty context set)
 }
 
 // Scan returns the hint that goes with the filter.
@@ -22,6 +23,7 @@ func (f Filter) Scan() Scan {
 		s.Statements = []model.ID{*f.Statement}
 	}
 	s.Contexts = f.Contexts
+	s.NoContexts = f.NoContexts
 	return s
 }
 

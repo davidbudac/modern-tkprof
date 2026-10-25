@@ -123,6 +123,8 @@ func (d *diskSource) scan(ctx context.Context, f *os.File, recSize int, n int64,
 	var ids *rowIDs
 	var segs []rowRange
 	switch {
+	case sc.NoContexts:
+		return nil
 	case len(sc.Statements) > 0:
 		var err error
 		if lr != nil {

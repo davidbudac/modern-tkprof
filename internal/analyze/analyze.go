@@ -606,10 +606,21 @@ type ExecInfo struct {
 // Memory is that of the open executions, one per cursor, however many
 // executions the statement has. e is only valid during the call.
 func EachExecution(ctx context.Context, m *model.Model, src Facts, sid model.ID, fn func(e *ExecInfo)) error {
+	return EachExecutionIn(ctx, m, src, Filter{}, sid, fn)
+}
+
+// EachExecutionIn is EachExecution over the calls in scope (f.Statement is
+// ignored): an execution exists when its EXEC call is in scope, and sums the
+// FETCH calls of it that are.
+func EachExecutionIn(ctx context.Context, m *model.Model, src Facts, f Filter, sid model.ID, fn func(e *ExecInfo)) error {
+	f.Statement = nil
+	mt := f.Matcher()
+	sc := f.Scan()
+	sc.Statements = []model.ID{sid}
 	open := map[model.ID]*ExecInfo{} // cursor -> its latest execution; only that one can still get fetches
 	seq := 0
-	err := src.EachCall(ctx, Scan{Statements: []model.ID{sid}}, func(c *model.Call) bool {
-		if c.Statement != sid || m.PXChild(c.Context) {
+	err := src.EachCall(ctx, sc, func(c *model.Call) bool {
+		if c.Statement != sid || m.PXChild(c.Context) || !mt.Call(c) {
 			return true
 		}
 		switch c.Kind {

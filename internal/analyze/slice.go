@@ -533,12 +533,15 @@ func ClassOf(ev *model.Event) string {
 // waits, idle included, as derive.ts statementRoleUs); classes lists the
 // class names the Class indexes refer to.
 func WaitsByStmtClass(m *model.Model) (classes []string, rows []StmtClassWait) {
-	classes, rows, _ = WaitsByStmtClassOn(context.Background(), m, ModelFacts(m))
+	classes, rows, _ = WaitsByStmtClassOn(context.Background(), m, ModelFacts(m), Filter{IncludeIdle: true})
 	return classes, rows
 }
 
-// WaitsByStmtClassOn is WaitsByStmtClass over any Facts.
-func WaitsByStmtClassOn(ctx context.Context, m *model.Model, src Facts) (classes []string, rows []StmtClassWait, err error) {
+// WaitsByStmtClassOn is WaitsByStmtClass over any Facts, for the waits in scope
+// (f.Statement and f.Event are ignored; IncludeIdle false drops idle waits).
+func WaitsByStmtClassOn(ctx context.Context, m *model.Model, src Facts, f Filter) (classes []string, rows []StmtClassWait, err error) {
+	f.Statement, f.Event = nil, nil
+	mt := f.Matcher()
 	cls := newInterner[string]()
 	classOf := make([]int, len(m.Events))
 	for i := range m.Events {
@@ -550,8 +553,8 @@ func WaitsByStmtClassOn(ctx context.Context, m *model.Model, src Facts) (classes
 	}
 	acc := map[key]*StmtClassWait{}
 	var order []*StmtClassWait
-	err = src.EachWait(ctx, Scan{}, func(w *model.Wait) bool {
-		if w.Statement < 0 || w.Event < 0 || int(w.Event) >= len(classOf) {
+	err = src.EachWait(ctx, f.Scan(), func(w *model.Wait) bool {
+		if w.Statement < 0 || w.Event < 0 || int(w.Event) >= len(classOf) || !mt.Wait(w) {
 			return true
 		}
 		k := key{w.Statement, classOf[w.Event]}
@@ -595,12 +598,16 @@ type StmtEventWait struct {
 // by wait time. Obj is the common obj# of all waits of the event (-1 when
 // they differ or name none).
 func TopStmtWaits(m *model.Model, sids []model.ID, max int) map[model.ID][]StmtEventWait {
-	out, _ := TopStmtWaitsOn(context.Background(), ModelFacts(m), sids, max)
+	out, _ := TopStmtWaitsOn(context.Background(), ModelFacts(m), Filter{IncludeIdle: true}, sids, max)
 	return out
 }
 
-// TopStmtWaitsOn is TopStmtWaits over any Facts.
-func TopStmtWaitsOn(ctx context.Context, src Facts, sids []model.ID, max int) (map[model.ID][]StmtEventWait, error) {
+// TopStmtWaitsOn is TopStmtWaits over any Facts, for the waits in scope (f.Statement and f.Event are ignored).
+func TopStmtWaitsOn(ctx context.Context, src Facts, f Filter, sids []model.ID, max int) (map[model.ID][]StmtEventWait, error) {
+	f.Statement, f.Event = nil, nil
+	mt := f.Matcher()
+	sc := f.Scan()
+	sc.Statements = sids
 	want := make(map[model.ID]bool, len(sids))
 	for _, s := range sids {
 		want[s] = true
@@ -614,8 +621,8 @@ func TopStmtWaitsOn(ctx context.Context, src Facts, sids []model.ID, max int) (m
 		mixed  bool
 	}
 	byKey := map[key]*acc{}
-	err := src.EachWait(ctx, Scan{Statements: sids}, func(w *model.Wait) bool {
-		if !want[w.Statement] {
+	err := src.EachWait(ctx, sc, func(w *model.Wait) bool {
+		if !want[w.Statement] || !mt.Wait(w) {
 			return true
 		}
 		k := key{w.Statement, w.Event}
@@ -676,19 +683,23 @@ type Interval struct {
 // StmtSpans returns, for each statement in sids, the time intervals its calls
 // covered (tim-e .. tim), merged where they are at most gapUs apart.
 func StmtSpans(m *model.Model, sids []model.ID, gapUs int64) map[model.ID][]Interval {
-	out, _ := StmtSpansOn(context.Background(), ModelFacts(m), sids, gapUs)
+	out, _ := StmtSpansOn(context.Background(), ModelFacts(m), Filter{}, sids, gapUs)
 	return out
 }
 
-// StmtSpansOn is StmtSpans over any Facts.
-func StmtSpansOn(ctx context.Context, src Facts, sids []model.ID, gapUs int64) (map[model.ID][]Interval, error) {
+// StmtSpansOn is StmtSpans over any Facts, for the calls in scope (f.Statement is ignored).
+func StmtSpansOn(ctx context.Context, src Facts, f Filter, sids []model.ID, gapUs int64) (map[model.ID][]Interval, error) {
+	f.Statement = nil
+	mt := f.Matcher()
+	sc := f.Scan()
+	sc.Statements = sids
 	want := make(map[model.ID]bool, len(sids))
 	for _, s := range sids {
 		want[s] = true
 	}
 	raw := map[model.ID][]Interval{}
-	err := src.EachCall(ctx, Scan{Statements: sids}, func(c *model.Call) bool {
-		if c.Tim == 0 || !want[c.Statement] {
+	err := src.EachCall(ctx, sc, func(c *model.Call) bool {
+		if c.Tim == 0 || !want[c.Statement] || !mt.Call(c) {
 			return true
 		}
 		raw[c.Statement] = append(raw[c.Statement], Interval{c.Tim - c.E, c.Tim})

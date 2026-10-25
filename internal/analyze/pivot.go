@@ -42,7 +42,8 @@ func ParseFact(s string) (Fact, error) {
 // its [tim-ela, tim] interval overlaps [StartTim, EndTim].
 type Filter struct {
 	StartTim, EndTim int64      // tim range, 0 = unbounded
-	Contexts         []model.ID // session contexts; empty = all
+	Contexts         []model.ID // session contexts; empty = all (unless NoContexts)
+	NoContexts       bool       // an explicit empty set: no session context, so no row (Contexts is then ignored)
 	IncludeIdle      bool       // waits only: keep events of the Idle class
 	Statement        *model.ID  // only rows of this statement (nil = all)
 	Event            *model.ID  // waits only: only this event (nil = all)
@@ -57,7 +58,9 @@ type Matcher struct {
 // Matcher compiles the filter for use over many rows.
 func (f Filter) Matcher() *Matcher {
 	mt := &Matcher{f: f}
-	if len(f.Contexts) > 0 {
+	if f.NoContexts {
+		mt.ctxs = map[model.ID]bool{} // non-nil and empty: nothing matches
+	} else if len(f.Contexts) > 0 {
 		mt.ctxs = make(map[model.ID]bool, len(f.Contexts))
 		for _, c := range f.Contexts {
 			mt.ctxs[c] = true

@@ -1372,9 +1372,12 @@ paths:
   /s/{id}/api/executions:
     get:
       operationId: sliceExecutions
-      summary: A page of the executions of one statement, with binds
+      summary: A page of the executions of one statement (those whose EXEC call is in scope), with binds
       parameters:
         - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
         - name: stmt
           in: query
           required: true
@@ -1716,9 +1719,13 @@ paths:
   /s/{id}/api/stmt/roles:
     get:
       operationId: sliceStmtRoles
-      summary: Wait time per statement and wait class; rows are [statement, class index, µs]
+      summary: Wait time per statement and wait class (waits in scope); rows are [statement, class index, µs]
       parameters:
         - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Idle"
       responses:
         "200":
           description: classes and rows
@@ -1740,10 +1747,14 @@ paths:
   /s/{id}/api/stmt/waits:
     get:
       operationId: sliceStmtWaits
-      summary: Top wait events of statements, keyed by statement id
+      summary: Top wait events of statements (waits in scope), keyed by statement id
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - $ref: "#/components/parameters/StmtList"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Idle"
         - name: max
           in: query
           schema:
@@ -1770,10 +1781,13 @@ paths:
   /s/{id}/api/stmt/spans:
     get:
       operationId: sliceStmtSpans
-      summary: Merged time intervals of statements' calls, keyed by statement id
+      summary: Merged time intervals of statements' calls in scope, keyed by statement id
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - $ref: "#/components/parameters/StmtList"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
         - name: gap
           in: query
           description: merge intervals closer than this many µs
@@ -1863,7 +1877,9 @@ components:
     Contexts:
       name: contexts
       in: query
-      description: comma-separated context ids (at most 10000)
+      description: >-
+        comma-separated context ids (at most 10000); empty or absent = every context;
+        `-` = no context at all (an explicit empty set: no row is in scope)
       schema:
         type: string
     Stmt:
