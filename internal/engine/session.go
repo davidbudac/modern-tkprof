@@ -495,6 +495,11 @@ func (c *cancelSink) BindSet(set *model.BindSet, b []model.Bind) {
 // sessionAPI serves /s/{id}/...: the session's handlers once it is ready.
 func (s *Server) sessionAPI(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	s.serveSession(w, r, id, "/s/"+id)
+}
+
+// serveSession serves a request of session id, its path below prefix.
+func (s *Server) serveSession(w http.ResponseWriter, r *http.Request, id, prefix string) {
 	s.mu.Lock()
 	ss := s.sessions[id]
 	s.mu.Unlock()
@@ -513,7 +518,11 @@ func (s *Server) sessionAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	http.StripPrefix("/s/"+id, ss.op.handler).ServeHTTP(w, r)
+	if prefix == "" {
+		ss.op.handler.ServeHTTP(w, r)
+		return
+	}
+	http.StripPrefix(prefix, ss.op.handler).ServeHTTP(w, r)
 }
 
 func (s *Server) lookup(w http.ResponseWriter, r *http.Request) *Session {

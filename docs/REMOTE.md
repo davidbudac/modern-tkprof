@@ -212,7 +212,20 @@ from the real lab VM: "Verified on dbmint".
 mtkprof fetch  oracle@dbmint:2200 /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_4711.trc -o traces/
 mtkprof follow oracle@dbmint:2200 /u01/.../cdb1_ora_4711.trc -o live.trc     # Ctrl-C stops; rerun resumes
 mtkprof follow oracle@dbmint:2200 /u01/.../cdb1_ora_4711.trc | less           # to stdout
+mtkprof follow oracle@dbmint:2200 /u01/.../cdb1_ora_4711.trc -serve            # live report at http://127.0.0.1:8046/
 ```
+
+`follow -serve[=ADDR]` (default `127.0.0.1:8046`) runs the engine's live
+session in-process (`engine.FollowRemote`, `SessionHandler`): the follow job
+mirrors the file (`-o file`, else a temporary directory removed at exit),
+the session parses the mirror and serves its snapshots at `/api/*`, the
+same routes and answers as `/s/{id}/` of the engine (GET and HEAD only, so
+no reference bundle upload; CORS open for reads like `serve`'s
+`/api/doc`), the UI at `/`. `X-Rev` and `api/doc?rev=` as in the engine.
+`-batch-ms` sets the batch, `-bind-values`/`-redact-salt` as for `serve`.
+A chain (`TRACE CONTINUES IN FILE x`) is mirrored next to the first file
+under the remote names and followed. Ctrl-C closes the listener, cancels
+the follow (the remote `tail` ends with the stream) and removes the spill.
 
 Prompts go to the terminal (`/dev/tty`, `CONIN$`); with the cli transport
 the CLI starts an in-process askpass bridge on 127.0.0.1 so ssh's prompts

@@ -475,7 +475,7 @@ func (lv *live) nextReady(ctx context.Context) (bool, error) {
 			return false, fmt.Errorf("follow %s: %w", rp, err)
 		}
 		lv.pending = &nm
-		lv.srv.logf("info", "session %s: %s continues in %s; following it", lv.ss.id, path.Base(lv.remote), rp)
+		lv.srv.logf("info", "session %s: %s continues in %s; mirroring it once the host has it", lv.ss.id, path.Base(lv.remote), rp)
 	}
 	nm := lv.pending
 	select {

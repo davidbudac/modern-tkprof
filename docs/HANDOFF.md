@@ -199,8 +199,14 @@ Deferred by the agents (small, none blocks v1):
 - Export everything together (connections + library); clock-time windows in
   saved configurations (offsets only); clock-time input in "Jump to time";
   search-match highlighting in the Lines rows; per-line copy/permalink.
-- Live sessions: statement indexes for the spill; following continuation
-  chains (`TRACE CONTINUES IN FILE`); `mtkprof follow -serve`.
+- Live sessions: done in package G2 (cursor index of
+  the live spill, `TRACE CONTINUES IN` chains, `mtkprof follow -serve`; see
+  ARCHITECTURE "Live sessions"). Still open there: the UI does not long-poll
+  `api/doc?rev=` (reload shows new data); the remote chain test runs on the
+  lib transport only (the cli `tail` cleanup is the same stream close that
+  `TestOpenSSHFollowAndThroughput` checks); a chain is followed forward only
+  (following a file that has `CONTINUED FROM` does not pull in the earlier
+  file).
 - Adaptive/larger db fetch ranges (200 000 numbers per query is ~1.6x faster).
 - Known limits: sessions are never evicted (closing is the client's job);
   `GET /engine/cache` costs one `readdir` + manifest read per entry. A

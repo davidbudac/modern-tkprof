@@ -922,6 +922,17 @@ alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
 * **`api/doc`.** The latest snapshot, its revision in `X-Rev` (exposed to
   CORS). `?rev=N` with nothing newer than N waits up to 25 s for the next
   snapshot or the end of the follow (a long poll; compare `X-Rev`).
+* **`mtkprof follow -serve`** (`cmd/mtkprof/fetch.go` `followServe`,
+  `internal/engine/standalone.go`). The CLI runs an engine in-process
+  (cache and live spill in a temporary directory, no token, no control
+  plane): `FollowRemote(cl, path, local, options)` starts the follow job
+  and the live session exactly as `POST /engine/connections/{id}/follow`
+  does (`startRemoteFollow`, connection `""`; chain files next to `local`),
+  and `SessionHandler(id)` serves the session's routes at the root, which
+  the CLI mounts under `/api/` (GET and HEAD only) next to the UI at `/`.
+  So its answers, `X-Rev` and the long poll are the engine's.
+  `TestCLIFollowServe` (in-process SSH server, lib transport) follows the
+  real `midtrace_start` pair through it.
 
 Measured (`MTKPROF_BIG=… go test ./internal/engine -run LiveBig -v`; 100 MB
 prefix of `big_loop.trc`): catch-up 1.3 s (one snapshot); a snapshot on
