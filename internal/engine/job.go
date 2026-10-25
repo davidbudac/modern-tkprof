@@ -23,9 +23,9 @@ const maxFinishedJobs = 100
 // JobInfo is a job as GET /engine/jobs and the job event show it.
 type JobInfo struct {
 	ID      string `json:"id"`
-	Kind    string `json:"kind"`  // open
+	Kind    string `json:"kind"`  // open, fetch, follow
 	State   string `json:"state"` // running, done, failed, cancelled
-	Phase   string `json:"phase"` // open: parse, index, ready
+	Phase   string `json:"phase"` // open: parse, index, ready; fetch; follow
 	Done    int64  `json:"done"`
 	Total   int64  `json:"total"`
 	Unit    string `json:"unit"` // bytes, files
@@ -34,6 +34,9 @@ type JobInfo struct {
 	Session    string `json:"session,omitempty"`    // the session the job opens
 	Lines      int64  `json:"lines,omitempty"`      // parse progress (Progress)
 	Statements int64  `json:"statements,omitempty"` // parse progress (Progress)
+
+	Connection string   `json:"connection,omitempty"` // fetch, follow: the connection
+	LocalPaths []string `json:"localPaths,omitempty"` // fetch (once done), follow: the local files
 }
 
 // Job is a cancelable piece of background work. Its context ends when the

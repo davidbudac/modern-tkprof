@@ -19,6 +19,7 @@ const (
 	CodeNeedsPrompt  Code = "needs_prompt"
 	CodeInternal     Code = "internal"
 	CodeUnauthorized Code = "unauthorized"
+	CodeRemote       Code = "remote" // the remote host or the connection to it failed
 )
 
 // Status is the HTTP status that goes with the code.
@@ -34,6 +35,8 @@ func (c Code) Status() int {
 		return http.StatusPreconditionRequired
 	case CodeUnauthorized:
 		return http.StatusUnauthorized
+	case CodeRemote:
+		return http.StatusBadGateway
 	}
 	return http.StatusInternalServerError
 }

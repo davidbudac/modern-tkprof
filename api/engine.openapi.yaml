@@ -28,7 +28,8 @@ info:
     Control-plane errors use the envelope `{"error": {"code", "message"}}`
     (`ErrorEnvelope`) with the status of the code: bad_request 400,
     unauthorized 401, not_found 404, conflict and cancelled 409,
-    needs_prompt 428, internal 500. The slice endpoints under
+    needs_prompt 428, internal 500, remote 502 (a remote host or the
+    connection to it failed). The slice endpoints under
     `/s/{id}/api/` answer a bad parameter with a plain-text 400 (they are
     the handlers of `mtkprof serve`); a missing session or a session that is
     not ready is the envelope (404, 409).
@@ -259,6 +260,301 @@ paths:
       responses:
         "204":
           description: removed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /engine/askpass:
+    post:
+      operationId: askpass
+      summary: A prompt of ssh, posted by the `mtkprof askpass` helper; answered once the user has
+      description: |
+        The engine spawns the system ssh/sftp with `SSH_ASKPASS` set to the
+        mtkprof binary and `MTKPROF_ENGINE`, `MTKPROF_TOKEN`,
+        `MTKPROF_PROMPT_CONN` in its environment. ssh runs the helper with
+        its prompt text; the helper classifies it and posts it here. The
+        engine raises a `prompt` event and holds the request until
+        `POST /engine/prompts/{id}`, then answers `{answer}` (hostkey and
+        confirm: the helper prints yes or no). Password and passphrase
+        answers are kept in memory per connection until it is deleted; a
+        cached answer is offered once per ssh run (`spawn`), so a wrong one
+        is asked again. A cancelled prompt is 409 `cancelled`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AskpassRequest"
+      responses:
+        "200":
+          description: the answer
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [answer]
+                properties:
+                  answer:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /engine/connections:
+    get:
+      operationId: listConnections
+      summary: The registered connections, by id
+      responses:
+        "200":
+          description: connections
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connections]
+                properties:
+                  connections:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConnectionInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: putConnection
+      summary: Register (or replace) a connection definition; no secrets
+      description: |
+        Replacing a definition closes the old connection and drops its
+        credentials (409 while a fetch or follow of it runs). A `db`
+        connection is stored, but its operations answer 400 "not
+        implemented yet" until internal/remote/db is wired (E8); follow is
+        ssh only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectionDef"
+      responses:
+        "200":
+          description: registered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection]
+                properties:
+                  connection:
+                    $ref: "#/components/schemas/ConnectionInfo"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /engine/connections/{id}:
+    delete:
+      operationId: deleteConnection
+      summary: Cancel the connection's jobs, close it and forget its credentials
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "204":
+          description: deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /engine/connections/{id}/test:
+    post:
+      operationId: testConnection
+      summary: Connect (prompting as needed) and report the host
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "200":
+          description: connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          $ref: "#/components/responses/Remote"
+  /engine/connections/{id}/ls:
+    get:
+      operationId: lsConnection
+      summary: List a remote directory (or one file)
+      description: |
+        ssh: `sftp -b -` running `ls -ln path` (cli) or SFTP ReadDir (lib).
+        Hidden files are not listed; symbolic links are not followed.
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+        - name: path
+          in: query
+          required: true
+          description: remote directory or file (absolute, or relative to the login directory)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: the listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteListing"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          $ref: "#/components/responses/Remote"
+  /engine/connections/{id}/diag:
+    get:
+      operationId: diagConnection
+      summary: Candidate trace directories on the host
+      description: |
+        `$ORACLE_BASE/diag/rdbms/*/*/trace`, the same under the ORACLE_BASE of
+        every home in /etc/oratab (/var/opt/oracle/oratab), then
+        `/u01/app/oracle/diag/rdbms/*/*/trace`; existing directories only,
+        without duplicates.
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "200":
+          description: directories
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dirs]
+                properties:
+                  dirs:
+                    type: array
+                    items:
+                      type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          $ref: "#/components/responses/Remote"
+  /engine/connections/{id}/fetch:
+    post:
+      operationId: fetchConnection
+      summary: Copy remote files into the cache (job kind fetch)
+      description: |
+        Files go to `<cache>/remote/<connection>/<basename>` (base names must
+        differ). A local file shorter than the remote one is resumed at its
+        size; a longer one is fetched again from the start. ssh/cli streams
+        `tail -c +N -- path`, through `gzip -1 -c` when the host has gzip
+        and `gzip` is not false; lib reads over SFTP. Progress: bytes over
+        all files (`total` from the remote sizes, raised if a file grows).
+        The finished job carries `localPaths`; open them with
+        `POST /engine/sessions`. Cancel with `DELETE /engine/jobs/{id}`;
+        the partial files stay for the next fetch to resume.
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paths]
+              additionalProperties: false
+              properties:
+                paths:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: string
+                gzip:
+                  type: boolean
+                  default: true
+      responses:
+        "202":
+          description: the job and where the files will be
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job, localPaths]
+                properties:
+                  job:
+                    $ref: "#/components/schemas/JobInfo"
+                  localPaths:
+                    type: array
+                    items:
+                      type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /engine/connections/{id}/follow:
+    post:
+      operationId: followConnection
+      summary: Mirror a growing remote file into the cache (job kind follow)
+      description: |
+        Follow (file mirror); the live session is pending. The job copies the
+        file to `<cache>/remote/<connection>/<basename>` (resuming at the
+        local size) and keeps appending what the host writes (ssh/cli:
+        `tail -c +N -f -- path`, stopped on the host when the stream ends;
+        lib: SFTP size poll every 500 ms), reconnecting after a drop (5
+        failures in a row end it). `done` is the local size, `total` 0. It
+        runs until `DELETE /engine/jobs/{id}` (state cancelled). A later
+        version opens a `live` session fed by the streaming parser instead.
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              additionalProperties: false
+              properties:
+                path:
+                  type: string
+      responses:
+        "202":
+          description: the job and the local file
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job, localPath]
+                properties:
+                  job:
+                    $ref: "#/components/schemas/JobInfo"
+                  localPath:
+                    type: string
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -1241,6 +1537,14 @@ components:
         type: integer
         minimum: 0
         default: 0
+    ConnectionID:
+      name: id
+      in: path
+      required: true
+      description: connection id (the shell's)
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
     From:
       name: from
       in: query
@@ -1318,6 +1622,12 @@ components:
             $ref: "#/components/schemas/ErrorEnvelope"
     Conflict:
       description: the object is in the wrong state (session not ready, job finished, entry open, engine shutting down)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Remote:
+      description: the remote host or the connection to it failed (unreachable, authentication, permission, missing file)
       content:
         application/json:
           schema:
@@ -1485,7 +1795,7 @@ components:
           description: first row only, line of the first STAT line
     ErrorCode:
       type: string
-      enum: [bad_request, unauthorized, not_found, conflict, cancelled, needs_prompt, internal]
+      enum: [bad_request, unauthorized, not_found, conflict, cancelled, needs_prompt, internal, remote]
     ErrorEnvelope:
       type: object
       required: [error]
@@ -1539,14 +1849,14 @@ components:
           type: string
         kind:
           type: string
-          enum: [open]
+          enum: [open, fetch, follow]
         state:
           type: string
           enum: [running, done, failed, cancelled]
         phase:
           type: string
-          description: "open: open (cache lookup), parse (miss only), index (miss only), ready"
-          enum: [open, parse, index, ready]
+          description: "open: open (cache lookup), parse (miss only), index (miss only), ready; fetch: fetch; follow: follow"
+          enum: [open, parse, index, ready, fetch, follow]
         done:
           type: integer
         total:
@@ -1554,7 +1864,7 @@ components:
           description: 0 = unknown
         unit:
           type: string
-          description: bytes in phase parse, empty otherwise
+          description: bytes in phases parse, fetch and follow, empty otherwise
           enum: [bytes, ""]
         message:
           type: string
@@ -1568,6 +1878,14 @@ components:
         statements:
           type: integer
           description: parse progress
+        connection:
+          type: string
+          description: "fetch, follow: the connection"
+        localPaths:
+          type: array
+          items:
+            type: string
+          description: "fetch: the local files, once done; follow: the local file"
     JobList:
       type: object
       required: [jobs]
@@ -1713,6 +2031,9 @@ components:
         state:
           type: string
           enum: [open, closed]
+        fingerprint:
+          type: string
+          description: "hostkey: the SHA256 fingerprint of the unknown host key (answer yes to accept; it is then added to ~/.ssh/known_hosts)"
     PromptAnswer:
       type: object
       description: "{answer} or {cancel: true}"
@@ -1786,6 +2107,127 @@ components:
         bytes:
           type: integer
           description: bytes freed
+    AskpassRequest:
+      type: object
+      required: [text]
+      properties:
+        connection:
+          type: string
+          description: MTKPROF_PROMPT_CONN (empty or unknown = no caching)
+        kind:
+          type: string
+          enum: [password, passphrase, otp, hostkey, confirm]
+          description: the helper's classification (absent = classified by the engine)
+        text:
+          type: string
+          description: the prompt as ssh printed it
+        fingerprint:
+          type: string
+        spawn:
+          type: string
+          description: id of the ssh run (MTKPROF_PROMPT_SPAWN)
+    ConnectionDef:
+      type: object
+      required: [id, kind, host]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        kind:
+          type: string
+          enum: [ssh, db]
+        host:
+          type: string
+          description: "ssh: a host name or ~/.ssh/config alias"
+        port:
+          type: integer
+          description: 0 = ~/.ssh/config or 22
+        user:
+          type: string
+          description: empty = ~/.ssh/config or the local user
+        service:
+          type: string
+          description: db service name
+        adrHome:
+          type: string
+          description: db ADR home
+        transport:
+          type: string
+          enum: [auto, cli, lib]
+          default: auto
+          description: "ssh only. cli: the system ssh/sftp with the askpass bridge; lib: the Go SSH library; auto: cli when ssh is on PATH, lib otherwise or once ssh ignored SSH_ASKPASS"
+    ConnectionInfo:
+      type: object
+      required: [id, kind, host, port, user, transport, active]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [ssh, db]
+        host:
+          type: string
+        port:
+          type: integer
+        user:
+          type: string
+        service:
+          type: string
+        adrHome:
+          type: string
+        transport:
+          type: string
+          enum: [auto, cli, lib, ""]
+        active:
+          type: string
+          enum: [cli, lib, ""]
+          description: the SSH transport in use ("" before the first operation)
+    ConnectionTest:
+      type: object
+      required: [server, transport]
+      additionalProperties: false
+      properties:
+        server:
+          type: string
+          description: the host's `uname -sr` (lib adds the SSH server version)
+        transport:
+          type: string
+          enum: [cli, lib]
+    RemoteEntry:
+      type: object
+      required: [name, path, size, mode, modTime, dir, link]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        mode:
+          type: string
+          description: as ls -l prints it (-rw-r-----)
+        modTime:
+          type: string
+          format: date-time
+          description: minute precision (cli, from sftp ls -l; day precision past 6 months)
+        dir:
+          type: boolean
+        link:
+          type: boolean
+    RemoteListing:
+      type: object
+      required: [path, entries]
+      additionalProperties: false
+      properties:
+        path:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RemoteEntry"
     Document:
       type: object
       description: report.Document (format 3); see web/src/lib/data/types.ts
