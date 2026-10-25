@@ -404,7 +404,26 @@ automated tests use fakes; this list is what remains. `dbmint` is the lab VM
 `dangerouslyDisableSandbox: true` for it). Record results in this file
 (replace "to verify" with what was seen).
 
-### SSH (E7)
+### SSH (E7): verified on dbmint 2026-10-25
+
+Results (`ssh -p 2200 oracle@dbmint`, key authentication, OpenSSH 8.7 on
+the host, 9.6 locally):
+
+- `TestDbmint`: cli, cli+gzip, lib and scp give the same sha256 of
+  `cdb1_ora_133146_mtk_basic_binds.trc` (213 689 bytes); resume from a
+  truncated copy works; `Diag` finds `/u01/app/oracle/diag/rdbms/cdb1/cdb1/trace`;
+  follow latency 149 ms (cli, inotify `tail -f`) and 501 ms (lib, 500 ms poll).
+- `mtkprof fetch oracle@dbmint:2200 .../cdb1_ora_134678_mtk_big_loop.trc`:
+  117.7 MB in 0.97 s (gzip over the VM loopback), sha256 equal to
+  `testdata/big/big_loop.trc`; the second run is a 0.4 s no-op.
+- Engine: `POST /engine/connections` (ssh, transport auto → cli), `test`,
+  `diag`, `fetch` (job done, 171 216 bytes under `<cache>/remote/lab/`),
+  `follow` → a live session (`live`, rev 2, 3 059 lines after 4 s); no prompt
+  events (key auth); `DELETE` of the session left no `tail` on the host
+  (`pgrep -a tail` empty).
+- Not yet verified: Windows 11 askpass and the agent pipe (S6).
+
+The original checklist, kept for the next lab:
 
 1. Gated transport tests (fetch sha256 over cli+gzip, cli, lib and scp,
    resume, diag, follow latency within 2 s):
