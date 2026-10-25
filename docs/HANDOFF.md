@@ -130,7 +130,7 @@ Needs a person or a machine:
 
 - **Windows 11**: `ssh.exe` and `SSH_ASKPASS`, the OpenSSH agent pipe. The plan's
   rule "UI verified by screenshot on Windows first" has no record here: no
-  Windows or macOS screenshot is documented.
+  Windows screenshot is documented. macOS is done (see below).
 - **GitHub Actions billing** blocked the last desktop CI run: no CI-built
   installer or smoke result exists for the final desktop commit
   (`63564b5`). Phase 6 (tag both repos, release notes) follows once it runs.
@@ -144,9 +144,17 @@ Needs a person or a machine:
   linuxdeploy`: the linuxdeploy plugin's static-pie runtime does not execute
   in the container at all, with or without `/dev/fuse` and
   `APPIMAGE_EXTRACT_AND_RUN=1`) and is only produced by GitHub's runner.
-  macOS legs: `mtkprof-desktop/docs/HANDOFF-macos-build.md` is the recipe
-  for a session on the MacBook (no T3 session there is reachable from
-  dbmint).
+  macOS legs: done by hand on the MacBook (Apple M4, macOS 27) on 2026-10-25
+  with `mtkprof-desktop/docs/HANDOFF-macos-build.md` for v0.3.0 (`834d7e4`,
+  engine `53042d0`): checks green (35 tests, `api.d.ts` unchanged), both
+  DMGs built (`mtkprof_0.3.0_aarch64.dmg` 9.9 MiB, `_x64.dmg` 10.4 MiB),
+  `scripts/smoke.sh` passed on arm64 (open 40 ms, kill, restart < 1 s,
+  re-open from the cache 12 ms; restarted screenshot shows the toast and
+  "restarts 1"). Notes: Node 26 / pnpm 12.9.1 there (the recipe says 22/10,
+  CI uses 24); `screencapture` needs Screen Recording permission for the
+  host app; `--bundles dmg` deletes the `.app`, so the recipe's `xattr` path
+  does not exist (not needed: the smoke runs `release/` directly). The DMG
+  hand install (Gatekeeper) and the x64 smoke were not run.
 - Stray 32 MB binary in history (`mtkprof` at the repo root, removed in
   `a89bc12`); a history rewrite is the user's call, relevant before the repo is
   published.

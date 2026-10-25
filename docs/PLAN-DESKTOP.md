@@ -25,8 +25,10 @@ screenshots matched the CI legs' earlier ones. Not run locally: the Windows
 and macOS legs (impossible here) and the AppImage: linuxdeploy's static-pie AppImage runtime does not execute
 at all inside Docker on this host (`cannot execute: required file not
 found`, even with `/dev/fuse` and `APPIMAGE_EXTRACT_AND_RUN=1`); the
-AppImage is produced only by the GitHub runner. macOS legs: a handoff for a
-session on the MacBook is in the desktop repo, `docs/HANDOFF-macos-build.md`.
+AppImage is produced only by the GitHub runner. macOS legs: built and
+smoke-tested by hand on the MacBook on 2026-10-25 (both DMGs, arm64 smoke
+passed; HANDOFF "Open"), recipe `docs/HANDOFF-macos-build.md` in the desktop
+repo.
 
 **Blocked on the user.**
 
