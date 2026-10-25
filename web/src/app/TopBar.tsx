@@ -17,7 +17,7 @@ const themeNext = { auto: 'light', light: 'dark', dark: 'auto' } as const
 const themeGlyph = { auto: '◐', light: '○', dark: '●' } as const
 
 /** File, the whole-trace profile in miniature, the views, filters and theme. */
-export function TopBar({ doc }: { doc: TraceDoc }) {
+export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => void }) {
   const actions = useActions()
   const state = useStore((s) => s)
   const compare = state.compare
@@ -61,13 +61,14 @@ export function TopBar({ doc }: { doc: TraceDoc }) {
         {win && <span className="chip">window {fmtDur(win.endTim - win.startTim)} <button onClick={() => actions.setWindow(null)} aria-label="Clear time window">×</button></span>}
         {state.contexts && <span className="chip">{state.contexts.size} session context{state.contexts.size === 1 ? '' : 's'} <button onClick={() => actions.setContexts(null)} aria-label="Clear context filter">×</button></span>}
       </span>
+      {onShowInfo && <button className={'quiet theme' + (doc.file.truncated || doc.file.continuedFrom?.length ? ' warn' : '')} onClick={onShowInfo} title="show the trace info bar" aria-label="Show trace info bar">ⓘ</button>}
       <button className="quiet theme" onClick={() => actions.setTheme(themeNext[state.theme])} title={`theme: ${state.theme}`} aria-label={`Theme ${state.theme}`}>{themeGlyph[state.theme]}</button>
     </header>
   )
 }
 
 /** Where the trace came from: database, session, module, time span. */
-export function SubBar({ doc }: { doc: TraceDoc }) {
+export function SubBar({ doc, onClose }: { doc: TraceDoc; onClose: () => void }) {
   const c0 = doc.contexts[0]
   const switches = Math.max(0, doc.contexts.length - 1)
   return (
@@ -82,6 +83,7 @@ export function SubBar({ doc }: { doc: TraceDoc }) {
       </span>
       {doc.file.truncated && <span className="warn">cut by max_dump_file_size</span>}
       {doc.file.continuedFrom?.length ? <span className="warn">continues an earlier file</span> : null}
+      <button className="quiet close" onClick={onClose} title="hide this bar (ⓘ in the top bar shows it again)" aria-label="Hide trace info bar">×</button>
     </div>
   )
 }

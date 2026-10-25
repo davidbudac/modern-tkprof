@@ -46,7 +46,7 @@
 }
 .topbar > * { flex: none; white-space: nowrap; }
 .topbar .brand { font-weight: 600; letter-spacing: 0.01em; }
-.topbar .file { font-size: var(--text-sm); color: var(--ink); overflow: clip; text-overflow: ellipsis; max-inline-size: 28ch; }
+.topbar .file { flex: 0 1 auto; min-inline-size: 8ch; font-size: var(--text-sm); color: var(--ink); overflow: clip; text-overflow: ellipsis; max-inline-size: 28ch; }
 .topbar .mini { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); }
 .topbar .mini b { font-weight: 600; }
 .topbar .mini-track { display: inline-flex; inline-size: 11rem; block-size: 0.7rem; border-radius: 2px; overflow: clip; background: var(--surface-sunken); }
@@ -75,7 +75,10 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
   white-space: nowrap;
 }
 .subbar b { color: var(--ink); font-weight: 500; }
-.subbar .warn { color: var(--s-critical); }
+.subbar .warn, .topbar .theme.warn { color: var(--s-critical); }
+/* stays at the bar's end while the bar scrolls sideways */
+.subbar .close { position: sticky; inset-inline-end: 0; margin-inline-start: auto; padding: 0 0.45rem; font-size: var(--text-lg); line-height: 1.2; background: var(--surface); }
+.shell.no-subbar { grid-template-rows: var(--topbar-h) minmax(0, 1fr) auto; }
 
 .main {
   overflow: auto;
