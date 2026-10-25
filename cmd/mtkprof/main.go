@@ -37,7 +37,8 @@ Usage:
   mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
   mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained HTML report
   mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate] [-spill[=DIR]]   browser UI
-  mtkprof engine [-listen 127.0.0.1:0] [-cache DIR] [-allow-origin O,...] [-idle-exit D] [-detach]   desktop sidecar (token: env MTKPROF_TOKEN)
+  mtkprof engine [-listen 127.0.0.1:0] [-cache DIR] [-cache-cap 20G] [-allow-origin O,...] [-idle-exit D] [-detach]   desktop sidecar (token: env MTKPROF_TOKEN)
+  mtkprof engine cache ls|rm <identity>|wipe [-cache DIR]   the engine's index cache
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
   mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text diff, B against A
   mtkprof html|serve|json <a.trc> <b.trc> -compare ...    both traces + diff (Compare tab)

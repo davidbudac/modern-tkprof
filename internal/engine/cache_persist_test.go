@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -72,6 +73,9 @@ func sameOutputs(t *testing.T, want, got *model.Model) {
 	t.Helper()
 	wd, wt := outputs(t, want)
 	gd, gt := outputs(t, got)
+	if !bytes.Contains(wd, []byte(`"minimap":{`)) {
+		t.Errorf("the document has no stats.minimap")
+	}
 	if !bytes.Equal(wd, gd) {
 		t.Errorf("document differs after the round trip\n want %.400s\n got  %.400s", firstDiff(wd, gd), firstDiff(gd, wd))
 	}
@@ -97,7 +101,11 @@ func TestModelPersistRoundTrip(t *testing.T) {
 	for _, name := range sortedKeys(sets) {
 		t.Run(name, func(t *testing.T) {
 			m := buildAggregate(t, sets[name])
-			sameOutputs(t, m, roundTrip(t, m))
+			d := roundTrip(t, m)
+			sameOutputs(t, m, d)
+			if mm := analyze.TraceMinimap(m); mm == nil || !reflect.DeepEqual(mm, analyze.TraceMinimap(d)) {
+				t.Errorf("minimap differs after the round trip (or is missing)")
+			}
 		})
 	}
 }

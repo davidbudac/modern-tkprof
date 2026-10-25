@@ -6,12 +6,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -28,12 +30,12 @@ const minTokenLen = 32
 // after -idle-exit without sessions and requests.
 func cmdEngine(args []string) error {
 	if len(args) > 0 && args[0] == "cache" {
-		// TODO(E2): return cmdEngineCache(args[1:])
-		return fmt.Errorf("engine cache: not available yet")
+		return cmdEngineCache(args[1:])
 	}
 	fs := flag.NewFlagSet("engine", flag.ExitOnError)
 	listen := fs.String("listen", "127.0.0.1:0", "listen address (port 0 = any free port)")
-	cache := fs.String("cache", "", "cache directory (default <user cache dir>/mtkprof)")
+	cache := fs.String("cache", "", "index cache directory (default <user cache dir>/mtkprof)")
+	cacheCap := fs.String("cache-cap", "20G", "index cache size limit (bytes; suffixes K, M, G, T = powers of 1024)")
 	origins := fs.String("allow-origin", "", "comma-separated CORS origins (e.g. tauri://localhost,http://tauri.localhost)")
 	idle := fs.Duration("idle-exit", 0, "exit after this long without sessions and requests (0 = never)")
 	detach := fs.Bool("detach", false, "keep running when stdin closes")
@@ -46,16 +48,15 @@ func cmdEngine(args []string) error {
 		fmt.Fprintf(os.Stderr, "mtkprof engine: MTKPROF_TOKEN must hold a secret of at least %d bytes\n", minTokenLen)
 		os.Exit(2)
 	}
+	capBytes, err := parseSize(*cacheCap)
+	if err != nil || capBytes <= 0 {
+		return fmt.Errorf("engine: -cache-cap %q: want a positive size like 20G", *cacheCap)
+	}
 	dir := *cache
 	if dir == "" {
-		base, err := os.UserCacheDir()
-		if err != nil {
-			base = os.TempDir()
+		if dir, err = engine.CacheDefaultDir(); err != nil {
+			dir = filepath.Join(os.TempDir(), "mtkprof")
 		}
-		dir = filepath.Join(base, "mtkprof")
-	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("engine: cache dir: %w", err)
 	}
 	if os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(20) // every session is an aggregate + spill build, as serve -spill
@@ -66,8 +67,11 @@ func cmdEngine(args []string) error {
 			allow = append(allow, o)
 		}
 	}
-	eng := engine.New(engine.Options{Token: token, AllowOrigins: allow, CacheDir: dir, Version: version,
+	eng, err := engine.New(engine.Options{Token: token, AllowOrigins: allow, CacheDir: dir, CacheCap: capBytes, Version: version,
 		Logf: func(format string, a ...any) { fmt.Fprintf(os.Stderr, "mtkprof engine: "+format+"\n", a...) }})
+	if err != nil {
+		return fmt.Errorf("engine: %w", err)
+	}
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
 		eng.Close()
@@ -115,9 +119,27 @@ func cmdEngine(args []string) error {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "mtkprof engine: stopping (%s)\n", why)
-	eng.Close() // ends the event streams and jobs, removes the spill directories
+	eng.Close() // ends the event streams and jobs, closes the sessions (their cache entries stay)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	hs.Shutdown(ctx)
 	return nil
+}
+
+// parseSize reads a byte count with an optional K, M, G or T suffix (powers
+// of 1024; a trailing "B" or "iB" is allowed: 20G, 20GB, 20GiB, 512M).
+func parseSize(v string) (int64, error) {
+	v = strings.TrimSpace(strings.ToUpper(v))
+	v = strings.TrimSuffix(strings.TrimSuffix(v, "B"), "I")
+	mult := int64(1)
+	if n := len(v); n > 0 {
+		if i := strings.IndexByte("KMGT", v[n-1]); i >= 0 {
+			mult, v = int64(1)<<(10*(i+1)), v[:n-1]
+		}
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+	if err != nil || n < 0 || n > math.MaxInt64/mult {
+		return 0, fmt.Errorf("bad size %q", v)
+	}
+	return n * mult, nil
 }

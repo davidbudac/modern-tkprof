@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,7 +18,6 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 	"github.com/davidbudac/modern-tkprof/internal/slice"
-	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
 // Session states. "closed" only appears in the session event of a DELETE.
@@ -50,17 +48,21 @@ type FileInfo struct {
 
 // SessionInfo is a session as the engine reports it.
 type SessionInfo struct {
-	ID       string     `json:"id"`
-	Paths    []string   `json:"paths"`
-	State    string     `json:"state"`
-	Rev      int        `json:"rev"`
-	Identity string     `json:"identity"`
-	Files    []FileInfo `json:"files"`
-	Opened   string     `json:"opened"` // RFC 3339
-	Bytes    int64      `json:"bytes"`
-	Lines    int64      `json:"lines"`
-	Job      string     `json:"job,omitempty"` // the open job
-	Error    string     `json:"error,omitempty"`
+	ID       string   `json:"id"`
+	Paths    []string `json:"paths"`
+	State    string   `json:"state"`
+	Rev      int      `json:"rev"`
+	Identity string   `json:"identity"` // content identity of the trace files (TraceIdentity, no options): the key of annotations
+	// CacheIdentity is the identity of the cache entry (files and the build
+	// options), the {identity} of /engine/cache.
+	CacheIdentity string     `json:"cacheIdentity"`
+	Hit           bool       `json:"hit"` // opened from the cache without a parse (false while opening)
+	Files         []FileInfo `json:"files"`
+	Opened        string     `json:"opened"` // RFC 3339
+	Bytes         int64      `json:"bytes"`
+	Lines         int64      `json:"lines"`
+	Job           string     `json:"job,omitempty"` // the open job
+	Error         string     `json:"error,omitempty"`
 }
 
 // SessionEvent is the payload of a session event.
@@ -71,11 +73,13 @@ type SessionEvent struct {
 }
 
 // Session is one open trace set. Once ready it serves the handlers of
-// `serve -spill` at /s/{id}/.
+// `serve -spill` at /s/{id}/, from its entry of the index cache.
 type Session struct {
 	id       string
 	paths    []string // absolute
-	identity string
+	inputs   []string // the trace files of paths (directories expanded)
+	identity string   // TraceIdentity
+	cacheID  string   // CacheIdentity
 	opened   time.Time
 	bindMode model.BindMode
 	salt     string
@@ -90,6 +94,7 @@ type Session struct {
 	bytes int64
 	lines int64
 	err   string
+	hit   bool
 
 	use sync.RWMutex // requests hold it shared, close exclusively
 	op  *opened      // set when ready; nil after close
@@ -97,28 +102,20 @@ type Session struct {
 
 // opened is what a ready session serves from.
 type opened struct {
-	m       *model.Model
-	spill   *slice.Spill
-	lis     []*trace.LineIndex
+	co      *CacheOpened
 	handler http.Handler
 }
 
-// close releases the line indexes and the spill (its directory is removed).
-func (o *opened) close() {
-	for _, li := range o.lis {
-		li.Close()
-	}
-	if o.spill != nil {
-		o.spill.Close()
-	}
-}
+// close releases the line indexes and the spill files and unpins the cache
+// entry (its files stay).
+func (o *opened) close() { o.co.Close() }
 
 // Info is a snapshot of the session.
 func (ss *Session) Info() SessionInfo {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	return SessionInfo{ID: ss.id, Paths: ss.paths, State: ss.state, Rev: ss.rev, Identity: ss.identity,
-		Files: ss.files, Opened: ss.opened.UTC().Format(time.RFC3339), Bytes: ss.bytes, Lines: ss.lines,
+		CacheIdentity: ss.cacheID, Hit: ss.hit, Files: ss.files, Opened: ss.opened.UTC().Format(time.RFC3339), Bytes: ss.bytes, Lines: ss.lines,
 		Job: ss.job.info.ID, Error: ss.err}
 }
 
@@ -214,8 +211,17 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeBadRequest, "paths: %v", err))
 		return
 	}
-	ss := &Session{id: newID("s"), paths: paths, identity: slice.SpillKey(paths), opened: time.Now(),
+	ids, err := IdentityOfFiles(inputs)
+	if err != nil {
+		writeError(w, errorf(CodeBadRequest, "paths: %v", err))
+		return
+	}
+	ss := &Session{id: newID("s"), paths: paths, inputs: inputs, identity: TraceIdentity(ids), opened: time.Now(),
 		bindMode: mode, salt: o.Salt, th: th, done: make(chan struct{}), state: SessionOpening, rev: 1, files: fileInfos(inputs)}
+	if ss.cacheID, err = CacheIdentity(inputs, ss.cacheOptions(nil)); err != nil {
+		writeError(w, errorf(CodeBadRequest, "paths: %v", err))
+		return
+	}
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -223,11 +229,7 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ss.job = s.newJobLocked("open", ss.id)
-	var total int64
-	for _, f := range ss.files {
-		total += f.Size
-	}
-	ss.job.info.Phase, ss.job.info.Unit, ss.job.info.Total = "parse", "bytes", total
+	ss.job.info.Phase = "open" // cache lookup; "parse" (bytes) only on a miss
 	s.sessions[ss.id] = ss
 	s.wg.Add(1)
 	s.mu.Unlock()
@@ -263,7 +265,7 @@ func (s *Server) runOpen(ss *Session) {
 		err = errCancelled
 	}
 	if err != nil {
-		if errors.Is(err, errCancelled) {
+		if errors.Is(err, errCancelled) || errors.Is(err, context.Canceled) {
 			err = errCancelled
 		}
 		ss.mu.Lock()
@@ -279,20 +281,52 @@ func (s *Server) runOpen(ss *Session) {
 	ss.use.Lock()
 	ss.op = op
 	ss.use.Unlock()
-	m := op.m
+	m := op.co.Model
 	files := make([]FileInfo, len(m.File.Files))
 	for i, fe := range m.File.Files {
 		files[i] = FileInfo{Path: fe.Path, Name: fe.Name, Size: fe.Size}
 	}
 	ss.mu.Lock()
-	ss.state, ss.files, ss.bytes, ss.lines = SessionReady, files, m.Diag.Bytes, int64(m.Diag.Lines)
+	ss.state, ss.files, ss.bytes, ss.lines, ss.hit = SessionReady, files, m.Diag.Bytes, int64(m.Diag.Lines), op.co.Hit
 	ss.mu.Unlock()
 	job.mu.Lock()
 	job.info.Phase = "ready"
 	job.mu.Unlock()
 	job.finish(nil) // one event: done, phase ready
 	s.bc.publish("session", ss.event())
-	s.logf("info", "session %s: %s ready in %s (%d lines, %.1f MB)", ss.id, describe(m), time.Since(start).Round(time.Millisecond), m.Diag.Lines, float64(m.Diag.Bytes)/1e6)
+	how := "parsed"
+	if op.co.Hit {
+		how = "from the cache"
+	}
+	s.logf("info", "session %s: %s ready in %s, %s (%d lines, %.1f MB)", ss.id, describe(m), time.Since(start).Round(time.Millisecond), how, m.Diag.Lines, float64(m.Diag.Bytes)/1e6)
+	s.evict()
+}
+
+// evict trims the cache to its cap, keeping the entries of every session.
+func (s *Server) evict() {
+	s.mu.Lock()
+	pinned := make([]string, 0, len(s.sessions))
+	for _, ss := range s.sessions {
+		pinned = append(pinned, ss.cacheID)
+	}
+	s.mu.Unlock()
+	if gone := s.cache.Evict(pinned...); len(gone) > 0 {
+		s.logf("info", "cache: evicted %d entries", len(gone))
+	}
+}
+
+// cacheOptions are the options of the session's cache entry.
+func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
+	return CacheOpenOptions{BindMode: ss.bindMode, Salt: ss.salt, Thresholds: ss.th, Build: build}
+}
+
+// sessionRoutes are the routes of a ready session, relative to /s/{id}.
+func sessionRoutes() []string {
+	out := []string{"GET /api/doc", "GET /api/lines"}
+	for _, ep := range slice.Endpoints() {
+		out = append(out, "GET "+ep)
+	}
+	return out
 }
 
 func describe(m *model.Model) string {
@@ -302,77 +336,78 @@ func describe(m *model.Model) string {
 	return m.File.Files[0].Name
 }
 
-// buildSession builds a session exactly as `serve -spill` does: an
-// aggregation-only model, calls, waits and binds spilled to a temporary
-// directory under the cache dir, bind redaction applied to the spill and the
-// model, the document with slice: true, one line index per input file.
-//
-// Seams: the persistent cache (E2) looks the session's content identity up
-// here first and, on a hit, reopens the spill instead of building; the parse
-// progress hook (E3) is model.Options.OnProgress = job.Progress.
+// buildSession opens a session from the index cache: on a hit the entry is
+// loaded (no parse); on a miss the trace is built exactly as `serve -spill`
+// does (aggregation-only model, calls, waits and binds spilled into the new
+// entry, bind redaction applied to the spill and the model, one line index
+// per input file) and then loaded. The document has slice: true.
 func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
-	ctx := job.Context() // phase "parse" was set when the job was created
+	ctx := job.Context()
 	if ctx.Err() != nil {
 		return nil, errCancelled
 	}
-	// The key carries the session id (no '-': RemoveStale splits on it), so a
-	// second session of the same trace does not remove this one's directory.
-	sp, err := slice.NewSpill(slice.SpillOptions{Dir: s.opts.CacheDir, Key: ss.identity + "." + ss.id, BindMode: ss.bindMode, Salt: ss.salt})
-	if err != nil {
-		return nil, fmt.Errorf("spill: %w", err)
+	var total int64
+	for _, f := range ss.files {
+		total += f.Size
 	}
-	op := &opened{spill: sp}
+	build := func(ctx context.Context, paths []string, mo model.Options) (*model.Model, error) {
+		job.SetPhase("parse", "bytes", 0, total)
+		tee := mo.NewTee
+		mo.NewTee = func(m *model.Model) model.Sink {
+			t := tee(m)
+			bs, _ := t.(model.BindSink)
+			return &cancelSink{ctx: ctx, sink: t, binds: bs}
+		}
+		mo.OnProgress = job.Progress
+		m, err := buildFiles(paths, mo)
+		if err == nil {
+			job.SetPhase("index", "", 0, 0) // persist the entry, line indexes
+		}
+		return m, err
+	}
+	co, err := s.cache.OpenTrace(ctx, ss.inputs, ss.cacheOptions(build))
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errCancelled
+		}
+		return nil, err
+	}
+	op := &opened{co: co}
 	defer func() {
 		if err != nil {
 			op.close()
 		}
 	}()
-	th := analyze.DefaultThresholds()
-	if ss.th != nil {
-		th = *ss.th
+	if co.Identity != ss.cacheID {
+		return nil, fmt.Errorf("cache: opened %s, expected %s", co.Identity, ss.cacheID)
 	}
-	opts := model.Options{NoFacts: true, Aggregate: true, SpillBinds: ss.bindMode != model.BindsNone,
-		NewSink:    func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) },
-		NewTee:     func(m *model.Model) model.Sink { return &cancelSink{ctx: ctx, sink: sp.Attach(m), binds: sp} },
-		OnProgress: job.Progress,
-	}
-	m, err := buildFiles(ss.paths, opts)
-	if err != nil {
-		return nil, err
-	}
-	op.m = m
-	model.RedactBindsSalt(m, ss.bindMode, ss.salt)
+	m := co.Model
 	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
 	if err != nil {
 		return nil, err
 	}
-	src, err := sp.Source()
-	if err != nil {
-		return nil, fmt.Errorf("spill: %w", err)
+	if !co.Hit {
+		debug.FreeOSMemory() // the build churned through the heap; give the pages back before idling
 	}
-	debug.FreeOSMemory() // the build churned through the heap; give the pages back before idling
-	job.SetPhase("index", "files", 0, int64(len(m.File.Files)))
-	for i, fe := range m.File.Files {
-		if ctx.Err() != nil {
-			return nil, errCancelled
-		}
-		li, err := trace.OpenLineIndex(fe.Path)
-		if err != nil {
-			return nil, err
-		}
-		op.lis = append(op.lis, li)
-		job.SetPhase("index", "files", int64(i+1), int64(len(m.File.Files)))
-	}
-	ssrv := slice.NewServer(m, src)
+	ssrv := slice.NewServer(m, co.Source)
 	ssrv.AllowOrigin = slice.NoCORS // the engine's middleware sets CORS
+	handlers := map[string]http.Handler{
+		"GET /api/lines": slice.LinesHandler(co.Lines),
+		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// ?rev= is accepted; there is one revision until ref data or follow exist
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(doc)
+		}),
+	}
+	api := ssrv.Handler()
 	mux := http.NewServeMux()
-	mux.Handle("/api/", ssrv.Handler())
-	mux.Handle("/api/lines", slice.LinesHandler(op.lis))
-	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
-		// ?rev= is accepted; there is one revision until ref data or follow exist
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(doc)
-	})
+	for _, p := range sessionRoutes() {
+		h := handlers[p]
+		if h == nil {
+			h = api
+		}
+		mux.Handle(p, h)
+	}
 	op.handler = mux
 	return op, nil
 }
@@ -480,7 +515,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 
 // deleteSession serves DELETE /engine/sessions/{id}: cancels the open job if
 // it still runs, waits for it to stop, then waits for the session's requests
-// in flight and releases its files (the spill directory is removed). 204.
+// in flight and releases its files (the cache entry stays). 204.
 func (s *Server) deleteSession(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	ss := s.sessions[r.PathValue("id")]
@@ -495,29 +530,4 @@ func (s *Server) deleteSession(w http.ResponseWriter, r *http.Request) {
 	ss.close()
 	s.bc.publish("session", ss.event())
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// sweepSpills removes the spill directories engines left behind when they
-// died (the engine's keys contain a '.'; `serve -spill` cleans its own).
-func sweepSpills(base string) {
-	ents, err := os.ReadDir(base)
-	if err != nil {
-		return
-	}
-	const prefix = "mtkprof-spill-"
-	for _, e := range ents {
-		name := e.Name()
-		if !e.IsDir() || !strings.HasPrefix(name, prefix) {
-			continue
-		}
-		parts := strings.Split(strings.TrimPrefix(name, prefix), "-")
-		if len(parts) != 3 || !strings.Contains(parts[0], ".") {
-			continue
-		}
-		pid, err := strconv.Atoi(parts[1])
-		if err != nil || pid == os.Getpid() || processAlive(pid) {
-			continue
-		}
-		os.RemoveAll(filepath.Join(base, name))
-	}
 }

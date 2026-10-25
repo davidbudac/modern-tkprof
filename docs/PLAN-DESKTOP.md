@@ -153,6 +153,27 @@ generates its client with `openapi-typescript` from the submodule's file.
 `protocol` increments on any breaking change; the shell refuses to start an
 engine whose `protocol` it does not know.
 
+As built (phase 1, protocol 1; the YAML is authoritative):
+
+- Lists are wrapped: `{sessions:[…]}`, `{jobs:[…]}`; `GET /engine/cache` is
+  `{bytes, entries, cap, items:[{identity, bytes, created, lastUsed, paths, open}]}`;
+  `DELETE /engine/cache` answers `{removed, skipped, bytes}` (open entries
+  are skipped); `DELETE /engine/cache/{identity}` is 204, 404, or 409 while
+  a session has it open.
+- `POST /engine/sessions` is 202 `{session, job}`; `DELETE /engine/jobs/{id}`
+  202 `{job}` (409 when finished); `DELETE /engine/sessions/{id}` and
+  `POST /engine/prompts/{id}` 204.
+- Session: `identity` is the content identity without options (annotations);
+  `cacheIdentity` is the cache entry (the `{identity}` of `/engine/cache`);
+  `hit`; `job` (the open job) and `error` when failed. Job: `session`,
+  `lines`, `statements`; phases `open` → (`parse` bytes → `index`, miss only)
+  → `ready`. Prompt events carry `state: open|closed`.
+- Error codes add `unauthorized` (401); `needs_prompt` is 428, `cancelled`
+  409. The slice endpoints keep their plain-text 400s.
+- The event stream needs the bearer token: read it with `fetch`, not
+  `EventSource`.
+- `mtkprof engine -cache-cap 20G`; `mtkprof engine cache ls|rm|wipe`.
+
 ## 3. Persistent index cache
 
 Directory `<cache>/mtkprof/index/<identity>/` where `<cache>` is

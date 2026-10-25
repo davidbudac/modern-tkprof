@@ -71,7 +71,7 @@ import (
 // CacheIndexFormat is the format of a cache entry as a whole. Bump it with
 // any of the formats it is made of (TestCacheIndexFormatCoversParts lists
 // them), so old entries are rebuilt instead of misread.
-const CacheIndexFormat = 1
+const CacheIndexFormat = 2
 
 // cacheParts are the versions of the files of an entry at CacheIndexFormat.
 var cacheParts = map[string]int{
