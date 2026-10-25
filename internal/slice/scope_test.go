@@ -36,7 +36,7 @@ func TestNoContextsSelectsNothing(t *testing.T) {
 	get(t, h, "/api/statements?contexts=", &all)
 	sameStmts(t, "empty contexts= is all", all.Statements, analyze.Statements(m))
 
-		for _, fact := range []string{"calls", "waits"} {
+	for _, fact := range []string{"calls", "waits"} {
 		var pv PivotResponse
 		if code := get(t, h, "/api/pivot?fact="+fact+"&by=stmt&contexts=-", &pv); code != 200 || pv.Facts != 0 || len(pv.Rows) != 0 {
 			t.Errorf("pivot %s: status %d, %d facts, %d rows", fact, code, pv.Facts, len(pv.Rows))
