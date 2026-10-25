@@ -599,6 +599,205 @@ A 10 GB trace of this shape (not measured): ~10 GB of disk, ~0.2-0.5 GB RSS
 the 1 GB column (a few seconds warm, bound by the disk when cold); statement
 questions stay fast through the index.
 
+### Engine mode (`mtkprof engine`)
+
+The desktop app's sidecar (`cmd/mtkprof/engine.go`, `internal/engine`; plan
+and decisions: `docs/PLAN-DESKTOP.md`). One process holds N open traces,
+always built the way `serve -spill` builds (aggregation-only model, facts in
+spill files), and keeps the spill as a persistent index cache. Every session
+mounts the handlers of `serve -spill` at `/s/{id}/`, so its answers equal the
+CLI's.
+
+**Process contract**
+
+| | |
+|---|---|
+| token | env `MTKPROF_TOKEN`, at least 32 bytes, else exit 2. Never a flag (argv is visible). |
+| ready line | one JSON line on stdout once the listener is up: `{"ready":true,"addr":"127.0.0.1:41233","version":"…","protocol":1}`. Logs go to stderr. |
+| exit | stdin EOF (parent gone) unless `-detach`; SIGINT/SIGTERM; `-idle-exit D` after D with no sessions and no requests. Sessions are closed, their cache entries stay. |
+| `-listen` | default `127.0.0.1:0` (any free port) |
+| `-cache DIR` | cache root, default `<os.UserCacheDir()>/mtkprof` |
+| `-cache-cap SIZE` | LRU limit, default `20G` (suffixes K, M, G, T = powers of 1024) |
+| `-allow-origin O,…` | CORS origins, exact match; none = no CORS headers |
+| `-idle-exit D` | default 0 (never) |
+| `-detach` | keep running when stdin closes |
+
+GC is set to 20 % unless `GOGC` is set (every session is a spill build).
+
+**Auth and CORS.** Every request except `GET /engine/health` needs
+`Authorization: Bearer <token>` (constant-time compare, 401 `unauthorized`).
+CORS headers (`Access-Control-Allow-Origin`, `Vary: Origin`) only for origins
+in `-allow-origin`, never `*`; preflights are answered before the token
+check. The event stream needs the header, so clients read it with `fetch`,
+not `EventSource`.
+
+**Routes.** The control plane (`routes` in `internal/engine/server.go`):
+health, `events` (SSE), `prompts/{id}`, `sessions` (open, list, get, close),
+`jobs` (list, cancel), `cache` (list, remove one, wipe). Per session
+(`sessionRoutes` in `session.go`, mounted under `/s/{id}`): `api/doc`,
+`api/lines` and the 13 endpoints of `internal/slice`. Request and response
+shapes, status codes and error codes are in `api/engine.openapi.yaml`
+(protocol 1); `internal/engine/contract_test.go` walks `Server.Routes()` and
+fails when a route is missing from the schema or the schema has a route the
+engine does not serve (it also checks the protocol number and the schemas).
+Change the YAML and the code together. Not built yet: the lines/search/at
+routes (E6), ref, report, connections (see `docs/PLAN-DESKTOP.md` § 2).
+
+**Sessions, jobs, events, prompts**
+
+* Session: one open trace set. `POST /engine/sessions {paths, options}`
+  answers 202 `{session, job}`. States `opening → ready | failed`; `closed`
+  only appears in the event of a `DELETE`. `identity` is the content identity
+  of the files without options (the key annotations will use),
+  `cacheIdentity` the cache entry, `hit` whether it opened without a parse,
+  `rev` the document revision (1 so far; `?rev=` on `api/doc` is accepted and
+  ignored; later it increments when a reference bundle is applied or a live
+  session advances). `options.follow=true` is refused (400) until live
+  sessions exist. Directories in `paths` are
+  expanded as on the CLI, at most 1000 inputs.
+* Job: a cancelable piece of work with its own `context.Context` (child of
+  the engine's). Kind `open`; phases `parse` (unit bytes, `done/total`, plus
+  `lines` and `statements`; progress from `model.Options.OnProgress`) →
+  `index` (persisting the entry; miss only) → `ready`. Finished jobs stay
+  listed (last 100). On a cache hit the job goes straight to `ready`.
+* Events (`GET /engine/events`, SSE, `: mtkprof engine` comment first,
+  keepalive comment every 15 s): `job`, `session`, `prompt`, `log`. A new
+  subscriber gets the open prompts first; there is no replay of anything
+  else, clients `GET` the lists after (re)connecting.
+* Prompts: `internal/engine/prompts.go` is the one mechanism for asking the
+  user a secret or a confirmation (`remote.Prompter`, `internal/remote`).
+  `Ask` publishes a `prompt` event (`state: open`) and blocks until
+  `POST /engine/prompts/{id}` with `{answer}` or `{cancel:true}`, or its
+  context ends (`state: closed`). Nothing in an answer is logged. No caller
+  yet; remote access (E7–E9) will be the first.
+* Errors: `{"error":{"code","message"}}`; `bad_request` 400, `unauthorized`
+  401, `not_found` 404, `conflict` 409, `cancelled` 409, `needs_prompt` 428,
+  `internal` 500. The slice endpoints keep their plain-text 400s.
+
+**Cancel mechanism (the cancel tee).** The builder has no context. `buildSession`
+wraps the spill's tee sink in `cancelSink`: every 4096 facts it checks the
+job context and, when cancelled, panics with `errCancelled`; `buildFiles`
+recovers that (and any parser panic, as an error instead of taking the engine
+down) and returns it. `OpenTrace` also checks the context before and after the
+build, so a cancelled build is never committed: the build directory is
+aborted and the session ends `failed` with `cancelled`. `DELETE
+/engine/jobs/{id}` answers 202 and 409 when the job already finished.
+
+#### Persistent index cache
+
+Code: `internal/engine/cache*.go`, `identity.go`; formats in
+`internal/model/persist.go`, `internal/analyze/persist.go`,
+`internal/slice/spill_persist.go`, `trace.LineIndex.Save`/`LoadLineIndex`, all
+on the explicit binary helpers of `internal/binfmt` (not gob: unexported
+fields, fragile type descriptors). The package comment of `cache.go` is the
+API reference.
+
+```
+<cache>/index/<identity>/
+  manifest.json                 written last
+  dims.bin                      model.Encode: the model without the fact tables
+  agg.bin                       analyze.Accumulator.Encode: what the document and text report are computed from
+  calls.bin waits.bin bindsets.bin binds.bin bindvals.bin calls.stmt waits.stmt   the spill, unchanged layout
+  spill.idx                     what the spill kept in memory: row counts, statement index layout, context row ranges
+  lines-<i>.idx                 trace.LineIndex checkpoints of input file i (File.Files order)
+```
+
+Directories 0700, files 0600. An entry is built in `index/.build-<pid>-<random>`
+and renamed into place after the manifest is written and every file synced;
+`OpenCache` removes build directories of dead processes and entries without a
+valid manifest, so a crash leaves nothing half-written. Several processes may
+share a directory; the first commit of an identity wins.
+
+**Identity.**
+
+```
+identity(file) = sha256(size ‖ first 1 MiB)                    size: 8 bytes little endian
+identity(set)  = sha256(sorted file identities ‖ options)      options: format, bind mode, salt hash, thresholds hash, no-follow
+```
+
+A trace that was moved, renamed or fetched again hits the cache; order and
+names of the files do not matter. Two files of equal size whose first MiB agree
+but differ later collide: the price of not reading 2 GB to open from the cache.
+
+| In the identity (a different value is a different entry) | Not in it |
+|---|---|
+| the input files' content identities | file names, paths, mtime |
+| `CacheIndexFormat` | `-ref` bundle / `ApplyRef` (applied after every load; the model is stored before it, and it is not idempotent) |
+| bind mode (`keep`, `redact`, `none`) | `-allow-origin`, `-cache-cap`, process flags |
+| salt hash (`sha256("mtkprof-salt\0"+salt)`; the salt itself is never stored) | the plan-viz URL and other UI settings |
+| sha256 of the finding thresholds (JSON; they shape the aggregates) | |
+| no-follow (`CacheOpenOptions.NoFollow`: chain following off; the engine sessions always follow chains, so it is false there; `options.follow` of a session means live follow and is not this) | |
+
+The identity without options (`engine.TraceIdentity`, the session's
+`identity`) is what annotations will be keyed by. Live (`follow`) sessions
+are not cached: a growing file has no stable identity.
+
+**Validation.** `Lookup` reads `manifest.json` and requires: `indexFormat ==
+CacheIndexFormat`; the directory name equals the manifest identity; the
+identity recomputed from `inputs` and `options` equals the directory name;
+at least one file; every file of the entry present with the recorded size.
+Anything else removes the entry and is a miss. `Load` matches the entry's
+source files to the paths the caller opened by content identity (so the
+model shows the new paths and the line viewer reads the file where it is
+now); a source that is not among them is read from its recorded path if it
+still has its size, else `ErrCacheStale` and a rebuild. Any decoding error
+is a miss too: the entry is removed and rebuilt, never a crash. Concurrent opens of one identity in a process wait for the first
+build.
+
+**LRU and pinning.** `lastUsed` is touched on every hit. After a build the
+cache evicts least recently used entries until the total is at most
+`-cache-cap`. Entries that a session has open (ref-counted by `Load`/`Close`)
+and the entry just built are never evicted; `DELETE /engine/cache/{identity}`
+answers 409 for an open one, `DELETE /engine/cache` skips them
+(`{removed, skipped, bytes}`). The cap can therefore be exceeded while
+sessions hold big entries. CLI for support, with no engine running:
+`mtkprof engine cache ls|rm <identity-prefix>|wipe [-cache DIR]`.
+
+**Format bumps.** An entry is a set of files whose formats are versioned
+separately: `model.PersistVersion` (dims), `analyze.AccumPersistVersion`
+(agg), `slice.SpillIdxVersion`, `trace.LineIndexVersion`, each checked in its
+file header (`binfmt.ErrFormat` on mismatch). `CacheIndexFormat`
+(`internal/engine/cache.go`) covers them as a whole and is part of the
+identity and the manifest: bump it whenever any part changes, and old
+entries are simply not found (they age out through the LRU or `engine cache
+wipe`). `TestCacheIndexFormatCoversParts` fails when a part version changes without
+`CacheIndexFormat` (update its expectation with the bump), and the
+struct-shape guards (`TestAccumPersistCoversEveryField`,
+`TestPersistCoversEveryField` in `internal/model`) fail when a field is added
+without a bump. Current values: `CacheIndexFormat` 2, `PersistVersion` 1,
+`AccumPersistVersion` 2, `SpillIdxVersion` 1, `LineIndexVersion` 1.
+
+**Measured** (`big_loop.trc`, 118 MB, bind-heavy; `MTKPROF_BIG=… go test
+./internal/engine -run Big -v`):
+
+| | |
+|---|---|
+| first open (parse + persist) | ≈ 0.8 s |
+| reopen from the cache | ≈ 32 ms, + 5 ms to build the document |
+| RSS after reopen | ≈ 27 MB |
+| entry size | ≈ the trace size (the spill dominates) |
+
+`TestCacheRoundTrip` proves every slice endpoint answers byte-identically
+from a persisted entry and from the in-memory source on every fixture;
+`TestCacheHitAfterMoveAndRename`, `TestCacheOptionsAreSeparateEntries`,
+`TestCacheEvictLRU`, `TestCacheManifestMismatchIsMiss`,
+`TestCacheCrashLeavesNoHalfEntry` cover the rest.
+
+#### Minimap
+
+`stats.minimap` (`analyze.TraceMinimap`, `internal/analyze/minimap.go`) is
+the overview strip of the UI: `{bucketUs, cpu[], waits{class: []}}`, at most
+1024 equal buckets over the trace span (fewer when the span is shorter than
+1024 µs). Attribution is by completion: a top-level call's whole CPU goes to
+the bucket of its `tim`, a wait's whole elapsed time to the bucket of its
+`tim`; nothing is spread. PX slaves attached to a coordinator are left out
+like in `TraceProfile`, so Σ CPU equals the profile's CPU and Σ per class
+equals the profile rows of that class. Both build modes produce it: exact
+from the facts in a full build, from the accumulator's private cell grid
+(100 µs cells) in an aggregate build, where an event can land up to one
+bucket early. It is part of `agg.bin`, so a cache hit serves it without a
+scan. Zoomed ranges ask `/api/timeline`.
+
 ### internal/analyze
 
 * Resource profile (Millsap): CPU, each wait event, unaccounted-for, over any
@@ -683,14 +882,21 @@ notable; `plan-change` is notable or serious as above.
 ## Repository layout
 
 ```
-cmd/mtkprof/        CLI (report, compare, pivot, json, html, serve, plan, refscript, findings-config, lint, export); trace arguments are files and directories
-internal/trace/     streaming parser
-internal/model/     model + builder
-internal/analyze/   aggregations (+ the streaming Accumulator of the aggregation-only mode)
+cmd/mtkprof/        CLI (report, compare, pivot, json, html, serve, plan, refscript, findings-config, lint, export, engine); trace arguments are files and directories
+internal/trace/     streaming parser (+ LineIndex with Save/Load)
+internal/model/     model + builder (+ persist.go: binary encoding of the dimension tables)
+internal/analyze/   aggregations (+ the streaming Accumulator of the aggregation-only mode, its persistence, the minimap)
 internal/report/    text / json / csv renderers
+internal/slice/     server-side slicing: in-memory and spill (disk, persistable) FactSources, the /api endpoints
+internal/engine/    `mtkprof engine`: control plane (sessions, jobs, SSE events, prompts), persistent index cache, content identity
+internal/binfmt/    explicit versioned binary reader/writer used by the persistence code
+internal/remote/    remote-access plumbing shared by the engine and CLI subcommands (so far the Prompter interface)
 internal/ref/       embedded reference data (wait classes, command types, bind datatypes) + the reference-bundle loader
+api/                engine.openapi.yaml (the engine protocol, checked by internal/engine/contract_test.go)
 web/                Vite + TypeScript UI (web/vendor/ora-plan-core: vendored shared plan core)
-testdata/           real 19c fixtures (+ tkprof output as golden reference), generator scripts
+  web/src/lib/      the UI library (views, components, data incl. ApiClient, state, styles); imported as @lib; never imports app/
+  web/src/app/      the standalone shell (App, TopBar, Inspector, LineDrawer, urlstate) used by html and serve
+testdata/           real 19c/21c/23ai fixtures (+ tkprof output as golden reference), generator scripts
 docs/               this file, trace-format-19c.md, ROADMAP.md
 ```
 

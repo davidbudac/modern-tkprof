@@ -40,6 +40,27 @@ mtkprof lint   trace.trc                 # what the parser saw: line kinds, even
 mtkprof report a.trc b.trc dir/          # several files / directories = one trace set (see "Trace sets")
 ```
 
+### Engine (desktop app backend)
+
+`mtkprof engine` is the local backend of the desktop app (`mtkprof-desktop`):
+one process that holds several open traces, answers the same `/api/*`
+endpoints as `serve -spill` for each of them at `/s/{id}/`, and keeps an
+index of every trace it has opened, so opening it again takes milliseconds.
+It is not meant for interactive use; run it by hand to try the protocol:
+
+```
+export MTKPROF_TOKEN=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')   # 32+ bytes, required
+mtkprof engine -detach &                  # prints {"ready":true,"addr":"127.0.0.1:PORT",...}; -cache DIR, -cache-cap 20G, -allow-origin, -idle-exit
+curl -H "Authorization: Bearer $MTKPROF_TOKEN" -d '{"paths":["trace.trc"]}' http://127.0.0.1:PORT/engine/sessions
+mtkprof engine cache ls                   # also: rm <identity-prefix>, wipe (-cache DIR)
+```
+
+The index cache lives in `<user cache dir>/mtkprof/index/` (e.g.
+`~/.cache/mtkprof` on Linux), about as large as the traces, evicted least
+recently used above 20 GB. Entries are keyed by file content (size and the
+first MiB), not by path. The protocol is `api/engine.openapi.yaml`; details in
+`docs/ARCHITECTURE.md` ("Engine mode").
+
 ### Trace sets
 
 A trace can be several files. Every command that takes a trace accepts any
@@ -199,13 +220,15 @@ select value from v$diag_info where name = 'Default Trace File';
 
 ```
 cmd/mtkprof/        CLI
+internal/engine/    `mtkprof engine`: sessions, jobs, persistent index cache
 internal/trace/     streaming line parser
 internal/model/     dimensional model + builder
 internal/analyze/   profiles, statement statistics, executions, timelines
 internal/report/    text report, JSON document
 internal/ui/        embedded web UI (built from web/)
 internal/golden/    comparison against tkprof output
-web/                Vite + React + TypeScript explorer
+web/                Vite + React + TypeScript explorer (src/lib: shared UI library, src/app: standalone shell)
+api/                engine protocol (OpenAPI)
 testdata/           real 19.27 traces, tkprof output, generator scripts, v$ exports
 docs/               architecture, trace format reference, roadmap
 ```

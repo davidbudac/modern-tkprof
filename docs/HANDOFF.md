@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-10-24 (milestones 1–6, the v1 tail and the follow-up round done)
+# Handoff — state of mtkprof on 2026-10-25 (milestones 1–6, the v1 tail, the follow-up round and desktop phase 1 done)
 
 Read this, then `docs/DESIGN.md` (the decisions), then `docs/ARCHITECTURE.md`
 (how the code is shaped) and `docs/trace-format-19c.md` (what the parser
@@ -7,7 +7,8 @@ must accept). `docs/ROADMAP.md` lists the longer tail.
 Next body of work: the desktop app. `docs/PLAN-DESKTOP.md` (2026-10-25,
 revised after a 33-question design interview, § 11 there) is the
 implementation plan: engine mode in this repo, Tauri shell in a new private
-repo, phases E1–E10 / U1 / S1–S9, protocol, cache layout, budgets.
+repo, phases E1–E10 / U1 / S1–S9, protocol, cache layout, budgets. Phase 1
+(engine, cache, contract, lib split) is done: see "Desktop phase 1: done".
 
 ## Where things stand
 
@@ -23,12 +24,14 @@ Working and tested:
 | Aggregations (profiles, statement stats, executions, group-bys, timeline) | `internal/analyze` | done |
 | Golden comparison against Oracle's tkprof | `internal/golden` | passes on all 19 fixtures |
 | Text report, JSON document (format 2, packed columns), CSV export | `internal/report` | done |
-| CLI: `report`, `pivot`, `html`, `serve`, `json`, `export`, `lint` | `cmd/mtkprof` | done |
+| CLI: `report`, `pivot`, `html`, `serve`, `json`, `export`, `lint`, `plan`, `refscript`, `compare`, `findings-config`, `engine` (+ `engine cache`) | `cmd/mtkprof` | done |
 | Findings (9 rules, fixed thresholds) in JSON, text report and Overview | `internal/analyze/findings.go`, `internal/report/text_findings.go`, `web/src/lib/views/Findings.tsx` | done; unit tests on fixtures + hand-built models |
 | Go group-by with the UI Pivot's dims/measures; sessions and time-bucket stats | `internal/analyze/pivot.go` | done; unit tests |
 | Bind redaction (`-redact-binds`, `-bind-values keep\|redact\|none`, `-binds none`) as a model post-pass | `internal/model/redact.go`, `cmd/mtkprof/bindflags.go` | done; tests prove no value leaks into text/JSON/CSV |
-| Web UI (Overview ledger + lanes, Statements workbench, Waits + event inspector, Timeline, Sessions, Pivot), light/dark, IBM Plex embedded | `web/` → embedded as `internal/ui/dist/index.html` | redesigned 2026-10-23 (`docs/mockups/`), reviewed by screenshot |
+| Web UI (Overview ledger + lanes + minimap strip, Statements workbench, Waits + event inspector, Timeline, Sessions, Pivot), light/dark, IBM Plex embedded; split into `web/src/lib` (shared library) and `web/src/app` (standalone shell) | `web/` → embedded as `internal/ui/dist/index.html` | redesigned 2026-10-23 (`docs/mockups/`), split 2026-10-25 (U1), reviewed by screenshot |
 | Real fixtures: 19.27 (21), 21c XE (19), 23ai Free (19) + tkprof output + generators (dbmint, docker) + v$ exports | `testdata/` | done |
+| Engine: sessions, jobs, SSE events, prompts, per-session `/s/{id}/api/*`, OpenAPI contract | `internal/engine`, `api/engine.openapi.yaml` | done (desktop phase 1); no remote, lines, ref or report routes yet |
+| Persistent index cache (content identity, LRU, manifest, `engine cache`) | `internal/engine/cache*.go`, `identity.go`, `internal/{model,analyze,slice}/*persist*.go`, `internal/binfmt` | done; round-trip tests on every fixture |
 | CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | green on every push; release job verified with tag `v0.2.0-rc.1` |
 
 Numbers (after milestone 5): 118 MB trace → text report in 0.61 s / 220 MB
@@ -85,6 +88,75 @@ committed on purpose so `go build` alone works.
   VM, `ssh -p 2200 oracle@dbmint`, needs `dangerouslyDisableSandbox`. Schema
   `MTK` exists in `PDB1`; `testdata/gen/run_gen.sh` regenerates the fixtures
   idempotently and runs tkprof on them. Never run destructive SQL there.
+
+## Desktop phase 1: done (2026-10-25)
+
+`docs/PLAN-DESKTOP.md` phase 1. Merged on `main` (`9a7e16c`). Design:
+`docs/ARCHITECTURE.md` § "Engine mode" and § "Persistent index cache".
+
+| Package | What | Where | Status |
+|---|---|---|---|
+| E1 engine server | `mtkprof engine`: token, ready line, stdin EOF, sessions, jobs with cancel, SSE, prompts plumbing, per-session slice mux | `internal/engine/{server,session,job,events,prompts,errors}.go`, `cmd/mtkprof/engine.go`, `internal/remote/prompt.go` | done; httptest |
+| E2 persistent cache | content identity, model/accumulator/spill/line-index persistence, manifest, LRU, `engine cache ls\|rm\|wipe` | `internal/engine/{cache,cache_manifest,cache_routes,identity}.go`, `cmd/mtkprof/engine_cache.go`, `internal/{model,analyze,slice}/*persist*.go`, `trace.LineIndex.Save/LoadLineIndex`, `internal/binfmt` | done; `TestCacheRoundTrip` on every fixture |
+| E3 progress + minimap | `model.Options.OnProgress`, `analyze.TraceMinimap`, `stats.minimap` | `internal/model/builder.go`, `internal/analyze/minimap.go`, `internal/report` | done; sums equal the profile |
+| E4 contract | OpenAPI file, route walk test | `api/engine.openapi.yaml`, `internal/engine/contract_test.go` | done |
+| E5 docs | this section, ARCHITECTURE, README, CLAUDE.md | `docs/`, `README.md`, `CLAUDE.md` | done |
+| U1 lib split | `web/src/lib` (views, components, data, state) + `web/src/app`, `ApiClient`, `SessionProvider`, minimap strip | `web/src/lib/data/client.ts`, `web/src/lib/state/session.tsx`, `web/src/lib/components/Minimap.tsx`, `web/src/app/*` | done; vitest, standalone HTML and `serve` unchanged |
+
+**Run the engine by hand** (PATH as in "Build, test, run"):
+
+```
+export MTKPROF_TOKEN=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')   # 48 hex chars; 32+ bytes required
+./bin/mtkprof engine -cache /tmp/mtk-cache -detach > /tmp/engine.out &         # without -detach it exits when stdin closes
+cat /tmp/engine.out                                                            # {"ready":true,"addr":"127.0.0.1:PORT","version":"…","protocol":1}
+H="Authorization: Bearer $MTKPROF_TOKEN"; A=127.0.0.1:PORT
+curl -s -XPOST -H "$H" -d '{"paths":["/abs/path/trace.trc"]}' http://$A/engine/sessions   # 202 {session, job}
+curl -sN -H "$H" http://$A/engine/events                  # SSE: job (phase, done/total), session, prompt, log
+curl -s  -H "$H" http://$A/engine/sessions                # state opening → ready; hit=true when it came from the cache
+curl -s  -H "$H" http://$A/s/SESSION_ID/api/doc | head -c 300      # the document (format 3, slice: true)
+curl -s  -H "$H" "http://$A/s/SESSION_ID/api/pivot?fact=waits&by=event,stmt"
+curl -s  -H "$H" http://$A/engine/cache                   # entries, bytes, cap
+curl -s  -XDELETE -H "$H" http://$A/engine/sessions/SESSION_ID    # closes; the cache entry stays
+curl -s  -XDELETE -H "$H" http://$A/engine/jobs/JOB_ID            # cancel a running open
+./bin/mtkprof engine cache ls -cache /tmp/mtk-cache               # also rm <identity-prefix>, wipe
+```
+
+Stop it with SIGTERM to the pid found by port (`ss -ltnp | grep :PORT`).
+Endpoints and query parameters of the per-session API are the ones of `serve
+-spill`; the schema is `api/engine.openapi.yaml`.
+
+**Budgets** (`docs/PLAN-DESKTOP.md` § 9), measured in phase 1:
+
+| | target | measured |
+|---|---|---|
+| reopen a cached trace | 2 GB < 2 s to `ready` | `big_loop.trc` (118 MB): 32 ms + 5 ms document; 2 GB not measured (needs a 2 GB fixture) |
+| fresh open | parse at today's speed | `big_loop.trc`: ≈ 0.8 s including persist |
+| engine RSS idle | < 300 MB with 2 GB open | 27 MB after a hit on `big_loop.trc` |
+| cache entry size | | ≈ the trace size |
+| pivot on 1 GB / 2 GB | ≤ 300 ms / ≤ 600 ms | spill numbers from "Spill mode" (290 ms at 1 GB); not re-measured through the engine |
+| `api/lines` page, search, follow, minimap 60 fps | | not built / not measured (E6, S5) |
+
+**What the next phases need**
+
+- Phase 2, in the new private repo `mtkprof-desktop` (S1 Tauri scaffold with
+  this repo as a submodule, S2 engine lifecycle, S3 workspace, S4 settings):
+  the protocol is `api/engine.openapi.yaml` (generate the TS client with
+  `openapi-typescript`), the UI is `@lib` (`createSession`, `SessionProvider`,
+  `ApiClient` with base `/s/{id}`), the engine is `bin/mtkprof engine` with
+  `-allow-origin tauri://localhost,http://tauri.localhost`. Refuse an engine
+  whose `protocol` is not 1. Read the event stream with `fetch`, not
+  `EventSource`. Things the shell must handle: `failed` sessions with
+  `error: "cancelled"`, 409 on removing an open cache entry, `options.follow`
+  not implemented (400).
+- E6 (lines API: `lines annot`, `lines/at`, `at`, `search`, `trace.Classify`)
+  is in progress on branch `t3/lines-api` by another agent; it adds routes to
+  the OpenAPI file and the contract test, and needs no cache format change
+  unless it adds index files (then bump `CacheIndexFormat`).
+- E7–E10 (prompts + ssh, db, CLI subcommands, report endpoint) have not
+  started; `internal/remote` only holds the `Prompter` interface so far.
+- Known limits: sessions are never evicted (closing is the client's job);
+  `rev` stays 1; `GET /engine/cache` costs one `readdir` + manifest read per
+  entry; a 2 GB trace has not been run through the engine.
 
 ## Milestone 1: done (2026-10-22)
 
