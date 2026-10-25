@@ -83,8 +83,11 @@ func cmdRef(args []string) error {
 		for _, f := range pe.Failed {
 			fmt.Fprintf(os.Stderr, "warning: %s not written: %v\n", f.Target, f.Err)
 		}
+		for _, f := range pe.Fallback {
+			fmt.Fprintf(os.Stderr, "note: %s from the ALL_ views (the DBA_ view is not granted: %v)\n", f.Target, strings.SplitN(f.Err.Error(), "\n", 2)[0])
+		}
 		if !c.lite {
-			fmt.Fprintln(os.Stderr, "hint: without SELECT_CATALOG_ROLE try -lite (ALL_ views)")
+			fmt.Fprintln(os.Stderr, "hint: without SELECT_CATALOG_ROLE or SELECT ANY DICTIONARY use -lite (ALL_ views)")
 		}
 	} else if err != nil {
 		return err
@@ -160,7 +163,7 @@ func cmdFetchDB(args []string) error {
 		return fmt.Errorf("fetch: %w (usage: mtkprof fetch -db <user@host[:port]/service> -name F [-adr-home H] [-o file] [-resume])", err)
 	}
 	var w io.Writer = os.Stdout
-	from := int64(1)
+	var from db.Resume
 	if c.out != "-" {
 		var f *os.File
 		if c.resume {
@@ -191,7 +194,7 @@ func cmdFetchDB(args []string) error {
 	cw := &countingWriter{w: w}
 	warned := false
 	n, err := cl.Fetch(ctx, c.adrHome, c.name, cw, from, func(lines int64) {
-		fmt.Fprintf(os.Stderr, "\r%s: %d lines, %.1f MB", c.name, from-1+lines, float64(cw.n)/1e6)
+		fmt.Fprintf(os.Stderr, "\r%s: %d lines, %.1f MB", c.name, from.Lines+lines, float64(cw.n)/1e6)
 		if cw.n > db.BigFetch && !warned {
 			warned = true
 			fmt.Fprintf(os.Stderr, "\nnote: past 200 MB; V$DIAG_TRACE_FILE_CONTENTS is slow, SSH (mtkprof fetch user@host <path>) is faster for big files\n")
@@ -200,15 +203,15 @@ func cmdFetchDB(args []string) error {
 	fmt.Fprintln(os.Stderr)
 	if err != nil {
 		if c.out != "-" {
-			fmt.Fprintf(os.Stderr, "partial copy in %s (%d lines); continue with -resume\n", c.out, from-1+n)
+			fmt.Fprintf(os.Stderr, "partial copy in %s (%d lines); continue with -resume\n", c.out, from.Lines+n)
 		}
 		return err
 	}
-	if from-1+n == 0 {
+	if from.Lines+n == 0 {
 		return fmt.Errorf("fetch: %s/%s: no lines (wrong -adr-home or -name, or the file is not visible from this container)", c.adrHome, c.name)
 	}
 	if c.out != "-" {
-		fmt.Fprintf(os.Stderr, "wrote %s (%d lines)\n", c.out, from-1+n)
+		fmt.Fprintf(os.Stderr, "wrote %s (%d lines)\n", c.out, from.Lines+n)
 	}
 	return nil
 }

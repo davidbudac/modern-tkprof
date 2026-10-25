@@ -280,3 +280,62 @@ func TestFetchRefLite(t *testing.T) {
 		t.Errorf("first query %q", fc.calls[0].SQL)
 	}
 }
+
+// Without the DBA_ views (ORA-00942, or ORA-01031) full mode asks the ALL_
+// views instead and says so; the datafiles query has no lite form and fails.
+func TestFetchRefFallbackLite(t *testing.T) {
+	for _, refusal := range []error{oraErr(942, "table or view does not exist"), oraErr(1031, "insufficient privileges")} {
+		m := buildIOWaits(t)
+		fc := refDB(t)
+		inner := fc.query
+		fc.query = func(q string, args []any) ([][]any, error) {
+			switch {
+			case strings.Contains(q, " from dba_"), strings.Contains(q, " from v$datafile"):
+				return nil, refusal
+			case strings.Contains(q, " from all_objects"):
+				return inner(strings.Replace(q, " from all_objects", " from dba_objects", 1), args)
+			case strings.Contains(q, " from all_users"):
+				return inner(strings.Replace(q, " from all_users", " from dba_users", 1), args)
+			}
+			return inner(q, args)
+		}
+		dir := t.TempDir()
+		err := NewClient(fc).FetchRef(ctx, m, dir, false, nil)
+		var pe *PartialError
+		if !errors.As(err, &pe) {
+			t.Fatalf("err %v", err)
+		}
+		var fell, failed []string
+		for _, f := range pe.Fallback {
+			fell = append(fell, f.Target)
+			if !refRefused(f.Err) {
+				t.Errorf("fallback of %s keeps %v", f.Target, f.Err)
+			}
+		}
+		for _, f := range pe.Failed {
+			failed = append(failed, f.Target)
+		}
+		if !reflect.DeepEqual(fell, []string{"objects.csv", "users.csv"}) || !reflect.DeepEqual(failed, []string{"datafiles.csv"}) {
+			t.Errorf("fell back %v, failed %v", fell, failed)
+		}
+		if !strings.Contains(err.Error(), "datafiles.csv") || !strings.Contains(err.Error(), "lite queries used for objects.csv, users.csv") {
+			t.Errorf("message %q", err)
+		}
+		b, lerr := ref.LoadBundle(dir)
+		if lerr != nil || len(b.Objects) == 0 || len(b.Users) != 2 || len(b.Files) != 0 {
+			t.Errorf("bundle %v %v", b.Summary(), lerr)
+		}
+	}
+	// a refusal that is not about privileges is not retried
+	m := buildIOWaits(t)
+	fc := &fakeConn{query: func(q string, _ []any) ([][]any, error) {
+		if strings.Contains(q, " from all_") {
+			t.Errorf("retried %q", q)
+		}
+		return nil, oraErr(3113, "end-of-file on communication channel")
+	}}
+	var pe *PartialError
+	if err := NewClient(fc).FetchRef(ctx, m, t.TempDir(), false, nil); !errors.As(err, &pe) || len(pe.Fallback) != 0 {
+		t.Errorf("err %v", err)
+	}
+}

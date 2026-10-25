@@ -12,13 +12,13 @@ import (
 const BigFetch = 200 << 20
 
 // OpenResume opens path for appending after its last complete line (a
-// partial last line is cut) and returns the line number to give Fetch as
-// fromLine to continue the copy; 1 for a new or empty file. perm applies to
-// a file it creates.
-func OpenResume(path string, perm os.FileMode) (*os.File, int64, error) {
+// partial last line is cut) and returns what Fetch needs to continue the
+// copy there: the '\n' count and the last bytes. The zero Resume for a new or
+// empty file. perm applies to a file it creates.
+func OpenResume(path string, perm os.FileMode) (*os.File, Resume, error) {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, perm)
 	if err != nil {
-		return nil, 0, err
+		return nil, Resume{}, err
 	}
 	var lines, end, off int64
 	br := bufio.NewReaderSize(f, 1<<20)
@@ -40,16 +40,28 @@ func OpenResume(path string, perm os.FileMode) (*os.File, int64, error) {
 		}
 		if err != nil {
 			f.Close()
-			return nil, 0, err
+			return nil, Resume{}, err
 		}
 	}
 	if err := f.Truncate(end); err != nil {
 		f.Close()
-		return nil, 0, err
+		return nil, Resume{}, err
 	}
 	if _, err := f.Seek(end, io.SeekStart); err != nil {
 		f.Close()
-		return nil, 0, err
+		return nil, Resume{}, err
 	}
-	return f, lines + 1, nil
+	r := Resume{Lines: lines}
+	if end > 0 {
+		from := end - ResumeTail
+		if from < 0 {
+			from = 0
+		}
+		r.Tail = make([]byte, end-from)
+		if _, err := f.ReadAt(r.Tail, from); err != nil {
+			f.Close()
+			return nil, Resume{}, err
+		}
+	}
+	return f, r, nil
 }

@@ -411,7 +411,8 @@ func TestDBPasswordRetries(t *testing.T) {
 	}
 }
 
-// traceLines is the fake file: n lines "line k".
+// fetchOra fakes V$DIAG_TRACE_FILE_CONTENTS for a file of n one-line
+// records "line k\n" (line_number k).
 func fetchOra(n int, adr, name string) *oraDriver {
 	d := basicOra("pw")
 	basic := d.query
@@ -422,13 +423,16 @@ func fetchOra(n int, adr, name string) *oraDriver {
 		if args[0] != adr || args[1] != name {
 			return nil, nil
 		}
+		if strings.Contains(q, "max(line_number)") {
+			return [][]any{{int64(n)}}, nil
+		}
 		a, b := args[2].(int64), args[3].(int64)
 		d.mu.Lock()
 		d.froms = append(d.froms, a)
 		d.mu.Unlock()
 		var rows [][]any
 		for k := a; k <= b && k <= int64(n); k++ {
-			rows = append(rows, []any{k, "line " + strconv.FormatInt(k, 10)})
+			rows = append(rows, []any{k, "line " + strconv.FormatInt(k, 10) + "\n"})
 		}
 		return rows, nil
 	}
@@ -481,9 +485,10 @@ func TestDBFetchJob(t *testing.T) {
 	if string(got) != wantLines(1, n) {
 		t.Errorf("file has %d bytes, want %d", len(got), len(wantLines(1, n)))
 	}
-	// the partial line was cut and the first chunk asked for line 101
+	// the partial line was cut and the first chunk started db.ResumeBack
+	// line numbers before the end of the 100 complete lines
 	d.mu.Lock()
-	if len(d.froms) == 0 || d.froms[0] != 101 {
+	if len(d.froms) == 0 || d.froms[0] != 100-db.ResumeBack {
 		t.Errorf("fetched from lines %v", d.froms)
 	}
 	d.mu.Unlock()
@@ -524,6 +529,9 @@ func TestDBFetchResumeAfterError(t *testing.T) {
 		if strings.Contains(q, "from v$diag_trace_file_contents") {
 			mu.Lock()
 			defer mu.Unlock()
+			if len(args) < 4 { // max(line_number)
+				return inner(q, args)
+			}
 			froms = append(froms, args[2].(int64))
 			if fail && args[2].(int64) > 1 {
 				return nil, errors.New("ORA-03113: end-of-file on communication channel")
@@ -558,7 +566,7 @@ func TestDBFetchResumeAfterError(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if want := []int64{1, db.FetchChunk + 1, db.FetchChunk + 1}; !slices.Equal(froms, want) {
+	if want := []int64{1, db.FetchChunk + 1, db.FetchChunk - db.ResumeBack}; !slices.Equal(froms, want) {
 		t.Errorf("fetched from lines %v, want %v", froms, want)
 	}
 }
@@ -939,7 +947,7 @@ func TestRefConnection(t *testing.T) {
 		t.Errorf("queries %q", sent)
 	}
 
-	// a query that fails is skipped and named; the rest is applied
+	// without the DBA_ views the query is answered from the ALL_ views, and the job says so
 	inner := d.query
 	d.query = func(q string, args []any) ([][]any, error) {
 		if strings.Contains(q, "dba_users") {
@@ -949,10 +957,26 @@ func TestRefConnection(t *testing.T) {
 	}
 	r = call(t, ts, "POST", "/s/"+s.ID+"/api/ref", map[string]any{"connection": "ora"})
 	j = waitJob(t, ts, decode[struct{ Job JobInfo }](t, r.body).Job.ID)
+	if j.State != JobDone || !strings.Contains(j.Message, "lite queries (ALL_ views) used for users.csv") || strings.Contains(j.Message, "skipped") {
+		t.Fatalf("fallback job %+v", j)
+	}
+	if _, err := os.Stat(filepath.Join(e.cache, "ref", s.Identity, "users.csv")); err != nil {
+		t.Errorf("users.csv from the lite query missing: %v", err)
+	}
+
+	// a query that fails is skipped and named; the rest is applied
+	d.query = func(q string, args []any) ([][]any, error) {
+		if strings.Contains(q, "dba_users") || strings.Contains(q, "all_users") {
+			return nil, errors.New("ORA-00942: table or view does not exist")
+		}
+		return inner(q, args)
+	}
+	r = call(t, ts, "POST", "/s/"+s.ID+"/api/ref", map[string]any{"connection": "ora"})
+	j = waitJob(t, ts, decode[struct{ Job JobInfo }](t, r.body).Job.ID)
 	if j.State != JobDone || !strings.Contains(j.Message, "users.csv") || !strings.Contains(j.Message, "ORA-00942") || !strings.Contains(j.Message, "lite") {
 		t.Fatalf("partial job %+v", j)
 	}
-	if sessionRev(t, ts, s.ID) != 3 || bytes.Equal(docMasked(t, ts, s.ID), d2) {
+	if sessionRev(t, ts, s.ID) != 4 || bytes.Equal(docMasked(t, ts, s.ID), d2) {
 		t.Error("the partial bundle was not applied (or it equals the full one)")
 	}
 	if _, err := os.Stat(filepath.Join(e.cache, "ref", s.Identity, "users.csv")); !os.IsNotExist(err) {

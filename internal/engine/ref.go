@@ -256,9 +256,21 @@ func (s *Server) runRefDB(j *Job, ss *Session, c *connection, lite bool) error {
 		for _, f := range pe.Failed {
 			skipped = append(skipped, f.Target+": "+oneLine(f.Err.Error()))
 		}
-		note = "queries skipped: " + strings.Join(skipped, "; ")
+		var lites []string
+		for _, f := range pe.Fallback {
+			lites = append(lites, f.Target)
+		}
+		if len(skipped) > 0 {
+			note = "queries skipped: " + strings.Join(skipped, "; ")
+		}
+		if len(lites) > 0 {
+			if note != "" {
+				note += "; "
+			}
+			note += "lite queries (ALL_ views) used for " + strings.Join(lites, ", ")
+		}
 		if !lite {
-			note += " (without SELECT_CATALOG_ROLE try lite)"
+			note += " (no DBA_ views: SELECT_CATALOG_ROLE or SELECT ANY DICTIONARY, or use lite)"
 		}
 	case err != nil:
 		return err

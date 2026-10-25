@@ -543,7 +543,7 @@ func (s *Server) runDBFetch(j *Job, c *connection, adrHome, name, local string) 
 	}
 	have, _ := f.Seek(0, io.SeekCurrent)
 	cw := &countW{w: f, n: have}
-	j.SetPhase("fetch", "lines", from-1, 0)
+	j.SetPhase("fetch", "lines", from.Lines, 0)
 	var last time.Time
 	warned := false
 	n, err := cl.Fetch(ctx, adrHome, name, cw, from, func(lines int64) {
@@ -553,13 +553,13 @@ func (s *Server) runDBFetch(j *Job, c *connection, adrHome, name, local string) 
 			j.info.Message = "past 200 MB: V$DIAG_TRACE_FILE_CONTENTS is slow, fetching over SSH is faster for big files"
 			j.mu.Unlock()
 		}
-		j.progress(from-1+lines, true, &last)
+		j.progress(from.Lines+lines, true, &last)
 	})
-	j.progress(from-1+n, true, &last)
+	j.progress(from.Lines+n, true, &last)
 	if err != nil {
 		return err
 	}
-	if from-1+n == 0 {
+	if from.Lines+n == 0 {
 		return fmt.Errorf("fetch %s/%s: no lines (wrong adrHome or name, or the file is not visible from this container)", adrHome, name)
 	}
 	j.mu.Lock()

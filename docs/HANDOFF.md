@@ -187,7 +187,7 @@ numbers in WebView2 on a 2 GB trace. Deferred in the lib: clock-time input in
 "Jump to time", highlighting of search matches inside the viewer rows, per-line
 copy/permalink, bookmark import/export.
 
-## Desktop phase 4, engine side: done except dbmint verification (2026-10-25)
+## Desktop phase 4, engine side: E8 verified on dbmint, E7 still open (2026-10-25)
 
 Everything is in `docs/REMOTE.md` (SSH part, Oracle part, grants, the dbmint
 checklist); the routes are in `api/engine.openapi.yaml`.
@@ -208,13 +208,28 @@ Done and tested with fakes (the dev machine cannot reach the lab):
 - E9: `fetch` (ssh and `-db`), `follow`, `trace`, `ref -db`, `askpass`; one
   terminal prompter (`remote.TerminalPrompter`).
 
-Awaiting dbmint verification (checklist: end of `docs/REMOTE.md`): the gated
-tests `internal/remote/sshconn` (`MTKPROF_SSH_TEST`) and
-`internal/remote/db` (`MTKPROF_DB_TEST`), what a PDB user sees in
-`V$DIAG_TRACE_FILE*`, line-number gaps and long lines in
-`V$DIAG_TRACE_FILE_CONTENTS`, fetch throughput (is a chunk's time growing
-with its offset?), the ref bundle equal to the refscript's, TCPS, the engine
-walk-through with curl, Windows 11 askpass (S6).
+E8 verified on dbmint (Oracle 19.27, `mtk` in PDB1; results in the checklist
+at the end of `docs/REMOTE.md`). The first run showed the db fetch assumed
+lines = rows; fixed: a row of `V$DIAG_TRACE_FILE_CONTENTS` is a *record*
+(2707 rows for the 3059 lines of `basic_binds.trc`, `line_number` = last line
+of the record, gaps and repeats, 20 NULL payloads), so `Fetch` writes the
+payloads verbatim (sha256 equal to the fixture and to the 117.7 MB big trace),
+reads `max(line_number)` first and walks it in 50 000-number ranges, and
+resumes by matching the rows after `L-64` against the local tail
+(`db.Resume`; `OpenResume` returns it). Throughput 0.39 MB/s, 9 570 lines/s
+(301 s for 2.88 M lines; 1.8 s/chunk when the lab is quiet), flat in the
+offset. A PDB user sees one container (`con_id` 3, 5313 files), own session
+plus background sessions, background traces are readable. `mtk` has no `DBA_`
+views: `FetchRef` full mode falls back per query to the lite one (objects,
+users) and reports it in `PartialError.Fallback`; `datafiles.csv` has no lite
+form and stays missing. CLI checks done: `fetch -db` (+`-resume`) byte-equal
+to the fixture, `trace -sessions`, `ref -db -lite` then `report -ref`.
+
+Still awaiting the lab: the SSH gated tests (`MTKPROF_SSH_TEST`), full ref
+mode with `SELECT_CATALOG_ROLE` and its comparison with the refscript bundle,
+`DBMS_SESSION` without `ALTER SESSION`, TCPS, the engine walk-through with
+curl, Windows 11 askpass (S6). Deferred: adaptive/larger fetch ranges
+(200 000 numbers per query is ~1.6x faster).
 
 In progress elsewhere: the live follow session (E7b: `internal/engine/live.go`,
 `internal/model/live*.go`, the `follow` session path in `session.go`). Both
