@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickBucket } from './derive'
+import { pickBucket, selectionBucket } from './derive'
 
 // Same table as TestBucketForSpan in internal/analyze/pivot_test.go: the two implementations must stay identical.
 describe('pickBucket', () => {
@@ -15,5 +15,20 @@ describe('pickBucket', () => {
     [1_443_600_000_000, 1_443_600_000_000 / 400], // 401 h: span/400
   ])('span %d µs -> bucket %d µs', (span, want) => {
     expect(pickBucket(span)).toBe(want)
+  })
+})
+
+describe('selectionBucket', () => {
+  it('is the selection\'s own bucket while the whole trace stays within the cap', () => {
+    expect(selectionBucket(600e6, 5e6)).toBe(pickBucket(5e6))
+    expect(selectionBucket(600e6, 600e6)).toBe(pickBucket(600e6))
+  })
+  it('is raised when the whole trace would give too many buckets', () => {
+    const b = selectionBucket(86400e6, 5e6)
+    expect(b).toBeGreaterThan(pickBucket(5e6))
+    expect(Math.floor(86400e6 / b)).toBeLessThanOrEqual(20000)
+  })
+  it('falls back to the whole trace\'s bucket for an unknown selection', () => {
+    expect(selectionBucket(600e6, 0)).toBe(pickBucket(600e6))
   })
 })

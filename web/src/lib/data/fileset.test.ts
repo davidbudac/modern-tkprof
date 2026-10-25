@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ctxKey, clickFile, contextsOfFiles, contextsWithin, effectiveContexts, fileTree, formatFilesParam, invert, normalizeFiles, parseFilesParam, scopeSpanUs, toggleFile,
+  ctxKey, clickFile, contextsOfFiles, contextsWithin, effectiveContexts, fileTree, formatFilesParam, invert, normalizeFiles, parseFilesParam, scopeSpanUs, selectionSpan, toggleFile,
   type FileSetDoc,
 } from './fileset'
 import type { FileEntry } from './types'
@@ -127,5 +127,41 @@ describe('ctxKey', () => {
     expect(ctxKey(null)).toBe('')
     expect(ctxKey(new Set())).toBe('none')
     expect(ctxKey(new Set([3, 1]))).toBe('1,3')
+  })
+})
+
+describe('selectionSpan', () => {
+  // files 0 (qc) 1000-5000, 1 (its PX slave) 2000-3000, 2 (another session) 6000-6500; contexts 0,1 in file 0, 2 in file 1, 3 in file 2
+  const sd = {
+    ...doc,
+    file: { files: [f(0, { firstTim: 1000, lastTim: 5000 }), f(1, { px: true, firstTim: 2000, lastTim: 3000 }), f(2, { firstTim: 6000, lastTim: 6500 })] },
+    contexts: [{ fileIdx: 0 }, { fileIdx: 0 }, { fileIdx: 1, px: true, parent: 0 }, { fileIdx: 2 }],
+    span: { firstTim: 1000, lastTim: 7000 },
+    stats: { contexts: [
+      { context: 0, firstTim: 1100, lastTim: 4000 }, { context: 1, firstTim: 4200, lastTim: 4900 },
+      { context: 2, firstTim: 2100, lastTim: 2900 }, { context: 3, firstTim: 6100, lastTim: 6400 },
+    ] },
+  }
+  it('is the whole trace without a selection', () => {
+    expect(selectionSpan(sd, null, null)).toEqual({ firstTim: 1000, lastTim: 7000 })
+  })
+  it('is the range of the selected files', () => {
+    expect(selectionSpan(sd, new Set([2]), null)).toEqual({ firstTim: 6000, lastTim: 6500 })
+    expect(selectionSpan(sd, new Set([0, 2]), null)).toEqual({ firstTim: 1000, lastTim: 6500 })
+  })
+  it('a PX slave file is its own range; with its coordinator file it is the union', () => {
+    expect(selectionSpan(sd, new Set([1]), null)).toEqual({ firstTim: 2000, lastTim: 3000 })
+    expect(selectionSpan(sd, new Set([0, 1]), null)).toEqual({ firstTim: 1000, lastTim: 5000 })
+  })
+  it('is the range of the picked contexts, within the selected files', () => {
+    expect(selectionSpan(sd, null, new Set([1, 3]))).toEqual({ firstTim: 4200, lastTim: 6400 })
+    expect(selectionSpan(sd, new Set([0]), new Set([1, 3]))).toEqual({ firstTim: 4200, lastTim: 4900 })
+    expect(selectionSpan(sd, null, new Set([2]))).toEqual({ firstTim: 2100, lastTim: 2900 })
+  })
+  it('falls back to the files, then the whole trace, when the contexts have no times', () => {
+    const bare = { ...sd, stats: { contexts: [] } }
+    expect(selectionSpan(bare, new Set([2]), new Set([3]))).toEqual({ firstTim: 6000, lastTim: 6500 })
+    expect(selectionSpan(bare, null, new Set([3]))).toEqual({ firstTim: 1000, lastTim: 7000 })
+    expect(selectionSpan(sd, new Set(), null)).toEqual({ firstTim: 1000, lastTim: 7000 })
   })
 })

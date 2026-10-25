@@ -3,6 +3,7 @@ import type { TraceDoc } from '../data/doc'
 import { reduceMinimap, minimapSpanUs } from '../data/minimap'
 import { useStore, useActions } from '../state/session'
 import { cssColor } from './colors'
+import { useAxis } from '../data/scopedstmts'
 
 /**
  * The whole trace in a strip: CPU and wait classes stacked per bucket, the current time window shaded.
@@ -12,6 +13,7 @@ export function Minimap({ doc, height = 28 }: { doc: TraceDoc; height?: number }
   const mm = doc.stats.minimap
   const actions = useActions()
   const win = useStore((s) => s.window)
+  const axis = useAxis(doc)
   const idle = useStore((s) => s.includeIdle)
   const theme = useStore((s) => s.theme)
   const box = useRef<HTMLDivElement>(null)
@@ -98,6 +100,7 @@ export function Minimap({ doc, height = 28 }: { doc: TraceDoc; height?: number }
     <div className="minimap" ref={box} style={{ blockSize: height }} role="img" aria-label="Trace activity overview; drag to set the time window"
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)}>
       <canvas ref={canvas} style={{ inlineSize: width, blockSize: height }} />
+      {axis.narrowed && axis.span > 0 && <div className="minimap-sel" style={{ left: `${frac(axis.base)}%`, width: `${frac(axis.base + axis.span) - frac(axis.base)}%` }} title="range of the selected files / sessions: the axis of the lanes and the chart" />}
       {shade && <div className="minimap-window" style={shade} />}
     </div>
   )

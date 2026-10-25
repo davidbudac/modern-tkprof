@@ -2,7 +2,7 @@
 // a context selection or a file selection narrows it (asked from the source: the engine's `api/statements`, or computed from
 // the fact columns).
 import { useMemo } from 'react'
-import { ctxKey } from './fileset'
+import { ctxKey, selectionSpan } from './fileset'
 import type { TraceDoc } from './doc'
 import type { StmtStats } from './types'
 import { scopeNarrows, scopeOf, type Scope } from '../state/store'
@@ -25,6 +25,20 @@ export function useScope(doc: TraceDoc, opts: { withWindow?: boolean } = {}): Sc
   const contexts = useStore((s) => s.contexts)
   const includeIdle = useStore((s) => s.includeIdle)
   return useMemo(() => scopeOf({ doc, window, files, contexts, includeIdle }), [doc, window, files, contexts, includeIdle])
+}
+
+/**
+ * The time axis of the lanes and the chart: the range of the selected files / sessions (`selectionSpan`), else the whole trace.
+ * `base` is the first tim, `span` the length in µs; `narrowed` says the axis is shorter than the trace's (the minimap then shades it).
+ */
+export function useAxis(doc: TraceDoc): { base: number; span: number; narrowed: boolean } {
+  const files = useStore((s) => s.files)
+  const contexts = useStore((s) => s.contexts)
+  return useMemo(() => {
+    const r = selectionSpan(doc, files, contexts)
+    const span = Math.max(0, r.lastTim - r.firstTim)
+    return { base: r.firstTim, span, narrowed: r.firstTim > doc.span.firstTim || r.lastTim < doc.span.lastTim }
+  }, [doc, files, contexts])
 }
 
 export interface ScopedStatements {

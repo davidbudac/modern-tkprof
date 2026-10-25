@@ -1,6 +1,6 @@
 // The input files of a trace set and the selection of them: which session contexts a file selection
 // lets through, how PX slave files nest under their coordinator, and the panel's click rules.
-import type { Context, FileEntry, ID } from './types'
+import type { Context, ContextStats, FileEntry, ID } from './types'
 
 /** What the helpers read of a document (a `TraceDoc` fits). */
 export interface FileSetDoc {
@@ -161,6 +161,33 @@ export function scopeSpanUs(doc: Pick<FileSetDoc, 'file'> & { spanUs(): number }
     lo = Math.min(lo, f.firstTim); hi = Math.max(hi, f.lastTim)
   })
   return hi > lo ? hi - lo : doc.spanUs()
+}
+
+/** What `selectionSpan` reads of a document (a `TraceDoc` fits). */
+export interface SpanDoc extends FileSetDoc {
+  span: { firstTim: number; lastTim: number }
+  stats: { contexts: readonly Pick<ContextStats, 'context' | 'firstTim' | 'lastTim'>[] }
+}
+
+/**
+ * The time range the lanes and the timeline chart span: from the first `tim` to the last one of the selection, so a short
+ * file is not squeezed against one edge of the whole set's axis. An explicit session selection (`contexts`, restricted to the
+ * selected `files`) gives the range of those contexts' calls and waits; a file selection alone gives the range of the selected
+ * files (`FileEntry`); no selection, or one without times, is the whole trace. PX slaves have a file and contexts of their own:
+ * the slave file alone is the slave's range, the coordinator file with it the union.
+ */
+export function selectionSpan(doc: SpanDoc, files: ReadonlySet<number> | null, contexts: ReadonlySet<ID> | null): { firstTim: number; lastTim: number } {
+  const whole = { firstTim: doc.span.firstTim, lastTim: doc.span.lastTim }
+  let lo = Infinity, hi = -Infinity
+  const take = (a: number, b: number) => { if (a > 0 && b >= a) { lo = Math.min(lo, a); hi = Math.max(hi, b) } }
+  if (contexts) {
+    const ids = effectiveContexts(doc, files, contexts)!
+    for (const c of doc.stats.contexts) if (ids.has(c.context)) take(c.firstTim, c.lastTim)
+  }
+  if (!(hi > lo) && files) doc.file.files?.forEach((f, i) => { if (files.has(i)) take(f.firstTim, f.lastTim) })
+  if (!(hi > lo)) return whole
+  // never outside the trace (a context can run past the last timed line)
+  return { firstTim: Math.max(lo, whole.firstTim), lastTim: Math.min(hi, whole.lastTim) }
 }
 
 /** The context filter as a cache key; an empty set (no file selected) differs from no filter. */
