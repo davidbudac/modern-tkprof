@@ -5,7 +5,7 @@
 // docs/REMOTE.md).
 //
 // Remote commands are POSIX sh run through `sh -c '...'` (the login shell
-// may be csh), single-quoted with the '\” escape, and limited to what AIX,
+// may be csh), single-quoted (remote.ShQuote), and limited to what AIX,
 // Solaris and Linux all have:
 //
 //   - tail -c +N -- FILE (byte offset, 1-based, no size suffixes) and
