@@ -213,6 +213,7 @@ func (c *Client) start(ctx context.Context, op string, sftp bool, remoteCmd stri
 	}
 	cmd.Env = env
 	cmd.SysProcAttr = sysProcAttr()
+	cmd.Cancel = func() error { return kill(cmd) }
 	cmd.Stdin = stdin
 	cmd.Stderr = sp.stderr
 	cmd.WaitDelay = 2 * time.Second // a ControlPersist master may hold our pipes

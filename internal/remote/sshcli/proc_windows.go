@@ -2,7 +2,10 @@
 
 package sshcli
 
-import "syscall"
+import (
+	"os/exec"
+	"syscall"
+)
 
 const createNoWindow = 0x08000000 // CREATE_NO_WINDOW
 
@@ -14,3 +17,5 @@ func sysProcAttr() *syscall.SysProcAttr {
 
 // multiplexDefault: Windows' OpenSSH has no ControlMaster.
 const multiplexDefault = false
+
+func kill(c *exec.Cmd) error { return c.Process.Kill() }

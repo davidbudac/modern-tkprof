@@ -55,6 +55,8 @@ type Server struct {
 	prompts *prompts
 	wg      sync.WaitGroup // open goroutines
 
+	conns connRegistry // connections.go
+
 	mu       sync.Mutex
 	sessions map[string]*Session
 	jobs     map[string]*Job
@@ -263,6 +265,7 @@ func (s *Server) Close() error {
 	s.prompts.close()
 	s.bc.close()
 	s.wg.Wait()
+	s.closeConnections()
 	s.mu.Lock()
 	var all []*Session
 	for id, ss := range s.sessions {

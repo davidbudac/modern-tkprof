@@ -20,6 +20,8 @@ type PromptEvent struct {
 	Text       string `json:"text"`
 	Echo       bool   `json:"echo"`
 	State      string `json:"state"`
+	// Fingerprint is the SHA256 fingerprint of an unknown SSH host key (kind hostkey).
+	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 type promptAnswer struct {
@@ -55,7 +57,7 @@ func (p *prompts) Ask(ctx context.Context, q remote.Prompt) (string, error) {
 		return "", fmt.Errorf("prompt kind %q", q.Kind)
 	}
 	pp := &pendingPrompt{ch: make(chan promptAnswer, 1),
-		ev: PromptEvent{ID: newID("p"), Connection: q.Connection, Kind: q.Kind, Text: q.Text, Echo: q.Echo, State: "open"}}
+		ev: PromptEvent{ID: newID("p"), Connection: q.Connection, Kind: q.Kind, Text: q.Text, Echo: q.Echo, State: "open", Fingerprint: q.Fingerprint}}
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()

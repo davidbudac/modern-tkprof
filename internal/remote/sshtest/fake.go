@@ -21,6 +21,7 @@ import (
 //	                        "Permission denied" on stderr, exit 255
 //	FAKE_SSH_NO_GZIP=1      the host has no gzip (`command -v gzip` fails)
 //	FAKE_SFTP_LS=file       what sftp prints for `ls -ln ...`
+//	FAKE_SSH_SLOW=seconds   the remote output goes out one line per interval
 //
 // ssh runs the remote command with the local sh; sftp echoes each batch
 // command as "sftp> cmd" like OpenSSH's sftp -b.
@@ -71,6 +72,10 @@ cmd="$*"
 case "$cmd" in
   *"command -v gzip"*) [ -n "$FAKE_SSH_NO_GZIP" ] && exit 1 ;;
 esac
+if [ -n "$FAKE_SSH_SLOW" ]; then
+  sh -c "$cmd" | while IFS= read -r l; do printf '%s\n' "$l"; sleep "$FAKE_SSH_SLOW"; done
+  exit 0
+fi
 exec sh -c "$cmd"
 `
 

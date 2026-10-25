@@ -247,7 +247,7 @@ func TestContractSchemas(t *testing.T) {
 		}
 	}
 	i := lookup(keys, "components", "schemas", "ErrorCode", "enum")
-	codes := []Code{CodeBadRequest, CodeUnauthorized, CodeNotFound, CodeConflict, CodeCancelled, CodeNeedsPrompt, CodeInternal}
+	codes := []Code{CodeBadRequest, CodeUnauthorized, CodeNotFound, CodeConflict, CodeCancelled, CodeNeedsPrompt, CodeInternal, CodeRemote}
 	var want []string
 	for _, c := range codes {
 		want = append(want, string(c))
