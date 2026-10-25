@@ -36,8 +36,10 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   return (
     <>
       <section className="hero">
-        <h1>Response time {fmtDur(totalUs)}{state.window ? <span className="dim"> · window</span> : null}{state.files ? <span className="dim"> · {selectedCount(doc, state.files)} of {fileCount(doc)} files</span> : null}</h1>
-        {lede && <p className="lede">{lede}</p>}
+        <div className="hero-head">
+          <h1>Response time {fmtDur(totalUs)}{state.window ? <span className="dim"> · window</span> : null}{state.files ? <span className="dim"> · {selectedCount(doc, state.files)} of {fileCount(doc)} files</span> : null}</h1>
+          {lede && <p className="lede">{lede}</p>}
+        </div>
         <Minimap doc={doc} />
         <Axis totalUs={totalUs} />
         <Track rows={rows} totalUs={totalUs} />
