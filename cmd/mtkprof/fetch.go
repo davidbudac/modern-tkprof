@@ -260,7 +260,7 @@ func followServe(ctx context.Context, s remote.SSH, p, out, addr string, o engin
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		// open to other origins like serve's /api/doc (pnpm dev); reads only
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Expose-Headers", "X-Total-Lines, X-Rev")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Total-Lines, X-Rev, X-Live")
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

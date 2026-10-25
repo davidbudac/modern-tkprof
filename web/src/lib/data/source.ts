@@ -121,6 +121,11 @@ export interface KeyAgg { key: number; count: number; sum: number }
 
 export interface DataSource {
   readonly remote: boolean
+  /**
+   * Sources of successive documents of one trace (a live session's snapshots, served by one server) share it: while the
+   * new source's answer loads, `useSourceQuery` keeps showing the old one's. undefined = no relation.
+   */
+  readonly lineage?: unknown
   /** fact-level questions can be answered (facts in the document, or a server behind it) */
   readonly ready: boolean
   pivot(q: PivotQuery, signal?: AbortSignal): Maybe<PivotData>
@@ -422,6 +427,9 @@ export class RemoteSource implements DataSource {
   /** `client` is the server root, e.g. `http://127.0.0.1:8046` or `.../s/1`; the queries are `/api/<path>`. */
   constructor(private readonly doc: TraceDoc, private readonly client: ApiClient) {}
 
+  /** the documents of one server are revisions of one trace */
+  get lineage(): unknown { return this.client }
+
   /** GET base+path?params as JSON; answers are cached by URL, a cancelled request leaves nothing behind. */
   private async get<T>(path: string, params: Params, signal?: AbortSignal): Promise<T> {
     const q = new URLSearchParams()
@@ -588,7 +596,9 @@ const NO_SIGNAL = new AbortController().signal
 /**
  * Runs `run` for the current `key` (put everything it reads in the key). A local source answers in
  * the same render; a remote one in the background: the request of a stale key is aborted, and with
- * the same `keep` string the previous answer stays visible while the next one loads.
+ * the same `keep` string the previous answer stays visible while the next one loads. A new source of
+ * the same lineage (a live session's next document) keeps the previous answer of the same key or
+ * `keep` too, so a refresh does not blank the view.
  */
 export function useSourceQuery<T>(source: DataSource, key: string, run: (signal: AbortSignal) => Maybe<T>, keep?: string): QueryState<T> {
   const runRef = useRef(run)
@@ -607,6 +617,7 @@ export function useSourceQuery<T>(source: DataSource, key: string, run: (signal:
   }, [source, key, keep])
   if (local) return { data: local.value, loading: false, error: null }
   if (st.source === source && st.key === key) return { data: st.data, loading: false, error: st.error ?? null }
-  const sameShape = st.source === source && keep !== undefined && st.keep === keep
+  const related = st.source === source || (source.lineage !== undefined && st.source.lineage === source.lineage)
+  const sameShape = related && ((keep !== undefined && st.keep === keep) || st.key === key)
   return { data: sameShape ? st.data : undefined, loading: true, error: null }
 }

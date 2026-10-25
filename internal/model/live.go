@@ -9,7 +9,9 @@ import (
 // a Builder that never finishes; Snapshot returns, at a line boundary, the
 // model a build of the input so far would have produced, while the builder
 // goes on. When the file continues in another one (TRACE CONTINUES IN),
-// ContinueLive moves the build on to it, as BuildFiles parses a chain.
+// ContinueLive moves the build on to it, as BuildFiles parses a chain; a
+// file that continues earlier ones (TRACE CONTINUED FROM) is built from the
+// earliest, complete ones first (MarkFollowed, ContinueLive(named, false)).
 
 // NewLiveBuilder is the builder of a live build of the file at path: the one
 // BuildFiles would use for a single file without a chain. opts must be an
@@ -30,11 +32,12 @@ func (b *Builder) ContinuesIn() string {
 
 // ContinueLive switches a live build to the next file of its chain, after
 // EndFile of the current one: cursors and calls carry over and the next
-// record opens a context of the new file, as in BuildFiles; the file is
-// marked Followed (not named by the user). The first switch makes the build
+// record opens a context of the new file, as in BuildFiles; followed marks
+// it as found by following the chain (not the file the user named). The
+// first switch makes the build
 // a multi-file one, where the header pid is Context.Process: the contexts
 // of the files before get it too (BuildFiles knows it from the start).
-func (b *Builder) ContinueLive(path string) {
+func (b *Builder) ContinueLive(path string, followed bool) {
 	if !b.multi {
 		b.multi = true
 		pid := func(c *Context) {
@@ -48,8 +51,13 @@ func (b *Builder) ContinueLive(path string) {
 		pid(&b.ctx)
 	}
 	b.NextFile(path, true)
-	b.m.File.Files[b.curFile].Followed = true
+	b.m.File.Files[b.curFile].Followed = followed
 }
+
+// MarkFollowed marks the current file as found by following a chain: the
+// first file of a live build that starts with the files the named one
+// continues (TRACE CONTINUED FROM), as BuildFiles marks them.
+func (b *Builder) MarkFollowed() { b.m.File.Files[b.curFile].Followed = true }
 
 // Snapshot finishes a copy of the builder's state and returns its model, as
 // if the input had ended after the lines delivered so far. Call it only

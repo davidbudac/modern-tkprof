@@ -96,3 +96,27 @@ describe('packPage', () => {
     expect(Array.from(p.kinds)).toEqual([LINE_KINDS.indexOf('wait'), 0])
   })
 })
+
+describe('PageCache.refresh (the file grew)', () => {
+  it('drops the page holding the last known line, learns the new total and keeps the earlier pages', async () => {
+    let total = 25
+    const asked: number[] = []
+    const fetchPage = async (from: number, n: number) => {
+      asked.push(from)
+      const lines = []
+      for (let i = from; i <= Math.min(total, from + n - 1); i++) lines.push({ t: `line ${i}`, k: 'call' as const })
+      return { from, total, lines } as AnnotPage
+    }
+    const c = new PageCache(fetchPage, 20, 10)
+    await c.load(0)
+    await c.load(2) // lines 21..25: partial
+    expect(c.total).toBe(25)
+    total = 37
+    await c.refresh()
+    expect(c.total).toBe(37)
+    expect(c.has(0)).toBe(true)
+    expect(c.line(25)?.text).toBe('line 25')
+    expect(c.line(30)?.text).toBe('line 30')
+    expect(asked).toEqual([1, 21, 21])
+  })
+})

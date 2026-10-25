@@ -97,6 +97,14 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const cache = useMemo(() => new PageCache((from, n, signal) => fetchLinesAnnot(client, file, from, n, signal)), [client, file])
   useEffect(() => cache.subscribe(bump), [cache])
   useEffect(() => () => cache.close(), [cache])
+  // a live session's next snapshot: the file has more lines
+  const rev = useStore((s) => s.rev)
+  const shownRev = useRef(rev)
+  useEffect(() => {
+    if (rev === shownRev.current) return
+    shownRev.current = rev
+    void cache.refresh()
+  }, [cache, rev])
 
   const apiRef = useRef<ViewerApi | null>(null)
   const topRef = useRef(ui.top)

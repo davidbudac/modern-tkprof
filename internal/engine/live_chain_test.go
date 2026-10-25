@@ -126,6 +126,56 @@ func TestLiveFollowChain(t *testing.T) {
 	}
 }
 
+// TestLiveFollowBackwardChain: a followed file that starts with TRACE
+// CONTINUED FROM is read after the earlier file (found next to it by the
+// name in its header); the snapshots list both, head to tail, and every
+// slice and line endpoint answers what a normal open of the followed file
+// (which pulls in the earlier one too) answers.
+func TestLiveFollowBackwardChain(t *testing.T) {
+	part1, part2, next := chainFixture(t)
+	e, ts := newServed(t)
+	logs := logWatch(t, openSSE(t, ts))
+	dir := t.TempDir()
+	p1, p2 := filepath.Join(dir, "part1.trc"), filepath.Join(dir, next)
+	os.WriteFile(p1, part1, 0o644)
+	cut := lineCuts(part2, 0.4)[0]
+	os.WriteFile(p2, part2[:cut], 0o644)
+	r := e.open([]string{p2}, map[string]any{"follow": true, "batchMs": 50})
+	le := &liveEnv{env: e, path: p2, id: r.Session.ID}
+	waitLog(t, logs, next+" continues part1.trc; reading it first")
+	si := le.waitBytes(int64(len(part1)) + cut)
+	if len(si.Files) != 2 || si.Files[0].Path != p1 || si.Files[1].Path != p2 || si.Files[0].Size != int64(len(part1)) || si.Files[1].Size != cut {
+		t.Fatalf("files: %+v", si.Files)
+	}
+	appendFile(t, p2, part2[cut:])
+	si = le.waitBytes(int64(len(part1) + len(part2)))
+
+	ref, m := reference(t, []string{p2}, model.BindsKeep, "")
+	if len(m.File.Files) != 2 || !m.File.Files[0].Followed {
+		t.Fatalf("the reference did not follow the chain back: %+v", m.File.Files)
+	}
+	doc := le.req("GET", "/s/"+le.id+"/api/doc", nil)
+	if want := get(ref, "/api/doc").body; !bytes.Equal(generatedRe.ReplaceAll(want, nil), generatedRe.ReplaceAll(doc.body, nil)) {
+		t.Fatalf("document differs from a normal open of the followed file (%d vs %d bytes)", len(want), len(doc.body))
+	}
+	n := 0
+	for _, q := range queries(t, m, ref) {
+		r, g := get(ref, q), le.req("GET", "/s/"+le.id+q, nil)
+		if r.code != g.code || !bytes.Equal(r.body, g.body) {
+			t.Errorf("%s: %d %.200s\nlive %d %.200s", q, r.code, r.body, g.code, g.body)
+			continue
+		}
+		n++
+	}
+	t.Logf("%d answers equal, rev %d", n, si.Rev)
+	if r := le.req("DELETE", "/engine/sessions/"+le.id, nil); r.code != 204 {
+		t.Fatalf("delete %d", r.code)
+	}
+	if d := e.liveDirs(); len(d) != 0 {
+		t.Errorf("spill left after DELETE: %v", d)
+	}
+}
+
 // liveDirs are the live spill directories left.
 func (e *env) liveDirs() []string {
 	ents, _ := os.ReadDir(e.srv.liveDir())
@@ -193,6 +243,71 @@ func TestLiveFollowRemoteChain(t *testing.T) {
 	}
 	if j := waitJob(t, ts, second.ID); j.State != JobCancelled {
 		t.Errorf("second mirror after DELETE: %+v", j)
+	}
+	time.Sleep(3500 * time.Millisecond)
+	if l := srv.Lingered(); len(l) > 0 {
+		t.Errorf("remote processes outlived their channel: %q", l)
+	}
+}
+
+// TestLiveFollowRemoteChainBackward: a remote follow of a file that starts
+// with TRACE CONTINUED FROM finds the earlier file on the host (by the name
+// in its header: the host copy is renamed), fetches it once next to the
+// mirror and reads it first; the session lists the local copies head to
+// tail and equals a normal open of the mirror; DELETE stops the one mirror
+// and nothing lingers on the host.
+func TestLiveFollowRemoteChainBackward(t *testing.T) {
+	isolate(t)
+	part1, part2, next := chainFixture(t)
+	srv := sshtest.Start(t, sshtest.Options{Password: "pw"})
+	e, ts := newServed(t)
+	autoAnswer(t, e, ts, map[string]string{remote.KindHostKey: "yes", remote.KindPassword: "pw"})
+	call(t, ts, "POST", "/engine/connections", map[string]any{"id": "lab", "kind": "ssh", "host": srv.Host, "port": srv.Port, "user": "oracle", "transport": "lib"})
+	hostDir := t.TempDir()
+	h1, h2 := filepath.Join(hostDir, "part1.trc"), filepath.Join(hostDir, next)
+	os.WriteFile(h1, part1, 0o640)
+	cut := lineCuts(part2, 0.4)[0]
+	os.WriteFile(h2, part2[:cut], 0o640)
+	r := call(t, ts, "POST", "/engine/connections/lab/follow", map[string]any{"path": h2, "options": map[string]any{"batchMs": 50}})
+	if r.code != 202 {
+		t.Fatalf("follow %d %s", r.code, r.body)
+	}
+	fr := decode[struct {
+		Session   SessionInfo
+		Job       JobInfo
+		LocalPath string
+	}](t, r.body)
+	le := &liveEnv{env: e, path: fr.LocalPath, id: fr.Session.ID}
+	si := le.waitBytes(int64(len(part1)) + cut)
+	l1 := filepath.Join(filepath.Dir(fr.LocalPath), "part1.trc")
+	if len(si.Files) != 2 || si.Files[0].Path != l1 || si.Files[1].Path != fr.LocalPath {
+		t.Fatalf("files: %+v", si.Files)
+	}
+	if b, err := os.ReadFile(l1); err != nil || !bytes.Equal(b, part1) {
+		t.Fatalf("local copy of the earlier file: %v", err)
+	}
+	appendFile(t, h2, part2[cut:])
+	le.waitBytes(int64(len(part1) + len(part2)))
+	var running []JobInfo
+	for _, j := range decode[struct{ Jobs []JobInfo }](t, call(t, ts, "GET", "/engine/jobs", nil).body).Jobs {
+		if j.Kind == "follow" && j.State == JobRunning {
+			running = append(running, j)
+		}
+	}
+	if len(running) != 1 || running[0].ID != fr.Job.ID {
+		t.Errorf("follow jobs running: %+v", running)
+	}
+	other := newEnv(t)
+	id := other.openReady([]string{fr.LocalPath}, nil)
+	want := other.req("GET", "/s/"+id+"/api/doc", nil).body
+	if got := le.req("GET", "/s/"+le.id+"/api/doc", nil).body; !bytes.Equal(generatedRe.ReplaceAll(want, nil), generatedRe.ReplaceAll(got, nil)) {
+		t.Errorf("live document differs from a normal open of the mirror")
+	}
+	if r := call(t, ts, "DELETE", "/engine/sessions/"+le.id, nil); r.code != 204 {
+		t.Fatalf("delete %d", r.code)
+	}
+	if j := waitJob(t, ts, fr.Job.ID); j.State != JobCancelled {
+		t.Errorf("mirror after DELETE: %+v", j)
 	}
 	time.Sleep(3500 * time.Millisecond)
 	if l := srv.Lingered(); len(l) > 0 {

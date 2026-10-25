@@ -975,6 +975,31 @@ alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
   `TestLiveFollowRemoteChain` (lib transport: the first mirror is
   cancelled, the second cancelled by DELETE, nothing lingers on the host)
   cover it, on the real `midtrace_start` pair.
+* **Chains backwards.** A followed file that starts with `*** TRACE
+  CONTINUED FROM FILE x ***` is read after x. Oracle writes the marker
+  after the header block and the `*** ...` session lines, before the first
+  record, so before parsing the session waits until the start of the file
+  is settled (`model.HeadSettled`: the marker, a non-blank line after the
+  first blank one that is not `***`, or 64 KB) or has not grown for 500 ms
+  (a marker written later than that is missed). x is found as `BuildFiles`
+  finds it (`model.FindContinuation`: the path in the marker, that name
+  next to the file, a `*.trc` there whose header names it; never a file of
+  the chain), and so are the files x continues (at most 100). A remote
+  follow (`liveSpec.earlier`, `remoteChainFile`) looks on the host (the
+  marker path, the name in the remote file's directory, the newest `*.trc`
+  files there, at most 64, by header name: their first KB is read) and
+  fetches the file once (`remote.FetchFile`, claimed like a job's file, no
+  job of its own) next to the mirror under its remote name. The build
+  starts with the earliest file (`MarkFollowed`), the complete earlier
+  files are read to their end (`live.queue`; no waiting, no marker lookup),
+  then the followed file is tailed (`ContinueLive(path, followed=false)`),
+  so the files are listed head to tail with the flags `BuildFiles` gives
+  them and `ctx`/line links work. A file not found is logged and left out.
+  `TestSnapshotOfChain` (backward: snapshots in the second file equal
+  `BuildFiles` of it), `TestLiveFollowBackwardChain` (every endpoint equals
+  a normal open of the followed file) and `TestLiveFollowRemoteChainBackward`
+  (lib transport; the host copy of the first file is renamed, so it is
+  found by its header; one mirror job; nothing lingers).
 * **Snapshot point.** `bufio` calls `Read` only when no complete line is
   buffered, so inside `Read` every complete line has been delivered and the
   builder is between two records: that is where snapshots are taken, in the
@@ -1033,9 +1058,40 @@ alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
   which cancels the job (and a remote follow's mirror job), waits for the
   requests in flight and removes the spill. Job kind `live`, phase
   `follow`, ends `cancelled` on `DELETE`.
-* **`api/doc`.** The latest snapshot, its revision in `X-Rev` (exposed to
-  CORS). `?rev=N` with nothing newer than N waits up to 25 s for the next
-  snapshot or the end of the follow (a long poll; compare `X-Rev`).
+* **`api/doc`.** The latest snapshot, its revision in `X-Rev` and the
+  session's state in `X-Live` (`live` while it follows; `failed` or
+  `closed` once the follow has stopped: no newer revision will come; both
+  exposed to CORS). `?rev=N`: when the latest revision is newer than N
+  (or older: a restarted server counts from 1) the answer is immediate;
+  otherwise it waits up to 25 s for the next snapshot or the end of the
+  follow, and answers `200` with the document it has then: after a timeout
+  the same `X-Rev` (never 304), after the end at once with `X-Live` not
+  `live`. A DELETE ends a waiting poll at once (then 404 for the session's
+  routes); `rev` that is not a number is a 400.
+* **The UI follows it** (`web/src/lib/data/live.ts` `followLive`). The
+  standalone shell starts it when `loadInitial`'s answer has `X-Rev` and
+  `X-Live: live` (`follow -serve`; any `/s/{id}/` of a live engine session
+  given as the server). One `GET api/doc?rev=<shown>` at a time: a new
+  `X-Rev` is loaded (`fromRaw`, a new `RemoteSource`, so every view's
+  `useSourceQuery` key refetches) and swapped in with `Store.swapDoc`
+  (`carryOver`: view, window, contexts, files, selection, Pivot and Lines
+  positions stay while their ids exist; ids only grow from one snapshot to
+  the next) and `State.rev` increments (the Lines view's page cache drops
+  its last, partial page: `PageCache.refresh`). A new source of the same
+  server keeps the previous answer on screen until its own arrives
+  (`DataSource.lineage`), so a refresh does not blank the views. The same
+  revision is asked again at once (after a 1 s pause when it came back
+  in under 1 s: a server without `X-Live` whose follow ended). Errors
+  back off 1, 2, 5, 10, 30 s; 404/410, an answer without `X-Rev` or
+  `X-Live` not `live` stop it (`State.live.state: ended`, the last
+  snapshot stays). `State.live` drives `LiveBadge` ("live · rev N ·
+  updated hh:mm:ss", pause/resume: `actions.setLivePaused` aborts the
+  request on its way, nothing is asked until resumed). `loadInitial`
+  retries a 409 (no snapshot yet) for up to 60 s. The desktop shell still
+  reloads on `session` events (its own path); it can switch to
+  `followLive` and mount `LiveBadge`. Unit tests: `live.test.ts`
+  (revisions, pause, backoff, stop), `store.test.ts` (`swapDoc`),
+  `linecache.test.ts` (`refresh`).
 * **`mtkprof follow -serve`** (`cmd/mtkprof/fetch.go` `followServe`,
   `internal/engine/standalone.go`). The CLI runs an engine in-process
   (cache and live spill in a temporary directory, no token, no control

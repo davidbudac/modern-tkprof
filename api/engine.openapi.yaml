@@ -772,11 +772,14 @@ paths:
         events) is 1 when it opens and rises by one whenever a reference
         bundle is applied (`POST /s/{id}/api/ref`); fetch the document again
         after a session event with a new `rev`. A live session answers its
-        latest snapshot, the revision in the `X-Rev` header; with `rev=N` and
-        no revision newer than N yet, the answer waits up to 25 s for the next
-        snapshot (or the end of the follow) and is the document it has then
-        (a long poll: compare `X-Rev`). A `rev` that is not a number is a 400
-        on a live session.
+        latest snapshot, the revision in the `X-Rev` header and the session's
+        state in `X-Live` (`live` while it follows; `failed` or `closed` once
+        the follow has stopped, no newer revision will come); with `rev=N`
+        and no revision newer than N yet, the answer waits up to 25 s for the
+        next snapshot (or the end of the follow) and is the document it has
+        then, 200 either way (a long poll: compare `X-Rev`; the same `X-Rev`
+        after the wait, never 304). A `rev` that is not a number is a 400 on
+        a live session.
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - name: rev
@@ -791,6 +794,11 @@ paths:
               description: the revision of the document (live sessions)
               schema:
                 type: integer
+            X-Live:
+              description: "the state of a live session: live while it follows, failed or closed once it has stopped (live sessions)"
+              schema:
+                type: string
+                enum: [live, failed, closed]
           content:
             application/json:
               schema:

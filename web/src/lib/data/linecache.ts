@@ -26,6 +26,9 @@ export class PageCache {
   private readonly loading = new Map<number, Promise<CachedPage>>()
   private readonly ctrls = new Map<number, AbortController>()
   private readonly listeners = new Set<() => void>()
+  /** `refresh` count, and the first page it dropped: answers of an older count for those pages are not kept */
+  private gen = 0
+  private staleFrom = Infinity
 
   constructor(
     private readonly fetchPage: (from: number, n: number, signal: AbortSignal) => Promise<AnnotPage>,
@@ -56,14 +59,16 @@ export class PageCache {
     if (run) return run
     const ac = new AbortController()
     this.ctrls.set(page, ac)
-    const p = this.fetchPage(page * this.pageSize + 1, this.pageSize, ac.signal).then((r) => {
-      this.total = r.total || this.total
+    const gen = this.gen
+    const p: Promise<CachedPage> = this.fetchPage(page * this.pageSize + 1, this.pageSize, ac.signal).then((r) => {
       const cp = packPage(r)
+      if (gen !== this.gen && page >= this.staleFrom) return cp // asked before the file grew
+      this.total = r.total || this.total
       this.pages.set(page, cp)
       while (this.pages.size > this.capacity) this.pages.delete(this.pages.keys().next().value as number)
       for (const fn of this.listeners) fn()
       return cp
-    }).finally(() => { this.loading.delete(page); this.ctrls.delete(page) })
+    }).finally(() => { if (this.loading.get(page) === p) { this.loading.delete(page); this.ctrls.delete(page) } })
     this.loading.set(page, p)
     return p
   }
@@ -79,6 +84,26 @@ export class PageCache {
   /** Aborts the requests on the way for pages outside `keep` (the user scrolled on while they were loading). */
   keepOnly(keep: ReadonlySet<number>): void {
     for (const [page, ac] of this.ctrls) if (!keep.has(page)) ac.abort()
+  }
+
+  /**
+   * The file grew (a live session's next snapshot): the pages from the one holding the last known line on are dropped (it
+   * may have been partial) and that one is fetched again, which learns the new `total`; the requests on the way for those
+   * pages are aborted and their answers not kept.
+   */
+  refresh(): Promise<void> {
+    if (this.total === 0) return Promise.resolve()
+    const from = this.pageOf(this.total)
+    this.gen++
+    this.staleFrom = from
+    for (const p of [...this.pages.keys()]) if (p >= from) this.pages.delete(p)
+    for (const p of [...this.loading.keys()]) {
+      if (p < from) continue
+      this.ctrls.get(p)?.abort()
+      this.loading.delete(p)
+      this.ctrls.delete(p)
+    }
+    return this.load(from).then(() => undefined, () => undefined)
   }
 
   /** Aborts every request on the way (the file or the server changed). */

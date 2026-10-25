@@ -4,7 +4,7 @@ import type { ID } from '../data/types'
 import type { Fact } from '../data/pivot'
 import type { Annotation } from '../data/annotations'
 import { pivotConfigOf, resolvePivotConfig, type PivotConfig } from '../data/pivotconfig'
-import { contextsWithin, effectiveContexts, normalizeFiles } from '../data/fileset'
+import { contextsWithin, effectiveContexts, fileCount, normalizeFiles } from '../data/fileset'
 
 export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
   | 'annotations' | 'reports' // desktop shell views
@@ -40,6 +40,24 @@ export interface PivotState {
   event: ID | null
   /** shown above the table: what an applied saved configuration could not resolve */
   notice: string | null
+}
+
+/**
+ * A live session (`mtkprof follow -serve`, an engine follow session): the document is replaced by every new snapshot
+ * (`followLive`, data/live.ts). `state`: `live` while the server follows the file, `ended` once it has stopped (the last
+ * snapshot stays), `error` while the connection fails (retried after a backoff).
+ */
+export interface LiveStatus {
+  state: 'live' | 'ended' | 'error'
+  /** the server's revision of the document shown (`X-Rev`) */
+  rev: number
+  /** when the document shown arrived (ms since the epoch) */
+  updated: number
+  /** the user paused the updates (the document stays as it is) */
+  paused: boolean
+  error: string | null
+  /** with `error`: the next attempt at this time (ms since the epoch) */
+  retryAt: number | null
 }
 
 /** The Lines view's position: `seq` changes when something outside asks it to move to `line` (a deep link, a jump), clicks inside only update `line`. */
@@ -81,6 +99,10 @@ export interface State {
   /** show the Pivot view's "Saved" menu (the desktop shell provides `Session.library`) */
   libraryEnabled: boolean
   pivot: PivotState
+  /** counts the documents shown: `swapDoc` (a live session's next snapshot) increments it; views holding server answers outside `useSourceQuery` refetch on a change */
+  rev: number
+  /** null unless the document is a live session's */
+  live: LiveStatus | null
 }
 
 const initial: State = {
@@ -91,6 +113,7 @@ const initial: State = {
   linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
   pivot: { fact: 'calls', by: ['stmt'], sort: { calls: 'e', waits: 'ela' }, limit: 1000, stmt: null, event: null, notice: null },
+  rev: 0, live: null,
 }
 
 /** The statement of the other side that matches `stmt` of side `from` (via the Go diff), else null. */
@@ -108,6 +131,8 @@ export interface Store {
   subscribe(l: () => void): () => void
   /** Opens a loaded document (a comparison starts on side A). */
   setLoaded(l: { doc: TraceDoc; compare: CompareData | null }): void
+  /** Replaces the document by a newer one of the same trace (a live session's next snapshot): the view, scope, selection and line positions stay where their ids still exist (`carryOver`); `rev` increments. */
+  swapDoc(l: { doc: TraceDoc; compare: CompareData | null }): void
   /** The Pivot view's configuration with stable keys (to save it). */
   /** `clock`: also record the window as wall-clock times (applies by time of day to another trace); `files`: also the Files panel's selection, by file name */
   getPivotConfig(opts?: { clock?: boolean; files?: boolean }): PivotConfig
@@ -128,7 +153,10 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 } })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+  }
+  const swapDoc: Store['swapDoc'] = (l) => {
+    setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
   }
   const getPivotConfig = (opts?: { clock?: boolean; files?: boolean }) => pivotConfigOf(state, opts)
   const applyPivotConfig = (cfg: PivotConfig) => {
@@ -137,7 +165,39 @@ export function createStore(): Store {
     setState(r.patch)
     return { dropped: r.dropped }
   }
-  return { getState, setState, subscribe, setLoaded, getPivotConfig, applyPivotConfig, actions: makeActions(setState) }
+  return { getState, setState, subscribe, setLoaded, swapDoc, getPivotConfig, applyPivotConfig, actions: makeActions(setState) }
+}
+
+/**
+ * What of `s` still applies to `doc`, a newer document of the same trace (ids of statements, events, cursors, contexts and
+ * files are stable from one snapshot to the next; a later one only adds): ids the document does not have are dropped,
+ * everything else (sets included) keeps its identity, so nothing is recomputed for nothing.
+ */
+export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selection' | 'contexts' | 'files' | 'pivot' | 'lineViewer' | 'linesView'> {
+  const nStmts = doc.statements.length, nEvents = doc.events.length, nFiles = fileCount(doc)
+  const id = (v: ID | null, n: number): ID | null => (v !== null && v >= 0 && v < n ? v : null)
+  const subset = <T extends number>(set: Set<T> | null, n: number): Set<T> | null => {
+    if (!set) return null
+    for (const v of set) if (v < 0 || v >= n) return new Set([...set].filter((x) => x >= 0 && x < n))
+    return set
+  }
+  const sel = s.selection
+  const selection: Selection = {
+    stmt: id(sel.stmt, nStmts), event: id(sel.event, nEvents), call: sel.call,
+    exec: sel.exec && sel.exec.cursor >= 0 && sel.exec.cursor < doc.cursors.length ? sel.exec : null,
+  }
+  const same = selection.stmt === sel.stmt && selection.event === sel.event && selection.exec === sel.exec
+  const pv = s.pivot
+  const pivot = id(pv.stmt, nStmts) === pv.stmt && id(pv.event, nEvents) === pv.event ? pv : { ...pv, stmt: id(pv.stmt, nStmts), event: id(pv.event, nEvents) }
+  return {
+    doc,
+    selection: same ? sel : selection,
+    contexts: subset(s.contexts, doc.contexts.length),
+    files: subset(s.files, nFiles),
+    pivot,
+    lineViewer: s.lineViewer && s.lineViewer.file < nFiles ? s.lineViewer : null,
+    linesView: s.linesView.file < nFiles ? s.linesView : { file: 0, line: 1, seq: s.linesView.seq + 1 },
+  }
 }
 
 function makeActions(setState: Store['setState']) {
@@ -214,6 +274,8 @@ function makeActions(setState: Store['setState']) {
       setState((s) => ({ annotations: s.annotations.map((a) => (a.id === id ? { ...a, ...patch, updated: Math.max(Date.now(), a.updated + 1) } : a)) }))
     },
     removeAnnotation(id: string) { setState((s) => ({ annotations: s.annotations.filter((a) => a.id !== id) })) },
+    /** Pause or resume a live session's updates (`followLive` watches the flag). */
+    setLivePaused(paused: boolean) { setState((s) => (s.live ? { live: { ...s.live, paused } } : {})) },
     /** Change the Pivot view's configuration (clears an applied configuration's notice). */
     setPivot(patch: Partial<PivotState>) { setState((s) => ({ pivot: { ...s.pivot, notice: null, ...patch } })) },
     setTheme(theme: State['theme']) {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, traceSegmentsFrom, sourceOf, useSourceQuery, useScopedStatements, type TraceDoc, type View } from '@lib'
+import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, traceSegmentsFrom, sourceOf, useSourceQuery, useScopedStatements, type TraceDoc, type View } from '@lib'
 
 const tabs: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -57,6 +57,7 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
         </span>
       )}
       <span className="file mono" title={doc.file.traceFile || doc.file.path}>{name}<span className="dim"> · {fmtBytes(doc.diag.bytes)}</span></span>
+      <LiveBadge />
       <span className="mini" title="whole-trace response time by class">
         <b>{fmtDur(totalUs)}</b>
         <span className="mini-track" role="img" aria-label={segs.map((s) => `${s.label} ${fmtPct(s.us, totalUs, 0)}`).join(', ')}>

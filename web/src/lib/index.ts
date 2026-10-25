@@ -18,10 +18,11 @@ export { FilesPanel, FilesPane, FilesToggle, filesLabel } from './views/FilesPan
 export { ResizeHandle } from './components/ResizeHandle'
 export { PaneToggle } from './components/PaneToggle'
 export { Minimap } from './components/Minimap'
+export { LiveBadge } from './components/LiveBadge'
 
 // state: one store per open trace, provided through the context
-export { createStore, scopeOf, scopeNarrows, callFilter, waitFilter, filesPanelOpen } from './state/store'
-export type { Store, Actions, State, View, Side, Selection, TimeWindow, Scope, Bookmark, LinesView, PivotState } from './state/store'
+export { createStore, carryOver, scopeOf, scopeNarrows, callFilter, waitFilter, filesPanelOpen } from './state/store'
+export type { Store, Actions, State, View, Side, Selection, TimeWindow, Scope, Bookmark, LinesView, PivotState, LiveStatus } from './state/store'
 export {
   SessionContext, SessionProvider, createSession, useSession, useStore, useStoreApi, useActions, useClient, useLibrary,
 } from './state/session'
@@ -33,6 +34,9 @@ export { createClient, joinUrl } from './data/client'
 export type { ApiClient } from './data/client'
 export { TraceDoc } from './data/doc'
 export { fromRaw, loadInitial, loadFile } from './data/load'
+// a live session: the document follows the server's snapshots (api/doc?rev= long poll)
+export { followLive, LIVE_BACKOFF_MS } from './data/live'
+export type { LiveFollow, LiveOptions } from './data/live'
 export type { Loaded, CompareData, Source } from './data/load'
 export { probeLines, fetchLines, LINES_PAGE } from './data/lines'
 export type { LinePage } from './data/lines'

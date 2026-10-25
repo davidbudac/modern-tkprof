@@ -303,7 +303,7 @@ func TestLiveDocLongPoll(t *testing.T) {
 	cut := lineCuts(data, 0.5)[0]
 	le := startFollow(t, "basic_binds.trc", data[:cut], nil)
 	si := le.waitBytes(cut)
-	if r := le.req("GET", "/s/"+le.id+"/api/doc?rev="+strconv.Itoa(si.Rev-1), nil); r.code != 200 || r.hdr.Get("X-Rev") != strconv.Itoa(si.Rev) {
+	if r := le.req("GET", "/s/"+le.id+"/api/doc?rev="+strconv.Itoa(si.Rev-1), nil); r.code != 200 || r.hdr.Get("X-Rev") != strconv.Itoa(si.Rev) || r.hdr.Get("X-Live") != "live" {
 		t.Errorf("older rev: %d %s", r.code, r.hdr.Get("X-Rev"))
 	}
 	go func() {
@@ -356,6 +356,11 @@ func TestLiveTruncatedFileFails(t *testing.T) {
 	}
 	if r := le.req("GET", "/s/"+le.id+"/api/pivot?fact=calls&by=stmt", nil); r.code != 200 {
 		t.Errorf("last snapshot not served: %d %s", r.code, r.body)
+	}
+	// the long poll answers at once: no newer revision will come
+	start := time.Now()
+	if r := le.req("GET", "/s/"+le.id+"/api/doc?rev="+strconv.Itoa(si.Rev), nil); r.code != 200 || r.hdr.Get("X-Live") != "failed" || r.hdr.Get("X-Rev") != strconv.Itoa(si.Rev) || time.Since(start) > 2*time.Second {
+		t.Errorf("doc after the failure: %d X-Live %q X-Rev %q after %s", r.code, r.hdr.Get("X-Live"), r.hdr.Get("X-Rev"), time.Since(start))
 	}
 	j := decode[struct{ Jobs []JobInfo }](t, le.req("GET", "/engine/jobs", nil).body).Jobs
 	if len(j) != 1 || j[0].State != JobFailed || j[0].Kind != "live" {

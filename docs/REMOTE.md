@@ -191,7 +191,15 @@ SFTP listing and fetch would work; diag and follow would not).
   TRACE CONTINUES IN FILE x ***`, a changed `tracefile_identifier`), the
   session starts a follow job for the file of that name in the same remote
   directory (waiting until the host has it), stops the first job (its
-  `tail` ends with the stream) and parses on into the second mirror.
+  `tail` ends with the stream) and parses on into the second mirror. A
+  followed file that starts with `*** TRACE CONTINUED FROM FILE x ***` is
+  read after x: before the tail starts, the session finds x on the host
+  (the path in the marker, that name in the followed file's directory,
+  else the newest `*.trc` files there, at most 64, whose `Trace file`
+  header names it), fetches it once (no job, resumed like a fetch) next to
+  the mirror under its remote name, and does the same for the files x
+  continues; the snapshots list the files head to tail. One not found is
+  logged and left out.
 
 ### Measurements (loopback, in-process server, this laptop)
 
@@ -224,8 +232,12 @@ no reference bundle upload; CORS open for reads like `serve`'s
 `/api/doc`), the UI at `/`. `X-Rev` and `api/doc?rev=` as in the engine.
 `-batch-ms` sets the batch, `-bind-values`/`-redact-salt` as for `serve`.
 A chain (`TRACE CONTINUES IN FILE x`) is mirrored next to the first file
-under the remote names and followed. Ctrl-C closes the listener, cancels
-the follow (the remote `tail` ends with the stream) and removes the spill.
+under the remote names and followed; the files a `TRACE CONTINUED FROM`
+file continues are fetched there first. The page follows the snapshots by
+itself (one `api/doc?rev=` long poll, a "live · rev N · updated" badge
+with pause/resume in the top bar; ARCHITECTURE "Live sessions"). Ctrl-C
+closes the listener, cancels the follow (the remote `tail` ends with the
+stream) and removes the spill.
 
 Prompts go to the terminal (`/dev/tty`, `CONIN$`); with the cli transport
 the CLI starts an in-process askpass bridge on 127.0.0.1 so ssh's prompts
