@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, traceSegmentsFrom, sourceOf, useSourceQuery, useScopedStatements, responseOf, type TraceDoc, type View } from '@lib'
+import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, traceSegmentsFrom, sourceOf, useSourceQuery, useScopedStatements, responseOf, fileHeading, type TraceDoc, type View } from '@lib'
 
 const tabs: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -23,7 +23,8 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
   const compare = state.compare
   const hasLines = !!doc.slice && state.linesApi
   const shownTabs = [...(compare ? [compareTab] : []), ...tabs, ...(hasLines ? [linesTab] : [])]
-  const name = (doc.file.traceFile || doc.file.path).split(/[\\/]/).pop()
+  const path = doc.file.traceFile || doc.file.path
+  const head = fileHeading(doc, state.files, { name: path.split(/[\\/]/).pop() ?? path, title: path, bytes: doc.diag.bytes })
   const source = sourceOf(doc)
   const scope = { ...scopeOf(state), window: null }
   const profile = useSourceQuery(source, `top:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`, (signal) => source.profile(scope, signal), 'top')
@@ -57,7 +58,7 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
           ))}
         </span>
       )}
-      <span className="file mono" title={doc.file.traceFile || doc.file.path}>{name}<span className="dim"> · {fmtBytes(doc.diag.bytes)}</span></span>
+      <span className="file mono" title={head.title}>{head.name}<span className="dim"> · {fmtBytes(head.bytes)}</span></span>
       <LiveBadge />
       <span className="mini" title={`response time by class${resp.sessions > 1 ? `: sum over ${resp.sessions} sessions, wall clock ${fmtDur(resp.wallUs)}` : ''}`}>
         <b>{fmtDur(totalUs)}</b>
@@ -86,16 +87,21 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
 
 /** Where the trace came from: database, session, module, time span. */
 export function SubBar({ doc, onClose }: { doc: TraceDoc; onClose: () => void }) {
-  const c0 = doc.contexts[0]
-  const switches = Math.max(0, doc.contexts.length - 1)
+  // follows the file selection: the first context of the selected files, their wall-clock span
+  const files = useStore((s) => s.files)
+  const ctxs = files ? doc.contexts.filter((c) => files.has(c.fileIdx ?? 0)) : doc.contexts
+  const c0 = ctxs[0]
+  const switches = Math.max(0, ctxs.length - 1)
+  const sel = files ? (doc.file.files ?? []).filter((f, i) => files.has(i) && f.firstWallUs > 0) : []
+  const span = sel.length ? { firstWallUs: Math.min(...sel.map((f) => f.firstWallUs)), lastWallUs: Math.max(...sel.map((f) => f.lastWallUs)) } : doc.span
   return (
     <div className="subbar">
       {doc.file.version && <span>Oracle <b>{doc.file.version.replace(/\.0\.0\.0$/, '')}</b>{doc.file.instance && <> · instance <b>{doc.file.instance}</b>{doc.file.node && <> on {doc.file.node.split('.')[0]}</>}</>}</span>}
       {c0?.sessionId && <span>session <b>{c0.sessionId}</b>{c0.service && <> · service {c0.service}</>}{c0.clientDriver && <> · {c0.clientDriver}</>}</span>}
       {c0?.module && <span>module <b>{c0.module}</b>{switches > 0 && <> · {switches} context switch{switches === 1 ? '' : 'es'}</>}</span>}
       <span>
-        {doc.span.firstWallUs
-          ? <><b>{fmtWall(doc.span.firstWallUs, doc.tzOffsetMin, { date: true }).slice(0, 10)}</b> {fmtWall(doc.span.firstWallUs, doc.tzOffsetMin)} → {fmtWall(doc.span.lastWallUs, doc.tzOffsetMin)} {fmtTz(doc.tzOffsetMin)}</>
+        {span.firstWallUs
+          ? <><b>{fmtWall(span.firstWallUs, doc.tzOffsetMin, { date: true }).slice(0, 10)}</b> {fmtWall(span.firstWallUs, doc.tzOffsetMin)} → {fmtWall(span.lastWallUs, doc.tzOffsetMin)} {fmtTz(doc.tzOffsetMin)}</>
           : <>no wall clock</>}
       </span>
       {doc.file.truncated && <span className="warn">cut by max_dump_file_size</span>}

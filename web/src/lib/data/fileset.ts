@@ -91,6 +91,18 @@ export function fileTree(doc: FileSetDoc): FileNode[] {
   return out
 }
 
+/**
+ * What the top bar names: the selected file (its name and size) when one file of a set is selected, "3 files" and their summed
+ * size for several, else the trace itself (`whole`: its file name and size).
+ */
+export function fileHeading(doc: Pick<FileSetDoc, 'file'>, files: ReadonlySet<number> | null, whole: { name: string; title: string; bytes: number }): { name: string; title: string; bytes: number } {
+  const list = doc.file.files
+  if (!files || !list?.length) return whole
+  const sel = list.filter((_, i) => files.has(i))
+  if (sel.length === 1) return { name: sel[0].name || sel[0].path.split(/[\\/]/).pop() || sel[0].path, title: sel[0].path, bytes: sel[0].size }
+  return { name: sel.length ? `${sel.length} files` : 'no file', title: sel.map((f) => f.path).join('\n'), bytes: sel.reduce((a, f) => a + f.size, 0) }
+}
+
 /** How many of the files are selected (null = all). */
 export const selectedCount = (doc: Pick<FileSetDoc, 'file'>, files: ReadonlySet<number> | null): number => (files ? files.size : fileCount(doc))
 

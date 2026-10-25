@@ -48,7 +48,7 @@ export { sourceOf, attachRemote, LocalSource, RemoteSource, useSourceQuery } fro
 export type { DataSource, QueryState, StmtMarks } from './data/source'
 export { traceSegmentsFrom } from './data/derive'
 export { responseOf, scopeResponse, type ScopeResponse } from './data/response'
-export { ctxKey, effectiveContexts, contextsWithin, contextsOfFiles, fileTree, normalizeFiles, formatFilesParam, parseFilesParam } from './data/fileset'
+export { ctxKey, fileHeading, effectiveContexts, contextsWithin, contextsOfFiles, fileTree, normalizeFiles, formatFilesParam, parseFilesParam } from './data/fileset'
 export { useScopedStatements } from './data/scopedstmts'
 export type { ScopedStatements } from './data/scopedstmts'
 export { fmtInt, fmtCompact, fmtDur, fmtSecs, fmtMs, fmtPct, fmtBytes, fmtWall, fmtTz, preview, oraErr } from './data/format'

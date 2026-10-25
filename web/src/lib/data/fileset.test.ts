@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ctxKey, clickFile, contextsOfFiles, contextsWithin, effectiveContexts, fileTree, formatFilesParam, invert, normalizeFiles, parseFilesParam, selectionSpan, toggleFile,
+  ctxKey, clickFile, contextsOfFiles, fileHeading, contextsWithin, effectiveContexts, fileTree, formatFilesParam, invert, normalizeFiles, parseFilesParam, selectionSpan, toggleFile,
   type FileSetDoc,
 } from './fileset'
 import type { FileEntry } from './types'
@@ -152,5 +152,16 @@ describe('selectionSpan', () => {
     expect(selectionSpan(bare, new Set([2]), new Set([3]))).toEqual({ firstTim: 6000, lastTim: 6500 })
     expect(selectionSpan(bare, null, new Set([3]))).toEqual({ firstTim: 1000, lastTim: 7000 })
     expect(selectionSpan(sd, new Set(), null)).toEqual({ firstTim: 1000, lastTim: 7000 })
+  })
+})
+
+describe('fileHeading (top bar name)', () => {
+  const set = { file: { files: [f(0, { path: '/t/a.trc', name: 'a.trc', size: 100 }), f(1, { path: '/t/b.trc', name: 'b.trc', size: 50 }), f(2, { path: '/t/c.trc', name: 'c.trc', size: 7 })] } }
+  const whole = { name: 'a.trc', title: '/t/a.trc', bytes: 157 }
+  it('follows the file selection', () => {
+    expect(fileHeading(set, null, whole)).toBe(whole)
+    expect(fileHeading(set, new Set([1]), whole)).toEqual({ name: 'b.trc', title: '/t/b.trc', bytes: 50 })
+    expect(fileHeading(set, new Set([0, 2]), whole)).toEqual({ name: '2 files', title: '/t/a.trc\n/t/c.trc', bytes: 107 })
+    expect(fileHeading(set, new Set(), whole).name).toBe('no file')
   })
 })
