@@ -75,6 +75,28 @@ func (li *LineIndex) Lines() int { return li.lines }
 // Close releases the file.
 func (li *LineIndex) Close() error { return li.f.Close() }
 
+// Size is the number of bytes indexed (the size of the file when it was scanned).
+func (li *LineIndex) Size() int64 { return li.size }
+
+// Checkpoint returns the nearest indexed line at or before the 1-based line
+// (line 1 at offset 0, then every 64th) and its byte offset: a scan for line
+// can start there and count newlines. A line past the end gives the last
+// checkpoint; an empty file gives (1, 0).
+func (li *LineIndex) Checkpoint(line int) (cpLine int, off int64) {
+	if line < 1 || len(li.cps) == 0 {
+		return 1, 0
+	}
+	k := (line - 1) / lineStride
+	if k >= len(li.cps) {
+		k = len(li.cps) - 1
+	}
+	return k*lineStride + 1, li.cps[k]
+}
+
+// ReadAt reads len(p) bytes of the file at byte offset off (io.ReaderAt), for
+// scans that run over the raw bytes (search) instead of whole lines.
+func (li *LineIndex) ReadAt(p []byte, off int64) (int, error) { return li.f.ReadAt(p, off) }
+
 // Read returns up to n raw lines starting at 1-based line from, including
 // their line terminators. A start past the end yields an empty result.
 func (li *LineIndex) Read(from, n int) ([]byte, error) {

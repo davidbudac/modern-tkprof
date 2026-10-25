@@ -40,6 +40,7 @@ import (
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/model"
+	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
 // Limits of one response.
@@ -70,6 +71,10 @@ type Server struct {
 	mu    sync.Mutex
 	cache map[string][]byte // GET query -> response body
 	order []string
+
+	lis      []*trace.LineIndex // WithLines
+	fileOnce sync.Once
+	fileInfo []fileInfo
 }
 
 // NoCORS is the Server.AllowOrigin that turns the server's own CORS handling off.
@@ -112,6 +117,12 @@ func (s *Server) Handler() http.Handler {
 		"/api/stmt/waits":        s.stmtWaits,
 		"/api/stmt/spans":        s.stmtSpans,
 	}
+	if s.lis != nil { // the endpoints that read the trace text (WithLines)
+		routes["/api/lines/at"] = s.linesAt
+		routes["/api/at"] = s.at
+		mux.Handle("/api/lines", s.cors(LinesHandler(s.lis)))
+		mux.Handle("/api/search", s.cors(http.HandlerFunc(s.search)))
+	}
 	for path, fn := range routes {
 		mux.HandleFunc(path, s.wrap(fn))
 	}
@@ -143,8 +154,11 @@ func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.Ha
 			v, err := fn(r.Context(), r.URL.Query())
 			if err != nil {
 				var br badRequest
+				var nf notFound
 				if errors.As(err, &br) {
 					http.Error(w, br.Error(), http.StatusBadRequest)
+				} else if errors.As(err, &nf) {
+					http.Error(w, nf.Error(), http.StatusNotFound)
 				} else {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
@@ -161,6 +175,31 @@ func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.Ha
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(body)
 	}
+}
+
+// cors wraps a handler that does not go through wrap with the same CORS
+// handling (AllowOrigin) and the GET-only rule.
+func (s *Server) cors(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.AllowOrigin != NoCORS {
+			origin := s.AllowOrigin
+			if origin == "" {
+				origin = "*"
+			}
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			if r.Method == http.MethodOptions {
+				w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "*")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "GET only", http.StatusMethodNotAllowed)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) cached(key string) ([]byte, bool) {

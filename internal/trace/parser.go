@@ -60,6 +60,8 @@ type Parser struct {
 	intern  map[string]string
 	bindBuf BindSet
 	arena   []byte // chunk that bind values are copied into (see str)
+
+	kindHook func(line int, k Kind) // tests: sees every counted line kind
 }
 
 // lenSlack is how many bytes short of len= the collected statement text may
@@ -137,7 +139,12 @@ func (p *Parser) Run(r io.Reader) (Stats, error) {
 // Line returns the current 1-based line number (valid inside handler callbacks).
 func (p *Parser) Line() int { return p.line }
 
-func (p *Parser) count(k Kind) { p.stats.Kinds[k]++ }
+func (p *Parser) count(k Kind) {
+	p.stats.Kinds[k]++
+	if p.kindHook != nil {
+		p.kindHook(p.line, k)
+	}
+}
 
 func (p *Parser) unknown(line []byte) {
 	p.count(KindUnknown)
@@ -147,7 +154,7 @@ func (p *Parser) unknown(line []byte) {
 
 func (p *Parser) processLine(line []byte) {
 	if p.cur != nil {
-		if string(line) == "END OF STMT" && len(p.textBuf) >= p.cur.Len-lenSlack {
+		if k, _ := Classify(line, true); k == KindEndOfStmt && len(p.textBuf) >= p.cur.Len-lenSlack {
 			p.count(KindEndOfStmt)
 			p.finishCursor()
 			return
@@ -171,6 +178,7 @@ func (p *Parser) processLine(line []byte) {
 			// "BINDS #" and " Bind#0", or between " Bind#0" and its oacdty):
 			// handle it as a marker and keep collecting binds
 			p.inHeader = false
+			p.count(KindMarker)
 			p.marker(line[4:])
 			return
 		}
@@ -287,114 +295,62 @@ func isLobLine(line []byte) bool {
 	return false
 }
 
+// classify dispatches a record line on the kind recordKind (classify.go)
+// decides, and counts that kind: the handlers do not count and need not
+// re-validate what recordKind already checked.
 func (p *Parser) classify(line []byte) {
-	if len(bytes.TrimSpace(line)) == 0 {
+	r := recordKind(line)
+	switch r.kind {
+	case KindUnknown:
+		if r.hdr && p.inHeader {
+			p.header(line)
+			return
+		}
+		p.unknown(line)
+		return
+	case KindBlank:
 		p.count(KindBlank)
 		return
 	}
-	switch line[0] {
-	case '*':
-		if hasPrefix(line, "*** ") {
-			p.inHeader = false
-			p.marker(line[4:])
-			return
-		}
-	case '=':
-		if hasPrefix(line, "=====") {
-			p.inHeader = false
-			p.count(KindSeparator)
-			p.h.Separator(p.line)
-			return
-		}
-	case 'P':
-		switch {
-		case hasPrefix(line, "PARSING IN CURSOR #"):
-			p.parsingInCursor(line[18:])
-			return
-		case hasPrefix(line, "PARSE ERROR #"):
-			p.parseError(line[12:])
-			return
-		case hasPrefix(line, "PARSE #"):
-			p.call(CallParse, line[6:])
-			return
-		}
-	case 'E':
-		switch {
-		case hasPrefix(line, "EXEC #"):
-			p.call(CallExec, line[5:])
-			return
-		case hasPrefix(line, "ERROR #"):
-			p.errorLine(line[6:])
-			return
-		}
-	case 'F':
-		if hasPrefix(line, "FETCH #") {
-			p.call(CallFetch, line[6:])
-			return
-		}
-	case 'C':
-		if hasPrefix(line, "CLOSE #") {
-			p.call(CallClose, line[6:])
-			return
-		}
-	case 'W':
-		if hasPrefix(line, "WAIT #") {
-			p.wait(line[5:])
-			return
-		}
-	case 'S':
-		if hasPrefix(line, "STAT #") {
-			p.stat(line[5:])
-			return
-		}
-		if hasPrefix(line, "SORT UNMAP #") {
-			p.call(CallUnmap, line[11:])
-			return
-		}
-	case 'B':
-		if hasPrefix(line, "BINDS #") {
-			p.startBinds(line[6:], false)
-			return
-		}
-	case 'X':
-		if hasPrefix(line, "XCTEND ") {
-			p.xctend(line[7:])
-			return
-		}
-	case 'L':
-		if isLobLine(line) {
-			p.lob(line)
-			return
-		}
-	case 'R':
-		switch {
-		case hasPrefix(line, "RPC CALL:"):
-			p.count(KindRPC)
-			p.h.RPCCall(RPCCall{Line: p.line, Text: string(bytes.TrimSpace(line[9:]))})
-			return
-		case hasPrefix(line, "RPC BINDS:"):
-			p.count(KindRPC)
+	p.count(r.kind)
+	switch r.kind {
+	case KindMarker:
+		p.inHeader = false
+		p.marker(line[r.n:])
+	case KindSeparator:
+		p.inHeader = false
+		p.h.Separator(p.line)
+	case KindParsingInCursor:
+		p.parsingInCursor(line[r.n:])
+	case KindParseError:
+		p.parseError(line[r.n:])
+	case KindCall:
+		p.call(r.call, line[r.n:])
+	case KindError:
+		p.errorLine(line[r.n:])
+	case KindWait:
+		p.wait(line[r.n:])
+	case KindStat:
+		p.stat(line[r.n:])
+	case KindBinds:
+		p.startBinds(line[r.n:], false)
+	case KindXctend:
+		p.xctend(line[r.n:])
+	case KindLob:
+		p.lob(line)
+	case KindRPC:
+		switch line[4] {
+		case 'C': // RPC CALL:
+			p.h.RPCCall(RPCCall{Line: p.line, Text: string(bytes.TrimSpace(line[r.n:]))})
+		case 'B': // RPC BINDS:
 			p.newBinds(BindSet{Line: p.line, IsRPC: true})
 			p.inValue = false
-			return
-		case hasPrefix(line, "RPC EXEC:"):
-			p.count(KindRPC)
+		default: // RPC EXEC:
 			c := Call{Line: p.line, Kind: CallRPCExec}
-			p.callFields(&c, bytes.TrimSpace(line[9:]))
+			p.callFields(&c, bytes.TrimSpace(line[r.n:]))
 			p.h.Call(c)
-			return
-		}
-	case 'U':
-		if hasPrefix(line, "UNMAP #") {
-			p.call(CallUnmap, line[6:])
-			return
 		}
 	}
-	if p.inHeader {
-		p.header(line)
-		return
-	}
-	p.unknown(line)
 }
 
 // header handles the prologue lines ("Trace file ...", "Node name: ...").
@@ -420,7 +376,6 @@ func (p *Parser) header(line []byte) {
 }
 
 func (p *Parser) marker(rest []byte) {
-	p.count(KindMarker)
 	m := Marker{Line: p.line}
 	if len(rest) > 0 && isDigit(rest[0]) {
 		n := timestampEnd(rest)
@@ -537,12 +492,7 @@ func unquote(v []byte) []byte {
 }
 
 func (p *Parser) parsingInCursor(b []byte) {
-	num, rest, ok := cursorNumber(b)
-	if !ok {
-		p.unknown(b)
-		return
-	}
-	p.count(KindParsingInCursor)
+	num, rest, _ := cursorNumber(b) // recordKind checked it
 	c := CursorHeader{Line: p.line, TextLine: p.line + 1, Cursor: num}
 	eachKV(rest, ' ', func(k, v []byte) {
 		switch string(k) {
@@ -577,12 +527,7 @@ func (p *Parser) parsingInCursor(b []byte) {
 }
 
 func (p *Parser) parseError(b []byte) {
-	num, rest, ok := cursorNumber(b)
-	if !ok {
-		p.unknown(b)
-		return
-	}
-	p.count(KindParseError)
+	num, rest, _ := cursorNumber(b) // recordKind checked it
 	if len(rest) > 0 && rest[0] == ':' {
 		rest = rest[1:]
 	}
@@ -613,12 +558,7 @@ func (p *Parser) parseError(b []byte) {
 }
 
 func (p *Parser) call(kind CallKind, b []byte) {
-	num, rest, ok := cursorNumber(b)
-	if !ok {
-		p.unknown(b)
-		return
-	}
-	p.count(KindCall)
+	num, rest, _ := cursorNumber(b) // recordKind checked it
 	if len(rest) > 0 && rest[0] == ':' {
 		rest = rest[1:]
 	}
@@ -667,12 +607,7 @@ func (p *Parser) callFields(c *Call, rest []byte) {
 }
 
 func (p *Parser) errorLine(b []byte) {
-	num, rest, ok := cursorNumber(b)
-	if !ok {
-		p.unknown(b)
-		return
-	}
-	p.count(KindError)
+	num, rest, _ := cursorNumber(b) // recordKind checked it
 	if len(rest) > 0 && rest[0] == ':' {
 		rest = rest[1:]
 	}
@@ -690,7 +625,6 @@ func (p *Parser) errorLine(b []byte) {
 }
 
 func (p *Parser) xctend(rest []byte) {
-	p.count(KindXctend)
 	x := Xctend{Line: p.line}
 	eachKV(rest, ',', func(k, v []byte) {
 		n, _ := atoi(v)
@@ -707,23 +641,10 @@ func (p *Parser) xctend(rest []byte) {
 }
 
 func (p *Parser) wait(b []byte) {
-	num, rest, ok := cursorNumber(b)
-	if !ok {
-		p.unknown(b)
-		return
-	}
+	num, rest, _ := cursorNumber(b) // recordKind checked it
 	i := bytes.Index(rest, []byte("nam='"))
-	if i < 0 {
-		p.unknown(b)
-		return
-	}
 	rest = rest[i+5:]
 	j := bytes.Index(rest, []byte("' ela="))
-	if j < 0 {
-		p.unknown(b)
-		return
-	}
-	p.count(KindWait)
 	w := Wait{Line: p.line, Cursor: num, Name: p.internBytes(rest[:j])}
 	rest = bytes.TrimLeft(rest[j+6:], " ")
 	k := bytes.IndexByte(rest, ' ')
@@ -771,17 +692,8 @@ func (p *Parser) wait(b []byte) {
 }
 
 func (p *Parser) stat(b []byte) {
-	num, rest, ok := cursorNumber(b)
-	if !ok {
-		p.unknown(b)
-		return
-	}
+	num, rest, _ := cursorNumber(b) // recordKind checked it
 	opIdx := bytes.Index(rest, []byte(" op='"))
-	if opIdx < 0 {
-		p.unknown(b)
-		return
-	}
-	p.count(KindStat)
 	s := Stat{Line: p.line, Cursor: num}
 	eachKV(rest[:opIdx], ' ', func(k, v []byte) {
 		n, _ := atoi(v)
@@ -840,7 +752,6 @@ func (p *Parser) stat(b []byte) {
 func (p *Parser) lob(line []byte) {
 	colon := bytes.IndexByte(line, ':')
 	op := line[:colon]
-	p.count(KindLob)
 	c := Call{Line: p.line, Kind: lobKind(op), Op: p.internBytes(op)}
 	p.callFields(&c, bytes.TrimSpace(line[colon+1:]))
 	p.h.Call(c)
@@ -873,12 +784,7 @@ func lobKind(op []byte) CallKind {
 }
 
 func (p *Parser) startBinds(b []byte, rpc bool) {
-	num, _, ok := cursorNumber(b)
-	if !ok {
-		p.unknown(b)
-		return
-	}
-	p.count(KindBinds)
+	num, _, _ := cursorNumber(b) // recordKind checked it
 	p.newBinds(BindSet{Line: p.line, Cursor: num, IsRPC: rpc})
 	p.inValue = false
 }
