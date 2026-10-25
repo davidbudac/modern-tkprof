@@ -6,6 +6,20 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Releases (2026-10-25 evening)
+
+- Engine **v0.4.0** = `e4b0e6f`, published from this machine with
+  `scripts/release-local.sh v0.4.0 --notes-file docs/releases/v0.4.0.md`
+  (12 artifacts incl. the lite builds).
+- Desktop **v0.4.0** tagged at `3c1069b` (pin engine v0.4.0, versions
+  bumped, `scripts/release-local.sh v0.4.0 --check-only` passes); the
+  installers are built on the MacBook:
+  `cd ~/claude_projects/mtkprof-desktop && git fetch --tags && git checkout
+  v0.4.0 && git submodule update --init && scripts/release-local.sh v0.4.0
+  --notes-file docs/releases/v0.4.0.md`.
+- `testdata/sets/workload` (21 files) is the directory test set; it found
+  the set response-time base bug fixed by package C2 (sum over sessions).
+
 ## Files panel (package F2, 2026-10-25)
 
 For a trace set (several files or a directory) the standalone UI has a Files side panel: which source traces every view
