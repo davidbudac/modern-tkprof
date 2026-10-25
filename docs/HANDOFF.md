@@ -154,7 +154,7 @@ Needs a person or a machine:
   CI uses 24); `screencapture` needs Screen Recording permission for the
   host app; `--bundles dmg` deletes the `.app`, so the recipe's `xattr` path
   does not exist (not needed: the smoke runs `release/` directly). Follow-up
-  the same day, **desk:** branch `macos-v0.3.0-fixes` (`a38c276`, not merged):
+  the same day, **desk:** `a38c276` on main (after v0.3.0, untagged):
   the v0.3.0 DMG app is "damaged" for Gatekeeper on Apple Silicon (only the
   linker's ad-hoc signature, bundle unsigned; no Open Anyway), fixed with
   `bundle.macOS.signingIdentity: "-"` (now "Not Opened" + Open Anyway in
