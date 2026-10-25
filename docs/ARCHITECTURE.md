@@ -359,7 +359,12 @@ restores). Pieces:
   incrementally with `fetch` + `ReadableStream`, `onHit` per line, resolves with
   `{scanned, truncated, done}`; abort rejects with `AbortError`), `parseJump`
   (`1.5s`, `250ms`, `900us` = offset from the trace start, a bare number >= the first
-  tim = absolute) and `matchSpan` (the hit's byte column to a highlight range).
+  tim = absolute; with timestamps also a clock time `HH:MM:SS[.fff]` or
+  `YYYY-MM-DD HH:MM:SS[.fff]` in the trace file's zone, `data/clock.ts`: a bare time is
+  read on the start's day, or the next when that is where the trace is), `matchSpan`
+  (the hit's byte column to a highlight range), `matchSpans` / `highlightRuns` (every
+  match of the last search inside a row; the viewer wraps them in `<mark>`) and
+  `linePermalink`.
 - `data/linecache.ts` `PageCache`: pages of 2000 lines (the API's maximum) per file,
   LRU of 20, one request per page shared by all askers, prefetch of the neighbours,
   `keepOnly` aborts the requests of pages the user scrolled past. Kinds are kept as a
@@ -402,8 +407,20 @@ restores). Pieces:
   flips it; the drawer has an "In Lines tab" button. What the view keeps while another
   tab is shown (position, query, hits, panel) lives in a `WeakMap` keyed by store and
   file, so switching tabs does not lose a search.
+- The selected row shows Copy (its text) and Link (`linePermalink`: the page URL +
+  `#view=lines&file=&line=`, opened by the URL sync like any deep link; not offered where
+  `lineRefTarget` is `'view'`, the desktop shell). `data/clipboard.ts` falls back to a
+  hidden textarea on plain http.
 - URL: `#view=lines&file=1&line=4711` (file only for a multi-file trace; clicking
   through lines replaces the history entry).
+
+The Pivot view has a "Statement only" box (sql_id, datalist of the statements) and, for
+waits, an "Event only" select: the `PivotState.stmt` / `event` filters, also set by an
+applied configuration. A saved `PivotConfig` keeps its window as offsets and, when the
+save form's "window by clock time" is ticked, also as `windowClock` (wall µs): applying
+it to a trace with timestamps selects that clock window (cut to the trace; outside it
+the window is dropped with a notice), otherwise the offsets apply. The field is
+optional; the library file stays version 1.
 
 #### Notes and saved Pivot configurations (store additions, desktop plan S8/S9)
 

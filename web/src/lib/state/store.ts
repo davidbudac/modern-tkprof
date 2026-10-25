@@ -104,7 +104,8 @@ export interface Store {
   /** Opens a loaded document (a comparison starts on side A). */
   setLoaded(l: { doc: TraceDoc; compare: CompareData | null }): void
   /** The Pivot view's configuration with stable keys (to save it). */
-  getPivotConfig(): PivotConfig
+  /** `clock`: also record the window as wall-clock times (applies by time of day to another trace) */
+  getPivotConfig(opts?: { clock?: boolean }): PivotConfig
   /** Shows a saved configuration in the Pivot view; returns the parts the document does not have (also shown as a notice). */
   applyPivotConfig(cfg: PivotConfig): { dropped: string[] }
   actions: Actions
@@ -124,7 +125,7 @@ export function createStore(): Store {
   const setLoaded: Store['setLoaded'] = (l) => {
     setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 } })
   }
-  const getPivotConfig = () => pivotConfigOf(state)
+  const getPivotConfig = (opts?: { clock?: boolean }) => pivotConfigOf(state, opts)
   const applyPivotConfig = (cfg: PivotConfig) => {
     if (!state.doc) return { dropped: ['no document'] }
     const r = resolvePivotConfig(state.doc, cfg, state.pivot)

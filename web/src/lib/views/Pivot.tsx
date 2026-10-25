@@ -1,7 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
-import { fmtInt } from '../data/format'
+import { fmtInt, preview } from '../data/format'
 import { scopeOf, type State } from '../state/store'
 import { useStore, useActions, useStoreApi, useLibrary, type PivotLibrary } from '../state/session'
 import { DataTable, type Column } from '../components/DataTable'
@@ -169,8 +169,15 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
             {measures.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </label>
-        {fStmt !== undefined && <span className="chip">statement {doc.label(doc.statements[fStmt])} <button onClick={() => actions.setPivot({ stmt: null })} aria-label="Show every statement">×</button></span>}
-        {fEvent !== undefined && <span className="chip">event {doc.events[fEvent].name} <button onClick={() => actions.setPivot({ event: null })} aria-label="Show every event">×</button></span>}
+        <StmtOnly key={fStmt ?? -1} doc={doc} value={fStmt} onChange={(id) => actions.setPivot({ stmt: id })} />
+        {fact === 'waits' && (
+          <label className="pv-ctl">Event only
+            <select value={fEvent ?? ''} aria-label="Only this wait event" onChange={(e) => actions.setPivot({ event: e.target.value === '' ? null : Number(e.target.value) })}>
+              <option value="">any event</option>
+              {doc.events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
+            </select>
+          </label>
+        )}
         {state.libraryEnabled && library && <SavedMenu library={library} />}
         <span className="pv-push"><ColumnChooser all={measures.map((m) => ({ key: m.id, label: m.label }))} hidden={hiddenM} onChange={(h) => setHiddenCols({ ...hiddenCols, [fact]: h })} /></span>
         <button onClick={exportCsv} disabled={result.groups === 0}>Download CSV</button>
@@ -195,21 +202,47 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
   )
 }
 
+/** "Statement only": type or pick a statement (sql_id, or its label) to keep only its rows; empty = every statement. */
+function StmtOnly({ doc, value, onChange }: { doc: TraceDoc; value: number | undefined; onChange(id: number | null): void }) {
+  const [text, setText] = useState(value === undefined ? '' : doc.label(doc.statements[value]))
+  const options = useMemo(() => doc.statements.map((st) => ({ id: st.id, label: doc.label(st), text: preview(st.text, 70) })), [doc])
+  const commit = (t: string) => {
+    setText(t)
+    if (t.trim() === '') { if (value !== undefined) onChange(null); return }
+    const hit = options.find((o) => o.label === t.trim())
+    if (hit && hit.id !== value) onChange(hit.id)
+  }
+  return (
+    <label className="pv-ctl">Statement only
+      <input type="text" className="pv-only" value={text} list="pv-stmt-options" placeholder="any statement (sql_id)" aria-label="Only this statement" spellCheck={false}
+        onChange={(e) => commit(e.target.value)} />
+      <datalist id="pv-stmt-options">{options.map((o) => <option key={o.id} value={o.label}>{o.text}</option>)}</datalist>
+    </label>
+  )
+}
+
 /** The saved Pivot configurations (desktop library): apply one, save the current one. */
 function SavedMenu({ library }: { library: PivotLibrary }) {
   const store = useStoreApi()
   const saved = useSyncExternalStore(library.subscribe, library.getSnapshot)
   const [naming, setNaming] = useState<string | null>(null)
+  const [byClock, setByClock] = useState(false)
+  const timed = store.getState().window !== null && !!store.getState().doc?.wallOffsetUs
   const apply = (id: string) => {
     const p = saved.find((x) => x.id === id)
     if (p) store.applyPivotConfig(p.config)
   }
   if (naming !== null) {
     return (
-      <form className="pv-ctl pv-save" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) { library.save(naming.trim(), store.getPivotConfig()); setNaming(null) } }}
+      <form className="pv-ctl pv-save" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) { library.save(naming.trim(), store.getPivotConfig({ clock: byClock && timed })); setNaming(null) } }}
         onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setNaming(null) } }}>
         <input type="text" value={naming} autoFocus placeholder="Name" aria-label="Name of the saved pivot" onChange={(e) => setNaming(e.target.value)} list="pv-saved-names" />
         <datalist id="pv-saved-names">{saved.map((p) => <option key={p.id} value={p.name} />)}</datalist>
+        {timed && (
+          <label className="pv-check" title="Store the time window as clock times: applied to another trace it selects the same time of day, not the same offset from the start">
+            <input type="checkbox" checked={byClock} onChange={(e) => setByClock(e.target.checked)} /> window by clock time
+          </label>
+        )}
         <button type="submit" disabled={!naming.trim()}>Save</button>
         <button type="button" onClick={() => setNaming(null)}>Cancel</button>
       </form>

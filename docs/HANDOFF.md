@@ -194,11 +194,7 @@ Deferred by the agents (small, none blocks v1):
 - Tab reorder (Tauri's drop handler disables HTML5 drag on Windows).
 - A dev-server reload leaves engine sessions behind (dev mode only).
 - No React error boundary around a tab's views.
-- "Statement / event only" picker in the Pivot view (the filter exists, set by
-  an applied configuration).
-- Export everything together (connections + library); clock-time windows in
-  saved configurations (offsets only); clock-time input in "Jump to time";
-  search-match highlighting in the Lines rows; per-line copy/permalink.
+- Export everything together (connections + library).
 - Live sessions: statement indexes for the spill; following continuation
   chains (`TRACE CONTINUES IN FILE`); `mtkprof follow -serve`.
 - Adaptive/larger db fetch ranges (200 000 numbers per query is ~1.6x faster).
