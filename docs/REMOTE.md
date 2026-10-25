@@ -2,20 +2,23 @@
 
 How mtkprof reaches traces on other machines: the desktop engine's
 connections (`/engine/connections`, `api/engine.openapi.yaml`) and the CLI
-commands `fetch`, `follow`, `trace` and `ref -db`. Plan: `docs/PLAN-DESKTOP.md`
-§ 2 "Remote" and § 6. Two kinds of connection:
+commands `fetch`, `follow`, `trace` and `ref -db`. User view of the same:
+`docs/DESKTOP.md` § Connections. Plan: `docs/PLAN-DESKTOP.md` § 2 "Remote"
+and § 6. Two kinds of connection:
 
-- **ssh** (work package E7): the trace files on the database host, by `ssh`
-  or an SSH library. Part 1 below.
+- **ssh** (E7): the trace files on the database host, by `ssh` or an SSH
+  library. Part 1.
 - **db** (E8): an Oracle login, no OS access needed: the trace files through
   the ADR views, the sessions to trace, trace on/off, and the reference
-  bundle. Part 2 (from "Oracle connections").
+  bundle. Part 2.
 
-The verification checklist for dbmint (both) is the last section.
+Contents: security stance, Part 1 (SSH), Part 2 (Oracle, with the grants),
+"Verified on dbmint" (what ran, with numbers), "Open" (what did not), and
+"Re-running the lab checks".
 
-## Part 1: SSH
+## Security stance
 
-### Security stance
+Both kinds of connection:
 
 - **No secrets at rest.** Connection definitions carry no password field
   (`POST /engine/connections` rejects unknown fields). Every credential,
@@ -24,9 +27,14 @@ The verification checklist for dbmint (both) is the last section.
   with `POST /engine/prompts/{id}`), the terminal's (`TerminalPrompter`,
   no echo for secrets) or a test fake.
 - Passwords and key passphrases are kept **in engine memory** per
-  connection so one session of work prompts once; `DELETE
+  connection so one run of the app prompts once; `DELETE
   /engine/connections/{id}` or engine exit drops them. One-time codes and
   host-key answers are never cached. Nothing from a prompt is logged.
+- A password is never a flag or an environment variable of the CLI; a
+  password in a db spec is refused.
+
+ssh:
+
 - Host keys: unknown keys are a `hostkey` prompt with the SHA256
   fingerprint; `~/.ssh/known_hosts` is appended only on "yes". A key that
   differs from the known one is refused (lib) or handled by ssh's own
@@ -34,6 +42,16 @@ The verification checklist for dbmint (both) is the last section.
 - The only files written are the fetched traces under
   `<cache>/remote/<connection>/<basename>` (0600, directory 0700) and, on
   "yes", the known_hosts line.
+
+db:
+
+- Username/password only, over TCP or TCPS. TCPS verifies the server
+  certificate unless `tlsSkipVerify` is set, which encrypts but does not
+  authenticate (see "TCPS").
+- Read-mostly: the only writes are `DBMS_MONITOR` trace on/off, on the
+  session the user names.
+
+## Part 1: SSH
 
 ### Transports
 
@@ -106,14 +124,14 @@ credential (`password:`, `passphrase for`, `verification code`, or
 A plain `Permission denied (publickey)` does not count: no prompt would
 have helped. `auto` connections then switch to lib for the rest of the
 engine's run (log event "ssh did not use SSH_ASKPASS"). Tested with a fake
-ssh that behaves that way; **the real Windows 11 behaviour is unverified:
-to verify in S6** and record here.
+ssh that behaves that way; **the real Windows 11 behaviour is unverified**
+(see "Open").
 
 #### lib: Go library
 
 Authentication order: the agent (`SSH_AUTH_SOCK`; Windows: the OpenSSH
-agent pipe `\\.\pipe\openssh-ssh-agent` opened with `os.OpenFile`, **to
-verify on Windows in S6**), identity files (`IdentityFile` from
+agent pipe `\\.\pipe\openssh-ssh-agent` opened with `os.OpenFile`, **unverified
+on Windows**, see "Open"), identity files (`IdentityFile` from
 `~/.ssh/config`, else `id_ed25519`, `id_ecdsa`, `id_rsa`; an encrypted key
 is offered by its public half and the passphrase asked only when the
 server accepts it, 3 tries), password (3 tries), keyboard-interactive
@@ -151,10 +169,9 @@ under its ORACLE_BASE (`$ORACLE_HOME/bin/orabase`, else the home cut at
 directories only, duplicates removed. Listing uses sftp's client-side
 `ls -ln` format (`sshcli.ParseLs`), the same whatever the server's OS.
 
-Checked here: GNU coreutils/dash (tests run the scripts with the local
-`sh`, `sh -n` parses `DiagScript`). AIX and Solaris syntax: read from the
-man pages, not run. Large files (> 2 GB) through AIX `tail -c`: unverified.
-A Windows OpenSSH server is not supported by the cli scripts (lib's
+Checked: GNU coreutils/dash locally (tests run the scripts with the local
+`sh`, `sh -n` parses `DiagScript`) and the lab's Linux host. AIX and Solaris
+syntax: read from the man pages, not run ("Open"). A Windows OpenSSH server is not supported by the cli scripts (lib's
 SFTP listing and fetch would work; diag and follow would not).
 
 ### Fetch and follow
@@ -182,10 +199,8 @@ SFTP listing and fetch would work; diag and follow would not).
 
 Loopback hides the network; on a LAN or VPN, `gzip -1` cuts trace bytes
 ~5–10× and the network is the limit. Follow latency: cli ≈ the host's
-`tail -f` (inotify on Linux: immediate); lib ≤ the 500 ms poll. Pending
-on dbmint: `MTKPROF_SSH_TEST=oracle@dbmint:2200 go test ./internal/remote/sshconn -run Dbmint -v`
-(fetch sha256 over cli+gzip, cli, lib and scp, resume, diag, follow
-latency with the 2 s budget).
+`tail -f` (inotify on Linux: immediate); lib ≤ the 500 ms poll. Numbers
+from the real lab VM: "Verified on dbmint".
 
 ### CLI
 
@@ -240,7 +255,7 @@ to `<trace>.ref/` (or `-o`), applies it and prints the `report -ref` line.
 | `-sessions` | `SELECT` on `V$SESSION`, `V$PROCESS` |
 | `-files`, `fetch -db` | `SELECT` on `V$DIAG_TRACE_FILE`, `V$DIAG_TRACE_FILE_CONTENTS` (12.2+), `V$PROCESS`, `V$SESSION`. Without `V$DIAG_TRACE_FILE` (ORA-00942) `-files` lists `V$PROCESS.TRACEFILE` of live sessions instead (marked `fromProcess`; usable for an SSH fetch) |
 | `trace -on/-off` | `EXECUTE` on `DBMS_MONITOR` |
-| own-session trace (`MyTrace`, tests) | `DBMS_SESSION` (granted to PUBLIC) and `ALTER SESSION` (`mtk` has it; whether `DBMS_SESSION` works without it is unverified) |
+| own-session trace (`MyTrace`, tests) | `DBMS_SESSION` (granted to PUBLIC) and `ALTER SESSION` (`mtk` has it; whether `DBMS_SESSION` works without it is unverified, "Open") |
 | `ref -db` (full) | as the refscript: `SELECT_CATALOG_ROLE` or `SELECT ANY DICTIONARY` for `DBA_OBJECTS`, `DBA_USERS`; `V$DATAFILE`, `V$TEMPFILE`, `V$TABLESPACE`, `V$PARAMETER` for the datafiles; `V$SQL`, `V$SQL_PLAN`... for DBMS_XPLAN (`DISPLAY_CURSOR`, `DISPLAY_AWR`) |
 | `ref -db -lite` | nothing beyond `CREATE SESSION`: `ALL_OBJECTS`, `ALL_USERS` (only what the user may see), no datafiles; plans as far as DBMS_XPLAN is allowed |
 
@@ -378,7 +393,7 @@ the system roots and must match the host name in the spec; a self-signed or
 internal-CA listener needs `-tls-skip-verify` (`Spec.TLSSkipVerify`, go-ora
 `SSL VERIFY=false`), which encrypts but does not authenticate the server.
 No client certificates (they need a wallet, out of scope for v1). The usual
-TCPS port is 2484. Not tested: dbmint has no TCPS listener.
+TCPS port is 2484. Not tested ("Open"): dbmint has no TCPS listener.
 
 ### go-ora notes
 
@@ -399,7 +414,7 @@ TCPS port is 2484. Not tested: dbmint has no TCPS listener.
   builds copied onto database hosts.
 - Native network encryption (`SQLNET.ENCRYPTION_SERVER = required`) and
   old password verifiers: go-ora implements Oracle's advanced negotiation;
-  not tested here.
+  not tested ("Open").
 
 ### In the engine
 
@@ -462,71 +477,87 @@ Routes (`api/engine.openapi.yaml`):
 - **TLS.** `tcps` and `tlsSkipVerify` on the definition, as `-tcps` and
   `-tls-skip-verify`.
 
-## Verification checklist for dbmint
+## Verified on dbmint
 
-The automated tests use fakes. The SSH part (E7) has not run against the lab
-yet. The Oracle part (E8) ran on dbmint on 2026-10-25 (Oracle 19.27, `mtk`
-in PDB1, through `ssh -L 15210`): the answers are recorded in the list
-below. `dbmint` is the lab VM
-(`ssh -p 2200 oracle@dbmint`; sandboxed shells need
-`dangerouslyDisableSandbox: true` for it). Record results in this file
-(replace "to verify" with what was seen).
+Lab: the VM `dbmint` (`ssh -p 2200 oracle@dbmint`; sandboxed agent shells
+need `dangerouslyDisableSandbox: true`), Oracle 19.27, user `mtk` in PDB1, OpenSSH
+8.7 on the host, 9.6 locally. All on 2026-10-25. The unit and integration
+tests elsewhere use fakes and in-process servers; these are the runs against
+the real database host.
 
-### SSH (E7): verified on dbmint 2026-10-25
+### ssh (E7)
 
-Results (`ssh -p 2200 oracle@dbmint`, key authentication, OpenSSH 8.7 on
-the host, 9.6 locally):
+Key authentication; transport `auto` chose cli.
 
-- `TestDbmint`: cli, cli+gzip, lib and scp give the same sha256 of
-  `cdb1_ora_133146_mtk_basic_binds.trc` (213 689 bytes); resume from a
-  truncated copy works; `Diag` finds `/u01/app/oracle/diag/rdbms/cdb1/cdb1/trace`;
-  follow latency 149 ms (cli, inotify `tail -f`) and 501 ms (lib, 500 ms poll).
-- `mtkprof fetch oracle@dbmint:2200 .../cdb1_ora_134678_mtk_big_loop.trc`:
-  117.7 MB in 0.97 s (gzip over the VM loopback), sha256 equal to
-  `testdata/big/big_loop.trc`; the second run is a 0.4 s no-op.
-- Engine: `POST /engine/connections` (ssh, transport auto → cli), `test`,
-  `diag`, `fetch` (job done, 171 216 bytes under `<cache>/remote/lab/`),
-  `follow` → a live session (`live`, rev 2, 3 059 lines after 4 s); no prompt
-  events (key auth); `DELETE` of the session left no `tail` on the host
-  (`pgrep -a tail` empty).
-- Not yet verified: Windows 11 askpass and the agent pipe (S6).
-
-The original checklist, kept for the next lab:
-
-1. Gated transport tests (fetch sha256 over cli+gzip, cli, lib and scp,
-   resume, diag, follow latency within 2 s):
-   `MTKPROF_SSH_TEST=oracle@dbmint:2200 go test ./internal/remote/sshconn -run Dbmint -v`
-2. CLI: `mtkprof fetch oracle@dbmint:2200 <Diag Trace>/<file>.trc -o /tmp/f/`
-   (password or key; run it twice: the second is a no-op), `cmp` with
-   `ssh -p 2200 oracle@dbmint cat <file>`.
-3. `mtkprof follow oracle@dbmint:2200 <file> | head`, generate trace
-   (`testdata/gen/run_gen.sh`), lines appear; Ctrl-C leaves no `tail` on the
-   host (`ssh -p 2200 oracle@dbmint pgrep -a tail`).
-4. Engine (loopback, token in the environment):
-   ```
-   export MTKPROF_TOKEN=dev-token; H="Authorization: Bearer $MTKPROF_TOKEN"
-   bin/mtkprof engine -listen 127.0.0.1:8047 &        # find it later with: ss -ltnp | grep :8047
-   curl -N -H "$H" localhost:8047/engine/events &     # prompt events appear here
-   curl -H "$H" -XPOST localhost:8047/engine/connections -d '{"id":"lab","kind":"ssh","host":"dbmint","port":2200,"user":"oracle"}'
-   curl -H "$H" -XPOST localhost:8047/engine/connections/lab/test        # answer the prompt: curl -H "$H" -XPOST localhost:8047/engine/prompts/<id> -d '{"answer":"..."}'
-   curl -H "$H" localhost:8047/engine/connections/lab/diag
-   curl -H "$H" -XPOST localhost:8047/engine/connections/lab/fetch -d '{"paths":["<Diag Trace>/<file>.trc"]}'
-   ```
-   The password prompt appears once for test + diag + fetch (cli:
-   multiplexed; lib: cached).
-5. Windows 11 (S6): the askpass failure and the OpenSSH agent pipe, see the
-   notes in Part 1.
+| Check | Result |
+|---|---|
+| `TestDbmint`: fetch of `cdb1_ora_133146_mtk_basic_binds.trc` over cli+gzip, cli, lib and scp | same sha256 (213 689 bytes) |
+| Resume from a truncated copy | correct |
+| `Diag` | finds `/u01/app/oracle/diag/rdbms/cdb1/cdb1/trace` |
+| Follow latency | 149 ms (cli, inotify `tail -f`), 501 ms (lib, 500 ms poll); budget 2 s |
+| `mtkprof fetch ... cdb1_ora_134678_mtk_big_loop.trc` | 117.7 MB in 0.97 s (gzip, VM loopback); sha256 equal to `testdata/big/big_loop.trc`; second run a 0.4 s no-op |
+| Engine: connection (`auto` → cli), `test`, `diag`, `fetch` | job done, 171 216 bytes under `<cache>/remote/lab/` |
+| Engine: `follow` | live session (`live`, rev 2, 3 059 lines after 4 s) |
+| Prompts | none (key auth); the password round trip is covered by the in-process server (Part 1) |
+| Cleanup | deleting the session left no `tail` on the host (`pgrep -a tail` empty) |
 
 ### Oracle (E8)
 
-Tunnel from the laptop, then the gated test (the password is in the
-variable for the test only):
+Through an ssh tunnel (`-L 15210`). Gated test `TestDBMint` plus CLI runs.
+
+| Question | Result |
+|---|---|
+| Do the views answer for `mtk`? | Yes: `v$diag_trace_file`, `v$diag_trace_file_contents`, `v$instance` (`version_full` 19.27.0.0.0), `v$diag_info`. `DBA_` views and `V$DATAFILE` do not (no role). |
+| What a PDB user sees | `v$diag_trace_file`: `con_id` 3 only (5313 files); `v$session`: own session plus `con_id` 0 background sessions; background traces (`cdb1_mmon_*`) readable |
+| Is `line_number` 1..count? | No. A row is a record of one or more lines; `line_number` is its last line, with gaps and repeats: 2707 rows for the 3059 lines of `basic_binds.trc` |
+| Payload | verbatim concatenation is the file: 314 of 2707 rows have inner newlines, 20 have a NULL payload, max 1498 bytes; sha256 equal to the fixture. `fetch -db -resume` of a truncated copy is byte-equal |
+| Throughput, 117 MB / 2 881 438 lines | 301 s = 0.39 MB/s = 9 570 lines/s; 58 chunks of 4.4–5.5 s; sha256 equal. A quiet lab measured 1.8 s per chunk (about 1 MB/s, 2 min). Time per chunk is flat in the offset. Ranges of 200 000 numbers are ~1.6× faster per line (deferred: adaptive chunk) |
+| Resume on the big file | cut after 2 875, 1 066 738 and 2 680 613 lines: the first range returned exactly the bytes that follow the local copy |
+| Trace on/off | `DBMS_MONITOR` on/off through the test; `V$SESSION.SQL_TRACE` follows; `trace -sessions` lists `mtk` sessions with "(this)" |
+| `ref -db -lite` on `io_waits.trc` | clean: 5 objects, 2 users; applied, `report -ref` shows the names |
+| `ref -db` (full) as `mtk` | ORA-00942 for `DBA_OBJECTS`, `DBA_USERS` (answered by the lite query, notes printed) and `V$DATAFILE` (`datafiles.csv` missing, no lite form). No plans: `mtk` cannot read `V$SQL_PLAN` |
+
+## Open
+
+Not verified yet:
+
+- **Windows 11**: whether `ssh.exe` ignores `SSH_ASKPASS` (the detection
+  and the switch to lib are tested with a fake ssh), and the OpenSSH agent
+  pipe for the lib transport. Needs a real machine; record the result here.
+- **Full `ref -db`** with `SELECT_CATALOG_ROLE` (datafiles, plans), compared
+  with a `refscript` bundle of the same database.
+- **TCPS**: dbmint has no TCPS listener; the certificate and
+  `-tls-skip-verify` paths are untested, as are native network encryption and
+  old password verifiers.
+- `DBMS_SESSION.SESSION_TRACE_ENABLE` without `ALTER SESSION`.
+- `modify_time` time zone against `-since` (`TraceFile.Modified`).
+- The engine's db routes end to end with curl (one password prompt for
+  test + sessions + fetch + ref; killing the tunnel mid-fetch and resuming).
+- AIX and Solaris remote scripts (read from the man pages, not run); a
+  > 2 GB file through AIX `tail -c`.
+- Tracing another PDB's session from CDB$ROOT.
+
+Deferred by design: adaptive fetch ranges; wallet, sysdba and Kerberos
+authentication; `ProxyJump`/`Include`/`Match` in the lib transport (use cli).
+
+## Re-running the lab checks
+
+SSH, gated tests and CLI:
+
+```
+MTKPROF_SSH_TEST=oracle@dbmint:2200 go test ./internal/remote/sshconn -run Dbmint -v
+mtkprof fetch  oracle@dbmint:2200 <Diag Trace>/<file>.trc -o /tmp/f/     # twice: the second is a no-op
+mtkprof follow oracle@dbmint:2200 <file> | head                          # then testdata/gen/run_gen.sh; Ctrl-C
+ssh -p 2200 oracle@dbmint pgrep -a tail                                  # must print nothing
+```
+
+Oracle (the password is in the variable for the test only; the grants come
+from `testdata/gen/00_setup_user.sql`, which `run_gen.sh` runs as SYSDBA):
 
 ```
 ssh -p 2200 -N -L 15210:localhost:1521 oracle@dbmint &
-# once, as SYSDBA in the VM, to apply the grants: testdata/gen/00_setup_user.sql (run_gen.sh does it)
 MTKPROF_DB_TEST=mtk/mtk@localhost:15210/pdb1.world go test ./internal/remote/db -run DBMint -v
-MTKPROF_DB_TEST=mtk/mtk@localhost:15210/pdb1.world MTKPROF_DB_TEST_BIG=<big trace_filename> \
+MTKPROF_DB_TEST=... MTKPROF_DB_TEST_BIG=<big trace_filename> MTKPROF_DB_TEST_BIG_SHA256=<hash> \
   go test ./internal/remote/db -run DBMint -v -timeout 30m
 ```
 
@@ -534,91 +565,47 @@ MTKPROF_DB_TEST=mtk/mtk@localhost:15210/pdb1.world MTKPROF_DB_TEST_BIG=<big trac
 `MyTrace` on → marked statement → off, its file in `TraceFiles`, the record
 semantics of the view, `Fetch` parsed with `model.BuildFiles` containing the
 statement, resume of a truncated copy (cut at 0, 1/4, 1/2 and inside the last
-quarter, plus a partial line) equal to a fresh fetch,
-`DBMS_MONITOR` on/off with `V$SESSION.SQL_TRACE`, and `FetchRef` (full and
-lite) on `io_waits.trc` applied with `ApplyRef` (full mode may only fail on
-`datafiles.csv`, objects and users fall back); it logs fetch throughput.
+quarter, plus a partial line) equal to a fresh fetch, `DBMS_MONITOR` on/off
+with `V$SESSION.SQL_TRACE`, and `FetchRef` (full and lite) on `io_waits.trc`
+applied with `ApplyRef`. It logs fetch throughput.
 `MTKPROF_DB_TEST_FIXTURE=cdb1_ora_133146_mtk_basic_binds.trc` also compares
-the fetch of the lab's copy with `testdata/traces/19c/basic_binds.trc`;
-`MTKPROF_DB_TEST_BIG_SHA256` checks the hash of the big fetch.
+the lab's copy with `testdata/traces/19c/basic_binds.trc`. Compare any other
+fetch with the SSH copy: `ssh -p 2200 oracle@dbmint cat <Diag Trace>/<file> | cmp - /tmp/db.trc`.
 
-Questions, with the SQL to answer them (as `mtk` in PDB1 unless noted), and
-what dbmint answered:
+Reference bundle against the refscript's (after granting the role):
 
-1. **Grants**: do the views answer? **Yes**: `v$diag_trace_file`,
-   `v$diag_trace_file_contents`, `v$instance` (`version_full` 19.27.0.0.0),
-   `v$diag_info` work for `mtk`. `DBA_` views and `V$DATAFILE` do not
-   (see Privileges).
-2. **What a PDB user sees**: `v$diag_trace_file` only `con_id` 3 (5313 files);
-   `v$session` own session plus `con_id` 0 background sessions; background
-   traces (`cdb1_mmon_*`) are readable. Details under "PDB vs CDB".
-3. **`line_number`**: **not** 1..count. A row is a record of one or more
-   lines, `line_number` is its last line, with gaps and repeats (2707 rows
-   for 3059 lines); see "Fetch through `V$DIAG_TRACE_FILE_CONTENTS`" for the
-   rule and the resume key.
-4. **Payload**: verbatim concatenation of the payloads is the file. 314 of
-   2707 rows have inner newlines, 20 have a NULL payload, none lacks its
-   newline otherwise, max length 1498 (the column is `VARCHAR2(4000)`: a
-   record cannot be longer; lines over that are split by the server into
-   records). The fetch of `cdb1_ora_133146_mtk_basic_binds.trc` has the
-   sha256 of the fixture; `mtkprof fetch -db ... -resume` of a truncated
-   copy is byte-equal as well. Compare any other file with the SSH copy:
-   `ssh -p 2200 oracle@dbmint cat <Diag Trace>/<file> | cmp - /tmp/db.trc`.
-5. **Throughput** on the 117 MB trace (`cdb1_ora_134678_mtk_big_loop.trc`,
-   2 881 438 lines, `testdata/big/big_loop.trc`): 301 s for
-   117.7 MB = 9 570 lines/s, 0.39 MB/s, sha256 equal to the file
-   (`e14ae170...`); 58 chunks of 4.4-5.5 s (loopback tunnel to the VM, one
-   connection; an earlier quieter run measured 1.8 s per chunk, about 1 MB/s,
-   i.e. 2 min: the figure depends on the lab's load, plan for 2-5 min).
-   Does a chunk's time grow with its offset? **No**: the time per chunk is
-   flat from the first to the last chunk (the progress log of
-   `MTKPROF_DB_TEST_BIG`), so the `BETWEEN` range is cheap and no streaming
-   rewrite is needed. A query has a fixed cost of 2.5-3 s on this lab even for
-   88 rows, and ranges of 200 000 line numbers took 11-14 s against 4.4-5 s for 50 000 in
-   the same minute (about 1.6x faster per line); the chunk stays 50 000, a
-   small unit to lose on a dropped connection (deferred: make it adaptive).
-   Resume was also checked on this file at three offsets (cut after 2 875,
-   1 066 738 and 2 680 613 lines): the first range returned exactly the bytes
-   that follow the local copy.
-6. **Trace on/off** (`DBMS_MONITOR` through the test: passed;
-   `trace -sessions` listed `mtk` sessions with `SQL_TRACE` and "(this)"):
-   `mtkprof trace mtk@localhost:15210/pdb1.world -sessions`,
-   then `-sid S -serial N -on` on another mtk session and
-   `select sql_trace, sql_trace_waits, sql_trace_binds, sql_trace_plan_stats from v$session where sid = S;`
-   (also confirms the `waits => :w = 1` binding through go-ora).
-7. **`DBMS_SESSION.SESSION_TRACE_ENABLE`** without `ALTER SESSION`: revoke
-   it from a scratch user and call
-   `begin dbms_session.session_trace_enable(waits => true, binds => true, plan_stat => 'ALL_EXECUTIONS'); end;`.
-8. **Ref bundle equals the refscript's** (the E8 "done when"):
-   ```
-   mtkprof refscript testdata/traces/19c/io_waits.trc -o /tmp/ref.sql   # run with sqlplus in the VM, copy ref/ back
-   mtkprof ref -db mtk@localhost:15210/pdb1.world testdata/traces/19c/io_waits.trc -o /tmp/refdb
-   diff <(mtkprof report testdata/traces/19c/io_waits.trc -ref ref) <(mtkprof report testdata/traces/19c/io_waits.trc -ref /tmp/refdb)
-   ```
-   `mtk` lacks `SELECT_CATALOG_ROLE`: `-lite` is clean (5 objects, 2 users for
-   `io_waits.trc`, applied: `report -ref` shows the names); full mode falls
-   back per query (objects, users) and fails `datafiles.csv`, with notes
-   printed. Not yet run with the role granted (datafiles, plans) or compared
-   with the refscript's `ref/` bundle (the lab data differs from the fixture's).
-9. **Time zones**: `select modify_time from v$diag_trace_file where trace_filename = '<file>';`
-   against `TraceFile.Modified` in `-files -json`, and `-since 10m` lists the
-   file just written.
-10. **Engine** (same engine as in the SSH list, tunnel up; `MTKPROF_TOKEN`,
-    `H` as above; answer prompts with `POST /engine/prompts/<id>`):
-    ```
-    curl -H "$H" -XPOST localhost:8047/engine/connections -d '{"id":"ora","kind":"db","host":"localhost","port":15210,"user":"mtk","service":"pdb1.world"}'
-    curl -H "$H" -XPOST localhost:8047/engine/connections/ora/test       # one password prompt; server 19.x, diag
-    curl -H "$H" localhost:8047/engine/connections/ora/sessions
-    curl -H "$H" "localhost:8047/engine/connections/ora/tracefiles?since=1d"
-    curl -H "$H" -XPOST localhost:8047/engine/connections/ora/trace -d '{"sid":S,"serial":N,"enable":true}'
-    curl -H "$H" -XPOST localhost:8047/engine/connections/ora/fetch -d '{"adrHome":"<ADR Home>","name":"<file>"}'
-    # open the fetched file (localPaths in the answer), then:
-    curl -H "$H" -XPOST localhost:8047/engine/sessions -d '{"paths":["<localPath>"]}'
-    curl -H "$H" -XPOST localhost:8047/s/<session>/api/ref -d '{"connection":"ora","lite":true}'
-    curl -H "$H" localhost:8047/s/<session>/api/doc | head -c 300      # names filled in; rev 2 in the session
-    ```
-    Expected: a single password prompt for the whole run (fetch and ref use
-    sessions of their own with the cached password); killing the tunnel in
-    the middle of a fetch fails the job, and the same `fetch` call resumes
-    it; `DELETE /engine/connections/ora` closes the sessions
-    (`select count(*) from v$session where username='MTK'` drops).
+```
+mtkprof refscript testdata/traces/19c/io_waits.trc -o /tmp/ref.sql   # run with sqlplus in the VM, copy ref/ back
+mtkprof ref -db mtk@localhost:15210/pdb1.world testdata/traces/19c/io_waits.trc -o /tmp/refdb
+diff <(mtkprof report testdata/traces/19c/io_waits.trc -ref ref) <(mtkprof report testdata/traces/19c/io_waits.trc -ref /tmp/refdb)
+```
+
+Engine (loopback; the token is in the environment, prompts are answered with
+`POST /engine/prompts/<id>`):
+
+```
+export MTKPROF_TOKEN=dev-token; H="Authorization: Bearer $MTKPROF_TOKEN"
+bin/mtkprof engine -listen 127.0.0.1:8047 &        # find it later with: ss -ltnp | grep :8047
+curl -N -H "$H" localhost:8047/engine/events &     # prompt events appear here
+# ssh
+curl -H "$H" -XPOST localhost:8047/engine/connections -d '{"id":"lab","kind":"ssh","host":"dbmint","port":2200,"user":"oracle"}'
+curl -H "$H" -XPOST localhost:8047/engine/connections/lab/test
+curl -H "$H" localhost:8047/engine/connections/lab/diag
+curl -H "$H" -XPOST localhost:8047/engine/connections/lab/fetch -d '{"paths":["<Diag Trace>/<file>.trc"]}'
+# db (tunnel up)
+curl -H "$H" -XPOST localhost:8047/engine/connections -d '{"id":"ora","kind":"db","host":"localhost","port":15210,"user":"mtk","service":"pdb1.world"}'
+curl -H "$H" -XPOST localhost:8047/engine/connections/ora/test       # one password prompt
+curl -H "$H" localhost:8047/engine/connections/ora/sessions
+curl -H "$H" "localhost:8047/engine/connections/ora/tracefiles?since=1d"
+curl -H "$H" -XPOST localhost:8047/engine/connections/ora/trace -d '{"sid":S,"serial":N,"enable":true}'
+curl -H "$H" -XPOST localhost:8047/engine/connections/ora/fetch -d '{"adrHome":"<ADR Home>","name":"<file>"}'
+curl -H "$H" -XPOST localhost:8047/engine/sessions -d '{"paths":["<localPath>"]}'
+curl -H "$H" -XPOST localhost:8047/s/<session>/api/ref -d '{"connection":"ora","lite":true}'
+curl -H "$H" localhost:8047/s/<session>/api/doc | head -c 300      # names filled in; rev 2
+```
+
+Expected: one password prompt per connection for the whole run (cli:
+multiplexed; lib and db: cached); killing the tunnel in the middle of a
+fetch fails the job and the same `fetch` call resumes it; `DELETE
+/engine/connections/ora` closes the sessions (`select count(*) from v$session
+where username='MTK'` drops).

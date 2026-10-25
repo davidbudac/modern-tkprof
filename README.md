@@ -61,6 +61,15 @@ recently used above 20 GB. Entries are keyed by file content (size and the
 first MiB), not by path. The protocol is `api/engine.openapi.yaml`; details in
 `docs/ARCHITECTURE.md` ("Engine mode").
 
+### Desktop app
+
+The desktop app (private repo `davidbudac/mtkprof-desktop`, a Tauri shell that
+runs `mtkprof engine` as a sidecar and pins this repo as a submodule) opens
+traces in tabs, fetches them over ssh or from the database, and adds Lines,
+notes, reports and saved pivots. Install, unsigned-build steps and a guide:
+[`docs/DESKTOP.md`](docs/DESKTOP.md); remote access and grants:
+[`docs/REMOTE.md`](docs/REMOTE.md).
+
 ### Trace sets
 
 A trace can be several files. Every command that takes a trace accepts any

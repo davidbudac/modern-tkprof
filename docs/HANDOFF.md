@@ -1,19 +1,199 @@
-# Handoff — state of mtkprof on 2026-10-25 (milestones 1–6, the v1 tail, the follow-up round, desktop phase 1 and S7–S9 done)
+# Handoff — state of mtkprof on 2026-10-25 (milestones 1–6, the v1 tail, the follow-up round, desktop app v1 implemented)
 
 Read this, then `docs/DESIGN.md` (the decisions), then `docs/ARCHITECTURE.md`
 (how the code is shaped) and `docs/trace-format-19c.md` (what the parser
-must accept). `docs/ROADMAP.md` lists the longer tail.
+must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
+`docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
+`docs/REMOTE.md`.
 
-Next body of work: the desktop app. `docs/PLAN-DESKTOP.md` (2026-10-25,
-revised after a 33-question design interview, § 11 there) is the
-implementation plan: engine mode in this repo, Tauri shell in a new private
-repo, phases E1–E10 / U1 / S1–S9, protocol, cache layout, budgets. Phase 1
-(engine, cache, contract, lib split) is done: see "Desktop phase 1: done".
+## Desktop app v1 (2026-10-25)
+
+Phases 1–5 of `docs/PLAN-DESKTOP.md` are implemented in two repos:
+`davidbudac/modern-tkprof` (this one: engine, cache, remote, shared UI
+library, CLI) and the private `davidbudac/mtkprof-desktop` (Tauri 2 shell and
+the desktop UI; pins this repo as the submodule `engine/`). Phase 6 (tag both,
+publish the installers) waits for CI billing, see "Open". Design of the
+engine side: `docs/ARCHITECTURE.md` § "Engine mode" and § "Persistent index
+cache".
+
+### Status of the packages
+
+Paths are in this repo unless marked **desk:** (`mtkprof-desktop`). All done,
+`make test` green (desktop: `pnpm typecheck`, `pnpm test`).
+
+| Pkg | What | Where |
+|---|---|---|
+| E1 | `mtkprof engine`: token, ready line, stdin EOF, sessions, jobs with cancel, SSE, prompts plumbing, per-session slice mux | `internal/engine/{server,session,job,events,prompts,errors}.go`, `cmd/mtkprof/engine.go` |
+| E2 | persistent index cache: content identity, model/accumulator/spill/line-index persistence, manifest, LRU, `engine cache ls\|rm\|wipe` | `internal/engine/{cache,cache_manifest,cache_routes,identity}.go`, `cmd/mtkprof/engine_cache.go`, `internal/{model,analyze,slice}/*persist*.go`, `internal/binfmt` |
+| E3 | progress events, minimap | `model.Options.OnProgress` (`internal/model/builder.go`), `internal/analyze/minimap.go`, `stats.minimap` |
+| E4 | contract: OpenAPI file + route walk test | `api/engine.openapi.yaml`, `internal/engine/contract_test.go` |
+| E5 | docs for engine mode | `docs/ARCHITECTURE.md`, `README.md`, `CLAUDE.md` |
+| E6 | lines API: `lines` (+`annot`), `lines/at`, `at`, `search`; `trace.Classify` | `internal/slice/lines*.go`, `internal/trace/classify.go` |
+| E7 | prompts, ssh (system ssh + askpass bridge, x/crypto fallback), engine connections, `askpass` | `internal/remote/{prompt.go,sshcli,sshlib,sshconn,sshtest}`, `internal/engine/connections.go`, `cmd/mtkprof/askpass.go` |
+| E7b | live follow sessions: snapshotting streaming build, `rev` per snapshot, long-poll `api/doc` | `internal/engine/live.go`, `internal/model/live.go`, `internal/slice/spill_live.go` |
+| E8 | Oracle: go-ora, tracefiles, sessions, ADR fetch (record semantics, resume), trace on/off, ref fetch; lite fallback | `internal/remote/db`, `internal/engine/connections_db.go` |
+| E9 | CLI `fetch`, `follow`, `trace`, `ref -db`, `askpass` | `cmd/mtkprof/{fetch,trace,refdb,askpass}.go` |
+| E10 | `api/report` text/JSON/CSV/HTML | `internal/engine/report.go` |
+| I1 | engine opens sessions through the cache; cache routes | `internal/engine` |
+| I2 | lines API and report mounted in engine and `serve`; `api/plan` | `internal/engine`, `internal/slice` |
+| I3 | db connections in the engine; `POST /s/{id}/api/ref` with a kept bundle; one terminal prompter | `internal/engine/{connections_db,ref}.go` |
+| U1 | UI split: `web/src/lib` (shared) and `web/src/app` (standalone shell), `ApiClient`, `SessionProvider`, minimap strip | `web/src/lib`, `web/src/app` |
+| S1 | Tauri scaffold, submodule, CI matrix, installers | **desk:** `src-tauri/`, `.github/workflows/build.yml`, `scripts/` |
+| S2 | engine lifecycle: spawn, ready line, protocol check, crash restart (0 s, 1 s, 5 s), toast | **desk:** `src-tauri/src/engine.rs`, `src/engine/` |
+| S3 | workspace: tabs, open/drop/path, recent, progress and cancel, restore, live badge | **desk:** `src/workspace/` |
+| S4 | settings and About, cache list/remove/wipe | **desk:** `src/settings/` |
+| S5 | Lines view | lib: `web/src/lib/views/Lines*.tsx`, `data/{lines,linecache}.ts`; **desk:** wiring (`linesApi`, `lineRefTarget: 'view'`, bookmarks) |
+| S6 | connections UI: definitions, prompts modal, remote browser, DB panel, jobs, import/export, team file | **desk:** `src/connections/`, `src/prompts/`, `src-tauri/src/connections.rs` |
+| S7 | Reports view | **desk:** `src/workspace/session/ReportsView.tsx` |
+| S8 | notes and bookmarks per content identity; Markdown/JSON export, JSON import | lib: `web/src/lib/data/annotations.ts`, `NoteEditor`/`NoteBox`; **desk:** `src/workspace/annotations.ts`, `session/AnnotationsView.tsx` |
+| S9 | saved Pivot configurations, Library page | lib: `web/src/lib/data/pivotconfig.ts`, `Store.getPivotConfig/applyPivotConfig`; **desk:** `src/library/` |
+| D1 | user guide, REMOTE.md, this section | `docs/DESKTOP.md`, `docs/REMOTE.md` |
+
+Lib API added for the desktop (exports on `@lib`): S5 `Lines`, `probeLinesApi`,
+`fetchLinesAnnot`, `lineAt`, `objectsAt`, `search`, `parseJump`, `PageCache`;
+store actions `openLinesAt`, `setLinesLine`, `addBookmark`, `removeBookmark`,
+`setBookmarks`; state `linesApi`, `lineRefTarget`, `linesView`, `bookmarks`.
+S8/S9: `State.annotations` + `annotationsEnabled`, actions `setAnnotations`/
+`addAnnotation`/`updateAnnotation`/`removeAnnotation`/`setBookmarkNote`,
+`State.pivot` + `setPivot`, `getPivotConfig()`/`applyPivotConfig(cfg)`,
+`libraryEnabled`, `Session.library` (`PivotLibrary`), `useLibrary`. The
+standalone app looks and works as before.
+
+### The two-repo workflow
+
+- `mtkprof-desktop/engine/` is a git submodule of this repo, pinned to a
+  commit (now `3066d7c`, `main`). Bump: `cd engine && git fetch && git
+  checkout <commit> && cd .. && git add engine && git commit`. The shell
+  refuses an engine whose `protocol` is not 1 (`engine.Protocol`), so engine,
+  protocol and shared UI move with the pin.
+- `main` of this repo is pushed (`origin/main` = `3066d7c`). The remote
+  branch `wip-desktop-phase1` (a phase-1 pin point) is no longer needed now that
+  `main` is pushed; delete it when convenient.
+- API types: `pnpm gen:api` regenerates `src/engine/api.d.ts` from
+  `engine/api/engine.openapi.yaml`; CI fails when it is stale. A breaking
+  protocol change here bumps `engine.Protocol` and the app's `APP_PROTOCOL`.
+- Shared UI dependencies: the desktop package repeats the runtime
+  dependencies of `web/package.json`; `pnpm check:deps` (also in CI) fails on
+  drift after a bump.
+- CI (`.github/workflows/build.yml`, desk): matrix windows-x64 (NSIS),
+  macos-arm64 and macos-x64 (DMG), linux-x64 (AppImage, deb). Steps: submodule
+  over ssh with the read-only deploy key on `modern-tkprof` (secret
+  `ENGINE_DEPLOY_KEY`), `pnpm check:deps`, `gen:api` diff, `cargo fmt`,
+  `pnpm typecheck`, `pnpm test`, `build:engine --target`, `tauri build`,
+  smoke. A `v*` tag publishes the installers as a prerelease.
+- Smoke step (`scripts/smoke.sh`): launches the release build with
+  `MTKPROF_SMOKE=1`, `MTKPROF_SMOKE_OPEN=<fixture>` and
+  `MTKPROF_SMOKE_KILL_AFTER=<s>`; screenshots the Overview, lets the shell
+  kill the engine once, screenshots the restart ("Engine restarted",
+  fixture re-opened) and fails unless the log shows the restart, the session
+  ready twice and the engine gone after quit. Linux runs under
+  `dbus-run-session` (single-instance needs a session bus).
+- Local Linux builds need the webkit2gtk dev packages (`sudo apt install
+  libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+  libayatana-appindicator3-dev patchelf`); without a display the UI runs in a
+  browser against a hand-started engine ("Dev browser mode" in the desktop
+  README).
+
+### Budgets: target and measured
+
+| | target | measured |
+|---|---|---|
+| reopen a cached trace | 2 GB < 2 s to `ready` | `big_loop.trc` (118 MB): 32 ms + 5 ms document; **2 GB not measured** (needs a 2 GB fixture) |
+| fresh open | parse at today's speed | `big_loop.trc`: ≈ 0.8 s including persist |
+| engine RSS idle | < 300 MB with 2 GB open | 27 MB after a hit on `big_loop.trc` |
+| cache entry size | | ≈ the trace size |
+| pivot on 1 GB / 2 GB | ≤ 300 ms / ≤ 600 ms | spill numbers: 290 ms at 1 GB; not re-measured through the engine |
+| `api/lines` page (2000 lines) | < 20 ms | fetch ~2 ms + 1 ms parse on `big_loop.trc` (2.88 M lines), scrolling 60 fps in headless Chrome |
+| literal search | 2 GB < 5 s, first hit < 100 ms | whole `big_loop.trc` 92 ms |
+| `api/report` on `big_loop.trc` (session open) | | text/json/html 5-8 ms (`html` 1.3 MB), csv 1.9 s (16 MB zip); `MTKPROF_BIG=... go test ./internal/engine -run ReportBig -v` |
+| follow latency | < 2 s | live snapshot at 100 MB: 55-85 ms; write → snapshot 0.2-1.0 s in-process (`TestLiveFollowRemote`); dbmint: 149 ms (cli) / 501 ms (lib) |
+| SSH fetch | line speed, resume | dbmint: 117.7 MB in 0.97 s (gzip, VM loopback), sha256 equal; resume correct |
+| ADR (db) fetch | | 0.39 MB/s (301 s for 117.7 MB) to ~1 MB/s when the lab is quiet; flat in the offset |
+| minimap / Timeline pan, zoom | 60 fps on WebView2 | **not measured** on WebView2, WKWebView or WebKitGTK |
+| Lines page size / LRU in WebView2 on a 2 GB trace | | **not measured** |
+
+### Verified on dbmint (details and numbers in `docs/REMOTE.md`)
+
+- ssh: gated tests (sha256 equal over cli+gzip, cli, lib, scp; resume;
+  diag; follow latency), `mtkprof fetch` of the 117.7 MB trace, engine
+  connection → `test` → `diag` → `fetch` → `follow` live session, no stray
+  `tail` after closing.
+- Oracle 19.27, `mtk` in PDB1: views, PDB visibility, record semantics of
+  `V$DIAG_TRACE_FILE_CONTENTS` (the first run found the fetch assumed lines =
+  rows; fixed in `9fe0294`), byte-equal fetch and resume (fixture and the big
+  trace), `DBMS_MONITOR` on/off, `ref -db -lite` and the per-query fallback of
+  the full mode.
+
+### Open
+
+Needs a person or a machine:
+
+- **Windows 11**: `ssh.exe` and `SSH_ASKPASS`, the OpenSSH agent pipe. The plan's
+  rule "UI verified by screenshot on Windows first" has no record here: no
+  Windows or macOS screenshot is documented.
+- **GitHub Actions billing** blocked the last desktop CI run: no CI-built
+  installer or smoke result exists for the final desktop commit
+  (`63564b5`). Phase 6 (tag both repos, release notes) follows once it runs.
+- Local Linux Tauri build needs `sudo apt install` of the webkit2gtk dev libs.
+- Stray 32 MB binary in history (`mtkprof` at the repo root, removed in
+  `a89bc12`); a history rewrite is the user's call, relevant before the repo is
+  published.
+- `-tags nooracle` (drops go-ora, 25 MB → 10.8 MB): decide whether the
+  release builds for database hosts use it; it is not wired into `make
+  release`.
+- REMOTE.md "Open": full `ref -db` with `SELECT_CATALOG_ROLE`, TCPS,
+  `DBMS_SESSION` without `ALTER SESSION`, time zones of `-since`, the engine's
+  db routes with curl, AIX/Solaris scripts.
+- Not measured: a 2 GB trace through the engine, WebView2 frame rates.
+
+Deferred by the agents (small, none blocks v1):
+
+- Tab reorder (Tauri's drop handler disables HTML5 drag on Windows).
+- A dev-server reload leaves engine sessions behind (dev mode only).
+- No React error boundary around a tab's views.
+- "Statement / event only" picker in the Pivot view (the filter exists, set by
+  an applied configuration).
+- Export everything together (connections + library); clock-time windows in
+  saved configurations (offsets only); clock-time input in "Jump to time";
+  search-match highlighting in the Lines rows; per-line copy/permalink.
+- Live sessions: statement indexes for the spill; following continuation
+  chains (`TRACE CONTINUES IN FILE`); `mtkprof follow -serve`.
+- Adaptive/larger db fetch ranges (200 000 numbers per query is ~1.6x faster).
+- Known limits: sessions are never evicted (closing is the client's job);
+  `GET /engine/cache` costs one `readdir` + manifest read per entry. A
+  session's model is the aggregate one, so its text report has no executions
+  tables and its JSON/HTML documents no fact tables.
+
+### Run the engine by hand
+
+PATH as in "Build, test, run".
+
+```
+export MTKPROF_TOKEN=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')   # 48 hex chars; 32+ bytes required
+./bin/mtkprof engine -cache /tmp/mtk-cache -detach > /tmp/engine.out &         # without -detach it exits when stdin closes
+cat /tmp/engine.out                                                            # {"ready":true,"addr":"127.0.0.1:PORT","version":"…","protocol":1}
+H="Authorization: Bearer $MTKPROF_TOKEN"; A=127.0.0.1:PORT
+curl -s -XPOST -H "$H" -d '{"paths":["/abs/path/trace.trc"]}' http://$A/engine/sessions   # 202 {session, job}
+curl -sN -H "$H" http://$A/engine/events                  # SSE: job (phase, done/total), session, prompt, log
+curl -s  -H "$H" http://$A/engine/sessions                # state opening → ready; hit=true when it came from the cache
+curl -s  -H "$H" http://$A/s/SESSION_ID/api/doc | head -c 300      # the document (format 3, slice: true)
+curl -s  -H "$H" "http://$A/s/SESSION_ID/api/pivot?fact=waits&by=event,stmt"
+curl -s  -H "$H" http://$A/engine/cache                   # entries, bytes, cap
+curl -s  -XDELETE -H "$H" http://$A/engine/sessions/SESSION_ID    # closes; the cache entry stays
+curl -s  -XDELETE -H "$H" http://$A/engine/jobs/JOB_ID            # cancel a running open
+./bin/mtkprof engine cache ls -cache /tmp/mtk-cache               # also rm <identity-prefix>, wipe
+```
+
+Stop it with SIGTERM to the pid found by port (`ss -ltnp | grep :PORT`).
+The per-session endpoints and parameters are those of `serve -spill`; the
+schema is `api/engine.openapi.yaml`. Live sessions: `options.follow`, state
+`live`, `rev` per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine
+mode, "Live sessions").
 
 ## Where things stand
 
 Repository `davidbudac/modern-tkprof` (private), branch `main`, pushed and
-clean. Eight commits; everything described here is in them.
+clean. Everything described here is in it.
 
 Working and tested:
 
@@ -88,180 +268,6 @@ committed on purpose so `go build` alone works.
   VM, `ssh -p 2200 oracle@dbmint`, needs `dangerouslyDisableSandbox`. Schema
   `MTK` exists in `PDB1`; `testdata/gen/run_gen.sh` regenerates the fixtures
   idempotently and runs tkprof on them. Never run destructive SQL there.
-
-## Desktop phase 1: done (2026-10-25)
-
-`docs/PLAN-DESKTOP.md` phase 1. Merged on `main` (`9a7e16c`). Design:
-`docs/ARCHITECTURE.md` § "Engine mode" and § "Persistent index cache".
-
-| Package | What | Where | Status |
-|---|---|---|---|
-| E1 engine server | `mtkprof engine`: token, ready line, stdin EOF, sessions, jobs with cancel, SSE, prompts plumbing, per-session slice mux | `internal/engine/{server,session,job,events,prompts,errors}.go`, `cmd/mtkprof/engine.go`, `internal/remote/prompt.go` | done; httptest |
-| E2 persistent cache | content identity, model/accumulator/spill/line-index persistence, manifest, LRU, `engine cache ls\|rm\|wipe` | `internal/engine/{cache,cache_manifest,cache_routes,identity}.go`, `cmd/mtkprof/engine_cache.go`, `internal/{model,analyze,slice}/*persist*.go`, `trace.LineIndex.Save/LoadLineIndex`, `internal/binfmt` | done; `TestCacheRoundTrip` on every fixture |
-| E3 progress + minimap | `model.Options.OnProgress`, `analyze.TraceMinimap`, `stats.minimap` | `internal/model/builder.go`, `internal/analyze/minimap.go`, `internal/report` | done; sums equal the profile |
-| E4 contract | OpenAPI file, route walk test | `api/engine.openapi.yaml`, `internal/engine/contract_test.go` | done |
-| E5 docs | this section, ARCHITECTURE, README, CLAUDE.md | `docs/`, `README.md`, `CLAUDE.md` | done |
-| U1 lib split | `web/src/lib` (views, components, data, state) + `web/src/app`, `ApiClient`, `SessionProvider`, minimap strip | `web/src/lib/data/client.ts`, `web/src/lib/state/session.tsx`, `web/src/lib/components/Minimap.tsx`, `web/src/app/*` | done; vitest, standalone HTML and `serve` unchanged |
-
-**Run the engine by hand** (PATH as in "Build, test, run"):
-
-```
-export MTKPROF_TOKEN=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')   # 48 hex chars; 32+ bytes required
-./bin/mtkprof engine -cache /tmp/mtk-cache -detach > /tmp/engine.out &         # without -detach it exits when stdin closes
-cat /tmp/engine.out                                                            # {"ready":true,"addr":"127.0.0.1:PORT","version":"…","protocol":1}
-H="Authorization: Bearer $MTKPROF_TOKEN"; A=127.0.0.1:PORT
-curl -s -XPOST -H "$H" -d '{"paths":["/abs/path/trace.trc"]}' http://$A/engine/sessions   # 202 {session, job}
-curl -sN -H "$H" http://$A/engine/events                  # SSE: job (phase, done/total), session, prompt, log
-curl -s  -H "$H" http://$A/engine/sessions                # state opening → ready; hit=true when it came from the cache
-curl -s  -H "$H" http://$A/s/SESSION_ID/api/doc | head -c 300      # the document (format 3, slice: true)
-curl -s  -H "$H" "http://$A/s/SESSION_ID/api/pivot?fact=waits&by=event,stmt"
-curl -s  -H "$H" http://$A/engine/cache                   # entries, bytes, cap
-curl -s  -XDELETE -H "$H" http://$A/engine/sessions/SESSION_ID    # closes; the cache entry stays
-curl -s  -XDELETE -H "$H" http://$A/engine/jobs/JOB_ID            # cancel a running open
-./bin/mtkprof engine cache ls -cache /tmp/mtk-cache               # also rm <identity-prefix>, wipe
-```
-
-Stop it with SIGTERM to the pid found by port (`ss -ltnp | grep :PORT`).
-Endpoints and query parameters of the per-session API are the ones of `serve
--spill`; the schema is `api/engine.openapi.yaml`.
-
-**Budgets** (`docs/PLAN-DESKTOP.md` § 9), measured in phase 1:
-
-| | target | measured |
-|---|---|---|
-| reopen a cached trace | 2 GB < 2 s to `ready` | `big_loop.trc` (118 MB): 32 ms + 5 ms document; 2 GB not measured (needs a 2 GB fixture) |
-| fresh open | parse at today's speed | `big_loop.trc`: ≈ 0.8 s including persist |
-| engine RSS idle | < 300 MB with 2 GB open | 27 MB after a hit on `big_loop.trc` |
-| cache entry size | | ≈ the trace size |
-| pivot on 1 GB / 2 GB | ≤ 300 ms / ≤ 600 ms | spill numbers from "Spill mode" (290 ms at 1 GB); not re-measured through the engine |
-| `api/report` on `big_loop.trc` (118 MB, session open) | | text/json/html 5-8 ms (`html` 1.3 MB), csv 1.9 s (16 MB zip); `MTKPROF_BIG=... go test ./internal/engine -run ReportBig -v` |
-| `api/lines` page, search, follow, minimap 60 fps | | lines/at/at/search measured in `TestMeasureBig` (`internal/slice`); follow: a live snapshot at 100 MB of `big_loop.trc` 55-85 ms, write → snapshot 0.2-1.0 s through the in-process SSH server (`TestLiveFollowRemote`, budget 2 s); minimap and the UI (S5) not built |
-
-**What the next phases need**
-
-- Phase 2, in the new private repo `mtkprof-desktop` (S1 Tauri scaffold with
-  this repo as a submodule, S2 engine lifecycle, S3 workspace, S4 settings):
-  the protocol is `api/engine.openapi.yaml` (generate the TS client with
-  `openapi-typescript`), the UI is `@lib` (`createSession`, `SessionProvider`,
-  `ApiClient` with base `/s/{id}`), the engine is `bin/mtkprof engine` with
-  `-allow-origin tauri://localhost,http://tauri.localhost`. Refuse an engine
-  whose `protocol` is not 1. Read the event stream with `fetch`, not
-  `EventSource`. Things the shell must handle: `failed` sessions with
-  `error: "cancelled"`, 409 on removing an open cache entry, live sessions
-  (`options.follow`, state `live`, `rev` per snapshot, `api/doc?rev=` long
-  poll with `X-Rev`; ARCHITECTURE § Engine mode, "Live sessions").
-- E6 (lines API) and E10 (`api/report`) are done, plus `api/plan`: the session
-  mounts `lines` (also `annot=1`), `lines/at`, `at`, `search`, `plan` and
-  `report` (see "As built" in `docs/PLAN-DESKTOP.md` § 2); `mtkprof serve`
-  serves the first five in its slicing modes. No cache format change.
-  Report limits: a session's model is the aggregate one, so the text report
-  has no executions tables and says "bind sets 0" in its Volume line, the
-  JSON and HTML documents have no fact tables.
-- E7–E9 (prompts + ssh, db, CLI subcommands): see "Desktop phase 4, engine
-  side" below.
-- Known limits: sessions are never evicted (closing is the client's job);
-  `rev` is 1 until a reference bundle is applied; `GET /engine/cache` costs one `readdir` + manifest read per
-  entry; a 2 GB trace has not been run through the engine.
-
-## Desktop phase 3, UI half (S5 Lines view): lib part done (2026-10-25)
-
-`web/src/lib/views/Lines.tsx` (design in `docs/ARCHITECTURE.md`, "Lines view"):
-virtualized viewer over `api/lines?annot=1` with a page cache, kind colouring,
-gutter marks of the selected statement, click -> `api/at` -> at bar and store
-selection, streaming search, jump to time, bookmarks, multi-file selector, the
-"Lines" tab and `#view=lines&file=&line=` in the standalone app (behind a one-time
-`api/at` probe). Exports on `@lib`: `Lines`, `probeLinesApi`, `fetchLinesAnnot`,
-`lineAt`, `objectsAt`, `search`, `parseJump`, `PageCache`, `ANNOT_PAGE`, types
-`LineKind`, `AnnotPage`, `AtObjects`, `SearchQuery`, `SearchHit`, `SearchEnd`,
-`Bookmark`, `LinesView`, `StmtMarks`; store actions `openLinesAt`, `setLinesLine`,
-`addBookmark`, `removeBookmark`, `setBookmarks`; state `linesApi`, `lineRefTarget`,
-`linesView`, `bookmarks`. Measured on `big_loop.trc` (2.88 M lines) with
-`serve -spill`, headless Chrome: see the S5 report in the PR / thread (page fetch
-~2 ms + 1 ms parse, scrolling at 60 fps, search of the whole file 92 ms literal).
-
-Desktop wiring still to do (repo `mtkprof-desktop`): set `linesApi: true` and
-`lineRefTarget: 'view'` on the session store, mount `<Lines doc={doc} />` as the
-Lines tab of a session, persist `bookmarks` as line annotations
-(`setBookmarks` on load, subscribe for changes), and check the page-size/LRU
-numbers in WebView2 on a 2 GB trace. Deferred in the lib: clock-time input in
-"Jump to time", highlighting of search matches inside the viewer rows, per-line
-copy/permalink, bookmark import/export.
-
-## Desktop phase 4, engine side: E8 verified on dbmint, E7 still open (2026-10-25)
-
-Everything is in `docs/REMOTE.md` (SSH part, Oracle part, grants, the dbmint
-checklist); the routes are in `api/engine.openapi.yaml`.
-
-Done and tested with fakes (the dev machine cannot reach the lab):
-
-- E7: prompts, `sshcli`/`sshlib`/`sshconn`, `mtkprof askpass|fetch|follow`,
-  engine connections, jobs `fetch` and `follow` (mirror).
-- E8: `internal/remote/db` (go-ora) and its engine side
-  (`internal/engine/connections_db.go`): db connections with `test`, `diag`,
-  `tracefiles`, `sessions`, `trace`, resumable `fetch` (unit lines), TLS
-  flags, password cached per connection.
-- Reference data in a session (`internal/engine/ref.go`):
-  `POST /s/{id}/api/ref {dir}|{connection}`, kept at
-  `<cache>/ref/<trace identity>/`, re-applied on every open of the trace;
-  `rev` is meaningful (1, +1 per applied bundle); `model.ApplyRef` is now
-  idempotent/replacing.
-- E9: `fetch` (ssh and `-db`), `follow`, `trace`, `ref -db`, `askpass`; one
-  terminal prompter (`remote.TerminalPrompter`).
-
-E8 verified on dbmint (Oracle 19.27, `mtk` in PDB1; results in the checklist
-at the end of `docs/REMOTE.md`). The first run showed the db fetch assumed
-lines = rows; fixed: a row of `V$DIAG_TRACE_FILE_CONTENTS` is a *record*
-(2707 rows for the 3059 lines of `basic_binds.trc`, `line_number` = last line
-of the record, gaps and repeats, 20 NULL payloads), so `Fetch` writes the
-payloads verbatim (sha256 equal to the fixture and to the 117.7 MB big trace),
-reads `max(line_number)` first and walks it in 50 000-number ranges, and
-resumes by matching the rows after `L-64` against the local tail
-(`db.Resume`; `OpenResume` returns it). Throughput 0.39 MB/s, 9 570 lines/s
-(301 s for 2.88 M lines; 1.8 s/chunk when the lab is quiet), flat in the
-offset. A PDB user sees one container (`con_id` 3, 5313 files), own session
-plus background sessions, background traces are readable. `mtk` has no `DBA_`
-views: `FetchRef` full mode falls back per query to the lite one (objects,
-users) and reports it in `PartialError.Fallback`; `datafiles.csv` has no lite
-form and stays missing. CLI checks done: `fetch -db` (+`-resume`) byte-equal
-to the fixture, `trace -sessions`, `ref -db -lite` then `report -ref`.
-
-Still awaiting the lab: the SSH gated tests (`MTKPROF_SSH_TEST`), full ref
-mode with `SELECT_CATALOG_ROLE` and its comparison with the refscript bundle,
-`DBMS_SESSION` without `ALTER SESSION`, TCPS, the engine walk-through with
-curl, Windows 11 askpass (S6). Deferred: adaptive/larger fetch ranges
-(200 000 numbers per query is ~1.6x faster).
-
-In progress elsewhere: the live follow session (E7b: `internal/engine/live.go`,
-`internal/model/live*.go`, the `follow` session path in `session.go`). Both
-touch `session.go` (the `api/doc` handler serves `ss.document()` now, which
-a live session will also want) and the yaml `JobInfo` enums; expect a small
-merge there. `options.follow` is still a 400 until that lands.
-
-Still to do on the shell side (S6): connections UI, prompts modal, sessions
-and trace on/off, "fetch reference data" (`api/ref`), reacting to the new
-`rev` by refetching `api/doc`.
-
-## Desktop phase 5, S7–S9 (reports, notes, saved pivots): done (2026-10-25)
-
-Branch `t3/reports-annotations-saved-pivots` (lib part; the desktop repo pins it).
-Lib additions (design in `docs/ARCHITECTURE.md`, "Notes and saved Pivot
-configurations"): `State.annotations` + `annotationsEnabled`, actions
-`setAnnotations`/`addAnnotation`/`updateAnnotation`/`removeAnnotation`/
-`setBookmarkNote`, `Bookmark.note`/`updated`; `State.pivot` + `setPivot` (the
-Pivot view's state moved into the store), `Store.getPivotConfig()` /
-`applyPivotConfig(cfg)`, `State.libraryEnabled`, `Session.library`
-(`PivotLibrary`), `useLibrary`; `data/annotations.ts` and `data/pivotconfig.ts`
-(refs, resolve, file formats, merge, Markdown; unit tests), `NoteEditor` /
-`NoteBox`. The standalone app looks and works as before (no note affordances,
-no Saved menu). Also fixed: the statement detail's SQL box shrank to a line
-when the detail was taller than the pane (`.wb-detail > *` no longer shrink).
-
-Desktop side (repo `mtkprof-desktop`, `docs/DESKTOP.md` there): Notes and
-Reports session views, the Library page, `annotations.json` gains `notes`,
-`library.json`. Deferred: a "statement / event only" picker in the Pivot view
-(the filter exists, set by an applied configuration), exporting the library
-together with the connections (S6's export is not on `main` yet), clock-time
-windows in saved configurations (offsets from the trace start only).
 
 ## Milestone 1: done (2026-10-22)
 
