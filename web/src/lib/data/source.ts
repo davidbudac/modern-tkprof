@@ -9,7 +9,7 @@
 // the screen on the previous answer while the next one is on its way.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TraceDoc } from './doc'
-import type { ID, StmtStats } from './types'
+import type { Finding, ID, StmtStats } from './types'
 import { CallKind, NONE } from './types'
 import { callFilter, waitFilter, type Scope } from '../state/store'
 import type { ApiClient } from './client'
@@ -21,6 +21,7 @@ import {
 import { pivotDims, pivotMeasures, runPivot, type Fact } from './pivot'
 import { roleOfClass, roleOrder } from '../components/colors'
 import { scopedStatements } from './stmtstats'
+import { scopedFindings } from './findings'
 
 export type Maybe<T> = T | Promise<T>
 
@@ -148,6 +149,11 @@ export interface DataSource {
    * statement has no call in scope; null = not available (no facts, or an engine without `api/statements`): use `doc.stats.statements`.
    */
   statements(scope: Scope, signal?: AbortSignal): Maybe<StmtStats[] | null>
+  /**
+   * The findings over the rows in scope (window and contexts; the idle toggle does not apply), most severe first; null = not
+   * available (no facts, or an engine without `api/findings`): use `doc.stats.findings`.
+   */
+  findings(scope: Scope, signal?: AbortSignal): Maybe<Finding[] | null>
 }
 
 // ---- registry ----------------------------------------------------------------
@@ -390,6 +396,14 @@ export class LocalSource implements DataSource {
   statements(scope: Scope): StmtStats[] | null {
     return this.doc.hasFacts ? scopedStatements(this.doc, scope) : null
   }
+
+  private lastFindings: { key: string; out: Finding[] } | null = null
+  findings(scope: Scope): Finding[] | null {
+    if (!this.doc.hasFacts) return null
+    const key = `${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${scope.contexts ? [...scope.contexts].sort((a, b) => a - b).join(',') : '*'}`
+    if (this.lastFindings?.key !== key) this.lastFindings = { key, out: scopedFindings(this.doc, scope) } // the views asking for one scope share it
+    return this.lastFindings.out
+  }
 }
 
 // ---- RemoteSource --------------------------------------------------------------
@@ -418,6 +432,8 @@ export class RemoteSource implements DataSource {
   private readonly cache = new Map<string, unknown>()
   /** the server answered 404 to `api/statements`: it is an older engine, do not ask again */
   private noStatements = false
+  /** the same for `api/findings` */
+  private noFindings = false
 
   /** `client` is the server root, e.g. `http://127.0.0.1:8046` or `.../s/1`; the queries are `/api/<path>`. */
   constructor(private readonly doc: TraceDoc, private readonly client: ApiClient) {}
@@ -569,6 +585,16 @@ export class RemoteSource implements DataSource {
       return r.statements
     } catch (err) {
       if (err instanceof HttpError && err.status === 404) { this.noStatements = true; return null }
+      throw err
+    }
+  }
+
+  async findings(scope: Scope, signal?: AbortSignal): Promise<Finding[] | null> {
+    if (this.noFindings) return null
+    try {
+      return (await this.get<{ findings: Finding[] }>('findings', scopeParams(scope, false), signal)).findings
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) { this.noFindings = true; return null }
       throw err
     }
   }

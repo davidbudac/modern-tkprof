@@ -3,21 +3,39 @@ import type { EvidenceRow, Finding } from '../data/types'
 import { useActions, useStore } from '../state/session'
 import { StmtLink, LinkText } from '../components/StmtLink'
 import { LineRef } from '../components/LineRef'
+import { fileCount, selectedCount } from '../data/fileset'
+import { useScopedFindings } from '../data/scopedfindings'
 
-/** Rule hits from the Go analyzer (configurable thresholds), most severe first. */
+/** What the selection is, for a heading: "3 of 6 files", "2 sessions", "the window", joined. */
+function selectionLabel(doc: TraceDoc, s: { files: ReadonlySet<number> | null; contexts: ReadonlySet<number> | null; window: unknown }): string {
+  const parts: string[] = []
+  if (s.files) parts.push(`${selectedCount(doc, s.files)} of ${fileCount(doc)} files`)
+  if (s.contexts) parts.push(`${s.contexts.size} session${s.contexts.size === 1 ? '' : 's'}`)
+  if (s.window) parts.push('the window')
+  return parts.join(', ')
+}
+
+/** Rule hits from the Go analyzer (configurable thresholds), most severe first, over the file / session / window selection. */
 export function Findings({ doc }: { doc: TraceDoc }) {
-  const subset = useStore((s) => s.files !== null || s.contexts !== null)
-  const findings = doc.stats.findings
+  const sel = { files: useStore((s) => s.files), contexts: useStore((s) => s.contexts), window: useStore((s) => s.window) }
+  const sf = useScopedFindings(doc)
+  const findings = sf.findings
   const cfg = Object.entries(doc.stats.findingsConfig)
-  if (!findings.length && !cfg.length) return null
+  if (!doc.stats.findings.length && !findings.length && !cfg.length) return null
   const counts = { serious: 0, notable: 0, info: 0 }
   for (const f of findings) counts[f.severity]++
-  const hint = (['serious', 'notable', 'info'] as const).filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ')
+  const bySev = (['serious', 'notable', 'info'] as const).filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ')
+  const n = `${findings.length} finding${findings.length === 1 ? '' : 's'}`
+  const narrowing = !!(sel.files || sel.contexts || sel.window)
+  const hint = sf.narrowed ? `${n} for ${selectionLabel(doc, sel)}${bySev ? ` · ${bySev}` : ''}`
+    : narrowing ? `${bySev || n} · whole set${sf.loading ? ' (the selection\'s are on their way)' : ''}`
+    : `${bySev || n} · whole trace`
   return (
     <section className="section">
-      <header><h2>Findings</h2><span className="hint">{hint} · whole trace, window not applied{subset ? ' · not narrowed by the file or session selection' : ''}</span></header>
+      <header><h2>Findings</h2><span className="hint">{hint}</span></header>
+      {sf.notice && <p className="callout">{sf.notice}</p>}
       <ul className="findings">
-        {findings.map((f, i) => <FindingItem key={`${f.rule}-${f.statement}-${i}`} doc={doc} f={f} />)}
+        {findings.map((f, i) => <FindingItem key={`${f.rule}-${f.statement}-${i}`} doc={doc} f={f} narrowed={sf.narrowed} />)}
       </ul>
       {cfg.length > 0 && (
         <details className="thresholds">
@@ -39,7 +57,7 @@ export function findingText(doc: TraceDoc, f: Finding): string {
   return lbl && f.summary.startsWith(lbl) ? f.summary.slice(lbl.length).replace(/^[:\s]+/, '') : f.summary
 }
 
-function FindingItem({ doc, f }: { doc: TraceDoc; f: Finding }) {
+function FindingItem({ doc, f, narrowed }: { doc: TraceDoc; f: Finding; narrowed: boolean }) {
   const summary = findingText(doc, f)
   return (
     <li className={`finding sev-${f.severity}`}>
@@ -49,6 +67,7 @@ function FindingItem({ doc, f }: { doc: TraceDoc; f: Finding }) {
           <span className="finding-text">
             <b>{f.title}</b>
             {f.statement >= 0 && <> <StmtLink doc={doc} id={f.statement} /></>}
+            {narrowed && f.scope === 'set' && <> <span className="chip-q" title="about the whole trace set: not narrowed to the selection">whole set</span></>}
             <span className="muted"> <LinkText doc={doc} text={summary} /></span>
           </span>
         </summary>

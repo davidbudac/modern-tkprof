@@ -15,6 +15,7 @@ import { Lanes } from './Lanes'
 import { Minimap } from '../components/Minimap'
 import { NONE, type StmtStats } from '../data/types'
 import { scopeKey, useScope, useScopedStatements, type ScopedStatements } from '../data/scopedstmts'
+import { useScopedFindings } from '../data/scopedfindings'
 import { scopeSpanUs, selectedCount, fileCount } from '../data/fileset'
 import { responseShare, responseUs, shareNote } from '../data/response'
 
@@ -175,7 +176,7 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
   const rest = stmts.slice(TOP_STATEMENTS)
   const restUs = rest.reduce((a, s) => a + responseUs(s), 0)
   const tk = ticks(totalUs)
-  const findings = doc.stats.findings
+  const findings = useScopedFindings(doc).findings
   return (
     <div className="stmt-ledger ruled" style={{ backgroundSize: `${(100 * tk.step) / totalUs}% 100%` }}>
       {top.map((st) => {
