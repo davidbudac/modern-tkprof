@@ -1,0 +1,1404 @@
+openapi: 3.1.0
+# The contract of `mtkprof engine` (docs/PLAN-DESKTOP.md § 2). Formatting
+# rule: 2-space indentation, one path per line at indent 2 under `paths:`,
+# its methods at indent 4. internal/engine/contract_test.go reads the paths
+# with a line scanner and compares them with Server.Routes(); keep both in
+# step (a route missing on either side fails the test).
+info:
+  title: mtkprof engine
+  version: "1"
+  description: |
+    Control plane and per-session API of `mtkprof engine`, the desktop app's
+    sidecar. `info.version` and `x-mtkprof-protocol` are the protocol
+    integer (`engine.Protocol`); it increments on any breaking change and
+    the shell refuses an engine whose protocol it does not know.
+
+    Process: `mtkprof engine [-listen 127.0.0.1:0] [-cache DIR] [-cache-cap 20G]
+    [-allow-origin O,...] [-idle-exit D] [-detach]`, token in the environment
+    (`MTKPROF_TOKEN`, 32+ bytes). Once listening it prints one line on stdout:
+    `{"ready":true,"addr":"127.0.0.1:41233","version":"...","protocol":1}`.
+    It exits when stdin closes (unless -detach), on SIGINT/SIGTERM, or after
+    -idle-exit without sessions and requests.
+
+    Every request but `GET /engine/health` needs `Authorization: Bearer <token>`;
+    that includes the event stream, so a browser client reads it with
+    `fetch` (a streaming body), not `EventSource`, which cannot send headers.
+    CORS is answered for the `-allow-origin` origins only.
+
+    Control-plane errors use the envelope `{"error": {"code", "message"}}`
+    (`ErrorEnvelope`) with the status of the code: bad_request 400,
+    unauthorized 401, not_found 404, conflict and cancelled 409,
+    needs_prompt 428, internal 500. The slice endpoints under
+    `/s/{id}/api/` answer a bad parameter with a plain-text 400 (they are
+    the handlers of `mtkprof serve`); a missing session or a session that is
+    not ready is the envelope (404, 409).
+  license:
+    name: Apache-2.0
+x-mtkprof-protocol: 1
+servers:
+  - url: http://127.0.0.1:{port}
+    variables:
+      port:
+        default: "0"
+        description: the port of the ready line
+security:
+  - bearer: []
+paths:
+  /engine/health:
+    get:
+      operationId: health
+      summary: Engine version, protocol, uptime, sessions and cache size (no token needed)
+      security: []
+      responses:
+        "200":
+          description: health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /engine/events:
+    get:
+      operationId: events
+      summary: Server-sent events (job, session, prompt, log)
+      description: |
+        `text/event-stream`. The stream opens with the comment
+        `: mtkprof engine`, then replays every prompt that is still open, then
+        sends events as they happen; a `: keepalive` comment every 15 s.
+        Each event is `event: <type>` and one `data:` line of JSON:
+
+        - `job`: `JobInfo`, on every change of a job (state, phase, progress
+          at most every 64 MB of parse).
+        - `session`: `SessionEvent` (`{id, state, rev}`), on open, ready,
+          failed and closed.
+        - `prompt`: `PromptEvent`, `state: open` when a credential is needed
+          and `state: closed` once it is answered, cancelled or abandoned.
+        - `log`: `LogEvent` (`{level, message}`).
+
+        A subscriber that falls behind by 256 events is disconnected; it
+        reconnects and re-reads `GET /engine/sessions` and `/engine/jobs`.
+      responses:
+        "200":
+          description: the event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              x-mtkprof-events:
+                job:
+                  $ref: "#/components/schemas/JobInfo"
+                session:
+                  $ref: "#/components/schemas/SessionEvent"
+                prompt:
+                  $ref: "#/components/schemas/PromptEvent"
+                log:
+                  $ref: "#/components/schemas/LogEvent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /engine/prompts/{id}:
+    post:
+      operationId: answerPrompt
+      summary: Answer or cancel an open prompt
+      parameters:
+        - $ref: "#/components/parameters/PromptID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromptAnswer"
+      responses:
+        "204":
+          description: answered
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /engine/sessions:
+    get:
+      operationId: listSessions
+      summary: The sessions, oldest first
+      responses:
+        "200":
+          description: sessions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: openSession
+      summary: Open a trace set (one file, several, or directories of them)
+      description: |
+        Answers at once with the new session (`opening`) and its `open` job.
+        The job's phases are `open` (cache lookup), on a miss `parse`
+        (unit bytes, with lines and statements) and `index` (writing the cache
+        entry), then `ready`. A hit goes from `open` straight to `ready`. The
+        session becomes `ready` or `failed`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenSessionRequest"
+      responses:
+        "202":
+          description: opening
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /engine/sessions/{id}:
+    get:
+      operationId: getSession
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "200":
+          description: the session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: closeSession
+      summary: Close a session (cancels its open job); the cache entry stays
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "204":
+          description: closed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /engine/jobs:
+    get:
+      operationId: listJobs
+      summary: Running jobs and the last 100 finished ones, oldest first
+      responses:
+        "200":
+          description: jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /engine/jobs/{id}:
+    delete:
+      operationId: cancelJob
+      summary: Cancel a running job; a job event says when it has stopped
+      parameters:
+        - $ref: "#/components/parameters/JobID"
+      responses:
+        "202":
+          description: cancelling
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job]
+                properties:
+                  job:
+                    $ref: "#/components/schemas/JobInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /engine/cache:
+    get:
+      operationId: listCache
+      summary: The entries of the index cache, most recently used first
+      responses:
+        "200":
+          description: the cache
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CacheList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: wipeCache
+      summary: Remove every entry no session has open
+      responses:
+        "200":
+          description: what was removed and what was kept
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CacheWipe"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /engine/cache/{identity}:
+    delete:
+      operationId: deleteCacheEntry
+      summary: Remove one entry (409 while a session has it open)
+      parameters:
+        - name: identity
+          in: path
+          required: true
+          description: a session's cacheIdentity
+          schema:
+            $ref: "#/components/schemas/Identity"
+      responses:
+        "204":
+          description: removed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/doc:
+    get:
+      operationId: sessionDoc
+      summary: The session's document (format 3, slice true, packed, no fact tables)
+      description: |
+        The document `mtkprof serve -spill` serves at `/api/doc`. `stats.minimap`
+        holds 1024 buckets of CPU and wait time per wait class over the whole
+        span. `rev` is accepted; every session has revision 1 until reference
+        data or follow exist.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: rev
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: the document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/lines:
+    get:
+      operationId: sessionLines
+      summary: Raw lines of one input file
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: file
+          in: query
+          description: index of the input file (document file.files order)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: from
+          in: query
+          description: 1-based first line
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: n
+          in: query
+          description: number of lines (missing or above 2000 = 2000)
+          schema:
+            type: integer
+            maximum: 2000
+            default: 2000
+      responses:
+        "200":
+          description: the lines
+          headers:
+            X-Total-Lines:
+              description: the line count of the file
+              schema:
+                type: integer
+          content:
+            text/plain:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope) or no such file (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/pivot:
+    get:
+      operationId: slicePivot
+      summary: Group-by of calls or waits (analyze.Pivot)
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: fact
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [calls, waits]
+        - name: by
+          in: query
+          required: true
+          description: comma-separated dimensions (a 400 lists the valid ones)
+          schema:
+            type: string
+        - name: measure
+          in: query
+          description: comma-separated measures; the first sorts, the rest project
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1000
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Idle"
+        - $ref: "#/components/parameters/Event"
+      responses:
+        "200":
+          $ref: "#/components/responses/Pivot"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/timeline:
+    get:
+      operationId: sliceTimeline
+      summary: CPU and waits per time bucket and event
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: bucket
+          in: query
+          description: bucket width in µs (default from the span; at most analyze.MaxBuckets buckets)
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Idle"
+      responses:
+        "200":
+          description: SpanSeries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bucketUs:
+                    type: integer
+                  firstTim:
+                    type: integer
+                  n:
+                    type: integer
+                  cpu:
+                    type: array
+                    items:
+                      type: number
+                  events:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/calls:
+    get:
+      operationId: sliceCalls
+      summary: The longest calls in scope (Timeline swimlanes)
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20000
+            default: 20000
+        - name: longest
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            default: 20
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+      responses:
+        "200":
+          description: CallRows (rows are arrays in the order of cols)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  sampled:
+                    type: boolean
+                  cols:
+                    type: array
+                    items:
+                      type: string
+                  rows:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: integer
+                  longest:
+                    type: array
+                    items:
+                      type: integer
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/executions:
+    get:
+      operationId: sliceExecutions
+      summary: A page of the executions of one statement, with binds
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: stmt
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          description: offset+limit at most 100000
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+            default: 1000
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: sort
+          in: query
+          description: file order (default) or largest first by a measure
+          schema:
+            type: string
+            enum: [file, e, c, waitEla, r, p, cr, fetches, start]
+      responses:
+        "200":
+          description: ExecResponse
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stmt:
+                    type: integer
+                  total:
+                    type: integer
+                  offset:
+                    type: integer
+                  avgE:
+                    type: number
+                  slowest:
+                    type: [object, "null"]
+                  rows:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/executions/detail:
+    get:
+      operationId: sliceExecutionDetail
+      summary: One execution taken apart (A/B comparison)
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: stmt
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+        - name: cursor
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+        - name: execNo
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: ExecDetailResponse
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cursor:
+                    type: integer
+                  execNo:
+                    type: integer
+                  exec:
+                    type: integer
+                  line:
+                    type: integer
+                  ctx:
+                    type: integer
+                  planHash:
+                    type: integer
+                  parse:
+                    type: object
+                  execPart:
+                    type: object
+                  fetch:
+                    type: object
+                  total:
+                    type: object
+                  waits:
+                    type: array
+                    items:
+                      type: object
+                  execWaits:
+                    type: integer
+                  bindSet:
+                    type: integer
+                  bindLine:
+                    type: integer
+                  binds:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/waits:
+    get:
+      operationId: sliceWaits
+      summary: Wait rows, slowest or earliest first
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [ela, tim]
+            default: ela
+        - $ref: "#/components/parameters/Scope"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Idle"
+        - $ref: "#/components/parameters/Event"
+      responses:
+        "200":
+          description: WaitsResponse
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  us:
+                    type: integer
+                  rows:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/waits/hist:
+    get:
+      operationId: sliceWaitHist
+      summary: log2 histogram of wait durations
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/Scope"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Idle"
+        - $ref: "#/components/parameters/Event"
+      responses:
+        "200":
+          description: LogHist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  us:
+                    type: integer
+                  counts:
+                    type: array
+                    items:
+                      type: integer
+                  sums:
+                    type: array
+                    items:
+                      type: integer
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/waits/scatter:
+    get:
+      operationId: sliceWaitScatter
+      summary: Sampled waits over time; rows are [tim, ela, line, stmt, ctx]
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: max
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50000
+            default: 20000
+        - $ref: "#/components/parameters/Scope"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Idle"
+        - $ref: "#/components/parameters/Event"
+      responses:
+        "200":
+          description: ScatterResponse
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  sampled:
+                    type: boolean
+                  cols:
+                    type: array
+                    items:
+                      type: string
+                  rows:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: integer
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/waits/by:
+    get:
+      operationId: sliceWaitsBy
+      summary: Wait time by statement, object, p1 or p2, largest first
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: by
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [stmt, obj, p1, p2]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 12
+        - $ref: "#/components/parameters/Scope"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Idle"
+        - $ref: "#/components/parameters/Event"
+      responses:
+        "200":
+          description: WaitsByResponse (rows of {key, count, us})
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    type: integer
+                  rows:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/profile:
+    get:
+      operationId: sliceProfile
+      summary: CPU and waits per event in scope
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Idle"
+        - $ref: "#/components/parameters/Event"
+      responses:
+        "200":
+          description: the profile of the scope
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/stmt/roles:
+    get:
+      operationId: sliceStmtRoles
+      summary: Wait time per statement and wait class; rows are [statement, class index, µs]
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "200":
+          description: classes and rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  classes:
+                    type: array
+                    items:
+                      type: string
+                  rows:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: integer
+  /s/{id}/api/stmt/waits:
+    get:
+      operationId: sliceStmtWaits
+      summary: Top wait events of statements, keyed by statement id
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/StmtList"
+        - name: max
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 6
+      responses:
+        "200":
+          description: "{waits: {<stmt>: [{event, us, count, maxUs, obj}]}}"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  waits:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/stmt/spans:
+    get:
+      operationId: sliceStmtSpans
+      summary: Merged time intervals of statements' calls, keyed by statement id
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/StmtList"
+        - name: gap
+          in: query
+          description: merge intervals closer than this many µs
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: "{spans: {<stmt>: [{start, end}]}}"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spans:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          start:
+                            type: integer
+                          end:
+                            type: integer
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: the MTKPROF_TOKEN the engine was started with
+  parameters:
+    SessionID:
+      name: id
+      in: path
+      required: true
+      description: session id (s + 12 hex digits)
+      schema:
+        type: string
+    JobID:
+      name: id
+      in: path
+      required: true
+      description: job id (j + 12 hex digits)
+      schema:
+        type: string
+    PromptID:
+      name: id
+      in: path
+      required: true
+      description: prompt id (p + 12 hex digits)
+      schema:
+        type: string
+    From:
+      name: from
+      in: query
+      description: scope start, tim in µs (a row is in when its [tim-ela, tim] overlaps the scope)
+      schema:
+        type: integer
+        minimum: 0
+    To:
+      name: to
+      in: query
+      description: scope end, tim in µs (0 = open; not before from)
+      schema:
+        type: integer
+        minimum: 0
+    Contexts:
+      name: contexts
+      in: query
+      description: comma-separated context ids (at most 10000)
+      schema:
+        type: string
+    Stmt:
+      name: stmt
+      in: query
+      description: one statement id
+      schema:
+        type: integer
+        minimum: 0
+    StmtList:
+      name: stmt
+      in: query
+      required: true
+      description: comma-separated statement ids (at most 200)
+      schema:
+        type: string
+    Event:
+      name: event
+      in: query
+      description: one event id (waits only)
+      schema:
+        type: integer
+        minimum: 0
+    Idle:
+      name: idle
+      in: query
+      description: include idle waits
+      schema:
+        type: string
+        enum: ["0", "1"]
+        default: "1"
+    Scope:
+      name: scope
+      in: query
+      description: "all: every wait; without it event or stmt is required"
+      schema:
+        type: string
+        enum: [all]
+  responses:
+    BadRequest:
+      description: bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: missing or wrong bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: no such object
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Conflict:
+      description: the object is in the wrong state (session not ready, job finished, entry open, engine shutting down)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    SliceBadRequest:
+      description: a bad parameter, the reason as plain text
+      content:
+        text/plain:
+          schema:
+            type: string
+    Pivot:
+      description: PivotResponse
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              fact:
+                type: string
+              dims:
+                type: array
+                items:
+                  type: object
+              measures:
+                type: array
+                items:
+                  type: object
+              rows:
+                type: array
+                items:
+                  type: object
+              total:
+                type: array
+                items:
+                  type: number
+              facts:
+                type: integer
+              bucketUs:
+                type: integer
+              groups:
+                type: integer
+              truncated:
+                type: boolean
+  schemas:
+    ErrorCode:
+      type: string
+      enum: [bad_request, unauthorized, not_found, conflict, cancelled, needs_prompt, internal]
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              $ref: "#/components/schemas/ErrorCode"
+            message:
+              type: string
+    Identity:
+      type: string
+      pattern: "^[0-9a-f]{64}$"
+    Health:
+      type: object
+      required: [version, protocol, uptime, sessions, cache]
+      additionalProperties: false
+      properties:
+        version:
+          type: string
+        protocol:
+          type: integer
+        uptime:
+          type: integer
+          description: seconds
+        sessions:
+          type: integer
+        cache:
+          $ref: "#/components/schemas/CacheHealth"
+    CacheHealth:
+      type: object
+      required: [bytes, entries, cap]
+      additionalProperties: false
+      properties:
+        bytes:
+          type: integer
+        entries:
+          type: integer
+        cap:
+          type: integer
+    JobInfo:
+      type: object
+      required: [id, kind, state, phase, done, total, unit, message]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [open]
+        state:
+          type: string
+          enum: [running, done, failed, cancelled]
+        phase:
+          type: string
+          description: "open: open (cache lookup), parse (miss only), index (miss only), ready"
+          enum: [open, parse, index, ready]
+        done:
+          type: integer
+        total:
+          type: integer
+          description: 0 = unknown
+        unit:
+          type: string
+          description: bytes in phase parse, empty otherwise
+          enum: [bytes, ""]
+        message:
+          type: string
+          description: the error of a failed job, "cancelled" for a cancelled one
+        session:
+          type: string
+          description: the session the job opens
+        lines:
+          type: integer
+          description: parse progress
+        statements:
+          type: integer
+          description: parse progress
+    JobList:
+      type: object
+      required: [jobs]
+      additionalProperties: false
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobInfo"
+    FileInfo:
+      type: object
+      required: [path, name, size]
+      additionalProperties: false
+      properties:
+        path:
+          type: string
+        name:
+          type: string
+        size:
+          type: integer
+    SessionState:
+      type: string
+      enum: [opening, ready, failed, closed]
+    SessionInfo:
+      type: object
+      required: [id, paths, state, rev, identity, cacheIdentity, hit, files, opened, bytes, lines]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        paths:
+          type: array
+          items:
+            type: string
+          description: the requested paths, absolute
+        state:
+          $ref: "#/components/schemas/SessionState"
+        rev:
+          type: integer
+        identity:
+          $ref: "#/components/schemas/Identity"
+          description: content identity of the trace files without options (sha256 of size and first MiB per file, order-independent); the key of annotations
+        cacheIdentity:
+          $ref: "#/components/schemas/Identity"
+          description: identity of the cache entry (files plus bind mode, salt, thresholds, index format); the {identity} of /engine/cache
+        hit:
+          type: boolean
+          description: opened from the cache without a parse (false while opening)
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileInfo"
+          description: the input files (while opening) or the model's files (once ready, followed files included)
+        opened:
+          type: string
+          format: date-time
+        bytes:
+          type: integer
+        lines:
+          type: integer
+        job:
+          type: string
+          description: the open job
+        error:
+          type: string
+          description: why the session failed ("cancelled" when its job was cancelled)
+    SessionList:
+      type: object
+      required: [sessions]
+      additionalProperties: false
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionInfo"
+    SessionOptions:
+      type: object
+      additionalProperties: false
+      properties:
+        follow:
+          type: boolean
+          description: not implemented yet (400)
+        binds:
+          type: string
+          enum: [keep, redact, none]
+          default: keep
+        salt:
+          type: string
+          description: redaction salt (implies redact)
+        thresholds:
+          type: object
+          description: finding thresholds (`mtkprof findings-config`); unknown keys are a 400
+    OpenSessionRequest:
+      type: object
+      required: [paths]
+      additionalProperties: false
+      properties:
+        paths:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: string
+          description: trace files or directories of them
+        options:
+          $ref: "#/components/schemas/SessionOptions"
+    OpenSessionResponse:
+      type: object
+      required: [session, job]
+      additionalProperties: false
+      properties:
+        session:
+          $ref: "#/components/schemas/SessionInfo"
+        job:
+          $ref: "#/components/schemas/JobInfo"
+    SessionEvent:
+      type: object
+      required: [id, state, rev]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        state:
+          $ref: "#/components/schemas/SessionState"
+        rev:
+          type: integer
+    PromptEvent:
+      type: object
+      required: [id, connection, kind, text, echo, state]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        connection:
+          type: string
+        kind:
+          type: string
+          enum: [password, passphrase, otp, hostkey, confirm]
+        text:
+          type: string
+        echo:
+          type: boolean
+        state:
+          type: string
+          enum: [open, closed]
+    PromptAnswer:
+      type: object
+      description: "{answer} or {cancel: true}"
+      properties:
+        answer:
+          type: string
+        cancel:
+          type: boolean
+    LogEvent:
+      type: object
+      required: [level, message]
+      additionalProperties: false
+      properties:
+        level:
+          type: string
+          enum: [info, error]
+        message:
+          type: string
+    CacheItem:
+      type: object
+      required: [identity, bytes, created, lastUsed, paths, open]
+      additionalProperties: false
+      properties:
+        identity:
+          $ref: "#/components/schemas/Identity"
+        bytes:
+          type: integer
+        created:
+          type: string
+          format: date-time
+        lastUsed:
+          type: string
+          format: date-time
+        paths:
+          type: array
+          items:
+            type: string
+          description: absolute source paths at build time
+        open:
+          type: boolean
+          description: a session of this engine has it open
+    CacheList:
+      type: object
+      required: [bytes, entries, cap, items]
+      additionalProperties: false
+      properties:
+        bytes:
+          type: integer
+        entries:
+          type: integer
+        cap:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CacheItem"
+    CacheWipe:
+      type: object
+      required: [removed, skipped, bytes]
+      additionalProperties: false
+      properties:
+        removed:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identity"
+        skipped:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identity"
+          description: entries kept because a session has them open
+        bytes:
+          type: integer
+          description: bytes freed
+    Document:
+      type: object
+      description: report.Document (format 3); see web/src/lib/data/types.ts
+      properties:
+        tool:
+          type: string
+        version:
+          type: string
+        generated:
+          type: string
+          format: date-time
+        format:
+          type: integer
+        file:
+          type: object
+        span:
+          type: object
+        statements:
+          type: array
+          items:
+            type: object
+        cursors:
+          type: array
+          items:
+            type: object
+        contexts:
+          type: array
+          items:
+            type: object
+        events:
+          type: array
+          items:
+            type: object
+        plans:
+          type: array
+          items:
+            type: object
+        planLines:
+          type: array
+          items:
+            type: object
+        transactions:
+          type: array
+          items:
+            type: object
+        errors:
+          type: array
+          items:
+            type: object
+        markers:
+          type: array
+          items:
+            type: object
+        diag:
+          type: object
+        unknown:
+          type: array
+          items:
+            type: object
+        stats:
+          type: object
+          properties:
+            minimap:
+              type: object
+              properties:
+                bucketUs:
+                  type: integer
+                cpu:
+                  type: array
+                  items:
+                    type: integer
+                waits:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      type: integer
