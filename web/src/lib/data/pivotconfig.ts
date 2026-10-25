@@ -25,6 +25,12 @@ export interface PivotConfig {
    */
   windowClock?: { fromWallUs: number; toWallUs: number }
   contexts?: ContextKey[]
+  /**
+   * The Files panel's selection as file *names* (`FileEntry.name`, not indexes), saved on request. Applying it selects the files
+   * of the target set with these names (the missing ones are reported) and leaves the selection alone when it is absent.
+   * Optional: configurations saved before it load unchanged.
+   */
+  files?: string[]
   includeIdle: boolean
   /** only the rows of this statement / event */
   stmt?: StmtRef
@@ -32,13 +38,13 @@ export interface PivotConfig {
 }
 
 /** What resolving a config needs (a TraceDoc has all of it). */
-export interface PivotDoc { statements: Statement[]; events: Event[]; contexts: Context[]; span: Span; /** see TraceDoc; absent or 0: no timestamps */ wallOffsetUs?: number }
+export interface PivotDoc { statements: Statement[]; events: Event[]; contexts: Context[]; span: Span; /** see TraceDoc; absent or 0: no timestamps */ wallOffsetUs?: number; /** input files (a TraceDoc has them) */ file?: { files?: readonly { name: string }[] } }
 
 const ctxKey = (c: Context): ContextKey => ({ session: c.sessionId, module: c.module, action: c.action })
 const sameCtx = (a: ContextKey, b: ContextKey) => a.session === b.session && a.module === b.module && a.action === b.action
 
 /** The current Pivot configuration of a store's state, with stable keys. */
-export function pivotConfigOf(s: Pick<State, 'doc' | 'pivot' | 'window' | 'contexts' | 'includeIdle'>, opts: { clock?: boolean } = {}): PivotConfig {
+export function pivotConfigOf(s: Pick<State, 'doc' | 'pivot' | 'window' | 'contexts' | 'files' | 'includeIdle'>, opts: { clock?: boolean; files?: boolean } = {}): PivotConfig {
   const p = s.pivot, doc = s.doc
   const cfg: PivotConfig = { fact: p.fact, by: [...p.by], sort: p.sort[p.fact], limit: p.limit, includeIdle: s.includeIdle }
   if (!doc) return cfg
@@ -55,6 +61,10 @@ export function pivotConfigOf(s: Pick<State, 'doc' | 'pivot' | 'window' | 'conte
     }
     cfg.contexts = keys
   }
+  if (opts.files && s.files && doc.file?.files) {
+    const names = [...s.files].sort((a, b) => a - b).map((i) => doc.file.files?.[i]?.name).filter((n): n is string => !!n)
+    if (names.length) cfg.files = [...new Set(names)]
+  }
   if (p.stmt !== null && doc.statements[p.stmt]) cfg.stmt = stmtRef(doc.statements[p.stmt])
   if (p.event !== null && doc.events[p.event]) cfg.event = doc.events[p.event].name
   return cfg
@@ -62,9 +72,10 @@ export function pivotConfigOf(s: Pick<State, 'doc' | 'pivot' | 'window' | 'conte
 
 /**
  * The state that shows `cfg` on `doc`, and the parts of it that do not exist there (dropped, in
- * words). The window keeps its offsets from the trace start and is cut to the trace's span.
+ * words). The window keeps its offsets from the trace start and is cut to the trace's span. The file selection is in the patch only
+ * when the configuration has one (and a file of that name exists); `curFiles` is the selection that stays otherwise.
  */
-export function resolvePivotConfig(doc: PivotDoc, cfg: PivotConfig, cur: PivotState): { patch: Partial<State>; dropped: string[] } {
+export function resolvePivotConfig(doc: PivotDoc, cfg: PivotConfig, cur: PivotState, curFiles: ReadonlySet<number> | null = null): { patch: Partial<State>; dropped: string[] } {
   const dropped: string[] = []
   const fact: Fact = cfg.fact === 'waits' ? 'waits' : 'calls'
   const measures = pivotMeasures(fact)
@@ -85,6 +96,19 @@ export function resolvePivotConfig(doc: PivotDoc, cfg: PivotConfig, cur: PivotSt
     if (cfg.window.fromUs >= span) dropped.push('time window (after the end of this trace)')
     else patch.window = { startTim: doc.span.firstTim + Math.max(0, cfg.window.fromUs), endTim: doc.span.firstTim + Math.min(span, cfg.window.toUs) }
   }
+  let files: ReadonlySet<number> | null = curFiles
+  if (cfg.files?.length) {
+    const list = doc.file?.files ?? []
+    const idx = new Set<number>()
+    const missing: string[] = []
+    for (const name of cfg.files) {
+      let hit = false
+      list.forEach((f, i) => { if (f.name === name) { idx.add(i); hit = true } })
+      if (!hit) missing.push(name)
+    }
+    if (idx.size) { files = idx.size === list.length ? null : idx; patch.files = files as Set<number> | null }
+    if (missing.length) dropped.push(idx.size ? `${missing.length} of ${cfg.files.length} files (${missing.join(', ')})` : `file selection (${missing.join(', ')})`)
+  }
   if (cfg.contexts?.length) {
     const ids = new Set<ID>()
     let missing = 0
@@ -93,7 +117,10 @@ export function resolvePivotConfig(doc: PivotDoc, cfg: PivotConfig, cur: PivotSt
       if (hit.length === 0) missing++
       for (const c of hit) ids.add(c.id)
     }
-    if (ids.size) patch.contexts = ids
+    // the contexts the selected files do not hold would show nothing
+    const kept = files ? new Set([...ids].filter((c) => files.has(doc.contexts[c]?.fileIdx ?? 0))) : ids
+    if (kept.size) patch.contexts = kept
+    else if (ids.size) dropped.push('session contexts (not in the selected files)')
     if (missing) dropped.push(ids.size ? `${missing} of ${cfg.contexts.length} session contexts` : 'session contexts')
   }
   if (cfg.stmt) {
@@ -154,6 +181,7 @@ export function parseLibraryFile(text: string): { pivots: SavedPivot[]; skipped:
     if (!validSaved(p)) { skipped++; continue }
     const config: PivotConfig = { ...p.config, limit: Number(p.config.limit) || 1000, includeIdle: p.config.includeIdle !== false }
     if (!validClock(config.windowClock)) delete config.windowClock
+    if (!Array.isArray(config.files) || !config.files.length || !config.files.every((n) => typeof n === 'string')) delete config.files
     pivots.push({ ...p, created: typeof p.created === 'number' ? p.created : p.updated, config })
   }
   return { pivots, skipped }
@@ -173,6 +201,7 @@ export function mergeLibrary(cur: SavedPivot[], incoming: SavedPivot[]): SavedPi
 export function describePivotConfig(c: PivotConfig): string {
   const parts = [`${c.fact} by ${c.by.join(' → ')}`, `sort ${c.sort}`]
   if (c.window) parts.push(c.windowClock ? 'window (clock time)' : 'window')
+  if (c.files?.length) parts.push(`${c.files.length} file${c.files.length === 1 ? '' : 's'}`)
   if (c.contexts?.length) parts.push(`${c.contexts.length} context${c.contexts.length === 1 ? '' : 's'}`)
   if (c.stmt) parts.push(`statement ${c.stmt.sqlId || c.stmt.hash}`)
   if (c.event) parts.push(`event ${c.event}`)

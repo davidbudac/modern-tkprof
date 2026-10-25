@@ -132,3 +132,88 @@ describe('window by clock time', () => {
     expect(describePivotConfig({ fact: 'calls', by: ['stmt'], sort: 'e', limit: 1, includeIdle: true, window: { fromUs: 0, toUs: 1 }, windowClock: { fromWallUs: 1, toWallUs: 2 } })).toContain('window (clock time)')
   })
 })
+
+describe('file selection', () => {
+  const fe = (idx: number, name: string) => ({ idx, name })
+  const withFiles = <T extends object>(base: T, files: string[], ctxFiles: number[]) =>
+    ({ ...base, file: { files: files.map((n, i) => fe(i, n)) }, contexts: ctxFiles.map((f, i) => ({ ...ctx(i, `s${i}`), fileIdx: f })) })
+  const setA = withFiles(docA, ['a.trc', 'b.trc', 'c.trc'], [0, 1, 2]) // the set the configuration is saved on
+  const setB = withFiles(docB, ['c.trc', 'a.trc', 'z.trc', 'q.trc'], [0, 1, 2, 3]) // another set: the same names in other places
+  const cur = createStore().getState().pivot
+
+  it('is saved as file names, only on request and only with a selection', () => {
+    const store = createStore()
+    store.setState({ doc: setA as never, files: new Set([2, 0]) })
+    expect(store.getPivotConfig().files).toBeUndefined()
+    const cfg = store.getPivotConfig({ files: true })
+    expect(cfg.files).toEqual(['a.trc', 'c.trc'])
+    expect(JSON.parse(JSON.stringify(cfg))).toEqual(cfg)
+    store.setState({ files: null })
+    expect(store.getPivotConfig({ files: true }).files).toBeUndefined()
+    // a single-file document has no file list
+    store.setState({ doc: docA as never, files: new Set([0]) })
+    expect(store.getPivotConfig({ files: true }).files).toBeUndefined()
+  })
+
+  it('selects the files of the target that have these names', () => {
+    const store = createStore()
+    store.setState({ doc: setB as never })
+    const { dropped } = store.applyPivotConfig({ fact: 'calls', by: ['stmt'], sort: 'e', limit: 10, includeIdle: true, files: ['a.trc', 'c.trc'] })
+    expect([...store.getState().files!].sort()).toEqual([0, 1])
+    expect(dropped).toEqual([])
+    expect(store.getState().pivot.notice).toBeNull()
+  })
+
+  it('reports the names the target does not have, selecting the rest', () => {
+    const store = createStore()
+    store.setState({ doc: setB as never })
+    const r = store.applyPivotConfig({ fact: 'calls', by: ['stmt'], sort: 'e', limit: 10, includeIdle: true, files: ['a.trc', 'gone.trc', 'b.trc'] })
+    expect([...store.getState().files!]).toEqual([1])
+    expect(r.dropped).toEqual(['2 of 3 files (gone.trc, b.trc)'])
+    expect(store.getState().pivot.notice).toMatch(/left out: 2 of 3 files \(gone\.trc, b\.trc\)/)
+  })
+
+  it('leaves the selection alone when no file of the configuration exists, or when it has none', () => {
+    const store = createStore()
+    store.setState({ doc: setB as never, files: new Set([3]) })
+    const base: PivotConfig = { fact: 'calls', by: ['stmt'], sort: 'e', limit: 10, includeIdle: true }
+    const none = store.applyPivotConfig({ ...base, files: ['gone.trc'] })
+    expect([...store.getState().files!]).toEqual([3])
+    expect(none.dropped).toEqual(['file selection (gone.trc)'])
+    store.applyPivotConfig(base)
+    expect([...store.getState().files!]).toEqual([3])
+    expect(store.getState().pivot.notice).toBeNull()
+  })
+
+  it('every file by name is the whole set (no selection)', () => {
+    const store = createStore()
+    store.setState({ doc: setB as never, files: new Set([1]) })
+    store.applyPivotConfig({ fact: 'calls', by: ['stmt'], sort: 'e', limit: 10, includeIdle: true, files: ['c.trc', 'a.trc', 'z.trc', 'q.trc'] })
+    expect(store.getState().files).toBeNull()
+  })
+
+  it('keeps the session contexts that the selected files hold', () => {
+    // sessions s0/s1 of set A are contexts 0/1 of set B too (files c.trc / a.trc); only a.trc is selected
+    const cfg: PivotConfig = { fact: 'calls', by: ['stmt'], sort: 'e', limit: 10, includeIdle: true, files: ['a.trc'], contexts: [{ session: 's0', module: 'SQL*Plus', action: '' }, { session: 's1', module: 'SQL*Plus', action: '' }] }
+    const r = resolvePivotConfig(setB, cfg, cur)
+    expect([...r.patch.files!]).toEqual([1])
+    expect([...r.patch.contexts!]).toEqual([1])
+    // without any of them in the selected files the contexts are dropped, with the reason
+    const out = resolvePivotConfig(setB, { ...cfg, contexts: [cfg.contexts![0]] }, cur)
+    expect(out.patch.contexts).toBeNull()
+    expect(out.dropped).toEqual(['session contexts (not in the selected files)'])
+    // a configuration without files is checked against the selection that stays
+    const stay = resolvePivotConfig(setB, { ...cfg, files: undefined }, cur, new Set([2]))
+    expect(stay.patch.contexts).toBeNull()
+  })
+
+  it('old library files load unchanged; a malformed file list is ignored; the description counts the files', () => {
+    const base = { id: '1', name: 'old', created: 1, updated: 2, config: { fact: 'calls', by: ['stmt'], sort: 'e', limit: 1000, includeIdle: true } }
+    const old = parseLibraryFile(JSON.stringify({ version: 1, pivots: [base] }))
+    expect(old.pivots[0].config).toEqual(base.config)
+    const withFilesCfg = (id: string, files: unknown) => ({ ...base, id, config: { ...base.config, files } })
+    const got = parseLibraryFile(JSON.stringify({ version: 1, pivots: [withFilesCfg('2', ['a.trc']), withFilesCfg('3', 'a.trc'), withFilesCfg('4', [1]), withFilesCfg('5', [])] })).pivots
+    expect(got.map((p) => p.config.files)).toEqual([['a.trc'], undefined, undefined, undefined])
+    expect(describePivotConfig({ ...base.config, files: ['a.trc', 'b.trc'] } as PivotConfig)).toContain('2 files')
+  })
+})
