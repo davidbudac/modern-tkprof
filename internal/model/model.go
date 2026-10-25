@@ -143,8 +143,8 @@ type Call struct {
 	SelfP   int64 `json:"selfDisk"`
 	SelfCR  int64 `json:"selfQuery"`
 	SelfCU  int64 `json:"selfCurrent"`
-	WaitEla int64 `json:"waitEla"` // sum of attributed in-call waits
-	IdleEla int64 `json:"idleEla"` // sum of attributed between-call (idle/think) waits
+	WaitEla int64 `json:"waitEla"` // sum of attributed in-call waits, idle-class ones included (they are in E)
+	IdleEla int64 `json:"idleEla"` // sum of attributed between-call waits (think time; outside [Tim-E, Tim])
 
 	ID        ID     `json:"id"`
 	Cursor    ID     `json:"cursor"`
@@ -185,7 +185,7 @@ type Wait struct {
 	Line      int32 `json:"line"`
 
 	Dep     uint8 `json:"depth"`
-	Between bool  `json:"between"` // ended before the attributed call started (think time)
+	Between bool  `json:"between"` // not inside a call (think time): outside the attributed call's window, or an idle wait of no call
 	Idle    bool  `json:"idle"`    // event belongs to the Idle wait class
 }
 

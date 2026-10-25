@@ -145,6 +145,7 @@ func (b *Builder) flushAgg() {
 	}
 	for num, ids := range b.pendingWaits {
 		for _, wid := range ids {
+			unattached(&b.waitBuf[wid])
 			b.foldWait(&b.waitBuf[wid], nil)
 		}
 		b.m.Diag.UnattributedWaits += len(ids)

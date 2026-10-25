@@ -19,10 +19,11 @@ and keeps the selection in `workspace.json`, packages D2/D3, desktop pin `95c52a
   parameter `contexts=-`; narrow layout and dark theme checked. Details: `docs/ARCHITECTURE.md` § "Files panel".
 - Still whole set, by design or for now: findings (the Findings heading says so), saved Pivot configurations (the file
   selection is not part of them), the Lanes' time axis (the whole trace's span even for a short file selection).
-- Open (core, not UI): a statement's response time is `elapsed + idleUs`, and the builder counts an idle-class wait *inside* a
-  call (`PL/SQL lock timer` of `dbms_session.sleep`) in both the call's `e` and `Call.IdleEla`, so a sleeping statement shows
-  twice its real time ("4.001 s, 159 % of selection" for two `sleep(1)`). Fixing it means deciding where such waits belong
-  (`WaitEla` vs `IdleEla`) and touches goldens, findings and the persisted aggregates; the UI only explains it in a tooltip.
+- Done (core): an idle-class wait *inside* a call (`PL/SQL lock timer` of `dbms_session.sleep`) used to count in both the call's
+  `e` and `Call.IdleEla` ("4.001 s, 159 % of selection" for two `sleep(1)`). Decision: in-call waits belong to the call whatever
+  their class (`WaitEla`); `IdleEla`/`IdleUs`/profile idle are between-call waits only; the class stays for the ledger and
+  `idle=`. Now 2.001 s, 80 %. tkprof goldens unchanged; cache formats bumped (`CacheIndexFormat` 3). The > 100 % tooltip stays,
+  for overlapping sessions summed (`multisession_a` + `_b`).
 - Verified by screenshot on a six-file set (two multisession files, a PX coordinator + slave, a two-part chain) in `/tmp/f2-shots`
   (not kept in the repo).
 

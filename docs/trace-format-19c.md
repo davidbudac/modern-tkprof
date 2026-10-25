@@ -98,7 +98,11 @@ its children; mtkprof keeps both (inclusive and self).
 
 A `WAIT` for cursor `#n` precedes the call line of `#n` it happened in.
 `SQL*Net message from client` ends when the next call begins, so it precedes
-that call's line but is time *between* calls.
+that call's line but is time *between* calls. Its idle class does not make
+that so, its `tim` does: an idle wait whose `tim` falls in the call's
+`[tim-e, tim]` happened inside the call (`PL/SQL lock timer` of
+`dbms_session.sleep` in the EXEC, `SQL*Net message from client` of a dblink
+fetch) and is part of the call's `e`.
 
 ## Waits
 

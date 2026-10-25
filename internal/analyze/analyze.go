@@ -322,7 +322,7 @@ func PX(m *model.Model) PXTotals {
 		w := &m.Waits[i]
 		if m.PXChild(w.Context) {
 			procs[PXProcess(m, w.Context)] = true
-			if w.Idle || w.Between {
+			if w.Between {
 				t.IdleUs += w.Ela
 			} else {
 				t.WaitUs += w.Ela
@@ -389,7 +389,7 @@ func buildProfile(m *model.Model, label string, total, cpu int64, in func(*model
 			byEvent[w.Event] = a
 		}
 		a.add(w.Ela)
-		if w.Idle || w.Between {
+		if w.Between {
 			idleUs += w.Ela
 		} else {
 			waitUs += w.Ela
@@ -710,7 +710,7 @@ func Timeline(m *model.Model, bucketUs int64) []Bucket {
 			continue
 		}
 		b := &out[int((w.Tim-base)/bucketUs)]
-		if w.Idle || w.Between {
+		if w.Between {
 			b.IdleUs += w.Ela
 		} else {
 			b.WaitUs += w.Ela

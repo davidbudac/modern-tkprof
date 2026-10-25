@@ -13,8 +13,8 @@ interface CtxStats {
   calls: number
   elapsed: number // Σ e of top-level calls
   cpu: number // Σ c of top-level calls
-  waitUs: number // non-idle waits
-  idleUs: number // idle waits
+  waitUs: number // waits inside calls (idle-class ones included)
+  idleUs: number // waits between calls (think time)
   rows: number
   firstTim: number
   lastTim: number
@@ -95,7 +95,7 @@ function computeStats(doc: TraceDoc): CtxStats[] {
     const k = w.ctx[i]
     if (k < 0 || k >= n) continue
     const s = out[k]
-    if (w.flags[i] & 2) s.idleUs += w.ela[i]
+    if (w.flags[i] & 1) s.idleUs += w.ela[i] // between calls; an idle-class wait inside a call is a wait of the call
     else s.waitUs += w.ela[i]
     const tim = w.tim[i]
     if (tim) {

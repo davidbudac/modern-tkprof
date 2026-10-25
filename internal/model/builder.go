@@ -262,8 +262,20 @@ func (b *Builder) flushPending() {
 		b.pendingDepth[d] = nil
 	}
 	for num, ids := range b.pendingWaits {
+		for _, wid := range ids {
+			unattached(&m.Waits[wid])
+		}
 		m.Diag.UnattributedWaits += len(ids)
 		b.pendingWaits[num] = nil
+	}
+}
+
+// unattached settles a wait that found no call: an idle one is time between
+// calls (the last SQL*Net message from client of a session), the others stay
+// waits.
+func unattached(w *Wait) {
+	if w.Idle {
+		w.Between = true
 	}
 }
 
@@ -776,7 +788,11 @@ func (b *Builder) attachWaits(num uint64, call *Call, curID ID) {
 }
 
 // attachWait links one wait to a call and classifies it as inside the call
-// or between calls (think time).
+// or between calls (think time) by its position, not by its class: an idle
+// wait inside the call's [tim-e, tim] (PL/SQL lock timer of a sleep, SQL*Net
+// message from client of a dblink fetch) is part of the call's e, so it
+// counts in WaitEla, not IdleEla. Without timestamps (and for an XCTEND,
+// which has no time window) the class decides.
 func (b *Builder) attachWait(w *Wait, call *Call) {
 	w.Call = call.ID
 	w.Dep = call.Dep
@@ -785,14 +801,12 @@ func (b *Builder) attachWait(w *Wait, call *Call) {
 		w.Cursor = call.Cursor
 		w.Statement = call.Statement
 	}
-	inside := true
-	if call.Synthetic {
-		inside = !w.Idle
-	} else if call.Tim != 0 && w.Tim != 0 {
+	inside := !w.Idle
+	if !call.Synthetic && call.Tim != 0 && w.Tim != 0 {
 		start := call.Tim - call.E
 		inside = w.Tim > start && w.Tim <= call.Tim
 	}
-	if !inside || w.Idle {
+	if !inside {
 		w.Between = true
 		call.IdleEla += w.Ela
 	} else {

@@ -498,8 +498,8 @@ func TestCacheModes(t *testing.T) {
 // TestCacheIndexFormatCoversParts fails when the version of a file of an
 // entry changes: bump CacheIndexFormat and update the expectation.
 func TestCacheIndexFormatCoversParts(t *testing.T) {
-	want := map[string]int{"dims": 1, "agg": 2, "spill": 1, "lines": 1}
-	if CacheIndexFormat != 2 {
+	want := map[string]int{"dims": 1, "agg": 3, "spill": 2, "lines": 1}
+	if CacheIndexFormat != 3 {
 		t.Skip("update want for the new CacheIndexFormat")
 	}
 	for k, v := range want {

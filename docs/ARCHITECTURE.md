@@ -68,8 +68,17 @@ Rules that give the model its meaning:
   `p`, `cr`, `cu`) include children; the model computes self-time to avoid
   double counting.
 * **Wait attribution**: `WAIT #n` lines precede the call line of cursor `n`
-  they belong to. Waits whose `tim` is before the call started (think time,
-  `SQL*Net message from client`) are flagged as *between calls*.
+  they belong to. Position, not class, decides where a wait counts: one whose
+  `tim` is outside the call's `[tim-e, tim]` (think time, `SQL*Net message
+  from client`) is flagged `Between` and summed in `Call.IdleEla`; one inside
+  it is in the call's `e` and summed in `Call.WaitEla`, idle class or not (the
+  `PL/SQL lock timer` of `dbms_session.sleep`, PX dequeues of a slave call).
+  Without timestamps, for an XCTEND (no time window) and for a wait that finds
+  no call, the class decides (idle = between). `Wait.Idle` keeps the class:
+  the ledger rows, `idle=0|1` and the in-call-idle finding use it. So every
+  idle total (`StmtStats.IdleUs`, the profiles' `IdleUs`, `ContextStats`,
+  timeline buckets, PX totals) is between-call time only, and a statement's
+  response time `elapsed + idleUs` counts a sleep once.
 * **Synthetic statements**: `XCTEND` becomes a COMMIT/ROLLBACK statement,
   LOB calls become one statement per LOB operation kind, so they show up in
   profiles like everything else (tkprof silently drops them).
@@ -520,9 +529,10 @@ on screen.
 - **Share of the response time** (`data/response.ts`: one definition for the Statements list, the statement detail and the
   Overview ledger). A statement's response time is `elapsed + idleUs` (`StmtStats`); its share is measured against the scope's
   response time, the Overview heading (`scopeSpanUs`: the window, else the span of the selected files, else the trace's). It is
-  not capped: the time is summed over sessions (two sessions running a statement at once count twice against the wall clock) and
-  an idle wait inside a call (a `PL/SQL lock timer` in a sleep) is part of the call's `e` and of `idleUs`, so a statement can
-  exceed 100 % of its scope; the percentage then carries a tooltip saying so.
+  not capped: the time is summed over sessions (two sessions running a statement at once count twice against the wall clock), so a
+  statement can exceed 100 % of its scope (`multisession.trc`, or `multisession_a` + `_b` selected: the sleeps of both sessions,
+  159 %); the percentage then carries a tooltip saying so. An idle wait inside a call (a `PL/SQL lock timer` in a sleep) is in the
+  call's `e` only, not in `idleUs` (see the builder's wait attribution).
 - **Other views.** Sessions groups the contexts by file (header row with the file's checkbox; contexts of unselected files are
   dimmed and cannot be ticked; the roll-ups count the selected files). The Lines view's file picker lists the selected files
   and moves to the first selected one when the selection changes (a deep link or bookmark to another file stays).
@@ -1107,8 +1117,10 @@ wipe`). `TestCacheIndexFormatCoversParts` fails when a part version changes with
 `CacheIndexFormat` (update its expectation with the bump), and the
 struct-shape guards (`TestAccumPersistCoversEveryField`,
 `TestPersistCoversEveryField` in `internal/model`) fail when a field is added
-without a bump. Current values: `CacheIndexFormat` 2, `PersistVersion` 1,
-`AccumPersistVersion` 2, `SpillIdxVersion` 1, `LineIndexVersion` 1.
+without a bump. Current values: `CacheIndexFormat` 3, `PersistVersion` 1,
+`AccumPersistVersion` 3, `SpillIdxVersion` 2, `LineIndexVersion` 1 (the last
+bump, 3/3/2: in-call idle waits count as in-call, so idle totals, `IdleEla`
+and the waits' `between` flag changed meaning).
 
 **Measured** (`big_loop.trc`, 118 MB, bind-heavy; `MTKPROF_BIG=… go test
 ./internal/engine -run Big -v`):

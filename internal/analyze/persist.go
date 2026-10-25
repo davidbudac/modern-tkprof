@@ -17,7 +17,7 @@ import (
 // counts the fields).
 
 // AccumPersistVersion is the format version of (*Accumulator).Encode.
-const AccumPersistVersion = 2
+const AccumPersistVersion = 3 // 3: IdleUs / idle totals are between-call waits only (in-call idle waits count as waits)
 
 const accumMagic = "MTKPAGG1"
 

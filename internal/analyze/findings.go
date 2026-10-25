@@ -843,16 +843,11 @@ func (f *finder) hardCloses() {
 // ---- client-side time -------------------------------------------------------
 
 // inCallIdleWait reports whether w is an idle wait that happened inside the
-// time window of the call it is attributed to (the builder marks every idle
-// wait Between, so this looks at the timestamps again): the session slept or
-// waited inside the call (dbms_session.sleep, a PX dequeue in a slave call)
-// rather than waiting for the next call.
-func inCallIdleWait(m *model.Model, w *model.Wait) bool {
-	if !w.Idle || w.Call == model.None || w.Tim == 0 {
-		return false
-	}
-	c := &m.Calls[w.Call]
-	return !c.Synthetic && c.Tim != 0 && w.Tim > c.Tim-c.E && w.Tim <= c.Tim
+// time window of the call it is attributed to (the builder leaves it not
+// Between): the session slept or waited inside the call (dbms_session.sleep,
+// a PX dequeue in a slave call) rather than waiting for the next call.
+func inCallIdleWait(w *model.Wait) bool {
+	return w.Idle && !w.Between && w.Call != model.None
 }
 
 // idleSplit sums the idle/between-call waits of the trace into think time
@@ -885,7 +880,7 @@ func (f *finder) splitIdle() (think, inCall idleSplit) {
 			continue
 		}
 		a := &think
-		if inCallIdleWait(f.m, w) {
+		if inCallIdleWait(w) {
 			a = &inCall
 		}
 		a.us += w.Ela

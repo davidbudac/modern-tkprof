@@ -15,7 +15,7 @@ import (
 
 // SpillIdxVersion is the format version of spill.idx. The record layouts of
 // the other files (layout.go) are covered by it too: a change there bumps it.
-const SpillIdxVersion = 1
+const SpillIdxVersion = 2 // 2: Wait.Between / Call.IdleEla by position (in-call idle waits are in-call)
 
 const spillIdxMagic = "MTKPSIDX"
 

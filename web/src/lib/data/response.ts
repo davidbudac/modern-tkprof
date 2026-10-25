@@ -20,8 +20,8 @@ export function responseBaseUs(doc: Pick<FileSetDoc, 'file'> & { spanUs(): numbe
 
 /**
  * Share of the base, 0..1 and beyond. Not capped: the statement's time is summed over the sessions of the scope (two sessions
- * running it at once count twice against the wall clock) and an idle wait inside a call (PL/SQL lock timer of a sleep) is
- * in the call's elapsed time and in `idleUs`, so a statement can exceed 100 % of its scope; `shareNote` says so.
+ * running it at once count twice against the wall clock), so a statement can exceed 100 % of its scope; `shareNote` says so.
+ * An idle wait inside a call (PL/SQL lock timer of a sleep) is in the call's elapsed time only, not in `idleUs`.
  */
 export function responseShare(s: Pick<StmtStats, 'elapsed' | 'idleUs'>, baseUs: number): number {
   return baseUs > 0 ? responseUs(s) / baseUs : 0
@@ -29,5 +29,5 @@ export function responseShare(s: Pick<StmtStats, 'elapsed' | 'idleUs'>, baseUs: 
 
 /** Tooltip for a share above 100 %. */
 export function shareNote(share: number): string | undefined {
-  return share > 1 ? 'above 100 %: the time of sessions running at once is summed, and idle waits inside a call (PL/SQL lock timer) count in the call and as idle' : undefined
+  return share > 1 ? 'above 100 %: the time of sessions running at once is summed' : undefined
 }

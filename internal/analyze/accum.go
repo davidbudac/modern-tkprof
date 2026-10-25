@@ -504,11 +504,11 @@ func (a *Accumulator) Child(ch *model.ChildRec, parent *model.Call) {
 func (a *Accumulator) Wait(w *model.Wait, call *model.Call) {
 	f := a.factsFor(w.Context)
 	f.any = true
-	idle := w.Idle || w.Between
+	idle := w.Between // think time; an idle-class wait inside a call is a wait of the call
 	a.mm.wait(a.m, w.Context, w.Tim, w.Event, w.Ela)
 	evAt(&a.events, w.Event).add(w.Ela)
 	if cs := a.ctxStat(w.Context); cs != nil {
-		if w.Idle {
+		if idle {
 			cs.IdleUs += w.Ela
 		} else {
 			cs.WaitUs += w.Ela
@@ -529,7 +529,7 @@ func (a *Accumulator) Wait(w *model.Wait, call *model.Call) {
 	if w.Cursor != model.None {
 		sl = a.slot(w.Cursor)
 	}
-	if idle {
+	if idle || w.Idle {
 		d := &a.think
 		if inCallIdle(w, call) {
 			d = &a.inCall
@@ -568,6 +568,9 @@ func (a *Accumulator) Wait(w *model.Wait, call *model.Call) {
 		return
 	}
 	s.profWait += w.Ela
+	if w.Idle {
+		return // the wait detail lists non-idle events
+	}
 	if s.detEv == nil {
 		s.detEv = map[model.ID]*evAgg{}
 	}
@@ -594,10 +597,7 @@ func (a *Accumulator) Wait(w *model.Wait, call *model.Call) {
 
 // inCallIdle is inCallIdleWait for a wait attached to call (nil: none).
 func inCallIdle(w *model.Wait, c *model.Call) bool {
-	if !w.Idle || c == nil || w.Tim == 0 {
-		return false
-	}
-	return !c.Synthetic && c.Tim != 0 && w.Tim > c.Tim-c.E && w.Tim <= c.Tim
+	return w.Idle && !w.Between && c != nil
 }
 
 // Adopt moves what an implicit cursor collected to the statement that took it over (model.Sink).

@@ -397,8 +397,8 @@ export interface ContextStats {
   rows: number
   elapsed: number // Σ e of top-level calls
   cpu: number // Σ c of top-level calls
-  waitUs: number // non-idle waits
-  idleUs: number // idle waits
+  waitUs: number // waits inside calls (idle-class ones included)
+  idleUs: number // waits between calls (think time)
   firstTim: number
   lastTim: number
 }

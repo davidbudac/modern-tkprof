@@ -82,6 +82,12 @@ in the UI is reachable from the CLI.
 - tkprof parity (call statistics, library cache misses, wait tables) is a
   hard golden test on every fixture in `testdata/traces/19c`.
 - TVD$XTAT's feature list is the parity checklist.
+- A wait inside a call's `[tim-e, tim]` belongs to the call whatever its
+  class (an idle `PL/SQL lock timer` of `dbms_session.sleep` is in the call's
+  elapsed and in-call waits); idle time is only what lies between calls
+  (think time). Response time = elapsed + idle between calls never counts a
+  wait twice; the wait class stays on the event for the ledger and the
+  `idle` filter (decided 2026-10-25, tkprof's numbers are unaffected).
 - Fixtures are generated on the dbmint lab (`testdata/gen`) whenever a
   scenario is missing.
 

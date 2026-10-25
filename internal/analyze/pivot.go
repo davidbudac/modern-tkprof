@@ -898,8 +898,8 @@ type ContextStats struct {
 	Rows     int64    `json:"rows"`
 	Elapsed  int64    `json:"elapsed"` // Σ e of top-level calls (response time)
 	CPU      int64    `json:"cpu"`     // Σ c of top-level calls
-	WaitUs   int64    `json:"waitUs"`  // waits of non-idle events
-	IdleUs   int64    `json:"idleUs"`  // waits of Idle-class events
+	WaitUs   int64    `json:"waitUs"`  // waits inside calls (idle-class ones included)
+	IdleUs   int64    `json:"idleUs"`  // waits between calls (think time)
 	FirstTim int64    `json:"firstTim"`
 	LastTim  int64    `json:"lastTim"`
 }
@@ -943,7 +943,7 @@ func Contexts(m *model.Model) []ContextStats {
 			continue
 		}
 		s := &out[w.Context]
-		if w.Idle {
+		if w.Between {
 			s.IdleUs += w.Ela
 		} else {
 			s.WaitUs += w.Ela
