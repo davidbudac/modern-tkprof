@@ -33,11 +33,11 @@ type KIQuestion struct {
 
 // Options configure a Server. With no authentication set every client is let in.
 type Options struct {
-	User                string         // the only user accepted ("" = any)
-	Password            string         // password authentication when set
+	User                string          // the only user accepted ("" = any)
+	Password            string          // password authentication when set
 	Keys                []ssh.PublicKey // publickey authentication
-	KeyboardInteractive []KIQuestion   // keyboard-interactive authentication when set
-	Env                 []string       // extra environment of exec'd commands
+	KeyboardInteractive []KIQuestion    // keyboard-interactive authentication when set
+	Env                 []string        // extra environment of exec'd commands
 }
 
 // Server is an in-process SSH server on 127.0.0.1. Exec requests run with
@@ -53,11 +53,11 @@ type Server struct {
 	ln  net.Listener
 	wg  sync.WaitGroup
 
-	mu     sync.Mutex
+	mu       sync.Mutex
 	execs    []string
 	lingered []string
 	logins   int
-	conns  map[net.Conn]bool
+	conns    map[net.Conn]bool
 }
 
 // Start starts a server; it stops at the end of the test.

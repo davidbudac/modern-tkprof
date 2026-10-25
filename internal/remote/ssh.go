@@ -98,8 +98,8 @@ type Entry struct {
 
 // FetchOptions are the options of SSH.Fetch.
 type FetchOptions struct {
-	From     int64            // first byte to read (the local partial file's size when resuming)
-	NoGzip   bool             // sshcli: do not compress on the host even when it has gzip
+	From     int64           // first byte to read (the local partial file's size when resuming)
+	NoGzip   bool            // sshcli: do not compress on the host even when it has gzip
 	Progress func(pos int64) // the absolute offset reached (From + bytes written); may be nil
 }
 
@@ -127,7 +127,7 @@ type SSH interface {
 	Close() error
 }
 
-// ShQuote quotes s for a POSIX shell: 'it'\''s'.
+// ShQuote quotes s for a POSIX shell: 'it'\”s'.
 func ShQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
