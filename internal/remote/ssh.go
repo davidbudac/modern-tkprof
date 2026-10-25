@@ -128,7 +128,7 @@ type SSH interface {
 }
 
 // ShQuote quotes s for a POSIX shell: in single quotes, each embedded quote
-// closed, escaped and reopened (it's becomes `'it'\''s'`).
+// closed, escaped and reopened as quote-backslash-quote-quote.
 func ShQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
