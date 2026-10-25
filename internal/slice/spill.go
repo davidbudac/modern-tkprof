@@ -18,10 +18,16 @@ import (
 
 // SpillOptions configure a Spill.
 type SpillOptions struct {
-	Dir      string         // parent directory of the spill directory ("" = os.TempDir())
+	Dir      string         // parent directory of the spill directory ("" = os.TempDir()); with Persist the directory itself
 	Key      string         // identity of the trace (SpillKey): stale directories of the same trace are removed
 	BindMode model.BindMode // BindsRedact stores the redacted values; BindsNone is not spilled (leave Options.SpillBinds off)
 	Salt     string         // redaction salt
+
+	// Persist writes into Dir itself (created 0700; no temporary name, no
+	// RemoveStale), adds the in-memory part of the indexes as spill.idx at
+	// Finish, and makes Close keep the files: the index cache reopens them
+	// with OpenSpill.
+	Persist bool
 }
 
 // SpillKey identifies a trace set by the path, size and modification time of
@@ -54,7 +60,11 @@ const spillPrefix = "mtkprof-spill-"
 //
 // and answers queries from them afterwards (Source). Only the dimension tables
 // of the model and a few pages of each file are in memory. Close removes the
-// directory.
+// directory, unless SpillOptions.Persist is set: then Finish also writes
+//
+//	spill.idx    row counts, statement index layout, context row ranges
+//
+// and OpenSpill serves the directory again without the build.
 type Spill struct {
 	m    *model.Model
 	opts SpillOptions
@@ -84,6 +94,15 @@ type rowRange struct{ lo, hi int64 }
 // from dead processes) and its files. Attach it to the model with
 // model.Options.NewTee: func(m) { return sp.Attach(m) }.
 func NewSpill(o SpillOptions) (*Spill, error) {
+	if o.Persist {
+		if o.Dir == "" {
+			return nil, fmt.Errorf("spill: Persist needs a directory")
+		}
+		if err := os.MkdirAll(o.Dir, 0o700); err != nil {
+			return nil, err
+		}
+		return createSpill(o, o.Dir)
+	}
 	base := o.Dir
 	if base == "" {
 		base = os.TempDir()
@@ -102,6 +121,11 @@ func NewSpill(o SpillOptions) (*Spill, error) {
 	if err != nil {
 		return nil, err
 	}
+	return createSpill(o, dir)
+}
+
+func createSpill(o SpillOptions, dir string) (*Spill, error) {
+	var err error
 	s := &Spill{opts: o, dir: dir}
 	open := func(name string) *os.File {
 		if err != nil {
@@ -259,6 +283,12 @@ func (s *Spill) Finish() {
 		s.fail(err)
 		return
 	}
+	if s.opts.Persist {
+		if err := s.writeIdx(d); err != nil {
+			s.fail(err)
+			return
+		}
+	}
 	s.src = d
 }
 
@@ -285,8 +315,9 @@ func (s *Spill) Sizes() map[string]int64 {
 	return out
 }
 
-// Close closes the files and removes the directory. Safe to call from a
-// signal handler while the build is still writing (its writes then fail).
+// Close closes the files and removes the directory (a persisted spill keeps
+// it). Safe to call from a signal handler while the build is still writing
+// (its writes then fail).
 func (s *Spill) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -294,11 +325,21 @@ func (s *Spill) Close() error {
 		return nil
 	}
 	s.closed = true
+	var err error
 	for _, f := range s.files {
-		f.Close()
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+	}
+	if s.opts.Persist {
+		return err
 	}
 	return os.RemoveAll(s.dir)
 }
+
+// ProcessAlive reports whether a process with this pid exists (for the
+// owners of build directories, as RemoveStale uses it).
+func ProcessAlive(pid int) bool { return processAlive(pid) }
 
 func count(by *[]int64, cur model.ID) {
 	if cur < 0 {

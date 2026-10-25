@@ -170,11 +170,18 @@ options. `slice.SpillKey` (path, size, mtime) is replaced by this.
 Contents:
 
 ```
-manifest.json        engine version, index format, protocol, source files (abs path, size, mtime, identity), options, created, lastUsed, bytes
-dims.bin             model.Model without the fact tables (statements, cursors, contexts, events, plans, transactions, errors, File, Diag, Agg, Stats)
+manifest.json        engine version, index format, protocol, inputs (named file identities), source files (abs path, size, mtime, identity), options, created, lastUsed, bytes, file sizes
+dims.bin             model.Model without the fact tables and Agg (statements, cursors, contexts, events, plans, transactions, errors, File, Diag)
+agg.bin              the analyze.Accumulator (Model.Agg) the document and text report are computed from
 calls.bin waits.bin bindsets.bin binds.bin bindvals.bin calls.stmt waits.stmt   today's spill files, unchanged layout
+spill.idx            what the spill kept in memory: row counts, statement index layout, context row ranges
 lines-<i>.idx        trace.LineIndex checkpoints per input file (today rebuilt on every serve)
 ```
+
+As built (E2): the options in the identity are bind mode, salt hash, the
+finding thresholds (they shape the aggregates) and NoFollow; the model is
+stored before `ApplyRef` (applied after every load); API in the
+`internal/engine` package comment.
 
 Work:
 

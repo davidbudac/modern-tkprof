@@ -1,8 +1,13 @@
 package trace
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
+	"math"
 	"os"
 )
 
@@ -16,6 +21,7 @@ type LineIndex struct {
 	f     *os.File
 	cps   []int64 // cps[i] = start of line i*lineStride+1
 	lines int
+	size  int64 // bytes indexed
 }
 
 const lineStride = 64
@@ -59,6 +65,7 @@ func OpenLineIndex(path string) (*LineIndex, error) {
 	if inLine { // unterminated final line
 		li.lines++
 	}
+	li.size = base
 	return li, nil
 }
 
@@ -121,4 +128,82 @@ func (li *LineIndex) Read(from, n int) ([]byte, error) {
 		}
 	}
 	return out, nil
+}
+
+// lineIndexMagic and lineIndexVersion head a saved LineIndex (Save).
+const (
+	lineIndexMagic   = "MTKPLIDX"
+	lineIndexVersion = 1
+)
+
+// LineIndexVersion is the format version of LineIndex.Save.
+const LineIndexVersion = lineIndexVersion
+
+// ErrLineIndexFormat is returned (wrapped) by LoadLineIndex for a file of
+// another format, version or stride.
+var ErrLineIndexFormat = errors.New("unsupported or corrupt line index file")
+
+// Save writes the checkpoints (for the index cache): magic, version, stride,
+// file size, line count and the checkpoint offsets as little-endian uint64.
+// The file size lets LoadLineIndex reject an index of another file.
+func (li *LineIndex) Save(w io.Writer) error {
+	size := li.size
+	bw := bufio.NewWriterSize(w, 256<<10)
+	bw.WriteString(lineIndexMagic)
+	var b [8]byte
+	for _, v := range []uint64{lineIndexVersion, lineStride, uint64(size), uint64(li.lines), uint64(len(li.cps))} {
+		binary.LittleEndian.PutUint64(b[:], v)
+		bw.Write(b[:])
+	}
+	for _, c := range li.cps {
+		binary.LittleEndian.PutUint64(b[:], uint64(c))
+		bw.Write(b[:])
+	}
+	return bw.Flush()
+}
+
+// LoadLineIndex reads what Save wrote and opens path to read the lines from;
+// the file must have the size it had when the index was saved.
+func LoadLineIndex(path string, r io.Reader) (*LineIndex, error) {
+	br := bufio.NewReaderSize(r, 256<<10)
+	head := make([]byte, len(lineIndexMagic)+5*8)
+	if _, err := io.ReadFull(br, head); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrLineIndexFormat, err)
+	}
+	if string(head[:len(lineIndexMagic)]) != lineIndexMagic {
+		return nil, fmt.Errorf("%w: bad magic", ErrLineIndexFormat)
+	}
+	var v [5]uint64
+	for i := range v {
+		v[i] = binary.LittleEndian.Uint64(head[len(lineIndexMagic)+8*i:])
+	}
+	version, stride, size, lines, ncp := v[0], v[1], int64(v[2]), v[3], v[4]
+	switch {
+	case version != lineIndexVersion:
+		return nil, fmt.Errorf("%w: version %d, want %d", ErrLineIndexFormat, version, lineIndexVersion)
+	case stride != lineStride:
+		return nil, fmt.Errorf("%w: stride %d, want %d", ErrLineIndexFormat, stride, lineStride)
+	case lines > math.MaxInt32*lineStride || ncp != (lines+lineStride-1)/lineStride:
+		return nil, fmt.Errorf("%w: %d checkpoints for %d lines", ErrLineIndexFormat, ncp, lines)
+	}
+	cps := make([]int64, ncp)
+	buf := make([]byte, 8)
+	for i := range cps {
+		if _, err := io.ReadFull(br, buf); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrLineIndexFormat, err)
+		}
+		cps[i] = int64(binary.LittleEndian.Uint64(buf))
+	}
+	if _, err := br.ReadByte(); err != io.EOF {
+		return nil, fmt.Errorf("%w: trailing data", ErrLineIndexFormat)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	if fi, err := f.Stat(); err != nil || fi.Size() != size {
+		f.Close()
+		return nil, fmt.Errorf("%w: %s is not the file the index was built from", ErrLineIndexFormat, path)
+	}
+	return &LineIndex{f: f, cps: cps, lines: int(lines), size: size}, nil
 }
