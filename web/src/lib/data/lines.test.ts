@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
-import { fetchLinesAnnot, lineAt, matchSpan, objectsAt, parseJump, probeLinesApi, readNdjson, search, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, objectsAt, parseJump, probeLinesApi, readNdjson, search, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -154,5 +154,55 @@ describe('matchSpan', () => {
   })
   it('folds case for a case-insensitive regex', () => {
     expect(matchSpan({ line: 1, col: 0, text: 'WAIT #1' }, 'wait', true, false)).toEqual([0, 4])
+  })
+})
+
+describe('jump to a clock time', () => {
+  const first = 5_000_000
+  const clock = { wallOffsetUs: Date.UTC(2026, 0, 2, 10, 0, 0) * 1000 - first, tzOffsetMin: 120, span: { firstTim: first, lastTim: first + 3600e6 } }
+  it('takes a time of day in the file zone, and still the offsets', () => {
+    expect(parseJump('12:00:01.5', first, clock)).toBe(first + 1.5e6)
+    expect(parseJump('2026-01-02 12:10:00', first, clock)).toBe(first + 600e6)
+    expect(parseJump('250ms', first, clock)).toBe(first + 250e3)
+    expect(parseJump('7', first, clock)).toBe(first + 7e6)
+  })
+  it('rejects a clock time without a wall clock or with a bad one', () => {
+    expect(parseJump('12:00:01', first)).toBeNull()
+    expect(parseJump('25:00:01', first, clock)).toBeNull()
+  })
+})
+
+describe('search-match highlighting', () => {
+  it('finds every literal match, case-insensitively unless asked', () => {
+    expect(matchSpans('EXEC #1: Exec exec', 'exec', false, false)).toEqual([[0, 4], [9, 13], [14, 18]])
+    expect(matchSpans('EXEC #1: Exec exec', 'exec', false, true)).toEqual([[14, 18]])
+    expect(matchSpans('aaaa', 'aa', false, true)).toEqual([[0, 2], [2, 4]])
+    expect(matchSpans('abc', '', false, false)).toEqual([])
+  })
+  it('finds regex matches, skips empty ones and survives a regex JS rejects', () => {
+    expect(matchSpans('tim=123 tim=45', 'tim=\\d+', true, true)).toEqual([[0, 7], [8, 14]])
+    expect(matchSpans('abc', 'x*', true, true)).toEqual([])
+    expect(matchSpans('abc', '(?P<n>a)', true, true)).toEqual([])
+  })
+  it('splits a text into runs that concatenate to it', () => {
+    const t = 'WAIT #1: nam=x ela=5'
+    const runs = highlightRuns(t, [[0, 4], [9, 12]])
+    expect(runs).toEqual([{ text: 'WAIT', hit: true }, { text: ' #1: ', hit: false }, { text: 'nam', hit: true }, { text: '=x ela=5', hit: false }])
+    expect(runs.map((r) => r.text).join('')).toBe(t)
+  })
+  it('handles no spans, overlaps and spans past the end', () => {
+    expect(highlightRuns('abc', [])).toEqual([{ text: 'abc', hit: false }])
+    expect(highlightRuns('abc', [[0, 2], [1, 3]])).toEqual([{ text: 'ab', hit: true }, { text: 'c', hit: false }])
+    expect(highlightRuns('abc', [[2, 9]])).toEqual([{ text: 'ab', hit: false }, { text: 'c', hit: true }])
+    expect(highlightRuns('', [])).toEqual([{ text: '', hit: false }])
+  })
+})
+
+describe('line permalink', () => {
+  const loc = { origin: 'http://100.64.0.1:8046', pathname: '/', search: '?doc=a.json' }
+  it('is the page with the Lines view hash the app writes', () => {
+    expect(linePermalink(loc, 0, 4711)).toBe('http://100.64.0.1:8046/?doc=a.json#view=lines&line=4711')
+    expect(linePermalink(loc, 2, 9)).toBe('http://100.64.0.1:8046/?doc=a.json#view=lines&file=2&line=9')
+    expect(linePermalink({ ...loc, search: '' }, 0, 1)).toBe('http://100.64.0.1:8046/#view=lines')
   })
 })

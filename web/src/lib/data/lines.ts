@@ -1,4 +1,5 @@
 import type { ApiClient } from './client'
+import { parseClockTim, type ClockDoc } from './clock'
 
 /** Raw trace lines come from `mtkprof serve` (GET /api/lines); the standalone HTML has no server to ask. */
 
@@ -141,8 +142,10 @@ export function matchSpan(h: SearchHit, q: string, regex: boolean, caseSensitive
 /**
  * "Jump to time" input → a trace clock value (µs), or null when it is not one.
  * `1.5s`, `250ms`, `900us` are offsets from the start of the trace; a bare number at or above the first tim is an absolute tim, below it seconds.
+ * With `clock` (the trace's wall-clock origin) a time of day `HH:MM:SS[.fff]` or `YYYY-MM-DD HH:MM:SS[.fff]` in the trace file's zone works too.
  */
-export function parseJump(text: string, firstTim: number): number | null {
+export function parseJump(text: string, firstTim: number, clock?: ClockDoc): number | null {
+  if (clock && text.includes(':')) return parseClockTim(text, clock)
   const m = /^\s*([+-]?\d+(?:\.\d+)?)\s*(s|ms|us|µs)?\s*$/i.exec(text)
   if (!m) return null
   const v = Number(m[1])
@@ -152,4 +155,55 @@ export function parseJump(text: string, firstTim: number): number | null {
     case 'us': case 'µs': return firstTim + v
     default: return v >= firstTim ? v : firstTim + v * 1e6
   }
+}
+
+/** A line of text cut into runs, the matched ones flagged (the search-match highlight of a row). */
+export interface TextRun { text: string; hit: boolean }
+
+/**
+ * Where a search's matches are in one line of text, for highlighting rows the hit list does not carry the text of (the viewer shows full lines).
+ * Every match of the search in the line, in UTF-16 units; a regex that JS rejects (RE2-only syntax) yields none.
+ */
+export function matchSpans(text: string, q: string, regex: boolean, caseSensitive: boolean, max = 50): [number, number][] {
+  if (q === '') return []
+  const out: [number, number][] = []
+  if (!regex) {
+    const hay = caseSensitive ? text : text.toLowerCase(), needle = caseSensitive ? q : q.toLowerCase()
+    if (hay.length !== text.length) return [] // case folding changed the length (rare): offsets would drift
+    for (let i = hay.indexOf(needle); i >= 0 && out.length < max; i = hay.indexOf(needle, i + needle.length)) out.push([i, i + needle.length])
+    return out
+  }
+  try {
+    const re = new RegExp(q, 'g' + (caseSensitive ? '' : 'i'))
+    for (let m = re.exec(text); m && out.length < max; m = re.exec(text)) {
+      if (m[0] === '') { re.lastIndex++; continue }
+      out.push([m.index, m.index + m[0].length])
+    }
+  } catch { /* RE2 syntax that JS rejects */ }
+  return out
+}
+
+/** The text cut into plain and hit runs at ascending, non-overlapping `spans` (others are skipped). The runs concatenate to `text`. */
+export function highlightRuns(text: string, spans: [number, number][]): TextRun[] {
+  const runs: TextRun[] = []
+  let at = 0
+  for (const [a, b] of spans) {
+    if (a < at || b <= a || a >= text.length) continue
+    if (a > at) runs.push({ text: text.slice(at, a), hit: false })
+    runs.push({ text: text.slice(a, Math.min(b, text.length)), hit: true })
+    at = Math.min(b, text.length)
+  }
+  if (at < text.length || runs.length === 0) runs.push({ text: text.slice(at), hit: false })
+  return runs
+}
+
+/**
+ * The standalone app's deep link to a line of the Lines view: the current page (path and `?doc=` query) with
+ * `#view=lines[&file=N][&line=N]`, the same hash the app writes while that view is open (app/urlstate.ts).
+ */
+export function linePermalink(loc: Pick<Location, 'origin' | 'pathname' | 'search'>, file: number, line: number): string {
+  const p = new URLSearchParams({ view: 'lines' })
+  if (file) p.set('file', String(file))
+  if (line > 1) p.set('line', String(line))
+  return `${loc.origin}${loc.pathname}${loc.search}#${p}`
 }
