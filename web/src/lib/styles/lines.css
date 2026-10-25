@@ -74,3 +74,7 @@
 .lines-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
 .lines-legend i { inline-size: 0.6rem; block-size: 0.6rem; border-radius: 50%; display: inline-block; }
 .lines-legend i.mk { border-radius: 1px; inline-size: 0.25rem; block-size: 0.8rem; background: var(--c-cpu); }
+.lv-note .lv-ln::after { content: "✎"; font-size: 0.65rem; color: var(--c-note); }
+.lines-bms li { flex-wrap: wrap; }
+.lines-bm-note { flex-basis: 100%; margin: 0; padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--c-note); color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.lines-root > .note-edit, section > .note-edit { margin: var(--sp-2) var(--sp-4); }

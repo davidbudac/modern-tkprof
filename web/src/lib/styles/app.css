@@ -410,3 +410,20 @@ button:disabled { opacity: 0.5; cursor: default; }
 .minimap { position: relative; inline-size: 100%; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); cursor: crosshair; touch-action: none; }
 .minimap canvas { display: block; }
 .minimap-window { position: absolute; inset-block: 0; background: color-mix(in oklch, var(--ink) 9%, transparent); border-inline: 1px solid var(--ink-2); pointer-events: none; }
+
+/* ---- notes (annotations) ------------------------------------------------- */
+:root { --c-note: light-dark(#b07800, #e0a92a); }
+.note-box { display: flex; align-items: baseline; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-inline-start: 2px solid var(--c-note); background: color-mix(in oklch, var(--c-note) 7%, transparent); border-radius: 0 var(--radius) var(--radius) 0; font-size: var(--text-md); }
+.note-box p { margin: 0; flex: 1; white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-mark { color: var(--c-note); }
+.note-edit { display: grid; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-inline-start: 2px solid var(--c-note); max-inline-size: 48rem; }
+.note-edit textarea, .note-edit input { font: inherit; font-size: var(--text-md); color: var(--ink); background: var(--surface-raised); border: 1px solid var(--hairline-strong); border-radius: var(--radius); padding: var(--sp-1) var(--sp-2); }
+.note-edit textarea { resize: vertical; min-block-size: 4rem; }
+.note-acts { display: flex; gap: var(--sp-2); }
+.note-chip { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--c-note); }
+button.note-btn { color: var(--ink-3); }
+button.note-btn.on { color: var(--c-note); }
+.pv-notice { display: flex; gap: var(--sp-2); align-items: center; }
+.win-notes { display: grid; gap: var(--sp-2); margin-block-end: var(--sp-2); }
+.win-notes .chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.win-notes .chip.on { background: color-mix(in oklch, var(--c-note) 14%, transparent); }

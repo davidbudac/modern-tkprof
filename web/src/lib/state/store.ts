@@ -1,8 +1,12 @@
 import type { TraceDoc } from '../data/doc'
 import type { CompareData } from '../data/load'
 import type { ID } from '../data/types'
+import type { Fact } from '../data/pivot'
+import type { Annotation } from '../data/annotations'
+import { pivotConfigOf, resolvePivotConfig, type PivotConfig } from '../data/pivotconfig'
 
 export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
+  | 'annotations' | 'reports' // desktop shell views
 
 export interface TimeWindow { startTim: number; endTim: number }
 
@@ -16,7 +20,26 @@ export interface Selection {
 }
 
 /** A bookmarked trace line (kept in the store; the desktop shell persists them as annotations). */
-export interface Bookmark { file: number; line: number; label: string }
+export interface Bookmark {
+  file: number; line: number; label: string
+  /** a note on the line (an annotation of kind `line`) and when it was last edited (ms since the epoch) */
+  note?: string; updated?: number
+}
+
+/** The Pivot view's configuration (the scope is the store's window, contexts and idle flag). */
+export interface PivotState {
+  fact: Fact
+  /** one or two dimension ids */
+  by: string[]
+  /** measure id the rows are sorted by, per fact */
+  sort: Record<Fact, string>
+  limit: number
+  /** only the rows of this statement / (waits) event */
+  stmt: ID | null
+  event: ID | null
+  /** shown above the table: what an applied saved configuration could not resolve */
+  notice: string | null
+}
 
 /** The Lines view's position: `seq` changes when something outside asks it to move to `line` (a deep link, a jump), clicks inside only update `line`. */
 export interface LinesView { file: number; line: number; seq: number }
@@ -46,6 +69,13 @@ export interface State {
   lineRefTarget: 'drawer' | 'view'
   linesView: LinesView
   bookmarks: Bookmark[]
+  /** notes on statements, executions and time windows (lines: `bookmarks`); kept for the page lifetime unless a shell persists them */
+  annotations: Annotation[]
+  /** show the add-note affordances (the desktop shell persists the notes) */
+  annotationsEnabled: boolean
+  /** show the Pivot view's "Saved" menu (the desktop shell provides `Session.library`) */
+  libraryEnabled: boolean
+  pivot: PivotState
 }
 
 const initial: State = {
@@ -54,6 +84,8 @@ const initial: State = {
   window: null, contexts: null, includeIdle: true, inclusive: false, theme: 'auto',
   linesAvailable: false, lineViewer: null,
   linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
+  annotations: [], annotationsEnabled: false, libraryEnabled: false,
+  pivot: { fact: 'calls', by: ['stmt'], sort: { calls: 'e', waits: 'ela' }, limit: 1000, stmt: null, event: null, notice: null },
 }
 
 /** The statement of the other side that matches `stmt` of side `from` (via the Go diff), else null. */
@@ -71,6 +103,10 @@ export interface Store {
   subscribe(l: () => void): () => void
   /** Opens a loaded document (a comparison starts on side A). */
   setLoaded(l: { doc: TraceDoc; compare: CompareData | null }): void
+  /** The Pivot view's configuration with stable keys (to save it). */
+  getPivotConfig(): PivotConfig
+  /** Shows a saved configuration in the Pivot view; returns the parts the document does not have (also shown as a notice). */
+  applyPivotConfig(cfg: PivotConfig): { dropped: string[] }
   actions: Actions
 }
 
@@ -86,9 +122,16 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', loading: false, error: null, bookmarks: [], linesView: { file: 0, line: 1, seq: 0 } })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 } })
   }
-  return { getState, setState, subscribe, setLoaded, actions: makeActions(setState) }
+  const getPivotConfig = () => pivotConfigOf(state)
+  const applyPivotConfig = (cfg: PivotConfig) => {
+    if (!state.doc) return { dropped: ['no document'] }
+    const r = resolvePivotConfig(state.doc, cfg, state.pivot)
+    setState(r.patch)
+    return { dropped: r.dropped }
+  }
+  return { getState, setState, subscribe, setLoaded, getPivotConfig, applyPivotConfig, actions: makeActions(setState) }
 }
 
 function makeActions(setState: Store['setState']) {
@@ -129,10 +172,33 @@ function makeActions(setState: Store['setState']) {
     setLinesLine(file: number, line: number) { setState((s) => ({ linesView: { file, line, seq: s.linesView.seq } })) },
     /** Add a bookmark (or relabel the one on that line). */
     addBookmark(file: number, line: number, label: string) {
-      setState((s) => ({ bookmarks: [...s.bookmarks.filter((b) => b.file !== file || b.line !== line), { file, line, label }].sort((a, b) => a.file - b.file || a.line - b.line) }))
+      setState((s) => {
+        const old = s.bookmarks.find((b) => b.file === file && b.line === line)
+        const b: Bookmark = old?.note ? { ...old, label } : { file, line, label }
+        return { bookmarks: [...s.bookmarks.filter((x) => x !== old), b].sort((a, b) => a.file - b.file || a.line - b.line) }
+      })
+    },
+    /** Set the note of a line's bookmark (bookmarking the line with `label` if it is not); an empty note removes the note, not the bookmark. */
+    setBookmarkNote(file: number, line: number, note: string, label = '') {
+      setState((s) => {
+        const old = s.bookmarks.find((b) => b.file === file && b.line === line)
+        const b: Bookmark = { file, line, label: old?.label ?? label, updated: Date.now() }
+        if (note) b.note = note
+        return { bookmarks: [...s.bookmarks.filter((x) => x !== old), b].sort((a, b) => a.file - b.file || a.line - b.line) }
+      })
     },
     removeBookmark(file: number, line: number) { setState((s) => ({ bookmarks: s.bookmarks.filter((b) => b.file !== file || b.line !== line) })) },
     setBookmarks(bookmarks: Bookmark[]) { setState({ bookmarks }) },
+    setAnnotations(annotations: Annotation[]) { setState({ annotations }) },
+    /** Add a note (an existing id is replaced). */
+    addAnnotation(a: Annotation) { setState((s) => ({ annotations: [...s.annotations.filter((x) => x.id !== a.id), a] })) },
+    /** Edit a note; `updated` becomes now. */
+    updateAnnotation(id: string, patch: Partial<Omit<Annotation, 'id' | 'kind' | 'created'>>) {
+      setState((s) => ({ annotations: s.annotations.map((a) => (a.id === id ? { ...a, ...patch, updated: Math.max(Date.now(), a.updated + 1) } : a)) }))
+    },
+    removeAnnotation(id: string) { setState((s) => ({ annotations: s.annotations.filter((a) => a.id !== id) })) },
+    /** Change the Pivot view's configuration (clears an applied configuration's notice). */
+    setPivot(patch: Partial<PivotState>) { setState((s) => ({ pivot: { ...s.pivot, notice: null, ...patch } })) },
     setTheme(theme: State['theme']) {
       setState({ theme })
       const root = document.documentElement

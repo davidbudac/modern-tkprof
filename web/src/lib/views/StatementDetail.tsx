@@ -14,6 +14,8 @@ import { ColumnChooser } from '../components/ColumnChooser'
 import { usePersisted } from '../state/persist'
 import { ExecCompare } from './ExecCompare'
 import { planFindings, type Finding as PlanFinding } from '../data/advisor'
+import { NoteEditor, NoteBox } from '../components/Note'
+import { stmtRef, stmtNote, execNotes, makeAnnotation, type StmtRef } from '../data/annotations'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 
 export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
@@ -22,6 +24,11 @@ export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
   if (!st || !stats) return <p className="muted">Unknown statement</p>
   const planHashes = stats.planHashes ?? []
   const [copied, setCopied] = useState(false)
+  const [noteOpen, setNoteOpen] = useState(false)
+  useEffect(() => setNoteOpen(false), [id])
+  const notesOn = useStore((s) => s.annotationsEnabled)
+  const ref = useMemo(() => stmtRef(st), [st])
+  const note = stmtNote(useStore((s) => s.annotations), ref)
   const copy = async () => {
     try { await navigator.clipboard.writeText(st.text); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch { /* clipboard unavailable */ }
   }
@@ -33,8 +40,13 @@ export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
         <span className="chip-q">depth {stats.minDepth}{stats.maxDepth !== stats.minDepth ? `–${stats.maxDepth}` : ''}</span>
         {planHashes.map((h) => <span key={h} className="chip-q">plan {h}</span>)}
         {st.kind === 0 && <span className="chip-q" title="hash value">hv {st.hashValue}</span>}
-        <span className="acts"><button onClick={copy}>{copied ? 'Copied' : 'Copy SQL'}</button></span>
+        {note && <span className="chip-q note-chip" title={note.note}>✎ note</span>}
+        <span className="acts">
+          {notesOn && !note && !noteOpen && <button onClick={() => setNoteOpen(true)} title="a note on this statement, kept with the trace">✎ Add note</button>}
+          <button onClick={copy}>{copied ? 'Copied' : 'Copy SQL'}</button>
+        </span>
       </div>
+      <StmtNote stmt={ref} open={noteOpen} setOpen={setNoteOpen} title={doc.label(st)} />
       <SqlText text={st.text} />
       <ResponseTime doc={doc} stats={stats} />
       <CallTable doc={doc} stats={stats} />
@@ -51,6 +63,22 @@ export function StatementDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       <Errors doc={doc} id={id} />
     </>
   )
+}
+
+/** The statement's note (or its editor). */
+function StmtNote({ stmt, open, setOpen, title }: { stmt: StmtRef; open: boolean; setOpen(o: boolean): void; title: string }) {
+  const actions = useActions()
+  const notesOn = useStore((s) => s.annotationsEnabled)
+  const note = stmtNote(useStore((s) => s.annotations), stmt)
+  if (open) {
+    return (
+      <NoteEditor label={`Note on statement ${title}`} text={note?.note}
+        onSave={(t) => { if (note) actions.updateAnnotation(note.id, { note: t }); else actions.addAnnotation(makeAnnotation({ kind: 'statement', note: t, stmt })); setOpen(false) }}
+        onCancel={() => setOpen(false)}
+        onDelete={note ? () => { actions.removeAnnotation(note.id); setOpen(false) } : undefined} />
+    )
+  }
+  return note ? <NoteBox text={note.note} when={note.updated} onEdit={notesOn ? () => setOpen(true) : undefined} /> : null
 }
 
 function kindName(k: number): string { return ['SQL', 'unknown statement', 'commit', 'rollback', 'LOB operation', 'RPC call', 'parse error'][k] ?? '?' }
@@ -123,6 +151,7 @@ function CallTable({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
 }
 
 function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
+  const actions = useActions()
   const source = sourceOf(doc)
   const page = useSourceQuery(source, `executions:${id}`, (signal) => source.executions(id, signal), 'executions')
   const exs = useMemo(() => page.data?.rows ?? [], [page.data])
@@ -130,6 +159,11 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
   const wanted = useStore((s) => s.selection.exec)
   const [sel, setSel] = useState<Execution | null>(null)
   const [picked, setPicked] = useState<string[]>([]) // up to two execution keys: A (older pick) and B
+  const notesOn = useStore((s) => s.annotationsEnabled)
+  const ref = useMemo(() => stmtRef(doc.statements[id]), [doc, id])
+  const notes = execNotes(useStore((s) => s.annotations), ref)
+  const [noteFor, setNoteFor] = useState<Execution | null>(null)
+  useEffect(() => setNoteFor(null), [id, doc])
   useEffect(() => { if (wanted) { const e = exs.find((x) => x.cursor === wanted.cursor && x.execNo === wanted.execNo); if (e) setSel(e) } }, [wanted, exs])
   useEffect(() => setPicked([]), [id, doc])
   if (!page.data) {
@@ -158,7 +192,17 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
     { key: 'b', header: 'Binds', className: 'clip mono', render: (e) => previewOfBinds(bindsFor(e)), sort: (e) => previewOfBinds(bindsFor(e)) },
     { key: 'l', header: 'Line', align: 'end', title: 'trace line of the EXEC call', render: (e) => <LineRef line={e.line} file={e.ctx !== undefined ? doc.fileOfCtx(e.ctx) : doc.fileOfCursor(e.cursor)} bare />, sort: (e) => e.line },
   ]
-  const cols = [pickCol, ...all.filter((c) => c.key === 'n' || !hidden.includes(c.key))]
+  const noteCol: Column<Execution> = {
+    key: 'note', header: '', className: 'pick', title: 'notes on executions',
+    render: (e) => {
+      const n = notes.get(e.execNo)
+      if (!n && !notesOn) return null
+      return <button className={'quiet note-btn' + (n ? ' on' : '')} title={n ? n.note : 'add a note on this execution'} aria-label={`${n ? 'Edit the note' : 'Add a note'} on execution #${e.execNo}`}
+        onClick={(ev) => { ev.stopPropagation(); setNoteFor(noteFor && keyOf(noteFor) === keyOf(e) ? null : e) }}>✎</button>
+    },
+  }
+  const cols = [pickCol, ...(notesOn || notes.size ? [noteCol] : []), ...all.filter((c) => c.key === 'n' || !hidden.includes(c.key))]
+  const editing = noteFor ? notes.get(noteFor.execNo) : undefined
   const { total, avgE: avg, slowest: slow } = page.data
   return (
     <section className="section">
@@ -166,6 +210,16 @@ function Executions({ doc, id }: { doc: TraceDoc; id: ID }) {
         <span className="tools"><ColumnChooser all={all.filter((c) => c.key !== 'n').map((c) => ({ key: c.key, label: c.header }))} hidden={hidden} onChange={setHidden} /></span></header>
       <DataTable columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
         selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e, ev) => (ev?.shiftKey ? togglePick(e) : setSel(sel && sel.exec === e.exec ? null : e))} />
+      {noteFor && (notesOn ? (
+        <NoteEditor key={keyOf(noteFor)} label={`Note on execution #${noteFor.execNo}`} title={`Note on execution #${noteFor.execNo}`} text={editing?.note}
+          onSave={(t) => {
+            if (editing) actions.updateAnnotation(editing.id, { note: t })
+            else actions.addAnnotation(makeAnnotation({ kind: 'execution', note: t, stmt: ref, execNo: noteFor.execNo, cursorLine: doc.cursors[noteFor.cursor]?.line }))
+            setNoteFor(null)
+          }}
+          onCancel={() => setNoteFor(null)}
+          onDelete={editing ? () => { actions.removeAnnotation(editing.id); setNoteFor(null) } : undefined} />
+      ) : editing && <NoteBox text={editing.note} when={editing.updated} />)}
       {pa && pb ? <ExecCompare doc={doc} stmt={id} a={pa} b={pb} onClear={() => setPicked([])} /> : sel && <Binds doc={doc} stmt={id} ex={sel} />}
     </section>
   )
