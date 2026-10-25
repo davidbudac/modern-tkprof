@@ -240,8 +240,9 @@ to `<trace>.ref/` (or `-o`), applies it and prints the `report -ref` line.
 | `-sessions` | `SELECT` on `V$SESSION`, `V$PROCESS` |
 | `-files`, `fetch -db` | `SELECT` on `V$DIAG_TRACE_FILE`, `V$DIAG_TRACE_FILE_CONTENTS` (12.2+), `V$PROCESS`, `V$SESSION`. Without `V$DIAG_TRACE_FILE` (ORA-00942) `-files` lists `V$PROCESS.TRACEFILE` of live sessions instead (marked `fromProcess`; usable for an SSH fetch) |
 | `trace -on/-off` | `EXECUTE` on `DBMS_MONITOR` |
-| own-session trace (`MyTrace`, tests) | `DBMS_SESSION` (granted to PUBLIC) and `ALTER SESSION` (to verify) |
-| `ref -db` | as the refscript: `SELECT_CATALOG_ROLE` (`DBA_OBJECTS`, `DBA_USERS`, `V$DATAFILE`, `V$TEMPFILE`, `V$TABLESPACE`, `V$PARAMETER`) and `V$SQL_PLAN` for DBMS_XPLAN; `-lite`: `ALL_` views only, no datafiles |
+| own-session trace (`MyTrace`, tests) | `DBMS_SESSION` (granted to PUBLIC) and `ALTER SESSION` (`mtk` has it; whether `DBMS_SESSION` works without it is unverified) |
+| `ref -db` (full) | as the refscript: `SELECT_CATALOG_ROLE` or `SELECT ANY DICTIONARY` for `DBA_OBJECTS`, `DBA_USERS`; `V$DATAFILE`, `V$TEMPFILE`, `V$TABLESPACE`, `V$PARAMETER` for the datafiles; `V$SQL`, `V$SQL_PLAN`... for DBMS_XPLAN (`DISPLAY_CURSOR`, `DISPLAY_AWR`) |
+| `ref -db -lite` | nothing beyond `CREATE SESSION`: `ALL_OBJECTS`, `ALL_USERS` (only what the user may see), no datafiles; plans as far as DBMS_XPLAN is allowed |
 
 `SELECT_CATALOG_ROLE` covers every view above. Grant script, run as a DBA in
 the container the user connects to (for a PDB user: `alter session set
@@ -272,38 +273,103 @@ grant select on sys.v_$sql_plan_statistics_all to app_reader;
 grant select on sys.v_$sql        to app_reader;
 ```
 
-The lab user `mtk` gets the trace/diag/monitor grants from
-`testdata/gen/00_setup_user.sql`.
+The lab user `mtk` (PDB1) is not a DBA. From `testdata/gen/00_setup_user.sql`
+it has `CREATE SESSION`, `ALTER SESSION` and the schema-creation privileges,
+`EXECUTE` on `DBMS_MONITOR`, and `SELECT` on `V_$DIAG_INFO`,
+`V_$DIAG_TRACE_FILE`, `V_$DIAG_TRACE_FILE_CONTENTS`, `V_$INSTANCE`,
+`V_$SESSION`, `V_$PROCESS`, `V_$PARAMETER` (and the `V_$` objects of the
+generators: `EVENT_NAME`, `MYSTAT`, `STATNAME`, `SQLCOMMAND`, `PX_SESSION`,
+`PQ_SESSTAT`). No role (`SESSION_ROLES` is empty), no `DBA_` views and no
+`V_$DATAFILE`, `V_$TEMPFILE`, `V_$TABLESPACE`, `V_$SQL`, `V_$SQL_PLAN`.
+Consequences, seen on dbmint:
 
-#### PDB vs CDB (to verify on dbmint)
+- `ref -db` (full) gets ORA-00942 for `objects.csv` and `users.csv`
+  (`DBA_OBJECTS`, `DBA_USERS`) and for `datafiles.csv` (`V$DATAFILE`). The two
+  with an `ALL_` counterpart are **answered by the lite query** (`FetchRef`
+  returns a `*db.PartialError` whose `Fallback` lists them, with the refusal;
+  the CLI prints a `note:` per file, the engine job puts it in `message`);
+  `datafiles.csv` has no lite form, so it stays missing (`Failed`). The same
+  fallback happens on ORA-01031. Lite mode itself is clean: the bundle has the
+  objects and users `mtk` may see (5 objects, 2 users for `io_waits.trc`: the
+  lab database differs from the fixture bundle's, which is fine).
+- The full mode needs, besides `SELECT_CATALOG_ROLE` (or `SELECT ANY
+  DICTIONARY`, which covers `DBA_` and `V$` alike), nothing else: the role has
+  every `V$` view of the table above. Without the role, the explicit grants
+  of the script above (`dba_objects`, `dba_users`, `v_$datafile`,
+  `v_$tempfile`, `v_$tablespace`, `v_$sql*`) are what each file needs.
+- No plans: `DISPLAY_CURSOR` found no cursor of the fixture's sql_ids and
+  `mtk` cannot read `V$SQL_PLAN`; the plan files say "no plan found".
 
-Expected, not yet observed:
+#### PDB vs CDB (observed on dbmint, Oracle 19.27, `mtk` in PDB1)
 
-- A PDB-local user sees `V$SESSION` rows of its own PDB only; `V$PROCESS`
-  may show all processes.
-- `V$DIAG_TRACE_FILE` has `CON_ID`; a PDB user probably sees the files whose
-  `CON_ID` is the PDB's (foreground sessions of that PDB), not background or
-  CDB$ROOT traces. `V$DIAG_TRACE_FILE_CONTENTS` likewise.
-- Tracing a session of another PDB from a PDB is not possible; from
-  CDB$ROOT with a common user it is.
+- `V$DIAG_TRACE_FILE`: one container only, `CON_ID` 3 (5313 files); the
+  files of CDB$ROOT are not listed. `V$SESSION`: the user's own session plus
+  the `CON_ID` 0 background sessions (`Sessions` lists type USER only).
+- Background traces such as `cdb1_mmon_*.trc` are listed and **readable**
+  through `V$DIAG_TRACE_FILE_CONTENTS`.
+- `V$DIAG_INFO` works; `V$INSTANCE.version_full` is `19.27.0.0.0`;
+  `DBMS_MONITOR.SESSION_TRACE_ENABLE/DISABLE` on the user's own session works
+  (`V$SESSION.SQL_TRACE` follows).
+- Not tried: tracing another PDB's session (not possible from a PDB; from
+  CDB$ROOT with a common user it is).
 
 If a file is listed but `fetch -db` returns no lines, the file belongs to a
 container the user cannot see; use SSH.
 
 ### Fetch through `V$DIAG_TRACE_FILE_CONTENTS`
 
-`SELECT line_number, payload FROM v$diag_trace_file_contents WHERE adr_home =
-:h AND trace_filename = :f AND line_number BETWEEN :a AND :b ORDER BY
-line_number`, 50 000 lines per query, one payload per output line (a newline
-is added unless the payload has one). A chunk with fewer rows than asked ends
-the file. Each chunk is buffered and written whole, so after a dropped
-connection the output holds complete chunks and `fromLine + lines` (CLI:
-`-resume`, which also cuts a partial last line) continues it. Rows are
-fetched 1000 per round trip (go-ora `PREFETCH_ROWS`, `Spec.PrefetchRows`).
+**A row is a record, not a line.** Its `payload` holds one or more lines, and
+`line_number` is the file's line count at the *end* of the record (a handful
+of single-line STAT records have their FETCH's number, one less than their
+own line; several records can share a number). Measured on
+`cdb1_ora_133146_mtk_basic_binds.trc` (= `testdata/traces/19c/basic_binds.trc`,
+3059 lines, 213 689 bytes): 2707 rows, `line_number` 1..3059 with 363 gaps,
+314 rows with inner newlines, max payload 1498 bytes, 20 rows with a NULL
+payload (they follow the "Dump of memory" blocks; they add nothing and repeat
+the previous row's number). The payloads, **concatenated as they are**, in row
+order, are the file byte for byte (sha256 `adfd68fb...`). `db.Fetch` therefore
+never adds a newline; NULL is nothing. The view's rows are kept as a fixture
+(`testdata/db/basic_binds.view`) for the fake-driver tests.
 
-The view is slow (it parses the file on the server per query). Above
-**200 MB** the CLI prints a note and the UI must warn and offer SSH instead
-(the engine job sets its `message` past that size; `db.BigFetch`).
+```sql
+select line_number, payload from (
+  select line_number, payload, rownum rn from v$diag_trace_file_contents
+   where adr_home = :h and trace_filename = :f and line_number between :a and :b)
+ order by line_number, rn
+```
+
+(`rn` keeps the rows of one number in the order the view returned them.)
+
+Fetch reads `max(line_number)` first, then asks 50 000 line numbers per
+query (`FetchChunk`; about 43 700 rows on a real trace) from 1 up to that
+maximum: a chunk returns fewer rows than line numbers, so "fewer rows than
+asked" cannot end the file, and a file that is an exact multiple needs no
+empty query. Each chunk is buffered and written whole, so after a dropped
+connection the output holds complete chunks. Rows are fetched 1000 per round
+trip (go-ora `PREFETCH_ROWS`, `Spec.PrefetchRows`).
+
+**Resume** (`-resume`, the engine's repeated `fetch` call): `db.OpenResume`
+cuts a partial last line and returns `Resume{Lines: '\n' count L, Tail: last
+256 KB}`. Counting alone is not a key: `line_number > L` would lose a STAT
+line numbered like the FETCH before it, `>= L` repeats the FETCH, and a copy
+cut inside a multi-line record has half a row. So Fetch starts at line number
+`L - 64` (`ResumeBack`), takes the rows from there, and finds in them the
+longest whole-line prefix that is a suffix of the local tail *and* ends in a
+row numbered `L-1`..`L+k` (the number check keeps a repetitive trace from
+matching too far); only the bytes after it are appended. If no prefix matches
+the copy is not this trace and the resume fails
+("does not match the database's trace"). Tested at every line end and inside
+lines of the fixture, with a truncated file on dbmint, and (unit test) on a
+trace made of 40 identical copies.
+
+**Speed.** On dbmint through the SSH tunnel: 1.8 s (quiet lab) to 5 s per
+chunk of 50 000 line numbers (about 0.4-1 MB/s), independent of the offset
+(not quadratic: first and last chunk take the same); a query costs 2.5-3 s
+even for a few rows, so the server, not the network, is the limit. A
+117 MB / 2.88 M-line trace takes 2-5 minutes (measured 301 s); SSH is faster
+for anything big. Above **200 MB** the CLI prints a note and the UI
+must warn and offer SSH instead (the engine job sets its `message` past that
+size; `db.BigFetch`).
 
 ### TCPS
 
@@ -398,8 +464,10 @@ Routes (`api/engine.openapi.yaml`):
 
 ## Verification checklist for dbmint
 
-Nothing here has run yet (the dev machine has no access to the lab). The
-automated tests use fakes; this list is what remains. `dbmint` is the lab VM
+The automated tests use fakes. The SSH part (E7) has not run against the lab
+yet. The Oracle part (E8) ran on dbmint on 2026-10-25 (Oracle 19.27, `mtk`
+in PDB1, through `ssh -L 15210`): the answers are recorded in the list
+below. `dbmint` is the lab VM
 (`ssh -p 2200 oracle@dbmint`; sandboxed shells need
 `dangerouslyDisableSandbox: true` for it). Record results in this file
 (replace "to verify" with what was seen).
@@ -444,38 +512,58 @@ MTKPROF_DB_TEST=mtk/mtk@localhost:15210/pdb1.world MTKPROF_DB_TEST_BIG=<big trac
 ```
 
 `TestDBMint` checks version, `V$DIAG_INFO`, its own session in `Sessions`,
-`MyTrace` on → marked statement → off, its file in `TraceFiles`, line-number
-semantics, `Fetch` (and resume from line 2) parsed with `model.BuildFiles`
-containing the statement, `DBMS_MONITOR` on/off with `V$SESSION.SQL_TRACE`,
-and `FetchRef` (full and lite) on `io_waits.trc` applied with `ApplyRef`; it
-logs fetch throughput.
+`MyTrace` on → marked statement → off, its file in `TraceFiles`, the record
+semantics of the view, `Fetch` parsed with `model.BuildFiles` containing the
+statement, resume of a truncated copy (cut at 0, 1/4, 1/2 and inside the last
+quarter, plus a partial line) equal to a fresh fetch,
+`DBMS_MONITOR` on/off with `V$SESSION.SQL_TRACE`, and `FetchRef` (full and
+lite) on `io_waits.trc` applied with `ApplyRef` (full mode may only fail on
+`datafiles.csv`, objects and users fall back); it logs fetch throughput.
+`MTKPROF_DB_TEST_FIXTURE=cdb1_ora_133146_mtk_basic_binds.trc` also compares
+the fetch of the lab's copy with `testdata/traces/19c/basic_binds.trc`;
+`MTKPROF_DB_TEST_BIG_SHA256` checks the hash of the big fetch.
 
-Questions, with the SQL to answer them (as `mtk` in PDB1 unless noted):
+Questions, with the SQL to answer them (as `mtk` in PDB1 unless noted), and
+what dbmint answered:
 
-1. **Grants**: do the views answer?
-   `select count(*) from v$diag_trace_file;`
-   `select count(*) from v$diag_trace_file_contents where rownum <= 1;`
-   `select version_full from v$instance;`
-2. **What a PDB user sees** (compare with SYSDBA in CDB$ROOT):
-   `select con_id, count(*) from v$diag_trace_file group by con_id;`
-   `select con_id, count(*) from v$process group by con_id;`
-   `select con_id, count(*) from v$session group by con_id;`
-   and whether a background trace (`cdb1_mmon_*.trc`) is fetchable:
-   `select count(*) from v$diag_trace_file_contents where trace_filename like 'cdb1\_mmon\_%' escape '\';`
-3. **`line_number` is 1..count with no gaps** (resume depends on it):
-   `select min(line_number), max(line_number), count(*) from v$diag_trace_file_contents where trace_filename = '<file>';`
-4. **Payload = one line**: embedded newlines and long lines.
-   `select count(*), max(length(payload)), sum(case when instr(payload, chr(10)) > 0 then 1 else 0 end) from v$diag_trace_file_contents where trace_filename = '<file>';`
-   then byte-compare a db fetch with the SSH copy:
-   `mtkprof fetch -db mtk@localhost:15210/pdb1.world -name <file> -o /tmp/db.trc` and
+1. **Grants**: do the views answer? **Yes**: `v$diag_trace_file`,
+   `v$diag_trace_file_contents`, `v$instance` (`version_full` 19.27.0.0.0),
+   `v$diag_info` work for `mtk`. `DBA_` views and `V$DATAFILE` do not
+   (see Privileges).
+2. **What a PDB user sees**: `v$diag_trace_file` only `con_id` 3 (5313 files);
+   `v$session` own session plus `con_id` 0 background sessions; background
+   traces (`cdb1_mmon_*`) are readable. Details under "PDB vs CDB".
+3. **`line_number`**: **not** 1..count. A row is a record of one or more
+   lines, `line_number` is its last line, with gaps and repeats (2707 rows
+   for 3059 lines); see "Fetch through `V$DIAG_TRACE_FILE_CONTENTS`" for the
+   rule and the resume key.
+4. **Payload**: verbatim concatenation of the payloads is the file. 314 of
+   2707 rows have inner newlines, 20 have a NULL payload, none lacks its
+   newline otherwise, max length 1498 (the column is `VARCHAR2(4000)`: a
+   record cannot be longer; lines over that are split by the server into
+   records). The fetch of `cdb1_ora_133146_mtk_basic_binds.trc` has the
+   sha256 of the fixture; `mtkprof fetch -db ... -resume` of a truncated
+   copy is byte-equal as well. Compare any other file with the SSH copy:
    `ssh -p 2200 oracle@dbmint cat <Diag Trace>/<file> | cmp - /tmp/db.trc`.
-   (Lines over 4000 bytes, e.g. long SQL text or bind values, are the risk.)
-5. **Throughput** on a ~100 MB trace (`run_gen.sh big`), lines/s and MB/s;
-   and whether a chunk's time grows with its offset (the `BETWEEN` not
-   pushed into the file read, i.e. quadratic): the per-chunk progress log of
-   `MTKPROF_DB_TEST_BIG`. If it is quadratic, switch to one unbounded
-   `order by line_number` query streamed with resume by line.
-6. **Trace on/off**: `mtkprof trace mtk@localhost:15210/pdb1.world -sessions`,
+5. **Throughput** on the 117 MB trace (`cdb1_ora_134678_mtk_big_loop.trc`,
+   2 881 438 lines, `testdata/big/big_loop.trc`): 301 s for
+   117.7 MB = 9 570 lines/s, 0.39 MB/s, sha256 equal to the file
+   (`e14ae170...`); 58 chunks of 4.4-5.5 s (loopback tunnel to the VM, one
+   connection; an earlier quieter run measured 1.8 s per chunk, about 1 MB/s,
+   i.e. 2 min: the figure depends on the lab's load, plan for 2-5 min).
+   Does a chunk's time grow with its offset? **No**: the time per chunk is
+   flat from the first to the last chunk (the progress log of
+   `MTKPROF_DB_TEST_BIG`), so the `BETWEEN` range is cheap and no streaming
+   rewrite is needed. A query has a fixed cost of 2.5-3 s on this lab even for
+   88 rows, and ranges of 200 000 line numbers took 11-14 s against 4.4-5 s for 50 000 in
+   the same minute (about 1.6x faster per line); the chunk stays 50 000, a
+   small unit to lose on a dropped connection (deferred: make it adaptive).
+   Resume was also checked on this file at three offsets (cut after 2 875,
+   1 066 738 and 2 680 613 lines): the first range returned exactly the bytes
+   that follow the local copy.
+6. **Trace on/off** (`DBMS_MONITOR` through the test: passed;
+   `trace -sessions` listed `mtk` sessions with `SQL_TRACE` and "(this)"):
+   `mtkprof trace mtk@localhost:15210/pdb1.world -sessions`,
    then `-sid S -serial N -on` on another mtk session and
    `select sql_trace, sql_trace_waits, sql_trace_binds, sql_trace_plan_stats from v$session where sid = S;`
    (also confirms the `waits => :w = 1` binding through go-ora).
@@ -488,8 +576,11 @@ Questions, with the SQL to answer them (as `mtk` in PDB1 unless noted):
    mtkprof ref -db mtk@localhost:15210/pdb1.world testdata/traces/19c/io_waits.trc -o /tmp/refdb
    diff <(mtkprof report testdata/traces/19c/io_waits.trc -ref ref) <(mtkprof report testdata/traces/19c/io_waits.trc -ref /tmp/refdb)
    ```
-   `mtk` lacks `SELECT_CATALOG_ROLE`: run it once with `-lite` and once with
-   the role granted.
+   `mtk` lacks `SELECT_CATALOG_ROLE`: `-lite` is clean (5 objects, 2 users for
+   `io_waits.trc`, applied: `report -ref` shows the names); full mode falls
+   back per query (objects, users) and fails `datafiles.csv`, with notes
+   printed. Not yet run with the role granted (datafiles, plans) or compared
+   with the refscript's `ref/` bundle (the lab data differs from the fixture's).
 9. **Time zones**: `select modify_time from v$diag_trace_file where trace_filename = '<file>';`
    against `TraceFile.Modified` in `-files -json`, and `-since 10m` lists the
    file just written.

@@ -6,14 +6,21 @@ package db
 //	MTKPROF_DB_TEST_TCPS=1                            optional: TCPS, certificate not verified
 //	MTKPROF_DB_TEST_BIG=<trace_filename>              optional: a large trace in the same ADR
 //	                                                  home, fetched to measure throughput
+//	MTKPROF_DB_TEST_BIG_SHA256=<hex>                  optional: its expected sha256
+//	MTKPROF_DB_TEST_FIXTURE=<trace_filename>          optional: the lab's copy of
+//	                                                  testdata/traces/19c/basic_binds.trc, fetched and compared
 //
 // The password in the variable is for this test only; mtkprof itself never
 // takes one from the environment. See docs/REMOTE.md for the grants.
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,16 +135,14 @@ func TestDBMint(t *testing.T) {
 	all, err := c.TraceFiles(ctx, Filter{Since: time.Now().Add(-time.Hour)})
 	t.Logf("files modified in the last hour: %d (%v)", len(all), err)
 
-	// line_number semantics the resumable fetch relies on
+	// a row is a record (one or more lines), line_number its last line, so
+	// there are fewer rows than lines, with gaps and repeats in the numbers
 	var lo, hi, cnt, nl sql.NullInt64
 	if _, err := c.queryRow(ctx, "select min(line_number), max(line_number), count(*), sum(case when instr(payload, chr(10)) > 0 then 1 else 0 end) from v$diag_trace_file_contents where adr_home = :h and trace_filename = :f",
 		[]any{tf.ADRHome, tf.Name}, &lo, &hi, &cnt, &nl); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("line_number %d..%d, %d rows, %d payloads with a newline", lo.Int64, hi.Int64, cnt.Int64, nl.Int64)
-	if lo.Int64 != 1 || hi.Int64 != cnt.Int64 {
-		t.Errorf("line_number is not 1..count: resume by line would skip or repeat lines")
-	}
 
 	path := filepath.Join(t.TempDir(), tf.Name)
 	out, err := os.Create(path)
@@ -145,15 +150,15 @@ func TestDBMint(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	lines, err := c.Fetch(ctx, tf.ADRHome, tf.Name, out, 1, nil)
+	lines, err := c.Fetch(ctx, tf.ADRHome, tf.Name, out, Resume{}, nil)
 	out.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
 	st, _ := os.Stat(path)
 	logRate(t, "own trace", lines, st.Size(), time.Since(start))
-	if lines != cnt.Int64 {
-		t.Errorf("fetched %d lines, view has %d", lines, cnt.Int64)
+	if d := hi.Int64 - lines; d < 0 || d > 1 { // line_number of the last record is its line count, give or take a STAT line
+		t.Errorf("fetched %d lines, max(line_number) is %d", lines, hi.Int64)
 	}
 	m, err := model.BuildFiles([]string{path}, model.Options{})
 	if err != nil {
@@ -166,14 +171,36 @@ func TestDBMint(t *testing.T) {
 	if !found {
 		t.Errorf("marked statement not in the fetched trace (%d statements)", len(m.Statements))
 	}
-	// resume from line 2 gives the same tail
+	// a copy cut after a few lines (and in the middle of one) resumes to the same file
 	full, _ := os.ReadFile(path)
-	var tail strings.Builder
-	if _, err := c.Fetch(ctx, tf.ADRHome, tf.Name, &tail, 2, nil); err != nil {
-		t.Fatal(err)
+	for _, frac := range []int{0, 1, 2, 3} {
+		cut := len(full) * frac / 4
+		if frac == 3 {
+			cut-- // inside a line
+		}
+		cut = bytes.LastIndexByte(full[:cut+1], '\n') + 1
+		p2 := filepath.Join(t.TempDir(), "partial.trc")
+		os.WriteFile(p2, append(append([]byte(nil), full[:cut]...), "partial li"...), 0o644)
+		f, r, err := OpenResume(p2, 0o644)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = c.Fetch(ctx, tf.ADRHome, tf.Name, f, r, nil)
+		f.Close()
+		if got, _ := os.ReadFile(p2); err != nil || !bytes.Equal(got, full) {
+			t.Errorf("resume after %d bytes (%d lines): %v; copy differs from a fresh fetch: %v", cut, r.Lines, err, !bytes.Equal(got, full))
+		}
 	}
-	if i := strings.IndexByte(string(full), '\n'); tail.String() != string(full[i+1:]) {
-		t.Error("fetch from line 2 is not the file without its first line")
+	if fx := os.Getenv("MTKPROF_DB_TEST_FIXTURE"); fx != "" {
+		// the lab's copy of testdata/traces/19c/basic_binds.trc, byte for byte
+		var got bytes.Buffer
+		if _, err := c.Fetch(ctx, diag.ADRHome, fx, &got, Resume{}, nil); err != nil {
+			t.Fatal(err)
+		}
+		want, _ := os.ReadFile("../../../testdata/traces/19c/basic_binds.trc")
+		if !bytes.Equal(got.Bytes(), want) {
+			t.Errorf("%s: %d bytes fetched, fixture has %d", fx, got.Len(), len(want))
+		}
 	}
 
 	t.Run("dbms_monitor", func(t *testing.T) {
@@ -204,12 +231,28 @@ func TestDBMint(t *testing.T) {
 			if err != nil && !errors.As(err, &pe) {
 				t.Fatal(err)
 			}
+			// mtk has no DBA_ views: full mode falls back to the ALL_ ones per
+			// query (the datafiles query has no lite form and may fail); lite
+			// mode must not fail at all
+			if pe != nil {
+				for _, f := range pe.Failed {
+					if lite || f.Target != "datafiles.csv" || !refRefused(f.Err) {
+						t.Errorf("lite=%v: %s failed: %v", lite, f.Target, f.Err)
+					}
+				}
+				if lite && len(pe.Fallback) > 0 {
+					t.Errorf("lite fell back: %v", pe.Fallback)
+				}
+				for _, f := range pe.Fallback {
+					t.Logf("lite=%v: %s fell back to the lite query (%v)", lite, f.Target, f.Err)
+				}
+			}
 			b, lerr := ref.LoadBundle(dir)
 			if lerr != nil {
 				t.Fatal(lerr)
 			}
 			fix, _ := ref.LoadBundle("../../../testdata/reference/bundle")
-			t.Logf("lite=%v: %s (fixture: %s); failed: %v", lite, b.Summary(), fix.Summary(), err)
+			t.Logf("lite=%v: %s (fixture: %s); %v", lite, b.Summary(), fix.Summary(), err)
 			if _, err := os.Stat(filepath.Join(dir, "users.csv")); err != nil || len(b.Users) == 0 {
 				t.Errorf("lite=%v: no users.csv", lite)
 			}
@@ -218,15 +261,21 @@ func TestDBMint(t *testing.T) {
 	})
 
 	if big := os.Getenv("MTKPROF_DB_TEST_BIG"); big != "" {
-		var w countWriter
+		h := sha256.New()
+		w := &countWriter{}
 		start := time.Now()
-		lines, err := c.Fetch(ctx, diag.ADRHome, big, &w, 1, func(l int64) {
+		lines, err := c.Fetch(ctx, diag.ADRHome, big, io.MultiWriter(w, h), Resume{}, func(l int64) {
 			t.Logf("  %d lines, %.1fs", l, time.Since(start).Seconds())
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		logRate(t, big, lines, w.n, time.Since(start))
+		sum := hex.EncodeToString(h.Sum(nil))
+		t.Logf("sha256 %s", sum)
+		if want := os.Getenv("MTKPROF_DB_TEST_BIG_SHA256"); want != "" && want != sum {
+			t.Errorf("sha256 %s, want %s", sum, want)
+		}
 	}
 }
 

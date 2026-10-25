@@ -95,8 +95,8 @@ func TestOpenResume(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "x.trc")
 	os.WriteFile(p, []byte("one\ntwo\nthr"), 0o644)
 	f, next, err := db.OpenResume(p, 0o644)
-	if err != nil || next != 3 {
-		t.Fatalf("next %d, %v", next, err)
+	if err != nil || next.Lines != 2 || string(next.Tail) != "one\ntwo\n" {
+		t.Fatalf("next %+v, %v", next, err)
 	}
 	f.WriteString("three\n")
 	f.Close()
@@ -105,8 +105,8 @@ func TestOpenResume(t *testing.T) {
 	}
 	f, next, _ = db.OpenResume(filepath.Join(t.TempDir(), "new.trc"), 0o644)
 	f.Close()
-	if next != 1 {
-		t.Errorf("new file: next %d", next)
+	if next.Lines != 0 || len(next.Tail) != 0 {
+		t.Errorf("new file: next %+v", next)
 	}
 }
 
@@ -204,7 +204,10 @@ func (c *fetchConn) Query(ctx context.Context, q string, args ...any) (db.Rows, 
 		if args[0] != "/adr" || args[1] != "x.trc" {
 			return &cliRows{}, nil
 		}
-		return &cliRows{rows: [][]any{{int64(1), "one"}, {int64(2), "two"}, {int64(3), "three"}}}, nil
+		if strings.Contains(q, "max(line_number)") {
+			return &cliRows{rows: [][]any{{int64(3)}}}, nil
+		}
+		return &cliRows{rows: [][]any{{int64(1), "one\n"}, {int64(2), "two\n"}, {int64(3), "three\n"}}}, nil
 	}
 	return c.cliConn.Query(ctx, q, args...)
 }
