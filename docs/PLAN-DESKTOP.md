@@ -18,9 +18,12 @@ payments have failed or your spending limit needs to be increased"). For
 those, the CI steps were run locally instead: typecheck, 35 unit tests,
 bundle, `check:deps`, `gen:api`, `cargo fmt --check`, engine build, and the
 Linux Tauri build + `.deb` bundle inside Docker (image `mtk-ci:linux`, see
-below). Not run locally: the Windows and macOS legs (impossible here) and
-the AppImage (linuxdeploy needs FUSE; `APPIMAGE_EXTRACT_AND_RUN=1` alone did
-not help, see HANDOFF "Open").
+below) and the CI smoke test under Xvfb in the same container for `834d7e4`:
+the app opened `io_waits.trc`, the simulated engine crash was followed by a
+restart within 1 s and the trace re-opened from the cache (6 ms); the
+screenshots matched the CI legs' earlier ones. Not run locally: the Windows
+and macOS legs (impossible here) and the AppImage (linuxdeploy needs FUSE;
+`APPIMAGE_EXTRACT_AND_RUN=1` alone did not help, see HANDOFF "Open").
 
 **Blocked on the user.**
 

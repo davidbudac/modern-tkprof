@@ -138,7 +138,9 @@ Needs a person or a machine:
   without them the Linux leg runs in Docker (`docs/PLAN-DESKTOP.md` § "Status
   and how to continue"): the Rust build and the `.deb` (10.8 MB, ships
   `/usr/bin/mtkprof-desktop` + `/usr/bin/mtkprof-engine`) were produced that
-  way for `834d7e4`; the AppImage fails in Docker (`failed to run
+  way for `834d7e4`, and `scripts/smoke.sh` passed under `xvfb-run` +
+  `dbus-run-session` in that container (open, kill, restart, re-open from
+  the cache); the AppImage fails in Docker (`failed to run
   linuxdeploy`: no FUSE; `APPIMAGE_EXTRACT_AND_RUN=1` was not enough) and is
   only produced by GitHub's runner.
 - Stray 32 MB binary in history (`mtkprof` at the repo root, removed in
