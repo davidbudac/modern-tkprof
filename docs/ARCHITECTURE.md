@@ -463,6 +463,44 @@ The standalone app keeps notes for the page lifetime and hides every affordance.
   `parseLibraryFile` (also reads `{library: {...}}` inside a bigger export),
   `mergeLibrary`, `describePivotConfig` are the file side.
 
+#### Files panel (`web/src/lib/views/FilesPanel.tsx`, `data/fileset.ts`, `data/stmtstats.ts`, `data/scopedstmts.ts`)
+
+For a document of several input files (`doc.multiFile`) the shell shows a collapsible left pane (`FilesPane`: panel, resize
+handle, `PaneToggle side="start"`; open by default for several files, `State.filesOpen` remembers the choice) and a top-bar
+entry (`FilesToggle`, which reads "3 of 7 files" with a clear button when a subset is selected). A single-file document has
+neither. The Overview heading repeats the count.
+
+- **State.** `State.files: Set<number> | null` (null = all; a set of every file is normalised to null, an empty set shows
+  nothing). `actions.setFiles` drops a context selection that falls outside the files. `Scope` gains `files`, and
+  `scopeOf(state).contexts` is the **effective** context filter: the explicit selection (`setContexts`, the Sessions ticks)
+  intersected with the contexts of the selected files (`doc.contexts[i].fileIdx`), memoised on identity. Everything that
+  filters or queries by scope (`callFilter`, `waitFilter`, `scopeParams` -> `contexts=`, the views' cache keys through
+  `ctxKey`) therefore follows the file selection without knowing about files. No file selected is an empty set: the
+  remote source sends `from=1&to=1` for it because an empty `contexts=` means "all" to the server. Hash: `#files=0,2`
+  (`app/urlstate.ts`; indexes the trace does not have are ignored, none left = all).
+- **The panel.** One row per `doc.file.files` entry, PX slave files indented under the coordinator file their contexts attach
+  to (`fileTree`: most `Context.parent` votes, no coordinator = top level). Checkbox, name, size, lines, contexts, pid,
+  instance, wall-clock span; chips `PX`, `Chain n/m` (files sharing `FileEntry.chain`), `Followed`, `Continued`; and the
+  file's share of busy time (CPU + non-idle waits) and of wait time. The shares come from one pass over the fact columns
+  for the in-browser source (`localFileShares`) and from `api/profile?contexts=<the file's contexts>&idle=0` per file for a
+  server (three at a time, cached by URL). Controls: All / None / Invert; click a name = only that file, ⌘/Ctrl-click
+  toggles, Shift-click adds the rows in between (`clickFile`, pure and tested).
+- **Statements of the scope.** `DataSource.statements(scope)`: the engine answers `GET api/statements?contexts=&from=&to=`
+  (`{"statements": StmtStats[]}`, one per statement id; a 404 = older engine, remembered, answered `null`); the in-browser
+  source computes the same objects from the fact columns (`scopedStatements`, the JavaScript twin of `analyze.Statements`;
+  the idle toggle does not apply to calls, so `idle=` is not sent). `useScopedStatements(doc)` returns the whole-trace table
+  while `scopeNarrows` is false (no request) and the scope's table when a window, contexts or files narrow it; without an
+  answer (404, no facts) it returns the whole-trace table with a notice. Used by the Statements list ("n of m statements in
+  scope", zero-call statements hidden), the statement detail and context headers, the Overview top statements, the lede and
+  percentages (`scopeSpanUs`: the window, else the span of the selected files), and, without the window, the Overview lanes
+  and the Timeline lanes. Not scoped, still whole trace: findings (the Findings heading says so when files are selected),
+  a statement's wait list, executions and plans, the lanes' statement spans.
+- **Other views.** Sessions groups the contexts by file (header row with the file's checkbox; contexts of unselected files are
+  dimmed and cannot be ticked; the roll-ups count the selected files). The Lines view's file picker lists the selected files
+  and moves to the first selected one when the selection changes (a deep link or bookmark to another file stays).
+- Desktop shell: `FilesPane`, `FilesPanel`, `FilesToggle`, `filesPanelOpen` and `useScopedStatements` are exported from
+  `@lib`; the shell puts `FilesPane` first in its `.body` grid and adds `has-files` to `.shell` (see `app/App.tsx`).
+
 ### Memory and size
 
 Targets (DESIGN § Inputs): 1 GB trace → HTML under 15 s and under 4 GB; 10 GB →

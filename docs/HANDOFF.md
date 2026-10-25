@@ -6,6 +6,23 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Files panel (package F2, 2026-10-25)
+
+For a trace set (several files or a directory) the standalone UI has a Files side panel: which source traces every view
+shows. Design and code map: `docs/ARCHITECTURE.md` § "Files panel". In short: `State.files` (+ `#files=0,2`), the effective
+context filter in `scopeOf`, `FilesPanel` / `FilesPane` / `FilesToggle` (lib exports for the desktop shell, which still has to
+mount `FilesPane` and the toggle), scoped statement statistics through `DataSource.statements` and `useScopedStatements`.
+
+- Needs F1 (the engine's `GET api/statements`) for the remote (`-spill`/engine) case; until then the UI shows the whole-trace
+  statement table with a notice (404 fallback, tested). The in-browser source (plain `serve`, standalone HTML) computes the
+  same from the fact columns and works today. When F1 lands, check one thing: it must treat an empty `contexts=` like the
+  other endpoints (all) and use the same window rule; the UI sends `from=1&to=1` for "no file selected".
+- Not scoped (whole set, by design or for now): findings (the Findings heading says so), a statement's wait list /
+  executions / plans, the Overview lanes' per-statement spans, the Trace facts counts, saved Pivot configurations (the file
+  selection is not part of them).
+- Verified by screenshot on a six-file set (two multisession files, a PX coordinator + slave, a two-part chain) in `/tmp/f2-shots`
+  (not kept in the repo).
+
 ## Desktop app v1 (2026-10-25)
 
 Phases 1–5 of `docs/PLAN-DESKTOP.md` are implemented in two repos:
