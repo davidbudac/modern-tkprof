@@ -37,6 +37,7 @@ Paths are in this repo unless marked **desk:** (`mtkprof-desktop`). All done,
 | E10 | `api/report` text/JSON/CSV/HTML | `internal/engine/report.go` |
 | I1 | engine opens sessions through the cache; cache routes | `internal/engine` |
 | I2 | lines API and report mounted in engine and `serve`; `api/plan` | `internal/engine`, `internal/slice` |
+| F1 | `GET /s/{id}/api/statements?contexts=&from=&to=` (also `serve -slice/-spill`): `doc.stats.statements` recomputed over a scope by `analyze.StatementsOn` (calls of the spill or the model), so a file / session subset of a trace set gets its own Statements table; the UI side (file picker) is not done | `internal/analyze/stmts_on.go`, `internal/slice/slice.go`, `api/engine.openapi.yaml` |
 | I3 | db connections in the engine; `POST /s/{id}/api/ref` with a kept bundle; one terminal prompter | `internal/engine/{connections_db,ref}.go` |
 | U1 | UI split: `web/src/lib` (shared) and `web/src/app` (standalone shell), `ApiClient`, `SessionProvider`, minimap strip | `web/src/lib`, `web/src/app` |
 | S1 | Tauri scaffold, submodule, CI matrix, installers | **desk:** `src-tauri/`, `.github/workflows/build.yml`, `scripts/` |

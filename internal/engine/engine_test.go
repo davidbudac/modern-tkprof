@@ -220,9 +220,9 @@ func get(h http.Handler, path string) resp {
 	return resp{rec.Code, rec.Header(), rec.Body.Bytes()}
 }
 
-// endpoints are the 13 slice endpoints.
+// endpoints are the 14 slice endpoints.
 var endpoints = []string{"pivot", "timeline", "calls", "executions", "executions/detail", "waits", "waits/hist",
-	"waits/scatter", "waits/by", "profile", "stmt/roles", "stmt/waits", "stmt/spans"}
+	"waits/scatter", "waits/by", "profile", "statements", "stmt/roles", "stmt/waits", "stmt/spans"}
 
 // queries are representative requests of every slice endpoint plus lines.
 func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
@@ -236,6 +236,7 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 		"/api/waits/hist?scope=all", "/api/waits/scatter?scope=all", "/api/waits/scatter?scope=all&max=5",
 		"/api/waits/by?scope=all&by=stmt", "/api/waits/by?scope=all&by=obj", "/api/waits/by?scope=all&by=p1&limit=3",
 		"/api/profile", "/api/profile?idle=0&contexts=0", "/api/stmt/roles",
+		"/api/statements", "/api/statements?contexts=0", fmt.Sprintf("/api/statements?from=%d", mid),
 		"/api/pivot?fact=nope", // a 400
 		"/api/lines?file=0&from=1&n=50", "/api/lines?file=0&from=100&n=5000", "/api/lines?file=9",
 		"/api/lines?file=0&from=1&n=50&annot=1", "/api/lines?file=0&from=100&n=5000&annot=1", "/api/lines?file=9&annot=1",

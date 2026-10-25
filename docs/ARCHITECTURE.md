@@ -158,6 +158,13 @@ traces (no coordinator in the set) are analysed like any session, which keeps
 tkprof parity. Pivot, the timeline and the UI's fact-based views contain the
 slaves' calls under their own contexts.
 
+Selecting some files of a set (the UI) means selecting their contexts
+(`Context.FileIdx`): every slicing endpoint takes `contexts=`, and
+`/api/statements?contexts=` recomputes the statement table for them
+(`analyze.StatementsOn`; in a chain the parent of a recursive call may be in
+the next file, and is looked up there). Attached PX slaves' calls stay in
+`pxEla`/`pxCpu`/`pxSessions` in a subset too.
+
 ### internal/report — document for the UI
 
 The document is format 3: dimension tables as JSON objects, fact tables
@@ -304,6 +311,7 @@ UI's window), `contexts` (comma separated ids), `stmt`, `event` (waits only) and
 | `/api/waits/scatter?event=&max=` | waits over time: the 2000 slowest plus an even sample (`analyze.ScatterWaits`), rows `[tim, ela, line, stmt, ctx]` | 50 000 points |
 | `/api/waits/by?event=&by=stmt\|obj\|p1\|p2&limit=` | `analyze.WaitsBy` with real keys (the event inspector's tables) | |
 | `/api/profile` | CPU of top-level calls and waits per event in scope (the ledger, the top bar, the Waits table) | |
+| `/api/statements` | `doc.stats.statements` over the scope (`from`, `to`, `contexts`; `idle` changes nothing): `{statements: [StmtStats]}`, one per statement in id order, the JSON of the document's entries, from `analyze.StatementsOn` (the call rows of the scope; a recursive call in scope counts in the links and `childUs` of its parent's statement whether or not the parent call is in scope; cursors, plans and errors follow the scope; equal to `Statements(m)` without parameters, model or spill). The Statements table of a file or session subset | one entry per statement |
 | `/api/stmt/roles` | wait time per statement and wait class (the bars of the Statements list) | |
 | `/api/stmt/waits?stmt=1,2&max=` / `/api/stmt/spans?stmt=1,2&gap=µs` | top wait events of statements (with `maxLine` + `maxCtx`) / their merged call intervals (Overview notes, Lanes) | 200 statements |
 | `/api/plan?stmt\|sql_id&plh&exec` | the rows of one STAT dump as `mtkprof plan` prints them (`report.PlanRow`; several plan hashes without `plh`: `{hash: rows}`); needs only the model | |

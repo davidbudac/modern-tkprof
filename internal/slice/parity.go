@@ -37,7 +37,9 @@ func ParityQueries(m *model.Model, h http.Handler) ([]string, error) {
 		"/api/waits?scope=all", "/api/waits?scope=all&sort=tim&limit=10", "/api/waits/hist?scope=all",
 		"/api/waits/scatter?scope=all", "/api/waits/scatter?scope=all&max=5", "/api/waits/by?scope=all&by=stmt",
 		"/api/waits/by?scope=all&by=obj", "/api/waits/by?scope=all&by=p1&limit=3", "/api/waits/by?scope=all&by=p2",
-		"/api/profile", "/api/profile?idle=0&contexts=0", fmt.Sprintf("/api/profile?from=%d", mid), "/api/stmt/roles")
+		"/api/profile", "/api/profile?idle=0&contexts=0", fmt.Sprintf("/api/profile?from=%d", mid), "/api/stmt/roles",
+		"/api/statements", "/api/statements?contexts=0", fmt.Sprintf("/api/statements?contexts=%d", len(m.Contexts)-1),
+		fmt.Sprintf("/api/statements?from=%d&to=%d", mid, m.Span.LastTim))
 	for e := range m.Events {
 		q = append(q, fmt.Sprintf("/api/waits?event=%d", e), fmt.Sprintf("/api/waits/hist?event=%d", e),
 			fmt.Sprintf("/api/waits/scatter?event=%d&max=3", e), fmt.Sprintf("/api/waits/by?event=%d&by=p1", e),
