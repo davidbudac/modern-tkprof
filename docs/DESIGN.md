@@ -88,6 +88,19 @@ in the UI is reachable from the CLI.
   (think time). Response time = elapsed + idle between calls never counts a
   wait twice; the wait class stays on the event for the ledger and the
   `idle` filter (decided 2026-10-25, tkprof's numbers are unaffected).
+- The response time of a trace set, or of any scope of it (files, sessions,
+  window), is the sum over its sessions of each session's response time
+  (DB-time-like, decided 2026-10-25): a session is one server process of a
+  file chain (its contexts and chain continuations); its response time is
+  its span from the first call start to the last call or wait, between-call
+  idle included, each context clipped to its file's time range and the
+  session to the window. PX slaves attached to a coordinator in scope are
+  left out (their work is the statement's `PX slaves`); unattached slaves and
+  independent sessions each count. A single-session trace's response time is
+  its span, so single-file numbers do not change. Every percentage of the
+  response time (ledger, top bar, statement shares, findings severities, the
+  Files panel's per-file share, the text report) is of this sum; the
+  wall-clock span is shown beside it ("wall 3.849 s").
 - Fixtures are generated on the dbmint lab (`testdata/gen`) whenever a
   scenario is missing.
 

@@ -321,7 +321,7 @@ sends for "None"), `stmt`, `event` (waits only) and
 | `/api/waits/hist?event=` | log2 histogram (24 bins, counts and sums) | |
 | `/api/waits/scatter?event=&max=` | waits over time: the 2000 slowest plus an even sample (`analyze.ScatterWaits`), rows `[tim, ela, line, stmt, ctx]` | 50 000 points |
 | `/api/waits/by?event=&by=stmt\|obj\|p1\|p2&limit=` | `analyze.WaitsBy` with real keys (the event inspector's tables) | |
-| `/api/profile` | CPU of top-level calls and waits per event in scope (the ledger, the top bar, the Waits table) | |
+| `/api/profile` | CPU of top-level calls and waits per event in scope (the ledger, the top bar, the Waits table; attached PX slaves whose coordinator is in scope left out, `analyze.PXOut`) and the scope's `responseUs` (Σ session spans, `analyze.ResponseOf`), `wallUs`, `sessions` | |
 | `/api/statements` | `doc.stats.statements` over the scope (`from`, `to`, `contexts`; `idle` changes nothing): `{statements: [StmtStats]}`, one per statement in id order, the JSON of the document's entries, from `analyze.StatementsOn` (the call rows of the scope; a recursive call in scope counts in the links and `childUs` of its parent's statement whether or not the parent call is in scope; cursors, plans and errors follow the scope; equal to `Statements(m)` without parameters, model or spill). The Statements table of a file or session subset | one entry per statement |
 | `/api/findings` | `doc.stats.findings` over the scope (`from`, `to`, `contexts`, `contexts=-`; `idle` changes nothing; `stmt` is a 400): `{findings: [Finding]}`, from `analyze.FindingsOnWith` with the thresholds of the document's findings (`Server.Thresholds`: `serve -findings-config`, the engine session's); equal to `doc.stats.findings` without parameters, model or spill. The Findings of a file, session or window selection | the rules' evidence caps |
 | `/api/stmt/roles` (+ scope) | wait time per statement and wait class (the bars of the Statements list); every wait, idle included, unless `idle=0` | |
@@ -509,8 +509,10 @@ on screen.
 - **The panel.** One row per `doc.file.files` entry, PX slave files indented under the coordinator file their contexts attach
   to (`fileTree`: most `Context.parent` votes, no coordinator = top level). Checkbox, name, size, lines, contexts, pid,
   instance, wall-clock span; chips `PX`, `Chain n/m` (files sharing `FileEntry.chain`), `Followed`, `Continued`; and the
-  file's share of busy time (CPU + non-idle waits) and of wait time. The shares come from one pass over the fact columns
-  for the in-browser source (`localFileShares`) and from `api/profile?contexts=<the file's contexts>&idle=0` per file for a
+  file's share of the set's response time (the response time of the file's own contexts, `scopeResponse`: a chain part counts
+  its own rows, a PX slave file alone counts as its session and says in the tooltip that it runs in parallel with its
+  coordinator) and of the non-idle wait time. The shares come from `stats.contexts` and one pass over the wait columns for
+  the in-browser source (`localFileShares`) and from `api/profile?contexts=<the file's contexts>&idle=0` per file for a
   server (three at a time, cached by URL). Controls: All / None / Invert; click a name = only that file, ⌘/Ctrl-click
   toggles, Shift-click adds the rows in between (`clickFile`, pure and tested).
 - **Statements of the scope.** `DataSource.statements(scope)`: the engine answers `GET api/statements?contexts=&from=&to=`
@@ -520,7 +522,7 @@ on screen.
   while `scopeNarrows` is false (no request) and the scope's table when a window, contexts or files narrow it; without an
   answer (404, no facts) it returns the whole-trace table with a notice. Used by the Statements list ("n of m statements in
   scope", zero-call statements hidden), the statement detail and context headers, the Overview top statements, the lede and
-  percentages (`scopeSpanUs`: the window, else the span of the selected files), and, without the window, the Overview lanes
+  percentages (`scopeResponse`: Σ session spans of the scope), and, without the window, the Overview lanes
   and the Timeline lanes. The lists under a statement follow the same scope: `executions(stmt, scope)` (`api/executions` with
   `contexts`/`from`/`to`: an execution is in when its EXEC call is), `stmtWaits`, `stmtRoles` and `stmtSpans` (the matching
   `api/stmt/*`; in the browser the fact columns through the same call / wait filters), the Context header (first and last
@@ -534,13 +536,15 @@ on screen.
   the heading reads "15 findings for 1 of 6 files"; the Overview ledger notes, the Statements finding counts and the
   statement Context follow; an engine that answers 404 leaves the whole set's with a notice). Not scoped, still whole trace:
   the notes under the facts.
-- **Share of the response time** (`data/response.ts`: one definition for the Statements list, the statement detail and the
-  Overview ledger). A statement's response time is `elapsed + idleUs` (`StmtStats`); its share is measured against the scope's
-  response time, the Overview heading (`scopeSpanUs`: the window, else the span of the selected files, else the trace's). It is
-  not capped: the time is summed over sessions (two sessions running a statement at once count twice against the wall clock), so a
-  statement can exceed 100 % of its scope (`multisession.trc`, or `multisession_a` + `_b` selected: the sleeps of both sessions,
-  159 %); the percentage then carries a tooltip saying so. An idle wait inside a call (a `PL/SQL lock timer` in a sleep) is in the
-  call's `e` only, not in `idleUs` (see the builder's wait attribution).
+- **Response time of the scope and shares of it** (`data/response.ts`: one definition for the Overview heading, ledger and lede,
+  the top bar, the Statements list, the statement detail, the findings and the Files panel). The scope's response time is the sum
+  over its sessions of each session's span (`scopeResponse`, the twin of `analyze.ResponseOf`; `api/profile` answers it as
+  `responseUs` / `wallUs` / `sessions`, `responseOf` takes the answer or computes it): "Response time 5.330 s · 4 sessions ·
+  wall 3.849 s" on `testdata/sets/workload`. A statement's response time is `elapsed + idleUs` (`StmtStats`); its share is
+  measured against the scope's response time, so two sessions running it at once no longer exceed 100 % of their scope
+  (`multisession_a` + `_b`: the sleeps 99 %). It is not capped: a call overlapping a window counts whole, so a share can still pass
+  100 % with a window; the percentage then carries a tooltip. An idle wait inside a call (a `PL/SQL lock timer` in a sleep) is in
+  the call's `e` only, not in `idleUs` (see the builder's wait attribution).
 - **Other views.** Sessions groups the contexts by file (header row with the file's checkbox; contexts of unselected files are
   dimmed and cannot be ticked; the roll-ups count the selected files). The Lines view's file picker lists the selected files
   and moves to the first selected one when the selection changes (a deep link or bookmark to another file stays).
@@ -1237,6 +1241,26 @@ scan. Zoomed ranges ask `/api/timeline`.
 
 * Resource profile (Millsap): CPU, each wait event, unaccounted-for, over any
   filter (whole file, one statement, one session, one time window).
+* Response time of a scope (`response.go`, DESIGN § Correctness contract):
+  `ResponseOf(m, Contexts(m), f)` = Σ over the scope's sessions of each
+  session's span. `SessionsOf`: a session is a file chain (`FileEntry.Chain`)
+  plus `Context.Process` (one per single file, one per pid of a trcsess
+  file). A context spans `ContextStats.FirstTim` (start of its first call)
+  to `LastTim`, clipped to its file's tim range (`contextSpan`); a session
+  counts each run of consecutive selected contexts from its first to its
+  last row, clipped to the window; `PXOut` leaves out PX slaves attached to a
+  coordinator in scope. `Response{ResponseUs, WallUs, Sessions}`; `WallUs` is
+  the old base (window, else the span of the files of the contexts, else the
+  trace span). `TraceProfile` uses it as `TotalUs` (plus `responseUs`,
+  `wallUs`, `sessions` in `doc.stats.profile`), so the text report, the
+  statement percentages, `Compare`'s response time and the findings
+  severities (`Findings`, `FindingsOn`, floored at the ledger's sum) share
+  it; `ProfileOfOn` (`api/profile`) carries the scope's and leaves the PXOut
+  rows out of its ledger, as `TraceProfile` does. A single-session trace's
+  response time is its span (`TestResponseOfSingleSessionIsTheSpan` on every
+  fixture). The UI twin is `web/src/lib/data/response.ts` `scopeResponse`
+  (from `stats.contexts`, `data/ctxstats.ts`), checked against the Go answers
+  in the findings fixtures.
 * Statement table: tkprof-style call statistics + response-time ranking,
   with recursive children attached (nothing is lost when sorting).
 * Executions: EXEC + following FETCHes grouped, with the bind set, rows,
@@ -1299,8 +1323,8 @@ close types per statement, the top-level CPU and rows and the executions whose E
 model with facts, as the `Accumulator`'s execution aggregates for an aggregation-only one, so the evidence has the same
 shape as that model's document); one scan of the waits in scope collects the think-time / in-call idle split (an idle wait's
 call is read through `CallRows.CallAt`), the per-event time and the profile; commits are the transactions of the scope's
-contexts in the window. The response time severities and shares are measured against is the window, else the span of the
-files of the contexts, else the trace span (or the summed session time when larger, as `Findings`). With an empty filter it
+contexts in the window. The response time severities and shares are measured against is the scope's (`ResponseOf`: Σ
+session spans; the ledger's sum when larger, as `Findings`). With an empty filter it
 equals `FindingsWith` field for field, from the model and from a spill (`internal/slice/findings_test.go`, every fixture and
 the multi-file sets, default thresholds and thresholds that make every rule fire); a file of a set gives the findings of the
 file alone. `Finding.Scope` is `"set"` for a finding that is about the whole set and not narrowed (none of the ten rules is;
@@ -1323,7 +1347,7 @@ follow). JSON key per constant:
 | `round-trips` | > 100 `SQL*Net message to client` at > 0.5 per row of top-level calls | `RoundTripsPerRow` (`round_trips_per_row`), `RoundTripsMin` (`round_trips_min`) |
 
 Severity: time-based rules map their impact against the response time
-(trace span, or summed session time when sessions overlap): serious >= 25 %
+(Σ session spans, `TraceProfile.TotalUs`; the ledger's sum when larger): serious >= 25 %
 and >= 1 s, notable >= 5 % and >= 100 ms, else info (`SeriousShare` (`serious_share`),
 `SeriousMinUs` (`serious_min_us`), `NotableShare` (`notable_share`), `NotableMinUs` (`notable_min_us`)). `hard-closes` and
 `round-trips` are count-based (notable from 1,000, serious from 10,000: `notable_count`, `serious_count`). `max_evidence_rows` and `bind_preview_max` cap evidence rows per finding and the outlier bind preview.

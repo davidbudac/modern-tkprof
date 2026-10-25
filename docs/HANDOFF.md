@@ -26,8 +26,15 @@ and keeps the selection in `workspace.json`, packages D2/D3, desktop pin `95c52a
 - Done (core): an idle-class wait *inside* a call (`PL/SQL lock timer` of `dbms_session.sleep`) used to count in both the call's
   `e` and `Call.IdleEla` ("4.001 s, 159 % of selection" for two `sleep(1)`). Decision: in-call waits belong to the call whatever
   their class (`WaitEla`); `IdleEla`/`IdleUs`/profile idle are between-call waits only; the class stays for the ledger and
-  `idle=`. Now 2.001 s, 80 %. tkprof goldens unchanged; cache formats bumped (`CacheIndexFormat` 3). The > 100 % tooltip stays,
-  for overlapping sessions summed (`multisession_a` + `_b`).
+  `idle=`. Now 2.001 s, 80 %. tkprof goldens unchanged; cache formats bumped (`CacheIndexFormat` 3).
+- Package C2 (2026-10-25): the response time of a scope is the sum over its sessions of each session's span (a process of a
+  file chain; attached PX slaves out), not the wall clock (`analyze.ResponseOf`, `api/profile` `responseUs`/`wallUs`/`sessions`,
+  `doc.stats.profile` the same, `data/response.ts` `scopeResponse` in the browser). It is the base of the Overview heading
+  ("Response time 5.330 s · 4 sessions · wall 3.849 s" on `testdata/sets/workload`, was 3.849 s with the sleeps at 128.7 % and
+  unaccounted −2.377 s), the ledger, the top bar, statement shares, findings severities, the text report and the Files panel
+  (each file: its own rows; the first part of a chain no longer reads 0 %). Single-session numbers are unchanged; `multisession_a`
+  + `_b` is 4.533 s (the sleeps 99 %, was 159 %). The ledger leaves out attached PX slaves as the text report does. A share
+  above 100 % is now only a call reaching outside a window (tooltip).
 - Verified by screenshot on a six-file set (two multisession files, a PX coordinator + slave, a two-part chain) in `/tmp/f2-shots`
   (not kept in the repo).
 
