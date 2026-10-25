@@ -226,12 +226,15 @@ const Row = memo(function Row({ n, text, kind, mk, sel, bm, note, hl, acts }: {
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>{n}</span>
       <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl ? marked(text, hl) : text || ' '}</span>
-      {acts > 0 && (
-        <span className="lv-act" role="group" aria-label={`Line ${n}`}>
-          <button type="button" data-act="copy" title="copy the line's text" aria-label={`Copy the text of line ${n}`}>Copy</button>
-          {acts > 1 && <button type="button" data-act="link" title="copy a link that opens this line" aria-label={`Copy a link to line ${n}`}>Link</button>}
-        </span>
-      )}
+      {/* a fixed-width gutter at the row's end in every row: the text of the selected row is never laid under its actions */}
+      <span className="lv-gut">
+        {acts > 0 && (
+          <span className="lv-act" role="group" aria-label={`Line ${n}`}>
+            <button type="button" data-act="copy" title="copy the line's text" aria-label={`Copy the text of line ${n}`}>Copy</button>
+            {acts > 1 && <button type="button" data-act="link" title="copy a link that opens this line" aria-label={`Copy a link to line ${n}`}>Link</button>}
+          </span>
+        )}
+      </span>
     </div>
   )
 })
