@@ -137,14 +137,39 @@ the trace (its obj#, file#, uid and sql_ids). The DBA runs it; it spools
 objects, datafiles, users and DBMS_XPLAN output (DISPLAY_CURSOR with
 DISPLAY_AWR fallback). Default uses DBA views and V$ (SELECT_CATALOG_ROLE);
 `refscript -lite` emits an ALL_ views variant any schema can run.
-`--ref dir` applies the bundle to every output. mtkprof never connects to a
-database.
+`--ref dir` applies the bundle to every output. The CLI never connects to a
+database; the desktop engine does (see Desktop app below), and runs the same
+queries to fetch the bundle directly.
 
 ## Deferred to v2
 
 Comparison mode; raw trace line viewer (serve mode only); DBMS_XPLAN overlay
 via the shared package (the core's `dbmsXplanParser` is vendored, not wired up yet); configurable finding thresholds. (Server-side slicing
 in `serve` is done: see Inputs.)
+
+## Desktop app (decided 2026-10-25)
+
+Plan and protocol: `docs/PLAN-DESKTOP.md`.
+
+- The Go core is the engine: `mtkprof engine` runs as a sidecar process,
+  holds N open traces, always builds in aggregate + spill mode, and keeps the
+  spill directory as a persistent index cache keyed by trace identity. No
+  Rust rewrite of the parser or model.
+- The shell is Tauri 2 (Rust) around the React/TS UI, in a separate
+  repository (`mtkprof-desktop`) that pins this repo as a git submodule.
+  GPUI stays an option if webview rendering limits the Lines or Timeline
+  views; decide after phase 3 with measurements.
+- Transport: loopback HTTP with a bearer token, SSE events, the existing
+  `/api/*` handlers per session, OpenAPI contract in `api/engine.openapi.yaml`
+  with a protocol version.
+- Remote access lives in the engine: SSH/SFTP (fetch, follow a live trace)
+  and Oracle through a pure-Go thin driver (ADR views, trace enable/disable,
+  reference data). Secrets are the shell's (OS keychain), passed per request,
+  never persisted or logged by the engine.
+- `web/` stays the single source of the views: split into `lib` (shared) and
+  `app` (standalone shell); `mtkprof html` and `serve` keep working unchanged.
+- Every engine answer equals the CLI's (`serve -spill` parity test); the
+  golden test stays the correctness contract.
 
 ## Project
 
