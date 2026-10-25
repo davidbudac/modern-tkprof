@@ -163,3 +163,16 @@ func TestEngineProcess(t *testing.T) {
 		t.Errorf("cache entry without a manifest after exit: %v", err)
 	}
 }
+
+func TestParseSize(t *testing.T) {
+	for in, want := range map[string]int64{"20G": 20 << 30, "20GB": 20 << 30, "20GiB": 20 << 30, "512m": 512 << 20, "1T": 1 << 40, "4096": 4096, "7K": 7 << 10} {
+		if got, err := parseSize(in); err != nil || got != want {
+			t.Errorf("parseSize(%q) = %d, %v; want %d", in, got, err, want)
+		}
+	}
+	for _, in := range []string{"", "G", "-1G", "1.5G", "20X", "99999999999T"} {
+		if got, err := parseSize(in); err == nil {
+			t.Errorf("parseSize(%q) = %d, want an error", in, got)
+		}
+	}
+}
