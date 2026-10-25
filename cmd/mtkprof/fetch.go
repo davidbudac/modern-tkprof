@@ -17,8 +17,16 @@ import (
 	"golang.org/x/term"
 )
 
-// cliPrompter asks for credentials (tests replace it).
-var cliPrompter = func() remote.Prompter { return &remote.TerminalPrompter{} }
+// cliPrompter asks for credentials (tests replace it): on the controlling
+// terminal, or, when stdin is a pipe, one line of stdin per question
+// (echo pw | mtkprof trace ...). The one prompter of every CLI command that
+// connects.
+var cliPrompter = func() remote.Prompter {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return &remote.TerminalPrompter{In: os.Stdin}
+	}
+	return &remote.TerminalPrompter{}
+}
 
 // cliSSH connects to spec ("user@host[:port]") for fetch and follow.
 func cliSSH(spec, transport string) (remote.SSH, error) {
@@ -41,11 +49,16 @@ var cliContext = func() (context.Context, context.CancelFunc) {
 // cmdFetch is `mtkprof fetch <user@host[:port]> <remote-path>... [-o dir]`:
 // copies remote traces over SSH (system ssh with prompts on this terminal,
 // or the Go library), resuming partial local files; prints the local paths.
+// With -db it is `fetch -db <db-spec> -name F` (cmdFetchDB): the trace out of
+// V$DIAG_TRACE_FILE_CONTENTS.
 func cmdFetch(args []string) error {
 	return fetchMain(args, os.Stdout, os.Stderr)
 }
 
 func fetchMain(args []string, stdout, stderr io.Writer) error {
+	if fetchDBArgs(args) {
+		return cmdFetchDB(args)
+	}
 	fs := flag.NewFlagSet("fetch", flag.ExitOnError)
 	out := fs.String("o", ".", "directory to write the files into")
 	transport := fs.String("transport", "auto", "ssh transport: auto (system ssh if found), cli (system ssh) or lib (Go library)")

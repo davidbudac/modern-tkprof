@@ -30,7 +30,7 @@ Working and tested:
 | Bind redaction (`-redact-binds`, `-bind-values keep\|redact\|none`, `-binds none`) as a model post-pass | `internal/model/redact.go`, `cmd/mtkprof/bindflags.go` | done; tests prove no value leaks into text/JSON/CSV |
 | Web UI (Overview ledger + lanes + minimap strip, Statements workbench, Waits + event inspector, Timeline, Sessions, Pivot), light/dark, IBM Plex embedded; split into `web/src/lib` (shared library) and `web/src/app` (standalone shell) | `web/` → embedded as `internal/ui/dist/index.html` | redesigned 2026-10-23 (`docs/mockups/`), split 2026-10-25 (U1), reviewed by screenshot |
 | Real fixtures: 19.27 (21), 21c XE (19), 23ai Free (19) + tkprof output + generators (dbmint, docker) + v$ exports | `testdata/` | done |
-| Engine: sessions, jobs, SSE events, prompts, per-session `/s/{id}/api/*`, OpenAPI contract | `internal/engine`, `api/engine.openapi.yaml` | done (desktop phase 1); no remote, lines, ref or report routes yet |
+| Engine: sessions, jobs, SSE events, prompts, per-session `/s/{id}/api/*`, OpenAPI contract | `internal/engine`, `api/engine.openapi.yaml` | done (desktop phases 1 to 4 engine side: remote connections ssh and db, lines, report, ref) |
 | Persistent index cache (content identity, LRU, manifest, `engine cache`) | `internal/engine/cache*.go`, `identity.go`, `internal/{model,analyze,slice}/*persist*.go`, `internal/binfmt` | done; round-trip tests on every fixture |
 | CI (test, web build check, release on tags) | `.github/workflows/ci.yml` | green on every push; release job verified with tag `v0.2.0-rc.1` |
 
@@ -156,11 +156,50 @@ Endpoints and query parameters of the per-session API are the ones of `serve
   Report limits: a session's model is the aggregate one, so the text report
   has no executions tables and says "bind sets 0" in its Volume line, the
   JSON and HTML documents have no fact tables.
-- E7–E9 (prompts + ssh, db, CLI subcommands) have not started;
-  `internal/remote` only holds the `Prompter` interface so far.
+- E7–E9 (prompts + ssh, db, CLI subcommands): see "Desktop phase 4, engine
+  side" below.
 - Known limits: sessions are never evicted (closing is the client's job);
-  `rev` stays 1; `GET /engine/cache` costs one `readdir` + manifest read per
+  `rev` is 1 until a reference bundle is applied; `GET /engine/cache` costs one `readdir` + manifest read per
   entry; a 2 GB trace has not been run through the engine.
+
+## Desktop phase 4, engine side: done except dbmint verification (2026-10-25)
+
+Everything is in `docs/REMOTE.md` (SSH part, Oracle part, grants, the dbmint
+checklist); the routes are in `api/engine.openapi.yaml`.
+
+Done and tested with fakes (the dev machine cannot reach the lab):
+
+- E7: prompts, `sshcli`/`sshlib`/`sshconn`, `mtkprof askpass|fetch|follow`,
+  engine connections, jobs `fetch` and `follow` (mirror).
+- E8: `internal/remote/db` (go-ora) and its engine side
+  (`internal/engine/connections_db.go`): db connections with `test`, `diag`,
+  `tracefiles`, `sessions`, `trace`, resumable `fetch` (unit lines), TLS
+  flags, password cached per connection.
+- Reference data in a session (`internal/engine/ref.go`):
+  `POST /s/{id}/api/ref {dir}|{connection}`, kept at
+  `<cache>/ref/<trace identity>/`, re-applied on every open of the trace;
+  `rev` is meaningful (1, +1 per applied bundle); `model.ApplyRef` is now
+  idempotent/replacing.
+- E9: `fetch` (ssh and `-db`), `follow`, `trace`, `ref -db`, `askpass`; one
+  terminal prompter (`remote.TerminalPrompter`).
+
+Awaiting dbmint verification (checklist: end of `docs/REMOTE.md`): the gated
+tests `internal/remote/sshconn` (`MTKPROF_SSH_TEST`) and
+`internal/remote/db` (`MTKPROF_DB_TEST`), what a PDB user sees in
+`V$DIAG_TRACE_FILE*`, line-number gaps and long lines in
+`V$DIAG_TRACE_FILE_CONTENTS`, fetch throughput (is a chunk's time growing
+with its offset?), the ref bundle equal to the refscript's, TCPS, the engine
+walk-through with curl, Windows 11 askpass (S6).
+
+In progress elsewhere: the live follow session (E7b: `internal/engine/live.go`,
+`internal/model/live*.go`, the `follow` session path in `session.go`). Both
+touch `session.go` (the `api/doc` handler serves `ss.document()` now, which
+a live session will also want) and the yaml `JobInfo` enums; expect a small
+merge there. `options.follow` is still a 400 until that lands.
+
+Still to do on the shell side (S6): connections UI, prompts modal, sessions
+and trace on/off, "fetch reference data" (`api/ref`), reacting to the new
+`rev` by refetching `api/doc`.
 
 ## Milestone 1: done (2026-10-22)
 

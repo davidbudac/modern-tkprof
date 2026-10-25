@@ -81,5 +81,6 @@ func (s *Server) wipeCache(w http.ResponseWriter, r *http.Request) {
 		out.Removed = append(out.Removed, e.Identity)
 		out.Bytes += e.Bytes
 	}
+	s.pruneRefs()
 	writeJSON(w, http.StatusOK, out)
 }

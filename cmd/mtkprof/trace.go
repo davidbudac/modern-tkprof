@@ -19,7 +19,7 @@ import (
 // openDB connects for the db subcommands (trace, ref -db, fetch -db),
 // prompting for the password on the terminal. Tests replace it.
 var openDB = func(ctx context.Context, s db.Spec, tls bool) (*db.Client, error) {
-	return db.Open(ctx, s, termPrompter{}, tls)
+	return db.Open(ctx, s, cliPrompter(), tls)
 }
 
 // dbConnFlags are the connection flags every db subcommand takes.
@@ -198,7 +198,7 @@ func (c *traceCmd) run(ctx context.Context, cl *db.Client, out io.Writer) error 
 			return err
 		}
 		if len(fs) > 0 && fs[0].FromProcess {
-			fmt.Fprintln(os.Stderr, "note: V$DIAG_TRACE_FILE is not readable (ORA-00942); listed V$PROCESS.TRACEFILE of live sessions instead; fetch -db needs V$DIAG_TRACE_FILE_CONTENTS (docs/REMOTE-db.md)")
+			fmt.Fprintln(os.Stderr, "note: V$DIAG_TRACE_FILE is not readable (ORA-00942); listed V$PROCESS.TRACEFILE of live sessions instead; fetch -db needs V$DIAG_TRACE_FILE_CONTENTS (docs/REMOTE.md)")
 		}
 		return nil
 	}

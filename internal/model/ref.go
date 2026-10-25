@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -95,11 +96,14 @@ func (m *Model) UserName(uid int64) string {
 // numbers in file I/O waits, parsing user ids), fills PlanLine.Object when
 // empty, and attaches DBMS_XPLAN text as Statement.RefPlan. DBMS_XPLAN
 // plans with the same plan hash as a STAT plan are overlaid line by line
-// (see overlayXPlans). A nil or empty bundle does nothing.
+// (see overlayXPlans). A nil or empty bundle does nothing. Applying a bundle
+// to a model that has one already replaces it (the engine applies a new
+// bundle to an open session), as if the first had never been applied.
 func ApplyRef(m *Model, b *ref.Bundle) {
 	if b.Empty() {
 		return
 	}
+	m.resetRef()
 	m.objIdx, m.fileIdx, m.userIdx = map[int64]int{}, map[int64]int{}, map[int64]int{}
 	seenObj, foundObj := map[int64]bool{}, 0
 	addObj := func(id int64) {
@@ -171,6 +175,27 @@ func ApplyRef(m *Model, b *ref.Bundle) {
 	}
 	m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("ref bundle: %d/%d obj#, %d/%d file#, %d/%d user ids named; %d DBMS_XPLAN plans; %d/%d STAT plans with predicates and estimates",
 		foundObj, len(seenObj), foundFile, len(seenFile), foundUser, len(seenUser), plans, xp.matched, xp.considered))
+}
+
+// resetRef undoes a previous ApplyRef: the dimension tables, the names it
+// filled into plan lines, the overlaid DBMS_XPLAN data and its notes.
+func (m *Model) resetRef() {
+	for i := range m.PlanLines {
+		l := &m.PlanLines[i]
+		if l.Object != "" && l.Obj > 0 && l.Object == m.ObjectName(l.Obj) {
+			l.Object = ""
+		}
+		l.Access, l.Filter, l.Alias, l.QBlock, l.ERows = "", "", "", "", 0
+	}
+	for i := range m.Plans {
+		m.Plans[i].XPlanMatched = false
+	}
+	for i := range m.Statements {
+		m.Statements[i].RefPlan = ""
+	}
+	m.Objects, m.Files, m.Users = nil, nil, nil
+	m.objIdx, m.fileIdx, m.userIdx = nil, nil, nil
+	m.Diag.Notes = slices.DeleteFunc(m.Diag.Notes, func(n string) bool { return strings.HasPrefix(n, "ref bundle") })
 }
 
 type xplanStats struct{ matched, considered int }

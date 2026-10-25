@@ -260,3 +260,35 @@ func (b *Bundle) loadPlans(dir string) {
 		b.Plans[strings.TrimSuffix(name, ".txt")] = txt
 	}
 }
+
+// CopyBundle copies the files LoadBundle reads from the bundle directory src
+// (objects.csv, *_objects.csv, datafiles.csv, datafiles_*.csv, users.csv,
+// plans/*.txt) into dst, which it creates; nothing else of src is copied. It
+// returns how many files it copied.
+func CopyBundle(src, dst string) (int, error) {
+	files := globAll(src, "objects.csv", "*_objects.csv", "datafiles.csv", "datafiles_*.csv", "users.csv")
+	files = append(files, globAll(filepath.Join(src, "plans"), "*.txt")...)
+	if err := os.MkdirAll(filepath.Join(dst, "plans"), 0o700); err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, f := range files {
+		rel, err := filepath.Rel(src, f)
+		if err != nil {
+			return n, err
+		}
+		fi, err := os.Stat(f)
+		if err != nil || !fi.Mode().IsRegular() {
+			continue
+		}
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			return n, err
+		}
+		if err := os.WriteFile(filepath.Join(dst, rel), raw, 0o600); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
+}

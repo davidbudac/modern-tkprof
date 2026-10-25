@@ -95,6 +95,7 @@ type Session struct {
 	lines int64
 	err   string
 	hit   bool
+	ref   refState // ref.go
 
 	use sync.RWMutex // requests hold it shared, close exclusively
 	op  *opened      // set when ready; nil after close
@@ -322,7 +323,7 @@ func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
 
 // sessionRoutes are the routes of a ready session, relative to /s/{id}.
 func sessionRoutes() []string {
-	out := []string{"GET /api/doc", "GET /api/report"}
+	out := []string{"GET /api/doc", "GET /api/report", "POST /api/ref"}
 	for _, ep := range append(slice.Endpoints(), slice.LineEndpoints()...) {
 		out = append(out, "GET "+ep)
 	}
@@ -382,6 +383,9 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 		return nil, fmt.Errorf("cache: opened %s, expected %s", co.Identity, ss.cacheID)
 	}
 	m := co.Model
+	if b := s.loadStoredRef(ss); b != nil { // a bundle kept for this trace (ref.go)
+		model.ApplyRef(m, b)
+	}
 	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
 	if err != nil {
 		return nil, err
@@ -389,15 +393,20 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 	if !co.Hit {
 		debug.FreeOSMemory() // the build churned through the heap; give the pages back before idling
 	}
+	ss.mu.Lock()
+	ss.ref.doc = doc
+	ss.mu.Unlock()
 	ssrv := slice.NewServer(m, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
 	ssrv.AllowOrigin = slice.NoCORS                           // the engine's middleware sets CORS
 	handlers := map[string]http.Handler{
 		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// ?rev= is accepted; there is one revision until ref data or follow exist
+			// ?rev= is accepted and ignored: the current document is served (its
+			// revision is the session's rev, which a reference bundle bumps)
 			w.Header().Set("Content-Type", "application/json")
-			w.Write(doc)
+			w.Write(ss.document())
 		}),
+		"POST /api/ref": s.refHandler(ss),
 	}
 	api := ssrv.Handler()
 	mux := http.NewServeMux()
@@ -526,6 +535,7 @@ func (s *Server) deleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ss.job.cancel()
+	s.cancelRefJobs(ss.id)
 	<-ss.done
 	ss.close()
 	s.bc.publish("session", ss.event())

@@ -139,7 +139,7 @@ DISPLAY_AWR fallback). Default uses DBA views and V$ (SELECT_CATALOG_ROLE);
 `refscript -lite` emits an ALL_ views variant any schema can run.
 `--ref dir` applies the bundle to every output. The analysis commands never
 connect to a database; `mtkprof ref -db` / `trace` / `fetch -db` and the
-desktop engine do (`internal/remote/db`, docs/REMOTE-db.md), and `ref -db`
+desktop engine do (`internal/remote/db`, docs/REMOTE.md), and `ref -db`
 runs the same queries (`report.RefQueries`, the values `RefScript` prints)
 to fetch the bundle directly.
 

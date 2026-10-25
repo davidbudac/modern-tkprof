@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -99,9 +97,7 @@ func cmdRef(args []string) error {
 }
 
 // fetchDBArgs reports whether a `mtkprof fetch` command line is the db
-// form (-db <spec>). E7's cmdFetch calls it first:
-//
-//	if fetchDBArgs(args) { return cmdFetchDB(args) }
+// form (-db <spec>); cmdFetch hands those to cmdFetchDB.
 func fetchDBArgs(args []string) bool {
 	for _, a := range args {
 		if a == "--" {
@@ -156,9 +152,6 @@ func parseFetchDBArgs(args []string) (*fetchDBCmd, error) {
 	return c, nil
 }
 
-// bigFetch is where the UI and the CLI suggest SSH instead.
-const bigFetch = 200 << 20
-
 // cmdFetchDB is `mtkprof fetch -db`: copy a trace out of
 // V$DIAG_TRACE_FILE_CONTENTS.
 func cmdFetchDB(args []string) error {
@@ -171,7 +164,7 @@ func cmdFetchDB(args []string) error {
 	if c.out != "-" {
 		var f *os.File
 		if c.resume {
-			f, from, err = openResume(c.out)
+			f, from, err = db.OpenResume(c.out, 0o644)
 		} else {
 			f, err = os.Create(c.out)
 		}
@@ -199,7 +192,7 @@ func cmdFetchDB(args []string) error {
 	warned := false
 	n, err := cl.Fetch(ctx, c.adrHome, c.name, cw, from, func(lines int64) {
 		fmt.Fprintf(os.Stderr, "\r%s: %d lines, %.1f MB", c.name, from-1+lines, float64(cw.n)/1e6)
-		if cw.n > bigFetch && !warned {
+		if cw.n > db.BigFetch && !warned {
 			warned = true
 			fmt.Fprintf(os.Stderr, "\nnote: past 200 MB; V$DIAG_TRACE_FILE_CONTENTS is slow, SSH (mtkprof fetch user@host <path>) is faster for big files\n")
 		}
@@ -218,47 +211,6 @@ func cmdFetchDB(args []string) error {
 		fmt.Fprintf(os.Stderr, "wrote %s (%d lines)\n", c.out, from-1+n)
 	}
 	return nil
-}
-
-// openResume opens path for appending after its last complete line and
-// returns the line number to fetch next.
-func openResume(path string) (*os.File, int64, error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
-	if err != nil {
-		return nil, 0, err
-	}
-	var lines, end, off int64
-	br := bufio.NewReaderSize(f, 1<<20)
-	buf := make([]byte, 1<<20)
-	for {
-		k, err := br.Read(buf)
-		for i := 0; i < k; {
-			j := bytes.IndexByte(buf[i:k], '\n')
-			if j < 0 {
-				break
-			}
-			lines++
-			i += j + 1
-			end = off + int64(i)
-		}
-		off += int64(k)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			f.Close()
-			return nil, 0, err
-		}
-	}
-	if err := f.Truncate(end); err != nil {
-		f.Close()
-		return nil, 0, err
-	}
-	if _, err := f.Seek(end, io.SeekStart); err != nil {
-		f.Close()
-		return nil, 0, err
-	}
-	return f, lines + 1, nil
 }
 
 type countingWriter struct {
