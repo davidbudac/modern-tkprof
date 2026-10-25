@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-10-25 (milestones 1–6, the v1 tail, the follow-up round and desktop phase 1 done)
+# Handoff — state of mtkprof on 2026-10-25 (milestones 1–6, the v1 tail, the follow-up round, desktop phase 1 and S7–S9 done)
 
 Read this, then `docs/DESIGN.md` (the decisions), then `docs/ARCHITECTURE.md`
 (how the code is shaped) and `docs/trace-format-19c.md` (what the parser
@@ -240,6 +240,28 @@ merge there. `options.follow` is still a 400 until that lands.
 Still to do on the shell side (S6): connections UI, prompts modal, sessions
 and trace on/off, "fetch reference data" (`api/ref`), reacting to the new
 `rev` by refetching `api/doc`.
+
+## Desktop phase 5, S7–S9 (reports, notes, saved pivots): done (2026-10-25)
+
+Branch `t3/reports-annotations-saved-pivots` (lib part; the desktop repo pins it).
+Lib additions (design in `docs/ARCHITECTURE.md`, "Notes and saved Pivot
+configurations"): `State.annotations` + `annotationsEnabled`, actions
+`setAnnotations`/`addAnnotation`/`updateAnnotation`/`removeAnnotation`/
+`setBookmarkNote`, `Bookmark.note`/`updated`; `State.pivot` + `setPivot` (the
+Pivot view's state moved into the store), `Store.getPivotConfig()` /
+`applyPivotConfig(cfg)`, `State.libraryEnabled`, `Session.library`
+(`PivotLibrary`), `useLibrary`; `data/annotations.ts` and `data/pivotconfig.ts`
+(refs, resolve, file formats, merge, Markdown; unit tests), `NoteEditor` /
+`NoteBox`. The standalone app looks and works as before (no note affordances,
+no Saved menu). Also fixed: the statement detail's SQL box shrank to a line
+when the detail was taller than the pane (`.wb-detail > *` no longer shrink).
+
+Desktop side (repo `mtkprof-desktop`, `docs/DESKTOP.md` there): Notes and
+Reports session views, the Library page, `annotations.json` gains `notes`,
+`library.json`. Deferred: a "statement / event only" picker in the Pivot view
+(the filter exists, set by an applied configuration), exporting the library
+together with the connections (S6's export is not on `main` yet), clock-time
+windows in saved configurations (offsets from the trace start only).
 
 ## Milestone 1: done (2026-10-22)
 

@@ -213,6 +213,7 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .item .id .fl { color: var(--ink-2); }
 
 .wb-detail { overflow: auto; overscroll-behavior: contain; padding: var(--sp-5) var(--sp-6) var(--sp-7); display: flex; flex-direction: column; gap: var(--sp-5); min-block-size: 0; }
+.wb-detail > * { flex-shrink: 0; } /* the SQL box (overflow: auto) would otherwise shrink to a line when the detail is long */
 .title { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
 .title h1 { font-size: var(--text-xl); font-weight: 500; }
 .chip-q { font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.45rem; white-space: nowrap; }

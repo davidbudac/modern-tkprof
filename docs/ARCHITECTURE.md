@@ -393,7 +393,8 @@ restores). Pieces:
 - Bookmarks live in `State.bookmarks` (`addBookmark`, `removeBookmark`,
   `setBookmarks`; `{file, line, label}`); b, the toolbar button or a right-click on
   the line number toggles one; the second panel tab edits them. Not persisted here
-  (the desktop shell stores them as annotations).
+  (the desktop shell stores them as annotations; a bookmark can carry a note, see
+  below).
 - Store: `view: 'lines'`, `linesApi`, `lineRefTarget` (`'drawer'` default, the desktop
   shell sets `'view'`), `linesView {file, line, seq}` (`openLinesAt(file, line)` bumps
   `seq`, which makes the view scroll and resolve the line; `setLinesLine` does not),
@@ -403,6 +404,47 @@ restores). Pieces:
   file, so switching tabs does not lose a search.
 - URL: `#view=lines&file=1&line=4711` (file only for a multi-file trace; clicking
   through lines replaces the history entry).
+
+#### Notes and saved Pivot configurations (store additions, desktop plan S8/S9)
+
+The lib keeps them in the store; persisting them is the shell's job (the desktop
+app: per content identity in `annotations.json`, the library in `library.json`).
+The standalone app keeps notes for the page lifetime and hides every affordance.
+
+- `State.annotations: Annotation[]` (`data/annotations.ts`): notes on statements,
+  executions and time windows, `{id, kind, note, created, updated, ...}`. A statement
+  is named by a `StmtRef {sqlId, hash}` (FNV-1a of kind + text: ids are positions and
+  do not survive another parse); `resolveStmt` matches sql_id + hash, else a unique
+  sql_id. An execution adds `execNo` and `cursorLine` (execution numbers count per
+  cursor; the cursor's trace line picks it, `execKey`). A window is `from`/`to` tim +
+  optional `label`. Lines are the bookmarks: `Bookmark` gained `note?` and `updated?`
+  (`setBookmarkNote`; `addBookmark` keeps a note). Actions `setAnnotations`,
+  `addAnnotation` (an existing id is replaced), `updateAnnotation` (bumps `updated`),
+  `removeAnnotation`; `setLoaded` clears them.
+- `State.annotationsEnabled` (default false) shows the affordances: "✎ Add note" and
+  the note box in `StatementDetail`, a ✎ column in its executions table, the window
+  note chips and "Annotate window" in `Timeline`, "✎ Note" and the note per bookmark
+  in `Lines` (gutter mark `lv-note`, note as tooltip). Notes that exist are shown
+  regardless. Editor: `components/Note.tsx` (`NoteEditor`, `NoteBox`).
+- File format and merge (pure, unit-tested): `annotationsFile` / `parseAnnotationsFile`
+  (`{version: 1, identity, trace, exported, annotations}`, bookmarks as kind `line`),
+  `mergeAnnotations` / `mergeBookmarks` (by id or line, the newer `updated` wins),
+  `annotationsMarkdown` (grouped by kind, labels and times from the caller).
+- Pivot: the view's configuration moved from component state into
+  `State.pivot: PivotState {fact, by, sort per fact, limit, stmt, event, notice}`
+  (`actions.setPivot`), so a store can save and apply it. `Store.getPivotConfig()`
+  returns a `PivotConfig` (`data/pivotconfig.ts`) with stable keys: the window as
+  offsets from the trace's first tim, contexts as `{session, module, action}`, the
+  statement as a `StmtRef`, the event by name, the idle flag. `applyPivotConfig(cfg)`
+  resolves it against the store's document (`resolvePivotConfig`), cuts the window
+  to the span, switches to the Pivot view and returns what it dropped; the view
+  shows that as a dismissable notice. `stmt`/`event` filter the pivot query
+  (`PivotQuery.stmt/event`) and show as chips.
+- `Session.library?: PivotLibrary` (external store: `subscribe`, `getSnapshot`,
+  `save(name, cfg)`, optional `manage()`) feeds the Pivot view's "Saved" menu, shown
+  when `State.libraryEnabled` and a library is present. `libraryFile`,
+  `parseLibraryFile` (also reads `{library: {...}}` inside a bigger export),
+  `mergeLibrary`, `describePivotConfig` are the file side.
 
 ### Memory and size
 
