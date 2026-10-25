@@ -142,6 +142,8 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .hero h1 { font-size: var(--text-hero); font-weight: 500; letter-spacing: -0.01em; line-height: 1.2; }
 .hero h1 .dim { font-weight: 400; }
 .hero .lede { font-size: var(--text-lg); line-height: 1.5; max-inline-size: 72ch; color: var(--ink-2); margin-block-end: var(--sp-4); }
+.hero-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-4); }
+.hero-head .lede { padding-inline-start: var(--sp-4); border-inline-start: 1px solid var(--hairline-strong); }
 .axis { position: relative; block-size: 1.1rem; font-size: var(--text-xs); color: var(--ink-3); }
 .axis i { position: absolute; inset-block-start: 0; transform: translateX(-50%); font-style: normal; font-variant-numeric: tabular-nums; }
 .axis i:first-child { transform: none; }
