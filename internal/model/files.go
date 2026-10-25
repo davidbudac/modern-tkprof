@@ -150,6 +150,41 @@ func headerName(path string) string {
 // chain member by its header name.
 const maxSiblingScan = 2000
 
+// FindContinuation finds the file a "TRACE CONTINUES IN FILE ref" marker of
+// the file from names, as BuildFiles follows a chain: the path in the
+// marker, a file of that name next to from, or a *.trc file next to from
+// whose header names it (renamed or copied files); skip excludes files (the
+// chain so far). "" when there is none (yet).
+func FindContinuation(ref, from string, skip func(string) bool) string {
+	dir := filepath.Dir(from)
+	ok := func(c string) bool {
+		fi, err := os.Stat(c)
+		return err == nil && fi.Mode().IsRegular() && !skip(c)
+	}
+	want := baseName(ref)
+	for _, c := range []string{ref, filepath.Join(dir, want)} {
+		if ok(c) {
+			if abs, err := filepath.Abs(c); err == nil {
+				return abs
+			}
+			return c
+		}
+	}
+	ents, _ := os.ReadDir(dir)
+	if len(ents) > maxSiblingScan {
+		return ""
+	}
+	for _, e := range ents {
+		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".trc") {
+			continue
+		}
+		if c := filepath.Join(dir, e.Name()); headerName(c) == want && ok(c) {
+			return c
+		}
+	}
+	return ""
+}
+
 // baseName is filepath.Base that also splits Windows separators, since a
 // trace written on a Windows server may be analysed on Linux.
 func baseName(p string) string {
@@ -327,13 +362,18 @@ func BuildFiles(paths []string, opts Options) (*Model, error) {
 	}
 	m := b.Finish(total)
 	prog.done(total.Bytes, int64(total.Lines), int64(len(m.Statements)))
-	for i, pf := range plan {
-		if pf.followed {
-			m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("%s: not named, followed as part of the chain", filepath.Base(plan[i].path)))
-		}
-	}
+	m.noteFollowed()
 	m.Diag.Notes = append(m.Diag.Notes, notes...)
 	return m, nil
+}
+
+// noteFollowed notes the files pulled in by following a chain.
+func (m *Model) noteFollowed() {
+	for _, fe := range m.File.Files {
+		if fe.Followed {
+			m.Diag.Notes = append(m.Diag.Notes, fmt.Sprintf("%s: not named, followed as part of the chain", filepath.Base(fe.Path)))
+		}
+	}
 }
 
 var (

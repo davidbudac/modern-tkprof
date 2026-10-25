@@ -512,16 +512,23 @@ func (s *Server) startRemoteJob(w http.ResponseWriter, kind string, c *connectio
 
 // startRemoteJobUnit is startRemoteJob counting in unit (bytes, lines).
 func (s *Server) startRemoteJobUnit(w http.ResponseWriter, kind, unit string, c *connection, files []string, work func(*Job) error) *Job {
+	j, err := s.remoteJob(kind, unit, c, files, work)
+	if err != nil {
+		writeError(w, err)
+	}
+	return j
+}
+
+// remoteJob is startRemoteJobUnit answering the error instead of writing it.
+func (s *Server) remoteJob(kind, unit string, c *connection, files []string, work func(*Job) error) (*Job, error) {
 	if !s.claim(files) {
-		writeError(w, errorf(CodeConflict, "a job is writing %s already", strings.Join(files, ", ")))
-		return nil
+		return nil, errorf(CodeConflict, "a job is writing %s already", strings.Join(files, ", "))
 	}
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
 		s.release(files)
-		writeError(w, errorf(CodeConflict, "the engine is shutting down"))
-		return nil
+		return nil, errorf(CodeConflict, "the engine is shutting down")
 	}
 	j := s.newJobLocked(kind, "")
 	j.info.Connection, j.info.Phase, j.info.Unit = c.def.ID, kind, unit
@@ -537,7 +544,7 @@ func (s *Server) startRemoteJobUnit(w http.ResponseWriter, kind, unit string, c 
 		}
 		j.finish(err)
 	}()
-	return j
+	return j, nil
 }
 
 // progress sets the job's byte counter; events at most every 200 ms (and
@@ -692,7 +699,7 @@ func (s *Server) followConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	p := body.Path
 	started := make(chan struct{})
-	j := s.startRemoteJob(w, "follow", c, locals, func(j *Job) error { return s.runFollow(j, cl, p, locals[0], started) })
+	j := s.startRemoteJob(w, "follow", c, locals, func(j *Job) error { return s.runFollow(j, cl, p, locals[0], started, false) })
 	if j == nil {
 		return
 	}
@@ -703,7 +710,19 @@ func (s *Server) followConnection(w http.ResponseWriter, r *http.Request) {
 		}{j.Info(), locals[0]})
 		return
 	}
-	spec.mirror, spec.started = j, started
+	spec.mirror, spec.started, spec.remote = j, started, p
+	spec.follow = func(rp string) (nextMirror, error) { // the next file of a TRACE CONTINUES IN chain
+		locals, err := s.localFor(c.def.ID, []string{rp})
+		if err != nil {
+			return nextMirror{}, err
+		}
+		started := make(chan struct{})
+		j, err := s.remoteJob("follow", "bytes", c, locals, func(j *Job) error { return s.runFollow(j, cl, rp, locals[0], started, true) })
+		if err != nil {
+			return nextMirror{}, err
+		}
+		return nextMirror{remote: rp, local: locals[0], job: j, started: started}, nil
+	}
 	ss, err := s.startLive(spec)
 	if err != nil {
 		j.cancel()
@@ -717,14 +736,26 @@ func (s *Server) followConnection(w http.ResponseWriter, r *http.Request) {
 	}{ss.Info(), j.Info(), locals[0]})
 }
 
+// followWaitPoll is how often a follow job waiting for its file looks.
+const followWaitPoll = 500 * time.Millisecond
+
 // runFollow is the follow job; started (if not nil) is closed once the
-// local file is open at the offset the mirror appends at.
-func (s *Server) runFollow(j *Job, cl remote.SSH, p, local string, started chan<- struct{}) error {
+// local file is open at the offset the mirror appends at. With wait (the
+// next file of a chain, which the host may not have created yet) it polls
+// until the remote file is there.
+func (s *Server) runFollow(j *Job, cl remote.SSH, p, local string, started chan<- struct{}, wait bool) error {
 	ctx := j.Context()
 	if err := os.MkdirAll(filepath.Dir(local), 0o700); err != nil {
 		return err
 	}
 	e, err := remote.Stat(ctx, cl, p)
+	for wait && err != nil && ctx.Err() == nil {
+		select {
+		case <-ctx.Done():
+		case <-time.After(followWaitPoll):
+		}
+		e, err = remote.Stat(ctx, cl, p)
+	}
 	if err != nil {
 		return err
 	}

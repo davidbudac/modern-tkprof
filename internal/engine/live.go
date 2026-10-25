@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime/debug"
 	"strconv"
@@ -39,6 +40,12 @@ import (
 // local file; POST /engine/connections/{id}/follow does it over the local
 // mirror of a remote file (connections.go). DELETE /engine/sessions/{id}
 // stops the follow and removes the spill.
+//
+// A file that ends with "*** TRACE CONTINUES IN FILE x ***" is followed
+// into x once x exists (next to the file; for a remote follow a new mirror
+// of x on the same connection, the old one is stopped): the parser of the
+// file ends, the builder continues in the next file as BuildFiles parses a
+// chain (model.(*Builder).ContinueLive), and the snapshots list both files.
 
 // Batch limits.
 const (
@@ -47,7 +54,8 @@ const (
 	liveBatchMax     = time.Minute
 	liveCostFactor   = 3 // the next snapshot waits at least this many times the last one's cost
 	livePollMax      = 100 * time.Millisecond
-	liveDocWait      = 25 * time.Second // longest wait of GET api/doc?rev=
+	liveDocWait      = 25 * time.Second       // longest wait of GET api/doc?rev=
+	liveProbe        = 250 * time.Millisecond // looking for the next file of a chain at most this often
 )
 
 // liveSpec is what a live session is started with.
@@ -63,6 +71,26 @@ type liveSpec struct {
 	// it when the session ends.
 	mirror  *Job
 	started <-chan struct{}
+
+	// remote is the path of the mirrored file on the host, and follow
+	// starts the mirror of the next file of a chain (remote follow only).
+	remote string
+	follow func(remotePath string) (nextMirror, error)
+}
+
+// nextMirror is the mirror of the next file of a chain.
+type nextMirror struct {
+	remote, local string
+	job           *Job
+	started       <-chan struct{}
+}
+
+// liveFile is one file of the followed chain.
+type liveFile struct {
+	path string
+	rf   *os.File       // read by the line views of every snapshot
+	scan trace.LineScan // the line index, fed as the parser reads
+	st   trace.Stats    // the parser's statistics once the file is done
 }
 
 // live is the follow of one growing file.
@@ -78,20 +106,29 @@ type live struct {
 
 	// parser goroutine only
 	spill    *slice.Spill
-	f        *os.File // read by the parser
-	read     int64    // bytes read from f
-	scan     trace.LineScan
+	files    []*liveFile // the chain so far; the last one is being read
+	done     trace.Stats // of the files before the last
+	f        *os.File    // the last file, read by the parser
+	read     int64       // bytes read from f
 	b        *model.Builder
 	p        *trace.Parser
 	lastSnap time.Time
 	lastCost time.Duration
-	snapped  int64 // parser bytes at the last snapshot
+	snapped  int64 // parser bytes (all files) at the last snapshot
 	rev      int
-	upErr    error // the mirror ended (after the bytes it wrote are read)
+	upErr    error     // the mirror ended (after the bytes it wrote are read)
+	nextPath string    // the next file of the chain, once it is there: the parser ends at the end of f
+	draining bool      // the old mirror has stopped: read what it wrote, then end
+	tried    string    // the last continuation not found (logged once)
+	probed   time.Time // when the next local file was last looked for
+
+	// the mirror writing f and the one of the next file (a remote follow)
+	mirror  *Job
+	pending *nextMirror
+	remote  string
 
 	costs atomic.Pointer[[]time.Duration] // the last snapshots' costs (tests, logs)
 
-	rf      *os.File // shared by the line views of every snapshot
 	stopped chan struct{}
 
 	cur  atomic.Pointer[liveSnap]
@@ -163,7 +200,8 @@ func (s *Server) startLive(spec liveSpec) (*Session, error) {
 		return nil, err
 	}
 	lv := &live{srv: s, spec: spec, path: path, batch: batch, batchBytes: int64(spec.opts.BatchMB) << 20,
-		poll: min(livePollMax, max(batch/4, 10*time.Millisecond)), stopped: make(chan struct{}), next: make(chan struct{})}
+		poll: min(livePollMax, max(batch/4, 10*time.Millisecond)), stopped: make(chan struct{}), next: make(chan struct{}),
+		mirror: spec.mirror, remote: spec.remote}
 	ss := &Session{id: newID("s"), paths: spec.paths, inputs: spec.paths, opened: time.Now(), bindMode: spec.mode,
 		salt: spec.opts.Salt, th: spec.th, done: make(chan struct{}), state: SessionOpening, files: fileInfos(spec.paths)}
 	lv.ss = ss
@@ -194,8 +232,10 @@ func (s *Server) runLive(lv *live) {
 	defer close(ss.done)
 	defer close(lv.stopped)
 	err := lv.run(job.Context())
-	if m := lv.spec.mirror; m != nil {
-		m.cancel()
+	for _, m := range []*Job{lv.mirror, lv.pendingJob()} {
+		if m != nil {
+			m.cancel()
+		}
 	}
 	ss.use.RLock()
 	served := ss.op != nil
@@ -216,7 +256,15 @@ func (s *Server) runLive(lv *live) {
 	job.finish(err)
 }
 
-// run parses the file as it grows; it returns when ctx ends or on an error.
+func (lv *live) pendingJob() *Job {
+	if lv.pending != nil {
+		return lv.pending.job
+	}
+	return nil
+}
+
+// run parses the file as it grows, and the files it continues in; it
+// returns when ctx ends or on an error.
 func (lv *live) run(ctx context.Context) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -227,15 +275,12 @@ func (lv *live) run(ctx context.Context) (err error) {
 		select {
 		case <-lv.spec.started:
 		case <-lv.spec.mirror.Context().Done():
-			return lv.mirrorErr()
+			return lv.mirrorErr(lv.spec.mirror)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
-	if lv.f, err = os.Open(lv.path); err != nil {
-		return err
-	}
-	if lv.rf, err = os.Open(lv.path); err != nil {
+	if err := lv.openFile(lv.path); err != nil {
 		return err
 	}
 	ss := lv.ss
@@ -251,15 +296,72 @@ func (lv *live) run(ctx context.Context) (err error) {
 	lv.b = model.NewLiveBuilder(lv.path, model.Options{NoFacts: true, Aggregate: true, SpillBinds: ss.bindMode != model.BindsNone,
 		NewSink: func(m *model.Model) model.Sink { return analyze.NewAccumulator(m, th) },
 		NewTee:  sp.Attach})
-	lv.p = trace.New(lv.b)
 	lv.lastSnap = time.Now()
-	_, err = lv.p.Run(tailReader{lv, ctx})
-	return err
+	for {
+		lv.p = trace.New(lv.b)
+		st, err := lv.p.Run(tailReader{lv, ctx})
+		if err != nil {
+			return err
+		}
+		if lv.nextPath == "" { // tailReader ends only at a switch
+			return fmt.Errorf("internal error: the parser of %s ended", lv.last().path)
+		}
+		if err := lv.switchFile(st); err != nil {
+			return err
+		}
+	}
 }
 
-// mirrorErr is why the mirror job ended.
-func (lv *live) mirrorErr() error {
-	info := lv.spec.mirror.Info()
+// last is the file being read.
+func (lv *live) last() *liveFile { return lv.files[len(lv.files)-1] }
+
+// openFile adds path to the chain and makes it the file the parser reads.
+func (lv *live) openFile(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	rf, err := os.Open(path)
+	if err != nil {
+		f.Close()
+		return err
+	}
+	if lv.f != nil {
+		lv.f.Close()
+	}
+	lv.f, lv.read = f, 0
+	lv.files = append(lv.files, &liveFile{path: path, rf: rf})
+	return nil
+}
+
+// switchFile moves the build on to the next file of the chain once the
+// parser of the current one has ended (with its statistics st).
+func (lv *live) switchFile(st trace.Stats) error {
+	prev := lv.last()
+	lv.b.EndFile(st)
+	prev.st = st
+	lv.done.Add(st)
+	next := lv.nextPath
+	lv.nextPath = ""
+	if err := lv.openFile(next); err != nil {
+		return err
+	}
+	lv.b.ContinueLive(next)
+	if nm := lv.pending; nm != nil {
+		lv.mirror, lv.remote, lv.pending = nm.job, nm.remote, nil
+	}
+	ss := lv.ss
+	ss.mu.Lock()
+	ss.files = append(ss.files, FileInfo{Path: next, Name: filepath.Base(next)})
+	ss.mu.Unlock()
+	lv.srv.logf("info", "session %s: %s continues in %s; following it", ss.id, filepath.Base(prev.path), filepath.Base(next))
+	lv.srv.bc.publish("session", ss.event())
+	return nil
+}
+
+// mirrorErr is why the mirror job m ended.
+func (lv *live) mirrorErr(m *Job) error {
+	info := m.Info()
 	msg := info.Message
 	if info.State == JobRunning || msg == "" {
 		msg = "cancelled"
@@ -272,7 +374,8 @@ func (s *Server) liveDir() string { return filepath.Join(filepath.Dir(s.cache.Di
 
 // tailReader is the parser's input: the file, waiting at its end for more.
 // The parser calls Read only when it has no complete line left, so this is
-// where snapshots are taken.
+// where snapshots are taken. It ends (io.EOF) only when the file continues
+// in another one that is there and everything of this one is read.
 type tailReader struct {
 	lv  *live
 	ctx context.Context
@@ -289,7 +392,7 @@ func (t tailReader) Read(buf []byte) (int, error) {
 		}
 		n, err := lv.f.Read(buf)
 		if n > 0 {
-			lv.scan.Feed(buf[:n])
+			lv.last().scan.Feed(buf[:n])
 			lv.read += int64(n)
 			return n, nil
 		}
@@ -297,20 +400,33 @@ func (t tailReader) Read(buf []byte) (int, error) {
 			return 0, err
 		}
 		// at the end of what is written
+		if lv.draining { // the old mirror has stopped and all it wrote is read
+			lv.draining = false
+			return 0, io.EOF
+		}
 		if lv.upErr != nil { // the mirror ended and everything it wrote is read: a last snapshot
-			if st := lv.p.Stats(); st.Lines > 0 && st.Bytes > lv.snapped {
-				if err := lv.snapshot(st); err != nil {
+			if _, total := lv.stats(); total.Lines > 0 && total.Bytes > lv.snapped {
+				if err := lv.snapshot(); err != nil {
 					return 0, err
 				}
 			}
 			return 0, lv.upErr
 		}
-		if m := lv.spec.mirror; m != nil && m.Context().Err() != nil {
-			lv.upErr = lv.mirrorErr()
+		if m := lv.mirror; m != nil && m.Context().Err() != nil {
+			lv.upErr = lv.mirrorErr(m)
 			continue // read once more: the last write may have come just before the end
 		}
 		if fi, err := lv.f.Stat(); err == nil && fi.Size() < lv.read {
-			return 0, fmt.Errorf("%s shrank from %d to %d bytes (truncated or replaced)", lv.path, lv.read, fi.Size())
+			return 0, fmt.Errorf("%s shrank from %d to %d bytes (truncated or replaced)", lv.last().path, lv.read, fi.Size())
+		}
+		switch ok, err := lv.nextReady(t.ctx); {
+		case err != nil:
+			return 0, err
+		case ok && lv.mirror == nil:
+			return 0, io.EOF
+		case ok:
+			lv.draining = true
+			continue
 		}
 		if err := lv.maybeSnapshot(true); err != nil {
 			return 0, err
@@ -323,12 +439,98 @@ func (t tailReader) Read(buf []byte) (int, error) {
 	}
 }
 
+// nextReady reports whether the current file continues in another one that
+// is there (lv.nextPath is set then). For a remote follow it starts the
+// mirror of the next file and, once that one has opened its local file,
+// stops the current mirror (true then: what the old one wrote last is still
+// to be read).
+func (lv *live) nextReady(ctx context.Context) (bool, error) {
+	ref := lv.b.ContinuesIn()
+	if ref == "" {
+		return false, nil
+	}
+	if lv.spec.follow == nil {
+		if time.Since(lv.probed) < liveProbe {
+			return false, nil
+		}
+		lv.probed = time.Now()
+		p := model.FindContinuation(ref, lv.last().path, lv.inChain)
+		if p == "" {
+			if lv.tried != ref {
+				lv.tried = ref
+				lv.srv.logf("info", "session %s: %s continues in %s; waiting for it", lv.ss.id, filepath.Base(lv.last().path), ref)
+			}
+			return false, nil
+		}
+		lv.nextPath = p
+		return true, nil
+	}
+	if lv.pending == nil {
+		rp := path.Join(path.Dir(lv.remote), path.Base(strings.ReplaceAll(ref, `\`, "/")))
+		if rp == lv.remote {
+			return false, nil
+		}
+		nm, err := lv.spec.follow(rp)
+		if err != nil {
+			return false, fmt.Errorf("follow %s: %w", rp, err)
+		}
+		lv.pending = &nm
+		lv.srv.logf("info", "session %s: %s continues in %s; following it", lv.ss.id, path.Base(lv.remote), rp)
+	}
+	nm := lv.pending
+	select {
+	case <-nm.started:
+	case <-nm.job.Context().Done():
+		return false, lv.mirrorErr(nm.job)
+	default:
+		return false, nil
+	}
+	old := lv.mirror
+	old.cancel()
+	for old.running() { // its last write is in the file once it has finished
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	lv.nextPath = nm.local
+	return true, nil
+}
+
+// inChain reports whether p is a file of the chain already.
+func (lv *live) inChain(p string) bool {
+	for _, f := range lv.files {
+		if sameFile(f.path, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func sameFile(a, b string) bool {
+	if a == b {
+		return true
+	}
+	fa, err1 := os.Stat(a)
+	fb, err2 := os.Stat(b)
+	return err1 == nil && err2 == nil && os.SameFile(fa, fb)
+}
+
+// stats are the parser's statistics of the current file and of all files.
+func (lv *live) stats() (file, total trace.Stats) {
+	file = lv.p.Stats()
+	total = lv.done
+	total.Add(file)
+	return file, total
+}
+
 // maybeSnapshot takes a snapshot when the batch is due: new lines since the
 // last one, and the batch period (at least liveCostFactor times the cost of
 // the last snapshot) has passed, or BatchMB of input. The first snapshot is
 // taken as soon as the reader has caught up with the file.
 func (lv *live) maybeSnapshot(caughtUp bool) error {
-	st := lv.p.Stats()
+	_, st := lv.stats()
 	if st.Bytes == lv.snapped || st.Lines == 0 {
 		return nil
 	}
@@ -340,15 +542,16 @@ func (lv *live) maybeSnapshot(caughtUp bool) error {
 	if !due {
 		return nil
 	}
-	return lv.snapshot(st)
+	return lv.snapshot()
 }
 
 // snapshot publishes the model of the lines parsed so far.
-func (lv *live) snapshot(st trace.Stats) error {
+func (lv *live) snapshot() error {
 	start := time.Now()
 	ss := lv.ss
+	file, st := lv.stats()
 	ov := lv.spill.Overlay()
-	m := lv.b.Snapshot(st, lv.p.Pending, ov)
+	m := lv.b.Snapshot(file, st, lv.p.Pending, ov)
 	src, err := ov.Source(m)
 	if err != nil {
 		return fmt.Errorf("spill: %w", err)
@@ -358,7 +561,15 @@ func (lv *live) snapshot(st trace.Stats) error {
 	if err != nil {
 		return err
 	}
-	co := &CacheOpened{Model: m, Source: src, Lines: []*trace.LineIndex{lv.scan.View(lv.rf, st.Lines, st.Bytes)}}
+	lis := make([]*trace.LineIndex, len(lv.files))
+	for i, f := range lv.files {
+		fs := f.st
+		if i == len(lv.files)-1 {
+			fs = file
+		}
+		lis[i] = f.scan.View(f.rf, fs.Lines, fs.Bytes)
+	}
+	co := &CacheOpened{Model: m, Source: src, Lines: lis}
 	lv.rev++
 	snap := &liveSnap{rev: lv.rev, doc: doc, handler: lv.srv.sessionMux(ss, co, doc)}
 	lv.cur.Store(snap)
@@ -371,10 +582,13 @@ func (lv *live) snapshot(st trace.Stats) error {
 		ss.op = &opened{co: co, handler: lv, release: lv.close}
 		ss.use.Unlock()
 	}
-	fe := m.File.Files[0]
+	files := make([]FileInfo, len(m.File.Files))
+	for i, fe := range m.File.Files {
+		files[i] = FileInfo{Path: fe.Path, Name: fe.Name, Size: fe.Size}
+	}
 	ss.mu.Lock()
 	ss.state, ss.rev, ss.bytes, ss.lines = SessionLive, lv.rev, st.Bytes, int64(st.Lines)
-	ss.files = []FileInfo{{Path: fe.Path, Name: fe.Name, Size: st.Bytes}}
+	ss.files = files
 	ss.mu.Unlock()
 	ss.job.Progress(st.Bytes, int64(st.Lines), int64(len(m.Statements)))
 	lv.srv.bc.publish("session", ss.event())
@@ -456,10 +670,11 @@ func (lv *live) close() {
 		if lv.spill != nil {
 			errs = append(errs, lv.spill.Close())
 		}
-		for _, f := range []*os.File{lv.f, lv.rf} {
-			if f != nil {
-				errs = append(errs, f.Close())
-			}
+		if lv.f != nil {
+			errs = append(errs, lv.f.Close())
+		}
+		for _, f := range lv.files {
+			errs = append(errs, f.rf.Close())
 		}
 		if err := errors.Join(errs...); err != nil {
 			lv.srv.logf("error", "session %s: closing the follow: %v", lv.ss.id, err)

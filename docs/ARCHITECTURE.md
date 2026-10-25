@@ -826,14 +826,41 @@ alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
   under `<cache>/live/` (`slice.NewSpill`, key `live`, so leftovers of a dead
   engine are removed by the next one) that `DELETE` removes. Reopen the file
   normally once it stops growing to get a cache entry.
-* **Input.** One file, no chain following, the builder `BuildFiles` uses
-  for a single file (`model.NewLiveBuilder`). The parser reads a
+* **Input.** One file, the builder `BuildFiles` uses for a single file
+  (`model.NewLiveBuilder`), and the files it continues in. The parser reads a
   `tailReader` that never returns EOF: at the end of the file it polls (100
   ms, a quarter of `batchMs` if shorter) until more is written, so a line
   still being written waits for its newline (`tail -f` and the mirror deliver
   partial lines). A file that shrinks (truncated, replaced) fails the
   session; the end of a remote follow's mirror job fails it after the bytes
   the mirror wrote are parsed, with a last snapshot.
+* **Chains.** When the current file has a `*** TRACE CONTINUES IN FILE x
+  ***` marker (`(*Builder).ContinuesIn`) and the reader is at its end, it
+  looks for x (`model.FindContinuation`, at most every 250 ms: the path in
+  the marker, the same name next to the file, a `*.trc` there whose header
+  names it; never a file of the chain already). Once x is there the reader
+  returns EOF, the parser of the file ends (flushing its open records, as
+  `BuildFiles` parses each file of a chain with its own parser), the
+  builder takes `EndFile` and `ContinueLive(x)` (`NextFile` as a
+  continuation, `Followed`; the first switch makes the build multi-file, so
+  the header pid becomes `Context.Process`, also of the contexts so far),
+  and a new parser reads x with its own line scan and line view. Snapshots
+  take the current file's and the total statistics (`Snapshot(file,
+  total, …)`), list every file and note the followed ones as `BuildFiles`
+  does; a `log` and a `session` event go out at the switch. A remote
+  follow (`liveSpec.follow`) starts a second follow job on the same
+  connection for x's name in the remote file's directory (`runFollow` with
+  `wait`: it polls `Stat` every 500 ms until the host has it); once that
+  job has opened its local file, the first job is cancelled (its stream is
+  closed, which stops `tail` on the host) and the reader waits until it has
+  finished, reads what it wrote last, then switches. The session's end
+  cancels the current and a pending mirror. `TestSnapshotOfChain`
+  (`internal/model`: snapshots across the switch equal `BuildFiles` of the
+  chain so far), `TestLiveFollowChain` (every slice and line endpoint of
+  both files equals a normal open of the chain) and
+  `TestLiveFollowRemoteChain` (lib transport: the first mirror is
+  cancelled, the second cancelled by DELETE, nothing lingers on the host)
+  cover it, on the real `midtrace_start` pair.
 * **Snapshot point.** `bufio` calls `Read` only when no complete line is
   buffered, so inside `Read` every complete line has been delivered and the
   builder is between two records: that is where snapshots are taken, in the

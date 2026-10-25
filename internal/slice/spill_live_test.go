@@ -73,7 +73,7 @@ func TestLivePostings(t *testing.T) {
 			snaps := 0
 			check := func() {
 				ov := sp.Overlay()
-				m := b.Snapshot(p.Stats(), p.Pending, ov)
+				m := b.Snapshot(p.Stats(), p.Stats(), p.Pending, ov)
 				fs, err := ov.Source(m)
 				if err != nil {
 					t.Fatal(err)

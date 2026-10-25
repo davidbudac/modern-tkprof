@@ -187,7 +187,11 @@ SFTP listing and fetch would work; diag and follow would not).
   stream at the local size after a drop (1 s, 2 s, …; 5 failures in a row
   end the job), and a live session parses the mirror as it grows
   (`docs/ARCHITECTURE.md` § Engine mode, "Live sessions"); `mirrorOnly`
-  keeps the plain mirror.
+  keeps the plain mirror. When the trace continues in another file (`***
+  TRACE CONTINUES IN FILE x ***`, a changed `tracefile_identifier`), the
+  session starts a follow job for the file of that name in the same remote
+  directory (waiting until the host has it), stops the first job (its
+  `tail` ends with the stream) and parses on into the second mirror.
 
 ### Measurements (loopback, in-process server, this laptop)
 
