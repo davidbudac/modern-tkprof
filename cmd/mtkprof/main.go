@@ -540,15 +540,17 @@ func cmdServe(args []string) error {
 		lis = append(lis, li)
 	}
 	mux := http.NewServeMux()
+	// The slicing modes serve the line endpoints too (lines incl. annot=1,
+	// lines/at, at, search); /api/doc below is the longer pattern's exception.
 	if src != nil {
-		mux.Handle("/api/", slicepkg.NewServer(m, src).Handler())
+		mux.Handle("/api/", slicepkg.NewServer(m, src).WithLines(lis).Handler())
 	} else if slicing {
-		mux.Handle("/api/", slicepkg.New(m).Handler()) // /api/doc and /api/lines below are the longer patterns' exceptions
+		mux.Handle("/api/", slicepkg.New(m).WithLines(lis).Handler())
 	} else {
 		m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
 		debug.FreeOSMemory()
+		mux.Handle("/api/lines", slicepkg.LinesHandler(lis))
 	}
-	mux.Handle("/api/lines", slicepkg.LinesHandler(lis))
 	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
 		// local dev server: let `pnpm dev` load ?doc=http://127.0.0.1:8046/api/doc
 		w.Header().Set("Access-Control-Allow-Origin", "*")

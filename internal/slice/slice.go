@@ -145,6 +145,7 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		"/api/stmt/roles":        s.stmtRoles,
 		"/api/stmt/waits":        s.stmtWaits,
 		"/api/stmt/spans":        s.stmtSpans,
+		"/api/plan":              s.plan,
 	}
 	if s.lis != nil {
 		routes["/api/lines/at"] = s.linesAt

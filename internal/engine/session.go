@@ -322,8 +322,8 @@ func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
 
 // sessionRoutes are the routes of a ready session, relative to /s/{id}.
 func sessionRoutes() []string {
-	out := []string{"GET /api/doc", "GET /api/lines"}
-	for _, ep := range slice.Endpoints() {
+	out := []string{"GET /api/doc", "GET /api/report"}
+	for _, ep := range append(slice.Endpoints(), slice.LineEndpoints()...) {
 		out = append(out, "GET "+ep)
 	}
 	return out
@@ -389,10 +389,10 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 	if !co.Hit {
 		debug.FreeOSMemory() // the build churned through the heap; give the pages back before idling
 	}
-	ssrv := slice.NewServer(m, co.Source)
-	ssrv.AllowOrigin = slice.NoCORS // the engine's middleware sets CORS
+	ssrv := slice.NewServer(m, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
+	ssrv.AllowOrigin = slice.NoCORS                           // the engine's middleware sets CORS
 	handlers := map[string]http.Handler{
-		"GET /api/lines": slice.LinesHandler(co.Lines),
+		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// ?rev= is accepted; there is one revision until ref data or follow exist
 			w.Header().Set("Content-Type", "application/json")

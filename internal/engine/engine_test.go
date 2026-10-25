@@ -205,8 +205,7 @@ func reference(t *testing.T, paths []string, mode model.BindMode, salt string) (
 		lis = append(lis, li)
 	}
 	mux := http.NewServeMux()
-	mux.Handle("/api/", slice.NewServer(m, src).Handler())
-	mux.Handle("/api/lines", slice.LinesHandler(lis))
+	mux.Handle("/api/", slice.NewServer(m, src).WithLines(lis).Handler())
 	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
@@ -239,12 +238,36 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 		"/api/profile", "/api/profile?idle=0&contexts=0", "/api/stmt/roles",
 		"/api/pivot?fact=nope", // a 400
 		"/api/lines?file=0&from=1&n=50", "/api/lines?file=0&from=100&n=5000", "/api/lines?file=9",
+		"/api/lines?file=0&from=1&n=50&annot=1", "/api/lines?file=0&from=100&n=5000&annot=1", "/api/lines?file=9&annot=1",
+		"/api/lines/at?file=0", "/api/lines/at?file=0&tim=x", "/api/lines/at?file=9&tim=1", "/api/lines/at?file=0&tim=0",
+		"/api/at?file=0", "/api/at?file=0&line=0", "/api/at?file=9&line=1", "/api/at?file=0&line=2147483647",
+		"/api/search?file=0", "/api/search?file=9&q=x", "/api/search?file=0&q=(&regex=1",
+		"/api/plan", "/api/plan?stmt=x", "/api/plan?stmt=99999", "/api/plan?sql_id=nosuch",
+	}
+	for fi, fe := range m.File.Files {
+		last := fe.Lines
+		q = append(q,
+			fmt.Sprintf("/api/lines/at?file=%d&tim=%d", fi, fe.FirstTim), fmt.Sprintf("/api/lines/at?file=%d&tim=%d", fi, mid),
+			fmt.Sprintf("/api/lines/at?file=%d&tim=%d", fi, m.Span.LastTim+1),
+			fmt.Sprintf("/api/search?file=%d&q=WAIT+%%23", fi), fmt.Sprintf("/api/search?file=%d&q=exec+%%23&case=0&limit=3", fi),
+			fmt.Sprintf("/api/search?file=%d&q=%%5E(PARSE|EXEC|FETCH)+%%23%%5B0-9%%5D%%2B&regex=1", fi),
+			fmt.Sprintf("/api/search?file=%d&q=END+OF+STMT&from=%d", fi, last/2), fmt.Sprintf("/api/search?file=%d&q=nothing-like-this", fi),
+			fmt.Sprintf("/api/lines?file=%d&from=%d&n=40&annot=1", fi, last/2))
+		step := max(1, last/40)
+		for l := 1; l <= last; l += step {
+			q = append(q, fmt.Sprintf("/api/at?file=%d&line=%d", fi, l))
+		}
+		q = append(q, fmt.Sprintf("/api/at?file=%d&line=%d", fi, last), fmt.Sprintf("/api/at?file=%d&line=%d", fi, last+1))
 	}
 	var all []string
 	for s := range m.Statements {
 		all = append(all, fmt.Sprint(s))
 		q = append(q, fmt.Sprintf("/api/executions?stmt=%d", s), fmt.Sprintf("/api/executions?stmt=%d&sort=e&limit=5&offset=1", s),
-			fmt.Sprintf("/api/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s))
+			fmt.Sprintf("/api/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s),
+			fmt.Sprintf("/api/plan?stmt=%d", s), fmt.Sprintf("/api/plan?stmt=%d&exec=1", s), fmt.Sprintf("/api/plan?sql_id=%s", m.Statements[s].SQLID))
+		for _, p := range report.LatestPlans(m, model.ID(s)) {
+			q = append(q, fmt.Sprintf("/api/plan?stmt=%d&plh=%d", s, p.PLH), fmt.Sprintf("/api/plan?stmt=%d&plh=%d&exec=2", s, p.PLH))
+		}
 		r := get(ref, fmt.Sprintf("/api/executions?stmt=%d&limit=10", s))
 		if r.code != 200 {
 			continue
@@ -317,7 +340,7 @@ func TestParityWithServeSpill(t *testing.T) {
 				n += k
 			}
 			t.Logf("%d answers equal (200), doc %d bytes", n, len(ed.body))
-			for _, ep := range append(endpoints, "lines") {
+			for _, ep := range append(endpoints, "lines", "lines/at", "at", "search", "plan") {
 				if ok[ep] == 0 && !(ep == "executions/detail" && len(m.Statements) == 0) {
 					t.Errorf("no 200 answer of %s compared", ep)
 				}

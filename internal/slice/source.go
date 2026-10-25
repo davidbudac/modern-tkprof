@@ -18,6 +18,12 @@ type FactSource interface {
 	Binds(set model.ID) []model.Bind
 	// BindSetLine is the trace line of the BINDS block.
 	BindSetLine(set model.ID) (line int, ok bool)
+	// NumBindSets is the number of bind sets (ids 0..n-1).
+	NumBindSets() int64
+	// BindSetAt is the bind set with ID, Line, Cursor, Statement, N and IsRPC
+	// set (a spill does not keep Call and First: the call that owns the set
+	// is the one whose BindSet it is).
+	BindSetAt(set model.ID) (model.BindSet, bool)
 	// RowsOfContext are the rows of the calls and of the waits of a session
 	// context: contexts are opened in file order, so the rows of one are
 	// adjacent (hi <= lo: it has none). Together with CallAt / WaitAt this is
@@ -98,6 +104,15 @@ func (s *memSource) BindSetLine(set model.ID) (int, bool) {
 		return 0, false
 	}
 	return s.m.BindSets[set].Line, true
+}
+
+func (s *memSource) NumBindSets() int64 { return int64(len(s.m.BindSets)) }
+
+func (s *memSource) BindSetAt(set model.ID) (model.BindSet, bool) {
+	if set < 0 || int(set) >= len(s.m.BindSets) {
+		return model.BindSet{}, false
+	}
+	return s.m.BindSets[set], true
 }
 
 func (*memSource) Close() error { return nil }

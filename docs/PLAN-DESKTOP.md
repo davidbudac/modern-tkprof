@@ -114,7 +114,7 @@ New:
 | `api/lines/at?file&tim=` | first line whose record has `tim >= tim` (binary search over the call rows of that file, then over waits) |
 | `api/at?file&line=` | the model objects at or before that line: `{call, stmt, cursor, execNo, wait, bindSet, ctx, planLine}`; `None` where absent |
 | `api/search?file&q&regex=0\|1&case=0\|1&from&limit` | NDJSON stream of `{line, col, text}` then `{done:true, scanned, truncated}`; literal search via `bytes.Index` chunked scan, regex via `regexp` on line boundaries; cancelable |
-| `api/plan?stmt&plh&exec` | `report.PlanRows` for one STAT dump (what `mtkprof plan` prints) |
+| `api/plan?stmt\|sql_id&plh&exec` | `report.PlanRows` for one STAT dump (what `mtkprof plan` prints) |
 | `POST api/ref` | `{dir}` or `{connection}`; job; on success `model.ApplyRef`, `rev++` |
 | `api/report?format=text\|json\|csv\|html&execs=&...` | the CLI's outputs for this session (download); `html` is the standalone report |
 
@@ -172,6 +172,29 @@ As built (phase 1, protocol 1; the YAML is authoritative):
   409. The slice endpoints keep their plain-text 400s.
 - The event stream needs the bearer token: read it with `fetch`, not
   `EventSource`.
+- Lines API (E6): `api/lines`, `lines/at`, `at`, `search` are the handlers of
+  `slice.Server.WithLines`, unchanged (plain-text 400/404, NDJSON `search`
+  with its final `{done, scanned, truncated}`); `mtkprof serve` serves them
+  in its slicing modes too.
+- `api/plan?stmt=<id>|sql_id=<sql_id>[&plh=<hash>][&exec=<n>]` (in
+  `internal/slice`, so `serve` has it): `mtkprof plan` as compact JSON
+  (`report.SelectPlans`, `PlansJSON`). With `plh` the row array of one dump,
+  `exec` the 1-based dump of that hash (default the latest); without `plh`
+  the array for a statement with one plan hash, else `{"<hash>": rows}`. 400:
+  no/both of `stmt`/`sql_id`, bad id, `plh` or `exec`; 404: unknown `sql_id`,
+  no STAT plan, unknown hash or dump.
+- `api/report?format=text|json|csv|html` (E10, `internal/engine/report.go`):
+  attachment named after the first input. `text` is `report.Text`
+  (`sort top execs binds sys width`, the CLI's defaults) of the session's
+  aggregate model, i.e. `mtkprof report -aggregate`: no executions tables,
+  and the Volume line counts 0 bind sets (they are in the spill). `json` is
+  `report.JSON` with `Facts:false, Packed:false` and the engine's plan viz URL
+  (`engine -plan-viz-url`, default the CLI's). `csv` is a zip of the files
+  of `mtkprof export` (`report.ExportCSVZip`; calls, waits, binds read from
+  the spill, byte-equal to the CLI's). `html` is `ui.WriteStandalone` over the
+  packed document without facts (`Slice:false`). Parameter errors are 400
+  envelopes. Tests compare bytes with the CLI paths on `basic_binds` and
+  `io_waits`.
 - `mtkprof engine -cache-cap 20G`; `mtkprof engine cache ls|rm|wipe`.
 
 ## 3. Persistent index cache
