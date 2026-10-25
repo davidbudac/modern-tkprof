@@ -162,6 +162,30 @@ Endpoints and query parameters of the per-session API are the ones of `serve
   `rev` is 1 until a reference bundle is applied; `GET /engine/cache` costs one `readdir` + manifest read per
   entry; a 2 GB trace has not been run through the engine.
 
+## Desktop phase 3, UI half (S5 Lines view): lib part done (2026-10-25)
+
+`web/src/lib/views/Lines.tsx` (design in `docs/ARCHITECTURE.md`, "Lines view"):
+virtualized viewer over `api/lines?annot=1` with a page cache, kind colouring,
+gutter marks of the selected statement, click -> `api/at` -> at bar and store
+selection, streaming search, jump to time, bookmarks, multi-file selector, the
+"Lines" tab and `#view=lines&file=&line=` in the standalone app (behind a one-time
+`api/at` probe). Exports on `@lib`: `Lines`, `probeLinesApi`, `fetchLinesAnnot`,
+`lineAt`, `objectsAt`, `search`, `parseJump`, `PageCache`, `ANNOT_PAGE`, types
+`LineKind`, `AnnotPage`, `AtObjects`, `SearchQuery`, `SearchHit`, `SearchEnd`,
+`Bookmark`, `LinesView`, `StmtMarks`; store actions `openLinesAt`, `setLinesLine`,
+`addBookmark`, `removeBookmark`, `setBookmarks`; state `linesApi`, `lineRefTarget`,
+`linesView`, `bookmarks`. Measured on `big_loop.trc` (2.88 M lines) with
+`serve -spill`, headless Chrome: see the S5 report in the PR / thread (page fetch
+~2 ms + 1 ms parse, scrolling at 60 fps, search of the whole file 92 ms literal).
+
+Desktop wiring still to do (repo `mtkprof-desktop`): set `linesApi: true` and
+`lineRefTarget: 'view'` on the session store, mount `<Lines doc={doc} />` as the
+Lines tab of a session, persist `bookmarks` as line annotations
+(`setBookmarks` on load, subscribe for changes), and check the page-size/LRU
+numbers in WebView2 on a 2 GB trace. Deferred in the lib: clock-time input in
+"Jump to time", highlighting of search matches inside the viewer rows, per-line
+copy/permalink, bookmark import/export.
+
 ## Desktop phase 4, engine side: done except dbmint verification (2026-10-25)
 
 Everything is in `docs/REMOTE.md` (SSH part, Oracle part, grants, the dbmint

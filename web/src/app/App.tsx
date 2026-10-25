@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useStore, useActions, useStoreApi, usePersisted, ResizeHandle, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, loadFile } from '@lib'
+import { useStore, useActions, useStoreApi, usePersisted, ResizeHandle, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, Lines, loadFile } from '@lib'
 import { TopBar, SubBar } from './TopBar'
 import { Inspector } from './Inspector'
 import { LineDrawer } from './LineDrawer'
@@ -34,7 +34,7 @@ export function App() {
   if (!doc) return <Landing error={error} />
 
   const hasInspector = event !== null
-  const full = view === 'statements'
+  const full = view === 'statements' || view === 'lines'
   return (
     <div className={'shell' + (hasInspector ? ' has-inspector' : '') + (lines ? ' has-lines' : '')}>
       <TopBar doc={doc} />
@@ -47,6 +47,7 @@ export function App() {
           {view === 'timeline' && <Timeline doc={doc} />}
           {view === 'sessions' && <Sessions doc={doc} />}
           {view === 'pivot' && <Pivot doc={doc} />}
+          {view === 'lines' && <Lines doc={doc} />}
           {view === 'compare' && compare && <Compare data={compare} />}
         </main>
         {hasInspector && <Inspector doc={doc} />}

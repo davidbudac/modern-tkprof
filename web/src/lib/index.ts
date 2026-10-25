@@ -11,6 +11,7 @@ export { Pivot } from './views/Pivot'
 export { Compare } from './views/Compare'
 export { EventDetail } from './views/EventDetail'
 export { Findings } from './views/Findings'
+export { Lines } from './views/Lines'
 
 // components
 export { ResizeHandle } from './components/ResizeHandle'
@@ -18,7 +19,7 @@ export { Minimap } from './components/Minimap'
 
 // state: one store per open trace, provided through the context
 export { createStore, scopeOf, callFilter, waitFilter } from './state/store'
-export type { Store, Actions, State, View, Side, Selection, TimeWindow, Scope } from './state/store'
+export type { Store, Actions, State, View, Side, Selection, TimeWindow, Scope, Bookmark, LinesView } from './state/store'
 export {
   SessionContext, SessionProvider, createSession, useSession, useStore, useStoreApi, useActions, useClient,
 } from './state/session'
@@ -33,8 +34,12 @@ export { fromRaw, loadInitial, loadFile } from './data/load'
 export type { Loaded, CompareData, Source } from './data/load'
 export { probeLines, fetchLines, LINES_PAGE } from './data/lines'
 export type { LinePage } from './data/lines'
+// the Lines view's endpoints (api/lines?annot=1, lines/at, at, search)
+export { probeLinesApi, fetchLinesAnnot, lineAt, objectsAt, search, parseJump, ANNOT_PAGE } from './data/lines'
+export type { LineKind, AnnotPage, AtObjects, SearchQuery, SearchHit, SearchEnd } from './data/lines'
+export { PageCache } from './data/linecache'
 export { sourceOf, attachRemote, LocalSource, RemoteSource, useSourceQuery } from './data/source'
-export type { DataSource, QueryState } from './data/source'
+export type { DataSource, QueryState, StmtMarks } from './data/source'
 export { traceSegmentsFrom } from './data/derive'
 export { fmtInt, fmtCompact, fmtDur, fmtSecs, fmtMs, fmtPct, fmtBytes, fmtWall, fmtTz, preview, oraErr } from './data/format'
 export type * from './data/types'

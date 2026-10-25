@@ -2,7 +2,7 @@ import type { TraceDoc } from '../data/doc'
 import type { CompareData } from '../data/load'
 import type { ID } from '../data/types'
 
-export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'compare'
+export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
 
 export interface TimeWindow { startTim: number; endTim: number }
 
@@ -14,6 +14,12 @@ export interface Selection {
   call: ID | null
   exec: { cursor: ID; execNo: number } | null
 }
+
+/** A bookmarked trace line (kept in the store; the desktop shell persists them as annotations). */
+export interface Bookmark { file: number; line: number; label: string }
+
+/** The Lines view's position: `seq` changes when something outside asks it to move to `line` (a deep link, a jump), clicks inside only update `line`. */
+export interface LinesView { file: number; line: number; seq: number }
 
 export interface State {
   /** the document the views show: with `compare`, the active side */
@@ -34,6 +40,12 @@ export interface State {
   linesAvailable: boolean
   /** Raw trace line viewer: `target` is highlighted, `center` is the middle of the page shown. */
   lineViewer: { target: number; center: number; file: number } | null
+  /** the engine / `serve -spill` answers the Lines view's endpoints (api/at probed once) */
+  linesApi: boolean
+  /** where "show in trace" (`LineRef`) opens: the bottom drawer, or (desktop shell) the Lines tab */
+  lineRefTarget: 'drawer' | 'view'
+  linesView: LinesView
+  bookmarks: Bookmark[]
 }
 
 const initial: State = {
@@ -41,6 +53,7 @@ const initial: State = {
   selection: { stmt: null, event: null, call: null, exec: null },
   window: null, contexts: null, includeIdle: true, inclusive: false, theme: 'auto',
   linesAvailable: false, lineViewer: null,
+  linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
 }
 
 /** The statement of the other side that matches `stmt` of side `from` (via the Go diff), else null. */
@@ -73,7 +86,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', loading: false, error: null })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', loading: false, error: null, bookmarks: [], linesView: { file: 0, line: 1, seq: 0 } })
   }
   return { getState, setState, subscribe, setLoaded, actions: makeActions(setState) }
 }
@@ -91,7 +104,7 @@ function makeActions(setState: Store['setState']) {
     setSide(side: Side) {
       setState((s) => {
         if (!s.compare || s.side === side) return {}
-        return { side, doc: s.compare[side], window: null, contexts: null, lineViewer: null, selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], window: null, contexts: null, lineViewer: null, bookmarks: [], selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
       })
     },
     /** Open a statement of side `side` in the Statements workbench. */
@@ -108,6 +121,18 @@ function makeActions(setState: Store['setState']) {
     openLines(line: number, file = 0) { setState({ lineViewer: { target: line, center: line, file } }) },
     pageLines(center: number) { setState((s) => (s.lineViewer ? { lineViewer: { ...s.lineViewer, center: Math.max(1, center) } } : {})) },
     closeLines() { setState({ lineViewer: null }) },
+    /** Open the Lines view at a line of an input file (the object there is resolved and highlighted by the view). */
+    openLinesAt(file: number, line: number) {
+      setState((s) => ({ view: 'lines', lineViewer: null, linesView: { file, line: Math.max(1, line), seq: s.linesView.seq + 1 } }))
+    },
+    /** The line selected in the Lines view (no scrolling). */
+    setLinesLine(file: number, line: number) { setState((s) => ({ linesView: { file, line, seq: s.linesView.seq } })) },
+    /** Add a bookmark (or relabel the one on that line). */
+    addBookmark(file: number, line: number, label: string) {
+      setState((s) => ({ bookmarks: [...s.bookmarks.filter((b) => b.file !== file || b.line !== line), { file, line, label }].sort((a, b) => a.file - b.file || a.line - b.line) }))
+    },
+    removeBookmark(file: number, line: number) { setState((s) => ({ bookmarks: s.bookmarks.filter((b) => b.file !== file || b.line !== line) })) },
+    setBookmarks(bookmarks: Bookmark[]) { setState({ bookmarks }) },
     setTheme(theme: State['theme']) {
       setState({ theme })
       const root = document.documentElement

@@ -4,12 +4,12 @@ import type { Store, TraceDoc, Side, State, View } from '@lib'
  * View, selected statement / wait event and time window live in the URL hash:
  *   #view=statements&sql=abc123def4567&ev=db+file+sequential+read&win=1200000-3400000
  * `sql` is the sql_id (`@N` = statement index for statements without one), `ev` the
- * event name, `win` the window as microseconds from the start of the trace.
+ * event name, `win` the window as microseconds from the start of the trace; the Lines view adds `file` (input file index) and `line`.
  * The `?doc=` query string is left alone.
  */
-const views: View[] = ['overview', 'statements', 'waits', 'timeline', 'sessions', 'pivot', 'compare']
+const views: View[] = ['overview', 'statements', 'waits', 'timeline', 'sessions', 'pivot', 'lines', 'compare']
 
-type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null }
+type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null; file: number; line: number }
 
 function sqlKey(doc: TraceDoc, id: number | null): string {
   if (id === null) return ''
@@ -27,6 +27,8 @@ function wanted(doc: TraceDoc, s: State): Wanted {
     sql: sqlKey(doc, s.selection.stmt),
     ev: s.selection.event === null ? '' : doc.events[s.selection.event]?.name ?? '',
     win: w ? [Math.round(w.startTim - doc.span.firstTim), Math.round(w.endTim - doc.span.firstTim)] : null,
+    file: s.view === 'lines' ? s.linesView.file : 0,
+    line: s.view === 'lines' ? s.linesView.line : 0,
   }
 }
 
@@ -37,6 +39,10 @@ function format(w: Wanted): string {
   if (w.sql) p.set('sql', w.sql)
   if (w.ev) p.set('ev', w.ev)
   if (w.win) p.set('win', `${w.win[0]}-${w.win[1]}`)
+  if (w.view === 'lines') {
+    if (w.file) p.set('file', String(w.file))
+    if (w.line > 1) p.set('line', String(w.line))
+  }
   const t = p.toString()
   return t ? '#' + t : ''
 }
@@ -51,6 +57,8 @@ function parse(hash: string): Partial<Wanted> {
   if (p.has('ev')) out.ev = p.get('ev')!
   const m = /^(-?\d+)-(\d+)$/.exec(p.get('win') ?? '')
   if (m) out.win = [Number(m[1]), Number(m[2])]
+  if (/^\d+$/.test(p.get('file') ?? '')) out.file = Number(p.get('file'))
+  if (/^\d+$/.test(p.get('line') ?? '')) out.line = Number(p.get('line'))
   return out
 }
 
@@ -67,12 +75,16 @@ function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   }
   const ev = w.ev ? doc.events.findIndex((e) => e.name === w.ev) : -1
   const base = doc.span.firstTim
-  const view = w.view === 'compare' && !cmp ? undefined : w.view
+  const st = store.getState()
+  const view = (w.view === 'compare' && !cmp) || (w.view === 'lines' && !(st.linesApi && doc.slice)) ? undefined : w.view
+  const files = doc.file.files?.length ?? 1
+  const file = w.file !== undefined && w.file < files ? w.file : 0
   store.setState({
     doc, side: cmp ? side : 'a',
     view: view ?? (stmt !== null ? 'statements' : 'overview'),
     selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: null },
     window: w.win && w.win[1] > w.win[0] ? { startTim: base + w.win[0], endTim: base + w.win[1] } : null,
+    ...(view === 'lines' ? { linesView: { file, line: Math.max(1, w.line ?? 1), seq: st.linesView.seq + 1 } } : {}),
   })
   return doc
 }
@@ -122,8 +134,9 @@ export function startUrlSync(store: Store): void {
     const a = wanted(doc, prev), b = wanted(doc, s)
     const onlyWindow = a.view === b.view && a.sql === b.sql && a.ev === b.ev
     const firstPick = a.view === b.view && a.sql === '' && b.sql !== '' && a.ev === b.ev
+    const lineStep = a.view === 'lines' && b.view === 'lines' && a.file === b.file // clicking through lines must not flood Back
     prev = s
-    write(onlyWindow || firstPick)
+    write(onlyWindow || firstPick || lineStep)
   })
   const onNav = () => {
     if (!doc || location.hash === last || (location.hash === '' && last === '')) return
