@@ -24,6 +24,7 @@ type diskSource struct {
 	calls, waits, sets, binds, vals *os.File
 	nCalls, nWaits, nSets, nBinds   int64
 	cstmt, wstmt                    *stmtIndex
+	lcalls, lwaits                  *liveRows // a live snapshot's postings instead of cstmt, wstmt (spill_live.go)
 	callCtx, waitCtx                []rowRange
 
 	sem   chan struct{} // scans at a time
@@ -47,7 +48,7 @@ func (d *diskSource) stmtOf(cur model.ID) model.ID {
 
 func (d *diskSource) EachCall(ctx context.Context, sc analyze.Scan, fn func(c *model.Call) bool) error {
 	var c model.Call
-	return d.scan(ctx, d.calls, callRec, d.nCalls, d.cstmt, d.callCtx, sc, func(row int64, b []byte) bool {
+	return d.scan(ctx, d.calls, callRec, d.nCalls, d.cstmt, d.lcalls, d.callCtx, sc, func(row int64, b []byte) bool {
 		getCall(b, &c)
 		c.ID = model.ID(row)
 		c.Statement = d.stmtOf(c.Cursor)
@@ -57,7 +58,7 @@ func (d *diskSource) EachCall(ctx context.Context, sc analyze.Scan, fn func(c *m
 
 func (d *diskSource) EachWait(ctx context.Context, sc analyze.Scan, fn func(w *model.Wait) bool) error {
 	var w model.Wait
-	return d.scan(ctx, d.waits, waitRec, d.nWaits, d.wstmt, d.waitCtx, sc, func(row int64, b []byte) bool {
+	return d.scan(ctx, d.waits, waitRec, d.nWaits, d.wstmt, d.lwaits, d.waitCtx, sc, func(row int64, b []byte) bool {
 		getWait(b, &w)
 		w.ID = model.ID(row)
 		w.Statement = d.stmtOf(w.Cursor)
@@ -105,7 +106,7 @@ func (d *diskSource) CallKind(id model.ID) (trace.CallKind, bool) {
 }
 
 // scan visits the rows of f the hint can match, in row order.
-func (d *diskSource) scan(ctx context.Context, f *os.File, recSize int, n int64, idx *stmtIndex, ranges []rowRange, sc analyze.Scan, visit func(row int64, rec []byte) bool) error {
+func (d *diskSource) scan(ctx context.Context, f *os.File, recSize int, n int64, idx *stmtIndex, lr *liveRows, ranges []rowRange, sc analyze.Scan, visit func(row int64, rec []byte) bool) error {
 	select {
 	case d.sem <- struct{}{}:
 		defer func() { <-d.sem }()
@@ -124,7 +125,12 @@ func (d *diskSource) scan(ctx context.Context, f *os.File, recSize int, n int64,
 	switch {
 	case len(sc.Statements) > 0:
 		var err error
-		if ids, err = d.postings(idx, sc.Statements, n); err != nil {
+		if lr != nil {
+			ids, err = d.livePostings(lr, sc.Statements, n)
+		} else {
+			ids, err = d.postings(idx, sc.Statements, n)
+		}
+		if err != nil {
 			return err
 		}
 		if ids != nil {
@@ -230,7 +236,7 @@ const maxMergeIDs = 8 << 20
 // postings returns the rows of the statements, or nil when a full scan is
 // cheaper (too many rows to merge) or there is no index.
 func (d *diskSource) postings(x *stmtIndex, sts []model.ID, n int64) (*rowIDs, error) {
-	if x == nil { // a live source has no statement index yet (spill_live.go)
+	if x == nil { // a live source without a cursor index (spill_live.go)
 		return nil, nil
 	}
 	var total int64

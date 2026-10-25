@@ -862,8 +862,20 @@ alone). Code: `internal/engine/live.go`, `internal/model/live.go`,
   truncate) and returns a source over every row so far. Readers `ReadAt`
   the files while the build goes on writing; rows below a snapshot's counts
   only ever change to their settled values. The statement indexes are built
-  at `Finish`, which a live build never reaches: a statement-scoped scan reads
-  the whole table (the Matcher decides; same answers, slower on big files).
+  at `Finish`, which a live build never reaches; a live spill
+  (`SpillOptions.Live`) keeps a cursor index instead (`curIndex`,
+  `calls.cur` / `waits.cur`): every row the build settles is appended to its
+  cursor's list (the cursor of a settled row never changes, its statement
+  can: an implicit cursor is adopted later). A cursor buffers up to 64k row
+  numbers in memory, then writes them as a block; all buffers are written
+  once they hold 1M ids together, so memory is bounded and nothing is
+  rebuilt per snapshot. A snapshot's statement scan maps the statements to
+  their cursors in its own model, adds the rows its overlay wrote (not
+  settled, their cursor may still change), sorts and dedupes them below its
+  row counts and reads those rows (more than 8M: a full scan, as for a
+  finished spill). `TestLivePostings` (`internal/slice`, tiny buffers)
+  checks at 25 cuts per fixture that the postings hold every row a full
+  scan finds and that the scoped scan answers the same.
   Bind sets of the open BINDS block are left out of the copy (the next
   snapshot has them). The line index grows with the bytes read
   (`trace.LineScan`); each snapshot gets a view bounded by its line count.

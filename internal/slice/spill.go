@@ -28,6 +28,11 @@ type SpillOptions struct {
 	// Finish, and makes Close keep the files: the index cache reopens them
 	// with OpenSpill.
 	Persist bool
+
+	// Live keeps a cursor index of the rows as they are written
+	// (calls.cur, waits.cur): the statement postings of a live build's
+	// snapshots, which never reach Finish (spill_live.go).
+	Live bool
 }
 
 // SpillKey identifies a trace set by the path, size and modification time of
@@ -57,6 +62,7 @@ const spillPrefix = "mtkprof-spill-"
 //	waits.bin    one per wait, by wait id
 //	bindsets.bin, binds.bin, bindvals.bin   bind sets, binds, and their text
 //	calls.stmt, waits.stmt   row numbers grouped by statement (written at the end)
+//	calls.cur, waits.cur     SpillOptions.Live: row numbers by cursor, appended (spill_live.go)
 //
 // and answers queries from them afterwards (Source). Only the dimension tables
 // of the model and a few pages of each file are in memory. Close removes the
@@ -78,7 +84,8 @@ type Spill struct {
 
 	callsByCur, waitsByCur []int64
 	callCtx, waitCtx       []rowRange
-	live                   bool // an Overlay has written: orphan marks may need clearing (spill_live.go)
+	live                   bool      // an Overlay has written: orphan marks may need clearing (spill_live.go)
+	lcalls, lwaits         *curIndex // SpillOptions.Live: rows by cursor
 
 	mu     sync.Mutex
 	err    error
@@ -144,6 +151,14 @@ func createSpill(o SpillOptions, dir string) (*Spill, error) {
 	s.sets = newAppendFile(open("bindsets.bin"))
 	s.binds = newAppendFile(open("binds.bin"))
 	s.val = newAppendFile(open("bindvals.bin"))
+	if o.Live && err == nil {
+		if s.lcalls, err = newCurIndex(dir, "calls.cur"); err == nil {
+			s.files = append(s.files, s.lcalls.f)
+			if s.lwaits, err = newCurIndex(dir, "waits.cur"); err == nil {
+				s.files = append(s.files, s.lwaits.f)
+			}
+		}
+	}
 	if err != nil {
 		s.Close()
 		return nil, err
@@ -203,6 +218,9 @@ func (s *Spill) Call(c *model.Call) {
 	s.calls.put(int64(c.ID), rec)
 	count(&s.callsByCur, c.Cursor)
 	extend(&s.callCtx, c.Context, int64(c.ID))
+	if s.lcalls != nil {
+		s.lcalls.add(c.Cursor, int64(c.ID))
+	}
 }
 
 // Child sets the parent of a call that was written when it completed; the
@@ -232,6 +250,9 @@ func (s *Spill) Wait(w *model.Wait, _ *model.Call) {
 	s.waits.put(int64(w.ID), rec)
 	count(&s.waitsByCur, w.Cursor)
 	extend(&s.waitCtx, w.Context, int64(w.ID))
+	if s.lwaits != nil {
+		s.lwaits.add(w.Cursor, int64(w.ID))
+	}
 }
 
 // Adopt does nothing: the statement of a row is looked up through its cursor.

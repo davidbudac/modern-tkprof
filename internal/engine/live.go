@@ -239,7 +239,7 @@ func (lv *live) run(ctx context.Context) (err error) {
 		return err
 	}
 	ss := lv.ss
-	sp, err := slice.NewSpill(slice.SpillOptions{Dir: lv.srv.liveDir(), Key: "live", BindMode: ss.bindMode, Salt: ss.salt})
+	sp, err := slice.NewSpill(slice.SpillOptions{Dir: lv.srv.liveDir(), Key: "live", BindMode: ss.bindMode, Salt: ss.salt, Live: true})
 	if err != nil {
 		return err
 	}
