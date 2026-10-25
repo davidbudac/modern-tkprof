@@ -22,6 +22,12 @@ release: ## cross-compile every supported target into dist/
 		echo "  $$t"; \
 		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 $(GO) build -ldflags "$(LDFLAGS)" -o dist/mtkprof-$$os-$$arch$$ext ./cmd/mtkprof || exit 1; \
 	done
+	@# lite = -tags nooracle (no go-ora, ~11 MB instead of ~25 MB) for database hosts, where ADR files are local
+	@for t in linux/amd64 linux/arm64 aix/ppc64 solaris/amd64; do \
+		os=$${t%/*}; arch=$${t#*/}; \
+		echo "  $$t (lite)"; \
+		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 $(GO) build -tags nooracle -ldflags "$(LDFLAGS)" -o dist/mtkprof-lite-$$os-$$arch ./cmd/mtkprof || exit 1; \
+	done
 	@cd dist && sha256sum mtkprof-* > SHA256SUMS
 
 clean:

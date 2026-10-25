@@ -198,6 +198,11 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
   mirror the former workflow: vet, tests (golden and engine contract
   included), web build, embedded-UI check, `make release`; the release script
   needs a clean tree at the tag and uploads with `gh release create`.
+- Release artifacts (decided 2026-10-25): one full binary per platform (with
+  the pure-Go Oracle driver, ~27 MB) plus `mtkprof-lite-<os>-<arch>` built
+  with `-tags nooracle` (~12 MB) for linux, aix and solaris, the database
+  hosts where the trace files are local and the db commands are not needed.
+  The desktop sidecar is always the full build.
 - Every feature lands with unit or golden tests; UI work is verified with
   screenshots; commits go to main with concise messages. The user sets scope
   and priorities; implementation details are the implementer's, reported

@@ -410,8 +410,9 @@ TCPS port is 2484. Not tested ("Open"): dbmint has no TCPS listener.
 - ORA-01017 re-prompts the password up to three times.
 - Binary size: go-ora carries ~12 MB of character-set tables; the binary
   grows from 10.8 to 25 MB (`-ldflags "-s -w"`). `go build -tags nooracle`
-  leaves it out (every db command then fails with a clear error), e.g. for
-  builds copied onto database hosts.
+  leaves it out (every db command then fails with a clear error); `make
+  release` ships those as `mtkprof-lite-<os>-<arch>` for linux, aix and
+  solaris, the builds copied onto database hosts.
 - Native network encryption (`SQLNET.ENCRYPTION_SERVER = required`) and
   old password verifiers: go-ora implements Oracle's advanced negotiation;
   not tested ("Open").

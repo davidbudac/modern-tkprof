@@ -181,9 +181,10 @@ Needs a person or a machine:
 - Stray 32 MB binary in history (`mtkprof` at the repo root, removed in
   `a89bc12`); a history rewrite is the user's call, relevant before the repo is
   published.
-- `-tags nooracle` (drops go-ora, 25 MB → 10.8 MB): decide whether the
-  release builds for database hosts use it; it is not wired into `make
-  release`.
+- ~~`-tags nooracle`~~ decided 2026-10-25: `make release` builds both, the
+  full binaries and `mtkprof-lite-<os>-<arch>` (`-tags nooracle`, ~12 MB)
+  for linux/aix/solaris, the database hosts. The desktop sidecar is always
+  the full build.
 - REMOTE.md "Open": full `ref -db` with `SELECT_CATALOG_ROLE`, TCPS,
   `DBMS_SESSION` without `ALTER SESSION`, time zones of `-since`, the engine's
   db routes with curl, AIX/Solaris scripts.

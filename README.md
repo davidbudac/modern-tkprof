@@ -201,7 +201,10 @@ pre-built UI is committed, so `go build` alone produces a working binary.
 make build          # bin/mtkprof for this machine
 make test           # unit + golden tests
 make web            # rebuild the UI and embed it (web/ -> internal/ui/dist)
-make release        # dist/mtkprof-<os>-<arch> for every target + SHA256SUMS
+make release        # dist/mtkprof-<os>-<arch> for every target + SHA256SUMS;
+                    # plus mtkprof-lite-<os>-<arch> (linux, aix, solaris): built with
+                    # -tags nooracle, no Oracle client code, ~12 MB instead of ~27 MB,
+                    # for database hosts where the trace files are local
 ```
 
 Cross-compiling by hand:
