@@ -10,6 +10,7 @@ import { sourceOf, useSourceQuery } from '../data/source'
 import { StatementDetail } from './StatementDetail'
 import { StatementContext } from './StatementContext'
 import { ResizeHandle } from '../components/ResizeHandle'
+import { PaneToggle } from '../components/PaneToggle'
 import { usePersisted } from '../state/persist'
 import type { CSSProperties } from 'react'
 
@@ -131,8 +132,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
       </aside>}
       <ResizeHandle anchor="start" className="resizer-list" label="Resize statement list" min={240} maxFrac={0.4} onChange={setListW} />
       {ctxOpen && <ResizeHandle anchor="end" className="resizer-ctx" label="Resize context pane" min={240} maxFrac={0.4} onChange={setCtxW} />}
-      <button className="ctx-toggle" onClick={() => setCtxOpen(!ctxOpen)} aria-expanded={ctxOpen}
-        aria-label={ctxOpen ? 'Hide context pane' : 'Show context pane'} title={ctxOpen ? 'Hide context pane' : 'Show context pane'}>{ctxOpen ? '›' : '‹'}</button>
+      <PaneToggle open={ctxOpen} onToggle={() => setCtxOpen(!ctxOpen)} label="context pane" className="ctx-toggle" />
     </div>
   )
 }

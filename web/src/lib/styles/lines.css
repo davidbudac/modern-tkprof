@@ -13,9 +13,10 @@
 .lines-kind { color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.4rem; font-size: var(--text-xs); }
 .lines-sql { font-family: var(--font-mono); max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.lines-body { display: grid; grid-template-columns: minmax(0, 1fr); min-block-size: 0; }
-.lines-body.has-panel { grid-template-columns: minmax(0, 1fr) clamp(17rem, 26vw, 28rem); }
-@media (width < 64rem) { .lines-body.has-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 12rem); } }
+.lines-body { --lines-panel-w: clamp(17rem, 26vw, 28rem); position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-block-size: 0; }
+.lines-body.has-panel { grid-template-columns: minmax(0, 1fr) var(--lines-panel-w); }
+.lines-toggle { --pane-w: var(--lines-panel-w); }
+@media (width < 64rem) { .lines-body.has-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 12rem); } .lines-toggle { display: none; } }
 .lines-main { position: relative; min-block-size: 0; min-inline-size: 0; }
 .lines-overlay { position: absolute; inset-block-start: var(--sp-4); inset-inline: var(--sp-4); pointer-events: none; }
 .lines-error { color: var(--s-critical); }

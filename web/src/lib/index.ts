@@ -15,6 +15,7 @@ export { Lines } from './views/Lines'
 
 // components
 export { ResizeHandle } from './components/ResizeHandle'
+export { PaneToggle } from './components/PaneToggle'
 export { Minimap } from './components/Minimap'
 
 // state: one store per open trace, provided through the context

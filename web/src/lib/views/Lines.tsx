@@ -6,6 +6,7 @@ import { fmtInt, preview } from '../data/format'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
+import { PaneToggle } from '../components/PaneToggle'
 import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import type { Store } from '../state/store'
@@ -306,6 +307,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         </div>
+        <PaneToggle open={ui.panel} onToggle={() => set({ panel: !ui.panel })} label="hits and bookmarks" className="lines-toggle" />
         {ui.panel && (
           <aside className="lines-panel" aria-label="Hits and bookmarks">
             <div className="lines-panel-head">

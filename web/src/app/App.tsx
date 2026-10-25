@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { useStore, useActions, useStoreApi, usePersisted, ResizeHandle, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, Lines, loadFile } from '@lib'
+import { useEffect, useState } from 'react'
+import { useStore, useActions, useStoreApi, usePersisted, ResizeHandle, PaneToggle, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, Lines, loadFile } from '@lib'
 import { TopBar, SubBar } from './TopBar'
 import { Inspector } from './Inspector'
 import { LineDrawer } from './LineDrawer'
@@ -16,6 +16,8 @@ export function App() {
   const event = useStore((s) => s.selection.event)
   const lines = useStore((s) => s.lineViewer !== null)
   const [inspectorW, setInspectorW] = usePersisted<number | null>('mtkprof.inspectorW', null)
+  // the event whose inspector was collapsed: picking another event opens it again
+  const [collapsedFor, setCollapsedFor] = useState<number | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -33,10 +35,10 @@ export function App() {
   if (loading) return <div className="loading"><p>Loading trace…</p></div>
   if (!doc) return <Landing error={error} />
 
-  const hasInspector = event !== null
+  const inspectorOpen = event !== null && collapsedFor !== event
   const full = view === 'statements' || view === 'lines'
   return (
-    <div className={'shell' + (hasInspector ? ' has-inspector' : '') + (lines ? ' has-lines' : '')}>
+    <div className={'shell' + (inspectorOpen ? ' has-inspector' : '') + (lines ? ' has-lines' : '')}>
       <TopBar doc={doc} />
       <SubBar doc={doc} />
       <div className="body" style={inspectorW ? ({ '--inspector-w': `${inspectorW}px` } as CSSProperties) : undefined}>
@@ -50,8 +52,9 @@ export function App() {
           {view === 'lines' && <Lines doc={doc} />}
           {view === 'compare' && compare && <Compare data={compare} />}
         </main>
-        {hasInspector && <Inspector doc={doc} />}
-        {hasInspector && <ResizeHandle anchor="end" className="resizer-inspector" label="Resize details pane" onChange={setInspectorW} />}
+        {inspectorOpen && <Inspector doc={doc} />}
+        {inspectorOpen && <ResizeHandle anchor="end" className="resizer-inspector" label="Resize details pane" onChange={setInspectorW} />}
+        {event !== null && <PaneToggle open={inspectorOpen} onToggle={() => setCollapsedFor(inspectorOpen ? event : null)} label="details pane" className="inspector-toggle" />}
       </div>
       {lines && <LineDrawer />}
     </div>
