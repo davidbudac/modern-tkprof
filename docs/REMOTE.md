@@ -355,9 +355,13 @@ select line_number, payload from (
 
 (`rn` keeps the rows of one number in the order the view returned them.)
 
-Fetch reads `max(line_number)` first, then asks 50 000 line numbers per
-query (`FetchChunk`; about 43 700 rows on a real trace) from 1 up to that
-maximum: a chunk returns fewer rows than line numbers, so "fewer rows than
+Fetch reads `max(line_number)` first, then asks for ranges of line numbers
+from 1 up to that maximum. A range starts at 50 000 numbers (`FetchChunk`;
+about 43 700 rows on a real trace) and adapts: it doubles after a query that
+took under 1 s (`FetchFast`) up to 400 000 (`FetchChunkMax`), and halves after
+one over 4 s (`FetchSlow`) down to 50 000 (`chunkSizer`, `fetch.go`). A resume
+starts with the 50 000 range as before; the prefix match is independent of the
+range sizes. a chunk returns fewer rows than line numbers, so "fewer rows than
 asked" cannot end the file, and a file that is an exact multiple needs no
 empty query. Each chunk is buffered and written whole, so after a dropped
 connection the output holds complete chunks. Rows are fetched 1000 per round
@@ -511,7 +515,7 @@ Through an ssh tunnel (`-L 15210`). Gated test `TestDBMint` plus CLI runs.
 | What a PDB user sees | `v$diag_trace_file`: `con_id` 3 only (5313 files); `v$session`: own session plus `con_id` 0 background sessions; background traces (`cdb1_mmon_*`) readable |
 | Is `line_number` 1..count? | No. A row is a record of one or more lines; `line_number` is its last line, with gaps and repeats: 2707 rows for the 3059 lines of `basic_binds.trc` |
 | Payload | verbatim concatenation is the file: 314 of 2707 rows have inner newlines, 20 have a NULL payload, max 1498 bytes; sha256 equal to the fixture. `fetch -db -resume` of a truncated copy is byte-equal |
-| Throughput, 117 MB / 2 881 438 lines | 301 s = 0.39 MB/s = 9 570 lines/s; 58 chunks of 4.4–5.5 s; sha256 equal. A quiet lab measured 1.8 s per chunk (about 1 MB/s, 2 min). Time per chunk is flat in the offset. Ranges of 200 000 numbers are ~1.6× faster per line (deferred: adaptive chunk) |
+| Throughput, 117 MB / 2 881 438 lines | 301 s = 0.39 MB/s = 9 570 lines/s; 58 chunks of 4.4–5.5 s; sha256 equal. A quiet lab measured 1.8 s per chunk (about 1 MB/s, 2 min). Time per chunk is flat in the offset. Ranges of 200 000 numbers are ~1.6× faster per line (hence the adaptive range; its dbmint run is not measured yet) |
 | Resume on the big file | cut after 2 875, 1 066 738 and 2 680 613 lines: the first range returned exactly the bytes that follow the local copy |
 | Trace on/off | `DBMS_MONITOR` on/off through the test; `V$SESSION.SQL_TRACE` follows; `trace -sessions` lists `mtk` sessions with "(this)" |
 | `ref -db -lite` on `io_waits.trc` | clean: 5 objects, 2 users; applied, `report -ref` shows the names |

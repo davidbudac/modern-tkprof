@@ -201,10 +201,12 @@ Deferred by the agents (small, none blocks v1):
   search-match highlighting in the Lines rows; per-line copy/permalink.
 - Live sessions: statement indexes for the spill; following continuation
   chains (`TRACE CONTINUES IN FILE`); `mtkprof follow -serve`.
-- Adaptive/larger db fetch ranges (200 000 numbers per query is ~1.6x faster).
-- Known limits: sessions are never evicted (closing is the client's job);
-  `GET /engine/cache` costs one `readdir` + manifest read per entry. A
-  session's model is the aggregate one, so its text report has no executions
+- Done on branch `t3/engine-idle-cache-fetch`: adaptive db fetch ranges (50 000
+  to 400 000 numbers; fake-conn tests only, the dbmint run is still to do),
+  `mtkprof engine -idle D` (opt-in session eviction), an in-memory cache
+  listing.
+- Known limits: sessions are evicted only with `-idle D` (default: closing is
+  the client's job). A session's model is the aggregate one, so its text report has no executions
   tables and its JSON/HTML documents no fact tables.
 
 ### Run the engine by hand
