@@ -12,7 +12,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -246,7 +245,6 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 	return q
 }
 
-var generatedRe = regexp.MustCompile(`"generated":"[^"]*"`)
 
 // TestParityWithServeSpill: every answer under /s/{id}/ equals the one of
 // `serve -spill` byte for byte (the document apart from its timestamp).

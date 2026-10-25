@@ -9,7 +9,7 @@ import (
 // loses a field: add it to persist.go and bump AccumPersistVersion.
 func TestAccumPersistCoversEveryField(t *testing.T) {
 	for _, v := range []any{Accumulator{}, facts{}, aggStmt{}, StmtStats{}, CallStats{}, Link{}, ContextStats{}, evAgg{},
-		idleAcc{}, timeline{}, Bucket{}, PXTotals{}, execAgg{}, execRec{}, planRec{}, keyAgg{}, objKey{}} {
+		idleAcc{}, timeline{}, Bucket{}, PXTotals{}, execAgg{}, execRec{}, planRec{}, keyAgg{}, objKey{}, mmAcc{}, Minimap{}} {
 		typ := reflect.TypeOf(v)
 		want, ok := accumFields[typ.Name()]
 		if !ok {
