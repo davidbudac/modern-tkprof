@@ -551,6 +551,8 @@ created by hand as SYSDBA, not by `00_setup_user.sql`):
 | `DBMS_SESSION.SESSION_TRACE_ENABLE` without `ALTER SESSION` | ORA-01031 at `SYS.DBMS_SESSION` line 343: `ALTER SESSION` is required (table above) |
 | `modify_time` vs `-since` | `V$DIAG_TRACE_FILE.MODIFY_TIME` is `TIMESTAMP(3) WITH TIME ZONE`; the CLI prints it as UTC (`2026-10-22T11:40:12Z`) equal to the file's mtime on the host; `-since 72h`/`96h` exclude/include a 74 h old file correctly from a CET client against a UTC server. `trace -since` now accepts `Nd` like the engine |
 | Tracing a PDB session from `CDB$ROOT` | works as `c##mtkroot` through the root service once `CONTAINER_DATA=ALL` is set: the PDB1 session is listed, `trace -on` / `-off` by sid/serial succeed (`DBMS_MONITOR` from the root) |
+| Engine db routes end to end (curl, `mtkcat`) | one `prompt` event for the whole run (test → sessions → tracefiles → two fetches → ref): `test` 200 after `POST /engine/prompts/{id}`, `sessions` 3 rows with `self`, `tracefiles?since=96h` = `4d` = 183 files, fetch job; the tunnel killed under the first query fails the job cleanly (`driver: bad connection`, local file 0 bytes, no second prompt), the second `POST fetch` after the tunnel is back finishes in 283 s with sha256 equal to the SSH copy, `POST /s/{id}/api/ref {connection}` done in 13 queries (8 objects, 2 users, 5 plans), `DELETE connection` 204. Events seen: job, log, prompt, session |
+| Tunnel killed 75 s into a fetch (binary with the adaptive ranges) | the job fails at `lines 700001-750000: driver: bad connection` with 700 000 complete lines (28.6 MB) on disk and an `error` log event; the next `POST fetch` resumes after them and finishes the remaining 2.18 M lines in 214 s (10 200 lines/s); sha256 equal to the SSH copy; still one prompt. The adaptive range never grew on this lab: a 50 000-line query takes about 5 s here, above the 1 s "fast" threshold, so the ranges stayed at 50 000 (the growth only helps on fast links) |
 | 2 GB trace through the engine (the 117 MB lab trace concatenated 17×, 49 M lines, on this laptop) | open 13 s (cache build included), peak RSS 146 MB, cache entry 1.9 GB; reopen from the cache 0.25 s (`hit: true`), RSS 98 MB; `api/doc` 0.7 ms (469 KB), `lines` 0.3 ms, `at` 0.4 ms, `search` 4 ms, `pivot` 0.9 ms, text report 79 ms |
 
 ## Open
@@ -563,8 +565,6 @@ Not verified yet:
 - **TCPS**: dbmint has no TCPS listener; the certificate and
   `-tls-skip-verify` paths are untested, as are native network encryption and
   old password verifiers.
-- The engine's db routes end to end with curl (one password prompt for
-  test + sessions + fetch + ref; killing the tunnel mid-fetch and resuming).
 - AIX and Solaris remote scripts (read from the man pages, not run); a
   > 2 GB file through AIX `tail -c`.
 

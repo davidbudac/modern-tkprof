@@ -213,7 +213,8 @@ Deferred by the agents (small, none blocks v1):
   (following a file that has `CONTINUED FROM` does not pull in the earlier
   file).
 - Done in package G1: adaptive db fetch ranges (50 000
-  to 400 000 numbers; fake-conn tests only, the dbmint run is still to do),
+  to 400 000 numbers; on dbmint a 50 000 query takes ~5 s so it never grows
+  there, REMOTE.md "Second round"),
   `mtkprof engine -idle D` (opt-in session eviction), an in-memory cache
   listing.
 - Known limits: sessions are evicted only with `-idle D` (default: closing is
