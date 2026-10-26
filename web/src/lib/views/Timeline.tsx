@@ -6,7 +6,8 @@ import type { EChartsOption, CustomSeriesRenderItemParams, CustomSeriesRenderIte
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
 import { LineRef } from '../components/LineRef'
-import { CallKind, callKindName, NONE, type ID } from '../data/types'
+import { callKindName, NONE, type ID } from '../data/types'
+import { groupIndex, groupOf, kindGroups } from '../data/callkinds'
 import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
 import { scopeOf } from '../state/store'
 import { useAxis, useScopedStatements } from '../data/scopedstmts'
@@ -24,27 +25,6 @@ echarts.use([CustomChart])
 
 const MAX_LANES = 25
 const LANE_PX = 26
-
-/** Call kind → color token. The chart legend above the lanes documents this mapping. */
-type KindGroup = 'parse' | 'exec' | 'fetch' | 'close' | 'other'
-const kindGroups: { id: KindGroup; label: string; token: string }[] = [
-  { id: 'parse', label: 'PARSE', token: '--c-sysio' },
-  { id: 'exec', label: 'EXEC', token: '--c-cpu' },
-  { id: 'fetch', label: 'FETCH', token: '--c-userio' },
-  { id: 'close', label: 'CLOSE', token: '--c-idle' },
-  { id: 'other', label: 'LOB / commit / RPC', token: '--c-other' },
-]
-const groupIndex: Record<KindGroup, number> = { parse: 0, exec: 1, fetch: 2, close: 3, other: 4 }
-
-function groupOf(kind: number): KindGroup {
-  switch (kind) {
-    case CallKind.parse: return 'parse'
-    case CallKind.exec: return 'exec'
-    case CallKind.fetch: return 'fetch'
-    case CallKind.close: return 'close'
-    default: return 'other'
-  }
-}
 
 interface Lane { label: string; stmts: Set<ID> | null } // null = fold-everything-else lane
 

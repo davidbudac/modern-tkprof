@@ -9,9 +9,11 @@ import { responseUs } from '../data/response'
 import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
-import { dominantRole, foldTimeline, type Span2 } from '../data/derive'
+import { dominantRole, foldTimeline, type PhaseSpan2, type Span2 } from '../data/derive'
+import { kindGroups, groupIndex } from '../data/callkinds'
 import { ticks } from '../data/scale'
 import { roleOrder, type Role } from '../components/colors'
+import '../styles/timeline.css'
 
 const MAX_LANES = 12
 const LANE_H = 30
@@ -21,13 +23,25 @@ const LABEL_W = 230
 const BUCKETS = 240
 const MAX_BUCKETS = 20000 // the engine refuses a timeline of more than 100000 buckets
 
-interface Lane { st: StmtStats; label: string; text: string; role: Role; spans: Span2[] }
+/** What the lane bars are colored by: the call phase (PARSE / EXEC / FETCH / ...) or the statement's dominant resource role. */
+export type LaneColor = 'phase' | 'resource'
+
+interface Lane { st: StmtStats; label: string; text: string; role: Role; spans: Span2[]; phases: PhaseSpan2[] | null }
+
+/** `FETCH 82% · EXEC 15% · PARSE 3%`: the nonzero groups of a segment, biggest first. */
+function phaseBreakdown(p: PhaseSpan2): string {
+  const total = p.us.reduce((a, b) => a + b, 0)
+  const own = kindGroups[groupIndex[p.kind]].label
+  if (total <= 0) return own
+  return kindGroups.map((g, i) => ({ g, v: p.us[i] })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v)
+    .map((x) => { const pc = (100 * x.v) / total; return `${x.g.label} ${pc < 1 ? '<1' : Math.round(pc)}%` }).join(' · ')
+}
 
 /**
  * The session on wall-clock time: one lane per top statement (ordered by first call),
  * then a strip of waits by class and a strip of CPU. Drag to set the global window.
  */
-export function Lanes({ doc }: { doc: TraceDoc }) {
+export function Lanes({ doc, colorBy = 'phase' }: { doc: TraceDoc; colorBy?: LaneColor }) {
   const actions = useActions()
   const store = useStoreApi()
   const state = useStore((s) => s)
@@ -50,12 +64,16 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
   const topIds = top.map((s) => s.id)
   const gap = span / 600
   const spansQ = useSourceQuery(source, `spans:${topIds.join(',')}:${gap}:${scopeKey(laneScope)}`, (signal) => (source.ready ? source.stmtSpans(topIds, gap, laneScope, signal) : null), 'spans')
+  // the phase segments; until they arrive the lanes show the plain spans (kept across refreshes, never blank)
+  const phaseQ = useSourceQuery(source, `phases:${colorBy}:${topIds.join(',')}:${gap}:${scopeKey(laneScope)}`,
+    (signal) => (colorBy === 'phase' && source.ready ? source.stmtPhases(topIds, gap, laneScope, signal) : null), 'phases')
   const roles = useSourceQuery(source, `roles:${scopeKey(laneScope)}`, (signal) => source.stmtRoles(laneScope, signal), 'roles').data
   const lanes = useMemo<Lane[]>(() => top.map((st) => {
     const s = doc.statements[st.id]
     const spans = spansQ.data?.get(st.id) ?? [{ start: st.firstTim, end: st.lastTim }]
-    return { st, label: doc.label(s), text: preview(s.text, 60), role: dominantRole(doc, st, roles), spans }
-  }), [doc, top, spansQ.data, roles])
+    const phases = colorBy === 'phase' ? phaseQ.data?.get(st.id) : undefined
+    return { st, label: doc.label(s), text: preview(s.text, 60), role: dominantRole(doc, st, roles), spans, phases: phases && phases.length > 0 ? phases : null }
+  }), [doc, top, spansQ.data, roles, colorBy, phaseQ.data])
 
   const scope = scopeOf(state)
   // buckets are counted from the trace's start, so a short selection of a long trace needs a coarser bucket than span / BUCKETS
@@ -113,6 +131,14 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
   const height = AXIS_H + lanes.length * LANE_H + (strips ? 2 * STRIP_H : 0)
 
   return (
+    <>
+    {colorBy === 'phase' && (
+      <div className="lane-legend lanes-legend" role="list" aria-label="Call kinds">
+        {kindGroups.map((g) => (
+          <span className="k" role="listitem" key={g.id}><i className="swatch" style={{ background: `var(${g.token})` }} />{g.label}</span>
+        ))}
+      </div>
+    )}
     <div className="lanes" style={{ gridTemplateColumns: `${LABEL_W}px minmax(0, 1fr)` }}>
       <div className="lanes-labels">
         <div className="lanes-axis-pad" style={{ height: AXIS_H }} />
@@ -131,10 +157,15 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
         <div className="lanes-grid" style={{ backgroundSize: `${(100 * tk.step) / span}% 100%` }} />
         {lanes.map((l) => (
           <div key={l.st.id} className="lane" style={{ height: LANE_H }}>
-            {l.spans.map((s, i) => (
-              <i key={i} className="span" data-stmt={l.st.id} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(--c-${l.role})` }}
-                title={`${l.label} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}`} />
-            ))}
+            {l.phases
+              ? l.phases.map((s, i) => (
+                <i key={i} className="span" data-stmt={l.st.id} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(${kindGroups[groupIndex[s.kind]].token})` }}
+                  title={`${l.label} · ${phaseBreakdown(s)} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}`} />
+              ))
+              : l.spans.map((s, i) => (
+                <i key={i} className="span" data-stmt={l.st.id} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(--c-${l.role})` }}
+                  title={`${l.label} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}`} />
+              ))}
           </div>
         ))}
         {strips && <Strips strips={strips} span={span} base={base} />}
@@ -147,6 +178,7 @@ export function Lanes({ doc }: { doc: TraceDoc }) {
         {dragRect && dragRect.width > 3 && <div className="brush dragging" style={dragRect} />}
       </div>
     </div>
+    </>
   )
 }
 
