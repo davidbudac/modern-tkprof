@@ -215,7 +215,8 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .lanes-axis span.first { transform: none; }
 .lanes-axis span.last { inset-inline-end: 0; transform: none; color: var(--ink); }
 .lanes-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, var(--ruling) 1px, transparent 1px); background-repeat: repeat-x; pointer-events: none; }
-.lane { position: relative; border-block-end: 1px solid var(--hairline); }
+.lane { position: relative; border-block-end: 1px solid var(--hairline); overflow-x: clip; } /* a zoomed axis cuts the bars at its edges */
+.lanes-plot.stale .lane { opacity: 0.5; transition: opacity var(--dur); } /* bars of the previous range until the new ones arrive */
 .lane .span { position: absolute; inset-block: 0.45rem; border-radius: 2px; display: block; }
 .lane .span::after { content: ""; position: absolute; inset: -0.45rem -3px; } /* hit area wider than a thin bar */
 .lane .span, .lane .wspan { cursor: pointer; }

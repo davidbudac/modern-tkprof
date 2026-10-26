@@ -42,6 +42,8 @@ and keeps the selection in `workspace.json`, packages D2/D3, desktop pin `95c52a
   (`State.block`, `pickBlock`, `activeBlock`; double-click opens the statement); `components/WindowBar.tsx` (Overview timeline,
   Timeline tab) opens the Lines view at the window's first line; the Lines view marks the window's lines
   (`data/windowlines.ts`: `windowFiles`, `windowLineRange`). Details: `docs/ARCHITECTURE.md` § "Lines view".
+  The WindowBar's Zoom button zooms the Overview lanes into the window (`State.lanesZoom`, `zoomedAxis`; rows and bars are
+  queried over the zoomed range, visual only) so blocks of a long trace can be drilled into: block, Zoom, finer blocks, Lines.
 - Done (core): an idle-class wait *inside* a call (`PL/SQL lock timer` of `dbms_session.sleep`) used to count in both the call's
   `e` and `Call.IdleEla` ("4.001 s, 159 % of selection" for two `sleep(1)`). Decision: in-call waits belong to the call whatever
   their class (`WaitEla`); `IdleEla`/`IdleUs`/profile idle are between-call waits only; the class stays for the ledger and

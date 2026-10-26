@@ -36,5 +36,25 @@ export function ticks(spanUs: number, target = 7): { step: number; at: number[] 
   return { step, at }
 }
 
+/** The shortest stretch the zoomed lanes show, µs. */
+export const MIN_ZOOM_US = 50
+
+/**
+ * The range the zoomed Overview lanes show: `zoom` (the top of the zoom stack) padded by 5 % of its length on each side, at
+ * least `MIN_ZOOM_US` long (centred on the zoom), in whole µs, cut to the axis `full`. Null when there is no zoom or it misses the
+ * axis (the selection changed): the lanes then show the whole axis.
+ */
+export function zoomedAxis(full: { base: number; span: number }, zoom: { startTim: number; endTim: number } | null | undefined): { base: number; span: number } | null {
+  if (!zoom || full.span <= 0) return null
+  const end = full.base + full.span
+  if (zoom.endTim <= full.base || zoom.startTim >= end) return null
+  const len = Math.max(0, zoom.endTim - zoom.startTim)
+  let lo = zoom.startTim - 0.05 * len, hi = zoom.endTim + 0.05 * len
+  if (hi - lo < MIN_ZOOM_US) { const mid = (zoom.startTim + zoom.endTim) / 2; lo = mid - MIN_ZOOM_US / 2; hi = mid + MIN_ZOOM_US / 2 }
+  lo = Math.max(Math.floor(lo), full.base)
+  hi = Math.min(Math.ceil(hi), end)
+  return hi > lo ? { base: lo, span: hi - lo } : null
+}
+
 const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
 export function numberWord(n: number): string { return words[n] ?? String(n) }

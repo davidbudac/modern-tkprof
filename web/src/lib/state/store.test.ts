@@ -157,6 +157,72 @@ describe('lane block', () => {
   })
 })
 
+describe('lanes zoom', () => {
+  const w = (startTim: number, endTim: number) => ({ startTim, endTim })
+
+  it('zoomLanes pushes, the range on top again changes nothing, zoomOutLanes pops and resetLanesZoom empties', () => {
+    const { getState, actions } = createStore()
+    expect(getState().lanesZoom).toEqual([])
+    actions.zoomLanes(w(10, 90))
+    actions.zoomLanes(w(10, 90))
+    expect(getState().lanesZoom).toEqual([w(10, 90)])
+    actions.zoomLanes(w(20, 30))
+    actions.zoomLanes(w(10, 90)) // not the top: pushed
+    expect(getState().lanesZoom).toEqual([w(10, 90), w(20, 30), w(10, 90)])
+    actions.zoomOutLanes()
+    expect(getState().lanesZoom).toEqual([w(10, 90), w(20, 30)])
+    actions.resetLanesZoom()
+    expect(getState().lanesZoom).toEqual([])
+    actions.zoomOutLanes() // nothing to pop
+    expect(getState().lanesZoom).toEqual([])
+  })
+
+  it('copies the range, is not a filter, and leaves the window and block alone', () => {
+    const { getState, actions } = createStore()
+    actions.pickBlock(1, 10, 20)
+    const win = getState().window!
+    actions.zoomLanes(win)
+    expect(getState().lanesZoom[0]).not.toBe(win)
+    expect(getState().window).toBe(win)
+    expect(getState().block).not.toBeNull()
+    actions.setWindow(null) // clearing the window does not zoom out
+    expect(getState().lanesZoom).toEqual([w(10, 20)])
+  })
+
+  it('setLoaded, setSide and openStmtOn on a comparison reset it; openStmtOn of one trace and swapDoc keep it', () => {
+    const store = createStore()
+    const { getState, actions } = store
+    const doc = {} as never
+    store.setLoaded({ doc, compare: null })
+    actions.zoomLanes(w(1, 2))
+    store.setLoaded({ doc, compare: null })
+    expect(getState().lanesZoom).toEqual([])
+    actions.zoomLanes(w(1, 2))
+    actions.openStmtOn('a', 0)
+    expect(getState().lanesZoom).toEqual([w(1, 2)])
+    const both = { a: doc, b: doc, diff: { statements: [] } } as never
+    store.setLoaded({ doc, compare: both })
+    actions.zoomLanes(w(1, 2))
+    actions.setSide('b')
+    expect(getState().lanesZoom).toEqual([])
+    actions.zoomLanes(w(1, 2))
+    actions.openStmtOn('a', 0)
+    expect(getState().lanesZoom).toEqual([])
+  })
+
+  it('survives the next snapshot of a live session', () => {
+    const doc = (stmts: number) => ({
+      statements: new Array(stmts).fill(null), events: [], cursors: new Array(stmts).fill(null), contexts: [{ fileIdx: 0 }], file: { files: [null] },
+    }) as unknown as import('../data/doc').TraceDoc
+    const store = createStore()
+    store.setLoaded({ doc: doc(2), compare: null })
+    store.actions.zoomLanes(w(5, 6))
+    const before = store.getState().lanesZoom
+    store.swapDoc({ doc: doc(3), compare: null })
+    expect(store.getState().lanesZoom).toBe(before)
+  })
+})
+
 describe('file selection', () => {
   it('setFiles normalises, and clears a context selection outside the files', async () => {
     const { makeDoc } = await import('../data/testdoc')

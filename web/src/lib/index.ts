@@ -48,6 +48,8 @@ export type { LineKind, AnnotPage, AtObjects, SearchQuery, SearchHit, SearchEnd 
 export { windowFiles, windowLineRange, windowStartLine, fileInWindow } from './data/windowlines'
 export type { LineRange } from './data/windowlines'
 export { PageCache } from './data/linecache'
+// the Overview lanes' zoomed axis
+export { zoomedAxis } from './data/scale'
 export { sourceOf, attachRemote, LocalSource, RemoteSource, useSourceQuery } from './data/source'
 export type { DataSource, QueryState, StmtMarks } from './data/source'
 export { traceSegmentsFrom } from './data/derive'

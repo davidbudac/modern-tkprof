@@ -70,7 +70,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
             <button aria-pressed={timeView === 'event'} onClick={() => setTimeView('event')} title="top 10 events, rest folded">by event</button>
             <button aria-pressed={timeView === 'class'} onClick={() => setTimeView('class')} title="by wait class">by class</button>
           </span></span></header>
-        <WindowBar doc={doc} />
+        <WindowBar doc={doc} zoom={timeView === 'lanes'} />
         {timeView === 'lanes' ? <Lanes doc={doc} colorBy={laneColor} showWaits={laneWaits} /> : <TimelineChart doc={doc} by={timeView} />}
       </section>
 

@@ -83,6 +83,8 @@ export interface State {
   window: TimeWindow | null
   /** the lane block whose interval is the window, set by a click in the Overview lanes; only meaningful while the window equals it (`activeBlock`) */
   block: LaneBlock | null
+  /** the Overview lanes' zoom stack: the last entry is the range they show (padded, see `zoomedAxis`), `[]` the whole axis; visual only, not a filter */
+  lanesZoom: TimeWindow[]
   contexts: Set<ID> | null // explicit context selection (Sessions view); null = all
   /** input files whose traces the views show (Files panel); null = all. The server filter is `scopeOf(state).contexts`. */
   files: Set<number> | null
@@ -117,7 +119,7 @@ export interface State {
 const initial: State = {
   doc: null, compare: null, side: 'a', loading: true, error: null, view: 'overview',
   selection: { stmt: null, event: null, call: null, exec: null },
-  window: null, block: null, contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, theme: 'auto',
+  window: null, block: null, lanesZoom: [], contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, theme: 'auto',
   linesAvailable: false, lineViewer: null,
   linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
@@ -162,7 +164,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
   }
   const swapDoc: Store['swapDoc'] = (l) => {
     setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
@@ -223,14 +225,14 @@ function makeActions(setState: Store['setState']) {
     setSide(side: Side) {
       setState((s) => {
         if (!s.compare || s.side === side) return {}
-        return { side, doc: s.compare[side], window: null, block: null, contexts: null, files: null, lineViewer: null, bookmarks: [], selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, bookmarks: [], selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
       })
     },
     /** Open a statement of side `side` in the Statements workbench. */
     openStmtOn(side: Side, stmt: ID) {
       setState((s) => {
         if (!s.compare) return { view: 'statements', block: null, selection: { stmt, event: null, call: null, exec: null } }
-        return { side, doc: s.compare[side], view: 'statements', window: null, block: null, contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], view: 'statements', window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
       })
     },
     setWindow(window: TimeWindow | null) { setState({ window, block: null }) },
@@ -238,6 +240,17 @@ function makeActions(setState: Store['setState']) {
     pickBlock(stmt: ID, startTim: number, endTim: number) {
       setState((s) => ({ window: { startTim, endTim }, block: { stmt, startTim, endTim }, selection: { ...s.selection, stmt, event: null, call: null, exec: null } }))
     },
+    /** Zoom the Overview lanes to `w` (pushed on the zoom stack; the range on top again changes nothing). */
+    zoomLanes(w: TimeWindow) {
+      setState((s) => {
+        const top = s.lanesZoom[s.lanesZoom.length - 1]
+        return top && top.startTim === w.startTim && top.endTim === w.endTim ? {} : { lanesZoom: [...s.lanesZoom, { startTim: w.startTim, endTim: w.endTim }] }
+      })
+    },
+    /** Back to the previous zoom of the Overview lanes (or the whole axis). */
+    zoomOutLanes() { setState((s) => (s.lanesZoom.length ? { lanesZoom: s.lanesZoom.slice(0, -1) } : {})) },
+    /** The Overview lanes show the whole axis again. */
+    resetLanesZoom() { setState((s) => (s.lanesZoom.length ? { lanesZoom: [] } : {})) },
     setContexts(contexts: Set<ID> | null) { setState({ contexts }) },
     setFilesOpen(filesOpen: boolean) { setState({ filesOpen }) },
     /**

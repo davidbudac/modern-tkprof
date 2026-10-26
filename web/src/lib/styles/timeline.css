@@ -7,3 +7,6 @@
 .winbar-err { color: var(--s-critical); }
 .winbar-acts { margin-inline-start: auto; display: flex; align-items: center; gap: var(--sp-2); }
 .winbar-acts button.go { border-color: var(--ink); font-weight: 500; }
+.lanes-zoom { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); margin-block-end: var(--sp-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.lanes-zoom-range b { font-weight: 600; margin-inline-end: var(--sp-1); }
+.lanes-zoom-acts { margin-inline-start: auto; display: flex; align-items: center; gap: var(--sp-2); }

@@ -11,7 +11,7 @@ import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
 import { dominantRole, foldTimeline, type PhaseSpan2, type Span2, type WaitSpan2 } from '../data/derive'
 import { kindGroups, groupIndex } from '../data/callkinds'
-import { ticks } from '../data/scale'
+import { ticks, zoomedAxis } from '../data/scale'
 import { roleLabel, roleOfClass, roleOrder, type Role } from '../components/colors'
 import '../styles/timeline.css'
 
@@ -54,7 +54,8 @@ function phaseBreakdown(p: PhaseSpan2): string {
 /**
  * The session on wall-clock time: one lane per top statement (ordered by first call),
  * then a strip of waits by class and a strip of CPU. Drag to set the global window; click a block to make its interval the
- * window and select its statement, double-click to open the statement (the window stays).
+ * window and select its statement, double-click to open the statement (the window stays). With a zoom (`State.lanesZoom`) the axis
+ * is the zoomed range and the rows and bars are queried over it.
  */
 export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: TraceDoc; colorBy?: LaneColor; showWaits?: boolean }) {
   const actions = useActions()
@@ -62,7 +63,12 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
   const state = useStore((s) => s)
   const win = state.window
   const picked = activeBlock(state)
-  const { base, span } = useAxis(doc) // the selected files' / sessions' range, else the whole trace
+  const full = useAxis(doc) // the selected files' / sessions' range, else the whole trace
+  // the zoomed range (null: unzoomed, or the zoom misses the axis after a file / session selection: the stack stays)
+  const zoomTop = state.lanesZoom[state.lanesZoom.length - 1]
+  const zoom = useMemo(() => zoomedAxis(full, zoomTop), [full, zoomTop])
+  const zoomWin = useMemo(() => (zoom ? { startTim: zoom.base, endTim: zoom.base + zoom.span } : null), [zoom])
+  const { base, span } = zoom ?? full // the axis shown
   const ref = useRef<HTMLDivElement>(null)
   // the drag lives in a ref (pointer events can arrive before React re-renders); state only triggers a repaint
   const dragRef = useRef<LaneDrag | null>(null)
@@ -72,12 +78,17 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
   const setDrag = (d: LaneDrag | null) => { dragRef.current = d; repaint((n) => n + 1) }
 
   const source = sourceOf(doc)
-  const ss = useScopedStatements(doc, { withWindow: false })
-  const laneScope = useScope(doc, { withWindow: false }) // the lanes keep their rows when a window is dragged
-  // only statements with calls in the scope get a lane (none while the scope's table is on its way)
-  const top = useMemo(() => (ss.pending ? [] : ss.stats.filter((s) => s.allCalls.count > 0 && s.firstTim > 0)
-    .sort((a, b) => responseUs(b) - responseUs(a)).slice(0, MAX_LANES)
-    .sort((a, b) => a.firstTim - b.firstTim)), [ss.stats, ss.pending])
+  // the rows and bars are picked over the files / contexts, and over the zoomed range; a window dragged inside it changes nothing
+  const ss = useScopedStatements(doc, { withWindow: false, window: zoomWin })
+  const laneScope = useScope(doc, { withWindow: false, window: zoomWin })
+  // only statements with calls in the scope get a lane (none while the scope's table is on its way; a zoom keeps the previous rows until the zoomed table arrives)
+  const lastTop = useRef<StmtStats[]>([])
+  const top = useMemo(() => {
+    if (ss.pending) return zoom ? lastTop.current : []
+    return (lastTop.current = ss.stats.filter((s) => s.allCalls.count > 0 && s.firstTim > 0)
+      .sort((a, b) => responseUs(b) - responseUs(a)).slice(0, MAX_LANES)
+      .sort((a, b) => a.firstTim - b.firstTim))
+  }, [ss.stats, ss.pending, zoom])
   const topIds = top.map((s) => s.id)
   const gap = span / 600
   const spansQ = useSourceQuery(source, `spans:${topIds.join(',')}:${gap}:${scopeKey(laneScope)}`, (signal) => (source.ready ? source.stmtSpans(topIds, gap, laneScope, signal) : null), 'spans')
@@ -124,10 +135,17 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
 
   const tk = useMemo(() => ticks(span, 8), [span])
   const x = (tim: number) => `${(100 * (tim - base)) / span}%`
-  const wall = (tim: number, opts?: { date?: boolean }) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(tim), doc.tzOffsetMin, opts) : `+${fmtDur(tim - base)}`)
+  // a bar cut to the axis (a call that straddles its edge comes back whole); `data-start` / `data-end` keep the real interval
+  const inAxis = (s: Span2) => s.end >= base && s.start <= base + span
+  const clip = (s: Span2) => ({ left: x(Math.max(s.start, base)), width: `max(2px, ${(100 * (Math.min(s.end, base + span) - Math.max(s.start, base))) / span}%)` })
+  // ticks under a millisecond apart need microseconds in their labels, or neighbours read the same
+  const fine = tk.step < 1000
+  // offsets count from the start of the whole axis, zoomed or not (as the window bar's)
+  const offset = (tim: number) => (zoom ? `+${((tim - full.base) / 1e6).toFixed(fine ? 6 : 3)} s` : `+${fmtDur(tim - base)}`)
+  const wall = (tim: number, opts?: { date?: boolean }) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(tim), doc.tzOffsetMin, { ...opts, micros: fine }) : offset(tim))
   const tickText = (t: number, i: number) => {
-    if (!doc.wallOffsetUs) return i === 0 ? '+0' : fmtDur(t)
-    const s = fmtWall(doc.wallOf(base + t), doc.tzOffsetMin)
+    if (!doc.wallOffsetUs) return zoom ? offset(base + t) : i === 0 ? '+0' : fmtDur(t)
+    const s = fmtWall(doc.wallOf(base + t), doc.tzOffsetMin, { micros: fine })
     return i === 0 ? s : tk.step >= 1e6 ? s.slice(0, 8) : s
   }
 
@@ -157,13 +175,30 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
       else if (store.getState().window) actions.setWindow(null) // a click on empty space clears the window
       return
     }
-    actions.setWindow(b - a < span * 0.999 ? { startTim: a, endTim: b } : null)
+    // a drag across the whole axis: no window, or (zoomed) the visible range
+    actions.setWindow(b - a < span * 0.999 ? { startTim: a, endTim: b } : zoomWin)
   }
 
   const onDouble = () => { const bar = clickRef.current; clickRef.current = null; if (bar) actions.selectStmt(bar.stmt) }
-  const isPicked = (stmt: number, start: number, end: number) => picked?.stmt === stmt && picked.startTim === start && picked.endTim === end
+  // the picked block's bars: the block itself, or (zoomed, another gap) the bars the new merge made of it, whose ends can move by
+  // a few µs: a bar of its statement mostly inside it (neighbours only touch it)
+  const isPicked = (stmt: number, start: number, end: number) => {
+    if (!picked || picked.stmt !== stmt) return false
+    if (end <= start) return start >= picked.startTim && start <= picked.endTim
+    return Math.min(end, picked.endTim) - Math.max(start, picked.startTim) >= 0.5 * (end - start)
+  }
 
-  if (span <= 0 || lanes.length === 0) return <p className="muted small">No time information.</p>
+  const zoomStrip = zoom && (
+    <div className="lanes-zoom" role="group" aria-label="Zoom">
+      <span className="lanes-zoom-range"><b>Zoom</b> {wall(base)} → {wall(base + span)} · {fmtDur(span)} <span className="muted">of {fmtDur(full.span)}</span></span>
+      <span className="lanes-zoom-acts">
+        <button onClick={() => actions.zoomOutLanes()} title="back to the previous zoom, or the whole range">‹ Out</button>
+        <button className="quiet" onClick={() => actions.resetLanesZoom()} title="the whole range">Reset</button>
+      </span>
+    </div>
+  )
+  if (span <= 0) return <p className="muted small">No time information.</p>
+  if (lanes.length === 0) return zoomStrip ? <>{zoomStrip}<p className="muted small">{ss.pending ? 'Loading…' : 'No statements with calls in this range.'}</p></> : <p className="muted small">No time information.</p>
   const dragRect = drag && ref.current ? (() => {
     const r = ref.current!.getBoundingClientRect()
     const l = Math.max(0, Math.min(drag.x0, drag.x1) - r.left), w = Math.min(r.width, Math.abs(drag.x1 - drag.x0))
@@ -189,6 +224,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
         ))}
       </div>
     )}
+    {zoomStrip}
     <div className={'lanes' + (showWaits ? ' with-waits' : '')} style={{ gridTemplateColumns: `${LABEL_W}px minmax(0, 1fr)` }}>
       <div className="lanes-labels">
         <div className="lanes-axis-pad" style={{ height: AXIS_H }} />
@@ -199,7 +235,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
         ))}
         {strips && <><div className="lane-label strip" style={{ height: STRIP_H }}><span className="dim">waits by class</span></div><div className="lane-label strip" style={{ height: STRIP_H }}><span className="dim">CPU</span></div></>}
       </div>
-      <div className="lanes-plot" ref={ref} style={{ height }} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)} onDoubleClick={onDouble}>
+      <div className={'lanes-plot' + (spansQ.loading ? ' stale' : '')} ref={ref} style={{ height }} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)} onDoubleClick={onDouble}>
         <div className="lanes-axis" style={{ height: AXIS_H }}>
           {tk.at.filter((t) => t < span * 0.93).map((t, i) => <span key={t} style={{ left: x(base + t) }} className={i === 0 ? 'first' : undefined}>{tickText(t, i)}</span>)}
           <span className="last">{wall(base + span)}</span>
@@ -208,16 +244,16 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
         {lanes.map((l) => (
           <div key={l.st.id} className="lane" style={{ height: laneH }}>
             {l.phases
-              ? l.phases.map((s, i) => (
-                <i key={i} className={'span' + (isPicked(l.st.id, s.start, s.end) ? ' on' : '')} data-stmt={l.st.id} data-start={s.start} data-end={s.end} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(${kindGroups[groupIndex[s.kind]].token})` }}
+              ? l.phases.filter(inAxis).map((s, i) => (
+                <i key={i} className={'span' + (isPicked(l.st.id, s.start, s.end) ? ' on' : '')} data-stmt={l.st.id} data-start={s.start} data-end={s.end} style={{ ...clip(s), background: `var(${kindGroups[groupIndex[s.kind]].token})` }}
                   title={`${l.label} · ${phaseBreakdown(s)} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}${BAR_HINT}`} />
               ))
-              : l.spans.map((s, i) => (
-                <i key={i} className={'span' + (isPicked(l.st.id, s.start, s.end) ? ' on' : '')} data-stmt={l.st.id} data-start={s.start} data-end={s.end} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(--c-${l.role})` }}
+              : l.spans.filter(inAxis).map((s, i) => (
+                <i key={i} className={'span' + (isPicked(l.st.id, s.start, s.end) ? ' on' : '')} data-stmt={l.st.id} data-start={s.start} data-end={s.end} style={{ ...clip(s), background: `var(--c-${l.role})` }}
                   title={`${l.label} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}${BAR_HINT}`} />
               ))}
-            {l.waits?.map((w, i) => (
-              <i key={`w${i}`} className={'wspan' + (isPicked(l.st.id, w.start, w.end) ? ' on' : '')} data-stmt={l.st.id} data-start={w.start} data-end={w.end} style={{ left: x(w.start), width: `max(2px, ${(100 * (w.end - w.start)) / span}%)`, background: `var(--c-${waitRole(w.event)})` }}
+            {l.waits?.filter(inAxis).map((w, i) => (
+              <i key={`w${i}`} className={'wspan' + (isPicked(l.st.id, w.start, w.end) ? ' on' : '')} data-stmt={l.st.id} data-start={w.start} data-end={w.end} style={{ ...clip(w), background: `var(--c-${waitRole(w.event)})` }}
                 title={`${l.label} · ${waitBreakdown(w)} · ${wall(w.start)} → ${wall(w.end)} · ${fmtDur(w.end - w.start)}${BAR_HINT}`} />
             ))}
           </div>

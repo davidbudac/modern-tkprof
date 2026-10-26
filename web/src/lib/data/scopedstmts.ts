@@ -5,7 +5,7 @@ import { useMemo } from 'react'
 import { ctxKey, selectionSpan } from './fileset'
 import type { TraceDoc } from './doc'
 import type { StmtStats } from './types'
-import { scopeNarrows, scopeOf, type Scope } from '../state/store'
+import { scopeNarrows, scopeOf, type Scope, type TimeWindow } from '../state/store'
 import { useStore } from '../state/session'
 import { sourceOf, useSourceQuery } from './source'
 
@@ -14,13 +14,16 @@ export function scopeKey(scope: Pick<Scope, 'window' | 'contexts'>): string {
   return `${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${ctxKey(scope.contexts)}`
 }
 
+/** `withWindow: false` leaves the store's window out (the lanes); `window` replaces it (null = none; keep the object stable: it is a memo key). */
+export interface ScopeOpts { withWindow?: boolean; window?: TimeWindow | null }
+
 /**
  * The scope the views query the source with: the store's window, the effective contexts (explicit selection and selected
- * files), the idle toggle. `withWindow: false` leaves the window out (the lanes).
+ * files), the idle toggle. `withWindow: false` leaves the window out (the lanes), `window` replaces it (the zoomed lanes).
  */
-export function useScope(doc: TraceDoc, opts: { withWindow?: boolean } = {}): Scope {
+export function useScope(doc: TraceDoc, opts: ScopeOpts = {}): Scope {
   const stateWindow = useStore((s) => s.window)
-  const window = opts.withWindow === false ? null : stateWindow
+  const window = opts.window !== undefined ? opts.window : opts.withWindow === false ? null : stateWindow
   const files = useStore((s) => s.files)
   const contexts = useStore((s) => s.contexts)
   const includeIdle = useStore((s) => s.includeIdle)
@@ -62,9 +65,9 @@ const hasWork = (s: StmtStats) => s.allCalls.count > 0 || s.errors > 0
 
 /**
  * `withWindow: false` leaves the time window out (the Overview lanes and the Timeline pick their statements by the files and
- * contexts only: dragging a window there must not change the rows).
+ * contexts only: dragging a window there must not change the rows); `window` picks them over that range instead (the zoomed lanes).
  */
-export function useScopedStatements(doc: TraceDoc, opts: { withWindow?: boolean } = {}): ScopedStatements {
+export function useScopedStatements(doc: TraceDoc, opts: ScopeOpts = {}): ScopedStatements {
   const scope = useScope(doc, opts)
   const narrows = scopeNarrows(scope)
   const source = sourceOf(doc)

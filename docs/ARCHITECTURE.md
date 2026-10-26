@@ -429,6 +429,12 @@ restores). Pieces:
   statement's files first) and opens the Lines view at `lines/at` of the window start (`openLinesAt`). With a block
   it passes `keepSelection` (`LinesView.keep`): the view lands on the line without picking the statement there (often a
   recursive child), so the block's statement and its gutter marks stay; the toolbar's ⇤ start / end ⇥ do the same while the block is active.
+  Zoom: `State.lanesZoom` is a stack of ranges (`zoomLanes`, `zoomOutLanes`, `resetLanesZoom`; reset by `setLoaded` / `setSide`,
+  kept by `carryOver`), pushed by the WindowBar's Zoom button (`zoom` prop, Overview lanes only). `zoomedAxis` (`data/scale.ts`)
+  turns the top range into the lanes' axis (+5 % each side, at least 50 µs, cut to `useAxis`); the statements, spans, phases,
+  wait stretches and roles are then queried with that range as the window (`useScope` / `useScopedStatements` `window`
+  override), so the rows are the range's top statements. Bars are cut to the axis (`data-start` / `data-end` keep the whole
+  block), tick labels get microseconds under a 1 ms step, the strips keep their bucket clamp (coarse at depth). Not a filter.
 - Bookmarks live in `State.bookmarks` (`addBookmark`, `removeBookmark`,
   `setBookmarks`; `{file, line, label}`); b, the toolbar button or a right-click on
   the line number toggles one; the second panel tab edits them. Not persisted here
