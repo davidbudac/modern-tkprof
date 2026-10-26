@@ -2,10 +2,12 @@
 .lines { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; block-size: 100%; min-block-size: 0; }
 .lines-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
 .lines-bar select { font-size: var(--text-sm); max-inline-size: 18rem; }
-.lines-search, .lines-jump, .lines-marks, .lines-tools { display: flex; align-items: center; gap: var(--sp-2); }
+.lines-search, .lines-jump, .lines-marks, .lines-tools, .lines-win { display: flex; align-items: center; gap: var(--sp-2); }
 .lines-search input[type="search"] { inline-size: clamp(11rem, 24vw, 22rem); font-family: var(--font-mono); }
 .lines-jump input[type="text"] { inline-size: 11rem; }
 .lines-marks small { white-space: nowrap; }
+.lines-win b { font-weight: 600; font-size: var(--text-sm); }
+.lines-win small { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .lines-tools { margin-inline-start: auto; }
 .lines-note { color: var(--s-critical); }
 .lines-at { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-4); padding-block: var(--sp-1); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); min-block-size: 1.9rem; }
@@ -54,6 +56,11 @@
 .lv-gut { flex: none; box-sizing: border-box; inline-size: var(--lv-gut); margin-inline-start: auto; position: sticky; inset-inline-end: 0; display: flex; }
 .lv-act { flex: 1; display: flex; justify-content: flex-end; align-items: flex-start; gap: 2px; padding-inline: var(--sp-2); border-inline-start: 1px solid var(--hairline-strong); background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-raised)); }
 .lv-act button { font: inherit; font-size: var(--text-xs, 0.7rem); line-height: 1.2; padding: 0 var(--sp-2); block-size: calc(var(--lv-row) - 4px); align-self: center; }
+.lv-win .lv-ln { background: color-mix(in oklch, var(--c-cpu) 13%, var(--surface-sunken)); box-shadow: inset -3px 0 0 color-mix(in oklch, var(--c-cpu) 55%, transparent); } /* the time window's lines */
+.lv-win-start, .lv-win-end { position: relative; }
+.lv-win-start::before, .lv-win-end::after { content: ""; position: absolute; z-index: 1; inset-inline: 0; block-size: 1px; background: color-mix(in oklch, var(--c-cpu) 75%, transparent); pointer-events: none; }
+.lv-win-start::before { inset-block-start: 0; }
+.lv-win-end::after { inset-block-end: 0; }
 .lv-sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
 .lv-sel .lv-ln { color: var(--ink); font-weight: 600; background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-sunken)); }
 

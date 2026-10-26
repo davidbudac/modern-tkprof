@@ -19,10 +19,11 @@ export { ResizeHandle } from './components/ResizeHandle'
 export { PaneToggle } from './components/PaneToggle'
 export { Minimap } from './components/Minimap'
 export { LiveBadge } from './components/LiveBadge'
+export { WindowBar } from './components/WindowBar'
 
 // state: one store per open trace, provided through the context
-export { createStore, carryOver, scopeOf, scopeNarrows, callFilter, waitFilter, filesPanelOpen } from './state/store'
-export type { Store, Actions, State, View, Side, Selection, TimeWindow, Scope, Bookmark, LinesView, PivotState, LiveStatus } from './state/store'
+export { createStore, carryOver, scopeOf, scopeNarrows, callFilter, waitFilter, filesPanelOpen, activeBlock } from './state/store'
+export type { Store, Actions, State, View, Side, Selection, TimeWindow, LaneBlock, Scope, Bookmark, LinesView, PivotState, LiveStatus } from './state/store'
 export {
   SessionContext, SessionProvider, createSession, useSession, useStore, useStoreApi, useActions, useClient, useLibrary,
 } from './state/session'
@@ -43,6 +44,9 @@ export type { LinePage } from './data/lines'
 // the Lines view's endpoints (api/lines?annot=1, lines/at, at, search)
 export { probeLinesApi, fetchLinesAnnot, lineAt, objectsAt, search, parseJump, ANNOT_PAGE } from './data/lines'
 export type { LineKind, AnnotPage, AtObjects, SearchQuery, SearchHit, SearchEnd } from './data/lines'
+// a time window as lines of the input files
+export { windowFiles, windowLineRange, windowStartLine, fileInWindow } from './data/windowlines'
+export type { LineRange } from './data/windowlines'
 export { PageCache } from './data/linecache'
 export { sourceOf, attachRemote, LocalSource, RemoteSource, useSourceQuery } from './data/source'
 export type { DataSource, QueryState, StmtMarks } from './data/source'

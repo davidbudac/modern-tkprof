@@ -13,6 +13,7 @@ import { lightFill } from '../components/colors'
 import { Findings, findingText } from './Findings'
 import { Lanes, type LaneColor } from './Lanes'
 import { Minimap } from '../components/Minimap'
+import { WindowBar } from '../components/WindowBar'
 import { NONE, type StmtStats } from '../data/types'
 import { scopeKey, useScope, useScopedStatements, type ScopedStatements } from '../data/scopedstmts'
 import { useScopedFindings } from '../data/scopedfindings'
@@ -55,7 +56,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
 
       <section className="section">
         <header><h2>Timeline</h2>
-          <span className="hint">{timeView === 'lanes' ? 'lane per statement, by first call · drag: set window · Esc: clear' : 'busy time per bucket · slider: set window · Esc: clear'}</span>
+          <span className="hint">{timeView === 'lanes' ? 'lane per statement, by first call · drag: set window · click a block: window it · double-click: open · Esc: clear' : 'busy time per bucket · slider: set window · Esc: clear'}</span>
           <span className="tools">
             {timeView === 'lanes' && <span className="seg" role="group" aria-label="Color lanes by">
               <button aria-pressed={laneColor === 'phase'} onClick={() => setLaneColor('phase')} title="PARSE / EXEC / FETCH / CLOSE / other">phase</button>
@@ -69,6 +70,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
             <button aria-pressed={timeView === 'event'} onClick={() => setTimeView('event')} title="top 10 events, rest folded">by event</button>
             <button aria-pressed={timeView === 'class'} onClick={() => setTimeView('class')} title="by wait class">by class</button>
           </span></span></header>
+        <WindowBar doc={doc} />
         {timeView === 'lanes' ? <Lanes doc={doc} colorBy={laneColor} showWaits={laneWaits} /> : <TimelineChart doc={doc} by={timeView} />}
       </section>
 

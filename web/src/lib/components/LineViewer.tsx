@@ -18,6 +18,9 @@ const baseOf = (top: number) => Math.max(0, Math.floor(top / STEP) * STEP - OVER
 /** The search whose matches are highlighted inside the rows. */
 export interface RowHighlight { q: string; regex: boolean; caseSensitive: boolean }
 
+/** The lines a time window covers (1-based, inclusive): the rows in it get a band in the gutter, its first and last row a boundary. */
+export interface LineWindow { from: number; to: number }
+
 /** What the owner can ask of the viewer. */
 export interface ViewerApi {
   /** first visible line, 1-based */
@@ -40,6 +43,8 @@ interface Props {
   wrap: boolean
   /** highlight the matches of this search inside the rows (keep the object stable: rows are memoised on it) */
   highlight?: RowHighlight | null
+  /** the lines of the time window, marked in the gutter */
+  range?: LineWindow | null
   /** per-line actions on the selected row: copy the text, copy a permalink (omit `onLink` where there is no URL to link to) */
   onCopy?(line: number): void
   onLink?(line: number): void
@@ -55,7 +60,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, onCopy, onLink, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, onCopy, onLink, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -199,7 +204,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   for (let i = base; i < end; i++) {
     const n = i + 1
     const l = cache.line(n)
-    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} />)
+    const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
+    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} />)
   }
   const digits = String(Math.max(total, 1000)).length
   return (
@@ -215,13 +221,19 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   )
 }
 
-const Row = memo(function Row({ n, text, kind, mk, sel, bm, note, hl, acts }: {
+/** A row's place in the time window (flags): inside it, its first line, its last line. */
+const WIN_IN = 1, WIN_START = 2, WIN_END = 4
+
+const Row = memo(function Row({ n, text, kind, mk, sel, bm, note, hl, win, acts }: {
   n: number; text: string | undefined; kind: number; mk: number; sel: boolean; bm: boolean; note?: string; hl?: RowHighlight
+  /** `WIN_*` flags */
+  win: number
   /** the selected row's actions: 0 none, 1 copy, 2 copy and permalink */
   acts: number
 }) {
   const cut = text !== undefined && text.length > MAX_TEXT
   const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '')
+    + (win & WIN_IN ? ' lv-win' : '') + (win & WIN_START ? ' lv-win-start' : '') + (win & WIN_END ? ' lv-win-end' : '')
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>{n}</span>

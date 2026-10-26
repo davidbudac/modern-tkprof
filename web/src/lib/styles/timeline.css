@@ -2,3 +2,8 @@
 .lane-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); font-size: var(--text-sm); }
 .lane-legend .k { display: inline-flex; align-items: center; gap: 0.4rem; }
 .lanes-legend { margin-block-end: var(--sp-2); }
+.winbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-3); border: 1px solid var(--hairline-strong); border-inline-start: 3px solid var(--c-cpu); border-radius: var(--radius); background: color-mix(in oklch, var(--c-cpu) 6%, var(--surface-raised)); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.winbar-range b { font-weight: 600; margin-inline-end: var(--sp-1); }
+.winbar-err { color: var(--s-critical); }
+.winbar-acts { margin-inline-start: auto; display: flex; align-items: center; gap: var(--sp-2); }
+.winbar-acts button.go { border-color: var(--ink); font-weight: 500; }

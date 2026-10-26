@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createStore } from './store'
+import { activeBlock, createStore } from './store'
 
 describe('Lines view state', () => {
   it('openLinesAt switches to the Lines view, closes the drawer and bumps seq each time', () => {
@@ -12,6 +12,18 @@ describe('Lines view state', () => {
     expect(getState().linesView).toEqual({ file: 1, line: 500, seq: 1 })
     actions.openLinesAt(1, 500)
     expect(getState().linesView.seq).toBe(2) // the same line again still moves the view
+  })
+
+  it('openLinesAt carries keepSelection for that move only', () => {
+    const { getState, actions } = createStore()
+    actions.openLinesAt(0, 40, { keepSelection: true })
+    expect(getState().linesView).toEqual({ file: 0, line: 40, seq: 1, keep: true })
+    actions.setLinesLine(0, 41) // a click inside the view
+    expect(getState().linesView.keep).toBeUndefined()
+    actions.openLinesAt(0, 40, { keepSelection: true })
+    actions.openLinesAt(0, 50) // another deep link re-picks as before
+    expect(getState().linesView).toEqual({ file: 0, line: 50, seq: 3 })
+    expect(getState().linesView.keep).toBeUndefined()
   })
 
   it('setLinesLine records the selection without asking the view to scroll', () => {
@@ -76,6 +88,72 @@ describe('annotations', () => {
     setState({ pivot: { ...getState().pivot, notice: 'x' } })
     actions.setPivot({ fact: 'waits', by: ['event', 'obj'] })
     expect(getState().pivot).toMatchObject({ fact: 'waits', by: ['event', 'obj'], notice: null })
+  })
+})
+
+describe('lane block', () => {
+  it('pickBlock sets the window, the block and the statement without leaving the view', () => {
+    const { getState, actions } = createStore()
+    actions.selectEvent(3)
+    actions.pickBlock(2, 100, 250)
+    const s = getState()
+    expect(s.view).toBe('overview')
+    expect(s.window).toEqual({ startTim: 100, endTim: 250 })
+    expect(s.block).toEqual({ stmt: 2, startTim: 100, endTim: 250 })
+    expect(s.selection).toEqual({ stmt: 2, event: null, call: null, exec: null })
+    expect(activeBlock(s)).toBe(s.block)
+  })
+
+  it('is active only while the window is exactly its interval', () => {
+    const { getState, actions } = createStore()
+    expect(activeBlock(getState())).toBeNull()
+    actions.pickBlock(1, 10, 20)
+    expect(activeBlock(getState())).not.toBeNull()
+    actions.selectStmt(1) // opening the statement keeps the window, so the statement stays filtered to the block
+    expect(getState().view).toBe('statements')
+    expect(activeBlock(getState())).toEqual({ stmt: 1, startTim: 10, endTim: 20 })
+    expect(getState().window).toEqual({ startTim: 10, endTim: 20 })
+    actions.setWindow({ startTim: 10, endTim: 21 }) // a new window is not the block
+    expect(getState().block).toBeNull()
+    expect(activeBlock(getState())).toBeNull()
+    actions.pickBlock(1, 10, 20)
+    actions.setWindow(null)
+    expect(getState().block).toBeNull()
+    expect(getState().window).toBeNull()
+  })
+
+  it('activeBlock ignores a block whose window was replaced by a plain setState', () => {
+    const { getState, setState, actions } = createStore()
+    actions.pickBlock(1, 10, 20)
+    setState({ window: { startTim: 10, endTim: 99 } })
+    expect(activeBlock(getState())).toBeNull()
+    setState({ window: null })
+    expect(activeBlock(getState())).toBeNull()
+  })
+
+  it('setLoaded, setSide and openStmtOn drop it', () => {
+    const store = createStore()
+    const { getState, actions } = store
+    const doc = {} as never
+    store.setLoaded({ doc, compare: null })
+    actions.pickBlock(1, 10, 20)
+    store.setLoaded({ doc, compare: null })
+    expect(getState().block).toBeNull()
+    const both = { a: doc, b: doc, diff: { statements: [] } } as never
+    store.setLoaded({ doc, compare: both })
+    actions.pickBlock(1, 10, 20)
+    actions.setSide('b')
+    expect(getState().block).toBeNull()
+    expect(getState().window).toBeNull()
+    actions.setSide('a')
+    actions.pickBlock(1, 10, 20)
+    actions.openStmtOn('b', 0)
+    expect(getState().block).toBeNull()
+    expect(getState().window).toBeNull()
+    store.setLoaded({ doc, compare: null })
+    actions.pickBlock(1, 10, 20)
+    actions.openStmtOn('a', 0)
+    expect(getState().block).toBeNull()
   })
 })
 
@@ -150,7 +228,7 @@ describe('swapDoc (a live session next snapshot)', () => {
     actions.selectStmt(2)
     actions.selectEvent(1)
     actions.selectExec({ cursor: 2, execNo: 4 })
-    actions.setWindow({ startTim: 1, endTim: 9 })
+    actions.pickBlock(2, 1, 9)
     actions.setContexts(new Set([0, 1]))
     actions.openLinesAt(0, 120)
     const before = store.getState()
@@ -162,6 +240,7 @@ describe('swapDoc (a live session next snapshot)', () => {
     expect(s.selection).toBe(before.selection) // unchanged: the same object
     expect(s.contexts).toBe(before.contexts)
     expect(s.window).toBe(before.window)
+    expect(s.block).toBe(before.block)
     expect(s.linesView).toBe(before.linesView)
   })
 
@@ -174,8 +253,11 @@ describe('swapDoc (a live session next snapshot)', () => {
     store.actions.setFiles(new Set([1]))
     store.actions.setPivot({ stmt: 4, event: 1 })
     store.actions.openLinesAt(1, 7)
+    store.actions.pickBlock(4, 5, 6)
     store.swapDoc({ doc: doc(2, 2, 1, 1), compare: null })
     const s = store.getState()
+    expect(s.block).toBeNull() // its statement is gone; the window stays
+    expect(s.window).toEqual({ startTim: 5, endTim: 6 })
     expect(s.selection.stmt).toBeNull()
     expect(s.selection.event).toBeNull()
     expect(s.files).toEqual(new Set())

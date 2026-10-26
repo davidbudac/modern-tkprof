@@ -3,7 +3,7 @@ import { ctxKey } from '../data/fileset'
 import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtWall, preview } from '../data/format'
-import { scopeOf } from '../state/store'
+import { activeBlock, scopeOf } from '../state/store'
 import { scopeKey, useAxis, useScope, useScopedStatements } from '../data/scopedstmts'
 import { responseUs } from '../data/response'
 import { useStore, useActions, useStoreApi } from '../state/session'
@@ -27,6 +27,19 @@ const MAX_BUCKETS = 20000 // the engine refuses a timeline of more than 100000 b
 /** What the lane bars are colored by: the call phase (PARSE / EXEC / FETCH / ...) or the statement's dominant resource role. */
 export type LaneColor = 'phase' | 'resource'
 
+/** A bar under the pointer: its statement and interval (`data-stmt` / `data-start` / `data-end`). */
+interface LaneBar { stmt: number; start: number; end: number }
+
+/** The pointer is down at `x0`, now at `x1`; `bar` is what it went down on. */
+interface LaneDrag { x0: number; x1: number; bar: LaneBar | null }
+
+const barOf = (t: EventTarget | null): LaneBar | null => {
+  const d = (t as HTMLElement | null)?.closest<HTMLElement>('[data-stmt]')?.dataset
+  return d?.stmt === undefined ? null : { stmt: Number(d.stmt), start: Number(d.start), end: Number(d.end) }
+}
+
+const BAR_HINT = ' · click: select · double-click: open statement'
+
 interface Lane { st: StmtStats; label: string; text: string; role: Role; spans: Span2[]; phases: PhaseSpan2[] | null; waits: WaitSpan2[] | null }
 
 /** `FETCH 82% · EXEC 15% · PARSE 3%`: the nonzero groups of a segment, biggest first. */
@@ -40,20 +53,23 @@ function phaseBreakdown(p: PhaseSpan2): string {
 
 /**
  * The session on wall-clock time: one lane per top statement (ordered by first call),
- * then a strip of waits by class and a strip of CPU. Drag to set the global window.
+ * then a strip of waits by class and a strip of CPU. Drag to set the global window; click a block to make its interval the
+ * window and select its statement, double-click to open the statement (the window stays).
  */
 export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: TraceDoc; colorBy?: LaneColor; showWaits?: boolean }) {
   const actions = useActions()
   const store = useStoreApi()
   const state = useStore((s) => s)
   const win = state.window
+  const picked = activeBlock(state)
   const { base, span } = useAxis(doc) // the selected files' / sessions' range, else the whole trace
   const ref = useRef<HTMLDivElement>(null)
   // the drag lives in a ref (pointer events can arrive before React re-renders); state only triggers a repaint
-  const dragRef = useRef<{ x0: number; x1: number } | null>(null)
+  const dragRef = useRef<LaneDrag | null>(null)
+  const clickRef = useRef<LaneBar | null>(null) // the block the last click picked, for the double-click that follows
   const [, repaint] = useState(0)
   const drag = dragRef.current
-  const setDrag = (d: { x0: number; x1: number } | null) => { dragRef.current = d; repaint((n) => n + 1) }
+  const setDrag = (d: LaneDrag | null) => { dragRef.current = d; repaint((n) => n + 1) }
 
   const source = sourceOf(doc)
   const ss = useScopedStatements(doc, { withWindow: false })
@@ -123,24 +139,29 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
   }
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
+    // the bar is taken now: with the pointer captured, the target of the pointer-up is the plot
+    const bar = barOf(e.target)
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* synthetic events have no active pointer */ }
-    setDrag({ x0: e.clientX, x1: e.clientX })
+    setDrag({ x0: e.clientX, x1: e.clientX, bar })
   }
-  const onMove = (e: PointerEvent<HTMLDivElement>) => { const d = dragRef.current; if (d) setDrag({ x0: d.x0, x1: e.clientX }) }
-  const onUp = (e: PointerEvent<HTMLDivElement>) => {
+  const onMove = (e: PointerEvent<HTMLDivElement>) => { const d = dragRef.current; if (d) setDrag({ ...d, x1: e.clientX }) }
+  const onUp = () => {
     const drag = dragRef.current
     if (!drag) return
     const a = timAt(Math.min(drag.x0, drag.x1)), b = timAt(Math.max(drag.x0, drag.x1))
     setDrag(null)
+    clickRef.current = null
     if (Math.abs(drag.x1 - drag.x0) < 4) {
-      const t = e.target as HTMLElement
-      const id = t.closest<HTMLElement>('[data-stmt]')?.dataset.stmt
-      if (id !== undefined) actions.selectStmt(Number(id))
+      const bar = drag.bar
+      if (bar) { clickRef.current = bar; actions.pickBlock(bar.stmt, bar.start, bar.end) }
       else if (store.getState().window) actions.setWindow(null) // a click on empty space clears the window
       return
     }
     actions.setWindow(b - a < span * 0.999 ? { startTim: a, endTim: b } : null)
   }
+
+  const onDouble = () => { const bar = clickRef.current; clickRef.current = null; if (bar) actions.selectStmt(bar.stmt) }
+  const isPicked = (stmt: number, start: number, end: number) => picked?.stmt === stmt && picked.startTim === start && picked.endTim === end
 
   if (span <= 0 || lanes.length === 0) return <p className="muted small">No time information.</p>
   const dragRect = drag && ref.current ? (() => {
@@ -178,7 +199,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
         ))}
         {strips && <><div className="lane-label strip" style={{ height: STRIP_H }}><span className="dim">waits by class</span></div><div className="lane-label strip" style={{ height: STRIP_H }}><span className="dim">CPU</span></div></>}
       </div>
-      <div className="lanes-plot" ref={ref} style={{ height }} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)}>
+      <div className="lanes-plot" ref={ref} style={{ height }} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)} onDoubleClick={onDouble}>
         <div className="lanes-axis" style={{ height: AXIS_H }}>
           {tk.at.filter((t) => t < span * 0.93).map((t, i) => <span key={t} style={{ left: x(base + t) }} className={i === 0 ? 'first' : undefined}>{tickText(t, i)}</span>)}
           <span className="last">{wall(base + span)}</span>
@@ -188,16 +209,16 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
           <div key={l.st.id} className="lane" style={{ height: laneH }}>
             {l.phases
               ? l.phases.map((s, i) => (
-                <i key={i} className="span" data-stmt={l.st.id} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(${kindGroups[groupIndex[s.kind]].token})` }}
-                  title={`${l.label} · ${phaseBreakdown(s)} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}`} />
+                <i key={i} className={'span' + (isPicked(l.st.id, s.start, s.end) ? ' on' : '')} data-stmt={l.st.id} data-start={s.start} data-end={s.end} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(${kindGroups[groupIndex[s.kind]].token})` }}
+                  title={`${l.label} · ${phaseBreakdown(s)} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}${BAR_HINT}`} />
               ))
               : l.spans.map((s, i) => (
-                <i key={i} className="span" data-stmt={l.st.id} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(--c-${l.role})` }}
-                  title={`${l.label} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}`} />
+                <i key={i} className={'span' + (isPicked(l.st.id, s.start, s.end) ? ' on' : '')} data-stmt={l.st.id} data-start={s.start} data-end={s.end} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(--c-${l.role})` }}
+                  title={`${l.label} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}${BAR_HINT}`} />
               ))}
             {l.waits?.map((w, i) => (
-              <i key={`w${i}`} className="wspan" data-stmt={l.st.id} style={{ left: x(w.start), width: `max(2px, ${(100 * (w.end - w.start)) / span}%)`, background: `var(--c-${waitRole(w.event)})` }}
-                title={`${l.label} · ${waitBreakdown(w)} · ${wall(w.start)} → ${wall(w.end)} · ${fmtDur(w.end - w.start)}`} />
+              <i key={`w${i}`} className={'wspan' + (isPicked(l.st.id, w.start, w.end) ? ' on' : '')} data-stmt={l.st.id} data-start={w.start} data-end={w.end} style={{ left: x(w.start), width: `max(2px, ${(100 * (w.end - w.start)) / span}%)`, background: `var(--c-${waitRole(w.event)})` }}
+                title={`${l.label} · ${waitBreakdown(w)} · ${wall(w.start)} → ${wall(w.end)} · ${fmtDur(w.end - w.start)}${BAR_HINT}`} />
             ))}
           </div>
         ))}

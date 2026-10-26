@@ -65,7 +65,8 @@ in the UI is reachable from the CLI.
   "where did the time go" first: the statement concentration (top k = 80%),
   the response-time bar on a true
   time axis with a per-event ledger, the top statements on the same axis,
-  then the session on wall-clock lanes (drag = time window). A bucket chart
+  then the session on wall-clock lanes (drag = time window; click a block = its interval as the window and its
+  statement selected, double-click = open the statement; the window bar leads to the window's lines). A bucket chart
   (CPU plus waits per event, top 10, the rest folded; or per class) is the
   alternative time view. Statements is a workbench: ranked list, the
   statement's tkprof table/plan/executions in the centre, context on the

@@ -17,6 +17,7 @@ import { Chart } from '../components/Chart'
 import { DataTable, type Column } from '../components/DataTable'
 import { resolveVar } from '../components/colors'
 import { Minimap } from '../components/Minimap'
+import { WindowBar } from '../components/WindowBar'
 import { NoteEditor, NoteBox } from '../components/Note'
 import { makeAnnotation } from '../data/annotations'
 import '../styles/timeline.css'
@@ -176,6 +177,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
             {lanes.list.length > MAX_LANES ? ` · lanes for top ${MAX_LANES} statements` : ''}
           </span>
         </header>
+        <WindowBar doc={doc} />
         <WindowNotes doc={doc} />
         <Minimap doc={doc} height={40} />
         <div className="lane-legend" role="list" aria-label="Call kinds">

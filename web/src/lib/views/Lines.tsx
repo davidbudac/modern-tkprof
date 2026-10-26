@@ -10,9 +10,10 @@ import { LineViewer, type ViewerApi } from '../components/LineViewer'
 import { PaneToggle } from '../components/PaneToggle'
 import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
-import type { Store } from '../state/store'
+import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList } from './LinesPanel'
 import { isSelected } from '../data/fileset'
+import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
 import { NoteEditor } from '../components/Note'
 import '../styles/lines.css'
 
@@ -59,6 +60,28 @@ function firstAbove(a: ArrayLike<number>, x: number): number {
   return lo
 }
 
+interface WindowLines { range: LineRange | null; failed: boolean }
+
+/** The lines of input file `file` that the time window covers: null while there is no window or the lookup is on its way (a live session's next snapshot keeps the old answer until the new one arrives). */
+function useWindowLines(doc: TraceDoc, file: number): WindowLines | null {
+  const client = useClient()
+  const win = useStore((s) => s.window)
+  const rev = useStore((s) => s.rev)
+  const key = win ? `${win.startTim}:${win.endTim}` : ''
+  const [found, setFound] = useState<(WindowLines & { key: string }) | null>(null)
+  useEffect(() => {
+    if (!win) return
+    const ac = new AbortController()
+    windowLineRange(client, doc, file, win, ac.signal).then(
+      (range) => { if (!ac.signal.aborted) setFound({ key, range, failed: false }) },
+      (e: unknown) => { if (!aborted(e)) setFound({ key, range: null, failed: true }) },
+    )
+    return () => ac.abort()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, doc, file, key, rev])
+  return found && found.key === key ? found : null
+}
+
 /**
  * The raw trace as a full tab: every line of the input file (a virtualized viewer over pages of 2000 lines from `api/lines`),
  * coloured by line kind, with gutter marks for the selected statement, "what is at this line", text search, jump to time and bookmarks.
@@ -87,6 +110,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const lv = useStore((s) => s.linesView)
   const stmt = useStore((s) => s.selection.stmt)
   const win = useStore((s) => s.window)
+  const block = useStore(activeBlock) // a picked lane block keeps its statement selected while moving through its window
+  const winLines = useWindowLines(doc, file)
+  const winRange = winLines?.range ?? null
   const allBookmarks = useStore((s) => s.bookmarks)
   const notesOn = useStore((s) => s.annotationsEnabled)
   const [noting, setNoting] = useState<number | null>(null) // the line whose note is being written
@@ -143,15 +169,15 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [cache, client, file, store, actions, doc, ui])
   useEffect(() => () => { window.clearTimeout(atTimer.current); atCtl.current?.abort() }, [])
 
-  const select = useCallback((line: number) => { actions.setLinesLine(file, line); resolveAt(line, true) }, [actions, file, resolveAt])
-  const goTo = useCallback((line: number) => {
+  const select = useCallback((line: number, dispatch = true) => { actions.setLinesLine(file, line); resolveAt(line, dispatch) }, [actions, file, resolveAt])
+  const goTo = useCallback((line: number, dispatch = true) => {
     apiRef.current?.reveal(line, 'center')
-    select(line)
+    select(line, dispatch)
   }, [select])
 
-  // a deep link or jump from elsewhere moves the view; coming back to the tab keeps the position
+  // a deep link or jump from elsewhere moves the view (`keep`: without picking the line's statement); coming back to the tab keeps the position
   useEffect(() => {
-    if (lv.seq !== ui.seqSeen) { ui.seqSeen = lv.seq; goTo(lv.line); return }
+    if (lv.seq !== ui.seqSeen) { ui.seqSeen = lv.seq; goTo(lv.line, !lv.keep); return }
     resolveAt(lv.line, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lv.seq])
@@ -277,7 +303,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       <div className="lines-bar">
         {files.length > 1 && (
           <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
-            {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}</option> : null))}
+            {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}{win && fileInWindow(f, win) ? ' · in window' : ''}</option> : null))}
           </select>
         )}
         <form className="lines-search" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>
@@ -294,9 +320,18 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         <form className="lines-jump" onSubmit={(e) => { e.preventDefault(); runJump() }}>
           <input type="text" value={ui.jump} placeholder={doc.wallOffsetUs ? 'Time: 1.5s, 14:03:07' : 'Time: 1.5s, 250ms, tim'} title={doc.wallOffsetUs ? `1.5s / 250ms / 900us from the start, a tim, or a clock time HH:MM:SS[.fff] or YYYY-MM-DD HH:MM:SS in the trace file's zone (${fmtTz(doc.tzOffsetMin)})` : '1.5s / 250ms / 900us from the start, or a tim'} aria-label="Jump to time" onChange={(e) => set({ jump: e.target.value })} />
           <button type="submit" disabled={ui.jump.trim() === ''}>Go</button>
-          <button type="button" disabled={!win} onClick={() => win && void jumpToTim(win.startTim)} title="the first line of the time window set in the Timeline">Window start</button>
           {jumpError && <small className="lines-note" role="alert">{jumpError}</small>}
         </form>
+        {win ? (
+          <span className="lines-win" role="group" aria-label="Time window">
+            <b>Window</b>
+            <button type="button" disabled={!winRange} onClick={() => winRange && goTo(winRange.from, !block)} aria-label="Go to the first line of the time window" title="the first line of the time window set in the Timeline">⇤ start</button>
+            <button type="button" disabled={!winRange} onClick={() => winRange && goTo(winRange.to, !block)} aria-label="Go to the last line of the time window" title="the last line of the time window set in the Timeline">end ⇥</button>
+            <small className={winLines?.failed ? 'lines-error' : 'muted'} aria-live="polite" title={winRange ? `${fmtInt(winRange.to - winRange.from + 1)} lines` : undefined}>
+              {winLines === null ? '…' : winLines.failed ? 'window lines unavailable' : winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : 'no lines of the window in this file'}
+            </small>
+          </span>
+        ) : <button type="button" disabled title="the first line of the time window set in the Timeline">Window start</button>}
         <span className="lines-marks" role="group" aria-label="Statement marks">
           <button onClick={() => stepMark(-1)} disabled={markLines.length === 0} title="previous call or wait of the selected statement" aria-label="Previous mark">▲</button>
           <button onClick={() => stepMark(1)} disabled={markLines.length === 0} title="next call or wait of the selected statement" aria-label="Next mark">▼</button>
@@ -342,7 +377,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className={'lines-body' + (ui.panel ? ' has-panel' : '')}>
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} highlight={highlight} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}

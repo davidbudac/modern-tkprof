@@ -396,7 +396,7 @@ restores). Pieces:
   pixel per row below the cap); wheel and keys move by lines; the component renders
   a window of ~100 rows that shifts in steps of 20 lines and moves with a
   `transform`. No React state changes per line or per pixel; rows are memoised on
-  `(line, text, kind, mark, selected, bookmark)`. Horizontal scroll is native (the
+  `(line, text, kind, mark, selected, bookmark, window flags)`. Horizontal scroll is native (the
   gutter is `position: sticky`), wrap mode only changes the row CSS. react-virtual
   is used for the hit list (up to 10 000 hits).
 - `components/colors.ts` `lineTone`: kind -> role colour (calls `cpu`, waits `userio`,
@@ -414,7 +414,21 @@ restores). Pieces:
 - Search box: literal/regex, case, "from here" (selected line + 1), Enter runs it,
   hits stream into a virtualized list (flushed every 100 ms, the first at once, the
   first hit is selected), Esc or Cancel aborts, F3 / Shift+F3 step through the hits.
-  Jump to time (`lines/at`) and "Window start" (the store's time window).
+  Jump to time (`lines/at`). With a time window the toolbar has `Window ⇤ start / end ⇥ lines a–b`:
+  `windowLineRange` (`data/windowlines.ts`) maps the window to the lines of the open file (`lines/at` of the
+  start, and of the end + 1 unless the window reaches the file's last record), the viewer's `range` prop
+  marks them in the gutter (`lv-win`, `lv-win-start` / `lv-win-end`), and the file picker adds " · in window"
+  to the files whose time range overlaps it. Without a window a disabled "Window start" button keeps the toolbar still.
+- Timeline to lines: a click on a lane block (`Lanes.tsx`, `data-stmt` / `data-start` / `data-end` on the bars;
+  the bar is read at pointerdown because the captured pointer retargets the pointer-up) calls
+  `pickBlock(stmt, start, end)`: window = the block's interval, `State.block` = the block, the statement is
+  selected without leaving the Overview. `activeBlock(state)` is the block only while the window still equals
+  it (any other window change drops it: `setWindow` clears it, `carryOver` drops it with its statement).
+  Double-click opens the statement with the window kept. `WindowBar` (Overview timeline, Timeline tab) shows the window
+  and its block; its Lines button picks `windowFiles` (the selected files overlapping the window, the block's
+  statement's files first) and opens the Lines view at `lines/at` of the window start (`openLinesAt`). With a block
+  it passes `keepSelection` (`LinesView.keep`): the view lands on the line without picking the statement there (often a
+  recursive child), so the block's statement and its gutter marks stay; the toolbar's ⇤ start / end ⇥ do the same while the block is active.
 - Bookmarks live in `State.bookmarks` (`addBookmark`, `removeBookmark`,
   `setBookmarks`; `{file, line, label}`); b, the toolbar button or a right-click on
   the line number toggles one; the second panel tab edits them. Not persisted here

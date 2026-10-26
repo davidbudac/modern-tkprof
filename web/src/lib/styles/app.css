@@ -218,6 +218,7 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .lane { position: relative; border-block-end: 1px solid var(--hairline); }
 .lane .span { position: absolute; inset-block: 0.45rem; border-radius: 2px; display: block; }
 .lane .span::after { content: ""; position: absolute; inset: -0.45rem -3px; } /* hit area wider than a thin bar */
+.lane .span, .lane .wspan { cursor: pointer; }
 .strip { display: block; inline-size: 100%; border-block-end: 1px solid var(--hairline); }
 .brush { position: absolute; inset-block: 0; background: color-mix(in oklch, var(--c-cpu) 9%, transparent); border-inline: 1px solid var(--c-cpu); pointer-events: none; }
 .brush b { position: absolute; inset-block-end: 0.2rem; inset-inline-start: 0.35rem; font-size: var(--text-xs); color: var(--c-cpu); font-weight: 500; white-space: nowrap; }
@@ -512,3 +513,4 @@ button.note-btn.on { color: var(--c-note); }
 .lanes.with-waits .lane .span { inset-block: 5px 15px; }
 .lane .wspan { position: absolute; inset-block: auto 4px; block-size: 7px; border-radius: 1px; display: block; }
 .lane .wspan::after { content: ""; position: absolute; inset: -3px; }
+.lane .span.on, .lane .wspan.on { z-index: 1; outline: 2px solid var(--ink); outline-offset: 1px; } /* the picked block: its interval is the window */

@@ -93,6 +93,11 @@ entry stays. Tabs cannot be reordered.
 opens the small line drawer). *Bookmark* (or `b`) marks a line; bookmarks are kept per trace
 across restarts.
 
+From the timeline to the lines: a click on a block of the Overview lanes makes its interval the time window and
+selects its statement (double-click opens the statement, still filtered to the block). The *Window* row above
+the timeline (and in the Timeline tab) has *Lines*, which opens **Lines** at the window's first line; there the
+window's lines have a band in the gutter and *⇤ start* / *end ⇥* jump to its ends.
+
 ### Notes and bookmarks
 
 Notes belong to a trace's content identity, not to its file name: the same trace opened from

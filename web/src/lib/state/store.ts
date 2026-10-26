@@ -11,6 +11,9 @@ export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions'
 
 export interface TimeWindow { startTim: number; endTim: number }
 
+/** A block of an Overview lane: a statement's merged call interval (a phase segment or a wait stretch of it). */
+export interface LaneBlock { stmt: ID; startTim: number; endTim: number }
+
 export type Side = 'a' | 'b'
 
 export interface Selection {
@@ -61,7 +64,11 @@ export interface LiveStatus {
 }
 
 /** The Lines view's position: `seq` changes when something outside asks it to move to `line` (a deep link, a jump), clicks inside only update `line`. */
-export interface LinesView { file: number; line: number; seq: number }
+export interface LinesView {
+  file: number; line: number; seq: number
+  /** with the `seq` change: the deep link moves the view without re-picking the statement, execution and event at the line */
+  keep?: boolean
+}
 
 export interface State {
   /** the document the views show: with `compare`, the active side */
@@ -74,6 +81,8 @@ export interface State {
   view: View
   selection: Selection
   window: TimeWindow | null
+  /** the lane block whose interval is the window, set by a click in the Overview lanes; only meaningful while the window equals it (`activeBlock`) */
+  block: LaneBlock | null
   contexts: Set<ID> | null // explicit context selection (Sessions view); null = all
   /** input files whose traces the views show (Files panel); null = all. The server filter is `scopeOf(state).contexts`. */
   files: Set<number> | null
@@ -108,7 +117,7 @@ export interface State {
 const initial: State = {
   doc: null, compare: null, side: 'a', loading: true, error: null, view: 'overview',
   selection: { stmt: null, event: null, call: null, exec: null },
-  window: null, contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, theme: 'auto',
+  window: null, block: null, contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, theme: 'auto',
   linesAvailable: false, lineViewer: null,
   linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
@@ -153,7 +162,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
   }
   const swapDoc: Store['swapDoc'] = (l) => {
     setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
@@ -173,7 +182,7 @@ export function createStore(): Store {
  * files are stable from one snapshot to the next; a later one only adds): ids the document does not have are dropped,
  * everything else (sets included) keeps its identity, so nothing is recomputed for nothing.
  */
-export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selection' | 'contexts' | 'files' | 'pivot' | 'lineViewer' | 'linesView'> {
+export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selection' | 'block' | 'contexts' | 'files' | 'pivot' | 'lineViewer' | 'linesView'> {
   const nStmts = doc.statements.length, nEvents = doc.events.length, nFiles = fileCount(doc)
   const id = (v: ID | null, n: number): ID | null => (v !== null && v >= 0 && v < n ? v : null)
   const subset = <T extends number>(set: Set<T> | null, n: number): Set<T> | null => {
@@ -192,6 +201,7 @@ export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selecti
   return {
     doc,
     selection: same ? sel : selection,
+    block: s.block && id(s.block.stmt, nStmts) !== null ? s.block : null,
     contexts: subset(s.contexts, doc.contexts.length),
     files: subset(s.files, nFiles),
     pivot,
@@ -213,17 +223,21 @@ function makeActions(setState: Store['setState']) {
     setSide(side: Side) {
       setState((s) => {
         if (!s.compare || s.side === side) return {}
-        return { side, doc: s.compare[side], window: null, contexts: null, files: null, lineViewer: null, bookmarks: [], selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], window: null, block: null, contexts: null, files: null, lineViewer: null, bookmarks: [], selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
       })
     },
     /** Open a statement of side `side` in the Statements workbench. */
     openStmtOn(side: Side, stmt: ID) {
       setState((s) => {
-        if (!s.compare) return { view: 'statements', selection: { stmt, event: null, call: null, exec: null } }
-        return { side, doc: s.compare[side], view: 'statements', window: null, contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
+        if (!s.compare) return { view: 'statements', block: null, selection: { stmt, event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], view: 'statements', window: null, block: null, contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
       })
     },
-    setWindow(window: TimeWindow | null) { setState({ window }) },
+    setWindow(window: TimeWindow | null) { setState({ window, block: null }) },
+    /** Select a lane block of the Overview: its interval becomes the window and its statement the selection (no navigation). */
+    pickBlock(stmt: ID, startTim: number, endTim: number) {
+      setState((s) => ({ window: { startTim, endTim }, block: { stmt, startTim, endTim }, selection: { ...s.selection, stmt, event: null, call: null, exec: null } }))
+    },
     setContexts(contexts: Set<ID> | null) { setState({ contexts }) },
     setFilesOpen(filesOpen: boolean) { setState({ filesOpen }) },
     /**
@@ -241,9 +255,9 @@ function makeActions(setState: Store['setState']) {
     openLines(line: number, file = 0) { setState({ lineViewer: { target: line, center: line, file } }) },
     pageLines(center: number) { setState((s) => (s.lineViewer ? { lineViewer: { ...s.lineViewer, center: Math.max(1, center) } } : {})) },
     closeLines() { setState({ lineViewer: null }) },
-    /** Open the Lines view at a line of an input file (the object there is resolved and highlighted by the view). */
-    openLinesAt(file: number, line: number) {
-      setState((s) => ({ view: 'lines', lineViewer: null, linesView: { file, line: Math.max(1, line), seq: s.linesView.seq + 1 } }))
+    /** Open the Lines view at a line of an input file (the object there is resolved and highlighted by the view; it also becomes the selection unless `keepSelection`). */
+    openLinesAt(file: number, line: number, opts?: { keepSelection?: boolean }) {
+      setState((s) => ({ view: 'lines', lineViewer: null, linesView: { file, line: Math.max(1, line), seq: s.linesView.seq + 1, ...(opts?.keepSelection ? { keep: true } : {}) } }))
     },
     /** The line selected in the Lines view (no scrolling). */
     setLinesLine(file: number, line: number) { setState((s) => ({ linesView: { file, line, seq: s.linesView.seq } })) },
@@ -285,6 +299,13 @@ function makeActions(setState: Store['setState']) {
     },
   }
 }
+
+/** The picked lane block while the window is still exactly its interval, else null (a dragged or cleared window drops it). */
+export function activeBlock(s: Pick<State, 'window' | 'block'>): LaneBlock | null {
+  const b = s.block, w = s.window
+  return b && w && w.startTim === b.startTim && w.endTim === b.endTim ? b : null
+}
+
 /**
  * What narrows the fact rows: the time window, the session contexts and (waits) the idle toggle. `contexts` is the effective
  * context filter (explicit selection and the contexts of the selected `files`, see `effectiveContexts`), so every consumer

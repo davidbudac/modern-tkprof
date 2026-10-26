@@ -38,6 +38,10 @@ and keeps the selection in `workspace.json`, packages D2/D3, desktop pin `95c52a
   `data/findings.ts`; heading "15 findings for 1 of 6 files"); no longer whole set. `TestFindingsDocsCurrent` pins the TS
   port's fixtures (`go test ./internal/report -run FindingsDocs -update-findings-docs` after a rule change).
 - Still whole set: the notes under the facts.
+- Timeline to lines (2026-10-26): a click on an Overview lane block sets its interval as the window and selects its statement
+  (`State.block`, `pickBlock`, `activeBlock`; double-click opens the statement); `components/WindowBar.tsx` (Overview timeline,
+  Timeline tab) opens the Lines view at the window's first line; the Lines view marks the window's lines
+  (`data/windowlines.ts`: `windowFiles`, `windowLineRange`). Details: `docs/ARCHITECTURE.md` § "Lines view".
 - Done (core): an idle-class wait *inside* a call (`PL/SQL lock timer` of `dbms_session.sleep`) used to count in both the call's
   `e` and `Call.IdleEla` ("4.001 s, 159 % of selection" for two `sleep(1)`). Decision: in-call waits belong to the call whatever
   their class (`WaitEla`); `IdleEla`/`IdleUs`/profile idle are between-call waits only; the class stays for the ledger and
@@ -417,7 +421,7 @@ inspector.
   bar on a true time axis with a per-component ledger (`derive.componentRows`),
   top statements drawn on the same axis (`derive.quickSegments`, one pass over
   the waits cached per document), findings, lanes on wall-clock time
-  (`views/Lanes.tsx`, drag = window, click = open) with a bucket-chart
+  (`views/Lanes.tsx`, drag = window, click a block = its interval as the window, double-click = open) with a bucket-chart
   alternative, trace facts.
 - Statements (`views/Statements.tsx`): virtualized ranked list (sort select,
   self/inclusive, no SYS, j/k), `StatementDetail` in the centre,
