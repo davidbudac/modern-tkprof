@@ -39,6 +39,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   const lede = concentrationLede(totalUs, stmts)
   const [timeView, setTimeView] = useState<'lanes' | 'event' | 'class'>('lanes')
   const [laneColor, setLaneColor] = useState<LaneColor>('phase')
+  const [laneWaits, setLaneWaits] = useState(false)
   return (
     <>
       <section className="hero">
@@ -60,12 +61,15 @@ export function Overview({ doc }: { doc: TraceDoc }) {
               <button aria-pressed={laneColor === 'phase'} onClick={() => setLaneColor('phase')} title="PARSE / EXEC / FETCH / CLOSE / other">phase</button>
               <button aria-pressed={laneColor === 'resource'} onClick={() => setLaneColor('resource')} title="the statement's dominant resource">resource</button>
             </span>}
+            {timeView === 'lanes' && <span className="seg" role="group" aria-label="Wait strips">
+              <button aria-pressed={laneWaits} onClick={() => setLaneWaits((v) => !v)} title="a strip of the wait events under each lane">waits</button>
+            </span>}
             <span className="seg" role="group" aria-label="Time view">
             <button aria-pressed={timeView === 'lanes'} onClick={() => setTimeView('lanes')}>lanes</button>
             <button aria-pressed={timeView === 'event'} onClick={() => setTimeView('event')} title="top 10 events, rest folded">by event</button>
             <button aria-pressed={timeView === 'class'} onClick={() => setTimeView('class')} title="by wait class">by class</button>
           </span></span></header>
-        {timeView === 'lanes' ? <Lanes doc={doc} colorBy={laneColor} /> : <TimelineChart doc={doc} by={timeView} />}
+        {timeView === 'lanes' ? <Lanes doc={doc} colorBy={laneColor} showWaits={laneWaits} /> : <TimelineChart doc={doc} by={timeView} />}
       </section>
 
       <section className="section">

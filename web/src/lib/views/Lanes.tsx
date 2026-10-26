@@ -9,14 +9,15 @@ import { responseUs } from '../data/response'
 import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
-import { dominantRole, foldTimeline, type PhaseSpan2, type Span2 } from '../data/derive'
+import { dominantRole, foldTimeline, type PhaseSpan2, type Span2, type WaitSpan2 } from '../data/derive'
 import { kindGroups, groupIndex } from '../data/callkinds'
 import { ticks } from '../data/scale'
-import { roleOrder, type Role } from '../components/colors'
+import { roleLabel, roleOfClass, roleOrder, type Role } from '../components/colors'
 import '../styles/timeline.css'
 
 const MAX_LANES = 12
 const LANE_H = 30
+const LANE_H_WAITS = 38 // room for the wait strip along the bottom of a lane
 const STRIP_H = 26
 const AXIS_H = 20
 const LABEL_W = 230
@@ -26,7 +27,7 @@ const MAX_BUCKETS = 20000 // the engine refuses a timeline of more than 100000 b
 /** What the lane bars are colored by: the call phase (PARSE / EXEC / FETCH / ...) or the statement's dominant resource role. */
 export type LaneColor = 'phase' | 'resource'
 
-interface Lane { st: StmtStats; label: string; text: string; role: Role; spans: Span2[]; phases: PhaseSpan2[] | null }
+interface Lane { st: StmtStats; label: string; text: string; role: Role; spans: Span2[]; phases: PhaseSpan2[] | null; waits: WaitSpan2[] | null }
 
 /** `FETCH 82% · EXEC 15% · PARSE 3%`: the nonzero groups of a segment, biggest first. */
 function phaseBreakdown(p: PhaseSpan2): string {
@@ -41,7 +42,7 @@ function phaseBreakdown(p: PhaseSpan2): string {
  * The session on wall-clock time: one lane per top statement (ordered by first call),
  * then a strip of waits by class and a strip of CPU. Drag to set the global window.
  */
-export function Lanes({ doc, colorBy = 'phase' }: { doc: TraceDoc; colorBy?: LaneColor }) {
+export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: TraceDoc; colorBy?: LaneColor; showWaits?: boolean }) {
   const actions = useActions()
   const store = useStoreApi()
   const state = useStore((s) => s)
@@ -67,13 +68,33 @@ export function Lanes({ doc, colorBy = 'phase' }: { doc: TraceDoc; colorBy?: Lan
   // the phase segments; until they arrive the lanes show the plain spans (kept across refreshes, never blank)
   const phaseQ = useSourceQuery(source, `phases:${colorBy}:${topIds.join(',')}:${gap}:${scopeKey(laneScope)}`,
     (signal) => (colorBy === 'phase' && source.ready ? source.stmtPhases(topIds, gap, laneScope, signal) : null), 'phases')
+  // the wait strips: fetched only while they are on
+  const waitQ = useSourceQuery(source, `waitspans:${showWaits ? topIds.join(',') : ''}:${gap}:${scopeKey(laneScope)}:${laneScope.includeIdle ? 1 : 0}`,
+    (signal) => (showWaits && source.ready ? source.stmtWaitSpans(topIds, gap, laneScope, signal) : null), 'waitspans')
   const roles = useSourceQuery(source, `roles:${scopeKey(laneScope)}`, (signal) => source.stmtRoles(laneScope, signal), 'roles').data
   const lanes = useMemo<Lane[]>(() => top.map((st) => {
     const s = doc.statements[st.id]
     const spans = spansQ.data?.get(st.id) ?? [{ start: st.firstTim, end: st.lastTim }]
     const phases = colorBy === 'phase' ? phaseQ.data?.get(st.id) : undefined
-    return { st, label: doc.label(s), text: preview(s.text, 60), role: dominantRole(doc, st, roles), spans, phases: phases && phases.length > 0 ? phases : null }
-  }), [doc, top, spansQ.data, roles, colorBy, phaseQ.data])
+    return { st, label: doc.label(s), text: preview(s.text, 60), role: dominantRole(doc, st, roles), spans, phases: phases && phases.length > 0 ? phases : null, waits: showWaits ? waitQ.data?.get(st.id) ?? null : null }
+  }), [doc, top, spansQ.data, roles, colorBy, phaseQ.data, showWaits, waitQ.data])
+  const laneH = showWaits ? LANE_H_WAITS : LANE_H
+  const waitRole = (ev: number): Role => { const e = doc.events[ev]; return roleOfClass(e?.class ?? '', e?.idle ?? false) }
+  const waitName = (ev: number) => doc.events[ev]?.name ?? `event ${ev}`
+  // the wait classes on screen, for the legend
+  const waitRoles = useMemo(() => {
+    const seen = new Set<Role>()
+    if (showWaits) for (const l of lanes) for (const w of l.waits ?? []) seen.add(waitRole(w.event))
+    return roleOrder.filter((r) => seen.has(r))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showWaits, lanes, doc])
+  /** `db file sequential read 70% · direct path read 25% · other 5%` */
+  const waitBreakdown = (w: WaitSpan2) => {
+    const total = w.top.reduce((a, e) => a + e[1], 0) + w.restUs
+    if (total <= 0) return waitName(w.event)
+    const pc = (us: number) => { const p = (100 * us) / total; return p < 1 ? '<1' : String(Math.round(p)) }
+    return [...w.top.filter((e) => e[1] > 0).map((e) => `${waitName(e[0])} ${pc(e[1])}%`), ...(w.restUs > 0 ? [`other ${pc(w.restUs)}%`] : [])].join(' · ')
+  }
 
   const scope = scopeOf(state)
   // buckets are counted from the trace's start, so a short selection of a long trace needs a coarser bucket than span / BUCKETS
@@ -128,7 +149,7 @@ export function Lanes({ doc, colorBy = 'phase' }: { doc: TraceDoc; colorBy?: Lan
     return { left: l, width: w }
   })() : null
   const sel = state.selection.stmt
-  const height = AXIS_H + lanes.length * LANE_H + (strips ? 2 * STRIP_H : 0)
+  const height = AXIS_H + lanes.length * laneH + (strips ? 2 * STRIP_H : 0)
 
   return (
     <>
@@ -139,11 +160,19 @@ export function Lanes({ doc, colorBy = 'phase' }: { doc: TraceDoc; colorBy?: Lan
         ))}
       </div>
     )}
-    <div className="lanes" style={{ gridTemplateColumns: `${LABEL_W}px minmax(0, 1fr)` }}>
+    {showWaits && waitRoles.length > 0 && (
+      <div className="lane-legend lanes-legend" role="list" aria-label="Wait classes">
+        <span className="dim">waits (strip under each lane)</span>
+        {waitRoles.map((r) => (
+          <span className="k" role="listitem" key={r}><i className="swatch" style={{ background: `var(--c-${r})` }} />{roleLabel[r]}</span>
+        ))}
+      </div>
+    )}
+    <div className={'lanes' + (showWaits ? ' with-waits' : '')} style={{ gridTemplateColumns: `${LABEL_W}px minmax(0, 1fr)` }}>
       <div className="lanes-labels">
         <div className="lanes-axis-pad" style={{ height: AXIS_H }} />
         {lanes.map((l) => (
-          <div key={l.st.id} className={'lane-label' + (sel === l.st.id ? ' on' : '')} style={{ height: LANE_H }} title={`${l.label} ${l.text}`}>
+          <div key={l.st.id} className={'lane-label' + (sel === l.st.id ? ' on' : '')} style={{ height: laneH }} title={`${l.label} ${l.text}`}>
             <StmtLink doc={doc} id={l.st.id} /><span className="t">{l.text}</span>
           </div>
         ))}
@@ -156,7 +185,7 @@ export function Lanes({ doc, colorBy = 'phase' }: { doc: TraceDoc; colorBy?: Lan
         </div>
         <div className="lanes-grid" style={{ backgroundSize: `${(100 * tk.step) / span}% 100%` }} />
         {lanes.map((l) => (
-          <div key={l.st.id} className="lane" style={{ height: LANE_H }}>
+          <div key={l.st.id} className="lane" style={{ height: laneH }}>
             {l.phases
               ? l.phases.map((s, i) => (
                 <i key={i} className="span" data-stmt={l.st.id} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(${kindGroups[groupIndex[s.kind]].token})` }}
@@ -166,6 +195,10 @@ export function Lanes({ doc, colorBy = 'phase' }: { doc: TraceDoc; colorBy?: Lan
                 <i key={i} className="span" data-stmt={l.st.id} style={{ left: x(s.start), width: `max(2px, ${(100 * (s.end - s.start)) / span}%)`, background: `var(--c-${l.role})` }}
                   title={`${l.label} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}`} />
               ))}
+            {l.waits?.map((w, i) => (
+              <i key={`w${i}`} className="wspan" data-stmt={l.st.id} style={{ left: x(w.start), width: `max(2px, ${(100 * (w.end - w.start)) / span}%)`, background: `var(--c-${waitRole(w.event)})` }}
+                title={`${l.label} · ${waitBreakdown(w)} · ${wall(w.start)} → ${wall(w.end)} · ${fmtDur(w.end - w.start)}`} />
+            ))}
           </div>
         ))}
         {strips && <Strips strips={strips} span={span} base={base} />}

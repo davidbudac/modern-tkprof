@@ -509,3 +509,6 @@ button.note-btn.on { color: var(--c-note); }
 .files-none { margin: var(--sp-3) var(--sp-4); }
 .files-chip { gap: 0.1rem; padding-inline: 0.2rem 0.4rem; }
 .files-chip > button:first-child { padding-block: 0; }
+.lanes.with-waits .lane .span { inset-block: 5px 15px; }
+.lane .wspan { position: absolute; inset-block: auto 4px; block-size: 7px; border-radius: 1px; display: block; }
+.lane .wspan::after { content: ""; position: absolute; inset: -3px; }
