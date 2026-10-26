@@ -2,7 +2,7 @@
 .shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: var(--topbar-h) var(--subbar-h) minmax(0, 1fr) auto;
+  grid-template-rows: var(--topbar-h) auto var(--subbar-h) minmax(0, 1fr) auto; /* top bar, filter row (no room when empty), info bar, view, line drawer */
   block-size: 100dvh;
 }
 /* the working area: the view plus, for a selected wait event, the inspector */
@@ -72,10 +72,20 @@
 .topbar .chips { display: inline-flex; gap: var(--sp-2); }
 .topbar .chips:empty { display: none; }
 .topbar .theme { font-size: 0.9rem; line-height: 1; padding-inline: 0.45rem; }
-/* narrow: the whole-trace mini profile gives way so the tabs and the chips (files, window, sessions) stay on screen */
+/* narrow: the whole-trace mini profile gives way so the tabs and the files chip stay on screen */
 @media (width < 64rem) { .topbar .mini { display: none; } .topbar .file { max-inline-size: 14ch; } }
 button.quiet { border-color: transparent; color: var(--ink-2); }
 button.quiet.on { background: var(--wash); color: var(--ink); }
+
+/* the global filters in force, one row under the top bar; empty it has no padding, border or height (the grid keeps its row) */
+.filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); padding: var(--sp-1) var(--sp-4); border-block-end: 1px solid var(--hairline); background: color-mix(in oklch, var(--c-cpu) 6%, var(--surface)); font-size: var(--text-sm); }
+.filterbar:empty { padding: 0; border: 0; }
+.filterbar-label { margin-inline-end: var(--sp-1); }
+.filterbar .chip { background: var(--surface-raised); max-inline-size: 100%; padding-inline: 0.6rem 0.3rem; }
+.filterbar .chip > button:first-child { overflow: clip; text-overflow: ellipsis; min-inline-size: 0; max-inline-size: 80ch; padding-inline: 0; }
+.filterbar .chip.filter-files > button:first-child { max-inline-size: 44ch; } /* the file names give way first (all of them in the tooltip) */
+.filterbar .chip b { font-weight: 600; margin-inline-end: 0.2em; }
+.filterbar > button { font-size: var(--text-xs); }
 
 /* a live session (follow): state, revision, time of the document shown; pause/resume */
 .live-badge { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--hairline-strong); border-radius: 999px; padding-block: 0.05rem; padding-inline: 0.55rem 0.15rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
@@ -107,7 +117,7 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .subbar .warn, .topbar .theme.warn { color: var(--s-critical); }
 /* stays at the bar's end while the bar scrolls sideways */
 .subbar .close { position: sticky; inset-inline-end: 0; margin-inline-start: auto; padding: 0 0.45rem; font-size: var(--text-lg); line-height: 1.2; background: var(--surface); }
-.shell.no-subbar { grid-template-rows: var(--topbar-h) minmax(0, 1fr) auto; }
+.shell.no-subbar { grid-template-rows: var(--topbar-h) auto minmax(0, 1fr) auto; }
 
 .main {
   overflow: auto;

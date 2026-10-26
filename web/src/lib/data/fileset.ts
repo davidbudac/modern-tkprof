@@ -10,6 +10,13 @@ export interface FileSetDoc {
 
 export const fileCount = (doc: Pick<FileSetDoc, 'file'> | null): number => doc?.file.files?.length ?? 1
 
+/** How a context is named: its session id, else its process id. */
+export function sessionLabel(c: Pick<Context, 'sessionId' | 'process'>): string {
+  if (c.sessionId) return c.sessionId
+  if (c.process) return `pid ${c.process}`
+  return '–'
+}
+
 /** A file selection in canonical form: null (= all) when every file is selected, else the set. */
 export function normalizeFiles(doc: Pick<FileSetDoc, 'file'> | null, files: ReadonlySet<number> | null): Set<number> | null {
   if (!doc || !files) return null

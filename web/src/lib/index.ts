@@ -12,7 +12,7 @@ export { Compare } from './views/Compare'
 export { EventDetail } from './views/EventDetail'
 export { Findings } from './views/Findings'
 export { Lines } from './views/Lines'
-export { FilesPanel, FilesPane, FilesToggle, filesLabel } from './views/FilesPanel'
+export { FilesPanel, FilesPane, FilesToggle } from './views/FilesPanel'
 
 // components
 export { ResizeHandle } from './components/ResizeHandle'
@@ -20,6 +20,7 @@ export { PaneToggle } from './components/PaneToggle'
 export { Minimap } from './components/Minimap'
 export { LiveBadge } from './components/LiveBadge'
 export { WindowBar } from './components/WindowBar'
+export { FilterBar } from './components/FilterBar'
 
 // state: one store per open trace, provided through the context
 export { createStore, carryOver, scopeOf, scopeNarrows, callFilter, waitFilter, filesPanelOpen, activeBlock } from './state/store'
@@ -44,6 +45,9 @@ export type { LinePage } from './data/lines'
 // the Lines view's endpoints (api/lines?annot=1, lines/at, at, search)
 export { probeLinesApi, fetchLinesAnnot, lineAt, objectsAt, search, parseJump, ANNOT_PAGE } from './data/lines'
 export type { LineKind, AnnotPage, AtObjects, SearchQuery, SearchHit, SearchEnd } from './data/lines'
+// the global filters in force, as the chips of the filter row
+export { activeFilters } from './data/filters'
+export type { ActiveFilter, FilterKind, FilterState } from './data/filters'
 // a time window as lines of the input files
 export { windowFiles, windowLineRange, windowStartLine, fileInWindow } from './data/windowlines'
 export type { LineRange } from './data/windowlines'

@@ -511,7 +511,7 @@ The standalone app keeps notes for the page lifetime and hides every affordance.
 
 For a document of several input files (`doc.multiFile`) the shell shows a collapsible left pane (`FilesPane`: panel, resize
 handle, `PaneToggle side="start"`; open by default for several files, `State.filesOpen` remembers the choice) and a top-bar
-entry (`FilesToggle`, which reads "3 of 7 files" with a clear button when a subset is selected). A single-file document has
+entry (`FilesToggle`, "▤ 7 files": it only opens and closes the panel; a selection shows in the filter row, see below). A single-file document has
 neither; a `TRACE CONTINUES IN FILE` chain that was followed lists its parts in `file.files`, so it counts as several
 files. The Overview heading repeats the count. Below 64rem the panel stacks above the view (a short scrolling list, no resize
 handle or edge tab; the top-bar chip opens and closes it) and the top bar drops its mini profile so the tabs and chips stay
@@ -526,6 +526,13 @@ on screen.
   remote source sends `contexts=-` for it (an empty `contexts=` means "all" to the server; `-` is the explicit empty set,
   `analyze.Filter.NoContexts`, accepted by every scoped endpoint). Hash: `#files=0,2`
   (`app/urlstate.ts`; indexes the trace does not have are ignored, none left = all).
+- **Filter row.** `FilterBar` (`components/FilterBar.tsx`, `data/filters.ts`) renders directly after the top bar in both shells:
+  `activeFilters(doc, state)` lists the global filters in force in the order files (`2 of 21 files · a.trc, b.trc +3`), sessions
+  (`State.contexts`, named by `sessionLabel`), window (with `· block of <sql_id>` while `activeBlock`) and hidden idle waits
+  (`includeIdle === false`), and the component gives each chip a button that goes to where it is set (Files panel, Sessions,
+  Overview, Waits) and a × (`setFiles(null)`, `setContexts(null)`, `setWindow(null)`, `toggleIdle`), plus *Clear all* for two or more.
+  The element is always rendered, empty when nothing is filtered (`.filterbar:empty` has no padding or border): the shell grid
+  has an `auto` track for it right after the top bar's. The top bar keeps only the `FilesToggle`.
 - **The panel.** One row per `doc.file.files` entry, PX slave files indented under the coordinator file their contexts attach
   to (`fileTree`: most `Context.parent` votes, no coordinator = top level). Checkbox, name, size, lines, contexts, pid,
   instance, wall-clock span; chips `PX`, `Chain n/m` (files sharing `FileEntry.chain`), `Followed`, `Continued`; and the

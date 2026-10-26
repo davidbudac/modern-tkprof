@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useStore, useActions, useStoreApi, usePersisted, filesPanelOpen, ResizeHandle, PaneToggle, FilesPane, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, Lines, loadFile } from '@lib'
+import { useStore, useActions, useStoreApi, usePersisted, filesPanelOpen, ResizeHandle, PaneToggle, FilesPane, FilterBar, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, Lines, loadFile } from '@lib'
 import { TopBar, SubBar } from './TopBar'
 import { Inspector } from './Inspector'
 import { LineDrawer } from './LineDrawer'
@@ -43,6 +43,7 @@ export function App() {
   return (
     <div className={'shell' + (filesOpen ? ' has-files' : '') + (inspectorOpen ? ' has-inspector' : '') + (lines ? ' has-lines' : '') + (infoBar ? '' : ' no-subbar')}>
       <TopBar doc={doc} onShowInfo={infoBar ? undefined : () => setInfoBar(true)} />
+      <FilterBar doc={doc} />
       {infoBar && <SubBar doc={doc} onClose={() => setInfoBar(false)} />}
       <div className="body" style={{ ...(inspectorW ? { '--inspector-w': `${inspectorW}px` } : null), ...(filesW ? { '--files-w': `${filesW}px` } : null) } as CSSProperties}>
         <FilesPane doc={doc} onWidth={setFilesW} />

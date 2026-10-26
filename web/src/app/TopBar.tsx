@@ -32,7 +32,6 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
   const totalUs = resp.responseUs
   const segs = useMemo(() => traceSegmentsFrom(doc, profile.data ?? null, totalUs).filter((s) => s.us > 0), [doc, profile.data, totalUs])
   const top = [...segs].filter((s) => s.role !== 'unaccounted').sort((a, b) => b.us - a.us).slice(0, 3)
-  const win = state.window
   // the tab counts follow the scope: statements with calls in it, events with waits in it (the window counts when set), its sessions
   const ss = useScopedStatements(doc)
   const full = scopeOf(state)
@@ -76,8 +75,6 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
       </nav>
       <span className="chips">
         <FilesToggle doc={doc} />
-        {win && <span className="chip">window {fmtDur(win.endTim - win.startTim)} <button onClick={() => actions.setWindow(null)} aria-label="Clear time window">×</button></span>}
-        {state.contexts && <span className="chip">{state.contexts.size} session context{state.contexts.size === 1 ? '' : 's'} <button onClick={() => actions.setContexts(null)} aria-label="Clear context filter">×</button></span>}
       </span>
       {onShowInfo && <button className={'quiet theme' + (doc.file.truncated || doc.file.continuedFrom?.length ? ' warn' : '')} onClick={onShowInfo} title="show the trace info bar" aria-label="Show trace info bar">ⓘ</button>}
       <button className="quiet theme" onClick={() => actions.setTheme(themeNext[state.theme])} title={`theme: ${state.theme}`} aria-label={`Theme ${state.theme}`}>{themeGlyph[state.theme]}</button>

@@ -44,6 +44,8 @@ and keeps the selection in `workspace.json`, packages D2/D3, desktop pin `95c52a
   (`data/windowlines.ts`: `windowFiles`, `windowLineRange`). Details: `docs/ARCHITECTURE.md` § "Lines view".
   The WindowBar's Zoom button zooms the Overview lanes into the window (`State.lanesZoom`, `zoomedAxis`; rows and bars are
   queried over the zoomed range, visual only) so blocks of a long trace can be drilled into: block, Zoom, finer blocks, Lines.
+  The global filters (files, sessions, window, hidden idle waits) show as chips in a row under the top bar (`components/FilterBar.tsx`,
+  `data/filters.ts`), each with × and *Clear all*; the top bar's window / session chips and the files chip's selection are gone.
 - Done (core): an idle-class wait *inside* a call (`PL/SQL lock timer` of `dbms_session.sleep`) used to count in both the call's
   `e` and `Call.IdleEla` ("4.001 s, 159 % of selection" for two `sleep(1)`). Decision: in-call waits belong to the call whatever
   their class (`WaitEla`); `IdleEla`/`IdleUs`/profile idle are between-call waits only; the class stays for the ledger and
@@ -413,7 +415,7 @@ Follow-ups left open by milestone 1 (small, not blocking):
 
 ## UI redesign (2026-10-23)
 
-Shell: top bar (file, mini profile bar, tabs, filter chips, theme) + sub-bar
+Shell: top bar (file, mini profile bar, tabs, files toggle, theme) + filter row (`FilterBar`, 2026-10-26) + sub-bar
 (database, session, module, span); no rail. Selecting a statement anywhere
 opens it in the Statements workbench (`actions.selectStmt`); `pickStmt`
 selects without leaving the view. Only wait events use the right-hand

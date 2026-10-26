@@ -10,7 +10,7 @@ import { PaneToggle } from '../components/PaneToggle'
 import { ResizeHandle } from '../components/ResizeHandle'
 
 /** "3 of 7 files" (or "7 files" with every file selected). */
-export function filesLabel(doc: TraceDoc, files: ReadonlySet<number> | null): string {
+function filesLabel(doc: TraceDoc, files: ReadonlySet<number> | null): string {
   const n = fileCount(doc)
   return files ? `${selectedCount(doc, files)} of ${n} files` : `${n} file${n === 1 ? '' : 's'}`
 }
@@ -142,16 +142,14 @@ export function FilesPane({ doc, onWidth }: { doc: TraceDoc; /** the pane was dr
   )
 }
 
-/** Top-bar entry: opens / closes the Files panel; with a subset selected it says "3 of 7 files" and clears the selection. */
+/** Top-bar entry: opens / closes the Files panel ("▤ 7 files"); the selection and its × are in the filter row (`FilterBar`). */
 export function FilesToggle({ doc }: { doc: TraceDoc }) {
   const actions = useActions()
   const open = useStore((s) => filesPanelOpen(s))
-  const files = useStore((s) => s.files)
   if (!doc.multiFile) return null
   return (
     <span className="chip files-chip">
-      <button className={'quiet' + (open ? ' on' : '')} aria-expanded={open} onClick={() => actions.setFilesOpen(!open)} title={`${open ? 'Hide' : 'Show'} the files panel`}>▤ {filesLabel(doc, files)}</button>
-      {files && <button onClick={() => actions.setFiles(null)} aria-label="Select all files" title="show all files">×</button>}
+      <button className={'quiet' + (open ? ' on' : '')} aria-expanded={open} onClick={() => actions.setFilesOpen(!open)} title={`${open ? 'Hide' : 'Show'} the files panel`}>▤ {filesLabel(doc, null)}</button>
     </span>
   )
 }

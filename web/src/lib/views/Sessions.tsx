@@ -6,7 +6,7 @@ import { fmtDur, fmtInt, fmtCompact, fmtWall } from '../data/format'
 import { useStore, useActions } from '../state/session'
 import { DataTable, type Column } from '../components/DataTable'
 import { LineRef } from '../components/LineRef'
-import { fileTree, isSelected, toggleFile } from '../data/fileset'
+import { fileTree, isSelected, sessionLabel, toggleFile } from '../data/fileset'
 import { contextStats, emptyStats, type CtxStats } from '../data/ctxstats'
 
 interface CtxRow {
@@ -21,12 +21,6 @@ type Dim = 'session' | 'module' | 'action' | 'client' | 'service' | 'moduleActio
 
 const dimLabel: Record<Dim, string> = {
   session: 'session', module: 'module', action: 'action', client: 'client id', service: 'service', moduleAction: 'module + action',
-}
-
-function sessionLabel(c: Context): string {
-  if (c.sessionId) return c.sessionId
-  if (c.process) return `pid ${c.process}`
-  return '–'
 }
 
 function dimKey(c: Context, dim: Dim): string {
