@@ -1,0 +1,20 @@
+{
+  "_comment": "Shared by internal/analyze/phases_test.go and web/src/lib/data/derive.test.ts: one statement's calls (kind = trace.CallKind, deliberately unsorted) and the phase segments expected for gapUs. Hand-built unit case, not a trace.",
+  "gapUs": 100,
+  "calls": [
+    { "kind": 3, "tim": 2000, "e": 1000 },
+    { "kind": 4, "tim": 10000, "e": 0 },
+    { "kind": 3, "tim": 1000, "e": 1000 },
+    { "kind": 2, "tim": 3000, "e": 900 },
+    { "kind": 5, "tim": 3600, "e": 40 },
+    { "kind": 2, "tim": 2100, "e": 50 },
+    { "kind": 1, "tim": 3550, "e": 50 },
+    { "kind": 4, "tim": 3560, "e": 0 }
+  ],
+  "expect": [
+    { "start": 0, "end": 2100, "kind": "fetch", "us": [0, 50, 2000, 0, 0] },
+    { "start": 2100, "end": 3000, "kind": "exec", "us": [0, 900, 0, 0, 0] },
+    { "start": 3500, "end": 3600, "kind": "parse", "us": [50, 0, 0, 0, 40] },
+    { "start": 10000, "end": 10000, "kind": "close", "us": [0, 0, 0, 0, 0] }
+  ]
+}

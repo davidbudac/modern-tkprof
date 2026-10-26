@@ -264,7 +264,7 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 	for s := range m.Statements {
 		all = append(all, fmt.Sprint(s))
 		q = append(q, fmt.Sprintf("/api/executions?stmt=%d", s), fmt.Sprintf("/api/executions?stmt=%d&sort=e&limit=5&offset=1", s),
-			fmt.Sprintf("/api/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s),
+			fmt.Sprintf("/api/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000&phases=1", s),
 			fmt.Sprintf("/api/plan?stmt=%d", s), fmt.Sprintf("/api/plan?stmt=%d&exec=1", s), fmt.Sprintf("/api/plan?sql_id=%s", m.Statements[s].SQLID))
 		for _, p := range report.LatestPlans(m, model.ID(s)) {
 			q = append(q, fmt.Sprintf("/api/plan?stmt=%d&plh=%d", s, p.PLH), fmt.Sprintf("/api/plan?stmt=%d&plh=%d&exec=2", s, p.PLH))

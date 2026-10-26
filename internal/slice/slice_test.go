@@ -599,6 +599,49 @@ func TestStatementEndpoints(t *testing.T) {
 	if got := wide.Spans[fmt.Sprint(sid)]; len(got) != 1 {
 		t.Errorf("a gap as long as the trace merges everything, got %d spans", len(got))
 	}
+
+	// phases=1: same stretches' coverage, each with a kind and µs per group
+	var ph struct {
+		Spans map[string][]analyze.PhaseSpan
+	}
+	if code := get(t, h, fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=0&phases=1", sid), &ph); code != 200 {
+		t.Fatalf("phases: status %d", code)
+	}
+	segs := ph.Spans[fmt.Sprint(sid)]
+	if len(segs) < len(iv) {
+		t.Errorf("phase segments (%d) cannot be fewer than merged spans (%d)", len(segs), len(iv))
+	}
+	var segUs, callUs int64
+	for k, x := range segs {
+		if x.End < x.Start || (k > 0 && x.Start < segs[k-1].Start) {
+			t.Errorf("segment %d %+v out of order", k, x)
+		}
+		ok := false
+		for _, n := range analyze.PhaseNames {
+			ok = ok || x.Kind == n
+		}
+		if !ok {
+			t.Errorf("segment %d has kind %q", k, x.Kind)
+		}
+		for _, v := range x.Us {
+			segUs += v
+		}
+	}
+	for i := range m.Calls {
+		if c := &m.Calls[i]; c.Statement == sid && c.Tim != 0 {
+			callUs += c.E
+		}
+	}
+	if segUs != callUs {
+		t.Errorf("segments hold %d µs, the statement's calls %d", segUs, callUs)
+	}
+	var plain struct {
+		Spans map[string][]map[string]any
+	}
+	get(t, h, fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=0", sid), &plain)
+	if _, has := plain.Spans[fmt.Sprint(sid)][0]["kind"]; has {
+		t.Error("without phases=1 the intervals carry no kind")
+	}
 }
 
 func TestBadParametersAre400(t *testing.T) {
@@ -614,7 +657,7 @@ func TestBadParametersAre400(t *testing.T) {
 		"/api/executions", "/api/executions?stmt=-1", "/api/executions?stmt=0&sort=nope", "/api/executions?stmt=0&limit=5001", "/api/executions?stmt=0&offset=-1",
 		"/api/executions/detail?stmt=0", "/api/executions/detail?stmt=0&cursor=0",
 		"/api/waits", "/api/waits?event=0&sort=nope", "/api/waits?event=0&limit=1001", "/api/waits/hist", "/api/waits/scatter?event=0&max=50001", "/api/waits/by?event=0", "/api/waits/by?event=0&by=nope", "/api/waits/by?event=0&by=stmt&limit=0",
-		"/api/stmt/waits", "/api/stmt/waits?stmt=9999", "/api/stmt/spans", "/api/stmt/spans?stmt=0&gap=-1",
+		"/api/stmt/waits", "/api/stmt/waits?stmt=9999", "/api/stmt/spans", "/api/stmt/spans?stmt=0&gap=-1", "/api/stmt/spans?stmt=0&phases=2",
 	} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))

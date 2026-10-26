@@ -15,9 +15,10 @@ import { callFilter, waitFilter, type Scope } from '../state/store'
 import type { ApiClient } from './client'
 import { groupBy, logHistogram, type Agg } from './groupby'
 import {
-  executions as localExecutions, bindsOf, statementRoleUs, statementWaits, statementSpans, timelineRaw, topLevelCpu, waitsByEvent, NROLES,
-  type BindRow, type Execution, type ScopeProfile, type Span2, type StmtWait, type TimelineRaw,
+  executions as localExecutions, bindsOf, statementRoleUs, statementWaits, statementSpans, statementPhases, timelineRaw, topLevelCpu, waitsByEvent, NROLES,
+  type BindRow, type Execution, type PhaseSpan2, type ScopeProfile, type Span2, type StmtWait, type TimelineRaw,
 } from './derive'
+import type { KindGroup } from './callkinds'
 import { pivotDims, pivotMeasures, runPivot, type Fact } from './pivot'
 import { roleOfClass, roleOrder } from '../components/colors'
 import { scopedStatements } from './stmtstats'
@@ -148,6 +149,8 @@ export interface DataSource {
   stmtRoles(scope: Scope, signal?: AbortSignal): Maybe<Float64Array | null>
   /** merged call intervals of statements over the calls in scope */
   stmtSpans(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Maybe<Map<ID, Span2[]>>
+  /** call intervals of statements cut by phase (PARSE / EXEC / FETCH / CLOSE / other), over the calls in scope; see `statementPhases` */
+  stmtPhases(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Maybe<Map<ID, PhaseSpan2[]>>
   /** the trace lines of one statement's calls and waits; null = not available */
   stmtMarks(stmt: ID, signal?: AbortSignal): Maybe<StmtMarks | null>
   /**
@@ -394,6 +397,11 @@ export class LocalSource implements DataSource {
     return new Map(stmts.map((s) => [s, this.doc.hasFacts ? statementSpans(this.doc, s, gapUs, keep) : []]))
   }
 
+  stmtPhases(stmts: ID[], gapUs: number, scope: Scope): Map<ID, PhaseSpan2[]> {
+    const keep = this.cf(scope)
+    return new Map(stmts.map((s) => [s, this.doc.hasFacts ? statementPhases(this.doc, s, gapUs, keep) : []]))
+  }
+
   stmtMarks(stmt: ID): StmtMarks | null {
     const doc = this.doc
     if (!doc.hasFacts) return null
@@ -578,6 +586,14 @@ export class RemoteSource implements DataSource {
     const out = new Map<ID, Span2[]>()
     if (stmts.length === 0) return out
     const r = await this.get<{ spans: Record<string, { start: number; end: number }[]> }>('stmt/spans', { stmt: stmts.join(','), gap: Math.max(0, Math.floor(gapUs)), ...scopeParams(scope, false) }, signal)
+    for (const s of stmts) out.set(s, r.spans[String(s)] ?? [])
+    return out
+  }
+
+  async stmtPhases(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Promise<Map<ID, PhaseSpan2[]>> {
+    const out = new Map<ID, PhaseSpan2[]>()
+    if (stmts.length === 0) return out
+    const r = await this.get<{ spans: Record<string, { start: number; end: number; kind: KindGroup; us: number[] }[]> }>('stmt/spans', { stmt: stmts.join(','), gap: Math.max(0, Math.floor(gapUs)), phases: 1, ...scopeParams(scope, false) }, signal)
     for (const s of stmts) out.set(s, r.spans[String(s)] ?? [])
     return out
   }

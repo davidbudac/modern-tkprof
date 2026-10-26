@@ -96,6 +96,7 @@ describe('scopedStatements (the in-browser api/statements)', () => {
     expect(src.executions(1, { window: null, files: new Set(), contexts: new Set(), includeIdle: true }).total).toBe(0)
     expect(src.stmtSpans([1], 0, scope(doc, null)).get(1)!.length).toBe(3)
     expect(src.stmtSpans([1], 0, scope(doc, [2])).get(1)).toEqual([{ start: 2700, end: 3000 }])
+    expect(src.stmtPhases([1], 0, scope(doc, [2])).get(1)).toEqual([{ start: 2700, end: 3000, kind: 'exec', us: [0, 300, 0, 0, 0] }])
     expect(src.stmtWaits([1], 5, scope(doc, [2])).get(1)).toEqual([])
     expect(src.stmtRoles(scope(doc, [2]))).toBeInstanceOf(Float64Array)
   })
@@ -140,11 +141,13 @@ describe('RemoteSource.statements', () => {
     await src.executions(3, sc)
     await src.stmtWaits([3, 4], 6, sc)
     await src.stmtSpans([3], 100, sc)
+    await src.stmtPhases([3], 100, sc)
     await src.stmtRoles({ ...sc, contexts: new Set() })
     expect(fetch.mock.calls.map((c) => c[0])).toEqual([
       '/api/executions?stmt=3&limit=5000&sort=file&from=5&to=9&contexts=0%2C1',
       '/api/stmt/waits?stmt=3%2C4&max=6&from=5&to=9&contexts=0%2C1',
       '/api/stmt/spans?stmt=3&gap=100&from=5&to=9&contexts=0%2C1',
+      '/api/stmt/spans?stmt=3&gap=100&phases=1&from=5&to=9&contexts=0%2C1',
       '/api/stmt/roles?from=5&to=9&contexts=-',
     ])
   })

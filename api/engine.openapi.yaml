@@ -1873,9 +1873,22 @@ paths:
             type: integer
             minimum: 0
             default: 0
+        - name: phases
+          in: query
+          description: >-
+            segment the calls by phase instead of merging them: each interval then also has
+            kind (the dominant call group by elapsed time) and us (µs per group). Calls join a
+            segment when they start at most gap µs after its end and either continue its
+            dominant group, or the segment is still narrower than gap, or the call is shorter
+            than gap, so segments stay about gap wide.
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "0"
       responses:
         "200":
-          description: "{spans: {<stmt>: [{start, end}]}}"
+          description: >-
+            {spans: {<stmt>: [{start, end}]}}; with phases=1 each interval also has kind and us
           content:
             application/json:
               schema:
@@ -1892,6 +1905,17 @@ paths:
                             type: integer
                           end:
                             type: integer
+                          kind:
+                            type: string
+                            enum: [parse, exec, fetch, close, other]
+                            description: only with phases=1
+                          us:
+                            type: array
+                            description: only with phases=1; elapsed µs per group, in the order parse, exec, fetch, close, other (other = every kind but PARSE/EXEC/FETCH/CLOSE)
+                            minItems: 5
+                            maxItems: 5
+                            items:
+                              type: integer
         "400":
           $ref: "#/components/responses/SliceBadRequest"
 components:

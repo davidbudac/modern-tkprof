@@ -737,6 +737,137 @@ func StmtSpansOn(ctx context.Context, src Facts, f Filter, sids []model.ID, gapU
 	return out, nil
 }
 
+// Phase groups of a call, in the order used for ties and for PhaseSpan.Us.
+const (
+	PhaseParse = iota
+	PhaseExec
+	PhaseFetch
+	PhaseClose
+	PhaseOther // every other call kind (LOB, XCTEND, RPC, ...)
+	NumPhases
+)
+
+// PhaseNames are the PhaseSpan.Kind strings, indexed by phase group.
+var PhaseNames = [NumPhases]string{"parse", "exec", "fetch", "close", "other"}
+
+// PhaseOf maps a call kind to its phase group.
+func PhaseOf(k trace.CallKind) int {
+	switch k {
+	case trace.CallParse:
+		return PhaseParse
+	case trace.CallExec:
+		return PhaseExec
+	case trace.CallFetch:
+		return PhaseFetch
+	case trace.CallClose:
+		return PhaseClose
+	}
+	return PhaseOther
+}
+
+// PhaseSpan is one stretch of a statement's wall-clock activity: the calls
+// between Start and End, with the µs each phase group contributed and the
+// dominant group as Kind.
+type PhaseSpan struct {
+	Start int64            `json:"start"`
+	End   int64            `json:"end"`
+	Kind  string           `json:"kind"`
+	Us    [NumPhases]int64 `json:"us"` // elapsed µs per group: parse, exec, fetch, close, other
+}
+
+type phaseCall struct {
+	start, end, e int64
+	group         int
+}
+
+// dominant is the group with the most µs (ties: the earlier group); first when no call had any elapsed time.
+func dominant(us *[NumPhases]int64, first int) int {
+	best, bi := int64(0), first
+	for g, v := range us {
+		if v > best {
+			best, bi = v, g
+		}
+	}
+	return bi
+}
+
+// segmentPhases cuts one statement's calls into phase segments (the TS twin is
+// statementPhases in web/src/lib/data/derive.ts; keep them identical). Calls,
+// sorted by start, join the current segment when they begin at most gapUs after
+// its end and either continue its dominant group, or the segment is still
+// narrower than gapUs, or the call is shorter than gapUs. Segments therefore
+// stay about gapUs wide (the count is bounded by ~2*span/gapUs) while long runs
+// of one phase stay exact.
+func segmentPhases(calls []phaseCall, gapUs int64) []PhaseSpan {
+	sort.Slice(calls, func(a, b int) bool {
+		x, y := calls[a], calls[b]
+		if x.start != y.start {
+			return x.start < y.start
+		}
+		if x.end != y.end {
+			return x.end < y.end
+		}
+		return x.group < y.group
+	})
+	var out []PhaseSpan
+	var cur PhaseSpan
+	first := 0
+	open := false
+	flush := func() {
+		cur.Kind = PhaseNames[dominant(&cur.Us, first)]
+		out = append(out, cur)
+	}
+	for _, c := range calls {
+		if open && c.start-cur.End <= gapUs &&
+			(c.group == dominant(&cur.Us, first) || cur.End-cur.Start < gapUs || c.e < gapUs) {
+			if c.end > cur.End {
+				cur.End = c.end
+			}
+			cur.Us[c.group] += c.e
+			continue
+		}
+		if open {
+			flush()
+		}
+		cur = PhaseSpan{Start: c.start, End: c.end}
+		cur.Us[c.group] = c.e
+		first, open = c.group, true
+	}
+	if open {
+		flush()
+	}
+	return out
+}
+
+// StmtPhasesOn is StmtSpansOn with phase segmentation (see segmentPhases): per
+// statement, the stretches of its activity with the dominant call kind of each.
+func StmtPhasesOn(ctx context.Context, src Facts, f Filter, sids []model.ID, gapUs int64) (map[model.ID][]PhaseSpan, error) {
+	f.Statement = nil
+	mt := f.Matcher()
+	sc := f.Scan()
+	sc.Statements = sids
+	want := make(map[model.ID]bool, len(sids))
+	for _, s := range sids {
+		want[s] = true
+	}
+	raw := map[model.ID][]phaseCall{}
+	err := src.EachCall(ctx, sc, func(c *model.Call) bool {
+		if c.Tim == 0 || !want[c.Statement] || !mt.Call(c) {
+			return true
+		}
+		raw[c.Statement] = append(raw[c.Statement], phaseCall{c.Tim - c.E, c.Tim, c.E, PhaseOf(c.Kind)})
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[model.ID][]PhaseSpan, len(raw))
+	for s, calls := range raw {
+		out[s] = segmentPhases(calls, gapUs)
+	}
+	return out, nil
+}
+
 // CallPart sums the resources of the calls of one kind within an execution.
 type CallPart struct {
 	Calls int64 `json:"calls"`

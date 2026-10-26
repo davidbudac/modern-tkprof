@@ -2,6 +2,7 @@
 import type { TraceDoc } from './doc'
 import type { ID, StmtStats } from './types'
 import { CallKind, NONE } from './types'
+import { groupIndex, groupOf, kindGroups, type KindGroup } from './callkinds'
 import { groupBy, sumOver, type Agg } from './groupby'
 import { roleOfClass, roleLabel, roleOrder, type Role } from '../components/colors'
 import type { Segment } from '../components/ProfileBar'
@@ -423,5 +424,52 @@ export function statementSpans(doc: TraceDoc, sid: ID, gapUs: number, keep?: (ca
     const last = out[out.length - 1]
     if (last && s.start - last.end <= gapUs) { if (s.end > last.end) last.end = s.end } else out.push({ ...s })
   }
+  return out
+}
+
+export interface PhaseSpan2 extends Span2 {
+  /** the dominant call group of the stretch */
+  kind: KindGroup
+  /** elapsed µs per call group: parse, exec, fetch, close, other */
+  us: number[]
+}
+
+/**
+ * Phase segments of one statement's calls (the engine's analyze.segmentPhases / StmtPhasesOn; keep them identical,
+ * web/src/lib/data/testdata/phases-case.json is the shared case). Calls, sorted by start, join the current segment when
+ * they begin at most `gapUs` after its end and either continue its dominant group, or the segment is still narrower
+ * than `gapUs`, or the call is shorter than `gapUs`: segments stay about `gapUs` wide while long runs of one phase stay exact.
+ */
+export function statementPhases(doc: TraceDoc, sid: ID, gapUs: number, keep?: (call: number) => boolean): PhaseSpan2[] {
+  const c = doc.calls
+  const ids = doc.callsByStmt.get(sid)
+  const calls: { start: number; end: number; e: number; g: number }[] = []
+  for (let k = 0; k < ids.length; k++) {
+    const i = ids[k]
+    if (!c.tim[i] || (keep && !keep(i))) continue
+    calls.push({ start: c.tim[i] - c.e[i], end: c.tim[i], e: c.e[i], g: groupIndex[groupOf(c.kind[i])] })
+  }
+  calls.sort((a, b) => a.start - b.start || a.end - b.end || a.g - b.g)
+  const dominant = (us: number[], first: number) => {
+    let best = 0, bi = first
+    for (let g = 0; g < us.length; g++) if (us[g] > best) { best = us[g]; bi = g }
+    return bi
+  }
+  const out: PhaseSpan2[] = []
+  let cur: PhaseSpan2 | null = null
+  let first = 0
+  const flush = () => { if (cur) { cur.kind = kindGroups[dominant(cur.us, first)].id; out.push(cur) } }
+  for (const x of calls) {
+    if (cur && x.start - cur.end <= gapUs && (x.g === dominant(cur.us, first) || cur.end - cur.start < gapUs || x.e < gapUs)) {
+      if (x.end > cur.end) cur.end = x.end
+      cur.us[x.g] += x.e
+      continue
+    }
+    flush()
+    cur = { start: x.start, end: x.end, kind: 'other', us: [0, 0, 0, 0, 0] }
+    cur.us[x.g] = x.e
+    first = x.g
+  }
+  flush()
   return out
 }

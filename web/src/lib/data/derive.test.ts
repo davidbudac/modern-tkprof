@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { pickBucket, selectionBucket } from './derive'
+import { pickBucket, selectionBucket, statementPhases } from './derive'
+import { makeDoc } from './testdoc'
+import phasesCase from './testdata/phases-case.json'
 
 // Same table as TestBucketForSpan in internal/analyze/pivot_test.go: the two implementations must stay identical.
 describe('pickBucket', () => {
@@ -30,5 +32,18 @@ describe('selectionBucket', () => {
   })
   it('falls back to the whole trace\'s bucket for an unknown selection', () => {
     expect(selectionBucket(600e6, 0)).toBe(pickBucket(600e6))
+  })
+})
+
+// Same case as TestStmtPhasesOnSharedCase in internal/analyze/phases_test.go (one shared JSON file).
+describe('statementPhases', () => {
+  it('cuts the calls into phase segments like the engine', async () => {
+    const doc = await makeDoc(phasesCase.calls.map((c) => ({ ctx: 0, stmt: 0, kind: c.kind, e: c.e, tim: c.tim })))
+    expect(statementPhases(doc, 0, phasesCase.gapUs)).toEqual(phasesCase.expect)
+  })
+  it('skips calls without tim and keeps nothing for an unknown statement', async () => {
+    const doc = await makeDoc([{ ctx: 0, stmt: 0, kind: 2, e: 10 }])
+    expect(statementPhases(doc, 0, 100)).toEqual([])
+    expect(statementPhases(doc, 1, 100)).toEqual([])
   })
 })

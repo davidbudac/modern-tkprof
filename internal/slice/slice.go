@@ -1041,6 +1041,31 @@ func (s *Server) stmtSpans(ctx context.Context, q url.Values) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	phases := false
+	switch v := q.Get("phases"); v {
+	case "", "0":
+	case "1":
+		phases = true
+	default:
+		return nil, bad("phases: %q (want 0 or 1)", v)
+	}
+	if phases {
+		res, err := analyze.StmtPhasesOn(ctx, s.src, f, ids, gap)
+		if err != nil {
+			return nil, err
+		}
+		out := make(map[string][]analyze.PhaseSpan, len(ids))
+		for _, id := range ids {
+			l := res[id]
+			if l == nil {
+				l = []analyze.PhaseSpan{}
+			}
+			out[strconv.Itoa(int(id))] = l
+		}
+		return struct {
+			Spans map[string][]analyze.PhaseSpan `json:"spans"`
+		}{out}, nil
+	}
 	res, err := analyze.StmtSpansOn(ctx, s.src, f, ids, gap)
 	if err != nil {
 		return nil, err

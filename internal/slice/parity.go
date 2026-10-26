@@ -56,6 +56,7 @@ func ParityQueries(m *model.Model, h http.Handler) ([]string, error) {
 			fmt.Sprintf("/api/waits/hist?stmt=%d", s), fmt.Sprintf("/api/waits/by?stmt=%d&by=obj", s),
 			fmt.Sprintf("/api/timeline?stmt=%d", s), fmt.Sprintf("/api/profile?stmt=%d", s),
 			fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s),
+			fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000&phases=1", s),
 			fmt.Sprintf("/api/executions?stmt=%d", s), fmt.Sprintf("/api/executions?stmt=%d&sort=e&limit=5&offset=1", s),
 			fmt.Sprintf("/api/executions?stmt=%d&sort=fetches", s),
 			fmt.Sprintf("/api/executions?stmt=%d&contexts=0", s), fmt.Sprintf("/api/executions?stmt=%d&contexts=-", s),
@@ -64,7 +65,7 @@ func ParityQueries(m *model.Model, h http.Handler) ([]string, error) {
 			fmt.Sprintf("/api/waits?stmt=%d&contexts=0", s), fmt.Sprintf("/api/waits?stmt=%d&contexts=-", s))
 	}
 	if len(all) > 0 {
-		q = append(q, "/api/stmt/waits?stmt="+strings.Join(all, ","), "/api/stmt/spans?stmt="+strings.Join(all, ",")+"&gap=0")
+		q = append(q, "/api/stmt/waits?stmt="+strings.Join(all, ","), "/api/stmt/spans?stmt="+strings.Join(all, ",")+"&gap=0", "/api/stmt/spans?stmt="+strings.Join(all, ",")+"&gap=500&phases=1")
 	}
 	// every execution in detail, from the executions the server itself lists
 	for s := range m.Statements {
