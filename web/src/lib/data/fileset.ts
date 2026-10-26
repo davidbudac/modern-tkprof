@@ -110,6 +110,20 @@ export function fileHeading(doc: Pick<FileSetDoc, 'file'>, files: ReadonlySet<nu
   return { name: sel.length ? `${sel.length} files` : 'no file', title: sel.map((f) => f.path).join('\n'), bytes: sel.reduce((a, f) => a + f.size, 0) }
 }
 
+/**
+ * What the info bar shows of the selected files (null = all): their contexts (the first names the session and module) and
+ * their wall-clock span, else the trace's.
+ */
+export function selectionInfo<C extends Pick<Context, 'fileIdx'>>(
+  doc: { contexts: readonly C[]; file: { files?: readonly FileEntry[] }; span: { firstWallUs: number; lastWallUs: number } },
+  files: ReadonlySet<number> | null,
+): { contexts: readonly C[]; firstWallUs: number; lastWallUs: number } {
+  const contexts = files ? doc.contexts.filter((c) => files.has(c.fileIdx ?? 0)) : doc.contexts
+  const sel = files ? (doc.file.files ?? []).filter((f, i) => files.has(i) && f.firstWallUs > 0) : []
+  if (!sel.length) return { contexts, firstWallUs: doc.span.firstWallUs, lastWallUs: doc.span.lastWallUs }
+  return { contexts, firstWallUs: Math.min(...sel.map((f) => f.firstWallUs)), lastWallUs: Math.max(...sel.map((f) => f.lastWallUs)) }
+}
+
 /** How many of the files are selected (null = all). */
 export const selectedCount = (doc: Pick<FileSetDoc, 'file'>, files: ReadonlySet<number> | null): number => (files ? files.size : fileCount(doc))
 

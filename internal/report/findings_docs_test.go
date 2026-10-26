@@ -55,6 +55,7 @@ func TestFindingsDocsCurrent(t *testing.T) {
 		"parallel":        {tr + "parallel.trc", tr + "parallel_slave.trc"},
 		"plan_change":     {tr + "plan_change.trc"},
 		"plsql_recursive": {tr + "plsql_recursive.trc"},
+		"two_boots":       {tr + "basic_binds.trc", tr + "bind_types.trc"}, // tim 12.27 h apart: two instance starts
 		"workload":        {"../../testdata/sets/workload"},
 	}
 	for name, paths := range sets {

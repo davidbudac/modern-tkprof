@@ -1,5 +1,4 @@
-import { useMemo } from 'react'
-import { fmtDur, fmtWall, fmtTz, fmtBytes, fmtPct, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, traceSegmentsFrom, sourceOf, useSourceQuery, useScopedStatements, responseOf, fileHeading, type TraceDoc, type View } from '@lib'
+import { fmtWall, fmtTz, fmtBytes, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, sourceOf, useSourceQuery, useScopedStatements, fileHeading, selectionInfo, ResponseMini, useScopeResponse, type TraceDoc, type View } from '@lib'
 
 const tabs: { id: View; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -26,18 +25,13 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
   const path = doc.file.traceFile || doc.file.path
   const head = fileHeading(doc, state.files, { name: path.split(/[\\/]/).pop() ?? path, title: path, bytes: doc.diag.bytes })
   const source = sourceOf(doc)
-  const scope = { ...scopeOf(state), window: null }
-  const profile = useSourceQuery(source, `top:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`, (signal) => source.profile(scope, signal), 'top')
-  const resp = responseOf(doc, scope, profile.data) // Σ session spans of the selected files: the Overview's base without the window
-  const totalUs = resp.responseUs
-  const segs = useMemo(() => traceSegmentsFrom(doc, profile.data ?? null, totalUs).filter((s) => s.us > 0), [doc, profile.data, totalUs])
-  const top = [...segs].filter((s) => s.role !== 'unaccounted').sort((a, b) => b.us - a.us).slice(0, 3)
+  const summary = useScopeResponse(doc) // Σ session spans of the selected files: the Overview's base without the window
   // the tab counts follow the scope: statements with calls in it, events with waits in it (the window counts when set), its sessions
   const ss = useScopedStatements(doc)
   const full = scopeOf(state)
   const waitsQ = useSourceQuery(source, `topw:${full.window ? `${full.window.startTim}:${full.window.endTim}` : ''}|${ctxKey(full.contexts)}|${full.includeIdle ? 1 : 0}`,
     (signal) => (full.window ? source.profile(full, signal) : null), 'topw')
-  const waitsProfile = full.window ? waitsQ.data : profile.data
+  const waitsProfile = full.window ? waitsQ.data : summary.profile
   const narrowsWaits = !!(full.window || full.contexts)
   const nStmts = ss.narrowed ? ss.inScope : doc.statements.length
   const nEvents = narrowsWaits && waitsProfile ? waitsProfile.events.filter((e) => e.count > 0).length : doc.events.length
@@ -59,13 +53,7 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
       )}
       <span className="file mono" title={head.title}>{head.name}<span className="dim"> · {fmtBytes(head.bytes)}</span></span>
       <LiveBadge />
-      <span className="mini" title={`response time by class${resp.sessions > 1 ? `: sum over ${resp.sessions} sessions, wall clock ${fmtDur(resp.wallUs)}` : ''}`}>
-        <b>{fmtDur(totalUs)}</b>
-        <span className="mini-track" role="img" aria-label={segs.map((s) => `${s.label} ${fmtPct(s.us, totalUs, 0)}`).join(', ')}>
-          {segs.map((s) => <i key={s.role} className={s.role === 'unaccounted' ? 'unaccounted' : undefined} style={{ flex: `${s.us} 1 0`, background: s.role === 'unaccounted' ? undefined : `var(--c-${s.role})` }} />)}
-        </span>
-        <span className="dim">{top.map((s) => `${fmtPct(s.us, totalUs, 0)} ${s.label}`).join(' · ')}</span>
-      </span>
+      <ResponseMini summary={summary} />
       <nav className="tabs" aria-label="Views">
         {shownTabs.map((t) => (
           <button key={t.id} className="tab" aria-current={state.view === t.id ? 'page' : undefined} onClick={() => actions.setView(t.id)}>
@@ -85,12 +73,9 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
 /** Where the trace came from: database, session, module, time span. */
 export function SubBar({ doc, onClose }: { doc: TraceDoc; onClose: () => void }) {
   // follows the file selection: the first context of the selected files, their wall-clock span
-  const files = useStore((s) => s.files)
-  const ctxs = files ? doc.contexts.filter((c) => files.has(c.fileIdx ?? 0)) : doc.contexts
-  const c0 = ctxs[0]
-  const switches = Math.max(0, ctxs.length - 1)
-  const sel = files ? (doc.file.files ?? []).filter((f, i) => files.has(i) && f.firstWallUs > 0) : []
-  const span = sel.length ? { firstWallUs: Math.min(...sel.map((f) => f.firstWallUs)), lastWallUs: Math.max(...sel.map((f) => f.lastWallUs)) } : doc.span
+  const span = selectionInfo(doc, useStore((s) => s.files))
+  const c0 = span.contexts[0]
+  const switches = Math.max(0, span.contexts.length - 1)
   return (
     <div className="subbar">
       {doc.file.version && <span>Oracle <b>{doc.file.version.replace(/\.0\.0\.0$/, '')}</b>{doc.file.instance && <> · instance <b>{doc.file.instance}</b>{doc.file.node && <> on {doc.file.node.split('.')[0]}</>}</>}</span>}

@@ -20,6 +20,7 @@ export { PaneToggle } from './components/PaneToggle'
 export { Minimap } from './components/Minimap'
 export { LiveBadge } from './components/LiveBadge'
 export { WindowBar } from './components/WindowBar'
+export { ResponseMini, responseSummary, useScopeResponse, type ResponseSummary } from './components/ResponseMini'
 export { FilterBar } from './components/FilterBar'
 
 // state: one store per open trace, provided through the context
@@ -58,7 +59,7 @@ export { sourceOf, attachRemote, LocalSource, RemoteSource, useSourceQuery } fro
 export type { DataSource, QueryState, StmtMarks } from './data/source'
 export { traceSegmentsFrom } from './data/derive'
 export { responseOf, scopeResponse, type ScopeResponse } from './data/response'
-export { ctxKey, fileHeading, effectiveContexts, contextsWithin, contextsOfFiles, fileTree, normalizeFiles, formatFilesParam, parseFilesParam } from './data/fileset'
+export { ctxKey, fileHeading, selectionInfo, effectiveContexts, contextsWithin, contextsOfFiles, fileTree, normalizeFiles, formatFilesParam, parseFilesParam } from './data/fileset'
 export { useScopedStatements } from './data/scopedstmts'
 export type { ScopedStatements } from './data/scopedstmts'
 export { fmtInt, fmtCompact, fmtDur, fmtSecs, fmtMs, fmtPct, fmtBytes, fmtWall, fmtTz, preview, oraErr } from './data/format'
