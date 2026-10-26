@@ -134,7 +134,7 @@ function stmtDim(doc: TraceDoc, stmtCol: NumCol, none: string): Dim {
     id: 'stmt', label: 'Statement', mono: true, click: 'stmt',
     raw: (i) => stmtCol[i],
     name: (k) => { const s = doc.statements[k]; return s ? doc.label(s) : none },
-    extra: { header: 'Text', get: (k) => { const s = doc.statements[k]; return s ? preview(s.text, 70) : '' } },
+    extra: { header: 'Text', get: (k) => { const s = doc.statements[k]; return s ? preview(s.text, 200) : '' } },
   }
 }
 

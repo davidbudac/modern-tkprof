@@ -157,7 +157,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
   const height = Math.max(240, lanes.list.length * LANE_PX + 70)
   const longestCols: Column<Bar>[] = [
     { key: 'k', header: 'Call', render: (b) => callKindName[b.kind] ?? 'CALL', sort: (b) => b.kind },
-    { key: 's', header: 'Statement', className: 'clip', render: (b) => { const st = doc.statements[b.stmt]; return st ? <><StmtLink doc={doc} id={b.stmt} /> {preview(st.text, 60)}</> : '–' }, sort: (b) => b.stmt },
+    { key: 's', header: 'Statement', className: 'clip', render: (b) => { const st = doc.statements[b.stmt]; return st ? <><StmtLink doc={doc} id={b.stmt} /> {preview(st.text, 200)}</> : '–' }, sort: (b) => b.stmt },
     { key: 't', header: 'Start', render: (b) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(b.tim - b.e), doc.tzOffsetMin) : `+${fmtDur(b.tim - b.e - base)}`), sort: (b) => b.tim - b.e },
     { key: 'e', header: 'Elapsed', align: 'end', render: (b) => fmtDur(b.e), sort: (b) => b.e, bar: true },
     { key: 'c', header: 'CPU', align: 'end', render: (b) => fmtDur(b.c), sort: (b) => b.c },

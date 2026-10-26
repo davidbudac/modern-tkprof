@@ -118,7 +118,7 @@ function StatementsDelta({ data }: { data: CompareData }) {
   const perExec = (s: CmpStmt['a']) => (s && s.executions > 0 ? fmtDur(s.perExecUs) : '')
   const columns: Column<CmpStmt>[] = [
     { key: 'id', header: 'SQL ID', className: 'mono', render: (d) => <>{stmtLabel(d)}{d.status !== 'both' && <span className={'chip-q cmp-chip ' + d.status}>{d.status === 'onlyB' ? 'new in B' : 'gone from B'}</span>}</>, sort: stmtLabel },
-    { key: 'text', header: 'Statement', className: 'clip', render: (d) => <span title={d.text}>{preview(d.text, 90)}</span>, sort: (d) => d.text },
+    { key: 'text', header: 'Statement', className: 'clip', render: (d) => <span title={d.text}>{preview(d.text, 200)}</span>, sort: (d) => d.text },
     { key: 'ea', header: 'A elapsed', align: 'end', render: (d) => (d.a ? fmtDur(d.a.elapsed) : ''), sort: (d) => d.a?.elapsed ?? -1 },
     { key: 'eb', header: 'B elapsed', align: 'end', render: (d) => (d.b ? fmtDur(d.b.elapsed) : ''), sort: (d) => d.b?.elapsed ?? -1 },
     { key: 'd', header: 'Δ', align: 'end', title: 'B − A, elapsed', render: (d) => <span className={'delta ' + worse(d.dElapsed)}>{fmtDurDelta(d.dElapsed)}</span>, sort: (d) => d.dElapsed },

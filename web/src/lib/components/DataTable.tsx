@@ -71,7 +71,7 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, d
           <thead>
             <tr>
               {columns.map((c) => (
-                <th key={c.key} className={[c.align === 'end' ? 'num' : '', c.className?.includes('mono') ? 'mono' : ''].join(' ').trim() || undefined} style={{ inlineSize: c.width }} title={c.title}
+                <th key={c.key} className={[c.align === 'end' ? 'num' : '', c.className?.includes('mono') ? 'mono' : '', c.bar || /\b(clip|text)\b/.test(c.className ?? '') ? 'grow' : ''].join(' ').trim() || undefined} style={{ inlineSize: c.width }} title={c.title}
                   aria-sort={sort?.key === c.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
                   onClick={() => toggle(c)}>{c.header}</th>
               ))}

@@ -422,7 +422,7 @@ func stmtDim(m *model.Model, d Dim, stmt func(r factRow) model.ID, none string) 
 			if k < 0 || int(k) >= len(m.Statements) {
 				return ""
 			}
-			return Preview(m.Statements[k].Text, 70)
+			return Preview(m.Statements[k].Text, 200) // the cell ellipsizes to the column; CSV gets the longer text
 		},
 	}
 }

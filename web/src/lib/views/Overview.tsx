@@ -195,7 +195,7 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
           <div key={st.id} className="srow row-click" onClick={() => actions.selectStmt(st.id)}>
             <div className="meta">
               <span className="id"><StmtLink doc={doc} id={st.id} /></span>
-              <span className="txt mono">{preview(s.text, 140)}</span>
+              <span className="txt mono">{preview(s.text, 300)}</span>
               <span className="t">{fmtDur(resp)}</span>
               <span className="p" title={shareNote(responseShare(st, totalUs))}>{fmtPct(resp, totalUs)}</span>
             </div>
