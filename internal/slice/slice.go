@@ -20,7 +20,8 @@
 //	/api/findings        the document's findings over the scope
 //	/api/stmt/roles      wait time per statement and wait class
 //	/api/stmt/waits      top wait events of statements
-//	/api/stmt/spans      merged time intervals of statements' calls
+//	/api/stmt/spans      merged time intervals of statements' calls (phases=1: cut by call phase)
+//	/api/stmt/waitspans  stretches of statements' waits with their dominant events
 //
 // Common scope parameters: from, to (tim in µs, a row is in when its
 // [tim-ela, tim] interval overlaps), contexts (comma separated ids), stmt,
@@ -153,6 +154,7 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		"/api/stmt/roles":        s.stmtRoles,
 		"/api/stmt/waits":        s.stmtWaits,
 		"/api/stmt/spans":        s.stmtSpans,
+		"/api/stmt/waitspans":    s.stmtWaitSpans,
 		"/api/plan":              s.plan,
 	}
 	if s.lis != nil {
@@ -1080,5 +1082,38 @@ func (s *Server) stmtSpans(ctx context.Context, q url.Values) (any, error) {
 	}
 	return struct {
 		Spans map[string][]analyze.Interval `json:"spans"`
+	}{out}, nil
+}
+
+func (s *Server) stmtWaitSpans(ctx context.Context, q url.Values) (any, error) {
+	if q.Get("stmt") == "" {
+		return nil, bad("stmt: required")
+	}
+	ids, err := idList(q, "stmt", len(s.m.Statements), MaxStmtList)
+	if err != nil {
+		return nil, err
+	}
+	gap, err := intParam(q, "gap", 0, 0, 1<<62)
+	if err != nil {
+		return nil, err
+	}
+	f, err := s.scope(q) // idle waits follow idle=0|1, as everywhere
+	if err != nil {
+		return nil, err
+	}
+	res, err := analyze.StmtWaitSpansOn(ctx, s.src, f, ids, gap)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]analyze.WaitSpan, len(ids))
+	for _, id := range ids {
+		l := res[id]
+		if l == nil {
+			l = []analyze.WaitSpan{}
+		}
+		out[strconv.Itoa(int(id))] = l
+	}
+	return struct {
+		Spans map[string][]analyze.WaitSpan `json:"spans"`
 	}{out}, nil
 }

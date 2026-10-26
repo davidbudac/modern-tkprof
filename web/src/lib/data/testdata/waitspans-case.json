@@ -1,0 +1,21 @@
+{
+  "_comment": "Shared by internal/analyze/waitspans_test.go and web/src/lib/data/derive.test.ts: one statement's waits (event = event id, tim = the WAIT line's tim = its end, deliberately unsorted) and the segments expected for gapUs. Hand-built unit case, not a trace.",
+  "gapUs": 100,
+  "waits": [
+    { "event": 1, "tim": 2000, "ela": 1000 },
+    { "event": 7, "tim": 10000, "ela": 0 },
+    { "event": 1, "tim": 1000, "ela": 1000 },
+    { "event": 2, "tim": 3000, "ela": 900 },
+    { "event": 5, "tim": 3600, "ela": 40 },
+    { "event": 2, "tim": 2100, "ela": 50 },
+    { "event": 6, "tim": 3590, "ela": 5 },
+    { "event": 3, "tim": 3550, "ela": 50 },
+    { "event": 4, "tim": 3562, "ela": 2 }
+  ],
+  "expect": [
+    { "start": 0, "end": 2100, "event": 1, "top": [[1, 2000], [2, 50]], "restUs": 0 },
+    { "start": 2100, "end": 3000, "event": 2, "top": [[2, 900]], "restUs": 0 },
+    { "start": 3500, "end": 3600, "event": 3, "top": [[3, 50], [5, 40], [6, 5]], "restUs": 2 },
+    { "start": 10000, "end": 10000, "event": 7, "top": [[7, 0]], "restUs": 0 }
+  ]
+}

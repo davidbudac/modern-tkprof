@@ -31,7 +31,7 @@ and keeps the selection in `workspace.json`, packages D2/D3, desktop pin `95c52a
 - Package F3 (2026-10-25) finished the scoping: the lists under a statement (executions, waits, plans, Context header), the
   lanes, the top-bar counts and the Trace facts follow the file / session / window scope; "no file selected" is the server
   parameter `contexts=-`; narrow layout and dark theme checked. Details: `docs/ARCHITECTURE.md` § "Files panel".
-- Overview lanes are colored by call phase (PARSE / EXEC / FETCH / CLOSE / other, same colors as the Timeline legend; `stmt/spans?phases=1`, additive) with a `phase | resource` toggle (the old single dominant-role color) in the Timeline header.
+- Overview lanes are colored by call phase (PARSE / EXEC / FETCH / CLOSE / other, same colors as the Timeline legend; `stmt/spans?phases=1`, additive) with a `phase | resource` toggle (the old single dominant-role color) in the Timeline header, and an optional (off by default) `waits` toggle adding a strip of the wait events (colored by wait class, `stmt/waitspans`, additive) under each lane.
 - Package W2 (2026-10-25): the Overview lanes, strips, chart and Timeline span the selection's own time range (the minimap
   shades it); saved Pivot configurations can store the file selection by file name ("with file selection").
 - Package F4 (2026-10-25): findings follow the scope too (`analyze.FindingsOn`, engine `api/findings`, in the browser

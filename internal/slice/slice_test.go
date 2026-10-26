@@ -635,6 +635,33 @@ func TestStatementEndpoints(t *testing.T) {
 	if segUs != callUs {
 		t.Errorf("segments hold %d µs, the statement's calls %d", segUs, callUs)
 	}
+	var wsp struct {
+		Spans map[string][]analyze.WaitSpan
+	}
+	if code := get(t, h, fmt.Sprintf("/api/stmt/waitspans?stmt=%d,%d&gap=1000", sid, other), &wsp); code != 200 {
+		t.Fatalf("waitspans: status %d", code)
+	}
+	var wUs, evUs int64
+	for _, x := range wsp.Spans[fmt.Sprint(sid)] {
+		if x.End < x.Start || len(x.Top) == 0 || int(x.Top[0][0]) < 0 {
+			t.Errorf("wait span %+v", x)
+		}
+		wUs += x.RestUs
+		for _, e := range x.Top {
+			wUs += e[1]
+		}
+	}
+	for i := range m.Waits {
+		if w := &m.Waits[i]; w.Statement == sid && w.Tim != 0 {
+			evUs += w.Ela
+		}
+	}
+	if wUs != evUs {
+		t.Errorf("wait spans hold %d µs, the statement's waits %d", wUs, evUs)
+	}
+	if _, ok := wsp.Spans[fmt.Sprint(other)]; !ok {
+		t.Error("a statement without waits must still be listed")
+	}
 	var plain struct {
 		Spans map[string][]map[string]any
 	}
@@ -657,7 +684,7 @@ func TestBadParametersAre400(t *testing.T) {
 		"/api/executions", "/api/executions?stmt=-1", "/api/executions?stmt=0&sort=nope", "/api/executions?stmt=0&limit=5001", "/api/executions?stmt=0&offset=-1",
 		"/api/executions/detail?stmt=0", "/api/executions/detail?stmt=0&cursor=0",
 		"/api/waits", "/api/waits?event=0&sort=nope", "/api/waits?event=0&limit=1001", "/api/waits/hist", "/api/waits/scatter?event=0&max=50001", "/api/waits/by?event=0", "/api/waits/by?event=0&by=nope", "/api/waits/by?event=0&by=stmt&limit=0",
-		"/api/stmt/waits", "/api/stmt/waits?stmt=9999", "/api/stmt/spans", "/api/stmt/spans?stmt=0&gap=-1", "/api/stmt/spans?stmt=0&phases=2",
+		"/api/stmt/waits", "/api/stmt/waits?stmt=9999", "/api/stmt/spans", "/api/stmt/spans?stmt=0&gap=-1", "/api/stmt/spans?stmt=0&phases=2", "/api/stmt/waitspans", "/api/stmt/waitspans?stmt=0&gap=-1", "/api/stmt/waitspans?stmt=0&idle=2",
 	} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))

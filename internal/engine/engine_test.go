@@ -220,9 +220,9 @@ func get(h http.Handler, path string) resp {
 	return resp{rec.Code, rec.Header(), rec.Body.Bytes()}
 }
 
-// endpoints are the 14 slice endpoints.
+// endpoints are the 15 slice endpoints.
 var endpoints = []string{"pivot", "timeline", "calls", "executions", "executions/detail", "waits", "waits/hist",
-	"waits/scatter", "waits/by", "profile", "statements", "stmt/roles", "stmt/waits", "stmt/spans"}
+	"waits/scatter", "waits/by", "profile", "statements", "stmt/roles", "stmt/waits", "stmt/spans", "stmt/waitspans"}
 
 // queries are representative requests of every slice endpoint plus lines.
 func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
@@ -264,7 +264,7 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 	for s := range m.Statements {
 		all = append(all, fmt.Sprint(s))
 		q = append(q, fmt.Sprintf("/api/executions?stmt=%d", s), fmt.Sprintf("/api/executions?stmt=%d&sort=e&limit=5&offset=1", s),
-			fmt.Sprintf("/api/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000&phases=1", s),
+			fmt.Sprintf("/api/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000&phases=1", s), fmt.Sprintf("/api/stmt/waitspans?stmt=%d&gap=1000", s),
 			fmt.Sprintf("/api/plan?stmt=%d", s), fmt.Sprintf("/api/plan?stmt=%d&exec=1", s), fmt.Sprintf("/api/plan?sql_id=%s", m.Statements[s].SQLID))
 		for _, p := range report.LatestPlans(m, model.ID(s)) {
 			q = append(q, fmt.Sprintf("/api/plan?stmt=%d&plh=%d", s, p.PLH), fmt.Sprintf("/api/plan?stmt=%d&plh=%d&exec=2", s, p.PLH))
@@ -277,7 +277,7 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 			q = append(q, fmt.Sprintf("/api/executions/detail?stmt=%d&cursor=%d&execNo=%d", s, row.Cursor, row.ExecNo))
 		}
 	}
-	q = append(q, "/api/stmt/waits?stmt="+strings.Join(all, ","), "/api/stmt/spans?stmt="+strings.Join(all, ",")+"&gap=0")
+	q = append(q, "/api/stmt/waits?stmt="+strings.Join(all, ","), "/api/stmt/spans?stmt="+strings.Join(all, ",")+"&gap=0", "/api/stmt/waitspans?stmt="+strings.Join(all, ",")+"&gap=500&idle=0")
 	return q
 }
 

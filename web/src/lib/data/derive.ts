@@ -473,3 +473,54 @@ export function statementPhases(doc: TraceDoc, sid: ID, gapUs: number, keep?: (c
   flush()
   return out
 }
+
+export interface WaitSpan2 extends Span2 {
+  /** the dominant wait event (most µs) */
+  event: ID
+  /** [event, µs] of the top events, biggest first (at most MAX_WAIT_SPAN_TOP) */
+  top: [number, number][]
+  /** µs of the other events */
+  restUs: number
+}
+
+export const MAX_WAIT_SPAN_TOP = 3
+
+/**
+ * Stretches in which one statement's waits happened (a wait covers [tim-ela, tim]; the engine's analyze.StmtWaitSpansOn / segmentWaits,
+ * keep them identical, web/src/lib/data/testdata/waitspans-case.json is the shared case). Segmented like `statementPhases` with events
+ * for call groups: a wait, in start order, joins the current segment when it begins at most `gapUs` after its end and either has the
+ * segment's dominant event, or the segment is still narrower than `gapUs`, or the wait is shorter than `gapUs`. Dominant: most µs, ties the
+ * lower event id, a segment of zero-elapsed waits its first event.
+ */
+export function statementWaitSpans(doc: TraceDoc, sid: ID, gapUs: number, keep?: (wait: number) => boolean): WaitSpan2[] {
+  const w = doc.waits
+  const ids = doc.waitsByStmt.get(sid)
+  const waits: { start: number; end: number; ela: number; ev: number }[] = []
+  for (let k = 0; k < ids.length; k++) {
+    const i = ids[k]
+    if (!w.tim[i] || (keep && !keep(i))) continue
+    waits.push({ start: w.tim[i] - w.ela[i], end: w.tim[i], ela: w.ela[i], ev: w.event[i] })
+  }
+  waits.sort((a, b) => a.start - b.start || a.end - b.end || a.ev - b.ev)
+  const out: WaitSpan2[] = []
+  interface Seg { start: number; end: number; us: Map<number, number>; dom: number; domUs: number }
+  let cur: Seg | null = null
+  const add = (g: Seg, x: { end: number; ela: number; ev: number }) => {
+    if (x.end > g.end) g.end = x.end
+    const v = (g.us.get(x.ev) ?? 0) + x.ela
+    g.us.set(x.ev, v)
+    if (v > g.domUs || (v === g.domUs && v > 0 && x.ev < g.dom)) { g.dom = x.ev; g.domUs = v }
+  }
+  const finish = (g: Seg): WaitSpan2 => {
+    const l = [...g.us.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])
+    return { start: g.start, end: g.end, event: g.dom, top: l.slice(0, MAX_WAIT_SPAN_TOP), restUs: l.slice(MAX_WAIT_SPAN_TOP).reduce((a, e) => a + e[1], 0) }
+  }
+  for (const x of waits) {
+    if (cur && x.start - cur.end <= gapUs && (x.ev === cur.dom || cur.end - cur.start < gapUs || x.ela < gapUs)) { add(cur, x); continue }
+    if (cur) out.push(finish(cur))
+    cur = { start: x.start, end: x.start, us: new Map(), dom: x.ev, domUs: 0 }
+    add(cur, x)
+  }
+  if (cur) out.push(finish(cur))
+  return out
+}

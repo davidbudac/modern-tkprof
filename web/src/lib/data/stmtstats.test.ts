@@ -142,12 +142,14 @@ describe('RemoteSource.statements', () => {
     await src.stmtWaits([3, 4], 6, sc)
     await src.stmtSpans([3], 100, sc)
     await src.stmtPhases([3], 100, sc)
+    await src.stmtWaitSpans([3], 100, sc)
     await src.stmtRoles({ ...sc, contexts: new Set() })
     expect(fetch.mock.calls.map((c) => c[0])).toEqual([
       '/api/executions?stmt=3&limit=5000&sort=file&from=5&to=9&contexts=0%2C1',
       '/api/stmt/waits?stmt=3%2C4&max=6&from=5&to=9&contexts=0%2C1',
       '/api/stmt/spans?stmt=3&gap=100&from=5&to=9&contexts=0%2C1',
       '/api/stmt/spans?stmt=3&gap=100&phases=1&from=5&to=9&contexts=0%2C1',
+      '/api/stmt/waitspans?stmt=3&gap=100&from=5&to=9&contexts=0%2C1&idle=0',
       '/api/stmt/roles?from=5&to=9&contexts=-',
     ])
   })

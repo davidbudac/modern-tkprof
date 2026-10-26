@@ -868,6 +868,136 @@ func StmtPhasesOn(ctx context.Context, src Facts, f Filter, sids []model.ID, gap
 	return out, nil
 }
 
+// MaxWaitSpanTop is how many events a WaitSpan lists; the rest is folded into RestUs.
+const MaxWaitSpanTop = 3
+
+// WaitSpan is one stretch of a statement's waiting: the waits between Start and
+// End (a WAIT line's tim is its end, so a wait covers [tim-ela, tim]), the event
+// with the most time (Event) and the time of its top MaxWaitSpanTop events.
+type WaitSpan struct {
+	Start  int64      `json:"start"`
+	End    int64      `json:"end"`
+	Event  model.ID   `json:"event"`  // the dominant event (most µs; ties: the lower id; a segment of zero-elapsed waits: its first)
+	Top    [][2]int64 `json:"top"`    // [event, µs] by µs descending (ties: lower id), at most MaxWaitSpanTop
+	RestUs int64      `json:"restUs"` // µs of the other events
+}
+
+type waitCall struct {
+	start, end, ela int64
+	event           model.ID
+}
+
+// waitSeg is a WaitSpan under construction.
+type waitSeg struct {
+	start, end int64
+	us         map[model.ID]int64
+	dom        model.ID
+	domUs      int64
+}
+
+func (g *waitSeg) add(w waitCall) {
+	if w.end > g.end {
+		g.end = w.end
+	}
+	v := g.us[w.event] + w.ela
+	g.us[w.event] = v
+	if v > g.domUs || (v == g.domUs && v > 0 && w.event < g.dom) {
+		g.dom, g.domUs = w.event, v
+	}
+}
+
+func (g *waitSeg) span() WaitSpan {
+	type ev struct {
+		id model.ID
+		us int64
+	}
+	l := make([]ev, 0, len(g.us))
+	for id, us := range g.us {
+		l = append(l, ev{id, us})
+	}
+	sort.Slice(l, func(a, b int) bool {
+		if l[a].us != l[b].us {
+			return l[a].us > l[b].us
+		}
+		return l[a].id < l[b].id
+	})
+	ws := WaitSpan{Start: g.start, End: g.end, Event: g.dom, Top: [][2]int64{}}
+	for k, e := range l {
+		if k < MaxWaitSpanTop {
+			ws.Top = append(ws.Top, [2]int64{int64(e.id), e.us})
+		} else {
+			ws.RestUs += e.us
+		}
+	}
+	return ws
+}
+
+// segmentWaits cuts one statement's waits into segments (the TS twin is
+// statementWaitSpans in web/src/lib/data/derive.ts; keep them identical), by
+// the rule of segmentPhases with events instead of call groups: a wait, in
+// start order, joins the current segment when it begins at most gapUs after
+// its end and either has the segment's dominant event, or the segment is still
+// narrower than gapUs, or the wait is shorter than gapUs.
+func segmentWaits(waits []waitCall, gapUs int64) []WaitSpan {
+	sort.Slice(waits, func(a, b int) bool {
+		x, y := waits[a], waits[b]
+		if x.start != y.start {
+			return x.start < y.start
+		}
+		if x.end != y.end {
+			return x.end < y.end
+		}
+		return x.event < y.event
+	})
+	var out []WaitSpan
+	var cur *waitSeg
+	for _, w := range waits {
+		if cur != nil && w.start-cur.end <= gapUs && (w.event == cur.dom || cur.end-cur.start < gapUs || w.ela < gapUs) {
+			cur.add(w)
+			continue
+		}
+		if cur != nil {
+			out = append(out, cur.span())
+		}
+		cur = &waitSeg{start: w.start, end: w.start, us: map[model.ID]int64{}, dom: w.event}
+		cur.add(w)
+	}
+	if cur != nil {
+		out = append(out, cur.span())
+	}
+	return out
+}
+
+// StmtWaitSpansOn is StmtSpansOn for waits: per statement, the stretches in
+// which its waits (the attribution of TopStmtWaitsOn, idle waits only when
+// f.IncludeIdle) happened, with the events they were on.
+func StmtWaitSpansOn(ctx context.Context, src Facts, f Filter, sids []model.ID, gapUs int64) (map[model.ID][]WaitSpan, error) {
+	f.Statement, f.Event = nil, nil
+	mt := f.Matcher()
+	sc := f.Scan()
+	sc.Statements = sids
+	want := make(map[model.ID]bool, len(sids))
+	for _, s := range sids {
+		want[s] = true
+	}
+	raw := map[model.ID][]waitCall{}
+	err := src.EachWait(ctx, sc, func(w *model.Wait) bool {
+		if w.Tim == 0 || !want[w.Statement] || !mt.Wait(w) {
+			return true
+		}
+		raw[w.Statement] = append(raw[w.Statement], waitCall{w.Tim - w.Ela, w.Tim, w.Ela, w.Event})
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[model.ID][]WaitSpan, len(raw))
+	for s, l := range raw {
+		out[s] = segmentWaits(l, gapUs)
+	}
+	return out, nil
+}
+
 // CallPart sums the resources of the calls of one kind within an execution.
 type CallPart struct {
 	Calls int64 `json:"calls"`

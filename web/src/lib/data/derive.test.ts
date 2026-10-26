@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { pickBucket, selectionBucket, statementPhases } from './derive'
+import { pickBucket, selectionBucket, statementPhases, statementWaitSpans } from './derive'
 import { makeDoc } from './testdoc'
 import phasesCase from './testdata/phases-case.json'
+import waitSpansCase from './testdata/waitspans-case.json'
 
 // Same table as TestBucketForSpan in internal/analyze/pivot_test.go: the two implementations must stay identical.
 describe('pickBucket', () => {
@@ -45,5 +46,21 @@ describe('statementPhases', () => {
     const doc = await makeDoc([{ ctx: 0, stmt: 0, kind: 2, e: 10 }])
     expect(statementPhases(doc, 0, 100)).toEqual([])
     expect(statementPhases(doc, 1, 100)).toEqual([])
+  })
+})
+
+// Same case as TestStmtWaitSpansOnSharedCase in internal/analyze/waitspans_test.go (one shared JSON file).
+describe('statementWaitSpans', () => {
+  it('cuts the waits into segments like the engine', async () => {
+    const doc = await makeDoc([], { waits: waitSpansCase.waits.map((w) => ({ ctx: 0, stmt: 0, event: w.event, ela: w.ela, tim: w.tim })) })
+    expect(statementWaitSpans(doc, 0, waitSpansCase.gapUs)).toEqual(waitSpansCase.expect)
+  })
+  it('keeps what the filter lets through, skips waits without tim, ignores other statements', async () => {
+    const doc = await makeDoc([], { waits: [
+      { ctx: 0, stmt: 0, event: 1, ela: 10, tim: 100 }, { ctx: 0, stmt: 0, event: 2, ela: 10, tim: 0 },
+      { ctx: 0, stmt: 1, event: 3, ela: 10, tim: 100 }, { ctx: 0, stmt: 0, event: 4, ela: 10, tim: 5000, idle: true },
+    ] })
+    expect(statementWaitSpans(doc, 0, 0).map((s) => s.event)).toEqual([1, 4])
+    expect(statementWaitSpans(doc, 0, 0, (i) => !(doc.waits.flags[i] & 2)).map((s) => s.event)).toEqual([1])
   })
 })

@@ -1918,6 +1918,65 @@ paths:
                               type: integer
         "400":
           $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/stmt/waitspans:
+    get:
+      operationId: sliceStmtWaitSpans
+      summary: Stretches of statements' waits in scope with their dominant events, keyed by statement id
+      description: >-
+        A wait covers [tim-ela, tim] (a WAIT line's tim is its end). Waits are cut into segments in start order: a wait
+        joins the current segment when it starts at most gap µs after its end and either is on the segment's dominant
+        event, or the segment is still narrower than gap, or the wait is shorter than gap. Idle waits follow idle.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/StmtList"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Idle"
+        - name: gap
+          in: query
+          description: segmentation width in µs (see above)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: "{spans: {<stmt>: [{start, end, event, top, restUs}]}}"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spans:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          start:
+                            type: integer
+                          end:
+                            type: integer
+                          event:
+                            type: integer
+                            description: id of the dominant event (most µs; ties the lower id) in the document's events table
+                          top:
+                            type: array
+                            description: "[event id, µs] of the (at most 3) events with the most time, biggest first"
+                            maxItems: 3
+                            items:
+                              type: array
+                              minItems: 2
+                              maxItems: 2
+                              items:
+                                type: integer
+                          restUs:
+                            type: integer
+                            description: µs of the segment's other events
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
 components:
   securitySchemes:
     bearer:

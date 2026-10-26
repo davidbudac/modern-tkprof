@@ -15,8 +15,8 @@ import { callFilter, waitFilter, type Scope } from '../state/store'
 import type { ApiClient } from './client'
 import { groupBy, logHistogram, type Agg } from './groupby'
 import {
-  executions as localExecutions, bindsOf, statementRoleUs, statementWaits, statementSpans, statementPhases, timelineRaw, topLevelCpu, waitsByEvent, NROLES,
-  type BindRow, type Execution, type PhaseSpan2, type ScopeProfile, type Span2, type StmtWait, type TimelineRaw,
+  executions as localExecutions, bindsOf, statementRoleUs, statementWaits, statementSpans, statementPhases, statementWaitSpans, timelineRaw, topLevelCpu, waitsByEvent, NROLES,
+  type BindRow, type Execution, type PhaseSpan2, type WaitSpan2, type ScopeProfile, type Span2, type StmtWait, type TimelineRaw,
 } from './derive'
 import type { KindGroup } from './callkinds'
 import { pivotDims, pivotMeasures, runPivot, type Fact } from './pivot'
@@ -151,6 +151,8 @@ export interface DataSource {
   stmtSpans(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Maybe<Map<ID, Span2[]>>
   /** call intervals of statements cut by phase (PARSE / EXEC / FETCH / CLOSE / other), over the calls in scope; see `statementPhases` */
   stmtPhases(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Maybe<Map<ID, PhaseSpan2[]>>
+  /** stretches of statements' waits with their dominant events over the waits in scope (the scope's idle toggle applies); see `statementWaitSpans` */
+  stmtWaitSpans(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Maybe<Map<ID, WaitSpan2[]>>
   /** the trace lines of one statement's calls and waits; null = not available */
   stmtMarks(stmt: ID, signal?: AbortSignal): Maybe<StmtMarks | null>
   /**
@@ -402,6 +404,11 @@ export class LocalSource implements DataSource {
     return new Map(stmts.map((s) => [s, this.doc.hasFacts ? statementPhases(this.doc, s, gapUs, keep) : []]))
   }
 
+  stmtWaitSpans(stmts: ID[], gapUs: number, scope: Scope): Map<ID, WaitSpan2[]> {
+    const keep = this.wf(scope)
+    return new Map(stmts.map((s) => [s, this.doc.hasFacts ? statementWaitSpans(this.doc, s, gapUs, keep) : []]))
+  }
+
   stmtMarks(stmt: ID): StmtMarks | null {
     const doc = this.doc
     if (!doc.hasFacts) return null
@@ -594,6 +601,14 @@ export class RemoteSource implements DataSource {
     const out = new Map<ID, PhaseSpan2[]>()
     if (stmts.length === 0) return out
     const r = await this.get<{ spans: Record<string, { start: number; end: number; kind: KindGroup; us: number[] }[]> }>('stmt/spans', { stmt: stmts.join(','), gap: Math.max(0, Math.floor(gapUs)), phases: 1, ...scopeParams(scope, false) }, signal)
+    for (const s of stmts) out.set(s, r.spans[String(s)] ?? [])
+    return out
+  }
+
+  async stmtWaitSpans(stmts: ID[], gapUs: number, scope: Scope, signal?: AbortSignal): Promise<Map<ID, WaitSpan2[]>> {
+    const out = new Map<ID, WaitSpan2[]>()
+    if (stmts.length === 0) return out
+    const r = await this.get<{ spans: Record<string, WaitSpan2[]> }>('stmt/waitspans', { stmt: stmts.join(','), gap: Math.max(0, Math.floor(gapUs)), ...scopeParams(scope, true) }, signal)
     for (const s of stmts) out.set(s, r.spans[String(s)] ?? [])
     return out
   }
