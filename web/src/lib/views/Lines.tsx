@@ -15,6 +15,10 @@ import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
 import { LinesOutline, type OutlineState } from './LinesOutline'
 import { LinesAt } from './LinesAt'
+import { LineInspector } from './LineInspector'
+import { ResizeHandle } from '../components/ResizeHandle'
+import { bindAtOf, rememberBinds } from '../data/bindat'
+import { StmtPopover, type StmtPopup } from '../components/StmtPopover'
 import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf } from './linesShared'
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
@@ -65,6 +69,9 @@ interface LinesUi {
   strip: boolean
   /** the references in the rows (cursor, sql_id, obj#, plan hash) as links */
   links: boolean
+  /** the inspector beside the rows (the selected line translated) and its width in px */
+  inspect: boolean
+  inspectW: number
   jump: string
   /** the lines the jumps left, newest last (capped) */
   back: number[]
@@ -82,7 +89,7 @@ function uiOf(store: Store, file: number): LinesUi {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
       presets: false, stepMenu: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(), focus: null,
-      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, folds: [], strip: true, links: true, jump: '', back: [], cur: 0,
+      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, folds: [], strip: true, links: true, inspect: false, inspectW: 400, jump: '', back: [], cur: 0,
     }))
   }
   return u
@@ -238,6 +245,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const topRef = useRef(ui.top)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
+  const [popup, setPopup] = useState<StmtPopup | null>(null) // the statement popup of a clicked reference
   const [jumpError, setJumpError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const selected = lv.line
@@ -284,12 +292,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       try {
         const page = await cache.load(cache.pageOf(line))
         const objs = await objectsAt(client, file, line, ac.signal)
+        rememberBinds(doc, file, objs)
         if (ac.signal.aborted) return
         setAt({ line, objs })
         if (dispatch && !known) dispatchAt(objs, page.texts[line - page.from] ?? '')
       } catch (e) { if (!aborted(e) && !known) setAt(null) }
     }, 60)
-  }, [cache, client, file, dispatchAt])
+  }, [cache, client, doc, file, dispatchAt])
   useEffect(() => () => { window.clearTimeout(atTimer.current); atCtl.current?.abort() }, [])
 
   const select = useCallback((line: number, dispatch = true) => { ui.cur = line; actions.setLinesLine(file, line); resolveAt(line, dispatch) }, [actions, file, resolveAt, ui])
@@ -501,6 +510,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'z': onFold(selected); break
       case 'Z': set({ folds: [] }); break
       case 'f': toggleFocus(); break
+      case 'i': set({ inspect: !ui.inspect }); break
       case ']': stepNext('call', 'call', 1); break
       case '[': stepNext('call', 'call', -1); break
       case 'w': stepNext('wait', 'wait', 1); break
@@ -524,7 +534,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && ui.status === 'running') { e.stopPropagation(); cancelSearch() }
+    if (e.key === 'Escape' && popup) { e.stopPropagation(); setPopup(null) }
+    else if (e.key === 'Escape' && ui.status === 'running') { e.stopPropagation(); cancelSearch() }
     else if (e.key === 'Escape' && ui.focus !== null && (e.target as HTMLElement).closest('.lv')) { e.stopPropagation(); set({ focus: null }) }
     else if (e.key === 'F3') { e.preventDefault(); stepHit(e.shiftKey ? -1 : 1) }
     else if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey && ui.back.length > 0) {
@@ -577,12 +588,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const atBlock = useMemo(() => (at ? blockAt(cache, at.line) : null), [at, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
   const canLink = useStore((s) => s.lineRefTarget !== 'view') // the desktop shell has no URL to link to
   // ---- hover cards: the line decoded with what the trace knows (events, objects, clock) ------------------------------------
-  const decodeCtx = useMemo(() => decodeContextOf(doc), [doc])
+  const bindAt = useMemo(() => bindAtOf(doc, file, cache), [doc, file, cache])
+  const decodeCtx = useMemo(() => decodeContextOf(doc, bindAt), [doc, bindAt])
   const lineCard = useMemo(() => lineCardOf(decodeCtx), [decodeCtx])
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
 
   // ---- references in the rows: a click on a cursor, sql_id, obj# or plan hash; the tooltip of each -------------------------
-  const onRef = useMemo(() => refClickOf(doc, file, decodeCtx, actions, jump, flash), [doc, file, decodeCtx, actions, jump, flash])
+  const onRef = useMemo(() => refClickOf(doc, file, decodeCtx, actions, jump, flash, setPopup), [doc, file, decodeCtx, actions, jump, flash])
   const refTitle = useMemo(() => refTitleOf(doc, decodeCtx), [doc, decodeCtx])
 
   // ---- the pinned header: the statement (and the BINDS or STAT block) at the top of the view ------------------------------
@@ -794,7 +806,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           <button className="quiet" onClick={toggleFocus} aria-pressed={ui.focus !== null} title="dim the rows outside the selected line's cursor (f); Esc clears">Focus</button>
           <button className="quiet" onClick={() => set({ heat: !ui.heat })} aria-pressed={ui.heat} title="a bar in the right gutter for the elapsed time of calls and waits">Heat</button>
           <button className="quiet" onClick={() => set({ strip: !ui.strip })} aria-pressed={ui.strip} title="the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move">Strip</button>
-          <button className="quiet" onClick={() => set({ links: !ui.links })} aria-pressed={ui.links} title="underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click opens the statement or the plan line (Shift: the cursor's parse line)">Refs</button>
+          <button className="quiet" onClick={() => set({ inspect: !ui.inspect })} aria-pressed={ui.inspect} title="a side view that translates the selected line: every field named, with its unit and meaning (i)">Inspect</button>
+          <button className="quiet" onClick={() => set({ links: !ui.links })} aria-pressed={ui.links} title="underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click shows the statement (its SQL and a summary) in a popup, the Statements view is one click further (Shift: the cursor's parse line)">Refs</button>
           <ToolbarMenu label="Mute" badge={ui.mute.size > 0 ? String(ui.mute.size) : undefined} title="dim the rows of some line kinds (line counts and scrolling stay)" className="tbmenu-sm" open={ui.muteMenu} onOpenChange={(muteMenu) => set({ muteMenu })}>
             <div className="lines-mute">
               {MUTE_GROUPS.map((g) => (
@@ -821,9 +834,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             onDelete={bm?.note ? () => { actions.setBookmarkNote(file, noting, ''); setNoting(null) } : undefined} />
         )
       })()}
-      <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} />
+      {!ui.inspect && <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} />}
 
-      <div className="lines-body">
+      <div className={'lines-body' + (ui.inspect ? ' with-inspect' : '')} style={ui.inspect ? ({ '--w': `${ui.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className="lines-main">
           <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={ui.links} onRef={onRef} refTitle={refTitle} head={head} card={lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={ui.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
@@ -831,7 +844,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         </div>
+        {ui.inspect && <>
+          <ResizeHandle anchor="end" className="resizer-lines-inspect" label="Resize the inspector" min={256} maxFrac={0.5} onChange={(px) => set({ inspectW: px ?? 400 })} />
+          <LineInspector doc={doc} file={file} cache={cache} line={selected} at={at} decodeCtx={decodeCtx} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} onClose={() => set({ inspect: false })} />
+        </>}
       </div>
+
+      {popup && <StmtPopover doc={doc} file={file} popup={popup} onClose={() => setPopup(null)} goTo={jump} />}
 
       <div className="lines-status-bar small">
         <span className="mono">{fmtInt(selected)} / {fmtInt(total)}</span>

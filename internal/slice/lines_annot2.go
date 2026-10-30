@@ -153,6 +153,14 @@ func (s *Server) annotate2(li *trace.LineIndex, f *fileInfo, from, n int) ([]ann
 		*a = annotIDs{-1, -1, -1, -1, -1}
 		fromCall := func(c *model.Call) { a.C, a.S, a.U, a.X = int32(c.ID), int32(c.Statement), int32(c.Cursor), c.ExecNo }
 		isBinds := kind == trace.KindBinds || kind == trace.KindBindLine
+		if !isBinds && (kind == trace.KindUnknown || kind == trace.KindBlank) {
+			// a continuation line of a bind value or dump belongs to the block
+			// above it (see continuesBinds); a page that starts on one asks
+			if i == 0 {
+				inBinds = continuesBinds(li, line)
+			}
+			isBinds = inBinds
+		}
 		switch {
 		case kind == trace.KindParsingInCursor || kind == trace.KindSQLText || kind == trace.KindEndOfStmt:
 			if ci > 0 {

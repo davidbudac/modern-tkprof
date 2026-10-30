@@ -4,9 +4,12 @@ import { LINE_KINDS, type CachedLine, type PageCache } from '../data/linecache'
 import { objectsAt, stmtLineIn, type AtObjects } from '../data/lines'
 import { fmtWall, preview } from '../data/format'
 import { decodeLine, type DecodeContext, type LineDecode } from '../data/linefields'
+import { rememberBinds, type BindAt } from '../data/bindat'
 import { sqlIds } from '../components/StmtLink'
 import type { ApiClient } from '../data/client'
 import type { Actions } from '../state/store'
+import type { RefMods } from '../components/LineViewer'
+import type { StmtPopup } from '../components/StmtPopover'
 
 // What the Lines view and the line drawer share: how a viewer over the whole file is wired to the trace (the hover card, the
 // references in the rows, the line card's answer for a line).
@@ -14,7 +17,7 @@ import type { Actions } from '../state/store'
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 
 /** What the hover cards decode a line with: the trace's events, objects and clock. */
-export function decodeContextOf(doc: TraceDoc): DecodeContext {
+export function decodeContextOf(doc: TraceDoc, bindAt?: (line: number) => BindAt | undefined): DecodeContext {
   const events = new Map(doc.events.map((e) => [e.name, e]))
   let planObjs: Map<number, string> | undefined // obj → object of the plan lines, for traces without a reference bundle
   return {
@@ -27,12 +30,13 @@ export function decodeContextOf(doc: TraceDoc): DecodeContext {
     },
     clock: (tim) => (doc.wallOffsetUs ? fmtWall(tim + doc.wallOffsetUs, doc.tzOffsetMin, { micros: true }) : undefined),
     firstTim: doc.span.firstTim,
+    bindAt,
   }
 }
 
 /** The viewer's `card`: the line decoded with the context. */
 export function lineCardOf(ctx: DecodeContext): (line: number, text: string, kind: number) => LineDecode | null {
-  return (_line, text, kind) => decodeLine(text, LINE_KINDS[kind], ctx)
+  return (line, text, kind) => decodeLine(text, LINE_KINDS[kind], ctx, { line })
 }
 
 /** The tooltip of a reference in a row (the viewer's `refTitle`). */
@@ -55,10 +59,11 @@ export function refTitleOf(doc: TraceDoc, ctx: DecodeContext): (kind: string, va
   }
 }
 
-/** The click on a reference in a row (the viewer's `onRef`); `jump` moves the viewer to a line, `flash` says why nothing happened. */
+/** The click on a reference in a row (the viewer's `onRef`); `jump` moves the viewer to a line, `popup` opens the statement popup at the reference, `flash` says why nothing happened. */
 export function refClickOf(
-  doc: TraceDoc, file: number, ctx: DecodeContext, actions: Actions, jump: (line: number) => void, flash: (msg: string) => void,
-): (line: number, kind: string, value: string, ids: CachedLine | undefined, e: { shiftKey: boolean }) => void {
+  doc: TraceDoc, file: number, ctx: DecodeContext, _actions: Actions, jump: (line: number) => void, flash: (msg: string) => void, popup: (p: StmtPopup) => void,
+): (line: number, kind: string, value: string, ids: CachedLine | undefined, e: RefMods) => void {
+  const anchorOf = (e: RefMods): StmtPopup['anchor'] => ({ x: e.x, y: e.y, rect: e.anchor })
   /** The cursor `number` of this file as the line `line` sees it: the nearest parse before it, else the first. */
   const cursorByNumber = (number: number, line: number) => {
     let before: (typeof doc.cursors)[number] | undefined, first: typeof before
@@ -93,14 +98,14 @@ export function refClickOf(
         const c = refCursor(n, line, ids)
         if (!c) { flash(`no cursor #${value} in this file`); return }
         if (e.shiftKey) { if (c.line > 0) jump(c.line); return }
-        if (doc.statements[c.statement]) actions.selectStmt(c.statement); else flash(`cursor #${value} has no statement`)
+        if (doc.statements[c.statement]) popup({ stmt: c.statement, cursor: c.id, anchor: anchorOf(e), line }); else flash(`cursor #${value} has no statement`)
         return
       }
       case 'sqlid': {
         const st = sqlIds(doc).get(value)
         if (st === undefined) { flash(`no statement ${value} in this trace`); return }
         const at = e.shiftKey ? stmtLineIn(doc, file, st) : undefined
-        if (at !== undefined) jump(at); else actions.selectStmt(st)
+        if (at !== undefined) jump(at); else popup({ stmt: st, anchor: anchorOf(e), line })
         return
       }
       case 'obj': {
@@ -114,7 +119,7 @@ export function refClickOf(
       }
       case 'plh': {
         const st = ids && ids.stmt >= 0 ? ids.stmt : doc.plans.find((p) => p.planHash === n)?.statement
-        if (st !== undefined && doc.statements[st]) actions.selectStmt(st); else flash(`no statement with plan hash ${value}`)
+        if (st !== undefined && doc.statements[st]) popup({ stmt: st, anchor: anchorOf(e), line }); else flash(`no statement with plan hash ${value}`)
         return
       }
     }
@@ -125,11 +130,11 @@ export function refClickOf(
 export function cachedAt(cache: PageCache, line: number): AtObjects | undefined {
   const l = cache.line(line)
   if (!l || !(l.cursor >= 0 || l.stmt >= 0 || l.wait >= 0 || l.call >= 0)) return undefined
-  return { call: l.call, stmt: l.stmt, cursor: l.cursor, execNo: l.execNo, wait: l.wait, bindSet: -1, ctx: -1, planLine: -1, kind: LINE_KINDS[l.kind] ?? 'unknown', execFrom: -1, execTo: -1, prevExec: -1, nextExec: -1, cursorLine: -1, closeLine: -1, object: '' }
+  return { call: l.call, stmt: l.stmt, cursor: l.cursor, execNo: l.execNo, wait: l.wait, bindSet: -1, ctx: -1, planLine: -1, kind: LINE_KINDS[l.kind] ?? 'unknown', execFrom: -1, execTo: -1, prevExec: -1, nextExec: -1, cursorLine: -1, closeLine: -1, object: '', bindLine: -1 }
 }
 
 /** What is at `line` for the line card: the cached ids at once, the engine's full answer 60 ms later (a quick run of selections asks once). */
-export function useLineAt(client: ApiClient, file: number, cache: PageCache, line: number): { line: number; objs: AtObjects } | null {
+export function useLineAt(client: ApiClient, doc: TraceDoc, file: number, cache: PageCache, line: number): { line: number; objs: AtObjects } | null {
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
   const known = useRef(false)
   useEffect(() => {
@@ -141,10 +146,11 @@ export function useLineAt(client: ApiClient, file: number, cache: PageCache, lin
       try {
         await cache.load(cache.pageOf(line))
         const objs = await objectsAt(client, file, line, ac.signal)
+        rememberBinds(doc, file, objs)
         if (!ac.signal.aborted) setAt({ line, objs })
       } catch (e) { if (!aborted(e) && !known.current) setAt(null) }
     }, 60)
     return () => { window.clearTimeout(timer); ac.abort() }
-  }, [client, file, cache, line])
+  }, [client, doc, file, cache, line])
   return at
 }

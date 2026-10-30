@@ -41,11 +41,20 @@ describe('annotated lines, lines/at, at', () => {
   })
   it('objectsAt keeps -1 for what the server leaves out', async () => {
     stub(() => json({ call: 3, stmt: 7, kind: 'wait' }))
-    expect(await objectsAt(client, 0, 99)).toEqual({ call: 3, stmt: 7, cursor: -1, execNo: -1, wait: -1, bindSet: -1, ctx: -1, planLine: -1, kind: 'wait', execFrom: -1, execTo: -1, prevExec: -1, nextExec: -1, cursorLine: -1, closeLine: -1, object: '' })
+    expect(await objectsAt(client, 0, 99)).toEqual({ call: 3, stmt: 7, cursor: -1, execNo: -1, wait: -1, bindSet: -1, ctx: -1, planLine: -1, kind: 'wait', execFrom: -1, execTo: -1, prevExec: -1, nextExec: -1, cursorLine: -1, closeLine: -1, object: '', bindLine: -1, binds: undefined })
   })
   it('objectsAt carries the execution span, its neighbours and the wait object', async () => {
     stub(() => json({ call: 3, stmt: 7, execFrom: 10, execTo: 20, prevExec: 4, nextExec: 30, cursorLine: 2, closeLine: 40, object: 'SCOTT.EMP', kind: 'call' }))
     expect(await objectsAt(client, 0, 12)).toMatchObject({ execFrom: 10, execTo: 20, prevExec: 4, nextExec: 30, cursorLine: 2, closeLine: 40, object: 'SCOTT.EMP' })
+  })
+  it('objectsAt maps the binds of the line\'s bind set', async () => {
+    stub(() => json({ bindSet: 2, bindLine: 53, binds: [{ pos: 0, type: 'NUMBER', value: '42', isNull: false, noDef: false, dump: false, mal: 22, kind: 'number' }, { pos: 1, type: 'DATE', value: 'x', isNull: true, noDef: false, dump: false, mal: 0, kind: 'date', typed: '2024-01-01' }], kind: 'bind-line' }))
+    const o = await objectsAt(client, 0, 59)
+    expect(o).toMatchObject({ bindSet: 2, bindLine: 53 })
+    expect(o.binds).toEqual([
+      { pos: 0, type: 'NUMBER', value: '42', isNull: false, noDef: false, dump: false, mal: 22, kind: 'number', typed: undefined },
+      { pos: 1, type: 'DATE', value: 'x', isNull: true, noDef: false, dump: false, mal: 0, kind: 'date', typed: '2024-01-01' },
+    ])
   })
   it('nextLine asks lines/next, answers null on a 404 and throws on other errors', async () => {
     const f = stub(() => json({ line: 77 }))

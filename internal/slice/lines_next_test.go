@@ -348,3 +348,86 @@ func TestLinesNextSpecifics(t *testing.T) {
 		t.Errorf("errors: %v, want %v", got, distinctSorted(want))
 	}
 }
+
+type atBinds struct {
+	BindSet  int
+	BindLine int
+	Binds    []BindRow
+	Kind     string
+}
+
+func (e *lineEnv) atBinds(t *testing.T, file, line int) atBinds {
+	t.Helper()
+	code, b := e.both(t, fmt.Sprintf("/api/at?file=%d&line=%d", file, line))
+	if code != 200 {
+		t.Fatalf("at file %d line %d: %d %s", file, line, code, b)
+	}
+	var r atBinds
+	if err := json.Unmarshal(b, &r); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// TestAtBinds: every line of a BINDS block, the header, the ` Bind#`, the
+// `value=` lines and the continuation lines of memory dumps, answers the bind
+// set of the block, the line of its header and its decoded values.
+func TestAtBinds(t *testing.T) {
+	for _, name := range []string{"basic_binds", "bind_types"} {
+		t.Run(name, func(t *testing.T) {
+			e := newLineEnv(t, []string{traces + name + ".trc"})
+			m := e.full
+			sets, valueLines, cont := 0, 0, 0
+			for _, bs := range m.BindSets {
+				if bs.Call < 0 || bs.N == 0 {
+					continue
+				}
+				file := fileOf(m, m.Calls[bs.Call].Context)
+				li := e.lis[file]
+				// the block: the lines after the header up to the first recognised
+				// line that is not a bind line
+				end := bs.Line
+				for l := bs.Line + 1; l <= li.Lines(); l++ {
+					raw, err := li.Read(l, 1)
+					if err != nil {
+						t.Fatal(err)
+					}
+					k, _ := trace.Classify(splitLines(raw)[0], false)
+					if k != trace.KindUnknown && k != trace.KindBlank && k != trace.KindBindLine {
+						break
+					}
+					end = l
+				}
+				want := m.Binds[bs.First : bs.First+bs.N]
+				for l := bs.Line; l <= end; l++ {
+					r := e.atBinds(t, file, l)
+					if r.BindSet != int(bs.ID) || r.BindLine != bs.Line || len(r.Binds) != len(want) {
+						t.Fatalf("line %d of block %d (header %d): got set %d header %d with %d binds (%s), want %d binds", l, bs.ID, bs.Line, r.BindSet, r.BindLine, len(r.Binds), r.Kind, len(want))
+					}
+					if r.Kind == "unknown" {
+						cont++
+					}
+					if r.Kind == "bind-line" {
+						raw, _ := li.Read(l, 1)
+						if strings.HasPrefix(string(raw), "  value=") {
+							valueLines++
+						}
+					}
+				}
+				for i, b := range want {
+					if got := e.atBinds(t, file, bs.Line).Binds[i]; got.Pos != b.Pos || got.Value != b.Value || got.Type != b.TypeName() || got.Typed != b.Typed() || got.Kind != b.Kind().String() {
+						t.Fatalf("set %d bind %d: got %+v, want %+v", bs.ID, i, got, b)
+					}
+				}
+				sets++
+			}
+			if sets == 0 || valueLines == 0 {
+				t.Fatalf("checked %d sets, %d value lines", sets, valueLines)
+			}
+			if name == "bind_types" && cont == 0 {
+				t.Fatalf("no continuation line of a bind block was checked")
+			}
+			t.Logf("%d sets, %d value lines, %d continuation lines", sets, valueLines, cont)
+		})
+	}
+}

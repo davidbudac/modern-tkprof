@@ -3,6 +3,7 @@ import { parseClockTim, type ClockDoc } from './clock'
 import type { TraceDoc } from './doc'
 import type { Scope } from '../state/store'
 import type { ID } from './types'
+import type { BindKind, BindRow } from './derive'
 
 /** Raw trace lines come from `mtkprof serve` (GET /api/lines); the standalone HTML has no server to ask. */
 
@@ -102,15 +103,22 @@ export async function fetchLineProfile(client: ApiClient, file: number, buckets:
 export interface AtObjects {
   call: number; stmt: number; cursor: number; execNo: number; wait: number; bindSet: number; ctx: number; planLine: number; kind: LineKind
   execFrom: number; execTo: number; prevExec: number; nextExec: number; cursorLine: number; closeLine: number; object: string
+  /** the `BINDS #` line of `bindSet` (-1 when none) and its values: what the engine knows without the facts tables */
+  bindLine: number; binds?: BindRow[]
 }
+
+/** The `binds` rows of an `/api/at` answer (the engine's `BindRow`) as the document's `BindRow`s. */
+interface WireBind { pos: number; type: string; value: string; isNull?: boolean; noDef?: boolean; dump?: boolean; mal?: number; kind?: string; typed?: string }
 
 export async function objectsAt(client: ApiClient, file: number, line: number, signal?: AbortSignal): Promise<AtObjects> {
   const res = await client.fetch(`/api/at?file=${file}&line=${line}`, { signal })
   if (!res.ok) throw await failure(res)
-  const r = (await res.json()) as Partial<AtObjects>
+  const r = (await res.json()) as Partial<Omit<AtObjects, 'binds'>> & { binds?: WireBind[] }
   return {
     call: r.call ?? -1, stmt: r.stmt ?? -1, cursor: r.cursor ?? -1, execNo: r.execNo ?? -1, wait: r.wait ?? -1, bindSet: r.bindSet ?? -1, ctx: r.ctx ?? -1, planLine: r.planLine ?? -1, kind: r.kind ?? 'unknown',
     execFrom: r.execFrom ?? -1, execTo: r.execTo ?? -1, prevExec: r.prevExec ?? -1, nextExec: r.nextExec ?? -1, cursorLine: r.cursorLine ?? -1, closeLine: r.closeLine ?? -1, object: r.object ?? '',
+    bindLine: r.bindLine ?? -1,
+    binds: r.binds?.map((b) => ({ pos: b.pos, type: b.type, value: b.value, isNull: !!b.isNull, noDef: !!b.noDef, dump: !!b.dump, mal: b.mal ?? 0, kind: b.kind as BindKind | undefined, typed: b.typed || undefined })),
   }
 }
 

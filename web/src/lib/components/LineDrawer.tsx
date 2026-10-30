@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import type { TraceDoc } from '../data/doc'
 import { PageCache } from '../data/linecache'
 import { LINES_PAGE, fetchLinesAnnot } from '../data/lines'
+import { bindAtOf } from '../data/bindat'
 import { fmtInt, preview } from '../data/format'
 import { decodeContextOf, lineCardOf, refClickOf, refTitleOf, useLineAt } from '../views/linesShared'
 import { LinesAt } from '../views/LinesAt'
 import { useActions, useClient, useStore } from '../state/session'
 import { LineViewer, type ViewerApi } from './LineViewer'
+import { StmtPopover, type StmtPopup } from './StmtPopover'
 import '../styles/lines.css'
 
 /** pages of annotated lines kept for the drawer */
@@ -68,6 +70,7 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
   const [selected, setSelected] = useState(target)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  const [popup, setPopup] = useState<StmtPopup | null>(null)
   const apiRef = useRef<ViewerApi | null>(null)
   const topRef = useRef(0)
   const hub = useRef<ViewHub>({ last: { top: 1, rows: 0 }, subs: new Set() }).current
@@ -95,9 +98,10 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
   }, [note])
   const goTo = useCallback((line: number) => { apiRef.current?.reveal(line, 'center'); setSelected(line) }, [])
 
-  const decodeCtx = useMemo(() => decodeContextOf(doc), [doc])
+  const bindAt = useMemo(() => bindAtOf(doc, file, cache), [doc, file, cache])
+  const decodeCtx = useMemo(() => decodeContextOf(doc, bindAt), [doc, bindAt])
   const lineCard = useMemo(() => lineCardOf(decodeCtx), [decodeCtx])
-  const onRef = useMemo(() => refClickOf(doc, file, decodeCtx, actions, goTo, flash), [doc, file, decodeCtx, actions, goTo, flash])
+  const onRef = useMemo(() => refClickOf(doc, file, decodeCtx, actions, goTo, flash, setPopup), [doc, file, decodeCtx, actions, goTo, flash])
   const refTitle = useMemo(() => refTitleOf(doc, decodeCtx), [doc, decodeCtx])
 
   const bmSet = useMemo(() => new Set(allBookmarks.filter((b) => b.file === file).map((b) => b.line)), [allBookmarks, file])
@@ -106,7 +110,7 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
     else actions.addBookmark(file, line, preview(cache.line(line)?.text ?? '', 80).trim())
   }, [actions, file, cache, bmSet])
 
-  const at = useLineAt(client, file, cache, selected)
+  const at = useLineAt(client, doc, file, cache, selected)
   const total = cache.total
   const fileName = doc.traceFileName(file)
   return (
@@ -130,6 +134,7 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
         {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         {total > 0 && target > total && <p className="lines-overlay muted">Line {fmtInt(target)} is past the end of the file ({fmtInt(total)} lines)</p>}
       </div>
+      {popup && <StmtPopover doc={doc} file={file} popup={popup} onClose={() => setPopup(null)} goTo={goTo} />}
     </aside>
   )
 }

@@ -30,6 +30,9 @@ export interface RowHighlight { q: string; regex: boolean; caseSensitive: boolea
 /** The lines a time window covers (1-based, inclusive): the rows in it get a band in the gutter, its first and last row a boundary. */
 export interface LineWindow { from: number; to: number }
 
+/** The click on a reference: the modifier keys, the pointer (viewport coordinates) and the box of the clicked link (a popup anchors at it). */
+export interface RefMods { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; x: number; y: number; anchor?: DOMRect }
+
 /** What the owner can ask of the viewer. */
 export interface ViewerApi {
   /** the line in the first visible row, 1-based */
@@ -65,7 +68,7 @@ interface Props {
   /** underline the references in the rows (cursor numbers, sql_ids, obj#, plan hashes); a click on one calls `onRef` and does not select the row */
   links?: boolean
   /** a click on a reference: its line, kind (`cursor`, `sqlid`, `obj`, `plh`), value, the line's cached ids and the modifier keys */
-  onRef?(line: number, kind: string, value: string, ids: CachedLine | undefined, mods: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }): void
+  onRef?(line: number, kind: string, value: string, ids: CachedLine | undefined, mods: RefMods): void
   /** the tooltip of a reference, asked once when the pointer first rests on it (undefined: none) */
   refTitle?(kind: string, value: string, ids: CachedLine | undefined): string | undefined
   /** the folded ranges (sorted, apart; keep the array stable between changes): lines `from+1..to` are not laid out, `from` shows the summary. Omit for none */
@@ -74,7 +77,7 @@ interface Props {
   foldable?: ReadonlySet<number>
   /** a click on a fold handle: fold or unfold the block of this line */
   onFold?(line: number): void
-  /** the pinned header for the first visible line (null: none, the row is not rendered); `key` says when `node` changed */
+  /** the pinned header for the first visible line (null: none, its row stays, empty, so the view never changes size); `key` says when `node` changed */
   head?(topLine: number): { key: string; node: ReactNode } | null
   /** per-line actions on the selected row: copy the text, copy a permalink (omit `onLink` where there is no URL to link to) */
   onCopy?(line: number): void
@@ -260,7 +263,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       const n = Number(act.closest<HTMLElement>('[data-ln]')?.dataset.ln)
       if (act.dataset.act === 'ref') {
         const ref = act.dataset.ref ?? '', i = ref.indexOf(':')
-        if (i > 0) onRef?.(n, ref.slice(0, i), ref.slice(i + 1), cache.line(n), e)
+        if (i > 0) onRef?.(n, ref.slice(0, i), ref.slice(i + 1), cache.line(n), { shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey, x: e.clientX, y: e.clientY, anchor: act.getBoundingClientRect() })
       } else if (act.dataset.act === 'fold') onFold?.(n)
       else if (act.dataset.act === 'copy') onCopy?.(n); else onLink?.(n)
       return
@@ -345,7 +348,10 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   return (
     <div className="lv-box" style={{ '--lv-row': `${ROW_H}px` } as React.CSSProperties}>
       <div className="lv-box-col">
-      {pinned && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
+      {/* with a `head` function the row is always there (empty without a header): the scroll container keeps its height */}
+      {head && (pinned
+        ? <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>
+        : <div className="lv-head" aria-hidden="true" />)}
       <div className={'lv' + (wrap ? ' lv-wrap' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={vtotal}
         style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
         onScroll={onScroll} onClick={onClick} onContextMenu={onContextMenu} onKeyDown={onKeyDown}

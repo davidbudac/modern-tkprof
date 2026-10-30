@@ -286,6 +286,12 @@ type atAnswer struct {
 	CursorLine int32  `json:"cursorLine"` // PARSING IN CURSOR line of the cursor (this file)
 	CloseLine  int32  `json:"closeLine"`  // CLOSE of the cursor at or after the line
 	Object     string `json:"object"`     // owner.name of a wait's obj# ("" when unknown)
+
+	// The bind set of the line (bindSet >= 0): the line of its BINDS header, -1
+	// otherwise, and its values, so a client without the facts tables (an
+	// engine session) can decode a bind line.
+	BindLine int32     `json:"bindLine"`
+	Binds    []BindRow `json:"binds,omitempty"`
 }
 
 // at answers which model objects a line belongs to. See the route table in
@@ -311,7 +317,7 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 		return nil, err
 	}
 	a := atAnswer{Call: model.None, Stmt: model.None, Cursor: model.None, ExecNo: -1, Wait: model.None, BindSet: model.None, Ctx: model.None, PlanLine: -1, Kind: kind.String(),
-		ExecFrom: -1, ExecTo: -1, PrevExec: -1, NextExec: -1, CursorLine: -1, CloseLine: -1}
+		ExecFrom: -1, ExecTo: -1, PrevExec: -1, NextExec: -1, CursorLine: -1, CloseLine: -1, BindLine: -1}
 
 	// the last call at or before the line, the first one after it, the wait on it
 	ci, err := s.firstCall(f.calls, func(c *model.Call) bool { return int(c.Line) > line })
@@ -370,11 +376,17 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 				a.Call, a.ExecNo, a.BindSet = c.ID, c.ExecNo, c.BindSet
 			}
 		}
-	case (kind == trace.KindBinds || kind == trace.KindBindLine) && s.bindOwner(f, ci, line, &owner) == nil && owner.ID != model.None:
+	case (kind == trace.KindBinds || kind == trace.KindBindLine || ((kind == trace.KindUnknown || kind == trace.KindBlank) && continuesBinds(li, line))) && s.bindOwner(f, ci, line, &owner) == nil && owner.ID != model.None:
 		// a BINDS block is attached to the EXEC that follows it
 		fromCall(&owner)
 	case prev != nil:
 		fromCall(prev)
+	}
+	if a.BindSet >= 0 {
+		if l, ok := s.src.BindSetLine(a.BindSet); ok {
+			a.BindLine = int32(l)
+			a.Binds = s.bindsOf(a.BindSet)
+		}
 	}
 	if a.Ctx == model.None {
 		if e, ok := lastAtOrBefore(f.ctxs, line); ok {
@@ -395,6 +407,37 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 		}
 	}
 	return a, nil
+}
+
+// maxBindBlockBack bounds how far back continuesBinds looks for the start of a
+// BINDS block.
+const maxBindBlockBack = 512
+
+// continuesBinds reports whether the unrecognised (unknown or blank) line is a
+// continuation line inside a BINDS block: a memory dump row or the rest of a
+// multi-line value, which have no shape of their own. It is so when the nearest
+// recognised line above it, skipping unknown and blank lines, is a BINDS line
+// or a bind line.
+func continuesBinds(li *trace.LineIndex, line int) bool {
+	lo := max(1, line-maxBindBlockBack)
+	if lo >= line {
+		return false
+	}
+	raw, err := li.Read(lo, line-lo)
+	if err != nil {
+		return false
+	}
+	lines := splitLines(raw)
+	for i := len(lines) - 1; i >= 0; i-- {
+		switch k, _ := trace.Classify(lines[i], false); k {
+		case trace.KindUnknown, trace.KindBlank:
+		case trace.KindBinds, trace.KindBindLine:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // maxExecWalk bounds the walks over call rows of execSpan.

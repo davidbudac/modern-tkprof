@@ -162,6 +162,7 @@ const KEYS: [string, string][] = [
   ['s S', 'next / previous session marker (SESSION / CLIENT / MODULE / ACTION)'],
   ['d D', 'next / previous execution of the selected line\'s cursor'],
   ['f', "focus the selected line's cursor (dims the rows of other cursors)"],
+  ['i', 'toggle the inspector: the selected line translated, every field named with its unit and meaning'],
   ['b', 'bookmark the selected line'],
   ['Backspace', 'back to the line before the last jump'],
   ['F3 Shift+F3', 'next / previous search hit'],

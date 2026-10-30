@@ -1096,8 +1096,10 @@ paths:
         attributed to; PARSING IN CURSOR, SQL text, END OF STMT: only the
         cursor (and its statement and context); STAT: `planLine`, the index
         into the document's `planLines`, and the cursor; BINDS block: the
-        call (EXEC) it is attached to; anything else: the last call at or
-        before the line.
+        call (EXEC) it is attached to, also for the continuation lines of a
+        bind value or memory dump inside the block; anything else: the last
+        call at or before the line. With a `bindSet`, `bindLine` and `binds`
+        carry its header line and values.
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - $ref: "#/components/parameters/File"
@@ -2364,6 +2366,14 @@ components:
           type: integer
         bindSet:
           type: integer
+        bindLine:
+          type: integer
+          description: line of the BINDS header of `bindSet`; -1 when `bindSet` is -1
+        binds:
+          type: array
+          description: the values of `bindSet` (absent when `bindSet` is -1), so a client without the facts tables can decode a bind line
+          items:
+            $ref: "#/components/schemas/BindValue"
         ctx:
           type: integer
         planLine:
@@ -2395,6 +2405,32 @@ components:
         object:
           type: string
           description: owner.name of a WAIT line's obj# when the session has a reference bundle that knows it, else ""
+    BindValue:
+      type: object
+      description: one bind value of an execution
+      properties:
+        pos:
+          type: integer
+        type:
+          type: string
+          description: datatype name (`NUMBER`, `VARCHAR2`, ...)
+        value:
+          type: string
+        isNull:
+          type: boolean
+        noDef:
+          type: boolean
+          description: '"No oacdef for this bind." (repeated bind name)'
+        dump:
+          type: boolean
+          description: the value is a memory dump
+        mal:
+          type: integer
+        kind:
+          type: string
+        typed:
+          type: string
+          description: decoded typed form of a dumped value; absent when none
     SearchHit:
       type: object
       properties:
