@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedLine } from '../data/linecache'
-import { ALL_SCOPE, cursorLine, fetchLinesAnnot, lineAt, linePermalink, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { ALL_SCOPE, cursorLine, fetchLinesAnnot, lineAt, linePermalink, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type NextWhat, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtInt, fmtTz, fmtWall, preview } from '../data/format'
 import { decodeLine, type DecodeContext, type LineDecode } from '../data/linefields'
 import { copyText } from '../data/clipboard'
@@ -37,6 +37,8 @@ interface LinesUi {
   /** the last finished searches, newest first (chips above the hits) */
   recent: RecentSearch[]
   presets: boolean
+  /** the Step menu */
+  stepMenu: boolean
   /** the Presets menu's threshold for the slow waits and calls (ms) */
   threshold: number
   /** the key map popover */
@@ -74,12 +76,23 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
-      presets: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(), focus: null,
+      presets: false, stepMenu: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(), focus: null,
       tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, links: true, jump: '', back: [], cur: 0,
     }))
   }
   return u
 }
+
+/** The kinds the Step menu steps over (`lines/next`): what, its name in messages and the keys (next, previous). */
+const STEPS: [NextWhat, string, [string, string]][] = [
+  ['call', 'call', [']', '[']],
+  ['wait', 'wait', ['w', 'W']],
+  ['cursor', 'cursor parse', ['c', 'C']],
+  ['plan', 'STAT dump', ['p', 'P']],
+  ['ctx', 'session marker', ['s', 'S']],
+  ['error', 'error', ['e', 'E']],
+  ['commit', 'commit', ['x', 'X']],
+]
 
 const SEARCH_LIMIT = 10_000
 const BACK_LIMIT = 50
@@ -208,7 +221,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const l = cache.line(line)
     const known = !!l && (l.cursor >= 0 || l.stmt >= 0 || l.wait >= 0 || l.call >= 0)
     if (l && known) {
-      const objs: AtObjects = { call: l.call, stmt: l.stmt, cursor: l.cursor, execNo: l.execNo, wait: l.wait, bindSet: -1, ctx: -1, planLine: -1, kind: LINE_KINDS[l.kind] ?? 'unknown' }
+      const objs: AtObjects = { call: l.call, stmt: l.stmt, cursor: l.cursor, execNo: l.execNo, wait: l.wait, bindSet: -1, ctx: -1, planLine: -1, kind: LINE_KINDS[l.kind] ?? 'unknown', execFrom: -1, execTo: -1, prevExec: -1, nextExec: -1, cursorLine: -1, closeLine: -1, object: '' }
       setAt({ line, objs })
       if (dispatch) dispatchAt(objs, l.text)
     }
@@ -275,8 +288,6 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
   const mutedKinds = useMemo(() => new Set(MUTE_GROUPS.filter((g) => ui.mute.has(g.name)).flatMap((g) => g.kinds.map((k) => LINE_KINDS.indexOf(k)))), [ui.mute])
   /** this file's PARSING IN CURSOR lines and error lines, ascending */
-  const cursorLines = useMemo(() => doc.cursors.filter((c) => c.line > 0 && doc.fileOfCursor(c.id) === file).map((c) => c.line).sort((a, b) => a - b), [doc, file])
-  const errorLines = useMemo(() => doc.errors.filter((e) => e.line > 0 && doc.fileOfCtx(e.context) === file).map((e) => e.line).sort((a, b) => a - b), [doc, file])
 
   const stepMark = (dir: 1 | -1) => {
     if (markLines.length === 0) return
@@ -384,15 +395,22 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (to) jump(to.line)
   }
 
-  /** The next / previous line of a sorted list (cursors, errors) after the selected one. */
-  const stepSorted = (a: number[], dir: 1 | -1, what: string) => {
-    const to = dir === 1 ? a[firstAbove(a, selected)] : a[firstAbove(a, selected - 1) - 1]
-    if (to !== undefined) jump(to); else flash(`no ${what} ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)}`)
+  /** The next / previous line of a kind, asked of the engine (every step is a binary search over the whole file). A new step cancels the one still on its way. */
+  const stepCtl = useRef<AbortController | null>(null)
+  useEffect(() => () => stepCtl.current?.abort(), [])
+  const stepNext = (what: NextWhat, label: string, dir: 1 | -1) => {
+    stepCtl.current?.abort()
+    const ac = (stepCtl.current = new AbortController())
+    const from = selected
+    nextLine(client, file, from, what, dir, ac.signal).then(
+      (to) => { if (ac.signal.aborted) return; if (to !== null) jump(to); else flash(`no ${label} ${dir === 1 ? 'after' : 'before'} line ${fmtInt(from)}`) },
+      (e) => { if (!aborted(e)) flash(e instanceof Error ? e.message : String(e)) },
+    )
   }
-  /** The next / previous line of a kind within the loaded pages (until the engine can answer for the whole file). */
-  const stepKind = (kind: LineKind, what: string, dir: 1 | -1) => {
-    const to = cache.nextOfKind(selected, LINE_KINDS.indexOf(kind), dir)
-    if (to !== undefined) jump(to); else flash(`no ${what} ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)} in the loaded pages`)
+  /** The next / previous execution of the selected line's cursor, from the line card's answer. */
+  const stepExec = (dir: 1 | -1) => {
+    const to = at && at.line === selected ? (dir === 1 ? at.objs.nextExec : at.objs.prevExec) : -1
+    if (to >= 0 && to !== selected) jump(to); else flash(`no ${dir === 1 ? 'next' : 'previous'} execution of this cursor`)
   }
   /** Focus the selected line's cursor (dims the rows of the others), or clear the focus when it is already that cursor. */
   const toggleFocus = () => {
@@ -419,16 +437,22 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'M': stepMark(-1); break
       case 'h': set({ heat: !ui.heat }); break
       case 'f': toggleFocus(); break
-      case ']': stepKind('call', 'call', 1); break
-      case '[': stepKind('call', 'call', -1); break
-      case 'w': stepKind('wait', 'wait', 1); break
-      case 'W': stepKind('wait', 'wait', -1); break
-      case 'x': stepKind('xctend', 'commit', 1); break
-      case 'X': stepKind('xctend', 'commit', -1); break
-      case 'c': stepSorted(cursorLines, 1, 'cursor parse'); break
-      case 'C': stepSorted(cursorLines, -1, 'cursor parse'); break
-      case 'e': stepSorted(errorLines, 1, 'error'); break
-      case 'E': stepSorted(errorLines, -1, 'error'); break
+      case ']': stepNext('call', 'call', 1); break
+      case '[': stepNext('call', 'call', -1); break
+      case 'w': stepNext('wait', 'wait', 1); break
+      case 'W': stepNext('wait', 'wait', -1); break
+      case 'x': stepNext('commit', 'commit', 1); break
+      case 'X': stepNext('commit', 'commit', -1); break
+      case 'c': stepNext('cursor', 'cursor parse', 1); break
+      case 'C': stepNext('cursor', 'cursor parse', -1); break
+      case 'e': stepNext('error', 'error', 1); break
+      case 'E': stepNext('error', 'error', -1); break
+      case 'p': stepNext('plan', 'STAT dump', 1); break
+      case 'P': stepNext('plan', 'STAT dump', -1); break
+      case 's': stepNext('ctx', 'session marker', 1); break
+      case 'S': stepNext('ctx', 'session marker', -1); break
+      case 'd': stepExec(1); break
+      case 'D': stepExec(-1); break
       case '?': set({ keys: !ui.keys }); break
       default: return
     }
@@ -729,6 +753,17 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             {SEARCH_PRESETS.map((p) => (<li key={p.label}><button type="button" className="quiet" onClick={() => runPreset(p)}>{p.label.replace('N ms', `${ui.threshold} ms`)}</button></li>))}
           </ul>
           <label className="lines-threshold small">Threshold <input type="number" min={0.001} step={1} value={ui.threshold} aria-label="Threshold in milliseconds for the slow waits and calls presets" onChange={(e) => set({ threshold: Number(e.target.value) })} /> ms</label>
+        </ToolbarMenu>
+        <ToolbarMenu label="Step" title="the next or previous call, wait, cursor parse, STAT dump, session marker, error or commit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
+          <ul className="lines-steps">
+            {STEPS.map(([what, label, keys]) => (
+              <li key={what}>
+                <button type="button" className="quiet" onClick={() => stepNext(what, label, -1)} aria-label={`Previous ${label}`} title={`previous ${label} (${keys[1]})`}>‹</button>
+                <span>{label}</span>
+                <button type="button" className="quiet" onClick={() => stepNext(what, label, 1)} aria-label={`Next ${label}`} title={`next ${label} (${keys[0]})`}>›</button>
+              </li>
+            ))}
+          </ul>
         </ToolbarMenu>
         <form className="lines-jump" onSubmit={(e) => { e.preventDefault(); void runGoTo() }}>
           <input type="text" ref={goToRef} value={ui.jump} placeholder={doc.wallOffsetUs ? 'Go to: line, #cursor, sql_id, 1.5s, 14:03:07' : 'Go to: line, #cursor, sql_id, 1.5s'} title={goToHelp} aria-label="Go to" onChange={(e) => set({ jump: e.target.value })} />

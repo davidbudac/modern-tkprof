@@ -166,6 +166,9 @@
 .tbmenu-start .tbpop { inset-inline: 0 auto; }
 .lines-presets { list-style: none; margin: 0; padding: 0; display: grid; }
 .lines-presets button { inline-size: 100%; text-align: start; }
+.lines-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.lines-steps li { display: grid; grid-template-columns: auto 1fr auto; gap: 0.5em; align-items: center; }
+.lines-steps span { text-align: center; }
 .lines-mute { display: grid; gap: var(--sp-2); }
 .lines-mute label { display: flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
 .lines-recent { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding-block: var(--sp-1); }

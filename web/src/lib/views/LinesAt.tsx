@@ -44,12 +44,15 @@ export function LinesAt({ doc, file, at, text, goTo, note }: Props) {
     return { id: doc.events.findIndex((e) => e.name === name), name }
   })()
   const objNo = o.wait >= 0 ? Number(/\bobj#=(\d+)/.exec(text)?.[1] ?? 0) : 0
-  const objName = objNo > 0 ? doc.objectName(objNo) : undefined
+  const objName = o.object !== '' ? o.object : objNo > 0 ? doc.objectName(objNo) : undefined
   const parsedAt = (() => {
     if (!stmt) return undefined
-    const line = cur && doc.fileOfCursor(cur.id) === file && cur.line > 0 ? cur.line : stmtLineIn(doc, file, stmt.id)
+    const line = o.cursorLine >= 0 ? o.cursorLine : cur && doc.fileOfCursor(cur.id) === file && cur.line > 0 ? cur.line : stmtLineIn(doc, file, stmt.id)
     return line !== undefined && line !== at.line ? line : undefined
   })()
+  /** a neighbour line of the engine's answer: only when there is one and it is not where we are */
+  const other = (line: number) => (line >= 0 && line !== at.line ? line : undefined)
+  const execFrom = other(o.execFrom), execTo = other(o.execTo), prevExec = other(o.prevExec), nextExec = other(o.nextExec), closeAt = other(o.closeLine)
   const hasExec = o.execNo >= 0 && o.cursor >= 0 && stmtId >= 0
   const isExecLine = o.kind === 'call' && /^EXEC/.test(text)
 
@@ -91,9 +94,13 @@ export function LinesAt({ doc, file, at, text, goTo, note }: Props) {
             <button className="link" onClick={() => { actions.selectStmt(stmtId); actions.selectExec({ cursor: o.cursor, execNo: o.execNo }) }} title="open this execution in the statement's detail">Open</button>
             <button className="link" disabled={busy} title="go to the BINDS block of this execution"
               onClick={() => void withDetail((d) => (d.bindLine > 0 ? goTo(d.bindLine) : note('no binds for this execution')))}>Binds</button>
-            {!isExecLine && <button className="link" disabled={busy} title="go to the EXEC line of this execution"
+            {!isExecLine && o.execFrom < 0 && <button className="link" disabled={busy} title="go to the EXEC line of this execution"
               onClick={() => void withDetail((d) => (d.line > 0 ? goTo(d.line) : note('no EXEC line for this execution')))}>EXEC line</button>}
           </>}
+          {prevExec !== undefined && <button className="link" onClick={() => goTo(prevExec)} title={`go to line ${fmtInt(prevExec)}, the previous execution of this cursor (D)`}>‹ prev exec</button>}
+          {execFrom !== undefined && <button className="link" onClick={() => goTo(execFrom)} title={`go to line ${fmtInt(execFrom)}, where this execution starts`}>⇤ exec start</button>}
+          {execTo !== undefined && <button className="link" onClick={() => goTo(execTo)} title={`go to line ${fmtInt(execTo)}, where this execution ends`}>exec end ⇥</button>}
+          {nextExec !== undefined && <button className="link" onClick={() => goTo(nextExec)} title={`go to line ${fmtInt(nextExec)}, the next execution of this cursor (d)`}>next exec ›</button>}
         </span>
       )}
       {cur && (
@@ -103,6 +110,7 @@ export function LinesAt({ doc, file, at, text, goTo, note }: Props) {
           {cur.planHash > 0 && <span title="plan hash value">plan hash {cur.planHash}</span>}
           <span>{fmtInt(cur.execs)} {cur.execs === 1 ? 'exec' : 'execs'}</span>
           {stmtId >= 0 && <button className="link" onClick={() => actions.selectStmt(stmtId)} title="open the statement's detail, which has the plan">Plan</button>}
+          {closeAt !== undefined && <button className="link" onClick={() => goTo(closeAt)} title={`go to line ${fmtInt(closeAt)}, where the cursor is closed`}>CLOSE</button>}
         </span>
       )}
       {o.cursor >= 0 && !cur && <span className="muted">cursor #{o.cursor}</span>}

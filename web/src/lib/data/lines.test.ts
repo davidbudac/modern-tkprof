@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -41,7 +41,20 @@ describe('annotated lines, lines/at, at', () => {
   })
   it('objectsAt keeps -1 for what the server leaves out', async () => {
     stub(() => json({ call: 3, stmt: 7, kind: 'wait' }))
-    expect(await objectsAt(client, 0, 99)).toEqual({ call: 3, stmt: 7, cursor: -1, execNo: -1, wait: -1, bindSet: -1, ctx: -1, planLine: -1, kind: 'wait' })
+    expect(await objectsAt(client, 0, 99)).toEqual({ call: 3, stmt: 7, cursor: -1, execNo: -1, wait: -1, bindSet: -1, ctx: -1, planLine: -1, kind: 'wait', execFrom: -1, execTo: -1, prevExec: -1, nextExec: -1, cursorLine: -1, closeLine: -1, object: '' })
+  })
+  it('objectsAt carries the execution span, its neighbours and the wait object', async () => {
+    stub(() => json({ call: 3, stmt: 7, execFrom: 10, execTo: 20, prevExec: 4, nextExec: 30, cursorLine: 2, closeLine: 40, object: 'SCOTT.EMP', kind: 'call' }))
+    expect(await objectsAt(client, 0, 12)).toMatchObject({ execFrom: 10, execTo: 20, prevExec: 4, nextExec: 30, cursorLine: 2, closeLine: 40, object: 'SCOTT.EMP' })
+  })
+  it('nextLine asks lines/next, answers null on a 404 and throws on other errors', async () => {
+    const f = stub(() => json({ line: 77 }))
+    expect(await nextLine(client, 1, 50, 'wait', -1)).toBe(77)
+    expect(f.mock.calls[0][0]).toBe('http://h/s/1/api/lines/next?file=1&from=50&what=wait&dir=-1')
+    stub(() => new Response('nothing further', { status: 404 }))
+    expect(await nextLine(client, 0, 9, 'plan', 1)).toBeNull()
+    stub(() => new Response('bad what', { status: 400 }))
+    await expect(nextLine(client, 0, 9, 'call', 1)).rejects.toThrow('400')
   })
   it('probeLinesApi wants JSON (an SPA fallback answers text/html)', async () => {
     stub(() => json({ call: -1 }))

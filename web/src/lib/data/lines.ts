@@ -71,14 +71,36 @@ export async function lineAt(client: ApiClient, file: number, tim: number, signa
   return ((await res.json()) as { line: number }).line
 }
 
-/** The model objects of a trace line; every id is -1 where there is no such object. */
-export interface AtObjects { call: number; stmt: number; cursor: number; execNo: number; wait: number; bindSet: number; ctx: number; planLine: number; kind: LineKind }
+/**
+ * The model objects of a trace line; every id is -1 where there is no such object.
+ * `execFrom`/`execTo` span the line's execution (EXEC line .. its last line), `prevExec`/`nextExec` are the EXEC lines of the cursor's neighbouring
+ * executions, `cursorLine`/`closeLine` the cursor's PARSING IN CURSOR and CLOSE lines; `object` is the name of the object a wait is on ('' unknown).
+ */
+export interface AtObjects {
+  call: number; stmt: number; cursor: number; execNo: number; wait: number; bindSet: number; ctx: number; planLine: number; kind: LineKind
+  execFrom: number; execTo: number; prevExec: number; nextExec: number; cursorLine: number; closeLine: number; object: string
+}
 
 export async function objectsAt(client: ApiClient, file: number, line: number, signal?: AbortSignal): Promise<AtObjects> {
   const res = await client.fetch(`/api/at?file=${file}&line=${line}`, { signal })
   if (!res.ok) throw await failure(res)
   const r = (await res.json()) as Partial<AtObjects>
-  return { call: r.call ?? -1, stmt: r.stmt ?? -1, cursor: r.cursor ?? -1, execNo: r.execNo ?? -1, wait: r.wait ?? -1, bindSet: r.bindSet ?? -1, ctx: r.ctx ?? -1, planLine: r.planLine ?? -1, kind: r.kind ?? 'unknown' }
+  return {
+    call: r.call ?? -1, stmt: r.stmt ?? -1, cursor: r.cursor ?? -1, execNo: r.execNo ?? -1, wait: r.wait ?? -1, bindSet: r.bindSet ?? -1, ctx: r.ctx ?? -1, planLine: r.planLine ?? -1, kind: r.kind ?? 'unknown',
+    execFrom: r.execFrom ?? -1, execTo: r.execTo ?? -1, prevExec: r.prevExec ?? -1, nextExec: r.nextExec ?? -1, cursorLine: r.cursorLine ?? -1, closeLine: r.closeLine ?? -1, object: r.object ?? '',
+  }
+}
+
+/** The structural elements `nextLine` steps over (api/engine.openapi.yaml `lines/next`). */
+export type NextWhat = 'call' | 'wait' | 'cursor' | 'plan' | 'ctx' | 'error' | 'commit'
+
+/** The first line strictly after (`dir` 1) or before (-1) `from` that holds `what`, or null when there is none in that direction. */
+export async function nextLine(client: ApiClient, file: number, from: number, what: NextWhat, dir: 1 | -1, signal?: AbortSignal): Promise<number | null> {
+  const res = await client.fetch(`/api/lines/next?file=${file}&from=${from}&what=${what}&dir=${dir}`, { signal })
+  if (res.status === 404) return null
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as { line?: number }
+  return typeof r.line === 'number' ? r.line : null
 }
 
 export interface SearchQuery { file: number; q: string; regex: boolean; caseSensitive: boolean; from: number; limit: number }
