@@ -9,7 +9,7 @@ import { sqlIds } from '../components/StmtLink'
 import type { ApiClient } from '../data/client'
 import type { Actions } from '../state/store'
 import type { RefMods } from '../components/LineViewer'
-import type { StmtPopup } from '../components/StmtPopover'
+import type { LinePopup } from '../components/LinePopover'
 
 // What the Lines view and the line drawer share: how a viewer over the whole file is wired to the trace (the hover card, the
 // references in the rows, the line card's answer for a line).
@@ -17,7 +17,7 @@ import type { StmtPopup } from '../components/StmtPopover'
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 
 /** What the hover cards decode a line with: the trace's events, objects and clock. */
-export function decodeContextOf(doc: TraceDoc, bindAt?: (line: number) => BindAt | undefined): DecodeContext {
+export function decodeContextOf(doc: TraceDoc, bindAt?: (line: number) => BindAt | undefined, gapBefore?: (line: number) => { us: number; fromLine: number } | undefined): DecodeContext {
   const events = new Map(doc.events.map((e) => [e.name, e]))
   let planObjs: Map<number, string> | undefined // obj → object of the plan lines, for traces without a reference bundle
   return {
@@ -31,6 +31,7 @@ export function decodeContextOf(doc: TraceDoc, bindAt?: (line: number) => BindAt
     clock: (tim) => (doc.wallOffsetUs ? fmtWall(tim + doc.wallOffsetUs, doc.tzOffsetMin, { micros: true }) : undefined),
     firstTim: doc.span.firstTim,
     bindAt,
+    gapBefore,
   }
 }
 
@@ -54,16 +55,17 @@ export function refTitleOf(doc: TraceDoc, ctx: DecodeContext): (kind: string, va
       case 'sqlid': return describe(sqlIds(doc).get(value)) ?? 'sql_id not in this trace'
       case 'obj': return ctx.objectName?.(Number(value)) ?? `obj ${value}`
       case 'plh': return `plan hash ${value}`
+      case 'event': return ctx.eventOf?.(value)?.class
     }
     return undefined
   }
 }
 
-/** The click on a reference in a row (the viewer's `onRef`); `jump` moves the viewer to a line, `popup` opens the statement popup at the reference, `flash` says why nothing happened. */
+/** The click on a reference in a row (the viewer's `onRef`); `jump` moves the viewer to a line, `popup` opens the statement, object or wait popup at the reference, `flash` says why nothing happened. */
 export function refClickOf(
-  doc: TraceDoc, file: number, ctx: DecodeContext, _actions: Actions, jump: (line: number) => void, flash: (msg: string) => void, popup: (p: StmtPopup) => void,
+  doc: TraceDoc, file: number, ctx: DecodeContext, actions: Actions, jump: (line: number) => void, flash: (msg: string) => void, popup: (p: LinePopup) => void,
 ): (line: number, kind: string, value: string, ids: CachedLine | undefined, e: RefMods) => void {
-  const anchorOf = (e: RefMods): StmtPopup['anchor'] => ({ x: e.x, y: e.y, rect: e.anchor })
+  const anchorOf = (e: RefMods) => ({ x: e.x, y: e.y, rect: e.anchor })
   /** The cursor `number` of this file as the line `line` sees it: the nearest parse before it, else the first. */
   const cursorByNumber = (number: number, line: number) => {
     let before: (typeof doc.cursors)[number] | undefined, first: typeof before
@@ -91,6 +93,12 @@ export function refClickOf(
     }
     return best
   }
+  /** The statement of the line: the one its cached ids name, else the one of the cursor `#N` printed in its text. */
+  const stmtOfLine = (line: number, ids: CachedLine | undefined) => {
+    let st: number | undefined = ids && ids.stmt >= 0 ? ids.stmt : undefined
+    if (st === undefined) { const m = /#(\d+)/.exec(ids?.text ?? ''); if (m) st = refCursor(Number(m[1]), line, ids)?.statement }
+    return st !== undefined && doc.statements[st] ? st : undefined
+  }
   return (line, kind, value, ids, e) => {
     const n = Number(value)
     switch (kind) {
@@ -98,28 +106,34 @@ export function refClickOf(
         const c = refCursor(n, line, ids)
         if (!c) { flash(`no cursor #${value} in this file`); return }
         if (e.shiftKey) { if (c.line > 0) jump(c.line); return }
-        if (doc.statements[c.statement]) popup({ stmt: c.statement, cursor: c.id, anchor: anchorOf(e), line }); else flash(`cursor #${value} has no statement`)
+        if (doc.statements[c.statement]) popup({ kind: 'stmt', stmt: c.statement, cursor: c.id, anchor: anchorOf(e), line }); else flash(`cursor #${value} has no statement`)
         return
       }
       case 'sqlid': {
         const st = sqlIds(doc).get(value)
         if (st === undefined) { flash(`no statement ${value} in this trace`); return }
         const at = e.shiftKey ? stmtLineIn(doc, file, st) : undefined
-        if (at !== undefined) jump(at); else popup({ stmt: st, anchor: anchorOf(e), line })
+        if (at !== undefined) jump(at); else popup({ kind: 'stmt', stmt: st, anchor: anchorOf(e), line })
         return
       }
       case 'obj': {
-        let st: number | undefined = ids && ids.stmt >= 0 ? ids.stmt : undefined
-        if (st === undefined) { const m = /#(\d+)/.exec(ids?.text ?? ''); if (m) st = refCursor(Number(m[1]), line, ids)?.statement }
+        const st = stmtOfLine(line, ids)
+        if (!e.shiftKey) { popup({ kind: 'obj', obj: n, stmt: st, line, anchor: anchorOf(e) }); return }
         const at = st === undefined ? undefined : planLineOfObj(st, n, line)
         if (at !== undefined) { jump(at); return }
         const name = ctx.objectName?.(n)
         flash(name ? `${name} (obj ${value}) is not in this statement's plan` : `no plan line for obj ${value}`)
         return
       }
+      case 'event': {
+        if (!e.shiftKey) { popup({ kind: 'wait', line, text: ids?.text ?? '', event: value, stmt: stmtOfLine(line, ids), anchor: anchorOf(e) }); return }
+        const ev = doc.events.find((x) => x.name === value)
+        if (ev) { actions.selectEvent(ev.id); actions.setView('waits') } else flash(`no event ${value} in this trace`)
+        return
+      }
       case 'plh': {
         const st = ids && ids.stmt >= 0 ? ids.stmt : doc.plans.find((p) => p.planHash === n)?.statement
-        if (st !== undefined && doc.statements[st]) popup({ stmt: st, anchor: anchorOf(e), line }); else flash(`no statement with plan hash ${value}`)
+        if (st !== undefined && doc.statements[st]) popup({ kind: 'stmt', stmt: st, anchor: anchorOf(e), line }); else flash(`no statement with plan hash ${value}`)
         return
       }
     }
@@ -133,11 +147,12 @@ export function cachedAt(cache: PageCache, line: number): AtObjects | undefined 
   return { call: l.call, stmt: l.stmt, cursor: l.cursor, execNo: l.execNo, wait: l.wait, bindSet: -1, ctx: -1, planLine: -1, kind: LINE_KINDS[l.kind] ?? 'unknown', execFrom: -1, execTo: -1, prevExec: -1, nextExec: -1, cursorLine: -1, closeLine: -1, object: '', bindLine: -1 }
 }
 
-/** What is at `line` for the line card: the cached ids at once, the engine's full answer 60 ms later (a quick run of selections asks once). */
-export function useLineAt(client: ApiClient, doc: TraceDoc, file: number, cache: PageCache, line: number): { line: number; objs: AtObjects } | null {
+/** What is at `line` for the line card: the cached ids at once, the engine's full answer 60 ms later (a quick run of selections asks once). `null` for no line asks nothing. */
+export function useLineAt(client: ApiClient, doc: TraceDoc, file: number, cache: PageCache, line: number | null): { line: number; objs: AtObjects } | null {
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
   const known = useRef(false)
   useEffect(() => {
+    if (line === null) return
     const first = cachedAt(cache, line)
     known.current = !!first
     if (first) setAt({ line, objs: first })

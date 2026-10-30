@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -64,6 +64,22 @@ describe('annotated lines, lines/at, at', () => {
     expect(await nextLine(client, 0, 9, 'plan', 1)).toBeNull()
     stub(() => new Response('bad what', { status: 400 }))
     await expect(nextLine(client, 0, 9, 'call', 1)).rejects.toThrow('400')
+  })
+  it('nextLine appends min (µs) for the gap kind', async () => {
+    const f = stub(() => json({ line: 12 }))
+    expect(await nextLine(client, 0, 5, 'gap', 1, undefined, 100_000)).toBe(12)
+    expect(f.mock.calls[0][0]).toBe('http://h/s/1/api/lines/next?file=0&from=5&what=gap&dir=1&min=100000')
+    await nextLine(client, 0, 5, 'call', 1)
+    expect(f.mock.calls[1][0]).not.toContain('min=')
+  })
+  it('linesBlocks lists the blocks of a kind and tells when the list was cut', async () => {
+    const f = stub(() => json({ blocks: [[3, 9], [20, 20], [0, 4], [8, 2]], truncated: true }))
+    expect(await linesBlocks(client, 1, 'binds')).toEqual({ blocks: [[3, 9], [20, 20]], truncated: true })
+    expect(f.mock.calls[0][0]).toBe('http://h/s/1/api/lines/blocks?file=1&what=binds')
+    stub(() => json({}))
+    expect(await linesBlocks(client, 0, 'stat')).toEqual({ blocks: [], truncated: false })
+    stub(() => new Response('bad', { status: 400 }))
+    await expect(linesBlocks(client, 0, 'stat')).rejects.toThrow('400')
   })
   it('probeLinesApi wants JSON (an SPA fallback answers text/html)', async () => {
     stub(() => json({ call: -1 }))
@@ -328,4 +344,15 @@ describe('groupHits', () => {
     expect(g[0].hits.map((h) => h.line)).toEqual([20, 30, 60])
   })
   it('is empty for no hits', () => { expect(groupHits([], () => 1)).toEqual([]) })
+})
+
+describe('mergeFolds', () => {
+  const f = (from: number, to: number) => ({ from, to, summary: `${from}-${to}` })
+  it('keeps the existing folds, adds the ones that overlap nothing and sorts', () => {
+    const got = mergeFolds([f(10, 20), f(50, 60)], [f(5, 8), f(15, 30), f(21, 25), f(60, 70), f(90, 95)])
+    expect(got.map((x) => [x.from, x.to])).toEqual([[5, 8], [10, 20], [21, 25], [50, 60], [90, 95]])
+  })
+  it('drops added folds that overlap each other', () => {
+    expect(mergeFolds([], [f(1, 5), f(5, 9)]).map((x) => x.from)).toEqual([1])
+  })
 })

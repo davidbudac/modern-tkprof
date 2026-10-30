@@ -109,3 +109,11 @@ export const lineToneLegend: { tone: Exclude<LineTone, null | 'dim'>; label: str
   { tone: 'error', label: 'errors', token: '--s-critical' },
   { tone: 'other', label: 'lob / rpc', token: '--c-other' },
 ]
+
+/** The CSS token that stands for the tone of a line kind (the legend's token, `--ink-3` for the dim framing lines, `--ink` for SQL text). */
+export function lineToneToken(kind: LineKind): string {
+  const tone = lineTone[kind]
+  if (tone === null) return '--ink'
+  if (tone === 'dim') return '--ink-3'
+  return lineToneLegend.find((l) => l.tone === tone)?.token ?? `--c-${tone}`
+}

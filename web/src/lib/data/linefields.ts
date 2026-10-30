@@ -15,6 +15,8 @@ export interface DecodeContext {
   firstTim?: number
   /** the bind set and bind a line of a BINDS block belongs to (`bindAtOf`); used with `opts.line` */
   bindAt?(line: number): BindAt | undefined
+  /** the idle gap before a line (`gapBefore`), for the derived field of calls and waits; used with `opts.line` */
+  gapBefore?(line: number): { us: number; fromLine: number } | undefined
 }
 
 /**
@@ -630,6 +632,15 @@ export function decodeLine(text: string, kind: LineKind, ctx: DecodeContext = {}
     case 'lob': d = v ? decodeLobV(text, ctx) : decodeLob(text, ctx); break
     case 'marker': d = decodeMarker(text, v); break
     default: d = null
+  }
+  if (d && v && opts.line !== undefined && (kind === 'call' || kind === 'wait')) {
+    const g = ctx.gapBefore?.(opts.line)
+    if (g) {
+      d.fields.push({
+        label: 'Gap before', value: fmtDur(g.us), hint: `idle since line ${g.fromLine}`,
+        desc: 'time between the end of the previous call or wait and the start of this one',
+      })
+    }
   }
   if (!d) {
     if (!v) return null

@@ -2,24 +2,29 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Key
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
 import { blockAt, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchLinesAnnot, fetchLineProfile, lineAt, linePermalink, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchLinesAnnot, fetchLineProfile, lineAt, linePermalink, linesBlocks, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
+import { describeRange, summarizeRange } from '../data/rangesum'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
 import { LineStrip } from '../components/LineStrip'
+import { LINES_PREFS_DEFAULTS, useLinesPrefs } from '../state/linesPrefs'
 import { ToolbarMenu } from '../components/ToolbarMenu'
-import { lineToneLegend } from '../components/colors'
+import { lineToneLegend, lineToneToken } from '../components/colors'
+import { CommandPalette, type Command } from '../components/CommandPalette'
+import { inlaysOf } from '../data/inlays'
+import { gapBefore } from '../data/gaps'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
 import { LinesOutline, type OutlineState } from './LinesOutline'
 import { LinesAt } from './LinesAt'
-import { LineInspector } from './LineInspector'
+import { LineInspector, type InspectRefKind } from './LineInspector'
 import { ResizeHandle } from '../components/ResizeHandle'
 import { bindAtOf, rememberBinds } from '../data/bindat'
-import { StmtPopover, type StmtPopup } from '../components/StmtPopover'
-import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf } from './linesShared'
+import { LinePopover, type LinePopup } from '../components/LinePopover'
+import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf, useLineAt } from './linesShared'
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
 import { NoteEditor } from '../components/Note'
@@ -44,15 +49,16 @@ interface LinesUi {
   presets: boolean
   /** the Step menu */
   stepMenu: boolean
-  /** the Presets menu's threshold for the slow waits and calls (ms) */
-  threshold: number
   /** the key map popover */
   keys: boolean
-  /** the Mute popover, and the kind groups (`MUTE_GROUPS`) it dims */
-  muteMenu: boolean
-  mute: Set<string>
+  /** the View menu (display toggles, the kind groups to dim, bulk folds) */
+  viewMenu: boolean
+  /** the command palette */
+  palette: boolean
   /** the cursor id whose rows stay bright (the others are dimmed), null for none */
   focus: number | null
+  /** the lines selected with Shift+click or Shift+arrows (summed in the status bar, `y` copies them), null for none */
+  range: { from: number; to: number } | null
   tab: 'hits' | 'bookmarks' | 'outline'
   /** the hits listed by statement (the Navigate menu), and the statements whose group is open (-1 none, -2 not loaded yet) */
   groupHits: boolean
@@ -60,18 +66,8 @@ interface LinesUi {
   /** the outline tab: open nodes and filter */
   outline: OutlineState
   panel: boolean
-  wrap: boolean
-  /** the elapsed-time bars in the gutter */
-  heat: boolean
   /** the folded blocks (BINDS, STAT dump, long SQL text), sorted by their first line */
   folds: Fold[]
-  /** the density strip beside the scroll bar */
-  strip: boolean
-  /** the references in the rows (cursor, sql_id, obj#, plan hash) as links */
-  links: boolean
-  /** the inspector beside the rows (the selected line translated) and its width in px */
-  inspect: boolean
-  inspectW: number
   jump: string
   /** the lines the jumps left, newest last (capped) */
   back: number[]
@@ -88,8 +84,8 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
-      presets: false, stepMenu: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(), focus: null,
-      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, folds: [], strip: true, links: true, inspect: false, inspectW: 400, jump: '', back: [], cur: 0,
+      presets: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, range: null,
+      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, folds: [], jump: '', back: [], cur: 0,
     }))
   }
   return u
@@ -106,6 +102,16 @@ const STEPS: [NextWhat, string, [string, string]][] = [
   ['commit', 'commit', ['x', 'X']],
 ]
 
+/** The View menu's display toggles: the pref, its label, tooltip and key. */
+const SHOW_TOGGLES: { key: 'wrap' | 'heat' | 'strip' | 'links' | 'hints'; label: string; title: string; keys?: string }[] = [
+  { key: 'wrap', label: 'Wrap long lines', title: 'wrap long lines instead of scrolling sideways' },
+  { key: 'heat', label: 'Heat bars', keys: 'h', title: 'a bar in the right gutter for the elapsed time of calls and waits' },
+  { key: 'strip', label: 'Density strip', title: 'the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move' },
+  { key: 'links', label: 'Reference links', title: 'underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click shows the statement (its SQL and a summary) in a popup, the Statements view is one click further (Shift: the cursor\'s parse line)' },
+  { key: 'hints', label: 'Hints', keys: 'n', title: 'dim notes inside the rows: bind values, clock times, object names, durations and idle gaps' },
+]
+/** The modifier the platform's command key is shown with. */
+const MOD = typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘' : 'Ctrl+'
 const SEARCH_LIMIT = 10_000
 const BACK_LIMIT = 50
 const RECENT_LIMIT = 5
@@ -207,6 +213,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const ui = uiOf(store, file)
   const [, bump] = useReducer((x: number) => x + 1, 0)
   const set = useCallback((patch: Partial<LinesUi>) => { Object.assign(ui, patch); bump() }, [ui])
+  const [prefs, setPrefs] = useLinesPrefs() // the display toggles are global, not per file
+  const muteSet = useMemo(() => new Set(prefs.mute), [prefs.mute])
 
   const cache = useMemo(() => new PageCache((from, n, signal) => fetchLinesAnnot(client, file, from, n, signal, true), CACHE_PAGES), [client, file])
   useEffect(() => cache.subscribe(bump), [cache])
@@ -225,14 +233,14 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   // the shape of the file for the strip: fetched once per file and snapshot (the strip down-samples it to its height); the old one stays until the new arrives
   const [profile, setProfile] = useState<LineProfile | null>(null)
   useEffect(() => {
-    if (!ui.strip) return
+    if (!prefs.strip) return
     const ac = new AbortController()
     fetchLineProfile(client, file, PROFILE_BUCKETS, ac.signal).then(
       (p) => { if (!ac.signal.aborted) setProfile(p) },
       (e: unknown) => { if (!aborted(e)) setProfile(null) }, // an engine without the route: no strip
     )
     return () => ac.abort()
-  }, [client, file, rev, ui.strip])
+  }, [client, file, rev, prefs.strip])
 
   const apiRef = useRef<ViewerApi | null>(null)
   const viewBus = useRef<((top: number, rows: number) => void) | null>(null)
@@ -245,7 +253,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const topRef = useRef(ui.top)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
-  const [popup, setPopup] = useState<StmtPopup | null>(null) // the statement popup of a clicked reference
+  const [popup, setPopup] = useState<LinePopup | null>(null) // the statement popup of a clicked reference
   const [jumpError, setJumpError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const selected = lv.line
@@ -315,10 +323,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [ui.folds])
   /** A jump (a search hit, a mark, a bookmark, Go to, a line card action, a deep link): `goTo` that remembers the line it left for Back. */
   const jump = useCallback((line: number, dispatch = true) => {
+    if (ui.range) set({ range: null })
     const left = ui.cur
     if (left > 0 && left !== line && ui.back[ui.back.length - 1] !== left) { ui.back.push(left); if (ui.back.length > BACK_LIMIT) ui.back.shift(); bump() }
     goTo(line, dispatch)
-  }, [ui, goTo])
+  }, [ui, goTo, set])
   const goBack = useCallback(() => {
     const line = ui.back.pop()
     if (line === undefined) return
@@ -355,7 +364,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (topRef.current < 1 && lv.line <= 1) goTo(markLines[0])
   }, [stmt, markLines, ui, lv.seq, lv.line, goTo])
 
-  const mutedKinds = useMemo(() => new Set(MUTE_GROUPS.filter((g) => ui.mute.has(g.name)).flatMap((g) => g.kinds.map((k) => LINE_KINDS.indexOf(k)))), [ui.mute])
+  const mutedKinds = useMemo(() => new Set(MUTE_GROUPS.filter((g) => muteSet.has(g.name)).flatMap((g) => g.kinds.map((k) => LINE_KINDS.indexOf(k)))), [muteSet])
   /** this file's PARSING IN CURSOR lines and error lines, ascending */
 
   const stepMark = (dir: 1 | -1) => {
@@ -451,8 +460,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     let re: string
     if (typeof p.re === 'string') re = p.re
     else {
-      if (!(ui.threshold > 0)) { flash('the threshold must be a number of milliseconds above 0'); return }
-      re = p.re(ui.threshold)
+      if (!(prefs.threshold > 0)) { flash('the threshold must be a number of milliseconds above 0'); return }
+      re = p.re(prefs.threshold)
     }
     set({ q: re, regex: true, presets: false })
     runSearch()
@@ -469,14 +478,19 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   /** The next / previous line of a kind, asked of the engine (every step is a binary search over the whole file). A new step cancels the one still on its way. */
   const stepCtl = useRef<AbortController | null>(null)
   useEffect(() => () => stepCtl.current?.abort(), [])
-  const stepNext = (what: NextWhat, label: string, dir: 1 | -1) => {
+  const stepNext = (what: NextWhat, label: string, dir: 1 | -1, min?: number) => {
     stepCtl.current?.abort()
     const ac = (stepCtl.current = new AbortController())
     const from = selected
-    nextLine(client, file, from, what, dir, ac.signal).then(
+    nextLine(client, file, from, what, dir, ac.signal, min).then(
       (to) => { if (ac.signal.aborted) return; if (to !== null) jump(to); else flash(`no ${label} ${dir === 1 ? 'after' : 'before'} line ${fmtInt(from)}`) },
       (e) => { if (!aborted(e)) flash(e instanceof Error ? e.message : String(e)) },
     )
+  }
+  /** The next / previous idle gap of at least `prefs.gapMs` ms. */
+  const stepGap = (dir: 1 | -1) => {
+    if (!(prefs.gapMs > 0)) { flash('set the gap threshold above 0 ms in the View menu'); return }
+    stepNext('gap', `gap of ${fmtInt(prefs.gapMs)} ms or more`, dir, prefs.gapMs * 1000)
   }
   /** The next / previous execution of the selected line's cursor, from the line card's answer. */
   const stepExec = (dir: 1 | -1) => {
@@ -489,6 +503,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (cur < 0) flash(`no cursor at line ${fmtInt(selected)}`)
     else set({ focus: ui.focus === cur ? null : cur })
   }
+  const openStatement = () => {
+    if (at && at.line === selected && at.objs.stmt >= 0) actions.selectStmt(at.objs.stmt)
+    else flash(`no statement at line ${fmtInt(selected)}`)
+  }
   const searchRef = useRef<HTMLInputElement>(null)
   const goToRef = useRef<HTMLInputElement>(null)
   /** The viewer's letter keys (no modifier but Shift, viewer focused, not in a text field). */
@@ -500,17 +518,18 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     switch (e.key) {
       case '/': focus(searchRef.current); break
       case 'g': focus(goToRef.current); break
-      case 'Enter':
-        if (at && at.line === selected && at.objs.stmt >= 0) actions.selectStmt(at.objs.stmt)
-        else flash(`no statement at line ${fmtInt(selected)}`)
-        break
+      case 'Enter': openStatement(); break
       case 'm': stepMark(1); break
       case 'M': stepMark(-1); break
-      case 'h': set({ heat: !ui.heat }); break
+      case 'h': setPrefs({ heat: !prefs.heat }); break
       case 'z': onFold(selected); break
       case 'Z': set({ folds: [] }); break
+      case 'n': setPrefs({ hints: !prefs.hints }); break
+      case 't': stepGap(1); break
+      case 'T': stepGap(-1); break
       case 'f': toggleFocus(); break
-      case 'i': set({ inspect: !ui.inspect }); break
+      case 'i': setPrefs({ inspect: !prefs.inspect }); break
+      case 'y': copySelRange(); break
       case ']': stepNext('call', 'call', 1); break
       case '[': stepNext('call', 'call', -1); break
       case 'w': stepNext('wait', 'wait', 1); break
@@ -534,8 +553,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && popup) { e.stopPropagation(); setPopup(null) }
+    if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey) && !e.altKey) { e.preventDefault(); set({ palette: !ui.palette }) } // also in the boxes
+    else if (e.key === 'Escape' && popup) { e.stopPropagation(); setPopup(null) }
     else if (e.key === 'Escape' && ui.status === 'running') { e.stopPropagation(); cancelSearch() }
+    else if (e.key === 'Escape' && ui.range) { e.stopPropagation(); set({ range: null }) }
     else if (e.key === 'Escape' && ui.focus !== null && (e.target as HTMLElement).closest('.lv')) { e.stopPropagation(); set({ focus: null }) }
     else if (e.key === 'F3') { e.preventDefault(); stepHit(e.shiftKey ? -1 : 1) }
     else if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey && ui.back.length > 0) {
@@ -569,10 +590,22 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const b = blockAt(cache, line)
     if (b) set({ folds: toggleFold(ui.folds, b) }); else flash(`nothing to fold at line ${fmtInt(line)}`)
   }, [ui, set, cache, flash])
-  /** Copies lines `from..to` (the pages of the range are loaded first; at most `COPY_PAGES`). */
-  const copyRange = useCallback(async (from: number, to: number) => {
+  /** Folds every BINDS block or STAT dump of the file (the engine lists them), next to the folds there already are. */
+  const foldAll = useCallback(async (what: 'binds' | 'stat') => {
+    const name = what === 'binds' ? 'BINDS block' : 'STAT dump'
+    try {
+      const { blocks, truncated } = await linesBlocks(client, file, what)
+      const added: Fold[] = blocks.filter(([from, to]) => to > from).map(([from, to]) => ({ from, to, summary: blockAt(cache, from)?.summary ?? `${name} · ${fmtInt(to - from + 1)} lines` }))
+      const folds = mergeFolds(ui.folds, added)
+      const n = folds.length - ui.folds.length
+      set({ folds })
+      flash(n > 0 ? `Folded ${fmtInt(n)} ${name}${n === 1 ? '' : 's'}${truncated ? ' (the first of a longer list)' : ''}` : `no ${name}s to fold`)
+    } catch (e) { if (!aborted(e)) flash(e instanceof Error ? e.message : String(e)) }
+  }, [client, file, cache, ui, set, flash])
+  /** Copies lines `from..to` (the pages of the range are loaded first; at most `COPY_PAGES`). `as` words the note: a block (the line card's) or the selected range. */
+  const copyRange = useCallback(async (from: number, to: number, as: 'block' | 'range' = 'block') => {
     const p0 = cache.pageOf(from), p1 = cache.pageOf(to)
-    if (p1 - p0 + 1 > COPY_PAGES) { flash(`block too large to copy (${fmtInt(to - from + 1)} lines)`); return }
+    if (p1 - p0 + 1 > COPY_PAGES) { flash(`${as} too large to copy (${fmtInt(to - from + 1)} lines)`); return }
     let pages: CachedPage[]
     try { pages = await Promise.all(Array.from({ length: p1 - p0 + 1 }, (_, i) => cache.load(p0 + i))) } catch (e) { if (!aborted(e)) flash(e instanceof Error ? e.message : String(e)); return }
     const texts: string[] = []
@@ -582,20 +615,53 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       if (t === undefined) break
       texts.push(t)
     }
-    void copyWhat(`block lines ${fmtInt(from)}–${fmtInt(from + texts.length - 1)}`, texts.join('\n'))
+    void copyWhat(as === 'range' ? `${fmtInt(texts.length)} ${texts.length === 1 ? 'line' : 'lines'}` : `block lines ${fmtInt(from)}–${fmtInt(from + texts.length - 1)}`, texts.join('\n'))
   }, [cache, copyWhat, flash])
+  /** Copies the selected range (`y`). */
+  const copySelRange = useCallback(() => {
+    if (ui.range) void copyRange(ui.range.from, ui.range.to, 'range'); else flash('no range selected (Shift+click or Shift+arrows)')
+  }, [ui, copyRange, flash])
+  // the range's summary for the status bar; a range of at most COPY_PAGES pages gets its missing pages loaded (a page's arrival re-renders)
+  const rangeSum = useMemo(() => (ui.range ? summarizeRange(cache, ui.range.from, ui.range.to) : null), [ui.range, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rangeFrom = ui.range?.from, rangeTo = ui.range?.to
+  useEffect(() => {
+    if (rangeFrom === undefined || rangeTo === undefined) return
+    const p0 = cache.pageOf(rangeFrom), p1 = cache.pageOf(rangeTo)
+    if (p1 - p0 + 1 > COPY_PAGES) return
+    for (let p = p0; p <= p1; p++) if (!cache.has(p)) cache.load(p).catch(() => undefined)
+  }, [cache, rangeFrom, rangeTo])
   /** The block of the line card's line, when it is the handle of one (the card offers to copy it). */
   const atBlock = useMemo(() => (at ? blockAt(cache, at.line) : null), [at, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
   const canLink = useStore((s) => s.lineRefTarget !== 'view') // the desktop shell has no URL to link to
   // ---- hover cards: the line decoded with what the trace knows (events, objects, clock) ------------------------------------
   const bindAt = useMemo(() => bindAtOf(doc, file, cache), [doc, file, cache])
-  const decodeCtx = useMemo(() => decodeContextOf(doc, bindAt), [doc, bindAt])
+  const decodeCtx = useMemo(() => decodeContextOf(doc, bindAt, (line) => gapBefore(cache, line) ?? undefined), [doc, bindAt, cache])
+  // the idle gap before a line when it reaches the threshold (0 for none): the gutter tick and the gap hint; asked again when a page arrives
+  const gapOf = useCallback((line: number) => {
+    if (!(prefs.gapMs > 0)) return 0
+    const us = gapBefore(cache, line)?.us ?? 0
+    return us >= prefs.gapMs * 1000 ? us : 0
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cache, pages, prefs.gapMs])
+  const inlays = useMemo(() => (prefs.hints ? (line: number, text: string, kind: number) => inlaysOf(text, LINE_KINDS[kind], line, decodeCtx, gapOf(line)) : undefined), [prefs.hints, decodeCtx, gapOf])
   const lineCard = useMemo(() => lineCardOf(decodeCtx), [decodeCtx])
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
 
   // ---- references in the rows: a click on a cursor, sql_id, obj# or plan hash; the tooltip of each -------------------------
   const onRef = useMemo(() => refClickOf(doc, file, decodeCtx, actions, jump, flash, setPopup), [doc, file, decodeCtx, actions, jump, flash])
   const refTitle = useMemo(() => refTitleOf(doc, decodeCtx), [doc, decodeCtx])
+
+  // ---- the inspector: the selected line, or with Follow the line under the pointer --------------------------------------
+  const [hover, setHover] = useState<number | null>(null)
+  const following = prefs.inspect && prefs.follow
+  useEffect(() => { if (!following) setHover(null) }, [following])
+  const inspectedLine = following && hover !== null ? hover : selected
+  const hoverAt = useLineAt(client, doc, file, cache, inspectedLine === selected ? null : inspectedLine) // the selected line's answer is `at`
+  const inspAt = inspectedLine === selected ? at : hoverAt && hoverAt.line === inspectedLine ? hoverAt : null
+  const inspBlock = useMemo(() => (inspectedLine === selected ? atBlock : blockAt(cache, inspectedLine)), [inspectedLine, selected, atBlock, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
+  /** A click on a reference value in the inspector opens the same popup as the row links, for the inspected line. */
+  const onInspectRef = (kind: InspectRefKind, value: string, e: { shiftKey: boolean; x: number; y: number; anchor?: DOMRect }) =>
+    onRef(inspectedLine, kind, value, cache.line(inspectedLine), { shiftKey: e.shiftKey, metaKey: false, ctrlKey: false, x: e.x, y: e.y, anchor: e.anchor })
 
   // ---- the pinned header: the statement (and the BINDS or STAT block) at the top of the view ------------------------------
   const head = useCallback((top: number) => {
@@ -666,8 +732,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     else actions.openLinesAt(row.file, row.line)
     return null
   }
-  const runGoTo = async () => {
-    const g = parseGoTo(ui.jump, doc.span.firstTim, doc.wallOffsetUs ? doc : undefined)
+  const runGoTo = async (text = ui.jump) => {
+    const g = parseGoTo(text, doc.span.firstTim, doc.wallOffsetUs ? doc : undefined)
     setJumpError(null)
     if (!g) { setJumpError(doc.wallOffsetUs ? 'use a line, #cursor, sql_id[/N], 1.5s, 250ms, 900us or 14:03:07.250' : 'use a line, #cursor, sql_id[/N], 1.5s, 250ms or 900us'); return }
     try {
@@ -692,6 +758,61 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const selectedFiles = useStore((s) => s.files)
   const running = ui.status === 'running'
   const nextHitDisabled = ui.hits.length === 0
+
+  /** the display toggles away from their defaults, and the muted groups */
+  const viewBadge = SHOW_TOGGLES.filter((t) => prefs[t.key] !== LINES_PREFS_DEFAULTS[t.key]).length + prefs.mute.length
+
+  // ---- the command palette ----------------------------------------------------------------------------------------------
+  const commands = (): Command[] => {
+    const out: Command[] = []
+    const add = (group: string, id: string, label: string, run: () => void, more: Partial<Command> = {}) => out.push({ id, label, group, run, ...more })
+    for (const [what, label, keys] of STEPS) {
+      add('Step', `step:${what}:next`, `Next ${label}`, () => stepNext(what, label, 1), { keys: keys[0] })
+      add('Step', `step:${what}:prev`, `Previous ${label}`, () => stepNext(what, label, -1), { keys: keys[1] })
+    }
+    const gapOff = prefs.gapMs <= 0
+    add('Step', 'step:gap:next', `Next gap ≥ ${fmtInt(prefs.gapMs)} ms`, () => stepGap(1), { keys: 't', disabled: gapOff, hint: gapOff ? 'off: set the threshold in View' : undefined })
+    add('Step', 'step:gap:prev', 'Previous gap', () => stepGap(-1), { keys: 'T', disabled: gapOff })
+    add('Step', 'step:mark:next', 'Next mark', () => stepMark(1), { keys: 'm', disabled: markLines.length === 0, hint: 'of the selected statement' })
+    add('Step', 'step:mark:prev', 'Previous mark', () => stepMark(-1), { keys: 'M', disabled: markLines.length === 0, hint: 'of the selected statement' })
+    add('Step', 'step:hit:next', 'Next hit', () => stepHit(1), { keys: 'F3', disabled: nextHitDisabled })
+    add('Step', 'step:hit:prev', 'Previous hit', () => stepHit(-1), { keys: 'Shift+F3', disabled: nextHitDisabled })
+    add('Step', 'step:exec:next', 'Next execution', () => stepExec(1), { keys: 'd' })
+    add('Step', 'step:exec:prev', 'Previous execution', () => stepExec(-1), { keys: 'D' })
+
+    for (const p of SEARCH_PRESETS) add('Search', `preset:${p.label}`, `Preset: ${p.label.replace('N ms', `${prefs.threshold} ms`)}`, () => runPreset(p))
+    add('Search', 'search:focus', 'Focus the search box', () => { searchRef.current?.focus(); searchRef.current?.select() }, { keys: '/' })
+
+    for (const t of SHOW_TOGGLES) add('View', `view:${t.key}`, t.label, () => setPrefs({ [t.key]: !prefs[t.key] }), { checked: prefs[t.key], keys: t.keys })
+    for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => setPrefs({ mute: muteSet.has(g.name) ? prefs.mute.filter((m) => m !== g.name) : [...prefs.mute, g.name] }), { checked: muteSet.has(g.name) })
+    add('View', 'view:focus', 'Focus cursor', toggleFocus, { checked: ui.focus !== null, keys: 'f', hint: "dims the other cursors' rows" })
+    add('View', 'view:inspect', 'Inspector', () => setPrefs({ inspect: !prefs.inspect }), { checked: prefs.inspect, keys: 'i' })
+    add('View', 'view:follow', 'Follow hover in the inspector', () => setPrefs({ follow: !prefs.follow }), { checked: prefs.follow })
+
+    add('Folds', 'fold:this', 'Fold this block', () => onFold(selected), { keys: 'z' })
+    add('Folds', 'fold:none', 'Unfold all', () => set({ folds: [] }), { keys: 'Z', disabled: ui.folds.length === 0 })
+    add('Folds', 'fold:binds', 'Fold all BINDS blocks', () => void foldAll('binds'))
+    add('Folds', 'fold:stat', 'Fold all STAT dumps', () => void foldAll('stat'))
+
+    add('Line', 'line:bookmark', 'Bookmark', () => toggleBookmark(selected), { keys: 'b', checked: bmSet.has(selected) })
+    if (notesOn) add('Line', 'line:note', 'Note', () => setNoting(selected))
+    add('Line', 'line:copy', 'Copy line', () => copyLine(selected))
+    if (canLink) add('Line', 'line:link', 'Copy permalink', () => copyLink(selected))
+    add('Line', 'line:open', 'Open statement', openStatement, { keys: 'Enter' })
+    add('Line', 'line:copyrange', 'Copy selected range', copySelRange, { keys: 'y', disabled: !ui.range, hint: ui.range ? undefined : 'Shift+click or Shift+arrows select a range' })
+    add('Line', 'line:clearrange', 'Clear range', () => set({ range: null }), { keys: 'Esc', disabled: !ui.range })
+    if (ui.back.length > 0) add('Line', 'line:back', `Back to line ${fmtInt(ui.back[ui.back.length - 1])}`, goBack, { keys: 'Backspace' })
+    return out
+  }
+  /** Go to commands for what is typed in the palette: a line, a cursor, a statement or a time. */
+  const goToCommands = (q: string): Command[] => {
+    const text = q.trim()
+    const g = parseGoTo(text, doc.span.firstTim, doc.wallOffsetUs ? doc : undefined)
+    if (!g) return []
+    const label = g.kind === 'line' ? `Go to line ${g.line}` : g.kind === 'cursor' ? `Go to cursor #${g.number}`
+      : g.kind === 'sqlid' ? `Go to statement ${g.sqlId}${g.prefix ? '*' : ''}${g.execNo !== undefined ? ` execution ${g.execNo}` : ''}` : `Go to time ${text}`
+    return [{ id: `goto:${text}`, label, group: 'Go to', run: () => { set({ jump: text }); void runGoTo(text) } }]
+  }
 
   const panelBody = (
     <>
@@ -762,9 +883,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         </form>
         <ToolbarMenu label="Presets" title="ready-made searches: errors, hard parses, slow waits and calls, commits, session markers" className="tbmenu-sm tbmenu-start" open={ui.presets} onOpenChange={(presets) => set({ presets })}>
           <ul className="lines-presets">
-            {SEARCH_PRESETS.map((p) => (<li key={p.label}><button type="button" className="quiet" onClick={() => runPreset(p)}>{p.label.replace('N ms', `${ui.threshold} ms`)}</button></li>))}
+            {SEARCH_PRESETS.map((p) => (<li key={p.label}><button type="button" className="quiet" onClick={() => runPreset(p)}>{p.label.replace('N ms', `${prefs.threshold} ms`)}</button></li>))}
           </ul>
-          <label className="lines-threshold small">Threshold <input type="number" min={0.001} step={1} value={ui.threshold} aria-label="Threshold in milliseconds for the slow waits and calls presets" onChange={(e) => set({ threshold: Number(e.target.value) })} /> ms</label>
+          <label className="lines-threshold small">Threshold <input type="number" min={0.001} step={1} value={prefs.threshold} aria-label="Threshold in milliseconds for the slow waits and calls presets" onChange={(e) => setPrefs({ threshold: Number(e.target.value) })} /> ms</label>
         </ToolbarMenu>
         <ToolbarMenu label="Step" title="the next or previous call, wait, cursor parse, STAT dump, session marker, error or commit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
           <ul className="lines-steps">
@@ -775,6 +896,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
                 <button type="button" className="quiet" onClick={() => stepNext(what, label, 1)} aria-label={`Next ${label}`} title={`next ${label} (${keys[0]})`}>›</button>
               </li>
             ))}
+            <li>
+              <button type="button" className="quiet" onClick={() => stepGap(-1)} disabled={prefs.gapMs <= 0} aria-label="Previous idle gap" title="previous idle gap (T); the threshold is in the View menu">‹</button>
+              <span>{prefs.gapMs > 0 ? `gap ≥ ${fmtInt(prefs.gapMs)} ms` : 'gap (off)'}</span>
+              <button type="button" className="quiet" onClick={() => stepGap(1)} disabled={prefs.gapMs <= 0} aria-label="Next idle gap" title="next idle gap (t); the threshold is in the View menu">›</button>
+            </li>
           </ul>
         </ToolbarMenu>
         <form className="lines-jump" onSubmit={(e) => { e.preventDefault(); void runGoTo() }}>
@@ -802,19 +928,39 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         <span className="lines-tools">
           <button className="quiet" onClick={() => toggleBookmark(selected)} aria-pressed={bmSet.has(selected)} title="bookmark the selected line (b)">◆ Bookmark</button>
           {notesOn && <button className="quiet" onClick={() => setNoting(noting === selected ? null : selected)} aria-pressed={noting === selected} title="a note on the selected line (bookmarks it)">✎ Note</button>}
-          <button className="quiet" onClick={() => set({ wrap: !ui.wrap })} aria-pressed={ui.wrap} title="wrap long lines">Wrap</button>
           <button className="quiet" onClick={toggleFocus} aria-pressed={ui.focus !== null} title="dim the rows outside the selected line's cursor (f); Esc clears">Focus</button>
-          <button className="quiet" onClick={() => set({ heat: !ui.heat })} aria-pressed={ui.heat} title="a bar in the right gutter for the elapsed time of calls and waits">Heat</button>
-          <button className="quiet" onClick={() => set({ strip: !ui.strip })} aria-pressed={ui.strip} title="the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move">Strip</button>
-          <button className="quiet" onClick={() => set({ inspect: !ui.inspect })} aria-pressed={ui.inspect} title="a side view that translates the selected line: every field named, with its unit and meaning (i)">Inspect</button>
-          <button className="quiet" onClick={() => set({ links: !ui.links })} aria-pressed={ui.links} title="underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click shows the statement (its SQL and a summary) in a popup, the Statements view is one click further (Shift: the cursor's parse line)">Refs</button>
-          <ToolbarMenu label="Mute" badge={ui.mute.size > 0 ? String(ui.mute.size) : undefined} title="dim the rows of some line kinds (line counts and scrolling stay)" className="tbmenu-sm" open={ui.muteMenu} onOpenChange={(muteMenu) => set({ muteMenu })}>
-            <div className="lines-mute">
-              {MUTE_GROUPS.map((g) => (
-                <label key={g.name}><input type="checkbox" checked={ui.mute.has(g.name)} onChange={() => { const m = new Set(ui.mute); if (!m.delete(g.name)) m.add(g.name); set({ mute: m }) }} /> {g.label}</label>
+          <button className="quiet" onClick={() => setPrefs({ inspect: !prefs.inspect })} aria-pressed={prefs.inspect} title="a side view that translates the selected line: every field named, with its unit and meaning (i)">Inspect</button>
+          <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints), the line kinds to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
+            <div className="lines-view">
+              <h4>Show</h4>
+              {SHOW_TOGGLES.map((t) => (
+                <label key={t.key} className="lines-view-row" title={t.title}>
+                  <input type="checkbox" checked={prefs[t.key]} onChange={() => setPrefs({ [t.key]: !prefs[t.key] })} />
+                  <span>{t.label}</span>
+                  {t.keys && <kbd>{t.keys}</kbd>}
+                </label>
               ))}
+              <label className="lines-view-row lines-view-gap" title="a tick in the gutter and a hint for an idle gap of at least this many ms before a line; 0 turns them off (t / T step through them)">
+                <span>Gap ticks from</span>
+                <input type="number" min={0} step={10} value={prefs.gapMs} aria-label="Gap ticks from this many milliseconds, 0 for none" onChange={(e) => setPrefs({ gapMs: Math.max(0, Number(e.target.value) || 0) })} />
+                <span>ms</span>
+              </label>
+              <h4>Dim</h4>
+              {MUTE_GROUPS.map((g) => (
+                <label key={g.name} className="lines-view-row" title="dim the rows of these line kinds (line counts and scrolling stay)">
+                  <input type="checkbox" checked={muteSet.has(g.name)} onChange={() => setPrefs({ mute: muteSet.has(g.name) ? prefs.mute.filter((m) => m !== g.name) : [...prefs.mute, g.name] })} />
+                  <span><i className="lines-swatch" style={{ '--tone': `var(${lineToneToken(g.kinds[0])})` } as React.CSSProperties} />{g.label}</span>
+                </label>
+              ))}
+              <h4>Folds</h4>
+              <div className="lines-view-folds">
+                <button type="button" className="quiet" onClick={() => void foldAll('binds')} title="fold every BINDS block of the file">Fold all BINDS</button>
+                <button type="button" className="quiet" onClick={() => void foldAll('stat')} title="fold every STAT dump of the file">Fold all STAT</button>
+                <button type="button" className="quiet" onClick={() => set({ folds: [] })} disabled={ui.folds.length === 0} title="show the lines of every folded block (Z)">Unfold all</button>
+              </div>
             </div>
           </ToolbarMenu>
+          <button type="button" className="quiet" onClick={() => set({ palette: true })} aria-keyshortcuts={MOD === '⌘' ? 'Meta+K' : 'Control+K'} title="search every command (Step, Search, View, Folds, Line, Go to)">Commands <small>{MOD}K</small></button>
           <ToolbarMenu label="Keys" title="keyboard shortcuts (?)" className="tbmenu-sm" open={ui.keys} onOpenChange={(keys) => set({ keys })}>
             <KeyMap />
           </ToolbarMenu>
@@ -834,23 +980,26 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             onDelete={bm?.note ? () => { actions.setBookmarkNote(file, noting, ''); setNoting(null) } : undefined} />
         )
       })()}
-      {!ui.inspect && <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} />}
+      {!prefs.inspect && <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} />}
 
-      <div className={'lines-body' + (ui.inspect ? ' with-inspect' : '')} style={ui.inspect ? ({ '--w': `${ui.inspectW}px` } as React.CSSProperties) : undefined}>
+      <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={ui.links} onRef={onRef} refTitle={refTitle} head={head} card={lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
-            onViewChange={onViewChange} side={ui.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={prefs.inspect ? undefined : lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={prefs.inspect && prefs.follow ? setHover : undefined} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
+            onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         </div>
-        {ui.inspect && <>
-          <ResizeHandle anchor="end" className="resizer-lines-inspect" label="Resize the inspector" min={256} maxFrac={0.5} onChange={(px) => set({ inspectW: px ?? 400 })} />
-          <LineInspector doc={doc} file={file} cache={cache} line={selected} at={at} decodeCtx={decodeCtx} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} onClose={() => set({ inspect: false })} />
+        {prefs.inspect && <>
+          <ResizeHandle anchor="end" className="resizer-lines-inspect" label="Resize the inspector" min={256} maxFrac={0.5} onChange={(px) => setPrefs({ inspectW: px ?? 400 })} />
+          <LineInspector doc={doc} file={file} cache={cache} line={inspectedLine} at={inspAt} decodeCtx={decodeCtx} goTo={jump} note={flash} block={inspBlock} onCopyRange={copyRange} onClose={() => setPrefs({ inspect: false })}
+            onRef={onInspectRef} follow={prefs.follow} onFollow={(v) => setPrefs({ follow: v })} />
         </>}
       </div>
 
-      {popup && <StmtPopover doc={doc} file={file} popup={popup} onClose={() => setPopup(null)} goTo={jump} />}
+      <CommandPalette open={ui.palette} commands={ui.palette ? commands() : []} dynamic={goToCommands} onClose={() => set({ palette: false })} placeholder="Type a command, or a line, #cursor, sql_id or time to go to" />
+
+      {popup && <LinePopover doc={doc} file={file} popup={popup} ctx={decodeCtx} actions={actions} onClose={() => setPopup(null)} goTo={jump} />}
 
       <div className="lines-status-bar small">
         <span className="mono">{fmtInt(selected)} / {fmtInt(total)}</span>
@@ -863,6 +1012,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               return `focus: cursor ${c ? `#${c.number}` : `id ${ui.focus}`}${s ? ` of ${doc.label(s)}` : ''} · Esc clears`
             })()}
             <button type="button" className="quiet" onClick={() => set({ focus: null })} aria-label="Clear the cursor focus" title="clear the cursor focus">×</button>
+          </span>
+        )}
+        {ui.range && rangeSum && (
+          <span className="lines-range">
+            <span>lines <b className="mono">{fmtInt(ui.range.from)}–{fmtInt(ui.range.to)}</b> · {describeRange(rangeSum)}</span>
+            <button type="button" className="quiet" onClick={copySelRange} title="copy the selected lines (y)">Copy</button>
+            <button type="button" className="quiet" onClick={() => set({ range: null })} aria-label="Clear the range" title="clear the range (Esc)">×</button>
           </span>
         )}
         {ui.folds.length > 0 && (

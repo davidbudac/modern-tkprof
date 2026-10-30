@@ -602,9 +602,10 @@ func planLineOf(m *model.Model, p *model.Plan, text []byte) int {
 // a call, a wait, a PARSING IN CURSOR block, a STAT block, a session context
 // announcement, an ERROR / PARSE ERROR or an XCTEND. Calls and waits are found
 // by binary search on the fact rows, the others in the sorted per-file lists
-// of fileInfo, so every step is O(log n). Nothing further in that direction is
-// a 404.
-func (s *Server) linesNext(_ context.Context, q url.Values) (any, error) {
+// of fileInfo, so every step is O(log n). what=gap finds the next call or wait
+// whose idle gap before it is at least `min` microseconds (see nextGap; a walk
+// over the rows). Nothing further in that direction is a 404.
+func (s *Server) linesNext(ctx context.Context, q url.Values) (any, error) {
 	_, _, f, err := s.fileParam(q)
 	if err != nil {
 		return nil, err
@@ -637,11 +638,20 @@ func (s *Server) linesNext(_ context.Context, q url.Values) (any, error) {
 		list = f.errors
 	case "commit":
 		list = f.commits
+	case "gap":
 	default:
-		return nil, bad("what: must be call, wait, cursor, plan, ctx, error or commit")
+		return nil, bad("what: must be call, wait, cursor, plan, ctx, error, commit or gap")
 	}
 	line := -1
 	switch what {
+	case "gap":
+		minGap, err := intParam(q, "min", 1_000_000, 1, 1<<62)
+		if err != nil {
+			return nil, err
+		}
+		if line, err = s.nextGap(ctx, f, from, dir, minGap); err != nil {
+			return nil, err
+		}
 	case "call", "wait":
 		rg := f.calls
 		if what == "wait" {

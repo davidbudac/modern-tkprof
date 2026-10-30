@@ -202,8 +202,21 @@
 .lines-steps { list-style: none; margin: 0; padding: 0; display: grid; }
 .lines-steps li { display: grid; grid-template-columns: auto 1fr auto; gap: 0.5em; align-items: center; }
 .lines-steps span { text-align: center; }
-.lines-mute { display: grid; gap: var(--sp-2); }
-.lines-mute label { display: flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
+/* the View menu: groups of checkbox rows (label, key), swatches for the kinds that can be dimmed */
+.lines-view { display: grid; gap: 1px; min-inline-size: 15rem; }
+.lines-view h4 { margin-block: var(--sp-2) var(--sp-1); margin-inline: 0; font-size: var(--text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lines-view h4:first-child { margin-block-start: 0; }
+.lines-view-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-2); padding-block: 2px; padding-inline: var(--sp-1); border-radius: var(--radius); white-space: nowrap; overflow: clip; cursor: pointer; }
+.lines-view-row:active { background: var(--wash); }
+.lines-view-row:has(:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
+.lines-view-row kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
+.lines-view-gap { grid-template-columns: auto auto auto; justify-content: start; cursor: default; }
+.lines-view-gap input { inline-size: 4.5rem; }
+.lines-view-folds { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.lines-swatch { display: inline-block; inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; margin-inline-end: .4em; background: var(--tone, var(--ink-3)); }
+@media (hover: hover) and (pointer: fine) {
+  .lines-view-row:hover { background: var(--wash); }
+}
 .lines-recent { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding-block: var(--sp-1); }
 .lines-chip { display: inline-flex; align-items: center; }
 .lines-chip button { padding-inline: var(--sp-2); }
@@ -243,3 +256,17 @@
 .lines-at-stack > * { flex: none; }
 .lines-at-stack .lines-at-obj { flex-wrap: wrap; }
 .lines-at-stack .lines-sql { white-space: normal; max-inline-size: none; overflow-wrap: anywhere; }
+
+/* viewer: inlays, range, gaps */
+/* hints inside the row text: never copied or selected, they do not take part in the gutter's columns */
+.lv-inlay { display: inline-block; margin-inline: 0.35em; padding-inline: 0.4em; border-radius: 3px; font-size: 0.85em; line-height: 1.25; vertical-align: baseline; color: var(--ink-3); background: color-mix(in oklch, var(--ink) 7%, transparent); user-select: none; pointer-events: none; }
+.lv-inlay-gap { color: color-mix(in oklch, var(--s-warning) 70%, var(--ink)); background: color-mix(in oklch, var(--s-warning) 16%, transparent); }
+/* the selected range of lines (a tint of the selection colour; the selected line keeps its own, stronger one) */
+.lv-range { background: color-mix(in oklch, var(--c-commit) 11%, transparent); }
+.lv-range .lv-ln { background: color-mix(in oklch, var(--c-commit) 14%, var(--surface-sunken)); }
+.lv-range.lv-sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+/* the idle gap before a line: a bar at the inline-start edge of the gutter (a wider hit area for its tooltip) */
+.lv-gap { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 7px; box-sizing: border-box; border-inline-start: 3px solid var(--s-warning); background: transparent; pointer-events: auto; }
+@media (hover: hover) and (pointer: fine) {
+  .lv-gap:hover { border-inline-start-width: 5px; }
+}

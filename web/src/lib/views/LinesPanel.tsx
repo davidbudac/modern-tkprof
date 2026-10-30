@@ -152,6 +152,8 @@ const KEYS: [string, string][] = [
   ['Enter', 'open the statement of the selected line'],
   ['m M', 'next / previous mark of the selected statement'],
   ['h', 'toggle the heat gutter'],
+  ['n', 'toggle the hints inside the rows (bind values, clock times, object names, durations, gaps)'],
+  ['t T', 'next / previous idle gap of at least the View menu\'s threshold'],
   ['z Z', 'fold / unfold the block at the selected line (BINDS, STAT dump, long SQL text) / unfold all'],
   ['] [', 'next / previous call'],
   ['w W', 'next / previous wait'],
@@ -164,9 +166,12 @@ const KEYS: [string, string][] = [
   ['f', "focus the selected line's cursor (dims the rows of other cursors)"],
   ['i', 'toggle the inspector: the selected line translated, every field named with its unit and meaning'],
   ['b', 'bookmark the selected line'],
+  ['Shift+click Shift+arrows', 'select a range of lines from the selected one (its summary is in the status bar)'],
+  ['y', 'copy the selected range'],
   ['Backspace', 'back to the line before the last jump'],
   ['F3 Shift+F3', 'next / previous search hit'],
-  ['Esc', 'cancel a running search, else clear the cursor focus'],
+  ['Esc', 'cancel a running search, else clear the range, else clear the cursor focus'],
+  ['⌘K Ctrl+K', 'the command palette: every step, search, view toggle, fold and line action, and Go to (works in the boxes too)'],
   ['?', 'this list'],
 ]
 
@@ -174,7 +179,7 @@ const KEYS: [string, string][] = [
 export function KeyMap() {
   return (
     <table className="lines-keys">
-      <caption className="small muted">With the viewer focused</caption>
+      <caption className="small muted">With the viewer focused (the command palette from anywhere in the view)</caption>
       <tbody>
         {KEYS.map(([k, what]) => (
           <tr key={k}><th scope="row">{k.split(' ').map((x, i) => <kbd key={i}>{x}</kbd>)}</th><td>{what}</td></tr>

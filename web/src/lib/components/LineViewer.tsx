@@ -6,8 +6,9 @@ import { clampTop, revealTop, scrollFromTop, scrollGeometry, topFromScroll } fro
 import { lineTone } from './colors'
 import { highlightRuns, matchSpans } from '../data/lines'
 import { elaOf, type LineDecode } from '../data/linefields'
-import { mergeHits, refRuns } from '../data/linerefs'
+import { mergeHits, refRuns, type RefRun } from '../data/linerefs'
 import { fmtDur, fmtInt } from '../data/format'
+import type { Inlay } from '../data/inlays'
 
 /** Height of a row in pixels; the rows are laid out by this component, the scroll bar only maps to the first visible line (see data/scrollmap.ts). */
 export const ROW_H = 20
@@ -33,6 +34,8 @@ export interface LineWindow { from: number; to: number }
 /** The click on a reference: the modifier keys, the pointer (viewport coordinates) and the box of the clicked link (a popup anchors at it). */
 export interface RefMods { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; x: number; y: number; anchor?: DOMRect }
 
+export type { Inlay }
+
 /** What the owner can ask of the viewer. */
 export interface ViewerApi {
   /** the line in the first visible row, 1-based */
@@ -57,6 +60,16 @@ interface Props {
   highlight?: RowHighlight | null
   /** the lines of the time window, marked in the gutter */
   range?: LineWindow | null
+  /** dim annotations inside the row text (`Inlay.at` = index in the text after which the hint is inserted; 0 inserts before, text.length appends); omit for none. Keep the function stable: rows are memoised on it, and a new one repaints them */
+  inlays?(line: number, text: string, kind: number, ids: CachedLine | undefined): Inlay[]
+  /** the selected range of lines (inclusive, from <= to), highlighted; null/omitted for none. (`range` above is the time window.) */
+  selRange?: { from: number; to: number } | null
+  /** Shift+click on a row or Shift+Arrow/Page/Home/End extend a range from the anchor (the selected line when no range) to that line; a plain click or unshifted move clears it (null) */
+  onRange?(range: { from: number; to: number } | null): void
+  /** the line under the pointer over the text (null on leave), at most once per animation frame */
+  onHover?(line: number | null): void
+  /** the idle gap before a line in µs (0/undefined none): a tick in the gutter with the duration as its title */
+  gap?(line: number): number | undefined
   /** draw the elapsed time of call and wait lines as a bar in the right gutter */
   heat?: boolean
   /** kind indexes (into `LINE_KINDS`) whose rows are dimmed; line counts and scrolling are unchanged */
@@ -98,7 +111,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, onCopy, onLink, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selRange, onRange, onHover, gap, heat, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, onCopy, onLink, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -158,6 +171,28 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     setShown(null)
   }, [])
   useEffect(() => () => window.clearTimeout(cardTimer.current), [])
+
+  // the line under the pointer for the owner: the wanted line is kept per move, the call is coalesced to one per animation frame
+  const hoverCb = useRef(onHover)
+  hoverCb.current = onHover
+  const hoverWant = useRef<number | null>(null) // the line under the pointer now
+  const hoverSent = useRef<number | null>(null) // the line the owner was told last
+  const hoverFrame = useRef(0)
+  const setHover = useCallback((n: number | null) => {
+    if (hoverWant.current === n) return
+    hoverWant.current = n
+    if (hoverFrame.current) return
+    hoverFrame.current = requestAnimationFrame(() => {
+      hoverFrame.current = 0
+      if (hoverSent.current === hoverWant.current) return
+      hoverSent.current = hoverWant.current
+      hoverCb.current?.(hoverSent.current)
+    })
+  }, [])
+  useEffect(() => () => { cancelAnimationFrame(hoverFrame.current); hoverFrame.current = 0 }, [])
+
+  // the anchor of the range selection (only meaningful while `selRange` has it as an end)
+  const anchor = useRef(0)
 
   const ensurePages = useCallback(() => {
     const x = indexRef.current, r0 = Math.floor(topRef.current)
@@ -269,7 +304,26 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       return
     }
     const hit = lineOfEvent(e)
-    if (hit && !(window.getSelection()?.toString() && !hit.gutter)) onSelect(hit.n)
+    if (hit && e.shiftKey && onRange) { extendTo(hit.n); return }
+    if (hit && !(window.getSelection()?.toString() && !hit.gutter)) {
+      if (selRange) onRange?.(null)
+      onSelect(hit.n)
+    }
+  }
+  /** The anchor of the range and the end that moves: with a range, the anchor kept from its start (it must still be an end of the range), else the selected line. */
+  const rangeEnds = (): { a: number; cur: number } => {
+    if (selRange && (anchor.current === selRange.from || anchor.current === selRange.to)) return { a: anchor.current, cur: anchor.current === selRange.from ? selRange.to : selRange.from }
+    return { a: selected, cur: selected }
+  }
+  /** Shift: the range runs from the anchor to `n`; the selection stays where it is. */
+  const extendTo = (n: number) => {
+    const { a } = rangeEnds()
+    anchor.current = a
+    onRange?.({ from: Math.min(a, n), to: Math.max(a, n) })
+  }
+  /** Shift+mouse down must not extend the browser's text selection (it would select across rows). */
+  const onMouseDown = (e: MouseEvent) => {
+    if (e.shiftKey && onRange && !(e.target as HTMLElement).closest('[data-act]')) e.preventDefault()
   }
   const onContextMenu = (e: MouseEvent) => {
     const hit = lineOfEvent(e)
@@ -279,6 +333,10 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const onPointerMove = (e: PointerEvent) => {
     if (e.pointerType === 'touch') return
     const t = e.target as HTMLElement
+    if (onHover) {
+      const r = t.closest<HTMLElement>('[data-ln]')
+      setHover(r && t.closest('.lv-tx') ? Number(r.dataset.ln) : null)
+    }
     const link = t.closest<HTMLElement>('.lv-ref')
     if (link) {
       // a reference has a tooltip of its own, not the card; it is set once, on the first move over it
@@ -308,12 +366,14 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       setShown({ line: n, x, top: r.top, bottom: r.bottom, decode })
     }, CARD_DELAY)
   }
+  const onPointerLeave = () => { hideCard(); if (onHover) setHover(null) }
   const onKeyDown = (e: KeyboardEvent) => {
     hideCard()
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const page = Math.max(1, Math.floor(rowsRef.current) - 1)
     const x = indexRef.current
-    const row = rowOfLine(selected, x) // moves step by visual row: a fold is one step
+    const ext = e.shiftKey && !!onRange // Shift extends the range from the end that is not the anchor
+    const row = rowOfLine(ext ? rangeEnds().cur : selected, x) // moves step by visual row: a fold is one step
     let to: number
     switch (e.key) {
       case 'ArrowDown': to = row + 1; break
@@ -328,7 +388,11 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     e.preventDefault()
     to = lineOfRow(Math.min(Math.max(0, vtotal - 1), Math.max(0, to)), x)
     to = Math.min(Math.max(1, total), Math.max(1, to))
-    onSelect(to)
+    if (ext) extendTo(to)
+    else {
+      if (selRange) onRange?.(null)
+      onSelect(to)
+    }
     apiRef.current?.reveal(to, 'nearest')
   }
 
@@ -341,10 +405,11 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const l = cache.line(n)
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
     const ela = heat && l && (l.kind === K_CALL || l.kind === K_WAIT) ? elaOf(l.text, LINE_KINDS[l.kind]) : -1
-    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} />)
+    const inRange = !!selRange && n >= selRange.from && n <= selRange.to
+    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} />)
   }
   const digits = String(Math.max(total, 1000)).length
-  const hover = card || refTitle
+  const hover = card || refTitle || onHover
   return (
     <div className="lv-box" style={{ '--lv-row': `${ROW_H}px` } as React.CSSProperties}>
       <div className="lv-box-col">
@@ -354,8 +419,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
         : <div className="lv-head" aria-hidden="true" />)}
       <div className={'lv' + (wrap ? ' lv-wrap' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={vtotal}
         style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
-        onScroll={onScroll} onClick={onClick} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
-        onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? hideCard : undefined}>
+        onScroll={onScroll} onClick={onClick} onMouseDown={onRange ? onMouseDown : undefined} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
+        onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? onPointerLeave : undefined}>
         <div className="lv-inner" style={{ height: geo.scrollH }}>
           <div className="lv-view" style={{ height: h }}>
             <div className="lv-layer" ref={layer}>{rows}</div>
@@ -372,8 +437,16 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win, muted, dim, refs, acts, fold, foldable }: {
+const Row = memo(function Row({ n, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, acts, fold, foldable }: {
   n: number; text: string | undefined; kind: number
+  /** the line's cached ids, given to `inlays` (undefined when there is no `inlays`) */
+  ids: CachedLine | undefined
+  /** the owner's hints function (a new function repaints the rows) */
+  inlays?: Props['inlays']
+  /** the idle gap before the line in µs, 0 for none */
+  gap: number
+  /** inside the selected range */
+  inRange: boolean
   /** the elapsed µs of a call or wait line, -1 for none (no bar) */
   heat: number
   mk: number; sel: boolean; bm: boolean; note?: string; hl?: RowHighlight
@@ -393,18 +466,18 @@ const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win,
   foldable: boolean
 }) {
   const cut = text !== undefined && text.length > MAX_TEXT
-  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '')
+  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '') + (inRange ? ' lv-range' : '')
     + (win & WIN_IN ? ' lv-win' : '') + (win & WIN_START ? ' lv-win-start' : '') + (win & WIN_END ? ' lv-win-end' : '')
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
-      <span className="lv-ln" title={note}>{n}</span>
+      <span className="lv-ln" title={note}>{n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}</span>
       {/* a slot of its own in every row, so the text does not shift between rows with and without a handle */}
       <span className="lv-fh">
         {fold !== null
           ? <button type="button" className="lv-fold" data-act="fold" aria-expanded={false} aria-label={`Unfold line ${n}: ${fold}`} title={`unfold: ${fold} (z)`}>▸</button>
           : foldable && <button type="button" className="lv-fold" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}
       </span>
-      <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl || refs ? marked(text, kind, hl, refs) : text || ' '}{fold !== null && <span className="lv-fold-sum">{fold}</span>}</span>
+      <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl || refs || inlays ? marked(text, kind, hl, refs, inlays?.(n, text, kind, ids)) : text || ' '}{fold !== null && <span className="lv-fold-sum">{fold}</span>}</span>
       {/* a fixed-width gutter at the row's end in every row: the text of the selected row is never laid under its actions */}
       <span className="lv-gut">
         {acts > 0 && (
@@ -454,20 +527,50 @@ function LineCard({ at }: { at: CardAt }) {
 }
 
 
-/** The line's text with the matches of the search wrapped in <mark> and, with `refs`, its references as links (hits inside a link stay inside it). */
-function marked(text: string, kind: number, hl: RowHighlight | undefined, refs: boolean) {
+/** One run of the text: plain, a search hit, a reference link (a hit inside a link stays inside it). */
+function runNode(r: RefRun, i: number) {
+  const inner = r.hit ? <mark>{r.text}</mark> : r.text
+  return r.ref
+    ? <a key={`${i}${r.ref.kind}${r.ref.value}`} className={`lv-ref lv-ref-${r.ref.kind}`} data-act="ref" data-ref={`${r.ref.kind}:${r.ref.value}`}>{inner}</a>
+    : r.hit ? <mark key={i}>{r.text}</mark> : r.text
+}
+
+const inlayNode = (h: Inlay, i: number) => <span key={`i${i}`} className={`lv-inlay lv-inlay-${h.kind}`} aria-hidden="true">{h.text}</span>
+
+/**
+ * The line's text with the matches of the search wrapped in <mark> and, with `refs`, its references as links (hits inside a link stay inside it);
+ * `ins` (hints, any order) are inserted at their offsets: a run is split where a hint falls inside it.
+ */
+function marked(text: string, kind: number, hl: RowHighlight | undefined, refs: boolean, ins?: Inlay[]) {
   const spans = hl ? matchSpans(text, hl.q, hl.regex, hl.caseSensitive) : []
-  if (!refs) {
-    if (spans.length === 0) return text || ' '
-    return highlightRuns(text, spans).map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text))
+  if (!ins || ins.length === 0) {
+    if (!refs) {
+      if (spans.length === 0) return text || ' '
+      return highlightRuns(text, spans).map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text))
+    }
+    const runs = mergeHits(refRuns(text, LINE_KINDS[kind]), spans)
+    if (runs.length === 0) return ' '
+    if (runs.length === 1 && !runs[0].ref && !runs[0].hit) return text
+    return runs.map(runNode)
   }
-  const runs = mergeHits(refRuns(text, LINE_KINDS[kind]), spans)
-  if (runs.length === 0) return ' '
-  if (runs.length === 1 && !runs[0].ref && !runs[0].hit) return text
-  return runs.map((r, i) => {
-    const inner = r.hit ? <mark>{r.text}</mark> : r.text
-    return r.ref
-      ? <a key={`${i}${r.ref.kind}${r.ref.value}`} className={`lv-ref lv-ref-${r.ref.kind}`} data-act="ref" data-ref={`${r.ref.kind}:${r.ref.value}`}>{inner}</a>
-      : r.hit ? <mark key={i}>{r.text}</mark> : r.text
-  })
+  const runs: RefRun[] = refs ? mergeHits(refRuns(text, LINE_KINDS[kind]), spans) : spans.length ? highlightRuns(text, spans) : [{ text }]
+  const sorted = ins.map((h) => ({ ...h, at: Math.min(text.length, Math.max(0, h.at)) })).sort((a, b) => a.at - b.at)
+  const out: ReactNode[] = []
+  let h = 0, at = 0 // next hint, offset of the current run's start
+  let k = 0
+  for (const r of runs) {
+    const end = at + r.text.length
+    let pos = at
+    for (; h < sorted.length && sorted[h].at < end; h++) {
+      const cut = Math.max(pos, sorted[h].at)
+      if (cut > pos) out.push(runNode({ ...r, text: r.text.slice(pos - at, cut - at) }, k++))
+      pos = cut
+      out.push(inlayNode(sorted[h], h))
+    }
+    if (pos < end || r.text === '') out.push(runNode(pos === at ? r : { ...r, text: r.text.slice(pos - at) }, k++))
+    at = end
+  }
+  for (; h < sorted.length; h++) out.push(inlayNode(sorted[h], h)) // at the end of the text
+  if (text === '') out.push(' ')
+  return out
 }

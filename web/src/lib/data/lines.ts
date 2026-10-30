@@ -4,6 +4,7 @@ import type { TraceDoc } from './doc'
 import type { Scope } from '../state/store'
 import type { ID } from './types'
 import type { BindKind, BindRow } from './derive'
+import type { Fold } from './folds'
 
 /** Raw trace lines come from `mtkprof serve` (GET /api/lines); the standalone HTML has no server to ask. */
 
@@ -123,15 +124,34 @@ export async function objectsAt(client: ApiClient, file: number, line: number, s
 }
 
 /** The structural elements `nextLine` steps over (api/engine.openapi.yaml `lines/next`). */
-export type NextWhat = 'call' | 'wait' | 'cursor' | 'plan' | 'ctx' | 'error' | 'commit'
+export type NextWhat = 'call' | 'wait' | 'cursor' | 'plan' | 'ctx' | 'error' | 'commit' | 'gap'
 
-/** The first line strictly after (`dir` 1) or before (-1) `from` that holds `what`, or null when there is none in that direction. */
-export async function nextLine(client: ApiClient, file: number, from: number, what: NextWhat, dir: 1 | -1, signal?: AbortSignal): Promise<number | null> {
-  const res = await client.fetch(`/api/lines/next?file=${file}&from=${from}&what=${what}&dir=${dir}`, { signal })
+/** The first line strictly after (`dir` 1) or before (-1) `from` that holds `what`, or null when there is none in that direction. `min` (µs) is the least idle gap of `what` = 'gap'. */
+export async function nextLine(client: ApiClient, file: number, from: number, what: NextWhat, dir: 1 | -1, signal?: AbortSignal, min?: number): Promise<number | null> {
+  const res = await client.fetch(`/api/lines/next?file=${file}&from=${from}&what=${what}&dir=${dir}${min === undefined ? '' : `&min=${Math.round(min)}`}`, { signal })
   if (res.status === 404) return null
   if (!res.ok) throw await failure(res)
   const r = (await res.json()) as { line?: number }
   return typeof r.line === 'number' ? r.line : null
+}
+
+/** The blocks `linesBlocks` lists: BINDS blocks (the `BINDS #` line and its `bind` lines) or STAT dumps. */
+export type BlockWhat = 'binds' | 'stat'
+
+/** Every block of a kind in `file` (`api/lines/blocks`): `[from, to]` pairs (1-based, inclusive, sorted); `truncated` when the engine stopped at its limit (20,000). */
+export async function linesBlocks(client: ApiClient, file: number, what: BlockWhat, signal?: AbortSignal): Promise<{ blocks: [number, number][]; truncated: boolean }> {
+  const res = await client.fetch(`/api/lines/blocks?file=${file}&what=${what}`, { signal })
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as { blocks?: [number, number][]; truncated?: boolean }
+  return { blocks: (r.blocks ?? []).filter((b) => b[0] >= 1 && b[1] >= b[0]), truncated: !!r.truncated }
+}
+
+/** The existing folds with the `added` ones that overlap none of them (nor each other), sorted by first line. */
+export function mergeFolds(existing: readonly Fold[], added: readonly Fold[]): Fold[] {
+  const out = [...existing].sort((a, b) => a.from - b.from)
+  const hit = (f: Fold) => out.some((o) => f.from <= o.to && o.from <= f.to)
+  for (const f of [...added].sort((a, b) => a.from - b.from)) if (!hit(f)) out.push(f)
+  return out.sort((a, b) => a.from - b.from)
 }
 
 export interface SearchQuery { file: number; q: string; regex: boolean; caseSensitive: boolean; from: number; limit: number }

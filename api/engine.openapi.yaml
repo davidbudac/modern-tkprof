@@ -1004,9 +1004,17 @@ paths:
         included), `wait`, `cursor` (a PARSING IN CURSOR block; implicit cursors
         have none), `plan` (the first line of a STAT block), `ctx` (a session
         context announcement), `error` (ERROR and PARSE ERROR lines) or `commit`
-        (XCTEND lines). Binary searches over the fact rows and the sorted
-        per-file lists, so every step is O(log n); no text is scanned. 404 when
-        there is nothing further in that direction.
+        (XCTEND lines) or `gap` (a call or wait row with an idle gap before it of
+        at least `min` µs). Binary searches over the fact rows and the sorted
+        per-file lists, so every step is O(log n) and no text is scanned; `gap`
+        walks the rows from `from` (O(rows)). The gap of a row with tim T and
+        duration D (a call's `e`, a wait's `ela`) is (T - D) - T' (negative gaps
+        are 0). T' is the tim of the previous call row of the file for a call
+        (the WAIT lines of a call are printed before the call line, so the wait
+        just above would hide the idle time) and the tim of the previous row of
+        either kind, in line order, for a wait. A row with no such row before
+        it has no gap. 404 when there is
+        nothing further in that direction.
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - $ref: "#/components/parameters/File"
@@ -1021,7 +1029,14 @@ paths:
           required: true
           schema:
             type: string
-            enum: [call, wait, cursor, plan, ctx, error, commit]
+            enum: [call, wait, cursor, plan, ctx, error, commit, gap]
+        - name: min
+          in: query
+          description: for `what=gap`, the smallest gap in µs (> 0); default 1000000
+          schema:
+            type: integer
+            minimum: 1
+            default: 1000000
         - name: dir
           in: query
           required: true
@@ -1044,6 +1059,42 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           description: no such session (envelope), no such file or nothing further in that direction (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/lines/blocks:
+    get:
+      operationId: sessionLinesBlocks
+      summary: The foldable blocks of one kind in a file
+      description: |
+        `stat`: every plan dump of the file, `[first STAT line, last STAT line]`.
+        `binds`: every BINDS block of the file (the bind sets owned by its
+        calls), from the `BINDS #N:` header to the last line that belongs to the
+        block: bind lines and the unrecognised or blank lines that continue them
+        (memory dump rows, multi-line values); trailing blank lines are left
+        out, at most 4096 lines per block. The blocks are sorted and do not
+        overlap; at most 20000 are answered, `truncated` says there were more.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: what
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [binds, stat]
+      responses:
+        "200":
+          description: BlocksAnswer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlocksAnswer"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope) or no such file (plain text)
         "409":
           $ref: "#/components/responses/Conflict"
   /s/{id}/api/lines/profile:
@@ -2350,6 +2401,22 @@ components:
           type: integer
         maxWaits:
           type: integer
+    BlocksAnswer:
+      type: object
+      required: [blocks, truncated]
+      properties:
+        blocks:
+          type: array
+          description: sorted 1-based inclusive line ranges [from, to]
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: integer
+        truncated:
+          type: boolean
+          description: more than 20000 blocks existed; the rest is left out
     AtAnswer:
       type: object
       description: ids are -1 where absent

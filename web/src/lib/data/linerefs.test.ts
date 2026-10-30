@@ -26,10 +26,19 @@ describe('refRuns', () => {
   it('links the cursor and the plan hash of a call line', () => {
     expect(refs(refRuns(FETCH, 'call'))).toEqual(['cursor:140124363549808=#140124363549808', 'plh:1426583507=plh=1426583507'])
   })
-  it('links the cursor and obj# of a wait line, not #aio or obj#=-1', () => {
-    expect(refs(refRuns(WAIT, 'wait'))).toEqual(['cursor:139745604251096=#139745604251096', 'obj:108611=obj#=108611'])
-    expect(refs(refRuns(WAIT_NONE, 'wait'))).toEqual(['cursor:139745605258360=#139745605258360'])
+  it('links the cursor, the event and obj# of a wait line, not #aio or obj#=-1', () => {
+    expect(refs(refRuns(WAIT, 'wait'))).toEqual(['cursor:139745604251096=#139745604251096', 'event:asynch descriptor resize=asynch descriptor resize', 'obj:108611=obj#=108611'])
+    expect(refs(refRuns(WAIT_NONE, 'wait'))).toEqual(['cursor:139745605258360=#139745605258360', 'event:SQL*Net message from client=SQL*Net message from client'])
     expect(join(refRuns(WAIT, 'wait'))).toBe(WAIT)
+  })
+  it('cuts the event name out of the quotes of nam=, quotes excluded, on wait lines only', () => {
+    const runs = refRuns(WAIT_NONE, 'wait')
+    expect(runs.map((r) => r.text).join('')).toBe(WAIT_NONE)
+    const ev = runs.findIndex((r) => r.ref?.kind === 'event')
+    expect(runs[ev - 1].text.endsWith("nam='")).toBe(true)
+    expect(runs[ev + 1].text.startsWith("' ela=")).toBe(true)
+    expect(refs(refRuns(WAIT_NONE, 'unknown'))).toEqual([])
+    expect(refs(refRuns("WAIT #1: nam='' ela= 1", 'wait'))).toEqual(['cursor:1=#1'])
   })
   it('links the cursor and obj of a STAT line', () => {
     const runs = refRuns(STAT, 'stat')

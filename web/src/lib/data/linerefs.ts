@@ -1,7 +1,7 @@
 import type { LineKind } from './lines'
 
-/** What a reference run names: a cursor number, a sql_id, an obj# and a plan hash value. */
-export type RefKind = 'cursor' | 'sqlid' | 'obj' | 'plh'
+/** What a reference run names: a cursor number, a sql_id, an obj#, a plan hash value and (on WAIT lines) a wait event name. */
+export type RefKind = 'cursor' | 'sqlid' | 'obj' | 'plh' | 'event'
 
 /** A piece of one line's text: plain, or a reference to something the model knows, and/or a search hit. */
 export interface RefRun { text: string; ref?: { kind: RefKind; value: string }; hit?: boolean }
@@ -13,12 +13,14 @@ const cursorRe = /(^|\s)#(\d+)/
 const sqlidRe = /\bsqlid='([0-9a-z]{13})'/g
 const objRe = /\bobj#?=(\d+)/g
 const plhRe = /\bplh=(\d+)/g
+const eventRe = /^(WAIT\s+#\d+:\s*nam=')(.+?)'\s+ela=/
 
 interface Found { a: number; b: number; kind: RefKind; value: string }
 
 /**
  * One line of the trace cut into plain runs and reference runs, which concatenate to `text`:
- * the cursor `#N` (on the kinds that start with it), the 13 characters of `sqlid='…'`, `obj#=N` / `obj=N` and `plh=N` (N above 0).
+ * the cursor `#N` (on the kinds that start with it), the 13 characters of `sqlid='…'`, `obj#=N` / `obj=N`, `plh=N` (N above 0)
+ * and the event name between the quotes of `nam='…'` on a WAIT line.
  */
 export function refRuns(text: string, kind: LineKind): RefRun[] {
   if (text === '') return []
@@ -26,6 +28,10 @@ export function refRuns(text: string, kind: LineKind): RefRun[] {
   if (CURSOR_KINDS.has(kind)) {
     const m = cursorRe.exec(text)
     if (m) found.push({ a: m.index + m[1].length, b: m.index + m[0].length, kind: 'cursor', value: m[2] })
+  }
+  if (kind === 'wait') {
+    const m = eventRe.exec(text)
+    if (m) found.push({ a: m[1].length, b: m[1].length + m[2].length, kind: 'event', value: m[2] })
   }
   for (const m of text.matchAll(sqlidRe)) found.push({ a: m.index + m[0].length - 14, b: m.index + m[0].length - 1, kind: 'sqlid', value: m[1] })
   for (const m of text.matchAll(objRe)) if (Number(m[1]) > 0) found.push({ a: m.index, b: m.index + m[0].length, kind: 'obj', value: m[1] })

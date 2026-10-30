@@ -251,3 +251,22 @@ describe('elaOf', () => {
     expect(elaOf('PARSE #1:c=1', 'call')).toBe(-1)
   })
 })
+
+describe('decodeLine gap before', () => {
+  const gapCtx: DecodeContext = { gapBefore: (n) => (n === 5 ? { us: 2500, fromLine: 3 } : undefined) }
+  const FIELD = {
+    label: 'Gap before', value: '2.50 ms', hint: 'idle since line 3',
+    desc: 'time between the end of the previous call or wait and the start of this one',
+  }
+  it('appends the derived field of a call and a wait in verbose mode', () => {
+    expect(decodeLine(EXEC, 'call', gapCtx, { verbose: true, line: 5 })!.fields.at(-1)).toEqual(FIELD)
+    expect(decodeLine(WAIT, 'wait', gapCtx, { verbose: true, line: 5 })!.fields.at(-1)).toEqual(FIELD)
+  })
+  it('leaves the card alone without verbose, a line number, a gap or for other kinds', () => {
+    const none = (d: LineDecode | null) => d!.fields.some((x) => x.label === 'Gap before')
+    expect(none(decodeLine(EXEC, 'call', gapCtx, { line: 5 }))).toBe(false)
+    expect(none(decodeLine(EXEC, 'call', gapCtx, { verbose: true }))).toBe(false)
+    expect(none(decodeLine(EXEC, 'call', gapCtx, { verbose: true, line: 6 }))).toBe(false)
+    expect(none(decodeLine(XCTEND, 'xctend', gapCtx, { verbose: true, line: 5 }))).toBe(false)
+  })
+})

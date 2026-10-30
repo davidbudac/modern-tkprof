@@ -1,61 +1,31 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { TraceDoc } from '../data/doc'
 import { stmtLineIn } from '../data/lines'
 import { fmtDur, fmtInt } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { useActions, useStore } from '../state/session'
-import { placePopup } from './popoverPlace'
+import { usePopover } from './usePopover'
+
+/** Where a popup opens: the click point and, when the reference is known, its box. */
+export interface PopupAnchor { x: number; y: number; rect?: DOMRect }
 
 /** A statement popup asked for by a click on a reference in a row: the statement, the cursor the reference named, where it was clicked and on which line. */
-export interface StmtPopup { stmt: number; cursor?: number; anchor: { x: number; y: number; rect?: DOMRect }; line: number }
+export interface StmtPopup { stmt: number; cursor?: number; anchor: PopupAnchor; line: number }
 
 /**
  * The statement behind a reference in a row: its SQL and a summary, with the way on to the Statements view.
- * A fixed layer on `document.body` under the clicked reference (above it when the viewport ends first); closes on Esc, a click outside,
- * a scroll or a wheel outside it, and a resize. Focus goes to the first action and back to where it was.
+ * A fixed layer on `document.body` placed and closed by `usePopover`.
  */
 export function StmtPopover({ doc, file, popup, onClose, goTo }: { doc: TraceDoc; file: number; popup: StmtPopup; onClose(): void; goTo(line: number): void }) {
   const actions = useActions()
   const marked = useStore((s) => s.selection.stmt)
-  const root = useRef<HTMLDivElement>(null)
-  const closeRef = useRef(onClose)
-  closeRef.current = onClose
   const [copied, setCopied] = useState(false)
   const st = doc.statements[popup.stmt]
   const cur = popup.cursor !== undefined ? doc.cursors[popup.cursor] : undefined
   const stats = st ? doc.stats.statements[st.id] : undefined
 
-  useLayoutEffect(() => {
-    const el = root.current
-    if (!el) return
-    const p = placePopup(popup.anchor, { w: el.offsetWidth, h: el.offsetHeight }, { w: window.innerWidth, h: window.innerHeight })
-    el.style.setProperty('--x', `${p.left}px`)
-    el.style.setProperty('--y', `${p.top}px`)
-  }, [popup])
-
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null
-    root.current?.querySelector<HTMLElement>('button[data-first]')?.focus({ preventScroll: true })
-    const inside = (t: EventTarget | null) => t instanceof Node && !!root.current?.contains(t)
-    const onDown = (e: PointerEvent) => { if (!inside(e.target)) closeRef.current() }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); closeRef.current() } }
-    const onMove = (e: Event) => { if (!inside(e.target)) closeRef.current() }
-    const onResize = () => closeRef.current()
-    document.addEventListener('pointerdown', onDown)
-    document.addEventListener('keydown', onKey, true)
-    window.addEventListener('scroll', onMove, true)
-    window.addEventListener('wheel', onMove, { capture: true, passive: true })
-    window.addEventListener('resize', onResize)
-    return () => {
-      document.removeEventListener('pointerdown', onDown)
-      document.removeEventListener('keydown', onKey, true)
-      window.removeEventListener('scroll', onMove, true)
-      window.removeEventListener('wheel', onMove, true)
-      window.removeEventListener('resize', onResize)
-      if (before && before.isConnected) before.focus({ preventScroll: true })
-    }
-  }, [])
+  const root = usePopover(popup.anchor, onClose, [popup])
 
   const copyTimer = useRef(0)
   useEffect(() => () => window.clearTimeout(copyTimer.current), [])

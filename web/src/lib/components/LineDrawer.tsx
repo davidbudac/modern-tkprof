@@ -7,8 +7,9 @@ import { fmtInt, preview } from '../data/format'
 import { decodeContextOf, lineCardOf, refClickOf, refTitleOf, useLineAt } from '../views/linesShared'
 import { LinesAt } from '../views/LinesAt'
 import { useActions, useClient, useStore } from '../state/session'
+import { useLinesPrefs } from '../state/linesPrefs'
 import { LineViewer, type ViewerApi } from './LineViewer'
-import { StmtPopover, type StmtPopup } from './StmtPopover'
+import { LinePopover, type LinePopup } from './LinePopover'
 import '../styles/lines.css'
 
 /** pages of annotated lines kept for the drawer */
@@ -67,10 +68,11 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
   const rev = useStore((s) => s.rev)
   const side = useStore((s) => (s.compare ? s.side : undefined)) // `mtkprof serve a b -compare` serves the lines of either side
   const [, bump] = useReducer((x: number) => x + 1, 0)
+  const [prefs] = useLinesPrefs() // wrap, heat and references follow the Lines view's toggles
   const [selected, setSelected] = useState(target)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  const [popup, setPopup] = useState<StmtPopup | null>(null)
+  const [popup, setPopup] = useState<LinePopup | null>(null)
   const apiRef = useRef<ViewerApi | null>(null)
   const topRef = useRef(0)
   const hub = useRef<ViewHub>({ last: { top: 1, rows: 0 }, subs: new Set() }).current
@@ -128,13 +130,13 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
       </div>
       <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={goTo} note={flash} />
       <div className="linedrawer-body">
-        <LineViewer cache={cache} marks={NO_MARKS} bookmarks={bmSet} selected={selected} wrap={false} heat links onRef={onRef} refTitle={refTitle} card={lineCard}
+        <LineViewer cache={cache} marks={NO_MARKS} bookmarks={bmSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} links={prefs.links} onRef={onRef} refTitle={refTitle} card={lineCard}
           onViewChange={onViewChange} apiRef={apiRef} topRef={topRef} onSelect={setSelected} onBookmark={toggleBookmark} onError={setLoadError} />
         {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
         {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         {total > 0 && target > total && <p className="lines-overlay muted">Line {fmtInt(target)} is past the end of the file ({fmtInt(total)} lines)</p>}
       </div>
-      {popup && <StmtPopover doc={doc} file={file} popup={popup} onClose={() => setPopup(null)} goTo={goTo} />}
+      {popup && <LinePopover doc={doc} file={file} popup={popup} ctx={decodeCtx} actions={actions} onClose={() => setPopup(null)} goTo={goTo} />}
     </aside>
   )
 }
