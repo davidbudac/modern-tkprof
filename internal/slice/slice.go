@@ -107,7 +107,7 @@ func bad(format string, a ...any) error { return badRequest(fmt.Sprintf(format, 
 
 // Handler returns the mux of the endpoints; CORS is open like /api/doc (the
 // dev server of `pnpm dev` loads the document from this one). With WithLines
-// set it also serves /api/lines (incl. annot=1 and annot=2), /api/lines/at, /api/lines/next,
+// set it also serves /api/lines (incl. annot=1 and annot=2), /api/lines/at, /api/lines/next, /api/lines/profile,
 // /api/at and /api/search.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -134,7 +134,7 @@ func Endpoints() []string {
 
 // LineEndpoints are the paths Handler serves in addition when WithLines is set.
 func LineEndpoints() []string {
-	return []string{"/api/at", "/api/lines", "/api/lines/at", "/api/lines/next", "/api/search"}
+	return []string{"/api/at", "/api/lines", "/api/lines/at", "/api/lines/next", "/api/lines/profile", "/api/search"}
 }
 
 func (s *Server) routes() map[string]func(context.Context, url.Values) (any, error) {
@@ -160,6 +160,7 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 	if s.lis != nil {
 		routes["/api/lines/at"] = s.linesAt
 		routes["/api/lines/next"] = s.linesNext
+		routes["/api/lines/profile"] = s.linesProfile
 		routes["/api/at"] = s.at
 	}
 	return routes

@@ -1046,6 +1046,46 @@ paths:
           description: no such session (envelope), no such file or nothing further in that direction (plain text)
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/lines/profile:
+    get:
+      operationId: sessionLinesProfile
+      summary: Per-bucket density of a file's lines (the Lines view strip)
+      description: |
+        The file cut into `buckets` runs of `size = ceil(total/buckets)` lines
+        (bucket i covers lines `i*size+1 .. min(total, (i+1)*size)`) with, per
+        bucket, the number of calls, waits, cursor parses (PARSING IN CURSOR
+        blocks; implicit cursors have none), errors (ERROR and PARSE ERROR) and
+        commits (XCTEND) on its lines. A file with fewer lines than `buckets`
+        gets one bucket per line (`size` 1); when `size` does not divide `total`
+        the last buckets may be empty. An empty file answers `total`, `buckets`
+        and `size` 0 and empty arrays. Binary searches at the bucket edges over
+        the fact rows and the sorted per-file lists: no text is scanned.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: buckets
+          in: query
+          description: number of buckets, 1..2000; default 200
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 200
+      responses:
+        "200":
+          description: LinesProfile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinesProfile"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope) or no such file (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
   /s/{id}/api/at:
     get:
       operationId: sessionAt
@@ -2268,6 +2308,46 @@ components:
               w:
                 type: integer
                 description: annot=2 only. Wait id (-1 where none)
+    LinesProfile:
+      type: object
+      description: |
+        Per-bucket counts of one file; every array has `buckets` entries.
+        Bucket i covers lines `i*size+1 .. min(total, (i+1)*size)`.
+      required: [total, buckets, size, calls, waits, cursors, errors, commits, maxCalls, maxWaits]
+      properties:
+        total:
+          type: integer
+          description: the line count of the file
+        buckets:
+          type: integer
+          description: the number of buckets, min(requested, total)
+        size:
+          type: integer
+          description: lines per bucket, ceil(total/buckets)
+        calls:
+          type: array
+          items:
+            type: integer
+        waits:
+          type: array
+          items:
+            type: integer
+        cursors:
+          type: array
+          items:
+            type: integer
+        errors:
+          type: array
+          items:
+            type: integer
+        commits:
+          type: array
+          items:
+            type: integer
+        maxCalls:
+          type: integer
+        maxWaits:
+          type: integer
     AtAnswer:
       type: object
       description: ids are -1 where absent
