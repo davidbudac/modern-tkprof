@@ -1,4 +1,4 @@
-import { useMemo, useRef, type CSSProperties, type MouseEvent } from 'react'
+import { useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { FileEntry } from '../data/types'
 import { fmtBytes, fmtCompact, fmtDur, fmtPct, fmtWall } from '../data/format'
@@ -6,6 +6,7 @@ import { clickFile, fileCount, fileTree, invert, isSelected, selectedCount } fro
 import { shareTotals, useFileShares, type FileShare } from '../data/fileshares'
 import { filesPanelOpen } from '../state/store'
 import { useStore, useActions } from '../state/session'
+import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import { PaneToggle } from '../components/PaneToggle'
 import { FileStatus } from '../components/FileStatus'
 import { ResizeHandle } from '../components/ResizeHandle'
@@ -38,6 +39,7 @@ export function FilesPanel({ doc }: { doc: TraceDoc }) {
     return m
   }, [doc])
   const anchor = useRef<number | null>(null)
+  const [selectOpen, setSelectOpen] = useState(false)
   const totals = useMemo(() => shareTotals(doc, shares), [doc, shares])
   const maxResp = useMemo(() => shares.reduce((a, s) => Math.max(a, s ? s.responseUs : 0), 0), [shares])
   const n = fileCount(doc)
@@ -52,13 +54,18 @@ export function FilesPanel({ doc }: { doc: TraceDoc }) {
   return (
     <aside className="files-panel" aria-label="Input files">
       <div className="files-head">
-        <div className="t"><h2>Files</h2><span className="dim" aria-live="polite">{filesLabel(doc, files)}</span></div>
-        <div className="opts">
-          <button onClick={() => actions.setFiles(null)} disabled={files === null}>All</button>
-          <button onClick={() => actions.setFiles(new Set())} disabled={files !== null && files.size === 0}>None</button>
-          <button onClick={() => actions.setFiles(invert(doc, files))}>Invert</button>
+        <div className="t">
+          <h2>Files</h2>
+          <span className="dim" aria-live="polite">{filesLabel(doc, files)}</span>
+          <ToolbarMenu label="Select" title="which files the views show" className="tbmenu-sm" open={selectOpen} onOpenChange={setSelectOpen}>
+            <div className="tb-items">
+              <MenuItem onClick={() => { actions.setFiles(null); setSelectOpen(false) }} disabled={files === null}>All</MenuItem>
+              <MenuItem onClick={() => { actions.setFiles(new Set()); setSelectOpen(false) }} disabled={files !== null && files.size === 0}>None</MenuItem>
+              <MenuItem onClick={() => { actions.setFiles(invert(doc, files)); setSelectOpen(false) }}>Invert</MenuItem>
+            </div>
+            <p className="tb-hint">Click a name: only that file. Cmd/Ctrl-click: toggle. Shift-click: range.</p>
+          </ToolbarMenu>
         </div>
-        <p className="xs dim">click: only this file · ⌘/Ctrl-click: toggle · Shift-click: range</p>
       </div>
       <ul className="files-list">
         {tree.map((node) => {

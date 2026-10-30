@@ -13,6 +13,7 @@ import { lightFill } from '../components/colors'
 import { Findings, findingText } from './Findings'
 import { Lanes, type LaneColor } from './Lanes'
 import { Minimap } from '../components/Minimap'
+import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import { WindowBar } from '../components/WindowBar'
 import { NONE, type StmtStats } from '../data/types'
 import { scopeKey, useScope, useScopedStatements, type ScopedStatements } from '../data/scopedstmts'
@@ -41,6 +42,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   const [timeView, setTimeView] = useState<'lanes' | 'event' | 'class'>('lanes')
   const [laneColor, setLaneColor] = useState<LaneColor>('phase')
   const [laneWaits, setLaneWaits] = useState(false)
+  const [showOpen, setShowOpen] = useState(false)
   return (
     <>
       <section className="hero">
@@ -59,13 +61,14 @@ export function Overview({ doc }: { doc: TraceDoc }) {
         <header><h2>Timeline</h2>
           <span className="hint">{timeView === 'lanes' ? 'lane per statement, by first call · drag: set window · click a block: window it · double-click: open · Esc: clear' : 'busy time per bucket · slider: set window · Esc: clear'}</span>
           <span className="tools">
-            {timeView === 'lanes' && <span className="seg" role="group" aria-label="Color lanes by">
-              <button aria-pressed={laneColor === 'phase'} onClick={() => setLaneColor('phase')} title="PARSE / EXEC / FETCH / CLOSE / other">phase</button>
-              <button aria-pressed={laneColor === 'resource'} onClick={() => setLaneColor('resource')} title="the statement's dominant resource">resource</button>
-            </span>}
-            {timeView === 'lanes' && <span className="seg" role="group" aria-label="Wait strips">
-              <button aria-pressed={laneWaits} onClick={() => setLaneWaits((v) => !v)} title="a strip of the wait events under each lane">waits</button>
-            </span>}
+            <ToolbarMenu label="Show" badge={laneWaits ? 'waits' : undefined} disabled={timeView !== 'lanes'} title={timeView === 'lanes' ? 'how the lanes are coloured, and the wait strips under them' : 'the lane options apply to the lanes view'} className="tbmenu-sm" open={showOpen} onOpenChange={setShowOpen}>
+              <div className="tb-items">
+                <MenuItem on={laneColor === 'phase'} onClick={() => setLaneColor('phase')} title="PARSE / EXEC / FETCH / CLOSE / other">Colour by phase</MenuItem>
+                <MenuItem on={laneColor === 'resource'} onClick={() => setLaneColor('resource')} title="the statement's dominant resource">Colour by resource</MenuItem>
+                <div className="tb-sep" role="separator" />
+                <MenuItem on={laneWaits} onClick={() => setLaneWaits((v) => !v)} title="a strip of the wait events under each lane">Wait strips</MenuItem>
+              </div>
+            </ToolbarMenu>
             <span className="seg" role="group" aria-label="Time view">
             <button aria-pressed={timeView === 'lanes'} onClick={() => setTimeView('lanes')}>lanes</button>
             <button aria-pressed={timeView === 'event'} onClick={() => setTimeView('event')} title="top 10 events, rest folded">by event</button>

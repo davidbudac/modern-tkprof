@@ -166,8 +166,6 @@ button[aria-pressed="true"] .cue { color: inherit; opacity: 0.7; }
 .section > header h2 { font-size: var(--text-lg); font-weight: 600; }
 .section > header .hint { color: var(--ink-2); font-size: var(--text-sm); }
 .section > header .tools { margin-inline-start: auto; display: flex; gap: var(--sp-2); align-items: center; }
-.call-type-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); font-size: var(--text-sm); }
-.call-type-filters label { display: inline-flex; align-items: center; gap: var(--sp-1); cursor: pointer; }
 
 /* ---- hero: the ledger --------------------------------------------------- */
 .hero { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -509,10 +507,9 @@ button.note-btn.on { color: var(--c-note); }
 /* ---- Files panel -------------------------------------------------------- */
 .files-panel { border-inline-end: 1px solid var(--hairline); background: var(--surface-raised); display: flex; flex-direction: column; min-block-size: 0; overflow: hidden; }
 .files-head { padding: var(--sp-3) var(--sp-4) var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-2); border-block-end: 1px solid var(--hairline); }
-.files-head .t { display: flex; align-items: baseline; gap: var(--sp-2); }
+.files-head .t { display: flex; align-items: center; gap: var(--sp-2); }
 .files-head h2 { font-size: var(--text-md); font-weight: 600; }
 .files-head .t .dim { margin-inline-start: auto; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
-.files-head .opts { display: flex; gap: var(--sp-2); }
 .files-head p { margin: 0; }
 .files-list { list-style: none; margin: 0; padding: 0; overflow: auto; overscroll-behavior: contain; flex: 1; min-block-size: 0; }
 .files-list .file { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2); align-items: start; padding-block: var(--sp-2); padding-inline: var(--sp-4) var(--sp-3); padding-inline-start: calc(var(--sp-4) + var(--depth, 0) * 1.1rem); border-block-end: 1px solid var(--hairline); }

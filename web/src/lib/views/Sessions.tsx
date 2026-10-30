@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import type { TraceDoc } from '../data/doc'
 import { sourceOf } from '../data/source'
 import type { Context, ID } from '../data/types'
@@ -52,6 +53,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
   const checked = useStore((s) => s.contexts)
   const filesSel = useStore((s) => s.files)
   const [dim, setDim] = useState<Dim>('module')
+  const [selectOpen, setSelectOpen] = useState(false)
   const stats = useMemo(() => contextStats(doc), [doc])
   const rows = useMemo<CtxRow[]>(() => {
     const kids = new Map<number, number[]>()
@@ -154,8 +156,12 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
             {selectedCount > 0 ? ` · ${selectedCount} selected, all views filtered` : ' · tick to filter all views'}
           </span>
           <span className="tools">
-            <button onClick={() => setChecked(new Set(selectable.map((r) => r.id)))} disabled={selectable.length === 0}>select all</button>
-            <button onClick={() => actions.setContexts(null)} disabled={selectedCount === 0}>none</button>
+            <ToolbarMenu label="Select" title="tick every context, or none (the views stop being filtered)" className="tbmenu-sm" open={selectOpen} onOpenChange={setSelectOpen}>
+              <div className="tb-items">
+                <MenuItem onClick={() => { setChecked(new Set(selectable.map((r) => r.id))); setSelectOpen(false) }} disabled={selectable.length === 0}>All contexts</MenuItem>
+                <MenuItem onClick={() => { actions.setContexts(null); setSelectOpen(false) }} disabled={selectedCount === 0}>None</MenuItem>
+              </div>
+            </ToolbarMenu>
           </span>
         </header>
         {!hasStats && <p className="callout">No fact tables: per-context statistics unavailable.</p>}

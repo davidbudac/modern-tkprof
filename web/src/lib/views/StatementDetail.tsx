@@ -21,6 +21,7 @@ import { NoteEditor, NoteBox } from '../components/Note'
 import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
 import { StatementContext, StatementLinesMenu } from './StatementContext'
+import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import { kindGroups, type KindGroup } from '../data/callkinds'
 
 /** What the lists below are asked for when the statistics are the whole trace's (no scope, or an engine that cannot answer for one). */
@@ -135,6 +136,7 @@ function CallTable({ stats }: { stats: StmtStats }) {
   const actions = useActions()
   const inclusive = useStore((s) => s.inclusive)
   const callTypes = useStore((s) => s.statementCallTypes)
+  const [callsOpen, setCallsOpen] = useState(false)
   const calls: { kind: KindGroup | 'total'; name: string; c: CallStats; res: boolean }[] = [
     { kind: 'parse', name: 'Parse', c: stats.parse, res: true },
     { kind: 'exec', name: 'Execute', c: stats.exec, res: true },
@@ -150,18 +152,21 @@ function CallTable({ stats }: { stats: StmtStats }) {
   return (
     <section className="section">
       <header><h2>Database calls</h2>
+        <span className="hint" aria-live="polite">{callTypes ? kindGroups.filter((k) => callTypes.has(k.id)).map((k) => k.label).join(', ') : 'All calls'}</span>
         <span className="tools">
+          <ToolbarMenu label="Calls" badge={callTypes ? String(callTypes.size) : undefined} title="which call types the table shows" className="tbmenu-sm" open={callsOpen} onOpenChange={setCallsOpen}>
+            <div className="tb-items" role="group" aria-label="Filter database call types">
+              <MenuItem on={callTypes === null} onClick={() => actions.setStatementCallTypes(null)}>All calls</MenuItem>
+              <div className="tb-sep" role="separator" />
+              {kindGroups.map((k) => (
+                <MenuItem key={k.id} on={callTypes?.has(k.id) ?? false} onClick={() => actions.toggleStatementCallType(k.id)}>{k.label}</MenuItem>
+              ))}
+            </div>
+          </ToolbarMenu>
           <span className="seg" role="group" aria-label="Statistics mode">
           <button aria-pressed={!inclusive} onClick={() => actions.setInclusive(false)} title="exclude recursive children, like tkprof">self</button>
           <button aria-pressed={inclusive} onClick={() => actions.setInclusive(true)} title="include recursive children">inclusive</button>
         </span></span></header>
-      <div className="call-type-filters" role="group" aria-label="Filter database call types">
-        <span className="hint">{callTypes ? 'Call types' : 'All calls'}</span>
-        {kindGroups.map((k) => (
-          <label key={k.id}><input type="checkbox" checked={callTypes?.has(k.id) ?? false}
-            onChange={() => actions.toggleStatementCallType(k.id)} />{k.label}</label>
-        ))}
-      </div>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th>call</th><th className="num">count</th><th className="num">misses</th><th className="num">cpu</th><th className="num">elapsed</th><th className="num">disk</th><th className="num">query</th><th className="num">current</th><th className="num">rows</th></tr></thead>
         <tbody>

@@ -10,7 +10,7 @@ import { sourceOf, useSourceQuery } from '../data/source'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
 import { LineStrip } from '../components/LineStrip'
 import { LINES_PREFS_DEFAULTS, useLinesPrefs } from '../state/linesPrefs'
-import { ToolbarMenu } from '../components/ToolbarMenu'
+import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import { lineToneLegend, lineToneToken } from '../components/colors'
 import { CommandPalette, type Command } from '../components/CommandPalette'
 import { inlaysOf } from '../data/inlays'
@@ -47,6 +47,8 @@ interface LinesUi {
   /** the last finished searches, newest first (chips above the hits) */
   recent: RecentSearch[]
   presets: boolean
+  optionsMenu: boolean
+  lineMenu: boolean
   /** the Step menu */
   stepMenu: boolean
   /** the key map popover */
@@ -84,7 +86,7 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
-      presets: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, range: null,
+      presets: false, optionsMenu: false, lineMenu: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, range: null,
       tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, folds: [], jump: '', back: [], cur: 0,
     }))
   }
@@ -509,7 +511,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }
   const searchRef = useRef<HTMLInputElement>(null)
   const goToRef = useRef<HTMLInputElement>(null)
-  const row1Ref = useGroupStarts(), row2Ref = useGroupStarts()
+  const rowRef = useGroupStarts()
   /** The viewer's letter keys (no modifier but Shift, viewer focused, not in a text field). */
   const onViewerKey = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return
@@ -761,6 +763,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const nextHitDisabled = ui.hits.length === 0
 
   /** the display toggles away from their defaults, and the muted groups */
+  const optionCount = Number(ui.caseSensitive) + Number(ui.regex) + Number(ui.fromHere)
+  const lineOn = Number(bmSet.has(selected)) + Number(notesOn && noting === selected) + Number(ui.focus !== null) + Number(prefs.inspect)
   const viewBadge = SHOW_TOGGLES.filter((t) => prefs[t.key] !== LINES_PREFS_DEFAULTS[t.key]).length + prefs.mute.length
 
   // ---- the command palette ----------------------------------------------------------------------------------------------
@@ -861,7 +865,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   return (
     <section className="lines" aria-label="Trace lines" onKeyDown={onKeyDown}>
       <div className="lines-bar">
-        <div className="lines-row" ref={row1Ref}>
+        <div className="lines-row" ref={rowRef}>
           {files.length > 1 && (
             <span className="tb-grp">
             <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
@@ -871,11 +875,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           )}
           <form className="lines-search tb-grp" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>
             <input type="search" ref={searchRef} value={ui.q} placeholder="Search the trace text" aria-label="Search the trace text" onChange={(e) => set({ q: e.target.value })} />
-            <span className="seg" role="group" aria-label="Search options">
-              <button type="button" aria-pressed={ui.caseSensitive} onClick={() => set({ caseSensitive: !ui.caseSensitive })} title="match case">Aa</button>
-              <button type="button" aria-pressed={ui.regex} onClick={() => set({ regex: !ui.regex })} title="regular expression (RE2)">.*</button>
-              <button type="button" aria-pressed={ui.fromHere} onClick={() => set({ fromHere: !ui.fromHere })} title="search from the selected line instead of line 1">from here</button>
-            </span>
+            <ToolbarMenu label="Options" badge={optionCount > 0 ? String(optionCount) : undefined} title="how the search matches: case, regular expression, from the selected line" className="tbmenu-sm tbmenu-start" open={ui.optionsMenu} onOpenChange={(optionsMenu) => set({ optionsMenu })}>
+              <div className="tb-items">
+                <MenuItem on={ui.caseSensitive} onClick={() => set({ caseSensitive: !ui.caseSensitive })} title="match case">Case sensitive</MenuItem>
+                <MenuItem on={ui.regex} onClick={() => set({ regex: !ui.regex })} title="regular expression (RE2)">Regular expression</MenuItem>
+                <MenuItem on={ui.fromHere} onClick={() => set({ fromHere: !ui.fromHere })} title="search from the selected line instead of line 1">From the selected line</MenuItem>
+              </div>
+            </ToolbarMenu>
             <span className="seg" role="group" aria-label="Scope">
               <button type="button" aria-pressed={scope === 'file'} onClick={() => set({ scope: 'file' })} title="search the whole file">File</button>
               <button type="button" aria-pressed={scope === 'window'} disabled={!winRange} onClick={() => set({ scope: 'window' })} title={winRange ? `search only the lines of the time window (${fmtInt(winRange.from)}–${fmtInt(winRange.to)})` : 'needs a time window with lines in this file'}>Window</button>
@@ -898,8 +904,6 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             <button type="submit" disabled={ui.jump.trim() === ''}>Go</button>
             {jumpError && <small className="lines-note" role="alert">{jumpError}</small>}
           </form>
-        </div>
-        <div className="lines-row" ref={row2Ref}>
           <span className="lines-marks tb-grp" role="group" aria-label="Statement marks">
             <button onClick={() => stepMark(-1)} disabled={markLines.length === 0} title="previous call or wait of the selected statement" aria-label="Previous mark">▲</button>
             <button onClick={() => stepMark(1)} disabled={markLines.length === 0} title="next call or wait of the selected statement" aria-label="Next mark">▼</button>
@@ -920,10 +924,14 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           ) : <button type="button" disabled title="the first line of the time window set in the Timeline">Window start</button>}
           </span>
           <span className="tb-grp">
-          <button className="quiet" onClick={() => toggleBookmark(selected)} aria-pressed={bmSet.has(selected)} title="bookmark the selected line (b)">◆ Bookmark</button>
-          {notesOn && <button className="quiet" onClick={() => setNoting(noting === selected ? null : selected)} aria-pressed={noting === selected} title="a note on the selected line (bookmarks it)">✎ Note</button>}
-          <button className="quiet" onClick={toggleFocus} aria-pressed={ui.focus !== null} title="dim the rows outside the selected line's cursor (f); Esc clears">Focus</button>
-          <button className="quiet" onClick={() => setPrefs({ inspect: !prefs.inspect })} aria-pressed={prefs.inspect} title="a side view that translates the selected line: every field named, with its unit and meaning (i)">Inspect</button>
+          <ToolbarMenu label="Line" badge={lineOn > 0 ? String(lineOn) : undefined} title="the selected line: bookmark, note, focus on its cursor, inspector" className="tbmenu-sm tbmenu-start" open={ui.lineMenu} onOpenChange={(lineMenu) => set({ lineMenu })}>
+            <div className="tb-items">
+              <MenuItem on={bmSet.has(selected)} kbd="b" onClick={() => toggleBookmark(selected)} title="bookmark the selected line (b)">◆ Bookmark</MenuItem>
+              {notesOn && <MenuItem on={noting === selected} onClick={() => setNoting(noting === selected ? null : selected)} title="a note on the selected line (bookmarks it)">✎ Note</MenuItem>}
+              <MenuItem on={ui.focus !== null} kbd="f" onClick={toggleFocus} title="dim the rows outside the selected line's cursor (f); Esc clears">Focus on the cursor</MenuItem>
+              <MenuItem on={prefs.inspect} kbd="i" onClick={() => setPrefs({ inspect: !prefs.inspect })} title="a side view that translates the selected line: every field named, with its unit and meaning (i)">Inspect</MenuItem>
+            </div>
+          </ToolbarMenu>
           </span>
           <span className="tb-grp">
           <ToolbarMenu label="Step" title="the next or previous call, wait, cursor parse, STAT dump, session marker, error or commit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
@@ -978,10 +986,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </div>
             </div>
           </ToolbarMenu>
-          <ToolbarMenu label="Keys" title="keyboard shortcuts (?)" className="tbmenu-sm" open={ui.keys} onOpenChange={(keys) => set({ keys })}>
+          <ToolbarMenu label="Keys" title="the command palette and the keyboard shortcuts (?)" className="tbmenu-sm" open={ui.keys} onOpenChange={(keys) => set({ keys })}>
+            <div className="tb-items">
+              <MenuItem kbd={`${MOD}K`} onClick={() => set({ palette: true, keys: false })} title="search every command (Step, Search, View, Folds, Line, Go to)">Command palette…</MenuItem>
+              <div className="tb-sep" role="separator" />
+            </div>
             <KeyMap />
           </ToolbarMenu>
-          <button type="button" className="quiet" onClick={() => set({ palette: true })} aria-keyshortcuts={MOD === '⌘' ? 'Meta+K' : 'Control+K'} title="search every command (Step, Search, View, Folds, Line, Go to)">Commands <small>{MOD}K</small></button>
           </span>
         </div>
       </div>

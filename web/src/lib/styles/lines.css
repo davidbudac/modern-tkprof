@@ -288,5 +288,14 @@
 @media (hover: hover) and (pointer: fine) {
   .lv-gap:hover { border-inline-start-width: 5px; }
 }
+/* the entries of a toolbar menu (see MenuItem in components/ToolbarMenu.tsx): a tick when on, the label, the shortcut */
+.tb-items { display: grid; min-inline-size: 12rem; }
+button.quiet.tb-item { display: grid; grid-template-columns: 1.1em 1fr auto; align-items: center; gap: var(--sp-2); inline-size: 100%; text-align: start; white-space: nowrap; border-color: transparent; padding-block: 2px; }
+button.quiet.tb-item[aria-pressed="true"] { background: transparent; color: var(--ink); font-weight: 500; }
+button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
+.tb-item .tb-tick { color: var(--ink-2); text-align: center; }
+.tb-item kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
+.tb-sep { block-size: 0; margin-block: var(--sp-1); border-block-start: 1px solid var(--hairline); }
+.tb-hint { margin: var(--sp-1) 0 0; padding-block-start: var(--sp-1); padding-inline: var(--sp-1); border-block-start: 1px solid var(--hairline); color: var(--ink-3); font-size: var(--text-xs); max-inline-size: 16rem; white-space: normal; }
 /* the rows of a menu are not toolbar chrome: no resting border, a wash on hover (the global button hover) */
 .lines-acts button.quiet, .lines-presets button.quiet { border-color: transparent; }
