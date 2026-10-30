@@ -994,6 +994,58 @@ paths:
           description: no such session (envelope), no such file or a file without call and wait rows (plain text)
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/lines/next:
+    get:
+      operationId: sessionLinesNext
+      summary: The next or previous structural line of a file
+      description: |
+        The first line strictly after (`dir=1`) or strictly before (`dir=-1`)
+        `from` that holds the wanted element: `call` (a call row, XCTEND
+        included), `wait`, `cursor` (a PARSING IN CURSOR block; implicit cursors
+        have none), `plan` (the first line of a STAT block), `ctx` (a session
+        context announcement), `error` (ERROR and PARSE ERROR lines) or `commit`
+        (XCTEND lines). Binary searches over the fact rows and the sorted
+        per-file lists, so every step is O(log n); no text is scanned. 404 when
+        there is nothing further in that direction.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: from
+          in: query
+          description: line to step from (0 = before the first line); default 0
+          schema:
+            type: integer
+            minimum: 0
+        - name: what
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [call, wait, cursor, plan, ctx, error, commit]
+        - name: dir
+          in: query
+          required: true
+          schema:
+            type: integer
+            enum: [1, -1]
+      responses:
+        "200":
+          description: "{line}: 1-based line number"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  line:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope), no such file or nothing further in that direction (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
   /s/{id}/api/at:
     get:
       operationId: sessionAt
@@ -2239,6 +2291,30 @@ components:
           description: index into the document's planLines
         kind:
           $ref: "#/components/schemas/LineKind"
+        execFrom:
+          type: integer
+          description: |
+            first line of the execution the line belongs to (set when `execNo`
+            >= 1): the BINDS block of the EXEC when it has one, else the first
+            call; -1 where absent
+        execTo:
+          type: integer
+          description: last line of that execution (its last FETCH, or the CLOSE that follows it); -1 where absent
+        prevExec:
+          type: integer
+          description: line of the EXEC call of the previous execution of the same cursor in this file; -1 where absent (also beyond a 100k-row search window)
+        nextExec:
+          type: integer
+          description: line of the EXEC call of the next execution of the same cursor in this file; -1 where absent (also beyond a 100k-row search window)
+        cursorLine:
+          type: integer
+          description: line of the cursor's PARSING IN CURSOR block; -1 for an implicit cursor or one parsed in another file
+        closeLine:
+          type: integer
+          description: line of the first CLOSE of the cursor at or after the line (within 100k call rows); -1 where absent
+        object:
+          type: string
+          description: owner.name of a WAIT line's obj# when the session has a reference bundle that knows it, else ""
     SearchHit:
       type: object
       properties:

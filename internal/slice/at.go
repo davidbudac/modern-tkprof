@@ -44,6 +44,8 @@ type fileInfo struct {
 	ctxs         []lineID // session contexts announced in the file, by line
 	cursors      []lineID // PARSING IN CURSOR blocks (not implicit cursors), by line
 	plans        []lineID // STAT blocks, by line of the first STAT line
+	errors       []lineID // ERROR and PARSE ERROR lines, by line
+	commits      []lineID // XCTEND lines, by line
 }
 
 func (s *Server) files() []fileInfo {
@@ -108,11 +110,25 @@ func (s *Server) files() []fileInfo {
 			cur, prev = min(nf, len(fs)-1), p.Line
 			fs[cur].plans = append(fs[cur].plans, lineID{p.Line, p.ID})
 		}
+		for i := range m.Errors {
+			e := &m.Errors[i]
+			if f := fileOf(e.Context); f >= 0 {
+				fs[f].errors = append(fs[f].errors, lineID{e.Line, e.ID})
+			}
+		}
+		for i := range m.Transactions {
+			x := &m.Transactions[i]
+			if f := fileOf(x.Context); f >= 0 {
+				fs[f].commits = append(fs[f].commits, lineID{x.Line, x.ID})
+			}
+		}
 		byLine := func(a, b lineID) int { return a.line - b.line }
 		for i := range fs {
 			sortStable(fs[i].ctxs, byLine)
 			sortStable(fs[i].cursors, byLine)
 			sortStable(fs[i].plans, byLine)
+			sortStable(fs[i].errors, byLine)
+			sortStable(fs[i].commits, byLine)
 		}
 		s.fileInfo = fs
 	})
@@ -260,12 +276,22 @@ type atAnswer struct {
 	Ctx      model.ID `json:"ctx"`
 	PlanLine int32    `json:"planLine"` // index into Model.PlanLines
 	Kind     string   `json:"kind"`
+
+	// The execution the line belongs to (set when execNo >= 1) and its
+	// neighbours; -1 where absent. See execSpan.
+	ExecFrom   int32  `json:"execFrom"`   // BINDS block of the EXEC, else its first call
+	ExecTo     int32  `json:"execTo"`     // last FETCH (or the CLOSE that follows it)
+	PrevExec   int32  `json:"prevExec"`   // EXEC line of the previous execution of the cursor
+	NextExec   int32  `json:"nextExec"`   // EXEC line of the next execution of the cursor
+	CursorLine int32  `json:"cursorLine"` // PARSING IN CURSOR line of the cursor (this file)
+	CloseLine  int32  `json:"closeLine"`  // CLOSE of the cursor at or after the line
+	Object     string `json:"object"`     // owner.name of a wait's obj# ("" when unknown)
 }
 
 // at answers which model objects a line belongs to. See the route table in
 // docs/PLAN-DESKTOP.md § 2 and the rules in the switch below.
 func (s *Server) at(_ context.Context, q url.Values) (any, error) {
-	_, li, f, err := s.fileParam(q)
+	fi, li, f, err := s.fileParam(q)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +310,8 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := atAnswer{Call: model.None, Stmt: model.None, Cursor: model.None, ExecNo: -1, Wait: model.None, BindSet: model.None, Ctx: model.None, PlanLine: -1, Kind: kind.String()}
+	a := atAnswer{Call: model.None, Stmt: model.None, Cursor: model.None, ExecNo: -1, Wait: model.None, BindSet: model.None, Ctx: model.None, PlanLine: -1, Kind: kind.String(),
+		ExecFrom: -1, ExecTo: -1, PrevExec: -1, NextExec: -1, CursorLine: -1, CloseLine: -1}
 
 	// the last call at or before the line, the first one after it, the wait on it
 	ci, err := s.firstCall(f.calls, func(c *model.Call) bool { return int(c.Line) > line })
@@ -335,6 +362,9 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 	case wait != nil:
 		// a WAIT line comes before the call it is attributed to
 		a.Wait, a.Cursor, a.Stmt, a.Ctx = wait.ID, wait.Cursor, wait.Statement, wait.Context
+		if wait.ObjID > 0 {
+			a.Object = s.m.ObjectName(wait.ObjID)
+		}
 		if wait.Call >= 0 {
 			if c, ok := s.src.CallAt(int64(wait.Call)); ok {
 				a.Call, a.ExecNo, a.BindSet = c.ID, c.ExecNo, c.BindSet
@@ -351,7 +381,127 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 			a.Ctx = e.id
 		}
 	}
+	if a.Cursor >= 0 && int(a.Cursor) < len(s.m.Cursors) {
+		cur := &s.m.Cursors[a.Cursor]
+		if !cur.Implicit && cur.Context >= 0 && int(cur.Context) < len(s.m.Contexts) && s.m.Contexts[cur.Context].FileIdx == fi {
+			a.CursorLine = int32(cur.Line)
+		}
+		row := int64(a.Call)
+		if a.Call < 0 {
+			row = ci
+		}
+		if err := s.execSpan(f, &a, row); err != nil {
+			return nil, err
+		}
+	}
 	return a, nil
+}
+
+// maxExecWalk bounds the walks over call rows of execSpan.
+const maxExecWalk = 100_000
+
+// execSpan fills the exec span, neighbour and close fields of a. row is the
+// call row of the line (the first call after it when the line has no call).
+// The calls of one execution are not adjacent rows (other cursors' calls come
+// in between), so the walks go over the file's rows and look at the cursor:
+// the span is the EXEC with the FETCHes of its ExecNo and the CLOSE that
+// follows them; a PARSE, another EXEC or a higher ExecNo of the cursor ends it.
+func (s *Server) execSpan(f *fileInfo, a *atAnswer, row int64) error {
+	cur, n := a.Cursor, a.ExecNo
+	read := func(r int64) (model.Call, error) {
+		c, ok := s.src.CallAt(r)
+		if !ok {
+			return c, fmt.Errorf("read call row %d", r)
+		}
+		return c, nil
+	}
+	if row >= f.calls.lo && row < f.calls.hi {
+		// the CLOSE of the cursor at or after the line
+		for r, end := row, min(f.calls.hi, row+maxExecWalk); r < end; r++ {
+			c, err := read(r)
+			if err != nil {
+				return err
+			}
+			if c.Cursor == cur && c.Kind == trace.CallClose {
+				a.CloseLine = c.Line
+				break
+			}
+		}
+	}
+	if n < 1 || a.Call < 0 || row < f.calls.lo || row >= f.calls.hi {
+		return nil
+	}
+	first := row
+	firstCall, err := read(row)
+	if err != nil {
+		return err
+	}
+	lastCall := firstCall
+	if firstCall.Kind != trace.CallExec {
+		for r, end := row-1, max(f.calls.lo, row-maxExecWalk); r >= end; r-- {
+			c, err := read(r)
+			if err != nil {
+				return err
+			}
+			if c.Cursor != cur || c.Kind == trace.CallXctend {
+				continue
+			}
+			if c.ExecNo != n || c.Kind == trace.CallParse || c.Kind == trace.CallClose {
+				break // an earlier execution, a PARSE or a CLOSE
+			}
+			first, firstCall = r, c
+			if c.Kind == trace.CallExec {
+				break
+			}
+		}
+	}
+	// the previous execution: the nearest EXEC of the cursor before the span
+	prevExec := int32(-1)
+	for r, end := first-1, max(f.calls.lo, first-maxExecWalk); r >= end; r-- {
+		c, err := read(r)
+		if err != nil {
+			return err
+		}
+		if c.Cursor == cur && c.Kind == trace.CallExec && c.ExecNo != n {
+			prevExec = c.Line
+			break
+		}
+	}
+	// the end of the span and the next execution
+	nextExec := int32(-1)
+	inSpan := true
+	for r, end := row+1, min(f.calls.hi, row+1+maxExecWalk); r < end; r++ {
+		c, err := read(r)
+		if err != nil {
+			return err
+		}
+		if c.Cursor != cur || c.Kind == trace.CallXctend {
+			continue
+		}
+		if inSpan {
+			if c.ExecNo == n && c.Kind != trace.CallParse && c.Kind != trace.CallClose && c.Kind != trace.CallExec {
+				lastCall = c
+				continue
+			}
+			inSpan = false
+			if c.Kind == trace.CallClose {
+				lastCall = c
+				continue
+			}
+		}
+		if c.Kind == trace.CallExec && c.ExecNo != n {
+			nextExec = c.Line
+			break
+		}
+	}
+	a.ExecFrom, a.ExecTo = firstCall.Line, lastCall.Line
+	if firstCall.Kind == trace.CallExec && firstCall.BindSet >= 0 {
+		if l, ok := s.src.BindSetLine(firstCall.BindSet); ok && int32(l) < a.ExecFrom {
+			a.ExecFrom = int32(l)
+		}
+	}
+	a.PrevExec, a.NextExec = prevExec, nextExec
+	return nil
 }
 
 // maxBindOwnerScan is how many calls after a BINDS line bindOwner looks at: a
@@ -400,4 +550,105 @@ func planLineOf(m *model.Model, p *model.Plan, text []byte) int {
 		}
 	}
 	return -1
+}
+
+// ---- /api/lines/next ---------------------------------------------------------
+
+// linesNext answers {"line":L}: the first line strictly after (dir=1) or
+// strictly before (dir=-1) `from` that holds a structural element of the file:
+// a call, a wait, a PARSING IN CURSOR block, a STAT block, a session context
+// announcement, an ERROR / PARSE ERROR or an XCTEND. Calls and waits are found
+// by binary search on the fact rows, the others in the sorted per-file lists
+// of fileInfo, so every step is O(log n). Nothing further in that direction is
+// a 404.
+func (s *Server) linesNext(_ context.Context, q url.Values) (any, error) {
+	_, _, f, err := s.fileParam(q)
+	if err != nil {
+		return nil, err
+	}
+	from64, err := intParam(q, "from", 0, 0, 1<<31-1)
+	if err != nil {
+		return nil, err
+	}
+	from := int(from64)
+	var dir int
+	switch q.Get("dir") {
+	case "1":
+		dir = 1
+	case "-1":
+		dir = -1
+	default:
+		return nil, bad("dir: must be 1 or -1")
+	}
+	what := q.Get("what")
+	var list []lineID
+	switch what {
+	case "call", "wait":
+	case "cursor":
+		list = f.cursors
+	case "plan":
+		list = f.plans
+	case "ctx":
+		list = f.ctxs
+	case "error":
+		list = f.errors
+	case "commit":
+		list = f.commits
+	default:
+		return nil, bad("what: must be call, wait, cursor, plan, ctx, error or commit")
+	}
+	line := -1
+	switch what {
+	case "call", "wait":
+		rg := f.calls
+		if what == "wait" {
+			rg = f.waits
+		}
+		// the first row with line > from (dir 1) or >= from (dir -1, the row before it)
+		past := func(l int32) bool { return int(l) > from }
+		if dir < 0 {
+			past = func(l int32) bool { return int(l) >= from }
+		}
+		var i int64
+		if what == "call" {
+			i, err = s.firstCall(rg, func(c *model.Call) bool { return past(c.Line) })
+		} else {
+			i, err = s.firstWait(rg, func(w *model.Wait) bool { return past(w.Line) })
+		}
+		if err != nil {
+			return nil, err
+		}
+		if dir < 0 {
+			i--
+		}
+		if i >= rg.lo && i < rg.hi {
+			if what == "call" {
+				c, ok := s.src.CallAt(i)
+				if !ok {
+					return nil, fmt.Errorf("read call row %d", i)
+				}
+				line = int(c.Line)
+			} else {
+				w, ok := s.src.WaitAt(i)
+				if !ok {
+					return nil, fmt.Errorf("read wait row %d", i)
+				}
+				line = int(w.Line)
+			}
+		}
+	default:
+		if dir > 0 {
+			if i := sort.Search(len(list), func(i int) bool { return list[i].line > from }); i < len(list) {
+				line = list[i].line
+			}
+		} else if i := sort.Search(len(list), func(i int) bool { return list[i].line >= from }); i > 0 {
+			line = list[i-1].line
+		}
+	}
+	if line < 0 {
+		return nil, notFound("nothing further")
+	}
+	return struct {
+		Line int `json:"line"`
+	}{line}, nil
 }
