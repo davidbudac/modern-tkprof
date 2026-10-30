@@ -261,8 +261,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
         {strips && <Strips strips={strips} span={span} base={base} />}
         {win && !drag && win.endTim > base && win.startTim < base + span && (
           <div className="brush" style={{ left: x(Math.max(base, win.startTim)), width: `${(100 * (Math.min(base + span, win.endTim) - Math.max(base, win.startTim))) / span}%` }}>
-            <b>window {fmtDur(win.endTim - win.startTim)} · {wall(win.startTim)} → {wall(win.endTim)}
-              <button className="brush-clear" onPointerDown={(e) => e.stopPropagation()} onClick={() => actions.setWindow(null)} aria-label="Clear time window" title="clear (Esc)">×</button></b>
+            <b>window {fmtDur(win.endTim - win.startTim)}</b>
           </div>
         )}
         {dragRect && dragRect.width > 3 && <div className="brush dragging" style={dragRect} />}

@@ -72,7 +72,9 @@ export function useScopedStatements(doc: TraceDoc, opts: ScopeOpts = {}): Scoped
   const narrows = scopeNarrows(scope)
   const source = sourceOf(doc)
   const key = `stmts:${scopeKey(scope)}`
-  const q = useSourceQuery(source, narrows ? key : 'stmts:all', (signal) => (narrows ? source.statements(scope, signal) : null), 'stmts')
+  // Never retain another scope's totals: its numerator would be paired with this scope's response-time base.
+  // useSourceQuery still retains the same key across live snapshots of the same lineage.
+  const q = useSourceQuery(source, narrows ? key : 'stmts:all', (signal) => (narrows ? source.statements(scope, signal) : null))
   const base = doc.stats.statements
   const total = useMemo(() => base.filter(hasWork).length, [base])
   if (!narrows) return { stats: base, narrowed: false, loading: false, pending: false, notice: null, inScope: total, total }

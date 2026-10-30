@@ -63,6 +63,8 @@ type FileEntry struct {
 	ContinuedFrom []string `json:"continuedFrom,omitempty"`
 	ContinuesIn   []string `json:"continuesIn,omitempty"`
 
+	Truncated bool `json:"truncated,omitempty"`
+
 	offsetUs  int64 // wall µs - tim of the first anchor in this file
 	offsetSet bool
 }

@@ -166,11 +166,15 @@ export function sessionsLabel(r: ScopeResponse, fmt: (us: number) => string): st
 
 /**
  * The Overview lede: how many statements (largest first) make up 80 % of the scope's response time, "top 2 statements: 83 %";
- * "" for a single statement or when the statements do not reach it.
+ * "" for a single statement or when the statements do not reach it. Windowed call totals are not clipped to the window;
+ * recursive statements can also overlap their parents. Qualify these totals instead of presenting them as a partition.
  */
-export function concentrationLede(totalUs: number, stmts: readonly Pick<StmtStats, 'elapsed' | 'idleUs'>[]): string {
+export function concentrationLede(totalUs: number, stmts: readonly Pick<StmtStats, 'elapsed' | 'idleUs'>[], windowed = false): string {
   if (totalUs <= 0) return 'no time information'
   let acc = 0, k = 0
   for (const s of stmts) { acc += responseUs(s); k++; if (acc >= 0.8 * totalUs) break }
-  return stmts.length > 1 && acc >= 0.8 * totalUs ? `top ${k} statement${k === 1 ? '' : 's'}: ${fmtPct(acc, totalUs, 0)}` : ''
+  if (stmts.length <= 1 || acc < 0.8 * totalUs) return ''
+  const label = `top ${k} statement${k === 1 ? '' : 's'}: ${fmtPct(acc, totalUs, 0)}`
+  if (windowed) return `${label} of window response time (overlapping calls counted whole)`
+  return acc > totalUs ? `${label} of response time (recursive call totals can overlap)` : label
 }

@@ -597,7 +597,12 @@ No updater, no signing.
 
 ### Post-v1 backlog
 
-Cross-session compare (`/engine/compare`, A/B executions across traces),
+Whole-trace cross-session snapshots are implemented (2026-10-29): `GET /engine/compare?a=&b=`
+compares two ready non-live sessions; desktop **Compare tabs…** opens the snapshot and guards
+source links by content identity. Still deferred: persisted/filtered comparison workspaces,
+comparison exports and A/B execution drill-down across traces.
+
+Other backlog:
 partial documents during parse, in-memory fact source loaded from the spill,
 detachable windows, wallet / sysdba authentication, LOD tiles if zooming ever
 needs them, `oracle/go-oracledb` once stable, publishing the repos.

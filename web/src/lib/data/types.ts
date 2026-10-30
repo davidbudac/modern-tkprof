@@ -39,6 +39,7 @@ export interface FileEntry {
   px: boolean
   chain: number
   followed: boolean
+  truncated?: boolean
   continuedFrom?: string[]
   continuesIn?: string[]
 }

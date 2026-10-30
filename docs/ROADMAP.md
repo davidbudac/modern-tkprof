@@ -31,7 +31,33 @@
 - Cross-compiles for linux/amd64, linux/arm64, windows/amd64, aix/ppc64,
   solaris/amd64 (pure Go).
 
-## Next
+## Current desktop follow-up (2026-10-29)
+
+Implemented in the desktop and its pinned engine, beyond the original core list:
+
+- Multi-file/PX input, runtime reference bundles, line drill-down, resizable panes,
+  saved pivots, execution comparison, persistent cache and remote fetch/live follow.
+- Compare two ready non-live desktop tabs through `GET /engine/compare`: whole-trace
+  snapshot using the existing comparison analyzer; source statement navigation is guarded
+  by content identity. Snapshots are not restored after quitting the desktop.
+- Window percentages retain whole overlapping calls and explain values above 100%;
+  pending scope queries no longer reuse unrelated scope totals. Window actions appear once.
+- Opt-in investigation backups (notes/bookmarks, selected settings and workspace references),
+  and accessible tab reordering in the desktop.
+
+Remaining work:
+
+1. Native platform coverage: Windows install/WebView2 large-trace interaction and SSH prompts,
+   Intel macOS smoke, and installer-level checks (building an installer is not installing it).
+2. Remote compatibility: TCPS, AIX/Solaris scripts and older Oracle trace formats. Use the
+   specific remaining checks in `REMOTE.md`; do not infer support from compilation.
+3. Comparison enhancements: persisted comparison workspaces, filtered comparisons,
+   comparison report export and cross-trace execution drill-down.
+4. Deferred product features: partial documents during parse and detachable windows.
+
+The list below is the original roadmap, retained as history rather than a current backlog.
+
+## Original next list (historical)
 
 1. **UI polish**: raw trace line viewer (jump to line from any row; needs the
    server or an embedded line index), resizable inspector, column chooser,

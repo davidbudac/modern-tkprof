@@ -29,7 +29,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   const source = sourceOf(doc)
   const scope = scopeOf(state)
   const profile = useSourceQuery(source, `profile:${scope.window ? `${scope.window.startTim}:${scope.window.endTim}` : ''}|${ctxKey(scope.contexts)}|${scope.includeIdle ? 1 : 0}`,
-    (signal) => source.profile(scope, signal), 'profile')
+    (signal) => source.profile(scope, signal))
   // the base of every percentage here: Σ session spans of the scope (response.ts), with the wall clock beside it
   const resp = useMemo(() => responseOf(doc, scope, profile.data), [doc, scope, profile.data])
   const totalUs = resp.responseUs
@@ -37,7 +37,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   const rows = useMemo(() => componentRowsFrom(doc, profile.data ?? null, totalUs), [doc, profile.data, totalUs])
   const ss = useScopedStatements(doc)
   const stmts = useMemo(() => [...ss.stats].filter((s) => s.allCalls.count > 0).sort((a, b) => responseUs(b) - responseUs(a)), [ss.stats])
-  const lede = concentrationLede(totalUs, stmts)
+  const lede = ss.pending || ss.loading || profile.loading || profile.error || (ss.notice !== null) ? '' : concentrationLede(totalUs, stmts, !!scope.window)
   const [timeView, setTimeView] = useState<'lanes' | 'event' | 'class'>('lanes')
   const [laneColor, setLaneColor] = useState<LaneColor>('phase')
   const [laneWaits, setLaneWaits] = useState(false)
@@ -50,8 +50,9 @@ export function Overview({ doc }: { doc: TraceDoc }) {
         </div>
         <Minimap doc={doc} />
         <Axis totalUs={totalUs} />
-        <Track rows={rows} totalUs={totalUs} />
-        <Ledger rows={rows} totalUs={totalUs} />
+        {profile.loading ? <p className="muted small">Loading selection profile…</p>
+          : profile.error || (!profile.data && (scope.window || scope.contexts)) ? <p className="muted small">Profile of the selection unavailable.</p>
+          : <><Track rows={rows} totalUs={totalUs} /><Ledger rows={rows} totalUs={totalUs} /></>}
       </section>
 
       <section className="section">
@@ -75,10 +76,11 @@ export function Overview({ doc }: { doc: TraceDoc }) {
       </section>
 
       <section className="section">
-        <header><h2>Statements</h2><span className="hint">incl. recursive children and idle between calls{ss.narrowed ? ` · ${ss.inScope} of ${ss.total} statements in scope` : ''}</span>
+        <header><h2>Statements</h2><span className="hint">incl. recursive children and idle between calls · statement totals can overlap{ss.narrowed ? ` · ${ss.inScope} of ${ss.total} statements in scope` : ''}</span>
           <span className="tools"><button className="link" onClick={() => actions.setView('statements')}>all {stmts.length} statements</button></span></header>
         {ss.notice && <p className="callout">{ss.notice}</p>}
-        <StatementLedger doc={doc} stmts={stmts} totalUs={totalUs} />
+        {ss.narrowed && scope.window && <p className="small muted">Calls overlapping the window count whole; percentages use the response time inside the window and can exceed 100%.</p>}
+        {ss.pending || ss.loading || profile.loading ? <p className="muted small">Loading selection statistics…</p> : <StatementLedger doc={doc} stmts={stmts} totalUs={ss.notice ? responseOf(doc, { window: null, contexts: null }).responseUs : totalUs} />}
       </section>
 
       <Findings doc={doc} />

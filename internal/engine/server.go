@@ -122,6 +122,7 @@ var routes = []struct {
 	{"POST /engine/prompts/{id}", (*Server).answerPrompt},
 	{"POST /engine/sessions", (*Server).openSession},
 	{"GET /engine/sessions", (*Server).listSessions},
+	{"GET /engine/compare", (*Server).compareSessions},
 	{"GET /engine/sessions/{id}", (*Server).getSession},
 	{"DELETE /engine/sessions/{id}", (*Server).deleteSession},
 	{"GET /engine/jobs", (*Server).listJobs},

@@ -671,18 +671,18 @@ export function useSourceQuery<T>(source: DataSource, key: string, run: (signal:
   runRef.current = run
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const local = useMemo(() => (source.remote ? undefined : { value: runRef.current(NO_SIGNAL) as T }), [source, key])
-  const [st, setSt] = useState<{ source: DataSource; key: string; keep?: string; data?: T; error?: string }>({ source, key })
+  const [st, setSt] = useState<{ source: DataSource; key: string; keep?: string; data?: T; error?: string; settled?: boolean }>({ source, key })
   useEffect(() => {
     if (!source.remote) return
     const ac = new AbortController()
     Promise.resolve(runRef.current(ac.signal)).then(
-      (data) => { if (!ac.signal.aborted) setSt({ source, key, keep, data }) },
-      (err: unknown) => { if (!ac.signal.aborted && !(err instanceof DOMException && err.name === 'AbortError')) setSt({ source, key, keep, error: err instanceof Error ? err.message : String(err) }) },
+      (data) => { if (!ac.signal.aborted) setSt({ source, key, keep, data, settled: true }) },
+      (err: unknown) => { if (!ac.signal.aborted && !(err instanceof DOMException && err.name === 'AbortError')) setSt({ source, key, keep, error: err instanceof Error ? err.message : String(err), settled: true }) },
     )
     return () => ac.abort()
   }, [source, key, keep])
   if (local) return { data: local.value, loading: false, error: null }
-  if (st.source === source && st.key === key) return { data: st.data, loading: false, error: st.error ?? null }
+  if (st.settled && st.source === source && st.key === key) return { data: st.data, loading: false, error: st.error ?? null }
   const related = st.source === source || (source.lineage !== undefined && st.source.lineage === source.lineage)
   const sameShape = related && ((keep !== undefined && st.keep === keep) || st.key === key)
   return { data: sameShape ? st.data : undefined, loading: true, error: null }

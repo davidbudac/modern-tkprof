@@ -7,6 +7,7 @@ import { shareTotals, useFileShares, type FileShare } from '../data/fileshares'
 import { filesPanelOpen } from '../state/store'
 import { useStore, useActions } from '../state/session'
 import { PaneToggle } from '../components/PaneToggle'
+import { FileStatus } from '../components/FileStatus'
 import { ResizeHandle } from '../components/ResizeHandle'
 
 /** "3 of 7 files" (or "7 files" with every file selected). */
@@ -77,7 +78,7 @@ export function FilesPanel({ doc }: { doc: TraceDoc }) {
                   {f.px && <span className="chip-q" title={node.parent !== null ? `PX slave of ${list[node.parent]?.name}` : 'PX slave trace with no coordinator in the set'}>PX{node.parent === null ? ' ?' : ''}</span>}
                   {(chainSize.get(f.chain) ?? 1) > 1 && <span className="chip-q" title={chainTitle(f, list)}>Chain {chainPos(f, list)}</span>}
                   {f.followed && <span className="chip-q" title="not named by the user: found by following TRACE CONTINUES IN / CONTINUED FROM">Followed</span>}
-                  {(chainSize.get(f.chain) ?? 1) === 1 && f.continuedFrom?.length ? <span className="chip-q" title={`continues ${f.continuedFrom.join(', ')}, which is not in the set`}>Continued</span> : null}
+                  <FileStatus file={f} />
                 </div>
                 <Share sh={sh} totals={totals} maxResp={maxResp} px={f.px && node.parent !== null} />
               </div>

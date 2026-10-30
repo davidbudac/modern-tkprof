@@ -20,6 +20,7 @@ import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { NoteEditor, NoteBox } from '../components/Note'
 import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
+import { kindGroups, type KindGroup } from '../data/callkinds'
 
 /** What the lists below are asked for when the statistics are the whole trace's (no scope, or an engine that cannot answer for one). */
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
@@ -59,7 +60,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
       <SqlText text={st.text} />
       {narrowed && stats.allCalls.count === 0 && <p className="callout">No calls of this statement in the selection.</p>}
       <ResponseTime doc={doc} stats={stats} narrowed={narrowed} scope={scope} />
-      <CallTable doc={doc} stats={stats} />
+      <CallTable stats={stats} />
       {sourceOf(doc).ready && <Executions doc={doc} id={id} scope={scope} />}
       <Plans doc={doc} id={id} inScope={narrowed ? stats.plans ?? [] : null} />
       {st.refPlan && (
@@ -124,22 +125,37 @@ function ResponseTime({ doc, stats, narrowed, scope }: { doc: TraceDoc; stats: S
   )
 }
 
-function CallTable({ doc, stats }: { doc: TraceDoc; stats: StmtStats }) {
+function CallTable({ stats }: { stats: StmtStats }) {
   const actions = useActions()
   const inclusive = useStore((s) => s.inclusive)
-  const rows: { name: string; c: CallStats; res: boolean }[] = [
-    { name: 'Parse', c: stats.parse, res: true }, { name: 'Execute', c: stats.exec, res: true }, { name: 'Fetch', c: stats.fetch, res: true },
-    { name: 'Close', c: stats.close, res: false }, { name: 'Other', c: stats.other, res: true }, { name: 'Total', c: stats.total, res: true },
-  ].filter((r) => r.c.count > 0 || r.name === 'Total')
+  const callTypes = useStore((s) => s.statementCallTypes)
+  const calls: { kind: KindGroup | 'total'; name: string; c: CallStats; res: boolean }[] = [
+    { kind: 'parse', name: 'Parse', c: stats.parse, res: true },
+    { kind: 'exec', name: 'Execute', c: stats.exec, res: true },
+    { kind: 'fetch', name: 'Fetch', c: stats.fetch, res: true },
+    { kind: 'close', name: 'Close', c: stats.close, res: false },
+    { kind: 'other', name: 'Other', c: stats.other, res: true },
+    { kind: 'total', name: 'Total', c: stats.total, res: true },
+  ]
+  // Selected kinds show their own counters, including zeros when they have no calls.
+  // The all-call total belongs only to the unfiltered view.
+  const rows = calls.filter((r) => callTypes ? r.kind !== 'total' && callTypes.has(r.kind) : r.c.count > 0 || r.kind === 'total')
   const v = (c: CallStats, inc: keyof CallStats, self: keyof CallStats) => (inclusive ? c[inc] : c[self]) as number
-  void doc
   return (
     <section className="section">
       <header><h2>Database calls</h2>
-        <span className="tools"><span className="seg" role="group" aria-label="Statistics mode">
+        <span className="tools">
+          <span className="seg" role="group" aria-label="Statistics mode">
           <button aria-pressed={!inclusive} onClick={() => actions.setInclusive(false)} title="exclude recursive children, like tkprof">self</button>
           <button aria-pressed={inclusive} onClick={() => actions.setInclusive(true)} title="include recursive children">inclusive</button>
         </span></span></header>
+      <div className="call-type-filters" role="group" aria-label="Filter database call types">
+        <span className="hint">{callTypes ? 'Call types' : 'All calls'}</span>
+        {kindGroups.map((k) => (
+          <label key={k.id}><input type="checkbox" checked={callTypes?.has(k.id) ?? false}
+            onChange={() => actions.toggleStatementCallType(k.id)} />{k.label}</label>
+        ))}
+      </div>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th>call</th><th className="num">count</th><th className="num">misses</th><th className="num">cpu</th><th className="num">elapsed</th><th className="num">disk</th><th className="num">query</th><th className="num">current</th><th className="num">rows</th></tr></thead>
         <tbody>

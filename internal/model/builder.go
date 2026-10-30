@@ -527,6 +527,7 @@ func (b *Builder) Marker(mk trace.Marker) {
 	case trace.MarkerDumpSizeLimit:
 		b.m.File.DumpSizeLimit, _ = strconv.ParseInt(mk.Value, 10, 64)
 		b.m.File.Truncated = true
+		b.m.File.Files[b.curFile].Truncated = true
 		b.m.Markers = append(b.m.Markers, Marker{Line: mk.Line, Kind: mk.Kind, Text: mk.Text})
 	default:
 		b.m.Markers = append(b.m.Markers, Marker{Line: mk.Line, Kind: mk.Kind, Text: mk.Text, Time: mk.Time, HasTime: mk.HasTime})

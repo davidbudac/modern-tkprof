@@ -7,7 +7,7 @@ import { copyText } from '../data/clipboard'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
-import { PaneToggle } from '../components/PaneToggle'
+import { ToolbarMenu } from '../components/ToolbarMenu'
 import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
@@ -44,7 +44,7 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false },
-      tab: 'hits', panel: true, wrap: false, jump: '',
+      tab: 'hits', panel: false, wrap: false, jump: '',
     }))
   }
   return u
@@ -298,6 +298,43 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const running = ui.status === 'running'
   const nextHitDisabled = ui.hits.length === 0
 
+  const panelBody = (
+    <>
+      <div className="tbpop-head">
+        <span className="seg" role="tablist">
+          <button role="tab" aria-selected={ui.tab === 'hits'} aria-pressed={ui.tab === 'hits'} onClick={() => set({ tab: 'hits' })}>Hits{ui.hits.length > 0 && ` ${fmtInt(ui.hits.length)}`}</button>
+          <button role="tab" aria-selected={ui.tab === 'bookmarks'} aria-pressed={ui.tab === 'bookmarks'} onClick={() => set({ tab: 'bookmarks' })}>Bookmarks{bookmarks.length > 0 && ` ${bookmarks.length}`}</button>
+        </span>
+        {ui.tab === 'hits' && (
+          <span className="lines-tools">
+            <button className="quiet" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous hit" title="previous hit (Shift+F3)">‹</button>
+            <button className="quiet" onClick={() => stepHit(1)} disabled={nextHitDisabled} aria-label="Next hit" title="next hit (F3)">›</button>
+          </span>
+        )}
+      </div>
+      {ui.tab === 'hits' && (
+        <>
+          <p className="small muted lines-status" aria-live="polite">
+            {ui.status === 'idle' && 'Enter runs a search.'}
+            {running && `Searching… ${fmtInt(ui.hits.length)} hits`}
+            {ui.status === 'done' && ui.end && `${fmtInt(ui.hits.length)} hits in ${fmtInt(ui.end.scanned)} lines${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
+            {ui.status === 'done' && ui.end && !ui.end.done && ' (the server ended early)'}
+            {ui.status === 'cancelled' && `Cancelled after ${fmtInt(ui.hits.length)} hits.`}
+            {ui.status === 'error' && <span className="lines-error">{ui.error}</span>}
+          </p>
+          {ui.status !== 'idle' && <HitList hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive} onGo={goTo} />}
+        </>
+      )}
+      {ui.tab === 'bookmarks' && (
+        <BookmarkList bookmarks={allBookmarks} fileName={fileName}
+          onGo={(b) => (b.file === file ? goTo(b.line) : actions.openLinesAt(b.file, b.line))}
+          onLabel={(b, label) => actions.addBookmark(b.file, b.line, label)}
+          onRemove={(b) => actions.removeBookmark(b.file, b.line)}
+          onNote={notesOn ? (b) => { if (b.file !== file) actions.openLinesAt(b.file, b.line); else { goTo(b.line); setNoting(b.line) } } : undefined} />
+      )}
+    </>
+  )
+
   return (
     <section className="lines" aria-label="Trace lines" onKeyDown={onKeyDown}>
       <div className="lines-bar">
@@ -343,7 +380,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           <button className="quiet" onClick={() => toggleBookmark(selected)} aria-pressed={bmSet.has(selected)} title="bookmark the selected line (b)">◆ Bookmark</button>
           {notesOn && <button className="quiet" onClick={() => setNoting(noting === selected ? null : selected)} aria-pressed={noting === selected} title="a note on the selected line (bookmarks it)">✎ Note</button>}
           <button className="quiet" onClick={() => set({ wrap: !ui.wrap })} aria-pressed={ui.wrap} title="wrap long lines">Wrap</button>
-          <button className="quiet" onClick={() => set({ panel: !ui.panel })} aria-pressed={ui.panel} title="hits and bookmarks">Panel</button>
+          <ToolbarMenu label="Hits & bookmarks" badge={ui.hits.length + bookmarks.length > 0 ? `${fmtInt(ui.hits.length)} · ${bookmarks.length}` : undefined}
+            title="the search hits and the bookmarks" open={ui.panel} onOpenChange={(panel) => set({ panel })}>
+            {panelBody}
+          </ToolbarMenu>
         </span>
       </div>
 
@@ -375,50 +415,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         )}
       </div>
 
-      <div className={'lines-body' + (ui.panel ? ' has-panel' : '')}>
+      <div className="lines-body">
         <div className="lines-main">
           <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         </div>
-        <PaneToggle open={ui.panel} onToggle={() => set({ panel: !ui.panel })} label="hits and bookmarks" className="lines-toggle" />
-        {ui.panel && (
-          <aside className="lines-panel" aria-label="Hits and bookmarks">
-            <div className="lines-panel-head">
-              <span className="seg" role="tablist">
-                <button role="tab" aria-selected={ui.tab === 'hits'} aria-pressed={ui.tab === 'hits'} onClick={() => set({ tab: 'hits' })}>Hits{ui.hits.length > 0 && ` ${fmtInt(ui.hits.length)}`}</button>
-                <button role="tab" aria-selected={ui.tab === 'bookmarks'} aria-pressed={ui.tab === 'bookmarks'} onClick={() => set({ tab: 'bookmarks' })}>Bookmarks{bookmarks.length > 0 && ` ${bookmarks.length}`}</button>
-              </span>
-              {ui.tab === 'hits' && (
-                <span className="lines-tools">
-                  <button className="quiet" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous hit" title="previous hit (Shift+F3)">‹</button>
-                  <button className="quiet" onClick={() => stepHit(1)} disabled={nextHitDisabled} aria-label="Next hit" title="next hit (F3)">›</button>
-                </span>
-              )}
-            </div>
-            {ui.tab === 'hits' && (
-              <>
-                <p className="small muted lines-status" aria-live="polite">
-                  {ui.status === 'idle' && 'Enter runs a search.'}
-                  {running && `Searching… ${fmtInt(ui.hits.length)} hits`}
-                  {ui.status === 'done' && ui.end && `${fmtInt(ui.hits.length)} hits in ${fmtInt(ui.end.scanned)} lines${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
-                  {ui.status === 'done' && ui.end && !ui.end.done && ' (the server ended early)'}
-                  {ui.status === 'cancelled' && `Cancelled after ${fmtInt(ui.hits.length)} hits.`}
-                  {ui.status === 'error' && <span className="lines-error">{ui.error}</span>}
-                </p>
-                {ui.status !== 'idle' && <HitList hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive} onGo={goTo} />}
-              </>
-            )}
-            {ui.tab === 'bookmarks' && (
-              <BookmarkList bookmarks={allBookmarks} fileName={fileName}
-                onGo={(b) => (b.file === file ? goTo(b.line) : actions.openLinesAt(b.file, b.line))}
-                onLabel={(b, label) => actions.addBookmark(b.file, b.line, label)}
-                onRemove={(b) => actions.removeBookmark(b.file, b.line)}
-                onNote={notesOn ? (b) => { if (b.file !== file) actions.openLinesAt(b.file, b.line); else { goTo(b.line); setNoting(b.line) } } : undefined} />
-            )}
-          </aside>
-        )}
       </div>
 
       <div className="lines-status-bar small">

@@ -20,7 +20,7 @@ const stmtLabel = (d: CmpStmt) => d.sqlId || `(${kindName[d.kind] ?? '?'})`
 function fileName(doc: TraceDoc): string { return (doc.file.traceFile || doc.file.path).split(/[\\/]/).pop() ?? '' }
 
 /** B against A: totals, the two profiles, statements and events that changed. */
-export function Compare({ data }: { data: CompareData }) {
+export function Compare({ data, onOpenStatement }: { data: CompareData; onOpenStatement?: (side: Side, id: number) => void }) {
   const { a, b, diff } = data
   return (
     <>
@@ -33,7 +33,7 @@ export function Compare({ data }: { data: CompareData }) {
         <Totals totals={diff.totals} />
         <Profiles a={a} b={b} />
       </section>
-      <StatementsDelta data={data} />
+      <StatementsDelta data={data} onOpenStatement={onOpenStatement} />
       <EventsDelta events={diff.events} />
     </>
   )
@@ -105,7 +105,7 @@ const filters: { id: Filter; label: string; title: string; test: (d: CmpStmt) =>
   { id: 'plan', label: 'plan changed', title: 'plan hash values differ', test: (d) => d.planChanged },
 ]
 
-function StatementsDelta({ data }: { data: CompareData }) {
+function StatementsDelta({ data, onOpenStatement }: { data: CompareData; onOpenStatement?: (side: Side, id: number) => void }) {
   const actions = useActions()
   const side = useStore((s) => s.side)
   const [filter, setFilter] = useState<Filter>('all')
@@ -113,7 +113,7 @@ function StatementsDelta({ data }: { data: CompareData }) {
   const counts = useMemo(() => Object.fromEntries(filters.map((f) => [f.id, all.filter(f.test).length])) as Record<Filter, number>, [all])
   const rows = useMemo(() => all.filter(filters.find((f) => f.id === filter)!.test), [all, filter])
 
-  const open = (d: CmpStmt, to: Side) => { const s = d[to]; if (s) actions.openStmtOn(to, s.id) }
+  const open = (d: CmpStmt, to: Side) => { const s = d[to]; if (s) { if (onOpenStatement) onOpenStatement(to, s.id); else actions.openStmtOn(to, s.id) } }
   const openDefault = (d: CmpStmt) => open(d, d[side] ? side : side === 'a' ? 'b' : 'a')
   const perExec = (s: CmpStmt['a']) => (s && s.executions > 0 ? fmtDur(s.perExecUs) : '')
   const columns: Column<CmpStmt>[] = [

@@ -1,6 +1,30 @@
 import { describe, expect, it } from 'vitest'
 import { activeBlock, createStore } from './store'
 
+describe('SQL detail call-type filter', () => {
+  it('marks several types, preserves the selection across statements, and clears the last mark', () => {
+    const { getState, actions } = createStore()
+    actions.toggleStatementCallType('fetch')
+    actions.pickStmt(1)
+    expect(getState().statementCallTypes).toEqual(new Set(['fetch']))
+    actions.toggleStatementCallType('parse')
+    expect(getState().statementCallTypes).toEqual(new Set(['fetch', 'parse']))
+    actions.toggleStatementCallType('fetch')
+    actions.toggleStatementCallType('parse')
+    expect(getState().statementCallTypes).toBeNull()
+  })
+
+  it('clears through the filter action and when opening a new trace', () => {
+    const store = createStore()
+    store.actions.toggleStatementCallType('fetch')
+    store.actions.setStatementCallTypes(null)
+    expect(store.getState().statementCallTypes).toBeNull()
+    store.actions.toggleStatementCallType('fetch')
+    store.setLoaded({ doc: {} as never, compare: null })
+    expect(store.getState().statementCallTypes).toBeNull()
+  })
+})
+
 describe('Lines view state', () => {
   it('openLinesAt switches to the Lines view, closes the drawer and bumps seq each time', () => {
     const { getState, actions } = createStore()

@@ -5,6 +5,7 @@ import type { Fact } from '../data/pivot'
 import type { Annotation } from '../data/annotations'
 import { pivotConfigOf, resolvePivotConfig, type PivotConfig } from '../data/pivotconfig'
 import { contextsWithin, effectiveContexts, fileCount, normalizeFiles } from '../data/fileset'
+import type { KindGroup } from '../data/callkinds'
 
 export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
   | 'annotations' | 'reports' // desktop shell views
@@ -92,6 +93,8 @@ export interface State {
   filesOpen: boolean | null
   includeIdle: boolean
   inclusive: boolean // call statistics: inclusive of recursive children (true) or self (false)
+  /** Types marked in SQL detail's Database calls table; null = all. */
+  statementCallTypes: Set<KindGroup> | null
   theme: 'auto' | 'light' | 'dark'
   /** `mtkprof serve` is answering GET /api/lines (the standalone HTML has no server). */
   linesAvailable: boolean
@@ -120,6 +123,7 @@ const initial: State = {
   doc: null, compare: null, side: 'a', loading: true, error: null, view: 'overview',
   selection: { stmt: null, event: null, call: null, exec: null },
   window: null, block: null, lanesZoom: [], contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, theme: 'auto',
+  statementCallTypes: null,
   linesAvailable: false, lineViewer: null,
   linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
@@ -164,7 +168,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], statementCallTypes: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
   }
   const swapDoc: Store['swapDoc'] = (l) => {
     setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
@@ -252,6 +256,15 @@ function makeActions(setState: Store['setState']) {
     /** The Overview lanes show the whole axis again. */
     resetLanesZoom() { setState((s) => (s.lanesZoom.length ? { lanesZoom: [] } : {})) },
     setContexts(contexts: Set<ID> | null) { setState({ contexts }) },
+    setStatementCallTypes(types: Set<KindGroup> | null) { setState({ statementCallTypes: types?.size ? new Set(types) : null }) },
+    toggleStatementCallType(kind: KindGroup) {
+      setState((s) => {
+        const types = new Set(s.statementCallTypes ?? [])
+        if (types.has(kind)) types.delete(kind)
+        else types.add(kind)
+        return { statementCallTypes: types.size ? types : null }
+      })
+    },
     setFilesOpen(filesOpen: boolean) { setState({ filesOpen }) },
     /**
      * Show only the traces of these input files (null = all; a set holding every file is the same as null). A context selection

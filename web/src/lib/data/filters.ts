@@ -1,16 +1,17 @@
-// The global filters that narrow every view (`scopeOf`), as the chips of the filter row under the top bar.
+// Active scope and SQL-detail filters, as chips in the row under the top bar.
 import type { TraceDoc } from './doc'
 import { fileCount, selectedCount, sessionLabel } from './fileset'
 import { fmtDur, fmtWall } from './format'
 import { activeBlock, type State } from '../state/store'
+import { kindGroups } from './callkinds'
 
-export type FilterKind = 'files' | 'sessions' | 'window' | 'idle'
+export type FilterKind = 'files' | 'sessions' | 'window' | 'idle' | 'statementCalls'
 
 /** One active filter: the chip's kind label and text, and a longer `title` for its tooltip. */
 export interface ActiveFilter { kind: FilterKind; label: string; text: string; title: string }
 
 /** What `activeFilters` reads of the store. */
-export type FilterState = Pick<State, 'files' | 'contexts' | 'window' | 'block' | 'includeIdle'>
+export type FilterState = Pick<State, 'files' | 'contexts' | 'window' | 'block' | 'includeIdle' | 'statementCallTypes'>
 
 /** Names listed in a chip before "+N". */
 const MAX_FILES = 3
@@ -23,7 +24,7 @@ function nameList(names: string[], max: number): string {
 
 /**
  * The filters in force, in the order files, sessions, window, idle: the Files panel selection, the Sessions selection, the time
- * window (and the lane block it came from) and hidden idle waits. `origin` is the tim that `+offset` times count from when the
+ * window (and the lane block it came from), hidden idle waits, and SQL detail's marked call types. `origin` is the tim that `+offset` times count from when the
  * trace has no wall clock.
  */
 export function activeFilters(doc: TraceDoc, s: FilterState, origin = doc.span.firstTim): ActiveFilter[] {
@@ -67,6 +68,11 @@ export function activeFilters(doc: TraceDoc, s: FilterState, origin = doc.span.f
   }
 
   if (!s.includeIdle) out.push({ kind: 'idle', label: 'Idle waits', text: 'hidden', title: 'Idle waits (SQL*Net message from client and the like) are left out of the wait statistics and the timeline strips' })
+
+  if (s.statementCallTypes?.size) {
+    const names = kindGroups.filter((k) => s.statementCallTypes!.has(k.id)).map((k) => k.label).join(', ')
+    out.push({ kind: 'statementCalls', label: 'Database calls', text: names, title: `SQL detail's Database calls table shows only: ${names}` })
+  }
 
   return out
 }

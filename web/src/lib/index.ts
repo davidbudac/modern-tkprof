@@ -15,6 +15,7 @@ export { Lines } from './views/Lines'
 export { FilesPanel, FilesPane, FilesToggle } from './views/FilesPanel'
 
 // components
+export { FileStatus } from './components/FileStatus'
 export { ResizeHandle } from './components/ResizeHandle'
 export { PaneToggle } from './components/PaneToggle'
 export { Minimap } from './components/Minimap'

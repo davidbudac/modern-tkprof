@@ -120,6 +120,23 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /engine/compare:
+    get:
+      operationId: compareSessions
+      summary: Compare two ready non-live sessions (whole traces, B against A)
+      description: Detached aggregate comparison snapshot. Source filters are ignored. No Lines or report endpoints are created.
+      parameters:
+        - { name: a, in: query, required: true, schema: { type: string } }
+        - { name: b, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Existing format-2 CompareDocument with aggregate documents and SQL, wait and plan deltas
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409": { $ref: '#/components/responses/Conflict' }
   /engine/sessions:
     get:
       operationId: listSessions

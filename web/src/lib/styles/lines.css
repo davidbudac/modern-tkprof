@@ -15,10 +15,7 @@
 .lines-kind { color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.4rem; font-size: var(--text-xs); }
 .lines-sql { font-family: var(--font-mono); max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.lines-body { --lines-panel-w: clamp(17rem, 26vw, 28rem); position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-block-size: 0; }
-.lines-body.has-panel { grid-template-columns: minmax(0, 1fr) var(--lines-panel-w); }
-.lines-toggle { --pane-w: var(--lines-panel-w); }
-@media (width < 64rem) { .lines-body.has-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 12rem); } .lines-toggle { display: none; } }
+.lines-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-block-size: 0; }
 .lines-main { position: relative; min-block-size: 0; min-inline-size: 0; }
 .lines-overlay { position: absolute; inset-block-start: var(--sp-4); inset-inline: var(--sp-4); pointer-events: none; }
 .lines-error { color: var(--s-critical); }
@@ -64,9 +61,7 @@
 .lv-sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
 .lv-sel .lv-ln { color: var(--ink); font-weight: 600; background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-sunken)); }
 
-.lines-panel { display: flex; flex-direction: column; min-block-size: 0; border-inline-start: 1px solid var(--hairline); background: var(--surface); }
-@media (width < 64rem) { .lines-panel { border-inline-start: 0; border-block-start: 1px solid var(--hairline); } }
-.lines-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--hairline); }
+.tbpop-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
 .lines-status { padding-block: var(--sp-1); padding-inline: var(--sp-3); min-block-size: 1.6rem; }
 .lines-empty { padding: var(--sp-3); }
 .lines-hits { flex: 1; min-block-size: 0; overflow: auto; font-family: var(--font-mono); font-size: var(--text-sm); }
@@ -91,3 +86,15 @@
 .lines-bm-note { flex-basis: 100%; margin: 0; padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--c-note); color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .lines-root > .note-edit, section > .note-edit { margin: var(--sp-2) var(--sp-4); }
 .lines-copied { color: var(--ink); font-weight: 500; }
+
+/* the hits and bookmarks menu: a popover under its toolbar button */
+.tbmenu { position: relative; display: inline-flex; }
+.tbmenu > button small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.tbpop {
+  position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 0; z-index: 20;
+  display: flex; flex-direction: column; inline-size: min(30rem, 90vw); block-size: min(26rem, 60dvh); min-block-size: 0;
+  padding: var(--sp-2) var(--sp-3); background: var(--surface-raised); border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  box-shadow: 0 6px 20px color-mix(in oklch, var(--ink) 14%, transparent); font-size: var(--text-sm); text-align: start;
+}
+.tbpop .lines-status { padding-inline: 0; }
+.tbpop .lines-bms { padding-inline: 0; flex: 1; min-block-size: 0; }

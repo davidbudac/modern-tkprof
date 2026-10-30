@@ -195,3 +195,35 @@ describe('the Overview of a set of concurrent sessions', () => {
     expect(sum / shareTotals(doc, sh).responseUs).toBeLessThanOrEqual(1)
   })
 })
+
+
+describe('Overview concentration with overlapping call totals', () => {
+  it('reproduces 112% from a boundary-crossing call and states both numerator and denominator', async () => {
+    const doc = await makeDoc([
+      { ctx: 0, stmt: 0, kind: X, e: 112, tim: 1212 },
+      { ctx: 0, stmt: 1, kind: X, e: 10, tim: 1150, dep: 1, parent: 0 },
+    ], { files: [file(0, 1000, 1300)], contexts: [{ fileIdx: 0 }] })
+    const sc = scoped(doc, null, { startTim: 1100, endTim: 1200 })
+    const rows = scopedStatements(doc, sc).filter((s) => s.allCalls.count > 0).sort((a, b) => responseUs(b) - responseUs(a))
+    const base = scopeResponse(doc, sc).responseUs
+    expect(base).toBe(100)
+    expect(responseUs(rows[0])).toBe(112) // full call, not a prorated estimate of work inside the window
+    expect(concentrationLede(base, rows, true)).toBe('top 1 statement: 112% of window response time (overlapping calls counted whole)')
+  })
+
+  it('preserves recursive overlap and explains why summed statements are not a partition', async () => {
+    const doc = await makeDoc([
+      { ctx: 0, stmt: 0, kind: X, e: 1, tim: 1101 },
+      { ctx: 0, stmt: 0, kind: X, e: 75, tim: 1200, selfE: 25 },
+      { ctx: 0, stmt: 1, kind: X, e: 50, tim: 1175, parent: 1, dep: 1 },
+    ], { files: [file(0, 1000, 1300)], contexts: [{ fileIdx: 0 }] })
+    const sc = scoped(doc, null)
+    const rows = scopedStatements(doc, sc).sort((a, b) => responseUs(b) - responseUs(a))
+    const base = scopeResponse(doc, sc).responseUs
+    expect(base).toBe(100)
+    expect(rows.map(responseUs)).toEqual([76, 50])
+    expect(concentrationLede(base, rows)).toBe('top 2 statements: 126% of response time (recursive call totals can overlap)')
+    // Neither individual statement exceeds the session span; adding its child counts part of the parent's time twice.
+    expect(rows.every((s) => responseShare(s, base) <= 1)).toBe(true)
+  })
+})

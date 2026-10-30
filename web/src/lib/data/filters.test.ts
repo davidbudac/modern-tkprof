@@ -4,7 +4,7 @@ import type { FileEntry } from './types'
 import { makeDoc } from './testdoc'
 import { activeFilters, type FilterState } from './filters'
 
-const none: FilterState = { files: null, contexts: null, window: null, block: null, includeIdle: true }
+const none: FilterState = { files: null, contexts: null, window: null, block: null, includeIdle: true, statementCallTypes: null }
 
 /** A document with a wall clock (tim 0 is 22:13:20 UTC) and two statements, for the window chips. */
 const clocked = {
@@ -75,9 +75,17 @@ describe('activeFilters', () => {
     expect(activeFilters(doc, { ...none, includeIdle: false })).toMatchObject([{ kind: 'idle', label: 'Idle waits', text: 'hidden' }])
   })
 
+  it('adds marked database call types to the filter row in call order', async () => {
+    const doc = await makeDoc([])
+    expect(activeFilters(doc, { ...none, statementCallTypes: new Set(['fetch', 'parse']) })).toEqual([
+      { kind: 'statementCalls', label: 'Database calls', text: 'PARSE, FETCH', title: "SQL detail's Database calls table shows only: PARSE, FETCH" },
+    ])
+    expect(activeFilters(doc, { ...none, statementCallTypes: null })).toEqual([])
+  })
+
   it('lists them in the order files, sessions, window, idle', async () => {
     const doc = await makeDoc([])
-    const all = activeFilters(doc, { files: new Set([1]), contexts: new Set([2]), window: { startTim: 1000, endTim: 2000 }, block: null, includeIdle: false })
+    const all = activeFilters(doc, { ...none, files: new Set([1]), contexts: new Set([2]), window: { startTim: 1000, endTim: 2000 }, block: null, includeIdle: false })
     expect(all.map((f) => f.kind)).toEqual(['files', 'sessions', 'window', 'idle'])
   })
 })

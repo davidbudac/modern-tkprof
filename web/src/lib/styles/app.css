@@ -159,6 +159,8 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .section > header h2 { font-size: var(--text-lg); font-weight: 600; }
 .section > header .hint { color: var(--ink-2); font-size: var(--text-sm); }
 .section > header .tools { margin-inline-start: auto; display: flex; gap: var(--sp-2); align-items: center; }
+.call-type-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); font-size: var(--text-sm); }
+.call-type-filters label { display: inline-flex; align-items: center; gap: var(--sp-1); cursor: pointer; }
 
 /* ---- hero: the ledger --------------------------------------------------- */
 .hero { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -522,6 +524,8 @@ button.note-btn.on { color: var(--c-note); }
 .files-list .file .meta { font-size: var(--text-xs); line-height: 1.35; overflow-wrap: anywhere; }
 .files-list .file .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .files-list .file .chips:empty { display: none; }
+.file-status { display: inline-flex; align-items: center; flex: none; }
+.file-status.truncated { color: var(--s-critical); border-color: color-mix(in oklch, var(--s-critical) 45%, var(--hairline-strong)); background: color-mix(in oklch, var(--s-critical) 8%, var(--surface-raised)); }
 .files-list .share { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-xs); }
 .files-list .share .bar { flex: 1; block-size: 0.4rem; border-radius: 2px; background: var(--surface-sunken); overflow: clip; }
 .files-list .share .bar i { display: block; block-size: 100%; background: var(--c-cpu); }
