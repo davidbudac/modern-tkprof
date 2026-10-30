@@ -450,19 +450,13 @@ button:disabled { opacity: 0.5; cursor: default; }
 .plan-cfg input { flex: 1 1 20rem; min-inline-size: 0; font-family: var(--font-mono); }
 
 /* ---- raw trace lines (bottom drawer, `serve` only) ----------------------- */
-.linedrawer { display: flex; flex-direction: column; block-size: clamp(11rem, 34dvh, 22rem); border-block-start: 1px solid var(--hairline-strong); background: var(--surface-raised); min-block-size: 0; }
+.linedrawer { display: flex; flex-direction: column; block-size: clamp(14rem, 40dvh, 26rem); border-block-start: 1px solid var(--hairline-strong); background: var(--surface-raised); min-block-size: 0; }
 .linedrawer-head { display: flex; align-items: baseline; gap: var(--sp-3); padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); flex-wrap: wrap; }
 .linedrawer-head h2 { font-size: var(--text-md); font-weight: 600; }
 .linedrawer-head .hint { color: var(--ink-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .linedrawer-head .tools { margin-inline-start: auto; display: flex; gap: var(--sp-2); align-items: center; }
-.linedrawer-body { overflow: auto; overscroll-behavior: contain; flex: 1; min-block-size: 0; position: relative; font-family: var(--font-mono); font-size: var(--text-sm); }
-.linedrawer-body:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.tracelines { list-style: none; margin: 0; padding: 0; inline-size: max-content; min-inline-size: 100%; }
-.tracelines li { display: flex; gap: var(--sp-3); padding-inline-end: var(--sp-4); line-height: 1.55; }
-.tracelines .ln { flex: none; box-sizing: content-box; min-inline-size: 7ch; white-space: nowrap; padding-inline: var(--sp-2); text-align: end; color: var(--ink-3); background: var(--surface-sunken); user-select: none; font-variant-numeric: tabular-nums; position: sticky; inset-inline-start: 0; }
-.tracelines code { font: inherit; white-space: pre; }
-.tracelines li.on { background: color-mix(in oklch, var(--c-commit) 22%, transparent); box-shadow: inset 3px 0 0 var(--c-commit); }
-.tracelines li.on .ln { color: var(--ink); font-weight: 600; }
+.linedrawer-body { display: flex; flex-direction: column; flex: 1; min-block-size: 0; position: relative; }
+.linedrawer-body > .lv-box { flex: 1; }
 .lineref { font-variant-numeric: tabular-nums; }
 
 /* ---- column chooser ------------------------------------------------------ */

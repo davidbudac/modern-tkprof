@@ -71,6 +71,10 @@ interface Props {
   /** per-line actions on the selected row: copy the text, copy a permalink (omit `onLink` where there is no URL to link to) */
   onCopy?(line: number): void
   onLink?(line: number): void
+  /** something beside the scroll container, the full height of the viewer (the density strip) */
+  side?: ReactNode
+  /** the first visible line (1-based) and the lines that fit, after every move and resize (at most once per animation frame) */
+  onViewChange?(top: number, rows: number): void
   apiRef: MutableRefObject<ViewerApi | null>
   /** first visible line offset (0-based, fractional); the owner keeps it across mounts */
   topRef: MutableRefObject<number>
@@ -83,7 +87,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, mutedKinds, focusCursor, links, onRef, refTitle, head, card, onCopy, onLink, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, mutedKinds, focusCursor, links, onRef, refTitle, head, card, onCopy, onLink, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -110,6 +114,16 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const r = headRef.current?.(Math.floor(topRef.current) + 1) ?? null
     setPinned((prev) => (!force && (prev?.key ?? null) === (r?.key ?? null) ? prev : r))
   }, [topRef])
+
+  // the visible range for the owner, coalesced to one call per animation frame
+  const viewCb = useRef(onViewChange)
+  viewCb.current = onViewChange
+  const viewFrame = useRef(0)
+  const notifyView = useCallback(() => {
+    if (viewFrame.current || !viewCb.current) return
+    viewFrame.current = requestAnimationFrame(() => { viewFrame.current = 0; viewCb.current?.(Math.floor(topRef.current) + 1, rowsRef.current) })
+  }, [topRef])
+  useEffect(() => () => cancelAnimationFrame(viewFrame.current), [])
 
   const place = useCallback(() => {
     if (layer.current) layer.current.style.transform = `translateY(${-(topRef.current - baseRef.current) * ROW_H}px)`
@@ -150,7 +164,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     }
     ensurePages()
     if (!keepHead) refreshHead()
-  }, [cache, topRef, place, ensurePages, hideCard, refreshHead])
+    notifyView()
+  }, [cache, topRef, place, ensurePages, hideCard, refreshHead, notifyView])
 
   // the committed base positions the layer before paint
   useLayoutEffect(() => { baseRef.current = base; place() }, [base, place])
@@ -298,6 +313,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const hover = card || refTitle
   return (
     <div className="lv-box" style={{ '--lv-row': `${ROW_H}px` } as React.CSSProperties}>
+      <div className="lv-box-col">
       {pinned && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
       <div className={'lv' + (wrap ? ' lv-wrap' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={total}
         style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
@@ -310,6 +326,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
         </div>
         {shown && createPortal(<LineCard at={shown} />, document.body)}
       </div>
+      </div>
+      {side}
     </div>
   )
 }

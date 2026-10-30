@@ -54,6 +54,8 @@ export type { ActiveFilter, FilterKind, FilterState } from './data/filters'
 export { windowFiles, windowLineRange, windowStartLine, fileInWindow } from './data/windowlines'
 export type { LineRange } from './data/windowlines'
 export { PageCache } from './data/linecache'
+// the bottom drawer with the raw trace lines around a line (both shells mount it)
+export { LineDrawer } from './components/LineDrawer'
 // the Overview lanes' zoomed axis
 export { zoomedAxis } from './data/scale'
 export { sourceOf, attachRemote, LocalSource, RemoteSource, useSourceQuery } from './data/source'

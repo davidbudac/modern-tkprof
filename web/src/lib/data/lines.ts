@@ -57,8 +57,8 @@ async function failure(res: Response): Promise<Error> {
 }
 
 /** `n` lines (≤ 2000) of input file `file` from 1-based line `from`, each with its kind (`rich`: and its model ids, `annot=2`; a server that does not know it answers like `annot=1`). */
-export async function fetchLinesAnnot(client: ApiClient, file: number, from: number, n: number, signal?: AbortSignal, rich = false): Promise<AnnotPage> {
-  const res = await client.fetch(`/api/lines?annot=${rich ? 2 : 1}&file=${file}&from=${from}&n=${n}`, { signal })
+export async function fetchLinesAnnot(client: ApiClient, file: number, from: number, n: number, signal?: AbortSignal, rich = false, side?: 'a' | 'b'): Promise<AnnotPage> {
+  const res = await client.fetch(`/api/lines?annot=${rich ? 2 : 1}&file=${file}&from=${from}&n=${n}${side ? `&side=${side}` : ''}`, { signal })
   if (!res.ok) throw await failure(res)
   const r = (await res.json()) as Partial<AnnotPage>
   return { from: r.from ?? from, total: r.total ?? 0, lines: r.lines ?? [] }
@@ -69,6 +69,29 @@ export async function lineAt(client: ApiClient, file: number, tim: number, signa
   const res = await client.fetch(`/api/lines/at?file=${file}&tim=${Math.round(tim)}`, { signal })
   if (!res.ok) throw await failure(res)
   return ((await res.json()) as { line: number }).line
+}
+
+/** Buckets the density strip asks for (`api/lines/profile` answers at most this many). */
+export const PROFILE_BUCKETS = 2000
+
+/**
+ * The shape of a file in `buckets` slices (`api/lines/profile`): per bucket the counts of calls, waits, cursor parses, errors and commits.
+ * Bucket i covers lines `[i*size+1, min(total, (i+1)*size)]`; a file without lines has no buckets.
+ */
+export interface LineProfile {
+  total: number; buckets: number; size: number
+  calls: number[]; waits: number[]; cursors: number[]; errors: number[]; commits: number[]
+  maxCalls: number; maxWaits: number
+}
+
+export async function fetchLineProfile(client: ApiClient, file: number, buckets: number, signal?: AbortSignal): Promise<LineProfile> {
+  const n = Math.min(PROFILE_BUCKETS, Math.max(1, Math.floor(buckets)))
+  const res = await client.fetch(`/api/lines/profile?file=${file}&buckets=${n}`, { signal })
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as Partial<LineProfile>
+  const b = r.buckets ?? 0
+  const col = (a: number[] | undefined) => Array.from({ length: b }, (_, i) => a?.[i] ?? 0)
+  return { total: r.total ?? 0, buckets: b, size: Math.max(1, r.size ?? 1), calls: col(r.calls), waits: col(r.waits), cursors: col(r.cursors), errors: col(r.errors), commits: col(r.commits), maxCalls: r.maxCalls ?? 0, maxWaits: r.maxWaits ?? 0 }
 }
 
 /**

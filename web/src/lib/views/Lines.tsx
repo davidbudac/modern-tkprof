@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
-import { LINE_KINDS, PageCache, type CachedLine } from '../data/linecache'
-import { ALL_SCOPE, cursorLine, fetchLinesAnnot, lineAt, linePermalink, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type NextWhat, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
-import { fmtInt, fmtTz, fmtWall, preview } from '../data/format'
-import { decodeLine, type DecodeContext, type LineDecode } from '../data/linefields'
+import { LINE_KINDS, PageCache } from '../data/linecache'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchLinesAnnot, fetchLineProfile, lineAt, linePermalink, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
+import { LineStrip } from '../components/LineStrip'
 import { ToolbarMenu } from '../components/ToolbarMenu'
 import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
@@ -14,10 +14,10 @@ import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
 import { LinesOutline, type OutlineState } from './LinesOutline'
 import { LinesAt } from './LinesAt'
+import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf } from './linesShared'
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
 import { NoteEditor } from '../components/Note'
-import { sqlIds } from '../components/StmtLink'
 import '../styles/lines.css'
 
 type SearchStatus = 'idle' | 'running' | 'done' | 'cancelled' | 'error'
@@ -58,6 +58,8 @@ interface LinesUi {
   wrap: boolean
   /** the elapsed-time bars in the gutter */
   heat: boolean
+  /** the density strip beside the scroll bar */
+  strip: boolean
   /** the references in the rows (cursor, sql_id, obj#, plan hash) as links */
   links: boolean
   jump: string
@@ -77,7 +79,7 @@ function uiOf(store: Store, file: number): LinesUi {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
       presets: false, stepMenu: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(), focus: null,
-      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, links: true, jump: '', back: [], cur: 0,
+      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, strip: true, links: true, jump: '', back: [], cur: 0,
     }))
   }
   return u
@@ -117,6 +119,17 @@ function firstAbove(a: ArrayLike<number>, x: number): number {
   let lo = 0, hi = a.length
   while (lo < hi) { const mid = (lo + hi) >> 1; if (a[mid] > x) hi = mid; else lo = mid + 1 }
   return lo
+}
+
+/** The strip with the visible range of the viewer as its own state: a scroll re-renders this, not the whole view. */
+type StripProps = Omit<Parameters<typeof LineStrip>[0], 'view'>
+function StripHost({ bus, last, ...props }: StripProps & { bus: React.MutableRefObject<((top: number, rows: number) => void) | null>; last: React.MutableRefObject<{ top: number; rows: number }> }) {
+  const [view, setView] = useState(last.current)
+  useEffect(() => {
+    bus.current = (top, rows) => setView((v) => (v.top === top && v.rows === rows ? v : { top, rows }))
+    return () => { bus.current = null }
+  }, [bus])
+  return <LineStrip {...props} view={view} />
 }
 
 interface WindowLines { range: LineRange | null; failed: boolean }
@@ -191,7 +204,22 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     void cache.refresh()
   }, [cache, rev])
 
+  // the shape of the file for the strip: fetched once per file and snapshot (the strip down-samples it to its height); the old one stays until the new arrives
+  const [profile, setProfile] = useState<LineProfile | null>(null)
+  useEffect(() => {
+    if (!ui.strip) return
+    const ac = new AbortController()
+    fetchLineProfile(client, file, PROFILE_BUCKETS, ac.signal).then(
+      (p) => { if (!ac.signal.aborted) setProfile(p) },
+      (e: unknown) => { if (!aborted(e)) setProfile(null) }, // an engine without the route: no strip
+    )
+    return () => ac.abort()
+  }, [client, file, rev, ui.strip])
+
   const apiRef = useRef<ViewerApi | null>(null)
+  const viewBus = useRef<((top: number, rows: number) => void) | null>(null)
+  const lastView = useRef({ top: 1, rows: 0 }) // what a strip that mounts later (the profile arrives after the first move) starts from
+  const onViewChange = useCallback((top: number, rows: number) => { lastView.current = { top, rows }; viewBus.current?.(top, rows) }, [])
   const topRef = useRef(ui.top)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
@@ -218,12 +246,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     window.clearTimeout(atTimer.current)
     atCtl.current?.abort()
     // a cached line with ids (`annot=2`) answers at once; the request below fills in ctx, bindSet and planLine
-    const l = cache.line(line)
-    const known = !!l && (l.cursor >= 0 || l.stmt >= 0 || l.wait >= 0 || l.call >= 0)
-    if (l && known) {
-      const objs: AtObjects = { call: l.call, stmt: l.stmt, cursor: l.cursor, execNo: l.execNo, wait: l.wait, bindSet: -1, ctx: -1, planLine: -1, kind: LINE_KINDS[l.kind] ?? 'unknown', execFrom: -1, execTo: -1, prevExec: -1, nextExec: -1, cursorLine: -1, closeLine: -1, object: '' }
-      setAt({ line, objs })
-      if (dispatch) dispatchAt(objs, l.text)
+    const objs0 = cachedAt(cache, line)
+    const known = !!objs0
+    if (objs0) {
+      setAt({ line, objs: objs0 })
+      if (dispatch) dispatchAt(objs0, cache.line(line)?.text ?? '')
     }
     atTimer.current = window.setTimeout(async () => {
       atCtl.current?.abort()
@@ -299,6 +326,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
   // ---- bookmarks -------------------------------------------------------------------------------------------------------
   const bookmarks = useMemo(() => allBookmarks.filter((b) => b.file === file), [allBookmarks, file])
+  const stripHits = useMemo(() => (ui.status === 'idle' ? [] : ui.hits.map((h) => h.line)), [ui.hits, ui.hits.length, ui.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  const scrubTo = useCallback((line: number) => apiRef.current?.reveal(line, 'center'), [])
   const bmSet = useMemo(() => new Set(bookmarks.map((b) => b.line)), [bookmarks])
   const noteSet = useMemo(() => new Map(bookmarks.filter((b) => b.note).map((b) => [b.line, b.note!])), [bookmarks])
   const toggleBookmark = useCallback((line: number) => {
@@ -489,101 +518,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const copyLink = useCallback((line: number) => void copyWhat(`link to line ${fmtInt(line)}`, linePermalink(window.location, file, line)), [copyWhat, file])
   const canLink = useStore((s) => s.lineRefTarget !== 'view') // the desktop shell has no URL to link to
   // ---- hover cards: the line decoded with what the trace knows (events, objects, clock) ------------------------------------
-  const decodeCtx = useMemo<DecodeContext>(() => {
-    const events = new Map(doc.events.map((e) => [e.name, e]))
-    let planObjs: Map<number, string> | undefined // obj → object of the plan lines, for traces without a reference bundle
-    return {
-      eventOf: (name) => events.get(name),
-      objectName: (obj) => {
-        const named = doc.objectName(obj)
-        if (named) return named
-        if (!planObjs) planObjs = new Map(doc.planLines.filter((p) => p.obj > 0 && p.object).map((p) => [p.obj, p.object]))
-        return planObjs.get(obj)
-      },
-      clock: (tim) => (doc.wallOffsetUs ? fmtWall(tim + doc.wallOffsetUs, doc.tzOffsetMin, { micros: true }) : undefined),
-      firstTim: doc.span.firstTim,
-    }
-  }, [doc])
-  const lineCard = useCallback((_line: number, text: string, kind: number): LineDecode | null => decodeLine(text, LINE_KINDS[kind], decodeCtx), [decodeCtx])
+  const decodeCtx = useMemo(() => decodeContextOf(doc), [doc])
+  const lineCard = useMemo(() => lineCardOf(decodeCtx), [decodeCtx])
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
 
   // ---- references in the rows: a click on a cursor, sql_id, obj# or plan hash; the tooltip of each -------------------------
-  /** The cursor `number` of this file as the line `line` sees it: the nearest parse before it, else the first. */
-  const cursorByNumber = useCallback((number: number, line: number) => {
-    let before: (typeof doc.cursors)[number] | undefined, first: typeof before
-    for (const c of doc.cursors) {
-      if (c.number !== number || c.line <= 0 || doc.fileOfCursor(c.id) !== file) continue
-      if (c.line <= line && (!before || c.line > before.line)) before = c
-      if (!first || c.line < first.line) first = c
-    }
-    return before ?? first
-  }, [doc, file])
-  const refCursor = useCallback((number: number, line: number, ids: CachedLine | undefined) => {
-    const c = ids && ids.cursor >= 0 ? doc.cursors[ids.cursor] : undefined
-    return c && c.number === number ? c : cursorByNumber(number, line)
-  }, [doc, cursorByNumber])
-  /** The line of the plan line with `obj` in the plans of `stmt` in this file (the plan nearest to `line`), the STAT lines being adjacent from the plan's line. */
-  const planLineOfObj = useCallback((stmt: number, obj: number, line: number) => {
-    let best: number | undefined
-    for (const p of doc.plansOf(stmt)) {
-      if (p.line <= 0 || doc.fileOfCursor(p.cursor) !== file) continue
-      for (let k = 0; k < p.n; k++) {
-        if (doc.planLines[p.first + k]?.obj !== obj) continue
-        const at = p.line + k
-        if (best === undefined || Math.abs(at - line) < Math.abs(best - line)) best = at
-      }
-    }
-    return best
-  }, [doc, file])
-  const onRef = useCallback((line: number, kind: string, value: string, ids: CachedLine | undefined, e: { shiftKey: boolean }) => {
-    const n = Number(value)
-    switch (kind) {
-      case 'cursor': {
-        const c = refCursor(n, line, ids)
-        if (!c) { flash(`no cursor #${value} in this file`); return }
-        if (e.shiftKey) { if (c.line > 0) jump(c.line); return }
-        if (doc.statements[c.statement]) actions.selectStmt(c.statement); else flash(`cursor #${value} has no statement`)
-        return
-      }
-      case 'sqlid': {
-        const st = sqlIds(doc).get(value)
-        if (st === undefined) { flash(`no statement ${value} in this trace`); return }
-        const at = e.shiftKey ? stmtLineIn(doc, file, st) : undefined
-        if (at !== undefined) jump(at); else actions.selectStmt(st)
-        return
-      }
-      case 'obj': {
-        let st: number | undefined = ids && ids.stmt >= 0 ? ids.stmt : undefined
-        if (st === undefined) { const m = /#(\d+)/.exec(ids?.text ?? ''); if (m) st = refCursor(Number(m[1]), line, ids)?.statement }
-        const at = st === undefined ? undefined : planLineOfObj(st, n, line)
-        if (at !== undefined) { jump(at); return }
-        const name = decodeCtx.objectName?.(n)
-        flash(name ? `${name} (obj ${value}) is not in this statement's plan` : `no plan line for obj ${value}`)
-        return
-      }
-      case 'plh': {
-        const st = ids && ids.stmt >= 0 ? ids.stmt : doc.plans.find((p) => p.planHash === n)?.statement
-        if (st !== undefined && doc.statements[st]) actions.selectStmt(st); else flash(`no statement with plan hash ${value}`)
-        return
-      }
-    }
-  }, [doc, actions, jump, flash, refCursor, planLineOfObj, decodeCtx, file])
-  const refTitle = useCallback((kind: string, value: string, ids: CachedLine | undefined): string | undefined => {
-    const describe = (id: number | undefined) => {
-      const st = id === undefined || id < 0 ? undefined : doc.statements[id]
-      return st ? [doc.label(st), preview(st.text, 60)].filter(Boolean).join(' · ') : undefined
-    }
-    switch (kind) {
-      case 'cursor': {
-        const c = ids && ids.cursor >= 0 ? doc.cursors[ids.cursor] : undefined
-        return describe(ids && ids.stmt >= 0 ? ids.stmt : c?.statement)
-      }
-      case 'sqlid': return describe(sqlIds(doc).get(value)) ?? 'sql_id not in this trace'
-      case 'obj': return decodeCtx.objectName?.(Number(value)) ?? `obj ${value}`
-      case 'plh': return `plan hash ${value}`
-    }
-    return undefined
-  }, [doc, decodeCtx])
+  const onRef = useMemo(() => refClickOf(doc, file, decodeCtx, actions, jump, flash), [doc, file, decodeCtx, actions, jump, flash])
+  const refTitle = useMemo(() => refTitleOf(doc, decodeCtx), [doc, decodeCtx])
 
   // ---- the pinned header: the statement (and the BINDS or STAT block) at the top of the view ------------------------------
   const head = useCallback((top: number) => {
@@ -793,6 +734,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           <button className="quiet" onClick={() => set({ wrap: !ui.wrap })} aria-pressed={ui.wrap} title="wrap long lines">Wrap</button>
           <button className="quiet" onClick={toggleFocus} aria-pressed={ui.focus !== null} title="dim the rows outside the selected line's cursor (f); Esc clears">Focus</button>
           <button className="quiet" onClick={() => set({ heat: !ui.heat })} aria-pressed={ui.heat} title="a bar in the right gutter for the elapsed time of calls and waits">Heat</button>
+          <button className="quiet" onClick={() => set({ strip: !ui.strip })} aria-pressed={ui.strip} title="the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move">Strip</button>
           <button className="quiet" onClick={() => set({ links: !ui.links })} aria-pressed={ui.links} title="underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click opens the statement or the plan line (Shift: the cursor's parse line)">Refs</button>
           <ToolbarMenu label="Mute" badge={ui.mute.size > 0 ? String(ui.mute.size) : undefined} title="dim the rows of some line kinds (line counts and scrolling stay)" className="tbmenu-sm" open={ui.muteMenu} onOpenChange={(muteMenu) => set({ muteMenu })}>
             <div className="lines-mute">
@@ -825,6 +767,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       <div className="lines-body">
         <div className="lines-main">
           <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={ui.links} onRef={onRef} refTitle={refTitle} head={head} card={lineCard} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
+            onViewChange={onViewChange} side={ui.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}

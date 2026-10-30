@@ -26,8 +26,11 @@
 .lines-error { color: var(--s-critical); }
 
 /* the viewer: rows are laid out by the component (see components/LineViewer.tsx), the scroll bar stands for the whole file */
-.lv-box { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
-.lv-box > .lv { flex: 1; block-size: auto; min-block-size: 0; }
+.lv-box { display: flex; block-size: 100%; min-block-size: 0; }
+/* the header and the scroll container as a column, the density strip beside it */
+.lv-box-col { flex: 1; display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; }
+.lv-box-col > .lv { flex: 1; block-size: auto; min-block-size: 0; }
+.lv-strip { flex: none; inline-size: 14px; block-size: 100%; cursor: pointer; background: var(--surface-sunken); border-inline-start: 1px solid var(--hairline); box-sizing: content-box; touch-action: none; user-select: none; }
 /* the pinned header above the scroll container (the container shrinks by its row) */
 .lv-head { position: sticky; inset-block-start: 0; z-index: 2; flex: none; display: flex; align-items: center; gap: var(--sp-3); block-size: var(--lv-row); box-sizing: border-box; padding-inline: var(--sp-3); overflow: hidden; white-space: nowrap; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); color: var(--ink-2); }
 .lv-head button { font: inherit; padding: 0 var(--sp-2); block-size: calc(var(--lv-row) - 4px); }

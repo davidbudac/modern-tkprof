@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	slicepkg "github.com/davidbudac/modern-tkprof/internal/slice"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
@@ -148,24 +148,14 @@ func cmdCompareDoc(kind string, args []string) error {
 		defer lis[i].Close()
 	}
 	mux := http.NewServeMux()
+	// the lines of either side; the shared handler also answers annot=1 (kinds) and annot=2 (like annot=1 here: no model)
+	sides := [2]http.Handler{slicepkg.LinesHandler(lis[:1]), slicepkg.LinesHandler(lis[1:])}
 	mux.HandleFunc("/api/lines", func(w http.ResponseWriter, r *http.Request) {
-		li := lis[0]
+		h := sides[0]
 		if r.URL.Query().Get("side") == "b" {
-			li = lis[1]
+			h = sides[1]
 		}
-		from, _ := strconv.Atoi(r.URL.Query().Get("from"))
-		n, err := strconv.Atoi(r.URL.Query().Get("n"))
-		if err != nil || n > maxLinesPerRequest {
-			n = maxLinesPerRequest
-		}
-		bs, err := li.Read(from, n)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Total-Lines", strconv.Itoa(li.Lines()))
-		w.Write(bs)
+		h.ServeHTTP(w, r)
 	})
 	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
