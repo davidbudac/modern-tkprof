@@ -50,9 +50,11 @@
 .lv-mk2 .lv-ln::before { background: var(--c-userio); }
 .lv-bm .lv-ln::after { content: "◆"; position: absolute; inset-inline-start: 7px; font-size: 0.55rem; color: var(--c-commit); }
 .lv-tx mark { background: color-mix(in oklch, var(--c-commit) 38%, transparent); color: inherit; border-radius: 2px; }
-.lv-gut { flex: none; box-sizing: border-box; inline-size: var(--lv-gut); margin-inline-start: auto; position: sticky; inset-inline-end: 0; display: flex; }
-.lv-act { flex: 1; display: flex; justify-content: flex-end; align-items: flex-start; gap: 2px; padding-inline: var(--sp-2); border-inline-start: 1px solid var(--hairline-strong); background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-raised)); }
+.lv-gut { flex: none; box-sizing: border-box; inline-size: var(--lv-gut); margin-inline-start: auto; position: sticky; inset-inline-end: 0; display: flex; flex-direction: column; }
+.lv-act { flex: 1; min-block-size: 0; display: flex; justify-content: flex-end; align-items: flex-start; gap: 2px; padding-inline: var(--sp-2); border-inline-start: 1px solid var(--hairline-strong); background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-raised)); }
 .lv-act button { font: inherit; font-size: var(--text-xs, 0.7rem); line-height: 1.2; padding: 0 var(--sp-2); block-size: calc(var(--lv-row) - 4px); align-self: center; }
+/* elapsed heat: a bar under the row's actions, as long as log10(µs)/6 of the gutter, in the row's tone */
+.lv-heat { flex: none; display: block; margin-block-start: auto; block-size: 3px; inline-size: calc(var(--w) * 100%); background: color-mix(in oklch, currentColor 55%, transparent); pointer-events: auto; }
 .lv-win .lv-ln { background: color-mix(in oklch, var(--c-cpu) 13%, var(--surface-sunken)); box-shadow: inset -3px 0 0 color-mix(in oklch, var(--c-cpu) 55%, transparent); } /* the time window's lines */
 .lv-win-start, .lv-win-end { position: relative; }
 .lv-win-start::before, .lv-win-end::after { content: ""; position: absolute; z-index: 1; inset-inline: 0; block-size: 1px; background: color-mix(in oklch, var(--c-cpu) 75%, transparent); pointer-events: none; }
@@ -98,3 +100,17 @@
 }
 .tbpop .lines-status { padding-inline: 0; }
 .tbpop .lines-bms { padding-inline: 0; flex: 1; min-block-size: 0; }
+
+/* the hover card of a line: one element, fixed under its row (see LineCard in components/LineViewer.tsx) */
+.lv-card {
+  position: fixed; inset-inline-start: var(--x, 0); inset-block-start: var(--y, 0); z-index: 40; pointer-events: none;
+  inline-size: max-content; max-inline-size: min(34rem, calc(100vw - 1rem)); padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-raised); color: var(--ink); border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  box-shadow: 0 6px 20px color-mix(in oklch, var(--ink) 18%, transparent); font-size: var(--text-xs); line-height: 1.45; text-align: start;
+}
+.lv-card-h { display: flex; justify-content: space-between; gap: var(--sp-4); font-weight: 600; padding-block-end: var(--sp-1); margin-block-end: var(--sp-1); border-block-end: 1px solid var(--hairline); }
+.lv-card-h span { font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lv-card table { border-collapse: collapse; }
+.lv-card th { font-weight: 400; color: var(--ink-2); text-align: start; padding-inline-end: var(--sp-4); white-space: nowrap; vertical-align: top; }
+.lv-card td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.lv-card p { margin: var(--sp-1) 0 0; color: var(--ink-3); }

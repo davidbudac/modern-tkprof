@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
-import { PageCache } from '../data/linecache'
+import { LINE_KINDS, PageCache } from '../data/linecache'
 import { fetchLinesAnnot, lineAt, linePermalink, objectsAt, parseJump, search, type AtObjects, type SearchEnd, type SearchHit } from '../data/lines'
-import { fmtInt, fmtTz, preview } from '../data/format'
+import { fmtInt, fmtTz, fmtWall, preview } from '../data/format'
+import { decodeLine, type DecodeContext, type LineDecode } from '../data/linefields'
 import { copyText } from '../data/clipboard'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
@@ -32,6 +33,8 @@ interface LinesUi {
   tab: 'hits' | 'bookmarks'
   panel: boolean
   wrap: boolean
+  /** the elapsed-time bars in the gutter */
+  heat: boolean
   jump: string
 }
 
@@ -44,7 +47,7 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false },
-      tab: 'hits', panel: false, wrap: false, jump: '',
+      tab: 'hits', panel: false, wrap: false, heat: true, jump: '',
     }))
   }
   return u
@@ -272,6 +275,23 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [cache, copyWhat])
   const copyLink = useCallback((line: number) => void copyWhat(`link to line ${fmtInt(line)}`, linePermalink(window.location, file, line)), [copyWhat, file])
   const canLink = useStore((s) => s.lineRefTarget !== 'view') // the desktop shell has no URL to link to
+  // ---- hover cards: the line decoded with what the trace knows (events, objects, clock) ------------------------------------
+  const decodeCtx = useMemo<DecodeContext>(() => {
+    const events = new Map(doc.events.map((e) => [e.name, e]))
+    let planObjs: Map<number, string> | undefined // obj → object of the plan lines, for traces without a reference bundle
+    return {
+      eventOf: (name) => events.get(name),
+      objectName: (obj) => {
+        const named = doc.objectName(obj)
+        if (named) return named
+        if (!planObjs) planObjs = new Map(doc.planLines.filter((p) => p.obj > 0 && p.object).map((p) => [p.obj, p.object]))
+        return planObjs.get(obj)
+      },
+      clock: (tim) => (doc.wallOffsetUs ? fmtWall(tim + doc.wallOffsetUs, doc.tzOffsetMin, { micros: true }) : undefined),
+      firstTim: doc.span.firstTim,
+    }
+  }, [doc])
+  const lineCard = useCallback((_line: number, text: string, kind: number): LineDecode | null => decodeLine(text, LINE_KINDS[kind], decodeCtx), [decodeCtx])
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
 
   // ---- jump to time ----------------------------------------------------------------------------------------------------
@@ -380,6 +400,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           <button className="quiet" onClick={() => toggleBookmark(selected)} aria-pressed={bmSet.has(selected)} title="bookmark the selected line (b)">◆ Bookmark</button>
           {notesOn && <button className="quiet" onClick={() => setNoting(noting === selected ? null : selected)} aria-pressed={noting === selected} title="a note on the selected line (bookmarks it)">✎ Note</button>}
           <button className="quiet" onClick={() => set({ wrap: !ui.wrap })} aria-pressed={ui.wrap} title="wrap long lines">Wrap</button>
+          <button className="quiet" onClick={() => set({ heat: !ui.heat })} aria-pressed={ui.heat} title="a bar in the right gutter for the elapsed time of calls and waits">Heat</button>
           <ToolbarMenu label="Hits & bookmarks" badge={ui.hits.length + bookmarks.length > 0 ? `${fmtInt(ui.hits.length)} · ${bookmarks.length}` : undefined}
             title="the search hits and the bookmarks" open={ui.panel} onOpenChange={(panel) => set({ panel })}>
             {panelBody}
@@ -417,7 +438,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className="lines-body">
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} card={lineCard} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
