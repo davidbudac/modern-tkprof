@@ -26,7 +26,7 @@ describe('PageCache', () => {
     await c.load(0)
     expect(c.total).toBe(10)
     expect(c.pageCount).toBe(3)
-    expect(c.line(3)).toEqual({ text: 'L3', kind: LINE_KINDS.indexOf('wait') })
+    expect(c.line(3)).toEqual({ text: 'L3', kind: LINE_KINDS.indexOf('wait'), call: -1, stmt: -1, cursor: -1, execNo: -1, wait: -1 })
     expect(c.line(5)).toBeUndefined() // page 1 not loaded
   })
 
@@ -94,6 +94,33 @@ describe('packPage', () => {
   it('keeps unknown kinds as 0', () => {
     const p = packPage({ from: 1, total: 2, lines: [{ t: 'a', k: 'wait' }, { t: 'b', k: 'zzz' as never }] })
     expect(Array.from(p.kinds)).toEqual([LINE_KINDS.indexOf('wait'), 0])
+  })
+})
+
+describe('packPage ids', () => {
+  it('fills the id arrays from the line keys, -1 where a line omits them', () => {
+    const p = packPage({ from: 5, total: 7, lines: [
+      { t: 'a', k: 'call', c: 4, s: 2, u: 9, x: 3, w: -1 },
+      { t: 'b', k: 'blank' },
+      { t: 'c', k: 'wait', c: 4, s: 2, u: 9, x: 3, w: 11 },
+    ] })
+    expect(Array.from(p.calls)).toEqual([4, -1, 4])
+    expect(Array.from(p.stmts)).toEqual([2, -1, 2])
+    expect(Array.from(p.cursors)).toEqual([9, -1, 9])
+    expect(Array.from(p.execs)).toEqual([3, -1, 3])
+    expect(Array.from(p.waits)).toEqual([-1, -1, 11])
+  })
+
+  it('has -1 everywhere for a page fetched without ids', () => {
+    const p = packPage({ from: 1, total: 2, lines: [{ t: 'a', k: 'call' }, { t: 'b', k: 'wait' }] })
+    for (const a of [p.calls, p.stmts, p.cursors, p.execs, p.waits]) expect(Array.from(a)).toEqual([-1, -1])
+  })
+
+  it('PageCache.line returns the ids of the line', async () => {
+    const c = new PageCache(async (from) => ({ from, total: 2, lines: [{ t: 'a', k: 'call', c: 1, s: 2, u: 3, x: 4 }, { t: 'b', k: 'blank' }] }), 20, 2)
+    await c.load(0)
+    expect(c.line(1)).toMatchObject({ call: 1, stmt: 2, cursor: 3, execNo: 4, wait: -1 })
+    expect(c.line(2)).toMatchObject({ call: -1, stmt: -1, cursor: -1, execNo: -1, wait: -1 })
   })
 })
 

@@ -42,6 +42,8 @@ interface LinesUi {
   /** the Mute popover, and the kind groups (`MUTE_GROUPS`) it dims */
   muteMenu: boolean
   mute: Set<string>
+  /** the cursor id whose rows stay bright (the others are dimmed), null for none */
+  focus: number | null
   tab: 'hits' | 'bookmarks'
   panel: boolean
   wrap: boolean
@@ -63,7 +65,7 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
-      presets: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(),
+      presets: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(), focus: null,
       tab: 'hits', panel: false, wrap: false, heat: true, jump: '', back: [], cur: 0,
     }))
   }
@@ -151,7 +153,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [, bump] = useReducer((x: number) => x + 1, 0)
   const set = useCallback((patch: Partial<LinesUi>) => { Object.assign(ui, patch); bump() }, [ui])
 
-  const cache = useMemo(() => new PageCache((from, n, signal) => fetchLinesAnnot(client, file, from, n, signal)), [client, file])
+  const cache = useMemo(() => new PageCache((from, n, signal) => fetchLinesAnnot(client, file, from, n, signal, true)), [client, file])
   useEffect(() => cache.subscribe(bump), [cache])
   useEffect(() => () => cache.close(), [cache])
   // a live session's next snapshot: the file has more lines
@@ -175,29 +177,40 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   // ---- what is at a line ------------------------------------------------------------------------------------------
   const atTimer = useRef(0)
   const atCtl = useRef<AbortController | null>(null)
+  /** Moves the rest of the app to what the line is at: its statement, execution and wait event. */
+  const dispatchAt = useCallback((o: { stmt: number; cursor: number; execNo: number; wait: number }, text: string) => {
+    const sel = store.getState().selection
+    if (o.stmt >= 0 && o.stmt !== sel.stmt) { ui.jumpedFor = o.stmt; actions.pickStmt(o.stmt) }
+    if (o.stmt >= 0 && o.cursor >= 0 && o.execNo >= 0) actions.selectExec({ cursor: o.cursor, execNo: o.execNo })
+    if (o.wait >= 0) {
+      const name = /nam='([^']*)'/.exec(text)?.[1] // the line's text names a wait's event
+      const ev = name === undefined ? -1 : doc.events.findIndex((e) => e.name === name)
+      if (ev >= 0) actions.selectEvent(ev)
+    }
+  }, [store, actions, doc, ui])
   const resolveAt = useCallback((line: number, dispatch: boolean) => {
     window.clearTimeout(atTimer.current)
+    atCtl.current?.abort()
+    // a cached line with ids (`annot=2`) answers at once; the request below fills in ctx, bindSet and planLine
+    const l = cache.line(line)
+    const known = !!l && (l.cursor >= 0 || l.stmt >= 0 || l.wait >= 0 || l.call >= 0)
+    if (l && known) {
+      const objs: AtObjects = { call: l.call, stmt: l.stmt, cursor: l.cursor, execNo: l.execNo, wait: l.wait, bindSet: -1, ctx: -1, planLine: -1, kind: LINE_KINDS[l.kind] ?? 'unknown' }
+      setAt({ line, objs })
+      if (dispatch) dispatchAt(objs, l.text)
+    }
     atTimer.current = window.setTimeout(async () => {
       atCtl.current?.abort()
       const ac = (atCtl.current = new AbortController())
       try {
-        const page = await cache.load(cache.pageOf(line)) // the line's text names a wait's event
+        const page = await cache.load(cache.pageOf(line))
         const objs = await objectsAt(client, file, line, ac.signal)
         if (ac.signal.aborted) return
         setAt({ line, objs })
-        if (!dispatch) return
-        const sel = store.getState().selection
-        if (objs.stmt >= 0 && objs.stmt !== sel.stmt) { ui.jumpedFor = objs.stmt; actions.pickStmt(objs.stmt) }
-        if (objs.stmt >= 0 && objs.cursor >= 0 && objs.execNo >= 0) actions.selectExec({ cursor: objs.cursor, execNo: objs.execNo })
-        if (objs.wait >= 0) {
-          const text = page.texts[line - page.from] ?? ''
-          const name = /nam='([^']*)'/.exec(text)?.[1]
-          const ev = name === undefined ? -1 : doc.events.findIndex((e) => e.name === name)
-          if (ev >= 0) actions.selectEvent(ev)
-        }
-      } catch (e) { if (!aborted(e)) setAt(null) }
+        if (dispatch && !known) dispatchAt(objs, page.texts[line - page.from] ?? '')
+      } catch (e) { if (!aborted(e) && !known) setAt(null) }
     }, 60)
-  }, [cache, client, file, store, actions, doc, ui])
+  }, [cache, client, file, dispatchAt])
   useEffect(() => () => { window.clearTimeout(atTimer.current); atCtl.current?.abort() }, [])
 
   const select = useCallback((line: number, dispatch = true) => { ui.cur = line; actions.setLinesLine(file, line); resolveAt(line, dispatch) }, [actions, file, resolveAt, ui])
@@ -345,6 +358,12 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const to = cache.nextOfKind(selected, LINE_KINDS.indexOf(kind), dir)
     if (to !== undefined) jump(to); else flash(`no ${what} ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)} in the loaded pages`)
   }
+  /** Focus the selected line's cursor (dims the rows of the others), or clear the focus when it is already that cursor. */
+  const toggleFocus = () => {
+    const cur = cache.line(selected)?.cursor ?? -1
+    if (cur < 0) flash(`no cursor at line ${fmtInt(selected)}`)
+    else set({ focus: ui.focus === cur ? null : cur })
+  }
   const searchRef = useRef<HTMLInputElement>(null)
   const goToRef = useRef<HTMLInputElement>(null)
   /** The viewer's letter keys (no modifier but Shift, viewer focused, not in a text field). */
@@ -363,6 +382,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'm': stepMark(1); break
       case 'M': stepMark(-1); break
       case 'h': set({ heat: !ui.heat }); break
+      case 'f': toggleFocus(); break
       case ']': stepKind('call', 'call', 1); break
       case '[': stepKind('call', 'call', -1); break
       case 'w': stepKind('wait', 'wait', 1); break
@@ -381,6 +401,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape' && ui.status === 'running') { e.stopPropagation(); cancelSearch() }
+    else if (e.key === 'Escape' && ui.focus !== null && (e.target as HTMLElement).closest('.lv')) { e.stopPropagation(); set({ focus: null }) }
     else if (e.key === 'F3') { e.preventDefault(); stepHit(e.shiftKey ? -1 : 1) }
     else if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey && ui.back.length > 0) {
       const t = e.target as HTMLElement
@@ -578,6 +599,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           <button className="quiet" onClick={() => toggleBookmark(selected)} aria-pressed={bmSet.has(selected)} title="bookmark the selected line (b)">◆ Bookmark</button>
           {notesOn && <button className="quiet" onClick={() => setNoting(noting === selected ? null : selected)} aria-pressed={noting === selected} title="a note on the selected line (bookmarks it)">✎ Note</button>}
           <button className="quiet" onClick={() => set({ wrap: !ui.wrap })} aria-pressed={ui.wrap} title="wrap long lines">Wrap</button>
+          <button className="quiet" onClick={toggleFocus} aria-pressed={ui.focus !== null} title="dim the rows outside the selected line's cursor (f); Esc clears">Focus</button>
           <button className="quiet" onClick={() => set({ heat: !ui.heat })} aria-pressed={ui.heat} title="a bar in the right gutter for the elapsed time of calls and waits">Heat</button>
           <ToolbarMenu label="Mute" badge={ui.mute.size > 0 ? String(ui.mute.size) : undefined} title="dim the rows of some line kinds (line counts and scrolling stay)" className="tbmenu-sm" open={ui.muteMenu} onOpenChange={(muteMenu) => set({ muteMenu })}>
             <div className="lines-mute">
@@ -609,7 +631,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className="lines-body">
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} mutedKinds={mutedKinds} card={lineCard} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} card={lineCard} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
@@ -619,6 +641,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       <div className="lines-status-bar small">
         <span className="mono">{fmtInt(selected)} / {fmtInt(total)}</span>
         {ui.back.length > 0 && <button type="button" className="link" onClick={goBack} title="back to the line before the last jump (Backspace in the viewer)">← back to line {fmtInt(ui.back[ui.back.length - 1])}</button>}
+        {ui.focus !== null && (
+          <span className="lines-focus">
+            {(() => {
+              const c = doc.cursors[ui.focus]
+              const s = c ? doc.statements[c.statement] : undefined
+              return `focus: cursor ${c ? `#${c.number}` : `id ${ui.focus}`}${s ? ` of ${doc.label(s)}` : ''} · Esc clears`
+            })()}
+            <button type="button" className="quiet" onClick={() => set({ focus: null })} aria-label="Clear the cursor focus" title="clear the cursor focus">×</button>
+          </span>
+        )}
         {copied && <span role="status" aria-live="polite" className="lines-copied">{copied}</span>}
         {files.length > 1 && <span className="muted">{doc.traceFileName(file)}</span>}
         <span className="lines-legend" aria-label="Line colours">

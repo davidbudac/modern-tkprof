@@ -122,6 +122,10 @@
 
 /* muted kinds, presets, recent searches, key map */
 .lv-mute { opacity: .45; }
+/* outside the focused cursor; a selected row stays readable */
+.lv-dim { opacity: .35; }
+.lv-dim.lv-sel { opacity: .7; }
+.lines-focus { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--ink); font-weight: 500; }
 .tbmenu-sm .tbpop { inline-size: max-content; max-inline-size: min(30rem, 90vw); block-size: auto; max-block-size: 70dvh; overflow: auto; }
 .tbmenu-start .tbpop { inset-inline: 0 auto; }
 .lines-presets { list-style: none; margin: 0; padding: 0; display: grid; }

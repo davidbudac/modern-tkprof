@@ -1,7 +1,13 @@
 import { ANNOT_PAGE, type AnnotPage, type LineKind } from './lines'
 
-/** A page of 2000 lines as the viewer holds it: texts and kind indexes (into `LINE_KINDS`) as parallel arrays. */
-export interface CachedPage { from: number; texts: string[]; kinds: Uint8Array }
+/**
+ * A page of 2000 lines as the viewer holds it: texts and kind indexes (into `LINE_KINDS`) as parallel arrays, and the model ids of
+ * each line (call, statement, cursor, exec number, wait; -1 where the line has none or the page came without ids).
+ */
+export interface CachedPage { from: number; texts: string[]; kinds: Uint8Array; calls: Int32Array; stmts: Int32Array; cursors: Int32Array; execs: Int32Array; waits: Int32Array }
+
+/** A cached line: its text, kind index and model ids (-1 for none). */
+export interface CachedLine { text: string; kind: number; call: number; stmt: number; cursor: number; execNo: number; wait: number }
 
 export const LINE_KINDS: readonly LineKind[] = [
   'unknown', 'blank', 'header', 'separator', 'marker', 'parsing-in-cursor', 'sql-text', 'end-of-stmt', 'call', 'wait',
@@ -12,8 +18,14 @@ const kindIndex = new Map<string, number>(LINE_KINDS.map((k, i) => [k, i]))
 export function packPage(p: AnnotPage): CachedPage {
   const kinds = new Uint8Array(p.lines.length)
   const texts = new Array<string>(p.lines.length)
-  for (let i = 0; i < p.lines.length; i++) { texts[i] = p.lines[i].t; kinds[i] = kindIndex.get(p.lines[i].k) ?? 0 }
-  return { from: p.from, texts, kinds }
+  const ids = () => new Int32Array(p.lines.length).fill(-1)
+  const calls = ids(), stmts = ids(), cursors = ids(), execs = ids(), waits = ids()
+  for (let i = 0; i < p.lines.length; i++) {
+    const l = p.lines[i]
+    texts[i] = l.t; kinds[i] = kindIndex.get(l.k) ?? 0
+    calls[i] = l.c ?? -1; stmts[i] = l.s ?? -1; cursors[i] = l.u ?? -1; execs[i] = l.x ?? -1; waits[i] = l.w ?? -1
+  }
+  return { from: p.from, texts, kinds, calls, stmts, cursors, execs, waits }
 }
 
 /**
@@ -109,12 +121,14 @@ export class PageCache {
   /** Aborts every request on the way (the file or the server changed). */
   close(): void { for (const ac of this.ctrls.values()) ac.abort() }
 
-  /** The text and kind of line `n` when its page is cached. */
-  line(n: number): { text: string; kind: number } | undefined {
+  /** The text, kind and model ids of line `n` when its page is cached (the ids are -1 when the page came without them). */
+  line(n: number): CachedLine | undefined {
     const p = this.pages.get(this.pageOf(n))
     if (!p) return undefined
     const i = n - p.from
-    return i >= 0 && i < p.texts.length ? { text: p.texts[i], kind: p.kinds[i] } : undefined
+    return i >= 0 && i < p.texts.length
+      ? { text: p.texts[i], kind: p.kinds[i], call: p.calls[i], stmt: p.stmts[i], cursor: p.cursors[i], execNo: p.execs[i], wait: p.waits[i] }
+      : undefined
   }
 
   /**

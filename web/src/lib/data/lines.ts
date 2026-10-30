@@ -47,7 +47,8 @@ export async function probeLinesApi(client: ApiClient): Promise<boolean> {
 /** The lines API's page size: `api/lines` returns at most this many lines. */
 export const ANNOT_PAGE = 2000
 
-export interface AnnotLine { t: string; k: LineKind }
+/** `c s u x w` (call, statement, cursor, exec number, wait id) come with `annot=2`, -1 or omitted where the line has none. */
+export interface AnnotLine { t: string; k: LineKind; c?: number; s?: number; u?: number; x?: number; w?: number }
 export interface AnnotPage { from: number; total: number; lines: AnnotLine[] }
 
 async function failure(res: Response): Promise<Error> {
@@ -55,9 +56,9 @@ async function failure(res: Response): Promise<Error> {
   return new Error(`${res.status} ${res.statusText}${body ? ': ' + body : ''}`)
 }
 
-/** `n` lines (≤ 2000) of input file `file` from 1-based line `from`, each with its kind. */
-export async function fetchLinesAnnot(client: ApiClient, file: number, from: number, n: number, signal?: AbortSignal): Promise<AnnotPage> {
-  const res = await client.fetch(`/api/lines?annot=1&file=${file}&from=${from}&n=${n}`, { signal })
+/** `n` lines (≤ 2000) of input file `file` from 1-based line `from`, each with its kind (`rich`: and its model ids, `annot=2`; a server that does not know it answers like `annot=1`). */
+export async function fetchLinesAnnot(client: ApiClient, file: number, from: number, n: number, signal?: AbortSignal, rich = false): Promise<AnnotPage> {
+  const res = await client.fetch(`/api/lines?annot=${rich ? 2 : 1}&file=${file}&from=${from}&n=${n}`, { signal })
   if (!res.ok) throw await failure(res)
   const r = (await res.json()) as Partial<AnnotPage>
   return { from: r.from ?? from, total: r.total ?? 0, lines: r.lines ?? [] }

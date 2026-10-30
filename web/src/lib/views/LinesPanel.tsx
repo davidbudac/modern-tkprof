@@ -102,10 +102,11 @@ const KEYS: [string, string][] = [
   ['x X', 'next / previous commit (loaded pages)'],
   ['c C', 'next / previous PARSING IN CURSOR'],
   ['e E', 'next / previous error'],
+  ['f', "focus the selected line's cursor (dims the rows of other cursors)"],
   ['b', 'bookmark the selected line'],
   ['Backspace', 'back to the line before the last jump'],
   ['F3 Shift+F3', 'next / previous search hit'],
-  ['Esc', 'cancel a running search'],
+  ['Esc', 'cancel a running search, else clear the cursor focus'],
   ['?', 'this list'],
 ]
 
