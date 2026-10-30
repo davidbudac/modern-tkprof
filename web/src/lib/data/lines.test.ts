@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -273,5 +273,24 @@ describe('line permalink', () => {
     expect(linePermalink(loc, 0, 4711)).toBe('http://100.64.0.1:8046/?doc=a.json#view=lines&line=4711')
     expect(linePermalink(loc, 2, 9)).toBe('http://100.64.0.1:8046/?doc=a.json#view=lines&file=2&line=9')
     expect(linePermalink({ ...loc, search: '' }, 0, 1)).toBe('http://100.64.0.1:8046/#view=lines')
+  })
+})
+
+describe('search presets', () => {
+  it('builds the threshold regexes from the digits of the threshold in µs', () => {
+    expect(waitsOverRe(10)).toBe('ela= \\d{5,}')
+    expect(waitsOverRe(1)).toBe('ela= \\d{4,}')
+    expect(waitsOverRe(0.5)).toBe('ela= \\d{3,}')
+    expect(waitsOverRe(0)).toBe('ela= \\d{1,}')
+    expect(callsOverRe(10)).toBe(',e=\\d{5,}')
+    expect(callsOverRe(1000)).toBe(',e=\\d{7,}')
+  })
+
+  it('matches the trace lines it is meant for', () => {
+    const re = new RegExp(waitsOverRe(10))
+    expect(re.test("WAIT #1: nam='db file sequential read' ela= 12345 file#=1")).toBe(true)
+    expect(re.test("WAIT #1: nam='db file sequential read' ela= 999 file#=1")).toBe(false)
+    expect(new RegExp(callsOverRe(10)).test('EXEC #1:c=0,e=250000,p=0')).toBe(true)
+    expect(SEARCH_PRESETS.every((p) => { try { new RegExp(typeof p.re === 'string' ? p.re : p.re(p.ms ?? 10)); return true } catch { return false } })).toBe(true)
   })
 })

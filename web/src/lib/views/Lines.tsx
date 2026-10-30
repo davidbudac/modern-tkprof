@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache } from '../data/linecache'
-import { ALL_SCOPE, cursorLine, fetchLinesAnnot, lineAt, linePermalink, objectsAt, parseGoTo, search, statementsOf, stmtLineIn, type AtObjects, type SearchEnd, type SearchHit } from '../data/lines'
+import { ALL_SCOPE, cursorLine, fetchLinesAnnot, lineAt, linePermalink, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtInt, fmtTz, fmtWall, preview } from '../data/format'
 import { decodeLine, type DecodeContext, type LineDecode } from '../data/linefields'
 import { copyText } from '../data/clipboard'
@@ -11,7 +11,7 @@ import { ToolbarMenu } from '../components/ToolbarMenu'
 import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
-import { BookmarkList, HitList } from './LinesPanel'
+import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
 import { LinesAt } from './LinesAt'
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
@@ -29,7 +29,19 @@ interface LinesUi {
   q: string; regex: boolean; caseSensitive: boolean; fromHere: boolean
   hits: SearchHit[]; end: SearchEnd | null; status: SearchStatus; error: string | null
   /** what the hits were searched with (highlighting must not follow edits of the box) */
-  searched: { q: string; regex: boolean; caseSensitive: boolean }
+  searched: { q: string; regex: boolean; caseSensitive: boolean; scope: SearchScope }
+  /** where the next search looks (a scope that is not available falls back to the file) */
+  scope: SearchScope
+  /** the last finished searches, newest first (chips above the hits) */
+  recent: RecentSearch[]
+  presets: boolean
+  /** the Presets menu's threshold for the slow waits and calls (ms) */
+  threshold: number
+  /** the key map popover */
+  keys: boolean
+  /** the Mute popover, and the kind groups (`MUTE_GROUPS`) it dims */
+  muteMenu: boolean
+  mute: Set<string>
   tab: 'hits' | 'bookmarks'
   panel: boolean
   wrap: boolean
@@ -50,7 +62,8 @@ function uiOf(store: Store, file: number): LinesUi {
   if (!u) {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
-      hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false },
+      hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
+      presets: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(),
       tab: 'hits', panel: false, wrap: false, heat: true, jump: '', back: [], cur: 0,
     }))
   }
@@ -59,6 +72,16 @@ function uiOf(store: Store, file: number): LinesUi {
 
 const SEARCH_LIMIT = 10_000
 const BACK_LIMIT = 50
+const RECENT_LIMIT = 5
+
+/** The Mute menu's groups: the line kinds each one dims. */
+const MUTE_GROUPS: { name: string; label: string; kinds: LineKind[] }[] = [
+  { name: 'framing', label: 'Framing (blank, header, separator)', kinds: ['blank', 'header', 'separator'] },
+  { name: 'binds', label: 'Binds', kinds: ['binds', 'bind-line'] },
+  { name: 'stat', label: 'STAT lines', kinds: ['stat'] },
+  { name: 'markers', label: 'Markers (***)', kinds: ['marker'] },
+  { name: 'waits', label: 'Waits', kinds: ['wait'] },
+]
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 
 /** Binary search in an ascending array: the first index with `a[i] > x`. */
@@ -224,6 +247,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (topRef.current < 1 && lv.line <= 1) goTo(markLines[0])
   }, [stmt, markLines, ui, lv.seq, lv.line, goTo])
 
+  const mutedKinds = useMemo(() => new Set(MUTE_GROUPS.filter((g) => ui.mute.has(g.name)).flatMap((g) => g.kinds.map((k) => LINE_KINDS.indexOf(k)))), [ui.mute])
+  /** this file's PARSING IN CURSOR lines and error lines, ascending */
+  const cursorLines = useMemo(() => doc.cursors.filter((c) => c.line > 0 && doc.fileOfCursor(c.id) === file).map((c) => c.line).sort((a, b) => a - b), [doc, file])
+  const errorLines = useMemo(() => doc.errors.filter((e) => e.line > 0 && doc.fileOfCtx(e.context) === file).map((e) => e.line).sort((a, b) => a - b), [doc, file])
+
   const stepMark = (dir: 1 | -1) => {
     if (markLines.length === 0) return
     const from = selected
@@ -244,26 +272,60 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
   // ---- search ----------------------------------------------------------------------------------------------------------
   const searchCtl = useRef<AbortController | null>(null)
+  /** The scope that can be searched now: the window needs its lines, the statement its marks. */
+  const scopeOf = (want: SearchScope): SearchScope => (want === 'window' && winRange ? 'window' : want === 'stmt' && markLines.length > 0 ? 'stmt' : 'file')
+  const scope = scopeOf(ui.scope)
   const runSearch = () => {
     if (ui.q === '') return
     searchCtl.current?.abort()
     const ac = (searchCtl.current = new AbortController())
     const hits: SearchHit[] = []
-    const from = ui.fromHere ? Math.min(Math.max(1, selected + 1), Math.max(1, cache.total || selected + 1)) : 1
-    set({ hits, end: null, status: 'running', error: null, tab: 'hits', panel: true, searched: { q: ui.q, regex: ui.regex, caseSensitive: ui.caseSensitive } })
+    const { q, regex, caseSensitive } = ui
+    const sc = scopeOf(ui.scope)
+    const span: LineRange | null = sc === 'window' ? winRange : sc === 'stmt' ? { from: markLines[0], to: markLines[markLines.length - 1] } : null
+    const here = ui.fromHere ? Math.min(Math.max(1, selected + 1), Math.max(1, cache.total || selected + 1)) : 1
+    const from = span ? (ui.fromHere && here >= span.from && here <= span.to ? here : span.from) : here
+    set({ hits, end: null, status: 'running', error: null, tab: 'hits', panel: true, searched: { q, regex, caseSensitive, scope: sc } })
     let timer = 0
+    let clipped = false // the stream was cut at the first hit past the scope's last line
     const flush = () => { timer = 0; if (searchCtl.current === ac) bump() }
     const finish = (patch: Partial<LinesUi>) => { window.clearTimeout(timer); if (searchCtl.current === ac) set(patch) }
-    search(client, { file, q: ui.q, regex: ui.regex, caseSensitive: ui.caseSensitive, from, limit: SEARCH_LIMIT }, (h) => {
+    const complete = (end: SearchEnd) => finish({ end, status: 'done', recent: [{ q, regex, caseSensitive, scope: sc, hits, end }, ...ui.recent.filter((r) => !sameSearch(r, { q, regex, caseSensitive, scope: sc }))].slice(0, RECENT_LIMIT) })
+    search(client, { file, q, regex, caseSensitive, from, limit: SEARCH_LIMIT }, (h) => {
+      if (clipped) return
+      if (span && h.line > span.to) { clipped = true; ac.abort(); return }
       hits.push(h)
       if (hits.length === 1) { flush(); jump(h.line) } else if (!timer) timer = window.setTimeout(flush, 100)
     }, ac.signal).then(
-      (end) => finish({ end, status: 'done' }),
-      (e: unknown) => finish(aborted(e) ? { status: 'cancelled' } : { status: 'error', error: e instanceof Error ? e.message : String(e) }),
+      complete,
+      (e: unknown) => {
+        if (aborted(e) && clipped) complete({ scanned: 0, truncated: false, done: true })
+        else finish(aborted(e) ? { status: 'cancelled' } : { status: 'error', error: e instanceof Error ? e.message : String(e) })
+      },
     )
   }
   const cancelSearch = () => searchCtl.current?.abort()
   useEffect(() => () => searchCtl.current?.abort(), [])
+
+  /** A recent search's hits and status back at once, without a request. */
+  const restoreSearch = (r: RecentSearch) => {
+    const c = searchCtl.current
+    searchCtl.current = null // a running search must not overwrite what is restored
+    c?.abort()
+    set({ q: r.q, regex: r.regex, caseSensitive: r.caseSensitive, scope: r.scope, hits: r.hits, end: r.end, status: 'done', error: null, tab: 'hits', searched: { q: r.q, regex: r.regex, caseSensitive: r.caseSensitive, scope: r.scope } })
+  }
+  const rerunSearch = (r: RecentSearch) => { set({ q: r.q, regex: r.regex, caseSensitive: r.caseSensitive, scope: r.scope }); runSearch() }
+  /** A preset fills the box, switches regex on and runs; the threshold ones ask for the milliseconds. */
+  const runPreset = (p: (typeof SEARCH_PRESETS)[number]) => {
+    let re: string
+    if (typeof p.re === 'string') re = p.re
+    else {
+      if (!(ui.threshold > 0)) { flash('the threshold must be a number of milliseconds above 0'); return }
+      re = p.re(ui.threshold)
+    }
+    set({ q: re, regex: true, presets: false })
+    runSearch()
+  }
 
   const stepHit = (dir: 1 | -1) => {
     const hs = ui.hits
@@ -273,13 +335,57 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (to) jump(to.line)
   }
 
+  /** The next / previous line of a sorted list (cursors, errors) after the selected one. */
+  const stepSorted = (a: number[], dir: 1 | -1, what: string) => {
+    const to = dir === 1 ? a[firstAbove(a, selected)] : a[firstAbove(a, selected - 1) - 1]
+    if (to !== undefined) jump(to); else flash(`no ${what} ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)}`)
+  }
+  /** The next / previous line of a kind within the loaded pages (until the engine can answer for the whole file). */
+  const stepKind = (kind: LineKind, what: string, dir: 1 | -1) => {
+    const to = cache.nextOfKind(selected, LINE_KINDS.indexOf(kind), dir)
+    if (to !== undefined) jump(to); else flash(`no ${what} ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)} in the loaded pages`)
+  }
+  const searchRef = useRef<HTMLInputElement>(null)
+  const goToRef = useRef<HTMLInputElement>(null)
+  /** The viewer's letter keys (no modifier but Shift, viewer focused, not in a text field). */
+  const onViewerKey = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    const t = e.target as HTMLElement
+    if (!t.closest('.lv') || t.closest('input, textarea, select, button')) return
+    const focus = (el: HTMLInputElement | null) => { el?.focus(); el?.select() }
+    switch (e.key) {
+      case '/': focus(searchRef.current); break
+      case 'g': focus(goToRef.current); break
+      case 'Enter':
+        if (at && at.line === selected && at.objs.stmt >= 0) actions.selectStmt(at.objs.stmt)
+        else flash(`no statement at line ${fmtInt(selected)}`)
+        break
+      case 'm': stepMark(1); break
+      case 'M': stepMark(-1); break
+      case 'h': set({ heat: !ui.heat }); break
+      case ']': stepKind('call', 'call', 1); break
+      case '[': stepKind('call', 'call', -1); break
+      case 'w': stepKind('wait', 'wait', 1); break
+      case 'W': stepKind('wait', 'wait', -1); break
+      case 'x': stepKind('xctend', 'commit', 1); break
+      case 'X': stepKind('xctend', 'commit', -1); break
+      case 'c': stepSorted(cursorLines, 1, 'cursor parse'); break
+      case 'C': stepSorted(cursorLines, -1, 'cursor parse'); break
+      case 'e': stepSorted(errorLines, 1, 'error'); break
+      case 'E': stepSorted(errorLines, -1, 'error'); break
+      case '?': set({ keys: !ui.keys }); break
+      default: return
+    }
+    e.preventDefault()
+  }
+
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape' && ui.status === 'running') { e.stopPropagation(); cancelSearch() }
     else if (e.key === 'F3') { e.preventDefault(); stepHit(e.shiftKey ? -1 : 1) }
     else if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey && ui.back.length > 0) {
       const t = e.target as HTMLElement
       if (t.closest('.lv') && !t.closest('input, textarea, select')) { e.preventDefault(); goBack() }
-    }
+    } else onViewerKey(e)
   }
 
   // ---- per-line actions: copy the text, copy a link that opens the line ---------------------------------------------------
@@ -396,11 +502,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           <p className="small muted lines-status" aria-live="polite">
             {ui.status === 'idle' && 'Enter runs a search.'}
             {running && `Searching… ${fmtInt(ui.hits.length)} hits`}
-            {ui.status === 'done' && ui.end && `${fmtInt(ui.hits.length)} hits in ${fmtInt(ui.end.scanned)} lines${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
+            {ui.status === 'done' && ui.end && ui.searched.scope !== 'file' && `${fmtInt(ui.hits.length)} hits ${ui.searched.scope === 'window' ? "in the window's lines" : "within the marked statement's lines"}${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
+            {ui.status === 'done' && ui.end && ui.searched.scope === 'file' && `${fmtInt(ui.hits.length)} hits in ${fmtInt(ui.end.scanned)} lines${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
             {ui.status === 'done' && ui.end && !ui.end.done && ' (the server ended early)'}
             {ui.status === 'cancelled' && `Cancelled after ${fmtInt(ui.hits.length)} hits.`}
             {ui.status === 'error' && <span className="lines-error">{ui.error}</span>}
           </p>
+          <RecentSearches recent={ui.recent} active={ui.status === 'idle' ? null : ui.searched} onPick={restoreSearch} onRerun={rerunSearch} />
           {ui.status !== 'idle' && <HitList hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive} onGo={jump} />}
         </>
       )}
@@ -423,18 +531,29 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           </select>
         )}
         <form className="lines-search" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>
-          <input type="search" value={ui.q} placeholder="Search the trace text" aria-label="Search the trace text" onChange={(e) => set({ q: e.target.value })} />
+          <input type="search" ref={searchRef} value={ui.q} placeholder="Search the trace text" aria-label="Search the trace text" onChange={(e) => set({ q: e.target.value })} />
           <span className="seg" role="group" aria-label="Search options">
             <button type="button" aria-pressed={ui.caseSensitive} onClick={() => set({ caseSensitive: !ui.caseSensitive })} title="match case">Aa</button>
             <button type="button" aria-pressed={ui.regex} onClick={() => set({ regex: !ui.regex })} title="regular expression (RE2)">.*</button>
             <button type="button" aria-pressed={ui.fromHere} onClick={() => set({ fromHere: !ui.fromHere })} title="search from the selected line instead of line 1">from here</button>
           </span>
+          <span className="seg" role="group" aria-label="Scope">
+            <button type="button" aria-pressed={scope === 'file'} onClick={() => set({ scope: 'file' })} title="search the whole file">File</button>
+            <button type="button" aria-pressed={scope === 'window'} disabled={!winRange} onClick={() => set({ scope: 'window' })} title={winRange ? `search only the lines of the time window (${fmtInt(winRange.from)}–${fmtInt(winRange.to)})` : 'needs a time window with lines in this file'}>Window</button>
+            <button type="button" aria-pressed={scope === 'stmt'} disabled={markLines.length === 0} onClick={() => set({ scope: 'stmt' })} title={markLines.length > 0 ? `search only the lines between the selected statement's first and last mark (${fmtInt(markLines[0])}–${fmtInt(markLines[markLines.length - 1])})` : 'needs a selected statement with marks in this file'}>Statement</button>
+          </span>
           {running
             ? <button type="button" onClick={cancelSearch} title="Esc">Cancel</button>
             : <button type="submit" disabled={ui.q === ''}>Search</button>}
         </form>
+        <ToolbarMenu label="Presets" title="ready-made searches: errors, hard parses, slow waits and calls, commits, session markers" className="tbmenu-sm tbmenu-start" open={ui.presets} onOpenChange={(presets) => set({ presets })}>
+          <ul className="lines-presets">
+            {SEARCH_PRESETS.map((p) => (<li key={p.label}><button type="button" className="quiet" onClick={() => runPreset(p)}>{p.label.replace('N ms', `${ui.threshold} ms`)}</button></li>))}
+          </ul>
+          <label className="lines-threshold small">Threshold <input type="number" min={0.001} step={1} value={ui.threshold} aria-label="Threshold in milliseconds for the slow waits and calls presets" onChange={(e) => set({ threshold: Number(e.target.value) })} /> ms</label>
+        </ToolbarMenu>
         <form className="lines-jump" onSubmit={(e) => { e.preventDefault(); void runGoTo() }}>
-          <input type="text" value={ui.jump} placeholder={doc.wallOffsetUs ? 'Go to: line, #cursor, sql_id, 1.5s, 14:03:07' : 'Go to: line, #cursor, sql_id, 1.5s'} title={goToHelp} aria-label="Go to" onChange={(e) => set({ jump: e.target.value })} />
+          <input type="text" ref={goToRef} value={ui.jump} placeholder={doc.wallOffsetUs ? 'Go to: line, #cursor, sql_id, 1.5s, 14:03:07' : 'Go to: line, #cursor, sql_id, 1.5s'} title={goToHelp} aria-label="Go to" onChange={(e) => set({ jump: e.target.value })} />
           <button type="submit" disabled={ui.jump.trim() === ''}>Go</button>
           {jumpError && <small className="lines-note" role="alert">{jumpError}</small>}
         </form>
@@ -460,6 +579,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           {notesOn && <button className="quiet" onClick={() => setNoting(noting === selected ? null : selected)} aria-pressed={noting === selected} title="a note on the selected line (bookmarks it)">✎ Note</button>}
           <button className="quiet" onClick={() => set({ wrap: !ui.wrap })} aria-pressed={ui.wrap} title="wrap long lines">Wrap</button>
           <button className="quiet" onClick={() => set({ heat: !ui.heat })} aria-pressed={ui.heat} title="a bar in the right gutter for the elapsed time of calls and waits">Heat</button>
+          <ToolbarMenu label="Mute" badge={ui.mute.size > 0 ? String(ui.mute.size) : undefined} title="dim the rows of some line kinds (line counts and scrolling stay)" className="tbmenu-sm" open={ui.muteMenu} onOpenChange={(muteMenu) => set({ muteMenu })}>
+            <div className="lines-mute">
+              {MUTE_GROUPS.map((g) => (
+                <label key={g.name}><input type="checkbox" checked={ui.mute.has(g.name)} onChange={() => { const m = new Set(ui.mute); if (!m.delete(g.name)) m.add(g.name); set({ mute: m }) }} /> {g.label}</label>
+              ))}
+            </div>
+          </ToolbarMenu>
+          <ToolbarMenu label="Keys" title="keyboard shortcuts (?)" className="tbmenu-sm" open={ui.keys} onOpenChange={(keys) => set({ keys })}>
+            <KeyMap />
+          </ToolbarMenu>
           <ToolbarMenu label="Hits & bookmarks" badge={ui.hits.length + bookmarks.length > 0 ? `${fmtInt(ui.hits.length)} · ${bookmarks.length}` : undefined}
             title="the search hits and the bookmarks" open={ui.panel} onOpenChange={(panel) => set({ panel })}>
             {panelBody}
@@ -480,7 +609,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className="lines-body">
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} card={lineCard} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} mutedKinds={mutedKinds} card={lineCard} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}

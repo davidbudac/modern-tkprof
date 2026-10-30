@@ -263,3 +263,34 @@ export function linePermalink(loc: Pick<Location, 'origin' | 'pathname' | 'searc
   if (line > 1) p.set('line', String(line))
   return `${loc.origin}${loc.pathname}${loc.search}#${p}`
 }
+
+// ---- search presets -----------------------------------------------------------------------------------------
+
+/** Digits of `ms` milliseconds in µs: a number with at least that many digits is (about) `ms` or longer. */
+const usDigits = (ms: number) => String(Math.max(1, Math.round(ms * 1000))).length
+
+/** The regex for waits of `ms` milliseconds or more (`ela=` is in µs; the match is by digit count, so 25 ms matches from 10 ms). */
+export const waitsOverRe = (ms: number) => `ela= \\d{${usDigits(ms)},}`
+/** The regex for calls of `ms` milliseconds or more (`e=` is in µs; by digit count like `waitsOverRe`). */
+export const callsOverRe = (ms: number) => `,e=\\d{${usDigits(ms)},}`
+
+/** Searches that fill the box (regex on) and run. A function `re` takes a threshold in ms, asked of the user with `ms` as the default. */
+export const SEARCH_PRESETS: { label: string; re: string | ((ms: number) => string); ms?: number }[] = [
+  { label: 'Errors', re: '^(ERROR #|PARSE ERROR)' },
+  { label: 'Hard parses', re: '^PARSE #.*mis=1' },
+  { label: 'Waits over N ms', re: waitsOverRe, ms: 10 },
+  { label: 'Long calls over N ms', re: callsOverRe, ms: 10 },
+  { label: 'Commits', re: '^XCTEND' },
+  { label: 'Session markers', re: '^\\*\\*\\* (SESSION|CLIENT|MODULE|ACTION)' },
+  { label: 'Top-level parses', re: '^PARSING IN CURSOR.*dep=0' },
+  { label: 'Plan dumps', re: '^STAT #.*id=1 ' },
+]
+
+/** What a search covers: the whole file, the lines of the time window, the lines between a marked statement's first and last mark. */
+export type SearchScope = 'file' | 'window' | 'stmt'
+
+/** A finished search kept for its chip: the query, where it looked and what it found. */
+export interface RecentSearch { q: string; regex: boolean; caseSensitive: boolean; scope: SearchScope; hits: SearchHit[]; end: SearchEnd | null }
+/** Two searches are the same entry when their queries match. */
+export const sameSearch = (a: Pick<RecentSearch, 'q' | 'regex' | 'caseSensitive' | 'scope'>, b: Pick<RecentSearch, 'q' | 'regex' | 'caseSensitive' | 'scope'>) =>
+  a.q === b.q && a.regex === b.regex && a.caseSensitive === b.caseSensitive && a.scope === b.scope

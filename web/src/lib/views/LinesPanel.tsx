@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { Bookmark } from '../state/store'
 import { fmtInt } from '../data/format'
-import { matchSpan, type SearchHit } from '../data/lines'
+import { matchSpan, sameSearch, type RecentSearch, type SearchHit } from '../data/lines'
 
 const HIT_H = 22
 /** characters of the line shown before the match, so it is visible in a narrow panel */
@@ -57,5 +57,68 @@ export function BookmarkList({ bookmarks, fileName, onGo, onLabel, onRemove, onN
         </li>
       ))}
     </ul>
+  )
+}
+
+const SCOPE_NOTE = { file: '', window: ' · window', stmt: ' · statement' } as const
+const CHIP_CHARS = 24
+
+/** The last searches as chips: a click restores one's hits at once, a click on the active chip (or its ↻) runs it again. */
+export function RecentSearches({ recent, active, onPick, onRerun }: {
+  recent: RecentSearch[]; active: Pick<RecentSearch, 'q' | 'regex' | 'caseSensitive' | 'scope'> | null; onPick(r: RecentSearch): void; onRerun(r: RecentSearch): void
+}) {
+  if (recent.length === 0) return null
+  return (
+    <div className="lines-recent" role="group" aria-label="Recent searches">
+      {recent.map((r) => {
+        const on = !!active && sameSearch(r, active)
+        const text = r.q.length > CHIP_CHARS ? r.q.slice(0, CHIP_CHARS - 1) + '…' : r.q
+        return (
+          <span key={`${r.scope}:${r.regex ? 're' : 'tx'}:${r.caseSensitive ? 'cs' : 'ci'}:${r.q}`} className={'lines-chip' + (on ? ' on' : '')}>
+            <button type="button" className="quiet" aria-pressed={on} onClick={() => (on ? onRerun(r) : onPick(r))}
+              title={`${r.q}${r.regex ? ' (regex)' : ''}${r.caseSensitive ? ' (match case)' : ''}${SCOPE_NOTE[r.scope]}: ${on ? 'click to run again' : 'show these hits'}`}>
+              <code>{text}</code> <small>{fmtInt(r.hits.length)}</small>
+            </button>
+            {on && <button type="button" className="quiet" onClick={() => onRerun(r)} aria-label={`Run "${r.q}" again`} title="run this search again">↻</button>}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+/** The keys of the viewer and of the view, for the Keys menu. */
+const KEYS: [string, string][] = [
+  ['↑ ↓', 'previous / next line'],
+  ['PgUp PgDn', 'a page up / down'],
+  ['Home End', 'first / last line'],
+  ['/', 'focus the search box'],
+  ['g', 'focus the Go to box'],
+  ['Enter', 'open the statement of the selected line'],
+  ['m M', 'next / previous mark of the selected statement'],
+  ['h', 'toggle the heat gutter'],
+  ['] [', 'next / previous call (loaded pages)'],
+  ['w W', 'next / previous wait (loaded pages)'],
+  ['x X', 'next / previous commit (loaded pages)'],
+  ['c C', 'next / previous PARSING IN CURSOR'],
+  ['e E', 'next / previous error'],
+  ['b', 'bookmark the selected line'],
+  ['Backspace', 'back to the line before the last jump'],
+  ['F3 Shift+F3', 'next / previous search hit'],
+  ['Esc', 'cancel a running search'],
+  ['?', 'this list'],
+]
+
+/** Every key the viewer and the view handle (the letters work with the viewer focused, not while typing in a box). */
+export function KeyMap() {
+  return (
+    <table className="lines-keys">
+      <caption className="small muted">With the viewer focused</caption>
+      <tbody>
+        {KEYS.map(([k, what]) => (
+          <tr key={k}><th scope="row">{k.split(' ').map((x, i) => <kbd key={i}>{x}</kbd>)}</th><td>{what}</td></tr>
+        ))}
+      </tbody>
+    </table>
   )
 }

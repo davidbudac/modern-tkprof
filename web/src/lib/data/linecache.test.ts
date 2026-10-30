@@ -120,3 +120,28 @@ describe('PageCache.refresh (the file grew)', () => {
     expect(asked).toEqual([1, 21, 21])
   })
 })
+
+describe('PageCache.nextOfKind', () => {
+  const W = LINE_KINDS.indexOf('wait')
+  // lines 1..10, pages of 4; a wait at every multiple of 3: 3, 6, 9
+  it('finds the next and previous line of a kind inside the cached pages', async () => {
+    const c = new PageCache(fakeFile(10).fetchPage, 20, 4)
+    await Promise.all([c.load(0), c.load(1), c.load(2)])
+    expect(c.nextOfKind(1, W, 1)).toBe(3)
+    expect(c.nextOfKind(3, W, 1)).toBe(6)
+    expect(c.nextOfKind(7, W, 1)).toBe(9)
+    expect(c.nextOfKind(9, W, 1)).toBeUndefined() // end of the file
+    expect(c.nextOfKind(10, W, -1)).toBe(9)
+    expect(c.nextOfKind(3, W, -1)).toBeUndefined() // start of the file
+    expect(c.nextOfKind(1, LINE_KINDS.indexOf('call'), 1)).toBeUndefined()
+  })
+
+  it('stops at the first page that is not loaded', async () => {
+    const c = new PageCache(fakeFile(10).fetchPage, 20, 4)
+    await c.load(0)
+    await c.load(2)
+    expect(c.nextOfKind(4, W, 1)).toBeUndefined() // page 1 (lines 5..8, holding the wait at 6) is missing
+    expect(c.nextOfKind(9, W, -1)).toBeUndefined()
+    expect(c.nextOfKind(1, W, 1)).toBe(3)
+  })
+})

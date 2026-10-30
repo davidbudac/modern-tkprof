@@ -119,3 +119,25 @@
 .lv-card th { font-weight: 400; color: var(--ink-2); text-align: start; padding-inline-end: var(--sp-4); white-space: nowrap; vertical-align: top; }
 .lv-card td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .lv-card p { margin: var(--sp-1) 0 0; color: var(--ink-3); }
+
+/* muted kinds, presets, recent searches, key map */
+.lv-mute { opacity: .45; }
+.tbmenu-sm .tbpop { inline-size: max-content; max-inline-size: min(30rem, 90vw); block-size: auto; max-block-size: 70dvh; overflow: auto; }
+.tbmenu-start .tbpop { inset-inline: 0 auto; }
+.lines-presets { list-style: none; margin: 0; padding: 0; display: grid; }
+.lines-presets button { inline-size: 100%; text-align: start; }
+.lines-mute { display: grid; gap: var(--sp-2); }
+.lines-mute label { display: flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
+.lines-recent { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding-block: var(--sp-1); }
+.lines-chip { display: inline-flex; align-items: center; }
+.lines-chip button { padding-inline: var(--sp-2); }
+.lines-chip code { font-family: var(--font-mono); }
+.lines-chip small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lines-chip.on > button:first-child { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.lines-keys { border-collapse: collapse; }
+.lines-keys caption { text-align: start; padding-block-end: var(--sp-1); }
+.lines-keys th { font-weight: 400; text-align: start; padding-inline-end: var(--sp-4); white-space: nowrap; vertical-align: top; }
+.lines-keys td { padding-block: 1px; }
+.lines-keys kbd { font-family: var(--font-mono); font-size: var(--text-xs); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; margin-inline-end: 0.3em; background: var(--surface-sunken); }
+.lines-threshold { display: flex; align-items: center; gap: var(--sp-1); margin-block-start: var(--sp-2); padding-block-start: var(--sp-2); border-block-start: 1px solid var(--hairline); color: var(--ink-2); }
+.lines-threshold input { inline-size: 5rem; }

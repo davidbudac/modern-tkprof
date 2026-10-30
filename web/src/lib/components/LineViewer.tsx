@@ -53,6 +53,8 @@ interface Props {
   range?: LineWindow | null
   /** draw the elapsed time of call and wait lines as a bar in the right gutter */
   heat?: boolean
+  /** kind indexes (into `LINE_KINDS`) whose rows are dimmed; line counts and scrolling are unchanged */
+  mutedKinds?: ReadonlySet<number>
   /** the hover card of a line (null: nothing to show); omit for no cards */
   card?(line: number, text: string, kind: number): LineDecode | null
   /** per-line actions on the selected row: copy the text, copy a permalink (omit `onLink` where there is no URL to link to) */
@@ -70,7 +72,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, card, onCopy, onLink, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, mutedKinds, card, onCopy, onLink, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -249,7 +251,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const l = cache.line(n)
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
     const ela = heat && l && (l.kind === K_CALL || l.kind === K_WAIT) ? elaOf(l.text, LINE_KINDS[l.kind]) : -1
-    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} />)
+    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} />)
   }
   const digits = String(Math.max(total, 1000)).length
   return (
@@ -270,18 +272,20 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win, acts }: {
+const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win, muted, acts }: {
   n: number; text: string | undefined; kind: number
   /** the elapsed µs of a call or wait line, -1 for none (no bar) */
   heat: number
   mk: number; sel: boolean; bm: boolean; note?: string; hl?: RowHighlight
   /** `WIN_*` flags */
   win: number
+  /** dimmed by the owner's muted kinds */
+  muted: boolean
   /** the selected row's actions: 0 none, 1 copy, 2 copy and permalink */
   acts: number
 }) {
   const cut = text !== undefined && text.length > MAX_TEXT
-  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '')
+  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '')
     + (win & WIN_IN ? ' lv-win' : '') + (win & WIN_START ? ' lv-win-start' : '') + (win & WIN_END ? ' lv-win-end' : '')
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>

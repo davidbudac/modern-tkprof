@@ -116,4 +116,18 @@ export class PageCache {
     const i = n - p.from
     return i >= 0 && i < p.texts.length ? { text: p.texts[i], kind: p.kinds[i] } : undefined
   }
+
+  /**
+   * The nearest line after (`dir` 1) or before (-1) `from` whose kind index is `kind`, looking only at cached pages: the scan stops
+   * at the first line whose page is not loaded (or at the file's ends) and answers undefined.
+   */
+  nextOfKind(from: number, kind: number, dir: 1 | -1): number | undefined {
+    for (let n = from + dir; n >= 1; n += dir) {
+      const p = this.pages.get(this.pageOf(n))
+      const i = p ? n - p.from : -1
+      if (!p || i < 0 || i >= p.kinds.length) return undefined
+      if (p.kinds[i] === kind) return n
+    }
+    return undefined
+  }
 }
