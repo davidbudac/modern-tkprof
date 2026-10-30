@@ -707,6 +707,117 @@ func TestLinesAnnot(t *testing.T) {
 	}
 }
 
+// TestLinesAnnot2MatchesAt: annot=2 gives, for every line of every (small)
+// fixture file, the ids /api/at gives for it, from the model-backed and the
+// spill-backed server alike; framing lines carry none of the keys.
+func TestLinesAnnot2MatchesAt(t *testing.T) {
+	type line2 struct {
+		T, K          string
+		C, S, U, X, W *int
+	}
+	type page2 struct {
+		From, Total int
+		Lines       []line2
+	}
+	idsOf := func(l line2) (g [5]int) {
+		for j, v := range []*int{l.C, l.S, l.U, l.X, l.W} {
+			g[j] = -2 // absent
+			if v != nil {
+				g[j] = *v
+			}
+		}
+		return
+	}
+	framing, withIDs, skipped := 0, 0, 0
+	for name, paths := range fixtureSets(t) {
+		t.Run(name, func(t *testing.T) {
+			e := newLineEnv(t, paths)
+			for fi, li := range e.lis {
+				if li.Lines() > 50_000 {
+					continue
+				}
+				for from := 1; from <= li.Lines(); from += MaxLines {
+					code, b := e.both(t, fmt.Sprintf("/api/lines?file=%d&from=%d&n=%d&annot=2", fi, from, MaxLines))
+					if code != 200 {
+						t.Fatalf("%d %s", code, b)
+					}
+					var p page2
+					if err := json.Unmarshal(b, &p); err != nil {
+						t.Fatal(err)
+					}
+					if p.From != from || p.Total != li.Lines() || len(p.Lines) != min(MaxLines, li.Lines()-from+1) {
+						t.Fatalf("page: from %d total %d lines %d", p.From, p.Total, len(p.Lines))
+					}
+					for i, l := range p.Lines {
+						ln := from + i
+						a := e.at(t, fi, ln)
+						if a.Kind != l.K {
+							skipped++
+							continue // the page classifies with a different lookback than at: not the subject here
+						}
+						got := [5]int{-1, -1, -1, -1, -1}
+						n := 0
+						for j, v := range []*int{l.C, l.S, l.U, l.X, l.W} {
+							if v != nil {
+								got[j] = *v
+								n++
+							}
+						}
+						want := [5]int{a.Call, a.Stmt, a.Cursor, a.ExecNo, a.Wait}
+						if n == 0 {
+							framing++
+						} else {
+							withIDs++
+							if n != 5 {
+								t.Fatalf("file %d line %d %q: %d of the 5 keys present: %s", fi, ln, l.T, n, b[:min(len(b), 200)])
+							}
+						}
+						if got != want {
+							t.Fatalf("file %d line %d (%s) %q: annot=2 c,s,u,x,w = %v, at = %v", fi, ln, l.K, l.T, got, want)
+						}
+					}
+				}
+			}
+		})
+	}
+	t.Logf("compared %d lines with ids, %d framing lines; %d skipped (kind differs from at)", withIDs, framing, skipped)
+	if framing == 0 || withIDs == 0 {
+		t.Errorf("framing lines %d, lines with ids %d: both kinds expected", framing, withIDs)
+	}
+	// the keys are really absent on a framing line, and annot=1 has none
+	e := newLineEnv(t, []string{traces + "basic_binds.trc"})
+	_, b := e.both(t, "/api/lines?file=0&from=1&n=1&annot=2")
+	if strings.Contains(string(b), `"c":`) || strings.Contains(string(b), `"w":`) {
+		t.Errorf("first line is framing but has ids: %s", b)
+	}
+	_, b = e.both(t, "/api/lines?file=0&from=1&n=5&annot=1")
+	if strings.Contains(string(b), `"c":`) {
+		t.Errorf("annot=1 has ids: %s", b)
+	}
+	// a page that starts mid-file equals the same lines of a page from line 1
+	_, whole := e.both(t, "/api/lines?file=0&from=1&n=2000&annot=2")
+	var w page2
+	if err := json.Unmarshal(whole, &w); err != nil {
+		t.Fatal(err)
+	}
+	for _, from := range []int{2, 7, 20, 41, 60} {
+		if from >= len(w.Lines) {
+			break
+		}
+		_, b := e.both(t, fmt.Sprintf("/api/lines?file=0&from=%d&n=13&annot=2", from))
+		var p page2
+		if err := json.Unmarshal(b, &p); err != nil {
+			t.Fatal(err)
+		}
+		for i, l := range p.Lines {
+			x := w.Lines[from-1+i]
+			if idsOf(l) != idsOf(x) && l.K == x.K {
+				t.Fatalf("page from %d line %d: ids differ from the whole page", from, from+i)
+			}
+		}
+	}
+}
+
 func TestLinesPlainUnchanged(t *testing.T) {
 	li, err := trace.OpenLineIndex(traces + "io_waits.trc")
 	if err != nil {
@@ -803,6 +914,20 @@ func TestMeasureBig(t *testing.T) {
 			worst = max(worst, d)
 		}
 		t.Logf("annot page 2000 lines from %d: avg %v, worst %v", from, (sum / 10).Round(time.Microsecond), worst.Round(time.Microsecond))
+	}
+	for _, from := range []int{1, 1_000_001, li.Lines() - 2000} {
+		var worst, sum time.Duration
+		for i := 0; i < 10; i++ {
+			start := time.Now()
+			code, b := fetch(h, fmt.Sprintf("/api/lines?file=0&from=%d&n=2000&annot=2", max(1, from+i*2000)))
+			d := time.Since(start)
+			if code != 200 {
+				t.Fatal(code, b)
+			}
+			sum += d
+			worst = max(worst, d)
+		}
+		t.Logf("annot=2 page 2000 lines from %d: avg %v, worst %v", from, (sum / 10).Round(time.Microsecond), worst.Round(time.Microsecond))
 	}
 	var sum, worst time.Duration
 	n := 200

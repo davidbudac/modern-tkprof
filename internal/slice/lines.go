@@ -16,7 +16,14 @@ const MaxLines = 2000
 // answer is JSON {"from","total","lines":[{"t","k"}]}: each line without its
 // terminator and its kind (trace.Kind.String(), see trace.Classify and
 // annotate for how the SQL-text state of a page that starts mid-file is seeded).
-func LinesHandler(lis []*trace.LineIndex) http.Handler {
+//
+// With annot=2 (only where a Server serves it, see Server.Handler; otherwise
+// it answers like annot=1) every line also carries the ids `at` would answer
+// for it, see annotate2.
+func LinesHandler(lis []*trace.LineIndex) http.Handler { return linesHandler(lis, nil) }
+
+// linesHandler is LinesHandler; ann2 (when not nil) serves annot=2 of file fi.
+func linesHandler(lis []*trace.LineIndex, ann2 func(w http.ResponseWriter, fi int, from, n int)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fi, _ := strconv.Atoi(r.URL.Query().Get("file"))
 		if fi < 0 || fi >= len(lis) {
@@ -29,7 +36,12 @@ func LinesHandler(lis []*trace.LineIndex) http.Handler {
 		if err != nil || n > MaxLines {
 			n = MaxLines
 		}
-		if r.URL.Query().Get("annot") == "1" {
+		annot := r.URL.Query().Get("annot")
+		if annot == "2" && ann2 != nil {
+			ann2(w, fi, from, n)
+			return
+		}
+		if annot == "1" || annot == "2" {
 			serveAnnotated(w, li, from, n)
 			return
 		}

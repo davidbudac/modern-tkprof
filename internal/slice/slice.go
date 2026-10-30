@@ -107,7 +107,7 @@ func bad(format string, a ...any) error { return badRequest(fmt.Sprintf(format, 
 
 // Handler returns the mux of the endpoints; CORS is open like /api/doc (the
 // dev server of `pnpm dev` loads the document from this one). With WithLines
-// set it also serves /api/lines (incl. annot=1), /api/lines/at, /api/at and
+// set it also serves /api/lines (incl. annot=1 and annot=2), /api/lines/at, /api/at and
 // /api/search.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -115,7 +115,7 @@ func (s *Server) Handler() http.Handler {
 		mux.HandleFunc(path, s.wrap(fn))
 	}
 	if s.lis != nil { // the endpoints that read the trace text (WithLines)
-		mux.Handle("/api/lines", s.cors(LinesHandler(s.lis)))
+		mux.Handle("/api/lines", s.cors(linesHandler(s.lis, s.serveAnnotated2)))
 		mux.Handle("/api/search", s.cors(http.HandlerFunc(s.search)))
 	}
 	return mux

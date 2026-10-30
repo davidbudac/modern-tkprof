@@ -80,16 +80,27 @@ func classifyRun(lines [][]byte, lo int) []trace.Kind {
 	return kinds
 }
 
-// annotate returns up to n lines from line `from` (1-based) with their kinds.
-func annotate(li *trace.LineIndex, from, n int) ([]annotLine, error) {
+// annotateRaw reads up to n lines from line `from` (1-based) and classifies them.
+func annotateRaw(li *trace.LineIndex, from, n int) ([][]byte, []trace.Kind, error) {
 	lo := max(1, from-annotLookback)
 	raw, err := li.Read(lo, from-lo+n)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	lines := splitLines(raw)
 	kinds := classifyRun(lines, lo)
-	lines, kinds = lines[from-lo:], kinds[from-lo:]
+	if from-lo > len(lines) { // the file ends before the page
+		return nil, nil, nil
+	}
+	return lines[from-lo:], kinds[from-lo:], nil
+}
+
+// annotate returns up to n lines from line `from` (1-based) with their kinds.
+func annotate(li *trace.LineIndex, from, n int) ([]annotLine, error) {
+	lines, kinds, err := annotateRaw(li, from, n)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]annotLine, len(lines))
 	for i, l := range lines {
 		out[i] = annotLine{T: string(l), K: kinds[i].String()}
@@ -124,6 +135,11 @@ func serveAnnotated(w http.ResponseWriter, li *trace.LineIndex, from, n int) {
 		}
 		page.Lines = lines
 	}
+	writePage(w, page)
+}
+
+// writePage answers a page as JSON (no HTML escaping, with Content-Length).
+func writePage(w http.ResponseWriter, page any) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)

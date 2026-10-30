@@ -896,6 +896,18 @@ paths:
         classified from the 64 lines before it; a statement longer than both
         that and the page has wrong kinds until its `END OF STMT` (bind value
         continuation lines and PARSE ERROR text come out as `unknown`).
+
+        With `annot=2` each line also carries the ids `api/at` answers for it:
+        the call `c`, the statement `s`, the cursor `u`, the execution number
+        `x` and the wait `w`, assigned by the same rules as `api/at` (cursor
+        text lines get the cursor above them, STAT lines the cursor of their
+        plan, a WAIT line its wait and the call it is attributed to, BINDS
+        lines the call that follows, any other line the last call at or before
+        it). An id that does not apply is -1; the five keys are all omitted
+        when none applies (framing lines). Computed in one pass over the page.
+        (`ctx`, `bindSet` and `planLine` of `api/at` are not part of it.) A
+        server without the model (no `/api/at`) answers `annot=2` like
+        `annot=1`.
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - name: file
@@ -921,10 +933,10 @@ paths:
             default: 2000
         - name: annot
           in: query
-          description: "1: the JSON form with a kind per line"
+          description: "1: the JSON form with a kind per line; 2: also the ids per line (c, s, u, x, w)"
           schema:
             type: string
-            enum: ["0", "1"]
+            enum: ["0", "1", "2"]
             default: "0"
       responses:
         "200":
@@ -2189,6 +2201,21 @@ components:
                 description: the line without its terminator
               k:
                 $ref: "#/components/schemas/LineKind"
+              c:
+                type: integer
+                description: annot=2 only. Call id of the line as api/at gives it (-1 where none; the keys c, s, u, x, w are all omitted when none applies)
+              s:
+                type: integer
+                description: annot=2 only. Statement id (-1 where none)
+              u:
+                type: integer
+                description: annot=2 only. Cursor id (-1 where none)
+              x:
+                type: integer
+                description: annot=2 only. Execution number of the call (-1 where none)
+              w:
+                type: integer
+                description: annot=2 only. Wait id (-1 where none)
     AtAnswer:
       type: object
       description: ids are -1 where absent
