@@ -1,10 +1,32 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 
 /** A toolbar button with a popover under it (closes on a click outside and on Escape); `open` is the caller's, so it can open the menu itself. */
 export function ToolbarMenu({ label, badge, title, className, wide, disabled, open, onOpenChange, children }: {
   label: string; /** the button is off (an open menu closes) */ disabled?: boolean; badge?: string; title?: string; /** extra class on the menu (`tbmenu-sm`: a popover that fits its content) */ className?: string; /** a wider popover (the outline) */ wide?: boolean; open: boolean; onOpenChange: (open: boolean) => void; children: ReactNode
 }) {
   const root = useRef<HTMLSpanElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  // the popover hangs from the button's edge; a button near a window edge would put it off screen, so it is shifted back in (8px margin)
+  useLayoutEffect(() => {
+    const el = pop.current
+    if (!open || !el) return
+    const place = () => {
+      el.style.translate = ''
+      const r = el.getBoundingClientRect()
+      const pad = 8
+      let dx = 0
+      if (r.left < pad) dx = pad - r.left
+      else if (r.right > window.innerWidth - pad) dx = Math.max(window.innerWidth - pad - r.right, pad - r.left)
+      if (dx) el.style.translate = `${dx}px 0`
+      const room = window.innerHeight - r.top - pad
+      el.style.maxBlockSize = room > 160 ? `${room}px` : ''
+    }
+    place()
+    const ro = new ResizeObserver(place)
+    ro.observe(el)
+    window.addEventListener('resize', place)
+    return () => { ro.disconnect(); window.removeEventListener('resize', place) }
+  }, [open, wide])
   useEffect(() => {
     if (!open) return
     const onDown = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) onOpenChange(false) }
@@ -18,7 +40,7 @@ export function ToolbarMenu({ label, badge, title, className, wide, disabled, op
       <button type="button" className="quiet" aria-expanded={open} aria-haspopup="true" aria-pressed={open} onClick={() => onOpenChange(!open)} title={title} disabled={disabled}>
         {label}{badge && <small> {badge}</small>}<span className="cue" aria-hidden="true">▾</span>
       </button>
-      {open && !disabled && <div className={wide ? 'tbpop wide' : 'tbpop'} role="group" aria-label={label}>{children}</div>}
+      {open && !disabled && <div className={wide ? 'tbpop wide' : 'tbpop'} role="group" aria-label={label} ref={pop}>{children}</div>}
     </span>
   )
 }
