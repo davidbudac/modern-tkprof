@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
-import { LINE_KINDS, PageCache } from '../data/linecache'
+import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
+import { blockAt, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from '../data/folds'
 import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchLinesAnnot, fetchLineProfile, lineAt, linePermalink, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
@@ -58,6 +59,8 @@ interface LinesUi {
   wrap: boolean
   /** the elapsed-time bars in the gutter */
   heat: boolean
+  /** the folded blocks (BINDS, STAT dump, long SQL text), sorted by their first line */
+  folds: Fold[]
   /** the density strip beside the scroll bar */
   strip: boolean
   /** the references in the rows (cursor, sql_id, obj#, plan hash) as links */
@@ -79,7 +82,7 @@ function uiOf(store: Store, file: number): LinesUi {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
       presets: false, stepMenu: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(), focus: null,
-      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, strip: true, links: true, jump: '', back: [], cur: 0,
+      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, folds: [], strip: true, links: true, jump: '', back: [], cur: 0,
     }))
   }
   return u
@@ -103,6 +106,12 @@ const RECENT_LIMIT = 5
 const CACHE_PAGES = 40
 /** pages loaded at once to learn the statements of the hits in view */
 const NEED_INFLIGHT = 4
+/** the most pages *Copy block* loads (a block longer than this is not copied) */
+const COPY_PAGES = 4
+/** the view's first line is rounded down to this many lines to find the blocks that can be folded (a scroll re-renders once per step) */
+const FOLD_STEP = 20
+/** lines after the rounded first line that are searched for blocks that can be folded (covers a tall view) */
+const FOLD_SPAN = 240
 
 /** The Mute menu's groups: the line kinds each one dims. */
 const MUTE_GROUPS: { name: string; label: string; kinds: LineKind[] }[] = [
@@ -194,6 +203,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
   const cache = useMemo(() => new PageCache((from, n, signal) => fetchLinesAnnot(client, file, from, n, signal, true), CACHE_PAGES), [client, file])
   useEffect(() => cache.subscribe(bump), [cache])
+  const [pages, setPages] = useState(0) // a page arrived: the blocks that can be folded are looked for again
+  useEffect(() => cache.subscribe(() => setPages((n) => n + 1)), [cache])
   useEffect(() => () => cache.close(), [cache])
   // a live session's next snapshot: the file has more lines
   const rev = useStore((s) => s.rev)
@@ -219,7 +230,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const apiRef = useRef<ViewerApi | null>(null)
   const viewBus = useRef<((top: number, rows: number) => void) | null>(null)
   const lastView = useRef({ top: 1, rows: 0 }) // what a strip that mounts later (the profile arrives after the first move) starts from
-  const onViewChange = useCallback((top: number, rows: number) => { lastView.current = { top, rows }; viewBus.current?.(top, rows) }, [])
+  const [foldTop, setFoldTop] = useState(0) // the first visible line rounded down: where blocks that can be folded are looked for
+  const onViewChange = useCallback((top: number, rows: number) => {
+    lastView.current = { top, rows }; viewBus.current?.(top, rows)
+    setFoldTop(Math.floor(Math.max(0, top - 1) / FOLD_STEP) * FOLD_STEP)
+  }, [])
   const topRef = useRef(ui.top)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
@@ -227,6 +242,17 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [copied, setCopied] = useState<string | null>(null)
   const selected = lv.line
   const total = cache.total
+
+  // ---- folding: the handles of the blocks around the view, and the blocks themselves -----------------------------------
+  const foldable = useMemo(() => {
+    const out = new Set<number>()
+    for (let n = Math.max(1, foldTop + 1 - FOLD_STEP), end = foldTop + FOLD_SPAN; n <= end; n++) {
+      const l = cache.line(n)
+      if (l && startsBlock(l.kind) && blockAt(cache, n)) out.add(n)
+    }
+    return out
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cache, foldTop, pages])
 
   // ---- what is at a line ------------------------------------------------------------------------------------------
   const atTimer = useRef(0)
@@ -267,10 +293,17 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   useEffect(() => () => { window.clearTimeout(atTimer.current); atCtl.current?.abort() }, [])
 
   const select = useCallback((line: number, dispatch = true) => { ui.cur = line; actions.setLinesLine(file, line); resolveAt(line, dispatch) }, [actions, file, resolveAt, ui])
+  const revealAfter = useRef(0) // a line to reveal once the viewer has the new folds
   const goTo = useCallback((line: number, dispatch = true) => {
-    apiRef.current?.reveal(line, 'center')
+    const hidden = foldHiding(line, ui.folds)
+    if (hidden) { revealAfter.current = line; set({ folds: toggleFold(ui.folds, hidden) }) } // a line inside a fold: open it first
+    else apiRef.current?.reveal(line, 'center')
     select(line, dispatch)
-  }, [select])
+  }, [select, ui, set])
+  // the viewer maps the new folds in its own effect (a child's effect runs first), then the reveal can find the row
+  useEffect(() => {
+    if (revealAfter.current > 0) { apiRef.current?.reveal(revealAfter.current, 'center'); revealAfter.current = 0 }
+  }, [ui.folds])
   /** A jump (a search hit, a mark, a bookmark, Go to, a line card action, a deep link): `goTo` that remembers the line it left for Back. */
   const jump = useCallback((line: number, dispatch = true) => {
     const left = ui.cur
@@ -465,6 +498,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'm': stepMark(1); break
       case 'M': stepMark(-1); break
       case 'h': set({ heat: !ui.heat }); break
+      case 'z': onFold(selected); break
+      case 'Z': set({ folds: [] }); break
       case 'f': toggleFocus(); break
       case ']': stepNext('call', 'call', 1); break
       case '[': stepNext('call', 'call', -1); break
@@ -516,6 +551,30 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (text !== undefined) void copyWhat(`line ${fmtInt(line)}`, text)
   }, [cache, copyWhat])
   const copyLink = useCallback((line: number) => void copyWhat(`link to line ${fmtInt(line)}`, linePermalink(window.location, file, line)), [copyWhat, file])
+  /** Folds the block that starts at `line`, or unfolds the fold that has its handle there or hides it. */
+  const onFold = useCallback((line: number) => {
+    const open = foldAt(line, ui.folds) ?? foldHiding(line, ui.folds)
+    if (open) { set({ folds: toggleFold(ui.folds, open) }); return }
+    const b = blockAt(cache, line)
+    if (b) set({ folds: toggleFold(ui.folds, b) }); else flash(`nothing to fold at line ${fmtInt(line)}`)
+  }, [ui, set, cache, flash])
+  /** Copies lines `from..to` (the pages of the range are loaded first; at most `COPY_PAGES`). */
+  const copyRange = useCallback(async (from: number, to: number) => {
+    const p0 = cache.pageOf(from), p1 = cache.pageOf(to)
+    if (p1 - p0 + 1 > COPY_PAGES) { flash(`block too large to copy (${fmtInt(to - from + 1)} lines)`); return }
+    let pages: CachedPage[]
+    try { pages = await Promise.all(Array.from({ length: p1 - p0 + 1 }, (_, i) => cache.load(p0 + i))) } catch (e) { if (!aborted(e)) flash(e instanceof Error ? e.message : String(e)); return }
+    const texts: string[] = []
+    for (let n = from; n <= to; n++) {
+      const pg = pages[cache.pageOf(n) - p0]
+      const t = pg.texts[n - pg.from]
+      if (t === undefined) break
+      texts.push(t)
+    }
+    void copyWhat(`block lines ${fmtInt(from)}–${fmtInt(from + texts.length - 1)}`, texts.join('\n'))
+  }, [cache, copyWhat, flash])
+  /** The block of the line card's line, when it is the handle of one (the card offers to copy it). */
+  const atBlock = useMemo(() => (at ? blockAt(cache, at.line) : null), [at, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
   const canLink = useStore((s) => s.lineRefTarget !== 'view') // the desktop shell has no URL to link to
   // ---- hover cards: the line decoded with what the trace knows (events, objects, clock) ------------------------------------
   const decodeCtx = useMemo(() => decodeContextOf(doc), [doc])
@@ -762,11 +821,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             onDelete={bm?.note ? () => { actions.setBookmarkNote(file, noting, ''); setNoting(null) } : undefined} />
         )
       })()}
-      <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} />
+      <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} />
 
       <div className="lines-body">
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={ui.links} onRef={onRef} refTitle={refTitle} head={head} card={lineCard} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={ui.wrap} heat={ui.heat} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={ui.links} onRef={onRef} refTitle={refTitle} head={head} card={lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={ui.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
@@ -785,6 +844,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               return `focus: cursor ${c ? `#${c.number}` : `id ${ui.focus}`}${s ? ` of ${doc.label(s)}` : ''} · Esc clears`
             })()}
             <button type="button" className="quiet" onClick={() => set({ focus: null })} aria-label="Clear the cursor focus" title="clear the cursor focus">×</button>
+          </span>
+        )}
+        {ui.folds.length > 0 && (
+          <span className="muted">
+            {fmtInt(ui.folds.length)} folded <button type="button" className="link" onClick={() => set({ folds: [] })} title="show the lines of every folded block (Z)">unfold all</button>
           </span>
         )}
         {copied && <span role="status" aria-live="polite" className="lines-copied">{copied}</span>}

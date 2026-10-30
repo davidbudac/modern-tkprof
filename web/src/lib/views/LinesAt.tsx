@@ -4,6 +4,7 @@ import { ALL_SCOPE, stmtLineIn, type AtObjects } from '../data/lines'
 import { fmtDur, fmtInt, preview } from '../data/format'
 import { sourceOf, type ExecDetail } from '../data/source'
 import type { Execution } from '../data/derive'
+import type { Fold } from '../data/folds'
 import { StmtLink } from '../components/StmtLink'
 import { useActions, useStore } from '../state/session'
 
@@ -17,12 +18,16 @@ interface Props {
   goTo: (line: number) => void
   /** a short status note (the status bar) */
   note: (msg: string) => void
+  /** the foldable block this line starts (BINDS, STAT dump, long SQL text), null for none */
+  block?: Fold | null
+  /** copy lines `from..to` */
+  onCopyRange?: (from: number, to: number) => void
 }
 
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 
 /** The line card: what is at the selected line (statement, execution, cursor, wait, session) with an action for each object. */
-export function LinesAt({ doc, file, at, text, goTo, note }: Props) {
+export function LinesAt({ doc, file, at, text, goTo, note, block, onCopyRange }: Props) {
   const actions = useActions()
   const markedStmt = useStore((s) => s.selection.stmt)
   const source = sourceOf(doc)
@@ -100,6 +105,7 @@ export function LinesAt({ doc, file, at, text, goTo, note }: Props) {
           {prevExec !== undefined && <button className="link" onClick={() => goTo(prevExec)} title={`go to line ${fmtInt(prevExec)}, the previous execution of this cursor (D)`}>‹ prev exec</button>}
           {execFrom !== undefined && <button className="link" onClick={() => goTo(execFrom)} title={`go to line ${fmtInt(execFrom)}, where this execution starts`}>⇤ exec start</button>}
           {execTo !== undefined && <button className="link" onClick={() => goTo(execTo)} title={`go to line ${fmtInt(execTo)}, where this execution ends`}>exec end ⇥</button>}
+          {o.execFrom >= 0 && o.execTo >= 0 && onCopyRange && <button className="link" onClick={() => onCopyRange(o.execFrom, o.execTo)} aria-label="Copy the lines of this execution" title={`copy lines ${fmtInt(o.execFrom)}–${fmtInt(o.execTo)}: this execution, from its EXEC line to its last line`}>Copy block</button>}
           {nextExec !== undefined && <button className="link" onClick={() => goTo(nextExec)} title={`go to line ${fmtInt(nextExec)}, the next execution of this cursor (d)`}>next exec ›</button>}
         </span>
       )}
@@ -122,6 +128,12 @@ export function LinesAt({ doc, file, at, text, goTo, note }: Props) {
           {waitEvent.id >= 0 && stmtId >= 0 && <button className="link" title="the Waits view with this event, for the statement"
             onClick={() => { actions.pickStmt(stmtId); actions.selectEvent(waitEvent.id); actions.setView('waits') }}>Waits of this statement</button>}
           {objName && <span className="muted" title={`obj# ${objNo}`}>{objName}</span>}
+        </span>
+      )}
+      {block && onCopyRange && (
+        <span className="lines-at-obj">
+          <span className="muted">{block.summary}</span>
+          <button className="link" onClick={() => onCopyRange(block.from, block.to)} aria-label={`Copy the block: ${block.summary}`} title={`copy lines ${fmtInt(block.from)}–${fmtInt(block.to)}: ${block.summary}`}>Copy block</button>
         </span>
       )}
       {o.bindSet >= 0 && <span>bind set #{o.bindSet}</span>}

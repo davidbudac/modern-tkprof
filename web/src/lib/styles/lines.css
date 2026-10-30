@@ -44,6 +44,11 @@
 .lv-layer { inline-size: max-content; min-inline-size: 100%; will-change: transform; }
 .lv-row { display: flex; block-size: var(--lv-row); white-space: pre; contain: layout paint; }
 .lv-tx { padding-inline: var(--sp-3) var(--sp-4); }
+/* the fold handle: a slot of its own in every row (the text does not shift), a button where the line starts a block or is folded */
+.lv-fh { flex: none; inline-size: 1.2em; padding-inline-start: var(--sp-1); box-sizing: content-box; text-align: center; }
+.lv-fold { all: unset; box-sizing: border-box; display: block; inline-size: 1.2em; block-size: var(--lv-row); text-align: center; font: inherit; line-height: var(--lv-row); color: var(--ink-3); cursor: pointer; }
+.lv-fold:hover, .lv-fold:focus-visible { color: var(--ink); background: var(--wash); }
+.lv-fold-sum { color: var(--ink-3); margin-inline-start: var(--sp-3); font-style: italic; }
 .lv-ln { flex: none; position: sticky; inset-inline-start: 0; box-sizing: content-box; min-inline-size: var(--lv-ln); padding-inline: 1.1em var(--sp-2); text-align: end; color: var(--ink-3); background: var(--surface-sunken); border-inline-end: 1px solid var(--hairline); user-select: none; cursor: default; font-variant-numeric: tabular-nums; }
 .lv-wrap .lv-layer { inline-size: 100%; }
 .lv-wrap .lv-row { block-size: auto; min-block-size: var(--lv-row); white-space: pre-wrap; overflow-wrap: anywhere; contain: none; }

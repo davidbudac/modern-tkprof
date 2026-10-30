@@ -1,0 +1,151 @@
+import { describe, expect, it } from 'vitest'
+import { LINE_KINDS } from './linecache'
+import { blockAt, foldAt, foldHiding, indexFolds, lineOfRow, rowOfLine, toggleFold, visibleCount, type Fold, type LineSource } from './folds'
+import type { LineKind } from './lines'
+
+/** A cache of the given lines (kind names), all loaded; `holes` lists lines that are not. */
+function fake(lines: [LineKind, string][], holes: number[] = []): LineSource {
+  return { total: lines.length, line: (n) => (n >= 1 && n <= lines.length && !holes.includes(n) ? { text: lines[n - 1][1], kind: LINE_KINDS.indexOf(lines[n - 1][0]) } : undefined) }
+}
+
+// lines of testdata/traces/19c/basic_binds.trc (the BINDS block of line 150, the STAT dump of line 407, the SQL text of line 75)
+const PARSE_LINE = "PARSING IN CURSOR #140124363561040 len=296 dep=0 uid=165 oct=3 lid=165 tim=10778820802 hv=3361819554 ad='8652bd60' sqlid='f6jyzt7462kx2'"
+const SQL: [LineKind, string][] = [
+  ['sql-text', 'select /* mtk_basic_binds */ c.id, c.name, c.amount, c.created,'],
+  ['sql-text', '       :b_num as n, :b_vc2 as v, :b_chr as ch, :b_dbl as d, :b_flt as f,'],
+  ['sql-text', '       :b_null as nul, length(:b_long) as lng'],
+  ['sql-text', '  from mtk_cust c'],
+  ['sql-text', ' where c.id between :b_lo and :b_hi'],
+  ['sql-text', '   and (:b_null is null or c.name = :b_null)'],
+  ['sql-text', ' order by c.id'],
+]
+const BINDS: [LineKind, string][] = [
+  ['binds', 'BINDS #140124363561040:'],
+  ['blank', ''],
+  ['bind-line', ' Bind#0'],
+  ['bind-line', '  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00'],
+  ['bind-line', '  oacflg=03 fl2=1000000 frm=00 csi=00 siz=2280 off=0'],
+  ['bind-line', '  kxsbbbfp=7f713ee9f958  bln=22  avl=02  flg=05'],
+  ['bind-line', '  value=1'],
+  ['bind-line', ' Bind#1'],
+  ['bind-line', '  oacdty=01 mxl=128(50) mxlc=00 mal=00 scl=00 pre=00'],
+  ['bind-line', '  oacflg=03 fl2=1000000 frm=01 csi=873 siz=0 off=24'],
+  ['bind-line', '  kxsbbbfp=7f713ee9f970  bln=128  avl=11  flg=01'],
+  ['bind-line', '  value="Customer 42"'],
+  ['bind-line', ' Bind#2'],
+  ['bind-line', '  No oacdef for this bind.'],
+]
+const EXEC: [LineKind, string] = ['call', 'EXEC #140124363561040:c=3510,e=4693,p=0,cr=3,cu=7,mis=1,r=0,dep=0,og=1,plh=2403330195,tim=10778825533']
+const STAT: [LineKind, string][] = [
+  ['stat', "STAT #140124363561040 id=1 cnt=1000 pid=0 pos=1 obj=0 op='FILTER  (cr=191 pr=0 pw=0 str=1 time=1315 us)'"],
+  ['stat', "STAT #140124363561040 id=2 cnt=1000 pid=1 pos=1 obj=108609 op='TABLE ACCESS BY INDEX ROWID MTK_CUST (cr=191 pr=0 pw=0 str=1 time=1171 us cost=62 size=2750 card=50)'"],
+  ['stat', "STAT #140124363561040 id=3 cnt=1000 pid=2 pos=1 obj=108610 op='INDEX RANGE SCAN MTK_CUST_PK (cr=70 pr=0 pw=0 str=1 time=644 us cost=3 size=0 card=1000)'"],
+]
+const FILE: [LineKind, string][] = [
+  ['separator', '====================='],
+  ['parsing-in-cursor', PARSE_LINE], ...SQL, ['end-of-stmt', 'END OF STMT'], // PARSING at 2, SQL 3..9, END OF STMT at 10
+  ...BINDS, EXEC, // BINDS at 11..24, EXEC at 25
+  ['wait', "WAIT #140124363561040: nam='SQL*Net message from client' ela= 261 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10778848370"],
+  ...STAT, // 27..29
+  ['call', 'CLOSE #140124363561040:c=2,e=2,dep=0,type=0,tim=10778848548'],
+]
+
+describe('blockAt', () => {
+  const c = fake(FILE)
+  it('folds a BINDS block over its bind lines and counts the binds', () => {
+    expect(blockAt(c, 11)).toEqual({ from: 11, to: 24, summary: 'BINDS: 3 binds' })
+  })
+  it('folds a STAT dump of consecutive STAT lines', () => {
+    expect(blockAt(c, 27)).toEqual({ from: 27, to: 29, summary: 'STAT: 3 plan lines' })
+    expect(blockAt(c, 28)).toBeNull() // not the first line of the dump
+  })
+  it('leaves a short SQL text alone and folds a long one', () => {
+    expect(blockAt(c, 2)).toBeNull() // 7 lines
+    const long: [LineKind, string][] = [['parsing-in-cursor', PARSE_LINE]]
+    for (let i = 0; i < 13; i++) long.push(...SQL.slice(0, 1))
+    long.push(['end-of-stmt', 'END OF STMT'], EXEC)
+    expect(blockAt(fake(long), 1)).toEqual({ from: 1, to: 14, summary: 'SQL text: 13 lines' })
+    const twelve = long.slice(0, 13).concat([['end-of-stmt', 'END OF STMT']])
+    expect(blockAt(fake(twelve), 1)).toBeNull() // exactly 12 lines is not "more than 12"
+  })
+  it('is null on other lines, on a block that is too short and when a line of the block is not loaded', () => {
+    expect(blockAt(c, 25)).toBeNull()
+    expect(blockAt(fake([['stat', STAT[0][1]], EXEC]), 1)).toBeNull()
+    expect(blockAt(fake([['binds', 'BINDS #1:'], EXEC]), 1)).toBeNull()
+    expect(blockAt(fake(FILE, [16]), 11)).toBeNull()
+    expect(blockAt(fake(FILE, [28]), 27)).toBeNull()
+    expect(blockAt(fake(FILE, [11]), 11)).toBeNull()
+  })
+  it('ends a BINDS block at the end of the file', () => {
+    expect(blockAt(fake(BINDS), 1)).toEqual({ from: 1, to: BINDS.length, summary: 'BINDS: 3 binds' })
+  })
+})
+
+describe('fold mapping', () => {
+  const f = (from: number, to: number): Fold => ({ from, to, summary: `${from}-${to}` })
+  const folds = [f(10, 20), f(30, 31), f(50, 100)] // hide 10 + 1 + 50 = 61 lines
+
+  it('counts the visible rows', () => {
+    expect(visibleCount(1000, [])).toBe(1000)
+    expect(visibleCount(1000, folds)).toBe(939)
+    expect(visibleCount(1000, indexFolds(folds))).toBe(939)
+  })
+
+  it('is the identity without folds', () => {
+    for (const r of [0, 1, 99, 12345]) { expect(lineOfRow(r, [])).toBe(r + 1); expect(rowOfLine(r + 1, [])).toBe(r) }
+  })
+
+  it('maps rows to lines across several folds', () => {
+    const x = indexFolds(folds)
+    const lines = [0, 1, 8, 9, 10, 11, 18, 19, 20, 21, 22].map((r) => lineOfRow(r, x))
+    // rows 0..8 are lines 1..9, row 9 the handle 10, then 21, 22, ...
+    expect(lines).toEqual([1, 2, 9, 10, 21, 22, 29, 30, 32, 33, 34])
+    expect(lineOfRow(0, x)).toBe(1)
+    // the handle of the last fold: line 50 is row 50-1-11 = 38; the next row is line 101
+    expect(lineOfRow(38, x)).toBe(50)
+    expect(lineOfRow(39, x)).toBe(101)
+    expect(lineOfRow(938, x)).toBe(1000)
+  })
+
+  it('maps lines to rows, a hidden line to its handle', () => {
+    const x = indexFolds(folds)
+    expect(rowOfLine(9, x)).toBe(8)
+    expect(rowOfLine(10, x)).toBe(9)
+    expect(rowOfLine(15, x)).toBe(9)
+    expect(rowOfLine(20, x)).toBe(9)
+    expect(rowOfLine(21, x)).toBe(10)
+    expect(rowOfLine(30, x)).toBe(19)
+    expect(rowOfLine(31, x)).toBe(19)
+    expect(rowOfLine(32, x)).toBe(20)
+    expect(rowOfLine(75, x)).toBe(38)
+    expect(rowOfLine(101, x)).toBe(39)
+    expect(rowOfLine(1000, x)).toBe(938)
+  })
+
+  it('round-trips every visible row', () => {
+    const x = indexFolds(folds)
+    for (let r = 0; r < visibleCount(1000, x); r++) expect(rowOfLine(lineOfRow(r, x), x)).toBe(r)
+  })
+
+  it('finds the fold of a handle and the fold that hides a line', () => {
+    expect(foldAt(30, folds)).toBe(folds[1])
+    expect(foldAt(31, folds)).toBeUndefined()
+    expect(foldAt(5, [])).toBeUndefined()
+    expect(foldHiding(31, folds)).toBe(folds[1])
+    expect(foldHiding(30, folds)).toBeUndefined()
+    expect(foldHiding(101, folds)).toBeUndefined()
+    expect(foldHiding(60, folds)).toBe(folds[2])
+  })
+
+  it('adds, removes and keeps the folds sorted and apart', () => {
+    let fs: Fold[] = []
+    fs = toggleFold(fs, f(30, 31))
+    fs = toggleFold(fs, f(10, 20))
+    fs = toggleFold(fs, f(50, 100))
+    expect(fs.map((x) => x.from)).toEqual([10, 30, 50])
+    expect(toggleFold(fs, f(30, 31)).map((x) => x.from)).toEqual([10, 50])
+    expect(toggleFold(fs, f(60, 70))).toHaveLength(3) // inside a fold: replaces it
+    expect(toggleFold(fs, f(60, 70)).map((x) => x.from)).toEqual([10, 30, 60])
+    expect(fs).toHaveLength(3) // the input is not changed
+  })
+})

@@ -1,6 +1,7 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type ReactNode } from 'react'
+import { memo, useCallback, useMemo, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { LINE_KINDS, type CachedLine, type PageCache } from '../data/linecache'
+import { foldAt, indexFolds, lineOfRow, rowOfLine, visibleCount, type Fold, type FoldIndex } from '../data/folds'
 import { clampTop, revealTop, scrollFromTop, scrollGeometry, topFromScroll } from '../data/scrollmap'
 import { lineTone } from './colors'
 import { highlightRuns, matchSpans } from '../data/lines'
@@ -20,6 +21,7 @@ const toneClass = LINE_KINDS.map((k) => `lv-tone-${lineTone[k] ?? 'ink'}`)
 const K_CALL = LINE_KINDS.indexOf('call'), K_WAIT = LINE_KINDS.indexOf('wait')
 /** How long the pointer rests on a line's text before its card opens. */
 const CARD_DELAY = 350
+const NO_FOLDS: readonly Fold[] = []
 const baseOf = (top: number) => Math.max(0, Math.floor(top / STEP) * STEP - OVERSCAN)
 
 /** The search whose matches are highlighted inside the rows. */
@@ -30,7 +32,7 @@ export interface LineWindow { from: number; to: number }
 
 /** What the owner can ask of the viewer. */
 export interface ViewerApi {
-  /** first visible line, 1-based */
+  /** the line in the first visible row, 1-based */
   topLine(): number
   /** lines that fit the view */
   visibleRows(): number
@@ -66,6 +68,12 @@ interface Props {
   onRef?(line: number, kind: string, value: string, ids: CachedLine | undefined, mods: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }): void
   /** the tooltip of a reference, asked once when the pointer first rests on it (undefined: none) */
   refTitle?(kind: string, value: string, ids: CachedLine | undefined): string | undefined
+  /** the folded ranges (sorted, apart; keep the array stable between changes): lines `from+1..to` are not laid out, `from` shows the summary. Omit for none */
+  folds?: readonly Fold[]
+  /** handle lines of blocks that can be folded (the handle shows `▾`; a folded one always shows `▸`) */
+  foldable?: ReadonlySet<number>
+  /** a click on a fold handle: fold or unfold the block of this line */
+  onFold?(line: number): void
   /** the pinned header for the first visible line (null: none, the row is not rendered); `key` says when `node` changed */
   head?(topLine: number): { key: string; node: ReactNode } | null
   /** per-line actions on the selected row: copy the text, copy a permalink (omit `onLink` where there is no URL to link to) */
@@ -73,7 +81,7 @@ interface Props {
   onLink?(line: number): void
   /** something beside the scroll container, the full height of the viewer (the density strip) */
   side?: ReactNode
-  /** the first visible line (1-based) and the lines that fit, after every move and resize (at most once per animation frame) */
+  /** the first visible line (1-based) and the lines that fit (in lines, folds counted), after every move and resize (at most once per animation frame) */
   onViewChange?(top: number, rows: number): void
   apiRef: MutableRefObject<ViewerApi | null>
   /** first visible line offset (0-based, fractional); the owner keeps it across mounts */
@@ -87,7 +95,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, mutedKinds, focusCursor, links, onRef, refTitle, head, card, onCopy, onLink, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, onCopy, onLink, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -96,7 +104,13 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const baseRef = useRef(base)
   const expected = useRef(-1) // scrollTop we set ourselves: the scroll event it causes is not the user's
   const total = cache.total
-  const geo = scrollGeometry(total, h, ROW_H)
+  // `topRef`, the scroll bar and the rows count visual rows: the lines of the folds are not laid out
+  const index = useMemo(() => indexFolds(folds ?? NO_FOLDS), [folds])
+  const indexRef = useRef<FoldIndex>(index)
+  indexRef.current = index
+  const prevIndex = useRef(index)
+  const vtotal = visibleCount(total, index)
+  const geo = scrollGeometry(vtotal, h, ROW_H)
   const geoRef = useRef(geo)
   geoRef.current = geo
   const rowsRef = useRef(0)
@@ -111,7 +125,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const headRef = useRef(head)
   headRef.current = head
   const refreshHead = useCallback((force = false) => {
-    const r = headRef.current?.(Math.floor(topRef.current) + 1) ?? null
+    const r = headRef.current?.(lineOfRow(Math.floor(topRef.current), indexRef.current)) ?? null
     setPinned((prev) => (!force && (prev?.key ?? null) === (r?.key ?? null) ? prev : r))
   }, [topRef])
 
@@ -121,9 +135,15 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const viewFrame = useRef(0)
   const notifyView = useCallback(() => {
     if (viewFrame.current || !viewCb.current) return
-    viewFrame.current = requestAnimationFrame(() => { viewFrame.current = 0; viewCb.current?.(Math.floor(topRef.current) + 1, rowsRef.current) })
+    viewFrame.current = requestAnimationFrame(() => {
+      viewFrame.current = 0
+      const x = indexRef.current, r0 = Math.floor(topRef.current), rows = rowsRef.current
+      // the rows the view covers, as lines: hidden lines in between count
+      const span = x.folds.length === 0 ? rows : lineOfRow(Math.floor(r0 + rows), x) - lineOfRow(r0, x) + (r0 + rows - Math.floor(r0 + rows))
+      viewCb.current?.(lineOfRow(r0, x), span)
+    })
   }, [topRef])
-  useEffect(() => () => cancelAnimationFrame(viewFrame.current), [])
+  useEffect(() => () => { cancelAnimationFrame(viewFrame.current); viewFrame.current = 0 }, []) // (StrictMode re-runs the effects: the id must not stay set)
 
   const place = useCallback(() => {
     if (layer.current) layer.current.style.transform = `translateY(${-(topRef.current - baseRef.current) * ROW_H}px)`
@@ -137,9 +157,9 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   useEffect(() => () => window.clearTimeout(cardTimer.current), [])
 
   const ensurePages = useCallback(() => {
-    const top = Math.floor(topRef.current)
-    const p0 = cache.pageOf(Math.max(1, top + 1 - OVERSCAN))
-    let p1 = cache.pageOf(top + Math.ceil(rowsRef.current) + OVERSCAN)
+    const x = indexRef.current, r0 = Math.floor(topRef.current)
+    const p0 = cache.pageOf(Math.max(1, lineOfRow(r0, x) - OVERSCAN))
+    let p1 = cache.pageOf(lineOfRow(r0 + Math.ceil(rowsRef.current), x) - 1 + OVERSCAN)
     if (cache.pageCount > 0) p1 = Math.min(p1, cache.pageCount - 1)
     const keep = new Set<number>()
     for (let p = p0 - 1; p <= p1 + 1; p++) keep.add(p)
@@ -177,9 +197,14 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 
   // geometry changed (size, total): clamp and re-map
   useEffect(() => {
+    if (prevIndex.current !== index) { // the folds changed: the first visible line stays the first visible line
+      const top = topRef.current, r0 = Math.floor(top)
+      topRef.current = rowOfLine(lineOfRow(r0, prevIndex.current), index) + (top - r0)
+      prevIndex.current = index
+    }
     const p = pending.current
-    if (p && h > 0) { pending.current = null; moveTo(revealTop(topRef.current, p.line - 1, rowsRef.current, p.how)) } else moveTo(topRef.current, false, true)
-  }, [total, h, moveTo, topRef])
+    if (p && h > 0) { pending.current = null; moveTo(revealTop(topRef.current, rowOfLine(p.line, index), rowsRef.current, p.how)) } else moveTo(topRef.current, false, true)
+  }, [vtotal, h, index, moveTo, topRef])
 
   useEffect(() => {
     const el = sc.current!
@@ -212,11 +237,12 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 
   useEffect(() => {
     apiRef.current = {
-      topLine: () => Math.floor(topRef.current) + 1,
+      topLine: () => lineOfRow(Math.floor(topRef.current), indexRef.current),
       visibleRows: () => Math.max(1, Math.floor(rowsRef.current)),
       reveal: (line, how = 'center') => {
-        if (rowsRef.current === 0) { pending.current = { line, how }; topRef.current = Math.max(0, line - 1); return }
-        moveTo(revealTop(topRef.current, line - 1, rowsRef.current, how))
+        const row = rowOfLine(line, indexRef.current)
+        if (rowsRef.current === 0) { pending.current = { line, how }; topRef.current = Math.max(0, row); return }
+        moveTo(revealTop(topRef.current, row, rowsRef.current, how))
       },
       focus: () => sc.current?.focus({ preventScroll: true }),
     }
@@ -235,7 +261,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       if (act.dataset.act === 'ref') {
         const ref = act.dataset.ref ?? '', i = ref.indexOf(':')
         if (i > 0) onRef?.(n, ref.slice(0, i), ref.slice(i + 1), cache.line(n), e)
-      } else if (act.dataset.act === 'copy') onCopy?.(n); else onLink?.(n)
+      } else if (act.dataset.act === 'fold') onFold?.(n)
+      else if (act.dataset.act === 'copy') onCopy?.(n); else onLink?.(n)
       return
     }
     const hit = lineOfEvent(e)
@@ -282,32 +309,36 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     hideCard()
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const page = Math.max(1, Math.floor(rowsRef.current) - 1)
+    const x = indexRef.current
+    const row = rowOfLine(selected, x) // moves step by visual row: a fold is one step
     let to: number
     switch (e.key) {
-      case 'ArrowDown': to = selected + 1; break
-      case 'ArrowUp': to = selected - 1; break
-      case 'PageDown': to = selected + page; break
-      case 'PageUp': to = selected - page; break
-      case 'Home': to = 1; break
-      case 'End': to = total; break
+      case 'ArrowDown': to = row + 1; break
+      case 'ArrowUp': to = row - 1; break
+      case 'PageDown': to = row + page; break
+      case 'PageUp': to = row - page; break
+      case 'Home': to = 0; break
+      case 'End': to = vtotal - 1; break
       case 'b': e.preventDefault(); onBookmark(selected); return
       default: return
     }
     e.preventDefault()
+    to = lineOfRow(Math.min(Math.max(0, vtotal - 1), Math.max(0, to)), x)
     to = Math.min(Math.max(1, total), Math.max(1, to))
     onSelect(to)
     apiRef.current?.reveal(to, 'nearest')
   }
 
   const count = Math.ceil(h / ROW_H) + 2 * OVERSCAN + STEP
-  const end = total > 0 ? Math.min(base + count, total) : base
+  const end = total > 0 ? Math.min(base + count, vtotal) : base
   const rows = []
   for (let i = base; i < end; i++) {
-    const n = i + 1
+    const n = lineOfRow(i, index)
+    const fold = foldAt(n, index)
     const l = cache.line(n)
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
     const ela = heat && l && (l.kind === K_CALL || l.kind === K_WAIT) ? elaOf(l.text, LINE_KINDS[l.kind]) : -1
-    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} />)
+    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} />)
   }
   const digits = String(Math.max(total, 1000)).length
   const hover = card || refTitle
@@ -315,7 +346,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     <div className="lv-box" style={{ '--lv-row': `${ROW_H}px` } as React.CSSProperties}>
       <div className="lv-box-col">
       {pinned && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
-      <div className={'lv' + (wrap ? ' lv-wrap' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={total}
+      <div className={'lv' + (wrap ? ' lv-wrap' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={vtotal}
         style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
         onScroll={onScroll} onClick={onClick} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
         onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? hideCard : undefined}>
@@ -335,7 +366,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win, muted, dim, refs, acts }: {
+const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win, muted, dim, refs, acts, fold, foldable }: {
   n: number; text: string | undefined; kind: number
   /** the elapsed µs of a call or wait line, -1 for none (no bar) */
   heat: number
@@ -350,6 +381,10 @@ const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win,
   refs: boolean
   /** the selected row's actions: 0 none, 1 copy, 2 copy and permalink */
   acts: number
+  /** the summary of the fold this line is the handle of (the lines below it are hidden), null for none */
+  fold: string | null
+  /** the line starts a block that can be folded */
+  foldable: boolean
 }) {
   const cut = text !== undefined && text.length > MAX_TEXT
   const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '')
@@ -357,7 +392,13 @@ const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win,
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>{n}</span>
-      <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl || refs ? marked(text, kind, hl, refs) : text || ' '}</span>
+      {/* a slot of its own in every row, so the text does not shift between rows with and without a handle */}
+      <span className="lv-fh">
+        {fold !== null
+          ? <button type="button" className="lv-fold" data-act="fold" aria-expanded={false} aria-label={`Unfold line ${n}: ${fold}`} title={`unfold: ${fold} (z)`}>▸</button>
+          : foldable && <button type="button" className="lv-fold" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}
+      </span>
+      <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl || refs ? marked(text, kind, hl, refs) : text || ' '}{fold !== null && <span className="lv-fold-sum">{fold}</span>}</span>
       {/* a fixed-width gutter at the row's end in every row: the text of the selected row is never laid under its actions */}
       <span className="lv-gut">
         {acts > 0 && (

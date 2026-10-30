@@ -152,6 +152,7 @@ const KEYS: [string, string][] = [
   ['Enter', 'open the statement of the selected line'],
   ['m M', 'next / previous mark of the selected statement'],
   ['h', 'toggle the heat gutter'],
+  ['z Z', 'fold / unfold the block at the selected line (BINDS, STAT dump, long SQL text) / unfold all'],
   ['] [', 'next / previous call'],
   ['w W', 'next / previous wait'],
   ['x X', 'next / previous commit'],
