@@ -1,5 +1,8 @@
 import type { ApiClient } from './client'
 import { parseClockTim, type ClockDoc } from './clock'
+import type { TraceDoc } from './doc'
+import type { Scope } from '../state/store'
+import type { ID } from './types'
 
 /** Raw trace lines come from `mtkprof serve` (GET /api/lines); the standalone HTML has no server to ask. */
 
@@ -140,7 +143,7 @@ export function matchSpan(h: SearchHit, q: string, regex: boolean, caseSensitive
 }
 
 /**
- * "Jump to time" input → a trace clock value (µs), or null when it is not one.
+ * Time part of the "Go to" input → a trace clock value (µs), or null when it is not one.
  * `1.5s`, `250ms`, `900us` are offsets from the start of the trace; a bare number at or above the first tim is an absolute tim, below it seconds.
  * With `clock` (the trace's wall-clock origin) a time of day `HH:MM:SS[.fff]` or `YYYY-MM-DD HH:MM:SS[.fff]` in the trace file's zone works too.
  */
@@ -155,6 +158,59 @@ export function parseJump(text: string, firstTim: number, clock?: ClockDoc): num
     case 'us': case 'µs': return firstTim + v
     default: return v >= firstTim ? v : firstTim + v * 1e6
   }
+}
+
+/** What the Go to box asked for. */
+export type GoTo =
+  | { kind: 'line'; line: number }
+  | { kind: 'cursor'; number: number }
+  | { kind: 'sqlid'; sqlId: string; prefix: boolean; execNo?: number }
+  | { kind: 'tim'; tim: number }
+
+/**
+ * "Go to" input → what it names, or null when it is nothing of these.
+ * `12345`, `L12345`, `:12345` a line; `#140124363561040` a cursor number; a 13-character sql_id, or a prefix followed by `*`,
+ * each with an optional `/N` execution; anything else is `parseJump`'s, except that a bare number (no unit) is a line, never a tim.
+ */
+export function parseGoTo(text: string, firstTim: number, clock?: ClockDoc): GoTo | null {
+  const t = text.trim()
+  let m = /^[Ll:]?(\d+)$/.exec(t)
+  if (m) return { kind: 'line', line: Number(m[1]) }
+  m = /^#(\d+)$/.exec(t)
+  if (m) return { kind: 'cursor', number: Number(m[1]) }
+  m = /^([0-9a-z]{13}|[0-9a-z]{1,12}\*)(?:\/(\d+))?$/i.exec(t)
+  if (m) {
+    const prefix = m[1].endsWith('*')
+    return { kind: 'sqlid', sqlId: (prefix ? m[1].slice(0, -1) : m[1]).toLowerCase(), prefix, ...(m[2] !== undefined ? { execNo: Number(m[2]) } : {}) }
+  }
+  if (/^[+-]?\d+(?:\.\d+)?$/.test(t)) return null // a bare number is no longer a time
+  const tim = parseJump(t, firstTim, clock)
+  return tim === null ? null : { kind: 'tim', tim }
+}
+
+/** The scope that leaves nothing out (what a jump looks executions up in, whatever the views are filtered to). */
+export const ALL_SCOPE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
+
+/** The PARSING IN CURSOR line of the cursor `number` in `file`: the nearest after `from`, wrapping to the first; undefined when the file has none. */
+export function cursorLine(doc: Pick<TraceDoc, 'cursors' | 'fileOfCursor'>, file: number, number: number, from: number): number | undefined {
+  const lines = doc.cursors.filter((c) => c.number === number && c.line > 0 && doc.fileOfCursor(c.id) === file).map((c) => c.line).sort((a, b) => a - b)
+  return lines.find((l) => l > from) ?? lines[0]
+}
+
+/** The statements a sql_id (or prefix) names: one id's statements (distinct sql_ids are reported by `ids`, several means ambiguous). */
+export function statementsOf(doc: Pick<TraceDoc, 'statements'>, sqlId: string, prefix: boolean): { ids: string[]; stmts: ID[] } {
+  const hit = doc.statements.filter((s) => s.sqlId !== '' && (prefix ? s.sqlId.startsWith(sqlId) : s.sqlId === sqlId))
+  return { ids: [...new Set(hit.map((s) => s.sqlId))], stmts: hit.map((s) => s.id) }
+}
+
+/** The first (lowest) line of a statement's cursors in `file`; undefined when none is there. */
+export function stmtLineIn(doc: Pick<TraceDoc, 'statements' | 'cursors' | 'fileOfCursor'>, file: number, stmt: ID): number | undefined {
+  let best: number | undefined
+  for (const c of doc.statements[stmt]?.cursors ?? []) {
+    const cur = doc.cursors[c]
+    if (cur && cur.line > 0 && doc.fileOfCursor(c) === file && (best === undefined || cur.line < best)) best = cur.line
+  }
+  return best
 }
 
 /** A line of text cut into runs, the matched ones flagged (the search-match highlight of a row). */

@@ -13,6 +13,11 @@
 .lines-at { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-4); padding-block: var(--sp-1); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); min-block-size: 1.9rem; }
 .lines-at > .mono { font-variant-numeric: tabular-nums; }
 .lines-kind { color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.4rem; font-size: var(--text-xs); }
+.lines-at-obj { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-2); }
+.lines-at-obj > .lines-sql { max-inline-size: 32ch; }
+.lines-at-obj > button { font-size: var(--text-xs); }
+.lines-at-obj > button.link { padding-block: 0; }
+.lines-status-bar .link { font-size: inherit; }
 .lines-sql { font-family: var(--font-mono); max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .lines-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-block-size: 0; }

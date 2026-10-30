@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache } from '../data/linecache'
-import { fetchLinesAnnot, lineAt, linePermalink, objectsAt, parseJump, search, type AtObjects, type SearchEnd, type SearchHit } from '../data/lines'
+import { ALL_SCOPE, cursorLine, fetchLinesAnnot, lineAt, linePermalink, objectsAt, parseGoTo, search, statementsOf, stmtLineIn, type AtObjects, type SearchEnd, type SearchHit } from '../data/lines'
 import { fmtInt, fmtTz, fmtWall, preview } from '../data/format'
 import { decodeLine, type DecodeContext, type LineDecode } from '../data/linefields'
 import { copyText } from '../data/clipboard'
 import { sourceOf, useSourceQuery } from '../data/source'
-import { StmtLink } from '../components/StmtLink'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
 import { ToolbarMenu } from '../components/ToolbarMenu'
 import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList } from './LinesPanel'
+import { LinesAt } from './LinesAt'
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
 import { NoteEditor } from '../components/Note'
@@ -36,6 +36,10 @@ interface LinesUi {
   /** the elapsed-time bars in the gutter */
   heat: boolean
   jump: string
+  /** the lines the jumps left, newest last (capped) */
+  back: number[]
+  /** the selected line as this view last set it (the line a jump leaves) */
+  cur: number
 }
 
 const uis = new WeakMap<Store, Map<number, LinesUi>>()
@@ -47,13 +51,14 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false },
-      tab: 'hits', panel: false, wrap: false, heat: true, jump: '',
+      tab: 'hits', panel: false, wrap: false, heat: true, jump: '', back: [], cur: 0,
     }))
   }
   return u
 }
 
 const SEARCH_LIMIT = 10_000
+const BACK_LIMIT = 50
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 
 /** Binary search in an ascending array: the first index with `a[i] > x`. */
@@ -172,15 +177,28 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [cache, client, file, store, actions, doc, ui])
   useEffect(() => () => { window.clearTimeout(atTimer.current); atCtl.current?.abort() }, [])
 
-  const select = useCallback((line: number, dispatch = true) => { actions.setLinesLine(file, line); resolveAt(line, dispatch) }, [actions, file, resolveAt])
+  const select = useCallback((line: number, dispatch = true) => { ui.cur = line; actions.setLinesLine(file, line); resolveAt(line, dispatch) }, [actions, file, resolveAt, ui])
   const goTo = useCallback((line: number, dispatch = true) => {
     apiRef.current?.reveal(line, 'center')
     select(line, dispatch)
   }, [select])
+  /** A jump (a search hit, a mark, a bookmark, Go to, a line card action, a deep link): `goTo` that remembers the line it left for Back. */
+  const jump = useCallback((line: number, dispatch = true) => {
+    const left = ui.cur
+    if (left > 0 && left !== line && ui.back[ui.back.length - 1] !== left) { ui.back.push(left); if (ui.back.length > BACK_LIMIT) ui.back.shift(); bump() }
+    goTo(line, dispatch)
+  }, [ui, goTo])
+  const goBack = useCallback(() => {
+    const line = ui.back.pop()
+    if (line === undefined) return
+    bump()
+    goTo(line)
+  }, [ui, goTo])
 
   // a deep link or jump from elsewhere moves the view (`keep`: without picking the line's statement); coming back to the tab keeps the position
   useEffect(() => {
-    if (lv.seq !== ui.seqSeen) { ui.seqSeen = lv.seq; goTo(lv.line, !lv.keep); return }
+    if (lv.seq !== ui.seqSeen) { ui.seqSeen = lv.seq; jump(lv.line, !lv.keep); return }
+    ui.cur = lv.line
     resolveAt(lv.line, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lv.seq])
@@ -211,7 +229,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const from = selected
     const i = firstAbove(markLines, from)
     const to = dir === 1 ? markLines[i] : markLines[(markLines[i - 1] === from ? i - 2 : i - 1)]
-    if (to !== undefined && to !== from) goTo(to)
+    if (to !== undefined && to !== from) jump(to)
   }
 
   // ---- bookmarks -------------------------------------------------------------------------------------------------------
@@ -238,7 +256,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const finish = (patch: Partial<LinesUi>) => { window.clearTimeout(timer); if (searchCtl.current === ac) set(patch) }
     search(client, { file, q: ui.q, regex: ui.regex, caseSensitive: ui.caseSensitive, from, limit: SEARCH_LIMIT }, (h) => {
       hits.push(h)
-      if (hits.length === 1) { flush(); goTo(h.line) } else if (!timer) timer = window.setTimeout(flush, 100)
+      if (hits.length === 1) { flush(); jump(h.line) } else if (!timer) timer = window.setTimeout(flush, 100)
     }, ac.signal).then(
       (end) => finish({ end, status: 'done' }),
       (e: unknown) => finish(aborted(e) ? { status: 'cancelled' } : { status: 'error', error: e instanceof Error ? e.message : String(e) }),
@@ -252,23 +270,31 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (hs.length === 0) return
     const i = firstAbove(hs.map((h) => h.line), selected) // the hit list is in line order
     const to = dir === 1 ? hs[i] : hs[hs[i - 1]?.line === selected ? i - 2 : i - 1]
-    if (to) goTo(to.line)
+    if (to) jump(to.line)
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape' && ui.status === 'running') { e.stopPropagation(); cancelSearch() }
     else if (e.key === 'F3') { e.preventDefault(); stepHit(e.shiftKey ? -1 : 1) }
+    else if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey && ui.back.length > 0) {
+      const t = e.target as HTMLElement
+      if (t.closest('.lv') && !t.closest('input, textarea, select')) { e.preventDefault(); goBack() }
+    }
   }
 
   // ---- per-line actions: copy the text, copy a link that opens the line ---------------------------------------------------
   const copyTimer = useRef(0)
   useEffect(() => () => window.clearTimeout(copyTimer.current), [])
+  /** A short note in the status bar. */
+  const flash = useCallback((msg: string) => {
+    setCopied(msg)
+    window.clearTimeout(copyTimer.current)
+    copyTimer.current = window.setTimeout(() => setCopied(null), 2500)
+  }, [])
   const copyWhat = useCallback(async (what: string, text: string) => {
     const ok = await copyText(text)
-    setCopied(ok ? `Copied ${what}` : `Could not copy ${what}`)
-    window.clearTimeout(copyTimer.current)
-    copyTimer.current = window.setTimeout(() => setCopied(null), 1500)
-  }, [])
+    flash(ok ? `Copied ${what}` : `Could not copy ${what}`)
+  }, [flash])
   const copyLine = useCallback((line: number) => {
     const text = cache.line(line)?.text
     if (text !== undefined) void copyWhat(`line ${fmtInt(line)}`, text)
@@ -294,27 +320,60 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const lineCard = useCallback((_line: number, text: string, kind: number): LineDecode | null => decodeLine(text, LINE_KINDS[kind], decodeCtx), [decodeCtx])
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
 
-  // ---- jump to time ----------------------------------------------------------------------------------------------------
-  const jumpToTim = async (tim: number) => {
-    try { setJumpError(null); goTo(await lineAt(client, file, tim)) } catch (e) { setJumpError(e instanceof Error ? e.message : String(e)) }
+  // ---- go to: a line, a cursor, a sql_id (and execution), a time --------------------------------------------------------
+  const goToHelp = doc.wallOffsetUs
+    ? `a line (12345, L12345, :12345), a cursor (#140124363561040), a sql_id (9h8pw1x9xgbsj, 9h8*) with an execution (9h8pw1x9xgbsj/3), or a time: 1.5s / 250ms / 900us from the start, or a clock time HH:MM:SS[.fff] or YYYY-MM-DD HH:MM:SS in the trace file's zone (${fmtTz(doc.tzOffsetMin)}). A bare number is a line, a time needs its unit.`
+    : 'a line (12345, L12345, :12345), a cursor (#140124363561040), a sql_id (9h8pw1x9xgbsj, 9h8*) with an execution (9h8pw1x9xgbsj/3), or a time: 1.5s / 250ms / 900us from the start. A bare number is a line, a time needs its unit.'
+  const goToSqlId = async (g: { sqlId: string; prefix: boolean; execNo?: number }) => {
+    const { ids, stmts } = statementsOf(doc, g.sqlId, g.prefix)
+    if (ids.length === 0) return `no statement ${g.sqlId}${g.prefix ? '*' : ''}`
+    if (ids.length > 1) return `${g.sqlId}* is ambiguous: ${ids.slice(0, 3).join(', ')}${ids.length > 3 ? `, … (${ids.length})` : ''}`
+    const name = ids[0]
+    if (g.execNo === undefined) {
+      const lines = stmts.map((s) => stmtLineIn(doc, file, s)).filter((l): l is number => l !== undefined)
+      if (lines.length > 0) { jump(Math.min(...lines)); return null }
+      const c = doc.statements[stmts[0]]?.cursors[0]
+      const f = c === undefined ? -1 : doc.fileOfCursor(c)
+      return f >= 0 && f !== file && doc.traceFileName(f) ? `${name} is not in this file (it is in ${doc.traceFileName(f)})` : `${name} has no cursor in this file`
+    }
+    const source = sourceOf(doc)
+    const rows: { line: number; file: number }[] = []
+    let total = 0, partial = false
+    for (const s of stmts) {
+      const page = await source.executions(s, ALL_SCOPE)
+      total += page.total; partial ||= page.partial
+      for (const r of page.rows) if (r.execNo === g.execNo && r.line > 0) rows.push({ line: r.line, file: doc.fileOfCtx(r.ctx) })
+    }
+    const row = rows.find((r) => r.file === file) ?? rows[0]
+    if (!row) return `no execution ${g.execNo} of ${name} (${fmtInt(total)} ${total === 1 ? 'execution' : 'executions'}${partial ? ', the slowest listed' : ''})`
+    if (row.file === file) jump(row.line)
+    else actions.openLinesAt(row.file, row.line)
+    return null
   }
-  const runJump = () => {
-    const tim = parseJump(ui.jump, doc.span.firstTim, doc.wallOffsetUs ? doc : undefined)
-    if (tim === null) setJumpError(doc.wallOffsetUs ? 'use 1.5s, 250ms, 900us, a tim or a clock time 14:03:07.250' : 'use 1.5s, 250ms, 900us or an absolute tim')
-    else void jumpToTim(tim)
+  const runGoTo = async () => {
+    const g = parseGoTo(ui.jump, doc.span.firstTim, doc.wallOffsetUs ? doc : undefined)
+    setJumpError(null)
+    if (!g) { setJumpError(doc.wallOffsetUs ? 'use a line, #cursor, sql_id[/N], 1.5s, 250ms, 900us or 14:03:07.250' : 'use a line, #cursor, sql_id[/N], 1.5s, 250ms or 900us'); return }
+    try {
+      switch (g.kind) {
+        case 'line':
+          if (total > 0 && g.line > total) setJumpError(`line ${fmtInt(g.line)} is past the end (${fmtInt(total)} lines)`)
+          else jump(Math.max(1, g.line))
+          break
+        case 'cursor': {
+          const line = cursorLine(doc, file, g.number, selected)
+          if (line === undefined) setJumpError(`no cursor #${g.number} in this file`)
+          else jump(line)
+          break
+        }
+        case 'sqlid': { const err = await goToSqlId(g); if (err) setJumpError(err); break }
+        case 'tim': jump(await lineAt(client, file, g.tim)); break
+      }
+    } catch (e) { if (!aborted(e)) setJumpError(e instanceof Error ? e.message : String(e)) }
   }
 
   const files = doc.file.files ?? []
   const selectedFiles = useStore((s) => s.files)
-  const selStmt = at?.objs.stmt !== undefined && at.objs.stmt >= 0 ? doc.statements[at.objs.stmt] : undefined
-  const o = at?.objs
-  const planLine = o && o.planLine >= 0 ? doc.planLines[o.planLine] : undefined
-  const waitEvent = (() => {
-    if (!o || o.wait < 0 || !at) return undefined
-    const name = /nam='([^']*)'/.exec(cache.line(at.line)?.text ?? '')?.[1]
-    const id = name === undefined ? -1 : doc.events.findIndex((e) => e.name === name)
-    return id >= 0 ? { id, name: name! } : name === undefined ? undefined : { id: -1, name }
-  })()
   const running = ui.status === 'running'
   const nextHitDisabled = ui.hits.length === 0
 
@@ -342,15 +401,15 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             {ui.status === 'cancelled' && `Cancelled after ${fmtInt(ui.hits.length)} hits.`}
             {ui.status === 'error' && <span className="lines-error">{ui.error}</span>}
           </p>
-          {ui.status !== 'idle' && <HitList hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive} onGo={goTo} />}
+          {ui.status !== 'idle' && <HitList hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive} onGo={jump} />}
         </>
       )}
       {ui.tab === 'bookmarks' && (
         <BookmarkList bookmarks={allBookmarks} fileName={fileName}
-          onGo={(b) => (b.file === file ? goTo(b.line) : actions.openLinesAt(b.file, b.line))}
+          onGo={(b) => (b.file === file ? jump(b.line) : actions.openLinesAt(b.file, b.line))}
           onLabel={(b, label) => actions.addBookmark(b.file, b.line, label)}
           onRemove={(b) => actions.removeBookmark(b.file, b.line)}
-          onNote={notesOn ? (b) => { if (b.file !== file) actions.openLinesAt(b.file, b.line); else { goTo(b.line); setNoting(b.line) } } : undefined} />
+          onNote={notesOn ? (b) => { if (b.file !== file) actions.openLinesAt(b.file, b.line); else { jump(b.line); setNoting(b.line) } } : undefined} />
       )}
     </>
   )
@@ -374,16 +433,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             ? <button type="button" onClick={cancelSearch} title="Esc">Cancel</button>
             : <button type="submit" disabled={ui.q === ''}>Search</button>}
         </form>
-        <form className="lines-jump" onSubmit={(e) => { e.preventDefault(); runJump() }}>
-          <input type="text" value={ui.jump} placeholder={doc.wallOffsetUs ? 'Time: 1.5s, 14:03:07' : 'Time: 1.5s, 250ms, tim'} title={doc.wallOffsetUs ? `1.5s / 250ms / 900us from the start, a tim, or a clock time HH:MM:SS[.fff] or YYYY-MM-DD HH:MM:SS in the trace file's zone (${fmtTz(doc.tzOffsetMin)})` : '1.5s / 250ms / 900us from the start, or a tim'} aria-label="Jump to time" onChange={(e) => set({ jump: e.target.value })} />
+        <form className="lines-jump" onSubmit={(e) => { e.preventDefault(); void runGoTo() }}>
+          <input type="text" value={ui.jump} placeholder={doc.wallOffsetUs ? 'Go to: line, #cursor, sql_id, 1.5s, 14:03:07' : 'Go to: line, #cursor, sql_id, 1.5s'} title={goToHelp} aria-label="Go to" onChange={(e) => set({ jump: e.target.value })} />
           <button type="submit" disabled={ui.jump.trim() === ''}>Go</button>
           {jumpError && <small className="lines-note" role="alert">{jumpError}</small>}
         </form>
         {win ? (
           <span className="lines-win" role="group" aria-label="Time window">
             <b>Window</b>
-            <button type="button" disabled={!winRange} onClick={() => winRange && goTo(winRange.from, !block)} aria-label="Go to the first line of the time window" title="the first line of the time window set in the Timeline">⇤ start</button>
-            <button type="button" disabled={!winRange} onClick={() => winRange && goTo(winRange.to, !block)} aria-label="Go to the last line of the time window" title="the last line of the time window set in the Timeline">end ⇥</button>
+            <button type="button" disabled={!winRange} onClick={() => winRange && jump(winRange.from, !block)} aria-label="Go to the first line of the time window" title="the first line of the time window set in the Timeline">⇤ start</button>
+            <button type="button" disabled={!winRange} onClick={() => winRange && jump(winRange.to, !block)} aria-label="Go to the last line of the time window" title="the last line of the time window set in the Timeline">end ⇥</button>
             <small className={winLines?.failed ? 'lines-error' : 'muted'} aria-live="polite" title={winRange ? `${fmtInt(winRange.to - winRange.from + 1)} lines` : undefined}>
               {winLines === null ? '…' : winLines.failed ? 'window lines unavailable' : winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : 'no lines of the window in this file'}
             </small>
@@ -417,24 +476,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             onDelete={bm?.note ? () => { actions.setBookmarkNote(file, noting, ''); setNoting(null) } : undefined} />
         )
       })()}
-      <div className="lines-at" aria-live="polite">
-        {!at && <span className="muted">Click a line to see the statement, execution and wait it belongs to.</span>}
-        {at && o && (
-          <>
-            <span className="mono">line {fmtInt(at.line)}</span>
-            <span className={'lines-kind'}>{o.kind}</span>
-            {selStmt && at.objs.stmt >= 0 && <><StmtLink doc={doc} id={at.objs.stmt} /><span className="muted lines-sql">{preview(selStmt.text, 90)}</span></>}
-            {o.execNo >= 0 && <span>exec #{o.execNo}</span>}
-            {o.cursor >= 0 && <span className="muted">cursor #{doc.cursors[o.cursor]?.number ?? o.cursor}</span>}
-            {waitEvent && (waitEvent.id >= 0
-              ? <button className="link" onClick={() => actions.selectEvent(waitEvent.id)} title="open this wait event">{waitEvent.name}</button>
-              : <span>{waitEvent.name}</span>)}
-            {o.bindSet >= 0 && <span>bind set #{o.bindSet}</span>}
-            {planLine && <span title={planLine.object}>plan line {planLine.id}: {planLine.op}{planLine.object ? ` ${planLine.object}` : ''}</span>}
-            {o.stmt < 0 && o.wait < 0 && o.bindSet < 0 && o.planLine < 0 && <span className="muted">no statement at this line</span>}
-          </>
-        )}
-      </div>
+      <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} />
 
       <div className="lines-body">
         <div className="lines-main">
@@ -447,6 +489,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className="lines-status-bar small">
         <span className="mono">{fmtInt(selected)} / {fmtInt(total)}</span>
+        {ui.back.length > 0 && <button type="button" className="link" onClick={goBack} title="back to the line before the last jump (Backspace in the viewer)">← back to line {fmtInt(ui.back[ui.back.length - 1])}</button>}
         {copied && <span role="status" aria-live="polite" className="lines-copied">{copied}</span>}
         {files.length > 1 && <span className="muted">{doc.traceFileName(file)}</span>}
         <span className="lines-legend" aria-label="Line colours">

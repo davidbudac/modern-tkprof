@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, objectsAt, parseJump, probeLinesApi, readNdjson, search, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -138,6 +138,75 @@ describe('parseJump', () => {
     expect(parseJump('', first)).toBeNull()
     expect(parseJump('soon', first)).toBeNull()
     expect(parseJump('1m', first)).toBeNull()
+  })
+})
+
+describe('parseGoTo', () => {
+  const first = 10_804_499_034
+  const clock = { wallOffsetUs: Date.UTC(2026, 0, 2, 10, 0, 0) * 1000 - first, tzOffsetMin: 120, span: { firstTim: first, lastTim: first + 3600e6 } }
+  it('reads a bare integer, L12345 and :12345 as a line', () => {
+    expect(parseGoTo('12345', first)).toEqual({ kind: 'line', line: 12345 })
+    expect(parseGoTo(' L12345 ', first)).toEqual({ kind: 'line', line: 12345 })
+    expect(parseGoTo('l7', first)).toEqual({ kind: 'line', line: 7 })
+    expect(parseGoTo(':12345', first)).toEqual({ kind: 'line', line: 12345 })
+    expect(parseGoTo('10806000000', first)).toEqual({ kind: 'line', line: 10806000000 })
+  })
+  it('reads #number as a cursor', () => {
+    expect(parseGoTo('#140124363561040', first)).toEqual({ kind: 'cursor', number: 140124363561040 })
+    expect(parseGoTo('#', first)).toBeNull()
+  })
+  it('reads 13 characters as a sql_id, with an optional /N execution', () => {
+    expect(parseGoTo('9h8pw1x9xgbsj', first)).toEqual({ kind: 'sqlid', sqlId: '9h8pw1x9xgbsj', prefix: false })
+    expect(parseGoTo('9h8pw1x9xgbsj/3', first)).toEqual({ kind: 'sqlid', sqlId: '9h8pw1x9xgbsj', prefix: false, execNo: 3 })
+    expect(parseGoTo('9H8PW1X9XGBSJ', first)).toEqual({ kind: 'sqlid', sqlId: '9h8pw1x9xgbsj', prefix: false })
+  })
+  it('reads a prefix followed by * as a sql_id prefix', () => {
+    expect(parseGoTo('9h8*', first)).toEqual({ kind: 'sqlid', sqlId: '9h8', prefix: true })
+    expect(parseGoTo('9h8*/2', first)).toEqual({ kind: 'sqlid', sqlId: '9h8', prefix: true, execNo: 2 })
+    expect(parseGoTo('9h8', first)).toBeNull() // a short sql_id needs its star
+    expect(parseGoTo('*', first)).toBeNull()
+  })
+  it('keeps the times with a unit and the clock times, and no longer reads a bare number as a time', () => {
+    expect(parseGoTo('1.5s', first)).toEqual({ kind: 'tim', tim: first + 1_500_000 })
+    expect(parseGoTo('250 ms', first)).toEqual({ kind: 'tim', tim: first + 250_000 })
+    expect(parseGoTo('900us', first)).toEqual({ kind: 'tim', tim: first + 900 })
+    expect(parseGoTo('12:00:01.5', first, clock)).toEqual({ kind: 'tim', tim: first + 1.5e6 })
+    expect(parseGoTo('12:00:01', first)).toBeNull()
+    expect(parseGoTo('1.5', first)).toBeNull()
+    expect(parseGoTo('-3', first)).toBeNull()
+  })
+  it('rejects anything else', () => {
+    expect(parseGoTo('', first)).toBeNull()
+    expect(parseGoTo('soon', first)).toBeNull()
+    expect(parseGoTo('1m', first)).toBeNull()
+  })
+})
+
+describe('resolving a Go to against the document', () => {
+  const cursors = [
+    { id: 0, number: 100, line: 10, context: 0, statement: 0 }, { id: 1, number: 100, line: 50, context: 0, statement: 0 },
+    { id: 2, number: 100, line: 5, context: 1, statement: 1 }, { id: 3, number: 7, line: 30, context: 0, statement: 1 },
+  ]
+  const doc = {
+    cursors, fileOfCursor: (c: number) => cursors[c].context,
+    statements: [{ id: 0, sqlId: '9h8pw1x9xgbsj', cursors: [0, 1] }, { id: 1, sqlId: '9h8zzzzzzzzzz', cursors: [2, 3] }, { id: 2, sqlId: '', cursors: [] }],
+  } as never
+  it('finds the nearest PARSING IN CURSOR line after the selected one, wrapping, only in the file', () => {
+    expect(cursorLine(doc, 0, 100, 1)).toBe(10)
+    expect(cursorLine(doc, 0, 100, 10)).toBe(50)
+    expect(cursorLine(doc, 0, 100, 50)).toBe(10)
+    expect(cursorLine(doc, 1, 100, 1)).toBe(5)
+    expect(cursorLine(doc, 1, 7, 1)).toBeUndefined()
+  })
+  it('finds the statements of a sql_id or a prefix', () => {
+    expect(statementsOf(doc, '9h8pw1x9xgbsj', false)).toEqual({ ids: ['9h8pw1x9xgbsj'], stmts: [0] })
+    expect(statementsOf(doc, '9h8', true).ids).toEqual(['9h8pw1x9xgbsj', '9h8zzzzzzzzzz'])
+    expect(statementsOf(doc, 'zz', true).stmts).toEqual([])
+  })
+  it('finds the first line of a statement in a file', () => {
+    expect(stmtLineIn(doc, 0, 0)).toBe(10)
+    expect(stmtLineIn(doc, 1, 0)).toBeUndefined()
+    expect(stmtLineIn(doc, 1, 1)).toBe(5)
   })
 })
 
