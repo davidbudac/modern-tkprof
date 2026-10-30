@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -293,4 +293,17 @@ describe('search presets', () => {
     expect(new RegExp(callsOverRe(10)).test('EXEC #1:c=0,e=250000,p=0')).toBe(true)
     expect(SEARCH_PRESETS.every((p) => { try { new RegExp(typeof p.re === 'string' ? p.re : p.re(p.ms ?? 10)); return true } catch { return false } })).toBe(true)
   })
+})
+
+describe('groupHits', () => {
+  const hit = (line: number): SearchHit => ({ line, col: 0, text: '' })
+  it('groups by statement, biggest first, with unknown and statement-less hits apart', () => {
+    const owner: Record<number, number | undefined> = { 10: 4, 20: 7, 30: 7, 40: undefined, 50: -1, 60: 7, 70: 4, 80: undefined, 90: undefined }
+    const hits = [10, 20, 30, 40, 50, 60, 70, 80, 90].map(hit)
+    const g = groupHits(hits, (l) => owner[l])
+    expect(g.map((x) => [x.stmt, x.hits.length, x.first])).toEqual([[7, 3, 20], [GROUP_UNKNOWN, 3, 40], [4, 2, 10], [-1, 1, 50]])
+    expect(g.reduce((n, x) => n + x.hits.length, 0)).toBe(hits.length)
+    expect(g[0].hits.map((h) => h.line)).toEqual([20, 30, 60])
+  })
+  it('is empty for no hits', () => { expect(groupHits([], () => 1)).toEqual([]) })
 })

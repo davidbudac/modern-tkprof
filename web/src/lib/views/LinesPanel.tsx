@@ -1,33 +1,88 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { Bookmark } from '../state/store'
-import { fmtInt } from '../data/format'
-import { matchSpan, sameSearch, type RecentSearch, type SearchHit } from '../data/lines'
+import type { TraceDoc } from '../data/doc'
+import { fmtInt, preview } from '../data/format'
+import { GROUP_UNKNOWN, groupHits, matchSpan, sameSearch, type HitGroup, type RecentSearch, type SearchHit } from '../data/lines'
+import { useActions } from '../state/session'
 
 const HIT_H = 22
 /** characters of the line shown before the match, so it is visible in a narrow panel */
 const LEAD = 14
 
-/** The hits of a search, streamed in: `hits` grows while `count` (the render trigger) follows it. */
-export function HitList({ hits, count, selected, q, regex, caseSensitive, onGo }: {
-  hits: SearchHit[]; count: number; selected: number; q: string; regex: boolean; caseSensitive: boolean; onGo(line: number): void
+/** A statement's sql_id as a chip on a hit row: a click opens the statement (the row's own click, going to the line, is not triggered). */
+function StmtChip({ doc, id }: { doc: TraceDoc; id: number }) {
+  const actions = useActions()
+  const st = doc.statements[id]
+  if (!st) return <span className="muted hit-stmt">–</span>
+  return (
+    <button type="button" className="link mono sqlid hit-stmt" title={preview(st.text, 60) || 'open this statement'}
+      onClick={(e) => { e.stopPropagation(); actions.selectStmt(id) }}>{doc.label(st)}</button>
+  )
+}
+
+/** One row of the flattened hit list: a hit, or in the grouped list a statement's header. */
+type HitItem = { type: 'group'; g: HitGroup; open: boolean } | { type: 'hit'; h: SearchHit; grouped: boolean }
+
+/**
+ * The hits of a search, streamed in: `hits` grows while `count` (the render trigger) follows it. `stmtOf` tells a hit line's statement
+ * (undefined: not known yet, negative: none), `onNeed` asks the owner to learn it (the rendered hits only). With `group` the list is the
+ * statements by hit count, a group's hits listed while it is in `open`.
+ */
+export function HitList({ doc, hits, count, selected, q, regex, caseSensitive, stmtOf, onNeed, group, open, onToggle, onGo }: {
+  doc: TraceDoc; hits: SearchHit[]; count: number; selected: number; q: string; regex: boolean; caseSensitive: boolean
+  stmtOf(line: number): number | undefined; onNeed(line: number): void
+  group: boolean; open: ReadonlySet<number>; onToggle(stmt: number): void; onGo(line: number): void
 }) {
   const box = useRef<HTMLDivElement>(null)
-  const v = useVirtualizer({ count, getScrollElement: () => box.current, estimateSize: () => HIT_H, overscan: 12 })
+  // not memoized: a page arriving changes what `stmtOf` answers without changing `hits` (an in-place array)
+  const items: HitItem[] = []
+  if (!group) for (let i = 0; i < count && i < hits.length; i++) items.push({ type: 'hit', h: hits[i], grouped: false })
+  else {
+    for (const g of groupHits(hits.length > count ? hits.slice(0, count) : hits, stmtOf)) {
+      items.push({ type: 'group', g, open: open.has(g.stmt) })
+      if (open.has(g.stmt)) for (const h of g.hits) items.push({ type: 'hit', h, grouped: true })
+    }
+  }
+  const v = useVirtualizer({ count: items.length, getScrollElement: () => box.current, estimateSize: () => HIT_H, overscan: 12 })
+  // the statements of the hits in view (without the overscan) are learnt by loading their pages
+  const range = v.range
+  useEffect(() => {
+    if (!range) return
+    for (let i = range.startIndex; i <= range.endIndex; i++) {
+      const it = items[i]
+      if (it?.type === 'hit' && stmtOf(it.h.line) === undefined) onNeed(it.h.line)
+    }
+  })
   if (count === 0) return <p className="small muted lines-empty">No hits.</p>
   return (
     <div className="lines-hits" ref={box} role="listbox" aria-label="Search hits">
       <div style={{ height: v.getTotalSize(), position: 'relative' }}>
         {v.getVirtualItems().map((it) => {
-          const h = hits[it.index]
-          if (!h) return null
+          const item = items[it.index]
+          if (!item) return null
+          const pos = { position: 'absolute', insetBlockStart: 0, insetInline: 0, height: HIT_H, transform: `translateY(${it.start}px)` } as const
+          if (item.type === 'group') {
+            const { g } = item
+            return (
+              <div key={it.key} role="option" aria-selected={false} aria-expanded={item.open} className="lines-hit lines-grp" style={pos} onClick={() => onToggle(g.stmt)}
+                title={item.open ? 'hide these hits' : 'list these hits'}>
+                <span className="grp-x">{item.open ? '▾' : '▸'}</span>
+                {g.stmt >= 0 ? <StmtChip doc={doc} id={g.stmt} /> : <span className="muted hit-stmt">{g.stmt === GROUP_UNKNOWN ? `not loaded yet (${fmtInt(g.hits.length)})` : `no statement (${fmtInt(g.hits.length)})`}</span>}
+                {g.stmt >= 0 && <span className="grp-n">{fmtInt(g.hits.length)} {g.hits.length === 1 ? 'hit' : 'hits'}</span>}
+                <button type="button" className="link ln" title="go to the first hit" onClick={(e) => { e.stopPropagation(); onGo(g.first) }}>{fmtInt(g.first)}</button>
+              </div>
+            )
+          }
+          const h = item.h
           const span = matchSpan(h, q, regex, caseSensitive)
+          const owner = item.grouped ? undefined : stmtOf(h.line)
           return (
-            <div key={it.key} role="option" aria-selected={h.line === selected} className={'lines-hit' + (h.line === selected ? ' on' : '')}
-              style={{ position: 'absolute', insetBlockStart: 0, insetInline: 0, height: HIT_H, transform: `translateY(${it.start}px)` }}
-              onClick={() => onGo(h.line)} title={`line ${fmtInt(h.line)}, column ${h.col}`}>
+            <div key={it.key} role="option" aria-selected={h.line === selected} className={'lines-hit' + (h.line === selected ? ' on' : '') + (item.grouped ? ' in-grp' : '')}
+              style={pos} onClick={() => onGo(h.line)} title={`line ${fmtInt(h.line)}, column ${h.col}`}>
               <span className="ln">{fmtInt(h.line)}</span>
               <span className="col">{h.col}</span>
+              {!item.grouped && (owner === undefined ? <span className="muted hit-stmt" title="the statement of this line is not loaded yet">…</span> : owner >= 0 ? <StmtChip doc={doc} id={owner} /> : <span className="muted hit-stmt" title="no statement at this line">–</span>)}
               <code>{span ? <>{span[0] > LEAD && '…'}{h.text.slice(Math.max(0, span[0] - LEAD), span[0])}<mark>{h.text.slice(span[0], span[1])}</mark>{h.text.slice(span[1])}</> : h.text}</code>
             </div>
           )

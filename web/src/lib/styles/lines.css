@@ -89,6 +89,31 @@
 .lines-hit .col { flex: none; min-inline-size: 3ch; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .lines-hit code { font: inherit; overflow: hidden; text-overflow: ellipsis; }
 .lines-hit mark { background: color-mix(in oklch, var(--c-commit) 38%, transparent); color: inherit; border-radius: 2px; }
+/* the statement of a hit: a sql_id chip, or a muted … while its page is not loaded */
+.lines-hit .hit-stmt { flex: none; min-inline-size: 13ch; font-size: inherit; text-align: start; }
+.lines-hit .hit-stmt.link { color: inherit; }
+.lines-grp { font-weight: 500; background: var(--surface-sunken); }
+.lines-grp .grp-x { flex: none; inline-size: 1.2ch; color: var(--ink-2); }
+.lines-grp .grp-n { flex: 1; color: var(--ink-2); font-weight: 400; }
+.lines-grp .hit-stmt { min-inline-size: 0; }
+.lines-grp .ln { margin-inline-start: auto; padding: 0; min-inline-size: 7ch; }
+.lines-hit.in-grp { padding-inline-start: calc(var(--sp-3) + 2ch); }
+
+/* the outline: a filter box over a virtualized tree (rows of 22px, indented by --d) */
+.lines-outline { flex: 1; min-block-size: 0; display: flex; flex-direction: column; gap: var(--sp-2); padding-block-start: var(--sp-2); }
+.lines-outline .ol-filter { inline-size: 100%; box-sizing: border-box; }
+.lines-ol { flex: 1; min-block-size: 0; overflow: auto; font-size: var(--text-sm); }
+.ol-row { display: flex; align-items: center; gap: var(--sp-2); box-sizing: border-box; padding-inline: var(--sp-2); padding-inline-start: calc(var(--sp-2) + var(--d) * 1rem); white-space: nowrap; overflow: hidden; cursor: pointer; }
+.ol-row.ol-note { cursor: default; }
+.ol-row:hover:not(.ol-note) { background: var(--wash); }
+.ol-row.on { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.ol-ctx { background: var(--surface-sunken); }
+.ol-x { flex: none; inline-size: 1.4ch; padding: 0; border: 0; background: none; color: var(--ink-2); text-align: center; line-height: 1; }
+.ol-cur { flex: none; font-variant-numeric: tabular-nums; }
+.ol-id { flex: none; }
+.ol-text { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.ol-n { flex: none; font-variant-numeric: tabular-nums; }
+.ol-line { flex: none; margin-inline-start: auto; min-inline-size: 7ch; text-align: end; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .lines-bms { list-style: none; margin: 0; padding: var(--sp-2) var(--sp-3); overflow: auto; display: grid; gap: var(--sp-1); }
 .lines-bms li { display: flex; align-items: center; gap: var(--sp-2); }
 .lines-bms li input { flex: 1; min-inline-size: 0; }
@@ -115,6 +140,7 @@
 }
 .tbpop .lines-status { padding-inline: 0; }
 .tbpop .lines-bms { padding-inline: 0; flex: 1; min-block-size: 0; }
+.tbpop.wide { inline-size: min(44rem, 95vw); }
 
 /* the hover card of a line: one element, fixed under its row (see LineCard in components/LineViewer.tsx) */
 .lv-card {

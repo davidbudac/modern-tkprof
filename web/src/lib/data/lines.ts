@@ -295,3 +295,22 @@ export interface RecentSearch { q: string; regex: boolean; caseSensitive: boolea
 /** Two searches are the same entry when their queries match. */
 export const sameSearch = (a: Pick<RecentSearch, 'q' | 'regex' | 'caseSensitive' | 'scope'>, b: Pick<RecentSearch, 'q' | 'regex' | 'caseSensitive' | 'scope'>) =>
   a.q === b.q && a.regex === b.regex && a.caseSensitive === b.caseSensitive && a.scope === b.scope
+
+/** The group of the hits whose statement is not known yet (their page is not loaded); `-1` is the group of hits with no statement. */
+export const GROUP_UNKNOWN = -2
+/** The hits of one statement: `stmt` (`-1` none, `GROUP_UNKNOWN` not loaded yet), the first hit's line and the hits in line order. */
+export interface HitGroup { stmt: number; first: number; hits: SearchHit[] }
+
+/** Groups hits by the statement `stmtOf` tells (undefined: unknown yet; negative: none), biggest group first, ties by first hit. */
+export function groupHits(hits: readonly SearchHit[], stmtOf: (line: number) => number | undefined): HitGroup[] {
+  const groups = new Map<number, HitGroup>()
+  for (const h of hits) {
+    const s = stmtOf(h.line)
+    const key = s === undefined ? GROUP_UNKNOWN : s < 0 ? -1 : s
+    let g = groups.get(key)
+    if (!g) groups.set(key, (g = { stmt: key, first: h.line, hits: [] }))
+    g.hits.push(h)
+    if (h.line < g.first) g.first = h.line
+  }
+  return [...groups.values()].sort((a, b) => b.hits.length - a.hits.length || a.first - b.first)
+}

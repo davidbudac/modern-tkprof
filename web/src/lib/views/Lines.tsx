@@ -12,6 +12,7 @@ import { lineToneLegend } from '../components/colors'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
+import { LinesOutline, type OutlineState } from './LinesOutline'
 import { LinesAt } from './LinesAt'
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
@@ -45,7 +46,12 @@ interface LinesUi {
   mute: Set<string>
   /** the cursor id whose rows stay bright (the others are dimmed), null for none */
   focus: number | null
-  tab: 'hits' | 'bookmarks'
+  tab: 'hits' | 'bookmarks' | 'outline'
+  /** the hits listed by statement (the Navigate menu), and the statements whose group is open (-1 none, -2 not loaded yet) */
+  groupHits: boolean
+  openGroups: Set<number>
+  /** the outline tab: open nodes and filter */
+  outline: OutlineState
   panel: boolean
   wrap: boolean
   /** the elapsed-time bars in the gutter */
@@ -69,7 +75,7 @@ function uiOf(store: Store, file: number): LinesUi {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
       presets: false, threshold: 10, keys: false, muteMenu: false, mute: new Set(), focus: null,
-      tab: 'hits', panel: false, wrap: false, heat: true, links: true, jump: '', back: [], cur: 0,
+      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, wrap: false, heat: true, links: true, jump: '', back: [], cur: 0,
     }))
   }
   return u
@@ -78,6 +84,10 @@ function uiOf(store: Store, file: number): LinesUi {
 const SEARCH_LIMIT = 10_000
 const BACK_LIMIT = 50
 const RECENT_LIMIT = 5
+/** pages of annotated lines kept for the viewer and for the statements of the hits */
+const CACHE_PAGES = 40
+/** pages loaded at once to learn the statements of the hits in view */
+const NEED_INFLIGHT = 4
 
 /** The Mute menu's groups: the line kinds each one dims. */
 const MUTE_GROUPS: { name: string; label: string; kinds: LineKind[] }[] = [
@@ -156,7 +166,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [, bump] = useReducer((x: number) => x + 1, 0)
   const set = useCallback((patch: Partial<LinesUi>) => { Object.assign(ui, patch); bump() }, [ui])
 
-  const cache = useMemo(() => new PageCache((from, n, signal) => fetchLinesAnnot(client, file, from, n, signal, true)), [client, file])
+  const cache = useMemo(() => new PageCache((from, n, signal) => fetchLinesAnnot(client, file, from, n, signal, true), CACHE_PAGES), [client, file])
   useEffect(() => cache.subscribe(bump), [cache])
   useEffect(() => () => cache.close(), [cache])
   // a live session's next snapshot: the file has more lines
@@ -310,6 +320,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     search(client, { file, q, regex, caseSensitive, from, limit: SEARCH_LIMIT }, (h) => {
       if (clipped) return
       if (span && h.line > span.to) { clipped = true; ac.abort(); return }
+      // the statement scope is the stream window between the marks (cheap, a superset); where the hit's page is loaded the line's
+      // owner is exact, so lines of other statements inside the window are dropped; hits on pages not loaded stay
+      if (sc === 'stmt' && stmt !== null) { const own = cache.line(h.line); if (own && own.stmt !== stmt) return }
       hits.push(h)
       if (hits.length === 1) { flush(); jump(h.line) } else if (!timer) timer = window.setTimeout(flush, 100)
     }, ac.signal).then(
@@ -321,6 +334,26 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     )
   }
   const cancelSearch = () => searchCtl.current?.abort()
+
+  // ---- the statement of each hit: from the page cache, the pages of the hits in view loaded lazily ------------------------
+  const need = useMemo(() => ({ queue: [] as number[], queued: new Set<number>(), failed: new Set<number>(), busy: 0 }), [cache])
+  /** The statement at a hit's line: undefined while its page is not loaded, -1 when the line has none. */
+  const stmtOfHit = useCallback((line: number): number | undefined => cache.line(line)?.stmt, [cache])
+  const pumpNeed = useCallback(() => {
+    while (need.busy < NEED_INFLIGHT && need.queue.length > 0) {
+      const page = need.queue.shift()!
+      need.busy++
+      cache.load(page).catch(() => need.failed.add(page)).finally(() => { need.busy--; need.queued.delete(page); pumpNeed() })
+    }
+  }, [cache, need])
+  /** Loads the page of a hit whose statement is unknown (once per page, at most `NEED_INFLIGHT` at a time); the arrival repaints through the cache subscription. */
+  const needStmt = useCallback((line: number) => {
+    const page = cache.pageOf(line)
+    if (cache.has(page) || need.queued.has(page) || need.failed.has(page)) return
+    need.queued.add(page); need.queue.push(page)
+    pumpNeed()
+  }, [cache, need, pumpNeed])
+  const toggleGroup = (g: number) => { const o = new Set(ui.openGroups); if (!o.delete(g)) o.add(g); set({ openGroups: o }) }
   useEffect(() => () => searchCtl.current?.abort(), [])
 
   /** A recent search's hits and status back at once, without a request. */
@@ -630,9 +663,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         <span className="seg" role="tablist">
           <button role="tab" aria-selected={ui.tab === 'hits'} aria-pressed={ui.tab === 'hits'} onClick={() => set({ tab: 'hits' })}>Hits{ui.hits.length > 0 && ` ${fmtInt(ui.hits.length)}`}</button>
           <button role="tab" aria-selected={ui.tab === 'bookmarks'} aria-pressed={ui.tab === 'bookmarks'} onClick={() => set({ tab: 'bookmarks' })}>Bookmarks{bookmarks.length > 0 && ` ${bookmarks.length}`}</button>
+          <button role="tab" aria-selected={ui.tab === 'outline'} aria-pressed={ui.tab === 'outline'} onClick={() => set({ tab: 'outline' })}>Outline</button>
         </span>
         {ui.tab === 'hits' && (
           <span className="lines-tools">
+            <button className="quiet" onClick={() => set({ groupHits: !ui.groupHits })} aria-pressed={ui.groupHits} title="list the hits by statement: the biggest group first, a click opens its hits">By statement</button>
             <button className="quiet" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous hit" title="previous hit (Shift+F3)">‹</button>
             <button className="quiet" onClick={() => stepHit(1)} disabled={nextHitDisabled} aria-label="Next hit" title="next hit (F3)">›</button>
           </span>
@@ -650,9 +685,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             {ui.status === 'error' && <span className="lines-error">{ui.error}</span>}
           </p>
           <RecentSearches recent={ui.recent} active={ui.status === 'idle' ? null : ui.searched} onPick={restoreSearch} onRerun={rerunSearch} />
-          {ui.status !== 'idle' && <HitList hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive} onGo={jump} />}
+          {ui.status !== 'idle' && <HitList doc={doc} hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive}
+            stmtOf={stmtOfHit} onNeed={needStmt} group={ui.groupHits} open={ui.openGroups} onToggle={toggleGroup} onGo={jump} />}
         </>
       )}
+      {ui.tab === 'outline' && <LinesOutline doc={doc} file={file} selected={selected} state={ui.outline} onState={(outline) => set({ outline })} onGo={jump} />}
       {ui.tab === 'bookmarks' && (
         <BookmarkList bookmarks={allBookmarks} fileName={fileName}
           onGo={(b) => (b.file === file ? jump(b.line) : actions.openLinesAt(b.file, b.line))}
@@ -732,8 +769,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           <ToolbarMenu label="Keys" title="keyboard shortcuts (?)" className="tbmenu-sm" open={ui.keys} onOpenChange={(keys) => set({ keys })}>
             <KeyMap />
           </ToolbarMenu>
-          <ToolbarMenu label="Hits & bookmarks" badge={ui.hits.length + bookmarks.length > 0 ? `${fmtInt(ui.hits.length)} · ${bookmarks.length}` : undefined}
-            title="the search hits and the bookmarks" open={ui.panel} onOpenChange={(panel) => set({ panel })}>
+          <ToolbarMenu label="Navigate" badge={ui.hits.length + bookmarks.length > 0 ? `${fmtInt(ui.hits.length)} · ${bookmarks.length}` : undefined}
+            title="the search hits, the bookmarks and the outline of the file" wide={ui.tab === 'outline'} open={ui.panel} onOpenChange={(panel) => set({ panel })}>
             {panelBody}
           </ToolbarMenu>
         </span>
