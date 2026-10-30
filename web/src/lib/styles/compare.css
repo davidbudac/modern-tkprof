@@ -52,7 +52,7 @@
 .cmp-chip { margin-inline-start: var(--sp-2); }
 .cmp-chip.onlyB { color: var(--delta-up); }
 .cmp-chip.onlyA { color: var(--delta-down); }
-.cmp-chip.plan { color: var(--delta-up); border-color: currentColor; }
+.cmp-chip.plan { color: var(--delta-up); background: color-mix(in oklch, var(--delta-up) 12%, var(--surface)); }
 .cmp-open { display: inline-flex; gap: var(--sp-1); }
 .cmp-open button { padding-block: 0; padding-inline: 0.45rem; font-size: var(--text-xs); }
 .cmp-open button:disabled { opacity: 0.35; }

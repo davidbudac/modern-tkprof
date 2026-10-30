@@ -14,10 +14,11 @@ export interface PopupAnchor { x: number; y: number; rect?: DOMRect }
 export interface StmtPopup { stmt: number; cursor?: number; anchor: PopupAnchor; line: number }
 
 /**
- * The statement behind a reference in a row: its SQL and a summary, with the way on to the Statements view.
+ * The statement behind a reference in a row (or a sql_id link, see `StmtLink`): its SQL and a summary, with the way on to the Statements view.
+ * Without `file` and `goTo` (a link outside the Lines view) there are no line actions.
  * A fixed layer on `document.body` placed and closed by `usePopover`.
  */
-export function StmtPopover({ doc, file, popup, onClose, goTo }: { doc: TraceDoc; file: number; popup: StmtPopup; onClose(): void; goTo(line: number): void }) {
+export function StmtPopover({ doc, file, popup, onClose, goTo }: { doc: TraceDoc; file?: number; popup: StmtPopup; onClose(): void; goTo?(line: number): void }) {
   const actions = useActions()
   const marked = useStore((s) => s.selection.stmt)
   const [copied, setCopied] = useState(false)
@@ -31,7 +32,7 @@ export function StmtPopover({ doc, file, popup, onClose, goTo }: { doc: TraceDoc
   useEffect(() => () => window.clearTimeout(copyTimer.current), [])
 
   if (!st) return null
-  const parsedAt = (() => {
+  const parsedAt = file === undefined || !goTo ? undefined : (() => {
     if (cur && cur.line > 0 && doc.fileOfCursor(cur.id) === file) return cur.line
     return stmtLineIn(doc, file, st.id)
   })()
@@ -67,8 +68,8 @@ export function StmtPopover({ doc, file, popup, onClose, goTo }: { doc: TraceDoc
       <pre className="sql stmt-pop-sql" tabIndex={0}>{st.text || '(no SQL text)'}</pre>
       <div className="stmt-pop-acts">
         <button type="button" data-first onClick={done(() => actions.selectStmt(st.id))} title="open this statement in the Statements view">Open in Statements</button>
-        {marked !== st.id && <button type="button" onClick={done(() => actions.pickStmt(st.id))} title="mark this statement: its calls and waits get gutter marks">Mark</button>}
-        {parsedAt !== undefined && <button type="button" onClick={done(() => goTo(parsedAt))} title={`go to line ${fmtInt(parsedAt)}, where ${cur ? 'this cursor' : 'the statement'} was parsed`}>Parsed at line {fmtInt(parsedAt)}</button>}
+        {goTo && marked !== st.id && <button type="button" onClick={done(() => actions.pickStmt(st.id))} title="mark this statement: its calls and waits get gutter marks">Mark</button>}
+        {goTo && parsedAt !== undefined && <button type="button" onClick={done(() => goTo(parsedAt))} title={`go to line ${fmtInt(parsedAt)}, where ${cur ? 'this cursor' : 'the statement'} was parsed`}>Parsed at line {fmtInt(parsedAt)}</button>}
         <button type="button" onClick={() => {
           void copyText(st.text).then((ok) => {
             if (!ok) return

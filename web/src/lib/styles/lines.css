@@ -3,25 +3,41 @@
 /* the rows above and below keep their height; the body takes the rest (the line card is not rendered while the inspector is open) */
 .lines > * { flex: none; }
 .lines > .lines-body { flex: 1 1 0; }
-.lines-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
+/* the toolbar: two rows of groups, a hairline between the groups; a group that does not fit wraps as a whole */
+.lines-bar { display: flex; flex-direction: column; gap: var(--sp-1); padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
+.lines-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) 0; }
+.tb-grp { display: flex; align-items: center; gap: var(--sp-2); }
+.tb-grp + .tb-grp { margin-inline-start: var(--sp-2); padding-inline-start: var(--sp-2); border-inline-start: 1px solid var(--hairline); }
+.lines-row > .tb-push { margin-inline-start: auto; }
+/* the first group of a wrapped line (marked by useGroupStarts) has no hairline and no indent; its margin box keeps its width, so it does not hop back */
+.tb-grp + .tb-grp[data-bol] { margin-inline: 0 calc(var(--sp-2) * 2 + 1px); padding-inline-start: 0; border-inline-start: 0; }
+.lines-row > .tb-push[data-bol] { margin-inline-start: auto; }
 .lines-bar select { font-size: var(--text-sm); max-inline-size: 18rem; }
-.lines-search, .lines-jump, .lines-marks, .lines-tools, .lines-win { display: flex; align-items: center; gap: var(--sp-2); }
-.lines-search input[type="search"] { inline-size: clamp(11rem, 24vw, 22rem); font-family: var(--font-mono); }
-.lines-jump input[type="text"] { inline-size: 11rem; }
+.lines-search input[type="search"] { inline-size: clamp(8rem, 12vw, 16rem); font-family: var(--font-mono); }
+.lines-jump input[type="text"] { inline-size: 9rem; }
 .lines-marks small { white-space: nowrap; }
+.lines-tools { display: flex; align-items: center; gap: var(--sp-2); margin-inline-start: auto; }
+.lines-win { display: flex; align-items: center; gap: var(--sp-2); }
 .lines-win b { font-weight: 600; font-size: var(--text-sm); }
 .lines-win small { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.lines-tools { margin-inline-start: auto; }
 .lines-note { color: var(--s-critical); }
-.lines-at { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-1) var(--sp-4); padding-block: var(--sp-1); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); /* one fixed row: the viewer below never moves when the selection changes */ box-sizing: border-box; block-size: 2rem; flex: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; white-space: nowrap; }
-.lines-at > * { flex: none; }
-.lines-at > .mono { font-variant-numeric: tabular-nums; }
-.lines-kind { color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.4rem; font-size: var(--text-xs); }
+/* the line header: one fixed row, so the viewer below never moves when the selection changes. The facts scroll; the Actions menu stays at the end. */
+.lines-at { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-4); padding-block: var(--sp-1); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); box-sizing: border-box; block-size: 2rem; flex: none; }
+.lines-at-facts { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-1) var(--sp-4); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; white-space: nowrap; }
+.lines-at-facts > * { flex: none; }
+.lines-at-facts > .mono { font-variant-numeric: tabular-nums; }
+.lines-at > .tbmenu { flex: none; }
+/* a status fact: a tinted pill, no border */
+.lines-kind { color: var(--ink-2); background: var(--wash); border-radius: 999px; padding-inline: 0.55rem; font-size: var(--text-xs); }
 .lines-at-obj { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
 .lines-at-obj > .lines-sql { max-inline-size: 32ch; }
 .lines-at-obj > button { font-size: var(--text-xs); }
 .lines-at-obj > button.link { padding-block: 0; }
 .lines-status-bar .link { font-size: inherit; }
+/* the Actions menu: one entry per link, labelled with what it opens */
+.lines-acts { list-style: none; margin: 0; padding: 0; display: grid; min-inline-size: 14rem; }
+.lines-acts button { inline-size: 100%; text-align: start; white-space: nowrap; }
+.lines-acts .sep { block-size: 0; margin-block: var(--sp-1); border-block-start: 1px solid var(--hairline); }
 .lines-sql { font-family: var(--font-mono); max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .lines-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-block-size: 0; }
@@ -180,7 +196,7 @@
 }
 .stmt-pop-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); padding-block-end: var(--sp-1); border-block-end: 1px solid var(--hairline); }
 .stmt-pop-h b { font-weight: 600; }
-.stmt-pop-cmd { color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.4rem; font-size: var(--text-xs); }
+.stmt-pop-cmd { color: var(--ink-2); background: var(--wash); border-radius: 999px; padding-inline: 0.5rem; font-size: var(--text-xs); }
 .stmt-pop-x { margin-inline-start: auto; align-self: center; padding-block: 0; line-height: 1.2; }
 .stmt-pop-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--sp-1) var(--sp-4); margin: 0; }
 .stmt-pop-facts > div { display: flex; justify-content: space-between; gap: var(--sp-2); }
@@ -254,6 +270,8 @@
 /* the line card as a vertical list */
 .lines-at.lines-at-stack { display: flex; flex-direction: column; align-items: stretch; flex-wrap: wrap; block-size: auto; overflow: visible; white-space: normal; background: transparent; border: 0; padding-inline: 0; gap: var(--sp-2); }
 .lines-at-stack > * { flex: none; }
+.lines-at-stack > .lines-at-facts { display: flex; flex-direction: column; align-items: stretch; flex-wrap: wrap; overflow: visible; white-space: normal; gap: var(--sp-2); }
+.lines-at-stack > .tbmenu { align-self: flex-start; }
 .lines-at-stack .lines-at-obj { flex-wrap: wrap; }
 .lines-at-stack .lines-sql { white-space: normal; max-inline-size: none; overflow-wrap: anywhere; }
 
@@ -270,3 +288,5 @@
 @media (hover: hover) and (pointer: fine) {
   .lv-gap:hover { border-inline-start-width: 5px; }
 }
+/* the rows of a menu are not toolbar chrome: no resting border, a wash on hover (the global button hover) */
+.lines-acts button.quiet, .lines-presets button.quiet { border-color: transparent; }

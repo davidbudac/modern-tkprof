@@ -6,6 +6,7 @@ import { sourceOf, type ExecDetail } from '../data/source'
 import { previewOfBinds, type BindRow, type Execution } from '../data/derive'
 import type { Fold } from '../data/folds'
 import { StmtLink } from '../components/StmtLink'
+import { ToolbarMenu } from '../components/ToolbarMenu'
 import { useActions, useStore } from '../state/session'
 
 interface Props {
@@ -39,6 +40,7 @@ export function LinesAt({ doc, file, at, text, goTo, note, block, onCopyRange, s
   const source = sourceOf(doc)
   const details = useRef(new Map<string, ExecDetail>()) // per (stmt, cursor, execNo): a line card is clicked on again and again
   const [busy, setBusy] = useState(false)
+  const [menu, setMenu] = useState(false)
 
   if (!at) return <div className={cls} aria-live="polite"><span className="muted">Click a line to see the statement, execution and wait it belongs to.</span></div>
   const o = at.objs
@@ -84,77 +86,94 @@ export function LinesAt({ doc, file, at, text, goTo, note, block, onCopyRange, s
     try { const d = await detailOf(); if (d) use(d) } catch (e) { if (!aborted(e)) note(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   }
 
+  /** the entries of the Actions menu: `[label, title, run, disabled?]`; a `null` starts a new group */
+  type Act = [label: string, title: string, run: () => void, disabled?: boolean] | null
+  const acts: Act[] = []
+  if (stmt) {
+    acts.push(['Open statement', 'open this statement in the Statements view', () => actions.selectStmt(stmt.id)])
+    if (markedStmt !== stmt.id) acts.push(['Mark statement', 'mark this statement: its calls and waits get gutter marks', () => actions.pickStmt(stmt.id)])
+    if (parsedAt !== undefined) acts.push([`Parsed at line ${fmtInt(parsedAt)}`, `go to line ${fmtInt(parsedAt)}, where the cursor was parsed`, () => goTo(parsedAt)])
+  }
+  if (stmtId >= 0 && cur) acts.push(['Plan', "open the statement's detail, which has the plan", () => actions.selectStmt(stmtId)])
+  if (o.execNo >= 0) {
+    const n = `exec #${o.execNo}`
+    if (hasExec) {
+      acts.push(null)
+      acts.push([`Open ${n}`, "open this execution in the statement's detail", () => { actions.selectStmt(stmtId); actions.selectExec({ cursor: o.cursor, execNo: o.execNo }) }])
+      acts.push([`Binds of ${n}`, 'go to the BINDS block of this execution', () => void withDetail((d) => (d.bindLine > 0 ? goTo(d.bindLine) : note('no binds for this execution'))), busy])
+      if (!isExecLine && o.execFrom < 0) acts.push(['EXEC line', 'go to the EXEC line of this execution', () => void withDetail((d) => (d.line > 0 ? goTo(d.line) : note('no EXEC line for this execution'))), busy])
+    }
+    if (prevExec !== undefined) acts.push([`Previous execution, line ${fmtInt(prevExec)}`, `go to line ${fmtInt(prevExec)}, the previous execution of this cursor (D)`, () => goTo(prevExec)])
+    if (nextExec !== undefined) acts.push([`Next execution, line ${fmtInt(nextExec)}`, `go to line ${fmtInt(nextExec)}, the next execution of this cursor (d)`, () => goTo(nextExec)])
+    if (execFrom !== undefined) acts.push([`${n} start, line ${fmtInt(execFrom)}`, `go to line ${fmtInt(execFrom)}, where this execution starts`, () => goTo(execFrom)])
+    if (execTo !== undefined) acts.push([`${n} end, line ${fmtInt(execTo)}`, `go to line ${fmtInt(execTo)}, where this execution ends`, () => goTo(execTo)])
+    if (o.execFrom >= 0 && o.execTo >= 0 && onCopyRange) acts.push([`Copy ${n} lines`, `copy lines ${fmtInt(o.execFrom)}–${fmtInt(o.execTo)}: this execution, from its EXEC line to its last line`, () => onCopyRange(o.execFrom, o.execTo)])
+  }
+  if (closeAt !== undefined) acts.push([`Cursor CLOSE, line ${fmtInt(closeAt)}`, `go to line ${fmtInt(closeAt)}, where the cursor is closed`, () => goTo(closeAt)])
+  if (waitEvent && waitEvent.id >= 0 && stmtId >= 0) {
+    acts.push(null)
+    acts.push(['Waits of this statement', 'the Waits view with this event, for the statement', () => { actions.pickStmt(stmtId); actions.selectEvent(waitEvent.id); actions.setView('waits') }])
+  }
+  if (block && onCopyRange) acts.push([`Copy block (${fmtInt(block.to - block.from + 1)} lines)`, `copy lines ${fmtInt(block.from)}–${fmtInt(block.to)}: ${block.summary}`, () => onCopyRange(block.from, block.to)])
+  if (ctx) {
+    acts.push(null)
+    acts.push(['Open session', 'the Sessions view, narrowed to this session', () => { actions.setContexts(new Set([o.ctx])); actions.setView('sessions') }])
+  }
+  const items = acts.filter((a, i) => a !== null || (i > 0 && acts[i - 1] !== null && i < acts.length - 1)) // no leading, trailing or doubled dividers
+
   return (
     <div className={cls} aria-live="polite">
-      <span className="mono">line {fmtInt(at.line)}</span>
-      <span className="lines-kind">{o.kind}</span>
-      {stmt && (
-        <span className="lines-at-obj">
-          <StmtLink doc={doc} id={stmt.id} />
-          <span className="muted lines-sql">{preview(stmt.text, 90)}</span>
-          <button className="link" onClick={() => actions.selectStmt(stmt.id)} title="open this statement in the Statements view">Open</button>
-          {markedStmt !== stmt.id && <button className="link" onClick={() => actions.pickStmt(stmt.id)} title="mark this statement: its calls and waits get gutter marks">Mark</button>}
-          {parsedAt !== undefined && <button className="link" onClick={() => goTo(parsedAt)} title={`go to line ${fmtInt(parsedAt)}, where the cursor was parsed`}>Parsed at</button>}
-          {stats && <span className="muted" title="executions and elapsed time of the statement">{fmtInt(stats.executions)} {stats.executions === 1 ? 'exec' : 'execs'} · {fmtDur(stats.elapsed)}</span>}
-        </span>
+      <div className="lines-at-facts">
+        <span className="mono">line {fmtInt(at.line)}</span>
+        <span className="lines-kind">{o.kind}</span>
+        {stmt && (
+          <span className="lines-at-obj">
+            <StmtLink doc={doc} id={stmt.id} />
+            <span className="muted lines-sql">{preview(stmt.text, 90)}</span>
+            {stats && <span className="muted" title="executions and elapsed time of the statement">{fmtInt(stats.executions)} {stats.executions === 1 ? 'exec' : 'execs'} · {fmtDur(stats.elapsed)}</span>}
+          </span>
+        )}
+        {o.execNo >= 0 && <span className="muted">exec #{o.execNo}</span>}
+        {cur && (
+          <span className="lines-at-obj muted">
+            <span>cursor #{cur.number}</span>
+            <span>dep {cur.depth}</span>
+            {cur.planHash > 0 && <span title="plan hash value">plan hash {cur.planHash}</span>}
+            <span>{fmtInt(cur.execs)} {cur.execs === 1 ? 'exec' : 'execs'}</span>
+          </span>
+        )}
+        {o.cursor >= 0 && !cur && <span className="muted">cursor #{o.cursor}</span>}
+        {waitEvent && (
+          <span className="lines-at-obj">
+            {waitEvent.id >= 0
+              ? <button className="link" onClick={() => actions.selectEvent(waitEvent.id)} title="open this wait event">{waitEvent.name}</button>
+              : <span>{waitEvent.name}</span>}
+            {objName && <span className="muted" title={`obj# ${objNo}`}>{objName}</span>}
+          </span>
+        )}
+        {block && onCopyRange && <span className="muted">{block.summary}</span>}
+        {o.bindSet >= 0 && (o.binds && o.binds.length > 0
+          ? <span title={`bind set #${o.bindSet}: ${bindListOf(o.binds)}`}>binds: {preview(bindListOf(o.binds), 60)}</span>
+          : <span>bind set #{o.bindSet}</span>)}
+        {planLine && <span title={planLine.object}>plan line {planLine.id}: {planLine.op}{planLine.object ? ` ${planLine.object}` : ''}</span>}
+        {ctx && (
+          <span className="lines-at-obj muted">
+            <span title="session id">session {ctx.sessionId}</span>
+            {ctx.module && <span>module {ctx.module}</span>}
+            {ctx.action && <span>action {ctx.action}</span>}
+          </span>
+        )}
+        {o.stmt < 0 && o.wait < 0 && o.bindSet < 0 && o.planLine < 0 && <span className="muted">no statement at this line</span>}
+      </div>
+      {items.length > 0 && (
+        <ToolbarMenu label="Actions" title="open this line's statement, execution, plan or session; go to its parse, binds, EXEC or neighbouring executions" className="tbmenu-sm" open={menu} onOpenChange={setMenu}>
+          <ul className="lines-acts">
+            {items.map((a, i) => a === null
+              ? <li key={i} className="sep" role="separator" />
+              : <li key={i}><button type="button" className="quiet" disabled={a[3]} title={a[1]} onClick={() => { setMenu(false); a[2]() }}>{a[0]}</button></li>)}
+          </ul>
+        </ToolbarMenu>
       )}
-      {o.execNo >= 0 && (
-        <span className="lines-at-obj">
-          <span>exec #{o.execNo}</span>
-          {hasExec && <>
-            <button className="link" onClick={() => { actions.selectStmt(stmtId); actions.selectExec({ cursor: o.cursor, execNo: o.execNo }) }} title="open this execution in the statement's detail">Open</button>
-            <button className="link" disabled={busy} title="go to the BINDS block of this execution"
-              onClick={() => void withDetail((d) => (d.bindLine > 0 ? goTo(d.bindLine) : note('no binds for this execution')))}>Binds</button>
-            {!isExecLine && o.execFrom < 0 && <button className="link" disabled={busy} title="go to the EXEC line of this execution"
-              onClick={() => void withDetail((d) => (d.line > 0 ? goTo(d.line) : note('no EXEC line for this execution')))}>EXEC line</button>}
-          </>}
-          {prevExec !== undefined && <button className="link" onClick={() => goTo(prevExec)} title={`go to line ${fmtInt(prevExec)}, the previous execution of this cursor (D)`}>‹ prev exec</button>}
-          {execFrom !== undefined && <button className="link" onClick={() => goTo(execFrom)} title={`go to line ${fmtInt(execFrom)}, where this execution starts`}>⇤ exec start</button>}
-          {execTo !== undefined && <button className="link" onClick={() => goTo(execTo)} title={`go to line ${fmtInt(execTo)}, where this execution ends`}>exec end ⇥</button>}
-          {o.execFrom >= 0 && o.execTo >= 0 && onCopyRange && <button className="link" onClick={() => onCopyRange(o.execFrom, o.execTo)} aria-label="Copy the lines of this execution" title={`copy lines ${fmtInt(o.execFrom)}–${fmtInt(o.execTo)}: this execution, from its EXEC line to its last line`}>Copy block</button>}
-          {nextExec !== undefined && <button className="link" onClick={() => goTo(nextExec)} title={`go to line ${fmtInt(nextExec)}, the next execution of this cursor (d)`}>next exec ›</button>}
-        </span>
-      )}
-      {cur && (
-        <span className="lines-at-obj muted">
-          <span>cursor #{cur.number}</span>
-          <span>dep {cur.depth}</span>
-          {cur.planHash > 0 && <span title="plan hash value">plan hash {cur.planHash}</span>}
-          <span>{fmtInt(cur.execs)} {cur.execs === 1 ? 'exec' : 'execs'}</span>
-          {stmtId >= 0 && <button className="link" onClick={() => actions.selectStmt(stmtId)} title="open the statement's detail, which has the plan">Plan</button>}
-          {closeAt !== undefined && <button className="link" onClick={() => goTo(closeAt)} title={`go to line ${fmtInt(closeAt)}, where the cursor is closed`}>CLOSE</button>}
-        </span>
-      )}
-      {o.cursor >= 0 && !cur && <span className="muted">cursor #{o.cursor}</span>}
-      {waitEvent && (
-        <span className="lines-at-obj">
-          {waitEvent.id >= 0
-            ? <button className="link" onClick={() => actions.selectEvent(waitEvent.id)} title="open this wait event">{waitEvent.name}</button>
-            : <span>{waitEvent.name}</span>}
-          {waitEvent.id >= 0 && stmtId >= 0 && <button className="link" title="the Waits view with this event, for the statement"
-            onClick={() => { actions.pickStmt(stmtId); actions.selectEvent(waitEvent.id); actions.setView('waits') }}>Waits of this statement</button>}
-          {objName && <span className="muted" title={`obj# ${objNo}`}>{objName}</span>}
-        </span>
-      )}
-      {block && onCopyRange && (
-        <span className="lines-at-obj">
-          <span className="muted">{block.summary}</span>
-          <button className="link" onClick={() => onCopyRange(block.from, block.to)} aria-label={`Copy the block: ${block.summary}`} title={`copy lines ${fmtInt(block.from)}–${fmtInt(block.to)}: ${block.summary}`}>Copy block</button>
-        </span>
-      )}
-      {o.bindSet >= 0 && (o.binds && o.binds.length > 0
-        ? <span title={`bind set #${o.bindSet}: ${bindListOf(o.binds)}`}>binds: {preview(bindListOf(o.binds), 60)}</span>
-        : <span>bind set #{o.bindSet}</span>)}
-      {planLine && <span title={planLine.object}>plan line {planLine.id}: {planLine.op}{planLine.object ? ` ${planLine.object}` : ''}</span>}
-      {ctx && (
-        <span className="lines-at-obj muted">
-          <span title="session id">session {ctx.sessionId}</span>
-          {ctx.module && <span>module {ctx.module}</span>}
-          {ctx.action && <span>action {ctx.action}</span>}
-          <button className="link" onClick={() => { actions.setContexts(new Set([o.ctx])); actions.setView('sessions') }} title="the Sessions view, narrowed to this session">Open session</button>
-        </span>
-      )}
-      {o.stmt < 0 && o.wait < 0 && o.bindSet < 0 && o.planLine < 0 && <span className="muted">no statement at this line</span>}
     </div>
   )
 }

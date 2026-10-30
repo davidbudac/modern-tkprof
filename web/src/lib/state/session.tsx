@@ -9,8 +9,14 @@ export interface PivotLibrary {
   getSnapshot(): SavedPivot[]
   /** saves `config` under `name` (a saved one of that name is replaced) */
   save(name: string, config: PivotConfig): void
-  /** shows the library (rename, delete, import/export) */
-  manage?(): void
+  /** renames a saved pivot (the management panel shows the rename control only when this is present) */
+  rename?(id: string, name: string): void
+  /** deletes a saved pivot */
+  remove?(id: string): void
+  /** writes mtkprof-library.json through a save dialog; resolves to a message for the user, or null when cancelled */
+  exportAll?(): Promise<string | null>
+  /** merges a picked mtkprof-library.json; resolves to a message for the user, or null when cancelled */
+  importFile?(): Promise<string | null>
 }
 
 /** What one open trace needs: its store and the server it talks to (and, desktop, the Pivot library). The desktop shell provides one per tab. */

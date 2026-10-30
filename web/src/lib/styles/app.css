@@ -74,8 +74,15 @@
 .topbar .theme { font-size: 0.9rem; line-height: 1; padding-inline: 0.45rem; }
 /* narrow: the whole-trace mini profile gives way so the tabs and the files chip stay on screen */
 @media (width < 64rem) { .topbar .mini { display: none; } .topbar .file { max-inline-size: 14ch; } }
-button.quiet { border-color: transparent; color: var(--ink-2); }
+/* quiet = a button in toolbar chrome: muted text and a faint border at rest, a wash and the full border on hover; never borderless (a border means clickable) */
+button.quiet { border-color: color-mix(in oklch, var(--hairline-strong) 60%, transparent); color: var(--ink-2); }
+@media (hover: hover) and (pointer: fine) { button.quiet:hover { background: var(--wash); border-color: var(--hairline-strong); color: var(--ink); } }
 button.quiet.on { background: var(--wash); color: var(--ink); }
+button.quiet.on:hover { background: var(--wash-strong); }
+button.quiet[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); } /* pressed = filled, as every pressed button (base.css) */
+/* the cue of a menu button: ▾ */
+.cue { color: var(--ink-3); font-size: 1em; margin-inline-start: 0.3em; }
+button[aria-pressed="true"] .cue { color: inherit; opacity: 0.7; }
 
 /* the global filters in force, one row under the top bar; empty it has no padding, border or height (the grid keeps its row) */
 .filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); padding: var(--sp-1) var(--sp-4); border-block-end: 1px solid var(--hairline); background: color-mix(in oklch, var(--c-cpu) 6%, var(--surface)); font-size: var(--text-sm); }
@@ -247,12 +254,8 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .fact .l { color: var(--ink-2); font-size: var(--text-sm); }
 
 /* ---- workbench (Statements) --------------------------------------------- */
-.wb { position: relative; display: grid; grid-template-columns: var(--list-w) minmax(0, 1fr) var(--context-w); block-size: 100%; min-block-size: 0; }
-@media (width < 80rem) { .wb { grid-template-columns: var(--list-w) minmax(0, 1fr); } .wb .wb-ctx, .wb .resizer-ctx, .wb .ctx-toggle { display: none; } } /* .wb prefix: .wb-ctx's own display below would win */
-.wb.ctx-closed { grid-template-columns: var(--list-w) minmax(0, 1fr); }
+.wb { position: relative; display: grid; grid-template-columns: var(--list-w) minmax(0, 1fr); block-size: 100%; min-block-size: 0; }
 .resizer-list { inset-inline-start: var(--list-w); }
-.resizer-ctx { inset-inline-start: calc(100% - var(--context-w)); }
-.ctx-toggle { --pane-w: var(--context-w); }
 .wb-list { border-inline-end: 1px solid var(--hairline); background: var(--surface-raised); display: flex; flex-direction: column; min-block-size: 0; }
 .wb-head { padding: var(--sp-3) var(--sp-4) var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-2); border-block-end: 1px solid var(--hairline); }
 .wb-head .t { display: flex; align-items: baseline; gap: var(--sp-2); }
@@ -279,11 +282,14 @@ button.quiet.on { background: var(--wash); color: var(--ink); }
 .wb-detail > * { flex-shrink: 0; } /* the SQL box (overflow: auto) would otherwise shrink to a line when the detail is long */
 .title { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
 .title h1 { font-size: var(--text-xl); font-weight: 500; }
-.chip-q { font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.45rem; white-space: nowrap; }
-.title .acts { margin-inline-start: auto; display: flex; gap: var(--sp-2); }
-
-.wb-ctx { border-inline-start: 1px solid var(--hairline); background: var(--surface-raised); overflow: auto; overscroll-behavior: contain; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-5); font-size: var(--text-sm); min-block-size: 0; }
-.ctx-sec h3 { font-size: var(--text-sm); font-weight: 600; margin-block-end: 0.4rem; }
+/* a fact (no border, no hover): a tinted pill for a status (PX, Truncated, new in B), plain dim text for the rest */
+.chip-q { font-size: var(--text-xs); color: var(--ink-2); background: var(--wash); border-radius: 999px; padding-inline: 0.5rem; white-space: nowrap; }
+.stmt-facts { font-size: var(--text-sm); margin-block-start: calc(-1 * var(--sp-3)); }
+.stmt-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.stmt-lines { white-space: nowrap; }
+/* Context, Waits… are sections of the detail column */
+.ctx-sec { font-size: var(--text-sm); max-inline-size: 60rem; }
+.ctx-sec h3 { font-size: var(--text-md); font-weight: 600; margin-block-end: 0.4rem; }
 .ctx-sec .kv { gap: 0.15rem var(--sp-3); }
 .wobj { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.1rem var(--sp-2); padding-block: 0.4rem; border-block-start: 1px solid var(--hairline); }
 .wobj .nm { display: inline-flex; align-items: center; gap: 0.4rem; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
@@ -519,7 +525,7 @@ button.note-btn.on { color: var(--c-note); }
 .files-list .file .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .files-list .file .chips:empty { display: none; }
 .file-status { display: inline-flex; align-items: center; flex: none; }
-.file-status.truncated { color: var(--s-critical); border-color: color-mix(in oklch, var(--s-critical) 45%, var(--hairline-strong)); background: color-mix(in oklch, var(--s-critical) 8%, var(--surface-raised)); }
+.file-status.truncated { color: var(--s-critical); background: color-mix(in oklch, var(--s-critical) 12%, var(--surface-raised)); }
 .files-list .share { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-xs); }
 .files-list .share .bar { flex: 1; block-size: 0.4rem; border-radius: 2px; background: var(--surface-sunken); overflow: clip; }
 .files-list .share .bar i { display: block; block-size: 100%; background: var(--c-cpu); }

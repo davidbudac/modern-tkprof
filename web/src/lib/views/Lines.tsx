@@ -24,7 +24,7 @@ import { LineInspector, type InspectRefKind } from './LineInspector'
 import { ResizeHandle } from '../components/ResizeHandle'
 import { bindAtOf, rememberBinds } from '../data/bindat'
 import { LinePopover, type LinePopup } from '../components/LinePopover'
-import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf, useLineAt } from './linesShared'
+import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf, useGroupStarts, useLineAt } from './linesShared'
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
 import { NoteEditor } from '../components/Note'
@@ -509,6 +509,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }
   const searchRef = useRef<HTMLInputElement>(null)
   const goToRef = useRef<HTMLInputElement>(null)
+  const row1Ref = useGroupStarts(), row2Ref = useGroupStarts()
   /** The viewer's letter keys (no modifier but Shift, viewer focused, not in a text field). */
   const onViewerKey = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return
@@ -860,76 +861,93 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   return (
     <section className="lines" aria-label="Trace lines" onKeyDown={onKeyDown}>
       <div className="lines-bar">
-        {files.length > 1 && (
-          <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
-            {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}{win && fileInWindow(f, win) ? ' · in window' : ''}</option> : null))}
-          </select>
-        )}
-        <form className="lines-search" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>
-          <input type="search" ref={searchRef} value={ui.q} placeholder="Search the trace text" aria-label="Search the trace text" onChange={(e) => set({ q: e.target.value })} />
-          <span className="seg" role="group" aria-label="Search options">
-            <button type="button" aria-pressed={ui.caseSensitive} onClick={() => set({ caseSensitive: !ui.caseSensitive })} title="match case">Aa</button>
-            <button type="button" aria-pressed={ui.regex} onClick={() => set({ regex: !ui.regex })} title="regular expression (RE2)">.*</button>
-            <button type="button" aria-pressed={ui.fromHere} onClick={() => set({ fromHere: !ui.fromHere })} title="search from the selected line instead of line 1">from here</button>
+        <div className="lines-row" ref={row1Ref}>
+          {files.length > 1 && (
+            <span className="tb-grp">
+            <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
+              {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}{win && fileInWindow(f, win) ? ' · in window' : ''}</option> : null))}
+            </select>
+            </span>
+          )}
+          <form className="lines-search tb-grp" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>
+            <input type="search" ref={searchRef} value={ui.q} placeholder="Search the trace text" aria-label="Search the trace text" onChange={(e) => set({ q: e.target.value })} />
+            <span className="seg" role="group" aria-label="Search options">
+              <button type="button" aria-pressed={ui.caseSensitive} onClick={() => set({ caseSensitive: !ui.caseSensitive })} title="match case">Aa</button>
+              <button type="button" aria-pressed={ui.regex} onClick={() => set({ regex: !ui.regex })} title="regular expression (RE2)">.*</button>
+              <button type="button" aria-pressed={ui.fromHere} onClick={() => set({ fromHere: !ui.fromHere })} title="search from the selected line instead of line 1">from here</button>
+            </span>
+            <span className="seg" role="group" aria-label="Scope">
+              <button type="button" aria-pressed={scope === 'file'} onClick={() => set({ scope: 'file' })} title="search the whole file">File</button>
+              <button type="button" aria-pressed={scope === 'window'} disabled={!winRange} onClick={() => set({ scope: 'window' })} title={winRange ? `search only the lines of the time window (${fmtInt(winRange.from)}–${fmtInt(winRange.to)})` : 'needs a time window with lines in this file'}>Window</button>
+              <button type="button" aria-pressed={scope === 'stmt'} disabled={markLines.length === 0} onClick={() => set({ scope: 'stmt' })} title={markLines.length > 0 ? `search only the lines between the selected statement's first and last mark (${fmtInt(markLines[0])}–${fmtInt(markLines[markLines.length - 1])})` : 'needs a selected statement with marks in this file'}>Statement</button>
+            </span>
+            {running
+              ? <button type="button" onClick={cancelSearch} title="Esc">Cancel</button>
+              : <button type="submit" disabled={ui.q === ''}>Search</button>}
+          </form>
+          <span className="tb-grp">
+          <ToolbarMenu label="Presets" title="ready-made searches: errors, hard parses, slow waits and calls, commits, session markers" className="tbmenu-sm tbmenu-start" open={ui.presets} onOpenChange={(presets) => set({ presets })}>
+            <ul className="lines-presets">
+              {SEARCH_PRESETS.map((p) => (<li key={p.label}><button type="button" className="quiet" onClick={() => runPreset(p)}>{p.label.replace('N ms', `${prefs.threshold} ms`)}</button></li>))}
+            </ul>
+            <label className="lines-threshold small">Threshold <input type="number" min={0.001} step={1} value={prefs.threshold} aria-label="Threshold in milliseconds for the slow waits and calls presets" onChange={(e) => setPrefs({ threshold: Number(e.target.value) })} /> ms</label>
+          </ToolbarMenu>
           </span>
-          <span className="seg" role="group" aria-label="Scope">
-            <button type="button" aria-pressed={scope === 'file'} onClick={() => set({ scope: 'file' })} title="search the whole file">File</button>
-            <button type="button" aria-pressed={scope === 'window'} disabled={!winRange} onClick={() => set({ scope: 'window' })} title={winRange ? `search only the lines of the time window (${fmtInt(winRange.from)}–${fmtInt(winRange.to)})` : 'needs a time window with lines in this file'}>Window</button>
-            <button type="button" aria-pressed={scope === 'stmt'} disabled={markLines.length === 0} onClick={() => set({ scope: 'stmt' })} title={markLines.length > 0 ? `search only the lines between the selected statement's first and last mark (${fmtInt(markLines[0])}–${fmtInt(markLines[markLines.length - 1])})` : 'needs a selected statement with marks in this file'}>Statement</button>
-          </span>
-          {running
-            ? <button type="button" onClick={cancelSearch} title="Esc">Cancel</button>
-            : <button type="submit" disabled={ui.q === ''}>Search</button>}
-        </form>
-        <ToolbarMenu label="Presets" title="ready-made searches: errors, hard parses, slow waits and calls, commits, session markers" className="tbmenu-sm tbmenu-start" open={ui.presets} onOpenChange={(presets) => set({ presets })}>
-          <ul className="lines-presets">
-            {SEARCH_PRESETS.map((p) => (<li key={p.label}><button type="button" className="quiet" onClick={() => runPreset(p)}>{p.label.replace('N ms', `${prefs.threshold} ms`)}</button></li>))}
-          </ul>
-          <label className="lines-threshold small">Threshold <input type="number" min={0.001} step={1} value={prefs.threshold} aria-label="Threshold in milliseconds for the slow waits and calls presets" onChange={(e) => setPrefs({ threshold: Number(e.target.value) })} /> ms</label>
-        </ToolbarMenu>
-        <ToolbarMenu label="Step" title="the next or previous call, wait, cursor parse, STAT dump, session marker, error or commit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
-          <ul className="lines-steps">
-            {STEPS.map(([what, label, keys]) => (
-              <li key={what}>
-                <button type="button" className="quiet" onClick={() => stepNext(what, label, -1)} aria-label={`Previous ${label}`} title={`previous ${label} (${keys[1]})`}>‹</button>
-                <span>{label}</span>
-                <button type="button" className="quiet" onClick={() => stepNext(what, label, 1)} aria-label={`Next ${label}`} title={`next ${label} (${keys[0]})`}>›</button>
-              </li>
-            ))}
-            <li>
-              <button type="button" className="quiet" onClick={() => stepGap(-1)} disabled={prefs.gapMs <= 0} aria-label="Previous idle gap" title="previous idle gap (T); the threshold is in the View menu">‹</button>
-              <span>{prefs.gapMs > 0 ? `gap ≥ ${fmtInt(prefs.gapMs)} ms` : 'gap (off)'}</span>
-              <button type="button" className="quiet" onClick={() => stepGap(1)} disabled={prefs.gapMs <= 0} aria-label="Next idle gap" title="next idle gap (t); the threshold is in the View menu">›</button>
-            </li>
-          </ul>
-        </ToolbarMenu>
-        <form className="lines-jump" onSubmit={(e) => { e.preventDefault(); void runGoTo() }}>
-          <input type="text" ref={goToRef} value={ui.jump} placeholder={doc.wallOffsetUs ? 'Go to: line, #cursor, sql_id, 1.5s, 14:03:07' : 'Go to: line, #cursor, sql_id, 1.5s'} title={goToHelp} aria-label="Go to" onChange={(e) => set({ jump: e.target.value })} />
-          <button type="submit" disabled={ui.jump.trim() === ''}>Go</button>
-          {jumpError && <small className="lines-note" role="alert">{jumpError}</small>}
-        </form>
-        {win ? (
-          <span className="lines-win" role="group" aria-label="Time window">
-            <b>Window</b>
-            <button type="button" disabled={!winRange} onClick={() => winRange && jump(winRange.from, !block)} aria-label="Go to the first line of the time window" title="the first line of the time window set in the Timeline">⇤ start</button>
-            <button type="button" disabled={!winRange} onClick={() => winRange && jump(winRange.to, !block)} aria-label="Go to the last line of the time window" title="the last line of the time window set in the Timeline">end ⇥</button>
-            <small className={winLines?.failed ? 'lines-error' : 'muted'} aria-live="polite" title={winRange ? `${fmtInt(winRange.to - winRange.from + 1)} lines` : undefined}>
-              {winLines === null ? '…' : winLines.failed ? 'window lines unavailable' : winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : 'no lines of the window in this file'}
+          <form className="lines-jump tb-grp tb-push" onSubmit={(e) => { e.preventDefault(); void runGoTo() }}>
+            <input type="text" ref={goToRef} value={ui.jump} placeholder={doc.wallOffsetUs ? 'Go to: line, #cursor, sql_id, 1.5s, 14:03:07' : 'Go to: line, #cursor, sql_id, 1.5s'} title={goToHelp} aria-label="Go to" onChange={(e) => set({ jump: e.target.value })} />
+            <button type="submit" disabled={ui.jump.trim() === ''}>Go</button>
+            {jumpError && <small className="lines-note" role="alert">{jumpError}</small>}
+          </form>
+        </div>
+        <div className="lines-row" ref={row2Ref}>
+          <span className="lines-marks tb-grp" role="group" aria-label="Statement marks">
+            <button onClick={() => stepMark(-1)} disabled={markLines.length === 0} title="previous call or wait of the selected statement" aria-label="Previous mark">▲</button>
+            <button onClick={() => stepMark(1)} disabled={markLines.length === 0} title="next call or wait of the selected statement" aria-label="Next mark">▼</button>
+            <small className="muted" title={partial ? 'the marks are bounded: the 5,000 longest calls and the first 1,000 waits of the statement' : undefined}>
+              {stmt === null ? 'select a statement for marks' : `${fmtInt(nCalls)} calls · ${fmtInt(nWaits)} waits${partial ? ' (bounded)' : ''}`}
             </small>
           </span>
-        ) : <button type="button" disabled title="the first line of the time window set in the Timeline">Window start</button>}
-        <span className="lines-marks" role="group" aria-label="Statement marks">
-          <button onClick={() => stepMark(-1)} disabled={markLines.length === 0} title="previous call or wait of the selected statement" aria-label="Previous mark">▲</button>
-          <button onClick={() => stepMark(1)} disabled={markLines.length === 0} title="next call or wait of the selected statement" aria-label="Next mark">▼</button>
-          <small className="muted" title={partial ? 'the marks are bounded: the 5,000 longest calls and the first 1,000 waits of the statement' : undefined}>
-            {stmt === null ? 'select a statement for marks' : `${fmtInt(nCalls)} calls · ${fmtInt(nWaits)} waits${partial ? ' (bounded)' : ''}`}
-          </small>
-        </span>
-        <span className="lines-tools">
+          <span className="tb-grp">
+          {win ? (
+            <span className="lines-win" role="group" aria-label="Time window">
+              <b>Window</b>
+              <button type="button" disabled={!winRange} onClick={() => winRange && jump(winRange.from, !block)} aria-label="Go to the first line of the time window" title="the first line of the time window set in the Timeline">⇤ start</button>
+              <button type="button" disabled={!winRange} onClick={() => winRange && jump(winRange.to, !block)} aria-label="Go to the last line of the time window" title="the last line of the time window set in the Timeline">end ⇥</button>
+              <small className={winLines?.failed ? 'lines-error' : 'muted'} aria-live="polite" title={winRange ? `${fmtInt(winRange.to - winRange.from + 1)} lines` : undefined}>
+                {winLines === null ? '…' : winLines.failed ? 'window lines unavailable' : winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : 'no lines of the window in this file'}
+              </small>
+            </span>
+          ) : <button type="button" disabled title="the first line of the time window set in the Timeline">Window start</button>}
+          </span>
+          <span className="tb-grp">
           <button className="quiet" onClick={() => toggleBookmark(selected)} aria-pressed={bmSet.has(selected)} title="bookmark the selected line (b)">◆ Bookmark</button>
           {notesOn && <button className="quiet" onClick={() => setNoting(noting === selected ? null : selected)} aria-pressed={noting === selected} title="a note on the selected line (bookmarks it)">✎ Note</button>}
           <button className="quiet" onClick={toggleFocus} aria-pressed={ui.focus !== null} title="dim the rows outside the selected line's cursor (f); Esc clears">Focus</button>
           <button className="quiet" onClick={() => setPrefs({ inspect: !prefs.inspect })} aria-pressed={prefs.inspect} title="a side view that translates the selected line: every field named, with its unit and meaning (i)">Inspect</button>
+          </span>
+          <span className="tb-grp">
+          <ToolbarMenu label="Step" title="the next or previous call, wait, cursor parse, STAT dump, session marker, error or commit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
+            <ul className="lines-steps">
+              {STEPS.map(([what, label, keys]) => (
+                <li key={what}>
+                  <button type="button" className="quiet" onClick={() => stepNext(what, label, -1)} aria-label={`Previous ${label}`} title={`previous ${label} (${keys[1]})`}>‹</button>
+                  <span>{label}</span>
+                  <button type="button" className="quiet" onClick={() => stepNext(what, label, 1)} aria-label={`Next ${label}`} title={`next ${label} (${keys[0]})`}>›</button>
+                </li>
+              ))}
+              <li>
+                <button type="button" className="quiet" onClick={() => stepGap(-1)} disabled={prefs.gapMs <= 0} aria-label="Previous idle gap" title="previous idle gap (T); the threshold is in the View menu">‹</button>
+                <span>{prefs.gapMs > 0 ? `gap ≥ ${fmtInt(prefs.gapMs)} ms` : 'gap (off)'}</span>
+                <button type="button" className="quiet" onClick={() => stepGap(1)} disabled={prefs.gapMs <= 0} aria-label="Next idle gap" title="next idle gap (t); the threshold is in the View menu">›</button>
+              </li>
+            </ul>
+          </ToolbarMenu>
+          <ToolbarMenu label="Navigate" badge={ui.hits.length + bookmarks.length > 0 ? `${fmtInt(ui.hits.length)} · ${bookmarks.length}` : undefined}
+            title="the search hits, the bookmarks and the outline of the file" wide={ui.tab === 'outline'} open={ui.panel} onOpenChange={(panel) => set({ panel })}>
+            {panelBody}
+          </ToolbarMenu>
+          </span>
+          <span className="tb-grp tb-push">
           <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints), the line kinds to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
             <div className="lines-view">
               <h4>Show</h4>
@@ -960,15 +978,12 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </div>
             </div>
           </ToolbarMenu>
-          <button type="button" className="quiet" onClick={() => set({ palette: true })} aria-keyshortcuts={MOD === '⌘' ? 'Meta+K' : 'Control+K'} title="search every command (Step, Search, View, Folds, Line, Go to)">Commands <small>{MOD}K</small></button>
           <ToolbarMenu label="Keys" title="keyboard shortcuts (?)" className="tbmenu-sm" open={ui.keys} onOpenChange={(keys) => set({ keys })}>
             <KeyMap />
           </ToolbarMenu>
-          <ToolbarMenu label="Navigate" badge={ui.hits.length + bookmarks.length > 0 ? `${fmtInt(ui.hits.length)} · ${bookmarks.length}` : undefined}
-            title="the search hits, the bookmarks and the outline of the file" wide={ui.tab === 'outline'} open={ui.panel} onOpenChange={(panel) => set({ panel })}>
-            {panelBody}
-          </ToolbarMenu>
-        </span>
+          <button type="button" className="quiet" onClick={() => set({ palette: true })} aria-keyshortcuts={MOD === '⌘' ? 'Meta+K' : 'Control+K'} title="search every command (Step, Search, View, Folds, Line, Go to)">Commands <small>{MOD}K</small></button>
+          </span>
+        </div>
       </div>
 
       {noting !== null && (() => {

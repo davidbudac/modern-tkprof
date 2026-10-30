@@ -1,7 +1,12 @@
-/* Pivot view controls: one filter row above the table. */
-.pv-controls { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); align-items: center; }
-/* the pickers, the "only" filters and the tools are groups that wrap as a whole; the tools stay at the right end of their row */
+/* Pivot view controls: two rows above the table. Row 1 is the shape (what the table shows), row 2 the actions (right-aligned). */
+.pv-controls { display: grid; gap: var(--sp-2); }
+.pv-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) 0; }
+.pv-actions { justify-content: flex-end; gap: var(--sp-2); }
+/* the pickers and the "only" filters are groups, a hairline between them; a group wraps as a whole */
 .pv-group { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); align-items: center; }
+.pv-group + .pv-group { margin-inline-start: var(--sp-4); padding-inline-start: var(--sp-4); border-inline-start: 1px solid var(--hairline); }
+.pv-group + .pv-group[data-bol] { margin-inline: 0 calc(var(--sp-4) * 2 + 1px); padding-inline-start: 0; border-inline-start: 0; } /* first of a wrapped line (useGroupStarts) */
+/* a label before a select is a fact (plain text), the select is the control */
 .pv-ctl { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
 .pv-ctl select, .pv-ctl input.pv-only {
   font: inherit;
@@ -15,9 +20,31 @@
   max-inline-size: 16rem;
 }
 .pv-ctl select:focus-visible, .pv-ctl input.pv-only:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pv-controls .pv-push { margin-inline-start: auto; }
-.pv-ctl.pv-save { flex-wrap: wrap; }
-.pv-ctl select.pv-saved { max-inline-size: 9rem; }
-
 .pv-ctl input.pv-only { inline-size: 13rem; font-family: var(--font-mono); }
 .pv-check { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
+
+/* the action row: the Saved menu looks like its neighbours (bordered, ink text) */
+.pv-actions .tbmenu > button.quiet { color: var(--ink); border-color: var(--hairline-strong); }
+.pv-actions .tbmenu > button.quiet[aria-pressed="true"] { color: var(--surface); border-color: var(--ink); }
+
+/* the Saved popover: save, the list, Manage… with its inline panel */
+.pv-saved-menu .tbpop { min-inline-size: 18rem; max-inline-size: min(26rem, 90vw); }
+.pv-saved { display: grid; gap: var(--sp-2); }
+.pv-save-btn { justify-self: start; }
+.pv-save { display: grid; gap: var(--sp-2); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
+.pv-save input[type="text"] { inline-size: 100%; box-sizing: border-box; }
+.pv-save-acts { display: flex; gap: var(--sp-2); }
+.pv-none { margin: 0; }
+.pv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; max-block-size: 14rem; overflow: auto; }
+.pv-list button { inline-size: 100%; text-align: start; }
+.pv-list > li { display: flex; align-items: center; gap: var(--sp-1); }
+.pv-rows > li > .pv-name { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-rows > li > span.pv-name { padding-inline: 0.6rem; }
+.pv-rows > li > input { flex: 1; min-inline-size: 0; }
+.pv-rows > li > .pv-del { inline-size: auto; flex: none; padding-inline: var(--sp-2); }
+.pv-manage { display: grid; gap: var(--sp-2); padding-block: var(--sp-2); border-block: 1px solid var(--hairline); }
+.pv-io { display: flex; gap: var(--sp-2); }
+.pv-msg { margin: 0; color: var(--ink-2); }
+.pv-err { color: var(--s-critical); }
+.pv-manage-btn { justify-self: start; }
+.pv-list button.quiet { border-color: transparent; }

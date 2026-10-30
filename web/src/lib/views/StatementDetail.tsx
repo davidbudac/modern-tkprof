@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { ID, StmtStats, CallStats, Plan } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, fmtCompact, oraErr } from '../data/format'
@@ -20,6 +20,7 @@ import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { NoteEditor, NoteBox } from '../components/Note'
 import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
 import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEFAULT_PLAN_VIZ, MAX_LINK_CHARS } from '../data/planviz'
+import { StatementContext, StatementLinesMenu } from './StatementContext'
 import { kindGroups, type KindGroup } from '../data/callkinds'
 
 /** What the lists below are asked for when the statistics are the whole trace's (no scope, or an engine that cannot answer for one). */
@@ -42,24 +43,29 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
   const copy = async () => {
     try { await navigator.clipboard.writeText(st.text); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch { /* clipboard unavailable */ }
   }
+  const facts: ReactNode[] = [
+    st.kind === 0 ? st.commandName || 'SQL' : kindName(st.kind),
+    <span key="d" className="mono">depth {stats.minDepth}{stats.maxDepth !== stats.minDepth ? `–${stats.maxDepth}` : ''}</span>,
+    ...planHashes.map((h) => <span key={'p' + h} className="mono">plan {h}</span>),
+    ...(st.kind === 0 ? [<span key="hv" className="mono" title="hash value">hv {st.hashValue}</span>] : []),
+    ...(note ? [<span key="n" className="note-chip" title={note.note}>✎ note</span>] : []),
+  ]
   return (
     <>
-      <div className="title">
-        <h1 className="mono">{doc.label(st)}</h1>
-        <span className="chip-q">{st.kind === 0 ? st.commandName || 'SQL' : kindName(st.kind)}</span>
-        <span className="chip-q">depth {stats.minDepth}{stats.maxDepth !== stats.minDepth ? `–${stats.maxDepth}` : ''}</span>
-        {planHashes.map((h) => <span key={h} className="chip-q">plan {h}</span>)}
-        {st.kind === 0 && <span className="chip-q" title="hash value">hv {st.hashValue}</span>}
-        {note && <span className="chip-q note-chip" title={note.note}>✎ note</span>}
-        <span className="acts">
-          {notesOn && !note && !noteOpen && <button onClick={() => setNoteOpen(true)} title="a note on this statement, kept with the trace">✎ Add note</button>}
-          <button onClick={copy}>{copied ? 'Copied' : 'Copy SQL'}</button>
-        </span>
+      <div className="title"><h1 className="mono">{doc.label(st)}</h1></div>
+      <p className="stmt-facts dim" aria-label="Statement facts">
+        {facts.map((f, i) => <Fragment key={i}>{i > 0 && ' · '}{f}</Fragment>)}
+      </p>
+      <div className="stmt-acts" role="group" aria-label="Statement actions">
+        {notesOn && !note && !noteOpen && <button onClick={() => setNoteOpen(true)} title="a note on this statement, kept with the trace">✎ Add note</button>}
+        <button onClick={copy}>{copied ? 'Copied' : 'Copy SQL'}</button>
+        <StatementLinesMenu doc={doc} id={id} narrowed={narrowed} />
       </div>
       <StmtNote stmt={ref} open={noteOpen} setOpen={setNoteOpen} title={doc.label(st)} />
       <SqlText text={st.text} />
       {narrowed && stats.allCalls.count === 0 && <p className="callout">No calls of this statement in the selection.</p>}
       <ResponseTime doc={doc} stats={stats} narrowed={narrowed} scope={scope} />
+      <StatementContext doc={doc} id={id} stats={stats} narrowed={narrowed} />
       <CallTable stats={stats} />
       {sourceOf(doc).ready && <Executions doc={doc} id={id} scope={scope} />}
       <Plans doc={doc} id={id} inScope={narrowed ? stats.plans ?? [] : null} />

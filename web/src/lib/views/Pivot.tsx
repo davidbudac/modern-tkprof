@@ -7,10 +7,13 @@ import { scopeOf, type State } from '../state/store'
 import { useStore, useActions, useStoreApi, useLibrary, type PivotLibrary } from '../state/session'
 import { DataTable, type Column } from '../components/DataTable'
 import { ColumnChooser } from '../components/ColumnChooser'
+import { ToolbarMenu } from '../components/ToolbarMenu'
 import { usePersisted } from '../state/persist'
 import { pivotDims, pivotMeasures, type Fact } from '../data/pivot'
 import { sourceOf, useSourceQuery, type PivotRowData } from '../data/source'
 import { describePivotConfig } from '../data/pivotconfig'
+import { useGroupStarts } from './linesShared'
+import '../styles/lines.css' // .tbmenu / .tbpop, the toolbar menus
 import '../styles/pivot.css'
 
 function scopeHint(state: State, fact: Fact): string {
@@ -44,6 +47,7 @@ function download(name: string, text: string) {
 export function Pivot({ doc }: { doc: TraceDoc }) {
   const actions = useActions()
   const library = useLibrary()
+  const shapeRow = useGroupStarts()
   const state = useStore((s) => s)
   const source = sourceOf(doc)
   const pv = state.pivot
@@ -151,40 +155,42 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
         </span>
       </header>
       <div className="pv-controls" role="group" aria-label="Pivot controls">
-        <div className="pv-group" role="group" aria-label="Shape">
-          <span className="seg" role="group" aria-label="Fact table">
-            <button aria-pressed={fact === 'calls'} onClick={() => onFact('calls')}>calls</button>
-            <button aria-pressed={fact === 'waits'} onClick={() => onFact('waits')}>waits</button>
-          </span>
-          <label className="pv-ctl">Rows by
-            <select value={d1.id} onChange={(e) => setD1(e.target.value)}>
-              {dims.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-            </select>
-          </label>
-          <label className="pv-ctl">then by
-            <select value={d2?.id ?? ''} onChange={(e) => setD2(e.target.value)}>
-              <option value="">none</option>
-              {dims.filter((d) => d.id !== d1.id).map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-            </select>
-          </label>
-          <label className="pv-ctl">Sort by
-            <select value={sortM.id} onChange={(e) => actions.setPivot({ sort: { ...sortId, [fact]: e.target.value } })}>
-              {measures.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select>
-          </label>
-        </div>
-        <div className="pv-group" role="group" aria-label="Only">
-          <StmtOnly key={fStmt ?? -1} doc={doc} value={fStmt} onChange={(id) => actions.setPivot({ stmt: id })} />
-          {fact === 'waits' && (
-            <label className="pv-ctl">Event only
-              <select value={fEvent ?? ''} aria-label="Only this wait event" onChange={(e) => actions.setPivot({ event: e.target.value === '' ? null : Number(e.target.value) })}>
-                <option value="">any event</option>
-                {doc.events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
+        <div className="pv-row" ref={shapeRow}>
+          <div className="pv-group" role="group" aria-label="Shape">
+            <span className="seg" role="group" aria-label="Fact table">
+              <button aria-pressed={fact === 'calls'} onClick={() => onFact('calls')}>calls</button>
+              <button aria-pressed={fact === 'waits'} onClick={() => onFact('waits')}>waits</button>
+            </span>
+            <label className="pv-ctl">Rows by
+              <select value={d1.id} onChange={(e) => setD1(e.target.value)}>
+                {dims.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </label>
-          )}
+            <label className="pv-ctl">then by
+              <select value={d2?.id ?? ''} onChange={(e) => setD2(e.target.value)}>
+                <option value="">none</option>
+                {dims.filter((d) => d.id !== d1.id).map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+              </select>
+            </label>
+            <label className="pv-ctl">Sort by
+              <select value={sortM.id} onChange={(e) => actions.setPivot({ sort: { ...sortId, [fact]: e.target.value } })}>
+                {measures.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="pv-group" role="group" aria-label="Only">
+            <StmtOnly key={fStmt ?? -1} doc={doc} value={fStmt} onChange={(id) => actions.setPivot({ stmt: id })} />
+            {fact === 'waits' && (
+              <label className="pv-ctl">Event only
+                <select value={fEvent ?? ''} aria-label="Only this wait event" onChange={(e) => actions.setPivot({ event: e.target.value === '' ? null : Number(e.target.value) })}>
+                  <option value="">any event</option>
+                  {doc.events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
         </div>
-        <div className="pv-group pv-push" role="group" aria-label="Saved, columns, export">
+        <div className="pv-row pv-actions" role="group" aria-label="Saved, columns, export">
           {state.libraryEnabled && library && <SavedMenu library={library} />}
           <ColumnChooser all={measures.map((m) => ({ key: m.id, label: m.label }))} hidden={hiddenM} onChange={(h) => setHiddenCols({ ...hiddenCols, [fact]: h })} />
           <button onClick={exportCsv} disabled={result.groups === 0}>Download CSV</button>
@@ -229,54 +235,108 @@ function StmtOnly({ doc, value, onChange }: { doc: TraceDoc; value: number | und
   )
 }
 
-/** The saved Pivot configurations (desktop library): apply one, save the current one. */
+/** The saved Pivot configurations (desktop library) as a toolbar menu: save the current shape, apply a saved one, and (Manage…) rename, delete, export and import them. */
 function SavedMenu({ library }: { library: PivotLibrary }) {
   const store = useStoreApi()
   const saved = useSyncExternalStore(library.subscribe, library.getSnapshot)
+  const [open, setOpen] = useState(false)
   const [naming, setNaming] = useState<string | null>(null)
+  const [managing, setManaging] = useState(false)
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [byClock, setByClock] = useState(false)
   const [withFiles, setWithFiles] = useState(false)
   const timed = store.getState().window !== null && !!store.getState().doc?.wallOffsetUs
   const filed = store.getState().files !== null && !!store.getState().doc?.multiFile // a subset of several files is selected
+  const canManage = !!(library.rename || library.remove || library.exportAll || library.importFile)
+  const onOpen = (o: boolean) => {
+    setOpen(o)
+    if (!o) { setNaming(null); setEditing(null); setMsg(null) }
+  }
   const apply = (id: string) => {
     const p = saved.find((x) => x.id === id)
     if (p) store.applyPivotConfig(p.config)
+    onOpen(false)
   }
-  if (naming !== null) {
-    return (
-      <form className="pv-ctl pv-save" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) { library.save(naming.trim(), store.getPivotConfig({ clock: byClock && timed, files: withFiles && filed })); setNaming(null) } }}
-        onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setNaming(null) } }}>
-        <input type="text" value={naming} autoFocus placeholder="Name" aria-label="Name of the saved pivot" onChange={(e) => setNaming(e.target.value)} list="pv-saved-names" />
-        <datalist id="pv-saved-names">{saved.map((p) => <option key={p.id} value={p.name} />)}</datalist>
-        {timed && (
-          <label className="pv-check" title="Store the time window as clock times: applied to another trace it selects the same time of day, not the same offset from the start">
-            <input type="checkbox" checked={byClock} onChange={(e) => setByClock(e.target.checked)} /> window by clock time
-          </label>
-        )}
-        {filed && (
-          <label className="pv-check" title="Store the selected files by name: applied to another set it selects the files with these names">
-            <input type="checkbox" checked={withFiles} onChange={(e) => setWithFiles(e.target.checked)} /> with file selection
-          </label>
-        )}
-        <button type="submit" disabled={!naming.trim()}>Save</button>
-        <button type="button" onClick={() => setNaming(null)}>Cancel</button>
-      </form>
+  const save = () => {
+    if (naming === null || !naming.trim()) return
+    library.save(naming.trim(), store.getPivotConfig({ clock: byClock && timed, files: withFiles && filed }))
+    setNaming(null)
+    onOpen(false)
+  }
+  const rename = () => {
+    if (editing && editing.name.trim() && library.rename) library.rename(editing.id, editing.name.trim())
+    setEditing(null)
+  }
+  /** an Export… / Import… run: a message when it ends, nothing when the user cancelled the dialog */
+  const run = (f: () => Promise<string | null>) => {
+    setMsg(null)
+    f().then(
+      (text) => setMsg(text === null ? null : { ok: true, text }),
+      (e: unknown) => setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }),
     )
   }
   return (
-    <label className="pv-ctl">Saved
-      <select value="" className="pv-saved" aria-label="Saved pivots" onChange={(e) => {
-        const v = e.target.value
-        if (v === '+save') setNaming('')
-        else if (v === '+manage') library.manage?.()
-        else if (v) apply(v)
-      }}>
-        <option value="">{saved.length ? `${saved.length} saved…` : 'none saved'}</option>
-        {saved.map((p) => <option key={p.id} value={p.id} title={describePivotConfig(p.config)}>{p.name}</option>)}
-        <option disabled>──────────</option>
-        <option value="+save">Save current as…</option>
-        {library.manage && <option value="+manage">Manage library…</option>}
-      </select>
-    </label>
+    <ToolbarMenu label="Saved" badge={saved.length > 0 ? String(saved.length) : undefined} title="saved pivot configurations: apply one, save the current one, manage them" className="tbmenu-sm pv-saved-menu" open={open} onOpenChange={onOpen}>
+      <div className="pv-saved">
+        {naming === null
+          ? <button type="button" className="pv-save-btn" onClick={() => setNaming('')}>Save current as…</button>
+          : (
+            <form className="pv-save" onSubmit={(e) => { e.preventDefault(); save() }}>
+              <input type="text" value={naming} autoFocus placeholder="Name" aria-label="Name of the saved pivot" onChange={(e) => setNaming(e.target.value)} list="pv-saved-names" />
+              <datalist id="pv-saved-names">{saved.map((p) => <option key={p.id} value={p.name} />)}</datalist>
+              {timed && (
+                <label className="pv-check" title="Store the time window as clock times: applied to another trace it selects the same time of day, not the same offset from the start">
+                  <input type="checkbox" checked={byClock} onChange={(e) => setByClock(e.target.checked)} /> window by clock time
+                </label>
+              )}
+              {filed && (
+                <label className="pv-check" title="Store the selected files by name: applied to another set it selects the files with these names">
+                  <input type="checkbox" checked={withFiles} onChange={(e) => setWithFiles(e.target.checked)} /> with file selection
+                </label>
+              )}
+              <span className="pv-save-acts">
+                <button type="submit" disabled={!naming.trim()}>Save</button>
+                <button type="button" onClick={() => setNaming(null)}>Cancel</button>
+              </span>
+            </form>
+          )}
+        {saved.length === 0 && <p className="small muted pv-none">none saved yet</p>}
+        {!managing && saved.length > 0 && (
+          <ul className="pv-list" aria-label="Saved pivots">
+            {saved.map((p) => (
+              <li key={p.id}><button type="button" className="quiet" onClick={() => apply(p.id)} title={describePivotConfig(p.config)}>{p.name}</button></li>
+            ))}
+          </ul>
+        )}
+        {managing && (
+          <div className="pv-manage" role="group" aria-label="Manage saved pivots">
+            {saved.length > 0 && (
+              <ul className="pv-list pv-rows">
+                {saved.map((p) => (
+                  <li key={p.id}>
+                    {editing?.id === p.id
+                      ? <input type="text" value={editing.name} autoFocus aria-label={`New name of ${p.name}`} onChange={(e) => setEditing({ id: p.id, name: e.target.value })} onBlur={rename}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); rename() } }} />
+                      : library.rename
+                        ? <button type="button" className="quiet pv-name" onClick={() => setEditing({ id: p.id, name: p.name })} title={`rename — ${describePivotConfig(p.config)}`}>{p.name}</button>
+                        : <span className="pv-name" title={describePivotConfig(p.config)}>{p.name}</span>}
+                    {library.remove && <button type="button" className="quiet pv-del" onClick={() => library.remove?.(p.id)} aria-label={`Delete ${p.name}`} title="delete this saved pivot">×</button>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(library.exportAll || library.importFile) && (
+              <div className="pv-io">
+                {library.exportAll && <button type="button" onClick={() => run(() => library.exportAll?.() ?? Promise.resolve(null))} disabled={saved.length === 0} title="write every saved pivot to mtkprof-library.json">Export…</button>}
+                {library.importFile && <button type="button" onClick={() => run(() => library.importFile?.() ?? Promise.resolve(null))} title="merge the saved pivots of an mtkprof-library.json">Import…</button>}
+              </div>
+            )}
+            {msg && <p className={'small pv-msg' + (msg.ok ? '' : ' pv-err')} role="status">{msg.text}</p>}
+          </div>
+        )}
+        {canManage && <button type="button" className="quiet pv-manage-btn" aria-pressed={managing} onClick={() => { setManaging(!managing); setEditing(null); setMsg(null) }}>Manage…</button>}
+      </div>
+    </ToolbarMenu>
   )
 }

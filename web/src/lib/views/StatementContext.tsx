@@ -1,5 +1,6 @@
 import type { TraceDoc } from '../data/doc'
 import { StmtLink, LinkText } from '../components/StmtLink'
+import { Fragment, useState } from 'react'
 import type { ID, StmtStats } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, preview } from '../data/format'
 import { useActions } from '../state/session'
@@ -7,13 +8,14 @@ import { LineRef } from '../components/LineRef'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { scopeKey, useScope } from '../data/scopedstmts'
 import type { Scope } from '../state/store'
+import { ToolbarMenu } from '../components/ToolbarMenu'
 import { findingText } from './Findings'
 import { useScopedFindings } from '../data/scopedfindings'
 
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
 
 /**
- * The right-hand column of the workbench: where the statement ran, its waits, its relatives, its findings. `stats` are the
+ * The context sections of the statement detail: where the statement ran, its waits, its relatives, its findings. `stats` are the
  * numbers of the scope when `narrowed` (first and last call come from them, the cursors are those in scope, the waits are the
  * scope's, and so are the findings).
  */
@@ -40,7 +42,6 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
         <h3>Context</h3>
         <dl className="kv">
           {stats.firstWallUs ? <><dt>first call</dt><dd>{fmtWall(stats.firstWallUs, doc.tzOffsetMin)}</dd><dt>last call</dt><dd>{fmtWall(stats.lastWallUs, doc.tzOffsetMin)}</dd></> : null}
-          <dt>trace line</dt><dd>{cursorsIn.length && narrowed ? <LineRef line={doc.cursors[cursorsIn[0]].line} file={doc.fileOfCursor(cursorsIn[0])} bare /> : <LineRef line={st.firstLine} file={doc.fileOfStmt(id)} bare />}</dd>
           <dt>cursors</dt><dd>{narrowed ? stats.cursors : st.cursors.length}{assumed ? ' · one opened before trace start' : ''}</dd>
           {ctx?.module && <><dt>module</dt><dd>{ctx.module}</dd></>}
           {ctx?.action && <><dt>action</dt><dd>{ctx.action}</dd></>}
@@ -97,6 +98,32 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
   )
 }
 
+/** The trace line a statement was parsed at: its first cursor in scope when narrowed, else the statement's first line. */
+function parsedAt(doc: TraceDoc, id: ID, narrowed: boolean, scope: Scope): { line: number; file: number } {
+  const st = doc.statements[id]
+  const c = narrowed ? st.cursors.find((x) => inScopeCursor(doc, x, scope)) : undefined
+  return c !== undefined ? { line: doc.cursors[c].line, file: doc.fileOfCursor(c) } : { line: st.firstLine, file: doc.fileOfStmt(id) }
+}
+
+/** `Lines ▾` in the action row of the statement detail: the trace lines this statement is at (where it was parsed, each plan's STAT lines). */
+export function StatementLinesMenu({ doc, id, narrowed = false }: { doc: TraceDoc; id: ID; narrowed?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const scope = useScope(doc)
+  const at = parsedAt(doc, id, narrowed, scope)
+  const plans = doc.plansOf(id).filter((p) => p.line > 0)
+  const byHash = new Map<number, (typeof plans)[number]>()
+  for (const p of plans) byHash.set(p.planHash, p) // the latest dump of each plan
+  if (at.line <= 0 && byHash.size === 0) return null
+  return (
+    <ToolbarMenu label="Lines" title="trace lines of this statement" className="tbmenu-sm tbmenu-start" open={open} onOpenChange={setOpen}>
+      <dl className="kv stmt-lines" onClick={() => setOpen(false)}>
+        {at.line > 0 && <><dt>parsed at</dt><dd><LineRef line={at.line} file={at.file} /></dd></>}
+        {[...byHash.values()].map((p) => <Fragment key={p.id}><dt>plan {p.planHash || ''} (STAT)</dt><dd><LineRef line={p.line} file={doc.fileOfCursor(p.cursor)} /></dd></Fragment>)}
+      </dl>
+    </ToolbarMenu>
+  )
+}
+
 /** A cursor of the scope: opened in one of its contexts (the window is applied through `StmtStats.cursors`, which counts those called in it). */
 function inScopeCursor(doc: TraceDoc, cursor: ID, scope: Scope): boolean {
   return !scope.contexts || scope.contexts.has(doc.cursors[cursor].context)
@@ -106,7 +133,7 @@ function RelRow({ doc, id, text, right }: { doc: TraceDoc; id: ID; text: string;
   const actions = useActions()
   return (
     <div className="relrow row-click" onClick={() => actions.pickStmt(id)}>
-      <StmtLink doc={doc} id={id} /><span className="dim clip">{text}</span><span className="r">{right}</span>
+      <StmtLink doc={doc} id={id} direct /><span className="dim clip">{text}</span><span className="r">{right}</span>
     </div>
   )
 }

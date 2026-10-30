@@ -16,7 +16,7 @@ export function ToolbarMenu({ label, badge, title, className, wide, open, onOpen
   return (
     <span className={className ? `tbmenu ${className}` : 'tbmenu'} ref={root}>
       <button type="button" className="quiet" aria-expanded={open} aria-haspopup="true" aria-pressed={open} onClick={() => onOpenChange(!open)} title={title}>
-        {label}{badge && <small> {badge}</small>}
+        {label}{badge && <small> {badge}</small>}<span className="cue" aria-hidden="true">▾</span>
       </button>
       {open && <div className={wide ? 'tbpop wide' : 'tbpop'} role="group" aria-label={label}>{children}</div>}
     </span>

@@ -1,19 +1,49 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { TraceDoc } from '../data/doc'
 import type { ID } from '../data/types'
 import { useActions } from '../state/session'
+import { StmtPopover, type PopupAnchor } from './StmtPopover'
 
-/** A statement's sql_id (or synthetic label) as a link to its detail in the Statements workbench. */
-export function StmtLink({ doc, id, className }: { doc: TraceDoc; id: ID; className?: string }) {
+/** The one open sql_id popover: opening another closes it (the links stop pointer events, so the popover's own outside-press close does not see them). */
+let closeOpen: (() => void) | null = null
+
+/**
+ * A statement's sql_id (or synthetic label). A click peeks: it opens the statement's popover under the link, which has `Open in Statements`.
+ * Ctrl/⌘-click and middle click go straight to the Statements view; `direct` (the Statements list itself) always does.
+ */
+export function StmtLink({ doc, id, className, direct }: { doc: TraceDoc; id: ID; className?: string; direct?: boolean }) {
   const actions = useActions()
+  const [anchor, setAnchor] = useState<PopupAnchor | null>(null)
+  const close = useRef(() => setAnchor(null))
+  useEffect(() => { const c = close.current; return () => { if (closeOpen === c) closeOpen = null } }, [])
   const st = doc.statements[id]
   if (!st) return null
+  const open = (e: { clientX: number; clientY: number; currentTarget: HTMLElement }) => {
+    if (anchor) { setAnchor(null); return }
+    closeOpen?.()
+    closeOpen = close.current
+    setAnchor({ x: e.clientX, y: e.clientY, rect: e.currentTarget.getBoundingClientRect() })
+  }
   return (
-    <button className={'link mono sqlid' + (className ? ' ' + className : '')} title="open this statement"
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); actions.selectStmt(id) }}>
-      {doc.label(st)}
-    </button>
+    <>
+      <button className={'link mono sqlid' + (className ? ' ' + className : '')} aria-haspopup={direct ? undefined : 'dialog'} aria-expanded={direct ? undefined : anchor !== null}
+        title={direct ? 'open this statement' : 'peek at this statement (Ctrl/⌘-click: open it in Statements)'}
+        onPointerDown={(e) => e.stopPropagation()}
+        onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); actions.selectStmt(id) } }}
+        onClick={(e) => {
+          e.preventDefault(); e.stopPropagation()
+          if (direct || e.metaKey || e.ctrlKey) actions.selectStmt(id)
+          else open(e)
+        }}>
+        {doc.label(st)}
+      </button>
+      {anchor && (
+        // the popover is a portal, but React events still bubble through the tree: keep its clicks from reaching the row that holds the link
+        <span style={{ display: 'contents' }} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+          <StmtPopover doc={doc} popup={{ stmt: id, anchor, line: 0 }} onClose={() => setAnchor(null)} />
+        </span>
+      )}
+    </>
   )
 }
 

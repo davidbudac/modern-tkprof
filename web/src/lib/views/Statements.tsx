@@ -8,9 +8,7 @@ import { useStore, useActions } from '../state/session'
 import { quickSegments } from '../data/derive'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StatementDetail } from './StatementDetail'
-import { StatementContext } from './StatementContext'
 import { ResizeHandle } from '../components/ResizeHandle'
-import { PaneToggle } from '../components/PaneToggle'
 import { usePersisted } from '../state/persist'
 import { scopeKey, useScope, useScopedStatements } from '../data/scopedstmts'
 import { useScopedFindings } from '../data/scopedfindings'
@@ -35,7 +33,7 @@ const sorts: { id: SortKey; label: string; of: (s: StmtStats, inclusive: boolean
 ]
 const ROW_H = 76
 
-/** Three panes: ranked statement list, the selected statement, its context. */
+/** Two panes: the ranked statement list and the selected statement (its context is a section of the detail). */
 export function Statements({ doc }: { doc: TraceDoc }) {
   const actions = useActions()
   const sel = useStore((s) => s.selection.stmt)
@@ -44,8 +42,6 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   const [hideSys, setHideSys] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('resp')
   const [listW, setListW] = usePersisted<number | null>('mtkprof.listW', null)
-  const [ctxW, setCtxW] = usePersisted<number | null>('mtkprof.contextW', null)
-  const [ctxOpen, setCtxOpen] = usePersisted<boolean>('mtkprof.contextOpen', true)
   const source = sourceOf(doc)
   const scope = useScope(doc)
   const roles = useSourceQuery(source, `roles:${scopeKey(scope)}`, (signal) => source.stmtRoles(scope, signal), 'roles').data
@@ -89,7 +85,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   })
 
   return (
-    <div className={'wb' + (ctxOpen ? '' : ' ctx-closed')} style={{ ...(listW ? { '--list-w': `${listW}px` } : null), ...(ctxW ? { '--context-w': `${ctxW}px` } : null) } as CSSProperties}>
+    <div className="wb" style={listW ? ({ '--list-w': `${listW}px` } as CSSProperties) : undefined}>
       <aside className="wb-list" aria-label="Statements">
         <div className="wb-head">
           <div className="t"><h2>Statements</h2><span className="dim">{narrowed ? rows.length : rows.length === doc.statements.length ? rows.length : `${rows.length} of ${doc.statements.length}`}</span></div>
@@ -121,7 +117,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
                   <div className="bar" style={{ width: `${(100 * resp) / (maxResp || 1)}%` }}>{segs.map((x) => <i key={x.role} style={{ width: `${(100 * x.us) / segTotal}%`, background: `var(--c-${x.role})` }} />)}</div>
                   <div className="n">{sortKey === 'first' ? firstCall(doc, st) : sortKey === 'resp' || sortKey === 'self' || sortKey === 'cpu' || sortKey === 'waits' || sortKey === 'idle' ? fmtDur(sort.of(st, inclusive)) : fmtCompact(sort.of(st, inclusive))}<small title={sortKey === 'resp' ? shareNote(responseShare(st, totalUs)) : undefined}>{sortKey === 'resp' ? fmtPct(resp, totalUs, 0) : fmtDur(resp)}</small></div>
                   <div className="id">
-                    <StmtLink doc={doc} id={st.id} />
+                    <StmtLink doc={doc} id={st.id} direct />
                     <span>{fmtInt(st.executions)} exec{st.executions === 1 ? '' : 's'}</span>
                     {st.allCalls.rows > 0 && <span>{fmtCompact(st.allCalls.rows)} row{st.allCalls.rows === 1 ? '' : 's'}</span>}
                     {st.minDepth > 0 && <span>depth {st.minDepth}</span>}
@@ -138,12 +134,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
       <section className="wb-detail">
         {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} stats={stats[sel]} narrowed={narrowed} /> : <p className="muted">No statement selected.</p>}
       </section>
-      {ctxOpen && <aside className="wb-ctx" aria-label="Context">
-        {sel !== null && doc.statements[sel] && <StatementContext doc={doc} id={sel} stats={stats[sel]} narrowed={narrowed} />}
-      </aside>}
       <ResizeHandle anchor="start" className="resizer-list" label="Resize statement list" min={240} maxFrac={0.4} onChange={setListW} />
-      {ctxOpen && <ResizeHandle anchor="end" className="resizer-ctx" label="Resize context pane" min={240} maxFrac={0.4} onChange={setCtxW} />}
-      <PaneToggle open={ctxOpen} onToggle={() => setCtxOpen(!ctxOpen)} label="context pane" className="ctx-toggle" />
     </div>
   )
 }

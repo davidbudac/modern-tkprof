@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, type CachedLine, type PageCache } from '../data/linecache'
 import { objectsAt, stmtLineIn, type AtObjects } from '../data/lines'
@@ -168,4 +168,26 @@ export function useLineAt(client: ApiClient, doc: TraceDoc, file: number, cache:
     return () => { window.clearTimeout(timer); ac.abort() }
   }, [client, doc, file, cache, line])
   return at
+}
+
+/**
+ * A ref for a wrapping toolbar row whose children are groups separated by a hairline: marks the groups that start a visual line
+ * with `data-bol`, so the CSS can drop the hairline (and the indent) there. It re-marks when the row is resized or its content changes.
+ */
+export function useGroupStarts(): (row: HTMLElement | null) => void | (() => void) {
+  return useCallback((row: HTMLElement | null) => {
+    if (!row) return
+    const mark = () => {
+      let bottom = Number.NEGATIVE_INFINITY // the bottom of the line being filled; an item that starts below it is on a new line
+      for (const el of Array.from(row.children) as HTMLElement[]) {
+        if (el.offsetTop >= bottom - 1) { el.setAttribute('data-bol', ''); bottom = el.offsetTop + el.offsetHeight } else { el.removeAttribute('data-bol'); bottom = Math.max(bottom, el.offsetTop + el.offsetHeight) }
+      }
+    }
+    mark()
+    const resize = new ResizeObserver(mark)
+    resize.observe(row)
+    const change = new MutationObserver(mark)
+    change.observe(row, { childList: true, subtree: true, characterData: true })
+    return () => { resize.disconnect(); change.disconnect() }
+  }, [])
 }

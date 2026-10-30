@@ -20,7 +20,7 @@ export function ColumnChooser({ all, hidden, onChange }: { all: ChooserColumn[];
   return (
     <span className="colchooser" ref={root}>
       <button className={off.size ? 'on' : undefined} aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(!open)} title="show or hide columns">
-        columns{off.size > 0 && <small> {shown}/{all.length}</small>}
+        Columns{off.size > 0 && <small> {shown}/{all.length}</small>}<span className="cue" aria-hidden="true">▾</span>
       </button>
       {open && (
         <div className="colpop" role="group" aria-label="Columns">
