@@ -26,6 +26,14 @@
 .lines-error { color: var(--s-critical); }
 
 /* the viewer: rows are laid out by the component (see components/LineViewer.tsx), the scroll bar stands for the whole file */
+.lv-box { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
+.lv-box > .lv { flex: 1; block-size: auto; min-block-size: 0; }
+/* the pinned header above the scroll container (the container shrinks by its row) */
+.lv-head { position: sticky; inset-block-start: 0; z-index: 2; flex: none; display: flex; align-items: center; gap: var(--sp-3); block-size: var(--lv-row); box-sizing: border-box; padding-inline: var(--sp-3); overflow: hidden; white-space: nowrap; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); color: var(--ink-2); }
+.lv-head button { font: inherit; padding: 0 var(--sp-2); block-size: calc(var(--lv-row) - 4px); }
+.lv-head button.lv-head-id { font-weight: 600; color: var(--ink); }
+.lv-head .lv-head-sql { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); }
+.lv-head .lv-head-blk { flex: none; color: var(--ink-2); }
 .lv { --lv-gut: 8.5rem; position: relative; overflow: auto; overscroll-behavior: contain; block-size: 100%; background: var(--surface-raised); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); }
 .lv:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .lv-inner { position: relative; }
@@ -54,6 +62,8 @@
 .lv-mk1 .lv-ln::before, .lv-mk2 .lv-ln::before, .lv-mk3 .lv-ln::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--c-cpu); }
 .lv-mk2 .lv-ln::before { background: var(--c-userio); }
 .lv-bm .lv-ln::after { content: "◆"; position: absolute; inset-inline-start: 7px; font-size: 0.55rem; color: var(--c-commit); }
+.lv-ref { text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; color: inherit; }
+.lv-ref:hover { text-decoration-style: solid; background: color-mix(in oklch, var(--c-commit) 16%, transparent); }
 .lv-tx mark { background: color-mix(in oklch, var(--c-commit) 38%, transparent); color: inherit; border-radius: 2px; }
 .lv-gut { flex: none; box-sizing: border-box; inline-size: var(--lv-gut); margin-inline-start: auto; position: sticky; inset-inline-end: 0; display: flex; flex-direction: column; }
 .lv-act { flex: 1; min-block-size: 0; display: flex; justify-content: flex-end; align-items: flex-start; gap: 2px; padding-inline: var(--sp-2); border-inline-start: 1px solid var(--hairline-strong); background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-raised)); }

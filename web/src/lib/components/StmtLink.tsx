@@ -19,7 +19,8 @@ export function StmtLink({ doc, id, className }: { doc: TraceDoc; id: ID; classN
 
 const sqlIdRe = /\b[0-9a-z]{13}\b/g
 const byDoc = new WeakMap<TraceDoc, Map<string, ID>>()
-function sqlIds(doc: TraceDoc): Map<string, ID> {
+/** sql_id → the first statement with it. */
+export function sqlIds(doc: TraceDoc): Map<string, ID> {
   let m = byDoc.get(doc)
   if (!m) {
     m = new Map()

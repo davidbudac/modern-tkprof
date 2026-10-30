@@ -1,10 +1,11 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { LINE_KINDS, type PageCache } from '../data/linecache'
+import { LINE_KINDS, type CachedLine, type PageCache } from '../data/linecache'
 import { clampTop, revealTop, scrollFromTop, scrollGeometry, topFromScroll } from '../data/scrollmap'
 import { lineTone } from './colors'
 import { highlightRuns, matchSpans } from '../data/lines'
 import { elaOf, type LineDecode } from '../data/linefields'
+import { mergeHits, refRuns } from '../data/linerefs'
 import { fmtDur, fmtInt } from '../data/format'
 
 /** Height of a row in pixels; the rows are laid out by this component, the scroll bar only maps to the first visible line (see data/scrollmap.ts). */
@@ -59,6 +60,14 @@ interface Props {
   focusCursor?: number
   /** the hover card of a line (null: nothing to show); omit for no cards */
   card?(line: number, text: string, kind: number): LineDecode | null
+  /** underline the references in the rows (cursor numbers, sql_ids, obj#, plan hashes); a click on one calls `onRef` and does not select the row */
+  links?: boolean
+  /** a click on a reference: its line, kind (`cursor`, `sqlid`, `obj`, `plh`), value, the line's cached ids and the modifier keys */
+  onRef?(line: number, kind: string, value: string, ids: CachedLine | undefined, mods: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }): void
+  /** the tooltip of a reference, asked once when the pointer first rests on it (undefined: none) */
+  refTitle?(kind: string, value: string, ids: CachedLine | undefined): string | undefined
+  /** the pinned header for the first visible line (null: none, the row is not rendered); `key` says when `node` changed */
+  head?(topLine: number): { key: string; node: ReactNode } | null
   /** per-line actions on the selected row: copy the text, copy a permalink (omit `onLink` where there is no URL to link to) */
   onCopy?(line: number): void
   onLink?(line: number): void
@@ -74,7 +83,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, mutedKinds, focusCursor, card, onCopy, onLink, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, heat, mutedKinds, focusCursor, links, onRef, refTitle, head, card, onCopy, onLink, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -92,6 +101,15 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const cardTimer = useRef(0)
   const cardLine = useRef(0) // the line the card is open or about to open for
   const pending = useRef<{ line: number; how: 'center' | 'nearest' } | null>(null) // a reveal asked for before the view had a size
+
+  // the pinned header: recomputed when the first visible line moves, the state changes only with the header's key
+  const [pinned, setPinned] = useState<{ key: string; node: ReactNode } | null>(null)
+  const headRef = useRef(head)
+  headRef.current = head
+  const refreshHead = useCallback((force = false) => {
+    const r = headRef.current?.(Math.floor(topRef.current) + 1) ?? null
+    setPinned((prev) => (!force && (prev?.key ?? null) === (r?.key ?? null) ? prev : r))
+  }, [topRef])
 
   const place = useCallback(() => {
     if (layer.current) layer.current.style.transform = `translateY(${-(topRef.current - baseRef.current) * ROW_H}px)`
@@ -119,7 +137,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     cache.prefetch(p1)
   }, [cache, topRef, onError])
 
-  const moveTo = useCallback((top: number, fromBar = false) => {
+  /** `keepHead`: a move the view's size caused (the header's row changes the size: a header that follows it could flicker at the end of the file). */
+  const moveTo = useCallback((top: number, fromBar = false, keepHead = false) => {
     hideCard()
     topRef.current = cache.total > 0 ? clampTop(geoRef.current, top) : Math.max(0, top)
     const b = baseOf(topRef.current)
@@ -130,18 +149,21 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       if (Math.abs(el.scrollTop - target) >= 0.5) { el.scrollTop = target; expected.current = el.scrollTop }
     }
     ensurePages()
-  }, [cache, topRef, place, ensurePages, hideCard])
+    if (!keepHead) refreshHead()
+  }, [cache, topRef, place, ensurePages, hideCard, refreshHead])
 
   // the committed base positions the layer before paint
   useLayoutEffect(() => { baseRef.current = base; place() }, [base, place])
 
   // a page arrived: repaint (the owner may also have learnt the total)
-  useEffect(() => cache.subscribe(() => setTick((t) => t + 1)), [cache])
+  useEffect(() => cache.subscribe(() => { setTick((t) => t + 1); refreshHead() }), [cache, refreshHead])
+  // the owner's header function changed (its closures): rebuild the node
+  useEffect(() => refreshHead(true), [head, refreshHead])
 
   // geometry changed (size, total): clamp and re-map
   useEffect(() => {
     const p = pending.current
-    if (p && h > 0) { pending.current = null; moveTo(revealTop(topRef.current, p.line - 1, rowsRef.current, p.how)) } else moveTo(topRef.current)
+    if (p && h > 0) { pending.current = null; moveTo(revealTop(topRef.current, p.line - 1, rowsRef.current, p.how)) } else moveTo(topRef.current, false, true)
   }, [total, h, moveTo, topRef])
 
   useEffect(() => {
@@ -195,7 +217,10 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')
     if (act) {
       const n = Number(act.closest<HTMLElement>('[data-ln]')?.dataset.ln)
-      if (act.dataset.act === 'copy') onCopy?.(n); else onLink?.(n)
+      if (act.dataset.act === 'ref') {
+        const ref = act.dataset.ref ?? '', i = ref.indexOf(':')
+        if (i > 0) onRef?.(n, ref.slice(0, i), ref.slice(i + 1), cache.line(n), e)
+      } else if (act.dataset.act === 'copy') onCopy?.(n); else onLink?.(n)
       return
     }
     const hit = lineOfEvent(e)
@@ -207,8 +232,22 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   }
   /** Rests on a line's text for `CARD_DELAY`: open its card (no listeners on the rows; this one handler reads `data-ln`). */
   const onPointerMove = (e: PointerEvent) => {
-    if (!card || e.pointerType === 'touch') return
+    if (e.pointerType === 'touch') return
     const t = e.target as HTMLElement
+    const link = t.closest<HTMLElement>('.lv-ref')
+    if (link) {
+      // a reference has a tooltip of its own, not the card; it is set once, on the first move over it
+      hideCard()
+      if (link.dataset.tip === undefined) {
+        link.dataset.tip = ''
+        const ref = link.dataset.ref ?? '', i = ref.indexOf(':')
+        const n = Number(link.closest<HTMLElement>('[data-ln]')?.dataset.ln)
+        const tip = i > 0 ? refTitle?.(ref.slice(0, i), ref.slice(i + 1), cache.line(n)) : undefined
+        if (tip) link.title = tip
+      }
+      return
+    }
+    if (!card) return
     const row = t.closest<HTMLElement>('[data-ln]')
     const n = row && t.closest('.lv-tx') ? Number(row.dataset.ln) : 0
     if (n === cardLine.current) return
@@ -253,20 +292,24 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const l = cache.line(n)
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
     const ela = heat && l && (l.kind === K_CALL || l.kind === K_WAIT) ? elaOf(l.text, LINE_KINDS[l.kind]) : -1
-    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} />)
+    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} acts={n === selected ? (onLink ? 2 : onCopy ? 1 : 0) : 0} />)
   }
   const digits = String(Math.max(total, 1000)).length
+  const hover = card || refTitle
   return (
-    <div className={'lv' + (wrap ? ' lv-wrap' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={total}
-      style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
-      onScroll={onScroll} onClick={onClick} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
-      onPointerMove={card ? onPointerMove : undefined} onPointerLeave={card ? hideCard : undefined}>
-      <div className="lv-inner" style={{ height: geo.scrollH }}>
-        <div className="lv-view" style={{ height: h }}>
-          <div className="lv-layer" ref={layer}>{rows}</div>
+    <div className="lv-box" style={{ '--lv-row': `${ROW_H}px` } as React.CSSProperties}>
+      {pinned && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
+      <div className={'lv' + (wrap ? ' lv-wrap' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={total}
+        style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
+        onScroll={onScroll} onClick={onClick} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
+        onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? hideCard : undefined}>
+        <div className="lv-inner" style={{ height: geo.scrollH }}>
+          <div className="lv-view" style={{ height: h }}>
+            <div className="lv-layer" ref={layer}>{rows}</div>
+          </div>
         </div>
+        {shown && createPortal(<LineCard at={shown} />, document.body)}
       </div>
-      {shown && createPortal(<LineCard at={shown} />, document.body)}
     </div>
   )
 }
@@ -274,7 +317,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win, muted, dim, acts }: {
+const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win, muted, dim, refs, acts }: {
   n: number; text: string | undefined; kind: number
   /** the elapsed µs of a call or wait line, -1 for none (no bar) */
   heat: number
@@ -285,6 +328,8 @@ const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win,
   muted: boolean
   /** outside the focused cursor */
   dim: boolean
+  /** render the references of the text as links (`data-act="ref"`) */
+  refs: boolean
   /** the selected row's actions: 0 none, 1 copy, 2 copy and permalink */
   acts: number
 }) {
@@ -294,7 +339,7 @@ const Row = memo(function Row({ n, text, kind, heat, mk, sel, bm, note, hl, win,
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>{n}</span>
-      <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl ? marked(text, hl) : text || ' '}</span>
+      <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl || refs ? marked(text, kind, hl, refs) : text || ' '}</span>
       {/* a fixed-width gutter at the row's end in every row: the text of the selected row is never laid under its actions */}
       <span className="lv-gut">
         {acts > 0 && (
@@ -344,9 +389,20 @@ function LineCard({ at }: { at: CardAt }) {
 }
 
 
-/** The line's text with the matches of the search wrapped in <mark>. */
-function marked(text: string, hl: RowHighlight) {
-  const spans = matchSpans(text, hl.q, hl.regex, hl.caseSensitive)
-  if (spans.length === 0) return text || ' '
-  return highlightRuns(text, spans).map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text))
+/** The line's text with the matches of the search wrapped in <mark> and, with `refs`, its references as links (hits inside a link stay inside it). */
+function marked(text: string, kind: number, hl: RowHighlight | undefined, refs: boolean) {
+  const spans = hl ? matchSpans(text, hl.q, hl.regex, hl.caseSensitive) : []
+  if (!refs) {
+    if (spans.length === 0) return text || ' '
+    return highlightRuns(text, spans).map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text))
+  }
+  const runs = mergeHits(refRuns(text, LINE_KINDS[kind]), spans)
+  if (runs.length === 0) return ' '
+  if (runs.length === 1 && !runs[0].ref && !runs[0].hit) return text
+  return runs.map((r, i) => {
+    const inner = r.hit ? <mark>{r.text}</mark> : r.text
+    return r.ref
+      ? <a key={`${i}${r.ref.kind}${r.ref.value}`} className={`lv-ref lv-ref-${r.ref.kind}`} data-act="ref" data-ref={`${r.ref.kind}:${r.ref.value}`}>{inner}</a>
+      : r.hit ? <mark key={i}>{r.text}</mark> : r.text
+  })
 }
