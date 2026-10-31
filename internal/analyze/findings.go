@@ -183,6 +183,11 @@ type Finding struct {
 // ScopeSet marks a finding that is about the whole trace set (Finding.Scope).
 const ScopeSet = "set"
 
+// EvidenceBindsMarker precedes the bind values an outlier-executions evidence
+// row appends to its value; a reader that handles bind values itself cuts
+// the row there.
+const EvidenceBindsMarker = "  binds "
+
 // EvidenceRow is one supporting fact. Label and Value are ready to print;
 // the ids let the UI link to the statement / execution / call.
 type EvidenceRow struct {
@@ -488,7 +493,7 @@ func (f *finder) outliers() {
 			cur := &f.m.Cursors[e.Cursor]
 			v := fmt.Sprintf("%s  %d rows  %d disk  %d fetches  cursor at line %d", fmtUs(e.Stats.Elapsed), e.Stats.Rows, e.Stats.Disk, len(e.Fetches), cur.Line)
 			if b := f.bindPreview(e.BindSet); b != "" {
-				v += "  binds " + b
+				v += EvidenceBindsMarker + b
 			}
 			r := stmtRow(s.ID, fmt.Sprintf("exec %d", e.ExecNo), v)
 			r.Cursor, r.ExecNo, r.Call, r.Line, r.Us = e.Cursor, e.ExecNo, e.Exec, int(f.m.Calls[e.Exec].Line), e.Stats.Elapsed

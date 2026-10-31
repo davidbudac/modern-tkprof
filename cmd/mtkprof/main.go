@@ -35,6 +35,7 @@ func usage() {
 Usage:
   mtkprof <trace...> [report and html flags]   writes <trace>.txt (text report) and <trace>.html next to the trace
   mtkprof report <trace...> [-o out.txt] [-sort elapsed|cpu|execs|disk] [-top N] [-binds N|none] [-execs N] [-sys] [-aggregate]
+  mtkprof brief  <trace...> [-case file] [-notes file] [-binds mask|keep|none] [-from tim -to tim] [-contexts ids] [-max-statements N] [-max-sql N] [-max-plan-lines N] [-ref dir] [-o out.md]   Markdown brief for an LLM agent
   mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
   mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained HTML report
   mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate] [-spill[=DIR]]   browser UI
@@ -131,6 +132,8 @@ func main() {
 		err = cmdReport(args)
 	case "compare":
 		err = cmdCompare(args)
+	case "brief":
+		err = cmdBrief(args)
 	case "pivot":
 		err = cmdPivot(args)
 	case "json":

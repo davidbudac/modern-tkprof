@@ -5,7 +5,7 @@ file when a decision changes), `docs/ARCHITECTURE.md`, `docs/trace-format-19c.md
 
 ## Commands
 
-- Go lives at `~/.local/go/bin` on this machine: `export PATH=$HOME/.local/go/bin:$PATH`.
+- Go is `/usr/local/go/bin/go` on this machine: `export PATH=/usr/local/go/bin:$PATH GOTOOLCHAIN=auto`.
 - `scripts/ci-local.sh` is the CI (vet, tests, web build, embedded-UI check, `make release`; `--strict`, `--no-release`); `scripts/release-local.sh <tag>` publishes. No GitHub Actions.
 - `make build` → `bin/mtkprof`; `make test` runs unit + golden tests (must stay green).
 - `make web` rebuilds the UI (`web/`, pnpm) and copies it into `internal/ui/dist/`; rebuild Go afterwards. The built UI is committed.

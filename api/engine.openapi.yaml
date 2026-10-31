@@ -883,6 +883,62 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/brief:
+    post:
+      operationId: sessionBrief
+      summary: A Markdown brief of the trace for an LLM agent
+      description: |
+        What `mtkprof brief` prints, for the session's trace and a scope: the
+        response time and resource profile, the statements that make up 80% of
+        the response time (at most `options.maxStatements`) with SQL, call
+        table, top waits, slowest executions and plan, the findings with their
+        evidence, the notes next to what they annotate, the case text, and
+        closing instructions for the agent. It is facts only: interpretation is
+        left to the agent the text is handed to.
+
+        The body is optional (an empty body is `{}`: the whole trace, the
+        defaults, binds masked). `scope` is the scope of the slice endpoints:
+        a window (`from`, `to`, tim in µs, 0 = open) and session `contexts`
+        (empty = all). Notes are the desktop's annotations; a note about
+        something outside the scope is left out and counted, a note about a
+        statement that is not listed is printed under "Other notes".
+
+        `options.binds`: `mask` (default) shows each bind value as its type,
+        length and a hash salted per brief (random unless `options.salt` is
+        given), `keep` shows the traced values, `none` leaves binds out. SQL
+        text is never masked. A session opened with `binds` redact or none
+        can show no more than that.
+
+        The answer is `text/markdown`; `X-Mtkprof-Est-Tokens` carries the
+        estimate of its size in LLM tokens (bytes over 4).
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BriefRequest"
+      responses:
+        "200":
+          description: the brief
+          headers:
+            X-Mtkprof-Est-Tokens:
+              description: the estimated number of tokens of the body (bytes over 4)
+              schema:
+                type: integer
+          content:
+            text/markdown:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /s/{id}/api/lines:
     get:
       operationId: sessionLines
@@ -2967,6 +3023,126 @@ components:
           $ref: "#/components/schemas/SessionInfo"
         job:
           $ref: "#/components/schemas/JobInfo"
+    BriefRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        case:
+          type: string
+          maxLength: 200000
+          description: the DBA's description of the problem, printed once, quoted
+        notes:
+          type: array
+          maxItems: 2000
+          items:
+            $ref: "#/components/schemas/Note"
+        options:
+          $ref: "#/components/schemas/BriefOptions"
+        scope:
+          $ref: "#/components/schemas/BriefScope"
+    BriefOptions:
+      type: object
+      additionalProperties: false
+      properties:
+        maxStatements:
+          type: integer
+          minimum: 0
+          maximum: 50
+          default: 10
+          description: statements listed at most (0 = the default)
+        maxSqlChars:
+          type: integer
+          minimum: 0
+          maximum: 20000
+          default: 2000
+          description: characters of one statement's SQL (0 = the default, else at least 100)
+        maxPlanLines:
+          type: integer
+          minimum: -1
+          maximum: 200
+          default: 40
+          description: lines of one plan (0 = the default, -1 = no plans)
+        binds:
+          type: string
+          enum: [mask, keep, none]
+          default: mask
+        salt:
+          type: string
+          description: salt of the masked bind hashes; default random per brief
+    BriefScope:
+      type: object
+      additionalProperties: false
+      properties:
+        from:
+          type: integer
+          minimum: 0
+          description: window start, tim in µs (0 = from the start)
+        to:
+          type: integer
+          minimum: 0
+          description: window end, tim in µs (0 = to the end)
+        contexts:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+          description: session context ids (empty = all)
+    Note:
+      type: object
+      additionalProperties: false
+      description: |
+        A note on a trace, in the shape of the desktop's annotation. `statement`
+        needs `stmt`; `execution` needs `stmt`, `execNo` and `cursorLine`;
+        `window` needs `from` and `to`; `line` is a bookmark (`file`, `line`,
+        `label`). `id`, `created` and `updated` are accepted and not used.
+      required: [kind]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [statement, execution, window, line]
+        note:
+          type: string
+          maxLength: 20000
+        created:
+          type: integer
+          description: ms since the epoch
+        updated:
+          type: integer
+          description: ms since the epoch
+        stmt:
+          $ref: "#/components/schemas/NoteStmt"
+        execNo:
+          type: integer
+          description: execution; the execution number counts per cursor
+        cursorLine:
+          type: integer
+          description: execution; the trace line of its cursor
+        from:
+          type: integer
+          description: window; tim in µs
+        to:
+          type: integer
+          description: window; tim in µs
+        label:
+          type: string
+        file:
+          type: integer
+          description: line; the input file
+        line:
+          type: integer
+          description: line; the line in that file
+    NoteStmt:
+      type: object
+      additionalProperties: false
+      description: a statement by what survives a re-parse
+      properties:
+        sqlId:
+          type: string
+        hash:
+          type: string
+          description: FNV-1a 32 of "<statement kind>\n<text>" over UTF-16 code units, 8 hex digits
     SessionEvent:
       type: object
       required: [id, state, rev]

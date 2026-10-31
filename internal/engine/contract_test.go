@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
+	"github.com/davidbudac/modern-tkprof/internal/report"
 )
 
 // The contract test reads api/engine.openapi.yaml with a line scanner (no
@@ -172,8 +173,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 27 {
-		t.Errorf("%d session routes, want doc, report, the 17 slice endpoints, the 7 line endpoints and ref", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 28 {
+		t.Errorf("%d session routes, want doc, report, the 17 slice endpoints, the 7 line endpoints, ref and brief", n)
 	}
 }
 
@@ -224,6 +225,7 @@ func TestContractSchemas(t *testing.T) {
 		"Health": Health{}, "CacheHealth": CacheHealth{}, "JobInfo": JobInfo{}, "FileInfo": FileInfo{},
 		"SessionInfo": SessionInfo{}, "SessionEvent": SessionEvent{}, "PromptEvent": PromptEvent{}, "LogEvent": LogEvent{},
 		"CacheItem": CacheItem{}, "CacheList": CacheList{}, "CacheWipe": CacheWipe{}, "SessionOptions": SessionOptions{},
+		"BriefRequest": BriefRequest{}, "BriefOptions": BriefOptions{}, "BriefScope": BriefScope{}, "Note": report.Note{}, "NoteStmt": report.NoteStmt{},
 		"StmtStats": analyze.StmtStats{}, "ScopeProfile": analyze.ScopeProfile{}, "CallStats": analyze.CallStats{}, "Link": analyze.Link{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
