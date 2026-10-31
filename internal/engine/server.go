@@ -125,6 +125,7 @@ var routes = []struct {
 	{"GET /engine/compare", (*Server).compareSessions},
 	{"GET /engine/sessions/{id}", (*Server).getSession},
 	{"DELETE /engine/sessions/{id}", (*Server).deleteSession},
+	{"GET /engine/assist/tools", (*Server).assistTools},
 	{"GET /engine/jobs", (*Server).listJobs},
 	{"DELETE /engine/jobs/{id}", (*Server).cancelJob},
 	{"GET /engine/cache", (*Server).listCache},

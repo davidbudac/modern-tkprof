@@ -89,6 +89,7 @@ type Session struct {
 	opened   time.Time
 	bindMode model.BindMode
 	salt     string
+	toolSalt string // assistSalt, under mu
 	th       *analyze.Thresholds
 	job      *Job
 	done     chan struct{} // closed when the open job's goroutine has ended
@@ -362,7 +363,7 @@ func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
 
 // sessionRoutes are the routes of a ready session, relative to /s/{id}.
 func sessionRoutes() []string {
-	out := []string{"GET /api/doc", "GET /api/report", "POST /api/ref", "POST /api/brief"}
+	out := []string{"GET /api/doc", "GET /api/report", "POST /api/ref", "POST /api/brief", "POST /api/assist/tools/{name}"}
 	for _, ep := range append(slice.Endpoints(), slice.LineEndpoints()...) {
 		out = append(out, "GET "+ep)
 	}
@@ -445,6 +446,7 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) http.Handl
 	ssrv := slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
 	ssrv.AllowOrigin = slice.NoCORS                                  // the engine's middleware sets CORS
 	ssrv.Thresholds = ss.th                                          // api/findings: those of the document's findings
+	api := ssrv.Handler()
 	handlers := map[string]http.Handler{
 		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -454,10 +456,10 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) http.Handl
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(ss.document())
 		}),
-		"POST /api/ref":   s.refHandler(ss),
-		"POST /api/brief": briefHandler(ss, co),
+		"POST /api/ref":                 s.refHandler(ss),
+		"POST /api/brief":               briefHandler(ss, co),
+		"POST /api/assist/tools/{name}": toolHandler(ss, co, api),
 	}
-	api := ssrv.Handler()
 	mux := http.NewServeMux()
 	for _, p := range sessionRoutes() {
 		h := handlers[p]
