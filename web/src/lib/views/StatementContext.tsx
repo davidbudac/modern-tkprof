@@ -15,9 +15,8 @@ import { useScopedFindings } from '../data/scopedfindings'
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
 
 /**
- * The context sections of the statement detail: where the statement ran, its waits, its relatives, its findings. `stats` are the
- * numbers of the scope when `narrowed` (first and last call come from them, the cursors are those in scope, the waits are the
- * scope's, and so are the findings).
+ * The context sections of the statement detail: where the statement ran, its waits, its relatives. `stats` are the numbers
+ * of the scope when `narrowed` (first and last call come from them, the cursors are those in scope, the waits are the scope's).
  */
 export function StatementContext({ doc, id, stats: scoped, narrowed = false }: { doc: TraceDoc; id: ID; stats?: StmtStats; narrowed?: boolean }) {
   const actions = useActions()
@@ -25,8 +24,6 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
   const stats = scoped ?? doc.stats.statements[id]
   const source = sourceOf(doc)
   const stateScope = useScope(doc)
-  const sf = useScopedFindings(doc)
-  const scopedFindings = narrowed ? sf.findings : doc.stats.findings
   const scope = narrowed ? stateScope : WHOLE
   const waitsQ = useSourceQuery(source, `waits:${id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([id], 6, scope, signal) : null), 'waits')
   if (!st || !stats) return null
@@ -34,7 +31,6 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
   const ctx = cursorsIn.length ? doc.contexts[doc.cursors[cursorsIn[0]].context] : undefined
   const waits = waitsQ.data?.get(id) ?? []
   const children = stats.children ?? [], parents = stats.parents ?? []
-  const findings = scopedFindings.filter((f) => f.statement === id)
   const assumed = cursorsIn.some((c) => doc.cursors[c].assumed)
   return (
     <>
@@ -74,27 +70,35 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
           </div>
         </div>
       )}
-      {findings.length > 0 && (
-        <div className="ctx-sec">
-          <h3>Findings</h3>
-          {findings.map((f, i) => (
-            <div key={i} className="cfind">
-              <div><span className={`badge ${f.severity}`}>{f.severity}</span> <b>{f.title}</b></div>
-              <p className="small"><LinkText doc={doc} text={findingText(doc, f)} /></p>
-              {f.evidence.length > 0 && (
-                <table className="tbl evidence">
-                  <tbody>{f.evidence.map((r, j) => (
-                    <tr key={j} className={r.statement >= 0 && r.cursor >= 0 && r.execNo ? 'row-click' : undefined}
-                      onClick={r.statement >= 0 && r.cursor >= 0 && r.execNo ? () => { actions.pickStmt(r.statement); actions.selectExec({ cursor: r.cursor, execNo: r.execNo! }) } : undefined}>
-                      <td className="ev-label">{r.label}</td><td className="text"><LinkText doc={doc} text={r.value} /></td>
-                    </tr>))}</tbody>
-                </table>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
     </>
+  )
+}
+
+/** The statement's findings (the scope's when `narrowed`); placed after its plans in the statement detail. */
+export function StatementFindings({ doc, id, narrowed = false }: { doc: TraceDoc; id: ID; narrowed?: boolean }) {
+  const actions = useActions()
+  const sf = useScopedFindings(doc)
+  const findings = (narrowed ? sf.findings : doc.stats.findings).filter((f) => f.statement === id)
+  if (findings.length === 0) return null
+  return (
+    <div className="ctx-sec">
+      <h3>Findings</h3>
+      {findings.map((f, i) => (
+        <div key={i} className="cfind">
+          <div><span className={`badge ${f.severity}`}>{f.severity}</span> <b>{f.title}</b></div>
+          <p className="small"><LinkText doc={doc} text={findingText(doc, f)} /></p>
+          {f.evidence.length > 0 && (
+            <table className="tbl evidence">
+              <tbody>{f.evidence.map((r, j) => (
+                <tr key={j} className={r.statement >= 0 && r.cursor >= 0 && r.execNo ? 'row-click' : undefined}
+                  onClick={r.statement >= 0 && r.cursor >= 0 && r.execNo ? () => { actions.pickStmt(r.statement); actions.selectExec({ cursor: r.cursor, execNo: r.execNo! }) } : undefined}>
+                  <td className="ev-label">{r.label}</td><td className="text"><LinkText doc={doc} text={r.value} /></td>
+                </tr>))}</tbody>
+            </table>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 
