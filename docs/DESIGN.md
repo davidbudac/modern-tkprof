@@ -210,6 +210,28 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
 - Every engine answer equals the CLI's (`serve -spill` parity test); the
   golden test stays the correctness contract.
 
+## Assistant (decided 2026-10-31)
+
+Plan: `docs/PLAN-assistant.md` in the desktop repository. A DBA can hand what
+mtkprof sees, with their notes and a case description, to an LLM agent.
+
+- Views, findings and reports stay facts-only. Interpretation lives in a
+  separate, labelled surface (the assistant), where every claim must cite
+  something the trace shows.
+- `mtkprof brief` and `POST /s/{id}/api/brief` render a scope-aware Markdown
+  brief (`report.Brief`): the numbers mtkprof computes for a window and a set
+  of session contexts, the DBA's notes next to what they annotate, the case
+  text, and closing instructions for the agent. It adds no interpretation.
+- Bind values are masked by default: type, length and a hash salted per brief
+  (random unless given), so equal values match inside one brief and nowhere
+  else. SQL text, which can carry literals, is never masked, and the brief
+  says so.
+- The engine stores no secret for the assistant. The analysis commands still
+  never connect to a database or a model: `mtkprof brief` is offline, and the
+  other parts of the assistant (the desktop engine's conversations, the tool
+  bridge `mtkprof mcp` on loopback) run only on the user's say-so, per trace
+  and provider.
+
 ## Project
 
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each
