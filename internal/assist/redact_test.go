@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -139,35 +140,51 @@ func TestRedact(t *testing.T) {
 		}
 	}
 
-	// searching for each value: the hits on its line are masked
+	// searching for each value: found as traced without masking; with masking
+	// the value's line does not match (its masked text does not hold the
+	// value), and no answer differs by whether the guess was right
+	type hit struct {
+		Line int
+		Text string
+	}
+	search := func(env Env, q string, limit int) (hits []hit, next, scanned int) {
+		res, err := Call(ctx, env, "search_lines", []byte(`{"q":`+strconv.Quote(q)+`,"limit":`+strconv.Itoa(limit)+`}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var v struct {
+			Hits         []hit
+			Next         int
+			LinesScanned int
+		}
+		mustUnmarshal(t, res.JSON, &v)
+		return v.Hits, v.Next, v.LinesScanned
+	}
 	for ln, raw := range values {
 		if len(raw) < 8 || strings.HasPrefix(raw, "Unhandled datatype") {
 			continue
 		}
-		for _, env := range []Env{masked, open} {
-			res, err := Call(ctx, env, "search_lines", []byte(`{"q":`+strconv.Quote(raw)+`,"limit":200}`))
-			if err != nil {
-				t.Fatal(err)
+		oh, _, _ := search(open, raw, 200)
+		if !slices.ContainsFunc(oh, func(h hit) bool { return h.Line == ln && strings.Contains(h.Text, raw) }) {
+			t.Errorf("line %d: no hit for %q without masking", ln, raw)
+		}
+		mh, next, _ := search(masked, raw, 1)
+		for _, h := range mh {
+			if _, isValue := values[h.Line]; h.Line == ln || (isValue && strings.Contains(h.Text, raw)) {
+				t.Errorf("line %d, masked: hit %+v for %q", ln, h, raw)
 			}
-			var v struct {
-				Hits []struct {
-					Line int
-					Text string
-				}
-			}
-			mustUnmarshal(t, res.JSON, &v)
-			found := false
-			for _, h := range v.Hits {
-				if h.Line != ln {
-					continue
-				}
-				found = true
-				if shows := strings.Contains(h.Text, raw); shows == (env.Redact != nil) {
-					t.Errorf("line %d, masking %v: hit %q", ln, env.Redact != nil, h.Text)
-				}
-			}
-			if !found {
-				t.Errorf("line %d: no hit for %q", ln, raw)
+		}
+		if len(mh) == 0 && next != 0 {
+			t.Errorf("line %d, masked: no hit but next %d", ln, next)
+		}
+	}
+	// a masked token is not searchable, the value line keeps its "value="
+	if hits, _, _ := search(masked, "value=", 200); len(hits) < 10 {
+		t.Errorf("masked search for value=: %d hits", len(hits))
+	} else {
+		for _, h := range hits {
+			if v, ok := values[h.Line]; ok && len(v) >= 8 && strings.Contains(h.Text, v) {
+				t.Errorf("line %d: masked hit shows %q", h.Line, h.Text)
 			}
 		}
 	}

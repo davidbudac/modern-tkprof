@@ -32,7 +32,7 @@ func ToolPath(session, name string) string {
 
 // MCP protocol versions the server speaks. The messages it uses (initialize,
 // tools/list, tools/call, ping) are the same in all of them.
-var mcpVersions = []string{"2025-06-18", "2025-03-26", "2024-11-05"}
+var mcpVersions = []string{"2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"}
 
 // JSON-RPC error codes.
 const (
