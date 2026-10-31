@@ -52,7 +52,8 @@ func newOATest(t *testing.T, script fake.Script, auth string) *oaTest {
 	t.Cleanup(srv.Close)
 	p := Provider{ID: "fake", Kind: "openai", BaseURL: srv.URL + "/v1/", Model: "fake-model", Auth: auth, Headers: map[string]string{"X-Title": "mtkprof"}}
 	ct := newConvTest(t, p, nil)
-	o := newOpenAI(p).(*openAI)
+	b, _ := newOpenAI(p)
+	o := b.(*openAI)
 	o.backoff = time.Millisecond
 	ct.c.backend = o
 	lg := &logLines{}
