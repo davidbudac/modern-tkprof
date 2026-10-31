@@ -15,13 +15,16 @@ const (
 	KindOTP        = "otp"
 	KindHostKey    = "hostkey"
 	KindConfirm    = "confirm"
+	// KindAPIKey asks for the API key of an assistant provider; Connection is
+	// the provider id. The answer is held in memory only (assist.Keys).
+	KindAPIKey = "apikey"
 )
 
 // Prompt is one question to the user: a credential, a one-time code, a host
 // key fingerprint to accept, or a yes/no confirmation.
 type Prompt struct {
-	Connection string // id of the connection asking ("" = none)
-	Kind       string // KindPassword, KindPassphrase, KindOTP, KindHostKey or KindConfirm
+	Connection string // id of the connection asking ("" = none); for KindAPIKey the provider id
+	Kind       string // KindPassword, KindPassphrase, KindOTP, KindHostKey, KindConfirm or KindAPIKey
 	Text       string // the question as the asking program put it
 	Echo       bool   // the answer may be shown while typed
 	// Fingerprint is the SHA256 fingerprint of an unknown host key (KindHostKey).
@@ -31,7 +34,7 @@ type Prompt struct {
 // ValidKind reports whether k is one of the prompt kinds.
 func ValidKind(k string) bool {
 	switch k {
-	case KindPassword, KindPassphrase, KindOTP, KindHostKey, KindConfirm:
+	case KindPassword, KindPassphrase, KindOTP, KindHostKey, KindConfirm, KindAPIKey:
 		return true
 	}
 	return false

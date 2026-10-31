@@ -195,7 +195,7 @@ func TestMCPErrors(t *testing.T) {
 	}
 	for i, want := range []string{`unknown tool "nope"`, "not in this trace", "unknown field"} { // the engine's 400s are results the model can read
 		got := toolResult(t, rs[i])
-		if !got.IsError || !strings.Contains(got.Content[0].Text, want) || !strings.HasPrefix(got.Content[0].Text, "bad_request: ") {
+		if !got.IsError || !strings.Contains(got.Content[0].Text, want) || !strings.HasPrefix(got.Content[0].Text, ToolErrorText("")) {
 			t.Errorf("call %d: %+v, want an error with %q", i+1, got, want)
 		}
 	}

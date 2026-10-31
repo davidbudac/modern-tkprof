@@ -275,6 +275,14 @@ func (s *MCP) callTool(ctx context.Context, name string, args json.RawMessage) m
 	if err != nil {
 		return toolErr("engine: %v", err)
 	}
+	if status == http.StatusBadRequest { // the call's own fault: the text the engine's tool_result shows
+		var env struct {
+			Error struct{ Code, Message string } `json:"error"`
+		}
+		if json.Unmarshal(body, &env) == nil && env.Error.Code == "bad_request" {
+			return toolErr("%s", ToolErrorText(env.Error.Message))
+		}
+	}
 	if status != http.StatusOK {
 		return toolErr("%s", engineError(status, body))
 	}
