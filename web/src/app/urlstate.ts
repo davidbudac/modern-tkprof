@@ -1,16 +1,20 @@
 import { contextsWithin, formatFilesParam, normalizeFiles, parseFilesParam } from '@lib/data/fileset'
+import { execKey } from '@lib/data/annotations'
 import type { Store, TraceDoc, Side, State, View } from '@lib'
 
 /**
  * View, selected statement / wait event and time window live in the URL hash:
  *   #view=statements&sql=abc123def4567&ev=db+file+sequential+read&win=1200000-3400000
  * `sql` is the sql_id (`@N` = statement index for statements without one), `ev` the
- * event name, `win` the window as microseconds from the start of the trace, `files` the shown input files (indexes, `0,2`; absent = all); the Lines view adds `file` (input file index) and `line`.
+ * event name, `win` the window as microseconds from the start of the trace, `exec` one execution of the statement
+ * (`<cursorLine>:<execNo>`, `execKey`), `contexts` the selected session contexts (`0,2`; absent = all), `files` the
+ * shown input files (indexes, `0,2`; absent = all); the Lines view adds `file` (input file index) and `line`.
+ * The assistant's `mtkprof:` links are the same hash (engine/internal/assist/system_prompt.md).
  * The `?doc=` query string is left alone.
  */
 const views: View[] = ['overview', 'statements', 'waits', 'timeline', 'sessions', 'pivot', 'lines', 'compare']
 
-type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null; files: string; file: number; line: number }
+type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null; exec: string; contexts: string; files: string; file: number; line: number }
 
 function sqlKey(doc: TraceDoc, id: number | null): string {
   if (id === null) return ''
@@ -18,6 +22,13 @@ function sqlKey(doc: TraceDoc, id: number | null): string {
   if (!st) return ''
   if (st.sqlId && doc.statements.findIndex((x) => x.sqlId === st.sqlId) === id) return st.sqlId
   return `@${id}`
+}
+
+/** The selected execution when it is one of the selected statement's. */
+function execOf(doc: TraceDoc, s: State): string {
+  const x = s.selection.exec
+  const c = x ? doc.cursors[x.cursor] : undefined
+  return x && c && c.statement === s.selection.stmt ? execKey(c.line, x.execNo) : ''
 }
 
 function wanted(doc: TraceDoc, s: State): Wanted {
@@ -28,6 +39,8 @@ function wanted(doc: TraceDoc, s: State): Wanted {
     sql: sqlKey(doc, s.selection.stmt),
     ev: s.selection.event === null ? '' : doc.events[s.selection.event]?.name ?? '',
     win: w ? [Math.round(w.startTim - doc.span.firstTim), Math.round(w.endTim - doc.span.firstTim)] : null,
+    exec: execOf(doc, s),
+    contexts: formatFilesParam(s.contexts),
     files: formatFilesParam(s.files),
     file: s.view === 'lines' ? s.linesView.file : 0,
     line: s.view === 'lines' ? s.linesView.line : 0,
@@ -41,6 +54,8 @@ function format(w: Wanted): string {
   if (w.sql) p.set('sql', w.sql)
   if (w.ev) p.set('ev', w.ev)
   if (w.win) p.set('win', `${w.win[0]}-${w.win[1]}`)
+  if (w.exec) p.set('exec', w.exec)
+  if (w.contexts) p.set('contexts', w.contexts)
   if (w.files) p.set('files', w.files)
   if (w.view === 'lines') {
     if (w.file) p.set('file', String(w.file))
@@ -50,8 +65,8 @@ function format(w: Wanted): string {
   return t ? '#' + t : ''
 }
 
-/** What parse() found, with `files` as a set. */
-type Parsed = Omit<Partial<Wanted>, 'files'> & { files?: Set<number> | null }
+/** What parse() found, with `files` and `contexts` as sets and `exec` as its two numbers. */
+type Parsed = Omit<Partial<Wanted>, 'files' | 'contexts' | 'exec'> & { files?: Set<number> | null; contexts?: Set<number> | null; exec?: { cursorLine: number; execNo: number } }
 
 function parse(hash: string): Parsed {
   const p = new URLSearchParams(hash.replace(/^#/, ''))
@@ -63,6 +78,9 @@ function parse(hash: string): Parsed {
   if (p.has('ev')) out.ev = p.get('ev')!
   const m = /^(-?\d+)-(\d+)$/.exec(p.get('win') ?? '')
   if (m) out.win = [Number(m[1]), Number(m[2])]
+  const x = /^(\d+):(\d+)$/.exec(p.get('exec') ?? '')
+  if (x) out.exec = { cursorLine: Number(x[1]), execNo: Number(x[2]) }
+  if (p.has('contexts')) out.contexts = parseFilesParam(p.get('contexts'))
   if (p.has('files')) out.files = parseFilesParam(p.get('files'))
   if (/^\d+$/.test(p.get('file') ?? '')) out.file = Number(p.get('file'))
   if (/^\d+$/.test(p.get('line') ?? '')) out.line = Number(p.get('line'))
@@ -72,17 +90,52 @@ function parse(hash: string): Parsed {
 /** The hash that stands for the store's state. */
 export function hashOf(doc: TraceDoc, s: State): string { return format(wanted(doc, s)) }
 
-/** Applies a hash to the store (unknown sql_ids / events are ignored). */
+function stmtIn(doc: TraceDoc, sql: string | undefined): number | null {
+  if (!sql) return null
+  const stmt = sql.startsWith('@') ? (/^@\d+$/.test(sql) ? Number(sql.slice(1)) : -1) : doc.statements.findIndex((x) => x.sqlId === sql)
+  return stmt >= 0 && stmt < doc.statements.length ? stmt : null
+}
+
+/** The cursor of statement `stmt` opened at `cursorLine`, with execution `execNo` of it; else null. */
+function execIn(doc: TraceDoc, stmt: number | null, x: Parsed['exec']): State['selection']['exec'] {
+  if (stmt === null || !x || x.execNo < 1) return null
+  const cursor = doc.statements[stmt].cursors.find((c) => doc.cursors[c]?.line === x.cursorLine)
+  return cursor !== undefined && x.execNo <= doc.cursors[cursor].execs ? { cursor, execNo: x.execNo } : null
+}
+
+const within = (set: Set<number> | null | undefined, n: number) => !!set && set.size > 0 && [...set].every((i) => i < n)
+
+/**
+ * The keys of `hash` that name something `doc` does not have (an unknown view, sql_id, event, execution, window,
+ * context or file): `apply` would drop them. [] when everything resolves.
+ */
+export function unresolved(doc: TraceDoc, hash: string): string[] {
+  const p = new URLSearchParams(hash.replace(/^#/, ''))
+  const w = parse(hash)
+  const stmt = stmtIn(doc, w.sql)
+  const nFiles = doc.file.files?.length ?? 1
+  const fileLines = doc.file.files?.[w.file ?? 0]?.lines ?? 0
+  const bad: Record<string, boolean> = {
+    view: !w.view || w.view === 'compare',
+    sql: stmt === null,
+    ev: !w.ev || !doc.events.some((e) => e.name === w.ev),
+    win: !w.win || w.win[0] < 0 || w.win[1] <= w.win[0],
+    exec: execIn(doc, stmt, w.exec) === null,
+    contexts: !within(w.contexts, doc.contexts.length),
+    files: !within(w.files, nFiles),
+    file: w.file === undefined || w.file >= nFiles,
+    line: !w.line || (fileLines > 0 && w.line > fileLines),
+  }
+  return Object.keys(bad).filter((k) => p.has(k) && bad[k])
+}
+
+/** Applies a hash to the store (unknown sql_ids / events / executions / contexts are ignored). */
 export function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   const w = parse(hash)
   const cmp = store.getState().compare
   const side: Side = cmp && w.side === 'b' ? 'b' : 'a'
   if (cmp) doc = cmp[side]
-  let stmt: number | null = null
-  if (w.sql) {
-    stmt = w.sql.startsWith('@') ? Number(w.sql.slice(1)) : doc.statements.findIndex((x) => x.sqlId === w.sql)
-    if (!(stmt >= 0 && stmt < doc.statements.length)) stmt = null
-  }
+  const stmt = stmtIn(doc, w.sql)
   const ev = w.ev ? doc.events.findIndex((e) => e.name === w.ev) : -1
   const base = doc.span.firstTim
   const st = store.getState()
@@ -91,11 +144,12 @@ export function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   const known = w.files ? new Set([...w.files].filter((f) => f < files)) : null // indexes this trace does not have are ignored; none left = all files
   const shown = normalizeFiles(doc, known && known.size > 0 ? known : null)
   const file = w.file !== undefined && w.file < files ? w.file : shown ? Math.min(...shown) : 0 // the Lines view starts on the first shown file
+  const ctxs = w.contexts ? new Set([...w.contexts].filter((c) => c < doc.contexts.length)) : null // unknown contexts are ignored; none left = all
   store.setState({
     doc, side: cmp ? side : 'a',
     view: view ?? (stmt !== null ? 'statements' : 'overview'),
-    selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: null },
-    files: shown, contexts: contextsWithin(doc, st.contexts, shown),
+    selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: execIn(doc, stmt, w.exec) },
+    files: shown, contexts: contextsWithin(doc, ctxs && ctxs.size > 0 ? ctxs : null, shown),
     window: w.win && w.win[1] > w.win[0] ? { startTim: base + w.win[0], endTim: base + w.win[1] } : null,
     ...(view === 'lines' ? { linesView: { file, line: Math.max(1, w.line ?? 1), seq: st.linesView.seq + 1 } } : {}),
   })
