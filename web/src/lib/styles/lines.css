@@ -268,9 +268,11 @@
 .lines-threshold input { inline-size: 5rem; }
 
 /* the side panel: tabs (Line, Outline, Hits, Bookmarks) over a body; the lists scroll inside their tab, the Line tab scrolls as a whole */
-.lines-side { inline-size: min(var(--w, 25rem), 50vw); min-inline-size: 16rem; box-sizing: border-box; min-block-size: 0; display: flex; flex-direction: column; padding: var(--sp-2) var(--sp-3); border-inline-start: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); }
+.lines-side { container: lines-side / inline-size; inline-size: min(var(--w, 25rem), 50vw); min-inline-size: 16rem; box-sizing: border-box; min-block-size: 0; display: flex; flex-direction: column; padding: var(--sp-2) var(--sp-3); border-inline-start: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); }
 .lines-side-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
-.lines-side-head .seg button { font-size: var(--text-sm); padding-inline: var(--sp-3); }
+.lines-side-head .seg { flex: 0 1 auto; min-inline-size: 0; }
+.lines-side-head .seg button { font-size: var(--text-sm); padding-inline: var(--sp-3); white-space: nowrap; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; }
+.lines-side-head > button { flex: none; }
 .lines-side-head .seg small { opacity: .7; font-variant-numeric: tabular-nums; }
 .lines-side-body { flex: 1; min-block-size: 0; display: flex; flex-direction: column; }
 .lines-side-line, .lines-side-bookmarks { overflow: auto; }
@@ -279,33 +281,72 @@
 .lines-side .lines-bms { padding-inline: 0; }
 .lines-side .lines-hits { margin-inline: calc(-1 * var(--sp-3)); }
 
-/* the inspector (the Line tab): the selected line translated, a field per line */
-.lines-inspect { padding-block-start: var(--sp-2); }
-.lines-inspect-head { display: flex; align-items: center; gap: var(--sp-2); }
-.lines-inspect-head .mono { font-variant-numeric: tabular-nums; font-weight: 600; }
-.insp-follow { display: inline-flex; align-items: center; gap: 0.35rem; margin-inline-start: auto; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
-.lines-inspect h3 { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); margin: var(--sp-3) 0 var(--sp-1); font-weight: 600; }
-.lines-inspect p { margin: var(--sp-2) 0; }
-.lines-inspect-fields { border-collapse: collapse; inline-size: 100%; }
-.lines-inspect-fields th { color: var(--ink-2); font-weight: 400; text-align: start; white-space: nowrap; padding-block: 1px; padding-inline-end: var(--sp-3); vertical-align: baseline; }
-.lines-inspect-fields td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; padding-block: 1px; vertical-align: baseline; overflow-wrap: anywhere; }
-.lines-inspect-fields tr[title] th { cursor: help; }
-/* the value, then its raw token in the same line (it wraps under the value only when there is no room) */
-.lines-inspect-fields .v { margin-inline-end: var(--sp-2); }
-.lines-inspect-fields .raw { display: inline-block; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
-.lines-inspect-sub { font-size: var(--text-xs); color: var(--ink-3); }
-/* the execution's numbers: two columns of label and value */
-.insp-exec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px var(--sp-4); margin: var(--sp-1) 0; }
-.insp-exec-grid > div { display: flex; justify-content: space-between; gap: var(--sp-2); min-inline-size: 0; }
-.insp-exec-grid dt { color: var(--ink-2); white-space: nowrap; }
-.insp-exec-grid dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: end; white-space: nowrap; }
-.insp-exec-waits { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: grid; gap: 1px; }
-.lines-inspect-binds { border-collapse: collapse; inline-size: 100%; table-layout: fixed; }
-.lines-inspect-binds th { inline-size: 3.5rem; text-align: start; font-weight: 400; color: var(--ink-2); font-family: var(--font-mono); padding-block: 1px; }
-.lines-inspect-binds .ty { inline-size: 8rem; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lines-inspect-binds .val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lines-inspect-binds tr.on { background: color-mix(in srgb, var(--focus) 16%, transparent); }
-.lines-inspect-binds tr.on th { color: var(--ink); font-weight: 600; }
+/* the inspector (the Line tab): a head (line number and kind, Follow and Copy), then sections split by hairlines, each on one grammar:
+   an ink-2 label, an ink value in the UI face with tabular figures */
+.lines-inspect { padding-block: var(--sp-3) var(--sp-4); font-variant-numeric: tabular-nums; line-height: 1.5; }
+.insp-head { display: flex; align-items: center; gap: var(--sp-2); }
+/* the kind gives way (an ellipsis) before the buttons do */
+.insp-title { flex: 1 1 auto; min-inline-size: 0; display: flex; align-items: baseline; gap: var(--sp-2); font-size: var(--text-md); font-weight: 600; white-space: nowrap; }
+.insp-title > span { flex: none; }
+.insp-title > .insp-kind { flex: 0 1 auto; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; font-size: var(--text-sm); font-weight: 400; color: var(--ink-2); }
+.insp-acts { flex: none; display: flex; gap: var(--sp-1); }
+.insp-acts button { font-size: var(--text-xs); padding-block: 0.125rem; padding-inline: var(--sp-2); }
+.insp-sec { margin-block-start: var(--sp-3); padding-block-start: var(--sp-3); border-block-start: 1px solid var(--hairline); }
+.insp-sec h3 { font-size: var(--text-sm); font-weight: 600; color: var(--ink); margin-block-end: var(--sp-2); }
+.insp-empty { margin: var(--sp-3) 0 0; color: var(--ink-2); }
+.insp-sec .insp-empty { margin-block-start: 0; }
+.insp-note { margin: var(--sp-2) 0 0; color: var(--ink-2); }
+.insp-sub { margin: 0 0 var(--sp-2); font-size: var(--text-xs); color: var(--ink-2); }
+.insp-sub button.link { font-size: inherit; }
+/* the fields: label, value, the key of the token as written; the label column takes what it needs up to 40%, the value the rest, and a
+   value without a key spans both. Rows align at their first line (a wrapped link's baseline is its last line), so every cell has one line height. */
+.insp-fields { display: grid; grid-template-columns: fit-content(40%) minmax(0, 1fr) auto; align-items: start; gap: var(--sp-1) var(--sp-3); margin: 0; }
+.insp-fields > div { display: contents; }
+.insp-fields dt { color: var(--ink-2); overflow-wrap: break-word; }
+.insp-fields > div[title] > dt { cursor: help; }
+.insp-fields dd { margin: 0; }
+.insp-fields .v { overflow-wrap: break-word; }
+.insp-fields .v:last-child { grid-column: 2 / -1; }
+.insp-fields .v button.link { text-align: start; }
+.insp-fields .k { font-family: var(--font-mono); font-size: var(--text-xs); line-height: calc(var(--text-sm) * 1.5); color: var(--ink-3); text-align: end; cursor: help; }
+.insp-fields .sub { display: block; font-size: var(--text-xs); color: var(--ink-2); }
+.insp-fields .v button.link { line-height: inherit; }
+/* the execution's numbers: two columns of label and value (Elapsed and CPU, Rows and Fetches, reads and gets side by side), one when the
+   panel is narrow */
+.insp-exec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1) var(--sp-5); margin: 0; }
+.insp-exec > div { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-2); min-inline-size: 0; }
+.insp-exec dt { color: var(--ink-2); white-space: nowrap; }
+.insp-exec dd { margin: 0; white-space: nowrap; }
+/* its waits: the total, then the events (a name that does not fit ends in an ellipsis), count and time in end-aligned columns */
+.insp-waits { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--sp-1) var(--sp-3); margin-block: var(--sp-3) 0; }
+.insp-waits > div { display: contents; }
+.insp-waits dt { min-inline-size: 0; color: var(--ink-2); overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.insp-waits dt:last-child { grid-column: 1 / -1; }
+.insp-waits .ev > dt { padding-inline-start: var(--sp-3); color: var(--ink); }
+.insp-waits .ev > dt.faint { color: var(--ink-3); }
+.insp-waits dd { margin: 0; text-align: end; white-space: nowrap; }
+.insp-waits .ev > dd { color: var(--ink-2); }
+.insp-waits .none { grid-column: 2 / -1; color: var(--ink-3); }
+.insp-waits button.link { max-inline-size: 100%; overflow: clip; text-overflow: ellipsis; white-space: nowrap; vertical-align: baseline; }
+/* a narrow panel: tighter tabs, the fields without the key column (the raw token stays a tooltip), the numbers in one column */
+@container lines-side (inline-size < 17rem) {
+  .lines-side-head .seg button { font-size: var(--text-xs); padding-inline: 0.375rem; }
+  .lines-side-head > button { padding-inline: var(--sp-1); }
+  .insp-fields { grid-template-columns: fit-content(40%) minmax(0, 1fr); }
+  .insp-fields .v { grid-column: 2; }
+  .insp-fields .k { display: none; }
+  .insp-exec { grid-template-columns: minmax(0, 1fr); }
+}
+/* the bind set: position, datatype, value; the bind of the line is a tinted row */
+.insp-binds { table-layout: fixed; inline-size: calc(100% + 2 * var(--sp-1)); margin-inline: calc(-1 * var(--sp-1)); }
+.insp-binds th, .insp-binds td { padding-block: 2px; padding-inline: var(--sp-1); vertical-align: baseline; font-size: inherit; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.insp-binds th { inline-size: 2.5rem; font-family: var(--font-mono); font-weight: 400; color: var(--ink-2); }
+.insp-binds .ty { inline-size: 32%; color: var(--ink-2); }
+.insp-binds .val { font-family: var(--font-mono); }
+.insp-binds .val.none { color: var(--ink-3); }
+.insp-binds tr.on > * { background: var(--wash-strong); color: var(--ink); }
+.insp-binds tr.on > :first-child { border-start-start-radius: var(--radius); border-end-start-radius: var(--radius); }
+.insp-binds tr.on > :last-child { border-start-end-radius: var(--radius); border-end-end-radius: var(--radius); }
 
 /* viewer: inlays, range, gaps */
 /* hints inside the row text: never copied or selected, they do not take part in the gutter's columns */

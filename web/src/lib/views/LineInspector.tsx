@@ -1,8 +1,8 @@
-import { useEffect, useState, type MouseEvent } from 'react'
+import { Fragment, useEffect, useState, type MouseEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, type PageCache } from '../data/linecache'
 import type { AtObjects } from '../data/lines'
-import { decodeLine, type DecodeContext } from '../data/linefields'
+import { decodeLine, type DecodeContext, type LineField } from '../data/linefields'
 import { bindCell, cursorOfText, decodeAsText, refOfField } from '../data/inspecttext'
 import { loadExecSummary, topWaits, type ExecSummary } from '../data/execsummary'
 import { copyText } from '../data/clipboard'
@@ -30,9 +30,10 @@ interface Props {
 type Summary = { key: string; state: 'loading' | 'none' | 'ok'; s?: ExecSummary }
 
 /**
- * The Line tab of the Lines view's side panel: the selected line translated (every field named, in a meaningful unit, beside its raw
- * token; the meaning is the row's tooltip), the numbers of its execution and the bind set of a bind line. What the line belongs to and
- * the ways to its neighbours are in the breadcrumb above the viewer. It reads the cache while rendering: the view re-renders when a page arrives.
+ * The Line tab of the Lines view's side panel: a head (the line number and kind, Follow and Copy), then sections on one grammar of a
+ * label and its value: the line's fields (every field named, in a meaningful unit, beside the key of its token as written; the meaning
+ * and the raw token are tooltips), the numbers of its execution and the bind set of a bind line. What the line belongs to and the ways
+ * to its neighbours are in the breadcrumb above the viewer. It reads the cache while rendering: the view re-renders when a page arrives.
  */
 export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, follow, onFollow }: Props) {
   const cached = cache.line(line)
@@ -74,85 +75,99 @@ export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, fo
 
   return (
     <div className="lines-inspect" aria-label="Line inspector" role="region">
-      <div className="lines-inspect-head">
-        <span className="mono">Line {fmtInt(line)}</span>
-        {d?.kindLabel && <span className="lines-kind">{d.kindLabel}</span>}
-        {onFollow && (
-          <label className="insp-follow" title="show the line under the pointer instead of the selected line">
-            <input type="checkbox" checked={!!follow} onChange={(e) => onFollow(e.target.checked)} /> Follow the pointer
-          </label>
-        )}
-        <button type="button" className="quiet" onClick={() => void copy()} disabled={!d} title="copy the translated line as label: value (raw) lines">Copy</button>
+      <div className="insp-head">
+        <h2 className="insp-title"><span>Line {fmtInt(line)}</span>{d?.kindLabel && <span className="insp-kind">{d.kindLabel}</span>}</h2>
+        <div className="insp-acts">
+          {onFollow && (
+            <button type="button" className="quiet" aria-pressed={!!follow} onClick={() => onFollow(!follow)} aria-label="Follow the pointer"
+              title="follow the pointer: show the line under the pointer instead of the selected line">Follow</button>
+          )}
+          <button type="button" className="quiet" onClick={() => void copy()} disabled={!d} title="copy the translated line as label: value (raw) lines">Copy</button>
+        </div>
       </div>
-      {text === undefined && !at && <p className="muted">Click a line to inspect it.</p>}
-      {text === undefined && at && <p className="muted">loading…</p>}
+      {text === undefined && !at && <p className="insp-empty">Click a line to inspect it.</p>}
+      {text === undefined && at && <p className="insp-empty">loading…</p>}
 
       {d && (
-        <>
-          <h3>Translated</h3>
+        <section className="insp-sec">
+          <h3>Fields</h3>
           {(d.fields.length > 0 || cursorText) && (
-            <table className="lines-inspect-fields">
-              <tbody>
-                {cursorText && (
-                  <tr title="the cursor (its address in the server process) the line belongs to">
-                    <th scope="row">Cursor</th>
-                    <td>
-                      <span className="v">{onRef ? refButton('cursor', cursorText, `#${cursorText}`) : `#${cursorText}`}</span>
-                      {cursorStmt && <span className="raw">{doc.label(cursorStmt)}</span>}
-                    </td>
-                  </tr>
-                )}
-                {d.fields.map((f, i) => {
-                  // value and raw token on one line; the meaning (and the decoder's hint) is the row's tooltip
-                  const ref = onRef ? refOfField(f) : null
-                  const tip = [f.desc, f.hint].filter(Boolean).join('\n')
-                  return (
-                    <tr key={i} title={tip || undefined}>
-                      <th scope="row">{f.label}</th>
-                      <td>
-                        <span className="v">{ref ? refButton(ref.kind, ref.value, f.value) : f.value}</span>
-                        {f.raw && f.raw !== f.value && <span className="raw">{f.raw}</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <dl className="insp-fields">
+              {cursorText && (
+                <div title="the cursor (its address in the server process) the line belongs to">
+                  <dt>Cursor</dt>
+                  <dd className="v">
+                    {onRef ? refButton('cursor', cursorText, `#${cursorText}`) : `#${cursorText}`}
+                    {cursorStmt && <span className="sub">{doc.label(cursorStmt)}</span>}
+                  </dd>
+                </div>
+              )}
+              {d.fields.map((f, i) => {
+                // the meaning (and the decoder's hint) is the row's tooltip; the key of the token as written is the last column
+                const ref = onRef ? refOfField(f) : null
+                const tip = [f.desc, f.hint].filter(Boolean).join('\n')
+                const key = keyOf(f)
+                return (
+                  <div key={i} title={tip || undefined}>
+                    <dt>{breakable(f.label)}</dt>
+                    <dd className="v">{ref ? refButton(ref.kind, ref.value, f.value) : keepDots(f.value)}</dd>
+                    {key && <dd className="k" title={`as written in the trace: ${f.raw}`}>{key}</dd>}
+                  </div>
+                )
+              })}
+            </dl>
           )}
-          {d.note && <p className="muted lines-inspect-note">{d.note}</p>}
-          {d.fields.length === 0 && !cursorText && !d.note && <p className="muted">Nothing to translate on this line.</p>}
-        </>
+          {d.note && <p className="insp-note">{d.note}</p>}
+          {d.fields.length === 0 && !cursorText && !d.note && <p className="insp-empty">Nothing to translate on this line.</p>}
+        </section>
       )}
 
       {summary && o && summary.state !== 'none' && (
-        <>
+        <section className="insp-sec">
           <h3>Execution</h3>
-          {summary.state === 'loading' || !summary.s ? <p className="muted">loading…</p> : <ExecBlock s={summary.s} eventName={eventName} refButton={refButton} hasRef={!!onRef} />}
-        </>
+          {summary.state === 'loading' || !summary.s ? <p className="insp-empty">loading…</p> : <ExecBlock s={summary.s} eventName={eventName} refButton={refButton} hasRef={!!onRef} />}
+        </section>
       )}
 
       {ba && ba.binds.length > 0 && (
-        <>
+        <section className="insp-sec">
           <h3>Binds</h3>
-          <p className="lines-inspect-sub">Bind set #{ba.set} · {ba.binds.length} {ba.binds.length === 1 ? 'bind' : 'binds'}</p>
-          <table className="lines-inspect-binds">
+          <p className="insp-sub">Bind set #{ba.set} · {ba.binds.length} {ba.binds.length === 1 ? 'bind' : 'binds'}</p>
+          <table className="insp-binds">
             <tbody>
               {ba.binds.map((b) => {
                 const v = bindCell(b)
                 return (
                   <tr key={b.pos} className={b.pos === ba.pos ? 'on' : undefined}>
                     <th scope="row">:{b.pos}</th>
-                    <td className="ty">{b.type}</td>
-                    <td className={'val' + (b.isNull || b.noDef ? ' muted' : '')} title={b.typed ? `${v}\n${b.typed}` : v}>{v}</td>
+                    <td className="ty" title={b.type}>{b.type}</td>
+                    <td className={'val' + (b.isNull || b.noDef ? ' none' : '')} title={b.typed ? `${v}\n${b.typed}` : v}>{v}</td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
-        </>
+        </section>
       )}
     </div>
   )
+}
+
+/** A label with a break opportunity after each slash (`sleeptime/senderid` wraps there, not inside a word). */
+function breakable(label: string): React.ReactNode {
+  if (!label.includes('/')) return label
+  return label.split('/').map((part, i) => <Fragment key={i}>{i > 0 && <>/<wbr /></>}{part}</Fragment>)
+}
+
+/** A value whose ` · ` separators stay with the part before them: a wrapped value never starts a line with the dot or leaves it alone. */
+function keepDots(value: string): string {
+  return value.replaceAll(' · ', '\u00a0· ')
+}
+
+/** The trace key of a field's token as written (`ela` of `ela= 218`), or null: no `key=` token, or a key the label already reads as (`passes`). */
+function keyOf(f: LineField): string | null {
+  const m = f.raw ? /^([\w#/]+)=/.exec(f.raw) : null
+  return m && m[1].toLowerCase() !== f.label.toLowerCase() ? m[1] : null
 }
 
 const refTitle: Record<InspectRefKind, string> = {
@@ -167,33 +182,42 @@ interface ExecBlockProps {
   hasRef: boolean
 }
 
-/** The EXECUTION section: the numbers of the line's execution and its top waits (its start, end, binds and neighbours are in the breadcrumb and its Actions). */
+/**
+ * The Execution section: the numbers of the line's execution, then its waits (the total, then the events by time; an event's numbers
+ * only when there are several). Its start, end, binds and neighbours are in the breadcrumb and its Actions.
+ */
 function ExecBlock({ s, eventName, refButton, hasRef }: ExecBlockProps) {
   const nWaits = s.waits.reduce((a, w) => a + w.count, 0)
   const cells: [string, string][] = [
     ['Elapsed', fmtDur(s.elapsedUs)], ['CPU', fmtDur(s.cpuUs)], ['Rows', fmtInt(s.rows)], ['Fetches', fmtInt(s.fetches)],
-    ['Disk reads', fmtInt(s.disk)], ['Buffer gets', fmtInt(s.gets)], ['Waits', `${fmtInt(nWaits)} · ${fmtDur(s.waitUs)}`],
+    ['Disk reads', fmtInt(s.disk)], ['Buffer gets', fmtInt(s.gets)],
   ]
+  const top = topWaits(s)
+  const more = s.waits.length - top.length
+  const several = s.waits.length > 1
   return (
-    <div className="insp-exec">
-      <p className="lines-inspect-sub">
-        exec {fmtInt(s.execNo)} of its cursor · {fmtInt(s.total)} {s.total === 1 ? 'execution' : 'executions'} of the statement
+    <>
+      <p className="insp-sub">
+        Exec {fmtInt(s.execNo)} of its cursor · {fmtInt(s.total)} {s.total === 1 ? 'execution' : 'executions'} of the statement
         {s.plh > 0 && <> · plan hash {hasRef ? refButton('plh', String(s.plh), String(s.plh)) : s.plh}</>}
         {s.hardParse && <> · hard parse</>}
       </p>
-      <dl className="insp-exec-grid">
+      <dl className="insp-exec">
         {cells.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
       </dl>
-      {s.waits.length > 0 && (
-        <ul className="insp-exec-waits" aria-label="Top waits of this execution">
-          {topWaits(s).map((w) => (
-            <li key={w.event}>
-              {hasRef ? refButton('event', eventName(w.event), eventName(w.event)) : <span>{eventName(w.event)}</span>}
-              <span className="muted"> · {fmtInt(w.count)} · {fmtDur(w.us)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <dl className="insp-waits" aria-label="Waits of this execution">
+        <div>
+          <dt>Waits</dt>
+          {nWaits > 0 ? <><dd title="waits">{fmtInt(nWaits)}×</dd><dd title="time waited">{fmtDur(s.waitUs)}</dd></> : <dd className="none">none</dd>}
+        </div>
+        {top.map((w) => (
+          <div key={w.event} className="ev">
+            <dt>{hasRef ? refButton('event', eventName(w.event), eventName(w.event)) : eventName(w.event)}</dt>
+            {several && <><dd>{fmtInt(w.count)}×</dd><dd>{fmtDur(w.us)}</dd></>}
+          </div>
+        ))}
+        {more > 0 && <div className="ev"><dt className="faint">{fmtInt(more)} more {more === 1 ? 'event' : 'events'}</dt></div>}
+      </dl>
+    </>
   )
 }
