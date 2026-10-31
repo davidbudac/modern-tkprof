@@ -362,7 +362,7 @@ func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
 
 // sessionRoutes are the routes of a ready session, relative to /s/{id}.
 func sessionRoutes() []string {
-	out := []string{"GET /api/doc", "GET /api/report", "POST /api/ref"}
+	out := []string{"GET /api/doc", "GET /api/report", "POST /api/ref", "POST /api/brief"}
 	for _, ep := range append(slice.Endpoints(), slice.LineEndpoints()...) {
 		out = append(out, "GET "+ep)
 	}
@@ -454,7 +454,8 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) http.Handl
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(ss.document())
 		}),
-		"POST /api/ref": s.refHandler(ss),
+		"POST /api/ref":   s.refHandler(ss),
+		"POST /api/brief": briefHandler(ss, co),
 	}
 	api := ssrv.Handler()
 	mux := http.NewServeMux()
