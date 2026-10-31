@@ -692,6 +692,21 @@ func TestPromptRoundTrip(t *testing.T) {
 	if r := e.req("POST", "/engine/prompts/"+pe.ID, map[string]any{"answer": "again"}); r.code != 404 {
 		t.Errorf("second answer: %d", r.code)
 	}
+	if r := e.req("GET", "/engine/prompts/"+pe.ID, nil); r.code != 404 {
+		t.Errorf("GET an answered prompt: %d", r.code)
+	}
+
+	// an apikey prompt names the endpoint the key goes to, in the event and on GET
+	res = ask(context.Background(), remote.Prompt{Connection: "p1", Kind: remote.KindAPIKey, Text: "API key", Endpoint: "openai https://api.example.com/v1"})
+	pe = decode[PromptEvent](t, []byte(ev.until("prompt", open)))
+	if pe.Endpoint != "openai https://api.example.com/v1" {
+		t.Errorf("apikey prompt event: %+v", pe)
+	}
+	if r := e.req("GET", "/engine/prompts/"+pe.ID, nil); r.code != 200 || decode[PromptEvent](t, r.body) != pe {
+		t.Errorf("GET the open prompt: %d %s", r.code, r.body)
+	}
+	e.req("POST", "/engine/prompts/"+pe.ID, map[string]any{"answer": "sk"})
+	<-res
 
 	// cancel by the user
 	res = ask(context.Background(), remote.Prompt{Kind: remote.KindHostKey, Text: "fingerprint SHA256:x", Echo: true})

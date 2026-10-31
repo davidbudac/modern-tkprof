@@ -212,7 +212,7 @@ func TestConversation(t *testing.T) {
 			tn.Add(Message{Role: RoleAssistant, Text: "hello"})
 			return nil
 		}))
-		ct.keys.held = map[string]string{"p1": "k"}
+		ct.keys.held = map[string]heldKey{"p1": {testProvider.endpoint(), "k"}}
 		es := ct.run("hi")
 		if got := types(es); !slices.Equal(got, []string{"text", "usage", "done"}) || text(es) != "hello" {
 			t.Errorf("events %v %q", got, text(es))
@@ -550,5 +550,44 @@ func TestKeysOnePrompt(t *testing.T) {
 	}
 	if key, err := k.Get(context.Background(), testProvider, func() { t.Error("waits for a held key") }); key != "sk" || err != nil {
 		t.Errorf("held: %q %v", key, err)
+	}
+}
+
+// TestKeysBoundToEndpoint: a held key answers only for the endpoint it was
+// typed for; the same provider id with another base URL or kind asks again.
+func TestKeysBoundToEndpoint(t *testing.T) {
+	p := newPrompter()
+	k := &Keys{Prompter: p}
+	get := func(pv Provider) (string, error) {
+		ch := make(chan string, 1)
+		go func() {
+			q := <-p.asked
+			if q.Kind != remote.KindAPIKey || q.Connection != pv.ID || q.Endpoint != pv.endpoint() {
+				t.Errorf("prompt %+v for %+v", q, pv)
+			}
+			p.answers <- "sk-" + q.Endpoint
+			ch <- q.Endpoint
+		}()
+		key, err := k.Get(context.Background(), pv, nil)
+		<-ch
+		return key, err
+	}
+	if key, err := get(testProvider); key != "sk-openai http://127.0.0.1:9/v1" || err != nil {
+		t.Fatalf("first: %q %v", key, err)
+	}
+	if key, err := k.Get(context.Background(), testProvider, func() { t.Error("asks for a held key") }); err != nil || key != "sk-openai http://127.0.0.1:9/v1" {
+		t.Errorf("held: %q %v", key, err)
+	}
+	moved := testProvider
+	moved.BaseURL = "https://elsewhere.example/v1"
+	if key, err := get(moved); key != "sk-openai https://elsewhere.example/v1" || err != nil {
+		t.Errorf("moved: %q %v", key, err)
+	}
+	codex := Provider{ID: testProvider.ID, Kind: "codex", Auth: AuthBearer}
+	if codex.endpoint() != "codex" {
+		t.Errorf("codex endpoint %q", codex.endpoint())
+	}
+	if key, err := get(codex); key != "sk-codex" || err != nil {
+		t.Errorf("codex: %q %v", key, err)
 	}
 }

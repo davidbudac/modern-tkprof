@@ -233,9 +233,11 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   and provider.
 - A conversation (`POST /engine/assist/conversations`, `internal/assist`)
   names its provider without a secret. The API key is asked for through the
-  prompt mechanism (kind `apikey`, the provider id as the connection) and held
-  in engine memory per provider until `DELETE .../providers/{id}/key` or the
-  engine exits. The agent loop runs in the engine: tool calls run in process
+  prompt mechanism (kind `apikey`, the provider id as the connection, the
+  provider's kind and base URL as its `endpoint`) and held in engine memory
+  per provider, bound to that endpoint, until `DELETE .../providers/{id}/key`
+  or the engine exits. A key typed or remembered for one endpoint never
+  answers for another under the same id. The agent loop runs in the engine: tool calls run in process
   on the session's trace, with the conversation's masking. A turn streams as
   NDJSON on its own request, never on `/engine/events`, whose buffer drops a
   slow subscriber.

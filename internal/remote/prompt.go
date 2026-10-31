@@ -16,7 +16,8 @@ const (
 	KindHostKey    = "hostkey"
 	KindConfirm    = "confirm"
 	// KindAPIKey asks for the API key of an assistant provider; Connection is
-	// the provider id. The answer is held in memory only (assist.Keys).
+	// the provider id and Endpoint where the key goes. The answer is held in
+	// memory only (assist.Keys).
 	KindAPIKey = "apikey"
 )
 
@@ -29,6 +30,10 @@ type Prompt struct {
 	Echo       bool   // the answer may be shown while typed
 	// Fingerprint is the SHA256 fingerprint of an unknown host key (KindHostKey).
 	Fingerprint string
+	// Endpoint is where an API key is sent (KindAPIKey): the provider's kind
+	// and base URL. A key remembered for a provider id answers only for the
+	// same endpoint.
+	Endpoint string
 }
 
 // ValidKind reports whether k is one of the prompt kinds.
