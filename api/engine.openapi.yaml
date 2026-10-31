@@ -237,7 +237,7 @@ paths:
       description: |
         The registry behind `POST /s/{id}/api/assist/tools/{name}`: overview,
         statements, statement, executions, pivot, timeline, lines,
-        search_lines, notes and current_view. `inputSchema` is the JSON Schema
+        search_lines, notes, current_view and show. `inputSchema` is the JSON Schema
         of the tool's arguments; the fields are those of MCP `tools/list`, which
         `mtkprof mcp` passes through.
       responses:
@@ -247,6 +247,185 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ToolList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /engine/assist/conversations:
+    post:
+      operationId: createConversation
+      summary: Start a conversation about a session's trace with a model provider
+      description: |
+        A conversation is one chat with one provider about one ready
+        session's trace. It holds the provider definition (never a secret),
+        the scope, the masking of bind values, the case text, the notes, the
+        current view and the history. It lives until `DELETE` or until its
+        session closes (or the engine stops).
+
+        `consent` must be true: the DBA agreed to send what this trace shows
+        to this provider. `provider.kind` is `openai` (an OpenAI-compatible
+        `/chat/completions` endpoint at `baseUrl`). With `auth` bearer (the
+        default) the key is asked for once per provider with a `prompt` event
+        of kind `apikey` whose `connection` is `provider.id`, answered with
+        `POST /engine/prompts/{id}`, and held in memory only; `auth` none sends
+        no key (a local server such as Ollama). `headers` are extra request
+        headers: a name that looks like a credential (auth, key, token,
+        secret, password, cookie) or a `Bearer`/`Basic` value is a 400, and so
+        is a `baseUrl` with a user, a query or a fragment.
+
+        `binds`: `mask` (default) shows each bind value as its type, length and
+        a hash salted per conversation; `keep` sends the traced values. SQL
+        text is never masked. `scope` is where the tools look by default (a
+        window in tim µs and session contexts, as the slice endpoints take
+        them). `notes` absent means none were supplied (the notes tool says
+        so); `[]` means the DBA has none. `view` is what the app shows (the
+        current_view tool).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationRequest"
+      responses:
+        "201":
+          description: the conversation, idle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationInfo"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /engine/assist/conversations/{c}:
+    get:
+      operationId: getConversation
+      summary: A conversation's state, turns and token usage
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+      responses:
+        "200":
+          description: the conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteConversation
+      summary: Cancel the open turn and end the conversation
+      description: |
+        The open turn, if any, is cancelled: its stream ends with an `error`
+        event of code `cancelled` and its request to the provider is closed.
+        The answer comes once the turn has ended (at most 5 s). The
+        conversation is then gone (404). To stop only the open turn and keep
+        the conversation, close the request of its stream instead.
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+      responses:
+        "204":
+          description: ended
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /engine/assist/conversations/{c}/messages:
+    post:
+      operationId: postMessage
+      summary: Send a message; the answer streams as NDJSON events of one turn
+      description: |
+        Opens a turn (409 while one is open) and streams it on the answer,
+        `application/x-ndjson`: one JSON object per line, told apart by
+        `type` (`TurnEvent`). The model's tool calls run in the engine on the
+        session's trace with the conversation's scope and masking; each one is
+        a `tool_call` event and then a `tool_result` event whose `content` is
+        exactly the text the model is given. Text pieces are sent at most
+        every 50 ms (the first at once). A turn ends with exactly one `done`
+        or `error` event.
+
+        Events:
+
+        - `text` `{text}`: a piece of the answer.
+        - `tool_call` `{id, name, args}`: `args` is the JSON object of the
+          arguments, or a string holding what the model sent when it is not
+          JSON (the call then fails).
+        - `tool_result` `{id, name, isError, content, estTokens}`.
+        - `intent` `{id, target, href}`: the show tool asks the app to move
+          its view; `target` is checked against the trace, `href` is the
+          same place as an `mtkprof:` link.
+        - `usage` `{inputTokens, outputTokens, cachedInputTokens}`: one model
+          request.
+        - `state` `{state, provider}`: `waiting_key` while the provider's key
+          prompt (kind `apikey`, `connection` = `provider`) is open on
+          `/engine/events`, then `running`.
+        - `done` `{usage, total}`: the turn answered; the tokens of the turn
+          and of the conversation so far.
+        - `error` `{code, message}`: `cancelled` (DELETE, or this request
+          went away), `session_closed`, `no_key` (the key prompt was
+          cancelled), `auth` (the provider refused the key; it is dropped and
+          the next message asks again), `provider` (an error answer after
+          two retries of 429 and 5xx, or the provider could not be reached),
+          `too_many_steps` (25 model requests without an answer), `internal`.
+
+        After `done` the conversation is idle; after `error` it is cancelled
+        or failed, and either takes the next message. Closing this request
+        cancels the turn. `view` and `notes`, when given, replace the
+        conversation's (what the app shows now, the DBA's notes now).
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageRequest"
+      responses:
+        "200":
+          description: the turn's events, one JSON object per line
+          content:
+            application/x-ndjson:
+              schema:
+                $ref: "#/components/schemas/TurnEvent"
+              x-mtkprof-events:
+                text:
+                  $ref: "#/components/schemas/TextEvent"
+                tool_call:
+                  $ref: "#/components/schemas/ToolCallEvent"
+                tool_result:
+                  $ref: "#/components/schemas/ToolResultEvent"
+                intent:
+                  $ref: "#/components/schemas/IntentEvent"
+                usage:
+                  $ref: "#/components/schemas/UsageEvent"
+                state:
+                  $ref: "#/components/schemas/StateEvent"
+                done:
+                  $ref: "#/components/schemas/DoneEvent"
+                error:
+                  $ref: "#/components/schemas/ErrorEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /engine/assist/providers/{id}/key:
+    delete:
+      operationId: forgetProviderKey
+      summary: Drop the API key held for a provider
+      description: The next turn with this provider asks for the key again. 204 also when none is held.
+      parameters:
+        - $ref: "#/components/parameters/ProviderID"
+      responses:
+        "204":
+          description: dropped
         "401":
           $ref: "#/components/responses/Unauthorized"
   /engine/jobs:
@@ -979,9 +1158,18 @@ paths:
         model, but the trace text of `lines` is masked all the same.
 
         `X-Mtkprof-Conversation` names the conversation the call belongs to
-        (`MTKPROF_CONVERSATION` in `mtkprof mcp`). The notes and current_view
-        tools only have something to say inside a conversation that was given
-        notes and a view; elsewhere they answer `supplied: false`.
+        (`MTKPROF_CONVERSATION` in `mtkprof mcp`), a conversation of this
+        session (404 otherwise). Such a call runs with the conversation's scope
+        (the default of `from`, `to`, `contexts`), masking (the `binds`
+        parameter is ignored), notes and view, and shows on its open turn as
+        `tool_call` and `tool_result` events. The notes and current_view tools
+        only have something to say inside a conversation that was given notes
+        and a view; elsewhere they answer `supplied: false`. show sends an
+        `intent` event on the conversation's open turn; without one it is a
+        400.
+
+        Under masking, search_lines matches a line of a BINDS block on its
+        masked text, so a bind value cannot be found by searching for it.
 
         An unknown tool or an argument that does not fit its schema is a 400
         with the envelope.
@@ -2328,6 +2516,20 @@ components:
       description: prompt id (p + 12 hex digits)
       schema:
         type: string
+    ConversationID:
+      name: c
+      in: path
+      required: true
+      description: conversation id (c + 12 hex digits)
+      schema:
+        type: string
+    ProviderID:
+      name: id
+      in: path
+      required: true
+      description: the provider id of the conversation request
+      schema:
+        type: string
     File:
       name: file
       in: query
@@ -3255,6 +3457,374 @@ components:
         hash:
           type: string
           description: FNV-1a 32 of "<statement kind>\n<text>" over UTF-16 code units, 8 hex digits
+    Provider:
+      type: object
+      additionalProperties: false
+      required: [id, kind, baseUrl, model]
+      description: Where a conversation's model runs. Never a secret; the key comes through a prompt of kind apikey.
+      properties:
+        id:
+          type: string
+          pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          description: the desktop's provider id; the connection of its apikey prompt, the {id} of its key route
+        kind:
+          type: string
+          enum: [openai]
+        name:
+          type: string
+          maxLength: 200
+          description: shown in the key prompt
+        baseUrl:
+          type: string
+          description: "http or https, up to the version (http://localhost:11434/v1); /chat/completions is appended"
+        model:
+          type: string
+          maxLength: 200
+        headers:
+          type: object
+          maxProperties: 20
+          additionalProperties:
+            type: string
+          description: extra request headers, none a credential
+        auth:
+          type: string
+          enum: [bearer, none]
+          default: bearer
+          description: "bearer: the key goes in Authorization; none: no key"
+    ConversationRequest:
+      type: object
+      additionalProperties: false
+      required: [session, provider, consent]
+      properties:
+        session:
+          type: string
+          description: a ready session
+        provider:
+          $ref: "#/components/schemas/Provider"
+        consent:
+          type: boolean
+          description: the DBA agreed to send what this trace shows to this provider; must be true
+        case:
+          type: string
+          maxLength: 200000
+          description: the DBA's description of the problem, in the system message
+        notes:
+          type: array
+          maxItems: 2000
+          description: the desktop's annotations of the trace; absent = not supplied
+          items:
+            $ref: "#/components/schemas/Note"
+        view:
+          $ref: "#/components/schemas/View"
+        scope:
+          $ref: "#/components/schemas/BriefScope"
+        binds:
+          type: string
+          enum: [mask, keep]
+          default: mask
+    MessageRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 100000
+        view:
+          $ref: "#/components/schemas/View"
+        notes:
+          type: array
+          maxItems: 2000
+          description: the notes now; absent = unchanged
+          items:
+            $ref: "#/components/schemas/Note"
+    View:
+      type: object
+      additionalProperties: false
+      description: What the app shows, in the terms of the UI's URL state (absolute tim for the window).
+      properties:
+        view:
+          type: string
+        sql_id:
+          type: string
+          description: the selected statement, sql_id or @N
+        event:
+          type: string
+          description: the selected wait event
+        from:
+          type: integer
+          description: the window, tim in µs (both 0 = none)
+        to:
+          type: integer
+        files:
+          type: array
+          items:
+            type: integer
+          description: the files shown (empty = all)
+        file:
+          type: integer
+          description: the Lines view's file
+        line:
+          type: integer
+          description: the Lines view's line
+        contexts:
+          type: array
+          items:
+            type: integer
+          description: the session contexts selected
+    ConversationState:
+      type: string
+      enum: [idle, running, waiting_key, cancelled, failed]
+      description: "idle -> running -> idle | cancelled | failed, with running <-> waiting_key while the key prompt is open; cancelled and failed take the next message"
+    ConversationInfo:
+      type: object
+      additionalProperties: false
+      required: [id, session, state, provider, scope, binds, turns, messages, usage, created]
+      properties:
+        id:
+          type: string
+        session:
+          type: string
+        state:
+          $ref: "#/components/schemas/ConversationState"
+        provider:
+          $ref: "#/components/schemas/Provider"
+        scope:
+          $ref: "#/components/schemas/BriefScope"
+        binds:
+          type: string
+          enum: [mask, keep]
+        turns:
+          type: integer
+        messages:
+          type: integer
+          description: messages in the history (the DBA's, the model's, the tool results)
+        usage:
+          $ref: "#/components/schemas/Usage"
+        created:
+          type: string
+          format: date-time
+        error:
+          type: string
+          description: "how the last turn failed: code: message"
+    Usage:
+      type: object
+      additionalProperties: false
+      required: [inputTokens, outputTokens, cachedInputTokens, requests]
+      properties:
+        inputTokens:
+          type: integer
+        outputTokens:
+          type: integer
+        cachedInputTokens:
+          type: integer
+        requests:
+          type: integer
+          description: model requests
+    Intent:
+      type: object
+      additionalProperties: false
+      required: [view]
+      description: |
+        A place in the app the show tool asks for, checked against the trace.
+        The ids are the URL state's: `sql_id` (or @N), an execution by
+        `cursorLine` and `execNo`, a window in tim µs (clipped to the trace).
+      properties:
+        view:
+          type: string
+          enum: [overview, statements, waits, timeline, sessions, pivot, lines]
+        sql_id:
+          type: string
+        execNo:
+          type: integer
+          description: with cursorLine, one execution of the statement
+        cursorLine:
+          type: integer
+          description: the trace line of the execution's cursor
+        event:
+          type: string
+          description: a wait event name
+        from:
+          type: integer
+          description: the window, tim in µs
+        to:
+          type: integer
+        contexts:
+          type: array
+          items:
+            type: integer
+        file:
+          type: integer
+          description: view lines, the input file
+        line:
+          type: integer
+          description: view lines, the trace line
+        pivot:
+          $ref: "#/components/schemas/PivotIntent"
+    PivotIntent:
+      type: object
+      additionalProperties: false
+      required: [fact, by]
+      properties:
+        fact:
+          type: string
+          enum: [calls, waits]
+        by:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            type: string
+          description: dimension ids
+        sort:
+          type: string
+          description: the measure id the rows are sorted by
+        sql_id:
+          type: string
+        event:
+          type: string
+    TurnEvent:
+      description: one line of a turn's stream
+      oneOf:
+        - $ref: "#/components/schemas/TextEvent"
+        - $ref: "#/components/schemas/ToolCallEvent"
+        - $ref: "#/components/schemas/ToolResultEvent"
+        - $ref: "#/components/schemas/IntentEvent"
+        - $ref: "#/components/schemas/UsageEvent"
+        - $ref: "#/components/schemas/StateEvent"
+        - $ref: "#/components/schemas/DoneEvent"
+        - $ref: "#/components/schemas/ErrorEvent"
+      discriminator:
+        propertyName: type
+        mapping:
+          text: "#/components/schemas/TextEvent"
+          tool_call: "#/components/schemas/ToolCallEvent"
+          tool_result: "#/components/schemas/ToolResultEvent"
+          intent: "#/components/schemas/IntentEvent"
+          usage: "#/components/schemas/UsageEvent"
+          state: "#/components/schemas/StateEvent"
+          done: "#/components/schemas/DoneEvent"
+          error: "#/components/schemas/ErrorEvent"
+    TextEvent:
+      type: object
+      additionalProperties: false
+      required: [type, text]
+      properties:
+        type:
+          type: string
+          const: text
+        text:
+          type: string
+    ToolCallEvent:
+      type: object
+      additionalProperties: false
+      required: [type, id, name, args]
+      properties:
+        type:
+          type: string
+          const: tool_call
+        id:
+          type: string
+          description: the model's call id (mcp_N for a CLI agent's call)
+        name:
+          type: string
+        args:
+          description: the arguments, a JSON object; a string with what the model sent when that is not JSON
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+    ToolResultEvent:
+      type: object
+      additionalProperties: false
+      required: [type, id, name, isError, content, estTokens]
+      properties:
+        type:
+          type: string
+          const: tool_result
+        id:
+          type: string
+        name:
+          type: string
+        isError:
+          type: boolean
+        content:
+          type: string
+          description: "exactly the text the model is given: the tool's JSON, or error: and the reason for a failed call"
+        estTokens:
+          type: integer
+    IntentEvent:
+      type: object
+      additionalProperties: false
+      required: [type, id, target, href]
+      properties:
+        type:
+          type: string
+          const: intent
+        id:
+          type: string
+          description: the show call's id
+        target:
+          $ref: "#/components/schemas/Intent"
+        href:
+          type: string
+          description: "the target as an mtkprof: link, mtkprof:#view=...&sql=...&ev=...&win=<from>-<to>&exec=<cursorLine>:<execNo>&contexts=<id,...>&file=...&line=... (win in µs from the trace's first tim)"
+    UsageEvent:
+      type: object
+      additionalProperties: false
+      required: [type, inputTokens, outputTokens]
+      properties:
+        type:
+          type: string
+          const: usage
+        inputTokens:
+          type: integer
+        outputTokens:
+          type: integer
+        cachedInputTokens:
+          type: integer
+    StateEvent:
+      type: object
+      additionalProperties: false
+      required: [type, state]
+      properties:
+        type:
+          type: string
+          const: state
+        state:
+          type: string
+          enum: [waiting_key, running]
+        provider:
+          type: string
+          description: "waiting_key: the provider id, the connection of the apikey prompt"
+    DoneEvent:
+      type: object
+      additionalProperties: false
+      required: [type, usage, total]
+      properties:
+        type:
+          type: string
+          const: done
+        usage:
+          $ref: "#/components/schemas/Usage"
+        total:
+          $ref: "#/components/schemas/Usage"
+    ErrorEvent:
+      type: object
+      additionalProperties: false
+      required: [type, code, message]
+      properties:
+        type:
+          type: string
+          const: error
+        code:
+          $ref: "#/components/schemas/TurnErrorCode"
+        message:
+          type: string
+    TurnErrorCode:
+      type: string
+      enum: [cancelled, session_closed, no_key, auth, provider, too_many_steps, internal]
     SessionEvent:
       type: object
       required: [id, state, rev]
@@ -3275,9 +3845,11 @@ components:
           type: string
         connection:
           type: string
+          description: the connection asking; for kind apikey, the assistant provider id
         kind:
           type: string
-          enum: [password, passphrase, otp, hostkey, confirm]
+          enum: [password, passphrase, otp, hostkey, confirm, apikey]
+          description: "apikey: the API key of an assistant provider (a conversation's turn waits for it)"
         text:
           type: string
         echo:

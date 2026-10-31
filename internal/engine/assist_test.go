@@ -19,7 +19,7 @@ func TestAssistToolsList(t *testing.T) {
 		t.Fatalf("%d %s", r.code, r.body)
 	}
 	list := decode[struct{ Tools []assist.Info }](t, r.body)
-	if len(list.Tools) != 10 || list.Tools[0].Name != "overview" || list.Tools[9].Name != "current_view" {
+	if len(list.Tools) != 11 || list.Tools[0].Name != "overview" || list.Tools[10].Name != "show" {
 		t.Fatalf("%d tools: %+v", len(list.Tools), list.Tools)
 	}
 	for _, tl := range list.Tools {
@@ -142,8 +142,8 @@ func TestAssistToolRoute(t *testing.T) {
 			t.Errorf("%s %v: %d %s, want %d with %q", c.name, c.args, r.code, r.body, c.code, c.msg)
 		}
 	}
-	if r := tool(basic, "overview", nil, "", assist.ConversationHeader, "c7"); r.code != http.StatusOK {
-		t.Errorf("a conversation id: %d", r.code)
+	if r := tool(basic, "overview", nil, "", assist.ConversationHeader, "c7"); r.code != http.StatusNotFound {
+		t.Errorf("an unknown conversation: %d", r.code)
 	}
 }
 

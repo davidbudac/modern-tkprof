@@ -156,6 +156,8 @@ type liveSnap struct {
 	rev     int
 	doc     []byte
 	handler http.Handler
+	co      *CacheOpened
+	api     http.Handler // the slice routes of co
 }
 
 // liveSpecOf checks the options of a live session over paths.
@@ -699,7 +701,8 @@ func (lv *live) snapshot() error {
 	}
 	co := &CacheOpened{Model: m, Source: src, Lines: lis}
 	lv.rev++
-	snap := &liveSnap{rev: lv.rev, doc: doc, handler: lv.srv.sessionMux(ss, co, doc)}
+	snap := &liveSnap{rev: lv.rev, doc: doc, co: co}
+	snap.handler, snap.api = lv.srv.sessionMux(ss, co, doc)
 	lv.cur.Store(snap)
 	lv.mu.Lock()
 	close(lv.next)
