@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,6 +22,14 @@ func (s *Server) assistTools(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, struct {
 		Tools []assist.Info `json:"tools"`
 	}{assist.Infos()})
+}
+
+// assistBackends serves GET /engine/assist/backends: the provider kinds,
+// with each CLI's path, version and login state.
+func (s *Server) assistBackends(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, struct {
+		Backends []assist.BackendInfo `json:"backends"`
+	}{assist.ProbeBackends(r.Context())})
 }
 
 // maxConversationID bounds the id a tool call names its conversation by.
@@ -237,9 +246,14 @@ func (s *Server) createConversation(w http.ResponseWriter, r *http.Request) {
 	for _, f := range m.File.Files {
 		files = append(files, f.Name)
 	}
+	// a CLI agent's `mtkprof mcp` calls back where this request came in
+	var addr string
+	if a, ok := r.Context().Value(http.LocalAddrContextKey).(net.Addr); ok {
+		addr = a.String()
+	}
 	c, err := assist.NewConversation(assist.Config{ID: newID("c"), Session: ss.id, Provider: req.Provider, Case: req.Case, Notes: req.Notes,
 		View: req.View, Scope: assist.Scope{From: req.Scope.From, To: req.Scope.To, Contexts: req.Scope.Contexts}, Redact: redact, Files: files},
-		assist.Host{Trace: s.traceOf(ss), Keys: s.keys, Logf: func(f string, a ...any) { s.logf("info", f, a...) }})
+		assist.Host{Trace: s.traceOf(ss), Keys: s.keys, Logf: func(f string, a ...any) { s.logf("info", f, a...) }, Engine: addr, Token: string(s.token)})
 	if err != nil {
 		writeError(w, errorf(CodeBadRequest, "%v", err))
 		return
@@ -254,7 +268,7 @@ func (s *Server) createConversation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := req.Provider
-	s.logf("info", "conversation %s: session %s, provider %s (%s, %s, model %s)", c.ID(), ss.id, p.ID, p.Kind, p.BaseURL, p.Model)
+	s.logf("info", "conversation %s: session %s, provider %s (%s, %s, model %q)", c.ID(), ss.id, p.ID, p.Kind, p.BaseURL, p.Model)
 	writeJSON(w, http.StatusCreated, c.Info())
 }
 

@@ -249,6 +249,27 @@ paths:
                 $ref: "#/components/schemas/ToolList"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /engine/assist/backends:
+    get:
+      operationId: assistBackends
+      summary: The provider kinds, with each CLI's path, version and login state
+      description: |
+        Every `provider.kind` a conversation takes, with its `auth` modes
+        (the default first) and whether the app labels it `experimental`
+        (codex). For a CLI kind (claude, codex) the engine looks the command
+        up on its PATH and runs `--version` and the login check (`claude auth
+        status`, `codex login status`, at most 10 s each): `path`, `version`,
+        `loggedIn` and `login` (how it is logged in, or that it is not), or
+        `error` `not found` (a conversation with that kind is then a 400).
+      responses:
+        "200":
+          description: the provider kinds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackendList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /engine/assist/conversations:
     post:
       operationId: createConversation
@@ -261,15 +282,31 @@ paths:
         session closes (or the engine stops).
 
         `consent` must be true: the DBA agreed to send what this trace shows
-        to this provider. `provider.kind` is `openai` (an OpenAI-compatible
-        `/chat/completions` endpoint at `baseUrl`). With `auth` bearer (the
-        default) the key is asked for once per provider with a `prompt` event
-        of kind `apikey` whose `connection` is `provider.id`, answered with
-        `POST /engine/prompts/{id}`, and held in memory only; `auth` none sends
-        no key (a local server such as Ollama). `headers` are extra request
-        headers: a name that looks like a credential (auth, key, token,
-        secret, password, cookie) or a `Bearer`/`Basic` value is a 400, and so
-        is a `baseUrl` with a user, a query or a fragment.
+        to this provider. `provider.kind` is one of `GET
+        /engine/assist/backends`:
+
+        - `openai`: an OpenAI-compatible `/chat/completions` endpoint at
+          `baseUrl`. With `auth` bearer (the default) the key is asked for
+          once per provider with a `prompt` event of kind `apikey` whose
+          `connection` is `provider.id`, answered with `POST
+          /engine/prompts/{id}`, and held in memory only; `auth` none sends
+          no key (a local server such as Ollama). `headers` are extra request
+          headers: a name that looks like a credential (auth, key, token,
+          secret, password, cookie) or a `Bearer`/`Basic` value is a 400, and
+          so is a `baseUrl` with a user, a query or a fragment.
+        - `claude`: the Claude Code CLI with its own login (`auth` login),
+          one process per conversation, in an empty temp directory, with no
+          tools but mtkprof's (through `mtkprof mcp`), no user settings, and
+          no transcript written.
+        - `codex` (experimental): `codex exec` per turn with the user's own
+          Codex home: read-only sandbox, `--ephemeral`, the shell, plugins,
+          hooks and every MCP server of the user's `config.toml` switched
+          off. `auth` login (default) uses the Codex login; `auth` bearer
+          asks for an OpenAI API key as above and passes it as
+          `CODEX_API_KEY`. Each turn resends the conversation so far.
+
+        A CLI kind takes no `baseUrl` or `headers`; `model` is optional (the
+        CLI's default). A CLI that is not on the engine's PATH is a 400.
 
         `binds`: `mask` (default) shows each bind value as its type, length and
         a hash salted per conversation; `keep` sends the traced values. SQL
@@ -344,7 +381,8 @@ paths:
         `type` (`TurnEvent`). The model's tool calls run in the engine on the
         session's trace with the conversation's scope and masking; each one is
         a `tool_call` event and then a `tool_result` event whose `content` is
-        exactly the text the model is given. Text pieces are sent at most
+        exactly the text the model is given. A CLI agent's calls come through
+        `mtkprof mcp` and have ids `mcp_N`. Text pieces are sent at most
         every 50 ms (the first at once). A turn ends with exactly one `done`
         or `error` event.
 
@@ -359,7 +397,7 @@ paths:
           its view; `target` is checked against the trace, `href` is the
           same place as an `mtkprof:` link.
         - `usage` `{inputTokens, outputTokens, cachedInputTokens}`: one model
-          request.
+          request (a CLI agent: the whole turn, once).
         - `state` `{state, provider}`: `waiting_key` while the provider's key
           prompt (kind `apikey`, `connection` = `provider`) is open on
           `/engine/events`, then `running`.
@@ -371,6 +409,10 @@ paths:
           the next message asks again), `provider` (an error answer after
           two retries of 429 and 5xx, or the provider could not be reached),
           `too_many_steps` (25 model requests without an answer), `internal`.
+          A CLI agent that is not logged in is `auth`; one that exits, fails,
+          offers a tool other than mtkprof's, or (codex) tries a shell
+          command, a file change, a web search or another MCP server is
+          `provider`, and its process is stopped.
 
         After `done` the conversation is idle; after `error` it is cancelled
         or failed, and either takes the next message. Closing this request
@@ -3318,6 +3360,50 @@ components:
           $ref: "#/components/schemas/SessionInfo"
         job:
           $ref: "#/components/schemas/JobInfo"
+    BackendList:
+      type: object
+      additionalProperties: false
+      required: [backends]
+      properties:
+        backends:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackendInfo"
+    BackendInfo:
+      type: object
+      additionalProperties: false
+      required: [kind, auth, experimental]
+      properties:
+        kind:
+          type: string
+          enum: [claude, codex, openai]
+        auth:
+          type: array
+          items:
+            type: string
+            enum: [bearer, none, login]
+          description: the auth modes the kind takes, its default first
+        experimental:
+          type: boolean
+          description: the app labels the kind experimental
+        command:
+          type: string
+          description: the CLI the kind runs (claude, codex)
+        path:
+          type: string
+          description: where the CLI was found on the engine's PATH
+        version:
+          type: string
+          description: the first line of its --version
+        loggedIn:
+          type: boolean
+          description: whether the CLI's own login is there (absent when the CLI was not asked)
+        login:
+          type: string
+          description: "how it is logged in (claude: the auth method; codex: its status line), or that it is not"
+        error:
+          type: string
+          description: "not found (not on PATH), or what failed asking the CLI"
     ToolList:
       type: object
       additionalProperties: false
@@ -3460,8 +3546,8 @@ components:
     Provider:
       type: object
       additionalProperties: false
-      required: [id, kind, baseUrl, model]
-      description: Where a conversation's model runs. Never a secret; the key comes through a prompt of kind apikey.
+      required: [id, kind]
+      description: Where a conversation's model runs. Never a secret; a key comes through a prompt of kind apikey.
       properties:
         id:
           type: string
@@ -3469,28 +3555,28 @@ components:
           description: the desktop's provider id; the connection of its apikey prompt, the {id} of its key route
         kind:
           type: string
-          enum: [openai]
+          enum: [openai, claude, codex]
         name:
           type: string
           maxLength: 200
           description: shown in the key prompt
         baseUrl:
           type: string
-          description: "http or https, up to the version (http://localhost:11434/v1); /chat/completions is appended"
+          description: "openai (required): http or https, up to the version (http://localhost:11434/v1); /chat/completions is appended"
         model:
           type: string
           maxLength: 200
+          description: "openai: required; claude, codex: optional (the CLI's default), a name of letters, digits and . _ : / @ [ ] -"
         headers:
           type: object
           maxProperties: 20
           additionalProperties:
             type: string
-          description: extra request headers, none a credential
+          description: openai only, extra request headers, none a credential
         auth:
           type: string
-          enum: [bearer, none]
-          default: bearer
-          description: "bearer: the key goes in Authorization; none: no key"
+          enum: [bearer, none, login]
+          description: "the kind's default when absent (openai bearer, claude and codex login). bearer: a key from the apikey prompt (openai: in Authorization; codex: as CODEX_API_KEY); none: no key; login: the CLI's own login"
     ConversationRequest:
       type: object
       additionalProperties: false

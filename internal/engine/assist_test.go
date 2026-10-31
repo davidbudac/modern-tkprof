@@ -3,7 +3,10 @@ package engine
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -29,6 +32,64 @@ func TestAssistToolsList(t *testing.T) {
 	}
 	if r := e.req("GET", "/engine/assist/tools", nil, "Authorization", ""); r.code != 401 {
 		t.Errorf("without a token: %d", r.code)
+	}
+}
+
+// TestAssistBackends: the backends route reports each kind, a CLI that is
+// not on PATH as not found (a conversation with it is a 400), and a CLI's
+// version and login state without what else its status says.
+func TestAssistBackends(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in CLIs are shell scripts")
+	}
+	bin := t.TempDir()
+	t.Setenv("PATH", bin)
+	e := newEnv(t)
+	sid := e.openReady([]string{traces + "basic_binds.trc"}, nil)
+	backends := func() map[string]assist.BackendInfo {
+		r := e.req("GET", "/engine/assist/backends", nil)
+		if r.code != 200 || strings.Contains(string(r.body), "dba@example.com") {
+			t.Fatalf("%d %s", r.code, r.body)
+		}
+		out := map[string]assist.BackendInfo{}
+		for _, b := range decode[struct{ Backends []assist.BackendInfo }](t, r.body).Backends {
+			out[b.Kind] = b
+		}
+		return out
+	}
+	create := func(kind string) resp {
+		return e.req("POST", "/engine/assist/conversations", map[string]any{"session": sid, "provider": map[string]any{"id": kind, "kind": kind}, "consent": true})
+	}
+	b := backends()
+	if o := b["openai"]; len(b) != 3 || o.Command != "" || o.LoggedIn != nil || strings.Join(o.Auth, ",") != "bearer,none" || o.Experimental {
+		t.Errorf("openai %+v", o)
+	}
+	for _, k := range []string{"claude", "codex"} {
+		if b[k].Error != "not found" || b[k].Command != k || b[k].Experimental != (k == "codex") {
+			t.Errorf("%s without a CLI: %+v", k, b[k])
+		}
+		r := create(k)
+		if msg := decode[struct{ Error Error }](t, r.body).Error.Message; r.code != 400 || !strings.Contains(msg, "the "+k+" CLI was not found on PATH") {
+			t.Errorf("create %s: %d %s", k, r.code, r.body)
+		}
+	}
+	for name, script := range map[string]string{
+		"claude": `case "$1 $2" in "--version ") echo "2.1.316 (Claude Code)";; "auth status") echo '{"loggedIn": true, "authMethod": "claude.ai", "email": "dba@example.com"}';; esac`,
+		"codex":  `case "$1 $2" in "--version ") echo "codex-cli 0.166.0";; "login status") echo "Not logged in" >&2; exit 1;; esac`,
+	} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b = backends()
+	if c := b["claude"]; c.Path != filepath.Join(bin, "claude") || c.Version != "2.1.316 (Claude Code)" || c.LoggedIn == nil || !*c.LoggedIn || c.Login != "claude.ai" || c.Error != "" {
+		t.Errorf("claude %+v", c)
+	}
+	if c := b["codex"]; c.Version != "codex-cli 0.166.0" || c.LoggedIn == nil || *c.LoggedIn || c.Login != "Not logged in" || strings.Join(c.Auth, ",") != "login,bearer" {
+		t.Errorf("codex %+v", c)
+	}
+	if r := create("claude"); r.code != http.StatusCreated || decode[assist.ConversationInfo](t, r.body).Provider.Auth != "login" {
+		t.Errorf("create claude: %d %s", r.code, r.body)
 	}
 }
 

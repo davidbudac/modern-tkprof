@@ -130,6 +130,7 @@ var routes = []struct {
 	{"GET /engine/sessions/{id}", (*Server).getSession},
 	{"DELETE /engine/sessions/{id}", (*Server).deleteSession},
 	{"GET /engine/assist/tools", (*Server).assistTools},
+	{"GET /engine/assist/backends", (*Server).assistBackends},
 	{"POST /engine/assist/conversations", (*Server).createConversation},
 	{"GET /engine/assist/conversations/{c}", (*Server).getConversation},
 	{"DELETE /engine/assist/conversations/{c}", (*Server).deleteConversation},
