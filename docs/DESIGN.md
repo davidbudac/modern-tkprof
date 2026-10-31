@@ -239,6 +239,19 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   on the session's trace, with the conversation's masking. A turn streams as
   NDJSON on its own request, never on `/engine/events`, whose buffer drops a
   slow subscriber.
+- The `claude` and `codex` providers run the user's CLI with its own login,
+  in an empty temp directory and its own process group (killed on cancel),
+  with mtkprof's tools as the only tools: `mtkprof mcp`, whose calls come back
+  to the engine and are the turn's tool events. The engine token reaches it
+  through the environment only (claude expands `${MTKPROF_TOKEN}` in a 0600
+  MCP config; codex forwards it by `env_vars`), never argv or a file. claude
+  is one process per conversation with no settings, no transcript, no auto
+  memory and no CLAUDE.md. codex is experimental: `exec --ephemeral` per turn
+  with the conversation resent, a read-only sandbox with approvals `never`
+  (an approving setup lets `apply_patch` write despite the sandbox), the
+  user's MCP servers, hooks, plugins and shell switched off, and the engine
+  stops a run that tries a shell command, a file change, a web search or
+  another MCP server. The user's `~/.codex/AGENTS.md` still applies.
 
 ## Project
 
