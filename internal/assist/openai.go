@@ -31,8 +31,8 @@ type openAI struct {
 
 const maxRetries = 2
 
-func newOpenAI(p Provider) Backend {
-	return &openAI{p: p, client: &http.Client{}, backoff: time.Second, maxWait: 30 * time.Second, maxSteps: 25}
+func newOpenAI(p Provider) (Backend, error) {
+	return &openAI{p: p, client: &http.Client{}, backoff: time.Second, maxWait: 30 * time.Second, maxSteps: 25}, nil
 }
 
 // The wire format of /chat/completions.

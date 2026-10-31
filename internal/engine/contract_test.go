@@ -227,7 +227,7 @@ func TestContractSchemas(t *testing.T) {
 		"Health": Health{}, "CacheHealth": CacheHealth{}, "JobInfo": JobInfo{}, "FileInfo": FileInfo{},
 		"SessionInfo": SessionInfo{}, "SessionEvent": SessionEvent{}, "PromptEvent": PromptEvent{}, "LogEvent": LogEvent{},
 		"CacheItem": CacheItem{}, "CacheList": CacheList{}, "CacheWipe": CacheWipe{}, "SessionOptions": SessionOptions{},
-		"ToolInfo": assist.Info{}, "BriefRequest": BriefRequest{}, "BriefOptions": BriefOptions{}, "BriefScope": BriefScope{}, "Note": report.Note{}, "NoteStmt": report.NoteStmt{},
+		"ToolInfo": assist.Info{}, "BackendInfo": assist.BackendInfo{}, "BriefRequest": BriefRequest{}, "BriefOptions": BriefOptions{}, "BriefScope": BriefScope{}, "Note": report.Note{}, "NoteStmt": report.NoteStmt{},
 		"ConversationRequest": ConversationRequest{}, "MessageRequest": MessageRequest{}, "Provider": assist.Provider{}, "View": assist.View{},
 		"ConversationInfo": assist.ConversationInfo{}, "Usage": assist.Usage{}, "Intent": assist.Intent{}, "PivotIntent": assist.PivotIntent{},
 		"TextEvent": assist.TextEvent{}, "ToolCallEvent": assist.ToolCallEvent{}, "ToolResultEvent": assist.ToolResultEvent{}, "IntentEvent": assist.IntentEvent{},

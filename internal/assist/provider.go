@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -18,26 +19,52 @@ type Provider struct {
 	ID      string            `json:"id"`
 	Kind    string            `json:"kind"` // a key of Backends
 	Name    string            `json:"name,omitempty"`
-	BaseURL string            `json:"baseUrl"` // openai: up to /v1, without /chat/completions
-	Model   string            `json:"model"`
-	Headers map[string]string `json:"headers,omitempty"` // extra request headers, none secret
-	Auth    string            `json:"auth,omitempty"`    // bearer (default): the key goes in Authorization; none: no key (a local server)
+	BaseURL string            `json:"baseUrl,omitempty"` // openai: up to /v1, without /chat/completions
+	Model   string            `json:"model,omitempty"`   // claude, codex: "" is the CLI's default
+	Headers map[string]string `json:"headers,omitempty"` // openai: extra request headers, none secret
+	Auth    string            `json:"auth,omitempty"`    // one of the kind's auth modes; "" is its default
 }
 
 // Provider auth modes.
 const (
-	AuthBearer = "bearer"
-	AuthNone   = "none"
+	AuthBearer = "bearer" // a key from the key prompt: openai's Authorization, codex's CODEX_API_KEY
+	AuthNone   = "none"   // no key (a local server)
+	AuthLogin  = "login"  // the CLI's own login
 )
 
-// Backends makes the backend of a provider kind.
-var Backends = map[string]func(Provider) Backend{
-	"openai": newOpenAI,
+// BackendKind is a provider kind: how its providers are checked and its
+// backend is made.
+type BackendKind struct {
+	New          func(Provider) (Backend, error)
+	HTTP         bool     // an HTTP endpoint: baseUrl and model are required, headers allowed
+	Auth         []string // the auth modes it takes, its default first
+	Command      string   // the CLI agent it runs ("" none)
+	Experimental bool     // labelled experimental in the app
+	// Login asks the CLI at path whether it is logged in, and how.
+	Login func(ctx context.Context, path string) (ok bool, how string, err error)
+}
+
+// Backends are the provider kinds by name.
+var Backends = map[string]BackendKind{
+	"openai": {New: newOpenAI, HTTP: true, Auth: []string{AuthBearer, AuthNone}},
+	"claude": {New: newClaudeCLI, Command: "claude", Auth: []string{AuthLogin}, Login: claudeLogin},
+	"codex":  {New: newCodexCLI, Command: "codex", Auth: []string{AuthLogin, AuthBearer}, Experimental: true, Login: codexLogin},
+}
+
+// BackendKinds are the names of Backends, sorted.
+func BackendKinds() []string {
+	var kinds []string
+	for k := range Backends {
+		kinds = append(kinds, k)
+	}
+	slices.Sort(kinds)
+	return kinds
 }
 
 var (
 	reProviderID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 	reHeaderName = regexp.MustCompile("^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,100}$")
+	reCLIModel   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/@\[\]-]{0,199}$`) // a CLI argument, never an option
 	// header names that carry credentials: the key goes through the key prompt
 	secretHeaderWords = []string{"auth", "key", "token", "secret", "password", "cookie"}
 )
@@ -53,26 +80,35 @@ func (p Provider) label() string {
 }
 
 // needsKey says whether the provider is given a key.
-func (p Provider) needsKey() bool { return p.Auth != AuthNone }
+func (p Provider) needsKey() bool { return p.Auth != AuthNone && p.Auth != AuthLogin }
 
-// Check validates a provider definition; an error says what is wrong.
+// Check validates a provider definition and sets the default auth; an error
+// says what is wrong.
 func (p *Provider) Check() error {
 	if !reProviderID.MatchString(p.ID) {
 		return fmt.Errorf("provider.id: want 1 to 128 letters, digits and . _ : - (starting with a letter or digit)")
 	}
-	if Backends[p.Kind] == nil {
-		var kinds []string
-		for k := range Backends {
-			kinds = append(kinds, k)
-		}
-		return fmt.Errorf("provider.kind: %q is not one of %s", p.Kind, strings.Join(kinds, ", "))
+	k, ok := Backends[p.Kind]
+	if !ok {
+		return fmt.Errorf("provider.kind: %q is not one of %s", p.Kind, strings.Join(BackendKinds(), ", "))
 	}
-	switch p.Auth {
-	case "":
-		p.Auth = AuthBearer
-	case AuthBearer, AuthNone:
-	default:
-		return fmt.Errorf("provider.auth: want bearer or none")
+	switch {
+	case p.Auth == "":
+		p.Auth = k.Auth[0]
+	case !slices.Contains(k.Auth, p.Auth):
+		return fmt.Errorf("provider.auth: kind %s takes %s", p.Kind, strings.Join(k.Auth, " or "))
+	}
+	if len(p.Name) > 200 {
+		return fmt.Errorf("provider.name: more than 200 bytes")
+	}
+	if !k.HTTP {
+		switch {
+		case p.BaseURL != "" || len(p.Headers) > 0:
+			return fmt.Errorf("provider: kind %s runs the %s CLI and takes no baseUrl or headers", p.Kind, k.Command)
+		case p.Model != "" && !reCLIModel.MatchString(p.Model):
+			return fmt.Errorf("provider.model: want a model name of letters, digits and . _ : / @ [ ] -")
+		}
+		return nil
 	}
 	u, err := url.Parse(p.BaseURL)
 	switch {
@@ -83,9 +119,6 @@ func (p *Provider) Check() error {
 	}
 	if p.Model == "" || len(p.Model) > 200 {
 		return fmt.Errorf("provider.model: want 1 to 200 bytes")
-	}
-	if len(p.Name) > 200 {
-		return fmt.Errorf("provider.name: more than 200 bytes")
 	}
 	if len(p.Headers) > maxProviderHeaders {
 		return fmt.Errorf("provider.headers: more than %d", maxProviderHeaders)
@@ -172,8 +205,12 @@ func (k *Keys) Get(ctx context.Context, p Provider, wait func()) (string, error)
 }
 
 func (k *Keys) ask(ctx context.Context, p Provider, a *keyAsk) (string, error) {
+	where := p.BaseURL
+	if where == "" {
+		where = "the " + Backends[p.Kind].Command + " CLI"
+	}
 	key, err := k.Prompter.Ask(ctx, remote.Prompt{Connection: p.ID, Kind: remote.KindAPIKey,
-		Text: fmt.Sprintf("API key for %s (%s)", p.label(), p.BaseURL)})
+		Text: fmt.Sprintf("API key for %s (%s)", p.label(), where)})
 	key = strings.TrimSpace(key)
 	if err == nil && key == "" {
 		err = errors.New("empty key")

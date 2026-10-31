@@ -130,6 +130,9 @@ type Host struct {
 	Trace func(fn func(Env) error) error
 	Keys  *Keys
 	Logf  func(format string, a ...any) // nil: discarded
+	// Engine (host:port) and Token are where a CLI agent's `mtkprof mcp`
+	// calls the tools of the conversation.
+	Engine, Token string
 }
 
 // Config is a new conversation.
@@ -176,8 +179,12 @@ func NewConversation(cfg Config, h Host) (*Conversation, error) {
 	if err := cfg.Provider.Check(); err != nil {
 		return nil, err
 	}
+	b, err := Backends[cfg.Provider.Kind].New(cfg.Provider)
+	if err != nil {
+		return nil, err
+	}
 	c := &Conversation{id: cfg.ID, session: cfg.Session, provider: cfg.Provider, created: time.Now(), host: h,
-		backend: Backends[cfg.Provider.Kind](cfg.Provider), redact: cfg.Redact, system: systemMessage(cfg),
+		backend: b, redact: cfg.Redact, system: systemMessage(cfg),
 		state: StateIdle, scope: cfg.Scope, notes: cfg.Notes, view: cfg.View}
 	return c, nil
 }
@@ -535,11 +542,18 @@ func (t *Turn) Add(m ...Message) {
 // Text streams a piece of the answer.
 func (t *Turn) Text(piece string) { t.out.Text(piece) }
 
-// Usage counts one model request.
+// Usage counts the tokens of u.Requests model requests (0: one).
 func (t *Turn) Usage(u Usage) {
-	u.Requests = 1
+	u.Requests = max(u.Requests, 1)
 	t.usage.add(u)
 	t.out.event(UsageEvent{Type: "usage", InputTokens: u.InputTokens, OutputTokens: u.OutputTokens, CachedInputTokens: u.CachedInputTokens})
+}
+
+// mcpEnv is the environment of the `mtkprof mcp` that serves this
+// conversation's tools to a CLI agent.
+func (t *Turn) mcpEnv() map[string]string {
+	c := t.c
+	return map[string]string{EnvEngine: c.host.Engine, EnvToken: c.host.Token, EnvSession: c.session, EnvConversation: c.id}
 }
 
 // Logf writes to the engine's log.

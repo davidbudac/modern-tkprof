@@ -476,6 +476,12 @@ func TestProviderCheck(t *testing.T) {
 	if err := p.Check(); err != nil || p.Auth != AuthBearer {
 		t.Errorf("default auth: %v %q", err, p.Auth)
 	}
+	for kind, auth := range map[string]string{"claude": AuthLogin, "codex": AuthLogin} {
+		p := Provider{ID: "p", Kind: kind, Model: "claude-sonnet-4-5[1m]"}
+		if err := p.Check(); err != nil || p.Auth != auth {
+			t.Errorf("%s: %v %q", kind, err, p.Auth)
+		}
+	}
 	for _, c := range []struct {
 		mod  func(*Provider)
 		want string
@@ -492,6 +498,12 @@ func TestProviderCheck(t *testing.T) {
 		{func(p *Provider) { p.Headers = map[string]string{"X-Custom": "Bearer abc"} }, "credential"},
 		{func(p *Provider) { p.Headers = map[string]string{"X-A": "a\nb"} }, "one line"},
 		{func(p *Provider) { p.Headers = map[string]string{"bad name": "a"} }, "header name"},
+		{func(p *Provider) { p.Kind, p.Auth = "claude", "" }, "takes no baseUrl"},
+		{func(p *Provider) { p.Kind, p.BaseURL, p.Model, p.Auth = "claude", "", "", "bearer" }, "kind claude takes login"},
+		{func(p *Provider) {
+			p.Kind, p.BaseURL, p.Model, p.Auth = "codex", "", "--dangerously-bypass-approvals-and-sandbox", ""
+		}, "provider.model"},
+		{func(p *Provider) { p.Kind, p.BaseURL, p.Model, p.Auth = "codex", "", "", "none" }, "kind codex takes login or bearer"},
 	} {
 		p := ok
 		p.Headers = nil
