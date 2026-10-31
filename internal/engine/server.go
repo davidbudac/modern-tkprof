@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/davidbudac/modern-tkprof/internal/assist"
 	"github.com/davidbudac/modern-tkprof/internal/remote"
 )
 
@@ -62,7 +63,9 @@ type Server struct {
 	prompts *prompts
 	wg      sync.WaitGroup // open goroutines
 
-	conns connRegistry // connections.go
+	conns connRegistry  // connections.go
+	convs conversations // assist.go
+	keys  *assist.Keys  // the assistant providers' API keys, in memory
 
 	mu       sync.Mutex
 	sessions map[string]*Session
@@ -90,6 +93,7 @@ func New(o Options) (*Server, error) {
 	s := &Server{opts: o, cache: c, token: []byte(o.Token), origins: map[string]bool{}, keepAlive: ka, started: time.Now(),
 		bc: newBroadcaster(), sessions: map[string]*Session{}, jobs: map[string]*Job{}}
 	s.prompts = newPrompts(s.bc)
+	s.keys = &assist.Keys{Prompter: s.prompts}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	for _, o := range o.AllowOrigins {
 		if o = strings.TrimSpace(o); o != "" {
@@ -126,6 +130,11 @@ var routes = []struct {
 	{"GET /engine/sessions/{id}", (*Server).getSession},
 	{"DELETE /engine/sessions/{id}", (*Server).deleteSession},
 	{"GET /engine/assist/tools", (*Server).assistTools},
+	{"POST /engine/assist/conversations", (*Server).createConversation},
+	{"GET /engine/assist/conversations/{c}", (*Server).getConversation},
+	{"DELETE /engine/assist/conversations/{c}", (*Server).deleteConversation},
+	{"POST /engine/assist/conversations/{c}/messages", (*Server).postMessage},
+	{"DELETE /engine/assist/providers/{id}/key", (*Server).forgetProviderKey},
 	{"GET /engine/jobs", (*Server).listJobs},
 	{"DELETE /engine/jobs/{id}", (*Server).cancelJob},
 	{"GET /engine/cache", (*Server).listCache},
@@ -275,6 +284,7 @@ func (s *Server) Close() error {
 	s.closed = true
 	s.mu.Unlock()
 	s.cancel()
+	s.endConversations("")
 	s.prompts.close()
 	s.bc.close()
 	s.wg.Wait()
@@ -300,7 +310,7 @@ func (s *Server) logf(level, format string, a ...any) {
 	s.bc.publish("log", LogEvent{Level: level, Message: msg})
 }
 
-// newID is a random id with a one-letter kind prefix (s session, j job, p prompt).
+// newID is a random id with a one-letter kind prefix (s session, j job, p prompt, c conversation).
 func newID(prefix string) string {
 	var b [6]byte
 	if _, err := rand.Read(b[:]); err != nil {

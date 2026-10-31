@@ -85,6 +85,7 @@ func obj(v any) map[string]any { o, _ := v.(map[string]any); return o }
 var argsOf = map[string]any{
 	"overview": scopeArgs{}, "statements": statementsArgs{}, "statement": statementArgs{}, "executions": executionsArgs{},
 	"pivot": pivotArgs{}, "timeline": timelineArgs{}, "lines": linesArgs{}, "search_lines": searchArgs{}, "notes": notesArgs{}, "current_view": struct{}{},
+	"show": Intent{},
 }
 
 func jsonFields(t reflect.Type) []string {
@@ -103,7 +104,7 @@ func jsonFields(t reflect.Type) []string {
 }
 
 func TestToolsRegistry(t *testing.T) {
-	want := []string{"overview", "statements", "statement", "executions", "pivot", "timeline", "lines", "search_lines", "notes", "current_view"}
+	want := []string{"overview", "statements", "statement", "executions", "pivot", "timeline", "lines", "search_lines", "notes", "current_view", "show"}
 	var have []string
 	for _, tl := range Tools {
 		have = append(have, tl.Name)

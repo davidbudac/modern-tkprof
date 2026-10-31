@@ -13,6 +13,7 @@ import (
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/assist"
+	"github.com/davidbudac/modern-tkprof/internal/remote"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 )
 
@@ -227,6 +228,10 @@ func TestContractSchemas(t *testing.T) {
 		"SessionInfo": SessionInfo{}, "SessionEvent": SessionEvent{}, "PromptEvent": PromptEvent{}, "LogEvent": LogEvent{},
 		"CacheItem": CacheItem{}, "CacheList": CacheList{}, "CacheWipe": CacheWipe{}, "SessionOptions": SessionOptions{},
 		"ToolInfo": assist.Info{}, "BriefRequest": BriefRequest{}, "BriefOptions": BriefOptions{}, "BriefScope": BriefScope{}, "Note": report.Note{}, "NoteStmt": report.NoteStmt{},
+		"ConversationRequest": ConversationRequest{}, "MessageRequest": MessageRequest{}, "Provider": assist.Provider{}, "View": assist.View{},
+		"ConversationInfo": assist.ConversationInfo{}, "Usage": assist.Usage{}, "Intent": assist.Intent{}, "PivotIntent": assist.PivotIntent{},
+		"TextEvent": assist.TextEvent{}, "ToolCallEvent": assist.ToolCallEvent{}, "ToolResultEvent": assist.ToolResultEvent{}, "IntentEvent": assist.IntentEvent{},
+		"UsageEvent": assist.UsageEvent{}, "StateEvent": assist.StateEvent{}, "DoneEvent": assist.DoneEvent{}, "ErrorEvent": assist.ErrorEvent{},
 		"StmtStats": analyze.StmtStats{}, "ScopeProfile": analyze.ScopeProfile{}, "CallStats": analyze.CallStats{}, "Link": analyze.Link{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
@@ -260,6 +265,27 @@ func TestContractSchemas(t *testing.T) {
 	}
 	if i < 0 || keys[i].value != "["+strings.Join(want, ", ")+"]" {
 		t.Errorf("ErrorCode enum is not %v", want)
+	}
+	for name, want := range map[string][]string{
+		"TurnErrorCode":     {assist.CodeCancelled, assist.CodeSessionClosed, assist.CodeNoKey, assist.CodeAuth, assist.CodeProvider, assist.CodeTooManySteps, assist.CodeInternal},
+		"ConversationState": {string(assist.StateIdle), string(assist.StateRunning), string(assist.StateWaitingKey), string(assist.StateCancelled), string(assist.StateFailed)},
+	} {
+		if i := lookup(keys, "components", "schemas", name, "enum"); i < 0 || keys[i].value != "["+strings.Join(want, ", ")+"]" {
+			t.Errorf("%s enum is not %v", name, want)
+		}
+	}
+	if i := lookup(keys, "components", "schemas", "PromptEvent", "properties", "kind", "enum"); i < 0 ||
+		keys[i].value != "["+strings.Join([]string{remote.KindPassword, remote.KindPassphrase, remote.KindOTP, remote.KindHostKey, remote.KindConfirm, remote.KindAPIKey}, ", ")+"]" {
+		t.Errorf("PromptEvent kind enum is not the prompt kinds")
+	}
+	for typ, schema := range map[string]string{"text": "TextEvent", "tool_call": "ToolCallEvent", "tool_result": "ToolResultEvent", "intent": "IntentEvent",
+		"usage": "UsageEvent", "state": "StateEvent", "done": "DoneEvent", "error": "ErrorEvent"} {
+		if i := lookup(keys, "components", "schemas", schema, "properties", "type", "const"); i < 0 || keys[i].value != typ {
+			t.Errorf("%s: type is not %q", schema, typ)
+		}
+		if i := lookup(keys, "components", "schemas", "TurnEvent", "discriminator", "mapping", typ); i < 0 || keys[i].value != `"#/components/schemas/`+schema+`"` {
+			t.Errorf("TurnEvent maps %s elsewhere", typ)
+		}
 	}
 
 	b, err := os.ReadFile(contractFile)

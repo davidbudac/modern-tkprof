@@ -78,6 +78,10 @@ type Env struct {
 	// Conversation is the id the call came in with (ConversationHeader); "" for
 	// a call outside any conversation.
 	Conversation string
+	// Show sends a show target (and its mtkprof: link) to the app, as an
+	// intent event on the open turn of the conversation. nil: no turn is open,
+	// and the show tool says so.
+	Show func(target Intent, href string) error
 	// MaxBytes overrides MaxResultBytes (0 = the default).
 	MaxBytes int
 }
@@ -137,7 +141,7 @@ func argErrorf(format string, a ...any) error { return &ArgError{fmt.Sprintf(for
 // Tools is the registry.
 var Tools = []Tool{
 	overviewTool, statementsTool, statementTool, executionsTool, pivotTool, timelineTool,
-	linesTool, searchLinesTool, notesTool, currentViewTool,
+	linesTool, searchLinesTool, notesTool, currentViewTool, showTool,
 }
 
 // Lookup finds a tool by name.

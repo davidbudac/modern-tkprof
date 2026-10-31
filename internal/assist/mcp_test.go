@@ -110,8 +110,8 @@ func toolResult(t *testing.T, r rpcReplyT) toolText {
 func TestMCPInitialize(t *testing.T) {
 	s, _, _ := newMCP(t)
 	for _, c := range []struct{ asked, want string }{
-		{"2025-06-18", "2025-06-18"}, {"2025-03-26", "2025-03-26"}, {"2024-11-05", "2024-11-05"},
-		{"2099-01-01", "2025-06-18"}, {"", "2025-06-18"},
+		{"2025-11-25", "2025-11-25"}, {"2025-06-18", "2025-06-18"}, {"2025-03-26", "2025-03-26"}, {"2024-11-05", "2024-11-05"},
+		{"2099-01-01", "2025-11-25"}, {"", "2025-11-25"},
 	} {
 		req := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"` + c.asked + `","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}`
 		rs := serve(t, s, req)
@@ -195,7 +195,7 @@ func TestMCPErrors(t *testing.T) {
 	}
 	for i, want := range []string{`unknown tool "nope"`, "not in this trace", "unknown field"} { // the engine's 400s are results the model can read
 		got := toolResult(t, rs[i])
-		if !got.IsError || !strings.Contains(got.Content[0].Text, want) || !strings.HasPrefix(got.Content[0].Text, "bad_request: ") {
+		if !got.IsError || !strings.Contains(got.Content[0].Text, want) || !strings.HasPrefix(got.Content[0].Text, ToolErrorText("")) {
 			t.Errorf("call %d: %+v, want an error with %q", i+1, got, want)
 		}
 	}

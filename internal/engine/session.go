@@ -129,7 +129,18 @@ func (ss *Session) end() {
 type opened struct {
 	co      *CacheOpened
 	handler http.Handler
-	release func() // instead of co.Close (a live session, live.go)
+	api     http.Handler // the slice routes of co (the assist tools read through them)
+	release func()       // instead of co.Close (a live session, live.go)
+}
+
+// trace is what the session shows now: the trace and its slice routes (a
+// live session's latest snapshot). The caller holds ss.use.
+func (o *opened) trace() (*CacheOpened, http.Handler) {
+	if lv, ok := o.handler.(*live); ok {
+		snap := lv.cur.Load()
+		return snap.co, snap.api
+	}
+	return o.co, o.api
 }
 
 // close releases the line indexes and the spill files and unpins the cache
@@ -436,17 +447,17 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 	ss.mu.Lock()
 	ss.ref.doc = doc
 	ss.mu.Unlock()
-	op.handler = s.sessionMux(ss, co, doc)
+	op.handler, op.api = s.sessionMux(ss, co, doc)
 	return op, nil
 }
 
 // sessionMux serves the routes of a session (sessionRoutes) from an opened
-// trace and its document.
-func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) http.Handler {
+// trace and its document; api is its slice routes alone.
+func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) (mux, api http.Handler) {
 	ssrv := slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
 	ssrv.AllowOrigin = slice.NoCORS                                  // the engine's middleware sets CORS
 	ssrv.Thresholds = ss.th                                          // api/findings: those of the document's findings
-	api := ssrv.Handler()
+	api = ssrv.Handler()
 	handlers := map[string]http.Handler{
 		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -458,17 +469,17 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) http.Handl
 		}),
 		"POST /api/ref":                 s.refHandler(ss),
 		"POST /api/brief":               briefHandler(ss, co),
-		"POST /api/assist/tools/{name}": toolHandler(ss, co, api),
+		"POST /api/assist/tools/{name}": s.toolHandler(ss, co, api),
 	}
-	mux := http.NewServeMux()
+	m := http.NewServeMux()
 	for _, p := range sessionRoutes() {
 		h := handlers[p]
 		if h == nil {
 			h = api
 		}
-		mux.Handle(p, h)
+		m.Handle(p, h)
 	}
-	return mux
+	return m, api
 }
 
 // buildFiles is model.BuildFiles that turns a cancellation (cancelSink) or a
@@ -604,6 +615,7 @@ func (s *Server) deleteSession(w http.ResponseWriter, r *http.Request) {
 // closeSession stops a session already removed from s.sessions: cancels its
 // jobs, waits for them, releases its files and publishes the closed state.
 func (s *Server) closeSession(ss *Session) {
+	s.endConversations(ss.id)
 	ss.job.cancel()
 	s.cancelRefJobs(ss.id)
 	<-ss.done

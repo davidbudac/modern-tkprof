@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -210,7 +211,8 @@ type searchOut struct {
 var searchLinesTool = Tool{
 	Name: "search_lines",
 	Description: "Find the lines of a trace file that contain a text (or match a regular expression), in file order, with line numbers. " +
-		"A match inside a BINDS block shows the masked bind value, not the traced one. At most 200 hits; next is the line to continue from.",
+		"When bind values are masked, a line matches on its masked text, so a bind value cannot be found by searching for it, and the masked tokens themselves are not searched. " +
+		"At most 200 hits; next is the line to continue from.",
 	Schema: schema(`"q":{"type":"string","minLength":1,"description":"the text to find"},`+
 		`"regex":{"type":"boolean","default":false,"description":"q is a Go regular expression"},`+
 		`"ignore_case":{"type":"boolean","default":false},`+
@@ -218,6 +220,84 @@ var searchLinesTool = Tool{
 		`"from":{"type":"integer","minimum":1,"default":1,"description":"line to start at"},`+
 		`"limit":{"type":"integer","minimum":1,"maximum":200,"default":30}`, "q"),
 	Run: runSearchLines,
+}
+
+// searchBatch is how many hits search_lines asks the route for at a time when
+// it masks: raw hits whose masked line no longer matches are dropped, and the
+// search goes on until it has its limit, so no answer tells a dropped hit apart.
+const searchBatch = 1000
+
+// lineMatcher is the match of the route (/api/search) on one line: the byte
+// offset of the first match, or -1.
+func lineMatcher(a searchArgs) (func(string) int, error) {
+	if a.Regex {
+		expr := a.Q
+		if a.IgnoreCase {
+			expr = "(?i)" + expr
+		}
+		re, err := regexp.Compile(expr)
+		if err != nil {
+			return nil, argErrorf("regex: %v", err)
+		}
+		return func(l string) int {
+			if loc := re.FindStringIndex(l); loc != nil {
+				return loc[0]
+			}
+			return -1
+		}, nil
+	}
+	if !a.IgnoreCase {
+		return func(l string) int { return strings.Index(l, a.Q) }, nil
+	}
+	q := lowerASCII(a.Q)
+	return func(l string) int { return strings.Index(lowerASCII(l), q) }, nil
+}
+
+// lowerASCII lowers the ASCII letters only, as the route folds case.
+func lowerASCII(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if 'A' <= c && c <= 'Z' {
+			b[i] = c + 'a' - 'A'
+		}
+	}
+	return string(b)
+}
+
+type searchRec struct {
+	Line      int    `json:"line"`
+	Col       int    `json:"col"`
+	Text      string `json:"text"`
+	Done      bool   `json:"done"`
+	Scanned   int    `json:"scanned"`
+	Truncated bool   `json:"truncated"`
+}
+
+// searchPage is one answer of /api/search: its hits and its done record.
+func (e Env) searchPage(ctx context.Context, a searchArgs, from, limit int) (hits []searchRec, end searchRec, err error) {
+	b2i := map[bool]string{false: "0", true: "1"}
+	body, err := e.get(ctx, "/api/search", url.Values{"file": {strconv.Itoa(a.File)}, "q": {a.Q}, "regex": {b2i[a.Regex]}, "case": {b2i[!a.IgnoreCase]},
+		"from": {strconv.Itoa(from)}, "limit": {strconv.Itoa(limit)}})
+	if err != nil {
+		return nil, end, err
+	}
+	sc := bufio.NewScanner(bytes.NewReader(body))
+	sc.Buffer(nil, 1<<20)
+	for sc.Scan() {
+		var rec searchRec
+		if err := json.Unmarshal(sc.Bytes(), &rec); err != nil {
+			return nil, end, fmt.Errorf("search: %w", err)
+		}
+		if rec.Done {
+			end = rec
+			continue
+		}
+		hits = append(hits, rec)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, end, fmt.Errorf("search: %w", err)
+	}
+	return hits, end, nil
 }
 
 func runSearchLines(ctx context.Context, e Env, raw json.RawMessage) (Result, error) {
@@ -241,54 +321,62 @@ func runSearchLines(ctx context.Context, e Env, raw json.RawMessage) (Result, er
 	if err != nil {
 		return Result{}, err
 	}
-	b2i := map[bool]string{false: "0", true: "1"}
-	body, err := e.get(ctx, "/api/search", url.Values{"file": {strconv.Itoa(a.File)}, "q": {a.Q}, "regex": {b2i[a.Regex]}, "case": {b2i[!a.IgnoreCase]},
-		"from": {strconv.Itoa(a.From)}, "limit": {strconv.Itoa(a.Limit)}})
+	match, err := lineMatcher(a)
 	if err != nil {
 		return Result{}, err
 	}
+	var mk *LineMasker
+	if e.Redact != nil {
+		if mk, err = e.lineMasker(ctx, a.File); err != nil {
+			return Result{}, err
+		}
+	}
 	out := searchOut{File: a.File, Name: name, Q: a.Q, BindValues: e.bindValues(), Hits: []hitOut{}}
-	var routeCut bool
-	sc := bufio.NewScanner(bytes.NewReader(body))
-	sc.Buffer(nil, 1<<20)
-	for sc.Scan() {
-		var rec struct {
-			Line      int    `json:"line"`
-			Col       int    `json:"col"`
-			Text      string `json:"text"`
-			Done      bool   `json:"done"`
-			Scanned   int    `json:"scanned"`
-			Truncated bool   `json:"truncated"`
+	var hits []hitOut
+	routeCut := false
+	for from := a.From; ; {
+		batch := a.Limit
+		if mk != nil {
+			batch = searchBatch
 		}
-		if err := json.Unmarshal(sc.Bytes(), &rec); err != nil {
-			return Result{}, fmt.Errorf("search: %w", err)
-		}
-		if rec.Done {
-			out.Scanned, routeCut = rec.Scanned, rec.Truncated
-			continue
-		}
-		out.Hits = append(out.Hits, hitOut{Line: rec.Line, Col: rec.Col, Text: rec.Text})
-	}
-	if err := sc.Err(); err != nil {
-		return Result{}, fmt.Errorf("search: %w", err)
-	}
-	if len(out.Hits) > 0 {
-		mk, err := e.lineMasker(ctx, a.File)
+		page, end, err := e.searchPage(ctx, a, from, batch)
 		if err != nil {
 			return Result{}, err
 		}
-		for i := range out.Hits {
-			h := &out.Hits[i]
-			ls := []string{h.Text}
-			if err := mk.Mask(h.Line, ls); err != nil {
-				return Result{}, err
+		out.Scanned += end.Scanned
+		for _, rec := range page {
+			h := hitOut{Line: rec.Line, Col: rec.Col, Text: rec.Text}
+			if mk != nil {
+				ls := []string{rec.Text}
+				if err := mk.Mask(rec.Line, ls); err != nil {
+					return Result{}, err
+				}
+				if ls[0] == rec.Text && isValueLine(rec.Text) { // a value line no known block covered
+					ls[0] = rec.Text[:strings.Index(rec.Text, "value=")+len("value=")] + maskedValue
+				}
+				if ls[0] != rec.Text {
+					if h.Col = match(ls[0]); h.Col < 0 {
+						continue
+					}
+					h.Text = ls[0]
+				}
 			}
-			h.Text, _ = cutText(ls[0], maxHitBytes)
+			h.Text, _ = cutText(h.Text, maxHitBytes)
+			hits = append(hits, h)
 		}
+		if len(hits) >= a.Limit {
+			routeCut = len(hits) > a.Limit || end.Truncated
+			hits = hits[:a.Limit]
+			break
+		}
+		if !end.Truncated || len(page) == 0 {
+			break
+		}
+		from = page[len(page)-1].Line + 1
 	}
-	hits := out.Hits
-	if routeCut && len(hits) > 0 {
+	if routeCut { // the lines up to the last hit shown, whatever the pages were
 		out.Next = hits[len(hits)-1].Line + 1
+		out.Scanned = out.Next - a.From
 	}
 	res, err := e.listResult(len(hits), func(n int) any {
 		out.Hits = hits[:n]
