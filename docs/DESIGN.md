@@ -231,6 +231,14 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   other parts of the assistant (the desktop engine's conversations, the tool
   bridge `mtkprof mcp` on loopback) run only on the user's say-so, per trace
   and provider.
+- A conversation (`POST /engine/assist/conversations`, `internal/assist`)
+  names its provider without a secret. The API key is asked for through the
+  prompt mechanism (kind `apikey`, the provider id as the connection) and held
+  in engine memory per provider until `DELETE .../providers/{id}/key` or the
+  engine exits. The agent loop runs in the engine: tool calls run in process
+  on the session's trace, with the conversation's masking. A turn streams as
+  NDJSON on its own request, never on `/engine/events`, whose buffer drops a
+  slow subscriber.
 
 ## Project
 
