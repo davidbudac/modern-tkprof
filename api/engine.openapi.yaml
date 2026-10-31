@@ -100,6 +100,26 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
   /engine/prompts/{id}:
+    get:
+      operationId: getPrompt
+      summary: An open prompt
+      description: >-
+        The prompt as its `prompt` event announced it, while it is open. The
+        desktop shell reads an apikey prompt's `endpoint` here before it
+        answers with a key it remembered for that endpoint.
+      parameters:
+        - $ref: "#/components/parameters/PromptID"
+      responses:
+        "200":
+          description: the open prompt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromptEvent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
     post:
       operationId: answerPrompt
       summary: Answer or cancel an open prompt
@@ -288,8 +308,10 @@ paths:
         - `openai`: an OpenAI-compatible `/chat/completions` endpoint at
           `baseUrl`. With `auth` bearer (the default) the key is asked for
           once per provider with a `prompt` event of kind `apikey` whose
-          `connection` is `provider.id`, answered with `POST
-          /engine/prompts/{id}`, and held in memory only; `auth` none sends
+          `connection` is `provider.id` and `endpoint` its kind and
+          `baseUrl`, answered with `POST /engine/prompts/{id}`, and held in
+          memory only, for that endpoint (the same id with another `baseUrl`
+          asks again); `auth` none sends
           no key (a local server such as Ollama). `headers` are extra request
           headers: a name that looks like a credential (auth, key, token,
           secret, password, cookie) or a `Bearer`/`Basic` value is a 400, and
@@ -3946,6 +3968,9 @@ components:
         fingerprint:
           type: string
           description: "hostkey: the SHA256 fingerprint of the unknown host key (answer yes to accept; it is then added to ~/.ssh/known_hosts)"
+        endpoint:
+          type: string
+          description: "apikey: where the key is sent, the provider's kind and base URL (`openai https://api.example.com/v1`, `codex`). A key remembered for the provider id answers only for the same endpoint."
     PromptAnswer:
       type: object
       description: "{answer} or {cancel: true}"

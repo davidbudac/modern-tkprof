@@ -22,6 +22,8 @@ type PromptEvent struct {
 	State      string `json:"state"`
 	// Fingerprint is the SHA256 fingerprint of an unknown SSH host key (kind hostkey).
 	Fingerprint string `json:"fingerprint,omitempty"`
+	// Endpoint is where an API key is sent (kind apikey): the provider's kind and base URL.
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 type promptAnswer struct {
@@ -57,7 +59,7 @@ func (p *prompts) Ask(ctx context.Context, q remote.Prompt) (string, error) {
 		return "", fmt.Errorf("prompt kind %q", q.Kind)
 	}
 	pp := &pendingPrompt{ch: make(chan promptAnswer, 1),
-		ev: PromptEvent{ID: newID("p"), Connection: q.Connection, Kind: q.Kind, Text: q.Text, Echo: q.Echo, State: "open", Fingerprint: q.Fingerprint}}
+		ev: PromptEvent{ID: newID("p"), Connection: q.Connection, Kind: q.Kind, Text: q.Text, Echo: q.Echo, State: "open", Fingerprint: q.Fingerprint, Endpoint: q.Endpoint}}
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
@@ -114,6 +116,17 @@ func (p *prompts) answer(id string, a promptAnswer) bool {
 	}
 }
 
+// get is the open prompt id, if any.
+func (p *prompts) get(id string) (PromptEvent, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	pp := p.open[id]
+	if pp == nil {
+		return PromptEvent{}, false
+	}
+	return pp.ev, true
+}
+
 // pending lists the open prompts in the order they were raised.
 func (p *prompts) pending() []PromptEvent {
 	p.mu.Lock()
@@ -140,6 +153,17 @@ func (p *prompts) close() {
 		default:
 		}
 	}
+}
+
+// getPrompt serves GET /engine/prompts/{id}: the open prompt, so the desktop
+// shell can check an apikey prompt's endpoint before it answers with a stored key.
+func (s *Server) getPrompt(w http.ResponseWriter, r *http.Request) {
+	ev, ok := s.prompts.get(r.PathValue("id"))
+	if !ok {
+		writeError(w, errorf(CodeNotFound, "no open prompt %q", r.PathValue("id")))
+		return
+	}
+	writeJSON(w, http.StatusOK, ev)
 }
 
 // answerPrompt serves POST /engine/prompts/{id} with {"answer": "..."} or {"cancel": true}.

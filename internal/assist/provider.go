@@ -82,6 +82,16 @@ func (p Provider) label() string {
 // needsKey says whether the provider is given a key.
 func (p Provider) needsKey() bool { return p.Auth != AuthNone && p.Auth != AuthLogin }
 
+// endpoint is where the provider's key is sent: its kind and, for an HTTP
+// kind, its base URL ("openai https://api.example.com/v1", "codex"). A key is
+// bound to it, so a provider id reused for another endpoint asks again.
+func (p Provider) endpoint() string {
+	if p.BaseURL == "" {
+		return p.Kind
+	}
+	return p.Kind + " " + p.BaseURL
+}
+
 // Check validates a provider definition and sets the default auth; an error
 // says what is wrong.
 func (p *Provider) Check() error {
@@ -143,17 +153,22 @@ func (p *Provider) Check() error {
 	return nil
 }
 
-// Keys holds the API keys of the providers in memory, by provider id, for as
-// long as the engine runs or until Forget. A key comes only from a prompt
-// (kind apikey, Prompt.Connection = the provider id) and is never written or
+// Keys holds the API keys of the providers in memory, by provider id and
+// bound to the provider's endpoint, for as long as the engine runs or until
+// Forget. A key comes only from a prompt (kind apikey, Prompt.Connection = the
+// provider id, Prompt.Endpoint = Provider.endpoint) and is never written or
 // logged.
 type Keys struct {
 	Prompter remote.Prompter
 
 	mu     sync.Mutex
-	held   map[string]string
-	asking map[string]*keyAsk // one prompt per provider at a time
+	held   map[string]heldKey
+	asking map[heldSlot]*keyAsk // one prompt per provider and endpoint at a time
 }
+
+type heldKey struct{ endpoint, key string }
+
+type heldSlot struct{ id, endpoint string }
 
 type keyAsk struct {
 	done chan struct{}
@@ -166,20 +181,21 @@ type keyAsk struct {
 // cancelled prompt is a *TurnError with code no_key; the end of ctx is
 // ctx.Err().
 func (k *Keys) Get(ctx context.Context, p Provider, wait func()) (string, error) {
+	slot := heldSlot{p.ID, p.endpoint()}
 	for {
 		k.mu.Lock()
-		if key, ok := k.held[p.ID]; ok {
+		if h, ok := k.held[p.ID]; ok && h.endpoint == slot.endpoint {
 			k.mu.Unlock()
-			return key, nil
+			return h.key, nil
 		}
-		a := k.asking[p.ID]
+		a := k.asking[slot]
 		mine := a == nil
 		if mine {
 			a = &keyAsk{done: make(chan struct{})}
 			if k.asking == nil {
-				k.asking = map[string]*keyAsk{}
+				k.asking = map[heldSlot]*keyAsk{}
 			}
-			k.asking[p.ID] = a
+			k.asking[slot] = a
 		}
 		k.mu.Unlock()
 		if wait != nil {
@@ -187,7 +203,7 @@ func (k *Keys) Get(ctx context.Context, p Provider, wait func()) (string, error)
 			wait = nil
 		}
 		if mine {
-			return k.ask(ctx, p, a)
+			return k.ask(ctx, p, slot, a)
 		}
 		select {
 		case <-a.done:
@@ -204,24 +220,24 @@ func (k *Keys) Get(ctx context.Context, p Provider, wait func()) (string, error)
 	}
 }
 
-func (k *Keys) ask(ctx context.Context, p Provider, a *keyAsk) (string, error) {
+func (k *Keys) ask(ctx context.Context, p Provider, slot heldSlot, a *keyAsk) (string, error) {
 	where := p.BaseURL
 	if where == "" {
 		where = "the " + Backends[p.Kind].Command + " CLI"
 	}
-	key, err := k.Prompter.Ask(ctx, remote.Prompt{Connection: p.ID, Kind: remote.KindAPIKey,
+	key, err := k.Prompter.Ask(ctx, remote.Prompt{Connection: p.ID, Kind: remote.KindAPIKey, Endpoint: slot.endpoint,
 		Text: fmt.Sprintf("API key for %s (%s)", p.label(), where)})
 	key = strings.TrimSpace(key)
 	if err == nil && key == "" {
 		err = errors.New("empty key")
 	}
 	k.mu.Lock()
-	delete(k.asking, p.ID)
+	delete(k.asking, slot)
 	if err == nil {
 		if k.held == nil {
-			k.held = map[string]string{}
+			k.held = map[string]heldKey{}
 		}
-		k.held[p.ID] = key
+		k.held[p.ID] = heldKey{slot.endpoint, key}
 	}
 	a.key, a.err = key, err
 	close(a.done)

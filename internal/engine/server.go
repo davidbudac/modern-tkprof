@@ -123,6 +123,7 @@ var routes = []struct {
 }{
 	{"GET /engine/health", (*Server).health},
 	{"GET /engine/events", (*Server).events},
+	{"GET /engine/prompts/{id}", (*Server).getPrompt},
 	{"POST /engine/prompts/{id}", (*Server).answerPrompt},
 	{"POST /engine/sessions", (*Server).openSession},
 	{"GET /engine/sessions", (*Server).listSessions},
