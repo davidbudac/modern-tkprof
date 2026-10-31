@@ -91,7 +91,7 @@ Execution plan, plan hash 2403330195 (row source statistics from the STAT lines 
 
 - **Time:** own 6.4 ms; elapsed 7.0 ms including recursive children; cpu 4.4 ms; waits inside calls 0 µs; idle between calls 0 µs
 - **Work:** executions 10, rows 10, disk reads 1, query gets 12, current gets 5, cursors 1, hard parses 1
-- **Where:** 11:35:03.686 to 11:35:03.693; first trace line 2158; module mtk_basic_binds, action typed_binds_plsql, session 51.4357
+- **Where:** 11:35:03.686 to 11:35:03.694; first trace line 2158; module mtk_basic_binds, action typed_binds_plsql, session 51.4357
 - **Recursive statements it runs:** `10gywwmwk6xfy` (341 µs, 3 calls), `dbvj6jc977hqh` (235 µs, 2 calls)
 - **Called recursively from:** `atbp0549pnzjg` (7.0 ms, 31 calls)
 

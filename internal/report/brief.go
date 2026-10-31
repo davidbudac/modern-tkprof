@@ -408,20 +408,20 @@ func (w *briefWriter) scanExecs(ctx context.Context) error {
 
 // resolveStmt is the desktop's resolveStmt: the statement with the sql_id and
 // the hash, else the only statement with the sql_id.
-func (w *briefWriter) resolveStmt(ref *NoteStmt) (model.ID, bool) {
+func (w *briefWriter) resolveStmt(ns *NoteStmt) (model.ID, bool) {
 	bySQL, n := model.None, 0
 	for i := range w.m.Statements {
 		st := &w.m.Statements[i]
-		if st.SQLID != ref.SQLID {
+		if st.SQLID != ns.SQLID {
 			continue
 		}
-		if NoteHash(st.Kind, st.Text) == ref.Hash {
+		if NoteHash(st.Kind, st.Text) == ns.Hash {
 			return model.ID(i), true
 		}
 		bySQL = model.ID(i)
 		n++
 	}
-	return bySQL, ref.SQLID != "" && n == 1
+	return bySQL, ns.SQLID != "" && n == 1
 }
 
 // sortNotes puts every note where it prints. Execution notes of the listed
@@ -604,6 +604,9 @@ func (w *briefWriter) contexts() {
 			w.p("  - and %d more\n", len(ids)-i)
 			break
 		}
+		if id < 0 || int(id) >= len(m.Contexts) {
+			continue
+		}
 		c := &m.Contexts[id]
 		w.p("  - context %d: session %s, service %s, module %s, action %s\n", id, analyze.SessionName(c), dash(c.Service), dash(c.Module), dash(c.Action))
 	}
@@ -614,7 +617,6 @@ func (w *briefWriter) profile() {
 	type row struct {
 		name, class      string
 		us, count, maxUs int64
-		idle             bool
 	}
 	rows := []row{{name: "CPU", us: p.CPUUs}}
 	accounted := p.CPUUs
@@ -623,7 +625,7 @@ func (w *briefWriter) profile() {
 		if e.Idle {
 			name += " (idle)"
 		}
-		rows = append(rows, row{name, e.Class, e.Us, e.Count, e.MaxUs, e.Idle})
+		rows = append(rows, row{name, e.Class, e.Us, e.Count, e.MaxUs})
 		accounted += e.Us
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].us > rows[j].us })
@@ -693,10 +695,7 @@ func (w *briefWriter) statement(sid model.ID) {
 		w.p(", errors %d", s.Errors)
 	}
 	w.nl()
-	where := fmt.Sprintf("first trace line %d", st.FirstLine)
-	if s.FirstWallUs != 0 {
-		where = fmt.Sprintf("%s to %s; %s", w.h.clock(m.Span.FirstTim+s.FirstWallUs-m.Span.FirstWallUs), w.h.clock(m.Span.FirstTim+s.LastWallUs-m.Span.FirstWallUs), where)
-	}
+	where := fmt.Sprintf("%s to %s; first trace line %d", w.h.clock(s.FirstTim), w.h.clock(s.LastTim), st.FirstLine)
 	if len(st.Cursors) > 0 {
 		c := &m.Contexts[m.Cursors[st.Cursors[0]].Context]
 		where += fmt.Sprintf("; module %s, action %s, session %s", dash(c.Module), dash(c.Action), analyze.SessionName(c))
@@ -776,6 +775,9 @@ func (w *briefWriter) topWaits(sid model.ID) {
 	}
 	w.p("Top waits of this statement:\n\n")
 	for _, x := range ws {
+		if x.Event < 0 || int(x.Event) >= len(w.m.Events) {
+			continue
+		}
 		ev := &w.m.Events[x.Event]
 		name := ev.Name
 		if ev.Idle {
