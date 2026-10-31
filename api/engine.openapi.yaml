@@ -230,6 +230,25 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /engine/assist/tools:
+    get:
+      operationId: assistTools
+      summary: The analysis tools an assistant can call, with their argument schemas
+      description: |
+        The registry behind `POST /s/{id}/api/assist/tools/{name}`: overview,
+        statements, statement, executions, pivot, timeline, lines,
+        search_lines, notes and current_view. `inputSchema` is the JSON Schema
+        of the tool's arguments; the fields are those of MCP `tools/list`, which
+        `mtkprof mcp` passes through.
+      responses:
+        "200":
+          description: the tools
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /engine/jobs:
     get:
       operationId: listJobs
@@ -931,6 +950,80 @@ paths:
             text/markdown:
               schema:
                 type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/assist/tools/{name}:
+    post:
+      operationId: sessionAssistTool
+      summary: Run one analysis tool on the session's trace
+      description: |
+        The body is the JSON object of the tool's arguments (see
+        `GET /engine/assist/tools`; an empty body is `{}`). The answer is the
+        tool's result: compact JSON of at most about 8,000 tokens
+        (`X-Mtkprof-Est-Tokens`, bytes over 4). A list that does not fit is
+        cut and the result says so (`truncated`, `hint`). The numbers are those
+        of the matching slice route for the same scope. A tool takes the scope
+        as `from`, `to` and `contexts` arguments (the whole trace when absent).
+
+        `binds`: `mask` (default) shows each bind value as its type, length and a
+        hash salted per session (random), in `executions`, in the BINDS blocks of
+        `lines` and `search_lines`, and drops the bind values the outlier
+        executions finding appends; `keep` shows the traced values. A session
+        opened with `binds` redact or none can show no more than that in the
+        model, but the trace text of `lines` is masked all the same.
+
+        `X-Mtkprof-Conversation` names the conversation the call belongs to
+        (`MTKPROF_CONVERSATION` in `mtkprof mcp`). The notes and current_view
+        tools only have something to say inside a conversation that was given
+        notes and a view; elsewhere they answer `supplied: false`.
+
+        An unknown tool or an argument that does not fit its schema is a 400
+        with the envelope.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: name
+          in: path
+          required: true
+          description: the tool (see `GET /engine/assist/tools`)
+          schema:
+            type: string
+        - name: binds
+          in: query
+          description: mask (default) or keep bind values
+          schema:
+            type: string
+            enum: [mask, keep]
+            default: mask
+        - name: X-Mtkprof-Conversation
+          in: header
+          description: the conversation the call belongs to
+          schema:
+            type: string
+            maxLength: 200
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: the tool's result
+          headers:
+            X-Mtkprof-Est-Tokens:
+              description: the estimated number of tokens of the body (bytes over 4)
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: object
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3023,6 +3116,25 @@ components:
           $ref: "#/components/schemas/SessionInfo"
         job:
           $ref: "#/components/schemas/JobInfo"
+    ToolList:
+      type: object
+      additionalProperties: false
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolInfo"
+    ToolInfo:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        inputSchema:
+          type: object
+          description: JSON Schema of the tool's arguments
     BriefRequest:
       type: object
       additionalProperties: false
