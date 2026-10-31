@@ -404,21 +404,24 @@ restores). Pieces:
   errors `--s-critical`, framing lines dim); `lines.css` mixes it 55 % into the ink.
 - Gutter marks: `DataSource.stmtMarks(stmt)` (local: the document's fact columns;
   remote: `api/calls?stmt=&limit=5000&longest=0` and `api/waits?stmt=&sort=tim&limit=1000`,
-  so the 5000 longest calls and the first 1000 waits; `partial` says so). Previous/next
-  mark buttons step through them. Opening the tab with a statement selected starts at
+  so the 5000 longest calls and the first 1000 waits; `partial` says so). The Step menu's
+  first row (keys m / M) steps through them. Opening the tab with a statement selected starts at
   its first mark.
-- Click (or arrow keys) -> `api/at` (60 ms debounce) -> the at bar (statement link,
-  exec#, cursor, wait event from the line's `nam='...'`, bind set, plan line) and the
-  store: `pickStmt`, `selectExec`, `selectEvent`. Selecting from a click does not
+- Click (or arrow keys) -> `api/at` (60 ms debounce) -> the breadcrumb (`LinesAt`: session ›
+  statement › exec k of n with its neighbours › the line, then the wait event from the line's
+  `nam='...'`, bind set, plan line; one Actions menu grouped by line, statement, execution,
+  session) and the store: `pickStmt`, `selectExec`, `selectEvent`. Selecting from a click does not
   re-jump to the statement's first mark.
-- Search box: literal/regex, case, "from here" (selected line + 1), Enter runs it,
-  hits stream into a virtualized list (flushed every 100 ms, the first at once, the
-  first hit is selected), Esc or Cancel aborts, F3 / Shift+F3 step through the hits.
+- Search box: literal/regex, case, "from here" (selected line + 1), the scope and the
+  ready-made searches in its Options menu; Enter runs it, hits stream into a virtualized
+  list in the side panel's Hits tab (flushed every 100 ms, the first at once, the first hit
+  is selected), Esc or Cancel aborts, F3 / Shift+F3 step through the hits.
   Jump to time (`lines/at`). With a time window the toolbar has `Window ⇤ start / end ⇥ lines a–b`:
   `windowLineRange` (`data/windowlines.ts`) maps the window to the lines of the open file (`lines/at` of the
   start, and of the end + 1 unless the window reaches the file's last record), the viewer's `range` prop
   marks them in the gutter (`lv-win`, `lv-win-start` / `lv-win-end`), and the file picker adds " · in window"
-  to the files whose time range overlaps it. Without a window a disabled "Window start" button keeps the toolbar still.
+  to the files whose time range overlaps it. Without a window the group is not shown (the toolbar is one row; nothing
+  below it moves, the breadcrumb row and the viewer keep their size).
 - Timeline to lines: a click on a lane block (`Lanes.tsx`, `data-stmt` / `data-start` / `data-end` on the bars;
   the bar is read at pointerdown because the captured pointer retargets the pointer-up) calls
   `pickBlock(stmt, start, end)`: window = the block's interval, `State.block` = the block, the statement is

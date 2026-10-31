@@ -679,3 +679,18 @@ export function elaOf(text: string, kind: LineKind): number {
   }
   return -1
 }
+
+/** A field whose value says "nothing": `0`, `0` with a unit (`0 µs`), or `no`. */
+const ZERO = /^(?:0(?:\s.*)?|no)$/
+
+/**
+ * The hover card's layout of a decode: the fields with something to say, and the labels (lower case) of the zero ones, which the
+ * card lists on one line instead of a row each. The inspector keeps every field.
+ */
+export function splitZeros(fields: readonly LineField[]): { shown: LineField[]; zeros: string[] } {
+  const shown: LineField[] = [], zeros: string[] = []
+  for (const f of fields) {
+    if (ZERO.test(f.value.trim())) zeros.push(f.label.toLowerCase()); else shown.push(f)
+  }
+  return { shown, zeros }
+}

@@ -1,43 +1,49 @@
 /* ---- Lines view: the raw trace as a full tab ---------------------------------------------------------- */
 .lines { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
-/* the rows above and below keep their height; the body takes the rest (the line card is not rendered while the inspector is open) */
+/* the rows above and below keep their height; the body takes the rest */
 .lines > * { flex: none; }
 .lines > .lines-body { flex: 1 1 0; }
-/* the toolbar: two rows of groups, a hairline between the groups; a group that does not fit wraps as a whole */
-.lines-bar { display: flex; flex-direction: column; gap: var(--sp-1); padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
-.lines-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) 0; }
-.tb-grp { display: flex; align-items: center; gap: var(--sp-2); }
-.tb-grp + .tb-grp { margin-inline-start: var(--sp-2); padding-inline-start: var(--sp-2); border-inline-start: 1px solid var(--hairline); }
-.lines-row > .tb-push { margin-inline-start: auto; }
-/* the first group of a wrapped line (marked by useGroupStarts) has no hairline and no indent; its margin box keeps its width, so it does not hop back */
-.tb-grp + .tb-grp[data-bol] { margin-inline: 0 calc(var(--sp-2) * 2 + 1px); padding-inline-start: 0; border-inline-start: 0; }
-.lines-row > .tb-push[data-bol] { margin-inline-start: auto; }
+/* the toolbar: one row (search, Step, the window), then at the end the command button, View and the side panel; it wraps only when it must */
+.lines-bar { container-type: inline-size; padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
+.lines-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+.lines-row > .tb-cmd { margin-inline-start: auto; }
 .lines-bar select { font-size: var(--text-sm); max-inline-size: 18rem; }
-.lines-search input[type="search"] { inline-size: clamp(8rem, 12vw, 16rem); font-family: var(--font-mono); }
-.lines-jump input[type="text"] { inline-size: 9rem; }
-.lines-marks small { white-space: nowrap; }
+/* the search box and its menu as one control */
+.lines-search { display: flex; align-items: stretch; flex: 0 1 30rem; min-inline-size: 14rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); }
+.lines-search:has(> input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -1px; }
+.lines-search input[type="search"] { flex: 1; min-inline-size: 0; border: 0; background: transparent; box-shadow: none; outline: none; font-family: var(--font-mono); font-size: var(--text-sm); padding-inline: var(--sp-2); }
+.lines-search > button, .lines-search > .tbmenu > button { border: 0; border-radius: 0; border-inline-start: 1px solid var(--hairline); }
+.lines-search > .tbmenu > button[aria-pressed="true"] { border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0; }
+/* the command button: the label and the key; the panel button: an icon and its label (the labels go when the bar is narrow) */
+.tb-cmd > button kbd, .lines-row .tb-panel kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); margin-inline-start: var(--sp-2); }
+.tb-panel { display: inline-flex; align-items: center; gap: 0.4em; }
+.tb-panel small { color: inherit; opacity: .7; font-variant-numeric: tabular-nums; }
+.tb-ico { flex: none; }
+@container (inline-size < 56rem) {
+  .lines-row .tb-label { display: none; }
+  .tb-cmd > button kbd { margin-inline-start: 0; }
+}
 .lines-tools { display: flex; align-items: center; gap: var(--sp-2); margin-inline-start: auto; }
-.lines-win { display: flex; align-items: center; gap: var(--sp-2); }
+.lines-win { display: flex; align-items: center; gap: var(--sp-2); padding-inline-start: var(--sp-2); border-inline-start: 1px solid var(--hairline); }
 .lines-win b { font-weight: 600; font-size: var(--text-sm); }
 .lines-win small { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.lines-note { color: var(--s-critical); }
-/* the line header: one fixed row, so the viewer below never moves when the selection changes. The facts scroll; the Actions menu stays at the end. */
+/* the breadcrumb of the selected line: one fixed row, so the viewer below never moves when the selection changes. The SQL text gives way
+   first; what does not fit scrolls; the Actions menu stays at the end. */
 .lines-at { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-4); padding-block: var(--sp-1); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); box-sizing: border-box; block-size: 2rem; flex: none; }
-.lines-at-facts { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-1) var(--sp-4); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; white-space: nowrap; }
-.lines-at-facts > * { flex: none; }
-.lines-at-facts > .mono { font-variant-numeric: tabular-nums; }
+.lines-crumbs { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-2); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; white-space: nowrap; }
+.lines-crumbs > * { flex: none; }
+.lines-crumbs > .lines-sql { flex: 0 1 auto; min-inline-size: 8ch; max-inline-size: 48ch; color: var(--ink-2); }
+.lines-crumbs .crumb-fact { font-variant-numeric: tabular-nums; }
+.lines-crumbs button.link { font-size: inherit; padding-block: 0; }
+.crumb-sep { color: var(--ink-3); }
+.crumb-nav { display: inline-flex; gap: 2px; }
+.crumb-nav button { padding: 0 0.4rem; font-size: var(--text-xs); line-height: 1.3; }
 .lines-at > .tbmenu { flex: none; }
 /* a status fact: a tinted pill, no border */
 .lines-kind { color: var(--ink-2); background: var(--wash); border-radius: 999px; padding-inline: 0.55rem; font-size: var(--text-xs); }
-.lines-at-obj { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
-.lines-at-obj > .lines-sql { max-inline-size: 32ch; }
-.lines-at-obj > button { font-size: var(--text-xs); }
-.lines-at-obj > button.link { padding-block: 0; }
 .lines-status-bar .link { font-size: inherit; }
-/* the Actions menu: one entry per link, labelled with what it opens */
-.lines-acts { list-style: none; margin: 0; padding: 0; display: grid; min-inline-size: 14rem; }
-.lines-acts button { inline-size: 100%; text-align: start; white-space: nowrap; }
-.lines-acts .sep { block-size: 0; margin-block: var(--sp-1); border-block-start: 1px solid var(--hairline); }
+/* the Actions menu: a group per object (this line, statement, execution, session) under a heading */
+.lines-acts { min-inline-size: 15rem; }
 .lines-sql { font-family: var(--font-mono); max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .lines-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-block-size: 0; }
@@ -50,16 +56,18 @@
 /* the viewer: rows are laid out by the component (see components/LineViewer.tsx), the scroll bar stands for the whole file */
 .lv-box { display: flex; block-size: 100%; min-block-size: 0; }
 /* the header and the scroll container as a column, the density strip beside it */
-.lv-box-col { flex: 1; display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; }
+.lv-box-col { position: relative; flex: 1; display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; }
 .lv-box-col > .lv { flex: 1; block-size: auto; min-block-size: 0; }
 .lv-strip { flex: none; inline-size: 14px; block-size: 100%; cursor: pointer; background: var(--surface-sunken); border-inline-start: 1px solid var(--hairline); box-sizing: content-box; touch-action: none; user-select: none; }
-/* the pinned header above the scroll container (the container shrinks by its row) */
-.lv-head { position: sticky; inset-block-start: 0; z-index: 2; flex: none; display: flex; align-items: center; gap: var(--sp-3); block-size: var(--lv-row); box-sizing: border-box; padding-inline: var(--sp-3); overflow: hidden; white-space: nowrap; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); color: var(--ink-2); }
+/* the header over the top rows: there only when the top line belongs to another statement than the selected line; it does not take a row,
+   so the view never changes size. As wide as its content, from the start edge; the scroll bar stays free. */
+.lv-head { position: absolute; inset-block-start: 0; inset-inline-start: 0; z-index: 3; display: flex; align-items: center; gap: var(--sp-3); inline-size: max-content; max-inline-size: calc(100% - 1.5rem); block-size: var(--lv-row); box-sizing: border-box; padding-inline: var(--sp-3); overflow: hidden; white-space: nowrap; background: var(--surface-sunken); border: 1px solid var(--hairline); border-block-start: 0; border-inline-start: 0; border-end-end-radius: var(--radius); box-shadow: 0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); color: var(--ink-2); }
+.lv-head .lv-head-up { color: var(--ink-3); }
 .lv-head button { font: inherit; padding: 0 var(--sp-2); block-size: calc(var(--lv-row) - 4px); }
 .lv-head button.lv-head-id { font-weight: 600; color: var(--ink); }
 .lv-head .lv-head-sql { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); }
 .lv-head .lv-head-blk { flex: none; color: var(--ink-2); }
-.lv { --lv-gut: 8.5rem; position: relative; overflow: auto; overscroll-behavior: contain; block-size: 100%; background: var(--surface-raised); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); }
+.lv { position: relative; overflow: auto; overscroll-behavior: contain; block-size: 100%; background: var(--surface-raised); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); }
 .lv:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .lv-inner { position: relative; }
 .lv-view { position: sticky; inset-block-start: 0; overflow-x: visible; overflow-y: clip; }
@@ -71,20 +79,23 @@
 .lv-fold { all: unset; box-sizing: border-box; display: block; inline-size: 1.2em; block-size: var(--lv-row); text-align: center; font: inherit; line-height: var(--lv-row); color: var(--ink-3); cursor: pointer; }
 .lv-fold:hover, .lv-fold:focus-visible { color: var(--ink); background: var(--wash); }
 .lv-fold-sum { color: var(--ink-3); margin-inline-start: var(--sp-3); font-style: italic; }
-.lv-ln { flex: none; position: sticky; inset-inline-start: 0; box-sizing: content-box; min-inline-size: var(--lv-ln); padding-inline: 1.1em var(--sp-2); text-align: end; color: var(--ink-3); background: var(--surface-sunken); border-inline-end: 1px solid var(--hairline); user-select: none; cursor: default; font-variant-numeric: tabular-nums; }
+.lv-ln { flex: none; position: sticky; inset-inline-start: 0; z-index: 1; box-sizing: content-box; min-inline-size: var(--lv-ln); padding-inline: 1.1em var(--sp-2); text-align: end; color: var(--ink-3); background: var(--surface-sunken); border-inline-end: 1px solid var(--hairline); user-select: none; cursor: default; font-variant-numeric: tabular-nums; }
+/* the elapsed time of a call or wait: a bar right of the line number, as long as log10(µs)/6 of its slot, in the row's tone */
+.lv-heat-slot { display: inline-flex; align-items: center; inline-size: 1.4rem; block-size: var(--lv-row); margin-inline-start: var(--sp-2); vertical-align: top; }
+.lv-heat { display: block; block-size: 4px; border-radius: 2px; inline-size: calc(var(--w) * 100%); min-inline-size: 2px; background: color-mix(in oklch, var(--tone, var(--ink-3)) 70%, transparent); pointer-events: auto; }
 .lv-wrap .lv-layer { inline-size: 100%; }
 .lv-wrap .lv-row { block-size: auto; min-block-size: var(--lv-row); white-space: pre-wrap; overflow-wrap: anywhere; contain: none; }
 .lv-pending .lv-tx::before { content: ""; display: inline-block; inline-size: 28ch; block-size: 0.45em; border-radius: 2px; background: var(--wash); vertical-align: middle; }
 
-/* kind colouring: a hint of the role colour in the ink */
+/* kind colouring: a hint of the role colour in the ink (`--tone` is the colour itself, for the heat bar) */
 .lv-tone-dim { color: var(--ink-3); }
-.lv-tone-cpu { color: color-mix(in oklch, var(--c-cpu) 55%, var(--ink)); }
-.lv-tone-userio { color: color-mix(in oklch, var(--c-userio) 52%, var(--ink)); }
-.lv-tone-sysio { color: color-mix(in oklch, var(--c-sysio) 55%, var(--ink)); }
-.lv-tone-network { color: color-mix(in oklch, var(--c-network) 55%, var(--ink)); }
-.lv-tone-commit { color: color-mix(in oklch, var(--c-commit) 60%, var(--ink)); }
-.lv-tone-other { color: color-mix(in oklch, var(--c-other) 55%, var(--ink)); }
-.lv-tone-error { color: var(--s-critical); font-weight: 500; }
+.lv-tone-cpu { color: color-mix(in oklch, var(--c-cpu) 55%, var(--ink)); --tone: var(--c-cpu); }
+.lv-tone-userio { color: color-mix(in oklch, var(--c-userio) 52%, var(--ink)); --tone: var(--c-userio); }
+.lv-tone-sysio { color: color-mix(in oklch, var(--c-sysio) 55%, var(--ink)); --tone: var(--c-sysio); }
+.lv-tone-network { color: color-mix(in oklch, var(--c-network) 55%, var(--ink)); --tone: var(--c-network); }
+.lv-tone-commit { color: color-mix(in oklch, var(--c-commit) 60%, var(--ink)); --tone: var(--c-commit); }
+.lv-tone-other { color: color-mix(in oklch, var(--c-other) 55%, var(--ink)); --tone: var(--c-other); }
+.lv-tone-error { color: var(--s-critical); font-weight: 500; --tone: var(--s-critical); }
 
 /* gutter marks (calls / waits of the selected statement), bookmark, selection */
 .lv-mk1, .lv-mk2, .lv-mk3 { background: color-mix(in oklch, var(--c-cpu) 7%, transparent); }
@@ -92,14 +103,12 @@
 .lv-mk1 .lv-ln::before, .lv-mk2 .lv-ln::before, .lv-mk3 .lv-ln::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--c-cpu); }
 .lv-mk2 .lv-ln::before { background: var(--c-userio); }
 .lv-bm .lv-ln::after { content: "◆"; position: absolute; inset-inline-start: 7px; font-size: 0.55rem; color: var(--c-commit); }
-.lv-ref { text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; color: inherit; }
-.lv-ref:hover { text-decoration-style: solid; background: color-mix(in oklch, var(--c-commit) 16%, transparent); }
+/* the references stay clickable on every row; the underline shows on the selected row and the one under the pointer only */
+.lv-ref { text-decoration: none; text-underline-offset: 2px; cursor: pointer; color: inherit; }
+.lv-sel .lv-ref, .lv-row:hover .lv-ref { text-decoration: underline dotted; }
+.lv-ref:hover { text-decoration: underline solid; background: color-mix(in oklch, var(--c-commit) 16%, transparent); }
+@media (hover: none) { .lv-ref { text-decoration: underline dotted; } }
 .lv-tx mark { background: color-mix(in oklch, var(--c-commit) 38%, transparent); color: inherit; border-radius: 2px; }
-.lv-gut { flex: none; box-sizing: border-box; inline-size: var(--lv-gut); margin-inline-start: auto; position: sticky; inset-inline-end: 0; display: flex; flex-direction: column; }
-.lv-act { flex: 1; min-block-size: 0; display: flex; justify-content: flex-end; align-items: flex-start; gap: 2px; padding-inline: var(--sp-2); border-inline-start: 1px solid var(--hairline-strong); background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-raised)); }
-.lv-act button { font: inherit; font-size: var(--text-xs, 0.7rem); line-height: 1.2; padding: 0 var(--sp-2); block-size: calc(var(--lv-row) - 4px); align-self: center; }
-/* elapsed heat: a bar under the row's actions, as long as log10(µs)/6 of the gutter, in the row's tone */
-.lv-heat { flex: none; display: block; margin-block-start: auto; block-size: 3px; inline-size: calc(var(--w) * 100%); background: color-mix(in oklch, currentColor 55%, transparent); pointer-events: auto; }
 .lv-win .lv-ln { background: color-mix(in oklch, var(--c-cpu) 13%, var(--surface-sunken)); box-shadow: inset -3px 0 0 color-mix(in oklch, var(--c-cpu) 55%, transparent); } /* the time window's lines */
 .lv-win-start, .lv-win-end { position: relative; }
 .lv-win-start::before, .lv-win-end::after { content: ""; position: absolute; z-index: 1; inset-inline: 0; block-size: 1px; background: color-mix(in oklch, var(--c-cpu) 75%, transparent); pointer-events: none; }
@@ -108,7 +117,6 @@
 .lv-sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
 .lv-sel .lv-ln { color: var(--ink); font-weight: 600; background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-sunken)); }
 
-.tbpop-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
 .lines-status { padding-block: var(--sp-1); padding-inline: var(--sp-3); min-block-size: 1.6rem; }
 .lines-empty { padding: var(--sp-3); }
 .lines-hits { flex: 1; min-block-size: 0; overflow: auto; font-family: var(--font-mono); font-size: var(--text-sm); }
@@ -116,7 +124,6 @@
 .lines-hit:hover { background: var(--wash); }
 .lines-hit.on { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
 .lines-hit .ln { flex: none; min-inline-size: 7ch; text-align: end; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.lines-hit .col { flex: none; min-inline-size: 3ch; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .lines-hit code { font: inherit; overflow: hidden; text-overflow: ellipsis; }
 .lines-hit mark { background: color-mix(in oklch, var(--c-commit) 38%, transparent); color: inherit; border-radius: 2px; }
 /* the statement of a hit: a sql_id chip, or a muted … while its page is not loaded */
@@ -130,7 +137,7 @@
 .lines-hit.in-grp { padding-inline-start: calc(var(--sp-3) + 2ch); }
 
 /* the outline: a filter box over a virtualized tree (rows of 22px, indented by --d) */
-.lines-outline { flex: 1; min-block-size: 0; display: flex; flex-direction: column; gap: var(--sp-2); padding-block-start: var(--sp-2); }
+.lines-outline { container-type: inline-size; flex: 1; min-block-size: 0; display: flex; flex-direction: column; gap: var(--sp-2); padding-block-start: var(--sp-2); }
 .lines-outline .ol-filter { inline-size: 100%; box-sizing: border-box; }
 .lines-ol { flex: 1; min-block-size: 0; overflow: auto; font-size: var(--text-sm); }
 .ol-row { display: flex; align-items: center; gap: var(--sp-2); box-sizing: border-box; padding-inline: var(--sp-2); padding-inline-start: calc(var(--sp-2) + var(--d) * 1rem); white-space: nowrap; overflow: hidden; cursor: pointer; }
@@ -144,22 +151,25 @@
 .ol-text { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
 .ol-n { flex: none; font-variant-numeric: tabular-nums; }
 .ol-line { flex: none; margin-inline-start: auto; min-inline-size: 7ch; text-align: end; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ol-dep { flex: none; }
+/* a narrow outline (the side panel at its default width): the sql_id names the cursor, its number and depth are in the tooltip */
+@container (inline-size < 34rem) {
+  .ol-cur, .ol-dep { display: none; }
+  .ol-line { min-inline-size: 5ch; }
+}
 .lines-bms { list-style: none; margin: 0; padding: var(--sp-2) var(--sp-3); overflow: auto; display: grid; gap: var(--sp-1); }
 .lines-bms li { display: flex; align-items: center; gap: var(--sp-2); }
 .lines-bms li input { flex: 1; min-inline-size: 0; }
 
 .lines-status-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-5); padding-block: var(--sp-1); padding-inline: var(--sp-4); border-block-start: 1px solid var(--hairline); background: var(--surface-sunken); color: var(--ink-2); }
-.lines-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); margin-inline-start: auto; }
-.lines-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
-.lines-legend i { inline-size: 0.6rem; block-size: 0.6rem; border-radius: 50%; display: inline-block; }
-.lines-legend i.mk { border-radius: 1px; inline-size: 0.25rem; block-size: 0.8rem; background: var(--c-cpu); }
+.lines-status-bar .lines-file { margin-inline-start: auto; }
 .lv-note .lv-ln::after { content: "✎"; font-size: 0.65rem; color: var(--c-note); }
 .lines-bms li { flex-wrap: wrap; }
 .lines-bm-note { flex-basis: 100%; margin: 0; padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--c-note); color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .lines-root > .note-edit, section > .note-edit { margin: var(--sp-2) var(--sp-4); }
 .lines-copied { color: var(--ink); font-weight: 500; }
 
-/* the hits and bookmarks menu: a popover under its toolbar button */
+/* a toolbar menu: a popover under its button */
 .tbmenu { position: relative; display: inline-flex; }
 .tbmenu > button small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .tbpop {
@@ -168,8 +178,6 @@
   padding: var(--sp-2) var(--sp-3); background: var(--surface-raised); border: 1px solid var(--hairline-strong); border-radius: var(--radius);
   box-shadow: 0 6px 20px color-mix(in oklch, var(--ink) 14%, transparent); font-size: var(--text-sm); text-align: start;
 }
-.tbpop .lines-status { padding-inline: 0; }
-.tbpop .lines-bms { padding-inline: 0; flex: 1; min-block-size: 0; }
 .tbpop.wide { inline-size: min(44rem, 95vw); }
 
 /* the hover card of a line: one element, fixed under its row (see LineCard in components/LineViewer.tsx) */
@@ -181,9 +189,13 @@
 }
 .lv-card-h { display: flex; justify-content: space-between; gap: var(--sp-4); font-weight: 600; padding-block-end: var(--sp-1); margin-block-end: var(--sp-1); border-block-end: 1px solid var(--hairline); }
 .lv-card-h span { font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.lv-card table { border-collapse: collapse; }
-.lv-card th { font-weight: 400; color: var(--ink-2); text-align: start; padding-inline-end: var(--sp-4); white-space: nowrap; vertical-align: top; }
-.lv-card td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+/* two columns of label and value; a long value takes the whole width */
+.lv-card-grid { display: grid; grid-template-columns: repeat(2, auto); gap: 1px var(--sp-5); margin: 0; }
+.lv-card-grid > div { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3); min-inline-size: 0; }
+.lv-card-grid > div.wide { grid-column: 1 / -1; justify-content: start; }
+.lv-card-grid dt { color: var(--ink-2); white-space: nowrap; }
+.lv-card-grid dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-align: end; }
+.lv-card-grid > div.wide dd { text-align: start; }
 .lv-card p { margin: var(--sp-1) 0 0; color: var(--ink-3); }
 
 /* the statement popup of a clicked reference (see components/StmtPopover.tsx) */
@@ -213,32 +225,40 @@
 .lines-focus { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--ink); font-weight: 500; }
 .tbmenu-sm .tbpop { inline-size: max-content; max-inline-size: min(30rem, 90vw); block-size: auto; max-block-size: 70dvh; overflow: auto; }
 .tbmenu-start .tbpop { inset-inline: 0 auto; }
-.lines-presets { list-style: none; margin: 0; padding: 0; display: grid; }
-.lines-presets button { inline-size: 100%; text-align: start; }
-.lines-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.lines-steps { list-style: none; margin: 0; padding: 0; display: grid; min-inline-size: 14rem; }
 .lines-steps li { display: grid; grid-template-columns: auto 1fr auto; gap: 0.5em; align-items: center; }
 .lines-steps span { text-align: center; }
+.lines-steps small { display: block; font-size: var(--text-xs); }
+.lines-steps li.sep { display: block; block-size: 0; margin-block: var(--sp-1); border-block-start: 1px solid var(--hairline); }
 /* the View menu: groups of checkbox rows (label, key), swatches for the kinds that can be dimmed */
 .lines-view { display: grid; gap: 1px; min-inline-size: 15rem; }
 .lines-view h4 { margin-block: var(--sp-2) var(--sp-1); margin-inline: 0; font-size: var(--text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
-.lines-view h4:first-child { margin-block-start: 0; }
+.lines-view > h4:first-child, .lines-view > :first-child > h4 { margin-block-start: 0; }
+.lines-view h4 .h4-note, .lines-view h4 .h4-id { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.lines-view h4 .h4-id { color: var(--ink-2); }
+.lines-view .tb-item small { margin-inline-start: 0.4em; }
+/* a colour of the key without a tick: the swatch lines up with the ticked ones */
+.lines-view-key { cursor: default; }
+.lines-view-key > span:first-child { inline-size: 13px; }
 .lines-view-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-2); padding-block: 2px; padding-inline: var(--sp-1); border-radius: var(--radius); white-space: nowrap; overflow: clip; cursor: pointer; }
-.lines-view-row:active { background: var(--wash); }
+.lines-view-row:active:not(.lines-view-key) { background: var(--wash); }
 .lines-view-row:has(:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
 .lines-view-row kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
 .lines-view-gap { grid-template-columns: auto auto auto; justify-content: start; cursor: default; }
 .lines-view-gap input { inline-size: 4.5rem; }
 .lines-view-folds { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .lines-swatch { display: inline-block; inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; margin-inline-end: .4em; background: var(--tone, var(--ink-3)); }
+.lines-swatch.lines-swatch-mk { inline-size: 4px; block-size: 0.9em; border-radius: 1px; vertical-align: -0.1em; background: var(--c-cpu); }
 @media (hover: hover) and (pointer: fine) {
-  .lines-view-row:hover { background: var(--wash); }
+  .lines-view-row:hover:not(.lines-view-key) { background: var(--wash); }
 }
 .lines-recent { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding-block: var(--sp-1); }
 .lines-chip { display: inline-flex; align-items: center; }
 .lines-chip button { padding-inline: var(--sp-2); }
 .lines-chip code { font-family: var(--font-mono); }
 .lines-chip small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.lines-chip.on > button:first-child { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.lines-chip.on > button:first-child { background: color-mix(in oklch, var(--c-commit) 20%, transparent); color: var(--ink); border-color: color-mix(in oklch, var(--c-commit) 55%, var(--hairline-strong)); }
+.lines-chip.on > button:first-child small { color: var(--ink-2); }
 .lines-keys { border-collapse: collapse; }
 .lines-keys caption { text-align: start; padding-block-end: var(--sp-1); }
 .lines-keys th { font-weight: 400; text-align: start; padding-inline-end: var(--sp-4); white-space: nowrap; vertical-align: top; }
@@ -247,33 +267,45 @@
 .lines-threshold { display: flex; align-items: center; gap: var(--sp-1); margin-block-start: var(--sp-2); padding-block-start: var(--sp-2); border-block-start: 1px solid var(--hairline); color: var(--ink-2); }
 .lines-threshold input { inline-size: 5rem; }
 
-/* the inspector: the selected line translated */
-.lines-inspect { inline-size: min(var(--w, 25rem), 50vw); min-inline-size: 16rem; box-sizing: border-box; overflow: auto; min-block-size: 0; padding: var(--sp-2) var(--sp-3); border-inline-start: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); }
+/* the side panel: tabs (Line, Outline, Hits, Bookmarks) over a body; the lists scroll inside their tab, the Line tab scrolls as a whole */
+.lines-side { inline-size: min(var(--w, 25rem), 50vw); min-inline-size: 16rem; box-sizing: border-box; min-block-size: 0; display: flex; flex-direction: column; padding: var(--sp-2) var(--sp-3); border-inline-start: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); }
+.lines-side-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
+.lines-side-head .seg button { font-size: var(--text-sm); padding-inline: var(--sp-3); }
+.lines-side-head .seg small { opacity: .7; font-variant-numeric: tabular-nums; }
+.lines-side-body { flex: 1; min-block-size: 0; display: flex; flex-direction: column; }
+.lines-side-line, .lines-side-bookmarks { overflow: auto; }
+.lines-side-tools { display: flex; align-items: center; gap: var(--sp-2); }
+.lines-side-tools .lines-status { flex: 1; min-inline-size: 0; padding-inline: 0; }
+.lines-side .lines-bms { padding-inline: 0; }
+.lines-side .lines-hits { margin-inline: calc(-1 * var(--sp-3)); }
+
+/* the inspector (the Line tab): the selected line translated, a field per line */
+.lines-inspect { padding-block-start: var(--sp-2); }
 .lines-inspect-head { display: flex; align-items: center; gap: var(--sp-2); }
 .lines-inspect-head .mono { font-variant-numeric: tabular-nums; font-weight: 600; }
-.lines-inspect-acts { margin-inline-start: auto; display: flex; gap: var(--sp-1); }
+.insp-follow { display: inline-flex; align-items: center; gap: 0.35rem; margin-inline-start: auto; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
 .lines-inspect h3 { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); margin: var(--sp-3) 0 var(--sp-1); font-weight: 600; }
 .lines-inspect p { margin: var(--sp-2) 0; }
-.lines-inspect-raw { margin: var(--sp-2) 0 0; padding: var(--sp-1) var(--sp-2); max-block-size: 8lh; overflow: auto; font-family: var(--font-mono); font-size: var(--text-xs); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-raised, transparent); border: 1px solid var(--hairline); border-radius: 3px; }
 .lines-inspect-fields { border-collapse: collapse; inline-size: 100%; }
-.lines-inspect-fields th { color: var(--ink-2); font-weight: 400; text-align: start; white-space: nowrap; padding-block: 2px; padding-inline-end: var(--sp-3); vertical-align: top; }
-.lines-inspect-fields td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; padding-block: 2px; vertical-align: top; overflow-wrap: anywhere; }
-.lines-inspect-fields .sub { font-size: var(--text-xs); color: var(--ink-3); font-family: var(--font-sans, inherit); }
-.lines-inspect-fields .sub .mono { font-family: var(--font-mono); }
+.lines-inspect-fields th { color: var(--ink-2); font-weight: 400; text-align: start; white-space: nowrap; padding-block: 1px; padding-inline-end: var(--sp-3); vertical-align: baseline; }
+.lines-inspect-fields td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; padding-block: 1px; vertical-align: baseline; overflow-wrap: anywhere; }
+.lines-inspect-fields tr[title] th { cursor: help; }
+/* the value, then its raw token in the same line (it wraps under the value only when there is no room) */
+.lines-inspect-fields .v { margin-inline-end: var(--sp-2); }
+.lines-inspect-fields .raw { display: inline-block; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
 .lines-inspect-sub { font-size: var(--text-xs); color: var(--ink-3); }
+/* the execution's numbers: two columns of label and value */
+.insp-exec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px var(--sp-4); margin: var(--sp-1) 0; }
+.insp-exec-grid > div { display: flex; justify-content: space-between; gap: var(--sp-2); min-inline-size: 0; }
+.insp-exec-grid dt { color: var(--ink-2); white-space: nowrap; }
+.insp-exec-grid dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: end; white-space: nowrap; }
+.insp-exec-waits { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: grid; gap: 1px; }
 .lines-inspect-binds { border-collapse: collapse; inline-size: 100%; table-layout: fixed; }
 .lines-inspect-binds th { inline-size: 3.5rem; text-align: start; font-weight: 400; color: var(--ink-2); font-family: var(--font-mono); padding-block: 1px; }
 .lines-inspect-binds .ty { inline-size: 8rem; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lines-inspect-binds .val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lines-inspect-binds tr.on { background: color-mix(in srgb, var(--focus) 16%, transparent); }
 .lines-inspect-binds tr.on th { color: var(--ink); font-weight: 600; }
-/* the line card as a vertical list */
-.lines-at.lines-at-stack { display: flex; flex-direction: column; align-items: stretch; flex-wrap: wrap; block-size: auto; overflow: visible; white-space: normal; background: transparent; border: 0; padding-inline: 0; gap: var(--sp-2); }
-.lines-at-stack > * { flex: none; }
-.lines-at-stack > .lines-at-facts { display: flex; flex-direction: column; align-items: stretch; flex-wrap: wrap; overflow: visible; white-space: normal; gap: var(--sp-2); }
-.lines-at-stack > .tbmenu { align-self: flex-start; }
-.lines-at-stack .lines-at-obj { flex-wrap: wrap; }
-.lines-at-stack .lines-sql { white-space: normal; max-inline-size: none; overflow-wrap: anywhere; }
 
 /* viewer: inlays, range, gaps */
 /* hints inside the row text: never copied or selected, they do not take part in the gutter's columns */
@@ -298,4 +330,4 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .tb-sep { block-size: 0; margin-block: var(--sp-1); border-block-start: 1px solid var(--hairline); }
 .tb-hint { margin: var(--sp-1) 0 0; padding-block-start: var(--sp-1); padding-inline: var(--sp-1); border-block-start: 1px solid var(--hairline); color: var(--ink-3); font-size: var(--text-xs); max-inline-size: 16rem; white-space: normal; }
 /* the rows of a menu are not toolbar chrome: no resting border, a wash on hover (the global button hover) */
-.lines-acts button.quiet, .lines-presets button.quiet { border-color: transparent; }
+.lines-steps button.quiet { border-color: transparent; }

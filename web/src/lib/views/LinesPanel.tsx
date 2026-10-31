@@ -81,7 +81,6 @@ export function HitList({ doc, hits, count, selected, q, regex, caseSensitive, s
             <div key={it.key} role="option" aria-selected={h.line === selected} className={'lines-hit' + (h.line === selected ? ' on' : '') + (item.grouped ? ' in-grp' : '')}
               style={pos} onClick={() => onGo(h.line)} title={`line ${fmtInt(h.line)}, column ${h.col}`}>
               <span className="ln">{fmtInt(h.line)}</span>
-              <span className="col">{h.col}</span>
               {!item.grouped && (owner === undefined ? <span className="muted hit-stmt" title="the statement of this line is not loaded yet">…</span> : owner >= 0 ? <StmtChip doc={doc} id={owner} /> : <span className="muted hit-stmt" title="no statement at this line">–</span>)}
               <code>{span ? <>{span[0] > LEAD && '…'}{h.text.slice(Math.max(0, span[0] - LEAD), span[0])}<mark>{h.text.slice(span[0], span[1])}</mark>{h.text.slice(span[1])}</> : h.text}</code>
             </div>
@@ -142,16 +141,16 @@ export function RecentSearches({ recent, active, onPick, onRerun }: {
   )
 }
 
-/** The keys of the viewer and of the view, for the Keys menu. */
+/** The keys of the viewer and of the view, for the key map (`?`). */
 const KEYS: [string, string][] = [
   ['↑ ↓', 'previous / next line'],
   ['PgUp PgDn', 'a page up / down'],
   ['Home End', 'first / last line'],
   ['/', 'focus the search box'],
-  ['g', 'focus the Go to box'],
+  ['g', 'go to a line, #cursor, sql_id or time (the command palette)'],
   ['Enter', 'open the statement of the selected line'],
   ['m M', 'next / previous mark of the selected statement'],
-  ['h', 'toggle the heat gutter'],
+  ['h', 'toggle the heat bars beside the line numbers'],
   ['n', 'toggle the hints inside the rows (bind values, clock times, object names, durations, gaps)'],
   ['t T', 'next / previous idle gap of at least the View menu\'s threshold'],
   ['z Z', 'fold / unfold the block at the selected line (BINDS, STAT dump, long SQL text) / unfold all'],
@@ -164,14 +163,14 @@ const KEYS: [string, string][] = [
   ['s S', 'next / previous session marker (SESSION / CLIENT / MODULE / ACTION)'],
   ['d D', 'next / previous execution of the selected line\'s cursor'],
   ['f', "focus the selected line's cursor (dims the rows of other cursors)"],
-  ['i', 'toggle the inspector: the selected line translated, every field named with its unit and meaning'],
+  ['i', 'the side panel at its Line tab (again: close it): the selected line translated, every field named with its unit and meaning'],
   ['b', 'bookmark the selected line'],
   ['Shift+click Shift+arrows', 'select a range of lines from the selected one (its summary is in the status bar)'],
   ['y', 'copy the selected range'],
   ['Backspace', 'back to the line before the last jump'],
   ['F3 Shift+F3', 'next / previous search hit'],
   ['Esc', 'cancel a running search, else clear the range, else clear the cursor focus'],
-  ['⌘K Ctrl+K', 'the command palette: every step, search, view toggle, fold and line action, and Go to (works in the boxes too)'],
+  ['⌘K Ctrl+K', 'the command palette: go to a line, #cursor, sql_id or time, or run any step, search, panel, view, fold or line command (works in the boxes too)'],
   ['?', 'this list'],
 ]
 

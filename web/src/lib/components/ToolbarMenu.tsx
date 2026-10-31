@@ -1,8 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 
 /** A toolbar button with a popover under it (closes on a click outside and on Escape); `open` is the caller's, so it can open the menu itself. */
-export function ToolbarMenu({ label, badge, title, className, wide, disabled, open, onOpenChange, children }: {
-  label: string; /** the button is off (an open menu closes) */ disabled?: boolean; badge?: string; title?: string; /** extra class on the menu (`tbmenu-sm`: a popover that fits its content) */ className?: string; /** a wider popover (the outline) */ wide?: boolean; open: boolean; onOpenChange: (open: boolean) => void; children: ReactNode
+export function ToolbarMenu({ label, badge, title, className, wide, disabled, open, onOpenChange, button, onButton, children }: {
+  label: string; /** the button is off (an open menu closes) */ disabled?: boolean; badge?: string; title?: string; /** extra class on the menu (`tbmenu-sm`: a popover that fits its content) */ className?: string; /** a wider popover (the outline) */ wide?: boolean; open: boolean; onOpenChange: (open: boolean) => void
+  /** the button's content instead of the label, badge and cue */ button?: ReactNode
+  /** the button runs this instead of toggling the popover (the owner opens the popover some other way, e.g. a key) */ onButton?: () => void
+  children: ReactNode
 }) {
   const root = useRef<HTMLSpanElement>(null)
   const pop = useRef<HTMLDivElement>(null)
@@ -37,8 +40,8 @@ export function ToolbarMenu({ label, badge, title, className, wide, disabled, op
   }, [open, onOpenChange])
   return (
     <span className={className ? `tbmenu ${className}` : 'tbmenu'} ref={root}>
-      <button type="button" className="quiet" aria-expanded={open} aria-haspopup="true" aria-pressed={open} onClick={() => onOpenChange(!open)} title={title} disabled={disabled}>
-        {label}{badge && <small> {badge}</small>}<span className="cue" aria-hidden="true">▾</span>
+      <button type="button" className="quiet" aria-expanded={onButton ? undefined : open} aria-haspopup={onButton ? undefined : 'true'} aria-pressed={onButton ? undefined : open} onClick={() => (onButton ? onButton() : onOpenChange(!open))} title={title} disabled={disabled}>
+        {button ?? <>{label}{badge && <small> {badge}</small>}<span className="cue" aria-hidden="true">▾</span></>}
       </button>
       {open && !disabled && <div className={wide ? 'tbpop wide' : 'tbpop'} role="group" aria-label={label} ref={pop}>{children}</div>}
     </span>

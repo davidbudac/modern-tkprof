@@ -11,7 +11,7 @@ import { LineViewer, type ViewerApi } from '../components/LineViewer'
 import { LineStrip } from '../components/LineStrip'
 import { LINES_PREFS_DEFAULTS, useLinesPrefs } from '../state/linesPrefs'
 import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
-import { lineToneLegend, lineToneToken } from '../components/colors'
+import { lineToneToken } from '../components/colors'
 import { CommandPalette, type Command } from '../components/CommandPalette'
 import { inlaysOf } from '../data/inlays'
 import { gapBefore } from '../data/gaps'
@@ -19,12 +19,12 @@ import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
 import { LinesOutline, type OutlineState } from './LinesOutline'
-import { LinesAt } from './LinesAt'
+import { LinesAt, type LineAct } from './LinesAt'
 import { LineInspector, type InspectRefKind } from './LineInspector'
 import { ResizeHandle } from '../components/ResizeHandle'
 import { bindAtOf, rememberBinds } from '../data/bindat'
 import { LinePopover, type LinePopup } from '../components/LinePopover'
-import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf, useGroupStarts, useLineAt } from './linesShared'
+import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf, useLineAt } from './linesShared'
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
 import { NoteEditor } from '../components/Note'
@@ -46,12 +46,11 @@ interface LinesUi {
   scope: SearchScope
   /** the last finished searches, newest first (chips above the hits) */
   recent: RecentSearch[]
-  presets: boolean
+  /** the search box's menu: match options, scope, ready-made searches */
   optionsMenu: boolean
-  lineMenu: boolean
   /** the Step menu */
   stepMenu: boolean
-  /** the key map popover */
+  /** the key map popover (under the command button) */
   keys: boolean
   /** the View menu (display toggles, the kind groups to dim, bulk folds) */
   viewMenu: boolean
@@ -61,21 +60,24 @@ interface LinesUi {
   focus: number | null
   /** the lines selected with Shift+click or Shift+arrows (summed in the status bar, `y` copies them), null for none */
   range: { from: number; to: number } | null
-  tab: 'hits' | 'bookmarks' | 'outline'
-  /** the hits listed by statement (the Navigate menu), and the statements whose group is open (-1 none, -2 not loaded yet) */
+  /** the side panel's tab (whether the panel is open is the global `inspect` pref) */
+  tab: PanelTab
+  /** the hits listed by statement (the Hits tab), and the statements whose group is open (-1 none, -2 not loaded yet) */
   groupHits: boolean
   openGroups: Set<number>
   /** the outline tab: open nodes and filter */
   outline: OutlineState
-  panel: boolean
   /** the folded blocks (BINDS, STAT dump, long SQL text), sorted by their first line */
   folds: Fold[]
-  jump: string
   /** the lines the jumps left, newest last (capped) */
   back: number[]
   /** the selected line as this view last set it (the line a jump leaves) */
   cur: number
 }
+
+/** The tabs of the side panel: the selected line translated, the outline of the file, the search hits, the bookmarks. */
+type PanelTab = 'line' | 'outline' | 'hits' | 'bookmarks'
+const PANEL_TABS: { tab: PanelTab; label: string }[] = [{ tab: 'line', label: 'Line' }, { tab: 'outline', label: 'Outline' }, { tab: 'hits', label: 'Hits' }, { tab: 'bookmarks', label: 'Bookmarks' }]
 
 const uis = new WeakMap<Store, Map<number, LinesUi>>()
 function uiOf(store: Store, file: number): LinesUi {
@@ -86,8 +88,8 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
-      presets: false, optionsMenu: false, lineMenu: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, range: null,
-      tab: 'hits', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, panel: false, folds: [], jump: '', back: [], cur: 0,
+      optionsMenu: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, range: null,
+      tab: 'line', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, folds: [], back: [], cur: 0,
     }))
   }
   return u
@@ -128,7 +130,7 @@ const FOLD_STEP = 20
 /** lines after the rounded first line that are searched for blocks that can be folded (covers a tall view) */
 const FOLD_SPAN = 240
 
-/** The Mute menu's groups: the line kinds each one dims. */
+/** The line kinds that can be dimmed together (the View menu's ticks): the kinds of each group. */
 const MUTE_GROUPS: { name: string; label: string; kinds: LineKind[] }[] = [
   { name: 'framing', label: 'Framing (blank, header, separator)', kinds: ['blank', 'header', 'separator'] },
   { name: 'binds', label: 'Binds', kinds: ['binds', 'bind-line'] },
@@ -136,7 +138,24 @@ const MUTE_GROUPS: { name: string; label: string; kinds: LineKind[] }[] = [
   { name: 'markers', label: 'Markers (***)', kinds: ['marker'] },
   { name: 'waits', label: 'Waits', kinds: ['wait'] },
 ]
+/** The View menu's colour key: a row per line colour (a kind it stands for, for the swatch), with a tick when its lines can be dimmed. */
+const COLOUR_ROWS: { label: string; kind: LineKind; mute?: string; title?: string }[] = [
+  { label: 'calls', kind: 'call' },
+  { label: 'waits', kind: 'wait', mute: 'waits' },
+  { label: 'PARSING IN CURSOR, END OF STMT', kind: 'parsing-in-cursor' },
+  { label: 'binds', kind: 'binds', mute: 'binds' },
+  { label: 'STAT / commit', kind: 'stat', mute: 'stat', title: 'the tick dims the STAT lines (the commits stay)' },
+  { label: 'errors', kind: 'error' },
+  { label: 'LOB / RPC', kind: 'lob' },
+  { label: 'session markers (***)', kind: 'marker', mute: 'markers' },
+  { label: 'framing (header, blank, ====)', kind: 'header', mute: 'framing' },
+]
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
+
+/** The side panel's icon: a window with a column at its end. */
+const PanelIcon = () => (
+  <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true" className="tb-ico"><rect x="0.5" y="0.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" /><line x1="8.5" y1="1" x2="8.5" y2="11" stroke="currentColor" /></svg>
+)
 
 /** Binary search in an ascending array: the first index with `a[i] > x`. */
 function firstAbove(a: ArrayLike<number>, x: number): number {
@@ -256,8 +275,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
   const [popup, setPopup] = useState<LinePopup | null>(null) // the statement popup of a clicked reference
-  const [jumpError, setJumpError] = useState<string | null>(null)
-  const [copied, setCopied] = useState<string | null>(null)
+  const [copied, setCopied] = useState<{ msg: string; bad: boolean } | null>(null) // the status bar's note
   const selected = lv.line
   const total = cache.total
 
@@ -404,7 +422,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const span: LineRange | null = sc === 'window' ? winRange : sc === 'stmt' ? { from: markLines[0], to: markLines[markLines.length - 1] } : null
     const here = ui.fromHere ? Math.min(Math.max(1, selected + 1), Math.max(1, cache.total || selected + 1)) : 1
     const from = span ? (ui.fromHere && here >= span.from && here <= span.to ? here : span.from) : here
-    set({ hits, end: null, status: 'running', error: null, tab: 'hits', panel: true, searched: { q, regex, caseSensitive, scope: sc } })
+    set({ hits, end: null, status: 'running', error: null, tab: 'hits', searched: { q, regex, caseSensitive, scope: sc } })
+    setPrefs({ inspect: true }) // the side panel, at its Hits tab
     let timer = 0
     let clipped = false // the stream was cut at the first hit past the scope's last line
     const flush = () => { timer = 0; if (searchCtl.current === ac) bump() }
@@ -465,7 +484,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       if (!(prefs.threshold > 0)) { flash('the threshold must be a number of milliseconds above 0'); return }
       re = p.re(prefs.threshold)
     }
-    set({ q: re, regex: true, presets: false })
+    set({ q: re, regex: true, optionsMenu: false })
     runSearch()
   }
 
@@ -509,9 +528,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (at && at.line === selected && at.objs.stmt >= 0) actions.selectStmt(at.objs.stmt)
     else flash(`no statement at line ${fmtInt(selected)}`)
   }
+  /** Opens the side panel at `tab`, or closes it when it already shows that tab; no tab toggles the panel as it is. */
+  const togglePanel = (tab?: PanelTab) => {
+    if (!tab) setPrefs({ inspect: !prefs.inspect })
+    else if (prefs.inspect && ui.tab === tab) setPrefs({ inspect: false })
+    else { set({ tab }); if (!prefs.inspect) setPrefs({ inspect: true }) }
+  }
   const searchRef = useRef<HTMLInputElement>(null)
-  const goToRef = useRef<HTMLInputElement>(null)
-  const rowRef = useGroupStarts()
   /** The viewer's letter keys (no modifier but Shift, viewer focused, not in a text field). */
   const onViewerKey = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return
@@ -520,7 +543,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const focus = (el: HTMLInputElement | null) => { el?.focus(); el?.select() }
     switch (e.key) {
       case '/': focus(searchRef.current); break
-      case 'g': focus(goToRef.current); break
+      case 'g': set({ palette: true, keys: false }); break
       case 'Enter': openStatement(); break
       case 'm': stepMark(1); break
       case 'M': stepMark(-1); break
@@ -531,7 +554,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 't': stepGap(1); break
       case 'T': stepGap(-1); break
       case 'f': toggleFocus(); break
-      case 'i': setPrefs({ inspect: !prefs.inspect }); break
+      case 'i': togglePanel('line'); break
       case 'y': copySelRange(); break
       case ']': stepNext('call', 'call', 1); break
       case '[': stepNext('call', 'call', -1); break
@@ -571,15 +594,15 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   // ---- per-line actions: copy the text, copy a link that opens the line ---------------------------------------------------
   const copyTimer = useRef(0)
   useEffect(() => () => window.clearTimeout(copyTimer.current), [])
-  /** A short note in the status bar. */
-  const flash = useCallback((msg: string) => {
-    setCopied(msg)
+  /** A short note in the status bar (`bad`: in the error colour). */
+  const flash = useCallback((msg: string, bad = false) => {
+    setCopied({ msg, bad })
     window.clearTimeout(copyTimer.current)
     copyTimer.current = window.setTimeout(() => setCopied(null), 2500)
   }, [])
   const copyWhat = useCallback(async (what: string, text: string) => {
     const ok = await copyText(text)
-    flash(ok ? `Copied ${what}` : `Could not copy ${what}`)
+    flash(ok ? `Copied ${what}` : `Could not copy ${what}`, !ok)
   }, [flash])
   const copyLine = useCallback((line: number) => {
     const text = cache.line(line)?.text
@@ -654,23 +677,25 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const onRef = useMemo(() => refClickOf(doc, file, decodeCtx, actions, jump, flash, setPopup), [doc, file, decodeCtx, actions, jump, flash])
   const refTitle = useMemo(() => refTitleOf(doc, decodeCtx), [doc, decodeCtx])
 
-  // ---- the inspector: the selected line, or with Follow the line under the pointer --------------------------------------
+  // ---- the inspector (the panel's Line tab): the selected line, or with Follow the line under the pointer -------------------
   const [hover, setHover] = useState<number | null>(null)
-  const following = prefs.inspect && prefs.follow
+  const inspecting = prefs.inspect && ui.tab === 'line'
+  const following = inspecting && prefs.follow
   useEffect(() => { if (!following) setHover(null) }, [following])
   const inspectedLine = following && hover !== null ? hover : selected
   const hoverAt = useLineAt(client, doc, file, cache, inspectedLine === selected ? null : inspectedLine) // the selected line's answer is `at`
   const inspAt = inspectedLine === selected ? at : hoverAt && hoverAt.line === inspectedLine ? hoverAt : null
-  const inspBlock = useMemo(() => (inspectedLine === selected ? atBlock : blockAt(cache, inspectedLine)), [inspectedLine, selected, atBlock, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
   /** A click on a reference value in the inspector opens the same popup as the row links, for the inspected line. */
   const onInspectRef = (kind: InspectRefKind, value: string, e: { shiftKey: boolean; x: number; y: number; anchor?: DOMRect }) =>
     onRef(inspectedLine, kind, value, cache.line(inspectedLine), { shiftKey: e.shiftKey, metaKey: false, ctrlKey: false, x: e.x, y: e.y, anchor: e.anchor })
 
-  // ---- the pinned header: the statement (and the BINDS or STAT block) at the top of the view ------------------------------
+  // ---- the header over the top rows: the statement (and the BINDS or STAT block) at the top of the view, when it is not the ---
+  // ---- selected line's (the breadcrumb says that one) ------------------------------------------------------------------------
+  const selStmt = cache.line(selected)?.stmt ?? (at && at.line === selected ? at.objs.stmt : -1)
   const head = useCallback((top: number) => {
     const l = cache.line(top)
     const st = l && l.stmt >= 0 ? doc.statements[l.stmt] : undefined
-    if (!l || !st) return null
+    if (!l || !st || top === selected || l.stmt === selStmt) return null
     const family = (kind: number) => { const k = LINE_KINDS[kind]; return k === 'binds' || k === 'bind-line' ? 'binds' : k === 'stat' ? 'stat' : '' }
     const fam = family(l.kind)
     let start: number | undefined
@@ -690,6 +715,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       key,
       node: (
         <>
+          <span className="lv-head-up" aria-hidden="true" title="the statement of the top line">↥</span>
           <button type="button" className="link mono sqlid lv-head-id" title={cur && cur.line > 0 ? 'open this statement (Shift: go to its PARSING IN CURSOR line)' : 'open this statement'}
             onClick={(e) => { if (e.shiftKey && cur && cur.line > 0) jump(cur.line); else actions.selectStmt(st.id) }}>{doc.label(st)}</button>
           <span className="lv-head-sql" title={preview(st.text, 300)}>{preview(st.text, 60)}</span>
@@ -703,7 +729,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         </>
       ),
     }
-  }, [cache, doc, actions, jump])
+  }, [cache, doc, actions, jump, selected, selStmt])
 
   // ---- go to: a line, a cursor, a sql_id (and execution), a time --------------------------------------------------------
   const goToHelp = doc.wallOffsetUs
@@ -735,9 +761,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     else actions.openLinesAt(row.file, row.line)
     return null
   }
-  const runGoTo = async (text = ui.jump) => {
+  /** Go to what the palette parsed; what cannot be reached is said in the status bar. */
+  const runGoTo = async (text: string) => {
+    const setJumpError = (msg: string) => flash(msg, true)
     const g = parseGoTo(text, doc.span.firstTim, doc.wallOffsetUs ? doc : undefined)
-    setJumpError(null)
     if (!g) { setJumpError(doc.wallOffsetUs ? 'use a line, #cursor, sql_id[/N], 1.5s, 250ms, 900us or 14:03:07.250' : 'use a line, #cursor, sql_id[/N], 1.5s, 250ms or 900us'); return }
     try {
       switch (g.kind) {
@@ -762,10 +789,21 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const running = ui.status === 'running'
   const nextHitDisabled = ui.hits.length === 0
 
-  /** the display toggles away from their defaults, and the muted groups */
-  const optionCount = Number(ui.caseSensitive) + Number(ui.regex) + Number(ui.fromHere)
-  const lineOn = Number(bmSet.has(selected)) + Number(notesOn && noting === selected) + Number(ui.focus !== null) + Number(prefs.inspect)
+  /** the search options away from their defaults, the display toggles away from theirs and the dimmed groups */
+  const optionCount = Number(ui.caseSensitive) + Number(ui.regex) + Number(ui.fromHere) + Number(scope !== 'file')
   const viewBadge = SHOW_TOGGLES.filter((t) => prefs[t.key] !== LINES_PREFS_DEFAULTS[t.key]).length + prefs.mute.length
+  const toggleMute = (name: string) => setPrefs({ mute: muteSet.has(name) ? prefs.mute.filter((m) => m !== name) : [...prefs.mute, name] })
+  const stmtName = stmt !== null && doc.statements[stmt] ? doc.label(doc.statements[stmt]) : ''
+
+  /** The Actions menu's first group: what the owner does with the selected line itself. */
+  const lineActs: LineAct[] = [
+    { label: 'Bookmark', kbd: 'b', on: bmSet.has(selected), keepOpen: true, run: () => toggleBookmark(selected), title: 'bookmark this line (b; a right-click on a line number does it too)' },
+    ...(notesOn ? [{ label: 'Note…', on: noting === selected, run: () => setNoting(noting === selected ? null : selected), title: 'a note on this line (bookmarks it)' }] : []),
+    { label: 'Focus on its cursor', kbd: 'f', on: ui.focus !== null, keepOpen: true, run: toggleFocus, title: "dim the rows outside this line's cursor (f); Esc clears" },
+    { label: 'Copy line', run: () => copyLine(selected), title: "copy the line's text" },
+    ...(canLink ? [{ label: 'Copy link to line', run: () => copyLink(selected), title: 'copy a link that opens this line' }] : []),
+    { label: 'Inspect', kbd: 'i', on: inspecting, run: () => togglePanel('line'), title: 'the side panel with this line translated: every field named, with its unit and meaning (i)' },
+  ]
 
   // ---- the command palette ----------------------------------------------------------------------------------------------
   const commands = (): Command[] => {
@@ -788,11 +826,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     for (const p of SEARCH_PRESETS) add('Search', `preset:${p.label}`, `Preset: ${p.label.replace('N ms', `${prefs.threshold} ms`)}`, () => runPreset(p))
     add('Search', 'search:focus', 'Focus the search box', () => { searchRef.current?.focus(); searchRef.current?.select() }, { keys: '/' })
 
+    for (const t of PANEL_TABS) add('Panel', `panel:${t.tab}`, `Side panel: ${t.label}`, () => togglePanel(t.tab), { checked: prefs.inspect && ui.tab === t.tab, keys: t.tab === 'line' ? 'i' : undefined })
+    add('Panel', 'view:follow', 'Follow the pointer in the Line tab', () => setPrefs({ follow: !prefs.follow }), { checked: prefs.follow })
+
     for (const t of SHOW_TOGGLES) add('View', `view:${t.key}`, t.label, () => setPrefs({ [t.key]: !prefs[t.key] }), { checked: prefs[t.key], keys: t.keys })
-    for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => setPrefs({ mute: muteSet.has(g.name) ? prefs.mute.filter((m) => m !== g.name) : [...prefs.mute, g.name] }), { checked: muteSet.has(g.name) })
+    for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => toggleMute(g.name), { checked: muteSet.has(g.name) })
     add('View', 'view:focus', 'Focus cursor', toggleFocus, { checked: ui.focus !== null, keys: 'f', hint: "dims the other cursors' rows" })
-    add('View', 'view:inspect', 'Inspector', () => setPrefs({ inspect: !prefs.inspect }), { checked: prefs.inspect, keys: 'i' })
-    add('View', 'view:follow', 'Follow hover in the inspector', () => setPrefs({ follow: !prefs.follow }), { checked: prefs.follow })
+    add('View', 'view:keys', 'Keyboard shortcuts', () => set({ keys: true }), { keys: '?' })
 
     add('Folds', 'fold:this', 'Fold this block', () => onFold(selected), { keys: 'z' })
     add('Folds', 'fold:none', 'Unfold all', () => set({ folds: [] }), { keys: 'Z', disabled: ui.folds.length === 0 })
@@ -816,126 +856,86 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (!g) return []
     const label = g.kind === 'line' ? `Go to line ${g.line}` : g.kind === 'cursor' ? `Go to cursor #${g.number}`
       : g.kind === 'sqlid' ? `Go to statement ${g.sqlId}${g.prefix ? '*' : ''}${g.execNo !== undefined ? ` execution ${g.execNo}` : ''}` : `Go to time ${text}`
-    return [{ id: `goto:${text}`, label, group: 'Go to', run: () => { set({ jump: text }); void runGoTo(text) } }]
+    return [{ id: `goto:${text}`, label, group: 'Go to', run: () => void runGoTo(text) }]
   }
 
-  const panelBody = (
+  // ---- the side panel's tabs ------------------------------------------------------------------------------------------------
+  const tabCount = (t: PanelTab) => (t === 'hits' && ui.status !== 'idle' ? ui.hits.length : t === 'bookmarks' ? bookmarks.length : 0)
+  const hitsTab = (
     <>
-      <div className="tbpop-head">
-        <span className="seg" role="tablist">
-          <button role="tab" aria-selected={ui.tab === 'hits'} aria-pressed={ui.tab === 'hits'} onClick={() => set({ tab: 'hits' })}>Hits{ui.hits.length > 0 && ` ${fmtInt(ui.hits.length)}`}</button>
-          <button role="tab" aria-selected={ui.tab === 'bookmarks'} aria-pressed={ui.tab === 'bookmarks'} onClick={() => set({ tab: 'bookmarks' })}>Bookmarks{bookmarks.length > 0 && ` ${bookmarks.length}`}</button>
-          <button role="tab" aria-selected={ui.tab === 'outline'} aria-pressed={ui.tab === 'outline'} onClick={() => set({ tab: 'outline' })}>Outline</button>
+      <div className="lines-side-tools">
+        <p className="small muted lines-status" aria-live="polite">
+          {ui.status === 'idle' && 'Type in the search box and press Enter.'}
+          {running && `Searching… ${fmtInt(ui.hits.length)} hits`}
+          {ui.status === 'done' && ui.end && ui.searched.scope !== 'file' && `${fmtInt(ui.hits.length)} hits ${ui.searched.scope === 'window' ? "in the window's lines" : "within the marked statement's lines"}${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
+          {ui.status === 'done' && ui.end && ui.searched.scope === 'file' && `${fmtInt(ui.hits.length)} hits in ${fmtInt(ui.end.scanned)} lines${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
+          {ui.status === 'done' && ui.end && !ui.end.done && ' (the server ended early)'}
+          {ui.status === 'cancelled' && `Cancelled after ${fmtInt(ui.hits.length)} hits.`}
+          {ui.status === 'error' && <span className="lines-error">{ui.error}</span>}
+        </p>
+        <span className="lines-tools">
+          <button className="quiet" onClick={() => set({ groupHits: !ui.groupHits })} aria-pressed={ui.groupHits} title="list the hits by statement: the biggest group first, a click opens its hits">By statement</button>
+          <button className="quiet" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous hit" title="previous hit (Shift+F3)">‹</button>
+          <button className="quiet" onClick={() => stepHit(1)} disabled={nextHitDisabled} aria-label="Next hit" title="next hit (F3)">›</button>
         </span>
-        {ui.tab === 'hits' && (
-          <span className="lines-tools">
-            <button className="quiet" onClick={() => set({ groupHits: !ui.groupHits })} aria-pressed={ui.groupHits} title="list the hits by statement: the biggest group first, a click opens its hits">By statement</button>
-            <button className="quiet" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous hit" title="previous hit (Shift+F3)">‹</button>
-            <button className="quiet" onClick={() => stepHit(1)} disabled={nextHitDisabled} aria-label="Next hit" title="next hit (F3)">›</button>
-          </span>
-        )}
       </div>
-      {ui.tab === 'hits' && (
-        <>
-          <p className="small muted lines-status" aria-live="polite">
-            {ui.status === 'idle' && 'Enter runs a search.'}
-            {running && `Searching… ${fmtInt(ui.hits.length)} hits`}
-            {ui.status === 'done' && ui.end && ui.searched.scope !== 'file' && `${fmtInt(ui.hits.length)} hits ${ui.searched.scope === 'window' ? "in the window's lines" : "within the marked statement's lines"}${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
-            {ui.status === 'done' && ui.end && ui.searched.scope === 'file' && `${fmtInt(ui.hits.length)} hits in ${fmtInt(ui.end.scanned)} lines${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
-            {ui.status === 'done' && ui.end && !ui.end.done && ' (the server ended early)'}
-            {ui.status === 'cancelled' && `Cancelled after ${fmtInt(ui.hits.length)} hits.`}
-            {ui.status === 'error' && <span className="lines-error">{ui.error}</span>}
-          </p>
-          <RecentSearches recent={ui.recent} active={ui.status === 'idle' ? null : ui.searched} onPick={restoreSearch} onRerun={rerunSearch} />
-          {ui.status !== 'idle' && <HitList doc={doc} hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive}
-            stmtOf={stmtOfHit} onNeed={needStmt} group={ui.groupHits} open={ui.openGroups} onToggle={toggleGroup} onGo={jump} />}
-        </>
-      )}
-      {ui.tab === 'outline' && <LinesOutline doc={doc} file={file} selected={selected} state={ui.outline} onState={(outline) => set({ outline })} onGo={jump} />}
-      {ui.tab === 'bookmarks' && (
-        <BookmarkList bookmarks={allBookmarks} fileName={fileName}
-          onGo={(b) => (b.file === file ? jump(b.line) : actions.openLinesAt(b.file, b.line))}
-          onLabel={(b, label) => actions.addBookmark(b.file, b.line, label)}
-          onRemove={(b) => actions.removeBookmark(b.file, b.line)}
-          onNote={notesOn ? (b) => { if (b.file !== file) actions.openLinesAt(b.file, b.line); else { jump(b.line); setNoting(b.line) } } : undefined} />
-      )}
+      <RecentSearches recent={ui.recent} active={ui.status === 'idle' ? null : ui.searched} onPick={restoreSearch} onRerun={rerunSearch} />
+      {ui.status !== 'idle' && <HitList doc={doc} hits={ui.hits} count={ui.hits.length} selected={selected} q={ui.searched.q} regex={ui.searched.regex} caseSensitive={ui.searched.caseSensitive}
+        stmtOf={stmtOfHit} onNeed={needStmt} group={ui.groupHits} open={ui.openGroups} onToggle={toggleGroup} onGo={jump} />}
     </>
   )
 
   return (
     <section className="lines" aria-label="Trace lines" onKeyDown={onKeyDown}>
       <div className="lines-bar">
-        <div className="lines-row" ref={rowRef}>
+        <div className="lines-row">
           {files.length > 1 && (
-            <span className="tb-grp">
             <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
               {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}{win && fileInWindow(f, win) ? ' · in window' : ''}</option> : null))}
             </select>
-            </span>
           )}
-          <form className="lines-search tb-grp" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>
-            <input type="search" ref={searchRef} value={ui.q} placeholder="Search the trace text" aria-label="Search the trace text" onChange={(e) => set({ q: e.target.value })} />
-            <ToolbarMenu label="Options" badge={optionCount > 0 ? String(optionCount) : undefined} title="how the search matches: case, regular expression, from the selected line" className="tbmenu-sm tbmenu-start" open={ui.optionsMenu} onOpenChange={(optionsMenu) => set({ optionsMenu })}>
-              <div className="tb-items">
-                <MenuItem on={ui.caseSensitive} onClick={() => set({ caseSensitive: !ui.caseSensitive })} title="match case">Case sensitive</MenuItem>
-                <MenuItem on={ui.regex} onClick={() => set({ regex: !ui.regex })} title="regular expression (RE2)">Regular expression</MenuItem>
-                <MenuItem on={ui.fromHere} onClick={() => set({ fromHere: !ui.fromHere })} title="search from the selected line instead of line 1">From the selected line</MenuItem>
+          {/* the search: Enter runs it, the box's × clears it; the options, the scope and the ready-made searches are in its menu */}
+          <form className="lines-search" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>
+            <input type="search" ref={searchRef} value={ui.q} placeholder="Search the trace text" aria-label="Search the trace text" title="Enter searches (/ from the viewer)" onChange={(e) => set({ q: e.target.value })} />
+            {running && <button type="button" className="quiet" onClick={cancelSearch} title="cancel the search (Esc)">Cancel</button>}
+            <ToolbarMenu label="Options" badge={optionCount > 0 ? String(optionCount) : undefined} title="how the search matches, where it looks, and ready-made searches" className="tbmenu-sm tbmenu-start" open={ui.optionsMenu} onOpenChange={(optionsMenu) => set({ optionsMenu })}>
+              <div className="lines-view">
+                <h4>Match</h4>
+                <div className="tb-items">
+                  <MenuItem on={ui.caseSensitive} onClick={() => set({ caseSensitive: !ui.caseSensitive })} title="match case">Case sensitive</MenuItem>
+                  <MenuItem on={ui.regex} onClick={() => set({ regex: !ui.regex })} title="regular expression (RE2)">Regular expression</MenuItem>
+                  <MenuItem on={ui.fromHere} onClick={() => set({ fromHere: !ui.fromHere })} title="search from the selected line instead of line 1">From the selected line</MenuItem>
+                </div>
+                <h4>Scope</h4>
+                <div className="tb-items" role="radiogroup" aria-label="Scope">
+                  <MenuItem on={scope === 'file'} onClick={() => set({ scope: 'file' })} title="search the whole file">Whole file</MenuItem>
+                  <MenuItem on={scope === 'window'} disabled={!winRange} onClick={() => set({ scope: 'window' })} title={winRange ? `search only the lines of the time window (${fmtInt(winRange.from)}–${fmtInt(winRange.to)})` : 'needs a time window with lines in this file (set one in the Timeline)'}>
+                    Time window <small className="muted">{winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : '(none)'}</small>
+                  </MenuItem>
+                  <MenuItem on={scope === 'stmt'} disabled={markLines.length === 0} onClick={() => set({ scope: 'stmt' })} title={markLines.length > 0 ? `search only the lines between the selected statement's first and last mark (${fmtInt(markLines[0])}–${fmtInt(markLines[markLines.length - 1])})` : 'needs a selected statement with marks in this file'}>
+                    Selected statement <small className="muted mono">{stmtName || '(none)'}</small>
+                  </MenuItem>
+                </div>
+                <h4>Ready-made searches</h4>
+                <div className="tb-items">
+                  {SEARCH_PRESETS.map((p) => <MenuItem key={p.label} onClick={() => runPreset(p)} title="fill the box with its regular expression and search">{p.label.replace('N ms', `${prefs.threshold} ms`)}</MenuItem>)}
+                </div>
+                <label className="lines-view-row lines-view-gap" title="the threshold of the slow waits and calls searches">
+                  <span>Threshold</span>
+                  <input type="number" min={0.001} step={1} value={prefs.threshold} aria-label="Threshold in milliseconds for the slow waits and calls searches" onChange={(e) => setPrefs({ threshold: Number(e.target.value) })} />
+                  <span>ms</span>
+                </label>
               </div>
             </ToolbarMenu>
-            <span className="seg" role="group" aria-label="Scope">
-              <button type="button" aria-pressed={scope === 'file'} onClick={() => set({ scope: 'file' })} title="search the whole file">File</button>
-              <button type="button" aria-pressed={scope === 'window'} disabled={!winRange} onClick={() => set({ scope: 'window' })} title={winRange ? `search only the lines of the time window (${fmtInt(winRange.from)}–${fmtInt(winRange.to)})` : 'needs a time window with lines in this file'}>Window</button>
-              <button type="button" aria-pressed={scope === 'stmt'} disabled={markLines.length === 0} onClick={() => set({ scope: 'stmt' })} title={markLines.length > 0 ? `search only the lines between the selected statement's first and last mark (${fmtInt(markLines[0])}–${fmtInt(markLines[markLines.length - 1])})` : 'needs a selected statement with marks in this file'}>Statement</button>
-            </span>
-            {running
-              ? <button type="button" onClick={cancelSearch} title="Esc">Cancel</button>
-              : <button type="submit" disabled={ui.q === ''}>Search</button>}
           </form>
-          <span className="tb-grp">
-          <ToolbarMenu label="Presets" title="ready-made searches: errors, hard parses, slow waits and calls, commits, session markers" className="tbmenu-sm tbmenu-start" open={ui.presets} onOpenChange={(presets) => set({ presets })}>
-            <ul className="lines-presets">
-              {SEARCH_PRESETS.map((p) => (<li key={p.label}><button type="button" className="quiet" onClick={() => runPreset(p)}>{p.label.replace('N ms', `${prefs.threshold} ms`)}</button></li>))}
-            </ul>
-            <label className="lines-threshold small">Threshold <input type="number" min={0.001} step={1} value={prefs.threshold} aria-label="Threshold in milliseconds for the slow waits and calls presets" onChange={(e) => setPrefs({ threshold: Number(e.target.value) })} /> ms</label>
-          </ToolbarMenu>
-          </span>
-          <form className="lines-jump tb-grp tb-push" onSubmit={(e) => { e.preventDefault(); void runGoTo() }}>
-            <input type="text" ref={goToRef} value={ui.jump} placeholder={doc.wallOffsetUs ? 'Go to: line, #cursor, sql_id, 1.5s, 14:03:07' : 'Go to: line, #cursor, sql_id, 1.5s'} title={goToHelp} aria-label="Go to" onChange={(e) => set({ jump: e.target.value })} />
-            <button type="submit" disabled={ui.jump.trim() === ''}>Go</button>
-            {jumpError && <small className="lines-note" role="alert">{jumpError}</small>}
-          </form>
-          <span className="lines-marks tb-grp" role="group" aria-label="Statement marks">
-            <button onClick={() => stepMark(-1)} disabled={markLines.length === 0} title="previous call or wait of the selected statement" aria-label="Previous mark">▲</button>
-            <button onClick={() => stepMark(1)} disabled={markLines.length === 0} title="next call or wait of the selected statement" aria-label="Next mark">▼</button>
-            <small className="muted" title={partial ? 'the marks are bounded: the 5,000 longest calls and the first 1,000 waits of the statement' : undefined}>
-              {stmt === null ? 'select a statement for marks' : `${fmtInt(nCalls)} calls · ${fmtInt(nWaits)} waits${partial ? ' (bounded)' : ''}`}
-            </small>
-          </span>
-          <span className="tb-grp">
-          {win ? (
-            <span className="lines-win" role="group" aria-label="Time window">
-              <b>Window</b>
-              <button type="button" disabled={!winRange} onClick={() => winRange && jump(winRange.from, !block)} aria-label="Go to the first line of the time window" title="the first line of the time window set in the Timeline">⇤ start</button>
-              <button type="button" disabled={!winRange} onClick={() => winRange && jump(winRange.to, !block)} aria-label="Go to the last line of the time window" title="the last line of the time window set in the Timeline">end ⇥</button>
-              <small className={winLines?.failed ? 'lines-error' : 'muted'} aria-live="polite" title={winRange ? `${fmtInt(winRange.to - winRange.from + 1)} lines` : undefined}>
-                {winLines === null ? '…' : winLines.failed ? 'window lines unavailable' : winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : 'no lines of the window in this file'}
-              </small>
-            </span>
-          ) : <button type="button" disabled title="the first line of the time window set in the Timeline">Window start</button>}
-          </span>
-          <span className="tb-grp">
-          <ToolbarMenu label="Line" badge={lineOn > 0 ? String(lineOn) : undefined} title="the selected line: bookmark, note, focus on its cursor, inspector" className="tbmenu-sm tbmenu-start" open={ui.lineMenu} onOpenChange={(lineMenu) => set({ lineMenu })}>
-            <div className="tb-items">
-              <MenuItem on={bmSet.has(selected)} kbd="b" onClick={() => toggleBookmark(selected)} title="bookmark the selected line (b)">◆ Bookmark</MenuItem>
-              {notesOn && <MenuItem on={noting === selected} onClick={() => setNoting(noting === selected ? null : selected)} title="a note on the selected line (bookmarks it)">✎ Note</MenuItem>}
-              <MenuItem on={ui.focus !== null} kbd="f" onClick={toggleFocus} title="dim the rows outside the selected line's cursor (f); Esc clears">Focus on the cursor</MenuItem>
-              <MenuItem on={prefs.inspect} kbd="i" onClick={() => setPrefs({ inspect: !prefs.inspect })} title="a side view that translates the selected line: every field named, with its unit and meaning (i)">Inspect</MenuItem>
-            </div>
-          </ToolbarMenu>
-          </span>
-          <span className="tb-grp">
-          <ToolbarMenu label="Step" title="the next or previous call, wait, cursor parse, STAT dump, session marker, error or commit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
+          <ToolbarMenu label="Step" title="the next or previous mark of the selected statement, call, wait, cursor parse, STAT dump, session marker, error, commit, idle gap or search hit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
             <ul className="lines-steps">
+              <li title={partial ? 'the marks are bounded: the 5,000 longest calls and the first 1,000 waits of the statement' : undefined}>
+                <button type="button" className="quiet" onClick={() => stepMark(-1)} disabled={markLines.length === 0} aria-label="Previous mark" title="previous call or wait of the selected statement (M)">‹</button>
+                <span>statement mark<small className="muted">{stmt === null ? 'select a statement for marks' : `${stmtName} · ${fmtInt(nCalls)} calls · ${fmtInt(nWaits)} waits${partial ? ' (bounded)' : ''}`}</small></span>
+                <button type="button" className="quiet" onClick={() => stepMark(1)} disabled={markLines.length === 0} aria-label="Next mark" title="next call or wait of the selected statement (m)">›</button>
+              </li>
+              <li className="sep" role="separator" />
               {STEPS.map(([what, label, keys]) => (
                 <li key={what}>
                   <button type="button" className="quiet" onClick={() => stepNext(what, label, -1)} aria-label={`Previous ${label}`} title={`previous ${label} (${keys[1]})`}>‹</button>
@@ -948,15 +948,29 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
                 <span>{prefs.gapMs > 0 ? `gap ≥ ${fmtInt(prefs.gapMs)} ms` : 'gap (off)'}</span>
                 <button type="button" className="quiet" onClick={() => stepGap(1)} disabled={prefs.gapMs <= 0} aria-label="Next idle gap" title="next idle gap (t); the threshold is in the View menu">›</button>
               </li>
+              <li>
+                <button type="button" className="quiet" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous search hit" title="previous search hit (Shift+F3)">‹</button>
+                <span>search hit</span>
+                <button type="button" className="quiet" onClick={() => stepHit(1)} disabled={nextHitDisabled} aria-label="Next search hit" title="next search hit (F3)">›</button>
+              </li>
             </ul>
           </ToolbarMenu>
-          <ToolbarMenu label="Navigate" badge={ui.hits.length + bookmarks.length > 0 ? `${fmtInt(ui.hits.length)} · ${bookmarks.length}` : undefined}
-            title="the search hits, the bookmarks and the outline of the file" wide={ui.tab === 'outline'} open={ui.panel} onOpenChange={(panel) => set({ panel })}>
-            {panelBody}
+          {win && (
+            <span className="lines-win" role="group" aria-label="Time window">
+              <b>Window</b>
+              <button type="button" className="quiet" disabled={!winRange} onClick={() => winRange && jump(winRange.from, !block)} aria-label="Go to the first line of the time window" title="the first line of the time window set in the Timeline">⇤ start</button>
+              <button type="button" className="quiet" disabled={!winRange} onClick={() => winRange && jump(winRange.to, !block)} aria-label="Go to the last line of the time window" title="the last line of the time window set in the Timeline">end ⇥</button>
+              <small className={winLines?.failed ? 'lines-error' : 'muted'} aria-live="polite" title={winRange ? `${fmtInt(winRange.to - winRange.from + 1)} lines` : undefined}>
+                {winLines === null ? '…' : winLines.failed ? 'window lines unavailable' : winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : 'no lines of the window in this file'}
+              </small>
+            </span>
+          )}
+          <ToolbarMenu label="Keyboard shortcuts" className="tbmenu-sm tb-cmd" open={ui.keys} onOpenChange={(keys) => set({ keys })} onButton={() => set({ palette: true, keys: false })}
+            title={`Go to ${goToHelp}\n\nOr run any command of the view. ? lists the keys.`}
+            button={<><span className="tb-label">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
+            <KeyMap />
           </ToolbarMenu>
-          </span>
-          <span className="tb-grp tb-push">
-          <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints), the line kinds to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
+          <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints), the line colours and the ones to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
             <div className="lines-view">
               <h4>Show</h4>
               {SHOW_TOGGLES.map((t) => (
@@ -971,13 +985,19 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
                 <input type="number" min={0} step={10} value={prefs.gapMs} aria-label="Gap ticks from this many milliseconds, 0 for none" onChange={(e) => setPrefs({ gapMs: Math.max(0, Number(e.target.value) || 0) })} />
                 <span>ms</span>
               </label>
-              <h4>Dim</h4>
-              {MUTE_GROUPS.map((g) => (
-                <label key={g.name} className="lines-view-row" title="dim the rows of these line kinds (line counts and scrolling stay)">
-                  <input type="checkbox" checked={muteSet.has(g.name)} onChange={() => setPrefs({ mute: muteSet.has(g.name) ? prefs.mute.filter((m) => m !== g.name) : [...prefs.mute, g.name] })} />
-                  <span><i className="lines-swatch" style={{ '--tone': `var(${lineToneToken(g.kinds[0])})` } as React.CSSProperties} />{g.label}</span>
-                </label>
-              ))}
+              <h4>Line colours <span className="h4-note">· tick to dim</span></h4>
+              {COLOUR_ROWS.map((c) => {
+                const swatch = <span><i className="lines-swatch" style={{ '--tone': `var(${lineToneToken(c.kind)})` } as React.CSSProperties} />{c.label}</span>
+                return c.mute
+                  ? (
+                    <label key={c.label} className="lines-view-row" title={c.title ?? 'dim these rows (line counts and scrolling stay)'}>
+                      <input type="checkbox" checked={muteSet.has(c.mute)} onChange={() => toggleMute(c.mute!)} />
+                      {swatch}
+                    </label>
+                  )
+                  : <div key={c.label} className="lines-view-row lines-view-key"><span />{swatch}</div>
+              })}
+              <div className="lines-view-row lines-view-key" title="the calls and waits of the selected statement (m / M step through them)"><span /><span><i className="lines-swatch lines-swatch-mk" />left edge: marks of the selected statement</span></div>
               <h4>Folds</h4>
               <div className="lines-view-folds">
                 <button type="button" className="quiet" onClick={() => void foldAll('binds')} title="fold every BINDS block of the file">Fold all BINDS</button>
@@ -986,14 +1006,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </div>
             </div>
           </ToolbarMenu>
-          <ToolbarMenu label="Keys" title="the command palette and the keyboard shortcuts (?)" className="tbmenu-sm" open={ui.keys} onOpenChange={(keys) => set({ keys })}>
-            <div className="tb-items">
-              <MenuItem kbd={`${MOD}K`} onClick={() => set({ palette: true, keys: false })} title="search every command (Step, Search, View, Folds, Line, Go to)">Command palette…</MenuItem>
-              <div className="tb-sep" role="separator" />
-            </div>
-            <KeyMap />
-          </ToolbarMenu>
-          </span>
+          <button type="button" className="quiet tb-panel" aria-pressed={prefs.inspect} onClick={() => togglePanel()} title="the side panel: the selected line translated, the outline of the file, the search hits and the bookmarks (i opens it at the line)">
+            <PanelIcon /><span className="tb-label">Panel</span>{!prefs.inspect && ui.status !== 'idle' && ui.hits.length > 0 && <small>{fmtInt(ui.hits.length)}</small>}
+          </button>
         </div>
       </div>
 
@@ -1001,29 +1016,50 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         const bm = bookmarks.find((b) => b.line === noting)
         return (
           <NoteEditor key={noting} label={`Note on line ${noting}`} title={`Note on line ${fmtInt(noting)}${bm?.label ? `: ${bm.label}` : ''}`} text={bm?.note}
-            onSave={(t) => { actions.setBookmarkNote(file, noting, t, preview(cache.line(noting)?.text ?? '', 80).trim()); setNoting(null); set({ panel: true, tab: 'bookmarks' }) }}
+            onSave={(t) => { actions.setBookmarkNote(file, noting, t, preview(cache.line(noting)?.text ?? '', 80).trim()); setNoting(null); set({ tab: 'bookmarks' }); setPrefs({ inspect: true }) }}
             onCancel={() => setNoting(null)}
             onDelete={bm?.note ? () => { actions.setBookmarkNote(file, noting, ''); setNoting(null) } : undefined} />
         )
       })()}
-      {!prefs.inspect && <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} />}
+      <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} lineActs={lineActs} />
 
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={prefs.inspect ? undefined : lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={prefs.inspect && prefs.follow ? setHover : undefined} onCopy={copyLine} onLink={canLink ? copyLink : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         </div>
         {prefs.inspect && <>
-          <ResizeHandle anchor="end" className="resizer-lines-inspect" label="Resize the inspector" min={256} maxFrac={0.5} onChange={(px) => setPrefs({ inspectW: px ?? 400 })} />
-          <LineInspector doc={doc} file={file} cache={cache} line={inspectedLine} at={inspAt} decodeCtx={decodeCtx} goTo={jump} note={flash} block={inspBlock} onCopyRange={copyRange} onClose={() => setPrefs({ inspect: false })}
-            onRef={onInspectRef} follow={prefs.follow} onFollow={(v) => setPrefs({ follow: v })} />
+          <ResizeHandle anchor="end" className="resizer-lines-inspect" label="Resize the side panel" min={256} maxFrac={0.5} onChange={(px) => setPrefs({ inspectW: px ?? 400 })} />
+          <aside className="lines-side" aria-label="Side panel">
+            <div className="lines-side-head">
+              <span className="seg" role="tablist" aria-label="Side panel">
+                {PANEL_TABS.map((t) => {
+                  const n = tabCount(t.tab)
+                  return <button key={t.tab} type="button" role="tab" aria-selected={ui.tab === t.tab} aria-pressed={ui.tab === t.tab} onClick={() => set({ tab: t.tab })}>{t.label}{n > 0 && <small> {fmtInt(n)}</small>}</button>
+                })}
+              </span>
+              <button type="button" className="quiet" onClick={() => setPrefs({ inspect: false })} aria-label="Close the side panel" title="close the side panel">×</button>
+            </div>
+            <div className={`lines-side-body lines-side-${ui.tab}`} role="tabpanel">
+              {ui.tab === 'line' && <LineInspector doc={doc} cache={cache} line={inspectedLine} at={inspAt} decodeCtx={decodeCtx} note={flash} onRef={onInspectRef} follow={prefs.follow} onFollow={(v) => setPrefs({ follow: v })} />}
+              {ui.tab === 'hits' && hitsTab}
+              {ui.tab === 'outline' && <LinesOutline doc={doc} file={file} selected={selected} state={ui.outline} onState={(outline) => set({ outline })} onGo={jump} />}
+              {ui.tab === 'bookmarks' && (
+                <BookmarkList bookmarks={allBookmarks} fileName={fileName}
+                  onGo={(b) => (b.file === file ? jump(b.line) : actions.openLinesAt(b.file, b.line))}
+                  onLabel={(b, label) => actions.addBookmark(b.file, b.line, label)}
+                  onRemove={(b) => actions.removeBookmark(b.file, b.line)}
+                  onNote={notesOn ? (b) => { if (b.file !== file) actions.openLinesAt(b.file, b.line); else { jump(b.line); setNoting(b.line) } } : undefined} />
+              )}
+            </div>
+          </aside>
         </>}
       </div>
 
-      <CommandPalette open={ui.palette} commands={ui.palette ? commands() : []} dynamic={goToCommands} onClose={() => set({ palette: false })} placeholder="Type a command, or a line, #cursor, sql_id or time to go to" />
+      <CommandPalette open={ui.palette} commands={ui.palette ? commands() : []} dynamic={goToCommands} onClose={() => set({ palette: false })} placeholder="Go to a line, #cursor, sql_id or time, or type a command" />
 
       {popup && <LinePopover doc={doc} file={file} popup={popup} ctx={decodeCtx} actions={actions} onClose={() => setPopup(null)} goTo={jump} />}
 
@@ -1052,12 +1088,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             {fmtInt(ui.folds.length)} folded <button type="button" className="link" onClick={() => set({ folds: [] })} title="show the lines of every folded block (Z)">unfold all</button>
           </span>
         )}
-        {copied && <span role="status" aria-live="polite" className="lines-copied">{copied}</span>}
-        {files.length > 1 && <span className="muted">{doc.traceFileName(file)}</span>}
-        <span className="lines-legend" aria-label="Line colours">
-          {lineToneLegend.map((l) => <span key={l.tone}><i style={{ background: `var(${l.token})` }} />{l.label}</span>)}
-          {nCalls + nWaits > 0 && <span><i className="mk" />marks of the selected statement</span>}
-        </span>
+        {copied && <span role="status" aria-live="polite" className={copied.bad ? 'lines-error' : 'lines-copied'}>{copied.msg}</span>}
+        {files.length > 1 && <span className="muted lines-file">{doc.traceFileName(file)}</span>}
       </div>
     </section>
   )

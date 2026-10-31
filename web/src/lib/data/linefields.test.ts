@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeLine, elaOf, COMMAND_NAMES, type DecodeContext, type LineDecode } from './linefields'
+import { decodeLine, elaOf, splitZeros, COMMAND_NAMES, type DecodeContext, type LineDecode } from './linefields'
 import type { BindAt } from './bindat'
 
 // one real line per kind (testdata/traces/19c)
@@ -268,5 +268,21 @@ describe('decodeLine gap before', () => {
     expect(none(decodeLine(EXEC, 'call', gapCtx, { verbose: true }))).toBe(false)
     expect(none(decodeLine(EXEC, 'call', gapCtx, { verbose: true, line: 6 }))).toBe(false)
     expect(none(decodeLine(XCTEND, 'xctend', gapCtx, { verbose: true, line: 5 }))).toBe(false)
+  })
+})
+
+describe('splitZeros', () => {
+  it('moves 0, 0 with a unit and no out of the rows, keeps the rest in order', () => {
+    const { shown, zeros } = splitZeros([
+      { label: 'CPU', value: '35 µs' }, { label: 'Physical reads', value: '0' }, { label: 'Elapsed', value: '0 µs' },
+      { label: 'Library cache miss', value: 'no' }, { label: 'Rows', value: '0.5 ms' }, { label: 'Depth', value: '0 (top level)' },
+    ])
+    expect(shown.map((f) => f.label)).toEqual(['CPU', 'Rows'])
+    expect(zeros).toEqual(['physical reads', 'elapsed', 'library cache miss', 'depth'])
+  })
+  it('keeps values that only start with a zero digit or the word no', () => {
+    const { shown, zeros } = splitZeros([{ label: 'A', value: '0.25 ms' }, { label: 'B', value: '01:02' }, { label: 'C', value: 'none' }, { label: 'D', value: '10' }])
+    expect(shown).toHaveLength(4)
+    expect(zeros).toEqual([])
   })
 })

@@ -72,8 +72,8 @@ export function LinesOutline({ doc, file, selected, state, onState, onGo }: {
           ? <button type="button" className="quiet ol-x" aria-label={r.open ? 'Collapse' : 'Expand'} aria-expanded={r.open} onClick={(e) => { e.stopPropagation(); toggle(r.key) }}>{r.open ? '▾' : '▸'}</button>
           : <span className="ol-x" />}
         <span className="ol-cur">#{c.number}</span>
-        <small className="muted">dep {c.depth}</small>
-        <span className="mono ol-id">{c.sqlId}</span>
+        <small className="muted ol-dep">dep {c.depth}</small>
+        <span className="mono ol-id" title={`cursor #${c.number} · depth ${c.depth}`}>{c.sqlId}</span>
         <span className="ol-text muted" title={c.text}>{c.text}</span>
         <small className="muted ol-n">{fmtInt(c.execs)}×</small>
         <small className="muted ol-n">{fmtDur(c.elapsed)}</small>

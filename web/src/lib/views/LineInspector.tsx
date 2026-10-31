@@ -2,34 +2,27 @@ import { useEffect, useState, type MouseEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, type PageCache } from '../data/linecache'
 import type { AtObjects } from '../data/lines'
-import type { Fold } from '../data/folds'
 import { decodeLine, type DecodeContext } from '../data/linefields'
 import { bindCell, cursorOfText, decodeAsText, refOfField } from '../data/inspecttext'
 import { loadExecSummary, topWaits, type ExecSummary } from '../data/execsummary'
 import { copyText } from '../data/clipboard'
 import { fmtDur, fmtInt } from '../data/format'
-import { LinesAt } from './LinesAt'
 
 /** What a click on a reference value tells the owner. */
 export type InspectRefKind = 'cursor' | 'sqlid' | 'plh' | 'obj' | 'event'
 
 interface Props {
   doc: TraceDoc
-  file: number
   cache: PageCache
   /** the selected line */
   line: number
   /** what is at the line (`useLineAt`'s answer), null while unknown */
   at: { line: number; objs: AtObjects } | null
   decodeCtx: DecodeContext
-  goTo: (line: number) => void
   note: (msg: string) => void
-  block?: Fold | null
-  onCopyRange?: (from: number, to: number) => void
-  onClose: () => void
   /** a click on a reference value (cursor number, sql_id, plan hash, object id, wait event name): the owner opens the same popup as for the row links; Shift is passed through */
   onRef?(kind: InspectRefKind, value: string, e: { shiftKey: boolean; x: number; y: number; anchor?: DOMRect }): void
-  /** the owner shows the line under the pointer (true) or the selected line (false); with `onFollow` the head shows the switch */
+  /** the owner shows the line under the pointer (true) or the selected line (false); with `onFollow` the head shows the checkbox */
   follow?: boolean
   onFollow?(v: boolean): void
 }
@@ -37,10 +30,11 @@ interface Props {
 type Summary = { key: string; state: 'loading' | 'none' | 'ok'; s?: ExecSummary }
 
 /**
- * The side view of the Lines view: the selected line translated (every field named, in a meaningful unit, with its raw token and meaning),
- * the bind set of a bind line, and what is at the line. It reads the cache while rendering: the view re-renders when a page arrives.
+ * The Line tab of the Lines view's side panel: the selected line translated (every field named, in a meaningful unit, beside its raw
+ * token; the meaning is the row's tooltip), the numbers of its execution and the bind set of a bind line. What the line belongs to and
+ * the ways to its neighbours are in the breadcrumb above the viewer. It reads the cache while rendering: the view re-renders when a page arrives.
  */
-export function LineInspector({ doc, file, cache, line, at, decodeCtx, goTo, note, block, onCopyRange, onClose, onRef, follow, onFollow }: Props) {
+export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, follow, onFollow }: Props) {
   const cached = cache.line(line)
   const text = cached?.text
   const kind = cached ? LINE_KINDS[cached.kind] : undefined
@@ -79,27 +73,19 @@ export function LineInspector({ doc, file, cache, line, at, decodeCtx, goTo, not
   )
 
   return (
-    <aside className="lines-inspect" aria-label="Line inspector">
+    <div className="lines-inspect" aria-label="Line inspector" role="region">
       <div className="lines-inspect-head">
         <span className="mono">Line {fmtInt(line)}</span>
         {d?.kindLabel && <span className="lines-kind">{d.kindLabel}</span>}
         {onFollow && (
-          <span className="insp-follow" role="group" aria-label="Which line the inspector shows">
-            <span className="seg">
-              <button type="button" aria-pressed={!follow} onClick={() => onFollow(false)} title="show the selected line">Selection</button>
-              <button type="button" aria-pressed={!!follow} onClick={() => onFollow(true)} title="show the line under the pointer">Hover</button>
-            </span>
-            <span className="insp-follow-state muted">{follow ? 'live' : 'pinned'}</span>
-          </span>
+          <label className="insp-follow" title="show the line under the pointer instead of the selected line">
+            <input type="checkbox" checked={!!follow} onChange={(e) => onFollow(e.target.checked)} /> Follow the pointer
+          </label>
         )}
-        <span className="lines-inspect-acts">
-          <button type="button" className="quiet" onClick={() => void copy()} disabled={!d} title="copy the translated line as label: value (raw) lines">Copy</button>
-          <button type="button" className="quiet" onClick={onClose} aria-label="Close the inspector" title="close the inspector (i)">×</button>
-        </span>
+        <button type="button" className="quiet" onClick={() => void copy()} disabled={!d} title="copy the translated line as label: value (raw) lines">Copy</button>
       </div>
       {text === undefined && !at && <p className="muted">Click a line to inspect it.</p>}
       {text === undefined && at && <p className="muted">loading…</p>}
-      {text !== undefined && <pre className="lines-inspect-raw">{text}</pre>}
 
       {d && (
         <>
@@ -108,23 +94,24 @@ export function LineInspector({ doc, file, cache, line, at, decodeCtx, goTo, not
             <table className="lines-inspect-fields">
               <tbody>
                 {cursorText && (
-                  <tr>
+                  <tr title="the cursor (its address in the server process) the line belongs to">
                     <th scope="row">Cursor</th>
                     <td>
-                      <div>{onRef ? refButton('cursor', cursorText, `#${cursorText}`) : `#${cursorText}`}</div>
-                      {cursorStmt && <div className="sub">{doc.label(cursorStmt)}</div>}
+                      <span className="v">{onRef ? refButton('cursor', cursorText, `#${cursorText}`) : `#${cursorText}`}</span>
+                      {cursorStmt && <span className="raw">{doc.label(cursorStmt)}</span>}
                     </td>
                   </tr>
                 )}
                 {d.fields.map((f, i) => {
-                  const sub = [f.raw, f.desc].filter(Boolean).join(' · ')
+                  // value and raw token on one line; the meaning (and the decoder's hint) is the row's tooltip
                   const ref = onRef ? refOfField(f) : null
+                  const tip = [f.desc, f.hint].filter(Boolean).join('\n')
                   return (
-                    <tr key={i} title={f.hint}>
+                    <tr key={i} title={tip || undefined}>
                       <th scope="row">{f.label}</th>
                       <td>
-                        <div>{ref ? refButton(ref.kind, ref.value, f.value) : f.value}</div>
-                        {sub && <div className="sub">{f.raw && <span className="mono">{f.raw}</span>}{f.raw && f.desc ? ' · ' : ''}{f.desc}</div>}
+                        <span className="v">{ref ? refButton(ref.kind, ref.value, f.value) : f.value}</span>
+                        {f.raw && f.raw !== f.value && <span className="raw">{f.raw}</span>}
                       </td>
                     </tr>
                   )
@@ -140,7 +127,7 @@ export function LineInspector({ doc, file, cache, line, at, decodeCtx, goTo, not
       {summary && o && summary.state !== 'none' && (
         <>
           <h3>Execution</h3>
-          {summary.state === 'loading' || !summary.s ? <p className="muted">loading…</p> : <ExecBlock s={summary.s} o={o} line={line} goTo={goTo} eventName={eventName} refButton={refButton} hasRef={!!onRef} />}
+          {summary.state === 'loading' || !summary.s ? <p className="muted">loading…</p> : <ExecBlock s={summary.s} eventName={eventName} refButton={refButton} hasRef={!!onRef} />}
         </>
       )}
 
@@ -164,14 +151,7 @@ export function LineInspector({ doc, file, cache, line, at, decodeCtx, goTo, not
           </table>
         </>
       )}
-
-      {(text !== undefined || at) && (
-        <>
-          <h3>At this line</h3>
-          <LinesAt stack doc={doc} file={file} at={at} text={text ?? ''} goTo={goTo} note={note} block={block} onCopyRange={onCopyRange} />
-        </>
-      )}
-    </aside>
+    </div>
   )
 }
 
@@ -182,20 +162,13 @@ const refTitle: Record<InspectRefKind, string> = {
 
 interface ExecBlockProps {
   s: ExecSummary
-  o: AtObjects
-  line: number
-  goTo: (line: number) => void
   eventName: (id: number) => string
   refButton: (kind: InspectRefKind, value: string, shown: string) => React.ReactNode
   hasRef: boolean
 }
 
-/** The EXECUTION section: the numbers of the line's execution, its top waits and the way to its neighbours. */
-function ExecBlock({ s, o, line, goTo, eventName, refButton, hasRef }: ExecBlockProps) {
-  const other = (n: number) => (n >= 0 && n !== line ? n : undefined)
-  const nav = (label: string, to: number | undefined, title: string) => (
-    <button type="button" className="quiet" disabled={to === undefined} onClick={() => to !== undefined && goTo(to)} title={to === undefined ? 'nowhere to go' : `${title}: line ${fmtInt(to)}`}>{label}</button>
-  )
+/** The EXECUTION section: the numbers of the line's execution and its top waits (its start, end, binds and neighbours are in the breadcrumb and its Actions). */
+function ExecBlock({ s, eventName, refButton, hasRef }: ExecBlockProps) {
   const nWaits = s.waits.reduce((a, w) => a + w.count, 0)
   const cells: [string, string][] = [
     ['Elapsed', fmtDur(s.elapsedUs)], ['CPU', fmtDur(s.cpuUs)], ['Rows', fmtInt(s.rows)], ['Fetches', fmtInt(s.fetches)],
@@ -204,7 +177,7 @@ function ExecBlock({ s, o, line, goTo, eventName, refButton, hasRef }: ExecBlock
   return (
     <div className="insp-exec">
       <p className="lines-inspect-sub">
-        exec {fmtInt(s.execNo)} of {fmtInt(s.total)}
+        exec {fmtInt(s.execNo)} of its cursor · {fmtInt(s.total)} {s.total === 1 ? 'execution' : 'executions'} of the statement
         {s.plh > 0 && <> · plan hash {hasRef ? refButton('plh', String(s.plh), String(s.plh)) : s.plh}</>}
         {s.hardParse && <> · hard parse</>}
       </p>
@@ -221,13 +194,6 @@ function ExecBlock({ s, o, line, goTo, eventName, refButton, hasRef }: ExecBlock
           ))}
         </ul>
       )}
-      <div className="insp-exec-nav">
-        {nav('⇤ start', other(o.execFrom), 'go to where this execution starts')}
-        {nav('end ⇥', other(o.execTo), 'go to where this execution ends')}
-        {nav('‹ prev', other(o.prevExec), 'go to the previous execution of this cursor')}
-        {nav('next ›', other(o.nextExec), 'go to the next execution of this cursor')}
-        {s.bindLine > 0 && <button type="button" className="quiet" onClick={() => goTo(s.bindLine)} title={`go to the BINDS block: line ${fmtInt(s.bindLine)}`}>Binds</button>}
-      </div>
     </div>
   )
 }

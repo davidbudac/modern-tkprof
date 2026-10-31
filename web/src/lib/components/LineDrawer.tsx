@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { PageCache } from '../data/linecache'
-import { LINES_PAGE, fetchLinesAnnot } from '../data/lines'
+import { fetchLinesAnnot } from '../data/lines'
 import { bindAtOf } from '../data/bindat'
 import { fmtInt, preview } from '../data/format'
+import { copyText } from '../data/clipboard'
 import { decodeContextOf, lineCardOf, refClickOf, refTitleOf, useLineAt } from '../views/linesShared'
-import { LinesAt } from '../views/LinesAt'
+import { LinesAt, type LineAct } from '../views/LinesAt'
 import { useActions, useClient, useStore } from '../state/session'
 import { useLinesPrefs } from '../state/linesPrefs'
 import { LineViewer, type ViewerApi } from './LineViewer'
@@ -14,10 +15,9 @@ import '../styles/lines.css'
 
 /** pages of annotated lines kept for the drawer */
 const CACHE_PAGES = 8
-const STEP = LINES_PAGE - 1 // Prev / Next move by 80 lines
 const NO_MARKS: ReadonlyMap<number, number> = new Map()
 
-/** The first visible line and the lines that fit, as the viewer reports them: its own state, so a scroll re-renders the hint and the buttons, not the drawer. */
+/** The first visible line and the lines that fit, as the viewer reports them: its own state, so a scroll re-renders the hint and the Back button, not the drawer. */
 interface ViewHub { last: { top: number; rows: number }; subs: Set<(v: { top: number; rows: number }) => void> }
 function useView(hub: ViewHub) {
   const [view, setView] = useState(hub.last)
@@ -36,22 +36,17 @@ function ViewHint({ hub, total }: { hub: ViewHub; total: number }) {
   return <span className="hint">{fmtInt(top)}–{fmtInt(Math.min(total, top + Math.floor(rows) - 1))} of {fmtInt(total)}</span>
 }
 
-/** Prev / Next: the 80 lines before or after the middle of what is shown. */
-function PageButtons({ hub, total, page }: { hub: ViewHub; total: number; page: (center: number) => void }) {
+/** Back to the line the drawer was opened at: there while that line is out of view (the drawer scrolls the whole file). */
+function BackButton({ hub, target, total, onBack }: { hub: ViewHub; target: number; total: number; onBack: () => void }) {
   const { top, rows } = useView(hub)
-  const mid = Math.floor(top + Math.max(0, rows - 1) / 2)
-  const atEnd = total > 0 && top + Math.floor(rows) - 1 >= total
-  return (
-    <>
-      <button onClick={() => page(mid - STEP)} disabled={top <= 1} title="the 80 lines before">‹ Prev</button>
-      <button onClick={() => page(mid + STEP)} disabled={atEnd} title="the 80 lines after">Next ›</button>
-    </>
-  )
+  if (rows <= 0 || total <= 0 || target > total) return null
+  if (target >= top && target <= top + Math.floor(rows) - 1) return null
+  return <button onClick={onBack} title="scroll back to the line the drawer was opened at">Back to line {fmtInt(target)}</button>
 }
 
 /**
  * The bottom drawer with the trace lines around a line number: the whole input file in a `LineViewer` (colour by kind, heat, references, hover cards),
- * revealed at the target, the line card of the selected line below the head. Both shells mount this; needs the engine (`annot=2` pages).
+ * revealed at the target, the breadcrumb of the selected line below the head. Both shells mount this; needs the engine (`annot=2` pages).
  */
 export function LineDrawer() {
   const viewer = useStore((s) => s.lineViewer)
@@ -88,11 +83,12 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
     void cache.refresh()
   }, [cache, rev])
 
-  // a new target selects its line; every move of the centre (a new target, Prev / Next, Back to the line) shows it in the middle
+  // a new target selects its line; every move of the centre (a new target) shows it in the middle
   useEffect(() => { setSelected(target) }, [target])
   useEffect(() => { apiRef.current?.reveal(center, 'center') }, [center, target])
 
   const flash = useCallback((msg: string) => setNote(msg), [])
+  const back = useCallback(() => { apiRef.current?.reveal(target, 'center'); setSelected(target) }, [target])
   useEffect(() => {
     if (note === null) return
     const t = window.setTimeout(() => setNote(null), 2500)
@@ -113,6 +109,10 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
   }, [actions, file, cache, bmSet])
 
   const at = useLineAt(client, doc, file, cache, selected)
+  const lineActs: LineAct[] = [
+    { label: 'Bookmark', kbd: 'b', on: bmSet.has(selected), keepOpen: true, run: () => toggleBookmark(selected), title: 'bookmark this line (b; a right-click on a line number does it too)' },
+    { label: 'Copy line', title: "copy the line's text", run: () => { const t = cache.line(selected)?.text; if (t !== undefined) void copyText(t).then((ok) => flash(ok ? `Copied line ${fmtInt(selected)}` : 'Could not copy the line')) } },
+  ]
   const total = cache.total
   const fileName = doc.traceFileName(file)
   return (
@@ -122,13 +122,12 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
         <ViewHint hub={hub} total={total} />
         {note && <span className="hint" role="status" aria-live="polite">{note}</span>}
         <span className="tools">
-          <PageButtons hub={hub} total={total} page={actions.pageLines} />
+          <BackButton hub={hub} target={target} total={total} onBack={back} />
           {tab && <button onClick={() => actions.openLinesAt(file, selected)} title="open the whole trace in the Lines tab">In Lines tab</button>}
-          {center !== target && <button onClick={() => actions.pageLines(target)}>Back to line {fmtInt(target)}</button>}
           <button onClick={() => actions.closeLines()} aria-label="Close trace lines">Close</button>
         </span>
       </div>
-      <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={goTo} note={flash} />
+      <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={goTo} note={flash} lineActs={lineActs} />
       <div className="linedrawer-body">
         <LineViewer cache={cache} marks={NO_MARKS} bookmarks={bmSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} links={prefs.links} onRef={onRef} refTitle={refTitle} card={lineCard}
           onViewChange={onViewChange} apiRef={apiRef} topRef={topRef} onSelect={setSelected} onBookmark={toggleBookmark} onError={setLoadError} />
