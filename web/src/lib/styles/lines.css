@@ -83,6 +83,14 @@
 /* the elapsed time of a call or wait: a bar right of the line number, as long as log10(µs)/6 of its slot, in the row's tone */
 .lv-heat-slot { display: inline-flex; align-items: center; inline-size: 1.4rem; block-size: var(--lv-row); margin-inline-start: var(--sp-2); vertical-align: top; }
 .lv-heat { display: block; block-size: 4px; border-radius: 2px; inline-size: calc(var(--w) * 100%); min-inline-size: 2px; background: color-mix(in oklch, var(--tone, var(--ink-3)) 70%, transparent); pointer-events: auto; }
+/* with time columns the number keeps its own width, so the columns after it line up whatever its digits */
+.lv-n { display: inline-block; min-inline-size: var(--lv-ln); }
+/* the time columns right of the line number: a fixed width each, so rows with and without a time line up */
+.lv-clk, .lv-dlt { display: inline-block; vertical-align: top; margin-inline-start: var(--sp-3); text-align: end; font-weight: 400; white-space: nowrap; overflow: hidden; pointer-events: auto; }
+.lv-clk { inline-size: 12ch; color: var(--ink-2); }
+.lv-dlt { inline-size: 10ch; color: var(--ink-2); }
+.lv-dlt-neg { color: var(--ink-3); }
+.lv-dlt-anchor { color: var(--c-commit); }
 .lv-wrap .lv-layer { inline-size: 100%; }
 .lv-wrap .lv-row { block-size: auto; min-block-size: var(--lv-row); white-space: pre-wrap; overflow-wrap: anywhere; contain: none; }
 .lv-pending .lv-tx::before { content: ""; display: inline-block; inline-size: 28ch; block-size: 0.45em; border-radius: 2px; background: var(--wash); vertical-align: middle; }

@@ -15,6 +15,7 @@ import { lineToneToken } from '../components/colors'
 import { CommandPalette, type Command } from '../components/CommandPalette'
 import { inlaysOf } from '../data/inlays'
 import { gapBefore } from '../data/gaps'
+import { anchorOf, lineTimesOf, type TimeAnchor } from '../data/linetime'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
@@ -107,12 +108,14 @@ const STEPS: [NextWhat, string, [string, string]][] = [
 ]
 
 /** The View menu's display toggles: the pref, its label, tooltip and key. */
-const SHOW_TOGGLES: { key: 'wrap' | 'heat' | 'strip' | 'links' | 'hints'; label: string; title: string; keys?: string }[] = [
+const SHOW_TOGGLES: { key: 'wrap' | 'heat' | 'strip' | 'links' | 'hints' | 'clock' | 'delta'; label: string; title: string; keys?: string }[] = [
   { key: 'wrap', label: 'Wrap long lines', title: 'wrap long lines instead of scrolling sideways' },
   { key: 'heat', label: 'Heat bars', keys: 'h', title: 'a bar in the right gutter for the elapsed time of calls and waits' },
   { key: 'strip', label: 'Density strip', title: 'the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move' },
   { key: 'links', label: 'Reference links', title: 'underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click shows the statement (its SQL and a summary) in a popup, the Statements view is one click further (Shift: the cursor\'s parse line)' },
   { key: 'hints', label: 'Hints', keys: 'n', title: 'dim notes inside the rows: bind values, clock times, object names, durations and idle gaps' },
+  { key: 'clock', label: 'Clock time', title: "a column beside the line numbers with each line's tim= as a wall-clock time in the trace's zone (the time from the start when the trace has no wall clock)" },
+  { key: 'delta', label: 'Time delta', title: 'a column beside the line numbers with the time of each line from an anchor (●): the selected line when it is in view, else the first line in view with a time' },
 ]
 /** The modifier the platform's command key is shown with. */
 const MOD = typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘' : 'Ctrl+'
@@ -267,10 +270,22 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const viewBus = useRef<((top: number, rows: number) => void) | null>(null)
   const lastView = useRef({ top: 1, rows: 0 }) // what a strip that mounts later (the profile arrives after the first move) starts from
   const [foldTop, setFoldTop] = useState(0) // the first visible line rounded down: where blocks that can be folded are looked for
+  // the deltas' anchor: the selected line when it is in view, else the first timed line in view; looked for again on every move
+  const [anchor, setAnchor] = useState<TimeAnchor | null>(null)
+  const anchorArgs = useRef({ on: prefs.delta, selected: lv.line })
+  anchorArgs.current = { on: prefs.delta, selected: lv.line }
+  const refreshAnchor = useCallback(() => {
+    const { on, selected } = anchorArgs.current
+    const a = on ? anchorOf(cache, lastView.current.top, lastView.current.rows, selected) : null
+    setAnchor((cur) => (cur?.line === a?.line && cur?.tim === a?.tim ? cur : a))
+  }, [cache])
+  useEffect(refreshAnchor, [refreshAnchor, prefs.delta, lv.line, pages])
+  const times = useMemo(() => lineTimesOf(doc, { clock: prefs.clock, delta: prefs.delta }, anchor), [doc, prefs.clock, prefs.delta, anchor])
   const onViewChange = useCallback((top: number, rows: number) => {
     lastView.current = { top, rows }; viewBus.current?.(top, rows)
+    refreshAnchor()
     setFoldTop(Math.floor(Math.max(0, top - 1) / FOLD_STEP) * FOLD_STEP)
-  }, [])
+  }, [refreshAnchor])
   const topRef = useRef(ui.top)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
@@ -669,7 +684,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     return us >= prefs.gapMs * 1000 ? us : 0
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cache, pages, prefs.gapMs])
-  const inlays = useMemo(() => (prefs.hints ? (line: number, text: string, kind: number) => inlaysOf(text, LINE_KINDS[kind], line, decodeCtx, gapOf(line)) : undefined), [prefs.hints, decodeCtx, gapOf])
+  // with the Clock column on, the clock hint after tim= would say the same thing again
+  const inlays = useMemo(() => (prefs.hints
+    ? (line: number, text: string, kind: number) => {
+      const all = inlaysOf(text, LINE_KINDS[kind], line, decodeCtx, gapOf(line))
+      return prefs.clock ? all.filter((i) => i.kind !== 'clock') : all
+    }
+    : undefined), [prefs.hints, prefs.clock, decodeCtx, gapOf])
   const lineCard = useMemo(() => lineCardOf(decodeCtx), [decodeCtx])
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
 
@@ -970,7 +991,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             button={<><span className="tb-label">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
             <KeyMap />
           </ToolbarMenu>
-          <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints), the line colours and the ones to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
+          <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints, clock and delta columns), the line colours and the ones to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
             <div className="lines-view">
               <h4>Show</h4>
               {SHOW_TOGGLES.map((t) => (
@@ -1025,7 +1046,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
