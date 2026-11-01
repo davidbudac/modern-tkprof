@@ -2,14 +2,14 @@ import { useMemo, useRef, useState, type PointerEvent } from 'react'
 import { ctxKey } from '../data/fileset'
 import type { TraceDoc } from '../data/doc'
 import type { StmtStats } from '../data/types'
-import { fmtDur, fmtWall, preview } from '../data/format'
+import { fmtDur, fmtInt, fmtPct, fmtWall, preview } from '../data/format'
 import { activeBlock, scopeOf } from '../state/store'
 import { scopeKey, useAxis, useScope, useScopedStatements } from '../data/scopedstmts'
 import { responseUs } from '../data/response'
 import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
-import { dominantRole, foldTimeline, type PhaseSpan2, type Span2, type WaitSpan2 } from '../data/derive'
+import { dominantRole, foldTimeline, type PhaseSpan2, type Span2, type TimelineSeries, type WaitSpan2 } from '../data/derive'
 import { kindGroups, groupIndex } from '../data/callkinds'
 import { ticks, zoomedAxis } from '../data/scale'
 import { roleLabel, roleOfClass, roleOrder, type Role } from '../components/colors'
@@ -18,7 +18,9 @@ import '../styles/timeline.css'
 const MAX_LANES = 12
 const LANE_H = 30
 const LANE_H_WAITS = 38 // room for the wait strip along the bottom of a lane
-const STRIP_H = 26
+const STRIP_H = 30
+const SEP_H = 32 // the gap between the statement lanes and the session's strips
+const STRIP_EVENTS = 8 // wait events with their own colour in the strip; the rest fold into "other"
 const AXIS_H = 20
 const LABEL_W = 230
 const BUCKETS = 240
@@ -53,7 +55,7 @@ function phaseBreakdown(p: PhaseSpan2): string {
 
 /**
  * The session on wall-clock time: one lane per top statement (ordered by first call),
- * then a strip of waits by class and a strip of CPU. Drag to set the global window; click a block to make its interval the
+ * then (set apart) a strip of the top wait events and a strip of CPU, with the wait events' stats over the axis under them. Drag to set the global window; click a block to make its interval the
  * window and select its statement, double-click to open the statement (the window stays). With a zoom (`State.lanesZoom`) the axis
  * is the zoomed range and the rows and bars are queried over it.
  */
@@ -128,10 +130,49 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
   const bucketUs = Math.max(1, Math.ceil(span / BUCKETS), Math.ceil(doc.spanUs() / MAX_BUCKETS))
   const stripsQ = useSourceQuery(source, `strips:${bucketUs}:${ctxKey(scope.contexts)}:${scope.includeIdle ? 1 : 0}`,
     (signal) => (source.ready && span > 0 ? source.timeline(bucketUs, { ...scope, window: null }, signal) : null), 'strips')
-  const strips = useMemo(() => {
-    if (!stripsQ.data) return null
-    return { bucketUs, ...foldTimeline(doc, stripsQ.data, 'class') }
-  }, [doc, stripsQ.data, bucketUs])
+  // the wait events' counts and times over the axis (the zoomed range, else the whole scope): the stats under the strips
+  const axisScope = useMemo(() => ({ ...scope, window: zoomWin }), [scope, zoomWin])
+  const profQ = useSourceQuery(source, `lanesprofile:${zoomWin ? `${zoomWin.startTim}:${zoomWin.endTim}` : ''}|${ctxKey(scope.contexts)}|${scope.includeIdle ? 1 : 0}`,
+    (signal) => source.profile(axisScope, signal), 'lanesprofile')
+  const prof = profQ.data ?? null
+  const strips = useMemo<Strips | null>(() => {
+    const raw = stripsQ.data
+    if (!raw) return null
+    // rank the events over the axis, not the whole trace: the profile's sums, else the buckets that touch the axis
+    const totals = new Float64Array(raw.totals.length)
+    const counts = new Map<number, { count: number; max: number }>()
+    if (prof) {
+      for (const a of prof.events) {
+        if (!raw.perEvent[a.key] || a.sum <= 0) continue
+        totals[a.key] = a.sum
+        counts.set(a.key, { count: a.count, max: a.max })
+      }
+    } else {
+      const lo = Math.max(0, Math.floor((base - raw.starts[0]) / bucketUs)), hi = Math.min(raw.starts.length, Math.ceil((base + span - raw.starts[0]) / bucketUs))
+      raw.perEvent.forEach((arr, e) => { if (arr) { let t = 0; for (let b = lo; b < hi; b++) t += arr[b]; totals[e] = t } })
+    }
+    const folded = foldTimeline(doc, { ...raw, totals }, 'event', STRIP_EVENTS)
+    const nth = new Map<Role, number>()
+    const series = folded.series.map((s) => {
+      const k = nth.get(s.role) ?? 0
+      nth.set(s.role, k + 1)
+      // shades of the role's colour for its second, third ... event (as the by-event chart), following the theme
+      const color = k === 0 ? `var(--c-${s.role})` : `color-mix(in oklch, var(--c-${s.role}) ${100 - Math.min(60, 20 * k)}%, var(--surface-raised))`
+      return { ...s, color }
+    })
+    const waitUs = totals.reduce((a, v) => a + v, 0)
+    const shown = new Set(series.map((s) => s.key))
+    const stats: WaitStat[] = series.filter((s) => s.role !== 'cpu').map((s) => {
+      if (s.key === 'rest') {
+        let us = 0, count = 0, max = 0, n = 0
+        totals.forEach((t, e) => { if (t > 0 && !shown.has(`ev${e}`)) { n++; us += t; const c = counts.get(e); if (c) { count += c.count; max = Math.max(max, c.max) } } })
+        return { key: s.key, event: null, label: `${n} other event${n === 1 ? '' : 's'}`, color: s.color, us, count: prof ? count : null, max: prof ? max : null }
+      }
+      const e = Number(s.key.slice(2)), c = counts.get(e)
+      return { key: s.key, event: e, label: s.label, color: s.color, us: totals[e], count: c?.count ?? null, max: c?.max ?? null }
+    }).sort((a, b) => (a.event === null ? 1 : 0) - (b.event === null ? 1 : 0) || b.us - a.us)
+    return { bucketUs, starts: folded.starts, series, stats, waitUs }
+  }, [doc, stripsQ.data, bucketUs, prof, base, span])
 
   const tk = useMemo(() => ticks(span, 8), [span])
   const x = (tim: number) => `${(100 * (tim - base)) / span}%`
@@ -205,7 +246,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
     return { left: l, width: w }
   })() : null
   const sel = state.selection.stmt
-  const height = AXIS_H + lanes.length * laneH + (strips ? 2 * STRIP_H : 0)
+  const height = AXIS_H + lanes.length * laneH + (strips ? SEP_H + 2 * STRIP_H : 0)
 
   return (
     <>
@@ -233,7 +274,11 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
             <StmtLink doc={doc} id={l.st.id} /><span className="t">{l.text}</span>
           </div>
         ))}
-        {strips && <><div className="lane-label strip" style={{ height: STRIP_H }}><span className="dim">waits by class</span></div><div className="lane-label strip" style={{ height: STRIP_H }}><span className="dim">CPU</span></div></>}
+        {strips && <>
+          <div className="lanes-sep" style={{ height: SEP_H }}><span>all statements</span></div>
+          <div className="lane-label strip" style={{ height: STRIP_H }}><span>waits by event</span></div>
+          <div className="lane-label strip" style={{ height: STRIP_H }}><span>CPU</span></div>
+        </>}
       </div>
       <div className={'lanes-plot' + (spansQ.loading ? ' stale' : '')} ref={ref} style={{ height }} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)} onDoubleClick={onDouble}>
         <div className="lanes-axis" style={{ height: AXIS_H }}>
@@ -258,7 +303,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
             ))}
           </div>
         ))}
-        {strips && <Strips strips={strips} span={span} base={base} />}
+        {strips && <><div className="lanes-sep" style={{ height: SEP_H }} /><StripsView strips={strips} span={span} base={base} label={wall} /></>}
         {win && !drag && win.endTim > base && win.startTim < base + span && (
           <div className="brush" style={{ left: x(Math.max(base, win.startTim)), width: `${(100 * (Math.min(base + span, win.endTim) - Math.max(base, win.startTim))) / span}%` }}>
             <b>window {fmtDur(win.endTim - win.startTim)}</b>
@@ -267,30 +312,66 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
         {dragRect && dragRect.width > 3 && <div className="brush dragging" style={dragRect} />}
       </div>
     </div>
+    {strips && strips.stats.length > 0 && <WaitStats stats={strips.stats} waitUs={strips.waitUs} zoomed={!!zoom} pending={profQ.loading} />}
     </>
   )
 }
 
-function Strips({ strips, span, base }: { strips: { bucketUs: number; starts: number[]; series: { role: Role; values: Float64Array }[] }; span: number; base: number }) {
+/** A wait event of the strip (or the events folded into "other") with its numbers over the axis; count / max null: not known. */
+interface WaitStat { key: string; event: number | null; label: string; color: string; us: number; count: number | null; max: number | null }
+
+interface Strips { bucketUs: number; starts: number[]; series: (TimelineSeries & { color: string })[]; stats: WaitStat[]; waitUs: number }
+
+/** The strip's wait events: time, share of the wait time, count, average and longest wait over the axis; a click opens the event. */
+function WaitStats({ stats, waitUs, zoomed, pending }: { stats: WaitStat[]; waitUs: number; zoomed: boolean; pending: boolean }) {
+  const actions = useActions()
+  return (
+    <table className={'lanes-waitstats' + (pending ? ' stale' : '')} aria-label="Wait events over the timeline">
+      <thead>
+        <tr><th>Wait event <span className="dim">· {zoomed ? 'zoomed range' : 'whole range'}</span></th><th>Time</th><th>% of waits</th><th>Waits</th><th>Avg</th><th>Max</th></tr>
+      </thead>
+      <tbody>
+        {stats.map((s) => (
+          <tr key={s.key} className={s.event !== null ? 'row-click' : 'rest'} onClick={s.event !== null ? () => actions.selectEvent(s.event!) : undefined}
+            title={s.event !== null ? 'open the event' : undefined}>
+            <td><i className="swatch" style={{ background: s.color }} />{s.label}</td>
+            <td>{fmtDur(s.us)}</td>
+            <td>{fmtPct(s.us, waitUs)}</td>
+            <td>{s.count === null ? '' : fmtInt(s.count)}</td>
+            <td>{s.count ? fmtDur(s.us / s.count) : ''}</td>
+            <td>{s.max === null ? '' : fmtDur(s.max)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function StripsView({ strips, span, base, label }: { strips: Strips; span: number; base: number; label: (tim: number) => string }) {
   const n = strips.starts.length
   const w = (100 * strips.bucketUs) / span // a bucket's share of the axis (the buckets run from the trace start, past the axis)
   const waits = strips.series.filter((s) => s.role !== 'cpu')
   const cpu = strips.series.find((s) => s.role === 'cpu')
   const out = (b: number) => strips.starts[b] + strips.bucketUs <= base || strips.starts[b] >= base + span // outside the axis
-  const order = [...waits].sort((a, b) => roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role))
+  const pc = (us: number) => { const p = (100 * us) / strips.bucketUs; return p < 1 ? '<1' : String(Math.round(p)) }
   return (
     <>
-      <svg className="strip" shapeRendering="crispEdges" style={{ height: STRIP_H }} viewBox={`0 0 100 ${STRIP_H}`} preserveAspectRatio="none" aria-label="waits by class over time">
+      <svg className="strip first" shapeRendering="crispEdges" style={{ height: STRIP_H }} viewBox={`0 0 100 ${STRIP_H}`} preserveAspectRatio="none" aria-label="wait events over time">
         {Array.from({ length: n }, (_, b) => {
           if (out(b)) return null
           let y = STRIP_H - 2
-          return order.map((s) => {
-            const v = Math.min(1, s.values[b] / strips.bucketUs)
-            if (v <= 0) return null
-            const h = v * (STRIP_H - 4)
-            y -= h
-            return <rect key={s.role} x={(100 * (strips.starts[b] - base)) / span} y={y} width={w} height={h} fill={`var(--c-${s.role})`} />
-          })
+          const busy = waits.filter((s) => s.values[b] > 0)
+          if (busy.length === 0) return null
+          const tip = `${label(strips.starts[b])} · ` + [...busy].sort((p, q) => q.values[b] - p.values[b]).map((s) => `${s.label} ${pc(s.values[b])}%`).join(' · ')
+          return (
+            <g key={b}><title>{tip}</title>
+              {busy.map((s) => {
+                const h = Math.min(1, s.values[b] / strips.bucketUs) * (STRIP_H - 4)
+                y -= h
+                return <rect key={s.key} x={(100 * (strips.starts[b] - base)) / span} y={y} width={w} height={h} fill={s.color} />
+              })}
+            </g>
+          )
         })}
       </svg>
       <svg className="strip" shapeRendering="crispEdges" style={{ height: STRIP_H }} viewBox={`0 0 100 ${STRIP_H}`} preserveAspectRatio="none" aria-label="CPU over time">
@@ -299,7 +380,7 @@ function Strips({ strips, span, base }: { strips: { bucketUs: number; starts: nu
           const v = Math.min(1, cpu.values[b] / strips.bucketUs)
           if (v <= 0) return null
           const h = v * (STRIP_H - 4)
-          return <rect key={b} x={(100 * (strips.starts[b] - base)) / span} y={STRIP_H - 2 - h} width={w} height={h} fill="var(--c-cpu)" />
+          return <rect key={b} x={(100 * (strips.starts[b] - base)) / span} y={STRIP_H - 2 - h} width={w} height={h} fill="var(--c-cpu)"><title>{`${label(strips.starts[b])} · CPU ${pc(cpu.values[b])}%`}</title></rect>
         })}
       </svg>
     </>

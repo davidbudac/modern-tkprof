@@ -9,6 +9,7 @@ import { elaOf, splitZeros, type LineDecode } from '../data/linefields'
 import { mergeHits, refRuns, type RefRun } from '../data/linerefs'
 import { fmtDur, fmtInt } from '../data/format'
 import type { Inlay } from '../data/inlays'
+import type { LineTimes } from '../data/linetime'
 
 /** Height of a row in pixels; the rows are laid out by this component, the scroll bar only maps to the first visible line (see data/scrollmap.ts). */
 export const ROW_H = 20
@@ -72,6 +73,8 @@ interface Props {
   gap?(line: number): number | undefined
   /** draw the elapsed time of call and wait lines as a bar in the right gutter */
   heat?: boolean
+  /** the clock and delta columns of the gutter (keep it stable: a new one repaints the rows); omit for neither */
+  times?: LineTimes
   /** kind indexes (into `LINE_KINDS`) whose rows are dimmed; line counts and scrolling are unchanged */
   mutedKinds?: ReadonlySet<number>
   /** a cursor id: the rows of any other cursor (and rows without one) are dimmed; -1 or omitted for none (needs the ids of `annot=2`) */
@@ -108,7 +111,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selRange, onRange, onHover, gap, heat, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selRange, onRange, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -402,7 +405,9 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
     const ela = !heat ? -2 : l && (l.kind === K_CALL || l.kind === K_WAIT) ? elaOf(l.text, LINE_KINDS[l.kind]) : -1
     const inRange = !!selRange && n >= selRange.from && n <= selRange.to
-    rows.push(<Row key={n} n={n} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} />)
+    const t = times && l ? times.at(n, l.text, l.kind) : undefined
+    const clk = times?.clock ? t?.clock ?? '' : null, dlt = times?.delta ? t?.delta ?? '' : null
+    rows.push(<Row key={n} n={n} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} />)
   }
   const digits = String(Math.max(total, 1000)).length
   const hover = card || refTitle || onHover
@@ -431,8 +436,14 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable }: {
+const Row = memo(function Row({ n, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable }: {
   n: number; text: string | undefined; kind: number
+  /** the clock cell: null for no column, '' for an empty cell; `clkT` its title */
+  clk: string | null; clkT?: string
+  /** the delta cell: null for no column, '' for an empty cell; `dltT` its title */
+  dlt: string | null; dltT?: string
+  /** the line the deltas are measured from (its delta cell shows a dot) */
+  anchor: boolean
   /** the line's cached ids, given to `inlays` (undefined when there is no `inlays`) */
   ids: CachedLine | undefined
   /** the owner's hints function (a new function repaints the rows) */
@@ -463,7 +474,9 @@ const Row = memo(function Row({ n, text, kind, ids, inlays, gap, inRange, heat, 
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>
-        {n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}
+        {clk !== null || dlt !== null ? <span className="lv-n">{n}</span> : n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}
+        {clk !== null && <span className="lv-clk" title={clkT}>{clk}</span>}
+        {dlt !== null && <span className={'lv-dlt' + (anchor ? ' lv-dlt-anchor' : '') + (dlt.startsWith('−') ? ' lv-dlt-neg' : '')} title={dltT}>{anchor ? '●' : dlt}</span>}
         {/* the elapsed time as a bar right of the number, where the eye already is (a slot in every row while heat is on) */}
         {heat > -2 && <span className="lv-heat-slot">{heat > 0 && <i className="lv-heat" style={{ '--w': heatWidth(heat).toFixed(3) } as React.CSSProperties} title={fmtDur(heat)} />}</span>}
       </span>

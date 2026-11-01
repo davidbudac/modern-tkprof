@@ -8,6 +8,10 @@ export interface LinesPrefs {
   links: boolean
   /** inlay hints inside the rows */
   hints: boolean
+  /** a gutter column with each line's tim as a wall-clock time */
+  clock: boolean
+  /** a gutter column with each line's time from an anchor line in view */
+  delta: boolean
   inspect: boolean
   inspectW: number
   /** the inspector follows the hovered line instead of the selected one */
@@ -21,7 +25,7 @@ export interface LinesPrefs {
 }
 
 export const LINES_PREFS_DEFAULTS: LinesPrefs = {
-  wrap: false, heat: true, strip: true, links: true, hints: true,
+  wrap: false, heat: true, strip: true, links: true, hints: true, clock: false, delta: false,
   inspect: false, inspectW: 400, follow: false, mute: [], threshold: 10, gapMs: 100,
 }
 
