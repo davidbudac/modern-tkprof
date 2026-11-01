@@ -539,6 +539,8 @@ Key authentication; transport `auto` chose cli.
 ### Oracle (E8)
 
 Through an ssh tunnel (`-L 15210`). Gated test `TestDBMint` plus CLI runs.
+Re-run 2026-11-01 directly on `dbmint:21521` (no tunnel): passes in 6 s
+(own trace fetched, `DBMS_MONITOR`, ref full with the lite fallback as `mtk`).
 
 | Question | Result |
 |---|---|
@@ -585,21 +587,31 @@ authentication; `ProxyJump`/`Include`/`Match` in the lib transport (use cli).
 
 ## Re-running the lab checks
 
-SSH, gated tests and CLI:
+SSH, gated tests and CLI. The test appends to its trace, so point it at a
+scratch copy; its default path (`~/modern-tkprof-gen/out/basic_binds.trc`)
+only exists after `testdata/gen/run_gen.sh` has run on the current VM:
 
 ```
-MTKPROF_SSH_TEST=oracle@dbmint:2200 go test ./internal/remote/sshconn -run Dbmint -v
+ssh -p 2200 oracle@dbmint mkdir -p /tmp/mtkprof-test
+scp -P 2200 testdata/traces/19c/basic_binds.trc oracle@dbmint:/tmp/mtkprof-test/
+MTKPROF_SSH_TEST=oracle@dbmint:2200 MTKPROF_SSH_TEST_PATH=/tmp/mtkprof-test/basic_binds.trc \
+  go test ./internal/remote/sshconn -run Dbmint -v
+ssh -p 2200 oracle@dbmint rm -rf /tmp/mtkprof-test
 mtkprof fetch  oracle@dbmint:2200 <Diag Trace>/<file>.trc -o /tmp/f/     # twice: the second is a no-op
 mtkprof follow oracle@dbmint:2200 <file> | head                          # then testdata/gen/run_gen.sh; Ctrl-C
 ssh -p 2200 oracle@dbmint pgrep -a tail                                  # must print nothing
 ```
 
 Oracle (the password is in the variable for the test only; the grants come
-from `testdata/gen/00_setup_user.sql`, which `run_gen.sh` runs as SYSDBA):
+from `testdata/gen/00_setup_user.sql`, which `run_gen.sh` runs as SYSDBA).
+The dbmint host forwards **21521** to the primary's listener, so no tunnel
+is needed. Ports 1521 and 31521 on the host accept TCP and then reset the
+connection (not the primary; 31521 is probably the standby). The tunnel
+still works when the forward is missing: `ssh -p 2200 -N -L
+15210:localhost:1521 oracle@dbmint &`, then use `localhost:15210`.
 
 ```
-ssh -p 2200 -N -L 15210:localhost:1521 oracle@dbmint &
-MTKPROF_DB_TEST=mtk/mtk@localhost:15210/pdb1.world go test ./internal/remote/db -run DBMint -v
+MTKPROF_DB_TEST=mtk/mtk@dbmint:21521/pdb1.world go test ./internal/remote/db -run DBMint -v
 MTKPROF_DB_TEST=... MTKPROF_DB_TEST_BIG=<big trace_filename> MTKPROF_DB_TEST_BIG_SHA256=<hash> \
   go test ./internal/remote/db -run DBMint -v -timeout 30m
 ```
@@ -619,7 +631,7 @@ Reference bundle against the refscript's (after granting the role):
 
 ```
 mtkprof refscript testdata/traces/19c/io_waits.trc -o /tmp/ref.sql   # run with sqlplus in the VM, copy ref/ back
-mtkprof ref -db mtk@localhost:15210/pdb1.world testdata/traces/19c/io_waits.trc -o /tmp/refdb
+mtkprof ref -db mtk@dbmint:21521/pdb1.world testdata/traces/19c/io_waits.trc -o /tmp/refdb
 diff <(mtkprof report testdata/traces/19c/io_waits.trc -ref ref) <(mtkprof report testdata/traces/19c/io_waits.trc -ref /tmp/refdb)
 ```
 
@@ -635,8 +647,8 @@ curl -H "$H" -XPOST localhost:8047/engine/connections -d '{"id":"lab","kind":"ss
 curl -H "$H" -XPOST localhost:8047/engine/connections/lab/test
 curl -H "$H" localhost:8047/engine/connections/lab/diag
 curl -H "$H" -XPOST localhost:8047/engine/connections/lab/fetch -d '{"paths":["<Diag Trace>/<file>.trc"]}'
-# db (tunnel up)
-curl -H "$H" -XPOST localhost:8047/engine/connections -d '{"id":"ora","kind":"db","host":"localhost","port":15210,"user":"mtk","service":"pdb1.world"}'
+# db (direct; or host localhost, port 15210 through the tunnel)
+curl -H "$H" -XPOST localhost:8047/engine/connections -d '{"id":"ora","kind":"db","host":"dbmint","port":21521,"user":"mtk","service":"pdb1.world"}'
 curl -H "$H" -XPOST localhost:8047/engine/connections/ora/test       # one password prompt
 curl -H "$H" localhost:8047/engine/connections/ora/sessions
 curl -H "$H" "localhost:8047/engine/connections/ora/tracefiles?since=1d"

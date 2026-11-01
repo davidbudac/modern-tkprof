@@ -403,9 +403,12 @@ committed on purpose so `go build` alone works.
   unreliable, use absolute paths; `pkill -f`/`pgrep -f` match the wrapper
   shell, find servers by port (`ss -ltnp | grep :8046`).
 - **dbmint lab** (`~/.claude/skills/dbmint-oracle-test`): Oracle 19.27 in a
-  VM, `ssh -p 2200 oracle@dbmint`, needs `dangerouslyDisableSandbox`. Schema
-  `MTK` exists in `PDB1`; `testdata/gen/run_gen.sh` regenerates the fixtures
-  idempotently and runs tkprof on them. Never run destructive SQL there.
+  VM, `ssh -p 2200 oracle@dbmint`, needs `dangerouslyDisableSandbox`. SQL*Net
+  directly at `dbmint:21521/pdb1.world` (1521 and 31521 on the host are not
+  the primary). Schema `MTK` exists in `PDB1`; `testdata/gen/run_gen.sh`
+  regenerates the fixtures idempotently and runs tkprof on them (its output
+  dir `~/modern-tkprof-gen` was gone on 2026-11-01; see `docs/REMOTE.md`
+  § Re-running the lab checks). Never run destructive SQL there.
 
 ## Milestone 1: done (2026-10-22)
 

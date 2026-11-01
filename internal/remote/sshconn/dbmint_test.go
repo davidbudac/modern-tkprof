@@ -20,7 +20,9 @@ import (
 
 // TestDbmint runs against a real host: MTKPROF_SSH_TEST=user@host:port
 // (e.g. oracle@dbmint:2200), MTKPROF_SSH_TEST_PATH a trace on it (default
-// /home/oracle/modern-tkprof-gen/out/basic_binds.trc). Keys or an agent
+// /home/oracle/modern-tkprof-gen/out/basic_binds.trc, written by
+// testdata/gen/run_gen.sh; it gets appended to, so a scratch copy is
+// safest, see docs/REMOTE.md). Keys or an agent
 // must let `ssh -o BatchMode=yes` in; other prompts go to the terminal.
 // Checks, for the cli and lib transports: Test, Diag finds a .../trace
 // directory, fetch (cli with and without gzip, lib over SFTP, and scp when
