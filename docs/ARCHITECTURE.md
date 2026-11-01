@@ -528,7 +528,7 @@ on screen.
   `ctxKey`) therefore follows the file selection without knowing about files. No file selected is an empty set: the
   remote source sends `contexts=-` for it (an empty `contexts=` means "all" to the server; `-` is the explicit empty set,
   `analyze.Filter.NoContexts`, accepted by every scoped endpoint). Hash: `#files=0,2`
-  (`app/urlstate.ts`; indexes the trace does not have are ignored, none left = all).
+  (`lib/shell/urlstate.ts`; indexes the trace does not have are ignored, none left = all).
 - **Filter row.** `FilterBar` (`components/FilterBar.tsx`, `data/filters.ts`) renders directly after the top bar in both shells:
   `activeFilters(doc, state)` lists the global filters in force in the order files (`2 of 21 files · a.trc, b.trc +3`), sessions
   (`State.contexts`, named by `sessionLabel`), window (with `· block of <sql_id>` while `activeBlock`) and hidden idle waits
@@ -1401,10 +1401,25 @@ internal/ref/       embedded reference data (wait classes, command types, bind d
 api/                engine.openapi.yaml (the engine protocol, checked by internal/engine/contract_test.go)
 web/                Vite + TypeScript UI (web/vendor/ora-plan-core: vendored shared plan core)
   web/src/lib/      the UI library (views, components, data incl. ApiClient, state, styles); imported as @lib; never imports app/
-  web/src/app/      the standalone shell (App, TopBar, Inspector, LineDrawer, urlstate) used by html and serve
+  web/src/lib/shell/ the shell behaviour both front ends share (view table, tabs, keys, panes, inspector, URL hash, error boundary)
+  web/src/app/      the standalone shell (App, TopBar, main) used by html and serve
 testdata/           real 19c/21c/23ai fixtures (+ tkprof output as golden reference), generator scripts
 docs/               this file, trace-format-19c.md, ROADMAP.md
 ```
+
+### Shell module (`web/src/lib/shell`)
+
+Two shells mount the lib's views: the standalone one in `web/src/app` (`mtkprof html`, `mtkprof serve`) and the desktop's
+session shell (`mtkprof-desktop/src/workspace/session`). What a shell does around the views lives once, in `lib/shell`, and
+both use it: the view table (`views.tsx`: `baseViews`, eight rows Compare 0, Overview 1, Trace 2, Statements 3, Waits 4,
+Timeline 5, Sessions 6, Pivot 7; `shownViews`, `currentView`; the desktop appends Notes 8 and Reports 9 as `tools` rows),
+the tab bar (`ViewTabs`: counts and key hints are props), the view chords (`viewKeys.ts`, `useViewKeys`: ⌘1 … ⌘7 and ⌘0,
+⌥⌘← / ⌥⌘→ on macOS; Ctrl+digit, Ctrl+PageUp / PageDown elsewhere), the side panes (`viewPanes.ts`, `filesRoom.ts`,
+`useShellPanes`: the details pane only on Waits and Timeline, the Files panel open or folded per view with the user's choice
+winning per view, and folded away while the details pane needs the room), the Esc chain (`useEscapeChain`), the wait-event
+`Inspector`, the URL hash codec (`urlstate.ts`: `hashOf`, `apply`, `unresolved`, `startUrlSync`) and `ViewErrorBoundary`.
+Rule: neither shell duplicates shell behaviour; a shell keeps only what is its own (the standalone's top bar, counts, theme
+and info bar and its browser-history Back / Forward; the desktop's tabs, NavHistory, Tools menu, assistant, key-hint overlay).
 
 ## Build targets
 
