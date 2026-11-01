@@ -1006,8 +1006,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </div>
             </div>
           </ToolbarMenu>
-          <button type="button" className="quiet tb-panel" aria-pressed={prefs.inspect} onClick={() => togglePanel()} title="the side panel: the selected line translated, the outline of the file, the search hits and the bookmarks (i opens it at the line)">
-            <PanelIcon /><span className="tb-label">Panel</span>{!prefs.inspect && ui.status !== 'idle' && ui.hits.length > 0 && <small>{fmtInt(ui.hits.length)}</small>}
+          <button type="button" className="quiet tb-panel" aria-pressed={prefs.inspect} onClick={() => togglePanel()} aria-label="Side panel" title="the side panel: the selected line translated, the outline of the file, the search hits and the bookmarks (i opens it at the line)">
+            <PanelIcon />{!prefs.inspect && ui.status !== 'idle' && ui.hits.length > 0 && <small>{fmtInt(ui.hits.length)}</small>}
           </button>
         </div>
       </div>

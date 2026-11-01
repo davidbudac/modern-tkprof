@@ -14,7 +14,7 @@
 .lines-search input[type="search"] { flex: 1; min-inline-size: 0; border: 0; background: transparent; box-shadow: none; outline: none; font-family: var(--font-mono); font-size: var(--text-sm); padding-inline: var(--sp-2); }
 .lines-search > button, .lines-search > .tbmenu > button { border: 0; border-radius: 0; border-inline-start: 1px solid var(--hairline); }
 .lines-search > .tbmenu > button[aria-pressed="true"] { border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0; }
-/* the command button: the label and the key; the panel button: an icon and its label (the labels go when the bar is narrow) */
+/* the command button: the label and the key (the label goes when the bar is narrow); the panel button: an icon (and the hit count while it is closed) */
 .tb-cmd > button kbd, .lines-row .tb-panel kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); margin-inline-start: var(--sp-2); }
 .tb-panel { display: inline-flex; align-items: center; gap: 0.4em; }
 .tb-panel small { color: inherit; opacity: .7; font-variant-numeric: tabular-nums; }
