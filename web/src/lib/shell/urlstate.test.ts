@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createStore } from '@lib/state/store'
-import { makeDoc } from '@lib/data/testdoc'
-import type { Event } from '@lib/data/types'
+import { createStore } from '../state/store'
+import { makeDoc } from '../data/testdoc'
+import type { Event } from '../data/types'
 import { apply, hashOf, unresolved } from './urlstate'
 
 describe('URL hash: files=', () => {

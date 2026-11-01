@@ -1,16 +1,4 @@
-import { fmtWall, fmtTz, fmtBytes, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, sourceOf, useSourceQuery, useScopedStatements, fileHeading, selectionInfo, ResponseMini, useScopeResponse, type TraceDoc, type View } from '@lib'
-
-const tabs: { id: View; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'statements', label: 'Statements' },
-  { id: 'waits', label: 'Waits' },
-  { id: 'timeline', label: 'Timeline' },
-  { id: 'sessions', label: 'Sessions' },
-  { id: 'pivot', label: 'Pivot' },
-]
-
-const compareTab = { id: 'compare' as View, label: 'Compare' }
-const linesTab = { id: 'lines' as View, label: 'Lines' }
+import { fmtWall, fmtTz, fmtBytes, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, sourceOf, useSourceQuery, useScopedStatements, fileHeading, selectionInfo, ResponseMini, useScopeResponse, ViewTabs, baseViews, type TraceDoc, type View } from '@lib'
 
 const themeNext = { auto: 'light', light: 'dark', dark: 'auto' } as const
 const themeGlyph = { auto: '◐', light: '○', dark: '●' } as const
@@ -20,8 +8,6 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
   const actions = useActions()
   const state = useStore((s) => s)
   const compare = state.compare
-  const hasLines = !!doc.slice && state.linesApi
-  const shownTabs = [...(compare ? [compareTab] : []), ...tabs, ...(hasLines ? [linesTab] : [])]
   const path = doc.file.traceFile || doc.file.path
   const head = fileHeading(doc, state.files, { name: path.split(/[\\/]/).pop() ?? path, title: path, bytes: doc.diag.bytes })
   const source = sourceOf(doc)
@@ -54,13 +40,7 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
       <span className="file mono" title={head.title}>{head.name}<span className="dim"> · {fmtBytes(head.bytes)}</span></span>
       <LiveBadge />
       <ResponseMini summary={summary} />
-      <nav className="tabs" aria-label="Views">
-        {shownTabs.map((t) => (
-          <button key={t.id} className="tab" aria-current={state.view === t.id ? 'page' : undefined} onClick={() => actions.setView(t.id)}>
-            {t.label}{counts[t.id] !== undefined && <small>{counts[t.id]}</small>}
-          </button>
-        ))}
-      </nav>
+      <ViewTabs views={baseViews} counts={counts} />
       <span className="chips">
         <FilesToggle doc={doc} />
       </span>

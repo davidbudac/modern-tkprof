@@ -6,6 +6,28 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Shared shell module (2026-11-01, branch `ui/shared-shell`)
+
+- 2026-11-01: the shell behaviour the desktop had grown (and partly copied from `web/src/app`) moved into the lib as
+  `web/src/lib/shell/` (exported through `@lib`; `docs/ARCHITECTURE.md` § "Shell module"): the view table `baseViews` /
+  `shownViews` / `currentView` / `SessionViewDef`, `ViewTabs`, `viewKeyOf` / `viewOfKey` / `viewKeyLabel` / `viewKeyAria` /
+  `digitOf` / `inTextField` / `KeyLike` / `useViewKeys`, `isMac`, the panes (`showsInspector`, `filesDefaultOpen`,
+  `FilesChoices`, `filesChoicesOf`, `filesNeedRoom`, `lengthVar`, `markFilesFolded`, `filesFolded`, `shellFilesWrite`,
+  `inShellFilesWrite`, `MIN_VIEW_REM`, `useShellPanes`, `useEscapeChain`), `Inspector` (close button with the new lib
+  `CloseIcon`), the URL hash codec (`hashOf`, `apply`, `unresolved`, `startUrlSync`, was `web/src/app/urlstate.ts`) and
+  `ViewErrorBoundary` / `errorDetails` (was the desktop's `TabErrorBoundary`; `product` and `note` props, buttons "Reload"
+  and "Copy details", lib styles `.view-error*` next to the desktop's `panel-center` / `card bad` / `blocker-error` / `actions`).
+- The standalone shell adopts it: tabs in the desktop's order and labels (Lines is now "Trace", after Overview), ⌘/Ctrl digit
+  chords, Files panel per view (folded in Statements, Waits, Pivot), the details pane only on Waits and Timeline, the error
+  card around `<main>`. `web/src/app/Inspector.tsx`, `LineDrawer.tsx` and `urlstate.ts` are gone.
+- **Desktop follow-up** (next task): switch its imports to `@lib` and delete the copies: `src/workspace/session/views.tsx`
+  (keep only the Notes / Reports rows appended to `baseViews`), `viewKeys.ts` (+ test), `viewPanes.ts` (+ test),
+  `filesRoom.ts` (+ test), `Inspector.tsx`, `LineDrawer.tsx`, `SessionShell.tsx` (panes, Esc and view-key effects →
+  `useShellPanes`, `useEscapeChain`, `useViewKeys`), `SessionNav.tsx` (→ `ViewTabs` with the key-hint and Tools menu props),
+  `src/workspace/TabErrorBoundary.tsx` (+ test, → `ViewErrorBoundary` with `product="mtkprof-desktop"` and its tab note),
+  `src/workspace/shortcuts.ts` (`KeyLike`, `digitOf`, `inTextField` from `@lib`), `src/platform.ts` (`isMac`), and every
+  `../../../engine/web/src/app/urlstate` import (`apply`, `hashOf` from `@lib`).
+
 ## Releases (2026-10-25 evening)
 
 - Engine **v0.4.0** = `e4b0e6f`, published from this machine with

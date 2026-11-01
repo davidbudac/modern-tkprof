@@ -1,65 +1,48 @@
-import { useEffect, useState } from 'react'
-import { useStore, useActions, useStoreApi, usePersisted, filesPanelOpen, ResizeHandle, PaneToggle, FilesPane, FilterBar, Overview, Statements, Waits, Timeline, Sessions, Pivot, Compare, Lines, loadFile } from '@lib'
+import { useMemo, useState } from 'react'
+import {
+  useStore, useStoreApi, usePersisted, ResizeHandle, PaneToggle, FilesPane, FilterBar, Inspector, LineDrawer, ViewErrorBoundary,
+  baseViews, currentView, useViewKeys, useShellPanes, useEscapeChain, loadFile,
+} from '@lib'
 import { TopBar, SubBar } from './TopBar'
-import { Inspector } from './Inspector'
-import { LineDrawer } from './LineDrawer'
-import type { CSSProperties } from 'react'
 
 export function App() {
   const store = useStoreApi()
-  const actions = useActions()
   const doc = useStore((s) => s.doc)
   const loading = useStore((s) => s.loading)
   const error = useStore((s) => s.error)
   const view = useStore((s) => s.view)
-  const compare = useStore((s) => s.compare)
-  const event = useStore((s) => s.selection.event)
+  // the row of the view table to render (lib/shell/views.tsx); Compare renders from `compare`, so a new comparison re-renders too
+  const current = useStore((s) => (s.doc ? currentView(baseViews, s.doc, s) : null))
+  useStore((s) => s.compare)
   const lines = useStore((s) => s.lineViewer !== null)
   const [infoBar, setInfoBar] = usePersisted<boolean>('mtkprof.infoBar', true)
   const [inspectorW, setInspectorW] = usePersisted<number | null>('mtkprof.inspectorW', null)
   const [filesW, setFilesW] = usePersisted<number | null>('mtkprof.filesW', null)
-  const filesOpen = useStore((s) => filesPanelOpen(s))
-  // the event whose inspector was collapsed: picking another event opens it again
-  const [collapsedFor, setCollapsedFor] = useState<number | null>(null)
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      // Esc closes the line viewer first, then the inspector, then clears the time window
-      const s = store.getState()
-      if (s.lineViewer) actions.closeLines()
-      else if (s.selection.event !== null) actions.selectEvent(null)
-      else if (s.window) actions.setWindow(null)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [store, actions])
+  // collapsed, the details pane stays collapsed for the next event too (as in the desktop); its tab is there while an event is selected
+  const [inspectorPref, setInspectorPref] = useState(true)
+  const panes = useShellPanes({ inspectorOpen: inspectorPref, inspectorW, filesW })
+  useEscapeChain()
+  useViewKeys(store, baseViews)
+  // another document or another view clears a crashed view's error card
+  const resetKey = useMemo(() => ({ doc, view }), [doc, view])
 
   if (loading) return <div className="loading"><p>Loading trace…</p></div>
-  if (!doc) return <Landing error={error} />
+  if (!doc || !current) return <Landing error={error} />
 
-  const inspectorOpen = event !== null && collapsedFor !== event
-  const full = view === 'statements' || view === 'lines'
+  const path = doc.file.traceFile || doc.file.path
   return (
-    <div className={'shell' + (filesOpen ? ' has-files' : '') + (inspectorOpen ? ' has-inspector' : '') + (lines ? ' has-lines' : '') + (infoBar ? '' : ' no-subbar')}>
+    <div className={'shell' + panes.shellClass + (lines ? ' has-lines' : '') + (infoBar ? '' : ' no-subbar')}>
       <TopBar doc={doc} onShowInfo={infoBar ? undefined : () => setInfoBar(true)} />
       <FilterBar doc={doc} />
       {infoBar && <SubBar doc={doc} onClose={() => setInfoBar(false)} />}
-      <div className="body" style={{ ...(inspectorW ? { '--inspector-w': `${inspectorW}px` } : null), ...(filesW ? { '--files-w': `${filesW}px` } : null) } as CSSProperties}>
+      <div className="body" ref={panes.body} style={panes.bodyStyle}>
         <FilesPane doc={doc} onWidth={setFilesW} />
-        <main className={'main' + (full ? ' full' : '')}>
-          {view === 'overview' && <Overview doc={doc} />}
-          {view === 'statements' && <Statements doc={doc} />}
-          {view === 'waits' && <Waits doc={doc} />}
-          {view === 'timeline' && <Timeline doc={doc} />}
-          {view === 'sessions' && <Sessions doc={doc} />}
-          {view === 'pivot' && <Pivot doc={doc} />}
-          {view === 'lines' && <Lines doc={doc} />}
-          {view === 'compare' && compare && <Compare data={compare} />}
-        </main>
-        {inspectorOpen && <Inspector doc={doc} />}
-        {inspectorOpen && <ResizeHandle anchor="end" className="resizer-inspector" label="Resize details pane" onChange={setInspectorW} />}
-        {event !== null && <PaneToggle open={inspectorOpen} onToggle={() => setCollapsedFor(inspectorOpen ? event : null)} label="details pane" className="inspector-toggle" />}
+        <ViewErrorBoundary title={path.split(/[\\/]/).pop() ?? path} context={[`path: ${path}`, `view: ${current.id}`]} resetKey={resetKey}>
+          <main className={'main' + (current.full ? ' full' : '')}>{current.render(doc, store.getState())}</main>
+        </ViewErrorBoundary>
+        {panes.inspectorOpen && <Inspector doc={doc} />}
+        {panes.inspectorOpen && <ResizeHandle anchor="end" className="resizer-inspector" label="Resize details pane" onChange={setInspectorW} />}
+        {panes.eventView && <PaneToggle open={panes.inspectorOpen} onToggle={() => setInspectorPref(!panes.inspectorOpen)} label="details pane" className="inspector-toggle" />}
       </div>
       {lines && <LineDrawer />}
     </div>

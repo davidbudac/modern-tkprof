@@ -329,7 +329,7 @@ export function highlightRuns(text: string, spans: [number, number][]): TextRun[
 
 /**
  * The standalone app's deep link to a line of the Lines view: the current page (path and `?doc=` query) with
- * `#view=lines[&file=N][&line=N]`, the same hash the app writes while that view is open (app/urlstate.ts).
+ * `#view=lines[&file=N][&line=N]`, the same hash the app writes while that view is open (shell/urlstate.ts).
  */
 export function linePermalink(loc: Pick<Location, 'origin' | 'pathname' | 'search'>, file: number, line: number): string {
   const p = new URLSearchParams({ view: 'lines' })
