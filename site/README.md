@@ -23,9 +23,16 @@ Opening the files directly (`file://`) also works.
 - `desktop-dark.webp`: the macOS smoke screenshot of mtkprof-desktop
   (`out-smoke/macos-arm64-ready.png`) with the menu bar cropped off.
 
-Retake them when the UI changes visibly. The numbers in the hero figure and
-the text-report excerpt on the landing page come from `io_waits.trc`; keep
-them in step with `mtkprof report testdata/traces/19c/io_waits.trc`.
+Retake them when the UI changes visibly. The hero window on the landing page
+shows lines 6878–6891 of `testdata/traces/19c/io_waits.trc` verbatim (the
+cursor id is hidden on phones) and the resource profile of that trace; the
+numbers there and in the text-report excerpt must stay in step with
+`mtkprof report testdata/traces/19c/io_waits.trc`.
+
+Design direction: exact, forensic, unhurried. The product's own ink ramp,
+IBM Plex and the wait-class colors; color appears only in data. The one
+signature is the small wait-class swatch, used only where it marks a wait
+class. Weights 400–500 (600 for the wordmark), spacing on a 4px grid.
 
 ## Content
 

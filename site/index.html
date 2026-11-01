@@ -17,7 +17,6 @@
     <nav class="site-nav" aria-label="Site">
       <a class="wide" href="#features">Features</a>
       <a href="#desktop">Desktop app</a>
-      <a class="wide" href="#start">Get started</a>
       <a href="docs.html">Docs</a>
       <a href="https://github.com/davidbudac/modern-tkprof">GitHub</a>
     </nav>
@@ -30,77 +29,94 @@
 <section class="hero content-grid">
   <div class="hero-grid breakout">
     <div class="hero-copy">
-      <p class="kicker">Oracle SQL trace · 19c, 21c, 23ai</p>
-      <h1>The modern 10046 trace analyzer.</h1>
-      <p class="lede"><code>tkprof</code> sums a trace and throws the rest away. mtkprof keeps all of it and shows <strong>where the response time went: by statement, by execution, by second</strong>. The same numbers as tkprof, exactly, and everything tkprof leaves out.</p>
+      <h1>The modern 10046 trace analyzer</h1>
+      <p class="lede"><code>tkprof</code> sums a trace and throws the rest away. mtkprof keeps all of it and shows where the response time went: by statement, by execution, by second. The same numbers as tkprof, exactly, and everything it leaves out.</p>
       <div class="actions">
         <a class="button primary" href="#start">Get started</a>
         <a class="button" href="docs.html">Read the docs</a>
       </div>
-      <pre class="terminal" aria-label="Example"><span class="p">$ </span>mtkprof cdb1_ora_133382.trc
-<span class="ok">parsed</span> 16428 lines, 1.6 MB in 9ms
-<span class="ok">wrote</span>  cdb1_ora_133382.trc.txt   <span class="c"># text report</span>
-<span class="ok">wrote</span>  cdb1_ora_133382.trc.html  <span class="c"># interactive</span></pre>
-      <p class="hero-meta">One static binary for Linux, Windows, macOS, AIX and Solaris. Offline. Apache-2.0.</p>
     </div>
 
-    <figure class="hero-figure" style="margin:0">
-      <div class="profile" role="img" aria-label="Resource profile of a 6.459 second trace: enq: KO fast object checkpoint 45.8 percent, direct path write temp 44.6 percent, CPU 5.2 percent, SQL*Net message from client 4.9 percent.">
-        <div class="profile-head">
-          <span class="rt num">Response time 6.459 s</span>
-          <span class="sub">top 3 statements: 90%</span>
+    <figure class="hero-figure">
+      <div class="window">
+        <div class="window-bar">
+          <span class="window-file">cdb1_ora_133382_mtk_io_waits.trc</span>
+          <span class="window-meta">16,428 lines · 1.6 MB</span>
         </div>
-        <div class="stackbar">
-          <span style="--w:45.8; background:var(--c-other)">enq: KO - fast object checkpoint</span>
-          <span style="--w:44.6; background:var(--c-userio)">direct path write temp</span>
-          <span style="--w:5.2; background:var(--c-cpu)">CPU</span>
-          <span style="--w:4.9; background:var(--c-idle)"></span>
-          <span style="--w:0.6; background:var(--c-unaccounted)"></span>
+        <ol class="trace" start="6878" aria-label="Lines 6878 to 6891 of the trace file">
+          <li><span class="t-dim">PARSING IN CURSOR #139745604251096 len=141 dep=0 uid=165 oct=3 lid=165 tim=10807559773 hv=9879169 sqlid='52nzchs09dgn1'</span></li>
+          <li>select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status</li>
+          <li>  from mtk_orders o order by o.amount desc, o.order_date, o.id</li>
+          <li><span class="t-dim">END OF STMT</span></li>
+          <li><span class="t-kw">PARSE</span><span class="t-dim"> #139745604251096:c=964,</span><b>e=1348</b><span class="t-dim">,p=1,cr=2,cu=5,mis=1,r=0,dep=0,og=1,plh=2503715236,tim=10807559772</span></li>
+          <li><span class="t-kw">EXEC</span><span class="t-dim"> #139745604251096:c=13,</span><b>e=13</b><span class="t-dim">,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=2503715236,tim=10807559830</span></li>
+          <li class="w" style="--c:var(--c-network)"><span class="t-kw">WAIT</span><span class="t-dim cur"> #139745604251096:</span> nam='SQL*Net message to client' <b>ela= 0</b><span class="t-dim"> driver id=1952673792 #bytes=1 p3=0 obj#=108611</span></li>
+          <li class="w" style="--c:var(--c-userio)"><span class="t-kw">WAIT</span><span class="t-dim cur"> #139745604251096:</span> nam='direct path read' <b>ela= 12</b><span class="t-dim"> file number=12 first dba=169947 block cnt=5 obj#=108611</span></li>
+          <li class="w" style="--c:var(--c-userio)"><span class="t-kw">WAIT</span><span class="t-dim cur"> #139745604251096:</span> nam='direct path read' <b>ela= 47</b><span class="t-dim"> file number=12 first dba=169968 block cnt=8 obj#=108611</span></li>
+          <li class="w" style="--c:var(--c-userio)"><span class="t-kw">WAIT</span><span class="t-dim cur"> #139745604251096:</span> nam='Disk file operations I/O' <b>ela= 23</b><span class="t-dim"> FileOperation=2 fileno=203 filetype=6</span></li>
+          <li class="w" style="--c:var(--c-userio)"><span class="t-kw">WAIT</span><span class="t-dim cur"> #139745604251096:</span> nam='direct path write temp' <b>ela= 3384</b><span class="t-dim"> file number=203 first dba=756615 block cnt=1</span></li>
+          <li class="w" style="--c:var(--c-userio)"><span class="t-kw">WAIT</span><span class="t-dim cur"> #139745604251096:</span> nam='direct path write temp' <b>ela= 1852</b><span class="t-dim"> file number=203 first dba=756616 block cnt=1</span></li>
+          <li class="w" style="--c:var(--c-userio)"><span class="t-kw">WAIT</span><span class="t-dim cur"> #139745604251096:</span> nam='direct path write temp' <b>ela= 1818</b><span class="t-dim"> file number=203 first dba=756617 block cnt=1</span></li>
+          <li class="w" style="--c:var(--c-userio)"><span class="t-kw">WAIT</span><span class="t-dim cur"> #139745604251096:</span> nam='direct path write temp' <b>ela= 1843</b><span class="t-dim"> file number=203 first dba=756618 block cnt=1</span></li>
+        </ol>
+        <div class="window-sum">
+          <span>2,200 calls and 9,615 waits, accounted for</span>
+          <span class="num">−60.8 ms unaccounted</span>
         </div>
-        <dl class="profile-rows">
-          <div><dt><span class="ev"><i class="swatch" style="--c:var(--c-other)"></i>enq: KO - fast object checkpoint</span></dt><dd>2.957 s</dd><dd>45.8%</dd><dd class="note">3 waits, longest 2.323 s</dd></div>
-          <div><dt><span class="ev"><i class="swatch" style="--c:var(--c-userio)"></i>direct path write temp</span></dt><dd>2.881 s</dd><dd>44.6%</dd><dd class="note">1,607 waits, avg 1.79 ms</dd></div>
-          <div><dt><span class="ev"><i class="swatch" style="--c:var(--c-cpu)"></i>CPU</span></dt><dd>337 ms</dd><dd>5.2%</dd><dd class="note"></dd></div>
-          <div><dt><span class="ev"><i class="swatch" style="--c:var(--c-idle)"></i>SQL*Net message from client</span></dt><dd>319 ms</dd><dd>4.9%</dd><dd class="note">328 round trips</dd></div>
-          <div><dt><span class="ev"><i class="swatch" style="--c:var(--c-userio)"></i>direct path read temp</span></dt><dd>13.7 ms</dd><dd>0.2%</dd><dd class="note">6,943 waits, avg 2 µs</dd></div>
-        </dl>
+        <div class="profile" role="img" aria-label="Resource profile of the 6.459 second trace: enq: KO fast object checkpoint 45.8 percent, direct path write temp 44.6 percent, CPU 5.2 percent, SQL*Net message from client 4.9 percent.">
+          <div class="profile-head">
+            <span class="rt num">6.459 s</span>
+            <span class="sub">response time · top 3 statements 90%</span>
+          </div>
+          <div class="stackbar" aria-hidden="true">
+            <span style="--w:45.8; background:var(--c-other)">enq: KO - fast object checkpoint</span>
+            <span style="--w:44.6; background:var(--c-userio)">direct path write temp</span>
+            <span style="--w:5.2; background:var(--c-cpu)">CPU</span>
+            <span style="--w:4.9; background:var(--c-idle)"></span>
+          </div>
+          <dl class="profile-rows">
+            <div><dt><i class="swatch" style="--c:var(--c-other)"></i>enq: KO - fast object checkpoint</dt><dd>2.957 s</dd><dd>45.8%</dd><dd class="note">3 waits, longest 2.323 s</dd></div>
+            <div><dt><i class="swatch" style="--c:var(--c-userio)"></i>direct path write temp</dt><dd>2.881 s</dd><dd>44.6%</dd><dd class="note">1,607 waits, avg 1.79 ms</dd></div>
+            <div><dt><i class="swatch" style="--c:var(--c-cpu)"></i>CPU</dt><dd>337 ms</dd><dd>5.2%</dd><dd class="note"></dd></div>
+            <div><dt><i class="swatch" style="--c:var(--c-idle)"></i>SQL*Net message from client</dt><dd>319 ms</dd><dd>4.9%</dd><dd class="note">328 round trips</dd></div>
+          </dl>
+        </div>
       </div>
-      <figcaption class="profile-caption" style="margin-block-start:0.75rem">The resource profile of a real 19c trace: response time = CPU + every wait event + what is unaccounted for.</figcaption>
+      <figcaption>A real 19c trace: the raw lines on top, what mtkprof makes of them below</figcaption>
     </figure>
   </div>
 </section>
 
 <!-- ============ facts ============ -->
-<section class="content-grid" style="padding-block-end: var(--space-section)">
-  <div class="facts">
-    <div class="fact"><b>~350 MB/s</b><span>parse speed; a 118 MB trace is reported in under a second</span></div>
-    <div class="fact"><b>= tkprof</b><span>call statistics, library cache misses and wait tables match Oracle's own tkprof on every test fixture</span></div>
-    <div class="fact"><b>10 GB+</b><span>traces in constant memory with <code>-aggregate</code> or <code>serve -spill</code></span></div>
-    <div class="fact"><b>19c · 21c · 23ai</b><span>tested against real traces; every line kind of the 19c format</span></div>
-  </div>
+<section class="content-grid facts-section">
+  <dl class="facts">
+    <div class="fact"><dt>~350 MB/s</dt><dd>parse speed; a 118 MB trace is reported in under a second</dd></div>
+    <div class="fact"><dt>Exact</dt><dd>call statistics, library cache misses and wait tables match tkprof on every test trace</dd></div>
+    <div class="fact"><dt>10 GB+</dt><dd>traces in constant memory, with full drill-down</dd></div>
+    <div class="fact"><dt>19c, 21c, 23ai</dt><dd>tested on real traces; one static binary for Linux, Windows, macOS, AIX and Solaris</dd></div>
+  </dl>
 </section>
 
 <!-- ============ beyond tkprof ============ -->
 <section class="section content-grid" id="modern">
   <div class="section-head">
-    <p class="kicker">Why modern</p>
-    <h2>tkprof gives you totals. Tuning needs the rest.</h2>
+    <h2>tkprof gives you totals, tuning needs the rest</h2>
     <p>tkprof's numbers are still the reference, so mtkprof reproduces them and is tested against them. Everything else is new.</p>
   </div>
   <div class="compare-wrap">
   <div class="table-wrap compare-table">
     <table>
-      <thead><tr><th>Question</th><th class="c">tkprof</th><th class="c">mtkprof</th></tr></thead>
+      <thead><tr><th>Question</th><th>tkprof</th><th>mtkprof</th></tr></thead>
       <tbody>
-        <tr><td>Call statistics, library cache misses, waits per statement</td><td class="c yes">yes</td><td class="c yes">yes, identical numbers</td></tr>
-        <tr><td>Where did the response time go? CPU + every wait + unaccounted-for</td><td class="c no">no</td><td class="c yes">resource profile for the trace, a statement, a session or a time window</td></tr>
-        <tr><td>Which execution was slow, and with which bind values?</td><td class="c no">no</td><td class="c yes">every EXEC with its fetches, waits and binds; compare two</td></tr>
-        <tr><td>Which statement did the user actually wait for?</td><td class="c no">recursive SQL listed apart</td><td class="c yes">ranked including recursive children and idle time between calls</td></tr>
-        <tr><td>What happened between 10:15 and 10:17?</td><td class="c no">no</td><td class="c yes">a timeline; pick a window and every view follows</td></tr>
-        <tr><td>Split files, several sessions, PX slaves</td><td class="c no">one file at a time, <code>trcsess</code> first</td><td class="c yes">any files and folders as one trace, slaves attached to their coordinator</td></tr>
-        <tr><td>Did my change help?</td><td class="c no">no</td><td class="c yes"><code>mtkprof compare</code>: statements matched by sql_id, ranked by change</td></tr>
-        <tr><td>A 10 GB trace</td><td class="c no">totals only</td><td class="c yes">constant memory, full drill-down</td></tr>
-        <tr><td>Exploring the result</td><td class="c no">a text file</td><td class="c yes">text, an interactive HTML file, a desktop app, CSV, JSON</td></tr>
+        <tr><td>Call statistics, library cache misses, waits per statement</td><td>yes</td><td class="yes">yes, identical numbers</td></tr>
+        <tr><td>Where did the response time go? CPU + every wait + unaccounted-for</td><td class="no">no</td><td class="yes">resource profile for the trace, a statement, a session or a time window</td></tr>
+        <tr><td>Which execution was slow, and with which bind values?</td><td class="no">no</td><td class="yes">every EXEC with its fetches, waits and binds; compare two</td></tr>
+        <tr><td>Which statement did the user actually wait for?</td><td class="no">recursive SQL listed apart</td><td class="yes">ranked including recursive children and idle time between calls</td></tr>
+        <tr><td>What happened between 10:15 and 10:17?</td><td class="no">no</td><td class="yes">a timeline; pick a window and every view follows</td></tr>
+        <tr><td>Split files, several sessions, PX slaves</td><td class="no">one file at a time, <code>trcsess</code> first</td><td class="yes">any files and folders as one trace, slaves attached to their coordinator</td></tr>
+        <tr><td>Did my change help?</td><td class="no">no</td><td class="yes"><code>mtkprof compare</code>: statements matched by sql_id, ranked by change</td></tr>
+        <tr><td>A 10 GB trace</td><td class="no">totals only</td><td class="yes">constant memory, full drill-down</td></tr>
+        <tr><td>Exploring the result</td><td class="no">a text file</td><td class="yes">text, an interactive HTML file, a desktop app, CSV, JSON</td></tr>
       </tbody>
     </table>
   </div>
@@ -110,34 +126,38 @@
 <!-- ============ three ways ============ -->
 <section class="section content-grid" id="ways">
   <div class="section-head">
-    <p class="kicker">Three ways to run it</p>
-    <h2>Same engine, from a terminal on the database host to a desktop app.</h2>
+    <h2>One engine, from the database host to your desk</h2>
     <p>The parser, the model and the numbers are the same everywhere. Pick the surface that fits where the trace is.</p>
   </div>
   <div class="ways">
     <article class="way">
-      <h3>Command line</h3>
+      <div class="way-head">
+        <h3>Command line</h3>
+        <p class="for">The database host, scripts, tickets</p>
+      </div>
       <p>Copy the binary next to the trace, like tkprof. A text report with the resource profile, statements ranked by response time, executions with their binds, plans and findings. Plus pivots, CSV export and a before/after compare.</p>
       <pre class="terminal"><span class="p">$ </span>mtkprof report trace.trc -top 20
 <span class="p">$ </span>mtkprof pivot trace.trc -by event
 <span class="p">$ </span>mtkprof compare a.trc b.trc</pre>
-      <p class="for">For: the database host, scripts, tickets.</p>
     </article>
     <article class="way">
-      <h3>Browser</h3>
+      <div class="way-head">
+        <h3>Browser</h3>
+        <p class="for">Exploring one trace, sharing a finding</p>
+      </div>
       <p>A self-contained HTML file you can mail to a colleague, or the same UI served from the binary. Overview, Statements, Waits, Timeline, Sessions and Pivot, all following one time window and one session filter.</p>
       <pre class="terminal"><span class="p">$ </span>mtkprof html trace.trc
 <span class="p">$ </span>mtkprof serve trace.trc
 <span class="c">  http://127.0.0.1:8046/</span></pre>
-      <p class="for">For: exploring one trace, sharing a finding.</p>
     </article>
     <article class="way">
-      <h3>Desktop app</h3>
+      <div class="way-head">
+        <h3>Desktop app</h3>
+        <p class="for">Daily tuning work across many traces</p>
+      </div>
       <p>Traces in tabs that reopen in a second from an index cache. The raw trace lines, notes and bookmarks, saved pivots, and connections that fetch or follow traces over ssh or straight from the database.</p>
       <pre class="terminal"><span class="p">$ </span>mtkprof open trace.trc
-<span class="c">  # or double-click a .trc file</span>
-<span class="c">  # Windows · macOS · Linux</span></pre>
-      <p class="for">For: daily tuning work across many traces.</p>
+<span class="c">  # or double-click a .trc file</span></pre>
     </article>
   </div>
 </section>
@@ -145,8 +165,7 @@
 <!-- ============ features ============ -->
 <section class="section content-grid" id="features">
   <div class="section-head">
-    <p class="kicker">What you get</p>
-    <h2>The whole trace as a model you can slice.</h2>
+    <h2>The whole trace as a model you can slice</h2>
     <p>A trace becomes statements, cursors, calls, waits, binds, plans, sessions and time. Every view reads that one model, so a number in one place is the same number everywhere else.</p>
   </div>
 
@@ -156,10 +175,10 @@
         <h3>Statements, down to the execution</h3>
         <p>Statements are ranked by response time including their recursive children and the idle time between their calls. Open one to see where its time went.</p>
         <ul class="ticks">
-          <li style="--tick:var(--c-cpu)">Its own resource profile, waits by event and object, with the line in the trace</li>
-          <li style="--tick:var(--c-userio)">tkprof-style call table, exclusive or inclusive of recursive SQL</li>
-          <li style="--tick:var(--c-other)">Every EXEC with its fetches, rows and bind values; tick two to compare them</li>
-          <li style="--tick:var(--c-network)">Row-source plans from the STAT lines, one per plan hash, hot steps marked</li>
+          <li>Its own resource profile, waits by event and object, with the line in the trace</li>
+          <li>tkprof-style call table, exclusive or inclusive of recursive SQL</li>
+          <li>Every EXEC with its fetches, rows and bind values; tick two to compare them</li>
+          <li>Row-source plans from the STAT lines, one per plan hash, hot steps marked</li>
         </ul>
       </div>
       <figure class="shot">
@@ -199,7 +218,7 @@
         <ul class="ticks">
           <li>Response time is the sum over sessions, not the wall clock</li>
           <li>A Files panel scopes every view to some of the files</li>
-          <li><code>mtkprof compare a.trc b.trc</code>: statements matched by sql_id, ranked by how much they changed</li>
+          <li><code>mtkprof compare a.trc b.trc</code> matches statements by sql_id and ranks them by how much they changed</li>
         </ul>
       </div>
       <figure class="shot">
@@ -212,15 +231,14 @@
 <!-- ============ big traces ============ -->
 <section class="section content-grid" id="big">
   <div class="section-head">
-    <p class="kicker">Big traces</p>
-    <h2>A 10 GB trace on a laptop.</h2>
+    <h2>A 10 GB trace on a laptop</h2>
     <p>By default the whole model is kept in memory, which is fast and fine up to a gigabyte or two. Above that, pick a mode: the numbers stay the same, only what is kept changes.</p>
   </div>
   <div class="table-wrap">
-    <table>
+    <table class="modes">
       <thead><tr><th>Mode</th><th>What it keeps</th><th>Measured</th></tr></thead>
       <tbody>
-        <tr><td><em>default</em></td><td>everything: calls, waits, binds, drill-down</td><td class="num">1 GB trace: about 7 s and 2 GB of memory for the HTML report</td></tr>
+        <tr><td>default</td><td>everything: calls, waits, binds, drill-down</td><td class="num">1 GB trace: about 7 s and 2 GB of memory for the HTML report</td></tr>
         <tr><td><code>-lowmem</code></td><td>everything except bind values</td><td>every other number identical</td></tr>
         <tr><td><code>serve -facts=false</code></td><td>model on the server; the browser asks for group-bys and details</td><td class="num">118 MB trace: browser loads a few hundred kB</td></tr>
         <tr><td><code>serve -spill</code></td><td>calls, waits and binds in temp files about the size of the trace; full drill-down</td><td class="num">1 GB trace: 66 MB RSS, Pivot in about 0.3 s</td></tr>
@@ -233,30 +251,28 @@
 <!-- ============ desktop band ============ -->
 <section class="band content-grid" id="desktop">
   <div class="section-head">
-    <p class="kicker">mtkprof desktop</p>
-    <h2>A workbench for every trace you open.</h2>
-    <p>The desktop app is a small native shell around the mtkprof engine. It runs on your machine, holds several traces at once and remembers them: open a trace you looked at last week and it is back in about a second, with your notes.</p>
+    <h2>mtkprof desktop, a workbench for every trace you open</h2>
+    <p>A small native shell around the mtkprof engine. It runs on your machine, holds several traces at once and remembers them: open a trace you looked at last week and it is back in about a second, with your notes.</p>
   </div>
-  <figure class="shot breakout">
+  <figure class="shot desk-shot breakout">
     <img src="img/desktop-dark.webp" width="2000" height="1255" loading="lazy" alt="The mtkprof desktop app on macOS in dark mode: tabs for open traces, the views Overview to Reports, the resource profile and the statement timeline, and an engine status bar.">
   </figure>
-  <div class="cards">
-    <div class="card"><h3>Tabs and an index cache</h3><p>Open files, folders or a pasted path; drop them on the window; double-click a <code>.trc</code>. Parsed traces are kept by content, so a renamed copy opens from the cache too.</p></div>
-    <div class="card"><h3>Lines</h3><p>The raw trace, paged, with line kinds colored, the selected statement marked in the gutter, streaming search and jump to time. Every "line N" in the views opens it.</p></div>
-    <div class="card"><h3>Notes and bookmarks</h3><p>Annotate a statement, an execution, a time window or a line. Notes belong to the trace's content, not its path, and export to Markdown or JSON.</p></div>
-    <div class="card"><h3>Fetch over ssh</h3><p>Browse the trace directories on a host, fetch with gzip and resume, or follow a growing trace as a live tab. Uses your <code>~/.ssh/config</code>, agent and bastions.</p></div>
-    <div class="card"><h3>Straight from the database</h3><p>List sessions and switch SQL trace on and off, fetch trace files from the ADR, and pull object names and plans for the trace. No OS access needed.</p></div>
-    <div class="card"><h3>No secrets at rest</h3><p>Connections have no password field. Passwords and passphrases are asked when used and kept only in the engine's memory until the app quits.</p></div>
-    <div class="card"><h3>Library and reports</h3><p>Save pivot configurations and apply them to any trace. Save the text, JSON, CSV or standalone HTML report of a tab.</p></div>
-    <div class="card"><h3>Windows, macOS, Linux</h3><p>Installers for Windows 10/11 x64, macOS on Apple Silicon and Intel, and Linux x64 as AppImage or .deb.</p></div>
-  </div>
+  <dl class="specs">
+    <div><dt>Tabs and an index cache</dt><dd>Open files, folders or a pasted path; drop them on the window; double-click a <code>.trc</code>. Parsed traces are kept by content, so a renamed copy opens from the cache too.</dd></div>
+    <div><dt>Lines</dt><dd>The raw trace, paged, with line kinds colored, the selected statement marked in the gutter, streaming search and jump to time. Every "line N" in the views opens it.</dd></div>
+    <div><dt>Notes and bookmarks</dt><dd>Annotate a statement, an execution, a time window or a line. Notes belong to the trace's content, not its path, and export to Markdown or JSON.</dd></div>
+    <div><dt>Fetch over ssh</dt><dd>Browse the trace directories on a host, fetch with gzip and resume, or follow a growing trace as a live tab. Uses your <code>~/.ssh/config</code>, agent and bastions.</dd></div>
+    <div><dt>Straight from the database</dt><dd>List sessions and switch SQL trace on and off, fetch trace files from the ADR, and pull object names and plans for the trace. No OS access needed.</dd></div>
+    <div><dt>No secrets at rest</dt><dd>Connections have no password field. Passwords and passphrases are asked when used and kept only in the engine's memory until the app quits.</dd></div>
+    <div><dt>Library and reports</dt><dd>Save pivot configurations and apply them to any trace. Save the text, JSON, CSV or standalone HTML report of a tab.</dd></div>
+    <div><dt>Windows, macOS, Linux</dt><dd>Installers for Windows 10/11 x64, macOS on Apple Silicon and Intel, and Linux x64 as AppImage or .deb.</dd></div>
+  </dl>
 </section>
 
 <!-- ============ text report ============ -->
 <section class="section content-grid" id="report">
   <div class="section-head">
-    <p class="kicker">Plain text when you need it</p>
-    <h2>A report that fits in a ticket.</h2>
+    <h2>A report that fits in a ticket</h2>
     <p>The text report reads like tkprof, with the resource profile on top and the statements ranked by the time they cost. Paste it into an incident, diff it, grep it.</p>
   </div>
   <pre class="report breakout"><span class="dim">mtkprof v0.4.0 - Oracle SQL trace profile</span>
@@ -290,9 +306,8 @@ STATEMENTS BY ELAPSED  (elapsed includes recursive children and idle between cal
 <!-- ============ get started ============ -->
 <section class="section content-grid" id="start">
   <div class="section-head">
-    <p class="kicker">Get started</p>
-    <h2>Trace a session, then read it.</h2>
-    <p>Download the binary for your platform from the releases page (or build it with Go). There is nothing to install and no database connection is needed to analyze a trace.</p>
+    <h2>Trace a session, then read it</h2>
+    <p>Download the binary for your platform from the releases page, or build it with Go. There is nothing to install, and no database connection is needed to analyze a trace.</p>
   </div>
   <ol class="steps">
     <li>
@@ -315,13 +330,13 @@ alter session set events 'sql_trace off';</pre>
       <h3>Run mtkprof on it</h3>
       <p>The text report and the HTML report land next to the trace.</p>
       <pre class="terminal"><span class="p">$ </span>mtkprof cdb1_ora_4711_mytest.trc
-<span class="p">$ </span>open cdb1_ora_4711_mytest.trc.html</pre>
+<span class="ok">wrote</span> cdb1_ora_4711_mytest.trc.txt
+<span class="ok">wrote</span> cdb1_ora_4711_mytest.trc.html</pre>
     </li>
   </ol>
-  <div class="actions" style="margin-block-start:2.5rem">
+  <div class="actions start-actions">
     <a class="button primary" href="https://github.com/davidbudac/modern-tkprof/releases">Download mtkprof</a>
     <a class="button" href="https://github.com/davidbudac/mtkprof-desktop/releases">Desktop installers</a>
-    <a class="button" href="docs.html">Documentation</a>
   </div>
 </section>
 
@@ -335,7 +350,7 @@ alter session set events 'sql_trace off';</pre>
       <a href="https://github.com/davidbudac/modern-tkprof">Source</a>
       <a href="https://github.com/davidbudac/modern-tkprof/releases">Releases</a>
     </nav>
-    <span>Apache-2.0. Not affiliated with Oracle.</span>
+    <span>Apache-2.0. Not affiliated with Oracle</span>
   </div>
 </footer>
 

@@ -305,7 +305,7 @@ mtkprof pivot  trace.trc -by module,stmt -measure e,c,count -window 10:15:00,10:
 <p><code>mtkprof mcp</code> serves mtkprof's analysis tools over MCP on stdin and stdout, so an agent such as Claude Code can analyse a trace from a description of the problem. Register it once (<code>-s project</code> instead writes it to the repository's <code>.mcp.json</code>):</p>
 <pre>claude mcp add -s user mtkprof -- mtkprof mcp              <span class="c"># once, for all your projects</span>
 claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># show bind values as traced</span></pre>
-<p>Then ask in Claude Code in your own words, with the path of the trace, for example: <em>"the nightly load traced in /u01/diag/rdbms/orcl/orcl/trace/orcl_ora_4711.trc got slow after 14:05. What is it waiting on, and which statement is to blame?"</em> The agent opens the trace, maps the description onto it (a time becomes a window, a user or module a session, a query a statement) and answers with evidence: sql_ids, executions, wait events and trace lines as <code>file.trc:line</code>.</p>
+<p>Then ask in Claude Code in your own words, with the path of the trace, for example: <q>the nightly load traced in /u01/diag/rdbms/orcl/orcl/trace/orcl_ora_4711.trc got slow after 14:05. What is it waiting on, and which statement is to blame?</q> The agent opens the trace, maps the description onto it (a time becomes a window, a user or module a session, a query a statement) and answers with evidence: sql_ids, executions, wait events and trace lines as <code>file.trc:line</code>.</p>
 <div class="table-wrap"><table>
   <thead><tr><th>Tool</th><th>What it answers</th></tr></thead>
   <tbody>
@@ -486,7 +486,7 @@ GOOS=aix GOARCH=ppc64 go build -o mtkprof-aix ./cmd/mtkprof</pre>
       <a href="https://github.com/davidbudac/modern-tkprof">Source</a>
       <a href="https://github.com/davidbudac/modern-tkprof/releases">Releases</a>
     </nav>
-    <span>Apache-2.0. Not affiliated with Oracle.</span>
+    <span>Apache-2.0. Not affiliated with Oracle</span>
   </div>
 </footer>
 
