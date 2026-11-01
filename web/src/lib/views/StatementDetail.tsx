@@ -23,6 +23,7 @@ import { planRows, planVizUrl, planVizOverride, setPlanVizOverride, canGzip, DEF
 import { StatementContext, StatementFindings, StatementLinesMenu } from './StatementContext'
 import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import { kindGroups, type KindGroup } from '../data/callkinds'
+import { CheckIcon, CopyIcon } from '../components/icons'
 
 /** What the lists below are asked for when the statistics are the whole trace's (no scope, or an engine that cannot answer for one). */
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
@@ -59,7 +60,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
       </p>
       <div className="stmt-acts" role="group" aria-label="Statement actions">
         {notesOn && !note && !noteOpen && <button onClick={() => setNoteOpen(true)} title="a note on this statement, kept with the trace">✎ Add note</button>}
-        <button onClick={copy}>{copied ? 'Copied' : 'Copy SQL'}</button>
+        <button className="icon-btn" onClick={copy} aria-label={copied ? 'Copied' : 'Copy SQL'} title={copied ? 'Copied' : 'Copy SQL'}>{copied ? <CheckIcon /> : <CopyIcon />}</button>
         <StatementLinesMenu doc={doc} id={id} narrowed={narrowed} />
       </div>
       <StmtNote stmt={ref} open={noteOpen} setOpen={setNoteOpen} title={doc.label(st)} />
@@ -347,12 +348,12 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
           {link.state === 'ok'
             ? <a className="btn" href={link.url} target="_blank" rel="noopener" title={`${base} (plan in URL fragment)`}>Open in plan viz ↗</a>
             : <button disabled title={link.state === 'big' ? 'plan too large for a link' : link.state === 'nogzip' ? 'no CompressionStream' : 'encoding…'}>Open in plan viz ↗</button>}
-          <button onClick={copyJson} title="visualizer JSON rows">{copied ? 'Copied' : 'Copy JSON'}</button>
+          <button className="icon-btn" onClick={copyJson} aria-label={copied ? 'Copied' : 'Copy JSON'} title={copied ? 'Copied' : 'Copy JSON (the visualizer\'s rows)'}>{copied ? <CheckIcon /> : <CopyIcon />}</button>
           <button className={`quiet${editing ? ' on' : ''}`} aria-label="Plan viz URL" title={`plan viz URL: ${base}`} aria-expanded={editing} onClick={() => { setDraft(override); setEditing(!editing) }}>⚙</button>
         </span>
       </header>
-      {link.state === 'big' && <p className="small plan-note">plan too large for a link ({rows.length} rows); use Copy JSON.</p>}
-      {link.state === 'nogzip' && <p className="small plan-note">No CompressionStream; use Copy JSON.</p>}
+      {link.state === 'big' && <p className="small plan-note">plan too large for a link ({rows.length} rows); use Copy JSON (the copy icon).</p>}
+      {link.state === 'nogzip' && <p className="small plan-note">No CompressionStream; use Copy JSON (the copy icon).</p>}
       {editing && (
         <form className="plan-cfg" onSubmit={(e) => { e.preventDefault(); save(draft) }}>
           <label className="small muted" htmlFor={`pv-${plan.id}`}>plan viz URL</label>

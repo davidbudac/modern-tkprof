@@ -492,6 +492,9 @@ button:disabled { opacity: 0.5; cursor: default; }
 .note-acts { display: flex; gap: var(--sp-2); }
 .note-chip { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--c-note); }
 button.note-btn { color: var(--ink-3); }
+/* an icon-only button (components/icons.tsx): the icon box is one line tall, so the button is as tall as a text button beside it */
+button.icon-btn { display: inline-flex; align-items: center; justify-content: center; padding-inline: 0.4rem; }
+button.icon-btn > .icon { inline-size: 1.15em; block-size: 1lh; flex: none; }
 button.note-btn.on { color: var(--c-note); }
 .pv-notice { display: flex; gap: var(--sp-2); align-items: center; }
 .win-notes { display: grid; gap: var(--sp-2); margin-block-end: var(--sp-2); }
