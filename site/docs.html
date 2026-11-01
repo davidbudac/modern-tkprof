@@ -46,6 +46,7 @@
     <li><a href="#ref">Object names and plans</a></li>
     <li><a href="#remote">Remote traces</a></li>
     <li><a href="#outputs">Plans, JSON, CSV</a></li>
+    <li><a href="#claude">Claude Code (MCP)</a></li>
   </ul>
   <p>Desktop app</p>
   <ul>
@@ -155,6 +156,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
     <tr><td><code>fetch</code>, <code>follow</code></td><td>copy a trace over ssh or out of the database; mirror a growing trace, optionally with a live report; see <a href="#remote">Remote traces</a></td></tr>
     <tr><td><code>trace</code></td><td>switch SQL trace on or off for a session, list sessions and trace files</td></tr>
     <tr><td><code>open</code></td><td>open traces in the desktop app (starts it if needed)</td></tr>
+    <tr><td><code>mcp</code></td><td>the analysis tools as an MCP server for Claude Code or another agent; see <a href="#claude">Claude Code (MCP)</a></td></tr>
     <tr><td><code>brief</code></td><td>a Markdown brief of the trace's numbers and your notes, for handing to an LLM agent; bind values masked by default</td></tr>
     <tr><td><code>findings-config</code></td><td>the default finding thresholds as JSON; edit and pass with <code>-findings-config f.json</code></td></tr>
     <tr><td><code>lint</code></td><td>what the parser saw: line kinds, events, unknown lines</td></tr>
@@ -297,6 +299,26 @@ mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -viz         <span class="c"># "O
 mtkprof json   trace.trc -o trace.json                      <span class="c"># the full document</span>
 mtkprof export trace.trc -o csv/                            <span class="c"># statements, cursors, contexts, events, calls, waits, binds, plan lines, transactions, errors</span>
 mtkprof pivot  trace.trc -by module,stmt -measure e,c,count -window 10:15:00,10:20:00 -csv</pre>
+
+<!-- ================================================================ -->
+<h2 id="claude">Claude Code (MCP)<a class="anchor" href="#claude" aria-label="Link to this section">#</a></h2>
+<p><code>mtkprof mcp</code> serves mtkprof's analysis tools over MCP on stdin and stdout, so an agent such as Claude Code can analyse a trace from a description of the problem. Register it once (<code>-s project</code> instead writes it to the repository's <code>.mcp.json</code>):</p>
+<pre>claude mcp add -s user mtkprof -- mtkprof mcp              <span class="c"># once, for all your projects</span>
+claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># show bind values as traced</span></pre>
+<p>Then ask in Claude Code in your own words, with the path of the trace, for example: <em>"the nightly load traced in /u01/diag/rdbms/orcl/orcl/trace/orcl_ora_4711.trc got slow after 14:05. What is it waiting on, and which statement is to blame?"</em> The agent opens the trace, maps the description onto it (a time becomes a window, a user or module a session, a query a statement) and answers with evidence: sql_ids, executions, wait events and trace lines as <code>file.trc:line</code>.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Tool</th><th>What it answers</th></tr></thead>
+  <tbody>
+    <tr><td><code>open_trace</code></td><td>opens files or a directory (absolute paths) as one <a href="#sets">trace set</a> and answers with its overview; opening another trace replaces it</td></tr>
+    <tr><td><code>overview</code></td><td>database, files, sessions, response time and its split into CPU and waits, top statements, findings</td></tr>
+    <tr><td><code>statements</code>, <code>statement</code></td><td>the ranked statements; one statement in full: SQL text, call table, waits, plans</td></tr>
+    <tr><td><code>executions</code></td><td>the executions of a statement with their times and bind values</td></tr>
+    <tr><td><code>pivot</code>, <code>timeline</code></td><td>group-by over calls and waits; time in buckets over the trace</td></tr>
+    <tr><td><code>lines</code>, <code>search_lines</code></td><td>the raw trace lines around a call, a wait or a plan; text or regex search</td></tr>
+  </tbody>
+</table></div>
+<p>The tools return the same numbers as the report and the UI, as compact JSON of at most about 8,000 tokens each. The data tools take a time window (<code>from</code>, <code>to</code>, trace time in µs) and session <code>contexts</code> to narrow the scope; <code>lines</code> and <code>search_lines</code> work by file and line number. The traces are parsed in process. mtkprof itself connects to nothing, and what reaches a model is what the agent sends it. <code>mtkprof mcp &lt;trace…&gt;</code> opens those traces on the first tool call, which is handy in a project-scoped <code>.mcp.json</code>. Any MCP client that launches a stdio server works the same way.</p>
+<div class="callout"><p>Bind values are masked by default: type, length and a hash with a salt that is random per server, e.g. <code>&lt;NUMBER len=2 h=…&gt;</code>. Equal values match inside one session of the agent and nowhere else. SQL text, including its literals, is never masked, so think about where the agent's model runs before you point it at a production trace.</p></div>
 
 <!-- ================================================================ -->
 <h2 id="desktop-install">Desktop app: install and first start<a class="anchor" href="#desktop-install" aria-label="Link to this section">#</a></h2>
