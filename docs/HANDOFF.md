@@ -18,7 +18,13 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   Possible follow-up: embed the traces of a bounded set of executions in the export.
 - No fixture has a statement run several times with real I/O differences; checked by screenshot on
   `testdata/sets/workload` (sql_id a4r2fwpb5gmr0, executions #1 and #2), standalone light and `serve -spill` dark
-  at 900 px. A dbmint scenario (same query cold / warm cache) would make a better fixture.
+  at 900 px.
+- **Pending fixture:** `testdata/gen/sc_exec_loom.sql` (in `ALL_SCENARIOS`) is written but **not run yet**: on
+  2026-11-01 dbmint had rebooted with all libvirt VMs shut off (port 2200 reset). It runs one index range query
+  cold then warm (random customer range), one full scan buffered, buffered again, then with direct path reads, and
+  a no-op UPDATE twice (current gets; rolled back). To finish: start the 19c lab, `run_gen.sh exec_loom`, copy
+  `exec_loom.trc`, `.tkprof.txt`, `.tkprof-noagg.txt` into `testdata/traces/19c/` (the golden test picks them up),
+  fix the SQL if the log shows ORA- errors, and screenshot the Loom on `mtk_loom_scan` executions 1 vs 3.
 - Fixed on the way: `RemoteSource.executionDetail` read `plh`, the engine sends `planHash` (remote A/B compare said
   "plan hash not in trace").
 
