@@ -24,6 +24,21 @@ export { WindowBar } from './components/WindowBar'
 export { ResponseMini, responseSummary, useScopeResponse, type ResponseSummary } from './components/ResponseMini'
 export { FilterBar } from './components/FilterBar'
 
+// the shell both front ends share (the standalone's src/app and the desktop's session shell): the view table and its
+// tabs and chords, the side panes, the Esc chain, the details pane, the URL hash, the views' error boundary
+export { baseViews, shownViews, currentView, type SessionViewDef } from './shell/views'
+export { ViewTabs } from './shell/ViewTabs'
+export { viewKeyOf, viewOfKey, viewKeyLabel, viewKeyAria, digitOf, inTextField, useViewKeys } from './shell/viewKeys'
+export type { KeyLike, ViewKeyAction } from './shell/viewKeys'
+export { isMac, macPlatform } from './shell/platform'
+export { showsInspector, filesDefaultOpen, FilesChoices, filesChoicesOf } from './shell/viewPanes'
+export { MIN_VIEW_REM, filesNeedRoom, lengthVar, markFilesFolded, filesFolded, shellFilesWrite, inShellFilesWrite } from './shell/filesRoom'
+export { useShellPanes, useEscapeChain } from './shell/panes'
+export type { ShellPanes, ShellPanesInput } from './shell/panes'
+export { Inspector } from './shell/Inspector'
+export { hashOf, apply, unresolved, startUrlSync } from './shell/urlstate'
+export { ViewErrorBoundary, errorDetails } from './shell/ViewErrorBoundary'
+
 // state: one store per open trace, provided through the context
 export { createStore, carryOver, scopeOf, scopeNarrows, callFilter, waitFilter, filesPanelOpen, activeBlock } from './state/store'
 export type { Store, Actions, State, View, Side, Selection, TimeWindow, LaneBlock, Scope, Bookmark, LinesView, PivotState, LiveStatus } from './state/store'

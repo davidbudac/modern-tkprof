@@ -4,9 +4,8 @@ import '@lib/styles/fonts.css'
 import '@lib/styles/tokens.css'
 import '@lib/styles/base.css'
 import '@lib/styles/app.css'
-import { SessionProvider, createClient, createSession, followLive, loadInitial, probeLines, probeLinesApi } from '@lib'
+import { SessionProvider, createClient, createSession, followLive, loadInitial, probeLines, probeLinesApi, startUrlSync } from '@lib'
 import { App } from './App'
-import { startUrlSync } from './urlstate'
 
 const client = createClient('')
 const session = createSession(client)

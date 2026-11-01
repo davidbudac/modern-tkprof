@@ -1,6 +1,8 @@
-import { contextsWithin, formatFilesParam, normalizeFiles, parseFilesParam } from '@lib/data/fileset'
-import { execKey } from '@lib/data/annotations'
-import type { Store, TraceDoc, Side, State, View } from '@lib'
+import { contextsWithin, formatFilesParam, normalizeFiles, parseFilesParam } from '../data/fileset'
+import { execKey } from '../data/annotations'
+import type { TraceDoc } from '../data/doc'
+import type { Store, Side, State, View } from '../state/store'
+import { baseViews } from './views'
 
 /**
  * View, selected statement / wait event and time window live in the URL hash:
@@ -12,7 +14,7 @@ import type { Store, TraceDoc, Side, State, View } from '@lib'
  * The assistant's `mtkprof:` links are the same hash (engine/internal/assist/system_prompt.md).
  * The `?doc=` query string is left alone.
  */
-const views: View[] = ['overview', 'statements', 'waits', 'timeline', 'sessions', 'pivot', 'lines', 'compare']
+const views: View[] = baseViews.map((v) => v.id) // the views a link can name: the view table's (views.tsx)
 
 type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null; exec: string; contexts: string; files: string; file: number; line: number }
 

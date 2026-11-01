@@ -536,3 +536,14 @@ button.note-btn.on { color: var(--c-note); }
 .lane .wspan { position: absolute; inset-block: auto 4px; block-size: 7px; border-radius: 1px; display: block; }
 .lane .wspan::after { content: ""; position: absolute; inset: -3px; }
 .lane .span.on, .lane .wspan.on { z-index: 1; outline: 2px solid var(--ink); outline-offset: 1px; } /* the picked block: its interval is the window */
+
+/* the views' error card (shell/ViewErrorBoundary.tsx): in the view's place, the shell around it stays */
+.view-error { display: grid; place-items: center; min-block-size: 0; overflow: auto; padding: var(--sp-5); }
+.view-error-card {
+  display: grid; gap: var(--sp-3); inline-size: min(40rem, 100%); padding: var(--sp-5);
+  border: 1px solid var(--hairline-strong); border-inline-start: 3px solid var(--s-critical); border-radius: var(--radius); background: var(--surface-raised);
+}
+.view-error-card h2 { font-size: var(--text-lg); display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
+.view-error-card p { margin: 0; }
+.view-error-msg { margin: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--surface-sunken); font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
+.view-error-actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
