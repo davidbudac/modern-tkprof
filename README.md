@@ -51,5 +51,4 @@ scripts/publish-site.sh            # git subtree split of site/ -> push gh-pages
 scripts/publish-site.sh --dry-run  # show what would be published
 ```
 
-`.nojekyll` makes Pages serve the files as they are. The site is public even
-though the repository is private.
+`.nojekyll` makes Pages serve the files as they are.
