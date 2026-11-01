@@ -40,8 +40,16 @@ The docs page is a condensed user guide. Its sources of truth are
 `README.md`, `docs/DESKTOP.md`, `docs/REMOTE.md` and `docs/REF-BUNDLE.md`;
 when a command, flag or behaviour changes there, update `docs.html` too.
 
-## Hosting
+## Publishing
 
-Any static host works. GitHub Pages can only publish the repository root or
-`/docs` from a branch, so publish `site/` with a Pages workflow or copy it to
-a `gh-pages` branch. Pages on a private repository needs a paid plan.
+Live at https://davidbudac.github.io/modern-tkprof/, served by GitHub Pages
+from the `gh-pages` branch, which is the history of `site/` (no GitHub
+Actions). After committing a change to `site/`:
+
+```
+scripts/publish-site.sh            # git subtree split of site/ -> push gh-pages
+scripts/publish-site.sh --dry-run  # show what would be published
+```
+
+`.nojekyll` makes Pages serve the files as they are. The site is public even
+though the repository is private.
