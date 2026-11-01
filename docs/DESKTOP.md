@@ -64,6 +64,20 @@ The **+** tab is the open screen:
   session.
 - **Recent**: the last 20 trace sets with their options. Click to open again, × to forget.
 
+From outside the app (each request is one trace set in one tab, opened with the default bind
+option from Settings; a set that is already open just gets its tab shown):
+
+- **Double-click a `.trc` file** (the installers register the extension), *Open With → mtkprof*,
+  or drop files on the Dock icon (macOS). Files selected together open as one set.
+- **`mtkprof open a.trc b.trc` or `mtkprof open dir/`** from a terminal: starts the app if it is
+  not running. The CLI finds it with `open -a mtkprof` on macOS,
+  `%LOCALAPPDATA%\mtkprof\mtkprof-desktop.exe` (then `%ProgramFiles%`, then PATH) on Windows and
+  `mtkprof-desktop` on PATH on Linux; `-app PATH` or `$MTKPROF_DESKTOP` names another one (an
+  AppImage, say).
+- Paths on the app's own command line (`mtkprof-desktop a.trc`), also when it is already running.
+- Linux: the AppImage and .deb do not claim a MIME type for `.trc`, so double-click there needs
+  *Open With → mtkprof* or `mtkprof open`.
+
 While a trace opens its tab shows the phase (cache lookup, parsing with bytes and percent,
 writing the index), lines and statements so far, and *Cancel*. A trace opened before comes from
 the cache at once.

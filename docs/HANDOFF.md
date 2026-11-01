@@ -6,6 +6,17 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Open in the desktop app (2026-11-01)
+
+- `mtkprof open <trace...> [-app PATH]` (`cmd/mtkprof/open.go`, `TestDesktopCommand`) hands paths to the desktop app:
+  `open -a mtkprof` on macOS, the installed `mtkprof-desktop[.exe]` (or `-app` / `$MTKPROF_DESKTOP`) on Windows and Linux.
+- Desktop side (desk: `src-tauri/src/open.rs`, `lib.rs`, `tauri.conf.json` `fileAssociations` for `.trc`): argv of the
+  launch, argv of a second launch (single-instance plugin), macOS `RunEvent::Opened` are queued as trace sets; the UI takes
+  them (`take_open_requests`, event `app://open`) after the tab restore once the engine is ready and opens each with
+  `Workspace.openOrShow` (an already open set gets its tab shown). User guide: `docs/DESKTOP.md` § Workspace.
+- Verified on macOS with the separate test app (`scripts/build-and-run-test.sh`): cold start with two files, a folder
+  into the running app, the same set again (tab shown, no duplicate). Windows and Linux not run.
+
 ## Shared shell module (2026-11-01, branch `ui/shared-shell`)
 
 - 2026-11-01: the shell behaviour the desktop had grown (and partly copied from `web/src/app`) moved into the lib as

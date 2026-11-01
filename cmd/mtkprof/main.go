@@ -39,6 +39,7 @@ Usage:
   mtkprof pivot  <trace...> [-fact calls|waits] [-by dim[,dim]] [-measure m] [-window a,b] [-csv]   (-by '?' lists dims)
   mtkprof html   <trace...> [-o out.html] [-plan-viz-url URL] [-aggregate]   self-contained HTML report
   mtkprof serve  <trace...> [-addr 127.0.0.1:8046] [-plan-viz-url URL] [-aggregate] [-spill[=DIR]]   browser UI
+  mtkprof open   <trace...> [-app PATH]               open the traces in the desktop app (one tab; starts the app if needed)
   mtkprof engine [-listen 127.0.0.1:0] [-cache DIR] [-cache-cap 20G] [-allow-origin O,...] [-idle-exit D] [-idle D] [-detach]   desktop sidecar (token: env MTKPROF_TOKEN)
   mtkprof engine cache ls|rm <identity>|wipe [-cache DIR]   the engine's index cache
   mtkprof fetch  <user@host[:port]> <remote-path>... [-o dir] [-transport auto|cli|lib] [-no-gzip]   copy traces over SSH (resumes)
@@ -147,6 +148,8 @@ func main() {
 		err = cmdServe(args)
 	case "engine":
 		err = cmdEngine(args)
+	case "open":
+		err = cmdOpen(args)
 	case "askpass":
 		err = cmdAskpass(args)
 	case "mcp":
