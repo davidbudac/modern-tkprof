@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>mtkprof — Oracle SQL trace analyzer</title>
-<meta name="description" content="mtkprof reads Oracle SQL trace files (event 10046) and shows where the response time went: a tkprof-exact text report, a self-contained interactive HTML report, and a desktop app.">
+<title>mtkprof — the modern 10046 trace analyzer</title>
+<meta name="description" content="mtkprof is the modern analyzer for Oracle 10046 SQL trace files. It shows where the response time went: a tkprof-exact text report, a self-contained interactive HTML report, and a desktop app.">
 <link rel="icon" href="img/mark.png">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -30,9 +30,9 @@
 <section class="hero content-grid">
   <div class="hero-grid breakout">
     <div class="hero-copy">
-      <p class="kicker">Oracle SQL trace (10046) analyzer</p>
-      <h1>Where did the response time go?</h1>
-      <p class="lede">mtkprof reads Oracle SQL trace files and accounts for every microsecond of them: <strong>CPU, each wait event, each statement, each execution</strong>. It gives you the numbers <code>tkprof</code> gives you, exactly, and keeps everything tkprof throws away.</p>
+      <p class="kicker">Oracle SQL trace · 19c, 21c, 23ai</p>
+      <h1>The modern 10046 trace analyzer.</h1>
+      <p class="lede"><code>tkprof</code> sums a trace and throws the rest away. mtkprof keeps all of it and shows <strong>where the response time went: by statement, by execution, by second</strong>. The same numbers as tkprof, exactly, and everything tkprof leaves out.</p>
       <div class="actions">
         <a class="button primary" href="#start">Get started</a>
         <a class="button" href="docs.html">Read the docs</a>
@@ -77,6 +77,33 @@
     <div class="fact"><b>= tkprof</b><span>call statistics, library cache misses and wait tables match Oracle's own tkprof on every test fixture</span></div>
     <div class="fact"><b>10 GB+</b><span>traces in constant memory with <code>-aggregate</code> or <code>serve -spill</code></span></div>
     <div class="fact"><b>19c · 21c · 23ai</b><span>tested against real traces; every line kind of the 19c format</span></div>
+  </div>
+</section>
+
+<!-- ============ beyond tkprof ============ -->
+<section class="section content-grid" id="modern">
+  <div class="section-head">
+    <p class="kicker">Why modern</p>
+    <h2>tkprof gives you totals. Tuning needs the rest.</h2>
+    <p>tkprof's numbers are still the reference, so mtkprof reproduces them and is tested against them. Everything else is new.</p>
+  </div>
+  <div class="compare-wrap">
+  <div class="table-wrap compare-table">
+    <table>
+      <thead><tr><th>Question</th><th class="c">tkprof</th><th class="c">mtkprof</th></tr></thead>
+      <tbody>
+        <tr><td>Call statistics, library cache misses, waits per statement</td><td class="c yes">yes</td><td class="c yes">yes, identical numbers</td></tr>
+        <tr><td>Where did the response time go? CPU + every wait + unaccounted-for</td><td class="c no">no</td><td class="c yes">resource profile for the trace, a statement, a session or a time window</td></tr>
+        <tr><td>Which execution was slow, and with which bind values?</td><td class="c no">no</td><td class="c yes">every EXEC with its fetches, waits and binds; compare two</td></tr>
+        <tr><td>Which statement did the user actually wait for?</td><td class="c no">recursive SQL listed apart</td><td class="c yes">ranked including recursive children and idle time between calls</td></tr>
+        <tr><td>What happened between 10:15 and 10:17?</td><td class="c no">no</td><td class="c yes">a timeline; pick a window and every view follows</td></tr>
+        <tr><td>Split files, several sessions, PX slaves</td><td class="c no">one file at a time, <code>trcsess</code> first</td><td class="c yes">any files and folders as one trace, slaves attached to their coordinator</td></tr>
+        <tr><td>Did my change help?</td><td class="c no">no</td><td class="c yes"><code>mtkprof compare</code>: statements matched by sql_id, ranked by change</td></tr>
+        <tr><td>A 10 GB trace</td><td class="c no">totals only</td><td class="c yes">constant memory, full drill-down</td></tr>
+        <tr><td>Exploring the result</td><td class="c no">a text file</td><td class="c yes">text, an interactive HTML file, a desktop app, CSV, JSON</td></tr>
+      </tbody>
+    </table>
+  </div>
   </div>
 </section>
 
