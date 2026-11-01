@@ -80,6 +80,24 @@ recently used above 20 GB. Entries are keyed by file content (size and the
 first MiB), not by path. The protocol is `api/engine.openapi.yaml`; details in
 `docs/ARCHITECTURE.md` ("Engine mode").
 
+### Claude Code (and other MCP clients)
+
+`mtkprof mcp` serves the analysis tools over MCP on stdin/stdout, so an agent
+can analyse traces from a description of the problem:
+
+```
+claude mcp add -s user mtkprof -- mtkprof mcp     # once; -binds keep to show bind values
+```
+
+Then ask in Claude Code, for example "the batch traced in
+/u01/diag/.../orcl_ora_4711.trc got slow after 14:05, why?". The agent opens
+the trace with `open_trace` (files or a directory, absolute paths) and works
+with `overview`, `statements`, `statement`, `executions`, `pivot`, `timeline`,
+`lines` and `search_lines`. Their answers are the numbers of the UI, parsed in
+process; nothing leaves the machine except what the agent sends its model.
+Bind values are masked (type, length, a hash salted per server); SQL text is
+not. `mtkprof mcp <trace...>` opens those traces on the first tool call.
+
 ### Desktop app
 
 The desktop app (private repo `davidbudac/mtkprof-desktop`, a Tauri shell that
@@ -264,6 +282,7 @@ web/                Vite + React + TypeScript explorer (src/lib: shared UI libra
 api/                engine protocol (OpenAPI)
 testdata/           real 19.27 traces, tkprof output, generator scripts, v$ exports
 docs/               architecture, trace format reference, roadmap
+site/               website: landing page and documentation (static, see site/README.md)
 ```
 
 ## Status

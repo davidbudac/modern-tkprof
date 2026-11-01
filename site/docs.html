@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Documentation — mtkprof</title>
+<meta name="description" content="How to install and use mtkprof, the Oracle SQL trace analyzer: command line, interactive report and desktop app.">
+<link rel="icon" href="img/mark.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header content-grid">
+  <div class="bar breakout">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"></span>mtkprof</a>
+    <nav class="site-nav" aria-label="Site">
+      <a class="wide" href="./#features">Features</a>
+      <a href="./#desktop">Desktop app</a>
+      <a href="docs.html" aria-current="page">Docs</a>
+      <a href="https://github.com/davidbudac/modern-tkprof">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="content-grid docs-wrap">
+<div class="docs-layout breakout">
+
+<nav class="docs-toc" aria-label="Contents">
+  <p>Getting started</p>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#tracing">Tracing a session</a></li>
+    <li><a href="#quickstart">Quick start</a></li>
+  </ul>
+  <p>Analyzing traces</p>
+  <ul>
+    <li><a href="#commands">Commands</a></li>
+    <li><a href="#report">Reading the report</a></li>
+    <li><a href="#ui">The interactive report</a></li>
+    <li><a href="#sets">Trace sets</a></li>
+    <li><a href="#compare">Comparing traces</a></li>
+    <li><a href="#binds">Bind values</a></li>
+    <li><a href="#big">Big traces</a></li>
+    <li><a href="#ref">Object names and plans</a></li>
+    <li><a href="#remote">Remote traces</a></li>
+    <li><a href="#outputs">Plans, JSON, CSV</a></li>
+  </ul>
+  <p>Desktop app</p>
+  <ul>
+    <li><a href="#desktop-install">Install and first start</a></li>
+    <li><a href="#workspace">Workspace</a></li>
+    <li><a href="#desktop-views">Lines, notes, reports</a></li>
+    <li><a href="#library">Library</a></li>
+    <li><a href="#connections">Connections</a></li>
+    <li><a href="#settings">Settings and files</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+  </ul>
+  <p>Reference</p>
+  <ul>
+    <li><a href="#formats">Supported traces</a></li>
+    <li><a href="#engine">The engine</a></li>
+    <li><a href="#build">Building from source</a></li>
+    <li><a href="#more">Further reading</a></li>
+  </ul>
+</nav>
+
+<article class="docs-main prose">
+
+<h1>Documentation</h1>
+<p class="intro">mtkprof analyzes Oracle SQL trace files (event 10046, <code>DBMS_MONITOR</code>, <code>sql_trace</code>). This page covers the command line, the interactive report and the desktop app.</p>
+
+<!-- ================================================================ -->
+<h2 id="overview">Overview<a class="anchor" href="#overview" aria-label="Link to this section">#</a></h2>
+<p>A SQL trace records every database call of a session (parse, execute, fetch, close) with its CPU and elapsed time, and every wait event in between. <code>tkprof</code> sums those per statement. mtkprof does that too, with the same numbers, and then keeps the rest: the trace becomes a model of statements, cursors, calls, waits, bind values, plans, sessions and time, which every report and view reads.</p>
+<p>The central question it answers is <em>where did the response time go</em>. The answer is a <strong>resource profile</strong> (after Cary Millsap): response time = CPU + each wait event + whatever the trace does not account for. You get it for the whole trace, for one statement, for a session or for any time window.</p>
+<p>There are three ways to use it, all built on the same engine:</p>
+<ul>
+  <li><strong>The command line</strong> (<code>mtkprof</code>): one static binary, no installation. It writes a text report and a self-contained HTML report next to the trace, and has commands for pivots, comparisons, plans, CSV export and fetching traces.</li>
+  <li><strong>The interactive report</strong>: the HTML file from <code>mtkprof html</code>, or the same UI served by <code>mtkprof serve</code>. Nothing leaves the machine.</li>
+  <li><strong>The desktop app</strong>: traces in tabs, a persistent index cache, the raw trace lines, notes, saved pivots, and connections that fetch traces over ssh or from the database.</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2 id="install">Install<a class="anchor" href="#install" aria-label="Link to this section">#</a></h2>
+
+<h3>The command-line binary</h3>
+<p>Download the binary for your platform from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>, check it against <code>SHA256SUMS</code>, make it executable and put it on your <code>PATH</code> or next to the trace. It has no dependencies (pure Go, no cgo).</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Platform</th><th>File</th></tr></thead>
+  <tbody>
+    <tr><td>Linux x86-64 / ARM64</td><td><code>mtkprof-linux-amd64</code>, <code>mtkprof-linux-arm64</code></td></tr>
+    <tr><td>Windows x64</td><td><code>mtkprof-windows-amd64.exe</code></td></tr>
+    <tr><td>macOS Apple Silicon / Intel</td><td><code>mtkprof-darwin-arm64</code>, <code>mtkprof-darwin-amd64</code></td></tr>
+    <tr><td>AIX (POWER)</td><td><code>mtkprof-aix-ppc64</code></td></tr>
+    <tr><td>Solaris x86-64</td><td><code>mtkprof-solaris-amd64</code></td></tr>
+  </tbody>
+</table></div>
+<p>The <code>mtkprof-lite-*</code> builds (Linux, AIX, Solaris) leave out the Oracle client code: about 12 MB instead of 27 MB, for database hosts where the trace files are local and no database connection is needed.</p>
+<pre><span class="c"># Linux example</span>
+gh release download -R davidbudac/modern-tkprof -p 'mtkprof-linux-amd64' -p SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS
+chmod +x mtkprof-linux-amd64 &amp;&amp; mv mtkprof-linux-amd64 ~/bin/mtkprof
+mtkprof version</pre>
+
+<h3>The desktop app</h3>
+<p>Installers are on the <a href="https://github.com/davidbudac/mtkprof-desktop/releases">desktop releases page</a>. See <a href="#desktop-install">Install and first start</a> below; the builds are not signed, so the first start needs one extra click.</p>
+
+<!-- ================================================================ -->
+<h2 id="tracing">Tracing a session<a class="anchor" href="#tracing" aria-label="Link to this section">#</a></h2>
+<p>For a useful trace, switch on waits, binds and row-source statistics for every execution. In your own session:</p>
+<pre>alter session set tracefile_identifier = 'mytest';
+alter session set events 'sql_trace wait=true, bind=true, plan_stat=all_executions';
+<span class="c">-- ... run the workload ...</span>
+alter session set events 'sql_trace off';
+select value from v$diag_info where name = 'Default Trace File';</pre>
+<p>For another session, as a user with <code>EXECUTE</code> on <code>DBMS_MONITOR</code>:</p>
+<pre>exec dbms_monitor.session_trace_enable(session_id => 123, serial_num => 4567, waits => true, binds => true, plan_stat => 'ALL_EXECUTIONS')
+<span class="c">-- ... later ...</span>
+exec dbms_monitor.session_trace_disable(session_id => 123, serial_num => 4567)</pre>
+<p>mtkprof can do the same from the command line, and list the trace files the database has written:</p>
+<pre>mtkprof trace scott@dbhost/pdb1 -sessions                       <span class="c"># V$SESSION</span>
+mtkprof trace scott@dbhost/pdb1 -sid 123 -serial 4567 -on       <span class="c"># waits, binds, plan_stat=all_executions</span>
+mtkprof trace scott@dbhost/pdb1 -sid 123 -serial 4567 -off
+mtkprof trace scott@dbhost/pdb1 -files -since 2h                <span class="c"># trace files in the ADR</span></pre>
+<div class="callout"><p>Lower levels work too (<code>level 1</code> has no waits, <code>level 4</code> binds only, <code>level 8</code> waits only); mtkprof reports what the trace contains. A trace started in the middle of a session is fine as well: cursors used before their PARSE line are reported as such.</p></div>
+
+<!-- ================================================================ -->
+<h2 id="quickstart">Quick start<a class="anchor" href="#quickstart" aria-label="Link to this section">#</a></h2>
+<pre>mtkprof trace.trc</pre>
+<p>This writes <code>trace.trc.txt</code> (the text report) and <code>trace.trc.html</code> (the interactive report) next to the trace. Open the HTML file in any browser; it contains the data and works offline.</p>
+<p>From there:</p>
+<pre>mtkprof report trace.trc -sort cpu -top 20       <span class="c"># text report only, 20 statements ranked by CPU</span>
+mtkprof serve  trace.trc                         <span class="c"># the UI at http://127.0.0.1:8046/</span>
+mtkprof report trace_dir/                        <span class="c"># every *.trc in a directory as one trace set</span>
+mtkprof open   trace.trc                         <span class="c"># open it in the desktop app</span></pre>
+
+<!-- ================================================================ -->
+<h2 id="commands">Commands<a class="anchor" href="#commands" aria-label="Link to this section">#</a></h2>
+<p>Every command that takes a trace takes any number of files and directories (a <a href="#sets">trace set</a>). <code>mtkprof help</code> prints the full usage; <code>mtkprof &lt;command&gt; -h</code> the flags of one command.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>mtkprof &lt;trace…&gt;</code></td><td>text report and HTML report next to the trace</td></tr>
+    <tr><td><code>report</code></td><td>text report: profile, statements, executions, binds, plans, sessions, time buckets, findings. <code>-sort elapsed|cpu|execs|disk</code>, <code>-top N</code>, <code>-execs N</code> (executions listed per statement, 0 none, -1 all), <code>-binds N</code>, <code>-sys</code>, <code>-o file</code></td></tr>
+    <tr><td><code>html</code></td><td>self-contained interactive report (<code>-o out.html</code>)</td></tr>
+    <tr><td><code>serve</code></td><td>the same UI served at <code>http://127.0.0.1:8046/</code> (<code>-addr</code>); <code>-spill</code> and <code>-facts=false</code> for <a href="#big">big traces</a></td></tr>
+    <tr><td><code>pivot</code></td><td>group-by on the command line: <code>-fact calls|waits</code>, <code>-by dim[,dim…]</code> (up to 4), <code>-measure</code>, <code>-window</code>, <code>-context</code>, <code>-csv</code>. <code>-by '?'</code> lists dimensions and measures</td></tr>
+    <tr><td><code>compare</code></td><td>text report of trace B against trace A; <code>html|serve|json a b -compare</code> adds a Compare tab to the UI</td></tr>
+    <tr><td><code>plan</code></td><td>row-source plans from STAT lines: <code>-list</code>, <code>-sql_id X</code> as JSON, <code>-viz</code> for an "Open in plan viz" link</td></tr>
+    <tr><td><code>json</code></td><td>the full document the UI reads (dimension tables and fact columns)</td></tr>
+    <tr><td><code>export</code></td><td>CSV tables for DuckDB, Excel or Python (<code>-o dir</code>)</td></tr>
+    <tr><td><code>refscript</code>, <code>ref -db</code></td><td>collect object names, datafiles, users and DBMS_XPLAN plans; see <a href="#ref">Object names and plans</a></td></tr>
+    <tr><td><code>fetch</code>, <code>follow</code></td><td>copy a trace over ssh or out of the database; mirror a growing trace, optionally with a live report; see <a href="#remote">Remote traces</a></td></tr>
+    <tr><td><code>trace</code></td><td>switch SQL trace on or off for a session, list sessions and trace files</td></tr>
+    <tr><td><code>open</code></td><td>open traces in the desktop app (starts it if needed)</td></tr>
+    <tr><td><code>brief</code></td><td>a Markdown brief of the trace's numbers and your notes, for handing to an LLM agent; bind values masked by default</td></tr>
+    <tr><td><code>findings-config</code></td><td>the default finding thresholds as JSON; edit and pass with <code>-findings-config f.json</code></td></tr>
+    <tr><td><code>lint</code></td><td>what the parser saw: line kinds, events, unknown lines</td></tr>
+    <tr><td><code>engine</code></td><td>the local backend of the desktop app; see <a href="#engine">The engine</a></td></tr>
+  </tbody>
+</table></div>
+
+<!-- ================================================================ -->
+<h2 id="report">Reading the report<a class="anchor" href="#report" aria-label="Link to this section">#</a></h2>
+<p>The text report and the interactive report share one model and show the same numbers.</p>
+
+<h3>Response time and the resource profile</h3>
+<p>The response time of a trace is its span: from the first to the last timestamp. The resource profile splits it into the CPU of the top-level calls, every wait event (inside calls and between them) and <em>unaccounted-for</em>, the difference. A large unaccounted-for share usually means CPU queueing or time the instrumentation does not see.</p>
+<p>Waits between calls, such as <code>SQL*Net message from client</code>, are idle from the database's point of view but are part of the user's response time: the client was thinking or the network was slow. They are shown in grey and can be hidden.</p>
+<p>For a trace set with several sessions, response time is the sum of each session's span, not the wall clock; the heading shows both ("Response time 5.330 s · 4 sessions · wall 3.849 s").</p>
+
+<h3>Statements</h3>
+<p>Statements are ranked by response time <em>including</em> their recursive children and the idle time between their calls, so the statement the user waited for comes first even when the work was done in recursive SQL. The call table under each statement shows tkprof's exclusive numbers (<code>count</code>, <code>cpu</code>, <code>elapsed</code>, <code>disk</code>, <code>query</code>, <code>current</code>, <code>rows</code>, library cache <code>misses</code>), with an inclusive toggle in the UI.</p>
+
+<h3>Executions, binds and plans</h3>
+<ul>
+  <li><strong>Executions</strong>: every EXEC with its fetches, elapsed, CPU, waits, rows and bind values, so the slow execution with the odd bind is one click away. Tick two executions to compare call statistics, waits, binds and plan hash side by side.</li>
+  <li><strong>Plans</strong>: row-source statistics from the STAT lines, one per plan hash, with the hot steps highlighted. With a <a href="#ref">reference bundle</a> the DBMS_XPLAN text, predicates and estimates are added.</li>
+  <li><strong>Recursive statements</strong>: the children a statement caused, with their share.</li>
+</ul>
+
+<h3>Findings</h3>
+<p>Rules that flag common problems with their evidence: outlier executions, hard parsing, a parse per execution, cursors closed hard, small fetch sizes, round trips per row, a commit per row, client think time and idle time inside calls. Each finding is rated serious, notable or info by its share of the response time. Thresholds come from <code>mtkprof findings-config</code>.</p>
+
+<!-- ================================================================ -->
+<h2 id="ui">The interactive report<a class="anchor" href="#ui" aria-label="Link to this section">#</a></h2>
+<figure class="shot"><img src="img/statement-detail-light.webp" width="2000" height="1250" loading="lazy" alt="The Statements view with one statement opened."></figure>
+<div class="table-wrap"><table>
+  <thead><tr><th>View</th><th>What it shows</th></tr></thead>
+  <tbody>
+    <tr><td>Overview</td><td>response time, the activity minimap, the resource profile, findings and a timeline lane per statement (colored by call phase, or by resource)</td></tr>
+    <tr><td>Statements</td><td>the ranked list and the statement workbench: SQL, profile, context, waits, recursive statements, plan, call table, executions</td></tr>
+    <tr><td>Waits</td><td>wait events with class, time, count and min/avg/max; per event a log-scale duration histogram and the split by statement, object and p1</td></tr>
+    <tr><td>Timeline</td><td>every call of every statement over time</td></tr>
+    <tr><td>Sessions</td><td>session contexts (module, action, client id, service, session), roll-ups and a context filter</td></tr>
+    <tr><td>Pivot</td><td>calls or waits by one or two dimensions with the measures you pick; Download CSV</td></tr>
+    <tr><td>Compare</td><td>with two traces and <code>-compare</code>: totals, both profiles, statements ranked by change, wait-event deltas</td></tr>
+  </tbody>
+</table></div>
+<h3>Filters follow you</h3>
+<p>The time window, the session filter, the file selection and the idle toggle apply to every view. Drag in the minimap or the timeline to set a window; click a block on an Overview lane to window that block and select its statement; double-click opens the statement. The active filters are chips under the top bar, each with ×, and <em>Clear all</em>. The state is kept in the URL, so a link reopens the same view.</p>
+<p>Keyboard: <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + a digit switches views, arrow keys move through tables, <kbd>Esc</kbd> closes the innermost panel or clears the window.</p>
+
+<!-- ================================================================ -->
+<h2 id="sets">Trace sets<a class="anchor" href="#sets" aria-label="Link to this section">#</a></h2>
+<p>A trace can be several files. A directory contributes its <code>*.trc</code> files (not recursive, sorted).</p>
+<pre>mtkprof report trace_part1.trc trace_part2.trc      <span class="c"># one logical trace</span>
+mtkprof html   /u01/.../trace/ -o all.html          <span class="c"># all *.trc in a directory</span>
+mtkprof report qc.trc cdb1_p000_8505.trc            <span class="c"># query coordinator + PX slave</span>
+mtkprof report start.trc -no-follow                 <span class="c"># do not follow split-file chains</span></pre>
+<ul>
+  <li><strong>Split traces</strong> (<code>*** TRACE CONTINUES IN FILE x ***</code>) are followed automatically, even from one end only, and parsed as one stream, so calls after the split still belong to cursors opened before it. <code>-no-follow</code> turns this off.</li>
+  <li><strong>Independent files</strong> are separate sessions, as in <code>trcsess</code> output.</li>
+  <li><strong>PX slave traces</strong> (<code>…p000…</code>) are attached to their query coordinator by time window, client id, module and action, shown nested under it, and reported as "PX slaves: N sessions, X s" on the statement instead of being added to the coordinator's response time.</li>
+</ul>
+<p>In the UI a <strong>Files</strong> panel lists the files with their share of time and waits; unticking a file scopes every view, the findings and the statement statistics to the rest.</p>
+<figure class="shot"><img src="img/set-overview.webp" width="2000" height="1250" loading="lazy" alt="A trace set of 21 files with the Files panel open."></figure>
+
+<!-- ================================================================ -->
+<h2 id="compare">Comparing traces<a class="anchor" href="#compare" aria-label="Link to this section">#</a></h2>
+<p>For a before/after comparison, such as a new index, a parameter change or a new release:</p>
+<pre>mtkprof compare before.trc after.trc -n 30          <span class="c"># text report of B against A</span>
+mtkprof serve   before.trc after.trc -compare       <span class="c"># UI with a Compare tab and an A/B toggle</span></pre>
+<p>Statements are matched by sql_id (statements without one by kind and normalized text), wait events by name. The Compare tab shows totals (A, B and the difference), both profiles on one time scale, the statements ranked by the change in elapsed time (new, missing, slower, faster, plan changed) and the wait-event deltas. Click a statement to open it in trace A or B.</p>
+
+<!-- ================================================================ -->
+<h2 id="binds">Bind values<a class="anchor" href="#binds" aria-label="Link to this section">#</a></h2>
+<p>Bind values are kept by default. On <code>report</code>, <code>html</code>, <code>serve</code>, <code>json</code> and <code>export</code>:</p>
+<ul>
+  <li><code>-bind-values redact</code> (or <code>-redact-binds</code>) replaces each value with its type, length and a stable hash, e.g. <code>&lt;VARCHAR2 len=11 h=a2334142&gt;</code>, so equal values stay recognizable across executions.</li>
+  <li><code>-redact-salt &lt;string&gt;</code> mixes a salt into the hash: equal values still match across traces redacted with the same salt, but the hashes cannot be looked up in a table of known values without it.</li>
+  <li><code>-bind-values none</code> drops bind values entirely.</li>
+</ul>
+<div class="callout"><p>The hash is for correlation, not secrecy: short values (numbers, codes) can be recovered by brute force. SQL text, including its literals, is never redacted.</p></div>
+
+<!-- ================================================================ -->
+<h2 id="big">Big traces<a class="anchor" href="#big" aria-label="Link to this section">#</a></h2>
+<p>By default the whole model stays in memory: a 1 GB trace takes about 7 s and 2 GB of memory for the HTML report. For bigger traces, pick a mode. The numbers do not change; what is kept does.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Flag</th><th>Commands</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>-lowmem</code></td><td>report, pivot, html, json, serve, export</td><td>bind values are not retained (no BINDS sections or bind views); every other number is identical</td></tr>
+    <tr><td><code>-facts=false</code></td><td>html, json, serve</td><td>leaves the raw fact tables out of the document. For <code>serve</code> the server keeps the model and answers the UI's group-by and detail queries, so the browser stays light and fully interactive</td></tr>
+    <tr><td><code>-spill[=DIR]</code></td><td>serve</td><td>calls, waits and binds are written to temporary files about the size of the trace and scanned on demand: full drill-down in constant memory (1 GB trace: 66 MB RSS, Pivot in about 0.3 s). Files are removed on exit</td></tr>
+    <tr><td><code>-aggregate</code></td><td>report, html, json, serve</td><td>calls and waits are folded into aggregates while reading and never stored: memory independent of trace size (10 GB: about 0.5 GB, 32 s). No executions tables, bind sections or Pivot</td></tr>
+  </tbody>
+</table></div>
+
+<!-- ================================================================ -->
+<h2 id="ref">Object names and plans<a class="anchor" href="#ref" aria-label="Link to this section">#</a></h2>
+<p>A trace holds numbers, not names: <code>obj#</code>, <code>file#</code>, user ids, and no plan text. The <strong>reference bundle</strong> adds names and DBMS_XPLAN output, and only adds; no number changes.</p>
+<ol>
+  <li>Make a read-only SQL*Plus script tailored to the trace:
+<pre>mtkprof refscript trace.trc -o ref.sql          <span class="c"># DBA views + V$ (SELECT_CATALOG_ROLE)</span>
+mtkprof refscript trace.trc -lite -o ref.sql    <span class="c"># ALL_ views only, any schema can run it</span></pre></li>
+  <li>The DBA runs it where the database is (SPOOL does not create directories):
+<pre>mkdir -p ref/plans
+sqlplus user/password@service @ref.sql</pre></li>
+  <li>Apply it to any output with <code>-ref</code>:
+<pre>mtkprof report trace.trc -ref ref
+mtkprof html   trace.trc -ref ref</pre></li>
+</ol>
+<p>With a database login, <code>mtkprof ref -db user@host:1521/service trace.trc -o ref</code> runs the same queries itself. When the plan hash in DBMS_XPLAN matches a STAT plan, access and filter predicates and optimizer estimates are overlaid on the trace's plan.</p>
+<div class="callout"><p>The bundle holds object, owner, user and datafile names and execution plans (predicates can contain literals). It holds no table data and no bind values. Review it before sharing, like the trace itself.</p></div>
+
+<!-- ================================================================ -->
+<h2 id="remote">Remote traces<a class="anchor" href="#remote" aria-label="Link to this section">#</a></h2>
+<p>The analysis commands never connect anywhere. These do, and only when you run them. Passwords, passphrases and host-key questions are asked on the terminal, never taken from a flag, and nothing is stored.</p>
+<h3>Over ssh</h3>
+<pre>mtkprof fetch  oracle@dbhost /u01/.../cdb1_ora_4711.trc -o traces/       <span class="c"># gzip in transit, resumes</span>
+mtkprof follow oracle@dbhost /u01/.../cdb1_ora_4711.trc -o live.trc      <span class="c"># tail -f; Ctrl-C stops, rerun resumes</span>
+mtkprof follow oracle@dbhost /u01/.../cdb1_ora_4711.trc -serve           <span class="c"># live report while it grows</span></pre>
+<p><code>-transport auto</code> (default) uses the system <code>ssh</code> with your <code>~/.ssh/config</code>, agent and bastions, and falls back to a built-in SSH client; <code>cli</code> and <code>lib</code> force one. <code>follow -serve</code> parses the stream as it arrives and serves a new snapshot at most every <code>-batch-ms</code> (default 1000); when the trace continues in another file, that file is followed too.</p>
+<h3>From the database</h3>
+<pre>mtkprof fetch -db scott@dbhost/pdb1 -name cdb1_ora_4711.trc -o t.trc    <span class="c"># via V$DIAG_TRACE_FILE_CONTENTS</span></pre>
+<p>Connection strings are Easy Connect: <code>user@host[:port]/service</code>, port 1521 by default, <code>-tcps</code> for TLS. Fetching through the ADR views is slow (about 0.4–1 MB/s); use ssh for files over about 200 MB.</p>
+<h3>Privileges</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>For</th><th>Needs</th></tr></thead>
+  <tbody>
+    <tr><td>connecting</td><td><code>CREATE SESSION</code></td></tr>
+    <tr><td><code>trace -sessions</code></td><td><code>SELECT</code> on <code>V$SESSION</code>, <code>V$PROCESS</code></td></tr>
+    <tr><td><code>trace -files</code>, <code>fetch -db</code></td><td><code>SELECT</code> on <code>V$DIAG_TRACE_FILE</code>, <code>V$DIAG_TRACE_FILE_CONTENTS</code> (12.2+), <code>V$PROCESS</code>, <code>V$SESSION</code></td></tr>
+    <tr><td><code>trace -on/-off</code></td><td><code>EXECUTE</code> on <code>DBMS_MONITOR</code></td></tr>
+    <tr><td><code>ref -db</code></td><td><code>SELECT_CATALOG_ROLE</code> (or the DBA_ and V$ views it reads); <code>-lite</code> needs nothing beyond <code>CREATE SESSION</code></td></tr>
+  </tbody>
+</table></div>
+<p><code>SELECT_CATALOG_ROLE</code> covers all of them. For a PDB, connect to the PDB.</p>
+
+<!-- ================================================================ -->
+<h2 id="outputs">Plans, JSON, CSV<a class="anchor" href="#outputs" aria-label="Link to this section">#</a></h2>
+<pre>mtkprof plan   trace.trc -list                              <span class="c"># statements with STAT plans</span>
+mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -o plan.json <span class="c"># plan rows as JSON; -plan-hash, -exec N</span>
+mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -viz         <span class="c"># "Open in plan viz" link (plan in the URL fragment)</span>
+mtkprof json   trace.trc -o trace.json                      <span class="c"># the full document</span>
+mtkprof export trace.trc -o csv/                            <span class="c"># statements, cursors, contexts, events, calls, waits, binds, plan lines, transactions, errors</span>
+mtkprof pivot  trace.trc -by module,stmt -measure e,c,count -window 10:15:00,10:20:00 -csv</pre>
+
+<!-- ================================================================ -->
+<h2 id="desktop-install">Desktop app: install and first start<a class="anchor" href="#desktop-install" aria-label="Link to this section">#</a></h2>
+<p>The desktop app opens traces in tabs with the same views as the interactive report, plus <strong>Lines</strong>, <strong>Notes</strong>, <strong>Reports</strong>, a <strong>Library</strong> of saved pivots and <strong>Connections</strong>. It is a small native shell (Tauri) that runs the mtkprof engine as a local background process.</p>
+<figure class="shot"><img src="img/desktop-dark.webp" width="2000" height="1255" loading="lazy" alt="The desktop app on macOS."></figure>
+<div class="table-wrap"><table>
+  <thead><tr><th>System</th><th>File</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Windows 10/11 x64</td><td><code>mtkprof_&lt;version&gt;_x64-setup.exe</code></td><td>per user, no admin rights</td></tr>
+    <tr><td>macOS Apple Silicon</td><td><code>mtkprof_&lt;version&gt;_aarch64.dmg</code></td><td>drag to Applications</td></tr>
+    <tr><td>macOS Intel</td><td><code>mtkprof_&lt;version&gt;_x64.dmg</code></td><td>drag to Applications</td></tr>
+    <tr><td>Linux x64</td><td><code>mtkprof_&lt;version&gt;_amd64.AppImage</code> or <code>.deb</code></td><td>AppImage needs FUSE 2</td></tr>
+  </tbody>
+</table></div>
+<h3>Unsigned builds</h3>
+<p>The builds are not signed, so the first start needs one extra step:</p>
+<ul>
+  <li><strong>Windows</strong>: SmartScreen says "Windows protected your PC". Click <em>More info</em>, then <em>Run anyway</em>.</li>
+  <li><strong>macOS</strong>: Gatekeeper says the app was not opened. Click <em>Done</em>, open System Settings → Privacy &amp; Security, and click <em>Open Anyway</em> next to "mtkprof.app was blocked". Or in a terminal: <code>xattr -dr com.apple.quarantine /Applications/mtkprof.app</code>.</li>
+  <li><strong>Linux</strong>: <code>chmod +x mtkprof_*.AppImage</code> and run it (<code>sudo apt install libfuse2</code> on Ubuntu 22.04+), or <code>sudo apt install ./mtkprof_*.deb</code>.</li>
+</ul>
+<h3>The engine and the index cache</h3>
+<p>On start the app launches its engine, which listens on <code>127.0.0.1</code> on a free port with a random token per run; nothing else on the machine can use it. The status bar shows its state.</p>
+<p>Parsed traces are kept in the <strong>index cache</strong>, so a trace opens again in about a second. Entries are keyed by file content (size and the first MiB of each file) plus the open options, not by path; a changed file is parsed again. The cache is about the size of the traces and is capped at 20 GiB, least recently used entries first. Location and cap are in Settings.</p>
+
+<!-- ================================================================ -->
+<h2 id="workspace">Workspace<a class="anchor" href="#workspace" aria-label="Link to this section">#</a></h2>
+<p>The <strong>+</strong> tab is the open screen:</p>
+<ul>
+  <li><em>Open files…</em> or <em>Open folder…</em>. Files picked together open as one trace set in one tab.</li>
+  <li>Drop files or folders anywhere on the window, or type or paste a path (one per line for several).</li>
+  <li><strong>Options</strong>: bind values <em>keep</em>, <em>redact</em> or <em>none</em>; <em>Follow as it grows</em> opens one file as a <strong>live</strong> tab.</li>
+  <li><strong>Recent</strong>: the last 20 trace sets with their options.</li>
+</ul>
+<p>From outside the app: double-click a <code>.trc</code> file (the installers register the extension), use <em>Open With → mtkprof</em>, drop files on the Dock icon, or run <code>mtkprof open a.trc b.trc</code> / <code>mtkprof open dir/</code> in a terminal. A set that is already open just gets its tab shown.</p>
+<p>While a trace opens its tab shows the phase, bytes and percent, and <em>Cancel</em>. Each tab keeps its own selection, filters, time window and Lines position. Live tabs refresh on their own about once a second while the file grows. On the next start the app reopens the tabs of the last run from the cache; if the engine dies it is restarted and the tabs come back where they were.</p>
+
+<!-- ================================================================ -->
+<h2 id="desktop-views">Lines, notes and reports<a class="anchor" href="#desktop-views" aria-label="Link to this section">#</a></h2>
+<h3>Lines</h3>
+<p>The raw trace file, paged, with line kinds colored, gutter marks for the selected statement, the object at the clicked line, streaming search, jump to time, and a file selector for sets. Every "line N" link in the views opens Lines at that line (<kbd>Shift</kbd>+click opens a small line drawer instead). <kbd>b</kbd> bookmarks a line. From a time window, <em>Lines</em> jumps to the window's first line and marks its lines in the gutter.</p>
+<h3>Notes and bookmarks</h3>
+<p>Notes belong to a trace's content, not its file name: the same trace from another path, re-fetched under another name or opened with other options shows the same notes.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Note on</th><th>How</th></tr></thead>
+  <tbody>
+    <tr><td>Statement</td><td><em>✎ Add note</em> next to <em>Copy SQL</em></td></tr>
+    <tr><td>Execution</td><td>the ✎ column of the executions table</td></tr>
+    <tr><td>Time window</td><td>set a window, then <em>✎ Annotate window</em>; window notes are chips above the timeline</td></tr>
+    <tr><td>Line</td><td><em>✎ Note</em> in the Lines toolbar (also bookmarks the line)</td></tr>
+  </tbody>
+</table></div>
+<p>The <strong>Notes</strong> view lists them with links back. Export as Markdown (a readable summary) or JSON; import JSON to merge, also from another trace.</p>
+<h3>Reports</h3>
+<p>Save what the CLI writes, produced by the engine: the text report (sort, top N, executions, bind sets, width), the JSON document, the CSV files as one zip and the standalone HTML report. <em>Open standalone HTML</em> opens it in your browser.</p>
+
+<!-- ================================================================ -->
+<h2 id="library">Library<a class="anchor" href="#library" aria-label="Link to this section">#</a></h2>
+<p>Saved Pivot configurations, shared by all traces. In a tab's Pivot view, <em>Saved → Save current as…</em> stores the fact table, dimensions, sort, row limit and scope (time window as an offset from the start, session filter, statement and event filters, idle toggle). Choosing it in any tab applies it; what that trace does not have is left out and the Pivot view says so. <em>Library</em> (top right) renames, deletes, exports and imports them.</p>
+
+<!-- ================================================================ -->
+<h2 id="connections">Connections<a class="anchor" href="#connections" aria-label="Link to this section">#</a></h2>
+<p><em>Connections</em> (top right) keeps ssh hosts and Oracle logins for fetching traces.</p>
+<div class="callout"><p><strong>No secrets at rest.</strong> A connection has no password field. Passwords, passphrases and one-time codes are asked when the connection is used; a password is kept only in the engine's memory until the app quits, the connection is deleted or you choose <em>Forget credentials</em>. Nothing from a prompt is logged.</p></div>
+<h3>ssh</h3>
+<ul>
+  <li><em>Test</em> runs <code>uname -sr</code>.</li>
+  <li>The remote browser lists the trace directories it finds (<code>$ORACLE_BASE</code>, the homes in <code>oratab</code>) and any directory you type.</li>
+  <li><em>Fetch</em> selected files (gzip in transit, resumable; <em>open when done</em>), or <em>Follow</em> one growing file as a live tab.</li>
+  <li>Transport <code>auto</code> uses your system ssh and its config; <code>lib</code> is the built-in client (reads <code>Host</code>, <code>HostName</code>, <code>User</code>, <code>Port</code>, <code>IdentityFile</code>).</li>
+</ul>
+<h3>Oracle login</h3>
+<ul>
+  <li><em>Sessions</em> lists <code>V$SESSION</code> with <em>Trace on/off</em> through <code>DBMS_MONITOR</code>.</li>
+  <li><em>Trace files</em> lists the ADR's files with <em>Fetch</em> (slow for large files; use ssh above ~200 MB).</li>
+  <li><em>Fetch reference data</em> runs the <a href="#ref">refscript</a> queries for an open trace and applies the names and plans to its tab; the bundle is kept and re-applied whenever the trace is opened.</li>
+  <li>Username and password over TCP or TCPS. Grants: see <a href="#remote">Privileges</a>.</li>
+</ul>
+<h3>Jobs and sharing</h3>
+<p>Fetches, follows and reference-data runs appear under <strong>Jobs</strong> with progress and cancel. <em>Export</em> writes the definitions (no secrets) to a JSON file. A <strong>team file</strong>, say in a shared repository checkout, is re-read every 5 s and merged read-only; <em>Override locally</em> makes an editable copy.</p>
+
+<!-- ================================================================ -->
+<h2 id="settings">Settings and files<a class="anchor" href="#settings" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Setting</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td>Cache location, cap</td><td>where the index cache lives and its size limit (after <em>Restart engine</em>)</td></tr>
+    <tr><td>Plan visualizer URL</td><td>where <em>Open in plan viz</em> sends plans</td></tr>
+    <tr><td>Bind values, salt</td><td>defaults of the open options</td></tr>
+    <tr><td>Start empty</td><td>do not reopen last run's tabs</td></tr>
+    <tr><td>Theme</td><td>system, light or dark</td></tr>
+  </tbody>
+</table></div>
+<p><em>Settings → Index cache</em> lists the entries and removes one or all. <em>About</em> shows the app, engine and protocol versions and the exact data, log and engine paths.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th></th><th>Windows</th><th>macOS</th><th>Linux</th></tr></thead>
+  <tbody>
+    <tr><td>settings, workspace, notes, library, connections</td><td><code>%APPDATA%\com.davidbudac.mtkprof\</code></td><td><code>~/Library/Application Support/com.davidbudac.mtkprof/</code></td><td><code>~/.local/share/com.davidbudac.mtkprof/</code></td></tr>
+    <tr><td>logs</td><td><code>%LOCALAPPDATA%\com.davidbudac.mtkprof\logs\</code></td><td><code>~/Library/Logs/com.davidbudac.mtkprof/</code></td><td><code>~/.local/share/com.davidbudac.mtkprof/logs/</code></td></tr>
+    <tr><td>index cache, fetched traces</td><td><code>%LOCALAPPDATA%\com.davidbudac.mtkprof\mtkprof</code></td><td><code>~/Library/Caches/com.davidbudac.mtkprof/mtkprof</code></td><td><code>~/.cache/com.davidbudac.mtkprof/mtkprof</code></td></tr>
+  </tbody>
+</table></div>
+<p>Nothing in these files is secret; deleting them resets the app.</p>
+
+<!-- ================================================================ -->
+<h2 id="troubleshooting">Troubleshooting<a class="anchor" href="#troubleshooting" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Symptom</th><th>Cause and fix</th></tr></thead>
+  <tbody>
+    <tr><td>Toast "Engine restarted"</td><td>The engine exited unexpectedly and was restarted; tabs reopen, credentials are asked again. The cause is in the log.</td></tr>
+    <tr><td>"The engine is not running"</td><td>Start failed, a protocol mismatch, or repeated crashes. The panel shows the error; <em>Retry</em> restarts.</td></tr>
+    <tr><td><code>protocol mismatch</code></td><td>App and engine come from different builds. Reinstall one release.</td></tr>
+    <tr><td>Linux: the app exits at once</td><td>It needs a D-Bus session bus: <code>dbus-run-session -- ./mtkprof_*.AppImage</code>. The AppImage also needs FUSE 2.</td></tr>
+    <tr><td>Index cache full or suspect</td><td><em>Settings → Index cache → Wipe</em>; everything is parsed again on the next open.</td></tr>
+    <tr><td>Fetch from a database is slow</td><td>ADR views read 0.4–1 MB/s. Use ssh for large files.</td></tr>
+  </tbody>
+</table></div>
+
+<!-- ================================================================ -->
+<h2 id="formats">Supported traces<a class="anchor" href="#formats" aria-label="Link to this section">#</a></h2>
+<p>Oracle 19c, 21c and 23ai, tested against real traces and <code>tkprof</code> output for all three; 12c mostly works but is untested. The parser understands every line kind of the 19c format, including bind memory dumps, truncated and split files, <code>trcsess</code> output and PX slave traces. <code>mtkprof lint trace.trc</code> shows what it saw, including any unknown lines.</p>
+<p>Parity with tkprof is a test: call statistics, library cache misses and wait tables are compared with Oracle's own tkprof output on every fixture. Where mtkprof reports something differently on purpose (response time including recursive children and idle time, for example), it is a separate number, not a changed one.</p>
+
+<!-- ================================================================ -->
+<h2 id="engine">The engine<a class="anchor" href="#engine" aria-label="Link to this section">#</a></h2>
+<p><code>mtkprof engine</code> is the local backend of the desktop app: one process that holds several open traces, serves each at <code>/s/{id}/</code> with the same <code>/api/*</code> endpoints as <code>serve -spill</code>, and keeps the index cache. It is not meant for interactive use, but you can try the protocol:</p>
+<pre>export MTKPROF_TOKEN=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
+mtkprof engine -detach &amp;      <span class="c"># prints {"ready":true,"addr":"127.0.0.1:PORT",...}</span>
+curl -H "Authorization: Bearer $MTKPROF_TOKEN" -d '{"paths":["trace.trc"]}' http://127.0.0.1:PORT/engine/sessions
+mtkprof engine cache ls       <span class="c"># also: rm &lt;identity&gt;, wipe</span></pre>
+<p>The protocol is described in <code>api/engine.openapi.yaml</code> in the repository.</p>
+
+<!-- ================================================================ -->
+<h2 id="build">Building from source<a class="anchor" href="#build" aria-label="Link to this section">#</a></h2>
+<p>Needs Go 1.24+. The web UI needs Node 20+ and pnpm, but a pre-built UI is committed, so <code>go build</code> alone produces a working binary.</p>
+<pre>git clone https://github.com/davidbudac/modern-tkprof.git &amp;&amp; cd modern-tkprof
+make build          <span class="c"># bin/mtkprof</span>
+make test           <span class="c"># unit + golden tests</span>
+make web            <span class="c"># rebuild the UI and embed it</span>
+make release        <span class="c"># dist/mtkprof-&lt;os&gt;-&lt;arch&gt; for every target + SHA256SUMS</span>
+
+GOOS=aix GOARCH=ppc64 go build -o mtkprof-aix ./cmd/mtkprof</pre>
+
+<!-- ================================================================ -->
+<h2 id="more">Further reading<a class="anchor" href="#more" aria-label="Link to this section">#</a></h2>
+<p>In the repository:</p>
+<ul>
+  <li><a href="https://github.com/davidbudac/modern-tkprof/blob/main/README.md"><code>README.md</code></a>: every command with examples</li>
+  <li><a href="https://github.com/davidbudac/modern-tkprof/blob/main/docs/DESKTOP.md"><code>docs/DESKTOP.md</code></a>: the full desktop user guide</li>
+  <li><a href="https://github.com/davidbudac/modern-tkprof/blob/main/docs/REMOTE.md"><code>docs/REMOTE.md</code></a>: ssh transports, Oracle connections, grants and what was verified</li>
+  <li><a href="https://github.com/davidbudac/modern-tkprof/blob/main/docs/REF-BUNDLE.md"><code>docs/REF-BUNDLE.md</code></a>: the reference bundle in detail</li>
+  <li><a href="https://github.com/davidbudac/modern-tkprof/blob/main/docs/trace-format-19c.md"><code>docs/trace-format-19c.md</code></a>: the trace format the parser accepts</li>
+  <li><a href="https://github.com/davidbudac/modern-tkprof/blob/main/docs/ARCHITECTURE.md"><code>docs/ARCHITECTURE.md</code></a> and <a href="https://github.com/davidbudac/modern-tkprof/blob/main/docs/DESIGN.md"><code>docs/DESIGN.md</code></a>: how it is built and why</li>
+</ul>
+
+</article>
+</div>
+</div>
+
+<footer class="site-footer content-grid">
+  <div class="row">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"></span>mtkprof</a>
+    <nav aria-label="Footer">
+      <a href="./">Home</a>
+      <a href="https://github.com/davidbudac/modern-tkprof">Source</a>
+      <a href="https://github.com/davidbudac/modern-tkprof/releases">Releases</a>
+    </nav>
+    <span>Apache-2.0. Not affiliated with Oracle.</span>
+  </div>
+</footer>
+
+<script>
+  // Highlight the section in view in the table of contents. The page works without it.
+  const links = new Map([...document.querySelectorAll('.docs-toc a[href^="#"]')].map(a => [a.hash.slice(1), a]));
+  const seen = new Set();
+  const io = new IntersectionObserver(entries => {
+    for (const e of entries) e.isIntersecting ? seen.add(e.target.id) : seen.delete(e.target.id);
+    const first = [...links.keys()].find(id => seen.has(id));
+    if (!first) return;
+    for (const [id, a] of links) a.toggleAttribute('aria-current', id === first) && a.setAttribute('aria-current', 'true');
+  }, { rootMargin: '-15% 0px -70% 0px' });
+  for (const id of links.keys()) { const h = document.getElementById(id); if (h) io.observe(h); }
+</script>
+</body>
+</html>
