@@ -508,3 +508,42 @@ td.r, th.r { text-align: end; font-variant-numeric: tabular-nums; }
   :is(h2, h3):hover .anchor { opacity: 1; }
 }
 .anchor:focus-visible { opacity: 1; }
+
+/* tkprof vs mtkprof */
+.compare-wrap { container-type: inline-size; }
+.compare-table td { font-size: 0.9375rem; }
+.compare-table th:nth-child(1) { inline-size: 40%; }
+.compare-table th:nth-child(2) { inline-size: 20%; }
+.compare-table td.no { color: var(--ink-3); }
+.compare-table td.yes::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.55rem;
+  block-size: 0.55rem;
+  margin-inline-end: 0.5rem;
+  border-radius: 2px;
+  background: var(--c-network);
+  vertical-align: 0.05em;
+}
+/* narrow: one card per question, the two answers labelled */
+@container (width < 40rem) {
+  .compare-table :is(table, tbody, tr, td) { display: block; }
+  .compare-table thead { display: none; }
+  .compare-table tr { padding-block: 0.75rem; border-block-end: 1px solid var(--hairline); }
+  .compare-table tr:last-child { border-block-end: 0; }
+  .compare-table td { border: 0; padding-block: 0.15rem; }
+  .compare-table td:first-child { font-weight: 500; padding-block-end: 0.35rem; }
+  .compare-table td:nth-child(2)::before,
+  .compare-table td:nth-child(3)::before {
+    display: inline-block;
+    inline-size: 4.5rem;
+    margin: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+  }
+  .compare-table td:nth-child(2)::before { content: "tkprof"; }
+  .compare-table td:nth-child(3)::before { content: "mtkprof"; }
+}
