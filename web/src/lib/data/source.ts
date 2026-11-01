@@ -19,6 +19,7 @@ import {
   type BindRow, type Execution, type PhaseSpan2, type WaitSpan2, type ScopeProfile, type Span2, type StmtWait, type TimelineRaw,
 } from './derive'
 import type { KindGroup } from './callkinds'
+import { executionTraceOf, type ExecTrace } from './exectrace'
 import { pivotDims, pivotMeasures, runPivot, type Fact } from './pivot'
 import { roleOfClass, roleOrder } from '../components/colors'
 import { scopedStatements } from './stmtstats'
@@ -139,6 +140,8 @@ export interface DataSource {
   /** the executions of a statement whose EXEC call is in scope (window and contexts) */
   executions(stmt: ID, scope: Scope, signal?: AbortSignal): Maybe<ExecPage>
   executionDetail(stmt: ID, ex: Execution, signal?: AbortSignal): Maybe<ExecDetail>
+  /** one execution's own calls, recursive children and waits in trace order (the Execution Loom); null = not available (no facts, or an engine without `api/executions/trace`) */
+  executionTrace(stmt: ID, ex: Execution, signal?: AbortSignal): Maybe<ExecTrace | null>
   waitHist(event: ID, scope: Scope, signal?: AbortSignal): Maybe<WaitHist>
   waitScatter(event: ID, scope: Scope, signal?: AbortSignal): Maybe<ScatterData>
   waitTop(event: ID, scope: Scope, limit: number, signal?: AbortSignal): Maybe<WaitRow[]>
@@ -344,6 +347,10 @@ export class LocalSource implements DataSource {
     return d
   }
 
+  executionTrace(_stmt: ID, ex: Execution): ExecTrace | null {
+    return this.doc.hasFacts ? executionTraceOf(this.doc, ex.exec) : null
+  }
+
   waitHist(event: ID, scope: Scope): WaitHist {
     const w = this.doc.waits
     const wf = this.wf(scope)
@@ -545,8 +552,17 @@ export class RemoteSource implements DataSource {
   }
 
   async executionDetail(stmt: ID, ex: Execution, signal?: AbortSignal): Promise<ExecDetail> {
-    const r = await this.get<Omit<ExecDetail, 'exec'> & { execPart: CallPart }>('executions/detail', { stmt, cursor: ex.cursor, execNo: ex.execNo }, signal)
-    return { plh: r.plh, parse: r.parse, exec: r.execPart, fetch: r.fetch, total: r.total, waits: r.waits, execWaits: r.execWaits, binds: r.binds, bindLine: r.bindLine, line: r.line }
+    const r = await this.get<Omit<ExecDetail, 'exec'> & { execPart: CallPart; planHash?: number }>('executions/detail', { stmt, cursor: ex.cursor, execNo: ex.execNo }, signal)
+    return { plh: r.planHash ?? r.plh, parse: r.parse, exec: r.execPart, fetch: r.fetch, total: r.total, waits: r.waits, execWaits: r.execWaits, binds: r.binds, bindLine: r.bindLine, line: r.line }
+  }
+
+  async executionTrace(stmt: ID, ex: Execution, signal?: AbortSignal): Promise<ExecTrace | null> {
+    try {
+      return await this.get<ExecTrace>('executions/trace', { stmt, cursor: ex.cursor, execNo: ex.execNo }, signal)
+    } catch (e) {
+      if (e instanceof HttpError && e.status === 404) return null // an engine older than the route
+      throw e
+    }
   }
 
   waitHist(event: ID, scope: Scope, signal?: AbortSignal): Promise<WaitHist> {

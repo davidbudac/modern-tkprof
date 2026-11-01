@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { NONE } from '../data/types'
 import { fmtDur, fmtInt, fmtCompact } from '../data/format'
@@ -6,6 +6,7 @@ import { fmtDurDelta, fmtIntDelta, worse } from '../data/delta'
 import type { BindRow, Execution } from '../data/derive'
 import { LineRef } from '../components/LineRef'
 import '../styles/compare.css'
+import { ExecLoom } from './ExecLoom'
 
 import { sourceOf, useSourceQuery, type CallPart, type ExecDetail } from '../data/source'
 
@@ -44,10 +45,11 @@ export function ExecCompare({ doc, stmt, a, b, onClear }: { doc: TraceDoc; stmt:
       </section>
     )
   }
-  return <ExecCompareView doc={doc} a={a} b={b} fa={fa} fb={fb} onClear={onClear} />
+  return <ExecCompareView doc={doc} stmt={stmt} a={a} b={b} fa={fa} fb={fb} onClear={onClear} />
 }
 
-function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Execution; b: Execution; fa: Facts; fb: Facts; onClear: () => void }) {
+function ExecCompareView({ doc, stmt, a, b, fa, fb, onClear }: { doc: TraceDoc; stmt: number; a: Execution; b: Execution; fa: Facts; fb: Facts; onClear: () => void }) {
+  const [mode, setMode] = useState<'numbers' | 'loom'>('numbers')
   const all: { name: string; get: (f: Facts) => Part }[] = [
     { name: 'Parse', get: (f) => f.parse }, { name: 'Execute', get: (f) => f.exec }, { name: 'Fetch', get: (f) => f.fetch }, { name: 'Total', get: (f) => f.total },
   ]
@@ -71,7 +73,13 @@ function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Exe
         <span className="hint">
           <b className="side-tag">A</b> #{a.execNo} at <LineRef line={a.line} file={doc.fileOfCursor(a.cursor)} /> · <b className="side-tag">B</b> #{b.execNo} at <LineRef line={b.line} file={doc.fileOfCursor(b.cursor)} />
         </span>
-        <span className="tools"><button onClick={onClear}>Clear</button></span>
+        <span className="tools">
+          <span className="seg" role="group" aria-label="Comparison view">
+            <button type="button" aria-pressed={mode === 'numbers'} onClick={() => setMode('numbers')}>Numbers</button>
+            <button type="button" aria-pressed={mode === 'loom'} onClick={() => setMode('loom')} title="Execution Loom: the two executions aligned call by call, waits by object and event, consistent / current gets">Loom</button>
+          </span>
+          <button onClick={onClear}>Clear</button>
+        </span>
       </header>
 
       <div className="exec-cmp-sum">
@@ -80,6 +88,7 @@ function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Exe
         <span>{positions.length === 0 ? 'no bind values' : differing === 0 ? 'identical binds' : `${differing} of ${positions.length} binds differ`}</span>
       </div>
 
+      {mode === 'loom' ? <ExecLoom doc={doc} stmt={stmt} a={a} b={b} /> : <>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th>call</th><th></th><th className="num">calls</th><th className="num">cpu</th><th className="num">elapsed</th><th className="num">disk</th><th className="num">query</th><th className="num">current</th><th className="num">rows</th></tr></thead>
         <tbody>
@@ -142,6 +151,7 @@ function ExecCompareView({ doc, a, b, fa, fb, onClear }: { doc: TraceDoc; a: Exe
         </table></div>
       )}
       {a.bindSet === NONE && b.bindSet === NONE ? null : <p className="small muted">Differing values highlighted.</p>}
+      </>}
     </section>
   )
 }

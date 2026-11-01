@@ -11,6 +11,7 @@
 //	/api/calls           the longest calls in scope (Timeline swimlanes)
 //	/api/executions      the executions of one statement, with binds
 //	/api/executions/detail  one execution taken apart (A/B comparison)
+//	/api/executions/trace   one execution's calls, recursive calls and waits in trace order (Execution Loom)
 //	/api/waits           wait rows (slowest or earliest)
 //	/api/waits/hist      log2 histogram of wait durations
 //	/api/waits/scatter   sampled waits over time
@@ -147,6 +148,7 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		"/api/calls":             s.calls,
 		"/api/executions":        s.executions,
 		"/api/executions/detail": s.executionDetail,
+		"/api/executions/trace":  s.executionTrace,
 		"/api/waits":             s.waits,
 		"/api/waits/hist":        s.waitHist,
 		"/api/waits/scatter":     s.waitScatter,

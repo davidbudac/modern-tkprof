@@ -6,6 +6,22 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Execution Loom (2026-11-01)
+
+- A "Loom" mode in the A/B execution comparison (Statements → pick two executions → Numbers | Loom), in the shared
+  lib, so the standalone report, `serve` and the desktop app all have it. Design: `docs/ARCHITECTURE.md` §
+  "Execution Loom"; spec: `docs/implementing-new-ideas.md`.
+- Engine: `GET /s/{id}/api/executions/trace` (additive, protocol unchanged; contract + parity queries updated).
+  **Desktop follow-up:** bump the `engine/` pin and run `pnpm gen:api`; no shell code (it mounts the lib's
+  Statements view, line links open the Lines tab).
+- Not available in reports without facts (`-aggregate`, the desktop Reports view's HTML export): the view says so.
+  Possible follow-up: embed the traces of a bounded set of executions in the export.
+- No fixture has a statement run several times with real I/O differences; checked by screenshot on
+  `testdata/sets/workload` (sql_id a4r2fwpb5gmr0, executions #1 and #2), standalone light and `serve -spill` dark
+  at 900 px. A dbmint scenario (same query cold / warm cache) would make a better fixture.
+- Fixed on the way: `RemoteSource.executionDetail` read `plh`, the engine sends `planHash` (remote A/B compare said
+  "plan hash not in trace").
+
 ## MCP server for Claude Code (2026-11-01)
 
 - `mtkprof mcp [-binds mask|keep] [trace...]` without `MTKPROF_ENGINE` serves the assistant tools in process

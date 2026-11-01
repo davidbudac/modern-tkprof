@@ -2079,6 +2079,59 @@ paths:
                       type: object
         "400":
           $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/executions/trace:
+    get:
+      operationId: sliceExecutionTrace
+      summary: One execution's own calls, recursive calls and waits in trace order (Execution Loom)
+      description: |
+        The raw rows the Execution Loom aligns: the PARSE right before the EXEC (if any), the EXEC and its
+        FETCHes (`calls`), the recursive calls under them (`children`, each with the `owner` own call it rolls
+        up to) and the waits of both (`waits`, `between` = outside the call). Whole execution: the scope does
+        not apply. `truncated` is set when the rows were cut at the limits (50 000 children, 200 000 waits).
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: stmt
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+        - name: cursor
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+        - name: execNo
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: ExecTraceResponse
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calls:
+                    type: array
+                    items:
+                      type: object
+                  children:
+                    type: array
+                    items:
+                      type: object
+                  waits:
+                    type: array
+                    items:
+                      type: object
+                  truncated:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
   /s/{id}/api/waits:
     get:
       operationId: sliceWaits

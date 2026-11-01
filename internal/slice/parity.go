@@ -80,7 +80,8 @@ func ParityQueries(m *model.Model, h http.Handler) ([]string, error) {
 			return nil, err
 		}
 		for _, r := range er.Rows {
-			q = append(q, fmt.Sprintf("/api/executions/detail?stmt=%d&cursor=%d&execNo=%d", s, r.Cursor, r.ExecNo))
+			q = append(q, fmt.Sprintf("/api/executions/detail?stmt=%d&cursor=%d&execNo=%d", s, r.Cursor, r.ExecNo),
+				fmt.Sprintf("/api/executions/trace?stmt=%d&cursor=%d&execNo=%d", s, r.Cursor, r.ExecNo))
 		}
 	}
 	return q, nil

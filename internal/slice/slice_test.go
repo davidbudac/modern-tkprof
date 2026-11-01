@@ -719,3 +719,55 @@ func TestResponsesAreCachedAndCORS(t *testing.T) {
 		t.Errorf("headers %v", a.Header())
 	}
 }
+
+// The trace of an execution holds its recursive calls and their waits once: same
+// set as following Parent in the model.
+func TestExecutionTraceRecursive(t *testing.T) {
+	m, err := model.BuildFiles([]string{traces + "plsql_recursive.trc"}, model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(m).Handler()
+	checked := 0
+	for sid := range m.Statements {
+		for _, e := range analyze.Executions(m, model.ID(sid)) {
+			var r ExecTraceResponse
+			if code := get(t, h, fmt.Sprintf("/api/executions/trace?stmt=%d&cursor=%d&execNo=%d", sid, e.Cursor, e.ExecNo), &r); code != 200 {
+				t.Fatalf("status %d", code)
+			}
+			own := map[model.ID]bool{}
+			for _, c := range r.Calls {
+				own[c.ID] = true
+			}
+			top := func(id model.ID) (model.ID, bool) { // the own call above id
+				for id >= 0 {
+					if own[id] {
+						return id, true
+					}
+					id = m.Calls[id].Parent
+				}
+				return -1, false
+			}
+			var kids, waits int
+			for i := range m.Calls {
+				if _, ok := top(m.Calls[i].Parent); ok && !own[model.ID(i)] {
+					kids++
+				}
+			}
+			for i := range m.Waits {
+				if _, ok := top(m.Waits[i].Call); ok {
+					waits++
+				}
+			}
+			if len(r.Children) != kids || len(r.Waits) != waits || r.Truncated {
+				t.Errorf("stmt %d exec %d: %d children %d waits, want %d %d", sid, e.ExecNo, len(r.Children), len(r.Waits), kids, waits)
+			}
+			if kids > 0 {
+				checked++
+			}
+		}
+	}
+	if checked == 0 {
+		t.Error("no execution with recursive calls")
+	}
+}

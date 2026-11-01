@@ -6,7 +6,7 @@ Repository: /Users/davidbudac/claude_projects/modern-tkprof
 
 Code inspected at commit: 21485afff76c885e2d325c8cab9739e9914eb419
 
-Status: design handoff; no application implementation has been made.
+Status: implemented (bounded core, 2026-11-01): Loom mode of the A/B execution comparison; see `docs/ARCHITECTURE.md` § "Execution Loom". The later extensions (§ 3) are not.
 
 ## 1. Task and authorization
 

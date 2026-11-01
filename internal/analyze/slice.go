@@ -1056,29 +1056,16 @@ func ExecutionDetail(m *model.Model, sid, cursor model.ID, execNo int32) (d Exec
 	return d, ok
 }
 
-// ExecutionDetailOn is ExecutionDetail over any Facts. BindLine is left 0:
-// bind sets are not part of Facts.
-func ExecutionDetailOn(ctx context.Context, src Facts, sid, cursor model.ID, execNo int32) (d ExecDetail, ok bool, err error) {
+// ExecutionCallsOn returns the own calls of execution execNo of cursor in
+// statement sid, in file order: the PARSE right before the EXEC (if any), the
+// EXEC and its FETCHes. ok is false when the statement has no such EXEC.
+func ExecutionCallsOn(ctx context.Context, src Facts, sid, cursor model.ID, execNo int32) (calls []model.Call, ok bool, err error) {
 	// One pass over the calls of the statement in file order. Before the EXEC
 	// only the latest call of the cursor matters (a PARSE right before the
 	// EXEC belongs to it, anything else to the previous execution); after it
 	// the calls of the cursor up to the next EXEC, CLOSE or PARSE.
 	var prev model.Call
 	havePrev, found := false, false
-	var ex model.Call
-	var picked []model.ID // ascending
-	pick := func(c *model.Call) {
-		picked = append(picked, c.ID)
-		switch c.Kind {
-		case trace.CallParse:
-			d.Parse.add(c)
-		case trace.CallExec:
-			d.ExecPart.add(c)
-		default:
-			d.Fetch.add(c)
-		}
-		d.Total.add(c)
-	}
 	err = src.EachCall(ctx, Scan{Statements: []model.ID{sid}}, func(c *model.Call) bool {
 		if c.Statement != sid {
 			return true
@@ -1086,11 +1073,10 @@ func ExecutionDetailOn(ctx context.Context, src Facts, sid, cursor model.ID, exe
 		if !found {
 			if c.Kind == trace.CallExec && c.Cursor == cursor && c.ExecNo == execNo {
 				found = true
-				ex = *c
 				if havePrev && prev.Kind == trace.CallParse {
-					pick(&prev)
+					calls = append(calls, prev)
 				}
-				pick(c)
+				calls = append(calls, *c)
 				return true
 			}
 			if c.Cursor == cursor {
@@ -1107,14 +1093,40 @@ func ExecutionDetailOn(ctx context.Context, src Facts, sid, cursor model.ID, exe
 			}
 			return true
 		}
-		pick(c)
+		calls = append(calls, *c)
 		return true
 	})
+	if err != nil || !found {
+		return nil, false, err
+	}
+	return calls, true, nil
+}
+
+// ExecutionDetailOn is ExecutionDetail over any Facts. BindLine is left 0:
+// bind sets are not part of Facts.
+func ExecutionDetailOn(ctx context.Context, src Facts, sid, cursor model.ID, execNo int32) (d ExecDetail, ok bool, err error) {
+	calls, found, err := ExecutionCallsOn(ctx, src, sid, cursor, execNo)
 	if err != nil {
 		return d, false, err
 	}
 	if !found {
 		return d, false, nil
+	}
+	var ex model.Call
+	picked := make([]model.ID, 0, len(calls)) // ascending
+	for i := range calls {
+		c := &calls[i]
+		picked = append(picked, c.ID)
+		switch c.Kind {
+		case trace.CallParse:
+			d.Parse.add(c)
+		case trace.CallExec:
+			d.ExecPart.add(c)
+			ex = *c
+		default:
+			d.Fetch.add(c)
+		}
+		d.Total.add(c)
 	}
 	d.Cursor, d.ExecNo, d.Exec, d.Line, d.Ctx, d.PLH, d.BindSet = cursor, execNo, ex.ID, ex.Line, ex.Context, ex.PLH, ex.BindSet
 	in := func(id model.ID) bool {

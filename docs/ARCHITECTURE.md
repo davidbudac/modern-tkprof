@@ -317,6 +317,7 @@ sends for "None"), `stmt`, `event` (waits only) and
 | `/api/calls?limit=&longest=` | the longest calls in scope (columns `id, stmt, kind, tim, e, c, r, line, dep, execNo, ctx`), total in scope, the longest N: the Timeline view | 20 000 calls, 100 longest |
 | `/api/executions?stmt=&limit=&offset=&sort=` (+ scope) | executions of one statement (`analyze.Executions`; with a scope: those whose EXEC call is in scope, summing the fetches in scope: `EachExecutionIn`) with bind values, total, avg and slowest; `sort` = `file` (default) `e c waitEla r p cr fetches start` (largest first) | 5000 rows |
 | `/api/executions/detail?stmt=&cursor=&execNo=` | one execution: parse / exec / fetch call sums, waits per event, binds, plan hash (A/B comparison and the bind panel) | |
+| `/api/executions/trace?stmt=&cursor=&execNo=` | one execution's raw rows in trace order: own calls (PARSE right before the EXEC, EXEC, FETCHes), their recursive calls (`owner` = the own call they roll up to) and the waits of both; bounded reads over a spill (children are the deeper rows of the context right before the call, waits the context's rows between the previous same-depth call and the call); 50 000 children / 200 000 waits, then `truncated` (Execution Loom, see below) | |
 | `/api/waits?event=\|stmt=&sort=ela\|tim&limit=` | wait rows with total and time in scope | 1000 rows |
 | `/api/waits/hist?event=` | log2 histogram (24 bins, counts and sums) | |
 | `/api/waits/scatter?event=&max=` | waits over time: the 2000 slowest plus an even sample (`analyze.ScatterWaits`), rows `[tim, ela, line, stmt, ctx]` | 50 000 points |
@@ -1430,3 +1431,28 @@ GOOS=windows GOARCH=amd64 go build ./cmd/mtkprof
 GOOS=aix     GOARCH=ppc64 go build ./cmd/mtkprof      # AIX 7.2+
 GOOS=solaris GOARCH=amd64 go build ./cmd/mtkprof
 ```
+
+### Execution Loom (`web/src/lib/views/ExecLoom.tsx`, `data/loom.ts`, `data/exectrace.ts`)
+
+A "Loom" mode of the A/B execution comparison (`ExecCompare`, Numbers | Loom): the two executions as cumulative
+elapsed threads over matched work checkpoints (Start, [Parse], Execute, Fetch 1..n) instead of clock time, the
+in-call waits of the selected phase by object (obj# of the WAIT line) and event, the call-level cr / cu / p counts,
+and the wait records with line links. Spec and rules: `docs/implementing-new-ideas.md`.
+
+- Data: `DataSource.executionTrace` returns the raw rows (`ExecTrace`): `LocalSource` from the fact columns
+  (`executionTraceOf`: own calls by the `executionDetail` rule, children through `doc.childCalls`, waits through
+  `waitsByCall`), `RemoteSource` from `api/executions/trace` (`internal/slice/exectrace.go`, own calls from
+  `analyze.ExecutionCallsOn`, shared with `ExecutionDetailOn`). All derived numbers are computed once, in TS
+  (`buildLoom`), so the sources only agree on rows; the slice parity queries include the route (spill = model).
+  `null` = not available: a report without facts (`-aggregate`, the desktop's HTML export) or an engine without the
+  route (404); the view says which.
+- Basis: recorded inclusive `e` of the own EXEC and FETCH calls (PARSE on request; CLOSE, client time and
+  between-call waits never), recursive calls inside it and not added again; waits of a phase are the in-call waits
+  of the own call and its recursive calls, each once. Phases align by key; a phase one side lacks is "unmatched"
+  (absent, not zero) and its checkpoint has no point. `rest` = e − c − waits (not measured; negative = does not
+  reconcile, flagged). cr / cu / p stay call-level: never allocated to objects or waits.
+- Whole execution: like `executionDetail`, the file / time scope does not apply (the header says so).
+- Event colours: the read families (`db file sequential|scattered|parallel read`, `direct path read[ temp]`,
+  `direct path write temp`) have fixed tokens (`--ev-*` in `styles/loom.css`); other events a shade of their wait
+  class's role colour in event-id order, so a colour is stable for the document.
+
