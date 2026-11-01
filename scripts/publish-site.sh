@@ -27,7 +27,7 @@ if [ -n "$(git status --porcelain -- site)" ]; then
   exit 1
 fi
 
-SPLIT="$(git subtree split --prefix=site HEAD)"
+SPLIT="$(git subtree split -q --prefix=site HEAD)"
 echo "site/ at $(git rev-parse --short HEAD) -> gh-pages commit ${SPLIT:0:12}"
 
 if [ "$DRY" = 1 ]; then
