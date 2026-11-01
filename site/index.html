@@ -225,6 +225,38 @@
         <img src="img/set-overview.webp" width="2000" height="1250" loading="lazy" alt="A trace set of 21 files: the Files panel lists each file with its share of the time; the overview reads response time 5.330 s over 4 sessions, wall 3.849 s.">
       </figure>
     </div>
+
+    <div class="feature">
+      <div class="feature-text">
+        <h3>Ask Claude Code about a trace</h3>
+        <p><code>mtkprof mcp</code> gives Claude Code, or any MCP client, mtkprof's analysis tools. Describe the problem in your own words with the path of the trace ("slow after 14:05", "the login takes 5 s"). The agent opens the trace, narrows it to the window, session or statement you mean, and answers with sql_ids, waits and trace lines you can check.</p>
+        <ul class="ticks">
+          <li>Set up once: <code>claude mcp add mtkprof -- mtkprof mcp</code></li>
+          <li>Every number comes from a tool call, the same numbers as the report</li>
+          <li>The trace is parsed on your machine, and bind values are masked by default</li>
+        </ul>
+      </div>
+      <figure class="shot agent-shot">
+        <pre class="terminal" aria-label="A Claude Code session analysing io_waits.trc with the mtkprof tools"><span class="p">&gt; </span>The job traced in io_waits.trc felt slow. What did it
+  spend its time on, and which statement is to blame?
+
+<span class="ok">●</span> mtkprof · open_trace  <span class="c">io_waits.trc</span>
+<span class="ok">●</span> mtkprof · statements  <span class="c">limit 5</span>
+<span class="ok">●</span> mtkprof · statement   <span class="c">52nzchs09dgn1</span>
+<span class="ok">●</span> mtkprof · statement   <span class="c">4w3wvjbkvq24v</span>
+
+6.46 s, almost all of it waiting:
+  enq: KO - fast object checkpoint   2.96 s
+  direct path write temp             2.88 s  <span class="c">1,607 writes</span>
+  CPU                                0.34 s
+
+52nzchs09dgn1 is the main culprit: a sort of all
+100,001 rows of mtk_orders spilled to temp, 2.38 s
+of direct path write temp. 4w3wvjbkvq24v, a scan of
+mtk_cust, spent 2.32 s in a single KO wait; its own
+I/O took 1.2 ms. <span class="c">…</span></pre>
+      </figure>
+    </div>
   </div>
 </section>
 
