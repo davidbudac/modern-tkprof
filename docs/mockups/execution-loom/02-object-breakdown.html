@@ -1,0 +1,71 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;color:var(--foreground);font-family:var(--font-sans)}#object-loom{display:grid;gap:16px}h2,h3,p{margin:0}h2{font-size:21px;font-weight:500}h3{font-size:14px;font-weight:500}p{font-size:14px;line-height:1.5}.meta{font-size:12px;color:var(--muted-foreground)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px}.sw{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-inline-end:6px}
+.track{display:grid;gap:3px;border-block-start:1px solid var(--border);padding-block-start:12px}.track svg{display:block;width:100%;height:160px}svg text{font:12px var(--font-sans);fill:var(--foreground)}svg .muted{font-size:11px;fill:var(--muted-foreground)}
+.heading{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.heading span{font-size:12px;color:var(--muted-foreground)}
+.controls{display:flex;gap:8px;flex-wrap:wrap}button{font:inherit;font-size:13px;padding:10px 12px;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius)}button[aria-pressed=true]{background:var(--secondary);border-color:var(--foreground)}button:active{background:var(--accent)}button:focus-visible{outline:2px solid var(--ring);outline-offset:3px}@media(hover:hover) and (pointer:fine){button:hover{background:var(--secondary)}}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}th{font-weight:500}td,th{padding:9px 4px;text-align:end;border-block-end:1px solid var(--border)}td:first-child,th:first-child{text-align:start}
+#detail{display:grid;gap:10px}#finding{border-inline-start:3px solid var(--chart-4);padding-inline-start:12px}
+</style><style>
+:root{color-scheme:light dark;--font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--font-mono:ui-monospace,SFMono-Regular,Consolas,monospace;--radius:7px;--foreground:light-dark(#18202b,#e7e9ed);--background:light-dark(#fafbfc,#111316);--muted-foreground:light-dark(#586174,#a6afbd);--border:light-dark(#d8dde5,#303640);--secondary:light-dark(#e8ecf2,#232933);--accent:light-dark(#dce4ef,#364152);--ring:light-dark(#315cca,#8cb4ff);--code-background:light-dark(#edf0f5,#1c2129);--chart-1:light-dark(#2861d6,#749fff);--chart-2:light-dark(#087d78,#35ccb4);--chart-3:light-dark(#a96408,#edb45d);--chart-4:light-dark(#8040bd,#c088f1)}
+body{background:var(--background);max-width:1000px;margin-inline:auto!important;padding:24px;box-sizing:border-box}*{box-sizing:border-box}
+</style></head><body><main id="object-loom">
+<h2>Execution loom · unfold by object</h2>
+<p class="meta">Same synthetic SELECT example · executions 17 and 18 · illustrative object names</p>
+<p>Keep the complete execution at the top. Underneath, give each object its own thread showing <b>accumulated waits attributed to that object</b>.</p>
+<div class="legend"><span><i class="sw" style="background:var(--chart-2)"></i>Execution 17</span><span><i class="sw" style="background:var(--chart-4)"></i>Execution 18</span></div>
+<div class="track"><div class="heading"><h3>Whole execution</h3><span>Cumulative call elapsed · ms</span></div><svg id="total" role="img" aria-label="The whole execution accumulates 160 versus 620 milliseconds."></svg></div>
+<div class="track"><div class="heading"><h3>ORDERS_CUSTOMER_IX</h3><span>obj#42 · cumulative attributed waits · ms</span></div><svg id="idx" role="img" aria-label="Index waits accumulate 32 versus 36 milliseconds, a four millisecond difference."></svg></div>
+<div class="track"><div class="heading"><h3>ORDERS</h3><span>obj#73 · cumulative attributed waits · ms</span></div><svg id="tbl" role="img" aria-label="Table waits accumulate 80 versus 536 milliseconds, a 456 millisecond difference."></svg></div>
+<p class="meta">All three tracks use the same 0–700 ms scale and the same call checkpoints. Object tracks show waits only; they do not sum to the whole execution.</p>
+<div class="controls" aria-label="Choose a phase"><button type="button" data-phase="0" aria-pressed="false">Execute</button><button type="button" data-phase="1" aria-pressed="true">Fetch 1</button><button type="button" data-phase="2" aria-pressed="false">Fetch 2</button></div>
+<div id="detail" aria-live="polite"><h3 id="detail-title"></h3>
+<table><thead><tr><th>Phase contribution · ms</th><th>Exec 17</th><th>Exec 18</th><th>Extra</th></tr></thead><tbody id="rows"></tbody></table>
+<p id="finding"></p></div>
+<p class="meta">The object tracks would use the object identifiers on attributed WAIT records. Names require a reference mapping. Missing or unresolved object attribution remains visible as unknown.</p>
+</main><script>
+(()=>{
+const root=document.getElementById('object-loom');let phase=1;
+const tracks=[
+{id:'total',a:[0,90,140,160],b:[0,90,600,620]},
+{id:'idx',a:[0,20,28,32],b:[0,20,32,36]},
+{id:'tbl',a:[0,40,72,80],b:[0,40,528,536]}
+];
+const phaseData=[
+{a:[20,40,20,10],b:[20,40,20,10],text:'Neither object contributes additional wait time during Execute. Both complete this phase in 90 ms.'},
+{a:[8,32,8,2],b:[12,488,8,2],text:'Of the 460 ms added by the first fetch, 456 ms is associated with waits on ORDERS and 4 ms with its index. Inspect the table-related wait records first.'},
+{a:[4,8,6,2],b:[4,8,6,2],text:'The final fetch adds no extra time for either object. Its late completion is inherited from Fetch 1.'}
+];
+function t(x,y,str,cls='',anchor='start'){return '<text x="'+x+'" y="'+y+'" class="'+cls+'" text-anchor="'+anchor+'">'+str+'</text>'}
+function draw(){
+tracks.forEach(d=>{
+const s=root.querySelector('#'+d.id),w=s.clientWidth,l=38,r=w-76,top=20,bot=120,x=[l,l+(r-l)/3,l+2*(r-l)/3,r],y=v=>bot-v/700*(bot-top);
+s.setAttribute('viewBox','0 0 '+w+' 160');let out='';
+out+='<rect x="'+x[phase]+'" y="'+top+'" width="'+(x[phase+1]-x[phase])+'" height="'+(bot-top)+'" fill="color-mix(in oklch,var(--foreground) 4%,transparent)"/>';
+for(const n of [0,350,700])out+='<path d="M'+l+' '+y(n)+' H'+r+'" fill="none" stroke="var(--border)"/>'+t(l-7,y(n)+4,n,'muted','end');
+for(const [v,c,dash] of [[d.a,'var(--chart-2)','4 3'],[d.b,'var(--chart-4)','none']]){
+out+='<path d="'+x.map((xx,i)=>(i?'L':'M')+xx+' '+y(v[i])).join(' ')+'" fill="none" stroke="'+c+'" stroke-width="2" stroke-dasharray="'+dash+'"/>';
+x.forEach((xx,i)=>{out+='<circle cx="'+xx+'" cy="'+y(v[i])+'" r="3" fill="'+c+'"/>'});
+}
+if(d.id==='idx'){
+out+=t(r+8,104,'36 / 32 ms','muted')+t(r+8,121,'+4 ms');
+}else{
+out+=t(r+8,y(d.b[3])+4,d.b[3]+' ms')+t(r+8,y(d.a[3])+4,d.a[3]+' ms','muted');
+}
+['Start','Execute','Fetch 1','Fetch 2'].forEach((v,i)=>{out+=t(x[i],148,v,'muted',i===0?'start':i===3?'end':'middle')});
+s.innerHTML=out;
+});
+}
+function update(){
+const d=phaseData[phase];root.querySelector('#detail-title').textContent=['Execute','Fetch 1 · 100 rows','Fetch 2 · 50 rows'][phase];
+const names=['Index waits · #42','Table waits · #73','CPU · not assigned to an object','Unaccounted · not assigned'];
+let h=names.map((v,i)=>'<tr><td>'+v+'</td><td>'+d.a[i]+'</td><td>'+d.b[i]+'</td><td>'+(d.b[i]-d.a[i])+'</td></tr>').join('');
+h+='<tr><th>Total phase elapsed</th><th>'+d.a.reduce((a,b)=>a+b,0)+'</th><th>'+d.b.reduce((a,b)=>a+b,0)+'</th><th>'+d.b.reduce((sum,b,i)=>sum+b-d.a[i],0)+'</th></tr>';
+root.querySelector('#rows').innerHTML=h;root.querySelector('#finding').textContent=d.text;
+root.querySelectorAll('[data-phase]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.phase)===phase)));draw();
+}
+root.querySelectorAll('[data-phase]').forEach(b=>b.addEventListener('click',()=>{phase=Number(b.dataset.phase);update()}));
+new ResizeObserver(draw).observe(root);update();
+})();
+</script></body></html>

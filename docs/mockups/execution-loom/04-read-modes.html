@@ -1,0 +1,100 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--foreground)}#event-loom{display:grid;gap:15px}h2,h3,p{margin:0}h2{font-size:20px;font-weight:500}h3{font-size:14px;font-weight:500}p{font-size:14px;line-height:1.5}.meta{font-size:12px;color:var(--muted-foreground)}
+svg{display:block;width:100%;height:270px}svg text{font:12px var(--font-sans);fill:var(--foreground)}svg .muted{font-size:11px;fill:var(--muted-foreground)}
+.controls{display:flex;gap:8px;flex-wrap:wrap}button{font:inherit;font-size:12px;padding:10px 12px;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius)}button[aria-pressed=true]{background:var(--secondary);border-color:var(--foreground)}button:active{background:var(--accent)}button:focus-visible{outline:2px solid var(--ring);outline-offset:3px}@media(hover:hover) and (pointer:fine){button:hover{background:var(--secondary)}}
+.sw{display:inline-block;width:10px;height:10px;margin-inline-end:7px}
+#selection{padding-inline-start:12px;border-inline-start:3px solid var(--chart-4)}
+.breakdown{display:grid;gap:10px;padding-block-start:14px;border-block-start:1px solid var(--border)}
+.bar{height:20px;display:flex;background:color-mix(in oklch,var(--foreground) 5%,transparent)}.bar span{height:20px;display:block}
+.bar-title{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+.counts{display:flex;flex-wrap:wrap;gap:18px;padding-block-start:12px;border-block-start:1px solid var(--border)}.count{display:grid;gap:5px;font-size:14px}.count span{font-size:12px;color:var(--muted-foreground)}
+
+.mode-section{display:grid;gap:13px;padding-block:14px;border-block:1px solid var(--border)}
+.mode-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px}
+.mode-key{display:inline-block;inline-size:17px;block-size:10px;margin-inline-end:6px;background:color-mix(in oklch,var(--foreground) 65%,transparent)}
+.mode-key.current,.mode-current{background:repeating-linear-gradient(135deg,var(--foreground) 0px,var(--foreground) 2px,var(--secondary) 2px,var(--secondary) 6px)}
+.mode-row{display:grid;grid-template-columns:76px minmax(0,1fr);gap:8px 12px;align-items:center}
+.mode-row strong{font-size:13px;font-weight:500}
+.mode-bar{display:flex;block-size:17px;inline-size:100%;background:var(--secondary)}
+.mode-cr{block-size:17px;background:color-mix(in oklch,var(--foreground) 65%,transparent)}
+.mode-current{block-size:17px}
+.mode-values{grid-column:2;font-size:12px;color:var(--muted-foreground)}
+.mode-note{font-size:12px;color:var(--muted-foreground)}
+</style><style>
+:root{color-scheme:light dark;--font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--font-mono:ui-monospace,SFMono-Regular,Consolas,monospace;--radius:7px;--foreground:light-dark(#18202b,#e7e9ed);--background:light-dark(#fafbfc,#111316);--muted-foreground:light-dark(#586174,#a6afbd);--border:light-dark(#d8dde5,#303640);--secondary:light-dark(#e8ecf2,#232933);--accent:light-dark(#dce4ef,#364152);--ring:light-dark(#315cca,#8cb4ff);--code-background:light-dark(#edf0f5,#1c2129);--chart-1:light-dark(#2861d6,#749fff);--chart-2:light-dark(#087d78,#35ccb4);--chart-3:light-dark(#a96408,#edb45d);--chart-4:light-dark(#8040bd,#c088f1)}
+body{background:var(--background);max-width:1000px;margin-inline:auto!important;padding:24px;box-sizing:border-box}*{box-sizing:border-box}
+</style></head><body><main id="event-loom">
+<h2>Execution loom · read mode + wait event</h2>
+<p class="meta">Synthetic example · read modes at call level · wait events at object level</p>
+
+<section class="mode-section" aria-labelledby="mode-title">
+<h3 id="mode-title">Logical reads · consistent or current?</h3>
+<div class="mode-legend"><span><i class="mode-key"></i>Consistent gets · cr</span><span><i class="mode-key current"></i>Current gets · cu</span></div>
+<div class="mode-row">
+<strong>Execute</strong><div class="mode-bar" role="img" aria-label="Execute: 600 consistent gets, 120 current gets; 83.3 percent consistent, 16.7 percent current."><span class="mode-cr" style="width:83.333333%"></span><span class="mode-current" style="width:16.666667%"></span></div>
+<div class="mode-values">600 consistent · 120 current &nbsp; / &nbsp; 16.7% current</div>
+</div>
+<div class="mode-row">
+<strong>Fetch 1</strong><div class="mode-bar" role="img" aria-label="First fetch: 2400 consistent gets, 12 current gets; 99.5 percent consistent, 0.5 percent current."><span class="mode-cr" style="width:99.502488%"></span><span class="mode-current" style="width:0.497512%"></span></div>
+<div class="mode-values">2,400 consistent · 12 current &nbsp; / &nbsp; 0.5% current</div>
+</div>
+<div class="mode-row">
+<strong>Fetch 2</strong><div class="mode-bar" role="img" aria-label="Second fetch: 600 consistent gets, zero current gets; all consistent."><span class="mode-cr" style="width:100%"></span></div>
+<div class="mode-values">600 consistent · 0 current &nbsp; / &nbsp; 100% consistent</div>
+</div>
+<p class="mode-note">Each bar = 100% of that call’s logical gets, not duration. The narrow current-get portion in Fetch 1 represents 12 gets; it is not zero.</p>
+</section>
+<h3>Recorded wait events · highlight a type</h3><div class="controls" aria-label="Highlight an event">
+<button type="button" data-event="seq" aria-pressed="false"><i class="sw" style="background:var(--chart-1)"></i>Single-block</button>
+<button type="button" data-event="multi" aria-pressed="false"><i class="sw" style="background:var(--chart-2)"></i>Multiblock</button>
+<button type="button" data-event="direct" aria-pressed="true"><i class="sw" style="background:var(--chart-4)"></i>Direct path</button>
+</div>
+<h3>ORDERS · obj#73</h3>
+<svg id="event-plot" role="img" aria-label="Cumulative waits on ORDERS, with coloured segments for single-block, multiblock, and direct-path read waits. Direct-path reads account for 300 milliseconds in the first fetch."></svg>
+<p class="meta">Dashed line = earlier execution’s total object waits. Solid line = slow execution, coloured by event. Within-phase positions illustrate event order, not clock time.</p>
+<p id="selection" aria-live="polite"></p>
+<div class="breakdown">
+<h3>Fetch 1 · attributed wait time by object</h3>
+<div class="bar-title"><span>ORDERS_CUSTOMER_IX · #42</span><span>12 ms</span></div>
+<div class="bar" role="img" aria-label="Index: 12 milliseconds single-block read waits."><span data-segment="seq" style="width:2.4%;background:var(--chart-1)"></span></div>
+<div class="bar-title"><span>ORDERS · #73</span><span>488 ms</span></div>
+<div class="bar" role="img" aria-label="Table: 160 milliseconds single-block reads, 28 milliseconds multiblock reads, 300 milliseconds direct-path reads."><span data-segment="seq" style="width:32%;background:var(--chart-1)"></span><span data-segment="multi" style="width:5.6%;background:var(--chart-2)"></span><span data-segment="direct" style="width:60%;background:var(--chart-4)"></span></div>
+<p class="meta">Shared 0–500 ms scale. Bar segments group events; their left-to-right order is not chronology.</p>
+</div>
+<p class="meta">Fetch 1 also records 64 physical reads. Its cr/cu counts cannot label each coloured WAIT as consistent or current, or assign those logical gets to a particular object. Physical-read counts and logical-get counts are separate measurements.</p>
+</main><script>
+(()=>{
+const root=document.getElementById('event-loom'),s=root.querySelector('#event-plot');let event='direct';
+const colors={seq:'var(--chart-1)',multi:'var(--chart-2)',direct:'var(--chart-4)'};
+const details={
+seq:'db file sequential read · Fetch 1: 160 ms attributed to ORDERS and 12 ms to its index. Select the event records to inspect their block counts and file/block parameters.',
+multi:'db file scattered read · Fetch 1: 28 ms attributed to ORDERS. The event name remains visible alongside the colour.',
+direct:'direct path read · Fetch 1: 300 ms attributed to ORDERS. This measures recorded wait time, not all time spent performing direct I/O.'
+};
+function txt(x,y,str,cls='',anchor='start'){return '<text x="'+x+'" y="'+y+'" class="'+cls+'" text-anchor="'+anchor+'">'+str+'</text>'}
+function draw(){
+const w=s.clientWidth,l=40,r=w-55,top=28,bot=215,x=v=>l+v/3*(r-l),y=v=>bot-v/600*(bot-top);
+s.setAttribute('viewBox','0 0 '+w+' 270');let out=txt(l,14,'Cumulative attributed wait · ms','muted');
+for(const n of [0,200,400,600])out+='<path d="M'+l+' '+y(n)+' H'+r+'" fill="none" stroke="var(--border)"/>'+txt(l-7,y(n)+4,n,'muted','end');
+out+='<rect x="'+x(1)+'" y="'+top+'" width="'+(x(2)-x(1))+'" height="'+(bot-top)+'" fill="color-mix(in oklch,var(--foreground) 4%,transparent)"/>';
+out+='<path d="M'+x(0)+' '+y(0)+' L'+x(1)+' '+y(40)+' L'+x(2)+' '+y(72)+' L'+x(3)+' '+y(80)+'" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-dasharray="4 4"/>';
+const points=[[0,0],[1,40],[1.333,340],[1.666,368],[2,528],[3,536]],events=['seq','direct','multi','seq','seq'];
+for(let i=0;i<events.length;i++){
+const a=points[i],b=points[i+1],key=events[i];
+out+='<path d="M'+x(a[0])+' '+y(a[1])+' L'+x(b[0])+' '+y(b[1])+'" fill="none" stroke="'+colors[key]+'" stroke-width="'+(key===event?5:3)+'" stroke-opacity="'+(key===event?1:.65)+'"/>';
+}
+for(const p of [[0,0],[1,40],[2,528],[3,536]])out+='<circle cx="'+x(p[0])+'" cy="'+y(p[1])+'" r="3" fill="var(--foreground)"/>';
+out+=txt(r+7,y(536)+4,'536 ms')+txt(r+7,y(80)+4,'80 ms','muted');
+['Start','Execute','Fetch 1','Fetch 2'].forEach((v,i)=>out+=txt(x(i),240,v,'muted',i===0?'start':i===3?'end':'middle'));
+s.innerHTML=out;
+}
+function update(key){
+event=key;root.querySelectorAll('[data-event]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.event===key)));
+root.querySelector('#selection').textContent=details[key];root.querySelector('#selection').style.borderInlineStartColor=colors[key];
+root.querySelectorAll('[data-segment]').forEach(e=>e.style.opacity=e.dataset.segment===key?'1':'.55');draw();
+}
+root.querySelectorAll('[data-event]').forEach(b=>b.addEventListener('click',()=>update(b.dataset.event)));
+new ResizeObserver(draw).observe(root);update(event);
+})();
+</script></body></html>

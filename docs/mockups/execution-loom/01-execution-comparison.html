@@ -1,0 +1,74 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--foreground)}#loom-detail{display:grid;gap:16px}h2,h3,p{margin:0}h2{font-size:21px;font-weight:500}h3{font-size:15px;font-weight:500}p{font-size:14px;line-height:1.5}.meta{font-size:12px;color:var(--muted-foreground)}
+pre{margin:0;padding:14px;background:var(--code-background);border-radius:var(--radius);white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--font-mono);font-size:12px}
+svg{display:block;width:100%;height:305px}svg text{font:12px var(--font-sans);fill:var(--foreground)}svg .muted{fill:var(--muted-foreground);font-size:11px}
+.legend,.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.legend{font-size:12px}.swatch{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-inline-end:6px}
+button{font:inherit;font-size:13px;color:var(--foreground);background:transparent;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);touch-action:manipulation}button[aria-pressed=true]{background:var(--secondary);border-color:var(--foreground)}button:active{background:var(--accent)}button:focus-visible{outline:2px solid var(--ring);outline-offset:3px}
+@media(hover:hover) and (pointer:fine){button:hover{background:var(--secondary)}}
+#evidence{display:grid;gap:12px;border-block-start:1px solid var(--border);padding-block-start:16px}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}th{font-weight:500}td,th{padding:8px 4px;text-align:end;border-block-end:1px solid var(--border)}td:first-child,th:first-child{text-align:start}caption{text-align:start;margin-block-end:8px;font-size:12px;color:var(--muted-foreground)}
+#finding{padding-inline-start:12px;border-inline-start:3px solid var(--chart-4)}
+</style><style>
+:root{color-scheme:light dark;--font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--font-mono:ui-monospace,SFMono-Regular,Consolas,monospace;--radius:7px;--foreground:light-dark(#18202b,#e7e9ed);--background:light-dark(#fafbfc,#111316);--muted-foreground:light-dark(#586174,#a6afbd);--border:light-dark(#d8dde5,#303640);--secondary:light-dark(#e8ecf2,#232933);--accent:light-dark(#dce4ef,#364152);--ring:light-dark(#315cca,#8cb4ff);--code-background:light-dark(#edf0f5,#1c2129);--chart-1:light-dark(#2861d6,#749fff);--chart-2:light-dark(#087d78,#35ccb4);--chart-3:light-dark(#a96408,#edb45d);--chart-4:light-dark(#8040bd,#c088f1)}
+body{background:var(--background);max-width:1000px;margin-inline:auto!important;padding:24px;box-sizing:border-box}*{box-sizing:border-box}
+</style></head><body><main id="loom-detail">
+<h2>Execution loom · the slow first fetch</h2>
+<p class="meta">Synthetic example · one SQL · executions 17 and 18 · same bind value · 150 rows each</p>
+<pre>SELECT order_id, total
+FROM orders
+WHERE customer_id = :customer_id
+ORDER BY order_id</pre>
+<p>The cursor is already parsed. Both runs execute, fetch 100 rows, then fetch the remaining 50. Their cumulative database call time is <b>160 ms</b> and <b>620 ms</b>.</p>
+<svg id="plot" role="img" aria-label="Execution 17 reaches 90, 140, and 160 milliseconds at the three checkpoints. Execution 18 reaches 90, 600, and 620 milliseconds. The entire 460 millisecond difference appears in the first fetch."></svg>
+<div class="legend"><span><i class="swatch" style="background:var(--chart-2)"></i>Execution 17 · baseline</span><span><i class="swatch" style="background:var(--chart-4)"></i>Execution 18 · slow</span></div>
+<p class="meta">Horizontal spacing follows call progress. Vertical distance is accumulated delay. Client gaps, parse, and close are outside this example.</p>
+<div class="controls" aria-label="Inspect a phase">
+<button type="button" data-step="0" aria-pressed="false">Execute</button>
+<button type="button" data-step="1" aria-pressed="true">Fetch 1 · 100 rows</button>
+<button type="button" data-step="2" aria-pressed="false">Fetch 2 · 50 rows</button>
+</div>
+<div id="evidence" aria-live="polite">
+<h3 id="stage"></h3>
+<table><caption>Call duration and its components · milliseconds unless marked</caption><thead><tr><th>Evidence</th><th>Exec 17</th><th>Exec 18</th><th>Change</th></tr></thead><tbody id="rows"></tbody></table>
+<p id="finding"></p>
+</div>
+<p class="meta">Read waits in this example: db file sequential read. Wait time is already inside call elapsed time, not added on top. All values are invented to demonstrate the interaction.</p>
+</main><script>
+(()=>{
+const root=document.getElementById('loom-detail'),s=root.querySelector('#plot');let step=1;
+const data=[
+{title:'Execute · no divergence',base:[90,20,60,10,6,0],slow:[90,20,60,10,6,0],finding:'Both executions spend 90 ms here. There is no accumulated difference yet.'},
+{title:'First fetch · the slowdown begins here',base:[50,8,40,2,4,100],slow:[510,8,500,2,4,100],finding:'The full 460 ms increase is in read waits. CPU, rows, and the read-wait count are unchanged. Inspect these four waits and their file/block parameters next; this evidence alone does not identify the underlying I/O problem.'},
+{title:'Second fetch · the gap persists, but does not grow',base:[20,6,12,2,2,50],slow:[20,6,12,2,2,50],finding:'Both final fetches take 20 ms. The lines remain 460 ms apart because of the earlier fetch; this phase adds no further delay.'}
+];
+function text(x,y,str,cls='',anchor='start'){return '<text x="'+x+'" y="'+y+'" class="'+cls+'" text-anchor="'+anchor+'">'+str+'</text>'}
+function draw(){
+const w=s.clientWidth,l=44,r=w-18,t=35,b=238,xs=[l,l+(r-l)/3,l+(r-l)*2/3,r],y=v=>b-v/700*(b-t),a=[0,90,140,160],z=[0,90,600,620];
+s.setAttribute('viewBox','0 0 '+w+' 305');
+let out='<title>Aligned executions, cumulative call time</title><desc>The first fetch causes all 460 milliseconds of additional elapsed time. Selecting a phase reveals its individual call costs.</desc>';
+out+='<rect x="'+xs[step]+'" y="'+t+'" width="'+(xs[step+1]-xs[step])+'" height="'+(b-t)+'" fill="color-mix(in oklch,var(--foreground) 4%,transparent)"/>';
+out+=text(l,16,'Cumulative call elapsed · ms','muted');
+[0,200,400,600].forEach(v=>{out+='<path d="M'+l+' '+y(v)+' H'+r+'" stroke="var(--border)" stroke-width="1"/>'+text(l-7,y(v)+4,String(v),'muted','end')});
+let pts=xs.map((x,i)=>x+','+y(z[i])).concat(xs.map((x,i)=>x+','+y(a[i])).reverse()).join(' ');
+out+='<polygon points="'+pts+'" fill="color-mix(in oklch,var(--chart-4) 9%,transparent)"/>';
+for(const [vals,color] of [[a,'var(--chart-2)'],[z,'var(--chart-4)']]){
+out+='<path d="'+xs.map((x,i)=>(i?'L':'M')+x+' '+y(vals[i])).join(' ')+'" stroke="'+color+'" stroke-width="2.5" fill="none"/>';
+xs.forEach((x,i)=>{out+='<circle cx="'+x+'" cy="'+y(vals[i])+'" r="4" fill="'+color+'"/>'});
+}
+['Start','Execute','Fetch 1','Fetch 2'].forEach((v,i)=>{out+=text(xs[i],262,v,'muted',i===0?'start':i===3?'end':'middle')});
+['','0 rows','100 rows','150 total'].forEach((v,i)=>{out+=text(xs[i],279,v,'muted',i===0?'start':i===3?'end':'middle')});
+out+=text(xs[2],y(600)-15,'+460 ms','','middle');
+out+=text(r-3,y(620)-13,'620 ms','','end')+text(r-3,y(160)-12,'160 ms','','end');
+s.innerHTML=out;
+}
+function update(i){
+step=i;const d=data[i];root.querySelector('#stage').textContent=d.title;
+root.querySelectorAll('[data-step]').forEach(e=>e.setAttribute('aria-pressed',String(Number(e.dataset.step)===i)));
+root.querySelector('#rows').innerHTML=['Call elapsed','CPU','Read waits','Unaccounted time','Read-wait count','Rows returned'].map((name,j)=>'<tr><td>'+name+'</td><td>'+d.base[j]+'</td><td>'+d.slow[j]+'</td><td>'+(d.slow[j]===d.base[j]?'0':'+'+(d.slow[j]-d.base[j]))+'</td></tr>').join('');
+root.querySelector('#finding').textContent=d.finding;draw();
+}
+root.querySelectorAll('[data-step]').forEach(e=>e.addEventListener('click',()=>update(Number(e.dataset.step))));
+new ResizeObserver(draw).observe(root);update(1);
+})();
+</script></body></html>
