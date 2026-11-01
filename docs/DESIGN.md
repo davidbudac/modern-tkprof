@@ -257,6 +257,14 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   user's MCP servers, hooks, plugins and shell switched off, and the engine
   stops a run that tries a shell command, a file change, a web search or
   another MCP server. The user's `~/.codex/AGENTS.md` still applies.
+- `mtkprof mcp` without `MTKPROF_ENGINE` (2026-11-01) is a standalone MCP
+  server for the user's own agent (Claude Code: `claude mcp add mtkprof --
+  mtkprof mcp`): the same tools run in process on traces the agent opens with
+  `open_trace` (one trace set at a time), without the desktop-only `notes`,
+  `current_view` and `show`. Bind values are masked by default with a salt
+  random per server (`-binds keep` to show them). It holds no secret and
+  calls no model; its instructions (`internal/assist/mcp_instructions.md`, the
+  initialize answer) ask for `file:line` citations instead of `mtkprof:` links.
 
 ## Project
 

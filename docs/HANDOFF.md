@@ -6,6 +6,14 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## MCP server for Claude Code (2026-11-01)
+
+- `mtkprof mcp [-binds mask|keep] [trace...]` without `MTKPROF_ENGINE` serves the assistant tools in process
+  (`internal/assist/local.go` `Local`, `MCP.Local`, `MCP.Instructions`; `cmd/mtkprof/mcp.go`); with it set it is the desktop
+  engine's bridge as before. Tools: `open_trace` (answers the overview) plus the analysis tools; `notes`, `current_view`,
+  `show` are not listed. Tests: `TestLocalMCP`, `TestLocalOpenLater`. Verified end-to-end with `claude -p --mcp-config`
+  on `io_waits.trc`. Setup for users: README § "Claude Code".
+
 ## Open in the desktop app (2026-11-01)
 
 - `mtkprof open <trace...> [-app PATH]` (`cmd/mtkprof/open.go`, `TestDesktopCommand`) hands paths to the desktop app:

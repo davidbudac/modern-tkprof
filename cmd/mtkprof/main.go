@@ -47,7 +47,7 @@ Usage:
   mtkprof follow <user@host[:port]> <remote-path> [-o file|-] [-transport auto|cli|lib]   stream a growing trace (tail -f)
   mtkprof follow <user@host[:port]> <remote-path> -serve[=127.0.0.1:8046] [-o file] [-batch-ms 1000]   live report of it in the browser
   mtkprof askpass "<prompt>"                         SSH_ASKPASS helper (asks the engine, else the terminal)
-  mtkprof mcp                                        stdio MCP server of the analysis tools, for a CLI agent (env MTKPROF_ENGINE, MTKPROF_TOKEN, MTKPROF_SESSION, MTKPROF_CONVERSATION)
+  mtkprof mcp [-binds mask|keep] [trace...]           stdio MCP server of the analysis tools for an agent (claude mcp add mtkprof -- mtkprof mcp); the desktop engine sets MTKPROF_ENGINE, MTKPROF_TOKEN, MTKPROF_SESSION, MTKPROF_CONVERSATION
   mtkprof json   <trace...> [-o out.json] [-facts=false] [-packed] [-plan-viz-url URL] [-aggregate]
   mtkprof compare <a.trc> <b.trc> [-n 30] [-o out.txt]   text diff, B against A
   mtkprof html|serve|json <a.trc> <b.trc> -compare ...    both traces + diff (Compare tab)

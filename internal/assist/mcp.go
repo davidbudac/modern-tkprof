@@ -43,14 +43,17 @@ const (
 	rpcInternalError  = -32603
 )
 
-// MCP is a stdio MCP server whose tools live in the engine: tools/list and
-// tools/call are forwarded to its HTTP routes. It speaks line-delimited
+// MCP is a stdio MCP server. Its tools live in the engine (tools/list and
+// tools/call are forwarded to its HTTP routes), or, with Local set, run in
+// process on a trace the server opens itself. It speaks line-delimited
 // JSON-RPC; it never reads anything but the protocol from its input.
 type MCP struct {
 	Engine        string // host:port, or a URL
 	Token         string
 	Session       string
 	Conversation  string
+	Local         *Local       // non-nil: no engine, the tools run here
+	Instructions  string       // the initialize answer's instructions ("" = none)
 	Name, Version string       // serverInfo
 	Client        *http.Client // nil: http.DefaultClient
 	Log           io.Writer    // nil: nothing is logged
@@ -161,11 +164,15 @@ func (s *MCP) handle(ctx context.Context, line []byte, w io.Writer) error {
 			}
 		}
 		s.logf("initialize: client asks for %q, answering %q", p.ProtocolVersion, version)
-		return reply(map[string]any{
+		res := map[string]any{
 			"protocolVersion": version,
 			"capabilities":    map[string]any{"tools": map[string]any{"listChanged": false}},
 			"serverInfo":      map[string]any{"name": s.Name, "version": s.Version},
-		})
+		}
+		if s.Instructions != "" {
+			res["instructions"] = s.Instructions
+		}
+		return reply(res)
 	case "ping":
 		return reply(struct{}{})
 	case "tools/list":
@@ -241,6 +248,9 @@ func engineError(status int, body []byte) string {
 }
 
 func (s *MCP) listTools(ctx context.Context) (json.RawMessage, error) {
+	if s.Local != nil {
+		return json.Marshal(s.Local.Infos())
+	}
 	status, body, err := s.do(ctx, http.MethodGet, ToolsPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("engine: %v", err)
@@ -264,6 +274,17 @@ func (s *MCP) listTools(ctx context.Context) (json.RawMessage, error) {
 func (s *MCP) callTool(ctx context.Context, name string, args json.RawMessage) mcpToolResult {
 	toolErr := func(format string, a ...any) mcpToolResult {
 		return mcpToolResult{Content: []mcpContent{{"text", fmt.Sprintf(format, a...)}}, IsError: true}
+	}
+	if s.Local != nil {
+		res, err := s.Local.Call(ctx, name, args)
+		var ae *ArgError
+		switch {
+		case errors.As(err, &ae):
+			return toolErr("%s", ToolErrorText(ae.Msg))
+		case err != nil:
+			return toolErr("error: %v", err)
+		}
+		return mcpToolResult{Content: []mcpContent{{"text", string(res.JSON)}}}
 	}
 	if s.Session == "" {
 		return toolErr("%s is not set: the tools have no trace to read", EnvSession)
