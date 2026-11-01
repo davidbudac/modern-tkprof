@@ -70,7 +70,10 @@ in the UI is reachable from the CLI.
   (CPU plus waits per event, top 10, the rest folded; or per class) is the
   alternative time view. Statements is a workbench: ranked list, the
   statement's tkprof table/plan/executions in the centre, context on the
-  right. Chrome is neutral (IBM Plex); hue is reserved for wait classes.
+  right. Chrome is neutral (IBM Plex); hue is reserved for wait classes
+  (and CPU). Call phases (PARSE / EXEC / FETCH / CLOSE / other) are shades
+  of one neutral ramp, so a phase bar never reads as a wait class beside
+  the wait strips.
   UI, findings and CLI text state facts only: numbers, names, terse fragments;
   no narration, no remedies or advice (plan advisor suggestions are not shown).
 - `json` and `export` (CSV tables) for other tools.

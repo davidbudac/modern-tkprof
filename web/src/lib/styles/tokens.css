@@ -25,6 +25,13 @@
   --c-other: light-dark(#6250d6, #9085e9);
   --c-idle: light-dark(oklch(78% 0.01 240), oklch(42% 0.01 240));
   --c-unaccounted: light-dark(oklch(90% 0.006 240), oklch(30% 0.008 240));
+  /* call phases: one neutral slate ramp (darkest = FETCH in light, lightest in dark), so hue
+     only ever means a resource / wait class; validated as an ordinal ramp against both surfaces */
+  --c-phase-fetch: light-dark(oklch(27% 0.02 255), oklch(90% 0.02 255));
+  --c-phase-exec: light-dark(oklch(40% 0.02 255), oklch(78% 0.02 255));
+  --c-phase-parse: light-dark(oklch(53% 0.02 255), oklch(66% 0.02 255));
+  --c-phase-other: light-dark(oklch(65% 0.02 255), oklch(54% 0.02 255));
+  --c-phase-close: light-dark(oklch(77% 0.02 255), oklch(43% 0.02 255));
   --c-grid: light-dark(#e1e0d9, #2c2c2a);
   --c-axis: light-dark(#c3c2b7, #383835);
 

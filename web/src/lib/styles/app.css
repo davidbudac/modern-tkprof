@@ -238,6 +238,22 @@ button[aria-pressed="true"] .cue { color: inherit; opacity: 0.7; }
 .lane .span::after { content: ""; position: absolute; inset: -0.45rem -3px; } /* hit area wider than a thin bar */
 .lane .span, .lane .wspan { cursor: pointer; }
 .strip { display: block; inline-size: 100%; border-block-end: 1px solid var(--hairline); }
+.lane-label.strip span { color: var(--ink-2); }
+/* the session's strips are set apart from the statement lanes: a band of page (it covers the grid) over a stronger rule */
+.lanes-sep { position: relative; background: var(--surface); border-block-end: 1px solid var(--hairline-strong); display: flex; align-items: flex-end; }
+.lanes-labels .lanes-sep span { font-size: var(--text-xs); color: var(--ink-3); padding-block-end: 0.15rem; }
+.lanes-plot .lanes-sep { margin-inline: -1px; } /* over the grid's edge lines too */
+.strip.first { background: color-mix(in oklch, var(--surface-sunken) 50%, transparent); }
+.lanes-waitstats { border-collapse: collapse; font-size: var(--text-sm); margin-block-start: var(--sp-1); inline-size: fit-content; }
+.lanes-waitstats.stale { opacity: 0.6; transition: opacity var(--dur); }
+.lanes-waitstats th { font-weight: 500; color: var(--ink-2); text-align: end; padding: 0.15rem 0 0.25rem var(--sp-5); border-block-end: 1px solid var(--hairline); white-space: nowrap; }
+.lanes-waitstats th:first-child, .lanes-waitstats td:first-child { text-align: start; padding-inline-start: 0; }
+.lanes-waitstats td { padding: 0.12rem 0 0.12rem var(--sp-5); text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lanes-waitstats td:first-child { color: var(--ink); }
+.lanes-waitstats .swatch { display: inline-block; margin-inline-end: 0.45rem; vertical-align: -1px; }
+.lanes-waitstats tr.rest td { color: var(--ink-3); }
+.lanes-waitstats tr.row-click { cursor: pointer; }
+@media (hover: hover) and (pointer: fine) { .lanes-waitstats tr.row-click:hover td { background: var(--wash); } }
 .brush { position: absolute; inset-block: 0; background: color-mix(in oklch, var(--c-cpu) 9%, transparent); border-inline: 1px solid var(--c-cpu); pointer-events: none; }
 .brush b { position: absolute; inset-block-end: 0.2rem; inset-inline-start: 0.35rem; font-size: var(--text-xs); color: var(--c-cpu); font-weight: 500; white-space: nowrap; }
 .brush b .brush-clear { pointer-events: auto; margin-inline-start: 0.4rem; padding: 0 0.3rem; border: 0; background: none; color: inherit; font: inherit; line-height: 1; cursor: pointer; }
