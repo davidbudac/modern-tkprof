@@ -22,12 +22,11 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   `desktop/scripts/release-local.sh <tag>` on a Mac uploads the installers to that release. The app's About/releases link
   points at this repo's releases.
 - `cargo fmt` had drifted in the desktop repo (`menu.rs`, `open.rs`, …); formatted on the way.
-- **Open:** the uncommitted lib work in the old checkout `~/claude_projects/mtkprof-desktop/engine` (2026-11-02 07:34:
-  new `web/src/lib/components/phaseBrush.ts`, edits to `Timeline.tsx`, `Lanes.tsx`, `callkinds.ts`, `tokens.css`,
-  `timeline.css`) was left alone; the paths are the same here, so `git -C ~/claude_projects/mtkprof-desktop/engine diff`
-  plus the untracked file apply as is. Archive `davidbudac/mtkprof-desktop` on GitHub after that. Two user guides exist
-  (`docs/DESKTOP.md`, `desktop/docs/DESKTOP.md`); merge them. After the move `desktop/scripts/ci-local.sh --only checks,macos --arm64`
-  passed (DMG + smoke, 2026-11-02); not run: the Docker legs (Linux, Windows) and macOS x64.
+- Done on 2026-11-02: the uncommitted lib work of the old checkout `~/claude_projects/mtkprof-desktop/engine` (phase
+  brushes) is `ed0225b` here; the two user guides are one, `docs/DESKTOP.md` (conflicts settled against the code).
+- **Open:** archive `davidbudac/mtkprof-desktop` on GitHub (all its branches are in its `main`; add a "moved" note to its
+  README first; v0.3.1 is its only release). Not run after the move: the Docker legs (Linux, Windows) and macOS x64 of
+  `desktop/scripts/ci-local.sh` (checks + macOS arm64 DMG and smoke passed on 2026-11-02).
 
 ## Execution Loom (2026-11-01)
 
@@ -66,7 +65,7 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 - Desktop side (desk: `src-tauri/src/open.rs`, `lib.rs`, `tauri.conf.json` `fileAssociations` for `.trc`): argv of the
   launch, argv of a second launch (single-instance plugin), macOS `RunEvent::Opened` are queued as trace sets; the UI takes
   them (`take_open_requests`, event `app://open`) after the tab restore once the engine is ready and opens each with
-  `Workspace.openOrShow` (an already open set gets its tab shown). User guide: `docs/DESKTOP.md` § Workspace.
+  `Workspace.openOrShow` (an already open set gets its tab shown). User guide: `docs/DESKTOP.md` § Opening traces.
 - Verified on macOS with the separate test app (`scripts/build-and-run-test.sh`): cold start with two files, a folder
   into the running app, the same set again (tab shown, no duplicate). Windows and Linux not run.
 

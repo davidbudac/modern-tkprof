@@ -9,7 +9,7 @@ root: `go.mod`, `cmd/mtkprof`, `internal/`, `api/`) and the shared UI library (`
 Until 2026-11-02 it was the separate repository `davidbudac/mtkprof-desktop` (archived, with the
 older history) that pinned the engine as a git submodule.
 
-User notes (install, unsigned-build bypass, tabs, cache, settings): [docs/DESKTOP.md](docs/DESKTOP.md).
+User guide (install, unsigned-build bypass, tabs, connections, assistant, settings, cache, files): [../docs/DESKTOP.md](../docs/DESKTOP.md).
 
 ```
 src/            desktop UI (React/TS); imports the shared UI library as @lib
@@ -235,7 +235,7 @@ versions match and the release exists without installers; it runs all legs of `c
 uploads `out/*` (their checksums as `SHA256SUMS-desktop`) and appends the checksums to the
 release notes. It never creates or pushes the tag. There is no updater: About shows the version
 and links to the [releases page](https://github.com/davidbudac/modern-tkprof/releases); releases
-up to v0.4.0 are on the archived
+v0.3.1 and earlier are on the archived
 [mtkprof-desktop releases page](https://github.com/davidbudac/mtkprof-desktop/releases).
 
 The builds are not signed:
