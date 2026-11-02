@@ -20,8 +20,9 @@ Opening the files directly (`file://`) also works.
 - the standalone UI: `mtkprof html testdata/traces/19c/io_waits.trc` and
   `mtkprof html testdata/sets/workload`, captured with headless Chromium at
   1440×900, device scale 2, then `cwebp -q 82 -resize 2000 0`;
-- `desktop-dark.webp`: the macOS smoke screenshot of mtkprof-desktop
-  (`out-smoke/macos-arm64-ready.png`) with the menu bar cropped off.
+- `desktop-dark.webp`: the macOS smoke screenshot of the desktop app
+  (`desktop/out-smoke/macos-arm64-ready.png`, from `desktop/scripts/smoke.sh`)
+  with the menu bar cropped off.
 
 Retake them when the UI changes visibly. The hero window on the landing page
 shows lines 6878–6891 of `testdata/traces/19c/io_waits.trc` verbatim (the
@@ -37,7 +38,8 @@ class. Weights 400–500 (600 for the wordmark), spacing on a 4px grid.
 ## Content
 
 The docs page is a condensed user guide. Its sources of truth are
-`README.md`, `docs/DESKTOP.md`, `docs/REMOTE.md` and `docs/REF-BUNDLE.md`;
+`README.md`, `docs/DESKTOP.md`, `docs/REMOTE.md`, `docs/REF-BUNDLE.md` and
+`desktop/README.md` (building the app);
 when a command, flag or behaviour changes there, update `docs.html` too.
 
 ## Publishing
