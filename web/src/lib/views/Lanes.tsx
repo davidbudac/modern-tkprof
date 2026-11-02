@@ -10,7 +10,7 @@ import { useStore, useActions, useStoreApi } from '../state/session'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { StmtLink } from '../components/StmtLink'
 import { dominantRole, foldTimeline, type PhaseSpan2, type Span2, type TimelineSeries, type WaitSpan2 } from '../data/derive'
-import { kindGroups, groupIndex } from '../data/callkinds'
+import { kindGroups, groupIndex, phaseBackground } from '../data/callkinds'
 import { ticks, zoomedAxis } from '../data/scale'
 import { roleLabel, roleOfClass, roleOrder, type Role } from '../components/colors'
 import '../styles/timeline.css'
@@ -253,7 +253,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
     {colorBy === 'phase' && (
       <div className="lane-legend lanes-legend" role="list" aria-label="Call kinds">
         {kindGroups.map((g) => (
-          <span className="k" role="listitem" key={g.id}><i className="swatch" style={{ background: `var(${g.token})` }} />{g.label}</span>
+          <span className="k" role="listitem" key={g.id}><i className="swatch phase-swatch" style={{ background: phaseBackground(g.id) }} />{g.label}</span>
         ))}
       </div>
     )}
@@ -290,7 +290,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
           <div key={l.st.id} className="lane" style={{ height: laneH }}>
             {l.phases
               ? l.phases.filter(inAxis).map((s, i) => (
-                <i key={i} className={'span' + (isPicked(l.st.id, s.start, s.end) ? ' on' : '')} data-stmt={l.st.id} data-start={s.start} data-end={s.end} style={{ ...clip(s), background: `var(${kindGroups[groupIndex[s.kind]].token})` }}
+                <i key={i} className={'span' + (isPicked(l.st.id, s.start, s.end) ? ' on' : '')} data-stmt={l.st.id} data-start={s.start} data-end={s.end} style={{ ...clip(s), background: phaseBackground(kindGroups[groupIndex[s.kind]].id) }}
                   title={`${l.label} · ${phaseBreakdown(s)} · ${wall(s.start)} → ${wall(s.end)} · ${fmtDur(s.end - s.start)}${BAR_HINT}`} />
               ))
               : l.spans.filter(inAxis).map((s, i) => (

@@ -7,7 +7,8 @@ import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
 import { LineRef } from '../components/LineRef'
 import { callKindName, NONE, type ID } from '../data/types'
-import { groupIndex, groupOf, kindGroups } from '../data/callkinds'
+import { groupIndex, groupOf, kindGroups, phaseBackground } from '../data/callkinds'
+import { phasePattern } from '../components/phaseBrush'
 import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
 import { scopeOf } from '../state/store'
 import { useAxis, useScopedStatements } from '../data/scopedstmts'
@@ -15,7 +16,6 @@ import { useStore, useActions } from '../state/session'
 import { sourceOf, useSourceQuery, type Bar } from '../data/source'
 import { Chart } from '../components/Chart'
 import { DataTable, type Column } from '../components/DataTable'
-import { resolveVar } from '../components/colors'
 import { Minimap } from '../components/Minimap'
 import { WindowBar } from '../components/WindowBar'
 import { NoteEditor, NoteBox } from '../components/Note'
@@ -74,8 +74,8 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
     const inAxis = win && win.endTim > axis.base && win.startTim < axis.base + axis.span ? win : null // a window narrows the selection's range further
     const xMin = (inAxis ? Math.max(inAxis.startTim, axis.base) : axis.base) - base
     const xMax = (inAxis ? Math.min(inAxis.endTim, axis.base + axis.span) : axis.base + axis.span) - base
-    const colorCache: string[] = []
-    const colorOf = (g: number) => (colorCache[g] ??= resolveVar(kindGroups[g].token))
+    const colorCache: ReturnType<typeof phasePattern>[] = []
+    const colorOf = (g: number) => (colorCache[g] ??= phasePattern(g))
     const renderItem = (params: CustomSeriesRenderItemParams, api: CustomSeriesRenderItemAPI): CustomSeriesRenderItemReturn => {
       if (params.dataIndex === 0) colorCache.length = 0 // re-resolve colors on every (re)render, e.g. after a theme switch
       const lane = api.value(0) as number, start = api.value(1) as number, end = api.value(2) as number
@@ -182,7 +182,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
         <Minimap doc={doc} height={40} />
         <div className="lane-legend" role="list" aria-label="Call kinds">
           {kindGroups.map((g) => (
-            <span className="k" role="listitem" key={g.id}><i className="swatch" style={{ background: `var(${g.token})` }} />{g.label}</span>
+            <span className="k" role="listitem" key={g.id}><i className="swatch phase-swatch" style={{ background: phaseBackground(g.id) }} />{g.label}</span>
           ))}
         </div>
         {picked.rows.length === 0

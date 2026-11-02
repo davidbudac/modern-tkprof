@@ -32,6 +32,20 @@
   --c-phase-parse: light-dark(oklch(53% 0.02 255), oklch(66% 0.02 255));
   --c-phase-other: light-dark(oklch(65% 0.02 255), oklch(54% 0.02 255));
   --c-phase-close: light-dark(oklch(77% 0.02 255), oklch(43% 0.02 255));
+  /* call-phase brushes, so a phase reads by texture as well as by shade (as the Loom's consistent/current
+     modes do): PARSE `/`, EXEC `\`, FETCH solid, CLOSE `|`, other crosshatch. The stripe ink sits ~28 points
+     of lightness away from its fill on the far side of the ramp, so it stays visible at both ends. Mirrored for
+     canvas in components/phaseBrush.ts. */
+  --c-phase-parse-ink: light-dark(oklch(81% 0.02 255), oklch(38% 0.02 255));
+  --c-phase-exec-ink: light-dark(oklch(70% 0.02 255), oklch(50% 0.02 255));
+  --c-phase-close-ink: light-dark(oklch(50% 0.02 255), oklch(71% 0.02 255));
+  --c-phase-other-ink: light-dark(oklch(88% 0.02 255), oklch(28% 0.02 255));
+  --b-phase-parse: repeating-linear-gradient(135deg, transparent 0 2.6px, var(--c-phase-parse-ink) 2.6px 4.25px);
+  --b-phase-exec: repeating-linear-gradient(45deg, transparent 0 2.6px, var(--c-phase-exec-ink) 2.6px 4.25px);
+  --b-phase-fetch: none;
+  --b-phase-close: repeating-linear-gradient(90deg, transparent 0 4.5px, var(--c-phase-close-ink) 4.5px 6px);
+  --b-phase-other: repeating-linear-gradient(45deg, transparent 0 3px, var(--c-phase-other-ink) 3px 4.25px),
+    repeating-linear-gradient(135deg, transparent 0 3px, var(--c-phase-other-ink) 3px 4.25px);
   --c-grid: light-dark(#e1e0d9, #2c2c2a);
   --c-axis: light-dark(#c3c2b7, #383835);
 
