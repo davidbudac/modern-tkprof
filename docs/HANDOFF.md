@@ -13,7 +13,8 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   root, `web/` (CLI UI, shared lib `web/src/lib`), `desktop/` (Tauri app, imports the lib as `@lib` from `../web/src/lib`,
   builds its sidecar from `../cmd/mtkprof`). Agent notes: `CLAUDE.md`, `desktop/CLAUDE.md`.
 - One pnpm workspace at the root (`pnpm-workspace.yaml`: `web`, `desktop`; a catalog for React, Vite, TypeScript, Vitest,
-  the React/Node types; one `pnpm-lock.yaml`, seeded from the old `web/` lockfile so the embedded UI builds byte-identical).
+  the React/Node types; one `pnpm-lock.yaml`, merged from both old lockfiles so nothing moved: the embedded UI builds byte-identical, and
+  the Tauri npm plugins stay on the versions of the Rust crates, which `tauri build` checks).
   Gone: the submodule, `check:deps`, the "Pin engine at" commits, the desktop's own lockfile.
 - CI: `scripts/ci-local.sh` also runs the desktop checks (api types, `cargo fmt`, typecheck, tests; `--no-desktop`);
   installers stay `desktop/scripts/ci-local.sh` (Docker legs mount the whole repository at `/src`). Releases: one version,
@@ -25,8 +26,8 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   new `web/src/lib/components/phaseBrush.ts`, edits to `Timeline.tsx`, `Lanes.tsx`, `callkinds.ts`, `tokens.css`,
   `timeline.css`) was left alone; the paths are the same here, so `git -C ~/claude_projects/mtkprof-desktop/engine diff`
   plus the untracked file apply as is. Archive `davidbudac/mtkprof-desktop` on GitHub after that. Two user guides exist
-  (`docs/DESKTOP.md`, `desktop/docs/DESKTOP.md`); merge them. Not run after the move: the Docker legs (Linux, Windows)
-  and the macOS installer leg of `desktop/scripts/ci-local.sh`.
+  (`docs/DESKTOP.md`, `desktop/docs/DESKTOP.md`); merge them. After the move `desktop/scripts/ci-local.sh --only checks,macos --arm64`
+  passed (DMG + smoke, 2026-11-02); not run: the Docker legs (Linux, Windows) and macOS x64.
 
 ## Execution Loom (2026-11-01)
 
