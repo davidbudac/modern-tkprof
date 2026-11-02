@@ -24,8 +24,8 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 - `cargo fmt` had drifted in the desktop repo (`menu.rs`, `open.rs`, …); formatted on the way.
 - Done on 2026-11-02: the uncommitted lib work of the old checkout `~/claude_projects/mtkprof-desktop/engine` (phase
   brushes) is `ed0225b` here; the two user guides are one, `docs/DESKTOP.md` (conflicts settled against the code).
-- **Open:** archive `davidbudac/mtkprof-desktop` on GitHub (all its branches are in its `main`; add a "moved" note to its
-  README first; v0.3.1 is its only release). Not run after the move: the Docker legs (Linux, Windows) and macOS x64 of
+- `davidbudac/mtkprof-desktop` is archived on GitHub (2026-11-02; README "moved" note `cda0d19`; all its branches were in
+  its `main`; v0.3.1 is its only release). **Open:** not run after the move: the Docker legs (Linux, Windows) and macOS x64 of
   `desktop/scripts/ci-local.sh` (checks + macOS arm64 DMG and smoke passed on 2026-11-02).
 
 ## Execution Loom (2026-11-01)
