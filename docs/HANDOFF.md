@@ -25,8 +25,12 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 - Done on 2026-11-02: the uncommitted lib work of the old checkout `~/claude_projects/mtkprof-desktop/engine` (phase
   brushes) is `ed0225b` here; the two user guides are one, `docs/DESKTOP.md` (conflicts settled against the code).
 - `davidbudac/mtkprof-desktop` is archived on GitHub (2026-11-02; README "moved" note `cda0d19`; all its branches were in
-  its `main`; v0.3.1 is its only release). **Open:** not run after the move: the Docker legs (Linux, Windows) and macOS x64 of
-  `desktop/scripts/ci-local.sh` (checks + macOS arm64 DMG and smoke passed on 2026-11-02).
+  its `main`; v0.3.1 is its only release).
+- **v0.5.0** released on 2026-11-02 from `202d152`, the first from one repository: CLI binaries + `SHA256SUMS` and the
+  desktop installers (DMG arm64/x64, deb, AppImage, NSIS) + `SHA256SUMS-desktop` in one GitHub release, notes in
+  `docs/releases/v0.5.0.md`. Every leg of `desktop/scripts/ci-local.sh` passed (smoke on macOS arm64/x64 and Linux; the
+  Windows installer is cross-built and untested). The Docker legs leave the pnpm store in `/.pnpm-store/` (ignored, 183 MB,
+  a cache; safe to delete).
 
 ## Execution Loom (2026-11-01)
 
