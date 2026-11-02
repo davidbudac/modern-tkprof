@@ -106,7 +106,7 @@ chmod +x mtkprof-linux-amd64 &amp;&amp; mv mtkprof-linux-amd64 ~/bin/mtkprof
 mtkprof version</pre>
 
 <h3>The desktop app</h3>
-<p>Installers are on the <a href="https://github.com/davidbudac/mtkprof-desktop/releases">desktop releases page</a>. See <a href="#desktop-install">Install and first start</a> below; the builds are not signed, so the first start needs one extra click.</p>
+<p>Installers are on the same <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>, under the same tag as the binaries, from v0.5.0; v0.3.1 and earlier are on the archived <a href="https://github.com/davidbudac/mtkprof-desktop/releases">mtkprof-desktop releases page</a>. See <a href="#desktop-install">Install and first start</a> below; the builds are not signed, so the first start needs one extra click.</p>
 
 <!-- ================================================================ -->
 <h2 id="tracing">Tracing a session<a class="anchor" href="#tracing" aria-label="Link to this section">#</a></h2>
@@ -461,6 +461,12 @@ make web            <span class="c"># rebuild the UI and embed it</span>
 make release        <span class="c"># dist/mtkprof-&lt;os&gt;-&lt;arch&gt; for every target + SHA256SUMS</span>
 
 GOOS=aix GOARCH=ppc64 go build -o mtkprof-aix ./cmd/mtkprof</pre>
+<h3>The desktop app</h3>
+<p>The app lives in <code>desktop/</code> of the same repository and builds its engine from the same source, so the two always match. It also needs Rust (stable, via rustup) and Node 22+ with pnpm; <a href="https://github.com/davidbudac/modern-tkprof/blob/main/desktop/README.md"><code>desktop/README.md</code></a> lists the system packages per platform.</p>
+<pre>pnpm install                      <span class="c"># once, at the root: one workspace for web/ and desktop/</span>
+cd desktop
+pnpm tauri build                  <span class="c"># installers under src-tauri/target/release/bundle/</span>
+scripts/build-mac-quick.sh --app  <span class="c"># macOS: just the .app, for a quick test</span></pre>
 
 <!-- ================================================================ -->
 <h2 id="more">Further reading<a class="anchor" href="#more" aria-label="Link to this section">#</a></h2>
