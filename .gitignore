@@ -14,3 +14,5 @@
 /mtkprof.exe
 # pnpm workspace (web/, desktop/)
 /node_modules/
+# pnpm store of the Docker CI legs (desktop/scripts/ci-local.sh mounts the repository at /src)
+/.pnpm-store/
