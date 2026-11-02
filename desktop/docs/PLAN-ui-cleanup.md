@@ -1,5 +1,7 @@
 # UI cleanup: buttons vs facts, grouping, fewer screen jumps
 
+> Written before the 2026-11-02 merge, when this app was the repository `mtkprof-desktop` and pinned the engine as the submodule `engine/`: read `engine/X` as `X` at the repository root (`web/src/lib`, `internal/`, `api/`, `testdata/`); the pin, `git submodule` and `check:deps` steps no longer exist.
+
 From a walkthrough on 2026-10-30 (dev browser mode, engine v0.4.0-27-ge54fd67, the three-file set
 `multisession_a.trc` + `multisession_b.trc` + `basic_binds.trc` and `io_waits.trc` in a second tab,
 every view and page, 1440 and 1024 px). Screenshots of the walkthrough are in `/tmp/mtk-shots/`

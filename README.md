@@ -63,7 +63,7 @@ Details: `docs/REMOTE.md`, `docs/ARCHITECTURE.md` ("Live sessions").
 
 ### Engine (desktop app backend)
 
-`mtkprof engine` is the local backend of the desktop app (`mtkprof-desktop`):
+`mtkprof engine` is the local backend of the desktop app (`desktop/`):
 one process that holds several open traces, answers the same `/api/*`
 endpoints as `serve -spill` for each of them at `/s/{id}/`, and keeps an
 index of every trace it has opened, so opening it again takes milliseconds.
@@ -102,8 +102,8 @@ not. `mtkprof mcp <trace...>` opens those traces on the first tool call.
 
 ### Desktop app
 
-The desktop app (private repo `davidbudac/mtkprof-desktop`, a Tauri shell that
-runs `mtkprof engine` as a sidecar and pins this repo as a submodule) opens
+The desktop app ([`desktop/`](desktop/README.md), a Tauri shell that runs
+`mtkprof engine` as a sidecar and shares the UI library with the CLI) opens
 traces in tabs, fetches them over ssh or from the database, and adds Lines,
 notes, reports and saved pivots. Install, unsigned-build steps and a guide:
 [`docs/DESKTOP.md`](docs/DESKTOP.md); remote access and grants:

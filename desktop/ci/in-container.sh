@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Runs inside the mtkprof-ci image with the repo at /src (see scripts/ci-local.sh, which owns the
+# Runs inside the mtkprof-ci image with the repository at /src, this app at /src/desktop (see scripts/ci-local.sh, which owns the
 # docker run and the volumes). usage: ci/in-container.sh <linux|windows> [--skip-smoke] [--no-appimage]
 # Records its steps in $CI_RESULTS; exits non-zero when a required step failed.
 set -uo pipefail
-cd /src
+cd /src/desktop
 . ci/lib.sh
 
 leg=${1:?usage: in-container.sh <linux|windows> [--skip-smoke] [--no-appimage]}
@@ -17,7 +17,7 @@ for a in "$@"; do
   esac
 done
 
-# the Mac's node_modules does not apply here: /src/node_modules is a volume
+# the Mac's node_modules do not apply here: /src/node_modules, /src/{web,desktop}/node_modules are volumes
 run_step "$leg: pnpm install" pnpm install --frozen-lockfile || exit 1
 
 linux() {

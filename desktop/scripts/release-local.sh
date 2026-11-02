@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# Publish a release from this machine (no GitHub Actions: CI is local by decision, see README).
-# usage: scripts/release-local.sh <tag> [--dry-run] [--check-only] [--notes-file FILE] [--no-appimage]
+# Add the desktop installers to a release, from a Mac (no GitHub Actions: CI is local by decision).
+# usage: scripts/release-local.sh <tag> [--dry-run] [--check-only] [--no-appimage]
 #
+# One version for the CLI and the app: the repository's scripts/release-local.sh <tag> creates the
+# GitHub release <tag> with the CLI binaries (and runs this script with --check-only first); this
+# script then builds the installers and uploads them to that release.
 # Refuses unless: the working tree is clean, HEAD is exactly <tag> (annotated or lightweight) and
 # the app version in package.json, src-tauri/Cargo.toml (+ Cargo.lock) and tauri.conf.json
-# matches the tag. Then runs scripts/ci-local.sh with every leg and smoke, and creates the GitHub
-# release as a prerelease with everything in out/ (installers + SHA256SUMS).
-# It never creates or pushes the tag: `git tag -a vX.Y.Z && git push origin vX.Y.Z` first
-# (gh release create --verify-tag fails when the tag is not on GitHub).
-#   --dry-run     everything except `gh release create` (prints the command and the notes)
+# matches the tag. Then runs scripts/ci-local.sh with every leg and smoke, and uploads everything
+# in out/ (the installers, their SHA256SUMS as SHA256SUMS-desktop) and adds the installers'
+# checksums to the release notes. It never creates or pushes the tag or creates the release.
+#   --dry-run     everything except the upload (prints the commands and the notes addition)
 #   --check-only  only the checks above, no build
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -17,12 +19,11 @@ export PATH
 
 die() { echo "release-local: $*" >&2; exit 1; }
 
-tag= dry=0 check_only=0 notes= ci_args=() want_appimage=1
+tag= dry=0 check_only=0 ci_args=() want_appimage=1
 while [ $# -gt 0 ]; do
   case $1 in
     --dry-run) dry=1 ;;
     --check-only) check_only=1 ;;
-    --notes-file) notes=${2:?--notes-file needs a file}; shift ;;
     --no-appimage) ci_args+=(--no-appimage); want_appimage=0 ;;
     -h | --help) sed -n '2,/^set -u/p' "$0" | sed '$d;s/^# \{0,1\}//'; exit 0 ;;
     -*) die "unknown option $1" ;;
@@ -30,10 +31,9 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-[ -n "$tag" ] || die "usage: scripts/release-local.sh <tag> [--dry-run] [--notes-file FILE]"
+[ -n "$tag" ] || die "usage: scripts/release-local.sh <tag> [--dry-run] [--check-only] [--no-appimage]"
 case $tag in v[0-9]*.[0-9]*.[0-9]*) ;; *) die "tag '$tag' is not vX.Y.Z" ;; esac
 ver=${tag#v}
-[ -z "$notes" ] || [ -f "$notes" ] || die "notes file $notes not found"
 
 # ---- 1. the tag, the tree, the versions ----
 git rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "tag $tag does not exist locally; create it on the release commit (this script never tags or pushes)"
@@ -59,7 +59,8 @@ if [ $dry -eq 0 ]; then
   gh auth status >/dev/null 2>&1 || die "gh is not logged in (gh auth login)"
   git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1 \
     || die "tag $tag is not on origin; push it first (git push origin $tag). Not done here on purpose"
-  ! gh release view "$tag" >/dev/null 2>&1 || die "a release $tag already exists on GitHub"
+  gh release view "$tag" >/dev/null 2>&1 || die "no release $tag on GitHub; publish the CLI first (scripts/release-local.sh $tag at the repository root)"
+  ! gh release view "$tag" --json assets -q '.assets[].name' | grep -q '\.dmg$' || die "release $tag already has installers"
 fi
 
 # ---- 2. build everything ----
@@ -73,29 +74,27 @@ for pat in "${req[@]}"; do
   ls out/$pat >/dev/null 2>&1 || die "out/ has no $pat; refusing a partial release"
 done
 
-# ---- 3. notes and release ----
-if [ -z "$notes" ]; then
-  notes=out-logs/release-notes.md
-  prev=$(git describe --tags --abbrev=0 "$tag^" 2>/dev/null || true)
-  {
-    echo "mtkprof desktop $ver. Engine: $(git -C engine describe --tags --always) ($(git -C engine rev-parse --short HEAD))."
-    echo
-    echo "Built and smoke-tested on $(hostname -s) ($(uname -sm)) with scripts/ci-local.sh; no CI. Installers are unsigned (see the README)."
-    echo
-    if [ -n "$prev" ]; then echo "Changes since $prev:"; git log --no-merges --format='- %s' "$prev..$tag"; else git log --no-merges --format='- %s' "$tag"; fi
-    echo
-    echo "SHA-256:"
-    echo '```'
-    cat out/SHA256SUMS
-    echo '```'
-  } > "$notes"
-fi
-echo "--- release notes ($notes) ---"; cat "$notes"; echo "---"
-
-files=(out/*)
-cmd=(gh release create "$tag" --prerelease --verify-tag --title "$tag" --notes-file "$notes" "${files[@]}")
+# ---- 3. upload to the release ----
+cp out/SHA256SUMS out-logs/SHA256SUMS-desktop
+files=()
+for f in out/*; do [ "$(basename "$f")" = SHA256SUMS ] || files+=("$f"); done
+files+=(out-logs/SHA256SUMS-desktop)
+add=out-logs/release-notes-desktop.md
+{
+  echo
+  echo "Desktop installers, built and smoke-tested on $(hostname -s) ($(uname -sm)) with desktop/scripts/ci-local.sh; unsigned (see desktop/README.md). SHA-256:"
+  echo '```'
+  cat out/SHA256SUMS
+  echo '```'
+} > "$add"
+echo "--- added to the release notes ---"; cat "$add"; echo "---"
+upload=(gh release upload "$tag" "${files[@]}")
 if [ $dry -eq 1 ]; then
-  echo "release-local: dry run, would run:"; printf '  %q' "${cmd[@]}"; echo
+  echo "release-local: dry run, would run:"; printf '  %q' "${upload[@]}"; echo
+  echo "  and append $add to the notes of $tag"
   exit 0
 fi
-"${cmd[@]}" && echo "release-local: published $tag"
+"${upload[@]}" || die "upload failed"
+body=out-logs/release-notes.md
+gh release view "$tag" --json body -q .body > "$body" && cat "$add" >> "$body" && gh release edit "$tag" --notes-file "$body" \
+  && echo "release-local: installers added to $tag"

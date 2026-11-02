@@ -1,5 +1,5 @@
 // What the assistant's `show` tool does in the app. The engine checks a target against the trace and sends it as an `intent`
-// event with the `mtkprof:` link of the same place (engine/internal/assist/tools_show.go); the app opens that link the way a
+// event with the `mtkprof:` link of the same place (internal/assist/tools_show.go); the app opens that link the way a
 // chip of the answer does, after it has kept the views as they are for Back. Only a Pivot setting is not in the link.
 import { unresolved, type Store, type TraceDoc } from '@lib'
 import { pivotDims, pivotMeasures, type Fact } from '@lib/data/pivot'

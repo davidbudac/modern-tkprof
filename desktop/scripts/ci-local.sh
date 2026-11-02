@@ -3,7 +3,7 @@
 # platform, collected in out/ with out/SHA256SUMS. Smoke screenshots go to out-smoke/, per-leg
 # logs and results.tsv to out-logs/.
 #
-#   checks    install, check:deps, api types up to date, cargo fmt, typecheck, tests   (host)
+#   checks    install, api types up to date, cargo fmt, typecheck, tests   (host)
 #   macos     arm64 + x64 DMG (--arm64 skips x64), arm64 smoke (x64 smoke only with Rosetta 2) (host, Darwin)
 #   linux     deb + AppImage and the smoke, in the Docker image  (amd64 container)
 #   windows   NSIS installer cross-built with cargo-xwin, no smoke possible        (amd64 container)
@@ -12,10 +12,10 @@
 #                            [--no-appimage] [--keep-going] [--no-docker-build]
 #   --arm64       macOS leg builds only the arm64 DMG
 # Stops at the first failed step unless --keep-going. Exit status: 0 when nothing failed.
-# Needs on the host: node 24 + pnpm, go (version of engine/go.mod; an older go downloads it),
+# Needs on the host: node 24 + pnpm, go (version of ../go.mod; an older go downloads it),
 # rust with the apple targets (macos), docker (linux, windows; amd64 image, Rosetta on Apple Silicon).
-# The Linux and Windows legs run in the image built from ci/Dockerfile; the repo is mounted at /src,
-# and node_modules, src-tauri/target and the caches live in named volumes mtkprof-ci-*.
+# The Linux and Windows legs run in the image built from ci/Dockerfile; the repository (the engine,
+# web/ and desktop/) is mounted at /src, and the node_modules folders, desktop/src-tauri/target and the caches live in named volumes mtkprof-ci-*.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 ROOT=$PWD
@@ -90,14 +90,12 @@ leg() {
   fi
 }
 
-# ---- checks (build.yml: install, check:deps, api types, cargo fmt, typecheck, test) ----
+# ---- checks (install, api types, cargo fmt, typecheck, test) ----
 checks() {
   need pnpm "pnpm install, any 10+ switches to the packageManager pin"
   need cargo "rustup"
-  git -C engine rev-parse HEAD >/dev/null 2>&1 || { echo "engine/ submodule is not checked out: git submodule update --init"; return 1; }
   run_step "checks: pnpm install" pnpm install --frozen-lockfile || return 1
-  run_step "checks: check:deps" pnpm check:deps || return 1
-  # src/engine/api.d.ts is generated from engine/api/engine.openapi.yaml and committed
+  # src/engine/api.d.ts is generated from ../api/engine.openapi.yaml and committed
   run_step "checks: api types" bash -c 'pnpm gen:api && git diff --exit-code -- src/engine/api.d.ts || { echo "run pnpm gen:api and commit src/engine/api.d.ts"; exit 1; }' || return 1
   run_step "checks: cargo fmt" cargo fmt --manifest-path src-tauri/Cargo.toml --check || return 1
   run_step "checks: typecheck" pnpm typecheck || return 1
@@ -130,7 +128,7 @@ macos_target() { # <triple> <name>
 }
 macos() {
   if [ "$(uname -s)" != Darwin ]; then skip "macos" "not a Mac"; return 0; fi
-  need go "Go of engine/go.mod"
+  need go "Go of ../go.mod"
   macos_target aarch64-apple-darwin macos-arm64 || return 1
   if [ $macos_x64 -eq 1 ]; then
     macos_target x86_64-apple-darwin macos-x64 || return 1
@@ -146,8 +144,8 @@ docker_prepare() {
   docker info >/dev/null 2>&1 || { echo "docker daemon not reachable (OrbStack: orbctl start). Inside a sandbox the docker socket may be blocked."; return 1; }
   if [ $docker_build -eq 1 ]; then
     local go node pnpm_v
-    go=$(awk '/^go /{print $2; exit}' engine/go.mod)
-    pnpm_v=$(node -p "require('./package.json').packageManager.replace(/^pnpm@/, '').replace(/\+.*/, '')")
+    go=$(awk '/^go /{print $2; exit}' ../go.mod)
+    pnpm_v=$(node -p "require('../package.json').packageManager.replace(/^pnpm@/, '').replace(/\+.*/, '')")
     node=24
     run_step "docker: image $IMG" docker build --platform linux/amd64 \
       --build-arg NODE_MAJOR=$node --build-arg PNPM_VERSION="$pnpm_v" --build-arg GO_VERSION="$go" \
@@ -158,20 +156,22 @@ docker_leg() { # <linux|windows>
   local args=("$1")
   [ $skip_smoke -eq 1 ] && args+=(--skip-smoke)
   [ $appimage -eq 0 ] && args+=(--no-appimage)
-  # node_modules and src-tauri/target are volumes so the Mac's and Linux's files never mix;
-  # dist/ and src-tauri/binaries/ are rebuilt on every run
+  # the node_modules folders and src-tauri/target are volumes so the Mac's and Linux's files never
+  # mix; dist/ and src-tauri/binaries/ are rebuilt on every run
   docker run --rm --platform linux/amd64 \
-    -v "$ROOT":/src \
+    -v "$(dirname "$ROOT")":/src \
     -v mtkprof-ci-node_modules:/src/node_modules \
-    -v mtkprof-ci-target:/src/src-tauri/target \
+    -v mtkprof-ci-node_modules-web:/src/web/node_modules \
+    -v mtkprof-ci-node_modules-desktop:/src/desktop/node_modules \
+    -v mtkprof-ci-target:/src/desktop/src-tauri/target \
     -v mtkprof-ci-cargo-registry:/usr/local/cargo/registry \
     -v mtkprof-ci-cargo-git:/usr/local/cargo/git \
     -v mtkprof-ci-xwin:/xwin-cache \
     -v mtkprof-ci-go:/root/go \
     -v mtkprof-ci-gocache:/root/.cache/go-build \
     -v mtkprof-ci-pnpm:/root/.local/share/pnpm \
-    -e CI_RESULTS=/src/$CI_RESULTS \
-    $IMG bash /src/ci/in-container.sh "${args[@]}"
+    -e CI_RESULTS=/src/desktop/$CI_RESULTS \
+    $IMG bash /src/desktop/ci/in-container.sh "${args[@]}"
 }
 linux() { docker_leg linux; }
 windows() { docker_leg windows; }

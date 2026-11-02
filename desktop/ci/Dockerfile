@@ -4,7 +4,7 @@
 # serve a plain `docker build`.
 #   NODE_MAJOR    the Node version of the old GitHub workflow
 #   PNPM_VERSION  package.json "packageManager"
-#   GO_VERSION    engine/go.mod "go" line
+#   GO_VERSION    the repository's go.mod "go" line
 FROM rust:1-bookworm
 
 ARG NODE_MAJOR=24

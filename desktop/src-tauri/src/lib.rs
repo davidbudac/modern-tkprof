@@ -1,5 +1,5 @@
-//! The mtkprof desktop shell: runs the `mtkprof-engine` sidecar (docs/PLAN-DESKTOP.md § 2 in the
-//! engine submodule), restarts it when it crashes and hands its address and token to the UI.
+//! The mtkprof desktop shell: runs the `mtkprof-engine` sidecar (docs/PLAN-DESKTOP.md § 2 at the
+//! repository root), restarts it when it crashes and hands its address and token to the UI.
 
 mod app;
 mod connections;
@@ -15,7 +15,7 @@ use std::time::Duration;
 use tauri::{Manager, RunEvent};
 use tauri_plugin_opener::OpenerExt;
 
-const RELEASES_URL: &str = "https://github.com/davidbudac/mtkprof-desktop/releases";
+const RELEASES_URL: &str = "https://github.com/davidbudac/modern-tkprof/releases";
 
 #[tauri::command]
 fn open_releases_page(app: tauri::AppHandle) -> Result<(), String> {

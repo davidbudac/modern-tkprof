@@ -1411,7 +1411,7 @@ docs/               this file, trace-format-19c.md, ROADMAP.md
 ### Shell module (`web/src/lib/shell`)
 
 Two shells mount the lib's views: the standalone one in `web/src/app` (`mtkprof html`, `mtkprof serve`) and the desktop's
-session shell (`mtkprof-desktop/src/workspace/session`). What a shell does around the views lives once, in `lib/shell`, and
+session shell (`desktop/src/workspace/session`). What a shell does around the views lives once, in `lib/shell`, and
 both use it: the view table (`views.tsx`: `baseViews`, eight rows Compare 0, Overview 1, Trace 2, Statements 3, Waits 4,
 Timeline 5, Sessions 6, Pivot 7; `shownViews`, `currentView`; the desktop appends Notes 8 and Reports 9 as `tools` rows),
 the tab bar (`ViewTabs`: counts and key hints are props), the view chords (`viewKeys.ts`, `useViewKeys`: ⌘1 … ⌘7 and ⌘0,

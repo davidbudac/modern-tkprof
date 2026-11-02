@@ -21,11 +21,11 @@ Preconditions:
 
 - **Show.** `node $S/drive.mjs --open $T/level_8.trc --view Trace --name lines`. `Trace` is `aria-current=page`; the screenshot shows line 1 `Trace file /u01/app/oracle/...cdb1_ora_133455_mtk_level_8.trc` and the footer `1 / 143` (verified).
 - **Search.** After the view is open, fill `input[aria-label="Search the trace text"]` with `WAIT` and press Enter / the `Search` button; expect a `[role=listbox][aria-label="Search hits"]` (selectors read from source, not yet driven).
-- **Prefs.** `node $S/drive.mjs --open $T/level_8.trc --view Lines --prefs '{"wrap":true}' --name prefs`. `prefs.json` `linesPrefs` shows the stored JSON and the view renders wrapped (compare to the unwrapped screenshot). Default shape is in `engine/web/src/lib/state/linesPrefs.ts`.
+- **Prefs.** `node $S/drive.mjs --open $T/level_8.trc --view Lines --prefs '{"wrap":true}' --name prefs`. `prefs.json` `linesPrefs` shows the stored JSON and the view renders wrapped (compare to the unwrapped screenshot). Default shape is in `web/src/lib/state/linesPrefs.ts`.
 
 ## Gotchas
 
 - The `Lines` button is absent when the session has no slice or lines API; `drive.mjs --view Lines` then fails listing the available views, which is the correct report.
 - Fresh contexts have no stored prefs (`linesPrefs: null` until the app writes them).
 - Keyboard shortcuts act only with the viewer focused; click a line first.
-- The UI source of this view is the submodule `engine/web/src/lib/views/Lines.tsx`, not `src/`.
+- The UI source of this view is the shared lib `web/src/lib/views/Lines.tsx` (repo root), not `desktop/src/`.

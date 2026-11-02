@@ -15,21 +15,21 @@ see "Findings" at the end).
 ## 1. Checkout
 
 ```
-gh auth status                      # davidbudac; `gh auth setup-git` if the submodule clone asks for credentials
-git clone --recurse-submodules https://github.com/davidbudac/mtkprof-desktop.git ~/claude_projects/mtkprof-desktop
-cd ~/claude_projects/mtkprof-desktop
-git checkout v0.3.0
-git submodule update --init --recursive
-git -C engine rev-parse HEAD        # must print 53042d0...
+gh auth status                      # davidbudac
+git clone https://github.com/davidbudac/modern-tkprof.git ~/claude_projects/modern-tkprof
+cd ~/claude_projects/modern-tkprof
+git checkout vX.Y.Z                 # the release tag (since 2026-11-02 the app is desktop/ here;
+                                    # v0.3.0 and v0.4.0 were built from the archived mtkprof-desktop repo)
+cd desktop
 ```
 
 ## 2. Prerequisites (install only what is missing; no sudo without asking David)
 
 - Xcode command line tools (`xcode-select --install`)
 - Rust via rustup, stable; `rustup target add aarch64-apple-darwin x86_64-apple-darwin`
-- Node 24 (CI's version; 26 works too) and pnpm: `package.json` pins `pnpm@12.9.1`,
+- Node 24 (CI's version; 26 works too) and pnpm: the root `package.json` pins `pnpm@12.9.1`,
   and any pnpm 10+ switches to it by itself (no corepack needed)
-- Go, version from `engine/go.mod` (1.27.3; an older `go` downloads it via the toolchain line)
+- Go, version from the repository's `go.mod` (1.27.3; an older `go` downloads it via the toolchain line)
 - Rosetta 2, only for the x64 smoke on Apple Silicon
   (`softwareupdate --install-rosetta --agree-to-license`, admin); building x64 does not need it
 - Screen Recording permission for the app that runs the shell (Terminal, T3 Code, …):
@@ -40,7 +40,6 @@ git -C engine rev-parse HEAD        # must print 53042d0...
 
 ```
 pnpm install --frozen-lockfile
-pnpm check:deps
 pnpm gen:api && git diff --exit-code -- src/engine/api.d.ts
 pnpm typecheck
 pnpm test
@@ -68,7 +67,7 @@ scripts/smoke.sh x86_64-apple-darwin macos-x64      # with Rosetta only
 
 It launches the built app (`src-tauri/target/T/release/mtkprof-desktop`, the
 sidecar next to it; no bundle, no quarantine) with `MTKPROF_SMOKE=1`, opens
-`engine/testdata/traces/19c/io_waits.trc`, kills the engine once after 15 s
+`testdata/traces/19c/io_waits.trc` (repository root), kills the engine once after 15 s
 and expects a restart and the trace re-opened. Output:
 `out-smoke/macos-arm64-ready.png`, `out-smoke/macos-arm64-restarted.png`,
 `out-smoke/macos-arm64.log`. The ready screenshot must show the Overview and
@@ -86,7 +85,7 @@ hdiutil attach -nobrowse -readonly -mountpoint /private/tmp/mtk-dmg/mnt src-taur
 ditto /private/tmp/mtk-dmg/mnt/mtkprof.app /private/tmp/mtk-dmg/app/mtkprof.app
 hdiutil detach /private/tmp/mtk-dmg/mnt
 codesign --verify --deep --strict -v /private/tmp/mtk-dmg/app/mtkprof.app   # valid on disk, satisfies its DR
-MTKPROF_SMOKE=1 MTKPROF_SMOKE_OPEN=$PWD/engine/testdata/traces/19c/io_waits.trc \
+MTKPROF_SMOKE=1 MTKPROF_SMOKE_OPEN=$(cd .. && pwd)/testdata/traces/19c/io_waits.trc \
   /private/tmp/mtk-dmg/app/mtkprof.app/Contents/MacOS/mtkprof-desktop      # the bundled sidecar starts
 ```
 

@@ -12,3 +12,5 @@
 *.swp
 /mtkprof
 /mtkprof.exe
+# pnpm workspace (web/, desktop/)
+/node_modules/

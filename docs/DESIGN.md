@@ -191,9 +191,16 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
   20 GB LRU) keyed by trace content identity. No Rust rewrite of the parser
   or model; no remote-engine mode; no LOD tiles (a 1024-bucket minimap in the
   document instead).
-- The shell is Tauri 2 (Rust) around the React/TS UI, in a separate private
-  repository (`mtkprof-desktop`) that pins this repo as a git submodule.
-  Committed; GPUI is not revisited.
+- The shell is Tauri 2 (Rust) around the React/TS UI. Committed; GPUI is not
+  revisited.
+- One repository, two clients (2026-11-02; was a separate private repo
+  `mtkprof-desktop` pinning this one as a git submodule): the engine and the
+  CLI at the root, the CLI's UI and the shared lib in `web/`, the desktop app
+  in `desktop/`. One pnpm workspace (catalog for the versions both use), one
+  commit for a lib change and its desktop use, one version and one tag for
+  the CLI binaries and the installers. Why: the pin, `check:deps`, `gen:api`
+  follow-ups and edits made inside the submodule's checkout kept the two out
+  of step; the desktop code went public with it (Apache-2.0 like the rest).
 - Transport: loopback HTTP with a bearer token, SSE events (jobs, sessions,
   prompts), the existing `/api/*` handlers per session, OpenAPI contract in
   `api/engine.openapi.yaml` with a protocol version.

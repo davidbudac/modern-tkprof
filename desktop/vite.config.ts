@@ -2,10 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 
-// The shared UI library lives in the engine submodule (engine/web/src/lib). Its bare imports
-// (react, echarts, ...) resolve to this package's node_modules, so the dependencies the lib
-// needs are declared here too (scripts/check-lib-deps.mjs keeps them in step).
-const lib = fileURLToPath(new URL('./engine/web/src/lib', import.meta.url))
+// The shared UI library is web/src/lib in this repository. Its bare imports (react, echarts, ...)
+// resolve from web/node_modules (one pnpm workspace; the catalog in pnpm-workspace.yaml keeps
+// React the same version on both sides, and dedupe makes it one copy).
+const lib = fileURLToPath(new URL('../web/src/lib', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],

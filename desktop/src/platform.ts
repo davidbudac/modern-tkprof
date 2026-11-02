@@ -187,6 +187,6 @@ export function routeExternalLinks(): void {
 
 export function openReleasesPage(): Promise<void> {
   if (inTauri) return invoke<void>('open_releases_page')
-  window.open('https://github.com/davidbudac/mtkprof-desktop/releases', '_blank', 'noopener')
+  window.open('https://github.com/davidbudac/modern-tkprof/releases', '_blank', 'noopener')
   return Promise.resolve()
 }

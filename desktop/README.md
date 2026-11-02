@@ -1,8 +1,13 @@
-# mtkprof-desktop
+# mtkprof desktop
 
-The desktop app for [mtkprof](https://github.com/davidbudac/modern-tkprof), the Oracle SQL trace
+The desktop client of [mtkprof](https://github.com/davidbudac/modern-tkprof), the Oracle SQL trace
 analyzer: a Tauri 2 shell that runs the mtkprof engine as a sidecar process and shows the shared
 mtkprof UI against it. Internal team tool; builds are unsigned.
+
+It lives in `desktop/` of the mtkprof repository, next to the engine and the CLI (repository
+root: `go.mod`, `cmd/mtkprof`, `internal/`, `api/`) and the shared UI library (`web/src/lib`).
+Until 2026-11-02 it was the separate repository `davidbudac/mtkprof-desktop` (archived, with the
+older history) that pinned the engine as a git submodule.
 
 User notes (install, unsigned-build bypass, tabs, cache, settings): [docs/DESKTOP.md](docs/DESKTOP.md).
 
@@ -10,7 +15,7 @@ User notes (install, unsigned-build bypass, tabs, cache, settings): [docs/DESKTO
 src/            desktop UI (React/TS); imports the shared UI library as @lib
 src/engine/     EngineProvider/useEngine, engine client, SSE events, api.d.ts (generated)
 src/workspace/  session tabs, open screen, progress, restore, annotations (bookmarks, notes)
-src/workspace/session/  one tab's views over a lib store: the lib's shell module (engine/web/src/lib/shell: view table,
+src/workspace/session/  one tab's views over a lib store: the lib's shell module (web/src/lib/shell: view table,
                         ViewTabs, panes, Esc, view keys, Inspector) plus the desktop's own Notes, Reports, history, Tools menu
 src/settings/   settings (store + context), Settings and About pages
 src/connections/ connections (store, import/export, team file), remote browser, DB panel, jobs dock
@@ -20,15 +25,14 @@ src/files.ts    save/open user files (reports, exports, imports)
 src/platform.ts Tauri APIs with the dev browser fallbacks
 src/pages.tsx   the desktop pages next to the tabs (Connections, Library, Settings, About)
 src-tauri/      Rust shell: engine sidecar lifecycle (src/engine.rs), app_info (src/app.rs), plugins, bundling
-engine/       git submodule -> modern-tkprof (engine sources + web/src/lib)
-scripts/      build-engine.mjs (sidecar), check-lib-deps.mjs, smoke.sh, build-mac-quick.sh, ci-local.sh, release-local.sh
+scripts/      build-engine.mjs (sidecar), smoke.sh, build-mac-quick.sh, ci-local.sh, release-local.sh
 ci/           Dockerfile and helpers of the Linux/Windows legs of the local CI
 ```
 
 ## Prerequisites
 
 All platforms: Rust (stable, via rustup), Node 22+ with pnpm (`corepack enable` or
-`npm i -g pnpm`), Go (the version in `engine/go.mod`), git.
+`npm i -g pnpm`), Go (the version in the repository's `go.mod`), git.
 
 - **Windows**: Visual Studio Build Tools (C++ workload); WebView2 ships with Windows 10/11.
 - **macOS**: Xcode command line tools (`xcode-select --install`).
@@ -40,10 +44,10 @@ All platforms: Rust (stable, via rustup), Node 22+ with pnpm (`corepack enable` 
 ## Build and run
 
 ```
-git clone --recurse-submodules git@github.com:davidbudac/mtkprof-desktop.git
-cd mtkprof-desktop
-pnpm install
-pnpm build:engine      # go build of engine/cmd/mtkprof -> src-tauri/binaries/mtkprof-engine-<target-triple>
+git clone git@github.com:davidbudac/modern-tkprof.git
+cd modern-tkprof && pnpm install   # one pnpm workspace: web/ and desktop/
+cd desktop
+pnpm build:engine      # go build of ../cmd/mtkprof -> src-tauri/binaries/mtkprof-engine-<target-triple>
 pnpm tauri dev         # dev window with Vite hot reload
 pnpm tauri build       # installers under src-tauri/target/release/bundle/
 ```
@@ -77,7 +81,7 @@ queue, jobs, registry).
 
 ## The engine sidecar
 
-The sidecar is the `mtkprof` CLI of the submodule, shipped as `mtkprof-engine` (so the `.deb`'s
+The sidecar is the repository's `mtkprof` CLI (`cmd/mtkprof`), shipped as `mtkprof-engine` (so the `.deb`'s
 `/usr/bin/mtkprof-engine` does not clash with a CLI install of `mtkprof`) and run as
 `mtkprof-engine engine -allow-origin … -cache <app cache dir>/mtkprof` with a fresh bearer token
 in `MTKPROF_TOKEN` (never on the command line). The shell (`src-tauri/src/engine.rs`):
@@ -102,7 +106,7 @@ reconnecting with backoff). The types come from the engine's OpenAPI file: `pnpm
 regenerates `src/engine/api.d.ts`; the local CI fails when it is stale.
 
 The smoke step of the local CI (`scripts/smoke.sh`) launches the release build with `MTKPROF_SMOKE=1
-MTKPROF_SMOKE_KILL_AFTER=<s> MTKPROF_SMOKE_OPEN=engine/testdata/traces/19c/io_waits.trc`: the app
+MTKPROF_SMOKE_KILL_AFTER=<s> MTKPROF_SMOKE_OPEN=<repo>/testdata/traces/19c/io_waits.trc`: the app
 opens the fixture on start (log line `session ready: …`), the shell kills its engine once, that
 many seconds after it is first ready, and the step screenshots the window before
 (`<leg>-ready.png`: the fixture's Overview) and after (`<leg>-restarted.png`: toast "Engine
@@ -119,7 +123,7 @@ opened: the tab's tooltip, the file count in the active tab, `dirs` for the 📁
 bind options, recent list), the progress panel from `job` events (cancel = `DELETE
 /engine/jobs/{id}`), then the session's document (`/s/{id}/api/doc` → `fromRaw` + `attachRemote`)
 in a lib store (`createSession`) under a `SessionProvider`, with the standalone shell's layout
-(`src/workspace/session/`: the lib's shell module, `engine/web/src/lib/shell`, which the standalone shell uses too, plus the
+(`src/workspace/session/`: the lib's shell module, `web/src/lib/shell`, which the standalone shell uses too, plus the
 desktop's own rows and keys). The store outlives tab switches,
 live updates (a live tab follows the engine with the lib's `followLive` long poll, `workspace/liveFollow.ts`, which swaps the document, the selection stays; `session` events only carry failed/closed) and
 engine restarts (a new address or token re-opens every tab from its paths, a cache hit, and
@@ -160,22 +164,17 @@ The store plugin keeps JSON files in the app data dir (`%APPDATA%\com.davidbudac
 changing them asks for *Restart engine* (`engine_restart(opts)`). `app_info` answers the cache,
 data and log dirs, the engine binary and, in smoke runs, `MTKPROF_SMOKE_OPEN`.
 
-## The engine submodule
+## The engine and the shared UI
 
-`engine/` pins one commit of `modern-tkprof`. The shell talks to the engine over loopback HTTP
-with a per-run bearer token and refuses an engine whose `protocol` it does not know, so engine,
-protocol and shared UI move together with the pin.
+The engine is the repository root (`cmd/mtkprof`, `internal/`, `api/engine.openapi.yaml`). The
+shell talks to it over loopback HTTP with a per-run bearer token and refuses an engine whose
+`protocol` it does not know; since both are built from the same commit, they always match.
 
-```
-git submodule update --init            # after clone or after pulling a new pin
-cd engine && git fetch && git checkout <commit-or-tag> && cd ..
-git add engine && git commit -m "engine: bump to <commit-or-tag>"
-```
-
-The shared UI lives in `engine/web/src/lib` and is imported as `@lib` (alias in
-`vite.config.ts` and `tsconfig.json`). Its imports resolve from this package's `node_modules`,
-so the runtime dependencies of `engine/web/package.json` are repeated in `package.json`;
-`pnpm check:deps` (also run by the local CI) fails when they drift after a bump.
+The shared UI is `web/src/lib`, imported as `@lib` (alias in `vite.config.ts`, `vitest.config.ts`
+and `tsconfig.json`). Its own imports resolve from `web/node_modules`: the root
+`pnpm-workspace.yaml` has both packages, and its catalog gives the versions both use (React,
+Vite, TypeScript, Vitest) once. A lib change and the desktop's use of it go in one commit;
+`scripts/ci-local.sh` at the repository root runs the desktop checks too.
 
 ## Local CI and releases
 
@@ -188,7 +187,7 @@ scripts/ci-local.sh --only checks,linux     # a subset (checks, macos, linux, wi
 scripts/ci-local.sh --skip-smoke --keep-going
 ```
 
-It runs the checks (`pnpm install --frozen-lockfile`, `check:deps`, `gen:api` leaving
+It runs the checks (`pnpm install --frozen-lockfile`, `gen:api` leaving
 `src/engine/api.d.ts` unchanged, `cargo fmt --check`, `typecheck`, `test`), then builds and
 collects every installer in `out/` with `out/SHA256SUMS`, stops at the first failed step and ends
 with a table of leg, result, time and artifacts. Smoke screenshots are in `out-smoke/`, per-leg
@@ -203,7 +202,7 @@ the arm64 app (thin LTO, own cache in `src-tauri/target-quick/`; no checks, test
 | Linux x64 | Docker, `ci/Dockerfile` (linux/amd64) | `mtkprof_<v>_amd64.deb`, `mtkprof_<v>_amd64.AppImage` (`--no-appimage` skips the AppImage) | yes (Xvfb + D-Bus in the container) |
 | Windows x64 | the same image, cross-built with `cargo-xwin` | `mtkprof_<v>_x64-setup.exe` | none: nothing here runs Windows binaries |
 
-Host needs: Node 24 and pnpm (the `packageManager` pin), Go (version of `engine/go.mod`), Rust
+Host needs: Node 24 and pnpm (the `packageManager` pin), Go (version of the repository's `go.mod`), Rust
 with `aarch64-apple-darwin` and `x86_64-apple-darwin`, and for Linux/Windows Docker or OrbStack (on
 Apple Silicon the amd64 image runs under Rosetta). The macOS smoke launches the app and takes
 screenshots, so it needs a logged-in GUI session and Screen Recording permission for the app that
@@ -220,19 +219,24 @@ and NSIS installer are built, never installed); the Windows installer is built b
 The Linux binary is built on Debian 12 (glibc 2.36), so the `.deb` and AppImage need a distro at
 least that new.
 
-Releasing: bump the version (`package.json`, `src-tauri/Cargo.toml` and `Cargo.lock`), commit, tag
-`vX.Y.Z` on that commit and push the tag, then
+Releasing: one version and one tag for the CLI and the app. Bump the app version
+(`package.json`, `src-tauri/Cargo.toml` and `Cargo.lock`) to the release version, commit, tag
+`vX.Y.Z` on that commit and push the tag. Then `scripts/release-local.sh vX.Y.Z` at the repository
+root publishes the GitHub release with the CLI binaries (it checks the app versions first), and on
+a Mac
 
 ```
-scripts/release-local.sh vX.Y.Z --dry-run   # everything but `gh release create`
+scripts/release-local.sh vX.Y.Z --dry-run   # everything but the upload
 scripts/release-local.sh vX.Y.Z
 ```
 
-It refuses unless the tree is clean, HEAD is the tag and the versions match, runs all legs of
-`ci-local.sh` and publishes `out/*` as a GitHub prerelease with `gh release create --verify-tag`
-(`--notes-file` for your own notes). It never creates or pushes the tag. There is no updater:
-About shows the version and links to the
-[releases page](https://github.com/davidbudac/mtkprof-desktop/releases).
+adds the installers to that release. It refuses unless the tree is clean, HEAD is the tag, the
+versions match and the release exists without installers; it runs all legs of `ci-local.sh`,
+uploads `out/*` (their checksums as `SHA256SUMS-desktop`) and appends the checksums to the
+release notes. It never creates or pushes the tag. There is no updater: About shows the version
+and links to the [releases page](https://github.com/davidbudac/modern-tkprof/releases); releases
+up to v0.4.0 are on the archived
+[mtkprof-desktop releases page](https://github.com/davidbudac/mtkprof-desktop/releases).
 
 The builds are not signed:
 

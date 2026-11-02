@@ -1,5 +1,7 @@
 # UX and visual polish: implementation plan
 
+> Written before the 2026-11-02 merge, when this app was the repository `mtkprof-desktop` and pinned the engine as the submodule `engine/`: read `engine/X` as `X` at the repository root (`web/src/lib`, `internal/`, `api/`, `testdata/`); the pin, `git submodule` and `check:deps` steps no longer exist.
+
 From a walkthrough of the app on 2026-10-27 (dev browser mode, engine v0.4.0-9-g9c00d37, a
 three-file set `multisession_a.trc` + `multisession_b.trc` + `basic_binds.trc`, every view and
 page, light and dark, 1440 and 1024 px wide). Items are ordered by impact; each says where the

@@ -6,7 +6,7 @@ Maintained source for verifying user-facing behavior of the mtkprof desktop app 
 
 - Run `scripts/launch.sh` then `scripts/doctor.sh` (see `../SKILL.md`); require doctor exit 0. Never drive an instance this run did not start.
 - Every drive starts from a fresh browser context: no trace open, default settings. The engine cache dir is empty at launch.
-- Sample traces live in `/Users/davidbudac/claude_projects/mtkprof-desktop/engine/testdata/traces/19c/`; always pass ABSOLUTE paths.
+- Sample traces live in `/Users/davidbudac/claude_projects/modern-tkprof/testdata/traces/19c/`; always pass ABSOLUTE paths.
 
 ## Driving conventions
 

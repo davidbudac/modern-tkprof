@@ -1,5 +1,7 @@
 # Investigation workflow follow-up — 2026-10-29
 
+> Written before the 2026-11-02 merge, when this app was the repository `mtkprof-desktop` and pinned the engine as the submodule `engine/`: read `engine/X` as `X` at the repository root (`web/src/lib`, `internal/`, `api/`, `testdata/`); the pin, `git submodule` and `check:deps` steps no longer exist.
+
 Implemented with three GPT-6.1 Sol implementation subagents, followed by independent Sol
 reviews and local integration. Scope: window accounting/controls, two-tab comparison,
 investigation backups, tab reordering, and current roadmap/user documentation.

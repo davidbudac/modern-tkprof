@@ -1,6 +1,6 @@
 import type { components } from './api'
 
-/** Schemas of `engine/api/engine.openapi.yaml` (generated into `api.d.ts` by `pnpm gen:api`). */
+/** Schemas of `api/engine.openapi.yaml` (generated into `api.d.ts` by `pnpm gen:api`). */
 export type Schemas = components['schemas']
 export type Health = Schemas['Health']
 export type JobInfo = Schemas['JobInfo']

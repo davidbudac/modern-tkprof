@@ -24,8 +24,8 @@ export PATH
 for tool in node pnpm cargo rustc go; do
   command -v "$tool" >/dev/null || { echo "Missing prerequisite: $tool" >&2; exit 1; }
 done
-for tool in node_modules/.bin/tsc node_modules/.bin/vite node_modules/.bin/tauri engine/web/node_modules/.bin/vite; do
-  [[ -x "$tool" ]] || { echo "Missing $tool. Install dependencies in this repo and engine/web first." >&2; exit 1; }
+for tool in node_modules/.bin/tsc node_modules/.bin/vite node_modules/.bin/tauri ../web/node_modules/.bin/vite; do
+  [[ -x "$tool" ]] || { echo "Missing $tool. Run pnpm install at the repository root first." >&2; exit 1; }
 done
 
 # Do not silently focus an older running build or replace its bundle while in use.
@@ -42,8 +42,8 @@ echo 'Checking TypeScript…'
 node_modules/.bin/tsc --noEmit
 
 echo 'Building the engine UI and sidecar…'
-(cd engine/web && node_modules/.bin/vite build)
-cp engine/web/dist/index.html engine/internal/ui/dist/index.html
+(cd ../web && node_modules/.bin/vite build)
+cp ../web/dist/index.html ../internal/ui/dist/index.html
 node scripts/build-engine.mjs
 
 echo 'Building mtkprof Test…'

@@ -16,7 +16,7 @@ mkdir -p out-smoke
 out=$PWD/out-smoke
 log=$out/$name.log
 
-fixture=$PWD/engine/testdata/traces/19c/io_waits.trc
+fixture=$(cd .. && pwd)/testdata/traces/19c/io_waits.trc
 case "$(uname -s)" in Linux | Darwin) ;; *) fixture=$(cygpath -w "$fixture") ;; esac
 export MTKPROF_SMOKE=1 MTKPROF_SMOKE_KILL_AFTER=15 MTKPROF_SMOKE_OPEN=$fixture
 

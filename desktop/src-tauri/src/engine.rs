@@ -1,4 +1,4 @@
-//! The engine sidecar (docs/PLAN-DESKTOP.md § 2 and § 7 in the engine submodule): `mtkprof-engine
+//! The engine sidecar (docs/PLAN-DESKTOP.md § 2 and § 7 at the repository root): `mtkprof-engine
 //! engine` with a fresh bearer token in `MTKPROF_TOKEN` (never in argv), stdin held open (the
 //! engine exits when it closes, so it cannot outlive the app), and the JSON ready line from its
 //! stdout. A watcher per run forwards the engine's output to the log and, when the engine exits

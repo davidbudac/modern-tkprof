@@ -22,7 +22,7 @@ async function trace() {
 
 const intent = (href: string, target: IntentPart['target'], outcome?: IntentPart['outcome']): IntentPart => ({ kind: 'intent', id: 'mcp_1', href, target, outcome })
 
-// every kind of target the show tool sends, with the link the engine makes of it (engine/internal/assist/tools_show_test.go)
+// every kind of target the show tool sends, with the link the engine makes of it (internal/assist/tools_show_test.go)
 const kinds: [string, IntentPart, string][] = [
   ['view', intent('mtkprof:#view=waits', { view: 'waits' }), '#view=waits'],
   ['statement', intent('mtkprof:#view=statements&sql=sql1', { view: 'statements', sql_id: 'sql1' }), '#view=statements&sql=sql1'],

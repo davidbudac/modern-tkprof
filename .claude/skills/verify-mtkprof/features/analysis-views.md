@@ -27,6 +27,6 @@ Preconditions:
 
 ## Gotchas
 
-- The views are rendered from the submodule `engine/web/src/lib/views/`; changes there need the submodule checked out.
+- The views are rendered from the shared lib `web/src/lib/views/` (repo root), also used by the CLI's UI.
 - Timeline and Pivot show `loading…` while their query runs; the drive waits 1.5 s, extend it for slow traces.
 - Statement counts differ between whole-trace and a narrowed selection; compare like with like.

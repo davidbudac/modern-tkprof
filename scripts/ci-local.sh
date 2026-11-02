@@ -1,33 +1,37 @@
 #!/usr/bin/env bash
 # Local CI for mtkprof (replaces the former GitHub Actions workflow).
 #
-#   scripts/ci-local.sh [--strict] [--no-release] [--no-web] [--no-go]
+#   scripts/ci-local.sh [--strict] [--no-release] [--no-web] [--no-desktop] [--no-go]
 #
 # Steps: go vet, go test ./... (unit, golden, engine contract), web install /
-# typecheck / test / build, embedded-UI check, cross-build of every release
-# target (make release with a throwaway version).
+# typecheck / test / build, embedded-UI check, the desktop client's checks
+# (api types up to date, typecheck against the lib, tests; cargo fmt when cargo
+# is there), cross-build of every release target (make release with a
+# throwaway version). The desktop installers are desktop/scripts/ci-local.sh.
 #   --strict      a stale internal/ui/dist/index.html (differs from a fresh web
 #                 build) fails the run; without it only a loud warning is shown
 #   --no-release  skip the cross-build check
-#   --no-web      skip the web steps
+#   --no-web      skip the web steps (and the desktop checks)
+#   --no-desktop  skip the desktop checks
 #   --no-go       skip go vet / go test
 # Exit status 0 only when every step passed.
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-STRICT=0; RELEASE=1; WEB=1; GO_STEPS=1
+STRICT=0; RELEASE=1; WEB=1; DESKTOP=1; GO_STEPS=1
 for a in "$@"; do
   case "$a" in
     --strict) STRICT=1 ;;
     --no-release) RELEASE=0 ;;
     --no-web) WEB=0 ;;
+    --no-desktop) DESKTOP=0 ;;
     --no-go) GO_STEPS=0 ;;
-    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
     *) echo "unknown option: $a" >&2; exit 2 ;;
   esac
 done
 
-for d in "$HOME/.local/go/bin" /usr/local/go/bin; do
+for d in "$HOME/.local/go/bin" /usr/local/go/bin "$HOME/.cargo/bin"; do
   [ -d "$d" ] && PATH="$d:$PATH"
 done
 export PATH
@@ -57,6 +61,16 @@ web_steps() {
   ( cd "$ROOT/web" && pnpm install --frozen-lockfile && pnpm typecheck && pnpm test && pnpm build ) || rc=$?
   [ "$TSBI_CLEAN" = 1 ] && git checkout -q -- web/tsconfig.tsbuildinfo 2>/dev/null
   return $rc
+}
+
+# The desktop client (desktop/) imports the lib and the engine's API: a change here can break it.
+desktop_steps() {
+  ( cd "$ROOT/desktop" || exit 1
+    pnpm gen:api >/dev/null && git diff --exit-code -- src/engine/api.d.ts \
+      || { echo "desktop/src/engine/api.d.ts is stale: cd desktop && pnpm gen:api, and commit it"; exit 1; }
+    if command -v cargo >/dev/null; then cargo fmt --manifest-path src-tauri/Cargo.toml --check || exit 1
+    else echo "cargo not found: skipping cargo fmt"; fi
+    pnpm typecheck && pnpm test )
 }
 
 embedded_ui() {
@@ -94,6 +108,7 @@ fi
 if [ "$WEB" = 1 ]; then
   step "web: install, typecheck, test, build" web_steps
   step "embedded UI up to date$([ "$STRICT" = 1 ] && echo ' (strict)')" embedded_ui
+  [ "$DESKTOP" = 1 ] && step "desktop: api types, cargo fmt, typecheck, test" desktop_steps
 fi
 [ "$RELEASE" = 1 ] && step "make release (cross-build check)" release_check
 

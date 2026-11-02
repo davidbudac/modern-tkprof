@@ -4,13 +4,14 @@ The desktop app opens Oracle 10046 trace files, one tab per trace, with the same
 `mtkprof serve` (Overview, Statements, Waits, Timeline, Sessions, Pivot) plus the **Lines**
 viewer, **Notes**, **Reports**, a **Library** of saved pivots and **Connections** for fetching
 traces from other machines. It is a Tauri shell around the `mtkprof engine` process
-(`docs/ARCHITECTURE.md` § Engine mode); the code is in the private repo `mtkprof-desktop`
-(build, dev mode, CI: its README). Internal team tool: builds are unsigned, no updater.
+(`docs/ARCHITECTURE.md` § Engine mode); the code is in `desktop/` (build, dev mode, CI:
+`desktop/README.md`; shorter user notes: `desktop/docs/DESKTOP.md`). Internal team tool: builds are unsigned, no updater.
 
 ## Install
 
-Installers come from the releases page of `mtkprof-desktop` (a prerelease per `v*` tag) or from
-a local build (`scripts/ci-local.sh` in that repo).
+Installers come from the releases page of this repository (with the CLI binaries of the same
+`v*` tag; up to v0.4.0 from the archived `mtkprof-desktop`) or from a local build
+(`desktop/scripts/ci-local.sh`).
 
 | System | File | Notes |
 |---|---|---|

@@ -1,6 +1,6 @@
 ---
 name: verify-mtkprof
-description: Launch and drive the mtkprof desktop app (Tauri shell, Vite/TS frontend in src/, Go engine in engine/) in "dev browser mode" with headless Playwright, capture screenshots as proof, and clean up. Use whenever you must prove a UI change in src/ or engine/web works in the real app (opening Oracle 10046 traces, Lines/Statements/Waits views, Settings, Connections), or when asked to run, screenshot or verify mtkprof.
+description: Launch and drive the mtkprof desktop app (Tauri shell, Vite/TS frontend in desktop/src/, Go engine at the repo root) in "dev browser mode" with headless Playwright, capture screenshots as proof, and clean up. Use whenever you must prove a UI change in desktop/src/ or web/src/lib works in the real app (opening Oracle 10046 traces, Lines/Statements/Waits views, Settings, Connections), or when asked to run, screenshot or verify mtkprof.
 ---
 
 # Verify mtkprof
@@ -12,7 +12,7 @@ Evidence root: **`/tmp/verify-mtkprof/evidence/<UTC-timestamp>/`** (set `VERIFY_
 ## Launch
 
 ```sh
-S=/Users/davidbudac/claude_projects/mtkprof-desktop/.claude/skills/verify-mtkprof/scripts
+S=/Users/davidbudac/claude_projects/modern-tkprof/.claude/skills/verify-mtkprof/scripts
 $S/launch.sh        # prints "ready: ..." and URL=...; exit 0 only when usable
 ```
 
@@ -38,7 +38,7 @@ Headless Playwright, imported from `/Users/davidbudac/.claude/skills/deck-to-ppt
 
 ```sh
 cd /tmp
-T=/Users/davidbudac/claude_projects/mtkprof-desktop/engine/testdata/traces/19c
+T=/Users/davidbudac/claude_projects/modern-tkprof/testdata/traces/19c
 node $S/drive.mjs --open $T/level_8.trc --view Trace --name lines          # open, switch view, screenshot
 node $S/drive.mjs --page Settings --name settings                          # no trace needed
 node $S/drive.mjs --open $T/level_8.trc,$T/level_4.trc --view Waits --name two
@@ -56,7 +56,7 @@ It prints a JSON summary (tab titles, offered views, active view, console errors
 | Tab state | `.tab-dot.busy` (opening), `.tab-dot.bad` (failed), `.tab-banner.bad[role=alert]` |
 | Lines search | `input[aria-label="Search the trace text"]` |
 
-Sample traces: `engine/testdata/traces/19c/*.trc` (`level_1/4/8`, `basic_binds`, `bind_types`, `cursor_cache`, `errors`, `io_waits`, `lobs`, `midtrace_start`, ...). Several paths in one submit open as ONE tab titled `<first> (+N)`.
+Sample traces: `testdata/traces/19c/*.trc` (`level_1/4/8`, `basic_binds`, `bind_types`, `cursor_cache`, `errors`, `io_waits`, `lobs`, `midtrace_start`, ...). Several paths in one submit open as ONE tab titled `<first> (+N)`.
 
 Feature recipes: [features/README.md](features/README.md).
 

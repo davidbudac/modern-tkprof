@@ -1,5 +1,5 @@
-// The standalone shell's layout (engine/web/src/app/App.tsx, the reference consumer of the same hooks) inside one tab's
-// SessionProvider; the panes, Esc and the view keys come from the lib's shell module (engine/web/src/lib/shell).
+// The standalone shell's layout (web/src/app/App.tsx, the reference consumer of the same hooks) inside one tab's
+// SessionProvider; the panes, Esc and the view keys come from the lib's shell module (web/src/lib/shell).
 import { useEffect, useRef, type ReactNode } from 'react'
 import {
   useStore, useStoreApi, FilesPane, FilterBar, Inspector, LineDrawer, PaneToggle, ResizeHandle,

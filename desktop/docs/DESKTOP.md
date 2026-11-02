@@ -9,7 +9,8 @@ button names it (*Notes ▾*) and is marked as the current page.
 ## Install
 
 Download the installer for your system from the
-[releases page](https://github.com/davidbudac/mtkprof-desktop/releases):
+[releases page](https://github.com/davidbudac/modern-tkprof/releases) (from v0.5.0; earlier ones on
+the archived [mtkprof-desktop releases page](https://github.com/davidbudac/mtkprof-desktop/releases)):
 
 | System | File | Notes |
 |---|---|---|

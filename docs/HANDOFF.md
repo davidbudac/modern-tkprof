@@ -6,14 +6,36 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## One repository, two clients (2026-11-02)
+
+- The desktop app moved in from `davidbudac/mtkprof-desktop` as `desktop/` (squash import of its `main` at `4b622df`;
+  the old repo keeps the history and gets archived). Decision: `docs/DESIGN.md` § the shell. Layout: engine + CLI at the
+  root, `web/` (CLI UI, shared lib `web/src/lib`), `desktop/` (Tauri app, imports the lib as `@lib` from `../web/src/lib`,
+  builds its sidecar from `../cmd/mtkprof`). Agent notes: `CLAUDE.md`, `desktop/CLAUDE.md`.
+- One pnpm workspace at the root (`pnpm-workspace.yaml`: `web`, `desktop`; a catalog for React, Vite, TypeScript, Vitest,
+  the React/Node types; one `pnpm-lock.yaml`, seeded from the old `web/` lockfile so the embedded UI builds byte-identical).
+  Gone: the submodule, `check:deps`, the "Pin engine at" commits, the desktop's own lockfile.
+- CI: `scripts/ci-local.sh` also runs the desktop checks (api types, `cargo fmt`, typecheck, tests; `--no-desktop`);
+  installers stay `desktop/scripts/ci-local.sh` (Docker legs mount the whole repository at `/src`). Releases: one version,
+  one tag. `scripts/release-local.sh <tag>` checks the app versions and publishes the CLI binaries;
+  `desktop/scripts/release-local.sh <tag>` on a Mac uploads the installers to that release. The app's About/releases link
+  points at this repo's releases.
+- `cargo fmt` had drifted in the desktop repo (`menu.rs`, `open.rs`, …); formatted on the way.
+- **Open:** the uncommitted lib work in the old checkout `~/claude_projects/mtkprof-desktop/engine` (2026-11-02 07:34:
+  new `web/src/lib/components/phaseBrush.ts`, edits to `Timeline.tsx`, `Lanes.tsx`, `callkinds.ts`, `tokens.css`,
+  `timeline.css`) was left alone; the paths are the same here, so `git -C ~/claude_projects/mtkprof-desktop/engine diff`
+  plus the untracked file apply as is. Archive `davidbudac/mtkprof-desktop` on GitHub after that. Two user guides exist
+  (`docs/DESKTOP.md`, `desktop/docs/DESKTOP.md`); merge them. Not run after the move: the Docker legs (Linux, Windows)
+  and the macOS installer leg of `desktop/scripts/ci-local.sh`.
+
 ## Execution Loom (2026-11-01)
 
 - A "Loom" mode in the A/B execution comparison (Statements → pick two executions → Numbers | Loom), in the shared
   lib, so the standalone report, `serve` and the desktop app all have it. Design: `docs/ARCHITECTURE.md` §
   "Execution Loom"; spec: `docs/implementing-new-ideas.md`.
 - Engine: `GET /s/{id}/api/executions/trace` (additive, protocol unchanged; contract + parity queries updated).
-  **Desktop follow-up:** bump the `engine/` pin and run `pnpm gen:api`; no shell code (it mounts the lib's
-  Statements view, line links open the Lines tab).
+  Desktop: done (pinned in the former desktop repo at `4b622df`; it mounts the lib's Statements view, line links open the
+  Lines tab).
 - Not available in reports without facts (`-aggregate`, the desktop Reports view's HTML export): the view says so.
   Possible follow-up: embed the traces of a bounded set of executions in the export.
 - No fixture has a statement run several times with real I/O differences; checked by screenshot on
@@ -61,7 +83,7 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 - The standalone shell adopts it: tabs in the desktop's order and labels (Lines is now "Trace", after Overview), ⌘/Ctrl digit
   chords, Files panel per view (folded in Statements, Waits, Pivot), the details pane only on Waits and Timeline, the error
   card around `<main>`. `web/src/app/Inspector.tsx`, `LineDrawer.tsx` and `urlstate.ts` are gone.
-- **Desktop follow-up** (next task): switch its imports to `@lib` and delete the copies: `src/workspace/session/views.tsx`
+- Desktop follow-up, done in the former desktop repo (`a56620b`, `1f6f6c3`): switch its imports to `@lib` and delete the copies: `src/workspace/session/views.tsx`
   (keep only the Notes / Reports rows appended to `baseViews`), `viewKeys.ts` (+ test), `viewPanes.ts` (+ test),
   `filesRoom.ts` (+ test), `Inspector.tsx`, `LineDrawer.tsx`, `SessionShell.tsx` (panes, Esc and view-key effects →
   `useShellPanes`, `useEscapeChain`, `useViewKeys`), `SessionNav.tsx` (→ `ViewTabs` with the key-hint and Tools menu props),
@@ -179,9 +201,9 @@ S8/S9: `State.annotations` + `annotationsEnabled`, actions `setAnnotations`/
 `libraryEnabled`, `Session.library` (`PivotLibrary`), `useLibrary`. The
 standalone app looks and works as before.
 
-### The two-repo workflow
+### The two-repo workflow (until 2026-11-02; now one repository, see the top)
 
-- `mtkprof-desktop/engine/` is a git submodule of this repo, pinned to a
+- `mtkprof-desktop/engine/` was a git submodule of this repo, pinned to a
   commit (now `3066d7c`, `main`). Bump: `cd engine && git fetch && git
   checkout <commit> && cd .. && git add engine && git commit`. The shell
   refuses an engine whose `protocol` is not 1 (`engine.Protocol`), so engine,

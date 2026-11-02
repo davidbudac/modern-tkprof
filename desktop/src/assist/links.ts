@@ -1,5 +1,5 @@
-// The links of an assistant answer. `mtkprof:` links are the URL hash of the views (engine/web/src/lib/shell/urlstate.ts, the
-// grammar of engine/internal/assist/system_prompt.md): a chip resolves through the urlstate parser and moves the tab's
+// The links of an assistant answer. `mtkprof:` links are the URL hash of the views (web/src/lib/shell/urlstate.ts, the
+// grammar of internal/assist/system_prompt.md): a chip resolves through the urlstate parser and moves the tab's
 // store the way Back / Forward do. `https:` links open in the system browser; anything else is not a link.
 import { apply, unresolved, type Store, type TraceDoc } from '@lib'
 

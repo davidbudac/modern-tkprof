@@ -1,5 +1,7 @@
 # Lines view: assistive navigation and line context — implementation plan
 
+> Written before the 2026-11-02 merge, when this app was the repository `mtkprof-desktop` and pinned the engine as the submodule `engine/`: read `engine/X` as `X` at the repository root (`web/src/lib`, `internal/`, `api/`, `testdata/`); the pin, `git submodule` and `check:deps` steps no longer exist.
+
 From a review of the Lines view on 2026-10-30 (`engine/web/src/lib/views/Lines.tsx`,
 `components/LineViewer.tsx`, `data/lines.ts`, `internal/slice/at.go`). The view is a fast reader
 with colour by kind, search, jump to time, bookmarks, notes, window marks and gutter marks for the

@@ -21,7 +21,13 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         ..Default::default()
     };
     let close_tab = MenuItem::with_id(app, CLOSE_TAB, "Close Tab", true, Some("CmdOrCtrl+W"))?;
-    let close_window = MenuItem::with_id(app, CLOSE_WINDOW, "Close Window", true, Some("CmdOrCtrl+Shift+W"))?;
+    let close_window = MenuItem::with_id(
+        app,
+        CLOSE_WINDOW,
+        "Close Window",
+        true,
+        Some("CmdOrCtrl+Shift+W"),
+    )?;
     Menu::with_items(
         app,
         &[
@@ -55,7 +61,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
                     &PredefinedMenuItem::select_all(app, None)?,
                 ],
             )?,
-            &Submenu::with_items(app, "View", true, &[&PredefinedMenuItem::fullscreen(app, None)?])?,
+            &Submenu::with_items(
+                app,
+                "View",
+                true,
+                &[&PredefinedMenuItem::fullscreen(app, None)?],
+            )?,
             &Submenu::with_id_and_items(
                 app,
                 tauri::menu::WINDOW_SUBMENU_ID,

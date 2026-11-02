@@ -1,4 +1,4 @@
-// The standalone app's Back/Forward come from browser history (the lib's urlstate, engine/web/src/lib/shell/urlstate.ts, startUrlSync); the
+// The standalone app's Back/Forward come from browser history (the lib's urlstate, web/src/lib/shell/urlstate.ts, startUrlSync); the
 // desktop has no URL bar, so each tab keeps the same entries (hashes) and the same push-or-replace rules in memory.
 import { apply, hashOf, type Store, type TraceDoc, type State } from '@lib'
 

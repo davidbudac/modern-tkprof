@@ -3,23 +3,16 @@
   "private": true,
   "version": "0.4.0",
   "type": "module",
-  "packageManager": "pnpm@12.9.1",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "tauri": "tauri",
     "build:engine": "node scripts/build-engine.mjs",
-    "check:deps": "node scripts/check-lib-deps.mjs",
-    "gen:api": "openapi-typescript engine/api/engine.openapi.yaml -o src/engine/api.d.ts",
+    "gen:api": "openapi-typescript ../api/engine.openapi.yaml -o src/engine/api.d.ts",
     "test": "vitest run"
   },
   "dependencies": {
-    "@davidbudac/ora-plan-core": "file:engine/web/vendor/ora-plan-core",
-    "@fontsource/ibm-plex-mono": "^5.3.0",
-    "@fontsource/ibm-plex-sans": "^5.3.0",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.12",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.8.3",
     "@tauri-apps/plugin-fs": "^2.7.1",
@@ -29,19 +22,18 @@
     "@tauri-apps/plugin-shell": "^2.5.0",
     "@tauri-apps/plugin-store": "^2.5.0",
     "@tauri-apps/plugin-window-state": "^2.5.0",
-    "echarts": "^5.6.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4",
-    "@types/node": "^26.6.5",
-    "@types/react": "^19.1.10",
-    "@types/react-dom": "^19.1.7",
-    "@vitejs/plugin-react": "^5.0.0",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
     "openapi-typescript": "^7.13.0",
-    "typescript": "^5.9.2",
-    "vite": "^7.1.3",
-    "vitest": "^5.0.5"
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

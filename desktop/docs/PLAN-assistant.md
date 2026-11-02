@@ -1,5 +1,7 @@
 # Assistant plan
 
+> Written before the 2026-11-02 merge, when this app was the repository `mtkprof-desktop` and pinned the engine as the submodule `engine/`: read `engine/X` as `X` at the repository root (`web/src/lib`, `internal/`, `api/`, `testdata/`); the pin, `git submodule` and `check:deps` steps no longer exist.
+
 DBAs who analyse a 10046 trace in mtkprof get a way to hand what mtkprof sees, plus their notes and a case description, to an LLM agent.
 They can copy a Markdown brief out, or chat in the app with an OpenAI-compatible endpoint, `claude -p`, or `codex exec`.
 Every claim in an answer links back into the views, and the agent can move the view ("show me").

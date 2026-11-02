@@ -59,12 +59,26 @@ mod tests {
 
     #[test]
     fn args_become_absolute_paths_without_flags() {
-        let cwd = if cfg!(windows) { PathBuf::from(r"C:\traces") } else { PathBuf::from("/traces") };
-        let abs = if cfg!(windows) { r"D:\x\b.trc" } else { "/x/b.trc" };
+        let cwd = if cfg!(windows) {
+            PathBuf::from(r"C:\traces")
+        } else {
+            PathBuf::from("/traces")
+        };
+        let abs = if cfg!(windows) {
+            r"D:\x\b.trc"
+        } else {
+            "/x/b.trc"
+        };
         let got = paths_of_args(
             ["a.trc".into(), "-psn_0_123".into(), abs.into(), "".into()],
             &cwd,
         );
-        assert_eq!(got, vec![cwd.join("a.trc").to_string_lossy().into_owned(), abs.to_string()]);
+        assert_eq!(
+            got,
+            vec![
+                cwd.join("a.trc").to_string_lossy().into_owned(),
+                abs.to_string()
+            ]
+        );
     }
 }

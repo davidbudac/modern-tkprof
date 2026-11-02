@@ -1,4 +1,4 @@
-// Builds the mtkprof-engine sidecar (cmd/mtkprof of the engine submodule, invoked by the shell
+// Builds the mtkprof-engine sidecar (cmd/mtkprof at the repository root, invoked by the shell
 // as `mtkprof-engine engine`) for the host (or $TARGET / --target)
 // Rust target triple into src-tauri/binaries/mtkprof-engine-<triple>[.exe], the name Tauri's
 // externalBin expects.
@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const engine = join(root, 'engine')
+const engine = join(root, '..') // the repository root: go.mod, cmd/mtkprof
 
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', ...opts }).trim()
 
