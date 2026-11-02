@@ -359,6 +359,8 @@
 /* viewer: inlays, range, gaps */
 /* hints inside the row text: never copied or selected, they do not take part in the gutter's columns */
 .lv-inlay { display: inline-block; margin-inline: 0.35em; padding-inline: 0.4em; border-radius: 3px; font-size: 0.85em; line-height: 1.25; vertical-align: baseline; color: var(--ink-3); background: color-mix(in oklch, var(--ink) 7%, transparent); user-select: none; pointer-events: none; }
+/* a readable value standing in for a raw number: part of the text (copied as shown), a dotted underline says it was converted */
+.lv-val { text-decoration: underline dotted color-mix(in oklch, var(--ink) 35%, transparent); text-underline-offset: 3px; }
 .lv-inlay-gap { color: color-mix(in oklch, var(--s-warning) 70%, var(--ink)); background: color-mix(in oklch, var(--s-warning) 16%, transparent); }
 /* the selected range of lines (a tint of the selection colour; the selected line keeps its own, stronger one) */
 .lv-range { background: color-mix(in oklch, var(--c-commit) 11%, transparent); }

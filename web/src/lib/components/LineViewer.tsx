@@ -542,9 +542,15 @@ function runNode(r: RefRun, i: number) {
 
 const inlayNode = (h: Inlay, i: number) => <span key={`i${i}`} className={`lv-inlay lv-inlay-${h.kind}`} aria-hidden="true">{h.text}</span>
 
+/** A readable value standing in for the raw number `raw` (its tooltip); inside a reference it stays a link. */
+function valueNode(h: Inlay, raw: string, r: RefRun, i: number) {
+  const v = <span key={`v${i}`} className={`lv-val lv-val-${h.kind}`} title={raw}>{h.text}</span>
+  return r.ref ? <a key={`v${i}${r.ref.kind}${r.ref.value}`} className={`lv-ref lv-ref-${r.ref.kind}`} data-act="ref" data-ref={`${r.ref.kind}:${r.ref.value}`}>{v}</a> : v
+}
+
 /**
  * The line's text with the matches of the search wrapped in <mark> and, with `refs`, its references as links (hits inside a link stay inside it);
- * `ins` (hints, any order) are inserted at their offsets: a run is split where a hint falls inside it.
+ * `ins` (hints, any order) are inserted at their offsets, and the ones with a `from` replace the raw text `[from, at)`: a run is split where a hint falls inside it.
  */
 function marked(text: string, kind: number, hl: RowHighlight | undefined, refs: boolean, ins?: Inlay[]) {
   const spans = hl ? matchSpans(text, hl.q, hl.regex, hl.caseSensitive) : []
@@ -559,23 +565,32 @@ function marked(text: string, kind: number, hl: RowHighlight | undefined, refs: 
     return runs.map(runNode)
   }
   const runs: RefRun[] = refs ? mergeHits(refRuns(text, LINE_KINDS[kind]), spans) : spans.length ? highlightRuns(text, spans) : [{ text }]
-  const sorted = ins.map((h) => ({ ...h, at: Math.min(text.length, Math.max(0, h.at)) })).sort((a, b) => a.at - b.at)
+  const clamp = (n: number) => Math.min(text.length, Math.max(0, n))
+  const sorted = ins.map((h) => {
+    const at = clamp(h.at)
+    return { h, at, from: h.from === undefined ? at : Math.min(at, clamp(h.from)), swap: h.from !== undefined }
+  }).sort((a, b) => a.from - b.from || a.at - b.at)
   const out: ReactNode[] = []
-  let h = 0, at = 0 // next hint, offset of the current run's start
+  let h = 0, at = 0, skip = 0 // next hint, offset of the current run's start, end of the raw text replaced so far
   let k = 0
   for (const r of runs) {
     const end = at + r.text.length
     let pos = at
-    for (; h < sorted.length && sorted[h].at < end; h++) {
-      const cut = Math.max(pos, sorted[h].at)
-      if (cut > pos) out.push(runNode({ ...r, text: r.text.slice(pos - at, cut - at) }, k++))
-      pos = cut
-      out.push(inlayNode(sorted[h], h))
+    for (;;) {
+      for (; h < sorted.length && sorted[h].from <= pos && sorted[h].from < end; h++) {
+        const s = sorted[h]
+        if (s.swap) { out.push(valueNode(s.h, text.slice(s.from, s.at), r, h)); skip = Math.max(skip, s.at) } else out.push(inlayNode(s.h, h))
+      }
+      if (pos >= end) break
+      const next = Math.min(end, h < sorted.length ? sorted[h].from : end)
+      if (pos < skip) { pos = Math.min(next, skip); continue }
+      out.push(runNode(pos === at && next === end ? r : { ...r, text: r.text.slice(pos - at, next - at) }, k++))
+      pos = next
     }
-    if (pos < end || r.text === '') out.push(runNode(pos === at ? r : { ...r, text: r.text.slice(pos - at) }, k++))
+    if (r.text === '') out.push(runNode(r, k++))
     at = end
   }
-  for (; h < sorted.length; h++) out.push(inlayNode(sorted[h], h)) // at the end of the text
+  for (; h < sorted.length; h++) out.push(inlayNode(sorted[h].h, h)) // at the end of the text
   if (text === '') out.push(' ')
   return out
 }

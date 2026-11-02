@@ -113,7 +113,7 @@ const SHOW_TOGGLES: { key: 'wrap' | 'heat' | 'strip' | 'links' | 'hints' | 'cloc
   { key: 'heat', label: 'Heat bars', keys: 'h', title: 'a bar in the right gutter for the elapsed time of calls and waits' },
   { key: 'strip', label: 'Density strip', title: 'the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move' },
   { key: 'links', label: 'Reference links', title: 'underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click shows the statement (its SQL and a summary) in a popup, the Statements view is one click further (Shift: the cursor\'s parse line)' },
-  { key: 'hints', label: 'Hints', keys: 'n', title: 'dim notes inside the rows: bind values, clock times, object names, durations and idle gaps' },
+  { key: 'hints', label: 'Hints', keys: 'n', title: 'dim notes inside the rows: bind values and idle gaps' },
   { key: 'clock', label: 'Clock time', title: "a column beside the line numbers with each line's tim= as a wall-clock time in the trace's zone (the time from the start when the trace has no wall clock)" },
   { key: 'delta', label: 'Time delta', title: 'a column beside the line numbers with the time of each line from an anchor (●): the selected line when it is in view, else the first line in view with a time' },
 ]
@@ -566,6 +566,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'z': onFold(selected); break
       case 'Z': set({ folds: [] }); break
       case 'n': setPrefs({ hints: !prefs.hints }); break
+      case 'v': setPrefs({ readable: !prefs.readable }); break
       case 't': stepGap(1); break
       case 'T': stepGap(-1); break
       case 'f': toggleFocus(); break
@@ -684,13 +685,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     return us >= prefs.gapMs * 1000 ? us : 0
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cache, pages, prefs.gapMs])
-  // with the Clock column on, the clock hint after tim= would say the same thing again
-  const inlays = useMemo(() => (prefs.hints
-    ? (line: number, text: string, kind: number) => {
-      const all = inlaysOf(text, LINE_KINDS[kind], line, decodeCtx, gapOf(line))
-      return prefs.clock ? all.filter((i) => i.kind !== 'clock') : all
-    }
-    : undefined), [prefs.hints, prefs.clock, decodeCtx, gapOf])
+  // hints add bind values and gaps; readable values replace the raw numbers they read (with the Clock column on, tim= stays: the column says it)
+  const inlays = useMemo(() => (prefs.hints || prefs.readable
+    ? (line: number, text: string, kind: number) => inlaysOf(text, LINE_KINDS[kind], line, decodeCtx, gapOf(line))
+      .filter((i) => (i.from === undefined ? prefs.hints : prefs.readable && !(prefs.clock && i.kind === 'clock')))
+    : undefined), [prefs.hints, prefs.readable, prefs.clock, decodeCtx, gapOf])
   const lineCard = useMemo(() => lineCardOf(decodeCtx), [decodeCtx])
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
 
@@ -991,6 +990,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             button={<><span className="tb-label">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
             <KeyMap />
           </ToolbarMenu>
+          <span className="seg" role="group" aria-label="Values in the rows" title="how the numbers in the rows read: tim= as a clock time, obj#= as the object name, e= / ela= as a duration, oacdty= as the type name (v); the raw value is in the tooltip">
+            <button type="button" aria-pressed={!prefs.readable} onClick={() => setPrefs({ readable: false })}>raw</button>
+            <button type="button" aria-pressed={prefs.readable} onClick={() => setPrefs({ readable: true })}>readable</button>
+          </span>
           <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints, clock and delta columns), the line colours and the ones to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
             <div className="lines-view">
               <h4>Show</h4>

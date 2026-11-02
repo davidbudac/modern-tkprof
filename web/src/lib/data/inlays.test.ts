@@ -19,8 +19,8 @@ const ctx: DecodeContext = {
 const cut = (text: string, i: { at: number; text: string }) => text.slice(0, i.at) + '|' + i.text + '|' + text.slice(i.at)
 
 describe('inlaysOf', () => {
-  it('annotates a call with the clock, and the duration from a millisecond up', () => {
-    expect(inlaysOf(EXEC, 'call', 1, ctx)).toEqual([{ at: EXEC.length, text: '12:00:61', kind: 'clock' }])
+  it('annotates a call with its duration and clock, each over the raw number it reads', () => {
+    expect(inlaysOf(EXEC, 'call', 1, ctx).map((x) => [x.kind, x.text, EXEC.slice(x.from, x.at)])).toEqual([['dur', '825 µs', '825'], ['clock', '12:00:61', '54958079261']])
     const r = inlaysOf(EXEC_BIG, 'call', 1, ctx)
     expect(r.map((x) => [x.kind, x.text])).toEqual([['dur', '12.3 ms'], ['clock', '12:00:61']])
     expect(cut(EXEC_BIG, r[0])).toContain('e=12345|12.3 ms|,p=0')
@@ -30,12 +30,13 @@ describe('inlaysOf', () => {
     expect(r.map((x) => [x.kind, x.text])).toEqual([['dur', '2.50 ms'], ['obj', 'SYS.I_OBJ1'], ['clock', '12:00:43']])
     expect(cut(WAIT, r[0])).toContain("ela= 2500|2.50 ms| file#=10")
     expect(cut(WAIT, r[1])).toContain('obj#=721|SYS.I_OBJ1| tim=')
+    expect(r.map((x) => WAIT.slice(x.from, x.at))).toEqual(['2500', '721', '10778995443'])
   })
   it('skips unknown objects, obj#=-1 and missing context', () => {
     expect(inlaysOf(WAIT.replace('obj#=721', 'obj#=-1'), 'wait', 1, ctx).map((x) => x.kind)).toEqual(['dur', 'clock'])
     expect(inlaysOf(WAIT.replace('obj#=721', 'obj#=5'), 'wait', 1, ctx).map((x) => x.kind)).toEqual(['dur', 'clock'])
     expect(inlaysOf(WAIT, 'wait', 1, {}).map((x) => x.kind)).toEqual(['dur'])
-    expect(inlaysOf(EXEC, 'call', 1, {})).toEqual([])
+    expect(inlaysOf(EXEC, 'call', 1, {}).map((x) => x.kind)).toEqual(['dur'])
   })
   it('annotates the object of a STAT line', () => {
     const r = inlaysOf(STAT, 'stat', 1, ctx)
@@ -44,7 +45,7 @@ describe('inlaysOf', () => {
     expect(inlaysOf(STAT.replace('obj=720', 'obj=0'), 'stat', 1, ctx)).toEqual([])
   })
   it('annotates the clock of XCTEND', () => {
-    expect(inlaysOf(XCTEND, 'xctend', 1, ctx)).toEqual([{ at: XCTEND.length, text: '12:00:68', kind: 'clock' }])
+    expect(inlaysOf(XCTEND, 'xctend', 1, ctx)).toEqual([{ from: XCTEND.length - 11, at: XCTEND.length, text: '12:00:68', kind: 'clock' }])
   })
   it('appends the value and type of a Bind# line', () => {
     const t = ' Bind#0'
@@ -65,16 +66,16 @@ describe('inlaysOf', () => {
   it('names the oacdty of a bind attribute line', () => {
     const t = '  oacdty=180 mxl=11(11) mxlc=00 mal=00 scl=00 pre=00'
     const r = inlaysOf(t, 'bind-line', 5, {})
-    expect(r).toEqual([{ at: '  oacdty=180'.length, text: 'TIMESTAMP', kind: 'type' }])
+    expect(r).toEqual([{ from: '  oacdty='.length, at: '  oacdty=180'.length, text: 'TIMESTAMP', kind: 'type' }])
     expect(inlaysOf('  oacdty=02 mxl=22(22)', 'bind-line', 5, {})[0].text).toBe('NUMBER')
     expect(inlaysOf('  oacdty=999 mxl=22(22)', 'bind-line', 5, {})).toEqual([])
   })
   it('puts the gap first, only when positive', () => {
     const r = inlaysOf(EXEC, 'call', 1, ctx, 2_500_000)
     expect(r[0]).toEqual({ at: 0, text: 'gap 2.500 s', kind: 'gap' })
-    expect(r.map((x) => x.kind)).toEqual(['gap', 'clock'])
-    expect(inlaysOf(EXEC, 'call', 1, ctx, 0).map((x) => x.kind)).toEqual(['clock'])
-    expect(inlaysOf(EXEC, 'call', 1, ctx, -5).map((x) => x.kind)).toEqual(['clock'])
+    expect(r.map((x) => x.kind)).toEqual(['gap', 'dur', 'clock'])
+    expect(inlaysOf(EXEC, 'call', 1, ctx, 0).map((x) => x.kind)).toEqual(['dur', 'clock'])
+    expect(inlaysOf(EXEC, 'call', 1, ctx, -5).map((x) => x.kind)).toEqual(['dur', 'clock'])
   })
   it('returns nothing for kinds without hints', () => {
     for (const k of ['blank', 'header', 'separator', 'sql-text', 'unknown', 'marker', 'binds'] as const) {
