@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=768, height=768" />
+<title>TraceLens — focus loop</title>
+<script src="assets/gsap.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; inline-size: 768px; block-size: 768px; overflow: clip; }
+#stage { position: relative; inline-size: 768px; block-size: 768px; }
+#paper { position: absolute; inset: 0; background: oklch(1 0 none); }
+#mark { position: absolute; inset: 0; inline-size: 768px; block-size: 768px; }
+svg { display: block; inline-size: 100%; block-size: 100%; }
+svg image { filter: grayscale(1) contrast(2); }
+</style>
+</head>
+<body>
+<div id="stage" data-composition-id="tracelens-focus" data-start="0" data-duration="4" data-fps="30" data-width="768" data-height="768">
+<div id="paper" aria-hidden="true"></div>
+<div id="mark" class="clip" data-start="0" data-duration="4" data-track-index="1">
+<svg viewBox="0 0 1254 1254" role="img" aria-label="TraceLens: asymmetric curved brackets focusing around a rounded square">
+<defs>
+<clipPath id="left-crop"><rect x="290" y="300" width="273" height="625" /></clipPath>
+<clipPath id="right-crop"><rect x="710" y="395" width="245" height="485" /></clipPath>
+<clipPath id="center-crop"><rect x="563" y="550" width="140" height="160" /></clipPath>
+</defs>
+<!-- All three shapes come directly from the selected option C. -->
+<!-- The full-source image boxes exceed the viewport during transforms; their visible crops stay inside. -->
+<g id="left-bracket" data-layout-allow-overflow><image href="assets/option-c.png" width="1254" height="1254" clip-path="url(#left-crop)" /></g>
+<g id="right-bracket" data-layout-allow-overflow><image href="assets/option-c.png" width="1254" height="1254" clip-path="url(#right-crop)" /></g>
+<g id="center-square" data-layout-allow-overflow><image href="assets/option-c.png" width="1254" height="1254" clip-path="url(#center-crop)" /></g>
+</svg>
+</div>
+</div>
+<script>
+window.__timelines = window.__timelines || {};
+const tl = gsap.timeline({ paused: true });
+const allowMotion = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+if (allowMotion) {
+  // One focus gesture followed by a quiet hold; first and last poses match.
+  tl.to('#left-bracket', { x: 16, duration: 0.65, ease: 'sine.inOut' }, 0.4)
+    .to('#right-bracket', { x: -16, duration: 0.65, ease: 'sine.inOut' }, 0.46)
+    .to('#center-square', { scale: 1.1, rotation: 4, svgOrigin: '627 630', duration: 0.4, ease: 'power2.out' }, 0.8)
+    .to('#center-square', { scale: 1, rotation: 0, svgOrigin: '627 630', duration: 0.55, ease: 'sine.inOut' }, 1.35)
+    .to('#left-bracket', { x: 0, duration: 0.8, ease: 'sine.inOut' }, 1.65)
+    .to('#right-bracket', { x: 0, duration: 0.8, ease: 'sine.inOut' }, 1.71);
+}
+window.__timelines['tracelens-focus'] = tl;
+tl.seek(0);
+</script>
+</body>
+</html>

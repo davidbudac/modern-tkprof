@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "connections": [
+    { "id": "lab-db", "name": "Lab PDB1 (team)", "kind": "db", "host": "dbmint", "port": 1521, "user": "mtk", "service": "pdb1.world", "notes": "Grants: docs/REMOTE.md" },
+    { "id": "lab-ssh", "name": "Lab host (team)", "kind": "ssh", "host": "dbmint", "port": 2200, "user": "oracle", "transport": "auto" },
+    { "id": "broken", "kind": "db", "host": "x" }
+  ]
+}

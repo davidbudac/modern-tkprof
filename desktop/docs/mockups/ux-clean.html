@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mtkprof — chrome diet mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---- mockup page scaffolding (not part of the proposal) ------------------ */
+:root {
+  --page-bg: oklch(94% 0.004 250);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+}
+body { margin: 0; background: var(--page-bg); color: oklch(25% 0.015 250); }
+.wrap { inline-size: 1460px; margin-inline: auto; padding: 48px 0 80px; display: grid; gap: 56px; }
+.intro h1 { font-size: 26px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
+.intro p { margin: 0; max-inline-size: 78ch; line-height: 1.5; color: oklch(40% 0.015 250); }
+.mock { display: grid; gap: 14px; }
+.mock > h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.mock > h2 small { font-weight: 400; color: oklch(48% 0.015 250); margin-inline-start: 10px; }
+.caption { font-size: 13px; line-height: 1.55; color: oklch(40% 0.015 250); max-inline-size: 110ch; margin: 0; }
+.caption b { color: oklch(25% 0.015 250); font-weight: 600; }
+.screen { border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px oklch(0% 0 none / 0.08), 0 12px 36px oklch(0% 0 none / 0.1); border: 1px solid oklch(86% 0.006 250); position: relative; }
+.strip-label { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; padding: 2px 10px; border-radius: 999px; background: oklch(25% 0.015 250); color: #fff; justify-self: start; }
+
+/* ---- app tokens (verbatim from lib/styles/tokens.css, light) -------------- */
+.app {
+  --surface: oklch(98.8% 0.002 250);
+  --surface-raised: oklch(100% 0 none);
+  --surface-sunken: oklch(96.5% 0.004 250);
+  --ink: oklch(22% 0.015 250);
+  --ink-2: oklch(47% 0.015 250);
+  --ink-3: oklch(64% 0.012 250);
+  --hairline: oklch(91% 0.005 250);
+  --hairline-strong: oklch(82% 0.008 250);
+  --wash: color-mix(in oklch, var(--ink) 6%, transparent);
+  --wash-strong: color-mix(in oklch, var(--ink) 11%, transparent);
+  --c-cpu: #2a78d6; --c-userio: #eb6834; --c-sysio: #1baf7a; --c-commit: #eda100;
+  --c-concurrency: #e87ba4; --c-network: #0a8a2a; --c-other: #6250d6;
+  --c-idle: oklch(78% 0.01 240); --c-unaccounted: oklch(90% 0.006 240);
+  --s-good: #0ca30c; --s-warning: #d7930a; --s-critical: #c9343a;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  background: var(--surface); color: var(--ink); font-size: 13px; line-height: 1.45;
+}
+.app.dark {
+  --surface: oklch(17.5% 0.007 240);
+  --surface-raised: oklch(20.5% 0.007 240);
+  --surface-sunken: oklch(15% 0.007 240);
+  --ink: oklch(92% 0.008 240);
+  --ink-2: oklch(72% 0.01 240);
+  --ink-3: oklch(56% 0.01 240);
+  --hairline: oklch(29% 0.007 240);
+  --hairline-strong: oklch(38% 0.008 240);
+  --c-cpu: #3987e5; --c-userio: #d95926; --c-sysio: #199e70; --c-commit: #c98500;
+  --c-idle: oklch(42% 0.01 240); --c-unaccounted: oklch(30% 0.008 240);
+}
+.app .mono { font-family: var(--mono); }
+.app .dim { color: var(--ink-2); }
+.app .faint { color: var(--ink-3); }
+
+/* ---- BEFORE chrome (reconstruction of today) ------------------------------ */
+.b-frametop { display: flex; align-items: stretch; gap: 12px; block-size: 38px; padding-inline: 16px 8px; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline-strong); font-size: 13px; }
+.b-frametop .brand { align-self: center; font-weight: 600; letter-spacing: 0.01em; }
+.b-tabs { display: flex; align-items: end; gap: 2px; }
+.b-tab { display: inline-flex; align-items: center; gap: 8px; block-size: 32px; padding-inline: 12px 4px; border: 1px solid transparent; border-block-end: 0; border-radius: 4px 4px 0 0; color: var(--ink-2); font-family: var(--mono); font-size: 12px; }
+.b-tab.on { background: var(--surface-raised); border-color: var(--hairline-strong); color: var(--ink); margin-block-end: -1px; }
+.b-tab .x { color: var(--ink-3); padding-inline: 7px; font-size: 13px; }
+.b-plus { align-self: end; block-size: 32px; display: grid; place-items: center; padding-inline: 12px; color: var(--ink-2); font-size: 15px; }
+.b-pages { margin-inline-start: auto; display: flex; align-items: center; gap: 4px; }
+.b-pages span { padding: 4px 9px; border-radius: 4px; color: var(--ink-2); }
+.b-topbar { display: flex; align-items: center; gap: 16px; block-size: 44px; padding-inline: 16px; background: var(--surface-raised); border-block-end: 1px solid var(--hairline); white-space: nowrap; }
+.seg { display: inline-flex; border: 1px solid var(--hairline-strong); border-radius: 4px; overflow: hidden; }
+.seg span { padding: 3px 9px; color: var(--ink-2); font-size: 14px; line-height: 1.1; }
+.seg span + span { border-inline-start: 1px solid var(--hairline-strong); }
+.b-topbar .file { font-family: var(--mono); font-size: 12px; }
+.minitrack { display: inline-flex; inline-size: 176px; block-size: 11px; border-radius: 2px; overflow: hidden; background: var(--surface-sunken); }
+.minitrack i { display: block; block-size: 100%; }
+.view-tabs { display: flex; gap: 2px; margin-inline-start: auto; }
+.vtab { border-radius: 5px; padding: 5px 11px; color: var(--ink-2); font-size: 13px; }
+.vtab small { color: var(--ink-3); margin-inline-start: 5px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.vtab.on { background: var(--wash); color: var(--ink); font-weight: 500; }
+.chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--hairline-strong); border-radius: 999px; padding: 1.5px 9px; font-size: 11px; white-space: nowrap; background: var(--surface-raised); }
+.chip .x { color: var(--ink-3); }
+.b-filter { display: flex; align-items: center; gap: 8px; padding: 4px 16px; border-block-end: 1px solid var(--hairline); background: color-mix(in oklch, var(--c-cpu) 6%, var(--surface)); font-size: 12px; }
+.b-filter .lbl { color: var(--ink-2); }
+.b-filter .clear { font-size: 11px; color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 4px; padding: 1px 7px; }
+.b-subbar { display: flex; gap: 24px; align-items: center; block-size: 30px; padding-inline: 16px; font-size: 12px; color: var(--ink-2); border-block-end: 1px solid var(--hairline); white-space: nowrap; }
+.b-subbar b { color: var(--ink); font-weight: 500; }
+.b-subbar .x { margin-inline-start: auto; font-size: 15px; color: var(--ink-2); }
+.b-status { display: flex; align-items: center; gap: 16px; block-size: 28px; padding-inline: 16px; border-block-start: 1px solid var(--hairline); background: var(--surface-sunken); color: var(--ink-2); font-size: 11px; }
+.b-status .spacer { flex: 1; }
+.dot { inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--s-good); display: inline-block; }
+.ellip { padding: 18px 16px; color: var(--ink-3); font-size: 12px; text-align: center; background: var(--surface); }
+
+/* ---- AFTER chrome ---------------------------------------------------------- */
+.a-frametop { display: flex; align-items: center; gap: 14px; block-size: 40px; padding-inline: 16px 12px; background: var(--surface-sunken); }
+.a-frametop .brand { font-weight: 600; letter-spacing: 0.01em; font-size: 13px; }
+.a-tabs { display: flex; align-items: center; gap: 4px; min-inline-size: 0; }
+.a-tab { display: inline-flex; align-items: center; gap: 8px; block-size: 28px; padding-inline: 12px 4px; border-radius: 6px; color: var(--ink-2); font-family: var(--mono); font-size: 12px; }
+.a-tab.on { background: var(--surface-raised); color: var(--ink); box-shadow: 0 0 0 1px var(--hairline); }
+.a-tab .x { color: var(--ink-3); padding-inline: 6px; }
+.a-plus { color: var(--ink-2); font-size: 15px; padding-inline: 8px; }
+.a-pages { margin-inline-start: auto; display: flex; align-items: center; gap: 2px; font-size: 12.5px; }
+.a-pages span { padding: 4px 9px; border-radius: 5px; color: var(--ink-2); }
+.a-engine { display: inline-flex; align-items: center; margin-inline-start: 10px; padding: 6px; border-radius: 5px; }
+.a-pages .dot { padding: 0; }
+.a-sessionbar { display: flex; align-items: center; gap: 14px; block-size: 44px; padding-inline: 16px; background: var(--surface-raised); border-block-end: 1px solid var(--hairline); white-space: nowrap; }
+.filebtn { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 5px; font-family: var(--mono); font-size: 12px; }
+.filebtn:hover, .filebtn.open { background: var(--wash); }
+.filebtn .cue { color: var(--ink-3); font-size: 10px; }
+.mini-sm { display: inline-flex; inline-size: 56px; block-size: 8px; border-radius: 2px; overflow: hidden; background: var(--surface-sunken); }
+.mini-sm i { display: block; block-size: 100%; }
+.a-chips { display: inline-flex; align-items: center; gap: 8px; margin-inline-start: 2px; }
+.warnrow { display: flex; gap: 20px; align-items: center; padding: 3px 16px; font-size: 12px; color: var(--s-critical); background: color-mix(in oklch, var(--s-warning) 10%, var(--surface-raised)); border-block-end: 1px solid var(--hairline); }
+.a-filter { display: flex; align-items: center; gap: 8px; padding: 4px 16px; border-block-end: 1px solid var(--hairline); background: var(--surface); font-size: 12px; }
+.a-filter .lbl { color: var(--ink-3); }
+.a-filter .chip { border-color: color-mix(in oklch, var(--c-cpu) 35%, var(--hairline-strong)); }
+.a-filter .clear { font-size: 11px; color: var(--ink-2); padding: 1px 7px; }
+
+/* popovers */
+.pop { position: absolute; z-index: 40; background: var(--surface-raised); border: 1px solid var(--hairline-strong); border-radius: 8px; box-shadow: 0 8px 28px oklch(0% 0 none / 0.16); padding: 14px 16px; font-size: 12px; }
+.pop h4 { margin: 0 0 10px; font-size: 12px; font-weight: 600; }
+.pop .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; }
+.pop .kv dt { color: var(--ink-2); } .pop .kv dd { margin: 0; }
+.pop .kv b { font-weight: 500; }
+.pop .legend { display: flex; gap: 14px; margin-block-start: 8px; font-size: 11px; color: var(--ink-2); flex-wrap: wrap; }
+.pop .legend .k { display: inline-flex; align-items: center; gap: 5px; }
+.sw { inline-size: 9px; block-size: 9px; border-radius: 2px; display: inline-block; }
+.pop .track { display: flex; block-size: 14px; border-radius: 3px; overflow: hidden; background: var(--surface-sunken); margin-block-start: 12px; inline-size: 300px; }
+.pop .track i { display: block; block-size: 100%; }
+.pop .foot { margin-block-start: 12px; padding-block-start: 10px; border-block-start: 1px solid var(--hairline); display: flex; gap: 10px; align-items: center; color: var(--ink-2); }
+.pop .btn { border: 1px solid var(--hairline-strong); border-radius: 4px; padding: 2px 9px; font-size: 11px; color: var(--ink); background: var(--surface-raised); }
+
+/* content area (Waits view) */
+.content { padding: 26px 32px 34px; background: var(--surface); }
+.sec-head { display: flex; align-items: baseline; gap: 12px; margin-block-end: 12px; }
+.sec-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.sec-head .hint { color: var(--ink-2); font-size: 12px; }
+.sec-head .tools { margin-inline-start: auto; display: flex; gap: 8px; font-size: 11px; color: var(--ink-2); }
+.sec-head .tools span { border: 1px solid var(--hairline-strong); border-radius: 4px; padding: 2px 8px; background: var(--surface-raised); }
+.tblwrap { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-raised); overflow: hidden; }
+table.tbl { inline-size: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th { text-align: start; font-weight: 500; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline-strong); padding: 6px 12px; white-space: nowrap; }
+.tbl th.num, .tbl td.num { text-align: end; font-variant-numeric: tabular-nums; }
+.tbl td { padding: 6px 12px; border-block-end: 1px solid var(--hairline); white-space: nowrap; }
+.tbl tr:last-child td { border-block-end: 0; }
+.tbl td.bar { position: relative; min-inline-size: 150px; }
+.tbl td.bar i { position: absolute; inset-block: 28%; inset-inline-start: 0; background: var(--c-cpu); opacity: 0.16; border-radius: 2px; }
+.tbl td.bar span { position: relative; }
+.tbl .cls { display: inline-flex; align-items: center; gap: 6px; }
+.tbl tfoot td { border-block-start: 1px solid var(--hairline-strong); font-weight: 600; }
+.tblfoot { padding: 6px 12px; font-size: 11px; color: var(--ink-2); border-block-start: 1px solid var(--hairline); }
+
+/* ---- open screen ----------------------------------------------------------- */
+.open { display: grid; grid-template-columns: 560px 430px; justify-content: center; gap: 56px; padding: 72px 40px 88px; background: var(--surface); }
+.open h1 { margin: 0 0 4px; font-size: 26px; font-weight: 500; letter-spacing: -0.01em; }
+.open .sub { color: var(--ink-2); margin: 0 0 22px; font-size: 13px; }
+.zone { border: 1.5px dashed var(--hairline-strong); border-radius: 10px; padding: 26px 28px 24px; display: grid; gap: 16px; }
+.zone .acts { display: flex; align-items: center; gap: 10px; }
+.btn { border: 1px solid var(--hairline-strong); border-radius: 5px; padding: 6px 14px; font-size: 13px; background: var(--surface-raised); color: var(--ink); }
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.zone .or { color: var(--ink-3); font-size: 12px; }
+.zone textarea-box { display: block; }
+.pathbox { border: 1px solid var(--hairline-strong); border-radius: 5px; background: var(--surface-raised); min-block-size: 56px; padding: 8px 10px; font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.optrow { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); }
+.optrow .seg span { font-size: 12px; padding: 2.5px 10px; }
+.optrow .seg .on { background: var(--wash-strong); color: var(--ink); font-weight: 500; }
+.recent h2 { margin: 0 0 10px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.recent ul { list-style: none; margin: 0; padding: 0; }
+.recent li { display: grid; grid-template-areas: "nm ago" "meta ago"; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 2px 12px; padding: 9px 2px; border-block-end: 1px solid var(--hairline); }
+.recent .nm { grid-area: nm; font-family: var(--mono); font-size: 12px; }
+.recent .meta { grid-area: meta; color: var(--ink-3); font-size: 11.5px; }
+.recent .ago { grid-area: ago; color: var(--ink-2); font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="intro">
+    <h1>mtkprof — a chrome diet, not a redesign</h1>
+    <p>Tokens, type and data colors stay exactly as they are; the identity is already right. What changes: the five stacked
+    chrome bands around a trace collapse into two, and every fact they carried moves one hover away instead of being
+    permanently on screen. Nothing is removed — the subbar, the status bar, the counts and the response mini-bar all
+    survive as popovers or view-level details.</p>
+  </div>
+
+  <!-- ============ A: chrome before / after ============ -->
+  <section class="mock">
+    <h2>1 · The chrome, before and after <small>same trace, same window width</small></h2>
+
+    <span class="strip-label">today — 5 bands</span>
+    <div class="screen app">
+      <div class="b-frametop">
+        <span class="brand">mtkprof</span>
+        <span class="b-tabs">
+          <span class="b-tab on"><span class="faint">▣</span> multisession_a.trc +2 <span class="x">×</span></span>
+          <span class="b-tab">plan_change.trc <span class="x">×</span></span>
+        </span>
+        <span class="b-plus">+</span>
+        <span class="b-pages"><span>Connections</span><span>Library</span><span>Settings</span><span>About</span></span>
+      </div>
+      <div class="b-topbar">
+        <span class="seg"><span>‹</span><span>›</span></span>
+        <span class="file">multisession_a.trc<span class="dim"> · 2.1 MB</span></span>
+        <span class="chip">▤ 3 files</span>
+        <span class="minitrack"><i style="width:38%;background:var(--c-cpu)"></i><i style="width:31%;background:var(--c-userio)"></i><i style="width:12%;background:var(--c-commit)"></i><i style="width:8%;background:var(--c-sysio)"></i><i style="width:11%;background:var(--c-unaccounted)"></i></span>
+        <span class="dim" style="font-size:12px">4:23.9 response</span>
+        <span class="view-tabs">
+          <span class="vtab">Overview</span><span class="vtab">Statements<small>128</small></span><span class="vtab on">Waits<small>41</small></span><span class="vtab">Timeline</span><span class="vtab">Sessions<small>3</small></span><span class="vtab">Pivot</span><span class="vtab">Notes</span><span class="vtab">Reports</span>
+        </span>
+      </div>
+      <div class="b-filter">
+        <span class="lbl">Filters</span>
+        <span class="chip"><b>Window</b> 14:32:05 – 14:33:41 <span class="x">×</span></span>
+        <span class="clear">clear</span>
+      </div>
+      <div class="b-subbar">
+        <span>Oracle <b>19.3</b> · instance <b>cdb1</b> on dbhost01</span>
+        <span>session <b>482.31981</b> · service orcl_pdb1</span>
+        <span>module <b>SQL*Plus</b></span>
+        <span><b>2026-09-14</b> 14:31:58 → 14:36:22 +02:00</span>
+        <span class="x">×</span>
+      </div>
+      <div class="ellip">… the view gets what is left …</div>
+      <div class="b-status">
+        <span class="dot"></span><span>engine ready</span>
+        <span class="spacer"></span>
+        <span>3 open traces · cache 723 KB / 20 GB</span><span style="border:1px solid var(--hairline-strong);border-radius:4px;padding:1px 7px">Kill engine</span>
+      </div>
+    </div>
+
+    <span class="strip-label" style="background:#2a78d6">proposed — 2 bands</span>
+    <div class="screen app">
+      <div class="a-frametop">
+        <span class="brand">mtkprof</span>
+        <span class="a-tabs">
+          <span class="a-tab on"><span class="faint">▣</span> multisession_a.trc +2 <span class="x">×</span></span>
+          <span class="a-tab">plan_change.trc</span>
+          <span class="a-plus">+</span>
+        </span>
+        <span class="a-pages"><span>Connections</span><span>Library</span><span>Settings</span><span class="a-engine"><span class="dot"></span></span></span>
+      </div>
+      <div class="a-sessionbar">
+        <span class="seg"><span>‹</span><span>›</span></span>
+        <span class="filebtn">multisession_a.trc <span class="dim">▤ 3</span> <span class="cue">▾</span></span>
+        <span class="mini-sm"><i style="width:38%;background:var(--c-cpu)"></i><i style="width:31%;background:var(--c-userio)"></i><i style="width:12%;background:var(--c-commit)"></i><i style="width:8%;background:var(--c-sysio)"></i><i style="width:11%;background:var(--c-unaccounted)"></i></span>
+        <span class="view-tabs">
+          <span class="vtab">Overview</span><span class="vtab">Statements</span><span class="vtab on">Waits</span><span class="vtab">Timeline</span><span class="vtab">Sessions</span><span class="vtab">Pivot</span><span class="vtab">Notes</span><span class="vtab">Reports</span>
+        </span>
+      </div>
+      <div class="a-filter">
+        <span class="lbl">Filtered to</span>
+        <span class="chip"><b>Window</b>&nbsp;14:32:05 – 14:33:41 <span class="x">×</span></span>
+        <span class="clear">clear</span>
+      </div>
+      <div class="ellip" style="padding-block: 30px">… the view gains two full rows …</div>
+    </div>
+
+    <p class="caption"><b>Where everything went.</b> The subbar's facts (Oracle version, instance, session, module, span)
+    and the file list move into one popover on the file name (mockup 2). The status bar disappears when the engine is
+    healthy; its dot sits beside Settings and opens a popover with status, restarts, open traces, cache usage and
+    Kill&nbsp;engine — when the engine is starting, restarting or failed, a one-line bar returns on its own. View-tab
+    counts move into each view's own header (the Waits header already says "41 events"), the big response mini-bar
+    shrinks to a 56&nbsp;px sparkline that expands in the file popover, and the files chip rides on the file button.
+    The filter row keeps its slot but drops the blue wash — chips carry the accent instead. Tab strip loses the boxed
+    "browser tab" outline for a quiet raised pill; one hairline under the session bar replaces four.</p>
+  </section>
+
+  <!-- ============ B: full session screen with popovers ============ -->
+  <section class="mock">
+    <h2>2 · The session screen, proposed <small>Waits view · both popovers drawn open</small></h2>
+
+    <div class="screen app" style="position:relative">
+      <div class="a-frametop">
+        <span class="brand">mtkprof</span>
+        <span class="a-tabs">
+          <span class="a-tab on"><span class="faint">▣</span> multisession_a.trc +2 <span class="x">×</span></span>
+          <span class="a-tab">plan_change.trc</span>
+          <span class="a-plus">+</span>
+        </span>
+        <span class="a-pages"><span>Connections</span><span>Library</span><span>Settings</span><span class="a-engine" style="background:var(--wash)"><span class="dot"></span></span></span>
+      </div>
+      <div class="a-sessionbar">
+        <span class="seg"><span>‹</span><span>›</span></span>
+        <span class="filebtn open">multisession_a.trc <span class="dim">▤ 3</span> <span class="cue">▾</span></span>
+        <span class="mini-sm"><i style="width:38%;background:var(--c-cpu)"></i><i style="width:31%;background:var(--c-userio)"></i><i style="width:12%;background:var(--c-commit)"></i><i style="width:8%;background:var(--c-sysio)"></i><i style="width:11%;background:var(--c-unaccounted)"></i></span>
+        <span class="view-tabs">
+          <span class="vtab">Overview</span><span class="vtab">Statements</span><span class="vtab on">Waits</span><span class="vtab">Timeline</span><span class="vtab">Sessions</span><span class="vtab">Pivot</span><span class="vtab">Notes</span><span class="vtab">Reports</span>
+        </span>
+      </div>
+
+      <!-- file / trace facts popover -->
+      <div class="pop" style="inset-block-start:96px; inset-inline-start:70px;">
+        <h4 class="mono">multisession_a.trc · 2.1 MB · 3 files</h4>
+        <dl class="kv">
+          <dt>Oracle</dt><dd><b>19.3</b> · instance <b>cdb1</b> on dbhost01</dd>
+          <dt>session</dt><dd><b>482.31981</b> · service orcl_pdb1 · jdbc-thin</dd>
+          <dt>module</dt><dd><b>SQL*Plus</b> · 2 context switches</dd>
+          <dt>span</dt><dd><b>2026-09-14</b> 14:31:58 → 14:36:22 +02:00</dd>
+        </dl>
+        <div class="track">
+          <i style="width:38%;background:var(--c-cpu)"></i><i style="width:31%;background:var(--c-userio)"></i><i style="width:12%;background:var(--c-commit)"></i><i style="width:8%;background:var(--c-sysio)"></i><i style="width:11%;background:var(--c-unaccounted)"></i>
+        </div>
+        <div class="legend">
+          <span class="k"><span class="sw" style="background:var(--c-cpu)"></span>CPU 1:40.5</span>
+          <span class="k"><span class="sw" style="background:var(--c-userio)"></span>user I/O 1:22.0</span>
+          <span class="k"><span class="sw" style="background:var(--c-commit)"></span>commit 31.6s</span>
+          <span class="k"><span class="sw" style="background:var(--c-sysio)"></span>system I/O 21.1s</span>
+          <span class="k"><span class="sw" style="background:var(--c-unaccounted)"></span>unaccounted 28.7s</span>
+        </div>
+        <div class="foot"><span class="btn">Files ▤ 3</span><span>response <b style="color:var(--ink)">4:23.9</b></span></div>
+      </div>
+
+      <!-- engine popover (drawn low so the views nav stays readable in the mockup) -->
+      <div class="pop" style="inset-block-start:96px; inset-inline-end:12px;">
+        <h4><span class="dot" style="vertical-align:-1px"></span>&nbsp; engine ready</h4>
+        <dl class="kv">
+          <dt>open traces</dt><dd>3</dd>
+          <dt>cache</dt><dd>723 KB of 20 GB</dd>
+          <dt>restarts</dt><dd>0</dd>
+        </dl>
+        <div class="foot"><span class="btn">About</span><span class="btn" style="color:var(--s-critical);border-color:color-mix(in oklch, var(--s-critical) 45%, var(--hairline-strong))">Kill engine</span></div>
+      </div>
+
+      <div class="a-filter">
+        <span class="lbl">Filtered to</span>
+        <span class="chip"><b>Window</b>&nbsp;14:32:05 – 14:33:41 <span class="x">×</span></span>
+        <span class="clear">clear</span>
+      </div>
+
+      <div class="content">
+        <div class="sec-head">
+          <h3>Waits</h3><span class="hint">41 events · 1:36.2 waited in the window</span>
+          <span class="tools"><span>columns ▾</span><span>export</span></span>
+        </div>
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead><tr>
+              <th>Event</th><th>Class</th><th class="num">Time ▾</th><th class="num" style="min-inline-size:150px"></th><th class="num">%</th><th class="num">Calls</th><th class="num">Avg</th><th class="num">Max</th>
+            </tr></thead>
+            <tbody>
+              <tr><td class="mono">db file sequential read</td><td><span class="cls"><span class="sw" style="background:var(--c-userio)"></span>user I/O</span></td><td class="num">41.8s</td><td class="bar"><i style="inline-size:100%"></i></td><td class="num">43.5</td><td class="num">8,412</td><td class="num">4.9ms</td><td class="num">88.1ms</td></tr>
+              <tr><td class="mono">log file sync</td><td><span class="cls"><span class="sw" style="background:var(--c-commit)"></span>commit</span></td><td class="num">28.4s</td><td class="bar"><i style="inline-size:68%"></i></td><td class="num">29.5</td><td class="num">1,207</td><td class="num">23.5ms</td><td class="num">412.0ms</td></tr>
+              <tr><td class="mono">db file scattered read</td><td><span class="cls"><span class="sw" style="background:var(--c-userio)"></span>user I/O</span></td><td class="num">11.2s</td><td class="bar"><i style="inline-size:27%"></i></td><td class="num">11.6</td><td class="num">913</td><td class="num">12.3ms</td><td class="num">61.0ms</td></tr>
+              <tr><td class="mono">enq: TX - row lock contention</td><td><span class="cls"><span class="sw" style="background:var(--c-concurrency)"></span>concurrency</span></td><td class="num">6.9s</td><td class="bar"><i style="inline-size:17%"></i></td><td class="num">7.2</td><td class="num">14</td><td class="num">493ms</td><td class="num">3.01s</td></tr>
+              <tr><td class="mono">direct path read</td><td><span class="cls"><span class="sw" style="background:var(--c-userio)"></span>user I/O</span></td><td class="num">3.8s</td><td class="bar"><i style="inline-size:9%"></i></td><td class="num">4.0</td><td class="num">406</td><td class="num">9.4ms</td><td class="num">40.2ms</td></tr>
+              <tr><td class="mono">log file parallel write</td><td><span class="cls"><span class="sw" style="background:var(--c-sysio)"></span>system I/O</span></td><td class="num">2.1s</td><td class="bar"><i style="inline-size:5%"></i></td><td class="num">2.2</td><td class="num">1,198</td><td class="num">1.8ms</td><td class="num">19.7ms</td></tr>
+              <tr><td class="mono">latch: shared pool</td><td><span class="cls"><span class="sw" style="background:var(--c-other)"></span>other</span></td><td class="num">0.9s</td><td class="bar"><i style="inline-size:2%"></i></td><td class="num">0.9</td><td class="num">88</td><td class="num">10.2ms</td><td class="num">71.4ms</td></tr>
+              <tr><td class="mono dim">SQL*Net message from client</td><td><span class="cls"><span class="sw" style="background:var(--c-idle)"></span>idle</span></td><td class="num dim">58.3s</td><td class="bar"></td><td class="num dim">—</td><td class="num dim">9,841</td><td class="num dim">5.9ms</td><td class="num dim">2.94s</td></tr>
+            </tbody>
+          </table>
+          <div class="tblfoot">idle events shown but excluded from % · 33 more events below 0.5s</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="caption"><b>The file name is now the identity of the trace</b> — one button carrying the name, the file count
+    and a disclosure cue. Its popover holds everything the subbar showed, the full response profile with legend, and the
+    Files panel toggle. The engine dot's popover (top right) is the whole status bar plus About's shortcuts. The
+    truncation warnings (<i>cut by max_dump_file_size</i>, <i>continues an earlier file</i>) are the only subbar content
+    that stays a visible row, because warnings must not hide — drawn in mockup 3.</p>
+  </section>
+
+  <!-- ============ C: dark + warning row ============ -->
+  <section class="mock">
+    <h2>3 · Dark, and the one band that may return <small>warnings stay visible; everything else is on demand</small></h2>
+
+    <div class="screen app dark">
+      <div class="a-frametop">
+        <span class="brand">mtkprof</span>
+        <span class="a-tabs">
+          <span class="a-tab on"><span class="faint">▣</span> multisession_a.trc +2 <span class="x">×</span></span>
+          <span class="a-tab">plan_change.trc</span>
+          <span class="a-plus">+</span>
+        </span>
+        <span class="a-pages"><span>Connections</span><span>Library</span><span>Settings</span><span class="a-engine"><span class="dot" style="background:var(--s-warning)"></span></span></span>
+      </div>
+      <div class="a-sessionbar">
+        <span class="seg"><span>‹</span><span>›</span></span>
+        <span class="filebtn">multisession_a.trc <span class="dim">▤ 3</span> <span class="cue">▾</span></span>
+        <span class="mini-sm"><i style="width:38%;background:var(--c-cpu)"></i><i style="width:31%;background:var(--c-userio)"></i><i style="width:12%;background:var(--c-commit)"></i><i style="width:8%;background:var(--c-sysio)"></i><i style="width:11%;background:var(--c-unaccounted)"></i></span>
+        <span class="view-tabs">
+          <span class="vtab">Overview</span><span class="vtab">Statements</span><span class="vtab on">Waits</span><span class="vtab">Timeline</span><span class="vtab">Sessions</span><span class="vtab">Pivot</span><span class="vtab">Notes</span><span class="vtab">Reports</span>
+        </span>
+      </div>
+      <div class="warnrow" style="background:color-mix(in oklch, var(--s-warning) 14%, var(--surface-raised)); color: var(--ink)">
+        <span style="color:var(--s-warning); font-weight:600">⚠ cut by max_dump_file_size</span>
+        <span class="dim">the profile covers what was written · engine restarting (1)</span>
+        <span style="margin-inline-start:auto" class="dim">×</span>
+      </div>
+      <div class="content" style="padding-block: 22px">
+        <div class="sec-head">
+          <h3>Waits</h3><span class="hint">41 events · 1:36.2 waited in the window</span>
+        </div>
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead><tr><th>Event</th><th>Class</th><th class="num">Time ▾</th><th class="num" style="min-inline-size:150px"></th><th class="num">%</th><th class="num">Calls</th><th class="num">Avg</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">db file sequential read</td><td><span class="cls"><span class="sw" style="background:var(--c-userio)"></span>user I/O</span></td><td class="num">41.8s</td><td class="bar"><i style="inline-size:100%"></i></td><td class="num">43.5</td><td class="num">8,412</td><td class="num">4.9ms</td></tr>
+              <tr><td class="mono">log file sync</td><td><span class="cls"><span class="sw" style="background:var(--c-commit)"></span>commit</span></td><td class="num">28.4s</td><td class="bar"><i style="inline-size:68%"></i></td><td class="num">29.5</td><td class="num">1,207</td><td class="num">23.5ms</td></tr>
+              <tr><td class="mono">db file scattered read</td><td><span class="cls"><span class="sw" style="background:var(--c-userio)"></span>user I/O</span></td><td class="num">11.2s</td><td class="bar"><i style="inline-size:27%"></i></td><td class="num">11.6</td><td class="num">913</td><td class="num">12.3ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <p class="caption"><b>Warnings are the exception to "fold everything".</b> File truncation and engine trouble share one
+    amber row under the session bar, dismissable, and the engine dot turns amber at the same time — the information
+    survives dismissal. Dark mode needs no separate treatment; the same two bands read even quieter there.</p>
+  </section>
+
+  <!-- ============ D: open screen ============ -->
+  <section class="mock">
+    <h2>4 · The open screen <small>one border on the whole screen</small></h2>
+
+    <div class="screen app">
+      <div class="a-frametop">
+        <span class="brand">mtkprof</span>
+        <span class="a-tabs">
+          <span class="a-tab on">Open a trace</span>
+          <span class="a-plus">+</span>
+        </span>
+        <span class="a-pages"><span>Connections</span><span>Library</span><span>Settings</span><span class="a-engine"><span class="dot"></span></span></span>
+      </div>
+      <div class="open">
+        <div>
+          <h1>Open a trace</h1>
+          <p class="sub">SQL trace files from Oracle 10g through 23ai — single files, sets, or a whole directory.</p>
+          <div class="zone">
+            <div class="acts">
+              <span class="btn primary">Choose files…</span>
+              <span class="btn">Choose a folder…</span>
+              <span class="or">or drop them anywhere on the window</span>
+            </div>
+            <div class="pathbox">paths, one per line — /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/…</div>
+            <div class="optrow">
+              <span>Bind values</span>
+              <span class="seg"><span class="on">keep</span><span>redact</span><span>none</span></span>
+              <span class="faint">· redacting asks for a salt</span>
+            </div>
+          </div>
+        </div>
+        <div class="recent">
+          <h2>Recent</h2>
+          <ul>
+            <li><span class="nm">multisession_a.trc <span class="faint">+2</span></span><span class="ago">2 h ago</span><span class="meta">3 files · ~/traces/19c</span></li>
+            <li><span class="nm">plan_change.trc</span><span class="ago">36 h ago</span><span class="meta">1 file · ~/traces/19c</span></li>
+            <li><span class="nm">cdb1_ora_8812.trc</span><span class="ago">6 d ago</span><span class="meta">1 file · /u01/app/oracle/diag/…/trace</span></li>
+            <li><span class="nm">batch_night.trc <span class="faint">+11</span></span><span class="ago">8 d ago</span><span class="meta">12 files in ~/traces/batch</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <p class="caption"><b>One dashed border is the whole invitation.</b> The options fieldset's box is gone — bind values
+    sit as a single quiet line inside the drop zone, and the salt field appears only when <i>redact</i> is picked.
+    "Waiting for the engine…" would replace the two buttons' row inside the zone, so the reason sits where the disabled
+    buttons are. Recent entries keep the name as the strong element and push directory and age to one muted line.</p>
+  </section>
+
+</div>
+</body>
+</html>

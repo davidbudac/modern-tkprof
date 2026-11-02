@@ -1,0 +1,6 @@
+.compare-picker { max-inline-size: min(42rem, calc(100vw - 2rem)); max-block-size: calc(100dvh - 2rem); padding: 0; border: 1px solid var(--hairline); border-radius: var(--radius, 8px); color: var(--ink); background: var(--surface); }
+.compare-picker:modal { overscroll-behavior: contain; }
+.compare-picker::backdrop { background: oklch(0% none none / 0.45); overflow: hidden; overscroll-behavior: contain; }
+.compare-picker select { max-inline-size: 100%; }
+.comparison-snapshot { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
+.comparison-snapshot > .main { flex: 1; min-block-size: 0; inline-size: 100%; }

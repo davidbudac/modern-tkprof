@@ -1,0 +1,127 @@
+/* The assistant beside a tab's views (ChatPanel.tsx): a flex sibling of the lib's shell, so the lib's grid stays as it is. */
+.tab-split { --assistant-w-default: clamp(20rem, 30vw, 30rem); position: relative; display: flex; block-size: 100%; min-inline-size: 0; }
+.tab-split > .shell { flex: 1 1 0; min-inline-size: 0; }
+.resizer-assistant { inset-inline-start: calc(100% - var(--assistant-w, var(--assistant-w-default))); }
+
+.chat-panel {
+  flex: none;
+  inline-size: var(--assistant-w, var(--assistant-w-default));
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  border-inline-start: 1px solid var(--hairline);
+  background: var(--surface-raised);
+  font-size: var(--text-md);
+}
+
+.chat-head { flex: none; display: flex; align-items: center; gap: var(--sp-2); min-inline-size: 0; padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--hairline); }
+.chat-head h2 { flex: none; margin: 0; font-size: var(--text-md); font-weight: 600; white-space: nowrap; }
+.chat-head select { flex: 0 1 auto; min-inline-size: 0; max-inline-size: 14rem; text-overflow: ellipsis; }
+.chat-head button { flex: none; white-space: nowrap; }
+.chat-head .badge.experimental { margin-inline-start: 0; }
+.chat-head .spacer { flex: 1; }
+.chat-close { padding-inline: 0.45rem; font-size: var(--text-lg); line-height: 1; }
+
+/* the messages scroll between the header and the composer */
+.chat-log { flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-3); }
+.msg { min-inline-size: 0; overflow-wrap: break-word; }
+.msg.question { align-self: flex-end; max-inline-size: 88%; padding: var(--sp-2) var(--sp-3); border-radius: 8px; background: var(--wash); white-space: pre-wrap; }
+.msg.answer { display: flex; flex-direction: column; gap: var(--sp-2); line-height: 1.5; }
+.msg-wait { color: var(--ink-2); }
+@media (prefers-reduced-motion: no-preference) { .msg-wait { animation: pulse 1.6s ease-in-out infinite; } }
+.msg-note { color: var(--ink-3); font-size: var(--text-sm); }
+.msg-error { padding-inline-start: var(--sp-2); border-inline-start: 2px solid var(--s-critical); color: var(--ink); font-size: var(--text-sm); }
+.msg-usage { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); color: var(--ink-3); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+
+/* answers (markdown.tsx) */
+.md { display: flex; flex-direction: column; gap: var(--sp-2); }
+.md :is(p, ul, ol, blockquote, h3, h4, h5) { margin: 0; }
+.md :is(ul, ol) { padding-inline-start: 1.3rem; }
+.md li + li { margin-block-start: 0.15rem; }
+.md li > :is(ul, ol) { margin-block-start: 0.15rem; }
+.md :is(h3, h4, h5) { margin-block-start: var(--sp-1); font-size: var(--text-md); font-weight: 600; }
+.md h5 { color: var(--ink-2); }
+.md code { padding-inline: 0.25em; border-radius: 3px; background: var(--wash); overflow-wrap: anywhere; }
+.md pre.md-code { padding: var(--sp-2); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-sunken); font-size: var(--text-sm); white-space: pre; overflow-x: auto; }
+.md pre.md-code code { padding: 0; background: none; overflow-wrap: normal; }
+.md blockquote { padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--hairline-strong); color: var(--ink-2); }
+.md hr { inline-size: 100%; margin: 0; border: 0; border-block-start: 1px solid var(--hairline); }
+.md a { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in oklch, currentColor 40%, transparent); text-underline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .md a:hover { text-decoration-color: currentColor; } }
+.md-nolink { color: var(--ink-2); overflow-wrap: anywhere; }
+.md-table { max-inline-size: 100%; overflow-x: auto; }
+.md table { font-size: var(--text-sm); }
+.md :is(th, td) { padding-inline: var(--sp-2) 0; border-block-end: 1px solid var(--hairline); }
+.md :is(th, td):first-child { padding-inline-start: 0; }
+.md td { overflow-wrap: anywhere; }
+
+/* an mtkprof: link: a chip that opens its place in the views, or, when the trace has nothing there, plain text */
+.chip {
+  display: inline;
+  padding: 0 0.35em;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  line-height: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) { .chip:not(.unresolved):hover { background: var(--wash); border-color: var(--ink-3); } }
+.chip:not(.unresolved):active { background: var(--wash-strong); }
+.chip.unresolved { border-style: dashed; background: none; color: var(--ink-2); cursor: help; }
+.chip.unresolved::after { content: "?"; margin-inline-start: 0.25em; color: var(--ink-3); font-size: 0.85em; }
+
+/* a tool call and exactly what the model got back */
+.tool-row { border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-sunken); font-size: var(--text-sm); }
+.tool-row > summary { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: baseline; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2); list-style: none; cursor: pointer; }
+.tool-row > summary::-webkit-details-marker { display: none; }
+.tool-row > summary::before { content: "▸"; color: var(--ink-3); }
+.tool-row[open] > summary::before { rotate: 90deg; }
+@media (hover: hover) and (pointer: fine) { .tool-row > summary:hover { background: var(--wash); } }
+.tool-name { font-family: var(--font-mono); font-weight: 600; }
+.tool-args { overflow: clip; font-family: var(--font-mono); color: var(--ink-2); white-space: nowrap; text-overflow: ellipsis; }
+.tool-meta { color: var(--ink-3); font-size: var(--text-xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tool-row[data-error] .tool-meta { color: light-dark(#8a5a00, #f0c35a); }
+.tool-body { display: grid; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2) var(--sp-2); border-block-start: 1px solid var(--hairline); }
+.tool-label { color: var(--ink-2); font-size: var(--text-xs); }
+.tool-body pre { max-block-size: 18rem; overflow: auto; overscroll-behavior: contain; padding: var(--sp-1) var(--sp-2); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-raised); font-size: var(--text-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
+.intent-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1); margin: 0; font-size: var(--text-sm); }
+.intent-back { padding-block: 0; font-size: var(--text-xs); }
+/* the footer of an answer: who answered, the tokens, and Save as note at the end */
+.msg-usage > :is(.note-save, .deskmenu-wrap) { margin-inline-start: auto; }
+.msg-usage button.note-save { padding-block: 0; font-size: var(--text-xs); }
+.msg-usage > .note-saved { flex: 1 1 100%; color: var(--ink-2); overflow-wrap: anywhere; text-align: end; }
+
+/* asked before a trace first goes to a provider */
+.chat-consent { flex: none; display: grid; gap: var(--sp-2); margin: 0 var(--sp-3) var(--sp-3); padding: var(--sp-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface); box-shadow: 0 4px 18px color-mix(in oklch, var(--ink) 12%, transparent); font-size: var(--text-sm); }
+.chat-consent h3 { margin: 0; font-size: var(--text-md); font-weight: 600; overflow-wrap: anywhere; }
+.chat-consent :is(p, ul) { margin: 0; }
+.chat-consent ul { display: grid; gap: var(--sp-1); padding-inline-start: 1.1rem; }
+.chat-consent-warn { padding-inline-start: var(--sp-2); border-inline-start: 2px solid var(--s-warning); }
+.chat-consent-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+
+.chat-empty { flex: 1; min-block-size: 0; overflow-y: auto; display: grid; align-content: center; justify-items: start; gap: var(--sp-2); padding: var(--sp-5) var(--sp-4); }
+.chat-empty p { margin: 0; overflow-wrap: anywhere; }
+.chat-suggest { display: grid; gap: var(--sp-1); justify-items: start; margin-block-start: var(--sp-2); }
+.chat-suggest button { text-align: start; }
+
+.chat-compose { flex: none; display: grid; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3) var(--sp-3); border-block-start: 1px solid var(--hairline); }
+.chat-compose textarea {
+  field-sizing: content;
+  min-block-size: 3lh;
+  max-block-size: 12lh;
+  resize: none;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-md);
+  line-height: 1.45;
+}
+.chat-compose-row { display: flex; align-items: center; gap: var(--sp-2); }
+.chat-total { flex: 1; min-inline-size: 0; overflow: clip; color: var(--ink-3); font-size: var(--text-xs); font-variant-numeric: tabular-nums; white-space: nowrap; text-overflow: ellipsis; }

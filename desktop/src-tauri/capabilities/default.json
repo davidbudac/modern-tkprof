@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main window. The engine sidecar is spawned from Rust (engine_start), so the webview gets no shell permissions; fs is limited to the app data and cache dirs, plus files picked in a save/open dialog (connections and notes import/export, reports) and the team connections file (allowed at run time by allow_team_file); the opener may open the reports written to the cache dir.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "fs:allow-appdata-read-recursive",
+    "fs:allow-appdata-write-recursive",
+    "fs:allow-appcache-read-recursive",
+    "fs:allow-appcache-write-recursive",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "store:default",
+    "window-state:default",
+    "log:default",
+    "process:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$APPCACHE/reports/**" }]
+    }
+  ]
+}

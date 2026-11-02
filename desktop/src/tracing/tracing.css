@@ -1,0 +1,42 @@
+/* The 10046 cheatsheet page (TracingView): a contents block, then recipe cards of a title, one line of when, the code and its notes. */
+.tracing > p { max-inline-size: 70ch; }
+
+.tr-toc {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--sp-3) var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+.tr-toc-group { display: grid; align-content: start; justify-items: start; gap: 2px; }
+.tr-toc-h { margin-block-end: var(--sp-1); color: var(--ink-2); font-size: var(--text-xs); font-weight: 600; }
+.tr-toc button {
+  border: 0;
+  padding: 1px 0;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  text-align: start;
+}
+@media (hover: hover) and (pointer: fine) { .tr-toc button:hover { text-decoration: underline; text-underline-offset: 2px; } }
+
+.tracing section > p { max-inline-size: 70ch; }
+.tr-recipe { display: grid; gap: var(--sp-2); padding-block: var(--sp-2) var(--sp-3); scroll-margin-block-start: var(--sp-4); }
+.tr-recipe:focus, #tr-levels:focus { outline: none; }
+.tr-recipe h3 { display: flex; align-items: baseline; gap: var(--sp-2); font-weight: 600; }
+.tr-recipe > p { margin: 0; max-inline-size: 75ch; }
+.tr-since { color: var(--ink-3); font-size: var(--text-xs); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.tr-code { position: relative; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-sunken); }
+.tr-code pre { margin: 0; padding: var(--sp-3); padding-inline-end: 5rem; overflow-x: auto; white-space: pre; font-size: var(--text-sm); line-height: 1.5; tab-size: 2; }
+.tr-copy { position: absolute; inset-block-start: var(--sp-2); inset-inline-end: var(--sp-2); display: flex; align-items: center; gap: var(--sp-2); }
+
+.tr-notes { display: grid; gap: var(--sp-1); margin: 0; padding-inline-start: 1.1rem; color: var(--ink-2); max-inline-size: 75ch; }
+.tr-notes code, .tracing p code, .tr-levels code { overflow-wrap: anywhere; }
+
+.tr-levels { inline-size: 100%; }
+.tr-levels td { vertical-align: baseline; }
+.tr-levels td.mono { white-space: nowrap; }
+#tr-levels { scroll-margin-block-start: var(--sp-4); }

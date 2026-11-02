@@ -1,0 +1,59 @@
+.prompt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklch, var(--surface) 60%, transparent);
+  backdrop-filter: blur(2px);
+}
+.prompt-card {
+  display: grid;
+  gap: var(--sp-3);
+  inline-size: min(30rem, 92vw);
+  padding: var(--sp-5);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: 0 8px 32px color-mix(in oklch, var(--ink) 18%, transparent);
+}
+.prompt-card[data-kind="hostkey"] { border-inline-start: 3px solid var(--s-warning); }
+.prompt-card header { display: grid; gap: 2px; }
+.prompt-card .small { font-size: var(--text-xs); }
+.prompt-text {
+  max-block-size: 9rem;
+  overflow: auto;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.prompt-fp {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.prompt-card input {
+  inline-size: 100%;
+  padding: var(--sp-2);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+.prompt-card footer { display: flex; align-items: center; gap: var(--sp-2); }
+.prompt-card footer .spacer { flex: 1; }
+.prompt-card button.primary,
+.conn-view button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.prompt-card details summary { cursor: pointer; font-size: var(--text-xs); }
+.prompt-retry { color: var(--s-critical); font-size: var(--text-sm); }
+/* motion: tokens and keyframes in src/motion.css */
+@media (prefers-reduced-motion: no-preference) {
+  .prompt-backdrop { animation: motion-fade-in var(--motion-fast) var(--motion-ease); }
+  .prompt-backdrop.closing { animation: motion-fade-out var(--motion-quick) var(--motion-ease) forwards; }
+  .prompt-card { animation: motion-modal-in var(--motion-fast) var(--motion-ease); }
+  /* a retry shakes once the card has opened (both animate transform) */
+  .prompt-card.retry { animation: motion-modal-in var(--motion-fast) var(--motion-ease), motion-shake var(--motion-shake-dur) linear var(--motion-fast); }
+  .prompt-card.closing { animation: motion-modal-out var(--motion-quick) var(--motion-ease) forwards; }
+}

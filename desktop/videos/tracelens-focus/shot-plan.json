@@ -1,0 +1,22 @@
+{
+  "name": "TraceLens focus loop",
+  "category": "logo-reveal",
+  "duration": 4,
+  "width": 768,
+  "height": 768,
+  "fps": 30,
+  "palette": ["#000000", "#FFFFFF"],
+  "asset_needs": [],
+  "source": "assets/option-c.png",
+  "brief": "Animate the selected option C exactly: unequal soft black brackets around a small rounded square. Preserve the original drawing through clipped raster layers. The brackets focus gently inward, the center pulses and tilts by four degrees, then all return to the resting pose. Pure black and white, no sound, no text.",
+  "content": {
+    "block": "custom clipped-raster focus gesture",
+    "customize": "Preserve the selected raster geometry. Translate brackets by about ten output pixels each; pulse the center to 110% with a four-degree tilt.",
+    "beats": [
+      {"start": 0, "end": 0.4, "action": "Resting logo"},
+      {"start": 0.4, "end": 1.2, "action": "Brackets move inward; center gently pulses and tilts"},
+      {"start": 1.35, "end": 2.51, "action": "Center and brackets settle back"},
+      {"start": 2.51, "end": 4, "action": "Hold the original logo for a seamless repeat"}
+    ]
+  }
+}

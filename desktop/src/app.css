@@ -1,0 +1,477 @@
+/* Desktop frame; tokens and base styles come from the shared lib (@lib/styles). */
+/* the lib reserves a scrollbar gutter on :root, but here the body never scrolls (the frame's panes do), so the gutter was a dead strip at the window's right edge */
+:root { scrollbar-gutter: auto; }
+html, body, #root { block-size: 100%; }
+body { overflow: hidden; }
+
+.frame {
+  display: grid;
+  grid-template-rows: 2.5rem minmax(0, 1fr) auto;
+  block-size: 100dvh;
+}
+
+/* ---- top row: brand, session tabs (the active one carries the trace's status), "+", the views of the open trace, pages ---- */
+.frame-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-inline: var(--sp-4) var(--sp-2);
+  background: var(--surface-sunken);
+  min-inline-size: 0;
+}
+.frame-top .brand { display: inline-flex; align-items: center; gap: var(--sp-1); flex: none; align-self: center; padding: 0; border: 0; background: none; font-size: inherit; font-weight: 600; letter-spacing: 0.01em; }
+.frame-top .brand:active { background: var(--wash-strong); }
+@media (hover: hover) and (pointer: fine) { .frame-top .brand:hover { background: var(--wash); } }
+.frame-top .spacer { flex: 1; }
+/* many tabs shrink (titles ellipsize) rather than scroll */
+.session-tabs { display: flex; align-items: center; gap: 4px; min-inline-size: 0; overflow-x: clip; }
+.session-tab {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-inline-size: 5.5rem;
+  max-inline-size: 18rem;
+  block-size: 1.75rem;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink-2);
+}
+.session-tab.on { background: var(--surface-raised); color: var(--ink); box-shadow: 0 0 0 1px var(--hairline); margin-block-end: 0; block-size: 1.75rem; }
+/* the active tab holds the trace's status too (see .session-tab-main below), so it may be wider and gives way last */
+.session-tab.on:not(.plus) { max-inline-size: 24rem; min-inline-size: 7.5rem; }
+.session-tab button { border: 0; border-radius: 0; background: none; }
+.session-tab-main { display: inline-flex; align-items: center; gap: var(--sp-2); min-inline-size: 0; block-size: 100%; padding-inline: var(--sp-3) var(--sp-1); }
+.folder-mark { display: inline-block; inline-size: 14px; block-size: 14px; flex: none; color: var(--ink-3); }
+/* line icons (src/ui/icons.tsx): 1em square, so the font size of the button that holds one sizes it (an icon-only button: button.icon-btn in the lib's app.css) */
+.icon { display: block; inline-size: 1em; block-size: 1em; flex: none; }
+.session-tab-main .mono { overflow: clip; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
+/* the active tab's button opens the trace popover: its status follows the title (TabTrace.tsx); only the title gives way */
+.session-tab-main > :not(.mono) { flex: none; }
+.session-tab-main .dim { color: var(--ink-2); font-size: var(--text-sm); }
+.session-tab-main .cue { color: var(--ink-3); font-size: 0.65rem; }
+.session-tab.on > .session-tab-main { border-radius: 6px; }
+.session-tab.on > .session-tab-main[aria-expanded="true"] { background: var(--wash); }
+/* the live badge beside the active tab's button: the state and pause / resume only (rev and time are in the trace popover) */
+.session-tab .live-badge { flex: none; margin-inline-end: var(--sp-1); }
+.session-tab .live-badge .dim { display: none; }
+.session-tab-close { display: inline-flex; align-items: center; block-size: 100%; padding-inline: var(--sp-2); color: var(--ink-3); font-size: 0.8rem; line-height: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .session-tab:not(.on):hover { background: var(--wash); }
+  .session-tab.on > .session-tab-main:hover { background: var(--wash); }
+  .session-tab-close:hover { color: var(--ink); }
+}
+.session-tab.plus { flex: none; min-inline-size: 0; padding-inline: var(--sp-2); font-size: 1rem; border-radius: 6px; }
+.tab-dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; flex: none; }
+.tab-dot.busy { background: var(--s-warning); animation: pulse 1.2s ease-in-out infinite; }
+.tab-dot.bad { background: var(--s-critical); }
+@keyframes pulse { 50% { opacity: 0.35; } }
+.badge-live {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1); /* a status fact: a green dot and the word, no pill, no border, no hover */
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+.badge-live::before { content: ""; inline-size: 6px; block-size: 6px; border-radius: 50%; background: var(--s-good); }
+.page-links { flex: none; display: flex; align-items: center; gap: var(--sp-1); white-space: nowrap; }
+/* the app's pages as icons (their names are the tooltips): square, as tall as a session tab */
+.page-links button { display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; inline-size: 1.75rem; block-size: 1.75rem; padding: 0; background: none; color: var(--ink-2); font-size: 1rem; }
+@media (hover: hover) and (pointer: fine) { .page-links button:hover { background: var(--wash); color: var(--ink); } }
+/* the current page reads like the current session tab */
+.page-links button[aria-current="page"] { background: var(--surface-raised); color: var(--ink); box-shadow: 0 0 0 1px var(--hairline); }
+/* the engine as a dot at the end of the top row; its popover is .pop.engine-pop */
+.engine-wrap { display: inline-flex; }
+.engine-btn { display: inline-flex; align-items: center; justify-content: center; inline-size: 1.75rem; block-size: 1.75rem; padding: 0; margin-inline-start: var(--sp-2); border: 0; border-radius: 6px; background: none; }
+.engine-btn:hover, .engine-btn[aria-expanded="true"] { background: var(--wash); }
+.engine-btn .dot, .engine-pop .dot, .statusbar .dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; background: var(--ink-3); display: inline-block; flex: none; }
+.engine-wrap[data-status="ready"] .dot, .statusbar[data-status="ready"] .dot { background: var(--s-good); }
+.engine-wrap[data-status="restarting"] .dot, .engine-wrap[data-status="starting"] .dot,
+.statusbar[data-status="restarting"] .dot, .statusbar[data-status="starting"] .dot { background: var(--s-warning); }
+.engine-wrap[data-status="failed"] .dot, .statusbar[data-status="failed"] .dot { background: var(--s-critical); }
+.sr-only { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
+
+.frame-main { overflow: auto; min-block-size: 0; background: var(--surface); }
+/* the lib's shell fills the window in the standalone app; here it fills the frame */
+.frame-main .shell { block-size: 100%; }
+/* the lib caps .main at a reading width; in the desktop the views take the whole column (the side panes are their own grid tracks) */
+.frame-main .main { max-inline-size: none; }
+.frame-main .loading { block-size: 100%; }
+/* wraps the views of a tab that was opening (TabBody); clipped, so the reveal's rise cannot make the frame scroll */
+.tab-reveal { block-size: 100%; overflow: clip; }
+/* filter row, banner slot, body, line drawer */
+.frame-main .shell { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.tab-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-1) var(--sp-4);
+  border-block-end: 1px solid var(--hairline);
+  background: color-mix(in oklch, var(--s-warning) 12%, var(--surface-raised));
+  font-size: var(--text-sm);
+}
+.tab-banner.bad { background: color-mix(in oklch, var(--s-critical) 10%, var(--surface-raised)); }
+
+.muted { color: var(--ink-2); }
+
+.empty {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--sp-2);
+  block-size: 100%;
+  text-align: center;
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-block-size: 1.75rem;
+  padding-inline: var(--sp-4);
+  border-block-start: 1px solid var(--hairline);
+  background: var(--surface-sunken);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+/* the dot colors are with the engine button (.engine-btn) */
+
+.toast {
+  position: fixed;
+  inset-block-end: 2.5rem;
+  inset-inline-end: var(--sp-4);
+  display: grid;
+  gap: var(--sp-1);
+  max-inline-size: 26rem;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--hairline-strong);
+  border-inline-start: 3px solid var(--s-warning);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: 0 4px 16px color-mix(in oklch, var(--ink) 14%, transparent);
+  font-size: var(--text-sm);
+}
+.toast button { justify-self: start; font-size: var(--text-xs); }
+
+.blocker {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklch, var(--surface) 70%, transparent);
+  backdrop-filter: blur(2px);
+}
+.blocker-card {
+  display: grid;
+  gap: var(--sp-3);
+  inline-size: min(34rem, 90vw);
+  padding: var(--sp-5);
+  border: 1px solid var(--hairline-strong);
+  border-inline-start: 3px solid var(--s-critical);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: 0 8px 32px color-mix(in oklch, var(--ink) 18%, transparent);
+}
+.blocker-error {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  font-size: var(--text-sm);
+}
+
+/* ---- cards and pages ---- */
+button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { button.primary:hover { background: color-mix(in oklch, var(--ink) 85%, var(--surface)); } }
+button.danger { border-color: var(--s-critical); color: var(--s-critical); }
+button:disabled { opacity: 0.5; cursor: default; }
+.row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.row .spacer { flex: 1; }
+.actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.warn-text { color: light-dark(#8a5a00, #f0c35a); }
+
+.panel-center { display: grid; place-items: center; min-block-size: 100%; padding: var(--sp-5); }
+.card {
+  display: grid;
+  gap: var(--sp-3);
+  inline-size: min(40rem, 100%);
+  padding: var(--sp-5);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+.card.bad { border-inline-start: 3px solid var(--s-critical); }
+.card h2 { font-size: var(--text-lg); display: flex; align-items: center; gap: var(--sp-2); }
+.paths { list-style: none; padding: 0; margin: 0; overflow-wrap: anywhere; }
+
+.progress { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-1) var(--sp-3); align-items: center; }
+.progress-phase { font-weight: 500; }
+.progress-num { grid-column: 1 / -1; color: var(--ink-2); font-size: var(--text-sm); }
+.progress-bar, .usage-bar { position: relative; display: block; block-size: 0.5rem; border-radius: 4px; background: var(--surface-sunken); overflow: clip; border: 1px solid var(--hairline); }
+.progress-bar i, .usage-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--c-cpu); transition: inline-size 300ms var(--ease-out); }
+.progress-bar[data-indeterminate] i { inline-size: 30%; animation: slide 1.4s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+.progress.compact { display: inline-grid; grid-template-columns: auto 8rem auto; }
+.progress.compact .progress-num { grid-column: auto; }
+.usage-bar { inline-size: 10rem; }
+.stats { display: flex; gap: var(--sp-6); margin: 0; }
+.stats div { display: grid; gap: 0.1rem; }
+.stats dt { color: var(--ink-2); font-size: var(--text-xs); }
+.stats dd { margin: 0; font-size: var(--text-lg); }
+
+/* the open screen */
+.open-screen {
+  display: grid;
+  grid-template-columns: minmax(0, 34rem) minmax(0, 30rem);
+  justify-content: center;
+  align-content: start;
+  gap: var(--sp-7);
+  padding: var(--sp-7) var(--sp-5);
+}
+@media (width < 60rem) { .open-screen { grid-template-columns: minmax(0, 40rem); } }
+.open-main { display: grid; gap: var(--sp-3); align-content: start; }
+.open-main h1 { font-size: var(--text-hero); }
+.open-main .actions button { font-size: var(--text-md); padding: 0.4rem 0.9rem; }
+.drop-zone { display: grid; gap: var(--sp-4); padding: var(--sp-5) var(--sp-5) var(--sp-4); border: 1px dashed var(--hairline-strong); border-radius: 8px; }
+.drop-zone p { margin: 0; }
+.path-form { display: grid; gap: var(--sp-1); }
+.path-form label, .field label, .field .label { font-size: var(--text-sm); color: var(--ink-2); }
+.path-form input, .path-form textarea { flex: 1; min-inline-size: 16rem; }
+.path-form textarea { resize: vertical; font-size: var(--text-md); background: var(--surface-raised); color: var(--ink); border: 1px solid var(--hairline-strong); border-radius: var(--radius); padding: var(--sp-1) var(--sp-2); }
+.open-opts[open] > .opt-row { margin-block-start: var(--sp-1); }
+.opt-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); font-size: var(--text-sm); color: var(--ink-2); }
+.opt-row label { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.opt-row .check { margin-inline-start: 0; }
+label.check { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); }
+select { font-size: var(--text-sm); padding: 0.15rem 0.3rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); color: var(--ink); }
+.recent h2 { font-size: var(--text-md); color: var(--ink-2); font-weight: 500; margin-block-end: var(--sp-2); }
+.recent ul { list-style: none; padding: 0; margin: 0; display: grid; }
+.recent li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto; align-items: center; gap: 0.1rem var(--sp-3); padding-block: var(--sp-2); border-block-end: 1px solid var(--hairline); }
+/* the button wraps name and summary (one click target) and spans both rows, like the age and the × */
+.recent-open { grid-area: 1 / 1 / 3 / 2; display: grid; justify-items: start; gap: 0.1rem; border: 0; border-radius: 0; padding: 0 var(--sp-1); text-align: start; min-inline-size: 0; }
+.recent-open > * { max-inline-size: 100%; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+.recent-open > span { color: var(--ink-3); }
+/* the folder icon beside the title; the title text keeps the ellipsis */
+.recent-title { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.recent-title > span { overflow: clip; text-overflow: ellipsis; white-space: nowrap; min-inline-size: 0; }
+.recent-ago { grid-area: 1 / 2 / 3 / 3; }
+.recent-x { grid-area: 1 / 3 / 3 / 4; }
+
+/* the open screen's Compare card, under the drop zone */
+.compare-card { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface-raised); }
+.compare-card h2 { font-size: var(--text-md); }
+.compare-card p { margin: 0.1rem 0 0; }
+.compare-card button { flex: none; }
+
+/* the Back control above every page */
+.page-back { inline-size: min(52rem, 100%); margin-inline: auto; padding: var(--sp-4) var(--sp-5) 0; }
+.page-back button { margin-inline-start: calc(-1 * var(--sp-2)); display: inline-flex; align-items: center; gap: var(--sp-1); max-inline-size: 100%; border: 0; border-radius: 6px; block-size: 1.75rem; padding-inline: var(--sp-2); background: none; color: var(--ink-2); font-size: var(--text-sm); }
+.page-back-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: hover) and (pointer: fine) { .page-back button:hover { background: var(--wash); color: var(--ink); } }
+.page-back + .page { padding-block-start: var(--sp-3); }
+
+/* settings (and its About section) */
+.page { display: grid; gap: var(--sp-4); align-content: start; inline-size: min(52rem, 100%); margin-inline: auto; padding: var(--sp-6) var(--sp-5); }
+.page h1 { font-size: var(--text-hero); }
+.page section { display: grid; gap: var(--sp-3); padding-block-start: var(--sp-4); border-block-start: 1px solid var(--hairline); }
+.page h2 { font-size: var(--text-lg); }
+/* the engine menu's About scrolls here: room below it lets the section reach the top of the window */
+.settings #settings-about:has(details[open]) { min-block-size: calc(100dvh - 8rem); align-content: start; }
+details.about > summary { color: var(--ink); gap: var(--sp-3); }
+details.about > summary h2 { display: inline; }
+details.about[open] > summary { margin-block-end: var(--sp-3); }
+details.about > :not(summary) { margin-block-end: var(--sp-3); }
+.field { display: grid; gap: var(--sp-1); }
+.field input[type="text"], .field input[type="url"] { inline-size: min(36rem, 100%); }
+.field .row input[type="text"] { flex: 1; min-inline-size: 16rem; }
+.field input.num { inline-size: 6rem; }
+.field .seg { justify-self: start; }
+input[type="number"], input[type="url"] { font-size: max(16px, 1rem); padding: 0.25rem 0.5rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); color: var(--ink); }
+.page input[type="text"], .page input[type="url"], .page input[type="number"], .open-screen input[type="text"] { font-size: var(--text-md); }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--sp-1) var(--sp-4); margin: 0; }
+.kv dt { color: var(--ink-2); font-size: var(--text-sm); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.cache-entries { display: grid; gap: var(--sp-2); }
+.ok-text { color: light-dark(#1d6b3a, #7fd49a); }
+/* Settings → Assistant */
+#settings-assistant h3 { font-size: var(--text-md); font-weight: 500; }
+.assist-providers { display: grid; gap: var(--sp-2); margin: 0; padding: 0; list-style: none; }
+.assist-providers li { display: grid; gap: var(--sp-1); padding-block: var(--sp-2); border-block-end: 1px solid var(--hairline); }
+.assist-providers .badge { margin-inline-start: 0; }
+.badge.experimental { background: color-mix(in oklch, var(--s-warning) 22%, transparent); color: light-dark(#7a5200, #f0c35a); margin-inline-start: var(--sp-2); }
+.mcp-flow { display: grid; gap: var(--sp-2); margin: var(--sp-2) 0; padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-sunken); }
+.mcp-lane { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); font-size: var(--text-sm); }
+.mcp-lane-label { inline-size: 9rem; color: var(--ink-2); font-size: var(--text-xs); }
+.mcp-node { padding: 2px var(--sp-2); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); white-space: nowrap; }
+.mcp-tools { font-weight: 500; border-color: var(--ink-3); }
+.mcp-new .mcp-lane-label { color: var(--ink); font-weight: 500; }
+.mcp-arrow { color: var(--ink-3); }
+.mcp-flow figcaption { margin: 0; }
+.mcp-cmd { display: flex; align-items: center; gap: var(--sp-2); }
+.mcp-cmd code { flex: 1; min-inline-size: 0; padding: var(--sp-1) var(--sp-2); border-radius: var(--radius); background: var(--surface-sunken); overflow-wrap: anywhere; user-select: all; }
+.mcp-notes { margin: 0; padding-inline-start: var(--sp-4); display: grid; gap: var(--sp-1); }
+.assist-form { display: grid; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline-strong); border-radius: var(--radius); }
+.assist-form textarea { inline-size: min(36rem, 100%); resize: vertical; background: var(--surface-raised); color: var(--ink); border: 1px solid var(--hairline-strong); border-radius: var(--radius); padding: var(--sp-1) var(--sp-2); }
+.assist-form ul { margin: 0; padding-inline-start: var(--sp-4); }
+.cache-table { inline-size: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.cache-table th { text-align: start; font-weight: 500; color: var(--ink-2); border-block-end: 1px solid var(--hairline-strong); padding: var(--sp-1) var(--sp-2); }
+.cache-table td { border-block-end: 1px solid var(--hairline); padding: var(--sp-1) var(--sp-2); vertical-align: middle; }
+.cache-table .num { text-align: end; }
+.cache-table td.num, .cache-table td.small { white-space: nowrap; }
+.cache-paths { display: inline-grid; max-inline-size: min(26rem, 50vw); vertical-align: middle; margin-inline-end: var(--sp-2); }
+.cache-paths > * { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
+
+/* prompts: src/prompts/prompts.css */
+
+/* drag-drop */
+.drop-overlay {
+  position: fixed;
+  inset: 0.5rem;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--ink-2);
+  border-radius: calc(2 * var(--radius));
+  background: color-mix(in oklch, var(--surface) 80%, transparent);
+  font-size: var(--text-lg);
+  pointer-events: none;
+}
+
+/* reports, annotations, library */
+.report-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); max-inline-size: 60rem; }
+.report-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-2) var(--sp-4); align-items: start; padding-block-end: var(--sp-3); border-block-end: 1px solid var(--hairline); }
+.report-list p { margin: 0.15rem 0 0; }
+.report-opts { grid-column: 1 / -1; margin: 0; }
+.report-opts-body { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); align-items: center; border: 1px solid var(--hairline); border-radius: var(--radius); padding: var(--sp-2) var(--sp-3); margin-block-start: var(--sp-1); }
+.report-opts .pv-ctl { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); color: var(--ink-2); }
+.report-opts input.num { inline-size: 5rem; font-size: var(--text-sm); }
+.report-error { color: var(--s-critical); white-space: pre-wrap; }
+.annotations header .tools { margin-inline-start: auto; }
+.ann-group { display: grid; gap: var(--sp-2); margin-block-start: var(--sp-4); }
+.ann-group h3 { font-size: var(--text-md); color: var(--ink-2); font-weight: 500; }
+.ann-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.ann-list li { display: grid; gap: var(--sp-1); padding-block: var(--sp-2); border-block-end: 1px solid var(--hairline); }
+.ann-head { display: flex; align-items: baseline; gap: var(--sp-3); min-inline-size: 0; }
+.ann-head .clip { overflow: clip; text-overflow: ellipsis; white-space: nowrap; min-inline-size: 0; }
+.ann-note { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--sp-3); padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--c-note); }
+.ann-note p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* the views of the open trace, right-aligned before the app's pages; two more here than in the standalone app (Notes, Reports) */
+.session-nav { flex: none; display: flex; align-items: center; gap: var(--sp-3); }
+.session-nav > * { flex: none; white-space: nowrap; }
+.session-nav .tabs { margin-inline-start: 0; }
+.session-nav .side button { font-weight: 600; padding-inline: 0.6rem; }
+/* the assistant's toggle (⌘J) reads like the current view while its panel is open */
+.session-nav .assistant-toggle { display: inline-flex; align-items: center; block-size: 1.75rem; padding-block: 0; padding-inline: 0.45rem; font-size: 1rem; }
+.session-nav .assistant-toggle[aria-pressed="true"] { background: var(--wash); color: var(--ink); border-color: transparent; font-weight: 500; }
+/* a hairline between "views of this trace" and "app pages" */
+.nav-divider { flex: none; inline-size: 1px; block-size: 1.1rem; background: var(--hairline-strong); }
+/* the one row holds the tabs, the views and the pages: it needs more room than the views row alone did (the window is at least 1100px wide).
+   Gives way in this order, so the title of the active tab keeps its room: the brand's name; paddings; the history buttons and the file count.
+   (The app's pages and the assistant are icons, so the active tab's sparkline fits down to 1100px.) */
+@media (width < 80rem) {
+  .frame-top .brand-name { display: none; }
+}
+@media (width < 76rem) {
+  .frame-top { gap: var(--sp-2); }
+  .frame-top .tabs .tab { padding-inline: 0.45rem; }
+  .engine-btn { margin-inline-start: 0; }
+}
+/* narrower than the window can be (min 1100px): the history buttons (⌘[ ⌘] and the mouse buttons still go back and forward) and the tab's file count (it is in the popover) give way too */
+@media (width < 64rem) {
+  .session-nav .nav-hist, .session-tab-main .dim { display: none; }
+  .frame-top .tabs .tab { padding-inline: 0.35rem; }
+}
+/* Notes and Reports are tools of the tab, not views of the trace: a hairline sets the Tools menu apart */
+.tabs-divider { align-self: stretch; inline-size: 1px; margin-block: 0.3rem; margin-inline: var(--sp-2); background: var(--hairline-strong); flex: none; }
+/* the trace's response time in miniature, in the active tab, and its popover (the tab's button opens it) */
+.mini-spark { display: inline-flex; inline-size: 3.5rem; block-size: 0.5rem; border-radius: 2px; overflow: clip; background: var(--surface-sunken); flex: none; }
+.mini-spark i { display: block; block-size: 100%; }
+.mini-spark i.unaccounted, .trace-pop .track i.unaccounted, .trace-pop .sw.unaccounted { background-image: repeating-linear-gradient(135deg, transparent 0 2px, color-mix(in oklch, var(--ink) 25%, transparent) 2px 3px); }
+/* popovers (the trace under the active tab, the engine under the dot): fixed, placed under their button by TabStrip.tsx / EngineMenu.tsx, as the top rows' overflow-x would clip an absolute one */
+.pop { position: fixed; z-index: 30; padding: var(--sp-3) var(--sp-4); background: var(--surface-raised); border: 1px solid var(--hairline-strong); border-radius: 8px; box-shadow: 0 8px 28px color-mix(in oklch, var(--ink) 16%, transparent); font-size: var(--text-sm); white-space: normal; text-align: start; }
+.pop h4 { margin: 0 0 var(--sp-2); font-weight: 600; font-size: inherit; overflow-wrap: anywhere; }
+.pop .kv b { font-weight: 500; }
+.pop .foot { display: flex; align-items: center; gap: var(--sp-3); margin-block-start: var(--sp-3); padding-block-start: var(--sp-2); border-block-start: 1px solid var(--hairline); color: var(--ink-2); }
+.trace-pop { min-inline-size: 22rem; max-inline-size: 34rem; }
+.engine-pop { min-inline-size: 16rem; }
+.engine-pop h4 { display: flex; align-items: center; gap: var(--sp-2); }
+.engine-pop p { margin: var(--sp-2) 0 0; }
+.trace-pop .track { display: flex; block-size: 0.85rem; border-radius: 3px; overflow: clip; background: var(--surface-sunken); margin-block-start: var(--sp-3); }
+.trace-pop .track i { display: block; block-size: 100%; }
+.trace-pop .legend { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-block-start: var(--sp-2); font-size: var(--text-xs); color: var(--ink-2); }
+.trace-pop .legend .k { display: inline-flex; align-items: center; gap: 0.3rem; }
+.trace-pop .sw { display: inline-block; inline-size: 9px; block-size: 9px; border-radius: 2px; }
+/* the filter row loses the blue wash; its chips carry the accent */
+.frame-main .filterbar { background: var(--surface); }
+.frame-main .filterbar .chip { border-color: color-mix(in oklch, var(--c-cpu) 35%, var(--hairline-strong)); }
+.library .cache-table .actions { flex-wrap: nowrap; justify-content: end; }
+/* the Back / Forward of the views row */
+.nav-hist button { display: inline-flex; align-items: center; font-size: var(--text-md); padding-inline: 0.35rem; line-height: 1.1; }
+.nav-hist button:disabled { opacity: 0.4; cursor: default; background: none; }
+
+/* motion: tokens and keyframes in src/motion.css */
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: motion-toast-in var(--motion-medium) var(--motion-ease); }
+  .toast.closing { animation: motion-toast-out var(--motion-fast) var(--motion-ease) forwards; }
+  .blocker { animation: motion-fade-in var(--motion-fast) var(--motion-ease); }
+  .blocker.closing { animation: motion-fade-out var(--motion-quick) var(--motion-ease) forwards; }
+  .blocker-card { animation: motion-modal-in var(--motion-fast) var(--motion-ease); }
+  .blocker.closing .blocker-card { animation: motion-modal-out var(--motion-quick) var(--motion-ease) forwards; }
+  /* no blur on the views: opacity and a small rise only */
+  .tab-reveal > .tab-split { animation: motion-rise-in var(--motion-slow) var(--motion-ease-in-out); }
+  /* keyed by the phase label: each new phase enters */
+  .progress-phase { animation: motion-swap-in var(--motion-quick) var(--motion-ease-in-out); }
+}
+
+/* ---- menus and rollouts (the lib's ToolbarMenu popover styles live in lines.css, loaded only with Lines/Pivot) ---- */
+.tbmenu.deskmenu { position: relative; display: inline-flex; }
+.tbmenu.deskmenu .tbpop {
+  position: absolute; inset-block-start: calc(100% + 4px); inset-inline: auto 0; z-index: 20;
+  display: block; inline-size: max-content; min-inline-size: 9rem; max-inline-size: min(24rem, 90vw); block-size: auto; max-block-size: 70dvh; overflow: auto;
+  padding: var(--sp-1); background: var(--surface-raised); border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  box-shadow: 0 6px 20px color-mix(in oklch, var(--ink) 14%, transparent); font-size: var(--text-sm); text-align: start;
+}
+.tbmenu.deskmenu.tbmenu-start .tbpop { inset-inline: 0 auto; }
+/* fixed: under the button, not clipped by a scrolling or clipping ancestor */
+.deskmenu-wrap.fixed .tbmenu.deskmenu .tbpop { position: fixed; inset-block-start: var(--pop-top, 0); inset-inline: var(--pop-left, auto) var(--pop-right, auto); }
+.menu-items { display: grid; }
+/* an entry of a menu: a row, no border (the menu is the affordance), a wash on hover */
+.menu-items button, .ctx-menu button {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-4); inline-size: 100%;
+  padding: 6px var(--sp-2); border: 0; border-radius: 4px; background: none; color: var(--ink); text-align: start; white-space: nowrap;
+}
+.menu-items button:disabled, .ctx-menu button:disabled { color: var(--ink-3); }
+.menu-items button kbd, .ctx-menu button kbd { color: var(--ink-3); font-family: inherit; font-size: var(--text-xs); }
+@media (hover: hover) and (pointer: fine) {
+  .menu-items button:not(:disabled):hover, .ctx-menu button:not(:disabled):hover { background: var(--wash); }
+}
+.menu-items button:focus-visible, .ctx-menu button:focus-visible { background: var(--wash); }
+.menu-items hr, .ctx-menu hr { margin: var(--sp-1) 0; border: 0; border-block-start: 1px solid var(--hairline); }
+.ctx-menu { padding: var(--sp-1); display: grid; min-inline-size: 11rem; }
+/* the Tools menu of the views row looks like a view tab; pressed = the page you are on */
+.session-nav .deskmenu-wrap .tbmenu > button.quiet { border: 0; border-radius: 6px; padding-block: 0.3rem; padding-inline: 0.7rem; background: none; color: var(--ink-2); font-size: var(--text-md); }
+.session-nav .deskmenu-wrap.current .tbmenu > button.quiet, .session-nav .deskmenu-wrap .tbmenu > button.quiet[aria-expanded="true"] { background: var(--wash); color: var(--ink); }
+.session-nav .deskmenu-wrap.current .tbmenu > button.quiet { font-weight: 500; }
+@media (hover: hover) and (pointer: fine) { .session-nav .deskmenu-wrap .tbmenu > button.quiet:hover { background: var(--wash); color: var(--ink); } }
+@media (width < 76rem) { .session-nav .deskmenu-wrap .tbmenu > button.quiet { padding-inline: 0.45rem; } }
+@media (width < 64rem) { .session-nav .deskmenu-wrap .tbmenu > button.quiet { padding-inline: 0.35rem; } }
+.menu-items .menu-item-on::before { content: "✓"; margin-inline-end: var(--sp-2); }
+
+/* a rollout: a disclosure whose summary shows the values it holds */
+details.rollout > summary { display: inline-flex; align-items: center; gap: var(--sp-2); cursor: pointer; color: var(--ink-2); font-size: var(--text-sm); list-style: none; padding-block: var(--sp-1); }
+details.rollout > summary::-webkit-details-marker { display: none; }
+details.rollout > summary::before { content: "▸"; color: var(--ink-2); font-size: 1em; inline-size: 1em; text-align: center; }
+details.rollout[open] > summary::before { rotate: 90deg; }
+details.rollout > summary:hover { color: var(--ink); }
+details.rollout > summary b { font-weight: 600; color: var(--ink); }
+
+/* key hints (workspace/keyHints.ts): a view's or tab's chord, shown while its modifier is held */
+.key-hint { display: none; }
+:root[data-key-hints="views"] .key-hint[data-for="views"],
+:root[data-key-hints="tabs"] .key-hint[data-for="tabs"] {
+  display: inline-block; flex: none; margin-inline-start: var(--sp-1); padding: 0 0.3em; border-radius: 4px;
+  background: var(--ink); color: var(--surface-raised); font-family: inherit; font-size: var(--text-xs); font-weight: 500; line-height: 1.4;
+  font-variant-numeric: tabular-nums; vertical-align: 0.1em;
+}
+.session-nav .tabs > .key-hint { align-self: center; }
+.key-tip kbd { padding: 0 0.3em; border: 1px solid var(--hairline-strong); border-radius: 4px; background: var(--surface-raised); font-family: inherit; font-size: var(--text-xs); }

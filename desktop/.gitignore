@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+src-tauri/target/
+src-tauri/target-quick/
+src-tauri/gen/schemas/
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
+.DS_Store
+out/
+out-smoke/
+out-logs/

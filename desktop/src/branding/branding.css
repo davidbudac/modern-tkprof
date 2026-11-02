@@ -1,0 +1,43 @@
+.brand-icon {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  inline-size: 2rem;
+  block-size: 2rem;
+}
+.brand-icon > span {
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+.brand-icon-left { mask-image: url('./left.png'); }
+.brand-icon-center { mask-image: url('./center.png'); transform-origin: 50.65% 52.6%; }
+.brand-icon-right { mask-image: url('./right.png'); }
+.brand-icon-about { inline-size: 4.5rem; block-size: 4.5rem; }
+.about-brand { display: flex; align-items: center; gap: var(--sp-3); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand-icon[data-motion] > span {
+    animation-duration: 4s;
+    animation-timing-function: cubic-bezier(0.37, 0, 0.63, 1);
+  }
+  .brand-icon[data-motion] > .brand-icon-left { animation-name: brand-focus-left; }
+  .brand-icon[data-motion] > .brand-icon-center { animation-name: brand-focus-center; }
+  .brand-icon[data-motion] > .brand-icon-right { animation-name: brand-focus-right; }
+  .brand-icon[data-motion="loop"] > span { animation-iteration-count: infinite; }
+}
+@keyframes brand-focus-left {
+  0%, 10%, 61.25%, 100% { transform: translateX(0); }
+  26.25%, 41.25% { transform: translateX(2.083%); }
+}
+@keyframes brand-focus-right {
+  0%, 11.5%, 62.75%, 100% { transform: translateX(0); }
+  27.75%, 42.75% { transform: translateX(-2.083%); }
+}
+@keyframes brand-focus-center {
+  0%, 20%, 47.5%, 100% { transform: scale(1) rotate(0); }
+  30%, 33.75% { transform: scale(1.1) rotate(4deg); }
+}

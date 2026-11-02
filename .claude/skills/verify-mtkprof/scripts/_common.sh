@@ -1,0 +1,8 @@
+# sourced by the other scripts. Resolves repo root, state dir and the state file.
+SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="$(cd "$SKILL_DIR/../../.." && pwd)"
+ROOT="${VERIFY_MTKPROF_ROOT:-/tmp/verify-mtkprof}"   # scratch + evidence root (evidence survives cleanup); set the env var to run beside another instance
+STATE="$ROOT/state.env"                  # written by launch.sh, read by everything else
+PW=/Users/davidbudac/.claude/skills/deck-to-pptx/node_modules/playwright/index.mjs
+case "$(uname -m)" in arm64) ENGINE_BIN="$REPO/src-tauri/binaries/mtkprof-engine-aarch64-apple-darwin";; *) ENGINE_BIN="$REPO/src-tauri/binaries/mtkprof-engine-x86_64-apple-darwin";; esac
+free_port() { python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1])'; }
