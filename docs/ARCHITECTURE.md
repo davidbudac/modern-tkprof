@@ -1449,8 +1449,9 @@ docs/               this file, trace-format-19c.md, ROADMAP.md
 
 Two shells mount the lib's views: the standalone one in `web/src/app` (`mtkprof html`, `mtkprof serve`) and the desktop's
 session shell (`desktop/src/workspace/session`). What a shell does around the views lives once, in `lib/shell`, and
-both use it: the view table (`views.tsx`: `baseViews`, eight rows Compare 0, Overview 1, Trace 2, Statements 3, Waits 4,
-Timeline 5, Sessions 6, Pivot 7; `shownViews`, `currentView`; the desktop appends Notes 8 and Reports 9 as `tools` rows),
+both use it: the view table (`views.tsx`: `baseViews`, nine rows Compare 0, Overview 1, Trace 2, Statements 3, Waits 4,
+Blocks (no digit), Timeline 5, Sessions 6, Pivot 7; `shownViews`, `currentView`; the desktop appends Notes 8 and Reports 9
+as `tools` rows; `SessionViewDef.key` is optional: a row without one has no chord and no hint, the steps walk it),
 the tab bar (`ViewTabs`: counts and key hints are props), the view chords (`viewKeys.ts`, `useViewKeys`: ⌘1 … ⌘7 and ⌘0,
 ⌥⌘← / ⌥⌘→ on macOS; Ctrl+digit, Ctrl+PageUp / PageDown elsewhere), the side panes (`viewPanes.ts`, `filesRoom.ts`,
 `useShellPanes`: the details pane only on Waits and Timeline, the Files panel open or folded per view with the user's choice
@@ -1540,3 +1541,51 @@ only when used, Disk, TEMP and Others. Plan: `docs/PLAN-VIEWS.md` § 5; mock-up 
   `findings-io_waits.json.gz` (written with the others by `go test ./internal/report -run FindingsDocs
   -update-findings-docs`).
 
+### Blocks view (`web/src/lib/views/BlockMap.tsx`, `data/blocklayout.ts`, `data/iomap.ts`)
+
+A tab (after Waits, no digit) that draws every physical I/O wait with a block address at (I/O order or time, block
+number): one panel per file (p1), marks as tall as the blocks they moved, the objects' block ranges as faint bands. Full
+scans are diagonals, re-reads repeated hits, a sort spill a write stripe then a read stripe, a multipass hash join a sawtooth.
+
+- Data: `DataSource.ioMap(scope, limit, stmt?, event?)`: `RemoteSource` gets `api/io/map` (`scopeParams(scope, false)`,
+  rows normalised to `IOMAP_COLS` if a future engine reorders `cols`; a 404 is `null`: an older engine), `LocalSource`
+  runs `ioMapOf`, the twin of `analyze.IOMapOn` over the wait columns: the same classification (`isBlockIO` /
+  `blocksParam` from the parameter names), the same window rule (`[tim-ela, tim]` overlaps), idle ignored, the same two
+  passes and every-k-th sampling with `total`, `files` (`[lo, hi)`) and `events` over all matches. The shared case
+  `web/src/lib/data/testdata/iomap-case.json` keeps them equal. Known difference: the document's `ela` and `obj` columns are 32-bit (an
+  obj# of 4294967295 reads 2147483647 locally). `null` without facts (`-aggregate`): the view says so.
+- Scope: the store's window, contexts and files (`useScope`), plus an optional statement ("only" in the facts column);
+  `limit` 5,000 / 20,000 (default) / 100,000, persisted (`mtkprof.blocks.limit`, like the colour mode and the axis).
+- Derived (in `iomap.ts`): `extentsOf` (an object's block ranges in one file: the union of `[block, block + blocks)`,
+  overlapping ranges merged, touching ones kept apart, so io_waits gives MTK_ORDERS 26 ranges / 496 blocks and MTK_CUST 45
+  / 1,204, its extent counts); temp waits never count for an object (their obj# names the statement's object, not the
+  blocks' owner); `rereadOf` (per statement or object and file: reads, writes, blocks moved, distinct blocks as the union
+  of the ranges, reads per distinct block: stmt 22's temp reads 5,612 on 276 blocks = 20.3); `orderToTime` (a brushed
+  stretch of rows as `{startTim: min(tim - ela), endTim: max(tim)}`).
+- Layout (`blocklayout.ts`, unit-tested, no DOM): panels in file order, height clamp(60, 320, 40 + 40·log10(1 + hi − lo))
+  px, 60 px under 16 waits; y = block within `[lo, hi]` with 4 px kept free at both ends; marks min 1 px tall (2 px under
+  500 marks, 5 × 3 px under 16), 1 px wide (2 px at ≤ 2,000 rows, up to 3 px where a slot is wider), centred in their order
+  slot. x is the order index by default: piecewise linear, the statement (or phase) runs narrower than 64 px widened to
+  64 px and the rest sharing the width (`orderScale`; linear when nothing is short or the short ones would need half the
+  width; the caption gives the largest factor, breaks are marked on the axis and as faint lines in the panels); or tim
+  (`timeScale`, a mark spans its wait). Brackets: maximal runs of one statement (`stmtRuns`; a deeper recursive wait in the
+  same context belongs to the run it sits in, and recursive waits right before a shallower statement of their context to
+  that statement's run), shown when there are at most 12, with the phases (the contexts' actions) above them; above 12 the
+  phases alone (at most 40). Labels go on up to three rows (`labelRows`). Colours (`colorRows`): by event (`eventTones`:
+  User I/O reads `--c-userio` in shades, writes `--bm-write`, temp reads / writes `--bm-temp-r` / `--bm-temp-w`, other
+  classes their role), by object or by statement (the categorical role hues by blocks / rows, 14 at most, then
+  `--c-idle`); temp waits keep their event colour in object mode. `hitTest` finds the mark under the pointer.
+- Drawing: one canvas per panel (`devicePixelRatio`, `ResizeObserver`, redrawn on a theme change: the store's toggle,
+  `data-theme`, the system scheme), painted by `drawBlockMap` (grid, bands at 13 % with a solid ruler left of the plot,
+  stretch boundaries, marks grouped by colour) with colours resolved from the tokens (`resolveVar`, `tokenShade`); an SVG
+  overlay per panel for the brush, the crosshair and the hovered / pinned mark; axes, titles, brackets and the legend are
+  DOM. Hover shows a tooltip, a click pins it as a popover (`usePopover`: Esc or a click outside closes it) with the
+  `LineRef` (file from `doc.fileOfCtx(ctx)`) and the `StmtLink`; a horizontal drag sets the store's window
+  (`orderToTime`, or the brushed tims on the time axis) and the view re-queries inside it; a double-click clears it. The
+  facts column lists per statement (by time) and file the reads, writes, distinct blocks and reads per block; sampled, it
+  says "showing 1 in k of N" and that its numbers count the shown waits. Empty states: no WAIT lines at all, no event with a
+  block address, or "No physical I/O waits in scope: every read was a buffer cache hit" with the scope's chips.
+- Budget (measured): `ioMapOf` over 1 M waits 12 ms; layout and paint calls of 20,000 marks 11 ms.
+- Tests: `data/iomap.test.ts` (the shared case, `makeDoc` cases for classification, sampling, scope and the derived
+  helpers, § 1's io_waits numbers on `findings-io_waits.json.gz`), `data/blocklayout.test.ts` (panels, axes, marks,
+  colours, brackets, hit test, `drawBlockMap` on a recording context).

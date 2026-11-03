@@ -322,9 +322,37 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   round trips are unknown and every call replies.
 - **Dialogue: the wall clock is first call to last.** The client gap before the first call is outside it (a
   note, not a bar segment); untimed is clamped at 0 when CPU, waits and gaps overlap.
+- **Blocks is a tab** (after Waits), unlike Row flow and Dialogue. **No chord
+  for Blocks**: digits 0 to 9 are taken and renumbering breaks muscle memory
+  and the assistant's `mtkprof:` links, so `SessionViewDef.key` is optional;
+  a row without a key has no chord and no hint, ⌥⌘← / ⌥⌘→ (Ctrl+PageUp /
+  PageDown) still step through it.
+- **Blocks: order axis by default, time as a toggle**; both brush into a time
+  window (the view re-queries inside it, a double-click clears it). On a time
+  axis the full scans of io_waits.trc (2 ms) are slivers next to the 2.96 s of
+  checkpoint waits; on a linear order axis they are slivers too (98 of 8,747
+  waits), so, as the mock-up's broken axis did, statement (or phase) runs
+  narrower than 64 px are widened to 64 px and the rest stays linear; the
+  caption names the largest factor and the axis marks the breaks.
+- **Blocks: brackets are runs of one statement**; a recursive wait inside a
+  run, or right before the shallower statement it ran for (same context),
+  belongs to that run, so a dictionary lookup does not get a stretch of its
+  own. Above 12 statement runs the phases (contexts' actions) are the
+  brackets.
+- **Blocks: own temp hues** (`--bm-temp-r` teal, `--bm-temp-w` magenta in
+  `styles/blockmap.css`), not the Loom's `--ev-temp` / `--ev-temp-w` pair:
+  a sort's write stripe and read stripe interleave in 1 px marks and the
+  Loom's two browns cannot be told apart there.
+- **Blocks: object ranges are what the waits touched**, not DBA_EXTENTS:
+  overlapping block ranges merged, touching ones apart (that reproduces the
+  extent counts of io_waits); temp waits never count for an object (their
+  obj# is the statement's object). Re-reads are counted per statement and
+  file (stmt 22's temp reads: 20.3 per block), and over the shown rows when
+  the answer is sampled (the view says so).
 - **No new dependencies**; SVG and canvas by hand, colours from the tokens
   (Row flow's self-time ramp is one blue hue, never a wait-class colour;
-  Dialogue's TEMP in the Loom's `--ev-temp-w` / `--ev-temp`).
+  Dialogue's TEMP in the Loom's `--ev-temp-w` / `--ev-temp`; the block map
+  is canvas 2-D per panel with its own temp hues, above).
 
 ## Project
 

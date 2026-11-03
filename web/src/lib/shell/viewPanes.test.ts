@@ -17,7 +17,7 @@ describe('filesDefaultOpen', () => {
     for (const v of ['overview', 'timeline', 'sessions', 'lines'] as View[]) expect(filesDefaultOpen(v)).toBe(true)
   })
   it('folds in Statements, Waits, Pivot, Notes and Reports', () => {
-    for (const v of ['statements', 'waits', 'pivot', 'annotations', 'reports'] as View[]) expect(filesDefaultOpen(v)).toBe(false)
+    for (const v of ['statements', 'waits', 'blocks', 'pivot', 'annotations', 'reports'] as View[]) expect(filesDefaultOpen(v)).toBe(false)
   })
 })
 

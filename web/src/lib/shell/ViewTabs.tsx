@@ -20,7 +20,7 @@ function onTabsKey(e: KeyboardEvent<HTMLElement>) {
 
 /**
  * The tab bar of the views: a `.tab` per shown row of `views` outside the `tools` group, in nav order, each with its chord
- * (`title`, `aria-keyshortcuts`). `counts` adds a small number after a label (the standalone's statements / waits / sessions),
+ * (`title`, `aria-keyshortcuts`; none, and no `hint`, for a row without a key). `counts` adds a small number after a label (the standalone's statements / waits / sessions),
  * `hint` renders something after it too (the desktop's key-hint `<kbd>`), `children` go after the tabs (the desktop's Tools menu).
  * Inside a SessionProvider; nothing until the document is in.
  */
@@ -36,12 +36,12 @@ export function ViewTabs({ views, counts, hint, children }: {
   return (
     <nav className="tabs" aria-label="Views" onKeyDown={onTabsKey}>
       {shownViews(views, state.doc, state).filter((v) => v.group !== 'tools').map((v) => {
-        const chord = viewKeyLabel(v.key, isMac)
+        const chord = viewKeyLabel(v.key, isMac) // '' for a view without a key: no chord in the title, no hint
         const n = counts?.[v.id]
         return (
           <button key={v.id} className="tab" aria-current={state.view === v.id ? 'page' : undefined} onClick={() => actions.setView(v.id)}
-            title={`${v.label} (${chord})`} aria-keyshortcuts={viewKeyAria(v.key, isMac)}>
-            {v.label}{n !== undefined && n !== null && <small>{n}</small>}{hint?.(v, chord)}
+            title={chord ? `${v.label} (${chord})` : v.label} aria-keyshortcuts={viewKeyAria(v.key, isMac) || undefined}>
+            {v.label}{n !== undefined && n !== null && <small>{n}</small>}{chord && hint?.(v, chord)}
           </button>
         )
       })}

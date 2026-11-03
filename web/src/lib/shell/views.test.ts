@@ -4,10 +4,10 @@ import { makeDoc } from '../data/testdoc'
 import { baseViews, currentView, shownViews, type SessionViewDef } from './views'
 
 describe('baseViews', () => {
-  it('lists the eight views in nav order with their labels and digits', () => {
+  it('lists the nine views in nav order with their labels and digits (Blocks has none)', () => {
     expect(baseViews.map((v) => [v.id, v.label, v.key])).toEqual([
       ['compare', 'Compare', 0], ['overview', 'Overview', 1], ['lines', 'Trace', 2], ['statements', 'Statements', 3],
-      ['waits', 'Waits', 4], ['timeline', 'Timeline', 5], ['sessions', 'Sessions', 6], ['pivot', 'Pivot', 7],
+      ['waits', 'Waits', 4], ['blocks', 'Blocks', undefined], ['timeline', 'Timeline', 5], ['sessions', 'Sessions', 6], ['pivot', 'Pivot', 7],
     ])
   })
 })
@@ -19,7 +19,7 @@ describe('shownViews', () => {
     store.setLoaded({ doc, compare: null })
     const notes: SessionViewDef = { id: 'annotations', label: 'Notes', key: 8, group: 'tools', render: () => null }
     const ids = shownViews([...baseViews, notes], doc, store.getState()).map((v) => v.id)
-    expect(ids).toEqual(['overview', 'statements', 'waits', 'timeline', 'sessions', 'pivot', 'annotations'])
+    expect(ids).toEqual(['overview', 'statements', 'waits', 'blocks', 'timeline', 'sessions', 'pivot', 'annotations'])
     store.setState({ view: 'lines' })
     expect(currentView(baseViews, doc, store.getState()).id).toBe('overview') // not shown: Overview instead
     store.setState({ view: 'waits' })

@@ -25,6 +25,7 @@ import { roleOfClass, roleOrder } from '../components/colors'
 import { scopedStatements } from './stmtstats'
 import { scopedFindings } from './findings'
 import { pxOut, responseOf, scopeResponse } from './response'
+import { ioMapOf, normalizeIOMap, type IOMap } from './iomap'
 
 export type Maybe<T> = T | Promise<T>
 
@@ -168,6 +169,12 @@ export interface DataSource {
    * available (no facts, or an engine without `api/findings`): use `doc.stats.findings`.
    */
   findings(scope: Scope, signal?: AbortSignal): Maybe<Finding[] | null>
+  /**
+   * The physical I/O waits with a block address in scope (window and contexts; idle changes nothing), at most `limit` rows
+   * (every k-th above it), optionally of one statement / event: the Blocks view. null = not available (no facts, or an
+   * engine without `api/io/map`).
+   */
+  ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID, signal?: AbortSignal): Maybe<IOMap | null>
 }
 
 // ---- registry ----------------------------------------------------------------
@@ -437,6 +444,10 @@ export class LocalSource implements DataSource {
     if (this.lastFindings?.key !== key) this.lastFindings = { key, out: scopedFindings(this.doc, scope) } // the views asking for one scope share it
     return this.lastFindings.out
   }
+
+  ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID): IOMap | null {
+    return this.doc.hasFacts ? ioMapOf(this.doc, scope, limit, stmt, event) : null
+  }
 }
 
 // ---- RemoteSource --------------------------------------------------------------
@@ -467,6 +478,8 @@ export class RemoteSource implements DataSource {
   private noStatements = false
   /** the same for `api/findings` */
   private noFindings = false
+  /** the same for `api/io/map` */
+  private noIOMap = false
 
   /** `client` is the server root, e.g. `http://127.0.0.1:8046` or `.../s/1`; the queries are `/api/<path>`. */
   constructor(private readonly doc: TraceDoc, private readonly client: ApiClient) {}
@@ -659,6 +672,16 @@ export class RemoteSource implements DataSource {
       return (await this.get<{ findings: Finding[] }>('findings', scopeParams(scope, false), signal)).findings
     } catch (err) {
       if (err instanceof HttpError && err.status === 404) { this.noFindings = true; return null }
+      throw err
+    }
+  }
+
+  async ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID, signal?: AbortSignal): Promise<IOMap | null> {
+    if (this.noIOMap) return null
+    try {
+      return normalizeIOMap(await this.get<IOMap>('io/map', { limit: Math.max(1, Math.floor(limit)), stmt, event, ...scopeParams(scope, false) }, signal))
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) { this.noIOMap = true; return null }
       throw err
     }
   }

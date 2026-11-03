@@ -46,10 +46,10 @@ export function viewKeyOf(e: KeyLike, mac: boolean): ViewKeyAction | null {
   return d === null ? null : { kind: 'view', key: d }
 }
 
-/** The view an action goes to among the shown views (nav order), or null when no shown view has that key. */
-export function viewOfKey(action: ViewKeyAction, shown: readonly { id: View; key: number }[], current: View): View | null {
+/** The view an action goes to among the shown views (nav order), or null when no shown view has that key. A row without a key has no digit, but the steps walk it. */
+export function viewOfKey(action: ViewKeyAction, shown: readonly { id: View; key?: number }[], current: View): View | null {
   if (action.kind === 'view') {
-    return shown.find((x) => x.key === action.key)?.id ?? null
+    return shown.find((x) => x.key !== undefined && x.key === action.key)?.id ?? null
   }
   if (shown.length < 2) return null
   const i = shown.findIndex((x) => x.id === current)
@@ -57,15 +57,16 @@ export function viewOfKey(action: ViewKeyAction, shown: readonly { id: View; key
   return shown[to].id
 }
 
-/** How a view's chord is written in hints. */
-export const viewKeyLabel = (key: number | string, mac: boolean) => (mac ? `⌘${key}` : `Ctrl+${key}`)
+/** How a view's chord is written in hints; '' for a view without a key. */
+export const viewKeyLabel = (key: number | string | undefined, mac: boolean) => (key === undefined || key === '' ? '' : mac ? `⌘${key}` : `Ctrl+${key}`)
 
-/** A view's chord for `aria-keyshortcuts`. */
-export const viewKeyAria = (key: number | string, mac: boolean) => (mac ? `Meta+${key}` : `Control+${key}`)
+/** A view's chord for `aria-keyshortcuts`; '' for a view without a key. */
+export const viewKeyAria = (key: number | string | undefined, mac: boolean) => (key === undefined || key === '' ? '' : mac ? `Meta+${key}` : `Control+${key}`)
 
 /**
  * The view chords on the window: ⌘1 … ⌘9, ⌘0 Compare, ⌥⌘← ⌥⌘→ (Ctrl elsewhere, Ctrl+PageUp / PageDown to step) over the
- * shown rows of `views`. A digit works from a text field too (it types nothing there); stepping leaves a field's arrow keys alone.
+ * shown rows of `views` (a row without a key only by the steps). A digit works from a text field too (it types nothing there);
+ * stepping leaves a field's arrow keys alone.
  */
 export function useViewKeys(store: Store, views: readonly SessionViewDef[]): void {
   const table = useRef(views)

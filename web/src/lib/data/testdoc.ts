@@ -1,6 +1,6 @@
 // A small hand-built trace set for the unit tests (not a trace fixture: it only has the columns the code under test reads).
 import { TraceDoc } from './doc'
-import type { RawDocument, StmtStats, CallStats, FileEntry, Context } from './types'
+import type { RawDocument, StmtStats, CallStats, FileEntry, Context, Event } from './types'
 
 export const zeroCallStats = (): CallStats => ({
   count: 0, misses: 0, cpu: 0, elapsed: 0, disk: 0, query: 0, current: 0, rows: 0, waitUs: 0, idleUs: 0,
@@ -15,7 +15,11 @@ export function zeroStmt(id: number): StmtStats {
   }
 }
 
-export interface WaitSpec { ctx: number; stmt: number; event: number; ela: number; tim: number; idle?: boolean }
+export interface WaitSpec {
+  ctx: number; stmt: number; event: number; ela: number; tim: number; idle?: boolean
+  /** the rest default to: line i+1, call -1, p1..p3 0, obj -1, dep 0, flags from `idle` */
+  line?: number; call?: number; p1?: number; p2?: number; p3?: number; obj?: number; dep?: number; flags?: number
+}
 
 export interface CallSpec {
   ctx: number; stmt: number; kind: number; e: number; c?: number; tim?: number; parent?: number; dep?: number; mis?: number; r?: number
@@ -31,7 +35,7 @@ const file = (idx: number, name: string, extra: Partial<FileEntry> = {}): FileEn
  * Files: 0 `qc.trc` (contexts 0, 1), 1 `px_p000.trc` (context 2, a PX slave attached to context 0), 2 `other.trc` (context 3).
  * Statements 0 and 1 (no wall clock, one cursor each).
  */
-export async function makeDoc(calls: CallSpec[], opts: { files?: FileEntry[]; contexts?: Partial<Context>[]; waits?: WaitSpec[] } = {}): Promise<TraceDoc> {
+export async function makeDoc(calls: CallSpec[], opts: { files?: FileEntry[]; contexts?: Partial<Context>[]; waits?: WaitSpec[]; events?: Event[] } = {}): Promise<TraceDoc> {
   const files = opts.files ?? [file(0, 'qc.trc'), file(1, 'px_p000.trc', { px: true }), file(2, 'other.trc')]
   const ctxs: Partial<Context>[] = opts.contexts ?? [
     { fileIdx: 0 }, { fileIdx: 0 }, { fileIdx: 1, px: true, parent: 0, process: '4242' }, { fileIdx: 2 },
@@ -46,7 +50,7 @@ export async function makeDoc(calls: CallSpec[], opts: { files?: FileEntry[]; co
     statements: [0, 1].map((id) => ({ id, kind: 0, sqlId: `sql${id}`, text: `select ${id}`, cursors: [id], hashValue: id, firstLine: 1, parsingUserId: 1, minDepth: 0 })),
     cursors: [0, 1].map((id) => ({ id, context: 0 })),
     contexts: ctxs.map((c, id) => ({ id, line: id + 1, sessionId: '', clientId: '', service: '', module: '', action: '', clientDriver: '', containerId: '', process: '', ...c })),
-    events: [], plans: [], planLines: [], transactions: [], errors: [], markers: [],
+    events: opts.events ?? [], plans: [], planLines: [], transactions: [], errors: [], markers: [],
     diag: { lines: 0, bytes: 0, unknownLines: 0, unattributedWaits: 0, timeAnchors: 0, lineKinds: {} },
     unknown: null,
     facts: {
@@ -60,8 +64,8 @@ export async function makeDoc(calls: CallSpec[], opts: { files?: FileEntry[]; co
       },
       waits: {
         n: waits.length,
-        line: wcol((_, i) => i + 1), cursor: wcol((w) => w.stmt), stmt: wcol((w) => w.stmt), call: wcol(() => -1), event: wcol((w) => w.event), ela: wcol((w) => w.ela),
-        p1: wcol(() => 0), p2: wcol(() => 0), p3: wcol(() => 0), obj: wcol(() => -1), tim: wcol((w) => w.tim), ctx: wcol((w) => w.ctx), dep: wcol(() => 0), flags: wcol((w) => (w.idle ? 2 : 0)),
+        line: wcol((w, i) => w.line ?? i + 1), cursor: wcol((w) => w.stmt), stmt: wcol((w) => w.stmt), call: wcol((w) => w.call ?? -1), event: wcol((w) => w.event), ela: wcol((w) => w.ela),
+        p1: wcol((w) => w.p1 ?? 0), p2: wcol((w) => w.p2 ?? 0), p3: wcol((w) => w.p3 ?? 0), obj: wcol((w) => w.obj ?? -1), tim: wcol((w) => w.tim), ctx: wcol((w) => w.ctx), dep: wcol((w) => w.dep ?? 0), flags: wcol((w) => w.flags ?? (w.idle ? 2 : 0)),
       }, bindSets: { n: 0 }, binds: { n: 0, type: [], value: [] },
     },
     stats: { statements: [zeroStmt(0), zeroStmt(1)], profile: { label: '', totalUs: 0, cpuUs: 0, waitUs: 0, idleUs: 0, unaccountedUs: 0, rows: [] }, events: [], timeline: [], bucketUs: 0 },

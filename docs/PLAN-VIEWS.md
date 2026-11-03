@@ -569,11 +569,11 @@ heading) and tick § 9.
 
 | package | state | commit | notes |
 |---|---|---|---|
-| G view without a chord | not started | | |
+| G view without a chord | done | | `key?: number`; `viewOfKey` / `useViewKeys` skip key-less rows, the steps walk them; `viewKeyLabel` / `viewKeyAria` give `''`; `ViewTabs` no title chord, no hint; desktop Tools menu tolerates a key-less row; no desktop copies of `viewKeys.ts` / `viewPanes.ts` existed |
 | R Row flow | done | | lib only, no engine change; per-node STAT links (`plan.line + index`); ghost = E-Rows × starts except below iterators, none for starts 0 (PX slaves' lines); thickest band by decades of rows; no fixture has STAT lines without statistics (level_1.trc has them), so the table + note state is unit-tested only |
 | D Dialogue | done | | `dialogueOf` adds `floorUs` (10 µs), round trips (idle between waits), recursive groups with their 10× outliers (stmts 18 / 19 show in stmt 17's EXEC), `leadGapUs` outside the wall; query key `loom:…` (the Loom's, not `trace:…`); no CLOSE in an execution trace, so stmt 21 = 204 turns and stmt 15 gaps = 7.43 ms; fixture `findings-io_waits.json.gz` |
 | B-engine `io/map` | done | | `IOMapFile.hi` is exclusive (largest block + blocks: § 1's ranges); `analyze.BlockEvents` builds the two `[]bool`; gc cr/current block 2-way have no parameter names, so they do not classify (gc cr/current request do); shared case `iomap-case.json` = 84 waits up to the 60th block I/O wait, 3 queries |
-| B-ui Blocks view | not started | | |
+| B-ui Blocks view | done | | `ioMapOf` = `IOMapOn` on the shared case; order axis widens statement runs under 64 px (the mock-up's broken axis: on a linear axis the 98 full-scan reads are slivers too); bracket runs absorb recursive waits (inside a run, or right before the statement they ran for); temp hues `--bm-temp-r` / `--bm-temp-w` instead of the Loom's `--ev-temp` pair (indistinguishable at 1 px); object ranges = overlapping ranges merged (26 / 496, 45 / 1,204); re-reads per statement and file; parallel.trc has no PX-slave physical reads |
 
 ## 10. Later (not in this plan)
 

@@ -65,7 +65,12 @@ function rgbOf(color: string): [number, number, number] {
 
 /** The k-th shade of a role's color: k = 0 is the role color, higher k steps towards the surface (several events of one class). */
 export function roleShade(role: Role, k: number): string {
-  const base = cssColor(role)
+  return tokenShade(`--c-${role}`, k)
+}
+
+/** The k-th shade of a color token (`--c-userio`, `--ev-temp`, ...), as `roleShade`. */
+export function tokenShade(token: string, k: number): string {
+  const base = resolveVar(token)
   if (k === 0) return base
   const t = Math.min(0.6, 0.2 * k)
   const a = rgbOf(base), s = rgbOf(resolveVar('--surface-raised'))

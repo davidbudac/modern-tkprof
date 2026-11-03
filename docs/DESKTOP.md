@@ -1,8 +1,8 @@
 # mtkprof desktop app: user guide
 
 The desktop app opens Oracle 10046 trace files, one tab per trace, with the mtkprof engine running
-next to it. It shows the same views as `mtkprof serve` (Overview, Statements, Waits, Timeline,
-Sessions, Pivot) plus the **Lines** viewer. A *Tools ▾* menu follows after a divider: **Notes** and
+next to it. It shows the same views as `mtkprof serve` (Overview, Statements, Waits, Blocks,
+Timeline, Sessions, Pivot) plus the **Lines** viewer. A *Tools ▾* menu follows after a divider: **Notes** and
 **Reports** are tools of the tab, not views of the trace; while one of them is on screen the menu
 button names it (*Notes ▾*) and is marked as the current page. Saved Pivot configurations, an
 **Assistant** chat and **Connections** for fetching traces from other machines complete it.
@@ -151,7 +151,7 @@ Lines or report exports.
 |---|---|
 | ⌘W | Close the tab; on a page (Settings, Connections, …) go back to the last tab |
 | ⌘T | The open screen |
-| ⌘1 … ⌘9 | The views of the trace |
+| ⌘1 … ⌘9 | The views of the trace (Blocks has no digit: ⌥⌘← / ⌥⌘→, Ctrl+PageUp / PageDown elsewhere, step through every view) |
 | ⌃1 … ⌃8 on macOS, Alt+1 … Alt+8 elsewhere; ⌃9 / Alt+9 | The tab at that position; ⌃9 / Alt+9 the last tab |
 | Ctrl+Tab, Ctrl+Shift+Tab; ⌘⇧] and ⌘⇧[ on macOS | Next / previous tab, wrapping around |
 | Alt+← / Alt+→; ⌘[ / ⌘] on macOS; the mouse's back and forward buttons | Back / Forward in the tab's views |
@@ -213,6 +213,7 @@ Close Tab* (the window closes with *Window → Close Window*, ⇧⌘W, or the re
 | View | |
 |---|---|
 | Overview, Statements, Waits, Timeline, Sessions, Pivot | as in `mtkprof serve`; the document is sliced by the engine, so a 2 GB trace stays light |
+| **Blocks** | every physical I/O wait with a block address: one panel per datafile or tempfile, x = the n-th such wait (or *time*), y = the block number, each mark as tall as the blocks it moved; colour by *event*, *object* or *statement*; faint bands are the block ranges each object's reads touched. Full scans are diagonals, a sort spill a write stripe then a read stripe, a multipass hash join a sawtooth of re-reads. Brackets on top name the statements' stretches; the column on the right counts reads, writes and reads per block per statement. Hover a mark for its wait, click to pin it (line and statement links), drag across to make that stretch the time window, double-click to clear it; *marks* caps the rows (every k-th above it, "showing 1 in k") |
 | **Lines** | the raw trace file, paged. Kind colouring, gutter marks of the selected statement, the object at the clicked line, streaming search, jump to time, a file selector for sets |
 | **Notes** (*Tools ▾*) | all notes of the trace |
 | **Reports** (*Tools ▾*) | what the CLI writes, saved from the tab |

@@ -37,6 +37,12 @@ function NavButtons() {
   )
 }
 
+/** The chords of the tool rows that have a key (a row may have none: `SessionViewDef.key` is optional), or null when none has. */
+function toolChords(tools: SessionViewDef[]): string[] | null {
+  const out = tools.filter((v) => v.key !== undefined).map((v) => viewKeyLabel(v.key, isMac))
+  return out.length ? out : null
+}
+
 /**
  * `Tools ▾`: the views of the tab rather than of the trace (Notes, Reports), and `Copy brief…`, which opens the brief's dialog.
  * When a view is on screen the button names it and is marked as the current page.
@@ -46,10 +52,11 @@ function ToolsMenu({ tools, onBrief }: { tools: SessionViewDef[]; onBrief: () =>
   const view = useStore((s) => s.view)
   const [open, setOpen] = useState(false)
   const current = tools.find((v) => v.id === view)
+  const chords = toolChords(tools)
   return (
-    <DeskMenu label={current?.label ?? 'Tools'} title={`Notes and reports of this trace (${tools.map((v) => viewKeyLabel(v.key, isMac)).join(', ')}), and the brief for an LLM`} fixed current={!!current} open={open} onOpenChange={setOpen}>
+    <DeskMenu label={current?.label ?? 'Tools'} title={`Notes and reports of this trace${chords ? ` (${chords.join(', ')})` : ''}, and the brief for an LLM`} fixed current={!!current} open={open} onOpenChange={setOpen}>
       {tools.map((v) => (
-        <button key={v.id} className={v.id === view ? 'menu-item-on' : undefined} onClick={() => actions.setView(v.id)}>{v.label} <kbd>{viewKeyLabel(v.key, isMac)}</kbd></button>
+        <button key={v.id} className={v.id === view ? 'menu-item-on' : undefined} onClick={() => actions.setView(v.id)}>{v.label}{v.key !== undefined && <> <kbd>{viewKeyLabel(v.key, isMac)}</kbd></>}</button>
       ))}
       <hr />
       <button onClick={onBrief} title="A Markdown summary of this trace, with your notes, to paste into an LLM">Copy brief…</button>
@@ -88,7 +95,7 @@ export function SessionNav() {
             <>
               <span className="tabs-divider" role="separator" />
               <ToolsMenu tools={tools} onBrief={() => setBriefOpen(true)} />
-              <kbd className="key-hint" data-for="views" aria-hidden="true">{tools.map((v) => viewKeyLabel(v.key, isMac)).join(' ')}</kbd>
+              {toolChords(tools) && <kbd className="key-hint" data-for="views" aria-hidden="true">{toolChords(tools)!.join(' ')}</kbd>}
             </>
           )}
         </ViewTabs>

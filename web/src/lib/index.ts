@@ -5,6 +5,7 @@
 export { Overview } from './views/Overview'
 export { Statements } from './views/Statements'
 export { Waits } from './views/Waits'
+export { BlockMap } from './views/BlockMap'
 export { Timeline } from './views/Timeline'
 export { Sessions } from './views/Sessions'
 export { Pivot } from './views/Pivot'

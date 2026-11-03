@@ -7,7 +7,7 @@ import { pivotConfigOf, resolvePivotConfig, type PivotConfig } from '../data/piv
 import { contextsWithin, effectiveContexts, fileCount, normalizeFiles } from '../data/fileset'
 import type { KindGroup } from '../data/callkinds'
 
-export type View = 'overview' | 'statements' | 'waits' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
+export type View = 'overview' | 'statements' | 'waits' | 'blocks' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
   | 'annotations' | 'reports' // desktop shell views
 
 export interface TimeWindow { startTim: number; endTim: number }

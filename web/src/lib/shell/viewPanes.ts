@@ -6,7 +6,7 @@ import type { Store, View } from '../state/store'
 export const showsInspector = (view: View): boolean => view === 'waits' || view === 'timeline'
 
 /** Views that start with the Files panel folded to its edge tab (the filter row's "▤ N files" chip opens it anywhere). */
-const FOLDED_VIEWS: ReadonlySet<View> = new Set<View>(['statements', 'waits', 'pivot', 'annotations', 'reports'])
+const FOLDED_VIEWS: ReadonlySet<View> = new Set<View>(['statements', 'waits', 'blocks', 'pivot', 'annotations', 'reports'])
 
 /** Whether the Files panel is open in `view` before the user has said otherwise. */
 export const filesDefaultOpen = (view: View): boolean => !FOLDED_VIEWS.has(view)

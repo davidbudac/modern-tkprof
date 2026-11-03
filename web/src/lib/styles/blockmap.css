@@ -1,0 +1,74 @@
+/* The Blocks view (views/BlockMap.tsx). Mark colours come from the tokens; the figure is canvas per panel with an SVG overlay;
+   axes, titles and brackets are DOM. */
+:root {
+  /* writes of the User I/O class (db file single write, direct path write): a darker step of --c-userio */
+  --bm-write: light-dark(#a8441b, #f39a6e);
+  /* temp I/O: a sort's write stripe and read stripe interleave, so the two hues are far apart (teal / magenta) and away
+     from the orange of the datafile reads; the Loom's --ev-temp / --ev-temp-w pair is too close for 1 px marks */
+  --bm-temp-r: light-dark(#0f8f84, #2bb5a8);
+  --bm-temp-w: light-dark(#a1349b, #d36ccc);
+}
+
+.blockmap .bm-tools { flex-wrap: wrap; }
+.bm-ctl { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-sm); color: var(--ink-2); }
+.bm-ctl select { font-size: var(--text-xs); }
+.bm-sampled { color: var(--ink); font-weight: 600; }
+.bm-error { color: var(--s-critical); }
+
+.bm-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); gap: var(--sp-4); align-items: start; container-type: inline-size; }
+.bm-body.bm-stale .bm-figure { opacity: 0.6; transition: opacity 0.2s 0.15s; }
+@container (max-width: 52rem) {
+  .bm-body { grid-template-columns: minmax(0, 1fr); }
+}
+.bm-figure { min-inline-size: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.bm-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); }
+.bm-legend .k { display: inline-flex; align-items: center; gap: 0.4rem; }
+.bm-legend .swatch { inline-size: 0.7rem; block-size: 0.7rem; }
+.bm-band-swatch { background: color-mix(in oklch, var(--ink) 14%, transparent); box-shadow: inset 3px 0 0 color-mix(in oklch, var(--ink) 60%, transparent); }
+
+/* statement and phase brackets over the first panel */
+.bm-brackets { position: relative; }
+.bm-brackets svg { position: absolute; inset: 0; overflow: visible; }
+.bm-bracket, .bm-bracket-phase { fill: none; stroke: var(--ink-2); stroke-width: 1; }
+.bm-bracket-phase { stroke: var(--ink-3); }
+.bm-stmt { position: absolute; display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; white-space: nowrap; padding-inline-start: 4px; font-size: var(--text-sm); }
+.bm-stmt small { color: var(--ink-2); font-size: var(--text-xs); }
+.bm-phase { position: absolute; padding-inline-start: 4px; font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; }
+
+.bm-panel { display: flex; flex-direction: column; gap: 2px; }
+.bm-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); font-size: var(--text-sm); }
+.bm-title b { font-weight: 600; }
+.bm-obj { display: inline-flex; align-items: center; gap: 0.35rem; }
+.bm-plot { position: relative; }
+.bm-canvas { position: absolute; top: 0; }
+.bm-overlay { position: absolute; top: 0; cursor: crosshair; touch-action: none; overflow: visible; }
+.bm-yticks { position: absolute; left: 0; top: 0; bottom: 0; }
+.bm-yticks span { position: absolute; right: 0; translate: 0 -50%; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
+.bm-brush { fill: color-mix(in oklch, var(--c-cpu) 14%, transparent); stroke: var(--c-cpu); stroke-width: 1; }
+.bm-cross { stroke: color-mix(in oklch, var(--ink) 35%, transparent); stroke-width: 1; pointer-events: none; }
+.bm-hit { fill: none; stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
+
+.bm-xaxis { position: relative; block-size: 1.4rem; border-block-start: 1px solid var(--c-axis); }
+.bm-xaxis span { position: absolute; top: 3px; translate: -50% 0; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
+.bm-xaxis span:first-of-type { translate: 0 0; }
+.bm-break { position: absolute; top: -6px; inline-size: 1px; block-size: 11px; background: var(--ink-2); rotate: 25deg; }
+.bm-caption { max-inline-size: 70rem; }
+
+.bm-facts { display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--text-sm); position: sticky; top: var(--sp-2); max-block-size: calc(100dvh - 10rem); overflow-y: auto; }
+.bm-facts h3 { font-size: var(--text-md); font-weight: 600; }
+.bm-facts ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.bm-facts-h { display: flex; align-items: baseline; gap: var(--sp-2); }
+.bm-facts-r { display: flex; flex-wrap: wrap; gap: 0 var(--sp-2); padding-inline-start: var(--sp-2); }
+.bm-only { margin-inline-start: auto; font-size: var(--text-xs); }
+.bm-note { padding: var(--sp-1) var(--sp-2); border-inline-start: 2px solid var(--s-warning); background: color-mix(in oklch, var(--s-warning) 8%, transparent); }
+
+.bm-tip { position: fixed; z-index: 60; pointer-events: none; max-inline-size: 22rem; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); box-shadow: 0 4px 14px color-mix(in oklch, var(--ink) 14%, transparent); display: grid; gap: 2px; }
+.bm-tip-h { display: flex; gap: var(--sp-2); align-items: baseline; }
+.stmt-pop.bm-pop { display: grid; gap: 2px; padding-inline-end: 1.8rem; inline-size: max-content; max-inline-size: min(26rem, calc(100vw - 2rem)); }
+.stmt-pop.bm-pop .stmt-pop-x { position: absolute; top: var(--sp-1); right: var(--sp-1); }
+.bm-pop-acts { margin-block-start: var(--sp-1); }
+
+.bm-empty { display: grid; gap: var(--sp-2); padding: var(--sp-4) 0; }
+.bm-empty p { margin: 0; }
+.bm-scope { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }

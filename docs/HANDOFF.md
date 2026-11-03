@@ -43,6 +43,15 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   and `-facts=false` engine source) and desktop, light and dark. Differences from § 1: the CLOSE is not an
   execution-trace call (204 turns, not 205; stmt 15's 7.5 ms includes the 109 µs gap before the CLOSE). New
   fixture `web/src/lib/data/testdata/findings-io_waits.json.gz` (TestFindingsDocsCurrent writes it).
+- 2026-11-03 **G + B-ui, the Blocks view**: `SessionViewDef.key` is optional (no chord, no hint; the ⌥⌘ steps walk it;
+  digits 0 to 9 unchanged); tab Blocks after Waits (`views/BlockMap.tsx`, `data/blocklayout.ts`, `data/iomap.ts` with
+  `ioMapOf`, the twin of `IOMapOn`, equal on `iomap-case.json`; `DataSource.ioMap` local and remote). Canvas per panel,
+  order axis with short statement runs widened to 64 px (time as a toggle), colour by event / object / statement, object
+  ranges as bands, statement / phase brackets, tooltip + pinned popover, brush → window, facts column (re-reads per block),
+  limit 5,000 / 20,000 / 100,000 persisted. io_waits: 8,747 marks unsampled, ORDERS 26 ranges / 496 blocks, CUST 45 /
+  1,204, stmt 22 temp reads 20.3× per block, limit 5,000 "showing 1 in 2 of 8,747". Verified standalone (facts, `-spill`,
+  `-facts=false`, `-ref`) and desktop (engine), light and dark. Own temp hues `--bm-temp-r` / `--bm-temp-w` (the Loom's
+  pair is too close for 1 px marks); parallel.trc has no PX-slave physical reads (one wait), level_1 the empty state.
 
 ## One repository, two clients (2026-11-02)
 

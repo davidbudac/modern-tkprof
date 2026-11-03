@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { digitOf, viewKeyOf, viewOfKey, type KeyLike } from './viewKeys'
+import { digitOf, viewKeyAria, viewKeyLabel, viewKeyOf, viewOfKey, type KeyLike } from './viewKeys'
 
 const key = (k: string, mods: Partial<KeyLike> = {}): KeyLike => ({ key: k, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods })
 
@@ -34,6 +34,24 @@ describe('viewOfKey', () => {
     expect(viewOfKey({ kind: 'step', dir: 1 }, views, 'overview')).toBe('lines')
     expect(viewOfKey({ kind: 'step', dir: 1 }, views, 'waits')).toBe('overview')
     expect(viewOfKey({ kind: 'step', dir: -1 }, views, 'overview')).toBe('waits')
+  })
+  it('gives a row without a key no digit, but steps through it', () => {
+    const rows = [{ id: 'overview', key: 1 }, { id: 'waits', key: 4 }, { id: 'blocks' }, { id: 'timeline', key: 5 }] as const
+    for (let d = 0; d <= 9; d++) expect(viewOfKey({ kind: 'view', key: d }, rows, 'overview')).toBe(d === 1 ? 'overview' : d === 4 ? 'waits' : d === 5 ? 'timeline' : null)
+    expect(viewOfKey({ kind: 'step', dir: 1 }, rows, 'waits')).toBe('blocks')
+    expect(viewOfKey({ kind: 'step', dir: 1 }, rows, 'blocks')).toBe('timeline')
+    expect(viewOfKey({ kind: 'step', dir: -1 }, rows, 'timeline')).toBe('blocks')
+  })
+})
+
+describe('viewKeyLabel / viewKeyAria', () => {
+  it('write a digit as the platform chord, nothing for a row without a key', () => {
+    expect(viewKeyLabel(3, true)).toBe('⌘3')
+    expect(viewKeyLabel(0, false)).toBe('Ctrl+0')
+    expect(viewKeyAria(3, true)).toBe('Meta+3')
+    expect(viewKeyAria(7, false)).toBe('Control+7')
+    expect(viewKeyLabel(undefined, true)).toBe('')
+    expect(viewKeyAria(undefined, false)).toBe('')
   })
 })
 
