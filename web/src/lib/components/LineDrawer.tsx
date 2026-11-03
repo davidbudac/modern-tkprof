@@ -11,6 +11,7 @@ import { useActions, useClient, useStore } from '../state/session'
 import { useLinesPrefs } from '../state/linesPrefs'
 import { LineViewer, type ViewerApi } from './LineViewer'
 import { LinePopover, type LinePopup } from './LinePopover'
+import { EXIT_MS, Shimmer, useExit } from './motion'
 import '../styles/lines.css'
 
 /** pages of annotated lines kept for the drawer */
@@ -88,6 +89,7 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
   useEffect(() => { apiRef.current?.reveal(center, 'center') }, [center, target])
 
   const flash = useCallback((msg: string) => setNote(msg), [])
+  const shownNote = useExit(note, EXIT_MS.fast) // rises in, and blurs out when it times out (.flash-note)
   const back = useCallback(() => { apiRef.current?.reveal(target, 'center'); setSelected(target) }, [target])
   useEffect(() => {
     if (note === null) return
@@ -120,7 +122,7 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
       <div className="linedrawer-head">
         <h2>Trace lines{fileName && <small className="mono"> · {fileName}</small>}</h2>
         <ViewHint hub={hub} total={total} />
-        {note && <span className="hint" role="status" aria-live="polite">{note}</span>}
+        {shownNote.shown && <span key={shownNote.shown} className={'hint flash-note' + (shownNote.closing ? ' closing' : '')} role="status" aria-live="polite">{shownNote.shown}</span>}
         <span className="tools">
           <BackButton hub={hub} target={target} total={total} onBack={back} />
           {tab && <button onClick={() => actions.openLinesAt(file, selected)} title="open the whole trace in the Lines tab">In Lines tab</button>}
@@ -131,7 +133,7 @@ function DrawerOf({ doc, file, target, center }: { doc: TraceDoc; file: number; 
       <div className="linedrawer-body">
         <LineViewer cache={cache} marks={NO_MARKS} bookmarks={bmSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} links={prefs.links} onRef={onRef} refTitle={refTitle} card={lineCard}
           onViewChange={onViewChange} apiRef={apiRef} topRef={topRef} onSelect={setSelected} onBookmark={toggleBookmark} onError={setLoadError} />
-        {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
+        {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}
         {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         {total > 0 && target > total && <p className="lines-overlay muted">Line {fmtInt(target)} is past the end of the file ({fmtInt(total)} lines)</p>}
       </div>

@@ -10,6 +10,7 @@ import { foldTimeline, selectionBucket } from '../data/derive'
 import { useAxis } from '../data/scopedstmts'
 import { resolveVar, roleShade, type Role } from '../components/colors'
 import { fmtDur, fmtWall } from '../data/format'
+import { Shimmer } from '../components/motion'
 
 /** Stacked activity per time bucket (CPU + waits by event or by class) with a zoom slider that sets the global window. */
 export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'event' | 'class' }) {
@@ -69,7 +70,7 @@ export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'even
       actions.setWindow({ startTim: Math.max(axis.base, lo + (span * start) / 100), endTim: Math.min(axis.base + axis.span, lo + (span * end) / 100) })
     },
   }), [data.starts, bucketUs, axis.base, axis.span])
-  if (raw.loading && data.starts.length === 0) return <p className="muted small">loading…</p>
+  if (raw.loading && data.starts.length === 0) return <p className="muted small"><Shimmer>loading…</Shimmer></p>
   if (raw.error) return <p className="callout">{raw.error}</p>
   if (data.starts.length === 0) return <p className="muted small">No time information.</p>
   return <Chart option={option} onEvents={events} />

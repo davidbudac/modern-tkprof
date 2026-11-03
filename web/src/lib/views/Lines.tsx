@@ -29,6 +29,7 @@ import { cachedAt, decodeContextOf, lineCardOf, refClickOf, refTitleOf, useLineA
 import { isSelected } from '../data/fileset'
 import { fileInWindow, windowLineRange, type LineRange } from '../data/windowlines'
 import { NoteEditor } from '../components/Note'
+import { EXIT_MS, Shimmer, useExit } from '../components/motion'
 import '../styles/lines.css'
 
 type SearchStatus = 'idle' | 'running' | 'done' | 'cancelled' | 'error'
@@ -291,6 +292,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
   const [popup, setPopup] = useState<LinePopup | null>(null) // the statement popup of a clicked reference
   const [copied, setCopied] = useState<{ msg: string; bad: boolean } | null>(null) // the status bar's note
+  const copiedNote = useExit(copied, EXIT_MS.fast) // rises in, and blurs out when it times out (.flash-note)
   const selected = lv.line
   const total = cache.total
 
@@ -1052,7 +1054,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
-          {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
+          {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
         </div>
         {prefs.inspect && <>
@@ -1112,7 +1114,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             {fmtInt(ui.folds.length)} folded <button type="button" className="link" onClick={() => set({ folds: [] })} title="show the lines of every folded block (Z)">unfold all</button>
           </span>
         )}
-        {copied && <span role="status" aria-live="polite" className={copied.bad ? 'lines-error' : 'lines-copied'}>{copied.msg}</span>}
+        {copiedNote.shown && <span key={copiedNote.shown.msg} role="status" aria-live="polite" className={(copiedNote.shown.bad ? 'lines-error' : 'lines-copied') + ' flash-note' + (copiedNote.closing ? ' closing' : '')}>{copiedNote.shown.msg}</span>}
         {files.length > 1 && <span className="muted lines-file">{doc.traceFileName(file)}</span>}
       </div>
     </section>

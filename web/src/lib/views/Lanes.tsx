@@ -13,6 +13,7 @@ import { dominantRole, foldTimeline, type PhaseSpan2, type Span2, type TimelineS
 import { kindGroups, groupIndex, phaseBackground } from '../data/callkinds'
 import { ticks, zoomedAxis } from '../data/scale'
 import { roleLabel, roleOfClass, roleOrder, type Role } from '../components/colors'
+import { Shimmer, useReveal } from '../components/motion'
 import '../styles/timeline.css'
 
 const MAX_LANES = 12
@@ -94,6 +95,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
   const topIds = top.map((s) => s.id)
   const gap = span / 600
   const spansQ = useSourceQuery(source, `spans:${topIds.join(',')}:${gap}:${scopeKey(laneScope)}`, (signal) => (source.ready ? source.stmtSpans(topIds, gap, laneScope, signal) : null), 'spans')
+  useReveal(ref, spansQ.loading) // the bars of the new range sharpen in where the stale ones pulsed
   // the phase segments; until they arrive the lanes show the plain spans (kept across refreshes, never blank)
   const phaseQ = useSourceQuery(source, `phases:${colorBy}:${topIds.join(',')}:${gap}:${scopeKey(laneScope)}`,
     (signal) => (colorBy === 'phase' && source.ready ? source.stmtPhases(topIds, gap, laneScope, signal) : null), 'phases')
@@ -239,7 +241,7 @@ export function Lanes({ doc, colorBy = 'phase', showWaits = false }: { doc: Trac
     </div>
   )
   if (span <= 0) return <p className="muted small">No time information.</p>
-  if (lanes.length === 0) return zoomStrip ? <>{zoomStrip}<p className="muted small">{ss.pending ? 'Loading…' : 'No statements with calls in this range.'}</p></> : <p className="muted small">No time information.</p>
+  if (lanes.length === 0) return zoomStrip ? <>{zoomStrip}<p className="muted small">{ss.pending ? <Shimmer>Loading…</Shimmer> : 'No statements with calls in this range.'}</p></> : <p className="muted small">No time information.</p>
   const dragRect = drag && ref.current ? (() => {
     const r = ref.current!.getBoundingClientRect()
     const l = Math.max(0, Math.min(drag.x0, drag.x1) - r.left), w = Math.min(r.width, Math.abs(drag.x1 - drag.x0))
@@ -325,8 +327,10 @@ interface Strips { bucketUs: number; starts: number[]; series: (TimelineSeries &
 /** The strip's wait events: time, share of the wait time, count, average and longest wait over the axis; a click opens the event. */
 function WaitStats({ stats, waitUs, zoomed, pending }: { stats: WaitStat[]; waitUs: number; zoomed: boolean; pending: boolean }) {
   const actions = useActions()
+  const box = useRef<HTMLTableElement>(null)
+  useReveal(box, pending)
   return (
-    <table className={'lanes-waitstats' + (pending ? ' stale' : '')} aria-label="Wait events over the timeline">
+    <table ref={box} className={'lanes-waitstats' + (pending ? ' stale' : '')} aria-label="Wait events over the timeline">
       <thead>
         <tr><th>Wait event <span className="dim">· {zoomed ? 'zoomed range' : 'whole range'}</span></th><th>Time</th><th>% of waits</th><th>Waits</th><th>Avg</th><th>Max</th></tr>
       </thead>

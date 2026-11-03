@@ -7,6 +7,7 @@ import type { JobInfo } from '../engine'
 import { SessionShell } from './session/SessionShell'
 import { useWorkspace } from './WorkspaceProvider'
 import type { Tab } from './workspace'
+import { Shimmer } from '@lib/components/motion'
 
 const phaseLabel: Record<string, string> = {
   open: 'Looking up the index cache',
@@ -91,7 +92,7 @@ function Progress({ tab, compact }: { tab: Tab; compact?: boolean }) {
   const label = j ? (phaseLabel[j.phase] ?? j.phase) : 'Starting'
   return (
     <span className={'progress' + (compact ? ' compact' : '')}>
-      <span key={label} className="progress-phase">{label}…</span>
+      <span key={label} className="progress-phase"><Shimmer>{`${label}…`}</Shimmer></span>
       <span className="progress-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={p ?? undefined} data-indeterminate={p === null || undefined}>
         <i style={p === null ? undefined : { inlineSize: `${p}%` }} />
       </span>

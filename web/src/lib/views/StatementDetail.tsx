@@ -28,6 +28,7 @@ import { CheckIcon, CopyIcon } from '../components/icons'
 import { RowFlow } from './RowFlow'
 import { NO_STATS_NOTE, type FlowScale } from '../data/rowflow'
 import { isBlockIO } from '../data/iomap'
+import { Shimmer } from '../components/motion'
 
 /** A request from the statement's view buttons: show the plan as a Row flow, or the slowest execution's Dialogue (`seq` repeats a click). */
 type Jump = { to: 'flow' | 'dialogue'; seq: number }
@@ -272,7 +273,7 @@ function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Sc
   useEffect(() => { if (jump && jump !== done.current && slowestEx) { done.current = jump; openSlowest(true) } }) // eslint-disable-line react-hooks/exhaustive-deps
   if (!page.data) {
     return page.error ? <section className="section"><header><h2>Executions</h2></header><p className="callout">{page.error}</p></section>
-      : page.loading ? <section className="section"><header><h2>Executions</h2><span className="hint">loading…</span></header></section> : null
+      : page.loading ? <section className="section"><header><h2>Executions</h2><span className="hint"><Shimmer>loading…</Shimmer></span></header></section> : null
   }
   if (exs.length === 0) return null
   const bindsFor = (e: Execution) => e.binds ?? bindsOf(doc, e.bindSet)

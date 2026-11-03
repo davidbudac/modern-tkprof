@@ -1,0 +1,126 @@
+/* Motion tokens, shared keyframes and the motion primitives of both clients, adapted from transitions.dev (its snippets may
+   ship in an app; the library itself may not be redistributed). The helpers are in components/motion.tsx. A component's own
+   motion rules sit in its css file, inside `prefers-reduced-motion: no-preference`; with reduced motion the end state shows at once. */
+:root {
+  --motion-quick: 150ms; /* modal and menu close, text swap (MOTION_MS.quick in motion.tsx) */
+  --motion-fast: 250ms; /* modal and menu open, toast close, accordion, sliding pill, pane enter (MOTION_MS.fast) */
+  --motion-medium: 350ms; /* toast open */
+  --motion-slow: 400ms; /* content reveal (MOTION_MS.slow) */
+  --motion-resize: 300ms; /* a bar segment easing to its new size */
+  --motion-emphasis: 500ms; /* a changed number popping in (MOTION_MS.emphasis) */
+  --motion-stagger: 70ms; /* between the changed characters of a number (MOTION_MS.stagger) */
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in-out: ease-in-out;
+  --motion-ease-pop: cubic-bezier(0.34, 1.45, 0.64, 1); /* a slight overshoot */
+  --motion-blur: 2px;
+  --motion-scale-modal: 0.96;
+  --motion-scale-toast: 0.97;
+  --motion-scale-drop: 0.97; /* a menu opening from its button */
+  --motion-scale-drop-close: 0.99;
+  --motion-scale-icon: 0.25; /* the icon leaving an icon swap */
+  --motion-rise: 16px; /* toast distance */
+  --motion-nudge: 4px; /* text swap, content reveal */
+  --motion-page: 8px; /* a pane entering from the side it comes from (MOTION_PX.page); a digit popping in */
+  --motion-pulse: 1000ms; /* stale content while the engine works */
+  --motion-pulse-min: 0.5;
+  --motion-shimmer: 2000ms; /* the highlight sweeping a status line */
+  --motion-shake-dur: 280ms; /* the keyframe stops below are fractions of it: 80, 60, 80, 60 ms */
+  --motion-shake-dist: 6px;
+  --motion-shake-over: 4px;
+}
+
+/* the implicit end of an enter (or start of an exit) is the element's own style */
+@keyframes motion-modal-in { from { opacity: 0; transform: scale(var(--motion-scale-modal)); } }
+@keyframes motion-modal-out { to { opacity: 0; transform: scale(var(--motion-scale-modal)); } }
+@keyframes motion-fade-in { from { opacity: 0; } }
+@keyframes motion-fade-out { to { opacity: 0; } }
+@keyframes motion-toast-in { from { opacity: 0; transform: translateY(var(--motion-rise)) scale(var(--motion-scale-toast)); filter: blur(var(--motion-blur)); } }
+@keyframes motion-toast-out { to { opacity: 0; transform: translateY(var(--motion-rise)) scale(var(--motion-scale-toast)); filter: blur(var(--motion-blur)); } }
+@keyframes motion-rise-in { from { opacity: 0; transform: translateY(var(--motion-nudge)); } }
+@keyframes motion-swap-in { from { opacity: 0; transform: translateY(var(--motion-nudge)); filter: blur(var(--motion-blur)); } }
+/* `scale` and `translate`, not `transform`: a popover's own `translate` (shifted back on screen) composes with them */
+@keyframes motion-drop-in { from { opacity: 0; scale: var(--motion-scale-drop); } }
+@keyframes motion-drop-out { to { opacity: 0; scale: var(--motion-scale-drop-close); } }
+@keyframes motion-blur-in { from { opacity: 0; filter: blur(var(--motion-blur)); } }
+@keyframes motion-blur-out { to { opacity: 0; filter: blur(var(--motion-blur)); } }
+@keyframes motion-pop-in { from { opacity: 0; translate: 0 var(--motion-page); filter: blur(var(--motion-blur)); } }
+@keyframes motion-pulse { 50% { opacity: var(--motion-pulse-min); } }
+@keyframes motion-shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+@keyframes motion-shake {
+  0% { transform: translateX(0); animation-timing-function: var(--motion-ease); }
+  28.57% { transform: translateX(var(--motion-shake-dist)); animation-timing-function: var(--motion-ease); }
+  57.14% { transform: translateX(calc(var(--motion-shake-dist) * -1)); animation-timing-function: var(--motion-ease); }
+  78.57% { transform: translateX(var(--motion-shake-over)); animation-timing-function: var(--motion-ease); }
+  100% { transform: translateX(0); }
+}
+
+/* Sliding pill ("tabs sliding"): installSlidingPills puts the pressed button of a segmented control (span.seg) and the current
+   tab of a tab bar (.tabs) on one pill that slides between them. `data-pill` is set once the pill is placed, so without it
+   (no script, or not exactly one pressed button) each button keeps its own fill. */
+span.seg, .tabs { position: relative; isolation: isolate; }
+span.seg[data-pill]::before, .tabs[data-pill]::before {
+  content: ""; position: absolute; inset: 0 auto auto 0; z-index: -1; pointer-events: none;
+  inline-size: var(--pill-w, 0); block-size: var(--pill-h, 0); translate: var(--pill-x, 0) var(--pill-y, 0);
+}
+span.seg[data-pill]::before { background: var(--ink); }
+span.seg[data-pill] > button[aria-pressed="true"] { background: transparent; }
+.tabs[data-pill]::before { background: var(--wash); border-radius: 5px; }
+.tabs[data-pill] > .tab[aria-current="page"] { background: transparent; }
+@media (prefers-reduced-motion: no-preference) {
+  span.seg[data-pill="on"]::before, .tabs[data-pill="on"]::before {
+    transition: translate var(--motion-fast) var(--motion-ease), inline-size var(--motion-fast) var(--motion-ease), block-size var(--motion-fast) var(--motion-ease);
+  }
+  span.seg[data-pill] > button, .tabs[data-pill] > .tab { transition: color var(--motion-fast) var(--motion-ease); }
+}
+
+/* SoftText ("text swap soft") and MorphText ("text morph"): the old and the new text share one grid cell and cross-blur; the
+   cell's width eases from the old to the new (set by the component). */
+.soft, .morph { display: inline-grid; justify-items: start; vertical-align: bottom; }
+.soft.end { justify-items: end; }
+.soft > span, .morph > span { grid-area: 1 / 1; white-space: pre; }
+@media (prefers-reduced-motion: no-preference) {
+  .soft.swapping, .morph { transition: inline-size var(--motion-fast) var(--motion-ease); }
+  .soft-old, .morph-old { animation: motion-blur-out var(--motion-fast) var(--motion-ease-in-out) forwards; }
+  .soft-new, .morph-new { animation: motion-blur-in var(--motion-fast) var(--motion-ease-in-out) both; }
+}
+
+/* PopText ("number pop-in"): the characters that changed rise in with a blur and a slight overshoot, the later ones a little later */
+.pop-text { display: inline-flex; align-items: baseline; white-space: pre; }
+.pop-text > span { display: inline-block; }
+@media (prefers-reduced-motion: no-preference) {
+  .pop-text > span.ch { animation: motion-pop-in var(--motion-emphasis) var(--motion-ease-pop) both; animation-delay: calc(var(--i, 0) * var(--motion-stagger)); }
+}
+
+/* Icon swap: two glyphs in one cell; the one leaving shrinks and blurs out while the other grows in */
+.icon-swap { display: inline-grid; place-items: center; }
+.icon-swap > * { grid-area: 1 / 1; }
+.icon-swap > [data-off] { opacity: 0; scale: var(--motion-scale-icon); filter: blur(var(--motion-blur)); }
+@media (prefers-reduced-motion: no-preference) {
+  .icon-swap > * { transition: opacity var(--motion-fast) var(--motion-ease-in-out), scale var(--motion-fast) var(--motion-ease-in-out), filter var(--motion-fast) var(--motion-ease-in-out); }
+}
+
+/* Shimmer ("shimmer text"): a highlight sweeps a status line while it holds; the text keeps its own colour underneath */
+.shimmer { position: relative; display: inline-block; }
+@media (prefers-reduced-motion: no-preference) {
+  .shimmer::before {
+    content: attr(data-text); position: absolute; inset: 0; pointer-events: none; white-space: inherit;
+    background-image: linear-gradient(90deg, transparent 0% 40%, var(--ink) 50%, transparent 60% 100%);
+    background-size: 400% 100%; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent;
+    animation: motion-shimmer var(--motion-shimmer) linear infinite;
+  }
+}
+
+/* A short status note ("Copied line 7,600"): rises in like a toast, by a nudge only since it sits in a toolbar row; blurs out */
+@media (prefers-reduced-motion: no-preference) {
+  .flash-note { animation: motion-swap-in var(--motion-medium) var(--motion-ease); }
+  .flash-note.closing { animation: motion-blur-out var(--motion-fast) var(--motion-ease) forwards; }
+}
+
+/* Menu dropdown ("menu dropdown"): ToolbarMenu's popover grows from the corner of its button (the end corner, or the start
+   corner of a .tbmenu-start menu) and closes faster than it opens, while ToolbarMenu keeps it mounted (.closing) */
+@media (prefers-reduced-motion: no-preference) {
+  .tbpop { transform-origin: top right; animation: motion-drop-in var(--motion-fast) var(--motion-ease); }
+  .tbmenu-start .tbpop { transform-origin: top left; }
+  .tbpop.closing { animation: motion-drop-out var(--motion-quick) var(--motion-ease) forwards; }
+}

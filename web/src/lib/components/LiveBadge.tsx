@@ -1,8 +1,12 @@
 import { useActions, useStore } from '../state/session'
+import { IconSwap, PopText, SoftText } from './motion'
 
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
-/** "live · rev N · updated hh:mm:ss" and pause/resume, for a live session's document (`State.live`); nothing otherwise. */
+/**
+ * "live · rev N · updated hh:mm:ss" and pause/resume, for a live session's document (`State.live`); nothing otherwise.
+ * A new snapshot pops the revision's changed digits and cross-blurs the time and the state word (motion.tsx).
+ */
 export function LiveBadge() {
   const live = useStore((s) => s.live)
   const actions = useActions()
@@ -14,11 +18,11 @@ export function LiveBadge() {
   return (
     <span className="live-badge" data-state={live.paused ? 'paused' : live.state} title={title} role="status" aria-live="polite">
       <i className="live-dot" aria-hidden="true" />
-      <b>{word}</b>
-      <span className="dim"> · rev {live.rev} · updated {clock(live.updated)}</span>
+      <b><SoftText text={word} /></b>
+      <span className="dim"> · rev <PopText text={String(live.rev)} /> · updated <SoftText text={clock(live.updated)} /></span>
       {live.state !== 'ended' && (
         <button className="quiet" onClick={() => actions.setLivePaused(!live.paused)} aria-label={live.paused ? 'Resume live updates' : 'Pause live updates'} title={live.paused ? 'resume updates' : 'pause updates'}>
-          {live.paused ? '▶' : '❚❚'}
+          <IconSwap show={live.paused ? 1 : 0} icons={['❚❚', '▶']} />
         </button>
       )}
     </span>

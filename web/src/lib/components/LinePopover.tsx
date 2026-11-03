@@ -8,6 +8,7 @@ import { copyText } from '../data/clipboard'
 import type { Actions } from '../state/store'
 import { StmtPopover, type PopupAnchor, type StmtPopup } from './StmtPopover'
 import { usePopover } from './usePopover'
+import { MorphText } from './motion'
 
 export type { PopupAnchor }
 
@@ -30,7 +31,7 @@ export function LinePopover({ doc, file, popup, ctx, actions, onClose, goTo }: P
   }
 }
 
-/** A button that copies `text` and says "Copied" for a moment. */
+/** A button that copies `text` and says "Copied" for a moment (only the letters that differ from the label cross-blur). */
 function CopyButton({ text, label, title, first }: { text: string; label: string; title?: string; first?: boolean }) {
   const [copied, setCopied] = useState(false)
   const timer = useRef(0)
@@ -43,7 +44,7 @@ function CopyButton({ text, label, title, first }: { text: string; label: string
         window.clearTimeout(timer.current)
         timer.current = window.setTimeout(() => setCopied(false), 1500)
       })
-    }}>{copied ? 'Copied' : label}</button>
+    }}><MorphText text={copied ? 'Copied' : label} /></button>
   )
 }
 

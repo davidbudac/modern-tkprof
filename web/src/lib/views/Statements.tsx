@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
@@ -14,6 +14,7 @@ import { scopeKey, useScope, useScopedStatements } from '../data/scopedstmts'
 import { useScopedFindings } from '../data/scopedfindings'
 import { responseBaseUs, responseShare, responseUs, shareNote } from '../data/response'
 import type { CSSProperties } from 'react'
+import { enterFrom } from '../components/motion'
 
 type SortKey = 'first' | 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
 const sorts: { id: SortKey; label: string; of: (s: StmtStats, inclusive: boolean) => number }[] = [
@@ -67,6 +68,17 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   useEffect(() => { if ((sel === null || !stats[sel]) && rows.length) actions.pickStmt(rows[0].id) }, [rows, sel, stats])
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  // another statement in the detail pane: it slides in from the side of the list it came from (j: from below) and cross-blurs
+  const detailRef = useRef<HTMLElement>(null)
+  const lastSel = useRef(sel)
+  useLayoutEffect(() => {
+    const last = lastSel.current
+    lastSel.current = sel
+    if (last === null || sel === null || last === sel) return
+    const i = rows.findIndex((r) => r.id === sel)
+    const j = rows.findIndex((r) => r.id === last)
+    enterFrom(detailRef.current, i >= 0 && j >= 0 ? i - j : 0)
+  }, [sel]) // eslint-disable-line react-hooks/exhaustive-deps -- `rows` as of the pick
   const virt = useVirtualizer({ count: rows.length, getScrollElement: () => scrollRef.current, estimateSize: () => ROW_H, overscan: 10 })
   const move = (d: number) => {
     const i = rows.findIndex((r) => r.id === sel)
@@ -131,7 +143,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
           {rows.length === 0 && <p className="muted small" style={{ padding: '1rem' }}>No match.</p>}
         </div>
       </aside>
-      <section className="wb-detail">
+      <section className="wb-detail" ref={detailRef}>
         {sel !== null && doc.statements[sel] ? <StatementDetail doc={doc} id={sel} stats={stats[sel]} narrowed={narrowed} /> : <p className="muted">No statement selected.</p>}
       </section>
       <ResizeHandle anchor="start" className="resizer-list" label="Resize statement list" min={240} maxFrac={0.4} onChange={setListW} />

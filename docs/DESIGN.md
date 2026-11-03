@@ -365,6 +365,37 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   Dialogue's TEMP in the Loom's `--ev-temp-w` / `--ev-temp`; the block map
   is canvas 2-D per panel with its own temp hues, above).
 
+## Motion (decided 2026-11-03)
+
+- **Motion says what changed or that the engine is working; it never
+  decorates.** Adapted from transitions.dev (its snippets may ship in an
+  app; the library itself may not be redistributed). One module for both
+  clients: tokens, keyframes and primitive classes in
+  `web/src/lib/styles/motion.css`, helpers in
+  `web/src/lib/components/motion.tsx` (moved from `desktop/src/`, which
+  already used them for modals, toasts and the shake). No dependency.
+- **Where:** a sliding pill under the pressed button of every segmented
+  control (`span.seg`) and the current view tab (`.tabs`), placed by
+  `installSlidingPills`, which both clients call once (no call-site
+  changes; without it the buttons keep their own fill); toolbar menus and
+  the trace popover grow from their button and fade out (`useExit` keeps
+  them mounted, inert, for the exit); values that change in place
+  (live-follow snapshots, another scope: Overview ledger, profile legends,
+  the live badge) cross-blur (`SoftText`), the response-time headline and
+  the revision pop their changed digits (`PopText`), bar segments ease to
+  their new widths; the statement detail enters from the side of the list
+  the pick came from (j: from below; enter only, nothing stays mounted);
+  stale lanes, wait stats and block maps pulse while the engine works
+  (instead of a static dim) and the answer sharpens in (`useReveal`);
+  loading lines shimmer; Copy → Copied morphs only the letters that differ;
+  status notes rise in and blur out. The Overview keeps the last profile of
+  the same scope while a newer snapshot's loads, so live values swap in
+  place instead of flashing "Loading…".
+- **Budget:** 150 to 500 ms, interruptible (a new change cuts the running
+  one short; holding j never queues), and nothing with reduced motion: every
+  rule sits in `prefers-reduced-motion: no-preference` and the helpers check
+  it, so the end state shows at once.
+
 ## Project
 
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each

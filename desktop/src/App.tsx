@@ -3,7 +3,7 @@ import { ConnectionsProvider, JobsPanel, type WorkspaceBridge } from './connecti
 import { EngineProvider, useEngine } from './engine'
 import { StatusBar } from './StatusBar'
 import { pages } from './pages'
-import { EXIT_MS, useExit } from './motion'
+import { EXIT_MS, useExit } from '@lib/components/motion'
 import { onDrop } from './platform'
 import { PromptHost } from './prompts/PromptHost'
 import { SettingsProvider, engineOptionsOf, useSettings } from './settings/settings'

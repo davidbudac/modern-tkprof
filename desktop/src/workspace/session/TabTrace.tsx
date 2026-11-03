@@ -50,12 +50,12 @@ function Extras({ doc, files, live }: { doc: TraceDoc; files?: FileInfo[]; live:
 }
 
 /** The trace under the active tab: where it came from (database, session, module, time span) and its full response split. */
-export function TabTracePop({ files, at }: { files?: FileInfo[]; at: { top: number; left: number } }) {
+export function TabTracePop({ files, at, closing }: { files?: FileInfo[]; at: { top: number; left: number }; /** fading out: inert */ closing?: boolean }) {
   const doc = useStore((s) => s.doc)
-  return doc ? <TracePop doc={doc} files={files} at={at} /> : null
+  return doc ? <TracePop doc={doc} files={files} at={at} closing={closing} /> : null
 }
 
-function TracePop({ doc, files, at }: { doc: TraceDoc; files?: FileInfo[]; at: { top: number; left: number } }) {
+function TracePop({ doc, files, at, closing }: { doc: TraceDoc; files?: FileInfo[]; at: { top: number; left: number }; closing?: boolean }) {
   // follows the file selection: the first context of the selected files, their wall-clock span, the name and size of the file(s)
   const selected = useStore((s) => s.files)
   const live = useStore((s) => s.live)
@@ -68,7 +68,7 @@ function TracePop({ doc, files, at }: { doc: TraceDoc; files?: FileInfo[]; at: {
   const switches = Math.max(0, span.contexts.length - 1)
   const { resp, segs } = summary
   return (
-    <div className="pop trace-pop" role="dialog" aria-label="Trace" style={{ insetBlockStart: at.top, insetInlineStart: at.left }}>
+    <div className={'pop trace-pop' + (closing ? ' closing' : '')} role="dialog" aria-label="Trace" inert={closing} style={{ insetBlockStart: at.top, insetInlineStart: at.left }}>
       <h4 className="mono">{head.name} · {fmtBytes(head.bytes)}{nFiles > 1 && <> · {nFiles} files</>}</h4>
       <dl className="kv">
         {doc.file.version && <><dt>Oracle</dt><dd><b>{doc.file.version.replace(/\.0\.0\.0$/, '')}</b>{doc.file.instance && <> · instance <b>{doc.file.instance}</b>{doc.file.node && <> on {doc.file.node.split('.')[0]}</>}</>}</dd></>}
