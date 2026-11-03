@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Headless-Playwright driver for mtkprof dev browser mode. Reads <root>/state.env (URL) from launch.sh; root = $VERIFY_MTKPROF_ROOT or /tmp/verify-mtkprof.
 // usage: node drive.mjs --open <abs path>[,<abs path>...] [--view Lines] [--page Settings|Connections] [--name label]
-//                       [--evidence <dir>] [--click "<css>"]... [--prefs '{"wrap":true}'] [--viewport 1440x900]
+//                       [--evidence <dir>] [--click "<css>"]... [--prefs '{"wrap":true}'] [--viewport 1440x900] [--theme light|dark]
 // Writes <evidence>/<name>-NN-<step>.png, <name>.aria.txt, <name>.json (tabs, views, console errors). Exit 1 on any failed assertion.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -19,9 +19,21 @@ fs.mkdirSync(ev, { recursive: true })
 const paths = (opt('open', '') || '').split(',').filter(Boolean)
 for (const p of paths) if (!path.isAbsolute(p)) { console.error(`path must be absolute (relative paths fail with "no such file"): ${p}`); process.exit(2) }
 
-const browser = await chromium.launch({ headless: true })
+// Playwright's pinned headless shell may not be the installed one: fall back to the newest chromium_headless_shell-* in the cache.
+async function launchBrowser() {
+  try { return await chromium.launch({ headless: true }) } catch (e) {
+    const cache = path.join(process.env.HOME, 'Library/Caches/ms-playwright')
+    const dirs = fs.existsSync(cache) ? fs.readdirSync(cache).filter((d) => d.startsWith('chromium_headless_shell-')).sort((x, y) => Number(y.split('-')[1]) - Number(x.split('-')[1])) : []
+    for (const d of dirs) for (const sub of ['chrome-headless-shell-mac-arm64', 'chrome-headless-shell-mac-x64', 'chrome-headless-shell-linux64']) {
+      const exe = path.join(cache, d, sub, 'chrome-headless-shell')
+      if (fs.existsSync(exe)) return chromium.launch({ headless: true, executablePath: exe })
+    }
+    throw e
+  }
+}
+const browser = await launchBrowser()
 const [vw, vh] = opt('viewport', '1440x900').split('x').map(Number)
-const ctx = await browser.newContext({ viewport: { width: vw, height: vh } })   // fresh context: no trace open, empty localStorage
+const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, colorScheme: opt('theme', 'light') })   // fresh context: no trace open, empty localStorage
 const page = await ctx.newPage()
 const errors = []
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
