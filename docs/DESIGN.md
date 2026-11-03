@@ -283,6 +283,17 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   picked execution (persisted). A side-by-side Dialogue of two executions in
   `ExecCompare` is v2; a whole-session Dialogue needs an endpoint for a
   session's call sequence.
+- **Entry points (2026-11-03, after first use: the modes were hard to find).**
+  The statement inspector's action row has `Row flow`, `Dialogue` and
+  `Blocks` buttons: Row flow switches the plans to Flow and scrolls to the
+  first; Dialogue opens the slowest execution in Dialogue mode and scrolls to
+  it; Blocks opens the Blocks view filtered to the statement. Each button is
+  there only when it can show something (a plan; executions on a source with
+  facts; block I/O events and waits). A statement of one execution opens it.
+  Blocks' filter (statement, event) is store state (`State.blocks`,
+  `showBlocks`), so other views link into it: the inspector's Waits list
+  (`in Blocks` on a block-I/O event: statement and event) and the Waits
+  view's event detail (the event).
 - **No chord for Blocks**: digits 0 to 9 are taken and renumbering breaks
   muscle memory and the assistant's `mtkprof:` links, so
   `SessionViewDef.key` is optional; a row without a key has no chord and no

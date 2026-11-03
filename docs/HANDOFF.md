@@ -24,6 +24,10 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   temp blocks. Contract (31 session routes, `IOMap`, `IOMapFile`), spill parity and `api.d.ts` updated; protocol stays 1.
   The TS twin's shared case is `web/src/lib/data/testdata/iomap-case.json` (`go test ./internal/analyze -run
   IOMapSharedCase -update-iomap-case` rewrites it).
+- 2026-11-03 **Entry points for the three views**: the statement inspector's `Row flow` / `Dialogue` / `Blocks`
+  buttons (jump to the flow, the slowest execution's Dialogue, Blocks filtered to the statement); Blocks' filter is
+  store state (`State.blocks`, `showBlocks`), linked from the inspector's Waits list (`in Blocks`) and the Waits view's
+  event detail; one execution opens by itself; the plan toggle reads `Table | Row flow`.
 - 2026-11-03 **R, Row flow** (`6aac460`): `Table | Flow` on each plan section of the statement inspector
   (`views/RowFlow.tsx`, `data/rowflow.ts` with the tree, self numbers and the whole layout, `styles/rowflow.css`; lib
   only). io_waits.trc stmt 22 (7r10y07tqpg98): CUST 20,000 / est. 20,000 and ORDERS 100,001 / est. 100,000 into HASH JOIN

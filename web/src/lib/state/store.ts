@@ -113,6 +113,8 @@ export interface State {
   /** show the Pivot view's "Saved" menu (the desktop shell provides `Session.library`) */
   libraryEnabled: boolean
   pivot: PivotState
+  /** the Blocks view's filter: only this statement's / event's block I/O (null = all); set by the links into Blocks (`showBlocks`) */
+  blocks: { stmt: ID | null; event: ID | null }
   /** counts the documents shown: `swapDoc` (a live session's next snapshot) increments it; views holding server answers outside `useSourceQuery` refetch on a change */
   rev: number
   /** null unless the document is a live session's */
@@ -128,6 +130,7 @@ const initial: State = {
   linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
   pivot: { fact: 'calls', by: ['stmt'], sort: { calls: 'e', waits: 'ela' }, limit: 1000, stmt: null, event: null, notice: null },
+  blocks: { stmt: null, event: null },
   rev: 0, live: null,
 }
 
@@ -188,7 +191,7 @@ export function createStore(): Store {
  * files are stable from one snapshot to the next; a later one only adds): ids the document does not have are dropped,
  * everything else (sets included) keeps its identity, so nothing is recomputed for nothing.
  */
-export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selection' | 'block' | 'contexts' | 'files' | 'pivot' | 'lineViewer' | 'linesView'> {
+export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selection' | 'block' | 'contexts' | 'files' | 'pivot' | 'blocks' | 'lineViewer' | 'linesView'> {
   const nStmts = doc.statements.length, nEvents = doc.events.length, nFiles = fileCount(doc)
   const id = (v: ID | null, n: number): ID | null => (v !== null && v >= 0 && v < n ? v : null)
   const subset = <T extends number>(set: Set<T> | null, n: number): Set<T> | null => {
@@ -211,6 +214,7 @@ export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selecti
     contexts: subset(s.contexts, doc.contexts.length),
     files: subset(s.files, nFiles),
     pivot,
+    blocks: id(s.blocks.stmt, nStmts) === s.blocks.stmt && id(s.blocks.event, nEvents) === s.blocks.event ? s.blocks : { stmt: id(s.blocks.stmt, nStmts), event: id(s.blocks.event, nEvents) },
     lineViewer: s.lineViewer && s.lineViewer.file < nFiles ? s.lineViewer : null,
     linesView: s.linesView.file < nFiles ? s.linesView : { file: 0, line: 1, seq: s.linesView.seq + 1 },
   }
@@ -229,16 +233,20 @@ function makeActions(setState: Store['setState']) {
     setSide(side: Side) {
       setState((s) => {
         if (!s.compare || s.side === side) return {}
-        return { side, doc: s.compare[side], window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, bookmarks: [], selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, bookmarks: [], blocks: { stmt: null, event: null }, selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
       })
     },
     /** Open a statement of side `side` in the Statements workbench. */
     openStmtOn(side: Side, stmt: ID) {
       setState((s) => {
         if (!s.compare) return { view: 'statements', block: null, selection: { stmt, event: null, call: null, exec: null } }
-        return { side, doc: s.compare[side], view: 'statements', window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], view: 'statements', blocks: { stmt: null, event: null }, window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
       })
     },
+    /** Open the Blocks view showing only this statement's and/or event's block I/O (neither: all of it). */
+    showBlocks(f: { stmt?: ID | null; event?: ID | null } = {}) { setState({ view: 'blocks', blocks: { stmt: f.stmt ?? null, event: f.event ?? null } }) },
+    /** Change the Blocks view's filter without navigating. */
+    setBlocks(patch: Partial<State['blocks']>) { setState((s) => ({ blocks: { ...s.blocks, ...patch } })) },
     setWindow(window: TimeWindow | null) { setState({ window, block: null }) },
     /** Select a lane block of the Overview: its interval becomes the window and its statement the selection (no navigation). */
     pickBlock(stmt: ID, startTim: number, endTim: number) {

@@ -100,14 +100,20 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
   const limit = (LIMITS as readonly number[]).includes(limitRaw) ? limitRaw : 20000
   const colorBy: ColorBy = colorRaw === 'object' || colorRaw === 'statement' ? colorRaw : 'event'
   const axis = axisRaw === 'time' ? 'time' : 'order'
-  const [stmtSel, setStmtSel] = useState<ID | null>(null)
-  const q = useSourceQuery(source, `iomap:${scopeKey(scope)}:${limit}:${stmtSel ?? ''}`,
-    (signal) => (source.ready ? source.ioMap(scope, limit, stmtSel ?? undefined, undefined, signal) : null), 'iomap')
+  // the filter is in the store: the links into Blocks (statement inspector, Waits) set it (`showBlocks`)
+  const actions = useActions()
+  const { stmt: stmtSel, event: eventSel } = useStore((s) => s.blocks)
+  const setStmtSel = (stmt: ID | null) => actions.setBlocks({ stmt })
+  const q = useSourceQuery(source, `iomap:${scopeKey(scope)}:${limit}:${stmtSel ?? ''}:${eventSel ?? ''}`,
+    (signal) => (source.ready ? source.ioMap(scope, limit, stmtSel ?? undefined, eventSel ?? undefined, signal) : null), 'iomap')
 
   const tools = (
     <span className="tools bm-tools">
       {stmtSel !== null && (
         <span className="chip" title="only the waits of this statement">only {stmtLabel(doc, stmtSel)}<button className="quiet" aria-label="Show all statements" onClick={() => setStmtSel(null)}>×</button></span>
+      )}
+      {eventSel !== null && doc.events[eventSel] && (
+        <span className="chip" title="only the waits of this event">only {doc.events[eventSel].name}<button className="quiet" aria-label="Show all events" onClick={() => actions.setBlocks({ event: null })}>×</button></span>
       )}
       <span className="bm-ctl">colour
         <span className="seg" role="group" aria-label="Colour the marks by">
@@ -133,7 +139,7 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
   else if (q.error) body = <p className="bm-error small" role="alert">Blocks: {q.error}</p>
   else if (q.data === undefined) body = <p className="muted small" role="status">loading…</p>
   else if (q.data === null) body = <p className="muted small" role="status">The Blocks view needs the engine route api/io/map, which this engine does not serve: update mtkprof.</p>
-  else if (q.data.total === 0) body = <BlockEmpty doc={doc} only={stmtSel} />
+  else if (q.data.total === 0) body = <BlockEmpty doc={doc} only={stmtSel} event={eventSel} />
   else body = <BlockFigure doc={doc} map={q.data} axis={axis} colorBy={colorBy} loading={q.loading} onOnly={setStmtSel} only={stmtSel} />
 
   const m = q.data
@@ -157,7 +163,7 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
 }
 
 /** No block I/O in scope: why (no WAIT lines at all, no event with a block address, or all cache hits) and the scope it is about. */
-function BlockEmpty({ doc, only }: { doc: TraceDoc; only: ID | null }) {
+function BlockEmpty({ doc, only, event }: { doc: TraceDoc; only: ID | null; event: ID | null }) {
   const state = useStore((s) => s)
   const chips = activeFilters(doc, state).filter((f) => f.kind !== 'idle' && f.kind !== 'statementCalls')
   const anyWaits = doc.events.length > 0 && doc.stats.events.length > 0
@@ -171,9 +177,10 @@ function BlockEmpty({ doc, only }: { doc: TraceDoc; only: ID | null }) {
       ) : (
         <p>No physical I/O waits in scope: every read was a buffer cache hit.</p>
       )}
-      {anyWaits && (chips.length > 0 || only !== null) && (
+      {anyWaits && (chips.length > 0 || only !== null || event !== null) && (
         <p className="small muted bm-scope">In scope: {chips.map((c) => <span key={c.kind} className="chip" title={c.title}>{c.label}: {c.text}</span>)}
-          {only !== null && <span className="chip">only {stmtLabel(doc, only)}</span>}</p>
+          {only !== null && <span className="chip">only {stmtLabel(doc, only)}</span>}
+          {event !== null && doc.events[event] && <span className="chip">only {doc.events[event].name}</span>}</p>
       )}
     </div>
   )

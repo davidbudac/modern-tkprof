@@ -356,3 +356,18 @@ describe('swapDoc (a live session next snapshot)', () => {
     expect(s.linesView.file).toBe(0)
   })
 })
+
+describe('the Blocks filter', () => {
+  it('showBlocks opens the Blocks view filtered; setBlocks changes the filter in place', () => {
+    const { getState, actions } = createStore()
+    actions.showBlocks({ stmt: 3, event: 7 })
+    expect(getState().view).toBe('blocks')
+    expect(getState().blocks).toEqual({ stmt: 3, event: 7 })
+    actions.setView('statements')
+    actions.setBlocks({ event: null })
+    expect(getState().view).toBe('statements')
+    expect(getState().blocks).toEqual({ stmt: 3, event: null })
+    actions.showBlocks()
+    expect(getState().blocks).toEqual({ stmt: null, event: null })
+  })
+})

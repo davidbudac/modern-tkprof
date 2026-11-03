@@ -27,6 +27,25 @@ import { kindGroups, type KindGroup } from '../data/callkinds'
 import { CheckIcon, CopyIcon } from '../components/icons'
 import { RowFlow } from './RowFlow'
 import { NO_STATS_NOTE, type FlowScale } from '../data/rowflow'
+import { isBlockIO } from '../data/iomap'
+
+/** A request from the statement's view buttons: show the plan as a Row flow, or the slowest execution's Dialogue (`seq` repeats a click). */
+type Jump = { to: 'flow' | 'dialogue'; seq: number }
+
+/** Scroll `el` into view once `seq` changes to a non-zero value (the jump that asked for it), and again while what it
+ *  shows loads and grows (a Dialogue, a flow), for a second at most: the first scroll stops short when the page is still too short. */
+function useScrollOn(seq: number, el: { current: HTMLElement | null }) {
+  useEffect(() => {
+    const node = el.current
+    if (!seq || !node) return
+    const go = () => node.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    go()
+    const ro = new ResizeObserver(go)
+    ro.observe(node)
+    const stop = setTimeout(() => ro.disconnect(), 1000)
+    return () => { clearTimeout(stop); ro.disconnect() }
+  }, [seq, el])
+}
 
 /** What the lists below are asked for when the statistics are the whole trace's (no scope, or an engine that cannot answer for one). */
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
@@ -45,6 +64,14 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
   const notesOn = useStore((s) => s.annotationsEnabled)
   const ref = useMemo(() => stmtRef(st), [st])
   const note = stmtNote(useStore((s) => s.annotations), ref)
+  const actions = useActions()
+  const [jump, setJump] = useState<Jump | null>(null)
+  useEffect(() => setJump(null), [id])
+  const go = (to: Jump['to']) => setJump((j) => ({ to, seq: (j?.seq ?? 0) + 1 }))
+  const plansHere = doc.plansOf(id)
+  const flowOk = plansHere.some((p) => doc.planLines.slice(p.first, p.first + p.n).some((l) => l.hasStats))
+  const anyBlockIO = useMemo(() => doc.events.some(isBlockIO), [doc])
+  const ready = sourceOf(doc).ready
   const copy = async () => {
     try { await navigator.clipboard.writeText(st.text); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch { /* clipboard unavailable */ }
   }
@@ -65,13 +92,28 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
         {notesOn && !note && !noteOpen && <button onClick={() => setNoteOpen(true)} title="a note on this statement, kept with the trace">✎ Add note</button>}
         <button className="icon-btn" onClick={copy} aria-label={copied ? 'Copied' : 'Copy SQL'} title={copied ? 'Copied' : 'Copy SQL'}>{copied ? <CheckIcon /> : <CopyIcon />}</button>
         <StatementLinesMenu doc={doc} id={id} narrowed={narrowed} />
+        <span className="stmt-views" role="group" aria-label="Show this statement as">
+          {plansHere.length > 0 && (
+            <button onClick={() => go('flow')} disabled={!flowOk}
+              title={flowOk ? 'Row flow: the rows moving through the plan, leaves to the client' : 'Row flow needs row-source statistics (STAT lines with rows), which this plan has none of'}>
+              <FlowIcon /> Row flow</button>
+          )}
+          {ready && stats.exec.count > 0 && (
+            <button onClick={() => go('dialogue')} title="Dialogue: the slowest execution as a sequence diagram between the client, the server and what it waited on">
+              <DialogueIcon /> Dialogue</button>
+          )}
+          {ready && anyBlockIO && stats.waitUs > 0 && (
+            <button onClick={() => actions.showBlocks({ stmt: id })} title="Blocks: the file blocks this statement read and wrote (opens the Blocks view, filtered to it)">
+              <BlocksIcon /> Blocks</button>
+          )}
+        </span>
       </div>
       <StmtNote stmt={ref} open={noteOpen} setOpen={setNoteOpen} title={doc.label(st)} />
       <SqlText text={st.text} />
       {narrowed && stats.allCalls.count === 0 && <p className="callout">No calls of this statement in the selection.</p>}
       <ResponseTime doc={doc} stats={stats} narrowed={narrowed} scope={scope} />
       <StatementContext doc={doc} id={id} stats={stats} narrowed={narrowed} />
-      <Plans doc={doc} id={id} inScope={narrowed ? stats.plans ?? [] : null} />
+      <Plans doc={doc} id={id} inScope={narrowed ? stats.plans ?? [] : null} jump={jump?.to === 'flow' ? jump.seq : 0} />
       {st.refPlan && (
         <section className="section">
           <details>
@@ -82,7 +124,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
       )}
       <StatementFindings doc={doc} id={id} narrowed={narrowed} />
       <CallTable stats={stats} />
-      {sourceOf(doc).ready && <Executions key={id} doc={doc} id={id} scope={scope} />}
+      {ready && <Executions key={id} doc={doc} id={id} scope={scope} jump={jump?.to === 'dialogue' ? jump.seq : 0} />}
       <Errors doc={doc} id={id} />
     </>
   )
@@ -194,7 +236,8 @@ function CallTable({ stats }: { stats: StmtStats }) {
   )
 }
 
-function Executions({ doc, id, scope }: { doc: TraceDoc; id: ID; scope: Scope }) {
+/** `jump`: a new value opens the slowest execution's Dialogue and scrolls to it. A statement of one execution opens it. */
+function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Scope; jump: number }) {
   const actions = useActions()
   const source = sourceOf(doc)
   const page = useSourceQuery(source, `executions:${id}:${scopeKey(scope)}`, (signal) => source.executions(id, scope, signal), 'executions')
@@ -212,6 +255,21 @@ function Executions({ doc, id, scope }: { doc: TraceDoc; id: ID; scope: Scope })
   // pairs the new statement with the previous one's execution (its Binds or Dialogue would query that pair).
   useEffect(() => { setNoteFor(null); setSel(null); setPicked([]) }, [id, doc])
   useEffect(() => { if (wanted) { const e = exs.find((x) => x.cursor === wanted.cursor && x.execNo === wanted.execNo); if (e) setSel(e) } }, [wanted, exs])
+  // one execution: nothing to choose, so its detail is open (its Binds | Dialogue switch in sight)
+  useEffect(() => { if (exs.length === 1 && !wanted) setSel(exs[0]) }, [exs, wanted])
+  const [mode, setMode] = usePersisted<'binds' | 'dialogue'>('mtkprof.exec.detail', 'binds')
+  const slowestEx = useMemo(() => exs.reduce<Execution | null>((m, e) => (!m || e.e > m.e ? e : m), null), [exs])
+  const detailRef = useRef<HTMLDivElement>(null)
+  const [scrollSeq, setScrollSeq] = useState(0)
+  useScrollOn(scrollSeq, detailRef)
+  const openSlowest = (dialogue: boolean) => {
+    if (!slowestEx) return
+    setPicked([]); setSel(slowestEx)
+    if (dialogue) setMode('dialogue')
+    setScrollSeq((n) => n + 1)
+  }
+  const done = useRef(0) // the last jump handled: one arriving before the page loaded is handled once it has
+  useEffect(() => { if (jump && jump !== done.current && slowestEx) { done.current = jump; openSlowest(true) } }) // eslint-disable-line react-hooks/exhaustive-deps
   if (!page.data) {
     return page.error ? <section className="section"><header><h2>Executions</h2></header><p className="callout">{page.error}</p></section>
       : page.loading ? <section className="section"><header><h2>Executions</h2><span className="hint">loading…</span></header></section> : null
@@ -252,7 +310,9 @@ function Executions({ doc, id, scope }: { doc: TraceDoc; id: ID; scope: Scope })
   const { total, avgE: avg, slowest: slow } = page.data
   return (
     <section className="section">
-      <header><h2>Executions</h2><span className="hint">{page.data.partial ? `${exs.length} slowest of ${total}` : total} · avg {fmtDur(avg)} · max {fmtDur(slow?.e ?? 0)} (#{slow?.execNo}){exs.length > 1 && ' · tick two to compare'}</span>
+      <header><h2>Executions</h2><span className="hint">{page.data.partial ? `${exs.length} slowest of ${total}` : total} · avg {fmtDur(avg)} · max {fmtDur(slow?.e ?? 0)}{' '}
+        {exs.length > 1 && slowestEx ? <button className="link" onClick={() => openSlowest(false)} title="open the slowest execution">(#{slow?.execNo})</button> : `(#${slow?.execNo})`}
+        {exs.length > 1 && ' · click a row for its binds and Dialogue · tick two to compare'}</span>
         <span className="tools"><ColumnChooser all={all.filter((c) => c.key !== 'n').map((c) => ({ key: c.key, label: c.header }))} hidden={hidden} onChange={setHidden} /></span></header>
       <DataTable columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
         selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e, ev) => (ev?.shiftKey ? togglePick(e) : setSel(sel && sel.exec === e.exec ? null : e))} />
@@ -266,16 +326,17 @@ function Executions({ doc, id, scope }: { doc: TraceDoc; id: ID; scope: Scope })
           onCancel={() => setNoteFor(null)}
           onDelete={editing ? () => { actions.removeAnnotation(editing.id); setNoteFor(null) } : undefined} />
       ) : editing && <NoteBox text={editing.note} when={editing.updated} />)}
-      {pa && pb ? <ExecCompare doc={doc} stmt={id} a={pa} b={pb} onClear={() => setPicked([])} /> : sel && <Binds doc={doc} stmt={id} ex={sel} />}
+      <div ref={detailRef} className="exec-detail">
+        {pa && pb ? <ExecCompare doc={doc} stmt={id} a={pa} b={pb} onClear={() => setPicked([])} /> : sel && <Binds doc={doc} stmt={id} ex={sel} mode={mode} setMode={setMode} />}
+      </div>
     </section>
   )
 }
 
 /** One picked execution: its binds, or its Dialogue (the sequence diagram of its calls and waits). */
-function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
+function Binds({ doc, stmt, ex, mode, setMode }: { doc: TraceDoc; stmt: ID; ex: Execution; mode: 'binds' | 'dialogue'; setMode(m: 'binds' | 'dialogue'): void }) {
   const source = sourceOf(doc)
   const detail = useSourceQuery(source, `detail:${stmt}:${ex.cursor}:${ex.execNo}`, (signal) => source.executionDetail(stmt, ex, signal), 'detail')
-  const [mode, setMode] = usePersisted<'binds' | 'dialogue'>('mtkprof.exec.detail', 'binds')
   const d = detail.data
   const binds = d?.binds ?? []
   const file = ex.ctx !== undefined ? doc.fileOfCtx(ex.ctx) : doc.fileOfCursor(ex.cursor)
@@ -302,7 +363,7 @@ function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
 }
 
 /** `inScope`: the plan dumps of cursors in scope (`StmtStats.plans`); null = all of them. */
-function Plans({ doc, id, inScope }: { doc: TraceDoc; id: ID; inScope: ID[] | null }) {
+function Plans({ doc, id, inScope, jump }: { doc: TraceDoc; id: ID; inScope: ID[] | null; jump: number }) {
   // Table | Flow and the flow's band scale: one choice for every plan section, kept across statements and sessions
   const [view, setView] = usePersisted<PlanView>('mtkprof.plan.view', 'table')
   const [flowScale, setFlowScale] = usePersisted<FlowScale>('mtkprof.plan.flowScale', 'sqrt')
@@ -312,19 +373,22 @@ function Plans({ doc, id, inScope }: { doc: TraceDoc; id: ID; inScope: ID[] | nu
     const keep = new Set(inScope)
     return all.filter((p) => keep.has(p.id))
   }, [doc, id, inScope])
+  useEffect(() => { if (jump) setView('flow') }, [jump]) // eslint-disable-line react-hooks/exhaustive-deps
   if (plans.length === 0) return null
   const byHash = new Map<number, Plan[]>()
   for (const p of plans) { const l = byHash.get(p.planHash); if (l) l.push(p); else byHash.set(p.planHash, [p]) }
-  return <>{[...byHash.entries()].map(([h, dumps]) => <PlanSection key={`${id}:${h}`} doc={doc} hash={h} dumps={dumps} view={view} onView={setView} flowScale={flowScale} onFlowScale={setFlowScale} />)}</>
+  return <>{[...byHash.entries()].map(([h, dumps], i) => <PlanSection key={`${id}:${h}`} doc={doc} hash={h} dumps={dumps} view={view} onView={setView} flowScale={flowScale} onFlowScale={setFlowScale} scrollSeq={i === 0 ? jump : 0} />)}</>
 }
 
 type PlanView = 'table' | 'flow'
 
 type Link = { state: 'pending' } | { state: 'ok'; url: string } | { state: 'big' } | { state: 'nogzip' }
 
-function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale }: {
-  doc: TraceDoc; hash: number; dumps: Plan[]; view: PlanView; onView(v: PlanView): void; flowScale: FlowScale; onFlowScale(s: FlowScale): void
+function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale, scrollSeq }: {
+  doc: TraceDoc; hash: number; dumps: Plan[]; view: PlanView; onView(v: PlanView): void; flowScale: FlowScale; onFlowScale(s: FlowScale): void; scrollSeq: number
 }) {
+  const secRef = useRef<HTMLElement>(null)
+  useScrollOn(scrollSeq, secRef)
   const [pick, setPick] = useState(dumps.length - 1) // latest by default
   const plan = dumps[Math.min(pick, dumps.length - 1)]
   const lines = useMemo(() => doc.planLines.slice(plan.first, plan.first + plan.n), [doc, plan])
@@ -354,7 +418,7 @@ function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale }:
   }
   const save = (v: string) => { setPlanVizOverride(v); setOverride(planVizOverride()); setEditing(false) }
   return (
-    <section className="section">
+    <section className="section" ref={secRef}>
       <header>
         <h2>Plan {hash || ''}</h2>
         <span className="hint">STAT at <LineRef line={plan.line} file={doc.fileOfCursor(plan.cursor)} />{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
@@ -363,7 +427,7 @@ function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale }:
           <span className="seg" role="group" aria-label="Plan view">
             <button aria-pressed={view === 'table'} onClick={() => onView('table')} title="the plan lines as a table">Table</button>
             <button aria-pressed={view === 'flow'} onClick={() => onView('flow')}
-              title={hasStats ? 'the rows flowing through the plan, leaves to the client (Sankey)' : 'no row-source statistics in this dump: the table stays, with a note'}>Flow</button>
+              title={hasStats ? 'the rows flowing through the plan, leaves to the client (Sankey)' : 'no row-source statistics in this dump: the table stays, with a note'}>Row flow</button>
           </span>
           {dumps.length > 1 && (
             <label className="small muted">dump:{' '}
@@ -477,4 +541,15 @@ function Errors({ doc, id }: { doc: TraceDoc; id: ID }) {
       </ul>
     </section>
   )
+}
+
+/** The view buttons' glyphs (14 px, currentColor). */
+function FlowIcon() {
+  return <svg className="ico" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M1 3c5 0 5 4 12 4M1 11c5 0 5-4 12-4" /></svg>
+}
+function DialogueIcon() {
+  return <svg className="ico" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M2 1v12M12 1v12M2 4h9M11 4l-1.5-1.2M12 9H3M3 9l1.5 1.2" /></svg>
+}
+function BlocksIcon() {
+  return <svg className="ico" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor"><rect x="1" y="1" width="5" height="5" rx="1" /><rect x="8" y="1" width="5" height="5" rx="1" opacity=".45" /><rect x="1" y="8" width="5" height="5" rx="1" opacity=".45" /><rect x="8" y="8" width="5" height="5" rx="1" /></svg>
 }
