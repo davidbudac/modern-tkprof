@@ -23,6 +23,7 @@
 //	/api/stmt/waits      top wait events of statements
 //	/api/stmt/spans      merged time intervals of statements' calls (phases=1: cut by call phase)
 //	/api/stmt/waitspans  stretches of statements' waits with their dominant events
+//	/api/io/map          the block I/O waits in scope at their file and block (Blocks view)
 //
 // Common scope parameters: from, to (tim in µs, a row is in when its
 // [tim-ela, tim] interval overlaps), contexts (comma separated ids), stmt,
@@ -86,6 +87,8 @@ type Server struct {
 
 	bindMu  sync.Mutex
 	bindHdr map[int][]int // file -> lines of its BINDS headers (see bindHeaders)
+
+	blockEvents, countP3 []bool // per event: block I/O, p3 a block count (analyze.BlockEvents, /api/io/map)
 }
 
 // NoCORS is the Server.AllowOrigin that turns the server's own CORS handling off.
@@ -97,7 +100,9 @@ func New(m *model.Model) *Server { return NewServer(m, MemSource(m)) }
 // NewServer returns the server for the dimension tables of m and the fact
 // rows of src (the spilled rows of an aggregation-only model, see Spill).
 func NewServer(m *model.Model, src FactSource) *Server {
-	return &Server{m: m, src: src, cache: map[string][]byte{}}
+	s := &Server{m: m, src: src, cache: map[string][]byte{}}
+	s.blockEvents, s.countP3 = analyze.BlockEvents(m.Events)
+	return s
 }
 
 // Close releases the fact source (the spill files are removed).
@@ -160,6 +165,7 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		"/api/stmt/waits":        s.stmtWaits,
 		"/api/stmt/spans":        s.stmtSpans,
 		"/api/stmt/waitspans":    s.stmtWaitSpans,
+		"/api/io/map":            s.ioMap,
 		"/api/plan":              s.plan,
 	}
 	if s.lis != nil {

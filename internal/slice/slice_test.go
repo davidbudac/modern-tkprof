@@ -771,3 +771,81 @@ func TestExecutionTraceRecursive(t *testing.T) {
 		t.Error("no execution with recursive calls")
 	}
 }
+
+func TestIOMap(t *testing.T) {
+	m, h := setup(t)
+	// the reference: the block I/O waits of m.Waits in order
+	type key struct{ ev, stmt model.ID }
+	var want [][]int64
+	per := map[key]int{}
+	for i := range m.Waits {
+		w := &m.Waits[i]
+		ev := &m.Events[w.Event]
+		if !ev.IsBlockIO() {
+			continue
+		}
+		blocks := int64(1)
+		if ev.BlocksParam() && w.P3 > 0 {
+			blocks = w.P3
+		}
+		want = append(want, []int64{w.Tim, w.Ela, int64(w.Event), w.P1, w.P2, blocks, w.ObjID, int64(w.Statement), int64(w.Call), int64(w.Line), int64(w.Context), int64(w.Dep)})
+		per[key{w.Event, w.Statement}]++
+	}
+	var r analyze.IOMap
+	if code := get(t, h, "/api/io/map", &r); code != 200 {
+		t.Fatalf("status %d", code)
+	}
+	if r.Total != 8747 || r.Total != len(want) || r.Sampled || !reflect.DeepEqual(r.Rows, want) || !reflect.DeepEqual(r.Cols, analyze.IOMapCols) {
+		t.Fatalf("total %d sampled %v rows %d, want %d unsampled", r.Total, r.Sampled, len(r.Rows), len(want))
+	}
+	files := map[int64]int{}
+	for _, f := range r.Files {
+		files[f.File] = f.N
+	}
+	if !reflect.DeepEqual(files, map[int64]int{10: 3, 12: 194, 203: 8550}) {
+		t.Errorf("files %+v", r.Files)
+	}
+	// idle changes nothing
+	var r0 analyze.IOMap
+	get(t, h, "/api/io/map?idle=0", &r0)
+	if !reflect.DeepEqual(r0, r) {
+		t.Error("idle=0 changed the map")
+	}
+	// sampled: 1 in 2 at limit 5000, files over all
+	var s analyze.IOMap
+	get(t, h, "/api/io/map?limit=5000", &s)
+	if !s.Sampled || s.Total != 8747 || len(s.Rows) != 4374 || !reflect.DeepEqual(s.Rows[1], want[2]) || !reflect.DeepEqual(s.Files, r.Files) {
+		t.Errorf("limit 5000: sampled %v total %d rows %d", s.Sampled, s.Total, len(s.Rows))
+	}
+	// a statement, an event of it
+	for k, n := range per {
+		if k.stmt < 0 {
+			continue
+		}
+		var st, se analyze.IOMap
+		get(t, h, fmt.Sprintf("/api/io/map?stmt=%d", k.stmt), &st)
+		get(t, h, fmt.Sprintf("/api/io/map?stmt=%d&event=%d", k.stmt, k.ev), &se)
+		if se.Total != n || len(se.Events) != 1 || se.Events[0] != k.ev || st.Total < n {
+			t.Errorf("stmt %d event %d: %d (%d over its events), want %d", k.stmt, k.ev, se.Total, st.Total, n)
+		}
+		for _, row := range st.Rows {
+			if model.ID(row[7]) != k.stmt {
+				t.Fatalf("stmt %d: a row of stmt %d", k.stmt, row[7])
+			}
+		}
+	}
+	// nothing in scope: empty arrays
+	var e analyze.IOMap
+	get(t, h, "/api/io/map?contexts=-", &e)
+	if e.Total != 0 || e.Rows == nil || len(e.Rows) != 0 || e.Files == nil || len(e.Files) != 0 || e.Events == nil {
+		t.Errorf("contexts=-: %+v", e)
+	}
+	for _, p := range []string{"/api/io/map?limit=0", "/api/io/map?limit=x", "/api/io/map?limit=200001", "/api/io/map?stmt=9999",
+		"/api/io/map?event=9999", "/api/io/map?idle=2", "/api/io/map?from=10&to=5", "/api/io/map?contexts=999"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
+		if rec.Code != 400 || strings.TrimSpace(rec.Body.String()) == "" {
+			t.Errorf("%s: status %d (%s), want 400 with a reason", p, rec.Code, strings.TrimSpace(rec.Body.String()))
+		}
+	}
+}

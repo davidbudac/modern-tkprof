@@ -13,7 +13,14 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   the page): **Row flow** (Sankey of a plan dump, statement inspector, data already in the document), **Dialogue**
   (sequence diagram of one execution, statement inspector, over `executions/trace`), **Blocks** (the I/O address space,
   a new tab over a new `GET /s/{id}/api/io/map` endpoint). Package G first (an optional view chord: digits 0 to 9 are
-  all taken). Order R, D, B-engine, B-ui; status table in the plan's § 9. Nothing implemented yet.
+  all taken). Order R, D, B-engine, B-ui; status table in the plan's § 9, milestones below.
+- 2026-11-03 **B-engine, `io/map`**: `GET /api/io/map?limit=` (+ `from`, `to`, `contexts`, `stmt`, `event`; `idle`
+  ignored), `analyze.IOMapOn` over `Facts` (two passes, every k-th above `limit`, k = ceil(total/limit); `files` and
+  `events` over all matches), classification `model.Event.IsBlockIO` / `BlocksParam` from the parameter names. io_waits:
+  8,747 waits, files 10 / 12 / 203 = 3 / 194 / 8,550; stmt 22 = 71 / 276 / 5,612, stmt 21 = 26 / 1,331 / 1,331 on 639
+  temp blocks. Contract (31 session routes, `IOMap`, `IOMapFile`), spill parity and `api.d.ts` updated; protocol stays 1.
+  The TS twin's shared case is `web/src/lib/data/testdata/iomap-case.json` (`go test ./internal/analyze -run
+  IOMapSharedCase -update-iomap-case` rewrites it). No UI yet: that is B-ui.
 
 ## One repository, two clients (2026-11-02)
 

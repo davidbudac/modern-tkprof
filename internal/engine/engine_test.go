@@ -220,9 +220,9 @@ func get(h http.Handler, path string) resp {
 	return resp{rec.Code, rec.Header(), rec.Body.Bytes()}
 }
 
-// endpoints are the 15 slice endpoints.
+// endpoints are the 16 slice endpoints.
 var endpoints = []string{"pivot", "timeline", "calls", "executions", "executions/detail", "waits", "waits/hist",
-	"waits/scatter", "waits/by", "profile", "statements", "stmt/roles", "stmt/waits", "stmt/spans", "stmt/waitspans"}
+	"waits/scatter", "waits/by", "profile", "statements", "stmt/roles", "stmt/waits", "stmt/spans", "stmt/waitspans", "io/map"}
 
 // queries are representative requests of every slice endpoint plus lines.
 func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
@@ -237,6 +237,7 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 		"/api/waits/by?scope=all&by=stmt", "/api/waits/by?scope=all&by=obj", "/api/waits/by?scope=all&by=p1&limit=3",
 		"/api/profile", "/api/profile?idle=0&contexts=0", "/api/stmt/roles",
 		"/api/statements", "/api/statements?contexts=0", fmt.Sprintf("/api/statements?from=%d", mid),
+		"/api/io/map", "/api/io/map?limit=500", fmt.Sprintf("/api/io/map?limit=500&from=%d&contexts=0&idle=0", mid), "/api/io/map?limit=x",
 		"/api/pivot?fact=nope", // a 400
 		"/api/lines?file=0&from=1&n=50", "/api/lines?file=0&from=100&n=5000", "/api/lines?file=9",
 		"/api/lines?file=0&from=1&n=50&annot=1", "/api/lines?file=0&from=100&n=5000&annot=1", "/api/lines?file=9&annot=1",
@@ -265,7 +266,8 @@ func queries(t *testing.T, m *model.Model, ref http.Handler) []string {
 		all = append(all, fmt.Sprint(s))
 		q = append(q, fmt.Sprintf("/api/executions?stmt=%d", s), fmt.Sprintf("/api/executions?stmt=%d&sort=e&limit=5&offset=1", s),
 			fmt.Sprintf("/api/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/waits?stmt=%d", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000&phases=1", s), fmt.Sprintf("/api/stmt/waitspans?stmt=%d&gap=1000", s),
-			fmt.Sprintf("/api/plan?stmt=%d", s), fmt.Sprintf("/api/plan?stmt=%d&exec=1", s), fmt.Sprintf("/api/plan?sql_id=%s", m.Statements[s].SQLID))
+			fmt.Sprintf("/api/plan?stmt=%d", s), fmt.Sprintf("/api/plan?stmt=%d&exec=1", s), fmt.Sprintf("/api/plan?sql_id=%s", m.Statements[s].SQLID),
+			fmt.Sprintf("/api/io/map?stmt=%d&limit=50", s))
 		for _, p := range report.LatestPlans(m, model.ID(s)) {
 			q = append(q, fmt.Sprintf("/api/plan?stmt=%d&plh=%d", s, p.PLH), fmt.Sprintf("/api/plan?stmt=%d&plh=%d&exec=2", s, p.PLH))
 		}

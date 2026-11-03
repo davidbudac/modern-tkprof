@@ -42,11 +42,12 @@ func ParityQueries(m *model.Model, h http.Handler) ([]string, error) {
 		"/api/statements", "/api/statements?contexts=-", "/api/statements?contexts=0", "/api/stmt/roles?contexts=0", "/api/stmt/roles?contexts=-&idle=0",
 		"/api/timeline?contexts=-", "/api/profile?contexts=-", "/api/calls?contexts=-", "/api/pivot?fact=calls&by=stmt&contexts=-",
 		"/api/pivot?fact=waits&by=event&contexts=-", "/api/waits?scope=all&contexts=-", fmt.Sprintf("/api/statements?contexts=%d", len(m.Contexts)-1),
-		fmt.Sprintf("/api/statements?from=%d&to=%d", mid, m.Span.LastTim))
+		fmt.Sprintf("/api/statements?from=%d&to=%d", mid, m.Span.LastTim),
+		"/api/io/map?limit=500", fmt.Sprintf("/api/io/map?limit=500&from=%d&contexts=0&idle=0", mid), "/api/io/map?contexts=-")
 	for e := range m.Events {
 		q = append(q, fmt.Sprintf("/api/waits?event=%d", e), fmt.Sprintf("/api/waits/hist?event=%d", e),
 			fmt.Sprintf("/api/waits/scatter?event=%d&max=3", e), fmt.Sprintf("/api/waits/by?event=%d&by=p1", e),
-			fmt.Sprintf("/api/profile?event=%d", e))
+			fmt.Sprintf("/api/profile?event=%d", e), fmt.Sprintf("/api/io/map?event=%d&limit=7", e))
 	}
 	var all []string
 	for s := range m.Statements {
@@ -63,7 +64,8 @@ func ParityQueries(m *model.Model, h http.Handler) ([]string, error) {
 			fmt.Sprintf("/api/executions?stmt=%d&contexts=0", s), fmt.Sprintf("/api/executions?stmt=%d&contexts=-", s),
 			fmt.Sprintf("/api/executions?stmt=%d&from=%d&to=%d", s, mid, m.Span.LastTim),
 			fmt.Sprintf("/api/stmt/waits?stmt=%d&contexts=0", s), fmt.Sprintf("/api/stmt/spans?stmt=%d&gap=1000&contexts=0", s),
-			fmt.Sprintf("/api/waits?stmt=%d&contexts=0", s), fmt.Sprintf("/api/waits?stmt=%d&contexts=-", s))
+			fmt.Sprintf("/api/waits?stmt=%d&contexts=0", s), fmt.Sprintf("/api/waits?stmt=%d&contexts=-", s),
+			fmt.Sprintf("/api/io/map?stmt=%d", s), fmt.Sprintf("/api/io/map?stmt=%d&limit=3&contexts=0", s))
 	}
 	if len(all) > 0 {
 		q = append(q, "/api/stmt/waits?stmt="+strings.Join(all, ","), "/api/stmt/spans?stmt="+strings.Join(all, ",")+"&gap=0", "/api/stmt/spans?stmt="+strings.Join(all, ",")+"&gap=500&phases=1")

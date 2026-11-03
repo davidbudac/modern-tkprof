@@ -1496,6 +1496,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/s/{id}/api/io/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The physical I/O waits with a block address in scope, at their file and block (the Blocks view)
+         * @description `analyze.IOMapOn`: every wait in scope whose event's parameters are a file number and a block address (p1 `file#` or `file number`, p2 `block#` or `first dba`: `model.Event.IsBlockIO`), in trace order. A row is [tim, ela, event, file, block, blocks, obj, stmt, call, line, ctx, dep] (`cols`); blocks is p3 when the event's p3 is a block count (`blocks`, `block cnt`) and positive, else 1; obj, stmt and call are -1 when none. With more than `limit` waits every k-th is kept (the 1st, the (k+1)-th, ...), k = ceil(total / limit), and `sampled` is set; `total`, `files` and `events` are over all of them. `idle` is accepted and changes nothing: block I/O is never idle.
+         */
+        get: operations["sliceIOMap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1741,6 +1761,32 @@ export interface components {
             children?: components["schemas"]["Link"][] | null;
             plans?: number[] | null;
             planHashes?: number[] | null;
+        };
+        /** @description analyze.IOMap, the answer of api/io/map */
+        IOMap: {
+            /** @description block I/O waits in scope */
+            total: number;
+            /** @description every k-th kept, k = ceil(total / limit) */
+            sampled: boolean;
+            /** @description the columns of rows: tim, ela, event, file, block, blocks, obj, stmt, call, line, ctx, dep */
+            cols: string[];
+            /** @description one per kept wait, in trace order; tim is the wait's end (µs), ela µs, event an id of the document's events table, file p1, block p2, blocks moved, obj the obj# (-1 none), stmt and call ids (-1 none), the trace line, the session context and the depth */
+            rows: number[][];
+            /** @description per file over all waits in scope (not only the kept rows), sorted by file */
+            files: components["schemas"]["IOMapFile"][];
+            /** @description the ids of the events that occurred, sorted */
+            events: number[];
+        };
+        /** @description analyze.IOMapFile, the block range [lo, hi) of one file's block I/O waits */
+        IOMapFile: {
+            /** @description the p1 of the waits (a datafile, a tempfile as db_files + its number, or a control file) */
+            file: number;
+            /** @description lowest block */
+            lo: number;
+            /** @description end of the range, exclusive (the largest block + blocks) */
+            hi: number;
+            /** @description waits */
+            n: number;
         };
         /** @enum {string} */
         ErrorCode: "bad_request" | "unauthorized" | "not_found" | "conflict" | "cancelled" | "needs_prompt" | "internal" | "remote";
@@ -4665,6 +4711,45 @@ export interface operations {
                             }[];
                         };
                     };
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+        };
+    };
+    sliceIOMap: {
+        parameters: {
+            query?: {
+                /** @description rows at most; above it every k-th wait is kept */
+                limit?: number;
+                /** @description scope start, tim in µs (a row is in when its [tim-ela, tim] overlaps the scope) */
+                from?: components["parameters"]["From"];
+                /** @description scope end, tim in µs (0 = open; not before from) */
+                to?: components["parameters"]["To"];
+                /** @description comma-separated context ids (at most 10000); empty or absent = every context; `-` = no context at all (an explicit empty set: no row is in scope) */
+                contexts?: components["parameters"]["Contexts"];
+                /** @description one statement id */
+                stmt?: components["parameters"]["Stmt"];
+                /** @description one event id (waits only) */
+                event?: components["parameters"]["Event"];
+                /** @description include idle waits */
+                idle?: components["parameters"]["Idle"];
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the block I/O waits in scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IOMap"];
                 };
             };
             400: components["responses"]["SliceBadRequest"];

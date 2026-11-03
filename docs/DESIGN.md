@@ -273,6 +273,20 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   calls no model; its instructions (`internal/assist/mcp_instructions.md`, the
   initialize answer) ask for `file:line` citations instead of `mtkprof:` links.
 
+## Three new views (decided 2026-11-03, `docs/PLAN-VIEWS.md` § 8)
+
+- **Blocks: deterministic every-k-th sampling above `limit`** (`/api/io/map`),
+  like `waits/scatter`, with `files` and `total` computed over all matches:
+  the 1st, the (k+1)-th, ... match in trace order, k = ceil(total/limit), two
+  passes and no list of all matches. 2-D binning (order × block cells) is v2
+  if sampled pictures turn out to hide re-reads.
+- **Blocks: classification by parameter names** (`file#` / `file number` +
+  `block#` / `first dba`; a block count in p3 when it is `blocks` /
+  `block cnt`), not by an event-name list: unknown and RAC events classify
+  themselves. Consequences: `control file sequential read` counts (its p1 is
+  a control file number), gc cr/current block 2-way do not (no parameter
+  names in V$EVENT_NAME).
+
 ## Project
 
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each

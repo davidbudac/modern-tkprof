@@ -49,6 +49,22 @@ type RefUser struct {
 // (db file sequential read: file#, direct path read: file number).
 func (e *Event) IsFileP1() bool { return e.P1Name == "file#" || e.P1Name == "file number" }
 
+// IsBlockIO reports whether the event's parameters are a file number and a
+// block address (the waits of the Blocks view, analyze.IOMapOn): db file
+// sequential/scattered read, db file single write, direct path read|write[
+// temp], read by other session, buffer busy waits, gc cr/current request,
+// control file sequential read (p1 is then the control file's number) …; not
+// db file parallel read (no address), Disk file operations I/O (no block) or
+// gc cr/current block 2-way (no parameter names). Data-driven on the
+// parameter names (V$EVENT_NAME, else those of the WAIT lines), so unknown
+// and RAC events classify themselves.
+func (e *Event) IsBlockIO() bool {
+	return e.IsFileP1() && (e.P2Name == "block#" || e.P2Name == "first dba")
+}
+
+// BlocksParam reports whether p3 is a block count (else a wait moves one block).
+func (e *Event) BlocksParam() bool { return e.P3Name == "blocks" || e.P3Name == "block cnt" }
+
 // WaitFile returns the file number a wait reports in p1, if its event does.
 func (m *Model) WaitFile(w *Wait) (int64, bool) {
 	if w.Event < 0 || int(w.Event) >= len(m.Events) || !m.Events[w.Event].IsFileP1() {

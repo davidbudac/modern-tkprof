@@ -572,7 +572,7 @@ heading) and tick § 9.
 | G view without a chord | not started | | |
 | R Row flow | not started | | |
 | D Dialogue | not started | | |
-| B-engine `io/map` | not started | | |
+| B-engine `io/map` | done | | `IOMapFile.hi` is exclusive (largest block + blocks: § 1's ranges); `analyze.BlockEvents` builds the two `[]bool`; gc cr/current block 2-way have no parameter names, so they do not classify (gc cr/current request do); shared case `iomap-case.json` = 84 waits up to the 60th block I/O wait, 3 queries |
 | B-ui Blocks view | not started | | |
 
 ## 10. Later (not in this plan)

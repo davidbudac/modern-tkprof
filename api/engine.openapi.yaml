@@ -2605,6 +2605,43 @@ paths:
                             description: µs of the segment's other events
         "400":
           $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/io/map:
+    get:
+      operationId: sliceIOMap
+      summary: The physical I/O waits with a block address in scope, at their file and block (the Blocks view)
+      description: >-
+        `analyze.IOMapOn`: every wait in scope whose event's parameters are a file number and a block address
+        (p1 `file#` or `file number`, p2 `block#` or `first dba`: `model.Event.IsBlockIO`), in trace order. A row is
+        [tim, ela, event, file, block, blocks, obj, stmt, call, line, ctx, dep] (`cols`); blocks is p3 when the event's
+        p3 is a block count (`blocks`, `block cnt`) and positive, else 1; obj, stmt and call are -1 when none. With
+        more than `limit` waits every k-th is kept (the 1st, the (k+1)-th, ...), k = ceil(total / limit), and
+        `sampled` is set; `total`, `files` and `events` are over all of them. `idle` is accepted and changes nothing:
+        block I/O is never idle.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: limit
+          in: query
+          description: rows at most; above it every k-th wait is kept
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200000
+            default: 20000
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Event"
+        - $ref: "#/components/parameters/Idle"
+      responses:
+        "200":
+          description: the block I/O waits in scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IOMap"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
 components:
   securitySchemes:
     bearer:
@@ -3212,6 +3249,58 @@ components:
           type: [array, "null"]
           items:
             type: integer
+    IOMap:
+      type: object
+      description: analyze.IOMap, the answer of api/io/map
+      required: [total, sampled, cols, rows, files, events]
+      properties:
+        total:
+          type: integer
+          description: block I/O waits in scope
+        sampled:
+          type: boolean
+          description: every k-th kept, k = ceil(total / limit)
+        cols:
+          type: array
+          description: "the columns of rows: tim, ela, event, file, block, blocks, obj, stmt, call, line, ctx, dep"
+          items:
+            type: string
+        rows:
+          type: array
+          description: one per kept wait, in trace order; tim is the wait's end (µs), ela µs, event an id of the document's events table, file p1, block p2, blocks moved, obj the obj# (-1 none), stmt and call ids (-1 none), the trace line, the session context and the depth
+          items:
+            type: array
+            minItems: 12
+            maxItems: 12
+            items:
+              type: integer
+        files:
+          type: array
+          description: per file over all waits in scope (not only the kept rows), sorted by file
+          items:
+            $ref: "#/components/schemas/IOMapFile"
+        events:
+          type: array
+          description: the ids of the events that occurred, sorted
+          items:
+            type: integer
+    IOMapFile:
+      type: object
+      description: analyze.IOMapFile, the block range [lo, hi) of one file's block I/O waits
+      required: [file, lo, hi, n]
+      properties:
+        file:
+          type: integer
+          description: the p1 of the waits (a datafile, a tempfile as db_files + its number, or a control file)
+        lo:
+          type: integer
+          description: lowest block
+        hi:
+          type: integer
+          description: end of the range, exclusive (the largest block + blocks)
+        n:
+          type: integer
+          description: waits
     ErrorCode:
       type: string
       enum: [bad_request, unauthorized, not_found, conflict, cancelled, needs_prompt, internal, remote]
