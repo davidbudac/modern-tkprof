@@ -195,6 +195,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
     <tr><td>Overview</td><td>response time, the activity minimap, the resource profile, findings and a timeline lane per statement (colored by call phase, or by resource)</td></tr>
     <tr><td>Statements</td><td>the ranked list and the statement workbench: SQL, profile, context, waits, recursive statements, plan (a table, or the row flow: rows from the leaves to the client, the estimate beside them, each step's own time), call table, executions</td></tr>
     <tr><td>Waits</td><td>wait events with class, time, count and min/avg/max; per event a log-scale duration histogram and the split by statement, object and p1</td></tr>
+    <tr><td>Blocks</td><td>every physical I/O wait with a block address, one panel per file: x = the n-th such wait (or time), y = the block number, marks as tall as the blocks they moved, coloured by event, object or statement, with the objects' block ranges as faint bands. Full scans are diagonals, a sort spill a write stripe then a read stripe, a multipass hash join a sawtooth; the column beside it counts reads per block per statement. Drag across it to set the time window</td></tr>
     <tr><td>Timeline</td><td>every call of every statement over time</td></tr>
     <tr><td>Sessions</td><td>session contexts (module, action, client id, service, session), roll-ups and a context filter</td></tr>
     <tr><td>Pivot</td><td>calls or waits by one or two dimensions with the measures you pick; Download CSV</td></tr>
@@ -203,7 +204,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
 </table></div>
 <h3>Filters follow you</h3>
 <p>The time window, the session filter, the file selection and the idle toggle apply to every view. Drag in the minimap or the timeline to set a window; click a block on an Overview lane to window that block and select its statement; double-click opens the statement. The active filters are chips under the top bar, each with ×, and <em>Clear all</em>. The state is kept in the URL, so a link reopens the same view.</p>
-<p>Keyboard: <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + a digit switches views, arrow keys move through tables, <kbd>Esc</kbd> closes the innermost panel or clears the window.</p>
+<p>Keyboard: <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + a digit switches views (Blocks has none: <kbd>⌥⌘←</kbd> / <kbd>⌥⌘→</kbd>, <kbd>Ctrl+PageUp</kbd> / <kbd>PageDown</kbd> elsewhere, step through all of them), arrow keys move through tables, <kbd>Esc</kbd> closes the innermost panel or clears the window.</p>
 
 <!-- ================================================================ -->
 <h2 id="sets">Trace sets<a class="anchor" href="#sets" aria-label="Link to this section">#</a></h2>
