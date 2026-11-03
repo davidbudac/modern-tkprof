@@ -193,7 +193,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
   <thead><tr><th>View</th><th>What it shows</th></tr></thead>
   <tbody>
     <tr><td>Overview</td><td>response time, the activity minimap, the resource profile, findings and a timeline lane per statement (colored by call phase, or by resource)</td></tr>
-    <tr><td>Statements</td><td>the ranked list and the statement workbench: SQL, profile, context, waits, recursive statements, plan, call table, executions</td></tr>
+    <tr><td>Statements</td><td>the ranked list and the statement workbench: SQL, profile, context, waits, recursive statements, plan (a table, or the row flow: rows from the leaves to the client, the estimate beside them, each step's own time), call table, executions</td></tr>
     <tr><td>Waits</td><td>wait events with class, time, count and min/avg/max; per event a log-scale duration histogram and the split by statement, object and p1</td></tr>
     <tr><td>Timeline</td><td>every call of every statement over time</td></tr>
     <tr><td>Sessions</td><td>session contexts (module, action, client id, service, session), roll-ups and a context filter</td></tr>
