@@ -20,6 +20,15 @@ interactive UI, offline, from one file.
 * **Interactive**: `mtkprof trace.trc` writes the text report and a single
   self-contained HTML file with the explorer and the data inside; nothing leaves the machine.
 
+Install (Linux, macOS, AIX, Solaris; picks the binary, verifies the sha256,
+installs to `/usr/local/bin`):
+
+```
+curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh
+```
+
+Binaries for every platform, Windows included, are on the [releases page](https://github.com/davidbudac/modern-tkprof/releases).
+
 ## Usage
 
 ```

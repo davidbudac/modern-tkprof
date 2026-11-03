@@ -87,7 +87,11 @@
 <h2 id="install">Install<a class="anchor" href="#install" aria-label="Link to this section">#</a></h2>
 
 <h3>The command-line binary</h3>
-<p>Download the binary for your platform from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>, check it against <code>SHA256SUMS</code>, make it executable and put it on your <code>PATH</code> or next to the trace. It has no dependencies (pure Go, no cgo).</p>
+<p>One command for every Unix (Linux, macOS, AIX, Solaris): it picks the binary for your OS and CPU, checks it against <code>SHA256SUMS</code> and installs it as <code>mtkprof</code> in <code>/usr/local/bin</code> (or <code>~/.local/bin</code> without write access). It has no dependencies (pure Go, no cgo).</p>
+<pre><span class="c"># curl | sh, all Unix systems; set MTKPROF_VERSION=v0.5.0 or MTKPROF_LITE=1 to choose the release</span>
+curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh
+mtkprof version</pre>
+<p>Or download the binary for your platform from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>, check it against <code>SHA256SUMS</code>, make it executable and put it on your <code>PATH</code> or next to the trace:</p>
 <div class="table-wrap"><table>
   <thead><tr><th>Platform</th><th>File</th></tr></thead>
   <tbody>
