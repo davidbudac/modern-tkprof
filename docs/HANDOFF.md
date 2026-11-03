@@ -21,6 +21,16 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   temp blocks. Contract (31 session routes, `IOMap`, `IOMapFile`), spill parity and `api.d.ts` updated; protocol stays 1.
   The TS twin's shared case is `web/src/lib/data/testdata/iomap-case.json` (`go test ./internal/analyze -run
   IOMapSharedCase -update-iomap-case` rewrites it). No UI yet: that is B-ui.
+- 2026-11-03 **R, Row flow**: `Table | Flow` on each plan section of the statement inspector (`views/RowFlow.tsx`,
+  `data/rowflow.ts` with the tree, self numbers and the whole layout, `styles/rowflow.css`; lib only). io_waits.trc stmt 22
+  (7r10y07tqpg98): CUST 20,000 / est. 20,000 and ORDERS 100,001 / est. 100,000 into HASH JOIN (self 604 ms · pr 5,612 ·
+  pw 276), 100,001 / est. 99,364 into SORT AGGREGATE (self 0 ms*, the clamp note), a 1-row thread to the client; stmt 21
+  (52nzchs09dgn1): a river of 100,001 rows through SORT ORDER BY (self 2.446 s · pr 1,331 · pw 1,331) over a 2.43 ms scan.
+  Checked in both shells, light and dark, on plan_change (two sections), plan_stat_all (the dump picker), parallel (PX:
+  slaves' lines "not started", no ghost), nasty_sql (ellipsis at a narrow inspector) and level_1 (it has STAT
+  statistics: no trace in `testdata/` has STAT lines without them, so the table + note state is unit-tested only).
+  Seen on the way, not changed: the plan advisor flags `INDEX UNIQUE SCAN` under `INLIST ITERATOR` in nasty_sql.trc
+  (57b0w2txwjvby) as a 1,119× misestimate, multiplying a card that already covers every iteration by the starts.
 
 ## One repository, two clients (2026-11-02)
 

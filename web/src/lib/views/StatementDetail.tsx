@@ -24,6 +24,8 @@ import { StatementContext, StatementFindings, StatementLinesMenu } from './State
 import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import { kindGroups, type KindGroup } from '../data/callkinds'
 import { CheckIcon, CopyIcon } from '../components/icons'
+import { RowFlow } from './RowFlow'
+import { NO_STATS_NOTE, type FlowScale } from '../data/rowflow'
 
 /** What the lists below are asked for when the statistics are the whole trace's (no scope, or an engine that cannot answer for one). */
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
@@ -290,6 +292,9 @@ function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
 
 /** `inScope`: the plan dumps of cursors in scope (`StmtStats.plans`); null = all of them. */
 function Plans({ doc, id, inScope }: { doc: TraceDoc; id: ID; inScope: ID[] | null }) {
+  // Table | Flow and the flow's band scale: one choice for every plan section, kept across statements and sessions
+  const [view, setView] = usePersisted<PlanView>('mtkprof.plan.view', 'table')
+  const [flowScale, setFlowScale] = usePersisted<FlowScale>('mtkprof.plan.flowScale', 'sqrt')
   const plans = useMemo(() => {
     const all = doc.plansOf(id)
     if (!inScope) return all
@@ -299,14 +304,20 @@ function Plans({ doc, id, inScope }: { doc: TraceDoc; id: ID; inScope: ID[] | nu
   if (plans.length === 0) return null
   const byHash = new Map<number, Plan[]>()
   for (const p of plans) { const l = byHash.get(p.planHash); if (l) l.push(p); else byHash.set(p.planHash, [p]) }
-  return <>{[...byHash.entries()].map(([h, dumps]) => <PlanSection key={`${id}:${h}`} doc={doc} hash={h} dumps={dumps} />)}</>
+  return <>{[...byHash.entries()].map(([h, dumps]) => <PlanSection key={`${id}:${h}`} doc={doc} hash={h} dumps={dumps} view={view} onView={setView} flowScale={flowScale} onFlowScale={setFlowScale} />)}</>
 }
+
+type PlanView = 'table' | 'flow'
 
 type Link = { state: 'pending' } | { state: 'ok'; url: string } | { state: 'big' } | { state: 'nogzip' }
 
-function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps: Plan[] }) {
+function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale }: {
+  doc: TraceDoc; hash: number; dumps: Plan[]; view: PlanView; onView(v: PlanView): void; flowScale: FlowScale; onFlowScale(s: FlowScale): void
+}) {
   const [pick, setPick] = useState(dumps.length - 1) // latest by default
   const plan = dumps[Math.min(pick, dumps.length - 1)]
+  const lines = useMemo(() => doc.planLines.slice(plan.first, plan.first + plan.n), [doc, plan])
+  const hasStats = useMemo(() => lines.some((l) => l.hasStats), [lines])
   const [override, setOverride] = useState(planVizOverride)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -338,6 +349,11 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
         <span className="hint">STAT at <LineRef line={plan.line} file={doc.fileOfCursor(plan.cursor)} />{dumps.length > 1 ? ` · ${dumps.length} dumps` : ''}</span>
         {plan.xPlanMatched && <span className="hint">predicates, estimates: ref bundle</span>}
         <span className="tools plan-acts">
+          <span className="seg" role="group" aria-label="Plan view">
+            <button aria-pressed={view === 'table'} onClick={() => onView('table')} title="the plan lines as a table">Table</button>
+            <button aria-pressed={view === 'flow'} onClick={() => onView('flow')}
+              title={hasStats ? 'the rows flowing through the plan, leaves to the client (Sankey)' : 'no row-source statistics in this dump: the table stays, with a note'}>Flow</button>
+          </span>
           {dumps.length > 1 && (
             <label className="small muted">dump:{' '}
               <select value={pick} onChange={(e) => setPick(Number(e.target.value))} aria-label="Plan dump">
@@ -364,7 +380,10 @@ function PlanSection({ doc, hash, dumps }: { doc: TraceDoc; hash: number; dumps:
         </form>
       )}
       <PlanAdvisor findings={findings} onNode={(id) => setFocus((f) => ({ id, seq: (f?.seq ?? 0) + 1 }))} />
-      <PlanTable doc={doc} plan={plan} focus={focus} />
+      {view === 'flow' && !hasStats && <p className="callout">{NO_STATS_NOTE}</p>}
+      {view === 'flow' && hasStats
+        ? <RowFlow doc={doc} plan={plan} lines={lines} scale={flowScale} onScale={onFlowScale} focus={focus} />
+        : <PlanTable doc={doc} plan={plan} focus={focus} />}
     </section>
   )
 }

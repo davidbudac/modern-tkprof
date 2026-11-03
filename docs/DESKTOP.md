@@ -232,6 +232,15 @@ long trace, *Zoom* (in the Overview's window row) shows only the window in the l
 blocks to click; a strip above them has *‹ Out* (the previous zoom) and *Reset*. Zooming is only a
 view: the window and the filters stay as they are.
 
+**Row flow.** In Statements, each plan has *Table | Flow*. *Flow* draws the plan as rows
+flowing from the leaves (left) through each row source to the client (right): a band is as wide
+as the rows the step handed up (√ rows by default, *linear* in the legend), its dashed outline is
+the optimizer's estimate, and a step's colour is its own time (darker = more in light mode,
+brighter in dark mode). Each step reads "self 604 ms · pr 5,612 · pw 276": its time and physical
+I/O minus its children's. Hover a step for all its numbers and the link to its STAT line; click
+it to light up its path to the client and everything under it (click again or Esc clears). The
+choice of view and scale is kept. A plan dumped without row-source statistics stays a table.
+
 ## Notes and bookmarks
 
 Notes belong to a trace's content (its identity), not to its file name: the same trace opened

@@ -91,4 +91,4 @@ The list below is the original roadmap, retained as history rather than a curren
 11. **Three new views** (`docs/PLAN-VIEWS.md`, concept study `docs/viz-concepts/`):
     Row flow (Sankey of a plan dump in the statement inspector), Dialogue
     (sequence diagram of one execution), Blocks (the I/O address space, new
-    tab and `api/io/map` endpoint). Planned 2026-11-03, not started.
+    tab and `api/io/map` endpoint). Planned 2026-11-03; Row flow done 2026-11-03.

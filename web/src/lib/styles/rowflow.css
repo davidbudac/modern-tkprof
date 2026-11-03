@@ -1,0 +1,101 @@
+/* Row flow (views/RowFlow.tsx): one plan dump as a Sankey. Self time is one blue ramp (the CPU hue, mock-up
+   docs/viz-concepts/row-flow.png), so it is never read as a wait class; darkest = most time in light, brightest in dark. */
+.rf {
+  --rf-t0: light-dark(oklch(85.5% 0.05 255), oklch(40% 0.06 258));
+  --rf-t1: light-dark(oklch(76.5% 0.09 255), oklch(50% 0.1 258));
+  --rf-t2: light-dark(oklch(62% 0.16 256), oklch(61% 0.16 256));
+  --rf-t3: light-dark(oklch(48% 0.14 258), oklch(76% 0.1 255));
+  --rf-t4: light-dark(oklch(33% 0.1 260), oklch(89% 0.05 255));
+  --rf-band: color-mix(in oklch, var(--ink) 12%, transparent);
+  --rf-band-thin: color-mix(in oklch, var(--ink) 45%, transparent);
+  --rf-band-hot: color-mix(in oklch, var(--ink) 20%, transparent);
+  --rf-dim: 0.22;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+
+.rf-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-4); color: var(--ink-2); }
+.rf-legend .seg { margin-inline-start: auto; }
+.rf-key { display: inline-flex; align-items: center; gap: 0.35rem; }
+.rf-tones { gap: var(--sp-1) var(--sp-3); flex-wrap: wrap; }
+.rf-key-band, .rf-key-est, .rf-sw { display: inline-block; inline-size: 1.1rem; block-size: 0.65rem; border-radius: 2px; flex: none; }
+.rf-key-band { background: var(--rf-band); }
+.rf-key-est { border: 1px dashed var(--ink-2); }
+.rf-sw { inline-size: 0.65rem; }
+.rf-sw.rf-t0 { background: var(--rf-t0); } .rf-sw.rf-t1 { background: var(--rf-t1); } .rf-sw.rf-t2 { background: var(--rf-t2); }
+.rf-sw.rf-t3 { background: var(--rf-t3); } .rf-sw.rf-t4 { background: var(--rf-t4); }
+
+/* the figure follows the inspector's width; only a plan too deep for it scrolls sideways */
+.rf-scroll { overflow-x: auto; overflow-y: clip; }
+.rf-fig { position: relative; direction: ltr; } /* the labels sit on the SVG's coordinates */
+.rf-svg { display: block; position: absolute; inset: 0; }
+
+.rf-band { fill: var(--rf-band); transition: opacity var(--dur), fill var(--dur); }
+.rf-band.thin { fill: var(--rf-band-thin); }
+.rf-est { fill: none; stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; transition: opacity var(--dur); }
+.rf-est.clipped { stroke-dasharray: 1 3; }
+.rf-hit { fill: transparent; }
+.rf-node { cursor: pointer; transition: opacity var(--dur); }
+.rf-bar.rf-t0 { fill: var(--rf-t0); } .rf-bar.rf-t1 { fill: var(--rf-t1); } .rf-bar.rf-t2 { fill: var(--rf-t2); }
+.rf-bar.rf-t3 { fill: var(--rf-t3); } .rf-bar.rf-t4 { fill: var(--rf-t4); }
+.rf-node.sel .rf-bar { stroke: var(--ink); stroke-width: 2; paint-order: stroke; }
+.rf-client { fill: var(--ink-2); }
+.rf-band.dim, .rf-est.dim, .rf-node.dim, .rf-label.dim, .rf-band-label.dim { opacity: var(--rf-dim); }
+.rf.has-sel .rf-band:not(.dim) { fill: var(--rf-band-hot); }
+.rf.has-sel .rf-band.thin:not(.dim) { fill: var(--rf-band-thin); }
+
+.rf-labels { position: absolute; inset: 0; pointer-events: none; }
+.rf-label {
+  position: absolute; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  padding: 0; border: 0; border-radius: var(--radius); background: none; color: var(--ink); font: inherit; line-height: 1.2;
+  pointer-events: auto; cursor: pointer; text-align: center; transition: opacity var(--dur);
+}
+/* a button that reads as text: no fill on hover, press or pressed (base.css fills a pressed button) */
+.rf .rf-label, .rf .rf-label:hover, .rf .rf-label:active, .rf .rf-label[aria-pressed="true"] { background: none; color: var(--ink); border: 0; }
+.rf-label.end { text-align: end; align-items: flex-end; }
+.rf-label.center { justify-content: flex-end; align-items: center; padding-block-end: 3px; }
+/* each line as wide as its text, on a veil of the surface: a band or a ghost passing under it does not cross the letters */
+.rf-label > span {
+  display: block; inline-size: fit-content; max-inline-size: 100%; box-sizing: border-box; padding-inline: 2px; border-radius: 2px;
+  white-space: nowrap; overflow: clip; text-overflow: ellipsis; background: color-mix(in oklch, var(--surface) 72%, transparent);
+}
+.rf-head { font-size: var(--text-sm); font-weight: 600; }
+.rf-id { font-weight: 400; color: var(--ink-3); font-size: var(--text-xs); }
+.rf-obj { font-weight: 600; }
+.rf-sub { font-size: var(--text-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rf-label.sel .rf-head { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+.rf-label:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rf-label:active { opacity: 0.7; }
+.rf-client-label { cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+  .rf-label:hover .rf-head { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+  .rf-node:hover .rf-bar { stroke: var(--ink-2); stroke-width: 1; }
+  .rf-band:hover { fill: var(--rf-band-hot); }
+}
+
+.rf-band-label {
+  position: absolute; box-sizing: border-box; block-size: 15px; line-height: 15px; text-align: center; white-space: nowrap; overflow: clip;
+  font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--ink-2); transition: opacity var(--dur);
+}
+.rf-band-label.in { color: var(--ink); }
+.rf-band-label:not(.in) { background: color-mix(in oklch, var(--surface) 80%, transparent); border-radius: 2px; }
+
+.rf-selbar { margin: 0; color: var(--ink-2); }
+.rf-selbar b { color: var(--ink); font-weight: 600; }
+.rf-notes { display: flex; flex-direction: column; gap: var(--sp-1); }
+.rf-notes p { margin: 0; overflow-wrap: anywhere; }
+
+/* the hover popover of a node: on document.body, placed by usePopover */
+.rf-pop {
+  position: fixed; inset-inline-start: var(--x, 0); inset-block-start: var(--y, 0); z-index: 45;
+  display: flex; flex-direction: column; gap: var(--sp-2); box-sizing: border-box;
+  inline-size: min(26rem, calc(100vw - 2rem)); max-block-size: calc(100dvh - 1rem); overflow: auto; padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-raised); color: var(--ink); border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  box-shadow: 0 6px 20px color-mix(in oklch, var(--ink) 18%, transparent); font-size: var(--text-sm); text-align: start;
+}
+.rf-pop-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); padding-block-end: var(--sp-1); border-block-end: 1px solid var(--hairline); }
+.rf-pop-h b { font-weight: 600; overflow-wrap: anywhere; }
+.rf-pop-facts { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--sp-4); margin: 0; }
+.rf-pop-facts > div { display: contents; }
+.rf-pop-facts dt { color: var(--ink-2); }
+.rf-pop-facts dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs); font-variant-numeric: tabular-nums; text-align: end; }
+.rf-pop-line { margin: 0; color: var(--ink-2); }

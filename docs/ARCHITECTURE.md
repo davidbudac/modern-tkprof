@@ -234,6 +234,42 @@ suggestion is not shown) render as a "Plan advisor" block above the plan table, 
 highlight the plan row; nothing renders without findings. Only `parsePlanRows`/`runAdvisor` are imported, so the
 text and XML parsers tree-shake away (bundle +59 kB, +20 kB gzip).
 
+### Row flow (`web/src/lib/views/RowFlow.tsx`, `data/rowflow.ts`)
+
+Each plan section of the statement inspector has `Table | Flow` (`usePersisted('mtkprof.plan.view')`, one choice for
+every section; the band scale `mtkprof.plan.flowScale`). Flow draws the dump as a Sankey: leaves left, the root right,
+then a client bar; band width = the rows a child hands its parent (A-Rows, STAT `cnt`, summed over all starts), a dashed
+ghost of the same slot = the estimate, node fill = self time in five bins (< 1 ms, 1 to 10 ms, 10 to 100 ms, 0.1 to 1 s,
+≥ 1 s; one blue ramp in `styles/rowflow.css`, never a wait-class colour). A dump without row-source statistics shows the
+table and a note. The plan advisor stays above either; its node links select the node in the flow.
+
+- Tree (`rowFlow`): lines indexed by id, parent = `parentId`; a repeated id ends the dump (two STAT blocks glued
+  together), lines no root reaches (a cycle) and lines whose parent is missing are left out, each with a note. Several
+  lines with parent 0 hang off a synthetic statement node (id 0, not in the trace; its rows are the last top line's).
+- Self numbers: self time = `time` minus the children's `time`, clamped at 0 with a note and a `*` on the node when a
+  parent reports less than its children (row-source timings are sampled: io_waits.trc stmt 22's SORT AGGREGATE reports
+  597 ms over a 610 ms HASH JOIN); self cr / pr / pw the same subtraction. A node's share in the popover is of Σ self
+  time, so the join reads 99 %, not 101 % of the clamped root.
+- Estimate: `card` (STAT lines with statistics), else `eRows` (the ref bundle's DBMS_XPLAN), else none. E-Rows is per
+  start, A-Rows a total, so the ghost compares `est × starts` for a row source started more than once (the inner side
+  of a nested loop), except below an iterator (INLIST ITERATOR, PARTITION …, PX BLOCK ITERATOR), whose card already
+  covers every iteration. A row source with statistics that never started (starts 0: the PX slaves' lines in the
+  coordinator's dump) has no ghost and reads "not started"; the notes say whether that is PX.
+- Layout (`flowLayout`, all of it in the data module and unit-tested): columns = maxDepth + 2 (column = maxDepth −
+  depth, the client last); nodes stack per column in DFS pre-order, each subtree in its own vertical slot, so bands
+  never cross. Node height = scale(max(rows, Σ children's rows)), at least the children's bands stacked and 2 px; a band
+  leaves the child's right edge and enters the parent's left edge in that child's slot; `minBand` 1.5 px. Scale: sqrt by
+  default, linear on request; the thickest band grows with the decades of the largest flow (`defaultMaxBand`: 24 px + 16
+  px per decade, at most 120 px), so a 5-row plan stays slim. The figure follows the inspector's width (the leaves'
+  label gutter takes what the columns leave at their widest), scrolls sideways only for a plan too deep for it, and is
+  as tall as the layout. Labels are an HTML layer over the SVG: operation + object and "self · pr · pw" left of a leaf,
+  above an inner node; "rows · est. N" on a band where one of the three texts (full, compact, rows only) fits and
+  collides with nothing, tried at a few points along the band and above or under a thin one.
+- Interaction: hovering a node or a band (or tabbing to a node's label) opens a popover with every measure of the line and a `LineRef`
+  to its own STAT line (`plan.line + index`: the builder starts a new dump on any non-adjacent STAT line); a click (or
+  Enter) highlights the node's path to the root and its subtree, with a selection line under the figure (STAT link,
+  clear); a second click or Esc clears it (after an open popover or line viewer, before the shell's Esc chain).
+
 ### Reference bundle (`internal/ref/bundle.go`, `internal/model/ref.go`, `internal/report/refscript.go`)
 
 `report.RefQueries(m, lite)` holds the SQL per bundle file as values;

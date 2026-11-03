@@ -24,6 +24,7 @@ Preconditions:
 
 - **One view.** `node $S/drive.mjs --open $T/level_8.trc --view <Name> --name <name>` for each of Overview, Statements, Waits, Timeline, Sessions, Pivot. The named button becomes `aria-current=page`, the JSON has `errors: []`, and the screenshot shows the heading from the sub-feature list. (Statements and Waits were driven and ran clean with no console errors; the others are not yet driven.)
 - **Idle toggle.** In Waits click `--click 'button:has-text("hide idle")'`; its `aria-pressed` flips and the event list changes.
+- **Row flow.** `--open $T/io_waits.trc --view Statements --click 'aside[aria-label="Statements"] >> text=7r10y07tqpg98' --click '[aria-label="Plan view"] button:has-text("Flow")'`: the plan section shows the Sankey (`.rf-fig`; node labels `.rf-label[data-node="<index in the dump>"]`, `--click` one to highlight its path; the scale is `[aria-label="Band scale"] button:has-text("linear")`). Driven 2026-11-03, no console errors.
 
 ## Gotchas
 

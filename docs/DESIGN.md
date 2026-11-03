@@ -286,6 +286,26 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   themselves. Consequences: `control file sequential read` counts (its p1 is
   a control file number), gc cr/current block 2-way do not (no parameter
   names in V$EVENT_NAME).
+- **Placement.** Row flow (and Dialogue) are modes inside the statement
+  inspector, not tabs: they are about one statement or one execution and
+  belong next to the plan table and the execution list. Row flow is a
+  `Table | Flow` toggle on each plan section, one persisted choice for all.
+- **Row flow: self time of a plan line** = inclusive minus its children's,
+  clamped at 0 with a note (and a `*` on the node): row-source timings are
+  sampled and a parent can report less than its children (io_waits.trc
+  stmt 22's SORT AGGREGATE, 597 ms over a 610 ms join). Shares are of the sum
+  of self times, so they add up to 100 %.
+- **Row flow: sqrt band scale by default**, linear on request, both
+  persisted. The thickest band grows with the decades of the largest flow
+  (24 px + 16 px per decade, at most 120): a 5-row plan is not drawn as
+  thick as a 100 k-row one; the numbers are written on the bands.
+- **Row flow: the estimate ghost compares like with like.** A-Rows is a total
+  over all starts, E-Rows per start, so the ghost is E-Rows × starts, except
+  below an iterator (INLIST ITERATOR, PARTITION, PX BLOCK ITERATOR) whose
+  card covers every iteration. A row source that never started (starts 0,
+  e.g. the PX slaves' lines in the coordinator's dump) has no ghost.
+- **No new dependencies**; SVG and canvas by hand, colours from the tokens
+  (Row flow's self-time ramp is one blue hue, never a wait-class colour).
 
 ## Project
 

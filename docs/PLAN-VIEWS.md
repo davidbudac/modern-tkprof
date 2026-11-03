@@ -570,7 +570,7 @@ heading) and tick § 9.
 | package | state | commit | notes |
 |---|---|---|---|
 | G view without a chord | not started | | |
-| R Row flow | not started | | |
+| R Row flow | done | | lib only, no engine change; per-node STAT links (`plan.line + index`); ghost = E-Rows × starts except below iterators, none for starts 0 (PX slaves' lines); thickest band by decades of rows; no fixture has STAT lines without statistics (level_1.trc has them), so the table + note state is unit-tested only |
 | D Dialogue | not started | | |
 | B-engine `io/map` | done | | `IOMapFile.hi` is exclusive (largest block + blocks: § 1's ranges); `analyze.BlockEvents` builds the two `[]bool`; gc cr/current block 2-way have no parameter names, so they do not classify (gc cr/current request do); shared case `iomap-case.json` = 84 waits up to the 60th block I/O wait, 3 queries |
 | B-ui Blocks view | not started | | |
