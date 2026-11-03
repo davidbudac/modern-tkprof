@@ -275,21 +275,18 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
 
 ## Three new views (decided 2026-11-03, `docs/PLAN-VIEWS.md` § 8)
 
-- **Blocks: deterministic every-k-th sampling above `limit`** (`/api/io/map`),
-  like `waits/scatter`, with `files` and `total` computed over all matches:
-  the 1st, the (k+1)-th, ... match in trace order, k = ceil(total/limit), two
-  passes and no list of all matches. 2-D binning (order × block cells) is v2
-  if sampled pictures turn out to hide re-reads.
-- **Blocks: classification by parameter names** (`file#` / `file number` +
-  `block#` / `first dba`; a block count in p3 when it is `blocks` /
-  `block cnt`), not by an event-name list: unknown and RAC events classify
-  themselves. Consequences: `control file sequential read` counts (its p1 is
-  a control file number), gc cr/current block 2-way do not (no parameter
-  names in V$EVENT_NAME).
-- **Placement.** Row flow (and Dialogue) are modes inside the statement
-  inspector, not tabs: they are about one statement or one execution and
-  belong next to the plan table and the execution list. Row flow is a
-  `Table | Flow` toggle on each plan section, one persisted choice for all.
+- **Placement.** Blocks is a tab (after Waits); Row flow and Dialogue are
+  modes inside the statement inspector, not tabs: they are about one
+  statement or one execution and belong next to the plan table and the
+  execution list. Row flow is a `Table | Flow` toggle on each plan section,
+  one persisted choice for all; Dialogue a `Binds | Dialogue` toggle on one
+  picked execution (persisted). A side-by-side Dialogue of two executions in
+  `ExecCompare` is v2; a whole-session Dialogue needs an endpoint for a
+  session's call sequence.
+- **No chord for Blocks**: digits 0 to 9 are taken and renumbering breaks
+  muscle memory and the assistant's `mtkprof:` links, so
+  `SessionViewDef.key` is optional; a row without a key has no chord and no
+  hint, ⌥⌘← / ⌥⌘→ (Ctrl+PageUp / PageDown) still step through it.
 - **Row flow: self time of a plan line** = inclusive minus its children's,
   clamped at 0 with a note (and a `*` on the node): row-source timings are
   sampled and a parent can report less than its children (io_waits.trc
@@ -304,9 +301,6 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   below an iterator (INLIST ITERATOR, PARTITION, PX BLOCK ITERATOR) whose
   card covers every iteration. A row source that never started (starts 0,
   e.g. the PX slaves' lines in the coordinator's dump) has no ghost.
-- **Dialogue: a mode inside the statement inspector, not a tab** (`Binds | Dialogue` on one picked execution):
-  it is about one execution and belongs next to the execution list. A side-by-side Dialogue of two executions
-  in `ExecCompare` is v2; a whole-session Dialogue needs an endpoint for a session's call sequence.
 - **Dialogue: collapse rule.** Maximal runs of equal `(kind, rows)`, minimum 3; a turn above 10× the run's
   median elapsed or median gap is kept apart, so a run can become frame, turn, frame. The thresholds are
   options of `dialogueOf` (`minRun`, `outlierX`, plus `floorUs` = 10 µs: medians below it count as it, so
@@ -322,11 +316,17 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   round trips are unknown and every call replies.
 - **Dialogue: the wall clock is first call to last.** The client gap before the first call is outside it (a
   note, not a bar segment); untimed is clamped at 0 when CPU, waits and gaps overlap.
-- **Blocks is a tab** (after Waits), unlike Row flow and Dialogue. **No chord
-  for Blocks**: digits 0 to 9 are taken and renumbering breaks muscle memory
-  and the assistant's `mtkprof:` links, so `SessionViewDef.key` is optional;
-  a row without a key has no chord and no hint, ⌥⌘← / ⌥⌘→ (Ctrl+PageUp /
-  PageDown) still step through it.
+- **Blocks: deterministic every-k-th sampling above `limit`** (`/api/io/map`),
+  like `waits/scatter`, with `files` and `total` computed over all matches:
+  the 1st, the (k+1)-th, ... match in trace order, k = ceil(total/limit), two
+  passes and no list of all matches. 2-D binning (order × block cells) is v2
+  if sampled pictures turn out to hide re-reads.
+- **Blocks: classification by parameter names** (`file#` / `file number` +
+  `block#` / `first dba`; a block count in p3 when it is `blocks` /
+  `block cnt`), not by an event-name list: unknown and RAC events classify
+  themselves. Consequences: `control file sequential read` counts (its p1 is
+  a control file number), gc cr/current block 2-way do not (no parameter
+  names in V$EVENT_NAME).
 - **Blocks: order axis by default, time as a toggle**; both brush into a time
   window (the view re-queries inside it, a double-click clears it). On a time
   axis the full scans of io_waits.trc (2 ms) are slivers next to the 2.96 s of

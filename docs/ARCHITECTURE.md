@@ -1427,10 +1427,10 @@ notable; `plan-change` is notable or serious as above.
 ```
 cmd/mtkprof/        CLI (report, compare, pivot, json, html, serve, plan, refscript, findings-config, lint, export, engine); trace arguments are files and directories
 internal/trace/     streaming parser (+ LineIndex with Save/Load)
-internal/model/     model + builder (+ persist.go: binary encoding of the dimension tables)
-internal/analyze/   aggregations (+ the streaming Accumulator of the aggregation-only mode, its persistence, the minimap)
+internal/model/     model + builder (+ persist.go: binary encoding of the dimension tables; ref.go: Event.IsBlockIO / BlocksParam)
+internal/analyze/   aggregations (+ the streaming Accumulator of the aggregation-only mode, its persistence, the minimap; iomap.go: the Blocks view's IOMapOn)
 internal/report/    text / json / csv renderers
-internal/slice/     server-side slicing: in-memory and spill (disk, persistable) FactSources, the /api endpoints
+internal/slice/     server-side slicing: in-memory and spill (disk, persistable) FactSources, the /api endpoints (iomap.go: /api/io/map)
 internal/engine/    `mtkprof engine`: control plane (sessions, jobs, SSE events, prompts), persistent index cache, content identity
 internal/binfmt/    explicit versioned binary reader/writer used by the persistence code
 internal/remote/    remote-access plumbing shared by the engine and CLI subcommands (the Prompter interface)
@@ -1439,6 +1439,10 @@ internal/ref/       embedded reference data (wait classes, command types, bind d
 api/                engine.openapi.yaml (the engine protocol, checked by internal/engine/contract_test.go)
 web/                Vite + TypeScript UI (web/vendor/ora-plan-core: vendored shared plan core)
   web/src/lib/      the UI library (views, components, data incl. ApiClient, state, styles); imported as @lib; never imports app/
+  web/src/lib/views/ the views; the three of docs/PLAN-VIEWS.md: RowFlow.tsx, Dialogue.tsx (statement inspector), BlockMap.tsx (tab),
+                    styled by styles/rowflow.css, dialogue.css, blockmap.css
+  web/src/lib/data/ data code with its tests beside it: rowflow.ts, dialogue.ts, iomap.ts + blocklayout.ts for those views;
+                    testdata/ the cases shared with Go (iomap-case.json, findings-*.json.gz, …)
   web/src/lib/shell/ the shell behaviour both front ends share (view table, tabs, keys, panes, inspector, URL hash, error boundary)
   web/src/app/      the standalone shell (App, TopBar, main) used by html and serve
 testdata/           real 19c/21c/23ai fixtures (+ tkprof output as golden reference), generator scripts

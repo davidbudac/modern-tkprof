@@ -1,8 +1,8 @@
 # Three new views: implementation plan (Row flow, Dialogue, Blocks)
 
 Written 2026-11-03 from the concept study in `docs/viz-concepts/` (five concepts mocked on real data
-from `testdata/traces/19c/io_waits.trc`; the user picked three). Nothing of this is implemented yet;
-the status table in § 9 is where the implementing agent records progress.
+from `testdata/traces/19c/io_waits.trc`; the user picked three). Implemented the same day: § 9 has
+the commits and where the code differs from this plan; `docs/HANDOFF.md` § Three new views the open items.
 
 Before starting: `CLAUDE.md` (repo rules), `docs/HANDOFF.md` (current state), `docs/ARCHITECTURE.md`
 §§ "Server-side slicing", "Engine mode", "Shell module", "internal/analyze", and `desktop/CLAUDE.md`.
@@ -569,11 +569,17 @@ heading) and tick § 9.
 
 | package | state | commit | notes |
 |---|---|---|---|
-| G view without a chord | done | | `key?: number`; `viewOfKey` / `useViewKeys` skip key-less rows, the steps walk them; `viewKeyLabel` / `viewKeyAria` give `''`; `ViewTabs` no title chord, no hint; desktop Tools menu tolerates a key-less row; no desktop copies of `viewKeys.ts` / `viewPanes.ts` existed |
-| R Row flow | done | | lib only, no engine change; per-node STAT links (`plan.line + index`); ghost = E-Rows × starts except below iterators, none for starts 0 (PX slaves' lines); thickest band by decades of rows; no fixture has STAT lines without statistics (level_1.trc has them), so the table + note state is unit-tested only |
-| D Dialogue | done | | `dialogueOf` adds `floorUs` (10 µs), round trips (idle between waits), recursive groups with their 10× outliers (stmts 18 / 19 show in stmt 17's EXEC), `leadGapUs` outside the wall; query key `loom:…` (the Loom's, not `trace:…`); no CLOSE in an execution trace, so stmt 21 = 204 turns and stmt 15 gaps = 7.43 ms; fixture `findings-io_waits.json.gz` |
-| B-engine `io/map` | done | | `IOMapFile.hi` is exclusive (largest block + blocks: § 1's ranges); `analyze.BlockEvents` builds the two `[]bool`; gc cr/current block 2-way have no parameter names, so they do not classify (gc cr/current request do); shared case `iomap-case.json` = 84 waits up to the 60th block I/O wait, 3 queries |
-| B-ui Blocks view | done | | `ioMapOf` = `IOMapOn` on the shared case; order axis widens statement runs under 64 px (the mock-up's broken axis: on a linear axis the 98 full-scan reads are slivers too); bracket runs absorb recursive waits (inside a run, or right before the statement they ran for); temp hues `--bm-temp-r` / `--bm-temp-w` instead of the Loom's `--ev-temp` pair (indistinguishable at 1 px); object ranges = overlapping ranges merged (26 / 496, 45 / 1,204); re-reads per statement and file; parallel.trc has no PX-slave physical reads |
+| G view without a chord | done | `b6acde6` | `key?: number`: a key-less row has no chord and no hint, the ⌥⌘ steps walk it; digits 0 to 9 unchanged; the desktop had no copies of `viewKeys.ts` / `viewPanes.ts` |
+| R Row flow | done | `6aac460` | lib only; per-node STAT links (`plan.line + index`); ghost = E-Rows × starts except below iterators, none for starts 0 (the PX slaves' lines); thickest band by decades of rows; no fixture has STAT lines without statistics (level_1.trc has them), so the table + note state is unit-tested only |
+| D Dialogue | done | `2d516ae` | lib only; `floorUs` (10 µs), round trips from idle between waits, recursive groups with their 10× outliers (stmts 18 / 19 in stmt 17's EXEC); query key `loom:…` (the Loom's, not `trace:…`); an execution trace has no CLOSE: stmt 21 = 204 turns (not 205), stmt 15 gaps 7.43 ms (not 7.5); fixture `findings-io_waits.json.gz` |
+| B-engine `io/map` | done | `d6e3aa2` | `IOMapFile.hi` is exclusive (largest block + blocks: § 1's ranges); gc cr/current block 2-way have no parameter names, so they do not classify (gc cr/current request do), `control file sequential read` does; shared case `iomap-case.json` (84 waits, 3 queries) |
+| B-ui Blocks view | done | `b6acde6` | `ioMapOf` = `IOMapOn` on the shared case; the order axis widens statement runs under 64 px (22× on io_waits); own temp hues `--bm-temp-r` / `--bm-temp-w` (the Loom's pair cannot be told apart at 1 px); panels under 16 waits are 60 px; parallel.trc's PX slaves did no physical I/O, so there are no slave reads to show |
+
+Checked together on `main` (2026-11-03): `scripts/ci-local.sh --strict` passes; on io_waits.trc, in
+the standalone shell (`serve`) and the desktop (engine), light and dark, every § 1 number is
+reproduced except the two Dialogue ones above (204 turns, 7.43 ms); chords 0 to 9 switch views as
+before and Blocks shows no chord hint. Found on the way and fixed in `d78631f`: an open execution
+outlived a change of statement (the old Dialogue under the new statement, a 400 over the engine).
 
 ## 10. Later (not in this plan)
 

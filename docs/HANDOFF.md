@@ -6,52 +6,75 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
-## Three new views: plan written (2026-11-03)
+## Three new views: implemented (2026-11-03)
 
-- `docs/PLAN-VIEWS.md` is the implementation plan for three visualisations picked from the concept study
-  `docs/viz-concepts/` (five concepts mocked on real numbers of `io_waits.trc`; `README.md` there says how to rebuild
-  the page): **Row flow** (Sankey of a plan dump, statement inspector, data already in the document), **Dialogue**
-  (sequence diagram of one execution, statement inspector, over `executions/trace`), **Blocks** (the I/O address space,
-  a new tab over a new `GET /s/{id}/api/io/map` endpoint). Package G first (an optional view chord: digits 0 to 9 are
-  all taken). Order R, D, B-engine, B-ui; status table in the plan's § 9, milestones below.
-- 2026-11-03 **B-engine, `io/map`**: `GET /api/io/map?limit=` (+ `from`, `to`, `contexts`, `stmt`, `event`; `idle`
-  ignored), `analyze.IOMapOn` over `Facts` (two passes, every k-th above `limit`, k = ceil(total/limit); `files` and
+- Implemented from the plan `docs/PLAN-VIEWS.md` (three of the five concepts of the study `docs/viz-concepts/`, mocked on
+  the real numbers of `io_waits.trc`; `README.md` there says how to rebuild the page): **Row flow** (Sankey of a plan dump,
+  statement inspector, data already in the document), **Dialogue** (sequence diagram of one execution, statement
+  inspector, over `executions/trace`), **Blocks** (the I/O address space, a new tab over the new `GET /s/{id}/api/io/map`
+  endpoint), after package G (an optional view chord: digits 0 to 9 are all taken). Commits and notes: the plan's § 9;
+  decisions: DESIGN § Three new views. Checked together on `main`: `scripts/ci-local.sh --strict` passes, and io_waits.trc
+  in both shells, light and dark, gives the plan's § 1 numbers except the two Dialogue ones below. The one bug it found is
+  fixed in `d78631f`: an open execution outlived a change of statement (the standalone drew the previous statement's
+  Dialogue under the new one, the engine answered 400); Executions is now keyed by statement.
+- 2026-11-03 **B-engine, `io/map`** (`d6e3aa2`): `GET /api/io/map?limit=` (+ `from`, `to`, `contexts`, `stmt`, `event`;
+  `idle` ignored), `analyze.IOMapOn` over `Facts` (two passes, every k-th above `limit`, k = ceil(total/limit); `files` and
   `events` over all matches), classification `model.Event.IsBlockIO` / `BlocksParam` from the parameter names. io_waits:
   8,747 waits, files 10 / 12 / 203 = 3 / 194 / 8,550; stmt 22 = 71 / 276 / 5,612, stmt 21 = 26 / 1,331 / 1,331 on 639
   temp blocks. Contract (31 session routes, `IOMap`, `IOMapFile`), spill parity and `api.d.ts` updated; protocol stays 1.
   The TS twin's shared case is `web/src/lib/data/testdata/iomap-case.json` (`go test ./internal/analyze -run
-  IOMapSharedCase -update-iomap-case` rewrites it). No UI yet: that is B-ui.
-- 2026-11-03 **R, Row flow**: `Table | Flow` on each plan section of the statement inspector (`views/RowFlow.tsx`,
-  `data/rowflow.ts` with the tree, self numbers and the whole layout, `styles/rowflow.css`; lib only). io_waits.trc stmt 22
-  (7r10y07tqpg98): CUST 20,000 / est. 20,000 and ORDERS 100,001 / est. 100,000 into HASH JOIN (self 604 ms · pr 5,612 ·
-  pw 276), 100,001 / est. 99,364 into SORT AGGREGATE (self 0 ms*, the clamp note), a 1-row thread to the client; stmt 21
-  (52nzchs09dgn1): a river of 100,001 rows through SORT ORDER BY (self 2.446 s · pr 1,331 · pw 1,331) over a 2.43 ms scan.
-  Checked in both shells, light and dark, on plan_change (two sections), plan_stat_all (the dump picker), parallel (PX:
-  slaves' lines "not started", no ghost), nasty_sql (ellipsis at a narrow inspector) and level_1 (it has STAT
-  statistics: no trace in `testdata/` has STAT lines without them, so the table + note state is unit-tested only).
-  Seen on the way, not changed: the plan advisor flags `INDEX UNIQUE SCAN` under `INLIST ITERATOR` in nasty_sql.trc
-  (57b0w2txwjvby) as a 1,119× misestimate, multiplying a card that already covers every iteration by the starts.
-- 2026-11-03 **D, Dialogue**: `Binds | Dialogue` on one picked execution in the statement inspector
-  (`views/Dialogue.tsx`, `data/dialogue.ts` with all layout math, `styles/dialogue.css`; ARCHITECTURE § Dialogue,
-  DESIGN § Three new views). Over the Loom's `executions/trace` answer (same query key), no engine change. Checked
-  on io_waits: stmt 21 = PARSE, EXEC, FETCH #1 (direct path write temp × 1,331 · 2.38 s, 856 temp reads), loop ×
-  200 of 500 rows (median 173 µs, gap median 1.52 ms), FETCH #202; time to first row 2.45 s of 2.80 s, 202 round
-  trips, gaps 307 ms; stmt 15 loop × 100 of 15 rows, gaps 7.43 ms vs 5.21 ms in calls; stmt 13 two executions of
-  two round trips; stmt 17's EXEC lists stmts 18 / 19 with first EXECs 483 / 380 µs vs median 28 µs. Also lobs.trc
-  (Others lane: write complete waits), multisession.trc (PL/SQL lock timer, class Idle, inside the call),
-  errors.trc (a `log file sync` between calls, in the gap), plsql_recursive.trc, parallel.trc; standalone (in-browser
-  and `-facts=false` engine source) and desktop, light and dark. Differences from § 1: the CLOSE is not an
-  execution-trace call (204 turns, not 205; stmt 15's 7.5 ms includes the 109 µs gap before the CLOSE). New
-  fixture `web/src/lib/data/testdata/findings-io_waits.json.gz` (TestFindingsDocsCurrent writes it).
-- 2026-11-03 **G + B-ui, the Blocks view**: `SessionViewDef.key` is optional (no chord, no hint; the ⌥⌘ steps walk it;
-  digits 0 to 9 unchanged); tab Blocks after Waits (`views/BlockMap.tsx`, `data/blocklayout.ts`, `data/iomap.ts` with
-  `ioMapOf`, the twin of `IOMapOn`, equal on `iomap-case.json`; `DataSource.ioMap` local and remote). Canvas per panel,
-  order axis with short statement runs widened to 64 px (time as a toggle), colour by event / object / statement, object
-  ranges as bands, statement / phase brackets, tooltip + pinned popover, brush → window, facts column (re-reads per block),
-  limit 5,000 / 20,000 / 100,000 persisted. io_waits: 8,747 marks unsampled, ORDERS 26 ranges / 496 blocks, CUST 45 /
-  1,204, stmt 22 temp reads 20.3× per block, limit 5,000 "showing 1 in 2 of 8,747". Verified standalone (facts, `-spill`,
-  `-facts=false`, `-ref`) and desktop (engine), light and dark. Own temp hues `--bm-temp-r` / `--bm-temp-w` (the Loom's
-  pair is too close for 1 px marks); parallel.trc has no PX-slave physical reads (one wait), level_1 the empty state.
+  IOMapSharedCase -update-iomap-case` rewrites it).
+- 2026-11-03 **R, Row flow** (`6aac460`): `Table | Flow` on each plan section of the statement inspector
+  (`views/RowFlow.tsx`, `data/rowflow.ts` with the tree, self numbers and the whole layout, `styles/rowflow.css`; lib
+  only). io_waits.trc stmt 22 (7r10y07tqpg98): CUST 20,000 / est. 20,000 and ORDERS 100,001 / est. 100,000 into HASH JOIN
+  (self 604 ms · pr 5,612 · pw 276), 100,001 / est. 99,364 into SORT AGGREGATE (self 0 ms*, the clamp note), a 1-row
+  thread to the client; stmt 21 (52nzchs09dgn1): a river of 100,001 rows through SORT ORDER BY (self 2.446 s · pr 1,331 ·
+  pw 1,331) over a 2.43 ms scan. Also checked on plan_change (two sections), plan_stat_all (the dump picker), parallel
+  (PX: the slaves' lines "not started", no ghost), nasty_sql (ellipsis at a narrow inspector) and level_1.
+- 2026-11-03 **D, Dialogue** (`2d516ae`): `Binds | Dialogue` on one picked execution in the statement inspector
+  (`views/Dialogue.tsx`, `data/dialogue.ts` with all layout math, `styles/dialogue.css`). Over the Loom's
+  `executions/trace` answer (same query key), no engine change. io_waits: stmt 21 = PARSE, EXEC, FETCH #1 (direct path
+  write temp × 1,331 · 2.38 s, 856 temp reads), loop × 200 of 500 rows (median 173 µs, gap median 1.52 ms), FETCH #202;
+  time to first row 2.45 s of 2.80 s, 202 round trips, gaps 307 ms; stmt 15 loop × 100 of 15 rows, gaps 7.43 ms vs
+  5.21 ms in calls; stmt 13 two executions of two round trips; stmt 17's EXEC lists stmts 18 / 19 with first EXECs
+  483 / 380 µs vs median 28 µs. Also lobs.trc (Others lane: write complete waits), multisession.trc (PL/SQL lock timer,
+  class Idle, inside the call), errors.trc (a `log file sync` between calls, in the gap), plsql_recursive.trc,
+  parallel.trc; in-browser and engine sources. New fixture `web/src/lib/data/testdata/findings-io_waits.json.gz`
+  (TestFindingsDocsCurrent writes it).
+- 2026-11-03 **G + B-ui, the Blocks view** (`b6acde6`): `SessionViewDef.key` is optional (no chord, no hint; the ⌥⌘ steps
+  walk it; digits 0 to 9 unchanged); tab Blocks after Waits (`views/BlockMap.tsx`, `data/blocklayout.ts`, `data/iomap.ts`
+  with `ioMapOf`, the twin of `IOMapOn`, equal on `iomap-case.json`; `DataSource.ioMap` local and remote). Canvas per
+  panel, order axis (time as a toggle), colour by event / object / statement, object ranges as bands, statement / phase
+  brackets, tooltip + pinned popover, brush → window, facts column (re-reads per block), limit 5,000 / 20,000 / 100,000
+  persisted. io_waits: 8,747 marks unsampled, ORDERS 26 ranges / 496 blocks, CUST 45 / 1,204, stmt 22 temp reads 20.3×
+  per block, limit 5,000 "showing 1 in 2 of 8,747". Also `-spill`, `-facts=false`, `-ref` (names), testdata/sets/workload
+  (panels per file, the Files panel scopes them) and level_1 (the empty state).
+- **Where the code differs from the plan** (reasons in DESIGN § Three new views): Dialogue draws no CLOSE (an execution
+  trace is the PARSE, EXEC and FETCHes, as for the Loom), so stmt 21 has 204 turns, not 205, and stmt 15's gaps are
+  7.43 ms, not 7.5 (the 109 µs before the CLOSE); its query key is the Loom's `loom:…`, not `trace:…`. Blocks widens
+  statement runs under 64 px on the order axis (22× on io_waits; on a linear axis the full scans are slivers too), uses its
+  own temp hues `--bm-temp-r` / `--bm-temp-w` (the Loom's pair cannot be told apart at 1 px) and draws panels under 16
+  waits 60 px tall. Row flow's ghost is E-Rows × starts, except below an iterator. gc cr/current block 2-way do not
+  classify as block I/O (no parameter names in V$EVENT_NAME).
+- **Open**:
+  - No fixture has STAT lines without row-source statistics (level_1.trc has them), so Row flow's "table + note" state is
+    only unit-tested; a dbmint fixture (`statistics_level=basic`) would cover it. Likewise parallel.trc's PX slaves did no
+    physical I/O (one block I/O wait in all), so Blocks has shown no PX-slave reads; a fixture with uncached PX scans would.
+  - `control file sequential read` classifies as block I/O; its p1 is a control file number and can share a "file N"
+    panel with a datafile (none in io_waits.trc; the 21c io_waits fixture has a few).
+  - The document's `obj` and `ela` columns are 32-bit: an obj# of 4294967295 (21c fixture) reads 2147483647 in `ioMapOf`,
+    the endpoint keeps int64.
+  - The plan advisor (older code) flags `INDEX UNIQUE SCAN` under `INLIST ITERATOR` in nasty_sql.trc (57b0w2txwjvby) as a
+    1,119× misestimate, multiplying a card that already covers every iteration by the starts; Row flow does not, so the
+    two disagree on that plan.
+  - Desktop top row: with the Blocks tab, a window narrower than about 1,100 px squeezes the session tab's title to a few
+    characters (nothing overlaps); holding ⌘ (the key hints) does the same at 1,440 px.
+  - The verify-mtkprof skill's `drive.mjs` cannot launch Chromium on this machine: the deck-to-pptx Playwright (1.61.1)
+    wants `chromium_headless_shell-1228`, only 1248 is in `~/Library/Caches/ms-playwright`. Runs used a copy with
+    `executablePath` set to the 1248 shell; installing the matching browser or a fallback in the script would fix it.
+  - `site/docs.html` describes the three views; the site is not published (`scripts/publish-site.sh`: ask).
+  - Not built: the mock-up's fetch count on Row flow's client label; plan § 10 (whole-session Dialogue, side-by-side
+    Dialogue in `ExecCompare`, 2-D binning for Blocks, …).
 
 ## One repository, two clients (2026-11-02)
 
