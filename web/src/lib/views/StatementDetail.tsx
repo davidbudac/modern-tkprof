@@ -82,7 +82,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
       )}
       <StatementFindings doc={doc} id={id} narrowed={narrowed} />
       <CallTable stats={stats} />
-      {sourceOf(doc).ready && <Executions doc={doc} id={id} scope={scope} />}
+      {sourceOf(doc).ready && <Executions key={id} doc={doc} id={id} scope={scope} />}
       <Errors doc={doc} id={id} />
     </>
   )
@@ -207,9 +207,11 @@ function Executions({ doc, id, scope }: { doc: TraceDoc; id: ID; scope: Scope })
   const ref = useMemo(() => stmtRef(doc.statements[id]), [doc, id])
   const notes = execNotes(useStore((s) => s.annotations), ref)
   const [noteFor, setNoteFor] = useState<Execution | null>(null)
-  useEffect(() => setNoteFor(null), [id, doc])
+  // another document (the other side of a comparison): drop the open and picked executions; before the `wanted`
+  // effect, so an execution named by a link still opens. Another statement remounts this (key = id), so no render
+  // pairs the new statement with the previous one's execution (its Binds or Dialogue would query that pair).
+  useEffect(() => { setNoteFor(null); setSel(null); setPicked([]) }, [id, doc])
   useEffect(() => { if (wanted) { const e = exs.find((x) => x.cursor === wanted.cursor && x.execNo === wanted.execNo); if (e) setSel(e) } }, [wanted, exs])
-  useEffect(() => setPicked([]), [id, doc])
   if (!page.data) {
     return page.error ? <section className="section"><header><h2>Executions</h2></header><p className="callout">{page.error}</p></section>
       : page.loading ? <section className="section"><header><h2>Executions</h2><span className="hint">loading…</span></header></section> : null
