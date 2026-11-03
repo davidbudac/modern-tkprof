@@ -6,6 +6,15 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Three new views: plan written (2026-11-03)
+
+- `docs/PLAN-VIEWS.md` is the implementation plan for three visualisations picked from the concept study
+  `docs/viz-concepts/` (five concepts mocked on real numbers of `io_waits.trc`; `README.md` there says how to rebuild
+  the page): **Row flow** (Sankey of a plan dump, statement inspector, data already in the document), **Dialogue**
+  (sequence diagram of one execution, statement inspector, over `executions/trace`), **Blocks** (the I/O address space,
+  a new tab over a new `GET /s/{id}/api/io/map` endpoint). Package G first (an optional view chord: digits 0 to 9 are
+  all taken). Order R, D, B-engine, B-ui; status table in the plan's § 9. Nothing implemented yet.
+
 ## One repository, two clients (2026-11-02)
 
 - The desktop app moved in from `davidbudac/mtkprof-desktop` as `desktop/` (squash import of its `main` at `4b622df`;

@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1200">
+<title>Five ways to look at one trace</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb; --page: #f9f9f7;
+  --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,.10);
+  --sans: -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--page); color: var(--ink); }
+body { font-family: var(--sans); -webkit-font-smoothing: antialiased; line-height: 1.45; }
+.page { width: 1120px; margin: 0 auto; padding: 64px 0 120px; }
+code, .mono { font-family: var(--mono); font-size: .92em; }
+h1 { font-size: 36px; line-height: 1.15; font-weight: 650; letter-spacing: -.012em; margin: 0 0 12px; }
+.sub { font-size: 17px; color: var(--ink2); margin: 0 0 28px; max-width: 920px; }
+.sub code { color: var(--ink); }
+.script { background: var(--surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--ring); padding: 18px 22px 16px; }
+.script h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+.script .settings { font-size: 13px; color: var(--ink2); margin-bottom: 12px; }
+.script table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.script td { padding: 4px 10px 4px 0; vertical-align: top; }
+.script td.ph { font-family: var(--mono); color: var(--ink2); white-space: nowrap; width: 150px; }
+.script td.ph span { display: block; font-family: var(--sans); color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.script td.st { font-weight: 600; white-space: nowrap; width: 64px; font-variant-numeric: tabular-nums; }
+.script td.sql { font-family: var(--mono); font-size: 12px; color: var(--ink); }
+.script td.note { color: var(--ink2); width: 300px; }
+.script tr.first td { border-top: 1px solid var(--grid); padding-top: 8px; }
+.script tr.first:first-child td { border-top: 0; }
+.script td.sql.child { padding-left: 22px; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 28px; margin-top: 14px; font-size: 13px; color: var(--ink2); }
+.facts b { color: var(--ink); font-weight: 600; }
+section { margin-top: 80px; }
+section h2 { font-size: 24px; font-weight: 650; letter-spacing: -.005em; margin: 0 0 6px; }
+section h2 .n { color: var(--muted); font-weight: 500; margin-right: 10px; font-variant-numeric: tabular-nums; }
+.question { font-size: 15.5px; color: var(--ink2); margin: 0 0 18px; }
+.question b { color: var(--ink); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 12.5px; color: var(--ink2); margin: 0 0 10px; align-items: center; }
+.legend .k { display: inline-flex; align-items: center; gap: 6px; }
+.legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.legend .ln { width: 18px; height: 0; border-top: 2px solid var(--ink2); flex: none; }
+.legend .ln.dash { border-top-style: dashed; border-top-width: 1.5px; }
+.legend .ttl { color: var(--ink); font-weight: 600; }
+figure.card { margin: 0; background: var(--surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--ring); padding: 14px 0 10px; overflow: hidden; }
+figure.card svg { display: block; font-family: var(--sans); overflow: visible; }
+.readings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 26px; margin-top: 18px; font-size: 13.5px; color: var(--ink2); }
+.readings.three { grid-template-columns: repeat(3, 1fr); }
+.readings p { margin: 0; }
+.readings b { color: var(--ink); font-weight: 600; }
+.figure-note { font-size: 12.5px; color: var(--ink2); margin: 10px 0 0; max-width: 1000px; }
+.figure-note b { color: var(--ink); font-weight: 600; }
+/* svg text */
+.t { font-size: 12px; fill: var(--ink2); }
+.tb { font-weight: 600; fill: var(--ink); }
+.tm { fill: var(--muted); }
+.tn { font-variant-numeric: tabular-nums; }
+.tmono { font-family: var(--mono); }
+.halo { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+/* dotplot layout */
+.dot-wrap { display: flex; }
+.dot-plot { position: relative; width: 752px; height: 768px; flex: none; }
+.dot-plot canvas { position: absolute; left: 70px; top: 70px; }
+.dot-plot svg { position: absolute; left: 0; top: 0; }
+.dot-side { flex: 1; padding: 4px 22px 0 0; }
+.dot-side h4 { font-size: 13.5px; margin: 0 0 2px; font-weight: 600; }
+.dot-side .hint { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+table.motifs { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+table.motifs th { text-align: left; font-weight: 600; color: var(--ink2); border-bottom: 1px solid var(--axis); padding: 4px 6px 4px 0; font-size: 12px; }
+table.motifs td { border-bottom: 1px solid var(--grid); padding: 5px 6px 5px 0; vertical-align: top; }
+table.motifs td.r, table.motifs th.r { text-align: right; }
+table.motifs .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+table.motifs .body { font-family: var(--mono); font-size: 11.5px; }
+table.motifs .sub { color: var(--muted); font-size: 11.5px; }
+.tip { position: fixed; z-index: 10; pointer-events: none; background: #fff; color: var(--ink); font-size: 12px; line-height: 1.4;
+  box-shadow: 0 0 0 1px var(--ring), 0 6px 20px rgba(11,11,11,.10); border-radius: 6px; padding: 7px 9px; display: none; max-width: 320px; font-variant-numeric: tabular-nums; }
+.tip b { font-weight: 600; }
+footer { margin-top: 72px; font-size: 12.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="page">
+<header id="hdr"></header>
+
+<section id="s1">
+  <h2><span class="n">1</span>Block map: the I/O address space</h2>
+  <p class="question"><b>Question it answers:</b> which blocks did each statement touch, in what order, and how often did it come back for the same ones?</p>
+  <div class="legend" id="lg1"></div>
+  <figure class="card"><svg id="f1"></svg></figure>
+  <p class="figure-note" id="n1"></p>
+  <div class="readings three" id="r1"></div>
+</section>
+
+<section id="s2">
+  <h2><span class="n">2</span>Row-flow Sankey of the plan</h2>
+  <p class="question"><b>Question it answers:</b> where in the plan do rows multiply or collapse, and which row source holds the time?</p>
+  <div class="legend" id="lg2"></div>
+  <figure class="card"><svg id="f2"></svg></figure>
+  <div class="readings three" id="r2"></div>
+</section>
+
+<section id="s3">
+  <h2><span class="n">3</span>Dotplot of the call sequence: the loop finder</h2>
+  <p class="question"><b>Question it answers:</b> which calls repeat, how many times, and where are the loops?</p>
+  <div class="legend" id="lg3"></div>
+  <figure class="card"><div class="dot-wrap"><div class="dot-plot"><canvas id="dotc"></canvas><svg id="f3"></svg></div><div class="dot-side" id="dotside"></div></div></figure>
+  <div class="readings three" id="r3"></div>
+</section>
+
+<section id="s4">
+  <h2><span class="n">4</span>The trace as a sequence diagram</h2>
+  <p class="question"><b>Question it answers:</b> how does the conversation between client, server and TEMP unfold, and on which side does the waiting sit?</p>
+  <div class="legend" id="lg4"></div>
+  <figure class="card"><svg id="f4"></svg></figure>
+  <div class="readings three" id="r4"></div>
+</section>
+
+<section id="s5">
+  <h2><span class="n">5</span>Statement fingerprint wall</h2>
+  <p class="question"><b>Question it answers:</b> which statements have the same kind of problem, whatever their size?</p>
+  <div class="legend" id="lg5"></div>
+  <figure class="card"><svg id="f5"></svg></figure>
+  <div class="readings" id="r5"></div>
+</section>
+
+<footer id="foot"></footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+</script>
+<script>
+"use strict";
+const D = DATA;
+// ---------- palette (dataviz reference palette, light) ----------
+const C = {
+  ink: "#0b0b0b", ink2: "#52514e", muted: "#898781", grid: "#e1e0d9", axis: "#c3c2b7", surface: "#fcfcfb", page: "#f9f9f7",
+  // wait classes (sections 4, 5)
+  cpu: "#008300", io: "#2a78d6", net: "#eda100", app: "#e34948", other: "#e87ba4", idle: "#6250d6",
+  // I/O kinds (sections 1, 4)
+  tw: "#eb6834", tr: "#1baf7a", orders: "#2a78d6", cust: "#008300", seqread: "#e34948",
+  // statements that repeat (section 3); everything else grey
+  stmt: { 21: "#2a78d6", 18: "#008300", 19: "#6250d6", 15: "#e87ba4", 13: "#eda100", 7: "#e34948", 8: "#e34948" },
+  stmtOther: "#898781",
+  // sequential ramp, blue steps 150 / 250 / 400 / 550 / 700
+  seq: ["#b7d3f6", "#86b6ef", "#3987e5", "#1c5cab", "#0d366b"],
+};
+const SPAN_US = D.meta.span_ms * 1000;
+const FP = id => D.fingerprints.find(f => f.id === id);
+const ST = id => D.statements[String(id)];
+
+// ---------- formatting ----------
+const fmt = n => Math.round(n).toLocaleString("en-US");
+const fx = (n, d = 1) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+function dur(us) {
+  if (us >= 1e6) return fx(us / 1e6, 2) + " s";
+  if (us >= 1e5) return fmt(us / 1e3) + " ms";
+  if (us >= 1e3) return fx(us / 1e3, 1) + " ms";
+  return fmt(us) + " µs";
+}
+const pct = (x, d = 1) => fx(x * 100, d) + " %";
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const r1 = v => Math.round(v * 10) / 10;
+
+// ---------- svg helpers ----------
+const mctx = document.createElement("canvas").getContext("2d");
+function tw(s, size = 12, weight = 400) { mctx.font = `${weight} ${size}px -apple-system, "Segoe UI", Inter, Roboto, sans-serif`; return mctx.measureText(s).width; }
+function wrap(s, maxW, size = 12, weight = 400) {
+  const words = s.split(" "); const lines = []; let cur = "";
+  for (const w of words) { const t = cur ? cur + " " + w : w; if (tw(t, size, weight) > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+  if (cur) lines.push(cur); return lines;
+}
+function T(x, y, s, o = {}) {
+  const cls = ["t"]; if (o.b) cls.push("tb"); if (o.m) cls.push("tm"); if (o.halo) cls.push("halo"); if (o.n) cls.push("tn"); if (o.mono) cls.push("tmono");
+  let a = `x="${r1(x)}" y="${r1(y)}" class="${cls.join(" ")}"`;
+  if (o.anchor) a += ` text-anchor="${o.anchor}"`;
+  const st = [];
+  if (o.size) st.push(`font-size:${o.size}px`);
+  if (o.fill) st.push(`fill:${o.fill}`);
+  if (o.weight) st.push(`font-weight:${o.weight}`);
+  if (st.length) a += ` style="${st.join(";")}"`;
+  if (o.rot) a += ` transform="rotate(${o.rot} ${r1(x)} ${r1(y)})"`;
+  if (o.base) a += ` dominant-baseline="${o.base}"`;
+  return `<text ${a}>${o.raw ? s : esc(s)}</text>`;
+}
+// block of lines; first line bold if o.head
+function TB(x, y, lines, o = {}) {
+  const lh = o.lh || 15; let out = "";
+  lines.forEach((ln, i) => { out += T(x, y + i * lh, ln, { ...o, b: o.head && i === 0, halo: o.halo !== false }); });
+  return out;
+}
+// callout: bold head + wrapped body
+function callout(x, y, head, body, w, o = {}) {
+  const size = o.size || 12;
+  const hl = wrap(head, w, size, 600), bl = wrap(body, w, size);
+  let out = "", yy = y;
+  for (const l of hl) { out += T(x, yy, l, { b: true, halo: true, anchor: o.anchor, size }); yy += size + 3; }
+  for (const l of bl) { out += T(x, yy, l, { halo: true, anchor: o.anchor, size }); yy += size + 3; }
+  return { svg: out, h: yy - y, bottom: yy - size - 3 };
+}
+const L = (x1, y1, x2, y2, stroke = C.ink2, w = 1, extra = "") => `<line x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}" stroke="${stroke}" stroke-width="${w}" ${extra}/>`;
+const R = (x, y, w, h, fill, extra = "") => `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(Math.max(0, w))}" height="${r1(Math.max(0, h))}" fill="${fill}" ${extra}/>`;
+function leader(x1, y1, x2, y2, o = {}) {
+  const pts = o.elbow ? `${r1(x1)},${r1(y1)} ${r1(o.elbow === "h" ? x2 : x1)},${r1(o.elbow === "h" ? y1 : y2)} ${r1(x2)},${r1(y2)}` : `${r1(x1)},${r1(y1)} ${r1(x2)},${r1(y2)}`;
+  return `<polyline points="${pts}" fill="none" stroke="${C.ink2}" stroke-width="1"/>` + `<circle cx="${r1(x2)}" cy="${r1(y2)}" r="2.5" fill="${C.ink2}"/>`;
+}
+function arrowHead(x, y, dir, col, size = 7) { // dir: 1 = pointing right, -1 = left
+  return `<path d="M${r1(x)},${r1(y)} l${-dir * size},${-size * 0.55} l0,${size * 1.1} z" fill="${col}"/>`;
+}
+function legendHTML(items) {
+  return items.map(it => {
+    if (it.title) return `<span class="ttl">${esc(it.title)}</span>`;
+    const mark = it.line ? `<span class="ln${it.dash ? " dash" : ""}" style="border-top-color:${it.color}"></span>`
+      : `<span class="sw" style="background:${it.color};${it.alpha ? `opacity:${it.alpha}` : ""}${it.outline ? `;background:none;box-shadow:inset 0 0 0 1.5px ${it.outline}` : ""}"></span>`;
+    return `<span class="k">${mark}${it.html || esc(it.label)}</span>`;
+  }).join("");
+}
+const $ = id => document.getElementById(id);
+const tip = $("tip");
+function showTip(ev, html) { tip.innerHTML = html; tip.style.display = "block"; const x = Math.min(ev.clientX + 14, window.innerWidth - 330); tip.style.left = x + "px"; tip.style.top = (ev.clientY + 14) + "px"; }
+function hideTip() { tip.style.display = "none"; }
+
+// ---------- header ----------
+function header() {
+  const ph = a => D.phases.find(p => p.action === a);
+  const sqlOf = id => esc(ST(id).text.replace(/\s+/g, " ").trim());
+  const ob = name => D.blockmap.objects.find(o => o.name === name);
+  const blocks = o => o.extents.reduce((a, e) => a + e[1], 0);
+  const ord = ob("MTK_ORDERS"), cus = ob("MTK_CUST");
+  const rowsOrders = D.sankey["21"].find(n => n.object_name === "MTK_ORDERS").rows;
+  const rowsCust = D.sankey["22"].find(n => n.object_name === "MTK_CUST").rows;
+  const f6 = FP(6), f9 = FP(9), f13 = FP(13), f15 = FP(15), f18 = FP(18), f19 = FP(19), f21 = FP(21);
+  const at = a => `from ${dur(ph(a).t_ms * 1000)}`;
+  const rows = [
+    ["full_scan", at("full_scan"), 6, sqlOf(6), "direct path read, 496 blocks"],
+    ["", "", 9, sqlOf(9), "direct path read, 1,204 blocks"],
+    ["", "", 10, sqlOf(10), "direct path read, 496 blocks"],
+    ["", "", "7, 8", "select /* QOSD */ … from exp_head$ eh where exp_id = :1 · insert /* QOSD */ into exp_head$ …", `recursive (depth 1), ${FP(7).execs} × each`],
+    ["index_range", at("index_range"), 13, sqlOf(13), `${f13.execs} execs (:cid = 17, then 4242), ${f13.rows} rows`],
+    ["", "", 15, sqlOf(15), `${fmt(f15.rows)} rows, 15 per fetch: ${f15.fetches} fetches`],
+    ["single_row", at("single_row"), 17, "PL/SQL block: for i in 1 .. 300 loop … end loop, twice", "parent of 18 and 19"],
+    ["", "", 18, sqlOf(18), `${f18.execs} executions, all buffer cache hits`, true],
+    ["", "", 19, sqlOf(19), `${f19.execs} executions, all buffer cache hits`, true],
+    ["sort_spill", at("sort_spill"), 21, sqlOf(21), `arraysize 500: ${fmt(f21.rows)} rows, ${f21.fetches} fetches`],
+    ["", "", 22, sqlOf(22), "hash join, 1 row"],
+  ];
+  let tr = "";
+  rows.forEach(r => {
+    tr += `<tr class="${r[0] ? "first" : ""}"><td class="ph">${r[0]}${r[1] ? `<span>${r[1]}</span>` : ""}</td><td class="st">${typeof r[2] === "number" ? "stmt " + r[2] : "stmts " + r[2]}</td><td class="sql${r[5] ? " child" : ""}">${r[3]}</td><td class="note">${r[4]}</td></tr>`;
+  });
+  const ko6 = f6.app_us, ko9 = f9.app_us;
+  $("hdr").innerHTML = `
+  <h1>Five ways to look at one trace</h1>
+  <p class="sub">All five figures are drawn from one real trace, <code>${esc(D.meta.trace)}</code>: Oracle 19c, event 10046 level 12, ${dur(SPAN_US)} wall clock.
+  A test script that makes the database work four different ways: direct-path full scans, index range scans fetched 15 rows at a time, a row-by-row PL/SQL loop, and a sort and a hash join that spill to TEMP.</p>
+  <div class="script">
+    <h3>The script</h3>
+    <div class="settings">Session settings: <code>_serial_direct_read = always</code> · <code>workarea_size_policy = manual</code> · <code>sort_area_size = 65536</code> (64 KB) · <code>hash_area_size = 131072</code> (128 KB). Statement numbers are the ones the figures use.</div>
+    <table>${tr}</table>
+    <div class="facts">
+      <div><b>MTK_ORDERS</b> (obj ${ord.obj}): ${fmt(rowsOrders)} rows, ${ord.extents.length} extents, ${fmt(blocks(ord))} blocks · <b>MTK_CUST</b> (obj ${cus.obj}): ${fmt(rowsCust)} rows, ${cus.extents.length} extents, ${fmt(blocks(cus))} blocks. Both in datafile 12, their extents interleaved. TEMP is tempfile 203.</div>
+      <div><b>The price of serial direct reads:</b> the first direct-path scan of each table waited on <code>enq: KO - fast object checkpoint</code>, ${dur(ko6)} in stmt 6 and ${dur(ko9)} in stmt 9: ${pct((ko6 + ko9) / SPAN_US, 0)} of the trace. Later direct-path scans of the same tables waited ${dur(Math.max(FP(10).app_us, FP(21).app_us, FP(22).app_us))} at most (stmt 22).</div>
+    </div>
+  </div>`;
+}
+
+// =====================================================================
+// 1. Block map
+// =====================================================================
+function fig1() {
+  const B = D.blockmap, P = B.points, N = P.length;
+  const sortStart = D.phases.find(p => p.action === "sort_spill").t_ms;
+  const NA = P.findIndex(p => p[0] >= sortStart);
+  const W = 1120, X0 = 104, X1 = 1100, wA = 236, gap = 44;
+  const wB = X1 - X0 - wA - gap, kA = wA / NA, kB = wB / (N - NA);
+  const xB0 = X0 + wA + gap;
+  const xo = i => i < NA ? X0 + (i + 0.5) * kA : xB0 + (i - NA + 0.5) * kB;
+  const stretch = kA / kB;
+  const file = f => B.files.find(x => x.file === f);
+  const fA = file(12), fB = file(203), fC = file(10);
+  const pA = { top: 118, h: 380, lo: fA.lo - 20, hi: fA.hi + 20 };
+  const pB = { top: pA.top + pA.h + 40, h: 200, lo: fB.lo - 5, hi: fB.hi + 5 };
+  const pC = { top: pB.top + pB.h + 40, h: 26, lo: fC.lo - 800, hi: fC.hi + 800 };
+  const yOf = (p, b) => p.top + p.h - (b - p.lo) / (p.hi - p.lo) * p.h;
+  const ppb = p => p.h / (p.hi - p.lo);
+  const objCol = { 108611: C.orders, 108609: C.cust };
+  const col = p => p[1] === 0 ? (objCol[p[7]] || C.muted) : p[1] === 1 ? C.seqread : p[1] === 2 ? C.tw : C.tr;
+  const panelOf = f => f === 12 ? pA : f === 203 ? pB : pC;
+  let s = "";
+  const H = pC.top + pC.h + 64;
+
+  // break column
+  s += R(X0 + wA + 6, pA.top - 6, gap - 12, pC.top + pC.h - pA.top + 12, "#f0efec", `rx="3"`);
+  // panel frames: gridlines + titles
+  const panels = [
+    [pA, `datafile 12 (USERS): MTK_ORDERS and MTK_CUST · y = block number`, 1000],
+    [pB, `tempfile 203 (TEMP) · y = block number`, 200],
+    [pC, `datafile 10: exp_head$ (SYS)`, 0],
+  ];
+  for (const [p, title, step] of panels) {
+    s += T(X0, p.top - 10, title, { b: true, size: 12.5 });
+    if (step) {
+      const first = Math.ceil(p.lo / step) * step;
+      for (let b = first; b <= p.hi; b += step) {
+        const y = yOf(p, b);
+        s += L(X0, y, X0 + wA, y, C.grid) + L(xB0, y, X1, y, C.grid);
+        s += T(X0 - 18, y + 4, fmt(b), { anchor: "end", n: true, m: true, size: 11 });
+      }
+    }
+    s += L(X0, p.top + p.h, X0 + wA, p.top + p.h, C.axis) + L(xB0, p.top + p.h, X1, p.top + p.h, C.axis);
+  }
+  // extent bands (faint) + extent ruler (solid) in panel A
+  for (const o of B.objects) {
+    const c = objCol[o.obj];
+    for (const [b0, n] of o.extents) {
+      const y0 = yOf(pA, b0 + n), h = Math.max(1, n * ppb(pA));
+      s += R(X0, y0, wA, h, c, `opacity="0.12"`) + R(xB0, y0, wB, h, c, `opacity="0.12"`);
+      s += R(X0 - 12, y0, 7, h, c, `opacity="0.9"`);
+    }
+  }
+  s += T(X0 - 8.5, pA.top + pA.h + 14, "extents", { anchor: "middle", size: 10, m: true });
+  // marks
+  let marks = "";
+  P.forEach((p, i) => {
+    const pn = panelOf(p[2]);
+    const x = xo(i), w = i < NA ? 2 : 1.3;
+    let h = p[4] * ppb(pn), y = yOf(pn, p[3] + p[4]);
+    if (pn === pC) { h = 8; y = yOf(pn, p[3]) - 4; }
+    if (h < 1.2) { y -= (1.2 - h) / 2; h = 1.2; }
+    marks += R(x - w / 2, y, w, h, col(p));
+  });
+  s += `<g shape-rendering="crispEdges">${marks}</g>`;
+  // gap note (vertical)
+  s += T(X0 + wA + gap / 2 + 4, pA.top + 6, "index_range, single_row", { anchor: "end", rot: -90, m: true, size: 11.5 });
+  s += T(X0 + wA + gap / 2 + 4, pB.top + pB.h / 2, "no physical I/O: all cache hits", { anchor: "middle", rot: -90, m: true, size: 11.5 });
+
+  // statement brackets
+  const byStmt = {};
+  P.forEach((p, i) => { if (p[5] === 7) return; (byStmt[p[5]] = byStmt[p[5]] || []).push(i); });
+  const ps = B.per_statement;
+  const word = { "direct path read": "reads", "direct path write temp": "temp writes", "direct path read temp": "temp reads" };
+  const short = { 21: "ORDER BY, sort spill", 22: "hash join, hash spill" };
+  s += T(X0, 14, "full_scan", { mono: true, size: 11.5, fill: C.ink2 });
+  s += T(xB0, 14, "sort_spill", { mono: true, size: 11.5, fill: C.ink2 });
+  for (const [st, idx] of Object.entries(byStmt)) {
+    const a = xo(idx[0]) - 1.5, b = xo(idx[idx.length - 1]) + 1.5;
+    s += `<path d="M${r1(a)},34 L${r1(a)},26 L${r1(b)},26 L${r1(b)},34" fill="none" stroke="${C.ink2}" stroke-width="1"/>`;
+    const parts = Object.entries(ps[st]).map(([e, n]) => `${fmt(n)} ${word[e] || e}`);
+    const head = short[st] ? `stmt ${st} · ${short[st]}` : `stmt ${st}`;
+    const lines = [];
+    let cur = "";
+    for (const pt of parts) { const t = cur ? cur + " · " + pt : pt; if (tw(t, 11.5) > b - a + 4 && cur) { lines.push(cur); cur = pt; } else cur = t; }
+    lines.push(cur);
+    s += T(a, 50, head, { b: true, size: 12 });
+    lines.forEach((ln, k) => s += T(a, 65 + k * 14, ln, { size: 11.5, n: true }));
+  }
+  // x axis
+  const ya = pC.top + pC.h + 10;
+  s += L(X0, ya, X0 + wA, ya, C.axis) + L(xB0, ya, X1, ya, C.axis);
+  // break marks on the axis
+  for (const bx of [X0 + wA + 3, xB0 - 3]) s += L(bx - 3, ya + 5, bx + 3, ya - 5, C.ink2, 1.2);
+  const ticksA = [0, 25, 50, 75], ticksB = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000];
+  for (const t of ticksA) { const x = X0 + t * kA; s += L(x, ya, x, ya + 4, C.axis) + T(x, ya + 17, fmt(t), { anchor: "middle", m: true, n: true, size: 11 }); }
+  for (const t of ticksB) { const x = xB0 + (t - NA) * kB; s += L(x, ya, x, ya + 4, C.axis) + T(x, ya + 17, fmt(t), { anchor: "middle", m: true, n: true, size: 11 }); }
+  s += T(X0, ya + 40, `I/O order: n-th physical I/O wait of ${fmt(N)}. Left part (${NA} waits before sort_spill) stretched ${Math.round(stretch)}× so the full scans stay visible; right part linear.`, { size: 11.5 });
+
+  // ----- callouts -----
+  const ORD = 108611, CUS = 108609;
+  const ordLow = Math.min(...B.objects.find(o => o.obj === ORD).extents.map(e => e[0]));
+  // ORDERS read four times
+  const sweeps = [6, 10, 21, 22].map(st => {
+    const ii = []; P.forEach((p, i) => { if (p[5] === st && p[1] === 0 && p[7] === ORD) ii.push(i); });
+    const lowest = ii.reduce((m, i) => P[i][3] < P[m][3] ? i : m, ii[0]);
+    return { st, x: xo(lowest), n: ii.length, blocks: ii.reduce((a, i) => a + P[i][4], 0) };
+  });
+  const ordBlocks = sweeps[0].blocks;
+  const cx1 = 560, cy1 = yOf(pA, 169000);
+  const c1 = callout(cx1, cy1, `ORDERS read four times (stmts ${sweeps.map(w => w.st).join(", ")})`,
+    `direct path reads bypass the buffer cache, so each scan reads all ${fmt(ordBlocks)} blocks from disk again (${sweeps.map(w => w.n).join(" + ")} reads)`, 300);
+  s += c1.svg;
+  sweeps.forEach((w, k) => { s += w.x < cx1 ? leader(cx1 - 6, cy1 - 8 + k * 3, w.x, yOf(pA, ordLow) + 3) : leader(Math.min(w.x, cx1 + 280), cy1 - 16, w.x, yOf(pA, ordLow) + 3); });
+  // interleave
+  const cx2 = 830, cy2 = yOf(pA, 169560);
+  const ordEx = B.objects.find(o => o.obj === ORD).extents.slice().sort((a, b) => a[0] - b[0]);
+  const c2 = callout(cx2, cy2, "CUST extents interleave with ORDERS extents",
+    `ORDERS' first extents (${fmt(ordEx[0][0])}, ${fmt(ordEx[1][0])}) sit between CUST's; the faint bands and the ruler at the left show every extent`, 250);
+  s += c2.svg + leader(cx2 - 6, cy2 - 4, cx2 - 30, yOf(pA, ordEx[0][0] + 10));
+  // direct labels for the objects
+  const objLabel = (o, b, txt) => { const y = yOf(pA, b); const w = tw(txt, 12, 600); return R(X1 - w - 18, y - 6, 10, 10, objCol[o], `rx="2"`) + T(X1 - 4, y + 3.5, txt, { anchor: "end", b: true, halo: true }); };
+  const bk = o => o.extents.reduce((a, e) => a + e[1], 0);
+  const oO = B.objects.find(o => o.obj === ORD), oC = B.objects.find(o => o.obj === CUS);
+  s += objLabel(ORD, 171640, `MTK_ORDERS · ${oO.extents.length} extents · ${fmt(bk(oO))} blocks`);
+  s += objLabel(CUS, 170560, `MTK_CUST · ${oC.extents.length} extents · ${fmt(bk(oC))} blocks`);
+
+  // temp panel callouts
+  const pts = (st, ev) => P.map((p, i) => [p, i]).filter(([p]) => p[5] === st && p[1] === ev);
+  const w21 = pts(21, 2), r21 = pts(21, 3), w22 = pts(22, 2), r22 = pts(22, 3);
+  const distinct = a => new Set(a.map(([p]) => p[3])).size;
+  const sumEla = a => a.reduce((s, [p]) => s + p[6], 0);
+  const wpb = {}; w21.forEach(([p]) => wpb[p[3]] = (wpb[p[3]] || 0) + 1);
+  const twice = Object.values(wpb).filter(v => v >= 2).length;
+  const rpb = {}; r22.forEach(([p]) => rpb[p[3]] = (rpb[p[3]] || 0) + 1);
+  const rv = Object.values(rpb).sort((a, b) => a - b);
+  const modeLo = rv[Math.floor(rv.length * 0.25)], modeHi = rv[rv.length - 1];
+  const tTop = yOf(pB, fB.hi);
+  const c3x = 646, c3 = callout(c3x, pB.top + 16, `Sort spill, stmt 21: ${fmt(w21.length)} writes, ${fmt(r21.length)} reads`,
+    `every block written is read back once. Only ${distinct(w21)} distinct blocks: ${twice} are reused, i.e. initial runs then a merge pass. Writes cost ${fx(sumEla(w21) / w21.length / 1000, 2)} ms each (${dur(sumEla(w21))}).`, 225);
+  s += c3.svg + leader(c3x - 6, pB.top + 12, xo(r21[r21.length - 1][1]) + 2, yOf(pB, 756650));
+  const c4x = 884, c4 = callout(c4x, pB.top + 16, `Hash spill, stmt 22: ${fmt(w22.length)} blocks written, read ${fmt(r22.length)} times`,
+    `${fx(r22.length / w22.length, 1)} passes on average (most blocks ${modeLo}–${modeHi}×): a multipass hash join in a 128 KB hash area. All ${fmt(r22.length)} reads took ${dur(sumEla(r22))}.`, 216);
+  s += c4.svg + leader(c4x + 60, c4.bottom + 6, xo(r22[Math.floor(r22.length * 0.55)][1]), yOf(pB, fB.lo + w22.length) - 2);
+  // KO note in the empty part of the temp panel
+  const scanReads = P.filter((p, i) => i < NA && p[1] === 0);
+  const ko = FP(6).app_us + FP(9).app_us;
+  const c5 = callout(X0 + 10, pB.top + 22, `Not on this axis: ${dur(ko)} of enq: KO`,
+    `stmts 6 and 9 waited ${dur(FP(6).app_us)} and ${dur(FP(9).app_us)} for a fast object checkpoint before their first direct read. The ${scanReads.length} scan reads themselves took ${dur(scanReads.reduce((a, p) => a + p[6], 0))}.`, 212);
+  s += c5.svg;
+  // file 10 label
+  const sq = P.map((p, i) => [p, i]).filter(([p]) => p[1] === 1);
+  s += T(xo(sq[sq.length - 1][1]) + 12, pC.top + pC.h / 2 + 4, `db file sequential read × ${sq.length}: exp_head$ blocks read by stmt 7 (recursive QOSD lookup)`, { size: 11.5 });
+
+  const svg = $("f1"); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+  // hover: nearest wait by order
+  svg.addEventListener("mousemove", ev => {
+    const r = svg.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+    if (y < pA.top || y > pC.top + pC.h || x < X0 || x > X1) return hideTip();
+    let i = x < X0 + wA ? Math.floor((x - X0) / kA) : x >= xB0 ? Math.floor((x - xB0) / kB) + NA : -1;
+    if (i < 0 || i >= N) return hideTip();
+    const p = P[i];
+    showTip(ev, `<b>wait #${fmt(i)}</b> · stmt ${p[5]}<br>${esc(B.events[p[1]])}<br>file ${p[2]}, block ${fmt(p[3])}${p[4] > 1 ? `–${fmt(p[3] + p[4] - 1)} (${p[4]} blocks)` : ""}<br>${esc(B.object_names[p[7]] || "")} · ela ${dur(p[6])} · t = ${fx(p[0], 1)} ms`);
+  });
+  svg.addEventListener("mouseleave", hideTip);
+
+  $("lg1").innerHTML = legendHTML([
+    { color: C.orders, label: "direct path read · MTK_ORDERS" },
+    { color: C.cust, label: "direct path read · MTK_CUST" },
+    { color: C.tw, label: "direct path write temp" },
+    { color: C.tr, label: "direct path read temp" },
+    { color: C.seqread, label: "db file sequential read" },
+    { color: C.orders, alpha: 0.2, label: "" , html: "faint bands and left ruler: extents of MTK_ORDERS" },
+    { color: C.cust, alpha: 0.2, label: "", html: "and of MTK_CUST" },
+  ]);
+  $("n1").innerHTML = `<b>Why order, not time:</b> each mark is one wait at (its position among the ${fmt(N)} waits, its first block), as tall as the blocks it moved. On a time axis the ${scanReads.length} full-scan reads (${dur(scanReads.reduce((a, p) => a + p[6], 0))} of wait time) would be slivers next to the ${dur(ko)} of checkpoint waits that precede them. The product would offer time as a second x mode.`;
+  const all = N, temp = P.filter(p => p[2] === 203).length;
+  $("r1").innerHTML = `
+    <p><b>One table, four full reads.</b> MTK_ORDERS is scanned by stmts 6, 10, 21 and 22, ${fmt(ordBlocks)} blocks each time, ${fmt(4 * ordBlocks)} blocks in all: with serial direct reads nothing stays in the buffer cache for the next statement.</p>
+    <p><b>TEMP is ${pct(temp / all, 0)} of the waits.</b> ${fmt(temp)} of ${fmt(all)} I/O waits hit tempfile 203. The cost is in the writes (${dur(sumEla(w21) + sumEla(w22))} for ${fmt(w21.length + w22.length)}), not the reads (${dur(sumEla(r21) + sumEla(r22))} for ${fmt(r21.length + r22.length)}, served from the OS cache).</p>
+    <p><b>The sawtooth is the multipass join.</b> The hash join re-reads its ${fmt(w22.length)} spilled blocks ${fx(r22.length / w22.length, 1)} times on average; the sort reads each of its writes once. Same symptom in a tkprof report (direct path read temp), different shape here.</p>`;
+}
+
+// =====================================================================
+// 2. Row-flow Sankey
+// =====================================================================
+function fig2() {
+  const W = 1120, k = 180 / 100001, BW = 16;
+  const colX = [258, 528, 798, 1022];
+  const bin = us => us < 1e3 ? 0 : us < 1e4 ? 1 : us < 1e5 ? 2 : us < 1e6 ? 3 : 4;
+  let s = "";
+  function band(x1, a1, b1, x2, a2, b2, fill, extra = "") {
+    const xm = (x1 + x2) / 2;
+    return `<path d="M${r1(x1)},${r1(a1)} C${r1(xm)},${r1(a1)} ${r1(xm)},${r1(a2)} ${r1(x2)},${r1(a2)} L${r1(x2)},${r1(b2)} C${r1(xm)},${r1(b2)} ${r1(xm)},${r1(b1)} ${r1(x1)},${r1(b1)} Z" fill="${fill}" ${extra}/>`;
+  }
+  const thick = rows => Math.max(1.5, rows * k);
+  function diagram(stmtId, cy, title, sub) {
+    const nodes = D.sankey[String(stmtId)].map(n => ({ ...n }));
+    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+    nodes.forEach(n => n.kids = nodes.filter(c => c.parent_id === n.id));
+    nodes.forEach(n => {
+      n.self = n.time_us - n.kids.reduce((a, c) => a + c.time_us, 0);
+      n.selfNeg = n.self < 0; n.self = Math.max(0, n.self);
+      n.inRows = n.kids.reduce((a, c) => a + c.rows, 0);
+      n.h = Math.max(thick(n.rows), n.inRows * k, 2);
+      n.col = 2 - n.depth;
+      n.x = colX[n.col];
+      n.prOwn = n.pr - n.kids.reduce((a, c) => a + c.pr, 0);
+      n.pwOwn = n.pw - n.kids.reduce((a, c) => a + c.pw, 0);
+    });
+    const root = nodes.find(n => n.parent_id === 0);
+    const GAP = 26;
+    (function place(n, c) {
+      n.y = c - n.h / 2;
+      if (!n.kids.length) return;
+      const tot = n.kids.reduce((a, ch) => a + ch.h, 0) + GAP * (n.kids.length - 1);
+      let y = c - tot / 2;
+      for (const ch of n.kids) { place(ch, y + ch.h / 2); y += ch.h + GAP; }
+    })(root, cy);
+    let g = "";
+    // bands child -> parent
+    for (const n of nodes) {
+      if (!n.kids.length) continue;
+      let y = n.y + (n.h - n.inRows * k) / 2;
+      for (const ch of n.kids) {
+        const t = thick(ch.rows), cyc = ch.y + ch.h / 2;
+        const a1 = cyc - t / 2, b1 = cyc + t / 2, a2 = y, b2 = y + t;
+        g += band(ch.x + BW, a1, b1, n.x, a2, b2, C.ink2, `opacity="0.16"`);
+        if (ch.card > 0) {
+          const te = Math.max(1.5, ch.card * k), m1 = (a1 + b1) / 2, m2 = (a2 + b2) / 2;
+          g += band(ch.x + BW, m1 - te / 2, m1 + te / 2, n.x, m2 - te / 2, m2 + te / 2, "none", `stroke="${C.ink2}" stroke-width="1" stroke-dasharray="4 3"`);
+        }
+        ch.bandMid = [(ch.x + BW + n.x) / 2, (a1 + b1 + a2 + b2) / 4, t];
+        y += t;
+      }
+    }
+    // root -> client
+    const rc = root.y + root.h / 2, rt = thick(root.rows);
+    const clientH = Math.max(rt, 5), clientX = colX[3];
+    g += band(root.x + BW, rc - rt / 2, rc + rt / 2, clientX, rc - rt / 2, rc + rt / 2, C.ink2, `opacity="${root.rows < 10 ? 0.55 : 0.16}"`);
+    if (root.card > 0) g += band(root.x + BW, rc - root.card * k / 2, rc + root.card * k / 2, clientX, rc - root.card * k / 2, rc + root.card * k / 2, "none", `stroke="${C.ink2}" stroke-width="1" stroke-dasharray="4 3"`);
+    root.bandMid = [(root.x + BW + clientX) / 2, rc, rt];
+    g += R(clientX, rc - clientH / 2, BW, clientH, C.ink2, `rx="2"`);
+    // nodes
+    for (const n of nodes) g += R(n.x, n.y, BW, n.h, C.seq[bin(n.self)], `rx="2"`);
+    // band labels
+    for (const n of nodes) {
+      if (!n.bandMid) continue;
+      const [mx, my, t] = n.bandMid;
+      const est = n.card > 0 ? ` · est. ${fmt(n.card)}` : " · no estimate";
+      const txt = `${fmt(n.rows)} row${n.rows === 1 ? "" : "s"}${est}`;
+      if (t >= 16) g += T(mx, my + 4, txt, { anchor: "middle", n: true, size: 11.5, fill: C.ink });
+      else g += T(mx, my - 8, txt, { anchor: "middle", n: true, size: 11.5, fill: C.ink, halo: true });
+    }
+    // node labels
+    for (const n of nodes) {
+      const head = n.operation + (n.object_name ? " " + n.object_name : "");
+      const io = [n.prOwn ? `pr ${fmt(n.prOwn)}` : "", n.pwOwn ? `pw ${fmt(n.pwOwn)}` : ""].filter(Boolean).join(" · ");
+      const l2 = `self ${n.selfNeg ? "0 ms*" : dur(n.self)}${io ? " · " + io : ""}`;
+      if (!n.kids.length) { // leaf: left
+        g += T(n.x - 10, n.y + n.h / 2 - 3, head, { anchor: "end", b: true, size: 12 });
+        g += T(n.x - 10, n.y + n.h / 2 + 12, l2, { anchor: "end", n: true, size: 11.5 });
+      } else {
+        g += T(n.x + BW / 2, n.y - 22, head, { anchor: "middle", b: true, size: 12 });
+        g += T(n.x + BW / 2, n.y - 8, l2, { anchor: "middle", n: true, size: 11.5 });
+      }
+    }
+    const fpS = FP(stmtId);
+    g += T(clientX + BW / 2, rc - clientH / 2 - 22, "client", { anchor: "middle", b: true });
+    g += T(clientX + BW / 2, rc - clientH / 2 - 8, `${fmt(fpS.rows)} row${fpS.rows === 1 ? "" : "s"}, ${fpS.fetches} fetches`, { anchor: "middle", n: true, size: 11.5 });
+    g += T(24, title[1], title[0], { b: true, size: 14 });
+    g += T(24, title[1] + 17, sub, { size: 12 });
+    return { g, nodes, root, rc, clientX };
+  }
+  // stmt 22
+  const d22 = diagram(22, 196, ["stmt 22 · " + ST(22).label, 26], "1 execution · rows = A-Rows from the STAT lines");
+  s += d22.g;
+  const hj = d22.nodes.find(n => n.operation === "HASH JOIN");
+  const sa = d22.root;
+  const leafRows = d22.nodes.filter(n => !n.kids.length).reduce((a, n) => a + n.rows, 0);
+  // callouts 22
+  {
+    const x = hj.x + BW + 26, y = hj.y + hj.h + 6;
+    const c = callout(x, y, "All the time sits in the join node, not the scans", `self ${dur(hj.self)} of ${dur(hj.time_us)}: it spilled (pw ${hj.pwOwn}) and re-read the spill (pr ${fmt(hj.prOwn)} of its own)`, 300);
+    s += c.svg + leader(x - 4, y - 4, hj.x + BW + 1, hj.y + hj.h - 6);
+    const x2 = sa.x + 70, y2 = d22.rc + 48;
+    const c2 = callout(x2, y2, "Wide river to a thread", `${fmt(leafRows)} rows in, ${sa.rows} row out`, 190);
+    s += c2.svg + leader(x2 + 30, y2 - 13, (sa.x + BW + d22.clientX) / 2 + 30, d22.rc + 2);
+    const neg = d22.nodes.find(n => n.selfNeg);
+    if (neg) {
+      const ch = neg.kids.reduce((a, c) => a + c.time_us, 0);
+      s += T(24, 384, `* ${neg.operation} reports ${dur(neg.time_us)} inclusive, less than its child (${dur(ch)}): row-source timings are sampled, so its self time is shown as 0.`, { size: 11, m: true });
+    }
+  }
+  // divider
+  s += L(24, 404, W - 24, 404, C.grid);
+  // stmt 21
+  const d21 = diagram(21, 560, ["stmt 21 · " + ST(21).label, 432], "1 execution · same row scale as above");
+  s += d21.g;
+  {
+    const so = d21.root, sc = d21.nodes.find(n => n.kids.length === 0);
+    const x = so.x - 290, y = so.y + so.h + 30;
+    const c = callout(x, y, `${dur(so.self)} of self time in the sort`, `a 64 KB sort area: SORT ORDER BY wrote ${fmt(so.pwOwn)} temp blocks (pw) and read them back (pr ${fmt(so.prOwn)}); the scan below it took ${dur(sc.self)}.`, 286);
+    s += c.svg + leader(so.x + BW / 2, y - 14, so.x + BW / 2, so.y + so.h + 2);
+    const f21 = FP(21), fe = D.seqdiag["21"].filter(c => c.kind === "FETCH");
+    const n500 = fe.filter(c => c.rows === 500).length;
+    const cx = d21.clientX - 196, cy = so.y + so.h + 30;
+    const c2 = callout(cx, cy, `${fmt(f21.rows)} rows in ${f21.fetches} fetches`, `1 row, then ${n500} × 500, then an empty fetch that ends the cursor`, 190);
+    s += c2.svg + leader(d21.clientX + BW / 2, cy - 14, d21.clientX + BW / 2, so.y + so.h + 2);
+  }
+  const H = 740;
+  const svg = $("f2"); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+  $("lg2").innerHTML = legendHTML([
+    { color: C.ink2, alpha: 0.25, label: "band = actual rows (A-Rows), width ∝ rows, same scale in both diagrams" },
+    { outline: C.ink2, color: "none", label: "dashed outline = optimizer estimate (E-Rows)" },
+    { title: "node fill = self time (time_us minus children):" },
+    { color: C.seq[0], label: "< 1 ms" }, { color: C.seq[1], label: "1–10 ms" }, { color: C.seq[2], label: "10–100 ms" },
+    { color: C.seq[3], label: "0.1–1 s" }, { color: C.seq[4], label: "≥ 1 s" },
+  ]);
+  const n22 = d22.nodes, est = n22.filter(n => n.card > 0).sort((a, b) => b.depth - a.depth || a.id - b.id);
+  const maxErr = Math.max(...est.map(n => Math.abs(n.rows - n.card) / n.rows));
+  $("r2").innerHTML = `
+    <p><b>Estimates within ${fx(Math.ceil(maxErr * 1000) / 10, 0)} %, the problem is not cardinality.</b> E-Rows ${est.map(n => fmt(n.card)).join(" / ")} against A-Rows ${est.map(n => fmt(n.rows)).join(" / ")}: the dashed outlines sit on the bands.</p>
+    <p><b>The join holds ${pct(hj.self / hj.time_us, 0)} of the plan's time.</b> Self time ${dur(hj.self)} = ${dur(hj.time_us)} minus the two scans (${hj.kids.map(c => dur(c.time_us)).join(" and ")}). Its own I/O is the spill: pw ${hj.pwOwn}, pr ${fmt(hj.prOwn)} (pr ${fmt(hj.pr)} including the scans).</p>
+    <p><b>Stmt 21 is the same story with a sort.</b> ${dur(d21.root.self)} self in SORT ORDER BY (pw ${fmt(d21.root.pwOwn)}) above a ${dur(d21.nodes.find(n => !n.kids.length).self)} scan; the river stays wide all the way to the client because every row is returned.</p>`;
+}
+
+// =====================================================================
+// 3. Dotplot
+// =====================================================================
+function fig3() {
+  const seq = D.dotplot.seq, N = seq.length, S = 640, ox = 70, oy = 70, s = S / N;
+  const tok = i => seq[i][0] * 2 + seq[i][1];
+  const colOf = st => C.stmt[st] || C.stmtOther;
+  const groups = new Map();
+  for (let i = 0; i < N; i++) { const t = tok(i); if (!groups.has(t)) groups.set(t, []); groups.get(t).push(i); }
+  // raster
+  const off = document.createElement("canvas"); off.width = N; off.height = N;
+  const c0 = off.getContext("2d"), img = c0.createImageData(N, N), px = img.data;
+  const rgb = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+  for (const [t, L] of groups) {
+    const [r, g, b] = rgb(colOf(seq[L[0]][0]));
+    for (const a of L) for (const bb of L) { const q = (a * N + bb) * 4; px[q] = r; px[q + 1] = g; px[q + 2] = b; px[q + 3] = 255; }
+  }
+  c0.putImageData(img, 0, 0);
+  const cv = $("dotc"), dpr = Math.max(2, window.devicePixelRatio || 1);
+  cv.width = S * dpr; cv.height = S * dpr; cv.style.width = S + "px"; cv.style.height = S + "px";
+  const ctx = cv.getContext("2d"); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(off, 0, 0, S * dpr, S * dpr);
+
+  const X = i => ox + i * s, Y = i => oy + i * s;
+  let g = "";
+  g += R(ox, oy, S, S, "none", `stroke="${C.axis}" stroke-width="1"`);
+  // phase rules
+  const ph = D.phases.filter(p => p.seq_index > 0);
+  for (const p of ph) { g += L(X(p.seq_index), oy, X(p.seq_index), oy + S, C.axis, 0.8) + L(ox, Y(p.seq_index), ox + S, Y(p.seq_index), C.axis, 0.8); }
+  // phase labels: top spans
+  ph.forEach((p, k) => {
+    const a = p.seq_index, b = k + 1 < ph.length ? ph[k + 1].seq_index : N;
+    g += `<path d="M${r1(X(a) + 0.5)},${oy - 4} L${r1(X(a) + 0.5)},${oy - 9} L${r1(X(b) - 0.5)},${oy - 9} L${r1(X(b) - 0.5)},${oy - 4}" fill="none" stroke="${C.ink2}" stroke-width="1"/>`;
+    if (p.action === "full_scan") { g += T(X(a) - 4, oy - 32, p.action, { anchor: "end", mono: true, size: 11 }) + L(X(a) - 2, oy - 29, X((a + b) / 2), oy - 10, C.ink2, 0.8); }
+    else if (p.action === "index_range") g += T(X(a), oy - 16, p.action, { mono: true, size: 11 });
+    else g += T(X((a + b) / 2), oy - 16, p.action, { anchor: "middle", mono: true, size: 11 });
+    // right side labels (rows), rotated
+    if (p.action === "index_range") g += T(ox + S + 8, Y(b) - 3, p.action, { mono: true, size: 10.5, rot: 90, anchor: "end" });
+    else if (p.action !== "full_scan") g += T(ox + S + 8, Y(a) + 4, p.action, { mono: true, size: 11, rot: 90 });
+  });
+  // axes ticks
+  for (let t = 0; t <= N; t += 250) {
+    g += L(X(t), oy + S, X(t), oy + S + 4, C.axis) + T(X(t), oy + S + 17, fmt(t), { anchor: "middle", m: true, n: true, size: 11 });
+    g += L(ox - 4, Y(t), ox, Y(t), C.axis) + T(ox - 7, Y(t) + 4, fmt(t), { anchor: "end", m: true, n: true, size: 11 });
+  }
+  g += T(ox + S / 2, oy + S + 38, `call i: position in the trace's EXEC and FETCH sequence (n = ${fmt(N)})`, { anchor: "middle", size: 11.5 });
+  g += T(18, oy + S / 2, "call j", { anchor: "middle", rot: -90, size: 11.5 });
+  // diagonal runs, drawn at a visible width
+  let runs = []; for (let i = 0; i < N; i++) { const st = seq[i][0]; if (runs.length && runs[runs.length - 1].st === st) runs[runs.length - 1].b = i; else runs.push({ st, a: i, b: i }); }
+  for (const r of runs) g += L(X(r.a), Y(r.a), X(r.b + 1), Y(r.b + 1), colOf(r.st), 1.6);
+  // small repeated tokens: draw at a minimum size so they stay visible
+  for (const [t, Lp] of groups) {
+    if (Lp.length < 2 || Lp.length > 12) continue;
+    const c = colOf(seq[Lp[0]][0]);
+    for (const a of Lp) for (const b of Lp) if (a !== b) g += R(X(b + 0.5) - 1.4, Y(a + 0.5) - 1.4, 2.8, 2.8, c);
+  }
+  // zoom indicator
+  const ZN = 34;
+  g += R(ox - 1, oy - 1, ZN * s + 2, ZN * s + 2, "none", `stroke="${C.ink}" stroke-width="1"`);
+
+  // motif bookkeeping
+  const occ = body => { const out = []; for (let i = 0; i + body.length <= N; i++) { if (body.every((t, k) => tok(i + k) === t)) { out.push(i); i += body.length - 1; } } return out; };
+  const runOf = st => { const r = runs.filter(x => x.st === st); return r.reduce((a, x) => x.b - x.a > a.b - a.a ? x : a, r[0]); };
+  // labels for squares
+  const lab = (x, y, head, sub, anchor = "start") => T(x, y, head, { b: true, halo: true, anchor, size: 12 }) + (sub ? T(x, y + 15, sub, { halo: true, anchor, size: 11.5 }) : "");
+  const r15 = runOf(15), r18 = runOf(18), r19 = runOf(19), r21 = runOf(21);
+  const fetches = (st) => seq.filter(q => q[0] === st && q[1] === 1).length;
+  g += lab(X(r15.b) + 10, Y(r15.a) + 20, `stmt 15 · FETCH × ${fetches(15)}`, `calls ${r15.a + 1}–${fmt(r15.b)}`) + L(X(r15.b) + 8, Y(r15.a) + 16, X(r15.b) + 1, Y(r15.a) + 16, C.ink2);
+  g += lab(X(r18.b) + 12, Y(r18.a) + 70, `stmt 18 · (EXEC, FETCH) × ${FP(18).execs}`, `calls ${fmt(r18.a)}–${fmt(r18.b)}, inside PL/SQL stmt 17`);
+  g += L(X(r18.b) + 10, Y(r18.a) + 66, X(r18.b) + 1, Y(r18.a) + 66, C.ink2);
+  g += lab(X(r19.a) + 20, Y(r19.a) - 26, `stmt 19 · (EXEC, FETCH) × ${FP(19).execs}`, `calls ${fmt(r19.a)}–${fmt(r19.b)}`);
+  g += L(X(r19.a) + 18, Y(r19.a) - 4, X(r19.a) + 18, Y(r19.a) + 1, C.ink2);
+  g += lab(X(r21.a) - 10, Y(r21.a) + 40, `stmt 21 · FETCH × ${fetches(21)}`, `calls ${fmt(r21.a)}–${fmt(r21.b)}`, "end") + L(X(r21.a) - 8, Y(r21.a) + 36, X(r21.a) - 1, Y(r21.a) + 36, C.ink2);
+  // dimension line under the 18 square + main callout
+  const dy = Y(r18.b + 1) + 10;
+  g += L(X(r18.a), dy, X(r18.b + 1), dy, C.ink2) + L(X(r18.a), dy - 4, X(r18.a), dy + 4, C.ink2) + L(X(r18.b + 1), dy - 4, X(r18.b + 1), dy + 4, C.ink2);
+  g += T((X(r18.a) + X(r18.b + 1)) / 2, dy + 15, `side = ${r18.b - r18.a + 1} calls`, { anchor: "middle", size: 11.5, halo: true, n: true });
+  const cxx = ox + 18, cyy = Y(1000);
+  const c = callout(cxx, cyy, "A solid square = one statement repeated N times",
+    `the row-by-row loop; its side length is N calls. Here 300 iterations of (EXEC, FETCH) = ${r18.b - r18.a + 1} calls, so the square is ${r18.b - r18.a + 1} × ${r18.b - r18.a + 1}; the fine checkerboard is EXEC matching EXEC and FETCH matching FETCH.`, 280);
+  g += c.svg + leader(cxx + 120, cyy - 14, (X(r18.a) + X(r18.b + 1)) / 2, dy + 22);
+  // QOSD recurrences
+  const q = occ([7 * 2, 7 * 2 + 1, 8 * 2]);
+  const far = []; for (let a = 0; a < q.length; a++) for (let b = a + 1; b < q.length; b++) if (q[b] - q[a] > 30) far.push([q[a], q[b]]);
+  const rings = []; for (const [a, b] of far) { const cx = X(b + 1.5), cy = Y(a + 1.5); if (!rings.some(r => Math.hypot(r[0] - cx, r[1] - cy) < 6)) rings.push([cx, cy]); }
+  for (const [x, y] of rings) g += `<circle cx="${r1(x)}" cy="${r1(y)}" r="7" fill="none" stroke="${C.ink}" stroke-width="1"/>`;
+  const qx = X(1000), qy = Y(130);
+  g += T(qx, qy, `stmts 7 + 8 (QOSD pair) × ${q.length}`, { b: true, halo: true }) + T(qx, qy + 15, `at calls ${q.map(fmt).join(", ")}: the circles`, { halo: true, size: 11.5 });
+  g += T(qx, qy + 30, `are the same 3 calls recurring far apart`, { halo: true, size: 11.5 });
+  for (const [x, y] of rings) if (y < Y(200)) g += L(qx + 120, qy - 12, x - 3, y + 6, C.ink2);
+  const low = rings.find(r => r[1] > Y(200));
+  if (low) g += T(low[0] - 10, low[1] - 6, "7 + 8", { size: 11.5, halo: true, anchor: "end", b: true });
+
+  const H = 768, W = 752;
+  const svg = $("f3"); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.innerHTML = g;
+  svg.addEventListener("mousemove", ev => {
+    const r = svg.getBoundingClientRect(); const i = Math.floor((ev.clientX - r.left - ox) / s), j = Math.floor((ev.clientY - r.top - oy) / s);
+    if (i < 0 || j < 0 || i >= N || j >= N) return hideTip();
+    const nm = q2 => `stmt ${q2[0]} ${D.dotplot.kinds[q2[1]]}`;
+    showTip(ev, `<b>call ${fmt(i)}</b>: ${nm(seq[i])}<br><b>call ${fmt(j)}</b>: ${nm(seq[j])}<br>${tok(i) === tok(j) ? "same token: dot" : "different tokens: no dot"}`);
+  });
+  svg.addEventListener("mouseleave", hideTip);
+
+  // ---- side: motif table + zoom ----
+  const fp = id => FP(id);
+  const share = us => pct(us / SPAN_US, us / SPAN_US < 0.01 ? 2 : 1);
+  const f21 = fp(21), f15 = fp(15), f18 = fp(18), f19 = fp(19), f7 = fp(7), f8 = fp(8), f13 = fp(13);
+  const fetch1 = D.seqdiag["21"].find(c => c.kind === "FETCH");
+  const sw = st => `<span class="sw" style="background:${colOf(st)}"></span>`;
+  const rows = [
+    [sw(21) + "stmt 21", "FETCH", fetches(21), dur(f21.ela_us), share(f21.ela_us), `fetch 1 alone: ${dur(fetch1.ela_us)}`],
+    [sw(18) + "stmt 18", "EXEC FETCH", occ([36, 37]).length, dur(f18.ela_us), share(f18.ela_us), "loop body in PL/SQL 17"],
+    [sw(19) + "stmt 19", "EXEC FETCH", occ([38, 39]).length, dur(f19.ela_us), share(f19.ela_us), "loop body in PL/SQL 17"],
+    [sw(15) + "stmt 15", "FETCH", fetches(15), dur(f15.ela_us), share(f15.ela_us), `+ ${dur(f15.between_calls_idle_us)} client gaps`],
+    [sw(7) + "stmts 7+8", "7E 7F 8E", q.length, dur(f7.ela_us + f8.ela_us), share(f7.ela_us + f8.ela_us), "recursive QOSD"],
+    [sw(13) + "stmt 13", "EXEC FETCH FETCH", occ([26, 27, 27]).length, dur(f13.ela_us), share(f13.ela_us), "two binds"],
+  ];
+  let tb = `<table class="motifs"><tr><th>motif</th><th>body</th><th class="r">repeats</th><th class="r">time</th><th class="r">share</th></tr>`;
+  for (const r of rows) tb += `<tr><td>${r[0]}</td><td class="body">${r[1]}</td><td class="r">${fmt(r[2])}</td><td class="r">${r[3]}</td><td class="r">${r[4]}</td></tr><tr><td></td><td colspan="4" class="sub" style="border-bottom:1px solid var(--grid);padding-top:0">${r[5]}</td></tr>`;
+  tb += `</table>`;
+  // fix: remove double borders
+  tb = tb.replace(/<tr><td>(.*?)<\/td><td class="body">/g, (m) => m.replace("<td>", '<td style="border-bottom:0">'));
+  let z = "";
+  const Z = 9, zx = 52, zy = 66;
+  const zs = ZN * Z;
+  const pz = D.phases.filter(p => p.seq_index > 0 && p.seq_index < ZN);
+  for (let i = 0; i < ZN; i++) for (let j = 0; j < ZN; j++) if (tok(i) === tok(j)) z += R(zx + j * Z + 0.5, zy + i * Z + 0.5, Z - 1, Z - 1, colOf(seq[i][0]));
+  z += R(zx, zy, zs, zs, "none", `stroke="${C.axis}"`);
+  for (const p of pz) { z += L(zx + p.seq_index * Z, zy - 2, zx + p.seq_index * Z, zy + zs, C.ink2, 0.8) + L(zx - 2, zy + p.seq_index * Z, zx + zs, zy + p.seq_index * Z, C.ink2, 0.8); z += T(zx + p.seq_index * Z + 3, 12, p.action, { mono: true, size: 10.5 }) + L(zx + p.seq_index * Z, 15, zx + p.seq_index * Z, zy - 2, C.ink2, 0.8); }
+  const zr = runs.filter(r => r.a < ZN);
+  for (const r of zr) {
+    const b = Math.min(r.b, ZN - 1), xm = zx + ((r.a + b + 1) / 2) * Z;
+    if ([6, 7, 8, 9, 10, 13, 15].includes(r.st)) z += T(xm + 3.5, zy - 5, String(r.st), { rot: -90, size: 10, n: true, fill: C.stmt[r.st] ? C.ink : C.ink2, weight: C.stmt[r.st] ? 600 : 400 });
+  }
+  for (let i = 0; i < ZN; i++) z += T(zx - 4, zy + i * Z + Z - 1.5, `${seq[i][0]} ${D.dotplot.kinds[seq[i][1]][0]}`, { anchor: "end", size: 8.5, mono: true, fill: C.stmt[seq[i][0]] ? C.ink : C.muted });
+  const zH = zy + zs + 34;
+  z += T(zx, zy + zs + 18, "E = EXEC, F = FETCH; grey = statements that run once", { size: 11, m: true });
+  $("dotside").innerHTML = `<h4>Motifs found</h4><p class="hint">What the product would compute from the same sequence; time is the statements' own elapsed, share is of the ${dur(SPAN_US)} trace.</p>${tb}
+    <h4 style="margin-top:18px">Zoom: calls 0–${ZN - 1}</h4><p class="hint">The boxed corner of the plot. Statement numbers above the runs; the motif of stmts 7 and 8 repeats twice right after stmt 6, and 13 runs twice with a bind in between.</p>
+    <svg width="350" height="${zH}" style="display:block;overflow:visible">${z}</svg>`;
+
+  $("lg3").innerHTML = legendHTML([
+    { title: "dot colour = statement (repeating ones):" },
+    { color: colOf(21), label: "21" }, { color: colOf(18), label: "18" }, { color: colOf(19), label: "19" },
+    { color: colOf(15), label: "15" }, { color: colOf(13), label: "13" }, { color: colOf(7), label: "7 and 8 (QOSD)" },
+    { color: C.stmtOther, label: "statements that run once" },
+    { line: true, color: C.axis, label: "phase boundary" },
+  ]);
+  const loopUs = f18.ela_us + f19.ela_us;
+  $("r3").innerHTML = `
+    <p><b>Two 600-call squares are the PL/SQL loop.</b> 300 × (EXEC, FETCH) of stmt 18, then of stmt 19: ${fmt(2 * (r18.b - r18.a + 1))} of the ${fmt(N)} calls, but only ${dur(loopUs)} (${share(loopUs)} of the trace). Visible at once, harmless here.</p>
+    <p><b>The costly repeat is a fetch loop.</b> Stmt 21's ${fetches(21)} FETCHes hold ${share(f21.ela_us)} of the trace, but ${pct(fetch1.ela_us / f21.ela_us)} of that is the first fetch: the repetition is cheap, the sort before it is not.</p>
+    <p><b>Small motifs show recursive work.</b> The QOSD pair (stmts 7, 8) appears ${q.length} times: twice in full_scan, then before stmt 21 and before stmt 22. Off-diagonal dots, so it is a recurrence, not a loop.</p>`;
+}
+
+// =====================================================================
+// 4. Sequence diagram
+// =====================================================================
+function fig4() {
+  const W = 1120;
+  const S21 = D.seqdiag["21"], S15 = D.seqdiag["15"];
+  const w = (c, e, k) => c.waits[e] ? c.waits[e][k] : 0;
+  const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
+  const med = a => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+  const GAP = "SQL*Net message from client", MORE = "SQL*Net more data to client";
+  let s = "";
+  const head = (x, y, t1, t2, wd = 124) => R(x - wd / 2, y, wd, 40, C.page, `rx="6" stroke="${C.axis}"`) + T(x, y + 17, t1, { anchor: "middle", b: true }) + T(x, y + 32, t2, { anchor: "middle", size: 11, m: true });
+  function msg(x1, x2, y, label, o = {}) {
+    const dir = x2 > x1 ? 1 : -1, col = o.col || C.ink, wdt = o.w || 1.2;
+    let out = L(x1, y, x2 - dir * 6, y, col, wdt, o.dash ? `stroke-dasharray="5 3"` : "");
+    out += arrowHead(x2, y, dir, col, o.w > 2 ? 10 : 7);
+    if (label) {
+      const lines = Array.isArray(label) ? label : [label];
+      const xm = (x1 + x2) / 2;
+      lines.forEach((ln, k) => out += T(xm, y - 6 - (lines.length - 1 - k) * 14, ln, { anchor: "middle", halo: true, size: 11.5, b: k === 0 && o.boldFirst, n: true }));
+    }
+    return out;
+  }
+  const act = (x, y1, y2, fill = C.axis) => R(x - 6, y1, 12, Math.max(4, y2 - y1), fill, `rx="1.5"`);
+  function loopFrame(x1, y1, x2, y2, tag, note) {
+    let out = R(x1, y1, x2 - x1, y2 - y1, "none", `rx="8" stroke="${C.ink2}" stroke-width="1"`);
+    const tw1 = tw(tag, 12, 600) + 16;
+    out += `<path d="M${x1 + 8},${y1} L${x1 + tw1},${y1} L${x1 + tw1},${y1 + 14} L${x1 + tw1 - 6},${y1 + 20} L${x1},${y1 + 20} L${x1},${y1 + 8} Q${x1},${y1} ${x1 + 8},${y1} Z" fill="${C.page}" stroke="${C.ink2}" stroke-width="1"/>`;
+    out += T(x1 + 7, y1 + 14.5, tag, { b: true, size: 12 });
+    if (note) out += T(x2 - 8, y1 + 15, note, { anchor: "end", size: 11.5, n: true });
+    return out;
+  }
+  const gapBar = (x, y1, y2) => R(x - 4, y1, 8, y2 - y1, C.idle, `rx="1.5"`);
+
+  // ---------- stmt 21 ----------
+  const xC = 168, xS = 392, xT = 584, top = 30;
+  const parse = S21[0], exec = S21[1], fetches = S21.filter(c => c.kind === "FETCH"), close = S21[S21.length - 1];
+  const f1 = fetches[0], loop = fetches.filter(c => c.rows === 500), last = fetches[fetches.length - 1];
+  const t0 = parse.t_ms - parse.ela_us / 1000, f1start = f1.t_ms - f1.ela_us / 1000;
+  const yEnd = 660;
+  s += T(24, 18, "stmt 21 · ORDER BY over ORDERS, arraysize 500", { b: true, size: 14 });
+  s += head(xC, top + 10, "Client", "SQL*Plus session") + head(xS, top + 10, "Server process", "dedicated") + head(xT, top + 10, "TEMP", "tempfile 203", 110);
+  for (const x of [xC, xS, xT]) s += L(x, top + 50, x, yEnd, C.axis);
+  // parse + exec
+  let y = 112;
+  s += msg(xC, xS - 6, y, `PARSE + EXEC · ${dur(parse.ela_us + exec.ela_us)}`) + act(xS, y, y + 6);
+  // fetch 1
+  y = 150;
+  const K = 100 / 1e6; // px per µs (100 px per second)
+  const yF = t => y + (t - f1start) * 1000 * K;
+  const yF1end = y + f1.ela_us * K;
+  s += msg(xC, xS - 6, y, "FETCH #1") + act(xS, y, yF1end);
+  // ruler on the activation bar
+  for (let t = 0.5; t * 1e6 <= f1.ela_us; t += 0.5) { const yy = y + t * 1e6 * K; s += L(xS - 6, yy, xS - 11, yy, C.ink2) + T(xS - 14, yy + 4, `${fx(t, 1)} s`, { anchor: "end", size: 10.5, m: true, n: true }); }
+  // temp activity bars from blockmap points of stmt 21 in fetch 1
+  const P = D.blockmap.points.filter(p => p[5] === 21);
+  const inF1 = p => p[0] <= f1.t_ms + 0.001;
+  const wr = P.filter(p => p[1] === 2), rdAll = P.filter(p => p[1] === 3), rd1 = rdAll.filter(inF1), dr = P.filter(p => p[1] === 0);
+  const wStart = wr[0][0], wEnd = wr[wr.length - 1][0], rStart = rd1[0][0], rEnd = rd1[rd1.length - 1][0];
+  s += R(xT - 8, yF(wStart), 7, yF(wEnd) - yF(wStart), C.tw, `rx="1.5"`) + R(xT + 1, yF(rStart), 7, yF(rEnd) - yF(rStart), C.tr, `rx="1.5"`);
+  const f1w = w(f1, "direct path write temp", 0), f1wt = w(f1, "direct path write temp", 1), f1r = w(f1, "direct path read temp", 0), f1rt = w(f1, "direct path read temp", 1);
+  s += msg(xS + 6, xT - 9, yF(wStart) + 3, ["direct path write temp", `× ${fmt(f1w)} · ${dur(f1wt)}`], { col: C.tw, w: 4.5 });
+  s += msg(xT - 1, xS + 7, yF(rStart) + 2, ["direct path read temp", `× ${fmt(f1r)} · ${dur(f1rt)}`], { col: C.tr, w: 2 });
+  // phase notes right of TEMP
+  const drEnd = dr[dr.length - 1][0];
+  const nx = xT + 16;
+  s += TB(nx, yF(wStart) + 10, ["1. scan ORDERS", `(${dr.length} direct reads,`, `${dur(sum(dr, p => p[6]))}), sort`, "64 KB at a time,", "write sorted runs"], { size: 11.5, lh: 14 });
+  s += TB(nx, yF(rStart) + 10, ["2. merge: read runs", "back, write merged", "runs (still no row", "for the client)"], { size: 11.5, lh: 14 });
+  s += T(xS + 12, yF1end - 6, `CPU ${dur(f1.cpu_us)}`, { size: 11, m: true });
+  // reply 1 row
+  s += msg(xS - 6, xC + 2, yF1end + 12, `1 row`, { dash: true });
+  // TTFR bracket
+  const yTT0 = 112, yTT1 = yF1end + 12;
+  s += `<path d="M${xC - 18},${yTT0} L${xC - 24},${yTT0} L${xC - 24},${r1(yTT1)} L${xC - 18},${r1(yTT1)}" fill="none" stroke="${C.ink}" stroke-width="1.2"/>`;
+  const ttfr = f1.t_ms - t0;
+  s += TB(xC - 32, (yTT0 + yTT1) / 2 - 8, ["time to", "first row", `${dur(ttfr * 1000)}`], { anchor: "end", size: 12, lh: 15 });
+  s += T(xC - 32, (yTT0 + yTT1) / 2 + 37, "", {});
+  // callout: the 2.4 s is before the first row
+  {
+    const x = xC + 20, yy = 268;
+    const c = callout(x, yy, `The ${dur(f1.ela_us)} is before the first row`, `in the sort, not in delivery: FETCH #1 does all the sorting and spilling before it can return anything`, 156);
+    s += c.svg + leader(x + 190, yy + 22, xS - 7, yy + 22);
+  }
+  // loop frame
+  const lt = yF1end + 36, lb = lt + 164;
+  const loopSrv = sum(loop, c => c.ela_us), loopGap = sum(loop, c => w(c, GAP, 1)), loopMore = sum(loop, c => w(c, MORE, 1)), loopMoreN = sum(loop, c => w(c, MORE, 0));
+  const loopRd = sum(loop, c => w(c, "direct path read temp", 0)), loopRdT = sum(loop, c => w(c, "direct path read temp", 1));
+  s += loopFrame(xC - 120, lt, xT + 120, lb, `loop × ${loop.length}`, `server ${dur(loopSrv)} · client gaps ${dur(loopGap)}`);
+  let yy = lt + 34;
+  s += gapBar(xC, yy, yy + 24) + TB(xC - 12, yy + 9, ["client gap", `median ${dur(med(loop.map(c => w(c, GAP, 1))))}`], { anchor: "end", size: 11.5, lh: 14 });
+  yy += 44;
+  s += msg(xC, xS - 6, yy, "FETCH") + act(xS, yy, yy + 8);
+  s += T(xS + 10, yy - 6, `server median ${dur(med(loop.map(c => c.ela_us)))}`, { size: 11, m: true });
+  s += msg(xT - 1, xS + 7, yy + 34, ["direct path read temp", `× ${fmt(loopRd)} in all, ${dur(loopRdT)}`], { col: C.tr, w: 1.5 });
+  yy += 62;
+  s += msg(xS - 6, xC + 2, yy, "500 rows", { dash: true });
+  s += R(xS - 14, yy - 4, 8, 8, C.net, `rx="1.5"`) + T(xS + 10, yy + 4, `SQL*Net more data to client, mean ${dur(loopMore / loopMoreN)}`, { size: 11, m: true });
+  // final
+  const yFin = lb + 34;
+  s += gapBar(xC, yFin - 22, yFin - 6);
+  s += msg(xC, xS - 6, yFin, `FETCH → ${last.rows} rows (end of data) + CLOSE · ${dur(last.ela_us + close.ela_us)}`);
+  s += msg(xS - 6, xC + 2, yFin + 22, "", { dash: true });
+
+  // ---------- stmt 15 mini ----------
+  const xC2 = 798, xS2 = 1012;
+  s += T(xC2 - 90, 18, "stmt 15 · index range scan, arraysize 15", { b: true, size: 14 });
+  s += head(xC2, top + 10, "Client", "SQL*Plus session") + head(xS2, top + 10, "Server process", "dedicated");
+  const p15 = S15[0], e15 = S15[1], fe15 = S15.filter(c => c.kind === "FETCH"), cl15 = S15[S15.length - 1];
+  const lp15 = fe15.filter(c => c.rows === 15), l15 = fe15[fe15.length - 1];
+  const end15 = 388;
+  for (const x of [xC2, xS2]) s += L(x, top + 50, x, end15, C.axis);
+  let y2 = 112;
+  s += msg(xC2, xS2 - 6, y2, `PARSE + EXEC · ${dur(p15.ela_us + e15.ela_us)}`) + act(xS2, y2, y2 + 6);
+  y2 = 150;
+  s += msg(xC2, xS2 - 6, y2, "FETCH #1") + act(xS2, y2, y2 + 4) + msg(xS2 - 6, xC2 + 2, y2 + 22, `${fe15[0].rows} row`, { dash: true });
+  const lt2 = 196, lb2 = lt2 + 132;
+  const g15 = sum(lp15, c => w(c, GAP, 1)), s15 = sum(lp15, c => c.ela_us);
+  s += loopFrame(xC2 - 88, lt2, xS2 + 96, lb2, `loop × ${lp15.length}`, `server ${dur(s15)} · gaps ${dur(g15)}`);
+  let y3 = lt2 + 34;
+  s += gapBar(xC2, y3, y3 + 24) + TB(xC2 - 10, y3 + 9, ["client gap", `median ${dur(med(lp15.map(c => w(c, GAP, 1))))}`], { anchor: "end", size: 11.5, lh: 14 });
+  y3 += 44;
+  s += msg(xC2, xS2 - 6, y3, "FETCH") + act(xS2, y3, y3 + 5) + T(xS2 + 10, y3 + 4, `median ${dur(med(lp15.map(c => c.ela_us)))}`, { size: 11, m: true });
+  y3 += 28;
+  s += msg(xS2 - 6, xC2 + 2, y3, "15 rows", { dash: true });
+  const yf2 = lb2 + 30;
+  s += gapBar(xC2, yf2 - 20, yf2 - 6) + msg(xC2, xS2 - 6, yf2, `FETCH → ${l15.rows} rows + CLOSE`) + msg(xS2 - 6, xC2 + 2, yf2 + 20, "", { dash: true });
+  // callout under stmt 15
+  {
+    const f15 = FP(15);
+    const x = 742, yy2 = 520;
+    const c = callout(x, yy2, "15 rows per trip: the client waits more than the server works",
+      `${fe15.length} fetches for ${fmt(f15.rows)} rows. Client gaps ${dur(f15.between_calls_idle_us)} against ${dur(f15.ela_us)} of server time (parse included). At arraysize 500 the same rows would take 5 fetches.`, 350);
+    s += c.svg;
+    const y4 = 424;
+    const c2 = callout(x, y4, `Chattiness is shape: ${fetches.length} trips for ${fmt(FP(21).rows / 1000)} k rows vs ${fe15.length} trips for ${fx(FP(15).rows / 1000, 1)} k rows`,
+      "the loop frames carry the count; the arrows inside each frame are drawn once.", 350);
+    s += c2.svg + leader(x - 4, y4 + 20, xT + 121, lt + 44) + leader(x - 12, y4 - 10, xC2 - 76, lb2 + 1, { elbow: "h" });
+  }
+
+  // ---------- true-scale time bars ----------
+  const by = 716;
+  function timeBar(x, wd, title, segs, total) {
+    let out = T(x, by - 12, title, { b: true, size: 12.5 });
+    let cx = x;
+    const labels = [];
+    for (const sg of segs) {
+      const sw = sg.us / total * wd;
+      out += R(cx, by, Math.max(sw - 2, 0.8), 24, sg.col, `rx="2"`);
+      const txt = sg.inside ? `${sg.label} ${dur(sg.us)}` : "";
+      if (txt && tw(txt, 11.5, 600) < sw - 14) out += T(cx + 7, by + 16, txt, { size: 11.5, fill: "#ffffff", weight: 600 });
+      else labels.push({ x: cx + Math.max(sw, 1) / 2, txt: `${sg.label} ${dur(sg.us)}` });
+      cx += sw;
+    }
+    // list every segment under the bar, in bar order
+    let lx = x, ly = by + 44;
+    segs.forEach(sg => {
+      const txt = `${sg.label} ${dur(sg.us)}`, wdt = tw(txt, 11.5) + 30;
+      if (lx + wdt > x + wd + 40 && lx > x) { lx = x; ly += 17; }
+      out += R(lx, ly - 9, 10, 10, sg.col, `rx="2"`) + T(lx + 15, ly, txt, { size: 11.5, n: true });
+      lx += wdt;
+    });
+    return out;
+  }
+  const wall21 = (close.t_ms - t0) * 1000;
+  const f1other = f1.ela_us - f1wt;
+  const gaps21 = sum(S21, c => w(c, GAP, 1));
+  const delivery = sum(fetches.slice(1), c => c.ela_us) + close.ela_us;
+  const pe = parse.ela_us + exec.ela_us;
+  const rest21 = wall21 - pe - f1.ela_us - delivery - gaps21;
+  s += timeBar(24, 640, `stmt 21 wall clock, parse to close: ${dur(wall21)} (to scale)`, [
+    { us: pe, col: C.axis, label: "parse+exec" },
+    { us: f1wt, col: C.tw, label: "fetch #1: direct path write temp", inside: true },
+    { us: f1other, col: C.muted, label: "fetch #1: CPU and other" },
+    { us: delivery, col: C.ink2, label: "fetches 2–202: server" },
+    { us: gaps21, col: C.idle, label: "client gaps", inside: true },
+    { us: Math.max(rest21, 0), col: C.grid, label: "between calls, untimed" },
+  ], wall21);
+  const wall15 = (cl15.t_ms - (p15.t_ms - p15.ela_us / 1000)) * 1000;
+  const srv15 = sum(S15, c => c.ela_us), gap15 = sum(S15, c => w(c, GAP, 1));
+  s += timeBar(742, 354, `stmt 15 wall clock: ${dur(wall15)} (own scale)`, [
+    { us: srv15, col: C.ink2, label: "server", inside: true },
+    { us: gap15, col: C.idle, label: "client gaps", inside: true },
+    { us: Math.max(wall15 - srv15 - gap15, 0), col: C.grid, label: "untimed" },
+  ], wall15);
+
+  const H = 800;
+  const svg = $("f4"); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+  $("lg4").innerHTML = legendHTML([
+    { line: true, color: C.ink, label: "call (PARSE, EXEC, FETCH, CLOSE)" },
+    { line: true, dash: true, color: C.ink, label: "rows returned" },
+    { color: C.axis, label: "server busy in the call" },
+    { color: C.tw, label: "direct path write temp" },
+    { color: C.tr, label: "direct path read temp" },
+    { color: C.idle, label: "client gap: SQL*Net message from client (idle)" },
+    { color: C.net, label: "Network: SQL*Net more data to client" },
+  ]);
+  const share21 = gaps21 / (FP(21).ela_us + FP(21).between_calls_idle_us);
+  $("r4").innerHTML = `
+    <p><b>${pct(ttfr * 1000 / wall21, 0)} of stmt 21 is before the first row.</b> Time to first row ${dur(ttfr * 1000)} of ${dur(wall21)}; FETCH #1 carries ${fmt(f1w)} temp writes (${dur(f1wt)}) and ${fmt(f1r)} of the ${fmt(rdAll.length)} temp reads; the other ${fmt(rdAll.length - f1r)} reads stream out during delivery.</p>
+    <p><b>Delivery is cheap but chatty.</b> ${loop.length} round trips of 500 rows: server ${dur(loopSrv)}, client gaps ${dur(loopGap)}. All ${fmt(fetches.length + 1 - 1)} gaps of stmt 21 add up to ${dur(gaps21)}: ${pct(share21, 1)} of the statement (elapsed plus gaps), ${pct(gaps21 / SPAN_US, 1)} of the whole trace.</p>
+    <p><b>Stmt 15 is the opposite shape.</b> Nothing to wait for on the server (${dur(FP(15).cpu_us)} CPU, no I/O), so the ${fe15.length} round trips make the client side the larger part: ${dur(gap15)} of gaps vs ${dur(srv15)} in calls.</p>`;
+}
+
+// =====================================================================
+// 5. Fingerprint wall
+// =====================================================================
+function fig5() {
+  const W = 1120, ids = [21, 9, 6, 22, 17, 18, 19, 15, 10, 7, 8, 13];
+  const spokes = [
+    { key: "cpu", name: "CPU", col: C.cpu },
+    { key: "io", name: "User I/O", col: C.io },
+    { key: "net", name: "Network", col: C.net },
+    { key: "app", name: "Application", sub: "enq: KO", col: C.app },
+    { key: "other", name: "Other", col: C.other },
+    { key: "idle", name: "Client gaps", sub: "idle", col: C.idle },
+    { key: "execs", name: "execs", sub: "log, rim 300", col: null },
+    { key: "rpe", name: "rows / exec", sub: "log, rim 100 k", col: null },
+  ];
+  const vals = f => {
+    const T0 = f.ela_us + f.between_calls_idle_us;
+    const cl = v => Math.max(0, Math.min(1, v));
+    return {
+      cpu: cl(f.cpu_us / T0), io: cl(f.io_us / T0), net: cl(f.net_us / T0), app: cl(f.app_us / T0), other: cl(f.other_us / T0), idle: cl(f.between_calls_idle_us / T0),
+      execs: cl(Math.log10(f.execs) / Math.log10(300)), rpe: cl(Math.log10(f.rows / f.execs + 1) / Math.log10(100002)),
+      raw: { cpu: f.cpu_us / T0, io: f.io_us / T0, net: f.net_us / T0, app: f.app_us / T0, other: f.other_us / T0, idle: f.between_calls_idle_us / T0, unacc: f.unaccounted_us / T0 },
+    };
+  };
+  const dom = v => spokes.slice(0, 6).reduce((a, sp) => v[sp.key] > v[a.key] ? sp : a, spokes[0]);
+  const ang = k => -Math.PI / 2 + k * Math.PI / 4;
+  const pt = (cx, cy, r, k) => [cx + r * Math.cos(ang(k)), cy + r * Math.sin(ang(k))];
+  function glyph(cx, cy, R0, v, o = {}) {
+    let g = "";
+    for (const f of [0.25, 0.5, 0.75, 1]) g += `<circle cx="${r1(cx)}" cy="${r1(cy)}" r="${r1(R0 * f)}" fill="none" stroke="${f === 1 ? C.axis : C.grid}" stroke-width="1"/>`;
+    spokes.forEach((sp, k) => { const [x, y] = pt(cx, cy, R0, k); g += L(cx, cy, x, y, C.grid); });
+    // rim markers
+    spokes.forEach((sp, k) => { const [x, y] = pt(cx, cy, R0 + 5, k); g += sp.col ? `<circle cx="${r1(x)}" cy="${r1(y)}" r="${o.key ? 4 : 2.6}" fill="${sp.col}"/>` : R(x - (o.key ? 3.5 : 2.4), y - (o.key ? 3.5 : 2.4), o.key ? 7 : 4.8, o.key ? 7 : 4.8, C.muted, `rx="1"`); });
+    if (v) {
+      const d = dom(v);
+      const ptsS = spokes.map((sp, k) => pt(cx, cy, R0 * Math.max(v[sp.key], 0.015), k).map(r1).join(",")).join(" ");
+      g += `<polygon points="${ptsS}" fill="${d.col}" fill-opacity="0.16" stroke="${d.col}" stroke-width="1.8" stroke-linejoin="round"/>`;
+    }
+    return g;
+  }
+  const logBar = (x, y, wd, us) => {
+    const lo = 2, hi = 7; // 100 µs .. 10 s
+    const f = Math.max(0, Math.min(1, (Math.log10(us) - lo) / (hi - lo)));
+    let g = R(x, y, wd, 4, C.grid, `rx="2"`) + R(x, y, Math.max(3, f * wd), 4, C.ink2, `rx="2"`);
+    for (let d = lo + 1; d < hi; d++) g += L(x + (d - lo) / (hi - lo) * wd, y + 5, x + (d - lo) / (hi - lo) * wd, y + 8, C.axis);
+    return g;
+  };
+  let s = "";
+  const cell = 160, R0 = 50;
+  const pos = {};
+  const row1 = [21, 9, 6, 22, 17], row2 = [18, 19, 15, 10, 7, 8, 13];
+  const cy1 = 150, cy2 = 432;
+  row1.forEach((id, i) => pos[id] = [320 + i * cell + cell / 2, cy1]);
+  row2.forEach((id, i) => pos[id] = [i * cell + cell / 2, cy2]);
+  // key glyph
+  {
+    const kx = 168, ky = cy1 + 4, KR = 70;
+    s += glyph(kx, ky, KR, null, { key: true });
+    spokes.forEach((sp, k) => {
+      const [x, y] = pt(kx, ky, KR + 16, k);
+      const c = Math.cos(ang(k));
+      const anchor = Math.abs(c) < 0.2 ? "middle" : c > 0 ? "start" : "end";
+      const yo = Math.sin(ang(k)) < -0.5 ? -8 : Math.sin(ang(k)) > 0.5 ? 10 : 0;
+      s += T(x, y + yo + (sp.sub ? -2 : 4), sp.name, { anchor, b: true, size: 11.5 });
+      if (sp.sub) s += T(x, y + yo + 12, sp.sub, { anchor, size: 10.5, m: true });
+    });
+    s += T(kx, 30, "Key", { anchor: "middle", b: true, size: 13 });
+    const note = wrap("Six time spokes: share of the statement's own elapsed plus its client gaps (rim = 100 %). Two scale spokes (squares): execs and rows per exec, log scale. Polygon colour = the largest time share. Bar: own elapsed, log scale 0.1 ms to 10 s.", 270, 11.5);
+    note.forEach((l, i) => s += T(24, 276 + i * 15, l, { size: 11.5 }));
+  }
+  // glyphs
+  const F = Object.fromEntries(ids.map(id => [id, FP(id)]));
+  for (const id of ids) {
+    const [cx, cy] = pos[id], f = F[id], v = vals(f), d = dom(v);
+    s += glyph(cx, cy, R0, v);
+    const ly = cy + R0 + 24;
+    s += T(cx - 66, ly, `stmt ${id}`, { b: true, size: 12.5 });
+    s += T(cx + 66, ly, dur(f.ela_us), { anchor: "end", size: 12, n: true, b: true });
+    s += logBar(cx - 66, ly + 6, 132, f.ela_us);
+    s += T(cx - 66, ly + 30, `${d.name} ${fx(Math.min(1, v.raw[d.key]) * 100, 0)} %`, { size: 11.5, n: true });
+    const lab = wrap(ST(id).label, 132, 11);
+    lab.slice(0, 3).forEach((l, i) => s += T(cx - 66, ly + 45 + i * 13, l, { size: 11, m: true }));
+    // hover target
+    s += `<rect class="hov" data-id="${id}" x="${cx - cell / 2}" y="${cy - R0 - 12}" width="${cell}" height="${R0 * 2 + 80}" fill="transparent"/>`;
+  }
+  // annotations row 1 (above)
+  const ann = (x1, x2, yb, lines, dir = -1, drop = 6) => {
+    let g = `<path d="M${r1(x1)},${r1(yb - dir * drop)} L${r1(x1)},${r1(yb)} L${r1(x2)},${r1(yb)} L${r1(x2)},${r1(yb - dir * drop)}" fill="none" stroke="${C.ink2}" stroke-width="1"/>`;
+    const xm = (x1 + x2) / 2;
+    lines.forEach((l, i) => g += T(xm, dir < 0 ? yb - 8 - (lines.length - 1 - i) * 14 : yb + 16 + i * 14, l, { anchor: "middle", size: 11.5, b: i === 0, halo: true }));
+    return g;
+  };
+  const v6 = vals(F[6]), v9 = vals(F[9]), v21 = vals(F[21]), v22 = vals(F[22]);
+  s += ann(pos[9][0] - 40, pos[6][0] + 40, 80, ["6 and 9: same shape, both checkpoint-wait bound", `(${fx(v6.raw.app * 100, 0)} % and ${fx(v9.raw.app * 100, 0)} % Application = enq: KO), not read bound`], -1, 6);
+  // 21 & 22 link above
+  {
+    const x1 = pos[21][0], x2 = pos[22][0], yb = 26, yl = cy1 - R0 - 14;
+    s += `<path d="M${x1},${yl} L${x1},${yb} L${x2},${yb} L${x2},${yl}" fill="none" stroke="${C.ink2}" stroke-width="1"/>`;
+    s += T((x1 + x2) / 2, yb - 7, `21 and 22: I/O shapes, the spills (${fx(v21.raw.io * 100, 0)} % and ${fx(v22.raw.io * 100, 0)} % User I/O, nearly all of it temp writes)`, { anchor: "middle", size: 11.5, b: true, halo: true });
+  }
+  // row 2 annotations below
+  const yb2 = cy2 + R0 + 108;
+  const v15 = vals(F[15]);
+  s += ann(pos[18][0] - 50, pos[19][0] + 50, yb2, ["18 and 19: CPU-only twins", `${F[18].execs} execs and 1 row each: the loop`], 1, 6);
+  s += ann(pos[15][0] - 56, pos[15][0] + 56, yb2, ["15: the client-gap spoke", `${dur(F[15].between_calls_idle_us)} waiting for`, `the client vs ${dur(F[15].ela_us)} of work`], 1, 6);
+  s += ann(pos[10][0] - 56, pos[10][0] + 56, yb2, ["10: a full scan, no KO", "stmt 6 already paid", "the checkpoint"], 1, 6);
+  s += ann(pos[7][0] - 50, pos[8][0] + 50, yb2, ["7 and 8: recursive QOSD housekeeping", `tiny: ${dur(F[7].ela_us)} and ${dur(F[8].ela_us)}, 4 executions each`], 1, 6);
+
+  const H = yb2 + 62;
+  const svg = $("f5"); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+  svg.querySelectorAll(".hov").forEach(el => {
+    el.addEventListener("mousemove", ev => {
+      const id = +el.dataset.id, f = F[id], v = vals(f).raw;
+      showTip(ev, `<b>stmt ${id}</b> · ${esc(ST(id).label)}<br>elapsed ${dur(f.ela_us)} + client gaps ${dur(f.between_calls_idle_us)}<br>CPU ${pct(v.cpu, 0)} · User I/O ${pct(v.io, 0)} · Network ${pct(v.net, 0)}<br>Application ${pct(v.app, 0)} · Other ${pct(v.other, 0)} · gaps ${pct(v.idle, 0)} · unaccounted ${pct(v.unacc, 0)}<br>${fmt(f.execs)} execs · ${fmt(f.rows)} rows`);
+    });
+    el.addEventListener("mouseleave", hideTip);
+  });
+  $("lg5").innerHTML = legendHTML([
+    { title: "polygon colour = largest time share:" },
+    { color: C.cpu, label: "CPU" }, { color: C.io, label: "User I/O" }, { color: C.net, label: "Network" },
+    { color: C.app, label: "Application (enq: KO)" }, { color: C.other, label: "Other" }, { color: C.idle, label: "Client gaps (idle)" },
+  ]);
+  $("r5").innerHTML = `
+    <p><b>Shape separates causes that elapsed time mixes.</b> Stmts 9 and 6 are second and third by elapsed (${dur(F[9].ela_us)}, ${dur(F[6].ela_us)}) yet their I/O spoke is empty: they waited for a checkpoint, not for disk.</p>
+    <p><b>21 and 22 share an I/O shape.</b> 21 adds a client-gap spoke (${pct(v21.raw.idle, 0)}) from its ${F[21].fetches} fetches and a full rows/exec spoke; 22 a CPU spoke (${pct(v22.raw.cpu, 0)}) from the join.</p>
+    <p><b>18 and 19 are one shape twice.</b> CPU only, execs at the rim (300), rows/exec near the centre (1): the signature of row-by-row code.</p>
+    <p><b>15 stands alone.</b> The only polygon pulled toward client gaps (${pct(v15.raw.idle, 0)}), with a ${pct(v15.raw.unacc, 0)} unaccounted remainder. 13 leans the same way at a smaller size.</p>`;
+}
+
+header(); fig1(); fig2(); fig3(); fig4(); fig5();
+$("foot").innerHTML = `Data: <code>${esc(D.meta.trace)}</code> as parsed by mtkprof. Design mock-up; colours from a brand-neutral validated palette. Hover any figure for exact values.`;
+</script>
+</body>
+</html>
