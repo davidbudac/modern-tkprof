@@ -241,6 +241,15 @@ I/O minus its children's. Hover a step for all its numbers and the link to its S
 it to light up its path to the client and everything under it (click again or Esc clears). The
 choice of view and scale is kept. A plan dumped without row-source statistics stays a table.
 
+**Dialogue.** In Statements, click one execution and switch its detail from *Binds* to *Dialogue*
+(the choice is kept): the execution as a sequence diagram. The client's calls go to the server
+process, the server's waits go to Disk, TEMP or Others (only the ones used are drawn), the rows go
+back as a dashed reply, and the client's gap before each call stands on the client's line. Alike
+round trips fold into a *loop × n* frame with its server time and client gaps; a call ten times
+slower than its loop (or after a ten times longer gap) stays outside it. A bar under the figure
+puts CPU, the waits, the client gaps and the untimed rest to scale, with the time to first row.
+Hover a mark for its numbers, click it to pin them with the trace lines.
+
 ## Notes and bookmarks
 
 Notes belong to a trace's content (its identity), not to its file name: the same trace opened

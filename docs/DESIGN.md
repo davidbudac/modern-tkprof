@@ -304,8 +304,27 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   below an iterator (INLIST ITERATOR, PARTITION, PX BLOCK ITERATOR) whose
   card covers every iteration. A row source that never started (starts 0,
   e.g. the PX slaves' lines in the coordinator's dump) has no ghost.
+- **Dialogue: a mode inside the statement inspector, not a tab** (`Binds | Dialogue` on one picked execution):
+  it is about one execution and belongs next to the execution list. A side-by-side Dialogue of two executions
+  in `ExecCompare` is v2; a whole-session Dialogue needs an endpoint for a session's call sequence.
+- **Dialogue: collapse rule.** Maximal runs of equal `(kind, rows)`, minimum 3; a turn above 10× the run's
+  median elapsed or median gap is kept apart, so a run can become frame, turn, frame. The thresholds are
+  options of `dialogueOf` (`minRun`, `outlierX`, plus `floorUs` = 10 µs: medians below it count as it, so
+  timer noise on µs calls makes no outliers). Recursive calls are grouped by statement and call kind with the
+  same 10× rule (the first EXEC of a PL/SQL loop's cursor).
+- **Dialogue: the execution trace's calls, no CLOSE.** The turns are what `executions/trace` returns (the PARSE
+  right before the EXEC, the EXEC, its FETCHes), as for the Loom; the CLOSE and the client gap before it are not
+  drawn (io_waits stmt 21: 204 turns, § 1 counts 205 calls). Adding the CLOSE would change the engine route and
+  the Loom for one arrow.
+- **Dialogue: round trips from idle between waits.** Calls with no idle between wait between them went in one
+  round trip (SQL*Plus: PARSE, EXEC, FETCH #1), so only the last one gets a reply arrow; a non-idle between
+  wait is still a client gap (with its class in the popover) but no new round trip. Without WAIT lines the
+  round trips are unknown and every call replies.
+- **Dialogue: the wall clock is first call to last.** The client gap before the first call is outside it (a
+  note, not a bar segment); untimed is clamped at 0 when CPU, waits and gaps overlap.
 - **No new dependencies**; SVG and canvas by hand, colours from the tokens
-  (Row flow's self-time ramp is one blue hue, never a wait-class colour).
+  (Row flow's self-time ramp is one blue hue, never a wait-class colour;
+  Dialogue's TEMP in the Loom's `--ev-temp-w` / `--ev-temp`).
 
 ## Project
 

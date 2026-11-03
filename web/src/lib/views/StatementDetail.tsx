@@ -16,6 +16,7 @@ import { scopeKey, useScope } from '../data/scopedstmts'
 import { responseBaseUs, responseShare, responseUs, shareNote } from '../data/response'
 import type { Scope } from '../state/store'
 import { ExecCompare } from './ExecCompare'
+import { Dialogue } from './Dialogue'
 import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { NoteEditor, NoteBox } from '../components/Note'
 import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
@@ -268,16 +269,24 @@ function Executions({ doc, id, scope }: { doc: TraceDoc; id: ID; scope: Scope })
   )
 }
 
+/** One picked execution: its binds, or its Dialogue (the sequence diagram of its calls and waits). */
 function Binds({ doc, stmt, ex }: { doc: TraceDoc; stmt: ID; ex: Execution }) {
   const source = sourceOf(doc)
   const detail = useSourceQuery(source, `detail:${stmt}:${ex.cursor}:${ex.execNo}`, (signal) => source.executionDetail(stmt, ex, signal), 'detail')
+  const [mode, setMode] = usePersisted<'binds' | 'dialogue'>('mtkprof.exec.detail', 'binds')
   const d = detail.data
   const binds = d?.binds ?? []
   const file = ex.ctx !== undefined ? doc.fileOfCtx(ex.ctx) : doc.fileOfCursor(ex.cursor)
   return (
     <div className="section">
-      <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} file={file} /> · EXEC at <LineRef line={ex.line} file={file} />{d && d.bindLine > 0 && <> · binds at <LineRef line={d.bindLine} file={file} /></>}{d ? ` · ${d.execWaits} waits on the EXEC` : detail.loading ? ' · loading…' : ''}</span></header>
-      {detail.error ? <p className="callout">{detail.error}</p> : !d ? null : binds.length === 0 ? <p className="small muted">No binds captured.</p> : (
+      <header><h3>Execution #{ex.execNo}</h3><span className="hint">cursor at <LineRef line={doc.cursors[ex.cursor]?.line ?? 0} file={file} /> · EXEC at <LineRef line={ex.line} file={file} />{d && d.bindLine > 0 && <> · binds at <LineRef line={d.bindLine} file={file} /></>}{d ? ` · ${d.execWaits} waits on the EXEC` : detail.loading ? ' · loading…' : ''}</span>
+        <span className="tools">
+          <span className="seg" role="group" aria-label="Execution detail">
+            <button type="button" aria-pressed={mode === 'binds'} onClick={() => setMode('binds')}>Binds</button>
+            <button type="button" aria-pressed={mode === 'dialogue'} onClick={() => setMode('dialogue')} title="Dialogue: the execution as a sequence diagram between the client, the server and what it waited on">Dialogue</button>
+          </span>
+        </span></header>
+      {mode === 'dialogue' ? <Dialogue doc={doc} stmt={stmt} exec={ex} /> : detail.error ? <p className="callout">{detail.error}</p> : !d ? null : binds.length === 0 ? <p className="small muted">No binds captured.</p> : (
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th className="num">pos</th><th>type</th><th>value</th></tr></thead>
           <tbody>{binds.map((b) => (

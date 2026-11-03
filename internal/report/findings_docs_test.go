@@ -51,6 +51,7 @@ func TestFindingsDocsCurrent(t *testing.T) {
 	}
 	tr := "../../testdata/traces/19c/"
 	sets := map[string][]string{
+		"io_waits":        {tr + "io_waits.trc"}, // also the Dialogue's fixture (dialogue.test.ts)
 		"multisession":    {tr + "multisession_a.trc", tr + "multisession_b.trc"},
 		"parallel":        {tr + "parallel.trc", tr + "parallel_slave.trc"},
 		"plan_change":     {tr + "plan_change.trc"},

@@ -6,6 +6,7 @@ Once a trace is open the header row (right of the tabs) offers Overview, Stateme
 
 - `view-overview` Overview shows the trace summary, a Timeline and a Statements panel.
 - `view-statements` Statements shows a list (`aside[aria-label="Statements"]`) and detail pane.
+- `view-statements-dialogue` one picked execution's `Binds | Dialogue` control (`[aria-label="Execution detail"]`); Dialogue draws `.dlg-svg`.
 - `view-waits` Waits shows `Wait events` with a `hide idle` toggle.
 - `view-timeline` Timeline shows lanes, the `Call kinds` legend and `Longest calls`.
 - `view-sessions` Sessions shows `Session contexts` and a roll-up (`select[aria-label="Roll-up dimension"]`).
@@ -23,6 +24,7 @@ Preconditions:
 - A trace is open (`$T/level_8.trc`).
 
 - **One view.** `node $S/drive.mjs --open $T/level_8.trc --view <Name> --name <name>` for each of Overview, Statements, Waits, Timeline, Sessions, Pivot. The named button becomes `aria-current=page`, the JSON has `errors: []`, and the screenshot shows the heading from the sub-feature list. (Statements and Waits were driven and ran clean with no console errors; the others are not yet driven.)
+- **Dialogue.** `node $S/drive.mjs --open $T/io_waits.trc --view Statements --name dialogue --viewport 1440x1300 --click 'aside[aria-label="Statements"] >> text=52nzchs09dgn1' --click 'section:has(> header h2:text-is("Executions")) tr.row-click' --click '[aria-label="Execution detail"] button:has-text("Dialogue")' --click '.dlg-scale h4'` (the last click scrolls the figure into view): a `loop × 200` frame, the facts line "time to first row 2.450 s of 2.799 s". Driven 2026-11-03, `errors: []`. A mark's popover closes on any scroll (like every `usePopover` popup) and a bare `--click` may scroll the pane during the click: to pin one, `scrollIntoViewIfNeeded()` the mark first, then `click()`.
 - **Idle toggle.** In Waits click `--click 'button:has-text("hide idle")'`; its `aria-pressed` flips and the event list changes.
 - **Row flow.** `--open $T/io_waits.trc --view Statements --click 'aside[aria-label="Statements"] >> text=7r10y07tqpg98' --click '[aria-label="Plan view"] button:has-text("Flow")'`: the plan section shows the Sankey (`.rf-fig`; node labels `.rf-label[data-node="<index in the dump>"]`, `--click` one to highlight its path; the scale is `[aria-label="Band scale"] button:has-text("linear")`). Driven 2026-11-03, no console errors.
 

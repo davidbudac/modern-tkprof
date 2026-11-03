@@ -31,6 +31,18 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   statistics: no trace in `testdata/` has STAT lines without them, so the table + note state is unit-tested only).
   Seen on the way, not changed: the plan advisor flags `INDEX UNIQUE SCAN` under `INLIST ITERATOR` in nasty_sql.trc
   (57b0w2txwjvby) as a 1,119× misestimate, multiplying a card that already covers every iteration by the starts.
+- 2026-11-03 **D, Dialogue**: `Binds | Dialogue` on one picked execution in the statement inspector
+  (`views/Dialogue.tsx`, `data/dialogue.ts` with all layout math, `styles/dialogue.css`; ARCHITECTURE § Dialogue,
+  DESIGN § Three new views). Over the Loom's `executions/trace` answer (same query key), no engine change. Checked
+  on io_waits: stmt 21 = PARSE, EXEC, FETCH #1 (direct path write temp × 1,331 · 2.38 s, 856 temp reads), loop ×
+  200 of 500 rows (median 173 µs, gap median 1.52 ms), FETCH #202; time to first row 2.45 s of 2.80 s, 202 round
+  trips, gaps 307 ms; stmt 15 loop × 100 of 15 rows, gaps 7.43 ms vs 5.21 ms in calls; stmt 13 two executions of
+  two round trips; stmt 17's EXEC lists stmts 18 / 19 with first EXECs 483 / 380 µs vs median 28 µs. Also lobs.trc
+  (Others lane: write complete waits), multisession.trc (PL/SQL lock timer, class Idle, inside the call),
+  errors.trc (a `log file sync` between calls, in the gap), plsql_recursive.trc, parallel.trc; standalone (in-browser
+  and `-facts=false` engine source) and desktop, light and dark. Differences from § 1: the CLOSE is not an
+  execution-trace call (204 turns, not 205; stmt 15's 7.5 ms includes the 109 µs gap before the CLOSE). New
+  fixture `web/src/lib/data/testdata/findings-io_waits.json.gz` (TestFindingsDocsCurrent writes it).
 
 ## One repository, two clients (2026-11-02)
 

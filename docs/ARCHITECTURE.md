@@ -353,7 +353,7 @@ sends for "None"), `stmt`, `event` (waits only) and
 | `/api/calls?limit=&longest=` | the longest calls in scope (columns `id, stmt, kind, tim, e, c, r, line, dep, execNo, ctx`), total in scope, the longest N: the Timeline view | 20 000 calls, 100 longest |
 | `/api/executions?stmt=&limit=&offset=&sort=` (+ scope) | executions of one statement (`analyze.Executions`; with a scope: those whose EXEC call is in scope, summing the fetches in scope: `EachExecutionIn`) with bind values, total, avg and slowest; `sort` = `file` (default) `e c waitEla r p cr fetches start` (largest first) | 5000 rows |
 | `/api/executions/detail?stmt=&cursor=&execNo=` | one execution: parse / exec / fetch call sums, waits per event, binds, plan hash (A/B comparison and the bind panel) | |
-| `/api/executions/trace?stmt=&cursor=&execNo=` | one execution's raw rows in trace order: own calls (PARSE right before the EXEC, EXEC, FETCHes), their recursive calls (`owner` = the own call they roll up to) and the waits of both; bounded reads over a spill (children are the deeper rows of the context right before the call, waits the context's rows between the previous same-depth call and the call); 50 000 children / 200 000 waits, then `truncated` (Execution Loom, see below) | |
+| `/api/executions/trace?stmt=&cursor=&execNo=` | one execution's raw rows in trace order: own calls (PARSE right before the EXEC, EXEC, FETCHes), their recursive calls (`owner` = the own call they roll up to) and the waits of both; bounded reads over a spill (children are the deeper rows of the context right before the call, waits the context's rows between the previous same-depth call and the call); 50 000 children / 200 000 waits, then `truncated` (Execution Loom and Dialogue, see below) | |
 | `/api/waits?event=\|stmt=&sort=ela\|tim&limit=` | wait rows with total and time in scope | 1000 rows |
 | `/api/waits/hist?event=` | log2 histogram (24 bins, counts and sums) | |
 | `/api/waits/scatter?event=&max=` | waits over time: the 2000 slowest plus an even sample (`analyze.ScatterWaits`), rows `[tim, ela, line, stmt, ctx]` | 50 000 points |
@@ -1492,4 +1492,51 @@ and the wait records with line links. Spec and rules: `docs/implementing-new-ide
 - Event colours: the read families (`db file sequential|scattered|parallel read`, `direct path read[ temp]`,
   `direct path write temp`) have fixed tokens (`--ev-*` in `styles/loom.css`); other events a shade of their wait
   class's role colour in event-id order, so a colour is stable for the document.
+
+### Dialogue (`web/src/lib/views/Dialogue.tsx`, `data/dialogue.ts`)
+
+A mode of one picked execution in the statement inspector (`Binds | Dialogue`, persisted as `mtkprof.exec.detail`;
+two picked executions keep `ExecCompare`): the execution as a sequence diagram between Client, Server process and,
+only when used, Disk, TEMP and Others. Plan: `docs/PLAN-VIEWS.md` § 5; mock-up `docs/viz-concepts/dialogue.png`.
+
+- Data: the Loom's `executions/trace` rows (`DataSource.executionTrace`, same query key `loom:<stmt>:<cursor>:<execNo>`,
+  so the two share the answer). `dialogueOf(doc, trace)` makes the steps and totals, `dialogueLayout` all geometry;
+  the component only draws SVG and the popovers. `null` gives the Loom's "not available" text, `truncated` a note.
+- Turns: one per own call in trace order (the PARSE right before the EXEC, the EXEC, its FETCHes). The CLOSE is not
+  part of an execution trace, nor is the client gap before it: io_waits stmt 21 has 204 turns, not 205 calls, and
+  stmt 15's gaps are 7.43 ms, not 7.5 ms. Recursive calls roll up into their own call (`owner`): `n` and `us` count
+  one level down (dep + 1, the deeper ones are inside those), grouped by statement and call kind with each group's
+  calls above 10× its median (groups of 3 or more), which shows a PL/SQL loop's first EXEC (io_waits stmts 18, 19:
+  483 µs and 380 µs against 28 µs).
+- Wait attribution, as `internal/model/builder.go` `attachWait`: a WAIT line belongs to the next call of its cursor and
+  is `between` when its `tim` falls outside the call's `(tim - e, tim]` (without timestamps: when it is idle). A
+  between wait of own call k is the client gap before turn k, whatever its class (the popover says when it is not
+  idle, e.g. errors.trc's `log file sync`). A recursive call's between wait inside the own call's time is part of the
+  call; outside it is the gap before the turn it precedes. The first turn's gap lies before the wall clock
+  (`leadGapUs`: a note, not a segment of the bar).
+- Lifelines of in-call waits: name contains `temp` → TEMP; class User I/O or System I/O → Disk; `SQL*Net message to
+  client` / `more data to client` annotate the reply arrow; the rest (Application, Commit, Concurrency,
+  Configuration, Other, other Network waits, idle waits inside a call such as `PL/SQL lock timer`) → Others. Read
+  events (`read` as a word in the name) point back at the server; TEMP uses the Loom's `--ev-temp-w` / `--ev-temp`.
+- Round trips: a new one starts after an idle between wait, so calls with none between them went together (SQL*Plus
+  sends PARSE, EXEC and FETCH #1 in one) and the reply arrow follows the last call of each. With no WAIT lines in the
+  trace at all the round trips are unknown and every call replies.
+- Collapse: maximal runs of equal `(kind, rows)`; in a run of at least `minRun` (3) turns, a turn whose elapsed or gap
+  exceeds `outlierX` (10) × the run's median (medians under `floorUs` = 10 µs count as 10 µs: timer noise on µs calls
+  is no outlier) leaves it as its own step (`outlier` `ela` / `gap`); the rest become frames, so a run can give frame,
+  turn, frame (pieces shorter than `minRun` stay turns). A frame draws one turn with the run's medians, side arrows
+  and reply annotations summed ("× n in all") and its totals on the frame.
+- Totals, the true-scale `ProfileBar` over the wall clock (the first call's `tim - e` to the last call's `tim`): CPU =
+  Σ own calls' `c` (inclusive of recursive calls), in-call waits by `roleOfClass`, client gaps inside the wall,
+  untimed = the rest clamped at 0 (a note when CPU, waits and gaps exceed the wall: CPU counted inside waits). Facts
+  line: time to first row (end of the first FETCH with rows), round trips, the most frequent rows per fetch.
+- Layout: 170 px per lifeline after a 100 px gutter (at least 520 px, horizontal scroll), a margin for the
+  recursive-SQL label when no lifeline lies right of the server; activation height `8 + 10·log10(1 + e / 100 µs)` px;
+  at most 300 steps drawn (a note says how many more) and 3 side arrows per lifeline and turn (the rest merged).
+  Every mark is focusable: hover shows its popover, click or Enter pins it, Esc closes; popovers carry `LineRef`s
+  (`doc.fileOfCtx(call.ctx)`), the recursive one `StmtLink`s.
+- Tests: `data/dialogue.test.ts`: synthetic `ExecTrace`s for every rule; every execution of the
+  `data/testdata/findings-*.json.gz` documents through `LocalSource.executionTrace`; § 1's io_waits numbers on
+  `findings-io_waits.json.gz` (written with the others by `go test ./internal/report -run FindingsDocs
+  -update-findings-docs`).
 

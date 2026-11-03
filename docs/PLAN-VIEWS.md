@@ -571,7 +571,7 @@ heading) and tick § 9.
 |---|---|---|---|
 | G view without a chord | not started | | |
 | R Row flow | done | | lib only, no engine change; per-node STAT links (`plan.line + index`); ghost = E-Rows × starts except below iterators, none for starts 0 (PX slaves' lines); thickest band by decades of rows; no fixture has STAT lines without statistics (level_1.trc has them), so the table + note state is unit-tested only |
-| D Dialogue | not started | | |
+| D Dialogue | done | | `dialogueOf` adds `floorUs` (10 µs), round trips (idle between waits), recursive groups with their 10× outliers (stmts 18 / 19 show in stmt 17's EXEC), `leadGapUs` outside the wall; query key `loom:…` (the Loom's, not `trace:…`); no CLOSE in an execution trace, so stmt 21 = 204 turns and stmt 15 gaps = 7.43 ms; fixture `findings-io_waits.json.gz` |
 | B-engine `io/map` | done | | `IOMapFile.hi` is exclusive (largest block + blocks: § 1's ranges); `analyze.BlockEvents` builds the two `[]bool`; gc cr/current block 2-way have no parameter names, so they do not classify (gc cr/current request do); shared case `iomap-case.json` = 84 waits up to the 60th block I/O wait, 3 queries |
 | B-ui Blocks view | not started | | |
 
