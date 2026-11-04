@@ -20,6 +20,8 @@ interface Props {
   marks: ReadonlyMap<number, number>
   /** the lines of the time window */
   range: Range | null
+  /** the hot spots of the readable view (lines of 1 % of the traced time or more): a mark across the strip */
+  hot?: readonly number[]
   /** the visible range: first line (1-based) and the lines that fit */
   view: { top: number; rows: number }
   /** a click, and the end of a drag: the line under the pointer */
@@ -55,7 +57,7 @@ export function LineStrip(props: Props) {
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, STRIP_W, h)
-    const { profile: p, total: t, hits, bookmarks, marks, range, view } = latest.current
+    const { profile: p, total: t, hits, bookmarks, marks, range, view, hot } = latest.current
     const cpu = resolveVar('--c-cpu'), wait = resolveVar('--c-userio'), commit = resolveVar('--c-commit'), crit = resolveVar('--s-critical')
     const ink = resolveVar('--ink'), ink3 = resolveVar('--ink-3')
     const n = t || p?.total || 0
@@ -83,6 +85,10 @@ export function LineStrip(props: Props) {
     }
 
     if (n > 0) {
+      if (hot?.length) {
+        ctx.fillStyle = wait
+        for (const y of stripMarks(hot, n, h)) ctx.fillRect(1, Math.max(0, y - 1), STRIP_W - 2, 3)
+      }
       ctx.fillStyle = ink
       for (const y of stripMarks(marks.keys(), n, h)) ctx.fillRect(5, y, 4, 1)
       ctx.fillStyle = commit
@@ -113,8 +119,8 @@ export function LineStrip(props: Props) {
   const schedule = useRef(() => { if (!frame.current) frame.current = requestAnimationFrame(paint.current) })
 
   // repaint (once per frame) after every render that brought other props
-  const { profile, total, hits, bookmarks, marks, range, view } = props
-  useEffect(() => schedule.current(), [profile, total, hits, bookmarks, marks, range, view.top, view.rows])
+  const { profile, total, hits, bookmarks, marks, range, view, hot } = props
+  useEffect(() => schedule.current(), [profile, total, hits, bookmarks, marks, range, view.top, view.rows, hot])
 
   // the size, and the theme (the colours are tokens that change with it)
   useEffect(() => {

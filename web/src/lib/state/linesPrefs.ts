@@ -10,6 +10,8 @@ export interface LinesPrefs {
   hints: boolean
   /** raw numbers shown readable in place (tim= as a clock, obj# as a name, e=/ela= as a duration, oacdty as a type); off shows the trace as written */
   readable: boolean
+  /** readable mode: runs of identical waits, long wait blocks and loops of small fetches fold into one line each */
+  foldRepeats: boolean
   /** a gutter column with each line's tim as a wall-clock time */
   clock: boolean
   /** a gutter column with each line's time from an anchor line in view */
@@ -27,7 +29,7 @@ export interface LinesPrefs {
 }
 
 export const LINES_PREFS_DEFAULTS: LinesPrefs = {
-  wrap: false, heat: true, strip: true, links: true, hints: true, readable: true, clock: false, delta: false,
+  wrap: false, heat: true, strip: true, links: true, hints: true, readable: true, foldRepeats: false, clock: false, delta: false,
   inspect: false, inspectW: 400, follow: false, mute: [], threshold: 10, gapMs: 100,
 }
 

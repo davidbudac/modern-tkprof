@@ -376,6 +376,8 @@ Every row that carries a trace `line` also carries `ctx` (the context id; `/api/
 | `/api/lines/at?file&tim` | `{line}`: first line whose call or wait has `tim >=` (binary search over the file's call rows, then waits, smaller line wins; past the end: the last record's line; 404 without rows) |
 | `/api/at?file&line` | `{call,stmt,cursor,execNo,wait,bindSet,ctx,planLine,kind}`, -1 where absent; `kind` is the line's. WAIT line: its wait and attributed call; PARSING IN CURSOR / SQL text / END OF STMT: only the cursor; STAT: `planLine` (index into `Model.PlanLines`) and its cursor; BINDS block: the EXEC it is attached to; otherwise the last call at or before the line |
 | `/api/search?file&q&regex&case&from&limit` | NDJSON `{line,col,text}` per matching line (first match, byte column, text cut at 400 bytes), then `{done,scanned,truncated}`; 4 MB chunks from the line-index checkpoint, `bytes.Index` (ASCII-folded for `case=0`) or `regexp` per line; `limit` 1000 (max 10 000); stops within a chunk of a cancel |
+| `/api/lines/hot?file&min&limit` | `{hot:[{line,us,wait}],max,truncated}`: the call rows (`us` = the line's `e=`) and wait rows (`us` = ela, idle ones too) of the file with `us >= min` (µs, default 1000), at most `limit` (default 2000, max 20 000): the largest are kept (earlier line on a tie) and listed in line order, `truncated` when some were left out. `max` = the largest `us` of any call or wait row of the file (0 without rows), whatever `min` says: the scale of the readable Lines view's time bars. One pass over the rows, a heap of `limit` (`lines_readable.go`) |
+| `/api/lines/repeats?file&small` | `{folds:[{from,to,kind,n,us,max,…}],truncated}`: fold candidates for the readable Lines view's "Fold repeats", sorted by `from`, not overlapping, at most 20 000. One merged walk over the call and wait rows (`repeatWalk`). `run` (+`event`): 3 or more waits of one event in a row inside a wait block (consecutive non-idle waits of one cursor, no call between; an idle wait ends a block). `block` (+`by: [{event,n,us}]` by `us` desc): a wait block that still has more than 10 items after each run counts as one (then it has no run folds). `fetches` (+`rows,cr,p,idle`): 6 or more FETCH calls of one cursor each with `e < small`, only waits of that cursor with `ela < small` between them (idle included, summed in `idle`), no other call; the run/block folds inside it are dropped. `small` µs, default (and 0) = 1% of the file's time span (`tim` of the last row minus the first, at least 1). Memory is O(events + 10) per block or loop, not O(rows) |
 
 `FactSource` gained `RowsOfContext`, `CallAt` and `WaitAt` for this: a binary search reads single fixed-width spill records, it never scans. `at` assumes the calls of one file are adjacent rows in line order, which holds for the builder's output; a plan's file is inferred (see `files()` in `at.go`) because `Plan` has no context.
 
@@ -941,7 +943,8 @@ health, `events` (SSE), `prompts/{id}`, `sessions` (open, list, get, close),
 (`sessionRoutes` in `session.go`, mounted under `/s/{id}`): `api/doc`,
 `api/report` (`internal/engine/report.go`), and the endpoints of
 `internal/slice`: the 14 JSON ones (the 13 above and `api/plan`, `plan.go`)
-and the line endpoints (`lines` incl. `annot=1`, `lines/at`, `at`, `search`,
+and the line endpoints (`lines` incl. `annot=1`, `lines/at`, `lines/next`,
+`lines/blocks`, `lines/profile`, `lines/hot`, `lines/repeats`, `at`, `search`,
 mounted with `WithLines(co.Lines)`). Request and response
 shapes, status codes and error codes are in `api/engine.openapi.yaml`
 (protocol 1); `internal/engine/contract_test.go` walks `Server.Routes()` and

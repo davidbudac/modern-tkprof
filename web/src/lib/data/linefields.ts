@@ -80,7 +80,7 @@ export const COMMAND_NAMES: Record<number, string> = {
   255: 'DROP INMEMORY JOIN GROUP',
 }
 const GOALS: Record<number, string> = { 1: 'ALL_ROWS', 2: 'FIRST_ROWS', 3: 'RULE', 4: 'CHOOSE' }
-const CLOSE_TYPES: Record<number, string> = { 0: 'hard close', 1: 'soft close, kept in the cursor cache', 2: 'soft close', 3: 'already in the cursor cache' }
+export const CLOSE_TYPES: Record<number, string> = { 0: 'hard close', 1: 'soft close, kept in the cursor cache', 2: 'soft close', 3: 'already in the cursor cache' }
 
 const KIND_LABELS: Record<LineKind, string> = {
   unknown: 'Unrecognised line', blank: 'Blank line', header: 'Trace header', separator: 'Separator', marker: 'Marker',

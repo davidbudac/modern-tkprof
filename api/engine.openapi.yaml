@@ -1538,6 +1538,106 @@ paths:
           description: no such session (envelope) or no such file (plain text)
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/lines/hot:
+    get:
+      operationId: sessionLinesHot
+      summary: The calls and waits of a file that took long (the Lines view time bars)
+      description: |
+        The call rows (`us` = the `e=` of the line) and wait rows (`us` = `ela`;
+        idle waits count like any wait) of the file whose time is at least `min`
+        microseconds. At most `limit` rows are answered: when more qualify the
+        ones with the largest `us` are kept (the earlier line wins a tie) and
+        listed in line order, and `truncated` says some were left out. `max` is
+        the largest `us` of any call or wait row of the file (0 when it has
+        none), whatever `min` and `limit` say: the scale for the time bars. One
+        pass over the file's call and wait rows.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: min
+          in: query
+          description: smallest time in microseconds that is listed; default 1000 (1 ms)
+          schema:
+            type: integer
+            minimum: 0
+            default: 1000
+        - name: limit
+          in: query
+          description: most rows listed, 1..20000; default 2000
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20000
+            default: 2000
+      responses:
+        "200":
+          description: LinesHot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinesHot"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope) or no such file (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/lines/repeats:
+    get:
+      operationId: sessionLinesRepeats
+      summary: Stretches of repeated rows of a file that can be folded to one line
+      description: |
+        The candidates of the Lines view's "Fold repeats". The call and wait rows
+        of the file are walked in line order and three kinds of folds are found;
+        they are sorted by `from`, do not overlap, at most 20000 are answered
+        (`truncated` says there were more).
+
+        `run`: 3 or more waits of one event in a row (`event`) inside a wait
+        block. A wait block is a maximal run of consecutive non-idle waits of one
+        cursor with no call row between them; an idle wait ends a block and is
+        never folded on its own. `block`: when a wait block, with each run
+        counted as one item and every other wait as one, still has more than 10
+        items, the whole block is one fold (and has no `run` folds); `by` is the
+        time per event, largest `us` first (the event name breaks a tie).
+        `fetches`: 6 or more FETCH calls of one cursor, each with `e` below
+        `small`, with only waits of that cursor below `small` between them (idle
+        ones included) and no other call: `from` and `to` are the first and the
+        last fetch's line; `rows`, `cr` and `p` are the sums of the fetches' rows,
+        consistent reads and physical reads, `idle` the idle wait time between
+        them. A fetch with `e` of `small` or more is not part of a loop. The
+        `run` and `block` folds that lie inside a `fetches` fold are left out.
+
+        `n` counts the folded waits (run, block) or fetches; `us` is their summed
+        elapsed time and `max` the largest single one, in microseconds.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: small
+          in: query
+          description: |
+            microseconds below which a fetch or a wait of a fetch loop is cheap;
+            default (and 0): 1% of the file's time span (the `tim` of its last
+            row minus that of its first, calls and waits together), at least 1
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: LinesRepeats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinesRepeats"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope) or no such file (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
   /s/{id}/api/at:
     get:
       operationId: sessionAt
@@ -2906,6 +3006,97 @@ components:
           type: integer
         maxWaits:
           type: integer
+    LinesHot:
+      type: object
+      description: The long call and wait rows of one file, in line order.
+      required: [hot, max, truncated]
+      properties:
+        hot:
+          type: array
+          items:
+            type: object
+            required: [line, us, wait]
+            properties:
+              line:
+                type: integer
+                description: 1-based line of the call or WAIT line
+              us:
+                type: integer
+                description: microseconds, the call's e= or the wait's ela=
+              wait:
+                type: boolean
+                description: a wait row (else a call row)
+        max:
+          type: integer
+          description: the largest time of any call or wait row of the file; 0 when it has none
+        truncated:
+          type: boolean
+          description: more rows than `limit` qualified; the smaller ones are left out
+    LinesRepeats:
+      type: object
+      description: Fold candidates of one file, sorted by `from`, not overlapping.
+      required: [folds, truncated]
+      properties:
+        folds:
+          type: array
+          items:
+            $ref: "#/components/schemas/LinesRepeatFold"
+        truncated:
+          type: boolean
+          description: more than 20000 folds existed; the later ones are left out
+    LinesRepeatFold:
+      type: object
+      description: |
+        One fold. `event` is answered for `run`, `by` for `block`, and `rows`,
+        `cr`, `p` and `idle` for `fetches`.
+      required: [from, to, kind, n, us, max]
+      properties:
+        from:
+          type: integer
+          description: first line of the fold (1-based, inclusive)
+        to:
+          type: integer
+          description: last line of the fold (inclusive)
+        kind:
+          type: string
+          enum: [run, block, fetches]
+        n:
+          type: integer
+          description: waits (run, block) or fetch calls (fetches) in the fold
+        us:
+          type: integer
+          description: their summed elapsed time in microseconds
+        max:
+          type: integer
+          description: the largest single elapsed time among them, microseconds
+        event:
+          type: string
+          description: kind run, the wait event
+        by:
+          type: array
+          description: kind block, the waits per event, largest `us` first
+          items:
+            type: object
+            required: [event, n, us]
+            properties:
+              event:
+                type: string
+              n:
+                type: integer
+              us:
+                type: integer
+        rows:
+          type: integer
+          description: kind fetches, rows returned by the fetches
+        cr:
+          type: integer
+          description: kind fetches, consistent reads (query) of the fetches
+        p:
+          type: integer
+          description: kind fetches, physical reads (disk) of the fetches
+        idle:
+          type: integer
+          description: kind fetches, microseconds of idle waits between the fetches
     BlocksAnswer:
       type: object
       required: [blocks, truncated]

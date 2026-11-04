@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Key
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
 import { blockAt, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchLinesAnnot, fetchLineProfile, lineAt, linePermalink, linesBlocks, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
-import { fmtInt, fmtTz, preview } from '../data/format'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeRange } from '../data/rangesum'
 import { sourceOf, useSourceQuery } from '../data/source'
@@ -15,7 +15,11 @@ import { lineToneToken } from '../components/colors'
 import { CommandPalette, type Command } from '../components/CommandPalette'
 import { inlaysOf } from '../data/inlays'
 import { gapBefore } from '../data/gaps'
-import { anchorOf, lineTimesOf, type TimeAnchor } from '../data/linetime'
+import { anchorOf, lineTim, lineTimesOf, type TimeAnchor } from '../data/linetime'
+import { statementTones } from '../data/readable'
+import { readableRowsOf, type Pin } from './readableRows'
+import { AsRun } from './AsRun'
+import { ReadableOverview } from './ReadableOverview'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
@@ -74,11 +78,17 @@ interface LinesUi {
   back: number[]
   /** the selected line as this view last set it (the line a jump leaves) */
   cur: number
+  /** the line Δ is measured from (readable mode, and the raw mode's delta column), null for none */
+  pin: Pin | null
+  /** the folds of repeats the user opened (their first lines) */
+  openRepeats: Set<number>
+  /** the line whose execution the As run tab shows (0: the selected line) */
+  asRunLine: number
 }
 
 /** The tabs of the side panel: the selected line translated, the outline of the file, the search hits, the bookmarks. */
-type PanelTab = 'line' | 'outline' | 'hits' | 'bookmarks'
-const PANEL_TABS: { tab: PanelTab; label: string }[] = [{ tab: 'line', label: 'Line' }, { tab: 'outline', label: 'Outline' }, { tab: 'hits', label: 'Hits' }, { tab: 'bookmarks', label: 'Bookmarks' }]
+type PanelTab = 'line' | 'outline' | 'hits' | 'bookmarks' | 'asrun'
+const PANEL_TABS: { tab: PanelTab; label: string }[] = [{ tab: 'line', label: 'Line' }, { tab: 'outline', label: 'Outline' }, { tab: 'hits', label: 'Hits' }, { tab: 'bookmarks', label: 'Bookmarks' }, { tab: 'asrun', label: 'As run' }]
 
 const uis = new WeakMap<Store, Map<number, LinesUi>>()
 function uiOf(store: Store, file: number): LinesUi {
@@ -90,7 +100,7 @@ function uiOf(store: Store, file: number): LinesUi {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
       optionsMenu: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, range: null,
-      tab: 'line', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, folds: [], back: [], cur: 0,
+      tab: 'line', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, folds: [], back: [], cur: 0, pin: null, openRepeats: new Set(), asRunLine: 0,
     }))
   }
   return u
@@ -154,6 +164,25 @@ const COLOUR_ROWS: { label: string; kind: LineKind; mute?: string; title?: strin
   { label: 'framing (header, blank, ====)', kind: 'header', mute: 'framing' },
 ]
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
+const NO_HOT: ReadonlyMap<number, number> = new Map()
+
+/** A fold of repeats as the viewer shows it: its label, summary and the time it covers (`w`: as a fraction of `scaleUs`). */
+function repeatFold(r: RepeatFold, scaleUs: number): Fold {
+  const lines = `lines ${fmtInt(r.from)}–${fmtInt(r.to)}`
+  let label: string, summary: string
+  if (r.kind === 'run') {
+    label = `${fmtInt(r.n)}×`
+    summary = `${fmtInt(r.n)} × ${r.event ?? 'wait'} · ${fmtDur(r.us)} · max ${fmtDur(r.max)} · ${lines}`
+  } else if (r.kind === 'block') {
+    label = 'WAITS'
+    const by = (r.by ?? []).slice(0, 3).map((b) => `${b.event} ${fmtInt(b.n)}× ${fmtDur(b.us)}`).join(', ')
+    summary = `${fmtInt(r.n)} waits · ${fmtDur(r.us)}${by ? ` · ${by}${(r.by?.length ?? 0) > 3 ? ', …' : ''}` : ''} · ${lines}`
+  } else {
+    label = `FETCH×${fmtCompact(r.n)}`
+    summary = `${fmtInt(r.n)} fetches · ${fmtDur(r.us)} · ${fmtInt(r.rows ?? 0)} rows${r.cr ? ` · ${fmtInt(r.cr)} gets` : ''}${r.p ? ` · ${fmtInt(r.p)} reads` : ''}${r.idle ? ` · ${fmtDur(r.idle)} idle between them` : ''} · max ${fmtDur(r.max)} · ${lines}`
+  }
+  return { from: r.from, to: r.to, summary, label, w: Math.min(1, r.us / Math.max(1, scaleUs)), auto: true }
+}
 
 /** The side panel's icon: a window with a column at its end. */
 const PanelIcon = () => (
@@ -272,14 +301,14 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [foldTop, setFoldTop] = useState(0) // the first visible line rounded down: where blocks that can be folded are looked for
   // the deltas' anchor: the selected line when it is in view, else the first timed line in view; looked for again on every move
   const [anchor, setAnchor] = useState<TimeAnchor | null>(null)
-  const anchorArgs = useRef({ on: prefs.delta, selected: lv.line })
-  anchorArgs.current = { on: prefs.delta, selected: lv.line }
+  const anchorArgs = useRef({ on: prefs.delta, selected: lv.line, pin: ui.pin })
+  anchorArgs.current = { on: prefs.delta, selected: lv.line, pin: ui.pin }
   const refreshAnchor = useCallback(() => {
-    const { on, selected } = anchorArgs.current
-    const a = on ? anchorOf(cache, lastView.current.top, lastView.current.rows, selected) : null
+    const { on, selected, pin } = anchorArgs.current
+    const a = on ? pin ?? anchorOf(cache, lastView.current.top, lastView.current.rows, selected) : null
     setAnchor((cur) => (cur?.line === a?.line && cur?.tim === a?.tim ? cur : a))
   }, [cache])
-  useEffect(refreshAnchor, [refreshAnchor, prefs.delta, lv.line, pages])
+  useEffect(refreshAnchor, [refreshAnchor, prefs.delta, lv.line, pages, ui.pin])
   const times = useMemo(() => lineTimesOf(doc, { clock: prefs.clock, delta: prefs.delta }, anchor), [doc, prefs.clock, prefs.delta, anchor])
   const onViewChange = useCallback((top: number, rows: number) => {
     lastView.current = { top, rows }; viewBus.current?.(top, rows)
@@ -293,6 +322,58 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [copied, setCopied] = useState<{ msg: string; bad: boolean } | null>(null) // the status bar's note
   const selected = lv.line
   const total = cache.total
+
+  // ---- readable mode: the hot spots, the folds of repeats, the pin ---------------------------------------------------------
+  const readable = prefs.readable
+  /** the traced time of this file: 1 % of it makes a hot spot, and caps a fetch of a folded fetch loop */
+  const fileSpan = useMemo(() => { const f = doc.file.files?.[file]; return f && f.lastTim > f.firstTim ? f.lastTim - f.firstTim : doc.spanUs() }, [doc, file])
+  const [hot, setHot] = useState<{ map: ReadonlyMap<number, number>; lines: number[]; max: number } | null>(null)
+  useEffect(() => {
+    if (!readable) return
+    const ac = new AbortController()
+    fetchHot(client, file, Math.max(1, fileSpan * 0.01), ac.signal).then(
+      (h) => { if (!ac.signal.aborted) setHot({ map: new Map(h.hot.map((x) => [x.line, x.us])), lines: h.hot.map((x) => x.line), max: h.max }) },
+      (e: unknown) => { if (!aborted(e)) setHot({ map: NO_HOT, lines: [], max: 0 }) }, // an engine without the route: no hot spots
+    )
+    return () => ac.abort()
+  }, [client, file, fileSpan, readable, rev])
+  /** the time a bar shows full: the longest line of the file */
+  const scaleUs = hot && hot.max > 0 ? hot.max : Math.max(1, fileSpan * 0.05)
+  const wantRepeats = readable && prefs.foldRepeats
+  const [repeats, setRepeats] = useState<{ folds: RepeatFold[]; key: string } | null>(null)
+  const repeatsKey = `${file}:${rev}`
+  useEffect(() => {
+    if (!wantRepeats) return
+    const ac = new AbortController()
+    fetchRepeats(client, file, Math.max(1, fileSpan * 0.01), ac.signal).then(
+      (r) => { if (!ac.signal.aborted) setRepeats({ folds: r.folds, key: repeatsKey }) },
+      (e: unknown) => { if (!aborted(e)) setRepeats({ folds: [], key: repeatsKey }) },
+    )
+    return () => ac.abort()
+  }, [client, file, fileSpan, wantRepeats, repeatsKey])
+  const repeatsLoading = wantRepeats && repeats?.key !== repeatsKey
+  const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r, scaleUs)) : null), [wantRepeats, repeats, scaleUs])
+  /** the user's folds and, with Fold repeats, the repeats the user has not opened (the user's win where they overlap) */
+  const allFolds = useMemo(() => (repeatFolds ? mergeFolds(ui.folds, repeatFolds.filter((f) => !ui.openRepeats.has(f.from))) : ui.folds), [repeatFolds, ui.folds, ui.openRepeats])
+  /** Opens a fold, or folds a block again: a fold of repeats is opened by remembering it, a user's fold by dropping it. */
+  const toggleAnyFold = useCallback((f: Fold) => {
+    if (f.auto) set({ openRepeats: new Set([...ui.openRepeats, f.from]) }); else set({ folds: toggleFold(ui.folds, f) })
+  }, [ui, set])
+
+  // the view pulses while it switches: the toggle's new render waits a frame, so the pulse is painted before the work starts
+  const [switching, setSwitching] = useState<'readable' | 'repeats' | null>(null)
+  const switchPrefs = (what: 'readable' | 'repeats', patch: Partial<typeof prefs>) => {
+    if (Object.entries(patch).every(([k, v]) => prefs[k as keyof typeof prefs] === v)) return
+    setSwitching(what)
+    requestAnimationFrame(() => window.setTimeout(() => setPrefs(patch), 0))
+  }
+  useEffect(() => {
+    let r2 = 0
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setSwitching(null)) })
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
+  }, [prefs.readable, prefs.foldRepeats])
+  const busy = switching !== null || repeatsLoading
+  const toggleRepeats = () => (readable ? switchPrefs('repeats', { foldRepeats: !prefs.foldRepeats }) : flash('Fold repeats works in the readable view (v)'))
 
   // ---- folding: the handles of the blocks around the view, and the blocks themselves -----------------------------------
   const foldable = useMemo(() => {
@@ -347,15 +428,15 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const select = useCallback((line: number, dispatch = true) => { ui.cur = line; actions.setLinesLine(file, line); resolveAt(line, dispatch) }, [actions, file, resolveAt, ui])
   const revealAfter = useRef(0) // a line to reveal once the viewer has the new folds
   const goTo = useCallback((line: number, dispatch = true) => {
-    const hidden = foldHiding(line, ui.folds)
-    if (hidden) { revealAfter.current = line; set({ folds: toggleFold(ui.folds, hidden) }) } // a line inside a fold: open it first
+    const hidden = foldHiding(line, allFolds)
+    if (hidden) { revealAfter.current = line; toggleAnyFold(hidden) } // a line inside a fold: open it first
     else apiRef.current?.reveal(line, 'center')
     select(line, dispatch)
-  }, [select, ui, set])
+  }, [select, allFolds, toggleAnyFold])
   // the viewer maps the new folds in its own effect (a child's effect runs first), then the reveal can find the row
   useEffect(() => {
     if (revealAfter.current > 0) { apiRef.current?.reveal(revealAfter.current, 'center'); revealAfter.current = 0 }
-  }, [ui.folds])
+  }, [allFolds])
   /** A jump (a search hit, a mark, a bookmark, Go to, a line card action, a deep link): `goTo` that remembers the line it left for Back. */
   const jump = useCallback((line: number, dispatch = true) => {
     if (ui.range) set({ range: null })
@@ -566,7 +647,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'z': onFold(selected); break
       case 'Z': set({ folds: [] }); break
       case 'n': setPrefs({ hints: !prefs.hints }); break
-      case 'v': setPrefs({ readable: !prefs.readable }); break
+      case 'v': switchPrefs('readable', { readable: !prefs.readable }); break
+      case 'a': togglePin(selected); break
+      case 'r': toggleRepeats(); break
+      case 'j': stepHot(1); break
+      case 'J': stepHot(-1); break
       case 't': stepGap(1); break
       case 'T': stepGap(-1); break
       case 'f': toggleFocus(); break
@@ -627,11 +712,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const copyLink = useCallback((line: number) => void copyWhat(`link to line ${fmtInt(line)}`, linePermalink(window.location, file, line)), [copyWhat, file])
   /** Folds the block that starts at `line`, or unfolds the fold that has its handle there or hides it. */
   const onFold = useCallback((line: number) => {
-    const open = foldAt(line, ui.folds) ?? foldHiding(line, ui.folds)
-    if (open) { set({ folds: toggleFold(ui.folds, open) }); return }
+    const open = foldAt(line, allFolds) ?? foldHiding(line, allFolds)
+    if (open) { toggleAnyFold(open); return }
     const b = blockAt(cache, line)
     if (b) set({ folds: toggleFold(ui.folds, b) }); else flash(`nothing to fold at line ${fmtInt(line)}`)
-  }, [ui, set, cache, flash])
+  }, [ui, set, cache, flash, allFolds, toggleAnyFold])
   /** Folds every BINDS block or STAT dump of the file (the engine lists them), next to the folds there already are. */
   const foldAll = useCallback(async (what: 'binds' | 'stat') => {
     const name = what === 'binds' ? 'BINDS block' : 'STAT dump'
@@ -691,11 +776,61 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       .filter((i) => (i.from === undefined ? prefs.hints : prefs.readable && !(prefs.clock && i.kind === 'clock')))
     : undefined), [prefs.hints, prefs.readable, prefs.clock, decodeCtx, gapOf])
   const lineCard = useMemo(() => lineCardOf(decodeCtx), [decodeCtx])
+
+  // ---- readable rows ---------------------------------------------------------------------------------------------------------
+  const tones = useMemo(() => statementTones(doc.statements, (id) => doc.stats.statements[id]?.elapsed ?? 0), [doc])
+  /** Pins a line (Δ is measured from it), or unpins it. */
+  const togglePin = useCallback((line: number) => {
+    if (ui.pin?.line === line) { set({ pin: null }); return }
+    const l = cache.line(line)
+    const tim = l ? lineTim(l.text, LINE_KINDS[l.kind] ?? 'unknown') : undefined
+    if (tim === undefined) { flash(`line ${fmtInt(line)} has no time to measure from (a call, wait, commit or cursor parse has)`); return }
+    set({ pin: { line, tim } })
+  }, [ui, set, cache, flash])
+  // the values of the BINDS blocks in view: an engine session's document has no bind tables, so each header is asked of /api/at once
+  const [bindsTick, bumpBinds] = useReducer((x: number) => x + 1, 0)
+  const bindQ = useMemo(() => ({ asked: new Set<number>(), queue: [] as number[], busy: 0 }), [cache]) // eslint-disable-line react-hooks/exhaustive-deps
+  const missingBinds = useCallback((line: number) => {
+    if (bindQ.asked.has(line)) return
+    bindQ.asked.add(line); bindQ.queue.push(line)
+    const pump = () => {
+      while (bindQ.busy < 3 && bindQ.queue.length > 0) {
+        const n = bindQ.queue.shift()!
+        bindQ.busy++
+        objectsAt(client, file, n).then((o) => { rememberBinds(doc, file, o); bumpBinds() }, () => undefined).finally(() => { bindQ.busy--; pump() })
+      }
+    }
+    queueMicrotask(pump)
+  }, [bindQ, client, doc, file])
+  const readableRows = useMemo(() => (readable
+    ? readableRowsOf({ doc, line: (n) => cache.line(n), tones, pin: ui.pin, hot: hot?.map ?? NO_HOT, scaleUs, bindAt, missingBinds })
+    : undefined
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [readable, doc, cache, tones, ui.pin, hot, scaleUs, bindAt, missingBinds, pages, bindsTick])
+  /** The next / previous hot spot from the selected line. */
+  const stepHot = (dir: 1 | -1) => {
+    const hs = hot?.lines ?? []
+    if (hs.length === 0) { flash(readable ? 'no line takes 1 % of the traced time or more' : 'hot spots are shown in the readable view (v)'); return }
+    const i = firstAbove(hs, selected)
+    const to = dir === 1 ? hs[i] : hs[hs[i - 1] === selected ? i - 2 : i - 1]
+    if (to !== undefined) jump(to); else flash(`no hot spot ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)}`)
+  }
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
 
   // ---- references in the rows: a click on a cursor, sql_id, obj# or plan hash; the tooltip of each -------------------------
   const onRef = useMemo(() => refClickOf(doc, file, decodeCtx, actions, jump, flash, setPopup), [doc, file, decodeCtx, actions, jump, flash])
   const refTitle = useMemo(() => refTitleOf(doc, decodeCtx), [doc, decodeCtx])
+  /** A readable row's own controls: the pin, the BINDS row's SQL with its values, the lane's sql_id (the statement popup). */
+  const onAct = useCallback((line: number, act: 'pin' | 'asrun' | 'lane', el: HTMLElement) => {
+    if (act === 'pin') togglePin(line)
+    else if (act === 'asrun') { set({ asRunLine: line, tab: 'asrun' }); setPrefs({ inspect: true }) }
+    else {
+      const l = cache.line(line)
+      const st = l && readableRows ? readableRows(line, l).lane?.stmt ?? -1 : -1
+      const r = el.getBoundingClientRect()
+      if (st >= 0 && doc.statements[st]) setPopup({ kind: 'stmt', stmt: st, anchor: { x: r.left, y: r.bottom, rect: r }, line })
+    }
+  }, [togglePin, set, setPrefs, cache, readableRows, doc])
 
   // ---- the inspector (the panel's Line tab): the selected line, or with Follow the line under the pointer -------------------
   const [hover, setHover] = useState<number | null>(null)
@@ -840,6 +975,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     add('Step', 'step:mark:prev', 'Previous mark', () => stepMark(-1), { keys: 'M', disabled: markLines.length === 0, hint: 'of the selected statement' })
     add('Step', 'step:hit:next', 'Next hit', () => stepHit(1), { keys: 'F3', disabled: nextHitDisabled })
     add('Step', 'step:hit:prev', 'Previous hit', () => stepHit(-1), { keys: 'Shift+F3', disabled: nextHitDisabled })
+    add('Step', 'step:hot:next', 'Next hot spot', () => stepHot(1), { keys: 'j', hint: 'a line of 1 % of the traced time or more (readable view)' })
+    add('Step', 'step:hot:prev', 'Previous hot spot', () => stepHot(-1), { keys: 'J' })
     add('Step', 'step:exec:next', 'Next execution', () => stepExec(1), { keys: 'd' })
     add('Step', 'step:exec:prev', 'Previous execution', () => stepExec(-1), { keys: 'D' })
 
@@ -851,6 +988,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
     for (const t of SHOW_TOGGLES) add('View', `view:${t.key}`, t.label, () => setPrefs({ [t.key]: !prefs[t.key] }), { checked: prefs[t.key], keys: t.keys })
     for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => toggleMute(g.name), { checked: muteSet.has(g.name) })
+    add('View', 'view:readable', 'Readable view', () => switchPrefs('readable', { readable: !prefs.readable }), { checked: prefs.readable, keys: 'v' })
+    add('View', 'view:repeats', 'Fold repeats', toggleRepeats, { checked: prefs.foldRepeats, keys: 'r', disabled: !prefs.readable, hint: 'identical waits, long wait blocks, fetch loops' })
+    add('Line', 'line:pin', ui.pin?.line === selected ? 'Unpin line' : 'Pin line (Δ from it)', () => togglePin(selected), { keys: 'a', checked: ui.pin?.line === selected })
+    if (ui.pin) add('Line', 'line:unpin', `Unpin line ${fmtInt(ui.pin.line)}`, () => set({ pin: null }))
     add('View', 'view:focus', 'Focus cursor', toggleFocus, { checked: ui.focus !== null, keys: 'f', hint: "dims the other cursors' rows" })
     add('View', 'view:keys', 'Keyboard shortcuts', () => set({ keys: true }), { keys: '?' })
 
@@ -991,9 +1132,25 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             <KeyMap />
           </ToolbarMenu>
           <span className="seg" role="group" aria-label="Values in the rows" title="how the numbers in the rows read: tim= as a clock time, obj#= as the object name, e= / ela= as a duration, oacdty= as the type name (v); the raw value is in the tooltip">
-            <button type="button" aria-pressed={!prefs.readable} onClick={() => setPrefs({ readable: false })}>raw</button>
-            <button type="button" aria-pressed={prefs.readable} onClick={() => setPrefs({ readable: true })}>readable</button>
+            <button type="button" className={switching === 'readable' && prefs.readable ? 'busy-src' : undefined} aria-pressed={!prefs.readable} onClick={() => switchPrefs('readable', { readable: false })}>raw</button>
+            <button type="button" className={switching === 'readable' && !prefs.readable ? 'busy-src' : undefined} aria-pressed={prefs.readable} onClick={() => switchPrefs('readable', { readable: true })}>readable</button>
           </span>
+          {readable && (
+            <span className="lines-rd" role="group" aria-label="Readable view">
+              <button type="button" className={'quiet' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')} aria-pressed={prefs.foldRepeats} onClick={toggleRepeats}
+                title="fold runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches into one line each; click a fold's ▸ to open it (r)">Fold repeats</button>
+              <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hot || hot.lines.length === 0}
+                title={hot && hot.lines.length ? `the next line that took 1 % of the traced time (${fmtDur(fileSpan * 0.01)}) or more: ${fmtInt(hot.lines.length)} in this file (j, J back)` : 'no line takes 1 % of the traced time or more'}>
+                Hot spot ↓{hot && hot.lines.length > 0 && <small> {fmtInt(hot.lines.length)}</small>}
+              </button>
+            </span>
+          )}
+          {ui.pin && (
+            <span className="lines-pin" title="Δ is measured from the pinned line (a pins the selected line)">
+              Δ from <button type="button" className="link" onClick={() => jump(ui.pin!.line)}><b>line {fmtInt(ui.pin.line)}</b></button>
+              <button type="button" className="quiet" onClick={() => set({ pin: null })} aria-label="Unpin" title="unpin: Δ from the line before again">×</button>
+            </span>
+          )}
           <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints, clock and delta columns), the line colours and the ones to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
             <div className="lines-view">
               <h4>Show</h4>
@@ -1047,10 +1204,20 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       })()}
       <LinesAt doc={doc} file={file} at={at} text={at ? cache.line(at.line)?.text ?? '' : ''} goTo={jump} note={flash} block={atBlock} onCopyRange={copyRange} lineActs={lineActs} />
 
+      {readable && (() => {
+        const f = doc.file.files?.[file]
+        const [from, to] = f && f.lastTim > f.firstTim ? [f.firstTim, f.lastTim] : [doc.span.firstTim, doc.span.lastTim]
+        const sl = cache.line(selected)
+        return (
+          <ReadableOverview doc={doc} tones={tones} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined}
+            onStmt={(id) => { const l = stmtLineIn(doc, file, id); if (l !== undefined) jump(l); else flash(`${doc.label(doc.statements[id])} has no cursor in this file`) }}
+            onTim={(tim) => { lineAt(client, file, tim).then((l) => jump(l), (e: unknown) => flash(e instanceof Error ? e.message : String(e), true)) }} />
+        )
+      })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
-        <div className="lines-main">
-          <LineViewer cache={cache} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={ui.folds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
-            onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} onJump={jump} onScrub={scrubTo} /> : undefined}
+        <div className={'lines-main' + (busy ? ' busy' : '')} aria-busy={busy || undefined}>
+          <LineViewer cache={cache} readable={readableRows} onAct={onAct} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+            onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted">Loading trace lines…</p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
@@ -1070,6 +1237,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             <div className={`lines-side-body lines-side-${ui.tab}`} role="tabpanel">
               {ui.tab === 'line' && <LineInspector doc={doc} cache={cache} line={inspectedLine} at={inspAt} decodeCtx={decodeCtx} note={flash} onRef={onInspectRef} follow={prefs.follow} onFollow={(v) => setPrefs({ follow: v })} />}
               {ui.tab === 'hits' && hitsTab}
+              {ui.tab === 'asrun' && <AsRun doc={doc} client={client} file={file} line={ui.asRunLine || selected} onGo={(l) => { set({ asRunLine: l }); jump(l) }} note={flash} />}
               {ui.tab === 'outline' && <LinesOutline doc={doc} file={file} selected={selected} state={ui.outline} onState={(outline) => set({ outline })} onGo={jump} />}
               {ui.tab === 'bookmarks' && (
                 <BookmarkList bookmarks={allBookmarks} fileName={fileName}

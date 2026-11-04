@@ -1042,6 +1042,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/s/{id}/api/lines/hot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The calls and waits of a file that took long (the Lines view time bars)
+         * @description The call rows (`us` = the `e=` of the line) and wait rows (`us` = `ela`;
+         *     idle waits count like any wait) of the file whose time is at least `min`
+         *     microseconds. At most `limit` rows are answered: when more qualify the
+         *     ones with the largest `us` are kept (the earlier line wins a tie) and
+         *     listed in line order, and `truncated` says some were left out. `max` is
+         *     the largest `us` of any call or wait row of the file (0 when it has
+         *     none), whatever `min` and `limit` say: the scale for the time bars. One
+         *     pass over the file's call and wait rows.
+         */
+        get: operations["sessionLinesHot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/lines/repeats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stretches of repeated rows of a file that can be folded to one line
+         * @description The candidates of the Lines view's "Fold repeats". The call and wait rows
+         *     of the file are walked in line order and three kinds of folds are found;
+         *     they are sorted by `from`, do not overlap, at most 20000 are answered
+         *     (`truncated` says there were more).
+         *
+         *     `run`: 3 or more waits of one event in a row (`event`) inside a wait
+         *     block. A wait block is a maximal run of consecutive non-idle waits of one
+         *     cursor with no call row between them; an idle wait ends a block and is
+         *     never folded on its own. `block`: when a wait block, with each run
+         *     counted as one item and every other wait as one, still has more than 10
+         *     items, the whole block is one fold (and has no `run` folds); `by` is the
+         *     time per event, largest `us` first (the event name breaks a tie).
+         *     `fetches`: 6 or more FETCH calls of one cursor, each with `e` below
+         *     `small`, with only waits of that cursor below `small` between them (idle
+         *     ones included) and no other call: `from` and `to` are the first and the
+         *     last fetch's line; `rows`, `cr` and `p` are the sums of the fetches' rows,
+         *     consistent reads and physical reads, `idle` the idle wait time between
+         *     them. A fetch with `e` of `small` or more is not part of a loop. The
+         *     `run` and `block` folds that lie inside a `fetches` fold are left out.
+         *
+         *     `n` counts the folded waits (run, block) or fetches; `us` is their summed
+         *     elapsed time and `max` the largest single one, in microseconds.
+         */
+        get: operations["sessionLinesRepeats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/s/{id}/api/at": {
         parameters: {
             query?: never;
@@ -1563,6 +1631,61 @@ export interface components {
             commits: number[];
             maxCalls: number;
             maxWaits: number;
+        };
+        /** @description The long call and wait rows of one file, in line order. */
+        LinesHot: {
+            hot: {
+                /** @description 1-based line of the call or WAIT line */
+                line: number;
+                /** @description microseconds, the call's e= or the wait's ela= */
+                us: number;
+                /** @description a wait row (else a call row) */
+                wait: boolean;
+            }[];
+            /** @description the largest time of any call or wait row of the file; 0 when it has none */
+            max: number;
+            /** @description more rows than `limit` qualified; the smaller ones are left out */
+            truncated: boolean;
+        };
+        /** @description Fold candidates of one file, sorted by `from`, not overlapping. */
+        LinesRepeats: {
+            folds: components["schemas"]["LinesRepeatFold"][];
+            /** @description more than 20000 folds existed; the later ones are left out */
+            truncated: boolean;
+        };
+        /**
+         * @description One fold. `event` is answered for `run`, `by` for `block`, and `rows`,
+         *     `cr`, `p` and `idle` for `fetches`.
+         */
+        LinesRepeatFold: {
+            /** @description first line of the fold (1-based, inclusive) */
+            from: number;
+            /** @description last line of the fold (inclusive) */
+            to: number;
+            /** @enum {string} */
+            kind: "run" | "block" | "fetches";
+            /** @description waits (run, block) or fetch calls (fetches) in the fold */
+            n: number;
+            /** @description their summed elapsed time in microseconds */
+            us: number;
+            /** @description the largest single elapsed time among them, microseconds */
+            max: number;
+            /** @description kind run, the wait event */
+            event?: string;
+            /** @description kind block, the waits per event, largest `us` first */
+            by?: {
+                event: string;
+                n: number;
+                us: number;
+            }[];
+            /** @description kind fetches, rows returned by the fetches */
+            rows?: number;
+            /** @description kind fetches, consistent reads (query) of the fetches */
+            cr?: number;
+            /** @description kind fetches, physical reads (disk) of the fetches */
+            p?: number;
+            /** @description kind fetches, microseconds of idle waits between the fetches */
+            idle?: number;
         };
         BlocksAnswer: {
             /** @description sorted 1-based inclusive line ranges [from, to] */
@@ -3804,6 +3927,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LinesProfile"];
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description no such session (envelope) or no such file (plain text) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionLinesHot: {
+        parameters: {
+            query?: {
+                /** @description index of the input file (document file.files order) */
+                file?: components["parameters"]["File"];
+                /** @description smallest time in microseconds that is listed; default 1000 (1 ms) */
+                min?: number;
+                /** @description most rows listed, 1..20000; default 2000 */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LinesHot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinesHot"];
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description no such session (envelope) or no such file (plain text) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionLinesRepeats: {
+        parameters: {
+            query?: {
+                /** @description index of the input file (document file.files order) */
+                file?: components["parameters"]["File"];
+                /**
+                 * @description microseconds below which a fetch or a wait of a fetch loop is cheap;
+                 *     default (and 0): 1% of the file's time span (the `tim` of its last
+                 *     row minus that of its first, calls and waits together), at least 1
+                 */
+                small?: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LinesRepeats */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinesRepeats"];
                 };
             };
             400: components["responses"]["SliceBadRequest"];
