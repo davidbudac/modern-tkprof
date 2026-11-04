@@ -375,7 +375,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
   }, [prefs.readable, prefs.foldRepeats])
   const busy = switching !== null || repeatsLoading
-  const toggleRepeats = () => (readable ? switchPrefs('repeats', { foldRepeats: !prefs.foldRepeats }) : flash('Fold repeats works in the readable view (v)'))
+  const toggleRepeats = () => (readable ? switchPrefs('repeats', { foldRepeats: !prefs.foldRepeats }) : flash('Fold repeats works in the formatted view (v)'))
 
   // ---- folding: the handles of the blocks around the view, and the blocks themselves -----------------------------------
   const foldable = useMemo(() => {
@@ -812,7 +812,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   /** The next / previous hot spot from the selected line. */
   const stepHot = (dir: 1 | -1) => {
     const hs = hot?.lines ?? []
-    if (hs.length === 0) { flash(readable ? 'no line takes 1 % of the traced time or more' : 'hot spots are shown in the readable view (v)'); return }
+    if (hs.length === 0) { flash(readable ? 'no line takes 1 % of the traced time or more' : 'hot spots are shown in the formatted view (v)'); return }
     const i = firstAbove(hs, selected)
     const to = dir === 1 ? hs[i] : hs[hs[i - 1] === selected ? i - 2 : i - 1]
     if (to !== undefined) jump(to); else flash(`no hot spot ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)}`)
@@ -977,7 +977,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     add('Step', 'step:mark:prev', 'Previous mark', () => stepMark(-1), { keys: 'M', disabled: markLines.length === 0, hint: 'of the selected statement' })
     add('Step', 'step:hit:next', 'Next hit', () => stepHit(1), { keys: 'F3', disabled: nextHitDisabled })
     add('Step', 'step:hit:prev', 'Previous hit', () => stepHit(-1), { keys: 'Shift+F3', disabled: nextHitDisabled })
-    add('Step', 'step:hot:next', 'Next hot spot', () => stepHot(1), { keys: 'j', hint: 'a line of 1 % of the traced time or more (readable view)' })
+    add('Step', 'step:hot:next', 'Next hot spot', () => stepHot(1), { keys: 'j', hint: 'a line of 1 % of the traced time or more (formatted view)' })
     add('Step', 'step:hot:prev', 'Previous hot spot', () => stepHot(-1), { keys: 'J' })
     add('Step', 'step:exec:next', 'Next execution', () => stepExec(1), { keys: 'd' })
     add('Step', 'step:exec:prev', 'Previous execution', () => stepExec(-1), { keys: 'D' })
@@ -990,7 +990,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
     for (const t of SHOW_TOGGLES) add('View', `view:${t.key}`, t.label, () => setPrefs({ [t.key]: !prefs[t.key] }), { checked: prefs[t.key], keys: t.keys })
     for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => toggleMute(g.name), { checked: muteSet.has(g.name) })
-    add('View', 'view:readable', 'Readable view', () => switchPrefs('readable', { readable: !prefs.readable }), { checked: prefs.readable, keys: 'v' })
+    add('View', 'view:readable', 'Formatted view', () => switchPrefs('readable', { readable: !prefs.readable }), { checked: prefs.readable, keys: 'v' })
     add('View', 'view:repeats', 'Fold repeats', toggleRepeats, { checked: prefs.foldRepeats, keys: 'r', disabled: !prefs.readable, hint: 'identical waits, long wait blocks, fetch loops' })
     add('Line', 'line:pin', ui.pin?.line === selected ? 'Unpin line' : 'Pin line (Δ from it)', () => togglePin(selected), { keys: 'a', checked: ui.pin?.line === selected })
     if (ui.pin) add('Line', 'line:unpin', `Unpin line ${fmtInt(ui.pin.line)}`, () => set({ pin: null }))
@@ -1133,12 +1133,12 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             button={<><span className="tb-label">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
             <KeyMap />
           </ToolbarMenu>
-          <span className="seg" role="group" aria-label="Values in the rows" title="how the numbers in the rows read: tim= as a clock time, obj#= as the object name, e= / ela= as a duration, oacdty= as the type name (v); the raw value is in the tooltip">
+          <span className="seg" role="group" aria-label="How the rows read" title="raw: the trace as written; formatted: every line parsed into columns (what it is, its detail, a time bar, Δ, the clock) with each cursor's lines in a lane of its statement's colour (v); the raw text is in the tooltips and the hover card">
             <button type="button" className={switching === 'readable' && prefs.readable ? 'busy-src' : undefined} aria-pressed={!prefs.readable} onClick={() => switchPrefs('readable', { readable: false })}>raw</button>
-            <button type="button" className={switching === 'readable' && !prefs.readable ? 'busy-src' : undefined} aria-pressed={prefs.readable} onClick={() => switchPrefs('readable', { readable: true })}>readable</button>
+            <button type="button" className={switching === 'readable' && !prefs.readable ? 'busy-src' : undefined} aria-pressed={prefs.readable} onClick={() => switchPrefs('readable', { readable: true })}>formatted</button>
           </span>
           {readable && (
-            <span className="lines-rd" role="group" aria-label="Readable view">
+            <span className="lines-rd" role="group" aria-label="Formatted view">
               <button type="button" className={'quiet' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')} aria-pressed={prefs.foldRepeats} onClick={toggleRepeats}
                 title="fold runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches into one line each; click a fold's ▸ to open it (r)">Fold repeats</button>
               <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hot || hot.lines.length === 0}

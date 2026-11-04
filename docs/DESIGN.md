@@ -396,9 +396,13 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   rule sits in `prefers-reduced-motion: no-preference` and the helpers check
   it, so the end state shows at once.
 
-## Readable Lines view (decided 2026-11-04, mock-up `docs/mockups/readable-lines/`)
+## Formatted Lines view (decided 2026-11-04, mock-up `docs/mockups/readable-lines/`)
 
-- **Readable is a layout, not only values.** The `raw | readable` toggle of the
+- **Named Formatted** (renamed from "readable" the same day, at the user's
+  request): the toggle reads `raw | formatted`. The pref keeps its key
+  (`readable` in `mtk.lines.prefs`), so stored choices carry over.
+
+- **Formatted is a layout, not only values.** The `raw | formatted` toggle of the
   Trace view (`v`) now parses every line into columns: line number (with a
   pin), the cursor's lane, what the line is (EXEC, WAIT, PLAN, Bind#3, …), its
   detail, a time bar, Δ and the wall clock on the right. It stays one row per
@@ -453,7 +457,7 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   value; NULL, dumps and missing values are said; a value Oracle cut is
   marked "truncated in the trace" and never completed. Previous / next walk
   the statement's executions in the file, not only the cursor's.
-- **Pulse while switching.** Toggling readable or Fold repeats pulses the rows
+- **Pulse while switching.** Toggling formatted or Fold repeats pulses the rows
   (an opacity animation, which the compositor keeps running while the main
   thread works) until the new rows are painted or the folds arrive;
   reduced motion dims instead.
