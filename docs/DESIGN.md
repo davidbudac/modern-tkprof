@@ -396,6 +396,48 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   rule sits in `prefers-reduced-motion: no-preference` and the helpers check
   it, so the end state shows at once.
 
+## Readable Lines view (decided 2026-11-04, mock-up `docs/mockups/readable-lines/`)
+
+- **Readable is a layout, not only values.** The `raw | readable` toggle of the
+  Trace view (`v`) now parses every line into columns: line number (with a
+  pin), the cursor's lane, what the line is (EXEC, WAIT, PLAN, Bind#3, …), its
+  detail, a time bar, Δ and the wall clock on the right. It stays one row per
+  trace line inside the same virtualised viewer, so line numbers, search,
+  bookmarks, folds, the side panel and every key keep working; the detail is
+  cut where it does not fit (the hover card and the Line tab have the rest).
+- **Lanes.** Consecutive lines of one cursor are one lane: a band in the
+  statement's colour, the sql_id on its first row and the SQL's start on the
+  second. The real cursor# is only in the tooltip (a 10046 trace has no
+  child number, so none is shown). Statements take the categorical colours
+  (`blocklayout.CATEGORICAL`) by elapsed rank; recursive SYS SQL (uid 0 below
+  the top level) and statements past the 14th are neutral. Framing lines
+  (blank, `***`, `=====`) inside a stretch stay in its lane.
+- **Time.** Δ is the time from the pinned line (`a`, or the pin in the line
+  number), else from the line with a time before; the pin also anchors the raw
+  view's delta column. Bars are linear on one scale per file (full = the
+  file's longest call or wait); a call's CPU part is the solid end. A line of
+  1 % of the file's traced time or more is a hot spot: tinted, marked on the
+  density strip, `j` / `J` step through them (`api/lines/hot`).
+- **`SQL*Net message from client` keeps its name** and counts like any wait
+  (an earlier "client think time" label was rejected).
+- **Fold repeats is a toggle, off by default** (`r`): runs of 3+ identical
+  waits, wait blocks still longer than 10 items after that, loops of 6+ small
+  fetches (each under 1 % of the time) fold into one line each, computed by
+  the engine over the whole file (`api/lines/repeats`) so the scroll bar does
+  not jump as pages load. A fold of repeats opens with its handle and stays
+  open; the user's own folds win where they overlap.
+- **As run.** A BINDS row offers the statement with the values in place of
+  its placeholders (side panel tab "As run"): SQL placeholders pair with the
+  `Bind#`s by occurrence, PL/SQL ones by distinct name (decided by the
+  counts); a bind without a definition of its own repeats its name's first
+  value; NULL, dumps and missing values are said; a value Oracle cut is
+  marked "truncated in the trace" and never completed. Previous / next walk
+  the statement's executions in the file, not only the cursor's.
+- **Pulse while switching.** Toggling readable or Fold repeats pulses the rows
+  (an opacity animation, which the compositor keeps running while the main
+  thread works) until the new rows are painted or the folds arrive;
+  reduced motion dims instead.
+
 ## Project
 
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each

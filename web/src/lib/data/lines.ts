@@ -135,6 +135,35 @@ export async function nextLine(client: ApiClient, file: number, from: number, wh
   return typeof r.line === 'number' ? r.line : null
 }
 
+/** The calls and waits of a file that took at least `min` µs (`api/lines/hot`), in line order; `max` is the longest call or wait of the file. */
+export interface HotLines { hot: { line: number; us: number; wait: boolean }[]; max: number; truncated: boolean }
+
+export async function fetchHot(client: ApiClient, file: number, min: number, signal?: AbortSignal, limit = 5000): Promise<HotLines> {
+  const res = await client.fetch(`/api/lines/hot?file=${file}&min=${Math.max(0, Math.round(min))}&limit=${limit}`, { signal })
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as Partial<HotLines>
+  return { hot: r.hot ?? [], max: r.max ?? 0, truncated: !!r.truncated }
+}
+
+/** A run of repeats the readable view can fold (`api/lines/repeats`): identical waits, a long wait block, a loop of small fetches. */
+export interface RepeatFold {
+  from: number; to: number; kind: 'run' | 'block' | 'fetches'; n: number; us: number; max: number
+  /** run: the event */
+  event?: string
+  /** block: the time per event, most first */
+  by?: { event: string; n: number; us: number }[]
+  /** fetches: rows, consistent gets, physical reads and the idle wait time between them */
+  rows?: number; cr?: number; p?: number; idle?: number
+}
+
+/** The repeats of a file; `small` (µs) is the most a fetch of a folded loop may take. */
+export async function fetchRepeats(client: ApiClient, file: number, small: number, signal?: AbortSignal): Promise<{ folds: RepeatFold[]; truncated: boolean }> {
+  const res = await client.fetch(`/api/lines/repeats?file=${file}&small=${Math.max(1, Math.round(small))}`, { signal })
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as { folds?: RepeatFold[]; truncated?: boolean }
+  return { folds: r.folds ?? [], truncated: !!r.truncated }
+}
+
 /** The blocks `linesBlocks` lists: BINDS blocks (the `BINDS #` line and its `bind` lines) or STAT dumps. */
 export type BlockWhat = 'binds' | 'stat'
 

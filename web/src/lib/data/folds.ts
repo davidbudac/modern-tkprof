@@ -5,7 +5,13 @@ import { LINE_KINDS } from './linecache'
  * hidden lines keep their numbers. The viewer lays out "visual rows"; these functions map visual rows (0-based) to lines
  * (1-based) and back through the sorted, non-overlapping list of folds.
  */
-export interface Fold { from: number; to: number; summary: string }
+export interface Fold {
+  from: number; to: number; summary: string
+  /** a fold of repeats (the readable view's Fold repeats): its short label (`12×`) and its bar, the time it covers as a fraction of the scale */
+  label?: string; w?: number
+  /** a fold the view made itself (not the user's) */
+  auto?: boolean
+}
 
 /** The folds with the cumulative hidden line counts: `hiddenBefore[i]` is what folds `0..i-1` hide, the last entry the total. Built once per change of the folds. */
 export interface FoldIndex { folds: readonly Fold[]; hiddenBefore: number[] }

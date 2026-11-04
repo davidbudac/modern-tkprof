@@ -10,6 +10,8 @@ import { mergeHits, refRuns, type RefRun } from '../data/linerefs'
 import { fmtDur, fmtInt } from '../data/format'
 import type { Inlay } from '../data/inlays'
 import type { LineTimes } from '../data/linetime'
+import type { ReadableCell } from '../views/readableRows'
+import type { Seg } from '../data/readable'
 
 /** Height of a row in pixels; the rows are laid out by this component, the scroll bar only maps to the first visible line (see data/scrollmap.ts). */
 export const ROW_H = 20
@@ -95,6 +97,10 @@ interface Props {
   onFold?(line: number): void
   /** the header for the first visible line, laid over the top of the rows (null: none, nothing is shown; the view never changes size); `key` says when `node` changed */
   head?(topLine: number): { key: string; node: ReactNode } | null
+  /** the readable mode: each line parsed into columns (kind, detail, time bar, Δ, clock) with its cursor's lane; keep it stable, a new one repaints the rows */
+  readable?(line: number, l: CachedLine): ReadableCell
+  /** a click on a row's own control in readable mode: `pin` (the line number's pin), `asrun` (a BINDS row's SQL with its values), `lane` (a lane's sql_id) */
+  onAct?(line: number, act: 'pin' | 'asrun' | 'lane', el: HTMLElement): void
   /** something beside the scroll container, the full height of the viewer (the density strip) */
   side?: ReactNode
   /** the first visible line (1-based) and the lines that fit (in lines, folds counted), after every move and resize (at most once per animation frame) */
@@ -111,7 +117,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selRange, onRange, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selRange, onRange, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, readable, onAct, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -300,6 +306,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
         const ref = act.dataset.ref ?? '', i = ref.indexOf(':')
         if (i > 0) onRef?.(n, ref.slice(0, i), ref.slice(i + 1), cache.line(n), { shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey, x: e.clientX, y: e.clientY, anchor: act.getBoundingClientRect() })
       } else if (act.dataset.act === 'fold') onFold?.(n)
+      else if (act.dataset.act === 'pin' || act.dataset.act === 'asrun' || act.dataset.act === 'lane') onAct?.(n, act.dataset.act, act)
       return
     }
     const hit = lineOfEvent(e)
@@ -403,11 +410,12 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const fold = foldAt(n, index)
     const l = cache.line(n)
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
-    const ela = !heat ? -2 : l && (l.kind === K_CALL || l.kind === K_WAIT) ? elaOf(l.text, LINE_KINDS[l.kind]) : -1
+    const rd = readable && l && l.kind >= 0 ? readable(n, l) : undefined
+    const ela = !heat || readable ? -2 : l && (l.kind === K_CALL || l.kind === K_WAIT) ? elaOf(l.text, LINE_KINDS[l.kind]) : -1
     const inRange = !!selRange && n >= selRange.from && n <= selRange.to
-    const t = times && l ? times.at(n, l.text, l.kind) : undefined
-    const clk = times?.clock ? t?.clock ?? '' : null, dlt = times?.delta ? t?.delta ?? '' : null
-    rows.push(<Row key={n} n={n} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} />)
+    const t = times && l && !readable ? times.at(n, l.text, l.kind) : undefined
+    const clk = times?.clock && !readable ? t?.clock ?? '' : null, dlt = times?.delta && !readable ? t?.delta ?? '' : null
+    rows.push(<Row key={n} n={n} rd={rd} foldLabel={fold?.label} foldW={fold?.w} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} />)
   }
   const digits = String(Math.max(total, 1000)).length
   const hover = card || refTitle || onHover
@@ -416,7 +424,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       <div className="lv-box-col">
       {/* over the top rows, not above them: the scroll container keeps its height whether there is a header or not */}
       {head && pinned && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
-      <div className={'lv' + (wrap ? ' lv-wrap' : '') + (heat ? ' lv-heat-on' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={vtotal}
+      <div className={'lv' + (readable ? ' lv-rd-on' : wrap ? ' lv-wrap' : '') + (heat && !readable ? ' lv-heat-on' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={vtotal}
         style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
         onScroll={onScroll} onClick={onClick} onMouseDown={onRange ? onMouseDown : undefined} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
         onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? onPointerLeave : undefined}>
@@ -436,8 +444,12 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable }: {
+const Row = memo(function Row({ n, rd, foldLabel, foldW, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable }: {
   n: number; text: string | undefined; kind: number
+  /** the readable row of the line (readable mode), undefined for the trace as written */
+  rd?: ReadableCell
+  /** a fold of repeats: its label and bar (readable mode) */
+  foldLabel?: string; foldW?: number
   /** the clock cell: null for no column, '' for an empty cell; `clkT` its title */
   clk: string | null; clkT?: string
   /** the delta cell: null for no column, '' for an empty cell; `dltT` its title */
@@ -471,6 +483,14 @@ const Row = memo(function Row({ n, clk, clkT, dlt, dltT, anchor, text, kind, ids
   const cut = text !== undefined && text.length > MAX_TEXT
   const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '') + (inRange ? ' lv-range' : '')
     + (win & WIN_IN ? ' lv-win' : '') + (win & WIN_START ? ' lv-win-start' : '') + (win & WIN_END ? ' lv-win-end' : '')
+  const handle = (
+    <span className="lv-fh">
+      {fold !== null
+        ? <button type="button" className="lv-fold" data-act="fold" aria-expanded={false} aria-label={`Unfold line ${n}: ${fold}`} title={`unfold: ${fold} (z)`}>▸</button>
+        : foldable && <button type="button" className="lv-fold" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}
+    </span>
+  )
+  if (rd) return <ReadableRow n={n} rd={rd} cls={cls} sel={sel} note={note} gap={gap} handle={handle} fold={fold} foldLabel={foldLabel} foldW={foldW} hit={!!hl && text !== undefined && matchSpans(text, hl.q, hl.regex, hl.caseSensitive).length > 0} />
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>
@@ -481,15 +501,52 @@ const Row = memo(function Row({ n, clk, clkT, dlt, dltT, anchor, text, kind, ids
         {heat > -2 && <span className="lv-heat-slot">{heat > 0 && <i className="lv-heat" style={{ '--w': heatWidth(heat).toFixed(3) } as React.CSSProperties} title={fmtDur(heat)} />}</span>}
       </span>
       {/* a slot of its own in every row, so the text does not shift between rows with and without a handle */}
-      <span className="lv-fh">
-        {fold !== null
-          ? <button type="button" className="lv-fold" data-act="fold" aria-expanded={false} aria-label={`Unfold line ${n}: ${fold}`} title={`unfold: ${fold} (z)`}>▸</button>
-          : foldable && <button type="button" className="lv-fold" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}
-      </span>
+      {handle}
       <span className="lv-tx">{text === undefined ? '' : cut ? text.slice(0, MAX_TEXT) + ` … (+${text.length - MAX_TEXT} characters)` : hl || refs || inlays ? marked(text, kind, hl, refs, inlays?.(n, text, kind, ids)) : text || ' '}{fold !== null && <span className="lv-fold-sum">{fold}</span>}</span>
     </div>
   )
 })
+
+/** One piece of a readable row's detail. */
+const segNode = (s: Seg, i: number) => (typeof s === 'string' ? s : <span key={i} className={`rd-${s.c}`} title={s.title}>{s.t}</span>)
+
+/**
+ * A line in readable mode: the number (with the pin), the cursor's lane, the fold handle, what the line is, its detail, the time bar,
+ * Δ and the clock. The right columns have fixed widths, so they line up down the view; the detail is cut where it does not fit.
+ */
+function ReadableRow({ n, rd, cls, sel, note, gap, handle, fold, foldLabel, foldW, hit }: {
+  n: number; rd: ReadableCell; cls: string; sel: boolean; note?: string; gap: number; handle: ReactNode
+  fold: string | null; foldLabel?: string; foldW?: number; hit: boolean
+}) {
+  const lane = rd.lane
+  const w = fold !== null && foldW !== undefined ? foldW : rd.barW
+  const barTitle = fold !== null ? fold : rd.bar ? `${fmtDur(rd.bar.us)}${rd.bar.cpu ? ` · CPU ${fmtDur(rd.bar.cpu)}` : ''}${rd.hot ? ' · a hot spot: 1 % of the traced time or more' : ''}` : undefined
+  return (
+    <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '')} data-ln={n} role="listitem" aria-selected={sel || undefined}>
+      <span className="lv-ln" title={note}>
+        <button type="button" className="lv-pin" data-act="pin" aria-pressed={rd.pinned} aria-label={rd.pinned ? `Unpin line ${n}` : `Pin line ${n}: Δ is measured from it`} title={rd.pinned ? 'unpin (a)' : 'pin this line: Δ is measured from it (a)'}>
+          <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true"><path d="M2 0h5v1.2L6.2 2v3l1.8 1.5V7.5H5v3.5L4.5 11 4 10.99V7.5H1V6.5L2.8 5V2L2 1.2z" fill="currentColor" /></svg>
+        </button>
+        {n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}
+      </span>
+      <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? ({ '--lane': lane.color, '--dep': lane.depth } as React.CSSProperties) : undefined} title={lane?.title}>
+        {lane?.label !== undefined ? <a className="lv-lane-id" data-act="lane">{lane.label}</a> : lane?.sub ? <span className="lv-lane-sub">{lane.sub}</span> : null}
+      </span>
+      {handle}
+      <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : rd.label}</span>
+      <span className="lv-tx">
+        {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
+        {fold !== null ? <span className="rd-fold">{fold}</span> : rd.parts.map(segNode)}
+      </span>
+      <span className="lv-bar" title={barTitle}>
+        {w !== undefined && w > 0 && <i className={`lv-bar-${fold === null && rd.bar ? rd.bar.role : 'other'}`} style={{ '--w': w.toFixed(4) } as React.CSSProperties} />}
+        {fold === null && rd.cpuW !== undefined && rd.cpuW > 0 && <b style={{ '--w': rd.cpuW.toFixed(4) } as React.CSSProperties} />}
+      </span>
+      <span className={'lv-rdlt' + (rd.delta.startsWith('−') ? ' neg' : '')} title={rd.deltaTitle}>{rd.pinned ? 'pinned' : rd.delta}</span>
+      <span className="lv-rclk" title={rd.clockTitle}>{rd.clock}{rd.micros && <small>{rd.micros}</small>}</span>
+    </div>
+  )
+}
 
 /** The bar of an elapsed time as a fraction of its slot: log scale, 1 µs nothing, 1 ms half, 1 s (and longer) full. */
 export const heatWidth = (us: number) => Math.min(1, Math.max(0, Math.log10(us) / 6))
