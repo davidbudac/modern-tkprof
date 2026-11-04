@@ -103,7 +103,7 @@ interface Props {
   readable?(line: number, l: CachedLine): ReadableCell
   /** readable mode: the line ranges laid out as tables, a head row above each (the plan dumps); sorted, apart; keep the array stable */
   tables?: readonly (readonly [number, number])[]
-  /** readable mode: the Δ column (after the kind, before the detail) */
+  /** readable mode: Δ, as the text of the time column (over the bar) */
   deltaCol?: boolean
   /** a click on a row's own control in readable mode: `pin` (the line number's pin), `asrun` (a BINDS row's SQL with its values), `lane` (a lane's sql_id) */
   onAct?(line: number, act: 'pin' | 'asrun' | 'lane', el: HTMLElement): void
@@ -437,7 +437,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     if (th) {
       const l = cache.line(th.from)
       const rd = l && l.kind >= 0 ? readable!(th.from, l) : undefined
-      rows.push(<PlanHeadRow key={`h${th.from}`} lane={rd?.lane ?? null} tone={rd?.tone ?? ''} dcol={!!deltaCol} />)
+      rows.push(<PlanHeadRow key={`h${th.from}`} lane={rd?.lane ?? null} tone={rd?.tone ?? ''} />)
       continue
     }
     const n = lineOfRow(i, index)
@@ -468,7 +468,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
         onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? onPointerLeave : undefined}>
         <div className="lv-inner" style={{ height: geo.scrollH }}>
           <div className="lv-view" style={{ height: h }}>
-            {readable && planTop && <PlanHeadRow lane={null} tone="commit" dcol={!!deltaCol} overlay />}
+            {readable && planTop && <PlanHeadRow lane={null} tone="commit" overlay />}
             <div className="lv-layer" ref={layer}>{rows}</div>
           </div>
         </div>
@@ -567,14 +567,14 @@ const segNode = (s: Seg, i: number) => (typeof s === 'string' ? s
   : 'q' in s ? (s.n === '' ? null : <span key={i} className={`rd-q rd-q-${s.q}`} title={s.title}><b>{s.n}</b> <small>{s.unit}</small></span>)
     : <span key={i} className={`rd-${s.c}`} title={s.title}>{s.t}</span>)
 
-/** The Δ cell of a readable row (`dcol` off: none). */
-const DeltaCell = ({ rd }: { rd?: ReadableCell }) => (
-  <span className={'lv-rdlt' + (rd?.delta.startsWith('−') ? ' neg' : '')} title={rd?.deltaTitle}>{rd ? (rd.pinned ? 'pinned' : rd.delta) : ''}</span>
+/** Δ as the text of a readable row's time column, over its bar (`dcol` off: none). */
+const DeltaText = ({ rd }: { rd: ReadableCell }) => (
+  <span className={'lv-rdlt' + (rd.delta.startsWith('−') ? ' neg' : '')}>{rd.pinned ? 'pinned' : rd.delta}</span>
 )
 
 /**
  * A line in readable mode: its duration, the number (with the pin), the cursor's lane, the fold handle, the time bar, what the line
- * is, Δ, its detail and the clock. Every column but the detail has a width of its own, so they line up down the view; the detail is
+ * is, its detail and the clock. The time column is Δ as text over the bar of the line's own time. Every column but the detail has a width of its own, so they line up down the view; the detail is
  * cut where it does not fit. A plan line is a row of its plan's table: its cells in the detail, the time columns empty.
  */
 function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldLabel, foldW, foldUs, hit }: {
@@ -599,13 +599,14 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
         {lane?.label !== undefined ? <a className="lv-lane-id" data-act="lane">{lane.label}</a> : lane?.sub ? <span className="lv-lane-sub">{lane.sub}</span> : null}
       </span>
       {handle}
-      <span className="lv-bar" title={barTitle}>
+      {/* the time column: Δ as text over the bar of the time the line took */}
+      <span className="lv-bar" title={[dcol ? rd.deltaTitle : undefined, barTitle].filter(Boolean).join('\n') || undefined}>
         {w !== undefined && w > 0 && <i className={`lv-bar-${fold === null && rd.bar ? rd.bar.role : 'other'}`} style={{ '--w': w.toFixed(4) } as React.CSSProperties} />}
         {fold === null && rd.cpuW !== undefined && rd.cpuW > 0 && <b style={{ '--w': rd.cpuW.toFixed(4) } as React.CSSProperties} />}
+        {dcol && <DeltaText rd={rd} />}
       </span>
       {/* the rows of a plan's table: PLAN is said once, in its head row */}
       <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : (plan && tb) || rd.bindRow ? '' : rd.label}</span>
-      {dcol && <DeltaCell rd={rd} />}
       {plan ? <span className="lv-tx lv-plan"><PlanCells r={plan} /></span>
         : fold === null && rd.bindRow ? <span className="lv-tx lv-plan"><BindCells b={rd.bindRow} /></span>
         : fold === null && rd.bindHead ? (
@@ -655,7 +656,7 @@ const BindHeads = () => (
  * The head row of a plan's table, in the readable row's columns: PLAN in the kind column, the plan's column names in the detail. In
  * the layout (a row of its own above the plan's first line) or laid over the top row (`overlay`) while the plan's lines fill the top.
  */
-const PlanHeadRow = memo(function PlanHeadRow({ lane, tone, dcol, overlay }: { lane: ReadableCell['lane']; tone: string; dcol: boolean; overlay?: boolean }) {
+const PlanHeadRow = memo(function PlanHeadRow({ lane, tone, overlay }: { lane: ReadableCell['lane']; tone: string; overlay?: boolean }) {
   return (
     <div className={'lv-row lv-rd lv-tb lv-tb-head' + (overlay ? ' lv-plan-head' : '')} role="presentation" aria-hidden={overlay || undefined}>
       <DurCell />
@@ -664,7 +665,6 @@ const PlanHeadRow = memo(function PlanHeadRow({ lane, tone, dcol, overlay }: { l
       <span className="lv-fh" />
       <span className="lv-bar" />
       <span className={`lv-kd lv-tone-${tone || 'none'}`}>PLAN</span>
-      {dcol && <DeltaCell />}
       <span className="lv-tx lv-plan"><PlanHeads /></span>
       <span className="lv-rclk" />
     </div>

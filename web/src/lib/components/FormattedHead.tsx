@@ -7,9 +7,8 @@ import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 export interface FormattedColumn { key: string; label: string; title: string; def: number; min: number }
 
 export const FORMATTED_COLUMNS: FormattedColumn[] = [
-  { key: 'dlt', label: 'Δ', title: 'the time from the pinned line (a), else from the line with a time before (hide it in the trace bar)', def: 11, min: 40 },
   { key: 'lane', label: 'Statement', title: "the cursor's statement: its sql_id on the first line of a stretch, the start of its SQL on the second; the colour is the statement's", def: 18, min: 40 },
-  { key: 'bar', label: 'Time', title: 'the time the line took, on one linear scale for the file (full: its longest line); a call\'s CPU part is the solid end', def: 10, min: 24 },
+  { key: 'bar', label: 'Time', title: 'the bar: the time the line took, on one linear scale for the file (full: its longest line), a call\'s CPU part the solid end; the text: Δ, the time from the pinned line (a), else from the line with a time before (the trace bar\'s Δ hides it)', def: 12, min: 24 },
   { key: 'kind', label: 'Operation', title: 'what the line is: PARSE, EXEC, FETCH, CLOSE, WAIT, PLAN, BINDS, …', def: 10, min: 40 },
   { key: 'dur', label: 'Duration', title: "the line's e= (a call) or ela= (a wait); a fold's total", def: 10, min: 40 },
   { key: 'clk', label: 'Clock', title: "the wall-clock time of the line's tim= in the trace's zone", def: 17, min: 72 },
@@ -65,12 +64,12 @@ export function FormattedHead({ cols, delta, onCols }: { cols: Readonly<Record<s
     e.preventDefault()
   }
   /** A header and its grip: on its end edge, or (`atEnd`: a column at the view's end edge) on its start edge. */
-  const cell = (key: string, atEnd = false, alignEnd = false) => {
+  const cell = (key: string, atEnd = false, alignEnd = false, label?: string) => {
     const c = FORMATTED_COLUMNS.find((x) => x.key === key)!
     const dir = atEnd ? -1 : 1
     return (
       <span className={`lv-ch lv-ch-${key}${atEnd ? ' lv-ch-atend' : ''}${alignEnd ? ' lv-ch-alend' : ''}`} title={c.title}>
-        <span className="lv-ch-label">{c.label}</span>
+        <span className="lv-ch-label">{label ?? c.label}</span>
         <span className="lv-ch-grip" role="separator" aria-orientation="vertical" aria-label={`Resize the ${c.label} column`} aria-valuenow={cols[c.key]} aria-valuemin={c.min}
           tabIndex={0} title="drag to resize; double-click: the default width; ← → with the focus here" onPointerDown={onDown(c, dir)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
           onDoubleClick={() => set(c.key, undefined)} onKeyDown={onKey(c, dir)} />
@@ -84,9 +83,8 @@ export function FormattedHead({ cols, delta, onCols }: { cols: Readonly<Record<s
       <span className="lv-ln" />
       {cell('lane')}
       <span className="lv-fh" />
-      {cell('bar')}
+      {cell('bar', false, delta, delta ? 'Δ · time' : undefined)}
       {cell('kind')}
-      {delta && cell('dlt', false, true)}
       <span className="lv-ch lv-ch-tx" title="what the line says, parsed: a call's CPU (when it is not all of the duration), rows, gets and reads; a wait's event, object and parameters; a plan's table; …">Detail</span>
       {cell('clk', true, true)}
     </div>
