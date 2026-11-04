@@ -385,7 +385,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-steps button.quiet { border-color: transparent; }
 
 /* ---- readable mode: each line parsed into columns (components/LineViewer.tsx ReadableRow) -------------------------------------
-   Δ | number | lane (the cursor's stretch in its statement's colour) | fold handle | time bar | kind | duration | detail | clock.
+   duration | number | lane (the cursor's stretch in its statement's colour) | fold handle | time bar | kind | Δ | detail | clock.
    The rows are as wide as the view: the detail is cut where it does not fit, so the clock stays at the end edge. A column's width is
    the user's (--w-<key>, FormattedHead) or its default in digits of the rows' font (--lv-chw, measured by the viewer). */
 .lv-box {
@@ -421,7 +421,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-bar-network { background: var(--c-network); }
 .lv-bar-other { background: var(--c-other); }
 .lv-bar-idle, .lv-bar-unaccounted { background: var(--c-idle); }
-.lv-rdlt { flex: none; inline-size: var(--w-dlt, var(--d-dlt)); box-sizing: border-box; overflow: hidden; padding-inline: var(--sp-2) var(--sp-1); text-align: end; white-space: nowrap; color: var(--ink-2); font-variant-numeric: tabular-nums; border-inline-end: 1px solid var(--hairline); }
+.lv-rdlt { flex: none; inline-size: var(--w-dlt, var(--d-dlt)); box-sizing: border-box; overflow: hidden; padding-inline: var(--sp-2) var(--sp-1); text-align: end; white-space: nowrap; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .lv-rdlt.neg { color: var(--ink-3); }
 .lv-pinned .lv-rdlt { color: var(--c-commit); font-weight: 600; }
 .lv-rclk { flex: none; inline-size: var(--w-clk, var(--d-clk)); box-sizing: border-box; overflow: hidden; padding-inline-end: var(--sp-3); text-align: end; white-space: nowrap; color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -429,11 +429,11 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 /* a line of 1 % of the traced time or more, the pinned line, a search hit */
 .lv-hot { background: color-mix(in oklch, var(--c-userio) 9%, transparent); }
 .lv-hot > :first-child { box-shadow: inset 3px 0 0 var(--c-userio); }
-/* the marks (search hits, steps) at the row's start edge: on the Δ cell when it comes first */
-.lv-rdlt { position: relative; }
-.lv-rd.lv-mk1 > .lv-rdlt::before, .lv-rd.lv-mk2 > .lv-rdlt::before, .lv-rd.lv-mk3 > .lv-rdlt::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--c-cpu); }
-.lv-rd.lv-mk2 > .lv-rdlt::before { background: var(--c-userio); }
-.lv-rd > .lv-rdlt + .lv-ln::before { content: none; }
+/* the marks (search hits, steps) at the row's start edge: on the duration cell, the first */
+.lv-rd > .lv-dur { position: relative; border-inline-end: 1px solid var(--hairline); }
+.lv-rd.lv-mk1 > .lv-dur::before, .lv-rd.lv-mk2 > .lv-dur::before, .lv-rd.lv-mk3 > .lv-dur::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--c-cpu); }
+.lv-rd.lv-mk2 > .lv-dur::before { background: var(--c-userio); }
+.lv-rd > .lv-dur + .lv-ln::before { content: none; }
 .lv-pinned { box-shadow: inset 0 1px 0 var(--c-commit), inset 0 -1px 0 var(--c-commit); }
 .lv-hit .lv-tx { background: color-mix(in oklch, var(--c-commit) 22%, transparent); }
 .lv-asrun { all: unset; margin-inline-end: var(--sp-3); color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
@@ -544,9 +544,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-ch-lane { inline-size: var(--w-lane, var(--d-lane)); padding-inline-start: 12px; }
 .lv-ch-bar { inline-size: var(--w-bar, var(--d-bar)); padding-inline-start: var(--sp-2); }
 .lv-ch-kind { inline-size: var(--w-kind, var(--d-kind)); padding-inline-start: var(--sp-2); }
-.lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--sp-1) + 3.5ch); }
+.lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--sp-1) + 3.5ch); border-inline-end: 1px solid transparent; }
 .lv-ch-tx { flex: 1 1 0; min-inline-size: 0; padding-inline-start: var(--sp-2); }
-.lv-ch-dlt { inline-size: var(--w-dlt, var(--d-dlt)); padding-inline: var(--sp-2) calc(var(--sp-1) + 4px); }
+.lv-ch-dlt { inline-size: var(--w-dlt, var(--d-dlt)); padding-inline: var(--sp-2) var(--sp-1); }
 .lv-ch-clk { inline-size: var(--w-clk, var(--d-clk)); padding-inline-end: var(--sp-3); }
 .lv-ch-alend { text-align: end; }
 /* the grip: on the column's end edge, or its start edge for the columns at the view's end */

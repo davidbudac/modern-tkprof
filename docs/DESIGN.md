@@ -403,9 +403,9 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   (`readable` in `mtk.lines.prefs`), so stored choices carry over.
 
 - **Formatted is a layout, not only values.** The `raw | formatted` toggle of the
-  Trace view (`v`) now parses every line into columns: Δ, line number (with a
-  pin), the cursor's lane, a time bar, what the line is (EXEC, WAIT, PLAN,
-  Bind#3, …), its duration, its detail and the wall clock on the right. It
+  Trace view (`v`) now parses every line into columns: its duration, line
+  number (with a pin), the cursor's lane, a time bar, what the line is (EXEC,
+  WAIT, PLAN, Bind#3, …), Δ, its detail and the wall clock on the right. It
   stays one row per trace line (a plan's head row aside, below) inside the
   same virtualised viewer, so line numbers, search,
   bookmarks, folds, the side panel and every key keep working; the detail is
@@ -432,11 +432,12 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   is a fold like any other, without a head. (First built as `·`-joined text,
   then as one PLAN row per line under a header shown only at the top; both
   rejected.)
-- **A table with resizable columns.** The columns: Δ (first, on the far
-  left; the trace bar's Δ button and the palette hide it, pref `rdDelta`, on
-  by default), line number, Statement (the lane), Time (the bar, before the
-  operation), Operation, Duration (number right-aligned, unit in a slot after
-  it), Detail, Clock. A header row over the rows names them; dragging a
+- **A table with resizable columns.** The columns: Duration (first, on the
+  far left; number right-aligned, unit in a slot after it), line number,
+  Statement (the lane), Time (the bar, before the operation), Operation, Δ
+  (the trace bar's Δ button and the palette hide it, pref `rdDelta`, on by
+  default), Detail, Clock. (Δ was first for a day; the user swapped it with
+  Duration.) A header row over the rows names them; dragging a
   header's edge resizes its column (Clock from its start edge), double-click
   resets it, ← → with the grip focused; the widths are the `cols` pref (px),
   CSS variables `--w-<column>` on the viewer, set directly while dragging.

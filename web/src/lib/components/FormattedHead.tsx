@@ -80,13 +80,13 @@ export function FormattedHead({ cols, delta, onCols }: { cols: Readonly<Record<s
   // the same classes as a row's cells for the line number and the fold handle, so the columns after them start where the rows' do
   return (
     <div className="lv-colhead lv-rd" ref={box} role="presentation">
-      {delta && cell('dlt', false, true)}
+      {cell('dur', false, true)}
       <span className="lv-ln" />
       {cell('lane')}
       <span className="lv-fh" />
       {cell('bar')}
       {cell('kind')}
-      {cell('dur', false, true)}
+      {delta && cell('dlt', false, true)}
       <span className="lv-ch lv-ch-tx" title="what the line says, parsed: a call's CPU (when it is not all of the duration), rows, gets and reads; a wait's event, object and parameters; a plan's table; …">Detail</span>
       {cell('clk', true, true)}
     </div>

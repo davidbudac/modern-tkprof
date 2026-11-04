@@ -103,7 +103,7 @@ interface Props {
   readable?(line: number, l: CachedLine): ReadableCell
   /** readable mode: the line ranges laid out as tables, a head row above each (the plan dumps); sorted, apart; keep the array stable */
   tables?: readonly (readonly [number, number])[]
-  /** readable mode: the Δ column (first, left of the line numbers) */
+  /** readable mode: the Δ column (after the kind, before the detail) */
   deltaCol?: boolean
   /** a click on a row's own control in readable mode: `pin` (the line number's pin), `asrun` (a BINDS row's SQL with its values), `lane` (a lane's sql_id) */
   onAct?(line: number, act: 'pin' | 'asrun' | 'lane', el: HTMLElement): void
@@ -573,8 +573,8 @@ const DeltaCell = ({ rd }: { rd?: ReadableCell }) => (
 )
 
 /**
- * A line in readable mode: Δ, the number (with the pin), the cursor's lane, the fold handle, the time bar, what the line is, its
- * duration, its detail and the clock. Every column but the detail has a width of its own, so they line up down the view; the detail is
+ * A line in readable mode: its duration, the number (with the pin), the cursor's lane, the fold handle, the time bar, what the line
+ * is, Δ, its detail and the clock. Every column but the detail has a width of its own, so they line up down the view; the detail is
  * cut where it does not fit. A plan line is a row of its plan's table: its cells in the detail, the time columns empty.
  */
 function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldLabel, foldW, foldUs, hit }: {
@@ -588,7 +588,7 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
   const barTitle = fold !== null ? fold : rd.bar ? `${fmtDur(rd.bar.us)}${rd.bar.cpu ? ` · CPU ${fmtDur(rd.bar.cpu)}` : ''}${rd.hot ? ' · a hot spot: 1 % of the traced time or more' : ''}` : undefined
   return (
     <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '') + tableCls(rd, plan ? tb : 0, fold === null)} data-ln={n} role="listitem" aria-selected={sel || undefined}>
-      {dcol && <DeltaCell rd={rd} />}
+      <DurCell us={dur} />
       <span className="lv-ln" title={note}>
         <button type="button" className="lv-pin" data-act="pin" aria-pressed={rd.pinned} aria-label={rd.pinned ? `Unpin line ${n}` : `Pin line ${n}: Δ is measured from it`} title={rd.pinned ? 'unpin (a)' : 'pin this line: Δ is measured from it (a)'}>
           <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true"><path d="M2 0h5v1.2L6.2 2v3l1.8 1.5V7.5H5v3.5L4.5 11 4 10.99V7.5H1V6.5L2.8 5V2L2 1.2z" fill="currentColor" /></svg>
@@ -605,7 +605,7 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
       </span>
       {/* the rows of a plan's table: PLAN is said once, in its head row */}
       <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : (plan && tb) || rd.bindRow ? '' : rd.label}</span>
-      <DurCell us={dur} />
+      {dcol && <DeltaCell rd={rd} />}
       {plan ? <span className="lv-tx lv-plan"><PlanCells r={plan} /></span>
         : fold === null && rd.bindRow ? <span className="lv-tx lv-plan"><BindCells b={rd.bindRow} /></span>
         : fold === null && rd.bindHead ? (
@@ -658,13 +658,13 @@ const BindHeads = () => (
 const PlanHeadRow = memo(function PlanHeadRow({ lane, tone, dcol, overlay }: { lane: ReadableCell['lane']; tone: string; dcol: boolean; overlay?: boolean }) {
   return (
     <div className={'lv-row lv-rd lv-tb lv-tb-head' + (overlay ? ' lv-plan-head' : '')} role="presentation" aria-hidden={overlay || undefined}>
-      {dcol && <DeltaCell />}
+      <DurCell />
       <span className="lv-ln" />
       <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? ({ '--lane': lane.color, '--dep': lane.depth } as React.CSSProperties) : undefined} />
       <span className="lv-fh" />
       <span className="lv-bar" />
       <span className={`lv-kd lv-tone-${tone || 'none'}`}>PLAN</span>
-      <DurCell />
+      {dcol && <DeltaCell />}
       <span className="lv-tx lv-plan"><PlanHeads /></span>
       <span className="lv-rclk" />
     </div>
