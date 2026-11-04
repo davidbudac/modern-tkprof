@@ -13,7 +13,15 @@ export interface Fold {
   us?: number
   /** a fold the view made itself (not the user's) */
   auto?: boolean
+  /**
+   * not a fold: a table head, one row of its own laid out above line `from` (lines `from..to` are the table's rows, all shown). The
+   * formatted view gives each plan dump one, so its STAT lines read as one table under one header
+   */
+  head?: boolean
 }
+
+/** The rows a fold takes away from the layout: its hidden lines; a table head adds one. */
+const hides = (f: Fold) => (f.head ? -1 : f.to - f.from)
 
 /** The folds with the cumulative hidden line counts: `hiddenBefore[i]` is what folds `0..i-1` hide, the last entry the total. Built once per change of the folds. */
 export interface FoldIndex { folds: readonly Fold[]; hiddenBefore: number[] }
@@ -21,7 +29,7 @@ export interface FoldIndex { folds: readonly Fold[]; hiddenBefore: number[] }
 export function indexFolds(folds: readonly Fold[]): FoldIndex {
   const hiddenBefore = new Array<number>(folds.length + 1)
   hiddenBefore[0] = 0
-  for (let i = 0; i < folds.length; i++) hiddenBefore[i + 1] = hiddenBefore[i] + (folds[i].to - folds[i].from)
+  for (let i = 0; i < folds.length; i++) hiddenBefore[i + 1] = hiddenBefore[i] + hides(folds[i])
   return { folds, hiddenBefore }
 }
 
@@ -34,10 +42,10 @@ export function visibleCount(total: number, folds: Folds): number {
   return Math.max(0, total - x.hiddenBefore[x.folds.length])
 }
 
-/** The visual row of fold `k`'s handle line. */
+/** The visual row of fold `k`'s handle line (a table head's: the head row, its line `from` is the row after it). */
 const handleRow = (x: FoldIndex, k: number) => x.folds[k].from - 1 - x.hiddenBefore[k]
 
-/** The line (1-based) shown in visual row `row` (0-based); rows past the end continue the numbering. */
+/** The line (1-based) shown in visual row `row` (0-based); rows past the end continue the numbering. A table head's row gives its first line. */
 export function lineOfRow(row: number, folds: Folds): number {
   const x = ix(folds)
   // c = the folds whose handle is above `row`: their hidden lines are skipped
@@ -52,8 +60,41 @@ export function rowOfLine(line: number, folds: Folds): number {
   // c = the folds that start above `line`
   let lo = 0, hi = x.folds.length
   while (lo < hi) { const mid = (lo + hi) >> 1; if (x.folds[mid].from < line) lo = mid + 1; else hi = mid }
-  if (lo > 0 && line <= x.folds[lo - 1].to) return handleRow(x, lo - 1)
+  if (lo > 0 && line <= x.folds[lo - 1].to && !x.folds[lo - 1].head) return handleRow(x, lo - 1)
+  // the first line of a table is the row after its head
+  if (lo < x.folds.length && x.folds[lo].from === line && x.folds[lo].head) return handleRow(x, lo) + 1
   return line - 1 - x.hiddenBefore[lo]
+}
+
+/** The table head laid out in visual row `row`, if that row is one. */
+export function headAtRow(row: number, folds: Folds): Fold | undefined {
+  const x = ix(folds)
+  let lo = 0, hi = x.folds.length
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (handleRow(x, mid) < row) lo = mid + 1; else hi = mid }
+  return lo < x.folds.length && x.folds[lo].head && handleRow(x, lo) === row ? x.folds[lo] : undefined
+}
+
+/** The table whose rows include `line` (a table head's `from..to`). */
+export function tableOf(line: number, folds: Folds): Fold | undefined {
+  const x = ix(folds)
+  let lo = 0, hi = x.folds.length
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (x.folds[mid].from <= line) lo = mid + 1; else hi = mid }
+  const f = lo > 0 ? x.folds[lo - 1] : undefined
+  return f && f.head && line <= f.to ? f : undefined
+}
+
+/** The folds with a table head for each of `tables` (`[from, to]`, apart) that no fold overlaps. */
+export function withHeads(folds: readonly Fold[], tables: readonly (readonly [number, number])[]): readonly Fold[] {
+  if (tables.length === 0) return folds
+  const out: Fold[] = []
+  let i = 0
+  for (const [from, to] of [...tables].sort((a, b) => a[0] - b[0])) {
+    while (i < folds.length && folds[i].to < from) out.push(folds[i++])
+    if (i < folds.length && folds[i].from <= to) continue // a fold covers part of the table: the fold wins
+    out.push({ from, to, summary: '', head: true })
+  }
+  while (i < folds.length) out.push(folds[i++])
+  return out
 }
 
 /** The fold whose handle is `line`. */
@@ -61,7 +102,7 @@ export function foldAt(line: number, folds: Folds): Fold | undefined {
   const x = ix(folds)
   let lo = 0, hi = x.folds.length
   while (lo < hi) { const mid = (lo + hi) >> 1; if (x.folds[mid].from < line) lo = mid + 1; else hi = mid }
-  return lo < x.folds.length && x.folds[lo].from === line ? x.folds[lo] : undefined
+  return lo < x.folds.length && x.folds[lo].from === line && !x.folds[lo].head ? x.folds[lo] : undefined
 }
 
 /** The fold that hides `line` (a line below a handle, up to the fold's last line). */
@@ -69,7 +110,7 @@ export function foldHiding(line: number, folds: Folds): Fold | undefined {
   const x = ix(folds)
   let lo = 0, hi = x.folds.length
   while (lo < hi) { const mid = (lo + hi) >> 1; if (x.folds[mid].from < line) lo = mid + 1; else hi = mid }
-  return lo > 0 && line <= x.folds[lo - 1].to ? x.folds[lo - 1] : undefined
+  return lo > 0 && line <= x.folds[lo - 1].to && !x.folds[lo - 1].head ? x.folds[lo - 1] : undefined
 }
 
 /** The folds with `fold` added, or removed when a fold with its handle is there; sorted by handle, a fold that overlaps the new one is dropped. */

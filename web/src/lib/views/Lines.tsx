@@ -355,6 +355,18 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     return () => ac.abort()
   }, [client, file, fileSpan, wantRepeats, repeatsKey])
   const repeatsLoading = wantRepeats && repeats?.key !== repeatsKey
+  // the plan dumps of the file: each is laid out as one table under a head row of its own
+  const [planTables, setPlanTables] = useState<{ blocks: [number, number][]; key: string } | null>(null)
+  useEffect(() => {
+    if (!readable) return
+    const ac = new AbortController()
+    linesBlocks(client, file, 'stat', ac.signal).then(
+      (r) => { if (!ac.signal.aborted) setPlanTables({ blocks: r.blocks, key: repeatsKey }) },
+      (e: unknown) => { if (!aborted(e)) setPlanTables({ blocks: [], key: repeatsKey }) }, // no tables: a plan's lines are rows of their own
+    )
+    return () => ac.abort()
+  }, [client, file, readable, repeatsKey])
+  const tables = planTables?.key === repeatsKey ? planTables.blocks : undefined
   const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r, scaleUs)) : null), [wantRepeats, repeats, scaleUs])
   /** the user's folds and, with Fold repeats, the repeats the user has not opened (the user's win where they overlap) */
   const allFolds = useMemo(() => (repeatFolds ? mergeFolds(ui.folds, repeatFolds.filter((f) => !ui.openRepeats.has(f.from))) : ui.folds), [repeatFolds, ui.folds, ui.openRepeats])
@@ -992,6 +1004,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     for (const t of SHOW_TOGGLES) add('View', `view:${t.key}`, t.label, () => setPrefs({ [t.key]: !prefs[t.key] }), { checked: prefs[t.key], keys: t.keys })
     for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => toggleMute(g.name), { checked: muteSet.has(g.name) })
     add('View', 'view:readable', 'Formatted view', () => switchPrefs('readable', { readable: !prefs.readable }), { checked: prefs.readable, keys: 'v' })
+    add('View', 'view:rddelta', 'Δ column (formatted)', () => setPrefs({ rdDelta: !prefs.rdDelta }), { checked: prefs.rdDelta, disabled: !prefs.readable, hint: 'the time from the pin or the line before' })
     add('View', 'view:repeats', 'Fold repeats', toggleRepeats, { checked: prefs.foldRepeats, keys: 'r', disabled: !prefs.readable, hint: 'identical waits, long wait blocks, fetch loops' })
     add('Line', 'line:pin', ui.pin?.line === selected ? 'Unpin line' : 'Pin line (Δ from it)', () => togglePin(selected), { keys: 'a', checked: ui.pin?.line === selected })
     if (ui.pin) add('Line', 'line:unpin', `Unpin line ${fmtInt(ui.pin.line)}`, () => set({ pin: null }))
@@ -1067,6 +1080,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             <span className="lines-rd" role="group" aria-label="Formatted view">
               <button type="button" className={'quiet' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')} aria-pressed={prefs.foldRepeats} onClick={toggleRepeats}
                 title="fold runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches into one line each; click a fold's ▸ to open it (r)">Fold repeats</button>
+              <button type="button" className="quiet" aria-pressed={prefs.rdDelta} onClick={() => setPrefs({ rdDelta: !prefs.rdDelta })}
+                title="the Δ column, first in the row: each line's time from the pinned line (a pins one), else from the line with a time before">Δ</button>
               <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hot || hot.lines.length === 0}
                 title={hot && hot.lines.length ? `the next line that took 1 % of the traced time (${fmtDur(fileSpan * 0.01)}) or more: ${fmtInt(hot.lines.length)} in this file (j, J back)` : 'no line takes 1 % of the traced time or more'}>
                 Hot spot ↓{hot && hot.lines.length > 0 && <small> {fmtInt(hot.lines.length)}</small>}
@@ -1225,7 +1240,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className={'lines-main' + (busy ? ' busy' : '')} aria-busy={busy || undefined} style={readable ? (columnVars(prefs.cols) as React.CSSProperties) : undefined}>
-          <LineViewer cache={cache} readable={readableRows} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} readable={readableRows} tables={tables} deltaCol={prefs.rdDelta} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}

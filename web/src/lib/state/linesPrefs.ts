@@ -16,6 +16,8 @@ export interface LinesPrefs {
   clock: boolean
   /** a gutter column with each line's time from an anchor line in view */
   delta: boolean
+  /** the formatted view's Δ column (its first column): each line's time from the pin, else from the line with a time before */
+  rdDelta: boolean
   inspect: boolean
   inspectW: number
   /** the inspector follows the hovered line instead of the selected one */
@@ -31,7 +33,7 @@ export interface LinesPrefs {
 }
 
 export const LINES_PREFS_DEFAULTS: LinesPrefs = {
-  wrap: false, heat: true, strip: true, links: true, hints: true, readable: true, foldRepeats: false, clock: false, delta: false,
+  wrap: false, heat: true, strip: true, links: true, hints: true, readable: true, foldRepeats: false, clock: false, delta: false, rdDelta: true,
   inspect: false, inspectW: 400, follow: false, mute: [], threshold: 10, gapMs: 100, cols: {},
 }
 

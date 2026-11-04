@@ -403,10 +403,11 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   (`readable` in `mtk.lines.prefs`), so stored choices carry over.
 
 - **Formatted is a layout, not only values.** The `raw | formatted` toggle of the
-  Trace view (`v`) now parses every line into columns: line number (with a
-  pin), the cursor's lane, what the line is (EXEC, WAIT, PLAN, Bind#3, …), its
-  detail, a time bar, Δ and the wall clock on the right. It stays one row per
-  trace line inside the same virtualised viewer, so line numbers, search,
+  Trace view (`v`) now parses every line into columns: Δ, line number (with a
+  pin), the cursor's lane, a time bar, what the line is (EXEC, WAIT, PLAN,
+  Bind#3, …), its duration, its detail and the wall clock on the right. It
+  stays one row per trace line (a plan's head row aside, below) inside the
+  same virtualised viewer, so line numbers, search,
   bookmarks, folds, the side panel and every key keep working; the detail is
   cut where it does not fit (the hover card and the Line tab have the rest).
 - **Lanes.** Consecutive lines of one cursor are one lane: a band in the
@@ -416,26 +417,37 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   (`blocklayout.CATEGORICAL`) by elapsed rank; recursive SYS SQL (uid 0 below
   the top level) and statements past the 14th are neutral. Framing lines
   (blank, `***`, `=====`) inside a stretch stay in its lane.
-- **Plans as a table.** A STAT line is a row of the plan table in
-  DBMS_XPLAN's columns (Id, Operation indented by depth, Name, Starts, E-Rows,
-  A-Rows, Cost, A-Time, Buffers, Reads, Writes), numbers right-aligned in
-  fixed-width columns so they line up down the plan; A-Time has a bar of the
-  operation's own time of the plan's; an estimate 10× or more off per start
-  is in the error colour. The column headers lie over the top row while the
-  top line is in a plan (one row per trace line leaves no row for them), and
-  each cell's tooltip names its column. (First built as `·`-joined text; the
-  values did not line up.)
-- **A table with resizable columns.** The columns: line number, Statement
-  (the lane), Time (the bar, before the operation), Operation, Duration
-  (number right-aligned, unit in a slot after it), Detail, Δ, Clock. A header
-  row over the rows names them; dragging a header's edge resizes its column
-  (Δ and Clock from their start edge), double-click resets it, ← → with the
-  grip focused; the widths are the `cols` pref (px), CSS variables
-  `--w-<column>` on the viewer, set directly while dragging. Inside Detail a
-  call's CPU, rows, gets and reads, and a wait's event and object, have fixed
-  columns of their own (empty where there is no value), so they line up too.
-  One colour rule everywhere: numbers in the ink, units and labels dimmed. A
-  plan line has no duration, Δ or clock: its table spans those columns.
+- **A plan is one table.** Each plan dump (`api/lines/blocks?what=stat`) gets
+  a head row of its own above its first STAT line (a `Fold` with `head`: it
+  adds a visual row and hides none; the keys step over it), PLAN is said once,
+  in that row, and the STAT lines are the table's rows under it, banded and
+  ruled, in DBMS_XPLAN's columns (Id, Operation indented by depth, Name,
+  Starts, E-Rows, A-Rows, Cost, A-Time, Buffers, Reads, Writes: the same
+  columns for every plan, empty cells where a line has no value), numbers
+  right-aligned in fixed-width columns. The table sits in the Detail column:
+  a plan line has no duration, Δ or clock, and those cells stay empty. A-Time
+  has a bar of the operation's own time of the plan's; an estimate 10× or more
+  off per start is in the error colour. While the plan's lines fill the top
+  of the view the head row lies over the top row. A plan the user folds (`z`)
+  is a fold like any other, without a head. (First built as `·`-joined text,
+  then as one PLAN row per line under a header shown only at the top; both
+  rejected.)
+- **A table with resizable columns.** The columns: Δ (first, on the far
+  left; the trace bar's Δ button and the palette hide it, pref `rdDelta`, on
+  by default), line number, Statement (the lane), Time (the bar, before the
+  operation), Operation, Duration (number right-aligned, unit in a slot after
+  it), Detail, Clock. A header row over the rows names them; dragging a
+  header's edge resizes its column (Clock from its start edge), double-click
+  resets it, ← → with the grip focused; the widths are the `cols` pref (px),
+  CSS variables `--w-<column>` on the viewer, set directly while dragging.
+  The default widths are in digits of the rows' font (measured), so they fit
+  their values at any font size. Detail is one run of text, compact: a
+  call's CPU (only where it is not all of its duration: the Duration column
+  already says that), rows, gets, reads, then `hard parse` or the close type
+  right after them; a wait's event, object and parameters. (Fixed slots for
+  them inside Detail were tried and rejected: they spread the row out and
+  pushed the notes to the middle.) One colour rule everywhere: numbers in the
+  ink, units and labels dimmed.
 - **Every line kind reads as prose, not as the trace's tokens.** Wait
   parameters are labelled (`file 12 · block 169947 · 5 blocks`, `8,103
   bytes`) and the ones that say nothing (`driver id`, zeros) left out; the

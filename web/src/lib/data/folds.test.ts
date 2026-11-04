@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LINE_KINDS } from './linecache'
-import { blockAt, foldAt, foldHiding, indexFolds, lineOfRow, rowOfLine, toggleFold, visibleCount, type Fold, type LineSource } from './folds'
+import { blockAt, foldAt, foldHiding, headAtRow, indexFolds, lineOfRow, rowOfLine, tableOf, toggleFold, visibleCount, withHeads, type Fold, type LineSource } from './folds'
 import type { LineKind } from './lines'
 
 /** A cache of the given lines (kind names), all loaded; `holes` lists lines that are not. */
@@ -147,5 +147,28 @@ describe('fold mapping', () => {
     expect(toggleFold(fs, f(60, 70))).toHaveLength(3) // inside a fold: replaces it
     expect(toggleFold(fs, f(60, 70)).map((x) => x.from)).toEqual([10, 30, 60])
     expect(fs).toHaveLength(3) // the input is not changed
+  })
+})
+
+describe('table heads', () => {
+  // a fold of 3..5 (handle 3) and a table of 8..10 with a head row above line 8
+  const folds = withHeads([{ from: 3, to: 5, summary: 'f' }], [[8, 10], [4, 6]])
+  it('a table that a fold overlaps gets no head', () => {
+    expect(folds.map((f) => [f.from, f.to, !!f.head])).toEqual([[3, 5, false], [8, 10, true]])
+  })
+  it('the head is a row of its own above the first line; the lines below it move down one row', () => {
+    // rows: 0:1 1:2 2:3(fold) 3:6 4:7 5:head 6:8 7:9 8:10 9:11
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((r) => lineOfRow(r, folds))).toEqual([1, 2, 3, 6, 7, 8, 8, 9, 10, 11])
+    expect([1, 2, 3, 4, 6, 7, 8, 9, 10, 11].map((l) => rowOfLine(l, folds))).toEqual([0, 1, 2, 2, 3, 4, 6, 7, 8, 9])
+    expect(visibleCount(12, folds)).toBe(11)
+    expect(headAtRow(5, folds)?.from).toBe(8)
+    expect(headAtRow(6, folds)).toBeUndefined()
+  })
+  it('a head is not a fold', () => {
+    expect(foldAt(8, folds)).toBeUndefined()
+    expect(foldHiding(9, folds)).toBeUndefined()
+    expect(tableOf(9, folds)?.from).toBe(8)
+    expect(tableOf(4, folds)).toBeUndefined()
+    expect(tableOf(11, folds)).toBeUndefined()
   })
 })

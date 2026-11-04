@@ -5,7 +5,7 @@ import { bindAttrSegs, describeLine, describeMarker, parseStat, planDump, sqlSeg
 
 // lines of testdata/traces/19c/io_waits.trc
 const trc = readFileSync(new URL('../../../../testdata/traces/19c/io_waits.trc', import.meta.url), 'utf8').split('\n')
-/** The pieces' text; a column's quantity as `number unit` between `|`, an empty one left out (cells: each piece apart). */
+/** The pieces' text; a quantity, the event and its object between `|` (each piece apart). */
 const piece = (s: Seg) => (typeof s === 'string' ? s : 'q' in s ? (s.n ? `|${s.n} ${s.unit}|` : '') : 'c' in s && (s.c === 'ev' || s.c === 'evobj') ? (s.t ? `|${s.t}|` : '') : s.t)
 const text = (segs: Seg[]) => segs.map(piece).join('').replace(/\|+/g, '|').replace(/^\||\|$/g, '')
 
@@ -16,6 +16,12 @@ describe('describeLine', () => {
     expect(text(v.parts)).toBe('92 µs cpu|hard parse')
     expect(v.dur).toBe(907)
     expect(v.bar).toEqual({ us: 907, cpu: 92, role: 'cpu' })
+  })
+  it('the CPU only where it is not all of the duration (the duration column has that)', () => {
+    const close = describeLine('CLOSE #139745604251096:c=2,e=2,dep=0,type=0,tim=10804503000', 'call', 1)
+    expect(text(close.parts)).toBe('hard close')
+    const fetch = describeLine('FETCH #139745604251096:c=28,e=28,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=3570327658,tim=10804503100', 'call', 1)
+    expect(text(fetch.parts)).toBe('1 row|3 gets')
   })
   it('a wait: its time, event, object and parameters', () => {
     const line = trc.find((l) => l.includes("nam='direct path read' ") && l.includes('obj#=108611'))!
