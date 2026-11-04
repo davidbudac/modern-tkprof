@@ -9,8 +9,22 @@ import { CLOSE_TYPES, COMMAND_NAMES } from './linefields'
 import type { LineKind } from './lines'
 import type { Role } from '../components/colors'
 
-/** A piece of a row's detail: plain text, or text with a class (`rd-<c>`) and a tooltip. */
-export type Seg = string | { t: string; c: string; title?: string }
+/**
+ * A piece of a row's detail: plain text, text with a class (`rd-<c>`) and a tooltip, or a quantity in a column of its own (`q`:
+ * the column, `rd-q-<q>`): the number right-aligned in its slot, the unit after it, so the values of one column line up down the view.
+ */
+export type Seg = string | { t: string; c: string; title?: string } | Quantity
+export interface Quantity { q: string; n: string; unit: string; title?: string }
+
+/** A duration as a quantity: `964 µs` → number 964, unit µs (with `label` after the unit). */
+function durQ(q: string, us: number, title: string, label = ''): Quantity {
+  const s = fmtDur(us), i = s.lastIndexOf(' ')
+  return { q, n: s.slice(0, i), unit: s.slice(i + 1) + (label ? ` ${label}` : ''), title }
+}
+/** A count as a quantity, empty when it is not shown (the column keeps its width, so the next ones stay in line). */
+function countQ(q: string, n: number | undefined, one: string, many: string, title: string, show: boolean): Quantity {
+  return show && n !== undefined ? { q, n: fmtInt(n), unit: n === 1 ? one : many, title } : { q, n: '', unit: '' }
+}
 
 /** What the readable row of one line shows, apart from its lane and its time columns. */
 export interface LineView {
@@ -129,33 +143,34 @@ const dim = (t: string, title?: string): Seg => ({ t, c: 'dim', title })
 const sep: Seg = dim(' · ')
 const numSeg = (t: string, title?: string): Seg => ({ t, c: 'num', title })
 
-/** `n label` when n is set and not 0 (`always`: also 0). */
-function qty(out: Seg[], n: number | undefined, label: string, title: string, always = false) {
-  if (n === undefined || (n === 0 && !always)) return
-  out.push(sep, numSeg(fmtInt(n)), dim(` ${label}`, title))
-}
 
+/**
+ * A call in columns: CPU, rows, gets (consistent + current), physical reads, each in a column of its own (empty where it is 0, so the
+ * columns stay in line), then what is worth a word: a hard parse, how the cursor was closed.
+ */
 function describeCall(c: CallLine): LineView {
-  const parts: Seg[] = []
-  if (c.c) parts.push(sep, dim('cpu '), numSeg(fmtDur(c.c), `c=${c.c} µs`))
-  qty(parts, c.r, c.r === 1 ? 'row' : 'rows', 'r= rows processed', c.op === 'FETCH' || (c.op === 'EXEC' && (c.r ?? 0) > 0))
-  qty(parts, (c.cr ?? 0) + (c.cu ?? 0) || undefined, 'gets', `cr=${c.cr ?? 0} consistent, cu=${c.cu ?? 0} current`)
-  qty(parts, c.p, 'reads', 'p= physical reads')
-  if ((c.mis ?? 0) > 0) parts.push(sep, { t: 'hard parse', c: 'warn', title: `mis=${c.mis}: a library cache miss` })
-  if (c.op === 'CLOSE' && c.type !== undefined) parts.push(sep, dim(CLOSE_TYPES[c.type] ?? `type ${c.type}`, `type=${c.type}`))
-  return { label: c.op, tone: 'cpu', parts: parts[0] === sep ? parts.slice(1) : parts, dur: c.e, bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
+  const gets = (c.cr ?? 0) + (c.cu ?? 0)
+  const parts: Seg[] = [
+    c.c ? durQ('cpu', c.c, `c=${c.c} µs: CPU`, 'cpu') : { q: 'cpu', n: '', unit: '' },
+    countQ('rows', c.r, 'row', 'rows', 'r= rows processed', c.op === 'FETCH' || (c.r ?? 0) > 0),
+    countQ('gets', gets, 'get', 'gets', `cr=${c.cr ?? 0} consistent, cu=${c.cu ?? 0} current`, gets > 0),
+    countQ('reads', c.p, 'read', 'reads', 'p= physical reads', (c.p ?? 0) > 0),
+  ]
+  if ((c.mis ?? 0) > 0) parts.push({ t: 'hard parse', c: 'warn', title: `mis=${c.mis}: a library cache miss` })
+  if (c.op === 'CLOSE' && c.type !== undefined) parts.push(dim(CLOSE_TYPES[c.type] ?? `type ${c.type}`, `type=${c.type}`))
+  return { label: c.op, tone: 'cpu', parts, dur: c.e, bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
 }
 
 function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
   const ev = ctx.eventOf?.(w.nam)
-  const parts: Seg[] = [{ t: w.nam, c: 'name', title: ev?.class ? `wait class ${ev.class}` : undefined }]
+  // the event and the object in columns of their own, then the parameters (one event's waits have the same ones, so they line up)
+  const parts: Seg[] = [{ t: w.nam, c: 'ev', title: `${w.nam}${ev?.class ? ` (wait class ${ev.class})` : ''}` }]
   // Oracle leaves the last object's obj# on every wait: only on I/O and concurrency waits is it the object waited on
   const onObject = !ev || /I\/O|Concurrency|Application|Cluster/.test(ev.class)
-  if (onObject && w.obj !== undefined && w.obj > 0) {
-    const name = ctx.objectName?.(w.obj)
-    parts.push(sep, { t: name ?? `obj# ${w.obj}`, c: 'obj', title: `obj#=${w.obj}` })
-  }
-  parts.push(...waitParamSegs(w.params))
+  const name = onObject && w.obj !== undefined && w.obj > 0 ? ctx.objectName?.(w.obj) ?? `obj# ${w.obj}` : ''
+  parts.push({ t: name, c: 'evobj', title: name ? `${name} (obj#=${w.obj})` : undefined })
+  const ps = waitParamSegs(w.params)
+  parts.push(...(ps[0] === sep ? ps.slice(1) : ps))
   return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', parts, dur: w.ela, bar: { us: w.ela, role: ev?.role ?? 'other' } }
 }
 
@@ -179,7 +194,7 @@ function waitParamSegs(params: { label: string; value: string }[]): Seg[] {
     if (label === null) continue
     const num = Number.isFinite(n) && /^\d+$/.test(p.value)
     if (label === 'blocks' || label === 'bytes') out.push(sep, numSeg(fmtInt(n), raw), dim(` ${n === 1 ? label.slice(0, -1) : label}`))
-    else out.push(sep, dim(`${label} `), { t: num && label !== 'block' && label !== 'file' ? fmtInt(n) : p.value, c: 'val', title: raw })
+    else out.push(sep, dim(`${label} `), numSeg(num && label !== 'block' && label !== 'file' ? fmtInt(n) : p.value, raw))
   }
   return out
 }

@@ -20,6 +20,7 @@ import { statementTones } from '../data/readable'
 import { readableRowsOf, type Pin } from './readableRows'
 import { AsRun } from './AsRun'
 import { ReadableOverview } from './ReadableOverview'
+import { FormattedHead, columnVars } from '../components/FormattedHead'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
 import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
@@ -1223,8 +1224,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         )
       })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
-        <div className={'lines-main' + (busy ? ' busy' : '')} aria-busy={busy || undefined}>
-          <LineViewer cache={cache} readable={readableRows} onAct={onAct} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+        <div className={'lines-main' + (busy ? ' busy' : '')} aria-busy={busy || undefined} style={readable ? (columnVars(prefs.cols) as React.CSSProperties) : undefined}>
+          <LineViewer cache={cache} readable={readableRows} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}

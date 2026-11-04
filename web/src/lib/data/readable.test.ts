@@ -5,13 +5,15 @@ import { bindAttrSegs, describeLine, describeMarker, parseStat, planDump, sqlSeg
 
 // lines of testdata/traces/19c/io_waits.trc
 const trc = readFileSync(new URL('../../../../testdata/traces/19c/io_waits.trc', import.meta.url), 'utf8').split('\n')
-const text = (segs: Seg[]) => segs.map((s) => (typeof s === 'string' ? s : s.t)).join('')
+/** The pieces' text; a column's quantity as `number unit` between `|`, an empty one left out (cells: each piece apart). */
+const piece = (s: Seg) => (typeof s === 'string' ? s : 'q' in s ? (s.n ? `|${s.n} ${s.unit}|` : '') : 'c' in s && (s.c === 'ev' || s.c === 'evobj') ? (s.t ? `|${s.t}|` : '') : s.t)
+const text = (segs: Seg[]) => segs.map(piece).join('').replace(/\|+/g, '|').replace(/^\||\|$/g, '')
 
 describe('describeLine', () => {
   it('a call: elapsed, CPU, rows, gets and a hard parse', () => {
     const v = describeLine('PARSE #139745604251096:c=92,e=907,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=3570327658,tim=10804502774', 'call', 87)
     expect(v.label).toBe('PARSE')
-    expect(text(v.parts)).toBe('cpu 92 µs · hard parse')
+    expect(text(v.parts)).toBe('92 µs cpu|hard parse')
     expect(v.dur).toBe(907)
     expect(v.bar).toEqual({ us: 907, cpu: 92, role: 'cpu' })
   })
@@ -19,7 +21,7 @@ describe('describeLine', () => {
     const line = trc.find((l) => l.includes("nam='direct path read' ") && l.includes('obj#=108611'))!
     const v = describeLine(line, 'wait', 1, { objectName: (o) => (o === 108611 ? 'MTK_ORDERS' : undefined), eventOf: () => ({ class: 'User I/O', idle: false, role: 'userio' }) })
     expect(v.label).toBe('WAIT')
-    expect(text(v.parts)).toMatch(/^direct path read · MTK_ORDERS · file \d+ · block \d+ · \d+ blocks?$/)
+    expect(text(v.parts)).toMatch(/^direct path read\|MTK_ORDERS\|file \d+ · block \d+ · \d+ blocks?$/)
     expect(v.bar?.role).toBe('userio')
   })
   it('a STAT line: the operation, object, rows against the estimate', () => {
@@ -60,9 +62,9 @@ describe('a STAT line as a plan row', () => {
 describe('the rest of the lines, readable', () => {
   it('wait parameters: labelled, the noise left out', () => {
     const dpr = describeLine("WAIT #139745604251096: nam='direct path read' ela= 39 file number=12 first dba=169947 block cnt=5 obj#=108611 tim=10805135198", 'wait', 1)
-    expect(text(dpr.parts)).toBe('direct path read · obj# 108611 · file 12 · block 169947 · 5 blocks')
+    expect(text(dpr.parts)).toBe('direct path read|obj# 108611|file 12 · block 169947 · 5 blocks')
     const net = describeLine("WAIT #139745605258360: nam='SQL*Net more data to client' ela= 38 driver id=1952673792 #bytes=8103 p3=0 obj#=-1 tim=10804499034", 'wait', 1)
-    expect(text(net.parts)).toBe('SQL*Net more data to client · 8,103 bytes')
+    expect(text(net.parts)).toBe('SQL*Net more data to client|8,103 bytes')
   })
   it('bind attribute lines (testdata/traces/19c/basic_binds.trc lines 56-59)', () => {
     expect(text(bindAttrSegs('  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00'))).toBe('type NUMBER, up to 22 bytes')
@@ -81,7 +83,7 @@ describe('the rest of the lines, readable', () => {
   })
   it('SQL text: keywords, strings and binds apart', () => {
     const s = sqlSegs("select c.id from mtk_cust c where c.name = 'x' and c.id = :b1 -- note")
-    expect(s.filter((x) => typeof x !== 'string').map((x) => typeof x === 'string' ? '' : `${x.c}:${x.t}`))
+    expect(s.filter((x) => typeof x !== 'string').map((x) => typeof x === 'string' || 'q' in x ? '' : `${x.c}:${x.t}`))
       .toEqual(['kw:select', 'kw:from', 'kw:where', "str:'x'", 'kw:and', 'bind::b1', 'cmt:-- note'])
     expect(text(s)).toBe("select c.id from mtk_cust c where c.name = 'x' and c.id = :b1 -- note")
   })

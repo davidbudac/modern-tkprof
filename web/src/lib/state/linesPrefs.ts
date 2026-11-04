@@ -26,11 +26,13 @@ export interface LinesPrefs {
   threshold: number
   /** idle gaps at or above this many ms get a tick and a hint */
   gapMs: number
+  /** the formatted view's column widths in px, by column key (a column without one has its default width) */
+  cols: Record<string, number>
 }
 
 export const LINES_PREFS_DEFAULTS: LinesPrefs = {
   wrap: false, heat: true, strip: true, links: true, hints: true, readable: true, foldRepeats: false, clock: false, delta: false,
-  inspect: false, inspectW: 400, follow: false, mute: [], threshold: 10, gapMs: 100,
+  inspect: false, inspectW: 400, follow: false, mute: [], threshold: 10, gapMs: 100, cols: {},
 }
 
 const KEY = 'mtk.lines.prefs'
@@ -42,6 +44,12 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 function valid<K extends keyof LinesPrefs>(k: K, v: unknown): LinesPrefs[K] | undefined {
   const d = LINES_PREFS_DEFAULTS[k]
   if (typeof d === 'boolean') return (typeof v === 'boolean' ? v : undefined) as LinesPrefs[K] | undefined
+  if (k === 'cols') {
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) return undefined
+    const out: Record<string, number> = {}
+    for (const [c, w] of Object.entries(v as Record<string, unknown>)) if (isNum(w) && w > 0) out[c] = w
+    return out as LinesPrefs[K]
+  }
   if (Array.isArray(d)) return (Array.isArray(v) && v.every((x) => typeof x === 'string') ? [...v] : undefined) as LinesPrefs[K] | undefined
   if (k === 'inspectW') return (isNum(v) && v > 0 ? v : undefined) as LinesPrefs[K] | undefined
   return (isNum(v) && v >= 0 ? v : undefined) as LinesPrefs[K] | undefined
@@ -49,7 +57,7 @@ function valid<K extends keyof LinesPrefs>(k: K, v: unknown): LinesPrefs[K] | un
 
 /** The defaults with the valid known fields of `raw` laid over them. */
 function merge(base: LinesPrefs, raw: unknown): LinesPrefs {
-  const out: LinesPrefs = { ...base, mute: [...base.mute] }
+  const out: LinesPrefs = { ...base, mute: [...base.mute], cols: { ...base.cols } }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out
   const src = raw as Record<string, unknown>
   const dst = out as unknown as Record<string, unknown>
@@ -71,7 +79,8 @@ export function readLinesPrefs(storage?: Pick<Storage, 'getItem'>): LinesPrefs {
 }
 
 function same(a: LinesPrefs, b: LinesPrefs): boolean {
-  return KEYS.every((k) => (k === 'mute' ? a.mute.length === b.mute.length && a.mute.every((x, i) => x === b.mute[i]) : a[k] === b[k]))
+  const sameCols = () => { const ka = Object.keys(a.cols), kb = Object.keys(b.cols); return ka.length === kb.length && ka.every((c) => a.cols[c] === b.cols[c]) }
+  return KEYS.every((k) => (k === 'mute' ? a.mute.length === b.mute.length && a.mute.every((x, i) => x === b.mute[i]) : k === 'cols' ? sameCols() : a[k] === b[k]))
 }
 
 function persist(p: LinesPrefs): void {

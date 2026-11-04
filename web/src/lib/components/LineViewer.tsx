@@ -102,6 +102,8 @@ interface Props {
   readable?(line: number, l: CachedLine): ReadableCell
   /** a click on a row's own control in readable mode: `pin` (the line number's pin), `asrun` (a BINDS row's SQL with its values), `lane` (a lane's sql_id) */
   onAct?(line: number, act: 'pin' | 'asrun' | 'lane', el: HTMLElement): void
+  /** a row over the scroll container, as wide as its rows (the formatted view's column headers): `--lv-sbw` is the scroll bar's width */
+  top?: ReactNode
   /** something beside the scroll container, the full height of the viewer (the density strip) */
   side?: ReactNode
   /** the first visible line (1-based) and the lines that fit (in lines, folds counted), after every move and resize (at most once per animation frame) */
@@ -118,7 +120,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selRange, onRange, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, readable, onAct, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selRange, onRange, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, readable, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -258,11 +260,13 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     if (p && h > 0) { pending.current = null; moveTo(revealTop(topRef.current, rowOfLine(p.line, index), rowsRef.current, p.how)) } else moveTo(topRef.current, false, true)
   }, [vtotal, h, index, moveTo, topRef])
 
+  const [sbw, setSbw] = useState(0) // the scroll bar's width: a row over the rows leaves it out, so its columns line up
   useEffect(() => {
     const el = sc.current!
-    const ro = new ResizeObserver(() => setH(el.clientHeight))
+    const measure = () => { setH(el.clientHeight); setSbw(el.offsetWidth - el.clientWidth) }
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
-    setH(el.clientHeight)
+    measure()
     return () => ro.disconnect()
   }, [])
 
@@ -428,8 +432,10 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const digits = String(Math.max(total, 1000)).length
   const hover = card || refTitle || onHover
   return (
-    <div className="lv-box" style={{ '--lv-row': `${ROW_H}px` } as React.CSSProperties}>
+    <div className="lv-box" style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch`, '--lv-sbw': `${sbw}px` } as React.CSSProperties}>
       <div className="lv-box-col">
+      {top}
+      <div className="lv-stack">
       {/* over the top rows, not above them: the scroll container keeps its height whether there is a header or not */}
       {head && pinned && !(readable && planTop) && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
       <div className={'lv' + (readable ? ' lv-rd-on' : wrap ? ' lv-wrap' : '') + (heat && !readable ? ' lv-heat-on' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={vtotal}
@@ -440,15 +446,15 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
           <div className="lv-view" style={{ height: h }}>
             {readable && planTop && (
               <div className="lv-row lv-rd lv-plan-head" role="presentation" aria-hidden="true">
-                <span className="lv-ln" /><span className="lv-lane lv-lane-none" /><span className="lv-fh" /><span className="lv-kd">PLAN</span><span className="lv-dur" />
+                <span className="lv-ln" /><span className="lv-lane lv-lane-none" /><span className="lv-fh" /><span className="lv-bar" /><span className="lv-kd">PLAN</span>
                 <span className="lv-tx lv-plan"><PlanHeads /></span>
-                <span className="lv-bar" /><span className="lv-rdlt" /><span className="lv-rclk" />
               </div>
             )}
             <div className="lv-layer" ref={layer}>{rows}</div>
           </div>
         </div>
         {shown && createPortal(<LineCard at={shown} />, document.body)}
+      </div>
       </div>
       </div>
       {side}
@@ -533,7 +539,9 @@ function DurCell({ us }: { us?: number }) {
 }
 
 /** One piece of a readable row's detail. */
-const segNode = (s: Seg, i: number) => (typeof s === 'string' ? s : <span key={i} className={`rd-${s.c}`} title={s.title}>{s.t}</span>)
+const segNode = (s: Seg, i: number) => (typeof s === 'string' ? s
+  : 'q' in s ? <span key={i} className={`rd-q rd-q-${s.q}`} title={s.title}><b>{s.n}</b><small>{s.unit}</small></span>
+    : <span key={i} className={`rd-${s.c}`} title={s.title}>{s.t}</span>)
 
 /**
  * A line in readable mode: the number (with the pin), the cursor's lane, the fold handle, what the line is, its detail, the time bar,
@@ -559,18 +567,18 @@ function ReadableRow({ n, rd, cls, sel, note, gap, handle, fold, foldLabel, fold
         {lane?.label !== undefined ? <a className="lv-lane-id" data-act="lane">{lane.label}</a> : lane?.sub ? <span className="lv-lane-sub">{lane.sub}</span> : null}
       </span>
       {handle}
-      <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : rd.label}</span>
-      <DurCell us={dur} />
-      {fold === null && rd.plan ? <span className="lv-tx lv-plan"><PlanCells r={rd.plan} /></span> : <span className="lv-tx" style={rd.indent && fold === null ? ({ '--ind': rd.indent } as React.CSSProperties) : undefined}>
-        {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
-        {fold !== null ? <span className="rd-fold">{fold}</span> : rd.parts.map(segNode)}
-      </span>}
       <span className="lv-bar" title={barTitle}>
         {w !== undefined && w > 0 && <i className={`lv-bar-${fold === null && rd.bar ? rd.bar.role : 'other'}`} style={{ '--w': w.toFixed(4) } as React.CSSProperties} />}
         {fold === null && rd.cpuW !== undefined && rd.cpuW > 0 && <b style={{ '--w': rd.cpuW.toFixed(4) } as React.CSSProperties} />}
       </span>
+      <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : rd.label}</span>
+      {/* a plan line has no duration, Δ or clock: its table spans those columns too */}
+      {fold === null && rd.plan ? <span className="lv-tx lv-plan"><PlanCells r={rd.plan} /></span> : <><DurCell us={dur} /><span className="lv-tx" style={rd.indent && fold === null ? ({ '--ind': rd.indent } as React.CSSProperties) : undefined}>
+        {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
+        {fold !== null ? <span className="rd-fold">{fold}</span> : rd.parts.map(segNode)}
+      </span>
       <span className={'lv-rdlt' + (rd.delta.startsWith('−') ? ' neg' : '')} title={rd.deltaTitle}>{rd.pinned ? 'pinned' : rd.delta}</span>
-      <span className="lv-rclk" title={rd.clockTitle}>{rd.clock}{rd.micros && <small>{rd.micros}</small>}</span>
+      <span className="lv-rclk" title={rd.clockTitle}>{rd.clock}{rd.micros && <small>{rd.micros}</small>}</span></>}
     </div>
   )
 }

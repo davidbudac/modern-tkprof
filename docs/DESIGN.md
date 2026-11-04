@@ -425,10 +425,17 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   top line is in a plan (one row per trace line leaves no row for them), and
   each cell's tooltip names its column. (First built as `·`-joined text; the
   values did not line up.)
-- **Durations in a column.** The time a line took (a call's e=, a wait's
-  ela=, a fold's total) has a column of its own after the kind: the number
-  right-aligned, the unit in a slot after it, so values line up down the view
-  whatever their unit.
+- **A table with resizable columns.** The columns: line number, Statement
+  (the lane), Time (the bar, before the operation), Operation, Duration
+  (number right-aligned, unit in a slot after it), Detail, Δ, Clock. A header
+  row over the rows names them; dragging a header's edge resizes its column
+  (Δ and Clock from their start edge), double-click resets it, ← → with the
+  grip focused; the widths are the `cols` pref (px), CSS variables
+  `--w-<column>` on the viewer, set directly while dragging. Inside Detail a
+  call's CPU, rows, gets and reads, and a wait's event and object, have fixed
+  columns of their own (empty where there is no value), so they line up too.
+  One colour rule everywhere: numbers in the ink, units and labels dimmed. A
+  plan line has no duration, Δ or clock: its table spans those columns.
 - **Every line kind reads as prose, not as the trace's tokens.** Wait
   parameters are labelled (`file 12 · block 169947 · 5 blocks`, `8,103
   bytes`) and the ones that say nothing (`driver id`, zeros) left out; the
