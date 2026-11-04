@@ -85,9 +85,20 @@
 
 <!-- ================================================================ -->
 <h2 id="quickstart">Quick start<a class="anchor" href="#quickstart" aria-label="Link to this section">#</a></h2>
-<p>From nothing to a resource profile in a few minutes. The <a href="#qs-cli">command line</a> runs wherever the trace is: the database host, a jump box or your laptop. The <a href="#qs-desktop">desktop app</a> is for working through traces on your own machine. Both read the same traces and show the same numbers.</p>
+<p>mtkprof comes in two versions. They are separate downloads, installed differently, so start by picking one.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th></th><th><a href="#qs-cli">Command line (CLI)</a></th><th><a href="#qs-desktop">Desktop app</a></th></tr></thead>
+  <tbody>
+    <tr><td>What it is</td><td>One binary, <code>mtkprof</code>. It writes a text report and a self-contained HTML report you open in a browser.</td><td>A windowed app with everything the HTML report has, plus tabs, the raw trace lines, notes, an index cache and connections that fetch traces over ssh or from the database.</td></tr>
+    <tr><td>Runs on</td><td>Linux, macOS, Windows, AIX, Solaris</td><td>Windows, macOS, Linux (x64 only)</td></tr>
+    <tr><td>Install</td><td>The <code>curl … | sh</code> one-liner on Unix, or the bare binary from the releases page</td><td>An installer (<code>.exe</code>, <code>.dmg</code>, <code>.AppImage</code>, <code>.deb</code>) from the releases page</td></tr>
+    <tr><td>Use it for</td><td>The database host, scripts, a report to attach to a ticket</td><td>Working through traces on your own machine</td></tr>
+  </tbody>
+</table></div>
+<p>Both read the same traces and show the same numbers. You can install both: the CLI's <code>mtkprof open trace.trc</code> hands a trace to the desktop app. The desktop installer doesn't add the <code>mtkprof</code> command to your PATH, so install the CLI too if you want it.</p>
 
-<h3 id="qs-cli">Command line</h3>
+<h3 id="qs-cli">Command line (CLI)</h3>
+<p>Download a single binary; no installer and no dependencies. On a database host this is usually all you need.</p>
 <ol class="quick">
   <li>
     <p><strong>Install.</strong> On Linux, macOS, AIX or Solaris:</p>
@@ -124,9 +135,10 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
 </ol>
 
 <h3 id="qs-desktop">Desktop app</h3>
+<p>Install it like any other application. It has its own engine built in and doesn't need the CLI.</p>
 <ol class="quick">
   <li>
-    <p><strong>Install.</strong> Download the installer for your system from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>: <code>_x64-setup.exe</code> for Windows, <code>_aarch64.dmg</code> (Apple Silicon) or <code>_x64.dmg</code> (Intel) for macOS, <code>.AppImage</code> or <code>.deb</code> for Linux. The full list is under <a href="#desktop-install">Install and first start</a>.</p>
+    <p><strong>Install.</strong> Don't use the <code>curl</code> script for this; it installs only the CLI. Download the installer for your system from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>: <code>_x64-setup.exe</code> for Windows, <code>_aarch64.dmg</code> (Apple Silicon) or <code>_x64.dmg</code> (Intel) for macOS, <code>.AppImage</code> or <code>.deb</code> for Linux. The full list is under <a href="#desktop-install">Install and first start</a>.</p>
   </li>
   <li>
     <p><strong>Start it once.</strong> The builds aren't signed, so the first start needs one extra step. On Windows, click <em>More info</em>, then <em>Run anyway</em>. On macOS, use System Settings → Privacy &amp; Security → <em>Open Anyway</em>, or run:</p>
@@ -134,7 +146,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
     <p>The app starts its engine in the background, and the status bar shows when it is ready.</p>
   </li>
   <li>
-    <p><strong>Open a trace.</strong> On the <strong>+</strong> tab, choose <em>Open files…</em> or <em>Open folder…</em>, drop files on the window, or paste a path. Double-clicking a <code>.trc</code> file and <code>mtkprof open trace.trc</code> work too. Files you pick together open as one trace set in one tab.</p>
+    <p><strong>Open a trace.</strong> On the <strong>+</strong> tab, choose <em>Open files…</em> or <em>Open folder…</em>, drop files on the window, or paste a path. Double-clicking a <code>.trc</code> file works too, and so does <code>mtkprof open trace.trc</code> if you have the CLI installed. Files you pick together open as one trace set in one tab.</p>
   </li>
   <li>
     <p><strong>Read it.</strong> The tab has the same views as the interactive report (<em>Overview</em>, <em>Statements</em>, <em>Waits</em>, <em>Timeline</em>, <em>Pivot</em> and more), plus <em>Lines</em>, the raw trace file. Every “line N” link opens Lines at that line, and <kbd>b</kbd> bookmarks a line. Notes you write stay with the trace's content, not its file name.</p>
