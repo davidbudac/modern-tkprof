@@ -12,6 +12,7 @@ import type { Inlay } from '../data/inlays'
 import type { LineTimes } from '../data/linetime'
 import type { ReadableCell } from '../views/readableRows'
 import type { Seg } from '../data/readable'
+import { PlanCells, PlanHeads } from './PlanCells'
 
 /** Height of a row in pixels; the rows are laid out by this component, the scroll bar only maps to the first visible line (see data/scrollmap.ts). */
 export const ROW_H = 20
@@ -22,7 +23,7 @@ const OVERSCAN = 20
 const MAX_TEXT = 10_000
 
 const toneClass = LINE_KINDS.map((k) => `lv-tone-${lineTone[k] ?? 'ink'}`)
-const K_CALL = LINE_KINDS.indexOf('call'), K_WAIT = LINE_KINDS.indexOf('wait')
+const K_CALL = LINE_KINDS.indexOf('call'), K_WAIT = LINE_KINDS.indexOf('wait'), K_STAT = LINE_KINDS.indexOf('stat')
 /** How long the pointer rests on a line's text before its card opens. */
 const CARD_DELAY = 350
 const NO_FOLDS: readonly Fold[] = []
@@ -146,10 +147,16 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const [pinned, setPinned] = useState<{ key: string; node: ReactNode } | null>(null)
   const headRef = useRef(head)
   headRef.current = head
+  // readable mode: the plan table's column headers over the top row while the top line is a STAT line
+  const [planTop, setPlanTop] = useState(false)
+  const readableOn = useRef(false)
+  readableOn.current = !!readable
   const refreshHead = useCallback((force = false) => {
-    const r = headRef.current?.(lineOfRow(Math.floor(topRef.current), indexRef.current)) ?? null
+    const top = lineOfRow(Math.floor(topRef.current), indexRef.current)
+    const r = headRef.current?.(top) ?? null
     setPinned((prev) => (!force && (prev?.key ?? null) === (r?.key ?? null) ? prev : r))
-  }, [topRef])
+    setPlanTop(readableOn.current && cache.line(top)?.kind === K_STAT)
+  }, [topRef, cache])
 
   // the visible range for the owner, coalesced to one call per animation frame
   const viewCb = useRef(onViewChange)
@@ -238,6 +245,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   useEffect(() => cache.subscribe(() => { setTick((t) => t + 1); refreshHead() }), [cache, refreshHead])
   // the owner's header function changed (its closures): rebuild the node
   useEffect(() => refreshHead(true), [head, refreshHead])
+  useEffect(() => refreshHead(), [readable, refreshHead]) // (the plan's column headers)
 
   // geometry changed (size, total): clamp and re-map
   useEffect(() => {
@@ -423,13 +431,20 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     <div className="lv-box" style={{ '--lv-row': `${ROW_H}px` } as React.CSSProperties}>
       <div className="lv-box-col">
       {/* over the top rows, not above them: the scroll container keeps its height whether there is a header or not */}
-      {head && pinned && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
+      {head && pinned && !(readable && planTop) && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
       <div className={'lv' + (readable ? ' lv-rd-on' : wrap ? ' lv-wrap' : '') + (heat && !readable ? ' lv-heat-on' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={vtotal}
         style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
         onScroll={onScroll} onClick={onClick} onMouseDown={onRange ? onMouseDown : undefined} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
         onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? onPointerLeave : undefined}>
         <div className="lv-inner" style={{ height: geo.scrollH }}>
           <div className="lv-view" style={{ height: h }}>
+            {readable && planTop && (
+              <div className="lv-row lv-rd lv-plan-head" role="presentation" aria-hidden="true">
+                <span className="lv-ln" /><span className="lv-lane lv-lane-none" /><span className="lv-fh" /><span className="lv-kd">PLAN</span>
+                <span className="lv-tx lv-plan"><PlanHeads /></span>
+                <span className="lv-bar" /><span className="lv-rdlt" /><span className="lv-rclk" />
+              </div>
+            )}
             <div className="lv-layer" ref={layer}>{rows}</div>
           </div>
         </div>
@@ -534,10 +549,10 @@ function ReadableRow({ n, rd, cls, sel, note, gap, handle, fold, foldLabel, fold
       </span>
       {handle}
       <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : rd.label}</span>
-      <span className="lv-tx">
+      {fold === null && rd.plan ? <span className="lv-tx lv-plan"><PlanCells r={rd.plan} /></span> : <span className="lv-tx">
         {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
         {fold !== null ? <span className="rd-fold">{fold}</span> : rd.parts.map(segNode)}
-      </span>
+      </span>}
       <span className="lv-bar" title={barTitle}>
         {w !== undefined && w > 0 && <i className={`lv-bar-${fold === null && rd.bar ? rd.bar.role : 'other'}`} style={{ '--w': w.toFixed(4) } as React.CSSProperties} />}
         {fold === null && rd.cpuW !== undefined && rd.cpuW > 0 && <b style={{ '--w': rd.cpuW.toFixed(4) } as React.CSSProperties} />}

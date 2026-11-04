@@ -45,3 +45,13 @@ describe('statementTones', () => {
     expect(t.get(1)).toEqual({ token: '--c-network', shade: 0 })
   })
 })
+
+describe('a STAT line as a plan row', () => {
+  it('its columns, and an estimate 10× off flagged', () => {
+    const at = trc.findIndex((l) => l.startsWith('STAT #139745604251096 id=2')) + 1
+    const v = describeLine(trc[at - 1], 'stat', at, { planAt: () => ({ depth: 1, self: 634138, root: 636589 }) })
+    expect(v.plan).toMatchObject({ id: 2, depth: 1, op: 'TABLE ACCESS FULL', name: 'MTK_ORDERS', starts: 1, eRows: 100000, aRows: 100001, cost: 137, time: 634138, cr: 498, pr: 496, pw: 0, off: false })
+    const off = describeLine("STAT #1 id=3 cnt=1000 pid=2 pos=1 obj=5 op='INDEX RANGE SCAN T_PK (cr=70 pr=0 pw=0 str=1 time=644 us cost=3 size=0 card=50)'", 'stat', 1)
+    expect(off.plan?.off).toBe(true)
+  })
+})

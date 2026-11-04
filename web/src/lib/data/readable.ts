@@ -4,7 +4,7 @@ import { MAX_CATEGORIES, categoryTone, type Tone } from './blocklayout'
 import { BIND_TYPE_NAMES } from './bindat'
 import { bindNames } from './bindsql'
 import type { BindRow } from './derive'
-import { fmtCompact, fmtDur, fmtInt } from './format'
+import { fmtDur, fmtInt } from './format'
 import { CLOSE_TYPES, COMMAND_NAMES } from './linefields'
 import type { LineKind } from './lines'
 import type { Role } from '../components/colors'
@@ -23,8 +23,8 @@ export interface LineView {
   bar?: { us: number; cpu?: number; role: Role }
   /** the row offers the statement with the values of this BINDS block */
   asRun?: boolean
-  /** a plan line: its depth in the plan (the operation is indented by it) */
-  depth?: number
+  /** a plan line (STAT): laid out as a row of the plan table, in columns (see `PLAN_COLUMNS`) */
+  plan?: PlanRow
 }
 
 /** What describing a line may ask of the trace (every part optional). */
@@ -39,6 +39,30 @@ export interface ReadableContext {
 }
 
 export interface PlanCell { depth: number; self: number; root: number }
+
+/**
+ * One line of a plan as a table row, DBMS_XPLAN's columns: undefined where the STAT line has no such value. `self` is the time of
+ * the operation without its children, `root` the time of the whole plan (the bar of A-Time is self / root); `off` flags an estimate
+ * 10× or more away from the rows per start.
+ */
+export interface PlanRow {
+  id: number; pid: number; depth: number; op: string; name?: string; obj: number
+  starts?: number; eRows?: number; aRows: number; cost?: number; time?: number; self?: number; root?: number
+  cr?: number; pr?: number; pw?: number
+  off: boolean
+}
+
+/** The plan table's columns after Id, Operation and Name: key, header and what the header means (the cell tooltip). */
+export const PLAN_COLUMNS = [
+  { key: 'starts', head: 'Starts', title: 'str=: times the operation started' },
+  { key: 'eRows', head: 'E-Rows', title: 'card=: the rows the optimizer expected per start' },
+  { key: 'aRows', head: 'A-Rows', title: 'cnt=: the rows the operation produced, over all starts' },
+  { key: 'cost', head: 'Cost', title: "cost=: the optimizer's cost" },
+  { key: 'time', head: 'A-Time', title: 'time=: the time of the operation and its children; the bar is its own time, of the whole plan' },
+  { key: 'cr', head: 'Buffers', title: 'cr=: consistent reads' },
+  { key: 'pr', head: 'Reads', title: 'pr=: physical reads' },
+  { key: 'pw', head: 'Writes', title: 'pw=: physical writes' },
+] as const satisfies readonly { key: keyof PlanRow; head: string; title: string }[]
 
 // ---- parsers -----------------------------------------------------------------------------------------------------------------
 
@@ -130,31 +154,24 @@ function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
   return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', parts, bar: { us: w.ela, role: ev?.role ?? 'other' } }
 }
 
-/** A row count and its estimate: the estimate is per start, the count over all starts; 10× or more apart is flagged. */
-function rowsVsEstimate(s: StatLine): Seg[] {
-  const out: Seg[] = [sep, numSeg(fmtCompact(s.cnt)), dim(s.cnt === 1 ? ' row' : ' rows', `cnt=${s.cnt}: rows produced (A-Rows)`)]
-  if (s.card !== undefined) {
-    const per = s.cnt / Math.max(1, s.str ?? 1)
-    const off = Math.max(per, 1) / Math.max(s.card, 1)
-    const bad = off >= 10 || off <= 0.1
-    out.push(bad ? { t: ` est ${fmtCompact(s.card)}`, c: 'warn', title: `card=${s.card}: the optimizer expected ${fmtInt(s.card)} rows per start, ${fmtInt(Math.round(per))} came` } : dim(` est ${fmtCompact(s.card)}`, `card=${s.card}: estimated rows per start (E-Rows)`))
-  }
-  return out
+/** Whether the rows per start are 10× or more away from the estimate. */
+function estimateOff(s: StatLine): boolean {
+  if (s.card === undefined) return false
+  const ratio = Math.max(s.cnt / Math.max(1, s.str ?? 1), 1) / Math.max(s.card, 1)
+  return ratio >= 10 || ratio <= 0.1
 }
 
 function describeStat(s: StatLine, line: number, ctx: ReadableContext): LineView {
   const pc = ctx.planAt?.(line)
   const name = s.obj > 0 ? s.name ?? ctx.objectName?.(s.obj) ?? `obj# ${s.obj}` : undefined
-  const parts: Seg[] = [{ t: String(s.id).padStart(3), c: 'dim', title: `id=${s.id} pid=${s.pid}` }, ' ', '  '.repeat(pc?.depth ?? 0), { t: s.op, c: 'op' }]
-  if (name) parts.push(' ', { t: name, c: 'obj', title: `obj=${s.obj}` })
-  if ((s.str ?? 1) > 1) parts.push(sep, numSeg(fmtCompact(s.str!)), dim(' starts', 'str= times the operation started'))
-  parts.push(...rowsVsEstimate(s))
-  if (s.time !== undefined) parts.push(sep, numSeg(fmtDur(s.time), `time=${s.time} µs, this operation and its children` + (pc ? `; ${fmtDur(pc.self)} its own` : '')))
-  if (s.cost !== undefined) parts.push(sep, dim(`cost ${fmtCompact(s.cost)}`))
-  qty(parts, s.cr, 'gets', 'cr= consistent reads')
-  qty(parts, s.pr, 'reads', 'pr= physical reads')
-  qty(parts, s.pw, 'writes', 'pw= physical writes')
-  return { label: 'PLAN', tone: 'commit', parts, depth: pc?.depth }
+  return {
+    label: 'PLAN', tone: 'commit', parts: [],
+    plan: {
+      id: s.id, pid: s.pid, depth: pc?.depth ?? 0, op: s.op, name, obj: s.obj,
+      starts: s.str, eRows: s.card, aRows: s.cnt, cost: s.cost, time: s.time, self: pc?.self, root: pc?.root,
+      cr: s.cr, pr: s.pr, pw: s.pw, off: estimateOff(s),
+    },
+  }
 }
 
 /** The value of a bind as one short chip: NULL, the value, or what the trace printed instead. */

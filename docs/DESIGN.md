@@ -412,6 +412,15 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   (`blocklayout.CATEGORICAL`) by elapsed rank; recursive SYS SQL (uid 0 below
   the top level) and statements past the 14th are neutral. Framing lines
   (blank, `***`, `=====`) inside a stretch stay in its lane.
+- **Plans as a table.** A STAT line is a row of the plan table in
+  DBMS_XPLAN's columns (Id, Operation indented by depth, Name, Starts, E-Rows,
+  A-Rows, Cost, A-Time, Buffers, Reads, Writes), numbers right-aligned in
+  fixed-width columns so they line up down the plan; A-Time has a bar of the
+  operation's own time of the plan's; an estimate 10× or more off per start
+  is in the error colour. The column headers lie over the top row while the
+  top line is in a plan (one row per trace line leaves no row for them), and
+  each cell's tooltip names its column. (First built as `·`-joined text; the
+  values did not line up.)
 - **Time.** Δ is the time from the pinned line (`a`, or the pin in the line
   number), else from the line with a time before; the pin also anchors the raw
   view's delta column. Bars are linear on one scale per file (full = the

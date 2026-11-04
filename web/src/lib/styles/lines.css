@@ -387,7 +387,8 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
    number | lane (the cursor's stretch in its statement's colour) | fold handle | kind | detail | time bar | Δ | clock.
    The rows are as wide as the view: the detail is cut where it does not fit, so the time columns stay at the end edge. */
 .lv-rd-on .lv-layer { inline-size: 100%; }
-.lv-rd .lv-ln { display: flex; align-items: center; justify-content: flex-end; gap: 0.35em; padding-inline-start: 0.6em; }
+/* a fixed width (the pin, the gap, the digits): the plan's column headers have an empty gutter and must line up with the rows */
+.lv-rd .lv-ln { display: flex; align-items: center; justify-content: flex-end; gap: 0.35em; padding-inline-start: 0.6em; inline-size: calc(var(--lv-ln) + 1.35em); min-inline-size: 0; }
 .lv-pin { all: unset; display: inline-grid; place-items: center; inline-size: 1em; block-size: var(--lv-row); color: transparent; cursor: pointer; }
 .lv-rd:hover .lv-pin, .lv-pin:focus-visible { color: var(--ink-3); }
 .lv-pin:hover { color: var(--ink) !important; }
@@ -469,3 +470,21 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .rd-chip-st { display: inline-flex; align-items: center; gap: 0.4em; padding-block: 0; font-size: var(--text-xs); }
 .rd-chip-st i { inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; }
 .rd-chip-st small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* readable mode: a STAT line as a row of the plan table (components/PlanCells.tsx). The numbers sit in fixed columns, right-aligned,
+   so they line up down the plan; the operation takes the room that is left, indented by its depth. */
+.lv-plan { display: flex; align-items: stretch; text-overflow: clip; }
+.lv-plan .pc { flex: none; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.pc-id { inline-size: 3ch; text-align: end; color: var(--ink-3); margin-inline-end: 1.5ch; }
+.lv-plan .pc-op { flex: 0 1 46ch; min-inline-size: 10ch; padding-inline-start: calc(var(--dep, 0) * 2ch); color: var(--ink); }
+.pc-name { inline-size: 20ch; padding-inline-start: 1ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
+.pc-n { position: relative; inline-size: 8ch; text-align: end; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pc-cost, .pc-pw { inline-size: 7ch; }
+.pc-time { inline-size: 13ch; }
+.pc-off { color: var(--s-critical); }
+/* A-Time's bar: the operation's own time as a share of the plan's, in the cell's first 4ch, left of the number */
+.pc-self { position: absolute; inset-inline-start: 1ch; inset-block: 6px; inline-size: calc(var(--w) * 4ch); min-inline-size: 1px; border-radius: 1px; background: color-mix(in oklch, var(--c-cpu) 65%, transparent); }
+/* the column headers: laid over the top row while the top line is in a plan */
+.lv-plan-head { position: absolute; inset-block-start: 0; inset-inline: 0; z-index: 2; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); box-shadow: 0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent); color: var(--ink-2); }
+.lv-plan-head .lv-ln { background: var(--surface-sunken); }
+.lv-plan-head .pc, .lv-plan-head .pc-op, .lv-plan-head .pc-name { color: var(--ink-2); font-weight: 500; }
