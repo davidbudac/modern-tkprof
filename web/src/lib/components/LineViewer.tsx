@@ -588,13 +588,13 @@ const segNode = (s: Seg, i: number) => (typeof s === 'string' ? s
   : 'q' in s ? (s.n === '' ? null : <span key={i} className={`rd-q rd-q-${s.q}`} title={s.title}><b>{s.n}</b> <small>{s.unit}</small></span>)
     : <span key={i} className={`rd-${s.c}`} title={s.title}>{s.t}</span>)
 
-/** Δ as the text of a readable row's time column, over its bar (`dcol` off: none). */
+/** Δ as the text of a readable row's time column, over its bar. */
 const DeltaText = ({ rd }: { rd: ReadableCell }) => (
   <span className={'lv-rdlt' + (rd.delta.startsWith('−') ? ' neg' : '')}>{rd.pinned ? 'pinned' : rd.delta}</span>
 )
 
 /**
- * A line in readable mode: the time column (Δ as text over the bar of the line's own time), the number (with the pin), the cursor's
+ * A line in readable mode: the time column (Δ as text over the bar of the line's own time; none with Δ off), the number (with the pin), the cursor's
  * lane, the fold handle, the duration, what the line is, its detail and the clock. Every column but the detail has a width of its own, so they line up down the view; the detail is
  * cut where it does not fit. A plan line is a row of its plan's table: its cells in the detail, the time columns empty.
  */
@@ -609,16 +609,20 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
   const barTitle = fold !== null ? fold : rd.bar ? `${fmtDur(rd.bar.us)}${rd.bar.cpu ? ` · CPU ${fmtDur(rd.bar.cpu)}` : ''}${rd.hot ? ' · a hot spot: 1 % of the traced time or more' : ''}` : undefined
   return (
     <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '') + tableCls(rd, plan ? tb : 0, fold === null)} data-ln={n} role="listitem" aria-selected={sel || undefined}>
-      {/* first: the time column, Δ as text over the bar of the time the line took */}
-      <span className="lv-bar" title={[dcol ? rd.deltaTitle : undefined, barTitle].filter(Boolean).join('\n') || undefined}>
-        {w !== undefined && w > 0 && <i className={`lv-bar-${fold === null && rd.bar ? rd.bar.role : 'other'}`} style={{ '--w': w.toFixed(4) } as React.CSSProperties} />}
-        {fold === null && rd.cpuW !== undefined && rd.cpuW > 0 && <b style={{ '--w': rd.cpuW.toFixed(4) } as React.CSSProperties} />}
-        {dcol && <DeltaText rd={rd} />}
-      </span>
+      {/* first: the time column, Δ as text over the bar of the time the line took (`dcol` off: no column) */}
+      {dcol && (
+        <span className="lv-bar" title={[rd.deltaTitle, barTitle].filter(Boolean).join('\n') || undefined}>
+          {w !== undefined && w > 0 && <i className={`lv-bar-${fold === null && rd.bar ? rd.bar.role : 'other'}`} style={{ '--w': w.toFixed(4) } as React.CSSProperties} />}
+          {fold === null && rd.cpuW !== undefined && rd.cpuW > 0 && <b style={{ '--w': rd.cpuW.toFixed(4) } as React.CSSProperties} />}
+          <DeltaText rd={rd} />
+        </span>
+      )}
       <span className="lv-ln" title={note}>
-        <button type="button" className="lv-pin" data-act="pin" aria-pressed={rd.pinned} aria-label={rd.pinned ? `Unpin line ${n}` : `Pin line ${n}: Δ is measured from it`} title={rd.pinned ? 'unpin (a)' : 'pin this line: Δ is measured from it (a)'}>
-          <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true"><path d="M2 0h5v1.2L6.2 2v3l1.8 1.5V7.5H5v3.5L4.5 11 4 10.99V7.5H1V6.5L2.8 5V2L2 1.2z" fill="currentColor" /></svg>
-        </button>
+        {dcol && (
+          <button type="button" className="lv-pin" data-act="pin" aria-pressed={rd.pinned} aria-label={rd.pinned ? `Unpin line ${n}` : `Pin line ${n}: Δ is measured from it`} title={rd.pinned ? 'unpin (a)' : 'pin this line: Δ is measured from it (a)'}>
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.2 9 8.8H1z" fill={rd.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+          </button>
+        )}
         {n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}
       </span>
       <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? ({ '--lane': lane.color, '--dep': lane.depth } as React.CSSProperties) : undefined} title={lane?.title}>

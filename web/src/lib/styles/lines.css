@@ -400,7 +400,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-pin { all: unset; display: inline-grid; place-items: center; inline-size: 1em; block-size: var(--lv-row); color: transparent; cursor: pointer; }
 .lv-rd:hover .lv-pin, .lv-pin:focus-visible { color: var(--ink-3); }
 .lv-pin:hover { color: var(--ink) !important; }
-.lv-pin[aria-pressed="true"] { color: var(--c-commit); }
+.lv-pin[aria-pressed="true"] { color: var(--c-commit); background: none; }
 .lv-lane { flex: none; position: relative; inline-size: var(--w-lane, var(--d-lane)); box-sizing: border-box; padding-inline: calc(12px + var(--dep, 0) * 6px) var(--sp-1); overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); }
 .lv-lane::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: calc(3px + var(--dep, 0) * 6px); inline-size: 4px; background: var(--lane); }
 .lv-lane-none::before { content: none; }

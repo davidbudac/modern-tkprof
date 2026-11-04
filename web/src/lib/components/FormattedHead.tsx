@@ -79,7 +79,7 @@ export function FormattedHead({ cols, delta, onCols }: { cols: Readonly<Record<s
   // the same classes as a row's cells for the line number and the fold handle, so the columns after them start where the rows' do
   return (
     <div className="lv-colhead lv-rd" ref={box} role="presentation">
-      {cell('bar', false, delta, delta ? 'Δ · time' : undefined)}
+      {delta && cell('bar', false, true, 'Δ · time')}
       <span className="lv-ln" />
       {cell('lane')}
       <span className="lv-fh" />
