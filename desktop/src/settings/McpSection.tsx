@@ -71,7 +71,7 @@ export function McpSection({ binds }: { binds: AssistBinds }) {
       </div>
       <ul className="muted small mcp-notes">
         <li>
-          Then ask in Claude Code, for example: <i>“the batch traced in /u01/…/orcl_ora_4711.trc got slow after 14:05, why?”</i> It cites trace lines as{' '}
+          Then ask in Claude Code, for example: “the batch traced in /u01/…/orcl_ora_4711.trc got slow after 14:05, why?” It cites trace lines as{' '}
           <span className="mono">file:line</span>.
         </li>
         <li>

@@ -13,9 +13,9 @@ import { useSettings, type AssistBinds } from './settings'
 type Backend = Schemas['BackendInfo']
 type Status = { running: true } | (TestResult & { running?: false })
 
-const BINDS: { id: AssistBinds; title: string }[] = [
-  { id: 'mask', title: 'Each bind value as its type, length and a hash' },
-  { id: 'keep', title: 'The bind values as traced' },
+const BINDS: { id: AssistBinds; label: string; title: string }[] = [
+  { id: 'mask', label: 'Mask', title: 'Each bind value as its type, length and a hash' },
+  { id: 'keep', label: 'Keep', title: 'The bind values as traced' },
 ]
 
 /** The longest a test may take (a codex turn takes about half a minute). */
@@ -107,7 +107,7 @@ export function AssistantSection() {
         <span className="seg" role="group" aria-label="Assistant bind values">
           {BINDS.map((b) => (
             <button key={b.id} aria-pressed={settings.assistBinds === b.id} title={b.title} onClick={() => update({ assistBinds: b.id })}>
-              {b.id}
+              {b.label}
             </button>
           ))}
         </span>
@@ -180,10 +180,14 @@ export function AssistantSection() {
         </span>
       )}
 
-      <h3>CLI agents</h3>
+      <div className="row sub-head">
+        <h3>CLI agents</h3>
+        <span className="spacer" />
+        <button onClick={reload} disabled={backends === null && !backendsError}>Refresh</button>
+      </div>
       <p className="muted small">The claude and codex commands on the engine's PATH, with their own login. They run with mtkprof's tools only.</p>
       {backendsError && <p className="small warn-text">{backendsError}</p>}
-      <table className="cache-table" aria-label="CLI agents">
+      <table className="cache-table cli-table" aria-label="CLI agents">
         <thead>
           <tr>
             <th>CLI</th>
@@ -213,9 +217,6 @@ export function AssistantSection() {
           ))}
         </tbody>
       </table>
-      <span className="actions">
-        <button onClick={reload} disabled={backends === null && !backendsError}>Refresh</button>
-      </span>
 
       <McpSection binds={settings.assistBinds} />
     </>

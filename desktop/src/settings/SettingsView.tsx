@@ -29,6 +29,9 @@ const when = (iso: string) => {
 
 const APP_PROTOCOL = 1
 
+/** The cap is set in whole GiB: `20 GB`, not fmtBytes' `20.00 GB`. */
+const fmtCap = (n: number) => (n > 0 && n % 2 ** 30 === 0 ? `${n / 2 ** 30} GB` : fmtBytes(n))
+
 /** Settings, in the order of use: opening traces, appearance, the assistant, the engine (its settings, then its facts), the index cache, backup, about. */
 export function SettingsView() {
   const { settings, update } = useSettings()
@@ -51,7 +54,7 @@ export function SettingsView() {
       <section id="settings-opening" aria-labelledby="settings-opening-h">
         <h2 id="settings-opening-h">Opening traces</h2>
         <div className="field">
-          <span className="label">Bind values (default)</span>
+          <span className="label">Default bind values</span>
           <span className="row">
             <BindSeg value={settings.binds} onChange={(binds) => update({ binds })} />
             {settings.binds === 'redact' && (
@@ -61,7 +64,7 @@ export function SettingsView() {
         </div>
         <label className="check">
           <input type="checkbox" checked={settings.startEmpty} onChange={(e) => update({ startEmpty: e.target.checked })} />
-          Start empty (do not re-open last session's traces)
+          Start empty, without re-opening the last session's traces
         </label>
       </section>
 
@@ -112,7 +115,7 @@ export function SettingsView() {
               Default
             </button>
           </span>
-          {info && <small className="muted mono">in use: {info.cacheDir}</small>}
+          {info && <small className="muted mono">In use: {info.cacheDir}</small>}
         </div>
         <div className="field">
           <label htmlFor="cache-cap">Cap (GiB)</label>
@@ -130,7 +133,7 @@ export function SettingsView() {
                 update({ cacheCapGB: e.target.value === '' || !(n > 0) ? null : Math.round(n) })
               }}
             />
-            <span className="muted small">least recently used entries go first; empty = the engine's default</span>
+            <span className="muted small">Least recently used entries go first. Empty uses the engine's default</span>
           </span>
         </div>
         <div className="field">
@@ -151,7 +154,7 @@ export function SettingsView() {
           </button>
           {pending && <span className="small warn-text">Restart the engine to apply the changes. Open traces re-open from the cache.</span>}
         </p>
-        <dl className="kv">
+        <dl className="kv engine-facts" data-status={engine.status}>
           <dt>Version</dt>
           <dd className="mono">{engine.version ?? '–'} · protocol {engine.protocol ?? '–'} <span className="muted">(app speaks {APP_PROTOCOL})</span></dd>
           <dt>Binary</dt>
@@ -159,7 +162,8 @@ export function SettingsView() {
           <dt>Listening</dt>
           <dd className="mono small">{engine.addr ?? '–'}</dd>
           <dt>Status</dt>
-          <dd>
+          <dd className="engine-status">
+            <span className="dot" aria-hidden />
             {engine.status}
             {engine.restarts > 0 && ` · ${engine.restarts} automatic restart${engine.restarts === 1 ? '' : 's'}`}
           </dd>
@@ -265,15 +269,18 @@ function BackupSection() {
   return (
     <>
       <p className="muted small">
-        The default JSON backup includes the connection definitions (no passwords or passphrases; those are asked on use) and the
-        saved Pivot configurations. Importing merges: a connection with the same id is replaced, a saved pivot with the same id only
-        when the imported one is newer. Optional investigation metadata is included or imported only when checked below. Notes and paths may contain sensitive information; raw traces, credentials, redaction salts, engine paths and URLs are excluded. Workspace references are retained for manual opening and never opened on import.
+        A JSON file with the connection definitions and the saved Pivot configurations. Passwords and passphrases stay out; they are
+        asked for on use. Importing merges by id: a connection is replaced, a saved pivot only when the imported one is newer.
       </p>
-      <div role="group" aria-label="Optional investigation metadata">
+      <div className="checks" role="group" aria-label="Optional investigation metadata">
+        <span className="label">Also export and import</span>
         <label className="check"><input type="checkbox" checked={include.annotations} onChange={(e) => setInclude({ ...include, annotations: e.target.checked })} />Notes and bookmarks (merge newer entries)</label>
         <label className="check"><input type="checkbox" checked={include.settings} onChange={(e) => setInclude({ ...include, settings: e.target.checked })} />Appearance and opening defaults</label>
         <label className="check"><input type="checkbox" checked={include.workspace} onChange={(e) => setInclude({ ...include, workspace: e.target.checked })} />Workspace path references (open manually after import)</label>
       </div>
+      <p className="muted small">
+        Notes and paths may contain sensitive information. Never included: raw traces, credentials, redaction salts, engine paths and URLs.
+      </p>
       {references.length > 0 && <div>
         <h3>Imported workspace references</h3>
         <p className="muted small">Paths refer to the original computer. Open a reference explicitly using current bind defaults; missing files will report an error.</p>
@@ -342,9 +349,9 @@ function CacheEntries() {
   return (
     <div className="cache-entries">
       <p className="row">
-        <b>
-          {list ? `${fmtBytes(list.bytes)} of ${fmtBytes(list.cap)} in ${list.entries} entr${list.entries === 1 ? 'y' : 'ies'}` : 'Usage…'}
-        </b>
+        <span className="usage-text">
+          {list ? `${fmtBytes(list.bytes)} of ${fmtCap(list.cap)} in ${list.entries} entr${list.entries === 1 ? 'y' : 'ies'}` : 'Usage…'}
+        </span>
         {list && list.cap > 0 && (
           <span className="usage-bar" role="img" aria-label={`${Math.round((100 * list.bytes) / list.cap)} % of the cap`}>
             <i style={{ inlineSize: `${Math.min(100, (100 * list.bytes) / list.cap)}%` }} />

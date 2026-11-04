@@ -85,11 +85,12 @@ body { overflow: hidden; }
 .engine-wrap { display: inline-flex; }
 .engine-btn { display: inline-flex; align-items: center; justify-content: center; inline-size: 1.75rem; block-size: 1.75rem; padding: 0; margin-inline-start: var(--sp-2); border: 0; border-radius: 6px; background: none; }
 .engine-btn:hover, .engine-btn[aria-expanded="true"] { background: var(--wash); }
-.engine-btn .dot, .engine-pop .dot, .statusbar .dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; background: var(--ink-3); display: inline-block; flex: none; }
-.engine-wrap[data-status="ready"] .dot, .statusbar[data-status="ready"] .dot { background: var(--s-good); }
+.engine-btn .dot, .engine-pop .dot, .statusbar .dot, .engine-facts .dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; background: var(--ink-3); display: inline-block; flex: none; }
+.engine-wrap[data-status="ready"] .dot, .statusbar[data-status="ready"] .dot, .engine-facts[data-status="ready"] .dot { background: var(--s-good); }
 .engine-wrap[data-status="restarting"] .dot, .engine-wrap[data-status="starting"] .dot,
-.statusbar[data-status="restarting"] .dot, .statusbar[data-status="starting"] .dot { background: var(--s-warning); }
-.engine-wrap[data-status="failed"] .dot, .statusbar[data-status="failed"] .dot { background: var(--s-critical); }
+.statusbar[data-status="restarting"] .dot, .statusbar[data-status="starting"] .dot,
+.engine-facts[data-status="restarting"] .dot, .engine-facts[data-status="starting"] .dot { background: var(--s-warning); }
+.engine-wrap[data-status="failed"] .dot, .statusbar[data-status="failed"] .dot, .engine-facts[data-status="failed"] .dot { background: var(--s-critical); }
 .sr-only { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); white-space: nowrap; }
 
 .frame-main { overflow: auto; min-block-size: 0; background: var(--surface); }
@@ -272,10 +273,27 @@ select { font-size: var(--text-sm); padding: 0.15rem 0.3rem; border: 1px solid v
 .page-back + .page { padding-block-start: var(--sp-3); }
 
 /* settings (and its About section) */
-.page { display: grid; gap: var(--sp-4); align-content: start; inline-size: min(52rem, 100%); margin-inline: auto; padding: var(--sp-6) var(--sp-5); }
+.page { display: grid; gap: var(--sp-6); align-content: start; inline-size: min(52rem, 100%); margin-inline: auto; padding: var(--sp-6) var(--sp-5); }
 .page h1 { font-size: var(--text-hero); }
-.page section { display: grid; gap: var(--sp-3); padding-block-start: var(--sp-4); border-block-start: 1px solid var(--hairline); }
+.page section { display: grid; gap: var(--sp-4); padding-block-start: var(--sp-5); border-block-start: 1px solid var(--hairline); }
 .page h2 { font-size: var(--text-lg); }
+/* a subsection: more room above its heading than below, so it reads as its own group */
+.page section h3, .page section .sub-head { margin-block: var(--sp-3) calc(-1 * var(--sp-2)); }
+.page section .sub-head h3 { margin: 0; }
+.page label.check input { margin: 0; }
+.page .checks { display: grid; gap: var(--sp-2); justify-items: start; }
+.page .checks .label { font-size: var(--text-sm); color: var(--ink-2); }
+/* disclosure markers hang in the gutter, so the summary text keeps the column's left edge */
+.page details.rollout > summary { margin-inline-start: calc(-1em - var(--sp-2)); }
+.page details.about > summary { margin-inline-start: calc(-1em - var(--sp-3)); }
+.page a { color: var(--ink); text-decoration-color: var(--hairline-strong); text-underline-offset: 3px; transition: text-decoration-color 120ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { .page a:hover { text-decoration-color: currentColor; } }
+.usage-text { font-weight: 500; font-variant-numeric: tabular-nums; }
+.engine-facts { padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface-sunken); }
+.engine-facts dd { font-size: var(--text-sm); }
+.engine-status { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.cli-table td:first-child { white-space: nowrap; }
+.cache-table.cli-table td:last-child { white-space: normal; overflow-wrap: anywhere; }
 /* the engine menu's About scrolls here: room below it lets the section reach the top of the window */
 .settings #settings-about:has(details[open]) { min-block-size: calc(100dvh - 8rem); align-content: start; }
 details.about > summary { color: var(--ink); gap: var(--sp-3); }
