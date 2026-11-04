@@ -32,9 +32,14 @@ fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
     if !(lower.starts_with("https://") || lower.starts_with("http://")) {
         return Err(format!("not a web link: {url}"));
     }
+    let len = url.len();
     app.opener()
         .open_url(url, None::<&str>)
-        .map_err(|e| e.to_string())
+        .map(|()| log::info!("opened a web link ({len} chars)"))
+        .map_err(|e| {
+            log::warn!("open web link ({len} chars): {e}");
+            e.to_string()
+        })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -50,7 +55,13 @@ pub fn run() {
             let paths = open::paths_of_args(args.into_iter().skip(1), std::path::Path::new(&cwd));
             open::request(app, paths);
         }))
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            // Info: at the default Trace, tao's window events filled the 40 KB file within minutes and the
+            // rotation dropped everything else
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())

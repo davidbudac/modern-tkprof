@@ -138,6 +138,15 @@ export function logInfo(message: string): void {
   void import('@tauri-apps/plugin-log').then((l) => l.info(message), () => {})
 }
 
+/** A warning in the app log; the release webview has no console to read. */
+export function logWarn(message: string): void {
+  if (!inTauri) {
+    console.warn(message)
+    return
+  }
+  void import('@tauri-apps/plugin-log').then((l) => l.warn(message), () => {})
+}
+
 export async function appVersion(): Promise<string> {
   if (!inTauri) return pkg.version
   const { getVersion } = await import('@tauri-apps/api/app')
@@ -172,17 +181,26 @@ export async function appInfo(): Promise<AppInfo> {
 /**
  * The webview drops `target="_blank"` links (the engine UI's "Open in plan viz"), so web links
  * that would open a new tab go to the system browser instead. No-op in the dev browser mode.
+ *
+ * In the window's capture phase, and the click goes no further: tauri-plugin-shell (kept for the
+ * sidecar) injects a `<body>` click handler that takes every `_blank` web link for `shell.open`,
+ * which the webview isn't allowed, so the link did nothing.
  */
 export function routeExternalLinks(): void {
   if (!inTauri) return
-  document.addEventListener('click', (e) => {
-    if (e.defaultPrevented || e.button !== 0) return
-    const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
-    if (!a || !/^https?:$/.test(a.protocol)) return
-    if (a.target !== '_blank' && a.origin === location.origin) return
-    e.preventDefault()
-    invoke('open_external_url', { url: a.href }).catch((err) => console.error('open link:', err))
-  })
+  window.addEventListener(
+    'click',
+    (e) => {
+      if (e.button !== 0) return
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+      if (!a || !/^https?:$/.test(a.protocol)) return
+      if (a.target !== '_blank' && a.origin === location.origin) return
+      e.preventDefault()
+      e.stopPropagation()
+      invoke('open_external_url', { url: a.href }).catch((err) => logWarn(`open link: ${err}`))
+    },
+    true,
+  )
 }
 
 export function openReleasesPage(): Promise<void> {
