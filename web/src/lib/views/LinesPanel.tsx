@@ -167,6 +167,7 @@ const KEYS: [string, string][] = [
   ['s S', 'next / previous session marker (SESSION / CLIENT / MODULE / ACTION)'],
   ['d D', 'next / previous execution of the selected line\'s cursor'],
   ['f', "focus the selected line's cursor (dims the rows of other cursors)"],
+  ['l', "highlight the selected line's statement: its calls and waits tinted in its colour (again: stop)"],
   ['i', 'the side panel at its Line tab (again: close it): the selected line translated, every field named with its unit and meaning'],
   ['b', 'bookmark the selected line'],
   ['Shift+click Shift+arrows', 'select a range of lines from the selected one (its summary is in the status bar)'],

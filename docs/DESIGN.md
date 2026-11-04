@@ -403,9 +403,9 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   (`readable` in `mtk.lines.prefs`), so stored choices carry over.
 
 - **Formatted is a layout, not only values.** The `raw | formatted` toggle of the
-  Trace view (`v`) now parses every line into columns: its duration, line
-  number (with a pin), the cursor's lane, the time column (Δ as text over the
-  bar of the line's own time), what the line is (EXEC, WAIT, PLAN, Bind#3,
+  Trace view (`v`) now parses every line into columns: the time column (Δ as
+  text over the bar of the line's own time), line number (with a pin), the
+  cursor's lane, its duration, what the line is (EXEC, WAIT, PLAN, Bind#3,
   …), its detail and the wall clock on the right. It
   stays one row per trace line (a plan's head row aside, below) inside the
   same virtualised viewer, so line numbers, search,
@@ -433,14 +433,23 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   is a fold like any other, without a head. (First built as `·`-joined text,
   then as one PLAN row per line under a header shown only at the top; both
   rejected.)
-- **A table with resizable columns.** The columns: Duration (first, on the
-  far left; number right-aligned, unit in a slot after it), line number,
-  Statement (the lane), Time (before the operation: Δ as text, right-aligned,
-  over the bar of the line's own time, the bar paler behind it; the trace
-  bar's Δ button and the palette hide the text, pref `rdDelta`, on by
-  default), Operation, Detail, Clock. (Δ was a column of its own, first on
-  the left, then after the operation; the user folded it into the time
-  column.) A header row over the rows names them; dragging a
+- **A table with resizable columns.** The columns: Time (first, on the far
+  left: Δ as text, right-aligned, over the bar of the line's own time, the
+  bar paler behind it; the trace bar's Δ button and the palette hide the
+  text, pref `rdDelta`, on by default), line number, Statement (the lane),
+  Duration (number right-aligned, unit in a slot after it), Operation,
+  Detail, Clock. (Δ was a column of its own, first on the left, then after
+  the operation; the user folded it into the time column and put that
+  first, Duration before the operation.)
+- **The highlighted statement says which it is.** The rows of the selected
+  statement's calls and waits (the app's selected statement, not the
+  selected line's) are tinted in that statement's own colour, the lane
+  colour (`--hl`; blue for calls and orange for waits before, which read
+  like the hot spots), with a bar at the row's start edge and a wider lane;
+  the trace bar shows `Highlighting ■ sql_id · N calls · M waits ×`, and its
+  chip in the overview is outlined. A chip of the overview highlights its
+  statement (and goes to it), `l` the selected line's (again: none), × none,
+  all without leaving the Trace view. A header row over the rows names them; dragging a
   header's edge resizes its column (Clock from its start edge), double-click
   resets it, ← → with the grip focused; the widths are the `cols` pref (px),
   CSS variables `--w-<column>` on the viewer, set directly while dragging.

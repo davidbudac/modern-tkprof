@@ -16,7 +16,7 @@ import { CommandPalette, type Command } from '../components/CommandPalette'
 import { inlaysOf } from '../data/inlays'
 import { gapBefore } from '../data/gaps'
 import { anchorOf, lineTim, lineTimesOf, type TimeAnchor } from '../data/linetime'
-import { statementTones } from '../data/readable'
+import { QUIET_TONE, statementTones, toneColor } from '../data/readable'
 import { readableRowsOf, type Pin } from './readableRows'
 import { AsRun } from './AsRun'
 import { ReadableOverview } from './ReadableOverview'
@@ -651,6 +651,14 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (cur < 0) flash(`no cursor at line ${fmtInt(selected)}`)
     else set({ focus: ui.focus === cur ? null : cur })
   }
+  /** Highlights the selected line's statement (its calls and waits tinted in its colour), or stops when it is the highlighted one. */
+  const highlightLine = () => {
+    const l = cache.line(selected)
+    const st = l && l.stmt >= 0 ? l.stmt : at && at.line === selected ? at.objs.stmt : -1
+    if (st < 0 || !doc.statements[st]) { flash(`no statement at line ${fmtInt(selected)}`); return }
+    if (st === stmt) { actions.selectStmt(null); flash('no statement highlighted') }
+    else { actions.pickStmt(st); flash(`highlighting ${doc.label(doc.statements[st])}`) }
+  }
   const openStatement = () => {
     if (at && at.line === selected && at.objs.stmt >= 0) actions.selectStmt(at.objs.stmt)
     else flash(`no statement at line ${fmtInt(selected)}`)
@@ -686,6 +694,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 't': stepGap(1); break
       case 'T': stepGap(-1); break
       case 'f': toggleFocus(); break
+      case 'l': highlightLine(); break
       case 'i': togglePanel('line'); break
       case 'y': copySelRange(); break
       case ']': stepNext('call', 'call', 1); break
@@ -812,6 +821,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
   // ---- readable rows ---------------------------------------------------------------------------------------------------------
   const tones = useMemo(() => statementTones(doc.statements, (id) => doc.stats.statements[id]?.elapsed ?? 0), [doc])
+  /** the highlighted statement's colour (its lane's): the tint of its calls and waits, the chip in the trace bar */
+  const hlColor = stmt !== null && doc.statements[stmt] ? toneColor(tones.get(stmt) ?? QUIET_TONE) : undefined
   /** Pins a line (Δ is measured from it), or unpins it. */
   const togglePin = useCallback((line: number) => {
     if (ui.pin?.line === line) { set({ pin: null }); return }
@@ -1021,6 +1032,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
     for (const t of SHOW_TOGGLES) add('View', `view:${t.key}`, t.label, () => setPrefs({ [t.key]: !prefs[t.key] }), { checked: prefs[t.key], keys: t.keys })
     for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => toggleMute(g.name), { checked: muteSet.has(g.name) })
+    add('View', 'view:highlight', "Highlight the line's statement", highlightLine, { keys: 'l', hint: 'its calls and waits tinted in its colour' })
     add('View', 'view:readable', 'Formatted view', () => switchPrefs('readable', { readable: !prefs.readable }), { checked: prefs.readable, keys: 'v' })
     add('View', 'view:rddelta', 'Δ column (formatted)', () => setPrefs({ rdDelta: !prefs.rdDelta }), { checked: prefs.rdDelta, disabled: !prefs.readable, hint: 'the time from the pin or the line before' })
     add('View', 'view:repeats', 'Fold repeats', toggleRepeats, { checked: prefs.foldRepeats, keys: 'r', disabled: !prefs.readable, hint: 'identical waits, long wait blocks, fetch loops' })
@@ -1104,6 +1116,15 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
                 title={hot && hot.lines.length ? `the next line that took 1 % of the traced time (${fmtDur(fileSpan * 0.01)}) or more: ${fmtInt(hot.lines.length)} in this file (j, J back)` : 'no line takes 1 % of the traced time or more'}>
                 Hot spot ↓{hot && hot.lines.length > 0 && <small> {fmtInt(hot.lines.length)}</small>}
               </button>
+            </span>
+          )}
+          {stmt !== null && doc.statements[stmt] && (
+            <span className="lines-hl" style={{ '--hl': hlColor } as React.CSSProperties} title={`the rows of this statement's calls and waits are tinted in its colour, with a bar at their start edge; l highlights the selected line's statement instead, Enter opens it${partial ? '; the marks are bounded: the 5,000 longest calls and the first 1,000 waits' : ''}`}>
+              <i aria-hidden="true" />
+              Highlighting
+              <button type="button" className="link mono" onClick={() => { const l = stmtLineIn(doc, file, stmt); if (l !== undefined) jump(l); else flash(`${stmtName} has no cursor in this file`) }} title="go to its first line in this file">{stmtName}</button>
+              <small>{nCalls + nWaits === 0 ? 'nothing in this file' : `${fmtInt(nCalls)} ${nCalls === 1 ? 'call' : 'calls'} · ${fmtInt(nWaits)} ${nWaits === 1 ? 'wait' : 'waits'}`}</small>
+              <button type="button" className="quiet" onClick={() => actions.selectStmt(null)} aria-label="Stop highlighting" title="stop highlighting this statement">×</button>
             </span>
           )}
           {ui.pin && (
@@ -1251,13 +1272,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         const [from, to] = f && f.lastTim > f.firstTim ? [f.firstTim, f.lastTim] : [doc.span.firstTim, doc.span.lastTim]
         const sl = cache.line(selected)
         return (
-          <ReadableOverview doc={doc} tones={tones} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined}
-            onStmt={(id) => { const l = stmtLineIn(doc, file, id); if (l !== undefined) jump(l); else flash(`${doc.label(doc.statements[id])} has no cursor in this file`) }}
+          <ReadableOverview doc={doc} tones={tones} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined} current={stmt}
+            onStmt={(id) => { actions.pickStmt(id); const l = stmtLineIn(doc, file, id); if (l !== undefined) jump(l); else flash(`${doc.label(doc.statements[id])} has no cursor in this file`) }}
             onTim={(tim) => { lineAt(client, file, tim).then((l) => jump(l), (e: unknown) => flash(e instanceof Error ? e.message : String(e), true)) }} />
         )
       })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
-        <div className={'lines-main' + (busy ? ' busy' : '')} aria-busy={busy || undefined} style={readable ? (columnVars(prefs.cols) as React.CSSProperties) : undefined}>
+        <div className={'lines-main' + (busy ? ' busy' : '')} aria-busy={busy || undefined} style={{ ...(readable ? columnVars(prefs.cols) : {}), ...(hlColor ? { '--hl': hlColor } : {}) } as React.CSSProperties}>
           <LineViewer cache={cache} readable={readableRows} tables={tables} deltaCol={prefs.rdDelta} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />

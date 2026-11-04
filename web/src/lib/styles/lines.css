@@ -107,10 +107,11 @@
 .lv-tone-error { color: var(--s-critical); font-weight: 500; --tone: var(--s-critical); }
 
 /* gutter marks (calls / waits of the selected statement), bookmark, selection */
-.lv-mk1, .lv-mk2, .lv-mk3 { background: color-mix(in oklch, var(--c-cpu) 7%, transparent); }
-.lv-mk2 { background: color-mix(in oklch, var(--c-userio) 8%, transparent); }
-.lv-mk1 .lv-ln::before, .lv-mk2 .lv-ln::before, .lv-mk3 .lv-ln::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--c-cpu); }
-.lv-mk2 .lv-ln::before { background: var(--c-userio); }
+/* the calls and waits of the highlighted statement: tinted in its colour (--hl, set by the view), else blue for calls, orange for waits */
+.lv-mk1, .lv-mk2, .lv-mk3 { background: color-mix(in oklch, var(--hl, var(--c-cpu)) 10%, transparent); }
+.lv-mk2 { background: color-mix(in oklch, var(--hl, var(--c-userio)) 10%, transparent); }
+.lv-mk1 .lv-ln::before, .lv-mk2 .lv-ln::before, .lv-mk3 .lv-ln::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--hl, var(--c-cpu)); }
+.lv-mk2 .lv-ln::before { background: var(--hl, var(--c-userio)); }
 .lv-bm .lv-ln::after { content: "◆"; position: absolute; inset-inline-start: 7px; font-size: 0.55rem; color: var(--c-commit); }
 /* the references stay clickable on every row; the underline shows on the selected row and the one under the pointer only */
 .lv-ref { text-decoration: none; text-underline-offset: 2px; cursor: pointer; color: inherit; }
@@ -385,7 +386,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-steps button.quiet { border-color: transparent; }
 
 /* ---- readable mode: each line parsed into columns (components/LineViewer.tsx ReadableRow) -------------------------------------
-   duration | number | lane (the cursor's stretch in its statement's colour) | fold handle | time (Δ over a bar) | kind | detail | clock.
+   time (Δ over a bar) | number | lane (the cursor's stretch in its statement's colour) | fold handle | duration | kind | detail | clock.
    The rows are as wide as the view: the detail is cut where it does not fit, so the clock stays at the end edge. A column's width is
    the user's (--w-<key>, FormattedHead) or its default in digits of the rows' font (--lv-chw, measured by the viewer). */
 .lv-box {
@@ -432,10 +433,12 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-hot { background: color-mix(in oklch, var(--c-userio) 9%, transparent); }
 .lv-hot > :first-child { box-shadow: inset 3px 0 0 var(--c-userio); }
 /* the marks (search hits, steps) at the row's start edge: on the duration cell, the first */
-.lv-rd > .lv-dur { position: relative; border-inline-end: 1px solid var(--hairline); }
-.lv-rd.lv-mk1 > .lv-dur::before, .lv-rd.lv-mk2 > .lv-dur::before, .lv-rd.lv-mk3 > .lv-dur::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--c-cpu); }
-.lv-rd.lv-mk2 > .lv-dur::before { background: var(--c-userio); }
-.lv-rd > .lv-dur + .lv-ln::before { content: none; }
+.lv-rd > :first-child { border-inline-end: 1px solid var(--hairline); }
+.lv-rd.lv-mk1 > :first-child::before, .lv-rd.lv-mk2 > :first-child::before, .lv-rd.lv-mk3 > :first-child::before { content: ""; position: absolute; z-index: 2; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--hl, var(--c-cpu)); }
+.lv-rd.lv-mk2 > :first-child::before { background: var(--hl, var(--c-userio)); }
+.lv-rd .lv-ln::before { content: none; }
+/* the highlighted statement's lane is wider on its calls and waits */
+.lv-rd.lv-mk1 .lv-lane::before, .lv-rd.lv-mk2 .lv-lane::before, .lv-rd.lv-mk3 .lv-lane::before { inline-size: 7px; }
 .lv-pinned { box-shadow: inset 0 1px 0 var(--c-commit), inset 0 -1px 0 var(--c-commit); }
 .lv-hit .lv-tx { background: color-mix(in oklch, var(--c-commit) 22%, transparent); }
 .lv-asrun { all: unset; margin-inline-end: var(--sp-3); color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
@@ -473,6 +476,13 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .asrun-val { overflow-wrap: anywhere; }
 /* the readable mode's controls in the toolbar */
 .lines-rd { display: flex; align-items: center; gap: var(--sp-1); }
+.lines-hl { display: inline-flex; flex: 0 1 auto; min-inline-size: 0; overflow: hidden; align-items: center; gap: var(--sp-1); padding: 1px var(--sp-1) 1px var(--sp-2); font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; border-radius: var(--radius); background: color-mix(in oklch, var(--hl) 14%, transparent); box-shadow: inset 3px 0 0 var(--hl); }
+.lines-hl > i { inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; background: var(--hl); }
+.lines-hl > .link { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
+.lines-hl > button.quiet { padding-inline: 0.3em; }
+@container (inline-size < 90rem) { .lines-hl > small { display: none; } }
+.lines-hl > small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rd-chip-st.quiet[aria-pressed="true"], .rd-chip-st.quiet[aria-pressed="true"]:hover { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--chip); background: color-mix(in oklch, var(--chip) 14%, transparent); }
 .lines-pin { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
 .lines-pin b { color: var(--c-commit); font-weight: 600; }
 
@@ -546,7 +556,8 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-ch-lane { inline-size: var(--w-lane, var(--d-lane)); padding-inline-start: 12px; }
 .lv-ch-bar { inline-size: var(--w-bar, var(--d-bar)); padding-inline: var(--sp-2); }
 .lv-ch-kind { inline-size: var(--w-kind, var(--d-kind)); padding-inline-start: var(--sp-2); }
-.lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--sp-1) + 3.5ch); border-inline-end: 1px solid transparent; }
+.lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--sp-1) + 3.5ch); }
+.lv-colhead > :first-child { border-inline-end: 1px solid transparent; }
 .lv-ch-tx { flex: 1 1 0; min-inline-size: 0; padding-inline-start: var(--sp-2); }
 .lv-ch-clk { inline-size: var(--w-clk, var(--d-clk)); padding-inline-end: var(--sp-3); }
 .lv-ch-alend { text-align: end; }

@@ -15,12 +15,15 @@ const TOP = 8
  * file's time span. A chip goes to the statement's first line in this file, a click on the track to the line at that time; the
  * selected line is marked on the track.
  */
-export function ReadableOverview({ doc, tones, from, to, at, onStmt, onTim }: {
+export function ReadableOverview({ doc, tones, from, to, at, current, onStmt, onTim }: {
   doc: TraceDoc; tones: ReadonlyMap<number, Tone>
   /** the file's first and last tim */
   from: number; to: number
   /** the tim of the selected line (a mark on the track), undefined for none */
   at?: number
+  /** the highlighted statement (its chip is marked), null for none */
+  current?: number | null
+  /** a chip: highlight the statement and go to its first line in this file */
   onStmt(stmt: number): void
   onTim(tim: number): void
 }) {
@@ -60,7 +63,7 @@ export function ReadableOverview({ doc, tones, from, to, at, onStmt, onTim }: {
         {top.map((s) => {
           const st = doc.statements[s.id]
           return (
-            <button key={s.id} type="button" className="rd-chip-st quiet" onClick={() => onStmt(s.id)} title={`${preview(st.text, 200)}\n${fmtDur(s.e)} elapsed: go to its first line in this file`}>
+            <button key={s.id} type="button" className="rd-chip-st quiet" aria-pressed={current === s.id} style={{ '--chip': toneColor(tones.get(s.id)!) } as React.CSSProperties} onClick={() => onStmt(s.id)} title={`${preview(st.text, 200)}\n${fmtDur(s.e)} elapsed: highlight its calls and waits and go to its first line in this file`}>
               <i style={{ background: toneColor(tones.get(s.id)!) }} />
               <span className="mono">{doc.label(st)}</span>
               <small>{fmtPct(s.e, span, 0)}</small>
