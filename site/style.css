@@ -547,6 +547,7 @@ td.r, th.r { text-align: end; font-variant-numeric: tabular-nums; }
 .steps p { color: var(--ink-2); font-size: 0.9375rem; }
 .steps .terminal { align-self: start; font-size: 0.75rem; }
 .start-actions { margin-block-start: 3rem; }
+.install-cmd { margin-block-end: 2.5rem; font-size: 0.875rem; overflow-x: auto; white-space: pre; }
 
 /* ---------- footer ---------- */
 .site-footer { border-block-start: 1px solid var(--hairline); padding-block: 2.5rem 3rem; color: var(--ink-3); font-size: var(--text-sm); }
@@ -634,6 +635,9 @@ td.r, th.r { text-align: end; font-variant-numeric: tabular-nums; }
 .prose table code { white-space: normal; }
 .prose td:first-child code { white-space: nowrap; }
 .prose .shot { margin-block: 1.5rem; }
+.prose ol.quick > li + li { margin-block-start: 1.25rem; }
+.prose ol.quick > li > * + * { margin-block-start: 0.5rem; }
+.prose ol.quick > li::marker { font-family: var(--font-mono); }
 .callout {
   background: var(--surface-sunken);
   border: 1px solid var(--hairline);

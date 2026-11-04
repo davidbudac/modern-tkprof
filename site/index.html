@@ -339,8 +339,9 @@ STATEMENTS BY ELAPSED  (elapsed includes recursive children and idle between cal
 <section class="section content-grid" id="start">
   <div class="section-head">
     <h2>Trace a session, then read it</h2>
-    <p>One command for every Unix, or the binary for your platform from the releases page, or built with Go. There is nothing else to install, and no database connection is needed to analyze a trace.</p>
+    <p>One command installs mtkprof on Linux, macOS, AIX and Solaris. It picks the binary for your OS and CPU and checks it against <code>SHA256SUMS</code>. On Windows, take the binary from the releases page. There is nothing else to install, and no database connection is needed to analyze a trace.</p>
   </div>
+  <pre class="terminal install-cmd" aria-label="Install command for Unix systems"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre>
   <ol class="steps">
     <li>
       <h3>Switch on SQL trace</h3>
@@ -368,6 +369,7 @@ alter session set events 'sql_trace off';</pre>
   </ol>
   <div class="actions start-actions">
     <a class="button primary" href="https://github.com/davidbudac/modern-tkprof/releases">Download mtkprof</a>
+    <a class="button" href="docs.html#quickstart">Quick start guide</a>
     <a class="button" href="docs.html#desktop-install">Desktop app</a>
   </div>
 </section>

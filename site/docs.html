@@ -30,9 +30,9 @@
   <p>Getting started</p>
   <ul>
     <li><a href="#overview">Overview</a></li>
+    <li><a href="#quickstart">Quick start</a></li>
     <li><a href="#install">Install</a></li>
     <li><a href="#tracing">Tracing a session</a></li>
-    <li><a href="#quickstart">Quick start</a></li>
   </ul>
   <p>Analyzing traces</p>
   <ul>
@@ -84,6 +84,68 @@
 </ul>
 
 <!-- ================================================================ -->
+<h2 id="quickstart">Quick start<a class="anchor" href="#quickstart" aria-label="Link to this section">#</a></h2>
+<p>From nothing to a resource profile in a few minutes. The <a href="#qs-cli">command line</a> runs wherever the trace is: the database host, a jump box or your laptop. The <a href="#qs-desktop">desktop app</a> is for working through traces on your own machine. Both read the same traces and show the same numbers.</p>
+
+<h3 id="qs-cli">Command line</h3>
+<ol class="quick">
+  <li>
+    <p><strong>Install.</strong> On Linux, macOS, AIX or Solaris:</p>
+<pre>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh
+mtkprof version</pre>
+    <p>On Windows, download <code>mtkprof-windows-amd64.exe</code> from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>. Other ways to install are under <a href="#install">Install</a>.</p>
+  </li>
+  <li>
+    <p><strong>Trace a session.</strong> In SQL*Plus or SQLcl, run the workload between these lines, then ask for the file name:</p>
+<pre>alter session set tracefile_identifier = 'mytest';
+alter session set events 'sql_trace wait=true, bind=true, plan_stat=all_executions';
+<span class="c">-- ... run the workload ...</span>
+alter session set events 'sql_trace off';
+select value from v$diag_info where name = 'Default Trace File';</pre>
+    <p>To trace another session, see <a href="#tracing">Tracing a session</a>. If the trace is on a server you can't log in to interactively, <code>mtkprof fetch</code> copies it over ssh or out of the database (<a href="#remote">Remote traces</a>).</p>
+  </li>
+  <li>
+    <p><strong>Run mtkprof on it.</strong></p>
+<pre>mtkprof cdb1_ora_4711_mytest.trc</pre>
+    <p>This writes <code>cdb1_ora_4711_mytest.trc.txt</code> (the text report) and <code>cdb1_ora_4711_mytest.trc.html</code> (the interactive report) next to the trace.</p>
+  </li>
+  <li>
+    <p><strong>Read it.</strong> Open the <code>.html</code> file in a browser. It holds all the data and works offline. <em>Overview</em> shows the response time and the resource profile: CPU and each wait event, with their share of the time. <em>Statements</em> ranks the SQL by elapsed time; click one to see its waits, plan, binds and executions. Where there is no browser, the text report has the same numbers. <a href="#report">Reading the report</a> explains its sections.</p>
+  </li>
+  <li>
+    <p><strong>Go further.</strong></p>
+<pre>mtkprof report trace.trc -sort cpu -top 20       <span class="c"># text report only, 20 statements ranked by CPU</span>
+mtkprof serve  trace.trc                         <span class="c"># the UI at http://127.0.0.1:8046/</span>
+mtkprof report trace_dir/                        <span class="c"># every *.trc in a directory as one trace set</span>
+mtkprof compare before.trc after.trc             <span class="c"># what changed between two runs</span>
+mtkprof open   trace.trc                         <span class="c"># open it in the desktop app</span></pre>
+    <p>All commands are listed under <a href="#commands">Commands</a>.</p>
+  </li>
+</ol>
+
+<h3 id="qs-desktop">Desktop app</h3>
+<ol class="quick">
+  <li>
+    <p><strong>Install.</strong> Download the installer for your system from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>: <code>_x64-setup.exe</code> for Windows, <code>_aarch64.dmg</code> (Apple Silicon) or <code>_x64.dmg</code> (Intel) for macOS, <code>.AppImage</code> or <code>.deb</code> for Linux. The full list is under <a href="#desktop-install">Install and first start</a>.</p>
+  </li>
+  <li>
+    <p><strong>Start it once.</strong> The builds aren't signed, so the first start needs one extra step. On Windows, click <em>More info</em>, then <em>Run anyway</em>. On macOS, use System Settings → Privacy &amp; Security → <em>Open Anyway</em>, or run:</p>
+<pre>xattr -dr com.apple.quarantine /Applications/mtkprof.app</pre>
+    <p>The app starts its engine in the background, and the status bar shows when it is ready.</p>
+  </li>
+  <li>
+    <p><strong>Open a trace.</strong> On the <strong>+</strong> tab, choose <em>Open files…</em> or <em>Open folder…</em>, drop files on the window, or paste a path. Double-clicking a <code>.trc</code> file and <code>mtkprof open trace.trc</code> work too. Files you pick together open as one trace set in one tab.</p>
+  </li>
+  <li>
+    <p><strong>Read it.</strong> The tab has the same views as the interactive report (<em>Overview</em>, <em>Statements</em>, <em>Waits</em>, <em>Timeline</em>, <em>Pivot</em> and more), plus <em>Lines</em>, the raw trace file. Every “line N” link opens Lines at that line, and <kbd>b</kbd> bookmarks a line. Notes you write stay with the trace's content, not its file name.</p>
+  </li>
+  <li>
+    <p><strong>Fetch traces from a server.</strong> <em>Connections</em> (top right) keeps ssh hosts and Oracle logins. Over ssh, browse the trace directories and <em>Fetch</em> files or <em>Follow</em> a growing one as a live tab. With an Oracle login, switch tracing on for a session and list the trace files. Passwords are asked for when a connection is used and are never stored on disk. See <a href="#connections">Connections</a>.</p>
+  </li>
+</ol>
+<p>A trace you have opened before opens again in about a second from the index cache, and the app reopens the last run's tabs when it starts.</p>
+
+<!-- ================================================================ -->
 <h2 id="install">Install<a class="anchor" href="#install" aria-label="Link to this section">#</a></h2>
 
 <h3>The command-line binary</h3>
@@ -130,16 +192,6 @@ mtkprof trace scott@dbhost/pdb1 -sid 123 -serial 4567 -on       <span class="c">
 mtkprof trace scott@dbhost/pdb1 -sid 123 -serial 4567 -off
 mtkprof trace scott@dbhost/pdb1 -files -since 2h                <span class="c"># trace files in the ADR</span></pre>
 <div class="callout"><p>Lower levels work too (<code>level 1</code> has no waits, <code>level 4</code> binds only, <code>level 8</code> waits only); mtkprof reports what the trace contains. A trace started in the middle of a session is fine as well: cursors used before their PARSE line are reported as such.</p></div>
-
-<!-- ================================================================ -->
-<h2 id="quickstart">Quick start<a class="anchor" href="#quickstart" aria-label="Link to this section">#</a></h2>
-<pre>mtkprof trace.trc</pre>
-<p>This writes <code>trace.trc.txt</code> (the text report) and <code>trace.trc.html</code> (the interactive report) next to the trace. Open the HTML file in any browser; it contains the data and works offline.</p>
-<p>From there:</p>
-<pre>mtkprof report trace.trc -sort cpu -top 20       <span class="c"># text report only, 20 statements ranked by CPU</span>
-mtkprof serve  trace.trc                         <span class="c"># the UI at http://127.0.0.1:8046/</span>
-mtkprof report trace_dir/                        <span class="c"># every *.trc in a directory as one trace set</span>
-mtkprof open   trace.trc                         <span class="c"># open it in the desktop app</span></pre>
 
 <!-- ================================================================ -->
 <h2 id="commands">Commands<a class="anchor" href="#commands" aria-label="Link to this section">#</a></h2>
