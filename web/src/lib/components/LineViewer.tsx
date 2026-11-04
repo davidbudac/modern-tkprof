@@ -549,7 +549,7 @@ function ReadableRow({ n, rd, cls, sel, note, gap, handle, fold, foldLabel, fold
       </span>
       {handle}
       <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : rd.label}</span>
-      {fold === null && rd.plan ? <span className="lv-tx lv-plan"><PlanCells r={rd.plan} /></span> : <span className="lv-tx">
+      {fold === null && rd.plan ? <span className="lv-tx lv-plan"><PlanCells r={rd.plan} /></span> : <span className="lv-tx" style={rd.indent && fold === null ? ({ '--ind': rd.indent } as React.CSSProperties) : undefined}>
         {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
         {fold !== null ? <span className="rd-fold">{fold}</span> : rd.parts.map(segNode)}
       </span>}

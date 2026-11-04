@@ -421,6 +421,17 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   top line is in a plan (one row per trace line leaves no row for them), and
   each cell's tooltip names its column. (First built as `·`-joined text; the
   values did not line up.)
+- **Every line kind reads as prose, not as the trace's tokens.** Wait
+  parameters are labelled (`file 12 · block 169947 · 5 blocks`, `8,103
+  bytes`) and the ones that say nothing (`driver id`, zeros) left out; the
+  object of a wait only on I/O and concurrency waits (Oracle leaves a stale
+  obj# on the others); the attribute lines under a `Bind#` decoded and
+  indented (type and length, character set, value length, the value as
+  printed); `***` lines by name (SESSION, MODULE, ACTION, …) with their time
+  in the clock column; SQL text with keywords, literals, binds and comments
+  apart; the header's `Key: value` lines in two columns; the `=====` line a
+  thin rule. The raw text is in each piece's tooltip, the hover card and the
+  Line tab.
 - **Time.** Δ is the time from the pinned line (`a`, or the pin in the line
   number), else from the line with a time before; the pin also anchors the raw
   view's delta column. Bars are linear on one scale per file (full = the

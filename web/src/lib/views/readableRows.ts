@@ -158,7 +158,7 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
         }
       }
     }
-    let clock = '', micros = '', clockTitle: string | undefined
+    let clock = v.wall?.clock ?? '', micros = v.wall?.micros ?? '', clockTitle = v.wall?.title
     if (tim !== undefined) {
       const c = clockCell(tim, doc)
       clockTitle = c.title

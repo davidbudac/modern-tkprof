@@ -1,7 +1,7 @@
 // The readable mode of the Lines view: each trace line parsed and laid out as columns (what it is, its detail, its time), the lines of
 // one cursor joined into a lane in the statement's colour. Pure: the view feeds it the cached lines (see views/readableRows.ts).
 import { MAX_CATEGORIES, categoryTone, type Tone } from './blocklayout'
-import { BIND_TYPE_NAMES } from './bindat'
+import { BIND_TYPE_NAMES, CHARSET_NAMES, FORM_NAMES } from './bindat'
 import { bindNames } from './bindsql'
 import type { BindRow } from './derive'
 import { fmtDur, fmtInt } from './format'
@@ -23,6 +23,10 @@ export interface LineView {
   bar?: { us: number; cpu?: number; role: Role }
   /** the row offers the statement with the values of this BINDS block */
   asRun?: boolean
+  /** the detail is indented by this many steps (the attribute lines under a `Bind#`) */
+  indent?: number
+  /** a wall-clock time the line prints itself (`***` lines): HH:MM:SS.mmm and the µs after it, for the clock column */
+  wall?: { clock: string; micros: string; title: string }
   /** a plan line (STAT): laid out as a row of the plan table, in columns (see `PLAN_COLUMNS`) */
   plan?: PlanRow
 }
@@ -149,9 +153,33 @@ function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
     const name = ctx.objectName?.(w.obj)
     parts.push(sep, { t: name ?? `obj# ${w.obj}`, c: 'obj', title: `obj#=${w.obj}` })
   }
-  const shown = w.params.filter((p) => p.value !== '' && p.value !== '0')
-  if (shown.length) parts.push(sep, dim(shown.map((p) => `${p.label} ${p.value}`).join('  ')))
+  parts.push(...waitParamSegs(w.params))
   return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', parts, bar: { us: w.ela, role: ev?.role ?? 'other' } }
+}
+
+/** How the usual wait parameters read: a short label, or null to leave one out (it says nothing a reader needs). */
+const PARAM_LABELS: Record<string, string | null> = {
+  'file#': 'file', 'file number': 'file', 'block#': 'block', 'first dba': 'block', 'blocks': 'blocks', 'block cnt': 'blocks',
+  'driver id': null, '#bytes': 'bytes', 'p1': null, 'p2': null, 'p3': null, 'outstanding #aio': 'outstanding aio',
+  'current aio limit': 'aio limit', 'new aio limit': 'new aio limit', 'FileOperation': 'operation', 'fileno': 'file', 'filetype': 'file type',
+  'sleeptime/senderid': null, 'passes': 'passes',
+}
+
+/** The parameters of a wait worth reading, labelled: `file 12 · block 169947 · 5 blocks`, `8,103 bytes`, `mode 6`; zeros are left out. */
+function waitParamSegs(params: { label: string; value: string }[]): Seg[] {
+  const out: Seg[] = []
+  for (const p of params) {
+    if (p.value === '' || p.value === '0') continue
+    const raw = `${p.label}=${p.value}`
+    const n = Number(p.value)
+    if (p.label === 'name|mode' && Number.isFinite(n)) { out.push(sep, dim(`mode ${n & 0xffff}`, raw)); continue } // the enqueue's name is in the event's
+    const label = p.label in PARAM_LABELS ? PARAM_LABELS[p.label] : p.label
+    if (label === null) continue
+    const num = Number.isFinite(n) && /^\d+$/.test(p.value)
+    if (label === 'blocks' || label === 'bytes') out.push(sep, numSeg(fmtInt(n), raw), dim(` ${n === 1 ? label.slice(0, -1) : label}`))
+    else out.push(sep, dim(`${label} `), { t: num && label !== 'block' && label !== 'file' ? fmtInt(n) : p.value, c: 'val', title: raw })
+  }
+  return out
 }
 
 /** Whether the rows per start are 10× or more away from the estimate. */
@@ -205,7 +233,95 @@ function describeBinds(text: string, kind: LineKind, line: number, ctx: Readable
     return { label: 'Bind#' + m[1], tone: 'network', parts: [{ t: `:${names[b.pos] ?? b.pos}`, c: 'name' }, ' = ', { t: bindChip(b), c: b.isNull ? 'dim' : 'val' }, ...(type ? [dim(`  ${type}`)] : [])] }
   }
   if (m) return { label: 'Bind#' + m[1], tone: 'network', parts: [dim(text.trim())] }
-  return { label: '', tone: 'dim', parts: [dim(text.trim())] }
+  return { label: '', tone: 'dim', parts: bindAttrSegs(text), indent: 1 }
+}
+
+/**
+ * The attribute lines under a `Bind#`, decoded: `oacdty=02 mxl=22(22) … scl=00 pre=00` → "NUMBER, up to 22 bytes";
+ * `oacflg=… frm=01 csi=873` → its character set; `kxsbbbfp=… bln=22 avl=02` → "value length 2 of 22"; `value=…` → the value as
+ * printed. Anything else stays as written, dimmed. The raw line is each piece's tooltip.
+ */
+export function bindAttrSegs(text: string): Seg[] {
+  const t = text.trim(), p = pairs(t)
+  if (t.startsWith('oacdty=')) {
+    const dty = Number(p.get('oacdty')), mxl = Number(/^(\d+)/.exec(p.get('mxl') ?? '')?.[1] ?? NaN)
+    const pre = Number(p.get('pre') ?? 0), scl = Number(p.get('scl') ?? 0)
+    const out: Seg[] = [dim('type '), { t: BIND_TYPE_NAMES[dty] ?? `oacdty ${dty}`, c: 'val', title: t }]
+    if (Number.isFinite(mxl)) out.push(dim(`, up to ${fmtInt(mxl)} bytes`))
+    if (pre || scl) out.push(dim(`, precision ${pre}, scale ${scl}`))
+    return out
+  }
+  if (t.startsWith('oacflg=')) {
+    const csi = Number(p.get('csi') ?? 0), frm = Number(p.get('frm') ?? 0)
+    if (!csi && !frm) return [dim('no character set (not a character type)', t)]
+    return [dim('character set '), { t: CHARSET_NAMES[csi] ?? `csi ${csi}`, c: 'val', title: t }, ...(frm ? [dim(` · ${FORM_NAMES[frm] ?? `form ${frm}`}`)] : [])]
+  }
+  if (t.startsWith('kxsbbbfp=')) {
+    const avl = Number(p.get('avl') ?? NaN), bln = Number(p.get('bln') ?? NaN)
+    if (avl === 0) return [dim('no value: length 0 (NULL)', t)]
+    return [dim('value length '), { t: Number.isFinite(avl) ? fmtInt(avl) : '?', c: 'val', title: t }, ...(Number.isFinite(bln) ? [dim(` of a ${fmtInt(bln)}-byte buffer`)] : [])]
+  }
+  const v = /^value=(.*)$/.exec(t)
+  if (v) return [dim('as printed: '), { t: v[1], c: 'val', title: t }]
+  if (t === 'No oacdef for this bind.' || t.startsWith('No oacdef')) return [dim('no definition of its own: the same placeholder as an earlier bind', t)]
+  return [dim(t)]
+}
+
+/** `***` lines: the session markers by name, the timestamps as a clock time. */
+const MARKERS: [RegExp, string][] = [
+  [/^SESSION ID:\((.*?)\)/, 'SESSION'], [/^CLIENT ID:\((.*?)\)/, 'CLIENT'], [/^SERVICE NAME:\((.*?)\)/, 'SERVICE'],
+  [/^MODULE NAME:\((.*?)\)/, 'MODULE'], [/^ACTION NAME:\((.*?)\)/, 'ACTION'], [/^CLIENT DRIVER:\((.*?)\)/, 'DRIVER'],
+  [/^CONTAINER ID:\((.*?)\)/, 'CONTAINER'],
+]
+const ISO_RE = /(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d{3})(\d{0,3})\d*)?([+-]\d{2}:\d{2}|Z)?/
+
+export function describeMarker(text: string): LineView {
+  const t = text.replace(/^\*{3}\s*/, '')
+  const ts = ISO_RE.exec(t)
+  // the time goes to the clock column, where every other line has its time
+  const wall = ts ? { clock: `${ts[2]}${ts[3] ? `.${ts[3]}` : ''}`, micros: (ts[4] ?? '').padEnd(ts[3] && ts[4] ? 3 : 0, '0'), title: ts[0] } : undefined
+  for (const [re, label] of MARKERS) {
+    const m = re.exec(t)
+    if (m) return { label, tone: 'dim', parts: [{ t: m[1] || '(none)', c: 'name' }], wall }
+  }
+  if (ts && ts.index === 0) { // the timestamp line: `*** 2026-10-22T11:35:03.510078+00:00 (PDB1(3))`
+    const rest = t.slice(ts[0].length).trim().replace(/^\((.*)\)$/, '$1')
+    return { label: 'TIME', tone: 'dim', parts: [{ t: ts[1], c: 'val', title: ts[0] }, ...(ts[5] ? [dim(` UTC${ts[5] === 'Z' ? '' : ts[5]}`)] : []), ...(rest ? [sep, dim(rest)] : [])], wall }
+  }
+  return { label: '***', tone: 'dim', parts: [dim(t)] }
+}
+
+/** SQL keywords that get the keyword colour in the statement's text. */
+const SQL_KW = new Set(('select from where and or not in is null as on join left right inner outer full cross group by order having union all ' +
+  'intersect minus insert into values update set delete merge using when matched then else end case begin declare exception ' +
+  'create alter drop table index view with distinct exists between like escape asc desc nulls first last fetch next rows only ' +
+  'offset for return returning commit rollback grant execute procedure function package body cursor loop if elsif while ' +
+  'connect start prior partition over count sum min max avg nvl decode cast to_date to_char to_number sysdate rownum level').split(' '))
+
+/** One line of SQL text in pieces: keywords, string literals, comments, binds and the rest (a line, not a statement: a comment or string opened on an earlier line is not known). */
+export function sqlSegs(text: string): Seg[] {
+  const out: Seg[] = []
+  const re = /(--.*$|\/\*.*?(?:\*\/|$))|('(?:[^']|'')*'?)|(:[A-Za-z_][\w$#]*|:\d+)|([A-Za-z_][\w$#]*)|(\s+|[^\sA-Za-z_':\-\/]+|.)/g
+  let plain = ''
+  const flush = () => { if (plain) { out.push(plain); plain = '' } }
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    if (m[1]) { flush(); out.push({ t: m[1], c: 'cmt' }) }
+    else if (m[2]) { flush(); out.push({ t: m[2], c: 'str' }) }
+    else if (m[3]) { flush(); out.push({ t: m[3], c: 'bind' }) }
+    else if (m[4] && SQL_KW.has(m[4].toLowerCase())) { flush(); out.push({ t: m[4], c: 'kw' }) }
+    else plain += m[0]
+  }
+  flush()
+  return out.length ? out : [text]
+}
+
+/** A line of the trace file's header: `Key: value` with the key dimmed. */
+function describeHeader(text: string): LineView {
+  const m = /^([A-Za-z][\w .]*?):\s+(.*)$/.exec(text)
+  if (m) return { label: '', tone: 'dim', parts: [{ t: m[1], c: 'key' }, { t: m[2], c: 'val' }] }
+  const f = /^Trace file (.*)$/.exec(text)
+  if (f) return { label: 'FILE', tone: 'dim', parts: [{ t: f[1], c: 'name' }] }
+  return { label: '', tone: 'dim', parts: [dim(text)] }
 }
 
 function describeParsing(text: string, ctx: ReadableContext): LineView {
@@ -226,14 +342,16 @@ export function describeLine(text: string, kind: LineKind, line: number, ctx: Re
     case 'stat': { const s = parseStat(text); if (s) return describeStat(s, line, ctx); break }
     case 'binds': case 'bind-line': return describeBinds(text, kind, line, ctx)
     case 'parsing-in-cursor': return describeParsing(text, ctx)
-    case 'sql-text': return { label: '', tone: '', parts: [{ t: text, c: 'sql' }] }
+    case 'sql-text': return { label: '', tone: '', parts: sqlSegs(text) }
+    case 'separator': return { label: '', tone: 'dim', parts: [{ t: '', c: 'rule' }] }
+    case 'header': return describeHeader(text)
     case 'end-of-stmt': return { label: '', tone: 'dim', parts: [dim('end of statement')] }
     case 'xctend': {
       const p = pairs(text)
       const rb = num(p, 'rlbk') === 1, ro = num(p, 'rd_only') === 1
       return { label: rb ? 'ROLLBACK' : 'COMMIT', tone: 'commit', parts: [dim(ro ? 'read only: nothing was changed' : rb ? 'transaction rolled back' : 'transaction committed')] }
     }
-    case 'marker': return { label: '***', tone: 'dim', parts: [dim(text.replace(/^\*{3}\s*/, ''))] }
+    case 'marker': return describeMarker(text)
     case 'error': case 'parse-error': return { label: 'ERROR', tone: 'error', parts: [{ t: text, c: 'warn' }] }
     case 'lob': case 'rpc': return { label: kind.toUpperCase(), tone: 'other', parts: [text] }
   }

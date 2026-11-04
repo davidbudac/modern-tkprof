@@ -488,3 +488,13 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-plan-head { position: absolute; inset-block-start: 0; inset-inline: 0; z-index: 2; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); box-shadow: 0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent); color: var(--ink-2); }
 .lv-plan-head .lv-ln { background: var(--surface-sunken); }
 .lv-plan-head .pc, .lv-plan-head .pc-op, .lv-plan-head .pc-name { color: var(--ink-2); font-weight: 500; }
+/* SQL text: keywords, literals, binds, comments */
+.rd-kw { color: color-mix(in oklch, var(--c-cpu) 70%, var(--ink)); }
+.rd-str { color: color-mix(in oklch, var(--c-network) 70%, var(--ink)); }
+.rd-bind { color: color-mix(in oklch, var(--c-other) 70%, var(--ink)); font-weight: 500; }
+.rd-cmt { color: var(--ink-3); font-style: italic; }
+/* the ===== line before a statement's text: a thin rule instead */
+.rd-rule { display: inline-block; inline-size: 24ch; block-size: 0; vertical-align: middle; border-block-start: 1px solid var(--hairline-strong); }
+.lv-rd .lv-tx[style*="--ind"] { padding-inline-start: calc(var(--sp-2) + var(--ind) * 2ch); }
+/* the trace header's `Key: value` lines: the keys in a column */
+.rd-key { display: inline-block; min-inline-size: 26ch; margin-inline-end: 2ch; color: var(--ink-3); }
