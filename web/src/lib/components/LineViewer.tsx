@@ -626,7 +626,7 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
         {n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}
       </span>
       <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? ({ '--lane': lane.color, '--dep': lane.depth } as React.CSSProperties) : undefined} title={lane?.title}>
-        {lane?.label !== undefined ? <a className="lv-lane-id" data-act="lane">{lane.label}</a> : lane?.sub ? <span className="lv-lane-sub">{lane.sub}</span> : null}
+        {lane?.label !== undefined ? <>{lane.depth > 0 && <span className="lv-lane-dep" title={`recursive SQL, depth ${lane.depth}`}>↳{lane.depth}</span>}<a className="lv-lane-id" data-act="lane">{lane.label}</a></> : lane?.sub ? <span className="lv-lane-sub">{lane.sub}</span> : null}
       </span>
       {handle}
       <DurCell us={dur} />

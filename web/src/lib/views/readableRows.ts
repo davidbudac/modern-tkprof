@@ -19,7 +19,7 @@ export interface Lane {
   sub?: string
   /** the cursor number and the statement (the tooltip: the real cursor# is only shown here) */
   title: string
-  /** the recursive depth of the cursor: the band is indented by it */
+  /** the recursive depth of the cursor: its text is indented by it and the first row shows it as ↳n (the band stays in one column) */
   depth: number
   /** the statement id (a click on the label opens it) */
   stmt: number
