@@ -42,7 +42,14 @@ export interface LineView {
   wall?: { clock: string; micros: string; title: string }
   /** a plan line (STAT): laid out as a row of the plan table, in columns (see `PLAN_COLUMNS`) */
   plan?: PlanRow
+  /** a BINDS header whose values are known: the head of the table of its binds */
+  bindHead?: boolean
+  /** a `Bind#N` line whose value is known: a row of the table of binds (`last`: the set's last bind) */
+  bindRow?: BindCellRow
 }
+
+/** A bind as a row of the table of binds: its placeholder, value and type. */
+export interface BindCellRow { pos: number; name: string; value: string; type: string; none: boolean; last: boolean; title: string }
 
 /** What describing a line may ask of the trace (every part optional). */
 export interface ReadableContext {
@@ -228,15 +235,9 @@ export function bindChip(b: BindRow): string {
 function describeBinds(text: string, kind: LineKind, line: number, ctx: ReadableContext): LineView {
   const at = ctx.bindsAt?.(line)
   if (kind === 'binds' && at?.header) {
-    const names = at.sql !== undefined ? bindNames(at.sql, at.binds.length).names : []
-    const parts: Seg[] = []
-    at.binds.slice(0, 6).forEach((b, i) => {
-      if (i) parts.push('  ')
-      parts.push({ t: `:${names[b.pos] ?? b.pos} = ${bindChip(b)}`, c: 'chip', title: `Bind#${b.pos}${b.type ? ` ${b.type}` : ''}` })
-    })
-    if (at.binds.length > 6) parts.push(dim(`  +${at.binds.length - 6} more`))
-    if (at.binds.length === 0) parts.push(dim('no binds'))
-    return { label: 'BINDS', tone: 'network', parts, asRun: at.binds.length > 0 }
+    // the head of the table of binds (each Bind# line below is a row of it)
+    if (at.binds.length === 0) return { label: 'BINDS', tone: 'network', parts: [dim('no binds')] }
+    return { label: 'BINDS', tone: 'network', parts: [], asRun: true, bindHead: true }
   }
   if (kind === 'binds') return { label: 'BINDS', tone: 'network', parts: [dim(text)] }
   const m = /^\s*Bind#(\d+)/.exec(text)
@@ -244,7 +245,14 @@ function describeBinds(text: string, kind: LineKind, line: number, ctx: Readable
     const names = at.sql !== undefined ? bindNames(at.sql, at.binds.length).names : []
     const b = at.bind
     const type = b.type || (at.dty !== undefined ? BIND_TYPE_NAMES[at.dty] : '') || ''
-    return { label: 'Bind#' + m[1], tone: 'network', parts: [{ t: `:${names[b.pos] ?? b.pos}`, c: 'name' }, ' = ', { t: bindChip(b), c: b.isNull ? 'dim' : 'val' }, ...(type ? [dim(`  ${type}`)] : [])] }
+    const value = bindChip(b)
+    const full = b.isNull || b.noDef || b.dump ? value : b.typed || b.value
+    const bindRow: BindCellRow = {
+      pos: b.pos, name: `:${names[b.pos] ?? b.pos}`, value, type, none: b.isNull || b.noDef || b.dump,
+      last: b.pos === at.binds[at.binds.length - 1]?.pos,
+      title: `Bind#${b.pos}${type ? ` ${type}` : ''}: ${full}${b.typed && b.typed !== b.value ? `\nas printed: ${b.value}` : ''}\n(the type, length and character set: the Line tab, i)`,
+    }
+    return { label: 'Bind#' + m[1], tone: 'network', parts: [{ t: bindRow.name, c: 'name' }, ' = ', { t: value, c: b.isNull ? 'dim' : 'val' }, ...(type ? [dim(`  ${type}`)] : [])], bindRow }
   }
   if (m) return { label: 'Bind#' + m[1], tone: 'network', parts: [dim(text.trim())] }
   return { label: '', tone: 'dim', parts: bindAttrSegs(text), indent: 1 }

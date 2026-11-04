@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Key
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
 import { blockAt, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeRange } from '../data/rangesum'
@@ -367,9 +367,25 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     return () => ac.abort()
   }, [client, file, readable, repeatsKey])
   const tables = planTables?.key === repeatsKey ? planTables.blocks : undefined
+  // the BINDS blocks: each bind one row of a table, its attribute lines folded under it (the Line tab reads them)
+  const [bindBlocks, setBindBlocks] = useState<{ folds: Fold[]; key: string } | null>(null)
+  useEffect(() => {
+    if (!readable) return
+    const ac = new AbortController()
+    linesBlocks(client, file, 'binds', ac.signal).then(
+      (r) => { if (!ac.signal.aborted) setBindBlocks({ folds: bindFolds(r.blocks, r.bindLines), key: repeatsKey }) },
+      (e: unknown) => { if (!aborted(e)) setBindBlocks({ folds: [], key: repeatsKey }) },
+    )
+    return () => ac.abort()
+  }, [client, file, readable, repeatsKey])
+  const quietFolds = readable && bindBlocks?.key === repeatsKey ? bindBlocks.folds : null
   const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r, scaleUs)) : null), [wantRepeats, repeats, scaleUs])
-  /** the user's folds and, with Fold repeats, the repeats the user has not opened (the user's win where they overlap) */
-  const allFolds = useMemo(() => (repeatFolds ? mergeFolds(ui.folds, repeatFolds.filter((f) => !ui.openRepeats.has(f.from))) : ui.folds), [repeatFolds, ui.folds, ui.openRepeats])
+  /** the user's folds and the view's own (with Fold repeats, the repeats; the binds' attribute lines) that the user has not opened (the user's win where they overlap) */
+  const allFolds = useMemo(() => {
+    if (!repeatFolds && !quietFolds) return ui.folds
+    const own = [...(repeatFolds ?? []), ...(quietFolds ?? [])].filter((f) => !ui.openRepeats.has(f.from))
+    return mergeFolds(ui.folds, own)
+  }, [repeatFolds, quietFolds, ui.folds, ui.openRepeats])
   /** Opens a fold, or folds a block again: a fold of repeats is opened by remembering it, a user's fold by dropping it. */
   const toggleAnyFold = useCallback((f: Fold) => {
     if (f.auto) set({ openRepeats: new Set([...ui.openRepeats, f.from]) }); else set({ folds: toggleFold(ui.folds, f) })
@@ -727,9 +743,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const copyLink = useCallback((line: number) => void copyWhat(`link to line ${fmtInt(line)}`, linePermalink(window.location, file, line)), [copyWhat, file])
   /** Folds the block that starts at `line`, or unfolds the fold that has its handle there or hides it. */
   const onFold = useCallback((line: number) => {
-    const open = foldAt(line, allFolds) ?? foldHiding(line, allFolds)
-    if (open) { toggleAnyFold(open); return }
     const b = blockAt(cache, line)
+    const at = foldAt(line, allFolds)
+    // a quiet fold on a block's first line (the blank lines under a BINDS header) does not stop the block from folding
+    const open = at && !(at.quiet && b) ? at : foldHiding(line, allFolds)
+    if (open) { toggleAnyFold(open); return }
     if (b) set({ folds: toggleFold(ui.folds, b) }); else flash(`nothing to fold at line ${fmtInt(line)}`)
   }, [ui, set, cache, flash, allFolds, toggleAnyFold])
   /** Folds every BINDS block or STAT dump of the file (the engine lists them), next to the folds there already are. */

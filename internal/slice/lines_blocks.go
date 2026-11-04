@@ -1,6 +1,7 @@
 package slice
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/url"
@@ -19,7 +20,9 @@ const (
 // linesBlocks answers {"blocks":[[from,to],...],"truncated":bool}: the
 // foldable blocks of one kind in a file as sorted, 1-based, inclusive line
 // ranges. stat: every plan dump (the STAT lines of a plan). binds: every BINDS
-// header line of the file to the last line of its block (see bindBlockEnd).
+// header line of the file to the last line of its block (see bindBlockEnd),
+// and in "bindLines" the `Bind#N` lines of each block (the formatted view
+// shows a bind as one row, its attribute lines folded under it).
 func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 	fi, li, f, err := s.fileParam(q)
 	if err != nil {
@@ -27,6 +30,7 @@ func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 	}
 	out := struct {
 		Blocks    [][2]int `json:"blocks"`
+		BindLines [][]int  `json:"bindLines,omitempty"`
 		Truncated bool     `json:"truncated"`
 	}{Blocks: [][2]int{}}
 	switch q.Get("what") {
@@ -55,12 +59,16 @@ func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 					return nil, err
 				}
 			}
-			end, ok, err := bindBlockEnd(li, h)
+			end, binds, ok, err := bindBlockEnd(li, h)
 			if err != nil {
 				return nil, err
 			}
 			if ok {
 				out.Blocks = append(out.Blocks, [2]int{h, end})
+				if binds == nil {
+					binds = []int{}
+				}
+				out.BindLines = append(out.BindLines, binds)
 			}
 		}
 	default:
@@ -111,20 +119,23 @@ func (s *Server) bindHeaders(ctx context.Context, fi int, f *fileInfo) ([]int, e
 	return hdrs, nil
 }
 
+var bindHash = []byte("Bind#")
+
 // bindBlockEnd is the last line of the BINDS block whose header is at line
 // `hdr`, or ok=false when that line is not a BINDS header. The block goes on
 // over bind lines and over the unrecognised and blank lines that continue them
 // (dump rows, multi-line values: the rule of continuesBinds) and ends before
 // the first other recognised line or another BINDS header; trailing blank lines
-// are left out. At most maxBindBlock lines, the header included.
-func bindBlockEnd(li *trace.LineIndex, hdr int) (end int, ok bool, err error) {
+// are left out. At most maxBindBlock lines, the header included. binds are the
+// block's `Bind#N` lines.
+func bindBlockEnd(li *trace.LineIndex, hdr int) (end int, binds []int, ok bool, err error) {
 	last := hdr // last line that is not blank
 	chunk := 32
 	for next := hdr; next-hdr < maxBindBlock && next <= li.Lines(); {
 		n := min(chunk, maxBindBlock-(next-hdr), li.Lines()-next+1)
 		raw, err := li.Read(next, n)
 		if err != nil {
-			return 0, false, err
+			return 0, nil, false, err
 		}
 		lines := splitLines(raw)
 		if len(lines) == 0 {
@@ -135,7 +146,7 @@ func bindBlockEnd(li *trace.LineIndex, hdr int) (end int, ok bool, err error) {
 			k, _ := trace.Classify(l, false)
 			if line == hdr {
 				if k != trace.KindBinds {
-					return 0, false, nil
+					return 0, nil, false, nil
 				}
 				continue
 			}
@@ -143,12 +154,15 @@ func bindBlockEnd(li *trace.LineIndex, hdr int) (end int, ok bool, err error) {
 			case trace.KindBlank:
 			case trace.KindUnknown, trace.KindBindLine:
 				last = line
+				if k == trace.KindBindLine && bytes.HasPrefix(bytes.TrimLeft(l, " \t"), bindHash) {
+					binds = append(binds, line)
+				}
 			default:
-				return last, true, nil
+				return last, binds, true, nil
 			}
 		}
 		next += len(lines)
 		chunk = min(chunk*2, 512)
 	}
-	return last, true, nil
+	return last, binds, true, nil
 }

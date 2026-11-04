@@ -11,7 +11,7 @@ import { fmtDur, fmtInt } from '../data/format'
 import type { Inlay } from '../data/inlays'
 import type { LineTimes } from '../data/linetime'
 import type { ReadableCell } from '../views/readableRows'
-import type { Seg } from '../data/readable'
+import type { BindCellRow, Seg } from '../data/readable'
 import { PlanCells, PlanHeads } from './PlanCells'
 
 /** Height of a row in pixels; the rows are laid out by this component, the scroll bar only maps to the first visible line (see data/scrollmap.ts). */
@@ -441,7 +441,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       continue
     }
     const n = lineOfRow(i, index)
-    const fold = foldAt(n, index)
+    const f0 = foldAt(n, index)
+    const fold = f0 && !f0.quiet ? f0 : undefined // a quiet fold's handle line reads as itself
     const l = cache.line(n)
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
     const rd = readable && l && l.kind >= 0 ? readable(n, l) : undefined
@@ -586,7 +587,7 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
   const plan = fold === null ? rd.plan : undefined
   const barTitle = fold !== null ? fold : rd.bar ? `${fmtDur(rd.bar.us)}${rd.bar.cpu ? ` · CPU ${fmtDur(rd.bar.cpu)}` : ''}${rd.hot ? ' · a hot spot: 1 % of the traced time or more' : ''}` : undefined
   return (
-    <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '') + (plan && tb ? ' lv-tb' + (tb === 2 ? ' lv-tb-end' : '') : '')} data-ln={n} role="listitem" aria-selected={sel || undefined}>
+    <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '') + tableCls(rd, plan ? tb : 0, fold === null)} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       {dcol && <DeltaCell rd={rd} />}
       <span className="lv-ln" title={note}>
         <button type="button" className="lv-pin" data-act="pin" aria-pressed={rd.pinned} aria-label={rd.pinned ? `Unpin line ${n}` : `Pin line ${n}: Δ is measured from it`} title={rd.pinned ? 'unpin (a)' : 'pin this line: Δ is measured from it (a)'}>
@@ -603,9 +604,16 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
         {fold === null && rd.cpuW !== undefined && rd.cpuW > 0 && <b style={{ '--w': rd.cpuW.toFixed(4) } as React.CSSProperties} />}
       </span>
       {/* the rows of a plan's table: PLAN is said once, in its head row */}
-      <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : plan && tb ? '' : rd.label}</span>
+      <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}`}>{fold !== null ? foldLabel ?? '' : (plan && tb) || rd.bindRow ? '' : rd.label}</span>
       <DurCell us={dur} />
-      {plan ? <span className="lv-tx lv-plan"><PlanCells r={plan} /></span> : (
+      {plan ? <span className="lv-tx lv-plan"><PlanCells r={plan} /></span>
+        : fold === null && rd.bindRow ? <span className="lv-tx lv-plan"><BindCells b={rd.bindRow} /></span>
+        : fold === null && rd.bindHead ? (
+          <span className="lv-tx lv-plan">
+            <BindHeads />
+            <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>
+          </span>
+        ) : (
         <span className="lv-tx" style={rd.indent && fold === null ? ({ '--ind': rd.indent } as React.CSSProperties) : undefined}>
           {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
           {fold !== null ? <span className="rd-fold">{fold}</span> : rd.parts.map(segNode)}
@@ -615,6 +623,33 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
     </div>
   )
 }
+
+/** The table classes of a readable row: a plan's row (`tb` 1, its last 2), the head or a row of a BINDS block's table. */
+function tableCls(rd: ReadableCell, tb: number, plain: boolean): string {
+  if (tb) return ' lv-tb' + (tb === 2 ? ' lv-tb-end' : '')
+  if (!plain) return ''
+  if (rd.bindHead) return ' lv-tb lv-tb-head'
+  if (rd.bindRow) return ' lv-tb' + (rd.bindRow.last ? ' lv-tb-end' : '')
+  return ''
+}
+
+/** A bind as a row of its BINDS block's table: the placeholder, the value (as the trace has it, cut ones marked) and the type. */
+function BindCells({ b }: { b: BindCellRow }) {
+  return (
+    <>
+      <span className="pc pc-bname" title={b.title}>{b.name}</span>
+      <span className={'pc pc-bval' + (b.none ? ' none' : '')} title={b.title}>{b.value}</span>
+      <span className="pc pc-btype" title={b.title}>{b.type}</span>
+    </>
+  )
+}
+const BindHeads = () => (
+  <>
+    <span className="pc pc-bname">Variable</span>
+    <span className="pc pc-bval">Value</span>
+    <span className="pc pc-btype">Type</span>
+  </>
+)
 
 /**
  * The head row of a plan's table, in the readable row's columns: PLAN in the kind column, the plan's column names in the detail. In

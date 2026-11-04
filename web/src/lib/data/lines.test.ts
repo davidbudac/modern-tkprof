@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -73,13 +73,19 @@ describe('annotated lines, lines/at, at', () => {
     expect(f.mock.calls[1][0]).not.toContain('min=')
   })
   it('linesBlocks lists the blocks of a kind and tells when the list was cut', async () => {
-    const f = stub(() => json({ blocks: [[3, 9], [20, 20], [0, 4], [8, 2]], truncated: true }))
-    expect(await linesBlocks(client, 1, 'binds')).toEqual({ blocks: [[3, 9], [20, 20]], truncated: true })
+    const f = stub(() => json({ blocks: [[3, 9], [20, 20], [0, 4], [8, 2]], bindLines: [[4, 7, 12], [], [1], []], truncated: true }))
+    // a bind line outside its block is dropped; the bad blocks go with their lines
+    expect(await linesBlocks(client, 1, 'binds')).toEqual({ blocks: [[3, 9], [20, 20]], bindLines: [[4, 7], []], truncated: true })
     expect(f.mock.calls[0][0]).toBe('http://h/s/1/api/lines/blocks?file=1&what=binds')
     stub(() => json({}))
-    expect(await linesBlocks(client, 0, 'stat')).toEqual({ blocks: [], truncated: false })
+    expect(await linesBlocks(client, 0, 'stat')).toEqual({ blocks: [], bindLines: [], truncated: false })
     stub(() => new Response('bad', { status: 400 }))
     await expect(linesBlocks(client, 0, 'stat')).rejects.toThrow('400')
+  })
+  it('bindFolds folds the attribute lines under each Bind# line, up to the next one or the block end', () => {
+    expect(bindFolds([[3, 12], [20, 21]], [[4, 8, 12], [21]]).map((f) => [f.from, f.to, !!f.quiet, !!f.auto])).toEqual([[4, 7, true, true], [8, 11, true, true]])
+    // a blank line under the header folds into it
+    expect(bindFolds([[3, 9]], [[5, 7]]).map((f) => [f.from, f.to])).toEqual([[3, 4], [5, 6], [7, 9]])
   })
   it('probeLinesApi wants JSON (an SPA fallback answers text/html)', async () => {
     stub(() => json({ call: -1 }))

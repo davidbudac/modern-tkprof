@@ -167,12 +167,38 @@ export async function fetchRepeats(client: ApiClient, file: number, small: numbe
 /** The blocks `linesBlocks` lists: BINDS blocks (the `BINDS #` line and its `bind` lines) or STAT dumps. */
 export type BlockWhat = 'binds' | 'stat'
 
-/** Every block of a kind in `file` (`api/lines/blocks`): `[from, to]` pairs (1-based, inclusive, sorted); `truncated` when the engine stopped at its limit (20,000). */
-export async function linesBlocks(client: ApiClient, file: number, what: BlockWhat, signal?: AbortSignal): Promise<{ blocks: [number, number][]; truncated: boolean }> {
+/**
+ * Every block of a kind in `file` (`api/lines/blocks`): `[from, to]` pairs (1-based, inclusive, sorted); `truncated` when the engine
+ * stopped at its limit (20,000). For `binds`, `bindLines[i]` are the `Bind#N` lines of block i (empty from an engine that does not
+ * send them).
+ */
+export async function linesBlocks(client: ApiClient, file: number, what: BlockWhat, signal?: AbortSignal): Promise<{ blocks: [number, number][]; bindLines: number[][]; truncated: boolean }> {
   const res = await client.fetch(`/api/lines/blocks?file=${file}&what=${what}`, { signal })
   if (!res.ok) throw await failure(res)
-  const r = (await res.json()) as { blocks?: [number, number][]; truncated?: boolean }
-  return { blocks: (r.blocks ?? []).filter((b) => b[0] >= 1 && b[1] >= b[0]), truncated: !!r.truncated }
+  const r = (await res.json()) as { blocks?: [number, number][]; bindLines?: number[][]; truncated?: boolean }
+  const blocks: [number, number][] = [], bindLines: number[][] = []
+  ;(r.blocks ?? []).forEach((b, i) => {
+    if (b[0] >= 1 && b[1] >= b[0]) { blocks.push(b); bindLines.push((r.bindLines?.[i] ?? []).filter((l) => l > b[0] && l <= b[1])) }
+  })
+  return { blocks, bindLines, truncated: !!r.truncated }
+}
+
+/**
+ * The folds that leave each bind of the BINDS blocks one row: the attribute lines under a `Bind#N` line (up to the next one, or the
+ * block's end) fold into it, quietly (the formatted view's table of binds; the Line tab shows what they say); the lines between the
+ * header and the first bind (blank) fold into the header, the head of the table.
+ */
+export function bindFolds(blocks: readonly (readonly [number, number])[], bindLines: readonly (readonly number[])[]): Fold[] {
+  const out: Fold[] = []
+  blocks.forEach((b, i) => {
+    const ls = bindLines[i] ?? []
+    if (ls.length > 0 && ls[0] > b[0] + 1) out.push({ from: b[0], to: ls[0] - 1, summary: 'the lines before the first bind', auto: true, quiet: true })
+    ls.forEach((from, k) => {
+      const to = k + 1 < ls.length ? ls[k + 1] - 1 : b[1]
+      if (to > from) out.push({ from, to, summary: `the attributes of this bind: ${to - from} ${to - from === 1 ? 'line' : 'lines'}`, auto: true, quiet: true })
+    })
+  })
+  return out
 }
 
 /** The existing folds with the `added` ones that overlap none of them (nor each other), sorted by first line. */

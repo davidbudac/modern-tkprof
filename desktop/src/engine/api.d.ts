@@ -1690,6 +1690,11 @@ export interface components {
         BlocksAnswer: {
             /** @description sorted 1-based inclusive line ranges [from, to] */
             blocks: number[][];
+            /**
+             * @description `binds` only: for each block (in the order of `blocks`), the lines of
+             *     its `Bind#N` entries, ascending (empty for a block without one)
+             */
+            bindLines?: number[][];
             /** @description more than 20000 blocks existed; the rest is left out */
             truncated: boolean;
         };

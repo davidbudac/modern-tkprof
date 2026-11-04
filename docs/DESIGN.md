@@ -448,6 +448,17 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   them inside Detail were tried and rejected: they spread the row out and
   pushed the notes to the middle.) One colour rule everywhere: numbers in the
   ink, units and labels dimmed.
+- **A BINDS block is one table.** The BINDS line is its head (Variable,
+  Value, Type, and `SQL with values →`), each bind one row: its `Bind#N` line
+  with the placeholder's name, the value as the trace has it (cut values
+  marked) and the type. The attribute lines under a bind (type and length,
+  character set, value length, the value as printed) fold quietly into its
+  row (`Fold.quiet`: the handle line reads as itself, no ▸); the engine lists
+  the `Bind#` lines of each block (`api/lines/blocks?what=binds`,
+  `bindLines`). What they say is in the Line tab (`i`) under "Bind#N: type,
+  length, value"; `z` on a bind row shows its lines in place, and `z` on the
+  BINDS line still folds the whole block. (First built as a row per line,
+  attribute lines decoded and indented: too long to read.)
 - **Every line kind reads as prose, not as the trace's tokens.** Wait
   parameters are labelled (`file 12 · block 169947 · 5 blocks`, `8,103
   bytes`) and the ones that say nothing (`driver id`, zeros) left out; the

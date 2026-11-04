@@ -18,6 +18,8 @@ export interface Fold {
    * formatted view gives each plan dump one, so its STAT lines read as one table under one header
    */
   head?: boolean
+  /** a fold that does not read as one: its handle line is shown as itself, with no summary or ▸ (a bind's attribute lines under its row) */
+  quiet?: boolean
 }
 
 /** The rows a fold takes away from the layout: its hidden lines; a table head adds one. */

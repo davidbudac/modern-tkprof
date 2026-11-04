@@ -42,6 +42,20 @@ export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, fo
   const kind = cached ? LINE_KINDS[cached.kind] : undefined
   const d = cached && kind ? decodeLine(cached.text, kind, decodeCtx, { verbose: true, line }) : null
   const ba = cached ? decodeCtx.bindAt?.(line) : undefined
+  // a Bind#N line: what its attribute lines say (the formatted view folds them under the bind's row)
+  const bindAttrs: { line: number; fields: LineField[]; text: string; raw: boolean }[] = []
+  if (text !== undefined && kind === 'bind-line' && /^\s*Bind#\d+/.test(text)) {
+    for (let n = line + 1; n <= line + MAX_BIND_ATTRS; n++) {
+      const l = cache.line(n)
+      const k = l ? LINE_KINDS[l.kind] : undefined
+      if (!l || (k !== 'bind-line' && k !== 'unknown') || /^\s*Bind#\d+/.test(l.text)) break
+      const dd = decodeLine(l.text, k, decodeCtx, { verbose: true, line: n })
+      bindAttrs.push({ line: n, fields: dd?.fields ?? [], text: l.text.trim(), raw: !dd || dd.fields.length === 0 })
+    }
+    // each attribute line's decode repeats the bind's own fields (Bind, Datatype, Value): once, in Fields above, is enough
+    const seen = new Set((d?.fields ?? []).map((f) => `${f.label}\u0000${f.value}`))
+    for (const a of bindAttrs) a.fields = a.fields.filter((f) => { const k = `${f.label}\u0000${f.value}`; if (seen.has(k)) return false; seen.add(k); return true })
+  }
 
   const o = at?.objs
   // a line that starts with `#N` gets a first Cursor row, unless the decoder emits one itself (BINDS)
@@ -123,6 +137,24 @@ export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, fo
         </section>
       )}
 
+      {bindAttrs.length > 0 && (
+        <section className="insp-sec">
+          <h3>{text!.trim().replace(/\s.*$/, '')}: type, length, value</h3>
+          <dl className="insp-fields">
+            {bindAttrs.flatMap((a) => (!a.raw ? a.fields : [{ label: `line ${a.line}`, value: a.text, raw: a.text } as LineField]).map((f, i) => {
+              const key = keyOf(f)
+              return (
+                <div key={`${a.line}:${i}`} title={[f.desc, f.hint, `line ${fmtInt(a.line)}`].filter(Boolean).join('\n')}>
+                  <dt>{breakable(f.label)}</dt>
+                  <dd className="v">{keepDots(f.value)}</dd>
+                  {key && <dd className="k" title={`as written in the trace: ${f.raw}`}>{key}</dd>}
+                </div>
+              )
+            }))}
+          </dl>
+        </section>
+      )}
+
       {summary && o && summary.state !== 'none' && (
         <section className="insp-sec">
           <h3>Execution</h3>
@@ -153,6 +185,9 @@ export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, fo
     </div>
   )
 }
+
+/** The attribute lines read under a `Bind#N` line (a memory dump goes on longer; the rest is in the trace). */
+const MAX_BIND_ATTRS = 24
 
 /** A label with a break opportunity after each slash (`sleeptime/senderid` wraps there, not inside a word). */
 function breakable(label: string): React.ReactNode {

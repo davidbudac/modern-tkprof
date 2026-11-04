@@ -490,7 +490,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-plan .pc { flex: none; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
 .pc-id { inline-size: 4.5ch; text-align: end; color: var(--ink-3); padding-inline-end: 1.5ch; }
 .lv-plan .pc-op { flex: 0 1 44ch; min-inline-size: 12ch; padding-inline-start: calc(var(--dep, 0) * 2ch); color: var(--ink); }
-.pc-name { inline-size: 18ch; padding-inline-start: 1ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
+.lv-plan .pc-name { flex: 0 1 18ch; min-inline-size: 8ch; padding-inline-start: 1ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
 .pc-n { position: relative; inline-size: 8ch; text-align: end; color: var(--ink); font-variant-numeric: tabular-nums; }
 .pc-starts, .pc-cost, .pc-pr, .pc-pw { inline-size: 7ch; }
 .pc-time { inline-size: 12ch; }
@@ -504,6 +504,13 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-tb-head .pc { box-shadow: inset 0 -1px 0 var(--hairline-strong); }
 .lv-tb-head .pc, .lv-tb-head .pc-op, .lv-tb-head .pc-name { color: var(--ink-2); font-weight: 500; }
 .lv-tb-end .pc { box-shadow: inset 0 -1px 0 var(--hairline-strong); }
+/* a BINDS block as one table: the BINDS line its head (Variable, Value, Type), each bind one row (its attribute lines folded under it) */
+.pc-bname { inline-size: 16ch; padding-inline-start: 1ch; color: var(--ink); font-weight: 500; }
+.lv-plan .pc-bval { flex: 0 1 32ch; min-inline-size: 10ch; padding-inline-start: 1ch; color: var(--ink); }
+.pc-bval.none { color: var(--ink-3); font-style: italic; }
+.pc-btype { inline-size: 16ch; padding-inline: 1ch; color: var(--ink-2); }
+.lv-tb-head .pc-bname, .lv-tb-head .pc-bval, .lv-tb-head .pc-btype { color: var(--ink-2); font-style: normal; }
+.lv-plan > .lv-asrun { align-self: center; margin-inline: var(--sp-3) 0; }
 /* the head laid over the top row while the plan's lines fill the top of the view (its own head row scrolled away) */
 .lv-plan-head { position: absolute; inset-block-start: 0; inset-inline: 0; z-index: 2; background: var(--surface-raised); box-shadow: 0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent); }
 .lv-plan-head .lv-ln { background: var(--surface-raised); }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/davidbudac/modern-tkprof/internal/trace"
@@ -164,6 +165,7 @@ func TestLinesNextGapHandChecked(t *testing.T) {
 
 type blocksAnswer struct {
 	Blocks    [][2]int
+	BindLines [][]int
 	Truncated bool
 }
 
@@ -194,6 +196,26 @@ func TestLinesBlocksBinds(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("no block 53..69 in %v", got.Blocks)
+	}
+	// the Bind#N lines of each block: inside it, ascending, each a `Bind#` line
+	if len(got.BindLines) != len(got.Blocks) {
+		t.Fatalf("%d bindLines for %d blocks", len(got.BindLines), len(got.Blocks))
+	}
+	for i, b := range got.Blocks {
+		prev := b[0]
+		for _, l := range got.BindLines[i] {
+			if l <= prev || l > b[1] {
+				t.Fatalf("block %v: bind line %d after %d", b, l, prev)
+			}
+			raw, err := e.lis[0].Read(l, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.HasPrefix(strings.TrimSpace(string(splitLines(raw)[0])), "Bind#") {
+				t.Fatalf("block %v: line %d is %q", b, l, raw)
+			}
+			prev = l
+		}
 	}
 	// one block per BINDS header of the model, sorted, disjoint, each starting
 	// at a BINDS line and ending on a non-blank line before the next record

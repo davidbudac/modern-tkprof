@@ -3110,6 +3110,15 @@ components:
             maxItems: 2
             items:
               type: integer
+        bindLines:
+          type: array
+          description: |
+            `binds` only: for each block (in the order of `blocks`), the lines of
+            its `Bind#N` entries, ascending (empty for a block without one)
+          items:
+            type: array
+            items:
+              type: integer
         truncated:
           type: boolean
           description: more than 20000 blocks existed; the rest is left out
