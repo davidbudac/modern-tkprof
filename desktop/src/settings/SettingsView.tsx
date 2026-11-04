@@ -13,14 +13,10 @@ import { openKV } from '../platform'
 import { ago, fmtUptime } from '../time'
 import { AssistantSection } from './AssistantSection'
 import { BindSeg } from './BindSeg'
-import { engineOptionsOf, sameEngineOptions, useSettings, type Theme } from './settings'
+import { BindPreview, Card, Row, Switch, ThemeTiles } from './parts'
+import { engineOptionsOf, sameEngineOptions, useSettings } from './settings'
 import { TrashIcon } from '../ui/icons'
-
-const THEMES: { id: Theme; label: string }[] = [
-  { id: 'system', label: 'System' },
-  { id: 'light', label: 'Light' },
-  { id: 'dark', label: 'Dark' },
-]
+import './settings.css'
 
 const when = (iso: string) => {
   const d = new Date(iso)
@@ -51,163 +47,157 @@ export function SettingsView() {
     <div className="page settings">
       <SettingsIndex />
       <div className="settings-body">
-      <h1>Settings</h1>
+        <h1>Settings</h1>
 
-      <section id="settings-opening" aria-labelledby="settings-opening-h">
-        <h2 id="settings-opening-h">Opening traces</h2>
-        <div className="field">
-          <span className="label">Default bind values</span>
-          <span className="row">
-            <BindSeg value={settings.binds} onChange={(binds) => update({ binds })} />
+        <section id="settings-opening" aria-labelledby="settings-opening-h">
+          <h2 id="settings-opening-h">Opening traces</h2>
+          <Card>
+            <Row
+              label="Default bind values"
+              desc="What a newly opened trace keeps of its bind values. The open screen can change it per trace"
+              extra={<BindPreview mode={settings.binds} salt={settings.salt} />}
+            >
+              <BindSeg value={settings.binds} onChange={(binds) => update({ binds })} />
+            </Row>
             {settings.binds === 'redact' && (
-              <input type="text" value={settings.salt} placeholder="salt (random per open when empty)" onChange={(e) => update({ salt: e.target.value })} aria-label="Redaction salt" />
+              <Row label="Redaction salt" htmlFor="redact-salt" desc="Equal values match across traces redacted with the same salt. Empty: a random salt per open">
+                <input id="redact-salt" type="text" className="mono" value={settings.salt} placeholder="random per open" onChange={(e) => update({ salt: e.target.value })} spellCheck={false} />
+              </Row>
             )}
-          </span>
-        </div>
-        <label className="check">
-          <input type="checkbox" checked={settings.startEmpty} onChange={(e) => update({ startEmpty: e.target.checked })} />
-          Start empty, without re-opening the last session's traces
-        </label>
-      </section>
+            <Row label="Start empty" htmlFor="start-empty" desc="Do not re-open the last session's traces when the app starts">
+              <Switch id="start-empty" checked={settings.startEmpty} onChange={(startEmpty) => update({ startEmpty })} />
+            </Row>
+          </Card>
+        </section>
 
-      <section id="settings-appearance" aria-labelledby="settings-appearance-h">
-        <h2 id="settings-appearance-h">Appearance</h2>
-        <div className="field">
-          <span className="label">Theme</span>
-          <span className="seg" role="group" aria-label="Theme">
-            {THEMES.map((t) => (
-              <button key={t.id} aria-pressed={settings.theme === t.id} onClick={() => update({ theme: t.id })}>
-                {t.label}
+        <section id="settings-appearance" aria-labelledby="settings-appearance-h">
+          <h2 id="settings-appearance-h">Appearance</h2>
+          <Card>
+            <Row label="Theme" desc="System follows the light or dark setting of your computer" stack>
+              <ThemeTiles value={settings.theme} onChange={(theme) => update({ theme })} />
+            </Row>
+          </Card>
+        </section>
+
+        <section id="settings-assistant" aria-labelledby="settings-assistant-h">
+          <h2 id="settings-assistant-h">Assistant</h2>
+          <AssistantSection />
+        </section>
+
+        <section id="settings-engine" aria-labelledby="settings-engine-h">
+          <h2 id="settings-engine-h">Engine</h2>
+          <Card>
+            <div className="engine-head" data-status={engine.status}>
+              <span className="dot" aria-hidden />
+              <div className="set-text">
+                <span className="set-label">Engine {engine.status}</span>
+                <span className="set-desc mono">
+                  {engine.version ?? '–'} · protocol {engine.protocol ?? '–'}
+                  {engine.restarts > 0 && ` · ${engine.restarts} automatic restart${engine.restarts === 1 ? '' : 's'}`}
+                </span>
+              </div>
+              {engine.health && <span className="engine-up">up {fmtUptime(engine.health.uptime)}</span>}
+              <button className={pending ? 'primary' : undefined} disabled={engine.status === 'starting'} onClick={() => void engine.restart(wanted)}>
+                Restart engine
               </button>
-            ))}
-          </span>
-        </div>
-      </section>
-
-      <section id="settings-assistant" aria-labelledby="settings-assistant-h">
-        <h2 id="settings-assistant-h">Assistant</h2>
-        <AssistantSection />
-      </section>
-
-      <section id="settings-engine" aria-labelledby="settings-engine-h">
-        <h2 id="settings-engine-h">Engine</h2>
-        <p className="muted small">Cache location, cap and plan URL apply on restart.</p>
-        <div className="field">
-          <label htmlFor="cache-dir">Cache location</label>
-          <span className="row">
-            <input
-              id="cache-dir"
-              type="text"
-              className="mono"
-              value={settings.cacheDir ?? ''}
-              placeholder={info?.defaultCacheDir ?? 'default'}
-              onChange={(e) => update({ cacheDir: e.target.value.trim() || null })}
-              spellCheck={false}
-            />
-            {inTauri && (
-              <button
-                onClick={() =>
-                  void pickFolder('Index cache location').then((d) => d && update({ cacheDir: d }))
-                }
-              >
-                Change…
+            </div>
+            {pending && <div className="set-note warn-text">Restart the engine to apply the changes. Open traces re-open from the cache</div>}
+            <Row label="Cache location" htmlFor="cache-dir" desc="Where the index cache lives. Applies on restart" stack>
+              <input
+                id="cache-dir"
+                type="text"
+                className="mono grow"
+                value={settings.cacheDir ?? ''}
+                placeholder={info?.defaultCacheDir ?? 'default'}
+                onChange={(e) => update({ cacheDir: e.target.value.trim() || null })}
+                spellCheck={false}
+              />
+              {inTauri && (
+                <button onClick={() => void pickFolder('Index cache location').then((d) => d && update({ cacheDir: d }))}>
+                  Change…
+                </button>
+              )}
+              <button disabled={!settings.cacheDir} onClick={() => update({ cacheDir: null })}>
+                Default
               </button>
-            )}
-            <button disabled={!settings.cacheDir} onClick={() => update({ cacheDir: null })}>
-              Default
-            </button>
-          </span>
-          {info && <small className="muted mono">In use: {info.cacheDir}</small>}
-        </div>
-        <div className="field">
-          <label htmlFor="cache-cap">Cap (GiB)</label>
-          <span className="row">
-            <input
-              id="cache-cap"
-              type="number"
-              min={1}
-              step={1}
-              className="num"
-              value={settings.cacheCapGB ?? ''}
-              placeholder={engine.health ? String(Math.round(engine.health.cache.cap / 2 ** 30)) : ''}
-              onChange={(e) => {
-                const n = Number(e.target.value)
-                update({ cacheCapGB: e.target.value === '' || !(n > 0) ? null : Math.round(n) })
-              }}
-            />
-            <span className="muted small">Least recently used entries go first. Empty uses the engine's default</span>
-          </span>
-        </div>
-        <div className="field">
-          <label htmlFor="planviz">Plan visualizer URL</label>
-          <input
-            id="planviz"
-            type="url"
-            className="mono"
-            value={settings.planVizUrl}
-            placeholder="the engine's default"
-            onChange={(e) => update({ planVizUrl: e.target.value })}
-            spellCheck={false}
-          />
-        </div>
-        <p className="row">
-          <button className={pending ? 'primary' : undefined} disabled={engine.status === 'starting'} onClick={() => void engine.restart(wanted)}>
-            Restart engine
-          </button>
-          {pending && <span className="small warn-text">Restart the engine to apply the changes. Open traces re-open from the cache.</span>}
-        </p>
-        <dl className="kv engine-facts" data-status={engine.status}>
-          <dt>Version</dt>
-          <dd className="mono">{engine.version ?? '–'} · protocol {engine.protocol ?? '–'} <span className="muted">(app speaks {APP_PROTOCOL})</span></dd>
-          <dt>Binary</dt>
-          <dd className="mono small">{info?.enginePath ?? '–'}</dd>
-          <dt>Listening</dt>
-          <dd className="mono small">{engine.addr ?? '–'}</dd>
-          <dt>Status</dt>
-          <dd className="engine-status">
-            <span className="dot" aria-hidden />
-            {engine.status}
-            {engine.restarts > 0 && ` · ${engine.restarts} automatic restart${engine.restarts === 1 ? '' : 's'}`}
-          </dd>
-          <dt>Uptime</dt>
-          <dd className="mono">{engine.health ? fmtUptime(engine.health.uptime) : '–'}</dd>
-        </dl>
-      </section>
+              {info && <small className="in-use mono">In use: {info.cacheDir}</small>}
+            </Row>
+            <Row label="Cache cap" htmlFor="cache-cap" desc="Least recently used entries go first. Empty uses the engine's default. Applies on restart">
+              <span className="unit-input">
+                <input
+                  id="cache-cap"
+                  type="number"
+                  min={1}
+                  step={1}
+                  className="num"
+                  value={settings.cacheCapGB ?? ''}
+                  placeholder={engine.health ? String(Math.round(engine.health.cache.cap / 2 ** 30)) : ''}
+                  onChange={(e) => {
+                    const n = Number(e.target.value)
+                    update({ cacheCapGB: e.target.value === '' || !(n > 0) ? null : Math.round(n) })
+                  }}
+                />
+                <span aria-hidden>GiB</span>
+              </span>
+            </Row>
+            <Row label="Plan visualizer URL" htmlFor="planviz" desc="Where the engine's plan links point. Applies on restart" stack>
+              <input
+                id="planviz"
+                type="url"
+                className="mono grow"
+                value={settings.planVizUrl}
+                placeholder="the engine's default"
+                onChange={(e) => update({ planVizUrl: e.target.value })}
+                spellCheck={false}
+              />
+            </Row>
+            <dl className="kv set-foot">
+              <dt>Binary</dt>
+              <dd className="mono">{info?.enginePath ?? '–'}</dd>
+              <dt>Listening</dt>
+              <dd className="mono">{engine.addr ?? '–'}</dd>
+              <dt>Protocol</dt>
+              <dd className="mono">{engine.protocol ?? '–'} <span className="muted">(the app speaks {APP_PROTOCOL})</span></dd>
+            </dl>
+          </Card>
+        </section>
 
-      <section id="settings-cache" aria-labelledby="settings-cache-h">
-        <h2 id="settings-cache-h">Index cache</h2>
-        <CacheEntries />
-      </section>
+        <section id="settings-cache" aria-labelledby="settings-cache-h">
+          <h2 id="settings-cache-h">Index cache</h2>
+          <CacheEntries />
+        </section>
 
-      <section id="settings-backup" aria-labelledby="settings-backup-h">
-        <h2 id="settings-backup-h">Backup</h2>
-        <BackupSection />
-      </section>
+        <section id="settings-backup" aria-labelledby="settings-backup-h">
+          <h2 id="settings-backup-h">Backup</h2>
+          <BackupSection />
+        </section>
 
-      <section id="settings-about" aria-labelledby="settings-about-h">
-        <details className="rollout about">
-        <summary><h2 id="settings-about-h">About</h2><span className="muted small">mtkprof {app}</span></summary>
-        <div className="about-brand"><BrandIcon className="brand-icon-about" motion="once" /><b>mtkprof</b></div>
-        <p className="muted">Oracle SQL trace analyzer: the desktop app around the mtkprof engine.</p>
-        <dl className="kv">
-          <dt>App version</dt>
-          <dd className="mono">{app}</dd>
-          {info && (
-            <>
-              <dt>Settings and workspace</dt>
-              <dd className="mono small">{info.dataDir}</dd>
-              <dt>Logs</dt>
-              <dd className="mono small">{info.logDir}</dd>
-            </>
-          )}
-        </dl>
-        <p className="row">
-          <button onClick={() => void openReleasesPage()}>Releases page</button>
-          <span className="muted small">New versions are published there; the app does not update itself.</span>
-        </p>
-        <p className="muted small">Licensed under the Apache License 2.0. © 2026 David Budac.</p>
-        </details>
-      </section>
+        <section id="settings-about" aria-labelledby="settings-about-h">
+          <details className="rollout about">
+            <summary><h2 id="settings-about-h">About</h2><span className="muted small">mtkprof {app}</span></summary>
+            <Card>
+              <div className="about-brand">
+                <BrandIcon className="brand-icon-about" motion="once" />
+                <div className="set-text">
+                  <span className="about-name">mtkprof <span className="mono muted">{app}</span></span>
+                  <span className="set-desc">Oracle SQL trace analyzer: the desktop app around the mtkprof engine</span>
+                </div>
+              </div>
+              {info && (
+                <dl className="kv set-pad">
+                  <dt>Settings and workspace</dt>
+                  <dd className="mono">{info.dataDir}</dd>
+                  <dt>Logs</dt>
+                  <dd className="mono">{info.logDir}</dd>
+                </dl>
+              )}
+              <Row label="Updates" desc="New versions are published on the releases page; the app does not update itself">
+                <button onClick={() => void openReleasesPage()}>Releases page</button>
+              </Row>
+              <div className="set-foot">Licensed under the Apache License 2.0. © 2026 David Budac</div>
+            </Card>
+          </details>
+        </section>
       </div>
     </div>
   )
@@ -343,42 +333,42 @@ function BackupSection() {
     return describeMerge(m.counts, b) + (i ? ' Optional metadata imported only for checked categories. Workspace references are retained without opening traces.' : '')
   }
   return (
-    <>
-      <p className="muted small">
-        A JSON file with the connection definitions and the saved Pivot configurations. Passwords and passphrases stay out; they are
-        asked for on use. Importing merges by id: a connection is replaced, a saved pivot only when the imported one is newer.
-      </p>
-      <div className="checks" role="group" aria-label="Optional investigation metadata">
-        <span className="label">Also export and import</span>
-        <label className="check"><input type="checkbox" checked={include.annotations} onChange={(e) => setInclude({ ...include, annotations: e.target.checked })} />Notes and bookmarks (merge newer entries)</label>
-        <label className="check"><input type="checkbox" checked={include.settings} onChange={(e) => setInclude({ ...include, settings: e.target.checked })} />Appearance and opening defaults</label>
-        <label className="check"><input type="checkbox" checked={include.workspace} onChange={(e) => setInclude({ ...include, workspace: e.target.checked })} />Workspace path references (open manually after import)</label>
-      </div>
-      <p className="muted small">
-        Notes and paths may contain sensitive information. Never included: raw traces, credentials, redaction salts, engine paths and URLs.
-      </p>
-      {references.length > 0 && <div>
-        <h3>Imported workspace references</h3>
-        <p className="muted small">Paths refer to the original computer. Open a reference explicitly using current bind defaults; missing files will report an error.</p>
-        <ul>{references.map((ref) => <li key={JSON.stringify(ref.paths)}>
-          <span className="mono small">{ref.paths.join(', ')}</span>{' '}
-          <button onClick={() => ws.open({ paths: ref.paths, options: { binds: settings.binds, salt: settings.salt || undefined } })}>Open reference</button>
-        </li>)}</ul>
-      </div>}
-      <span className="actions">
+    <Card>
+      <Row label="Export a backup" desc="The connection definitions and the saved Pivot configurations, as one JSON file. Passwords and passphrases stay out; they are asked for on use">
         <button disabled={working} onClick={() => run(exportAll)}>Export backup…</button>
+      </Row>
+      <Row label="Import a backup" desc="Merges by id: a connection is replaced, a saved pivot only when the imported one is newer">
         <button disabled={working} onClick={() => run(importAll)}>Import…</button>
-        {msg && (
-          <span className={msg.ok ? 'muted small' : 'warn-text small'} role="status">
-            {msg.text}
-          </span>
-        )}
-      </span>
-    </>
+      </Row>
+      <Row label="Also export and import" desc="Notes and paths may contain sensitive information. Never included: raw traces, credentials, redaction salts, engine paths and URLs" stack>
+        <div className="checks" role="group" aria-label="Optional investigation metadata">
+          <label className="check"><input type="checkbox" checked={include.annotations} onChange={(e) => setInclude({ ...include, annotations: e.target.checked })} />Notes and bookmarks (merge newer entries)</label>
+          <label className="check"><input type="checkbox" checked={include.settings} onChange={(e) => setInclude({ ...include, settings: e.target.checked })} />Appearance and opening defaults</label>
+          <label className="check"><input type="checkbox" checked={include.workspace} onChange={(e) => setInclude({ ...include, workspace: e.target.checked })} />Workspace path references (open manually after import)</label>
+        </div>
+      </Row>
+      {references.length > 0 && (
+        <Row label="Imported workspace references" desc="Paths refer to the original computer. Open a reference explicitly using current bind defaults; missing files report an error" stack>
+          <ul className="refs">
+            {references.map((ref) => (
+              <li key={JSON.stringify(ref.paths)}>
+                <span className="mono small">{ref.paths.join(', ')}</span>
+                <button onClick={() => ws.open({ paths: ref.paths, options: { binds: settings.binds, salt: settings.salt || undefined } })}>Open reference</button>
+              </li>
+            ))}
+          </ul>
+        </Row>
+      )}
+      {msg && (
+        <div className={'set-note ' + (msg.ok ? 'muted' : 'warn-text')} role="status">
+          {msg.text}
+        </div>
+      )}
+    </Card>
   )
 }
 
-/** `GET /engine/cache` with Remove per entry and Wipe; open entries are kept. Its usage line, Refresh and Wipe sit in the Index cache section. */
+/** `GET /engine/cache` with Remove per entry and Wipe; open entries are kept. */
 function CacheEntries() {
   const { client, status } = useEngine()
   const [list, setList] = useState<CacheList | null>(null)
@@ -421,69 +411,74 @@ function CacheEntries() {
     }
     reload()
   }
+  const pct = list && list.cap > 0 ? (100 * list.bytes) / list.cap : 0
 
   return (
-    <div className="cache-entries">
-      <p className="row">
-        <span className="usage-text">
-          {list ? `${fmtBytes(list.bytes)} of ${fmtCap(list.cap)} in ${list.entries} entr${list.entries === 1 ? 'y' : 'ies'}` : 'Usage…'}
+    <Card className="cache-entries">
+      <div className="cache-head">
+        <div className="cache-fig">
+          <span className="cache-used">{list ? fmtBytes(list.bytes) : '–'}</span>
+          <span className="set-desc">
+            {list ? `of ${fmtCap(list.cap)} · ${list.entries} entr${list.entries === 1 ? 'y' : 'ies'}` : 'Usage…'}
+          </span>
+        </div>
+        <span className="actions">
+          <button onClick={reload}>Refresh</button>
+          {confirm ? (
+            <>
+              <button className="danger" onClick={() => void wipe()}>Wipe all entries</button>
+              <button onClick={() => setConfirm(false)}>Keep</button>
+            </>
+          ) : (
+            <button className="danger" onClick={() => setConfirm(true)} disabled={!list?.entries}>Wipe cache…</button>
+          )}
         </span>
         {list && list.cap > 0 && (
-          <span className="usage-bar" role="img" aria-label={`${Math.round((100 * list.bytes) / list.cap)} % of the cap`}>
-            <i style={{ inlineSize: `${Math.min(100, (100 * list.bytes) / list.cap)}%` }} />
+          <span className="cache-meter" role="img" aria-label={`${Math.round(pct)} % of the cap`}>
+            <i style={{ inlineSize: pct > 0 ? `max(2px, ${Math.min(100, pct)}%)` : 0 }} />
           </span>
         )}
-        <span className="spacer" />
-        <button onClick={reload}>Refresh</button>
-        {confirm ? (
-          <>
-            <button className="danger" onClick={() => void wipe()}>Wipe all entries</button>
-            <button onClick={() => setConfirm(false)}>Keep</button>
-          </>
-        ) : (
-          <button className="danger" onClick={() => setConfirm(true)} disabled={!list?.entries}>Wipe cache…</button>
-        )}
-      </p>
-      {error && <p className="small warn-text">{error}</p>}
-      {note && <p className="small muted">{note}</p>}
+      </div>
+      {error && <div className="set-note warn-text">{error}</div>}
+      {note && <div className="set-note muted">{note}</div>}
       {list && list.items.length > 0 && (
-        <details className="rollout">
+        <details className="rollout cache-list">
           <summary>{list.entries} entr{list.entries === 1 ? 'y' : 'ies'}</summary>
-        <table className="cache-table">
-          <thead>
-            <tr>
-              <th>Trace</th>
-              <th className="num">Size</th>
-              <th>Last used</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {[...list.items]
-              .sort((a, b) => Date.parse(b.lastUsed) - Date.parse(a.lastUsed))
-              .map((it) => (
-                <tr key={it.identity}>
-                  <td>
-                    <span className="cache-paths" title={it.paths.join('\n')}>
-                      <span className="mono small">{it.paths.length ? titleOf(it.paths) : it.identity.slice(0, 16)}</span>
-                      {it.paths.length > 0 && dirOf(it.paths[0]) && <small className="muted mono">{dirOf(it.paths[0])}</small>}
-                    </span>
-                    {it.open && <span className="badge info">open</span>}
-                  </td>
-                  <td className="num mono">{fmtBytes(it.bytes)}</td>
-                  <td className="small" title={when(it.lastUsed)}>{ago(it.lastUsed) || it.lastUsed}</td>
-                  <td>
-                    <button className="quiet icon-btn" disabled={it.open} aria-label={`Remove ${it.paths.length ? titleOf(it.paths) : it.identity.slice(0, 16)} from the cache`}
-                      title={it.open ? 'an open trace uses it' : 'remove this entry'} onClick={() => void remove(it.identity)}>
-                      <TrashIcon />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+          <table className="cache-table">
+            <thead>
+              <tr>
+                <th>Trace</th>
+                <th className="num">Size</th>
+                <th>Last used</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {[...list.items]
+                .sort((a, b) => Date.parse(b.lastUsed) - Date.parse(a.lastUsed))
+                .map((it) => (
+                  <tr key={it.identity}>
+                    <td>
+                      <span className="cache-paths" title={it.paths.join('\n')}>
+                        <span className="mono small">{it.paths.length ? titleOf(it.paths) : it.identity.slice(0, 16)}</span>
+                        {it.paths.length > 0 && dirOf(it.paths[0]) && <small className="muted mono">{dirOf(it.paths[0])}</small>}
+                      </span>
+                      {it.open && <span className="badge info">open</span>}
+                    </td>
+                    <td className="num mono">{fmtBytes(it.bytes)}</td>
+                    <td className="small" title={when(it.lastUsed)}>{ago(it.lastUsed) || it.lastUsed}</td>
+                    <td>
+                      <button className="quiet icon-btn" disabled={it.open} aria-label={`Remove ${it.paths.length ? titleOf(it.paths) : it.identity.slice(0, 16)} from the cache`}
+                        title={it.open ? 'an open trace uses it' : 'remove this entry'} onClick={() => void remove(it.identity)}>
+                        <TrashIcon />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </details>
       )}
-    </div>
+    </Card>
   )
 }

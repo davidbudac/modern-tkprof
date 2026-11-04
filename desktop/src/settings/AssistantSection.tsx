@@ -8,6 +8,7 @@ import { inTauri } from '../platform'
 import type { Tab } from '../workspace/workspace'
 import { useWorkspaceState } from '../workspace/WorkspaceProvider'
 import { McpSection } from './McpSection'
+import { BindPreview, Card, Row, SubHead, Switch } from './parts'
 import { useSettings, type AssistBinds } from './settings'
 
 type Backend = Schemas['BackendInfo']
@@ -102,52 +103,56 @@ export function AssistantSection() {
 
   return (
     <>
-      <div className="field">
-        <span className="label">Bind values sent to the assistant</span>
-        <span className="seg" role="group" aria-label="Assistant bind values">
-          {BINDS.map((b) => (
-            <button key={b.id} aria-pressed={settings.assistBinds === b.id} title={b.title} onClick={() => update({ assistBinds: b.id })}>
-              {b.label}
-            </button>
-          ))}
-        </span>
-      </div>
-      <label className="check">
-        <input type="checkbox" checked={settings.assistAskBeforeMoving} onChange={(e) => update({ assistAskBeforeMoving: e.target.checked })} />
-        Ask before moving the view
-      </label>
-      <p className="muted small">
-        When you ask the assistant to show something, it moves the views to it and the chat offers Back. With this on, it only offers a chip in the chat, and the views stay where they are until you click it.
-      </p>
-      <p className="muted small">
-        Nothing about a trace is sent until you agree, once per trace and provider. Masking replaces each bind value with its type, length
-        and a hash; SQL text, literals included, is sent as traced.{' '}
-        {inTauri
-          ? 'An API key is asked for on first use; Remember in keychain keeps it in the OS keychain, where the app reads it itself. It never enters this page, a file or a backup.'
-          : 'An API key is asked for on first use and kept in the engine’s memory until it stops (the dev browser has no keychain).'}
-      </p>
+      <Card>
+        <Row
+          label="Bind values sent"
+          desc="What the assistant's tools send of each bind value. Masked hashes are salted per conversation; SQL text, literals included, is sent as traced"
+          extra={<BindPreview mode={settings.assistBinds} />}
+        >
+          <span className="seg" role="group" aria-label="Assistant bind values">
+            {BINDS.map((b) => (
+              <button key={b.id} aria-pressed={settings.assistBinds === b.id} title={b.title} onClick={() => update({ assistBinds: b.id })}>
+                {b.label}
+              </button>
+            ))}
+          </span>
+        </Row>
+        <Row
+          label="Ask before moving the view"
+          htmlFor="assist-ask"
+          desc="When you ask the assistant to show something, it moves the views there and the chat offers Back. With this on, it offers a chip in the chat and the views stay until you click it"
+        >
+          <Switch id="assist-ask" checked={settings.assistAskBeforeMoving} onChange={(assistAskBeforeMoving) => update({ assistAskBeforeMoving })} />
+        </Row>
+        <div className="set-foot">
+          Nothing about a trace is sent until you agree, once per trace and provider.{' '}
+          {inTauri
+            ? 'An API key is asked for on first use; Remember in keychain keeps it in the OS keychain, where the app reads it itself. It never enters this page, a file or a backup.'
+            : 'An API key is asked for on first use and kept in the engine’s memory until it stops (the dev browser has no keychain).'}
+        </div>
+      </Card>
 
-      <h3>Providers</h3>
-      {providers.length > 0 && (
-        <ul className="assist-providers">
+      <SubHead title="Providers" desc="Model providers the assistant panel can talk to. Keys are not stored here; they are asked for on use">
+        {!form && <button onClick={() => setForm({})}>Add provider…</button>}
+      </SubHead>
+      {(providers.length > 0 || form) && (
+        <Card>
           {providers.map((p) => {
             const s = tests[p.id]
             return (
-              <li key={p.id} aria-label={p.name}>
-                <div className="row">
-                  <b>{p.name}</b>
-                  <span className="badge">{KINDS[p.kind].label}</span>
-                  {experimental(p.kind) && <span className="badge experimental">Experimental</span>}
-                  <span className="muted small mono">{where(p)}</span>
-                  <span className="muted small">{AUTH_LABEL[p.auth]}</span>
-                  <span className="spacer" />
+              <div key={p.id} className="set-row provider" aria-label={p.name}>
+                <div className="set-text">
+                  <span className="set-label">
+                    {p.name}
+                    <span className="badge">{KINDS[p.kind].label}</span>
+                    {experimental(p.kind) && <span className="badge experimental">Experimental</span>}
+                  </span>
+                  <span className="set-desc"><span className="mono">{where(p)}</span> · {AUTH_LABEL[p.auth]}</span>
+                </div>
+                <div className="set-control">
                   <button disabled={!tab || s?.running} onClick={() => void test(p)}>Test</button>
                   {needsKey(p) && (
-                    <button
-                      onClick={() =>
-                        void forgetKey(p.id).then(() => setNote(`Forgot the key of ${p.name}: the next use asks for it again.`))
-                      }
-                    >
+                    <button onClick={() => void forgetKey(p.id).then(() => setNote(`Forgot the key of ${p.name}: the next use asks for it again.`))}>
                       Forget key
                     </button>
                   )}
@@ -155,68 +160,66 @@ export function AssistantSection() {
                   <button className="quiet" onClick={() => remove(p)}>Remove</button>
                 </div>
                 {s && (
-                  <p className={'small ' + (s.running ? 'muted' : s.ok ? 'ok-text' : 'warn-text')} role="status">
+                  <p className={'set-extra small ' + (s.running ? 'muted' : s.ok ? 'ok-text' : 'warn-text')} role="status">
                     {statusText(p, s)}
                   </p>
                 )}
-              </li>
+              </div>
             )
           })}
-        </ul>
-      )}
-      {note && <p className="muted small" role="status">{note}</p>}
-      {providers.length > 0 && (
-        <p className="muted small">
-          {tab
-            ? `Test sends one short message through a conversation on ${tab.title}: the provider sees the trace's file names and may call the analysis tools (bind values masked). A CLI test runs one turn of the CLI (Codex: about 70–90k input tokens).`
-            : 'Open a trace to test a provider: the test runs one short conversation on it.'}
-        </p>
-      )}
-      {form ? (
-        <ProviderForm key={form.prev?.id ?? 'new'} prev={form.prev} onSave={save} onCancel={() => setForm(null)} />
-      ) : (
-        <span className="actions">
-          <button onClick={() => setForm({})}>Add provider…</button>
-        </span>
+          {form && <ProviderForm key={form.prev?.id ?? 'new'} prev={form.prev} onSave={save} onCancel={() => setForm(null)} />}
+          {note && <div className="set-note muted" role="status">{note}</div>}
+          {providers.length > 0 && (
+            <div className="set-foot">
+              {tab
+                ? `Test sends one short message through a conversation on ${tab.title}: the provider sees the trace's file names and may call the analysis tools (bind values masked). A CLI test runs one turn of the CLI (Codex: about 70–90k input tokens).`
+                : 'Open a trace to test a provider: the test runs one short conversation on it.'}
+            </div>
+          )}
+        </Card>
       )}
 
-      <div className="row sub-head">
-        <h3>CLI agents</h3>
-        <span className="spacer" />
+      <SubHead title="CLI agents" desc="The claude and codex commands on the engine's PATH, with their own login. They run with mtkprof's tools only">
         <button onClick={reload} disabled={backends === null && !backendsError}>Refresh</button>
-      </div>
-      <p className="muted small">The claude and codex commands on the engine's PATH, with their own login. They run with mtkprof's tools only.</p>
-      {backendsError && <p className="small warn-text">{backendsError}</p>}
-      <table className="cache-table cli-table" aria-label="CLI agents">
-        <thead>
-          <tr>
-            <th>CLI</th>
-            <th>Version</th>
-            <th>Login</th>
-            <th>Path</th>
-          </tr>
-        </thead>
-        <tbody>
-          {backends === null && !backendsError && (
+      </SubHead>
+      <Card>
+        {backendsError && <div className="set-note warn-text">{backendsError}</div>}
+        <table className="cache-table cli-table" aria-label="CLI agents">
+          <thead>
             <tr>
-              <td colSpan={4} className="muted">Checking…</td>
+              <th>CLI</th>
+              <th>Version</th>
+              <th>Login</th>
+              <th>Path</th>
             </tr>
-          )}
-          {cli.map((b) => (
-            <tr key={b.kind}>
-              <td>
-                {b.command}
-                {b.experimental && <span className="badge experimental">Experimental</span>}
-              </td>
-              <td className="mono small">{b.version ?? '–'}</td>
-              <td className="small">
-                {b.error ? <span className="warn-text">{b.error}</span> : b.loggedIn ? `logged in${b.login ? ` · ${b.login}` : ''}` : <span className="warn-text">{b.login || 'not logged in'}</span>}
-              </td>
-              <td className="mono small">{b.path ?? ''}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {backends === null && !backendsError && (
+              <tr>
+                <td colSpan={4} className="muted">Checking…</td>
+              </tr>
+            )}
+            {backends !== null && cli.length === 0 && (
+              <tr>
+                <td colSpan={4} className="muted">Neither claude nor codex is on the engine's PATH</td>
+              </tr>
+            )}
+            {cli.map((b) => (
+              <tr key={b.kind}>
+                <td>
+                  <span className="cli-name"><span className={'cli-dot' + (b.error || !b.loggedIn ? ' off' : '')} aria-hidden />{b.command}</span>
+                  {b.experimental && <span className="badge experimental">Experimental</span>}
+                </td>
+                <td className="mono small">{b.version ?? '–'}</td>
+                <td className="small">
+                  {b.error ? <span className="warn-text">{b.error}</span> : b.loggedIn ? `logged in${b.login ? ` · ${b.login}` : ''}` : <span className="warn-text">{b.login || 'not logged in'}</span>}
+                </td>
+                <td className="mono small">{b.path ?? ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
 
       <McpSection binds={settings.assistBinds} />
     </>
