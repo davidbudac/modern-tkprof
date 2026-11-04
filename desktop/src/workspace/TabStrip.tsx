@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { LiveBadge, SessionProvider, isMac, type Session } from '@lib'
+import { EXIT_MS, useExit } from '@lib/components/motion'
 import { pages } from '../pages'
 import { BrandIcon } from '../branding/BrandIcon'
 import { useEngine } from '../engine'
@@ -102,6 +103,7 @@ function SessionTab({ tab: t, index, on, onMenu }: { tab: Tab; index: number; on
   const [at, setAt] = useState<{ top: number; left: number } | null>(null)
   const root = useRef<HTMLSpanElement>(null)
   const open = trace !== null && at !== null
+  const pop = useExit(open ? at : null, EXIT_MS.quick) // a closed popover stays a moment while it fades (.pop.closing)
   useEffect(() => {
     if (!trace) setAt(null) // another tab or page, or the trace is gone
   }, [trace])
@@ -155,7 +157,7 @@ function SessionTab({ tab: t, index, on, onMenu }: { tab: Tab; index: number; on
       {/* beside the button, not in it: the badge has its own pause / resume button */}
       {trace && <SessionProvider session={trace}><LiveBadge /></SessionProvider>}
       <button className="session-tab-close" onClick={() => ws.close(t.key)} aria-label={`Close ${t.title}`} title="Close"><CloseIcon /></button>
-      {trace && at && <SessionProvider session={trace}><TabTracePop files={t.files} at={at} /></SessionProvider>}
+      {trace && pop.shown && <SessionProvider session={trace}><TabTracePop files={t.files} at={pop.shown} closing={pop.closing} /></SessionProvider>}
     </span>
   )
 }

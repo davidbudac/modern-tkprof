@@ -17,6 +17,7 @@ import { StmtLink } from '../components/StmtLink'
 import { roleLabel, roleOfClass, roleOrder, type Role } from '../components/colors'
 import { usePopover } from '../components/usePopover'
 import type { PopAnchor } from '../components/popoverPlace'
+import { Shimmer } from '../components/motion'
 import '../styles/loom.css' // --ev-temp, --ev-temp-w
 import '../styles/dialogue.css'
 
@@ -29,7 +30,7 @@ export function Dialogue({ doc, stmt, exec }: { doc: TraceDoc; stmt: ID; exec: E
   // the Loom's key: one execution trace answer for both views
   const q = useSourceQuery(source, `loom:${stmt}:${exec.cursor}:${exec.execNo}`, (signal) => source.executionTrace(stmt, exec, signal))
   if (q.error) return <p className="callout">Dialogue: {q.error}</p>
-  if (q.data === undefined) return <p className="small muted">Dialogue: loading…</p>
+  if (q.data === undefined) return <p className="small muted"><Shimmer>Dialogue: loading…</Shimmer></p>
   if (q.data === null) {
     return (
       <p className="small muted dlg-na" role="status">

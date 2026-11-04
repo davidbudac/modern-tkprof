@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fmtBytes, fmtInt } from '@lib/data/format'
 import type { JobInfo } from '../engine'
-import { EXIT_MS, prefersReducedMotion } from '../motion'
+import { EXIT_MS, prefersReducedMotion } from '@lib/components/motion'
 import { useConnections, type Notice } from './ConnectionsProvider'
 import { finished, fraction, type TrackedJob } from './jobs'
 import './connections.css'

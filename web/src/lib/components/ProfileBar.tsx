@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { fmtDur, fmtPct } from '../data/format'
 import { lightFill, type Role } from './colors'
+import { SoftText } from './motion'
 
 export interface Segment { role: Role; label: string; us: number; count?: number }
 
@@ -46,7 +47,7 @@ export function ProfileBar({ segments, totalUs, compact, onSelect }: { segments:
           <span className="k" key={s.label}>
             <i className={'swatch' + (s.role === 'unaccounted' ? ' unaccounted' : '')} style={{ background: s.role === 'unaccounted' ? undefined : `var(--c-${s.role})` }} />
             {s.label}
-            <span className="n">{fmtDur(s.us)} · {fmtPct(s.us, total)}</span>
+            <span className="n"><SoftText text={`${fmtDur(s.us)} · ${fmtPct(s.us, total)}`} /></span>
           </span>
         ))}
       </div>

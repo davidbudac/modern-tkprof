@@ -4,13 +4,16 @@ import '@lib/styles/fonts.css'
 import '@lib/styles/tokens.css'
 import '@lib/styles/base.css'
 import '@lib/styles/app.css'
+import '@lib/styles/motion.css'
 import { SessionProvider, createClient, createSession, followLive, loadInitial, probeLines, probeLinesApi, startUrlSync } from '@lib'
+import { installSlidingPills } from '@lib/components/motion'
 import { App } from './App'
 
 const client = createClient('')
 const session = createSession(client)
 const { store } = session
 
+installSlidingPills()
 createRoot(document.getElementById('root')!).render(<StrictMode><SessionProvider session={session}><App /></SessionProvider></StrictMode>)
 
 startUrlSync(store)

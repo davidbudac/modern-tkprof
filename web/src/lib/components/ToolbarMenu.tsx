@@ -1,6 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { EXIT_MS, useExit } from './motion'
 
-/** A toolbar button with a popover under it (closes on a click outside and on Escape); `open` is the caller's, so it can open the menu itself. */
+/**
+ * A toolbar button with a popover under it (closes on a click outside and on Escape); `open` is the caller's, so it can open the menu itself.
+ * The popover grows from the button's corner and, closed, stays a moment (`.closing`, inert) while it fades (motion.css "drop").
+ */
 export function ToolbarMenu({ label, badge, title, className, wide, disabled, open, onOpenChange, button, onButton, children }: {
   label: string; /** the button is off (an open menu closes) */ disabled?: boolean; badge?: string; title?: string; /** extra class on the menu (`tbmenu-sm`: a popover that fits its content) */ className?: string; /** a wider popover (the outline) */ wide?: boolean; open: boolean; onOpenChange: (open: boolean) => void
   /** the button's content instead of the label, badge and cue */ button?: ReactNode
@@ -9,6 +13,7 @@ export function ToolbarMenu({ label, badge, title, className, wide, disabled, op
 }) {
   const root = useRef<HTMLSpanElement>(null)
   const pop = useRef<HTMLDivElement>(null)
+  const { shown, closing } = useExit(open && !disabled ? true : null, EXIT_MS.quick)
   // the popover hangs from the button's edge; a button near a window edge would put it off screen, so it is shifted back in (8px margin)
   useLayoutEffect(() => {
     const el = pop.current
@@ -43,7 +48,7 @@ export function ToolbarMenu({ label, badge, title, className, wide, disabled, op
       <button type="button" className="quiet" aria-expanded={onButton ? undefined : open} aria-haspopup={onButton ? undefined : 'true'} aria-pressed={onButton ? undefined : open} onClick={() => (onButton ? onButton() : onOpenChange(!open))} title={title} disabled={disabled}>
         {button ?? <>{label}{badge && <small> {badge}</small>}<span className="cue" aria-hidden="true">▾</span></>}
       </button>
-      {open && !disabled && <div className={wide ? 'tbpop wide' : 'tbpop'} role="group" aria-label={label} ref={pop}>{children}</div>}
+      {shown && <div className={'tbpop' + (wide ? ' wide' : '') + (closing ? ' closing' : '')} role="group" aria-label={label} ref={pop} inert={closing}>{children}</div>}
     </span>
   )
 }

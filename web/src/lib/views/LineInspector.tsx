@@ -7,6 +7,7 @@ import { bindCell, cursorOfText, decodeAsText, refOfField } from '../data/inspec
 import { loadExecSummary, topWaits, type ExecSummary } from '../data/execsummary'
 import { copyText } from '../data/clipboard'
 import { fmtDur, fmtInt } from '../data/format'
+import { Shimmer } from '../components/motion'
 
 /** What a click on a reference value tells the owner. */
 export type InspectRefKind = 'cursor' | 'sqlid' | 'plh' | 'obj' | 'event'
@@ -86,7 +87,7 @@ export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, fo
         </div>
       </div>
       {text === undefined && !at && <p className="insp-empty">Click a line to inspect it.</p>}
-      {text === undefined && at && <p className="insp-empty">loading…</p>}
+      {text === undefined && at && <p className="insp-empty"><Shimmer>loading…</Shimmer></p>}
 
       {d && (
         <section className="insp-sec">
@@ -125,7 +126,7 @@ export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, fo
       {summary && o && summary.state !== 'none' && (
         <section className="insp-sec">
           <h3>Execution</h3>
-          {summary.state === 'loading' || !summary.s ? <p className="insp-empty">loading…</p> : <ExecBlock s={summary.s} eventName={eventName} refButton={refButton} hasRef={!!onRef} />}
+          {summary.state === 'loading' || !summary.s ? <p className="insp-empty"><Shimmer>loading…</Shimmer></p> : <ExecBlock s={summary.s} eventName={eventName} refButton={refButton} hasRef={!!onRef} />}
         </section>
       )}
 

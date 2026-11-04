@@ -18,6 +18,7 @@ import { WindowBar } from '../components/WindowBar'
 import { NONE, type StmtStats } from '../data/types'
 import { scopeKey, useScope, useScopedStatements, type ScopedStatements } from '../data/scopedstmts'
 import { useScopedFindings } from '../data/scopedfindings'
+import { PopText, Shimmer, SoftText } from '../components/motion'
 import { selectedCount, fileCount } from '../data/fileset'
 import { concentrationLede, responseOf, responseShare, responseUs, sessionsLabel, shareNote } from '../data/response'
 
@@ -47,12 +48,13 @@ export function Overview({ doc }: { doc: TraceDoc }) {
     <>
       <section className="hero">
         <div className="hero-head">
-          <h1>Response time {fmtDur(totalUs)}{sessions ? <span className="dim" title="sum over the sessions of each session's span; wall: the clock time the scope covers"> · {sessions}</span> : null}{state.window ? <span className="dim"> · window</span> : null}{state.files ? <span className="dim"> · {selectedCount(doc, state.files)} of {fileCount(doc)} files</span> : null}</h1>
+          <h1>Response time <PopText text={fmtDur(totalUs)} />{sessions ? <span className="dim" title="sum over the sessions of each session's span; wall: the clock time the scope covers"> · {sessions}</span> : null}{state.window ? <span className="dim"> · window</span> : null}{state.files ? <span className="dim"> · {selectedCount(doc, state.files)} of {fileCount(doc)} files</span> : null}</h1>
           {lede && <p className="lede">{lede}</p>}
         </div>
         <Minimap doc={doc} />
         <Axis totalUs={totalUs} />
-        {profile.loading ? <p className="muted small">Loading selection profile…</p>
+        {/* a newer snapshot of the same scope (live follow) keeps the last profile until its own arrives: the values swap in place */}
+        {profile.loading && !profile.data ? <p className="muted small"><Shimmer>Loading selection profile…</Shimmer></p>
           : profile.error || (!profile.data && (scope.window || scope.contexts)) ? <p className="muted small">Profile of the selection unavailable.</p>
           : <><Track rows={rows} totalUs={totalUs} /><Ledger rows={rows} totalUs={totalUs} /></>}
       </section>
@@ -83,7 +85,7 @@ export function Overview({ doc }: { doc: TraceDoc }) {
           <span className="tools"><button className="link" onClick={() => actions.setView('statements')}>all {stmts.length} statements</button></span></header>
         {ss.notice && <p className="callout">{ss.notice}</p>}
         {ss.narrowed && scope.window && <p className="small muted">Calls overlapping the window count whole; percentages use the response time inside the window and can exceed 100%.</p>}
-        {ss.pending || ss.loading || profile.loading ? <p className="muted small">Loading selection statistics…</p> : <StatementLedger doc={doc} stmts={stmts} totalUs={ss.notice ? responseOf(doc, { window: null, contexts: null }).responseUs : totalUs} />}
+        {ss.pending || ss.loading || profile.loading ? <p className="muted small"><Shimmer>Loading selection statistics…</Shimmer></p> : <StatementLedger doc={doc} stmts={stmts} totalUs={ss.notice ? responseOf(doc, { window: null, contexts: null }).responseUs : totalUs} />}
       </section>
 
       <Findings doc={doc} />
@@ -163,7 +165,7 @@ function Ledger({ rows, totalUs }: { rows: ComponentRow[]; totalUs: number }) {
       {top.map((r) => (
         <div key={r.label} className={r.event !== NONE ? 'row-click' : undefined} onClick={r.event !== NONE ? () => actions.selectEvent(r.event) : undefined}>
           <dt><i className="swatch" style={{ background: `var(--c-${r.role})` }} />{r.label}</dt>
-          <dd><span>{fmtDur(r.us)}</span><span>{fmtPct(r.us, totalUs)}</span><span className="n">{note(r)}</span></dd>
+          <dd><span><SoftText text={fmtDur(r.us)} align="end" /></span><span><SoftText text={fmtPct(r.us, totalUs)} align="end" /></span><span className="n"><SoftText text={note(r)} /></span></dd>
         </div>
       ))}
       {(rest.length > 0 || un) && (

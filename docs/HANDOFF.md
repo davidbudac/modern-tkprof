@@ -6,6 +6,17 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Motion: implemented (2026-11-03, branch `ui/motion`)
+
+- transitions.dev motion in both clients: sliding pills on every segmented control and the view tabs, menus and the
+  trace popover that grow and fade, live-follow values that cross-blur or pop, bar segments that ease, the statement
+  detail entering from the side of the list, stale lanes / wait stats / block maps that pulse and then sharpen in,
+  shimmering loading lines, Copy → Copied, status notes. Decisions and the list: DESIGN § Motion. The desktop's
+  `motion.css` / `motion.ts` moved to `web/src/lib/styles/motion.css` and `web/src/lib/components/motion.tsx`.
+- Checked in the desktop dev mode (verify-mtkprof) and the CLI's `serve` on io_waits.trc, light and dark, with reduced
+  motion, and live: a follow tab on a copy of io_waits.trc appended in two chunks (rev, headline, ledger and bar
+  animate per snapshot). Unit tests: `components/motion.test.ts` (which characters move).
+
 ## Three new views: implemented (2026-11-03)
 
 - Implemented from the plan `docs/PLAN-VIEWS.md` (three of the five concepts of the study `docs/viz-concepts/`, mocked on

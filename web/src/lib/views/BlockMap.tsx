@@ -18,6 +18,7 @@ import { resolveVar, tokenShade } from '../components/colors'
 import { LineRef } from '../components/LineRef'
 import { StmtLink } from '../components/StmtLink'
 import { usePopover } from '../components/usePopover'
+import { Shimmer, useReveal } from '../components/motion'
 import '../styles/blockmap.css'
 
 // The Blocks view (docs/PLAN-VIEWS.md § 6): every physical I/O wait with a block address at (I/O order or time, block number),
@@ -137,7 +138,7 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
   let body: ReactNode
   if (!source.ready) body = <p className="muted small" role="status">The Blocks view needs the waits of the trace, which this report does not carry (written with -aggregate, or exported without facts).</p>
   else if (q.error) body = <p className="bm-error small" role="alert">Blocks: {q.error}</p>
-  else if (q.data === undefined) body = <p className="muted small" role="status">loading…</p>
+  else if (q.data === undefined) body = <p className="muted small" role="status"><Shimmer>loading…</Shimmer></p>
   else if (q.data === null) body = <p className="muted small" role="status">The Blocks view needs the engine route api/io/map, which this engine does not serve: update mtkprof.</p>
   else if (q.data.total === 0) body = <BlockEmpty doc={doc} only={stmtSel} event={eventSel} />
   else body = <BlockFigure doc={doc} map={q.data} axis={axis} colorBy={colorBy} loading={q.loading} onOnly={setStmtSel} only={stmtSel} />
@@ -193,6 +194,7 @@ function BlockFigure({ doc, map, axis, colorBy, loading, only, onOnly }: {
   const actions = useActions()
   const theme = useThemeTick()
   const [boxRef, boxW] = useWidth<HTMLDivElement>()
+  useReveal(boxRef, loading) // the new map sharpens in where the stale one pulsed
   const plotW = Math.max(120, boxW - Y_AXIS - PAD_R)
   const k = sampleStep(map)
   const panels = useMemo(() => panelsOf(map, doc.events), [map, doc])

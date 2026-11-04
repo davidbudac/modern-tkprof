@@ -409,8 +409,12 @@ input[type="number"], input[type="url"] { font-size: max(16px, 1rem); padding: 0
 .nav-hist button { display: inline-flex; align-items: center; font-size: var(--text-md); padding-inline: 0.35rem; line-height: 1.1; }
 .nav-hist button:disabled { opacity: 0.4; cursor: default; background: none; }
 
-/* motion: tokens and keyframes in src/motion.css */
+/* motion: tokens, keyframes and the lib's primitives in @lib/styles/motion.css */
 @media (prefers-reduced-motion: no-preference) {
+  /* popovers grow from the corner of what opened them (the engine dot is at the window's right edge); the trace popover also closes */
+  .pop { transform-origin: top left; animation: motion-drop-in var(--motion-fast) var(--motion-ease); }
+  .pop.engine-pop { transform-origin: top right; }
+  .pop.closing { animation: motion-drop-out var(--motion-quick) var(--motion-ease) forwards; }
   .toast { animation: motion-toast-in var(--motion-medium) var(--motion-ease); }
   .toast.closing { animation: motion-toast-out var(--motion-fast) var(--motion-ease) forwards; }
   .blocker { animation: motion-fade-in var(--motion-fast) var(--motion-ease); }

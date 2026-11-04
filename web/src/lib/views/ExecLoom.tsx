@@ -11,6 +11,7 @@ import { fmtDurDelta, worse } from '../data/delta'
 import { Chart } from '../components/Chart'
 import { chromeColors, resolveVar, roleOfClass } from '../components/colors'
 import { LineRef } from '../components/LineRef'
+import { Shimmer } from '../components/motion'
 import '../styles/loom.css'
 
 // Execution Loom (docs/implementing-new-ideas.md): the two executions of the A/B comparison as threads over the same work
@@ -50,7 +51,7 @@ export function ExecLoom({ doc, stmt, a, b }: { doc: TraceDoc; stmt: number; a: 
   const qa = useSourceQuery(source, `loom:${stmt}:${a.cursor}:${a.execNo}`, (signal) => source.executionTrace(stmt, a, signal))
   const qb = useSourceQuery(source, `loom:${stmt}:${b.cursor}:${b.execNo}`, (signal) => source.executionTrace(stmt, b, signal))
   if (qa.error || qb.error) return <p className="small muted">Loom: {qa.error || qb.error}</p>
-  if (qa.data === undefined || qb.data === undefined) return <p className="small muted">Loom: loading…</p>
+  if (qa.data === undefined || qb.data === undefined) return <p className="small muted"><Shimmer>Loom: loading…</Shimmer></p>
   if (qa.data === null || qb.data === null) {
     return (
       <p className="small muted loom-na" role="status">
