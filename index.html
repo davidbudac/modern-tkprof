@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>mtkprof — the modern 10046 trace analyzer</title>
+<title>mtkprof: the modern 10046 trace analyzer</title>
 <meta name="description" content="mtkprof is the modern analyzer for Oracle 10046 SQL trace files. It shows where the response time went: a tkprof-exact text report, a self-contained interactive HTML report, and a desktop app.">
 <link rel="icon" href="img/mark.png">
 <link rel="stylesheet" href="style.css">
@@ -30,7 +30,7 @@
   <div class="hero-grid breakout">
     <div class="hero-copy">
       <h1>The modern 10046 trace analyzer</h1>
-      <p class="lede"><code>tkprof</code> sums a trace and throws the rest away. mtkprof keeps all of it and shows where the response time went: by statement, by execution, by second. The same numbers as tkprof, exactly, and everything it leaves out.</p>
+      <p class="lede">mtkprof reads Oracle 10046 trace files and shows where the response time went, per statement, per execution and over time. Its call and wait totals match <code>tkprof</code>'s exactly.</p>
       <div class="actions">
         <a class="button primary" href="#start">Get started</a>
         <a class="button" href="docs.html">Read the docs</a>
@@ -100,15 +100,15 @@
 <!-- ============ beyond tkprof ============ -->
 <section class="section content-grid" id="modern">
   <div class="section-head">
-    <h2>tkprof gives you totals, tuning needs the rest</h2>
-    <p>tkprof's numbers are still the reference, so mtkprof reproduces them and is tested against them. Everything else is new.</p>
+    <h2>What tkprof leaves out</h2>
+    <p>The first row is tested against tkprof on every test trace. tkprof has no answer for the others.</p>
   </div>
   <div class="compare-wrap">
   <div class="table-wrap compare-table">
     <table>
       <thead><tr><th>Question</th><th>tkprof</th><th>mtkprof</th></tr></thead>
       <tbody>
-        <tr><td>Call statistics, library cache misses, waits per statement</td><td>yes</td><td class="yes">yes, identical numbers</td></tr>
+        <tr><td>Call statistics, library cache misses, waits per statement</td><td>yes</td><td class="yes">yes, the same numbers</td></tr>
         <tr><td>Where did the response time go? CPU + every wait + unaccounted-for</td><td class="no">no</td><td class="yes">resource profile for the trace, a statement, a session or a time window</td></tr>
         <tr><td>Which execution was slow, and with which bind values?</td><td class="no">no</td><td class="yes">every EXEC with its fetches, waits and binds; compare two</td></tr>
         <tr><td>Which statement did the user actually wait for?</td><td class="no">recursive SQL listed apart</td><td class="yes">ranked including recursive children and idle time between calls</td></tr>
@@ -126,8 +126,8 @@
 <!-- ============ three ways ============ -->
 <section class="section content-grid" id="ways">
   <div class="section-head">
-    <h2>One engine, from the database host to your desk</h2>
-    <p>The parser, the model and the numbers are the same everywhere. Pick the surface that fits where the trace is.</p>
+    <h2>Command line, browser or desktop</h2>
+    <p>All three run the same parser and show the same numbers.</p>
   </div>
   <div class="ways">
     <article class="way">
@@ -135,7 +135,7 @@
         <h3>Command line</h3>
         <p class="for">The database host, scripts, tickets</p>
       </div>
-      <p>Copy the binary next to the trace, like tkprof. A text report with the resource profile, statements ranked by response time, executions with their binds, plans and findings. Plus pivots, CSV export and a before/after compare.</p>
+      <p>Copy the binary next to the trace and run it, as you would tkprof. Other commands pivot, export CSV and compare two traces.</p>
       <pre class="terminal"><span class="p">$ </span>mtkprof report trace.trc -top 20
 <span class="p">$ </span>mtkprof pivot trace.trc -by event
 <span class="p">$ </span>mtkprof compare a.trc b.trc</pre>
@@ -145,7 +145,7 @@
         <h3>Browser</h3>
         <p class="for">Exploring one trace, sharing a finding</p>
       </div>
-      <p>A self-contained HTML file you can mail to a colleague, or the same UI served from the binary. Overview, Statements, Waits, Timeline, Sessions and Pivot, all following one time window and one session filter.</p>
+      <p>One HTML file you can mail to a colleague, or the same UI served by the binary. A time window or session filter set in one view applies to all of them.</p>
       <pre class="terminal"><span class="p">$ </span>mtkprof html trace.trc
 <span class="p">$ </span>mtkprof serve trace.trc
 <span class="c">  http://127.0.0.1:8046/</span></pre>
@@ -153,9 +153,9 @@
     <article class="way">
       <div class="way-head">
         <h3>Desktop app</h3>
-        <p class="for">Daily tuning work across many traces</p>
+        <p class="for">Working through many traces</p>
       </div>
-      <p>Traces in tabs that reopen in a second from an index cache. The raw trace lines, notes and bookmarks, saved pivots, and connections that fetch or follow traces over ssh or straight from the database.</p>
+      <p>Traces in tabs, the raw trace lines next to the views, notes, and connections that fetch traces over ssh or from the database.</p>
       <pre class="terminal"><span class="p">$ </span>mtkprof open trace.trc
 <span class="c">  # or double-click a .trc file</span></pre>
     </article>
@@ -165,20 +165,20 @@
 <!-- ============ features ============ -->
 <section class="section content-grid" id="features">
   <div class="section-head">
-    <h2>The whole trace as a model you can slice</h2>
-    <p>A trace becomes statements, cursors, calls, waits, binds, plans, sessions and time. Every view reads that one model, so a number in one place is the same number everywhere else.</p>
+    <h2>One model behind every view</h2>
+    <p>mtkprof turns the trace into statements, calls, waits, binds, plans and sessions, and every view reads that one model. A statement's elapsed time is the same number in the timeline, the pivot and the text report.</p>
   </div>
 
   <div class="features breakout">
     <div class="feature">
       <div class="feature-text">
         <h3>Statements, down to the execution</h3>
-        <p>Statements are ranked by response time including their recursive children and the idle time between their calls. Open one to see where its time went.</p>
+        <p>Statements are ranked by response time, counting their recursive children and the idle time between their calls. Opening one shows:</p>
         <ul class="ticks">
-          <li>Its own resource profile, waits by event and object, with the line in the trace</li>
-          <li>tkprof-style call table, exclusive or inclusive of recursive SQL</li>
-          <li>Every EXEC with its fetches, rows and bind values; tick two to compare them</li>
-          <li>Row-source plans from the STAT lines, one per plan hash, hot steps marked</li>
+          <li>Its resource profile and its waits by event and object, each linked to its trace line</li>
+          <li>The tkprof call table, with or without recursive SQL</li>
+          <li>Every EXEC with its fetches, rows and binds; tick two to compare them</li>
+          <li>Row-source plans from the STAT lines, one per plan hash, with the slow steps marked</li>
         </ul>
       </div>
       <figure class="shot">
@@ -189,11 +189,11 @@
     <div class="feature flip">
       <div class="feature-text">
         <h3>Time is a filter</h3>
-        <p>The timeline shows every call of every statement. Drag to pick a window and every view follows it: profile, statements, waits, pivot. Click a block to window it; jump from the window to its lines in the raw trace.</p>
+        <p>The timeline draws every call of every statement. Drag across it to set a window; the profile, statements, waits and pivot then show only that window, and you can jump to its lines in the raw trace.</p>
         <ul class="ticks">
-          <li>Lanes colored by call phase, by wait event or by class</li>
-          <li>Session, module, action and client id filters, <code>trcsess</code> merges included</li>
-          <li>Findings with their evidence: outlier executions, hard parsing, small fetches, a commit per row, client think time</li>
+          <li>Lanes colored by call phase, wait event or wait class</li>
+          <li>Filters for session, module, action and client id, which covers what <code>trcsess</code> does</li>
+          <li>Findings with evidence: outlier executions, hard parsing, small fetches, a commit per row, client think time</li>
         </ul>
       </div>
       <figure class="shot">
@@ -204,7 +204,7 @@
     <div class="feature">
       <div class="feature-text">
         <h3>Pivot anything</h3>
-        <p>Pick calls or waits, group by one or two dimensions (statement, wait event, object, plan hash, module, action, session, time bucket…), choose the measures and download the result as CSV. <code>mtkprof pivot</code> does the same group-by on the command line, up to four dimensions.</p>
+        <p>Group calls or waits by one or two dimensions, such as statement, wait event, object, plan hash, module or time bucket, pick the measures and download CSV. <code>mtkprof pivot</code> does the same on the command line with up to four dimensions.</p>
       </div>
       <figure class="shot">
         <img src="img/pivot-light.webp" width="2000" height="1250" loading="lazy" alt="The Pivot view: calls grouped by statement with columns for calls, elapsed, CPU, disk, query, rows, misses, in-call waits and idle time.">
@@ -214,10 +214,10 @@
     <div class="feature flip">
       <div class="feature-text">
         <h3>Many files, one trace</h3>
-        <p>Pass any number of files and directories. Split traces are stitched back together, independent sessions sit side by side, and parallel-query slave traces are attached to their query coordinator.</p>
+        <p>Pass any number of files and directories. mtkprof joins split traces, shows separate sessions side by side and attaches parallel-query slave traces to their coordinator.</p>
         <ul class="ticks">
-          <li>Response time is the sum over sessions, not the wall clock</li>
-          <li>A Files panel scopes every view to some of the files</li>
+          <li>Response time is summed over sessions, so it can exceed the wall clock</li>
+          <li>A Files panel limits every view to the files you pick</li>
           <li><code>mtkprof compare a.trc b.trc</code> matches statements by sql_id and ranks them by how much they changed</li>
         </ul>
       </div>
@@ -229,11 +229,11 @@
     <div class="feature">
       <div class="feature-text">
         <h3>Ask Claude Code about a trace</h3>
-        <p><code>mtkprof mcp</code> gives Claude Code, or any MCP client, mtkprof's analysis tools. Describe the problem in your own words with the path of the trace ("slow after 14:05", "the login takes 5 s"). The agent opens the trace, narrows it to the window, session or statement you mean, and answers with sql_ids, waits and trace lines you can check.</p>
+        <p><code>mtkprof mcp</code> gives Claude Code, or any MCP client, mtkprof's analysis tools. Give the agent the trace path and the symptom ("slow after 14:05", "login takes 5 s"). It narrows the trace to the window, session or statement and answers with sql_ids, waits and line numbers you can check.</p>
         <ul class="ticks">
-          <li>Set up once: <code>claude mcp add mtkprof -- mtkprof mcp</code></li>
-          <li>Every number comes from a tool call, the same numbers as the report</li>
-          <li>The trace is parsed on your machine, and bind values are masked by default</li>
+          <li>Setup: <code>claude mcp add mtkprof -- mtkprof mcp</code></li>
+          <li>Every number comes from a tool call and matches the report</li>
+          <li>The trace is parsed on your machine; bind values are masked by default</li>
         </ul>
       </div>
       <figure class="shot agent-shot">
@@ -264,7 +264,7 @@ I/O took 1.2 ms. <span class="c">…</span></pre>
 <section class="section content-grid" id="big">
   <div class="section-head">
     <h2>A 10 GB trace on a laptop</h2>
-    <p>By default the whole model is kept in memory, which is fast and fine up to a gigabyte or two. Above that, pick a mode: the numbers stay the same, only what is kept changes.</p>
+    <p>By default mtkprof holds the whole model in memory, which works up to a gigabyte or two. For bigger traces, these modes keep less or move it to disk. The numbers don't change.</p>
   </div>
   <div class="table-wrap">
     <table class="modes">
@@ -283,20 +283,20 @@ I/O took 1.2 ms. <span class="c">…</span></pre>
 <!-- ============ desktop band ============ -->
 <section class="band content-grid" id="desktop">
   <div class="section-head">
-    <h2>mtkprof desktop, a workbench for every trace you open</h2>
-    <p>A small native shell around the mtkprof engine. It runs on your machine, holds several traces at once and remembers them: open a trace you looked at last week and it is back in about a second, with your notes.</p>
+    <h2>The desktop app</h2>
+    <p>A native shell around the same engine. It keeps several traces open in tabs, and a trace you opened last week comes back from its cache in about a second, with your notes.</p>
   </div>
   <figure class="shot desk-shot breakout">
     <img src="img/desktop-dark.webp" width="2000" height="1255" loading="lazy" alt="The mtkprof desktop app on macOS in dark mode: tabs for open traces, the views Overview to Reports, the resource profile and the statement timeline, and an engine status bar.">
   </figure>
   <dl class="specs">
-    <div><dt>Tabs and an index cache</dt><dd>Open files, folders or a pasted path; drop them on the window; double-click a <code>.trc</code>. Parsed traces are kept by content, so a renamed copy opens from the cache too.</dd></div>
-    <div><dt>Lines</dt><dd>The raw trace, paged, with line kinds colored, the selected statement marked in the gutter, streaming search and jump to time. Every "line N" in the views opens it.</dd></div>
-    <div><dt>Notes and bookmarks</dt><dd>Annotate a statement, an execution, a time window or a line. Notes belong to the trace's content, not its path, and export to Markdown or JSON.</dd></div>
-    <div><dt>Fetch over ssh</dt><dd>Browse the trace directories on a host, fetch with gzip and resume, or follow a growing trace as a live tab. Uses your <code>~/.ssh/config</code>, agent and bastions.</dd></div>
-    <div><dt>Straight from the database</dt><dd>List sessions and switch SQL trace on and off, fetch trace files from the ADR, and pull object names and plans for the trace. No OS access needed.</dd></div>
-    <div><dt>No secrets at rest</dt><dd>Connections have no password field. Passwords and passphrases are asked when used and kept only in the engine's memory until the app quits.</dd></div>
-    <div><dt>Library and reports</dt><dd>Save pivot configurations and apply them to any trace. Save the text, JSON, CSV or standalone HTML report of a tab.</dd></div>
+    <div><dt>Tabs and an index cache</dt><dd>Open files, folders or a pasted path, drop them on the window, or double-click a <code>.trc</code>. The cache is keyed by content, so a renamed copy opens from it too.</dd></div>
+    <div><dt>Lines</dt><dd>The raw trace with line kinds colored, the selected statement marked in the gutter, search and jump to time. Every "line N" link in the views opens it.</dd></div>
+    <div><dt>Notes and bookmarks</dt><dd>Annotate a statement, an execution, a time window or a line. Notes follow the trace's content, so they survive a rename, and export to Markdown or JSON.</dd></div>
+    <div><dt>Fetch over ssh</dt><dd>Browse a host's trace directories, fetch with gzip and resume, or follow a growing trace in a live tab. Uses your <code>~/.ssh/config</code>, agent and bastions.</dd></div>
+    <div><dt>From the database</dt><dd>List sessions, switch SQL trace on and off, fetch trace files from the ADR, and pull object names and plans. No OS login needed.</dd></div>
+    <div><dt>No secrets at rest</dt><dd>Connections have no password field. The app asks for a password when it needs one and keeps it in memory until it quits.</dd></div>
+    <div><dt>Library and reports</dt><dd>Save a pivot setup and apply it to any trace. Save a tab's report as text, JSON, CSV or HTML.</dd></div>
     <div><dt>Windows, macOS, Linux</dt><dd>Installers for Windows 10/11 x64, macOS on Apple Silicon and Intel, and Linux x64 as AppImage or .deb.</dd></div>
   </dl>
 </section>
@@ -305,7 +305,7 @@ I/O took 1.2 ms. <span class="c">…</span></pre>
 <section class="section content-grid" id="report">
   <div class="section-head">
     <h2>A report that fits in a ticket</h2>
-    <p>The text report reads like tkprof, with the resource profile on top and the statements ranked by the time they cost. Paste it into an incident, diff it, grep it.</p>
+    <p>Laid out like tkprof's, with the resource profile first and statements ranked by elapsed time. Paste it into an incident or diff two runs.</p>
   </div>
   <pre class="report breakout"><span class="dim">mtkprof v0.4.0 - Oracle SQL trace profile</span>
 <span class="dim">========================================================================================================================</span>
@@ -338,14 +338,14 @@ STATEMENTS BY ELAPSED  (elapsed includes recursive children and idle between cal
 <!-- ============ get started ============ -->
 <section class="section content-grid" id="start">
   <div class="section-head">
-    <h2>Trace a session, then read it</h2>
-    <p>One command installs mtkprof on Linux, macOS, AIX and Solaris. It picks the binary for your OS and CPU and checks it against <code>SHA256SUMS</code>. On Windows, take the binary from the releases page. There is nothing else to install, and no database connection is needed to analyze a trace.</p>
+    <h2>Get started</h2>
+    <p>The install script works on Linux, macOS, AIX and Solaris and checks the binary against <code>SHA256SUMS</code>. On Windows, download the <code>.exe</code> from the releases page. Analyzing a trace needs no database connection.</p>
   </div>
   <pre class="terminal install-cmd" aria-label="Install command for Unix systems"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre>
   <ol class="steps">
     <li>
       <h3>Switch on SQL trace</h3>
-      <p>With waits, binds and row-source statistics for every execution.</p>
+      <p>With waits, binds and plan statistics for every execution.</p>
       <pre class="terminal">alter session set tracefile_identifier = 'mytest';
 alter session set events 'sql_trace
   wait=true, bind=true,
@@ -355,13 +355,13 @@ alter session set events 'sql_trace off';</pre>
     </li>
     <li>
       <h3>Find the file</h3>
-      <p>It is in the diagnostic destination of the instance.</p>
+      <p>The instance writes it to its diagnostic directory.</p>
       <pre class="terminal">select value from v$diag_info
  where name = 'Default Trace File';</pre>
     </li>
     <li>
       <h3>Run mtkprof on it</h3>
-      <p>The text report and the HTML report land next to the trace.</p>
+      <p>The text and HTML reports are written next to the trace.</p>
       <pre class="terminal"><span class="p">$ </span>mtkprof cdb1_ora_4711_mytest.trc
 <span class="ok">wrote</span> cdb1_ora_4711_mytest.trc.txt
 <span class="ok">wrote</span> cdb1_ora_4711_mytest.trc.html</pre>
