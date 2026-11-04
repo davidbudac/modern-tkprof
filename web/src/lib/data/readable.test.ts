@@ -11,14 +11,15 @@ describe('describeLine', () => {
   it('a call: elapsed, CPU, rows, gets and a hard parse', () => {
     const v = describeLine('PARSE #139745604251096:c=92,e=907,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=3570327658,tim=10804502774', 'call', 87)
     expect(v.label).toBe('PARSE')
-    expect(text(v.parts)).toBe('907 µs · cpu 92 µs · hard parse')
+    expect(text(v.parts)).toBe('cpu 92 µs · hard parse')
+    expect(v.dur).toBe(907)
     expect(v.bar).toEqual({ us: 907, cpu: 92, role: 'cpu' })
   })
   it('a wait: its time, event, object and parameters', () => {
     const line = trc.find((l) => l.includes("nam='direct path read' ") && l.includes('obj#=108611'))!
     const v = describeLine(line, 'wait', 1, { objectName: (o) => (o === 108611 ? 'MTK_ORDERS' : undefined), eventOf: () => ({ class: 'User I/O', idle: false, role: 'userio' }) })
     expect(v.label).toBe('WAIT')
-    expect(text(v.parts)).toMatch(/^[\d.]+ (µs|ms) · direct path read · MTK_ORDERS · file \d+ · block \d+ · \d+ blocks?$/)
+    expect(text(v.parts)).toMatch(/^direct path read · MTK_ORDERS · file \d+ · block \d+ · \d+ blocks?$/)
     expect(v.bar?.role).toBe('userio')
   })
   it('a STAT line: the operation, object, rows against the estimate', () => {
@@ -59,9 +60,9 @@ describe('a STAT line as a plan row', () => {
 describe('the rest of the lines, readable', () => {
   it('wait parameters: labelled, the noise left out', () => {
     const dpr = describeLine("WAIT #139745604251096: nam='direct path read' ela= 39 file number=12 first dba=169947 block cnt=5 obj#=108611 tim=10805135198", 'wait', 1)
-    expect(text(dpr.parts)).toBe('39 µs · direct path read · obj# 108611 · file 12 · block 169947 · 5 blocks')
+    expect(text(dpr.parts)).toBe('direct path read · obj# 108611 · file 12 · block 169947 · 5 blocks')
     const net = describeLine("WAIT #139745605258360: nam='SQL*Net more data to client' ela= 38 driver id=1952673792 #bytes=8103 p3=0 obj#=-1 tim=10804499034", 'wait', 1)
-    expect(text(net.parts)).toBe('38 µs · SQL*Net more data to client · 8,103 bytes')
+    expect(text(net.parts)).toBe('SQL*Net more data to client · 8,103 bytes')
   })
   it('bind attribute lines (testdata/traces/19c/basic_binds.trc lines 56-59)', () => {
     expect(text(bindAttrSegs('  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00'))).toBe('type NUMBER, up to 22 bytes')

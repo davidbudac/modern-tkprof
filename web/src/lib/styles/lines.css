@@ -506,3 +506,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-mode > button[aria-checked="true"] { background: var(--ink); color: var(--surface-raised); box-shadow: 0 1px 2px color-mix(in oklch, var(--ink) 25%, transparent); }
 .lines-mode > kbd { font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.4; color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; background: var(--surface-raised); padding-inline: 0.4em; margin-inline: 0.3em 0.2em; }
 @container (inline-size < 56rem) { .lines-mode > kbd { display: none; } }
+/* the time a line took: number right-aligned in its slot, unit in a slot of its own, so the values line up down the view */
+.lv-dur { flex: none; display: inline-flex; justify-content: flex-end; inline-size: 10ch; padding-inline-start: var(--sp-2); font-variant-numeric: tabular-nums; }
+.lv-dur > b { font-weight: 400; color: var(--ink); }
+.lv-dur > small { inline-size: 3ch; padding-inline-start: 0.5ch; font-size: inherit; color: var(--ink-3); text-align: start; }

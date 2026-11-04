@@ -425,6 +425,10 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   top line is in a plan (one row per trace line leaves no row for them), and
   each cell's tooltip names its column. (First built as `·`-joined text; the
   values did not line up.)
+- **Durations in a column.** The time a line took (a call's e=, a wait's
+  ela=, a fold's total) has a column of its own after the kind: the number
+  right-aligned, the unit in a slot after it, so values line up down the view
+  whatever their unit.
 - **Every line kind reads as prose, not as the trace's tokens.** Wait
   parameters are labelled (`file 12 · block 169947 · 5 blocks`, `8,103
   bytes`) and the ones that say nothing (`driver id`, zeros) left out; the

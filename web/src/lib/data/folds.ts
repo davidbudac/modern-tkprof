@@ -9,6 +9,8 @@ export interface Fold {
   from: number; to: number; summary: string
   /** a fold of repeats (the readable view's Fold repeats): its short label (`12×`) and its bar, the time it covers as a fraction of the scale */
   label?: string; w?: number
+  /** the time the folded lines took, µs (the readable row's duration column) */
+  us?: number
   /** a fold the view made itself (not the user's) */
   auto?: boolean
 }

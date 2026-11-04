@@ -173,16 +173,16 @@ function repeatFold(r: RepeatFold, scaleUs: number): Fold {
   let label: string, summary: string
   if (r.kind === 'run') {
     label = `${fmtInt(r.n)}×`
-    summary = `${fmtInt(r.n)} × ${r.event ?? 'wait'} · ${fmtDur(r.us)} · max ${fmtDur(r.max)} · ${lines}`
+    summary = `${fmtInt(r.n)} × ${r.event ?? 'wait'} · max ${fmtDur(r.max)} · ${lines}`
   } else if (r.kind === 'block') {
     label = 'WAITS'
     const by = (r.by ?? []).slice(0, 3).map((b) => `${b.event} ${fmtInt(b.n)}× ${fmtDur(b.us)}`).join(', ')
-    summary = `${fmtInt(r.n)} waits · ${fmtDur(r.us)}${by ? ` · ${by}${(r.by?.length ?? 0) > 3 ? ', …' : ''}` : ''} · ${lines}`
+    summary = `${fmtInt(r.n)} waits${by ? ` · ${by}${(r.by?.length ?? 0) > 3 ? ', …' : ''}` : ''} · ${lines}`
   } else {
     label = `FETCH×${fmtCompact(r.n)}`
-    summary = `${fmtInt(r.n)} fetches · ${fmtDur(r.us)} · ${fmtInt(r.rows ?? 0)} rows${r.cr ? ` · ${fmtInt(r.cr)} gets` : ''}${r.p ? ` · ${fmtInt(r.p)} reads` : ''}${r.idle ? ` · ${fmtDur(r.idle)} idle between them` : ''} · max ${fmtDur(r.max)} · ${lines}`
+    summary = `${fmtInt(r.n)} fetches · ${fmtInt(r.rows ?? 0)} rows${r.cr ? ` · ${fmtInt(r.cr)} gets` : ''}${r.p ? ` · ${fmtInt(r.p)} reads` : ''}${r.idle ? ` · ${fmtDur(r.idle)} idle between them` : ''} · max ${fmtDur(r.max)} · ${lines}`
   }
-  return { from: r.from, to: r.to, summary, label, w: Math.min(1, r.us / Math.max(1, scaleUs)), auto: true }
+  return { from: r.from, to: r.to, summary, label, w: Math.min(1, r.us / Math.max(1, scaleUs)), us: r.us, auto: true }
 }
 
 /** The side panel's icon: a window with a column at its end. */

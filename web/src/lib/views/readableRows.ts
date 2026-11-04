@@ -144,6 +144,16 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     if (hit) return hit
     const kind = kindOf(l)
     if (kind === 'binds' && /^BINDS\s+#/.test(l.text) && !inp.bindAt?.(n)) inp.missingBinds?.(n)
+    else if (kind === 'bind-line' && inp.missingBinds && !inp.bindAt?.(n)) {
+      // a bind line whose header is above the view: ask for the header's values
+      for (let x = n - 1, i = 0; x >= 1 && i < 300; x--, i++) {
+        const h = lineAt(x)
+        if (!h) break
+        const k = kindOf(h)
+        if (k === 'binds') { if (/^BINDS\s+#/.test(h.text)) inp.missingBinds(x); break }
+        if (k !== 'bind-line' && k !== 'blank' && k !== 'unknown') break
+      }
+    }
     const v = describeLine(l.text, kind, n, ctx)
     const tim = lineTim(l.text, kind)
     let delta = '', deltaTitle: string | undefined, pinned = false

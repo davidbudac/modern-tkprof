@@ -23,6 +23,8 @@ export interface LineView {
   bar?: { us: number; cpu?: number; role: Role }
   /** the row offers the statement with the values of this BINDS block */
   asRun?: boolean
+  /** the time the line itself took (a call's e=, a wait's ela=), µs: shown in its own column, aligned down the view */
+  dur?: number
   /** the detail is indented by this many steps (the attribute lines under a `Bind#`) */
   indent?: number
   /** a wall-clock time the line prints itself (`***` lines): HH:MM:SS.mmm and the µs after it, for the clock column */
@@ -134,19 +136,19 @@ function qty(out: Seg[], n: number | undefined, label: string, title: string, al
 }
 
 function describeCall(c: CallLine): LineView {
-  const parts: Seg[] = [numSeg(fmtDur(c.e ?? 0), `e=${c.e ?? 0} µs elapsed`)]
+  const parts: Seg[] = []
   if (c.c) parts.push(sep, dim('cpu '), numSeg(fmtDur(c.c), `c=${c.c} µs`))
   qty(parts, c.r, c.r === 1 ? 'row' : 'rows', 'r= rows processed', c.op === 'FETCH' || (c.op === 'EXEC' && (c.r ?? 0) > 0))
   qty(parts, (c.cr ?? 0) + (c.cu ?? 0) || undefined, 'gets', `cr=${c.cr ?? 0} consistent, cu=${c.cu ?? 0} current`)
   qty(parts, c.p, 'reads', 'p= physical reads')
   if ((c.mis ?? 0) > 0) parts.push(sep, { t: 'hard parse', c: 'warn', title: `mis=${c.mis}: a library cache miss` })
   if (c.op === 'CLOSE' && c.type !== undefined) parts.push(sep, dim(CLOSE_TYPES[c.type] ?? `type ${c.type}`, `type=${c.type}`))
-  return { label: c.op, tone: 'cpu', parts, bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
+  return { label: c.op, tone: 'cpu', parts: parts[0] === sep ? parts.slice(1) : parts, dur: c.e, bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
 }
 
 function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
   const ev = ctx.eventOf?.(w.nam)
-  const parts: Seg[] = [numSeg(fmtDur(w.ela), `ela=${w.ela} µs`), sep, { t: w.nam, c: 'name', title: ev?.class ? `wait class ${ev.class}` : undefined }]
+  const parts: Seg[] = [{ t: w.nam, c: 'name', title: ev?.class ? `wait class ${ev.class}` : undefined }]
   // Oracle leaves the last object's obj# on every wait: only on I/O and concurrency waits is it the object waited on
   const onObject = !ev || /I\/O|Concurrency|Application|Cluster/.test(ev.class)
   if (onObject && w.obj !== undefined && w.obj > 0) {
@@ -154,7 +156,7 @@ function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
     parts.push(sep, { t: name ?? `obj# ${w.obj}`, c: 'obj', title: `obj#=${w.obj}` })
   }
   parts.push(...waitParamSegs(w.params))
-  return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', parts, bar: { us: w.ela, role: ev?.role ?? 'other' } }
+  return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', parts, dur: w.ela, bar: { us: w.ela, role: ev?.role ?? 'other' } }
 }
 
 /** How the usual wait parameters read: a short label, or null to leave one out (it says nothing a reader needs). */
