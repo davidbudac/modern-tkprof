@@ -275,6 +275,19 @@ select { font-size: var(--text-sm); padding: 0.15rem 0.3rem; border: 1px solid v
 /* settings (and its About section) */
 .page { display: grid; gap: var(--sp-6); align-content: start; inline-size: min(52rem, 100%); margin-inline: auto; padding: var(--sp-6) var(--sp-5); }
 .page h1 { font-size: var(--text-hero); }
+/* Settings: the body is the page's column; the section index joins it on the left on wide windows */
+.settings-body { display: grid; gap: var(--sp-6); align-content: start; min-inline-size: 0; }
+.settings section { scroll-margin-block-start: var(--sp-5); }
+.settings-index { display: none; }
+@media (width >= 76rem) {
+  .page.settings { inline-size: min(64rem, 100%); grid-template-columns: 10rem minmax(0, 1fr); column-gap: var(--sp-6); }
+  .page-back:has(+ .page.settings) { inline-size: min(64rem, 100%); padding-inline-start: calc(var(--sp-5) + 10rem + var(--sp-6)); }
+  .settings-index { display: grid; gap: 2px; align-self: start; position: sticky; inset-block-start: var(--sp-5); padding-block-start: var(--sp-1); }
+}
+.page .settings-index a { display: flex; align-items: center; block-size: 2rem; padding-inline: var(--sp-3); border-radius: 6px; color: var(--ink-2); font-size: var(--text-md); text-decoration: none; transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { .page .settings-index a:hover { background: var(--wash); color: var(--ink); } }
+.page .settings-index a[aria-current] { background: var(--surface-raised); color: var(--ink); box-shadow: 0 0 0 1px var(--hairline); }
+.page .settings-index a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .page section { display: grid; gap: var(--sp-4); padding-block-start: var(--sp-5); border-block-start: 1px solid var(--hairline); }
 .page h2 { font-size: var(--text-lg); }
 /* a subsection: more room above its heading than below, so it reads as its own group */

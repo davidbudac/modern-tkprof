@@ -49,6 +49,8 @@ export function SettingsView() {
 
   return (
     <div className="page settings">
+      <SettingsIndex />
+      <div className="settings-body">
       <h1>Settings</h1>
 
       <section id="settings-opening" aria-labelledby="settings-opening-h">
@@ -206,7 +208,81 @@ export function SettingsView() {
         <p className="muted small">Licensed under the Apache License 2.0. © 2026 David Budac.</p>
         </details>
       </section>
+      </div>
     </div>
+  )
+}
+
+const SECTIONS = [
+  { id: 'settings-opening', label: 'Opening traces' },
+  { id: 'settings-appearance', label: 'Appearance' },
+  { id: 'settings-assistant', label: 'Assistant' },
+  { id: 'settings-engine', label: 'Engine' },
+  { id: 'settings-cache', label: 'Index cache' },
+  { id: 'settings-backup', label: 'Backup' },
+  { id: 'settings-about', label: 'About' },
+]
+
+/** How far below the scroller's top a section's heading may sit and still count as the one being read. */
+const READ_LINE = 96
+
+/** The nearest ancestor that scrolls (the frame's main area). */
+function scrollerOf(el: HTMLElement | null): HTMLElement | null {
+  for (let p = el?.parentElement ?? null; p; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY
+    if (o === 'auto' || o === 'scroll') return p
+  }
+  return null
+}
+
+/** The section index beside the page on wide windows (hidden by CSS otherwise); it marks the section being read. */
+function SettingsIndex() {
+  const ref = useRef<HTMLElement>(null)
+  const [current, setCurrent] = useState(SECTIONS[0].id)
+  /** a clicked entry stays marked while its scroll runs (and when the page ends before its section reaches the top), until the user scrolls */
+  const pinned = useRef(false)
+  useEffect(() => {
+    const scroller = scrollerOf(ref.current)
+    if (!scroller) return
+    const unpin = () => { pinned.current = false }
+    const spy = () => {
+      if (pinned.current) return
+      const top = scroller.getBoundingClientRect().top
+      const atEnd = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2
+      let at = SECTIONS[0].id
+      for (const s of SECTIONS) {
+        const el = document.getElementById(s.id)
+        if (el && el.getBoundingClientRect().top - top <= READ_LINE) at = s.id
+      }
+      setCurrent(atEnd && scroller.scrollTop > 0 ? SECTIONS[SECTIONS.length - 1].id : at)
+    }
+    spy()
+    scroller.addEventListener('scroll', spy, { passive: true })
+    const user = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const
+    for (const t of user) scroller.addEventListener(t, unpin, { passive: true })
+    return () => {
+      scroller.removeEventListener('scroll', spy)
+      for (const t of user) scroller.removeEventListener(t, unpin)
+    }
+  }, [])
+  const go = (id: string) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    // About is a rollout: open it, as the engine menu does, so the section can reach the top
+    const d = el.querySelector('details')
+    if (d) d.open = true
+    pinned.current = true
+    setCurrent(id)
+    el.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  }
+  return (
+    <nav ref={ref} className="settings-index" aria-label="Settings sections">
+      {SECTIONS.map((s) => (
+        <a key={s.id} href={`#${s.id}`} aria-current={current === s.id ? 'true' : undefined} onClick={(e) => { e.preventDefault(); go(s.id) }}>
+          {s.label}
+        </a>
+      ))}
+    </nav>
   )
 }
 
