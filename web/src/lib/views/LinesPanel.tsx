@@ -171,6 +171,7 @@ const KEYS: [string, string][] = [
   ['i', 'the side panel at its Line tab (again: close it): the selected line translated, every field named with its unit and meaning'],
   ['b', 'bookmark the selected line'],
   ['Shift+click Shift+arrows', 'select a range of lines from the selected one (its summary is in the status bar)'],
+  ['⌘click Ctrl+click', 'add a line to the selected lines or take it out (Shift+click then extends from it)'],
   ['y', 'copy the selected range'],
   ['Backspace', 'back to the line before the last jump'],
   ['F3 Shift+F3', 'next / previous search hit'],

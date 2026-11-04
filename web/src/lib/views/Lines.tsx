@@ -5,7 +5,8 @@ import { blockAt, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from 
 import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
-import { describeRange, summarizeRange } from '../data/rangesum'
+import { describeRange, summarizeLines } from '../data/rangesum'
+import { describeLines, lineCount, type LineSet } from '../data/lineset'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
 import { LineStrip } from '../components/LineStrip'
@@ -65,8 +66,8 @@ interface LinesUi {
   palette: boolean
   /** the cursor id whose rows stay bright (the others are dimmed), null for none */
   focus: number | null
-  /** the lines selected with Shift+click or Shift+arrows (summed in the status bar, `y` copies them), null for none */
-  range: { from: number; to: number } | null
+  /** the lines selected with Shift+click, Shift+arrows or ⌘/Ctrl+click (summed in the status bar, `y` copies them), null for none */
+  lines: LineRange[] | null
   /** the side panel's tab (whether the panel is open is the global `inspect` pref) */
   tab: PanelTab
   /** the hits listed by statement (the Hits tab), and the statements whose group is open (-1 none, -2 not loaded yet) */
@@ -101,7 +102,7 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
-      optionsMenu: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, range: null,
+      optionsMenu: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, lines: null,
       tab: 'line', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, folds: [], back: [], cur: 0, pin: null, openRepeats: new Set(), asRunLine: 0,
     }))
   }
@@ -470,7 +471,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [allFolds])
   /** A jump (a search hit, a mark, a bookmark, Go to, a line card action, a deep link): `goTo` that remembers the line it left for Back. */
   const jump = useCallback((line: number, dispatch = true) => {
-    if (ui.range) set({ range: null })
+    if (ui.lines) set({ lines: null })
     const left = ui.cur
     if (left > 0 && left !== line && ui.back[ui.back.length - 1] !== left) { ui.back.push(left); if (ui.back.length > BACK_LIMIT) ui.back.shift(); bump() }
     goTo(line, dispatch)
@@ -696,7 +697,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'f': toggleFocus(); break
       case 'l': highlightLine(); break
       case 'i': togglePanel('line'); break
-      case 'y': copySelRange(); break
+      case 'y': copySelLines(); break
       case ']': stepNext('call', 'call', 1); break
       case '[': stepNext('call', 'call', -1); break
       case 'w': stepNext('wait', 'wait', 1); break
@@ -723,7 +724,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey) && !e.altKey) { e.preventDefault(); set({ palette: !ui.palette }) } // also in the boxes
     else if (e.key === 'Escape' && popup) { e.stopPropagation(); setPopup(null) }
     else if (e.key === 'Escape' && ui.status === 'running') { e.stopPropagation(); cancelSearch() }
-    else if (e.key === 'Escape' && ui.range) { e.stopPropagation(); set({ range: null }) }
+    else if (e.key === 'Escape' && ui.lines) { e.stopPropagation(); set({ lines: null }) }
     else if (e.key === 'Escape' && ui.focus !== null && (e.target as HTMLElement).closest('.lv')) { e.stopPropagation(); set({ focus: null }) }
     else if (e.key === 'F3') { e.preventDefault(); stepHit(e.shiftKey ? -1 : 1) }
     else if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey && ui.back.length > 0) {
@@ -771,34 +772,43 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       flash(n > 0 ? `Folded ${fmtInt(n)} ${name}${n === 1 ? '' : 's'}${truncated ? ' (the first of a longer list)' : ''}` : `no ${name}s to fold`)
     } catch (e) { if (!aborted(e)) flash(e instanceof Error ? e.message : String(e)) }
   }, [client, file, cache, ui, set, flash])
-  /** Copies lines `from..to` (the pages of the range are loaded first; at most `COPY_PAGES`). `as` words the note: a block (the line card's) or the selected range. */
-  const copyRange = useCallback(async (from: number, to: number, as: 'block' | 'range' = 'block') => {
-    const p0 = cache.pageOf(from), p1 = cache.pageOf(to)
-    if (p1 - p0 + 1 > COPY_PAGES) { flash(`${as} too large to copy (${fmtInt(to - from + 1)} lines)`); return }
-    let pages: CachedPage[]
-    try { pages = await Promise.all(Array.from({ length: p1 - p0 + 1 }, (_, i) => cache.load(p0 + i))) } catch (e) { if (!aborted(e)) flash(e instanceof Error ? e.message : String(e)); return }
+  /** The pages that hold `set`'s lines, null when there are more than `COPY_PAGES`. */
+  const pagesOf = useCallback((set: LineSet): number[] | null => {
+    const ps = new Set<number>()
+    for (const r of set) for (let p = cache.pageOf(r.from); p <= cache.pageOf(r.to); p++) { ps.add(p); if (ps.size > COPY_PAGES) return null }
+    return [...ps].sort((x, y) => x - y)
+  }, [cache])
+  /** Copies the lines of `set` (their pages are loaded first; at most `COPY_PAGES`). `as` words the note: a block (the line card's) or the selected lines. */
+  const copyLines = useCallback(async (set: LineSet, as: 'block' | 'selection' = 'block') => {
+    const want = pagesOf(set)
+    if (!want) { flash(`${as} too large to copy (${fmtInt(lineCount(set))} lines)`); return }
+    let loaded: CachedPage[]
+    try { loaded = await Promise.all(want.map((p) => cache.load(p))) } catch (e) { if (!aborted(e)) flash(e instanceof Error ? e.message : String(e)); return }
+    const byPage = new Map(want.map((p, i) => [p, loaded[i]]))
     const texts: string[] = []
-    for (let n = from; n <= to; n++) {
-      const pg = pages[cache.pageOf(n) - p0]
-      const t = pg.texts[n - pg.from]
-      if (t === undefined) break
-      texts.push(t)
+    for (const r of set) {
+      for (let n = r.from; n <= r.to; n++) {
+        const pg = byPage.get(cache.pageOf(n))
+        const t = pg?.texts[n - pg.from]
+        if (t === undefined) break
+        texts.push(t)
+      }
     }
-    void copyWhat(as === 'range' ? `${fmtInt(texts.length)} ${texts.length === 1 ? 'line' : 'lines'}` : `block lines ${fmtInt(from)}–${fmtInt(from + texts.length - 1)}`, texts.join('\n'))
-  }, [cache, copyWhat, flash])
-  /** Copies the selected range (`y`). */
-  const copySelRange = useCallback(() => {
-    if (ui.range) void copyRange(ui.range.from, ui.range.to, 'range'); else flash('no range selected (Shift+click or Shift+arrows)')
-  }, [ui, copyRange, flash])
-  // the range's summary for the status bar; a range of at most COPY_PAGES pages gets its missing pages loaded (a page's arrival re-renders)
-  const rangeSum = useMemo(() => (ui.range ? summarizeRange(cache, ui.range.from, ui.range.to) : null), [ui.range, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
-  const rangeFrom = ui.range?.from, rangeTo = ui.range?.to
+    const one = set.length === 1 ? set[0] : null
+    void copyWhat(as === 'selection' || !one ? `${fmtInt(texts.length)} ${texts.length === 1 ? 'line' : 'lines'}` : `block lines ${fmtInt(one.from)}–${fmtInt(one.from + texts.length - 1)}`, texts.join('\n'))
+  }, [cache, copyWhat, flash, pagesOf])
+  const copyRange = useCallback((from: number, to: number) => copyLines([{ from: Math.min(from, to), to: Math.max(from, to) }]), [copyLines])
+  /** Copies the selected lines (`y`). */
+  const copySelLines = useCallback(() => {
+    if (ui.lines) void copyLines(ui.lines, 'selection'); else flash(`no lines selected (Shift+click, Shift+arrows or ${MOD}click)`)
+  }, [ui, copyLines, flash])
+  // the selection's summary for the status bar; a selection on at most COPY_PAGES pages gets its missing pages loaded (a page's arrival re-renders)
+  const selSum = useMemo(() => (ui.lines ? summarizeLines(cache, ui.lines) : null), [ui.lines, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
+  const selLines = ui.lines
   useEffect(() => {
-    if (rangeFrom === undefined || rangeTo === undefined) return
-    const p0 = cache.pageOf(rangeFrom), p1 = cache.pageOf(rangeTo)
-    if (p1 - p0 + 1 > COPY_PAGES) return
-    for (let p = p0; p <= p1; p++) if (!cache.has(p)) cache.load(p).catch(() => undefined)
-  }, [cache, rangeFrom, rangeTo])
+    if (!selLines) return
+    for (const p of pagesOf(selLines) ?? []) if (!cache.has(p)) cache.load(p).catch(() => undefined)
+  }, [cache, selLines, pagesOf])
   /** The block of the line card's line, when it is the handle of one (the card offers to copy it). */
   const atBlock = useMemo(() => (at ? blockAt(cache, at.line) : null), [at, cache, pages]) // eslint-disable-line react-hooks/exhaustive-deps
   const canLink = useStore((s) => s.lineRefTarget !== 'view') // the desktop shell has no URL to link to
@@ -1051,8 +1061,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     add('Line', 'line:copy', 'Copy line', () => copyLine(selected))
     if (canLink) add('Line', 'line:link', 'Copy permalink', () => copyLink(selected))
     add('Line', 'line:open', 'Open statement', openStatement, { keys: 'Enter' })
-    add('Line', 'line:copyrange', 'Copy selected range', copySelRange, { keys: 'y', disabled: !ui.range, hint: ui.range ? undefined : 'Shift+click or Shift+arrows select a range' })
-    add('Line', 'line:clearrange', 'Clear range', () => set({ range: null }), { keys: 'Esc', disabled: !ui.range })
+    add('Line', 'line:copyrange', 'Copy selected lines', copySelLines, { keys: 'y', disabled: !ui.lines, hint: ui.lines ? undefined : `Shift+click or Shift+arrows select a range, ${MOD}click adds a line` })
+    add('Line', 'line:clearrange', 'Clear selected lines', () => set({ lines: null }), { keys: 'Esc', disabled: !ui.lines })
     if (ui.back.length > 0) add('Line', 'line:back', `Back to line ${fmtInt(ui.back[ui.back.length - 1])}`, goBack, { keys: 'Backspace' })
     return out
   }
@@ -1279,7 +1289,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className={'lines-main' + (busy ? ' busy' : '')} aria-busy={busy || undefined} style={{ ...(readable ? columnVars(prefs.cols) : {}), ...(hlColor ? { '--hl': hlColor } : {}) } as React.CSSProperties}>
-          <LineViewer cache={cache} readable={readableRows} tables={tables} deltaCol={prefs.rdDelta} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selRange={ui.range} onRange={(r) => set({ range: r })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} readable={readableRows} tables={tables} deltaCol={prefs.rdDelta} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}
@@ -1331,11 +1341,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             <button type="button" className="quiet" onClick={() => set({ focus: null })} aria-label="Clear the cursor focus" title="clear the cursor focus">×</button>
           </span>
         )}
-        {ui.range && rangeSum && (
+        {ui.lines && selSum && (
           <span className="lines-range">
-            <span>lines <b className="mono">{fmtInt(ui.range.from)}–{fmtInt(ui.range.to)}</b> · {describeRange(rangeSum)}</span>
-            <button type="button" className="quiet" onClick={copySelRange} title="copy the selected lines (y)">Copy</button>
-            <button type="button" className="quiet" onClick={() => set({ range: null })} aria-label="Clear the range" title="clear the range (Esc)">×</button>
+            <span>{ui.lines.length === 1 && ui.lines[0].from === ui.lines[0].to ? 'line' : 'lines'} <b className="mono">{describeLines(ui.lines, fmtInt)}</b> · {describeRange(selSum)}</span>
+            <button type="button" className="quiet" onClick={copySelLines} title="copy the selected lines (y)">Copy</button>
+            <button type="button" className="quiet" onClick={() => set({ lines: null })} aria-label="Clear the selected lines" title="clear the selected lines (Esc)">×</button>
           </span>
         )}
         {ui.folds.length > 0 && (

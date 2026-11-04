@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LINE_KINDS } from './linecache'
 import type { LineKind } from './lines'
-import { describeRange, summarizeRange, type RangeSum } from './rangesum'
+import { describeRange, summarizeLines, summarizeRange, type RangeSum } from './rangesum'
 
 const L: [string, LineKind][] = [
   ['BINDS #1:', 'binds'], // 1
@@ -35,6 +35,9 @@ describe('summarizeRange', () => {
   it('skips unloaded lines', () => {
     const s = summarizeRange(cache, 9, 14)
     expect(s).toMatchObject({ lines: 6, loaded: 2, errors: 1, commits: 1 })
+  })
+  it('adds up the ranges of a line set', () => {
+    expect(summarizeLines(cache, [{ from: 5, to: 5 }, { from: 8, to: 9 }])).toMatchObject({ lines: 3, loaded: 3, calls: 2, callUs: 1500, rows: 12, errors: 1, waits: 0 })
   })
 })
 

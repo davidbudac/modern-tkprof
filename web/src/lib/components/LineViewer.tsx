@@ -8,6 +8,8 @@ import { highlightRuns, matchSpans } from '../data/lines'
 import { elaOf, splitZeros, type LineDecode } from '../data/linefields'
 import { mergeHits, refRuns, type RefRun } from '../data/linerefs'
 import { fmtDur, fmtInt } from '../data/format'
+import { addRange, hasLine, toggleLine, type LineRange, type LineSet } from '../data/lineset'
+import { isMac } from '../shell/platform'
 import type { Inlay } from '../data/inlays'
 import type { LineTimes } from '../data/linetime'
 import type { ReadableCell } from '../views/readableRows'
@@ -37,6 +39,9 @@ export interface RowHighlight { q: string; regex: boolean; caseSensitive: boolea
 export interface LineWindow { from: number; to: number }
 
 /** The click on a reference: the modifier keys, the pointer (viewport coordinates) and the box of the clicked link (a popup anchors at it). */
+/** The key that adds a line to the selection with a click: ⌘ on macOS (Ctrl+click is the context menu there), else Ctrl. */
+const pickKey = (e: { metaKey: boolean; ctrlKey: boolean }) => (isMac ? e.metaKey : e.ctrlKey)
+
 export interface RefMods { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; x: number; y: number; anchor?: DOMRect }
 
 export type { Inlay }
@@ -67,10 +72,14 @@ interface Props {
   range?: LineWindow | null
   /** dim annotations inside the row text (`Inlay.at` = index in the text after which the hint is inserted; 0 inserts before, text.length appends); omit for none. Keep the function stable: rows are memoised on it, and a new one repaints them */
   inlays?(line: number, text: string, kind: number, ids: CachedLine | undefined): Inlay[]
-  /** the selected range of lines (inclusive, from <= to), highlighted; null/omitted for none. (`range` above is the time window.) */
-  selRange?: { from: number; to: number } | null
-  /** Shift+click on a row or Shift+Arrow/Page/Home/End extend a range from the anchor (the selected line when no range) to that line; a plain click or unshifted move clears it (null) */
-  onRange?(range: { from: number; to: number } | null): void
+  /** the selected lines (sorted, apart ranges), highlighted; null/omitted for none. (`range` above is the time window.) */
+  selLines?: LineSet | null
+  /**
+   * Shift+click on a row or Shift+Arrow/Page/Home/End extend a range from the anchor (the selected line, or the last ⌘/Ctrl-clicked one)
+   * to that line, next to the lines picked before; ⌘+click (macOS) or Ctrl+click adds a line or takes it out (the selected line joins
+   * the set on the first one); a plain click or unshifted move clears the set (null)
+   */
+  onLines?(lines: LineRange[] | null): void
   /** the line under the pointer over the text (null on leave), at most once per animation frame */
   onHover?(line: number | null): void
   /** the idle gap before a line in µs (0/undefined none): a tick in the gutter with the duration as its title */
@@ -125,7 +134,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selRange, onRange, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, readable, tables, deltaCol, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, readable, tables, deltaCol, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -213,8 +222,9 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   }, [])
   useEffect(() => () => { cancelAnimationFrame(hoverFrame.current); hoverFrame.current = 0 }, [])
 
-  // the anchor of the range selection (only meaningful while `selRange` has it as an end)
-  const anchor = useRef(0)
+  // the Shift span being extended: its anchor and moving end, the lines picked before it, and the set it last made (while `selLines`
+  // is still that set, the next Shift move continues the span; anything else starts a new one)
+  const span = useRef<{ anchor: number; moving: number; base: LineSet; made: LineSet | null }>({ anchor: 0, moving: 0, base: [], made: null })
 
   const ensurePages = useCallback(() => {
     const x = indexRef.current, r0 = Math.floor(topRef.current)
@@ -335,26 +345,37 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       return
     }
     const hit = lineOfEvent(e)
-    if (hit && e.shiftKey && onRange) { extendTo(hit.n); return }
+    if (hit && e.shiftKey && onLines) { extendTo(hit.n); return }
+    if (hit && pickKey(e) && onLines) { pick(hit.n); return }
     if (hit && !(window.getSelection()?.toString() && !hit.gutter)) {
-      if (selRange) onRange?.(null)
+      if (selLines) onLines?.(null)
       onSelect(hit.n)
     }
   }
-  /** The anchor of the range and the end that moves: with a range, the anchor kept from its start (it must still be an end of the range), else the selected line. */
-  const rangeEnds = (): { a: number; cur: number } => {
-    if (selRange && (anchor.current === selRange.from || anchor.current === selRange.to)) return { a: anchor.current, cur: anchor.current === selRange.from ? selRange.to : selRange.from }
-    return { a: selected, cur: selected }
+  /** The Shift span going on: the one made last while the set is still its, else a new one from the selected line next to the set. */
+  const spanNow = () => {
+    const sp = span.current
+    if (sp.made && sp.made === selLines) return sp
+    return { anchor: selected, moving: selected, base: selLines ?? [], made: null }
   }
-  /** Shift: the range runs from the anchor to `n`; the selection stays where it is. */
+  /** Shift: the span runs from its anchor to `n`, next to the lines picked before it; the selection stays where it is. */
   const extendTo = (n: number) => {
-    const { a } = rangeEnds()
-    anchor.current = a
-    onRange?.({ from: Math.min(a, n), to: Math.max(a, n) })
+    const sp = spanNow()
+    const made = addRange(sp.base, sp.anchor, n)
+    span.current = { ...sp, moving: n, made }
+    onLines?.(made)
   }
-  /** Shift+mouse down must not extend the browser's text selection (it would select across rows). */
+  /** ⌘/Ctrl+click: `n` in or out of the set (the selected line joins it first); the line becomes the selected one and the next span's anchor. */
+  const pick = (n: number) => {
+    const set = selLines && selLines.length > 0 ? selLines : n === selected ? [] : [{ from: selected, to: selected }]
+    const made = toggleLine(set, n)
+    span.current = { anchor: n, moving: n, base: made, made: made.length > 0 ? made : null }
+    onLines?.(made.length > 0 ? made : null)
+    onSelect(n)
+  }
+  /** Shift or ⌘/Ctrl+mouse down must not extend the browser's text selection (it would select across rows). */
   const onMouseDown = (e: MouseEvent) => {
-    if (e.shiftKey && onRange && !(e.target as HTMLElement).closest('[data-act]')) e.preventDefault()
+    if ((e.shiftKey || pickKey(e)) && onLines && !(e.target as HTMLElement).closest('[data-act]')) e.preventDefault()
   }
   const onContextMenu = (e: MouseEvent) => {
     const hit = lineOfEvent(e)
@@ -403,8 +424,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const page = Math.max(1, Math.floor(rowsRef.current) - 1)
     const x = indexRef.current
-    const ext = e.shiftKey && !!onRange // Shift extends the range from the end that is not the anchor
-    const row = rowOfLine(ext ? rangeEnds().cur : selected, x) // moves step by visual row: a fold is one step
+    const ext = e.shiftKey && !!onLines // Shift moves the span's end that is not the anchor
+    const row = rowOfLine(ext ? spanNow().moving : selected, x) // moves step by visual row: a fold is one step
     let to: number
     switch (e.key) {
       case 'ArrowDown': to = row + 1; break
@@ -423,7 +444,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     to = Math.min(Math.max(1, total), Math.max(1, to))
     if (ext) extendTo(to)
     else {
-      if (selRange) onRange?.(null)
+      if (selLines) onLines?.(null)
       onSelect(to)
     }
     apiRef.current?.reveal(to, 'nearest')
@@ -447,7 +468,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
     const rd = readable && l && l.kind >= 0 ? readable(n, l) : undefined
     const ela = !heat || readable ? -2 : l && (l.kind === K_CALL || l.kind === K_WAIT) ? elaOf(l.text, LINE_KINDS[l.kind]) : -1
-    const inRange = !!selRange && n >= selRange.from && n <= selRange.to
+    const inRange = hasLine(selLines, n)
     const t = times && l && !readable ? times.at(n, l.text, l.kind) : undefined
     const clk = times?.clock && !readable ? t?.clock ?? '' : null, dlt = times?.delta && !readable ? t?.delta ?? '' : null
     const tb = rd?.plan ? tableOf(n, index) : undefined
@@ -464,7 +485,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       {head && pinned && !(readable && planTop) && <div className="lv-head" role="note" aria-label="Statement at the top of the view">{pinned.node}</div>}
       <div className={'lv' + (readable ? ' lv-rd-on' : wrap ? ' lv-wrap' : '') + (heat && !readable ? ' lv-heat-on' : '')} ref={sc} tabIndex={0} role="list" aria-label="Trace lines" aria-rowcount={vtotal}
         style={{ '--lv-row': `${ROW_H}px`, '--lv-ln': `${digits}ch` } as React.CSSProperties}
-        onScroll={onScroll} onClick={onClick} onMouseDown={onRange ? onMouseDown : undefined} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
+        onScroll={onScroll} onClick={onClick} onMouseDown={onLines ? onMouseDown : undefined} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
         onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? onPointerLeave : undefined}>
         <div className="lv-inner" style={{ height: geo.scrollH }}>
           <div className="lv-view" style={{ height: h }}>

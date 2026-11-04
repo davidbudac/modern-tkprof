@@ -48,3 +48,13 @@ export function describeRange(s: RangeSum): string {
   if (s.loaded < s.lines) out += ` (${fmtInt(s.lines - s.loaded)} not loaded)`
   return out
 }
+
+/** `summarizeRange` over every range of a line set, added up. */
+export function summarizeLines(cache: Parameters<typeof summarizeRange>[0], set: readonly { from: number; to: number }[]): RangeSum {
+  const s: RangeSum = { lines: 0, loaded: 0, calls: 0, callUs: 0, cpuUs: 0, rows: 0, waits: 0, waitUs: 0, binds: 0, errors: 0, commits: 0 }
+  for (const r of set) {
+    const p = summarizeRange(cache, r.from, r.to)
+    for (const k of Object.keys(s) as (keyof RangeSum)[]) s[k] += p[k]
+  }
+  return s
+}
