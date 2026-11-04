@@ -1052,6 +1052,32 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     <section className="lines" aria-label="Trace lines" onKeyDown={onKeyDown}>
       <div className="lines-bar">
         <div className="lines-row">
+          {/* the first control of the bar: how the rows read (the formatted view's own controls follow it) */}
+          <span className="lines-mode" role="radiogroup" aria-label="How the rows read" title="raw: the trace as written; formatted: every line parsed into columns (what it is, its detail, a time bar, Δ, the clock) with each cursor's lines in a lane of its statement's colour; the raw text is in the tooltips and the hover card (v switches)">
+            <button type="button" role="radio" className={switching === 'readable' && prefs.readable ? 'busy-src' : undefined} aria-checked={!prefs.readable} aria-pressed={!prefs.readable} onClick={() => switchPrefs('readable', { readable: false })}>
+              <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 2h12M1 6h9M1 10h11" stroke="currentColor" strokeWidth="1.4" fill="none" /></svg>Raw
+            </button>
+            <button type="button" role="radio" className={switching === 'readable' && !prefs.readable ? 'busy-src' : undefined} aria-checked={prefs.readable} aria-pressed={prefs.readable} onClick={() => switchPrefs('readable', { readable: true })}>
+              <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1v10" stroke="currentColor" strokeWidth="2.2" /><path d="M4.5 2h3M9.5 2h3.5M4.5 6h3M9.5 6h2M4.5 10h3M9.5 10h3" stroke="currentColor" strokeWidth="1.4" fill="none" /></svg>Formatted
+            </button>
+            <kbd aria-hidden="true">v</kbd>
+          </span>
+          {readable && (
+            <span className="lines-rd" role="group" aria-label="Formatted view">
+              <button type="button" className={'quiet' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')} aria-pressed={prefs.foldRepeats} onClick={toggleRepeats}
+                title="fold runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches into one line each; click a fold's ▸ to open it (r)">Fold repeats</button>
+              <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hot || hot.lines.length === 0}
+                title={hot && hot.lines.length ? `the next line that took 1 % of the traced time (${fmtDur(fileSpan * 0.01)}) or more: ${fmtInt(hot.lines.length)} in this file (j, J back)` : 'no line takes 1 % of the traced time or more'}>
+                Hot spot ↓{hot && hot.lines.length > 0 && <small> {fmtInt(hot.lines.length)}</small>}
+              </button>
+            </span>
+          )}
+          {ui.pin && (
+            <span className="lines-pin" title="Δ is measured from the pinned line (a pins the selected line)">
+              Δ from <button type="button" className="link" onClick={() => jump(ui.pin!.line)}><b>line {fmtInt(ui.pin.line)}</b></button>
+              <button type="button" className="quiet" onClick={() => set({ pin: null })} aria-label="Unpin" title="unpin: Δ from the line before again">×</button>
+            </span>
+          )}
           {files.length > 1 && (
             <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
               {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}{win && fileInWindow(f, win) ? ' · in window' : ''}</option> : null))}
@@ -1133,26 +1159,6 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             button={<><span className="tb-label">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
             <KeyMap />
           </ToolbarMenu>
-          <span className="seg" role="group" aria-label="How the rows read" title="raw: the trace as written; formatted: every line parsed into columns (what it is, its detail, a time bar, Δ, the clock) with each cursor's lines in a lane of its statement's colour (v); the raw text is in the tooltips and the hover card">
-            <button type="button" className={switching === 'readable' && prefs.readable ? 'busy-src' : undefined} aria-pressed={!prefs.readable} onClick={() => switchPrefs('readable', { readable: false })}>raw</button>
-            <button type="button" className={switching === 'readable' && !prefs.readable ? 'busy-src' : undefined} aria-pressed={prefs.readable} onClick={() => switchPrefs('readable', { readable: true })}>formatted</button>
-          </span>
-          {readable && (
-            <span className="lines-rd" role="group" aria-label="Formatted view">
-              <button type="button" className={'quiet' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')} aria-pressed={prefs.foldRepeats} onClick={toggleRepeats}
-                title="fold runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches into one line each; click a fold's ▸ to open it (r)">Fold repeats</button>
-              <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hot || hot.lines.length === 0}
-                title={hot && hot.lines.length ? `the next line that took 1 % of the traced time (${fmtDur(fileSpan * 0.01)}) or more: ${fmtInt(hot.lines.length)} in this file (j, J back)` : 'no line takes 1 % of the traced time or more'}>
-                Hot spot ↓{hot && hot.lines.length > 0 && <small> {fmtInt(hot.lines.length)}</small>}
-              </button>
-            </span>
-          )}
-          {ui.pin && (
-            <span className="lines-pin" title="Δ is measured from the pinned line (a pins the selected line)">
-              Δ from <button type="button" className="link" onClick={() => jump(ui.pin!.line)}><b>line {fmtInt(ui.pin.line)}</b></button>
-              <button type="button" className="quiet" onClick={() => set({ pin: null })} aria-label="Unpin" title="unpin: Δ from the line before again">×</button>
-            </span>
-          )}
           <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints, clock and delta columns), the line colours and the ones to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
             <div className="lines-view">
               <h4>Show</h4>

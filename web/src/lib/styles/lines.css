@@ -498,3 +498,11 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-rd .lv-tx[style*="--ind"] { padding-inline-start: calc(var(--sp-2) + var(--ind) * 2ch); }
 /* the trace header's `Key: value` lines: the keys in a column */
 .rd-key { display: inline-block; min-inline-size: 26ch; margin-inline-end: 2ch; color: var(--ink-3); }
+
+/* the Raw | Formatted switch: the first control of the trace bar, larger than the toolbar's other toggles, the chosen side filled */
+.lines-mode { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--hairline-strong); border-radius: calc(var(--radius) + 2px); background: var(--surface-sunken); }
+.lines-mode > button { display: inline-flex; align-items: center; gap: 0.45em; border: 0; border-radius: var(--radius); background: transparent; padding: 0.3rem 0.8rem; font-size: var(--text-sm); font-weight: 500; color: var(--ink-2); }
+.lines-mode > button:hover { color: var(--ink); background: var(--wash); }
+.lines-mode > button[aria-checked="true"] { background: var(--ink); color: var(--surface-raised); box-shadow: 0 1px 2px color-mix(in oklch, var(--ink) 25%, transparent); }
+.lines-mode > kbd { font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.4; color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; background: var(--surface-raised); padding-inline: 0.4em; margin-inline: 0.3em 0.2em; }
+@container (inline-size < 56rem) { .lines-mode > kbd { display: none; } }
