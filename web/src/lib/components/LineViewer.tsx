@@ -590,7 +590,12 @@ const segNode = (s: Seg, i: number) => (typeof s === 'string' ? s
 
 /** Δ as the text of a readable row's time column, over its bar. */
 const DeltaText = ({ rd }: { rd: ReadableCell }) => (
-  <span className={'lv-rdlt' + (rd.delta.startsWith('−') ? ' neg' : '')}>{rd.pinned ? 'pinned' : rd.delta}</span>
+  <span className={'lv-rdlt' + (rd.delta.startsWith('−') ? ' neg' : '')}>{rd.pinned ? <><DeltaIcon filled /> = 0</> : rd.delta}</span>
+)
+
+/** The pin's mark: a Δ, filled on the pinned line. */
+const DeltaIcon = ({ filled }: { filled: boolean }) => (
+  <svg className="lv-dicon" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.2 9 8.8H1z" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
 )
 
 /**
@@ -620,7 +625,7 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
       <span className="lv-ln" title={note}>
         {dcol && (
           <button type="button" className="lv-pin" data-act="pin" aria-pressed={rd.pinned} aria-label={rd.pinned ? `Unpin line ${n}` : `Pin line ${n}: Δ is measured from it`} title={rd.pinned ? 'unpin (a)' : 'pin this line: Δ is measured from it (a)'}>
-            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.2 9 8.8H1z" fill={rd.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+            <DeltaIcon filled={rd.pinned} />
           </button>
         )}
         {n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}

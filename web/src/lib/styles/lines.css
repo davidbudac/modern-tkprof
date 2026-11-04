@@ -429,6 +429,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-bar:has(> .lv-rdlt) > i, .lv-bar:has(> .lv-rdlt) > b { opacity: 0.5; }
 .lv-rdlt.neg { color: var(--ink-3); }
 .lv-pinned .lv-rdlt { color: var(--c-commit); font-weight: 600; }
+.lv-rdlt .lv-dicon { display: inline-block; vertical-align: -0.05em; }
 .lv-rclk { flex: none; inline-size: var(--w-clk, var(--d-clk)); box-sizing: border-box; overflow: hidden; padding-inline-end: var(--sp-3); text-align: end; white-space: nowrap; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .lv-rclk small { font-size: inherit; color: var(--ink-3); }
 /* a line of 1 % of the traced time or more, the pinned line, a search hit */
