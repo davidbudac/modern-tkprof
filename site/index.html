@@ -16,9 +16,10 @@
     <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"></span>mtkprof</a>
     <nav class="site-nav" aria-label="Site">
       <a class="wide" href="#features">Features</a>
-      <a href="#desktop">Desktop app</a>
+      <a class="wide" href="#desktop">Desktop app</a>
       <a href="docs.html">Docs</a>
-      <a href="https://github.com/davidbudac/modern-tkprof">GitHub</a>
+      <a class="wide" href="https://github.com/davidbudac/modern-tkprof">GitHub</a>
+      <a class="nav-download" href="#download">Download</a>
     </nav>
   </div>
 </header>
@@ -31,10 +32,63 @@
     <div class="hero-copy">
       <h1>The modern 10046 trace analyzer</h1>
       <p class="lede">mtkprof reads Oracle 10046 trace files and shows where the response time went, per statement, per execution and over time. Its call and wait totals match <code>tkprof</code>'s exactly.</p>
-      <div class="actions">
-        <a class="button primary" href="#start">Get started</a>
-        <a class="button" href="docs.html">Read the docs</a>
-      </div>
+      <section class="dl" id="download" aria-labelledby="dl-title" data-version="0.5.0">
+        <div class="dl-head">
+          <h2 id="dl-title">Download</h2>
+          <span class="dl-version">v<span data-dl-version>0.5.0</span></span>
+          <div class="dl-tabs" role="group" aria-label="Operating system" hidden>
+            <button type="button" data-os-tab="mac" aria-pressed="false">macOS</button>
+            <button type="button" data-os-tab="win" aria-pressed="false">Windows</button>
+            <button type="button" data-os-tab="linux" aria-pressed="false">Linux</button>
+          </div>
+        </div>
+
+        <div class="dl-panel" data-os="mac">
+          <h3 class="dl-os-name">macOS</h3>
+          <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_aarch64.dmg" data-asset="dmg-arm" download>
+            <span class="dl-main-label">Download for macOS</span>
+            <span class="dl-main-meta"><span data-meta>Desktop app · Apple Silicon · 11.0 MB</span></span>
+          </a>
+          <ul class="dl-alt">
+            <li><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_x64.dmg" data-asset="dmg-x64" download>Intel Mac <span class="dl-size">.dmg · 12.0 MB</span></a></li>
+          </ul>
+          <div class="dl-cli">
+            <p class="dl-cli-head">Command line only</p>
+            <div class="dl-cmd"><pre class="terminal" aria-label="Install command"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy">Copy</button></div>
+            <p class="dl-cli-alt">or the binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-arm64" data-asset="cli-darwin-arm64" download>Apple Silicon</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-amd64" data-asset="cli-darwin-amd64" download>Intel</a></p>
+          </div>
+        </div>
+
+        <div class="dl-panel" data-os="win">
+          <h3 class="dl-os-name">Windows</h3>
+          <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_x64-setup.exe" data-asset="win-setup" download>
+            <span class="dl-main-label">Download for Windows</span>
+            <span class="dl-main-meta"><span data-meta>Desktop app · Windows 10/11 x64 · 7.7 MB</span></span>
+          </a>
+          <div class="dl-cli">
+            <p class="dl-cli-head">Command line only</p>
+            <p class="dl-cli-alt"><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-windows-amd64.exe" data-asset="cli-win" download>mtkprof-windows-amd64.exe</a> <span class="dl-size">one file, no installer</span></p>
+          </div>
+        </div>
+
+        <div class="dl-panel" data-os="linux">
+          <h3 class="dl-os-name">Linux</h3>
+          <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_amd64.AppImage" data-asset="appimage" download>
+            <span class="dl-main-label">Download for Linux</span>
+            <span class="dl-main-meta"><span data-meta>Desktop app · x64 AppImage · 107.1 MB</span></span>
+          </a>
+          <ul class="dl-alt">
+            <li><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_amd64.deb" data-asset="deb" download>Debian and Ubuntu <span class="dl-size">.deb · 12.2 MB</span></a></li>
+          </ul>
+          <div class="dl-cli">
+            <p class="dl-cli-head">Command line only</p>
+            <div class="dl-cmd"><pre class="terminal" aria-label="Install command"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy">Copy</button></div>
+            <p class="dl-cli-alt">or the binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-amd64" data-asset="cli-linux-amd64" download>x64</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-arm64" data-asset="cli-linux-arm64" download>arm64</a></p>
+          </div>
+        </div>
+
+        <p class="dl-foot">AIX, Solaris and checksums are on the <a href="https://github.com/davidbudac/modern-tkprof/releases/latest">release page</a>. The builds are not signed, so the first start needs one extra click: <a href="docs.html#desktop-install">how</a>. <a href="docs.html">Read the docs</a>.</p>
+      </section>
     </div>
 
     <figure class="hero-figure">
@@ -286,6 +340,7 @@ I/O took 1.2 ms. <span class="c">…</span></pre>
     <h2>The desktop app</h2>
     <p>A native shell around the same engine. It keeps several traces open in tabs, and a trace you opened last week comes back from its cache in about a second, with your notes.</p>
   </div>
+  <p class="band-cta"><a class="button primary" href="#download">Download the desktop app</a></p>
   <figure class="shot desk-shot breakout">
     <img src="img/desktop-dark.webp" width="2000" height="1255" loading="lazy" alt="The mtkprof desktop app on macOS in dark mode: tabs for open traces, the views Overview to Reports, the resource profile and the statement timeline, and an engine status bar.">
   </figure>
@@ -339,7 +394,7 @@ STATEMENTS BY ELAPSED  (elapsed includes recursive children and idle between cal
 <section class="section content-grid" id="start">
   <div class="section-head">
     <h2>Get started</h2>
-    <p>The install script works on Linux, macOS, AIX and Solaris and checks the binary against <code>SHA256SUMS</code>. On Windows, download the <code>.exe</code> from the releases page. Analyzing a trace needs no database connection.</p>
+    <p>The install script works on Linux, macOS, AIX and Solaris and checks the binary against <code>SHA256SUMS</code>. On Windows, <a href="#download">download the <code>.exe</code></a>. Analyzing a trace needs no database connection.</p>
   </div>
   <pre class="terminal install-cmd" aria-label="Install command for Unix systems"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre>
   <ol class="steps">
@@ -368,7 +423,7 @@ alter session set events 'sql_trace off';</pre>
     </li>
   </ol>
   <div class="actions start-actions">
-    <a class="button primary" href="https://github.com/davidbudac/modern-tkprof/releases">Download mtkprof</a>
+    <a class="button primary" href="#download">Download mtkprof</a>
     <a class="button" href="docs.html#quickstart">Quick start guide</a>
     <a class="button" href="docs.html#desktop-install">Desktop app</a>
   </div>
@@ -382,11 +437,14 @@ alter session set events 'sql_trace off';</pre>
     <nav aria-label="Footer">
       <a href="docs.html">Docs</a>
       <a href="https://github.com/davidbudac/modern-tkprof">Source</a>
-      <a href="https://github.com/davidbudac/modern-tkprof/releases">Releases</a>
+      <a href="#download">Download</a>
+      <a href="https://github.com/davidbudac/modern-tkprof/releases">All releases</a>
     </nav>
     <span>Apache-2.0. Not affiliated with Oracle</span>
   </div>
 </footer>
+
+<script src="download.js"></script>
 
 </body>
 </html>
