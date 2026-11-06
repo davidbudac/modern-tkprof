@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
-import { blockAt, filterFolds, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from '../data/folds'
+import { blockAt, filterFolds, foldAt, foldHiding, indexFolds, standingFolds, startsBlock, toggleFold, type Fold } from '../data/folds'
 import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
@@ -18,10 +18,11 @@ import { CommandPalette, type Command } from '../components/CommandPalette'
 import { inlaysOf } from '../data/inlays'
 import { gapBefore } from '../data/gaps'
 import { anchorOf, lineTim, lineTimesOf, type TimeAnchor } from '../data/linetime'
+import { viewSpan } from '../data/overview'
 import { QUIET_TONE, statementTones, toneColor } from '../data/readable'
 import { readableRowsOf, type Pin } from './readableRows'
 import { AsRun } from './AsRun'
-import { ReadableOverview } from './ReadableOverview'
+import { ReadableOverview, type StmtCounts } from './ReadableOverview'
 import { FormattedHead, columnVars } from '../components/FormattedHead'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
@@ -334,11 +335,22 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [cache])
   useEffect(refreshAnchor, [refreshAnchor, prefs.delta, lv.line, pages, ui.pin])
   const times = useMemo(() => lineTimesOf(doc, { clock: prefs.clock, delta: prefs.delta }, anchor), [doc, prefs.clock, prefs.delta, anchor])
+  // the overview bar's bracket: the times of the rows in view, sent to the bar without a render
+  const overviewBus = useRef<((tims: [number, number] | null) => void) | null>(null)
+  const overviewView = useRef<[number, number] | null>(null)
+  const sendOverview = useCallback(() => {
+    const t = viewSpan(cache, lastView.current.top, lastView.current.rows)
+    if (t?.[0] === overviewView.current?.[0] && t?.[1] === overviewView.current?.[1]) return
+    overviewView.current = t
+    overviewBus.current?.(t)
+  }, [cache])
   const onViewChange = useCallback((top: number, rows: number) => {
     lastView.current = { top, rows }; viewBus.current?.(top, rows)
     refreshAnchor()
+    sendOverview()
     setFoldTop(Math.floor(Math.max(0, top - 1) / FOLD_STEP) * FOLD_STEP)
-  }, [refreshAnchor])
+  }, [refreshAnchor, sendOverview])
+  useEffect(sendOverview, [sendOverview, pages]) // (a page arrived: the rows in view may have a time now)
   const topRef = useRef(ui.top)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [at, setAt] = useState<{ line: number; objs: AtObjects } | null>(null)
@@ -429,6 +441,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [readable, bindBlocks, frameBlocks, repeatsKey, tables])
   const bindTable = bindBlocks?.table
   const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r)) : null), [wantRepeats, repeats])
+  // the selection is never folded away (bug 11): a run that holds the selected line shows open, and folds again when the selection leaves it
+  const repeatIndex = useMemo(() => (repeatFolds ? indexFolds(repeatFolds) : null), [repeatFolds])
+  const selFold = useMemo(() => (repeatIndex ? foldHiding(selected, repeatIndex) : undefined), [repeatIndex, selected])
   // ---- the Δ filter: the lines whose time from the timed line before reaches the threshold, asked of the engine for the whole file ----
   const deltaMode = prefs.deltaMode
   const deltaUs = Math.max(0, Math.round(prefs.deltaMs * 1000))
@@ -457,11 +472,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const allFolds = useMemo(() => {
     if (filterFoldList) return filterFoldList
     if (!repeatFolds && !quietFolds) return ui.folds
-    const own = [...(repeatFolds ?? []), ...(quietFolds ?? [])].filter((f) => !ui.openRepeats.has(f.from))
+    const own = [...standingFolds(repeatFolds ?? [], ui.openRepeats, selFold), ...(quietFolds ?? []).filter((f) => !ui.openRepeats.has(f.from))]
     // the inline BINDS blocks that were opened: the table's own quiet folds instead
     if (quietFolds && bindTable) for (const f of quietFolds) if (f.inline && ui.openRepeats.has(f.from)) own.push(...bindTable(f.from))
     return mergeFolds(ui.folds, own)
-  }, [filterFoldList, repeatFolds, quietFolds, bindTable, ui.folds, ui.openRepeats])
+  }, [filterFoldList, repeatFolds, selFold, quietFolds, bindTable, ui.folds, ui.openRepeats])
   /** Opens a fold, or folds a block again: a fold of repeats or of the Δ filter is opened by remembering it, a user's fold by dropping it. */
   const toggleAnyFold = useCallback((f: Fold) => {
     if (f.filter) { ui.openFilter.lines.add(f.from); set({ openFilter: { ...ui.openFilter } }) }
@@ -484,15 +499,23 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const toggleRepeats = () => (readable ? switchPrefs('repeats', { foldRepeats: !prefs.foldRepeats }) : flash('Fold repeats works in the formatted view (v)'))
 
   // ---- folding: the handles of the blocks around the view, and the blocks themselves -----------------------------------
+  // the open runs of Fold repeats (opened by the user, or holding the selected line) keep a ▾ on their first line, to fold them again
+  const openRuns = useMemo(() => {
+    const out = new Map<number, Fold>()
+    if (!repeatFolds || filterFoldList) return out // (the Δ filter's folds replace them)
+    for (const f of repeatFolds) if (ui.openRepeats.has(f.from)) out.set(f.from, f)
+    if (selFold) out.set(selFold.from, selFold)
+    return out
+  }, [repeatFolds, filterFoldList, selFold, ui.openRepeats])
   const foldable = useMemo(() => {
-    const out = new Set<number>()
+    const out = new Set<number>(openRuns.keys())
     for (let n = Math.max(1, foldTop + 1 - FOLD_STEP), end = foldTop + FOLD_SPAN; n <= end; n++) {
       const l = cache.line(n)
       if (l && startsBlock(l.kind) && blockAt(cache, n)) out.add(n)
     }
     return out
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cache, foldTop, pages])
+  }, [cache, foldTop, pages, openRuns])
 
   // ---- what is at a line ------------------------------------------------------------------------------------------
   const atTimer = useRef(0)
@@ -537,7 +560,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const revealAfter = useRef(0) // a line to reveal once the viewer has the new folds
   const goTo = useCallback((line: number, dispatch = true) => {
     const hidden = foldHiding(line, allFolds)
-    if (hidden) { revealAfter.current = line; toggleAnyFold(hidden) } // a line inside a fold: open it first
+    if (hidden) { // a line inside a fold: open it first (a run of Fold repeats opens by itself while the selection is inside it)
+      revealAfter.current = line
+      if (!(hidden.auto && !hidden.quiet && !hidden.filter)) toggleAnyFold(hidden)
+    }
     else apiRef.current?.reveal(line, 'center')
     select(line, dispatch)
   }, [select, allFolds, toggleAnyFold])
@@ -571,14 +597,18 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   // ---- gutter marks of the selected statement ----------------------------------------------------------------------
   const source = sourceOf(doc)
   const marksQ = useSourceQuery(source, `marks:${stmt}`, (signal) => (stmt !== null && source.ready ? source.stmtMarks(stmt, signal) : null), 'marks')
-  const { marks, markLines, nCalls, nWaits, partial } = useMemo(() => {
+  const { marks, markLines, nCalls, nWaits, partial, counts } = useMemo(() => {
     const m = new Map<number, number>()
     const d = marksQ.data
-    if (!d || stmt === null) return { marks: m, markLines: [] as number[], nCalls: 0, nWaits: 0, partial: false }
+    if (!d || stmt === null) return { marks: m, markLines: [] as number[], nCalls: 0, nWaits: 0, partial: false, counts: null }
     let nc = 0, nw = 0
     for (const c of d.calls) if (c.file === file && c.line > 0) { m.set(c.line, (m.get(c.line) ?? 0) | 1); nc++ }
     for (const w of d.waits) if (w.file === file && w.line > 0) { m.set(w.line, (m.get(w.line) ?? 0) | 2); nw++ }
-    return { marks: m, markLines: [...m.keys()].sort((a, b) => a - b), nCalls: nc, nWaits: nw, partial: d.partial }
+    // what the chip says is the real count; the marks are bounded (the 5,000 longest calls, the first 1,000 waits), which the tooltip says (bug 2)
+    const cut = (what: string, shown: number, all: number) => (all > shown ? `first ${fmtInt(shown)} ${what} marked` : '')
+    const note = [cut('calls', d.calls.length, d.totalCalls), cut('waits', d.waits.length, d.totalWaits)].filter(Boolean).join(', ')
+    const counts: StmtCounts = { calls: d.totalCalls > d.calls.length ? d.totalCalls : nc, waits: d.totalWaits > d.waits.length ? d.totalWaits : nw, note: note || undefined }
+    return { marks: m, markLines: [...m.keys()].sort((a, b) => a - b), nCalls: nc, nWaits: nw, partial: d.partial, counts }
   }, [marksQ.data, stmt, file])
 
   // opening the tab with a statement selected: start at its first call (not after a click on a line, which selected the statement itself)
@@ -834,8 +864,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     // a quiet fold on a block's first line (the blank lines under a BINDS header) does not stop the block from folding
     const open = at && !(at.quiet && b && !at.inline) ? at : foldHiding(line, allFolds)
     if (open) { toggleAnyFold(open); return }
+    // an open run of Fold repeats: fold it again (a selection inside it moves to its handle line, which stays)
+    let run = openRuns.get(line)
+    if (!run) for (const f of openRuns.values()) if (line > f.from && line <= f.to) { run = f; break }
+    if (run) {
+      if (ui.openRepeats.has(run.from)) { const next = new Set(ui.openRepeats); next.delete(run.from); set({ openRepeats: next }) }
+      if (selected > run.from && selected <= run.to) select(run.from)
+      return
+    }
     if (b) set({ folds: toggleFold(ui.folds, b) }); else flash(`nothing to fold at line ${fmtInt(line)}`)
-  }, [ui, set, cache, flash, allFolds, toggleAnyFold])
+  }, [ui, set, cache, flash, allFolds, toggleAnyFold, openRuns, selected, select])
   /** Folds every BINDS block or STAT dump of the file (the engine lists them), next to the folds there already are. */
   const foldAll = useCallback(async (what: 'binds' | 'stat') => {
     const name = what === 'binds' ? 'BINDS block' : 'STAT dump'
@@ -1210,18 +1248,18 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         <div className="lines-row">
           {/* the first control of the bar: how the rows read (the formatted view's own controls follow it) */}
           <span className="lines-mode" role="radiogroup" aria-label="How the rows read" title="raw: the trace as written; formatted: every line parsed into columns (what it is, its detail, a time bar, Δ, the clock) with each cursor's lines in a lane of its statement's colour; the raw text is in the tooltips and the hover card (v switches)">
-            <button type="button" role="radio" className={switching === 'readable' && prefs.readable ? 'busy-src' : undefined} aria-checked={!prefs.readable} aria-pressed={!prefs.readable} onClick={() => switchPrefs('readable', { readable: false })}>
-              <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 2h12M1 6h9M1 10h11" stroke="currentColor" strokeWidth="1.4" fill="none" /></svg>Raw
+            <button type="button" role="radio" className={switching === 'readable' && prefs.readable ? 'busy-src' : undefined} aria-checked={!prefs.readable} aria-pressed={!prefs.readable} onClick={() => switchPrefs('readable', { readable: false })} aria-label="Raw" title="Raw: the trace as written (v)">
+              <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 2h12M1 6h9M1 10h11" stroke="currentColor" strokeWidth="1.4" fill="none" /></svg><span className="tb-label tb-f4">Raw</span>
             </button>
-            <button type="button" role="radio" className={switching === 'readable' && !prefs.readable ? 'busy-src' : undefined} aria-checked={prefs.readable} aria-pressed={prefs.readable} onClick={() => switchPrefs('readable', { readable: true })}>
-              <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1v10" stroke="currentColor" strokeWidth="2.2" /><path d="M4.5 2h3M9.5 2h3.5M4.5 6h3M9.5 6h2M4.5 10h3M9.5 10h3" stroke="currentColor" strokeWidth="1.4" fill="none" /></svg>Formatted
+            <button type="button" role="radio" className={switching === 'readable' && !prefs.readable ? 'busy-src' : undefined} aria-checked={prefs.readable} aria-pressed={prefs.readable} onClick={() => switchPrefs('readable', { readable: true })} aria-label="Formatted" title="Formatted: every line parsed into columns (v)">
+              <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1v10" stroke="currentColor" strokeWidth="2.2" /><path d="M4.5 2h3M9.5 2h3.5M4.5 6h3M9.5 6h2M4.5 10h3M9.5 10h3" stroke="currentColor" strokeWidth="1.4" fill="none" /></svg><span className="tb-label tb-f4">Formatted</span>
             </button>
-            <kbd aria-hidden="true">v</kbd>
+            <kbd className="tb-f4" aria-hidden="true">v</kbd>
           </span>
           {readable && (
             <span className="lines-rd" role="group" aria-label="Formatted view">
               <ToolbarMenu label="Colour by" title={`what the lane band of each row is coloured by: ${laneMode.label.toLowerCase()} now (the sql_id in the lane keeps its statement's colour)`} className="tbmenu-sm tbmenu-start lines-colour" open={ui.colourMenu} onOpenChange={(colourMenu) => set({ colourMenu })}
-                button={<><i className="lines-colour-sw" style={{ '--sw': laneSwatch } as React.CSSProperties} aria-hidden="true" /><span className="tb-label">Colour</span> <b>{laneMode.label}</b><span className="cue" aria-hidden="true">▾</span></>}>
+                button={<><i className="lines-colour-sw" style={{ '--sw': laneSwatch } as React.CSSProperties} aria-hidden="true" /><span className="tb-label tb-f2">Colour</span> <b className="tb-label tb-f2">{laneMode.label}</b><span className="cue" aria-hidden="true">▾</span></>}>
                 <div className="lines-view">
                   <h4>Colour the lanes by</h4>
                   <div className="tb-items" role="radiogroup" aria-label="Colour the lanes by">
@@ -1240,13 +1278,13 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
                 title="the Δ column, first in the row: each line's time from the pinned line (a pins one), else from the line with a time before">Δ</button>
               <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hot || hot.lines.length === 0}
                 title={hot && hot.lines.length ? `the next line that took 1 % of the traced time (${fmtDur(fileSpan * 0.01)}) or more: ${fmtInt(hot.lines.length)} in this file (j, J back)` : 'no line takes 1 % of the traced time or more'}>
-                Hot spot ↓{hot && hot.lines.length > 0 && <small> {fmtInt(hot.lines.length)}</small>}
+                <span className="tb-label tb-f3">Hot spot </span>↓{hot && hot.lines.length > 0 && <small> {fmtInt(hot.lines.length)}</small>}
               </button>
             </span>
           )}
           <ToolbarMenu label="Δ filter" title={`the rows whose time from the timed line before (a call, wait, cursor parse or commit) is ${fmtMs(prefs.deltaMs)} or more: ${deltaMode === 'off' ? 'off' : deltaMode === 'highlight' ? 'tinted' : 'the only ones shown'}`}
             className={'tbmenu-sm tbmenu-start lines-dfilter' + (deltaMode !== 'off' ? ' on' : '') + (deltaLoading ? ' busy-src' : '')} open={ui.deltaMenu} onOpenChange={(deltaMenu) => set({ deltaMenu })}
-            button={<><span className="lines-dfilter-sym" aria-hidden="true">Δ</span>{deltaMode === 'off' ? <span className="tb-label">filter</span> : <><span>≥ {fmtMs(prefs.deltaMs)}</span><small>{deltaMode === 'filter' ? 'filter' : 'highlight'}{delta && !delta.error ? ` · ${fmtInt(delta.lines.length)}${delta.truncated ? '+' : ''}` : ''}</small></>}<span className="cue" aria-hidden="true">▾</span></>}>
+            button={<><span className="lines-dfilter-sym" aria-hidden="true">Δ</span>{deltaMode === 'off' ? <span className="tb-label tb-f3">filter</span> : <><span className="tb-label tb-f3">≥ {fmtMs(prefs.deltaMs)}</span><small className="tb-label tb-f2">{deltaMode === 'filter' ? 'filter' : 'highlight'}{delta && !delta.error ? ` · ${fmtInt(delta.lines.length)}${delta.truncated ? '+' : ''}` : ''}</small></>}<span className="cue" aria-hidden="true">▾</span></>}>
             <div className="lines-view">
               <h4>Rows with Δ at or above</h4>
               <label className="lines-view-row lines-view-gap" title="Δ: the time from the timed line before (a call, wait, cursor parse or commit), whatever the pin says">
@@ -1266,7 +1304,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </p>
             </div>
           </ToolbarMenu>
-          {stmt !== null && doc.statements[stmt] && (
+          {/* the raw view has no overview bar: its highlight chip stays (the formatted view's is the outlined statement chip of the bar) */}
+          {!readable && stmt !== null && doc.statements[stmt] && (
             <span className="lines-hl" style={{ '--hl': hlColor } as React.CSSProperties} title={`the rows of this statement's calls and waits are tinted in its colour, with a bar at their start edge; l highlights the selected line's statement instead, Enter opens it${partial ? '; the marks are bounded: the 5,000 longest calls and the first 1,000 waits' : ''}`}>
               <i aria-hidden="true" />
               Highlighting
@@ -1277,7 +1316,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           )}
           {ui.pin && (
             <span className="lines-pin" title="Δ is measured from the pinned line (a pins the selected line)">
-              Δ from <button type="button" className="link" onClick={() => jump(ui.pin!.line)}><b>line {fmtInt(ui.pin.line)}</b></button>
+              <span className="tb-label tb-f3">Δ from </span><button type="button" className="link" onClick={() => jump(ui.pin!.line)}><b>line {fmtInt(ui.pin.line)}</b></button>
               <button type="button" className="quiet" onClick={() => set({ pin: null })} aria-label="Unpin" title="unpin: Δ from the line before again">×</button>
             </span>
           )}
@@ -1349,17 +1388,17 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           </ToolbarMenu>
           {win && (
             <span className="lines-win" role="group" aria-label="Time window">
-              <b>Window</b>
+              <b className="tb-label tb-f2">Window</b>
               <button type="button" className="quiet" disabled={!winRange} onClick={() => winRange && jump(winRange.from, !block)} aria-label="Go to the first line of the time window" title="the first line of the time window set in the Timeline">⇤ start</button>
               <button type="button" className="quiet" disabled={!winRange} onClick={() => winRange && jump(winRange.to, !block)} aria-label="Go to the last line of the time window" title="the last line of the time window set in the Timeline">end ⇥</button>
-              <small className={winLines?.failed ? 'lines-error' : 'muted'} aria-live="polite" title={winRange ? `${fmtInt(winRange.to - winRange.from + 1)} lines` : undefined}>
+              <small className={'tb-label tb-f2 ' + (winLines?.failed ? 'lines-error' : 'muted')} aria-live="polite" title={winRange ? `${fmtInt(winRange.to - winRange.from + 1)} lines` : undefined}>
                 {winLines === null ? '…' : winLines.failed ? 'window lines unavailable' : winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : 'no lines of the window in this file'}
               </small>
             </span>
           )}
           <ToolbarMenu label="Keyboard shortcuts" className="tbmenu-sm tb-cmd" open={ui.keys} onOpenChange={(keys) => set({ keys })} onButton={() => set({ palette: true, keys: false })}
             title={`Go to ${goToHelp}\n\nOr run any command of the view. ? lists the keys.`}
-            button={<><span className="tb-label">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
+            button={<><span className="tb-label tb-f1">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
             <KeyMap />
           </ToolbarMenu>
           <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints, clock and delta columns), the line colours and the ones to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
@@ -1420,7 +1459,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         const [from, to] = f && f.lastTim > f.firstTim ? [f.firstTim, f.lastTim] : [doc.span.firstTim, doc.span.lastTim]
         const sl = cache.line(selected)
         return (
-          <ReadableOverview doc={doc} tones={tones} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined} current={stmt}
+          <ReadableOverview doc={doc} tones={tones} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined} current={stmt} counts={stmt !== null && doc.statements[stmt] ? counts : null}
+            viewBus={overviewBus} lastView={overviewView} onClear={() => actions.selectStmt(null)}
             onStmt={(id) => { actions.pickStmt(id); const l = stmtLineIn(doc, file, id); if (l !== undefined) jump(l); else flash(`${doc.label(doc.statements[id])} has no cursor in this file`) }}
             onTim={(tim) => { lineAt(client, file, tim).then((l) => jump(l), (e: unknown) => flash(e instanceof Error ? e.message : String(e), true)) }} />
         )

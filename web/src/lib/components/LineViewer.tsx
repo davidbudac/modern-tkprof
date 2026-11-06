@@ -15,6 +15,7 @@ import { barFrac, magnitudeOf, type LineTimes } from '../data/linetime'
 import type { ReadableCell } from '../views/readableRows'
 import type { BindCellRow, BindChip, Seg } from '../data/readable'
 import { PlanCells, PlanHeads } from './PlanCells'
+import { planHidden } from '../data/planlayout'
 
 /** Height of a row in pixels; the rows are laid out by this component, the scroll bar only maps to the first visible line (see data/scrollmap.ts). */
 export const ROW_H = 20
@@ -162,6 +163,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   geoRef.current = geo
   const rowsRef = useRef(0)
   rowsRef.current = h / ROW_H
+  const selRef = useRef(selected)
+  selRef.current = selected
   const [shown, setShown] = useState<CardAt | null>(null)
   const cardTimer = useRef(0)
   const cardLine = useRef(0) // the line the card is open or about to open for
@@ -295,9 +298,13 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 
   // geometry changed (size, total): clamp and re-map
   useEffect(() => {
-    if (prevIndex.current !== index) { // the folds changed: the first visible line stays the first visible line
-      const top = topRef.current, r0 = Math.floor(top)
-      topRef.current = rowOfLine(lineOfRow(r0, prevIndex.current), index) + (top - r0)
+    if (prevIndex.current !== index) {
+      // the folds changed: in the formatted view the selected line stays where it is on the screen when it is in view (a fold toggled above it, Fold repeats switched), else the first visible line stays the first visible line
+      const top = topRef.current, r0 = Math.floor(top), old = prevIndex.current
+      const sel = selRef.current
+      const selRow = sel > 0 && readableOn.current ? rowOfLine(sel, old) : -1 // (the raw view keeps its first visible line, as it did)
+      if (selRow >= r0 && selRow + 1 <= top + rowsRef.current) topRef.current = Math.max(0, rowOfLine(sel, index) - (selRow - top))
+      else topRef.current = rowOfLine(lineOfRow(r0, old), index) + (top - r0)
       prevIndex.current = index
     }
     const p = pending.current
@@ -306,6 +313,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 
   const [sbw, setSbw] = useState(0) // the scroll bar's width: a row over the rows leaves it out, so its columns line up
   const probe = useRef<HTMLSpanElement>(null)
+  const [phide, setPhide] = useState(0) // the plan table's columns the view is too narrow for (`planHidden`)
   const [chw, setChw] = useState(0) // the width of a digit in the rows' font: the formatted columns' default widths are in digits
   useEffect(() => {
     const el = sc.current!
@@ -319,6 +327,20 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     measure()
     return () => ro.disconnect()
   }, [])
+
+  // the plan table spans the Operation, Detail and Clock columns (inset 1 digit each side): how many of its columns fit is read from the column headers' widths
+  useEffect(() => {
+    if (!readable || chw <= 0) { setPhide(0); return }
+    const box = sc.current?.closest('.lv-box')
+    const cells = ['.lv-ch-kind', '.lv-ch-tx', '.lv-ch-clk'].map((q) => box?.querySelector<HTMLElement>(q))
+    if (cells.some((c) => !c)) return
+    const [k, t, c] = cells as HTMLElement[]
+    const calc = () => setPhide(planHidden(k.offsetWidth + t.offsetWidth + c.offsetWidth - 2 * chw - 2, chw, k.offsetWidth - chw - 1))
+    const ro = new ResizeObserver(calc)
+    for (const el of cells as HTMLElement[]) ro.observe(el)
+    calc()
+    return () => ro.disconnect()
+  }, [readable, chw])
 
   // the wheel moves by lines: a native scroll of an 8 M px bar would be a different distance on every file size
   useEffect(() => {
@@ -485,7 +507,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     if (th) {
       const l = cache.line(th.from)
       const rd = l && l.kind >= 0 ? readable!(th.from, l) : undefined
-      rows.push(<PlanHeadRow key={`h${th.from}`} lane={rd?.lane ?? null} tone={rd?.tone ?? ''} from={th.from} foldable={!!foldable?.has(th.from)} />)
+      rows.push(<PlanHeadRow key={`h${th.from}`} lane={rd?.lane ?? null} from={th.from} foldable={!!foldable?.has(th.from)} hide={phide} />)
       continue
     }
     const n = lineOfRow(i, index)
@@ -507,7 +529,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const t = times && l && !readable ? times.at(n, l.text, l.kind) : undefined
     const clk = times?.clock && !readable ? t?.clock ?? '' : null, dlt = times?.delta && !readable ? t?.delta ?? '' : null
     const tb = rd?.plan ? tableOf(n, index) : undefined
-    rows.push(<Row key={n} n={n} rd={rd} hlStmt={hlStmt} dcol={!!deltaCol} tb={tb ? (n === tb.to ? 2 : 1) : 0} inline={!!f0?.inline} gapAbove={gapAbove} ruleTop={gapAbove && l?.kind === K_PARSING} opFold={hereFold} foldLabel={fold?.label} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n) && !tbFirst && !binds && !f0?.inline} dh={deltaHits?.get(n)} filt={filt} />)
+    rows.push(<Row key={n} n={n} rd={rd} hlStmt={hlStmt} dcol={!!deltaCol} phide={phide} tb={tb ? (n === tb.to ? 2 : 1) : 0} inline={!!f0?.inline} gapAbove={gapAbove} ruleTop={gapAbove && l?.kind === K_PARSING} opFold={hereFold} foldLabel={fold?.label} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n) && !tbFirst && !binds && !f0?.inline} dh={deltaHits?.get(n)} filt={filt} />)
   }
   const digits = String(Math.max(total, 1000)).length
   const hover = card || refTitle || onHover
@@ -532,7 +554,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
         onPointerMove={hover ? onPointerMove : undefined} onPointerLeave={hover ? onPointerLeave : undefined}>
         <div className="lv-inner" style={{ height: geo.scrollH }}>
           <div className="lv-view" style={{ height: h }}>
-            {readable && planTop && <PlanHeadRow lane={null} tone="commit" overlay />}
+            {readable && planTop && <PlanHeadRow lane={null} overlay hide={phide} />}
             <div className="lv-layer" ref={layer}>{rows}</div>
           </div>
         </div>
@@ -549,7 +571,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, rd, hlStmt, dcol, tb, inline, gapAbove, ruleTop, opFold, foldLabel, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable, dh, filt }: {
+const Row = memo(function Row({ n, rd, hlStmt, dcol, phide, tb, inline, gapAbove, ruleTop, opFold, foldLabel, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable, dh, filt }: {
   n: number; text: string | undefined; kind: number
   /** the readable row of the line (readable mode), undefined for the trace as written */
   rd?: ReadableCell
@@ -557,6 +579,8 @@ const Row = memo(function Row({ n, rd, hlStmt, dcol, tb, inline, gapAbove, ruleT
   hlStmt?: number
   /** readable mode: the Δ column is shown */
   dcol?: boolean
+  /** readable mode: the plan table's columns that do not fit (`planHidden`) */
+  phide?: number
   /** readable mode: a row of a table (a plan dump under its head row): 1, its last row 2; 0 for none */
   tb?: number
   /** readable mode: a BINDS header whose binds are drawn as chips on it (its lines are folded under it) */
@@ -612,7 +636,7 @@ const Row = memo(function Row({ n, rd, hlStmt, dcol, tb, inline, gapAbove, ruleT
         : foldable && <button type="button" className="lv-fold" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}
     </span>
   )
-  if (rd) return <ReadableRow n={n} rd={rd} hlane={hlStmt !== undefined && !!rd.lane && rd.lane.stmt >= 0 && rd.lane.stmt === hlStmt} dcol={!!dcol} tb={tb ?? 0} inline={!!inline} gapAbove={!!gapAbove} ruleTop={!!ruleTop} opFold={!!opFold} cls={cls} sel={sel} note={note} gap={gap} handle={handle} fold={fold} foldLabel={foldLabel} foldUs={foldUs} hit={!!hl && text !== undefined && matchSpans(text, hl.q, hl.regex, hl.caseSensitive).length > 0} />
+  if (rd) return <ReadableRow n={n} rd={rd} hlane={hlStmt !== undefined && !!rd.lane && rd.lane.stmt >= 0 && rd.lane.stmt === hlStmt} dcol={!!dcol} phide={phide ?? 0} tb={tb ?? 0} inline={!!inline} gapAbove={!!gapAbove} ruleTop={!!ruleTop} opFold={!!opFold} cls={cls} sel={sel} note={note} gap={gap} handle={handle} fold={fold} foldLabel={foldLabel} foldUs={foldUs} hit={!!hl && text !== undefined && matchSpans(text, hl.q, hl.regex, hl.caseSensitive).length > 0} />
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>
@@ -680,8 +704,8 @@ const DeltaIcon = ({ filled }: { filled: boolean }) => (
  * lane, the fold handle, the duration (the number and its bar), what the line is, its detail and the clock. Every column but the detail has a width of its own, so they line up down the view; the detail is
  * cut where it does not fit. A plan line is a row of its plan's table: its cells in the detail, the time columns empty.
  */
-function ReadableRow({ n, rd, hlane, dcol, tb, inline, gapAbove, ruleTop, opFold, cls, sel, note, gap, handle, fold, foldLabel, foldUs, hit }: {
-  n: number; rd: ReadableCell; hlane: boolean; dcol: boolean; tb: number; inline: boolean; gapAbove: boolean; ruleTop: boolean; opFold: boolean; cls: string; sel: boolean; note?: string; gap: number; handle: ReactNode
+function ReadableRow({ n, rd, hlane, dcol, phide, tb, inline, gapAbove, ruleTop, opFold, cls, sel, note, gap, handle, fold, foldLabel, foldUs, hit }: {
+  n: number; rd: ReadableCell; hlane: boolean; dcol: boolean; phide: number; tb: number; inline: boolean; gapAbove: boolean; ruleTop: boolean; opFold: boolean; cls: string; sel: boolean; note?: string; gap: number; handle: ReactNode
   fold: string | null; foldLabel?: string; foldUs?: number; hit: boolean
 }) {
   const dur = fold !== null ? foldUs : rd.dur
@@ -694,9 +718,11 @@ function ReadableRow({ n, rd, hlane, dcol, tb, inline, gapAbove, ruleTop, opFold
       : undefined
   const durTitle = fold !== null || dur === undefined ? undefined : `${fmtInt(dur)} µs${rd.bar?.cpu ? ` · CPU ${fmtDur(rd.bar.cpu)}` : ''}${rd.hot ? ' · a hot spot: 1 % of the traced time or more' : ''}`
   const short = !!rd.clockShort && !rd.clockFull // the clock shows its changing digits (the first row in view and the selected one: the whole stamp)
+  // a row of a table: a plan's STAT line (under its head row), a bind of a BINDS block, the head of a BINDS block (its binds not drawn as chips)
+  const tbl = fold !== null ? null : plan && tb ? 'plan' : rd.bindRow ? 'bindrow' : rd.bindHead && !inline ? 'bindhead' : null
   return (
     <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hlane ? ' lv-hlane' : '') + (rd.clock ? (short ? ' lv-ck2' : ' lv-ck1') : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '') + (gapAbove ? ' lv-gapa' : '') + (ruleTop ? ' lv-rulet' : '') + (rd.execFirst && fold === null ? ' lv-exec1' : '')
-      + (fold === null && rd.br ? ` lv-br-${rd.br}` : '') + (fold === null && rd.brIndent ? ' lv-br-ind' : '') + tableCls(rd, plan ? tb : 0, fold === null, inline)} data-ln={n} role="listitem" aria-selected={sel || undefined} style={lane ? laneVars(lane) : undefined}>
+      + (fold === null && rd.br ? ` lv-br-${rd.br}` : '') + (fold === null && rd.brIndent ? ' lv-br-ind' : '')} data-ln={n} role="listitem" aria-selected={sel || undefined} style={lane ? laneVars(lane) : undefined}>
       {/* first: the time column, Δ as text (`dcol` off: no column); the line's own time is the Duration cell's */}
       {dcol && (
         <span className="lv-bar" title={[rd.deltaTitle, fold].filter(Boolean).join('\n') || undefined}>
@@ -716,45 +742,58 @@ function ReadableRow({ n, rd, hlane, dcol, tb, inline, gapAbove, ruleTop, opFold
       <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} title={lane?.title || undefined} />
       {handle}
       <DurCell us={dur} track={track} title={durTitle} />
-      {/* the rows of a plan's table: PLAN is said once, in its head row */}
-      <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}${fold === null && rd.op ? ` lv-op-${rd.op}` : ''}`}>
-        {fold === null && opFold && <button type="button" className="lv-fold lv-fold-op" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}
-        {fold !== null ? foldLabel ?? '' : (plan && tb) || rd.bindRow ? '' : rd.label}
-      </span>
-      {plan ? <span className="lv-tx lv-plan"><PlanCells r={plan} /></span>
-        : fold === null && rd.bindRow ? <span className="lv-tx lv-plan"><span className="pc pc-tag" /><BindCells b={rd.bindRow} /></span>
-        : fold === null && rd.bindHead && !inline ? (
-          <span className="lv-tx lv-plan">
+      {tbl ? (
+        // the rows of a plan's or BINDS table: one band from the Operation column to the right edge (the clock included); PLAN / BINDS is said once, in its head row
+        <TableBand head={tbl === 'bindhead'} last={tb === 2 || (tbl === 'bindrow' && !!rd.bindRow?.last)}
+          handle={<>{opFold && <button type="button" className="lv-fold lv-fold-op" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}{tbl === 'bindhead' ? rd.label : ''}</>}>
+          {tbl === 'plan' && plan && <PlanCells r={plan} hide={phide} />}
+          {tbl === 'bindrow' && rd.bindRow && <>
+            <span className="pc pc-tag" />
+            <BindCells b={rd.bindRow} />
+            {rd.bindRow.last && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
+          </>}
+          {tbl === 'bindhead' && <>
             <span className="pc pc-tag">{rd.execNo !== undefined && <span className="rd-exec" title={`execution ${rd.execNo} of this cursor: this is its first row`}>exec {rd.execNo}</span>}</span>
             <BindHeads />
-            <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>
+          </>}
+        </TableBand>
+      ) : (
+        <>
+          <span className={`lv-kd lv-tone-${fold !== null ? 'dim' : rd.tone || 'none'}${fold === null && rd.op ? ` lv-op-${rd.op}` : ''}`}>
+            {fold !== null ? foldLabel ?? '' : plan && tb ? '' : rd.label}
           </span>
-        ) : (
-        <span className="lv-tx" style={rd.indent && fold === null ? ({ '--ind': rd.indent } as React.CSSProperties) : undefined}>
-          {fold === null && rd.execNo !== undefined && <span className="rd-exec" title={`execution ${rd.execNo} of this cursor: this is its first row`}>exec {rd.execNo}</span>}
-          {fold === null && inline && rd.chips ? <>{rd.chips.map((c, i) => <BindChipNode key={i} c={c} />)}</> : null}
-          {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
-          {fold === null && rd.dot && <i className={'rd-dot' + (rd.dot === 'idle' ? ' ring' : '')} style={{ '--dot': `var(--c-${rd.dot})` } as React.CSSProperties} title={roleLabel[rd.dot]} />}
-          {fold !== null ? <span className="rd-fold">{fold}</span> : rd.micro ? <MicroDetail rd={rd} /> : rd.parts.map(segNode)}
-          {fold === null && rd.waited && <span className={'rd-share' + (rd.waited.crit ? ' crit' : '')} title={`${fmtInt(rd.waited.us)} µs of the call's e= were not CPU (e − c): it waited`}>· {fmtDur(rd.waited.us)} waiting ({rd.waited.pct} %)</span>}
-        </span>
+          {plan ? <span className="lv-tx lv-plan"><PlanCells r={plan} /></span> : (
+            <span className="lv-tx" style={fold === null && (rd.indent || rd.keyW) ? ({ '--ind': rd.indent || undefined, '--kw': rd.keyW ? `${rd.keyW}ch` : undefined } as React.CSSProperties) : undefined}>
+              {fold === null && rd.execNo !== undefined && <span className="rd-exec" title={`execution ${rd.execNo} of this cursor: this is its first row`}>exec {rd.execNo}</span>}
+              {fold === null && inline && rd.chips ? <>{rd.chips.map((c, i) => <BindChipNode key={i} c={c} />)}</> : null}
+              {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
+              {fold === null && rd.dot && !rd.micro && <i className={'rd-dot' + (rd.dot === 'idle' ? ' ring' : '')} style={{ '--dot': `var(--c-${rd.dot})` } as React.CSSProperties} title={roleLabel[rd.dot]} />}
+              {fold !== null ? <span className="rd-fold">{fold}</span> : rd.micro ? <MicroDetail rd={rd} /> : rd.parts.map(segNode)}
+              {fold === null && rd.waited && <span className={'rd-share' + (rd.waited.crit ? ' crit' : '')} title={`${fmtInt(rd.waited.us)} µs of the call's e= were not CPU (e − c): it waited`}>· {fmtDur(rd.waited.us)} waiting ({rd.waited.pct} %)</span>}
+            </span>
+          )}
+          <span className={'lv-rclk' + (short ? '' : ' ck-full')} title={rd.clockTitle}>{short ? <><span className="ck-s">{rd.clockShort}</span><span className="ck-f">{rd.clock}{rd.micros}</span></> : rd.clock + rd.micros}</span>
+        </>
       )}
-      <span className={'lv-rclk' + (short ? '' : ' ck-full')} title={rd.clockTitle}>{short ? <><span className="ck-s">{rd.clockShort}</span><span className="ck-f">{rd.clock}{rd.micros}</span></> : rd.clock + rd.micros}</span>
     </div>
+  )
+}
+
+/**
+ * The band of a plan's or BINDS block's table: from the Operation column to the right edge on a sunken ground, a 1 px frame (`head`: its first row, `last`: its last), the
+ * handle cell (▾ PLAN, ▾ BINDS) first, then the cells. The handle cell is as wide as Operation less the band's inset, so the cells start where Detail does.
+ */
+function TableBand({ head, last, handle, children }: { head?: boolean; last?: boolean; handle?: ReactNode; children: ReactNode }) {
+  return (
+    <span className={'lv-tbl' + (head ? ' lv-tbl-first lv-tbl-head' : '') + (last ? ' lv-tbl-last' : '')}>
+      <span className="tc-handle">{handle}</span>
+      {children}
+    </span>
   )
 }
 
 /** A lane's CSS variables: the band's colour (none: transparent), the label's (the statement's) and the depth. */
 const laneVars = (lane: NonNullable<ReadableCell['lane']>) => ({ '--lane': lane.color ?? 'transparent', '--lane-ink': lane.ink || undefined, '--dep': lane.depth } as React.CSSProperties)
-
-/** The table classes of a readable row: a plan's row (`tb` 1, its last 2), the head or a row of a BINDS block's table. */
-function tableCls(rd: ReadableCell, tb: number, plain: boolean, inline: boolean): string {
-  if (tb) return ' lv-tb' + (tb === 2 ? ' lv-tb-end' : '')
-  if (!plain) return ''
-  if (rd.bindHead) return inline ? '' : ' lv-tb lv-tb-head'
-  if (rd.bindRow) return ' lv-tb' + (rd.bindRow.last ? ' lv-tb-end' : '')
-  return ''
-}
 
 /** A bind as a chip on the BINDS row: `:B1 = 8706` and its type dimmed. */
 function BindChipNode({ c }: { c: BindChip }) {
@@ -799,23 +838,20 @@ const BindHeads = () => (
 )
 
 /**
- * The head row of a plan's table, in the readable row's columns: PLAN in the kind column, the plan's column names in the detail. In
+ * The head row of a plan's table, in the readable row's columns: the table band with PLAN (and the fold handle) in its first cell, the plan's column names after it. In
  * the layout (a row of its own above the plan's first line) or laid over the top row (`overlay`) while the plan's lines fill the top.
  */
-const PlanHeadRow = memo(function PlanHeadRow({ lane, tone, overlay, from, foldable }: { lane: ReadableCell['lane']; tone: string; overlay?: boolean; from?: number; foldable?: boolean }) {
+const PlanHeadRow = memo(function PlanHeadRow({ lane, overlay, from, foldable, hide }: { lane: ReadableCell['lane']; overlay?: boolean; from?: number; foldable?: boolean; hide: number }) {
   return (
-    <div className={'lv-row lv-rd lv-tb lv-tb-head' + (overlay ? ' lv-plan-head' : '')} role="presentation" aria-hidden={overlay || undefined}>
+    <div className={'lv-row lv-rd' + (overlay ? ' lv-plan-head' : '')} role="presentation" aria-hidden={overlay || undefined}>
       <span className="lv-bar" />
       <span className="lv-ln" />
       <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? laneVars(lane) : undefined} />
       <span className="lv-fh" />
       <DurCell />
-      <span className={`lv-kd lv-tone-${tone || 'none'} lv-op-struct`}>
-        {foldable && from !== undefined && <button type="button" className="lv-fold lv-fold-op" data-act="fold" data-ln={from} aria-expanded={true} aria-label={`Fold the plan at line ${from}`} title="fold this plan (z)">▾</button>}
-        PLAN
-      </span>
-      <span className="lv-tx lv-plan"><PlanHeads /></span>
-      <span className="lv-rclk" />
+      <TableBand head handle={<>{foldable && from !== undefined && <button type="button" className="lv-fold lv-fold-op" data-act="fold" data-ln={from} aria-expanded={true} aria-label={`Fold the plan at line ${from}`} title="fold this plan (z)">▾</button>}PLAN</>}>
+        <PlanHeads hide={hide} />
+      </TableBand>
     </div>
   )
 })

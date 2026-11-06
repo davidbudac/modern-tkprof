@@ -372,6 +372,29 @@ func TestLinesRepeats(t *testing.T) {
 	}
 }
 
+// TestLinesRepeatsIOWaitsRun pins the rule on the real trace the Formatted view is checked on (formatted-v2 bug 11): the 26 `direct path read` waits of
+// io_waits.trc lines 96-121 (one cursor, no call or idle wait between them) are ONE run fold, with the default threshold and with the 1 % of the
+// span the UI asks for. The UI showed them unfolded because a go-to into the run opened it for good, not because the engine skipped it.
+func TestLinesRepeatsIOWaitsRun(t *testing.T) {
+	e := newLineEnv(t, []string{traces + "io_waits.trc"})
+	for _, q := range []string{"/api/lines/repeats?file=0", "/api/lines/repeats?file=0&small=64587"} {
+		code, body := e.both(t, q)
+		var got repeatsAnswer
+		if code != 200 || json.Unmarshal(body, &got) != nil {
+			t.Fatalf("%s: %d %s", q, code, body)
+		}
+		var run *repeatFold
+		for i := range got.Folds {
+			if got.Folds[i].From == 96 {
+				run = &got.Folds[i]
+			}
+		}
+		if run == nil || run.Kind != "run" || run.To != 121 || run.N != 26 || run.Event == nil || *run.Event != "direct path read" {
+			t.Fatalf("%s: no run of 26 direct path reads at lines 96-121: %s", q, show(got.Folds))
+		}
+	}
+}
+
 // edgeValues are up to n distinct elapsed times of the rows (positive), spread
 // over the sorted values.
 func edgeValues(rows []rdRow, n int) []int64 {

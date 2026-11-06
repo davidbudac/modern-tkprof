@@ -400,9 +400,13 @@ export function sqlSegs(text: string): Seg[] {
   return out.length ? out : [text]
 }
 
+const HEADER_RE = /^([A-Za-z][\w .]*?):\s+(.*)$/
+/** The key of a trace header line (`Redo thread mounted by this instance: 1`), undefined for a line without one. */
+export const headerKey = (text: string): string | undefined => HEADER_RE.exec(text)?.[1]
+
 /** A line of the trace file's header: `Key: value` with the key dimmed. */
 function describeHeader(text: string): LineView {
-  const m = /^([A-Za-z][\w .]*?):\s+(.*)$/.exec(text)
+  const m = HEADER_RE.exec(text)
   if (m) return { label: '', tone: 'dim', parts: [{ t: m[1], c: 'key' }, { t: m[2], c: 'val' }] }
   const f = /^Trace file (.*)$/.exec(text)
   if (f) return { label: 'FILE', tone: 'dim', parts: [{ t: f[1], c: 'name' }] }

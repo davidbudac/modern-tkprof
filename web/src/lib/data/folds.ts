@@ -140,6 +140,16 @@ export function foldHiding(line: number, folds: Folds): Fold | undefined {
   return lo > 0 && line <= x.folds[lo - 1].to && !x.folds[lo - 1].head ? x.folds[lo - 1] : undefined
 }
 
+/**
+ * The view's own folds (Fold repeats) that stay folded: the ones the user has not opened (`open`: their first lines) and that do not hide the
+ * selected line (`selFold`, from `foldHiding(selected, own)`): the selection is never folded away, so a go-to into a run of waits shows the
+ * run open, and it folds again when the selection leaves it. Returns `own` itself when nothing is left out.
+ */
+export function standingFolds(own: readonly Fold[], open: ReadonlySet<number>, selFold: Fold | undefined): readonly Fold[] {
+  if (open.size === 0 && !selFold) return own
+  return own.filter((f) => f !== selFold && !open.has(f.from))
+}
+
 /** The folds with `fold` added, or removed when a fold with its handle is there; sorted by handle, a fold that overlaps the new one is dropped. */
 export function toggleFold(folds: readonly Fold[], fold: Fold): Fold[] {
   if (folds.some((f) => f.from === fold.from)) return folds.filter((f) => f.from !== fold.from)

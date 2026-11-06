@@ -114,6 +114,9 @@ export interface StmtMarks {
   calls: { line: number; file: number }[]
   waits: { line: number; file: number }[]
   partial: boolean
+  /** how many calls and waits the statement has in all, past the bounds below (what the highlight chip says) */
+  totalCalls: number
+  totalWaits: number
 }
 export const MARK_CALLS = 5000
 export const MARK_WAITS = 1000
@@ -430,7 +433,7 @@ export class LocalSource implements DataSource {
     const cs = doc.callsByStmt.get(stmt), ws = doc.waitsByStmt.get(stmt)
     const calls = Array.from(cs.subarray(0, MARK_CALLS), (i) => ({ line: c.line[i], file: doc.fileOfCtx(c.ctx[i]) }))
     const waits = Array.from(ws.subarray(0, MARK_WAITS), (i) => ({ line: w.line[i], file: doc.fileOfCtx(w.ctx[i]) }))
-    return { calls, waits, partial: cs.length > MARK_CALLS || ws.length > MARK_WAITS }
+    return { calls, waits, partial: cs.length > MARK_CALLS || ws.length > MARK_WAITS, totalCalls: cs.length, totalWaits: ws.length }
   }
 
   statements(scope: Scope): StmtStats[] | null {
@@ -652,6 +655,7 @@ export class RemoteSource implements DataSource {
       calls: c.rows.map((x) => ({ line: x[iLine], file: iCtx >= 0 ? this.doc.fileOfCtx(x[iCtx]) : 0 })),
       waits: w.rows.map((x) => ({ line: x.line, file: this.doc.fileOfCtx(x.ctx) })),
       partial: c.total > c.rows.length || w.total > w.rows.length,
+      totalCalls: c.total, totalWaits: w.total,
     }
   }
 

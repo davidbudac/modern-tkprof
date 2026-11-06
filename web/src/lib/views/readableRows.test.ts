@@ -312,3 +312,31 @@ describe('the first row of an execution', () => {
     expect(r(89).execFirst).toBe(false) // a wait is never one
   })
 })
+
+describe('the trace header\'s key column (formatted-v2 bug 7)', () => {
+  const HEAD: [string, LineKind][] = [
+    ['Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_133382_mtk_io_waits.trc', 'header'],
+    ['Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production', 'header'],
+    ['Database name: cdb1 ', 'header'],
+    ['Redo thread mounted by this instance: 1', 'header'],
+    ['Oracle process number: 68', 'header'],
+    ['', 'blank'],
+    ['*** 2026-10-22T11:35:29.191626+00:00 (PDB1(3))', 'marker'],
+    ['Foo: bar', 'header'],
+  ]
+  const hl = (n: number): CachedLine | undefined => {
+    const l = HEAD[n - 1]
+    return l && { text: l[0], kind: LINE_KINDS.indexOf(l[1]), call: -1, stmt: -1, cursor: -1, execNo: -1, wait: -1 }
+  }
+  const f = readableRowsOf({ doc, line: hl, tones: new Map(), pin: null, hot: new Map() })
+  const row = (n: number) => f(n, hl(n)!)
+  it('every keyed line of the block is as wide as the longest key of it, so the long key pushes no value over', () => {
+    const w = 'Redo thread mounted by this instance'.length
+    for (const n of [3, 4, 5]) expect(row(n).keyW).toBe(w)
+  })
+  it('a line without a key has no width, and a header line after the block starts its own', () => {
+    expect(row(1).keyW).toBeUndefined()
+    expect(row(2).keyW).toBeUndefined()
+    expect(row(8).keyW).toBe('Foo'.length)
+  })
+})

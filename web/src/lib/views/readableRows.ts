@@ -9,7 +9,7 @@ import type { BindAt } from '../data/bindat'
 import { barFrac, clockCell, fmtDelta, gapDelta, lineTim, unexplainedGap } from '../data/linetime'
 import { durOf } from '../data/gaps'
 import type { LineKind } from '../data/lines'
-import { QUIET_TONE, describeLine, describeMarker, parseCall, parseWait, planDump, toneColor, waitRun, type LineView, type PlanCell, type ReadableContext, type WaitMicro } from '../data/readable'
+import { QUIET_TONE, describeLine, describeMarker, headerKey, parseCall, parseWait, planDump, toneColor, waitRun, type LineView, type PlanCell, type ReadableContext, type WaitMicro } from '../data/readable'
 import { laneColorOf, type LaneColor } from '../data/lanecolor'
 
 /** A cursor's stretch of consecutive lines, drawn as a band (in the statement's colour, or what the view colours by); its first rows carry the sql_id and the SQL. */
@@ -60,6 +60,8 @@ export interface ReadableCell extends LineView {
   execFirst: boolean; execNo?: number
   /** a wait of a run of 3 or more of the same event and object: its varying fields in columns (`micro`); `ditto`: the row above is of the run too, so the repeated prefix is faint */
   micro?: WaitMicro; ditto: boolean
+  /** a trace header line: the length of the longest key of its block (the lines of the header around it), in digits: the key column is that wide, so a long key never pushes its value over */
+  keyW?: number
   /** the bracket of the waits a call waited for: the rule down the Detail column from the first non-idle wait after the call before (`first`) through the rows (`in`) to the call that closes them (`end`); `brIndent`: this wait is one of them */
   br?: 'first' | 'in' | 'end'; brIndent: boolean
 }
@@ -255,6 +257,19 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     return false
   }
 
+  /** The longest key among the header lines around line n (the contiguous run of `header` lines, at most RUN_LOOK each way). */
+  const headerKeyW = (n: number): number => {
+    let w = 0
+    for (const dir of [-1, 1]) {
+      for (let i = 0, x = dir === 1 ? n : n - 1; i < RUN_LOOK; i++, x += dir) {
+        const o = lineAt(x)
+        if (!o || kindOf(o) !== 'header') break
+        w = Math.max(w, headerKey(o.text)?.length ?? 0)
+      }
+    }
+    return w
+  }
+
   const colorBy = inp.colorBy ?? 'stmt'
   const laneOf = (n: number, l: CachedLine, v: LineView, delta: number | undefined): Lane | null => {
     const key = laneKey(n)
@@ -366,6 +381,7 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
       trackCpuW: v.bar?.cpu !== undefined ? barFrac(v.bar.cpu) : undefined,
       delta, deltaTitle, pinned, fromPin: !!inp.pin, deltaUs, deltaEmph, clock, micros, clockTitle, clockFull, clockShort,
       execFirst, execNo: execFirst && l.execNo > 0 ? l.execNo : undefined, micro, ditto, br, brIndent, // (execNo 0: the line is in no execution)
+      keyW: kind === 'header' && headerKey(l.text) !== undefined ? headerKeyW(n) : undefined,
     }
     out.set(n, cell)
     return cell

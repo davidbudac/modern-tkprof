@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LINE_KINDS } from './linecache'
-import { blockAt, filterFolds, foldAt, foldHiding, headAtRow, indexFolds, lineOfRow, rowOfLine, tableOf, toggleFold, visibleCount, withHeads, type Fold, type LineSource } from './folds'
+import { blockAt, filterFolds, foldAt, foldHiding, headAtRow, indexFolds, lineOfRow, rowOfLine, tableOf, standingFolds, toggleFold, visibleCount, withHeads, type Fold, type LineSource } from './folds'
 import type { LineKind } from './lines'
 
 /** A cache of the given lines (kind names), all loaded; `holes` lists lines that are not. */
@@ -191,5 +191,36 @@ describe('filterFolds', () => {
     expect(none).toEqual([{ from: 1, to: 7, summary: 'no Δ ≥ 5 s in this file', auto: true, filter: true }])
     expect(visibleCount(7, none)).toBe(1)
     expect(filterFolds([2], 2, 'x')[0].summary).toBe('1 line before the first x')
+  })
+})
+
+// the run of 26 `direct path read` waits at io_waits.trc lines 96-121 (bug 11: a go-to to line 118 opened it for good, with no handle to fold it again)
+describe('standingFolds: the selection is never folded away', () => {
+  const run: Fold = { from: 96, to: 121, summary: '26 × direct path read', label: '26×', auto: true }
+  const other: Fold = { from: 264, to: 308, summary: '45 × direct path read', label: '45×', auto: true }
+  const own = [run, other]
+  it('with the selection outside every fold, all stand (the same array: nothing changed)', () => {
+    expect(standingFolds(own, new Set(), undefined)).toBe(own)
+    expect(standingFolds(own, new Set(), foldHiding(95, own))).toBe(own)
+  })
+  it('the handle line of a run is not hidden by it: line 96 selected, the run stays folded into its one handle row', () => {
+    expect(foldHiding(96, own)).toBeUndefined()
+    expect(standingFolds(own, new Set(), foldHiding(96, own))).toEqual([run, other])
+  })
+  it('a line inside the run (118) opens that run only, and leaving it folds it again', () => {
+    expect(standingFolds(own, new Set(), foldHiding(118, own))).toEqual([other])
+    expect(standingFolds(own, new Set(), foldHiding(122, own))).toEqual([run, other])
+  })
+  it('a fold the user opened stays open whatever is selected', () => {
+    expect(standingFolds(own, new Set([264]), foldHiding(118, own))).toEqual([])
+    expect(standingFolds(own, new Set([264]), undefined)).toEqual([run])
+  })
+  it('the folds that stand lay out as one handle row for the run, the rest of the lines after it', () => {
+    const stand = standingFolds(own, new Set(), foldHiding(96, own))
+    expect(lineOfRow(95, stand)).toBe(96) // the handle
+    expect(lineOfRow(96, stand)).toBe(122)
+    expect(rowOfLine(96, stand)).toBe(95)
+    expect(rowOfLine(122, stand)).toBe(96) // the line after the run follows its handle at once
+    expect(visibleCount(1000, stand)).toBe(1000 - 25 - 44)
   })
 })
