@@ -53,6 +53,7 @@ func TestFindingsDocsCurrent(t *testing.T) {
 	sets := map[string][]string{
 		"io_waits":        {tr + "io_waits.trc"}, // also the Dialogue's fixture (dialogue.test.ts)
 		"multisession":    {tr + "multisession_a.trc", tr + "multisession_b.trc"},
+		"nasty_sql":       {tr + "nasty_sql.trc"}, // the plan advisor's INLIST ITERATOR case (advisor.test.ts)
 		"parallel":        {tr + "parallel.trc", tr + "parallel_slave.trc"},
 		"plan_change":     {tr + "plan_change.trc"},
 		"plsql_recursive": {tr + "plsql_recursive.trc"},

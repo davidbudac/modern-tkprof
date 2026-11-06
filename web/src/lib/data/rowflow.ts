@@ -57,6 +57,19 @@ export const NO_STATS_NOTE = 'No row-source statistics in this plan dump (statis
 
 const ITERATOR = /^(INLIST ITERATOR|PARTITION |PX BLOCK ITERATOR)/
 
+/** An operation whose children's card already covers all its iterations (INLIST ITERATOR, PARTITION …, PX BLOCK ITERATOR). */
+export const isIterator = (op: string): boolean => ITERATOR.test(op)
+
+/**
+ * The estimate comparable with A-Rows (the total over all starts): E-Rows is per start, so a row source started more than once
+ * compares `est × starts`, except below an iterator (`iterated`: an ancestor `isIterator`), where the card already covers every
+ * iteration (nasty_sql.trc: INDEX UNIQUE SCAN under INLIST ITERATOR, str=1119 card=1119 cnt=1119). Row flow's ghost and the plan
+ * advisor's cardinality rule (advisor.ts) both use it.
+ */
+export function comparableEstimate(est: number, starts: number, iterated: boolean): number {
+  return starts > 1 && !iterated ? est * starts : est
+}
+
 /** The tree of one dump's lines (`doc.planLines.slice(plan.first, plan.first + plan.n)`), with self numbers and notes. */
 export function rowFlow(lines: readonly PlanLine[]): RowFlow {
   const notes: string[] = []
@@ -157,8 +170,8 @@ export function rowFlow(lines: readonly PlanLine[]): RowFlow {
     x.selfPw = Math.max(0, l.pw - pw)
     if (x.clamped) clamped.push(x)
     let iterated = false
-    for (let a = x.parent; a && !iterated; a = a.parent) iterated = ITERATOR.test(a.line.op)
-    x.estRows = x.est < 0 || notStarted(x) ? -1 : l.starts > 1 && !iterated ? x.est * l.starts : x.est
+    for (let a = x.parent; a && !iterated; a = a.parent) iterated = isIterator(a.line.op)
+    x.estRows = x.est < 0 || notStarted(x) ? -1 : comparableEstimate(x.est, l.starts, iterated)
     maxDepth = Math.max(maxDepth, x.depth)
     maxRows = Math.max(maxRows, x.rows, rows)
   }

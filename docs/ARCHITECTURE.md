@@ -177,7 +177,9 @@ the next file, and is looked up there). Attached PX slaves' calls stay in
 ### internal/report — document for the UI
 
 The document is format 3: dimension tables as JSON objects, fact tables
-(calls, waits, bind sets, binds) as typed columns. In the packed form
+(calls, waits, bind sets, binds) as typed columns (i32, u8, f64 for `tim`, `plh`, p1–p3 and the µs measures
+`c`, `e`, `selfE`, `selfC`, `waitEla`, `idleEla` and the waits' `ela`: one wait or call can last more than 2^31-1 µs,
+35.8 min; the loader takes any type per column). In the packed form
 (`WriteDocument` / `DocumentBytes` / `JSON` with `Packed`), every numeric
 column of a table is laid out in one little-endian buffer, gzip compressed and
 base64 encoded (`blob`); the column descriptors keep `{t, off, n}`, plus
@@ -228,8 +230,10 @@ checkout of the visualizer (`npm run build:core` there first; then `pnpm install
 into `node_modules`). A clean clone needs only `pnpm install --frozen-lockfile`.
 
 Per STAT plan, `StatementDetail` feeds `planRows(doc, plan)` (the same JSON rows as "Open in plan viz") to the
-core's `parsePlanRows` and runs `runAdvisor(plan, null)` (no metadata bundle: only metadata-free rules run;
-cardinality mismatch needs `card=` on the STAT lines). Findings (severity, title, explanation, node ids; the
+core's `parsePlanRows`, gives the nodes Row flow's estimate over all starts (`alignEstimates`: `comparableEstimate` of
+`rowflow.ts`, E-Rows × starts except below an iterator, wherever the core has a total) and runs `runAdvisor(plan, null)`
+(no metadata bundle: only metadata-free rules run; cardinality mismatch needs `card=` on the STAT lines). The cardinality
+rule and Row flow's ghost therefore compare A-Rows with the same number (`advisor.test.ts` on nasty_sql.trc). Findings (severity, title, explanation, node ids; the
 suggestion is not shown) render as a "Plan advisor" block above the plan table, in the Findings ledger style; node ids jump to and
 highlight the plan row; nothing renders without findings. Only `parsePlanRows`/`runAdvisor` are imported, so the
 text and XML parsers tree-shake away (bundle +59 kB, +20 kB gzip).
@@ -1272,10 +1276,13 @@ wipe`). `TestCacheIndexFormatCoversParts` fails when a part version changes with
 `CacheIndexFormat` (update its expectation with the bump), and the
 struct-shape guards (`TestAccumPersistCoversEveryField`,
 `TestPersistCoversEveryField` in `internal/model`) fail when a field is added
-without a bump. Current values: `CacheIndexFormat` 3, `PersistVersion` 1,
+without a bump. A change of meaning with the same shapes bumps
+`CacheIndexFormat` alone. Current values: `CacheIndexFormat` 5, `PersistVersion` 2,
 `AccumPersistVersion` 3, `SpillIdxVersion` 2, `LineIndexVersion` 1 (the last
-bump, 3/3/2: in-call idle waits count as in-call, so idle totals, `IdleEla`
-and the waits' `between` flag changed meaning).
+bump, 5 alone: a WAIT line's obj#=4294967295, 23ai's "no object", is read as -1,
+so a 23ai trace's waits and object aggregates changed; 3/3/2 before: in-call idle
+waits count as in-call, so idle totals, `IdleEla` and the waits' `between` flag
+changed meaning).
 
 **Measured** (`big_loop.trc`, 118 MB, bind-heavy; `MTKPROF_BIG=… go test
 ./internal/engine -run Big -v`):
@@ -1559,8 +1566,10 @@ scans are diagonals, re-reads repeated hits, a sort spill a write stripe then a 
   runs `ioMapOf`, the twin of `analyze.IOMapOn` over the wait columns: the same classification (`isBlockIO` /
   `blocksParam` from the parameter names), the same window rule (`[tim-ela, tim]` overlaps), idle ignored, the same two
   passes and every-k-th sampling with `total`, `files` (`[lo, hi)`) and `events` over all matches. The shared case
-  `web/src/lib/data/testdata/iomap-case.json` keeps them equal. Known difference: the document's `ela` and `obj` columns are 32-bit (an
-  obj# of 4294967295 reads 2147483647 locally). `null` without facts (`-aggregate`): the view says so.
+  `web/src/lib/data/testdata/iomap-case.json` keeps them equal. The control file events (`control file sequential read` /
+  `single write`) are not block I/O: their p1 is named file# but is a control file's number (`Event.IsFileP1` / `isFileP1`
+  exclude them by name). The document's `ela` is an f64 column; its `obj` stays i32, which holds every "none": the model
+  reads 23ai's obj#=4294967295 as -1. `null` without facts (`-aggregate`): the view says so.
 - Scope: the store's window, contexts and files (`useScope`), plus an optional statement ("only" in the facts column);
   `limit` 5,000 / 20,000 (default) / 100,000, persisted (`mtkprof.blocks.limit`, like the colour mode and the axis).
 - Derived (in `iomap.ts`): `extentsOf` (an object's block ranges in one file: the union of `[block, block + blocks)`,

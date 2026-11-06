@@ -311,7 +311,13 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   over all starts, E-Rows per start, so the ghost is E-Rows × starts, except
   below an iterator (INLIST ITERATOR, PARTITION, PX BLOCK ITERATOR) whose
   card covers every iteration. A row source that never started (starts 0,
-  e.g. the PX slaves' lines in the coordinator's dump) has no ghost.
+  e.g. the PX slaves' lines in the coordinator's dump) has no ghost. The plan
+  advisor's cardinality rule uses the same estimate (2026-11-06: the
+  vendored core multiplied below an INLIST ITERATOR too and reported nasty_sql's
+  57b0w2txwjvby as a 1,119× misestimate): `advisor.ts` overwrites the core's
+  `estimatedRowsTotal` with Row flow's `comparableEstimate` wherever the core
+  has one, and keeps the core's "nothing to compare" cases (never started,
+  early end below COUNT STOPKEY).
 - **Dialogue: collapse rule.** Maximal runs of equal `(kind, rows)`, minimum 3; a turn above 10× the run's
   median elapsed or median gap is kept apart, so a run can become frame, turn, frame. The thresholds are
   options of `dialogueOf` (`minRun`, `outlierX`, plus `floorUs` = 10 µs: medians below it count as it, so
@@ -335,9 +341,11 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
 - **Blocks: classification by parameter names** (`file#` / `file number` +
   `block#` / `first dba`; a block count in p3 when it is `blocks` /
   `block cnt`), not by an event-name list: unknown and RAC events classify
-  themselves. Consequences: `control file sequential read` counts (its p1 is
-  a control file number), gc cr/current block 2-way do not (no parameter
-  names in V$EVENT_NAME).
+  themselves, with one exception by name: the control file events (`control
+  file sequential read` / `single write` name p1 `file#`, but it is a control
+  file's number, 0 or 1, which would share a "file N" panel and a file name
+  with a datafile; 2026-11-06, `Event.IsFileP1` / `isFileP1`). gc cr/current
+  block 2-way do not count either (no parameter names in V$EVENT_NAME).
 - **Blocks: order axis by default, time as a toggle**; both brush into a time
   window (the view re-queries inside it, a double-click clears it). On a time
   axis the full scans of io_waits.trc (2 ms) are slivers next to the 2.96 s of
