@@ -1110,6 +1110,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/s/{id}/api/lines/delta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The lines of a file that come long after the timed line before them (the Lines view's Δ filter)
+         * @description The timed lines of the file (calls, waits, PARSING IN CURSOR lines and
+         *     XCTENDs: the lines with a `tim=`) are put in line order, a line in two
+         *     tables counted once. A line's Δ is its `tim` minus the `tim` of the
+         *     timed line before it; the first timed line has none, and `tim=0` is no
+         *     time (neither a Δ nor the reference of the next line). The lines whose
+         *     Δ is at least `min` microseconds are listed in line order as `[line,
+         *     us]` pairs. At most `limit` are answered: when more qualify the largest
+         *     Δ are kept (the earlier line wins a tie) and `truncated` says some were
+         *     left out. One merge walk over the file's rows.
+         */
+        get: operations["sessionLinesDelta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/s/{id}/api/at": {
         parameters: {
             query?: never;
@@ -1645,6 +1673,12 @@ export interface components {
             /** @description the largest time of any call or wait row of the file; 0 when it has none */
             max: number;
             /** @description more rows than `limit` qualified; the smaller ones are left out */
+            truncated: boolean;
+        };
+        /** @description The lines of one file whose Δ reaches the threshold, in line order. */
+        LinesDelta: {
+            lines: number[][];
+            /** @description more lines than `limit` qualified; the smaller Δ are left out */
             truncated: boolean;
         };
         /** @description Fold candidates of one file, sorted by `from`, not overlapping. */
@@ -4014,6 +4048,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LinesRepeats"];
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description no such session (envelope) or no such file (plain text) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionLinesDelta: {
+        parameters: {
+            query?: {
+                /** @description index of the input file (document file.files order) */
+                file?: components["parameters"]["File"];
+                /** @description smallest Δ in microseconds that is listed; default 1000 (1 ms) */
+                min?: number;
+                /** @description most lines listed, 1..100000; default 20000 */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LinesDelta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinesDelta"];
                 };
             };
             400: components["responses"]["SliceBadRequest"];

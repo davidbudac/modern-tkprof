@@ -505,6 +505,35 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   the engine over the whole file (`api/lines/repeats`) so the scroll bar does
   not jump as pages load. A fold of repeats opens with its handle and stays
   open; the user's own folds win where they overlap.
+- **Fold repeats is an icon** (decided 2026-11-06, at the user's request): three
+  rows gathered by a brace, pressed while on; the name is in its tooltip and
+  aria-label. The text button took too much of the bar.
+- **Colour the lanes by** (decided 2026-11-06): a menu right after `raw |
+  formatted` (formatted view only, the lanes are its) picks what the lane band
+  shows: Statement (the default, as before), Execution (the executions of a
+  cursor in turn), Session (the context: session, module, action), Recursive
+  depth, Operation (PARSE, EXEC, FETCH, CLOSE, WAIT, cursor parse, binds,
+  commit, error), Wait class (calls are CPU), Duration and Δ from the line
+  before (one orange ramp by decade: < 100 µs … ≥ 1 s), None. The menu has a
+  key for every mode but Statement (the overview strip names those). The
+  sql_id in the lane keeps its statement's colour whatever the band shows, and
+  a line outside a lane (WAIT #0, a commit) gets a band of its own in the
+  per-line modes. The highlighted statement's darker band is kept only when
+  colouring by statement (it would hide the other colours). Pref `laneColor`.
+- **Δ filter** (decided 2026-11-06): `Δ ≥ N ms` in the trace bar, both views,
+  Off / Highlight / Filter. Δ here is always the time from the timed line
+  before (a call, wait, cursor parse or commit: the line's own time plus any
+  idle time before it), never from the pin, so the threshold means the same
+  wherever the pin is. The engine lists the lines for the whole file
+  (`api/lines/delta`, at most 100,000, the largest kept), so filtering does not
+  depend on the loaded pages. Highlight tints the rows (violet, apart from hot
+  spots' orange and the selection's amber). Filter hides every other row: each
+  kept row is a quiet fold over the lines up to the next one, with a dashed
+  rule under it where lines are hidden (`z` on it shows them); the lines before
+  the first kept row fold under line 1, which says how many; the filter's
+  folds replace the user's, the repeats and the plan tables while it is on;
+  each kept row carries its lane's sql_id. Prefs `deltaMs` (10 by default) and
+  `deltaMode`.
 - **As run.** A BINDS row offers the statement with the values in place of
   its placeholders (side panel tab "As run"): SQL placeholders pair with the
   `Bind#`s by occurrence, PL/SQL ones by distinct name (decided by the

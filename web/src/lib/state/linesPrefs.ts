@@ -1,4 +1,9 @@
 import { useSyncExternalStore } from 'react'
+import { isLaneColor, type LaneColor } from '../data/lanecolor'
+
+/** The Δ filter: off, the rows whose Δ reaches the threshold tinted, or every other row hidden. */
+export type DeltaMode = 'off' | 'highlight' | 'filter'
+const DELTA_MODES: readonly DeltaMode[] = ['off', 'highlight', 'filter']
 
 /** The Lines view's display toggles: global (not per file) and kept in localStorage. */
 export interface LinesPrefs {
@@ -30,11 +35,18 @@ export interface LinesPrefs {
   gapMs: number
   /** the formatted view's column widths in px, by column key (a column without one has its default width) */
   cols: Record<string, number>
+  /** what the formatted view's lane band is coloured by */
+  laneColor: LaneColor
+  /** the Δ filter's threshold (ms): a row whose time from the timed line before is at least this much */
+  deltaMs: number
+  /** what the Δ filter does with the rows that reach the threshold */
+  deltaMode: DeltaMode
 }
 
 export const LINES_PREFS_DEFAULTS: LinesPrefs = {
   wrap: false, heat: true, strip: true, links: true, hints: true, readable: true, foldRepeats: false, clock: false, delta: false, rdDelta: true,
   inspect: false, inspectW: 400, follow: false, mute: [], threshold: 10, gapMs: 100, cols: {},
+  laneColor: 'stmt', deltaMs: 10, deltaMode: 'off',
 }
 
 const KEY = 'mtk.lines.prefs'
@@ -52,6 +64,8 @@ function valid<K extends keyof LinesPrefs>(k: K, v: unknown): LinesPrefs[K] | un
     for (const [c, w] of Object.entries(v as Record<string, unknown>)) if (isNum(w) && w > 0) out[c] = w
     return out as LinesPrefs[K]
   }
+  if (k === 'laneColor') return (isLaneColor(v) ? v : undefined) as LinesPrefs[K] | undefined
+  if (k === 'deltaMode') return (DELTA_MODES.includes(v as DeltaMode) ? v : undefined) as LinesPrefs[K] | undefined
   if (Array.isArray(d)) return (Array.isArray(v) && v.every((x) => typeof x === 'string') ? [...v] : undefined) as LinesPrefs[K] | undefined
   if (k === 'inspectW') return (isNum(v) && v > 0 ? v : undefined) as LinesPrefs[K] | undefined
   return (isNum(v) && v >= 0 ? v : undefined) as LinesPrefs[K] | undefined

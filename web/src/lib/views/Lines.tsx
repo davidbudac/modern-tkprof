@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
-import { blockAt, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { blockAt, filterFolds, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from '../data/folds'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeLines } from '../data/rangesum'
@@ -10,7 +10,8 @@ import { describeLines, lineCount, type LineSet } from '../data/lineset'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
 import { LineStrip } from '../components/LineStrip'
-import { LINES_PREFS_DEFAULTS, useLinesPrefs } from '../state/linesPrefs'
+import { LINES_PREFS_DEFAULTS, useLinesPrefs, type DeltaMode } from '../state/linesPrefs'
+import { LANE_COLORS, laneLegend } from '../data/lanecolor'
 import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
 import { lineToneToken } from '../components/colors'
 import { CommandPalette, type Command } from '../components/CommandPalette'
@@ -85,6 +86,12 @@ interface LinesUi {
   pin: Pin | null
   /** the folds of repeats the user opened (their first lines) */
   openRepeats: Set<number>
+  /** the Δ filter's folds the user opened (their kept lines), for the filter answer `key` */
+  openFilter: { key: string; lines: Set<number> }
+  /** the Δ filter's menu */
+  deltaMenu: boolean
+  /** the Colour menu */
+  colourMenu: boolean
   /** the line whose execution the As run tab shows (0: the selected line) */
   asRunLine: number
 }
@@ -104,6 +111,7 @@ function uiOf(store: Store, file: number): LinesUi {
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
       optionsMenu: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, lines: null,
       tab: 'line', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, folds: [], back: [], cur: 0, pin: null, openRepeats: new Set(), asRunLine: 0,
+      openFilter: { key: '', lines: new Set() }, deltaMenu: false, colourMenu: false,
     }))
   }
   return u
@@ -191,6 +199,19 @@ function repeatFold(r: RepeatFold, scaleUs: number): Fold {
 const PanelIcon = () => (
   <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true" className="tb-ico"><rect x="0.5" y="0.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" /><line x1="8.5" y1="1" x2="8.5" y2="11" stroke="currentColor" /></svg>
 )
+
+/** Fold repeats' icon: three rows gathered by a brace into one. */
+const FoldRepeatsIcon = () => (
+  <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true" className="tb-ico"><path d="M1 2h7M1 6h7M1 10h7" stroke="currentColor" strokeWidth="1.4" fill="none" /><path d="M10 1.2c1.2 0 1.6.5 1.6 1.6v1.6c0 .8.5 1.4 1.6 1.6-1.1.2-1.6.8-1.6 1.6v1.6c0 1.1-.4 1.6-1.6 1.6" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" /><path d="M13.6 6H15" stroke="currentColor" strokeWidth="1.4" /></svg>
+)
+
+const DELTA_MODES: { mode: DeltaMode; label: string; title: string }[] = [
+  { mode: 'off', label: 'Off', title: 'every row as usual' },
+  { mode: 'highlight', label: 'Highlight', title: 'tint the rows that reach the threshold; every row stays' },
+  { mode: 'filter', label: 'Filter', title: 'show only the rows that reach the threshold (z on a row shows the lines hidden under it)' },
+]
+/** A threshold in ms as the bar says it. */
+const fmtMs = (ms: number) => (ms >= 1000 ? `${+(ms / 1000).toFixed(3)} s` : ms < 1 ? `${+(ms * 1000).toFixed(0)} µs` : `${+ms.toFixed(3)} ms`)
 
 /** Binary search in an ascending array: the first index with `a[i] > x`. */
 function firstAbove(a: ArrayLike<number>, x: number): number {
@@ -381,15 +402,41 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [client, file, readable, repeatsKey])
   const quietFolds = readable && bindBlocks?.key === repeatsKey ? bindBlocks.folds : null
   const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r, scaleUs)) : null), [wantRepeats, repeats, scaleUs])
-  /** the user's folds and the view's own (with Fold repeats, the repeats; the binds' attribute lines) that the user has not opened (the user's win where they overlap) */
+  // ---- the Δ filter: the lines whose time from the timed line before reaches the threshold, asked of the engine for the whole file ----
+  const deltaMode = prefs.deltaMode
+  const deltaUs = Math.max(0, Math.round(prefs.deltaMs * 1000))
+  const deltaKey = `${file}:${rev}:${deltaUs}`
+  const [deltaAns, setDeltaAns] = useState<{ key: string; lines: [number, number][]; truncated: boolean; error?: string } | null>(null)
+  useEffect(() => {
+    if (deltaMode === 'off') return
+    const ac = new AbortController()
+    fetchDelta(client, file, deltaUs, ac.signal).then(
+      (r) => { if (!ac.signal.aborted) setDeltaAns({ key: deltaKey, ...r }) },
+      (e: unknown) => { if (!aborted(e)) setDeltaAns({ key: deltaKey, lines: [], truncated: false, error: e instanceof Error ? e.message : String(e) }) },
+    )
+    return () => ac.abort()
+  }, [client, file, deltaUs, deltaMode, deltaKey])
+  const delta = deltaMode !== 'off' && deltaAns?.key === deltaKey ? deltaAns : null
+  const deltaLoading = deltaMode !== 'off' && !delta
+  const deltaWhat = `Δ ≥ ${fmtMs(prefs.deltaMs)}`
+  /** highlight: the lines that reach the threshold and their Δ */
+  const deltaHits = useMemo(() => (deltaMode === 'highlight' && delta && !delta.error ? new Map(delta.lines) : undefined), [deltaMode, delta])
+  if (ui.openFilter.key !== deltaKey) ui.openFilter = { key: deltaKey, lines: new Set() } // a new answer: every fold closed again
+  const filtering = deltaMode === 'filter' && !!delta && !delta.error
+  const filterFoldList = useMemo(() => (filtering && delta ? filterFolds(delta.lines.map((x) => x[0]), total, deltaWhat).filter((f) => !ui.openFilter.lines.has(f.from)) : null),
+    [filtering, delta, total, deltaWhat, ui.openFilter, ui.openFilter.lines.size]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** the user's folds and the view's own (with Fold repeats, the repeats; the binds' attribute lines) that the user has not opened (the user's win where they overlap); the Δ filter's folds replace them all */
   const allFolds = useMemo(() => {
+    if (filterFoldList) return filterFoldList
     if (!repeatFolds && !quietFolds) return ui.folds
     const own = [...(repeatFolds ?? []), ...(quietFolds ?? [])].filter((f) => !ui.openRepeats.has(f.from))
     return mergeFolds(ui.folds, own)
-  }, [repeatFolds, quietFolds, ui.folds, ui.openRepeats])
-  /** Opens a fold, or folds a block again: a fold of repeats is opened by remembering it, a user's fold by dropping it. */
+  }, [filterFoldList, repeatFolds, quietFolds, ui.folds, ui.openRepeats])
+  /** Opens a fold, or folds a block again: a fold of repeats or of the Δ filter is opened by remembering it, a user's fold by dropping it. */
   const toggleAnyFold = useCallback((f: Fold) => {
-    if (f.auto) set({ openRepeats: new Set([...ui.openRepeats, f.from]) }); else set({ folds: toggleFold(ui.folds, f) })
+    if (f.filter) { ui.openFilter.lines.add(f.from); set({ openFilter: { ...ui.openFilter } }) }
+    else if (f.auto) set({ openRepeats: new Set([...ui.openRepeats, f.from]) }); else set({ folds: toggleFold(ui.folds, f) })
   }, [ui, set])
 
   // the view pulses while it switches: the toggle's new render waits a frame, so the pulse is painted before the work starts
@@ -404,7 +451,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setSwitching(null)) })
     return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
   }, [prefs.readable, prefs.foldRepeats])
-  const busy = switching !== null || repeatsLoading
+  const busy = switching !== null || repeatsLoading || (deltaMode === 'filter' && deltaLoading)
   const toggleRepeats = () => (readable ? switchPrefs('repeats', { foldRepeats: !prefs.foldRepeats }) : flash('Fold repeats works in the formatted view (v)'))
 
   // ---- folding: the handles of the blocks around the view, and the blocks themselves -----------------------------------
@@ -833,6 +880,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const tones = useMemo(() => statementTones(doc.statements, (id) => doc.stats.statements[id]?.elapsed ?? 0), [doc])
   /** the highlighted statement's colour (its lane's): the tint of its calls and waits, the chip in the trace bar */
   const hlColor = stmt !== null && doc.statements[stmt] ? toneColor(tones.get(stmt) ?? QUIET_TONE) : undefined
+  /** the Colour menu: the mode, its key and the button's swatch */
+  const laneMode = LANE_COLORS.find((c) => c.id === prefs.laneColor) ?? LANE_COLORS[0]
+  const laneKey = useMemo(() => laneLegend(prefs.laneColor, doc.contexts.map((c) => [c.sessionId && `session ${c.sessionId}`, c.module, c.action].filter(Boolean).join(' · ') || `context ${c.id}`)), [prefs.laneColor, doc])
+  const laneSwatch = laneKey ? `linear-gradient(90deg, ${laneKey.slice(0, 4).map((k) => k.color).join(', ')})` : prefs.laneColor === 'none' ? 'transparent' : 'conic-gradient(var(--c-cpu) 0 33%, var(--c-userio) 0 66%, var(--c-network) 0)'
   /** Pins a line (Δ is measured from it), or unpins it. */
   const togglePin = useCallback((line: number) => {
     if (ui.pin?.line === line) { set({ pin: null }); return }
@@ -857,10 +908,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     queueMicrotask(pump)
   }, [bindQ, client, doc, file])
   const readableRows = useMemo(() => (readable
-    ? readableRowsOf({ doc, line: (n) => cache.line(n), tones, pin: ui.pin, hot: hot?.map ?? NO_HOT, scaleUs, bindAt, missingBinds })
+    ? readableRowsOf({ doc, line: (n) => cache.line(n), tones, pin: ui.pin, hot: hot?.map ?? NO_HOT, scaleUs, bindAt, missingBinds, colorBy: prefs.laneColor, labelAll: filtering })
     : undefined
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [readable, doc, cache, tones, ui.pin, hot, scaleUs, bindAt, missingBinds, pages, bindsTick])
+  ), [readable, doc, cache, tones, ui.pin, hot, scaleUs, bindAt, missingBinds, pages, bindsTick, prefs.laneColor, filtering])
   /** The next / previous hot spot from the selected line. */
   const stepHot = (dir: 1 | -1) => {
     const hs = hot?.lines ?? []
@@ -1045,6 +1096,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     add('View', 'view:highlight', "Highlight the line's statement", highlightLine, { keys: 'l', hint: 'its calls and waits tinted in its colour' })
     add('View', 'view:readable', 'Formatted view', () => switchPrefs('readable', { readable: !prefs.readable }), { checked: prefs.readable, keys: 'v' })
     add('View', 'view:rddelta', 'Δ column (formatted)', () => setPrefs({ rdDelta: !prefs.rdDelta }), { checked: prefs.rdDelta, disabled: !prefs.readable, hint: 'the time from the pin or the line before' })
+    for (const c of LANE_COLORS) add('View', `colour:${c.id}`, `Colour the lanes by: ${c.label}`, () => setPrefs({ laneColor: c.id }), { checked: prefs.laneColor === c.id, disabled: !prefs.readable, hint: 'formatted view' })
+    for (const m of DELTA_MODES) add('View', `delta:${m.mode}`, `Δ filter: ${m.label}`, () => setPrefs({ deltaMode: m.mode }), { checked: deltaMode === m.mode, hint: m.mode === 'off' ? undefined : `rows with Δ ≥ ${fmtMs(prefs.deltaMs)}` })
     add('View', 'view:repeats', 'Fold repeats', toggleRepeats, { checked: prefs.foldRepeats, keys: 'r', disabled: !prefs.readable, hint: 'identical waits, long wait blocks, fetch loops' })
     add('Line', 'line:pin', ui.pin?.line === selected ? 'Unpin line' : 'Pin line (Δ from it)', () => togglePin(selected), { keys: 'a', checked: ui.pin?.line === selected })
     if (ui.pin) add('Line', 'line:unpin', `Unpin line ${fmtInt(ui.pin.line)}`, () => set({ pin: null }))
@@ -1118,8 +1171,22 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           </span>
           {readable && (
             <span className="lines-rd" role="group" aria-label="Formatted view">
-              <button type="button" className={'quiet' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')} aria-pressed={prefs.foldRepeats} onClick={toggleRepeats}
-                title="fold runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches into one line each; click a fold's ▸ to open it (r)">Fold repeats</button>
+              <ToolbarMenu label="Colour by" title={`what the lane band of each row is coloured by: ${laneMode.label.toLowerCase()} now (the sql_id in the lane keeps its statement's colour)`} className="tbmenu-sm tbmenu-start lines-colour" open={ui.colourMenu} onOpenChange={(colourMenu) => set({ colourMenu })}
+                button={<><i className="lines-colour-sw" style={{ '--sw': laneSwatch } as React.CSSProperties} aria-hidden="true" /><span className="tb-label">Colour</span> <b>{laneMode.label}</b><span className="cue" aria-hidden="true">▾</span></>}>
+                <div className="lines-view">
+                  <h4>Colour the lanes by</h4>
+                  <div className="tb-items" role="radiogroup" aria-label="Colour the lanes by">
+                    {LANE_COLORS.map((c) => <MenuItem key={c.id} on={prefs.laneColor === c.id} onClick={() => setPrefs({ laneColor: c.id })} title={c.title}>{c.label}</MenuItem>)}
+                  </div>
+                  {laneKey && laneKey.length > 0 && <>
+                    <h4>Key</h4>
+                    {laneKey.map((k) => <div key={k.label} className="lines-view-row lines-view-key"><span /><span><i className="lines-swatch" style={{ '--tone': k.color } as React.CSSProperties} />{k.label}</span></div>)}
+                  </>}
+                  {prefs.laneColor === 'stmt' && <p className="small muted lines-colour-note">The statements and their colours are in the strip above the rows.</p>}
+                </div>
+              </ToolbarMenu>
+              <button type="button" className={'quiet tb-icon' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')} aria-pressed={prefs.foldRepeats} onClick={toggleRepeats} aria-label="Fold repeats"
+                title="Fold repeats: runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches each fold into one line; click a fold's ▸ to open it (r)"><FoldRepeatsIcon /></button>
               <button type="button" className="quiet" aria-pressed={prefs.rdDelta} onClick={() => setPrefs({ rdDelta: !prefs.rdDelta })}
                 title="the Δ column, first in the row: each line's time from the pinned line (a pins one), else from the line with a time before">Δ</button>
               <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hot || hot.lines.length === 0}
@@ -1128,6 +1195,28 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </button>
             </span>
           )}
+          <ToolbarMenu label="Δ filter" title={`the rows whose time from the timed line before (a call, wait, cursor parse or commit) is ${fmtMs(prefs.deltaMs)} or more: ${deltaMode === 'off' ? 'off' : deltaMode === 'highlight' ? 'tinted' : 'the only ones shown'}`}
+            className={'tbmenu-sm tbmenu-start lines-dfilter' + (deltaMode !== 'off' ? ' on' : '') + (deltaLoading ? ' busy-src' : '')} open={ui.deltaMenu} onOpenChange={(deltaMenu) => set({ deltaMenu })}
+            button={<><span className="lines-dfilter-sym" aria-hidden="true">Δ</span>{deltaMode === 'off' ? <span className="tb-label">filter</span> : <><span>≥ {fmtMs(prefs.deltaMs)}</span><small>{deltaMode === 'filter' ? 'filter' : 'highlight'}{delta && !delta.error ? ` · ${fmtInt(delta.lines.length)}${delta.truncated ? '+' : ''}` : ''}</small></>}<span className="cue" aria-hidden="true">▾</span></>}>
+            <div className="lines-view">
+              <h4>Rows with Δ at or above</h4>
+              <label className="lines-view-row lines-view-gap" title="Δ: the time from the timed line before (a call, wait, cursor parse or commit), whatever the pin says">
+                <span>Δ ≥</span>
+                <input type="number" min={0} step={1} value={prefs.deltaMs} aria-label="Δ threshold in milliseconds" onChange={(e) => setPrefs({ deltaMs: Math.max(0, Number(e.target.value) || 0) })}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && deltaMode === 'off') setPrefs({ deltaMode: 'highlight' }) }} />
+                <span>ms</span>
+              </label>
+              <div className="tb-items" role="radiogroup" aria-label="What to do with them">
+                {DELTA_MODES.map((m) => <MenuItem key={m.mode} on={deltaMode === m.mode} onClick={() => setPrefs({ deltaMode: m.mode })} title={m.title}>{m.label}</MenuItem>)}
+              </div>
+              <p className="small muted lines-colour-note" aria-live="polite">
+                {deltaMode === 'off' ? 'Δ is the time from the line with a time before: the line\'s own time plus any idle time before it.'
+                  : !delta ? 'Finding the rows…'
+                  : delta.error ? <span className="lines-error">{delta.error}</span>
+                  : `${fmtInt(delta.lines.length)} ${delta.lines.length === 1 ? 'row' : 'rows'} with ${deltaWhat}${delta.truncated ? ' (the largest; more qualify)' : ''}`}
+              </p>
+            </div>
+          </ToolbarMenu>
           {stmt !== null && doc.statements[stmt] && (
             <span className="lines-hl" style={{ '--hl': hlColor } as React.CSSProperties} title={`the rows of this statement's calls and waits are tinted in its colour, with a bar at their start edge; l highlights the selected line's statement instead, Enter opens it${partial ? '; the marks are bounded: the 5,000 longest calls and the first 1,000 waits' : ''}`}>
               <i aria-hidden="true" />
@@ -1288,8 +1377,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         )
       })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
-        <div className={'lines-main' + (busy ? ' busy' : '')} aria-busy={busy || undefined} style={{ ...(readable ? columnVars(prefs.cols) : {}), ...(hlColor ? { '--hl': hlColor } : {}) } as React.CSSProperties}>
-          <LineViewer cache={cache} readable={readableRows} tables={tables} deltaCol={prefs.rdDelta} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+        <div className={'lines-main' + (busy ? ' busy' : '') + (readable && prefs.laneColor !== 'stmt' ? ' lanes-by-line' : '')} aria-busy={busy || undefined} style={{ ...(readable ? columnVars(prefs.cols) : {}), ...(hlColor ? { '--hl': hlColor } : {}) } as React.CSSProperties}>
+          <LineViewer cache={cache} readable={readableRows} tables={tables} deltaCol={prefs.rdDelta} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} deltaHits={deltaHits} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}

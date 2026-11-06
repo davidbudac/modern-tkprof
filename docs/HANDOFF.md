@@ -6,6 +6,19 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Lines view: colour by, Δ filter, Fold repeats icon (2026-11-06)
+
+- **Colour the lanes by** (formatted view): a menu after `raw | formatted`, nine modes and a key per mode
+  (`data/lanecolor.ts`, `readableRows.ts` `colorBy`); pref `laneColor`. DESIGN § Formatted Lines view.
+- **Δ filter** (both views): `Δ ≥ N ms`, Off / Highlight / Filter, prefs `deltaMs`, `deltaMode`. New engine route
+  `GET /api/lines/delta` (`internal/slice/lines_delta.go`, brute-force test over every fixture, model and spill; contract
+  34 session routes, protocol stays 1, `api.d.ts` regenerated); filtering is `folds.filterFolds` (quiet folds, `Fold.filter`).
+  io_waits.trc: 1,789 rows with Δ ≥ 1 ms, 7 with Δ ≥ 5 ms.
+- **Fold repeats** is an icon button. The raw view's number cell now counts the heat slot in its minimum width (the text
+  shifted with the line number's digits, visible once rows are filtered).
+- Evidence: `/tmp/verify-mtkprof-dlt/evidence/` (io_waits.trc: Operation + highlight, Δ colours + filter, raw filter,
+  Wait class with its key).
+
 ## Open-list round (2026-11-06)
 
 - **Control file waits are not block I/O** (`bab6065`): `Event.IsFileP1` / `isFileP1` skip `control file *` events (p1

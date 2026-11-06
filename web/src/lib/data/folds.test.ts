@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LINE_KINDS } from './linecache'
-import { blockAt, foldAt, foldHiding, headAtRow, indexFolds, lineOfRow, rowOfLine, tableOf, toggleFold, visibleCount, withHeads, type Fold, type LineSource } from './folds'
+import { blockAt, filterFolds, foldAt, foldHiding, headAtRow, indexFolds, lineOfRow, rowOfLine, tableOf, toggleFold, visibleCount, withHeads, type Fold, type LineSource } from './folds'
 import type { LineKind } from './lines'
 
 /** A cache of the given lines (kind names), all loaded; `holes` lists lines that are not. */
@@ -170,5 +170,26 @@ describe('table heads', () => {
     expect(tableOf(9, folds)?.from).toBe(8)
     expect(tableOf(4, folds)).toBeUndefined()
     expect(tableOf(11, folds)).toBeUndefined()
+  })
+})
+
+describe('filterFolds', () => {
+  it('leaves only the kept lines (and line 1, which says what it hides)', () => {
+    const f = filterFolds([5, 6, 10], 20, 'Δ ≥ 1 ms')
+    expect(f.map(({ from, to, quiet }) => [from, to, !!quiet])).toEqual([[1, 4, false], [6, 9, true], [10, 20, true]])
+    expect(f[0].summary).toBe('4 lines before the first Δ ≥ 1 ms')
+    // rows: line 1 (the summary), 5, 6, 10
+    expect(visibleCount(20, f)).toBe(4)
+    expect([0, 1, 2, 3].map((r) => lineOfRow(r, f))).toEqual([1, 5, 6, 10])
+    expect(rowOfLine(8, f)).toBe(2) // a hidden line maps to the kept line above it
+  })
+  it('keeps line 1 as itself when it is kept, and says when nothing is', () => {
+    const f = filterFolds([1, 3], 3, 'x')
+    expect(visibleCount(3, f)).toBe(2)
+    expect(f.every((x) => x.quiet && x.filter && x.auto)).toBe(true)
+    const none = filterFolds([], 7, 'Δ ≥ 5 s')
+    expect(none).toEqual([{ from: 1, to: 7, summary: 'no Δ ≥ 5 s in this file', auto: true, filter: true }])
+    expect(visibleCount(7, none)).toBe(1)
+    expect(filterFolds([2], 2, 'x')[0].summary).toBe('1 line before the first x')
   })
 })

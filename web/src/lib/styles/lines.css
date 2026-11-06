@@ -82,6 +82,8 @@
 .lv-fold-sum { color: var(--ink-3); margin-inline-start: var(--sp-3); font-style: italic; }
 .lv-ln { flex: none; position: sticky; inset-inline-start: 0; z-index: 1; box-sizing: content-box; min-inline-size: var(--lv-ln); padding-inline: 1.1em var(--sp-2); text-align: end; color: var(--ink-3); background: var(--surface-sunken); border-inline-end: 1px solid var(--hairline); user-select: none; cursor: default; font-variant-numeric: tabular-nums; }
 /* the elapsed time of a call or wait: a bar right of the line number, as long as log10(µs)/6 of its slot, in the row's tone */
+/* the heat slot sits inside the number cell: its minimum counts the slot, so the text starts at one column whatever the line number's width */
+.lv-heat-on .lv-row:not(.lv-rd) .lv-ln { min-inline-size: calc(var(--lv-ln) + 1.4rem + var(--sp-2)); }
 .lv-heat-slot { display: inline-flex; align-items: center; inline-size: 1.4rem; block-size: var(--lv-row); margin-inline-start: var(--sp-2); vertical-align: top; }
 .lv-heat { display: block; block-size: 4px; border-radius: 2px; inline-size: calc(var(--w) * 100%); min-inline-size: 2px; background: color-mix(in oklch, var(--tone, var(--ink-3)) 70%, transparent); pointer-events: auto; }
 /* with time columns the number keeps its own width, so the columns after it line up whatever its digits */
@@ -405,7 +407,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 /* the band stays in one column at every depth; the recursive depth indents the text and shows as a ↳n badge before the sql_id */
 .lv-lane::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 3px; inline-size: 4px; background: var(--lane); }
 .lv-lane-none::before { content: none; }
-.lv-lane-id { color: color-mix(in oklch, var(--lane) 65%, var(--ink)); font-weight: 600; cursor: pointer; text-decoration: none; }
+.lv-lane-id { color: color-mix(in oklch, var(--lane-ink, var(--lane)) 65%, var(--ink)); /* the statement's colour, whatever the band shows */ font-weight: 600; cursor: pointer; text-decoration: none; }
 .lv-lane-id:hover { text-decoration: underline; }
 .lv-lane-sub { color: var(--ink-3); }
 .lv-lane-dep { display: inline-block; margin-inline-end: 0.4em; padding-inline: 0.3em; border: 1px solid var(--hairline-strong); border-radius: 3px; line-height: 1.25; color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
@@ -442,6 +444,8 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-rd .lv-ln::before { content: none; }
 /* the highlighted statement's lane is stronger (toward the ink) on its calls and waits; the same width, so the band stays straight */
 .lv-rd.lv-mk1 .lv-lane::before, .lv-rd.lv-mk2 .lv-lane::before, .lv-rd.lv-mk3 .lv-lane::before { background: color-mix(in oklch, var(--lane) 60%, var(--ink)); }
+/* coloured by something else than the statement: the band keeps that colour on the highlighted statement's rows too */
+.lanes-by-line .lv-rd.lv-mk1 .lv-lane::before, .lanes-by-line .lv-rd.lv-mk2 .lv-lane::before, .lanes-by-line .lv-rd.lv-mk3 .lv-lane::before { background: var(--lane); }
 .lv-pinned { box-shadow: inset 0 1px 0 var(--c-commit), inset 0 -1px 0 var(--c-commit); }
 .lv-hit .lv-tx { background: color-mix(in oklch, var(--c-commit) 22%, transparent); }
 .lv-asrun { all: unset; margin-inline-end: var(--sp-3); color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
@@ -479,6 +483,19 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .asrun-val { overflow-wrap: anywhere; }
 /* the readable mode's controls in the toolbar */
 .lines-rd { display: flex; align-items: center; gap: var(--sp-1); }
+.lines-rd > .tb-icon { display: inline-flex; align-items: center; padding-inline: 0.45rem; }
+/* the Colour menu: a swatch of the mode's first colours, the mode in bold */
+.lines-colour > button { display: inline-flex; align-items: center; gap: 0.4em; }
+.lines-colour > button b { font-weight: 600; color: inherit; }
+.lines-colour-sw { flex: none; inline-size: 0.85em; block-size: 0.85em; border-radius: 3px; background: var(--sw); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.lines-colour-note { margin: var(--sp-1) var(--sp-1) 0; max-inline-size: 17rem; white-space: normal; }
+@container (inline-size < 72rem) { .lines-colour > button .tb-label { display: none; } }
+/* the Δ filter: the threshold and the mode on the button while it is on */
+.lines-dfilter > button { display: inline-flex; align-items: center; gap: 0.35em; font-variant-numeric: tabular-nums; }
+.lines-dfilter-sym { font-weight: 700; }
+.lines-dfilter > button small { color: var(--ink-3); }
+.lines-dfilter.on > button { color: var(--ink); background: color-mix(in oklch, var(--c-other) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--c-other) 45%, transparent); }
+.lines-dfilter.on > button small { color: var(--ink-2); }
 .lines-hl { display: inline-flex; flex: 0 1 auto; min-inline-size: 0; overflow: hidden; align-items: center; gap: var(--sp-1); padding: 1px var(--sp-1) 1px var(--sp-2); font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; border-radius: var(--radius); background: color-mix(in oklch, var(--hl) 14%, transparent); box-shadow: inset 3px 0 0 var(--hl); }
 .lines-hl > i { inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; background: var(--hl); }
 .lines-hl > .link { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
@@ -581,3 +598,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .rd-ev { color: var(--ink); }
 .rd-evobj { margin-inline-start: 2ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
 .rd-pgap { margin-inline-start: 2ch; }
+
+/* the Δ filter: a row whose time from the timed line before reaches the threshold (highlight), and a row with lines hidden under it (filter) */
+.lv-dhit { background: color-mix(in oklch, var(--c-other) 13%, transparent); }
+.lv-dhit > :first-child { box-shadow: inset 3px 0 0 var(--c-other); }
+.lv-dhit.lv-sel { background: color-mix(in oklch, var(--c-commit) 20%, color-mix(in oklch, var(--c-other) 10%, transparent)); }
+.lv-filt { background-image: repeating-linear-gradient(90deg, color-mix(in oklch, var(--ink) 30%, transparent) 0 3px, transparent 3px 7px); background-size: 100% 1px; background-position: bottom; background-repeat: no-repeat; }
