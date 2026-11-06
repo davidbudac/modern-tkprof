@@ -1,0 +1,152 @@
+
+TKPROF: Release 19.0.0.0.0 - Development on Fri Nov 6 08:06:46 2026
+
+Copyright (c) 1982, 2019, Oracle and/or its affiliates.  All rights reserved.
+
+Trace file: /home/oracle/mtk_gen/out/px_io_slave_p002.trc
+Sort options: prsela  exeela  fchela  
+********************************************************************************
+count    = number of times OCI procedure was executed
+cpu      = cpu time in seconds executing 
+elapsed  = elapsed time in seconds executing
+disk     = number of physical reads of buffers from disk
+query    = number of buffers gotten for consistent read
+current  = number of buffers gotten in current mode (usually for update)
+rows     = number of rows processed by the fetch or execute call
+********************************************************************************
+
+SQL ID: cznmg6kxgvkpu Plan Hash: 831562720
+
+select /*+ parallel(b 4) full(b) mtk_px_scan */ count(*), sum(amount), 
+  max(length(pad)) 
+from
+ mtk_px_big b
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.03       0.09       1484       1513          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.03       0.09       1484       1513          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: ALL_ROWS
+Parsing user id: 165     (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  SORT AGGREGATE (cr=0 pr=0 pw=0 time=0 us starts=0)
+         0          0          0   PX COORDINATOR  (cr=0 pr=0 pw=0 time=0 us starts=0)
+         0          0          0    PX SEND QC (RANDOM) :TQ10000 (cr=0 pr=0 pw=0 time=0 us starts=0)
+         1          1          1     SORT AGGREGATE (cr=1513 pr=1484 pw=0 time=88765 us starts=1)
+     25228      25228      25228      PX BLOCK ITERATOR (cr=1513 pr=1484 pw=0 time=43477 us starts=1 cost=541 size=48720000 card=120000)
+     25228      25228      25228       TABLE ACCESS FULL MTK_PX_BIG (cr=1513 pr=1484 pw=0 time=26281 us starts=14 cost=541 size=48720000 card=120000)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PX Deq: Execution Msg                          16        0.00          0.01
+  resmgr:cpu quantum                              1        0.00          0.00
+  direct path read                               58        0.00          0.00
+********************************************************************************
+
+SQL ID: 8w8kxst1chxva Plan Hash: 28424766
+
+select /*+ parallel(b 2) full(b) mtk_px_group */ grp, count(*), sum(amount) 
+from
+ mtk_px_big b group by grp order by grp
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        1      0.00       0.00          0          0          0           0
+Execute      1      0.01       0.02       3879       3910          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        2      0.01       0.02       3879       3910          0           0
+
+Misses in library cache during parse: 0
+Optimizer mode: ALL_ROWS
+Parsing user id: 165     (recursive depth: 1)
+Number of plan statistics captured: 1
+
+Rows (1st) Rows (avg) Rows (max)  Row Source Operation
+---------- ---------- ----------  ---------------------------------------------------
+         0          0          0  PX COORDINATOR  (cr=0 pr=0 pw=0 time=0 us starts=0)
+         0          0          0   PX SEND QC (ORDER) :TQ10001 (cr=0 pr=0 pw=0 time=0 us starts=0 cost=1085 size=400 card=50)
+         0          0          0    SORT GROUP BY (cr=0 pr=0 pw=0 time=0 us starts=0 cost=1085 size=400 card=50)
+         0          0          0     PX RECEIVE  (cr=0 pr=0 pw=0 time=0 us starts=0 cost=1085 size=400 card=50)
+         0          0          0      PX SEND RANGE :TQ10000 (cr=0 pr=0 pw=0 time=0 us starts=0 cost=1085 size=400 card=50)
+        50         50         50       HASH GROUP BY (cr=3910 pr=3879 pw=0 time=14219 us starts=1 cost=1085 size=400 card=50)
+     65940      65940      65940        PX BLOCK ITERATOR (cr=3910 pr=3879 pw=0 time=12001 us starts=1 cost=1082 size=960000 card=120000)
+     65940      65940      65940         TABLE ACCESS FULL MTK_PX_BIG (cr=3910 pr=3879 pw=0 time=14270 us starts=15 cost=1082 size=960000 card=120000)
+
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PX Deq: Execution Msg                          18        0.00          0.00
+  direct path read                              144        0.00          0.00
+
+
+
+********************************************************************************
+
+OVERALL TOTALS FOR ALL NON-RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute      0      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        0      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PX Deq: Execution Msg                           1        0.00          0.00
+  PX Deq: Slave Session Stats                     2        0.00          0.00
+
+
+OVERALL TOTALS FOR ALL RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        2      0.00       0.00          0          0          0           0
+Execute      2      0.05       0.12       5363       5423          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        4      0.05       0.12       5363       5423          0           0
+
+Misses in library cache during parse: 0
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PX Deq: Execution Msg                          34        0.00          0.02
+  resmgr:cpu quantum                              1        0.00          0.00
+  direct path read                              202        0.00          0.01
+
+    2  user  SQL statements in session.
+    0  internal SQL statements in session.
+    2  SQL statements in session.
+********************************************************************************
+Trace file: /home/oracle/mtk_gen/out/px_io_slave_p002.trc
+Trace file compatibility: 12.2.0.0
+Sort options: prsela  exeela  fchela  
+       2  sessions in tracefile.
+       3  user  SQL statements in trace file.
+       0  internal SQL statements in trace file.
+       2  SQL statements in trace file.
+       2  unique SQL statements in trace file.
+     310  lines in trace file.
+       0  elapsed seconds in trace file.
+
+

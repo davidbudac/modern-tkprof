@@ -22,7 +22,7 @@ OUT=${OUT:-$PWD/out}
 CONN="mtk/${MTK_PASSWORD}@${MTK_SERVICE}"
 mkdir -p "$OUT/log" "$OUT/ref"
 
-ALL_SCENARIOS="basic_binds plsql_recursive errors io_waits lobs plan_stat_all level_4 level_8 level_1 truncated cursor_cache nasty_sql multisession parallel midtrace_start plan_change exec_loom"
+ALL_SCENARIOS="basic_binds plsql_recursive errors io_waits lobs plan_stat_all level_4 level_8 level_1 truncated cursor_cache nasty_sql multisession parallel midtrace_start plan_change exec_loom stats_basic px_io"
 if [ $# -eq 0 ]; then
   TARGETS="$ALL_SCENARIOS ref big"
 else
@@ -95,6 +95,21 @@ for t in $TARGETS; do
         log "WARN: no PX slave trace found"
       fi
       tkprof_both parallel
+      ;;
+    px_io)
+      # every slave trace of this run (one file per slave process: px_io_slave_p000.trc ...)
+      log "scenario px_io"
+      touch "$OUT/.px_io_marker"; sleep 1
+      run_scenario px_io
+      found=0
+      for slave in $(find "$TRACE_DIR" -maxdepth 1 -name "${ORACLE_SID}_p0*_mtk_px_io.trc" -newer "$OUT/.px_io_marker" | sort); do
+        p=$(basename "$slave" | cut -d_ -f2)
+        cp -p "$slave" "$OUT/px_io_slave_$p.trc"
+        log "px_io slave trace: $(basename "$slave") -> px_io_slave_$p.trc ($(stat -c %s "$slave") bytes)"
+        tkprof_both "px_io_slave_$p"; found=1
+      done
+      [ $found = 1 ] || log "WARN: no PX slave trace found"
+      tkprof_both px_io
       ;;
     midtrace_start)
       log "scenario midtrace_start (two files: part1 + continuation)"

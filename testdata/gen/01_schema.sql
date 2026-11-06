@@ -44,6 +44,18 @@ begin
        lob(c) store as securefile mtk_lob_c (nocache)
        lob(b) store as securefile mtk_lob_b (nocache)');
   ddl('create sequence mtk_seq start with 1000000 increment by 1 cache 100');
+  -- px_io: large enough (about 60 MB) that PX slaves read it with direct path reads, not from the cache
+  ddl('create table mtk_px_big (
+         id     number constraint mtk_px_big_pk primary key,
+         grp    number,
+         amount number(12,2),
+         pad    varchar2(400))');
+  -- exec_loom: read only by its index_cold_warm lookups, so a random id range is not yet in the buffer cache
+  ddl('create table mtk_loom_cold (
+         id     number constraint mtk_loom_cold_pk primary key,
+         grp    number,
+         amount number(12,2),
+         pad    varchar2(400))');
 end;
 /
 
@@ -92,6 +104,41 @@ begin
       from dual connect by level <= 100000;
     dbms_output.put_line('mtk_orders loaded: ' || sql%rowcount);
     commit;
+  end if;
+end;
+/
+
+-- mtk_px_big: 120k rows of about 420 bytes (direct-path load, so its blocks are not cached), stats once
+declare
+  v_n number;
+begin
+  select count(*) into v_n from mtk_px_big where rownum = 1;
+  if v_n = 0 then
+    insert /*+ append */ into mtk_px_big (id, grp, amount, pad)
+    select level, mod(level, 50), round(dbms_random.value(1, 10000), 2),
+           rpad(dbms_random.string('x', 30), 400, 'p')
+      from dual connect by level <= 120000;
+    dbms_output.put_line('mtk_px_big loaded: ' || sql%rowcount);
+    commit;
+    dbms_stats.gather_table_stats(user, 'MTK_PX_BIG', cascade => true);
+  end if;
+end;
+/
+
+-- mtk_loom_cold: 50k rows of about 420 bytes (about 3,000 blocks), direct-path load; statistics from a 1 % block
+-- sample (a full gather would read every block into the cache, and the point of the table is that it is not cached)
+declare
+  v_n number;
+begin
+  select count(*) into v_n from mtk_loom_cold where rownum = 1;
+  if v_n = 0 then
+    insert /*+ append */ into mtk_loom_cold (id, grp, amount, pad)
+    select level, mod(level, 50), round(dbms_random.value(1, 10000), 2),
+           rpad(dbms_random.string('x', 30), 400, 'c')
+      from dual connect by level <= 50000;
+    dbms_output.put_line('mtk_loom_cold loaded: ' || sql%rowcount);
+    commit;
+    dbms_stats.gather_table_stats(user, 'MTK_LOOM_COLD', estimate_percent => 1, block_sample => true, cascade => false);
   end if;
 end;
 /
@@ -145,5 +192,6 @@ end;
 /
 select object_type, object_name, status from user_objects order by 1, 2;
 select 'mtk_cust' t, count(*) from mtk_cust union all select 'mtk_orders', count(*) from mtk_orders
-union all select 'mtk_lob', count(*) from mtk_lob union all select 'mtk_audit', count(*) from mtk_audit;
+union all select 'mtk_lob', count(*) from mtk_lob union all select 'mtk_audit', count(*) from mtk_audit
+union all select 'mtk_px_big', count(*) from mtk_px_big union all select 'mtk_loom_cold', count(*) from mtk_loom_cold;
 exit

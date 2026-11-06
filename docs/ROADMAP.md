@@ -9,7 +9,8 @@
   calls), bind sets, STAT plans, transactions, errors, session contexts,
   wall-clock anchoring, trcsess multi-session files, split/truncated files.
 - Golden tests: call statistics, library cache misses and wait tables match
-  Oracle's `tkprof` on all 19 fixtures (`internal/golden`).
+  Oracle's `tkprof` on every fixture with a tkprof output (`internal/golden`;
+  29 for 19c, 19 each for 21c and 23ai).
 - Text report: resource profile (Millsap), statements ranked by response time
   with recursive children, per-statement call table (tkprof-compatible
   exclusive numbers), profile, wait detail by object, executions, binds,

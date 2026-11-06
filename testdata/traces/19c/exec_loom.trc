@@ -1,0 +1,751 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_31220_mtk_exec_loom.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 84
+Unix process pid: 31220, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-11-06T08:09:50.282163+00:00 (PDB1(3))
+*** SESSION ID:(64.19006) 2026-11-06T08:09:50.282182+00:00
+*** CLIENT ID:(mtk_client_exec_loom) 2026-11-06T08:09:50.282185+00:00
+*** SERVICE NAME:(pdb1) 2026-11-06T08:09:50.282189+00:00
+*** MODULE NAME:(mtk_exec_loom) 2026-11-06T08:09:50.282191+00:00
+*** ACTION NAME:(start) 2026-11-06T08:09:50.282194+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-11-06T08:09:50.282197+00:00
+*** CONTAINER ID:(3) 2026-11-06T08:09:50.282200+00:00
+ 
+WAIT #140497810155640: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=48578595314
+WAIT #140497810155640: nam='SQL*Net message from client' ela= 125 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=48578596022
+CLOSE #140497810155640:c=2,e=2,dep=0,type=1,tim=48578596057
+=====================
+PARSING IN CURSOR #140497808841448 len=64 dep=0 uid=165 oct=47 lid=165 tim=48578596118 hv=317499695 ad='78c58080' sqlid='8ums0bs9fta9g'
+BEGIN dbms_application_info.set_action('index_cold_warm'); END;
+
+END OF STMT
+PARSE #140497808841448:c=48,e=48,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=48578596117
+*** ACTION NAME:(index_cold_warm) 2026-11-06T08:09:50.282527+00:00
+ 
+EXEC #140497808841448:c=35,e=35,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=48578596180
+WAIT #140497808841448: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=48578596222
+WAIT #140497808841448: nam='SQL*Net message from client' ela= 106 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=48578596338
+CLOSE #140497808841448:c=5,e=4,dep=0,type=1,tim=48578596355
+=====================
+PARSING IN CURSOR #140497808836360 len=73 dep=0 uid=165 oct=47 lid=165 tim=48578596755 hv=3956867365 ad='75ecf990' sqlid='dzgss3vpxk095'
+BEGIN :lo := trunc(dbms_random.value(1, 48000)); :hi := :lo + 1999; END;
+
+END OF STMT
+PARSE #140497808836360:c=387,e=387,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=48578596754
+BINDS #140497808836360:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7fc831fcc6c0  bln=22  avl=00  flg=05
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1400000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7fc831fcc6d8  bln=22  avl=00  flg=01
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=48578598293
+EXEC #140497808836360:c=817,e=1525,p=0,cr=0,cu=0,mis=1,r=1,dep=0,og=1,plh=0,tim=48578598309
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 162 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=48578598509
+CLOSE #140497808836360:c=4,e=4,dep=0,type=0,tim=48578598527
+=====================
+PARSING IN CURSOR #140497808836360 len=125 dep=0 uid=165 oct=3 lid=165 tim=48578598694 hv=2512377348 ad='7483dc90' sqlid='a4vuwhqavzph4'
+select /*+ index(b mtk_loom_cold_pk) mtk_loom_ix */ b.id, b.grp, b.amount from mtk_loom_cold b where b.id between :lo and :hi
+END OF STMT
+PARSE #140497808836360:c=152,e=152,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=48578598693
+=====================
+PARSING IN CURSOR #140497808792576 len=124 dep=1 uid=0 oct=3 lid=0 tim=48578599444 hv=4179850718 ad='8845dcd0' sqlid='10gywwmwk6xfy'
+select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, flags, ctime from exp_head$ eh where exp_id = :1
+END OF STMT
+PARSE #140497808792576:c=42,e=43,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=48578599443
+BINDS #140497808792576:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7fc831fbfb38  bln=22  avl=11  flg=05
+  value=6879043066096184782
+EXEC #140497808792576:c=54,e=53,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=48578599555
+FETCH #140497808792576:c=18,e=19,p=0,cr=2,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=48578599581
+STAT #140497808792576 id=1 cnt=0 pid=0 pos=1 obj=720 op='TABLE ACCESS BY INDEX ROWID EXP_HEAD$ (cr=2 pr=0 pw=0 str=1 time=21 us cost=2 size=67 card=1)'
+STAT #140497808792576 id=2 cnt=0 pid=1 pos=1 obj=721 op='INDEX UNIQUE SCAN I_EXP_HEAD$ (cr=2 pr=0 pw=0 str=1 time=17 us cost=1 size=0 card=1)'
+CLOSE #140497808792576:c=1,e=1,dep=1,type=3,tim=48578599642
+=====================
+PARSING IN CURSOR #140497808782304 len=137 dep=1 uid=0 oct=2 lid=0 tim=48578599702 hv=309576400 ad='8b787818' sqlid='dbvj6jc977hqh'
+insert /* QOSD */ into exp_head$ (exp_id, objn, sub_id, fixed_cost, text, col_list, flags, ctime) values (:1, :2, :3, :4, :5, :6, :7, :8)
+END OF STMT
+PARSE #140497808782304:c=32,e=33,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=0,tim=48578599701
+BINDS #140497808782304:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0
+  kxsbbbfp=7fc832008f60  bln=22  avl=11  flg=05
+  value=6879043066096184782
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7fc832008f78  bln=22  avl=04  flg=01
+  value=141881
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48
+  kxsbbbfp=7fc832008f90  bln=22  avl=01  flg=01
+  value=0
+ Bind#3
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72
+  kxsbbbfp=7fc832008fa8  bln=22  avl=09  flg=01
+  value=.0000000337759769235673
+ Bind#4
+  oacdty=01 mxl=32(05) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0
+  kxsbbbfp=75b45138  bln=32  avl=05  flg=09
+  value=""ID""
+ Bind#5
+  oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0
+  kxsbbbfp=75b45150  bln=32  avl=02  flg=09
+  value="1"
+ Bind#6
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0
+  kxsbbbfp=7fc832008f30  bln=22  avl=02  flg=05
+  value=8
+ Bind#7
+  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0
+  kxsbbbfp=75b45120  bln=07  avl=07  flg=09
+  value="11/6/2026 8:9:50"
+WAIT #140497808782304: nam='asynch descriptor resize' ela= 4 outstanding #aio=0 current aio limit=0 new aio limit=128 obj#=720 tim=48578599965
+WAIT #140497808782304: nam='Disk file operations I/O' ela= 59 FileOperation=2 fileno=10 filetype=2 obj#=720 tim=48578600019
+WAIT #140497808782304: nam='db file sequential read' ela= 261 file#=10 block#=55400 blocks=1 obj#=720 tim=48578600310
+WAIT #140497808782304: nam='db file sequential read' ela= 73 file#=10 block#=66142 blocks=1 obj#=720 tim=48578600448
+EXEC #140497808782304:c=643,e=855,p=2,cr=1,cu=6,mis=0,r=1,dep=1,og=4,plh=0,tim=48578600588
+STAT #140497808782304 id=1 cnt=0 pid=0 pos=1 obj=720 op='LOAD TABLE CONVENTIONAL  EXP_HEAD$ (cr=1 pr=2 pw=0 str=1 time=709 us)'
+CLOSE #140497808782304:c=0,e=1,dep=1,type=3,tim=48578600625
+BINDS #140497808836360:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7fc831fcc6c0  bln=22  avl=04  flg=05
+  value=11903
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7fc831fcc6d8  bln=22  avl=04  flg=01
+  value=13902
+EXEC #140497808836360:c=1995,e=2175,p=2,cr=3,cu=7,mis=1,r=0,dep=0,og=1,plh=2457462421,tim=48578600897
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=48578600912
+WAIT #140497808836360: nam='Disk file operations I/O' ela= 11 FileOperation=2 fileno=12 filetype=2 obj#=141881 tim=48578600994
+WAIT #140497808836360: nam='db file sequential read' ela= 9 file#=12 block#=219216 blocks=1 obj#=141881 tim=48578601034
+FETCH #140497808836360:c=525,e=163,p=1,cr=4,cu=0,mis=0,r=1,dep=0,og=1,plh=2457462421,tim=48578601089
+WAIT #140497808836360: nam='log file sync' ela= 2053 buffer#=5327 sync scn=44034197 p3=0 obj#=141881 tim=48578603152
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 125 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578603302
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578603324
+WAIT #140497808836360: nam='db file sequential read' ela= 8 file#=12 block#=219217 blocks=1 obj#=141881 tim=48578603360
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219218 blocks=1 obj#=141881 tim=48578603410
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219219 blocks=1 obj#=141881 tim=48578603441
+WAIT #140497808836360: nam='db file sequential read' ela= 15 file#=12 block#=219220 blocks=1 obj#=141881 tim=48578603477
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219221 blocks=1 obj#=141881 tim=48578603505
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219222 blocks=1 obj#=141881 tim=48578603531
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219223 blocks=1 obj#=141881 tim=48578603556
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219224 blocks=1 obj#=141881 tim=48578603585
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219225 blocks=1 obj#=141881 tim=48578603617
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219226 blocks=1 obj#=141881 tim=48578603643
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219227 blocks=1 obj#=141881 tim=48578603669
+FETCH #140497808836360:c=365,e=364,p=11,cr=13,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578603681
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 398 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578604091
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578604113
+WAIT #140497808836360: nam='db file sequential read' ela= 8 file#=12 block#=219228 blocks=1 obj#=141881 tim=48578604141
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219229 blocks=1 obj#=141881 tim=48578604170
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219230 blocks=1 obj#=141881 tim=48578604197
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219231 blocks=1 obj#=141881 tim=48578604223
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219232 blocks=1 obj#=141881 tim=48578604251
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219233 blocks=1 obj#=141881 tim=48578604292
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219234 blocks=1 obj#=141881 tim=48578604322
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219235 blocks=1 obj#=141881 tim=48578604348
+WAIT #140497808836360: nam='db file sequential read' ela= 4 file#=12 block#=219236 blocks=1 obj#=141881 tim=48578604375
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219237 blocks=1 obj#=141881 tim=48578604403
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219238 blocks=1 obj#=141881 tim=48578604432
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219239 blocks=1 obj#=141881 tim=48578604457
+FETCH #140497808836360:c=57,e=358,p=12,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578604466
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 369 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578604856
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578604875
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219240 blocks=1 obj#=141881 tim=48578604907
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219241 blocks=1 obj#=141881 tim=48578604936
+WAIT #140497808836360: nam='db file sequential read' ela= 7 file#=12 block#=219242 blocks=1 obj#=141881 tim=48578604987
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219243 blocks=1 obj#=141881 tim=48578605027
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219244 blocks=1 obj#=141881 tim=48578605060
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219245 blocks=1 obj#=141881 tim=48578605085
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219246 blocks=1 obj#=141881 tim=48578605117
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219247 blocks=1 obj#=141881 tim=48578605145
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219248 blocks=1 obj#=141881 tim=48578605170
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219249 blocks=1 obj#=141881 tim=48578605193
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219250 blocks=1 obj#=141881 tim=48578605220
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219251 blocks=1 obj#=141881 tim=48578605243
+FETCH #140497808836360:c=314,e=382,p=12,cr=15,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578605252
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 380 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578605643
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578605664
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219252 blocks=1 obj#=141881 tim=48578605692
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219253 blocks=1 obj#=141881 tim=48578605723
+WAIT #140497808836360: nam='db file sequential read' ela= 4 file#=12 block#=219254 blocks=1 obj#=141881 tim=48578605751
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219255 blocks=1 obj#=141881 tim=48578605775
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219256 blocks=1 obj#=141881 tim=48578605802
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219257 blocks=1 obj#=141881 tim=48578605824
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219258 blocks=1 obj#=141881 tim=48578605851
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219259 blocks=1 obj#=141881 tim=48578605878
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219260 blocks=1 obj#=141881 tim=48578605902
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219261 blocks=1 obj#=141881 tim=48578605925
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219262 blocks=1 obj#=141881 tim=48578605951
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219263 blocks=1 obj#=141881 tim=48578605974
+FETCH #140497808836360:c=310,e=324,p=12,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578605982
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 354 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578606363
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578606389
+WAIT #140497808836360: nam='db file sequential read' ela= 7 file#=12 block#=219266 blocks=1 obj#=141881 tim=48578606417
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219267 blocks=1 obj#=141881 tim=48578606445
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219268 blocks=1 obj#=141881 tim=48578606481
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219269 blocks=1 obj#=141881 tim=48578606506
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219270 blocks=1 obj#=141881 tim=48578606534
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219271 blocks=1 obj#=141881 tim=48578606565
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219272 blocks=1 obj#=141881 tim=48578606665
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219273 blocks=1 obj#=141881 tim=48578606689
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219274 blocks=1 obj#=141881 tim=48578606712
+WAIT #140497808836360: nam='db file sequential read' ela= 4 file#=12 block#=219275 blocks=1 obj#=141881 tim=48578606734
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219276 blocks=1 obj#=141881 tim=48578606761
+FETCH #140497808836360:c=0,e=388,p=11,cr=13,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578606771
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 361 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578607144
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219277 blocks=1 obj#=141881 tim=48578607180
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578607193
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219278 blocks=1 obj#=141881 tim=48578607220
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219279 blocks=1 obj#=141881 tim=48578607252
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219280 blocks=1 obj#=141881 tim=48578607277
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219281 blocks=1 obj#=141881 tim=48578607315
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219282 blocks=1 obj#=141881 tim=48578607346
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219283 blocks=1 obj#=141881 tim=48578607367
+WAIT #140497808836360: nam='db file sequential read' ela= 4 file#=12 block#=219284 blocks=1 obj#=141881 tim=48578607390
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219285 blocks=1 obj#=141881 tim=48578607410
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219286 blocks=1 obj#=141881 tim=48578607435
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219287 blocks=1 obj#=141881 tim=48578607457
+WAIT #140497808836360: nam='db file sequential read' ela= 7 file#=12 block#=219288 blocks=1 obj#=141881 tim=48578607495
+FETCH #140497808836360:c=346,e=345,p=12,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578607506
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 357 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578607874
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578607892
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219289 blocks=1 obj#=141881 tim=48578607915
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219290 blocks=1 obj#=141881 tim=48578607939
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219291 blocks=1 obj#=141881 tim=48578607962
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219292 blocks=1 obj#=141881 tim=48578607989
+WAIT #140497808836360: nam='db file sequential read' ela= 7 file#=12 block#=219293 blocks=1 obj#=141881 tim=48578608033
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219294 blocks=1 obj#=141881 tim=48578608064
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219295 blocks=1 obj#=141881 tim=48578608088
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219296 blocks=1 obj#=141881 tim=48578608110
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219297 blocks=1 obj#=141881 tim=48578608132
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219298 blocks=1 obj#=141881 tim=48578608155
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219299 blocks=1 obj#=141881 tim=48578608181
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219300 blocks=1 obj#=141881 tim=48578608208
+FETCH #140497808836360:c=263,e=334,p=12,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578608221
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 377 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578608609
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578608630
+WAIT #140497808836360: nam='db file sequential read' ela= 7 file#=12 block#=219301 blocks=1 obj#=141881 tim=48578608659
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219302 blocks=1 obj#=141881 tim=48578608688
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219303 blocks=1 obj#=141881 tim=48578608712
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219304 blocks=1 obj#=141881 tim=48578608737
+WAIT #140497808836360: nam='db file sequential read' ela= 4 file#=12 block#=219305 blocks=1 obj#=141881 tim=48578608762
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219306 blocks=1 obj#=141881 tim=48578608788
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219307 blocks=1 obj#=141881 tim=48578608811
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219308 blocks=1 obj#=141881 tim=48578608834
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219309 blocks=1 obj#=141881 tim=48578608859
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219310 blocks=1 obj#=141881 tim=48578608887
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219311 blocks=1 obj#=141881 tim=48578608907
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219312 blocks=1 obj#=141881 tim=48578608930
+FETCH #140497808836360:c=0,e=314,p=12,cr=15,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578608939
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 362 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578609312
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578609351
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219313 blocks=1 obj#=141881 tim=48578609378
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219314 blocks=1 obj#=141881 tim=48578609405
+WAIT #140497808836360: nam='db file sequential read' ela= 4 file#=12 block#=219315 blocks=1 obj#=141881 tim=48578609431
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219316 blocks=1 obj#=141881 tim=48578609454
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219317 blocks=1 obj#=141881 tim=48578609489
+WAIT #140497808836360: nam='db file sequential read' ela= 8 file#=12 block#=219318 blocks=1 obj#=141881 tim=48578609519
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219319 blocks=1 obj#=141881 tim=48578609544
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219320 blocks=1 obj#=141881 tim=48578609564
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219321 blocks=1 obj#=141881 tim=48578609587
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219322 blocks=1 obj#=141881 tim=48578609607
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219323 blocks=1 obj#=141881 tim=48578609630
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219324 blocks=1 obj#=141881 tim=48578609652
+FETCH #140497808836360:c=315,e=314,p=12,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578609659
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 361 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578610031
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578610056
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219325 blocks=1 obj#=141881 tim=48578610080
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219326 blocks=1 obj#=141881 tim=48578610109
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219327 blocks=1 obj#=141881 tim=48578610134
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219328 blocks=1 obj#=141881 tim=48578610154
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219329 blocks=1 obj#=141881 tim=48578610239
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219330 blocks=1 obj#=141881 tim=48578610260
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219331 blocks=1 obj#=141881 tim=48578610286
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219332 blocks=1 obj#=141881 tim=48578610308
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219333 blocks=1 obj#=141881 tim=48578610349
+WAIT #140497808836360: nam='db file sequential read' ela= 5 file#=12 block#=219334 blocks=1 obj#=141881 tim=48578610376
+WAIT #140497808836360: nam='db file sequential read' ela= 6 file#=12 block#=219335 blocks=1 obj#=141881 tim=48578610401
+FETCH #140497808836360:c=253,e=360,p=11,cr=13,cu=0,mis=0,r=199,dep=0,og=1,plh=2457462421,tim=48578610411
+STAT #140497808836360 id=1 cnt=2000 pid=0 pos=1 obj=0 op='FILTER  (cr=143 pr=118 pw=0 str=1 time=5759 us)'
+STAT #140497808836360 id=2 cnt=2000 pid=1 pos=1 obj=141881 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_LOOM_COLD (cr=143 pr=118 pw=0 str=1 time=4424 us cost=907 size=25103 card=1931)'
+STAT #140497808836360 id=3 cnt=2000 pid=2 pos=1 obj=141882 op='INDEX RANGE SCAN MTK_LOOM_COLD_PK (cr=15 pr=0 pw=0 str=1 time=1017 us cost=6 size=0 card=1931)'
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 412 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578610915
+CLOSE #140497808836360:c=0,e=3,dep=0,type=0,tim=48578610934
+WAIT #0: nam='PGA memory operation' ela= 11 which=5 bytes=393216 where=4 obj#=141881 tim=48578610963
+=====================
+PARSING IN CURSOR #140497808836360 len=125 dep=0 uid=165 oct=3 lid=165 tim=48578610994 hv=2512377348 ad='7483dc90' sqlid='a4vuwhqavzph4'
+select /*+ index(b mtk_loom_cold_pk) mtk_loom_ix */ b.id, b.grp, b.amount from mtk_loom_cold b where b.id between :lo and :hi
+END OF STMT
+PARSE #140497808836360:c=0,e=16,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=2457462421,tim=48578610994
+BINDS #140497808836360:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7fc831fcc6c0  bln=22  avl=04  flg=05
+  value=11903
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7fc831fcc6d8  bln=22  avl=04  flg=01
+  value=13902
+EXEC #140497808836360:c=50,e=49,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=2457462421,tim=48578611085
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578611099
+FETCH #140497808836360:c=10,e=10,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=2457462421,tim=48578611118
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 92 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578611222
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578611241
+FETCH #140497808836360:c=66,e=67,p=0,cr=13,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578611302
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 371 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578611683
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578611703
+FETCH #140497808836360:c=62,e=62,p=0,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578611760
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 436 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578612210
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578612235
+FETCH #140497808836360:c=0,e=60,p=0,cr=15,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578612289
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 381 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578612681
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578612703
+FETCH #140497808836360:c=0,e=66,p=0,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578612764
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 380 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578613158
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578613179
+FETCH #140497808836360:c=0,e=54,p=0,cr=13,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578613228
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 404 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578613644
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578613665
+FETCH #140497808836360:c=54,e=55,p=0,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578613714
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 387 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578614111
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578614131
+FETCH #140497808836360:c=53,e=52,p=0,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578614178
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 381 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578614569
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578614594
+FETCH #140497808836360:c=64,e=63,p=0,cr=15,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578614651
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 383 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578615047
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578615070
+FETCH #140497808836360:c=0,e=54,p=0,cr=14,cu=0,mis=0,r=200,dep=0,og=1,plh=2457462421,tim=48578615119
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 371 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578615501
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578615525
+FETCH #140497808836360:c=0,e=56,p=0,cr=13,cu=0,mis=0,r=199,dep=0,og=1,plh=2457462421,tim=48578615573
+STAT #140497808836360 id=1 cnt=2000 pid=0 pos=1 obj=0 op='FILTER  (cr=142 pr=0 pw=0 str=1 time=3341 us)'
+STAT #140497808836360 id=2 cnt=2000 pid=1 pos=1 obj=141881 op='TABLE ACCESS BY INDEX ROWID BATCHED MTK_LOOM_COLD (cr=142 pr=0 pw=0 str=1 time=2275 us cost=907 size=25103 card=1931)'
+STAT #140497808836360 id=3 cnt=2000 pid=2 pos=1 obj=141882 op='INDEX RANGE SCAN MTK_LOOM_COLD_PK (cr=15 pr=0 pw=0 str=1 time=1253 us cost=6 size=0 card=1931)'
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 421 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578616060
+CLOSE #140497808836360:c=0,e=3,dep=0,type=0,tim=48578616080
+=====================
+PARSING IN CURSOR #140497808836360 len=59 dep=0 uid=165 oct=47 lid=165 tim=48578616127 hv=2707226612 ad='7bdcee78' sqlid='07qb57qhptzzn'
+BEGIN dbms_application_info.set_action('scan_paths'); END;
+
+END OF STMT
+PARSE #140497808836360:c=0,e=34,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=48578616126
+*** ACTION NAME:(scan_paths) 2026-11-06T08:09:50.302525+00:00
+ 
+EXEC #140497808836360:c=0,e=26,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=48578616178
+WAIT #140497808836360: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578616204
+WAIT #140497808836360: nam='SQL*Net message from client' ela= 118 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578616335
+CLOSE #140497808836360:c=0,e=5,dep=0,type=1,tim=48578616354
+=====================
+PARSING IN CURSOR #140497808835032 len=47 dep=0 uid=165 oct=42 lid=165 tim=48578616379 hv=1887815202 ad='0' sqlid='f0q44r5s8bjj2'
+alter session set "_serial_direct_read" = never
+END OF STMT
+PARSE #140497808835032:c=0,e=14,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578616379
+EXEC #140497808835032:c=0,e=12,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578616431
+WAIT #140497808835032: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578616441
+WAIT #140497808835032: nam='SQL*Net message from client' ela= 124 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578616572
+CLOSE #140497808835032:c=0,e=2,dep=0,type=1,tim=48578616588
+=====================
+PARSING IN CURSOR #140497808833704 len=92 dep=0 uid=165 oct=3 lid=165 tim=48578617343 hv=783913163 ad='8e836988' sqlid='fc6cz74rbm46b'
+select /*+ full(o) mtk_loom_scan */ o.id, o.amount from mtk_orders o where mod(o.id, 10) = 0
+END OF STMT
+PARSE #140497808833704:c=609,e=745,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=3149924733,tim=48578617343
+EXEC #140497808833704:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=3149924733,tim=48578617385
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578617398
+FETCH #140497808833704:c=37,e=37,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=3149924733,tim=48578617463
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 118 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578617606
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578617626
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 33 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578618357
+FETCH #140497808833704:c=1046,e=1303,p=0,cr=46,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578618923
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1095 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578620036
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578620062
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 31 driver id=1952673792 #bytes=8103 p3=0 obj#=141881 tim=48578620968
+FETCH #140497808833704:c=968,e=1219,p=0,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578621275
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1001 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578622292
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578622316
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578623222
+FETCH #140497808833704:c=1181,e=1242,p=0,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578623552
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1017 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578624583
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578624608
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 50 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578625512
+FETCH #140497808833704:c=927,e=1227,p=0,cr=47,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578625829
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1023 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578626864
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578626888
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8103 p3=0 obj#=141881 tim=48578627786
+FETCH #140497808833704:c=1142,e=1216,p=0,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578628098
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1051 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578629164
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578629193
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578630093
+FETCH #140497808833704:c=876,e=1208,p=0,cr=47,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578630395
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 998 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578631405
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578631430
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8104 p3=0 obj#=141881 tim=48578632336
+FETCH #140497808833704:c=1171,e=1247,p=0,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578632671
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1015 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578633700
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578633725
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578634583
+FETCH #140497808833704:c=905,e=1187,p=0,cr=50,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578634905
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1031 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578635949
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578635974
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8103 p3=0 obj#=141881 tim=48578636946
+FETCH #140497808833704:c=1055,e=1287,p=0,cr=77,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578637255
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1011 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578638281
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578638310
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 32 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578639203
+FETCH #140497808833704:c=867,e=1205,p=0,cr=47,cu=0,mis=0,r=999,dep=0,og=1,plh=3149924733,tim=48578639509
+STAT #140497808833704 id=1 cnt=10000 pid=0 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=509 pr=0 pw=0 str=1 time=15161 us cost=137 size=10000 card=1000)'
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1012 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578640568
+CLOSE #140497808833704:c=2,e=2,dep=0,type=0,tim=48578640591
+=====================
+PARSING IN CURSOR #140497808833704 len=92 dep=0 uid=165 oct=3 lid=165 tim=48578642638 hv=783913163 ad='8e836988' sqlid='fc6cz74rbm46b'
+select /*+ full(o) mtk_loom_scan */ o.id, o.amount from mtk_orders o where mod(o.id, 10) = 0
+END OF STMT
+PARSE #140497808833704:c=1625,e=2030,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=3149924733,tim=48578642637
+EXEC #140497808833704:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=3149924733,tim=48578642680
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578642712
+FETCH #140497808833704:c=15,e=14,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=3149924733,tim=48578642737
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 101 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578642853
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578642873
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 36 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578643478
+FETCH #140497808833704:c=974,e=1028,p=0,cr=46,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578643895
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1041 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578644950
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578644980
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8103 p3=0 obj#=141881 tim=48578645709
+FETCH #140497808833704:c=774,e=997,p=0,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578645971
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 971 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578646954
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578646979
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 29 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578647703
+FETCH #140497808833704:c=79,e=994,p=0,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578647966
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 982 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578648961
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578648986
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 29 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578649707
+FETCH #140497808833704:c=990,e=989,p=0,cr=47,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578649969
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 977 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578650960
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578650985
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 29 driver id=1952673792 #bytes=8103 p3=0 obj#=141881 tim=48578651706
+FETCH #140497808833704:c=826,e=1007,p=0,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578651986
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 963 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578652971
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578652995
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 37 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578653751
+FETCH #140497808833704:c=263,e=1038,p=0,cr=47,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578654026
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1011 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578655056
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578655081
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8104 p3=0 obj#=141881 tim=48578655794
+FETCH #140497808833704:c=991,e=991,p=0,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578656066
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 971 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578657054
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578657078
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578657790
+FETCH #140497808833704:c=988,e=988,p=0,cr=50,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578658060
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 986 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578659063
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578659088
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8103 p3=0 obj#=141881 tim=48578659815
+FETCH #140497808833704:c=940,e=1001,p=0,cr=77,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578660082
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 972 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578661071
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578661095
+WAIT #140497808833704: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8101 p3=0 obj#=141881 tim=48578661808
+FETCH #140497808833704:c=988,e=989,p=0,cr=47,cu=0,mis=0,r=999,dep=0,og=1,plh=3149924733,tim=48578662078
+STAT #140497808833704 id=1 cnt=10000 pid=0 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=509 pr=0 pw=0 str=1 time=12960 us cost=137 size=100000 card=10000)'
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 1013 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578663136
+CLOSE #140497808833704:c=3,e=3,dep=0,type=0,tim=48578663158
+=====================
+PARSING IN CURSOR #140497808833704 len=48 dep=0 uid=165 oct=42 lid=165 tim=48578663185 hv=251293041 ad='0' sqlid='1h7h96h7gnvbj'
+alter session set "_serial_direct_read" = always
+END OF STMT
+PARSE #140497808833704:c=13,e=14,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578663185
+EXEC #140497808833704:c=7,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578663216
+WAIT #140497808833704: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578663225
+WAIT #140497808833704: nam='SQL*Net message from client' ela= 110 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578663342
+CLOSE #140497808833704:c=2,e=2,dep=0,type=1,tim=48578663356
+=====================
+PARSING IN CURSOR #140497808832376 len=48 dep=0 uid=165 oct=42 lid=165 tim=48578663379 hv=766862656 ad='0' sqlid='8xgr5ncqvata0'
+alter session set optimizer_index_cost_adj = 101
+END OF STMT
+PARSE #140497808832376:c=12,e=12,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578663379
+EXEC #140497808832376:c=10,e=11,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578663412
+WAIT #140497808832376: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578663421
+WAIT #140497808832376: nam='SQL*Net message from client' ela= 127 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578663554
+CLOSE #140497808832376:c=1,e=2,dep=0,type=1,tim=48578663569
+=====================
+PARSING IN CURSOR #140497809036056 len=92 dep=0 uid=165 oct=3 lid=165 tim=48578665317 hv=783913163 ad='8e836988' sqlid='fc6cz74rbm46b'
+select /*+ full(o) mtk_loom_scan */ o.id, o.amount from mtk_orders o where mod(o.id, 10) = 0
+END OF STMT
+PARSE #140497809036056:c=1486,e=1736,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=3149924733,tim=48578665316
+EXEC #140497809036056:c=8,e=8,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=3149924733,tim=48578665359
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=141881 tim=48578665373
+WAIT #140497809036056: nam='enq: KO - fast object checkpoint' ela= 239285 name|mode=1263468550 2=65620 0=1 obj#=141881 tim=48578904773
+WAIT #140497809036056: nam='direct path read' ela= 48 file number=12 first dba=169947 block cnt=5 obj#=108611 tim=48578905021
+WAIT #140497809036056: nam='direct path read' ela= 58 file number=12 first dba=169968 block cnt=8 obj#=108611 tim=48578905115
+FETCH #140497809036056:c=460,e=239771,p=13,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=3149924733,tim=48578905153
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 280 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578905472
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578905515
+WAIT #140497809036056: nam='direct path read' ela= 22 file number=12 first dba=171145 block cnt=7 obj#=108611 tim=48578905719
+WAIT #140497809036056: nam='direct path read' ela= 10 file number=12 first dba=171160 block cnt=8 obj#=108611 tim=48578905963
+WAIT #140497809036056: nam='direct path read' ela= 35 file number=12 first dba=171177 block cnt=15 obj#=108611 tim=48578906167
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 39 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=48578906358
+WAIT #140497809036056: nam='direct path read' ela= 33 file number=12 first dba=171225 block cnt=15 obj#=108611 tim=48578906442
+WAIT #140497809036056: nam='direct path read' ela= 8 file number=12 first dba=171241 block cnt=7 obj#=108611 tim=48578906775
+FETCH #140497809036056:c=1148,e=1325,p=52,cr=46,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578906826
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 1117 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578907963
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578908016
+WAIT #140497809036056: nam='direct path read' ela= 10 file number=12 first dba=171256 block cnt=8 obj#=108611 tim=48578908304
+WAIT #140497809036056: nam='direct path read' ela= 15 file number=12 first dba=171265 block cnt=7 obj#=108611 tim=48578908466
+WAIT #140497809036056: nam='direct path read' ela= 9 file number=12 first dba=171312 block cnt=8 obj#=108611 tim=48578908643
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 33 driver id=1952673792 #bytes=8103 p3=0 obj#=108611 tim=48578908814
+WAIT #140497809036056: nam='direct path read' ela= 8 file number=12 first dba=171321 block cnt=7 obj#=108611 tim=48578908842
+WAIT #140497809036056: nam='direct path read' ela= 9 file number=12 first dba=171336 block cnt=8 obj#=108611 tim=48578909036
+FETCH #140497809036056:c=1097,e=1110,p=38,cr=47,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578909118
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 990 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578910122
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578910150
+WAIT #140497809036056: nam='direct path read' ela= 9 file number=12 first dba=171345 block cnt=7 obj#=108611 tim=48578910236
+WAIT #140497809036056: nam='direct path read' ela= 9 file number=12 first dba=171360 block cnt=8 obj#=108611 tim=48578910425
+WAIT #140497809036056: nam='direct path read' ela= 58 file number=12 first dba=171394 block cnt=30 obj#=108611 tim=48578910641
+WAIT #140497809036056: nam='direct path read' ela= 64 file number=12 first dba=171424 block cnt=32 obj#=108611 tim=48578910868
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 33 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=48578911087
+FETCH #140497809036056:c=911,e=1190,p=77,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578911333
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 1017 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578912364
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578912390
+WAIT #140497809036056: nam='direct path read' ela= 31 file number=12 first dba=171456 block cnt=32 obj#=108611 tim=48578912631
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 32 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=48578913184
+WAIT #140497809036056: nam='direct path read' ela= 23 file number=12 first dba=171488 block cnt=32 obj#=108611 tim=48578913368
+FETCH #140497809036056:c=962,e=1093,p=64,cr=47,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578913476
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 1000 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578914488
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578914514
+WAIT #140497809036056: nam='direct path read' ela= 21 file number=12 first dba=171778 block cnt=30 obj#=108611 tim=48578915095
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8103 p3=0 obj#=108611 tim=48578915274
+FETCH #140497809036056:c=736,e=1016,p=30,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578915524
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 990 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578916526
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578916556
+WAIT #140497809036056: nam='direct path read' ela= 23 file number=12 first dba=171808 block cnt=32 obj#=108611 tim=48578916836
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 31 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=48578917311
+WAIT #140497809036056: nam='direct path read' ela= 22 file number=12 first dba=171840 block cnt=32 obj#=108611 tim=48578917521
+FETCH #140497809036056:c=951,e=1053,p=64,cr=47,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578917601
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 976 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578918589
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578918615
+WAIT #140497809036056: nam='direct path read' ela= 19 file number=12 first dba=171872 block cnt=32 obj#=108611 tim=48578919211
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8104 p3=0 obj#=108611 tim=48578919369
+FETCH #140497809036056:c=732,e=1010,p=32,cr=48,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578919618
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 991 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578920621
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578920647
+WAIT #140497809036056: nam='direct path read' ela= 17 file number=12 first dba=172162 block cnt=30 obj#=108611 tim=48578920942
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=48578921394
+WAIT #140497809036056: nam='direct path read' ela= 18 file number=12 first dba=172192 block cnt=32 obj#=108611 tim=48578921659
+FETCH #140497809036056:c=725,e=1042,p=62,cr=50,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578921682
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 992 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578922685
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578922710
+WAIT #140497809036056: nam='direct path read' ela= 18 file number=12 first dba=172224 block cnt=32 obj#=108611 tim=48578922993
+WAIT #140497809036056: nam='direct path read' ela= 18 file number=12 first dba=172256 block cnt=32 obj#=108611 tim=48578923359
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8103 p3=0 obj#=108611 tim=48578923515
+FETCH #140497809036056:c=783,e=1053,p=64,cr=77,cu=0,mis=0,r=1000,dep=0,og=1,plh=3149924733,tim=48578923756
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 1002 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578924769
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578924795
+WAIT #140497809036056: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=48578925521
+FETCH #140497809036056:c=988,e=988,p=0,cr=47,cu=0,mis=0,r=999,dep=0,og=1,plh=3149924733,tim=48578925776
+STAT #140497809036056 id=1 cnt=10000 pid=0 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=508 pr=496 pw=0 str=1 time=252456 us cost=137 size=10000 card=1000)'
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 1064 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578926898
+CLOSE #140497809036056:c=6,e=5,dep=0,type=0,tim=48578926927
+WAIT #0: nam='PGA memory operation' ela= 12 which=5 bytes=327680 where=4 obj#=108611 tim=48578926959
+=====================
+PARSING IN CURSOR #140497809036056 len=46 dep=0 uid=165 oct=42 lid=165 tim=48578926992 hv=2754820996 ad='0' sqlid='2t3yksyk36fw4'
+alter session set "_serial_direct_read" = auto
+END OF STMT
+PARSE #140497809036056:c=17,e=18,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578926991
+EXEC #140497809036056:c=14,e=15,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578927046
+WAIT #140497809036056: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578927056
+WAIT #140497809036056: nam='SQL*Net message from client' ela= 140 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578927203
+CLOSE #140497809036056:c=2,e=3,dep=0,type=1,tim=48578927220
+=====================
+PARSING IN CURSOR #140497809034384 len=48 dep=0 uid=165 oct=42 lid=165 tim=48578927382 hv=4196484540 ad='0' sqlid='d8yjkx7x22jdw'
+alter session set optimizer_index_cost_adj = 100
+END OF STMT
+PARSE #140497809034384:c=150,e=150,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578927382
+EXEC #140497809034384:c=10,e=9,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578927423
+WAIT #140497809034384: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578927434
+WAIT #140497809034384: nam='SQL*Net message from client' ela= 154 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578927595
+CLOSE #140497809034384:c=2,e=2,dep=0,type=1,tim=48578927610
+=====================
+PARSING IN CURSOR #140497809032712 len=60 dep=0 uid=165 oct=47 lid=165 tim=48578927667 hv=4107977155 ad='8b7cc9f0' sqlid='ccqf127udphf3'
+BEGIN dbms_application_info.set_action('dml_current'); END;
+
+END OF STMT
+PARSE #140497809032712:c=46,e=45,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=48578927666
+*** ACTION NAME:(dml_current) 2026-11-06T08:09:50.614085+00:00
+ 
+EXEC #140497809032712:c=47,e=46,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=0,tim=48578927738
+WAIT #140497809032712: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578927764
+WAIT #140497809032712: nam='SQL*Net message from client' ela= 118 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578927893
+CLOSE #140497809032712:c=6,e=6,dep=0,type=1,tim=48578927913
+=====================
+PARSING IN CURSOR #140497809031040 len=52 dep=0 uid=165 oct=47 lid=165 tim=48578928123 hv=536805068 ad='7279d2b0' sqlid='2dkc3jngzxzqc'
+BEGIN :lo := trunc(:lo / 3); :hi := :lo + 199; END;
+
+END OF STMT
+PARSE #140497809031040:c=0,e=196,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=48578928122
+BINDS #140497809031040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7fc831ffbb20  bln=22  avl=04  flg=05
+  value=11903
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1400000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7fc831ffbb38  bln=22  avl=04  flg=01
+  value=13902
+WAIT #140497809031040: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578928873
+EXEC #140497809031040:c=100,e=725,p=0,cr=0,cu=0,mis=1,r=1,dep=0,og=1,plh=0,tim=48578928881
+WAIT #140497809031040: nam='SQL*Net message from client' ela= 146 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=48578929044
+CLOSE #140497809031040:c=3,e=4,dep=0,type=0,tim=48578929065
+=====================
+PARSING IN CURSOR #140497809031040 len=91 dep=0 uid=165 oct=6 lid=165 tim=48578929241 hv=3938068087 ad='805e5ea8' sqlid='66gxdcgpbn9mr'
+update /*+ mtk_loom_upd */ mtk_orders set amount = amount where cust_id between :lo and :hi
+END OF STMT
+PARSE #140497809031040:c=162,e=162,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=0,tim=48578929241
+=====================
+PARSING IN CURSOR #140497809028664 len=768 dep=1 uid=0 oct=3 lid=0 tim=48578929484 hv=2300185736 ad='88481e90' sqlid='1v3pmj64jn348'
+select decode(u.type#, 2, u.ext_username, u.name), o.name,        t.update$, t.insert$, t.delete$, t.enabled,        decode(bitand(t.property, 8192),8192, 1, 0),        decode(bitand(t.property, 65536), 65536, 1, 0),       decode(bitand(t.property, 131072), 131072, 1, 0),       (select o.name from obj$ o          where o.obj# = u.spare2 and o.type# =57),        decode(bitand(t.property, 524288), 524288, 1, 0),        decode(bitand(t.property, 4096),4096, 1, 0),        t.type#  from sys.obj$ o, sys.user$ u, sys.trigger$ t, sys.obj$ bo where t.baseobject=bo.obj# and bo.name = :1 and bo.spare3 = :2  and bo.type# = :3 and bo.namespace = 1  and t.obj#=o.obj# and o.owner#=u.user#  and o.type# = 12 and bitand(property,16)=0 and bitand(property,8)=0  order by o.obj#
+END OF STMT
+PARSE #140497809028664:c=44,e=44,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=381121033,tim=48578929483
+BINDS #140497809028664:
+
+ Bind#0
+  oacdty=01 mxl=32(10) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=10 fl2=0001 frm=01 csi=873 siz=80 off=0
+  kxsbbbfp=7fc83201dfb0  bln=32  avl=10  flg=05
+  value="MTK_ORDERS"
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=32
+  kxsbbbfp=7fc83201dfd0  bln=22  avl=03  flg=01
+  value=165
+ Bind#2
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=56
+  kxsbbbfp=7fc83201dfe8  bln=22  avl=02  flg=01
+  value=2
+EXEC #140497809028664:c=123,e=123,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=381121033,tim=48578929638
+FETCH #140497809028664:c=100,e=99,p=0,cr=10,cu=0,mis=0,r=1,dep=1,og=4,plh=381121033,tim=48578929744
+FETCH #140497809028664:c=11,e=11,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=381121033,tim=48578929769
+STAT #140497809028664 id=1 cnt=0 pid=0 pos=1 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=0 pr=0 pw=0 str=1 time=3 us cost=3 size=43 card=1)'
+STAT #140497809028664 id=2 cnt=0 pid=1 pos=1 obj=36 op='INDEX RANGE SCAN I_OBJ1 (cr=0 pr=0 pw=0 str=1 time=1 us cost=2 size=0 card=1)'
+STAT #140497809028664 id=3 cnt=1 pid=0 pos=2 obj=0 op='SORT ORDER BY (cr=10 pr=0 pw=0 str=1 time=107 us cost=11 size=302 card=1)'
+STAT #140497809028664 id=4 cnt=1 pid=3 pos=1 obj=0 op='NESTED LOOPS  (cr=10 pr=0 pw=0 str=1 time=82 us cost=7 size=302 card=1)'
+STAT #140497809028664 id=5 cnt=1 pid=4 pos=1 obj=0 op='NESTED LOOPS  (cr=8 pr=0 pw=0 str=1 time=66 us cost=6 size=124 card=1)'
+STAT #140497809028664 id=6 cnt=1 pid=5 pos=1 obj=0 op='NESTED LOOPS  (cr=5 pr=0 pw=0 str=1 time=43 us cost=4 size=78 card=1)'
+STAT #140497809028664 id=7 cnt=1 pid=6 pos=1 obj=40 op='INDEX RANGE SCAN I_OBJ5 (cr=3 pr=0 pw=0 str=1 time=22 us cost=3 size=49 card=1)'
+STAT #140497809028664 id=8 cnt=1 pid=6 pos=2 obj=279 op='TABLE ACCESS BY INDEX ROWID BATCHED TRIGGER$ (cr=2 pr=0 pw=0 str=1 time=18 us cost=1 size=29 card=1)'
+STAT #140497809028664 id=9 cnt=1 pid=8 pos=1 obj=281 op='INDEX RANGE SCAN I_TRIGGER1 (cr=1 pr=0 pw=0 str=1 time=10 us cost=0 size=0 card=2)'
+STAT #140497809028664 id=10 cnt=1 pid=5 pos=2 obj=18 op='TABLE ACCESS BY INDEX ROWID BATCHED OBJ$ (cr=3 pr=0 pw=0 str=1 time=19 us cost=2 size=46 card=1)'
+STAT #140497809028664 id=11 cnt=1 pid=10 pos=1 obj=36 op='INDEX RANGE SCAN I_OBJ1 (cr=2 pr=0 pw=0 str=1 time=14 us cost=1 size=0 card=1)'
+STAT #140497809028664 id=12 cnt=1 pid=4 pos=2 obj=22 op='TABLE ACCESS CLUSTER USER$ (cr=2 pr=0 pw=0 str=1 time=11 us cost=1 size=178 card=1)'
+STAT #140497809028664 id=13 cnt=1 pid=12 pos=1 obj=11 op='INDEX UNIQUE SCAN I_USER# (cr=1 pr=0 pw=0 str=1 time=4 us cost=0 size=0 card=1)'
+CLOSE #140497809028664:c=3,e=4,dep=1,type=1,tim=48578930026
+BINDS #140497809031040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7fc831ffb498  bln=22  avl=03  flg=05
+  value=3967
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7fc831ffb4b0  bln=22  avl=03  flg=01
+  value=4166
+WAIT #140497809031040: nam='Disk file operations I/O' ela= 22 FileOperation=2 fileno=11 filetype=2 obj#=-1 tim=48578931207
+WAIT #140497809031040: nam='db file parallel read' ela= 15 files=1 blocks=1 requests=1 obj#=-1 tim=48578931261
+WAIT #140497809031040: nam='db file parallel read' ela= 8 files=1 blocks=1 requests=1 obj#=-1 tim=48578931833
+WAIT #140497809031040: nam='db file scattered read' ela= 856 file#=11 block#=37128 blocks=8 obj#=0 tim=48578933273
+WAIT #140497809031040: nam='db file scattered read' ela= 47 file#=11 block#=37136 blocks=8 obj#=0 tim=48578937750
+EXEC #140497809031040:c=9437,e=10187,p=18,cr=509,cu=1029,mis=1,r=1000,dep=0,og=1,plh=2022545398,tim=48578939466
+STAT #140497809031040 id=1 cnt=0 pid=0 pos=1 obj=108611 op='UPDATE  MTK_ORDERS (cr=499 pr=18 pw=0 str=1 time=8858 us)'
+STAT #140497809031040 id=2 cnt=1000 pid=1 pos=1 obj=0 op='FILTER  (cr=499 pr=0 pw=0 str=1 time=2525 us)'
+STAT #140497809031040 id=3 cnt=1000 pid=2 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=499 pr=0 pw=0 str=1 time=2027 us cost=137 size=10050 card=1005)'
+WAIT #140497809031040: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=0 tim=48578939552
+WAIT #140497809031040: nam='SQL*Net message from client' ela= 154 driver id=1952673792 #bytes=1 p3=0 obj#=0 tim=48578939714
+CLOSE #140497809031040:c=3,e=3,dep=0,type=0,tim=48578939736
+=====================
+PARSING IN CURSOR #140497809031040 len=91 dep=0 uid=165 oct=6 lid=165 tim=48578939771 hv=3938068087 ad='805e5ea8' sqlid='66gxdcgpbn9mr'
+update /*+ mtk_loom_upd */ mtk_orders set amount = amount where cust_id between :lo and :hi
+END OF STMT
+PARSE #140497809031040:c=20,e=20,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=2022545398,tim=48578939771
+BINDS #140497809031040:
+
+ Bind#0
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=48 off=0
+  kxsbbbfp=7fc831ffb498  bln=22  avl=03  flg=05
+  value=3967
+ Bind#1
+  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00
+  oacflg=03 fl2=1000000 frm=00 csi=00 siz=0 off=24
+  kxsbbbfp=7fc831ffb4b0  bln=22  avl=03  flg=01
+  value=4166
+WAIT #140497809031040: nam='db file scattered read' ela= 50 file#=11 block#=37144 blocks=8 obj#=0 tim=48578942239
+WAIT #140497809031040: nam='db file scattered read' ela= 11 file#=11 block#=37152 blocks=8 obj#=0 tim=48578946190
+EXEC #140497809031040:c=7026,e=7236,p=16,cr=499,cu=1028,mis=0,r=1000,dep=0,og=1,plh=2022545398,tim=48578947034
+STAT #140497809031040 id=1 cnt=0 pid=0 pos=1 obj=108611 op='UPDATE  MTK_ORDERS (cr=499 pr=16 pw=0 str=1 time=7186 us)'
+STAT #140497809031040 id=2 cnt=1000 pid=1 pos=1 obj=0 op='FILTER  (cr=499 pr=0 pw=0 str=1 time=2512 us)'
+STAT #140497809031040 id=3 cnt=1000 pid=2 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=499 pr=0 pw=0 str=1 time=2156 us cost=137 size=10050 card=1005)'
+WAIT #140497809031040: nam='SQL*Net message to client' ela= 2 driver id=1952673792 #bytes=1 p3=0 obj#=0 tim=48578947109
+WAIT #140497809031040: nam='SQL*Net message from client' ela= 122 driver id=1952673792 #bytes=1 p3=0 obj#=0 tim=48578947238
+CLOSE #140497809031040:c=2,e=3,dep=0,type=0,tim=48578947254
+=====================
+PARSING IN CURSOR #140497809031040 len=8 dep=0 uid=165 oct=45 lid=165 tim=48578947280 hv=686288168 ad='0' sqlid='18grqd4nfgv98'
+rollback
+END OF STMT
+PARSE #140497809031040:c=13,e=13,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578947280
+XCTEND rlbk=1, rd_only=0, tim=48578947309
+EXEC #140497809031040:c=7094,e=7295,p=0,cr=20,cu=4029,mis=0,r=0,dep=0,og=0,plh=0,tim=48578954599
+WAIT #140497809031040: nam='log file sync' ela= 16550 buffer#=6558 sync scn=44034205 p3=0 obj#=0 tim=48578971168
+WAIT #140497809031040: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=0 tim=48578971200
+WAIT #140497809031040: nam='SQL*Net message from client' ela= 204 driver id=1952673792 #bytes=1 p3=0 obj#=0 tim=48578971413
+CLOSE #140497809031040:c=4,e=3,dep=0,type=1,tim=48578971431
+=====================
+PARSING IN CURSOR #140497809026992 len=55 dep=0 uid=165 oct=42 lid=165 tim=48578971469 hv=2217940283 ad='0' sqlid='06nvwn223659v'
+alter session set events '10046 trace name context off'
+END OF STMT
+PARSE #140497809026992:c=25,e=26,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578971469
+EXEC #140497809026992:c=172,e=172,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=48578971666

@@ -1,0 +1,305 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_p003_2803_mtk_px_io.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 59
+Unix process pid: 2803, image: oracle@ol9-19-dg1.localdomain (P003)
+
+
+*** 2026-11-06T08:06:46.125435+00:00 (PDB1(3))
+*** SESSION ID:(320.25260) 2026-11-06T08:06:46.125455+00:00
+*** CLIENT ID:(mtk_client_px_io) 2026-11-06T08:06:46.125458+00:00
+*** SERVICE NAME:(pdb1) 2026-11-06T08:06:46.125462+00:00
+*** MODULE NAME:(mtk_px_io) 2026-11-06T08:06:46.125465+00:00
+*** ACTION NAME:(px_scan) 2026-11-06T08:06:46.125468+00:00
+*** CLIENT DRIVER:(SERVER) 2026-11-06T08:06:46.125470+00:00
+*** CONTAINER ID:(3) 2026-11-06T08:06:46.125473+00:00
+ 
+
+*** TRACE CONTINUED FROM FILE /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_p003_2803.trc ***
+
+=====================
+PARSING IN CURSOR #139729524081112 len=105 dep=1 uid=165 oct=3 lid=165 tim=48394438912 hv=3137194682 ad='8bf1ec18' sqlid='cznmg6kxgvkpu'
+select /*+ parallel(b 4) full(b) mtk_px_scan */ count(*), sum(amount), max(length(pad)) from mtk_px_big b
+END OF STMT
+PARSE #139729524081112:c=46,e=46,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=831562720,tim=48394438912
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 6824 sleeptime/senderid=268566527 passes=2 p3=2415231992 obj#=-1 tim=48394446040
+WAIT #139729524081112: nam='direct path read' ela= 74 file number=12 first dba=215692 block cnt=20 obj#=141877 tim=48394446263
+WAIT #139729524081112: nam='direct path read' ela= 103 file number=12 first dba=215712 block cnt=32 obj#=141877 tim=48394446390
+WAIT #139729524081112: nam='direct path read' ela= 50 file number=12 first dba=215744 block cnt=32 obj#=141877 tim=48394446953
+WAIT #139729524081112: nam='direct path read' ela= 15 file number=12 first dba=215776 block cnt=22 obj#=141877 tim=48394447741
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 115 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394449154
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=214830 block cnt=18 obj#=141877 tim=48394449204
+WAIT #139729524081112: nam='direct path read' ela= 99 file number=12 first dba=214848 block cnt=32 obj#=141877 tim=48394449325
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=214880 block cnt=32 obj#=141877 tim=48394449773
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=214914 block cnt=24 obj#=141877 tim=48394450556
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 32 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394451908
+WAIT #139729524081112: nam='direct path read' ela= 22 file number=12 first dba=211168 block cnt=32 obj#=141877 tim=48394451958
+WAIT #139729524081112: nam='direct path read' ela= 20 file number=12 first dba=211202 block cnt=30 obj#=141877 tim=48394451988
+WAIT #139729524081112: nam='direct path read' ela= 22 file number=12 first dba=211232 block cnt=32 obj#=141877 tim=48394452774
+WAIT #139729524081112: nam='direct path read' ela= 11 file number=12 first dba=211264 block cnt=12 obj#=141877 tim=48394453501
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=141877 tim=48394454655
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=216876 block cnt=20 obj#=141877 tim=48394454696
+WAIT #139729524081112: nam='direct path read' ela= 20 file number=12 first dba=216896 block cnt=32 obj#=141877 tim=48394454725
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=216928 block cnt=32 obj#=141877 tim=48394455230
+WAIT #139729524081112: nam='direct path read' ela= 25 file number=12 first dba=216962 block cnt=22 obj#=141877 tim=48394456009
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 2023 sleeptime/senderid=268566527 passes=2 p3=2415231992 obj#=141877 tim=48394459371
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=211600 block cnt=16 obj#=141877 tim=48394459414
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=211616 block cnt=32 obj#=141877 tim=48394459444
+WAIT #139729524081112: nam='direct path read' ela= 24 file number=12 first dba=211648 block cnt=32 obj#=141877 tim=48394459878
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=211680 block cnt=26 obj#=141877 tim=48394460665
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 2 sleeptime/senderid=0 passes=0 p3=0 obj#=141877 tim=48394464985
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=214506 block cnt=22 obj#=141877 tim=48394465046
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214530 block cnt=30 obj#=141877 tim=48394465076
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=214560 block cnt=32 obj#=141877 tim=48394465620
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=214592 block cnt=22 obj#=141877 tim=48394466392
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 1821 sleeptime/senderid=268566527 passes=2 p3=2415231992 obj#=141877 tim=48394469515
+WAIT #139729524081112: nam='direct path read' ela= 9 file number=12 first dba=214614 block cnt=10 obj#=141877 tim=48394469551
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=214624 block cnt=32 obj#=141877 tim=48394469578
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214658 block cnt=30 obj#=141877 tim=48394469837
+WAIT #139729524081112: nam='direct path read' ela= 24 file number=12 first dba=214688 block cnt=32 obj#=141877 tim=48394470621
+WAIT #139729524081112: nam='direct path read' ela= 5 file number=12 first dba=214720 block cnt=2 obj#=141877 tim=48394471343
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 2144 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394474631
+WAIT #139729524081112: nam='direct path read' ela= 15 file number=12 first dba=213322 block cnt=22 obj#=141877 tim=48394474673
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=213344 block cnt=32 obj#=141877 tim=48394474703
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=213378 block cnt=30 obj#=141877 tim=48394475254
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=213408 block cnt=22 obj#=141877 tim=48394476025
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 2055 sleeptime/senderid=0 passes=0 p3=0 obj#=141877 tim=48394479954
+WAIT #139729524081112: nam='direct path read' ela= 25 file number=12 first dba=212460 block cnt=20 obj#=141877 tim=48394480006
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=212482 block cnt=30 obj#=141877 tim=48394480036
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=212512 block cnt=32 obj#=141877 tim=48394480535
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=212544 block cnt=24 obj#=141877 tim=48394481267
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 816 sleeptime/senderid=268566527 passes=2 p3=2415231992 obj#=141877 tim=48394484078
+WAIT #139729524081112: nam='direct path read' ela= 8 file number=12 first dba=187315 block cnt=5 obj#=141877 tim=48394484127
+WAIT #139729524081112: nam='direct path read' ela= 8 file number=12 first dba=187328 block cnt=8 obj#=141877 tim=48394484144
+WAIT #139729524081112: nam='direct path read' ela= 12 file number=12 first dba=187337 block cnt=15 obj#=141877 tim=48394484285
+WAIT #139729524081112: nam='direct path read' ela= 12 file number=12 first dba=187353 block cnt=15 obj#=141877 tim=48394484489
+WAIT #139729524081112: nam='direct path read' ela= 12 file number=12 first dba=187369 block cnt=15 obj#=141877 tim=48394484859
+WAIT #139729524081112: nam='direct path read' ela= 8 file number=12 first dba=187385 block cnt=7 obj#=141877 tim=48394485235
+WAIT #139729524081112: nam='direct path read' ela= 10 file number=12 first dba=210944 block cnt=8 obj#=141877 tim=48394485603
+WAIT #139729524081112: nam='direct path read' ela= 13 file number=12 first dba=210953 block cnt=15 obj#=141877 tim=48394485785
+WAIT #139729524081112: nam='direct path read' ela= 11 file number=12 first dba=210969 block cnt=15 obj#=141877 tim=48394485989
+WAIT #139729524081112: nam='direct path read' ela= 6 file number=12 first dba=210985 block cnt=3 obj#=141877 tim=48394486363
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 3 sleeptime/senderid=0 passes=0 p3=0 obj#=141877 tim=48394493021
+WAIT #139729524081112: nam='direct path read' ela= 10 file number=12 first dba=216660 block cnt=12 obj#=141877 tim=48394493065
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=216672 block cnt=32 obj#=141877 tim=48394493094
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=216706 block cnt=30 obj#=141877 tim=48394493412
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=216736 block cnt=32 obj#=141877 tim=48394494212
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 379 sleeptime/senderid=268566527 passes=2 p3=2415231992 obj#=141877 tim=48394498465
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=216552 block cnt=24 obj#=141877 tim=48394499539
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=216578 block cnt=30 obj#=141877 tim=48394499571
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=216608 block cnt=32 obj#=141877 tim=48394500175
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=216640 block cnt=20 obj#=141877 tim=48394501344
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 113 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394503995
+WAIT #139729524081112: nam='direct path read' ela= 15 file number=12 first dba=218060 block cnt=20 obj#=141877 tim=48394504055
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=218080 block cnt=32 obj#=141877 tim=48394504085
+WAIT #139729524081112: nam='direct path read' ela= 13 file number=12 first dba=218114 block cnt=11 obj#=141877 tim=48394505610
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 254 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394507566
+WAIT #139729524081112: nam='direct path read' ela= 8 file number=12 first dba=211706 block cnt=6 obj#=141877 tim=48394507607
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=211714 block cnt=30 obj#=141877 tim=48394507634
+WAIT #139729524081112: nam='direct path read' ela= 22 file number=12 first dba=211744 block cnt=32 obj#=141877 tim=48394507807
+WAIT #139729524081112: nam='direct path read' ela= 22 file number=12 first dba=211776 block cnt=32 obj#=141877 tim=48394508547
+WAIT #139729524081112: nam='direct path read' ela= 9 file number=12 first dba=211808 block cnt=6 obj#=141877 tim=48394511169
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 501 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394513613
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=215046 block cnt=26 obj#=141877 tim=48394513662
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=215072 block cnt=32 obj#=141877 tim=48394513688
+WAIT #139729524081112: nam='direct path read' ela= 23 file number=12 first dba=215104 block cnt=32 obj#=141877 tim=48394514341
+WAIT #139729524081112: nam='direct path read' ela= 15 file number=12 first dba=215136 block cnt=16 obj#=141877 tim=48394515582
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 578 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394519367
+WAIT #139729524081112: nam='direct path read' ela= 15 file number=12 first dba=211276 block cnt=20 obj#=141877 tim=48394519425
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=211296 block cnt=32 obj#=141877 tim=48394519453
+WAIT #139729524081112: nam='direct path read' ela= 22 file number=12 first dba=211330 block cnt=30 obj#=141877 tim=48394519963
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=211360 block cnt=24 obj#=141877 tim=48394521767
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 1628 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394525709
+WAIT #139729524081112: nam='direct path read' ela= 7 file number=12 first dba=214938 block cnt=6 obj#=141877 tim=48394525742
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214944 block cnt=32 obj#=141877 tim=48394525767
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=214976 block cnt=32 obj#=141877 tim=48394525934
+WAIT #139729524081112: nam='direct path read' ela= 22 file number=12 first dba=215008 block cnt=32 obj#=141877 tim=48394526740
+WAIT #139729524081112: nam='direct path read' ela= 7 file number=12 first dba=215042 block cnt=4 obj#=141877 tim=48394527930
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 1429 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394530748
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=215152 block cnt=16 obj#=141877 tim=48394530794
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=215170 block cnt=30 obj#=141877 tim=48394530822
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=215200 block cnt=32 obj#=141877 tim=48394531242
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=215232 block cnt=28 obj#=141877 tim=48394532345
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 796 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394536637
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=213106 block cnt=14 obj#=141877 tim=48394536692
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=213122 block cnt=30 obj#=141877 tim=48394536719
+WAIT #139729524081112: nam='direct path read' ela= 27 file number=12 first dba=213152 block cnt=32 obj#=141877 tim=48394537107
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=213184 block cnt=30 obj#=141877 tim=48394537857
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 35 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394539473
+EXEC #139729524081112:c=50600,e=100337,p=1971,cr=2010,cu=0,mis=0,r=0,dep=1,og=1,plh=831562720,tim=48394539504
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 1455 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394540981
+STAT #139729524081112 id=1 cnt=0 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139729524081112 id=2 cnt=0 pid=1 pos=1 obj=0 op='PX COORDINATOR  (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139729524081112 id=3 cnt=0 pid=2 pos=1 obj=0 op='PX SEND QC (RANDOM) :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139729524081112 id=4 cnt=1 pid=3 pos=1 obj=0 op='SORT AGGREGATE (cr=2010 pr=1971 pw=0 str=1 time=93413 us)'
+STAT #139729524081112 id=5 cnt=33504 pid=4 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=2010 pr=1971 pw=0 str=1 time=37940 us cost=541 size=48720000 card=120000)'
+STAT #139729524081112 id=6 cnt=33504 pid=5 pos=1 obj=141877 op='TABLE ACCESS FULL MTK_PX_BIG (cr=2010 pr=1971 pw=0 str=19 time=15528 us cost=541 size=48720000 card=120000)'
+CLOSE #139729524081112:c=115,e=115,dep=1,type=1,tim=48394541129
+WAIT #0: nam='PX Deq: Slave Session Stats' ela= 2215 sleeptime/senderid=268566527 passes=1 p3=2415231992 obj#=141877 tim=48394543367
+*** SESSION ID:(320.9974) 2026-11-06T08:06:46.239219+00:00
+*** SERVICE NAME:(pdb1) 2026-11-06T08:06:46.239229+00:00
+*** MODULE NAME:(mtk_px_io) 2026-11-06T08:06:46.239233+00:00
+*** ACTION NAME:(px_group_by) 2026-11-06T08:06:46.239240+00:00
+*** CONTAINER ID:(3) 2026-11-06T08:06:46.239243+00:00
+ 
+WAIT #0: nam='PX Deq: Execution Msg' ela= 3586 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=-1 tim=48394552867
+*** CLIENT ID:(mtk_client_px_io) 2026-11-06T08:06:46.240202+00:00
+ 
+=====================
+PARSING IN CURSOR #139729524081112 len=119 dep=1 uid=165 oct=3 lid=165 tim=48394553856 hv=1120434026 ad='78397090' sqlid='8w8kxst1chxva'
+select /*+ parallel(b 2) full(b) mtk_px_group */ grp, count(*), sum(amount) from mtk_px_big b group by grp order by grp
+END OF STMT
+PARSE #139729524081112:c=31,e=31,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=28424766,tim=48394553855
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 122 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=-1 tim=48394554086
+WAIT #139729524081112: nam='direct path read' ela= 13 file number=12 first dba=212568 block cnt=8 obj#=141877 tim=48394554244
+WAIT #139729524081112: nam='direct path read' ela= 26 file number=12 first dba=212576 block cnt=32 obj#=141877 tim=48394554283
+WAIT #139729524081112: nam='direct path read' ela= 29 file number=12 first dba=212610 block cnt=30 obj#=141877 tim=48394554480
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=212640 block cnt=32 obj#=141877 tim=48394554567
+WAIT #139729524081112: nam='direct path read' ela= 23 file number=12 first dba=212672 block cnt=32 obj#=141877 tim=48394554651
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=212704 block cnt=32 obj#=141877 tim=48394554728
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=212738 block cnt=30 obj#=141877 tim=48394554808
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=212768 block cnt=32 obj#=141877 tim=48394554885
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=212800 block cnt=32 obj#=141877 tim=48394554958
+WAIT #139729524081112: nam='direct path read' ela= 7 file number=12 first dba=212832 block cnt=5 obj#=141877 tim=48394555048
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 35 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394555176
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=214722 block cnt=30 obj#=141877 tim=48394555223
+WAIT #139729524081112: nam='direct path read' ela= 4616 file number=12 first dba=214752 block cnt=32 obj#=141877 tim=48394559866
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=214786 block cnt=30 obj#=141877 tim=48394559962
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=214816 block cnt=32 obj#=141877 tim=48394560069
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=214848 block cnt=32 obj#=141877 tim=48394560159
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=214880 block cnt=32 obj#=141877 tim=48394560258
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214914 block cnt=30 obj#=141877 tim=48394560334
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=214944 block cnt=32 obj#=141877 tim=48394560406
+WAIT #139729524081112: nam='direct path read' ela= 10 file number=12 first dba=214976 block cnt=15 obj#=141877 tim=48394560468
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 25 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394560582
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=212837 block cnt=27 obj#=141877 tim=48394560626
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=212866 block cnt=30 obj#=141877 tim=48394560652
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=212896 block cnt=32 obj#=141877 tim=48394560726
+WAIT #139729524081112: nam='direct path read' ela= 20 file number=12 first dba=212928 block cnt=32 obj#=141877 tim=48394560798
+WAIT #139729524081112: nam='direct path read' ela= 20 file number=12 first dba=212960 block cnt=32 obj#=141877 tim=48394560874
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=212994 block cnt=30 obj#=141877 tim=48394560950
+WAIT #139729524081112: nam='direct path read' ela= 35 file number=12 first dba=213024 block cnt=32 obj#=141877 tim=48394561053
+WAIT #139729524081112: nam='direct path read' ela= 20 file number=12 first dba=213056 block cnt=32 obj#=141877 tim=48394561143
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=213088 block cnt=18 obj#=141877 tim=48394561220
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 27 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394561348
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=214184 block cnt=24 obj#=141877 tim=48394561391
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=214208 block cnt=32 obj#=141877 tim=48394561417
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214240 block cnt=32 obj#=141877 tim=48394561482
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=214274 block cnt=30 obj#=141877 tim=48394561552
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214304 block cnt=32 obj#=141877 tim=48394561625
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214336 block cnt=32 obj#=141877 tim=48394561694
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=214368 block cnt=32 obj#=141877 tim=48394561788
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214402 block cnt=30 obj#=141877 tim=48394561861
+WAIT #139729524081112: nam='direct path read' ela= 14 file number=12 first dba=214432 block cnt=21 obj#=141877 tim=48394561931
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 29 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394562060
+WAIT #139729524081112: nam='direct path read' ela= 28 file number=12 first dba=211492 block cnt=28 obj#=141877 tim=48394562118
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=211520 block cnt=32 obj#=141877 tim=48394562149
+WAIT #139729524081112: nam='direct path read' ela= 22 file number=12 first dba=211552 block cnt=32 obj#=141877 tim=48394562226
+WAIT #139729524081112: nam='direct path read' ela= 20 file number=12 first dba=211586 block cnt=30 obj#=141877 tim=48394562338
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=211616 block cnt=32 obj#=141877 tim=48394562421
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=211648 block cnt=32 obj#=141877 tim=48394562492
+WAIT #139729524081112: nam='direct path read' ela= 20 file number=12 first dba=211680 block cnt=32 obj#=141877 tim=48394562569
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=211714 block cnt=30 obj#=141877 tim=48394562642
+WAIT #139729524081112: nam='direct path read' ela= 13 file number=12 first dba=211744 block cnt=17 obj#=141877 tim=48394562711
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 33 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394562829
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=216069 block cnt=27 obj#=141877 tim=48394562871
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=216096 block cnt=32 obj#=141877 tim=48394562895
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=216128 block cnt=32 obj#=141877 tim=48394562964
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=216160 block cnt=32 obj#=141877 tim=48394563046
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=216194 block cnt=30 obj#=141877 tim=48394563152
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=216224 block cnt=32 obj#=141877 tim=48394563227
+WAIT #139729524081112: nam='direct path read' ela= 41 file number=12 first dba=216256 block cnt=32 obj#=141877 tim=48394563339
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=216288 block cnt=32 obj#=141877 tim=48394563427
+WAIT #139729524081112: nam='direct path read' ela= 11 file number=12 first dba=216322 block cnt=16 obj#=141877 tim=48394563495
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 24 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394563603
+WAIT #139729524081112: nam='direct path read' ela= 10 file number=12 first dba=217683 block cnt=13 obj#=141877 tim=48394563638
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=217696 block cnt=32 obj#=141877 tim=48394563662
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=217730 block cnt=30 obj#=141877 tim=48394563709
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=217760 block cnt=32 obj#=141877 tim=48394563782
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=217792 block cnt=32 obj#=141877 tim=48394563855
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=217824 block cnt=32 obj#=141877 tim=48394563927
+WAIT #139729524081112: nam='direct path read' ela= 25 file number=12 first dba=217858 block cnt=30 obj#=141877 tim=48394564008
+WAIT #139729524081112: nam='direct path read' ela= 28 file number=12 first dba=217888 block cnt=32 obj#=141877 tim=48394564110
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=217920 block cnt=32 obj#=141877 tim=48394564184
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 24 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394564333
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=212299 block cnt=21 obj#=141877 tim=48394564375
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=212320 block cnt=32 obj#=141877 tim=48394564405
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=212354 block cnt=30 obj#=141877 tim=48394564465
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=212384 block cnt=32 obj#=141877 tim=48394564537
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=212416 block cnt=32 obj#=141877 tim=48394564609
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=212448 block cnt=32 obj#=141877 tim=48394564681
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=212482 block cnt=30 obj#=141877 tim=48394564754
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=212512 block cnt=32 obj#=141877 tim=48394564826
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=212544 block cnt=24 obj#=141877 tim=48394564898
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 37 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394565030
+WAIT #139729524081112: nam='direct path read' ela= 4 file number=12 first dba=213375 block cnt=1 obj#=141877 tim=48394565059
+WAIT #139729524081112: nam='direct path read' ela= 38 file number=12 first dba=213378 block cnt=30 obj#=141877 tim=48394565105
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=213408 block cnt=32 obj#=141877 tim=48394565142
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=213440 block cnt=32 obj#=141877 tim=48394565212
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=213472 block cnt=32 obj#=141877 tim=48394565288
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=213506 block cnt=30 obj#=141877 tim=48394565376
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=213536 block cnt=32 obj#=141877 tim=48394565461
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=213568 block cnt=32 obj#=141877 tim=48394565538
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=213600 block cnt=32 obj#=141877 tim=48394565615
+WAIT #139729524081112: nam='direct path read' ela= 9 file number=12 first dba=213634 block cnt=12 obj#=141877 tim=48394565682
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 24 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394565788
+WAIT #139729524081112: nam='direct path read' ela= 7 file number=12 first dba=213915 block cnt=5 obj#=141877 tim=48394565818
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=213920 block cnt=32 obj#=141877 tim=48394565843
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=213952 block cnt=32 obj#=141877 tim=48394565880
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=213984 block cnt=32 obj#=141877 tim=48394565953
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=214018 block cnt=30 obj#=141877 tim=48394566036
+WAIT #139729524081112: nam='direct path read' ela= 23 file number=12 first dba=214048 block cnt=32 obj#=141877 tim=48394566147
+WAIT #139729524081112: nam='direct path read' ela= 21 file number=12 first dba=214080 block cnt=32 obj#=141877 tim=48394566233
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=214112 block cnt=32 obj#=141877 tim=48394566307
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=214146 block cnt=30 obj#=141877 tim=48394566402
+WAIT #139729524081112: nam='direct path read' ela= 6 file number=12 first dba=214176 block cnt=8 obj#=141877 tim=48394566465
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 27 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394566565
+WAIT #139729524081112: nam='direct path read' ela= 15 file number=12 first dba=215529 block cnt=23 obj#=141877 tim=48394566603
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=215554 block cnt=30 obj#=141877 tim=48394566628
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=215584 block cnt=32 obj#=141877 tim=48394566693
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=215616 block cnt=32 obj#=141877 tim=48394566764
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=215648 block cnt=32 obj#=141877 tim=48394566838
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=215682 block cnt=30 obj#=141877 tim=48394566909
+WAIT #139729524081112: nam='direct path read' ela= 20 file number=12 first dba=215712 block cnt=32 obj#=141877 tim=48394566985
+WAIT #139729524081112: nam='direct path read' ela= 65 file number=12 first dba=215744 block cnt=32 obj#=141877 tim=48394567114
+WAIT #139729524081112: nam='direct path read' ela= 15 file number=12 first dba=215776 block cnt=22 obj#=141877 tim=48394567198
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 26 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394567317
+WAIT #139729524081112: nam='direct path read' ela= 7 file number=12 first dba=217145 block cnt=7 obj#=141877 tim=48394567347
+WAIT #139729524081112: nam='direct path read' ela= 22 file number=12 first dba=217152 block cnt=32 obj#=141877 tim=48394567382
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=217184 block cnt=32 obj#=141877 tim=48394567426
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=217218 block cnt=30 obj#=141877 tim=48394567499
+WAIT #139729524081112: nam='direct path read' ela= 33 file number=12 first dba=217248 block cnt=32 obj#=141877 tim=48394567587
+WAIT #139729524081112: nam='direct path read' ela= 17 file number=12 first dba=217280 block cnt=32 obj#=141877 tim=48394567660
+WAIT #139729524081112: nam='direct path read' ela= 18 file number=12 first dba=217312 block cnt=32 obj#=141877 tim=48394567734
+WAIT #139729524081112: nam='direct path read' ela= 16 file number=12 first dba=217346 block cnt=30 obj#=141877 tim=48394567805
+WAIT #139729524081112: nam='direct path read' ela= 19 file number=12 first dba=217376 block cnt=32 obj#=141877 tim=48394567879
+WAIT #139729524081112: nam='direct path read' ela= 6 file number=12 first dba=217408 block cnt=6 obj#=141877 tim=48394567941
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 26 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394568046
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 473 sleeptime/senderid=268566527 passes=2 p3=2292777128 obj#=141877 tim=48394568541
+EXEC #139729524081112:c=10395,e=14762,p=3180,cr=3205,cu=0,mis=0,r=0,dep=1,og=1,plh=28424766,tim=48394568658
+WAIT #139729524081112: nam='PX Deq: Execution Msg' ela= 10690 sleeptime/senderid=268566527 passes=560 p3=2292777128 obj#=141877 tim=48394579384
+STAT #139729524081112 id=1 cnt=0 pid=0 pos=1 obj=0 op='PX COORDINATOR  (cr=0 pr=0 pw=0 str=0 time=0 us)'
+STAT #139729524081112 id=2 cnt=0 pid=1 pos=1 obj=0 op='PX SEND QC (ORDER) :TQ10001 (cr=0 pr=0 pw=0 str=0 time=0 us cost=1085 size=400 card=50)'
+STAT #139729524081112 id=3 cnt=0 pid=2 pos=1 obj=0 op='SORT GROUP BY (cr=0 pr=0 pw=0 str=0 time=0 us cost=1085 size=400 card=50)'
+STAT #139729524081112 id=4 cnt=0 pid=3 pos=1 obj=0 op='PX RECEIVE  (cr=0 pr=0 pw=0 str=0 time=0 us cost=1085 size=400 card=50)'
+STAT #139729524081112 id=5 cnt=0 pid=4 pos=1 obj=0 op='PX SEND RANGE :TQ10000 (cr=0 pr=0 pw=0 str=0 time=0 us cost=1085 size=400 card=50)'
+STAT #139729524081112 id=6 cnt=50 pid=5 pos=1 obj=0 op='HASH GROUP BY (cr=3205 pr=3180 pw=0 str=1 time=13935 us cost=1085 size=400 card=50)'
+STAT #139729524081112 id=7 cnt=54060 pid=6 pos=1 obj=0 op='PX BLOCK ITERATOR (cr=3205 pr=3180 pw=0 str=1 time=10556 us cost=1082 size=960000 card=120000)'
+STAT #139729524081112 id=8 cnt=54060 pid=7 pos=1 obj=141877 op='TABLE ACCESS FULL MTK_PX_BIG (cr=3205 pr=3180 pw=0 str=12 time=14576 us cost=1082 size=960000 card=120000)'
+CLOSE #139729524081112:c=142,e=141,dep=1,type=1,tim=48394579548
+WAIT #0: nam='PX Deq: Slave Session Stats' ela= 367 sleeptime/senderid=268566527 passes=1 p3=2292777128 obj#=141877 tim=48394579935

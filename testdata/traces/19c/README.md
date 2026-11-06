@@ -193,6 +193,50 @@ for an already-open PL/SQL cursor on its first EXEC after trace-on (that is why 
 file switch was needed), and ALTER SESSION invalidates PL/SQL-cached cursors
 (`EXEC ... mis=1` on their next run).
 
+## exec_loom.trc (68,606 bytes, 751 lines)
+Execution Loom fixture (generated 2026-11-06): the same statements run several times under different cache and read-path
+conditions, so their executions have the same call shape and different waits. Actions:
+`index_cold_warm` runs `/*+ index(b mtk_loom_cold_pk) mtk_loom_ix */` (`a4vuwhqavzph4`) twice over the same random
+range of 2,000 ids of `MTK_LOOM_COLD` (obj# 141881; a table nothing else reads, see `01_schema.sql`): the first run
+reads 118 table blocks (118 `db file sequential read` of obj#=141881, 5.82 ms), the second finds them cached
+(pr=0, 648 µs). `scan_paths` runs `/*+ full(o) mtk_loom_scan */` (`fc6cz74rbm46b`) three times with arraysize
+1000: buffered (`"_serial_direct_read"=never`) twice, then direct (`always`): a 239 ms `enq: KO - fast object
+checkpoint` in the first FETCH (its obj#=141881 is left over from the previous wait), then 26 `direct path read`
+(`file number=12`) over the fetches. `dml_current` runs a no-op UPDATE of 1,000 `mtk_orders` rows twice
+(cu=1029/1028; `db file scattered read` with obj#=0 and two `db file parallel read` with obj#=-1), then rollback.
+Oddity: a child cursor that has run twice keeps its read path when `"_serial_direct_read"` changes (seen on the first
+run: three buffered scans), so the direct run also sets `optimizer_index_cost_adj=101`: a new child of the same sql_id
+and plan hash, hard-parsed under `always` (`EXEC ... mis=1`), then reset to 100. tkprof prints `mtk_loom_scan` once
+(3 executions, aggregate=yes).
+
+## stats_basic.trc (18,506 bytes, 276 lines)
+`alter session set statistics_level = basic` under 10046 level 12, then multi-line-plan queries (a nested-loop join
+with group by, a hash join of 2,000 customers with `mtk_orders`, a correlated subquery) and a PL/SQL loop of 5
+lookups (dep=1). Basic turns `timed_statistics` off, which in 19c means: **no STAT lines at all**, `c=0` on every
+PARSE/EXEC/FETCH/CLOSE (`e=` and the calls' `tim=` still measured), and every WAIT line `ela= 0 ... tim=0` (61 of 63);
+the lines after the traced `alter session set statistics_level = typical` (line 264) are timed again. tkprof shows cpu 0.00 everywhere and the same zeros for the waits.
+A 19c trace never has STAT lines without row-source statistics (`op='... (cr=...)'`; the bare `op='...'` is the
+pre-9.2 format). Probed on 19.27, nine ways, 2026-11-06: `statistics_level=basic` with timed_statistics off gives no
+STAT under 10046 level 12, under `sql_trace ... plan_stat=all_executions`, under
+`dbms_session.session_trace_enable(plan_stat=>'ALL_EXECUTIONS')` and with the cursor hard-parsed before tracing;
+basic with `timed_statistics=true` (10046, `sql_trace` event or `dbms_session`) gives full `(cr=... time=...)`
+lines; `"_rowsource_execution_statistics"=false` with `"_rowsource_statistics_sampfreq"=0` gives them with `time=0`.
+So Row flow's "table + note" state (STAT lines with no statistics) stays unit-tested only.
+
+## px_io.trc / px_io_slave_p000..p003.trc (65,916 / 17,588, 17,821, 35,139, 34,845 bytes; 791 / 171, 172, 310, 305 lines)
+PX slaves with physical reads. `MTK_PX_BIG` (obj# 141877, 120,000 rows of about 420 bytes, about 7,000 blocks / 57 MB,
+loaded direct-path; above the small-table threshold, so the slaves do not read it through the buffer cache) scanned by
+`/*+ parallel(b 4) full(b) mtk_px_scan */ count(*), sum(amount), max(length(pad))` (action `px_scan`, `cznmg6kxgvkpu`)
+and `/*+ parallel(b 2) full(b) mtk_px_group */ grp, count(*), sum(amount) ... group by grp order by grp`
+(`px_group_by`, two slave sets). Coordinator: `PX Deq: Execute Reply` (110), `PX qref latch` (101),
+`resmgr:cpu quantum` (14), `PX Deq: Join ACK` / `Parse Reply` / `Signal ACK EXT` / `Slave Session Stats`,
+`enq: PS - contention`, no physical reads of the table. One file per slave process (`run_gen.sh` case `px_io` copies
+every `cdb1_p0*_mtk_px_io.trc` of the run), each with `*** TRACE CONTINUED FROM FILE .../cdb1_p00N_<pid>.trc ***`, two
+`*** SESSION ID` blocks and the rewritten PX SQL at dep=1: 547 `direct path read` in all (`file number=12 first dba=...
+block cnt=` 2 to 32, obj#=141877): p000 74 and p001 75 (px_scan only; they were the consumer set in px_group_by),
+p002 58 + 144 and p003 84 + 112 (both queries). No `enq: KO` (the direct-path load left no dirty blocks).
+tkprof of a slave file shows the coordinator's statement texts (cznmg6kxgvkpu: 1,484 disk in p002).
+
 ## pinx_worker.trc (1,376,259 bytes, 22,865 lines)
 Not from `run_gen.sh`: captured **live** from the PINX lab workload (schema
 `PINX`, jobs `PINX_W001..24` running `pinx_hot_loop(worker, 20, 1)` against `T`).
