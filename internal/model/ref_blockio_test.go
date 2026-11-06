@@ -31,15 +31,15 @@ func TestEventIsBlockIO(t *testing.T) {
 		{"gc current request", true, false},
 		{"gc buffer busy acquire", true, false},
 		{"gc cr multi block request", true, false},
-		{"db file parallel read", false, false},       // files, blocks, requests: no address
-		{"db file parallel write", false, false},      // requests, interrupt, timeout
+		{"db file parallel read", false, false},        // files, blocks, requests: no address
+		{"db file parallel write", false, false},       // requests, interrupt, timeout
 		{"control file sequential read", false, false}, // file#, block#, blocks: p1 is a control file's number
 		{"control file single write", false, false},    // likewise
 		{"control file parallel write", false, false},  // files, block#, requests
-		{"Disk file operations I/O", false, false},    // FileOperation, fileno, filetype
-		{"log file sequential read", false, false},    // log#, block#, blocks
-		{"external table read", false, false},         // filectx, file#, size
-		{"gc cr block 2-way", false, false},           // no parameter names
+		{"Disk file operations I/O", false, false},     // FileOperation, fileno, filetype
+		{"log file sequential read", false, false},     // log#, block#, blocks
+		{"external table read", false, false},          // filectx, file#, size
+		{"gc cr block 2-way", false, false},            // no parameter names
 		{"gc current block 2-way", false, false},
 		{"SQL*Net message from client", false, false},
 	} {

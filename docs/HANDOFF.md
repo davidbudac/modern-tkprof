@@ -6,6 +6,42 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Open-list round (2026-11-06)
+
+- **Control file waits are not block I/O** (`bab6065`): `Event.IsFileP1` / `isFileP1` skip `control file *` events (p1
+  is named `file#` but is a control file's number), so Blocks, the Dialogue's disk lane, pivot p1 labels, `-ref` file
+  names and the CSV export no longer mix them with datafiles. 21c io_waits: Blocks went from 4 files (0, 1, 12, 203) to
+  2. The shared case `iomap-case.json` is now cut from `testdata/traces/21c/io_waits.trc` and holds its 14 control file
+  waits.
+- **obj# 4294967295** (`bab6065`): 23ai writes it where 19c writes `obj#=-1`; the model reads it as -1
+  (`CacheIndexFormat` 5). **µs columns are f64**: wait `ela` and the call columns `c`, `e`, `selfE`, `selfC`, `waitEla`,
+  `idleEla` were i32 and clamped anything over 35.8 min in every in-browser sum. Cost: the packed document of the 153 MB
+  `testcdb_ora_680.trc` grows from 16.2 to 18.1 MB (+12 %). `p`, `cr`, `cu`, `r`, `obj` stay i32.
+- **Plan advisor = Row flow's estimate** (`10d17ec`): `advisor.ts` `alignEstimates` replaces ora-plan-core's estimate
+  with Row flow's `comparableEstimate` (no E-Rows × starts below an iterator). Over all fixtures it changed only the
+  INLIST ITERATOR cases (nasty_sql 57b0w2txwjvby, lobs) and a few rowid fetches multiplied by an index's starts.
+- **Desktop top row** (`61031ee`): session tabs shrink first, down to a floor (`--tab-on-floor`, about 16 characters of
+  the active title); then view tabs that would wrap move into the Tools menu, which reads **More** (or the current view's
+  name). Key hints hang under the tabs instead of widening them (`⌘6–9` under More). Works from 900 px; the Tauri
+  `minWidth` stays 1,100 px (views unchecked below that). Trade-off: at 1,280 px with one tab, Pivot is under More.
+  Evidence: `/tmp/verify-mtkprof-g3/evidence/header-{before,after}/`.
+- drive.mjs already falls back to the newest installed headless shell (`9b9789d`).
+- **Fixtures** (`4889f33`, dbmint, generator in `~/mtk_gen`; README in `testdata/traces/19c/`):
+  - `exec_loom.trc`: the Loom's cold/warm pair now reads a random 2,000-id range of the new MTK_LOOM_COLD (24 MB,
+    sample-gathered so nothing caches it): cold 118 `db file sequential read`, warm none. The direct-path run also sets
+    `optimizer_index_cost_adj=101` (a new child: a child that ran twice keeps buffered reads after `_serial_direct_read`
+    changes): 239 ms `enq: KO - fast object checkpoint`, then 26 `direct path read`.
+  - `px_io.trc` + `px_io_slave_p000..p003.trc`: PX over the new MTK_PX_BIG (57 MB, above `_small_table_threshold`):
+    547 `direct path read` waits in the slaves on file 12; Blocks shows them.
+  - `stats_basic.trc`: `statistics_level=basic` (timed_statistics off): no STAT lines at all, `c=0` everywhere, 61 of 63
+    WAITs `ela= 0 … tim=0`; tkprof parity holds. Probed on 19.27: basic + timed_statistics=false gives no STAT under
+    10046, `sql_trace plan_stat=all_executions` or `dbms_session plan_stat`; basic + timed_statistics=true gives full
+    row-source stats; `_rowsource_execution_statistics=false` + sampfreq 0 gives `(cr=…)` with time=0.
+  - `a6079ff`: tim=0 rows have no clock (Lines showed 18:40 and Δ +13.44 h): `gaps.ts` `timOf`, `lines_gap.go`,
+    `lines_readable.go`.
+  - Evidence: `/tmp/verify-mtkprof-g2/evidence/` (Loom cold/warm and buffered/direct, px_io Blocks, stats_basic).
+    Probe scripts `/tmp/mtk_probe_*.sql` and their traces remain on dbmint.
+
 ## Motion: implemented (2026-11-03, branch `ui/motion`)
 
 - transitions.dev motion in both clients: sliding pills on every segmented control and the view tabs, menus and the
@@ -72,21 +108,13 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
   waits 60 px tall. Row flow's ghost is E-Rows × starts, except below an iterator. gc cr/current block 2-way do not
   classify as block I/O (no parameter names in V$EVENT_NAME).
 - **Open**:
-  - No fixture has STAT lines without row-source statistics (level_1.trc has them), so Row flow's "table + note" state is
-    only unit-tested; a dbmint fixture (`statistics_level=basic`) would cover it. Likewise parallel.trc's PX slaves did no
-    physical I/O (one block I/O wait in all), so Blocks has shown no PX-slave reads; a fixture with uncached PX scans would.
-  - `control file sequential read` classifies as block I/O; its p1 is a control file number and can share a "file N"
-    panel with a datafile (none in io_waits.trc; the 21c io_waits fixture has a few).
-  - The document's `obj` and `ela` columns are 32-bit: an obj# of 4294967295 (21c fixture) reads 2147483647 in `ioMapOf`,
-    the endpoint keeps int64.
-  - The plan advisor (older code) flags `INDEX UNIQUE SCAN` under `INLIST ITERATOR` in nasty_sql.trc (57b0w2txwjvby) as a
-    1,119× misestimate, multiplying a card that already covers every iteration by the starts; Row flow does not, so the
-    two disagree on that plan.
-  - Desktop top row: with the Blocks tab, a window narrower than about 1,100 px squeezes the session tab's title to a few
-    characters (nothing overlaps); holding ⌘ (the key hints) does the same at 1,440 px.
-  - The verify-mtkprof skill's `drive.mjs` cannot launch Chromium on this machine: the deck-to-pptx Playwright (1.61.1)
-    wants `chromium_headless_shell-1228`, only 1248 is in `~/Library/Caches/ms-playwright`. Runs used a copy with
-    `executablePath` set to the 1248 shell; installing the matching browser or a fallback in the script would fix it.
+  - Row flow's "table + note" state (STAT lines without `(cr=…)`) stays unit-tested only: no 19c setting produces it
+    (nine variants probed on 19.27, see "Open-list round" above); the bare form is the pre-9.2 trace format.
+  - On a `timed_statistics=false` trace (stats_basic.trc) the statement's response-time bar is empty: everything is
+    unaccounted time and the bar does not draw that.
+  - A rerun of `run_gen.sh px_io` appends to the pooled PX slaves' existing `*_mtk_px_io.trc` files.
+  - Fixed 2026-11-06 (see "Open-list round" above): control file waits as block I/O, the 32-bit obj/ela columns, the
+    plan advisor's INLIST ITERATOR misestimate, the squeezed desktop top row, drive.mjs's Chromium version.
   - `site/docs.html` describes the three views; the site is not published (`scripts/publish-site.sh`: ask).
   - Not built: the mock-up's fetch count on Row flow's client label; plan § 10 (whole-session Dialogue, side-by-side
     Dialogue in `ExecCompare`, 2-D binning for Blocks, …).
@@ -492,7 +520,7 @@ Working and tested:
 | Streaming 10046 parser (every 19c line kind) | `internal/trace` | done; unit tests; 0 unknown lines on all fixtures |
 | Dimensional model (statements, cursor instances, call hierarchy with self time, wait attribution, binds, plans, contexts, wall clock) | `internal/model` | done; unit tests |
 | Aggregations (profiles, statement stats, executions, group-bys, timeline) | `internal/analyze` | done |
-| Golden comparison against Oracle's tkprof | `internal/golden` | passes on all 19 fixtures |
+| Golden comparison against Oracle's tkprof | `internal/golden` | passes on every fixture (29 19c, 19 21c, 19 23ai) |
 | Text report, JSON document (format 2, packed columns), CSV export | `internal/report` | done |
 | CLI: `report`, `pivot`, `html`, `serve`, `json`, `export`, `lint`, `plan`, `refscript`, `compare`, `findings-config`, `engine` (+ `engine cache`) | `cmd/mtkprof` | done |
 | Findings (9 rules, fixed thresholds) in JSON, text report and Overview | `internal/analyze/findings.go`, `internal/report/text_findings.go`, `web/src/lib/views/Findings.tsx` | done; unit tests on fixtures + hand-built models |
