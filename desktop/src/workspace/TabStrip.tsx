@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { LiveBadge, SessionProvider, isMac, type Session } from '@lib'
 import { EXIT_MS, useExit } from '@lib/components/motion'
 import { pages } from '../pages'
@@ -49,7 +49,7 @@ export function TabStrip() {
           ws.go({ kind: 'tab', key: tab.key })
         } else ws.go({ kind: 'open' })
       }}><BrandIcon motion={busy ? 'loop' : undefined} /><span className="brand-name">mtkprof</span></button>
-      <nav className="session-tabs" aria-label="Open traces" role="tablist">
+      <nav className="session-tabs" aria-label="Open traces" role="tablist" style={{ '--tabs': tabs.length } as CSSProperties}>
         {tabs.map((t, index) => (
           <SessionTab key={t.key} tab={t} index={index} on={route.kind === 'tab' && route.key === t.key} onMenu={setMenu} />
         ))}

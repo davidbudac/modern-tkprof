@@ -213,7 +213,7 @@ export function useReveal(ref: RefObject<Element | null>, pending: boolean) {
 }
 
 const PILL_HOSTS = 'span.seg, .tabs'
-const PILL_ON = ':scope > button[aria-pressed="true"], :scope > .tab[aria-current="page"]'
+const PILL_ON = ':scope > button[aria-pressed="true"], :scope > .tab[aria-current="page"]:not([data-overflow])' // an overflowed current tab is off the bar: no pill
 const PILL_PROPS = ['--pill-x', '--pill-y', '--pill-w', '--pill-h'] as const
 
 /** Puts `host`'s pill on its one pressed button (the first time without sliding), or takes it away when there is not exactly one. */
@@ -268,7 +268,7 @@ export function installSlidingPills(root: HTMLElement = document.body): () => vo
     }
   })
   // not `style` or `data-pill`: those are this function's own writes
-  mo.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-pressed', 'aria-current', 'class', 'hidden', 'disabled'] })
+  mo.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-pressed', 'aria-current', 'class', 'hidden', 'disabled', 'data-overflow'] })
   window.addEventListener('resize', schedule)
   void document.fonts?.ready.then(schedule)
   schedule()

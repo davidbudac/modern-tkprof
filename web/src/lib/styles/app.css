@@ -69,6 +69,8 @@
 .tab { border: 0; border-radius: 5px; padding-block: 0.3rem; padding-inline: 0.7rem; color: var(--ink-2); font-size: var(--text-md); }
 .tab small { color: var(--ink-3); margin-inline-start: 0.35rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .tab[aria-current="page"] { background: var(--wash); color: var(--ink); font-weight: 500; }
+/* a tab its shell has moved off the bar (ViewTabs `overflow`): it keeps its place, unseen and unfocusable */
+.tab[data-overflow] { visibility: hidden; }
 .topbar .chips { display: inline-flex; gap: var(--sp-2); }
 .topbar .chips:empty { display: none; }
 .topbar .theme { font-size: 0.9rem; line-height: 1; padding-inline: 0.45rem; }

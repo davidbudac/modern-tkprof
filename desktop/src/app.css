@@ -23,13 +23,23 @@ body { overflow: hidden; }
 .frame-top .brand:active { background: var(--wash-strong); }
 @media (hover: hover) and (pointer: fine) { .frame-top .brand:hover { background: var(--wash); } }
 .frame-top .spacer { flex: 1; }
-/* many tabs shrink (titles ellipsize) rather than scroll */
-.session-tabs { display: flex; align-items: center; gap: 4px; min-inline-size: 0; overflow-x: clip; }
+/* Many tabs shrink (titles ellipsize) rather than scroll. When the row is short of room the tabs give way first (shrink 1000),
+   the other tabs before the active one, but only down to a floor: the active tab with ~16 characters of its title, every
+   other tab at its minimum, the "+". From there the view tabs give way (they move into the Tools menu, SessionNav.tsx).
+   `--tabs` (TabStrip.tsx) counts the tabs. */
+.session-tabs {
+  --tab-on-floor: 14.5rem;
+  --tab-floor: 5.5rem;
+  display: flex; align-items: center; gap: 4px; overflow-x: clip;
+  flex: 0 1000 auto;
+  min-inline-size: calc(var(--tab-on-floor) + (var(--tabs, 1) - 1) * (var(--tab-floor) + 4px) + 2.25rem);
+}
 .session-tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  flex: 0 1 auto;
-  min-inline-size: 5.5rem;
+  flex: 0 100 auto;
+  min-inline-size: var(--tab-floor);
   max-inline-size: 18rem;
   block-size: 1.75rem;
   border: 0;
@@ -38,7 +48,7 @@ body { overflow: hidden; }
 }
 .session-tab.on { background: var(--surface-raised); color: var(--ink); box-shadow: 0 0 0 1px var(--hairline); margin-block-end: 0; block-size: 1.75rem; }
 /* the active tab holds the trace's status too (see .session-tab-main below), so it may be wider and gives way last */
-.session-tab.on:not(.plus) { max-inline-size: 24rem; min-inline-size: 7.5rem; }
+.session-tab.on:not(.plus) { flex-shrink: 1; min-inline-size: 7.5rem; max-inline-size: 24rem; }
 .session-tab button { border: 0; border-radius: 0; background: none; }
 .session-tab-main { display: inline-flex; align-items: center; gap: var(--sp-2); min-inline-size: 0; block-size: 100%; padding-inline: var(--sp-3) var(--sp-1); }
 .folder-mark { display: inline-block; inline-size: 14px; block-size: 14px; flex: none; color: var(--ink-3); }
@@ -332,18 +342,22 @@ input[type="number"], input[type="url"] { font-size: max(16px, 1rem); padding: 0
 .ann-note { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--sp-3); padding-inline-start: var(--sp-3); border-inline-start: 2px solid var(--c-note); }
 .ann-note p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* the views of the open trace, right-aligned before the app's pages; two more here than in the standalone app (Notes, Reports) */
-.session-nav { flex: none; display: flex; align-items: center; gap: var(--sp-3); }
+.session-nav { flex: 0 1 auto; display: flex; align-items: center; gap: var(--sp-3); }
 .session-nav > * { flex: none; white-space: nowrap; }
-.session-nav .tabs { margin-inline-start: 0; }
+/* The view tabs wrap where the row has no room for them all: a tab on a second line is off the bar (SessionNav.tsx
+   measures that, hides it, lists it in the Tools menu and fits the bar to the tabs left, so the room a wrapped tab leaves
+   goes back to the row). The bar is one line tall; the first tab always fits. */
+.session-nav > .tabs { flex: 0 1 auto; flex-wrap: wrap; align-content: start; block-size: 1.75rem; margin-inline-start: 0; }
+.session-nav > .tabs > .tab { position: relative; block-size: 1.75rem; }
+.session-nav .tools-slot { position: relative; display: inline-flex; }
 .session-nav .side button { font-weight: 600; padding-inline: 0.6rem; }
 /* the assistant's toggle (⌘J) reads like the current view while its panel is open */
-.session-nav .assistant-toggle { display: inline-flex; align-items: center; block-size: 1.75rem; padding-block: 0; padding-inline: 0.45rem; font-size: 1rem; }
+.session-nav .assistant-toggle { position: relative; display: inline-flex; align-items: center; block-size: 1.75rem; padding-block: 0; padding-inline: 0.45rem; font-size: 1rem; }
 .session-nav .assistant-toggle[aria-pressed="true"] { background: var(--wash); color: var(--ink); border-color: transparent; font-weight: 500; }
 /* a hairline between "views of this trace" and "app pages" */
 .nav-divider { flex: none; inline-size: 1px; block-size: 1.1rem; background: var(--hairline-strong); }
-/* the one row holds the tabs, the views and the pages: it needs more room than the views row alone did (the window is at least 1100px wide).
-   Gives way in this order, so the title of the active tab keeps its room: the brand's name; paddings; the history buttons and the file count.
-   (The app's pages and the assistant are icons, so the active tab's sparkline fits down to 1100px.) */
+/* the one row holds the tabs, the views and the pages. Beside the flex rules above (the tabs, then the view tabs give way),
+   these give room back in this order: the brand's name; paddings; the history buttons and the file count. */
 @media (width < 80rem) {
   .frame-top .brand-name { display: none; }
 }
@@ -352,13 +366,13 @@ input[type="number"], input[type="url"] { font-size: max(16px, 1rem); padding: 0
   .frame-top .tabs .tab { padding-inline: 0.45rem; }
   .engine-btn { margin-inline-start: 0; }
 }
-/* narrower than the window can be (min 1100px): the history buttons (⌘[ ⌘] and the mouse buttons still go back and forward) and the tab's file count (it is in the popover) give way too */
+/* the history buttons (⌘[ ⌘] and the mouse buttons still go back and forward) and the tab's file count (it is in the popover) give way too */
 @media (width < 64rem) {
   .session-nav .nav-hist, .session-tab-main .dim { display: none; }
   .frame-top .tabs .tab { padding-inline: 0.35rem; }
 }
 /* Notes and Reports are tools of the tab, not views of the trace: a hairline sets the Tools menu apart */
-.tabs-divider { align-self: stretch; inline-size: 1px; margin-block: 0.3rem; margin-inline: var(--sp-2); background: var(--hairline-strong); flex: none; }
+.tabs-divider { align-self: stretch; inline-size: 1px; margin-block: 0.6rem; background: var(--hairline-strong); flex: none; }
 /* the trace's response time in miniature, in the active tab, and its popover (the tab's button opens it) */
 .mini-spark { display: inline-flex; inline-size: 3.5rem; block-size: 0.5rem; border-radius: 2px; overflow: clip; background: var(--surface-sunken); flex: none; }
 .mini-spark i { display: block; block-size: 100%; }
@@ -429,12 +443,15 @@ input[type="number"], input[type="url"] { font-size: max(16px, 1rem); padding: 0
 .menu-items hr, .ctx-menu hr { margin: var(--sp-1) 0; border: 0; border-block-start: 1px solid var(--hairline); }
 .ctx-menu { padding: var(--sp-1); display: grid; min-inline-size: 11rem; }
 /* the Tools menu of the views row looks like a view tab; pressed = the page you are on */
-.session-nav .deskmenu-wrap .tbmenu > button.quiet { border: 0; border-radius: 6px; padding-block: 0.3rem; padding-inline: 0.7rem; background: none; color: var(--ink-2); font-size: var(--text-md); }
+.session-nav .deskmenu-wrap .tbmenu > button.quiet { --pad: 0.7rem; border: 0; border-radius: 6px; padding-block: 0.3rem; padding-inline: var(--pad); background: none; color: var(--ink-2); font-size: var(--text-md); }
 .session-nav .deskmenu-wrap.current .tbmenu > button.quiet, .session-nav .deskmenu-wrap .tbmenu > button.quiet[aria-expanded="true"] { background: var(--wash); color: var(--ink); }
 .session-nav .deskmenu-wrap.current .tbmenu > button.quiet { font-weight: 500; }
 @media (hover: hover) and (pointer: fine) { .session-nav .deskmenu-wrap .tbmenu > button.quiet:hover { background: var(--wash); color: var(--ink); } }
-@media (width < 76rem) { .session-nav .deskmenu-wrap .tbmenu > button.quiet { padding-inline: 0.45rem; } }
-@media (width < 64rem) { .session-nav .deskmenu-wrap .tbmenu > button.quiet { padding-inline: 0.35rem; } }
+/* never narrower than "Tools ▾": the label reads "More" once views overflow into the menu, and a narrower button would give
+   their tabs room back, and so on */
+.session-nav .tools-slot .tbmenu > button.quiet { min-inline-size: calc(3.2em + 2 * var(--pad)); }
+@media (width < 76rem) { .session-nav .deskmenu-wrap .tbmenu > button.quiet { --pad: 0.45rem; } }
+@media (width < 64rem) { .session-nav .deskmenu-wrap .tbmenu > button.quiet { --pad: 0.35rem; } }
 .menu-items .menu-item-on::before { content: "✓"; margin-inline-end: var(--sp-2); }
 
 /* a rollout: a disclosure whose summary shows the values it holds */
@@ -449,9 +466,15 @@ details.rollout > summary b { font-weight: 600; color: var(--ink); }
 .key-hint { display: none; }
 :root[data-key-hints="views"] .key-hint[data-for="views"],
 :root[data-key-hints="tabs"] .key-hint[data-for="tabs"] {
-  display: inline-block; flex: none; margin-inline-start: var(--sp-1); padding: 0 0.3em; border-radius: 4px;
+  display: inline-block; flex: none; padding: 0 0.3em; border-radius: 4px;
   background: var(--ink); color: var(--surface-raised); font-family: inherit; font-size: var(--text-xs); font-weight: 500; line-height: 1.4;
   font-variant-numeric: tabular-nums; vertical-align: 0.1em;
 }
-.session-nav .tabs > .key-hint { align-self: center; }
+/* in the top row a hint hangs under what it names (a key tip), so holding the key never widens a tab and squeezes the row;
+   the row is lifted over the view while the hints show (only then: a full-window overlay such as .blocker covers it otherwise) */
+.frame-top .key-hint {
+  position: absolute; inset-block-start: calc(100% + 3px); inset-inline-start: 50%; translate: -50% 0;
+  white-space: nowrap; pointer-events: none; box-shadow: 0 1px 4px color-mix(in oklch, var(--ink) 25%, transparent);
+}
+:root[data-key-hints] .frame-top { position: relative; z-index: 10; }
 .key-tip kbd { padding: 0 0.3em; border: 1px solid var(--hairline-strong); border-radius: 4px; background: var(--surface-raised); font-family: inherit; font-size: var(--text-xs); }
