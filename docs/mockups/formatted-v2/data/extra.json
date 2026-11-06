@@ -1,0 +1,1200 @@
+{
+ "excerpts": [
+  {
+   "from": 84,
+   "to": 94,
+   "rows": [
+    {
+     "ln": 84,
+     "raw": "PARSING IN CURSOR #139745604251096 len=99 dep=0 uid=165 oct=3 lid=165 tim=10804502774 hv=3462098059 ad='617d07e8' sqlid='c7ry5gr75qv4b'",
+     "k": "CURSOR",
+     "cur": "139745604251096",
+     "sqlid": "c7ry5gr75qv4b",
+     "len": 99,
+     "dep": 0,
+     "uid": 165,
+     "oct": 3,
+     "clock": "11:35:29.194785",
+     "tim": 10804502774
+    },
+    {
+     "ln": 85,
+     "raw": "select /*+ full(o) mtk_full_scan_orders */ count(*), sum(amount), max(order_date) from mtk_orders o",
+     "k": "TEXT",
+     "text": "select /*+ full(o) mtk_full_scan_orders */ count(*), sum(amount), max(order_date) from mtk_orders o"
+    },
+    {
+     "ln": 86,
+     "raw": "END OF STMT",
+     "k": "ENDSTMT"
+    },
+    {
+     "ln": 87,
+     "raw": "PARSE #139745604251096:c=92,e=907,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=3570327658,tim=10804502774",
+     "k": "PARSE",
+     "cur": "139745604251096",
+     "sqlid": "c7ry5gr75qv4b",
+     "c": 92,
+     "e": 907,
+     "p": 0,
+     "cr": 0,
+     "cu": 0,
+     "mis": 1,
+     "r": 0,
+     "dep": 0,
+     "og": 1,
+     "plh": 3570327658,
+     "tim": 10804502774,
+     "clock": "11:35:29.194785"
+    },
+    {
+     "ln": 88,
+     "raw": "EXEC #139745604251096:c=0,e=43,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=3570327658,tim=10804502854",
+     "k": "EXEC",
+     "cur": "139745604251096",
+     "sqlid": "c7ry5gr75qv4b",
+     "c": 0,
+     "e": 43,
+     "p": 0,
+     "cr": 0,
+     "cu": 0,
+     "mis": 0,
+     "r": 0,
+     "dep": 0,
+     "og": 1,
+     "plh": 3570327658,
+     "tim": 10804502854,
+     "clock": "11:35:29.194865",
+     "execNo": 1,
+     "execTotal": 1
+    },
+    {
+     "ln": 89,
+     "raw": "WAIT #139745604251096: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804502868",
+     "k": "WAIT",
+     "cur": "139745604251096",
+     "sqlid": "c7ry5gr75qv4b",
+     "nam": "SQL*Net message to client",
+     "ela": 0,
+     "p": {
+      "driver id": "1952673792",
+      "#bytes": "1",
+      "p3": "0",
+      "obj#": "-1"
+     },
+     "clock": "11:35:29.194879",
+     "tim": 10804502868
+    },
+    {
+     "ln": 90,
+     "raw": "WAIT #139745604251096: nam='reliable message' ela= 67 channel context=2545476720 channel handle=2545422152 broadcast message=2547126864 obj#=-1 tim=10804503030",
+     "k": "WAIT",
+     "cur": "139745604251096",
+     "sqlid": "c7ry5gr75qv4b",
+     "nam": "reliable message",
+     "ela": 67,
+     "p": {
+      "channel context": "2545476720",
+      "channel handle": "2545422152",
+      "broadcast message": "2547126864",
+      "obj#": "-1"
+     },
+     "clock": "11:35:29.195041",
+     "tim": 10804503030
+    },
+    {
+     "ln": 91,
+     "raw": "",
+     "k": "BLANK"
+    },
+    {
+     "ln": 92,
+     "raw": "*** 2026-10-22T11:35:29.826769+00:00 (PDB1(3))",
+     "k": "TEXT",
+     "text": "*** 2026-10-22T11:35:29.826769+00:00 (PDB1(3))"
+    },
+    {
+     "ln": 93,
+     "raw": "WAIT #139745604251096: nam='enq: KO - fast object checkpoint' ela= 631705 name|mode=1263468550 2=65604 0=1 obj#=-1 tim=10805134758",
+     "k": "WAIT",
+     "cur": "139745604251096",
+     "sqlid": "c7ry5gr75qv4b",
+     "nam": "enq: KO - fast object checkpoint",
+     "ela": 631705,
+     "p": {
+      "0": "1",
+      "2": "65604",
+      "mode": "1263468550",
+      "obj#": "-1"
+     },
+     "clock": "11:35:29.826769",
+     "tim": 10805134758
+    },
+    {
+     "ln": 94,
+     "raw": "WAIT #139745604251096: nam='asynch descriptor resize' ela= 6 outstanding #aio=0 current aio limit=0 new aio limit=128 obj#=108611 tim=10805135046",
+     "k": "WAIT",
+     "cur": "139745604251096",
+     "sqlid": "c7ry5gr75qv4b",
+     "nam": "asynch descriptor resize",
+     "ela": 6,
+     "p": {
+      "outstanding #aio": "0",
+      "current aio limit": "0",
+      "new aio limit": "128",
+      "obj#": "108611"
+     },
+     "obj": "MTK_ORDERS",
+     "clock": "11:35:29.827057",
+     "tim": 10805135046
+    }
+   ]
+  },
+  {
+   "from": 141,
+   "to": 200,
+   "rows": [
+    {
+     "ln": 141,
+     "raw": "  kxsbbbfp=7f190f1a6f78  bln=22  avl=11  flg=05",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f1a6f78  bln=22  avl=11  flg=05"
+    },
+    {
+     "ln": 142,
+     "raw": "  value=8653885946966910713",
+     "k": "BINDATTR",
+     "text": "value=8653885946966910713"
+    },
+    {
+     "ln": 143,
+     "raw": "EXEC #139745604248120:c=579,e=579,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=1426583507,tim=10805141825",
+     "k": "EXEC",
+     "cur": "139745604248120",
+     "sqlid": "10gywwmwk6xfy",
+     "c": 579,
+     "e": 579,
+     "p": 0,
+     "cr": 0,
+     "cu": 0,
+     "mis": 1,
+     "r": 0,
+     "dep": 1,
+     "og": 4,
+     "plh": 1426583507,
+     "tim": 10805141825,
+     "clock": "11:35:29.833836",
+     "execNo": 1,
+     "execTotal": 4
+    },
+    {
+     "ln": 144,
+     "raw": "FETCH #139745604248120:c=22,e=22,p=0,cr=2,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=10805141855",
+     "k": "FETCH",
+     "cur": "139745604248120",
+     "sqlid": "10gywwmwk6xfy",
+     "c": 22,
+     "e": 22,
+     "p": 0,
+     "cr": 2,
+     "cu": 0,
+     "mis": 0,
+     "r": 0,
+     "dep": 1,
+     "og": 4,
+     "plh": 1426583507,
+     "tim": 10805141855,
+     "clock": "11:35:29.833866"
+    },
+    {
+     "ln": 145,
+     "raw": "STAT #139745604248120 id=1 cnt=0 pid=0 pos=1 obj=720 op='TABLE ACCESS BY INDEX ROWID EXP_HEAD$ (cr=2 pr=0 pw=0 str=1 time=24 us cost=2 size=68 card=1)'",
+     "k": "STAT",
+     "cur": "139745604248120",
+     "sqlid": "10gywwmwk6xfy",
+     "id": 1,
+     "cnt": 0,
+     "pid": 0,
+     "op": "TABLE ACCESS BY INDEX ROWID",
+     "name": "EXP_HEAD$",
+     "cr": 2,
+     "pr": 0,
+     "pw": 0,
+     "str": 1,
+     "time": 24,
+     "us cost": 2,
+     "size": 68,
+     "card": 1
+    },
+    {
+     "ln": 146,
+     "raw": "STAT #139745604248120 id=2 cnt=0 pid=1 pos=1 obj=721 op='INDEX UNIQUE SCAN I_EXP_HEAD$ (cr=2 pr=0 pw=0 str=1 time=23 us cost=1 size=0 card=1)'",
+     "k": "STAT",
+     "cur": "139745604248120",
+     "sqlid": "10gywwmwk6xfy",
+     "id": 2,
+     "cnt": 0,
+     "pid": 1,
+     "op": "INDEX UNIQUE SCAN",
+     "name": "I_EXP_HEAD$",
+     "cr": 2,
+     "pr": 0,
+     "pw": 0,
+     "str": 1,
+     "time": 23,
+     "us cost": 1,
+     "size": 0,
+     "card": 1
+    },
+    {
+     "ln": 147,
+     "raw": "CLOSE #139745604248120:c=2,e=2,dep=1,type=3,tim=10805141928",
+     "k": "CLOSE",
+     "cur": "139745604248120",
+     "sqlid": "10gywwmwk6xfy",
+     "c": 2,
+     "e": 2,
+     "dep": 1,
+     "type": 3,
+     "tim": 10805141928,
+     "clock": "11:35:29.833939"
+    },
+    {
+     "ln": 148,
+     "raw": "=====================",
+     "k": "RULE"
+    },
+    {
+     "ln": 149,
+     "raw": "PARSING IN CURSOR #139745604298784 len=137 dep=1 uid=0 oct=2 lid=0 tim=10805142191 hv=309576400 ad='71b362c8' sqlid='dbvj6jc977hqh'",
+     "k": "CURSOR",
+     "cur": "139745604298784",
+     "sqlid": "dbvj6jc977hqh",
+     "len": 137,
+     "dep": 1,
+     "uid": 0,
+     "oct": 2,
+     "clock": "11:35:29.834202",
+     "tim": 10805142191
+    },
+    {
+     "ln": 150,
+     "raw": "insert /* QOSD */ into exp_head$ (exp_id, objn, sub_id, fixed_cost, text, col_list, flags, ctime) values (:1, :2, :3, :4, :5, :6, :7, :8)",
+     "k": "TEXT",
+     "text": "insert /* QOSD */ into exp_head$ (exp_id, objn, sub_id, fixed_cost, text, col_list, flags, ctime) values (:1, :2, :3, :4, :5, :6, :7, :8)"
+    },
+    {
+     "ln": 151,
+     "raw": "END OF STMT",
+     "k": "ENDSTMT"
+    },
+    {
+     "ln": 152,
+     "raw": "PARSE #139745604298784:c=233,e=233,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10805142191",
+     "k": "PARSE",
+     "cur": "139745604298784",
+     "sqlid": "dbvj6jc977hqh",
+     "c": 233,
+     "e": 233,
+     "p": 0,
+     "cr": 0,
+     "cu": 0,
+     "mis": 1,
+     "r": 0,
+     "dep": 1,
+     "og": 4,
+     "plh": 0,
+     "tim": 10805142191,
+     "clock": "11:35:29.834202"
+    },
+    {
+     "ln": 153,
+     "raw": "BINDS #139745604298784:",
+     "k": "BINDS",
+     "cur": "139745604298784",
+     "sqlid": "dbvj6jc977hqh"
+    },
+    {
+     "ln": 154,
+     "raw": "",
+     "k": "BLANK"
+    },
+    {
+     "ln": 155,
+     "raw": " Bind#0",
+     "k": "BIND",
+     "pos": 0
+    },
+    {
+     "ln": 156,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 157,
+     "raw": "  oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0"
+    },
+    {
+     "ln": 158,
+     "raw": "  kxsbbbfp=7f190f15eed8  bln=22  avl=11  flg=05",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f15eed8  bln=22  avl=11  flg=05"
+    },
+    {
+     "ln": 159,
+     "raw": "  value=8653885946966910713",
+     "k": "BINDATTR",
+     "text": "value=8653885946966910713"
+    },
+    {
+     "ln": 160,
+     "raw": " Bind#1",
+     "k": "BIND",
+     "pos": 1
+    },
+    {
+     "ln": 161,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 162,
+     "raw": "  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24",
+     "k": "BINDATTR",
+     "text": "oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24"
+    },
+    {
+     "ln": 163,
+     "raw": "  kxsbbbfp=7f190f15eef0  bln=22  avl=04  flg=01",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f15eef0  bln=22  avl=04  flg=01"
+    },
+    {
+     "ln": 164,
+     "raw": "  value=108609",
+     "k": "BINDATTR",
+     "text": "value=108609"
+    },
+    {
+     "ln": 165,
+     "raw": " Bind#2",
+     "k": "BIND",
+     "pos": 2
+    },
+    {
+     "ln": 166,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 167,
+     "raw": "  oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48",
+     "k": "BINDATTR",
+     "text": "oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48"
+    },
+    {
+     "ln": 168,
+     "raw": "  kxsbbbfp=7f190f15ef08  bln=22  avl=01  flg=01",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f15ef08  bln=22  avl=01  flg=01"
+    },
+    {
+     "ln": 169,
+     "raw": "  value=0",
+     "k": "BINDATTR",
+     "text": "value=0"
+    },
+    {
+     "ln": 170,
+     "raw": " Bind#3",
+     "k": "BIND",
+     "pos": 3
+    },
+    {
+     "ln": 171,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 172,
+     "raw": "  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72",
+     "k": "BINDATTR",
+     "text": "oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72"
+    },
+    {
+     "ln": 173,
+     "raw": "  kxsbbbfp=7f190f15ef20  bln=22  avl=09  flg=01",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f15ef20  bln=22  avl=09  flg=01"
+    },
+    {
+     "ln": 174,
+     "raw": "  value=.0000000337759769235673",
+     "k": "BINDATTR",
+     "text": "value=.0000000337759769235673"
+    },
+    {
+     "ln": 175,
+     "raw": " Bind#4",
+     "k": "BIND",
+     "pos": 4
+    },
+    {
+     "ln": 176,
+     "raw": "  oacdty=01 mxl=32(08) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=01 mxl=32(08) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 177,
+     "raw": "  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0"
+    },
+    {
+     "ln": 178,
+     "raw": "  kxsbbbfp=617c0800  bln=32  avl=08  flg=09",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=617c0800  bln=32  avl=08  flg=09"
+    },
+    {
+     "ln": 179,
+     "raw": "  value=\"\"NOTES\"\"",
+     "k": "BINDATTR",
+     "text": "value=\"\"NOTES\"\""
+    },
+    {
+     "ln": 180,
+     "raw": " Bind#5",
+     "k": "BIND",
+     "pos": 5
+    },
+    {
+     "ln": 181,
+     "raw": "  oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 182,
+     "raw": "  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0"
+    },
+    {
+     "ln": 183,
+     "raw": "  kxsbbbfp=617c0818  bln=32  avl=02  flg=09",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=617c0818  bln=32  avl=02  flg=09"
+    },
+    {
+     "ln": 184,
+     "raw": "  value=\"5\"",
+     "k": "BINDATTR",
+     "text": "value=\"5\""
+    },
+    {
+     "ln": 185,
+     "raw": " Bind#6",
+     "k": "BIND",
+     "pos": 6
+    },
+    {
+     "ln": 186,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 187,
+     "raw": "  oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0"
+    },
+    {
+     "ln": 188,
+     "raw": "  kxsbbbfp=7f190f15eea8  bln=22  avl=02  flg=05",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f15eea8  bln=22  avl=02  flg=05"
+    },
+    {
+     "ln": 189,
+     "raw": "  value=8",
+     "k": "BINDATTR",
+     "text": "value=8"
+    },
+    {
+     "ln": 190,
+     "raw": " Bind#7",
+     "k": "BIND",
+     "pos": 7
+    },
+    {
+     "ln": 191,
+     "raw": "  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 192,
+     "raw": "  oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0"
+    },
+    {
+     "ln": 193,
+     "raw": "  kxsbbbfp=617c07e8  bln=07  avl=07  flg=09",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=617c07e8  bln=07  avl=07  flg=09"
+    },
+    {
+     "ln": 194,
+     "raw": "  value=\"10/22/2026 11:35:29\"",
+     "k": "BINDATTR",
+     "text": "value=\"10/22/2026 11:35:29\""
+    },
+    {
+     "ln": 195,
+     "raw": "EXEC #139745604298784:c=546,e=546,p=0,cr=1,cu=6,mis=1,r=1,dep=1,og=4,plh=0,tim=10805142780",
+     "k": "EXEC",
+     "cur": "139745604298784",
+     "sqlid": "dbvj6jc977hqh",
+     "c": 546,
+     "e": 546,
+     "p": 0,
+     "cr": 1,
+     "cu": 6,
+     "mis": 1,
+     "r": 1,
+     "dep": 1,
+     "og": 4,
+     "plh": 0,
+     "tim": 10805142780,
+     "clock": "11:35:29.834791",
+     "execNo": 1,
+     "execTotal": 4
+    },
+    {
+     "ln": 196,
+     "raw": "STAT #139745604298784 id=1 cnt=0 pid=0 pos=1 obj=720 op='LOAD TABLE CONVENTIONAL  EXP_HEAD$ (cr=1 pr=0 pw=0 str=1 time=158 us)'",
+     "k": "STAT",
+     "cur": "139745604298784",
+     "sqlid": "dbvj6jc977hqh",
+     "id": 1,
+     "cnt": 0,
+     "pid": 0,
+     "op": "LOAD TABLE CONVENTIONAL",
+     "name": "EXP_HEAD$",
+     "cr": 1,
+     "pr": 0,
+     "pw": 0,
+     "str": 1,
+     "time": 158
+    },
+    {
+     "ln": 197,
+     "raw": "CLOSE #139745604298784:c=0,e=0,dep=1,type=3,tim=10805142821",
+     "k": "CLOSE",
+     "cur": "139745604298784",
+     "sqlid": "dbvj6jc977hqh",
+     "c": 0,
+     "e": 0,
+     "dep": 1,
+     "type": 3,
+     "tim": 10805142821,
+     "clock": "11:35:29.834832"
+    },
+    {
+     "ln": 198,
+     "raw": "BINDS #139745604248120:",
+     "k": "BINDS",
+     "cur": "139745604248120",
+     "sqlid": "10gywwmwk6xfy"
+    },
+    {
+     "ln": 199,
+     "raw": "",
+     "k": "BLANK"
+    },
+    {
+     "ln": 200,
+     "raw": " Bind#0",
+     "k": "BIND",
+     "pos": 0
+    }
+   ]
+  },
+  {
+   "from": 3011,
+   "to": 3014,
+   "rows": [
+    {
+     "ln": 3011,
+     "raw": "  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 3012,
+     "raw": "  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"
+    },
+    {
+     "ln": 3013,
+     "raw": "  kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09"
+    },
+    {
+     "ln": 3014,
+     "raw": "  value=14441",
+     "k": "BINDATTR",
+     "text": "value=14441"
+    }
+   ]
+  },
+  {
+   "from": 10402,
+   "to": 10443,
+   "rows": [
+    {
+     "ln": 10402,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 10403,
+     "raw": "  oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0"
+    },
+    {
+     "ln": 10404,
+     "raw": "  kxsbbbfp=7f190f29c9f0  bln=22  avl=11  flg=05",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f29c9f0  bln=22  avl=11  flg=05"
+    },
+    {
+     "ln": 10405,
+     "raw": "  value=2511846697911007615",
+     "k": "BINDATTR",
+     "text": "value=2511846697911007615"
+    },
+    {
+     "ln": 10406,
+     "raw": " Bind#1",
+     "k": "BIND",
+     "pos": 1
+    },
+    {
+     "ln": 10407,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 10408,
+     "raw": "  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24",
+     "k": "BINDATTR",
+     "text": "oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24"
+    },
+    {
+     "ln": 10409,
+     "raw": "  kxsbbbfp=7f190f29ca08  bln=22  avl=04  flg=01",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f29ca08  bln=22  avl=04  flg=01"
+    },
+    {
+     "ln": 10410,
+     "raw": "  value=108609",
+     "k": "BINDATTR",
+     "text": "value=108609"
+    },
+    {
+     "ln": 10411,
+     "raw": " Bind#2",
+     "k": "BIND",
+     "pos": 2
+    },
+    {
+     "ln": 10412,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 10413,
+     "raw": "  oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48",
+     "k": "BINDATTR",
+     "text": "oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48"
+    },
+    {
+     "ln": 10414,
+     "raw": "  kxsbbbfp=7f190f29ca20  bln=22  avl=01  flg=01",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f29ca20  bln=22  avl=01  flg=01"
+    },
+    {
+     "ln": 10415,
+     "raw": "  value=0",
+     "k": "BINDATTR",
+     "text": "value=0"
+    },
+    {
+     "ln": 10416,
+     "raw": " Bind#3",
+     "k": "BIND",
+     "pos": 3
+    },
+    {
+     "ln": 10417,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 10418,
+     "raw": "  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72",
+     "k": "BINDATTR",
+     "text": "oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72"
+    },
+    {
+     "ln": 10419,
+     "raw": "  kxsbbbfp=7f190f29ca38  bln=22  avl=09  flg=01",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f29ca38  bln=22  avl=09  flg=01"
+    },
+    {
+     "ln": 10420,
+     "raw": "  value=.0000000337759769235673",
+     "k": "BINDATTR",
+     "text": "value=.0000000337759769235673"
+    },
+    {
+     "ln": 10421,
+     "raw": " Bind#4",
+     "k": "BIND",
+     "pos": 4
+    },
+    {
+     "ln": 10422,
+     "raw": "  oacdty=01 mxl=32(09) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=01 mxl=32(09) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 10423,
+     "raw": "  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0"
+    },
+    {
+     "ln": 10424,
+     "raw": "  kxsbbbfp=61778178  bln=32  avl=09  flg=09",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=61778178  bln=32  avl=09  flg=09"
+    },
+    {
+     "ln": 10425,
+     "raw": "  value=\"\"AMOUNT\"\"",
+     "k": "BINDATTR",
+     "text": "value=\"\"AMOUNT\"\""
+    },
+    {
+     "ln": 10426,
+     "raw": " Bind#5",
+     "k": "BIND",
+     "pos": 5
+    },
+    {
+     "ln": 10427,
+     "raw": "  oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 10428,
+     "raw": "  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0"
+    },
+    {
+     "ln": 10429,
+     "raw": "  kxsbbbfp=61778198  bln=32  avl=02  flg=09",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=61778198  bln=32  avl=02  flg=09"
+    },
+    {
+     "ln": 10430,
+     "raw": "  value=\"4\"",
+     "k": "BINDATTR",
+     "text": "value=\"4\""
+    },
+    {
+     "ln": 10431,
+     "raw": " Bind#6",
+     "k": "BIND",
+     "pos": 6
+    },
+    {
+     "ln": 10432,
+     "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 10433,
+     "raw": "  oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0"
+    },
+    {
+     "ln": 10434,
+     "raw": "  kxsbbbfp=7f190f29c9c0  bln=22  avl=02  flg=05",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=7f190f29c9c0  bln=22  avl=02  flg=05"
+    },
+    {
+     "ln": 10435,
+     "raw": "  value=8",
+     "k": "BINDATTR",
+     "text": "value=8"
+    },
+    {
+     "ln": 10436,
+     "raw": " Bind#7",
+     "k": "BIND",
+     "pos": 7
+    },
+    {
+     "ln": 10437,
+     "raw": "  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00",
+     "k": "BINDATTR",
+     "text": "oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00"
+    },
+    {
+     "ln": 10438,
+     "raw": "  oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0",
+     "k": "BINDATTR",
+     "text": "oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0"
+    },
+    {
+     "ln": 10439,
+     "raw": "  kxsbbbfp=61778160  bln=07  avl=07  flg=09",
+     "k": "BINDATTR",
+     "text": "kxsbbbfp=61778160  bln=07  avl=07  flg=09"
+    },
+    {
+     "ln": 10440,
+     "raw": "  value=\"10/22/2026 11:35:35\"",
+     "k": "BINDATTR",
+     "text": "value=\"10/22/2026 11:35:35\""
+    },
+    {
+     "ln": 10441,
+     "raw": "EXEC #139745604298784:c=241,e=241,p=0,cr=0,cu=4,mis=0,r=1,dep=1,og=4,plh=0,tim=10810359512",
+     "k": "EXEC",
+     "cur": "139745604298784",
+     "sqlid": "dbvj6jc977hqh",
+     "c": 241,
+     "e": 241,
+     "p": 0,
+     "cr": 0,
+     "cu": 4,
+     "mis": 0,
+     "r": 1,
+     "dep": 1,
+     "og": 4,
+     "plh": 0,
+     "tim": 10810359512,
+     "clock": "11:35:35.051523",
+     "execNo": 4,
+     "execTotal": 4
+    },
+    {
+     "ln": 10442,
+     "raw": "CLOSE #139745604298784:c=0,e=0,dep=1,type=3,tim=10810359526",
+     "k": "CLOSE",
+     "cur": "139745604298784",
+     "sqlid": "dbvj6jc977hqh",
+     "c": 0,
+     "e": 0,
+     "dep": 1,
+     "type": 3,
+     "tim": 10810359526,
+     "clock": "11:35:35.051537"
+    },
+    {
+     "ln": 10443,
+     "raw": "=====================",
+     "k": "RULE"
+    }
+   ]
+  },
+  {
+   "from": 792,
+   "to": 794,
+   "rows": [
+    {
+     "ln": 792,
+     "raw": "PARSING IN CURSOR #139745603983880 len=43 dep=1 uid=165 oct=3 lid=165 tim=10807520730 hv=1532823756 ad='617937e0' sqlid='dk21j71dpu26c'",
+     "k": "CURSOR",
+     "cur": "139745603983880",
+     "sqlid": "dk21j71dpu26c",
+     "len": 43,
+     "dep": 1,
+     "uid": 165,
+     "oct": 3,
+     "clock": "11:35:32.212741",
+     "tim": 10807520730
+    },
+    {
+     "ln": 793,
+     "raw": "SELECT AMOUNT FROM MTK_CUST WHERE ID = :B1 ",
+     "k": "TEXT",
+     "text": "SELECT AMOUNT FROM MTK_CUST WHERE ID = :B1 "
+    },
+    {
+     "ln": 794,
+     "raw": "END OF STMT",
+     "k": "ENDSTMT"
+    }
+   ]
+  },
+  {
+   "from": 6878,
+   "to": 6881,
+   "rows": [
+    {
+     "ln": 6878,
+     "raw": "PARSING IN CURSOR #139745604251096 len=141 dep=0 uid=165 oct=3 lid=165 tim=10807559773 hv=9879169 ad='617855e8' sqlid='52nzchs09dgn1'",
+     "k": "CURSOR",
+     "cur": "139745604251096",
+     "sqlid": "52nzchs09dgn1",
+     "len": 141,
+     "dep": 0,
+     "uid": 165,
+     "oct": 3,
+     "clock": "11:35:32.251784",
+     "tim": 10807559773
+    },
+    {
+     "ln": 6879,
+     "raw": "select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status",
+     "k": "TEXT",
+     "text": "select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status"
+    },
+    {
+     "ln": 6880,
+     "raw": "  from mtk_orders o order by o.amount desc, o.order_date, o.id",
+     "k": "TEXT",
+     "text": "  from mtk_orders o order by o.amount desc, o.order_date, o.id"
+    },
+    {
+     "ln": 6881,
+     "raw": "END OF STMT",
+     "k": "ENDSTMT"
+    }
+   ]
+  }
+ ],
+ "loopExec": {
+  "40": [
+   1,
+   1
+  ],
+  "49": [
+   1,
+   1
+  ],
+  "58": [
+   1,
+   1
+  ],
+  "88": [
+   1,
+   1
+  ],
+  "143": [
+   1,
+   4
+  ],
+  "195": [
+   1,
+   4
+  ],
+  "2965": [
+   217,
+   300
+  ],
+  "2975": [
+   218,
+   300
+  ],
+  "2985": [
+   219,
+   300
+  ],
+  "2995": [
+   220,
+   300
+  ],
+  "3005": [
+   221,
+   300
+  ],
+  "10395": [
+   4,
+   4
+  ],
+  "10441": [
+   4,
+   4
+  ]
+ },
+ "prevTim": {
+  "23": null,
+  "84": {
+   "ln": 82,
+   "tim": 10804501856
+  },
+  "2960": {
+   "ln": 2957,
+   "tim": 10807534385
+  },
+  "10355": {
+   "ln": 10354,
+   "tim": 10810351028
+  }
+ },
+ "span": {
+  "firstTim": 10804499034,
+  "lastTim": 10810957717,
+  "us": 6458683
+ },
+ "stmtE": {
+  "1h7h96h7gnvbj": {
+   "e": 142,
+   "calls": 3,
+   "waits": 2
+  },
+  "942xwb5hn658p": {
+   "e": 166,
+   "calls": 3,
+   "waits": 2
+  },
+  "fc0b4krw7fd9v": {
+   "e": 162,
+   "calls": 3,
+   "waits": 2
+  },
+  "7t9g1m9fxtjuq": {
+   "e": 74,
+   "calls": 3,
+   "waits": 2
+  },
+  "f2xpbhw4n24pt": {
+   "e": 508,
+   "calls": 3,
+   "waits": 2
+  },
+  "c7ry5gr75qv4b": {
+   "e": 637543,
+   "calls": 5,
+   "waits": 34
+  },
+  "10gywwmwk6xfy": {
+   "e": 1740,
+   "calls": 13,
+   "waits": 4
+  },
+  "dbvj6jc977hqh": {
+   "e": 1468,
+   "calls": 9,
+   "waits": 0
+  },
+  "4w3wvjbkvq24v": {
+   "e": 2354408,
+   "calls": 5,
+   "waits": 50
+  },
+  "dx9pb9j3623tw": {
+   "e": 2654,
+   "calls": 5,
+   "waits": 30
+  },
+  "19pctsstqdgn5": {
+   "e": 624,
+   "calls": 3,
+   "waits": 2
+  },
+  "gpzx10kh9gr4f": {
+   "e": 479,
+   "calls": 3,
+   "waits": 2
+  },
+  "4r9x21mb0nhkq": {
+   "e": 780,
+   "calls": 10,
+   "waits": 8
+  },
+  "9wgtc7nfd142y": {
+   "e": 466,
+   "calls": 3,
+   "waits": 2
+  },
+  "64y0jakbjfvm9": {
+   "e": 5208,
+   "calls": 105,
+   "waits": 204
+  },
+  "2wmkxs5arpj0h": {
+   "e": 613,
+   "calls": 3,
+   "waits": 2
+  },
+  "dcxgz5g2j9ts2": {
+   "e": 38681,
+   "calls": 3,
+   "waits": 3
+  },
+  "dk21j71dpu26c": {
+   "e": 11477,
+   "calls": 901,
+   "waits": 0
+  },
+  "f9xbak7zf0a4a": {
+   "e": 10960,
+   "calls": 901,
+   "waits": 0
+  },
+  "fvnvyaby642k8": {
+   "e": 471,
+   "calls": 3,
+   "waits": 2
+  },
+  "52nzchs09dgn1": {
+   "e": 2485509,
+   "calls": 205,
+   "waits": 3293
+  },
+  "7r10y07tqpg98": {
+   "e": 598598,
+   "calls": 5,
+   "waits": 5966
+  },
+  "06nvwn223659v": {
+   "e": 171,
+   "calls": 2,
+   "waits": 0
+  }
+ }
+}

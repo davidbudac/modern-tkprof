@@ -1,0 +1,272 @@
+/* ==========================================================================================================
+   The pane: a simulated Formatted Lines view. Two halves:
+     A. NOW  : the app's own rules (web/src/lib/styles/lines.css, .lv-* renamed), so the NOW blocks draw what the app draws today.
+     B. PROPOSED : one block per section of the brief, switched by a flag class on the pane (.p1 ... .p9, .p3gap).
+   Grid of a row: delta | ln | lane | fold handle | duration | operation | detail (1fr) | clock.
+   ========================================================================================================== */
+.pane {
+  --row: 20px;
+  --w-delta: 86.4px; --w-ln: 69px; --w-lane: 129.6px; --w-fh: 18.4px; --w-dur: 72px; --w-op: 72px; --w-clock: 122.4px;
+  --cols: var(--w-delta) var(--w-ln) var(--w-lane) var(--w-fh) var(--w-dur) var(--w-op) minmax(0, 1fr) var(--w-clock);
+  --hot-fill: light-dark(color-mix(in oklch, var(--s-critical) 16%, transparent), color-mix(in oklch, var(--s-critical) 22%, transparent));
+  position: relative; inline-size: 100%; min-inline-size: var(--pane-min, 1400px);
+  background: var(--surface-raised); color: var(--ink); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--row);
+  font-variant-numeric: tabular-nums;
+}
+.pane.composite { inline-size: 1560px; min-inline-size: 1560px; }
+.view { display: flex; }
+.view-col { position: relative; flex: 1 1 0; min-inline-size: 0; }
+.rows { position: relative; background: var(--surface-raised); }
+
+/* ---- A. the rows --------------------------------------------------------------------------------------------------------------- */
+.row { display: grid; grid-template-columns: var(--cols); block-size: var(--row); position: relative; white-space: pre; }
+.row > * { min-inline-size: 0; }
+.row.k-skip { color: var(--ink-3); background: var(--surface-sunken); font-family: var(--font-ui); font-size: var(--text-xs); }
+
+/* the time column: Δ as text over a bar of the line's own time (linear, full = the file's longest line, 2.448 s), the first cell */
+.c-delta { position: relative; box-sizing: border-box; border-inline-end: 1px solid var(--hairline); }
+.c-delta .bar, .c-delta .bar-solid { position: absolute; inset-inline-start: 8px; inset-block: 4px; inline-size: calc(var(--w) * (100% - 16px)); min-inline-size: 2px; border-radius: 1px; opacity: 0.5; }
+.c-delta .bar-solid { background: var(--c-cpu); }
+.bar-cpu { background: color-mix(in oklch, var(--c-cpu) 30%, var(--surface-raised)); }
+.bar-userio { background: var(--c-userio); } .bar-sysio { background: var(--c-sysio); } .bar-commit { background: var(--c-commit); }
+.bar-concurrency { background: var(--c-concurrency); } .bar-network { background: var(--c-network); } .bar-other { background: var(--c-other); }
+.bar-idle, .bar-unaccounted { background: var(--c-idle); }
+.dtext { position: relative; z-index: 1; display: block; overflow: hidden; padding-inline: 8px; text-align: end; white-space: nowrap; color: var(--ink); text-shadow: 0 0 2px var(--surface-raised), 0 0 2px var(--surface-raised); }
+.dtext.neg { color: var(--ink-3); }
+
+/* the line number: the sunken gutter */
+.c-ln { position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: flex-end; padding-inline: 0.6em 8px; text-align: end; color: var(--ink-3); background: var(--surface-sunken); border-inline-end: 1px solid var(--hairline); user-select: none; }
+
+/* the lane: the cursor's stretch in its statement's colour (a 4 px band 3 px from the edge); the first row of a lane names it, the second starts its SQL */
+.c-lane { position: relative; box-sizing: border-box; padding-inline: calc(12px + var(--dep, 0) * 8px) 4px; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); }
+.c-lane::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 3px; inline-size: 4px; background: var(--lane); }
+.c-lane.lane-none::before { content: none; }
+.lane-id { color: color-mix(in oklch, var(--lane) 65%, var(--ink)); font-weight: 500; text-decoration: none; }
+.lane-sub { color: var(--ink-3); }
+.lane-dep { display: inline-block; margin-inline-end: 0.4em; padding-inline: 0.3em; border: 1px solid var(--hairline-strong); border-radius: 3px; line-height: 1.25; color: var(--ink-3); font-weight: 400; }
+.c-fh { box-sizing: content-box; text-align: center; padding-inline-start: 4px; inline-size: 1.2em; }
+.fold { color: var(--ink-3); font-size: var(--text-sm); }
+
+/* the duration: the number right-aligned, its unit dimmed in a slot of its own */
+.c-dur { display: flex; justify-content: flex-end; box-sizing: border-box; overflow: hidden; padding-inline: 8px 4px; }
+.c-dur > b { flex: none; font-weight: 400; color: var(--ink); }
+.c-dur > small { flex: none; inline-size: 3ch; padding-inline-start: 0.5ch; font-size: inherit; color: var(--ink-3); text-align: start; }
+
+/* the operation: what the line is, tinted a hint of its role (the app mixes in oklch, so waits read purple and plans green) */
+.c-op { padding-inline-start: 8px; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); font-weight: 500; }
+.tone-none { color: var(--ink-3); } .tone-dim { color: var(--ink-3); }
+.tone-cpu { color: color-mix(in oklch, var(--c-cpu) 55%, var(--ink)); }
+.tone-userio { color: color-mix(in oklch, var(--c-userio) 52%, var(--ink)); }
+.tone-sysio { color: color-mix(in oklch, var(--c-sysio) 55%, var(--ink)); }
+.tone-network { color: color-mix(in oklch, var(--c-network) 55%, var(--ink)); }
+.tone-commit { color: color-mix(in oklch, var(--c-commit) 60%, var(--ink)); }
+
+.c-detail { overflow: hidden; text-overflow: ellipsis; padding-inline: 8px; }
+.c-clock { box-sizing: border-box; overflow: hidden; padding-inline-end: 12px; text-align: end; white-space: nowrap; color: var(--ink-2); }
+.c-clock small { font-size: inherit; color: var(--ink-3); }
+
+/* the pieces of the detail */
+.rd-dim { color: var(--ink-3); } .rd-num { color: var(--ink); } .rd-name { color: var(--ink); font-weight: 500; }
+.rd-warn { color: var(--s-critical); } .rd-val { color: var(--ink); }
+.rd-ev { color: var(--ink); }
+.rd-evobj { margin-inline-start: 2ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
+.rd-pgap { margin-inline-start: 2ch; }
+.rd-q > b { font-weight: 400; color: var(--ink); } .rd-q > small { font-size: inherit; color: var(--ink-3); }
+.rd-q + .rd-q, .rd-q + .rd-warn, .rd-q + .rd-dim { margin-inline-start: 2ch; }
+.rd-kw { color: color-mix(in oklch, var(--c-cpu) 70%, var(--ink)); }
+.rd-str { color: color-mix(in oklch, var(--c-network) 70%, var(--ink)); }
+.rd-bind { color: color-mix(in oklch, var(--c-other) 70%, var(--ink)); font-weight: 500; }
+.rd-cmt { color: var(--ink-3); font-style: italic; }
+.rd-rule { display: inline-block; inline-size: 24ch; block-size: 0; vertical-align: middle; border-block-start: 1px solid var(--hairline-strong); }
+
+/* a table in the detail (a plan, a BINDS block): a band behind its cells, a rule under each row, a stronger one at its end */
+.tbl { display: flex; align-items: stretch; text-overflow: clip; }
+.pc { flex: none; overflow: hidden; text-overflow: ellipsis; white-space: pre; box-sizing: border-box; }
+.tb .pc { background: color-mix(in oklch, var(--ink) 3.5%, transparent); box-shadow: inset 0 -1px 0 var(--hairline); }
+.tb-head .pc { box-shadow: inset 0 -1px 0 var(--hairline-strong); color: var(--ink-2); font-weight: 500; }
+.tb-end .pc { box-shadow: inset 0 -1px 0 var(--hairline-strong); }
+.pc-id { inline-size: 4.5ch; text-align: end; color: var(--ink-3); padding-inline-end: 1.5ch; }
+.tbl-plan .pc-op { flex: 0 1 44ch; min-inline-size: 12ch; padding-inline-start: calc(var(--dep, 0) * 2ch); color: var(--ink); }
+.tbl-plan .pc-name { flex: 0 1 18ch; min-inline-size: 11.5ch; padding-inline-start: 1ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
+.pc-n { position: relative; inline-size: 8ch; text-align: end; color: var(--ink); }
+.pc-starts, .pc-cost, .pc-pr, .pc-pw { inline-size: 7ch; } .pc-time { inline-size: 12ch; } .pc-cr { inline-size: 9ch; }
+.pc-off { color: var(--s-critical); }
+.pc-self { position: absolute; inset-inline-start: 1ch; inset-block: 6px; inline-size: calc(var(--w) * 4ch); min-inline-size: 1px; border-radius: 1px; background: color-mix(in oklch, var(--c-cpu) 65%, transparent); }
+.tb .pc-pw { padding-inline-end: 8px; inline-size: calc(7ch + 8px); }
+.tb-head .pc-op, .tb-head .pc-name { color: var(--ink-2); }
+.pc-bname { inline-size: 16ch; padding-inline-start: 1ch; color: var(--ink); font-weight: 500; }
+.tbl-binds .pc-bval { flex: 0 1 32ch; min-inline-size: 10ch; padding-inline-start: 1ch; color: var(--ink); }
+.pc-btype { inline-size: 16ch; padding-inline: 1ch; color: var(--ink-2); }
+.tb-head .pc-bname, .tb-head .pc-bval, .tb-head .pc-btype { color: var(--ink-2); font-weight: 500; }
+.tbl-binds .asrun { align-self: center; margin-inline: 12px 0; }
+.asrun { color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
+
+/* the selected line, a hot spot, the marks of the highlighted statement. NOW: the selected row is amber but its number cell is cyan (the oklch mix, bug 8) */
+.row.mk { background: color-mix(in oklch, var(--hl, var(--c-cpu)) 10%, transparent); }
+.row.mk .c-delta::before { content: ""; position: absolute; z-index: 2; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--hl, var(--c-cpu)); }
+.row.mk .c-lane::before { background: color-mix(in oklch, var(--lane) 60%, var(--ink)); }
+.row.hot { background: color-mix(in oklch, var(--c-userio) 9%, transparent); }
+.row.hot > :first-child { box-shadow: inset 3px 0 0 var(--c-userio); }
+.row.sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.row.sel .c-ln { color: var(--ink); font-weight: 600; background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-sunken)); }
+
+/* the column header, in the rows' columns */
+.colhead { display: grid; grid-template-columns: var(--cols); block-size: 24px; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline-strong); font: 500 var(--text-xs) / 24px var(--font-ui); color: var(--ink-2); user-select: none; }
+.ch { position: relative; overflow: hidden; white-space: nowrap; box-sizing: border-box; }
+.ch-delta { text-align: end; padding-inline: 8px; }
+.ch-lane { padding-inline-start: 12px; }
+.ch-dur { text-align: end; padding-inline-end: 26px; }
+.ch-op, .ch-detail { padding-inline-start: 8px; }
+.ch-clock { text-align: end; padding-inline-end: 12px; }
+.grip { position: absolute; inset-block: 0; inset-inline-end: 0; inline-size: 7px; }
+.grip::after { content: ""; position: absolute; inset-block: 5px; inset-inline-end: 3px; inline-size: 1px; background: var(--hairline-strong); }
+.grip.at-end { inset-inline: 0 auto; } .grip.at-end::after { inset-inline: 3px auto; }
+
+/* the density strip at the right edge: where the statements' calls are (here a stand-in, the same in NOW and PROPOSED) */
+.strip { flex: none; position: relative; inline-size: 14px; box-sizing: content-box; background: var(--surface-sunken); border-inline-start: 1px solid var(--hairline); }
+.strip i { position: absolute; inset-inline: 1px; display: block; }
+.strip .vp { position: absolute; inset-inline: 3px 4px; background: var(--ink); opacity: 0.88; outline: 1px solid var(--surface-sunken); }
+
+/* ---- B. PROPOSED --------------------------------------------------------------------------------------------------------------- */
+
+/* 1. Highlight the lane, not the row: no row fill; the Statement cell takes the lane colour at 14 % for the full row height on every row of
+   the lane, its band widens to 6 px in the lane's own hue, and the number cell keeps a 3 px start-edge bar on the calls and waits. Only the
+   selection (one amber, number cell included) and hot spots fill a row. */
+.p1 .row.mk { background: none; }
+.p1 .row.mk .c-delta::before { content: none; }
+.p1 .row.hlane .c-lane { background: color-mix(in oklch, var(--lane) 14%, transparent); }
+.p1 .row.hlane .c-lane::before, .p1 .row.mk .c-lane::before { background: var(--lane); inline-size: 6px; inset-inline-start: 0; }
+.p1 .row.mk .c-ln::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 3px; background: var(--hl); }
+.p1 .row.sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.p1 .row.sel .c-ln { background: transparent; }
+.p1 .row.sel .c-ln::before { background: var(--hl); }
+
+/* 2. Hot spots unmistakable: --s-critical at 16 % (22 % dark) on the row, a 3 px start bar, the duration number at 600 in --s-critical; the hue is reserved for this */
+.p2 .row.hot { background: var(--hot-fill); }
+.p2 .row.hot > :first-child { box-shadow: inset 3px 0 0 var(--s-critical); }
+.p2 .row.hot .c-dur b, .p2 .row.hot .dnum b { color: var(--s-critical); font-weight: 600; }
+.p2.p1 .row.hot.mk { background: var(--hot-fill); }
+
+/* 3. The bar lives with Duration: Δ is text only and dimmed; a 56 px log-scale track after the number; a magnitude ramp on the numbers */
+.p3, .p3gap { --w-dur: 144px; }
+.p3gap { --w-dur: 72px; }
+.p3 .dtext, .p3gap .dtext { color: var(--ink-3); text-shadow: none; }
+.p3 .dtext.emph, .p3gap .dtext.emph { color: var(--s-warning); font-weight: 500; }
+.p3 .c-dur { justify-content: flex-start; padding-inline: 0 8px; align-items: center; gap: 8px; }
+.p3 .dnum { flex: none; inline-size: 72px; display: flex; justify-content: flex-end; padding-inline: 8px 4px; box-sizing: border-box; }
+.dnum b { flex: none; color: var(--ink); } .dnum small { flex: none; inline-size: 3ch; padding-inline-start: 0.5ch; font-size: inherit; color: var(--ink-3); text-align: start; }
+.dnum.mag-us b { color: var(--ink-2); font-weight: 400; }
+.dnum.mag-ms b { color: var(--ink); font-weight: 500; }
+.dnum.mag-s b { color: var(--ink); font-weight: 650; }
+.dnum.zero b { color: var(--ink-3); }
+.trk { position: relative; flex: none; inline-size: 56px; block-size: 8px; border-radius: 2px; background: color-mix(in oklch, var(--ink) 8%, transparent); overflow: hidden; }
+.trk .fill { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: calc(var(--f) * 100%); background: var(--col); }
+.trk .fill.waited { opacity: 0.45; }
+.trk u { position: absolute; inset-block: 0; inset-inline-start: var(--x); inline-size: 1px; background: color-mix(in oklch, var(--ink) 12%, transparent); }
+.p3 .ch-dur { text-align: end; padding-inline-end: 80px; }
+
+/* 4. Calls loud, waits quiet, the call says what it waited for */
+.p4 .c-op { font-size: var(--text-xs); }
+.p4 .c-op.op-call { font-weight: 600; color: var(--ink); }
+.p4 .c-op.op-wait { font-weight: 400; color: var(--ink-3); }
+.p4 .c-op.op-struct { font-weight: 500; color: var(--ink-2); }
+.p4 .c-op.op-mark { font-weight: 400; color: var(--ink-3); }
+.p4 .rd-evobj { color: var(--ink-2); }
+.dot { display: inline-block; inline-size: 6px; block-size: 6px; border-radius: 50%; margin-inline-end: 6px; vertical-align: 1px; background: var(--dot); }
+.dot.ring { background: transparent; box-shadow: inset 0 0 0 1.5px var(--dot); }
+.pill-hp { display: inline-block; padding-inline: 0.55em; border-radius: 999px; font-size: var(--text-xs); line-height: 16px; vertical-align: 1px; color: var(--ink); background: color-mix(in oklch, var(--s-warning) 18%, transparent); }
+.rd-q + .pill-hp, .rd-dim + .pill-hp { margin-inline-start: 2ch; }
+.share { margin-inline-start: 2ch; color: var(--ink-2); }
+.share.crit { color: var(--s-critical); }
+.p4 .c-detail { position: relative; }
+.p4 .row.indent .c-detail { padding-inline-start: calc(8px + 2ch); }
+.p4 .row.br-first .c-detail::before, .p4 .row.br-in .c-detail::before, .p4 .row.br-end .c-detail::before { content: ""; position: absolute; inset-inline-start: 1px; inset-block: 0; inline-size: 1px; background: var(--lane); }
+.p4 .row.br-first .c-detail::before { inset-block-start: 3px; }
+.p4 .row.br-end .c-detail::before { inset-block-end: 50%; }
+.p4 .row.br-end .c-detail::after { content: ""; position: absolute; inset-inline-start: 1px; inset-block-start: 50%; inline-size: 5px; block-size: 1px; background: var(--lane); }
+
+/* 5. A sticky lane label and a 14 px Statement column (the band 6 px and an 8 px gutter) */
+.p5 { --w-lane: 14px; }
+.p5 .c-lane { padding: 0; }
+.p5 .c-lane::before { inset-inline-start: 0; inline-size: 6px; }
+/* the lane's identity: ONE sticky row of 20 px at the top of the viewport, like the plan head row's overlay: from the Statement band column to the right edge,
+   on --surface-sunken with a 1 px --hairline below and the lane's 6 px band at its left; it covers only the top row (not its delta and number) */
+.sticky-lane { position: absolute; z-index: 5; inset-block-start: 0; inset-inline: calc(var(--w-delta) + var(--w-ln)) 0; block-size: var(--row); box-sizing: border-box; display: flex; align-items: center; gap: 1ch; padding-inline: 14px 12px; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); font-size: var(--text-xs); line-height: calc(var(--row) - 1px); white-space: pre; overflow: hidden; }
+.sticky-lane::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 6px; background: var(--lane); }
+.sl-id { color: var(--lane); font-weight: 600; filter: brightness(0.82); }
+.sl-sql { color: var(--ink-3); }
+.sl-sep { color: var(--ink-3); }
+.sl-sql { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.sl-facts { margin-inline-start: auto; flex: none; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.exectag { margin-inline-end: 1.2ch; font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-3); }
+
+/* 6. Row economy: inline bind chips, folded framing rows, quiet CLOSE wording, record rules, a one-row CURSOR */
+.p6 .c-dur.zero b { color: var(--ink-3); }
+.p6 .c-ln.gap::before { content: ""; position: absolute; inset-inline: 10px 8px; inset-block-start: 0; border-block-start: 1px dotted var(--ink-3); }
+.p6 .row.exec-first::after, .p6 .row.rule-top::after { content: ""; position: absolute; z-index: 3; inset-inline: 0; inset-block-start: 0; block-size: 1px; background: var(--ruling); pointer-events: none; }
+.p6 .row.rule-top::after { background: var(--hairline-strong); }
+.chip-bind { display: inline-flex; align-items: baseline; gap: 0.5ch; padding-inline: 0.7ch; margin-inline-end: 1.5ch; border-radius: 3px; background: var(--wash); line-height: 16px; vertical-align: 1px; }
+.chip-bind .bname { color: color-mix(in oklch, var(--c-other) 70%, var(--ink)); font-weight: 500; }
+.chip-bind .bval { font-weight: 500; color: var(--ink); }
+.chip-bind small { font-size: var(--text-xs); color: var(--ink-3); }
+.binds-inline .asrun { margin-inline-start: 0.5ch; }
+
+/* 7. Scannable Detail for runs of the same event: a ditto for the repeated prefix, the varying fields as right-aligned micro-columns */
+.pre { display: inline-block; inline-size: calc(var(--ch) * 1ch); vertical-align: top; white-space: pre; overflow: hidden; }
+.pre.ditto, .pre.ditto .rd-ev, .pre.ditto .rd-evobj { color: var(--ink-3); }
+.pre.ditto { opacity: 0.6; }
+.mc { display: inline-block; vertical-align: top; text-align: end; white-space: pre; }
+.mc i { font-style: normal; color: var(--ink-3); } .mc b { font-weight: 400; color: var(--ink); }
+.mc-file { inline-size: 9ch; } .mc-block { inline-size: 14ch; } .mc-blocks { inline-size: 11ch; }
+
+/* 8. Quieter plan and bind tables: Operation .. Clock on --surface-sunken, a 1 px hairline frame, inset 1 ch; 11 px --ink-3 header cells, no band */
+.p8 { --w-fh: 0px; }
+.p8 .c-fh, .ch-fh { padding: 0; inline-size: 0; overflow: hidden; }
+.c-tbl { grid-column: 6 / 9; display: flex; align-items: stretch; margin-inline: 1ch; background: var(--surface-sunken); border-inline: 1px solid var(--hairline); min-inline-size: 0; overflow: hidden; }
+.c-tbl.tbl-first { border-block-start: 1px solid var(--hairline); border-start-start-radius: 3px; border-start-end-radius: 3px; }
+.c-tbl.tbl-last { border-block-end: 1px solid var(--hairline); border-end-start-radius: 3px; border-end-end-radius: 3px; }
+.c-tbl .tc-handle { flex: none; inline-size: calc(var(--w-op) - 1ch - 1px); padding-inline-start: 7px; font-size: var(--text-xs); font-weight: 500; color: var(--ink-2); }
+.c-tbl .pc { background: none; box-shadow: none; }
+.c-tbl.tbl-head { border-block-end: 0; }
+.c-tbl.tbl-head .pc { color: var(--ink-3); font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; box-shadow: inset 0 -1px 0 var(--hairline); }
+.c-tbl.tbl-head .tc-handle { box-shadow: inset 0 -1px 0 var(--hairline); }
+.c-tbl .pc-time { display: flex; align-items: center; justify-content: flex-end; gap: 8px; inline-size: calc(12px + 56px + 8px + 9 * var(--chw)); overflow: visible; }
+.c-tbl.tbl-head .pc-time { display: block; text-align: end; overflow: hidden; }
+.c-tbl .pc-time .tnum { flex: none; inline-size: calc(9 * var(--chw)); text-align: end; color: var(--ink); }
+.c-tbl.tbl-head .pc-time { padding-inline-end: 0; }
+.c-tbl.tbl-head .pc-time small { font-size: inherit; color: var(--ink-3); font-weight: 400; }
+.c-tbl .pc-time .trk .fill { background: color-mix(in oklch, var(--c-cpu) 75%, transparent); min-inline-size: 1px; }
+.c-tbl .pc-n, .c-tbl .pc-starts { color: var(--ink); }
+.c-tbl .pc-pw { padding-inline-end: 8px; }
+.c-tbl .pc-time.hot-cell { background: var(--hot-fill); margin-block: 1px; line-height: 18px; border-radius: 2px; }
+.c-tbl .pc-time.hot-cell .tnum { color: var(--s-critical); font-weight: 600; }
+/* the table's columns in px of the row font (7.2 px a digit), so the 11 px header cells (UI font) line up with the mono cells under them */
+.c-tbl { --chw: 7.2px; }
+.c-tbl .pc-id { inline-size: calc(4.5 * var(--chw)); padding-inline-end: calc(1.5 * var(--chw)); }
+.c-tbl.tbl-plan .pc-op { flex: 0 1 calc(44 * var(--chw)); min-inline-size: calc(12 * var(--chw)); padding-inline-start: calc(var(--dep, 0) * 2 * var(--chw)); }
+.c-tbl.tbl-plan .pc-name { flex: 0 1 calc(18 * var(--chw)); min-inline-size: calc(11.5 * var(--chw)); padding-inline-start: var(--chw); }
+.c-tbl .pc-n { inline-size: calc(8 * var(--chw)); }
+.c-tbl .pc-starts, .c-tbl .pc-cost, .c-tbl .pc-pr, .c-tbl .pc-pw { inline-size: calc(7 * var(--chw)); }
+.c-tbl .pc-cr { inline-size: calc(9 * var(--chw)); }
+.c-tbl .pc-pw { inline-size: calc(7 * var(--chw) + 8px); }
+.c-tbl .pc-bname { inline-size: calc(16 * var(--chw)); padding-inline-start: var(--chw); }
+.c-tbl.tbl-binds .pc-bval { flex: 0 1 calc(32 * var(--chw)); min-inline-size: calc(10 * var(--chw)); padding-inline-start: var(--chw); }
+.c-tbl .pc-btype { inline-size: calc(16 * var(--chw)); padding-inline: var(--chw); }
+.c-tbl .pc-time { padding-inline-start: 12px; }
+.c-tbl .asrun-foot { align-self: center; padding-inline-start: 1ch; color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; }
+
+/* 9. Clock that shows what changes: the full stamp where it changes, else the changing microseconds right-aligned under it (17 ch -> 10 ch) */
+.p9 { --w-clock: 84px; }
+.p9 .c-clock { overflow: visible; }
+.p9 .c-clock.short { color: var(--ink-2); }
+.p9 .c-clock.full { color: var(--ink); }
+.p9 .c-clock { display: flex; justify-content: flex-end; }
+.p9 .row .c-detail { padding-inline-end: 6ch; }
+
+/* section 2 on a NOW-style plan: the hot operation's A-Time cell */
+.p2 .pc.hot-cell { background: var(--hot-fill); color: var(--s-critical); font-weight: 600; }
+
+.c-tbl .pc-time, .c-tbl .pc-n.pc-time { inline-size: calc(12px + 56px + 8px + 9 * var(--chw)); }
+/* section 5 on a table-style BINDS block: the execution tag is a fixed first cell of the table, so Variable and :B1 still line up */
+.pc-tag { inline-size: 10ch; padding-inline-start: 1ch; font-size: var(--text-xs); }
+.tb-head .pc-tag { font-weight: 400; }

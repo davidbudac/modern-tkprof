@@ -1,0 +1,2377 @@
+[
+ {
+  "from": 23,
+  "to": 60,
+  "rows": [
+   {
+    "ln": 23,
+    "raw": "*** 2026-10-22T11:35:29.191626+00:00 (PDB1(3))",
+    "k": "TEXT",
+    "text": "*** 2026-10-22T11:35:29.191626+00:00 (PDB1(3))"
+   },
+   {
+    "ln": 24,
+    "raw": "*** SESSION ID:(51.14688) 2026-10-22T11:35:29.191647+00:00",
+    "k": "MARK",
+    "name": "SESSION ID",
+    "value": "51.14688",
+    "at": "2026-10-22T11:35:29.191647+00:00"
+   },
+   {
+    "ln": 25,
+    "raw": "*** CLIENT ID:(mtk_client_io_waits) 2026-10-22T11:35:29.191650+00:00",
+    "k": "MARK",
+    "name": "CLIENT ID",
+    "value": "mtk_client_io_waits",
+    "at": "2026-10-22T11:35:29.191650+00:00"
+   },
+   {
+    "ln": 26,
+    "raw": "*** SERVICE NAME:(pdb1) 2026-10-22T11:35:29.191653+00:00",
+    "k": "MARK",
+    "name": "SERVICE NAME",
+    "value": "pdb1",
+    "at": "2026-10-22T11:35:29.191653+00:00"
+   },
+   {
+    "ln": 27,
+    "raw": "*** MODULE NAME:(mtk_io_waits) 2026-10-22T11:35:29.191656+00:00",
+    "k": "MARK",
+    "name": "MODULE NAME",
+    "value": "mtk_io_waits",
+    "at": "2026-10-22T11:35:29.191656+00:00"
+   },
+   {
+    "ln": 28,
+    "raw": "*** ACTION NAME:(start) 2026-10-22T11:35:29.191658+00:00",
+    "k": "MARK",
+    "name": "ACTION NAME",
+    "value": "start",
+    "at": "2026-10-22T11:35:29.191658+00:00"
+   },
+   {
+    "ln": 29,
+    "raw": "*** CLIENT DRIVER:(SQL*PLUS) 2026-10-22T11:35:29.191661+00:00",
+    "k": "MARK",
+    "name": "CLIENT DRIVER",
+    "value": "SQL*PLUS",
+    "at": "2026-10-22T11:35:29.191661+00:00"
+   },
+   {
+    "ln": 30,
+    "raw": "*** CONTAINER ID:(3) 2026-10-22T11:35:29.191664+00:00",
+    "k": "MARK",
+    "name": "CONTAINER ID",
+    "value": "3",
+    "at": "2026-10-22T11:35:29.191664+00:00"
+   },
+   {
+    "ln": 31,
+    "raw": " ",
+    "k": "BLANK"
+   },
+   {
+    "ln": 32,
+    "raw": "WAIT #139745605258360: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804499034",
+    "k": "WAIT",
+    "cur": "139745605258360",
+    "nam": "SQL*Net message to client",
+    "ela": 0,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "-1"
+    },
+    "clock": "11:35:29.191045",
+    "tim": 10804499034
+   },
+   {
+    "ln": 33,
+    "raw": "WAIT #139745605258360: nam='SQL*Net message from client' ela= 122 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804499849",
+    "k": "WAIT",
+    "cur": "139745605258360",
+    "nam": "SQL*Net message from client",
+    "ela": 122,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "-1"
+    },
+    "clock": "11:35:29.191860",
+    "tim": 10804499849
+   },
+   {
+    "ln": 34,
+    "raw": "CLOSE #139745605258360:c=1,e=2,dep=0,type=1,tim=10804499867",
+    "k": "CLOSE",
+    "cur": "139745605258360",
+    "c": 1,
+    "e": 2,
+    "dep": 0,
+    "type": 1,
+    "tim": 10804499867,
+    "clock": "11:35:29.191878"
+   },
+   {
+    "ln": 35,
+    "raw": "=====================",
+    "k": "RULE"
+   },
+   {
+    "ln": 36,
+    "raw": "PARSING IN CURSOR #139745605242584 len=48 dep=0 uid=165 oct=42 lid=165 tim=10804500013 hv=251293041 ad='0' sqlid='1h7h96h7gnvbj'",
+    "k": "CURSOR",
+    "cur": "139745605242584",
+    "sqlid": "1h7h96h7gnvbj",
+    "dep": 0,
+    "uid": 165,
+    "oct": 42,
+    "clock": "11:35:29.192024"
+   },
+   {
+    "ln": 37,
+    "raw": "alter session set \"_serial_direct_read\" = always",
+    "k": "TEXT",
+    "text": "alter session set \"_serial_direct_read\" = always"
+   },
+   {
+    "ln": 38,
+    "raw": "END OF STMT",
+    "k": "ENDSTMT"
+   },
+   {
+    "ln": 39,
+    "raw": "PARSE #139745605242584:c=121,e=121,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500012",
+    "k": "PARSE",
+    "cur": "139745605242584",
+    "sqlid": "1h7h96h7gnvbj",
+    "c": 121,
+    "e": 121,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 0,
+    "og": 0,
+    "plh": 0,
+    "tim": 10804500012,
+    "clock": "11:35:29.192023"
+   },
+   {
+    "ln": 40,
+    "raw": "EXEC #139745605242584:c=19,e=19,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500070",
+    "k": "EXEC",
+    "cur": "139745605242584",
+    "sqlid": "1h7h96h7gnvbj",
+    "c": 19,
+    "e": 19,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 0,
+    "og": 0,
+    "plh": 0,
+    "tim": 10804500070,
+    "clock": "11:35:29.192081"
+   },
+   {
+    "ln": 41,
+    "raw": "WAIT #139745605242584: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500079",
+    "k": "WAIT",
+    "cur": "139745605242584",
+    "sqlid": "1h7h96h7gnvbj",
+    "nam": "SQL*Net message to client",
+    "ela": 0,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "-1"
+    },
+    "clock": "11:35:29.192090",
+    "tim": 10804500079
+   },
+   {
+    "ln": 42,
+    "raw": "WAIT #139745605242584: nam='SQL*Net message from client' ela= 109 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500195",
+    "k": "WAIT",
+    "cur": "139745605242584",
+    "sqlid": "1h7h96h7gnvbj",
+    "nam": "SQL*Net message from client",
+    "ela": 109,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "-1"
+    },
+    "clock": "11:35:29.192206",
+    "tim": 10804500195
+   },
+   {
+    "ln": 43,
+    "raw": "CLOSE #139745605242584:c=1,e=2,dep=0,type=1,tim=10804500208",
+    "k": "CLOSE",
+    "cur": "139745605242584",
+    "sqlid": "1h7h96h7gnvbj",
+    "c": 1,
+    "e": 2,
+    "dep": 0,
+    "type": 1,
+    "tim": 10804500208,
+    "clock": "11:35:29.192219"
+   },
+   {
+    "ln": 44,
+    "raw": "=====================",
+    "k": "RULE"
+   },
+   {
+    "ln": 45,
+    "raw": "PARSING IN CURSOR #139745605240912 len=47 dep=0 uid=165 oct=42 lid=165 tim=10804500301 hv=1631786261 ad='0' sqlid='942xwb5hn658p'",
+    "k": "CURSOR",
+    "cur": "139745605240912",
+    "sqlid": "942xwb5hn658p",
+    "dep": 0,
+    "uid": 165,
+    "oct": 42,
+    "clock": "11:35:29.192312"
+   },
+   {
+    "ln": 46,
+    "raw": "alter session set workarea_size_policy = manual",
+    "k": "TEXT",
+    "text": "alter session set workarea_size_policy = manual"
+   },
+   {
+    "ln": 47,
+    "raw": "END OF STMT",
+    "k": "ENDSTMT"
+   },
+   {
+    "ln": 48,
+    "raw": "PARSE #139745605240912:c=84,e=84,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500301",
+    "k": "PARSE",
+    "cur": "139745605240912",
+    "sqlid": "942xwb5hn658p",
+    "c": 84,
+    "e": 84,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 0,
+    "og": 0,
+    "plh": 0,
+    "tim": 10804500301,
+    "clock": "11:35:29.192312"
+   },
+   {
+    "ln": 49,
+    "raw": "EXEC #139745605240912:c=81,e=81,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500410",
+    "k": "EXEC",
+    "cur": "139745605240912",
+    "sqlid": "942xwb5hn658p",
+    "c": 81,
+    "e": 81,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 0,
+    "og": 0,
+    "plh": 0,
+    "tim": 10804500410,
+    "clock": "11:35:29.192421"
+   },
+   {
+    "ln": 50,
+    "raw": "WAIT #139745605240912: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500420",
+    "k": "WAIT",
+    "cur": "139745605240912",
+    "sqlid": "942xwb5hn658p",
+    "nam": "SQL*Net message to client",
+    "ela": 0,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "-1"
+    },
+    "clock": "11:35:29.192431",
+    "tim": 10804500420
+   },
+   {
+    "ln": 51,
+    "raw": "WAIT #139745605240912: nam='SQL*Net message from client' ela= 100 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500527",
+    "k": "WAIT",
+    "cur": "139745605240912",
+    "sqlid": "942xwb5hn658p",
+    "nam": "SQL*Net message from client",
+    "ela": 100,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "-1"
+    },
+    "clock": "11:35:29.192538",
+    "tim": 10804500527
+   },
+   {
+    "ln": 52,
+    "raw": "CLOSE #139745605240912:c=1,e=1,dep=0,type=1,tim=10804500540",
+    "k": "CLOSE",
+    "cur": "139745605240912",
+    "sqlid": "942xwb5hn658p",
+    "c": 1,
+    "e": 1,
+    "dep": 0,
+    "type": 1,
+    "tim": 10804500540,
+    "clock": "11:35:29.192551"
+   },
+   {
+    "ln": 53,
+    "raw": "=====================",
+    "k": "RULE"
+   },
+   {
+    "ln": 54,
+    "raw": "PARSING IN CURSOR #139745604254440 len=40 dep=0 uid=165 oct=42 lid=165 tim=10804500647 hv=4168561979 ad='0' sqlid='fc0b4krw7fd9v'",
+    "k": "CURSOR",
+    "cur": "139745604254440",
+    "sqlid": "fc0b4krw7fd9v",
+    "dep": 0,
+    "uid": 165,
+    "oct": 42,
+    "clock": "11:35:29.192658"
+   },
+   {
+    "ln": 55,
+    "raw": "alter session set sort_area_size = 65536",
+    "k": "TEXT",
+    "text": "alter session set sort_area_size = 65536"
+   },
+   {
+    "ln": 56,
+    "raw": "END OF STMT",
+    "k": "ENDSTMT"
+   },
+   {
+    "ln": 57,
+    "raw": "PARSE #139745604254440:c=98,e=98,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500647",
+    "k": "PARSE",
+    "cur": "139745604254440",
+    "sqlid": "fc0b4krw7fd9v",
+    "c": 98,
+    "e": 98,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 0,
+    "og": 0,
+    "plh": 0,
+    "tim": 10804500647,
+    "clock": "11:35:29.192658"
+   },
+   {
+    "ln": 58,
+    "raw": "EXEC #139745604254440:c=62,e=62,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500738",
+    "k": "EXEC",
+    "cur": "139745604254440",
+    "sqlid": "fc0b4krw7fd9v",
+    "c": 62,
+    "e": 62,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 0,
+    "og": 0,
+    "plh": 0,
+    "tim": 10804500738,
+    "clock": "11:35:29.192749"
+   },
+   {
+    "ln": 59,
+    "raw": "WAIT #139745604254440: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500748",
+    "k": "WAIT",
+    "cur": "139745604254440",
+    "sqlid": "fc0b4krw7fd9v",
+    "nam": "SQL*Net message to client",
+    "ela": 0,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "-1"
+    },
+    "clock": "11:35:29.192759",
+    "tim": 10804500748
+   },
+   {
+    "ln": 60,
+    "raw": "WAIT #139745604254440: nam='SQL*Net message from client' ela= 99 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500854",
+    "k": "WAIT",
+    "cur": "139745604254440",
+    "sqlid": "fc0b4krw7fd9v",
+    "nam": "SQL*Net message from client",
+    "ela": 99,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "-1"
+    },
+    "clock": "11:35:29.192865",
+    "tim": 10804500854
+   }
+  ]
+ },
+ {
+  "from": 95,
+  "to": 140,
+  "rows": [
+   {
+    "ln": 95,
+    "raw": "WAIT #139745604251096: nam='Disk file operations I/O' ela= 81 FileOperation=2 fileno=12 filetype=2 obj#=108611 tim=10805135122",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "Disk file operations I/O",
+    "ela": 81,
+    "p": {
+     "FileOperation": "2",
+     "fileno": "12",
+     "filetype": "2",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827133",
+    "tim": 10805135122
+   },
+   {
+    "ln": 96,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 39 file number=12 first dba=169947 block cnt=5 obj#=108611 tim=10805135198",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 39,
+    "p": {
+     "file number": "12",
+     "first dba": "169947",
+     "block cnt": "5",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827209",
+    "tim": 10805135198
+   },
+   {
+    "ln": 97,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 26 file number=12 first dba=169968 block cnt=8 obj#=108611 tim=10805135255",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 26,
+    "p": {
+     "file number": "12",
+     "first dba": "169968",
+     "block cnt": "8",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827266",
+    "tim": 10805135255
+   },
+   {
+    "ln": 98,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 13 file number=12 first dba=171145 block cnt=7 obj#=108611 tim=10805135349",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 13,
+    "p": {
+     "file number": "12",
+     "first dba": "171145",
+     "block cnt": "7",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827360",
+    "tim": 10805135349
+   },
+   {
+    "ln": 99,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 9 file number=12 first dba=171160 block cnt=8 obj#=108611 tim=10805135431",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 9,
+    "p": {
+     "file number": "12",
+     "first dba": "171160",
+     "block cnt": "8",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827442",
+    "tim": 10805135431
+   },
+   {
+    "ln": 100,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 36 file number=12 first dba=171177 block cnt=15 obj#=108611 tim=10805135528",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 36,
+    "p": {
+     "file number": "12",
+     "first dba": "171177",
+     "block cnt": "15",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827539",
+    "tim": 10805135528
+   },
+   {
+    "ln": 101,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 33 file number=12 first dba=171225 block cnt=15 obj#=108611 tim=10805135628",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 33,
+    "p": {
+     "file number": "12",
+     "first dba": "171225",
+     "block cnt": "15",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827639",
+    "tim": 10805135628
+   },
+   {
+    "ln": 102,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 7 file number=12 first dba=171241 block cnt=7 obj#=108611 tim=10805135774",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 7,
+    "p": {
+     "file number": "12",
+     "first dba": "171241",
+     "block cnt": "7",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827785",
+    "tim": 10805135774
+   },
+   {
+    "ln": 103,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 10 file number=12 first dba=171256 block cnt=8 obj#=108611 tim=10805135909",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 10,
+    "p": {
+     "file number": "12",
+     "first dba": "171256",
+     "block cnt": "8",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827920",
+    "tim": 10805135909
+   },
+   {
+    "ln": 104,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 6 file number=12 first dba=171265 block cnt=7 obj#=108611 tim=10805135977",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 6,
+    "p": {
+     "file number": "12",
+     "first dba": "171265",
+     "block cnt": "7",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.827988",
+    "tim": 10805135977
+   },
+   {
+    "ln": 105,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 7 file number=12 first dba=171312 block cnt=8 obj#=108611 tim=10805136058",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 7,
+    "p": {
+     "file number": "12",
+     "first dba": "171312",
+     "block cnt": "8",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.828069",
+    "tim": 10805136058
+   },
+   {
+    "ln": 106,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 9 file number=12 first dba=171321 block cnt=7 obj#=108611 tim=10805136131",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 9,
+    "p": {
+     "file number": "12",
+     "first dba": "171321",
+     "block cnt": "7",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.828142",
+    "tim": 10805136131
+   },
+   {
+    "ln": 107,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 7 file number=12 first dba=171336 block cnt=8 obj#=108611 tim=10805136198",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 7,
+    "p": {
+     "file number": "12",
+     "first dba": "171336",
+     "block cnt": "8",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.828209",
+    "tim": 10805136198
+   },
+   {
+    "ln": 108,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 8 file number=12 first dba=171345 block cnt=7 obj#=108611 tim=10805136261",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 8,
+    "p": {
+     "file number": "12",
+     "first dba": "171345",
+     "block cnt": "7",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.828272",
+    "tim": 10805136261
+   },
+   {
+    "ln": 109,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 7 file number=12 first dba=171360 block cnt=8 obj#=108611 tim=10805136329",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 7,
+    "p": {
+     "file number": "12",
+     "first dba": "171360",
+     "block cnt": "8",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.828340",
+    "tim": 10805136329
+   },
+   {
+    "ln": 110,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 67 file number=12 first dba=171394 block cnt=30 obj#=108611 tim=10805136454",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 67,
+    "p": {
+     "file number": "12",
+     "first dba": "171394",
+     "block cnt": "30",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.828465",
+    "tim": 10805136454
+   },
+   {
+    "ln": 111,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 73 file number=12 first dba=171424 block cnt=32 obj#=108611 tim=10805136592",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 73,
+    "p": {
+     "file number": "12",
+     "first dba": "171424",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.828603",
+    "tim": 10805136592
+   },
+   {
+    "ln": 112,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 36 file number=12 first dba=171456 block cnt=32 obj#=108611 tim=10805136863",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 36,
+    "p": {
+     "file number": "12",
+     "first dba": "171456",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.828874",
+    "tim": 10805136863
+   },
+   {
+    "ln": 113,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 27 file number=12 first dba=171488 block cnt=32 obj#=108611 tim=10805137147",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 27,
+    "p": {
+     "file number": "12",
+     "first dba": "171488",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.829158",
+    "tim": 10805137147
+   },
+   {
+    "ln": 114,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 24 file number=12 first dba=171778 block cnt=30 obj#=108611 tim=10805137403",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 24,
+    "p": {
+     "file number": "12",
+     "first dba": "171778",
+     "block cnt": "30",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.829414",
+    "tim": 10805137403
+   },
+   {
+    "ln": 115,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 38 file number=12 first dba=171808 block cnt=32 obj#=108611 tim=10805137665",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 38,
+    "p": {
+     "file number": "12",
+     "first dba": "171808",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.829676",
+    "tim": 10805137665
+   },
+   {
+    "ln": 116,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 34 file number=12 first dba=171840 block cnt=32 obj#=108611 tim=10805137895",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 34,
+    "p": {
+     "file number": "12",
+     "first dba": "171840",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.829906",
+    "tim": 10805137895
+   },
+   {
+    "ln": 117,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 26 file number=12 first dba=171872 block cnt=32 obj#=108611 tim=10805138140",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 26,
+    "p": {
+     "file number": "12",
+     "first dba": "171872",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.830151",
+    "tim": 10805138140
+   },
+   {
+    "ln": 118,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 23 file number=12 first dba=172162 block cnt=30 obj#=108611 tim=10805138369",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 23,
+    "p": {
+     "file number": "12",
+     "first dba": "172162",
+     "block cnt": "30",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.830380",
+    "tim": 10805138369
+   },
+   {
+    "ln": 119,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 27 file number=12 first dba=172192 block cnt=32 obj#=108611 tim=10805138625",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 27,
+    "p": {
+     "file number": "12",
+     "first dba": "172192",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.830636",
+    "tim": 10805138625
+   },
+   {
+    "ln": 120,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 55 file number=12 first dba=172224 block cnt=32 obj#=108611 tim=10805138815",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 55,
+    "p": {
+     "file number": "12",
+     "first dba": "172224",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.830826",
+    "tim": 10805138815
+   },
+   {
+    "ln": 121,
+    "raw": "WAIT #139745604251096: nam='direct path read' ela= 35 file number=12 first dba=172256 block cnt=32 obj#=108611 tim=10805139020",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read",
+    "ela": 35,
+    "p": {
+     "file number": "12",
+     "first dba": "172256",
+     "block cnt": "32",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.831031",
+    "tim": 10805139020
+   },
+   {
+    "ln": 122,
+    "raw": "FETCH #139745604251096:c=5167,e=636587,p=496,cr=498,cu=0,mis=0,r=1,dep=0,og=1,plh=3570327658,tim=10805139474",
+    "k": "FETCH",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 5167,
+    "e": 636587,
+    "p": 496,
+    "cr": 498,
+    "cu": 0,
+    "mis": 0,
+    "r": 1,
+    "dep": 0,
+    "og": 1,
+    "plh": 3570327658,
+    "tim": 10805139474,
+    "clock": "11:35:29.831485"
+   },
+   {
+    "ln": 123,
+    "raw": "STAT #139745604251096 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=498 pr=496 pw=0 str=1 time=636589 us)'",
+    "k": "STAT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "id": 1,
+    "cnt": 1,
+    "pid": 0,
+    "op": "SORT AGGREGATE",
+    "cr": 498,
+    "pr": 496,
+    "pw": 0,
+    "str": 1,
+    "time": 636589
+   },
+   {
+    "ln": 124,
+    "raw": "STAT #139745604251096 id=2 cnt=100001 pid=1 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=498 pr=496 pw=0 str=1 time=634138 us cost=137 size=1300000 card=100000)'",
+    "k": "STAT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "id": 2,
+    "cnt": 100001,
+    "pid": 1,
+    "op": "TABLE ACCESS FULL",
+    "name": "MTK_ORDERS",
+    "cr": 498,
+    "pr": 496,
+    "pw": 0,
+    "str": 1,
+    "time": 634138,
+    "us cost": 137,
+    "size": 1300000,
+    "card": 100000
+   },
+   {
+    "ln": 125,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message from client' ela= 263 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10805139864",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message from client",
+    "ela": 263,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.831875",
+    "tim": 10805139864
+   },
+   {
+    "ln": 126,
+    "raw": "FETCH #139745604251096:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=3570327658,tim=10805139895",
+    "k": "FETCH",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 1,
+    "e": 1,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 0,
+    "og": 0,
+    "plh": 3570327658,
+    "tim": 10805139895,
+    "clock": "11:35:29.831906"
+   },
+   {
+    "ln": 127,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10805139905",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message to client",
+    "ela": 1,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.831916",
+    "tim": 10805139905
+   },
+   {
+    "ln": 128,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message from client' ela= 229 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10805140140",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message from client",
+    "ela": 229,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.832151",
+    "tim": 10805140140
+   },
+   {
+    "ln": 129,
+    "raw": "CLOSE #139745604251096:c=5,e=5,dep=0,type=0,tim=10805140168",
+    "k": "CLOSE",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 5,
+    "e": 5,
+    "dep": 0,
+    "type": 0,
+    "tim": 10805140168,
+    "clock": "11:35:29.832179"
+   },
+   {
+    "ln": 130,
+    "raw": "WAIT #0: nam='PGA memory operation' ela= 26 which=5 bytes=262144 where=4 obj#=108611 tim=10805140221",
+    "k": "WAIT",
+    "cur": "0",
+    "nam": "PGA memory operation",
+    "ela": 26,
+    "p": {
+     "which": "5",
+     "bytes": "262144",
+     "where": "4",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:29.832232",
+    "tim": 10805140221
+   },
+   {
+    "ln": 131,
+    "raw": "=====================",
+    "k": "RULE"
+   },
+   {
+    "ln": 132,
+    "raw": "PARSING IN CURSOR #139745604248120 len=124 dep=1 uid=0 oct=3 lid=0 tim=10805141195 hv=4179850718 ad='881d74b0' sqlid='10gywwmwk6xfy'",
+    "k": "CURSOR",
+    "cur": "139745604248120",
+    "sqlid": "10gywwmwk6xfy",
+    "dep": 1,
+    "uid": 0,
+    "oct": 3,
+    "clock": "11:35:29.833206"
+   },
+   {
+    "ln": 133,
+    "raw": "select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, flags, ctime from exp_head$ eh where exp_id = :1",
+    "k": "TEXT",
+    "text": "select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, flags, ctime from exp_head$ eh where exp_id = :1"
+   },
+   {
+    "ln": 134,
+    "raw": "END OF STMT",
+    "k": "ENDSTMT"
+   },
+   {
+    "ln": 135,
+    "raw": "PARSE #139745604248120:c=306,e=306,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10805141195",
+    "k": "PARSE",
+    "cur": "139745604248120",
+    "sqlid": "10gywwmwk6xfy",
+    "c": 306,
+    "e": 306,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 1,
+    "r": 0,
+    "dep": 1,
+    "og": 4,
+    "plh": 0,
+    "tim": 10805141195,
+    "clock": "11:35:29.833206"
+   },
+   {
+    "ln": 136,
+    "raw": "BINDS #139745604248120:",
+    "k": "BINDS",
+    "cur": "139745604248120",
+    "sqlid": "10gywwmwk6xfy"
+   },
+   {
+    "ln": 137,
+    "raw": "",
+    "k": "BLANK"
+   },
+   {
+    "ln": 138,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   },
+   {
+    "ln": 139,
+    "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+    "k": "BINDATTR",
+    "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+   },
+   {
+    "ln": 140,
+    "raw": "  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0",
+    "k": "BINDATTR",
+    "text": "oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0"
+   }
+  ]
+ },
+ {
+  "from": 2960,
+  "to": 3010,
+  "rows": [
+   {
+    "ln": 2960,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   },
+   {
+    "ln": 2961,
+    "raw": "  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00",
+    "k": "BINDATTR",
+    "text": "oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"
+   },
+   {
+    "ln": 2962,
+    "raw": "  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0",
+    "k": "BINDATTR",
+    "text": "oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"
+   },
+   {
+    "ln": 2963,
+    "raw": "  kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09",
+    "k": "BINDATTR",
+    "text": "kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09"
+   },
+   {
+    "ln": 2964,
+    "raw": "  value=15589",
+    "k": "BINDATTR",
+    "text": "value=15589"
+   },
+   {
+    "ln": 2965,
+    "raw": "EXEC #139745603983880:c=28,e=28,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534420",
+    "k": "EXEC",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 28,
+    "e": 28,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534420,
+    "clock": "11:35:32.226431"
+   },
+   {
+    "ln": 2966,
+    "raw": "FETCH #139745603983880:c=6,e=5,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534431",
+    "k": "FETCH",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 6,
+    "e": 5,
+    "p": 0,
+    "cr": 3,
+    "cu": 0,
+    "mis": 0,
+    "r": 1,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534431,
+    "clock": "11:35:32.226442"
+   },
+   {
+    "ln": 2967,
+    "raw": "CLOSE #139745603983880:c=0,e=0,dep=1,type=3,tim=10807534439",
+    "k": "CLOSE",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 0,
+    "e": 0,
+    "dep": 1,
+    "type": 3,
+    "tim": 10807534439,
+    "clock": "11:35:32.226450"
+   },
+   {
+    "ln": 2968,
+    "raw": "BINDS #139745603983880:",
+    "k": "BINDS",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c"
+   },
+   {
+    "ln": 2969,
+    "raw": "",
+    "k": "BLANK"
+   },
+   {
+    "ln": 2970,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   },
+   {
+    "ln": 2971,
+    "raw": "  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00",
+    "k": "BINDATTR",
+    "text": "oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"
+   },
+   {
+    "ln": 2972,
+    "raw": "  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0",
+    "k": "BINDATTR",
+    "text": "oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"
+   },
+   {
+    "ln": 2973,
+    "raw": "  kxsbbbfp=7f190fa61ce0  bln=22  avl=03  flg=09",
+    "k": "BINDATTR",
+    "text": "kxsbbbfp=7f190fa61ce0  bln=22  avl=03  flg=09"
+   },
+   {
+    "ln": 2974,
+    "raw": "  value=8706",
+    "k": "BINDATTR",
+    "text": "value=8706"
+   },
+   {
+    "ln": 2975,
+    "raw": "EXEC #139745603983880:c=29,e=29,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534475",
+    "k": "EXEC",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 29,
+    "e": 29,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534475,
+    "clock": "11:35:32.226486"
+   },
+   {
+    "ln": 2976,
+    "raw": "FETCH #139745603983880:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534487",
+    "k": "FETCH",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 6,
+    "e": 6,
+    "p": 0,
+    "cr": 3,
+    "cu": 0,
+    "mis": 0,
+    "r": 1,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534487,
+    "clock": "11:35:32.226498"
+   },
+   {
+    "ln": 2977,
+    "raw": "CLOSE #139745603983880:c=0,e=0,dep=1,type=3,tim=10807534495",
+    "k": "CLOSE",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 0,
+    "e": 0,
+    "dep": 1,
+    "type": 3,
+    "tim": 10807534495,
+    "clock": "11:35:32.226506"
+   },
+   {
+    "ln": 2978,
+    "raw": "BINDS #139745603983880:",
+    "k": "BINDS",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c"
+   },
+   {
+    "ln": 2979,
+    "raw": "",
+    "k": "BLANK"
+   },
+   {
+    "ln": 2980,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   },
+   {
+    "ln": 2981,
+    "raw": "  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00",
+    "k": "BINDATTR",
+    "text": "oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"
+   },
+   {
+    "ln": 2982,
+    "raw": "  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0",
+    "k": "BINDATTR",
+    "text": "oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"
+   },
+   {
+    "ln": 2983,
+    "raw": "  kxsbbbfp=7f190fa61ce0  bln=22  avl=03  flg=09",
+    "k": "BINDATTR",
+    "text": "kxsbbbfp=7f190fa61ce0  bln=22  avl=03  flg=09"
+   },
+   {
+    "ln": 2984,
+    "raw": "  value=2480",
+    "k": "BINDATTR",
+    "text": "value=2480"
+   },
+   {
+    "ln": 2985,
+    "raw": "EXEC #139745603983880:c=27,e=27,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534529",
+    "k": "EXEC",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 27,
+    "e": 27,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534529,
+    "clock": "11:35:32.226540"
+   },
+   {
+    "ln": 2986,
+    "raw": "FETCH #139745603983880:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534544",
+    "k": "FETCH",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 6,
+    "e": 6,
+    "p": 0,
+    "cr": 3,
+    "cu": 0,
+    "mis": 0,
+    "r": 1,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534544,
+    "clock": "11:35:32.226555"
+   },
+   {
+    "ln": 2987,
+    "raw": "CLOSE #139745603983880:c=0,e=0,dep=1,type=3,tim=10807534552",
+    "k": "CLOSE",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 0,
+    "e": 0,
+    "dep": 1,
+    "type": 3,
+    "tim": 10807534552,
+    "clock": "11:35:32.226563"
+   },
+   {
+    "ln": 2988,
+    "raw": "BINDS #139745603983880:",
+    "k": "BINDS",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c"
+   },
+   {
+    "ln": 2989,
+    "raw": "",
+    "k": "BLANK"
+   },
+   {
+    "ln": 2990,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   },
+   {
+    "ln": 2991,
+    "raw": "  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00",
+    "k": "BINDATTR",
+    "text": "oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"
+   },
+   {
+    "ln": 2992,
+    "raw": "  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0",
+    "k": "BINDATTR",
+    "text": "oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"
+   },
+   {
+    "ln": 2993,
+    "raw": "  kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09",
+    "k": "BINDATTR",
+    "text": "kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09"
+   },
+   {
+    "ln": 2994,
+    "raw": "  value=10564",
+    "k": "BINDATTR",
+    "text": "value=10564"
+   },
+   {
+    "ln": 2995,
+    "raw": "EXEC #139745603983880:c=28,e=28,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534587",
+    "k": "EXEC",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 28,
+    "e": 28,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534587,
+    "clock": "11:35:32.226598"
+   },
+   {
+    "ln": 2996,
+    "raw": "FETCH #139745603983880:c=2,e=2,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534596",
+    "k": "FETCH",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 2,
+    "e": 2,
+    "p": 0,
+    "cr": 3,
+    "cu": 0,
+    "mis": 0,
+    "r": 1,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534596,
+    "clock": "11:35:32.226607"
+   },
+   {
+    "ln": 2997,
+    "raw": "CLOSE #139745603983880:c=0,e=0,dep=1,type=3,tim=10807534603",
+    "k": "CLOSE",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 0,
+    "e": 0,
+    "dep": 1,
+    "type": 3,
+    "tim": 10807534603,
+    "clock": "11:35:32.226614"
+   },
+   {
+    "ln": 2998,
+    "raw": "BINDS #139745603983880:",
+    "k": "BINDS",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c"
+   },
+   {
+    "ln": 2999,
+    "raw": "",
+    "k": "BLANK"
+   },
+   {
+    "ln": 3000,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   },
+   {
+    "ln": 3001,
+    "raw": "  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00",
+    "k": "BINDATTR",
+    "text": "oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"
+   },
+   {
+    "ln": 3002,
+    "raw": "  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0",
+    "k": "BINDATTR",
+    "text": "oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"
+   },
+   {
+    "ln": 3003,
+    "raw": "  kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09",
+    "k": "BINDATTR",
+    "text": "kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09"
+   },
+   {
+    "ln": 3004,
+    "raw": "  value=10511",
+    "k": "BINDATTR",
+    "text": "value=10511"
+   },
+   {
+    "ln": 3005,
+    "raw": "EXEC #139745603983880:c=28,e=28,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534643",
+    "k": "EXEC",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 28,
+    "e": 28,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534643,
+    "clock": "11:35:32.226654"
+   },
+   {
+    "ln": 3006,
+    "raw": "FETCH #139745603983880:c=2,e=2,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534651",
+    "k": "FETCH",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 2,
+    "e": 2,
+    "p": 0,
+    "cr": 3,
+    "cu": 0,
+    "mis": 0,
+    "r": 1,
+    "dep": 1,
+    "og": 1,
+    "plh": 1276914333,
+    "tim": 10807534651,
+    "clock": "11:35:32.226662"
+   },
+   {
+    "ln": 3007,
+    "raw": "CLOSE #139745603983880:c=1,e=1,dep=1,type=3,tim=10807534659",
+    "k": "CLOSE",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c",
+    "c": 1,
+    "e": 1,
+    "dep": 1,
+    "type": 3,
+    "tim": 10807534659,
+    "clock": "11:35:32.226670"
+   },
+   {
+    "ln": 3008,
+    "raw": "BINDS #139745603983880:",
+    "k": "BINDS",
+    "cur": "139745603983880",
+    "sqlid": "dk21j71dpu26c"
+   },
+   {
+    "ln": 3009,
+    "raw": "",
+    "k": "BLANK"
+   },
+   {
+    "ln": 3010,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   }
+  ]
+ },
+ {
+  "from": 10355,
+  "to": 10401,
+  "rows": [
+   {
+    "ln": 10355,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 3 file number=203 first dba=756280 block cnt=1 obj#=108611 tim=10810351080",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 3,
+    "p": {
+     "file number": "203",
+     "first dba": "756280",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.043091",
+    "tim": 10810351080
+   },
+   {
+    "ln": 10356,
+    "raw": "WAIT #139745604251096: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=10810351126",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net more data to client",
+    "ela": 30,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "8101",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.043137",
+    "tim": 10810351126
+   },
+   {
+    "ln": 10357,
+    "raw": "FETCH #139745604251096:c=159,e=159,p=1,cr=0,cu=0,mis=0,r=500,dep=0,og=1,plh=2503715236,tim=10810351149",
+    "k": "FETCH",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 159,
+    "e": 159,
+    "p": 1,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 500,
+    "dep": 0,
+    "og": 1,
+    "plh": 2503715236,
+    "tim": 10810351149,
+    "clock": "11:35:35.043160"
+   },
+   {
+    "ln": 10358,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message from client' ela= 1490 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810352648",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message from client",
+    "ela": 1490,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.044659",
+    "tim": 10810352648
+   },
+   {
+    "ln": 10359,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 3 file number=203 first dba=756116 block cnt=1 obj#=108611 tim=10810352676",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 3,
+    "p": {
+     "file number": "203",
+     "first dba": "756116",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.044687",
+    "tim": 10810352676
+   },
+   {
+    "ln": 10360,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756471 block cnt=1 obj#=108611 tim=10810352702",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 2,
+    "p": {
+     "file number": "203",
+     "first dba": "756471",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.044713",
+    "tim": 10810352702
+   },
+   {
+    "ln": 10361,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810352717",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message to client",
+    "ela": 1,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.044728",
+    "tim": 10810352717
+   },
+   {
+    "ln": 10362,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 5 file number=203 first dba=756547 block cnt=1 obj#=108611 tim=10810352752",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 5,
+    "p": {
+     "file number": "203",
+     "first dba": "756547",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.044763",
+    "tim": 10810352752
+   },
+   {
+    "ln": 10363,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756659 block cnt=1 obj#=108611 tim=10810352761",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 2,
+    "p": {
+     "file number": "203",
+     "first dba": "756659",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.044772",
+    "tim": 10810352761
+   },
+   {
+    "ln": 10364,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756687 block cnt=1 obj#=108611 tim=10810352773",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 2,
+    "p": {
+     "file number": "203",
+     "first dba": "756687",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.044784",
+    "tim": 10810352773
+   },
+   {
+    "ln": 10365,
+    "raw": "WAIT #139745604251096: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=10810352823",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net more data to client",
+    "ela": 28,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "8101",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.044834",
+    "tim": 10810352823
+   },
+   {
+    "ln": 10366,
+    "raw": "FETCH #139745604251096:c=181,e=181,p=5,cr=0,cu=0,mis=0,r=500,dep=0,og=1,plh=2503715236,tim=10810352846",
+    "k": "FETCH",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 181,
+    "e": 181,
+    "p": 5,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 500,
+    "dep": 0,
+    "og": 1,
+    "plh": 2503715236,
+    "tim": 10810352846,
+    "clock": "11:35:35.044857"
+   },
+   {
+    "ln": 10367,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message from client' ela= 1492 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810354352",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message from client",
+    "ela": 1492,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.046363",
+    "tim": 10810354352
+   },
+   {
+    "ln": 10368,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 3 file number=203 first dba=756603 block cnt=1 obj#=108611 tim=10810354390",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 3,
+    "p": {
+     "file number": "203",
+     "first dba": "756603",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.046401",
+    "tim": 10810354390
+   },
+   {
+    "ln": 10369,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756281 block cnt=1 obj#=108611 tim=10810354402",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 2,
+    "p": {
+     "file number": "203",
+     "first dba": "756281",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.046413",
+    "tim": 10810354402
+   },
+   {
+    "ln": 10370,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756575 block cnt=1 obj#=108611 tim=10810354414",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 2,
+    "p": {
+     "file number": "203",
+     "first dba": "756575",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.046425",
+    "tim": 10810354414
+   },
+   {
+    "ln": 10371,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756117 block cnt=1 obj#=108611 tim=10810354426",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 2,
+    "p": {
+     "file number": "203",
+     "first dba": "756117",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.046437",
+    "tim": 10810354426
+   },
+   {
+    "ln": 10372,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810354440",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message to client",
+    "ela": 0,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.046451",
+    "tim": 10810354440
+   },
+   {
+    "ln": 10373,
+    "raw": "WAIT #139745604251096: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8104 p3=0 obj#=108611 tim=10810354516",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net more data to client",
+    "ela": 28,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "8104",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.046527",
+    "tim": 10810354516
+   },
+   {
+    "ln": 10374,
+    "raw": "FETCH #139745604251096:c=168,e=168,p=4,cr=0,cu=0,mis=0,r=500,dep=0,og=1,plh=2503715236,tim=10810354539",
+    "k": "FETCH",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 168,
+    "e": 168,
+    "p": 4,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 500,
+    "dep": 0,
+    "og": 1,
+    "plh": 2503715236,
+    "tim": 10810354539,
+    "clock": "11:35:35.046550"
+   },
+   {
+    "ln": 10375,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message from client' ela= 1498 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810356046",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message from client",
+    "ela": 1498,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.048057",
+    "tim": 10810356046
+   },
+   {
+    "ln": 10376,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 4 file number=203 first dba=756282 block cnt=1 obj#=108611 tim=10810356089",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 4,
+    "p": {
+     "file number": "203",
+     "first dba": "756282",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.048100",
+    "tim": 10810356089
+   },
+   {
+    "ln": 10377,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810356105",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message to client",
+    "ela": 1,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.048116",
+    "tim": 10810356105
+   },
+   {
+    "ln": 10378,
+    "raw": "WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756118 block cnt=1 obj#=108611 tim=10810356144",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "direct path read temp",
+    "ela": 2,
+    "p": {
+     "file number": "203",
+     "first dba": "756118",
+     "block cnt": "1",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.048155",
+    "tim": 10810356144
+   },
+   {
+    "ln": 10379,
+    "raw": "WAIT #139745604251096: nam='SQL*Net more data to client' ela= 29 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=10810356192",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net more data to client",
+    "ela": 29,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "8101",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.048203",
+    "tim": 10810356192
+   },
+   {
+    "ln": 10380,
+    "raw": "FETCH #139745604251096:c=150,e=150,p=2,cr=0,cu=0,mis=0,r=500,dep=0,og=1,plh=2503715236,tim=10810356214",
+    "k": "FETCH",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 150,
+    "e": 150,
+    "p": 2,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 500,
+    "dep": 0,
+    "og": 1,
+    "plh": 2503715236,
+    "tim": 10810356214,
+    "clock": "11:35:35.048225"
+   },
+   {
+    "ln": 10381,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message from client' ela= 1494 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810357717",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message from client",
+    "ela": 1494,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.049728",
+    "tim": 10810357717
+   },
+   {
+    "ln": 10382,
+    "raw": "FETCH #139745604251096:c=43,e=43,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=2503715236,tim=10810357780",
+    "k": "FETCH",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 43,
+    "e": 43,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 0,
+    "og": 1,
+    "plh": 2503715236,
+    "tim": 10810357780,
+    "clock": "11:35:35.049791"
+   },
+   {
+    "ln": 10383,
+    "raw": "STAT #139745604251096 id=1 cnt=100001 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=498 pr=1827 pw=1331 str=1 time=2448362 us cost=2014 size=2800000 card=100000)'",
+    "k": "STAT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "id": 1,
+    "cnt": 100001,
+    "pid": 0,
+    "op": "SORT ORDER BY",
+    "cr": 498,
+    "pr": 1827,
+    "pw": 1331,
+    "str": 1,
+    "time": 2448362,
+    "us cost": 2014,
+    "size": 2800000,
+    "card": 100000
+   },
+   {
+    "ln": 10384,
+    "raw": "STAT #139745604251096 id=2 cnt=100001 pid=1 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=498 pr=496 pw=0 str=1 time=2432 us cost=137 size=2800000 card=100000)'",
+    "k": "STAT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "id": 2,
+    "cnt": 100001,
+    "pid": 1,
+    "op": "TABLE ACCESS FULL",
+    "name": "MTK_ORDERS",
+    "cr": 498,
+    "pr": 496,
+    "pw": 0,
+    "str": 1,
+    "time": 2432,
+    "us cost": 137,
+    "size": 2800000,
+    "card": 100000
+   },
+   {
+    "ln": 10385,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810357858",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message to client",
+    "ela": 0,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.049869",
+    "tim": 10810357858
+   },
+   {
+    "ln": 10386,
+    "raw": "WAIT #139745604251096: nam='SQL*Net message from client' ela= 191 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810358055",
+    "k": "WAIT",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "nam": "SQL*Net message from client",
+    "ela": 191,
+    "p": {
+     "driver id": "1952673792",
+     "#bytes": "1",
+     "p3": "0",
+     "obj#": "108611"
+    },
+    "obj": "MTK_ORDERS",
+    "clock": "11:35:35.050066",
+    "tim": 10810358055
+   },
+   {
+    "ln": 10387,
+    "raw": "CLOSE #139745604251096:c=4,e=4,dep=0,type=0,tim=10810358077",
+    "k": "CLOSE",
+    "cur": "139745604251096",
+    "sqlid": "06nvwn223659v",
+    "c": 4,
+    "e": 4,
+    "dep": 0,
+    "type": 0,
+    "tim": 10810358077,
+    "clock": "11:35:35.050088"
+   },
+   {
+    "ln": 10388,
+    "raw": "BINDS #139745604248120:",
+    "k": "BINDS",
+    "cur": "139745604248120",
+    "sqlid": "10gywwmwk6xfy"
+   },
+   {
+    "ln": 10389,
+    "raw": "",
+    "k": "BLANK"
+   },
+   {
+    "ln": 10390,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   },
+   {
+    "ln": 10391,
+    "raw": "  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00",
+    "k": "BINDATTR",
+    "text": "oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"
+   },
+   {
+    "ln": 10392,
+    "raw": "  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0",
+    "k": "BINDATTR",
+    "text": "oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0"
+   },
+   {
+    "ln": 10393,
+    "raw": "  kxsbbbfp=7f190f156b50  bln=22  avl=11  flg=05",
+    "k": "BINDATTR",
+    "text": "kxsbbbfp=7f190f156b50  bln=22  avl=11  flg=05"
+   },
+   {
+    "ln": 10394,
+    "raw": "  value=2511846697911007615",
+    "k": "BINDATTR",
+    "text": "value=2511846697911007615"
+   },
+   {
+    "ln": 10395,
+    "raw": "EXEC #139745604248120:c=0,e=69,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=10810359018",
+    "k": "EXEC",
+    "cur": "139745604248120",
+    "sqlid": "10gywwmwk6xfy",
+    "c": 0,
+    "e": 69,
+    "p": 0,
+    "cr": 0,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 1,
+    "og": 4,
+    "plh": 1426583507,
+    "tim": 10810359018,
+    "clock": "11:35:35.051029"
+   },
+   {
+    "ln": 10396,
+    "raw": "WAIT #139745604248120: nam='db file sequential read' ela= 149 file#=10 block#=80385 blocks=1 obj#=721 tim=10810359197",
+    "k": "WAIT",
+    "cur": "139745604248120",
+    "sqlid": "10gywwmwk6xfy",
+    "nam": "db file sequential read",
+    "ela": 149,
+    "p": {
+     "file#": "10",
+     "block#": "80385",
+     "blocks": "1",
+     "obj#": "721"
+    },
+    "obj": "I_EXP_HEAD$",
+    "clock": "11:35:35.051208",
+    "tim": 10810359197
+   },
+   {
+    "ln": 10397,
+    "raw": "FETCH #139745604248120:c=754,e=199,p=1,cr=2,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=10810359227",
+    "k": "FETCH",
+    "cur": "139745604248120",
+    "sqlid": "10gywwmwk6xfy",
+    "c": 754,
+    "e": 199,
+    "p": 1,
+    "cr": 2,
+    "cu": 0,
+    "mis": 0,
+    "r": 0,
+    "dep": 1,
+    "og": 4,
+    "plh": 1426583507,
+    "tim": 10810359227,
+    "clock": "11:35:35.051238"
+   },
+   {
+    "ln": 10398,
+    "raw": "CLOSE #139745604248120:c=0,e=0,dep=1,type=3,tim=10810359243",
+    "k": "CLOSE",
+    "cur": "139745604248120",
+    "sqlid": "10gywwmwk6xfy",
+    "c": 0,
+    "e": 0,
+    "dep": 1,
+    "type": 3,
+    "tim": 10810359243,
+    "clock": "11:35:35.051254"
+   },
+   {
+    "ln": 10399,
+    "raw": "BINDS #139745604298784:",
+    "k": "BINDS",
+    "cur": "139745604298784",
+    "sqlid": "dbvj6jc977hqh"
+   },
+   {
+    "ln": 10400,
+    "raw": "",
+    "k": "BLANK"
+   },
+   {
+    "ln": 10401,
+    "raw": " Bind#0",
+    "k": "BIND",
+    "pos": 0
+   }
+  ]
+ }
+]

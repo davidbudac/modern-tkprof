@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formatted Trace view, round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*@CSS*/
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="page-head">
+    <div>
+      <h1>Formatted Trace view, round 2</h1>
+      <p>Ten changes to the Formatted view of the Trace tab, each shown as NOW (what the app draws today, re-rendered from its own rules) above PROPOSED, on the same rows of <span class="mono">io_waits.trc</span> (19c, session 51.14688). Nothing here is invented: every row is a line of the trace.</p>
+      <div class="legend"><span><b class="tag">Now</b> the app today</span><span><b class="tag proposed">Proposed</b> the change</span><span>rows are 20 px, mono 12 px; wide blocks scroll sideways inside their frame</span></div>
+    </div>
+    <button id="theme" class="theme-toggle" type="button" aria-label="Theme: auto, light or dark">Theme <b id="theme-label">Auto</b></button>
+  </header>
+  <nav class="toc" aria-label="Sections"><h2>Sections</h2><ol id="toc-list"></ol></nav>
+  <main id="app"></main>
+  <p class="foot" style="grid-column: 1 / -1">Mock-up for the Formatted Trace view: no interaction is real. Source in <span class="mono">src/</span>, rebuilt by <span class="mono">node build.mjs</span>.</p>
+</div>
+<script>
+const DATA = /*@DATA*/null;
+/*@JS*/
+</script>
+</body>
+</html>

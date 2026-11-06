@@ -1,0 +1,1636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formatted Trace view, round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Design tokens. Chrome is neutral on purpose: hue is reserved for data. */
+:root {
+  color-scheme: light dark;
+
+  --surface: light-dark(oklch(98.8% 0.002 250), oklch(17.5% 0.007 240));
+  --surface-raised: light-dark(oklch(100% 0 none), oklch(20.5% 0.007 240));
+  --surface-sunken: light-dark(oklch(96.5% 0.004 250), oklch(15% 0.007 240));
+  --ink: light-dark(oklch(22% 0.015 250), oklch(92% 0.008 240));
+  --ink-2: light-dark(oklch(47% 0.015 250), oklch(72% 0.01 240));
+  --ink-3: light-dark(oklch(64% 0.012 250), oklch(56% 0.01 240));
+  --hairline: light-dark(oklch(91% 0.005 250), oklch(29% 0.007 240));
+  --hairline-strong: light-dark(oklch(82% 0.008 250), oklch(38% 0.008 240));
+  --ruling: light-dark(oklch(94% 0.004 250), oklch(24% 0.007 240));
+  --wash: color-mix(in oklch, var(--ink) 6%, transparent);
+  --wash-strong: color-mix(in oklch, var(--ink) 11%, transparent);
+  --focus: var(--ink);
+
+  /* data colors: validated categorical slots (dataviz palette), by role */
+  --c-cpu: light-dark(#2a78d6, #3987e5);
+  --c-userio: light-dark(#eb6834, #d95926);
+  --c-sysio: light-dark(#1baf7a, #199e70);
+  --c-commit: light-dark(#eda100, #c98500);
+  --c-concurrency: light-dark(#e87ba4, #d55181);
+  --c-network: light-dark(#0a8a2a, #2a9a3a);
+  --c-other: light-dark(#6250d6, #9085e9);
+  --c-idle: light-dark(oklch(78% 0.01 240), oklch(42% 0.01 240));
+  --c-unaccounted: light-dark(oklch(90% 0.006 240), oklch(30% 0.008 240));
+  /* call phases: one neutral slate ramp (darkest = FETCH in light, lightest in dark), so hue
+     only ever means a resource / wait class; validated as an ordinal ramp against both surfaces */
+  --c-phase-fetch: light-dark(oklch(27% 0.02 255), oklch(90% 0.02 255));
+  --c-phase-exec: light-dark(oklch(40% 0.02 255), oklch(78% 0.02 255));
+  --c-phase-parse: light-dark(oklch(53% 0.02 255), oklch(66% 0.02 255));
+  --c-phase-other: light-dark(oklch(65% 0.02 255), oklch(54% 0.02 255));
+  --c-phase-close: light-dark(oklch(77% 0.02 255), oklch(43% 0.02 255));
+  /* call-phase brushes, so a phase reads by texture as well as by shade (as the Loom's consistent/current
+     modes do): PARSE `/`, EXEC `\`, FETCH solid, CLOSE `|`, other crosshatch. The stripe ink sits ~28 points
+     of lightness away from its fill on the far side of the ramp, so it stays visible at both ends. Mirrored for
+     canvas in components/phaseBrush.ts. */
+  --c-phase-parse-ink: light-dark(oklch(81% 0.02 255), oklch(38% 0.02 255));
+  --c-phase-exec-ink: light-dark(oklch(70% 0.02 255), oklch(50% 0.02 255));
+  --c-phase-close-ink: light-dark(oklch(50% 0.02 255), oklch(71% 0.02 255));
+  --c-phase-other-ink: light-dark(oklch(88% 0.02 255), oklch(28% 0.02 255));
+  --b-phase-parse: repeating-linear-gradient(135deg, transparent 0 2.6px, var(--c-phase-parse-ink) 2.6px 4.25px);
+  --b-phase-exec: repeating-linear-gradient(45deg, transparent 0 2.6px, var(--c-phase-exec-ink) 2.6px 4.25px);
+  --b-phase-fetch: none;
+  --b-phase-close: repeating-linear-gradient(90deg, transparent 0 4.5px, var(--c-phase-close-ink) 4.5px 6px);
+  --b-phase-other: repeating-linear-gradient(45deg, transparent 0 3px, var(--c-phase-other-ink) 3px 4.25px),
+    repeating-linear-gradient(135deg, transparent 0 3px, var(--c-phase-other-ink) 3px 4.25px);
+  --c-grid: light-dark(#e1e0d9, #2c2c2a);
+  --c-axis: light-dark(#c3c2b7, #383835);
+
+  --s-good: #0ca30c;
+  --s-warning: #d7930a;
+  --s-serious: #ec835a;
+  --s-critical: #c9343a;
+
+  --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.75rem;
+  --text-md: 0.8125rem;
+  --text-lg: 0.9375rem;
+  --text-xl: 1.25rem;
+  --text-hero: clamp(1.5rem, 1.2rem + 0.9vw, 1.75rem);
+
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 2.5rem;
+  --radius: 4px;
+  --list-w: 21rem;
+  --context-w: 19rem;
+  --files-w: clamp(17rem, 22vw, 23rem);
+  --inspector-w: clamp(24rem, 34vw, 38rem);
+  --topbar-h: 2.75rem;
+  --subbar-h: 1.9rem;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 160ms;
+}
+
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
+/* ==========================================================================================================
+   Page shell (this mock-up's own chrome, not the app's): header, sticky table of contents, sections, the NOW / PROPOSED
+   frames and their captions. Neutral on purpose: hue on this page is data (lane colours, wait classes, hot spots) only.
+   ========================================================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; font-synthesis: none; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; scroll-padding-top: 16px; }
+body { margin: 0; background: var(--surface); color: var(--ink); font: var(--text-md) / 1.5 var(--font-ui); font-variant-numeric: tabular-nums; }
+h1, h2, h3, p, ul, ol { margin: 0; }
+h1 { font-size: var(--text-xl); font-weight: 500; letter-spacing: -0.005em; }
+h2 { font-size: var(--text-lg); font-weight: 600; }
+h3 { font-size: var(--text-md); font-weight: 600; }
+a { color: inherit; text-underline-offset: 2px; }
+button { font: inherit; font-size: var(--text-sm); color: inherit; background: none; border: 1px solid var(--hairline-strong); border-radius: var(--radius); padding: 0.2rem 0.6rem; cursor: pointer; }
+button:hover { background: var(--wash); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+
+.shell { display: grid; grid-template-columns: 176px minmax(0, 1fr); column-gap: 28px; padding: 24px; align-items: start; }
+.page-head { grid-column: 1 / -1; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-block-end: 20px; margin-block-end: 8px; border-block-end: 1px solid var(--hairline); }
+.page-head p { color: var(--ink-2); max-inline-size: 72ch; margin-block-start: 4px; }
+.page-head .legend { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-block-start: 12px; color: var(--ink-2); font-size: var(--text-sm); }
+.page-head .legend span { display: inline-flex; align-items: center; gap: 8px; }
+.theme-toggle { flex: none; font-size: var(--text-sm); color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; }
+.theme-toggle b { font-weight: 500; color: var(--ink); min-inline-size: 3.5em; text-align: start; }
+
+/* the table of contents: sticky at the left from 1400 px, above the content below that */
+.toc { position: sticky; inset-block-start: 16px; align-self: start; max-block-size: calc(100vh - 32px); overflow: auto; padding-block: 4px; font-size: var(--text-sm); }
+.toc h2 { font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); padding-inline: 8px; margin-block-end: 6px; }
+.toc ol { list-style: none; padding: 0; display: grid; gap: 1px; }
+.toc a { display: grid; grid-template-columns: 1.7em 1fr; gap: 6px; padding: 3px 8px; border-radius: var(--radius); text-decoration: none; color: var(--ink-2); line-height: 1.35; }
+.toc a:hover { background: var(--wash); color: var(--ink); }
+.toc a .n { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-3); text-align: end; padding-block-start: 1px; }
+.toc a.on { background: var(--wash); color: var(--ink); font-weight: 500; }
+.toc .sep { block-size: 1px; background: var(--hairline); margin: 6px 8px; }
+@media (max-width: 1399px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .toc { position: static; max-block-size: none; margin-block-end: 20px; padding: 10px 8px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-raised); }
+  .toc ol { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .toc .sep { display: none; }
+}
+
+main { min-inline-size: 0; display: grid; gap: 56px; }
+.sec { display: grid; gap: 20px; min-inline-size: 0; }
+.sec > header { display: grid; gap: 4px; padding-block-end: 8px; border-block-end: 1px solid var(--hairline); }
+.sec > header h2 { display: flex; align-items: baseline; gap: 12px; font-size: var(--text-xl); font-weight: 500; }
+.sec > header h2 .n { font-family: var(--font-mono); font-size: var(--text-lg); color: var(--ink-3); min-inline-size: 1.6em; }
+.sec > header p { color: var(--ink-2); max-inline-size: 110ch; }
+.sec > header p .rows { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-3); }
+.sub { display: grid; gap: 14px; min-inline-size: 0; }
+.sub > h3 { font-size: var(--text-md); font-weight: 600; color: var(--ink); display: flex; align-items: baseline; gap: 10px; }
+.sub > h3 small { font-weight: 400; color: var(--ink-3); font-size: var(--text-sm); }
+
+/* one NOW or PROPOSED block: a label line, the frame (the pane, scrolls sideways inside), the caption */
+.pair { display: grid; gap: 22px; min-inline-size: 0; }
+.blk { display: grid; gap: 8px; min-inline-size: 0; }
+.blk-head { display: flex; align-items: center; gap: 10px; font-size: var(--text-sm); color: var(--ink-3); min-block-size: 22px; }
+.tag { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--hairline-strong); color: var(--ink-2); background: transparent; }
+.tag.proposed { background: var(--ink); color: var(--surface-raised); border-color: var(--ink); }
+.blk-head .state { display: flex; flex-wrap: wrap; gap: 0 8px; color: var(--ink-3); font-size: var(--text-sm); }
+.blk-head .state b { font-weight: 500; color: var(--ink-2); }
+.frame { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); max-inline-size: 100%; }
+.cap { color: var(--ink-2); max-inline-size: 118ch; line-height: 1.5; }
+.cap b { font-weight: 600; color: var(--ink); }
+.cap code { font-size: var(--text-sm); color: var(--ink); background: var(--wash); border-radius: 3px; padding: 0 0.3em; }
+.note { color: var(--ink-3); font-size: var(--text-sm); max-inline-size: 118ch; }
+
+/* the bugs box */
+.bugs { border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); padding: 20px 24px 22px; max-inline-size: 118ch; }
+.bugs h2 { font-size: var(--text-lg); margin-block-end: 4px; }
+.bugs > p { color: var(--ink-2); margin-block-end: 12px; }
+.bugs ol { margin: 0; padding-inline-start: 1.6em; display: grid; gap: 6px; }
+.bugs li::marker { color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-sm); }
+.bugs li { padding-inline-start: 4px; color: var(--ink); }
+.bugs li code { font-size: var(--text-sm); background: var(--wash); border-radius: 3px; padding: 0 0.3em; }
+.foot { color: var(--ink-3); font-size: var(--text-sm); padding-block: 8px 24px; }
+
+/* ==========================================================================================================
+   The pane: a simulated Formatted Lines view. Two halves:
+     A. NOW  : the app's own rules (web/src/lib/styles/lines.css, .lv-* renamed), so the NOW blocks draw what the app draws today.
+     B. PROPOSED : one block per section of the brief, switched by a flag class on the pane (.p1 ... .p9, .p3gap).
+   Grid of a row: delta | ln | lane | fold handle | duration | operation | detail (1fr) | clock.
+   ========================================================================================================== */
+.pane {
+  --row: 20px;
+  --w-delta: 86.4px; --w-ln: 69px; --w-lane: 129.6px; --w-fh: 18.4px; --w-dur: 72px; --w-op: 72px; --w-clock: 122.4px;
+  --cols: var(--w-delta) var(--w-ln) var(--w-lane) var(--w-fh) var(--w-dur) var(--w-op) minmax(0, 1fr) var(--w-clock);
+  --hot-fill: light-dark(color-mix(in oklch, var(--s-critical) 16%, transparent), color-mix(in oklch, var(--s-critical) 22%, transparent));
+  position: relative; inline-size: 100%; min-inline-size: var(--pane-min, 1400px);
+  background: var(--surface-raised); color: var(--ink); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--row);
+  font-variant-numeric: tabular-nums;
+}
+.pane.composite { inline-size: 1560px; min-inline-size: 1560px; }
+.view { display: flex; }
+.view-col { position: relative; flex: 1 1 0; min-inline-size: 0; }
+.rows { position: relative; background: var(--surface-raised); }
+
+/* ---- A. the rows --------------------------------------------------------------------------------------------------------------- */
+.row { display: grid; grid-template-columns: var(--cols); block-size: var(--row); position: relative; white-space: pre; }
+.row > * { min-inline-size: 0; }
+.row.k-skip { color: var(--ink-3); background: var(--surface-sunken); font-family: var(--font-ui); font-size: var(--text-xs); }
+
+/* the time column: Δ as text over a bar of the line's own time (linear, full = the file's longest line, 2.448 s), the first cell */
+.c-delta { position: relative; box-sizing: border-box; border-inline-end: 1px solid var(--hairline); }
+.c-delta .bar, .c-delta .bar-solid { position: absolute; inset-inline-start: 8px; inset-block: 4px; inline-size: calc(var(--w) * (100% - 16px)); min-inline-size: 2px; border-radius: 1px; opacity: 0.5; }
+.c-delta .bar-solid { background: var(--c-cpu); }
+.bar-cpu { background: color-mix(in oklch, var(--c-cpu) 30%, var(--surface-raised)); }
+.bar-userio { background: var(--c-userio); } .bar-sysio { background: var(--c-sysio); } .bar-commit { background: var(--c-commit); }
+.bar-concurrency { background: var(--c-concurrency); } .bar-network { background: var(--c-network); } .bar-other { background: var(--c-other); }
+.bar-idle, .bar-unaccounted { background: var(--c-idle); }
+.dtext { position: relative; z-index: 1; display: block; overflow: hidden; padding-inline: 8px; text-align: end; white-space: nowrap; color: var(--ink); text-shadow: 0 0 2px var(--surface-raised), 0 0 2px var(--surface-raised); }
+.dtext.neg { color: var(--ink-3); }
+
+/* the line number: the sunken gutter */
+.c-ln { position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: flex-end; padding-inline: 0.6em 8px; text-align: end; color: var(--ink-3); background: var(--surface-sunken); border-inline-end: 1px solid var(--hairline); user-select: none; }
+
+/* the lane: the cursor's stretch in its statement's colour (a 4 px band 3 px from the edge); the first row of a lane names it, the second starts its SQL */
+.c-lane { position: relative; box-sizing: border-box; padding-inline: calc(12px + var(--dep, 0) * 8px) 4px; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); }
+.c-lane::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 3px; inline-size: 4px; background: var(--lane); }
+.c-lane.lane-none::before { content: none; }
+.lane-id { color: color-mix(in oklch, var(--lane) 65%, var(--ink)); font-weight: 500; text-decoration: none; }
+.lane-sub { color: var(--ink-3); }
+.lane-dep { display: inline-block; margin-inline-end: 0.4em; padding-inline: 0.3em; border: 1px solid var(--hairline-strong); border-radius: 3px; line-height: 1.25; color: var(--ink-3); font-weight: 400; }
+.c-fh { box-sizing: content-box; text-align: center; padding-inline-start: 4px; inline-size: 1.2em; }
+.fold { color: var(--ink-3); font-size: var(--text-sm); }
+
+/* the duration: the number right-aligned, its unit dimmed in a slot of its own */
+.c-dur { display: flex; justify-content: flex-end; box-sizing: border-box; overflow: hidden; padding-inline: 8px 4px; }
+.c-dur > b { flex: none; font-weight: 400; color: var(--ink); }
+.c-dur > small { flex: none; inline-size: 3ch; padding-inline-start: 0.5ch; font-size: inherit; color: var(--ink-3); text-align: start; }
+
+/* the operation: what the line is, tinted a hint of its role (the app mixes in oklch, so waits read purple and plans green) */
+.c-op { padding-inline-start: 8px; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); font-weight: 500; }
+.tone-none { color: var(--ink-3); } .tone-dim { color: var(--ink-3); }
+.tone-cpu { color: color-mix(in oklch, var(--c-cpu) 55%, var(--ink)); }
+.tone-userio { color: color-mix(in oklch, var(--c-userio) 52%, var(--ink)); }
+.tone-sysio { color: color-mix(in oklch, var(--c-sysio) 55%, var(--ink)); }
+.tone-network { color: color-mix(in oklch, var(--c-network) 55%, var(--ink)); }
+.tone-commit { color: color-mix(in oklch, var(--c-commit) 60%, var(--ink)); }
+
+.c-detail { overflow: hidden; text-overflow: ellipsis; padding-inline: 8px; }
+.c-clock { box-sizing: border-box; overflow: hidden; padding-inline-end: 12px; text-align: end; white-space: nowrap; color: var(--ink-2); }
+.c-clock small { font-size: inherit; color: var(--ink-3); }
+
+/* the pieces of the detail */
+.rd-dim { color: var(--ink-3); } .rd-num { color: var(--ink); } .rd-name { color: var(--ink); font-weight: 500; }
+.rd-warn { color: var(--s-critical); } .rd-val { color: var(--ink); }
+.rd-ev { color: var(--ink); }
+.rd-evobj { margin-inline-start: 2ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
+.rd-pgap { margin-inline-start: 2ch; }
+.rd-q > b { font-weight: 400; color: var(--ink); } .rd-q > small { font-size: inherit; color: var(--ink-3); }
+.rd-q + .rd-q, .rd-q + .rd-warn, .rd-q + .rd-dim { margin-inline-start: 2ch; }
+.rd-kw { color: color-mix(in oklch, var(--c-cpu) 70%, var(--ink)); }
+.rd-str { color: color-mix(in oklch, var(--c-network) 70%, var(--ink)); }
+.rd-bind { color: color-mix(in oklch, var(--c-other) 70%, var(--ink)); font-weight: 500; }
+.rd-cmt { color: var(--ink-3); font-style: italic; }
+.rd-rule { display: inline-block; inline-size: 24ch; block-size: 0; vertical-align: middle; border-block-start: 1px solid var(--hairline-strong); }
+
+/* a table in the detail (a plan, a BINDS block): a band behind its cells, a rule under each row, a stronger one at its end */
+.tbl { display: flex; align-items: stretch; text-overflow: clip; }
+.pc { flex: none; overflow: hidden; text-overflow: ellipsis; white-space: pre; box-sizing: border-box; }
+.tb .pc { background: color-mix(in oklch, var(--ink) 3.5%, transparent); box-shadow: inset 0 -1px 0 var(--hairline); }
+.tb-head .pc { box-shadow: inset 0 -1px 0 var(--hairline-strong); color: var(--ink-2); font-weight: 500; }
+.tb-end .pc { box-shadow: inset 0 -1px 0 var(--hairline-strong); }
+.pc-id { inline-size: 4.5ch; text-align: end; color: var(--ink-3); padding-inline-end: 1.5ch; }
+.tbl-plan .pc-op { flex: 0 1 44ch; min-inline-size: 12ch; padding-inline-start: calc(var(--dep, 0) * 2ch); color: var(--ink); }
+.tbl-plan .pc-name { flex: 0 1 18ch; min-inline-size: 11.5ch; padding-inline-start: 1ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
+.pc-n { position: relative; inline-size: 8ch; text-align: end; color: var(--ink); }
+.pc-starts, .pc-cost, .pc-pr, .pc-pw { inline-size: 7ch; } .pc-time { inline-size: 12ch; } .pc-cr { inline-size: 9ch; }
+.pc-off { color: var(--s-critical); }
+.pc-self { position: absolute; inset-inline-start: 1ch; inset-block: 6px; inline-size: calc(var(--w) * 4ch); min-inline-size: 1px; border-radius: 1px; background: color-mix(in oklch, var(--c-cpu) 65%, transparent); }
+.tb .pc-pw { padding-inline-end: 8px; inline-size: calc(7ch + 8px); }
+.tb-head .pc-op, .tb-head .pc-name { color: var(--ink-2); }
+.pc-bname { inline-size: 16ch; padding-inline-start: 1ch; color: var(--ink); font-weight: 500; }
+.tbl-binds .pc-bval { flex: 0 1 32ch; min-inline-size: 10ch; padding-inline-start: 1ch; color: var(--ink); }
+.pc-btype { inline-size: 16ch; padding-inline: 1ch; color: var(--ink-2); }
+.tb-head .pc-bname, .tb-head .pc-bval, .tb-head .pc-btype { color: var(--ink-2); font-weight: 500; }
+.tbl-binds .asrun { align-self: center; margin-inline: 12px 0; }
+.asrun { color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
+
+/* the selected line, a hot spot, the marks of the highlighted statement. NOW: the selected row is amber but its number cell is cyan (the oklch mix, bug 8) */
+.row.mk { background: color-mix(in oklch, var(--hl, var(--c-cpu)) 10%, transparent); }
+.row.mk .c-delta::before { content: ""; position: absolute; z-index: 2; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--hl, var(--c-cpu)); }
+.row.mk .c-lane::before { background: color-mix(in oklch, var(--lane) 60%, var(--ink)); }
+.row.hot { background: color-mix(in oklch, var(--c-userio) 9%, transparent); }
+.row.hot > :first-child { box-shadow: inset 3px 0 0 var(--c-userio); }
+.row.sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.row.sel .c-ln { color: var(--ink); font-weight: 600; background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-sunken)); }
+
+/* the column header, in the rows' columns */
+.colhead { display: grid; grid-template-columns: var(--cols); block-size: 24px; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline-strong); font: 500 var(--text-xs) / 24px var(--font-ui); color: var(--ink-2); user-select: none; }
+.ch { position: relative; overflow: hidden; white-space: nowrap; box-sizing: border-box; }
+.ch-delta { text-align: end; padding-inline: 8px; }
+.ch-lane { padding-inline-start: 12px; }
+.ch-dur { text-align: end; padding-inline-end: 26px; }
+.ch-op, .ch-detail { padding-inline-start: 8px; }
+.ch-clock { text-align: end; padding-inline-end: 12px; }
+.grip { position: absolute; inset-block: 0; inset-inline-end: 0; inline-size: 7px; }
+.grip::after { content: ""; position: absolute; inset-block: 5px; inset-inline-end: 3px; inline-size: 1px; background: var(--hairline-strong); }
+.grip.at-end { inset-inline: 0 auto; } .grip.at-end::after { inset-inline: 3px auto; }
+
+/* the density strip at the right edge: where the statements' calls are (here a stand-in, the same in NOW and PROPOSED) */
+.strip { flex: none; position: relative; inline-size: 14px; box-sizing: content-box; background: var(--surface-sunken); border-inline-start: 1px solid var(--hairline); }
+.strip i { position: absolute; inset-inline: 1px; display: block; }
+.strip .vp { position: absolute; inset-inline: 3px 4px; background: var(--ink); opacity: 0.88; outline: 1px solid var(--surface-sunken); }
+
+/* ---- B. PROPOSED --------------------------------------------------------------------------------------------------------------- */
+
+/* 1. Highlight the lane, not the row: no row fill; the Statement cell takes the lane colour at 14 % for the full row height on every row of
+   the lane, its band widens to 6 px in the lane's own hue, and the number cell keeps a 3 px start-edge bar on the calls and waits. Only the
+   selection (one amber, number cell included) and hot spots fill a row. */
+.p1 .row.mk { background: none; }
+.p1 .row.mk .c-delta::before { content: none; }
+.p1 .row.hlane .c-lane { background: color-mix(in oklch, var(--lane) 14%, transparent); }
+.p1 .row.hlane .c-lane::before, .p1 .row.mk .c-lane::before { background: var(--lane); inline-size: 6px; inset-inline-start: 0; }
+.p1 .row.mk .c-ln::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 3px; background: var(--hl); }
+.p1 .row.sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.p1 .row.sel .c-ln { background: transparent; }
+.p1 .row.sel .c-ln::before { background: var(--hl); }
+
+/* 2. Hot spots unmistakable: --s-critical at 16 % (22 % dark) on the row, a 3 px start bar, the duration number at 600 in --s-critical; the hue is reserved for this */
+.p2 .row.hot { background: var(--hot-fill); }
+.p2 .row.hot > :first-child { box-shadow: inset 3px 0 0 var(--s-critical); }
+.p2 .row.hot .c-dur b, .p2 .row.hot .dnum b { color: var(--s-critical); font-weight: 600; }
+.p2.p1 .row.hot.mk { background: var(--hot-fill); }
+
+/* 3. The bar lives with Duration: Δ is text only and dimmed; a 56 px log-scale track after the number; a magnitude ramp on the numbers */
+.p3, .p3gap { --w-dur: 144px; }
+.p3gap { --w-dur: 72px; }
+.p3 .dtext, .p3gap .dtext { color: var(--ink-3); text-shadow: none; }
+.p3 .dtext.emph, .p3gap .dtext.emph { color: var(--s-warning); font-weight: 500; }
+.p3 .c-dur { justify-content: flex-start; padding-inline: 0 8px; align-items: center; gap: 8px; }
+.p3 .dnum { flex: none; inline-size: 72px; display: flex; justify-content: flex-end; padding-inline: 8px 4px; box-sizing: border-box; }
+.dnum b { flex: none; color: var(--ink); } .dnum small { flex: none; inline-size: 3ch; padding-inline-start: 0.5ch; font-size: inherit; color: var(--ink-3); text-align: start; }
+.dnum.mag-us b { color: var(--ink-2); font-weight: 400; }
+.dnum.mag-ms b { color: var(--ink); font-weight: 500; }
+.dnum.mag-s b { color: var(--ink); font-weight: 650; }
+.dnum.zero b { color: var(--ink-3); }
+.trk { position: relative; flex: none; inline-size: 56px; block-size: 8px; border-radius: 2px; background: color-mix(in oklch, var(--ink) 8%, transparent); overflow: hidden; }
+.trk .fill { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: calc(var(--f) * 100%); background: var(--col); }
+.trk .fill.waited { opacity: 0.45; }
+.trk u { position: absolute; inset-block: 0; inset-inline-start: var(--x); inline-size: 1px; background: color-mix(in oklch, var(--ink) 12%, transparent); }
+.p3 .ch-dur { text-align: end; padding-inline-end: 80px; }
+
+/* 4. Calls loud, waits quiet, the call says what it waited for */
+.p4 .c-op { font-size: var(--text-xs); }
+.p4 .c-op.op-call { font-weight: 600; color: var(--ink); }
+.p4 .c-op.op-wait { font-weight: 400; color: var(--ink-3); }
+.p4 .c-op.op-struct { font-weight: 500; color: var(--ink-2); }
+.p4 .c-op.op-mark { font-weight: 400; color: var(--ink-3); }
+.p4 .rd-evobj { color: var(--ink-2); }
+.dot { display: inline-block; inline-size: 6px; block-size: 6px; border-radius: 50%; margin-inline-end: 6px; vertical-align: 1px; background: var(--dot); }
+.dot.ring { background: transparent; box-shadow: inset 0 0 0 1.5px var(--dot); }
+.pill-hp { display: inline-block; padding-inline: 0.55em; border-radius: 999px; font-size: var(--text-xs); line-height: 16px; vertical-align: 1px; color: var(--ink); background: color-mix(in oklch, var(--s-warning) 18%, transparent); }
+.rd-q + .pill-hp, .rd-dim + .pill-hp { margin-inline-start: 2ch; }
+.share { margin-inline-start: 2ch; color: var(--ink-2); }
+.share.crit { color: var(--s-critical); }
+.p4 .c-detail { position: relative; }
+.p4 .row.indent .c-detail { padding-inline-start: calc(8px + 2ch); }
+.p4 .row.br-first .c-detail::before, .p4 .row.br-in .c-detail::before, .p4 .row.br-end .c-detail::before { content: ""; position: absolute; inset-inline-start: 1px; inset-block: 0; inline-size: 1px; background: var(--lane); }
+.p4 .row.br-first .c-detail::before { inset-block-start: 3px; }
+.p4 .row.br-end .c-detail::before { inset-block-end: 50%; }
+.p4 .row.br-end .c-detail::after { content: ""; position: absolute; inset-inline-start: 1px; inset-block-start: 50%; inline-size: 5px; block-size: 1px; background: var(--lane); }
+
+/* 5. A sticky lane label and a 14 px Statement column (the band 6 px and an 8 px gutter) */
+.p5 { --w-lane: 14px; }
+.p5 .c-lane { padding: 0; }
+.p5 .c-lane::before { inset-inline-start: 0; inline-size: 6px; }
+/* the lane's identity: ONE sticky row of 20 px at the top of the viewport, like the plan head row's overlay: from the Statement band column to the right edge,
+   on --surface-sunken with a 1 px --hairline below and the lane's 6 px band at its left; it covers only the top row (not its delta and number) */
+.sticky-lane { position: absolute; z-index: 5; inset-block-start: 0; inset-inline: calc(var(--w-delta) + var(--w-ln)) 0; block-size: var(--row); box-sizing: border-box; display: flex; align-items: center; gap: 1ch; padding-inline: 14px 12px; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); font-size: var(--text-xs); line-height: calc(var(--row) - 1px); white-space: pre; overflow: hidden; }
+.sticky-lane::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 6px; background: var(--lane); }
+.sl-id { color: var(--lane); font-weight: 600; filter: brightness(0.82); }
+.sl-sql { color: var(--ink-3); }
+.sl-sep { color: var(--ink-3); }
+.sl-sql { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.sl-facts { margin-inline-start: auto; flex: none; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.exectag { margin-inline-end: 1.2ch; font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-3); }
+
+/* 6. Row economy: inline bind chips, folded framing rows, quiet CLOSE wording, record rules, a one-row CURSOR */
+.p6 .c-dur.zero b { color: var(--ink-3); }
+.p6 .c-ln.gap::before { content: ""; position: absolute; inset-inline: 10px 8px; inset-block-start: 0; border-block-start: 1px dotted var(--ink-3); }
+.p6 .row.exec-first::after, .p6 .row.rule-top::after { content: ""; position: absolute; z-index: 3; inset-inline: 0; inset-block-start: 0; block-size: 1px; background: var(--ruling); pointer-events: none; }
+.p6 .row.rule-top::after { background: var(--hairline-strong); }
+.chip-bind { display: inline-flex; align-items: baseline; gap: 0.5ch; padding-inline: 0.7ch; margin-inline-end: 1.5ch; border-radius: 3px; background: var(--wash); line-height: 16px; vertical-align: 1px; }
+.chip-bind .bname { color: color-mix(in oklch, var(--c-other) 70%, var(--ink)); font-weight: 500; }
+.chip-bind .bval { font-weight: 500; color: var(--ink); }
+.chip-bind small { font-size: var(--text-xs); color: var(--ink-3); }
+.binds-inline .asrun { margin-inline-start: 0.5ch; }
+
+/* 7. Scannable Detail for runs of the same event: a ditto for the repeated prefix, the varying fields as right-aligned micro-columns */
+.pre { display: inline-block; inline-size: calc(var(--ch) * 1ch); vertical-align: top; white-space: pre; overflow: hidden; }
+.pre.ditto, .pre.ditto .rd-ev, .pre.ditto .rd-evobj { color: var(--ink-3); }
+.pre.ditto { opacity: 0.6; }
+.mc { display: inline-block; vertical-align: top; text-align: end; white-space: pre; }
+.mc i { font-style: normal; color: var(--ink-3); } .mc b { font-weight: 400; color: var(--ink); }
+.mc-file { inline-size: 9ch; } .mc-block { inline-size: 14ch; } .mc-blocks { inline-size: 11ch; }
+
+/* 8. Quieter plan and bind tables: Operation .. Clock on --surface-sunken, a 1 px hairline frame, inset 1 ch; 11 px --ink-3 header cells, no band */
+.p8 { --w-fh: 0px; }
+.p8 .c-fh, .ch-fh { padding: 0; inline-size: 0; overflow: hidden; }
+.c-tbl { grid-column: 6 / 9; display: flex; align-items: stretch; margin-inline: 1ch; background: var(--surface-sunken); border-inline: 1px solid var(--hairline); min-inline-size: 0; overflow: hidden; }
+.c-tbl.tbl-first { border-block-start: 1px solid var(--hairline); border-start-start-radius: 3px; border-start-end-radius: 3px; }
+.c-tbl.tbl-last { border-block-end: 1px solid var(--hairline); border-end-start-radius: 3px; border-end-end-radius: 3px; }
+.c-tbl .tc-handle { flex: none; inline-size: calc(var(--w-op) - 1ch - 1px); padding-inline-start: 7px; font-size: var(--text-xs); font-weight: 500; color: var(--ink-2); }
+.c-tbl .pc { background: none; box-shadow: none; }
+.c-tbl.tbl-head { border-block-end: 0; }
+.c-tbl.tbl-head .pc { color: var(--ink-3); font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; box-shadow: inset 0 -1px 0 var(--hairline); }
+.c-tbl.tbl-head .tc-handle { box-shadow: inset 0 -1px 0 var(--hairline); }
+.c-tbl .pc-time { display: flex; align-items: center; justify-content: flex-end; gap: 8px; inline-size: calc(12px + 56px + 8px + 9 * var(--chw)); overflow: visible; }
+.c-tbl.tbl-head .pc-time { display: block; text-align: end; overflow: hidden; }
+.c-tbl .pc-time .tnum { flex: none; inline-size: calc(9 * var(--chw)); text-align: end; color: var(--ink); }
+.c-tbl.tbl-head .pc-time { padding-inline-end: 0; }
+.c-tbl.tbl-head .pc-time small { font-size: inherit; color: var(--ink-3); font-weight: 400; }
+.c-tbl .pc-time .trk .fill { background: color-mix(in oklch, var(--c-cpu) 75%, transparent); min-inline-size: 1px; }
+.c-tbl .pc-n, .c-tbl .pc-starts { color: var(--ink); }
+.c-tbl .pc-pw { padding-inline-end: 8px; }
+.c-tbl .pc-time.hot-cell { background: var(--hot-fill); margin-block: 1px; line-height: 18px; border-radius: 2px; }
+.c-tbl .pc-time.hot-cell .tnum { color: var(--s-critical); font-weight: 600; }
+/* the table's columns in px of the row font (7.2 px a digit), so the 11 px header cells (UI font) line up with the mono cells under them */
+.c-tbl { --chw: 7.2px; }
+.c-tbl .pc-id { inline-size: calc(4.5 * var(--chw)); padding-inline-end: calc(1.5 * var(--chw)); }
+.c-tbl.tbl-plan .pc-op { flex: 0 1 calc(44 * var(--chw)); min-inline-size: calc(12 * var(--chw)); padding-inline-start: calc(var(--dep, 0) * 2 * var(--chw)); }
+.c-tbl.tbl-plan .pc-name { flex: 0 1 calc(18 * var(--chw)); min-inline-size: calc(11.5 * var(--chw)); padding-inline-start: var(--chw); }
+.c-tbl .pc-n { inline-size: calc(8 * var(--chw)); }
+.c-tbl .pc-starts, .c-tbl .pc-cost, .c-tbl .pc-pr, .c-tbl .pc-pw { inline-size: calc(7 * var(--chw)); }
+.c-tbl .pc-cr { inline-size: calc(9 * var(--chw)); }
+.c-tbl .pc-pw { inline-size: calc(7 * var(--chw) + 8px); }
+.c-tbl .pc-bname { inline-size: calc(16 * var(--chw)); padding-inline-start: var(--chw); }
+.c-tbl.tbl-binds .pc-bval { flex: 0 1 calc(32 * var(--chw)); min-inline-size: calc(10 * var(--chw)); padding-inline-start: var(--chw); }
+.c-tbl .pc-btype { inline-size: calc(16 * var(--chw)); padding-inline: var(--chw); }
+.c-tbl .pc-time { padding-inline-start: 12px; }
+.c-tbl .asrun-foot { align-self: center; padding-inline-start: 1ch; color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; }
+
+/* 9. Clock that shows what changes: the full stamp where it changes, else the changing microseconds right-aligned under it (17 ch -> 10 ch) */
+.p9 { --w-clock: 84px; }
+.p9 .c-clock { overflow: visible; }
+.p9 .c-clock.short { color: var(--ink-2); }
+.p9 .c-clock.full { color: var(--ink); }
+.p9 .c-clock { display: flex; justify-content: flex-end; }
+.p9 .row .c-detail { padding-inline-end: 6ch; }
+
+/* section 2 on a NOW-style plan: the hot operation's A-Time cell */
+.p2 .pc.hot-cell { background: var(--hot-fill); color: var(--s-critical); font-weight: 600; }
+
+.c-tbl .pc-time, .c-tbl .pc-n.pc-time { inline-size: calc(12px + 56px + 8px + 9 * var(--chw)); }
+/* section 5 on a table-style BINDS block: the execution tag is a fixed first cell of the table, so Variable and :B1 still line up */
+.pc-tag { inline-size: 10ch; padding-inline-start: 1ch; font-size: var(--text-xs); }
+.tb-head .pc-tag { font-weight: 400; }
+
+/* ==========================================================================================================
+   The chrome above the rows (section 10): toolbar, breadcrumb, "where the time went" bar, statement chips; strip, status bar.
+   NOW = the app's rules (lines.css, app.css, base.css); PROPOSED = `.p10`.
+   ========================================================================================================== */
+.lines-bar, .lines-at, .rd-over, .lines-status-bar { font-family: var(--font-ui); line-height: 1.45; }
+.pane button { font: inherit; font-family: var(--font-ui); font-size: var(--text-sm); color: inherit; background: none; border: 1px solid var(--hairline-strong); border-radius: var(--radius); padding: 0.2rem 0.6rem; line-height: 1.45; cursor: default; white-space: nowrap; }
+.pane button.quiet { border-color: color-mix(in oklch, var(--hairline-strong) 60%, transparent); color: var(--ink-2); }
+.pane button.quiet.pressed { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.pane a.link { text-decoration: underline; text-underline-offset: 2px; color: inherit; cursor: default; }
+.pane kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
+.cue { color: var(--ink-3); margin-inline-start: 0.3em; }
+.pressed .cue { color: inherit; opacity: 0.7; }
+.mono { font-family: var(--font-mono); font-size: 0.92em; }
+
+.lines-bar { padding-block: 8px; padding-inline: 16px; border-block-end: 1px solid var(--hairline); background: var(--surface); }
+.lines-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lines-row.nowrap { flex-wrap: nowrap; }
+/* the 1560 px composite wraps only its last button, as the 1600 px screenshot does; the search box is a little narrower than the app's 30rem for it */
+.lines-row.wrap .lines-search { flex-basis: 24.5rem; }
+.lines-row > .tb-cmd { margin-inline-start: auto; }
+.wrap-break { flex-basis: 100%; block-size: 0; }
+.lines-rd { display: flex; align-items: center; gap: 4px; }
+.lines-rd small { color: inherit; opacity: 0.7; }
+.lines-mode { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--hairline-strong); border-radius: calc(var(--radius) + 2px); background: var(--surface-sunken); }
+.lines-mode > button.mode { display: inline-flex; align-items: center; gap: 0.45em; border: 0; border-radius: var(--radius); background: transparent; padding: 0.3rem 0.8rem; font-size: var(--text-sm); font-weight: 500; color: var(--ink-2); }
+.lines-mode > button.mode.on { background: var(--ink); color: var(--surface-raised); box-shadow: 0 1px 2px color-mix(in oklch, var(--ink) 25%, transparent); }
+.lines-mode > kbd { line-height: 1.4; background: var(--surface-raised); margin-inline: 0.3em 0.2em; }
+.lines-hl { display: inline-flex; flex: 0 1 auto; min-inline-size: 0; overflow: hidden; align-items: center; gap: 4px; padding: 1px 4px 1px 8px; font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; border-radius: var(--radius); background: color-mix(in oklch, var(--hl) 14%, transparent); box-shadow: inset 3px 0 0 var(--hl); }
+.lines-hl > i { inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; background: var(--hl); }
+.lines-hl > .link { font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
+.lines-hl > small { color: var(--ink-3); font-size: inherit; }
+.lines-hl > button.quiet { padding-inline: 0.3em; }
+.lines-search { display: flex; align-items: stretch; flex: 0 1 30rem; min-inline-size: 14rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); }
+.lines-search input { flex: 1; min-inline-size: 0; border: 0; background: transparent; outline: none; font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.25rem 0.5rem; color: var(--ink); }
+.lines-search input::placeholder { color: var(--ink-3); opacity: 1; }
+.lines-search > button { border: 0; border-radius: 0; border-inline-start: 1px solid var(--hairline); }
+.tb-cmd kbd { margin-inline-start: 8px; }
+.tb-cmd kbd:first-child { margin-inline-start: 0; }
+.tb-panel { display: inline-flex; align-items: center; gap: 0.4em; }
+
+.lines-at { display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; padding-block: 4px; padding-inline: 16px; border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); block-size: 2rem; }
+.lines-crumbs { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; }
+.lines-crumbs > * { flex: none; }
+.lines-crumbs > .lines-sql { flex: 0 1 auto; min-inline-size: 8ch; max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); color: var(--ink-2); }
+.crumb-sep { color: var(--ink-3); }
+.lines-kind-t { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+.rd-over { display: flex; flex-direction: column; gap: 4px; padding-block: 4px; padding-inline: 16px; border-block-end: 1px solid var(--hairline); background: var(--surface); }
+.rd-track { display: block; inline-size: 100%; block-size: 10px; background: var(--surface-sunken); border-radius: 2px; }
+.rd-track-at { fill: var(--ink); }
+.rd-chips { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.rd-chip-st { display: inline-flex; align-items: center; gap: 0.4em; padding-block: 0; font-size: var(--text-xs); }
+.rd-chip-st i { inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; }
+.rd-chip-st small { color: var(--ink-3); font-size: inherit; }
+.pane button.rd-chip-st.quiet.pressed { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--chip); background: color-mix(in oklch, var(--chip) 14%, transparent); border-color: color-mix(in oklch, var(--hairline-strong) 60%, transparent); }
+
+.lines-status-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; padding-block: 4px; padding-inline: 16px; border-block-start: 1px solid var(--hairline); background: var(--surface-sunken); color: var(--ink-2); font-size: var(--text-sm); }
+
+/* ---- PROPOSED chrome (section 10) --------------------------------------------------------------------------------------------- */
+/* one toolbar row that never wraps; the search gives way first (min 14 ch); pressed toggles are quiet (ink on --wash), only Raw | Formatted is solid */
+.p10 .lines-row { flex-wrap: nowrap; }
+.p10 .lines-search { flex: 1 1 auto; max-inline-size: 30rem; min-inline-size: 14ch; }
+.p10 .lines-row > .tb-cmd { margin-inline-start: auto; }
+.p10 .pane button.quiet.pressed, .p10 button.quiet.pressed { background: var(--wash); color: var(--ink); border-color: var(--hairline-strong); }
+.p10 .rd-over { gap: 6px; padding-block: 8px; }
+.time-bar { display: grid; grid-template-columns: 210px minmax(0, 1fr); align-items: start; column-gap: 12px; }
+.time-bar .tb-label { font-size: var(--text-xs); color: var(--ink-3); line-height: 12px; padding-block-start: 0; white-space: nowrap; }
+.tb-main { min-inline-size: 0; }
+.tb-track { position: relative; block-size: 12px; background: var(--surface-sunken); border-radius: 2px; }
+.tb-track .seg { position: absolute; inset-block: 0; }
+.tb-track .vbracket { position: absolute; inset-block: -3px; background: color-mix(in oklch, var(--ink) 20%, transparent); border-inline: 1px solid var(--ink); box-sizing: border-box; }
+.tb-track .at { position: absolute; inset-block: 0; inline-size: 1.5px; background: var(--ink); }
+.tb-axis { position: relative; block-size: 14px; margin-block-start: 3px; font-size: 10px; color: var(--ink-3); line-height: 12px; }
+.tb-axis .ax { position: absolute; inset-block-start: 0; transform: translateX(-50%); white-space: nowrap; }
+.tb-axis .ax i { position: absolute; inset-block-start: -3px; inset-inline-start: 50%; inline-size: 1px; block-size: 3px; background: var(--hairline-strong); }
+.rd-over .chip { display: inline-flex; align-items: center; gap: 0.4em; padding-inline: 6px; block-size: 20px; border-radius: var(--radius); border: 1px solid color-mix(in oklch, var(--hairline-strong) 60%, transparent); font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; }
+.rd-over .chip i { inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; }
+.rd-over .chip small { color: var(--ink-3); font-size: inherit; }
+.rd-over .chip.on { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--chip); background: color-mix(in oklch, var(--chip) 12%, transparent); border-color: transparent; }
+.rd-over .chip.on small { color: var(--ink-2); }
+.rd-over .chip .x { margin-inline-start: 2px; padding-inline: 4px; color: var(--ink-2); }
+.rd-over .chip .cnt { margin-inline-start: 6px; padding-inline-start: 8px; border-inline-start: 1px solid var(--hairline-strong); }
+.rd-over .chip-fold { border-style: dashed; }
+/* the column header: the same cells, 11 px --ink-3 500, no resize grips (they appear on hover) */
+.p10 .colhead { color: var(--ink-3); background: var(--surface-sunken); }
+
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="page-head">
+    <div>
+      <h1>Formatted Trace view, round 2</h1>
+      <p>Ten changes to the Formatted view of the Trace tab, each shown as NOW (what the app draws today, re-rendered from its own rules) above PROPOSED, on the same rows of <span class="mono">io_waits.trc</span> (19c, session 51.14688). Nothing here is invented: every row is a line of the trace.</p>
+      <div class="legend"><span><b class="tag">Now</b> the app today</span><span><b class="tag proposed">Proposed</b> the change</span><span>rows are 20 px, mono 12 px; wide blocks scroll sideways inside their frame</span></div>
+    </div>
+    <button id="theme" class="theme-toggle" type="button" aria-label="Theme: auto, light or dark">Theme <b id="theme-label">Auto</b></button>
+  </header>
+  <nav class="toc" aria-label="Sections"><h2>Sections</h2><ol id="toc-list"></ol></nav>
+  <main id="app"></main>
+  <p class="foot" style="grid-column: 1 / -1">Mock-up for the Formatted Trace view: no interaction is real. Source in <span class="mono">src/</span>, rebuilt by <span class="mono">node build.mjs</span>.</p>
+</div>
+<script>
+const DATA = {"rows":[{"from":23,"to":60,"rows":[{"ln":23,"raw":"*** 2026-10-22T11:35:29.191626+00:00 (PDB1(3))","k":"TEXT","text":"*** 2026-10-22T11:35:29.191626+00:00 (PDB1(3))"},{"ln":24,"raw":"*** SESSION ID:(51.14688) 2026-10-22T11:35:29.191647+00:00","k":"MARK","name":"SESSION ID","value":"51.14688","at":"2026-10-22T11:35:29.191647+00:00"},{"ln":25,"raw":"*** CLIENT ID:(mtk_client_io_waits) 2026-10-22T11:35:29.191650+00:00","k":"MARK","name":"CLIENT ID","value":"mtk_client_io_waits","at":"2026-10-22T11:35:29.191650+00:00"},{"ln":26,"raw":"*** SERVICE NAME:(pdb1) 2026-10-22T11:35:29.191653+00:00","k":"MARK","name":"SERVICE NAME","value":"pdb1","at":"2026-10-22T11:35:29.191653+00:00"},{"ln":27,"raw":"*** MODULE NAME:(mtk_io_waits) 2026-10-22T11:35:29.191656+00:00","k":"MARK","name":"MODULE NAME","value":"mtk_io_waits","at":"2026-10-22T11:35:29.191656+00:00"},{"ln":28,"raw":"*** ACTION NAME:(start) 2026-10-22T11:35:29.191658+00:00","k":"MARK","name":"ACTION NAME","value":"start","at":"2026-10-22T11:35:29.191658+00:00"},{"ln":29,"raw":"*** CLIENT DRIVER:(SQL*PLUS) 2026-10-22T11:35:29.191661+00:00","k":"MARK","name":"CLIENT DRIVER","value":"SQL*PLUS","at":"2026-10-22T11:35:29.191661+00:00"},{"ln":30,"raw":"*** CONTAINER ID:(3) 2026-10-22T11:35:29.191664+00:00","k":"MARK","name":"CONTAINER ID","value":"3","at":"2026-10-22T11:35:29.191664+00:00"},{"ln":31,"raw":" ","k":"BLANK"},{"ln":32,"raw":"WAIT #139745605258360: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804499034","k":"WAIT","cur":"139745605258360","nam":"SQL*Net message to client","ela":0,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.191045","tim":10804499034},{"ln":33,"raw":"WAIT #139745605258360: nam='SQL*Net message from client' ela= 122 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804499849","k":"WAIT","cur":"139745605258360","nam":"SQL*Net message from client","ela":122,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.191860","tim":10804499849},{"ln":34,"raw":"CLOSE #139745605258360:c=1,e=2,dep=0,type=1,tim=10804499867","k":"CLOSE","cur":"139745605258360","c":1,"e":2,"dep":0,"type":1,"tim":10804499867,"clock":"11:35:29.191878"},{"ln":35,"raw":"=====================","k":"RULE"},{"ln":36,"raw":"PARSING IN CURSOR #139745605242584 len=48 dep=0 uid=165 oct=42 lid=165 tim=10804500013 hv=251293041 ad='0' sqlid='1h7h96h7gnvbj'","k":"CURSOR","cur":"139745605242584","sqlid":"1h7h96h7gnvbj","dep":0,"uid":165,"oct":42,"clock":"11:35:29.192024"},{"ln":37,"raw":"alter session set \"_serial_direct_read\" = always","k":"TEXT","text":"alter session set \"_serial_direct_read\" = always"},{"ln":38,"raw":"END OF STMT","k":"ENDSTMT"},{"ln":39,"raw":"PARSE #139745605242584:c=121,e=121,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500012","k":"PARSE","cur":"139745605242584","sqlid":"1h7h96h7gnvbj","c":121,"e":121,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":0,"plh":0,"tim":10804500012,"clock":"11:35:29.192023"},{"ln":40,"raw":"EXEC #139745605242584:c=19,e=19,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500070","k":"EXEC","cur":"139745605242584","sqlid":"1h7h96h7gnvbj","c":19,"e":19,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":0,"plh":0,"tim":10804500070,"clock":"11:35:29.192081"},{"ln":41,"raw":"WAIT #139745605242584: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500079","k":"WAIT","cur":"139745605242584","sqlid":"1h7h96h7gnvbj","nam":"SQL*Net message to client","ela":0,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.192090","tim":10804500079},{"ln":42,"raw":"WAIT #139745605242584: nam='SQL*Net message from client' ela= 109 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500195","k":"WAIT","cur":"139745605242584","sqlid":"1h7h96h7gnvbj","nam":"SQL*Net message from client","ela":109,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.192206","tim":10804500195},{"ln":43,"raw":"CLOSE #139745605242584:c=1,e=2,dep=0,type=1,tim=10804500208","k":"CLOSE","cur":"139745605242584","sqlid":"1h7h96h7gnvbj","c":1,"e":2,"dep":0,"type":1,"tim":10804500208,"clock":"11:35:29.192219"},{"ln":44,"raw":"=====================","k":"RULE"},{"ln":45,"raw":"PARSING IN CURSOR #139745605240912 len=47 dep=0 uid=165 oct=42 lid=165 tim=10804500301 hv=1631786261 ad='0' sqlid='942xwb5hn658p'","k":"CURSOR","cur":"139745605240912","sqlid":"942xwb5hn658p","dep":0,"uid":165,"oct":42,"clock":"11:35:29.192312"},{"ln":46,"raw":"alter session set workarea_size_policy = manual","k":"TEXT","text":"alter session set workarea_size_policy = manual"},{"ln":47,"raw":"END OF STMT","k":"ENDSTMT"},{"ln":48,"raw":"PARSE #139745605240912:c=84,e=84,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500301","k":"PARSE","cur":"139745605240912","sqlid":"942xwb5hn658p","c":84,"e":84,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":0,"plh":0,"tim":10804500301,"clock":"11:35:29.192312"},{"ln":49,"raw":"EXEC #139745605240912:c=81,e=81,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500410","k":"EXEC","cur":"139745605240912","sqlid":"942xwb5hn658p","c":81,"e":81,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":0,"plh":0,"tim":10804500410,"clock":"11:35:29.192421"},{"ln":50,"raw":"WAIT #139745605240912: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500420","k":"WAIT","cur":"139745605240912","sqlid":"942xwb5hn658p","nam":"SQL*Net message to client","ela":0,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.192431","tim":10804500420},{"ln":51,"raw":"WAIT #139745605240912: nam='SQL*Net message from client' ela= 100 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500527","k":"WAIT","cur":"139745605240912","sqlid":"942xwb5hn658p","nam":"SQL*Net message from client","ela":100,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.192538","tim":10804500527},{"ln":52,"raw":"CLOSE #139745605240912:c=1,e=1,dep=0,type=1,tim=10804500540","k":"CLOSE","cur":"139745605240912","sqlid":"942xwb5hn658p","c":1,"e":1,"dep":0,"type":1,"tim":10804500540,"clock":"11:35:29.192551"},{"ln":53,"raw":"=====================","k":"RULE"},{"ln":54,"raw":"PARSING IN CURSOR #139745604254440 len=40 dep=0 uid=165 oct=42 lid=165 tim=10804500647 hv=4168561979 ad='0' sqlid='fc0b4krw7fd9v'","k":"CURSOR","cur":"139745604254440","sqlid":"fc0b4krw7fd9v","dep":0,"uid":165,"oct":42,"clock":"11:35:29.192658"},{"ln":55,"raw":"alter session set sort_area_size = 65536","k":"TEXT","text":"alter session set sort_area_size = 65536"},{"ln":56,"raw":"END OF STMT","k":"ENDSTMT"},{"ln":57,"raw":"PARSE #139745604254440:c=98,e=98,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500647","k":"PARSE","cur":"139745604254440","sqlid":"fc0b4krw7fd9v","c":98,"e":98,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":0,"plh":0,"tim":10804500647,"clock":"11:35:29.192658"},{"ln":58,"raw":"EXEC #139745604254440:c=62,e=62,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500738","k":"EXEC","cur":"139745604254440","sqlid":"fc0b4krw7fd9v","c":62,"e":62,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":0,"plh":0,"tim":10804500738,"clock":"11:35:29.192749"},{"ln":59,"raw":"WAIT #139745604254440: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500748","k":"WAIT","cur":"139745604254440","sqlid":"fc0b4krw7fd9v","nam":"SQL*Net message to client","ela":0,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.192759","tim":10804500748},{"ln":60,"raw":"WAIT #139745604254440: nam='SQL*Net message from client' ela= 99 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804500854","k":"WAIT","cur":"139745604254440","sqlid":"fc0b4krw7fd9v","nam":"SQL*Net message from client","ela":99,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.192865","tim":10804500854}]},{"from":95,"to":140,"rows":[{"ln":95,"raw":"WAIT #139745604251096: nam='Disk file operations I/O' ela= 81 FileOperation=2 fileno=12 filetype=2 obj#=108611 tim=10805135122","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"Disk file operations I/O","ela":81,"p":{"FileOperation":"2","fileno":"12","filetype":"2","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827133","tim":10805135122},{"ln":96,"raw":"WAIT #139745604251096: nam='direct path read' ela= 39 file number=12 first dba=169947 block cnt=5 obj#=108611 tim=10805135198","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":39,"p":{"file number":"12","first dba":"169947","block cnt":"5","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827209","tim":10805135198},{"ln":97,"raw":"WAIT #139745604251096: nam='direct path read' ela= 26 file number=12 first dba=169968 block cnt=8 obj#=108611 tim=10805135255","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":26,"p":{"file number":"12","first dba":"169968","block cnt":"8","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827266","tim":10805135255},{"ln":98,"raw":"WAIT #139745604251096: nam='direct path read' ela= 13 file number=12 first dba=171145 block cnt=7 obj#=108611 tim=10805135349","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":13,"p":{"file number":"12","first dba":"171145","block cnt":"7","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827360","tim":10805135349},{"ln":99,"raw":"WAIT #139745604251096: nam='direct path read' ela= 9 file number=12 first dba=171160 block cnt=8 obj#=108611 tim=10805135431","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":9,"p":{"file number":"12","first dba":"171160","block cnt":"8","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827442","tim":10805135431},{"ln":100,"raw":"WAIT #139745604251096: nam='direct path read' ela= 36 file number=12 first dba=171177 block cnt=15 obj#=108611 tim=10805135528","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":36,"p":{"file number":"12","first dba":"171177","block cnt":"15","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827539","tim":10805135528},{"ln":101,"raw":"WAIT #139745604251096: nam='direct path read' ela= 33 file number=12 first dba=171225 block cnt=15 obj#=108611 tim=10805135628","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":33,"p":{"file number":"12","first dba":"171225","block cnt":"15","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827639","tim":10805135628},{"ln":102,"raw":"WAIT #139745604251096: nam='direct path read' ela= 7 file number=12 first dba=171241 block cnt=7 obj#=108611 tim=10805135774","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":7,"p":{"file number":"12","first dba":"171241","block cnt":"7","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827785","tim":10805135774},{"ln":103,"raw":"WAIT #139745604251096: nam='direct path read' ela= 10 file number=12 first dba=171256 block cnt=8 obj#=108611 tim=10805135909","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":10,"p":{"file number":"12","first dba":"171256","block cnt":"8","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827920","tim":10805135909},{"ln":104,"raw":"WAIT #139745604251096: nam='direct path read' ela= 6 file number=12 first dba=171265 block cnt=7 obj#=108611 tim=10805135977","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":6,"p":{"file number":"12","first dba":"171265","block cnt":"7","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827988","tim":10805135977},{"ln":105,"raw":"WAIT #139745604251096: nam='direct path read' ela= 7 file number=12 first dba=171312 block cnt=8 obj#=108611 tim=10805136058","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":7,"p":{"file number":"12","first dba":"171312","block cnt":"8","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.828069","tim":10805136058},{"ln":106,"raw":"WAIT #139745604251096: nam='direct path read' ela= 9 file number=12 first dba=171321 block cnt=7 obj#=108611 tim=10805136131","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":9,"p":{"file number":"12","first dba":"171321","block cnt":"7","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.828142","tim":10805136131},{"ln":107,"raw":"WAIT #139745604251096: nam='direct path read' ela= 7 file number=12 first dba=171336 block cnt=8 obj#=108611 tim=10805136198","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":7,"p":{"file number":"12","first dba":"171336","block cnt":"8","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.828209","tim":10805136198},{"ln":108,"raw":"WAIT #139745604251096: nam='direct path read' ela= 8 file number=12 first dba=171345 block cnt=7 obj#=108611 tim=10805136261","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":8,"p":{"file number":"12","first dba":"171345","block cnt":"7","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.828272","tim":10805136261},{"ln":109,"raw":"WAIT #139745604251096: nam='direct path read' ela= 7 file number=12 first dba=171360 block cnt=8 obj#=108611 tim=10805136329","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":7,"p":{"file number":"12","first dba":"171360","block cnt":"8","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.828340","tim":10805136329},{"ln":110,"raw":"WAIT #139745604251096: nam='direct path read' ela= 67 file number=12 first dba=171394 block cnt=30 obj#=108611 tim=10805136454","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":67,"p":{"file number":"12","first dba":"171394","block cnt":"30","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.828465","tim":10805136454},{"ln":111,"raw":"WAIT #139745604251096: nam='direct path read' ela= 73 file number=12 first dba=171424 block cnt=32 obj#=108611 tim=10805136592","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":73,"p":{"file number":"12","first dba":"171424","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.828603","tim":10805136592},{"ln":112,"raw":"WAIT #139745604251096: nam='direct path read' ela= 36 file number=12 first dba=171456 block cnt=32 obj#=108611 tim=10805136863","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":36,"p":{"file number":"12","first dba":"171456","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.828874","tim":10805136863},{"ln":113,"raw":"WAIT #139745604251096: nam='direct path read' ela= 27 file number=12 first dba=171488 block cnt=32 obj#=108611 tim=10805137147","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":27,"p":{"file number":"12","first dba":"171488","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.829158","tim":10805137147},{"ln":114,"raw":"WAIT #139745604251096: nam='direct path read' ela= 24 file number=12 first dba=171778 block cnt=30 obj#=108611 tim=10805137403","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":24,"p":{"file number":"12","first dba":"171778","block cnt":"30","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.829414","tim":10805137403},{"ln":115,"raw":"WAIT #139745604251096: nam='direct path read' ela= 38 file number=12 first dba=171808 block cnt=32 obj#=108611 tim=10805137665","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":38,"p":{"file number":"12","first dba":"171808","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.829676","tim":10805137665},{"ln":116,"raw":"WAIT #139745604251096: nam='direct path read' ela= 34 file number=12 first dba=171840 block cnt=32 obj#=108611 tim=10805137895","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":34,"p":{"file number":"12","first dba":"171840","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.829906","tim":10805137895},{"ln":117,"raw":"WAIT #139745604251096: nam='direct path read' ela= 26 file number=12 first dba=171872 block cnt=32 obj#=108611 tim=10805138140","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":26,"p":{"file number":"12","first dba":"171872","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.830151","tim":10805138140},{"ln":118,"raw":"WAIT #139745604251096: nam='direct path read' ela= 23 file number=12 first dba=172162 block cnt=30 obj#=108611 tim=10805138369","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":23,"p":{"file number":"12","first dba":"172162","block cnt":"30","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.830380","tim":10805138369},{"ln":119,"raw":"WAIT #139745604251096: nam='direct path read' ela= 27 file number=12 first dba=172192 block cnt=32 obj#=108611 tim=10805138625","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":27,"p":{"file number":"12","first dba":"172192","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.830636","tim":10805138625},{"ln":120,"raw":"WAIT #139745604251096: nam='direct path read' ela= 55 file number=12 first dba=172224 block cnt=32 obj#=108611 tim=10805138815","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":55,"p":{"file number":"12","first dba":"172224","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.830826","tim":10805138815},{"ln":121,"raw":"WAIT #139745604251096: nam='direct path read' ela= 35 file number=12 first dba=172256 block cnt=32 obj#=108611 tim=10805139020","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read","ela":35,"p":{"file number":"12","first dba":"172256","block cnt":"32","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.831031","tim":10805139020},{"ln":122,"raw":"FETCH #139745604251096:c=5167,e=636587,p=496,cr=498,cu=0,mis=0,r=1,dep=0,og=1,plh=3570327658,tim=10805139474","k":"FETCH","cur":"139745604251096","sqlid":"06nvwn223659v","c":5167,"e":636587,"p":496,"cr":498,"cu":0,"mis":0,"r":1,"dep":0,"og":1,"plh":3570327658,"tim":10805139474,"clock":"11:35:29.831485"},{"ln":123,"raw":"STAT #139745604251096 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=498 pr=496 pw=0 str=1 time=636589 us)'","k":"STAT","cur":"139745604251096","sqlid":"06nvwn223659v","id":1,"cnt":1,"pid":0,"op":"SORT AGGREGATE","cr":498,"pr":496,"pw":0,"str":1,"time":636589},{"ln":124,"raw":"STAT #139745604251096 id=2 cnt=100001 pid=1 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=498 pr=496 pw=0 str=1 time=634138 us cost=137 size=1300000 card=100000)'","k":"STAT","cur":"139745604251096","sqlid":"06nvwn223659v","id":2,"cnt":100001,"pid":1,"op":"TABLE ACCESS FULL","name":"MTK_ORDERS","cr":498,"pr":496,"pw":0,"str":1,"time":634138,"us cost":137,"size":1300000,"card":100000},{"ln":125,"raw":"WAIT #139745604251096: nam='SQL*Net message from client' ela= 263 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10805139864","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message from client","ela":263,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.831875","tim":10805139864},{"ln":126,"raw":"FETCH #139745604251096:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=3570327658,tim=10805139895","k":"FETCH","cur":"139745604251096","sqlid":"06nvwn223659v","c":1,"e":1,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":0,"plh":3570327658,"tim":10805139895,"clock":"11:35:29.831906"},{"ln":127,"raw":"WAIT #139745604251096: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10805139905","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message to client","ela":1,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.831916","tim":10805139905},{"ln":128,"raw":"WAIT #139745604251096: nam='SQL*Net message from client' ela= 229 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10805140140","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message from client","ela":229,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.832151","tim":10805140140},{"ln":129,"raw":"CLOSE #139745604251096:c=5,e=5,dep=0,type=0,tim=10805140168","k":"CLOSE","cur":"139745604251096","sqlid":"06nvwn223659v","c":5,"e":5,"dep":0,"type":0,"tim":10805140168,"clock":"11:35:29.832179"},{"ln":130,"raw":"WAIT #0: nam='PGA memory operation' ela= 26 which=5 bytes=262144 where=4 obj#=108611 tim=10805140221","k":"WAIT","cur":"0","nam":"PGA memory operation","ela":26,"p":{"which":"5","bytes":"262144","where":"4","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.832232","tim":10805140221},{"ln":131,"raw":"=====================","k":"RULE"},{"ln":132,"raw":"PARSING IN CURSOR #139745604248120 len=124 dep=1 uid=0 oct=3 lid=0 tim=10805141195 hv=4179850718 ad='881d74b0' sqlid='10gywwmwk6xfy'","k":"CURSOR","cur":"139745604248120","sqlid":"10gywwmwk6xfy","dep":1,"uid":0,"oct":3,"clock":"11:35:29.833206"},{"ln":133,"raw":"select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, flags, ctime from exp_head$ eh where exp_id = :1","k":"TEXT","text":"select /* QOSD */ /*+ index(eh)*/ objn, sub_id, fixed_cost, text, col_list, flags, ctime from exp_head$ eh where exp_id = :1"},{"ln":134,"raw":"END OF STMT","k":"ENDSTMT"},{"ln":135,"raw":"PARSE #139745604248120:c=306,e=306,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10805141195","k":"PARSE","cur":"139745604248120","sqlid":"10gywwmwk6xfy","c":306,"e":306,"p":0,"cr":0,"cu":0,"mis":1,"r":0,"dep":1,"og":4,"plh":0,"tim":10805141195,"clock":"11:35:29.833206"},{"ln":136,"raw":"BINDS #139745604248120:","k":"BINDS","cur":"139745604248120","sqlid":"10gywwmwk6xfy"},{"ln":137,"raw":"","k":"BLANK"},{"ln":138,"raw":" Bind#0","k":"BIND","pos":0},{"ln":139,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":140,"raw":"  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0"}]},{"from":2960,"to":3010,"rows":[{"ln":2960,"raw":" Bind#0","k":"BIND","pos":0},{"ln":2961,"raw":"  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"},{"ln":2962,"raw":"  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"},{"ln":2963,"raw":"  kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09","k":"BINDATTR","text":"kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09"},{"ln":2964,"raw":"  value=15589","k":"BINDATTR","text":"value=15589"},{"ln":2965,"raw":"EXEC #139745603983880:c=28,e=28,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534420","k":"EXEC","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":28,"e":28,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":1,"og":1,"plh":1276914333,"tim":10807534420,"clock":"11:35:32.226431"},{"ln":2966,"raw":"FETCH #139745603983880:c=6,e=5,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534431","k":"FETCH","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":6,"e":5,"p":0,"cr":3,"cu":0,"mis":0,"r":1,"dep":1,"og":1,"plh":1276914333,"tim":10807534431,"clock":"11:35:32.226442"},{"ln":2967,"raw":"CLOSE #139745603983880:c=0,e=0,dep=1,type=3,tim=10807534439","k":"CLOSE","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":0,"e":0,"dep":1,"type":3,"tim":10807534439,"clock":"11:35:32.226450"},{"ln":2968,"raw":"BINDS #139745603983880:","k":"BINDS","cur":"139745603983880","sqlid":"dk21j71dpu26c"},{"ln":2969,"raw":"","k":"BLANK"},{"ln":2970,"raw":" Bind#0","k":"BIND","pos":0},{"ln":2971,"raw":"  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"},{"ln":2972,"raw":"  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"},{"ln":2973,"raw":"  kxsbbbfp=7f190fa61ce0  bln=22  avl=03  flg=09","k":"BINDATTR","text":"kxsbbbfp=7f190fa61ce0  bln=22  avl=03  flg=09"},{"ln":2974,"raw":"  value=8706","k":"BINDATTR","text":"value=8706"},{"ln":2975,"raw":"EXEC #139745603983880:c=29,e=29,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534475","k":"EXEC","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":29,"e":29,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":1,"og":1,"plh":1276914333,"tim":10807534475,"clock":"11:35:32.226486"},{"ln":2976,"raw":"FETCH #139745603983880:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534487","k":"FETCH","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":6,"e":6,"p":0,"cr":3,"cu":0,"mis":0,"r":1,"dep":1,"og":1,"plh":1276914333,"tim":10807534487,"clock":"11:35:32.226498"},{"ln":2977,"raw":"CLOSE #139745603983880:c=0,e=0,dep=1,type=3,tim=10807534495","k":"CLOSE","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":0,"e":0,"dep":1,"type":3,"tim":10807534495,"clock":"11:35:32.226506"},{"ln":2978,"raw":"BINDS #139745603983880:","k":"BINDS","cur":"139745603983880","sqlid":"dk21j71dpu26c"},{"ln":2979,"raw":"","k":"BLANK"},{"ln":2980,"raw":" Bind#0","k":"BIND","pos":0},{"ln":2981,"raw":"  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"},{"ln":2982,"raw":"  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"},{"ln":2983,"raw":"  kxsbbbfp=7f190fa61ce0  bln=22  avl=03  flg=09","k":"BINDATTR","text":"kxsbbbfp=7f190fa61ce0  bln=22  avl=03  flg=09"},{"ln":2984,"raw":"  value=2480","k":"BINDATTR","text":"value=2480"},{"ln":2985,"raw":"EXEC #139745603983880:c=27,e=27,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534529","k":"EXEC","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":27,"e":27,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":1,"og":1,"plh":1276914333,"tim":10807534529,"clock":"11:35:32.226540"},{"ln":2986,"raw":"FETCH #139745603983880:c=6,e=6,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534544","k":"FETCH","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":6,"e":6,"p":0,"cr":3,"cu":0,"mis":0,"r":1,"dep":1,"og":1,"plh":1276914333,"tim":10807534544,"clock":"11:35:32.226555"},{"ln":2987,"raw":"CLOSE #139745603983880:c=0,e=0,dep=1,type=3,tim=10807534552","k":"CLOSE","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":0,"e":0,"dep":1,"type":3,"tim":10807534552,"clock":"11:35:32.226563"},{"ln":2988,"raw":"BINDS #139745603983880:","k":"BINDS","cur":"139745603983880","sqlid":"dk21j71dpu26c"},{"ln":2989,"raw":"","k":"BLANK"},{"ln":2990,"raw":" Bind#0","k":"BIND","pos":0},{"ln":2991,"raw":"  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"},{"ln":2992,"raw":"  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"},{"ln":2993,"raw":"  kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09","k":"BINDATTR","text":"kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09"},{"ln":2994,"raw":"  value=10564","k":"BINDATTR","text":"value=10564"},{"ln":2995,"raw":"EXEC #139745603983880:c=28,e=28,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534587","k":"EXEC","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":28,"e":28,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":1,"og":1,"plh":1276914333,"tim":10807534587,"clock":"11:35:32.226598"},{"ln":2996,"raw":"FETCH #139745603983880:c=2,e=2,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534596","k":"FETCH","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":2,"e":2,"p":0,"cr":3,"cu":0,"mis":0,"r":1,"dep":1,"og":1,"plh":1276914333,"tim":10807534596,"clock":"11:35:32.226607"},{"ln":2997,"raw":"CLOSE #139745603983880:c=0,e=0,dep=1,type=3,tim=10807534603","k":"CLOSE","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":0,"e":0,"dep":1,"type":3,"tim":10807534603,"clock":"11:35:32.226614"},{"ln":2998,"raw":"BINDS #139745603983880:","k":"BINDS","cur":"139745603983880","sqlid":"dk21j71dpu26c"},{"ln":2999,"raw":"","k":"BLANK"},{"ln":3000,"raw":" Bind#0","k":"BIND","pos":0},{"ln":3001,"raw":"  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"},{"ln":3002,"raw":"  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"},{"ln":3003,"raw":"  kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09","k":"BINDATTR","text":"kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09"},{"ln":3004,"raw":"  value=10511","k":"BINDATTR","text":"value=10511"},{"ln":3005,"raw":"EXEC #139745603983880:c=28,e=28,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=1,plh=1276914333,tim=10807534643","k":"EXEC","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":28,"e":28,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":1,"og":1,"plh":1276914333,"tim":10807534643,"clock":"11:35:32.226654"},{"ln":3006,"raw":"FETCH #139745603983880:c=2,e=2,p=0,cr=3,cu=0,mis=0,r=1,dep=1,og=1,plh=1276914333,tim=10807534651","k":"FETCH","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":2,"e":2,"p":0,"cr":3,"cu":0,"mis":0,"r":1,"dep":1,"og":1,"plh":1276914333,"tim":10807534651,"clock":"11:35:32.226662"},{"ln":3007,"raw":"CLOSE #139745603983880:c=1,e=1,dep=1,type=3,tim=10807534659","k":"CLOSE","cur":"139745603983880","sqlid":"dk21j71dpu26c","c":1,"e":1,"dep":1,"type":3,"tim":10807534659,"clock":"11:35:32.226670"},{"ln":3008,"raw":"BINDS #139745603983880:","k":"BINDS","cur":"139745603983880","sqlid":"dk21j71dpu26c"},{"ln":3009,"raw":"","k":"BLANK"},{"ln":3010,"raw":" Bind#0","k":"BIND","pos":0}]},{"from":10355,"to":10401,"rows":[{"ln":10355,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 3 file number=203 first dba=756280 block cnt=1 obj#=108611 tim=10810351080","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":3,"p":{"file number":"203","first dba":"756280","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.043091","tim":10810351080},{"ln":10356,"raw":"WAIT #139745604251096: nam='SQL*Net more data to client' ela= 30 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=10810351126","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net more data to client","ela":30,"p":{"driver id":"1952673792","#bytes":"8101","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.043137","tim":10810351126},{"ln":10357,"raw":"FETCH #139745604251096:c=159,e=159,p=1,cr=0,cu=0,mis=0,r=500,dep=0,og=1,plh=2503715236,tim=10810351149","k":"FETCH","cur":"139745604251096","sqlid":"06nvwn223659v","c":159,"e":159,"p":1,"cr":0,"cu":0,"mis":0,"r":500,"dep":0,"og":1,"plh":2503715236,"tim":10810351149,"clock":"11:35:35.043160"},{"ln":10358,"raw":"WAIT #139745604251096: nam='SQL*Net message from client' ela= 1490 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810352648","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message from client","ela":1490,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.044659","tim":10810352648},{"ln":10359,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 3 file number=203 first dba=756116 block cnt=1 obj#=108611 tim=10810352676","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":3,"p":{"file number":"203","first dba":"756116","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.044687","tim":10810352676},{"ln":10360,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756471 block cnt=1 obj#=108611 tim=10810352702","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":2,"p":{"file number":"203","first dba":"756471","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.044713","tim":10810352702},{"ln":10361,"raw":"WAIT #139745604251096: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810352717","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message to client","ela":1,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.044728","tim":10810352717},{"ln":10362,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 5 file number=203 first dba=756547 block cnt=1 obj#=108611 tim=10810352752","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":5,"p":{"file number":"203","first dba":"756547","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.044763","tim":10810352752},{"ln":10363,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756659 block cnt=1 obj#=108611 tim=10810352761","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":2,"p":{"file number":"203","first dba":"756659","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.044772","tim":10810352761},{"ln":10364,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756687 block cnt=1 obj#=108611 tim=10810352773","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":2,"p":{"file number":"203","first dba":"756687","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.044784","tim":10810352773},{"ln":10365,"raw":"WAIT #139745604251096: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=10810352823","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net more data to client","ela":28,"p":{"driver id":"1952673792","#bytes":"8101","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.044834","tim":10810352823},{"ln":10366,"raw":"FETCH #139745604251096:c=181,e=181,p=5,cr=0,cu=0,mis=0,r=500,dep=0,og=1,plh=2503715236,tim=10810352846","k":"FETCH","cur":"139745604251096","sqlid":"06nvwn223659v","c":181,"e":181,"p":5,"cr":0,"cu":0,"mis":0,"r":500,"dep":0,"og":1,"plh":2503715236,"tim":10810352846,"clock":"11:35:35.044857"},{"ln":10367,"raw":"WAIT #139745604251096: nam='SQL*Net message from client' ela= 1492 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810354352","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message from client","ela":1492,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.046363","tim":10810354352},{"ln":10368,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 3 file number=203 first dba=756603 block cnt=1 obj#=108611 tim=10810354390","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":3,"p":{"file number":"203","first dba":"756603","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.046401","tim":10810354390},{"ln":10369,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756281 block cnt=1 obj#=108611 tim=10810354402","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":2,"p":{"file number":"203","first dba":"756281","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.046413","tim":10810354402},{"ln":10370,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756575 block cnt=1 obj#=108611 tim=10810354414","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":2,"p":{"file number":"203","first dba":"756575","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.046425","tim":10810354414},{"ln":10371,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756117 block cnt=1 obj#=108611 tim=10810354426","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":2,"p":{"file number":"203","first dba":"756117","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.046437","tim":10810354426},{"ln":10372,"raw":"WAIT #139745604251096: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810354440","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message to client","ela":0,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.046451","tim":10810354440},{"ln":10373,"raw":"WAIT #139745604251096: nam='SQL*Net more data to client' ela= 28 driver id=1952673792 #bytes=8104 p3=0 obj#=108611 tim=10810354516","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net more data to client","ela":28,"p":{"driver id":"1952673792","#bytes":"8104","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.046527","tim":10810354516},{"ln":10374,"raw":"FETCH #139745604251096:c=168,e=168,p=4,cr=0,cu=0,mis=0,r=500,dep=0,og=1,plh=2503715236,tim=10810354539","k":"FETCH","cur":"139745604251096","sqlid":"06nvwn223659v","c":168,"e":168,"p":4,"cr":0,"cu":0,"mis":0,"r":500,"dep":0,"og":1,"plh":2503715236,"tim":10810354539,"clock":"11:35:35.046550"},{"ln":10375,"raw":"WAIT #139745604251096: nam='SQL*Net message from client' ela= 1498 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810356046","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message from client","ela":1498,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.048057","tim":10810356046},{"ln":10376,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 4 file number=203 first dba=756282 block cnt=1 obj#=108611 tim=10810356089","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":4,"p":{"file number":"203","first dba":"756282","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.048100","tim":10810356089},{"ln":10377,"raw":"WAIT #139745604251096: nam='SQL*Net message to client' ela= 1 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810356105","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message to client","ela":1,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.048116","tim":10810356105},{"ln":10378,"raw":"WAIT #139745604251096: nam='direct path read temp' ela= 2 file number=203 first dba=756118 block cnt=1 obj#=108611 tim=10810356144","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"direct path read temp","ela":2,"p":{"file number":"203","first dba":"756118","block cnt":"1","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.048155","tim":10810356144},{"ln":10379,"raw":"WAIT #139745604251096: nam='SQL*Net more data to client' ela= 29 driver id=1952673792 #bytes=8101 p3=0 obj#=108611 tim=10810356192","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net more data to client","ela":29,"p":{"driver id":"1952673792","#bytes":"8101","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.048203","tim":10810356192},{"ln":10380,"raw":"FETCH #139745604251096:c=150,e=150,p=2,cr=0,cu=0,mis=0,r=500,dep=0,og=1,plh=2503715236,tim=10810356214","k":"FETCH","cur":"139745604251096","sqlid":"06nvwn223659v","c":150,"e":150,"p":2,"cr":0,"cu":0,"mis":0,"r":500,"dep":0,"og":1,"plh":2503715236,"tim":10810356214,"clock":"11:35:35.048225"},{"ln":10381,"raw":"WAIT #139745604251096: nam='SQL*Net message from client' ela= 1494 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810357717","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message from client","ela":1494,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.049728","tim":10810357717},{"ln":10382,"raw":"FETCH #139745604251096:c=43,e=43,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=2503715236,tim=10810357780","k":"FETCH","cur":"139745604251096","sqlid":"06nvwn223659v","c":43,"e":43,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":1,"plh":2503715236,"tim":10810357780,"clock":"11:35:35.049791"},{"ln":10383,"raw":"STAT #139745604251096 id=1 cnt=100001 pid=0 pos=1 obj=0 op='SORT ORDER BY (cr=498 pr=1827 pw=1331 str=1 time=2448362 us cost=2014 size=2800000 card=100000)'","k":"STAT","cur":"139745604251096","sqlid":"06nvwn223659v","id":1,"cnt":100001,"pid":0,"op":"SORT ORDER BY","cr":498,"pr":1827,"pw":1331,"str":1,"time":2448362,"us cost":2014,"size":2800000,"card":100000},{"ln":10384,"raw":"STAT #139745604251096 id=2 cnt=100001 pid=1 pos=1 obj=108611 op='TABLE ACCESS FULL MTK_ORDERS (cr=498 pr=496 pw=0 str=1 time=2432 us cost=137 size=2800000 card=100000)'","k":"STAT","cur":"139745604251096","sqlid":"06nvwn223659v","id":2,"cnt":100001,"pid":1,"op":"TABLE ACCESS FULL","name":"MTK_ORDERS","cr":498,"pr":496,"pw":0,"str":1,"time":2432,"us cost":137,"size":2800000,"card":100000},{"ln":10385,"raw":"WAIT #139745604251096: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810357858","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message to client","ela":0,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.049869","tim":10810357858},{"ln":10386,"raw":"WAIT #139745604251096: nam='SQL*Net message from client' ela= 191 driver id=1952673792 #bytes=1 p3=0 obj#=108611 tim=10810358055","k":"WAIT","cur":"139745604251096","sqlid":"06nvwn223659v","nam":"SQL*Net message from client","ela":191,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:35.050066","tim":10810358055},{"ln":10387,"raw":"CLOSE #139745604251096:c=4,e=4,dep=0,type=0,tim=10810358077","k":"CLOSE","cur":"139745604251096","sqlid":"06nvwn223659v","c":4,"e":4,"dep":0,"type":0,"tim":10810358077,"clock":"11:35:35.050088"},{"ln":10388,"raw":"BINDS #139745604248120:","k":"BINDS","cur":"139745604248120","sqlid":"10gywwmwk6xfy"},{"ln":10389,"raw":"","k":"BLANK"},{"ln":10390,"raw":" Bind#0","k":"BIND","pos":0},{"ln":10391,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10392,"raw":"  oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=00 fl2=1000001 frm=00 csi=00 siz=24 off=0"},{"ln":10393,"raw":"  kxsbbbfp=7f190f156b50  bln=22  avl=11  flg=05","k":"BINDATTR","text":"kxsbbbfp=7f190f156b50  bln=22  avl=11  flg=05"},{"ln":10394,"raw":"  value=2511846697911007615","k":"BINDATTR","text":"value=2511846697911007615"},{"ln":10395,"raw":"EXEC #139745604248120:c=0,e=69,p=0,cr=0,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=10810359018","k":"EXEC","cur":"139745604248120","sqlid":"10gywwmwk6xfy","c":0,"e":69,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":1,"og":4,"plh":1426583507,"tim":10810359018,"clock":"11:35:35.051029"},{"ln":10396,"raw":"WAIT #139745604248120: nam='db file sequential read' ela= 149 file#=10 block#=80385 blocks=1 obj#=721 tim=10810359197","k":"WAIT","cur":"139745604248120","sqlid":"10gywwmwk6xfy","nam":"db file sequential read","ela":149,"p":{"file#":"10","block#":"80385","blocks":"1","obj#":"721"},"obj":"I_EXP_HEAD$","clock":"11:35:35.051208","tim":10810359197},{"ln":10397,"raw":"FETCH #139745604248120:c=754,e=199,p=1,cr=2,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=10810359227","k":"FETCH","cur":"139745604248120","sqlid":"10gywwmwk6xfy","c":754,"e":199,"p":1,"cr":2,"cu":0,"mis":0,"r":0,"dep":1,"og":4,"plh":1426583507,"tim":10810359227,"clock":"11:35:35.051238"},{"ln":10398,"raw":"CLOSE #139745604248120:c=0,e=0,dep=1,type=3,tim=10810359243","k":"CLOSE","cur":"139745604248120","sqlid":"10gywwmwk6xfy","c":0,"e":0,"dep":1,"type":3,"tim":10810359243,"clock":"11:35:35.051254"},{"ln":10399,"raw":"BINDS #139745604298784:","k":"BINDS","cur":"139745604298784","sqlid":"dbvj6jc977hqh"},{"ln":10400,"raw":"","k":"BLANK"},{"ln":10401,"raw":" Bind#0","k":"BIND","pos":0}]}],"extra":{"excerpts":[{"from":84,"to":94,"rows":[{"ln":84,"raw":"PARSING IN CURSOR #139745604251096 len=99 dep=0 uid=165 oct=3 lid=165 tim=10804502774 hv=3462098059 ad='617d07e8' sqlid='c7ry5gr75qv4b'","k":"CURSOR","cur":"139745604251096","sqlid":"c7ry5gr75qv4b","len":99,"dep":0,"uid":165,"oct":3,"clock":"11:35:29.194785","tim":10804502774},{"ln":85,"raw":"select /*+ full(o) mtk_full_scan_orders */ count(*), sum(amount), max(order_date) from mtk_orders o","k":"TEXT","text":"select /*+ full(o) mtk_full_scan_orders */ count(*), sum(amount), max(order_date) from mtk_orders o"},{"ln":86,"raw":"END OF STMT","k":"ENDSTMT"},{"ln":87,"raw":"PARSE #139745604251096:c=92,e=907,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=3570327658,tim=10804502774","k":"PARSE","cur":"139745604251096","sqlid":"c7ry5gr75qv4b","c":92,"e":907,"p":0,"cr":0,"cu":0,"mis":1,"r":0,"dep":0,"og":1,"plh":3570327658,"tim":10804502774,"clock":"11:35:29.194785"},{"ln":88,"raw":"EXEC #139745604251096:c=0,e=43,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=3570327658,tim=10804502854","k":"EXEC","cur":"139745604251096","sqlid":"c7ry5gr75qv4b","c":0,"e":43,"p":0,"cr":0,"cu":0,"mis":0,"r":0,"dep":0,"og":1,"plh":3570327658,"tim":10804502854,"clock":"11:35:29.194865","execNo":1,"execTotal":1},{"ln":89,"raw":"WAIT #139745604251096: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=10804502868","k":"WAIT","cur":"139745604251096","sqlid":"c7ry5gr75qv4b","nam":"SQL*Net message to client","ela":0,"p":{"driver id":"1952673792","#bytes":"1","p3":"0","obj#":"-1"},"clock":"11:35:29.194879","tim":10804502868},{"ln":90,"raw":"WAIT #139745604251096: nam='reliable message' ela= 67 channel context=2545476720 channel handle=2545422152 broadcast message=2547126864 obj#=-1 tim=10804503030","k":"WAIT","cur":"139745604251096","sqlid":"c7ry5gr75qv4b","nam":"reliable message","ela":67,"p":{"channel context":"2545476720","channel handle":"2545422152","broadcast message":"2547126864","obj#":"-1"},"clock":"11:35:29.195041","tim":10804503030},{"ln":91,"raw":"","k":"BLANK"},{"ln":92,"raw":"*** 2026-10-22T11:35:29.826769+00:00 (PDB1(3))","k":"TEXT","text":"*** 2026-10-22T11:35:29.826769+00:00 (PDB1(3))"},{"ln":93,"raw":"WAIT #139745604251096: nam='enq: KO - fast object checkpoint' ela= 631705 name|mode=1263468550 2=65604 0=1 obj#=-1 tim=10805134758","k":"WAIT","cur":"139745604251096","sqlid":"c7ry5gr75qv4b","nam":"enq: KO - fast object checkpoint","ela":631705,"p":{"0":"1","2":"65604","mode":"1263468550","obj#":"-1"},"clock":"11:35:29.826769","tim":10805134758},{"ln":94,"raw":"WAIT #139745604251096: nam='asynch descriptor resize' ela= 6 outstanding #aio=0 current aio limit=0 new aio limit=128 obj#=108611 tim=10805135046","k":"WAIT","cur":"139745604251096","sqlid":"c7ry5gr75qv4b","nam":"asynch descriptor resize","ela":6,"p":{"outstanding #aio":"0","current aio limit":"0","new aio limit":"128","obj#":"108611"},"obj":"MTK_ORDERS","clock":"11:35:29.827057","tim":10805135046}]},{"from":141,"to":200,"rows":[{"ln":141,"raw":"  kxsbbbfp=7f190f1a6f78  bln=22  avl=11  flg=05","k":"BINDATTR","text":"kxsbbbfp=7f190f1a6f78  bln=22  avl=11  flg=05"},{"ln":142,"raw":"  value=8653885946966910713","k":"BINDATTR","text":"value=8653885946966910713"},{"ln":143,"raw":"EXEC #139745604248120:c=579,e=579,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=1426583507,tim=10805141825","k":"EXEC","cur":"139745604248120","sqlid":"10gywwmwk6xfy","c":579,"e":579,"p":0,"cr":0,"cu":0,"mis":1,"r":0,"dep":1,"og":4,"plh":1426583507,"tim":10805141825,"clock":"11:35:29.833836","execNo":1,"execTotal":4},{"ln":144,"raw":"FETCH #139745604248120:c=22,e=22,p=0,cr=2,cu=0,mis=0,r=0,dep=1,og=4,plh=1426583507,tim=10805141855","k":"FETCH","cur":"139745604248120","sqlid":"10gywwmwk6xfy","c":22,"e":22,"p":0,"cr":2,"cu":0,"mis":0,"r":0,"dep":1,"og":4,"plh":1426583507,"tim":10805141855,"clock":"11:35:29.833866"},{"ln":145,"raw":"STAT #139745604248120 id=1 cnt=0 pid=0 pos=1 obj=720 op='TABLE ACCESS BY INDEX ROWID EXP_HEAD$ (cr=2 pr=0 pw=0 str=1 time=24 us cost=2 size=68 card=1)'","k":"STAT","cur":"139745604248120","sqlid":"10gywwmwk6xfy","id":1,"cnt":0,"pid":0,"op":"TABLE ACCESS BY INDEX ROWID","name":"EXP_HEAD$","cr":2,"pr":0,"pw":0,"str":1,"time":24,"us cost":2,"size":68,"card":1},{"ln":146,"raw":"STAT #139745604248120 id=2 cnt=0 pid=1 pos=1 obj=721 op='INDEX UNIQUE SCAN I_EXP_HEAD$ (cr=2 pr=0 pw=0 str=1 time=23 us cost=1 size=0 card=1)'","k":"STAT","cur":"139745604248120","sqlid":"10gywwmwk6xfy","id":2,"cnt":0,"pid":1,"op":"INDEX UNIQUE SCAN","name":"I_EXP_HEAD$","cr":2,"pr":0,"pw":0,"str":1,"time":23,"us cost":1,"size":0,"card":1},{"ln":147,"raw":"CLOSE #139745604248120:c=2,e=2,dep=1,type=3,tim=10805141928","k":"CLOSE","cur":"139745604248120","sqlid":"10gywwmwk6xfy","c":2,"e":2,"dep":1,"type":3,"tim":10805141928,"clock":"11:35:29.833939"},{"ln":148,"raw":"=====================","k":"RULE"},{"ln":149,"raw":"PARSING IN CURSOR #139745604298784 len=137 dep=1 uid=0 oct=2 lid=0 tim=10805142191 hv=309576400 ad='71b362c8' sqlid='dbvj6jc977hqh'","k":"CURSOR","cur":"139745604298784","sqlid":"dbvj6jc977hqh","len":137,"dep":1,"uid":0,"oct":2,"clock":"11:35:29.834202","tim":10805142191},{"ln":150,"raw":"insert /* QOSD */ into exp_head$ (exp_id, objn, sub_id, fixed_cost, text, col_list, flags, ctime) values (:1, :2, :3, :4, :5, :6, :7, :8)","k":"TEXT","text":"insert /* QOSD */ into exp_head$ (exp_id, objn, sub_id, fixed_cost, text, col_list, flags, ctime) values (:1, :2, :3, :4, :5, :6, :7, :8)"},{"ln":151,"raw":"END OF STMT","k":"ENDSTMT"},{"ln":152,"raw":"PARSE #139745604298784:c=233,e=233,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=4,plh=0,tim=10805142191","k":"PARSE","cur":"139745604298784","sqlid":"dbvj6jc977hqh","c":233,"e":233,"p":0,"cr":0,"cu":0,"mis":1,"r":0,"dep":1,"og":4,"plh":0,"tim":10805142191,"clock":"11:35:29.834202"},{"ln":153,"raw":"BINDS #139745604298784:","k":"BINDS","cur":"139745604298784","sqlid":"dbvj6jc977hqh"},{"ln":154,"raw":"","k":"BLANK"},{"ln":155,"raw":" Bind#0","k":"BIND","pos":0},{"ln":156,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":157,"raw":"  oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0","k":"BINDATTR","text":"oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0"},{"ln":158,"raw":"  kxsbbbfp=7f190f15eed8  bln=22  avl=11  flg=05","k":"BINDATTR","text":"kxsbbbfp=7f190f15eed8  bln=22  avl=11  flg=05"},{"ln":159,"raw":"  value=8653885946966910713","k":"BINDATTR","text":"value=8653885946966910713"},{"ln":160,"raw":" Bind#1","k":"BIND","pos":1},{"ln":161,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":162,"raw":"  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24","k":"BINDATTR","text":"oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24"},{"ln":163,"raw":"  kxsbbbfp=7f190f15eef0  bln=22  avl=04  flg=01","k":"BINDATTR","text":"kxsbbbfp=7f190f15eef0  bln=22  avl=04  flg=01"},{"ln":164,"raw":"  value=108609","k":"BINDATTR","text":"value=108609"},{"ln":165,"raw":" Bind#2","k":"BIND","pos":2},{"ln":166,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":167,"raw":"  oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48","k":"BINDATTR","text":"oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48"},{"ln":168,"raw":"  kxsbbbfp=7f190f15ef08  bln=22  avl=01  flg=01","k":"BINDATTR","text":"kxsbbbfp=7f190f15ef08  bln=22  avl=01  flg=01"},{"ln":169,"raw":"  value=0","k":"BINDATTR","text":"value=0"},{"ln":170,"raw":" Bind#3","k":"BIND","pos":3},{"ln":171,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":172,"raw":"  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72","k":"BINDATTR","text":"oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72"},{"ln":173,"raw":"  kxsbbbfp=7f190f15ef20  bln=22  avl=09  flg=01","k":"BINDATTR","text":"kxsbbbfp=7f190f15ef20  bln=22  avl=09  flg=01"},{"ln":174,"raw":"  value=.0000000337759769235673","k":"BINDATTR","text":"value=.0000000337759769235673"},{"ln":175,"raw":" Bind#4","k":"BIND","pos":4},{"ln":176,"raw":"  oacdty=01 mxl=32(08) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=01 mxl=32(08) mxlc=00 mal=00 scl=00 pre=00"},{"ln":177,"raw":"  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0","k":"BINDATTR","text":"oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0"},{"ln":178,"raw":"  kxsbbbfp=617c0800  bln=32  avl=08  flg=09","k":"BINDATTR","text":"kxsbbbfp=617c0800  bln=32  avl=08  flg=09"},{"ln":179,"raw":"  value=\"\"NOTES\"\"","k":"BINDATTR","text":"value=\"\"NOTES\"\""},{"ln":180,"raw":" Bind#5","k":"BIND","pos":5},{"ln":181,"raw":"  oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00"},{"ln":182,"raw":"  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0","k":"BINDATTR","text":"oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0"},{"ln":183,"raw":"  kxsbbbfp=617c0818  bln=32  avl=02  flg=09","k":"BINDATTR","text":"kxsbbbfp=617c0818  bln=32  avl=02  flg=09"},{"ln":184,"raw":"  value=\"5\"","k":"BINDATTR","text":"value=\"5\""},{"ln":185,"raw":" Bind#6","k":"BIND","pos":6},{"ln":186,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":187,"raw":"  oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0"},{"ln":188,"raw":"  kxsbbbfp=7f190f15eea8  bln=22  avl=02  flg=05","k":"BINDATTR","text":"kxsbbbfp=7f190f15eea8  bln=22  avl=02  flg=05"},{"ln":189,"raw":"  value=8","k":"BINDATTR","text":"value=8"},{"ln":190,"raw":" Bind#7","k":"BIND","pos":7},{"ln":191,"raw":"  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00"},{"ln":192,"raw":"  oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0","k":"BINDATTR","text":"oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0"},{"ln":193,"raw":"  kxsbbbfp=617c07e8  bln=07  avl=07  flg=09","k":"BINDATTR","text":"kxsbbbfp=617c07e8  bln=07  avl=07  flg=09"},{"ln":194,"raw":"  value=\"10/22/2026 11:35:29\"","k":"BINDATTR","text":"value=\"10/22/2026 11:35:29\""},{"ln":195,"raw":"EXEC #139745604298784:c=546,e=546,p=0,cr=1,cu=6,mis=1,r=1,dep=1,og=4,plh=0,tim=10805142780","k":"EXEC","cur":"139745604298784","sqlid":"dbvj6jc977hqh","c":546,"e":546,"p":0,"cr":1,"cu":6,"mis":1,"r":1,"dep":1,"og":4,"plh":0,"tim":10805142780,"clock":"11:35:29.834791","execNo":1,"execTotal":4},{"ln":196,"raw":"STAT #139745604298784 id=1 cnt=0 pid=0 pos=1 obj=720 op='LOAD TABLE CONVENTIONAL  EXP_HEAD$ (cr=1 pr=0 pw=0 str=1 time=158 us)'","k":"STAT","cur":"139745604298784","sqlid":"dbvj6jc977hqh","id":1,"cnt":0,"pid":0,"op":"LOAD TABLE CONVENTIONAL","name":"EXP_HEAD$","cr":1,"pr":0,"pw":0,"str":1,"time":158},{"ln":197,"raw":"CLOSE #139745604298784:c=0,e=0,dep=1,type=3,tim=10805142821","k":"CLOSE","cur":"139745604298784","sqlid":"dbvj6jc977hqh","c":0,"e":0,"dep":1,"type":3,"tim":10805142821,"clock":"11:35:29.834832"},{"ln":198,"raw":"BINDS #139745604248120:","k":"BINDS","cur":"139745604248120","sqlid":"10gywwmwk6xfy"},{"ln":199,"raw":"","k":"BLANK"},{"ln":200,"raw":" Bind#0","k":"BIND","pos":0}]},{"from":3011,"to":3014,"rows":[{"ln":3011,"raw":"  oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(21) mxlc=00 mal=00 scl=00 pre=00"},{"ln":3012,"raw":"  oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=13 fl2=206001 frm=00 csi=00 siz=24 off=0"},{"ln":3013,"raw":"  kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09","k":"BINDATTR","text":"kxsbbbfp=7f190fa61ce0  bln=22  avl=04  flg=09"},{"ln":3014,"raw":"  value=14441","k":"BINDATTR","text":"value=14441"}]},{"from":10402,"to":10443,"rows":[{"ln":10402,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10403,"raw":"  oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0","k":"BINDATTR","text":"oacflg=00 fl2=1000001 frm=00 csi=00 siz=96 off=0"},{"ln":10404,"raw":"  kxsbbbfp=7f190f29c9f0  bln=22  avl=11  flg=05","k":"BINDATTR","text":"kxsbbbfp=7f190f29c9f0  bln=22  avl=11  flg=05"},{"ln":10405,"raw":"  value=2511846697911007615","k":"BINDATTR","text":"value=2511846697911007615"},{"ln":10406,"raw":" Bind#1","k":"BIND","pos":1},{"ln":10407,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10408,"raw":"  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24","k":"BINDATTR","text":"oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=24"},{"ln":10409,"raw":"  kxsbbbfp=7f190f29ca08  bln=22  avl=04  flg=01","k":"BINDATTR","text":"kxsbbbfp=7f190f29ca08  bln=22  avl=04  flg=01"},{"ln":10410,"raw":"  value=108609","k":"BINDATTR","text":"value=108609"},{"ln":10411,"raw":" Bind#2","k":"BIND","pos":2},{"ln":10412,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10413,"raw":"  oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48","k":"BINDATTR","text":"oacflg=01 fl2=1000001 frm=00 csi=00 siz=0 off=48"},{"ln":10414,"raw":"  kxsbbbfp=7f190f29ca20  bln=22  avl=01  flg=01","k":"BINDATTR","text":"kxsbbbfp=7f190f29ca20  bln=22  avl=01  flg=01"},{"ln":10415,"raw":"  value=0","k":"BINDATTR","text":"value=0"},{"ln":10416,"raw":" Bind#3","k":"BIND","pos":3},{"ln":10417,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10418,"raw":"  oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72","k":"BINDATTR","text":"oacflg=00 fl2=1000001 frm=00 csi=00 siz=0 off=72"},{"ln":10419,"raw":"  kxsbbbfp=7f190f29ca38  bln=22  avl=09  flg=01","k":"BINDATTR","text":"kxsbbbfp=7f190f29ca38  bln=22  avl=09  flg=01"},{"ln":10420,"raw":"  value=.0000000337759769235673","k":"BINDATTR","text":"value=.0000000337759769235673"},{"ln":10421,"raw":" Bind#4","k":"BIND","pos":4},{"ln":10422,"raw":"  oacdty=01 mxl=32(09) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=01 mxl=32(09) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10423,"raw":"  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0","k":"BINDATTR","text":"oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0"},{"ln":10424,"raw":"  kxsbbbfp=61778178  bln=32  avl=09  flg=09","k":"BINDATTR","text":"kxsbbbfp=61778178  bln=32  avl=09  flg=09"},{"ln":10425,"raw":"  value=\"\"AMOUNT\"\"","k":"BINDATTR","text":"value=\"\"AMOUNT\"\""},{"ln":10426,"raw":" Bind#5","k":"BIND","pos":5},{"ln":10427,"raw":"  oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=01 mxl=32(02) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10428,"raw":"  oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0","k":"BINDATTR","text":"oacflg=10 fl2=0001 frm=01 csi=873 siz=32 off=0"},{"ln":10429,"raw":"  kxsbbbfp=61778198  bln=32  avl=02  flg=09","k":"BINDATTR","text":"kxsbbbfp=61778198  bln=32  avl=02  flg=09"},{"ln":10430,"raw":"  value=\"4\"","k":"BINDATTR","text":"value=\"4\""},{"ln":10431,"raw":" Bind#6","k":"BIND","pos":6},{"ln":10432,"raw":"  oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=02 mxl=22(22) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10433,"raw":"  oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0","k":"BINDATTR","text":"oacflg=01 fl2=1000001 frm=00 csi=00 siz=24 off=0"},{"ln":10434,"raw":"  kxsbbbfp=7f190f29c9c0  bln=22  avl=02  flg=05","k":"BINDATTR","text":"kxsbbbfp=7f190f29c9c0  bln=22  avl=02  flg=05"},{"ln":10435,"raw":"  value=8","k":"BINDATTR","text":"value=8"},{"ln":10436,"raw":" Bind#7","k":"BIND","pos":7},{"ln":10437,"raw":"  oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00","k":"BINDATTR","text":"oacdty=12 mxl=07(07) mxlc=00 mal=00 scl=00 pre=00"},{"ln":10438,"raw":"  oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0","k":"BINDATTR","text":"oacflg=10 fl2=0001 frm=00 csi=00 siz=8 off=0"},{"ln":10439,"raw":"  kxsbbbfp=61778160  bln=07  avl=07  flg=09","k":"BINDATTR","text":"kxsbbbfp=61778160  bln=07  avl=07  flg=09"},{"ln":10440,"raw":"  value=\"10/22/2026 11:35:35\"","k":"BINDATTR","text":"value=\"10/22/2026 11:35:35\""},{"ln":10441,"raw":"EXEC #139745604298784:c=241,e=241,p=0,cr=0,cu=4,mis=0,r=1,dep=1,og=4,plh=0,tim=10810359512","k":"EXEC","cur":"139745604298784","sqlid":"dbvj6jc977hqh","c":241,"e":241,"p":0,"cr":0,"cu":4,"mis":0,"r":1,"dep":1,"og":4,"plh":0,"tim":10810359512,"clock":"11:35:35.051523","execNo":4,"execTotal":4},{"ln":10442,"raw":"CLOSE #139745604298784:c=0,e=0,dep=1,type=3,tim=10810359526","k":"CLOSE","cur":"139745604298784","sqlid":"dbvj6jc977hqh","c":0,"e":0,"dep":1,"type":3,"tim":10810359526,"clock":"11:35:35.051537"},{"ln":10443,"raw":"=====================","k":"RULE"}]},{"from":792,"to":794,"rows":[{"ln":792,"raw":"PARSING IN CURSOR #139745603983880 len=43 dep=1 uid=165 oct=3 lid=165 tim=10807520730 hv=1532823756 ad='617937e0' sqlid='dk21j71dpu26c'","k":"CURSOR","cur":"139745603983880","sqlid":"dk21j71dpu26c","len":43,"dep":1,"uid":165,"oct":3,"clock":"11:35:32.212741","tim":10807520730},{"ln":793,"raw":"SELECT AMOUNT FROM MTK_CUST WHERE ID = :B1 ","k":"TEXT","text":"SELECT AMOUNT FROM MTK_CUST WHERE ID = :B1 "},{"ln":794,"raw":"END OF STMT","k":"ENDSTMT"}]},{"from":6878,"to":6881,"rows":[{"ln":6878,"raw":"PARSING IN CURSOR #139745604251096 len=141 dep=0 uid=165 oct=3 lid=165 tim=10807559773 hv=9879169 ad='617855e8' sqlid='52nzchs09dgn1'","k":"CURSOR","cur":"139745604251096","sqlid":"52nzchs09dgn1","len":141,"dep":0,"uid":165,"oct":3,"clock":"11:35:32.251784","tim":10807559773},{"ln":6879,"raw":"select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status","k":"TEXT","text":"select /*+ mtk_sort_spill */ o.id, o.cust_id, o.amount, o.order_date, o.status"},{"ln":6880,"raw":"  from mtk_orders o order by o.amount desc, o.order_date, o.id","k":"TEXT","text":"  from mtk_orders o order by o.amount desc, o.order_date, o.id"},{"ln":6881,"raw":"END OF STMT","k":"ENDSTMT"}]}],"loopExec":{"40":[1,1],"49":[1,1],"58":[1,1],"88":[1,1],"143":[1,4],"195":[1,4],"2965":[217,300],"2975":[218,300],"2985":[219,300],"2995":[220,300],"3005":[221,300],"10395":[4,4],"10441":[4,4]},"prevTim":{"23":null,"84":{"ln":82,"tim":10804501856},"2960":{"ln":2957,"tim":10807534385},"10355":{"ln":10354,"tim":10810351028}},"span":{"firstTim":10804499034,"lastTim":10810957717,"us":6458683},"stmtE":{"1h7h96h7gnvbj":{"e":142,"calls":3,"waits":2},"942xwb5hn658p":{"e":166,"calls":3,"waits":2},"fc0b4krw7fd9v":{"e":162,"calls":3,"waits":2},"7t9g1m9fxtjuq":{"e":74,"calls":3,"waits":2},"f2xpbhw4n24pt":{"e":508,"calls":3,"waits":2},"c7ry5gr75qv4b":{"e":637543,"calls":5,"waits":34},"10gywwmwk6xfy":{"e":1740,"calls":13,"waits":4},"dbvj6jc977hqh":{"e":1468,"calls":9,"waits":0},"4w3wvjbkvq24v":{"e":2354408,"calls":5,"waits":50},"dx9pb9j3623tw":{"e":2654,"calls":5,"waits":30},"19pctsstqdgn5":{"e":624,"calls":3,"waits":2},"gpzx10kh9gr4f":{"e":479,"calls":3,"waits":2},"4r9x21mb0nhkq":{"e":780,"calls":10,"waits":8},"9wgtc7nfd142y":{"e":466,"calls":3,"waits":2},"64y0jakbjfvm9":{"e":5208,"calls":105,"waits":204},"2wmkxs5arpj0h":{"e":613,"calls":3,"waits":2},"dcxgz5g2j9ts2":{"e":38681,"calls":3,"waits":3},"dk21j71dpu26c":{"e":11477,"calls":901,"waits":0},"f9xbak7zf0a4a":{"e":10960,"calls":901,"waits":0},"fvnvyaby642k8":{"e":471,"calls":3,"waits":2},"52nzchs09dgn1":{"e":2485509,"calls":205,"waits":3293},"7r10y07tqpg98":{"e":598598,"calls":5,"waits":5966},"06nvwn223659v":{"e":171,"calls":2,"waits":0}}}};
+// ---- formatting helpers: the app's own (web/src/lib/data/format.ts, linetime.ts), so NOW prints what the app prints ----------
+const intFmt = new Intl.NumberFormat('en-US')
+const compactFmt = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
+const fmtInt = (n) => intFmt.format(Math.round(n))
+const fmtCompact = (n) => (Math.abs(n) < 10000 ? intFmt.format(Math.round(n)) : compactFmt.format(n))
+
+/** A duration, 3 significant digits as the app: 9 µs, 1.49 ms, 637 ms, 2.448 s. */
+function fmtDur(us) {
+  const a = Math.abs(us)
+  if (a < 1000) return `${Math.round(us)} µs`
+  if (a < 1e6) return `${(us / 1000).toFixed(a < 10000 ? 2 : a < 100000 ? 1 : 0)} ms`
+  if (a < 60e6) return `${(us / 1e6).toFixed(a < 10e6 ? 3 : 2)} s`
+  if (a < 3600e6) return `${(us / 60e6).toFixed(1)} min`
+  return `${(us / 3600e6).toFixed(2)} h`
+}
+/** [number, unit] of fmtDur. */
+function durParts(us) { const s = fmtDur(us); const i = s.lastIndexOf(' '); return [s.slice(0, i), s.slice(i + 1)] }
+/** A signed time difference: +412 µs, −1.83 ms. */
+const fmtDelta = (us) => (us < 0 ? '−' : '+') + fmtDur(Math.abs(us))
+const fmtPct0 = (part, total) => `${((100 * part) / total).toFixed(0)}%`
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+/** The magnitude class of a duration: µs, ms, s (section 3's ramp). */
+const magOf = (us) => (us < 1000 ? 'us' : us < 1e6 ? 'ms' : 's')
+
+/** µs of the day of 'HH:MM:SS.uuuuuu'. */
+const clockToUs = (c) => { const m = /^(\d+):(\d+):(\d+)\.(\d+)$/.exec(c); return ((+m[1] * 60 + +m[2]) * 60 + +m[3]) * 1e6 + +m[4].padEnd(6, '0') }
+/** 'HH:MM:SS.uuuuuu' of µs of the day. */
+const usToClock = (us) => { const s = Math.floor(us / 1e6); return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.${String(Math.round(us % 1e6)).padStart(6, '0')}` }
+
+// ---- the data: rows.json (the spec's excerpts) + extra.json (the lines the excerpts stop short of, from the same trace) ----------
+// DATA = { rows: [...], extra: {...} } is inlined by build.mjs.
+
+/** rows.json clocks are tim-anchored on the *** TIME mark; the app anchors on the wait after it, 619 µs later (checked against
+ *  io_waits-plan-light.png: row 99 is 11:35:29.828061 there and .827442 in rows.json). Every clock here is corrected by it. */
+const CLOCK_FIX_US = 619
+const SPAN_US = DATA.extra.span.us                 // first tim to last tim of the file: 6.46 s
+const HOT_US = SPAN_US * 0.01                        // a hot spot takes 1 % of the traced time or more
+const SCALE_US = 2448362                             // the Δ column's bar: full = the longest line of the file (the 2.448 s sort)
+const TIM0 = 10805134758, T0 = ((11 * 60 + 35) * 60 + 29) * 1e6 + 826769 + CLOCK_FIX_US
+const timToUs = (tim) => T0 + (tim - TIM0)
+
+// ---- events: wait class → role (colour) ----------------------------------------------------------------------------------------
+const EVENT = {
+  'direct path read': 'userio', 'db file sequential read': 'userio', 'direct path read temp': 'userio', 'Disk file operations I/O': 'userio',
+  'SQL*Net message to client': 'network', 'SQL*Net more data to client': 'network', 'SQL*Net message from client': 'idle',
+  'enq: KO - fast object checkpoint': 'other', 'PGA memory operation': 'other', 'reliable message': 'other', 'asynch descriptor resize': 'other',
+}
+const roleOf = (nam) => EVENT[nam] || 'other'
+const ROLE_VAR = { userio: '--c-userio', sysio: '--c-sysio', network: '--c-network', idle: '--c-idle', other: '--c-other', commit: '--c-commit', concurrency: '--c-concurrency', cpu: '--c-cpu' }
+const ROLE_NAME = { userio: 'User I/O', network: 'Network', idle: 'Idle', other: 'Other' }
+const CLOSE_TYPES = { 0: 'hard close', 1: 'soft close, kept in the cursor cache', 2: 'soft close', 3: 'already in the cursor cache' }
+const COMMANDS = { 2: 'INSERT', 3: 'SELECT', 42: 'ALTER SESSION', 47: 'PL/SQL EXECUTE' }
+
+// ---- statement colours: the top 8 statements by elapsed time take the categorical slots in order, the rest are quiet (--c-idle) ------
+const LANE_TOKEN = {
+  '52nzchs09dgn1': 'var(--c-cpu)', '4w3wvjbkvq24v': 'var(--c-network)', c7ry5gr75qv4b: 'var(--c-userio)', '7r10y07tqpg98': 'var(--c-other)',
+  dcxgz5g2j9ts2: 'var(--c-sysio)', dk21j71dpu26c: 'var(--c-concurrency)', f9xbak7zf0a4a: 'var(--c-commit)',
+  '64y0jakbjfvm9': 'color-mix(in oklch, var(--c-cpu) 65%, var(--surface-raised))',
+}
+const laneColor = (sqlid) => LANE_TOKEN[sqlid] || 'var(--c-idle)'
+/** per statement: what the sticky label's third line and the chips need (calls / waits / execs / time are the app's own numbers for the file) */
+const STMT = {
+  c7ry5gr75qv4b: { total: '638 ms', execs: 1, calls: 5, waits: 34 },
+  '52nzchs09dgn1': { total: '2.486 s', execs: 1, calls: 205, waits: 1000 },
+  dk21j71dpu26c: { total: '11.5 ms', execs: 300, calls: 901, waits: 0 },
+}
+
+// ---- the pool of rows, in segments of contiguous lines -----------------------------------------------------------------------
+const SEGS = []
+const byLn = new Map()   // line -> row (all segments)
+const SQLTEXT = {}       // sqlid -> text (the lines between a CURSOR row and its END OF STMT)
+
+function buildSegments() {
+  const rowsOf = (list) => list.flatMap((e) => e.rows)
+  const ex = DATA.extra.excerpts
+  const ext = (from) => ex.find((e) => e.from === from).rows
+  const rj = (from) => DATA.rows.find((e) => e.from === from).rows
+  const mk = (id, rows, o) => SEGS.push({ id, rows: rows.map((r) => ({ ...r })), ...o })
+  mk('hdr', rj(23), { contBefore: false, prevTim: DATA.extra.prevTim['23'] })
+  mk('cur', [...ext(84), ...rj(95), ...ext(141)], { contBefore: false, prevTim: DATA.extra.prevTim['84'] })
+  mk('loop', [...rj(2960), ...ext(3011)], { contBefore: true, init: { '139745603983880': 'dk21j71dpu26c' }, prevTim: DATA.extra.prevTim['2960'] })
+  mk('fetch', [...rj(10355), ...ext(10402)], { contBefore: true, init: { '139745604251096': '52nzchs09dgn1' }, prevTim: DATA.extra.prevTim['10355'] })
+  // sql texts of the two statements the loop / sort excerpts start inside of
+  for (const from of [792, 6878]) { let sid = null, text = []; for (const r of ext(from)) { if (r.k === 'CURSOR') { sid = r.sqlid; text = [] } else if (r.k === 'TEXT') text.push(r.text); else if (r.k === 'ENDSTMT' && sid) SQLTEXT[sid] = text } }
+  for (const s of SEGS) annotate(s)
+  for (const s of SEGS) for (const r of s.rows) byLn.set(r.ln, r)
+  // SQL texts of every cursor in the segments
+  for (const s of SEGS) { let sid = null, text = []; for (const r of s.rows) { if (r.k === 'CURSOR') { sid = r.sqlid; text = [] } else if (r.k === 'TEXT' && sid && !/^\*\*\*/.test(r.text)) text.push(r.text); else if (r.k === 'ENDSTMT' && sid) { SQLTEXT[sid] = text; sid = null } } }
+}
+
+const FRAMING = new Set(['BLANK', 'RULE', 'MARK'])
+const isFraming = (r) => FRAMING.has(r.k) || (r.k === 'TEXT' && /^\*\*\*/.test(r.text))
+
+/** Parse the wait parameters in file order, as the app (readable.ts parseWait): the first three, `obj#` and `tim` left out. */
+function parseWaitParams(raw) {
+  const m = /^WAIT\s+#(\d+):\s*nam='(.*)'\s+ela=\s*(-?\d+)\s*(.*)$/.exec(raw)
+  const rest = m[4], tail = rest.search(/\bobj#=|\btim=/)
+  const out = []
+  for (const x of (tail < 0 ? rest : rest.slice(0, tail)).matchAll(/([^=]+)=(\S*)/g)) out.push({ label: x[1].trim(), value: x[2] })
+  return out.slice(0, 3)
+}
+
+function annotate(seg) {
+  const rows = seg.rows
+  const curMap = {}
+  let n = 0
+  // recursive SQL (dep 1): the three statements of the excerpts whose CURSOR line is not in them
+  const DEEP = { '10gywwmwk6xfy': 1, dbvj6jc977hqh: 1, dk21j71dpu26c: 1 }
+  const mkInst = (sqlid, cur, dep) => ({ id: ++n, sqlid, cur, depth: dep || DEEP[sqlid] || 0 })
+  for (const [cur, sid] of Object.entries(seg.init || {})) curMap[cur] = mkInst(sid, cur, sid === 'dk21j71dpu26c' ? 1 : 0)
+  let inst = Object.values(curMap)[0] || null   // a segment that starts inside a statement
+  const prevT = seg.prevTim ? timToUs(seg.prevTim.tim) : null
+  let lastT = prevT
+  let lastDur = null
+  for (const r of rows) {
+    // the cursor instance (a cursor number is reused for other statements: the instance is what a lane is)
+    if (r.k === 'CURSOR') { inst = mkInst(r.sqlid, r.cur, r.dep); curMap[r.cur] = inst; r.inst = inst }
+    else if (r.cur !== undefined) {
+      if (r.cur === '0') { r.inst = null; inst = null }
+      else {
+        // a cursor parsed before this segment: rows.json knows its sql_id, except for the one cursor number that several statements reuse
+        r.inst = curMap[r.cur] || (curMap[r.cur] = mkInst(r.cur === '139745604251096' ? null : r.sqlid || null, r.cur, 0))
+        inst = r.inst
+      }
+    } else if (!isFraming(r)) r.inst = inst
+    // time
+    if (r.clock && r.k !== 'MARK') r.t = clockToUs(r.clock) + CLOCK_FIX_US
+    if (r.k === 'WAIT') { r.dur = r.ela; r.role = roleOf(r.nam); r.params = parseWaitParams(r.raw) }
+    if (['PARSE', 'EXEC', 'FETCH', 'CLOSE'].includes(r.k)) r.dur = r.e
+    if (r.t !== undefined) {
+      r.delta = lastT === null ? undefined : r.t - lastT
+      r.prevDur = lastDur
+      r.prevT = lastT
+      lastT = r.t; lastDur = r.dur ?? 0
+    }
+    if (r.dur !== undefined && r.role !== 'idle') r.hot = r.dur >= HOT_US
+    if (r.k === 'EXEC' && DATA.extra.loopExec[r.ln]) { r.execNo = DATA.extra.loopExec[r.ln][0]; r.execTotal = DATA.extra.loopExec[r.ln][1] }
+    if (r.k === 'MARK') r.clock = r.at.slice(11, 26).replace(/\+.*/, '').padEnd(15, '0').slice(0, 15)
+  }
+  // framing rows join the lane when the cursor before and after is the same one (the app looks 40 lines each way)
+  const LOOK = 40
+  const keys = rows.map((r) => (isFraming(r) ? undefined : r.inst ? r.inst.id : -1))
+  rows.forEach((r, i) => {
+    if (keys[i] !== undefined) return
+    const near = (dir) => { for (let k = 1, x = i + dir; k <= LOOK; k++, x += dir) { if (x < 0 || x >= rows.length) return -2; if (keys[x] !== undefined) return keys[x] } return -2 }
+    const a = near(-1), b = near(1)
+    keys[i] = a >= 0 && a === b ? a : -1
+    if (keys[i] >= 0) r.inst = rows.find((q) => q.inst && q.inst.id === keys[i]).inst
+  })
+  rows.forEach((r, i) => {
+    r.laneKey = keys[i]
+    if (keys[i] < 0) return
+    const before1 = i >= 1 ? keys[i - 1] : (seg.contBefore ? keys[i] : -1)
+    const before2 = i >= 2 ? keys[i - 2] : (i === 1 ? (seg.contBefore ? keys[i] : -1) : (seg.contBefore ? keys[i] : -1))
+    r.laneFirst = before1 !== keys[i]
+    r.laneSecond = !r.laneFirst && before2 !== keys[i]
+  })
+}
+
+// ---- bind blocks: a BINDS row, its blank line, then Bind#N rows each with 4 attribute lines ---------------------------------------
+const BIND_TYPES = { '01': 'VARCHAR2', '02': 'NUMBER', '12': 'DATE', '96': 'CHAR' }
+function bindNamesOf(sqlid, n) {
+  const text = (SQLTEXT[sqlid] || []).join(' ')
+  const seen = []
+  for (const m of text.matchAll(/:([A-Za-z_][\w$#]*|\d+)/g)) if (!seen.includes(m[1])) seen.push(m[1])
+  return Array.from({ length: n }, (_, i) => ':' + (seen[i] ?? i))
+}
+function bindValue(typeCode, raw) {
+  let v = raw
+  if (v.startsWith('"') && v.endsWith('"') && v.length >= 2) v = v.slice(1, -1)
+  if (typeCode === '12') { const m = /^(\d+)\/(\d+)\/(\d+) (\d+:\d+:\d+)$/.exec(v); if (m) v = `${m[3]}-${m[1]}-${m[2]}T${m[4]}` }
+  return v
+}
+/** The binds of the BINDS row at index i of seg.rows, with the line each Bind# is on. */
+function bindsOf(seg, i) {
+  const rows = seg.rows, head = rows[i]
+  const binds = []
+  let cur = null
+  for (let k = i + 1; k < rows.length; k++) {
+    const r = rows[k]
+    if (r.k === 'BLANK') continue
+    if (r.k === 'BIND') { cur = { pos: r.pos, ln: r.ln, attrLns: [], type: '', value: '' }; binds.push(cur); continue }
+    if (r.k === 'BINDATTR' && cur) {
+      cur.attrLns.push(r.ln)
+      const t = r.text
+      if (t.startsWith('oacdty=')) cur.typeCode = t.slice(7, 9)
+      if (t.startsWith('value=')) cur.raw = t.slice(6)
+      continue
+    }
+    break
+  }
+  const names = bindNamesOf(head.sqlid || (head.inst && head.inst.sqlid), binds.length)
+  for (const b of binds) { b.name = names[b.pos]; b.type = BIND_TYPES[b.typeCode] || b.typeCode; b.value = bindValue(b.typeCode, b.raw ?? ''); b.last = b === binds[binds.length - 1] }
+  return binds
+}
+/** Every BINDS row also knows its binds (the full block may continue past the end of the pool: the 8-bind block of dbvj6jc977hqh does not). */
+function indexBinds() {
+  for (const seg of SEGS) {
+    seg.rows.forEach((r, i) => {
+      if (r.k === 'BINDS') { r.binds = bindsOf(seg, i); r.sqlidResolved = r.inst && r.inst.sqlid }
+    })
+    // the bind rows know their BINDS row; a Bind# row at the start of the segment belongs to a BINDS row above it
+    let cur = null
+    seg.rows.forEach((r) => {
+      if (r.k === 'BINDS') cur = r
+      else if (r.k === 'BIND') {
+        if (!cur) { // orphan at the start of the segment: its block started above the first row (the loop excerpt)
+          const sid = r.inst && r.inst.sqlid
+          const attrs = seg.rows.filter((q) => q.k === 'BINDATTR' && q.ln > r.ln && q.ln <= r.ln + 4)
+          const fake = { k: 'BINDS', ln: r.ln - 2, inst: r.inst, binds: [], orphan: true }
+          const b = { pos: r.pos, ln: r.ln, attrLns: attrs.map((q) => q.ln), last: true }
+          for (const q of attrs) { if (q.text.startsWith('oacdty=')) b.typeCode = q.text.slice(7, 9); if (q.text.startsWith('value=')) b.raw = q.text.slice(6) }
+          b.name = bindNamesOf(sid, 1)[0]; b.type = BIND_TYPES[b.typeCode]; b.value = bindValue(b.typeCode, b.raw ?? '')
+          fake.binds.push(b); r.bindsRow = fake; cur = fake
+        } else r.bindsRow = cur
+      }
+    })
+  }
+}
+
+buildSegments()
+indexBinds()
+const segOf = (ln) => SEGS.find((s) => s.rows.length && ln >= s.rows[0].ln && ln <= s.rows[s.rows.length - 1].ln)
+const rowsIn = (a, b) => { const s = segOf(a); return s.rows.filter((r) => r.ln >= a && r.ln <= b) }
+
+// ---- present(): the rows of a line range as the display items of the Lines view, NOW or with the proposals applied --------------
+// `o` carries the proposal flags p1..p9 (all off = what the app draws today). Each item is { type, r, ... } for one displayed row.
+
+/** The plan metrics of a run of STAT rows: depth from pid, own time = time minus the children's, root = the whole plan's time. */
+function planOf(stats) {
+  const byId = new Map(stats.map((s) => [s.id, s]))
+  const depth = (s) => { let d = 0; for (let p = byId.get(s.pid); p; p = byId.get(p.pid)) d++; return d }
+  const kids = new Map()
+  for (const s of stats) kids.set(s.pid, (kids.get(s.pid) || 0) + (s.time || 0))
+  const root = stats.find((s) => !byId.has(s.pid))
+  return stats.map((s) => {
+    const cost = s['us cost'] ?? s.cost
+    const perStart = Math.max(s.cnt / Math.max(1, s.str ?? 1), 1)
+    const ratio = s.card !== undefined ? perStart / Math.max(s.card, 1) : 1
+    return {
+      id: s.id, pid: s.pid, depth: depth(s), op: s.op, name: s.name, starts: s.str, eRows: s.card, aRows: s.cnt, cost,
+      time: s.time, self: Math.max(0, (s.time || 0) - (kids.get(s.id) || 0)), root: root ? root.time : s.time, cr: s.cr, pr: s.pr, pw: s.pw,
+      off: s.card !== undefined && (ratio >= 10 || ratio <= 0.1), perStart,
+    }
+  })
+}
+
+const isCall = (r) => ['PARSE', 'EXEC', 'FETCH', 'CLOSE'].includes(r.k)
+const isIdle = (r) => r.k === 'WAIT' && r.role === 'idle'
+
+function present(a, b, o) {
+  const seg = segOf(a), rows = seg.rows
+  const lo = rows.findIndex((r) => r.ln === a), hi = rows.findIndex((r) => r.ln === b)
+  const items = []
+  const inline = new Set()   // BINDS rows drawn as chips (p6a): their Bind# rows are not drawn
+  let ruleBefore = false
+  for (let i = lo; i <= hi; i++) {
+    const r = rows[i], prev = rows[i - 1]
+    switch (r.k) {
+      case 'BINDATTR': break                                   // the attribute lines are folded under their Bind# row
+      case 'BLANK':
+        if (o.p6) break                                        // (b) folds quietly
+        if (prev && ['BINDS', 'BIND', 'BINDATTR', 'BLANK'].includes(prev.k)) break // the blank under BINDS is part of its table
+        items.push({ type: 'blank', r }); break
+      case 'RULE': if (o.p6) ruleBefore = true; else items.push({ type: 'rule', r }); break
+      case 'ENDSTMT': if (!o.p6) items.push({ type: 'end', r }); break
+      case 'TEXT': items.push({ type: /^\*\*\*/.test(r.text) ? 'time' : 'sql', r }); break
+      case 'MARK': items.push({ type: 'mark', r }); break
+      case 'CURSOR': { const it = { type: 'cursor', r }; if (ruleBefore) { it.ruleTop = true; ruleBefore = false } items.push(it); break }
+      case 'BINDS': {
+        const ok = o.p6 && r.binds.length > 0 && r.binds.length <= 4 && r.binds.every((x) => x.value.length <= 24)
+        if (ok) { inline.add(r); items.push({ type: 'binds-inline', r }) } else items.push({ type: 'binds', r })
+        break
+      }
+      case 'BIND': {
+        const br = r.bindsRow
+        if (br && (inline.has(br) || (o.p6 && br.orphan))) break
+        items.push({ type: 'bindrow', r, bind: br.binds.find((x) => x.ln === r.ln), head: br }); break
+      }
+      case 'STAT': {
+        if (prev && prev.k === 'STAT' && prev.cur === r.cur && i > lo) break   // handled with the first row of its run
+        let s = i, e = i
+        while (rows[s - 1] && rows[s - 1].k === 'STAT' && rows[s - 1].cur === r.cur) s--
+        while (rows[e + 1] && rows[e + 1].k === 'STAT' && rows[e + 1].cur === r.cur) e++
+        const run = rows.slice(s, e + 1), plans = planOf(run)
+        items.push({ type: 'planhead', r: run[0], plan: plans })
+        for (let k = i; k <= Math.min(e, hi); k++) items.push({ type: 'plan', r: rows[k], plan: plans[k - s], first: k === s, last: k === e })
+        break
+      }
+      default: items.push({ type: isCall(r) ? 'call' : r.k === 'WAIT' ? 'wait' : 'other', r })
+    }
+  }
+  post(items, o, seg)
+  return items
+}
+
+/** The passes over the displayed rows: skips, execution starts, brackets, runs of the same wait, the clock. */
+function post(items, o, seg) {
+  const lnItems = items.filter((it) => it.r && it.type !== 'planhead')
+  // p6: a dotted gap mark in the # cell where lines were folded away
+  if (o.p6) lnItems.forEach((it, k) => { const p = lnItems[k - 1]; if (p && it.r.ln - p.r.ln > 1) it.gap = true })
+  // executions: the first row of each is its BINDS row when it has one, else its EXEC row (found in the model rows, so a BINDS row whose
+  // EXEC is below the range still knows its execution)
+  const rws = seg.rows
+  const afterBinds = (i) => { for (let k = i + 1; k < rws.length; k++) { if (['BLANK', 'BIND', 'BINDATTR'].includes(rws[k].k)) continue; return rws[k].k === 'EXEC' ? rws[k] : null } return null }
+  const beforeExec = (i) => { for (let k = i - 1; k >= 0; k--) { if (['BLANK', 'BINDATTR'].includes(rws[k].k)) continue; return rws[k].k === 'BINDS' || rws[k].k === 'BIND' } return false }
+  items.forEach((it) => {
+    const r = it.r
+    if (!r) return
+    let ex = null
+    if (it.type === 'binds' || it.type === 'binds-inline') ex = afterBinds(rws.indexOf(r))
+    else if (it.type === 'call' && r.k === 'EXEC' && !beforeExec(rws.indexOf(r))) ex = r
+    if (ex && ex.execNo) { it.execFirst = true; it.execNo = ex.execNo; it.execTotal = ex.execTotal; if (it.type !== 'call') r._exec = ex.execNo }
+  })
+  // p4: the call says what it waited for; wait rows under a call are bracketed
+  if (o.p4) {
+    let open = -1
+    items.forEach((it, k) => {
+      const r = it.r
+      if (it.type === 'wait' && r.role !== 'idle' && r.inst) { if (open < 0 || items[open].r.inst !== r.inst) open = k }
+      else if (it.type === 'call' && open >= 0) {
+        if (items[open].r.inst === r.inst) {
+          for (let j = open; j < k; j++) { items[j].br = j === open ? 'first' : 'in'; if (items[j].type === 'wait' && items[j].r.role !== 'idle') items[j].indent = true }
+          it.br = 'end'
+        }
+        open = -1
+      } else if (it.type === 'cursor' || it.type === 'planhead') open = -1
+    })
+    items.forEach((it) => {
+      const r = it.r
+      if (it.type === 'call' && r.e !== undefined && r.c !== undefined) {
+        const waited = r.e - r.c
+        if (waited >= 0.1 * r.e && waited >= 100) it.share = { us: waited, pct: Math.round((100 * waited) / r.e), crit: waited >= 0.5 * r.e }
+      }
+    })
+  }
+  // p7: a run of 3 or more waits of the same event and object (inside one call's waits) gets micro-columns; a wait whose neighbour above is
+  // in the same run drops its prefix to a ditto
+  if (o.p7) {
+    const groups = []
+    let g = []
+    items.forEach((it) => { if (it.type === 'wait') g.push(it); else if (it.type === 'call' || it.type === 'cursor') { groups.push(g); g = [] } })
+    groups.push(g)
+    const key = (it) => it.r.nam + '|' + (it.r.obj || '')
+    for (const grp of groups) {
+      const counts = {}
+      grp.forEach((it) => { if (it.r.role !== 'idle' && it.r.role !== 'network') counts[key(it)] = (counts[key(it)] || 0) + 1 })
+      grp.forEach((it) => {
+        if (counts[key(it)] >= 3 && it.r.role === 'userio' && it.r.params.length === 3) {
+          it.micro = true
+          const k = items.indexOf(it), p = items[k - 1]
+          it.ditto = !!(p && p.micro && key(p) === key(it))
+        }
+      })
+    }
+  }
+  // p8: the link of a BINDS table is a row after its last bind row, not a header cell
+  if (o.p8) {
+    for (let k = items.length - 1; k >= 0; k--) {
+      const it = items[k]
+      if (it.type === 'bindrow' && it.bind && it.bind.last) { it.footer = true; items.splice(k + 1, 0, { type: 'bindfoot', r: it.r, head: it.head }) }
+    }
+  }
+  // p9: the full clock on the first row, the selected row and where HH:MM:SS changes, else the changing microseconds
+  if (o.p9) {
+    let last = null
+    items.forEach((it) => {
+      const c = clockOf(it)
+      if (!c) return
+      const hms = c.slice(0, 8)
+      it.clockFull = last === null || hms !== last || (o.sel !== undefined && it.r.ln === o.sel)
+      last = hms
+    })
+  }
+}
+
+/** The clock string a row shows (µs precision), or '' for none. */
+function clockOf(it) {
+  const r = it.r
+  if (!r) return ''
+  if (it.type === 'time') { const m = /(\d\d:\d\d:\d\d\.\d+)/.exec(r.text); return m ? m[1] : '' }
+  if (it.type === 'mark') return r.clock || ''
+  if (r.t !== undefined && ['call', 'wait', 'cursor'].includes(it.type)) return usToClock(r.t)
+  return ''
+}
+
+// ---- render(): display items -> the DOM of a pane (a header row and the rows), NOW or PROPOSED ------------------------------------
+// Class names are the implementation vocabulary: .row .c-delta .c-ln .c-lane .c-fh .c-dur .c-op .c-detail .c-clock .bar .hot .sel .mk
+// .sticky-lane .tbl-plan .tbl-binds .chip ... (rows.css has the rules, commented per section).
+
+const SQL_KW = new Set(('select from where and or not in is null as on join left right inner outer full cross group by order having union all intersect minus insert into values update set delete merge using when matched then else end case begin declare exception create alter drop table index view with distinct exists between like escape asc desc nulls first last fetch next rows only offset for return returning commit rollback grant execute procedure function package body cursor loop if elsif while connect start prior partition over count sum min max avg nvl decode cast to_date to_char to_number sysdate rownum level').split(' '))
+function sqlHtml(text) {
+  const re = /(--.*$|\/\*.*?(?:\*\/|$))|('(?:[^']|'')*'?)|(:[A-Za-z_][\w$#]*|:\d+)|([A-Za-z_][\w$#]*)|(\s+|[^\sA-Za-z_':\-\/]+|.)/g
+  let out = ''
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    if (m[1]) out += `<span class="rd-cmt">${esc(m[1])}</span>`
+    else if (m[2]) out += `<span class="rd-str">${esc(m[2])}</span>`
+    else if (m[3]) out += `<span class="rd-bind">${esc(m[3])}</span>`
+    else if (m[4] && SQL_KW.has(m[4].toLowerCase())) out += `<span class="rd-kw">${esc(m[4])}</span>`
+    else out += esc(m[0])
+  }
+  return out
+}
+
+const q = (cls, n, unit) => `<span class="rd-q rd-q-${cls}"><b>${esc(n)}</b> <small>${esc(unit)}</small></span>`
+const dim = (t) => `<span class="rd-dim">${esc(t)}</span>`
+const SEP = dim(' · ')
+
+// ---- the detail text of a call, a wait, a cursor ----------------------------------------------------------------------------------
+function callDetail(it, o) {
+  const r = it.r, gets = (r.cr || 0) + (r.cu || 0)
+  let h = ''
+  if (r.c && (r.e === undefined || (fmtDur(r.c) !== fmtDur(r.e) && r.c < r.e))) { const [n, u] = durParts(r.c); h += q('cpu', n, u + ' cpu') }
+  if (r.r !== undefined && (r.k === 'FETCH' || r.r > 0)) h += q('rows', fmtInt(r.r), r.r === 1 ? 'row' : 'rows')
+  if (gets > 0) h += q('gets', fmtInt(gets), gets === 1 ? 'get' : 'gets')
+  if ((r.p || 0) > 0) h += q('reads', fmtInt(r.p), r.p === 1 ? 'read' : 'reads')
+  if ((r.mis || 0) > 0) h += o.p4 ? `<span class="pill-hp">hard parse</span>` : `<span class="rd-warn">hard parse</span>`
+  if (r.k === 'CLOSE' && r.type !== undefined) h += dim(o.p6 ? (r.type === 0 ? 'closed' : 'cached') : CLOSE_TYPES[r.type])
+  if (it.share) h += `<span class="share${it.share.crit ? ' crit' : ''}">· ${fmtDur(it.share.us)} waiting (${it.share.pct} %)</span>`
+  return h
+}
+
+const PARAM_LABELS = { 'file#': 'file', 'file number': 'file', 'block#': 'block', 'first dba': 'block', blocks: 'blocks', 'block cnt': 'blocks', 'driver id': null, '#bytes': 'bytes', p1: null, p2: null, p3: null, 'outstanding #aio': 'outstanding aio', 'current aio limit': 'aio limit', 'new aio limit': 'new aio limit', FileOperation: 'operation', fileno: 'file', filetype: 'file type', 'sleeptime/senderid': null, passes: 'passes' }
+/** The parameters of a wait worth reading, as the app labels them; zeros are left out. `o.p6` also drops the single byte of a SQL*Net message. */
+function waitParams(r, o) {
+  const out = []
+  for (const p of r.params) {
+    if (p.value === '' || p.value === '0') continue
+    const n = Number(p.value)
+    if (p.label === 'name|mode' && Number.isFinite(n)) { out.push(dim(`mode ${n & 0xffff}`)); continue }
+    const label = p.label in PARAM_LABELS ? PARAM_LABELS[p.label] : p.label
+    if (label === null) continue
+    const isNum = Number.isFinite(n) && /^\d+$/.test(p.value)
+    if (label === 'blocks' || label === 'bytes') {
+      if (o && o.p6 && label === 'bytes' && n === 1) continue
+      out.push(`<span class="rd-num">${fmtInt(n)}</span>` + dim(` ${n === 1 ? label.slice(0, -1) : label}`))
+    } else out.push(dim(`${label} `) + `<span class="rd-num">${isNum && label !== 'block' && label !== 'file' ? fmtInt(n) : esc(p.value)}</span>`)
+  }
+  return out
+}
+const objOf = (r) => (r.obj && r.role === 'userio' ? r.obj : '')
+
+function waitDetail(it, o, ctx) {
+  const r = it.r
+  const dot = o.p4 ? `<i class="dot${r.role === 'idle' ? ' ring' : ''}" style="--dot: var(${ROLE_VAR[r.role]})" title="${ROLE_NAME[r.role] || 'Other'}"></i>` : ''
+  if (it.micro) return microDetail(it, o, ctx, dot)
+  let h = dot + `<span class="rd-ev">${esc(r.nam)}</span>`
+  const obj = objOf(r)
+  if (obj) h += `<span class="rd-evobj">${esc(obj)}</span>`
+  const ps = waitParams(r, o)
+  if (ps.length) h += `<span class="rd-pgap"></span>` + ps.join(SEP)
+  return h
+}
+
+/** p7: the repeated prefix is a ditto, the varying fields are right-aligned micro-columns (file | block | blocks). */
+function microDetail(it, o, ctx, dot) {
+  const r = it.r
+  const obj = objOf(r)
+  const [f, b, n] = r.params
+  const pre = `<span class="pre${it.ditto ? ' ditto' : ''}" style="--ch: ${ctx.prefixCh}">${dot}<span class="rd-ev">${esc(r.nam)}</span>${obj ? `<span class="rd-evobj">${esc(obj)}</span>` : ''}</span>`
+  const cells = `<span class="mc mc-file"><i>file</i> <b>${esc(f.value)}</b></span><span class="mc mc-block"><i>block</i> <b>${esc(b.value)}</b></span><span class="mc mc-blocks"><b>${fmtInt(+n.value)}</b> <i>${+n.value === 1 ? 'block' : 'blocks'}</i></span>`
+  return pre + cells
+}
+
+function cursorDetail(it, o) {
+  const r = it.r, txt = (SQLTEXT[r.sqlid] || [''])
+  let h = `<span class="rd-name">${esc(r.sqlid)}</span>`
+  const parts = [COMMANDS[r.oct] || `oct ${r.oct}`, `user ${r.uid}`]
+  if (o.p6) {
+    parts.push(`${r.len || txt.join('\n').length} chars`)
+    if (r.dep) parts.splice(2, 0, `depth ${r.dep}`)
+    return h + `<span class="rd-pgap"></span>` + dim(parts.join(' · '))
+  }
+  if (r.dep) parts.push(`depth ${r.dep}`)
+  return h + parts.map((p) => SEP + dim(p)).join('')
+}
+
+const MARK_LABELS = { 'SESSION ID': 'SESSION', 'CLIENT ID': 'CLIENT', 'SERVICE NAME': 'SERVICE', 'MODULE NAME': 'MODULE', 'ACTION NAME': 'ACTION', 'CLIENT DRIVER': 'DRIVER', 'CONTAINER ID': 'CONTAINER' }
+
+// ---- the cells ----------------------------------------------------------------------------------------------------------------------
+function opOf(it, o) {
+  const r = it.r
+  switch (it.type) {
+    case 'call': return { t: r.k, tone: 'cpu', cls: 'op-call' }
+    case 'wait': return { t: r.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', cls: 'op-wait' }
+    case 'cursor': return { t: 'CURSOR', tone: 'sysio', cls: 'op-call' }
+    case 'planhead': return { t: 'PLAN', tone: 'commit', cls: 'op-struct' }
+    case 'binds': case 'binds-inline': return { t: 'BINDS', tone: 'network', cls: 'op-struct' }
+    case 'mark': return { t: MARK_LABELS[r.name] || r.name, tone: 'dim', cls: 'op-mark' }
+    case 'time': return { t: 'TIME', tone: 'dim', cls: 'op-mark' }
+    default: return { t: '', tone: '', cls: '' }
+  }
+}
+function opCell(it, o) {
+  const x = opOf(it, o)
+  let t = x.t
+  if (o.p4 && x.cls === 'op-wait') t = t.toLowerCase().replace('wait #0', 'wait #0')
+  const fold = o.p8 && (it.type === 'planhead' || it.type === 'binds') ? '<span class="fold">▾</span> ' : ''
+  return `<div class="c-op ${o.p4 ? x.cls : ''} tone-${x.tone || 'none'}">${fold}${esc(t)}</div>`
+}
+
+function durCell(it, o) {
+  const r = it.r
+  if (!r || r.dur === undefined || it.type === 'planhead') return `<div class="c-dur"></div>`
+  const [n, u] = durParts(r.dur)
+  if (!o.p3) return `<div class="c-dur${r.dur === 0 && o.p6 ? ' zero' : ''}" title="${fmtInt(r.dur)} µs"><b>${n}</b><small>${u}</small></div>`
+  const zero = r.dur === 0 && o.p6
+  const f = (us) => (us >= 1 ? Math.min(1, Math.log10(us) / 7) : 0)
+  const col = it.type === 'wait' ? `var(${ROLE_VAR[r.role]})` : `var(--c-phase-${r.k.toLowerCase()})`
+  let fills = ''
+  if (it.type === 'wait') fills = `<i class="fill" style="--f:${f(r.dur).toFixed(4)};--col:${col}"></i>`
+  else fills = `<i class="fill waited" style="--f:${f(r.dur).toFixed(4)};--col:${col}"></i><i class="fill cpu" style="--f:${f(Math.min(r.dur, r.c ?? 0)).toFixed(4)};--col:${col}"></i>`
+  let ticks = ''
+  for (let k = 1; k <= 6; k++) ticks += `<u style="--x:${((k / 7) * 100).toFixed(3)}%"></u>`
+  return `<div class="c-dur" title="${fmtInt(r.dur)} µs"><span class="dnum mag-${magOf(r.dur)}${zero ? ' zero' : ''}"><b>${n}</b><small>${u}</small></span><span class="trk">${fills}${ticks}</span></div>`
+}
+
+function deltaCell(it, o) {
+  const r = it.r
+  let txt = '', cls = ''
+  if (r && r.t !== undefined && it.type !== 'planhead') {
+    if (o.p3gap) {
+      if (r.prevT !== null && r.prevT !== undefined) { const gap = r.t - (r.dur || 0) - r.prevT; if (gap >= 50) { txt = fmtDelta(gap); cls = gap >= 1000 && gap >= 2 * (r.prevDur || 0) ? ' emph' : '' } }
+    } else if (r.delta !== undefined) {
+      if (o.p3) { if (Math.abs(r.delta) >= 50) { txt = fmtDelta(r.delta); cls = r.delta >= 1000 && r.delta >= 2 * (r.prevDur || 0) ? ' emph' : '' } }
+      else { txt = fmtDelta(r.delta); cls = r.delta < 0 ? ' neg' : '' }
+    }
+  }
+  let bar = ''
+  if (!o.p3 && !o.p3gap && r && r.dur !== undefined && it.type !== 'planhead') {
+    const w = Math.min(1, r.dur / SCALE_US)
+    if (w > 0) {
+      const role = it.type === 'wait' ? r.role : 'cpu'
+      bar += `<i class="bar bar-${role}" style="--w:${w.toFixed(4)}"></i>`
+      if (it.type === 'call') { const cw = Math.min(1, Math.min(r.dur, r.c ?? 0) / SCALE_US); if (cw > 0) bar += `<b class="bar-solid" style="--w:${cw.toFixed(4)}"></b>` }
+    }
+  }
+  return `<div class="c-delta">${bar}<span class="dtext${cls}">${txt}</span></div>`
+}
+
+function lnCell(it, o) {
+  if (!it.r || it.type === 'planhead' || it.type === 'bindfoot') return `<div class="c-ln"></div>`
+  return `<div class="c-ln${it.gap ? ' gap' : ''}">${it.r.ln}</div>`
+}
+
+const previewSql = (sqlid) => { const t = (SQLTEXT[sqlid] || []).join(' ').replace(/\s+/g, ' ').trim(); return t.length > 60 ? t.slice(0, 59) + '…' : t }
+function laneCell(it, o) {
+  const r = it.r
+  if (!r || (r.laneKey ?? -1) < 0) return `<div class="c-lane lane-none"></div>`
+  const inst = r.inst
+  let h = ''
+  if (!o.p5) {
+    if (r.laneFirst && it.type !== 'bindrow') {
+      h = (inst.depth > 0 ? `<span class="lane-dep">↳${inst.depth}</span>` : '') + `<a class="lane-id">${esc(inst.sqlid || 'unknown')}</a>`
+    } else if (r.laneSecond && inst.sqlid && previewSql(inst.sqlid)) h = `<span class="lane-sub">${esc(previewSql(inst.sqlid))}</span>`
+  }
+  return `<div class="c-lane">${h}</div>`
+}
+
+function clockCell(it, o) {
+  const c = clockOf(it)
+  if (!c) return `<div class="c-clock"></div>`
+  if (o.p9) {
+    if (it.clockFull) return `<div class="c-clock full">${c}</div>`
+    return `<div class="c-clock short">${c.slice(8)}</div>`
+  }
+  return `<div class="c-clock">${c.slice(0, 12)}<small>${c.slice(12)}</small></div>`
+}
+
+// ---- the tables ---------------------------------------------------------------------------------------------------------------------
+const PLAN_HEADS = [['starts', 'Starts'], ['erows', 'E-Rows'], ['arows', 'A-Rows'], ['cost', 'Cost'], ['time', 'A-Time'], ['cr', 'Buffers'], ['pr', 'Reads'], ['pw', 'Writes']]
+function planCells(p, o, hot) {
+  const c = (cls, v) => `<span class="pc pc-${cls}">${v === undefined ? '' : fmtCompact(v)}</span>`
+  const w = p.root ? Math.min(1, p.self / p.root) : 0
+  let time
+  if (o.p8) time = `<span class="pc pc-time${hot ? ' hot-cell' : ''}"><span class="trk"><i class="fill" style="--f:${w.toFixed(4)}"></i></span><span class="tnum">${p.time === undefined ? '' : fmtDur(p.time)}</span></span>`
+  else time = `<span class="pc pc-n pc-time${hot ? ' hot-cell' : ''}">${p.root ? `<i class="pc-self" style="--w:${w.toFixed(3)}"></i>` : ''}${p.time === undefined ? '' : fmtDur(p.time)}</span>`
+  const n = (cls, v, extra = '') => `<span class="pc pc-n pc-${cls}${extra}">${v === undefined ? '' : fmtCompact(v)}</span>`
+  return `<span class="pc pc-id">${p.id}</span><span class="pc pc-op" style="--dep:${p.depth}">${esc(p.op)}</span><span class="pc pc-name">${esc(p.name || '')}</span>`
+    + n('starts', p.starts) + n('erows', p.eRows, p.off ? ' pc-off' : '') + n('arows', p.aRows) + n('cost', p.cost) + time + n('cr', p.cr) + n('pr', p.pr) + n('pw', p.pw)
+}
+function planHeads(o) {
+  const t = o.p8 ? 'A-Time <small>(bar: self)</small>' : 'A-Time'
+  return `<span class="pc pc-id">Id</span><span class="pc pc-op">Operation</span><span class="pc pc-name">Name</span>`
+    + PLAN_HEADS.map(([k, l]) => `<span class="pc pc-n pc-${k}">${k === 'time' ? t : l}</span>`).join('')
+}
+const bindHeads = `<span class="pc pc-bname">Variable</span><span class="pc pc-bval">Value</span><span class="pc pc-btype">Type</span>`
+const asRun = `<a class="asrun">SQL with values →</a>`
+
+// ---- one row ----------------------------------------------------------------------------------------------------------------------
+function rowHtml(it, o, ctx) {
+  const r = it.r
+  const cls = ['row', 'k-' + it.type]
+  const inst = r && r.inst
+  const sqlid = inst && inst.sqlid
+  const lane = r && (r.laneKey ?? -1) >= 0
+  const hlRow = o.hl && lane && sqlid === o.hl
+  // the calls and waits of the highlighted statement (NOW: the app's marks stop at 1,000 waits, bug 2)
+  // bug 2: the app's marks stop at 1,000 waits, so the waits of 52nzchs09dgn1 in these excerpts (it has 3,293) are untinted in NOW
+  const capped = !o.proposed && o.hl === '52nzchs09dgn1'
+  const marked = hlRow && (it.type === 'call' || (it.type === 'wait' && !capped))
+  if (marked) cls.push('mk')
+  if (hlRow) cls.push('hlane')
+  const hotRow = r && r.hot && (it.type === 'call' || it.type === 'wait')
+  if (hotRow) cls.push('hot')
+  if (o.sel === (r && r.ln) && !['planhead', 'binds', 'bindfoot'].includes(it.type)) cls.push('sel')
+  if (it.br) cls.push('br-' + it.br)
+  if (it.indent) cls.push('indent')
+  if (it.execFirst && o.p6) cls.push('exec-first')
+  if (it.ruleTop) cls.push('rule-top')
+  const tbl = ['planhead', 'plan', 'binds', 'bindrow', 'bindfoot'].includes(it.type)
+  if (tbl) cls.push('tb')
+  if (it.type === 'planhead' || (it.type === 'binds' && !o.p8)) cls.push('tb-head')
+  if ((it.type === 'plan' && it.last) || (it.type === 'bindrow' && it.bind && it.bind.last)) cls.push('tb-end')
+  const style = [lane ? `--lane:${laneColor(sqlid)}` : '', lane && inst.depth ? `--dep:${inst.depth}` : ''].filter(Boolean).join(';')
+  const fhOn = !o.p8 && ((it.type === 'plan' && it.first) || it.type === 'binds')
+  let cells = deltaCell(it, o) + lnCell(it, o) + laneCell(it, o)
+  if (!o.noFh) cells += `<div class="c-fh">${fhOn ? '<span class="fold">▾</span>' : ''}</div>`
+  // p8: a table spans the Operation column to the right edge
+  if (o.p8 && ['planhead', 'plan', 'binds', 'bindrow', 'bindfoot'].includes(it.type)) {
+    cells += durCell({ ...it, r: null }, o) + tableSpan(it, o)
+    return `<div class="${cls.join(' ')}" style="${style}" data-ln="${r.ln}">${cells}</div>`
+  }
+  cells += durCell(it, o)
+  cells += opCell(it, o)
+  cells += detailCell(it, o, ctx)
+  cells += clockCell(it, o)
+  return `<div class="${cls.join(' ')}" style="${style}" data-ln="${r ? r.ln : ''}">${cells}</div>`
+}
+
+function detailCell(it, o, ctx) {
+  const r = it.r
+  let inner = '', cls = 'c-detail'
+  const tag = it.execFirst && o.p5 && it.execNo ? `<span class="exectag">exec ${it.execNo}</span>` : ''
+  switch (it.type) {
+    case 'call': inner = tag + callDetail(it, o); break
+    case 'wait': inner = waitDetail(it, o, ctx); break
+    case 'cursor': inner = cursorDetail(it, o); break
+    case 'sql': inner = sqlHtml(r.text); break
+    case 'end': inner = dim('end of statement'); break
+    case 'rule': inner = '<span class="rd-rule"></span>'; break
+    case 'mark': inner = `<span class="rd-name">${esc(r.value || '(none)')}</span>`; break
+    case 'time': { const m = /^\*\*\* (\d{4}-\d\d-\d\d)T[\d:.]+(\+\d\d:\d\d)\s*\((.*)\)\s*$/.exec(r.text); inner = `<span class="rd-val">${m[1]}</span>` + dim(` UTC${m[2]}`) + SEP + dim(m[3]); break }
+    case 'planhead': cls += ' tbl tbl-plan'; inner = planHeads(o); break
+    case 'plan': cls += ' tbl tbl-plan'; inner = planCells(it.plan, o, !!o.p2 && it.plan.self >= HOT_US); break
+    case 'binds': cls += ' tbl tbl-binds'; inner = tagCell(it, o, true) + bindHeads + asRun; break
+    case 'binds-inline': cls += ' binds-inline'; inner = tag + bindChips(it); break
+    case 'bindrow': cls += ' tbl tbl-binds'; inner = tagCell(it, o, false) + bindCells(it.bind); break
+    default: inner = ''
+  }
+  const title = ''
+  return `<div class="${cls}"${title}>${inner}</div>`
+}
+/** p5 without p8: the execution tag is the first cell of the BINDS table (a cell of every row, so the columns still line up). */
+function tagCell(it, o, head) {
+  if (!o.p5 || o.p8) return ''
+  const no = head ? it.execNo : 0
+  return `<span class="pc pc-tag">${no ? `<span class="exectag">exec ${no}</span>` : ''}</span>`
+}
+function bindCells(b) { return `<span class="pc pc-bname">${esc(b.name)}</span><span class="pc pc-bval">${esc(b.value)}</span><span class="pc pc-btype">${esc(b.type)}</span>` }
+function bindChips(it) {
+  return it.r.binds.map((b) => `<span class="chip chip-bind"><span class="bname">${esc(b.name)}</span> = <b class="bval">${esc(b.value)}</b> <small>${esc(b.type)}</small></span>`).join('') + asRun
+}
+
+/** p8: the table's cell, spanning Operation .. Clock, on --surface-sunken in a hairline frame, inset 1 ch. */
+function tableSpan(it, o) {
+  const first = it.type === 'planhead' || it.type === 'binds'
+  const bindSet = it.type === 'binds' || it.type === 'bindrow' || it.type === 'bindfoot'
+  const last = (it.type === 'plan' && it.last) || it.type === 'bindfoot' || (it.type === 'bindrow' && it.bind.last && !it.footer)
+  const handle = first ? `<span class="tc tc-handle"><span class="fold">▾</span> ${it.type === 'planhead' ? 'PLAN' : 'BINDS'}</span>` : `<span class="tc tc-handle"></span>`
+  let inner
+  if (it.type === 'planhead') inner = planHeads(o)
+  else if (it.type === 'plan') inner = planCells(it.plan, o, it.plan.self >= HOT_US && o.p2)
+  else if (it.type === 'binds') inner = bindHeads
+  else if (it.type === 'bindfoot') inner = `<span class="asrun-foot">SQL with values →</span>`
+  else inner = bindCells(it.bind)
+  const cls = ['c-tbl', bindSet ? 'tbl-binds' : 'tbl-plan', first ? 'tbl-first' : '', last ? 'tbl-last' : '', first ? 'tbl-head' : ''].filter(Boolean).join(' ')
+  return `<div class="${cls}">${handle}${inner}</div>`
+}
+
+// ---- the pane: a header row and the rows ------------------------------------------------------------------------------------------
+function colHead(o) {
+  const grip = (end) => (o.p10 ? '' : `<span class="grip${end ? ' at-end' : ''}"></span>`)
+  return `<div class="colhead">`
+    + `<div class="ch ch-delta">Δ · time${grip()}</div><div class="ch ch-ln"></div><div class="ch ch-lane">${o.p5 ? '' : 'Statement'}${grip()}</div><div class="ch ch-fh"></div>`
+    + `<div class="ch ch-dur"><span>Duration</span>${grip()}</div><div class="ch ch-op">Operation${grip()}</div><div class="ch ch-detail">Detail</div><div class="ch ch-clock">Clock${grip(true)}</div></div>`
+}
+
+/** The sticky lane label (p5): an overlay at the top of the row block, like the plan head row today. */
+function stickyLabel(o) {
+  const s = o.sticky
+  if (!s) return ''
+  const t = (SQLTEXT[s.sqlid] || []).join(' ').replace(/\s+/g, ' ').trim()
+  const cut = t.length > 48 ? t.slice(0, 47).trimEnd() + '…' : t
+  return `<div class="sticky-lane" style="--lane:${laneColor(s.sqlid)}"><b class="sl-id">${esc(s.sqlid)}</b><span class="sl-sep">·</span><span class="sl-sql">${esc(cut)}</span><span class="sl-facts">${esc(s.facts)}</span></div>`
+}
+
+function rowsHtml(ranges, o) {
+  const ctx = { prefixCh: 0 }
+  const groups = ranges.map(([a, b]) => present(a, b, o))
+  if (o.p7) { // the prefix column of the micro-columns is as wide as the longest prefix of the block, so the cells line up across runs
+    let max = 0
+    groups.flat().forEach((it) => { if (it.micro) max = Math.max(max, it.r.nam.length + (objOf(it.r) ? 2 + objOf(it.r).length : 0) + 2 + (o.p4 ? 1 : 0)) })
+    ctx.prefixCh = max
+  }
+  let h = ''
+  groups.forEach((items, gi) => {
+    if (gi > 0) h += `<div class="row k-skip"><div class="c-delta"></div><div class="c-ln"></div><div class="c-lane"></div>${o.noFh ? '' : '<div class="c-fh"></div>'}<div class="c-dur"></div><div class="c-op"></div><div class="c-detail"><span class="rd-dim">⋯ rows ${ranges[gi][0] === ranges[gi - 1][1] + 1 ? '' : 'skipped ⋯'}</span></div><div class="c-clock"></div></div>`
+    h += items.map((it) => rowHtml(it, o, ctx)).join('')
+  })
+  return h
+}
+
+/** One pane. `o`: the proposal flags (p1..p9), `hl` the highlighted statement, `sel` the selected line, `ranges` the line ranges. */
+function paneHtml(ranges, o) {
+  const flags = ['p1', 'p2', 'p3', 'p3gap', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'].filter((k) => o[k]).join(' ')
+  const klass = ['pane', o.composite ? 'composite' : '', o.p10 ? 'p10' : '', flags, o.proposed ? 'proposed' : 'now'].filter(Boolean).join(' ')
+  const vars = o.hl ? `--hl:${laneColor(o.hl)}` : ''
+  const body = `<div class="rows">${stickyLabel(o)}${rowsHtml(ranges, o)}</div>`
+  const view = `<div class="view"><div class="view-col">${colHead(o)}${body}</div>${o.strip === false ? '' : stripHtml(o)}</div>`
+  return `<div class="${klass}" style="${vars}">${o.chrome ? chromeHtml(o) : ''}${view}${o.status ? statusHtml(o) : ''}</div>`
+}
+
+// ---- the chrome above the rows: toolbar, breadcrumb, the "where the time went" bar, the statement chips; the strip and status bar ---
+// o.chrome = { hl: sqlid, sel: line, wrap: bool, ... }; NOW draws the app's, PROPOSED (o.p10) section 10's.
+
+const TOP8 = ['52nzchs09dgn1', '4w3wvjbkvq24v', 'c7ry5gr75qv4b', '7r10y07tqpg98', 'dcxgz5g2j9ts2', 'dk21j71dpu26c', 'f9xbak7zf0a4a', '64y0jakbjfvm9']
+// where each statement ran, as fractions of the file's time span (the track is the calls' spans; the slivers are the small statements)
+const TRACK = [
+  ['c7ry5gr75qv4b', 0.0001, 0.0988], ['4w3wvjbkvq24v', 0.0997, 0.4643], ['64y0jakbjfvm9', 0.4643, 0.4669], ['dk21j71dpu26c', 0.4669, 0.4694],
+  ['f9xbak7zf0a4a', 0.4694, 0.4732], ['52nzchs09dgn1', 0.4732, 0.9073], ['7r10y07tqpg98', 0.9073, 1.0],
+]
+const T_FIRST = 10804499034
+const fracOfTim = (tim) => (tim - T_FIRST) / SPAN_US
+const fracOfT = (t) => fracOfTim(TIM0 + (t - T0))
+const pctOf = (sid) => Math.round((100 * (DATA.extra.stmtE[sid]?.e || 0)) / SPAN_US)
+const eOf = (sid) => DATA.extra.stmtE[sid].e
+
+const PANEL_ICON = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true" class="tb-ico"><rect x="0.5" y="0.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor"/><line x1="8.5" y1="1" x2="8.5" y2="11" stroke="currentColor"/></svg>'
+const RAW_ICON = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 2h12M1 6h9M1 10h11" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>'
+const FMT_ICON = '<svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 1v10" stroke="currentColor" stroke-width="2.2"/><path d="M4.5 2h3M9.5 2h3.5M4.5 6h3M9.5 6h2M4.5 10h3M9.5 10h3" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>'
+const cue = '<span class="cue" aria-hidden="true">▾</span>'
+
+function toolbarNow(c) {
+  const hl = c.hl, s = c.stats
+  return `<div class="lines-bar"><div class="lines-row${c.wrap ? ' wrap' : ' nowrap'}">
+    <span class="lines-mode"><button class="mode">${RAW_ICON}Raw</button><button class="mode on">${FMT_ICON}Formatted</button><kbd>v</kbd></span>
+    <span class="lines-rd"><button class="quiet">Fold repeats</button><button class="quiet pressed">Δ</button><button class="quiet">Hot spot ↓<small> 6</small></button></span>
+    <span class="lines-hl" style="--hl:${laneColor(hl)}"><i></i>Highlighting <a class="link mono">${hl}</a><small>${s.callsNow} calls · ${s.wnow} waits</small><button class="quiet">×</button></span>
+    <span class="lines-search"><input value="" placeholder="Search the trace text" aria-label="Search"><button class="quiet">Options ${cue}</button></span>
+    <button class="quiet">Step ${cue}</button>
+    <button class="quiet tb-cmd"><span class="tb-label">Go to or run a command</span><kbd>⌘K</kbd></button>
+    <button class="quiet">View ${cue}</button>
+    ${c.wrap ? '<span class="wrap-break"></span>' : ''}<button class="quiet tb-panel">${PANEL_ICON}</button>
+  </div></div>`
+}
+
+function toolbarProposed(c) {
+  return `<div class="lines-bar"><div class="lines-row nowrap">
+    <span class="lines-mode"><button class="mode">${RAW_ICON}Raw</button><button class="mode on">${FMT_ICON}Formatted</button></span>
+    <span class="lines-rd"><button class="quiet">Fold repeats</button><button class="quiet pressed">Δ</button><button class="quiet">Hot spot ↓<small> 6</small></button></span>
+    <span class="lines-search"><input value="" placeholder="Search the trace text" aria-label="Search"><button class="quiet">Options ${cue}</button></span>
+    <button class="quiet">Step ${cue}</button>
+    <button class="quiet tb-cmd"><kbd>⌘K</kbd></button>
+    <button class="quiet">View ${cue}</button>
+    <button class="quiet tb-panel">${PANEL_ICON}</button>
+  </div></div>`
+}
+
+function breadcrumb(c) {
+  const sid = c.hl
+  const text = { c7ry5gr75qv4b: 'select /*+ full(o) mtk_full_scan_orders */ cou…', '52nzchs09dgn1': 'select /*+ mtk_sort_spill */ o.id, o.cust_id, …' }[sid]
+  const fact = { c7ry5gr75qv4b: '1 exec · 638 ms', '52nzchs09dgn1': '1 exec · 2.486 s' }[sid]
+  const ev = { 118: 'direct path read', 10378: 'direct path read temp' }[c.sel]
+  return `<div class="lines-at"><div class="lines-crumbs">
+    <a class="link">51.14688</a><span class="crumb-sep">›</span><a class="link mono">${sid}</a><span class="lines-sql">${esc(text)}</span>
+    <span class="crumb-fact">${fact}</span><span class="crumb-sep">›</span><span>exec 1</span><span class="crumb-sep">›</span><span class="lines-kind-t">WAIT</span><span>line ${fmtInt(c.sel)}</span><a class="link">${ev}</a></div>
+    <button class="quiet">Actions ${cue}</button></div>`
+}
+
+function trackSvg(c, h) {
+  let rects = TRACK.map(([sid, a, b]) => `<rect x="${(a * 1000).toFixed(2)}" y="0" width="${Math.max(0.6, (b - a) * 1000).toFixed(2)}" height="10" style="fill:${laneColor(sid)}"/>`).join('')
+  const at = c.selT !== undefined ? fracOfT(c.selT) : null
+  if (at !== null) rects += `<rect class="rd-track-at" x="${(at * 1000 - 0.75).toFixed(2)}" y="0" width="1.5" height="10"/>`
+  return rects
+}
+
+function chipsNow(c) {
+  return `<div class="rd-chips">` + TOP8.map((sid) => {
+    const on = sid === c.hl
+    return `<button class="quiet rd-chip-st${on ? ' pressed' : ''}" style="--chip:${laneColor(sid)}"><i style="background:${laneColor(sid)}"></i><span class="mono">${sid}</span><small>${pctOf(sid)}%</small></button>`
+  }).join('') + `</div>`
+}
+function overviewNow(c) {
+  return `<div class="rd-over"><svg class="rd-track" viewBox="0 0 1000 10" preserveAspectRatio="none">${trackSvg(c)}</svg>${chipsNow(c)}</div>`
+}
+
+/** PROPOSED: a labelled 12 px bar, a thin time axis, a viewport bracket; chips with their time; the small ones folded into one. */
+function overviewProposed(c) {
+  const t0 = clockToUs('11:35:29.191045') + CLOCK_FIX_US
+  const axis = [30, 31, 32, 33, 34, 35].map((s) => { const us = ((11 * 60 + 35) * 60 + s) * 1e6; const f = (us - t0) / SPAN_US; return `<span class="ax" style="left:${(f * 100).toFixed(3)}%"><i></i>11:35:${s}</span>` }).join('')
+  const vp = c.view ? `<span class="vbracket" style="left:${(c.view[0] * 100).toFixed(3)}%;width:max(6px, ${((c.view[1] - c.view[0]) * 100).toFixed(3)}%)"></span>` : ''
+  const at = c.selT !== undefined ? `<span class="at" style="left:${(fracOfT(c.selT) * 100).toFixed(3)}%"></span>` : ''
+  const segs = TRACK.map(([sid, a, b]) => `<span class="seg" style="left:${(a * 100).toFixed(3)}%;width:max(2px, ${((b - a) * 100).toFixed(3)}%);background:${laneColor(sid)}"></span>`).join('')
+  const big = TOP8.filter((sid) => (100 * eOf(sid)) / SPAN_US >= 1)
+  const small = TOP8.length - big.length
+  const chips = big.map((sid) => {
+    const on = sid === c.hl
+    const extra = on ? `<small class="cnt">${c.stats.calls} calls · ${c.stats.waits} waits</small><span class="x" aria-label="Stop highlighting">×</span>` : ''
+    return `<span class="chip chip-stmt${on ? ' on' : ''}" style="--chip:${laneColor(sid)}"><i style="background:${laneColor(sid)}"></i><span class="mono">${sid}</span><small>${fmtDur(eOf(sid))} · ${pctOf(sid)} %</small>${extra}</span>`
+  }).join('') + `<span class="chip chip-fold"><small>+${small} under 1 %</small></span>`
+  return `<div class="rd-over"><div class="time-bar"><span class="tb-label">Where the time went · ${(SPAN_US / 1e6).toFixed(2)} s</span><div class="tb-main"><div class="tb-track">${segs}${vp}${at}</div><div class="tb-axis">${axis}</div></div></div><div class="rd-chips">${chips}</div></div>`
+}
+
+function chromeHtml(o) {
+  const c = o.chrome
+  return (o.p10 ? toolbarProposed(c) : toolbarNow(c)) + breadcrumb(c) + (o.p10 ? overviewProposed(c) : overviewNow(c))
+}
+
+// ---- the density strip and the status bar ------------------------------------------------------------------------------------------
+const FILE_LINES = 16428
+function stripHtml(o) {
+  const c = o.chrome || {}
+  const spans = [['c7ry5gr75qv4b', 84, 254], ['4w3wvjbkvq24v', 255, 317], ['64y0jakbjfvm9', 448, 762], ['dk21j71dpu26c', 792, 3798], ['f9xbak7zf0a4a', 3799, 6810], ['52nzchs09dgn1', 6878, 10443], ['7r10y07tqpg98', 10444, 16423]]
+  const hl = c.hl || o.hl
+  const bars = spans.map(([sid, a, b]) => `<i style="top:${((a / FILE_LINES) * 100).toFixed(3)}%;height:max(2px, ${(((b - a) / FILE_LINES) * 100).toFixed(3)}%);background:${laneColor(sid)};opacity:${sid === hl ? 1 : 0.45};inset-inline:${sid === hl ? '1px 7px' : '7px 1px'}"></i>`).join('')
+  const vr = o.viewLines || [o.sel || 1, (o.sel || 1) + 40]
+  const vp = `<span class="vp" style="top:${((vr[0] / FILE_LINES) * 100).toFixed(3)}%;height:max(6px, ${(((vr[1] - vr[0]) / FILE_LINES) * 100).toFixed(3)}%)"></span>`
+  return `<div class="strip">${bars}${vp}</div>`
+}
+function statusHtml(o) {
+  return `<div class="lines-status-bar"><span class="mono">${fmtInt(o.sel)} / ${fmtInt(FILE_LINES)}</span><a class="link">← back to line ${o.back}</a></div>`
+}
+
+// ---- the page: the composites (section 0), the ten sections, the bugs box ---------------------------------------------------------------
+const ALL = { p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, p6: 1, p7: 1, p8: 1, p9: 1, p10: 1 }
+const tOfLine = (ln) => byLn.get(ln).t
+
+const STATE_A = { hl: 'c7ry5gr75qv4b', sel: 118, stats: { callsNow: 5, wnow: '34', calls: 5, waits: '34' }, selT: tOfLine(118), view: [fracOfTim(10804502774), fracOfTim(10805142191)], wrap: false }
+const STATE_B = { hl: '52nzchs09dgn1', sel: 10378, stats: { callsNow: 205, wnow: '1,000', calls: 205, waits: '3,293' }, selT: tOfLine(10378), view: [fracOfTim(10810351080), fracOfTim(10810359243)], wrap: true }
+const STICKY_LOOP = { sqlid: 'dk21j71dpu26c', facts: '11.5 ms here · exec 221 of 300' }
+const STICKY_SORT = { sqlid: '52nzchs09dgn1', facts: '2.486 s here · exec 1 of 1' }
+
+const stateLine = (parts) => parts.filter(Boolean).map((p) => `<span>${p}</span>`).join('<span aria-hidden="true">·</span>')
+const fmtRanges = (ranges) => 'rows ' + ranges.map(([a, b]) => `${fmtInt(a)}–${fmtInt(b)}`).join(', ')
+
+/** One NOW or PROPOSED block: label, the pane in its frame, the caption. */
+function block(kind, ranges, o, caption, state) {
+  const proposed = kind === 'proposed'
+  const pane = paneHtml(ranges, { ...o, proposed })
+  return `<div class="blk"><div class="blk-head"><span class="tag ${proposed ? 'proposed' : ''}">${proposed ? 'Proposed' : 'Now'}</span><span class="state">${state}</span></div>`
+    + `<div class="frame">${pane}</div><p class="cap">${caption}</p></div>`
+}
+/** A NOW / PROPOSED pair on the same rows. `base` is shared (highlight, selection, ranges); `flags` the proposal; the two captions. */
+function pair(ranges, base, flags, capNow, capProp, stateTxt, extraNow = {}, extraProp = {}) {
+  const st = stateLine([fmtRanges(ranges), ...(stateTxt || [])])
+  return `<div class="pair">${block('now', ranges, { ...base, ...extraNow }, capNow, st)}${block('proposed', ranges, { ...base, ...flags, ...extraProp }, capProp, st)}</div>`
+}
+const sub = (title, small, inner) => `<div class="sub"><h3>${title}${small ? ` <small>${small}</small>` : ''}</h3>${inner}</div>`
+const sec = (id, n, title, lede, inner) => `<section class="sec" id="${id}"><header><h2><span class="n">${n}</span>${title}</h2><p>${lede}</p></header>${inner}</section>`
+
+const A_STATE = ['c7ry5gr75qv4b highlighted', 'line 118 selected']
+const L_STATE = ['dk21j71dpu26c highlighted', 'line 3,000 selected']
+const SEL118 = { sel: 118 }, SEL3000 = { sel: 3000 }, SEL10378 = { sel: 10378 }
+const C_STATE_A = { composite: true, chrome: STATE_A, status: true, sel: 118, back: 8, hl: STATE_A.hl, viewLines: [84, 136], cap: undefined }
+const C_STATE_B = { composite: true, chrome: STATE_B, status: true, sel: 10378, back: '2,977', hl: STATE_B.hl, viewLines: [10355, 10401] }
+
+function build() {
+  const out = []
+
+  // ---- 0. at a glance ------------------------------------------------------------------------------------------------------------
+  out.push(sec('s0', '0', 'At a glance',
+    'The whole pane at 1560 px, today and with all ten changes applied, on the same real rows of io_waits.trc. Every number is the same in both; only what the eye is asked to do changes. The ten sections below take the changes one at a time.',
+    sub('a · The 637 ms full scan', 'rows 84–136 · c7ry5gr75qv4b highlighted · line 118 selected',
+      pair([[84, 136]], C_STATE_A, { ...ALL, p10: 1 },
+        'Today: a salmon wash over 34 waits and 5 calls (39 of 54 rows), the 632 ms enqueue wait and the 637 ms fetch are not distinguishable from it, the toolbar carries a Highlighting chip, and the Statement column is empty on 50 of 54 rows.',
+        'All ten changes: the lane is the highlight, the two hot spots are the only red rows, waits are quiet and bracketed under the call that waited, the 26 reads are a column, the plan is a quiet table, and the 130 px Statement column is a 14 px band.',
+        null)) +
+    sub('b · The 2.448 s sort', 'rows 10355–10401 · 52nzchs09dgn1 highlighted · line 10,378 selected',
+      pair([[10355, 10401]], C_STATE_B, { ...ALL, sticky: STICKY_SORT },
+        'Today: the toolbar wraps its last button, only the calls are tinted (the waits are past the chip\'s 1,000-wait cap; the statement has 3,293), the 2.448 s sort is a hairline bar in a plan cell, and the selected row has two colours.',
+        'All ten changes, with the sticky lane row for 52nzchs09dgn1 pinned at the top: the SORT ORDER BY A-Time is the one red cell, the bar sits with Duration on a log scale, the clock shows only what changes.',
+        null))))
+
+  // ---- 1. highlight the lane ------------------------------------------------------------------------------------------------------
+  out.push(sec('s1', '1', 'Highlight the lane, not the row',
+    'The highlighted statement fills 33 of 37 rows with the same salmon as a hot spot or a selection. Move the highlight out of the row and into the Statement cell.',
+    sub('Rows 95–130', 'c7ry5gr75qv4b highlighted, line 118 selected',
+      pair([[95, 130]], { hl: 'c7ry5gr75qv4b', sel: 118 }, { p1: 1 },
+        'A flat 10 % wash over every call and wait (33 rows): it reads as a selection, the zebra gap where BINDS and PLAN rows are not filled reads as noise, and hot row 122 is lost. The lane band is mixed 60 % toward ink, so orange draws as maroon.',
+        'No row fill. The Statement cell takes the lane colour at 14 % for the full row height on every row of the lane, the band widens from 4 to 6 px in its own hue, and the number cell keeps a 3 px start-edge bar on the calls and waits. Only the amber selection (number cell included) and hot spots fill a row.',
+        A_STATE.slice(1).concat('c7ry5gr75qv4b highlighted'))) +
+    sub('Rows 2960–3010', 'dk21j71dpu26c highlighted, line 3,000 selected',
+      pair([[2960, 3010]], { hl: 'dk21j71dpu26c', sel: 3000 }, { p1: 1 },
+        'In the loop the wash stripes the view: EXEC, FETCH and CLOSE are filled, the BINDS rows between them are not, and the pink band mixes toward violet.',
+        'The same rule in the loop: the lane reads as one column of pink, the rows stay on the surface, and the selected bind row (3,000) is the only amber.',
+        L_STATE))))
+
+  // ---- 2. hot spots ---------------------------------------------------------------------------------------------------------------
+  out.push(sec('s2', '2', 'Hot spots unmistakable',
+    'A hot spot is a call, wait or plan operation that takes 1 % of the traced time (64.6 ms of 6.46 s) or more. Today it is tinted at 9 % in the colour of a highlight: the same orange.',
+    sub('Rows 84–96', 'the 907 µs hard parse and the 632 ms enq: KO wait at line 93',
+      pair([[84, 96]], { sel: undefined }, { p2: 1 },
+        'Row 93 is tinted orange at 9 %, the colour of a highlight or a lane: nothing says "this is where the time went".',
+        'A hot-spot row fills with --s-critical at 16 % (22 % in dark), has a 3 px start bar in the same colour, and its Duration number is 600 in --s-critical. The hue is reserved for hot spots.',
+        ['no statement highlighted'])) +
+    sub('Rows 10380–10390', 'the SORT ORDER BY of 2.448 s',
+      pair([[10380, 10390]], {}, { p2: 1 },
+        'The 2.448 s sort is a 10 px bar inside a plan cell: the most expensive line of the file is the least visible one.',
+        'The same rule on the plan: the A-Time cell of the operation whose own time is 1 % or more of the traced time (SORT ORDER BY, 2.446 s) fills in --s-critical, with the number at 600. The 637 ms FETCH at row 122 gets it too (section 3).',
+        ['no statement highlighted']))))
+
+  // ---- 3. bar with duration -------------------------------------------------------------------------------------------------------
+  out.push(sec('s3', '3', 'The bar lives with Duration',
+    'The Δ column also carries a bar of the line\'s own time that is 1–3 px wide and nearly invisible. Duration is where a time belongs; Δ goes back to being a number.',
+    sub('Rows 95–130', 'no statement highlighted, line 118 selected',
+      pair([[95, 130]], SEL118, { p3: 1, p2: 1 },
+        'Δ is text over a bar at the far left edge (a 2 px line for almost every row, since the scale runs to 2.448 s); Duration is a bare number, so 9 µs and 637 ms differ by two characters.',
+        'Duration gets a 56 px track after the number on a log scale (1 µs empty, 10 s full, a faint tick per decade), in the wait-class colour for waits and in slate for calls, the CPU part solid and the waited part lighter. Numbers get a ramp: µs 400 --ink-2, ms 500, s 650. Δ is dimmed, blank under 50 µs, and emphasised (--s-warning, 500) only when it is at least 1 ms and 2× the line before. The 637 ms FETCH at 122 takes the hot-spot rule from section 2.',
+        ['no statement highlighted', 'line 118 selected'])) +
+    sub('Δ as the unexplained gap', 'a variant of the Δ column: rows 36–39 and 10,366–10,368',
+      pair([[36, 39], [10366, 10368]], {}, { p3gap: 1 },
+        'Today Δ is the difference of the two tim values: +1.51 ms on the idle wait at 10,367 repeats that wait\'s own 1.49 ms, and the PARSE at 39 reads −1 µs because its tim sits before its CURSOR line\'s.',
+        'Δ = start of this line (tim − its own time) minus the end of the line before, never negative and blank under 50 µs. The idle wait stands alone with its 1.49 ms, the PARSE is blank, and the +146 µs the session spent before the CURSOR stays, because nothing explains it.',
+        ['two groups of rows']))))
+
+  // ---- 4. calls loud, waits quiet --------------------------------------------------------------------------------------------------
+  out.push(sec('s4', '4', 'Calls loud, waits quiet, the call says what it waited for',
+    'Today WAIT is purple, calls are blue, PLAN green and BINDS teal: five hues in a column that is read for one thing, which line is a call.',
+    sub('Rows 95–130', 'line 118 selected',
+      pair([[95, 130]], SEL118, { p4: 1 },
+        'Every operation has a hue (the app mixes them in oklch, so WAIT comes out purple), the same weight, and the FETCH of 637 ms says nothing about the 26 reads above it.',
+        'PARSE, EXEC, FETCH, CLOSE and CURSOR are uppercase 600 in ink with no hue; a wait is a lowercase <code>wait</code> in --ink-3 with a 6 px dot in its wait-class colour in front of the event (a ring for idle). The FETCH adds <code>· 631 ms waiting (99 %)</code>, red from 50 %. Waits under a call are indented 2 ch and bracketed in the lane colour down to the call; idle waits get no bracket. <code>hard parse</code> is a tan pill, not red text.',
+        ['line 118 selected'])) +
+    sub('Rows 10359–10390', 'line 10,378 selected',
+      pair([[10359, 10390]], SEL10378, { p4: 1 },
+        'Reads, network and idle waits all look the same weight, and the 1.49 ms the client took between fetches reads like the 2 µs reads.',
+        'Idle waits (<code>SQL*Net message from client</code>) between calls get no indent and no bracket and read as gaps; the reads and the <code>more data to client</code> waits belong to the FETCH that follows. The share is skipped where the call has no wait to speak of (FETCH 181 µs, c = e).',
+        ['line 10,378 selected'])) +
+    sub('Marks', 'rows 23–31 · the header',
+      pair([[23, 31]], {}, { p4: 1 },
+        'TIME, SESSION, CLIENT, MODULE… are dim but share the operation column with the calls.',
+        'Marks are --ink-3 400, quieter than a call.',
+        ['no statement'])) ))
+
+  // ---- 5. sticky lane label --------------------------------------------------------------------------------------------------------
+  out.push(sec('s5', '5', 'A sticky lane label and a 14 px Statement column',
+    'The Statement column is 130 px wide and empty on every row but the first two of a lane; most of the time it is 130 px of nothing. A 14 px column keeps the colour and the lane\'s identity moves to an overlay.',
+    sub('Rows 2960–3010', 'dk21j71dpu26c, 300 executions, 11.5 ms in all',
+      pair([[2960, 3010]], SEL3000, { p5: 1, sticky: STICKY_LOOP },
+        'The sql_id shows on the lane\'s first row and its SQL on the second; scroll 20 rows into a 300-execution loop and the column says nothing at all.',
+        'The column is the band (6 px) and an 8 px gutter. The lane\'s identity is one sticky row pinned at the top while it scrolls, like today\'s plan head row: the band, the sql_id in the lane colour, the SQL start in --ink-3 (cut at 48 ch) and <code>11.5 ms here · exec 221 of 300</code> at the right. It covers only the top row, to the right of that row\'s Δ and line number. Each execution\'s first row (BINDS, else EXEC) is tagged <code>exec 221</code> in --ink-3.',
+        L_STATE.slice(1))) +
+    sub('Rows 10359–10390', '52nzchs09dgn1 and two recursive statements',
+      pair([[10359, 10390]], SEL10378, { p5: 1, sticky: STICKY_SORT },
+        'The same blank column; row 10,388 has the label of the recursive cursor <code>10gywwmwk6x…</code> cut at 10 characters (bug 10). Row 32\'s <code>unknown</code> (not drawn here) is a statement without SQL text.',
+        'The pinned row names the statement for the whole 2.486 s of its exec (<code>2.486 s here · exec 1 of 1</code>). A statement without text would read <code>no SQL text · #…8360</code> instead of <code>unknown</code>.',
+        ['line 10,378 selected']))))
+
+  // ---- 6. row economy --------------------------------------------------------------------------------------------------------------
+  out.push(sec('s6', '6', 'Row economy',
+    'The loop spends 5 to 6 rows on 3 calls and one bind; a cursor start spends 5 rows (rule, CURSOR, SQL, END OF STMT, PARSE) on one statement.',
+    sub('Rows 2960–3010', 'the loop',
+      pair([[2960, 3010]], SEL3000, { p6: 1, p5: 0 },
+        '5 rows per execution (BINDS head, the bind row, EXEC, FETCH, CLOSE) in a 51-line excerpt; the CLOSE says <code>already in the cursor cache</code> in a sentence, and every <code>0 µs</code> is full ink.',
+        '4 rows per execution. A BINDS block with up to 4 binds of up to 24 characters is a row of chips (<code>:B1 = 8706 NUMBER</code>, then the link); its Bind# and attribute lines fold, with a dotted gap mark in the number cell (2,968 → 2,975). Each execution\'s first row has a 1 px --ruling top border. CLOSE reads <code>cached</code> or <code>closed</code>; <code>0 µs</code> is --ink-3.',
+        L_STATE.slice(1))) +
+    sub('Rows 84–96', 'a cursor start',
+      pair([[84, 96]], {}, { p6: 1 },
+        'CURSOR, then the SQL, then <code>end of statement</code> take three rows before the first call, and the ===== line and a blank line another two each.',
+        'The CURSOR is one row (<code>c7ry5gr75qv4b  SELECT · user 165 · 99 chars</code>), the SQL follows, no <code>end of statement</code>; the blank folds and the ===== becomes a hairline above the next CURSOR. The <code>1 byte</code> of a SQL*Net message is dropped, <code>8,101 bytes</code> stays.',
+        ['no statement highlighted'])) +
+    sub('Rows 130–143', 'the next, recursive cursor',
+      pair([[130, 143]], {}, { p6: 1 },
+        'The rule, CURSOR, SQL, end of statement, PARSE, then a BINDS table of one bind: 7 rows before EXEC.',
+        'The rule is a full-width hairline over the CURSOR row, the bind is a chip on the BINDS row.',
+        ['no statement highlighted']))))
+
+  // ---- 7. runs of the same event ---------------------------------------------------------------------------------------------------
+  out.push(sec('s7', '7', 'Scannable Detail for runs of the same event',
+    'A run of 26 direct path reads is read for the one field that changes. Today it is prose with · separators, and the block numbers jitter left and right.',
+    sub('Rows 95–121', 'one FETCH\'s 27 waits',
+      pair([[95, 121]], SEL118, { p7: 1 },
+        '26 times <code>direct path read  MTK_ORDERS  file 12 · block 171160 · 8 blocks</code>: the eye has to read every line to find that the file never changes and the blocks climb.',
+        'For a run of 3 or more of the same event and object the repeated prefix is a ditto (--ink-3 at 60 %) on every row after the first, and the varying fields are right-aligned micro-columns <code>file 12 | block 171160 | 8 blocks</code>, labels --ink-3, numbers ink, no ·.',
+        ['line 118 selected'])) +
+    sub('Rows 10359–10371', 'temp reads with network waits inside',
+      pair([[10359, 10371]], SEL10378, { p7: 1 },
+        'The same prose; the network waits at 10,361 and 10,365 sit inside the run.',
+        'A network or idle wait inside the run breaks the ditto (the next read starts in full ink) but not the alignment: the columns stay where they are.',
+        ['line 10,378 selected']))))
+
+  // ---- 8. quieter tables -----------------------------------------------------------------------------------------------------------
+  out.push(sec('s8', '8', 'Quieter plan and bind tables',
+    'A plan or a BINDS block is a table in a column of prose: grey bands, a hairline under every row, a bar that touches the Cost number.',
+    sub('Plans', 'rows 122–124 and 10382–10384',
+      pair([[122, 124]], {}, { p8: 1 },
+        'The table sits in the Detail column only, on a grey band with a rule under every row; the A-Time bar touches the Cost number, and the minimum bar (the 2.45 ms SORT AGGREGATE) is a lone <code>|</code> with no track.',
+        'The table spans Operation to the right edge on --surface-sunken, a 1 px hairline frame, inset 1 ch; 11 px --ink-3 header cells with one hairline under them and no band; the fold handle sits in the head row (<code>▾ PLAN</code>). The A-Time bar gets a 56 px track and a gap; its fill is the operation\'s own time, so the header says so. Cost, E-Rows and Starts are the first columns to drop when the pane is narrow, and an estimate 10× off per start would turn --s-critical (none is here).',
+        ['no statement highlighted']) +
+      pair([[10382, 10384]], {}, { p8: 1, p2: 1 },
+        'Here the 2.448 s bar fills the cell and meets the 2,014 of Cost.',
+        'The same table with the hot-spot rule of section 2: the A-Time cell of SORT ORDER BY (2.446 s of its own) is the one red cell.',
+        ['no statement highlighted'])) +
+    sub('Bind tables', 'rows 136–143 and 153–196',
+      pair([[136, 143]], {}, { p8: 1 },
+        'A BINDS block of one bind is a header row, a bind row and a link inside the header; the table is as wide as its three columns.',
+        'The link is a row after the last bind, not a header cell. Values and types sit in fixed columns, so they line up down a loop and from table to table.',
+        ['no statement highlighted']) +
+      pair([[153, 196]], {}, { p8: 1 },
+        'Eight binds of dbvj6jc977hqh: a header and eight rows, line numbers 155, 160 … 190, the attribute lines folded.',
+        'The same table in the quiet style; <code>:4 .0000000337759769235673 NUMBER</code> and the quoted VARCHAR2 values stay in their columns.',
+        ['no statement highlighted']))))
+
+  // ---- 9. clock -------------------------------------------------------------------------------------------------------------------
+  out.push(sec('s9', '9', 'Clock that shows what changes',
+    'Rows 95–130 are 4 ms of one second, and the clock says <code>11:35:29.8</code> on every one of them.',
+    sub('Rows 95–130', 'line 118 selected',
+      pair([[95, 130]], SEL118, { p9: 1 },
+        '17 characters of clock per row, 11 of which never change.',
+        'The full <code>11:35:29.828061</code> on the first visible row, on the selected row and wherever HH:MM:SS changes; the other rows show only the changing microseconds, right-aligned so the digits line up under the full stamp. The column shrinks from 17 ch to 10 ch and Detail gets the width.',
+        ['line 118 selected']))))
+
+  // ---- 10. chrome -----------------------------------------------------------------------------------------------------------------
+  out.push(sec('s10', '10', 'Calmer chrome',
+    'The top of the pane is a toolbar of ten controls, a breadcrumb, a bar, a row of chips and the column header: in the state of io_waits-bigplan-light.png (52nzchs09dgn1 highlighted, Hot spot 6, line 10,378), 1560 px wide. The rows below it are NOW\'s, so only the chrome differs.',
+    sub('Toolbar, breadcrumb, bar, chips, column header', 'the first rows of the second composite below them',
+      pair([[10359, 10362]], { composite: true, chrome: STATE_B, status: false, sel: 10378, viewLines: [10355, 10401], strip: true }, { p10: 1 },
+        'The toolbar wraps its last button to a second line; a pressed Δ is a solid black block, the same weight as Raw | Formatted; the Highlighting chip says again what the chip row says; the bar is unlabelled and its chips show a share, not a time.',
+        'One toolbar row that never wraps (the search shrinks first, down to 14 ch), pressed toggles in the quiet style, no Highlighting chip: the outlined statement chip carries the count and the ×. The bar is labelled, 12 px tall, with a time axis and a bracket for where the visible rows sit; chips show time and share, and statements under 1 % fold into <code>+4 under 1 %</code>. The column header reads in 11 px --ink-3, <code>Duration</code> over its numbers, and draws no resize grips until hovered.',
+        ['state of io_waits-bigplan-light.png']))))
+
+  // ---- bugs -----------------------------------------------------------------------------------------------------------------------
+  out.push(`<section class="sec" id="bugs"><div class="bugs"><h2>Looks like bugs, not design</h2><p>Seen while drawing the NOW blocks; they do not depend on any of the ten changes.</p><ol>
+    <li>The toolbar wraps at 1600 px with the Highlighting chip, and at 1280 px.</li>
+    <li>The highlight stops silently at 1,000 waits: the chip's <code>1,000 waits</code> is the cap, and 52nzchs09dgn1's waits after line 10,359 are untinted while its FETCH rows are.</li>
+    <li>The lane band is mixed 60 % toward ink, so orange c7ry5gr75qv4b draws as maroon and pink dk21j71dpu26c as violet.</li>
+    <li>The plan's ▾ handle sits on the first STAT row in the Statement column, not on the PLAN head row.</li>
+    <li>Negative Δ on a PARSE after its CURSOR line (−1 µs, −7 µs).</li>
+    <li>At 1280 px with the panel open the plan drops A-Time, Buffers and Reads and keeps Cost and E-Rows, with no "n hidden" note.</li>
+    <li>A header key longer than 26 ch (<code>Redo thread mounted by this instance</code>) pushes its value off the value column.</li>
+    <li>The selected row is amber but its line-number cell is cyan.</li>
+    <li>The A-Time bar touches the Cost number, and the minimum bar has no track, so it reads as a stray <code>|</code>.</li>
+    <li>sql_ids are truncated in the lane (<code>10gywmwk6x…</code>).</li>
+    <li>With Fold repeats on, the run of 26 identical direct path reads at lines 96–121 stayed unfolded with no handle row (seen in two runs; may be a rule gap rather than a bug).</li>
+    <li>Toggling Fold repeats scrolls the selected line out of view.</li>
+  </ol></div></section>`)
+  return out
+}
+
+const TOC = [
+  ['s0', '0', 'At a glance'], ['s1', '1', 'Highlight the lane'], ['s2', '2', 'Hot spots unmistakable'], ['s3', '3', 'The bar with Duration'], ['s4', '4', 'Calls loud, waits quiet'],
+  ['s5', '5', 'Sticky lane label'], ['s6', '6', 'Row economy'], ['s7', '7', 'Scannable runs of waits'], ['s8', '8', 'Quieter plan and tables'], ['s9', '9', 'Clock shows the change'],
+  ['s10', '10', 'Calmer chrome'], ['bugs', '!', 'Looks like bugs'],
+]
+
+// ---- boot: render the page, the table of contents, the theme toggle ---------------------------------------------------------------
+;(function boot() {
+  const main = document.getElementById('app')
+  main.innerHTML = build().join('')
+  document.getElementById('toc-list').innerHTML = TOC.map(([id, n, t]) => `<li><a href="#${id}" data-id="${id}"><span class="n">${n}</span><span>${t}</span></a></li>`).join('')
+
+  // scroll-spy: the section under the top of the viewport is the current one in the table of contents
+  const links = [...document.querySelectorAll('.toc a')]
+  const secs = TOC.map(([id]) => document.getElementById(id))
+  const spy = () => {
+    let cur = 0
+    secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top < 120) cur = i })
+    links.forEach((a, i) => a.classList.toggle('on', i === cur))
+  }
+  addEventListener('scroll', spy, { passive: true }); spy()
+
+  // theme: auto (the system), light, dark; data-theme on <html>
+  const root = document.documentElement, btn = document.getElementById('theme'), label = document.getElementById('theme-label')
+  const modes = ['auto', 'light', 'dark']
+  let mode = 'auto'
+  try { mode = localStorage.getItem('mtk-mock-theme') || 'auto' } catch (e) {}
+  const apply = () => { if (mode === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', mode); label.textContent = mode[0].toUpperCase() + mode.slice(1) }
+  btn.addEventListener('click', () => { mode = modes[(modes.indexOf(mode) + 1) % 3]; try { localStorage.setItem('mtk-mock-theme', mode) } catch (e) {} apply() })
+  apply()
+})()
+
+</script>
+</body>
+</html>

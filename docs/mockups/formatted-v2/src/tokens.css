@@ -1,0 +1,86 @@
+/* Design tokens. Chrome is neutral on purpose: hue is reserved for data. */
+:root {
+  color-scheme: light dark;
+
+  --surface: light-dark(oklch(98.8% 0.002 250), oklch(17.5% 0.007 240));
+  --surface-raised: light-dark(oklch(100% 0 none), oklch(20.5% 0.007 240));
+  --surface-sunken: light-dark(oklch(96.5% 0.004 250), oklch(15% 0.007 240));
+  --ink: light-dark(oklch(22% 0.015 250), oklch(92% 0.008 240));
+  --ink-2: light-dark(oklch(47% 0.015 250), oklch(72% 0.01 240));
+  --ink-3: light-dark(oklch(64% 0.012 250), oklch(56% 0.01 240));
+  --hairline: light-dark(oklch(91% 0.005 250), oklch(29% 0.007 240));
+  --hairline-strong: light-dark(oklch(82% 0.008 250), oklch(38% 0.008 240));
+  --ruling: light-dark(oklch(94% 0.004 250), oklch(24% 0.007 240));
+  --wash: color-mix(in oklch, var(--ink) 6%, transparent);
+  --wash-strong: color-mix(in oklch, var(--ink) 11%, transparent);
+  --focus: var(--ink);
+
+  /* data colors: validated categorical slots (dataviz palette), by role */
+  --c-cpu: light-dark(#2a78d6, #3987e5);
+  --c-userio: light-dark(#eb6834, #d95926);
+  --c-sysio: light-dark(#1baf7a, #199e70);
+  --c-commit: light-dark(#eda100, #c98500);
+  --c-concurrency: light-dark(#e87ba4, #d55181);
+  --c-network: light-dark(#0a8a2a, #2a9a3a);
+  --c-other: light-dark(#6250d6, #9085e9);
+  --c-idle: light-dark(oklch(78% 0.01 240), oklch(42% 0.01 240));
+  --c-unaccounted: light-dark(oklch(90% 0.006 240), oklch(30% 0.008 240));
+  /* call phases: one neutral slate ramp (darkest = FETCH in light, lightest in dark), so hue
+     only ever means a resource / wait class; validated as an ordinal ramp against both surfaces */
+  --c-phase-fetch: light-dark(oklch(27% 0.02 255), oklch(90% 0.02 255));
+  --c-phase-exec: light-dark(oklch(40% 0.02 255), oklch(78% 0.02 255));
+  --c-phase-parse: light-dark(oklch(53% 0.02 255), oklch(66% 0.02 255));
+  --c-phase-other: light-dark(oklch(65% 0.02 255), oklch(54% 0.02 255));
+  --c-phase-close: light-dark(oklch(77% 0.02 255), oklch(43% 0.02 255));
+  /* call-phase brushes, so a phase reads by texture as well as by shade (as the Loom's consistent/current
+     modes do): PARSE `/`, EXEC `\`, FETCH solid, CLOSE `|`, other crosshatch. The stripe ink sits ~28 points
+     of lightness away from its fill on the far side of the ramp, so it stays visible at both ends. Mirrored for
+     canvas in components/phaseBrush.ts. */
+  --c-phase-parse-ink: light-dark(oklch(81% 0.02 255), oklch(38% 0.02 255));
+  --c-phase-exec-ink: light-dark(oklch(70% 0.02 255), oklch(50% 0.02 255));
+  --c-phase-close-ink: light-dark(oklch(50% 0.02 255), oklch(71% 0.02 255));
+  --c-phase-other-ink: light-dark(oklch(88% 0.02 255), oklch(28% 0.02 255));
+  --b-phase-parse: repeating-linear-gradient(135deg, transparent 0 2.6px, var(--c-phase-parse-ink) 2.6px 4.25px);
+  --b-phase-exec: repeating-linear-gradient(45deg, transparent 0 2.6px, var(--c-phase-exec-ink) 2.6px 4.25px);
+  --b-phase-fetch: none;
+  --b-phase-close: repeating-linear-gradient(90deg, transparent 0 4.5px, var(--c-phase-close-ink) 4.5px 6px);
+  --b-phase-other: repeating-linear-gradient(45deg, transparent 0 3px, var(--c-phase-other-ink) 3px 4.25px),
+    repeating-linear-gradient(135deg, transparent 0 3px, var(--c-phase-other-ink) 3px 4.25px);
+  --c-grid: light-dark(#e1e0d9, #2c2c2a);
+  --c-axis: light-dark(#c3c2b7, #383835);
+
+  --s-good: #0ca30c;
+  --s-warning: #d7930a;
+  --s-serious: #ec835a;
+  --s-critical: #c9343a;
+
+  --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.75rem;
+  --text-md: 0.8125rem;
+  --text-lg: 0.9375rem;
+  --text-xl: 1.25rem;
+  --text-hero: clamp(1.5rem, 1.2rem + 0.9vw, 1.75rem);
+
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 2.5rem;
+  --radius: 4px;
+  --list-w: 21rem;
+  --context-w: 19rem;
+  --files-w: clamp(17rem, 22vw, 23rem);
+  --inspector-w: clamp(24rem, 34vw, 38rem);
+  --topbar-h: 2.75rem;
+  --subbar-h: 1.9rem;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 160ms;
+}
+
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }

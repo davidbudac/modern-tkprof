@@ -1,0 +1,85 @@
+/* ==========================================================================================================
+   The chrome above the rows (section 10): toolbar, breadcrumb, "where the time went" bar, statement chips; strip, status bar.
+   NOW = the app's rules (lines.css, app.css, base.css); PROPOSED = `.p10`.
+   ========================================================================================================== */
+.lines-bar, .lines-at, .rd-over, .lines-status-bar { font-family: var(--font-ui); line-height: 1.45; }
+.pane button { font: inherit; font-family: var(--font-ui); font-size: var(--text-sm); color: inherit; background: none; border: 1px solid var(--hairline-strong); border-radius: var(--radius); padding: 0.2rem 0.6rem; line-height: 1.45; cursor: default; white-space: nowrap; }
+.pane button.quiet { border-color: color-mix(in oklch, var(--hairline-strong) 60%, transparent); color: var(--ink-2); }
+.pane button.quiet.pressed { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.pane a.link { text-decoration: underline; text-underline-offset: 2px; color: inherit; cursor: default; }
+.pane kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
+.cue { color: var(--ink-3); margin-inline-start: 0.3em; }
+.pressed .cue { color: inherit; opacity: 0.7; }
+.mono { font-family: var(--font-mono); font-size: 0.92em; }
+
+.lines-bar { padding-block: 8px; padding-inline: 16px; border-block-end: 1px solid var(--hairline); background: var(--surface); }
+.lines-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lines-row.nowrap { flex-wrap: nowrap; }
+/* the 1560 px composite wraps only its last button, as the 1600 px screenshot does; the search box is a little narrower than the app's 30rem for it */
+.lines-row.wrap .lines-search { flex-basis: 24.5rem; }
+.lines-row > .tb-cmd { margin-inline-start: auto; }
+.wrap-break { flex-basis: 100%; block-size: 0; }
+.lines-rd { display: flex; align-items: center; gap: 4px; }
+.lines-rd small { color: inherit; opacity: 0.7; }
+.lines-mode { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--hairline-strong); border-radius: calc(var(--radius) + 2px); background: var(--surface-sunken); }
+.lines-mode > button.mode { display: inline-flex; align-items: center; gap: 0.45em; border: 0; border-radius: var(--radius); background: transparent; padding: 0.3rem 0.8rem; font-size: var(--text-sm); font-weight: 500; color: var(--ink-2); }
+.lines-mode > button.mode.on { background: var(--ink); color: var(--surface-raised); box-shadow: 0 1px 2px color-mix(in oklch, var(--ink) 25%, transparent); }
+.lines-mode > kbd { line-height: 1.4; background: var(--surface-raised); margin-inline: 0.3em 0.2em; }
+.lines-hl { display: inline-flex; flex: 0 1 auto; min-inline-size: 0; overflow: hidden; align-items: center; gap: 4px; padding: 1px 4px 1px 8px; font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; border-radius: var(--radius); background: color-mix(in oklch, var(--hl) 14%, transparent); box-shadow: inset 3px 0 0 var(--hl); }
+.lines-hl > i { inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; background: var(--hl); }
+.lines-hl > .link { font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
+.lines-hl > small { color: var(--ink-3); font-size: inherit; }
+.lines-hl > button.quiet { padding-inline: 0.3em; }
+.lines-search { display: flex; align-items: stretch; flex: 0 1 30rem; min-inline-size: 14rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); }
+.lines-search input { flex: 1; min-inline-size: 0; border: 0; background: transparent; outline: none; font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.25rem 0.5rem; color: var(--ink); }
+.lines-search input::placeholder { color: var(--ink-3); opacity: 1; }
+.lines-search > button { border: 0; border-radius: 0; border-inline-start: 1px solid var(--hairline); }
+.tb-cmd kbd { margin-inline-start: 8px; }
+.tb-cmd kbd:first-child { margin-inline-start: 0; }
+.tb-panel { display: inline-flex; align-items: center; gap: 0.4em; }
+
+.lines-at { display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; padding-block: 4px; padding-inline: 16px; border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); block-size: 2rem; }
+.lines-crumbs { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; }
+.lines-crumbs > * { flex: none; }
+.lines-crumbs > .lines-sql { flex: 0 1 auto; min-inline-size: 8ch; max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); color: var(--ink-2); }
+.crumb-sep { color: var(--ink-3); }
+.lines-kind-t { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+.rd-over { display: flex; flex-direction: column; gap: 4px; padding-block: 4px; padding-inline: 16px; border-block-end: 1px solid var(--hairline); background: var(--surface); }
+.rd-track { display: block; inline-size: 100%; block-size: 10px; background: var(--surface-sunken); border-radius: 2px; }
+.rd-track-at { fill: var(--ink); }
+.rd-chips { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.rd-chip-st { display: inline-flex; align-items: center; gap: 0.4em; padding-block: 0; font-size: var(--text-xs); }
+.rd-chip-st i { inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; }
+.rd-chip-st small { color: var(--ink-3); font-size: inherit; }
+.pane button.rd-chip-st.quiet.pressed { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--chip); background: color-mix(in oklch, var(--chip) 14%, transparent); border-color: color-mix(in oklch, var(--hairline-strong) 60%, transparent); }
+
+.lines-status-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; padding-block: 4px; padding-inline: 16px; border-block-start: 1px solid var(--hairline); background: var(--surface-sunken); color: var(--ink-2); font-size: var(--text-sm); }
+
+/* ---- PROPOSED chrome (section 10) --------------------------------------------------------------------------------------------- */
+/* one toolbar row that never wraps; the search gives way first (min 14 ch); pressed toggles are quiet (ink on --wash), only Raw | Formatted is solid */
+.p10 .lines-row { flex-wrap: nowrap; }
+.p10 .lines-search { flex: 1 1 auto; max-inline-size: 30rem; min-inline-size: 14ch; }
+.p10 .lines-row > .tb-cmd { margin-inline-start: auto; }
+.p10 .pane button.quiet.pressed, .p10 button.quiet.pressed { background: var(--wash); color: var(--ink); border-color: var(--hairline-strong); }
+.p10 .rd-over { gap: 6px; padding-block: 8px; }
+.time-bar { display: grid; grid-template-columns: 210px minmax(0, 1fr); align-items: start; column-gap: 12px; }
+.time-bar .tb-label { font-size: var(--text-xs); color: var(--ink-3); line-height: 12px; padding-block-start: 0; white-space: nowrap; }
+.tb-main { min-inline-size: 0; }
+.tb-track { position: relative; block-size: 12px; background: var(--surface-sunken); border-radius: 2px; }
+.tb-track .seg { position: absolute; inset-block: 0; }
+.tb-track .vbracket { position: absolute; inset-block: -3px; background: color-mix(in oklch, var(--ink) 20%, transparent); border-inline: 1px solid var(--ink); box-sizing: border-box; }
+.tb-track .at { position: absolute; inset-block: 0; inline-size: 1.5px; background: var(--ink); }
+.tb-axis { position: relative; block-size: 14px; margin-block-start: 3px; font-size: 10px; color: var(--ink-3); line-height: 12px; }
+.tb-axis .ax { position: absolute; inset-block-start: 0; transform: translateX(-50%); white-space: nowrap; }
+.tb-axis .ax i { position: absolute; inset-block-start: -3px; inset-inline-start: 50%; inline-size: 1px; block-size: 3px; background: var(--hairline-strong); }
+.rd-over .chip { display: inline-flex; align-items: center; gap: 0.4em; padding-inline: 6px; block-size: 20px; border-radius: var(--radius); border: 1px solid color-mix(in oklch, var(--hairline-strong) 60%, transparent); font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; }
+.rd-over .chip i { inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; }
+.rd-over .chip small { color: var(--ink-3); font-size: inherit; }
+.rd-over .chip.on { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--chip); background: color-mix(in oklch, var(--chip) 12%, transparent); border-color: transparent; }
+.rd-over .chip.on small { color: var(--ink-2); }
+.rd-over .chip .x { margin-inline-start: 2px; padding-inline: 4px; color: var(--ink-2); }
+.rd-over .chip .cnt { margin-inline-start: 6px; padding-inline-start: 8px; border-inline-start: 1px solid var(--hairline-strong); }
+.rd-over .chip-fold { border-style: dashed; }
+/* the column header: the same cells, 11 px --ink-3 500, no resize grips (they appear on hover) */
+.p10 .colhead { color: var(--ink-3); background: var(--surface-sunken); }
