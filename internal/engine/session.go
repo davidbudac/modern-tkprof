@@ -459,6 +459,7 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) (mux, api 
 	ssrv := slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
 	ssrv.AllowOrigin = slice.NoCORS                                  // the engine's middleware sets CORS
 	ssrv.Thresholds = ss.th                                          // api/findings: those of the document's findings
+	ssrv.CutSalt = ss.salt                                           // api/cut: masked bind values hash as the session's redaction
 	api = ssrv.Handler()
 	handlers := map[string]http.Handler{
 		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),

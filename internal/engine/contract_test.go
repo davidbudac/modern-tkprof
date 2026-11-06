@@ -13,6 +13,7 @@ import (
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/assist"
+	"github.com/davidbudac/modern-tkprof/internal/cut"
 	"github.com/davidbudac/modern-tkprof/internal/remote"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 )
@@ -175,8 +176,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 40 {
-		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, ref (status, apply, script, paste), brief and the assist tools", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 43 {
+		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief and the assist tools", n)
 	}
 }
 
@@ -236,6 +237,7 @@ func TestContractSchemas(t *testing.T) {
 		"IOMap": analyze.IOMap{}, "IOMapFile": analyze.IOMapFile{}, "IOHot": analyze.IOHot{}, "IOHotRun": analyze.IOHotRun{},
 		"IOObjStat": analyze.IOObjStat{}, "IOStmtStat": analyze.IOStmtStat{}, "IODensity": analyze.IODensity{}, "IODensityPanel": analyze.IODensityPanel{},
 		"RefCounts": report.RefCounts{}, "RefStatus": RefStatus{}, "RefScript": RefScript{}, "RefPasteRequest": RefPasteRequest{}, "RefPasted": RefPasted{},
+		"CutPlan": cut.Plan{}, "CutPiece": cut.Piece{}, "CutRun": cut.Run{}, "CutFileRuns": cut.FileRuns{}, "CutStmt": cut.StmtCut{}, "CutCheck": cut.Check{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

@@ -1769,6 +1769,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/s/{id}/api/cut": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The plan of a new trace file cut from the session's trace set (the desktop's Cut view)
+         * @description `cut.Cutter.Plan`: what /api/cut/file writes for the same parameters, without writing it. The units kept are whole top-level calls overlapping the window in the selected contexts (with `stmt`: that statement's calls), each with everything rolled up under it (recursive calls, waits, binds). The pieces of the new file in order (header, provenance, borrowed session markers, cursors restated before their first use, plans borrowed from outside the cut, generated timestamps and process switches, kept lines) and, per source file, every line's label as runs (K kept, E kept outside the window to finish a call, H header, B borrowed before the cut, A borrowed after it, C a caller left out; unlabelled lines are left out).
+         */
+        get: operations["sessionCut"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/cut/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The new file written to a temporary file, parsed back and compared with the selection
+         * @description `cut.Cutter.Check`: per statement and call kind the count and elapsed of the calls, the waits (count and µs), the wall clock of the first kept call, and the statements that lost their SQL text, against what the selection keeps. `ok` when everything is equal. The temporary file is removed.
+         */
+        get: operations["sessionCutCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/cut/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The new trace file
+         * @description `cut.Cutter.Write`, streamed as an attachment named after the first input (`<name>-cut.trc`). A failure before the first byte is a 500 with the reason as plain text; a failure after it ends the stream short.
+         */
+        get: operations["sessionCutFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2151,6 +2211,97 @@ export interface components {
             hi: number;
             /** @description waits */
             n: number;
+        };
+        /** @description cut.Plan, the new file of a selection */
+        CutPlan: {
+            /** @description every source file of the set, with its labelled lines */
+            files: components["schemas"]["CutFileRuns"][];
+            /** @description the blocks of the new file in order */
+            pieces: components["schemas"]["CutPiece"][];
+            lines: number;
+            bytes: number;
+            /** @description tim extent of the kept calls (min tim-e) */
+            keptFrom: number;
+            /** @description max tim of the kept calls */
+            keptTo: number;
+            calls: number;
+            waits: number;
+            waitUs: number;
+            statements: components["schemas"]["CutStmt"][];
+            /** @description statement ids of the calls above the kept ones, left out (stmt) */
+            callers: number[] | null;
+            /** @description processes with kept lines (more than one gets process switch lines) */
+            processes: number;
+            /** @enum {string} */
+            binds: "keep" | "mask" | "none";
+            bindsAllowed: ("keep" | "mask" | "none")[];
+        };
+        /** @description cut.Piece, a block of the new file */
+        CutPiece: {
+            /** @enum {string} */
+            kind: "header" | "kept" | "before" | "after" | "generated";
+            title?: string;
+            reason?: string;
+            file: number;
+            /** @description first source line (absent for a generated block) */
+            from?: number;
+            to?: number;
+            /** @description the source lines when they are not one run (borrowed session markers) */
+            lines?: number[];
+            /** @description kept, runs of consecutive source lines */
+            runs?: number;
+            n: number;
+            /** @description first line in the new file */
+            o0: number;
+            o1: number;
+            /** @description kept call and wait lines outside the window */
+            edge?: number;
+            sql?: string;
+            head: string[] | null;
+            tail?: string[];
+        };
+        /** @description cut.Run, a stretch of source lines with one label */
+        CutRun: {
+            f: number;
+            t: number;
+            /** @enum {string} */
+            l: "K" | "E" | "H" | "B" | "A" | "C";
+        };
+        /** @description cut.FileRuns */
+        CutFileRuns: {
+            idx: number;
+            name: string;
+            lines: number;
+            runs: components["schemas"]["CutRun"][] | null;
+        };
+        /** @description cut.StmtCut, one statement's part of a cut */
+        CutStmt: {
+            id: number;
+            calls: number;
+            execs: number;
+            /** @description elapsed of its kept calls at its smallest depth in the cut */
+            elaUs: number;
+            minDep: number;
+        };
+        /** @description cut.Check */
+        CutCheck: {
+            ok: boolean;
+            calls: number;
+            callsWant: number;
+            waits: number;
+            waitsWant: number;
+            waitUs: number;
+            waitUsWant: number;
+            wallOk: boolean;
+            /** @description statements that lost their SQL text */
+            newUnknown: number;
+            unknownLines: number;
+            statements: number;
+            bindSets: number;
+            plans: number;
+            lines: number;
+            bytes: number;
+            mismatches?: string[];
         };
         /** @description report.RefCounts, ids of each kind (obj#, file#, user ids, sql_ids) */
         RefCounts: {
@@ -5618,6 +5769,138 @@ export interface operations {
                 };
             };
             400: components["responses"]["SliceBadRequest"];
+        };
+    };
+    sessionCut: {
+        parameters: {
+            query?: {
+                /** @description scope start, tim in µs (a row is in when its [tim-ela, tim] overlaps the scope) */
+                from?: components["parameters"]["From"];
+                /** @description scope end, tim in µs (0 = open; not before from) */
+                to?: components["parameters"]["To"];
+                /** @description comma-separated context ids (at most 10000); empty or absent = every context; `-` = no context at all (an explicit empty set: no row is in scope) */
+                contexts?: components["parameters"]["Contexts"];
+                /** @description one statement id */
+                stmt?: components["parameters"]["Stmt"];
+                /** @description calls (default) keeps whole calls; executions widens to every call of a kept call's execution */
+                edges?: "calls" | "executions";
+                /** @description what the kept BINDS blocks get: keep (as traced), mask (each value replaced by the redaction token `<TYPE len=N h=XXXXXXXX>`, salted with the session's salt) or none (left out). A session opened with redacted bind values allows mask and none, one opened without them none; the default is the first allowed. */
+                binds?: "keep" | "mask" | "none";
+                /** @description 0 = do not borrow STAT dumps from outside the kept lines */
+                plans?: 0 | 1;
+                /** @description 0 = no "mtkprof cut:" provenance lines in the header */
+                prov?: 0 | 1;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CutPlan"];
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+        };
+    };
+    sessionCutCheck: {
+        parameters: {
+            query?: {
+                /** @description scope start, tim in µs (a row is in when its [tim-ela, tim] overlaps the scope) */
+                from?: components["parameters"]["From"];
+                /** @description scope end, tim in µs (0 = open; not before from) */
+                to?: components["parameters"]["To"];
+                /** @description comma-separated context ids (at most 10000); empty or absent = every context; `-` = no context at all (an explicit empty set: no row is in scope) */
+                contexts?: components["parameters"]["Contexts"];
+                /** @description one statement id */
+                stmt?: components["parameters"]["Stmt"];
+                /** @description calls (default) keeps whole calls; executions widens to every call of a kept call's execution */
+                edges?: "calls" | "executions";
+                /** @description what the kept BINDS blocks get: keep (as traced), mask (each value replaced by the redaction token `<TYPE len=N h=XXXXXXXX>`, salted with the session's salt) or none (left out). A session opened with redacted bind values allows mask and none, one opened without them none; the default is the first allowed. */
+                binds?: "keep" | "mask" | "none";
+                /** @description 0 = do not borrow STAT dumps from outside the kept lines */
+                plans?: 0 | 1;
+                /** @description 0 = no "mtkprof cut:" provenance lines in the header */
+                prov?: 0 | 1;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the comparison */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CutCheck"];
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+        };
+    };
+    sessionCutFile: {
+        parameters: {
+            query?: {
+                /** @description scope start, tim in µs (a row is in when its [tim-ela, tim] overlaps the scope) */
+                from?: components["parameters"]["From"];
+                /** @description scope end, tim in µs (0 = open; not before from) */
+                to?: components["parameters"]["To"];
+                /** @description comma-separated context ids (at most 10000); empty or absent = every context; `-` = no context at all (an explicit empty set: no row is in scope) */
+                contexts?: components["parameters"]["Contexts"];
+                /** @description one statement id */
+                stmt?: components["parameters"]["Stmt"];
+                /** @description calls (default) keeps whole calls; executions widens to every call of a kept call's execution */
+                edges?: "calls" | "executions";
+                /** @description what the kept BINDS blocks get: keep (as traced), mask (each value replaced by the redaction token `<TYPE len=N h=XXXXXXXX>`, salted with the session's salt) or none (left out). A session opened with redacted bind values allows mask and none, one opened without them none; the default is the first allowed. */
+                binds?: "keep" | "mask" | "none";
+                /** @description 0 = do not borrow STAT dumps from outside the kept lines */
+                plans?: 0 | 1;
+                /** @description 0 = no "mtkprof cut:" provenance lines in the header */
+                prov?: 0 | 1;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the trace file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+            /** @description the cut failed before writing anything, the reason as plain text */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
         };
     };
 }
