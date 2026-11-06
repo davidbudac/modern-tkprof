@@ -177,8 +177,8 @@ const COLOUR_ROWS: { label: string; kind: LineKind; mute?: string; title?: strin
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 const NO_HOT: ReadonlyMap<number, number> = new Map()
 
-/** A fold of repeats as the viewer shows it: its label, summary and the time it covers (`w`: as a fraction of `scaleUs`). */
-function repeatFold(r: RepeatFold, scaleUs: number): Fold {
+/** A fold of repeats as the viewer shows it: its label, summary and the time it covers. */
+function repeatFold(r: RepeatFold): Fold {
   const lines = `lines ${fmtInt(r.from)}–${fmtInt(r.to)}`
   let label: string, summary: string
   if (r.kind === 'run') {
@@ -192,7 +192,7 @@ function repeatFold(r: RepeatFold, scaleUs: number): Fold {
     label = `FETCH×${fmtCompact(r.n)}`
     summary = `${fmtInt(r.n)} fetches · ${fmtInt(r.rows ?? 0)} rows${r.cr ? ` · ${fmtInt(r.cr)} gets` : ''}${r.p ? ` · ${fmtInt(r.p)} reads` : ''}${r.idle ? ` · ${fmtDur(r.idle)} idle between them` : ''} · max ${fmtDur(r.max)} · ${lines}`
   }
-  return { from: r.from, to: r.to, summary, label, w: Math.min(1, r.us / Math.max(1, scaleUs)), us: r.us, auto: true }
+  return { from: r.from, to: r.to, summary, label, us: r.us, auto: true }
 }
 
 /** The side panel's icon: a window with a column at its end. */
@@ -352,18 +352,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const readable = prefs.readable
   /** the traced time of this file: 1 % of it makes a hot spot, and caps a fetch of a folded fetch loop */
   const fileSpan = useMemo(() => { const f = doc.file.files?.[file]; return f && f.lastTim > f.firstTim ? f.lastTim - f.firstTim : doc.spanUs() }, [doc, file])
-  const [hot, setHot] = useState<{ map: ReadonlyMap<number, number>; lines: number[]; max: number } | null>(null)
+  const [hot, setHot] = useState<{ map: ReadonlyMap<number, number>; lines: number[] } | null>(null)
   useEffect(() => {
     if (!readable) return
     const ac = new AbortController()
     fetchHot(client, file, Math.max(1, fileSpan * 0.01), ac.signal).then(
-      (h) => { if (!ac.signal.aborted) setHot({ map: new Map(h.hot.map((x) => [x.line, x.us])), lines: h.hot.map((x) => x.line), max: h.max }) },
-      (e: unknown) => { if (!aborted(e)) setHot({ map: NO_HOT, lines: [], max: 0 }) }, // an engine without the route: no hot spots
+      (h) => { if (!ac.signal.aborted) setHot({ map: new Map(h.hot.map((x) => [x.line, x.us])), lines: h.hot.map((x) => x.line) }) },
+      (e: unknown) => { if (!aborted(e)) setHot({ map: NO_HOT, lines: [] }) }, // an engine without the route: no hot spots
     )
     return () => ac.abort()
   }, [client, file, fileSpan, readable, rev])
-  /** the time a bar shows full: the longest line of the file */
-  const scaleUs = hot && hot.max > 0 ? hot.max : Math.max(1, fileSpan * 0.05)
   const wantRepeats = readable && prefs.foldRepeats
   const [repeats, setRepeats] = useState<{ folds: RepeatFold[]; key: string } | null>(null)
   const repeatsKey = `${file}:${rev}`
@@ -401,7 +399,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     return () => ac.abort()
   }, [client, file, readable, repeatsKey])
   const quietFolds = readable && bindBlocks?.key === repeatsKey ? bindBlocks.folds : null
-  const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r, scaleUs)) : null), [wantRepeats, repeats, scaleUs])
+  const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r)) : null), [wantRepeats, repeats])
   // ---- the Δ filter: the lines whose time from the timed line before reaches the threshold, asked of the engine for the whole file ----
   const deltaMode = prefs.deltaMode
   const deltaUs = Math.max(0, Math.round(prefs.deltaMs * 1000))
@@ -908,10 +906,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     queueMicrotask(pump)
   }, [bindQ, client, doc, file])
   const readableRows = useMemo(() => (readable
-    ? readableRowsOf({ doc, line: (n) => cache.line(n), tones, pin: ui.pin, hot: hot?.map ?? NO_HOT, scaleUs, hotUs: Math.max(1, fileSpan * 0.01), bindAt, missingBinds, colorBy: prefs.laneColor, labelAll: filtering })
+    ? readableRowsOf({ doc, line: (n) => cache.line(n), tones, pin: ui.pin, hot: hot?.map ?? NO_HOT, hotUs: Math.max(1, fileSpan * 0.01), bindAt, missingBinds, colorBy: prefs.laneColor, labelAll: filtering })
     : undefined
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [readable, doc, cache, tones, ui.pin, hot, scaleUs, fileSpan, bindAt, missingBinds, pages, bindsTick, prefs.laneColor, filtering])
+  ), [readable, doc, cache, tones, ui.pin, hot, fileSpan, bindAt, missingBinds, pages, bindsTick, prefs.laneColor, filtering])
   /** The next / previous hot spot from the selected line. */
   const stepHot = (dir: 1 | -1) => {
     const hs = hot?.lines ?? []

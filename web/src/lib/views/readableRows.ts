@@ -3,10 +3,11 @@
 import type { Tone } from '../data/blocklayout'
 import { roleOfClass } from '../components/colors'
 import type { TraceDoc } from '../data/doc'
-import { fmtInt, preview } from '../data/format'
+import { fmtDur, fmtInt, preview } from '../data/format'
 import { LINE_KINDS, type CachedLine } from '../data/linecache'
 import type { BindAt } from '../data/bindat'
-import { clockCell, fmtDelta, lineTim } from '../data/linetime'
+import { barFrac, clockCell, fmtDelta, gapDelta, lineTim, unexplainedGap } from '../data/linetime'
+import { durOf } from '../data/gaps'
 import type { LineKind } from '../data/lines'
 import { QUIET_TONE, describeLine, describeMarker, planDump, toneColor, type LineView, type PlanCell, type ReadableContext } from '../data/readable'
 import { laneColorOf, type LaneColor } from '../data/lanecolor'
@@ -33,11 +34,20 @@ export interface ReadableCell extends LineView {
   lane: Lane | null
   /** the line took 1 % of the traced time or more */
   hot: boolean
-  /** the bar's length as a fraction of the scale (the longest line of the file), and its CPU part */
-  barW?: number
-  cpuW?: number
-  /** the time from the pin (or the line before): '' for a line without a time; `pinned` on the pin itself */
+  /** the Duration cell's track: the line's own time as a fraction of it (log scale, 1 µs to 10 s: `barFrac`), and a call's CPU part */
+  trackW?: number
+  trackCpuW?: number
+  /**
+   * The Δ: with a pin, the time from the pin; else the unexplained gap before the line (where it started minus where the line with a time before
+   * it ended, never negative), blank under 50 µs. '' for a line without a time or without a gap; `pinned` on the pin itself.
+   */
   delta: string; deltaTitle?: string; pinned: boolean
+  /** the Δ is measured from the pin (else it is a gap) */
+  fromPin: boolean
+  /** the Δ's size in µs (for the weight of its number), undefined with no Δ */
+  deltaUs?: number
+  /** an unexplained gap worth a look: at least 1 ms and twice the line before's duration */
+  deltaEmph: boolean
   /** HH:MM:SS.mmm and the µs after it; '' for none */
   clock: string; micros: string; clockTitle?: string
   /**
@@ -59,8 +69,6 @@ export interface ReadableInputs {
   pin: Pin | null
   /** line → µs of the hot spots */
   hot: ReadonlyMap<number, number>
-  /** µs at which a bar is full: the file's longest line */
-  scaleUs: number
   /** µs of a hot spot: 1 % of the traced time (a call or wait of it, a plan operation's own time); undefined: no plan cell is hot */
   hotUs?: number
   bindAt?(line: number): BindAt | undefined
@@ -132,9 +140,13 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     },
   }
 
-  const timOf = (n: number) => { const l = lineAt(n); return l ? lineTim(l.text, kindOf(l)) : undefined }
-  const prevTim = (n: number): { line: number; tim: number } | null => {
-    for (let x = n - 1, i = 0; x >= 1 && i < BACK; x--, i++) { const t = timOf(x); if (t !== undefined) return { line: x, tim: t } }
+  /** The line with a time before n: its number, tim and own time (its `e=` or `ela=`, 0 for a line that has none). */
+  const prevTim = (n: number): { line: number; tim: number; dur: number } | null => {
+    for (let x = n - 1, i = 0; x >= 1 && i < BACK; x--, i++) {
+      const l = lineAt(x)
+      const t = l ? lineTim(l.text, kindOf(l)) : undefined
+      if (l && t !== undefined) return { line: x, tim: t, dur: durOf(l.text, kindOf(l)) }
+    }
     return null
   }
 
@@ -193,19 +205,28 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     }
     const v = describeLine(l.text, kind, n, ctx)
     const tim = lineTim(l.text, kind)
-    let before: { line: number; tim: number } | null | undefined // the line with a time before (looked up once, when a column needs it)
+    let before: { line: number; tim: number; dur: number } | null | undefined // the line with a time before (looked up once, when a column needs it)
     const prev = () => (before === undefined ? (before = prevTim(n)) : before)
-    let delta = '', deltaTitle: string | undefined, pinned = false
-    let step: number | undefined // the time from the line with a time before (what the Δ colours and the Δ filter use)
+    let delta = '', deltaTitle: string | undefined, pinned = false, deltaUs: number | undefined, deltaEmph = false
+    const signed = (us: number) => `${us < 0 ? '−' : '+'}${fmtInt(Math.abs(us))} µs`
+    let step: number | undefined // the time from the line with a time before (what the Δ colours and the Δ filter use: tim to tim, not the gap)
     if (tim !== undefined && colorBy === 'delta') { const p = prev(); if (p) step = tim - p.tim }
     if (tim !== undefined) {
       if (inp.pin && inp.pin.line === n) { pinned = true; deltaTitle = 'the pinned line: Δ is the time from here' }
-      else {
-        const ref = inp.pin ?? prev()
-        if (ref) {
-          const us = tim - ref.tim
-          delta = fmtDelta(us)
-          deltaTitle = `${us < 0 ? '−' : '+'}${fmtInt(Math.abs(us))} µs from ${inp.pin ? 'the pinned line' : 'the line with a time before'} (${fmtInt(ref.line)})`
+      else if (inp.pin) {
+        const us = tim - inp.pin.tim
+        delta = fmtDelta(us)
+        deltaUs = Math.abs(us)
+        deltaTitle = `${signed(us)} from the pinned line (${fmtInt(inp.pin.line)})`
+      } else {
+        const p = prev()
+        const own = durOf(l.text, kind)
+        const g = p ? gapDelta(unexplainedGap(tim, own, p.tim), p.dur) : undefined
+        if (p && g) {
+          delta = fmtDelta(g.us)
+          deltaUs = g.us
+          deltaEmph = g.emph
+          deltaTitle = `${fmtInt(g.us)} µs unexplained: this line started (its tim minus its own ${fmtDur(own)}) that long after line ${fmtInt(p.line)} ended\n${signed(tim - p.tim)} tim to tim, from line ${fmtInt(p.line)}`
         }
       }
     }
@@ -220,7 +241,6 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     const clockFull = !hms || prevHms(n) !== hms
     const clockShort = hms ? clock.slice(8) + micros : ''
     const hotUs = inp.hot.get(n)
-    const scale = Math.max(1, inp.scaleUs)
     // a hot spot is a call or wait of 1 % of the traced time or more; an idle wait (the client's think time) is not one to look at
     const hot = hotUs !== undefined && v.bar?.role !== 'idle'
     const plan = v.plan && inp.hotUs !== undefined && (v.plan.self ?? 0) >= inp.hotUs ? { ...v.plan, hot: true } : v.plan
@@ -229,9 +249,9 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
       plan,
       lane: laneOf(n, l, v, step),
       hot,
-      barW: v.bar ? Math.min(1, v.bar.us / scale) : undefined,
-      cpuW: v.bar?.cpu !== undefined ? Math.min(1, v.bar.cpu / scale) : undefined,
-      delta, deltaTitle, pinned, clock, micros, clockTitle, clockFull, clockShort,
+      trackW: v.bar ? barFrac(v.bar.us) : undefined,
+      trackCpuW: v.bar?.cpu !== undefined ? barFrac(v.bar.cpu) : undefined,
+      delta, deltaTitle, pinned, fromPin: !!inp.pin, deltaUs, deltaEmph, clock, micros, clockTitle, clockFull, clockShort,
     }
     out.set(n, cell)
     return cell

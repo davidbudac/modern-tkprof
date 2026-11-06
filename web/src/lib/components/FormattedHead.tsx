@@ -8,9 +8,10 @@ export interface FormattedColumn { key: string; label: string; title: string; de
 
 export const FORMATTED_COLUMNS: FormattedColumn[] = [
   { key: 'lane', label: 'Statement', title: "the cursor's statement: its sql_id on the first line of a stretch, the start of its SQL on the second; the colour is the statement's", def: 18, min: 40 },
-  { key: 'bar', label: 'Time', title: 'the bar: the time the line took, on one linear scale for the file (full: its longest line), a call\'s CPU part the solid end; the text: Δ, the time from the pinned line (a), else from the line with a time before (the trace bar\'s Δ hides it)', def: 12, min: 24 },
+  { key: 'bar', label: 'Time', title: 'Δ: the time from the pinned line (a); else the unexplained gap before the line: where it started (its tim minus its own time) after where the line with a time before it ended, blank under 50 µs, amber from 1 ms and twice that line (the trace bar\'s Δ hides this column)', def: 12, min: 24 },
   { key: 'kind', label: 'Operation', title: 'what the line is: PARSE, EXEC, FETCH, CLOSE, WAIT, PLAN, BINDS, …', def: 10, min: 40 },
-  { key: 'dur', label: 'Duration', title: "the line's e= (a call) or ela= (a wait); a fold's total", def: 10, min: 40 },
+  // the Duration column is its number (10 digits) and the 56 px track: 10 digits + 72 px, 20 digits at the 7.2 px a digit of the default font; least: the number's room 8 digits
+  { key: 'dur', label: 'Duration', title: "the line's e= (a call) or ela= (a wait); a fold's total. The bar: log scale, 1 µs to 10 s; a wait in its class colour, a call in slate with its CPU part the solid end", def: 20, min: 136 },
   { key: 'clk', label: 'Clock', title: "the wall-clock time of the line's tim= in the trace's zone: the whole stamp on the first row, the selected one and where the second changes, else the digits that change", def: 11.7, min: 72 },
 ]
 

@@ -26,6 +26,35 @@ export function fmtDelta(us: number): string {
   return (us < 0 ? '−' : '+') + fmtDur(Math.abs(us))
 }
 
+/** A gap shorter than this (µs) is not worth a Δ: the formatted view leaves it blank. */
+export const GAP_MIN_US = 50
+
+/**
+ * The unexplained gap before a line: where it started (its tim minus its own time, `e=` of a call or `ela=` of a wait) minus where the line
+ * with a time before it ended (that line's tim). Never negative: a call whose `e=` covers the waits printed above it, or a PARSE whose tim sits
+ * before its CURSOR line's, started before the line above ended, and its whole time is explained.
+ */
+export const unexplainedGap = (tim: number, ownUs: number, prevTim: number): number => Math.max(0, tim - Math.max(0, ownUs) - prevTim)
+
+/**
+ * What the formatted view's Δ column shows of a gap of `gapUs`: nothing (undefined) under 50 µs; `emph` (a gap to look at) when it is at least
+ * 1 ms and at least twice the duration (`prevOwnUs`) of the line before.
+ */
+export function gapDelta(gapUs: number, prevOwnUs: number): { us: number; emph: boolean } | undefined {
+  if (!(gapUs >= GAP_MIN_US)) return undefined
+  return { us: gapUs, emph: gapUs >= 1000 && gapUs >= 2 * prevOwnUs }
+}
+
+/** The decades of the duration bar: its track runs from 1 µs (empty) to 10 s (full). */
+export const BAR_DECADES = 7
+
+/** A duration's bar as a fraction of its track: log scale, 1 µs (and anything shorter) empty, 10 s (and longer) full. */
+export const barFrac = (us: number): number => (us >= 1 ? Math.min(1, Math.log10(us) / BAR_DECADES) : 0)
+
+/** How big a duration reads, for the weight of its number: microseconds, milliseconds or seconds (and more). */
+export type Magnitude = 'us' | 'ms' | 's'
+export const magnitudeOf = (us: number): Magnitude => (us < 1000 ? 'us' : us < 1e6 ? 'ms' : 's')
+
 /** The time cells of a row; the strings are empty for a line without a tim, `delta` is undefined when the column is off. */
 export interface LineTime {
   clock?: string; clockTitle?: string

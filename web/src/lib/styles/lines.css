@@ -390,12 +390,14 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-steps button.quiet { border-color: transparent; }
 
 /* ---- readable mode: each line parsed into columns (components/LineViewer.tsx ReadableRow) -------------------------------------
-   time (Δ over a bar) | number | lane (the cursor's stretch in its statement's colour) | fold handle | duration | kind | detail | clock.
+   Δ (the unexplained gap, text) | number | lane (the cursor's stretch in its statement's colour) | fold handle | duration (number, then its bar) | kind | detail | clock.
    The rows are as wide as the view: the detail is cut where it does not fit, so the clock stays at the end edge. A column's width is
    the user's (--w-<key>, FormattedHead) or its default in digits of the rows' font (--lv-chw, measured by the viewer). */
 .lv-box {
+  /* the Duration cell: its number (10 digits wide), then the track: a gap, the track, a trailing pad */
+  --trk-w: 56px; --trk-tail: calc(var(--trk-w) + 2 * var(--sp-2));
   --d-lane: calc(18 * var(--lv-chw, 0.6rem)); --d-bar: calc(12 * var(--lv-chw, 0.6rem));
-  --d-kind: calc(10 * var(--lv-chw, 0.6rem)); --d-dur: calc(10 * var(--lv-chw, 0.6rem)); --d-clk: calc(11.7 * var(--lv-chw, 0.6rem));
+  --d-kind: calc(10 * var(--lv-chw, 0.6rem)); --d-dur: calc(10 * var(--lv-chw, 0.6rem) + var(--trk-tail)); --d-clk: calc(11.7 * var(--lv-chw, 0.6rem));
   /* a hot spot: the one red row (the error hue is kept for it) */
   --hot-fill: light-dark(color-mix(in oklch, var(--s-critical) 16%, transparent), color-mix(in oklch, var(--s-critical) 22%, transparent));
 }
@@ -424,22 +426,17 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-kd.lv-op-mark { font-weight: 400; color: var(--ink-3); }
 .lv-rd .lv-tx { flex: 1 1 0; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; padding-inline: var(--sp-2); }
 .lv-rd .lv-tx:not(.lv-plan) { padding-inline-end: 6ch; } /* room for the clock's whole stamp, which is wider than its column */
-/* the time bar: one linear scale for the whole file (full = its longest line); a call's CPU part is the solid end of its bar */
+/* the time column (Δ): text only, right-aligned. The line's own time is the Duration cell's number and track (below). */
 .lv-bar { flex: none; position: relative; inline-size: var(--w-bar, var(--d-bar)); box-sizing: border-box; }
-.lv-bar > i, .lv-bar > b { position: absolute; inset-inline-start: var(--sp-2); inset-block: 4px; inline-size: calc(var(--w) * (100% - 2 * var(--sp-2))); min-inline-size: 2px; border-radius: 1px; }
-.lv-bar > b { background: var(--c-cpu); }
-.lv-bar-cpu { background: color-mix(in oklch, var(--c-cpu) 30%, var(--surface-raised)); }
-.lv-bar-userio { background: var(--c-userio); }
-.lv-bar-sysio { background: var(--c-sysio); }
-.lv-bar-commit { background: var(--c-commit); }
-.lv-bar-concurrency { background: var(--c-concurrency); }
-.lv-bar-network { background: var(--c-network); }
-.lv-bar-other { background: var(--c-other); }
-.lv-bar-idle, .lv-bar-unaccounted { background: var(--c-idle); }
-/* Δ: the time column's text, right-aligned over the bar; the bar is paler behind it so the text reads */
-.lv-rdlt { position: relative; z-index: 1; display: block; box-sizing: border-box; overflow: hidden; padding-inline: var(--sp-2); text-align: end; white-space: nowrap; color: var(--ink); font-variant-numeric: tabular-nums; text-shadow: 0 0 2px var(--surface-raised), 0 0 2px var(--surface-raised); }
-.lv-bar:has(> .lv-rdlt) > i, .lv-bar:has(> .lv-rdlt) > b { opacity: 0.5; }
-.lv-rdlt.neg { color: var(--ink-3); }
+.lv-rdlt { position: relative; display: block; box-sizing: border-box; overflow: hidden; padding-inline: var(--sp-2); text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* from the pin: the time from there, in ink (before it: dim) */
+.lv-rdlt.pin { color: var(--ink); }
+.lv-rdlt.pin.neg { color: var(--ink-3); }
+/* the unexplained gap: dim, its weight by size (µs, ms, s), amber (500 or more) when it is at least 1 ms and twice the line before */
+.lv-rdlt.gap { color: var(--ink-3); }
+.lv-rdlt.gap.mag-ms { font-weight: 500; }
+.lv-rdlt.gap.mag-s { font-weight: 650; }
+.lv-rdlt.gap.emph { color: var(--s-warning); }
 .lv-pinned .lv-rdlt { color: var(--c-commit); font-weight: 600; }
 .lv-rdlt .lv-dicon { display: inline-block; vertical-align: -0.05em; }
 /* the clock: the whole stamp (`11:35:29.828158`) on the first row, the selected one (.lv-sel), the first in view (.lv-ftop, set by the viewer) and where
@@ -455,7 +452,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
    start bar, its Duration at 600; no other row or cell uses this hue. The selection wins the fill (below), the bar and the number stay. */
 .lv-hot { background: var(--hot-fill); }
 .lv-hot > :first-child { box-shadow: inset 3px 0 0 var(--s-critical); }
-.lv-hot .lv-dur > b { color: var(--s-critical); font-weight: 600; }
+.lv-rd.lv-hot .lv-dnum > b { color: var(--s-critical); font-weight: 600; }
 .lv-rd > :first-child { border-inline-end: 1px solid var(--hairline); }
 .lv-rd .lv-ln::before { content: none; }
 /* the highlighted statement is the lane's, not the row's: no row fill; the Statement cell of every row of its lane takes its colour (--hl, the statement's
@@ -596,10 +593,32 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-mode > button[aria-checked="true"] { background: var(--ink); color: var(--surface-raised); box-shadow: 0 1px 2px color-mix(in oklch, var(--ink) 25%, transparent); }
 .lines-mode > kbd { font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.4; color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; background: var(--surface-raised); padding-inline: 0.4em; margin-inline: 0.3em 0.2em; }
 @container (inline-size < 56rem) { .lines-mode > kbd { display: none; } }
-/* the time a line took: number right-aligned in its slot, unit in a slot of its own, so the values line up down the view */
-.lv-dur { flex: none; display: inline-flex; justify-content: flex-end; inline-size: var(--w-dur, var(--d-dur)); box-sizing: border-box; overflow: hidden; padding-inline: var(--sp-2) var(--sp-1); font-variant-numeric: tabular-nums; }
-.lv-dur > b { flex: none; font-weight: 400; color: var(--ink); }
-.lv-dur > small { flex: none; inline-size: 3ch; padding-inline-start: 0.5ch; font-size: inherit; color: var(--ink-3); text-align: start; }
+/* the time a line took: the number right-aligned in the cell's room (the unit in a slot of its own, so the values line up down the view; its weight
+   by size: µs 400 --ink-2, ms 500, s 650), then a 56 px track on a log scale (1 µs empty, 10 s full, a faint tick a decade): a wait fills in its
+   class colour, a call in its phase's slate with the CPU part the solid end (the rest, the time it waited, paler) */
+.lv-dur { flex: none; display: flex; align-items: center; gap: var(--sp-2); inline-size: var(--w-dur, var(--d-dur)); box-sizing: border-box; overflow: hidden; padding-inline-end: var(--sp-2); font-variant-numeric: tabular-nums; }
+.lv-dnum { flex: 1 1 0; min-inline-size: 0; display: flex; justify-content: flex-end; padding-inline: var(--sp-2) var(--sp-1); overflow: hidden; }
+.lv-dnum > b { flex: none; font-weight: 400; color: var(--ink); }
+.lv-dnum.mag-us > b { color: var(--ink-2); }
+.lv-dnum.mag-ms > b { font-weight: 500; }
+.lv-dnum.mag-s > b { font-weight: 650; }
+.lv-dnum > small { flex: none; inline-size: 3ch; padding-inline-start: 0.5ch; font-size: inherit; color: var(--ink-3); text-align: start; }
+.lv-trk { position: relative; flex: none; inline-size: var(--trk-w); block-size: 8px; border-radius: 2px; overflow: hidden; background: color-mix(in oklch, var(--ink) 8%, transparent); --col: var(--c-other); }
+.lv-trk::after { content: ""; position: absolute; inset-block: 0; inset-inline: calc(var(--trk-w) / 7) 0; background: repeating-linear-gradient(90deg, color-mix(in oklch, var(--ink) 12%, transparent) 0 1px, transparent 1px calc(var(--trk-w) / 7)); }
+.lv-fill { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: calc(var(--f) * 100%); background: var(--col); }
+.lv-fill.soft { opacity: 0.45; }
+.lv-trk-userio { --col: var(--c-userio); }
+.lv-trk-sysio { --col: var(--c-sysio); }
+.lv-trk-commit { --col: var(--c-commit); }
+.lv-trk-concurrency { --col: var(--c-concurrency); }
+.lv-trk-network { --col: var(--c-network); }
+.lv-trk-other { --col: var(--c-other); }
+.lv-trk-idle, .lv-trk-unaccounted { --col: var(--c-idle); }
+.lv-trk-ph-parse { --col: var(--c-phase-parse); }
+.lv-trk-ph-exec { --col: var(--c-phase-exec); }
+.lv-trk-ph-fetch { --col: var(--c-phase-fetch); }
+.lv-trk-ph-close { --col: var(--c-phase-close); }
+.lv-trk-ph-other { --col: var(--c-phase-other); }
 
 /* the formatted view's column headers: over the rows, as wide as them (the scroll bar left out), the same cells as a row */
 .lv-colhead { display: flex; flex: none; block-size: calc(var(--lv-row) + 4px); align-items: stretch; padding-inline-end: var(--lv-sbw, 0px); background: var(--surface-sunken); border-block-end: 1px solid var(--hairline-strong); font-family: var(--font-mono); font-size: var(--text-sm); line-height: calc(var(--lv-row) + 4px); color: var(--ink-2); user-select: none; }
@@ -608,8 +627,8 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-ch-lane { inline-size: var(--w-lane, var(--d-lane)); padding-inline-start: 12px; }
 .lv-ch-bar { inline-size: var(--w-bar, var(--d-bar)); padding-inline: var(--sp-2); }
 .lv-ch-kind { inline-size: var(--w-kind, var(--d-kind)); padding-inline-start: var(--sp-2); }
-/* right-aligned over the numbers: the rows' unit slot is 3 digits of the rows' font (not the header's) after them, 4px from the end */
-.lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--sp-1) + 3 * var(--lv-chw, 0.6rem)); }
+/* right-aligned over the numbers: after them the rows' unit slot (3 digits of the rows' font, not the header's), 4px, and the track with its gap and pad */
+.lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--trk-tail) + var(--sp-1) + 3 * var(--lv-chw, 0.6rem)); }
 .lv-colhead > :first-child { border-inline-end: 1px solid transparent; }
 .lv-ch-tx { flex: 1 1 0; min-inline-size: 0; padding-inline-start: var(--sp-2); }
 .lv-ch-clk { inline-size: var(--w-clk, var(--d-clk)); padding-inline-end: var(--sp-3); }
