@@ -198,7 +198,6 @@ button[aria-pressed="true"] .cue { color: inherit; opacity: 0.7; }
 .ledger .rest dt { color: var(--ink-3); }
 
 /* ---- statements on the shared axis -------------------------------------- */
-.ruled { background-image: linear-gradient(to right, var(--ruling) 1px, transparent 1px); background-repeat: repeat-x; }
 .stmt-ledger { display: flex; flex-direction: column; border-block-start: 1px solid var(--hairline); }
 .srow { padding-block: 0.6rem; border-block-end: 1px solid var(--hairline); cursor: pointer; }
 @media (hover: hover) and (pointer: fine) { .srow:hover { background: var(--wash); } }

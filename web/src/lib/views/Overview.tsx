@@ -189,10 +189,9 @@ function StatementLedger({ doc, stmts, totalUs }: { doc: TraceDoc; stmts: StmtSt
   const waits = useSourceQuery(source, `waits:${topIds.join(',')}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits(topIds, 3, scope, signal) : null)).data
   const rest = stmts.slice(TOP_STATEMENTS)
   const restUs = rest.reduce((a, s) => a + responseUs(s), 0)
-  const tk = ticks(totalUs)
   const findings = useScopedFindings(doc).findings
   return (
-    <div className="stmt-ledger ruled" style={{ backgroundSize: `${(100 * tk.step) / totalUs}% 100%` }}>
+    <div className="stmt-ledger">
       {top.map((st) => {
         const s = doc.statements[st.id]
         const resp = responseUs(st)
