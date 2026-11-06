@@ -13,6 +13,7 @@ import (
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/assist"
+	"github.com/davidbudac/modern-tkprof/internal/cut"
 	"github.com/davidbudac/modern-tkprof/internal/remote"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 )
@@ -175,8 +176,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 33 {
-		t.Errorf("%d session routes, want doc, report, the 19 slice endpoints, the 9 line endpoints, ref, brief and the assist tools", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 36 {
+		t.Errorf("%d session routes, want doc, report, the 19 slice endpoints, the 9 line endpoints, the 3 cut endpoints, ref, brief and the assist tools", n)
 	}
 }
 
@@ -234,6 +235,7 @@ func TestContractSchemas(t *testing.T) {
 		"UsageEvent": assist.UsageEvent{}, "StateEvent": assist.StateEvent{}, "DoneEvent": assist.DoneEvent{}, "ErrorEvent": assist.ErrorEvent{},
 		"StmtStats": analyze.StmtStats{}, "ScopeProfile": analyze.ScopeProfile{}, "CallStats": analyze.CallStats{}, "Link": analyze.Link{},
 		"IOMap": analyze.IOMap{}, "IOMapFile": analyze.IOMapFile{},
+		"CutPlan": cut.Plan{}, "CutPiece": cut.Piece{}, "CutRun": cut.Run{}, "CutFileRuns": cut.FileRuns{}, "CutStmt": cut.StmtCut{}, "CutCheck": cut.Check{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

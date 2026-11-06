@@ -64,6 +64,9 @@ type Plan struct {
 	Callers    []model.ID `json:"callers"`
 	Processes  int        `json:"processes"`
 	Binds      string     `json:"binds"`
+	// BindsAllowed are the bind modes the source allows (set by the server:
+	// a session with redacted or dropped values never gets them back)
+	BindsAllowed []string `json:"bindsAllowed"`
 }
 
 // MaxRuns caps the runs of one file in a Plan: beyond it, short gaps are closed.

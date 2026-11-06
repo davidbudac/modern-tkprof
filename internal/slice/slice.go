@@ -44,6 +44,7 @@ import (
 	"sync"
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
+	"github.com/davidbudac/modern-tkprof/internal/cut"
 	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
@@ -89,6 +90,13 @@ type Server struct {
 	bindHdr map[int][]int // file -> lines of its BINDS headers (see bindHeaders)
 
 	blockEvents, countP3 []bool // per event: block I/O, p3 a block count (analyze.BlockEvents, /api/io/map)
+
+	// CutSalt salts the hash of the cut's masked bind values (the session's
+	// redaction salt); CutDir is where /api/cut/check writes its temporary
+	// file ("" = the system's temporary directory).
+	CutSalt, CutDir string
+	cutOnce         sync.Once
+	cut             *cut.Cutter
 }
 
 // NoCORS is the Server.AllowOrigin that turns the server's own CORS handling off.
@@ -126,6 +134,7 @@ func (s *Server) Handler() http.Handler {
 	if s.lis != nil { // the endpoints that read the trace text (WithLines)
 		mux.Handle("/api/lines", s.cors(linesHandler(s.lis, s.serveAnnotated2)))
 		mux.Handle("/api/search", s.cors(http.HandlerFunc(s.search)))
+		mux.Handle("/api/cut/file", s.cors(http.HandlerFunc(s.cutFile)))
 	}
 	return mux
 }
@@ -143,7 +152,8 @@ func Endpoints() []string {
 
 // LineEndpoints are the paths Handler serves in addition when WithLines is set.
 func LineEndpoints() []string {
-	return []string{"/api/at", "/api/lines", "/api/lines/at", "/api/lines/next", "/api/lines/blocks", "/api/lines/profile", "/api/lines/hot", "/api/lines/repeats", "/api/search"}
+	return []string{"/api/at", "/api/lines", "/api/lines/at", "/api/lines/next", "/api/lines/blocks", "/api/lines/profile", "/api/lines/hot", "/api/lines/repeats", "/api/search",
+		"/api/cut", "/api/cut/check", "/api/cut/file"}
 }
 
 func (s *Server) routes() map[string]func(context.Context, url.Values) (any, error) {
@@ -176,6 +186,8 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		routes["/api/lines/hot"] = s.linesHot
 		routes["/api/lines/repeats"] = s.linesRepeats
 		routes["/api/at"] = s.at
+		routes["/api/cut"] = s.cutPlan
+		routes["/api/cut/check"] = s.cutCheck
 	}
 	return routes
 }
