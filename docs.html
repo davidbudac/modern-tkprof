@@ -91,7 +91,7 @@
   <tbody>
     <tr><td>What it is</td><td>One binary, <code>mtkprof</code>. It writes a text report and a self-contained HTML report you open in a browser.</td><td>A windowed app with everything the HTML report has, plus tabs, the raw trace lines, notes, an index cache and connections that fetch traces over ssh or from the database.</td></tr>
     <tr><td>Runs on</td><td>Linux, macOS, Windows, AIX, Solaris</td><td>Windows, macOS, Linux (x64 only)</td></tr>
-    <tr><td>Install</td><td>The <code>curl … | sh</code> one-liner on Unix, or the bare binary from the releases page</td><td>An installer (<code>.exe</code>, <code>.dmg</code>, <code>.AppImage</code>, <code>.deb</code>) from the releases page</td></tr>
+    <tr><td>Install</td><td>The <code>curl … | sh</code> one-liner on Unix, or the bare binary from the <a href="index.html#download">download panel</a></td><td>An installer (<code>.exe</code>, <code>.dmg</code>, <code>.AppImage</code>, <code>.deb</code>) from the <a href="index.html#download">download panel</a></td></tr>
     <tr><td>Use it for</td><td>The database host, scripts, a report to attach to a ticket</td><td>Working through traces on your own machine</td></tr>
   </tbody>
 </table></div>
@@ -104,7 +104,7 @@
     <p><strong>Install.</strong> On Linux, macOS, AIX or Solaris:</p>
 <pre>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh
 mtkprof version</pre>
-    <p>On Windows, download <code>mtkprof-windows-amd64.exe</code> from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>. Other ways to install are under <a href="#install">Install</a>.</p>
+    <p>On Windows, download <code>mtkprof-windows-amd64.exe</code> from the <a href="index.html#download">download panel</a>. Other ways to install are under <a href="#install">Install</a>.</p>
   </li>
   <li>
     <p><strong>Trace a session.</strong> In SQL*Plus or SQLcl, run the workload between these lines, then ask for the file name:</p>
@@ -138,7 +138,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
 <p>Install it like any other application. It has its own engine built in and doesn't need the CLI.</p>
 <ol class="quick">
   <li>
-    <p><strong>Install.</strong> Don't use the <code>curl</code> script for this; it installs only the CLI. Download the installer for your system from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>: <code>_x64-setup.exe</code> for Windows, <code>_aarch64.dmg</code> (Apple Silicon) or <code>_x64.dmg</code> (Intel) for macOS, <code>.AppImage</code> or <code>.deb</code> for Linux. The full list is under <a href="#desktop-install">Install and first start</a>.</p>
+    <p><strong>Install.</strong> Don't use the <code>curl</code> script for this; it installs only the CLI. Download the installer for your system from the <a href="index.html#download">download panel on the home page</a>, which picks your operating system: <code>_x64-setup.exe</code> for Windows, <code>_aarch64.dmg</code> (Apple Silicon) or <code>_x64.dmg</code> (Intel) for macOS, <code>.AppImage</code> or <code>.deb</code> for Linux. The full list is under <a href="#desktop-install">Install and first start</a>.</p>
   </li>
   <li>
     <p><strong>Start it once.</strong> The builds aren't signed, so the first start needs one extra step. On Windows, click <em>More info</em>, then <em>Run anyway</em>. On macOS, use System Settings → Privacy &amp; Security → <em>Open Anyway</em>, or run:</p>
@@ -184,7 +184,7 @@ chmod +x mtkprof-linux-amd64 &amp;&amp; mv mtkprof-linux-amd64 ~/bin/mtkprof
 mtkprof version</pre>
 
 <h3>The desktop app</h3>
-<p>Installers are on the same <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>, under the same tag as the binaries, from v0.5.0; v0.3.1 and earlier are on the archived <a href="https://github.com/davidbudac/mtkprof-desktop/releases">mtkprof-desktop releases page</a>. See <a href="#desktop-install">Install and first start</a> below; the builds are not signed, so the first start needs one extra click.</p>
+<p>Installers are in the <a href="index.html#download">download panel on the home page</a> and on the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>, under the same tag as the binaries, from v0.5.0; v0.3.1 and earlier are on the archived <a href="https://github.com/davidbudac/mtkprof-desktop/releases">mtkprof-desktop releases page</a>. See <a href="#desktop-install">Install and first start</a> below; the builds are not signed, so the first start needs one extra click.</p>
 
 <!-- ================================================================ -->
 <h2 id="tracing">Tracing a session<a class="anchor" href="#tracing" aria-label="Link to this section">#</a></h2>
@@ -248,7 +248,7 @@ mtkprof trace scott@dbhost/pdb1 -files -since 2h                <span class="c">
 <p>The buttons under a statement's title open its other views: <em>Row flow</em> (its plan as rows moving from the leaves to the client), <em>Dialogue</em> (its slowest execution as a sequence diagram) and <em>Blocks</em> (the file blocks it read and wrote). A block-I/O wait in the statement's Waits list, or in the Waits view, links to Blocks too.</p>
 <ul>
   <li><strong>Executions</strong>: every EXEC with its fetches, elapsed, CPU, waits, rows and bind values, so the slow execution with the odd bind is one click away. Tick two executions to compare call statistics, waits, binds and plan hash side by side. One picked execution can also be drawn as a <em>Dialogue</em>: a sequence diagram of its calls, the waits on disk, TEMP and elsewhere, the rows going back and the client's gaps, with alike round trips folded into loops.</li>
-  <li><strong>Plans</strong>: row-source statistics from the STAT lines, one per plan hash, with the hot steps highlighted. With a <a href="#ref">reference bundle</a> the DBMS_XPLAN text, predicates and estimates are added.</li>
+  <li><strong>Plans</strong>: row-source statistics from the STAT lines, one per plan hash, with the hot steps highlighted. With a <a href="#ref">reference bundle</a> the DBMS_XPLAN text, predicates and estimates are added. The plan advisor lists what looks wrong in each plan, such as misestimated cardinalities, spills, nested-loop volume and partition pruning. It compares A-Rows with the same estimate Row flow draws (E-Rows times starts, except below an iterator such as INLIST ITERATOR or PARTITION).</li>
   <li><strong>Recursive statements</strong>: the children a statement caused, with their share.</li>
 </ul>
 
@@ -430,6 +430,8 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
 <h2 id="desktop-views">Lines, notes and reports<a class="anchor" href="#desktop-views" aria-label="Link to this section">#</a></h2>
 <h3>Lines</h3>
 <p>The raw trace file, paged, with line kinds colored, gutter marks for the selected statement, the object at the clicked line, streaming search, jump to time, and a file selector for sets. Every "line N" link in the views opens Lines at that line (<kbd>Shift</kbd>+click opens a small line drawer instead). <kbd>b</kbd> bookmarks a line. From a time window, <em>Lines</em> jumps to the window's first line and marks its lines in the gutter.</p>
+<p><strong>Raw and Formatted.</strong> The switch at the left of the trace bar turns the raw text into a table, still one row per trace line, so line numbers, search, bookmarks and folds work in both. Each row shows the time of the line, the cursor's lane (a colored band, with the SQL ID on its first row and &#8627;n for recursive SQL at depth n), its duration, what the line is (EXEC, WAIT, Bind#3 and so on), its detail and the wall clock. A plan dump becomes one table under its own header row, with the columns of DBMS_XPLAN (Operation, Starts, E-Rows, A-Rows, Cost, A-Time, Buffers) and a bar for each operation's share of the time; an estimate ten times or more off is marked. A BINDS block becomes a table of variable, value and type. <kbd>l</kbd> or a chip in the overview highlights one statement.</p>
+<p><strong>Measuring between lines.</strong> Pin a line with the &Delta; mark and every other row reads its distance from it, so &Delta; = 0 sits on the pinned row. <kbd>&#8984;</kbd>/<kbd>Ctrl</kbd>+click adds a line to the selection or removes it, <kbd>Shift</kbd>+click extends the selection from it, the status bar sums the selected lines and <kbd>y</kbd> copies them all. Lines with <code>tim=0</code> carry no time, so they are left out of the clock, the &Delta; and the gaps.</p>
 <h3>Notes and bookmarks</h3>
 <p>Notes belong to a trace's content, not its file name: the same trace from another path, re-fetched under another name or opened with other options shows the same notes.</p>
 <div class="table-wrap"><table>
@@ -482,6 +484,7 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
     <tr><td>Theme</td><td>system, light or dark</td></tr>
   </tbody>
 </table></div>
+<p>Settings is a list of cards, one row per setting with a switch or a control on the right. The bind-value rows show a live preview, taken from a real trace, of what <em>Keep</em>, <em>Redact</em> and <em>None</em> do to a value; the theme tiles draw the Lines view in each scheme. A sticky index beside the page follows the section you are reading. The status header shows the engine and its protocol.</p>
 <p><em>Settings → Index cache</em> lists the entries and removes one or all. <em>About</em> shows the app, engine and protocol versions and the exact data, log and engine paths.</p>
 <div class="table-wrap"><table>
   <thead><tr><th></th><th>Windows</th><th>macOS</th><th>Linux</th></tr></thead>

@@ -217,7 +217,7 @@ strong { font-weight: 500; }
 .hero {
   min-block-size: calc(100svh - var(--header-h));
   align-content: center;
-  padding-block: clamp(3rem, 2rem + 4vw, 5rem);
+  padding-block: clamp(2rem, 1.5rem + 2vw, 3.5rem);
 }
 .hero-grid {
   display: flex;
@@ -230,6 +230,86 @@ strong { font-weight: 500; }
 .hero h1 { font-size: var(--text-h1); letter-spacing: -0.03em; line-height: 1.02; }
 .lede { font-size: var(--text-lg); color: var(--ink-2); max-inline-size: 34rem; line-height: 1.55; }
 .hero .actions { margin-block-start: 0.5rem; }
+
+/* ---------- download panel (hero) ---------- */
+.dl {
+  display: grid;
+  gap: 1rem;
+  margin-block-start: 0.5rem;
+  padding: 1.25rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-float);
+  max-inline-size: 34rem;
+  scroll-margin-block-start: calc(var(--header-h) + 1rem);
+}
+.dl [hidden] { display: none !important; }
+.dl-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.dl-head h2 { font-size: var(--text-md); font-weight: 600; letter-spacing: 0; }
+.dl-version { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-3); }
+.dl-tabs {
+  display: inline-flex;
+  margin-inline-start: auto;
+  padding: 2px;
+  gap: 2px;
+  background: var(--wash);
+  border-radius: var(--r-control);
+}
+.dl-tabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  padding: 0.3125rem 0.75rem;
+  border-radius: calc(var(--r-control) - 2px);
+  cursor: pointer;
+}
+.dl-tabs button[aria-pressed="true"] { background: var(--surface-raised); color: var(--ink); font-weight: 500; box-shadow: var(--shadow-small); }
+@media (hover: hover) and (pointer: fine) { .dl-tabs button[aria-pressed="false"]:hover { color: var(--ink); } }
+.dl-panel { display: grid; gap: 0.875rem; }
+.dl-panel + .dl-panel { padding-block-start: 1rem; border-block-start: 1px solid var(--hairline); }
+.js .dl-panel + .dl-panel { padding-block-start: 0; border-block-start: 0; }
+.dl-os-name { font-size: var(--text-sm); color: var(--ink-3); font-weight: 500; }
+.js .dl-os-name { display: none; }
+.dl-main {
+  display: grid;
+  justify-items: start;
+  gap: 0.125rem;
+  block-size: auto;
+  padding: 0.875rem 1.25rem;
+}
+.dl-main-label { font-size: 1.0625rem; font-weight: 600; }
+.dl-main-meta { font-size: var(--text-sm); font-weight: 400; opacity: 0.72; }
+.dl-alt { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
+.dl-alt a, .dl-cli-alt a { color: var(--ink); text-decoration-color: var(--hairline-strong); text-underline-offset: 0.2em; }
+.dl-size { color: var(--ink-3); font-size: var(--text-sm); margin-inline-start: 0.25rem; }
+.dl-cli { display: grid; gap: 0.5rem; padding-block-start: 0.875rem; border-block-start: 1px solid var(--hairline); }
+.dl-cli-head { margin: 0; font-size: var(--text-sm); font-weight: 500; }
+.dl-cli-alt { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+.dl-cmd { display: flex; gap: 0.5rem; align-items: flex-start; }
+.dl-cmd .terminal { flex: 1; min-inline-size: 0; font-size: 0.75rem; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.375rem; }
+.dl-copy {
+  flex: none;
+  appearance: none;
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  padding-inline: 0.875rem;
+  block-size: 2.25rem;
+  border-radius: var(--r-control);
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) { .dl-copy:hover { background: var(--surface-sunken); } }
+.dl-foot { margin: 0; font-size: 0.8125rem; color: var(--ink-3); line-height: 1.5; }
+.dl-foot a { color: var(--ink-2); }
+.nav-download { background: var(--ink); color: var(--surface) !important; font-weight: 500; }
+@media (hover: hover) and (pointer: fine) { .site-nav a.nav-download:hover { background: color-mix(in oklch, var(--ink), var(--surface) 14%); } }
+.band-cta { margin: 0; justify-self: start; }
 .hero-figure figcaption { margin-block-start: 0.75rem; font-size: 0.8125rem; color: var(--ink-3); }
 
 /* the window: raw trace lines, then the profile they add up to */
