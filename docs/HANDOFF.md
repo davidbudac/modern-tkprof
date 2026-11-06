@@ -6,6 +6,30 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Cut: implemented (2026-11-06, branch `feat/cut`)
+
+- A new trace file from a part of a trace set (window, sessions or files, one statement; a join of
+  a set's files), desktop only. Decisions: DESIGN § Cut; code: ARCHITECTURE § Cut; user guide:
+  DESKTOP § Cut. Engine package `internal/cut`, routes `api/cut`, `api/cut/check`, `api/cut/file`
+  (additive, protocol stays 1; contract, schemas and `api.d.ts` updated), the desktop's Cut view
+  (Tools menu, `desktop/src/workspace/session/cut/`); lib: `View` gains `cut`, `resolveVar` is
+  exported. Designed from a mock-up on the real cut of io_waits.trc (window 11:35:34.880-35.300:
+  the hash join's recursive cursors restated from lines 131-151, its plan borrowed from after the
+  cut, +348 ms to keep its FETCH whole).
+- Tests: every fixture of 19c/21c/23ai and the multisession, parallel and workload sets, with
+  whole, mask, none, per-session, quarter windows, executions and statement selections, pass the
+  re-parse check; a whole cut equals its source plus the provenance lines; engine routes over a
+  spill and a redacted session. Checked in dev browser mode (verify-mtkprof), light and dark:
+  io_waits window, statement dk21j71dpu26c (300 executions, caller left out), multisession a+b join.
+- Found on the way, now rules of the cut: a cursor must be restated before its BINDS block, not
+  only its calls; statement text must be followed by `len=` (nasty_sql.trc holds an END OF STMT
+  and markers inside a statement); a copied source timestamp only anchors right when nothing
+  between it and the next `tim` was left out, else a generated one follows it.
+- **Open**: not run in the Tauri window (native save dialog, *Open as new tab*); tkprof on cut
+  files not compared yet (dbmint); interleaving a join by time (trcsess's order) not offered;
+  an implicit cursor (open before tracing, never parsed) whose number collides with another
+  process's in a join would take that cursor's statement.
+
 ## Open-list round (2026-11-06)
 
 - **Control file waits are not block I/O** (`bab6065`): `Event.IsFileP1` / `isFileP1` skip `control file *` events (p1

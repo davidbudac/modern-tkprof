@@ -41,6 +41,17 @@ async function writeTo(path: string, data: FileData) {
   else await fs.writeFile(path, data)
 }
 
+/** Writes `data` to `<app cache dir>/<dir>/<name>` (the app only); its path. */
+export async function writeCached(dir: string, name: string, data: FileData): Promise<string> {
+  const { appCacheDir, join } = await import('@tauri-apps/api/path')
+  const { mkdir } = await import('@tauri-apps/plugin-fs')
+  const folder = await join(await appCacheDir(), dir)
+  await mkdir(folder, { recursive: true })
+  const path = await join(folder, name)
+  await writeTo(path, data)
+  return path
+}
+
 /** Writes `data` to `<app cache dir>/<dir>/<name>` and opens it with the system's default app (dev browser: a new tab). */
 export async function openCached(dir: string, name: string, data: FileData, type: string): Promise<string> {
   if (!inTauri) {
@@ -49,12 +60,7 @@ export async function openCached(dir: string, name: string, data: FileData, type
     setTimeout(() => URL.revokeObjectURL(url), 60_000)
     return url
   }
-  const { appCacheDir, join } = await import('@tauri-apps/api/path')
-  const { mkdir } = await import('@tauri-apps/plugin-fs')
-  const folder = await join(await appCacheDir(), dir)
-  await mkdir(folder, { recursive: true })
-  const path = await join(folder, name)
-  await writeTo(path, data)
+  const path = await writeCached(dir, name, data)
   const { openPath } = await import('@tauri-apps/plugin-opener')
   await openPath(path)
   return path

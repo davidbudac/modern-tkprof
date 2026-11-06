@@ -517,6 +517,57 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   thread works) until the new rows are painted or the folds arrive;
   reduced motion dims instead.
 
+## Cut (decided 2026-11-06, desktop only)
+
+A new trace file cut from a part of a trace set: a time window, sessions or files, or one
+statement; joining the files of a set is the same operation with nothing narrowed (what `trcsess`
+does, without its losses). Engine `internal/cut`, routes `api/cut`, `api/cut/check`,
+`api/cut/file`; the desktop's **Cut** view (Tools menu), designed from a mock-up drawn on the
+real cut of io_waits.trc.
+
+- **Never cut blind.** The unit kept is a call with everything rolled up under it (its recursive
+  calls, waits and binds, which the trace writes before the call's own line): whole top-level
+  calls overlapping the window in the selected contexts, or the statement's calls (with their
+  recursive work; the callers are left out, the calls stay recursive SQL without a parent). A
+  window edge inside a call widens to the whole call; *Whole executions* widens to every call of
+  a kept call's execution. A unit is the lines after the last call of its process at the same or
+  a smaller depth up to its own line; the lines after a process's last kept call go with it.
+- **What the kept lines need comes with them**, labelled where it comes from: *borrowed from
+  before the cut* (the file header, the session markers in force, the PARSING IN CURSOR block of
+  every cursor the kept lines use, restated right before its first use including a BINDS block,
+  with `tim=` set to the time of the lines after it so the span does not stretch back; a plan
+  dumped earlier), *borrowed from after the cut* (the STAT lines of a cursor that closed after it,
+  placed after its last kept call), *generated* (`mtkprof cut:` provenance lines in the header, a
+  `***` timestamp wherever the wall-clock anchor would otherwise pair with the wrong `tim`, and
+  trcsess's `*** [ Unix process pid: N ]` between processes). A cursor open before tracing started
+  and adopted by a later parse is only restated when that parse is left out.
+- **The model decides, the text is copied.** Kept calls and waits come from the model and its
+  spill (a wait follows its call, not its position); the text pass copies lines and inserts the
+  borrowed ones. Statement text is followed by `len=` as the parser does (a statement can hold
+  trace-like lines). Preview and file are the same walk with another sink: the plan the view
+  draws is what the file gets.
+- **Checked before it is trusted.** `api/cut/check` writes the file, parses it back and compares
+  calls (count and elapsed per statement and call kind), waits and the first call's wall clock
+  with the selection, and counts statements that lost their SQL text. The view runs it on every
+  plan under 256 MB. Tests run it on every fixture and set with whole, session, window,
+  statement, executions, masked and dropped-bind selections; a cut of everything is the source
+  byte for byte plus the provenance lines.
+- **Bind values.** Keep, Mask (each value replaced by the redaction token, salted as the session)
+  or None (BINDS blocks left out). A session opened with redacted or dropped values only cuts with
+  masked or none: the trace text must not give back what the session hid.
+- **Joining.** Processes follow one another (each with its switch line), not interleaved by time
+  as trcsess does: each session stays readable top to bottom; the views order by `tim` anyway.
+  The first file's header is kept; the others' are summarised in the provenance lines.
+- **The view.** A time strip (busy time, the brushed window dashed, the kept extent and the part
+  kept to finish a call hatched; dragging sets the shared window), the source files as columns of
+  lines (labels per line from the plan's runs, density from `api/lines/profile`; a borrowed range
+  too small to see gets 9 px in place, with its line numbers), the new file as a column of its
+  blocks (kept lines at the source's scale, other blocks at least 15 px) with a band from where
+  each comes, and a side panel: the hovered block (why it is there, its lines, Show in Trace), the
+  new file (lines, bytes, the mix, the re-parse check), the selection and the options. Hue means
+  provenance here (`--cut-*` tokens), not a resource class. Save as… (save dialog, streamed); in
+  the app also *Open as new tab* (`cuts/` in the app cache folder).
+
 ## Project
 
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each

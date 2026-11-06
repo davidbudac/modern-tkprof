@@ -288,6 +288,33 @@ A live session's model is the aggregate one: its text report has no executions t
 sets 0" in the Volume line) and its JSON/HTML documents have no fact tables. Use the CLI on the
 file for those.
 
+## Cut
+
+The **Cut** view (Tools menu) writes a new trace file from a part of the trace: the calls in the
+time window and the sessions or files selected (*Calls in the window*), or one statement's calls
+(*One statement*). With several files and no window it joins them into one file, like `trcsess`
+but keeping every header line and session marker.
+
+A cut never splits a call: a window edge inside a call keeps the whole call (the time strip
+hatches what that adds), and each call keeps its waits, binds and recursive SQL. What the kept
+lines need from elsewhere comes with them: the file header, the session markers in force, the SQL
+text of the cursors they use and their plans. The map shows where every block of the new file
+comes from: the source on the left, the new file on the right, a band between them per block,
+colored kept, borrowed from before the cut, borrowed from after it, or generated. Hover a block,
+a band or a label to see its lines and why it is there; *Show in Trace* opens the source lines.
+
+Drag on the time strip to set the window (it is the window every view shows; *whole trace*
+clears it). Options: *Whole executions* widens to every call of a kept call's execution; *Bind
+values* Keep, Mask (each value becomes a token of its type, length and a hash, equal values
+keep equal tokens: for sending the file to someone) or None; a tab opened with redacted values
+offers only Mask and None. *Plans from outside the cut* and *Provenance lines* (a few
+`mtkprof cut:` lines in the header saying where the file comes from) can be turned off.
+
+The side panel's *Re-parse check* writes the file, parses it back and compares its calls, waits
+and wall clock with the selection: a tick means the file holds exactly what the map shows.
+*Save as…* asks where; *Open as new tab* writes it to `cuts/` in the app's cache folder and opens
+it.
+
 ## Saved pivots
 
 Saved Pivot configurations, shared by all traces. In a tab's Pivot view, *Saved ▾ → Save current

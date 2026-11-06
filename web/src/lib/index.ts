@@ -92,3 +92,5 @@ export type { Annotation, AnnotationKind, StmtRef, AnnotationsFile, MarkdownOpti
 export { pivotConfigOf, resolvePivotConfig, libraryFile, parseLibraryFile, mergeLibrary, describePivotConfig } from './data/pivotconfig'
 export type { PivotConfig, ContextKey, SavedPivot, LibraryFile } from './data/pivotconfig'
 export { NoteEditor, NoteBox } from './components/Note'
+// a CSS color token (light-dark() included) resolved for a canvas
+export { resolveVar } from './components/colors'

@@ -1,0 +1,80 @@
+/* The Cut view (CutView.tsx). Hue here means where a line of the new file comes from, not a resource class:
+   the view shows no wait classes. On :root so the canvas probe (resolveVar) sees them. */
+:root {
+  --cut-kept: light-dark(oklch(52% 0.14 255), oklch(68% 0.13 255));
+  --cut-before: light-dark(oklch(72% 0.15 68), oklch(76% 0.14 72));
+  --cut-after: light-dark(oklch(63% 0.11 185), oklch(70% 0.11 185));
+  --cut-gen: light-dark(oklch(55% 0.17 300), oklch(70% 0.15 300));
+  --cut-caller: light-dark(oklch(62% 0.17 18), oklch(70% 0.15 18));
+  --cut-out: var(--ink);
+}
+
+.cut { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; grid-template-rows: auto auto minmax(0, 1fr); block-size: 100%; min-block-size: 34rem; }
+.cut-head { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; padding: var(--sp-3) var(--sp-4) var(--sp-2); }
+.cut-head h2 { font-size: var(--text-lg); font-weight: 600; margin: 0; }
+.cut-head .from { color: var(--ink-2); font-size: var(--text-sm); }
+.cut-head .grow { flex: 1; }
+.cut-head .lbl { color: var(--ink-3); font-size: var(--text-sm); margin-inline-end: var(--sp-2); }
+.cut-head select { max-inline-size: 22rem; }
+.cut-strip { grid-column: 1 / -1; padding: 0 var(--sp-4) var(--sp-2); }
+.cut-strip svg { display: block; overflow: visible; cursor: crosshair; touch-action: none; user-select: none; }
+.cut-stage { display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; border-block-start: 1px solid var(--hairline); padding: var(--sp-3) 0 var(--sp-2) var(--sp-4); }
+.cut-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 1.1rem; color: var(--ink-2); font-size: var(--text-sm); margin-block-end: var(--sp-2); }
+.cut-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.cut-legend i { inline-size: 0.9rem; block-size: 0.6rem; border-radius: 2px; display: inline-block; }
+.cut-map { position: relative; flex: 1; min-block-size: 22rem; }
+.cut-map canvas { position: absolute; inset-inline-start: 0; inset-block-start: 0; }
+.cut-map svg { position: absolute; inset-inline-start: 0; inset-block-start: 0; overflow: visible; }
+.cut-map text { font-family: var(--font-ui); }
+.cut-map .tb { font-size: 12px; font-weight: 600; fill: var(--ink); }
+.cut-map .ts { font-size: 11px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.cut-map .ti { font-size: 11px; fill: var(--ink-3); font-style: italic; }
+.cut-map .rib { transition: opacity var(--dur) var(--ease-out); cursor: pointer; }
+.cut-map.dim .rib { opacity: 0.22; }
+.cut-map.dim .rib.hl { opacity: 1; }
+.cut-map .hit { fill: transparent; cursor: pointer; }
+.cut-map .lab { cursor: pointer; }
+.cut-map .lab:hover .tb { text-decoration: underline; }
+.cut-map .selbox { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.cut-map .frame { fill: none; stroke: var(--hairline-strong); }
+.cut-empty { color: var(--ink-2); padding: var(--sp-5) 0; }
+
+.cut-side { border-block-start: 1px solid var(--hairline); border-inline-start: 1px solid var(--hairline); padding: var(--sp-3) var(--sp-4) var(--sp-5); overflow: auto; display: flex; flex-direction: column; gap: var(--sp-4); min-block-size: 0; }
+.cut-side h3 { margin: 0 0 var(--sp-2); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); text-transform: uppercase; }
+.cut-card { background: var(--surface-raised); border-radius: 6px; box-shadow: 0 0 0 1px var(--hairline); padding: var(--sp-3); }
+.cut-chip { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--text-xs); font-weight: 500; padding: 0.05rem 0.5rem 0.05rem 0.4rem; border-radius: 1rem; }
+.cut-chip i { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 2px; }
+.cut-piece-title { font-size: var(--text-md); font-weight: 600; margin: var(--sp-2) 0 0.1rem; overflow-wrap: anywhere; }
+.cut-piece-where { color: var(--ink-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.cut-piece-why { margin: var(--sp-2) 0; font-size: var(--text-sm); }
+.cut-raw { font: 11px/1.5 var(--font-mono); background: var(--surface-sunken); border-radius: 4px; padding: 0.4rem 0; max-block-size: 15rem; overflow: auto; }
+.cut-raw div { display: flex; white-space: pre; }
+.cut-raw .ln { flex: none; inline-size: 3.6rem; text-align: end; padding-inline-end: 0.6rem; color: var(--ink-3); }
+.cut-raw .tx { padding-inline-end: 0.6rem; }
+.cut-raw .ell { color: var(--ink-3); padding-inline-start: 4.2rem; }
+.cut-piece-actions { display: flex; gap: var(--sp-2); margin-block-start: var(--sp-2); }
+.cut-big { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
+.cut-big b { font-size: var(--text-xl); font-weight: 600; font-variant-numeric: tabular-nums; }
+.cut-big span { color: var(--ink-2); font-size: var(--text-sm); }
+.cut-meter { block-size: 0.5rem; border-radius: 0.25rem; background: var(--wash); margin: var(--sp-2) 0; display: flex; overflow: clip; }
+.cut-meter i { display: block; block-size: 100%; }
+.cut-kv { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem var(--sp-3); font-size: var(--text-sm); margin: 0; }
+.cut-kv dt { color: var(--ink-2); }
+.cut-kv dd { margin: 0; text-align: end; font-variant-numeric: tabular-nums; }
+.cut-check { margin-block-start: var(--sp-3); padding-block-start: var(--sp-2); border-block-start: 1px solid var(--hairline); font-size: var(--text-sm); }
+.cut-check .ok, .cut-check .bad { font-weight: 600; }
+.cut-check .ok::before { content: "✓ "; color: var(--s-good); }
+.cut-check .bad::before { content: "✗ "; color: var(--s-critical); }
+.cut-check ul { margin: 0.25rem 0 0; padding-inline-start: 1.2rem; color: var(--ink-2); }
+.cut-check code { font-size: var(--text-xs); overflow-wrap: anywhere; }
+.cut-opts { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--sp-2) var(--sp-3); font-size: var(--text-sm); }
+.cut-opts .d { grid-column: 1 / -1; color: var(--ink-3); font-size: var(--text-xs); margin-block-start: -0.35rem; }
+.cut-stmts { inline-size: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--text-sm); margin-block-start: var(--sp-2); }
+.cut-stmts td { padding: 0.25rem 0; border-block-start: 1px solid var(--hairline); vertical-align: top; overflow: hidden; }
+.cut-stmts td.r { inline-size: 4.6rem; text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cut-stmts .sql { font-family: var(--font-mono); font-size: var(--text-xs); }
+.cut-stmts .tx { display: block; color: var(--ink-3); font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cut-note { font-size: var(--text-sm); color: var(--ink-2); background: var(--surface-sunken); border-radius: 4px; padding: var(--sp-2); margin-block-start: var(--sp-2); }
+.cut-note b { color: var(--ink); }
+.cut-msg { font-size: var(--text-sm); color: var(--ink-2); }
+.cut-msg.bad { color: var(--s-critical); }
