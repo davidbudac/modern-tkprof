@@ -50,9 +50,19 @@ export interface LineView {
   waited?: WaitShare
   /** a BINDS header whose values are known: the head of the table of its binds */
   bindHead?: boolean
+  /** a BINDS header whose values are known: its binds as chips (the viewer draws them on the header row when the block's lines are folded under it) */
+  chips?: BindChip[]
+  /** a wait: what a run of the same event is told by (`key`), and its varying fields for micro-columns (userio waits of file, block and blocks only) */
+  wait?: { key: string; micro?: WaitMicro }
   /** a `Bind#N` line whose value is known: a row of the table of binds (`last`: the set's last bind) */
   bindRow?: BindCellRow
 }
+
+/** A bind as a chip on the BINDS row: `:B1 = 8706` and its type dimmed. */
+export interface BindChip { name: string; value: string; type: string; none: boolean; title: string }
+
+/** The varying fields of a wait of a run (`file 12 | block 171160 | 8 blocks`): the file, the block as printed and the block count. */
+export interface WaitMicro { file: string; block: string; blocks: number }
 
 /** How the Operation cell reads a line: a call (PARSE, EXEC, FETCH, CLOSE, CURSOR, COMMIT), a wait, a structure (PLAN, BINDS), a marker (`***`). */
 export type OpKind = 'call' | 'wait' | 'struct' | 'mark'
@@ -186,7 +196,8 @@ function describeCall(c: CallLine): LineView {
   if (gets > 0) parts.push(countQ('gets', gets, 'get', 'gets', `cr=${c.cr ?? 0} consistent, cu=${c.cu ?? 0} current`))
   if ((c.p ?? 0) > 0) parts.push(countQ('reads', c.p!, 'read', 'reads', 'p= physical reads'))
   if ((c.mis ?? 0) > 0) parts.push({ t: 'hard parse', c: 'hp', title: `mis=${c.mis}: a library cache miss` })
-  if (c.op === 'CLOSE' && c.type !== undefined) parts.push(dim(CLOSE_TYPES[c.type] ?? `type ${c.type}`, `type=${c.type}`))
+  // the cursor was closed (0) or stays in the session's cursor cache (1, 2, 3): two words, the exact one in the tooltip
+  if (c.op === 'CLOSE' && c.type !== undefined) parts.push(dim(c.type === 0 ? 'closed' : 'cached', `type=${c.type}: ${CLOSE_TYPES[c.type] ?? `type ${c.type}`}`))
   return { label: c.op, tone: 'cpu', op: 'call', parts, dur: c.e, waited: waitShare(c.c, c.e), bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
 }
 
@@ -201,7 +212,26 @@ function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
   const ps = waitParamSegs(w.params)
   if (ps.length) parts.push({ t: '', c: 'pgap' }, ...(ps[0] === sep ? ps.slice(1) : ps))
   const role = ev?.role ?? 'other'
-  return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', op: 'wait', dot: role, parts, dur: w.ela, bar: { us: w.ela, role } }
+  return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', op: 'wait', dot: role, parts, dur: w.ela, bar: { us: w.ela, role }, wait: { key: `${w.nam}|${name}`, micro: role === 'userio' ? waitMicro(w.params) : undefined } }
+}
+
+/**
+ * The fields of a wait that vary down a run of the same event, when it has exactly the three of a block read (file, block, blocks; none
+ * left out as zero): they go in columns of their own instead of one run of text.
+ */
+export function waitMicro(params: { label: string; value: string }[]): WaitMicro | undefined {
+  const shown = params.filter((p) => p.value !== '' && p.value !== '0').map((p) => ({ label: p.label in PARAM_LABELS ? PARAM_LABELS[p.label] : p.label, value: p.value }))
+  if (shown.length !== 3 || shown[0].label !== 'file' || shown[1].label !== 'block' || shown[2].label !== 'blocks') return undefined
+  const n = Number(shown[2].value)
+  return Number.isFinite(n) && /^\d+$/.test(shown[2].value) ? { file: shown[0].value, block: shown[1].value, blocks: n } : undefined
+}
+
+/** The run key (event and object) and micro-columns of a WAIT line, undefined for another line; what `describeWait` says, for the neighbours of a row. */
+export function waitRun(text: string, ctx: ReadableContext): { key: string; micro?: WaitMicro; role: Role } | undefined {
+  const w = parseWait(text)
+  if (!w) return undefined
+  const v = describeWait(w, ctx)
+  return v.wait ? { key: v.wait.key, micro: v.wait.micro, role: v.dot ?? 'other' } : undefined
 }
 
 /** How the usual wait parameters read: a short label, or null to leave one out (it says nothing a reader needs). */
@@ -223,6 +253,7 @@ function waitParamSegs(params: { label: string; value: string }[]): Seg[] {
     const label = p.label in PARAM_LABELS ? PARAM_LABELS[p.label] : p.label
     if (label === null) continue
     const num = Number.isFinite(n) && /^\d+$/.test(p.value)
+    if (label === 'bytes' && n === 1) continue // a SQL*Net message is one byte long, always: it says nothing
     if (label === 'blocks' || label === 'bytes') out.push(sep, numSeg(fmtInt(n), raw), dim(` ${n === 1 ? label.slice(0, -1) : label}`))
     else out.push(sep, dim(`${label} `), numSeg(num && label !== 'block' && label !== 'file' ? fmtInt(n) : p.value, raw))
   }
@@ -263,7 +294,13 @@ function describeBinds(text: string, kind: LineKind, line: number, ctx: Readable
   if (kind === 'binds' && at?.header) {
     // the head of the table of binds (each Bind# line below is a row of it)
     if (at.binds.length === 0) return { label: 'BINDS', tone: 'network', op: 'struct', parts: [dim('no binds')] }
-    return { label: 'BINDS', tone: 'network', op: 'struct', parts: [], asRun: true, bindHead: true }
+    const names = at.sql !== undefined ? bindNames(at.sql, at.binds.length).names : []
+    const chips = at.binds.map((b): BindChip => {
+      const type = b.type || ''
+      const full = b.isNull || b.noDef || b.dump ? bindChip(b) : b.typed || b.value
+      return { name: `:${names[b.pos] ?? b.pos}`, value: bindChip(b), type, none: b.isNull || b.noDef || b.dump, title: `Bind#${b.pos}${type ? ` ${type}` : ''}: ${full}` }
+    })
+    return { label: 'BINDS', tone: 'network', op: 'struct', parts: [], asRun: true, bindHead: true, chips }
   }
   if (kind === 'binds') return { label: 'BINDS', tone: 'network', op: 'struct', parts: [dim(text)] }
   const m = /^\s*Bind#(\d+)/.exec(text)
@@ -374,11 +411,15 @@ function describeHeader(text: string): LineView {
 
 function describeParsing(text: string, ctx: ReadableContext): LineView {
   const p = pairs(text)
-  const parts: Seg[] = [{ t: p.get('sqlid') ?? '', c: 'name' }]
-  const oct = num(p, 'oct'), uid = num(p, 'uid'), dep = num(p, 'dep')
-  if (oct !== undefined) parts.push(sep, dim(COMMAND_NAMES[oct] ?? `oct ${oct}`))
-  if (uid !== undefined) parts.push(sep, dim(`user ${ctx.userName?.(uid) ?? uid}`, `uid=${uid}`))
-  if (dep) parts.push(sep, dim(`depth ${dep}`, 'dep=: a recursive statement'))
+  // one row: the sql_id, then what it is, who parsed it, how deep and how long its text is (the SQL follows on the rows below)
+  const parts: Seg[] = [{ t: p.get('sqlid') ?? '', c: 'name' }, { t: '', c: 'pgap' }]
+  const oct = num(p, 'oct'), uid = num(p, 'uid'), dep = num(p, 'dep'), len = num(p, 'len')
+  const facts: Seg[] = []
+  if (oct !== undefined) facts.push(dim(COMMAND_NAMES[oct] ?? `oct ${oct}`))
+  if (uid !== undefined) facts.push(dim(`user ${ctx.userName?.(uid) ?? uid}`, `uid=${uid}`))
+  if (dep) facts.push(dim(`depth ${dep}`, 'dep=: a recursive statement'))
+  if (len !== undefined) facts.push(dim(`${fmtInt(len)} chars`, `len=${len}: the length of the SQL text`))
+  facts.forEach((f, i) => parts.push(...(i > 0 ? [sep] : []), f))
   return { label: 'CURSOR', tone: 'sysio', op: 'call', parts }
 }
 

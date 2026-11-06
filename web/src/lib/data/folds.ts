@@ -20,6 +20,10 @@ export interface Fold {
   head?: boolean
   /** a fold that does not read as one: its handle line is shown as itself, with no summary or ▸ (a bind's attribute lines under its row) */
   quiet?: boolean
+  /** a BINDS block drawn as chips on its header row (the handle): its `Bind#` and attribute lines are the lines the fold hides */
+  inline?: boolean
+  /** framing lines (a `=====` rule, END OF STMT) folded under the line above them */
+  frame?: boolean
   /** a fold of the Δ filter: the lines below a line that reaches the threshold, up to the next one (quiet; its handle shows a break under it) */
   filter?: boolean
 }

@@ -176,7 +176,7 @@ export async function fetchRepeats(client: ApiClient, file: number, small: numbe
 }
 
 /** The blocks `linesBlocks` lists: BINDS blocks (the `BINDS #` line and its `bind` lines) or STAT dumps. */
-export type BlockWhat = 'binds' | 'stat'
+export type BlockWhat = 'binds' | 'stat' | 'frame'
 
 /**
  * Every block of a kind in `file` (`api/lines/blocks`): `[from, to]` pairs (1-based, inclusive, sorted); `truncated` when the engine
@@ -194,15 +194,23 @@ export async function linesBlocks(client: ApiClient, file: number, what: BlockWh
   return { blocks, bindLines, truncated: !!r.truncated }
 }
 
+/** A BINDS block of this many binds or fewer is drawn as chips on its header row (`bindFolds`' `inlineMax`). */
+export const INLINE_BINDS = 4
+
 /**
  * The folds that leave each bind of the BINDS blocks one row: the attribute lines under a `Bind#N` line (up to the next one, or the
  * block's end) fold into it, quietly (the formatted view's table of binds; the Line tab shows what they say); the lines between the
- * header and the first bind (blank) fold into the header, the head of the table.
+ * header and the first bind (blank) fold into the header, the head of the table. A block of at most `inlineMax` binds (default 0:
+ * none) is one fold instead: everything under its header folds into it (`inline`), the header row says the binds as chips.
  */
-export function bindFolds(blocks: readonly (readonly [number, number])[], bindLines: readonly (readonly number[])[]): Fold[] {
+export function bindFolds(blocks: readonly (readonly [number, number])[], bindLines: readonly (readonly number[])[], inlineMax = 0): Fold[] {
   const out: Fold[] = []
   blocks.forEach((b, i) => {
     const ls = bindLines[i] ?? []
+    if (ls.length > 0 && ls.length <= inlineMax && b[1] > b[0]) {
+      out.push({ from: b[0], to: b[1], summary: `the ${ls.length === 1 ? 'bind is' : 'binds are'} on the BINDS row`, auto: true, quiet: true, inline: true })
+      return
+    }
     if (ls.length > 0 && ls[0] > b[0] + 1) out.push({ from: b[0], to: ls[0] - 1, summary: 'the lines before the first bind', auto: true, quiet: true })
     ls.forEach((from, k) => {
       const to = k + 1 < ls.length ? ls[k + 1] - 1 : b[1]
@@ -212,12 +220,43 @@ export function bindFolds(blocks: readonly (readonly [number, number])[], bindLi
   return out
 }
 
-/** The existing folds with the `added` ones that overlap none of them (nor each other), sorted by first line. */
+/**
+ * The folds of the framing lines (`api/lines/blocks?what=frame`: the `=====` rule before each PARSING IN CURSOR line and its END OF
+ * STMT line, as ranges to hide): each folds quietly under the line above it (`frame`). `skip(line)`: a line that cannot be a handle
+ * (a row of a plan's table: a fold that starts in a table takes its head row away).
+ */
+export function frameFolds(ranges: readonly (readonly [number, number])[], skip?: (line: number) => boolean): Fold[] {
+  const out: Fold[] = []
+  for (const [a, b] of ranges) {
+    if (a < 2 || b < a || skip?.(a - 1)) continue
+    out.push({ from: a - 1, to: b, summary: b === a ? 'a framing line (the rule above a cursor, the end of a statement)' : 'framing lines', auto: true, quiet: true, frame: true })
+  }
+  return out
+}
+
+/**
+ * The existing folds with the `added` ones that overlap none of them (nor each other), sorted by first line. Linear after the sorts:
+ * `existing` is sorted and apart, so an added fold is checked against the last one taken and, by bisection, against `existing`.
+ */
 export function mergeFolds(existing: readonly Fold[], added: readonly Fold[]): Fold[] {
-  const out = [...existing].sort((a, b) => a.from - b.from)
-  const hit = (f: Fold) => out.some((o) => f.from <= o.to && o.from <= f.to)
-  for (const f of [...added].sort((a, b) => a.from - b.from)) if (!hit(f)) out.push(f)
-  return out.sort((a, b) => a.from - b.from)
+  const ex = [...existing].sort((a, b) => a.from - b.from)
+  const taken: Fold[] = []
+  let lastTo = 0
+  const overlapsExisting = (f: Fold) => {
+    let lo = 0, hi = ex.length // the last existing fold that starts at or before f.to
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (ex[mid].from <= f.to) lo = mid + 1; else hi = mid }
+    for (let k = lo - 1; k >= 0 && k >= lo - 2; k--) if (ex[k].to >= f.from) return true // (existing folds are apart: the one before the last cannot reach f)
+    return false
+  }
+  for (const f of [...added].sort((a, b) => a.from - b.from)) {
+    if (f.from <= lastTo || overlapsExisting(f)) continue
+    taken.push(f)
+    lastTo = f.to
+  }
+  const out: Fold[] = []
+  let i = 0, j = 0
+  while (i < ex.length || j < taken.length) out.push(j >= taken.length || (i < ex.length && ex[i].from <= taken[j].from) ? ex[i++] : taken[j++])
+  return out
 }
 
 export interface SearchQuery { file: number; q: string; regex: boolean; caseSensitive: boolean; from: number; limit: number }

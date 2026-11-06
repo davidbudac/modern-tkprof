@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Key
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
 import { blockAt, filterFolds, foldAt, foldHiding, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeLines } from '../data/rangesum'
@@ -388,17 +388,46 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [client, file, readable, repeatsKey])
   const tables = planTables?.key === repeatsKey ? planTables.blocks : undefined
   // the BINDS blocks: each bind one row of a table, its attribute lines folded under it (the Line tab reads them)
-  const [bindBlocks, setBindBlocks] = useState<{ folds: Fold[]; key: string } | null>(null)
+  const [bindBlocks, setBindBlocks] = useState<{ folds: Fold[]; table(from: number): Fold[]; key: string } | null>(null)
   useEffect(() => {
     if (!readable) return
     const ac = new AbortController()
     linesBlocks(client, file, 'binds', ac.signal).then(
-      (r) => { if (!ac.signal.aborted) setBindBlocks({ folds: bindFolds(r.blocks, r.bindLines), key: repeatsKey }) },
-      (e: unknown) => { if (!aborted(e)) setBindBlocks({ folds: [], key: repeatsKey }) },
+      (r) => {
+        if (ac.signal.aborted) return
+        const folds = bindFolds(r.blocks, r.bindLines, INLINE_BINDS)
+        // an inline block the user opens (z) reads as a table: its attribute lines fold under each bind as in any other
+        const table = (from: number) => { const i = r.blocks.findIndex((b) => b[0] === from); return i < 0 ? [] : bindFolds([r.blocks[i]], [r.bindLines[i]]) }
+        setBindBlocks({ folds, table, key: repeatsKey })
+      },
+      (e: unknown) => { if (!aborted(e)) setBindBlocks({ folds: [], table: () => [], key: repeatsKey }) },
     )
     return () => ac.abort()
   }, [client, file, readable, repeatsKey])
-  const quietFolds = readable && bindBlocks?.key === repeatsKey ? bindBlocks.folds : null
+  // the framing lines (the `=====` rule before a cursor, END OF STMT): they fold quietly under the line above them
+  const [frameBlocks, setFrameBlocks] = useState<{ ranges: [number, number][]; key: string } | null>(null)
+  useEffect(() => {
+    if (!readable) return
+    const ac = new AbortController()
+    linesBlocks(client, file, 'frame', ac.signal).then(
+      (r) => { if (!ac.signal.aborted) setFrameBlocks({ ranges: r.blocks, key: repeatsKey }) },
+      (e: unknown) => { if (!aborted(e)) setFrameBlocks({ ranges: [], key: repeatsKey }) }, // an engine without the kind: the lines stay rows
+    )
+    return () => ac.abort()
+  }, [client, file, readable, repeatsKey])
+  const quietFolds = useMemo(() => {
+    if (!readable) return null
+    const binds = bindBlocks?.key === repeatsKey ? bindBlocks.folds : []
+    // a fold that starts in a plan's table would take its head row away: the framing line under a plan's last row stays a row
+    const inTable = (line: number) => {
+      let lo = 0, hi = tables!.length // the last table that starts at or before the line (the tables are sorted and apart)
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (tables![mid][0] <= line) lo = mid + 1; else hi = mid }
+      return lo > 0 && line <= tables![lo - 1][1]
+    }
+    const frame = frameBlocks?.key === repeatsKey ? frameFolds(frameBlocks.ranges, tables && tables.length > 0 ? inTable : undefined) : []
+    return binds.length === 0 && frame.length === 0 ? null : mergeFolds(binds, frame)
+  }, [readable, bindBlocks, frameBlocks, repeatsKey, tables])
+  const bindTable = bindBlocks?.table
   const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r)) : null), [wantRepeats, repeats])
   // ---- the Δ filter: the lines whose time from the timed line before reaches the threshold, asked of the engine for the whole file ----
   const deltaMode = prefs.deltaMode
@@ -429,8 +458,10 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (filterFoldList) return filterFoldList
     if (!repeatFolds && !quietFolds) return ui.folds
     const own = [...(repeatFolds ?? []), ...(quietFolds ?? [])].filter((f) => !ui.openRepeats.has(f.from))
+    // the inline BINDS blocks that were opened: the table's own quiet folds instead
+    if (quietFolds && bindTable) for (const f of quietFolds) if (f.inline && ui.openRepeats.has(f.from)) own.push(...bindTable(f.from))
     return mergeFolds(ui.folds, own)
-  }, [filterFoldList, repeatFolds, quietFolds, ui.folds, ui.openRepeats])
+  }, [filterFoldList, repeatFolds, quietFolds, bindTable, ui.folds, ui.openRepeats])
   /** Opens a fold, or folds a block again: a fold of repeats or of the Δ filter is opened by remembering it, a user's fold by dropping it. */
   const toggleAnyFold = useCallback((f: Fold) => {
     if (f.filter) { ui.openFilter.lines.add(f.from); set({ openFilter: { ...ui.openFilter } }) }
@@ -801,7 +832,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const b = blockAt(cache, line)
     const at = foldAt(line, allFolds)
     // a quiet fold on a block's first line (the blank lines under a BINDS header) does not stop the block from folding
-    const open = at && !(at.quiet && b) ? at : foldHiding(line, allFolds)
+    const open = at && !(at.quiet && b && !at.inline) ? at : foldHiding(line, allFolds)
     if (open) { toggleAnyFold(open); return }
     if (b) set({ folds: toggleFold(ui.folds, b) }); else flash(`nothing to fold at line ${fmtInt(line)}`)
   }, [ui, set, cache, flash, allFolds, toggleAnyFold])
@@ -952,6 +983,26 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const selStmt = cache.line(selected)?.stmt ?? (at && at.line === selected ? at.objs.stmt : -1)
   const head = useCallback((top: number) => {
     const l = cache.line(top)
+    if (readableRows) { // formatted: the lane's identity, one sticky row while its lane scrolls (the cursor's own row names itself)
+      const lane = l && l.kind >= 0 && top !== selected && LINE_KINDS[l.kind] !== 'parsing-in-cursor' ? readableRows(top, l).lane : null
+      const lst = lane && lane.stmt >= 0 ? doc.statements[lane.stmt] : undefined
+      if (!l || !lane || !lst) return null
+      const stats = doc.stats.statements[lst.id]
+      const facts = `${stats ? `${fmtDur(stats.elapsed)} here` : ''}${l.execNo > 0 && stats ? ` · exec ${l.execNo} of ${fmtInt(stats.executions)}` : l.execNo > 0 ? `exec ${l.execNo}` : ''}`
+      return {
+        key: `${lst.id}|${l.execNo}|${lane.color ?? ''}|${lane.depth}`,
+        lane: lane.color ?? (lane.ink || 'var(--c-idle)'),
+        node: (
+          <>
+            {lane.depth > 0 && <span className="lv-lane-dep" title={`recursive SQL, depth ${lane.depth}`}>↳{lane.depth}</span>}
+            <button type="button" className="lv-slane-id" style={{ '--lane-ink': lane.ink || undefined } as React.CSSProperties} title="open this statement"
+              onClick={() => actions.selectStmt(lst.id)}>{doc.label(lst)}</button>
+            <span className="lv-slane-sql" title={preview(lst.text, 300)}>{lst.text ? preview(lst.text, 48) : 'no SQL text'}</span>
+            <span className="lv-slane-facts">{facts}</span>
+          </>
+        ),
+      }
+    }
     const st = l && l.stmt >= 0 ? doc.statements[l.stmt] : undefined
     if (!l || !st || top === selected || l.stmt === selStmt) return null
     const family = (kind: number) => { const k = LINE_KINDS[kind]; return k === 'binds' || k === 'bind-line' ? 'binds' : k === 'stat' ? 'stat' : '' }
@@ -987,7 +1038,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         </>
       ),
     }
-  }, [cache, doc, actions, jump, selected, selStmt])
+  }, [cache, doc, actions, jump, selected, selStmt, readableRows])
 
   // ---- go to: a line, a cursor, a sql_id (and execution), a time --------------------------------------------------------
   const goToHelp = doc.wallOffsetUs

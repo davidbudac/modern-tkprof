@@ -7,7 +7,8 @@ import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 export interface FormattedColumn { key: string; label: string; title: string; def: number; min: number }
 
 export const FORMATTED_COLUMNS: FormattedColumn[] = [
-  { key: 'lane', label: 'Statement', title: "the cursor's statement: its sql_id on the first line of a stretch, the start of its SQL on the second; the colour is the statement's", def: 18, min: 40 },
+  // the lane is a 14 px column (a 6 px band and a gutter): the statement's identity is the sticky row at the top of the view; def 2 digits = 14.4 px at the default font
+  { key: 'lane', label: 'Statement', title: "the cursor's statement, as a band in its colour; the sql_id and the start of its SQL are the row at the top of the view while its lane scrolls", def: 2, min: 14 },
   { key: 'bar', label: 'Time', title: 'Δ: the time from the pinned line (a); else the unexplained gap before the line: where it started (its tim minus its own time) after where the line with a time before it ended, blank under 50 µs, amber from 1 ms and twice that line (the trace bar\'s Δ hides this column)', def: 12, min: 24 },
   { key: 'kind', label: 'Operation', title: 'what the line is: PARSE, EXEC, FETCH, CLOSE, WAIT, PLAN, BINDS, …', def: 10, min: 40 },
   // the Duration column is its number (10 digits) and the 56 px track: 10 digits + 72 px, 20 digits at the 7.2 px a digit of the default font; least: the number's room 8 digits
@@ -82,7 +83,7 @@ export function FormattedHead({ cols, delta, onCols }: { cols: Readonly<Record<s
     <div className="lv-colhead lv-rd" ref={box} role="presentation">
       {delta && cell('bar', false, true, 'Δ · time')}
       <span className="lv-ln" />
-      {cell('lane')}
+      {cell('lane', false, false, '')}
       <span className="lv-fh" />
       {cell('dur', false, true)}
       {cell('kind')}

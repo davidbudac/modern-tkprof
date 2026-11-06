@@ -306,7 +306,7 @@ func TestLinesBlocksAllFixtures(t *testing.T) {
 	for name, paths := range fixtureSets(t) {
 		e := newLineEnv(t, paths)
 		for file := range e.lis {
-			for _, what := range []string{"binds", "stat"} {
+			for _, what := range []string{"binds", "stat", "frame"} {
 				prev := 0
 				for _, b := range e.blocks(t, file, what).Blocks {
 					if b[0] <= prev || b[1] < b[0] || b[1] > e.lis[file].Lines() {
@@ -316,5 +316,63 @@ func TestLinesBlocksAllFixtures(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestLinesBlocksFrame: `frame` lists the `=====` line before each PARSING IN
+// CURSOR block and its END OF STMT line, each checked by classifying the lines.
+func TestLinesBlocksFrame(t *testing.T) {
+	e := newLineEnv(t, []string{traces + "io_waits.trc"})
+	got := e.blocks(t, 0, "frame")
+	if got.Truncated || len(got.Blocks) == 0 {
+		t.Fatalf("frame blocks %v truncated=%v", got.Blocks, got.Truncated)
+	}
+	kindOf := func(line int) trace.Kind {
+		k, _, err := kindAt(e.lis[0], line)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return k
+	}
+	prev := 0
+	rules, ends := 0, 0
+	for _, b := range got.Blocks {
+		if b[0] != b[1] || b[0] <= prev || b[1] > e.lis[0].Lines() {
+			t.Fatalf("frame range %v after line %d", b, prev)
+		}
+		prev = b[1]
+		switch kindOf(b[0]) {
+		case trace.KindSeparator:
+			rules++
+			if kindOf(b[0]+1) != trace.KindParsingInCursor {
+				t.Fatalf("rule %d is not followed by a PARSING IN CURSOR", b[0])
+			}
+		case trace.KindEndOfStmt:
+			ends++
+		default:
+			t.Fatalf("frame range %v holds %v", b, kindOf(b[0]))
+		}
+	}
+	// every PARSING IN CURSOR block of the file has both
+	cursors := 0
+	for _, c := range e.full.Cursors {
+		if !c.Implicit {
+			cursors++
+		}
+	}
+	if rules != cursors || ends != cursors {
+		t.Fatalf("%d rules and %d ends for %d cursors", rules, ends, cursors)
+	}
+	// io_waits.trc lines 83 (=====) and 86 (END OF STMT) frame the cursor parsed at line 84
+	has := func(line int) bool {
+		for _, b := range got.Blocks {
+			if b[0] == line {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(83) || !has(86) {
+		t.Fatalf("frame blocks lack 83 and 86: %v", got.Blocks[:6])
 	}
 }

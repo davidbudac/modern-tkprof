@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
+import { indexFolds, foldHiding, lineOfRow, rowOfLine, visibleCount } from './folds'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, frameFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -86,6 +87,15 @@ describe('annotated lines, lines/at, at', () => {
     expect(bindFolds([[3, 12], [20, 21]], [[4, 8, 12], [21]]).map((f) => [f.from, f.to, !!f.quiet, !!f.auto])).toEqual([[4, 7, true, true], [8, 11, true, true]])
     // a blank line under the header folds into it
     expect(bindFolds([[3, 9]], [[5, 7]]).map((f) => [f.from, f.to])).toEqual([[3, 4], [5, 6], [7, 9]])
+  })
+  it('a BINDS block of at most 4 binds is one quiet fold under its header (inline: the binds are chips on it); a bigger one keeps its table', () => {
+    const blocks: [number, number][] = [[3, 12], [20, 40], [50, 51]]
+    const lines = [[4, 8, 12], [22, 24, 26, 28, 30], []]
+    const got = bindFolds(blocks, lines, 4)
+    expect(got.slice(0, 1).map((f) => [f.from, f.to, !!f.quiet, !!f.auto, !!f.inline])).toEqual([[3, 12, true, true, true]])
+    expect(got.slice(1).every((f) => !f.inline && f.quiet)).toBe(true) // 5 binds: attribute folds as before
+    expect(got.slice(1).map((f) => [f.from, f.to])).toEqual([[20, 21], [22, 23], [24, 25], [26, 27], [28, 29], [30, 40]])
+    expect(bindFolds(blocks, lines).some((f) => f.inline)).toBe(false) // the default: no inline blocks
   })
   it('probeLinesApi wants JSON (an SPA fallback answers text/html)', async () => {
     stub(() => json({ call: -1 }))
@@ -350,6 +360,36 @@ describe('groupHits', () => {
     expect(g[0].hits.map((h) => h.line)).toEqual([20, 30, 60])
   })
   it('is empty for no hits', () => { expect(groupHits([], () => 1)).toEqual([]) })
+})
+
+describe('frameFolds', () => {
+  it('each framing range folds quietly under the line above it: the rule into the CURSOR above it, END OF STMT into the last SQL line', () => {
+    const got = frameFolds([[83, 83], [86, 86], [120, 121]])
+    expect(got.map((f) => [f.from, f.to, !!f.quiet, !!f.auto, !!f.frame])).toEqual([[82, 83, true, true, true], [85, 86, true, true, true], [119, 121, true, true, true]])
+  })
+  it('a range at line 1 has no line above to fold into; a handle the caller skips (a row of a plan table) leaves its range as rows', () => {
+    expect(frameFolds([[1, 1], [10, 10], [30, 30]], (h) => h >= 8 && h <= 9).map((f) => f.from)).toEqual([29])
+  })
+  it('the lines vanish from the layout and come back with the fold opened', () => {
+    const folds = frameFolds([[83, 83], [86, 86]])
+    const ix = indexFolds(folds)
+    expect(visibleCount(130, ix)).toBe(128)
+    expect(lineOfRow(rowOfLine(84, ix), ix)).toBe(84) // the CURSOR row follows the line it was folded into
+    expect(rowOfLine(84, ix) - rowOfLine(82, ix)).toBe(1) // ... right under it
+    expect(foldHiding(83, ix)?.from).toBe(82)
+    expect(foldHiding(86, ix)?.from).toBe(85)
+    expect(visibleCount(130, [])).toBe(130)
+  })
+  it('works with the bind folds: overlapping ones lose to the first, and a lot of them merge fast', () => {
+    const binds = bindFolds([[100, 110]], [[102, 106]], 4)
+    const frame = frameFolds([[111, 111], [109, 109]]) // handles 110 and 108: both inside the BINDS block's fold [100, 110]
+    expect(mergeFolds(binds, frame).map((f) => [f.from, f.to])).toEqual([[100, 110]])
+    expect(mergeFolds(binds, frameFolds([[112, 112]])).map((f) => [f.from, f.to])).toEqual([[100, 110], [111, 112]])
+    const many = Array.from({ length: 60000 }, (_, i): [number, number] => [3 * i + 5, 3 * i + 5])
+    const t0 = Date.now()
+    expect(mergeFolds([], frameFolds(many)).length).toBe(60000)
+    expect(Date.now() - t0).toBeLessThan(2000)
+  })
 })
 
 describe('mergeFolds', () => {

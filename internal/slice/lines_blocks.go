@@ -15,6 +15,10 @@ const (
 	maxBlocks = 20000
 	// maxBindBlock caps the lines of one BINDS block (header included).
 	maxBindBlock = 4096
+	// maxFrame caps the ranges of one `frame` answer: two per cursor.
+	maxFrame = 100000
+	// maxStmtLines is how far `frame` looks for the END OF STMT of a statement.
+	maxStmtLines = 4096
 )
 
 // linesBlocks answers {"blocks":[[from,to],...],"truncated":bool}: the
@@ -22,7 +26,8 @@ const (
 // ranges. stat: every plan dump (the STAT lines of a plan). binds: every BINDS
 // header line of the file to the last line of its block (see bindBlockEnd),
 // and in "bindLines" the `Bind#N` lines of each block (the formatted view
-// shows a bind as one row, its attribute lines folded under it).
+// shows a bind as one row, its attribute lines folded under it). frame: the
+// lines the formatted view folds away (see frameBlocks), as the ranges to hide.
 func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 	fi, li, f, err := s.fileParam(q)
 	if err != nil {
@@ -71,10 +76,91 @@ func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 				out.BindLines = append(out.BindLines, binds)
 			}
 		}
+	case "frame":
+		fr, trunc, err := s.frameBlocks(ctx, li, f)
+		if err != nil {
+			return nil, err
+		}
+		out.Blocks, out.Truncated = fr, trunc
 	default:
-		return nil, bad("what: must be binds or stat")
+		return nil, bad("what: must be binds, stat or frame")
 	}
 	return out, nil
+}
+
+// frameBlocks are the framing lines of the PARSING IN CURSOR blocks of a file,
+// as sorted 1-based inclusive ranges: the `=====` line before each one and its
+// END OF STMT line. The formatted view folds them away (the rule becomes a
+// hairline above the CURSOR row, the end of the statement says nothing the SQL
+// text does not). Each is verified by classifying the lines, so a statement
+// whose text holds such a line, or a parse that is not preceded by a rule, only
+// loses the fold that would have been wrong.
+func (s *Server) frameBlocks(ctx context.Context, li *trace.LineIndex, f *fileInfo) (blocks [][2]int, truncated bool, err error) {
+	blocks = [][2]int{}
+	for i, c := range f.cursors {
+		if i&255 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, false, err
+			}
+		}
+		if len(blocks)+2 > maxFrame {
+			return blocks, true, nil
+		}
+		p := c.line
+		if p < 1 {
+			continue
+		}
+		// the rule: the line before the parse (a rule that is line 1 has no line above to fold into)
+		first := max(1, p-1)
+		cl := trace.NewClassifier(first == 1)
+		chunk := 64
+		pos := first // next line to read
+		found := false
+		var rule [2]int
+		var haveRule bool
+	scan:
+		for pos-p < maxStmtLines && pos <= li.Lines() {
+			n := min(chunk, li.Lines()-pos+1)
+			raw, err := li.Read(pos, n)
+			if err != nil {
+				return nil, false, err
+			}
+			lines := splitLines(raw)
+			if len(lines) == 0 {
+				break
+			}
+			for j, l := range lines {
+				line := pos + j
+				k := cl.Next(l)
+				switch {
+				case line == p-1:
+					if k == trace.KindSeparator && p-1 > 1 {
+						rule, haveRule = [2]int{p - 1, p - 1}, true
+					}
+				case line == p:
+					if k != trace.KindParsingInCursor {
+						haveRule = false
+						break scan // the cursor's line is not a PARSING IN CURSOR: leave this one alone
+					}
+				case line > p && k == trace.KindEndOfStmt:
+					if haveRule {
+						blocks = append(blocks, rule)
+					}
+					blocks = append(blocks, [2]int{line, line})
+					found = true
+					break scan
+				case line > p && k != trace.KindSQLText:
+					break scan // the text did not end with END OF STMT
+				}
+			}
+			pos += len(lines)
+			chunk = min(chunk*2, 512)
+		}
+		if !found && haveRule {
+			blocks = append(blocks, rule)
+		}
+	}
+	return blocks, false, nil
 }
 
 // bindHeaders are the sorted, distinct trace lines of the BINDS blocks of the

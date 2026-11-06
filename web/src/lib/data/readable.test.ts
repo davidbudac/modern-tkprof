@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { LineKind } from './lines'
-import { bindAttrSegs, describeLine, describeMarker, parseStat, planDump, sqlSegs, statementTones, waitShare, type Seg } from './readable'
+import { bindAttrSegs, describeLine, describeMarker, parseStat, planDump, sqlSegs, statementTones, waitMicro, waitRun, waitShare, type Seg } from './readable'
 
 // lines of testdata/traces/19c/io_waits.trc
 const trc = readFileSync(new URL('../../../../testdata/traces/19c/io_waits.trc', import.meta.url), 'utf8').split('\n')
@@ -19,7 +19,7 @@ describe('describeLine', () => {
   })
   it('the CPU only where it is not all of the duration (the duration column has that)', () => {
     const close = describeLine('CLOSE #139745604251096:c=2,e=2,dep=0,type=0,tim=10804503000', 'call', 1)
-    expect(text(close.parts)).toBe('hard close')
+    expect(text(close.parts)).toBe('closed') // type=0; the exact word (hard close) is in the tooltip
     const fetch = describeLine('FETCH #139745604251096:c=28,e=28,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=3570327658,tim=10804503100', 'call', 1)
     expect(text(fetch.parts)).toBe('1 row|3 gets')
   })
@@ -132,5 +132,56 @@ describe('what the Operation cell says', () => {
     expect(describeLine("STAT #1 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=1 pr=0 pw=0 str=1 time=5 us)'", 'stat', 1).op).toBe('struct')
     expect(describeMarker('*** MODULE NAME:(m) 2026-10-22T11:35:03.510108+00:00').op).toBe('mark')
     expect(describeLine('  value=42', 'bind-line', 1).op).toBeUndefined()
+  })
+})
+
+describe('structure: what the rows say', () => {
+  it('the CURSOR row is one row: the sql_id, then the command, the user and the length of the text', () => {
+    const v = describeLine(trc[84 - 1], 'parsing-in-cursor', 84)
+    expect(v.label).toBe('CURSOR')
+    expect(text(v.parts)).toBe('c7ry5gr75qv4bSELECT · user 165 · 99 chars')
+    const rec = describeLine(trc.find((l) => l.startsWith('PARSING IN CURSOR') && l.includes('dep=1'))!, 'parsing-in-cursor', 1)
+    expect(text(rec.parts)).toMatch(/^[0-9a-z]{13}SELECT · user 0 · depth 1 · \d+ chars$/) // a recursive one says its depth before the length
+    expect(v.parts[1]).toEqual({ t: '', c: 'pgap' }) // a gap after the sql_id, no ·
+  })
+  it('CLOSE reads closed (type=0) or cached (1, 2 and 3); the exact word is in the tooltip', () => {
+    const word = (type: number) => describeLine(`CLOSE #1:c=2,e=2,dep=0,type=${type},tim=10804503000`, 'call', 1).parts.find((x) => typeof x !== 'string' && 'c' in x && x.c === 'dim') as { t: string; title: string }
+    expect(word(0)).toMatchObject({ t: 'closed', title: 'type=0: hard close' })
+    expect(word(1).t).toBe('cached')
+    expect(word(3)).toMatchObject({ t: 'cached', title: 'type=3: already in the cursor cache' })
+  })
+  it('the one byte of a SQL*Net message is left out; 8,101 bytes stays', () => {
+    const net = (b: number) => describeLine(`WAIT #1: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=${b} p3=0 obj#=-1 tim=10804501708`, 'wait', 1)
+    expect(text(net(1).parts)).toBe('SQL*Net message to client')
+    expect(text(net(8101).parts)).toBe('SQL*Net message to client|8,101 bytes')
+  })
+  it('a block read of a file, a block and a block count has micro-columns; nothing else does', () => {
+    expect(waitMicro([{ label: 'file number', value: '12' }, { label: 'first dba', value: '171160' }, { label: 'block cnt', value: '8' }])).toEqual({ file: '12', block: '171160', blocks: 8 })
+    expect(waitMicro([{ label: 'file#', value: '203' }, { label: 'block#', value: '756116' }, { label: 'blocks', value: '1' }])).toEqual({ file: '203', block: '756116', blocks: 1 })
+    expect(waitMicro([{ label: 'driver id', value: '1952673792' }, { label: '#bytes', value: '8101' }, { label: 'p3', value: '0' }])).toBeUndefined() // SQL*Net
+    expect(waitMicro([{ label: 'file#', value: '203' }, { label: 'block#', value: '0' }, { label: 'blocks', value: '1' }])).toBeUndefined() // a zero is left out: two fields
+  })
+  it('a wait run is keyed by its event and its object (the object only where it is the one waited on)', () => {
+    const a = waitRun("WAIT #1: nam='direct path read' ela= 39 file number=12 first dba=169947 block cnt=5 obj#=108611 tim=10805135198", { objectName: () => 'MTK_ORDERS', eventOf: () => ({ class: 'User I/O', idle: false, role: 'userio' }) })
+    expect(a).toMatchObject({ key: 'direct path read|MTK_ORDERS', role: 'userio', micro: { file: '12', block: '169947', blocks: 5 } })
+    const n = waitRun("WAIT #1: nam='SQL*Net message to client' ela= 0 driver id=1 #bytes=1 p3=0 obj#=108611 tim=1", { objectName: () => 'MTK_ORDERS', eventOf: () => ({ class: 'Network', idle: false, role: 'network' }) })
+    expect(n).toMatchObject({ key: 'SQL*Net message to client|', micro: undefined }) // a stale obj# on a network wait is not its object
+    expect(waitRun('EXEC #1:c=1,e=1', {})).toBeUndefined()
+  })
+  it('the binds of a BINDS header as chips: the name, the value, the type', () => {
+    const at = {
+      header: true, pos: -1, sql: 'select 1 from dual where a = :b_lo and b = :b_hi',
+      binds: [
+        { pos: 0, type: 'NUMBER', value: '8706', isNull: false, noDef: false, dump: false, mal: 0 },
+        { pos: 1, type: 'VARCHAR2(32)', value: 'x', isNull: true, noDef: false, dump: false, mal: 0 },
+      ],
+    }
+    const v = describeLine('BINDS #1:', 'binds', 5, { bindsAt: () => at })
+    expect(v.chips).toEqual([
+      { name: ':b_lo', value: '8706', type: 'NUMBER', none: false, title: 'Bind#0 NUMBER: 8706' },
+      { name: ':b_hi', value: 'NULL', type: 'VARCHAR2(32)', none: true, title: 'Bind#1 VARCHAR2(32): NULL' },
+    ])
+    expect(v.bindHead).toBe(true)
+    expect(describeLine('BINDS #1:', 'binds', 5).chips).toBeUndefined() // values not known yet
   })
 })

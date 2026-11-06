@@ -1474,6 +1474,12 @@ paths:
         (memory dump rows, multi-line values); trailing blank lines are left
         out, at most 4096 lines per block. The blocks are sorted and do not
         overlap; at most 20000 are answered, `truncated` says there were more.
+        `frame`: the framing lines the formatted view folds away, as ranges to
+        hide (not blocks): for each PARSING IN CURSOR block of the file, the
+        `=====` line before it (when it is one, and not line 1) and the
+        END OF STMT line after its SQL text. Each is checked against the
+        classification of the lines; at most 100000 ranges, `truncated` says
+        there were more.
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - $ref: "#/components/parameters/File"
@@ -1482,7 +1488,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [binds, stat]
+            enum: [binds, stat, frame]
       responses:
         "200":
           description: BlocksAnswer

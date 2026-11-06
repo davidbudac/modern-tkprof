@@ -1004,6 +1004,12 @@ export interface paths {
          *     (memory dump rows, multi-line values); trailing blank lines are left
          *     out, at most 4096 lines per block. The blocks are sorted and do not
          *     overlap; at most 20000 are answered, `truncated` says there were more.
+         *     `frame`: the framing lines the formatted view folds away, as ranges to
+         *     hide (not blocks): for each PARSING IN CURSOR block of the file, the
+         *     `=====` line before it (when it is one, and not line 1) and the
+         *     END OF STMT line after its SQL text. Each is checked against the
+         *     classification of the lines; at most 100000 ranges, `truncated` says
+         *     there were more.
          */
         get: operations["sessionLinesBlocks"];
         put?: never;
@@ -3910,7 +3916,7 @@ export interface operations {
             query: {
                 /** @description index of the input file (document file.files order) */
                 file?: components["parameters"]["File"];
-                what: "binds" | "stat";
+                what: "binds" | "stat" | "frame";
             };
             header?: never;
             path: {

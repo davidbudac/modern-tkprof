@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, type CachedLine } from '../data/linecache'
@@ -201,5 +202,113 @@ describe('Δ as the unexplained gap, and its emphasis', () => {
     const r = gapRows(lines, { line: 1, tim: T })
     expect(r(4)).toMatchObject({ delta: '+2.16 ms', fromPin: true, deltaEmph: false })
     expect(r(8).deltaEmph).toBe(false)
+  })
+})
+
+// ---- structure: runs of waits, the bracket of a call's waits, the first row of an execution (real lines of testdata/traces/19c/io_waits.trc) ----
+const trc = readFileSync(new URL('../../../../testdata/traces/19c/io_waits.trc', import.meta.url), 'utf8').split('\n')
+const kindOfLine = (t: string, inSql: boolean): LineKind => {
+  if (inSql) return t === 'END OF STMT' ? 'end-of-stmt' : 'sql-text'
+  if (t === '') return 'blank'
+  if (t.startsWith('=====')) return 'separator'
+  if (t.startsWith('PARSING IN CURSOR')) return 'parsing-in-cursor'
+  if (t.startsWith('WAIT ')) return 'wait'
+  if (/^(PARSE|EXEC|FETCH|CLOSE) /.test(t)) return 'call'
+  if (t.startsWith('STAT ')) return 'stat'
+  if (t.startsWith('BINDS ')) return 'binds'
+  if (t.startsWith(' Bind#') || t.startsWith('  oac') || t.startsWith('  kxs')) return 'bind-line'
+  if (t.startsWith('***')) return 'marker'
+  return 'unknown'
+}
+/** The rows of lines `from..to` of the fixture (the statement state starts outside SQL text: pick a range that starts at a call or a wait). */
+function io(from: number, to: number) {
+  const nums: string[] = []
+  const at = new Map<number, CachedLine>()
+  let inSql = false
+  for (let n = from; n <= to; n++) {
+    const t = trc[n - 1]
+    const k = kindOfLine(t, inSql)
+    inSql = k === 'parsing-in-cursor' || (inSql && k !== 'end-of-stmt')
+    const c = /^(?:\w+) #(\d+)/.exec(t)?.[1]
+    if (c && c !== '0' && !nums.includes(c)) nums.push(c)
+    at.set(n, { text: t, kind: LINE_KINDS.indexOf(k), call: -1, stmt: 0, cursor: c && c !== '0' ? nums.indexOf(c) : -1, execNo: k === 'binds' || t.startsWith('EXEC ') ? 7 : -1, wait: -1 })
+  }
+  const d = {
+    events: [
+      { name: 'direct path read', class: 'User I/O', idle: false }, { name: 'direct path read temp', class: 'User I/O', idle: false },
+      { name: 'SQL*Net message from client', class: 'Idle', idle: true }, { name: 'SQL*Net message to client', class: 'Network', idle: false },
+      { name: 'SQL*Net more data to client', class: 'Network', idle: false }, { name: 'reliable message', class: 'Other', idle: false },
+    ],
+    planLines: [], wallOffsetUs: 0, tzOffsetMin: 0, span: { firstTim: 0 },
+    cursors: nums.map((number, id) => ({ id, number, statement: 0, depth: 0 })),
+    statements: [{ id: 0, kind: 0, sqlId: 'c7ry5gr75qv4b', text: 'select 1 from dual' }],
+    label: (s: { sqlId: string }) => s.sqlId, objectName: (o: number) => (o === 108611 ? 'MTK_ORDERS' : undefined), userName: () => undefined,
+  } as unknown as TraceDoc
+  const f = readableRowsOf({ doc: d, line: (n) => at.get(n), tones: new Map(), pin: null, hot: new Map() })
+  return (n: number) => f(n, at.get(n)!)
+}
+
+describe('runs of waits: a ditto and micro-columns', () => {
+  const r = io(80, 140)
+  it('3 or more waits of one event and object: micro-columns on all; the repeated prefix is a ditto from the second row on', () => {
+    expect(r(96)).toMatchObject({ micro: { file: '12', block: '169947', blocks: 5 }, ditto: false }) // the first of the 26 direct path reads
+    expect(r(97)).toMatchObject({ micro: { file: '12', block: '169968', blocks: 8 }, ditto: true })
+    expect(r(121).ditto).toBe(true)
+  })
+  it('another event above is not a ditto, and a wait that is not a block read has no columns', () => {
+    expect(r(95).micro).toBeUndefined() // Disk file operations I/O: another event, no file / block / blocks
+    expect(r(89).micro).toBeUndefined() // a network wait
+    expect(r(90).micro).toBeUndefined()
+  })
+  it('fewer than 3 of the event in the stretch: no run', () => {
+    const two = io(95, 98) // lines 96, 97, 98: three reads
+    expect(two(96).micro).toBeDefined()
+    const lone = io(94, 97) // 95 is another event; 96, 97 are two reads
+    expect(lone(96).micro).toBeUndefined()
+    expect(lone(97).micro).toBeUndefined()
+  })
+  it('a network or idle wait inside the run breaks the ditto, not the columns (lines 10359-10371 of the file)', () => {
+    const t = io(10357, 10372)
+    expect(t(10359)).toMatchObject({ ditto: false }) // the first read of the stretch
+    expect(t(10360).ditto).toBe(true)
+    expect(t(10361).micro).toBeUndefined() // SQL*Net message to client: not a read, no columns
+    expect(t(10362)).toMatchObject({ micro: { file: '203', block: '756547', blocks: 1 }, ditto: false }) // columns, but the line above is the network wait: a full prefix
+    expect(t(10363).ditto).toBe(true)
+  })
+})
+
+describe('the bracket of what a call waited for', () => {
+  const r = io(80, 140)
+  it('the non-idle waits from the first one after the call before down to the call that closes them: the rule in the lane, the waits indented, the call hooked', () => {
+    expect(r(88).br).toBeUndefined() // the EXEC above: no waits before it
+    expect(r(89)).toMatchObject({ br: 'first', brIndent: true }) // SQL*Net message to client, after EXEC
+    expect(r(90)).toMatchObject({ br: 'in', brIndent: true })
+    expect(r(92)).toMatchObject({ br: 'in', brIndent: false }) // the *** TIME line inside: ruled, not indented
+    expect(r(93)).toMatchObject({ br: 'in', brIndent: true }) // the 632 ms enqueue
+    expect(r(121)).toMatchObject({ br: 'in', brIndent: true })
+    expect(r(122).br).toBe('end') // the FETCH they were waiting in
+  })
+  it('idle waits between calls get neither the rule nor the indent', () => {
+    expect(r(125)).toMatchObject({ br: undefined, brIndent: false }) // SQL*Net message from client between the FETCHes: nothing before it is a wait
+    expect(r(126).br).toBeUndefined() // the FETCH it leads to: no bracket to close
+  })
+  it('an idle wait after the first non-idle one is inside the bracket (ruled, not indented)', () => {
+    expect(r(127)).toMatchObject({ br: 'first', brIndent: true }) // SQL*Net message to client
+    expect(r(128)).toMatchObject({ br: 'in', brIndent: false }) // message from client, idle
+    expect(r(129).br).toBe('end') // the CLOSE
+  })
+  it('a WAIT #0 after a CLOSE belongs to no call', () => {
+    expect(r(130).br).toBeUndefined()
+  })
+})
+
+describe('the first row of an execution', () => {
+  const r = io(80, 160)
+  it('a BINDS header, else the EXEC, carries the exec number; an EXEC under its BINDS block does not', () => {
+    expect(r(88)).toMatchObject({ execFirst: true, execNo: 7 }) // EXEC with no BINDS before it
+    expect(r(136)).toMatchObject({ execFirst: true, execNo: 7 }) // BINDS #...
+    const exec = trc.findIndex((l, i) => i > 136 && l.startsWith('EXEC ')) + 1
+    expect(r(exec).execFirst).toBe(false) // under the BINDS block
+    expect(r(89).execFirst).toBe(false) // a wait is never one
   })
 })
