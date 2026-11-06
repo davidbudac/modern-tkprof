@@ -19,6 +19,9 @@ describe('timOf', () => {
     expect(timOf('EXEC #1:c=1,e=1', 'call')).toBeUndefined()
     expect(timOf('EXEC #1:c=1,tim=', 'call')).toBeUndefined()
   })
+  it('is undefined for tim=0 (timed_statistics=false, stats_basic.trc)', () => {
+    expect(timOf("WAIT #140426399032616: nam='SQL*Net message to client' ela= 0 driver id=1952673792 #bytes=1 p3=0 obj#=-1 tim=0", 'wait')).toBeUndefined()
+  })
 })
 
 describe('durOf', () => {

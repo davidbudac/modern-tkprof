@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"testing"
@@ -73,7 +74,29 @@ func bruteHot(rows []rdRow, minUs int64, limit int) (hot []hotRow, mx int64, tru
 // their runs first, then the fetch loops, then the wait folds inside a loop go.
 func bruteRepeats(m *model.Model, rows []rdRow, small int64) []repeatFold {
 	if small == 0 && len(rows) > 0 {
-		small = max(1, (rows[len(rows)-1].tim-rows[0].tim)/100)
+		// the first and the last row of each table (calls, waits), the earliest and the latest in line order, an end with tim=0 left out
+		l0, l1, t0, t1 := math.MaxInt, -1, int64(0), int64(0)
+		for _, wait := range []bool{false, true} {
+			first, last := -1, -1
+			for i, r := range rows {
+				if r.wait == wait {
+					if first < 0 {
+						first = i
+					}
+					last = i
+				}
+			}
+			if first < 0 {
+				continue
+			}
+			if r := rows[first]; r.line < l0 && r.tim != 0 {
+				l0, t0 = r.line, r.tim
+			}
+			if r := rows[last]; r.line > l1 && r.tim != 0 {
+				l1, t1 = r.line, r.tim
+			}
+		}
+		small = max(1, (t1-t0)/100)
 	}
 	name := func(ev model.ID) string {
 		if ev >= 0 && int(ev) < len(m.Events) {

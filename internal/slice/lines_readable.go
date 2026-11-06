@@ -189,11 +189,12 @@ func (s *Server) linesRepeats(ctx context.Context, q url.Values) (any, error) {
 // of a file are in line order, so it reads the two ends of each.
 func (s *Server) fileSpan(f *fileInfo) (t0, t1 int64, ok bool, err error) {
 	l0, l1 := math.MaxInt, -1 // lines of the first and the last row so far
+	// tim=0 is no time (timed_statistics=false writes it on WAIT lines): such an end is left out
 	see := func(line0 int, tim0 int64, line1 int, tim1 int64) {
-		if line0 < l0 {
+		if line0 < l0 && tim0 != 0 {
 			l0, t0 = line0, tim0
 		}
-		if line1 > l1 {
+		if line1 > l1 && tim1 != 0 {
 			l1, t1 = line1, tim1
 		}
 		ok = true

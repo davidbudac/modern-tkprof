@@ -156,7 +156,8 @@ func (s *Server) gapWalk(ctx context.Context, f *fileInfo, ci, wi, step int64, m
 				prev = n.cur // the row before, call or wait
 			}
 		}
-		if prev.ok {
+		// tim=0 is no time (timed_statistics=false writes it on WAIT lines): a row with it, or after it, has no gap
+		if prev.ok && prev.tim != 0 && cur.tim != 0 {
 			if gap := cur.tim - cur.dur - prev.tim; gap >= minGap {
 				return cur.line, nil
 			}

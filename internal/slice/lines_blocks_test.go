@@ -36,7 +36,7 @@ func (e *lineEnv) gapRef(min int64) []int {
 		} else {
 			prev = lastCall
 		}
-		if prev >= 0 && r.tim-r.dur-rows[prev].tim >= min {
+		if prev >= 0 && r.tim != 0 && rows[prev].tim != 0 && r.tim-r.dur-rows[prev].tim >= min { // tim=0: no time
 			out = append(out, r.line)
 		}
 		if !r.wait {
@@ -47,7 +47,7 @@ func (e *lineEnv) gapRef(min int64) []int {
 }
 
 func TestLinesNextGap(t *testing.T) {
-	for _, name := range []string{"io_waits.trc", "basic_binds.trc"} {
+	for _, name := range []string{"io_waits.trc", "basic_binds.trc", "stats_basic.trc"} { // stats_basic: WAIT lines with tim=0
 		e := newLineEnv(t, []string{traces + name})
 		for _, min := range []int64{1, 100, 1000, 10000, 1_000_000} {
 			want := e.gapRef(min)

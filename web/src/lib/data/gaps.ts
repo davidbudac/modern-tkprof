@@ -2,7 +2,10 @@ import { LINE_KINDS } from './linecache'
 import type { LineKind } from './lines'
 import { elaOf } from './linefields'
 
-/** The `tim=` of a call, wait or XCTEND line, undefined for other lines. */
+/**
+ * The `tim=` of a call, wait or XCTEND line, undefined for other lines. `tim=0` is no time: with timed_statistics=false
+ * (statistics_level=basic) 19c writes it on WAIT lines (stats_basic.trc), and it would read as 13 h before the trace.
+ */
 export function timOf(text: string, kind: LineKind): number | undefined {
   if (kind !== 'call' && kind !== 'wait' && kind !== 'xctend') return undefined
   const i = text.lastIndexOf('tim=')
@@ -14,7 +17,7 @@ export function timOf(text: string, kind: LineKind): number | undefined {
     v = v * 10 + c
     any = true
   }
-  return any ? v : undefined
+  return any && v > 0 ? v : undefined
 }
 
 /** The duration the line itself covers: `e=` of a call, `ela=` of a wait, 0 otherwise. */
