@@ -220,15 +220,13 @@ strong { font-weight: 500; }
   padding-block: clamp(2rem, 1.5rem + 2vw, 3.5rem);
 }
 .hero-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: clamp(3rem, 1rem + 4vw, 5rem);
-  align-items: center;
+  display: grid;
+  gap: clamp(2.5rem, 1rem + 4vw, 4.5rem);
 }
-.hero-copy { flex-basis: 24rem; flex-grow: 1; display: grid; gap: 1.5rem; align-content: center; }
-.hero-figure { flex-basis: 0; flex-grow: 999; min-inline-size: 54%; margin: 0; container-type: inline-size; }
-.hero h1 { font-size: var(--text-h1); letter-spacing: -0.03em; line-height: 1.02; }
-.lede { font-size: var(--text-lg); color: var(--ink-2); max-inline-size: 34rem; line-height: 1.55; }
+.hero-copy { display: grid; gap: 1.5rem; justify-items: center; text-align: center; }
+.hero-figure { margin: 0; min-inline-size: 0; container-type: inline-size; }
+.hero h1 { font-size: var(--text-h1); letter-spacing: -0.03em; line-height: 1.02; max-inline-size: 18ch; text-wrap: balance; }
+.lede { font-size: var(--text-lg); color: var(--ink-2); max-inline-size: 40rem; line-height: 1.55; text-wrap: pretty; }
 .hero .actions { margin-block-start: 0.5rem; }
 
 /* ---------- download panel (hero) ---------- */
@@ -241,7 +239,9 @@ strong { font-weight: 500; }
   border: 1px solid var(--hairline-strong);
   border-radius: var(--r-card);
   box-shadow: var(--shadow-float);
-  max-inline-size: 34rem;
+  inline-size: 100%;
+  max-inline-size: 36rem;
+  text-align: start;
   scroll-margin-block-start: calc(var(--header-h) + 1rem);
 }
 .dl [hidden] { display: none !important; }
