@@ -20,6 +20,27 @@ export interface Fold {
   head?: boolean
   /** a fold that does not read as one: its handle line is shown as itself, with no summary or ▸ (a bind's attribute lines under its row) */
   quiet?: boolean
+  /** a fold of the Δ filter: the lines below a line that reaches the threshold, up to the next one (quiet; its handle shows a break under it) */
+  filter?: boolean
+}
+
+/**
+ * The folds of the Δ filter: every line but `keep` (ascending, 1-based) is hidden. Each kept line is the quiet handle of a fold over
+ * the lines up to the next kept one (the last: up to `total`, when known); the lines above the first kept line fold under line 1,
+ * the one line that shows without reaching the threshold (its summary says so). `what` words that summary.
+ */
+export function filterFolds(keep: readonly number[], total: number, what: string): Fold[] {
+  const out: Fold[] = []
+  const first = keep.length > 0 ? keep[0] : total + 1
+  if (first > 1) {
+    const n = Math.max(0, Math.min(first, total + 1) - 1)
+    out.push({ from: 1, to: Math.max(1, first - 1), summary: keep.length > 0 ? `${n.toLocaleString('en-US')} ${n === 1 ? 'line' : 'lines'} before the first ${what}` : `no ${what} in this file`, auto: true, filter: true })
+  }
+  for (let i = 0; i < keep.length; i++) {
+    const from = keep[i], to = i + 1 < keep.length ? keep[i + 1] - 1 : total
+    if (to > from) out.push({ from, to, summary: '', auto: true, filter: true, quiet: true })
+  }
+  return out
 }
 
 /** The rows a fold takes away from the layout: its hidden lines; a table head adds one. */

@@ -9,11 +9,14 @@ import type { BindAt } from '../data/bindat'
 import { clockCell, fmtDelta, lineTim } from '../data/linetime'
 import type { LineKind } from '../data/lines'
 import { QUIET_TONE, describeLine, planDump, toneColor, type LineView, type PlanCell, type ReadableContext } from '../data/readable'
+import { laneColorOf, type LaneColor } from '../data/lanecolor'
 
-/** A cursor's stretch of consecutive lines, drawn as a band in the statement's colour; its first rows carry the sql_id and the SQL. */
+/** A cursor's stretch of consecutive lines, drawn as a band (in the statement's colour, or what the view colours by); its first rows carry the sql_id and the SQL. */
 export interface Lane {
-  /** the band's colour (a CSS colour) */
-  color: string
+  /** the band's colour (a CSS colour), undefined for no band */
+  color?: string
+  /** the statement's colour, the label's (whatever the band shows); '' for none */
+  ink: string
   /** the first row of the stretch shows `label`, the second `sub` */
   label?: string
   sub?: string
@@ -55,6 +58,10 @@ export interface ReadableInputs {
   bindAt?(line: number): BindAt | undefined
   /** a BINDS header in view whose values are not known yet: the owner asks for them (and rebuilds the rows when they come) */
   missingBinds?(line: number): void
+  /** what the lane band shows (default: the statement's colour) */
+  colorBy?: LaneColor
+  /** every row of a lane carries its label (the rows around it are filtered out, so no row reads as a lane's first) */
+  labelAll?: boolean
 }
 
 /** Lines without a cursor of their own: they join the lane around them when the lines before and after belong to the same cursor. */
@@ -120,17 +127,24 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     return null
   }
 
-  const laneOf = (n: number, l: CachedLine): Lane | null => {
+  const colorBy = inp.colorBy ?? 'stmt'
+  const laneOf = (n: number, l: CachedLine, v: LineView, delta: number | undefined): Lane | null => {
     const key = laneKey(n)
-    if (key < 0) return null
-    const cur = doc.cursors[key]
+    const cur = key >= 0 ? doc.cursors[key] : undefined
     const stmt = cur ? doc.statements[cur.statement] : undefined
     const sid = stmt?.id ?? (l.stmt >= 0 ? l.stmt : -1)
     const st = sid >= 0 ? doc.statements[sid] : undefined
-    const first = laneKey(n - 1) !== key, second = !first && laneKey(n - 2) !== key
+    const ink = key >= 0 ? toneColor((st && inp.tones.get(st.id)) || QUIET_TONE) : ''
+    const color = colorBy === 'stmt' ? (ink || undefined) : laneColorOf(colorBy, {
+      stmt: ink, kind: kindOf(l), label: v.label, execNo: l.execNo, ctx: cur?.context ?? -1, depth: cur?.depth ?? 0,
+      role: v.bar?.role, dur: v.dur, delta,
+    })
+    // a line outside a lane (a WAIT #0, a commit) still shows a colour of its own line
+    if (key < 0) return color ? { color, ink: '', title: '', depth: 0, stmt: -1 } : null
+    const first = inp.labelAll || laneKey(n - 1) !== key, second = !first && laneKey(n - 2) !== key
     const label = st ? doc.label(st) : cur ? `#${cur.number}` : ''
     return {
-      color: toneColor((st && inp.tones.get(st.id)) || QUIET_TONE),
+      color, ink,
       label: first ? label : undefined,
       sub: second && st?.kind === 0 && st.text ? preview(st.text, 60) : undefined,
       title: `cursor #${cur?.number ?? '?'}${st ? ` · ${label}` : ''}${st?.text ? `\n${preview(st.text, 200)}` : ''}`,
@@ -157,6 +171,8 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     const v = describeLine(l.text, kind, n, ctx)
     const tim = lineTim(l.text, kind)
     let delta = '', deltaTitle: string | undefined, pinned = false
+    let step: number | undefined // the time from the line with a time before (what the Δ colours and the Δ filter use)
+    if (tim !== undefined && colorBy === 'delta') { const p = prevTim(n); if (p) step = tim - p.tim }
     if (tim !== undefined) {
       if (inp.pin && inp.pin.line === n) { pinned = true; deltaTitle = 'the pinned line: Δ is the time from here' }
       else {
@@ -178,7 +194,7 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     const scale = Math.max(1, inp.scaleUs)
     const cell: ReadableCell = {
       ...v,
-      lane: laneOf(n, l),
+      lane: laneOf(n, l, v, step),
       hot: hotUs !== undefined,
       barW: v.bar ? Math.min(1, v.bar.us / scale) : undefined,
       cpuW: v.bar?.cpu !== undefined ? Math.min(1, v.bar.cpu / scale) : undefined,

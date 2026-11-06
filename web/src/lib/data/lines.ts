@@ -145,6 +145,17 @@ export async function fetchHot(client: ApiClient, file: number, min: number, sig
   return { hot: r.hot ?? [], max: r.max ?? 0, truncated: !!r.truncated }
 }
 
+/**
+ * The lines of a file whose Δ (the time from the timed line before: a call, wait, cursor parse or commit) is at least `min` µs
+ * (`api/lines/delta`), in line order with their Δ; `truncated` when more qualified than `limit` (the largest are kept).
+ */
+export async function fetchDelta(client: ApiClient, file: number, min: number, signal?: AbortSignal, limit = 100_000): Promise<{ lines: [number, number][]; truncated: boolean }> {
+  const res = await client.fetch(`/api/lines/delta?file=${file}&min=${Math.max(0, Math.round(min))}&limit=${limit}`, { signal })
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as { lines?: [number, number][]; truncated?: boolean }
+  return { lines: r.lines ?? [], truncated: !!r.truncated }
+}
+
 /** A run of repeats the readable view can fold (`api/lines/repeats`): identical waits, a long wait block, a loop of small fetches. */
 export interface RepeatFold {
   from: number; to: number; kind: 'run' | 'block' | 'fetches'; n: number; us: number; max: number

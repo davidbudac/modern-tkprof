@@ -102,6 +102,8 @@ interface Props {
   refTitle?(kind: string, value: string, ids: CachedLine | undefined): string | undefined
   /** the folded ranges (sorted, apart; keep the array stable between changes): lines `from+1..to` are not laid out, `from` shows the summary. Omit for none */
   folds?: readonly Fold[]
+  /** the lines whose Δ (the time from the timed line before) reaches the Δ threshold, µs by line: tinted, with the Δ in the tooltip; omit for none */
+  deltaHits?: ReadonlyMap<number, number>
   /** handle lines of blocks that can be folded (the handle shows `▾`; a folded one always shows `▸`) */
   foldable?: ReadonlySet<number>
   /** a click on a fold handle: fold or unfold the block of this line */
@@ -134,7 +136,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, foldable, onFold, readable, tables, deltaCol, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, deltaHits, foldable, onFold, readable, tables, deltaCol, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -464,6 +466,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const n = lineOfRow(i, index)
     const f0 = foldAt(n, index)
     const fold = f0 && !f0.quiet ? f0 : undefined // a quiet fold's handle line reads as itself
+    const filt = f0?.filter && f0.quiet ? f0.to - f0.from : 0 // the Δ filter hides the lines below this one
     const l = cache.line(n)
     const win = range && n >= range.from && n <= range.to ? WIN_IN | (n === range.from ? WIN_START : 0) | (n === range.to ? WIN_END : 0) : 0
     const rd = readable && l && l.kind >= 0 ? readable(n, l) : undefined
@@ -472,7 +475,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const t = times && l && !readable ? times.at(n, l.text, l.kind) : undefined
     const clk = times?.clock && !readable ? t?.clock ?? '' : null, dlt = times?.delta && !readable ? t?.delta ?? '' : null
     const tb = rd?.plan ? tableOf(n, index) : undefined
-    rows.push(<Row key={n} n={n} rd={rd} dcol={!!deltaCol} tb={tb ? (n === tb.to ? 2 : 1) : 0} foldLabel={fold?.label} foldW={fold?.w} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} />)
+    rows.push(<Row key={n} n={n} rd={rd} dcol={!!deltaCol} tb={tb ? (n === tb.to ? 2 : 1) : 0} foldLabel={fold?.label} foldW={fold?.w} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n)} dh={deltaHits?.get(n)} filt={filt} />)
   }
   const digits = String(Math.max(total, 1000)).length
   const hover = card || refTitle || onHover
@@ -506,7 +509,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, rd, dcol, tb, foldLabel, foldW, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable }: {
+const Row = memo(function Row({ n, rd, dcol, tb, foldLabel, foldW, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable, dh, filt }: {
   n: number; text: string | undefined; kind: number
   /** the readable row of the line (readable mode), undefined for the trace as written */
   rd?: ReadableCell
@@ -545,10 +548,15 @@ const Row = memo(function Row({ n, rd, dcol, tb, foldLabel, foldW, foldUs, clk, 
   fold: string | null
   /** the line starts a block that can be folded */
   foldable: boolean
+  /** the line's Δ in µs when it reaches the Δ threshold (the row is tinted), undefined otherwise */
+  dh?: number
+  /** the Δ filter hides this many lines below the row (0: none) */
+  filt?: number
 }) {
   const cut = text !== undefined && text.length > MAX_TEXT
   const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '') + (inRange ? ' lv-range' : '')
     + (win & WIN_IN ? ' lv-win' : '') + (win & WIN_START ? ' lv-win-start' : '') + (win & WIN_END ? ' lv-win-end' : '')
+    + (dh !== undefined ? ' lv-dhit' : '') + (filt ? ' lv-filt' : '')
   const handle = (
     <span className="lv-fh">
       {fold !== null
@@ -630,7 +638,7 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
         )}
         {n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}
       </span>
-      <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? ({ '--lane': lane.color, '--dep': lane.depth } as React.CSSProperties) : undefined} title={lane?.title}>
+      <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? laneVars(lane) : undefined} title={lane?.title || undefined}>
         {lane?.label !== undefined ? <>{lane.depth > 0 && <span className="lv-lane-dep" title={`recursive SQL, depth ${lane.depth}`}>↳{lane.depth}</span>}<a className="lv-lane-id" data-act="lane">{lane.label}</a></> : lane?.sub ? <span className="lv-lane-sub">{lane.sub}</span> : null}
       </span>
       {handle}
@@ -654,6 +662,9 @@ function ReadableRow({ n, rd, dcol, tb, cls, sel, note, gap, handle, fold, foldL
     </div>
   )
 }
+
+/** A lane's CSS variables: the band's colour (none: transparent), the label's (the statement's) and the depth. */
+const laneVars = (lane: NonNullable<ReadableCell['lane']>) => ({ '--lane': lane.color ?? 'transparent', '--lane-ink': lane.ink || undefined, '--dep': lane.depth } as React.CSSProperties)
 
 /** The table classes of a readable row: a plan's row (`tb` 1, its last 2), the head or a row of a BINDS block's table. */
 function tableCls(rd: ReadableCell, tb: number, plain: boolean): string {
@@ -691,7 +702,7 @@ const PlanHeadRow = memo(function PlanHeadRow({ lane, tone, overlay }: { lane: R
     <div className={'lv-row lv-rd lv-tb lv-tb-head' + (overlay ? ' lv-plan-head' : '')} role="presentation" aria-hidden={overlay || undefined}>
       <span className="lv-bar" />
       <span className="lv-ln" />
-      <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? ({ '--lane': lane.color, '--dep': lane.depth } as React.CSSProperties) : undefined} />
+      <span className={'lv-lane' + (lane ? '' : ' lv-lane-none')} style={lane ? laneVars(lane) : undefined} />
       <span className="lv-fh" />
       <DurCell />
       <span className={`lv-kd lv-tone-${tone || 'none'}`}>PLAN</span>

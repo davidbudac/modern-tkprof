@@ -1638,6 +1638,53 @@ paths:
           description: no such session (envelope) or no such file (plain text)
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/lines/delta:
+    get:
+      operationId: sessionLinesDelta
+      summary: The lines of a file that come long after the timed line before them (the Lines view's Δ filter)
+      description: |
+        The timed lines of the file (calls, waits, PARSING IN CURSOR lines and
+        XCTENDs: the lines with a `tim=`) are put in line order, a line in two
+        tables counted once. A line's Δ is its `tim` minus the `tim` of the
+        timed line before it; the first timed line has none, and `tim=0` is no
+        time (neither a Δ nor the reference of the next line). The lines whose
+        Δ is at least `min` microseconds are listed in line order as `[line,
+        us]` pairs. At most `limit` are answered: when more qualify the largest
+        Δ are kept (the earlier line wins a tie) and `truncated` says some were
+        left out. One merge walk over the file's rows.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/File"
+        - name: min
+          in: query
+          description: smallest Δ in microseconds that is listed; default 1000 (1 ms)
+          schema:
+            type: integer
+            minimum: 0
+            default: 1000
+        - name: limit
+          in: query
+          description: most lines listed, 1..100000; default 20000
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 20000
+      responses:
+        "200":
+          description: LinesDelta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinesDelta"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope) or no such file (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
   /s/{id}/api/at:
     get:
       operationId: sessionAt
@@ -3032,6 +3079,23 @@ components:
         truncated:
           type: boolean
           description: more rows than `limit` qualified; the smaller ones are left out
+    LinesDelta:
+      type: object
+      description: The lines of one file whose Δ reaches the threshold, in line order.
+      required: [lines, truncated]
+      properties:
+        lines:
+          type: array
+          items:
+            type: array
+            description: "[line, us]: the 1-based line and its Δ in microseconds"
+            items:
+              type: integer
+            minItems: 2
+            maxItems: 2
+        truncated:
+          type: boolean
+          description: more lines than `limit` qualified; the smaller Δ are left out
     LinesRepeats:
       type: object
       description: Fold candidates of one file, sorted by `from`, not overlapping.
