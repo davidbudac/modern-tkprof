@@ -112,6 +112,8 @@
 /* the calls and waits of the highlighted statement: tinted in its colour (--hl, set by the view), else blue for calls, orange for waits */
 .lv-mk1, .lv-mk2, .lv-mk3 { background: color-mix(in oklch, var(--hl, var(--c-cpu)) 10%, transparent); }
 .lv-mk2 { background: color-mix(in oklch, var(--hl, var(--c-userio)) 10%, transparent); }
+/* formatted mode: the highlight is the lane's, not the row's (see "readable mode" below): no fill */
+:where(.lv-rd).lv-mk1, :where(.lv-rd).lv-mk2, :where(.lv-rd).lv-mk3 { background: none; }
 .lv-mk1 .lv-ln::before, .lv-mk2 .lv-ln::before, .lv-mk3 .lv-ln::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--hl, var(--c-cpu)); }
 .lv-mk2 .lv-ln::before { background: var(--hl, var(--c-userio)); }
 .lv-bm .lv-ln::after { content: "◆"; position: absolute; inset-inline-start: 7px; font-size: 0.55rem; color: var(--c-commit); }
@@ -393,7 +395,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
    the user's (--w-<key>, FormattedHead) or its default in digits of the rows' font (--lv-chw, measured by the viewer). */
 .lv-box {
   --d-lane: calc(18 * var(--lv-chw, 0.6rem)); --d-bar: calc(12 * var(--lv-chw, 0.6rem));
-  --d-kind: calc(10 * var(--lv-chw, 0.6rem)); --d-dur: calc(10 * var(--lv-chw, 0.6rem)); --d-clk: calc(17 * var(--lv-chw, 0.6rem));
+  --d-kind: calc(10 * var(--lv-chw, 0.6rem)); --d-dur: calc(10 * var(--lv-chw, 0.6rem)); --d-clk: calc(11.7 * var(--lv-chw, 0.6rem));
+  /* a hot spot: the one red row (the error hue is kept for it) */
+  --hot-fill: light-dark(color-mix(in oklch, var(--s-critical) 16%, transparent), color-mix(in oklch, var(--s-critical) 22%, transparent));
 }
 .lv-probe { position: absolute; visibility: hidden; pointer-events: none; inset-block-start: 0; font-variant-numeric: tabular-nums; white-space: pre; }
 .lv-rd-on .lv-layer { inline-size: 100%; }
@@ -413,7 +417,13 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-lane-dep { display: inline-block; margin-inline-end: 0.4em; padding-inline: 0.3em; border: 1px solid var(--hairline-strong); border-radius: 3px; line-height: 1.25; color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
 .lv-kd { flex: none; inline-size: var(--w-kind, var(--d-kind)); box-sizing: border-box; padding-inline-start: var(--sp-2); overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); font-weight: 600; }
 .lv-tone-none { color: var(--ink-3); }
+/* what the line is, by weight: a call is loud (uppercase, 600, ink), a wait quiet (lowercase, 400, dim), a structure (PLAN, BINDS) between, a marker faint */
+.lv-kd.lv-op-call { font-weight: 600; color: var(--ink); }
+.lv-kd.lv-op-wait { font-weight: 400; color: var(--ink-3); text-transform: lowercase; }
+.lv-kd.lv-op-struct { font-weight: 500; color: var(--ink-2); }
+.lv-kd.lv-op-mark { font-weight: 400; color: var(--ink-3); }
 .lv-rd .lv-tx { flex: 1 1 0; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; padding-inline: var(--sp-2); }
+.lv-rd .lv-tx:not(.lv-plan) { padding-inline-end: 6ch; } /* room for the clock's whole stamp, which is wider than its column */
 /* the time bar: one linear scale for the whole file (full = its longest line); a call's CPU part is the solid end of its bar */
 .lv-bar { flex: none; position: relative; inline-size: var(--w-bar, var(--d-bar)); box-sizing: border-box; }
 .lv-bar > i, .lv-bar > b { position: absolute; inset-inline-start: var(--sp-2); inset-block: 4px; inline-size: calc(var(--w) * (100% - 2 * var(--sp-2))); min-inline-size: 2px; border-radius: 1px; }
@@ -432,20 +442,32 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-rdlt.neg { color: var(--ink-3); }
 .lv-pinned .lv-rdlt { color: var(--c-commit); font-weight: 600; }
 .lv-rdlt .lv-dicon { display: inline-block; vertical-align: -0.05em; }
-.lv-rclk { flex: none; inline-size: var(--w-clk, var(--d-clk)); box-sizing: border-box; overflow: hidden; padding-inline-end: var(--sp-3); text-align: end; white-space: nowrap; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.lv-rclk small { font-size: inherit; color: var(--ink-3); }
-/* a line of 1 % of the traced time or more, the pinned line, a search hit */
-.lv-hot { background: color-mix(in oklch, var(--c-userio) 9%, transparent); }
-.lv-hot > :first-child { box-shadow: inset 3px 0 0 var(--c-userio); }
-/* the marks (search hits, steps) at the row's start edge: on the duration cell, the first */
+/* the clock: the whole stamp (`11:35:29.828158`) on the first row, the selected one (.lv-sel), the first in view (.lv-ftop, set by the viewer) and where
+   HH:MM:SS changes, else the digits that change (`.828158`), right-aligned under it. The whole stamp is wider than the column: it reaches left into
+   the detail's end padding (flex-end keeps its end at the column's edge). */
+.lv-rclk { flex: none; display: flex; justify-content: flex-end; inline-size: var(--w-clk, var(--d-clk)); box-sizing: border-box; padding-inline-end: var(--sp-3); white-space: nowrap; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.lv-rclk.ck-full, .lv-rclk .ck-f { color: var(--ink); }
+.lv-rclk > span { flex: none; }
+.lv-rclk .ck-f { display: none; }
+.lv-rd.lv-sel .lv-rclk .ck-s, .lv-rd.lv-ftop .lv-rclk .ck-s { display: none; }
+.lv-rd.lv-sel .lv-rclk .ck-f, .lv-rd.lv-ftop .lv-rclk .ck-f { display: inline; }
+/* a hot spot (a call or wait of 1 % of the traced time or more, a plan operation's own time of it): --s-critical on the row at 16 % (22 % dark), a 3 px
+   start bar, its Duration at 600; no other row or cell uses this hue. The selection wins the fill (below), the bar and the number stay. */
+.lv-hot { background: var(--hot-fill); }
+.lv-hot > :first-child { box-shadow: inset 3px 0 0 var(--s-critical); }
+.lv-hot .lv-dur > b { color: var(--s-critical); font-weight: 600; }
 .lv-rd > :first-child { border-inline-end: 1px solid var(--hairline); }
-.lv-rd.lv-mk1 > :first-child::before, .lv-rd.lv-mk2 > :first-child::before, .lv-rd.lv-mk3 > :first-child::before { content: ""; position: absolute; z-index: 2; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--hl, var(--c-cpu)); }
-.lv-rd.lv-mk2 > :first-child::before { background: var(--hl, var(--c-userio)); }
 .lv-rd .lv-ln::before { content: none; }
-/* the highlighted statement's lane is stronger (toward the ink) on its calls and waits; the same width, so the band stays straight */
-.lv-rd.lv-mk1 .lv-lane::before, .lv-rd.lv-mk2 .lv-lane::before, .lv-rd.lv-mk3 .lv-lane::before { background: color-mix(in oklch, var(--lane) 60%, var(--ink)); }
-/* coloured by something else than the statement: the band keeps that colour on the highlighted statement's rows too */
-.lanes-by-line .lv-rd.lv-mk1 .lv-lane::before, .lanes-by-line .lv-rd.lv-mk2 .lv-lane::before, .lanes-by-line .lv-rd.lv-mk3 .lv-lane::before { background: var(--lane); }
+/* the highlighted statement is the lane's, not the row's: no row fill; the Statement cell of every row of its lane takes its colour (--hl, the statement's
+   whatever the band shows) at 14 %, the band widens from 4 to 6 px and sits at the cell's edge; the number cell of its calls and waits keeps a 3 px
+   start bar. The band is the lane's own hue (--lane): the statement's, or what the lanes are coloured by. */
+.lv-rd.lv-hlane .lv-lane { background: color-mix(in oklch, var(--hl) 14%, transparent); }
+.lv-rd.lv-hlane .lv-lane::before, .lv-rd.lv-mk1 .lv-lane::before, .lv-rd.lv-mk2 .lv-lane::before, .lv-rd.lv-mk3 .lv-lane::before { inset-inline-start: 0; inline-size: 6px; }
+.lv-rd.lv-mk1 .lv-ln::before, .lv-rd.lv-mk2 .lv-ln::before, .lv-rd.lv-mk3 .lv-ln::before { content: ""; position: absolute; z-index: 2; inset-block: 0; inset-inline-start: 0; inline-size: 3px; background: var(--hl, var(--c-cpu)); }
+/* the selection is one amber fill, the number cell included (the oklch mix of amber over the sunken gutter read cyan) */
+.lv-rd.lv-sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.lv-rd.lv-sel .lv-ln, .lv-rd.lv-range .lv-ln { background: transparent; }
+.lv-rd.lv-sel .lv-lane { background: none; } /* ... and the statement's tint does not mix with it (blue over amber reads grey) */
 .lv-pinned { box-shadow: inset 0 1px 0 var(--c-commit), inset 0 -1px 0 var(--c-commit); }
 .lv-hit .lv-tx { background: color-mix(in oklch, var(--c-commit) 22%, transparent); }
 .lv-asrun { all: unset; margin-inline-end: var(--sp-3); color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
@@ -457,6 +479,14 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .rd-obj { color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
 .rd-op { color: var(--ink); }
 .rd-warn { color: var(--s-critical); }
+/* a hard parse: a tan pill, a thing to notice and not an error */
+.rd-hp { display: inline-block; padding-inline: 0.55em; border-radius: 999px; font-size: var(--text-xs); line-height: 16px; vertical-align: 1px; color: var(--ink); background: color-mix(in oklch, var(--s-warning) 18%, transparent); }
+/* the class dot before a wait's event (hollow: idle) */
+.rd-dot { display: inline-block; inline-size: 6px; block-size: 6px; margin-inline-end: 6px; border-radius: 50%; vertical-align: 1px; background: var(--dot); }
+.rd-dot.ring { background: transparent; box-shadow: inset 0 0 0 1.5px var(--dot); }
+/* what a call waited for: its share of the call, in red from half of it */
+.rd-share { margin-inline-start: 2ch; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rd-share.crit { color: var(--s-critical); }
 .rd-val { color: var(--ink); }
 .rd-sql { color: var(--ink-2); }
 .rd-chip { color: var(--ink); background: var(--wash); border-radius: 3px; padding-inline: 0.4em; }
@@ -525,14 +555,16 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-plan .pc-name { flex: 0 1 18ch; min-inline-size: 8ch; padding-inline-start: 1ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
 .pc-n { position: relative; inline-size: 8ch; text-align: end; color: var(--ink); font-variant-numeric: tabular-nums; }
 .pc-starts, .pc-cost, .pc-pr, .pc-pw { inline-size: 7ch; }
-.pc-time { inline-size: 12ch; }
+.pc-time { inline-size: 14ch; }
 .pc-cr { inline-size: 9ch; }
 .pc-off { color: var(--s-critical); }
-/* A-Time's bar: the operation's own time as a share of the plan's, in the cell's first 4ch, left of the number */
-.pc-self { position: absolute; inset-inline-start: 1ch; inset-block: 6px; inline-size: calc(var(--w) * 4ch); min-inline-size: 1px; border-radius: 1px; background: color-mix(in oklch, var(--c-cpu) 65%, transparent); }
+/* A-Time's bar: the operation's own time as a share of the plan's, on a 4ch track that starts 2ch into the cell (a gap from the Cost number), left of the time */
+.pc-trk { position: absolute; inset-inline-start: 2ch; inset-block: 6px; inline-size: 4ch; border-radius: 1px; background: color-mix(in oklch, var(--ink) 8%, transparent); overflow: hidden; }
+.pc-self { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: calc(var(--w) * 100%); min-inline-size: 1px; background: color-mix(in oklch, var(--c-cpu) 65%, transparent); }
 /* the table: a band behind its cells, a rule under the head row and under each row, a stronger one at its end */
 .lv-tb .pc { box-sizing: border-box; background: color-mix(in oklch, var(--ink) 3.5%, transparent); box-shadow: inset 0 -1px 0 var(--hairline); }
 .lv-tb .pc-pw { padding-inline-end: var(--sp-2); inline-size: calc(7ch + var(--sp-2)); }
+.lv-tb .pc.pc-hot { background: var(--hot-fill); color: var(--s-critical); font-weight: 600; } /* an operation of 1 % of the traced time or more */
 .lv-tb-head .pc { box-shadow: inset 0 -1px 0 var(--hairline-strong); }
 .lv-tb-head .pc, .lv-tb-head .pc-op, .lv-tb-head .pc-name { color: var(--ink-2); font-weight: 500; }
 .lv-tb-end .pc { box-shadow: inset 0 -1px 0 var(--hairline-strong); }
@@ -576,7 +608,8 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-ch-lane { inline-size: var(--w-lane, var(--d-lane)); padding-inline-start: 12px; }
 .lv-ch-bar { inline-size: var(--w-bar, var(--d-bar)); padding-inline: var(--sp-2); }
 .lv-ch-kind { inline-size: var(--w-kind, var(--d-kind)); padding-inline-start: var(--sp-2); }
-.lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--sp-1) + 3.5ch); }
+/* right-aligned over the numbers: the rows' unit slot is 3 digits of the rows' font (not the header's) after them, 4px from the end */
+.lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--sp-1) + 3 * var(--lv-chw, 0.6rem)); }
 .lv-colhead > :first-child { border-inline-end: 1px solid transparent; }
 .lv-ch-tx { flex: 1 1 0; min-inline-size: 0; padding-inline-start: var(--sp-2); }
 .lv-ch-clk { inline-size: var(--w-clk, var(--d-clk)); padding-inline-end: var(--sp-3); }
@@ -584,7 +617,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 /* the grip: on the column's end edge, or its start edge for the columns at the view's end */
 .lv-ch-grip { position: absolute; inset-block: 0; inset-inline-end: 0; inline-size: 7px; cursor: col-resize; touch-action: none; }
 .lv-ch-atend > .lv-ch-grip { inset-inline: 0 auto; }
-.lv-ch-grip::after { content: ""; position: absolute; inset-block: 5px; inset-inline-end: 3px; inline-size: 1px; background: var(--hairline-strong); }
+.lv-ch-grip::after { content: ""; position: absolute; inset-block: 5px; inset-inline-end: 3px; inline-size: 1px; background: var(--hairline-strong); opacity: 0; transition: opacity var(--dur, 160ms); }
+.lv-colhead:hover .lv-ch-grip::after, .lv-ch-grip:focus-visible::after { opacity: 1; } /* the resize grips show while the header is under the pointer (or focused) */
+@media (hover: none) { .lv-ch-grip::after { opacity: 1; } }
 .lv-ch-atend > .lv-ch-grip::after { inset-inline: 3px auto; }
 .lv-ch-grip:hover::after, .lv-ch-grip:focus-visible::after { inline-size: 3px; inset-inline-end: 2px; background: var(--ink-2); }
 .lv-ch-atend > .lv-ch-grip:hover::after, .lv-ch-atend > .lv-ch-grip:focus-visible::after { inset-inline: 2px auto; }
@@ -594,9 +629,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .rd-q { font-variant-numeric: tabular-nums; }
 .rd-q > b { font-weight: 400; color: var(--ink); }
 .rd-q > small { font-size: inherit; color: var(--ink-3); }
-.rd-q + .rd-q, .rd-q + .rd-warn, .rd-q + .rd-dim { margin-inline-start: 2ch; }
+.rd-q + .rd-q, .rd-q + .rd-warn, .rd-q + .rd-dim, .rd-q + .rd-hp, .rd-dim + .rd-hp { margin-inline-start: 2ch; }
 .rd-ev { color: var(--ink); }
-.rd-evobj { margin-inline-start: 2ch; color: color-mix(in oklch, var(--c-other) 60%, var(--ink)); }
+.rd-evobj { margin-inline-start: 2ch; color: var(--ink-2); }
 .rd-pgap { margin-inline-start: 2ch; }
 
 /* the Δ filter: a row whose time from the timed line before reaches the threshold (highlight), and a row with lines hidden under it (filter) */

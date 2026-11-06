@@ -12,7 +12,8 @@ function cell(r: PlanRow, key: (typeof PLAN_COLUMNS)[number]['key']): { text: st
 /**
  * A STAT line as a row of the plan table: Id, the operation indented by its depth, the object, then the numbers in fixed-width
  * columns, right-aligned (an empty cell where the line has no value), so they line up down the plan. A-Time has a bar of the
- * operation's own time as a share of the whole plan's.
+ * operation's own time as a share of the whole plan's, on a track; the cell of an operation that took 1 % of the traced time or more is
+ * a hot spot's.
  */
 export function PlanCells({ r }: { r: PlanRow }) {
   return (
@@ -23,10 +24,11 @@ export function PlanCells({ r }: { r: PlanRow }) {
       {PLAN_COLUMNS.map((c) => {
         const v = cell(r, c.key)
         const warn = c.key === 'eRows' && r.off
-        const title = `${c.head}${v.exact ? `: ${v.exact}` : ''}${warn ? ` per start, against ${fmtInt(Math.round(r.aRows / Math.max(1, r.starts ?? 1)))} rows per start` : ''}\n${c.title}`
+        const hot = c.key === 'time' && r.hot
+        const title = `${c.head}${v.exact ? `: ${v.exact}` : ''}${warn ? ` per start, against ${fmtInt(Math.round(r.aRows / Math.max(1, r.starts ?? 1)))} rows per start` : ''}${hot ? '\na hot spot: its own time is 1 % of the traced time or more' : ''}\n${c.title}`
         return (
-          <span key={c.key} className={`pc pc-n pc-${c.key}` + (warn ? ' pc-off' : '')} title={title}>
-            {c.key === 'time' && r.self !== undefined && r.root ? <i className="pc-self" style={{ '--w': Math.min(1, r.self / r.root).toFixed(3) } as React.CSSProperties} title={`own time ${fmtDur(r.self)} of ${fmtDur(r.root)}`} /> : null}
+          <span key={c.key} className={`pc pc-n pc-${c.key}` + (warn ? ' pc-off' : '') + (hot ? ' pc-hot' : '')} title={title}>
+            {c.key === 'time' && r.self !== undefined && r.root ? <span className="pc-trk" title={`own time ${fmtDur(r.self)} of ${fmtDur(r.root)}`}><i className="pc-self" style={{ '--w': Math.min(1, r.self / r.root).toFixed(3) } as React.CSSProperties} /></span> : null}
             {v.text}
           </span>
         )

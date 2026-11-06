@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { LineKind } from './lines'
-import { bindAttrSegs, describeLine, describeMarker, parseStat, planDump, sqlSegs, statementTones, type Seg } from './readable'
+import { bindAttrSegs, describeLine, describeMarker, parseStat, planDump, sqlSegs, statementTones, waitShare, type Seg } from './readable'
 
 // lines of testdata/traces/19c/io_waits.trc
 const trc = readFileSync(new URL('../../../../testdata/traces/19c/io_waits.trc', import.meta.url), 'utf8').split('\n')
@@ -92,5 +92,45 @@ describe('the rest of the lines, readable', () => {
     expect(s.filter((x) => typeof x !== 'string').map((x) => typeof x === 'string' || 'q' in x ? '' : `${x.c}:${x.t}`))
       .toEqual(['kw:select', 'kw:from', 'kw:where', "str:'x'", 'kw:and', 'bind::b1', 'cmt:-- note'])
     expect(text(s)).toBe("select c.id from mtk_cust c where c.name = 'x' and c.id = :b1 -- note")
+  })
+})
+
+describe('the wait share of a call', () => {
+  it('e − c when it is 10 % of the call and 100 µs or more; critical from half of it', () => {
+    expect(waitShare(1000, 1000)).toBeUndefined() // all CPU
+    expect(waitShare(900, 1000)).toEqual({ us: 100, pct: 10, crit: false }) // exactly 10 % and 100 µs
+    expect(waitShare(901, 1000)).toBeUndefined() // 99 µs
+    expect(waitShare(9100, 10_000)).toBeUndefined() // 900 µs but 9 %
+    expect(waitShare(8900, 10_000)).toEqual({ us: 1100, pct: 11, crit: false })
+    expect(waitShare(500, 1000)).toEqual({ us: 500, pct: 50, crit: true })
+    expect(waitShare(501, 1000)).toEqual({ us: 499, pct: 50, crit: false })
+    expect(waitShare(0, 5000)).toEqual({ us: 5000, pct: 100, crit: true })
+    expect(waitShare(undefined, 5000)).toBeUndefined()
+    expect(waitShare(5000, undefined)).toBeUndefined()
+    expect(waitShare(200, 100)).toBeUndefined() // CPU above the elapsed time (rounding): nothing waited
+  })
+  it('PARSE, EXEC and FETCH lines of io_waits.trc carry it', () => {
+    const parse = describeLine(trc[87 - 1], 'call', 87)
+    expect(parse.waited).toEqual({ us: 815, pct: 90, crit: true }) // c=92 e=907
+    expect(text(parse.parts)).toBe('92 µs cpu|hard parse') // the share is not in the detail's pieces
+    const fetch = describeLine(trc[122 - 1], 'call', 122)
+    expect(fetch.waited).toEqual({ us: 631_420, pct: 99, crit: true }) // c=5167 e=636587
+    expect(describeLine('EXEC #139745605242584:c=19,e=19,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500070', 'call', 1).waited).toBeUndefined()
+    expect(describeLine('FETCH #1:c=2000,e=2300,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=1,tim=10804503100', 'call', 1).waited).toEqual({ us: 300, pct: 13, crit: false })
+  })
+})
+
+describe('what the Operation cell says', () => {
+  it('calls, waits, structures and markers; a wait carries the colour role of its dot', () => {
+    expect(describeLine(trc[87 - 1], 'call', 87).op).toBe('call')
+    expect(describeLine('CLOSE #1:c=2,e=2,dep=0,type=0,tim=10804503000', 'call', 1).op).toBe('call')
+    const ev = (idle: boolean, role: 'idle' | 'network') => ({ eventOf: () => ({ class: idle ? 'Idle' : 'Network', idle, role }) })
+    const net = "WAIT #1: nam='SQL*Net message from client' ela= 122 driver id=1 #bytes=1 p3=0 obj#=-1 tim=10804500200"
+    expect(describeLine(net, 'wait', 1, ev(true, 'idle'))).toMatchObject({ op: 'wait', dot: 'idle' })
+    expect(describeLine(net, 'wait', 1, ev(false, 'network'))).toMatchObject({ op: 'wait', dot: 'network' })
+    expect(describeLine(net, 'wait', 1).dot).toBe('other') // an event the doc does not know
+    expect(describeLine("STAT #1 id=1 cnt=1 pid=0 pos=1 obj=0 op='SORT AGGREGATE (cr=1 pr=0 pw=0 str=1 time=5 us)'", 'stat', 1).op).toBe('struct')
+    expect(describeMarker('*** MODULE NAME:(m) 2026-10-22T11:35:03.510108+00:00').op).toBe('mark')
+    expect(describeLine('  value=42', 'bind-line', 1).op).toBeUndefined()
   })
 })

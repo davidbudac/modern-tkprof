@@ -11,7 +11,7 @@ export const FORMATTED_COLUMNS: FormattedColumn[] = [
   { key: 'bar', label: 'Time', title: 'the bar: the time the line took, on one linear scale for the file (full: its longest line), a call\'s CPU part the solid end; the text: Δ, the time from the pinned line (a), else from the line with a time before (the trace bar\'s Δ hides it)', def: 12, min: 24 },
   { key: 'kind', label: 'Operation', title: 'what the line is: PARSE, EXEC, FETCH, CLOSE, WAIT, PLAN, BINDS, …', def: 10, min: 40 },
   { key: 'dur', label: 'Duration', title: "the line's e= (a call) or ela= (a wait); a fold's total", def: 10, min: 40 },
-  { key: 'clk', label: 'Clock', title: "the wall-clock time of the line's tim= in the trace's zone", def: 17, min: 72 },
+  { key: 'clk', label: 'Clock', title: "the wall-clock time of the line's tim= in the trace's zone: the whole stamp on the first row, the selected one and where the second changes, else the digits that change", def: 11.7, min: 72 },
 ]
 
 /** The CSS variables of the widths the user set (px); a column without one has its default (lines.css). */

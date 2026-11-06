@@ -8,7 +8,7 @@ import { LINE_KINDS, type CachedLine } from '../data/linecache'
 import type { BindAt } from '../data/bindat'
 import { clockCell, fmtDelta, lineTim } from '../data/linetime'
 import type { LineKind } from '../data/lines'
-import { QUIET_TONE, describeLine, planDump, toneColor, type LineView, type PlanCell, type ReadableContext } from '../data/readable'
+import { QUIET_TONE, describeLine, describeMarker, planDump, toneColor, type LineView, type PlanCell, type ReadableContext } from '../data/readable'
 import { laneColorOf, type LaneColor } from '../data/lanecolor'
 
 /** A cursor's stretch of consecutive lines, drawn as a band (in the statement's colour, or what the view colours by); its first rows carry the sql_id and the SQL. */
@@ -40,6 +40,12 @@ export interface ReadableCell extends LineView {
   delta: string; deltaTitle?: string; pinned: boolean
   /** HH:MM:SS.mmm and the µs after it; '' for none */
   clock: string; micros: string; clockTitle?: string
+  /**
+   * The row shows its clock in full: it is the first with a clock or HH:MM:SS differs from the row with a clock before it (the viewer
+   * also gives the full form to the first row in view and the selected one); a clock without HH:MM:SS (no wall clock) is always full.
+   * Otherwise the row shows `clockShort`: the changing digits (`.828158`).
+   */
+  clockFull: boolean; clockShort: string
 }
 
 /** The Δ column's reference: the pinned line and its tim. */
@@ -55,6 +61,8 @@ export interface ReadableInputs {
   hot: ReadonlyMap<number, number>
   /** µs at which a bar is full: the file's longest line */
   scaleUs: number
+  /** µs of a hot spot: 1 % of the traced time (a call or wait of it, a plan operation's own time); undefined: no plan cell is hot */
+  hotUs?: number
   bindAt?(line: number): BindAt | undefined
   /** a BINDS header in view whose values are not known yet: the owner asks for them (and rebuilds the rows when they come) */
   missingBinds?(line: number): void
@@ -69,6 +77,9 @@ const FRAMING = new Set<LineKind>(['blank', 'separator', 'header', 'marker', 'un
 /** How far a framing line looks for its neighbours, and a line for the previous time. */
 const LOOK = 40
 const BACK = 400
+
+/** `HH:MM:SS` of a clock text; '' when it has none (a trace without a wall clock reads `+1.752 s`). */
+const hmsOf = (clock: string) => (/^\d\d:\d\d:\d\d\./.test(clock) ? clock.slice(0, 8) : '')
 
 export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLine) => ReadableCell {
   const { doc, line: lineAt } = inp
@@ -127,6 +138,18 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     return null
   }
 
+  /** The HH:MM:SS of the clock of the row before n that has one (a line with a time, or a `***` line that prints its own), '' for none. */
+  const prevHms = (n: number): string => {
+    for (let x = n - 1, i = 0; x >= 1 && i < BACK; x--, i++) {
+      const l = lineAt(x)
+      if (!l) continue
+      const k = kindOf(l), t = lineTim(l.text, k)
+      if (t !== undefined) return doc.wallOffsetUs ? hmsOf(clockCell(t, doc).text) : ''
+      if (k === 'marker') { const w = describeMarker(l.text).wall; if (w) return hmsOf(w.clock) }
+    }
+    return ''
+  }
+
   const colorBy = inp.colorBy ?? 'stmt'
   const laneOf = (n: number, l: CachedLine, v: LineView, delta: number | undefined): Lane | null => {
     const key = laneKey(n)
@@ -170,13 +193,15 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     }
     const v = describeLine(l.text, kind, n, ctx)
     const tim = lineTim(l.text, kind)
+    let before: { line: number; tim: number } | null | undefined // the line with a time before (looked up once, when a column needs it)
+    const prev = () => (before === undefined ? (before = prevTim(n)) : before)
     let delta = '', deltaTitle: string | undefined, pinned = false
     let step: number | undefined // the time from the line with a time before (what the Δ colours and the Δ filter use)
-    if (tim !== undefined && colorBy === 'delta') { const p = prevTim(n); if (p) step = tim - p.tim }
+    if (tim !== undefined && colorBy === 'delta') { const p = prev(); if (p) step = tim - p.tim }
     if (tim !== undefined) {
       if (inp.pin && inp.pin.line === n) { pinned = true; deltaTitle = 'the pinned line: Δ is the time from here' }
       else {
-        const ref = inp.pin ?? prevTim(n)
+        const ref = inp.pin ?? prev()
         if (ref) {
           const us = tim - ref.tim
           delta = fmtDelta(us)
@@ -190,15 +215,23 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
       clockTitle = c.title
       if (doc.wallOffsetUs) { clock = c.text; micros = String(Math.floor((tim + doc.wallOffsetUs) % 1000)).padStart(3, '0') } else clock = c.text
     }
+    // the clock in full where it starts or HH:MM:SS changes, else the digits that change
+    const hms = hmsOf(clock)
+    const clockFull = !hms || prevHms(n) !== hms
+    const clockShort = hms ? clock.slice(8) + micros : ''
     const hotUs = inp.hot.get(n)
     const scale = Math.max(1, inp.scaleUs)
+    // a hot spot is a call or wait of 1 % of the traced time or more; an idle wait (the client's think time) is not one to look at
+    const hot = hotUs !== undefined && v.bar?.role !== 'idle'
+    const plan = v.plan && inp.hotUs !== undefined && (v.plan.self ?? 0) >= inp.hotUs ? { ...v.plan, hot: true } : v.plan
     const cell: ReadableCell = {
       ...v,
+      plan,
       lane: laneOf(n, l, v, step),
-      hot: hotUs !== undefined,
+      hot,
       barW: v.bar ? Math.min(1, v.bar.us / scale) : undefined,
       cpuW: v.bar?.cpu !== undefined ? Math.min(1, v.bar.cpu / scale) : undefined,
-      delta, deltaTitle, pinned, clock, micros, clockTitle,
+      delta, deltaTitle, pinned, clock, micros, clockTitle, clockFull, clockShort,
     }
     out.set(n, cell)
     return cell

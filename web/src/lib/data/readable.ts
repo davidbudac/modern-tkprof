@@ -42,11 +42,23 @@ export interface LineView {
   wall?: { clock: string; micros: string; title: string }
   /** a plan line (STAT): laid out as a row of the plan table, in columns (see `PLAN_COLUMNS`) */
   plan?: PlanRow
+  /** what the Operation cell says it is: a call (loud), a wait (quiet), a structure (PLAN, BINDS), a marker; none: the cell keeps its tone */
+  op?: OpKind
+  /** a wait: the colour role of the dot before its event (hollow for idle) */
+  dot?: Role
+  /** a call: the time it spent waiting (its e= off the CPU) when that is a good share of it, else undefined */
+  waited?: WaitShare
   /** a BINDS header whose values are known: the head of the table of its binds */
   bindHead?: boolean
   /** a `Bind#N` line whose value is known: a row of the table of binds (`last`: the set's last bind) */
   bindRow?: BindCellRow
 }
+
+/** How the Operation cell reads a line: a call (PARSE, EXEC, FETCH, CLOSE, CURSOR, COMMIT), a wait, a structure (PLAN, BINDS), a marker (`***`). */
+export type OpKind = 'call' | 'wait' | 'struct' | 'mark'
+
+/** The share of a call that went to waiting: µs, % of the call, and `crit` from half of it. */
+export interface WaitShare { us: number; pct: number; crit: boolean }
 
 /** A bind as a row of the table of binds: its placeholder, value and type. */
 export interface BindCellRow { pos: number; name: string; value: string; type: string; none: boolean; last: boolean; title: string }
@@ -74,6 +86,8 @@ export interface PlanRow {
   starts?: number; eRows?: number; aRows: number; cost?: number; time?: number; self?: number; root?: number
   cr?: number; pr?: number; pw?: number
   off: boolean
+  /** the operation's own time is 1 % of the traced time or more (set by the view, which knows the threshold) */
+  hot?: boolean
 }
 
 /** The plan table's columns after Id, Operation and Name: key, header and what the header means (the cell tooltip). */
@@ -143,6 +157,17 @@ export function parseStat(text: string): StatLine | null {
 
 // ---- one line --------------------------------------------------------------------------------------------------------------
 
+/**
+ * The time a call spent waiting, `e − c` (what was not CPU), when it is worth a word: at least 10 % of the call and 100 µs; `crit`
+ * from half of the call. Undefined without both times or when it is not.
+ */
+export function waitShare(c: number | undefined, e: number | undefined): WaitShare | undefined {
+  if (c === undefined || e === undefined) return undefined
+  const us = e - c
+  if (us < 0.1 * e || us < 100) return undefined
+  return { us, pct: Math.round((100 * us) / e), crit: us >= 0.5 * e }
+}
+
 const dim = (t: string, title?: string): Seg => ({ t, c: 'dim', title })
 const sep: Seg = dim(' · ')
 const numSeg = (t: string, title?: string): Seg => ({ t, c: 'num', title })
@@ -160,9 +185,9 @@ function describeCall(c: CallLine): LineView {
   if (c.r !== undefined && (c.op === 'FETCH' || c.r > 0)) parts.push(countQ('rows', c.r, 'row', 'rows', 'r= rows processed'))
   if (gets > 0) parts.push(countQ('gets', gets, 'get', 'gets', `cr=${c.cr ?? 0} consistent, cu=${c.cu ?? 0} current`))
   if ((c.p ?? 0) > 0) parts.push(countQ('reads', c.p!, 'read', 'reads', 'p= physical reads'))
-  if ((c.mis ?? 0) > 0) parts.push({ t: 'hard parse', c: 'warn', title: `mis=${c.mis}: a library cache miss` })
+  if ((c.mis ?? 0) > 0) parts.push({ t: 'hard parse', c: 'hp', title: `mis=${c.mis}: a library cache miss` })
   if (c.op === 'CLOSE' && c.type !== undefined) parts.push(dim(CLOSE_TYPES[c.type] ?? `type ${c.type}`, `type=${c.type}`))
-  return { label: c.op, tone: 'cpu', parts, dur: c.e, bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
+  return { label: c.op, tone: 'cpu', op: 'call', parts, dur: c.e, waited: waitShare(c.c, c.e), bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
 }
 
 function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
@@ -175,7 +200,8 @@ function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
   if (name) parts.push({ t: name, c: 'evobj', title: `${name} (obj#=${w.obj})` })
   const ps = waitParamSegs(w.params)
   if (ps.length) parts.push({ t: '', c: 'pgap' }, ...(ps[0] === sep ? ps.slice(1) : ps))
-  return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', parts, dur: w.ela, bar: { us: w.ela, role: ev?.role ?? 'other' } }
+  const role = ev?.role ?? 'other'
+  return { label: w.cur === '0' ? 'WAIT #0' : 'WAIT', tone: 'userio', op: 'wait', dot: role, parts, dur: w.ela, bar: { us: w.ela, role } }
 }
 
 /** How the usual wait parameters read: a short label, or null to leave one out (it says nothing a reader needs). */
@@ -214,7 +240,7 @@ function describeStat(s: StatLine, line: number, ctx: ReadableContext): LineView
   const pc = ctx.planAt?.(line)
   const name = s.obj > 0 ? s.name ?? ctx.objectName?.(s.obj) ?? `obj# ${s.obj}` : undefined
   return {
-    label: 'PLAN', tone: 'commit', parts: [],
+    label: 'PLAN', tone: 'commit', op: 'struct', parts: [],
     plan: {
       id: s.id, pid: s.pid, depth: pc?.depth ?? 0, op: s.op, name, obj: s.obj,
       starts: s.str, eRows: s.card, aRows: s.cnt, cost: s.cost, time: s.time, self: pc?.self, root: pc?.root,
@@ -236,10 +262,10 @@ function describeBinds(text: string, kind: LineKind, line: number, ctx: Readable
   const at = ctx.bindsAt?.(line)
   if (kind === 'binds' && at?.header) {
     // the head of the table of binds (each Bind# line below is a row of it)
-    if (at.binds.length === 0) return { label: 'BINDS', tone: 'network', parts: [dim('no binds')] }
-    return { label: 'BINDS', tone: 'network', parts: [], asRun: true, bindHead: true }
+    if (at.binds.length === 0) return { label: 'BINDS', tone: 'network', op: 'struct', parts: [dim('no binds')] }
+    return { label: 'BINDS', tone: 'network', op: 'struct', parts: [], asRun: true, bindHead: true }
   }
-  if (kind === 'binds') return { label: 'BINDS', tone: 'network', parts: [dim(text)] }
+  if (kind === 'binds') return { label: 'BINDS', tone: 'network', op: 'struct', parts: [dim(text)] }
   const m = /^\s*Bind#(\d+)/.exec(text)
   if (m && at?.bind) {
     const names = at.sql !== undefined ? bindNames(at.sql, at.binds.length).names : []
@@ -252,9 +278,9 @@ function describeBinds(text: string, kind: LineKind, line: number, ctx: Readable
       last: b.pos === at.binds[at.binds.length - 1]?.pos,
       title: `Bind#${b.pos}${type ? ` ${type}` : ''}: ${full}${b.typed && b.typed !== b.value ? `\nas printed: ${b.value}` : ''}\n(the type, length and character set: the Line tab, i)`,
     }
-    return { label: 'Bind#' + m[1], tone: 'network', parts: [{ t: bindRow.name, c: 'name' }, ' = ', { t: value, c: b.isNull ? 'dim' : 'val' }, ...(type ? [dim(`  ${type}`)] : [])], bindRow }
+    return { label: 'Bind#' + m[1], tone: 'network', op: 'struct', parts: [{ t: bindRow.name, c: 'name' }, ' = ', { t: value, c: b.isNull ? 'dim' : 'val' }, ...(type ? [dim(`  ${type}`)] : [])], bindRow }
   }
-  if (m) return { label: 'Bind#' + m[1], tone: 'network', parts: [dim(text.trim())] }
+  if (m) return { label: 'Bind#' + m[1], tone: 'network', op: 'struct', parts: [dim(text.trim())] }
   return { label: '', tone: 'dim', parts: bindAttrSegs(text), indent: 1 }
 }
 
@@ -304,13 +330,13 @@ export function describeMarker(text: string): LineView {
   const wall = ts ? { clock: `${ts[2]}${ts[3] ? `.${ts[3]}` : ''}`, micros: (ts[4] ?? '').padEnd(ts[3] && ts[4] ? 3 : 0, '0'), title: ts[0] } : undefined
   for (const [re, label] of MARKERS) {
     const m = re.exec(t)
-    if (m) return { label, tone: 'dim', parts: [{ t: m[1] || '(none)', c: 'name' }], wall }
+    if (m) return { label, tone: 'dim', op: 'mark', parts: [{ t: m[1] || '(none)', c: 'name' }], wall }
   }
   if (ts && ts.index === 0) { // the timestamp line: `*** 2026-10-22T11:35:03.510078+00:00 (PDB1(3))`
     const rest = t.slice(ts[0].length).trim().replace(/^\((.*)\)$/, '$1')
-    return { label: 'TIME', tone: 'dim', parts: [{ t: ts[1], c: 'val', title: ts[0] }, ...(ts[5] ? [dim(` UTC${ts[5] === 'Z' ? '' : ts[5]}`)] : []), ...(rest ? [sep, dim(rest)] : [])], wall }
+    return { label: 'TIME', tone: 'dim', op: 'mark', parts: [{ t: ts[1], c: 'val', title: ts[0] }, ...(ts[5] ? [dim(` UTC${ts[5] === 'Z' ? '' : ts[5]}`)] : []), ...(rest ? [sep, dim(rest)] : [])], wall }
   }
-  return { label: '***', tone: 'dim', parts: [dim(t)] }
+  return { label: '***', tone: 'dim', op: 'mark', parts: [dim(t)] }
 }
 
 /** SQL keywords that get the keyword colour in the statement's text. */
@@ -353,7 +379,7 @@ function describeParsing(text: string, ctx: ReadableContext): LineView {
   if (oct !== undefined) parts.push(sep, dim(COMMAND_NAMES[oct] ?? `oct ${oct}`))
   if (uid !== undefined) parts.push(sep, dim(`user ${ctx.userName?.(uid) ?? uid}`, `uid=${uid}`))
   if (dep) parts.push(sep, dim(`depth ${dep}`, 'dep=: a recursive statement'))
-  return { label: 'CURSOR', tone: 'sysio', parts }
+  return { label: 'CURSOR', tone: 'sysio', op: 'call', parts }
 }
 
 /** The readable row of one trace line (`line` resolves BINDS and STAT lines through the context). */
@@ -371,7 +397,7 @@ export function describeLine(text: string, kind: LineKind, line: number, ctx: Re
     case 'xctend': {
       const p = pairs(text)
       const rb = num(p, 'rlbk') === 1, ro = num(p, 'rd_only') === 1
-      return { label: rb ? 'ROLLBACK' : 'COMMIT', tone: 'commit', parts: [dim(ro ? 'read only: nothing was changed' : rb ? 'transaction rolled back' : 'transaction committed')] }
+      return { label: rb ? 'ROLLBACK' : 'COMMIT', tone: 'commit', op: 'call', parts: [dim(ro ? 'read only: nothing was changed' : rb ? 'transaction rolled back' : 'transaction committed')] }
     }
     case 'marker': return describeMarker(text)
     case 'error': case 'parse-error': return { label: 'ERROR', tone: 'error', parts: [{ t: text, c: 'warn' }] }
