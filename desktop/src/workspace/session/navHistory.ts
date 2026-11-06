@@ -90,7 +90,7 @@ export class NavHistory {
       this.doc = apply(this.store, this.doc, this.entries[i])
       // urlstate only knows the engine's views
       const view = new URLSearchParams(this.entries[i].slice(1)).get('view')
-      if ((view === 'annotations' || view === 'reports') && this.store.getState().view !== view) this.store.setState({ view })
+      if ((view === 'annotations' || view === 'reports' || view === 'cut') && this.store.getState().view !== view) this.store.setState({ view })
     } finally { this.applying = false }
     this.navSeq = inputSeq
     this.entries[i] = hashOf(this.doc, this.store.getState()) // what the store could show of it (unknown ids are dropped)

@@ -455,27 +455,22 @@ func (c *Cutter) walk(ctx context.Context, sel *Selection, s *selected, out sink
 				kind = "kept"
 			}
 		}
-		lead := len(hdr)
-		for lead > 0 && len(bytes.TrimSpace(hdr[lead-1])) == 0 {
-			lead--
-		}
 		p := &Piece{Kind: "header", Title: "File header", File: first, Reason: "The prologue of " + m.File.Files[first].Name +
 			": database version, instance, host and process. tkprof and mtkprof read it first."}
-		if kind == "kept" {
+		label := byte('H')
+		if kind == "kept" { // the kept lines start at the top of the file: the header is simply kept
+			p.Kind, label = "kept", 'K'
 			p.Reason = "The prologue of " + m.File.Files[first].Name + ", where the kept lines start."
 		}
-		for i, l := range hdr[:lead] {
-			it := &item{label: 'H', file: int32(first), line: int32(i + 1), text: l}
+		for i, l := range hdr {
+			it := &item{label: label, file: int32(first), line: int32(i + 1), text: l}
 			if i == 0 {
 				it.start = p
 			}
 			o.put(it)
 		}
-		if !sel.NoProvenance {
+		if !sel.NoProvenance { // still prologue lines: the first marker comes after them
 			o.provenance(sel, s)
-		}
-		for i := lead; i < len(hdr); i++ {
-			o.put(&item{label: 'H', file: int32(first), line: int32(i + 1), text: hdr[i]})
 		}
 	} else if !sel.NoProvenance {
 		o.provenance(sel, s)

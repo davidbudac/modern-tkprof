@@ -1575,6 +1575,42 @@ GOOS=aix     GOARCH=ppc64 go build ./cmd/mtkprof      # AIX 7.2+
 GOOS=solaris GOARCH=amd64 go build ./cmd/mtkprof
 ```
 
+### Cut (`internal/cut`, `internal/slice/cut.go`, `desktop/src/workspace/session/cut/`)
+
+Decisions: DESIGN § Cut. `cut.New(model, facts, lineIndexes)` (facts: `slice.FactSource`, so an
+engine session cuts from its spill) gives a `Cutter`; `Plan`, `Write` and `Check` take a
+`Selection` (tim window, contexts, statement, executions, binds keep|mask|none, plans, provenance).
+
+1. `selectFacts` (cut.go), three passes over the facts. Calls: the unit spans per process key
+   (file, `Context.Process`): `(last line of a call of the process at depth <= d, line]` for every
+   unit call in scope (a top-level call, or a call of the statement), widened by execution keys,
+   merged; the tail of a process after its last kept call joins it. Calls again: kept = inside a
+   span (the text pass decides a call line the same way), referenced cursors, each cursor's last
+   kept call, BINDS blocks of kept EXECs outside the spans, the expected numbers (`Check`), the
+   callers (a bitset carried up by `Parent`). Waits: kept when their call is (else by span); the
+   ones decided against their span are per-file exception lines. Then the borrowed plans.
+2. `walk` (text.go): the first file's prologue, the provenance lines, then every file with kept
+   lines through a `lineReader` (jumps between spans through the line index when a file has one
+   process). Records are classified with `trace.Classifier`, statement text by `len=`
+   (`sqlText`, as the parser). Before a kept record `emitter.prepare` writes what it needs: a
+   process switch, the session markers whose values differ (`fileIndex.latest`: the source's own
+   marker lines, scanned once per file into `fileIndex`), and the cursor the line's `#n` stands for
+   (`indexes.cursorAt`: the last instance of the number at or before the line, through a chain's
+   earlier files) when the new file has another open (`restate`). After a break the emitter holds
+   lines back until the first one with a `tim`: the generated timestamp gets its wall clock
+   (`Model.CallWall` at that line) and the restated cursors that `tim`. Masked binds are rewritten
+   by `maskState`. Both sinks get the same items: `planner` (pieces, head/tail samples, per-file
+   runs of labels, capped at `MaxRuns`) and `writerSink`.
+3. `Check` (plan.go) writes to a temporary file, `model.Build`s it and `compare`s per
+   `stmtKeys` (sql_id, else hash value and text, else kind and text).
+
+Routes (served with `WithLines`): `/api/cut` (`cut.Plan` + `bindsAllowed`), `/api/cut/check`,
+`/api/cut/file` (a 500 before the first byte, else an aborted stream). `Server.CutSalt` is the
+session's redaction salt. The desktop view: `CutView.tsx` (fetches, strip, map, side panel),
+`cutlayout.ts` (the source scale with stretched ranges, the output column, label placement, row
+labels; unit-tested), `cut.css`. Tests: `internal/cut/cut_test.go` (every fixture and set,
+whole = source, the io_waits window), `internal/engine/cut_test.go` (routes, spill, redaction).
+
 ### Execution Loom (`web/src/lib/views/ExecLoom.tsx`, `data/loom.ts`, `data/exectrace.ts`)
 
 A "Loom" mode of the A/B execution comparison (`ExecCompare`, Numbers | Loom): the two executions as cumulative

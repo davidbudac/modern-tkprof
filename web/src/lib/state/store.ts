@@ -8,7 +8,7 @@ import { contextsWithin, effectiveContexts, fileCount, normalizeFiles } from '..
 import type { KindGroup } from '../data/callkinds'
 
 export type View = 'overview' | 'statements' | 'waits' | 'blocks' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
-  | 'annotations' | 'reports' // desktop shell views
+  | 'annotations' | 'reports' | 'cut' // desktop shell views
 
 export interface TimeWindow { startTim: number; endTim: number }
 

@@ -17,7 +17,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - Latest release **v0.5.0** (2026-11-02, from `202d152`): CLI binaries (+ `-lite` builds) and the desktop
   installers (DMG arm64/x64, deb, AppImage, NSIS) in one GitHub release; notes `docs/releases/v0.5.0.md`.
   Everything after it (three new views, Lines colour-by / Δ filter, formatted view round 2, the open-list
-  round, the Trace pane's round 3, the I/O map and its density and hot blocks) is unreleased.
+  round, the Trace pane's round 3, the I/O map and its density and hot blocks, the Cut view) is unreleased.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -149,7 +149,7 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - **Visualizer** has no LICENSE file. It shows "0ms" for µs-scale plans (its display rounds to ms).
 - **History**: the stray 32 MB `mtkprof` binary (removed in `a89bc12`) is still in the history of the now
   public repo; rewriting it means a force-push.
-- Stale remote branches (`assist/*`, `ui/*`, `lines/clock-delta-gutter`, `feat/cut`, `t3/*`,
+- Stale remote branches (`assist/*`, `ui/*`, `lines/clock-delta-gutter`, `feat/cut` (merged), `t3/*`,
   `feature/add-cut-worktree-reference`): delete when convenient.
 
 ### Trace pane: the formatted Lines view (round 2 2026-11-06, round 3 and 3b 2026-11-07; DESIGN § Formatted Lines view, `docs/PLAN-FORMATTED-V2.md`, `docs/PLAN-TRACE-PANE-V3.md`)
@@ -260,6 +260,25 @@ Open:
 - A rerun of `run_gen.sh px_io` appends to the pooled PX slaves' existing `*_mtk_px_io.trc` files.
 - Not built: the mock-up's fetch count on Row flow's client label; plan § 10 (whole-session Dialogue,
   side-by-side Dialogue in `ExecCompare`, 2-D binning for the I/O map, …).
+
+### Cut (2026-11-06; DESIGN § Cut, ARCHITECTURE § Cut, DESKTOP § Cut)
+
+A new trace file from a part of a trace set (a window, sessions or files, one statement; a join of a set's
+files), desktop only: engine `internal/cut`, routes `api/cut`, `api/cut/check`, `api/cut/file` (additive,
+protocol stays 1), the desktop's Cut view (Tools menu, `desktop/src/workspace/session/cut/`). Every fixture
+of 19c/21c/23ai and the multisession, parallel and workload sets passes the re-parse check (whole, mask,
+none, per session, quarter windows, executions, statements); a whole cut equals its source plus the
+provenance lines. Rules found on the way: a cursor is restated before its BINDS block, not only its calls;
+statement text must be followed by `len=`; a copied source timestamp anchors only when nothing between it
+and the next `tim` was left out, else a generated one follows it.
+
+Open:
+
+- Not run in the Tauri window (native save dialog, *Open as new tab*).
+- tkprof on cut files not compared yet (dbmint).
+- Interleaving a join by time (trcsess's order) is not offered.
+- An implicit cursor (open before tracing, never parsed) whose number collides with another process's in a
+  join would take that cursor's statement.
 
 ### Smaller gaps
 
