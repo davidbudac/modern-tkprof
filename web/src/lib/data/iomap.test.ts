@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 import { TraceDoc } from './doc'
-import { blocksParam, extentsOf, IO, IOMAP_COLS, ioMapOf, isBlockIO, mergeRuns, normalizeIOMap, orderToTime, rereadOf, sampleStep, type IOMap } from './iomap'
+import { blocksParam, extentsOf, IO, IOMAP_COLS, ioMapOf, isBlockIO, isFileP1, mergeRuns, normalizeIOMap, orderToTime, rereadOf, sampleStep, type IOMap } from './iomap'
 import { makeDoc, type WaitSpec } from './testdoc'
 import type { Event, RawDocument } from './types'
 import ioMapCase from './testdata/iomap-case.json'
@@ -32,18 +32,22 @@ describe('isBlockIO / blocksParam', () => {
       ev(1, 'direct path read', 'file number', 'first dba', 'block cnt'),
       ev(2, 'direct path write temp', 'file number', 'first dba', 'block cnt'),
       ev(3, 'gc current request', 'file#', 'block#', 'id#', 'Cluster'),
-      ev(4, 'control file sequential read', 'file#', 'block#', 'blocks', 'System I/O'),
-      ev(5, 'some future read', 'file#', 'block#', 'blocks'),
+      ev(4, 'some future read', 'file#', 'block#', 'blocks'),
     ]
     const not = [
       ev(6, 'db file parallel read', 'files', 'blocks', 'requests'),
       ev(7, 'Disk file operations I/O', 'FileOperation', 'fileno', 'filetype'),
       ev(8, 'gc cr block 2-way', '', '', '', 'Cluster'),
       ev(9, 'SQL*Net message from client', 'driver id', '#bytes', '', 'Idle', true),
+      // p1 is a control file's number, not a datafile's
+      ev(10, 'control file sequential read', 'file#', 'block#', 'blocks', 'System I/O'),
+      ev(11, 'control file single write', 'file#', 'block#', 'blocks', 'System I/O'),
+      ev(12, 'control file parallel write', 'files', 'block#', 'requests', 'System I/O'),
     ]
     expect(block.map(isBlockIO)).toEqual(block.map(() => true))
     expect(not.map(isBlockIO)).toEqual(not.map(() => false))
-    expect(block.map(blocksParam)).toEqual([true, true, true, false, true, true])
+    expect(block.map(blocksParam)).toEqual([true, true, true, false, true])
+    expect(not.slice(-3).map(isFileP1)).toEqual([false, false, false])
   })
 })
 

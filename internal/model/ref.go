@@ -45,17 +45,24 @@ type RefUser struct {
 	Name string `json:"name"`
 }
 
-// IsFileP1 reports whether the event's first parameter is a file number
-// (db file sequential read: file#, direct path read: file number).
-func (e *Event) IsFileP1() bool { return e.P1Name == "file#" || e.P1Name == "file number" }
+// IsFileP1 reports whether the event's first parameter is a datafile or
+// tempfile number (db file sequential read: file#, direct path read: file
+// number). Not the control file events: control file sequential read and
+// control file single write name their p1 file# too, but it is the number of
+// a control file copy (0, 1 …), which would share a "file N" with a datafile
+// (the Blocks view's panels, file names of a reference bundle). The twin is
+// isFileP1 in web/src/lib/data/iomap.ts.
+func (e *Event) IsFileP1() bool {
+	return (e.P1Name == "file#" || e.P1Name == "file number") && !strings.HasPrefix(e.Name, "control file ")
+}
 
 // IsBlockIO reports whether the event's parameters are a file number and a
 // block address (the waits of the Blocks view, analyze.IOMapOn): db file
 // sequential/scattered read, db file single write, direct path read|write[
-// temp], read by other session, buffer busy waits, gc cr/current request,
-// control file sequential read (p1 is then the control file's number) …; not
-// db file parallel read (no address), Disk file operations I/O (no block) or
-// gc cr/current block 2-way (no parameter names). Data-driven on the
+// temp], read by other session, buffer busy waits, gc cr/current request …;
+// not db file parallel read (no address), Disk file operations I/O (no block),
+// gc cr/current block 2-way (no parameter names) or the control file events
+// (IsFileP1: p1 is a control file's number). Data-driven on the
 // parameter names (V$EVENT_NAME, else those of the WAIT lines), so unknown
 // and RAC events classify themselves.
 func (e *Event) IsBlockIO() bool {

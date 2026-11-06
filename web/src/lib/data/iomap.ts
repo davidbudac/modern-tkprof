@@ -4,8 +4,8 @@
 // ioMapOf is the twin of analyze.IOMapOn (internal/analyze/iomap.go): same classification (Event.IsBlockIO / BlocksParam from
 // the parameter names), same scope rule (a wait is in the window when [tim-ela, tim] overlaps it; idle ignored: block I/O is
 // never idle), same deterministic every-k-th sampling with total, files and events over all matches. The shared case
-// web/src/lib/data/testdata/iomap-case.json keeps the two identical. One known difference: the document's ela and obj columns
-// are 32-bit and clamp at 2^31-1, the engine keeps 64 bits (an obj# of 4294967295, seen in a 21c fixture, reads 2147483647 here).
+// web/src/lib/data/testdata/iomap-case.json keeps the two identical. The document's ela column is f64 like the engine's int64;
+// its obj column is i32, which holds every "none" since the model reads 23ai's obj#=4294967295 as -1.
 import type { TraceDoc } from './doc'
 import type { Event, ID } from './types'
 import type { Scope } from '../state/store'
@@ -36,8 +36,12 @@ export interface IOMap {
 /** The every-k-th step of an answer: 1 when nothing was left out. */
 export const sampleStep = (m: Pick<IOMap, 'total' | 'rows'>): number => (m.rows.length > 0 && m.total > m.rows.length ? Math.ceil(m.total / m.rows.length) : 1)
 
-/** Twin of `model.Event.IsFileP1`. */
-const isFileP1 = (ev: Event) => ev.p1Name === 'file#' || ev.p1Name === 'file number'
+/**
+ * p1 is a datafile or tempfile number (twin of `model.Event.IsFileP1`). Not the control file events: `control file sequential
+ * read` / `single write` name p1 file# too, but it is a control file's number (0, 1 …) that would share a "file N" with a datafile.
+ */
+export const isFileP1 = (ev: Pick<Event, 'name' | 'p1Name'>): boolean =>
+  (ev.p1Name === 'file#' || ev.p1Name === 'file number') && !ev.name.startsWith('control file ')
 
 /** The event's parameters are a file number and a block address (twin of `model.Event.IsBlockIO`; data-driven on the parameter names). */
 export function isBlockIO(ev: Event): boolean {

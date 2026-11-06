@@ -48,6 +48,9 @@ describe('decodeLine', () => {
     const d = decodeLine(WAIT_NET, 'wait')!
     expect(f(d)).toMatchObject({ Event: 'SQL*Net message from client', Waited: '122 µs', 'driver id': '1952673792', '#bytes': '1', p3: '0' })
     expect(f(d).Object).toBeUndefined()
+    // 23ai writes "no object" as -1 unsigned (testdata/traces/23ai/nasty_sql.trc)
+    const d23 = decodeLine(WAIT_NET.replace('obj#=-1', 'obj#=4294967295'), 'wait', { objectName: () => 'X.Y' })!
+    expect(f(d23).Object).toBeUndefined()
   })
   it('decodes a STAT line', () => {
     const d = decodeLine(STAT, 'stat', ctx)!
@@ -148,6 +151,7 @@ describe('decodeLine verbose', () => {
     expect(byLabel(d)['file#']).toMatchObject({ value: '10', hint: 'p1' })
     const n = decodeLine(WAIT_NET, 'wait', {}, V)!
     expect(byLabel(n).Object.value).toBe('none (-1)')
+    expect(byLabel(decodeLine(WAIT_NET.replace('obj#=-1', 'obj#=4294967295'), 'wait', ctx, V)!).Object.value).toBe('none (4294967295)')
   })
   it('decodes STAT, XCTEND, PARSING and errors', () => {
     const s = decodeLine(STAT, 'stat', ctx, V)!

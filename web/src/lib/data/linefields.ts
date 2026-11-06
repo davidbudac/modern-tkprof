@@ -121,9 +121,12 @@ function timField(tim: number | undefined, ctx: DecodeContext, label = 'Time'): 
   return [{ label, value: value || String(tim), hint: `tim=${tim}` }]
 }
 
-/** An obj# with its name when the trace's reference data knows it; none for 0 and -1. */
+/** 23ai's "no object" obj# on a WAIT line: -1 as an unsigned 32-bit number (the model reads it as -1: `objNoneU32` in internal/model/builder.go). */
+const OBJ_NONE_U32 = 4294967295
+
+/** An obj# with its name when the trace's reference data knows it; none for 0, -1 and 4294967295. */
 function objField(label: string, obj: number | undefined, ctx: DecodeContext): LineField[] {
-  if (obj === undefined || obj <= 0) return []
+  if (obj === undefined || obj <= 0 || obj === OBJ_NONE_U32) return []
   const name = ctx.objectName?.(obj)
   return [{ label, value: name ? `${name} (${obj})` : String(obj), hint: `obj#=${obj}` }]
 }
@@ -530,8 +533,9 @@ function decodeWaitV(text: string, ctx: DecodeContext): LineDecode | null {
     for (const t of scan(rest.slice(tail))) {
       const n = numOf(t.val)
       if (t.key === 'obj#') {
-        const on = n !== undefined && n > 0 ? ctx.objectName?.(n) : undefined
-        f.push({ label: 'Object', value: n === undefined ? t.val : on ? `${on} (${n})` : n > 0 ? String(n) : `none (${n})`, hint: `obj#=${t.val}`, raw: t.raw, desc: 'object the wait is about (-1: not applicable)' })
+        const some = n !== undefined && n > 0 && n !== OBJ_NONE_U32
+        const on = some ? ctx.objectName?.(n) : undefined
+        f.push({ label: 'Object', value: n === undefined ? t.val : on ? `${on} (${n})` : some ? String(n) : `none (${n})`, hint: `obj#=${t.val}`, raw: t.raw, desc: 'object the wait is about (-1, or 4294967295 in 23ai: not applicable)' })
       } else if (t.key === 'tim') f.push(timV(t, ctx, 'microsecond clock of the process when the wait ended'))
       else f.push({ label: t.key, value: t.val, raw: t.raw, desc: 'not a documented field' })
     }

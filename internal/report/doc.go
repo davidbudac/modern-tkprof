@@ -235,6 +235,12 @@ func buildDocument(m *model.Model, o DocOptions, withFacts bool) *Document {
 	return d
 }
 
+// buildFacts lays out the fact tables. The µs measures of calls (c, e, selfE,
+// selfC, waitEla, idleEla) and waits (ela) are f64 columns, not i32: one
+// SQL*Net message from client or one FETCH can last longer than 2^31-1 µs
+// (35.8 min) and an i32 column would clamp it in every in-browser sum. The
+// loader takes either type (web/src/lib/data/columns.ts), so older documents
+// still load. stream.go factTables is the same layout.
 func buildFacts(m *model.Model) *Facts {
 	calls := m.Calls
 	n := len(calls)
@@ -243,8 +249,8 @@ func buildFacts(m *model.Model) *Facts {
 		Kind:    u8col(n, func(i int) uint8 { return uint8(calls[i].Kind) }),
 		Cursor:  i32col(n, func(i int) int64 { return int64(calls[i].Cursor) }),
 		Stmt:    i32col(n, func(i int) int64 { return int64(calls[i].Statement) }),
-		C:       i32col(n, func(i int) int64 { return calls[i].C }),
-		E:       i32col(n, func(i int) int64 { return calls[i].E }),
+		C:       f64col(n, func(i int) int64 { return calls[i].C }),
+		E:       f64col(n, func(i int) int64 { return calls[i].E }),
 		P:       i32col(n, func(i int) int64 { return calls[i].P }),
 		CR:      i32col(n, func(i int) int64 { return calls[i].CR }),
 		CU:      i32col(n, func(i int) int64 { return calls[i].CU }),
@@ -256,16 +262,16 @@ func buildFacts(m *model.Model) *Facts {
 		Tim:     f64col(n, func(i int) int64 { return calls[i].Tim }),
 		Type:    u8col(n, func(i int) uint8 { return uint8(calls[i].Type) }),
 		Parent:  i32col(n, func(i int) int64 { return int64(calls[i].Parent) }),
-		SelfE:   i32col(n, func(i int) int64 { return calls[i].SelfE }),
-		SelfC:   i32col(n, func(i int) int64 { return calls[i].SelfC }),
+		SelfE:   f64col(n, func(i int) int64 { return calls[i].SelfE }),
+		SelfC:   f64col(n, func(i int) int64 { return calls[i].SelfC }),
 		SelfP:   i32col(n, func(i int) int64 { return calls[i].SelfP }),
 		SelfCR:  i32col(n, func(i int) int64 { return calls[i].SelfCR }),
 		SelfCU:  i32col(n, func(i int) int64 { return calls[i].SelfCU }),
 		Ctx:     i32col(n, func(i int) int64 { return int64(calls[i].Context) }),
 		ExecNo:  i32col(n, func(i int) int64 { return int64(calls[i].ExecNo) }),
 		BindSet: i32col(n, func(i int) int64 { return int64(calls[i].BindSet) }),
-		WaitEla: i32col(n, func(i int) int64 { return calls[i].WaitEla }),
-		IdleEla: i32col(n, func(i int) int64 { return calls[i].IdleEla }),
+		WaitEla: f64col(n, func(i int) int64 { return calls[i].WaitEla }),
+		IdleEla: f64col(n, func(i int) int64 { return calls[i].IdleEla }),
 		NWaits:  i32col(n, func(i int) int64 { return int64(calls[i].NWaits) }),
 		Flags: u8col(n, func(i int) uint8 {
 			var f uint8
@@ -286,7 +292,7 @@ func buildFacts(m *model.Model) *Facts {
 		Stmt:   i32col(n, func(i int) int64 { return int64(waits[i].Statement) }),
 		Call:   i32col(n, func(i int) int64 { return int64(waits[i].Call) }),
 		Event:  i32col(n, func(i int) int64 { return int64(waits[i].Event) }),
-		Ela:    i32col(n, func(i int) int64 { return waits[i].Ela }),
+		Ela:    f64col(n, func(i int) int64 { return waits[i].Ela }),
 		P1:     f64col(n, func(i int) int64 { return waits[i].P1 }),
 		P2:     f64col(n, func(i int) int64 { return waits[i].P2 }),
 		P3:     f64col(n, func(i int) int64 { return waits[i].P3 }),

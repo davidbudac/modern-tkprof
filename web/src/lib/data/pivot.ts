@@ -7,6 +7,7 @@ import type { Context } from './types'
 import { callKindName, CallKind } from './types'
 import { fmtDur, fmtInt, fmtCompact, fmtWall, preview } from './format'
 import { pickBucket } from './derive'
+import { isFileP1 } from './iomap'
 
 export type Fact = 'calls' | 'waits'
 export type RowFilter = ((i: number) => boolean) | undefined
@@ -178,7 +179,7 @@ export function waitDims(doc: TraceDoc): Dim[] {
   const p2 = new PairInterner()
   const paramName = (pair: [number, number], which: 'p1Name' | 'p2Name', fallback: string) => {
     const ev = doc.events[pair[0]]
-    const file = which === 'p1Name' && (ev?.p1Name === 'file#' || ev?.p1Name === 'file number') ? doc.fileName(pair[1])?.name : undefined
+    const file = which === 'p1Name' && ev && isFileP1(ev) ? doc.fileName(pair[1])?.name : undefined
     return `${ev?.[which] || fallback}=${fmtIntKey(pair[1])}${file ? ` (${file})` : ''}`
   }
   return [

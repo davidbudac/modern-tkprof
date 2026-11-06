@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
@@ -171,7 +172,11 @@ func TestIOMapScopes(t *testing.T) {
 
 // ---- the shared case of the TS twin (web/src/lib/data/iomap.ts ioMapOf) ----
 
-var updateIOMapCase = flag.Bool("update-iomap-case", false, "rewrite web/src/lib/data/testdata/iomap-case.json from io_waits.trc")
+var updateIOMapCase = flag.Bool("update-iomap-case", false, "rewrite web/src/lib/data/testdata/iomap-case.json from 21c/io_waits.trc")
+
+// ioMapCaseTrace is the trace the shared case is cut from: the 21c run of
+// io_waits, which also reads the control files (a tempfile resize).
+const ioMapCaseTrace = "../../testdata/traces/21c/io_waits.trc"
 
 const ioMapCasePath = "../../web/src/lib/data/testdata/iomap-case.json"
 
@@ -238,19 +243,27 @@ func (c *ioMapCase) model() *model.Model {
 	return m
 }
 
-// ioMapCaseOf cuts the case out of io_waits.trc: every wait up to the 60th
-// block I/O wait (so the classification and the idle waits are part of it),
-// the whole events table, and three queries: limit 20 (sampled, 1 in 3), a
-// window that cuts the waits at both ends with limit 10, and one statement.
+// ioMapCaseOf cuts the case out of 21c/io_waits.trc: every wait up to the
+// 60th block I/O wait (so the classification and the idle waits are part of
+// it), then the waits from 10 before the first control file wait to 10 after
+// the last (control file reads and writes between tempfile reads and writes:
+// p1 file# 0 and 1 there are control files, not block I/O), the whole events
+// table, and four queries: limit 20 (sampled, 1 in 3), a window that cuts the
+// first waits at both ends with limit 10, one statement, and the window of
+// the control file waits.
 func ioMapCaseOf(t *testing.T) *ioMapCase {
-	full := loadModel(t, "io_waits.trc")
+	full, err := model.Build(ioMapCaseTrace, model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	isBlock, _ := BlockEvents(full.Events)
 	c := &ioMapCase{
 		Comment: "Shared by internal/analyze/iomap_test.go (IOMapOn) and web/src/lib/data/iomap.test.ts (ioMapOf). Generated from " +
-			"testdata/traces/19c/io_waits.trc by `go test ./internal/analyze -run IOMapSharedCase -update-iomap-case`, do not edit: " +
-			"events = the trace's doc.events, waits = the doc.facts.waits columns of its first waits up to the 60th block I/O wait " +
-			"(flags bit0 between, bit1 idle); each case is a query (limit, optional stmt, window from/to with 0 = open, idle ignored) " +
-			"and the /api/io/map answer expected for it.",
+			"testdata/traces/21c/io_waits.trc by `go test ./internal/analyze -run IOMapSharedCase -update-iomap-case`, do not edit: " +
+			"events = the trace's doc.events, waits = the doc.facts.waits columns of its first waits up to the 60th block I/O wait, " +
+			"then of the waits from 10 before the first control file wait to 10 after the last (flags bit0 between, bit1 idle); " +
+			"each case is a query (limit, optional stmt, window from/to with 0 = open, idle ignored) and the /api/io/map answer " +
+			"expected for it. The control file waits name p1 file# but are not block I/O.",
 		Events: full.Events,
 	}
 	var blockAt []int // wait index of each block I/O wait
@@ -265,8 +278,27 @@ func ioMapCaseOf(t *testing.T) *ioMapCase {
 	if len(blockAt) < 60 {
 		t.Fatalf("io_waits.trc has %d block I/O waits", len(blockAt))
 	}
-	wc := &c.Waits
+	ctl0, ctl1 := -1, -1 // the first and last control file wait
+	for i := range full.Waits {
+		if strings.HasPrefix(full.Events[full.Waits[i].Event].Name, "control file ") {
+			if ctl0 < 0 {
+				ctl0 = i
+			}
+			ctl1 = i
+		}
+	}
+	if ctl0 < 0 || ctl0-10 <= blockAt[59] || ctl1+10 >= len(full.Waits) {
+		t.Fatalf("%s: control file waits at %d..%d", ioMapCaseTrace, ctl0, ctl1)
+	}
+	keep := []int{}
 	for i := 0; i <= blockAt[59]; i++ {
+		keep = append(keep, i)
+	}
+	for i := ctl0 - 10; i <= ctl1+10; i++ {
+		keep = append(keep, i)
+	}
+	wc := &c.Waits
+	for _, i := range keep {
 		w := &full.Waits[i]
 		var flags int64
 		if w.Between {
@@ -287,6 +319,7 @@ func ioMapCaseOf(t *testing.T) *ioMapCase {
 		{Limit: 20},
 		{Limit: 10, From: full.Waits[blockAt[20]].Tim, To: full.Waits[blockAt[45]].Tim},
 		{Limit: 20000, Stmt: &stmt},
+		{Limit: 20000, From: full.Waits[ctl0-10].Tim, To: full.Waits[ctl1+10].Tim},
 	}
 	m := c.model()
 	for i := range c.Cases {
@@ -372,13 +405,40 @@ func TestIOMapSharedCase(t *testing.T) {
 			t.Fatalf("waits.%s has %d values, n is %d", col.name, len(*col.v), c.Waits.N)
 		}
 	}
-	if len(c.Cases) < 3 || c.Cases[0].Limit != 20 || c.Cases[0].Expect.Total != 60 || !c.Cases[0].Expect.Sampled || len(c.Cases[0].Expect.Rows) != 20 {
-		t.Fatalf("the first case is not the 60 block I/O waits at limit 20 (1 in 3)")
+	if len(c.Cases) != 4 || c.Cases[0].Limit != 20 || c.Cases[0].Expect.Total != 60+c.Cases[3].Expect.Total || !c.Cases[0].Expect.Sampled || len(c.Cases[0].Expect.Rows) != 20 {
+		t.Fatalf("the first case is not the 60 + %d block I/O waits at limit 20 (sampled)", c.Cases[len(c.Cases)-1].Expect.Total)
 	}
 	for i, q := range c.Cases {
 		if got := ioMap(t, m, q.filter(), q.Limit); !reflect.DeepEqual(got, q.Expect) {
 			t.Errorf("case %d (%+v)\n got %+v\nwant %+v", i, q.filter(), got, q.Expect)
 		}
+	}
+	// the control file waits are in the case, and in no answer
+	ctl := map[int64]bool{}
+	for i := range c.Events {
+		if strings.HasPrefix(c.Events[i].Name, "control file ") {
+			ctl[int64(i)] = true
+		}
+	}
+	nCtl := 0
+	for _, e := range c.Waits.Event {
+		if ctl[e] {
+			nCtl++
+		}
+	}
+	last := c.Cases[len(c.Cases)-1].Expect
+	if nCtl != 14 || last.Total == 0 {
+		t.Errorf("the case has %d control file waits (want 14), the last query %d block I/O waits", nCtl, last.Total)
+	}
+	for _, q := range c.Cases {
+		for _, e := range q.Expect.Events {
+			if ctl[int64(e)] {
+				t.Errorf("a control file event (%s) in an answer", c.Events[e].Name)
+			}
+		}
+	}
+	if len(last.Files) != 1 || last.Files[0].File != 203 { // the tempfile; the control files are p1 file# 0 and 1
+		t.Errorf("files of the control file window: %+v, want the tempfile 203 only", last.Files)
 	}
 	if !reflect.DeepEqual(ioMapCaseOf(t), c) {
 		t.Errorf("%s is stale: go test ./internal/analyze -run IOMapSharedCase -update-iomap-case", ioMapCasePath)

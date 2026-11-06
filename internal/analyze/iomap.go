@@ -9,7 +9,7 @@ import (
 
 // IOMapFile is the block range [Lo, Hi) one file's block I/O waits touch.
 type IOMapFile struct {
-	File int64 `json:"file"` // p1: a datafile, a tempfile (db_files + its number) or a control file
+	File int64 `json:"file"` // p1: a datafile or a tempfile (db_files + its number)
 	Lo   int64 `json:"lo"`   // lowest block (p2)
 	Hi   int64 `json:"hi"`   // end of the range (exclusive): the largest p2 + blocks
 	N    int   `json:"n"`    // waits

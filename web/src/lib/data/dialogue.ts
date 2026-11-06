@@ -11,6 +11,7 @@
 import type { TraceDoc } from './doc'
 import type { ExecTrace, TraceCall, TraceWait } from './exectrace'
 import { CallKind, type ID } from './types'
+import { isFileP1 } from './iomap'
 import { roleOfClass, type Role } from '../components/colors'
 
 export type Lifeline = 'client' | 'server' | 'disk' | 'temp' | 'others'
@@ -78,7 +79,7 @@ export interface Dialogue {
   rowsPerTrip: number | null
   rows: number
   calls: number
-  /** what the side lifelines stand for: the file numbers of their I/O waits (p1 named file# / file number), the wait classes */
+  /** what the side lifelines stand for: the file numbers of their I/O waits (`isFileP1`: not a control file's), the wait classes */
   lanes: Partial<Record<SideLine, { files: number[]; classes: string[] }>>
   truncated: boolean
 }
@@ -92,7 +93,6 @@ export interface DialogueOptions {
   floorUs?: number
 }
 
-const FILE_PARAM = /^file(#| number)$/
 const NET_TO = 'SQL*Net message to client'
 const NET_MORE = 'SQL*Net more data to client'
 
@@ -268,7 +268,7 @@ export function dialogueOf(doc: Pick<TraceDoc, 'events'>, trace: ExecTrace, opts
     builds[k].sides[line].add(w)
     const lane = (lanes[line] ??= { files: new Set(), classes: new Set() })
     if (ev) lane.classes.add(ev.class)
-    if (ev && FILE_PARAM.test(ev.p1Name) && w.p1 >= 0) lane.files.add(w.p1)
+    if (ev && isFileP1(ev) && w.p1 >= 0) lane.files.add(w.p1)
   }
   for (const c of trace.children) {
     const k = at.get(c.owner)

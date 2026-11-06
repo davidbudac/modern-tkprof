@@ -202,7 +202,7 @@ describe('dialogueOf: attribution', () => {
     expect(t.sides.temp).toMatchObject([{ event: EV.tempW, n: 1, us: 900 }, { event: EV.tempR, n: 2, us: 500 }])
     expect(t.sides.disk?.map((x) => x.event)).toEqual([EV.seq, EV.ctlRead])
     expect(t.sides.others?.map((x) => x.event)).toEqual([EV.enq, EV.lockTimer, EV.logSync])
-    expect(d.lanes.disk).toEqual({ files: [0, 7], classes: ['System I/O', 'User I/O'] })
+    expect(d.lanes.disk).toEqual({ files: [7], classes: ['System I/O', 'User I/O'] }) // not 0: the control file read's p1 is a control file
     expect(d.lanes.temp?.files).toEqual([201])
     expect(d.lanes.others?.classes).toEqual(['Application', 'Commit', 'Idle'])
     expect(d.totals.byRole).toEqual({ userio: 1700, sysio: 50, other: 2000, commit: 600, idle: 1000 })

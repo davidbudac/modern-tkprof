@@ -244,11 +244,12 @@ describe('drawBlockMap', () => {
 
 describe('the shared io_waits excerpt', () => {
   it('lays out its block I/O waits: two files, statement runs that cover the rows', () => {
-    const map = ioMapCase.cases[0].expect // limit 20: 20 of the 60 rows
-    expect(map.files.map((f) => f.file)).toEqual([10, 12])
+    const map = ioMapCase.cases[0].expect // limit 20: 20 of the 77 rows
+    // the datafile and the tempfile; not the control files (p1 file# 0 and 1 of the control file waits in the excerpt)
+    expect(map.files.map((f) => f.file)).toEqual([12, 203])
     const evs = ioMapCase.events as Event[]
     const ps = panelsOf(map, evs)
-    expect(ps.map((p) => [p.file, p.height, p.temp])).toEqual([[10, 60, false], [12, panelHeight(map.files[1]), false]])
+    expect(ps.map((p) => [p.file, p.height, p.temp])).toEqual([[12, panelHeight(map.files[0]), false], [203, panelHeight(map.files[1]), false]])
     const b = bracketsOf(map.rows, () => '')
     expect(b.stmts.length).toBeGreaterThan(0)
     expect(b.runs.reduce((a, r) => a + r.i1 - r.i0, 0)).toBe(map.rows.length) // the runs cover the rows

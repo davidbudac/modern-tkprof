@@ -243,7 +243,8 @@ func writeFactsPacked(w io.Writer, m *model.Model) error {
 	return err
 }
 
-// factTables describes the fact tables of the model in document order.
+// factTables describes the fact tables of the model in document order (the
+// column types as in buildFacts: the µs measures are f64).
 func factTables(m *model.Model) []tableSpec {
 	calls := m.Calls
 	flags := func(orphan, synth bool) uint8 {
@@ -261,8 +262,8 @@ func factTables(m *model.Model) []tableSpec {
 		cU8("kind", func(i int) uint8 { return uint8(calls[i].Kind) }),
 		cI32("cursor", func(i int) int64 { return int64(calls[i].Cursor) }),
 		cI32("stmt", func(i int) int64 { return int64(calls[i].Statement) }),
-		cI32("c", func(i int) int64 { return calls[i].C }),
-		cI32("e", func(i int) int64 { return calls[i].E }),
+		cF64("c", func(i int) int64 { return calls[i].C }),
+		cF64("e", func(i int) int64 { return calls[i].E }),
 		cI32("p", func(i int) int64 { return calls[i].P }),
 		cI32("cr", func(i int) int64 { return calls[i].CR }),
 		cI32("cu", func(i int) int64 { return calls[i].CU }),
@@ -274,16 +275,16 @@ func factTables(m *model.Model) []tableSpec {
 		cF64("tim", func(i int) int64 { return calls[i].Tim }).d(),
 		cU8("type", func(i int) uint8 { return calls[i].Type }),
 		cI32("parent", func(i int) int64 { return int64(calls[i].Parent) }),
-		cI32("selfE", func(i int) int64 { return calls[i].SelfE }),
-		cI32("selfC", func(i int) int64 { return calls[i].SelfC }),
+		cF64("selfE", func(i int) int64 { return calls[i].SelfE }),
+		cF64("selfC", func(i int) int64 { return calls[i].SelfC }),
 		cI32("selfP", func(i int) int64 { return calls[i].SelfP }),
 		cI32("selfCR", func(i int) int64 { return calls[i].SelfCR }),
 		cI32("selfCU", func(i int) int64 { return calls[i].SelfCU }),
 		cI32("ctx", func(i int) int64 { return int64(calls[i].Context) }),
 		cI32("execNo", func(i int) int64 { return int64(calls[i].ExecNo) }),
 		cI32("bindSet", func(i int) int64 { return int64(calls[i].BindSet) }),
-		cI32("waitEla", func(i int) int64 { return calls[i].WaitEla }),
-		cI32("idleEla", func(i int) int64 { return calls[i].IdleEla }),
+		cF64("waitEla", func(i int) int64 { return calls[i].WaitEla }),
+		cF64("idleEla", func(i int) int64 { return calls[i].IdleEla }),
 		cI32("nWaits", func(i int) int64 { return int64(calls[i].NWaits) }),
 		cU8("flags", func(i int) uint8 { return flags(calls[i].Orphan, calls[i].Synthetic) }),
 	}
@@ -295,7 +296,7 @@ func factTables(m *model.Model) []tableSpec {
 		cI32("stmt", func(i int) int64 { return int64(waits[i].Statement) }),
 		cI32("call", func(i int) int64 { return int64(waits[i].Call) }),
 		cI32("event", func(i int) int64 { return int64(waits[i].Event) }),
-		cI32("ela", func(i int) int64 { return waits[i].Ela }),
+		cF64("ela", func(i int) int64 { return waits[i].Ela }),
 		cF64("p1", func(i int) int64 { return waits[i].P1 }),
 		cF64("p2", func(i int) int64 { return waits[i].P2 }),
 		cF64("p3", func(i int) int64 { return waits[i].P3 }),

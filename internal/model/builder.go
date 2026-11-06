@@ -867,6 +867,14 @@ func (b *Builder) event(name string) ID {
 	return e.ID
 }
 
+// objNoneU32 is the "no object" obj# of a WAIT line as 23ai (23.26) writes it:
+// -1 as an unsigned 32-bit number. 19c and 21c write obj#=-1 (SQL*Net
+// message to/from client …); the 23ai fixtures write obj#=4294967295 on those
+// waits and never obj#=-1. Wait.ObjID keeps -1 for both, so every consumer
+// (the document's 32-bit obj column, /api/io/map, the object dimension, a
+// -ref script) sees one "none".
+const objNoneU32 = 1<<32 - 1
+
 func (b *Builder) Wait(w trace.Wait) {
 	eid := b.event(w.Name)
 	ev := &b.m.Events[eid]
@@ -883,7 +891,7 @@ func (b *Builder) Wait(w trace.Wait) {
 		Ela: w.Ela, P1: w.Params[0].Value, P2: w.Params[1].Value, P3: w.Params[2].Value,
 		ObjID: w.ObjID, Tim: w.Tim, Context: b.context(), Idle: ev.Idle, Number: w.Cursor,
 	}
-	if !w.HasObj {
+	if !w.HasObj || w.ObjID == objNoneU32 {
 		wait.ObjID = -1
 	}
 	b.observeTim(w.Tim, w.Line)
