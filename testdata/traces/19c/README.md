@@ -193,6 +193,36 @@ for an already-open PL/SQL cursor on its first EXEC after trace-on (that is why 
 file switch was needed), and ALTER SESSION invalidates PL/SQL-cached cursors
 (`EXEC ... mis=1` on their next run).
 
+## pinx_worker.trc (1,376,259 bytes, 22,865 lines)
+Not from `run_gen.sh`: captured **live** from the PINX lab workload (schema
+`PINX`, jobs `PINX_W001..24` running `pinx_hot_loop(worker, 20, 1)` against `T`).
+Tracing was enabled on an already-running session from `CDB$ROOT` with
+`alter session set container=PDB1` plus
+`dbms_monitor.session_trace_enable(session_id=>40, serial_num=>63025, waits=>true,
+binds=>true)`, ran ~25 s (tkprof: 24 elapsed seconds), then `_disable`d. The target
+is a DBMS_SCHEDULER job slave (process `J00A`, ospid 5386): header has
+`*** CLIENT DRIVER:(SERVER)`, `*** MODULE NAME:(PINX_WORKER)`, service `SYS$USERS`
+- the first fixture not connected as `MTK` through the listener, and with no
+`tracefile_identifier` (ADR name `cdb1_j00a_5386.trc`).
+Composition (~1,176 loop iterations, each: hot query, 1 insert, commit, 20 ms
+`dbms_session.sleep`): hot 4-way self-join on `T` (`5wrhf4jjs6mhs`, 1,176
+EXEC+FETCH, 84,672 consistent gets), `INSERT INTO T (T_SEQ.NEXTVAL...)`
+(`c1a8kv5yb4741`, 1,176), `COMMIT` traced as its own cursor `oct=44` with `ad='0'`
+(`8ggw94h7mvxd7`, 1,188 EXEC + 24 PARSE), `SELECT PINX_CTL` (`14nmm1y6sp13p`,
+1,176, the per-iteration control check - with think_ms>0 `l_batch` is 1) and
+heartbeat `UPDATE PINX_POOL` (`1dkfaz4f4sk0f`, 12 EXEC, `:B1..:B4`).
+Oddities: **every traced line is `dep=2`** - the dep=0 job wrapper and the
+procedure body were already executing when tracing started, so no dep=0/dep=1
+cursor is ever dumped and tkprof labels all 5 statements `(recursive depth: 2)`
+with all-zero OVERALL TOTALS under NON-RECURSIVE; **no `STAT` lines at all** (no
+statement plan in 19c without STAT dump: tkprof prints Plan Hash from the EXEC
+`plh=` only, COMMIT shows `Plan Hash: 0`); all 4,728 `CLOSE` are `type=3`; only
+5 `PARSING IN CURSOR` blocks and 24 `PARSE` lines (all 24 from the COMMIT cursor,
+all soft: `mis=0` in every PARSE/EXEC/FETCH line); 1,188 `WAIT` = 1,176
+`PL/SQL lock timer` (the 20 ms sleeps, 23.72 s total) + 7 `db file scattered
+read` + 4 `buffer busy waits` + 1 `PGA memory operation`; 1,188 `XCTEND rlbk=0,
+rd_only=0`. Regenerate by tracing any live PINX worker the same way.
+
 ## ../../big/big_loop.trc (117,735,707 bytes, 2,881,438 lines; git-ignored)
 Level 12 trace of a PL/SQL loop of 120,000 iterations (one PK lookup on `mtk_cust`
 and one insert into `mtk_audit` each, commit every 1,000; ~990 bytes/iteration,
