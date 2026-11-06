@@ -267,6 +267,29 @@ all soft: `mis=0` in every PARSE/EXEC/FETCH line); 1,188 `WAIT` = 1,176
 read` + 4 `buffer busy waits` + 1 `PGA memory operation`; 1,188 `XCTEND rlbk=0,
 rd_only=0`. Regenerate by tracing any live PINX worker the same way.
 
+## pinx_worker_w01/_w06/_w11/_w16/_w21.trc (5 more live captures, 2026-11-06)
+Second PINX batch: workload restarted with `pinx.pinx_lab.start_workers(24, 20,
+2000, 60, 1)`, then five workers traced **concurrently** - one PDB1 block doing
+five `dbms_monitor.session_trace_enable`, `dbms_session.sleep(25)`, five
+`_disable` (tkprof: 24 elapsed seconds in each file). All are job slaves with
+`*** CLIENT DRIVER:(SERVER)`, `*** MODULE NAME:(PINX_WORKER)`, no
+`tracefile_identifier`. Sizes/lines: w01 1,412,941/23,302, w06 1,403,313/23,097,
+w11 1,399,960/23,042, w16 1,401,681/23,058, w21 1,401,890/23,076. Sessions:
+w01=SID 48/43923 (`J003`, ospid 37070, ADR `cdb1_j003_37070.trc`), w06=56/45765
+(`J007`, 37078), w11=310/18210 (`J005`, 37074), w16=71/49311 (`J00N`, 37110),
+w21=259/39858 (`J00B`, 37086).
+w06/w11/w16/w21 are composition clones of `pinx_worker.trc`: same 5 cursors, ~18
+more iterations (1,183-1,186 `PL/SQL lock timer` waits, 1,196-1,199 `XCTEND`,
+4,758-4,770 `CLOSE` `type=3`), **all lines `dep=2`**, no `STAT` lines, all parses
+soft (`mis=0`), e.g. w06 hot cursor 1,186 EXEC+FETCH, 85,392 consistent gets.
+w01 is the interesting one: it hard-parsed inside the window - 11 cursors
+instead of 5 and 10 `mis=1` lines - pulling in 6 recursive cursors the siblings
+never show: sequence cache-miss `UPDATE seq$` (`4m7m0t6fjcs5x`, `dep=3`) and
+five dictionary lookups at `dep=4` (`gx4mv66pvj3xz` `con$`/`cond$`,
+`cw1mnps0mfazc` `/*+ rule */ con$`, `a4n4ayr88dbhy` + `6h3cwmunz5z8q` `col$`
+privilege checks, `53saa2zkr6wc3` `icol$`). So dep is not flat there: 11,903
+`dep=2` + 6 `dep=3` + 63 `dep=4`, and the tkprof output is ~2x the siblings'.
+
 ## ../../big/big_loop.trc (117,735,707 bytes, 2,881,438 lines; git-ignored)
 Level 12 trace of a PL/SQL loop of 120,000 iterations (one PK lookup on `mtk_cust`
 and one insert into `mtk_audit` each, commit every 1,000; ~990 bytes/iteration,

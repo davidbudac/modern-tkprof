@@ -1,0 +1,189 @@
+
+TKPROF: Release 19.0.0.0.0 - Development on Fri Nov 6 09:09:59 2026
+
+Copyright (c) 1982, 2019, Oracle and/or its affiliates.  All rights reserved.
+
+Trace file: cdb1_j00n_37110.trc
+Sort options: prsela  exeela  fchela  
+********************************************************************************
+count    = number of times OCI procedure was executed
+cpu      = cpu time in seconds executing 
+elapsed  = elapsed time in seconds executing
+disk     = number of physical reads of buffers from disk
+query    = number of buffers gotten for consistent read
+current  = number of buffers gotten in current mode (usually for update)
+rows     = number of rows processed by the fetch or execute call
+--------------------------------------------------------------------------------
+
+*** SESSION ID:(71.49311) 2026-11-06T09:09:03.527862+00:00
+
+********************************************************************************
+
+SQL ID: 5wrhf4jjs6mhs Plan Hash: 4164579485
+
+SELECT /*+ qb_name(pinx) */ COUNT(*) 
+FROM
+ T A, T B, T C, T D WHERE A.ID < 1000 AND B.ID < 1000 AND C.ID < 1000 AND 
+  D.ID < 1000 AND A.ID = B.ID AND B.ID = C.ID AND C.ID = D.ID AND A.GRP = 7 
+  AND PINX_PARSE_MARKER(A.ID) >= 0
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute   1184      0.04       0.04          0          0          0           0
+Fetch     1184      0.51       0.61          0      85248          0        1184
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total     2368      0.56       0.66          0      85248          0        1184
+
+Misses in library cache during parse: 0
+Optimizer mode: ALL_ROWS
+Parsing user id: 219     (recursive depth: 2)
+--------------------------------------------------------------------------------
+
+SQL ID: c1a8kv5yb4741 Plan Hash: 406889723
+
+INSERT /*+ qb_name(pinx_ins) */ INTO T (ID, GRP, PAD) 
+VALUES
+ (T_SEQ.NEXTVAL, MOD(:B1 , 50), 'current')
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute   1183      0.11       0.16        123         17       6159        1183
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total     1183      0.11       0.16        123         17       6159        1183
+
+Misses in library cache during parse: 0
+Optimizer mode: ALL_ROWS
+Parsing user id: 219     (recursive depth: 2)
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  buffer busy waits                               6        0.00          0.00
+  db file scattered read                         12        0.00          0.00
+  db file sequential read                        11        0.00          0.00
+  enq: SQ - contention                            1        0.00          0.00
+  db file parallel read                           1        0.00          0.00
+--------------------------------------------------------------------------------
+
+SQL ID: 8ggw94h7mvxd7 Plan Hash: 0
+
+COMMIT
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse       26      0.00       0.00          0          0          0           0
+Execute   1196      0.02       0.04          0          0       1196           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total     1222      0.02       0.04          0          0       1196           0
+
+Misses in library cache during parse: 0
+Parsing user id: 219     (recursive depth: 2)
+--------------------------------------------------------------------------------
+
+SQL ID: 14nmm1y6sp13p Plan Hash: 2729897068
+
+SELECT RUN_ID, PHASE, DEADLINE 
+FROM
+ PINX_CTL WHERE ID = 1
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute   1184      0.01       0.01          0          0          0           0
+Fetch     1184      0.00       0.00          0       2368          0        1184
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total     2368      0.02       0.02          0       2368          0        1184
+
+Misses in library cache during parse: 0
+Optimizer mode: ALL_ROWS
+Parsing user id: 219     (recursive depth: 2)
+--------------------------------------------------------------------------------
+
+SQL ID: 1dkfaz4f4sk0f Plan Hash: 1744330388
+
+UPDATE PINX_POOL SET READY_AT = NVL(READY_AT, :B4 ), LAST_BEAT = :B4 , EXECS =
+   :B3 , INSERTS = :B2 
+WHERE
+ WORKER = :B1 
+
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute     13      0.00       0.00          0         13         26          13
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total       13      0.00       0.00          0         13         26          13
+
+Misses in library cache during parse: 0
+Optimizer mode: ALL_ROWS
+Parsing user id: 219     (recursive depth: 2)
+
+
+
+********************************************************************************
+
+OVERALL TOTALS FOR ALL NON-RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse        0      0.00       0.00          0          0          0           0
+Execute      0      0.00       0.00          0          0          0           0
+Fetch        0      0.00       0.00          0          0          0           0
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total        0      0.00       0.00          0          0          0           0
+
+Misses in library cache during parse: 0
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  PL/SQL lock timer                            1184        0.02         23.85
+  PGA memory operation                            1        0.00          0.00
+
+
+OVERALL TOTALS FOR ALL RECURSIVE STATEMENTS
+
+call     count       cpu    elapsed       disk      query    current        rows
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+Parse       26      0.00       0.00          0          0          0           0
+Execute   4760      0.19       0.26        123         30       7381        1196
+Fetch     2368      0.52       0.62          0      87616          0        2368
+------- ------  -------- ---------- ---------- ---------- ----------  ----------
+total     7154      0.72       0.89        123      87646       7381        3564
+
+Misses in library cache during parse: 0
+
+Elapsed times include waiting on following events:
+  Event waited on                             Times   Max. Wait  Total Waited
+  ----------------------------------------   Waited  ----------  ------------
+  buffer busy waits                               6        0.00          0.00
+  db file scattered read                         12        0.00          0.00
+  db file sequential read                        11        0.00          0.00
+  enq: SQ - contention                            1        0.00          0.00
+  db file parallel read                           1        0.00          0.00
+
+    5  user  SQL statements in session.
+    0  internal SQL statements in session.
+    5  SQL statements in session.
+********************************************************************************
+Trace file: cdb1_j00n_37110.trc
+Trace file compatibility: 12.2.0.0
+Sort options: prsela  exeela  fchela  
+       1  session in tracefile.
+       5  user  SQL statements in trace file.
+       0  internal SQL statements in trace file.
+       5  SQL statements in trace file.
+       5  unique SQL statements in trace file.
+   23058  lines in trace file.
+      24  elapsed seconds in trace file.
+
+
