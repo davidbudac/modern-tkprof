@@ -33,10 +33,13 @@ export function scrollFromTop(g: ScrollGeometry, top: number): number {
 /**
  * First-line offset that brings 0-based line `idx` into view: `center` puts it in the middle, `nearest` moves as little as
  * possible (no move when it is fully visible). `rows` = lines that fit (fractional).
+ * The offset is a whole number of rows (a multiple of the row height): when the view's height is not a multiple of the row
+ * height, a fractional offset would leave a sliver of the row above under the sticky lane row (the line goes slightly off the
+ * exact middle instead; `nearest` rounds toward the line so it stays fully visible).
  */
 export function revealTop(top: number, idx: number, rows: number, how: 'center' | 'nearest'): number {
-  if (how === 'center') return idx - (rows - 1) / 2
+  if (how === 'center') return Math.round(idx - (rows - 1) / 2)
   if (idx < top) return idx
-  if (idx + 1 > top + rows) return idx + 1 - rows
+  if (idx + 1 > top + rows) return Math.ceil(idx + 1 - rows - 1e-9)
   return top
 }

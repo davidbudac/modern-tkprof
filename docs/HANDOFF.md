@@ -6,6 +6,54 @@ must accept). `docs/ROADMAP.md` lists the longer tail. Desktop: the plan is
 `docs/PLAN-DESKTOP.md`, the user guide `docs/DESKTOP.md`, the remote part
 `docs/REMOTE.md`.
 
+## Formatted view round 2 (2026-11-06)
+
+- The ten changes of the mock-up `docs/mockups/formatted-v2/` (three design-review lenses: visual, DBA workflow, information
+  design; plan `docs/PLAN-FORMATTED-V2.md`, whose Log has each batch's deviations), implemented in the shared lib so the CLI UI
+  and the desktop get them. Decisions: DESIGN § Formatted Lines view (rewritten as implemented, rejected alternatives kept).
+  The commits on `main` (four batches, then the docs and the rebuilt UI):
+  - `636bd9d` **A**: the highlighted statement tints its lane (Statement cell 14 %, 6 px band), not the rows; hot spots are the
+    one red (16 % / 22 % dark; a plan's A-Time cell too); the Operation column reads by weight (calls loud, waits `wait` quiet
+    with a class dot); a call says `· 631 ms waiting (99 %)`; the clock shows only the digits that change; the selection is one
+    amber fill; Duration header right over its numbers, grips only on hover.
+  - `a8a306f` **B**: the bar moves into Duration (56 px track, log scale 1 µs to 10 s); Δ is the unexplained gap (pin, raw view,
+    Δ filter and colour-by-Δ keep `tim`-to-`tim`); a magnitude ramp on the numbers; the linear file scale is deleted.
+  - `cdb1133` **C**: the Statement column is a 14 px band and the lane's identity is one sticky row (`2.486 s here · exec 1 of 1`);
+    framing lines (`=====`, END OF STMT, blank under BINDS) and the bind lines fold quietly; BINDS of up to 4 binds are chips on
+    the header row; CLOSE reads `cached` / `closed`; `exec N` tags and a rule per execution; runs of waits dittoed with
+    micro-columns; the bracket of a call's waits; the `▾` handle in the Operation cell. **The one engine change:**
+    `GET /api/lines/blocks?what=frame` (`internal/slice/lines_blocks.go`; additive, protocol stays 1, `api.d.ts` regenerated; an
+    older engine answers 400 and the view keeps those lines as rows).
+  - `903ede1` **D**: plan and BINDS tables on the sunken surface from Operation to the right edge, columns drop in a fixed order
+    with `n columns hidden`; the toolbar is one row from 1100 px and the Highlighting chip is folded into the overview chip (real
+    count); the overview bar is labelled, with an axis, a viewport bracket and a `+n under 1 %` chip; header keys as wide as the
+    longest key; a go-to into a Fold repeats run no longer leaves it open for good (bug 11), and a fold change keeps the selected
+    line in place (bug 12).
+  - the docs commit: DESIGN, this entry, ARCHITECTURE and the plan (the mock-up `docs/mockups/formatted-v2/` was committed
+    earlier, in `135e202`, shots included: 37 MB), plus the go-to fix below; then the rebuilt embedded UI (`make web`).
+- **Go-to centres on the row grid** (`data/scrollmap.ts` `revealTop`, tested): the scroll offset of a go-to, `j` and the chips is
+  a whole number of 20 px rows, so no sliver of the row above peeks out under the sticky lane row when the viewport's height is
+  not a multiple of the row height (the first row of `io_waits-118-1600-light.png` in D). Evidence `.../E/`.
+- Evidence (not committed, in `/tmp`): `/tmp/verify-mtkprof/evidence/formatted-v2/{A,B,C,D,E}/` (io_waits 118 / 10378 / 84,
+  basic_binds 48, light and dark, 1600 and 1280 px, raw mode, toolbar at 1100 to 1800 px, the overview, Fold repeats; the
+  `drive-*.mjs` scripts are in each folder). Unit tests: `pnpm --filter mtkprof-web test` and `go test ./internal/slice
+  ./internal/engine`.
+- **Open:**
+  - Blank lines before a `***` timestamp and after a marker group (a handful per trace) still take a row; only the blanks under
+    a BINDS header fold. Finding the others is a read of the whole raw file (a Go pass over `LineIndex`, cached per file, would do).
+  - The `j` / `J` hot-spot list (`api/lines/hot`) still includes idle waits, which are not drawn hot, so `j` can land on an
+    unmarked row. Drop idle there (engine change) if that bothers.
+  - Inline binds are decided by count (up to 4, chips cut at 40 characters), not by "values of up to 24 characters" as the plan
+    says: the values are not known up front. `SQL with values →` sits at the end of the last bind row, not a row of its own.
+  - Runs look ±60 lines and the bracket ±300 around a row; at a page edge or an unloaded page a wait is drawn as inside and the
+    rule is not cut (rows are recomputed when pages load). With folds or the Δ filter on, the clock's "line before" is the
+    previous trace line, not the previous displayed row.
+  - `z` on an opened framing handle does nothing (it only opens; `Z` is for user folds). The raw view is untouched: its row tint,
+    the cyan number cell of a selected row and the `exec #0` on a CLOSE in `.lv-head` stay.
+  - The toolbar may wrap below 51 rem (about 816 px); its thresholds were measured with everything on.
+  - The prebuilt desktop sidecar (`desktop/src-tauri/binaries/`, gitignored) may predate `what=frame`: `pnpm build:engine` before
+    checking the framing folds in the desktop dev mode.
+
 ## Lines view: colour by, Δ filter, Fold repeats icon (2026-11-06)
 
 - **Colour the lanes by** (formatted view): a menu after `raw | formatted`, nine modes and a key per mode

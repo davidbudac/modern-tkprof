@@ -42,4 +42,18 @@ describe('revealTop', () => {
     expect(revealTop(50, 40, 20, 'nearest')).toBe(40)
     expect(revealTop(50, 75, 20, 'nearest')).toBe(56)
   })
+  it('lands on a whole row when the view is not a multiple of the row height', () => {
+    // 618 px of 20 px rows = 30.9 rows: the first row must not be a sliver
+    expect(revealTop(0, 100, 30.9, 'center')).toBe(85)
+    expect(Number.isInteger(revealTop(0, 100, 30.9, 'center'))).toBe(true)
+    expect(Number.isInteger(revealTop(0, 100, 30.5, 'center'))).toBe(true)
+    expect(Number.isInteger(revealTop(0, 117, 29.1, 'center'))).toBe(true)
+    // below the view: the line ends inside the view, never cut off at the bottom
+    const t = revealTop(0, 100, 30.9, 'nearest')
+    expect(Number.isInteger(t)).toBe(true)
+    expect(100 + 1).toBeLessThanOrEqual(t + 30.9)
+    expect(t).toBe(71)
+    // a whole number of rows needs no rounding
+    expect(revealTop(0, 100, 30, 'nearest')).toBe(71)
+  })
 })
