@@ -38,7 +38,7 @@ class. Weights 400–500 (600 for the wordmark), spacing on a 4px grid.
 ## Content
 
 The docs page is a condensed user guide. Its sources of truth are
-`README.md`, `docs/DESKTOP.md`, `docs/REMOTE.md`, `docs/REF-BUNDLE.md` and
+`README.md`, `docs/MCP.md`, `docs/DESKTOP.md`, `docs/REMOTE.md`, `docs/REF-BUNDLE.md` and
 `desktop/README.md` (building the app);
 when a command, flag or behaviour changes there, update `docs.html` too.
 

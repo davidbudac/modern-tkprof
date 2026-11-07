@@ -46,7 +46,7 @@
     <li><a href="#ref">Object names and plans</a></li>
     <li><a href="#remote">Remote traces</a></li>
     <li><a href="#outputs">Plans, JSON, CSV</a></li>
-    <li><a href="#claude">Claude Code (MCP)</a></li>
+    <li><a href="#claude">AI clients (MCP)</a></li>
   </ul>
   <p>Desktop app</p>
   <ul>
@@ -224,7 +224,7 @@ mtkprof trace scott@dbhost/pdb1 -files -since 2h                <span class="c">
     <tr><td><code>fetch</code>, <code>follow</code></td><td>copy a trace over ssh or out of the database; mirror a growing trace, optionally with a live report; see <a href="#remote">Remote traces</a></td></tr>
     <tr><td><code>trace</code></td><td>switch SQL trace on or off for a session, list sessions and trace files</td></tr>
     <tr><td><code>open</code></td><td>open traces in the desktop app (starts it if needed)</td></tr>
-    <tr><td><code>mcp</code></td><td>the analysis tools as an MCP server for Claude Code or another agent; see <a href="#claude">Claude Code (MCP)</a></td></tr>
+    <tr><td><code>mcp</code></td><td>the analysis tools as an MCP server for Claude Code or another agent; see <a href="#claude">AI clients (MCP)</a></td></tr>
     <tr><td><code>brief</code></td><td>a Markdown brief of the trace's numbers and your notes, for handing to an LLM agent; bind values masked by default</td></tr>
     <tr><td><code>findings-config</code></td><td>the default finding thresholds as JSON; edit and pass with <code>-findings-config f.json</code></td></tr>
     <tr><td><code>lint</code></td><td>what the parser saw: line kinds, events, unknown lines</td></tr>
@@ -371,11 +371,32 @@ mtkprof export trace.trc -o csv/                            <span class="c"># st
 mtkprof pivot  trace.trc -by module,stmt -measure e,c,count -window 10:15:00,10:20:00 -csv</pre>
 
 <!-- ================================================================ -->
-<h2 id="claude">Claude Code (MCP)<a class="anchor" href="#claude" aria-label="Link to this section">#</a></h2>
-<p><code>mtkprof mcp</code> serves mtkprof's analysis tools over MCP on stdin and stdout, so an agent such as Claude Code can analyse a trace from a description of the problem. Register it once (<code>-s project</code> instead writes it to the repository's <code>.mcp.json</code>):</p>
+<h2 id="claude">AI clients (MCP)<a class="anchor" href="#claude" aria-label="Link to this section">#</a></h2>
+<p><code>mtkprof mcp</code> exposes trace analysis through the Model Context Protocol (MCP), so an agent such as Claude Code can investigate a description of the problem. Standalone use needs the mtkprof CLI and a client that launches stdio MCP servers; no desktop app, running engine or database connection is required. The client supplies the AI model and its authentication.</p>
+<p>Check that <code>mtkprof version</code> and <code>mtkprof mcp -h</code> work, then register it once in Claude Code (<code>-s project</code> instead writes it to the repository's <code>.mcp.json</code>). Choose the default masking command or the command that exposes bind values:</p>
 <pre>claude mcp add -s user mtkprof -- mtkprof mcp              <span class="c"># once, for all your projects</span>
 claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># show bind values as traced</span></pre>
 <p>Then ask in Claude Code in your own words, with the path of the trace, for example: <q>the nightly load traced in /u01/diag/rdbms/orcl/orcl/trace/orcl_ora_4711.trc got slow after 14:05. What is it waiting on, and which statement is to blame?</q> The agent opens the trace, maps the description onto it (a time becomes a window, a user or module a session, a query a statement) and answers with evidence: sql_ids, executions, wait events and trace lines as <code>file.trc:line</code>.</p>
+<h3>How the client and server work together</h3>
+<ol>
+  <li>The client starts <code>mtkprof mcp</code> as a subprocess and connects to stdin/stdout.</li>
+  <li>It sends <code>initialize</code>, follows with <code>notifications/initialized</code>, then uses <code>tools/list</code> to discover tool descriptions and argument schemas.</li>
+  <li>The assistant chooses a tool; the client sends a <code>tools/call</code> request. mtkprof parses the trace and calculates the result.</li>
+  <li>The client gives that result to the model, which can request more tools before explaining the evidence.</li>
+</ol>
+<p>The messages are line-delimited JSON-RPC. Stdout is reserved for the protocol; diagnostic logs go to stderr. The MCP server itself calls no AI model.</p>
+<h3>Other MCP clients</h3>
+<p>Set the transport to <strong>stdio</strong>, the executable to your mtkprof installation and the arguments to <code>["mcp"]</code>. Clients using the <code>mcpServers</code> JSON format can use this example; replace the executable path:</p>
+<pre>{
+  "mcpServers": {
+    "mtkprof": {
+      "command": "/absolute/path/to/mtkprof",
+      "args": ["mcp"]
+    }
+  }
+}</pre>
+<p>Configuration keys vary by client. On Windows, use the path to <code>mtkprof.exe</code> and escape backslashes in JSON (or use forward slashes). No server URL or mtkprof API key is needed in standalone mode.</p>
+<h3>Analysis tools</h3>
 <div class="table-wrap"><table>
   <thead><tr><th>Tool</th><th>What it answers</th></tr></thead>
   <tbody>
@@ -387,8 +408,22 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
     <tr><td><code>lines</code>, <code>search_lines</code></td><td>the raw trace lines around a call, a wait or a plan; text or regex search</td></tr>
   </tbody>
 </table></div>
-<p>The tools return the same numbers as the report and the UI, as compact JSON of at most about 8,000 tokens each. The data tools take a time window (<code>from</code>, <code>to</code>, trace time in µs) and session <code>contexts</code> to narrow the scope; <code>lines</code> and <code>search_lines</code> work by file and line number. The traces are parsed in process. mtkprof itself connects to nothing, and what reaches a model is what the agent sends it. <code>mtkprof mcp &lt;trace…&gt;</code> opens those traces on the first tool call, which is handy in a project-scoped <code>.mcp.json</code>. Any MCP client that launches a stdio server works the same way.</p>
-<div class="callout"><p>Bind values are masked by default: type, length and a hash with a salt that is random per server, e.g. <code>&lt;NUMBER len=2 h=…&gt;</code>. Equal values match inside one session of the agent and nowhere else. SQL text, including its literals, is never masked, so think about where the agent's model runs before you point it at a production trace.</p></div>
+<p>The tools return the same numbers as the report and the UI, as compact JSON of at most about 8,000 tokens each. Scoped analysis tools take a time window (<code>from</code>, <code>to</code>, trace time in µs) and session <code>contexts</code> to narrow the scope; the discovery schemas describe each tool's arguments. For truncated results, narrow the scope or request another page. <code>lines</code> and <code>search_lines</code> work by file and line number. <code>mtkprof mcp &lt;trace…&gt;</code> defers parsing until the first tool call that needs a trace. The standalone server keeps one trace set open at a time and builds its model in memory; it does not use the desktop index cache or spill mode.</p>
+<h3>Standalone versus desktop</h3>
+<p>With <code>MTKPROF_ENGINE</code> unset, tools run inside the MCP process on local trace files. When the desktop app launches a CLI assistant, it sets <code>MTKPROF_ENGINE</code>, <code>MTKPROF_TOKEN</code>, <code>MTKPROF_SESSION</code> and <code>MTKPROF_CONVERSATION</code>: MCP then forwards calls over authenticated HTTP to the existing engine session. No separate MCP registration is needed for the desktop assistant.</p>
+<p>Standalone mode has <code>open_trace</code>. Desktop bridge mode instead adds <code>notes</code>, <code>current_view</code> and <code>show</code> for desktop context and navigation. In the bridge, bind masking follows the engine and conversation settings; <code>-binds keep</code> does not override them.</p>
+<h3>Data sent to the model</h3>
+<p>Standalone analysis runs locally; your client decides what it sends to its model. Tool results can include SQL text, file names, session metadata and trace lines. The standalone server does not show the desktop's per-trace/provider consent dialog.</p>
+<div class="callout"><p>Bind values are masked by default: type, length and a hash with a salt random per MCP server process, e.g. <code>&lt;NUMBER len=2 h=…&gt;</code>. Equal values match across traces opened by that process; restarting it creates a new salt. <code>-binds keep</code> exposes captured bind values. SQL text, including literals, is never masked. Desktop conversations use engine-managed masking instead.</p></div>
+<h3>MCP troubleshooting</h3>
+<ul>
+  <li><strong>Server cannot start:</strong> use an absolute executable path if the client's PATH differs from your terminal's. Check its MCP logs (stderr).</li>
+  <li><strong>Command waits in a terminal:</strong> it is waiting for JSON-RPC requests on stdin; the MCP client normally starts and drives it.</li>
+  <li><strong>No trace or unreadable file:</strong> call <code>open_trace</code> with absolute paths readable on the server's machine. Local paths are not automatically available inside a container or on a remote host.</li>
+  <li><strong>Unexpected engine/token errors:</strong> remove inherited <code>MTKPROF_*</code> bridge variables from the standalone server's environment and restart it. In bridge mode, verify that the engine, token and session are still valid.</li>
+  <li><strong>Missing waits, binds or plans:</strong> the tools can only report what the trace captured; missing data needs a new capture with the required tracing options.</li>
+</ul>
+<p>The <a href="https://github.com/davidbudac/modern-tkprof/blob/main/docs/MCP.md">full MCP guide</a> includes bridge variables, API routes and additional troubleshooting.</p>
 
 <!-- ================================================================ -->
 <h2 id="desktop-install">Desktop app: install and first start<a class="anchor" href="#desktop-install" aria-label="Link to this section">#</a></h2>
