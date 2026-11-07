@@ -367,7 +367,7 @@ statements, `from dba_hist` typed), `display-formatted-*`, `display-raw-*`, `dfi
 ### Batch 4 (2026-11-07): the highlight set, colour only for what is highlighted, the statement filter, the multi-select picker
 
 Commits: engine `e97fda4` ("Trace pane round 3b, batch 4 (engine): api/lines/stmts, the failed parse's lines get their statement, a cursor's `=====` rule goes with it") and web
-`WEB_SHA` ("Trace pane round 3b, batch 4: …"); this Log entry got its SHAs in the commit after them. Tests: `pnpm --filter mtkprof-web test` 773 pass (was 736: +7 `hlset`, +11 `stmtfilter`, +12
+`ce3cc56` ("Trace pane round 3b, batch 4: …"); this Log entry got its SHAs in the commit after them. Tests: `pnpm --filter mtkprof-web test` 773 pass (was 736: +7 `hlset`, +11 `stmtfilter`, +12
 `pickkeys`, +4 `lines` (the routes), +2 `readableRows`, +1 `stmtpick`), `pnpm -r typecheck` clean, desktop `pnpm test` 228 pass, `go vet ./...` and `go test ./internal/...` pass (new in `internal/slice`:
 `TestAnnotStmtIDs`, `TestStmtMapMatchesAnnot` (the route's line map equals the `annot=2` statement of EVERY line of every fixture, model-backed and spill-backed, and the SQLT trace, 29 ms to build for its
 112 k lines), `TestLinesStmtsRoute`, `TestLinesStmtsBadRequests`; the engine contract test counts 35 session routes now). `go test ./internal/slice` takes about 92 s (the existing
