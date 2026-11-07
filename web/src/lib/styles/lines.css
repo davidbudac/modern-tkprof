@@ -4,13 +4,15 @@
 .lines > * { flex: none; }
 .lines > .lines-body { flex: 1 1 0; }
 /* the toolbar: ONE row that does not wrap from 1100 px up (it may below, where it has no room): the search gives way first (down to 14 digits), then the labels fold
-   to icons one group after the other (.tb-f1 first … .tb-f4 last; every one has its tooltip), and the command button, View and the side panel stay at the end.
-   Pressed toggles are quiet (ink on a wash); only Raw | Formatted keeps a solid segment. */
+   to icons one group after the other (.tb-f1 first … .tb-f4 last; every one has its tooltip), and the command button, the state chips, Display and the side panel stay
+   at the end. Pressed toggles are quiet (ink on a wash); only Raw | Formatted keeps a solid segment. */
 .lines-bar { container-type: inline-size; padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
 .lines-row { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
 .lines-row > * { flex: none; }
 .lines-row > .tb-cmd { margin-inline-start: auto; }
+/* it wraps only where even the folded bar has no room: below 51rem; below 58rem when the time window group or the file select is there too */
 @container (inline-size < 51rem) { .lines-row { flex-wrap: wrap; } }
+@container (inline-size < 58rem) { .lines-row:has(.lines-win, select) { flex-wrap: wrap; } }
 .lines-bar select { font-size: var(--text-sm); max-inline-size: 18rem; flex: 0 1 auto; min-inline-size: 6rem; }
 .lines-bar button.quiet[aria-pressed="true"]:not(.tb-item) { background: var(--wash); color: var(--ink); border-color: var(--hairline-strong); }
 .lines-bar button.quiet[aria-pressed="true"]:not(.tb-item):hover { background: var(--wash-strong); }
@@ -19,20 +21,22 @@
 .lines-search { display: flex; align-items: stretch; max-inline-size: 30rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); }
 .lines-search:has(> input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -1px; }
 .lines-search input[type="search"] { flex: 1; min-inline-size: 14ch; border: 0; background: transparent; box-shadow: none; outline: none; font-family: var(--font-mono); font-size: var(--text-sm); padding-inline: var(--sp-2); }
-.lines-search > button, .lines-search > .tbmenu > button { border: 0; border-radius: 0; border-inline-start: 1px solid var(--hairline); }
+.lines-search > button, .lines-search > .tbmenu > button { border: 0; border-radius: 0; border-inline-start: 1px solid var(--hairline); white-space: nowrap; } /* (so the search's least width is its box and its menu, not a menu button broken into letters) */
 .lines-search > .tbmenu > button[aria-pressed="true"] { border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0; }
 /* the command button: the label and the key (the label goes when the bar is narrow); the panel button: an icon (and the hit count while it is closed) */
 .tb-cmd > button kbd, .lines-row .tb-panel kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); margin-inline-start: var(--sp-2); }
 .tb-panel { display: inline-flex; align-items: center; gap: 0.4em; }
 .tb-panel small { color: inherit; opacity: .7; font-variant-numeric: tabular-nums; }
 .tb-ico { flex: none; }
-/* the labels fold to icons as the bar narrows, after the search has given way to its least (14 digits). Measured with everything on (the pin, the Δ filter on, the
-   search at 14 digits), the row needs: 1362 px of bar with all labels, 1232 without .tb-f1, 1051 without .tb-f1 .tb-f2, 921 without .tb-f1 .. .tb-f3, 804 without any (a
-   window of 32 px more); the limits below leave a margin for longer counts. So from a 1100 px window up, the row stays one line. */
-@container (inline-size < 87rem) { .lines-row .tb-f1 { display: none; } .tb-cmd > button kbd { margin-inline-start: 0; } }
-@container (inline-size < 79rem) { .lines-row .tb-f2 { display: none; } }
-@container (inline-size < 67rem) { .lines-row .tb-f3 { display: none; } }
-@container (inline-size < 59rem) { .lines-row .tb-f4 { display: none; } .lines-mode > button { padding-inline: 0.55rem; } }
+/* the labels fold to icons as the bar narrows, after the search has given way to its least (14 digits). Measured in the worst case, a formatted bar with everything on (the Δ filter's
+   chip with a count of 100,000+, the pin, the time window group, the file select at its least width, the search at 14 digits), the row needs: 1538 px of bar with all labels, 1400
+   without .tb-f1, 1140 without .tb-f1 .tb-f2 (the window's words, the chip's mode and count), 1042 without .tb-f1 .. .tb-f3, 909 without any; with only the Δ filter chip and the pin
+   (no window, one file) 1133, 996, 894, 796, 663; with nothing on 947, 810, 810, 712, 579. The limits below are the worst case's plus 20 to 30 px for longer counts, so from a 1100 px
+   window up the row stays one line whatever is on. */
+@container (inline-size < 98rem) { .lines-row .tb-f1 { display: none; } .tb-cmd > button kbd { margin-inline-start: 0; } }
+@container (inline-size < 89rem) { .lines-row .tb-f2 { display: none; } }
+@container (inline-size < 73rem) { .lines-row .tb-f3 { display: none; } }
+@container (inline-size < 67rem) { .lines-row .tb-f4 { display: none; } .lines-mode > button { padding-inline: 0.55rem; } }
 .lines-tools { display: flex; align-items: center; gap: var(--sp-2); margin-inline-start: auto; }
 .lines-win { display: flex; align-items: center; gap: var(--sp-2); padding-inline-start: var(--sp-2); border-inline-start: 1px solid var(--hairline); }
 .lines-win b { font-weight: 600; font-size: var(--text-sm); }
@@ -261,20 +265,16 @@
 .lines-view h4 .h4-note, .lines-view h4 .h4-id { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .lines-view h4 .h4-id { color: var(--ink-2); }
 .lines-view .tb-item small { margin-inline-start: 0.4em; }
-/* a colour of the key without a tick: the swatch lines up with the ticked ones */
-.lines-view-key { cursor: default; }
-.lines-view-key > span:first-child { inline-size: 13px; }
 .lines-view-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-2); padding-block: 2px; padding-inline: var(--sp-1); border-radius: var(--radius); white-space: nowrap; overflow: clip; cursor: pointer; }
-.lines-view-row:active:not(.lines-view-key) { background: var(--wash); }
+.lines-view-row:active { background: var(--wash); }
 .lines-view-row:has(:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
 .lines-view-row kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
 .lines-view-gap { grid-template-columns: auto auto auto; justify-content: start; cursor: default; }
 .lines-view-gap input { inline-size: 4.5rem; }
-.lines-view-folds { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .lines-swatch { display: inline-block; inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; margin-inline-end: .4em; background: var(--tone, var(--ink-3)); }
 .lines-swatch.lines-swatch-mk { inline-size: 4px; block-size: 0.9em; border-radius: 1px; vertical-align: -0.1em; background: var(--c-cpu); }
 @media (hover: hover) and (pointer: fine) {
-  .lines-view-row:hover:not(.lines-view-key) { background: var(--wash); }
+  .lines-view-row:hover { background: var(--wash); }
 }
 .lines-recent { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding-block: var(--sp-1); }
 .lines-chip { display: inline-flex; align-items: center; }
@@ -295,15 +295,49 @@
 .lines-side { container: lines-side / inline-size; inline-size: min(var(--w, 25rem), 50vw); min-inline-size: 16rem; box-sizing: border-box; min-block-size: 0; display: flex; flex-direction: column; padding: var(--sp-2) var(--sp-3); border-inline-start: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); }
 .lines-side-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
 .lines-side-head .seg { flex: 0 1 auto; min-inline-size: 0; }
-.lines-side-head .seg button { font-size: var(--text-sm); padding-inline: var(--sp-3); white-space: nowrap; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; }
+.lines-side-head .seg button { font-size: var(--text-sm); padding-inline: 0.375rem; white-space: nowrap; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; } /* (six tabs and a hit count in 400 px) */
 .lines-side-head > button { flex: none; }
 .lines-side-head .seg small { opacity: .7; font-variant-numeric: tabular-nums; }
 .lines-side-body { flex: 1; min-block-size: 0; display: flex; flex-direction: column; }
-.lines-side-line, .lines-side-bookmarks { overflow: auto; }
+.lines-side-line, .lines-side-bookmarks, .lines-side-display { overflow: auto; }
 .lines-side-tools { display: flex; align-items: center; gap: var(--sp-2); }
 .lines-side-tools .lines-status { flex: 1; min-inline-size: 0; padding-inline: 0; }
 .lines-side .lines-bms { padding-inline: 0; }
 .lines-side .lines-hits { margin-inline: calc(-1 * var(--sp-3)); }
+
+/* the Display tab: settings as a calm list of labelled form controls, sections split by hairlines as the Line tab's are */
+.ld { padding-block: var(--sp-1) var(--sp-4); }
+.ld-sec { padding-block: var(--sp-3); border-block-start: 1px solid var(--hairline); }
+.ld-sec:first-child { border-block-start: 0; padding-block-start: var(--sp-2); }
+.ld-sec h4 { margin: 0 0 var(--sp-2); font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
+.ld-sec h4 .h4-note { font-weight: 400; color: var(--ink-3); }
+.ld-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--sp-2); padding-block: 3px; cursor: pointer; color: var(--ink); }
+.ld-row input { margin: 0; accent-color: var(--ink); }
+.ld-row:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: var(--radius); }
+.ld-lbl { min-inline-size: 0; }
+.ld-row kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface); }
+.ld-row .ld-note { grid-column: 2 / -1; }
+.ld-note { margin: 0; font-size: var(--text-xs); color: var(--ink-3); line-height: 1.4; }
+p.ld-note { margin-block-start: var(--sp-2); }
+.ld-radios { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); column-gap: var(--sp-3); }
+.ld-modes { display: flex; flex-wrap: wrap; column-gap: var(--sp-4); }
+.ld-inline { display: flex; align-items: center; gap: var(--sp-2); padding-block: 3px; color: var(--ink); }
+.ld-inline input { inline-size: 4.5rem; }
+.ld-keyrow { cursor: default; grid-template-columns: 13px minmax(0, 1fr); color: var(--ink-2); } /* (the first cell stands where the tick of a row that can be dimmed is, so the swatches line up) */
+.ld-key { list-style: none; margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3); display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius); font-size: var(--text-xs); color: var(--ink-2); }
+.ld-key li { white-space: nowrap; }
+.ld-folds { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.ld-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.ld-legend li { display: grid; grid-template-columns: 4rem minmax(0, 1fr); column-gap: var(--sp-3); align-items: start; color: var(--ink-2); line-height: 1.45; }
+.ld-legend b { font-weight: 600; color: var(--ink); }
+.ld-legend kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface); }
+/* the swatches of the key: a hot row, the Duration bar with its 1 % tick, an amber Δ, a highlighted lane */
+.ld-hot { display: block; block-size: 18px; border-radius: 2px; background: color-mix(in oklch, var(--s-critical) 16%, transparent); box-shadow: inset 3px 0 0 var(--s-critical); }
+.ld-bar { display: block; position: relative; inline-size: 56px; block-size: 8px; margin-block-start: 5px; border-radius: 1px; background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--hairline); }
+.ld-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 62%; background: var(--c-phase-exec); border-radius: 1px; }
+.ld-bar::after { content: ""; position: absolute; inset-block: -2px; inset-inline-start: 50%; inline-size: 1px; background: var(--hot-tick, var(--s-critical)); }
+.ld-amber { display: block; font-style: normal; font-variant-numeric: tabular-nums; font-weight: 500; text-align: end; padding-inline-end: var(--sp-2); color: var(--s-warning); }
+.ld-lane { display: block; block-size: 18px; inline-size: 6px; margin-inline-start: 10px; background: var(--c-cpu); border-radius: 1px; box-shadow: 0 0 0 4px color-mix(in oklch, var(--c-cpu) 14%, transparent); }
 
 /* the inspector (the Line tab): a head (line number and kind, Follow and Copy), then sections split by hairlines, each on one grammar:
    an ink-2 label, an ink value in the UI face with tabular figures */
@@ -518,24 +552,10 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .asrun-binds th { text-align: start; font-weight: 500; color: var(--ink-2); border-block-end: 1px solid var(--hairline); }
 .asrun-binds td, .asrun-binds th { padding: 2px var(--sp-2); vertical-align: top; }
 .asrun-val { overflow-wrap: anywhere; }
-/* the readable mode's controls in the toolbar */
-.lines-rd { display: flex; align-items: center; gap: var(--sp-1); }
-.lines-rd > .tb-icon { display: inline-flex; align-items: center; padding-inline: 0.45rem; }
 /* Hot spot ↑ ↓ and the count: one group */
 .lines-hot { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .lines-hot > .tb-label { color: var(--ink-2); }
 .lines-hot > small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
-/* the Colour menu: a swatch of the mode's first colours, the mode in bold */
-.lines-colour > button { display: inline-flex; align-items: center; gap: 0.4em; }
-.lines-colour > button b { font-weight: 600; color: inherit; }
-.lines-colour-sw { flex: none; inline-size: 0.85em; block-size: 0.85em; border-radius: 3px; background: var(--sw); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
-.lines-colour-note { margin: var(--sp-1) var(--sp-1) 0; max-inline-size: 17rem; white-space: normal; }
-/* the Δ filter: the threshold and the mode on the button while it is on */
-.lines-dfilter > button { display: inline-flex; align-items: center; gap: 0.35em; font-variant-numeric: tabular-nums; }
-.lines-dfilter-sym { font-weight: 700; }
-.lines-dfilter > button small { color: var(--ink-3); }
-.lines-dfilter.on > button { color: var(--ink); background: color-mix(in oklch, var(--c-other) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--c-other) 45%, transparent); }
-.lines-dfilter.on > button small { color: var(--ink-2); }
 /* the raw view's highlight chip (the formatted view has the outlined statement chip of the overview bar instead) */
 .lines-hl { display: inline-flex; flex: 0 1 auto; min-inline-size: 0; overflow: hidden; align-items: center; gap: var(--sp-1); padding: 1px var(--sp-1) 1px var(--sp-2); font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; border-radius: var(--radius); background: color-mix(in oklch, var(--hl) 14%, transparent); box-shadow: inset 3px 0 0 var(--hl); }
 .lines-hl > i { inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; background: var(--hl); }
@@ -546,31 +566,73 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-pin { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
 .lines-pin b { color: var(--c-commit); font-weight: 600; }
 
-/* the readable view's key: a 12 px track of when the statements with the most time ran with a thin time axis and a bracket of the rows in view,
-   and the statements as chips (`sql_id 2.486 s · 38 %`; the ones under 1 % fold into one) */
-.rd-over { display: flex; flex-direction: column; gap: 6px; padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
+/* a state chip of the toolbar: shown only while the setting is not its default, says what it is doing and has the × that turns it off; a click on the text opens the Display tab */
+.lines-state { display: inline-flex; align-items: stretch; font-size: var(--text-sm); white-space: nowrap; border-radius: var(--radius); font-variant-numeric: tabular-nums; }
+.lines-state > button { border: 0; border-radius: 0; background: none; color: inherit; }
+.lines-state-main { display: inline-flex; align-items: center; padding-inline: var(--sp-2) var(--sp-1); white-space: pre; }
+.lines-state-x { padding-inline: 0.4em var(--sp-2); color: var(--ink-2); }
+.lines-state > button:first-child { border-start-start-radius: var(--radius); border-end-start-radius: var(--radius); }
+.lines-state > button:last-child { border-start-end-radius: var(--radius); border-end-end-radius: var(--radius); }
+.lines-dstate { color: var(--ink); background: color-mix(in oklch, var(--c-other) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--c-other) 45%, transparent); }
+.lines-dstate > button:hover { background: color-mix(in oklch, var(--c-other) 16%, transparent); }
+/* the Display button: sliders and, when Show / dim settings are off their defaults, how many */
+.tb-display { display: inline-flex; align-items: center; gap: 0.4em; }
+.tb-display small { color: inherit; opacity: .7; font-variant-numeric: tabular-nums; }
+
+/* the formatted view's overview row: the statement picker at the left, then a 12 px track of when the statements with the most time ran with a thin time axis and a bracket of the
+   rows in view. The picker's column keeps its width whether or not a statement is highlighted, so the track does not shift under the pointer when one is picked. */
+.rd-over { padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
+.time-bar { display: grid; grid-template-columns: clamp(14rem, 24%, 25rem) minmax(0, 1fr); align-items: center; column-gap: var(--sp-4); }
 .tb-main { min-inline-size: 0; }
 .tb-track { position: relative; block-size: 12px; background: var(--surface-sunken); border-radius: 2px; cursor: pointer; }
 .tb-track .seg { position: absolute; inset-block: 0; }
+.tb-track .seg.cur { box-shadow: 0 0 0 1px var(--ink); z-index: 1; }
 .tb-track .vbracket { position: absolute; inset-block: -3px; background: color-mix(in oklch, var(--ink) 20%, transparent); border-inline: 1px solid var(--ink); box-sizing: border-box; pointer-events: none; }
 .tb-track .at { position: absolute; inset-block: 0; inline-size: 1.5px; background: var(--ink); pointer-events: none; }
 .tb-axis { position: relative; block-size: 14px; margin-block-start: 3px; font-size: 10px; color: var(--ink-3); line-height: 12px; font-variant-numeric: tabular-nums; }
 .tb-axis .ax { position: absolute; inset-block-start: 0; transform: translateX(-50%); white-space: nowrap; }
 .tb-axis .ax i { position: absolute; inset-block-start: -3px; inset-inline-start: 50%; inline-size: 1px; block-size: 3px; background: var(--hairline-strong); }
-.rd-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); }
-.rd-over .chip { display: inline-flex; align-items: center; gap: 0.4em; padding-inline: 6px; block-size: 20px; box-sizing: border-box; border-radius: var(--radius); border: 1px solid color-mix(in oklch, var(--hairline-strong) 60%, transparent); background: none; font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; }
-.rd-over .chip i { inline-size: 0.7em; block-size: 0.7em; border-radius: 2px; flex: none; }
-.rd-over .chip small { color: var(--ink-3); font-size: inherit; font-variant-numeric: tabular-nums; }
-.rd-over .chip-main { all: unset; display: inline-flex; align-items: center; gap: 0.4em; cursor: pointer; }
-.rd-over .chip-main:focus-visible, .rd-over .chip .x:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: 2px; }
-.rd-over button.chip:hover, .rd-over .chip-stmt:hover { background: var(--wash); border-color: var(--hairline-strong); color: var(--ink); }
-/* the highlighted statement: outlined in its colour, its count and the × that stops the highlight on it */
-.rd-over .chip.on { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--chip); background: color-mix(in oklch, var(--chip) 12%, transparent); border-color: transparent; }
-.rd-over .chip.on small { color: var(--ink-2); }
-.rd-over .chip .x { all: unset; margin-inline-start: 2px; padding-inline: 4px; color: var(--ink-2); cursor: pointer; }
-.rd-over .chip .x:hover { color: var(--ink); }
-.rd-over .chip .cnt { margin-inline-start: 6px; padding-inline-start: 8px; border-inline-start: 1px solid var(--hairline-strong); }
-.rd-over .chip-fold { border-style: dashed; cursor: pointer; }
+
+/* the statement picker: one bordered control (the button and, with a statement highlighted, its ×); highlighted, it is outlined in the statement's colour as its chip was.
+   Its popover: a filter box, the column names, a virtualised list (rows of a fixed height), a line of keys. */
+.stmt-pick { display: flex; align-items: stretch; min-inline-size: 0; block-size: 26px; box-sizing: border-box; border: 1px solid color-mix(in oklch, var(--hairline-strong) 80%, transparent); border-radius: var(--radius); background: var(--surface-raised); font-size: var(--text-sm); }
+.stmt-pick.on { border-color: transparent; box-shadow: inset 0 0 0 1.5px var(--chip); background: color-mix(in oklch, var(--chip) 10%, var(--surface-raised)); }
+.stmt-pick-menu { flex: 1 1 auto; min-inline-size: 0; }
+.stmt-pick-menu > button { flex: 1 1 auto; min-inline-size: 0; display: flex; align-items: center; justify-content: flex-start; gap: 0.5em; border: 0; border-radius: calc(var(--radius) - 1px); background: none; padding-inline: var(--sp-2); text-align: start; white-space: nowrap; overflow: hidden; color: var(--ink); }
+.stmt-pick-menu > button[aria-pressed="true"] { background: var(--wash); color: var(--ink); border-color: transparent; }
+.stmt-pick-menu > button .cue { margin-inline-start: auto; color: var(--ink-3); }
+.sp-none { color: var(--ink-3); }
+.sp-sw { flex: none; inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; background: var(--chip); }
+.sp-id { flex: none; font-weight: 600; color: color-mix(in oklch, var(--chip) 80%, var(--ink)); }
+.stmt-pick-menu > button small { flex: none; font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.stmt-pick-menu > button .sp-cnt { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); padding-inline-start: 0.6em; border-inline-start: 1px solid var(--hairline-strong); }
+.stmt-pick .sp-x { flex: none; border: 0; border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0; background: none; padding-inline: 0.6em; color: var(--ink-2); line-height: 1; }
+.stmt-pick .sp-x:hover { color: var(--ink); }
+.stmt-pick-menu > button:focus-visible, .stmt-pick .sp-x:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.stmt-pick-menu .tbpop { inline-size: min(46rem, 92vw); block-size: auto; max-block-size: 80dvh; padding: 0; overflow: hidden; }
+.sp-pop { display: flex; flex-direction: column; min-block-size: 0; }
+.sp-find { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--hairline); }
+.sp-find input { flex: 1 1 auto; min-inline-size: 0; font-family: var(--font-mono); }
+.sp-n { flex: none; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sp-head, .sp-row { display: grid; grid-template-columns: 14px 6.5rem 4.25rem 3rem 3rem minmax(0, 1fr); align-items: center; column-gap: var(--sp-3); padding-inline: var(--sp-3); box-sizing: border-box; }
+.sp-head { block-size: 20px; font-size: var(--text-xs); color: var(--ink-3); border-block-end: 1px solid var(--hairline); }
+.sp-head > span:nth-child(n+3):nth-child(-n+5) { text-align: end; }
+.sp-list { block-size: min(26rem, 55dvh); overflow-y: auto; overscroll-behavior: contain; position: relative; }
+.sp-row { cursor: pointer; white-space: nowrap; font-size: var(--text-sm); }
+.sp-row.active { background: var(--wash-strong); }
+.sp-row.cur { box-shadow: inset 3px 0 0 var(--chip); }
+.sp-row .sp-sw { background: var(--chip); }
+.sp-label { font-weight: 600; color: color-mix(in oklch, var(--chip) 80%, var(--ink)); overflow: hidden; text-overflow: ellipsis; }
+.sp-num { text-align: end; color: var(--ink); font-variant-numeric: tabular-nums; }
+.sp-share, .sp-ex { color: var(--ink-2); }
+.sp-sql { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-xs); }
+.sp-pop mark { background: color-mix(in oklch, var(--c-commit) 35%, transparent); color: inherit; border-radius: 2px; }
+.sp-row-none { border-block-end: 1px solid var(--hairline); }
+.sp-row-none .sp-label { color: var(--ink); grid-column: 2 / 4; font-family: inherit; }
+.sp-row-none .sp-hint { grid-column: 4 / -1; color: var(--ink-3); font-size: var(--text-xs); }
+.sp-empty { margin: 0; padding: var(--sp-4) var(--sp-3); color: var(--ink-3); text-align: center; }
+.sp-foot { margin: 0; padding: var(--sp-1) var(--sp-3); border-block-start: 1px solid var(--hairline); font-size: var(--text-xs); color: var(--ink-3); }
+.sp-pop kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
 
 /* readable mode: a plan dump or a BINDS block as one table (components/PlanCells.tsx, LineViewer.tsx TableBand): a head row of its own with the column names, then a row per
    STAT or Bind# line. The band runs from the Operation column to the right edge (the clock's column included), inset 1 digit each side, on the sunken ground in a 1 px

@@ -463,6 +463,19 @@ restores). Pieces:
   It is the only tall row of the viewer, which keeps its grid of 20 px rows for everything it counts (scroll bar, keys, folds,
   go-to) and measures the layer only while a tall row is rendered (`offsetOf`, `topFromOffset`, `settle`, `tailTop` in
   `LineViewer.tsx`).
+- **The pane's controls** (round 3, DESIGN § Formatted Lines view). The toolbar of `Lines.tsx` holds what is used while reading (the
+  `raw | formatted` switch, the search and its Options menu, Hot spot ↑ ↓, Step, Go to, the input-file select) and the **state chips**
+  (the Δ filter's, the pin, the time window group, the raw view's Highlighting chip: each only while it is not the default), then the
+  Display and Side panel buttons. The settings live in the side panel's **Display tab** (`views/LinesDisplay.tsx`: real form controls over
+  `useLinesPrefs`, the Δ filter, the bulk folds, the key to the formatted rows; formatted-only sections are not rendered in the raw view);
+  its tab is one of `PANEL_TABS` and `panelAfter` (`data/display.ts`) is the single rule the Display button, the Side panel button, the
+  keys and the palette's "Side panel: …" commands open and close the panel by (`LinesUi.tab`, `lastTab`). `data/display.ts` also holds the
+  Show toggles, the dim groups, the Δ modes, `displayBadge` (the Display button's badge) and `deltaChipParts` (the Δ chip's words, in two
+  parts so a narrow bar can fold the second). The **statement picker** (`views/StatementPicker.tsx`, in the overview row of
+  `views/ReadableOverview.tsx`) is a `ToolbarMenu` whose popover is a filter box over a react-virtual list; its rows and filter are
+  `data/stmtpick.ts` (`pickRows`: the statements with a cursor in the file by elapsed time; `filterRows`; `sqlCut`, the SQL's start or the
+  text around a match). Its open state is `LinesUi.picker`, so `L` and the palette command "Highlight a statement…" open it. The toolbar's
+  label folds are the container queries `.tb-f1` … `.tb-f4` of `styles/lines.css` (thresholds measured there).
 - `components/colors.ts` `lineTone`: kind -> role colour (calls `cpu`, waits `userio`,
   cursor lines `sysio`, binds `network`, STAT/commit `commit`, lob/rpc `other`,
   errors `--s-critical`, framing lines dim); `lines.css` mixes it 55 % into the ink.

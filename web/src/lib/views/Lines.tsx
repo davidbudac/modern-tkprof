@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Key
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
 import { blockAt, filterFolds, foldAt, foldHiding, indexFolds, standingFolds, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope, type SqlBand } from '../data/lines'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope, type SqlBand } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeLines } from '../data/rangesum'
@@ -10,10 +10,9 @@ import { describeLines, lineCount, type LineSet } from '../data/lineset'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
 import { LineStrip } from '../components/LineStrip'
-import { LINES_PREFS_DEFAULTS, useLinesPrefs, type DeltaMode } from '../state/linesPrefs'
+import { LINES_PREFS_DEFAULTS, useLinesPrefs } from '../state/linesPrefs'
 import { LANE_COLORS, laneLegend } from '../data/lanecolor'
 import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
-import { lineToneToken } from '../components/colors'
 import { CommandPalette, type Command } from '../components/CommandPalette'
 import { inlaysOf } from '../data/inlays'
 import { gapBefore } from '../data/gaps'
@@ -22,7 +21,10 @@ import { viewSpan } from '../data/overview'
 import { QUIET_TONE, statementTones, toneColor } from '../data/readable'
 import { readableRowsOf, type Pin } from './readableRows'
 import { AsRun } from './AsRun'
-import { ReadableOverview, type StmtCounts } from './ReadableOverview'
+import { ReadableOverview } from './ReadableOverview'
+import type { StmtCounts } from './StatementPicker'
+import { LinesDisplay } from './LinesDisplay'
+import { DELTA_MODES, MUTE_GROUPS, PANEL_TABS, SHOW_TOGGLES, deltaChipParts, displayBadge, fmtMs, panelAfter, type PanelTab } from '../data/display'
 import { FormattedHead, columnVars } from '../components/FormattedHead'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
@@ -62,8 +64,8 @@ interface LinesUi {
   stepMenu: boolean
   /** the key map popover (under the command button) */
   keys: boolean
-  /** the View menu (display toggles, the kind groups to dim, bulk folds) */
-  viewMenu: boolean
+  /** the overview row's statement picker */
+  picker: boolean
   /** the command palette */
   palette: boolean
   /** the cursor id whose rows stay bright (the others are dimmed), null for none */
@@ -72,6 +74,8 @@ interface LinesUi {
   lines: LineRange[] | null
   /** the side panel's tab (whether the panel is open is the global `inspect` pref) */
   tab: PanelTab
+  /** the last tab that was not Display: the side panel button opens it, as the Display button opens Display */
+  lastTab: Exclude<PanelTab, 'display'>
   /** the hits listed by statement (the Hits tab), and the statements whose group is open (-1 none, -2 not loaded yet) */
   groupHits: boolean
   openGroups: Set<number>
@@ -89,17 +93,9 @@ interface LinesUi {
   openRepeats: Set<number>
   /** the Δ filter's folds the user opened (their kept lines), for the filter answer `key` */
   openFilter: { key: string; lines: Set<number> }
-  /** the Δ filter's menu */
-  deltaMenu: boolean
-  /** the Colour menu */
-  colourMenu: boolean
   /** the line whose execution the As run tab shows (0: the selected line) */
   asRunLine: number
 }
-
-/** The tabs of the side panel: the selected line translated, the outline of the file, the search hits, the bookmarks. */
-type PanelTab = 'line' | 'outline' | 'hits' | 'bookmarks' | 'asrun'
-const PANEL_TABS: { tab: PanelTab; label: string }[] = [{ tab: 'line', label: 'Line' }, { tab: 'outline', label: 'Outline' }, { tab: 'hits', label: 'Hits' }, { tab: 'bookmarks', label: 'Bookmarks' }, { tab: 'asrun', label: 'As run' }]
 
 const uis = new WeakMap<Store, Map<number, LinesUi>>()
 function uiOf(store: Store, file: number): LinesUi {
@@ -110,9 +106,9 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
-      optionsMenu: false, stepMenu: false, keys: false, viewMenu: false, palette: false, focus: null, lines: null,
-      tab: 'line', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, folds: [], back: [], cur: 0, pin: null, openRepeats: new Set(), asRunLine: 0,
-      openFilter: { key: '', lines: new Set() }, deltaMenu: false, colourMenu: false,
+      optionsMenu: false, stepMenu: false, keys: false, picker: false, palette: false, focus: null, lines: null,
+      tab: 'line', lastTab: 'line', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, folds: [], back: [], cur: 0, pin: null, openRepeats: new Set(), asRunLine: 0,
+      openFilter: { key: '', lines: new Set() },
     }))
   }
   return u
@@ -129,16 +125,6 @@ const STEPS: [NextWhat, string, [string, string]][] = [
   ['commit', 'commit', ['x', 'X']],
 ]
 
-/** The View menu's display toggles: the pref, its label, tooltip and key. */
-const SHOW_TOGGLES: { key: 'wrap' | 'heat' | 'strip' | 'links' | 'hints' | 'clock' | 'delta'; label: string; title: string; keys?: string }[] = [
-  { key: 'wrap', label: 'Wrap long lines', title: 'wrap long lines instead of scrolling sideways; in the formatted view, show each SQL statement pretty-printed in full' },
-  { key: 'heat', label: 'Heat bars', keys: 'h', title: 'a bar in the right gutter for the elapsed time of calls and waits' },
-  { key: 'strip', label: 'Density strip', title: 'the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move' },
-  { key: 'links', label: 'Reference links', title: 'underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click shows the statement (its SQL and a summary) in a popup, the Statements view is one click further (Shift: the cursor\'s parse line)' },
-  { key: 'hints', label: 'Hints', keys: 'n', title: 'dim notes inside the rows: bind values and idle gaps' },
-  { key: 'clock', label: 'Clock time', title: "a column beside the line numbers with each line's tim= as a wall-clock time in the trace's zone (the time from the start when the trace has no wall clock)" },
-  { key: 'delta', label: 'Time delta', title: 'a column beside the line numbers with the time of each line from an anchor (●): the selected line when it is in view, else the first line in view with a time' },
-]
 /** The modifier the platform's command key is shown with. */
 const MOD = typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘' : 'Ctrl+'
 const SEARCH_LIMIT = 10_000
@@ -155,26 +141,6 @@ const FOLD_STEP = 20
 /** lines after the rounded first line that are searched for blocks that can be folded (covers a tall view) */
 const FOLD_SPAN = 240
 
-/** The line kinds that can be dimmed together (the View menu's ticks): the kinds of each group. */
-const MUTE_GROUPS: { name: string; label: string; kinds: LineKind[] }[] = [
-  { name: 'framing', label: 'Framing (blank, header, separator)', kinds: ['blank', 'header', 'separator'] },
-  { name: 'binds', label: 'Binds', kinds: ['binds', 'bind-line'] },
-  { name: 'stat', label: 'STAT lines', kinds: ['stat'] },
-  { name: 'markers', label: 'Markers (***)', kinds: ['marker'] },
-  { name: 'waits', label: 'Waits', kinds: ['wait'] },
-]
-/** The View menu's colour key: a row per line colour (a kind it stands for, for the swatch), with a tick when its lines can be dimmed. */
-const COLOUR_ROWS: { label: string; kind: LineKind; mute?: string; title?: string }[] = [
-  { label: 'calls', kind: 'call' },
-  { label: 'waits', kind: 'wait', mute: 'waits' },
-  { label: 'PARSING IN CURSOR, END OF STMT', kind: 'parsing-in-cursor' },
-  { label: 'binds', kind: 'binds', mute: 'binds' },
-  { label: 'STAT / commit', kind: 'stat', mute: 'stat', title: 'the tick dims the STAT lines (the commits stay)' },
-  { label: 'errors', kind: 'error' },
-  { label: 'LOB / RPC', kind: 'lob' },
-  { label: 'session markers (***)', kind: 'marker', mute: 'markers' },
-  { label: 'framing (header, blank, ====)', kind: 'header', mute: 'framing' },
-]
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 const NO_HOT: ReadonlyMap<number, number> = new Map()
 
@@ -196,23 +162,15 @@ function repeatFold(r: RepeatFold): Fold {
   return { from: r.from, to: r.to, summary, label, us: r.us, auto: true }
 }
 
+/** The Display button's icon: two sliders. */
+const SlidersIcon = () => (
+  <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true" className="tb-ico"><path d="M1 3h12M1 9h12" stroke="currentColor" strokeWidth="1.2" fill="none" /><circle cx="9" cy="3" r="1.9" fill="var(--surface-raised)" stroke="currentColor" strokeWidth="1.2" /><circle cx="4.5" cy="9" r="1.9" fill="var(--surface-raised)" stroke="currentColor" strokeWidth="1.2" /></svg>
+)
+
 /** The side panel's icon: a window with a column at its end. */
 const PanelIcon = () => (
   <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true" className="tb-ico"><rect x="0.5" y="0.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" /><line x1="8.5" y1="1" x2="8.5" y2="11" stroke="currentColor" /></svg>
 )
-
-/** Fold repeats' icon: three rows gathered by a brace into one. */
-const FoldRepeatsIcon = () => (
-  <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true" className="tb-ico"><path d="M1 2h7M1 6h7M1 10h7" stroke="currentColor" strokeWidth="1.4" fill="none" /><path d="M10 1.2c1.2 0 1.6.5 1.6 1.6v1.6c0 .8.5 1.4 1.6 1.6-1.1.2-1.6.8-1.6 1.6v1.6c0 1.1-.4 1.6-1.6 1.6" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" /><path d="M13.6 6H15" stroke="currentColor" strokeWidth="1.4" /></svg>
-)
-
-const DELTA_MODES: { mode: DeltaMode; label: string; title: string }[] = [
-  { mode: 'off', label: 'Off', title: 'every row as usual' },
-  { mode: 'highlight', label: 'Highlight', title: 'tint the rows that reach the threshold; every row stays' },
-  { mode: 'filter', label: 'Filter', title: 'show only the rows that reach the threshold (z on a row shows the lines hidden under it)' },
-]
-/** A threshold in ms as the bar says it. */
-const fmtMs = (ms: number) => (ms >= 1000 ? `${+(ms / 1000).toFixed(3)} s` : ms < 1 ? `${+(ms * 1000).toFixed(0)} µs` : `${+ms.toFixed(3)} ms`)
 
 /** The strip with the visible range of the viewer as its own state: a scroll re-renders this, not the whole view. */
 type StripProps = Omit<Parameters<typeof LineStrip>[0], 'view'>
@@ -283,7 +241,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const [noting, setNoting] = useState<number | null>(null) // the line whose note is being written
   const ui = uiOf(store, file)
   const [, bump] = useReducer((x: number) => x + 1, 0)
-  const set = useCallback((patch: Partial<LinesUi>) => { Object.assign(ui, patch); bump() }, [ui])
+  const set = useCallback((patch: Partial<LinesUi>) => {
+    Object.assign(ui, patch)
+    if (patch.tab && patch.tab !== 'display') ui.lastTab = patch.tab
+    bump()
+  }, [ui])
   const [prefs, setPrefs] = useLinesPrefs() // the display toggles are global, not per file
   const muteSet = useMemo(() => new Set(prefs.mute), [prefs.mute])
 
@@ -595,7 +557,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     resolveAt(lv.line, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lv.seq])
-  useEffect(() => () => { ui.top = topRef.current }, [ui])
+  useEffect(() => () => { ui.top = topRef.current; ui.picker = false }, [ui]) // (the statement picker does not come back open with the tab)
 
   // ---- gutter marks of the selected statement ----------------------------------------------------------------------
   const source = sourceOf(doc)
@@ -747,7 +709,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }
   /** The next / previous idle gap of at least `prefs.gapMs` ms. */
   const stepGap = (dir: 1 | -1) => {
-    if (!(prefs.gapMs > 0)) { flash('set the gap threshold above 0 ms in the View menu'); return }
+    if (!(prefs.gapMs > 0)) { flash('set the gap threshold above 0 ms in the Display tab'); return }
     stepNext('gap', `gap of ${fmtInt(prefs.gapMs)} ms or more`, dir, prefs.gapMs * 1000)
   }
   /** The next / previous execution of the selected line's cursor, from the line card's answer. */
@@ -769,16 +731,24 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (st === stmt) { actions.selectStmt(null); flash('no statement highlighted') }
     else { actions.pickStmt(st); flash(`highlighting ${doc.label(doc.statements[st])}`) }
   }
+  /** Opens the overview row's statement picker (the formatted view's; the raw view has the Highlighting chip and no list). */
+  const openPicker = () => {
+    if (!readable) { flash('the statement picker is in the formatted view (v); the raw view highlights the selected line\'s statement with l'); return }
+    set({ picker: true, keys: false })
+  }
   const openStatement = () => {
     if (at && at.line === selected && at.objs.stmt >= 0) actions.selectStmt(at.objs.stmt)
     else flash(`no statement at line ${fmtInt(selected)}`)
   }
-  /** Opens the side panel at `tab`, or closes it when it already shows that tab; no tab toggles the panel as it is. */
-  const togglePanel = (tab?: PanelTab) => {
-    if (!tab) setPrefs({ inspect: !prefs.inspect })
-    else if (prefs.inspect && ui.tab === tab) setPrefs({ inspect: false })
-    else { set({ tab }); if (!prefs.inspect) setPrefs({ inspect: true }) }
+  /** The side panel as `panelAfter` says: at `want`, or closed when it already shows it; no tab is the panel button. */
+  const togglePanel = (want?: PanelTab) => {
+    const next = panelAfter({ open: prefs.inspect, tab: ui.tab, last: ui.lastTab }, want)
+    if (next.tab !== ui.tab) set({ tab: next.tab })
+    if (next.open !== prefs.inspect) setPrefs({ inspect: next.open })
   }
+  const displayOpen = prefs.inspect && ui.tab === 'display'
+  /** Shows the Display tab (a click on a state chip: it stays open when it is already there). */
+  const openDisplay = () => { if (!displayOpen) togglePanel('display') }
   const searchRef = useRef<HTMLInputElement>(null)
   /** The viewer's letter keys (no modifier but Shift, viewer focused, not in a text field). */
   const onViewerKey = (e: KeyboardEvent) => {
@@ -788,7 +758,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const focus = (el: HTMLInputElement | null) => { el?.focus(); el?.select() }
     switch (e.key) {
       case '/': focus(searchRef.current); break
-      case 'g': set({ palette: true, keys: false }); break
+      case 'g': set({ palette: true, keys: false, picker: false }); break
       case 'Enter': openStatement(); break
       case 'm': stepMark(1); break
       case 'M': stepMark(-1); break
@@ -805,6 +775,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'T': stepGap(-1); break
       case 'f': toggleFocus(); break
       case 'l': highlightLine(); break
+      case 'L': openPicker(); break
       case 'i': togglePanel('line'); break
       case 'y': copySelLines(); break
       case ']': stepNext('call', 'call', 1); break
@@ -830,7 +801,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey) && !e.altKey) { e.preventDefault(); set({ palette: !ui.palette }) } // also in the boxes
+    if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey) && !e.altKey) { e.preventDefault(); set({ palette: !ui.palette, picker: false }) } // also in the boxes
     else if (e.key === 'Escape' && popup) { e.stopPropagation(); setPopup(null) }
     else if (e.key === 'Escape' && ui.status === 'running') { e.stopPropagation(); cancelSearch() }
     else if (e.key === 'Escape' && ui.lines) { e.stopPropagation(); set({ lines: null }) }
@@ -953,10 +924,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const tones = useMemo(() => statementTones(doc.statements, (id) => doc.stats.statements[id]?.elapsed ?? 0), [doc])
   /** the highlighted statement's colour (its lane's): the tint of its calls and waits, the chip in the trace bar */
   const hlColor = stmt !== null && doc.statements[stmt] ? toneColor(tones.get(stmt) ?? QUIET_TONE) : undefined
-  /** the Colour menu: the mode, its key and the button's swatch */
-  const laneMode = LANE_COLORS.find((c) => c.id === prefs.laneColor) ?? LANE_COLORS[0]
+  /** what the lane colours mean in the chosen mode (the Display tab's key) */
   const laneKey = useMemo(() => laneLegend(prefs.laneColor, doc.contexts.map((c) => [c.sessionId && `session ${c.sessionId}`, c.module, c.action].filter(Boolean).join(' · ') || `context ${c.id}`)), [prefs.laneColor, doc])
-  const laneSwatch = laneKey ? `linear-gradient(90deg, ${laneKey.slice(0, 4).map((k) => k.color).join(', ')})` : prefs.laneColor === 'none' ? 'transparent' : 'conic-gradient(var(--c-cpu) 0 33%, var(--c-userio) 0 66%, var(--c-network) 0)'
   /** Pins a line (Δ is measured from it), or unpins it. */
   const togglePin = useCallback((line: number) => {
     if (ui.pin?.line === line) { set({ pin: null }); return }
@@ -1152,9 +1121,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const running = ui.status === 'running'
   const nextHitDisabled = ui.hits.length === 0
 
-  /** the search options away from their defaults, the display toggles away from theirs and the dimmed groups */
+  /** the search options away from their defaults; the Show and dim settings away from theirs (the Display button's badge) */
   const optionCount = Number(ui.caseSensitive) + Number(ui.regex) + Number(ui.fromHere) + Number(scope !== 'file')
-  const viewBadge = SHOW_TOGGLES.filter((t) => prefs[t.key] !== LINES_PREFS_DEFAULTS[t.key]).length + prefs.mute.length
+  const displayCount = displayBadge(prefs, LINES_PREFS_DEFAULTS)
+  const deltaParts = deltaChipParts(deltaMode === 'off' ? 'highlight' : deltaMode, prefs.deltaMs, delta && !delta.error ? delta.lines.length : undefined, delta?.truncated)
+  const deltaChip = deltaParts.what + deltaParts.doing
   const toggleMute = (name: string) => setPrefs({ mute: muteSet.has(name) ? prefs.mute.filter((m) => m !== name) : [...prefs.mute, name] })
   const stmtName = stmt !== null && doc.statements[stmt] ? doc.label(doc.statements[stmt]) : ''
 
@@ -1177,7 +1148,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       add('Step', `step:${what}:prev`, `Previous ${label}`, () => stepNext(what, label, -1), { keys: keys[1] })
     }
     const gapOff = prefs.gapMs <= 0
-    add('Step', 'step:gap:next', `Next gap ≥ ${fmtInt(prefs.gapMs)} ms`, () => stepGap(1), { keys: 't', disabled: gapOff, hint: gapOff ? 'off: set the threshold in View' : undefined })
+    add('Step', 'step:gap:next', `Next gap ≥ ${fmtInt(prefs.gapMs)} ms`, () => stepGap(1), { keys: 't', disabled: gapOff, hint: gapOff ? 'off: set the threshold in Display' : undefined })
     add('Step', 'step:gap:prev', 'Previous gap', () => stepGap(-1), { keys: 'T', disabled: gapOff })
     add('Step', 'step:mark:next', 'Next mark', () => stepMark(1), { keys: 'm', disabled: markLines.length === 0, hint: 'of the selected statement' })
     add('Step', 'step:mark:prev', 'Previous mark', () => stepMark(-1), { keys: 'M', disabled: markLines.length === 0, hint: 'of the selected statement' })
@@ -1197,6 +1168,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     for (const t of SHOW_TOGGLES) add('View', `view:${t.key}`, t.label, () => setPrefs({ [t.key]: !prefs[t.key] }), { checked: prefs[t.key], keys: t.keys })
     for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => toggleMute(g.name), { checked: muteSet.has(g.name) })
     add('View', 'view:highlight', "Highlight the line's statement", highlightLine, { keys: 'l', hint: 'its calls and waits tinted in its colour' })
+    add('View', 'view:picker', 'Highlight a statement…', openPicker, { keys: 'L', disabled: !prefs.readable, hint: prefs.readable ? "choose from the file's statements" : 'formatted view' })
     add('View', 'view:readable', 'Formatted view', () => switchPrefs('readable', { readable: !prefs.readable }), { checked: prefs.readable, keys: 'v' })
     add('View', 'view:rddelta', 'Δ column (formatted)', () => setPrefs({ rdDelta: !prefs.rdDelta }), { checked: prefs.rdDelta, disabled: !prefs.readable, hint: 'the time from the pin or the line before' })
     for (const c of LANE_COLORS) add('View', `colour:${c.id}`, `Colour the lanes by: ${c.label}`, () => setPrefs({ laneColor: c.id }), { checked: prefs.laneColor === c.id, disabled: !prefs.readable, hint: 'formatted view' })
@@ -1272,79 +1244,6 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             </button>
             <kbd className="tb-f4" aria-hidden="true">v</kbd>
           </span>
-          {readable && (
-            <span className="lines-rd" role="group" aria-label="Formatted view">
-              <ToolbarMenu label="Colour by" title={`what the lane band of each row is coloured by: ${laneMode.label.toLowerCase()} now (the sql_id in the lane keeps its statement's colour)`} className="tbmenu-sm tbmenu-start lines-colour" open={ui.colourMenu} onOpenChange={(colourMenu) => set({ colourMenu })}
-                button={<><i className="lines-colour-sw" style={{ '--sw': laneSwatch } as React.CSSProperties} aria-hidden="true" /><span className="tb-label tb-f2">Colour</span> <b className="tb-label tb-f2">{laneMode.label}</b><span className="cue" aria-hidden="true">▾</span></>}>
-                <div className="lines-view">
-                  <h4>Colour the lanes by</h4>
-                  <div className="tb-items" role="radiogroup" aria-label="Colour the lanes by">
-                    {LANE_COLORS.map((c) => <MenuItem key={c.id} on={prefs.laneColor === c.id} onClick={() => setPrefs({ laneColor: c.id })} title={c.title}>{c.label}</MenuItem>)}
-                  </div>
-                  {laneKey && laneKey.length > 0 && <>
-                    <h4>Key</h4>
-                    {laneKey.map((k) => <div key={k.label} className="lines-view-row lines-view-key"><span /><span><i className="lines-swatch" style={{ '--tone': k.color } as React.CSSProperties} />{k.label}</span></div>)}
-                  </>}
-                  {prefs.laneColor === 'stmt' && <p className="small muted lines-colour-note">The statements and their colours are in the strip above the rows.</p>}
-                </div>
-              </ToolbarMenu>
-              <button type="button" className={'quiet tb-icon' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')} aria-pressed={prefs.foldRepeats} onClick={toggleRepeats} aria-label="Fold repeats"
-                title="Fold repeats: runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches each fold into one line; click a fold's ▸ to open it (r)"><FoldRepeatsIcon /></button>
-              <button type="button" className="quiet" aria-pressed={prefs.rdDelta} onClick={() => setPrefs({ rdDelta: !prefs.rdDelta })}
-                title="the Δ column, first in the row: each line's time from the pinned line (a pins one), else from the line with a time before">Δ</button>
-              <span className="lines-hot" role="group" aria-label="Hot spots">
-                <span className="tb-label tb-f3" title={`a line that took 1 % of the traced time (${fmtDur(hotUs)}) or more`}>Hot spot</span>
-                <button type="button" className="quiet" onClick={() => stepHot(-1)} disabled={!hasHot} aria-label="Previous hot spot"
-                  title={hasHot ? `the previous line that took 1 % of the traced time (${fmtDur(hotUs)}) or more (J)` : 'no line takes 1 % of the traced time or more'}>↑</button>
-                <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hasHot} aria-label="Next hot spot"
-                  title={hasHot ? `the next line that took 1 % of the traced time (${fmtDur(hotUs)}) or more: ${fmtInt(hot!.lines.length)} in this file (j)` : 'no line takes 1 % of the traced time or more'}>↓</button>
-                {hasHot && <small title={`${fmtInt(hot!.lines.length)} lines in this file took 1 % of the traced time or more`}>{fmtInt(hot!.lines.length)}</small>}
-              </span>
-            </span>
-          )}
-          <ToolbarMenu label="Δ filter" title={`the rows whose time from the timed line before (a call, wait, cursor parse or commit) is ${fmtMs(prefs.deltaMs)} or more: ${deltaMode === 'off' ? 'off' : deltaMode === 'highlight' ? 'tinted' : 'the only ones shown'}`}
-            className={'tbmenu-sm tbmenu-start lines-dfilter' + (deltaMode !== 'off' ? ' on' : '') + (deltaLoading ? ' busy-src' : '')} open={ui.deltaMenu} onOpenChange={(deltaMenu) => set({ deltaMenu })}
-            button={<><span className="lines-dfilter-sym" aria-hidden="true">Δ</span>{deltaMode === 'off' ? <span className="tb-label tb-f3">filter</span> : <><span className="tb-label tb-f3">≥ {fmtMs(prefs.deltaMs)}</span><small className="tb-label tb-f2">{deltaMode === 'filter' ? 'filter' : 'highlight'}{delta && !delta.error ? ` · ${fmtInt(delta.lines.length)}${delta.truncated ? '+' : ''}` : ''}</small></>}<span className="cue" aria-hidden="true">▾</span></>}>
-            <div className="lines-view">
-              <h4>Rows with Δ at or above</h4>
-              <label className="lines-view-row lines-view-gap" title="Δ: the time from the timed line before (a call, wait, cursor parse or commit), whatever the pin says">
-                <span>Δ ≥</span>
-                <input type="number" min={0} step={1} value={prefs.deltaMs} aria-label="Δ threshold in milliseconds" onChange={(e) => setPrefs({ deltaMs: Math.max(0, Number(e.target.value) || 0) })}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && deltaMode === 'off') setPrefs({ deltaMode: 'highlight' }) }} />
-                <span>ms</span>
-              </label>
-              <div className="tb-items" role="radiogroup" aria-label="What to do with them">
-                {DELTA_MODES.map((m) => <MenuItem key={m.mode} on={deltaMode === m.mode} onClick={() => setPrefs({ deltaMode: m.mode })} title={m.title}>{m.label}</MenuItem>)}
-              </div>
-              <p className="small muted lines-colour-note" aria-live="polite">
-                {deltaMode === 'off' ? 'Δ is the time from the line with a time before: the line\'s own time plus any idle time before it.'
-                  : !delta ? 'Finding the rows…'
-                  : delta.error ? <span className="lines-error">{delta.error}</span>
-                  : `${fmtInt(delta.lines.length)} ${delta.lines.length === 1 ? 'row' : 'rows'} with ${deltaWhat}${delta.truncated ? ' (the largest; more qualify)' : ''}`}
-              </p>
-            </div>
-          </ToolbarMenu>
-          {/* the raw view has no overview bar: its highlight chip stays (the formatted view's is the outlined statement chip of the bar) */}
-          {!readable && stmt !== null && doc.statements[stmt] && (
-            <span className="lines-hl" style={{ '--hl': hlColor } as React.CSSProperties} title={`the rows of this statement's calls and waits are tinted in its colour, with a bar at their start edge; l highlights the selected line's statement instead, Enter opens it${partial ? '; the marks are bounded: the 5,000 longest calls and the first 1,000 waits' : ''}`}>
-              <i aria-hidden="true" />
-              Highlighting
-              <button type="button" className="link mono" onClick={() => { const l = stmtLineIn(doc, file, stmt); if (l !== undefined) jump(l); else flash(`${stmtName} has no cursor in this file`) }} title="go to its first line in this file">{stmtName}</button>
-              <small>{nCalls + nWaits === 0 ? 'nothing in this file' : `${fmtInt(nCalls)} ${nCalls === 1 ? 'call' : 'calls'} · ${fmtInt(nWaits)} ${nWaits === 1 ? 'wait' : 'waits'}`}</small>
-              <button type="button" className="quiet" onClick={() => actions.selectStmt(null)} aria-label="Stop highlighting" title="stop highlighting this statement">×</button>
-            </span>
-          )}
-          {ui.pin && (
-            <span className="lines-pin" title="Δ is measured from the pinned line (a pins the selected line)">
-              <span className="tb-label tb-f3">Δ from </span><button type="button" className="link" onClick={() => jump(ui.pin!.line)}><b>line {fmtInt(ui.pin.line)}</b></button>
-              <button type="button" className="quiet" onClick={() => set({ pin: null })} aria-label="Unpin" title="unpin: Δ from the line before again">×</button>
-            </span>
-          )}
-          {files.length > 1 && (
-            <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
-              {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}{win && fileInWindow(f, win) ? ' · in window' : ''}</option> : null))}
-            </select>
-          )}
           {/* the search: Enter runs it, the box's × clears it; the options, the scope and the ready-made searches are in its menu */}
           <form className="lines-search" role="search" onSubmit={(e) => { e.preventDefault(); runSearch() }}>
             <input type="search" ref={searchRef} value={ui.q} placeholder="Search the trace text" aria-label="Search the trace text" title="Enter searches (/ from the viewer)" onChange={(e) => set({ q: e.target.value })} />
@@ -1379,6 +1278,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </div>
             </ToolbarMenu>
           </form>
+          {readable && (
+            <span className="lines-hot" role="group" aria-label="Hot spots">
+            <span className="tb-label tb-f3" title={`a line that took 1 % of the traced time (${fmtDur(hotUs)}) or more`}>Hot spot</span>
+            <button type="button" className="quiet" onClick={() => stepHot(-1)} disabled={!hasHot} aria-label="Previous hot spot"
+              title={hasHot ? `the previous line that took 1 % of the traced time (${fmtDur(hotUs)}) or more (J)` : 'no line takes 1 % of the traced time or more'}>↑</button>
+            <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hasHot} aria-label="Next hot spot"
+              title={hasHot ? `the next line that took 1 % of the traced time (${fmtDur(hotUs)}) or more: ${fmtInt(hot!.lines.length)} in this file (j)` : 'no line takes 1 % of the traced time or more'}>↓</button>
+            {hasHot && <small title={`${fmtInt(hot!.lines.length)} lines in this file took 1 % of the traced time or more`}>{fmtInt(hot!.lines.length)}</small>}
+          </span>
+          )}
           <ToolbarMenu label="Step" title="the next or previous mark of the selected statement, call, wait, cursor parse, STAT dump, session marker, error, commit, idle gap or search hit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
             <ul className="lines-steps">
               <li title={partial ? 'the marks are bounded: the 5,000 longest calls and the first 1,000 waits of the statement' : undefined}>
@@ -1395,9 +1304,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
                 </li>
               ))}
               <li>
-                <button type="button" className="quiet" onClick={() => stepGap(-1)} disabled={prefs.gapMs <= 0} aria-label="Previous idle gap" title="previous idle gap (T); the threshold is in the View menu">‹</button>
+                <button type="button" className="quiet" onClick={() => stepGap(-1)} disabled={prefs.gapMs <= 0} aria-label="Previous idle gap" title="previous idle gap (T); the threshold is in the Display tab">‹</button>
                 <span>{prefs.gapMs > 0 ? `gap ≥ ${fmtInt(prefs.gapMs)} ms` : 'gap (off)'}</span>
-                <button type="button" className="quiet" onClick={() => stepGap(1)} disabled={prefs.gapMs <= 0} aria-label="Next idle gap" title="next idle gap (t); the threshold is in the View menu">›</button>
+                <button type="button" className="quiet" onClick={() => stepGap(1)} disabled={prefs.gapMs <= 0} aria-label="Next idle gap" title="next idle gap (t); the threshold is in the Display tab">›</button>
               </li>
               <li>
                 <button type="button" className="quiet" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous search hit" title="previous search hit (Shift+F3)">‹</button>
@@ -1406,6 +1315,32 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </li>
             </ul>
           </ToolbarMenu>
+          <ToolbarMenu label="Keyboard shortcuts" className="tbmenu-sm tb-cmd" open={ui.keys} onOpenChange={(keys) => set({ keys })} onButton={() => set({ palette: true, keys: false })}
+            title={`Go to ${goToHelp}\n\nOr run any command of the view. ? lists the keys.`}
+            button={<><span className="tb-label tb-f1">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
+            <KeyMap />
+          </ToolbarMenu>
+          {files.length > 1 && (
+            <select value={file} onChange={(e) => actions.openLinesAt(Number(e.target.value), 1)} aria-label="Input file">
+              {files.map((f, i) => (isSelected(selectedFiles, i) || i === file ? <option key={i} value={i}>{f.name}{isSelected(selectedFiles, i) ? '' : ' (not selected)'}{win && fileInWindow(f, win) ? ' · in window' : ''}</option> : null))}
+            </select>
+          )}
+          {/* state chips: only when not the default; the Δ filter's says what it is doing and turns it off, a click opens the Display tab where it is set */}
+          {deltaMode !== 'off' && (
+            <span className={'lines-state lines-dstate' + (deltaLoading ? ' busy-src' : '')}>
+              <button type="button" className="lines-state-main" onClick={openDisplay} aria-label={`Δ filter: ${deltaChip}`}
+                title={`${deltaChip}: the rows whose time from the timed line before (a call, wait, cursor parse or commit) is ${fmtMs(prefs.deltaMs)} or more are ${deltaMode === 'highlight' ? 'tinted' : 'the only ones shown'}; click to change it in the Display tab`}>
+                {deltaParts.what}<span className="tb-f2">{deltaParts.doing}</span>
+              </button>
+              <button type="button" className="lines-state-x" onClick={() => setPrefs({ deltaMode: 'off' })} aria-label="Turn the Δ filter off" title="turn the Δ filter off">×</button>
+            </span>
+          )}
+          {ui.pin && (
+            <span className="lines-pin" title="Δ is measured from the pinned line (a pins the selected line)">
+              <span className="tb-label tb-f3">Δ from </span><button type="button" className="link" onClick={() => jump(ui.pin!.line)}><b>line {fmtInt(ui.pin.line)}</b></button>
+              <button type="button" className="quiet" onClick={() => set({ pin: null })} aria-label="Unpin" title="unpin: Δ from the line before again">×</button>
+            </span>
+          )}
           {win && (
             <span className="lines-win" role="group" aria-label="Time window">
               <b className="tb-label tb-f2">Window</b>
@@ -1416,48 +1351,22 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </small>
             </span>
           )}
-          <ToolbarMenu label="Keyboard shortcuts" className="tbmenu-sm tb-cmd" open={ui.keys} onOpenChange={(keys) => set({ keys })} onButton={() => set({ palette: true, keys: false })}
-            title={`Go to ${goToHelp}\n\nOr run any command of the view. ? lists the keys.`}
-            button={<><span className="tb-label tb-f1">Go to or run a command</span><kbd>{MOD}K</kbd></>}>
-            <KeyMap />
-          </ToolbarMenu>
-          <ToolbarMenu label="View" badge={viewBadge > 0 ? String(viewBadge) : undefined} title="what the rows show (wrap, heat bars, density strip, links, hints, clock and delta columns), the line colours and the ones to dim, the gap threshold and bulk folds" className="tbmenu-sm" open={ui.viewMenu} onOpenChange={(viewMenu) => set({ viewMenu })}>
-            <div className="lines-view">
-              <h4>Show</h4>
-              {SHOW_TOGGLES.map((t) => (
-                <label key={t.key} className="lines-view-row" title={t.title}>
-                  <input type="checkbox" checked={prefs[t.key]} onChange={() => setPrefs({ [t.key]: !prefs[t.key] })} />
-                  <span>{t.label}</span>
-                  {t.keys && <kbd>{t.keys}</kbd>}
-                </label>
-              ))}
-              <label className="lines-view-row lines-view-gap" title="a tick in the gutter and a hint for an idle gap of at least this many ms before a line; 0 turns them off (t / T step through them)">
-                <span>Gap ticks from</span>
-                <input type="number" min={0} step={10} value={prefs.gapMs} aria-label="Gap ticks from this many milliseconds, 0 for none" onChange={(e) => setPrefs({ gapMs: Math.max(0, Number(e.target.value) || 0) })} />
-                <span>ms</span>
-              </label>
-              <h4>Line colours <span className="h4-note">· tick to dim</span></h4>
-              {COLOUR_ROWS.map((c) => {
-                const swatch = <span><i className="lines-swatch" style={{ '--tone': `var(${lineToneToken(c.kind)})` } as React.CSSProperties} />{c.label}</span>
-                return c.mute
-                  ? (
-                    <label key={c.label} className="lines-view-row" title={c.title ?? 'dim these rows (line counts and scrolling stay)'}>
-                      <input type="checkbox" checked={muteSet.has(c.mute)} onChange={() => toggleMute(c.mute!)} />
-                      {swatch}
-                    </label>
-                  )
-                  : <div key={c.label} className="lines-view-row lines-view-key"><span />{swatch}</div>
-              })}
-              <div className="lines-view-row lines-view-key" title="the calls and waits of the selected statement (m / M step through them)"><span /><span><i className="lines-swatch lines-swatch-mk" />left edge: marks of the selected statement</span></div>
-              <h4>Folds</h4>
-              <div className="lines-view-folds">
-                <button type="button" className="quiet" onClick={() => void foldAll('binds')} title="fold every BINDS block of the file">Fold all BINDS</button>
-                <button type="button" className="quiet" onClick={() => void foldAll('stat')} title="fold every STAT dump of the file">Fold all STAT</button>
-                <button type="button" className="quiet" onClick={() => set({ folds: [] })} disabled={ui.folds.length === 0} title="show the lines of every folded block (Z)">Unfold all</button>
-              </div>
-            </div>
-          </ToolbarMenu>
-          <button type="button" className="quiet tb-panel" aria-pressed={prefs.inspect} onClick={() => togglePanel()} aria-label="Side panel" title="the side panel: the selected line translated, the outline of the file, the search hits and the bookmarks (i opens it at the line)">
+          {/* the raw view has no overview bar: its highlight chip stays (the formatted view's is the outlined statement chip of the bar) */}
+          {!readable && stmt !== null && doc.statements[stmt] && (
+            <span className="lines-hl" style={{ '--hl': hlColor } as React.CSSProperties} title={`the rows of this statement's calls and waits are tinted in its colour, with a bar at their start edge; l highlights the selected line's statement instead, Enter opens it${partial ? '; the marks are bounded: the 5,000 longest calls and the first 1,000 waits' : ''}`}>
+              <i aria-hidden="true" />
+              Highlighting
+              <button type="button" className="link mono" onClick={() => { const l = stmtLineIn(doc, file, stmt); if (l !== undefined) jump(l); else flash(`${stmtName} has no cursor in this file`) }} title="go to its first line in this file">{stmtName}</button>
+              <small>{nCalls + nWaits === 0 ? 'nothing in this file' : `${fmtInt(nCalls)} ${nCalls === 1 ? 'call' : 'calls'} · ${fmtInt(nWaits)} ${nWaits === 1 ? 'wait' : 'waits'}`}</small>
+              <button type="button" className="quiet" onClick={() => actions.selectStmt(null)} aria-label="Stop highlighting" title="stop highlighting this statement">×</button>
+            </span>
+          )}
+          {/* the Display button: the settings that are set once and left live in the side panel's Display tab; the badge says Show / dim settings are off their defaults */}
+          <button type="button" className="quiet tb-display" aria-pressed={displayOpen} onClick={() => togglePanel('display')} aria-label="Display"
+            title={`Display: ${readable ? 'colour the lanes, Fold repeats, the Δ column, ' : ''}the Δ filter, what the rows show, the line colours, the bulk folds${readable ? ' and the key to the formatted rows' : ''}, in the side panel${displayCount > 0 ? `\n${displayCount} ${displayCount === 1 ? 'setting differs' : 'settings differ'} from the defaults (Show and dim)` : ''}`}>
+            <SlidersIcon /><span className="tb-label tb-f3">Display</span>{displayCount > 0 && <small>{displayCount}</small>}
+          </button>
+          <button type="button" className="quiet tb-panel" aria-pressed={prefs.inspect && ui.tab !== 'display'} onClick={() => togglePanel()} aria-label="Side panel" title="the side panel: the selected line translated, the outline of the file, the search hits and the bookmarks (i opens it at the line)">
             <PanelIcon />{!prefs.inspect && ui.status !== 'idle' && ui.hits.length > 0 && <small>{fmtInt(ui.hits.length)}</small>}
           </button>
         </div>
@@ -1479,8 +1388,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         const [from, to] = f && f.lastTim > f.firstTim ? [f.firstTim, f.lastTim] : [doc.span.firstTim, doc.span.lastTim]
         const sl = cache.line(selected)
         return (
-          <ReadableOverview doc={doc} tones={tones} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined} current={stmt} counts={stmt !== null && doc.statements[stmt] ? counts : null}
-            viewBus={overviewBus} lastView={overviewView} onClear={() => actions.selectStmt(null)}
+          <ReadableOverview doc={doc} file={file} tones={tones} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined} current={stmt} counts={stmt !== null && doc.statements[stmt] ? counts : null}
+            viewBus={overviewBus} lastView={overviewView} pickerOpen={ui.picker} onPickerOpen={(picker) => set({ picker })} onClear={() => actions.selectStmt(null)}
             onStmt={(id) => { actions.pickStmt(id); const l = stmtLineIn(doc, file, id); if (l !== undefined) jump(l); else flash(`${doc.label(doc.statements[id])} has no cursor in this file`) }}
             onTim={(tim) => { lineAt(client, file, tim).then((l) => jump(l), (e: unknown) => flash(e instanceof Error ? e.message : String(e), true)) }} />
         )
@@ -1507,6 +1416,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             </div>
             <div className={`lines-side-body lines-side-${ui.tab}`} role="tabpanel">
               {ui.tab === 'line' && <LineInspector doc={doc} cache={cache} line={inspectedLine} at={inspAt} decodeCtx={decodeCtx} note={flash} onRef={onInspectRef} follow={prefs.follow} onFollow={(v) => setPrefs({ follow: v })} />}
+              {ui.tab === 'display' && (
+                <LinesDisplay readable={readable} prefs={prefs} setPrefs={setPrefs} laneKey={laneKey} onFoldRepeats={toggleRepeats} repeatsBusy={switching === 'repeats' || repeatsLoading}
+                  delta={{ loading: deltaLoading, count: delta?.lines.length, truncated: delta?.truncated, error: delta?.error, what: deltaWhat }}
+                  mute={muteSet} onMute={toggleMute} onFoldAll={(what) => void foldAll(what)} onUnfoldAll={() => set({ folds: [] })} canUnfold={ui.folds.length > 0} hotUs={hotUs} spanUs={fileSpan} />
+              )}
               {ui.tab === 'hits' && hitsTab}
               {ui.tab === 'asrun' && <AsRun doc={doc} client={client} file={file} line={ui.asRunLine || selected} onGo={(l) => { set({ asRunLine: l }); jump(l) }} note={flash} />}
               {ui.tab === 'outline' && <LinesOutline doc={doc} file={file} selected={selected} state={ui.outline} onState={(outline) => set({ outline })} onGo={jump} />}

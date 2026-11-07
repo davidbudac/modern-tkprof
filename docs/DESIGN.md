@@ -463,10 +463,11 @@ decision of round 1 changed, the text says what it is now and what it was.
   mark cap) at 14 %, the band widens from 4 to 6 px, and the number cell keeps a
   3 px start bar on the calls and waits that carry a gutter mark. The rows
   themselves stay on the surface: only the selection and hot spots fill a row.
-  The band keeps the colour the Colour menu gives it (the tint stays the
+  The band keeps the colour the colour-by mode gives it (the tint stays the
   statement's), and a selected row drops the lane tint (blue over amber read
-  grey). A chip of the overview highlights its statement (and goes to it), `l`
-  the selected line's (again: none), × none, all without leaving the Trace view.
+  grey). The statement picker of the overview row highlights a statement (and
+  goes to it), `l` the selected line's (again: none), the picker's × and `None`
+  none, all without leaving the Trace view.
   The raw view keeps its row tint. (Round 1 tinted the rows of the statement's
   marks at 10 % in its colour; rejected: a flat wash over every call and wait
   reads as a selection, the stripes where BINDS and PLAN rows are not filled
@@ -517,7 +518,7 @@ decision of round 1 changed, the text says what it is now and what it was.
   `barFrac(fold.us, span)`; `span` is the file's traced time, `fileSpan` in
   `views/Lines.tsx`, the same number as the hot threshold's). The plan's A-Time
   bar (an operation's own time of the plan's) is another scale and stays. The Δ
-  column is text only (the trace bar's Δ button and the palette hide it, pref
+  column is text only (the Display tab's Δ column checkbox and the palette hide it, pref
   `rdDelta`, on by default).
   **Δ is the unexplained gap** in the formatted view: where the line started
   (its `tim` minus its own time, the `ela` of a wait or the `e` of a call)
@@ -658,33 +659,45 @@ decision of round 1 changed, the text says what it is now and what it was.
   wide as the longest key of its block; the `=====` line a thin rule. The raw
   text is in each piece's tooltip, the hover card and the Line tab.
 
-- **The toolbar never wraps from 1100 px.** One row: the search shrinks first
-  (down to 14 ch), then the labels fold to icons in four steps (the Go-to
-  label, then the Colour label and mode, the Δ filter's mode and count and the
-  window text, then Hot spot, Δ ≥ and Δ from, then the Raw / Formatted text),
-  by container queries whose thresholds were measured with everything on
-  (round 3's second Hot spot button fits inside them: no overflow measured from
-  860 px up). It
-  may wrap below 51 rem. Pressed toggles use the quiet style (ink on `--wash`);
-  only Raw | Formatted keeps a solid segment.
-- **The Highlighting chip is folded into the overview chip.** In the formatted
-  view the `Highlighting ■ sql_id · N calls · M waits ×` chip is gone: the
-  highlighted statement is always a chip in the overview bar (even when it is
-  not among the 8 longest), outlined, with the count and the ×. The count is
-  the real one (`StmtMarks.totalCalls` / `totalWaits`), and the tooltip says
-  `first 1,000 waits marked` while the marks are capped. The raw view has no
-  overview bar and keeps the chip.
-- **The overview bar.** A 12 px track, a thin time axis under it (round
-  wall-clock times; `+2 s` offsets for a trace without a wall clock) and a
-  **viewport bracket** (two 1 px ticks and a 20 % wash) that follows the visible
-  rows. The chips read `sql_id 2.486 s · 38 %` (seconds and share); the
-  statements under 1 % fold into one `+4 under 1 %` chip that expands on click.
-  A chip goes to the statement's first line in this file, a click on the track
-  to the line at that time. (Round 2 labelled it `Where the time went · 6.46 s`
-  in a 210 px slot at the left; round 3 dropped the words, which said nothing
-  the bar does not: the span is in the track's `aria-label` and the axis. The
-  track now takes the whole width; the statement picker of batch 3 brings the
-  slot back.)
+- **The toolbar never wraps from 1100 px.** One row (round 3 shortened it: see
+  "Round 3, batch 3" below for what it holds now): the search shrinks first (down
+  to 14 ch, its Options button never breaks into letters), then the labels fold
+  to icons in four steps by container queries (the Go-to label at 98 rem
+  (1568 px); the window group's words and the Δ chip's mode and count at 89 rem;
+  the Hot spot, Δ-from and Display labels at 73 rem; the Raw / Formatted text at
+  67 rem). The thresholds are measured in the worst case, a formatted bar with
+  everything on (the Δ chip with a count of 100,000+, the pin, the time window
+  group, the file select at its least width, the search at 14 ch): 1538 px of
+  bar with all labels, 1400 without the first step, 1140 without two, 1042
+  without three, 909 without all four, plus 20 to 30 px each for longer counts;
+  with only the Δ chip and the pin (one file, no window) 1133, 996, 894, 796,
+  663, and with nothing on 947, 810, 810, 712, 579. So from 1100 px the row is one
+  line whatever is on (the round-2 bar needed 1362 px with the same labels and
+  no window or file select). It wraps below 51 rem (816 px), and below 58 rem
+  (928 px) when the window group or the file select is there. Pressed toggles
+  use the quiet style (ink on `--wash`); only Raw | Formatted keeps a solid
+  segment.
+- **The Highlighting chip is the statement picker.** The raw view has no overview
+  bar and keeps its toolbar `Highlighting ■ sql_id · N calls · M waits ×` chip
+  (a state chip, below); the formatted view's highlighted statement is the
+  picker button of the overview row (round 3, below).
+- **The overview row.** At its left the **statement picker** (round 3), then a
+  12 px track, a thin time axis under it (round wall-clock times; `+2 s`
+  offsets for a trace without a wall clock) and a **viewport bracket** (two
+  1 px ticks and a 20 % wash) that follows the visible rows. The track shows
+  when the 8 statements with the most time ran, and the highlighted statement
+  on top of them even when it is a small one (a statement picked from a list of
+  thousands usually is; its stretches get a 1 px ink outline); a stretch names
+  its statement when hovered (`sql_id · 2.486 s · 38 % of the traced time`), a
+  click on the track goes to the line at that time. (Round 2 labelled the bar
+  `Where the time went · 6.46 s` in a 210 px slot at the left and listed the
+  statements as chips under it; round 3 dropped the words, which said nothing the
+  bar does not: the span is in the track's `aria-label` and the axis, and then
+  the chips, below.) The picker's column keeps one width, `clamp(14rem, 24 %,
+  25rem)`, with or without a highlighted statement, so the track does not move
+  under the pointer when one is picked (sized to the content, the track would
+  jump by 200 px; the 210 px slot of round 2 was an empty hole beside the bar, a
+  control that fills its column is not).
 
 - **A selected line is never folded away.** A Fold repeats run that holds the
   selected line stands open and folds again when the selection leaves it; an
@@ -705,21 +718,25 @@ decision of round 1 changed, the text says what it is now and what it was.
   the engine over the whole file (`api/lines/repeats`) so the scroll bar does
   not jump as pages load. A fold of repeats opens with its handle and stays
   open; the user's own folds win where they overlap.
-- **Fold repeats is an icon** (decided 2026-11-06, at the user's request): three
-  rows gathered by a brace, pressed while on; the name is in its tooltip and
-  aria-label. The text button took too much of the bar.
-- **Colour the lanes by** (decided 2026-11-06): a menu right after `raw |
-  formatted` (formatted view only, the lanes are its) picks what the lane band
+- **Fold repeats is a checkbox of the Display tab** (round 3). It was a text
+  button, then an icon (2026-11-06, at the user's request: three rows gathered
+  by a brace, the name in its tooltip), both in the toolbar; set once and left,
+  it moved to the side panel with the other settings (batch 3, below). Its key
+  and palette command are as they were.
+- **Colour the lanes by** (decided 2026-11-06; since round 3 a radio list in the
+  Display tab, formatted view only, the lanes are its) picks what the lane band
   shows: Statement (the default, as before), Execution (the executions of a
   cursor in turn), Session (the context: session, module, action), Recursive
   depth, Operation (PARSE, EXEC, FETCH, CLOSE, WAIT, cursor parse, binds,
   commit, error), Wait class (calls are CPU), Duration and Δ from the line
-  before (one orange ramp by decade: < 100 µs … ≥ 1 s), None. The menu has a
-  key for every mode but Statement (the overview strip names those). The
+  before (one orange ramp by decade: < 100 µs … ≥ 1 s), None. The list has a
+  key (what the colours mean) for every mode but Statement (the picker names
+  those). The
   sql_id in the lane keeps its statement's colour whatever the band shows, and
   a line outside a lane (WAIT #0, a commit) gets a band of its own in the
   per-line modes. Pref `laneColor`.
-- **Δ filter** (decided 2026-11-06): `Δ ≥ N ms` in the trace bar, both views,
+- **Δ filter** (decided 2026-11-06; since round 3 in the Display tab, with a
+  state chip in the toolbar while it is on): `Δ ≥ N ms`, both views,
   Off / Highlight / Filter. Δ here is always the time from the timed line
   before (a call, wait, cursor parse or commit: the line's own time plus any
   idle time before it), never from the pin and not the formatted view's gap,
@@ -732,7 +749,9 @@ decision of round 1 changed, the text says what it is now and what it was.
   them); the lines before the first kept row fold under line 1, which says how
   many; the filter's folds replace the user's, the repeats and the plan tables
   while it is on; each kept row carries its lane's sql_id. Prefs `deltaMs` (10
-  by default) and `deltaMode`.
+  by default) and `deltaMode`. The chip is `Δ ≥ 10 ms · filter · 34` (the count
+  of rows that reach the threshold once the engine has answered, `+` when the
+  list is cut) with a × that turns it off; a click on it opens the Display tab.
 - **As run.** A BINDS row offers the statement with the values in place of
   its placeholders (side panel tab "As run"): SQL placeholders pair with the
   `Bind#`s by occurrence, PL/SQL ones by distinct name (decided by the
@@ -813,7 +832,7 @@ decision of round 1 changed, the text says what it is now and what it was.
   loaded to draw a band. An engine without `texts` leaves the lines as rows.
   - **Wrap off:** one row per trace line of the text, cut at the right edge
     (ellipsis), as before but in the band.
-  - **Wrap on** (the View menu's "Wrap long lines", `prefs.wrap`, which the
+  - **Wrap on** (the Display tab's "Wrap long lines", `prefs.wrap`, which the
     formatted view ignored until now; the raw view's wrap is unchanged): the text
     lines after the first fold quietly into the first, together with the END OF
     STMT line (`Fold.sql`, made by `frameFolds` when it is given the bands; a
@@ -862,6 +881,91 @@ decision of round 1 changed, the text says what it is now and what it was.
     number of lines depends on the width and on the formatter, for every statement
     of the file, before any of them is drawn).
 
+- **Round 3, batch 3 (decided 2026-11-07): the controls of the pane.** The user's
+  two notes: the row of sql_id chips "will get crowded very quickly on a large sql
+  trace", and the pane "is extremely busy" (settings to a collapsible right-hand
+  panel, judgement calls left to us).
+  - **The rule for the toolbar.** It keeps what is used while reading (the view
+    switch, finding, stepping, going to) and says which settings are on; a setting
+    that is chosen once and left (how the lanes are coloured, whether repeats fold,
+    which columns and extras show, the line colours, the Δ filter's threshold)
+    lives in the side panel. What moved, and where it is now:
+
+    | was in the toolbar | is now |
+    |---|---|
+    | Colour menu | Display tab, "Colour the lanes by" (radio list and its key) |
+    | Fold repeats icon | Display tab, "Rows": a checkbox (`r`) |
+    | Δ toggle | Display tab, "Rows": the Δ column checkbox |
+    | Δ filter menu | Display tab, "Δ filter" (threshold, Off / Highlight / Filter, the count), and a state chip while it is on |
+    | View menu | Display tab: "Show" (wrap, heat bars, density strip, links, hints, clock, delta, gap ticks), "Line colours · tick to dim", "Folds"; a badge on the Display button |
+    | (the legend lived in the Colour menu and in the tooltips) | Display tab, "Key": what a red row, the Duration bar, an amber Δ and the lane highlight mean, with this file's numbers (`780 ms` is 1 % of its traced time) |
+
+    The toolbar after: Raw | Formatted, the search with its Options menu, Hot spot
+    ↑ ↓, Step, Go to ⌘K, the input-file select (more than one file), the state
+    chips, Display, Side panel. Each of those is either an act of reading (a
+    move, a search, a jump, the view switch, which file) or the way into the
+    settings; none of them is a preference to set and forget. Their keys and
+    palette commands are unchanged (`h`, `n`, `r`, `l`, `z`, `Z`, `t`, `T`,
+    "Colour the lanes by: …", "Δ filter: …", every View command); the panel's own
+    tabs are palette commands too ("Side panel: Display").
+  - **Display is a tab of the side panel, not another popover.** A settings pane
+    is used while the rows change under it (tick Hints, look; pick a lane colour,
+    look); a menu covers the rows or closes after each click. The panel already
+    has a width, a resize handle and an open / closed preference, and the Line tab
+    set the grammar: sections split by hairlines. The pane is a calm list of real
+    form controls with their labels (checkboxes, radios, number inputs, a key at
+    the end of a row that has one), not menu items; the formatted view's own
+    settings (lanes, Fold repeats, the Δ column, the Key) are absent in the raw
+    view. The sliders button of the toolbar opens the panel on Display and closes it
+    when it is already there; the Side panel button closes an open panel and opens a
+    closed one on the last tab that was not Display (`panelAfter` in
+    `data/display.ts`, the one rule for the buttons, the keys and the palette), so
+    the line, the hits and the bookmarks keep their button. Six tabs and a hit count
+    (`Hits 8,744`) fit the 400 px panel because the tabs' padding is 6 px (12 before:
+    the labels were cut to `Bookm…`; with 8 px a hit count still cut them). The badge on the Display button counts the Show settings, the gap ticks'
+    threshold and the dimmed line groups that differ from the defaults; the Δ filter
+    has its own chip, and the lane colours, Fold repeats and the Δ column show in
+    the rows.
+  - **State chips** appear in the toolbar only while the setting is not its default:
+    the Δ filter (`Δ ≥ 10 ms · filter · 34`, a × that turns it off, a click that
+    opens Display; the mode and count fold away first when the bar narrows), the pin
+    (`Δ from line 118 ×`), the time window group and, in the raw view, the
+    Highlighting chip. A reader sees what is changing the rows without opening
+    anything.
+  - **The statement picker** replaces the chips row. One button in the overview
+    row's left slot. With a statement highlighted it shows its swatch, the sql_id in
+    the lane colour, `638 ms · 10 %`, the real counts `5 calls · 34 waits` and a ×
+    that stops the highlight, outlined in the statement's colour as its chip was;
+    with none it says `Highlight a statement` (muted) and ▾. It opens a popover: a
+    filter box (sql_id or SQL text, case-insensitive, whitespace in what is typed
+    matches any whitespace of the text, the match marked, and when it lies beyond the
+    start of the SQL the row shows the text around it), the column names, and the
+    file's statements by time here, longest first: swatch, sql_id, time, share,
+    executions and the start of the SQL in `--ink-3`. `None` leads the list while a
+    statement is highlighted. The list is virtualised (`@tanstack/react-virtual`, as
+    the hit list is; a SQLT trace has 1,463 statements: 38 ms to open, 33 ms a
+    keystroke with 26 rows in the DOM) and takes ↑ ↓ PgUp PgDn, Enter and Esc; the
+    filter box has the focus and Esc or a choice gives it back to where it was.
+    Picking a statement highlights it and goes to its first line in this file (what
+    its chip did). It lists the statements that have a cursor in the open file,
+    recursive SYS SQL and statements without time included (the chips listed the 8
+    longest); "time here" is the statement's elapsed time as the lane row says it.
+    `L` (Shift+l, next to `l`, which highlights the selected line's statement) and
+    the palette command "Highlight a statement…" open it; both are formatted-view
+    only (the raw view has no overview row and keeps its Highlighting chip, `l` and
+    the palette's other commands). `L` was free in every key handler of the lib and
+    the desktop shell.
+  - **Rejected in batch 3.** The chips row: it does not scale past about 10
+    statements (8 chips and `+n under 1 %`, about 170 px each, and the statement a
+    reader wants on a large trace is a small one, among a thousand). A Display
+    popover in place of the tab (above). Keeping the Colour menu, the Fold repeats
+    icon, the Δ button and the Δ filter menu in the toolbar with their labels
+    folded to icons: the state they showed is what the chips and the rows show
+    better, and the bar still needed 1362 px. A picker column that takes the width
+    of its content (the track would jump 200 px when a statement is picked), and the
+    round-2 210 px label slot (an empty hole). The key for the Display tab as a menu
+    key (`D`): the button and the palette reach it, and a letter is better kept free.
+
 - **Rejected in round 2** (so they are not tried again): a sticky three-line
   lane label box (sql_id, SQL start, time here) in the Statement column: it
   keeps a wide column that is empty on every row but the first two of a lane
@@ -875,7 +979,9 @@ decision of round 1 changed, the text says what it is now and what it was.
 - **Rejected in round 3** (batch 1): the absolute log scale of the Duration bar
   (Time, above); a tick at 1 % only on the hot rows or only in the header (the
   tick on every track is what makes a bar read against the rule); `gets` as the
-  sum of cr and cu (above).
+  sum of cr and cu (above). Batch 2: formatting the SQL text line by line, a
+  scroll box in a fixed-height band (the SQL band, above). Batch 3: the chips row,
+  a Display popover, a picker that sizes to its content (the picker, above).
 
 ## Project
 

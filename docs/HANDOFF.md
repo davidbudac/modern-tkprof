@@ -17,7 +17,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - Latest release **v0.5.0** (2026-11-02, from `202d152`): CLI binaries (+ `-lite` builds) and the desktop
   installers (DMG arm64/x64, deb, AppImage, NSIS) in one GitHub release; notes `docs/releases/v0.5.0.md`.
   Everything after it (three new views, Lines colour-by / Δ filter, formatted view round 2, the open-list
-  round) is unreleased.
+  round, the Trace pane's round 3) is unreleased.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -148,7 +148,17 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - Stale remote branches (`assist/*`, `ui/*`, `lines/clock-delta-gutter`, `feat/cut`, `t3/*`,
   `feature/add-cut-worktree-reference`): delete when convenient.
 
-### Formatted Lines view (round 2, 2026-11-06; DESIGN § Formatted Lines view, `docs/PLAN-FORMATTED-V2.md`)
+### Trace pane: the formatted Lines view (round 2 2026-11-06, round 3 2026-11-07; DESIGN § Formatted Lines view, `docs/PLAN-FORMATTED-V2.md`, `docs/PLAN-TRACE-PANE-V3.md`)
+
+State after round 3: the toolbar is Raw | Formatted, the search (Options), Hot spot ↑ ↓, Step, Go to ⌘K, the file select
+(several files), the state chips (Δ filter, pin, window, raw Highlighting) and the Display and Side panel buttons; the settings
+(colour the lanes by, Fold repeats, the Δ column, the Δ filter, Show, line colours, folds, the key) are the side panel's **Display** tab.
+The overview row is the **statement picker** (a searchable, virtualised list of the file's statements; `L`, palette "Highlight a
+statement…") beside the time track. Rows: Duration bar as the share of the traced time with its 1 % tick, a call's Detail in groups, the
+SQL band (wrap on: the whole statement pretty-printed). Embedded UI: `make web` was run at the end of round 3, so `internal/ui/dist` is
+current; the embedded CLI UI needs the rebuilt engine (`texts` in `what=frame`) for SQL bands in wrap mode.
+
+Open:
 
 - Blank lines before a `***` timestamp and after a marker group still take a row; only the blanks under a
   BINDS header fold. Finding the others is a read of the whole raw file (a Go pass over `LineIndex`, cached per
@@ -163,9 +173,19 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
   clock's "line before" is the previous trace line, not the previous displayed row.
 - `z` on an opened framing handle does nothing (`Z` is for user folds). The raw view keeps its row tint, the
   cyan number cell of a selected row and the `exec #0` on a CLOSE in `.lv-head`.
-- The toolbar may wrap below 51 rem (~816 px).
 - A prebuilt desktop sidecar (`desktop/src-tauri/binaries/`, gitignored) may predate `what=frame` or its `texts`: run
   `pnpm build:engine` before checking the framing folds or the SQL bands in desktop dev mode.
+- The call Detail of a hot FETCH is cut at 1280 px with the side panel open (the groups plus the waiting share need
+  about 110 ch); the notes cut first, as designed. The gets box on the amber selected row reads as a slightly cooler
+  patch in the light theme.
+- SQL band, wrap on: with the top of the view inside a tall band its line number has scrolled away, so the left columns
+  are blank beside the lines being read (the sticky lane row names the statement); a reveal that must centre a band lands
+  on a 20 px line, up to 10 px off; the formatter lays PL/SQL out as it sees it (`set_action ('x')` gets a space before the
+  parenthesis) and highlighting is per line, so a block comment or literal that runs over a line break of the pretty text is
+  not known to the next line.
+- Display tab: Fold repeats and the Δ column are no longer visible controls while the panel is closed (the rows show them);
+  only the Show and dim settings have a badge. The picker's "time here" is the statement's elapsed time in the whole trace
+  set (as the lane row says it), not the part inside this input file.
 
 ### Row flow, Dialogue, Blocks (DESIGN § Three new views, `docs/PLAN-VIEWS.md`)
 

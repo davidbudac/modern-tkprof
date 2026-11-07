@@ -225,3 +225,40 @@ SQLT trace, on `basic_binds.trc` and on a trace that ends with a band), `drive-4
 - **For batch 3.** The overview slot and `FormattedHead` notes of batch 1 stand. The Display panel's "Show" section keeps the "Wrap long lines" toggle: the formatted view now honours it (the SQL band); its tooltip (`SHOW_TOGGLES` in
   `views/Lines.tsx`) says so already. `make web` is still to do: the embedded UI predates all of this, and the embedded CLI UI needs
   the rebuilt engine (`texts`) to show bands in wrap mode.
+
+### Batch 3 (2026-11-07): the statement picker, the Display tab, a shorter toolbar
+
+Commit: `TBD` ("Trace pane round 3, batch 3: …"; this Log entry got its SHA in the commit after it). Tests: `pnpm --filter mtkprof-web test` 736 pass (was 714: +12 `stmtpick.test.ts`, +13 `display.test.ts`,
+the 4 `splitChips` tests of `overview.test.ts` replaced by 1), `pnpm -r typecheck` clean, desktop `pnpm test` 228 pass, `go test` unchanged (no Go change), `scripts/ci-local.sh --no-release` PASS (vet, go test, web,
+embedded-UI check, desktop; 59 s). `make web` rebuilt `internal/ui/dist/index.html` (1,841.84 kB, after batch 2, to 1,856.62 kB: +14.8 kB, gzip 646.35 to 649.61 kB) and the embedded CLI UI was smoke-tested on
+`bin/mtkprof serve -spill io_waits.trc` (picker, list, Display tab, 0 console errors: `embedded-cli-1440.png`).
+Evidence: `/tmp/verify-mtkprof/evidence/trace-v3/3/` (1600, 1280, 1100 px, light and dark; the matrix of `run-matrix.sh`, the drivers `drive-2.mjs` (a scripted run: `STEPS=goto:118;click:…;press:L;type:…;shot:…`), `measure.js` / `fit.js`
+(the toolbar's needed width per fold step, and whether a real bar is one line), `timing.js` (the picker's cost), `smoke-cli.mjs`). **Best before / after pair: `/tmp/verify-mtkprof/evidence/trace-v3/2/io_waits-118-final-1600-light.png`
+(batch 2) against `io_waits-118-after-1600-light.png`** (the same line, the same width: eleven toolbar controls and a two-row overview, the track and a row of chips, become seven controls and one overview row; the Duration header is 26 px higher).
+Per width and theme: `toolbar-formatted-*`, `toolbar-raw-*`, `picker-none-bar-*` (none highlighted, closed), `io_waits-118-after-*` (one highlighted, closed), `sqlt-picker-open-*` and `sqlt-picker-filter-*` (open on the SQLT trace's 1,463
+statements, `from dba_hist` typed), `display-formatted-*`, `display-raw-*`, `dfilter-chip-*` and `toolbar-dfilter-*` (the Δ filter on), plus `toolbar-badge-1280-light.png`, `tabs-with-count-1600-light.png`, `reopen-centred-*`.
+
+- **Picker.** `views/StatementPicker.tsx` (a `ToolbarMenu` whose popover is a filter box over a react-virtual list), rows and filter in `data/stmtpick.ts` (`pickRows`, `filterRows`, `sqlCut`). Button, rows, `None`, keys, pick = highlight and go to
+  its first line: as the plan says. Open state is `LinesUi.picker` (so `L` and the palette command open it; it is closed when the palette opens and when the tab unmounts). Measured on the SQLT trace (1,463 statements): 38 ms to open,
+  33 ms per keystroke (two frames; 26 rows in the DOM); `from dba_` leaves 69, `from dba_hist` 25. The popover gives the focus back to where it was, as the palette does (a development build runs effects twice, which took the filter
+  box for "where it was": found and fixed with a ref). Reopening with a statement deep in the list centres it (row ~390 of 1,463: scrollTop 9893, the highlighted row in view). The chips row, `+n under 1 %`, `splitChips` and `UNDER_SHARE` are gone from the code.
+  The track's segments have a title (`sql_id · 2.486 s · 38 % of the traced time`).
+- **Display tab.** `views/LinesDisplay.tsx`, `data/display.ts` (the Show toggles, the dim groups, the Δ modes, `PANEL_TABS`, `panelAfter`, `displayBadge`, `deltaChipParts`); sections as the plan lists them, formatted-only ones absent in raw.
+  The sliders button (label folds at the third step, badge) opens the panel on Display and closes it there; the Side panel button opens the last other tab (`LinesUi.lastTab`, tested through `panelAfter`).
+- **Toolbar.** Raw | Formatted, the search, Hot spot ↑ ↓, Step, Go to (pushed right), the file select, the state chips (Δ filter, pin, window, raw Highlighting chip), Display, Side panel. Steps re-measured (`measure.js`, worst case: Δ chip with
+  100,000+, the pin, the window group, the file select at its least, the search at 14 ch): 1538 / 1400 / 1140 / 1042 / 909 px; limits 98, 89, 73, 67 rem (were 87, 79, 67, 59); one line from 928 px in the worst case (it wraps below 58 rem), from 816 px with only the
+  Δ chip and the pin (`fit.js` at 900, 1000, 1100, 1280, 1440, 1600: no overflow, one row). DESIGN.md says the numbers.
+- **Keys.** Added `L` (Shift+l; `l` highlights the selected line's statement, `L` opens the picker; free in every key handler of the lib and the desktop shell; in the KeyMap) and the palette commands "Highlight a statement…" (`L`) and
+  "Side panel: Display". Every other key and palette command is unchanged.
+- **Deviations (judgement calls).** (1) The picker's column has one width, `clamp(14rem, 24 %, 25rem)`, not the width of its content: sized to the content the track jumped 200 px each time a statement was picked; a control that fills
+  its column is not the "empty hole" of the 210 px label slot. (2) The track also draws the highlighted statement when it is not among the 8 longest, outlined (a statement picked from a list of 1,463 usually is not). (3) The overview row
+  now shows whenever the file has statements (it was hidden when none had time), so the picker is there. (4) The list includes statements without time and recursive SYS SQL (they have a swatch of the neutral tone); "time here" is the
+  statement's elapsed time in the whole trace set, as the lane row says it (see below). (5) The Δ chip's mode and count (`· filter · 34`) fold away at the second step, so the chip reads `Δ ≥ 10 ms ×` from 1424 px down. (6) The badge counts the
+  Show toggles, the gap ticks' threshold and the dimmed groups, not the Δ filter (its own chip) nor the lane colours, Fold repeats and the Δ column (they show in the rows). (7) The side panel's tabs have 6 px padding (12 before): six tabs and a
+  hit count do not fit 400 px otherwise (the labels were cut to `Bookm…` and `Hits 8,7…` at 8 px). (8) Found while measuring: the search's Options button broke into letters when the bar was tight (its least width was not its box); the
+  search's buttons are `nowrap` now. (9) The toolbar's order follows the plan (the search after the view switch, then Hot spot), so it differs from round 2's (Hot spot first). (10) The wrap rule is `< 51rem`, and `< 58rem` when the window
+  group or the file select is there (`:has()`). (11) The commit's attribution line names the model that wrote it (Sonnet 5.5), not the Opus 5.5 of batches 1 and 2.
+- **Looked off, not fixed.** (1) At 1280 px with a statement highlighted the picker's counts are cut (`5 calls · 34 …`; at 1100 `5 c…`); the title has them. (2) The Go-to label folds below 98 rem in every state, though a bar with nothing
+  on needs 947 px: the worst case sets the steps, so between 1392 and 1568 px the label could have stayed. (3) "Time here" in the picker is the whole trace set's elapsed time for a statement, not its part in this input file (the lane row
+  says the same; per-file time needs the engine). (4) With the panel closed, Fold repeats, the lane colour and the Δ column have no sign in the toolbar (the rows show them); only the Show and dim settings have the badge. (5) The panel's
+  tab strip still clips at narrow panel widths (the tabs ellipsise, as before); at 400 px a hit count and a bookmark count together (`Hits 8,744`, `Bookmarks 12`) leave about 10 px.

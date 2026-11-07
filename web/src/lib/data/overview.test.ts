@@ -1,30 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { LINE_KINDS } from './linecache'
-import { axisTicks, bracketAt, shareText, splitChips, viewSpan } from './overview'
+import { axisTicks, bracketAt, shareText, viewSpan } from './overview'
 
-describe('the statement chips: under 1 % fold into one chip', () => {
-  // io_waits.trc: 6.46 s, the top 8 statements by time
+describe('the share a statement took', () => {
+  // io_waits.trc: 6.46 s
   const SPAN = 6_460_000
-  const top = [
-    { id: 0, e: 2_486_000 }, { id: 1, e: 2_354_000 }, { id: 2, e: 638_000 }, { id: 3, e: 599_000 },
-    { id: 4, e: 70_000 }, { id: 5, e: 3_000 }, { id: 6, e: 900 }, { id: 7, e: 40 },
-  ]
-  it('the statements of 1 % or more keep a chip, in order; the rest are folded (the `+4 under 1 %` chip counts them)', () => {
-    const { shown, folded } = splitChips(top, SPAN)
-    expect(shown.map((s) => s.id)).toEqual([0, 1, 2, 3, 4])
-    expect(folded.map((s) => s.id)).toEqual([5, 6, 7])
-    // exactly 1 % stays (the share is "1 % or more")
-    expect(splitChips([{ id: 9, e: SPAN / 100 }], SPAN).folded).toEqual([])
-  })
-  it('the highlighted statement is never folded away, so the outlined chip with the count and the × is always there', () => {
-    const { shown, folded } = splitChips(top, SPAN, 6)
-    expect(shown.map((s) => s.id)).toEqual([0, 1, 2, 3, 4, 6])
-    expect(folded.map((s) => s.id)).toEqual([5, 7])
-  })
-  it('nothing folds when no span is known', () => {
-    expect(splitChips(top, 0).folded).toEqual([])
-  })
-  it('the share reads like the mock: `38 %`, and `< 1 %` for a sliver', () => {
+  it('reads like the mock: `38 %`, and `< 1 %` for a sliver', () => {
     expect(shareText(2_486_000, SPAN)).toBe('38 %')
     expect(shareText(40, SPAN)).toBe('< 1 %')
     expect(shareText(0, SPAN)).toBe('0 %')

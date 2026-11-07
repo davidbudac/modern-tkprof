@@ -1,25 +1,9 @@
-// The formatted view's overview bar ("Where the time went"): its key chips, its time axis and the bracket of the rows in view.
+// The formatted view's overview bar ("Where the time went"): the share a statement took, its time axis and the bracket of the rows in view.
 import { LINE_KINDS } from './linecache'
 import { lineTim } from './linetime'
 import { fmtWall } from './format'
 
-/** A statement's chip: its id and the time it took. */
-export interface ChipStmt { id: number; e: number }
-
-/** Statements that took less than this share of the span fold into one `+n under 1 %` chip. */
-export const UNDER_SHARE = 0.01
-
-/**
- * The key's chips: the statements of 1 % of the span or more, in the order given, and the rest folded (`folded`, shown on a click of the `+n under 1 %`
- * chip). `keep`: the highlighted statement stays a chip of its own whatever its share, so the outlined chip that carries the count and the × is always there.
- */
-export function splitChips<T extends ChipStmt>(stmts: readonly T[], span: number, keep: number | null = null): { shown: T[]; folded: T[] } {
-  const shown: T[] = [], folded: T[] = []
-  for (const s of stmts) (span > 0 && s.e / span < UNDER_SHARE && s.id !== keep ? folded : shown).push(s)
-  return { shown, folded }
-}
-
-/** A statement's share of the span, a whole percent as the chips say it (`38 %`); a share under 1 % reads `< 1 %`. */
+/** A statement's share of the span, a whole percent as the picker and the bar's titles say it (`38 %`); a share under 1 % reads `< 1 %`. */
 export function shareText(e: number, span: number): string {
   if (span <= 0) return '–'
   const p = (100 * e) / span
