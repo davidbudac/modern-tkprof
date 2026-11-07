@@ -88,6 +88,9 @@ type Server struct {
 	bindMu  sync.Mutex
 	bindHdr map[int][]int // file -> lines of its BINDS headers (see bindHeaders)
 
+	stmtMu   sync.Mutex
+	stmtMaps map[int]*stmtLineMap // file -> the statement of every line (see stmtMapOf)
+
 	blockEvents, countP3 []bool // per event: block I/O, p3 a block count (analyze.BlockEvents, /api/io/map)
 }
 
@@ -117,7 +120,7 @@ func bad(format string, a ...any) error { return badRequest(fmt.Sprintf(format, 
 // Handler returns the mux of the endpoints; CORS is open like /api/doc (the
 // dev server of `pnpm dev` loads the document from this one). With WithLines
 // set it also serves /api/lines (incl. annot=1 and annot=2), /api/lines/at, /api/lines/next, /api/lines/blocks, /api/lines/profile,
-// /api/lines/hot, /api/lines/repeats, /api/lines/delta, /api/at and /api/search.
+// /api/lines/hot, /api/lines/repeats, /api/lines/delta, /api/lines/stmts, /api/at and /api/search.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	for path, fn := range s.routes() {
@@ -143,7 +146,7 @@ func Endpoints() []string {
 
 // LineEndpoints are the paths Handler serves in addition when WithLines is set.
 func LineEndpoints() []string {
-	return []string{"/api/at", "/api/lines", "/api/lines/at", "/api/lines/next", "/api/lines/blocks", "/api/lines/profile", "/api/lines/hot", "/api/lines/repeats", "/api/lines/delta", "/api/search"}
+	return []string{"/api/at", "/api/lines", "/api/lines/at", "/api/lines/next", "/api/lines/blocks", "/api/lines/profile", "/api/lines/hot", "/api/lines/repeats", "/api/lines/delta", "/api/lines/stmts", "/api/search"}
 }
 
 func (s *Server) routes() map[string]func(context.Context, url.Values) (any, error) {
@@ -176,6 +179,7 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		routes["/api/lines/hot"] = s.linesHot
 		routes["/api/lines/repeats"] = s.linesRepeats
 		routes["/api/lines/delta"] = s.linesDelta
+		routes["/api/lines/stmts"] = s.linesStmts
 		routes["/api/at"] = s.at
 	}
 	return routes

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/trace"
@@ -167,6 +168,16 @@ func (s *Server) annotate2(li *trace.LineIndex, f *fileInfo, from, n int) ([]ann
 				cur := &m.Cursors[f.cursors[ci-1].id]
 				a.U, a.S = int32(cur.ID), int32(cur.Statement)
 			}
+		case ci > 0 && parseErrorOwns(m, &m.Cursors[f.cursors[ci-1].id], kind, line):
+			// a failed parse has a cursor of its own (the model makes one at the PARSE ERROR line): the line and the SQL text
+			// after it (no terminator) are its, not the call before's
+			cur := &m.Cursors[f.cursors[ci-1].id]
+			a.U, a.S = int32(cur.ID), int32(cur.Statement)
+		case kind == trace.KindSeparator && ci < len(f.cursors) && f.cursors[ci].line == line+1:
+			// the `=====` rule directly above a cursor's PARSING IN CURSOR (or PARSE ERROR) line is the cursor's: without this
+			// it closes the call before's run (a statement filter shows it as a stray row, a highlight runs over it)
+			cur := &m.Cursors[f.cursors[ci].id]
+			a.U, a.S = int32(cur.ID), int32(cur.Statement)
 		case kind == trace.KindStat:
 			if pi > 0 {
 				p := &m.Plans[f.plans[pi-1].id]
@@ -219,4 +230,26 @@ func (s *Server) annotOwner(f *fileInfo, owner *model.Call, ok *bool, forRow *in
 	}
 	*ok = owner.ID != model.None
 	return nil
+}
+
+// parseErrorOwns reports whether the line of kind `kind` is the PARSE ERROR line of
+// cursor c (the last cursor that starts at or before it) or one of the SQL text
+// lines that follow it (a cursor made by a failed parse: its statement is of kind
+// StmtParseError and holds the text the parser read). The text has no terminator
+// line, so its extent is the statement's own line count.
+func parseErrorOwns(m *model.Model, c *model.Cursor, kind trace.Kind, line int) bool {
+	switch kind {
+	case trace.KindParseError:
+		return c.Line == line
+	case trace.KindUnknown, trace.KindBlank:
+		if c.Statement < 0 || int(c.Statement) >= len(m.Statements) || line <= c.Line {
+			return false
+		}
+		st := &m.Statements[c.Statement]
+		if st.Kind != model.StmtParseError || line-c.Line > len(st.Text)+1 {
+			return false
+		}
+		return line-c.Line <= strings.Count(st.Text, "\n")+1
+	}
+	return false
 }

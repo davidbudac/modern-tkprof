@@ -1145,6 +1145,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/s/{id}/api/lines/stmts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The lines of a file that belong to a set of statements (the Trace pane's statement filter and the map of the highlighted statements)
+         * @description A line belongs to statement X exactly when the per-line statement id of
+         *     the annotated pages (`/api/lines?annot=2`, field `s`) is X: a cursor's
+         *     PARSING IN CURSOR line, SQL text and END OF STMT, a failed parse's PARSE
+         *     ERROR line and its text, the call lines, the WAIT lines, a BINDS block
+         *     with its `Bind#` and attribute lines, the STAT lines of a plan, the `=====`
+         *     rule directly above a cursor's first line (it belongs to that cursor) and
+         *     the other framing lines (blank, `***`), which take the call before them. It is
+         *     computed from the fact rows and a few small reads of the trace text, not
+         *     by reading the file; the file's line map is built on first use and kept
+         *     for the session.
+         *
+         *     Three answers by the parameters. Default: for each requested id, its
+         *     `runs` (1-based, inclusive line ranges in line order, adjacent lines
+         *     joined) and `lines`, its count in the whole file. `union=1`: one list
+         *     of runs for all the ids together. `bins=B`: for each id, the number of
+         *     its lines in each of B buckets laid out as in `/api/lines/profile`
+         *     (size `ceil(total/buckets)`, bucket i covers `i*size+1 ..
+         *     min(total, (i+1)*size)`; a file shorter than B lines gets one bucket per
+         *     line), for a strip beside the scroll bar. `limit` bounds the runs
+         *     listed in the first two answers: the earliest in line order are kept
+         *     and `truncated` says some were left out; `lines` stays the whole-file
+         *     count.
+         */
+        get: operations["sessionLinesStmts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/s/{id}/api/at": {
         parameters: {
             query?: never;
@@ -1157,7 +1198,10 @@ export interface paths {
          * @description Ids are -1 where there is no such object (`execNo` and `planLine`
          *     too). By `kind` of the line: WAIT: the wait and the call it is
          *     attributed to; PARSING IN CURSOR, SQL text, END OF STMT: only the
-         *     cursor (and its statement and context); STAT: `planLine`, the index
+         *     cursor (and its statement and context); PARSE ERROR and the SQL text
+         *     after it: the same, for the cursor of the failed parse; the `=====` rule
+         *     on the line directly above a cursor's first line: the same, for that
+         *     cursor; STAT: `planLine`, the index
          *     into the document's `planLines`, and the cursor; BINDS block: the
          *     call (EXEC) it is attached to, also for the continuation lines of a
          *     bind value or memory dump inside the block; anything else: the last
@@ -1687,6 +1731,37 @@ export interface components {
             lines: number[][];
             /** @description more lines than `limit` qualified; the smaller Δ are left out */
             truncated: boolean;
+        };
+        /**
+         * @description The lines of a set of statements in one file. The fields present depend
+         *     on the request: `stmts` (with `runs` per statement, or with `counts` per
+         *     statement for `bins`) or, for `union=1`, `lines` and `runs` of the
+         *     whole set. `truncated` is in the answers that list runs.
+         */
+        LinesStmts: {
+            /** @description the line count of the file */
+            total: number;
+            /** @description one entry per requested id, in the order asked (a repeated id once) */
+            stmts?: components["schemas"]["LinesStmtsEntry"][];
+            /** @description `union=1`: the number of lines that belong to any of the ids */
+            lines?: number;
+            /** @description `union=1`: the line ranges, in line order */
+            runs?: number[][];
+            /** @description more runs than `limit`; the later ones are left out */
+            truncated?: boolean;
+            /** @description `bins`: the number of buckets, min(requested, total) */
+            buckets?: number;
+            /** @description `bins`: lines per bucket, ceil(total/buckets) */
+            size?: number;
+        };
+        LinesStmtsEntry: {
+            id: number;
+            /** @description the statement's lines in the whole file (also when `runs` is cut by `limit`) */
+            lines: number;
+            /** @description the default answer; line ranges in line order */
+            runs?: number[][];
+            /** @description `bins`: the statement's lines in each bucket */
+            counts?: number[];
         };
         /** @description Fold candidates of one file, sorted by `from`, not overlapping. */
         LinesRepeats: {
@@ -4105,6 +4180,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LinesDelta"];
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description no such session (envelope) or no such file (plain text) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionLinesStmts: {
+        parameters: {
+            query: {
+                /** @description index of the input file (document file.files order) */
+                file?: components["parameters"]["File"];
+                /** @description statement ids (document `statements` indexes), comma separated, 1..20000 distinct non-negative integers; an id without lines in the file is answered with none */
+                ids: string;
+                /** @description most runs listed (default and `union=1` answers), 1..500000; default 100000 */
+                limit?: number;
+                /** @description `1` or `true`: one list of runs for all the ids together. Not with `bins` */
+                union?: "0" | "1" | "false" | "true";
+                /** @description the number of buckets of the binned answer, 1..2000. Not with `union` */
+                bins?: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LinesStmts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinesStmts"];
                 };
             };
             400: components["responses"]["SliceBadRequest"];

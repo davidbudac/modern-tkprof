@@ -355,6 +355,14 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 			cur := &s.m.Cursors[e.id]
 			a.Cursor, a.Stmt, a.Ctx = cur.ID, cur.Statement, cur.Context
 		}
+	case parseErrorCursor(s.m, f, kind, line) != nil:
+		// a failed parse has a cursor of its own: its PARSE ERROR line and the SQL text after it
+		cur := parseErrorCursor(s.m, f, kind, line)
+		a.Cursor, a.Stmt, a.Ctx = cur.ID, cur.Statement, cur.Context
+	case kind == trace.KindSeparator && ruleCursor(s.m, f, line) != nil:
+		// the rule directly above a cursor's first line is the cursor's
+		cur := ruleCursor(s.m, f, line)
+		a.Cursor, a.Stmt, a.Ctx = cur.ID, cur.Statement, cur.Context
 	case kind == trace.KindStat:
 		// STAT lines of one dump are adjacent: the dump is the last plan that
 		// starts at or before the line, the line is the one with that id=
@@ -704,4 +712,30 @@ func (s *Server) linesNext(ctx context.Context, q url.Values) (any, error) {
 	return struct {
 		Line int `json:"line"`
 	}{line}, nil
+}
+
+// parseErrorCursor is the cursor of a failed parse that owns the line (see
+// parseErrorOwns), nil for any other line.
+func parseErrorCursor(m *model.Model, f *fileInfo, kind trace.Kind, line int) *model.Cursor {
+	if kind != trace.KindParseError && kind != trace.KindUnknown && kind != trace.KindBlank {
+		return nil
+	}
+	e, ok := lastAtOrBefore(f.cursors, line)
+	if !ok {
+		return nil
+	}
+	if c := &m.Cursors[e.id]; parseErrorOwns(m, c, kind, line) {
+		return c
+	}
+	return nil
+}
+
+// ruleCursor is the cursor that starts on the line after `line` (the `=====` rule
+// above a PARSING IN CURSOR or PARSE ERROR line belongs to it), nil for none.
+func ruleCursor(m *model.Model, f *fileInfo, line int) *model.Cursor {
+	i := sort.Search(len(f.cursors), func(i int) bool { return f.cursors[i].line > line })
+	if i < len(f.cursors) && f.cursors[i].line == line+1 {
+		return &m.Cursors[f.cursors[i].id]
+	}
+	return nil
 }
