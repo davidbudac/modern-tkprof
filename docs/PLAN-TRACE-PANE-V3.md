@@ -422,7 +422,7 @@ highlighted, one filtered, all by keys), `cursors-filter-1600-light.png` (one st
 
 ### Batch 5 (2026-11-07): the line map, icons in the side panel, the statement filter keeps the view's folds, the open list
 
-Commits: `BATCH5_SHA` ("Trace pane round 3b, batch 5: …"; this Log entry got its SHA in the commit after it). Tests: `pnpm --filter mtkprof-web test` 799 pass (was 773: `linestrip` rewritten
+Commit: `ae52e07` ("Trace pane round 3b, batch 5: …"; this Log entry got its SHA in the commit after it). Tests: `pnpm --filter mtkprof-web test` 799 pass (was 773: `linestrip` rewritten
 for the new mapping (+9), `tightCalls` +5, `composeFilterFolds` +7 in `folds.test.ts`, `hlStops` and the filter-with-folds scenario +6 in `stmtfilter.test.ts`, the panel tabs' names in `display.test.ts`), `pnpm -r typecheck` clean,
 desktop `pnpm test` 228 pass, `scripts/ci-local.sh --no-release` **PASS** in 58 s (go vet, go test (unit, golden, engine contract), web install / typecheck / test / build, embedded-UI check, desktop api types / cargo fmt / typecheck / test). `make web` rebuilt
 `internal/ui/dist/index.html` (1,856.62 kB after batch 3 to 1,890.17 kB: +33.6 kB, gzip 649.61 to 660.33 kB, for batches 4 and 5 together), `make build`, and the embedded CLI UI was smoke-tested on `bin/mtkprof serve -spill io_waits.trc` (the line map canvas, `l`, `m` with its
