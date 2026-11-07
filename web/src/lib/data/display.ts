@@ -7,7 +7,7 @@ import type { LineKind } from './lines'
 export const SHOW_TOGGLES: readonly { key: 'wrap' | 'heat' | 'strip' | 'links' | 'hints' | 'clock' | 'delta'; label: string; title: string; keys?: string }[] = [
   { key: 'wrap', label: 'Wrap long lines', title: 'wrap long lines instead of scrolling sideways; in the formatted view, show each SQL statement pretty-printed in full' },
   { key: 'heat', label: 'Heat bars', keys: 'h', title: 'a bar in the right gutter for the elapsed time of calls and waits' },
-  { key: 'strip', label: 'Density strip', title: 'the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move' },
+  { key: 'strip', label: 'Line map', title: 'the whole file beside the scroll bar: where the highlighted statements\' lines are (each in its colour), the selected line, quiet ticks for search hits, bookmarks and hot spots; click or drag to move' },
   { key: 'links', label: 'Reference links', title: 'underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click shows the statement (its SQL and a summary) in a popup, the Statements view is one click further (Shift: the cursor\'s parse line)' },
   { key: 'hints', label: 'Hints', keys: 'n', title: 'dim notes inside the rows: bind values and idle gaps' },
   { key: 'clock', label: 'Clock time', title: "a column beside the line numbers with each line's tim= as a wall-clock time in the trace's zone (the time from the start when the trace has no wall clock)" },
@@ -23,9 +23,16 @@ export const MUTE_GROUPS: readonly { name: string; label: string; kinds: readonl
   { name: 'waits', label: 'Waits', kinds: ['wait'] },
 ]
 
-/** The tabs of the side panel: the selected line translated, the outline of the file, the search hits, the bookmarks, a statement as run, and the display settings. */
+/** The tabs of the side panel (icons: the label is the tab's name, its tooltip and the panel's heading, `title` says what it holds): the selected line translated, the outline of the file, the search hits, the bookmarks, a statement as run, and the display settings. */
 export type PanelTab = 'line' | 'outline' | 'hits' | 'bookmarks' | 'asrun' | 'display'
-export const PANEL_TABS: readonly { tab: PanelTab; label: string }[] = [{ tab: 'line', label: 'Line' }, { tab: 'outline', label: 'Outline' }, { tab: 'hits', label: 'Hits' }, { tab: 'bookmarks', label: 'Bookmarks' }, { tab: 'asrun', label: 'As run' }, { tab: 'display', label: 'Display' }]
+export const PANEL_TABS: readonly { tab: PanelTab; label: string; title: string }[] = [
+  { tab: 'line', label: 'Line', title: 'the selected line translated: every field named, with its unit and meaning (i)' },
+  { tab: 'outline', label: 'Outline', title: 'the file as a tree: session markers, the cursors parsed under them, their executions' },
+  { tab: 'hits', label: 'Hits', title: 'the hits of the search' },
+  { tab: 'bookmarks', label: 'Bookmarks', title: 'the lines you bookmarked, with their notes' },
+  { tab: 'asrun', label: 'As run', title: "the statement of the selected line's execution with its bind values in place of the placeholders" },
+  { tab: 'display', label: 'Display', title: 'what the rows show, how they are coloured, the folds' },
+]
 
 /**
  * The side panel after a request: `want` is a tab (the Display button, a key, a palette command), which opens the panel at it or closes the panel when it

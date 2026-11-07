@@ -419,3 +419,35 @@ highlighted, one filtered, all by keys), `cursors-filter-1600-light.png` (one st
 - **Looked off, not fixed.** (1) A line in no cursor (blank, `***`) takes the previous call's statement, so a filter keeps it with that statement (`line 91` and `92` of `io_waits.trc` are in the middle of `c7ry5gr75qv4b`'s run). (2) The
   SQLT quirk above. (3) The picker's tint is light in the plan and SQL bands (their sunken surface sits over it). (4) With a filter on, the Go-to label folds early (above). (5) A filtered view of far-apart rows loads a page per
   row: 100 pages of 2,000 lines for a statement that ran everywhere on a big file (the screen waits for them).
+
+### Batch 5 (2026-11-07): the line map, icons in the side panel, the statement filter keeps the view's folds, the open list
+
+Commits: `BATCH5_SHA` ("Trace pane round 3b, batch 5: …"; this Log entry got its SHA in the commit after it). Tests: `pnpm --filter mtkprof-web test` 799 pass (was 773: `linestrip` rewritten
+for the new mapping (+9), `tightCalls` +5, `composeFilterFolds` +7 in `folds.test.ts`, `hlStops` and the filter-with-folds scenario +6 in `stmtfilter.test.ts`, the panel tabs' names in `display.test.ts`), `pnpm -r typecheck` clean,
+desktop `pnpm test` 228 pass, `scripts/ci-local.sh --no-release` **PASS** in 58 s (go vet, go test (unit, golden, engine contract), web install / typecheck / test / build, embedded-UI check, desktop api types / cargo fmt / typecheck / test). `make web` rebuilt
+`internal/ui/dist/index.html` (1,856.62 kB after batch 3 to 1,890.17 kB: +33.6 kB, gzip 649.61 to 660.33 kB, for batches 4 and 5 together), `make build`, and the embedded CLI UI was smoke-tested on `bin/mtkprof serve -spill io_waits.trc` (the line map canvas, `l`, `m` with its
+status note, the six panel tabs, the nine Display toggles, 0 console errors: `smoke-cli.mjs`, `embedded-cli-1440.png`). No Go change: the engine route of batch 4 is all the strip needs (the desktop sidecar was
+rebuilt with `pnpm build:engine`: the prebuilt one was from before the route).
+Evidence: `/tmp/verify-mtkprof/evidence/trace-v3/5/` (1600 and 1280 px, light and dark; `run-matrix.sh` regenerates the matrix with `drive-2.mjs`, which gained `wheel:`; `detail.js` measures a call Detail's width and whether its
+waiting share is clipped, `fit.js` / `measure3.js` the toolbar). **Best four:** `cursors-filter-1600-light.png` (compare with batch 4's: the same filter with `end of statement`, blank and attribute rows gone), `strip-hl-1600-light.png` /
+`strip-hl-1280-dark.png` (55 statements highlighted on the SQLT trace: the line map, and the colours of the lanes), `panel-display-1280-light.png` (icon tabs with the heading, the toggle grids, the Δ filter's segmented control) and
+`io_waits-122-panel-1280-light.png` (the hot FETCH at 1280 with the panel open: the Detail compacted, the waiting share whole). Also `band-scrolled-*` (a tall band half-way: line number and `SQL` tag in view), `basic_binds-36-wrap-*`
+(`set_action('arraysize15')`), `strip-none-*` (ticks only: a hit, a bookmark, hot spots), `raw-chip-*`, `toolbar-chips-*`, `panel-{line,hits,bookmarks}-*`, `delta-goto80-1600-light.png` (the Δ filter's opened fold, composed).
+
+- **Line map.** `LineStrip` draws, from `fetchStmtBins` (one request per change of the highlight set, file or `rev`; none with nothing highlighted), each highlighted statement's lines in its colour (2 px marks, stripes where
+  several share a pixel row), the selected line (2 px amber), the visible range, the window, and quiet ticks (bookmarks, hot spots at the start edge, hits at the end edge). The density layer is gone, and with it the error, cursor and commit ticks
+  (they came from `lines/profile`, which the UI no longer asks for): **deviation, noted in DESIGN and HANDOFF**: the plan listed hits, bookmarks and hot spots only. 16 px wide (was 14). The toggle is "Line map" in Display (was "Density strip").
+- **`m` / `M`** go to the start of the next / previous *run* of any highlighted statement (`fetchStmtRuns`, `hlStops`); the Step menu's row, the palette ("Next highlight" / "Previous highlight") and the search scope "Highlighted statements"
+  use the same list. Why runs, not calls and waits of the set: DESIGN. The line card's "Mark its calls and waits" became "Highlight its statement". **Deviation:** opening the tab with a statement selected starts at its first line in the file
+  (`stmtLineIn`), not at its first bounded mark. The raw view's chip shows the set (stacked swatches, `3 highlighted`, ×).
+- **Icons.** Tabs, Display (Show and Rows toggles, Δ modes, folds), Line, Hits, Bookmarks, As run, recent searches, close; 30 new icons in `components/icons.tsx` (lucide shapes). Every button has a tooltip and an `aria-label`; the tab strip cannot
+  clip any more. The Show toggles have a caption under the grid (name and key of the one hovered or focused): **deviation (addition)**, the descriptions are long and the grid alone is glyphs. Lane colours, line colours and the inputs stay text.
+- **The regression.** `composeFilterFolds` (DESIGN has the rules). **The Δ filter had it too**, wherever one of its folds is opened (a go-to into a hidden line): fixed the same way, with the quiet folds only (a repeat or user fold would hide a Δ-kept
+  row); `goTo` into an opened filter fold also opens the view's fold over the line.
+- **Open list.** Detail compaction (container `rdtx`, steps at 108 / 98 / 88 / 74 / 56 ch; the groups are a clipped block, the waiting share is whole: measured at 1280 with the panel open, `detail.js`); the tall band's number and Operation cell
+  (`--stick`, a `SQL` tag appears while stuck: **deviation (addition)**, the band's Operation cell is empty otherwise); `tightCalls`; chips for Fold repeats and the lane colour (the label steps now depend on the number of chips: `:has(.lines-state ~ .lines-state)`
+  two, three, four); the tint on the bands (13 % / 17 % over the sunken ground).
+- **Looked off, not fixed.** (1) With all four optional chips, the pin, a window and a file select at 1100 px the search is at its least width (23 px; 128 px or more from 1280). (2) At 1280 with the panel open the groups of a hot call's Detail are clipped (the
+  CPU is out, the gets box is cut at its end when `rows` and the share leave less than its width); only room helps. (3) The line map is thin on a 112,000-line trace with few highlighted lines (one pixel row is 140 lines; the marks are 2 px). (4) The Go-to label
+  still folds early with a filter on. (5) A far reveal that must centre a tall band is up to 10 px off. Nothing else of the batch 1 to 4 Logs was left that is cheap; the rest is in HANDOFF's open list.
+- **Attribution.** As in batches 3 and 4 the commit's `Co-Authored-By` line is the one this session was given (Sonnet 5.5), not the Opus 5.5 of the brief.

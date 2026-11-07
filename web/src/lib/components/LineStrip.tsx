@@ -1,26 +1,32 @@
 import { useEffect, useRef, type PointerEvent } from 'react'
-import type { LineProfile } from '../data/lines'
-import { bucketRows, densityRows, lineAtY, stripMarks } from '../data/linestrip'
+import { lineAtY, stmtRows, stripMarks, stripeSpans, type BinShape } from '../data/linestrip'
 import { resolveVar } from './colors'
 
 /** Width of the strip in CSS pixels. */
-export const STRIP_W = 14
+export const STRIP_W = 16
+/** The edge lanes of the quiet ticks (bookmarks and hot spots at the start edge, search hits at the end edge); the highlighted statements have the width between them. */
+const LANE = 3
 
 /** The lines of the time window (1-based, inclusive). */
 interface Range { from: number; to: number }
 
+/** A highlighted statement's lines per bucket of the file, and the colour token it is drawn in (`--c-cpu`: the strip resolves it per theme). */
+export interface StripLayer { id: number; token: string; counts: readonly number[] }
+
 interface Props {
-  /** the shape of the file; null while it is not loaded (nothing is painted but the overlays) */
-  profile: LineProfile | null
   total: number
+  /** the highlighted statements' lines (the engine's binned answer), in the order the statements were highlighted; empty: nothing is highlighted */
+  layers: readonly StripLayer[]
+  /** the layout of the buckets of `layers`; null until the first answer */
+  shape: BinShape | null
+  /** the selected line */
+  selected: number
   /** search hits: line numbers, ascending */
   hits: number[]
   bookmarks: ReadonlySet<number>
-  /** line → 1 (a call of the selected statement), 2 (a wait), 3 (both) */
-  marks: ReadonlyMap<number, number>
   /** the lines of the time window */
   range: Range | null
-  /** the hot spots of the readable view (lines of 1 % of the traced time or more): a mark across the strip */
+  /** the hot spots of the readable view (lines of 1 % of the traced time or more): a quiet tick at the start edge */
   hot?: readonly number[]
   /** the visible range: first line (1-based) and the lines that fit */
   view: { top: number; rows: number }
@@ -31,9 +37,10 @@ interface Props {
 }
 
 /**
- * The whole file in a strip beside the viewer's scroll bar: calls on the left and waits on the right as density, ticks for errors,
- * cursor parses and commits, then what the client knows: the hits of the search, bookmarks, the marks of the selected statement,
- * the time window and the visible range. A click jumps to the line at that height, a drag scrubs. Painted on a canvas, at most once per frame.
+ * The whole file in a strip beside the viewer's scroll bar: the lines of the highlighted statements, each in its colour (where in the file they are; statements that share a pixel
+ * row share the strip's width in stripes), the selected line, the visible range (a box) and the time window, and quiet ticks at the edges for what the client knows: bookmarks and hot
+ * spots at the start edge, search hits at the end edge. With nothing highlighted only those are drawn. A click jumps to the line at that height, a drag scrubs. Painted on a canvas, at
+ * most once per frame.
  */
 export function LineStrip(props: Props) {
   const cv = useRef<HTMLCanvasElement>(null)
@@ -41,8 +48,8 @@ export function LineStrip(props: Props) {
   latest.current = props
   const frame = useRef(0)
   const dragging = useRef<number | null>(null) // the last line scrubbed to, while the pointer is down
-  // the density rows of one profile at one height, kept across the repaints a scroll causes
-  const rows = useRef<{ profile: LineProfile; h: number; calls: Float64Array; waits: Float64Array; cursors: Float64Array; errors: Float64Array; commits: Float64Array } | null>(null)
+  // the pixel rows of one answer at one height, kept across the repaints a scroll causes
+  const rows = useRef<{ layers: readonly StripLayer[]; shape: BinShape | null; h: number; by: Uint8Array[] } | null>(null)
 
   const paint = useRef(() => {
     frame.current = 0
@@ -57,50 +64,42 @@ export function LineStrip(props: Props) {
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, STRIP_W, h)
-    const { profile: p, total: t, hits, bookmarks, marks, range, view, hot } = latest.current
-    const cpu = resolveVar('--c-cpu'), wait = resolveVar('--c-userio'), commit = resolveVar('--c-commit'), crit = resolveVar('--s-critical')
-    const ink = resolveVar('--ink'), ink3 = resolveVar('--ink-3')
-    const n = t || p?.total || 0
+    const { total: n, layers, shape, selected, hits, bookmarks, range, view, hot } = latest.current
+    const ink = resolveVar('--ink'), ink2 = resolveVar('--ink-2'), crit = resolveVar('--s-critical'), amber = resolveVar('--c-commit')
 
-    if (p && p.buckets > 0 && p.total > 0) {
+    if (n > 0 && shape && layers.length > 0) {
       let r = rows.current
-      if (!r || r.profile !== p || r.h !== h) {
-        const d = densityRows(p, h)
-        r = rows.current = { profile: p, h, calls: d.calls, waits: d.waits, cursors: bucketRows(p.cursors, p, h), errors: bucketRows(p.errors, p, h), commits: bucketRows(p.commits, p, h) }
-      }
-      const half = (STRIP_W - 2) / 2
+      if (!r || r.layers !== layers || r.shape !== shape || r.h !== h) r = rows.current = { layers, shape, h, by: stmtRows(layers.map((l) => l.counts), shape, h) }
+      const colors = layers.map((l) => resolveVar(l.token))
+      const mid = STRIP_W - 2 * LANE
+      const present: number[] = []
       for (let y = 0; y < h; y++) {
-        // the square root keeps a thin trickle visible next to a burst
-        if (r.calls[y] > 0) { ctx.fillStyle = cpu; ctx.fillRect(0, y, Math.max(1, Math.round(Math.sqrt(r.calls[y]) * half)), 1) }
-        if (r.waits[y] > 0) { const w = Math.max(1, Math.round(Math.sqrt(r.waits[y]) * half)); ctx.fillStyle = wait; ctx.fillRect(STRIP_W - w, y, w, 1) }
+        present.length = 0
+        for (let k = 0; k < r.by.length; k++) if (r.by[k][y]) present.push(k)
+        for (const s of stripeSpans(present, mid)) { ctx.fillStyle = colors[s.k]; ctx.fillRect(LANE + s.x, y, s.w, 2) } // (2 px: a statement with one line in a long file is still seen)
       }
-      ctx.globalAlpha = 0.35
-      ctx.fillStyle = ink3
-      for (let y = 0; y < h; y++) if (r.cursors[y] > 0) ctx.fillRect(0, y, STRIP_W, 1)
-      ctx.globalAlpha = 1
-      ctx.fillStyle = commit
-      for (let y = 0; y < h; y++) if (r.commits[y] > 0) ctx.fillRect(4, y, STRIP_W - 8, 1)
-      ctx.fillStyle = crit
-      for (let y = 0; y < h; y++) if (r.errors[y] > 0) ctx.fillRect(0, y, STRIP_W, 1)
     }
 
     if (n > 0) {
       if (hot?.length) {
-        ctx.fillStyle = wait
-        for (const y of stripMarks(hot, n, h)) ctx.fillRect(1, Math.max(0, y - 1), STRIP_W - 2, 3)
+        ctx.fillStyle = crit
+        for (const y of stripMarks(hot, n, h)) ctx.fillRect(0, y, LANE, 1)
       }
       ctx.fillStyle = ink
-      for (const y of stripMarks(marks.keys(), n, h)) ctx.fillRect(5, y, 4, 1)
-      ctx.fillStyle = commit
-      for (const y of stripMarks(hits, n, h)) ctx.fillRect(STRIP_W - 5, y, 5, 2)
-      ctx.fillStyle = ink
-      for (const y of stripMarks(bookmarks, n, h)) ctx.fillRect(0, Math.max(0, y - 1), 3, 3)
+      for (const y of stripMarks(bookmarks, n, h)) ctx.fillRect(0, Math.max(0, y - 1), LANE, 3)
+      ctx.fillStyle = ink2
+      for (const y of stripMarks(hits, n, h)) ctx.fillRect(STRIP_W - LANE, y, LANE, 1)
       if (range) {
         const y0 = ((range.from - 1) / n) * h, y1 = (range.to / n) * h
         ctx.globalAlpha = 0.2
         ctx.fillStyle = ink
         ctx.fillRect(0, y0, STRIP_W, Math.max(1, y1 - y0))
         ctx.globalAlpha = 1
+      }
+      if (selected >= 1 && selected <= n) { // the selected line: a bar across the whole width, in the colour of the selected row
+        const y = Math.min(h - 2, Math.floor(((selected - 1) * h) / n))
+        ctx.fillStyle = amber
+        ctx.fillRect(0, y, STRIP_W, 2)
       }
       if (view.rows > 0) {
         const bh = Math.min(h, Math.max(5, (view.rows / n) * h))
@@ -119,8 +118,8 @@ export function LineStrip(props: Props) {
   const schedule = useRef(() => { if (!frame.current) frame.current = requestAnimationFrame(paint.current) })
 
   // repaint (once per frame) after every render that brought other props
-  const { profile, total, hits, bookmarks, marks, range, view, hot } = props
-  useEffect(() => schedule.current(), [profile, total, hits, bookmarks, marks, range, view.top, view.rows, hot])
+  const { total, layers, shape, selected, hits, bookmarks, range, view, hot } = props
+  useEffect(() => schedule.current(), [total, layers, shape, selected, hits, bookmarks, range, view.top, view.rows, hot])
 
   // the size, and the theme (the colours are tokens that change with it)
   useEffect(() => {
@@ -137,11 +136,10 @@ export function LineStrip(props: Props) {
 
   const lineOf = (e: PointerEvent<HTMLCanvasElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
-    const p = latest.current
-    return lineAtY(e.clientY - r.top, r.height, p.total || p.profile?.total || 0)
+    return lineAtY(e.clientY - r.top, r.height, latest.current.total)
   }
   const onDown = (e: PointerEvent<HTMLCanvasElement>) => {
-    if (e.button !== 0 || !(latest.current.total || latest.current.profile?.total)) return
+    if (e.button !== 0 || !latest.current.total) return
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* synthetic events have no active pointer */ }
     const line = lineOf(e)
     dragging.current = line

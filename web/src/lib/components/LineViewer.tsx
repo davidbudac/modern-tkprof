@@ -140,7 +140,7 @@ interface Props {
   onAct?(line: number, act: 'pin' | 'asrun' | 'lane', el: HTMLElement): void
   /** a row over the scroll container, as wide as its rows (the formatted view's column headers): `--lv-sbw` is the scroll bar's width */
   top?: ReactNode
-  /** something beside the scroll container, the full height of the viewer (the density strip) */
+  /** something beside the scroll container, the full height of the viewer (the line map) */
   side?: ReactNode
   /** the first visible line (1-based) and the lines that fit (in lines, folds counted), after every move and resize (at most once per animation frame) */
   onViewChange?(top: number, rows: number): void
@@ -198,6 +198,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const r0 = Math.floor(topRef.current), x = indexRef.current
     const top = lineOfRow(r0, x)
     const r = headRef.current?.(top) ?? null
+    pinnedLane.current = r?.lane !== undefined
     setPinned((prev) => (!force && (prev?.key ?? null) === (r?.key ?? null) ? prev : r))
     setPlanTop(readableOn.current && (tableOf(top, x) ? !headAtRow(r0, x) : cache.line(top)?.kind === K_STAT))
   }, [topRef, cache])
@@ -271,10 +272,32 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     if (!tallRef.current || !lay || !kids || kids.length === 0 || baseRef.current + kids.length < vtotalRef.current) return 0
     return topFromOffset(Math.max(0, kids[kids.length - 1].getBoundingClientRect().bottom - lay.getBoundingClientRect().top - rowsRef.current * ROW_H))
   }, [topFromOffset])
+  const pinnedLane = useRef(false) // the sticky lane row covers the top line of the view
+  /**
+   * A tall row (an SQL band in wrap mode) keeps its line number and Operation cell in view while the band is read: they follow the top edge of the view down the row, under the
+   * sticky lane row (`--stick`, the distance in px; `--stuck` 1 while it is more than 0, which shows the band's `SQL` tag in the Operation cell). The scroll here is not the
+   * browser's (the layer moves under the view), so `position: sticky` has nothing to stick to.
+   */
+  const stick = useCallback(() => {
+    const lay = layer.current, kids = lay?.children
+    if (!lay || !kids || !tallRef.current) return
+    const view = lay.parentElement
+    if (!view) return
+    const top = view.getBoundingClientRect().top + (pinnedLane.current ? ROW_H : 0)
+    for (let i = 0; i < kids.length; i++) {
+      const el = kids[i] as HTMLElement
+      if (!el.classList.contains('lv-sqlrow')) continue
+      const r = el.getBoundingClientRect()
+      const d = Math.min(Math.max(0, top - r.top), Math.max(0, r.height - ROW_H))
+      if (d > 0.5) { el.style.setProperty('--stick', `${Math.round(d)}px`); el.style.setProperty('--stuck', '1') }
+      else { el.style.removeProperty('--stick'); el.style.removeProperty('--stuck') }
+    }
+  }, [])
   const place = useCallback(() => {
     if (layer.current) layer.current.style.transform = `translateY(${-offsetOf(topRef.current)}px)`
     markTop()
-  }, [topRef, markTop, offsetOf])
+    stick()
+  }, [topRef, markTop, offsetOf, stick])
 
   const hideCard = useCallback(() => {
     window.clearTimeout(cardTimer.current)
@@ -825,12 +848,12 @@ function CallDetail({ call, execNo }: { call: CallParts; execNo?: number }) {
       <span className="rd-slot rd-slot-rows">{rows && <span className="rd-q rd-q-rows" title={rows.title}><b>{rows.n}</b><small>{rows.unit}</small></span>}</span>
       {g && (
         <span className="rd-gets" title={g.title}>
-          <span><i>query</i><b className={g.zero[0] ? 'z' : undefined}>{g.query}</b></span>
-          <span><i>current</i><b className={g.zero[1] ? 'z' : undefined}>{g.current}</b></span>
-          <span><i>disk</i><b className={g.zero[2] ? 'z' : undefined}>{g.disk}</b></span>
+          <span><i><span className="w-f">query</span><span className="w-s">q</span></i><b className={g.zero[0] ? 'z' : undefined}>{g.query}</b></span>
+          <span><i><span className="w-f">current</span><span className="w-s">cu</span></i><b className={g.zero[1] ? 'z' : undefined}>{g.current}</b></span>
+          <span><i><span className="w-f">disk</span><span className="w-s">d</span></i><b className={g.zero[2] ? 'z' : undefined}>{g.disk}</b></span>
         </span>
       )}
-      {call.cpu && <span className="rd-cpu" title={call.cpu.title}><i>cpu</i> <b>{call.cpu.n}</b> <small>{call.cpu.unit}</small></span>}
+      {call.cpu && <span className="rd-cpu" title={call.cpu.title}><i className="w-f">cpu </i><b>{call.cpu.n}</b> <small>{call.cpu.unit}</small></span>}
     </span>
   )
 }
@@ -896,7 +919,7 @@ function ReadableRow({ n, rd, span, hv, hlane, dcol, phide, tb, band, bandText, 
       {tbl ? (
         // the rows of a plan's or BINDS table: one band from the Operation column to the right edge (the clock included); PLAN / BINDS is said once, in its head row
         <TableBand head={tbl === 'bindhead'} first={tbl === 'sql' && !!(band & BAND_FIRST)} sql={tbl === 'sql'} last={tb === 2 || (tbl === 'bindrow' && !!rd.bindRow?.last) || (tbl === 'sql' && !!(band & BAND_LAST))}
-          handle={<>{opFold && <button type="button" className="lv-fold lv-fold-op" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}{tbl === 'bindhead' ? rd.label : ''}</>}>
+          handle={<>{opFold && <button type="button" className="lv-fold lv-fold-op" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}{tbl === 'bindhead' ? rd.label : ''}{bandText !== undefined && <span className="lv-sqltag" aria-hidden="true">SQL</span>}</>}>
           {tbl === 'plan' && plan && <PlanCells r={plan} hide={phide} />}
           {tbl === 'bindrow' && rd.bindRow && <>
             <span className="pc pc-tag" />
@@ -915,14 +938,14 @@ function ReadableRow({ n, rd, span, hv, hlane, dcol, phide, tb, band, bandText, 
             {fold !== null ? foldLabel ?? '' : plan && tb ? '' : rd.label}
           </span>
           {plan ? <span className="lv-tx lv-plan"><PlanCells r={plan} /></span> : (
-            <span className="lv-tx" style={fold === null && (rd.indent || rd.keyW) ? ({ '--ind': rd.indent || undefined, '--kw': rd.keyW ? `${rd.keyW}ch` : undefined } as React.CSSProperties) : undefined}>
+            <span className={'lv-tx' + (fold === null && rd.call && (rd.call.rows || rd.call.gets || rd.call.cpu) ? ' lv-tx-call' : '')} style={fold === null && (rd.indent || rd.keyW) ? ({ '--ind': rd.indent || undefined, '--kw': rd.keyW ? `${rd.keyW}ch` : undefined } as React.CSSProperties) : undefined}>
               {fold === null && rd.call && (rd.call.rows || rd.call.gets || rd.call.cpu) ? <CallDetail call={rd.call} execNo={rd.execNo} />
                 : fold === null && rd.execNo !== undefined && <span className="rd-exec" title={`execution ${rd.execNo} of this cursor: this is its first row`}>exec {rd.execNo}</span>}
               {fold === null && inline && rd.chips ? <>{rd.chips.map((c, i) => <BindChipNode key={i} c={c} />)}</> : null}
               {fold === null && rd.asRun && <button type="button" className="lv-asrun" data-act="asrun" title="the statement as it ran: these values in place of its placeholders (side panel, As run)">SQL with values →</button>}
               {fold === null && rd.dot && !rd.micro && <i className={'rd-dot' + (rd.dot === 'idle' ? ' ring' : '')} style={{ '--dot': `var(--c-${rd.dot})` } as React.CSSProperties} title={roleLabel[rd.dot]} />}
               {fold !== null ? <span className="rd-fold">{fold}</span> : rd.micro ? <MicroDetail rd={rd} /> : rd.parts.map(segNode)}
-              {fold === null && rd.waited && <span className={'rd-share' + (rd.waited.crit ? ' crit' : '')} title={`${fmtInt(rd.waited.us)} µs of the call's e= were not CPU (e − c): it waited`}>· {fmtDur(rd.waited.us)} waiting ({rd.waited.pct} %)</span>}
+              {fold === null && rd.waited && <span className={'rd-share' + (rd.waited.crit ? ' crit' : '')} title={`${fmtInt(rd.waited.us)} µs of the call's e= were not CPU (e − c): it waited`}>· {fmtDur(rd.waited.us)} <span className="w-f">waiting ({rd.waited.pct} %)</span><span className="w-s">wait {rd.waited.pct} %</span></span>}
             </span>
           )}
           <span className={'lv-rclk' + (short ? '' : ' ck-full')} title={rd.clockTitle}>{short ? <><span className="ck-s">{rd.clockShort}</span><span className="ck-f">{rd.clock}{rd.micros}</span></> : rd.clock + rd.micros}</span>

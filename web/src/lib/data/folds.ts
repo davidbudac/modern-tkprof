@@ -28,6 +28,8 @@ export interface Fold {
   sql?: boolean
   /** a fold of the Δ filter: the lines below a line that reaches the threshold, up to the next one (quiet; its handle shows a break under it) */
   filter?: boolean
+  /** a filter fold that took in folds of the view (`composeFilterFolds`) and starts at their handle: the handle of the filter's own fold, the key its opening is remembered by */
+  openKey?: number
 }
 
 /**
@@ -46,6 +48,38 @@ export function filterFolds(keep: readonly number[], total: number, what: string
     const from = keep[i], to = i + 1 < keep.length ? keep[i + 1] - 1 : total
     if (to > from) out.push({ from, to, summary: '', auto: true, filter: true, quiet: true })
   }
+  return out
+}
+
+/**
+ * The view's own folds (`base`: the framing, BINDS and plan folds, Fold repeats, the user's) laid together with a line filter's (`filter`: each hides the lines between the kept runs;
+ * both sorted, each apart from its own kind). The view's own folds that lie in a kept stretch stay as they are, so a statement filter shows the formatted view the way it is. Where
+ * the two overlap (a base fold hides the last kept line before a hidden stretch, or its handle is a hidden line and it reaches into the next kept run, as the `=====` rule above a
+ * cursor does) they are one fold, from the first handle to the furthest end, with the filter fold's look (its dashed rule, `filter`) and its `openKey`, so opening it opens the filter's fold.
+ */
+export function composeFilterFolds(base: readonly Fold[], filter: readonly Fold[]): Fold[] {
+  const out: Fold[] = []
+  let cur = null as Fold | null
+  let held = null as Fold | null // the filter fold `cur` holds
+  let merged = false
+  const done = () => {
+    if (!cur) return
+    out.push(merged && held ? { ...held, from: cur.from, to: cur.to, ...(held.from !== cur.from ? { openKey: held.from } : {}) } : cur)
+  }
+  let i = 0, j = 0
+  while (i < base.length || j < filter.length) {
+    const f = j >= filter.length || (i < base.length && base[i].from < filter[j].from) ? base[i++] : filter[j++]
+    if (f.to <= f.from) continue
+    if (cur && f.from <= cur.to) { // its handle is a line `cur` hides, or the same line: one fold
+      if (f.to > cur.to) cur = { ...cur, to: f.to }
+      if (f.filter && !held) held = f
+      merged = true
+      continue
+    }
+    done()
+    cur = f; held = f.filter ? f : null; merged = false
+  }
+  done()
   return out
 }
 

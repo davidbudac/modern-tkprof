@@ -40,7 +40,8 @@ describe('the Δ filter chip', () => {
 
 describe('the side panel and the Display tab', () => {
   const closed = { open: false, tab: 'hits' as const, last: 'hits' as const }
-  it('Display is a tab of the panel, last', () => expect(PANEL_TABS[PANEL_TABS.length - 1]).toEqual({ tab: 'display', label: 'Display' }))
+  it('Display is a tab of the panel, last', () => expect(PANEL_TABS[PANEL_TABS.length - 1]).toMatchObject({ tab: 'display', label: 'Display' }))
+  it('every tab has a name and a tooltip: the panel shows icons', () => { for (const t of PANEL_TABS) { expect(t.label).not.toBe(''); expect(t.title).not.toBe('') } })
   it('the Display button opens the panel on Display, and closes it when it is already on Display', () => {
     expect(panelAfter(closed, 'display')).toEqual({ open: true, tab: 'display' })
     expect(panelAfter({ open: true, tab: 'line', last: 'line' }, 'display')).toEqual({ open: true, tab: 'display' })

@@ -77,3 +77,19 @@ export function filterChipParts(labels: readonly string[], lines?: number, trunc
 
 /** The chip's whole text. */
 export const filterChipText = (c: FilterChip) => c.word + c.name + c.unit + c.doing
+
+/**
+ * Where the highlighted statements show up in a file: `starts` are the first lines of their runs (each statement's runs from `api/lines/stmts`, all merged, in line order, each line once),
+ * the places `m` and `M` step between; `first` and `last` bound every line of theirs (the search scope "highlighted statements" reads the lines in between). `truncated`: the engine's
+ * list was cut, the stops after the last run it sent are not known.
+ */
+export interface HlStops { starts: number[]; first: number; last: number; runs: number; truncated: boolean }
+
+export function hlStops(stmts: readonly { runs: readonly Run[] }[], truncated = false): HlStops {
+  const starts: number[] = []
+  let first = Infinity, last = 0
+  for (const s of stmts) for (const [a, b] of s.runs) { starts.push(a); if (a < first) first = a; if (b > last) last = b }
+  starts.sort((x, y) => x - y)
+  const unique = starts.filter((n, i) => i === 0 || n !== starts[i - 1])
+  return { starts: unique, first: unique.length > 0 ? first : 0, last, runs: starts.length, truncated }
+}

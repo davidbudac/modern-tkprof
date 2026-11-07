@@ -467,8 +467,10 @@ restores). Pieces:
 - **The pane's controls** (round 3, DESIGN § Formatted Lines view). The toolbar of `Lines.tsx` holds what is used while reading (the
   `raw | formatted` switch, the search and its Options menu, Hot spot ↑ ↓, Step, Go to, the input-file select) and the **state chips**
   (the Δ filter's, the pin, the time window group, the raw view's Highlighting chip: each only while it is not the default), then the
-  Display and Side panel buttons. The settings live in the side panel's **Display tab** (`views/LinesDisplay.tsx`: real form controls over
-  `useLinesPrefs`, the Δ filter, the bulk folds, the key to the formatted rows; formatted-only sections are not rendered in the raw view);
+  Display and Side panel buttons. The settings live in the side panel's **Display tab** (`views/LinesDisplay.tsx`: the on / off settings as a grid of
+  icon toggle buttons (`TogGrid`) over `useLinesPrefs`, the Δ filter's modes an icon segmented control, the bulk folds icon buttons, the lane colours and
+  line colours labelled lists, the key to the formatted rows; formatted-only sections are not rendered in the raw view); the panel's head is
+  `PanelHead` (`views/LinesPanel.tsx`: the tabs as icons `TAB_ICONS`, the active tab's name as the heading; the icons are `components/icons.tsx`);
   its tab is one of `PANEL_TABS` and `panelAfter` (`data/display.ts`) is the single rule the Display button, the Side panel button, the
   keys and the palette's "Side panel: …" commands open and close the panel by (`LinesUi.tab`, `lastTab`). `data/display.ts` also holds the
   Show toggles, the dim groups, the Δ modes, `displayBadge` (the Display button's badge) and `deltaChipParts` (the Δ chip's words, in two
@@ -490,11 +492,20 @@ restores). Pieces:
 - `components/colors.ts` `lineTone`: kind -> role colour (calls `cpu`, waits `userio`,
   cursor lines `sysio`, binds `network`, STAT/commit `commit`, lob/rpc `other`,
   errors `--s-critical`, framing lines dim); `lines.css` mixes it 55 % into the ink.
-- Gutter marks: `DataSource.stmtMarks(stmt)` (local: the document's fact columns;
-  remote: `api/calls?stmt=&limit=5000&longest=0` and `api/waits?stmt=&sort=tim&limit=1000`,
-  so the 5000 longest calls and the first 1000 waits; `partial` says so). The Step menu's
-  first row (keys m / M) steps through them. Opening the tab with a statement selected starts at
-  its first mark.
+- **The line strip** (round 3b, batch 5): `components/LineStrip.tsx` (a canvas beside the viewer's scroll bar, `StripHost` in `Lines.tsx` gives it the visible range
+  without re-rendering the view) draws the highlighted statements' lines over the whole file, each in its colour token, from one binned request per change of the highlight
+  set, input file and snapshot (`fetchStmtBins`, `api/lines/stmts?bins=2000`; `Lines.tsx` joins the answer with the set's colours into `StripLayer`s), plus the selected
+  line, the visible range, the time window and quiet ticks (bookmarks and hot spots at the start edge, search hits at the end edge). The pixel mapping is
+  `data/linestrip.ts` (`stmtRows`: per pixel row the statements with a line in it, `stripeSpans`: how statements that share a row share the width, `stripMarks`,
+  `lineAtY`); the old density layer (`lines/profile`, `fetchLineProfile`) is no longer asked for by the UI. **`m` / `M`, the Step menu's first row and the search scope
+  "Highlighted statements"** step between and search within the highlighted statements' runs: `fetchStmtRuns` (`api/lines/stmts`, one request per change of the set),
+  `data/stmtfilter.ts` `hlStops` (the start of each run of any highlighted statement, the first and last line), `hotStep` to step. They replaced `DataSource.stmtMarks`
+  (the 5000 longest calls and the first 1000 waits of the app's selected statement), which the view now uses only for the picker button's call and wait counts of a lone
+  highlighted statement. Opening the tab with a statement selected starts at its first line in the file (`stmtLineIn`).
+- **Folds with a filter** (`data/folds.ts` `composeFilterFolds`): a line filter's folds (`runFolds`, `filterFolds`: each hides the lines between the kept runs) are laid
+  together with the view's own folds by a linear merge: the view's folds inside a kept stretch stay (the statement filter keeps all of them, the Δ filter only the quiet ones:
+  the framing, the binds' lines, the SQL bands), and where they overlap they become one fold that has the filter fold's look and `openKey` (opening it opens the filter's
+  fold; `goTo` also opens the view's fold that hides the target under it).
 - Click (or arrow keys) -> `api/at` (60 ms debounce) -> the breadcrumb (`LinesAt`: session ›
   statement › exec k of n with its neighbours › the line, then the wait event from the line's
   `nam='...'`, bind set, plan line; one Actions menu grouped by line, statement, execution,

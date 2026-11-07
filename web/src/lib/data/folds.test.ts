@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LINE_KINDS } from './linecache'
-import { blockAt, filterFolds, foldAt, foldHiding, headAtRow, indexFolds, lineOfRow, rowOfLine, tableOf, standingFolds, toggleFold, visibleCount, withHeads, type Fold, type LineSource } from './folds'
+import { blockAt, composeFilterFolds, filterFolds, foldAt, foldHiding, headAtRow, indexFolds, lineOfRow, rowOfLine, tableOf, standingFolds, toggleFold, visibleCount, withHeads, type Fold, type LineSource } from './folds'
 import type { LineKind } from './lines'
 
 /** A cache of the given lines (kind names), all loaded; `holes` lists lines that are not. */
@@ -222,5 +222,55 @@ describe('standingFolds: the selection is never folded away', () => {
     expect(rowOfLine(96, stand)).toBe(95)
     expect(rowOfLine(122, stand)).toBe(96) // the line after the run follows its handle at once
     expect(visibleCount(1000, stand)).toBe(1000 - 25 - 44)
+  })
+})
+
+describe('composeFilterFolds: a line filter keeps the view\'s own folds', () => {
+  const quiet = (from: number, to: number, more: Partial<Fold> = {}): Fold => ({ from, to, summary: '', auto: true, quiet: true, ...more })
+  const cut = (from: number, to: number, more: Partial<Fold> = {}): Fold => ({ from, to, summary: '', auto: true, filter: true, quiet: true, ...more })
+
+  it('keeps a fold of the view inside a kept stretch as it is, between the filter\'s own', () => {
+    const framing = quiet(75, 76, { frame: true }) // END OF STMT (76) under the SQL text
+    const attrs = quiet(80, 84)
+    const out = composeFilterFolds([framing, attrs], [{ ...cut(1, 72), summary: '72 lines before the first statement', quiet: false }, cut(95, 117)])
+    expect(out.map((f) => [f.from, f.to])).toEqual([[1, 72], [75, 76], [80, 84], [95, 117]])
+    expect(out[1]).toBe(framing)
+    expect(out[2]).toBe(attrs)
+  })
+
+  it('takes the rule above a cursor (a fold whose handle is a hidden line) into the filter\'s fold, which keeps its own handle and key', () => {
+    // the filter hides 96..117 under line 95; the frame fold of the rule at 118 has its handle at 117
+    const out = composeFilterFolds([quiet(117, 118, { frame: true })], [cut(95, 117)])
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ from: 95, to: 118, filter: true, quiet: true })
+    expect(out[0].openKey).toBeUndefined() // the handle is the filter's: opening it is remembered under 95 as before
+  })
+
+  it('joins a fold that hides the last kept line before a hidden stretch: its handle stays, the key is the filter fold\'s', () => {
+    // the last attribute line of a bind (94) is kept, the filter hides 95..117 under it; the bind row 92 hides 93..94
+    const out = composeFilterFolds([quiet(92, 94)], [cut(94, 117)])
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ from: 92, to: 117, filter: true, openKey: 94 })
+  })
+
+  it('leaves a fold of the view that lies inside a hidden stretch out of the way (nothing shows there)', () => {
+    const out = composeFilterFolds([quiet(100, 102), quiet(110, 111)], [cut(95, 117)])
+    expect(out.map((f) => [f.from, f.to])).toEqual([[95, 117]])
+  })
+
+  it('joins a chain: the rule, then the folds after it', () => {
+    const out = composeFilterFolds([quiet(117, 118), quiet(118, 120, { sql: true })], [cut(95, 117)])
+    expect(out.map((f) => [f.from, f.to])).toEqual([[95, 120]])
+  })
+
+  it('is a linear merge of the two lists in line order', () => {
+    const out = composeFilterFolds([quiet(5, 6), quiet(50, 51)], [cut(10, 20), cut(30, 40)])
+    expect(out.map((f) => f.from)).toEqual([5, 10, 30, 50])
+  })
+
+  it('an empty side is the other side', () => {
+    const base = [quiet(5, 6)]
+    expect(composeFilterFolds(base, [])).toEqual(base)
+    expect(composeFilterFolds([], [cut(1, 9)])).toEqual([cut(1, 9)])
   })
 })

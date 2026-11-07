@@ -1,7 +1,8 @@
-import type { LineProfile } from './lines'
+// The line strip beside the viewer's scroll bar: the whole file down-sampled to the strip's height. It draws the lines of the highlighted statements (from the engine's binned
+// answer, `api/lines/stmts?bins=`), and quiet ticks for search hits, bookmarks and hot spots; this is the pixel mapping.
 
-/** The part of a profile the pixel mapping needs. */
-type Shape = Pick<LineProfile, 'total' | 'size' | 'buckets'>
+/** The geometry of a binned answer: bucket i holds the lines `i*size+1 .. (i+1)*size` of a file of `total` lines. */
+export interface BinShape { total: number; size: number; buckets: number }
 
 /** The 0-based bucket of 1-based `line` when a bucket holds `size` lines. */
 export const bucketOf = (line: number, size: number) => Math.max(0, Math.floor((line - 1) / size))
@@ -30,7 +31,7 @@ export function stripMarks(lines: Iterable<number>, total: number, height: numbe
  * Per pixel row of a strip `height` pixels high the largest of `values` (one per bucket) among the buckets the row overlaps:
  * with more rows than buckets a bucket spans several rows, with fewer a row takes the max of its buckets.
  */
-export function bucketRows(values: ArrayLike<number>, p: Shape, height: number): Float64Array {
+export function bucketRows(values: ArrayLike<number>, p: BinShape, height: number): Float64Array {
   const out = new Float64Array(Math.max(0, height))
   const n = Math.min(p.buckets, values.length)
   if (n <= 0 || p.total <= 0 || p.size <= 0 || height <= 0) return out
@@ -46,8 +47,26 @@ export function bucketRows(values: ArrayLike<number>, p: Shape, height: number):
   return out
 }
 
-/** Per pixel row the call and wait intensity 0..1 (the buckets' counts against `maxCalls` / `maxWaits`). */
-export function densityRows(p: LineProfile, height: number): { calls: Float64Array; waits: Float64Array } {
-  const scale = (rows: Float64Array, max: number) => { for (let i = 0; i < rows.length; i++) rows[i] = max > 0 ? Math.min(1, rows[i] / max) : 0; return rows }
-  return { calls: scale(bucketRows(p.calls, p, height), p.maxCalls), waits: scale(bucketRows(p.waits, p, height), p.maxWaits) }
+/**
+ * Per pixel row which of the statements have a line in it: `counts[k]` is statement k's lines per bucket. The result is one array per statement, a row's entry 1 when the statement
+ * has a line in the lines the row stands for (a bucket that overlaps the row is enough), else 0. Statements are kept apart so the strip can draw each in its own colour.
+ */
+export function stmtRows(counts: readonly ArrayLike<number>[], p: BinShape, height: number): Uint8Array[] {
+  return counts.map((c) => { const r = bucketRows(c, p, height), out = new Uint8Array(r.length); for (let y = 0; y < r.length; y++) out[y] = r[y] > 0 ? 1 : 0; return out })
+}
+
+/**
+ * The columns the highlighted statements that are present in one pixel row share `width` px with: one gets all of it, several split it into stripes of at least `minStripe` px
+ * (the first statements in the set's order keep theirs when more are present than stripes fit). `[x, width]` per statement drawn, in the order of `present` (statement indexes).
+ */
+export function stripeSpans(present: readonly number[], width: number, minStripe = 2): { k: number; x: number; w: number }[] {
+  const n = present.length
+  if (n === 0 || width <= 0) return []
+  const fit = Math.max(1, Math.min(n, Math.floor(width / minStripe)))
+  const out: { k: number; x: number; w: number }[] = []
+  for (let i = 0; i < fit; i++) {
+    const x0 = Math.round((i * width) / fit), x1 = Math.round(((i + 1) * width) / fit)
+    out.push({ k: present[i], x: x0, w: Math.max(1, x1 - x0) })
+  }
+  return out
 }

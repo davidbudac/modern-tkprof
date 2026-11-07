@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { LineProfile } from './lines'
-import { bucketOf, bucketRows, densityRows, lineAtY, lineOfBucket, stripMarks } from './linestrip'
+import { bucketOf, bucketRows, lineAtY, lineOfBucket, stmtRows, stripMarks, stripeSpans, type BinShape } from './linestrip'
 
-const profile = (total: number, size: number, calls: number[], waits: number[] = calls.map(() => 0)): LineProfile => ({
-  total, buckets: calls.length, size, calls, waits, cursors: calls.map(() => 0), errors: calls.map(() => 0), commits: calls.map(() => 0),
-  maxCalls: Math.max(0, ...calls), maxWaits: Math.max(0, ...waits),
-})
+const shape = (total: number, size: number, buckets: number): BinShape => ({ total, size, buckets })
 
 describe('buckets and lines', () => {
   it('maps a line to its bucket and back to the bucket\'s first line', () => {
@@ -42,34 +38,64 @@ describe('stripMarks', () => {
   })
 })
 
-describe('densityRows', () => {
+describe('bucketRows', () => {
   it('spreads a bucket over several rows when there are more rows than buckets', () => {
-    const p = profile(100, 50, [10, 5], [0, 4])
-    const d = densityRows(p, 4)
-    expect([...d.calls]).toEqual([1, 1, 0.5, 0.5])
-    expect([...d.waits]).toEqual([0, 0, 1, 1])
+    expect([...bucketRows([10, 5], shape(100, 50, 2), 4)]).toEqual([10, 10, 5, 5])
   })
 
   it('takes the maximum of the buckets a row covers when there are fewer rows than buckets', () => {
-    const p = profile(100, 10, [1, 2, 3, 4, 8, 2, 1, 1, 1, 1])
-    const d = densityRows(p, 2)
-    expect([...d.calls]).toEqual([1, 0.25]) // buckets 0-4 hold the max (8), buckets 5-9 at most 2
-  })
-
-  it('is flat zero when the maximum is zero or the file has no lines', () => {
-    expect([...densityRows(profile(10, 10, [0]), 3).calls]).toEqual([0, 0, 0])
-    expect(densityRows(profile(0, 1, []), 5).calls.every((v) => v === 0)).toBe(true)
+    expect([...bucketRows([1, 2, 3, 4, 8, 2, 1, 1, 1, 1], shape(100, 10, 10), 2)]).toEqual([8, 2]) // buckets 0-4 hold the max (8), buckets 5-9 at most 2
   })
 
   it('does not bleed into a neighbouring bucket at exact edges', () => {
-    const p = profile(100, 10, [0, 9, 0, 0, 0, 0, 0, 0, 0, 0])
-    const rows = [...bucketRows(p.calls, p, 10)]
-    expect(rows).toEqual([0, 9, 0, 0, 0, 0, 0, 0, 0, 0])
+    expect([...bucketRows([0, 9, 0, 0, 0, 0, 0, 0, 0, 0], shape(100, 10, 10), 10)]).toEqual([0, 9, 0, 0, 0, 0, 0, 0, 0, 0])
   })
 
   it('handles a last bucket shorter than the rest', () => {
-    const p = profile(25, 10, [1, 1, 5])
-    const rows = bucketRows(p.calls, p, 5) // 5 lines per row
-    expect([...rows]).toEqual([1, 1, 1, 1, 5])
+    expect([...bucketRows([1, 1, 5], shape(25, 10, 3), 5)]).toEqual([1, 1, 1, 1, 5]) // 5 lines per row
+  })
+
+  it('is empty for a file without lines or a strip without height', () => {
+    expect([...bucketRows([], shape(0, 1, 0), 3)]).toEqual([0, 0, 0])
+    expect(bucketRows([1], shape(10, 10, 1), 0).length).toBe(0)
+  })
+})
+
+describe('stmtRows', () => {
+  it('marks the pixel rows each statement has a line in, the statements apart', () => {
+    // 100 lines in 10 buckets, a strip of 5 rows (20 lines each): statement 0 in buckets 0 and 9, statement 1 in bucket 4 only
+    const r = stmtRows([[3, 0, 0, 0, 0, 0, 0, 0, 0, 1], [0, 0, 0, 0, 2, 0, 0, 0, 0, 0]], shape(100, 10, 10), 5)
+    expect(r.map((a) => [...a])).toEqual([[1, 0, 0, 0, 1], [0, 0, 1, 0, 0]])
+  })
+  it('keeps a single line visible: one line of a 112,000-line file lights its pixel row', () => {
+    const counts = new Array<number>(2000).fill(0)
+    counts[1000] = 1 // the lines 56,001..56,056
+    const r = stmtRows([counts], shape(112_000, 56, 2000), 700)
+    expect(r[0].reduce((a, b) => a + b, 0)).toBe(1)
+    expect(r[0][350]).toBe(1)
+  })
+  it('a statement with no lines draws nothing', () => {
+    expect(stmtRows([[0, 0, 0]], shape(30, 10, 3), 6)[0].every((v) => v === 0)).toBe(true)
+    expect(stmtRows([], shape(30, 10, 3), 6)).toEqual([])
+  })
+})
+
+describe('stripeSpans', () => {
+  it('one statement takes the whole width', () => {
+    expect(stripeSpans([3], 10)).toEqual([{ k: 3, x: 0, w: 10 }])
+  })
+  it('several split the width into stripes, in order', () => {
+    expect(stripeSpans([0, 2], 10)).toEqual([{ k: 0, x: 0, w: 5 }, { k: 2, x: 5, w: 5 }])
+    expect(stripeSpans([1, 2, 4], 10).map((s) => s.w)).toEqual([3, 4, 3])
+  })
+  it('keeps the first statements when more are present than stripes fit', () => {
+    const s = stripeSpans([5, 6, 7, 8, 9, 10, 11], 10)
+    expect(s.map((x) => x.k)).toEqual([5, 6, 7, 8, 9])
+    expect(s.every((x) => x.w >= 2)).toBe(true)
+    expect(s[s.length - 1].x + s[s.length - 1].w).toBe(10)
+  })
+  it('nothing present or no width draws nothing', () => {
+    expect(stripeSpans([], 10)).toEqual([])
+    expect(stripeSpans([1], 0)).toEqual([])
   })
 })

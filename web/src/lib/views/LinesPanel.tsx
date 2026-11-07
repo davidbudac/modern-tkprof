@@ -1,10 +1,52 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { Bookmark } from '../state/store'
 import type { TraceDoc } from '../data/doc'
-import { fmtInt, preview } from '../data/format'
+import { fmtCompact, fmtInt, preview } from '../data/format'
+import { PANEL_TABS, type PanelTab } from '../data/display'
+import { BookmarkIcon, CloseIcon, ListTreeIcon, PencilIcon, PlayCircleIcon, RotateIcon, SearchIcon, SlidersHorizontalIcon, TextCursorIcon, TrashIcon } from '../components/icons'
 import { GROUP_UNKNOWN, groupHits, matchSpan, sameSearch, type HitGroup, type RecentSearch, type SearchHit } from '../data/lines'
 import { useActions } from '../state/session'
+
+/** The side panel's tabs as icons (the tab's name is its tooltip and label, and the panel's heading). */
+export const TAB_ICONS: Record<PanelTab, () => React.JSX.Element> = {
+  line: TextCursorIcon, outline: ListTreeIcon, hits: SearchIcon, bookmarks: BookmarkIcon, asrun: PlayCircleIcon, display: SlidersHorizontalIcon,
+}
+
+/**
+ * The head of the side panel: a tab per icon (name and what it holds in the tooltip, a count of hits or bookmarks as a small badge on its icon), the active tab's name as the panel's
+ * heading (it gives way when the panel is narrow), and the close button. Left / Right move between the tabs.
+ */
+export function PanelHead({ tab, counts, onTab, onClose }: { tab: PanelTab; counts: Partial<Record<PanelTab, number>>; onTab(tab: PanelTab): void; onClose(): void }) {
+  const active = PANEL_TABS.find((t) => t.tab === tab)
+  const nActive = counts[tab] ?? 0
+  const onKey = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    const i = PANEL_TABS.findIndex((t) => t.tab === tab)
+    const to = PANEL_TABS[(i + (e.key === 'ArrowRight' ? 1 : PANEL_TABS.length - 1)) % PANEL_TABS.length]
+    e.preventDefault()
+    onTab(to.tab)
+    queueMicrotask(() => (e.currentTarget as HTMLElement).querySelector<HTMLElement>(`[data-tab="${to.tab}"]`)?.focus())
+  }
+  return (
+    <div className="lines-side-head">
+      <span className="lines-tabs" role="tablist" aria-label="Side panel" onKeyDown={onKey}>
+        {PANEL_TABS.map((t) => {
+          const n = counts[t.tab] ?? 0
+          const Icon = TAB_ICONS[t.tab]
+          return (
+            <button key={t.tab} type="button" role="tab" data-tab={t.tab} className="lines-tab" aria-selected={tab === t.tab} tabIndex={tab === t.tab ? 0 : -1} onClick={() => onTab(t.tab)}
+              aria-label={n > 0 ? `${t.label}, ${fmtInt(n)}` : t.label} title={`${t.label}${n > 0 ? ` · ${fmtInt(n)}` : ''}: ${t.title}`}>
+              <Icon />{n > 0 && <small>{n < 1000 ? n : n < 10000 ? `${+(n / 1000).toFixed(1)}k` : fmtCompact(n)}</small>}
+            </button>
+          )
+        })}
+      </span>
+      <h2 className="lines-side-title">{active?.label}{nActive > 0 && <small>{fmtInt(nActive)}</small>}</h2>
+      <button type="button" className="quiet icon-btn" onClick={onClose} aria-label="Close the side panel" title="close the side panel"><CloseIcon /></button>
+    </div>
+  )
+}
 
 const HIT_H = 22
 /** characters of the line shown before the match, so it is visible in a narrow panel */
@@ -105,8 +147,8 @@ export function BookmarkList({ bookmarks, fileName, onGo, onLabel, onRemove, onN
           <input type="text" defaultValue={b.label} aria-label={`Label of the bookmark at line ${b.line}`}
             onBlur={(e) => { if (e.target.value !== b.label) onLabel(b, e.target.value) }}
             onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
-          {(onNote || b.note) && <button className={'quiet note-btn' + (b.note ? ' on' : '')} disabled={!onNote} onClick={() => onNote?.(b)} title={b.note || 'add a note'} aria-label={`${b.note ? 'Edit the note' : 'Add a note'} at line ${b.line}`}>✎</button>}
-          <button className="quiet" onClick={() => onRemove(b)} aria-label={`Remove the bookmark at line ${b.line}`}>×</button>
+          {(onNote || b.note) && <button className={'quiet icon-btn note-btn' + (b.note ? ' on' : '')} disabled={!onNote} onClick={() => onNote?.(b)} title={b.note ? `${b.note}\n(click to edit the note)` : 'add a note to this bookmark'} aria-label={`${b.note ? 'Edit the note' : 'Add a note'} at line ${b.line}`}><PencilIcon /></button>}
+          <button className="quiet icon-btn" onClick={() => onRemove(b)} aria-label={`Remove the bookmark at line ${b.line}`} title="remove this bookmark"><TrashIcon /></button>
           {b.note && <p className="small lines-bm-note">{b.note}</p>}
         </li>
       ))}
@@ -133,7 +175,7 @@ export function RecentSearches({ recent, active, onPick, onRerun }: {
               title={`${r.q}${r.regex ? ' (regex)' : ''}${r.caseSensitive ? ' (match case)' : ''}${SCOPE_NOTE[r.scope]}: ${on ? 'click to run again' : 'show these hits'}`}>
               <code>{text}</code> <small>{fmtInt(r.hits.length)}</small>
             </button>
-            {on && <button type="button" className="quiet" onClick={() => onRerun(r)} aria-label={`Run "${r.q}" again`} title="run this search again">↻</button>}
+            {on && <button type="button" className="quiet icon-btn" onClick={() => onRerun(r)} aria-label={`Run "${r.q}" again`} title="run this search again"><RotateIcon /></button>}
           </span>
         )
       })}
@@ -149,7 +191,7 @@ const KEYS: [string, string][] = [
   ['/', 'focus the search box'],
   ['g', 'go to a line, #cursor, sql_id or time (the command palette)'],
   ['Enter', 'open the statement of the selected line'],
-  ['m M', 'next / previous mark of the selected statement'],
+  ['m M', 'next / previous run of lines of a highlighted statement (the start of each; l or L highlights statements)'],
   ['h', 'toggle the heat bars beside the line numbers'],
   ['n', 'toggle the hints inside the rows (bind values, gaps)'],
   ['v', 'toggle raw and formatted: formatted parses every line into columns (what it is, its detail, a time bar, Δ, the clock) with each cursor\'s lines in a lane of its statement\'s colour'],

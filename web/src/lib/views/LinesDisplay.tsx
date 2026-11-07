@@ -1,5 +1,7 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { DELTA_MODES, SHOW_TOGGLES } from '../data/display'
+import type { DeltaMode } from '../state/linesPrefs'
+import { BanIcon, BarsIcon, ClockIcon, FunnelIcon, HighlighterIcon, LightbulbIcon, LineMapIcon, LinkIcon, PanelLeftIcon, RepeatIcon, TableIcon, TriangleIcon, UnfoldIcon, VariableIcon, WrapTextIcon } from '../components/icons'
 import { fmtDur, fmtInt } from '../data/format'
 import { LANE_COLORS } from '../data/lanecolor'
 import type { LineKind } from '../data/lines'
@@ -32,22 +34,42 @@ function Section({ title, note, children }: { title: string; note?: string; chil
   )
 }
 
-/** A checkbox row: the box, its label, its key at the end; `note` is a line under it. */
-function Check({ checked, onChange, label, keys, title, note, disabled }: { checked: boolean; onChange(): void; label: string; keys?: string; title?: string; note?: string; disabled?: boolean }) {
+/** The icon of each Show toggle and of each Δ filter mode. */
+const SHOW_ICONS: Record<(typeof SHOW_TOGGLES)[number]['key'], () => React.JSX.Element> = {
+  wrap: WrapTextIcon, heat: BarsIcon, strip: LineMapIcon, links: LinkIcon, hints: LightbulbIcon, clock: ClockIcon, delta: TriangleIcon,
+}
+const MODE_ICONS: Record<DeltaMode, () => React.JSX.Element> = { off: BanIcon, highlight: HighlighterIcon, filter: FunnelIcon }
+
+/** One icon toggle: pressed or not, its name, what it does and its key in the tooltip (and the caption under the grid), the name as the accessible label. */
+interface Tog { id: string; name: string; title: string; keys?: string; icon: () => React.JSX.Element; on: boolean; onClick(): void; busy?: boolean }
+
+/** A grid of icon toggle buttons; the one under the pointer or focused is named in a caption under the grid (the tooltip says what it does). */
+function TogGrid({ label, togs }: { label: string; togs: Tog[] }) {
+  const [cap, setCap] = useState<string | null>(null)
+  const shown = togs.find((t) => t.id === cap)
   return (
-    <label className="ld-row" title={title}>
-      <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} />
-      <span className="ld-lbl">{label}</span>
-      {keys && <kbd>{keys}</kbd>}
-      {note && <small className="ld-note">{note}</small>}
-    </label>
+    <>
+      <div className="ld-togs" role="group" aria-label={label}>
+        {togs.map((t) => {
+          const Icon = t.icon
+          return (
+            <button key={t.id} type="button" className={'ld-tog' + (t.busy ? ' busy-src' : '')} aria-pressed={t.on} aria-label={t.name} title={`${t.name}${t.keys ? ` (${t.keys})` : ''}: ${t.title}`}
+              onClick={t.onClick} onMouseEnter={() => setCap(t.id)} onMouseLeave={() => setCap(null)} onFocus={() => setCap(t.id)} onBlur={() => setCap(null)}>
+              <Icon />
+            </button>
+          )
+        })}
+      </div>
+      <p className="ld-cap" aria-hidden="true">{shown ? <><b>{shown.name}</b>{shown.keys && <kbd>{shown.keys}</kbd>}</> : null}</p>
+    </>
   )
 }
 
 /**
  * The side panel's Display tab: the settings that are set once and left, moved off the toolbar. The formatted view's (colour the lanes by, Fold repeats, the
  * Δ column, the key to what its colours and bars mean) come first and are not offered in the raw view; then the Δ filter, what the rows show, the line colours
- * (tick to dim), and the bulk folds. Real form controls with labels, a calm list; each setting keeps its key and its palette command.
+ * (tick to dim), and the bulk folds. The on / off settings are a grid of icon toggle buttons (pressed state; the name, description and key in the tooltip, the name and key in a caption
+ * under the grid), the Δ filter's modes an icon segmented control, the folds icon buttons; the lane colours and the line colours stay labelled lists. Each setting keeps its key and its palette command.
  */
 export function LinesDisplay({ readable, prefs, setPrefs, laneKey, onFoldRepeats, repeatsBusy, delta, mute, onMute, onFoldAll, onUnfoldAll, canUnfold, hotUs, spanUs }: {
   readable: boolean
@@ -90,14 +112,12 @@ export function LinesDisplay({ readable, prefs, setPrefs, laneKey, onFoldRepeats
             {prefs.laneColor === 'stmt' && <p className="ld-note">The statements and their colours are named by the picker above the rows.</p>}
           </Section>
           <Section title="Rows">
-            <label className={'ld-row' + (repeatsBusy ? ' busy-src' : '')} title="runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches each fold into one line; click a fold's ▸ to open it">
-              <input type="checkbox" checked={prefs.foldRepeats} onChange={onFoldRepeats} />
-              <span className="ld-lbl">Fold repeats</span>
-              <kbd>r</kbd>
-              <small className="ld-note">identical waits, long wait blocks and loops of small fetches become one line each</small>
-            </label>
-            <Check checked={prefs.rdDelta} onChange={() => setPrefs({ rdDelta: !prefs.rdDelta })} label="Δ column"
-              title="the Δ column, first in the row: each line's time from the pinned line (a pins one), else the gap nothing explains after the line with a time before" note="the gap before each line, or its time from the pinned line" />
+            <TogGrid label="What the rows show" togs={[
+              { id: 'repeats', name: 'Fold repeats', keys: 'r', icon: RepeatIcon, on: prefs.foldRepeats, onClick: onFoldRepeats, busy: repeatsBusy,
+                title: 'runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches each fold into one line; click a fold\'s ▸ to open it' },
+              { id: 'rddelta', name: 'Δ column', icon: PanelLeftIcon, on: prefs.rdDelta, onClick: () => setPrefs({ rdDelta: !prefs.rdDelta }),
+                title: "the Δ column, first in the row: each line's time from the pinned line (a pins one), else the gap nothing explains after the line with a time before" },
+            ]} />
           </Section>
         </>
       )}
@@ -109,24 +129,24 @@ export function LinesDisplay({ readable, prefs, setPrefs, laneKey, onFoldRepeats
             onKeyDown={(e) => { if (e.key === 'Enter' && mode === 'off') setPrefs({ deltaMode: 'highlight' }) }} />
           <span>ms</span>
         </label>
-        <div className="ld-modes" role="radiogroup" aria-label="What to do with them">
-          {DELTA_MODES.map((m) => (
-            <label key={m.mode} className="ld-row" title={m.title}>
-              <input type="radio" name="delta-mode" checked={mode === m.mode} onChange={() => setPrefs({ deltaMode: m.mode })} />
-              <span className="ld-lbl">{m.label}</span>
-            </label>
-          ))}
+        <div className="ld-modes" role="radiogroup" aria-label="What to do with the rows">
+          {DELTA_MODES.map((m) => {
+            const Icon = MODE_ICONS[m.mode]
+            return (
+              <button key={m.mode} type="button" role="radio" className="ld-mode" aria-checked={mode === m.mode} aria-label={m.label} title={`${m.label}: ${m.title}`} onClick={() => setPrefs({ deltaMode: m.mode })}><Icon /></button>
+            )
+          })}
         </div>
         <p className="ld-note" aria-live="polite">
           {mode === 'off' ? "Δ is the time from the line with a time before: the line's own time plus any idle time before it."
             : delta.loading ? 'Finding the rows…'
             : delta.error ? <span className="lines-error">{delta.error}</span>
-            : `${fmtInt(delta.count ?? 0)} ${delta.count === 1 ? 'row' : 'rows'} with ${delta.what}${delta.truncated ? ' (the largest; more qualify)' : ''}`}
+            : `${DELTA_MODES.find((m) => m.mode === mode)?.label}: ${fmtInt(delta.count ?? 0)} ${delta.count === 1 ? 'row' : 'rows'} with ${delta.what}${delta.truncated ? ' (the largest; more qualify)' : ''}`}
         </p>
       </Section>
 
       <Section title="Show">
-        {SHOW_TOGGLES.map((t) => <Check key={t.key} checked={prefs[t.key]} onChange={() => setPrefs({ [t.key]: !prefs[t.key] })} label={t.label} keys={t.keys} title={t.title} />)}
+        <TogGrid label="Show" togs={SHOW_TOGGLES.map((t) => ({ id: t.key, name: t.label, title: t.title, keys: t.keys, icon: SHOW_ICONS[t.key], on: prefs[t.key], onClick: () => setPrefs({ [t.key]: !prefs[t.key] }) }))} />
         <label className="ld-inline" title="a tick in the gutter and a hint for an idle gap of at least this many ms before a line; 0 turns them off (t / T step through them)">
           <span>Gap ticks from</span>
           <input type="number" min={0} step={10} value={prefs.gapMs} aria-label="Gap ticks from this many milliseconds, 0 for none" onChange={(e) => setPrefs({ gapMs: Math.max(0, Number(e.target.value) || 0) })} />
@@ -146,14 +166,13 @@ export function LinesDisplay({ readable, prefs, setPrefs, laneKey, onFoldRepeats
             )
             : <div key={c.label} className="ld-row ld-keyrow"><span /><span className="ld-lbl">{swatch}</span></div>
         })}
-        <div className="ld-row ld-keyrow" title="the calls and waits of the selected statement (m / M step through them)"><span /><span className="ld-lbl"><i className="lines-swatch lines-swatch-mk" />left edge: marks of the selected statement</span></div>
       </Section>
 
       <Section title="Folds">
-        <div className="ld-folds">
-          <button type="button" className="quiet" onClick={() => onFoldAll('binds')} title="fold every BINDS block of the file">Fold all BINDS</button>
-          <button type="button" className="quiet" onClick={() => onFoldAll('stat')} title="fold every STAT dump of the file">Fold all STAT</button>
-          <button type="button" className="quiet" onClick={onUnfoldAll} disabled={!canUnfold} title="show the lines of every folded block (Z)">Unfold all</button>
+        <div className="ld-folds" role="group" aria-label="Folds">
+          <button type="button" className="quiet icon-btn" onClick={() => onFoldAll('binds')} aria-label="Fold all BINDS blocks" title="fold every BINDS block of the file"><VariableIcon /></button>
+          <button type="button" className="quiet icon-btn" onClick={() => onFoldAll('stat')} aria-label="Fold all STAT dumps" title="fold every STAT dump of the file (the plans)"><TableIcon /></button>
+          <button type="button" className="quiet icon-btn" onClick={onUnfoldAll} disabled={!canUnfold} aria-label="Unfold all" title="show the lines of every folded block (Z)"><UnfoldIcon /></button>
         </div>
       </Section>
 

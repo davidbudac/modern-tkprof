@@ -8,6 +8,7 @@ import { loadExecSummary, topWaits, type ExecSummary } from '../data/execsummary
 import { copyText } from '../data/clipboard'
 import { fmtDur, fmtInt } from '../data/format'
 import { Shimmer } from '../components/motion'
+import { CopyIcon, PointerIcon } from '../components/icons'
 
 /** What a click on a reference value tells the owner. */
 export type InspectRefKind = 'cursor' | 'sqlid' | 'plh' | 'obj' | 'event'
@@ -94,10 +95,10 @@ export function LineInspector({ doc, cache, line, at, decodeCtx, note, onRef, fo
         <h2 className="insp-title"><span>Line {fmtInt(line)}</span>{d?.kindLabel && <span className="insp-kind">{d.kindLabel}</span>}</h2>
         <div className="insp-acts">
           {onFollow && (
-            <button type="button" className="quiet" aria-pressed={!!follow} onClick={() => onFollow(!follow)} aria-label="Follow the pointer"
-              title="follow the pointer: show the line under the pointer instead of the selected line">Follow</button>
+            <button type="button" className="quiet icon-btn" aria-pressed={!!follow} onClick={() => onFollow(!follow)} aria-label="Follow the pointer"
+              title="follow the pointer: show the line under the pointer instead of the selected line"><PointerIcon /></button>
           )}
-          <button type="button" className="quiet" onClick={() => void copy()} disabled={!d} title="copy the translated line as label: value (raw) lines">Copy</button>
+          <button type="button" className="quiet icon-btn" onClick={() => void copy()} disabled={!d} aria-label="Copy the translated line" title="copy the translated line as label: value (raw) lines"><CopyIcon /></button>
         </div>
       </div>
       {text === undefined && !at && <p className="insp-empty">Click a line to inspect it.</p>}

@@ -7,7 +7,7 @@ import { previewOfBinds, type BindRow, type Execution } from '../data/derive'
 import type { Fold } from '../data/folds'
 import { StmtLink } from '../components/StmtLink'
 import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
-import { useActions, useStore } from '../state/session'
+import { useActions } from '../state/session'
 
 /** An action of the owner on the line itself (bookmark, note, focus, copy, inspect): the first group of the Actions menu. */
 export interface LineAct {
@@ -61,7 +61,6 @@ type Act = { label: ReactNode; title: string; run: () => void; disabled?: boolea
  */
 export function LinesAt({ doc, file, at, text, goTo, note, block, onCopyRange, lineActs }: Props) {
   const actions = useActions()
-  const markedStmt = useStore((s) => s.selection.stmt)
   const source = sourceOf(doc)
   const details = useRef(new Map<string, ExecDetail>()) // per (stmt, cursor, execNo): a line card is clicked on again and again
   const [busy, setBusy] = useState(false)
@@ -124,7 +123,6 @@ export function LinesAt({ doc, file, at, text, goTo, note, block, onCopyRange, l
   const stmtGroup: Act[] = []
   if (stmt) {
     stmtGroup.push({ label: 'Open in Statements', title: 'open this statement in the Statements view', run: () => actions.selectStmt(stmt.id) })
-    if (markedStmt !== stmt.id) stmtGroup.push({ label: 'Mark its calls and waits', title: 'mark this statement: its calls and waits get gutter marks (m / M step through them)', run: () => actions.pickStmt(stmt.id) })
   }
   if (stmtId >= 0 && cur) stmtGroup.push({ label: 'Plan', title: "open the statement's detail, which has the plan", run: () => actions.selectStmt(stmtId) })
   if (stmt && parsedAt !== undefined) stmtGroup.push({ label: `Parsed at line ${fmtInt(parsedAt)}`, title: `go to line ${fmtInt(parsedAt)}, where the cursor was parsed`, run: () => goTo(parsedAt) })

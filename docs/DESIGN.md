@@ -896,7 +896,7 @@ decision of round 1 changed, the text says what it is now and what it was.
     | Fold repeats icon | Display tab, "Rows": a checkbox (`r`) |
     | Δ toggle | Display tab, "Rows": the Δ column checkbox |
     | Δ filter menu | Display tab, "Δ filter" (threshold, Off / Highlight / Filter, the count), and a state chip while it is on |
-    | View menu | Display tab: "Show" (wrap, heat bars, density strip, links, hints, clock, delta, gap ticks), "Line colours · tick to dim", "Folds"; a badge on the Display button |
+    | View menu | Display tab: "Show" (wrap, heat bars, line map (was: density strip), links, hints, clock, delta, gap ticks), "Line colours · tick to dim", "Folds"; a badge on the Display button |
     | (the legend lived in the Colour menu and in the tooltips) | Display tab, "Key": what a red row, the Duration bar, an amber Δ and the lane highlight mean, with this file's numbers (`780 ms` is 1 % of its traced time) |
 
     The toolbar after: Raw | Formatted, the search with its Options menu, Hot spot
@@ -913,7 +913,7 @@ decision of round 1 changed, the text says what it is now and what it was.
     has a width, a resize handle and an open / closed preference, and the Line tab
     set the grammar: sections split by hairlines. The pane is a calm list of real
     form controls with their labels (checkboxes, radios, number inputs, a key at
-    the end of a row that has one), not menu items; the formatted view's own
+    the end of a row that has one), not menu items (batch 5 made the on / off settings icon toggles: below); the formatted view's own
     settings (lanes, Fold repeats, the Δ column, the Key) are absent in the raw
     view. The sliders button of the toolbar opens the panel on Display and closes it
     when it is already there; the Side panel button closes an open panel and opens a
@@ -993,8 +993,8 @@ decision of round 1 changed, the text says what it is now and what it was.
   - **The statement filter.** A set beside the highlight set (`LinesUi.filter`): while it is not empty only the lines of the filtered statements' cursors are shown
     and the rest is folded the way the Δ filter's Filter mode folds (a quiet fold under the last kept row with a dashed rule, the lines above the first run
     folded under line 1 with a count, `z` shows a fold). The lines come from the engine for the whole file (`api/lines/stmts`, `fetchStmtUnion`: the lines whose
-    per-line statement is one of the ids, as runs), so the folds are global like every fold; the folds replace the user's, the repeats and the plan tables while it
-    is on (as the Δ filter's do). With the Δ filter on in Filter mode too, the rows shown pass both (`linesInRuns`: the Δ lines inside the runs). A toolbar state chip
+    per-line statement is one of the ids, as runs), so the folds are global like every fold; the folds replaced the user's, the repeats and the plan tables while it
+    was on, as the Δ filter's do (batch 5 composes them instead: "Round 3b, batch 5" below). With the Δ filter on in Filter mode too, the rows shown pass both (`linesInRuns`: the Δ lines inside the runs). A toolbar state chip
     says it (`Filter: 2 statements · 1,204 lines ×`, or the sql_id of one; the funnel icon; a click opens the picker in the formatted view; its pieces fold as the bar
     narrows: the lines at 89 rem, the word `Filter:` at 73 rem, the word `statements` at 67 rem); in the raw view the chip stays (× clears it) and the statement
     list is the formatted view's. **The cursor focus (`f`, dims the rows of the other cursors) and the filter:** they compose (focus dims inside the shown rows),
@@ -1029,6 +1029,79 @@ decision of round 1 changed, the text says what it is now and what it was.
     (bounded, and calls and waits only); one `None` row as the way to clear many (the header box, `a` and the × are); a separate focus model for the list (the
     box keeps the focus: moving it on ↓ and back on every letter is what loses typed characters).
 
+- **Round 3b, batch 5 (decided 2026-11-07): the line map, icons in the side panel, the statement filter keeps the view's folds, the open list.**
+  The user's notes: "the 'minimap' bar on the right side is a bit pointless now; please use it to show the highlighted sql_id lines (where they are)", "in the side
+  panel please use icons instead of text for the buttons and options as much as it makes sense", and "address the issues you mentioned".
+  - **The strip (the Display tab calls it "Line map") shows where the highlighted statements are.** It lost its density layer (calls and waits, and the error, cursor and
+    commit ticks that came from the same `lines/profile` request: the plan did not ask to keep them, and one request fewer is the point). It now draws, over the whole
+    file: each highlighted statement's lines in its colour (the centre 10 of its 16 px; two or more statements that have a line in the same pixel row share the width in
+    stripes, the first ones of the set when more are present than stripes fit; every mark is 2 px tall so that a statement with one line in a 112,000-line file is still
+    seen), the selected line (a 2 px amber bar across the width, the colour of the selected row), the visible range (a box) and the time window as before, and quiet ticks
+    at the edges: bookmarks and hot spots at the start edge (3 px wide: a bookmark 3 px tall in the ink, a hot spot 1 px in `--s-critical`), search hits at the end edge
+    (`--ink-2`). With nothing highlighted only the ticks and the boxes are there, and a click or drag still moves the view. **Cost:** one binned request
+    (`api/lines/stmts?bins=2000`, `fetchStmtBins`) per change of the highlight set, input file or live snapshot, none while nothing is highlighted; the pixel rows
+    are computed once per answer and height and kept across the repaints a scroll causes. A live session's next snapshot, a file change and a new set refetch; the old
+    answer stays until the new one arrives (statements added since are drawn when it does). The strip is 16 px wide (was 14: the lanes for the ticks are 3 px each).
+  - **`m` / `M`, the Step menu's first row and the search scope move to the highlight set.** They stepped between the *bounded marks* (the 5,000 longest calls and the
+    first 1,000 waits) of the app's one selected statement. Now `m` / `M` go to the first line of the next / previous **run** of lines of any highlighted statement
+    (`data/stmtfilter.ts` `hlStops`: each statement's runs from `api/lines/stmts`, merged, one stop per run start; `hotStep`'s rule, so from the middle of a run `M` goes
+    to that run's start). Why runs and not the calls and waits of the set: the route gives them in one cached request however many statements are highlighted, they cover
+    every line (BINDS, plan, errors) and are not bounded by a cap; calls and waits of a set would be `stmtMarks` for each statement (a request each, up to 25, each cut at
+    5,000 and 1,000). A run is where the statement shows up (usually one execution); `]`, `w` and the other steps still go call by call. The Step menu's row reads
+    `highlighted statement · 14 runs`; the palette's commands are "Next highlight" / "Previous highlight"; with nothing highlighted `m` says how to highlight. The search
+    scope is "Highlighted statements": the lines between the first and the last line of any of them, and a hit whose page is loaded counts only if its own statement is in
+    the set. "Mark its calls and waits" is gone from the line card's Actions menu (it set the app's selected statement); "Highlight its statement" (`l`) is in its first
+    group. Opening the tab with a statement selected still starts at the statement, now at its first line in the file (`stmtLineIn`, what the picker's Enter does) and
+    not at its first bounded mark. The raw view's Highlighting chip shows the set like the picker's button: the swatches stacked, `3 highlighted`, ×.
+  - **Icons in the side panel.** The tabs are six icons (a text cursor, a tree, a magnifier, a bookmark, a play button, sliders), each with a tooltip (`Hits · 8,744: the hits
+    of the search`) and an `aria-label`, the active tab in the ink fill every pressed control has; the active tab's **name is the panel's heading** beside them (it goes below
+    22 rem of panel), and a count of hits or bookmarks is a small badge on its icon. Six 2 rem icons are 12.4 rem, so the tab strip cannot clip any more (it clipped at
+    narrow panels and with a hit count; the 6 px padding of batch 3 was the workaround). In **Display** the Show toggles and the two formatted-view row settings (Fold
+    repeats, the Δ column) are a grid of icon toggle buttons: pressed = filled, the name, description and key in the tooltip, and the name and key of the one under the
+    pointer or focused in a caption under the grid (the descriptions are long; the caption keeps the grid from being a row of unlabelled glyphs). The Δ filter's Off /
+    Highlight / Filter is an icon segmented control (a bar-through circle, a highlighter, the funnel), the bulk folds three icon buttons (a variable `(x)` for BINDS, a
+    table for STAT, unfold arrows), the Line tab's Follow (a pointer) and Copy, the Hits tab's group-by (layers), previous / next (chevrons), the bookmarks' note
+    (pencil) and remove (bin), As run's previous / next execution and Copy SQL, the recent searches' run again and the panel's close are icons too. **Staying text:**
+    the lane colour modes ("Recursive depth", "Δ from the line before": no icon says them), the line colours list (a swatch and its tick), the Δ threshold and gap ticks
+    inputs, the key. Every icon button has a tooltip and an `aria-label` (`icon-btn` of the existing style: lucide shapes, `currentColor`, 1.75 stroke, 1 em). Rejected:
+    icons with captions under every one (the point was less text); a tooltip-only grid (a name is read one hover at a time, after a delay; the caption costs one line); an icon for each lane mode.
+  - **The statement filter keeps the view's folds** (a regression of batch 4: with the filter on, the formatted view's quiet folds were gone inside the kept runs, and the
+    END OF STMT rows, blank rows and the bind attribute lines under a BINDS table showed as rows again). The filter's folds replaced every other fold. `composeFilterFolds`
+    (`data/folds.ts`) now lays them together by a linear merge: the view's folds that lie in a kept stretch stay as they are (framing, inline binds, bind attribute lines, plan
+    tables, the SQL band in wrap mode, Fold repeats if on, the user's folds), the filter only adds the folds between the runs; where the two overlap (a view's fold hides the
+    last kept line before a hidden stretch, or its handle is a hidden line and it reaches into the next kept run: the `=====` rule above a cursor, which belongs to the
+    cursor's run but folds under the line before it) they are one fold with the filter fold's look, its dashed rule, and an `openKey` (the filter's own handle: opening
+    it is remembered under that line, as before). A go-to into a fold of the filter that was opened also opens the view's fold over the line (a bind's attribute lines).
+    **The Δ filter had the same problem** wherever one of its folds was opened (a go-to to line 80 of `cursor_cache.trc` showed the END OF STMT row, a blank and four attribute
+    lines): it composes with the quiet folds too, and only those, because its kept rows are single lines the repeats' and the user's folds would hide (a wait with a big Δ
+    inside a run of identical waits must stay visible).
+  - **A call's Detail compacts before it cuts** (1280 px with the panel open left a hot FETCH `631 ms wa…`). The Detail cell of a call row is a container (`rdtx`): the groups
+    (exec tag, rows, gets box, CPU) are one clipped block that gives way first and the notes after it (hard parse, the waiting share) are whole, so **the waiting share is cut
+    last**. As the cell narrows the groups shrink in steps: below 108 ch the gets' labels are `q` / `cu` / `d` (the tooltip has the words and the trace tokens), below 98 ch
+    `cpu` loses its label and the note is `631 ms wait 99 %`, below 88 ch the number slots shrink, below 74 ch the empty exec and rows slots take no width (the alignment down
+    consecutive calls goes first), below 56 ch the CPU goes. Measured on `io_waits.trc` line 122: at 1280 px with the panel open the cell is 325 px and the row reads
+    `1 row  q 498 cu 0 d 496 · 631 ms wait 99 %` (the CPU is out), whole. (Batch 1 and 2's fixes had got it to fit with the panel closed.)
+  - **A tall wrapped SQL band keeps its line number and Operation cell in view.** The viewer's scroll is not the browser's (the layer moves under the view), so
+    `position: sticky` has nothing to stick to: the viewer sets `--stick` on a tall row (the distance of the view's top edge, under the sticky lane row, from the row's top,
+    at most the row's height less a line) after every placement, and the row's line-number cell and its band's Operation cell take it as top padding. While stuck the
+    Operation cell shows a dim `SQL` tag (`--stuck`): the left columns are never blank beside the lines being read.
+  - **PL/SQL spacing.** The formatter puts a space before the `(` of a name it does not know as a function (`dbms_application_info.set_action ('x')`). `tightCalls`
+    (`data/sqlformat.ts`) takes it out after formatting: strings, quoted identifiers, `q'[…]'` literals and comments are skipped by a scanner and left as they are; a name
+    that follows a keyword that makes it an object (`INSERT INTO t (a, b)`, `CREATE TABLE t (`, `JOIN t ON (`) or a keyword before its `(` (`IN (`, `VALUES (`, `AND (`,
+    `EXISTS (`, `OVER (`) keeps the space. A list of words, not a parser: a call after one of those words would keep its space.
+  - **State chips for Fold repeats and a lane colour other than Statement** (`Repeats folded ×`, `Lanes: Session ×`, each with an icon and a × that turns it off, a click
+    opens Display): the settings had no sign with the panel closed. The words fold with the bar (`.tb-f1` for `Repeats folded`, `.tb-f3` for `Lanes`, `.tb-f2` for the
+    mode name). The label steps now depend on the number of chips on (`.lines-row:has(.lines-state ~ .lines-state)`: two, three and four chips; measured, `styles/lines.css`):
+    with all four on (Δ filter, Fold repeats, lanes, the statement filter) and the pin, the window group and a file select the row is one line with the search at 128 px or
+    more from 1280 px, and at its least width (23 px) at 1100 px.
+  - **The tint shows on the bands.** A highlighted statement's plan, BINDS and SQL bands are on a sunken ground that hid the row's tint; the band now carries it
+    (13 % light, 17 % dark over the ground, a little stronger than the row's) in both themes.
+  - **Smaller:** the lane-colour list's "Statement" tooltip no longer says statements are coloured by elapsed rank; the Display key's "marks of the selected statement" row
+    went (the marks are not drawn since batch 4).
+  - **Rejected in batch 5.** Keeping the density layer behind the highlighted lines (the user called it pointless: calls and waits are everywhere); error ticks from
+    `lines/profile` (a second request for something the plan did not list; they can come back from it if wanted); `m` over the calls and waits of the set (above); sticky
+    cells by `position: sticky` (no scroll container); composing every fold with the Δ filter (a Δ-kept wait inside a fold of repeats would disappear).
+
 - **Rejected in round 2** (so they are not tried again): a sticky three-line
   lane label box (sql_id, SQL start, time here) in the Statement column: it
   keeps a wide column that is empty on every row but the first two of a lane
@@ -1045,7 +1118,7 @@ decision of round 1 changed, the text says what it is now and what it was.
   sum of cr and cu (above). Batch 2: formatting the SQL text line by line, a
   scroll box in a fixed-height band (the SQL band, above). Batch 3: the chips row,
   a Display popover, a picker that sizes to its content (the picker, above). Batch 4: statement colours by rank in the pane, the marks-only highlight,
-  a `None` row (round 3b, above).
+  a `None` row (round 3b, above). Batch 5: the density layer behind the line map, `m` over calls and waits of the set, `position: sticky` for the band's cells, every fold composed with the Δ filter (above).
 
 ## Project
 

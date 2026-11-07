@@ -148,21 +148,18 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - Stale remote branches (`assist/*`, `ui/*`, `lines/clock-delta-gutter`, `feat/cut`, `t3/*`,
   `feature/add-cut-worktree-reference`): delete when convenient.
 
-### Trace pane: the formatted Lines view (round 2 2026-11-06, round 3 2026-11-07; DESIGN § Formatted Lines view, `docs/PLAN-FORMATTED-V2.md`, `docs/PLAN-TRACE-PANE-V3.md`)
+### Trace pane: the formatted Lines view (round 2 2026-11-06, round 3 and 3b 2026-11-07; DESIGN § Formatted Lines view, `docs/PLAN-FORMATTED-V2.md`, `docs/PLAN-TRACE-PANE-V3.md`)
 
-State after round 3: the toolbar is Raw | Formatted, the search (Options), Hot spot ↑ ↓, Step, Go to ⌘K, the file select
-(several files), the state chips (Δ filter, pin, window, raw Highlighting) and the Display and Side panel buttons; the settings
-(colour the lanes by, Fold repeats, the Δ column, the Δ filter, Show, line colours, folds, the key) are the side panel's **Display** tab.
-The overview row is the **statement picker** (a searchable, virtualised list of the file's statements; `L`, palette "Highlight a
-statement…") beside the time track. Rows: Duration bar as the share of the traced time with its 1 % tick, a call's Detail in groups, the
-SQL band (wrap on: the whole statement pretty-printed). Embedded UI: `make web` was run at the end of round 3, so `internal/ui/dist` is
-current; the embedded CLI UI needs the rebuilt engine (`texts` in `what=frame`) for SQL bands in wrap mode.
-
-Round 3b, batch 4 (2026-11-07, `docs/PLAN-TRACE-PANE-V3.md`): the pane keeps an ordered **set of highlighted statements** (per file, colours from the
-categorical palette taken when a statement is added, kept while it is in the set; every other statement is neutral), a highlight tints **every line** of the
-statement's cursors in both views (the per-line `stmt` ids), a **statement filter** shows only those lines (new route `api/lines/stmts`, `union=1` for the filter,
-`bins=` for the strip: batch 5), and the picker is multi-select (Space highlight, `f` filter, `a` / `A` all, header boxes). `internal/ui/dist` is not rebuilt yet
-(batch 5 does it); a prebuilt desktop sidecar needs `pnpm build:engine` for the route.
+State after round 3b (all five batches done; `internal/ui/dist` rebuilt at the end of batch 5, so the embedded CLI UI is current and needs the rebuilt engine for `api/lines/stmts`
+and the `texts` of `what=frame`): the toolbar is Raw | Formatted, the search (Options), Hot spot ↑ ↓, Step, Go to ⌘K, the file select (several files), the state chips (Δ filter,
+Fold repeats, lane colours, statement filter, pin, window, raw Highlighting) and the Display and Side panel buttons. The **side panel** has six icon tabs (the active name is the
+heading) and its **Display** tab holds the settings (icon toggle grids for Show and Rows, the Δ filter's modes, folds as icon buttons, lane colours as a labelled list). The overview row is the **statement picker**
+(searchable, virtualised, multi-select: Space highlight, `f` filter, `a` / `A` all; `L`, `l`, `F`) beside the time track. The pane keeps an ordered **set of highlighted statements**
+(per file, colours from the categorical palette, kept while in the set; every other statement is neutral) that tints every line of the statement's cursors in both views, and a
+**statement filter** (only those lines, the rest folded; the view's own folds are kept inside the kept runs). The **line map** beside the scroll bar shows where the highlighted
+statements' lines are (one binned request per change of the set), the selected line, the visible range and quiet ticks for hits, bookmarks and hot spots; `m` / `M` step between the
+runs of the highlighted statements. Rows: Duration bar as the share of the traced time with its 1 % tick, a call's Detail in groups that compact before they cut, the SQL band (wrap on: the
+whole statement pretty-printed, its line number and `SQL` tag kept in view in a tall band).
 
 Open:
 
@@ -179,23 +176,22 @@ Open:
   clock's "line before" is the previous trace line, not the previous displayed row.
 - `z` on an opened framing handle does nothing (`Z` is for user folds). The raw view keeps its row tint, the
   cyan number cell of a selected row and the `exec #0` on a CLOSE in `.lv-head`.
-- A prebuilt desktop sidecar (`desktop/src-tauri/binaries/`, gitignored) may predate `what=frame` or its `texts`: run
-  `pnpm build:engine` before checking the framing folds or the SQL bands in desktop dev mode.
-- The call Detail of a hot FETCH is cut at 1280 px with the side panel open (the groups plus the waiting share need
-  about 110 ch); the notes cut first, as designed. The gets box on the amber selected row reads as a slightly cooler
-  patch in the light theme.
-- SQL band, wrap on: with the top of the view inside a tall band its line number has scrolled away, so the left columns
-  are blank beside the lines being read (the sticky lane row names the statement); a reveal that must centre a band lands
-  on a 20 px line, up to 10 px off; the formatter lays PL/SQL out as it sees it (`set_action ('x')` gets a space before the
-  parenthesis) and highlighting is per line, so a block comment or literal that runs over a line break of the pretty text is
-  not known to the next line.
-- Display tab: Fold repeats and the Δ column are no longer visible controls while the panel is closed (the rows show them);
-  only the Show and dim settings have a badge.
-- Batch 4 leftovers: `api/lines/stmts` assigns a statement to a PARSING IN CURSOR block the parser did not register (three in the SQLT fixture, about 100
+- A prebuilt desktop sidecar (`desktop/src-tauri/binaries/`, gitignored) may predate `what=frame`, its `texts` or `api/lines/stmts`: run
+  `pnpm build:engine` before checking the framing folds, the SQL bands, the highlight, the filter or the line map in desktop dev mode.
+- The gets box on the amber selected row reads as a slightly cooler patch in the light theme. With the side panel open at 1280 px the groups of a call's Detail are clipped
+  (the waiting share and the hard-parse pill stay whole); only the panel's width gives more room.
+- SQL band, wrap on: a reveal that must centre a band lands on a 20 px line, up to 10 px off; highlighting is per line of the pretty text, so a block comment or literal that runs
+  over a line break is not known to the next line. `tightCalls` is a list of words: a call after a keyword of its list keeps the formatter's space.
+- The line map has no error, cursor or commit ticks any more (they came with the density layer's `lines/profile` request; the engine route stays and the UI does not ask for it).
+  A statement with more than 7 highlighted shares colours (slots repeat); pixel rows that hold several statements share the strip's 10 px in stripes of at least 2 px.
+- `api/lines/stmts` assigns a statement to a PARSING IN CURSOR block the parser did not register (three in the SQLT fixture, about 100
   lines, its first PL/SQL block's `len=` is never reached) the way `annot=2` does not (the lines take the cursor before them in the page ids and the call
-  before them in the route): the equality test allows them for that fixture only. The raw view's Highlighting chip shows a grey swatch for several statements.
-  Lines in no cursor (blank, `***`) take the previous call's statement, so a highlight or filter keeps them with it; only the `=====` rule above a cursor goes with
-  that cursor. A filtered view of far-apart rows loads one page per row (a big file and a statement that ran everywhere: up to ~100 pages of 2,000 lines).
+  before them in the route): the equality test allows them for that fixture only. Lines in no cursor (blank, `***`) take the previous call's statement, so a highlight or filter keeps them with it;
+  only the `=====` rule above a cursor goes with that cursor. A filtered view of far-apart rows loads one page per row (a big file and a statement that ran everywhere: up to ~100 pages of
+  2,000 lines; the screen waits for them).
+- Toolbar: with every optional chip on at once (Δ filter, Fold repeats, lanes, statement filter, the pin, a window, a file select) the search is at its least width at 1100 px (128 px or more from 1280 px).
+  With a filter on, the Go-to label folds to `⌘K` below 1792 px. `m` with a statement highlighted in a file that has none of its lines says so; with the engine's run list cut (100,000 runs) the
+  steps stop at the last run it sent.
 
 ### Row flow, Dialogue, Blocks (DESIGN § Three new views, `docs/PLAN-VIEWS.md`)
 

@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
-import { blockAt, filterFolds, foldAt, foldHiding, indexFolds, standingFolds, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, fetchStmtUnion, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope, type SqlBand } from '../data/lines'
+import { blockAt, composeFilterFolds, filterFolds, foldAt, foldHiding, indexFolds, standingFolds, startsBlock, toggleFold, type Fold } from '../data/folds'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, fetchStmtBins, fetchStmtRuns, fetchStmtUnion, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope, type SqlBand, type StmtBins } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeLines } from '../data/rangesum'
 import { describeLines, lineCount, type LineSet } from '../data/lineset'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { LineViewer, type ViewerApi } from '../components/LineViewer'
-import { LineStrip } from '../components/LineStrip'
+import { LineStrip, type StripLayer } from '../components/LineStrip'
 import { LINES_PREFS_DEFAULTS, useLinesPrefs } from '../state/linesPrefs'
 import { LANE_COLORS, laneLegend } from '../data/lanecolor'
 import { MenuItem, ToolbarMenu } from '../components/ToolbarMenu'
@@ -19,10 +19,10 @@ import { gapBefore } from '../data/gaps'
 import { HOT_SHARE, anchorOf, lineTim, lineTimesOf, type TimeAnchor } from '../data/linetime'
 import { viewSpan } from '../data/overview'
 import { toneColor } from '../data/readable'
-import { NO_HL, addHl, hlTones, setHl, toggleHl, type HlSet } from '../data/hlset'
-import { filterChipParts, filterChipText, linesInRuns, runFolds } from '../data/stmtfilter'
+import { NO_HL, addHl, hlTones, setHl, slotTone, toggleHl, type HlSet } from '../data/hlset'
+import { filterChipParts, filterChipText, hlStops, linesInRuns, runFolds, type HlStops } from '../data/stmtfilter'
 import { useFileStmts } from '../data/filestmts'
-import { FunnelIcon } from '../components/icons'
+import { ChevronDownIcon, ChevronUpIcon, FunnelIcon, LanesIcon, LayersIcon, RepeatIcon } from '../components/icons'
 import { readableRowsOf, type Pin } from './readableRows'
 import { AsRun } from './AsRun'
 import { ReadableOverview } from './ReadableOverview'
@@ -32,7 +32,7 @@ import { DELTA_MODES, MUTE_GROUPS, PANEL_TABS, SHOW_TOGGLES, deltaChipParts, dis
 import { FormattedHead, columnVars } from '../components/FormattedHead'
 import { useActions, useClient, useStore, useStoreApi } from '../state/session'
 import { activeBlock, type Store } from '../state/store'
-import { BookmarkList, HitList, KeyMap, RecentSearches } from './LinesPanel'
+import { BookmarkList, HitList, KeyMap, PanelHead, RecentSearches } from './LinesPanel'
 import { LinesOutline, type OutlineState } from './LinesOutline'
 import { LinesAt, type LineAct } from './LinesAt'
 import { LineInspector, type InspectRefKind } from './LineInspector'
@@ -153,6 +153,7 @@ const FOLD_SPAN = 240
 
 const aborted = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
 const NO_HOT: ReadonlyMap<number, number> = new Map()
+const NO_FOLDS: Fold[] = []
 
 /** A fold of repeats as the viewer shows it: its label, summary and the time it covers. */
 function repeatFold(r: RepeatFold): Fold {
@@ -273,17 +274,20 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     void cache.refresh()
   }, [cache, rev])
 
-  // the shape of the file for the strip: fetched once per file and snapshot (the strip down-samples it to its height); the old one stays until the new arrives
-  const [profile, setProfile] = useState<LineProfile | null>(null)
+  // the line strip's highlighted lines: one binned request per change of the highlighted statements, input file and snapshot (the strip down-samples it to its height); the old
+  // answer stays until the new one arrives. Nothing highlighted: no request, the strip has only its ticks
+  const hlKey = `${file}:${rev}:${ui.hl.ids.join(',')}`
+  const [bins, setBins] = useState<StmtBins | null>(null)
   useEffect(() => {
-    if (!prefs.strip) return
+    if (!prefs.strip || ui.hl.ids.length === 0) { setBins(null); return }
     const ac = new AbortController()
-    fetchLineProfile(client, file, PROFILE_BUCKETS, ac.signal).then(
-      (p) => { if (!ac.signal.aborted) setProfile(p) },
-      (e: unknown) => { if (!aborted(e)) setProfile(null) }, // an engine without the route: no strip
+    fetchStmtBins(client, file, ui.hl.ids, PROFILE_BUCKETS, ac.signal).then(
+      (b) => { if (!ac.signal.aborted) setBins(b) },
+      (e: unknown) => { if (!aborted(e)) setBins(null) }, // an engine without the route: no highlighted lines in the strip
     )
     return () => ac.abort()
-  }, [client, file, rev, prefs.strip])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, hlKey, prefs.strip])
 
   const apiRef = useRef<ViewerApi | null>(null)
   const viewBus = useRef<((top: number, rows: number) => void) | null>(null)
@@ -465,18 +469,30 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     return deltaFiltering && delta ? filterFolds(delta.lines.map((x) => x[0]), total, deltaWhat).filter((f) => !ui.openFilter.lines.has(f.from)) : null
   }, [stmtFilter, deltaFiltering, delta, total, deltaWhat, ui.openFilter, ui.openFilter.lines.size]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** the user's folds and the view's own (with Fold repeats, the repeats; the binds' attribute lines) that the user has not opened (the user's win where they overlap); the Δ filter's folds replace them all */
-  const allFolds = useMemo(() => {
-    if (filterFoldList) return filterFoldList
+  /**
+   * the user's folds and the view's own (with Fold repeats, the repeats; the framing, the inline binds, the binds' attribute lines, the SQL bands) that the user has not opened (the
+   * user's win where they overlap). The statement filter keeps them inside its kept runs (`composeFilterFolds`: the filter only adds the folds between the runs). The Δ filter's
+   * kept rows are single lines the view's own folds would hide (a wait inside a fold of repeats), so only the quiet ones (the framing, the binds' lines, the SQL bands) are kept
+   * with it, for the lines of a fold of the filter that is opened; the repeats and the user's folds give way to it.
+   */
+  const composed = !!stmtFilter && !deltaFiltering
+  const ownFolds = useMemo(() => {
     if (!repeatFolds && !quietFolds) return ui.folds
     const own = [...standingFolds(repeatFolds ?? [], ui.openRepeats, selFold), ...(quietFolds ?? []).filter((f) => !ui.openRepeats.has(f.from))]
     // the inline BINDS blocks that were opened: the table's own quiet folds instead
     if (quietFolds && bindTable) for (const f of quietFolds) if (f.inline && ui.openRepeats.has(f.from)) own.push(...bindTable(f.from))
     return mergeFolds(ui.folds, own)
-  }, [filterFoldList, repeatFolds, selFold, quietFolds, bindTable, ui.folds, ui.openRepeats])
+  }, [repeatFolds, selFold, quietFolds, bindTable, ui.folds, ui.openRepeats])
+  const quietOwn = useMemo(() => {
+    if (!quietFolds) return NO_FOLDS
+    const own = quietFolds.filter((f) => !ui.openRepeats.has(f.from))
+    if (bindTable) for (const f of quietFolds) if (f.inline && ui.openRepeats.has(f.from)) own.push(...bindTable(f.from))
+    return mergeFolds([], own)
+  }, [quietFolds, bindTable, ui.openRepeats])
+  const allFolds = useMemo(() => (filterFoldList ? composeFilterFolds(composed ? ownFolds : quietOwn, filterFoldList) : ownFolds), [filterFoldList, composed, ownFolds, quietOwn])
   /** Opens a fold, or folds a block again: a fold of repeats or of the Δ filter is opened by remembering it, a user's fold by dropping it. */
   const toggleAnyFold = useCallback((f: Fold) => {
-    if (f.filter) { ui.openFilter.lines.add(f.from); set({ openFilter: { ...ui.openFilter } }) }
+    if (f.filter) { ui.openFilter.lines.add(f.openKey ?? f.from); set({ openFilter: { ...ui.openFilter } }) }
     else if (f.auto) set({ openRepeats: new Set([...ui.openRepeats, f.from]) }); else set({ folds: toggleFold(ui.folds, f) })
   }, [ui, set])
 
@@ -499,11 +515,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   // the open runs of Fold repeats (opened by the user, or holding the selected line) keep a ▾ on their first line, to fold them again
   const openRuns = useMemo(() => {
     const out = new Map<number, Fold>()
-    if (!repeatFolds || filterFoldList) return out // (the Δ filter's folds replace them)
+    if (!repeatFolds || (filterFoldList && !composed)) return out // (the Δ filter's folds replace them)
     for (const f of repeatFolds) if (ui.openRepeats.has(f.from)) out.set(f.from, f)
     if (selFold) out.set(selFold.from, selFold)
     return out
-  }, [repeatFolds, filterFoldList, selFold, ui.openRepeats])
+  }, [repeatFolds, filterFoldList, composed, selFold, ui.openRepeats])
   const foldable = useMemo(() => {
     const out = new Set<number>(openRuns.keys())
     for (let n = Math.max(1, foldTop + 1 - FOLD_STEP), end = foldTop + FOLD_SPAN; n <= end; n++) {
@@ -561,10 +577,15 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     else if (hidden) { // a line inside a fold: open it first (a run of Fold repeats opens by itself while the selection is inside it)
       revealAfter.current = line
       if (!(hidden.auto && !hidden.quiet && !hidden.filter)) toggleAnyFold(hidden)
+      // a fold of a filter that was opened: the view's own fold that hides the line under it (the bind's attribute lines, a block folded by the user) opens with it
+      if (hidden.filter) {
+        const own = foldHiding(line, composed ? ownFolds : quietOwn)
+        if (own && !(own.auto && !own.quiet)) toggleAnyFold(own)
+      }
     }
     else apiRef.current?.reveal(line, 'center')
     select(line, dispatch)
-  }, [select, allFolds, toggleAnyFold])
+  }, [select, allFolds, toggleAnyFold, composed, ownFolds, quietOwn])
   // the viewer maps the new folds in its own effect (a child's effect runs first), then the reveal can find the row
   useEffect(() => {
     if (revealAfter.current > 0) { apiRef.current?.reveal(revealAfter.current, 'center'); revealAfter.current = 0 }
@@ -592,21 +613,25 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   }, [lv.seq])
   useEffect(() => () => { ui.top = topRef.current; ui.picker = false }, [ui]) // (the statement picker does not come back open with the tab)
 
-  // ---- gutter marks of the selected statement ----------------------------------------------------------------------
+  // ---- the highlighted statements: where they show up (m / M step between the starts of their runs; the search scope "highlighted statements" reads the lines between the first and
+  // the last), asked of the engine once per change of the set (the strip's binned request is the other; both are answers of `api/lines/stmts`) --------------------------------------
   const source = sourceOf(doc)
-  const marksQ = useSourceQuery(source, `marks:${stmt}`, (signal) => (stmt !== null && source.ready ? source.stmtMarks(stmt, signal) : null), 'marks')
-  const { marks, markLines, nCalls, nWaits, partial } = useMemo(() => {
-    const m = new Map<number, number>()
-    const d = marksQ.data
-    if (!d || stmt === null) return { marks: m, markLines: [] as number[], nCalls: 0, nWaits: 0, partial: false }
-    let nc = 0, nw = 0
-    for (const c of d.calls) if (c.file === file && c.line > 0) { m.set(c.line, (m.get(c.line) ?? 0) | 1); nc++ }
-    for (const w of d.waits) if (w.file === file && w.line > 0) { m.set(w.line, (m.get(w.line) ?? 0) | 2); nw++ }
-    return { marks: m, markLines: [...m.keys()].sort((a, b) => a - b), nCalls: nc, nWaits: nw, partial: d.partial }
-  }, [marksQ.data, stmt, file])
+  const hl = ui.hl
+  const [stopsAns, setStopsAns] = useState<{ key: string; stops: HlStops } | null>(null)
+  useEffect(() => {
+    if (hl.ids.length === 0) { setStopsAns(null); return }
+    const ac = new AbortController()
+    fetchStmtRuns(client, file, hl.ids, ac.signal).then(
+      (r) => { if (!ac.signal.aborted) setStopsAns({ key: hlKey, stops: hlStops(r.stmts, r.truncated) }) },
+      (e: unknown) => { if (!aborted(e)) setStopsAns({ key: hlKey, stops: hlStops([]) }) }, // an engine without the route: nothing to step between
+    )
+    return () => ac.abort()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, hlKey])
+  /** The stops of the highlighted statements as they are now; null while the engine has not answered for this set. */
+  const stops = hl.ids.length > 0 && stopsAns?.key === hlKey ? stopsAns.stops : null
   // the calls and waits of the one highlighted statement, for the picker's button and the raw view's chip: the real counts (the marks are bounded: the 5,000 longest
   // calls and the first 1,000 waits, which the tooltip says)
-  const hl = ui.hl
   const lone = hl.ids.length === 1 ? hl.ids[0] : null
   const loneQ = useSourceQuery(source, `hlmarks:${lone}`, (signal) => (lone !== null && source.ready ? source.stmtMarks(lone, signal) : null), 'hlmarks')
   const counts = useMemo((): StmtCounts | null => {
@@ -618,28 +643,38 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     return { calls: d.totalCalls > d.calls.length ? d.totalCalls : nc, waits: d.totalWaits > d.waits.length ? d.totalWaits : nw, note: note || undefined }
   }, [loneQ.data, lone, file])
 
-  // opening the tab with a statement selected: start at its first call (not after a click on a line, which selected the statement itself)
+  // opening the tab with a statement selected: start at its first line in this file (not after a click on a line, which selected the statement itself)
   useEffect(() => {
-    if (stmt === null || markLines.length === 0 || ui.jumpedFor === stmt || lv.seq !== ui.seqSeen) return
+    if (stmt === null || ui.jumpedFor === stmt || lv.seq !== ui.seqSeen) return
+    const first = stmtLineIn(doc, file, stmt)
+    if (first === undefined) return
     ui.jumpedFor = stmt
-    if (topRef.current < 1 && lv.line <= 1) goTo(markLines[0])
-  }, [stmt, markLines, ui, lv.seq, lv.line, goTo])
+    if (topRef.current < 1 && lv.line <= 1) goTo(first)
+  }, [stmt, ui, lv.seq, lv.line, goTo, doc, file])
 
   const mutedKinds = useMemo(() => new Set(MUTE_GROUPS.filter((g) => muteSet.has(g.name)).flatMap((g) => g.kinds.map((k) => LINE_KINDS.indexOf(k)))), [muteSet])
   /** this file's PARSING IN CURSOR lines and error lines, ascending */
 
+  /** The next / previous place a highlighted statement shows up: the first line of its next (previous) run of lines, whichever statement of the set it is. */
   const stepMark = (dir: 1 | -1) => {
-    if (markLines.length === 0) return
-    const from = selected
-    const i = firstAbove(markLines, from)
-    const to = dir === 1 ? markLines[i] : markLines[(markLines[i - 1] === from ? i - 2 : i - 1)]
-    if (to !== undefined && to !== from) jump(to)
+    if (hl.ids.length === 0) { flash("nothing is highlighted: l highlights the selected line's statement, L chooses statements from the list"); return }
+    if (!stops) { flash('looking up the highlighted statements…'); return }
+    const to = hotStep(stops.starts, selected, dir)
+    if (to !== undefined) jump(to)
+    else flash(`no ${dir === 1 ? 'more' : 'earlier'} highlighted lines ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)}${stops.truncated && dir === 1 ? ' in the part of the list the engine sent (it is cut)' : ''}`)
   }
 
   // ---- bookmarks -------------------------------------------------------------------------------------------------------
   const bookmarks = useMemo(() => allBookmarks.filter((b) => b.file === file), [allBookmarks, file])
   const stripHits = useMemo(() => (ui.status === 'idle' ? [] : ui.hits.map((h) => h.line)), [ui.hits, ui.hits.length, ui.status]) // eslint-disable-line react-hooks/exhaustive-deps
   const scrubTo = useCallback((line: number) => apiRef.current?.reveal(line, 'center'), [])
+  /** the highlighted statements' lines for the strip, each in its colour (a statement the engine has not answered for yet has none) */
+  const stripLayers = useMemo((): StripLayer[] => {
+    if (!bins) return []
+    const by = new Map(bins.stmts.map((b) => [b.id, b.counts]))
+    return hl.ids.flatMap((id) => { const counts = by.get(id); return counts ? [{ id, token: slotTone(hl.slots.get(id)!).token, counts }] : [] })
+  }, [bins, hl])
+  const stripShape = useMemo(() => (bins ? { total: bins.total, size: bins.size, buckets: bins.buckets } : null), [bins])
   const bmSet = useMemo(() => new Set(bookmarks.map((b) => b.line)), [bookmarks])
   const noteSet = useMemo(() => new Map(bookmarks.filter((b) => b.note).map((b) => [b.line, b.note!])), [bookmarks])
   const toggleBookmark = useCallback((line: number) => {
@@ -650,8 +685,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
   // ---- search ----------------------------------------------------------------------------------------------------------
   const searchCtl = useRef<AbortController | null>(null)
-  /** The scope that can be searched now: the window needs its lines, the statement its marks. */
-  const scopeOf = (want: SearchScope): SearchScope => (want === 'window' && winRange ? 'window' : want === 'stmt' && markLines.length > 0 ? 'stmt' : 'file')
+  /** The scope that can be searched now: the window needs its lines, the highlighted statements their lines in this file. */
+  const hasStops = !!stops && stops.starts.length > 0
+  const scopeOf = (want: SearchScope): SearchScope => (want === 'window' && winRange ? 'window' : want === 'stmt' && hasStops ? 'stmt' : 'file')
   const scope = scopeOf(ui.scope)
   const runSearch = () => {
     if (ui.q === '') return
@@ -660,7 +696,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const hits: SearchHit[] = []
     const { q, regex, caseSensitive } = ui
     const sc = scopeOf(ui.scope)
-    const span: LineRange | null = sc === 'window' ? winRange : sc === 'stmt' ? { from: markLines[0], to: markLines[markLines.length - 1] } : null
+    const span: LineRange | null = sc === 'window' ? winRange : sc === 'stmt' && stops ? { from: stops.first, to: stops.last } : null
     const here = ui.fromHere ? Math.min(Math.max(1, selected + 1), Math.max(1, cache.total || selected + 1)) : 1
     const from = span ? (ui.fromHere && here >= span.from && here <= span.to ? here : span.from) : here
     set({ hits, end: null, status: 'running', error: null, tab: 'hits', searched: { q, regex, caseSensitive, scope: sc } })
@@ -673,9 +709,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     search(client, { file, q, regex, caseSensitive, from, limit: SEARCH_LIMIT }, (h) => {
       if (clipped) return
       if (span && h.line > span.to) { clipped = true; ac.abort(); return }
-      // the statement scope is the stream window between the marks (cheap, a superset); where the hit's page is loaded the line's
-      // owner is exact, so lines of other statements inside the window are dropped; hits on pages not loaded stay
-      if (sc === 'stmt' && stmt !== null) { const own = cache.line(h.line); if (own && own.stmt !== stmt) return }
+      // the statement scope is the stream window between the first and the last line of the highlighted statements (cheap, a superset); where the hit's page is loaded
+      // the line's owner is exact, so lines of other statements inside the window are dropped; hits on pages not loaded stay
+      if (sc === 'stmt') { const own = cache.line(h.line); if (own && !hl.slots.has(own.stmt)) return }
       hits.push(h)
       if (hits.length === 1) { flush(); jump(h.line) } else if (!timer) timer = window.setTimeout(flush, 100)
     }, ac.signal).then(
@@ -1202,14 +1238,15 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const displayCount = displayBadge(prefs, LINES_PREFS_DEFAULTS)
   const deltaParts = deltaChipParts(deltaMode === 'off' ? 'highlight' : deltaMode, prefs.deltaMs, delta && !delta.error ? delta.lines.length : undefined, delta?.truncated)
   const deltaChip = deltaParts.what + deltaParts.doing
+  const laneName = LANE_COLORS.find((c) => c.id === prefs.laneColor)?.label ?? prefs.laneColor
   const filterChip = filterChipParts(filterIds.map(nameOf), stmtFilter ? stmtFilter.lines : undefined, stmtFilter?.truncated)
   const toggleMute = (name: string) => setPrefs({ mute: muteSet.has(name) ? prefs.mute.filter((m) => m !== name) : [...prefs.mute, name] })
-  const stmtName = stmt !== null && doc.statements[stmt] ? doc.label(doc.statements[stmt]) : ''
 
   /** The Actions menu's first group: what the owner does with the selected line itself. */
   const lineActs: LineAct[] = [
     { label: 'Bookmark', kbd: 'b', on: bmSet.has(selected), keepOpen: true, run: () => toggleBookmark(selected), title: 'bookmark this line (b; a right-click on a line number does it too)' },
     ...(notesOn ? [{ label: 'Note…', on: noting === selected, run: () => setNoting(noting === selected ? null : selected), title: 'a note on this line (bookmarks it)' }] : []),
+    { label: 'Highlight its statement', kbd: 'l', on: lineStmt() >= 0 && hl.slots.has(lineStmt()), keepOpen: true, run: highlightLine, title: "tint every line of this statement's cursors in a colour of its own (l; again: stop). m / M step between the runs of the highlighted statements" },
     { label: 'Focus on its cursor', kbd: 'f', on: ui.focus !== null, keepOpen: true, run: toggleFocus, title: "dim the rows outside this line's cursor (f); Esc clears" },
     { label: 'Copy line', run: () => copyLine(selected), title: "copy the line's text" },
     ...(canLink ? [{ label: 'Copy link to line', run: () => copyLink(selected), title: 'copy a link that opens this line' }] : []),
@@ -1227,8 +1264,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const gapOff = prefs.gapMs <= 0
     add('Step', 'step:gap:next', `Next gap ≥ ${fmtInt(prefs.gapMs)} ms`, () => stepGap(1), { keys: 't', disabled: gapOff, hint: gapOff ? 'off: set the threshold in Display' : undefined })
     add('Step', 'step:gap:prev', 'Previous gap', () => stepGap(-1), { keys: 'T', disabled: gapOff })
-    add('Step', 'step:mark:next', 'Next mark', () => stepMark(1), { keys: 'm', disabled: markLines.length === 0, hint: 'of the selected statement' })
-    add('Step', 'step:mark:prev', 'Previous mark', () => stepMark(-1), { keys: 'M', disabled: markLines.length === 0, hint: 'of the selected statement' })
+    add('Step', 'step:mark:next', 'Next highlight', () => stepMark(1), { keys: 'm', disabled: !hasStops, hint: hl.ids.length === 0 ? 'highlight a statement first (l, L)' : 'the next run of lines of a highlighted statement' })
+    add('Step', 'step:mark:prev', 'Previous highlight', () => stepMark(-1), { keys: 'M', disabled: !hasStops, hint: 'the previous run of lines of a highlighted statement' })
     add('Step', 'step:hit:next', 'Next hit', () => stepHit(1), { keys: 'F3', disabled: nextHitDisabled })
     add('Step', 'step:hit:prev', 'Previous hit', () => stepHit(-1), { keys: 'Shift+F3', disabled: nextHitDisabled })
     add('Step', 'step:hot:next', 'Next hot spot', () => stepHot(1), { keys: 'j', hint: 'a line of 1 % of the traced time or more (formatted view)' })
@@ -1292,16 +1329,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         <p className="small muted lines-status" aria-live="polite">
           {ui.status === 'idle' && 'Type in the search box and press Enter.'}
           {running && `Searching… ${fmtInt(ui.hits.length)} hits`}
-          {ui.status === 'done' && ui.end && ui.searched.scope !== 'file' && `${fmtInt(ui.hits.length)} hits ${ui.searched.scope === 'window' ? "in the window's lines" : "within the marked statement's lines"}${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
+          {ui.status === 'done' && ui.end && ui.searched.scope !== 'file' && `${fmtInt(ui.hits.length)} hits ${ui.searched.scope === 'window' ? "in the window's lines" : "within the highlighted statements' lines"}${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
           {ui.status === 'done' && ui.end && ui.searched.scope === 'file' && `${fmtInt(ui.hits.length)} hits in ${fmtInt(ui.end.scanned)} lines${ui.end.truncated ? ` — stopped at the limit of ${fmtInt(SEARCH_LIMIT)} hits` : ''}`}
           {ui.status === 'done' && ui.end && !ui.end.done && ' (the server ended early)'}
           {ui.status === 'cancelled' && `Cancelled after ${fmtInt(ui.hits.length)} hits.`}
           {ui.status === 'error' && <span className="lines-error">{ui.error}</span>}
         </p>
         <span className="lines-tools">
-          <button className="quiet" onClick={() => set({ groupHits: !ui.groupHits })} aria-pressed={ui.groupHits} title="list the hits by statement: the biggest group first, a click opens its hits">By statement</button>
-          <button className="quiet" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous hit" title="previous hit (Shift+F3)">‹</button>
-          <button className="quiet" onClick={() => stepHit(1)} disabled={nextHitDisabled} aria-label="Next hit" title="next hit (F3)">›</button>
+          <button className="quiet icon-btn" onClick={() => set({ groupHits: !ui.groupHits })} aria-pressed={ui.groupHits} aria-label="Group the hits by statement" title="list the hits by statement: the biggest group first, a click opens its hits"><LayersIcon /></button>
+          <button className="quiet icon-btn" onClick={() => stepHit(-1)} disabled={nextHitDisabled} aria-label="Previous hit" title="previous hit (Shift+F3)"><ChevronUpIcon /></button>
+          <button className="quiet icon-btn" onClick={() => stepHit(1)} disabled={nextHitDisabled} aria-label="Next hit" title="next hit (F3)"><ChevronDownIcon /></button>
         </span>
       </div>
       <RecentSearches recent={ui.recent} active={ui.status === 'idle' ? null : ui.searched} onPick={restoreSearch} onRerun={rerunSearch} />
@@ -1342,8 +1379,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
                   <MenuItem on={scope === 'window'} disabled={!winRange} onClick={() => set({ scope: 'window' })} title={winRange ? `search only the lines of the time window (${fmtInt(winRange.from)}–${fmtInt(winRange.to)})` : 'needs a time window with lines in this file (set one in the Timeline)'}>
                     Time window <small className="muted">{winRange ? `lines ${fmtInt(winRange.from)}–${fmtInt(winRange.to)}` : '(none)'}</small>
                   </MenuItem>
-                  <MenuItem on={scope === 'stmt'} disabled={markLines.length === 0} onClick={() => set({ scope: 'stmt' })} title={markLines.length > 0 ? `search only the lines between the selected statement's first and last mark (${fmtInt(markLines[0])}–${fmtInt(markLines[markLines.length - 1])})` : 'needs a selected statement with marks in this file'}>
-                    Selected statement <small className="muted mono">{stmtName || '(none)'}</small>
+                  <MenuItem on={scope === 'stmt'} disabled={!hasStops} onClick={() => set({ scope: 'stmt' })} title={hasStops ? `search only the lines between the first and the last line of the highlighted statements (${fmtInt(stops!.first)}–${fmtInt(stops!.last)}), and only the lines of those statements` : 'needs highlighted statements with lines in this file (l highlights the selected line\'s statement, L chooses from the list)'}>
+                    Highlighted statements <small className="muted">{hl.ids.length === 0 ? '(none)' : hl.ids.length === 1 ? nameOf(hl.ids[0]) : `${fmtInt(hl.ids.length)} statements`}</small>
                   </MenuItem>
                 </div>
                 <h4>Ready-made searches</h4>
@@ -1368,12 +1405,12 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
             {hasHot && <small title={`${fmtInt(hot!.lines.length)} lines in this file took 1 % of the traced time or more`}>{fmtInt(hot!.lines.length)}</small>}
           </span>
           )}
-          <ToolbarMenu label="Step" title="the next or previous mark of the selected statement, call, wait, cursor parse, STAT dump, session marker, error, commit, idle gap or search hit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
+          <ToolbarMenu label="Step" title="the next or previous run of a highlighted statement, call, wait, cursor parse, STAT dump, session marker, error, commit, idle gap or search hit (the letter keys)" className="tbmenu-sm tbmenu-start" open={ui.stepMenu} onOpenChange={(stepMenu) => set({ stepMenu })}>
             <ul className="lines-steps">
-              <li title={partial ? 'the marks are bounded: the 5,000 longest calls and the first 1,000 waits of the statement' : undefined}>
-                <button type="button" className="quiet" onClick={() => stepMark(-1)} disabled={markLines.length === 0} aria-label="Previous mark" title="previous call or wait of the selected statement (M)">‹</button>
-                <span>statement mark<small className="muted">{stmt === null ? 'select a statement for marks' : `${stmtName} · ${fmtInt(nCalls)} calls · ${fmtInt(nWaits)} waits${partial ? ' (bounded)' : ''}`}</small></span>
-                <button type="button" className="quiet" onClick={() => stepMark(1)} disabled={markLines.length === 0} aria-label="Next mark" title="next call or wait of the selected statement (m)">›</button>
+              <li title="the first line of the next (previous) run of lines of a highlighted statement: every line of its cursors, whichever statement of the set it is">
+                <button type="button" className="quiet" onClick={() => stepMark(-1)} disabled={!hasStops} aria-label="Previous highlight" title="the previous run of lines of a highlighted statement (M)">‹</button>
+                <span>highlighted statement<small className="muted">{hl.ids.length === 0 ? 'highlight one with l or L' : !stops ? 'looking up…' : stops.starts.length === 0 ? 'nothing in this file' : `${hl.ids.length === 1 ? nameOf(hl.ids[0]) : `${fmtInt(hl.ids.length)} statements`} · ${fmtInt(stops.starts.length)}${stops.truncated ? '+' : ''} ${stops.starts.length === 1 ? 'run' : 'runs'}`}</small></span>
+                <button type="button" className="quiet" onClick={() => stepMark(1)} disabled={!hasStops} aria-label="Next highlight" title="the next run of lines of a highlighted statement (m)">›</button>
               </li>
               <li className="sep" role="separator" />
               {STEPS.map(([what, label, keys]) => (
@@ -1415,6 +1452,24 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               <button type="button" className="lines-state-x" onClick={() => setPrefs({ deltaMode: 'off' })} aria-label="Turn the Δ filter off" title="turn the Δ filter off">×</button>
             </span>
           )}
+          {readable && prefs.foldRepeats && (
+            <span className={'lines-state lines-rstate' + (switching === 'repeats' || repeatsLoading ? ' busy-src' : '')}>
+              <button type="button" className="lines-state-main" onClick={openDisplay} aria-label="Fold repeats is on"
+                title="Fold repeats is on: runs of identical waits, long wait blocks and loops of small fetches are folded into one line each (r); click to change it in the Display tab">
+                <RepeatIcon /><span className="tb-f1">Repeats folded</span>
+              </button>
+              <button type="button" className="lines-state-x" onClick={toggleRepeats} aria-label="Turn Fold repeats off" title="turn Fold repeats off (r)">×</button>
+            </span>
+          )}
+          {readable && prefs.laneColor !== 'stmt' && (
+            <span className="lines-state lines-lstate">
+              <button type="button" className="lines-state-main" onClick={openDisplay} aria-label={`The lanes are coloured by ${laneName}`}
+                title={`The lanes are coloured by ${laneName} (not by statement): ${LANE_COLORS.find((c) => c.id === prefs.laneColor)?.title ?? ''}. Click to change it in the Display tab`}>
+                <LanesIcon /><span className="tb-f3">Lanes</span><span className="tb-f2">{`: ${laneName}`}</span>
+              </button>
+              <button type="button" className="lines-state-x" onClick={() => setPrefs({ laneColor: LINES_PREFS_DEFAULTS.laneColor })} aria-label="Colour the lanes by statement again" title="colour the lanes by statement again">×</button>
+            </span>
+          )}
           {filterIds.length > 0 && (
             <span className={'lines-state lines-sstate' + (stmtLoading ? ' busy-src' : '')}>
               <button type="button" className="lines-state-main" onClick={() => (readable ? set({ picker: true, keys: false }) : flash('the statement list is in the formatted view (v); the filter stays on'))}
@@ -1443,16 +1498,18 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
           )}
           {/* the raw view has no overview row: its highlight chip stays (the formatted view's is the statement picker's button) */}
           {!readable && hl.ids.length > 0 && (
-            <span className="lines-hl" style={{ '--hl': lone !== null ? hlColors.get(lone) : 'var(--ink-3)' } as React.CSSProperties}
-              title={`the lines of ${lone !== null ? 'this statement\'s' : 'these statements\''} cursors are tinted${lone !== null ? ' in its colour' : ', each in a colour of its own'}, with a bar at the start edge of their calls and waits; l highlights (or stops highlighting) the selected line's statement${counts?.note ? `; ${counts.note}` : ''}`}>
-              <i aria-hidden="true" />
-              Highlighting
+            <span className={'lines-hl' + (lone === null ? ' many' : '')} style={{ '--hl': lone !== null ? hlColors.get(lone) : 'var(--ink-3)' } as React.CSSProperties}
+              title={`the lines of ${lone !== null ? 'this statement\'s' : 'these statements\''} cursors are tinted${lone !== null ? ' in its colour' : `, each in a colour of its own (${hl.ids.slice(0, 12).map(nameOf).join(', ')}${hl.ids.length > 12 ? ', …' : ''})`}, with a bar at the start edge of their calls and waits; l highlights (or stops highlighting) the selected line's statement, m / M step between the runs of their lines${counts?.note ? `; ${counts.note}` : ''}`}>
+              {lone !== null
+                ? <i aria-hidden="true" />
+                : <span className="sp-sws" aria-hidden="true">{hl.ids.slice(0, 4).map((id) => <i key={id} style={{ background: hlColors.get(id) }} />)}</span>}
               {lone !== null ? (
                 <>
+                  Highlighting
                   <button type="button" className="link mono" onClick={() => goToStmt(lone)} title="go to its first line in this file">{nameOf(lone)}</button>
                   {counts && <small>{counts.calls + counts.waits === 0 ? 'nothing in this file' : `${fmtInt(counts.calls)} ${counts.calls === 1 ? 'call' : 'calls'} · ${fmtInt(counts.waits)} ${counts.waits === 1 ? 'wait' : 'waits'}`}</small>}
                 </>
-              ) : <small>{fmtInt(hl.ids.length)} statements</small>}
+              ) : <b>{fmtInt(hl.ids.length)} highlighted</b>}
               <button type="button" className="quiet" onClick={() => set({ hl: NO_HL })} aria-label="Stop highlighting" title="stop highlighting">×</button>
             </span>
           )}
@@ -1494,7 +1551,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className={'lines-main' + (busy ? ' busy' : '') + (readable && prefs.laneColor !== 'stmt' ? ' lanes-by-line' : '')} aria-busy={busy || undefined} style={readable ? columnVars(prefs.cols) as React.CSSProperties : undefined}>
           <LineViewer cache={cache} readable={readableRows} hlColors={hlColors} tables={tables} bands={sqlBands} deltaCol={prefs.rdDelta} spanUs={fileSpan} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} spanUs={fileSpan} onCols={(cols) => setPrefs({ cols })} /> : undefined} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} deltaHits={deltaHits} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
-            onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
+            onViewChange={onViewChange} side={prefs.strip && total > 0 ? <StripHost bus={viewBus} last={lastView} total={total} layers={stripLayers} shape={stripShape} selected={selected} hits={stripHits} bookmarks={bmSet} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}
           {loadError && <p className="lines-overlay lines-error" role="alert">Could not read the trace: {loadError}</p>}
@@ -1502,15 +1559,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         {prefs.inspect && <>
           <ResizeHandle anchor="end" className="resizer-lines-inspect" label="Resize the side panel" min={256} maxFrac={0.5} onChange={(px) => setPrefs({ inspectW: px ?? 400 })} />
           <aside className="lines-side" aria-label="Side panel">
-            <div className="lines-side-head">
-              <span className="seg" role="tablist" aria-label="Side panel">
-                {PANEL_TABS.map((t) => {
-                  const n = tabCount(t.tab)
-                  return <button key={t.tab} type="button" role="tab" aria-selected={ui.tab === t.tab} aria-pressed={ui.tab === t.tab} onClick={() => set({ tab: t.tab })}>{t.label}{n > 0 && <small> {fmtInt(n)}</small>}</button>
-                })}
-              </span>
-              <button type="button" className="quiet" onClick={() => setPrefs({ inspect: false })} aria-label="Close the side panel" title="close the side panel">×</button>
-            </div>
+            <PanelHead tab={ui.tab} counts={{ hits: tabCount('hits'), bookmarks: tabCount('bookmarks') }} onTab={(tab) => set({ tab })} onClose={() => setPrefs({ inspect: false })} />
             <div className={`lines-side-body lines-side-${ui.tab}`} role="tabpanel">
               {ui.tab === 'line' && <LineInspector doc={doc} cache={cache} line={inspectedLine} at={inspAt} decodeCtx={decodeCtx} note={flash} onRef={onInspectRef} follow={prefs.follow} onFollow={(v) => setPrefs({ follow: v })} />}
               {ui.tab === 'display' && (

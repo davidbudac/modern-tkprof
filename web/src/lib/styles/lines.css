@@ -37,12 +37,23 @@
 @container (inline-size < 89rem) { .lines-row .tb-f2 { display: none; } }
 @container (inline-size < 73rem) { .lines-row .tb-f3 { display: none; } }
 @container (inline-size < 67rem) { .lines-row .tb-f4 { display: none; } .lines-mode > button { padding-inline: 0.55rem; } }
-/* the statement filter's chip (funnel, `Filter: 2 statements · 1,204 lines`, ×) adds 222 px at the first two steps, then 162, 127 and 64 (its words fold at .tb-f2, .tb-f3 and .tb-f4 too): while it is on the steps come
-   later by that much. Measured with everything on at once (the Δ filter's chip with 74,307, the pin, the window group, the file select, two filtered statements) it still fits from 1100 px. */
-@container (inline-size < 112rem) { .lines-row:has(.lines-sstate) .tb-f1 { display: none; } .lines-row:has(.lines-sstate) .tb-cmd > button kbd { margin-inline-start: 0; } }
-@container (inline-size < 103rem) { .lines-row:has(.lines-sstate) .tb-f2 { display: none; } }
-@container (inline-size < 83rem) { .lines-row:has(.lines-sstate) .tb-f3 { display: none; } }
-@container (inline-size < 75rem) { .lines-row:has(.lines-sstate) .tb-f4 { display: none; } .lines-row:has(.lines-sstate) .lines-mode > button { padding-inline: 0.55rem; } }
+/* The state chips (the Δ filter, Fold repeats, the lane colours, the statement filter) add their width while they are on, so the steps come later with more of them. Measured in the worst
+   case, a formatted bar with the chips on and the pin, the time window group, the file select and the search at 14 digits, the row needs (all labels, without .tb-f1, .. .tb-f2, .. .tb-f3, none):
+   two chips (Δ filter and the statement filter, with a count of 74,307, two filtered statements) 1872, 1735, 1448, 1275, 1142 px; three (Δ, Fold repeats, lanes) 1903, 1680, 1398, 1259, 1126; four
+   2130, 1906, 1572, 1399, 1266. The limits are those plus a margin; the statement filter's chip alone adds 222 px at the first two steps, then 162, 127 and 64 (its words fold at .tb-f2, .tb-f3 and .tb-f4 too).
+   Under about 1270 px with all four on the search gives way to its least width: the row stays one line. */
+@container (inline-size < 112rem) { .lines-row:is(:has(.lines-sstate), :has(.lines-state ~ .lines-state)) .tb-f1 { display: none; } .lines-row:is(:has(.lines-sstate), :has(.lines-state ~ .lines-state)) .tb-cmd > button kbd { margin-inline-start: 0; } }
+@container (inline-size < 103rem) { .lines-row:is(:has(.lines-sstate), :has(.lines-state ~ .lines-state)) .tb-f2 { display: none; } }
+@container (inline-size < 83rem) { .lines-row:is(:has(.lines-sstate), :has(.lines-state ~ .lines-state)) .tb-f3 { display: none; } }
+@container (inline-size < 75rem) { .lines-row:is(:has(.lines-sstate), :has(.lines-state ~ .lines-state)) .tb-f4 { display: none; } .lines-row:is(:has(.lines-sstate), :has(.lines-state ~ .lines-state)) .lines-mode > button { padding-inline: 0.55rem; } }
+@container (inline-size < 119rem) { .lines-row:has(.lines-state ~ .lines-state ~ .lines-state) .tb-f1 { display: none; } .lines-row:has(.lines-state ~ .lines-state ~ .lines-state) .tb-cmd > button kbd { margin-inline-start: 0; } }
+@container (inline-size < 109rem) { .lines-row:has(.lines-state ~ .lines-state ~ .lines-state) .tb-f2 { display: none; } }
+@container (inline-size < 91rem) { .lines-row:has(.lines-state ~ .lines-state ~ .lines-state) .tb-f3 { display: none; } }
+@container (inline-size < 80rem) { .lines-row:has(.lines-state ~ .lines-state ~ .lines-state) .tb-f4 { display: none; } .lines-row:has(.lines-state ~ .lines-state ~ .lines-state) .lines-mode > button { padding-inline: 0.55rem; } }
+@container (inline-size < 134rem) { .lines-row:has(.lines-state ~ .lines-state ~ .lines-state ~ .lines-state) .tb-f1 { display: none; } .lines-row:has(.lines-state ~ .lines-state ~ .lines-state ~ .lines-state) .tb-cmd > button kbd { margin-inline-start: 0; } }
+@container (inline-size < 120rem) { .lines-row:has(.lines-state ~ .lines-state ~ .lines-state ~ .lines-state) .tb-f2 { display: none; } }
+@container (inline-size < 99rem) { .lines-row:has(.lines-state ~ .lines-state ~ .lines-state ~ .lines-state) .tb-f3 { display: none; } }
+@container (inline-size < 88rem) { .lines-row:has(.lines-state ~ .lines-state ~ .lines-state ~ .lines-state) .tb-f4 { display: none; } .lines-row:has(.lines-state ~ .lines-state ~ .lines-state ~ .lines-state) .lines-mode > button { padding-inline: 0.55rem; } }
 .lines-tools { display: flex; align-items: center; gap: var(--sp-2); margin-inline-start: auto; }
 .lines-win { display: flex; align-items: center; gap: var(--sp-2); padding-inline-start: var(--sp-2); border-inline-start: 1px solid var(--hairline); }
 .lines-win b { font-weight: 600; font-size: var(--text-sm); }
@@ -75,11 +86,11 @@
 
 /* the viewer: rows are laid out by the component (see components/LineViewer.tsx), the scroll bar stands for the whole file */
 .lv-box { display: flex; block-size: 100%; min-block-size: 0; }
-/* the header and the scroll container as a column, the density strip beside it */
+/* the header and the scroll container as a column, the line map beside it */
 .lv-box-col { position: relative; flex: 1; display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; }
 .lv-box-col > .lv-stack { position: relative; flex: 1; display: flex; flex-direction: column; min-block-size: 0; }
 .lv-stack > .lv { flex: 1; block-size: auto; min-block-size: 0; }
-.lv-strip { flex: none; inline-size: 14px; block-size: 100%; cursor: pointer; background: var(--surface-sunken); border-inline-start: 1px solid var(--hairline); box-sizing: content-box; touch-action: none; user-select: none; }
+.lv-strip { flex: none; inline-size: 16px; block-size: 100%; cursor: pointer; background: var(--surface-sunken); border-inline-start: 1px solid var(--hairline); box-sizing: content-box; touch-action: none; user-select: none; }
 /* the header over the top rows: there only when the top line belongs to another statement than the selected line; it does not take a row,
    so the view never changes size. As wide as its content, from the start edge; the scroll bar stays free. */
 .lv-head { position: absolute; inset-block-start: 0; inset-inline-start: 0; z-index: 3; display: flex; align-items: center; gap: var(--sp-3); inline-size: max-content; max-inline-size: calc(100% - 1.5rem); block-size: var(--lv-row); box-sizing: border-box; padding-inline: var(--sp-3); overflow: hidden; white-space: nowrap; background: var(--surface-sunken); border: 1px solid var(--hairline); border-block-start: 0; border-inline-start: 0; border-end-end-radius: var(--radius); box-shadow: 0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); color: var(--ink-2); }
@@ -296,11 +307,19 @@
 
 /* the side panel: tabs (Line, Outline, Hits, Bookmarks) over a body; the lists scroll inside their tab, the Line tab scrolls as a whole */
 .lines-side { container: lines-side / inline-size; inline-size: min(var(--w, 25rem), 50vw); min-inline-size: 16rem; box-sizing: border-box; min-block-size: 0; display: flex; flex-direction: column; padding: var(--sp-2) var(--sp-3); border-inline-start: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); }
-.lines-side-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
-.lines-side-head .seg { flex: 0 1 auto; min-inline-size: 0; }
-.lines-side-head .seg button { font-size: var(--text-sm); padding-inline: 0.375rem; white-space: nowrap; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; } /* (six tabs and a hit count in 400 px) */
+.lines-side-head { flex: none; display: flex; align-items: center; gap: var(--sp-2); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
 .lines-side-head > button { flex: none; }
-.lines-side-head .seg small { opacity: .7; font-variant-numeric: tabular-nums; }
+/* the tabs are icons (six at 2 rem is 12.4 rem: they never clip); a count of hits or bookmarks is a small badge on the icon, the active tab's name is the heading beside them */
+.lines-tabs { flex: none; display: inline-flex; border: 1px solid var(--hairline-strong); border-radius: var(--radius); overflow: clip; }
+.lines-tab { position: relative; display: inline-flex; align-items: center; justify-content: center; inline-size: 2rem; block-size: 1.75rem; padding: 0; border: 0; border-radius: 0; background: none; color: var(--ink-2); font-size: 1rem; }
+.lines-tab + .lines-tab { border-inline-start: 1px solid var(--hairline-strong); }
+.lines-tab:hover { background: var(--wash); color: var(--ink); }
+.lines-tab[aria-selected="true"] { background: var(--ink); color: var(--surface); }
+.lines-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.lines-tab .icon { inline-size: 1em; block-size: 1em; }
+.lines-tab small { position: absolute; inset-block-start: 1px; inset-inline-end: 1px; min-inline-size: 1.2em; padding-inline: 2px; border-radius: 999px; background: var(--c-userio); color: #fff; font-size: 9px; font-weight: 600; line-height: 1.45; text-align: center; font-variant-numeric: tabular-nums; pointer-events: none; }
+.lines-side-title { flex: 1 1 0; min-inline-size: 0; margin: 0; font-size: var(--text-md); font-weight: 600; color: var(--ink); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
+.lines-side-title small { margin-inline-start: 0.5em; font-size: var(--text-xs); font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .lines-side-body { flex: 1; min-block-size: 0; display: flex; flex-direction: column; }
 .lines-side-line, .lines-side-bookmarks, .lines-side-display { overflow: auto; }
 .lines-side-tools { display: flex; align-items: center; gap: var(--sp-2); }
@@ -323,7 +342,22 @@
 .ld-note { margin: 0; font-size: var(--text-xs); color: var(--ink-3); line-height: 1.4; }
 p.ld-note { margin-block-start: var(--sp-2); }
 .ld-radios { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); column-gap: var(--sp-3); }
-.ld-modes { display: flex; flex-wrap: wrap; column-gap: var(--sp-4); }
+.ld-modes { display: inline-flex; border: 1px solid var(--hairline-strong); border-radius: var(--radius); overflow: clip; margin-block-start: var(--sp-1); }
+.ld-mode { display: inline-flex; align-items: center; justify-content: center; inline-size: 2.5rem; block-size: 1.75rem; padding: 0; border: 0; border-radius: 0; background: none; color: var(--ink-2); font-size: 1rem; }
+.ld-mode + .ld-mode { border-inline-start: 1px solid var(--hairline-strong); }
+.ld-mode:hover { background: var(--wash); color: var(--ink); }
+.ld-mode[aria-checked="true"] { background: var(--ink); color: var(--surface); }
+.ld-mode:focus-visible, .ld-tog:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ld-mode .icon { inline-size: 1em; block-size: 1em; }
+/* the Show and Rows toggles: a grid of icon buttons (pressed = filled, as every pressed button), the one under the pointer named in the caption below */
+.ld-togs { display: grid; grid-template-columns: repeat(auto-fill, 2.5rem); gap: var(--sp-1); }
+.ld-tog { display: inline-flex; align-items: center; justify-content: center; inline-size: 2.5rem; block-size: 2rem; padding: 0; border: 1px solid color-mix(in oklch, var(--hairline-strong) 70%, transparent); border-radius: var(--radius); background: var(--surface); color: var(--ink-2); font-size: 1.0625rem; }
+.ld-tog:hover { background: var(--wash); color: var(--ink); border-color: var(--hairline-strong); }
+.ld-tog[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.ld-tog .icon { inline-size: 1em; block-size: 1em; }
+.ld-cap { margin: var(--sp-2) 0 0; min-block-size: 1.4em; font-size: var(--text-xs); line-height: 1.4; color: var(--ink-3); }
+.ld-cap b { color: var(--ink); font-weight: 600; margin-inline-end: 0.5em; }
+.ld-cap kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; margin-inline-end: 0.5em; background: var(--surface); }
 .ld-inline { display: flex; align-items: center; gap: var(--sp-2); padding-block: 3px; color: var(--ink); }
 .ld-inline input { inline-size: 4.5rem; }
 .ld-keyrow { cursor: default; grid-template-columns: 13px minmax(0, 1fr); color: var(--ink-2); } /* (the first cell stands where the tick of a row that can be dimmed is, so the swatches line up) */
@@ -390,8 +424,9 @@ p.ld-note { margin-block-start: var(--sp-2); }
 .insp-waits .none { grid-column: 2 / -1; color: var(--ink-3); }
 .insp-waits button.link { max-inline-size: 100%; overflow: clip; text-overflow: ellipsis; white-space: nowrap; vertical-align: baseline; }
 /* a narrow panel: tighter tabs, the fields without the key column (the raw token stays a tooltip), the numbers in one column */
+@container lines-side (inline-size < 22rem) { .lines-side-title { display: none; } .lines-side-head { justify-content: space-between; } }
 @container lines-side (inline-size < 17rem) {
-  .lines-side-head .seg button { font-size: var(--text-xs); padding-inline: 0.375rem; }
+  .lines-tab { inline-size: 1.75rem; }
   .lines-side-head > button { padding-inline: var(--sp-1); }
   .insp-fields { grid-template-columns: fit-content(40%) minmax(0, 1fr); }
   .insp-fields .v { grid-column: 2; }
@@ -564,6 +599,11 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-hl > i { inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; background: var(--hl); }
 .lines-hl > .link { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
 .lines-hl > button.quiet { padding-inline: 0.3em; }
+/* several statements: their swatches stacked, the count (no accent bar: no one colour is the chip's) */
+.lines-hl.many { box-shadow: inset 0 0 0 1px var(--hairline-strong); background: var(--wash); }
+.lines-hl > b { font-weight: 600; color: var(--ink); }
+.lines-hl .sp-sws { padding-inline-end: 0.1em; }
+.lines-hl .sp-sws i { box-shadow: 0 0 0 1.5px var(--wash-bg, var(--surface)); }
 @container (inline-size < 90rem) { .lines-hl > small { display: none; } }
 .lines-hl > small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .lines-pin { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
@@ -579,7 +619,11 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-dstate { color: var(--ink); background: color-mix(in oklch, var(--c-other) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--c-other) 45%, transparent); }
 .lines-sstate { color: var(--ink); background: var(--wash); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
 .lines-sstate > button:hover { background: var(--wash-strong); }
-.lines-sstate .icon { margin-inline-end: 0.4em; }
+.lines-state .icon { margin-inline-end: 0.4em; }
+.lines-rstate, .lines-lstate { color: var(--ink); background: var(--wash); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.lines-rstate > button:hover, .lines-lstate > button:hover { background: var(--wash-strong); }
+.lines-rstate .icon { margin-inline-end: 0; }
+.lines-rstate .tb-f1 { margin-inline-start: 0.4em; }
 .lines-dstate > button:hover { background: color-mix(in oklch, var(--c-other) 16%, transparent); }
 /* the Display button: sliders and, when Show / dim settings are off their defaults, how many */
 .tb-display { display: inline-flex; align-items: center; gap: 0.4em; }
@@ -678,6 +722,8 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
    cells start where Detail does. Header cells: 11 px --ink-3 500 with one hairline under them. The numbers sit in fixed columns, right-aligned, so they line up down the
    plan; the operation takes the room that is left, indented by its depth. */
 .lv-tbl { flex: 1 1 0; min-inline-size: 0; display: flex; align-items: stretch; box-sizing: border-box; --chw: var(--lv-chw, 0.6rem); margin-inline: var(--chw); overflow: hidden; white-space: pre; background: var(--surface-sunken); border-inline: 1px solid var(--hairline); }
+/* a highlighted statement's plan, BINDS and SQL bands: the sunken ground hid the row's tint, so the band carries it itself (a little stronger than the row's), over its ground */
+.lv-hlrow .lv-tbl { background: linear-gradient(light-dark(color-mix(in oklch, var(--hl) 13%, transparent), color-mix(in oklch, var(--hl) 17%, transparent)), light-dark(color-mix(in oklch, var(--hl) 13%, transparent), color-mix(in oklch, var(--hl) 17%, transparent))), var(--surface-sunken); }
 .lv-tbl-first { border-block-start: 1px solid var(--hairline); border-start-start-radius: 3px; border-start-end-radius: 3px; }
 .lv-tbl-last { border-block-end: 1px solid var(--hairline); border-end-start-radius: 3px; border-end-end-radius: 3px; }
 /* the selection's amber over the band (mixed with transparent, then laid on the sunken ground: an oklch mix with the grey ground reads cyan) */
@@ -729,7 +775,10 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-tbl-sql.lv-tbl-first.lv-tbl-last { box-shadow: inset 0 1px 0 var(--hairline), inset 0 -1px 0 var(--hairline); }
 .lv-rd .lv-tbl > .lv-sqlt.lv-tx { flex: 1 1 0; min-inline-size: 0; padding-inline: var(--sp-2); overflow: hidden; text-overflow: ellipsis; white-space: pre; }
 .lv-rd.lv-sqlrow { block-size: auto; min-block-size: var(--lv-row); }
-.lv-rd.lv-sqlrow .lv-ln { align-items: flex-start; }
+.lv-rd.lv-sqlrow .lv-ln { align-items: flex-start; padding-block-start: var(--stick, 0px); }
+/* the line number and the Operation cell follow the top of the view down a tall band (the viewer sets --stick, see LineViewer's `stick`); the `SQL` tag shows in the Operation cell only while they have moved */
+.lv-rd.lv-sqlrow .tc-handle { padding-block-start: var(--stick, 0px); }
+.lv-sqltag { color: var(--ink-3); opacity: var(--stuck, 0); }
 .lv-rd.lv-sqlrow .lv-tbl > .lv-sqlt.lv-tx { white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip; }
 /* the head laid over the top row while the plan's lines fill the top of the view (its own head row scrolled away) */
 .lv-plan-head { position: absolute; inset-block-start: 0; inset-inline: 0; z-index: 2; background: var(--surface-raised); box-shadow: 0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent); }
@@ -833,6 +882,18 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .rd-cpu b { font-weight: 400; color: var(--ink); }
 .rd-cpu small { font-size: inherit; color: var(--ink-3); }
 .rd-call + :is(.rd-hp, .rd-dim) { margin-inline-start: 2ch; }
+/* A call's Detail compacts before it cuts. The cell is a container: the groups (exec tag, rows, gets, cpu) are one clipped block that gives way first, the notes (hard parse, the
+   waiting share) stay whole after it, and as the cell narrows the groups shrink in steps: the gets' labels to q / cu / d (the tooltip has the full words and the trace tokens),
+   the cpu label goes, the waiting note to `631 ms wait 99 %`, the gets' number slots to what the numbers need, the cpu goes. */
+.lv-rd .lv-tx.lv-tx-call { container: rdtx / inline-size; display: flex; align-items: baseline; }
+.lv-tx-call > .rd-call { display: block; flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.lv-tx-call > :not(.rd-call) { flex: none; }
+.w-s { display: none; }
+@container rdtx (inline-size < 108ch) { .rd-gets .w-f { display: none; } .rd-gets .w-s { display: inline; } }
+@container rdtx (inline-size < 98ch) { .rd-cpu .w-f { display: none; } .rd-share .w-f { display: none; } .rd-share .w-s { display: inline; } }
+@container rdtx (inline-size < 88ch) { .rd-gets b { inline-size: auto; min-inline-size: 4ch; } .rd-slot-rows { inline-size: 10ch; } .rd-q-rows > b { inline-size: 5ch; } .rd-slot-exec { inline-size: 5ch; } }
+@container rdtx (inline-size < 74ch) { .rd-slot-exec, .rd-slot-rows { inline-size: auto; } .rd-slot-rows .rd-q-rows > b { inline-size: auto; } }
+@container rdtx (inline-size < 56ch) { .rd-cpu { display: none; } }
 .rd-q + .rd-q, .rd-q + .rd-warn, .rd-q + .rd-dim, .rd-q + .rd-hp, .rd-dim + .rd-hp { margin-inline-start: 2ch; }
 .rd-ev { color: var(--ink); }
 .rd-evobj { margin-inline-start: 2ch; color: var(--ink-2); }

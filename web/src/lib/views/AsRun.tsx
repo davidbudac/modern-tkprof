@@ -7,6 +7,7 @@ import { fmtInt } from '../data/format'
 import { ALL_SCOPE, objectsAt, type AtObjects } from '../data/lines'
 import { sourceOf } from '../data/source'
 import { rememberBinds } from '../data/bindat'
+import { ChevronLeftIcon, ChevronRightIcon, CopyIcon } from '../components/icons'
 
 /**
  * The statement of a line's execution as it ran: its text with the values of the execution's BINDS block in place of the
@@ -65,9 +66,9 @@ export function AsRun({ doc, client, file, line, onGo, note }: {
         <b className="mono" title={cur ? `cursor #${cur.number}` : undefined}>{doc.label(st)}</b>
         {objs!.execNo >= 0 && <span className="muted small">execution {fmtInt(objs!.execNo)}</span>}
         <span className="asrun-nav">
-          <button type="button" className="quiet" disabled={nav.prev < 0} onClick={() => onGo(nav.prev)} title="the previous execution of this statement">‹ previous</button>
-          <button type="button" className="quiet" disabled={nav.next < 0} onClick={() => onGo(nav.next)} title="the next execution of this statement">next ›</button>
-          <button type="button" className="quiet" onClick={() => void copyText(sub.sql).then((ok) => note(ok ? 'Copied the SQL with its values' : 'Could not copy the SQL', !ok))}>Copy SQL</button>
+          <button type="button" className="quiet icon-btn" disabled={nav.prev < 0} onClick={() => onGo(nav.prev)} aria-label="Previous execution" title="the previous execution of this statement"><ChevronLeftIcon /></button>
+          <button type="button" className="quiet icon-btn" disabled={nav.next < 0} onClick={() => onGo(nav.next)} aria-label="Next execution" title="the next execution of this statement"><ChevronRightIcon /></button>
+          <button type="button" className="quiet icon-btn" onClick={() => void copyText(sub.sql).then((ok) => note(ok ? 'Copied the SQL with its values' : 'Could not copy the SQL', !ok))} aria-label="Copy the SQL with its values" title="copy the SQL with these values in place of the placeholders"><CopyIcon /></button>
         </span>
       </div>
       {!sub.exact && <p className="small asrun-warn">The placeholders and the Bind# entries do not pair up one to one: they are matched in order.</p>}

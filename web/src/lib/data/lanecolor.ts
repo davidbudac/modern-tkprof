@@ -8,7 +8,7 @@ export type LaneColor = 'stmt' | 'exec' | 'session' | 'depth' | 'op' | 'class' |
 
 /** The modes in the order the menu lists them: id, menu label, tooltip. */
 export const LANE_COLORS: readonly { id: LaneColor; label: string; title: string }[] = [
-  { id: 'stmt', label: 'Statement', title: "each statement its own colour, by elapsed rank (recursive SYS SQL and statements past the 14th are grey)" },
+  { id: 'stmt', label: 'Statement', title: "only a highlighted statement has a colour (L chooses them, l highlights the selected line's statement); every other statement is grey" },
   { id: 'exec', label: 'Execution', title: 'the executions of a cursor in turn: where one execution ends and the next starts' },
   { id: 'session', label: 'Session', title: 'the session context the line ran in (session, module, action: the *** lines)' },
   { id: 'depth', label: 'Recursive depth', title: 'the depth of the cursor: top level, recursive SQL, recursive SQL of recursive SQL, …' },
