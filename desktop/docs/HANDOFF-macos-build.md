@@ -1,4 +1,4 @@
-# macOS build and smoke test by hand (v0.3.0)
+# macOS build and smoke test by hand
 
 For a session on the MacBook Pro. **Since the move to local CI,
 `scripts/ci-local.sh` does steps 3 to 5 in one go** (`--only checks,macos`;
@@ -9,8 +9,8 @@ by-hand version and for debugging a single step. Nothing here commits, pushes
 or tags. (The old `.github/workflows/build.yml` it mirrored is gone: CI is
 local by decision, GitHub Actions costs money.)
 
-First run: 2026-10-25 on an Apple M4, macOS 27 (all steps green on arm64;
-see "Findings" at the end).
+Last full run: v0.5.0 on 2026-11-02 on an Apple M4, macOS 27 (checks, both
+DMGs, smoke on arm64 and x64; Rosetta 2 is installed there now).
 
 ## 1. Checkout
 
@@ -111,23 +111,12 @@ By hand (optional): open the DMG, drag the app to Applications, start it,
 Machine (`uname -a`, chip), tool versions, pass/fail per step, DMG paths and
 sizes, smoke result and screenshot paths, Gatekeeper notes, workarounds.
 A Rust/Tauri build error that looks like a code bug: report the text, do not
-fix it. Record the outcome in `modern-tkprof/docs/HANDOFF.md` § "Desktop app
-v1" → Open.
+fix it. Record the outcome in `docs/HANDOFF.md` (repository root) § Open.
 
-## Findings of the first run (2026-10-25)
+## Limits of the local CI
 
-- Checks and both builds green; DMGs 9.9 MiB (arm64) and 10.4 MiB (x64).
-- Smoke arm64 passed (open 40 ms, kill, restart < 1 s, re-open from the cache
-  12 ms). x64 smoke not run: no Rosetta on that Mac.
-- Fixed in `a38c276` (main, after v0.3.0): the status bar showed "0 sessions"
-  with a trace open until the next 5 s health poll (now re-polled on session
-  events); the bundle is ad-hoc signed as a whole, so Gatekeeper offers Open
-  Anyway instead of "damaged".
-
-## Limits of the local CI (2026-10-25)
-
-- macOS x64 is built but not smoke-tested on an Apple Silicon Mac without
-  Rosetta 2; `ci-local.sh` reports it as skipped (`arch -x86_64 /usr/bin/true`
+- macOS x64 is smoke-tested only where Rosetta 2 is installed; without it
+  `ci-local.sh` reports the x64 smoke as skipped (`arch -x86_64 /usr/bin/true`
   fails with "Bad CPU type in executable").
 - Windows is cross-built in the Linux image with `cargo-xwin` and never run:
   there is no Windows smoke locally. Smoke it on a Windows box
