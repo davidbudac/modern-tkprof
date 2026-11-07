@@ -35,39 +35,53 @@
       <section class="dl" id="download" aria-label="Download mtkprof" data-version="0.5.0">
         <div class="dl-panel" data-os="mac">
           <h3 class="dl-os-name">macOS</h3>
-          <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_aarch64.dmg" data-asset="dmg-arm" download>
-            <span class="dl-main-label">Download for macOS</span>
-            <span class="dl-main-meta"><span data-meta>Desktop app · Apple Silicon · 11.0 MB</span></span>
-          </a>
-          <p class="dl-more">
-            <span class="dl-alt"><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_x64.dmg" data-asset="dmg-x64" download>Intel Mac <span class="dl-size">.dmg · 12.0 MB</span></a></span>
-            <span class="dl-cli">CLI binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-arm64" data-asset="cli-darwin-arm64" download>Apple Silicon</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-amd64" data-asset="cli-darwin-amd64" download>Intel</a></span>
-          </p>
-          <div class="dl-cmd"><pre class="terminal" aria-label="Install command"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy">Copy</button></div>
+          <div class="dl-group">
+            <p class="dl-label">Desktop app</p>
+            <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_aarch64.dmg" data-asset="dmg-arm" download>
+              <span class="dl-main-label">Download for macOS</span>
+              <span class="dl-main-meta"><span data-meta>Apple Silicon · .dmg · 11.0 MB</span></span>
+            </a>
+            <p class="dl-more"><span class="dl-alt"><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_x64.dmg" data-asset="dmg-x64" download>Intel Mac <span class="dl-size">.dmg · 12.0 MB</span></a></span></p>
+          </div>
+          <div class="dl-group dl-cli">
+            <p class="dl-label">Command-line tool only <span class="dl-label-sub">(no desktop app)</span></p>
+            <div class="dl-cmd"><pre class="terminal" aria-label="Install command for the command-line tool"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy">Copy</button></div>
+            <p class="dl-note">Installs the <code>mtkprof</code> binary into <code>/usr/local/bin</code> (or <code>~/.local/bin</code>).</p>
+            <p class="dl-more"><span>Or the binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-arm64" data-asset="cli-darwin-arm64" download>Apple Silicon</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-amd64" data-asset="cli-darwin-amd64" download>Intel</a></span></p>
+          </div>
         </div>
 
         <div class="dl-panel" data-os="win">
           <h3 class="dl-os-name">Windows</h3>
-          <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_x64-setup.exe" data-asset="win-setup" download>
-            <span class="dl-main-label">Download for Windows</span>
-            <span class="dl-main-meta"><span data-meta>Desktop app · Windows 10/11 x64 · 7.7 MB</span></span>
-          </a>
-          <p class="dl-more">
-            <span class="dl-cli">CLI binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-windows-amd64.exe" data-asset="cli-win" download>mtkprof-windows-amd64.exe</a> <span class="dl-size">one file, no installer</span></span>
-          </p>
+          <div class="dl-group">
+            <p class="dl-label">Desktop app</p>
+            <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_x64-setup.exe" data-asset="win-setup" download>
+              <span class="dl-main-label">Download for Windows</span>
+              <span class="dl-main-meta"><span data-meta>Windows 10/11 x64 · installer · 7.7 MB</span></span>
+            </a>
+          </div>
+          <div class="dl-group dl-cli">
+            <p class="dl-label">Command-line tool only <span class="dl-label-sub">(no desktop app)</span></p>
+            <p class="dl-more"><span><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-windows-amd64.exe" data-asset="cli-win" download>mtkprof-windows-amd64.exe</a> <span class="dl-size">single file, no installer</span></span></p>
+          </div>
         </div>
 
         <div class="dl-panel" data-os="linux">
           <h3 class="dl-os-name">Linux</h3>
-          <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_amd64.AppImage" data-asset="appimage" download>
-            <span class="dl-main-label">Download for Linux</span>
-            <span class="dl-main-meta"><span data-meta>Desktop app · x64 AppImage · 107.1 MB</span></span>
-          </a>
-          <p class="dl-more">
-            <span class="dl-alt"><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_amd64.deb" data-asset="deb" download>Debian and Ubuntu <span class="dl-size">.deb · 12.2 MB</span></a></span>
-            <span class="dl-cli">CLI binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-amd64" data-asset="cli-linux-amd64" download>x64</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-arm64" data-asset="cli-linux-arm64" download>arm64</a></span>
-          </p>
-          <div class="dl-cmd"><pre class="terminal" aria-label="Install command"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy">Copy</button></div>
+          <div class="dl-group">
+            <p class="dl-label">Desktop app</p>
+            <a class="button primary dl-main" href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_amd64.AppImage" data-asset="appimage" download>
+              <span class="dl-main-label">Download for Linux</span>
+              <span class="dl-main-meta"><span data-meta>x64 · AppImage · 107.1 MB</span></span>
+            </a>
+            <p class="dl-more"><span class="dl-alt"><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_amd64.deb" data-asset="deb" download>Debian and Ubuntu <span class="dl-size">.deb · 12.2 MB</span></a></span></p>
+          </div>
+          <div class="dl-group dl-cli">
+            <p class="dl-label">Command-line tool only <span class="dl-label-sub">(no desktop app)</span></p>
+            <div class="dl-cmd"><pre class="terminal" aria-label="Install command for the command-line tool"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy">Copy</button></div>
+            <p class="dl-note">Installs the <code>mtkprof</code> binary into <code>/usr/local/bin</code> (or <code>~/.local/bin</code>).</p>
+            <p class="dl-more"><span>Or the binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-amd64" data-asset="cli-linux-amd64" download>x64</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-arm64" data-asset="cli-linux-arm64" download>arm64</a></span></p>
+          </div>
         </div>
 
         <p class="dl-foot">
