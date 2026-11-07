@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Key
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
 import { blockAt, filterFolds, foldAt, foldHiding, indexFolds, standingFolds, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope, type SqlBand } from '../data/lines'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, fetchStmtUnion, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope, type SqlBand } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeLines } from '../data/rangesum'
@@ -18,7 +18,11 @@ import { inlaysOf } from '../data/inlays'
 import { gapBefore } from '../data/gaps'
 import { HOT_SHARE, anchorOf, lineTim, lineTimesOf, type TimeAnchor } from '../data/linetime'
 import { viewSpan } from '../data/overview'
-import { QUIET_TONE, statementTones, toneColor } from '../data/readable'
+import { toneColor } from '../data/readable'
+import { NO_HL, addHl, hlTones, setHl, toggleHl, type HlSet } from '../data/hlset'
+import { filterChipParts, filterChipText, linesInRuns, runFolds } from '../data/stmtfilter'
+import { useFileStmts } from '../data/filestmts'
+import { FunnelIcon } from '../components/icons'
 import { readableRowsOf, type Pin } from './readableRows'
 import { AsRun } from './AsRun'
 import { ReadableOverview } from './ReadableOverview'
@@ -70,6 +74,12 @@ interface LinesUi {
   palette: boolean
   /** the cursor id whose rows stay bright (the others are dimmed), null for none */
   focus: number | null
+  /** the highlighted statements, in the order they were added, each with its colour slot (the pane's own set, not the app's single selected statement) */
+  hl: HlSet
+  /** the statements the view is filtered to (only their lines are shown), none for no filter */
+  filter: readonly number[]
+  /** the app's selected statement as this view last saw it: a different one arrives from another view and joins the highlighted statements */
+  hlSeen: number | null | undefined
   /** the lines selected with Shift+click, Shift+arrows or ⌘/Ctrl+click (summed in the status bar, `y` copies them), null for none */
   lines: LineRange[] | null
   /** the side panel's tab (whether the panel is open is the global `inspect` pref) */
@@ -106,7 +116,7 @@ function uiOf(store: Store, file: number): LinesUi {
     m.set(file, (u = {
       top: 0, seqSeen: -1, jumpedFor: null, q: '', regex: false, caseSensitive: false, fromHere: false,
       hits: [], end: null, status: 'idle', error: null, searched: { q: '', regex: false, caseSensitive: false, scope: 'file' }, scope: 'file', recent: [],
-      optionsMenu: false, stepMenu: false, keys: false, picker: false, palette: false, focus: null, lines: null,
+      optionsMenu: false, stepMenu: false, keys: false, picker: false, palette: false, focus: null, hl: NO_HL, filter: [], hlSeen: undefined, lines: null,
       tab: 'line', lastTab: 'line', groupHits: false, openGroups: new Set(), outline: { open: new Set(), filter: '' }, folds: [], back: [], cur: 0, pin: null, openRepeats: new Set(), asRunLine: 0,
       openFilter: { key: '', lines: new Set() },
     }))
@@ -427,10 +437,33 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const deltaWhat = `Δ ≥ ${fmtMs(prefs.deltaMs)}`
   /** highlight: the lines that reach the threshold and their Δ */
   const deltaHits = useMemo(() => (deltaMode === 'highlight' && delta && !delta.error ? new Map(delta.lines) : undefined), [deltaMode, delta])
-  if (ui.openFilter.key !== deltaKey) ui.openFilter = { key: deltaKey, lines: new Set() } // a new answer: every fold closed again
-  const filtering = deltaMode === 'filter' && !!delta && !delta.error
-  const filterFoldList = useMemo(() => (filtering && delta ? filterFolds(delta.lines.map((x) => x[0]), total, deltaWhat).filter((f) => !ui.openFilter.lines.has(f.from)) : null),
-    [filtering, delta, total, deltaWhat, ui.openFilter, ui.openFilter.lines.size]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ---- the statement filter: the lines of the filtered statements' cursors, asked of the engine for the whole file (`api/lines/stmts`) ----
+  const filterIds = ui.filter
+  const filterKey = `${file}:${rev}:${filterIds.join(',')}`
+  const [stmtAns, setStmtAns] = useState<{ key: string; runs: [number, number][]; lines: number; truncated: boolean } | null>(null)
+  useEffect(() => {
+    if (filterIds.length === 0) return
+    const ac = new AbortController()
+    fetchStmtUnion(client, file, filterIds, ac.signal).then(
+      (r) => { if (!ac.signal.aborted) setStmtAns({ key: filterKey, runs: r.runs, lines: r.lines, truncated: r.truncated }) },
+      (e: unknown) => { if (!aborted(e)) { set({ filter: [] }); flash(`cannot filter by statement: ${e instanceof Error ? e.message : String(e)}`, true) } }, // an engine without the route
+    )
+    return () => ac.abort()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, file, filterKey])
+  const stmtFilter = filterIds.length > 0 && stmtAns?.key === filterKey ? stmtAns : null
+  const stmtLoading = filterIds.length > 0 && !stmtFilter
+  if (ui.openFilter.key !== `${deltaKey}|${filterIds.join(',')}`) ui.openFilter = { key: `${deltaKey}|${filterIds.join(',')}`, lines: new Set() } // a new answer: every fold closed again
+  const deltaFiltering = deltaMode === 'filter' && !!delta && !delta.error
+  const filtering = deltaFiltering || !!stmtFilter
+  // both filters on: a row shown passes both
+  const filterFoldList = useMemo(() => {
+    if (stmtFilter) {
+      const keep = deltaFiltering && delta ? linesInRuns(stmtFilter.runs, delta.lines.map((x) => x[0])) : stmtFilter.runs
+      return runFolds(keep, total, deltaFiltering ? 'line that is both' : 'statement', stmtFilter.truncated).filter((f) => !ui.openFilter.lines.has(f.from))
+    }
+    return deltaFiltering && delta ? filterFolds(delta.lines.map((x) => x[0]), total, deltaWhat).filter((f) => !ui.openFilter.lines.has(f.from)) : null
+  }, [stmtFilter, deltaFiltering, delta, total, deltaWhat, ui.openFilter, ui.openFilter.lines.size]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** the user's folds and the view's own (with Fold repeats, the repeats; the binds' attribute lines) that the user has not opened (the user's win where they overlap); the Δ filter's folds replace them all */
   const allFolds = useMemo(() => {
@@ -459,7 +492,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setSwitching(null)) })
     return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
   }, [prefs.readable, prefs.foldRepeats])
-  const busy = switching !== null || repeatsLoading || (deltaMode === 'filter' && deltaLoading)
+  const busy = switching !== null || repeatsLoading || (deltaMode === 'filter' && deltaLoading) || stmtLoading
   const toggleRepeats = () => (readable ? switchPrefs('repeats', { foldRepeats: !prefs.foldRepeats }) : flash('Fold repeats works in the formatted view (v)'))
 
   // ---- folding: the handles of the blocks around the view, and the blocks themselves -----------------------------------
@@ -487,7 +520,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   /** Moves the rest of the app to what the line is at: its statement, execution and wait event. */
   const dispatchAt = useCallback((o: { stmt: number; cursor: number; execNo: number; wait: number }, text: string) => {
     const sel = store.getState().selection
-    if (o.stmt >= 0 && o.stmt !== sel.stmt) { ui.jumpedFor = o.stmt; actions.pickStmt(o.stmt) }
+    if (o.stmt >= 0 && o.stmt !== sel.stmt) { ui.jumpedFor = o.stmt; ui.hlSeen = o.stmt; actions.pickStmt(o.stmt) } // (a statement this view selects itself is no arrival: it does not join the highlighted ones)
     if (o.stmt >= 0 && o.cursor >= 0 && o.execNo >= 0) actions.selectExec({ cursor: o.cursor, execNo: o.execNo })
     if (o.wait >= 0) {
       const name = /nam='([^']*)'/.exec(text)?.[1] // the line's text names a wait's event
@@ -562,19 +595,28 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   // ---- gutter marks of the selected statement ----------------------------------------------------------------------
   const source = sourceOf(doc)
   const marksQ = useSourceQuery(source, `marks:${stmt}`, (signal) => (stmt !== null && source.ready ? source.stmtMarks(stmt, signal) : null), 'marks')
-  const { marks, markLines, nCalls, nWaits, partial, counts } = useMemo(() => {
+  const { marks, markLines, nCalls, nWaits, partial } = useMemo(() => {
     const m = new Map<number, number>()
     const d = marksQ.data
-    if (!d || stmt === null) return { marks: m, markLines: [] as number[], nCalls: 0, nWaits: 0, partial: false, counts: null }
+    if (!d || stmt === null) return { marks: m, markLines: [] as number[], nCalls: 0, nWaits: 0, partial: false }
     let nc = 0, nw = 0
     for (const c of d.calls) if (c.file === file && c.line > 0) { m.set(c.line, (m.get(c.line) ?? 0) | 1); nc++ }
     for (const w of d.waits) if (w.file === file && w.line > 0) { m.set(w.line, (m.get(w.line) ?? 0) | 2); nw++ }
-    // what the chip says is the real count; the marks are bounded (the 5,000 longest calls, the first 1,000 waits), which the tooltip says (bug 2)
+    return { marks: m, markLines: [...m.keys()].sort((a, b) => a - b), nCalls: nc, nWaits: nw, partial: d.partial }
+  }, [marksQ.data, stmt, file])
+  // the calls and waits of the one highlighted statement, for the picker's button and the raw view's chip: the real counts (the marks are bounded: the 5,000 longest
+  // calls and the first 1,000 waits, which the tooltip says)
+  const hl = ui.hl
+  const lone = hl.ids.length === 1 ? hl.ids[0] : null
+  const loneQ = useSourceQuery(source, `hlmarks:${lone}`, (signal) => (lone !== null && source.ready ? source.stmtMarks(lone, signal) : null), 'hlmarks')
+  const counts = useMemo((): StmtCounts | null => {
+    const d = loneQ.data
+    if (!d || lone === null) return null
+    const nc = d.calls.filter((c) => c.file === file && c.line > 0).length, nw = d.waits.filter((w) => w.file === file && w.line > 0).length
     const cut = (what: string, shown: number, all: number) => (all > shown ? `first ${fmtInt(shown)} ${what} marked` : '')
     const note = [cut('calls', d.calls.length, d.totalCalls), cut('waits', d.waits.length, d.totalWaits)].filter(Boolean).join(', ')
-    const counts: StmtCounts = { calls: d.totalCalls > d.calls.length ? d.totalCalls : nc, waits: d.totalWaits > d.waits.length ? d.totalWaits : nw, note: note || undefined }
-    return { marks: m, markLines: [...m.keys()].sort((a, b) => a - b), nCalls: nc, nWaits: nw, partial: d.partial, counts }
-  }, [marksQ.data, stmt, file])
+    return { calls: d.totalCalls > d.calls.length ? d.totalCalls : nc, waits: d.totalWaits > d.waits.length ? d.totalWaits : nw, note: note || undefined }
+  }, [loneQ.data, lone, file])
 
   // opening the tab with a statement selected: start at its first call (not after a click on a line, which selected the statement itself)
   useEffect(() => {
@@ -723,17 +765,47 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     if (cur < 0) flash(`no cursor at line ${fmtInt(selected)}`)
     else set({ focus: ui.focus === cur ? null : cur })
   }
-  /** Highlights the selected line's statement (its calls and waits tinted in its colour), or stops when it is the highlighted one. */
-  const highlightLine = () => {
+  /** The statement of the selected line, -1 for none (a line outside any statement, or one whose page has not arrived). */
+  const lineStmt = (): number => {
     const l = cache.line(selected)
     const st = l && l.stmt >= 0 ? l.stmt : at && at.line === selected ? at.objs.stmt : -1
-    if (st < 0 || !doc.statements[st]) { flash(`no statement at line ${fmtInt(selected)}`); return }
-    if (st === stmt) { actions.selectStmt(null); flash('no statement highlighted') }
-    else { actions.pickStmt(st); flash(`highlighting ${doc.label(doc.statements[st])}`) }
+    return st >= 0 && doc.statements[st] ? st : -1
   }
+  const nameOf = (id: number) => (doc.statements[id] ? doc.label(doc.statements[id]) : `statement ${id}`)
+  /** Highlights the selected line's statement (every line of its cursors tinted in a colour of its own), or stops when it already is. */
+  const highlightLine = () => {
+    const st = lineStmt()
+    if (st < 0) { flash(`no statement at line ${fmtInt(selected)}`); return }
+    const on = !hl.slots.has(st)
+    set({ hl: toggleHl(hl, st) })
+    flash(on ? `highlighting ${nameOf(st)}` : `no longer highlighting ${nameOf(st)}`)
+  }
+  /** Filters the view to the selected line's statement (again: stops), next to the ones it is already filtered to. */
+  const filterLine = () => {
+    const st = lineStmt()
+    if (st < 0) { flash(`no statement at line ${fmtInt(selected)}`); return }
+    toggleFilter(st)
+  }
+  /** Adds the statement to the filter or takes it out. The cursor focus gives way when the filter leaves its statement out (its rows would all be folded away or dimmed). */
+  const setFilter = (ids: readonly number[]) => {
+    const patch: Partial<LinesUi> = { filter: ids }
+    const f = ui.focus !== null ? doc.cursors[ui.focus] : undefined
+    if (ids.length > 0 && f && !ids.includes(f.statement)) patch.focus = null
+    set(patch)
+  }
+  const toggleFilter = (id: number) => setFilter(ui.filter.includes(id) ? ui.filter.filter((x) => x !== id) : [...ui.filter, id])
+  const setFiltered = (ids: readonly number[], on: boolean) => setFilter(on ? [...ui.filter, ...ids.filter((id) => !ui.filter.includes(id))] : ui.filter.filter((id) => !ids.includes(id)))
+  /** Goes to the statement's first line in this file. */
+  const goToStmt = (id: number) => { const l = stmtLineIn(doc, file, id); if (l !== undefined) jump(l); else flash(`${nameOf(id)} has no cursor in this file`) }
+  // a statement selected elsewhere (another view, a deep link) arrives and joins the highlighted ones; the line clicks of this view do not (see dispatchAt)
+  useEffect(() => {
+    if (stmt === ui.hlSeen) return
+    ui.hlSeen = stmt
+    if (stmt !== null && doc.statements[stmt] && stmtLineIn(doc, file, stmt) !== undefined && !ui.hl.slots.has(stmt)) set({ hl: addHl(ui.hl, [stmt]) })
+  }, [stmt]) // eslint-disable-line react-hooks/exhaustive-deps
   /** Opens the overview row's statement picker (the formatted view's; the raw view has the Highlighting chip and no list). */
   const openPicker = () => {
-    if (!readable) { flash('the statement picker is in the formatted view (v); the raw view highlights the selected line\'s statement with l'); return }
+    if (!readable) { flash('the statement list is in the formatted view (v); in the raw view l highlights and F filters by the selected line\'s statement'); return }
     set({ picker: true, keys: false })
   }
   const openStatement = () => {
@@ -776,6 +848,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       case 'f': toggleFocus(); break
       case 'l': highlightLine(); break
       case 'L': openPicker(); break
+      case 'F': filterLine(); break
       case 'i': togglePanel('line'); break
       case 'y': copySelLines(); break
       case ']': stepNext('call', 'call', 1); break
@@ -921,9 +994,12 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const lineCard = useMemo(() => lineCardOf(decodeCtx), [decodeCtx])
 
   // ---- readable rows ---------------------------------------------------------------------------------------------------------
-  const tones = useMemo(() => statementTones(doc.statements, (id) => doc.stats.statements[id]?.elapsed ?? 0), [doc])
-  /** the highlighted statement's colour (its lane's): the tint of its calls and waits, the chip in the trace bar */
-  const hlColor = stmt !== null && doc.statements[stmt] ? toneColor(tones.get(stmt) ?? QUIET_TONE) : undefined
+  // only a highlighted statement has a colour (its slot's); every other statement is neutral in the pane
+  const tones = useMemo(() => hlTones(hl), [hl])
+  const hlColors = useMemo(() => new Map([...tones].map(([id, t]) => [id, toneColor(t)])), [tones])
+  const filtered = useMemo(() => new Set(filterIds), [filterIds])
+  /** the statements' numbers in this file: the picker's time and share, the track, the lane row's `here` */
+  const fstats = useFileStmts(doc, file)
   /** what the lane colours mean in the chosen mode (the Display tab's key) */
   const laneKey = useMemo(() => laneLegend(prefs.laneColor, doc.contexts.map((c) => [c.sessionId && `session ${c.sessionId}`, c.module, c.action].filter(Boolean).join(' · ') || `context ${c.id}`)), [prefs.laneColor, doc])
   /** Pins a line (Δ is measured from it), or unpins it. */
@@ -1010,7 +1086,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       const lane = l && l.kind >= 0 && top !== selected && LINE_KINDS[l.kind] !== 'parsing-in-cursor' ? readableRows(top, l).lane : null
       const lst = lane && lane.stmt >= 0 ? doc.statements[lane.stmt] : undefined
       if (!l || !lane || !lst) return null
-      const stats = doc.stats.statements[lst.id]
+      const stats = fstats[lst.id]
       const facts = `${stats ? `${fmtDur(stats.elapsed)} here` : ''}${l.execNo > 0 && stats ? ` · exec ${l.execNo} of ${fmtInt(stats.executions)}` : l.execNo > 0 ? `exec ${l.execNo}` : ''}`
       return {
         key: `${lst.id}|${l.execNo}|${lane.color ?? ''}|${lane.depth}`,
@@ -1061,7 +1137,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         </>
       ),
     }
-  }, [cache, doc, openStmt, jump, selected, selStmt, readableRows])
+  }, [cache, doc, openStmt, jump, selected, selStmt, readableRows, fstats])
 
   // ---- go to: a line, a cursor, a sql_id (and execution), a time --------------------------------------------------------
   const goToHelp = doc.wallOffsetUs
@@ -1126,6 +1202,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const displayCount = displayBadge(prefs, LINES_PREFS_DEFAULTS)
   const deltaParts = deltaChipParts(deltaMode === 'off' ? 'highlight' : deltaMode, prefs.deltaMs, delta && !delta.error ? delta.lines.length : undefined, delta?.truncated)
   const deltaChip = deltaParts.what + deltaParts.doing
+  const filterChip = filterChipParts(filterIds.map(nameOf), stmtFilter ? stmtFilter.lines : undefined, stmtFilter?.truncated)
   const toggleMute = (name: string) => setPrefs({ mute: muteSet.has(name) ? prefs.mute.filter((m) => m !== name) : [...prefs.mute, name] })
   const stmtName = stmt !== null && doc.statements[stmt] ? doc.label(doc.statements[stmt]) : ''
 
@@ -1167,8 +1244,11 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
 
     for (const t of SHOW_TOGGLES) add('View', `view:${t.key}`, t.label, () => setPrefs({ [t.key]: !prefs[t.key] }), { checked: prefs[t.key], keys: t.keys })
     for (const g of MUTE_GROUPS) add('View', `mute:${g.name}`, `Dim ${g.label}`, () => toggleMute(g.name), { checked: muteSet.has(g.name) })
-    add('View', 'view:highlight', "Highlight the line's statement", highlightLine, { keys: 'l', hint: 'its calls and waits tinted in its colour' })
-    add('View', 'view:picker', 'Highlight a statement…', openPicker, { keys: 'L', disabled: !prefs.readable, hint: prefs.readable ? "choose from the file's statements" : 'formatted view' })
+    add('View', 'view:highlight', "Highlight the line's statement", highlightLine, { keys: 'l', hint: 'every line of its cursors tinted in a colour of its own (again: stop)', checked: lineStmt() >= 0 && hl.slots.has(lineStmt()) })
+    add('View', 'view:picker', 'Highlight or filter statements…', openPicker, { keys: 'L', disabled: !prefs.readable, hint: prefs.readable ? "choose from the file's statements (several at once)" : 'formatted view' })
+    add('View', 'view:filterline', "Filter by the line's statement", filterLine, { keys: 'F', hint: 'show only the lines of its cursors (again: stop)', checked: lineStmt() >= 0 && filtered.has(lineStmt()) })
+    add('View', 'view:clearhl', 'Stop highlighting', () => set({ hl: NO_HL }), { disabled: hl.ids.length === 0, hint: hl.ids.length > 0 ? `${fmtInt(hl.ids.length)} highlighted` : undefined })
+    add('View', 'view:clearfilter', 'Stop filtering by statement', () => setFilter([]), { disabled: filterIds.length === 0, hint: filterIds.length > 0 ? `${fmtInt(filterIds.length)} ${filterIds.length === 1 ? 'statement' : 'statements'}` : undefined })
     add('View', 'view:readable', 'Formatted view', () => switchPrefs('readable', { readable: !prefs.readable }), { checked: prefs.readable, keys: 'v' })
     add('View', 'view:rddelta', 'Δ column (formatted)', () => setPrefs({ rdDelta: !prefs.rdDelta }), { checked: prefs.rdDelta, disabled: !prefs.readable, hint: 'the time from the pin or the line before' })
     for (const c of LANE_COLORS) add('View', `colour:${c.id}`, `Colour the lanes by: ${c.label}`, () => setPrefs({ laneColor: c.id }), { checked: prefs.laneColor === c.id, disabled: !prefs.readable, hint: 'formatted view' })
@@ -1335,6 +1415,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               <button type="button" className="lines-state-x" onClick={() => setPrefs({ deltaMode: 'off' })} aria-label="Turn the Δ filter off" title="turn the Δ filter off">×</button>
             </span>
           )}
+          {filterIds.length > 0 && (
+            <span className={'lines-state lines-sstate' + (stmtLoading ? ' busy-src' : '')}>
+              <button type="button" className="lines-state-main" onClick={() => (readable ? set({ picker: true, keys: false }) : flash('the statement list is in the formatted view (v); the filter stays on'))}
+                aria-label={filterChipText(filterChip)}
+                title={`${filterChipText(filterChip)}: only the lines of ${filterIds.length === 1 ? "this statement's" : "these statements'"} cursors are shown, the rest folded (z shows them). ${readable ? 'Click to change the statements' : 'The statement list is in the formatted view'} (L)`}>
+                <FunnelIcon /><span className="tb-f3">{filterChip.word}</span>{filterChip.name}<span className="tb-f4">{filterChip.unit}</span><span className="tb-f2">{filterChip.doing}</span>
+              </button>
+              <button type="button" className="lines-state-x" onClick={() => setFilter([])} aria-label="Stop filtering by statement" title="stop filtering by statement">×</button>
+            </span>
+          )}
           {ui.pin && (
             <span className="lines-pin" title="Δ is measured from the pinned line (a pins the selected line)">
               <span className="tb-label tb-f3">Δ from </span><button type="button" className="link" onClick={() => jump(ui.pin!.line)}><b>line {fmtInt(ui.pin.line)}</b></button>
@@ -1351,14 +1441,19 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
               </small>
             </span>
           )}
-          {/* the raw view has no overview bar: its highlight chip stays (the formatted view's is the outlined statement chip of the bar) */}
-          {!readable && stmt !== null && doc.statements[stmt] && (
-            <span className="lines-hl" style={{ '--hl': hlColor } as React.CSSProperties} title={`the rows of this statement's calls and waits are tinted in its colour, with a bar at their start edge; l highlights the selected line's statement instead, Enter opens it${partial ? '; the marks are bounded: the 5,000 longest calls and the first 1,000 waits' : ''}`}>
+          {/* the raw view has no overview row: its highlight chip stays (the formatted view's is the statement picker's button) */}
+          {!readable && hl.ids.length > 0 && (
+            <span className="lines-hl" style={{ '--hl': lone !== null ? hlColors.get(lone) : 'var(--ink-3)' } as React.CSSProperties}
+              title={`the lines of ${lone !== null ? 'this statement\'s' : 'these statements\''} cursors are tinted${lone !== null ? ' in its colour' : ', each in a colour of its own'}, with a bar at the start edge of their calls and waits; l highlights (or stops highlighting) the selected line's statement${counts?.note ? `; ${counts.note}` : ''}`}>
               <i aria-hidden="true" />
               Highlighting
-              <button type="button" className="link mono" onClick={() => { const l = stmtLineIn(doc, file, stmt); if (l !== undefined) jump(l); else flash(`${stmtName} has no cursor in this file`) }} title="go to its first line in this file">{stmtName}</button>
-              <small>{nCalls + nWaits === 0 ? 'nothing in this file' : `${fmtInt(nCalls)} ${nCalls === 1 ? 'call' : 'calls'} · ${fmtInt(nWaits)} ${nWaits === 1 ? 'wait' : 'waits'}`}</small>
-              <button type="button" className="quiet" onClick={() => actions.selectStmt(null)} aria-label="Stop highlighting" title="stop highlighting this statement">×</button>
+              {lone !== null ? (
+                <>
+                  <button type="button" className="link mono" onClick={() => goToStmt(lone)} title="go to its first line in this file">{nameOf(lone)}</button>
+                  {counts && <small>{counts.calls + counts.waits === 0 ? 'nothing in this file' : `${fmtInt(counts.calls)} ${counts.calls === 1 ? 'call' : 'calls'} · ${fmtInt(counts.waits)} ${counts.waits === 1 ? 'wait' : 'waits'}`}</small>}
+                </>
+              ) : <small>{fmtInt(hl.ids.length)} statements</small>}
+              <button type="button" className="quiet" onClick={() => set({ hl: NO_HL })} aria-label="Stop highlighting" title="stop highlighting">×</button>
             </span>
           )}
           {/* the Display button: the settings that are set once and left live in the side panel's Display tab; the badge says Show / dim settings are off their defaults */}
@@ -1388,15 +1483,17 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         const [from, to] = f && f.lastTim > f.firstTim ? [f.firstTim, f.lastTim] : [doc.span.firstTim, doc.span.lastTim]
         const sl = cache.line(selected)
         return (
-          <ReadableOverview doc={doc} file={file} tones={tones} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined} current={stmt} counts={stmt !== null && doc.statements[stmt] ? counts : null}
-            viewBus={overviewBus} lastView={overviewView} pickerOpen={ui.picker} onPickerOpen={(picker) => set({ picker })} onClear={() => actions.selectStmt(null)}
-            onStmt={(id) => { actions.pickStmt(id); const l = stmtLineIn(doc, file, id); if (l !== undefined) jump(l); else flash(`${doc.label(doc.statements[id])} has no cursor in this file`) }}
+          <ReadableOverview doc={doc} file={file} stats={fstats} from={from} to={to} at={sl ? lineTim(sl.text, LINE_KINDS[sl.kind] ?? 'unknown') : undefined} hl={hl} colors={hlColors} filtered={filtered} counts={counts}
+            viewBus={overviewBus} lastView={overviewView} pickerOpen={ui.picker} onPickerOpen={(picker) => set({ picker })}
+            onToggleHl={(id) => set({ hl: toggleHl(hl, id) })} onToggleFilter={toggleFilter}
+            onSetHl={(ids, on) => set({ hl: setHl(hl, ids, on) })} onSetFilter={setFiltered}
+            onGo={(id) => { set({ picker: false }); goToStmt(id) }} onClear={() => { set({ hl: NO_HL, filter: [] }) }}
             onTim={(tim) => { lineAt(client, file, tim).then((l) => jump(l), (e: unknown) => flash(e instanceof Error ? e.message : String(e), true)) }} />
         )
       })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
-        <div className={'lines-main' + (busy ? ' busy' : '') + (readable && prefs.laneColor !== 'stmt' ? ' lanes-by-line' : '')} aria-busy={busy || undefined} style={{ ...(readable ? columnVars(prefs.cols) : {}), ...(hlColor ? { '--hl': hlColor } : {}) } as React.CSSProperties}>
-          <LineViewer cache={cache} readable={readableRows} hlStmt={stmt ?? undefined} tables={tables} bands={sqlBands} deltaCol={prefs.rdDelta} spanUs={fileSpan} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} spanUs={fileSpan} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} deltaHits={deltaHits} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+        <div className={'lines-main' + (busy ? ' busy' : '') + (readable && prefs.laneColor !== 'stmt' ? ' lanes-by-line' : '')} aria-busy={busy || undefined} style={readable ? columnVars(prefs.cols) as React.CSSProperties : undefined}>
+          <LineViewer cache={cache} readable={readableRows} hlColors={hlColors} tables={tables} bands={sqlBands} deltaCol={prefs.rdDelta} spanUs={fileSpan} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} spanUs={fileSpan} onCols={(cols) => setPrefs({ cols })} /> : undefined} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} deltaHits={deltaHits} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}

@@ -9,7 +9,7 @@ import type { BindAt } from '../data/bindat'
 import { barFrac, clockCell, fmtDelta, gapDelta, lineTim, unexplainedGap } from '../data/linetime'
 import { durOf } from '../data/gaps'
 import type { LineKind } from '../data/lines'
-import { QUIET_TONE, describeLine, describeMarker, headerKey, parseCall, parseWait, planDump, toneColor, waitRun, type LineView, type PlanCell, type ReadableContext, type WaitMicro } from '../data/readable'
+import { NEUTRAL_LANE, describeLine, describeMarker, headerKey, parseCall, parseWait, planDump, toneColor, waitRun, type LineView, type PlanCell, type ReadableContext, type WaitMicro } from '../data/readable'
 import { laneColorOf, type LaneColor } from '../data/lanecolor'
 
 /** A cursor's stretch of consecutive lines, drawn as a band (in the statement's colour, or what the view colours by); its first rows carry the sql_id and the SQL. */
@@ -73,6 +73,7 @@ export interface Pin { line: number; tim: number }
 export interface ReadableInputs {
   doc: TraceDoc
   line(n: number): CachedLine | undefined
+  /** the tones of the highlighted statements; every other statement is neutral (a quiet band, its sql_id in the ink) */
   tones: ReadonlyMap<number, Tone>
   pin: Pin | null
   /** line → µs of the hot spots */
@@ -280,8 +281,9 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
     const stmt = cur ? doc.statements[cur.statement] : undefined
     const sid = stmt?.id ?? (l.stmt >= 0 ? l.stmt : -1)
     const st = sid >= 0 ? doc.statements[sid] : undefined
-    const ink = key >= 0 ? toneColor((st && inp.tones.get(st.id)) || QUIET_TONE) : ''
-    const color = colorBy === 'stmt' ? (ink || undefined) : laneColorOf(colorBy, {
+    const tone = st ? inp.tones.get(st.id) : undefined
+    const ink = key >= 0 && tone ? toneColor(tone) : ''
+    const color = colorBy === 'stmt' ? (key >= 0 ? ink || NEUTRAL_LANE : undefined) : laneColorOf(colorBy, {
       stmt: ink, kind: kindOf(l), label: v.label, execNo: l.execNo, ctx: cur?.context ?? -1, depth: cur?.depth ?? 0,
       role: v.bar?.role, dur: v.dur, delta,
     })

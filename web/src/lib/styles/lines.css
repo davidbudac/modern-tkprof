@@ -37,6 +37,12 @@
 @container (inline-size < 89rem) { .lines-row .tb-f2 { display: none; } }
 @container (inline-size < 73rem) { .lines-row .tb-f3 { display: none; } }
 @container (inline-size < 67rem) { .lines-row .tb-f4 { display: none; } .lines-mode > button { padding-inline: 0.55rem; } }
+/* the statement filter's chip (funnel, `Filter: 2 statements · 1,204 lines`, ×) adds 222 px at the first two steps, then 162, 127 and 64 (its words fold at .tb-f2, .tb-f3 and .tb-f4 too): while it is on the steps come
+   later by that much. Measured with everything on at once (the Δ filter's chip with 74,307, the pin, the window group, the file select, two filtered statements) it still fits from 1100 px. */
+@container (inline-size < 112rem) { .lines-row:has(.lines-sstate) .tb-f1 { display: none; } .lines-row:has(.lines-sstate) .tb-cmd > button kbd { margin-inline-start: 0; } }
+@container (inline-size < 103rem) { .lines-row:has(.lines-sstate) .tb-f2 { display: none; } }
+@container (inline-size < 83rem) { .lines-row:has(.lines-sstate) .tb-f3 { display: none; } }
+@container (inline-size < 75rem) { .lines-row:has(.lines-sstate) .tb-f4 { display: none; } .lines-row:has(.lines-sstate) .lines-mode > button { padding-inline: 0.55rem; } }
 .lines-tools { display: flex; align-items: center; gap: var(--sp-2); margin-inline-start: auto; }
 .lines-win { display: flex; align-items: center; gap: var(--sp-2); padding-inline-start: var(--sp-2); border-inline-start: 1px solid var(--hairline); }
 .lines-win b { font-weight: 600; font-size: var(--text-sm); }
@@ -122,12 +128,9 @@
 .lv-tone-other { color: color-mix(in oklch, var(--c-other) 55%, var(--ink)); --tone: var(--c-other); }
 .lv-tone-error { color: var(--s-critical); font-weight: 500; --tone: var(--s-critical); }
 
-/* gutter marks (calls / waits of the selected statement), bookmark, selection */
-/* the calls and waits of the highlighted statement: tinted in its colour (--hl, set by the view), else blue for calls, orange for waits */
-.lv-mk1, .lv-mk2, .lv-mk3 { background: color-mix(in oklch, var(--hl, var(--c-cpu)) 10%, transparent); }
-.lv-mk2 { background: color-mix(in oklch, var(--hl, var(--c-userio)) 10%, transparent); }
-/* formatted mode: the highlight is the lane's, not the row's (see "readable mode" below): no fill */
-:where(.lv-rd).lv-mk1, :where(.lv-rd).lv-mk2, :where(.lv-rd).lv-mk3 { background: none; }
+/* a highlighted statement (round 3b): every line of its cursors is tinted in its colour (--hl, set on the row by the view), about 8 % (12 % dark). It comes before the
+   rules of the Δ highlight, hot spots and the selection, which win it. The number cell of its calls and waits carries a start bar in the same colour (.lv-mk1 / .lv-mk2). */
+.lv-hlrow { background: light-dark(color-mix(in oklch, var(--hl) 8%, transparent), color-mix(in oklch, var(--hl) 12%, transparent)); }
 .lv-mk1 .lv-ln::before, .lv-mk2 .lv-ln::before, .lv-mk3 .lv-ln::before { content: ""; position: absolute; inset-block: 2px; inset-inline-start: 0; inline-size: 4px; border-radius: 0 2px 2px 0; background: var(--hl, var(--c-cpu)); }
 .lv-mk2 .lv-ln::before { background: var(--hl, var(--c-userio)); }
 .lv-bm .lv-ln::after { content: "◆"; position: absolute; inset-inline-start: 7px; font-size: 0.55rem; color: var(--c-commit); }
@@ -499,9 +502,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-rd.lv-hot .lv-dnum > b { color: var(--s-critical); font-weight: 600; }
 .lv-rd > :first-child { border-inline-end: 1px solid var(--hairline); }
 .lv-rd .lv-ln::before { content: none; }
-/* the highlighted statement is the lane's, not the row's: no row fill; the Statement cell of every row of its lane takes its colour (--hl, the statement's
-   whatever the band shows) at 14 %, the number cell of its calls and waits keeps a 3 px
-   start bar. The band is the lane's own hue (--lane): the statement's, or what the lanes are coloured by. */
+/* a highlighted statement in the formatted view: the row tint (above) and, stronger, the Statement cell of every row of its lines (--hl, the statement's colour
+   whatever the band shows) at 14 %; the number cell of its calls and waits keeps a 3 px start bar. The band is the lane's own hue (--lane): the statement's
+   when it is highlighted (neutral when not), or what the lanes are coloured by. */
 .lv-rd.lv-hlane .lv-lane { background: color-mix(in oklch, var(--hl) 14%, transparent); }
 .lv-rd.lv-mk1 .lv-ln::before, .lv-rd.lv-mk2 .lv-ln::before, .lv-rd.lv-mk3 .lv-ln::before { content: ""; position: absolute; z-index: 2; inset-block: 0; inset-inline-start: 0; inline-size: 3px; background: var(--hl, var(--c-cpu)); }
 /* the selection is one amber fill, the number cell included (the oklch mix of amber over the sunken gutter read cyan) */
@@ -574,6 +577,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-state > button:first-child { border-start-start-radius: var(--radius); border-end-start-radius: var(--radius); }
 .lines-state > button:last-child { border-start-end-radius: var(--radius); border-end-end-radius: var(--radius); }
 .lines-dstate { color: var(--ink); background: color-mix(in oklch, var(--c-other) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--c-other) 45%, transparent); }
+.lines-sstate { color: var(--ink); background: var(--wash); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.lines-sstate > button:hover { background: var(--wash-strong); }
+.lines-sstate .icon { margin-inline-end: 0.4em; }
 .lines-dstate > button:hover { background: color-mix(in oklch, var(--c-other) 16%, transparent); }
 /* the Display button: sliders and, when Show / dim settings are off their defaults, how many */
 .tb-display { display: inline-flex; align-items: center; gap: 0.4em; }
@@ -587,6 +593,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .tb-track { position: relative; block-size: 12px; background: var(--surface-sunken); border-radius: 2px; cursor: pointer; }
 .tb-track .seg { position: absolute; inset-block: 0; }
 .tb-track .seg.cur { box-shadow: 0 0 0 1px var(--ink); z-index: 1; }
+/* only the highlighted statements have a colour; the others are two greys, alternating so neighbours separate */
+.tb-track .seg.n0 { background: color-mix(in oklch, var(--ink-3) 60%, var(--surface-sunken)); }
+.tb-track .seg.n1 { background: color-mix(in oklch, var(--ink-3) 32%, var(--surface-sunken)); }
 .tb-track .vbracket { position: absolute; inset-block: -3px; background: color-mix(in oklch, var(--ink) 20%, transparent); border-inline: 1px solid var(--ink); box-sizing: border-box; pointer-events: none; }
 .tb-track .at { position: absolute; inset-block: 0; inline-size: 1.5px; background: var(--ink); pointer-events: none; }
 .tb-axis { position: relative; block-size: 14px; margin-block-start: 3px; font-size: 10px; color: var(--ink-3); line-height: 12px; font-variant-numeric: tabular-nums; }
@@ -595,42 +604,71 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 
 /* the statement picker: one bordered control (the button and, with a statement highlighted, its ×); highlighted, it is outlined in the statement's colour as its chip was.
    Its popover: a filter box, the column names, a virtualised list (rows of a fixed height), a line of keys. */
-.stmt-pick { display: flex; align-items: stretch; min-inline-size: 0; block-size: 26px; box-sizing: border-box; border: 1px solid color-mix(in oklch, var(--hairline-strong) 80%, transparent); border-radius: var(--radius); background: var(--surface-raised); font-size: var(--text-sm); }
+.stmt-pick { container: stmt-pick / inline-size; display: flex; align-items: stretch; min-inline-size: 0; block-size: 26px; box-sizing: border-box; border: 1px solid color-mix(in oklch, var(--hairline-strong) 80%, transparent); border-radius: var(--radius); background: var(--surface-raised); font-size: var(--text-sm); }
 .stmt-pick.on { border-color: transparent; box-shadow: inset 0 0 0 1.5px var(--chip); background: color-mix(in oklch, var(--chip) 10%, var(--surface-raised)); }
+.stmt-pick.many { border-color: var(--hairline-strong); }
 .stmt-pick-menu { flex: 1 1 auto; min-inline-size: 0; }
 .stmt-pick-menu > button { flex: 1 1 auto; min-inline-size: 0; display: flex; align-items: center; justify-content: flex-start; gap: 0.5em; border: 0; border-radius: calc(var(--radius) - 1px); background: none; padding-inline: var(--sp-2); text-align: start; white-space: nowrap; overflow: hidden; color: var(--ink); }
 .stmt-pick-menu > button[aria-pressed="true"] { background: var(--wash); color: var(--ink); border-color: transparent; }
 .stmt-pick-menu > button .cue { margin-inline-start: auto; color: var(--ink-3); }
 .sp-none { color: var(--ink-3); }
 .sp-sw { flex: none; inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; background: var(--chip); }
+.sp-sws { flex: none; display: inline-flex; align-items: center; padding-inline-end: 0.25em; }
+.sp-sws i { inline-size: 0.75em; block-size: 0.75em; border-radius: 2px; box-shadow: 0 0 0 1.5px var(--surface-raised); }
+.sp-sws i + i { margin-inline-start: -0.3em; }
+.sp-many { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.stmt-pick-menu > button .sp-fil { flex: none; display: inline-flex; align-items: center; gap: 0.3em; padding-inline-start: 0.6em; border-inline-start: 1px solid var(--hairline-strong); color: var(--ink-2); }
+.sp-fil svg { inline-size: 0.95em; block-size: 0.95em; }
+/* the button gives way before anything is cut: the counts go to the title first, then the time and share, then the word `filtered` */
+@container stmt-pick (inline-size < 22rem) { .sp-cnt { display: none; } }
+@container stmt-pick (inline-size < 17rem) { .sp-time { display: none; } }
+@container stmt-pick (inline-size < 12.5rem) { .sp-fil-w { display: none; } }
+/* with a filter on, the `n filtered` note takes the room the counts had (the title has them), and the time and share give way earlier */
+.stmt-pick.filt .sp-cnt { display: none; }
+@container stmt-pick (inline-size < 20rem) { .filt .sp-time { display: none; } }
+@container stmt-pick (inline-size < 15.5rem) { .filt .sp-fil-w { display: none; } }
 .sp-id { flex: none; font-weight: 600; color: color-mix(in oklch, var(--chip) 80%, var(--ink)); }
 .stmt-pick-menu > button small { flex: none; font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .stmt-pick-menu > button .sp-cnt { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); padding-inline-start: 0.6em; border-inline-start: 1px solid var(--hairline-strong); }
 .stmt-pick .sp-x { flex: none; border: 0; border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0; background: none; padding-inline: 0.6em; color: var(--ink-2); line-height: 1; }
 .stmt-pick .sp-x:hover { color: var(--ink); }
 .stmt-pick-menu > button:focus-visible, .stmt-pick .sp-x:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.stmt-pick-menu .tbpop { inline-size: min(46rem, 92vw); block-size: auto; max-block-size: 80dvh; padding: 0; overflow: hidden; }
+.stmt-pick-menu .tbpop { inline-size: min(50rem, 92vw); block-size: auto; max-block-size: 80dvh; padding: 0; overflow: hidden; }
 .sp-pop { display: flex; flex-direction: column; min-block-size: 0; }
 .sp-find { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--hairline); }
 .sp-find input { flex: 1 1 auto; min-inline-size: 0; font-family: var(--font-mono); }
 .sp-n { flex: none; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.sp-head, .sp-row { display: grid; grid-template-columns: 14px 6.5rem 4.25rem 3rem 3rem minmax(0, 1fr); align-items: center; column-gap: var(--sp-3); padding-inline: var(--sp-3); box-sizing: border-box; }
+.sp-head, .sp-row { display: grid; grid-template-columns: 16px 18px 6.5rem 4.25rem 3rem 3rem minmax(0, 1fr); align-items: center; column-gap: var(--sp-3); padding-inline: var(--sp-3); box-sizing: border-box; }
 .sp-head { block-size: 20px; font-size: var(--text-xs); color: var(--ink-3); border-block-end: 1px solid var(--hairline); }
-.sp-head > span:nth-child(n+3):nth-child(-n+5) { text-align: end; }
+.sp-head > span:nth-child(n+5):nth-child(-n+7) { text-align: end; }
 .sp-list { block-size: min(26rem, 55dvh); overflow-y: auto; overscroll-behavior: contain; position: relative; }
 .sp-row { cursor: pointer; white-space: nowrap; font-size: var(--text-sm); }
-.sp-row.active { background: var(--wash-strong); }
-.sp-row.cur { box-shadow: inset 3px 0 0 var(--chip); }
-.sp-row .sp-sw { background: var(--chip); }
-.sp-label { font-weight: 600; color: color-mix(in oklch, var(--chip) 80%, var(--ink)); overflow: hidden; text-overflow: ellipsis; }
+.sp-row.active { background: var(--wash); }
+.sp-pop[data-mode="list"] .sp-row.active { background: var(--wash-strong); box-shadow: inset 2px 0 0 var(--ink-2); }
+.sp-pop[data-mode="list"] .sp-find input { color: var(--ink-3); }
+/* a statement's switch: a ring when it is not highlighted, its colour when it is (only highlighted statements have one); the funnel is the filter's */
+.sp-row .sp-sw { inline-size: 14px; block-size: 14px; border-radius: 3px; box-sizing: border-box; border: 1.5px solid var(--hairline-strong); background: none; }
+.sp-row.hl .sp-sw { background: var(--chip); border-color: var(--chip); }
+.sp-fn { all: unset; box-sizing: border-box; display: grid; place-items: center; inline-size: 18px; block-size: 18px; border-radius: 3px; cursor: pointer; color: var(--ink-3); opacity: 0.55; }
+.sp-fn svg { inline-size: 12px; block-size: 12px; }
+.sp-row:hover .sp-fn, .sp-row.active .sp-fn { opacity: 1; }
+.sp-fn:hover { color: var(--ink); background: var(--wash-strong); }
+.sp-fn[aria-pressed="true"] { opacity: 1; color: var(--ink); background: var(--wash-strong); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.sp-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.sp-row.hl .sp-label { color: color-mix(in oklch, var(--chip) 80%, var(--ink)); }
+/* the select-all boxes over the two columns: none, some (a dash) or all of the listed statements */
+.sp-all { all: unset; box-sizing: border-box; display: grid; place-items: center; inline-size: 14px; block-size: 14px; border: 1.5px solid var(--hairline-strong); border-radius: 3px; font-size: 10px; line-height: 1; font-weight: 700; color: var(--ink); cursor: pointer; }
+.sp-all svg { inline-size: 11px; block-size: 11px; }
+.sp-all:hover { border-color: var(--ink-2); }
+.sp-all-some, .sp-all-all { border-color: var(--ink-2); background: var(--wash-strong); }
+.sp-all:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.sp-head .sp-all { margin-inline-start: 1px; }
 .sp-num { text-align: end; color: var(--ink); font-variant-numeric: tabular-nums; }
 .sp-share, .sp-ex { color: var(--ink-2); }
 .sp-sql { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-xs); }
 .sp-pop mark { background: color-mix(in oklch, var(--c-commit) 35%, transparent); color: inherit; border-radius: 2px; }
-.sp-row-none { border-block-end: 1px solid var(--hairline); }
-.sp-row-none .sp-label { color: var(--ink); grid-column: 2 / 4; font-family: inherit; }
-.sp-row-none .sp-hint { grid-column: 4 / -1; color: var(--ink-3); font-size: var(--text-xs); }
 .sp-empty { margin: 0; padding: var(--sp-4) var(--sp-3); color: var(--ink-3); text-align: center; }
+.sp-foot span { display: inline-block; margin-inline-end: 0.9em; white-space: nowrap; }
 .sp-foot { margin: 0; padding: var(--sp-1) var(--sp-3); border-block-start: 1px solid var(--hairline); font-size: var(--text-xs); color: var(--ink-3); }
 .sp-pop kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
 
@@ -814,7 +852,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-slane > .lv-ln { position: static; }
 .lv-slane-body { pointer-events: auto; position: relative; flex: 1 1 0; min-inline-size: 0; display: flex; align-items: center; gap: 1ch; box-sizing: border-box; padding-inline: 14px var(--sp-3); overflow: hidden; white-space: pre; background: var(--surface-sunken); border-block-end: 1px solid var(--hairline); }
 .lv-slane-body::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 6px; background: var(--lane); }
-button.lv-slane-id { all: unset; flex: none; cursor: pointer; font-weight: 600; color: color-mix(in oklch, var(--lane-ink, var(--lane)) 80%, var(--ink)); }
+button.lv-slane-id { all: unset; flex: none; cursor: pointer; font-weight: 600; color: color-mix(in oklch, var(--lane-ink, var(--ink)) 80%, var(--ink)); }
 button.lv-slane-id:hover, button.lv-slane-id:focus-visible { text-decoration: underline; }
 .lv-slane-sql { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); }
 .lv-slane-facts { flex: none; margin-inline-start: auto; color: var(--ink-2); font-variant-numeric: tabular-nums; }

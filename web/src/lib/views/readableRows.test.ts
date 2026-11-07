@@ -4,6 +4,8 @@ import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, type CachedLine } from '../data/linecache'
 import type { LineKind } from '../data/lines'
 import { readableRowsOf } from './readableRows'
+import { NEUTRAL_LANE } from '../data/readable'
+import { slotTone } from '../data/hlset'
 
 // lines of testdata/traces/19c/io_waits.trc (around line 40; the tims are adjusted to give round deltas), with the cursor ids the engine
 // gives them: two cursors, 0 and 1
@@ -40,6 +42,20 @@ describe('readableRowsOf', () => {
     expect(r(3).lane?.stmt).toBe(0)
     expect(r(5).lane).toBeNull() // between two cursors: no lane
     expect(r(6).lane).toMatchObject({ label: 'bbbbbbbbbbbbb' })
+  })
+  it('only a highlighted statement has a colour: every other lane is a neutral band and its sql_id is in the ink', () => {
+    const plain = rows()
+    expect(plain(1).lane).toMatchObject({ color: NEUTRAL_LANE, ink: '' })
+    expect(plain(6).lane).toMatchObject({ color: NEUTRAL_LANE, ink: '' })
+    expect(plain(5).lane).toBeNull() // outside a lane there is still nothing to colour
+    const f = readableRowsOf({ doc, line, tones: new Map([[1, slotTone(2)]]), pin: null, hot: new Map() })
+    expect(f(1, line(1)!).lane).toMatchObject({ color: NEUTRAL_LANE, ink: '' })
+    expect(f(6, line(6)!).lane).toMatchObject({ color: 'var(--c-userio)', ink: 'var(--c-userio)', stmt: 1 })
+  })
+  it('the other lane colour modes are unchanged: the mode picks the band, the highlight only the sql_id\'s ink', () => {
+    const f = readableRowsOf({ doc, line, tones: new Map([[1, slotTone(0)]]), pin: null, hot: new Map(), colorBy: 'op' })
+    expect(f(6, line(6)!).lane).toMatchObject({ color: 'var(--c-cpu)', ink: 'var(--c-cpu)' })
+    expect(f(2, line(2)!).lane).toMatchObject({ color: 'var(--c-userio)', ink: '' })
   })
   it('Δ from the pin is the time from there (tim to tim, as it always was)', () => {
     const p = rows({ line: 1, tim: 10804500070 })

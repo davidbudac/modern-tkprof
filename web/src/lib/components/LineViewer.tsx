@@ -31,6 +31,7 @@ const K_CALL = LINE_KINDS.indexOf('call'), K_WAIT = LINE_KINDS.indexOf('wait'), 
 /** How long the pointer rests on a line's text before its card opens. */
 const CARD_DELAY = 350
 const NO_FOLDS: readonly Fold[] = []
+const NO_MARKS: ReadonlyMap<number, number> = new Map()
 const NO_TABLES: readonly (readonly [number, number])[] = []
 const baseOf = (top: number) => Math.max(0, Math.floor(top / STEP) * STEP - OVERSCAN)
 
@@ -61,8 +62,8 @@ export interface ViewerApi {
 
 interface Props {
   cache: PageCache
-  /** line → 1 (a call of the selected statement), 2 (a wait), 3 (both) */
-  marks: ReadonlyMap<number, number>
+  /** line → 1 (a call of the selected statement), 2 (a wait), 3 (both); omit for none (the highlight is `hlColors`) */
+  marks?: ReadonlyMap<number, number>
   bookmarks: ReadonlySet<number>
   /** line → the note of its bookmark (a gutter mark with the note as tooltip) */
   notes?: ReadonlyMap<number, string>
@@ -117,8 +118,12 @@ interface Props {
   head?(topLine: number): { key: string; node: ReactNode; lane?: string } | null
   /** the readable mode: each line parsed into columns (kind, detail, time bar, Δ, clock) with its cursor's lane; keep it stable, a new one repaints the rows */
   readable?(line: number, l: CachedLine): ReadableCell
-  /** readable mode: the highlighted statement (its id): the Statement cells of its lane's rows are tinted in its colour */
-  hlStmt?: number
+  /**
+   * The highlighted statements: statement id → its colour (a CSS colour). Every line whose per-line statement id (`CachedLine.stmt`) is in it is tinted in that colour
+   * (about 8 %, 12 % dark; a hot spot, the selection and the Δ filter's tint win), in both views; the formatted view's lane cell takes a stronger tint and the number cell of
+   * a call or wait a 3 px start bar. Keep the map stable: rows are memoised on the colours.
+   */
+  hlColors?: ReadonlyMap<number, string>
   /** readable mode: the line ranges laid out as tables, a head row above each (the plan dumps); sorted, apart; keep the array stable */
   tables?: readonly (readonly [number, number])[]
   /**
@@ -151,7 +156,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, deltaHits, foldable, onFold, readable, hlStmt, tables, bands, deltaCol, spanUs, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, deltaHits, foldable, onFold, readable, hlColors, tables, bands, deltaCol, spanUs, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -303,17 +308,26 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 
   const ensurePages = useCallback(() => {
     const x = indexRef.current, r0 = Math.floor(topRef.current)
-    const p0 = cache.pageOf(Math.max(1, lineOfRow(r0, x) - OVERSCAN))
-    let p1 = cache.pageOf(lineOfRow(r0 + Math.ceil(rowsRef.current), x) - 1 + OVERSCAN)
-    if (cache.pageCount > 0) p1 = Math.min(p1, cache.pageCount - 1)
+    // the pages of the rows that are rendered. Without folds that is the run of pages from the first row to the last; with a filter's folds the rows are far apart in the
+    // file (a statement that ran a thousand times), and only the pages that hold a row are loaded, the pages between them are not
+    const want = new Set<number>()
+    const last = Math.ceil(rowsRef.current) + OVERSCAN + STEP
+    for (let i = Math.max(0, r0 - OVERSCAN - STEP); i <= r0 + last; i++) {
+      const n = lineOfRow(i, x)
+      if (n < 1 || (cache.total > 0 && n > cache.total)) continue
+      want.add(cache.pageOf(n))
+    }
+    if (cache.pageCount > 0) for (const p of want) if (p >= cache.pageCount) want.delete(p)
+    // a view of far-apart rows needs more pages than the cache keeps: it grows to hold them (a page that is evicted while its row is on screen is fetched again, and the arrival repaints, forever)
+    cache.reserve(want.size + 8)
     const keep = new Set<number>()
-    for (let p = p0 - 1; p <= p1 + 1; p++) keep.add(p)
+    const near = want.size <= 6 // a view of neighbouring lines keeps (and prefetches) the pages next to it
+    for (const p of want) { keep.add(p); if (near) { keep.add(p - 1); keep.add(p + 1) } }
     cache.keepOnly(keep)
-    for (let p = p0; p <= p1; p++) {
+    for (const p of want) {
       if (!cache.peek(p)) cache.load(p).then(() => onError(null), (e: unknown) => { if (!(e instanceof DOMException && e.name === 'AbortError')) onError(String(e)) })
     }
-    cache.prefetch(p0)
-    cache.prefetch(p1)
+    if (near && want.size > 0) { cache.prefetch(Math.min(...want)); cache.prefetch(Math.max(...want)) }
   }, [cache, topRef, onError])
 
   /** `keepHead`: a move the view's size caused (the header is not recomputed for it). */
@@ -629,7 +643,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const bandText = bd && f0?.sql ? bd.text : undefined
     if (bandText !== undefined) tall = true
     const selIn = n === selected || (!!bd && !!f0?.sql && selected > n && selected <= f0.to) // the selected line is one of those folded into the band's row
-    rows.push(<Row key={n} n={n} rd={rd} hlStmt={hlStmt} dcol={!!deltaCol} span={spanUs ?? 0} phide={phide} tb={tb ? (n === tb.to ? 2 : 1) : 0} band={bd ? BAND_IN | (n === bd.from ? BAND_FIRST : 0) | (f0?.sql || n === bd.to ? BAND_LAST : 0) : 0} bandText={bandText} inline={!!f0?.inline} gapAbove={gapAbove} ruleTop={gapAbove && l?.kind === K_PARSING} opFold={hereFold} foldLabel={fold?.label} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={selIn} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n) && !tbFirst && !binds && !f0?.inline} dh={deltaHits?.get(n)} filt={filt} />)
+    const hc = hlColors && l && l.stmt >= 0 ? hlColors.get(l.stmt) : undefined
+    rows.push(<Row key={n} n={n} rd={rd} hc={hc} dcol={!!deltaCol} span={spanUs ?? 0} phide={phide} tb={tb ? (n === tb.to ? 2 : 1) : 0} band={bd ? BAND_IN | (n === bd.from ? BAND_FIRST : 0) | (f0?.sql || n === bd.to ? BAND_LAST : 0) : 0} bandText={bandText} inline={!!f0?.inline} gapAbove={gapAbove} ruleTop={gapAbove && l?.kind === K_PARSING} opFold={hereFold} foldLabel={fold?.label} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={(marks ?? NO_MARKS).get(n) ?? 0} sel={selIn} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n) && !tbFirst && !binds && !f0?.inline} dh={deltaHits?.get(n)} filt={filt} />)
   }
   tallRef.current = tall
   const digits = String(Math.max(total, 1000)).length
@@ -675,12 +690,12 @@ const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 /** A row's place in an SQL band (flags): in one, its first row, its last row. */
 const BAND_IN = 1, BAND_FIRST = 2, BAND_LAST = 4
 
-const Row = memo(function Row({ n, rd, hlStmt, dcol, span, phide, tb, band, bandText, inline, gapAbove, ruleTop, opFold, foldLabel, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable, dh, filt }: {
+const Row = memo(function Row({ n, rd, hc, dcol, span, phide, tb, band, bandText, inline, gapAbove, ruleTop, opFold, foldLabel, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable, dh, filt }: {
   n: number; text: string | undefined; kind: number
   /** the readable row of the line (readable mode), undefined for the trace as written */
   rd?: ReadableCell
-  /** readable mode: the highlighted statement */
-  hlStmt?: number
+  /** the colour of the line's statement when it is highlighted */
+  hc?: string
   /** readable mode: the Δ column is shown */
   dcol?: boolean
   /** readable mode: the file's traced time, for the track of a fold */
@@ -734,7 +749,9 @@ const Row = memo(function Row({ n, rd, hlStmt, dcol, span, phide, tb, band, band
   filt?: number
 }) {
   const cut = text !== undefined && text.length > MAX_TEXT
-  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (mk ? ` lv-mk${mk}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '') + (inRange ? ' lv-range' : '')
+  // a highlighted statement's call or wait carries the start bar in its colour (the same classes the selected statement's marks use), every one of its lines the tint
+  const mkv = mk || (hc ? (kind === K_CALL ? 1 : kind === K_WAIT ? 2 : 0) : 0)
+  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (hc ? ' lv-hlrow' : '') + (mkv ? ` lv-mk${mkv}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '') + (inRange ? ' lv-range' : '')
     + (win & WIN_IN ? ' lv-win' : '') + (win & WIN_START ? ' lv-win-start' : '') + (win & WIN_END ? ' lv-win-end' : '')
     + (dh !== undefined ? ' lv-dhit' : '') + (filt ? ' lv-filt' : '')
   const handle = (
@@ -744,9 +761,10 @@ const Row = memo(function Row({ n, rd, hlStmt, dcol, span, phide, tb, band, band
         : foldable && <button type="button" className="lv-fold" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}
     </span>
   )
-  if (rd) return <ReadableRow n={n} rd={rd} span={span} hlane={hlStmt !== undefined && !!rd.lane && rd.lane.stmt >= 0 && rd.lane.stmt === hlStmt} dcol={!!dcol} phide={phide ?? 0} tb={tb ?? 0} band={band ?? 0} bandText={bandText} inline={!!inline} gapAbove={!!gapAbove} ruleTop={!!ruleTop} opFold={!!opFold} cls={cls} sel={sel} note={note} gap={gap} handle={handle} fold={fold} foldLabel={foldLabel} foldUs={foldUs} hit={!!hl && text !== undefined && matchSpans(text, hl.q, hl.regex, hl.caseSensitive).length > 0} />
+  const hv = hc ? ({ '--hl': hc } as React.CSSProperties) : undefined
+  if (rd) return <ReadableRow n={n} rd={rd} span={span} hv={hv} hlane={!!hc} dcol={!!dcol} phide={phide ?? 0} tb={tb ?? 0} band={band ?? 0} bandText={bandText} inline={!!inline} gapAbove={!!gapAbove} ruleTop={!!ruleTop} opFold={!!opFold} cls={cls} sel={sel} note={note} gap={gap} handle={handle} fold={fold} foldLabel={foldLabel} foldUs={foldUs} hit={!!hl && text !== undefined && matchSpans(text, hl.q, hl.regex, hl.caseSensitive).length > 0} />
   return (
-    <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
+    <div className={cls} style={hv} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>
         {clk !== null || dlt !== null ? <span className="lv-n">{n}</span> : n}{gap > 0 && <i className="lv-gap" title={`gap ${fmtDur(gap)} before this line`} />}
         {clk !== null && <span className="lv-clk" title={clkT}>{clk}</span>}
@@ -833,12 +851,12 @@ const DeltaIcon = ({ filled }: { filled: boolean }) => (
 )
 
 /**
- * A line in readable mode (`hlane`: a row of the highlighted statement's lane): the time column (Δ as text; none with Δ off), the number (with the pin), the cursor's
+ * A line in readable mode (`hlane`: a row of a highlighted statement, `hv` its `--hl` colour): the time column (Δ as text; none with Δ off), the number (with the pin), the cursor's
  * lane, the fold handle, the duration (the number and its bar), what the line is, its detail and the clock. Every column but the detail has a width of its own, so they line up down the view; the detail is
  * cut where it does not fit. A plan line is a row of its plan's table: its cells in the detail, the time columns empty.
  */
-function ReadableRow({ n, rd, span, hlane, dcol, phide, tb, band, bandText, inline, gapAbove, ruleTop, opFold, cls, sel, note, gap, handle, fold, foldLabel, foldUs, hit }: {
-  n: number; rd: ReadableCell; span: number; hlane: boolean; dcol: boolean; phide: number; tb: number; band: number; bandText?: string; inline: boolean; gapAbove: boolean; ruleTop: boolean; opFold: boolean; cls: string; sel: boolean; note?: string; gap: number; handle: ReactNode
+function ReadableRow({ n, rd, span, hv, hlane, dcol, phide, tb, band, bandText, inline, gapAbove, ruleTop, opFold, cls, sel, note, gap, handle, fold, foldLabel, foldUs, hit }: {
+  n: number; rd: ReadableCell; span: number; hv?: React.CSSProperties; hlane: boolean; dcol: boolean; phide: number; tb: number; band: number; bandText?: string; inline: boolean; gapAbove: boolean; ruleTop: boolean; opFold: boolean; cls: string; sel: boolean; note?: string; gap: number; handle: ReactNode
   fold: string | null; foldLabel?: string; foldUs?: number; hit: boolean
 }) {
   const dur = fold !== null ? foldUs : rd.dur
@@ -855,7 +873,7 @@ function ReadableRow({ n, rd, span, hlane, dcol, phide, tb, band, bandText, inli
   const tbl = fold !== null ? null : plan && tb ? 'plan' : rd.bindRow ? 'bindrow' : rd.bindHead && !inline ? 'bindhead' : band ? 'sql' : null
   return (
     <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hlane ? ' lv-hlane' : '') + (rd.clock ? (short ? ' lv-ck2' : ' lv-ck1') : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '') + (gapAbove ? ' lv-gapa' : '') + (ruleTop ? ' lv-rulet' : '') + (rd.execFirst && fold === null ? ' lv-exec1' : '') + (bandText !== undefined ? ' lv-sqlrow' : '')
-      + (fold === null && rd.br ? ` lv-br-${rd.br}` : '') + (fold === null && rd.brIndent ? ' lv-br-ind' : '')} data-ln={n} role="listitem" aria-selected={sel || undefined} style={lane ? laneVars(lane) : undefined}>
+      + (fold === null && rd.br ? ` lv-br-${rd.br}` : '') + (fold === null && rd.brIndent ? ' lv-br-ind' : '')} data-ln={n} role="listitem" aria-selected={sel || undefined} style={lane || hv ? { ...(lane ? laneVars(lane) : null), ...hv } : undefined}>
       {/* first: the time column, Δ as text (`dcol` off: no column); the line's own time is the Duration cell's */}
       {dcol && (
         <span className="lv-bar" title={[rd.deltaTitle, fold].filter(Boolean).join('\n') || undefined}>

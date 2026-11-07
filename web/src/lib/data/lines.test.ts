@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
 import { indexFolds, foldHiding, lineOfRow, rowOfLine, visibleCount } from './folds'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, frameFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, firstAbove, hotStep, sqlBandAt, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, frameFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, firstAbove, hotStep, sqlBandAt, fetchStmtUnion, fetchStmtRuns, fetchStmtBins, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -469,5 +469,30 @@ describe('hotStep: j and J, the toolbar\'s Hot spot ↓ and ↑', () => {
     expect(hotStep(hot, 3, -1)).toBeUndefined()
     expect(hotStep([], 3, -1)).toBeUndefined()
     expect(hotStep([], 3, 1)).toBeUndefined()
+  })
+})
+
+describe('the statement routes (api/lines/stmts)', () => {
+  it('asks for the union of the runs of the statements, sorted and once each, and reads the runs', async () => {
+    const f = stub(() => json({ total: 900, lines: 7, runs: [[3, 5], [9, 9]], truncated: true }))
+    const r = await fetchStmtUnion(client, 1, [12, 3, 12, 40], undefined, 500)
+    expect(f.mock.calls[0][0]).toBe('http://h/s/1/api/lines/stmts?file=1&ids=3,12,40&union=1&limit=500')
+    expect(r).toEqual({ total: 900, lines: 7, runs: [[3, 5], [9, 9]], truncated: true })
+  })
+  it('asks for each statement\'s runs', async () => {
+    const f = stub(() => json({ total: 50, stmts: [{ id: 2, lines: 4, runs: [[1, 4]] }, { id: 5 }], truncated: false }))
+    const r = await fetchStmtRuns(client, 0, [5, 2])
+    expect(f.mock.calls[0][0]).toBe('http://h/s/1/api/lines/stmts?file=0&ids=2,5&limit=100000')
+    expect(r.stmts).toEqual([{ id: 2, lines: 4, runs: [[1, 4]] }, { id: 5, lines: 0, runs: [] }])
+  })
+  it('asks for the counts per bucket (the strip) and fills a missing bucket with 0', async () => {
+    const f = stub(() => json({ total: 100, buckets: 4, size: 25, stmts: [{ id: 2, lines: 30, counts: [10, 20] }] }))
+    const r = await fetchStmtBins(client, 0, [2], 4)
+    expect(f.mock.calls[0][0]).toBe('http://h/s/1/api/lines/stmts?file=0&ids=2&bins=4')
+    expect(r.stmts[0].counts).toEqual([10, 20, 0, 0])
+  })
+  it('throws the engine\'s message when it does not know the route', async () => {
+    stub(() => new Response('404 page not found', { status: 404, statusText: 'Not Found' }))
+    await expect(fetchStmtUnion(client, 0, [1])).rejects.toThrow('404')
   })
 })

@@ -44,9 +44,12 @@ export class PageCache {
 
   constructor(
     private readonly fetchPage: (from: number, n: number, signal: AbortSignal) => Promise<AnnotPage>,
-    readonly capacity = 20,
+    public capacity = 20,
     readonly pageSize = ANNOT_PAGE,
   ) {}
+
+  /** The cache keeps at least `n` pages from now on (a view of far-apart rows, a statement filter's, holds a page for each of its rows; it never shrinks). */
+  reserve(n: number): void { if (n > this.capacity) this.capacity = n }
 
   /** `fn` runs whenever a page arrives (the viewer repaints). */
   subscribe(fn: () => void): () => void { this.listeners.add(fn); return () => { this.listeners.delete(fn) } }

@@ -174,7 +174,7 @@ export function LinesDisplay({ readable, prefs, setPrefs, laneKey, onFoldRepeats
             </li>
             <li>
               <i className="ld-lane" aria-hidden="true" />
-              <span><b>Lane highlight</b>: the highlighted statement's lane in its colour, a wider band, and a bar at the start of its calls and waits.</span>
+              <span><b>Highlighted statement</b>: every line of its cursors tinted in its colour, the lane band stronger, and a bar at the start of its calls and waits. A statement that is not highlighted is grey.</span>
             </li>
           </ul>
         </Section>

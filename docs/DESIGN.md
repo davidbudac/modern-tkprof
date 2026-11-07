@@ -453,26 +453,23 @@ decision of round 1 changed, the text says what it is now and what it was.
   tooltips). The real cursor# is only in the tooltip (a 10046 trace has no
   child number, so none is shown). Statements take the categorical colours
   (`blocklayout.CATEGORICAL`) by elapsed rank; recursive SYS SQL (uid 0 below
-  the top level) and statements past the 14th are neutral. Framing lines
-  (blank, `***`, `=====`) inside a stretch stay in its lane.
+  the top level) and statements past the 14th are neutral. (Round 3b, batch 4
+  reversed that: in the Trace pane only a **highlighted** statement has a colour,
+  see "The highlight set" below; every other lane band is a neutral grey.)
+  Framing lines (blank, `***`, `=====`) inside a stretch stay in its lane.
 
-- **The highlighted statement is a lane highlight, not a row tint.** The
-  selected statement's lane (the app's selected statement, not the selected
-  line's) shows in its own colour (`--hl`) in the Statement cell of every row of
-  the lane (BINDS, PLAN and blank rows too, and the waits past the 1,000-wait
-  mark cap) at 14 %, the band widens from 4 to 6 px, and the number cell keeps a
-  3 px start bar on the calls and waits that carry a gutter mark. The rows
-  themselves stay on the surface: only the selection and hot spots fill a row.
-  The band keeps the colour the colour-by mode gives it (the tint stays the
-  statement's), and a selected row drops the lane tint (blue over amber read
-  grey). The statement picker of the overview row highlights a statement (and
-  goes to it), `l` the selected line's (again: none), the picker's × and `None`
-  none, all without leaving the Trace view.
-  The raw view keeps its row tint. (Round 1 tinted the rows of the statement's
-  marks at 10 % in its colour; rejected: a flat wash over every call and wait
-  reads as a selection, the stripes where BINDS and PLAN rows are not filled
-  read as noise, it hides the hot spot, it stops at the 1,000-wait cap while the
-  calls go on, and the band mixed toward ink drew orange as maroon.)
+- **The highlighted statement is a lane highlight, not a row tint** (round 2;
+  round 3b below reverses the row-tint half of it). The highlighted statement's
+  lane shows in its own colour (`--hl`) in the Statement cell of every row of the
+  lane (BINDS, PLAN and blank rows too) at 14 %, the band widens from 4 to 6 px, and
+  the number cell keeps a 3 px start bar on its calls and waits. The band keeps
+  the colour the colour-by mode gives it (the tint stays the statement's), and a
+  selected row drops the lane tint (blue over amber read grey). Round 2 left the
+  rows themselves on the surface. (Round 1 tinted the rows of the statement's
+  marks at 10 % in its colour; rejected in round 2: a flat wash over every call
+  and wait reads as a selection, the stripes where BINDS and PLAN rows are not
+  filled read as noise, it hides the hot spot, it stops at the 1,000-wait cap
+  while the calls go on, and the band mixed toward ink drew orange as maroon.)
 
 - **Hot spots are the one red.** A call, wait or plan operation that takes 1 %
   of the traced time or more is a hot spot: the row fills with the critical
@@ -688,8 +685,10 @@ decision of round 1 changed, the text says what it is now and what it was.
   when the 8 statements with the most time ran, and the highlighted statement
   on top of them even when it is a small one (a statement picked from a list of
   thousands usually is; its stretches get a 1 px ink outline); a stretch names
-  its statement when hovered (`sql_id · 2.486 s · 38 % of the traced time`), a
-  click on the track goes to the line at that time. (Round 2 labelled the bar
+  its statement when hovered (`sql_id · 2.486 s · 38 % of the traced time in this
+  file`), a click on the track goes to the line at that time. Batch 4: only the
+  highlighted statements are in colour (each outlined); the others' stretches are
+  two greys, alternating by rank, and the numbers are the file's. (Round 2 labelled the bar
   `Where the time went · 6.46 s` in a 210 px slot at the left and listed the
   statements as chips under it; round 3 dropped the words, which said nothing the
   bar does not: the span is in the track's `aria-label` and the axis, and then
@@ -929,7 +928,7 @@ decision of round 1 changed, the text says what it is now and what it was.
   - **State chips** appear in the toolbar only while the setting is not its default:
     the Δ filter (`Δ ≥ 10 ms · filter · 34`, a × that turns it off, a click that
     opens Display; the mode and count fold away first when the bar narrows), the pin
-    (`Δ from line 118 ×`), the time window group and, in the raw view, the
+    (`Δ from line 118 ×`), the statement filter (batch 4: `Filter: 2 statements ×`), the time window group and, in the raw view, the
     Highlighting chip. A reader sees what is changing the rows without opening
     anything.
   - **The statement picker** replaces the chips row. One button in the overview
@@ -954,7 +953,9 @@ decision of round 1 changed, the text says what it is now and what it was.
     the palette command "Highlight a statement…" open it; both are formatted-view
     only (the raw view has no overview row and keeps its Highlighting chip, `l` and
     the palette's other commands). `L` was free in every key handler of the lib and
-    the desktop shell.
+    the desktop shell. (Batch 4 made the picker multi-select and took the colours out of
+    its rows: "Round 3b, batch 4" below. Picking a statement no longer goes to its
+    line by itself; Enter does.)
   - **Rejected in batch 3.** The chips row: it does not scale past about 10
     statements (8 chips and `+n under 1 %`, about 170 px each, and the statement a
     reader wants on a large trace is a small one, among a thousand). A Display
@@ -965,6 +966,68 @@ decision of round 1 changed, the text says what it is now and what it was.
     of its content (the track would jump 200 px when a statement is picked), and the
     round-2 210 px label slot (an empty hole). The key for the Display tab as a menu
     key (`D`): the button and the palette reach it, and a letter is better kept free.
+
+- **Round 3b, batch 4 (decided 2026-11-07): the highlight set, colour only for what is highlighted, the statement filter.** The user's notes after batches 1 to 3:
+  the colour was assigned in the picker already, so there were not enough colours left; the picker should take several statements at once, by keys (Space to
+  highlight, `f` to filter) and with a select / deselect all; and a highlight should cover every row of the statement, every cursor of it.
+  - **The highlight set.** The Trace pane keeps an ordered set of highlighted statements, per input file (`LinesUi.hl`, `data/hlset.ts`), not the app's single
+    `selection.stmt` (which the other views use and which a click on a line still sets). A statement joins the set when it is picked (the picker's row, `l` on the
+    selected line, the palette) and when a different one arrives as the app's selection from another view (a deep link or the Statements view: the line clicks of
+    this view do not count as an arrival, `ui.hlSeen`); it leaves it by the same toggles, by `None`-style select-all, or with the picker's ×. **Colours:** a
+    statement takes the lowest free slot of `blocklayout.CATEGORICAL` (7 hues) when it is added and keeps it while it is in the set, so removing one recolours
+    nobody; with more than 7 highlighted the slots repeat, the least used first (`freeSlot`). Only a highlighted statement has a colour: in the Statement lane mode
+    every other lane band is a neutral grey (`NEUTRAL_LANE`, `--ink-3` at 38 %), its sql_id in the ink; the overview track draws the others' stretches in two greys
+    (alternating by rank, so neighbours separate) and the highlighted ones in their colours (outlined); the picker has a swatch only on highlighted rows. The other
+    lane modes (Execution, Session, …) colour the band as before. Scope: the Trace pane; the other views keep `statementTones`' colours.
+  - **A highlight covers every line of every cursor.** Every line whose statement is in the set, by the per-line `stmt` id of the annotated pages (`annot=2`,
+    `CachedLine.stmt`): the PARSING IN CURSOR block (text and END OF STMT), PARSE / EXEC / FETCH / CLOSE, `WAIT #n`, BINDS and its Bind lines, STAT, ERROR, whatever
+    cursor number the lines went by (a statement parsed under several cursors is all of them). It does not depend on the bounded marks (the 5,000 longest calls, the
+    first 1,000 waits). The **look**, in both views: a row tint in the statement's colour (8 %, 12 % in the dark theme; `--hl` is set on each row), the Statement
+    cell of the formatted view's lane at 14 % over it, and the 3 px start bar in the number cell of its calls and waits. Hot spots, the Δ highlight and the
+    selection beat the tint (the rules come later). **Round 2 rejected the row tint; this reverses it, for the reasons that no longer hold:** it stopped at the
+    marks' cap while the calls went on (every line is covered now, by id), it left stripes where BINDS and PLAN rows were not filled (they are covered), and a flat
+    wash over fourteen lane colours read as noise (only the highlighted statements have colour now, and one or two at a time is a statement, not a wash).
+    The engine's `annot=2` ids gave a stmt to every kind of a cursor's lines already, except the text of a failed parse (`PARSE ERROR` line and the SQL under it),
+    which took the call before it; fixed in `lines_annot2.go`. Lines that are in no cursor (a blank line, `=====`, `***`) take the previous call's statement, as
+    before: in the raw view the `=====` rule above the next CURSOR line is tinted with the statement before it.
+  - **The statement filter.** A set beside the highlight set (`LinesUi.filter`): while it is not empty only the lines of the filtered statements' cursors are shown
+    and the rest is folded the way the Δ filter's Filter mode folds (a quiet fold under the last kept row with a dashed rule, the lines above the first run
+    folded under line 1 with a count, `z` shows a fold). The lines come from the engine for the whole file (`api/lines/stmts`, `fetchStmtUnion`: the lines whose
+    per-line statement is one of the ids, as runs), so the folds are global like every fold; the folds replace the user's, the repeats and the plan tables while it
+    is on (as the Δ filter's do). With the Δ filter on in Filter mode too, the rows shown pass both (`linesInRuns`: the Δ lines inside the runs). A toolbar state chip
+    says it (`Filter: 2 statements · 1,204 lines ×`, or the sql_id of one; the funnel icon; a click opens the picker in the formatted view; its pieces fold as the bar
+    narrows: the lines at 89 rem, the word `Filter:` at 73 rem, the word `statements` at 67 rem); in the raw view the chip stays (× clears it) and the statement
+    list is the formatted view's. **The cursor focus (`f`, dims the rows of the other cursors) and the filter:** they compose (focus dims inside the shown rows),
+    and a filter that leaves the focused cursor's statement out clears the focus, since all of its rows would be folded away. An engine without the route answers
+    404: the filter turns itself off and the status bar says so. A third key, `F`, toggles the selected line's statement in the filter (the palette: "Filter by the
+    line's statement", "Stop filtering by statement").
+  - **The picker, multi-select** (`views/StatementPicker.tsx`). Each row has the highlight switch (the statement's colour swatch when on, an empty ring when off) and
+    the filter switch (a funnel), then sql_id, time, share, executions and the start of the SQL; the header has two tri-state boxes over those columns (none / some /
+    all of the rows *listed*, after the text filter: a click switches all of them on, or all off when they all are on). A click on a row toggles its highlight, a click
+    on its funnel its filter, a double-click goes to its first line. **Keys** (`data/pickkeys.ts` `pickerKey`, pure and tested; the filter box keeps the DOM focus the
+    whole time and the list is an `aria-activedescendant` listbox, so `mode` says whom a key is for): in the box the keys type, except ↓ (into the list), PgUp / PgDn,
+    Enter (go to the first line of the focused statement and close), Tab (kept inside) and Esc; in the list ↑ ↓ PgUp PgDn Home End move, **Space** toggles the
+    highlight of the focused statement, **f** its filter, **a** highlights every listed statement (or none, when all are) and **A** (Shift+a) does the same for the filter,
+    `/` goes back to the box without typing, any other printable key or Backspace goes back and types; a key footer names them. The popover has no `None` row any
+    more (a / the header box / the × do that). The **closed button** says what is on: `Highlight a statement` with nothing; one highlighted statement: swatch, sql_id,
+    `638 ms · 10 %`, the real counts `5 calls · 34 waits`; several: their swatches stacked and `3 highlighted`; `2 filtered` (a funnel and the count) beside either;
+    the × clears both. It fits the picker's column at 1280 and 1100 px because the button is a container: the counts go to the title below 22 rem of button, the
+    time and share below 17 rem, the word `filtered` below 12.5 rem, and nothing is cut. (Fixes batch 3's "looked off" 1.)
+  - **A filtered view of far-apart rows.** The viewer loaded the run of pages from the first row in view to the last, and kept 40 pages; a statement filter's rows
+    can lie in more pages than that (a statement that ran in every part of a SQLT trace), so the pages were evicted while their rows were on screen, fetched again,
+    and the arrival repainted, forever (React's "maximum update depth", found with two filtered statements and the Δ filter at 1 µs on the SQLT trace). `ensurePages` now
+    loads the pages that hold a rendered row (not the pages between them) and `PageCache.reserve` grows the cache to hold them (never shrinks); a view of neighbouring
+    lines behaves as before (the pages next to it are kept and prefetched).
+  - **Toolbar fit with the new chip.** The chip adds 222 px at the two widest label steps and 162, 127 and 64 px at the next ones (its words fold with `.tb-f2`,
+    `.tb-f3`, `.tb-f4`), so while it is on the label steps come later (`.lines-row:has(.lines-sstate)`: 112, 103, 83 and 75 rem). Measured with everything on at once (the Δ
+    filter's chip at 74,307, the pin, the window group, the file select, two filtered statements) the row is one line, with the search at its least width, at 1100, 1280,
+    1440, 1600, 1800 and 2000 px. The cost is that with a filter on the Go-to label folds to `⌘K` below 1792 px and `Raw` / `Formatted` to icons below 1200 px.
+  - **Time here is the file's.** The picker's time and share, the overview track's titles and the sticky lane row's `here` / `exec N of M` are the statement's numbers
+    inside the open input file (`data/filestmts.ts` `useFileStmts`: the document's own table for a trace of one file, `api/statements` of the file's contexts for a set),
+    over the file's own traced time. They used to be the whole set's elapsed time over one file's span, which could pass 100 %. (Fixes "looked off" 3.)
+  - **Rejected in batch 4.** Colouring statements when the picker lists them (the palette ran out before the user had chosen anything); a highlight limited to the marks
+    (bounded, and calls and waits only); one `None` row as the way to clear many (the header box, `a` and the × are); a separate focus model for the list (the
+    box keeps the focus: moving it on ↓ and back on every letter is what loses typed characters).
 
 - **Rejected in round 2** (so they are not tried again): a sticky three-line
   lane label box (sql_id, SQL start, time here) in the Statement column: it
@@ -981,7 +1044,8 @@ decision of round 1 changed, the text says what it is now and what it was.
   tick on every track is what makes a bar read against the rule); `gets` as the
   sum of cr and cu (above). Batch 2: formatting the SQL text line by line, a
   scroll box in a fixed-height band (the SQL band, above). Batch 3: the chips row,
-  a Display popover, a picker that sizes to its content (the picker, above).
+  a Display popover, a picker that sizes to its content (the picker, above). Batch 4: statement colours by rank in the pane, the marks-only highlight,
+  a `None` row (round 3b, above).
 
 ## Project
 

@@ -156,6 +156,45 @@ export async function fetchDelta(client: ApiClient, file: number, min: number, s
   return { lines: r.lines ?? [], truncated: !!r.truncated }
 }
 
+/** The statements' ids as the `ids` parameter of `api/lines/stmts` (sorted: the answer is cached by URL, so one set is one URL). */
+const idsParam = (ids: readonly number[]) => [...new Set(ids)].sort((a, b) => a - b).join(',')
+
+/** The lines of the statements `ids` in a file as one list of runs (`api/lines/stmts?union=1`): `[from, to]`, 1-based, inclusive, in line order, at most `limit`; `lines` counts all of them. */
+export interface StmtUnion { total: number; lines: number; runs: [number, number][]; truncated: boolean }
+
+/**
+ * Every line of the cursors of the statements `ids` in `file` (the lines whose per-line statement id is one of them: the PARSING IN CURSOR block, calls, waits, BINDS, STAT,
+ * ERROR, whatever cursor number they went by), as runs. This is the statement filter's list. An engine without the route answers 404 and this throws.
+ */
+export async function fetchStmtUnion(client: ApiClient, file: number, ids: readonly number[], signal?: AbortSignal, limit = 100_000): Promise<StmtUnion> {
+  const res = await client.fetch(`/api/lines/stmts?file=${file}&ids=${idsParam(ids)}&union=1&limit=${limit}`, { signal })
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as Partial<StmtUnion>
+  return { total: r.total ?? 0, lines: r.lines ?? 0, runs: r.runs ?? [], truncated: !!r.truncated }
+}
+
+/** Each statement's lines in a file as runs of its own (`api/lines/stmts`). */
+export interface StmtRuns { total: number; stmts: { id: number; lines: number; runs: [number, number][] }[]; truncated: boolean }
+
+export async function fetchStmtRuns(client: ApiClient, file: number, ids: readonly number[], signal?: AbortSignal, limit = 100_000): Promise<StmtRuns> {
+  const res = await client.fetch(`/api/lines/stmts?file=${file}&ids=${idsParam(ids)}&limit=${limit}`, { signal })
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as { total?: number; stmts?: { id: number; lines?: number; runs?: [number, number][] }[]; truncated?: boolean }
+  return { total: r.total ?? 0, stmts: (r.stmts ?? []).map((s) => ({ id: s.id, lines: s.lines ?? 0, runs: s.runs ?? [] })), truncated: !!r.truncated }
+}
+
+/** Each statement's lines counted per bucket of the file (`api/lines/stmts?bins=`), the layout of `LineProfile`: bucket i covers the lines `i*size+1 .. (i+1)*size`. */
+export interface StmtBins { total: number; buckets: number; size: number; stmts: { id: number; lines: number; counts: number[] }[] }
+
+export async function fetchStmtBins(client: ApiClient, file: number, ids: readonly number[], buckets: number, signal?: AbortSignal): Promise<StmtBins> {
+  const n = Math.min(PROFILE_BUCKETS, Math.max(1, Math.floor(buckets)))
+  const res = await client.fetch(`/api/lines/stmts?file=${file}&ids=${idsParam(ids)}&bins=${n}`, { signal })
+  if (!res.ok) throw await failure(res)
+  const r = (await res.json()) as { total?: number; buckets?: number; size?: number; stmts?: { id: number; lines?: number; counts?: number[] }[] }
+  const b = r.buckets ?? 0
+  return { total: r.total ?? 0, buckets: b, size: Math.max(1, r.size ?? 1), stmts: (r.stmts ?? []).map((s) => ({ id: s.id, lines: s.lines ?? 0, counts: Array.from({ length: b }, (_, i) => s.counts?.[i] ?? 0) })) }
+}
+
 /** A run of repeats the readable view can fold (`api/lines/repeats`): identical waits, a long wait block, a loop of small fetches. */
 export interface RepeatFold {
   from: number; to: number; kind: 'run' | 'block' | 'fetches'; n: number; us: number; max: number

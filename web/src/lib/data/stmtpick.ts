@@ -7,7 +7,7 @@ export interface PickRow {
   id: number
   /** the sql_id (or the synthetic label: `hv:123`, `commit`, …) */
   label: string
-  /** elapsed µs (the statement's, as the overview and the sticky lane row say it) */
+  /** elapsed µs of the statement in the file (as the overview track and the sticky lane row say it) */
   e: number
   executions: number
   /** the SQL with its whitespace runs collapsed to one space (what the row shows and the filter matches) */
@@ -21,16 +21,20 @@ export interface PickRow {
 /** A text with every run of whitespace as one space, trimmed. */
 export const flatten = (s: string) => s.replace(/\s+/g, ' ').trim()
 
+/** What the picker needs of a statement's numbers: its time and executions (in the open file: `stats`). */
+export interface FileStmtStats { elapsed: number; executions: number }
+
 /**
  * The statements that have a cursor in `file`, longest first (ties: the one that comes first in the file). The picker lists these: the overview's
  * chips covered the 8 longest, this covers the file, thousands of statements on a SQLT trace; recursive SYS SQL and statements without time are in it.
+ * `stats` (by statement id) are the numbers of the file itself, as the overview track says them; without them the whole set's.
  */
-export function pickRows(doc: Pick<TraceDoc, 'statements' | 'cursors' | 'fileOfCursor' | 'stats' | 'label'>, file: number): PickRow[] {
+export function pickRows(doc: Pick<TraceDoc, 'statements' | 'cursors' | 'fileOfCursor' | 'stats' | 'label'>, file: number, stats: readonly FileStmtStats[] = doc.stats.statements): PickRow[] {
   const out: PickRow[] = []
   for (const s of doc.statements) {
     const line = stmtLineIn(doc, file, s.id)
     if (line === undefined) continue
-    const st = doc.stats.statements[s.id]
+    const st = stats[s.id]
     const label = doc.label(s)
     const flat = flatten(s.text)
     out.push({ id: s.id, label, e: st?.elapsed ?? 0, executions: st?.executions ?? 0, flat, hay: `${label}\n${flat}`.toLowerCase(), line })

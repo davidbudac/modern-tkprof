@@ -26,6 +26,12 @@ describe('the statement picker rows', () => {
     const r = pickRows(doc, 0).find((x) => x.id === 0)!
     expect(r).toMatchObject({ e: 500_000, executions: 3, line: 40, flat: 'select * from emp where empno = :1' })
   })
+  it('says the numbers of the file when it is given them: a statement that ran in several files has less time in one', () => {
+    const inFile = [{ elapsed: 100, executions: 1 }, { elapsed: 700_000, executions: 2 }, { elapsed: 0, executions: 0 }, { elapsed: 0, executions: 0 }, { elapsed: 0, executions: 0 }]
+    const rows = pickRows(doc, 0, inFile)
+    expect(rows.map((r) => [r.label, r.e, r.executions])).toEqual([['bbbbbbbbbbbb2', 700_000, 2], ['aaaaaaaaaaaa1', 100, 1], ['dddddddddddd4', 0, 0]])
+    expect(pickRows(doc, 0).find((r) => r.id === 1)!.e).toBe(2_000_000) // without them: the whole set's
+  })
   it('breaks a tie on time by the line in the file', () => {
     const tied = { ...doc, stats: { statements: [{ elapsed: 5, executions: 1 }, { elapsed: 5, executions: 1 }, { elapsed: 5, executions: 1 }, { elapsed: 5, executions: 1 }, { elapsed: 5, executions: 1 }] } } as unknown as Parameters<typeof pickRows>[0]
     expect(pickRows(tied, 0).map((r) => r.line)).toEqual([10, 40, 90])

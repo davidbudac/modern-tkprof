@@ -509,6 +509,9 @@ export function planDump(lineAt: (n: number) => { text: string; kind: LineKind }
 /** The neutral tone of recursive SYS statements and of statements past the categorical colours. */
 export const QUIET_TONE: Tone = { token: '--c-idle', shade: 0 }
 
+/** The lane band of a statement that is not highlighted (Statement lane mode): quiet, a grey that reads on both surfaces, so the lanes show where a cursor's lines run without a hue. */
+export const NEUTRAL_LANE = 'color-mix(in oklch, var(--ink-3) 38%, transparent)'
+
 /**
  * Each statement's lane colour: the statements ranked by elapsed time take the categorical colours in that order (the ones that
  * matter most get the clearest hues); recursive SYS SQL (parsed by uid 0 below the top level) stays neutral, and so does every

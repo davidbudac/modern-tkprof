@@ -158,6 +158,12 @@ statement…") beside the time track. Rows: Duration bar as the share of the tra
 SQL band (wrap on: the whole statement pretty-printed). Embedded UI: `make web` was run at the end of round 3, so `internal/ui/dist` is
 current; the embedded CLI UI needs the rebuilt engine (`texts` in `what=frame`) for SQL bands in wrap mode.
 
+Round 3b, batch 4 (2026-11-07, `docs/PLAN-TRACE-PANE-V3.md`): the pane keeps an ordered **set of highlighted statements** (per file, colours from the
+categorical palette taken when a statement is added, kept while it is in the set; every other statement is neutral), a highlight tints **every line** of the
+statement's cursors in both views (the per-line `stmt` ids), a **statement filter** shows only those lines (new route `api/lines/stmts`, `union=1` for the filter,
+`bins=` for the strip: batch 5), and the picker is multi-select (Space highlight, `f` filter, `a` / `A` all, header boxes). `internal/ui/dist` is not rebuilt yet
+(batch 5 does it); a prebuilt desktop sidecar needs `pnpm build:engine` for the route.
+
 Open:
 
 - Blank lines before a `***` timestamp and after a marker group still take a row; only the blanks under a
@@ -184,8 +190,12 @@ Open:
   parenthesis) and highlighting is per line, so a block comment or literal that runs over a line break of the pretty text is
   not known to the next line.
 - Display tab: Fold repeats and the Δ column are no longer visible controls while the panel is closed (the rows show them);
-  only the Show and dim settings have a badge. The picker's "time here" is the statement's elapsed time in the whole trace
-  set (as the lane row says it), not the part inside this input file.
+  only the Show and dim settings have a badge.
+- Batch 4 leftovers: `api/lines/stmts` assigns a statement to a PARSING IN CURSOR block the parser did not register (three in the SQLT fixture, about 100
+  lines, its first PL/SQL block's `len=` is never reached) the way `annot=2` does not (the lines take the cursor before them in the page ids and the call
+  before them in the route): the equality test allows them for that fixture only. The raw view's Highlighting chip shows a grey swatch for several statements.
+  Lines in no cursor (blank, `***`) take the previous call's statement, so a highlight or filter keeps them with it; only the `=====` rule above a cursor goes with
+  that cursor. A filtered view of far-apart rows loads one page per row (a big file and a statement that ran everywhere: up to ~100 pages of 2,000 lines).
 
 ### Row flow, Dialogue, Blocks (DESIGN § Three new views, `docs/PLAN-VIEWS.md`)
 
