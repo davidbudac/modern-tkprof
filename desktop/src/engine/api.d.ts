@@ -1009,7 +1009,8 @@ export interface paths {
          *     `=====` line before it (when it is one, and not line 1) and the
          *     END OF STMT line after its SQL text. Each is checked against the
          *     classification of the lines; at most 100000 ranges, `truncated` says
-         *     there were more.
+         *     there were more. It also answers `texts`: the SQL text of each statement
+         *     that has an END OF STMT line.
          */
         get: operations["sessionLinesBlocks"];
         put?: never;
@@ -1735,6 +1736,16 @@ export interface components {
              *     its `Bind#N` entries, ascending (empty for a block without one)
              */
             bindLines?: number[][];
+            /**
+             * @description `frame` only: the SQL text of each PARSING IN CURSOR block that ends
+             *     with an END OF STMT line and holds at least one text line, sorted by
+             *     line: `[first text line, last text line, statement id]` (the lines
+             *     between the PARSING IN CURSOR line and the END OF STMT line). The
+             *     statement's text in the document is these lines joined by newlines;
+             *     a statement whose text is not (its text holds an END OF STMT line of
+             *     its own) is left out. Absent from an engine that predates it.
+             */
+            texts?: number[][];
             /** @description more than 20000 blocks existed; the rest is left out */
             truncated: boolean;
         };

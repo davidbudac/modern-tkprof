@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Key
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
 import { blockAt, filterFolds, foldAt, foldHiding, indexFolds, standingFolds, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope, type SqlBand } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeLines } from '../data/rangesum'
@@ -131,7 +131,7 @@ const STEPS: [NextWhat, string, [string, string]][] = [
 
 /** The View menu's display toggles: the pref, its label, tooltip and key. */
 const SHOW_TOGGLES: { key: 'wrap' | 'heat' | 'strip' | 'links' | 'hints' | 'clock' | 'delta'; label: string; title: string; keys?: string }[] = [
-  { key: 'wrap', label: 'Wrap long lines', title: 'wrap long lines instead of scrolling sideways' },
+  { key: 'wrap', label: 'Wrap long lines', title: 'wrap long lines instead of scrolling sideways; in the formatted view, show each SQL statement pretty-printed in full' },
   { key: 'heat', label: 'Heat bars', keys: 'h', title: 'a bar in the right gutter for the elapsed time of calls and waits' },
   { key: 'strip', label: 'Density strip', title: 'the whole file beside the scroll bar: calls, waits, errors, hits, bookmarks, the selected statement; click or drag to move' },
   { key: 'links', label: 'Reference links', title: 'underline cursor numbers, sql_ids, objects and plan hashes in the rows; a click shows the statement (its SQL and a summary) in a popup, the Statements view is one click further (Shift: the cursor\'s parse line)' },
@@ -410,17 +410,25 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     )
     return () => ac.abort()
   }, [client, file, readable, repeatsKey])
-  // the framing lines (the `=====` rule before a cursor, END OF STMT): they fold quietly under the line above them
-  const [frameBlocks, setFrameBlocks] = useState<{ ranges: [number, number][]; key: string } | null>(null)
+  // the framing lines (the `=====` rule before a cursor, END OF STMT): they fold quietly under the line above them; with them the SQL texts of the statements (the SQL bands)
+  const [frameBlocks, setFrameBlocks] = useState<{ ranges: [number, number][]; texts: [number, number, number][]; key: string } | null>(null)
   useEffect(() => {
     if (!readable) return
     const ac = new AbortController()
     linesBlocks(client, file, 'frame', ac.signal).then(
-      (r) => { if (!ac.signal.aborted) setFrameBlocks({ ranges: r.blocks, key: repeatsKey }) },
-      (e: unknown) => { if (!aborted(e)) setFrameBlocks({ ranges: [], key: repeatsKey }) }, // an engine without the kind: the lines stay rows
+      (r) => { if (!ac.signal.aborted) setFrameBlocks({ ranges: r.blocks, texts: r.texts, key: repeatsKey }) },
+      (e: unknown) => { if (!aborted(e)) setFrameBlocks({ ranges: [], texts: [], key: repeatsKey }) }, // an engine without the kind: the lines stay rows
     )
     return () => ac.abort()
   }, [client, file, readable, repeatsKey])
+  /** The SQL band of each statement text of the file: its lines and the statement's text in the document (a statement the document does not have is no band). */
+  const sqlBands = useMemo((): readonly SqlBand[] | undefined => {
+    if (!readable || frameBlocks?.key !== repeatsKey || frameBlocks.texts.length === 0) return undefined
+    const out: SqlBand[] = []
+    for (const [from, to, stmt] of frameBlocks.texts) { const text = doc.statements[stmt]?.text; if (text) out.push({ from, to, text }) }
+    return out
+  }, [readable, frameBlocks, repeatsKey, doc])
+  const wrapSql = readable && prefs.wrap // the formatted view's Wrap long lines: an SQL band is one row holding the whole statement
   const quietFolds = useMemo(() => {
     if (!readable) return null
     const binds = bindBlocks?.key === repeatsKey ? bindBlocks.folds : []
@@ -430,9 +438,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       while (lo < hi) { const mid = (lo + hi) >> 1; if (tables![mid][0] <= line) lo = mid + 1; else hi = mid }
       return lo > 0 && line <= tables![lo - 1][1]
     }
-    const frame = frameBlocks?.key === repeatsKey ? frameFolds(frameBlocks.ranges, tables && tables.length > 0 ? inTable : undefined) : []
+    const frame = frameBlocks?.key === repeatsKey ? frameFolds(frameBlocks.ranges, tables && tables.length > 0 ? inTable : undefined, wrapSql ? sqlBands : undefined) : []
     return binds.length === 0 && frame.length === 0 ? null : mergeFolds(binds, frame)
-  }, [readable, bindBlocks, frameBlocks, repeatsKey, tables])
+  }, [readable, bindBlocks, frameBlocks, repeatsKey, tables, wrapSql, sqlBands])
   const bindTable = bindBlocks?.table
   const repeatFolds = useMemo(() => (wantRepeats && repeats ? repeats.folds.map((r) => repeatFold(r)) : null), [wantRepeats, repeats])
   // the selection is never folded away (bug 11): a run that holds the selected line shows open, and folds again when the selection leaves it
@@ -554,7 +562,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const revealAfter = useRef(0) // a line to reveal once the viewer has the new folds
   const goTo = useCallback((line: number, dispatch = true) => {
     const hidden = foldHiding(line, allFolds)
-    if (hidden) { // a line inside a fold: open it first (a run of Fold repeats opens by itself while the selection is inside it)
+    if (hidden?.sql) apiRef.current?.reveal(line, 'center') // a text line folded into its SQL band (wrap mode): the band's row is the line's row, the fold stays
+    else if (hidden) { // a line inside a fold: open it first (a run of Fold repeats opens by itself while the selection is inside it)
       revealAfter.current = line
       if (!(hidden.auto && !hidden.quiet && !hidden.filter)) toggleAnyFold(hidden)
     }
@@ -858,6 +867,9 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     // a quiet fold on a block's first line (the blank lines under a BINDS header) does not stop the block from folding
     const open = at && !(at.quiet && b && !at.inline) ? at : foldHiding(line, allFolds)
     if (open) { toggleAnyFold(open); return }
+    // an SQL band opened with z (wrap mode): fold it into its row again
+    const band = quietFolds?.find((f) => f.sql && line >= f.from && line <= f.to && ui.openRepeats.has(f.from))
+    if (band) { const next = new Set(ui.openRepeats); next.delete(band.from); set({ openRepeats: next }); if (selected > band.from && selected <= band.to) select(band.from); return }
     // an open run of Fold repeats: fold it again (a selection inside it moves to its handle line, which stays)
     let run = openRuns.get(line)
     if (!run) for (const f of openRuns.values()) if (line > f.from && line <= f.to) { run = f; break }
@@ -867,7 +879,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       return
     }
     if (b) set({ folds: toggleFold(ui.folds, b) }); else flash(`nothing to fold at line ${fmtInt(line)}`)
-  }, [ui, set, cache, flash, allFolds, toggleAnyFold, openRuns, selected, select])
+  }, [ui, set, cache, flash, allFolds, quietFolds, toggleAnyFold, openRuns, selected, select])
   /** Folds every BINDS block or STAT dump of the file (the engine lists them), next to the folds there already are. */
   const foldAll = useCallback(async (what: 'binds' | 'stat') => {
     const name = what === 'binds' ? 'BINDS block' : 'STAT dump'
@@ -1475,7 +1487,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className={'lines-main' + (busy ? ' busy' : '') + (readable && prefs.laneColor !== 'stmt' ? ' lanes-by-line' : '')} aria-busy={busy || undefined} style={{ ...(readable ? columnVars(prefs.cols) : {}), ...(hlColor ? { '--hl': hlColor } : {}) } as React.CSSProperties}>
-          <LineViewer cache={cache} readable={readableRows} hlStmt={stmt ?? undefined} tables={tables} deltaCol={prefs.rdDelta} spanUs={fileSpan} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} spanUs={fileSpan} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} deltaHits={deltaHits} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} readable={readableRows} hlStmt={stmt ?? undefined} tables={tables} bands={sqlBands} deltaCol={prefs.rdDelta} spanUs={fileSpan} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} spanUs={fileSpan} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} deltaHits={deltaHits} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}

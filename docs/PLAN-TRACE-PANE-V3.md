@@ -179,3 +179,49 @@ header's `raw-head-popup-1600-light.png`; the drivers `drive-*.mjs` beside them,
 - **Looked off, not fixed.** At 1280 px with the side panel open the Detail of a hot FETCH is cut (it is where the new groups plus the waiting
   share need ~110 ch); the notes cut first, as designed. The gets box is quiet enough that on the amber selected row its sunken fill reads as a
   slightly cooler patch (light theme); acceptable, not changed.
+
+### Batch 2 (2026-11-07): the SQL band, and two fixes to batch 1
+
+Commit: see `git log` ("Trace pane round 3, batch 2: …"). Tests: `go test ./internal/slice ./internal/engine` pass (new `TestLinesBlocksFrameTexts`, which checks
+every fixture set), `pnpm --filter mtkprof-web test` 714 pass (was 702 after batch 1: +7 `sqlformat.test.ts`, +5 in `lines.test.ts`), desktop `pnpm test` 228 pass,
+`pnpm -r typecheck` clean, `pnpm --filter mtkprof-web build` and the desktop's `vite build` resolve `sql-formatter`. `internal/ui/dist` not rebuilt (batch 3 does that).
+Evidence: `/tmp/verify-mtkprof/evidence/trace-v3/2/` (1600 and 1280 px, light and dark, wrap off `-off-` and on `-on-`: `io_waits-132-*`, `basic_binds-{36,75}-*`,
+`orcl_ora_3484_S94737_SQLT_TRACE-44839-*` with the wheel steps `-w1`..`-w3` (100, 100, 400 px), `-planhead-` (the plan's head overlay with a band above), `basic_binds-78-goto-*`
+(go-to into a folded text line), `keys-*` / `scrollbar-*` (the key and scroll-bar runs of `drive-3.mjs`), `copy-basic_binds-75-84-*` (`y`), `io_waits-118-final-*` and
+`io_waits-118-zoomgets-*` / `-zoomtick-*` (the two batch-1 fixes); drivers `drive-1.mjs` (go-to, prefs, `WHEELS`, `KEYS`, `FOCUSROW`, any trace by absolute path),
+`drive-2.mjs` (measures the hot FETCH's Detail at a width), `drive-3.mjs` (keys, `j` / `J`, End / Home and the scroll bar with a visibility assertion per move: 0 bad on the 112 k-line
+SQLT trace, on `basic_binds.trc` and on a trace that ends with a band), `drive-4.mjs` (`y` over a folded band: the clipboard equals the trace's lines 75..84).
+
+- **Batch-1 fix 1, the gets box.** Three cells of a mini table: `query 498 │ current 0 │ disk 496`. Each cell is label, a gap of 0.4 digit, the number right-aligned in a 9-digit
+  slot; the cells are apart by a 1 px `--hairline` rule and 0.5 digit of padding. Deviation (judgement call): I kept the slot at 9 digits, which is what 1,234,567 needs; "7 digits
+  incl. separators" could also mean 7 characters (999,999), which would make the box 40 px narrower: it is `.rd-gets b { inline-size: 9ch }`. At 1280 px with the side panel closed the
+  hot FETCH of `io_waits.trc` line 122 still shows `· 631 ms waiting (99 %)`, 4.8 px clear of the clock's reserved end padding (measured, `drive-2.mjs`; batch 1 had 5).
+- **Batch-1 fix 2, the 1 % tick.** `--hot-tick` is `--s-critical` at 38 % (light) and 55 % (dark): a salmon tick between the two grey ones, findable, no longer a red dashed line.
+- **The SQL band.** `TableBand` with `sql` (the plan's `.lv-tbl`, so the same insets, frame, surface and font); rows of a band come from `bands` (new `LineViewer` prop; `sqlBandAt` bisects).
+  The first/last rules are inset shadows so a band is exactly its lines tall and its first line is not pushed down. Wrap off: a row per trace line, ellipsis at the right edge.
+- **Deviation: the engine.** The plan said the range comes from `what=frame`, but that answer is only the rule lines and the END OF STMT lines, and a client cannot tell them apart
+  (the PARSING line of an adopted cursor is in no cursor, `nasty_sql.trc` has an END OF STMT inside a text), and a wrong guess hides real lines. So `frame` also answers `texts`:
+  `[first text line, last text line, statement id]` (`frameBlocks`), only where the model's text of the statement is those lines line for line (the 2 statements of `nasty_sql.trc`
+  with an END OF STMT inside are left out and keep their rows). OpenAPI and `desktop/src/engine/api.d.ts` are updated; additive, no `Protocol` bump; an older engine sends none and the
+  text lines stay rows. A prebuilt desktop sidecar needs `pnpm build:engine` (HANDOFF says so).
+- **Wrap on.** `frameFolds(ranges, skip, bands)` makes `Fold.sql` (text lines after the first, and the END OF STMT line, folded into the first) in place of the END OF STMT frame fold; the
+  row draws `doc.statements[id].text` through `prettyLines` (`data/sqlformat.ts`). `goTo` into a folded text line does not open the fold (`reveal` maps it to the band's row; the selection highlights
+  the band); `z` on the band opens it as rows and `z` on one of them folds it again. `y` was already by line number: the clipboard holds the trace's lines.
+- **Pretty-printing.** `formatDialect` + `plsql`, `keywordCase: 'preserve'`, `tabWidth: 2`; deviation: `linesBetweenQueries: 0` (the default put a blank line after every `;` of a PL/SQL block). 64-entry
+  LRU; the trace's text on a throw or over 20,000 characters. Dependency `sql-formatter ^15.9.0` in `web/package.json` (+ `pnpm-lock.yaml`; 8 small transitive packages).
+  **Bundle: `mtkprof-web` single file 1,773.79 kB → 1,841.84 kB (+68 kB, +3.8 %), gzip 628.04 → 646.35 kB (+18.3 kB, +2.9 %); with the formatter stubbed out it is 1,779.54 kB, so the
+  formatter is +62 kB (+16 kB gzip) and this batch's own code +6 kB.**
+- **Tall rows: the raw wrap mode is not a precedent.** `.lv-wrap` lets rows grow and the viewer's 20 px arithmetic is then wrong below the first tall one; nothing there handles it. For the band I kept the grid
+  for everything that counts rows (scroll bar, keys, go-to, folds: a band is one row, so the scroll bar does not move with the width or the formatter) and made the pixel position measured while a tall row is
+  rendered: `offsetOf` / `topFromOffset` place the layer (again after every commit: a page arriving or a resize changes a band), the wheel moves by pixels, `settle` checks a reveal against the real heights
+  when a tall row lies between the top of the view and the target (and waits for the rows of a far jump to load; the top edge is rounded to a whole 20 px line, inside a tall row too, so no sliver shows under the
+  sticky lane row), `tailTop` lets the last band at the end of the file be scrolled to its end. A view without a tall row takes none of these paths (wrap off: identical to before; checked with the same key run).
+  The sticky lane row and the plan head overlay are laid over the top 20 px and behave (`-planhead-` shot). Found and fixed on the way: a far `j` with tall rows near the target left it 600 px below the view
+  (its reveal was settled before the page loaded).
+- **Looked off, not fixed.** (1) With the top of the view inside a tall band its line number (top-aligned in the row) has scrolled away, so the left columns are blank beside the lines being read; the sticky
+  lane row names the statement. (2) A reveal that must centre a band lands on a 20 px line, so the centring is up to 10 px off. (3) The gets box is the same width as before (315 px at 11 px type), see
+  fix 1. (4) The formatter lays PL/SQL out as it sees it (`set_action ('x')` gets a space before the parenthesis); it does not keep the trace's spacing. (5) Highlighting is per line: a block comment or literal that
+  runs over a line break of the pretty text is not known to the next line.
+- **For batch 3.** The overview slot and `FormattedHead` notes of batch 1 stand. The Display panel's "Show" section keeps the "Wrap long lines" toggle: the formatted view now honours it (the SQL band); its tooltip (`SHOW_TOGGLES` in
+  `views/Lines.tsx`) says so already. `make web` is still to do: the embedded UI predates all of this, and the embedded CLI UI needs
+  the rebuilt engine (`texts`) to show bands in wrap mode.

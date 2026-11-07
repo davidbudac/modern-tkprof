@@ -410,7 +410,8 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
   --d-kind: calc(10 * var(--lv-chw, 0.6rem)); --d-dur: calc(10 * var(--lv-chw, 0.6rem) + var(--trk-tail)); --d-clk: calc(11.7 * var(--lv-chw, 0.6rem));
   /* a hot spot: the one red row (the error hue is kept for it) */
   --hot-fill: light-dark(color-mix(in oklch, var(--s-critical) 16%, transparent), color-mix(in oklch, var(--s-critical) 22%, transparent));
-  --hot-tick: color-mix(in oklch, var(--s-critical) 75%, transparent);
+  /* the 1 % tick of the Duration tracks explains the hot rule, it does not point at a row: quiet (down a run of rows it adds up to a line) */
+  --hot-tick: light-dark(color-mix(in oklch, var(--s-critical) 38%, transparent), color-mix(in oklch, var(--s-critical) 55%, transparent));
 }
 .lv-probe { position: absolute; visibility: hidden; pointer-events: none; inset-block-start: 0; font-variant-numeric: tabular-nums; white-space: pre; }
 .lv-rd-on .lv-layer { inline-size: 100%; }
@@ -618,6 +619,18 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .pc-btype { inline-size: calc(16 * var(--chw)); padding-inline: var(--chw); color: var(--ink-2); }
 .lv-tbl-head .pc-bname, .lv-tbl-head .pc-bval, .lv-tbl-head .pc-btype { color: var(--ink-3); font-weight: 500; font-style: normal; }
 .lv-tbl > .lv-asrun { align-self: center; margin-inline: var(--sp-3) 0; }
+/* an SQL band: a statement's text lines under its CURSOR row, drawn as a band of the same family as a plan: from the Operation column to the right edge on the sunken
+   ground in a 1 px hairline frame (its first row opens it, its last closes it), Operation empty, the text where Detail starts. The top and bottom rules are drawn inside
+   the row (an inset shadow) and not as borders, so a band is exactly as tall as its lines and its first line is not pushed down by the rule. Wrap off: a row per trace
+   line, cut at the right edge. Wrap on: one row (.lv-sqlrow) as tall as the statement pretty-printed, a line longer than the band wrapping onto the next. */
+.lv-tbl-sql { border-block: 0; }
+.lv-tbl-sql.lv-tbl-first { box-shadow: inset 0 1px 0 var(--hairline); }
+.lv-tbl-sql.lv-tbl-last { box-shadow: inset 0 -1px 0 var(--hairline); }
+.lv-tbl-sql.lv-tbl-first.lv-tbl-last { box-shadow: inset 0 1px 0 var(--hairline), inset 0 -1px 0 var(--hairline); }
+.lv-rd .lv-tbl > .lv-sqlt.lv-tx { flex: 1 1 0; min-inline-size: 0; padding-inline: var(--sp-2); overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.lv-rd.lv-sqlrow { block-size: auto; min-block-size: var(--lv-row); }
+.lv-rd.lv-sqlrow .lv-ln { align-items: flex-start; }
+.lv-rd.lv-sqlrow .lv-tbl > .lv-sqlt.lv-tx { white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip; }
 /* the head laid over the top row while the plan's lines fill the top of the view (its own head row scrolled away) */
 .lv-plan-head { position: absolute; inset-block-start: 0; inset-inline: 0; z-index: 2; background: var(--surface-raised); box-shadow: 0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent); }
 .lv-plan-head .lv-ln { background: var(--surface-raised); }
@@ -707,8 +720,11 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .rd-slot-rows { inline-size: 12ch; font-variant-numeric: tabular-nums; }
 .rd-q-rows > b { display: inline-block; inline-size: 7ch; text-align: end; }
 .rd-q-rows > small { display: inline-block; padding-inline-start: 1ch; }
-.rd-gets { display: inline-flex; align-items: baseline; gap: 0.75ch; box-sizing: border-box; block-size: 18px; margin-inline-start: 1ch; padding-inline: 0.75ch; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-sunken); font-size: var(--text-xs); line-height: 16px; font-variant-numeric: tabular-nums; }
-.rd-gets > span { display: inline-flex; gap: 0.5ch; }
+.rd-gets { display: inline-flex; align-items: stretch; box-sizing: border-box; block-size: 18px; margin-inline-start: 1ch; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-sunken); font-size: var(--text-xs); line-height: 16px; font-variant-numeric: tabular-nums; }
+/* three cells of a mini table, each a label and its own number close together (a gap of 0.4 digit, the number right-aligned in a slot for 1,234,567), a 1 px rule
+   between the cells: a number reads with the label before it, not the one after it */
+.rd-gets > span { display: inline-flex; align-items: baseline; gap: 0.4ch; padding-inline: 0.5ch; }
+.rd-gets > span + span { border-inline-start: 1px solid var(--hairline); }
 .rd-gets i { font-style: normal; color: var(--ink-3); }
 .rd-gets b { inline-size: 9ch; text-align: end; font-weight: 400; color: var(--ink); }
 .rd-gets b.z { color: var(--ink-3); }

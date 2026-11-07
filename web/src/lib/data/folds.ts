@@ -24,6 +24,8 @@ export interface Fold {
   inline?: boolean
   /** framing lines (a `=====` rule, END OF STMT) folded under the line above them */
   frame?: boolean
+  /** the formatted view's wrap mode: a statement's SQL text lines (and the END OF STMT line under them) folded into the first, which is drawn as one tall row holding the whole statement */
+  sql?: boolean
   /** a fold of the Δ filter: the lines below a line that reaches the threshold, up to the next one (quiet; its handle shows a break under it) */
   filter?: boolean
 }

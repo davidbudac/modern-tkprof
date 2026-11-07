@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
 import { indexFolds, foldHiding, lineOfRow, rowOfLine, visibleCount } from './folds'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, frameFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, firstAbove, hotStep, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, frameFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, firstAbove, hotStep, sqlBandAt, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -76,12 +76,18 @@ describe('annotated lines, lines/at, at', () => {
   it('linesBlocks lists the blocks of a kind and tells when the list was cut', async () => {
     const f = stub(() => json({ blocks: [[3, 9], [20, 20], [0, 4], [8, 2]], bindLines: [[4, 7, 12], [], [1], []], truncated: true }))
     // a bind line outside its block is dropped; the bad blocks go with their lines
-    expect(await linesBlocks(client, 1, 'binds')).toEqual({ blocks: [[3, 9], [20, 20]], bindLines: [[4, 7], []], truncated: true })
+    expect(await linesBlocks(client, 1, 'binds')).toEqual({ blocks: [[3, 9], [20, 20]], bindLines: [[4, 7], []], texts: [], truncated: true })
     expect(f.mock.calls[0][0]).toBe('http://h/s/1/api/lines/blocks?file=1&what=binds')
     stub(() => json({}))
-    expect(await linesBlocks(client, 0, 'stat')).toEqual({ blocks: [], bindLines: [], truncated: false })
+    expect(await linesBlocks(client, 0, 'stat')).toEqual({ blocks: [], bindLines: [], texts: [], truncated: false })
     stub(() => new Response('bad', { status: 400 }))
     await expect(linesBlocks(client, 0, 'stat')).rejects.toThrow('400')
+  })
+  it('linesBlocks hands over the SQL texts of a frame answer, ascending and apart (a bad one is dropped)', async () => {
+    stub(() => json({ blocks: [[83, 83], [86, 86]], texts: [[85, 85, 3], [90, 94, 4], [92, 93, 5], [95, 94, 6], [100, 101], [120, 130, 7]], truncated: false }))
+    expect((await linesBlocks(client, 0, 'frame')).texts).toEqual([[85, 85, 3], [90, 94, 4], [120, 130, 7]])
+    stub(() => json({ blocks: [[83, 83], [86, 86]], truncated: false })) // an engine that does not send them
+    expect((await linesBlocks(client, 0, 'frame')).texts).toEqual([])
   })
   it('bindFolds folds the attribute lines under each Bind# line, up to the next one or the block end', () => {
     expect(bindFolds([[3, 12], [20, 21]], [[4, 8, 12], [21]]).map((f) => [f.from, f.to, !!f.quiet, !!f.auto])).toEqual([[4, 7, true, true], [8, 11, true, true]])
@@ -389,6 +395,44 @@ describe('frameFolds', () => {
     const t0 = Date.now()
     expect(mergeFolds([], frameFolds(many)).length).toBe(60000)
     expect(Date.now() - t0).toBeLessThan(2000)
+  })
+})
+
+describe('frameFolds with SQL bands (wrap mode)', () => {
+  // io_waits.trc: the cursor parsed at line 84 has one text line (85); a made-up second one has the text lines 201..212
+  const ranges: [number, number][] = [[83, 83], [86, 86], [199, 199], [213, 213]]
+  const bands = [{ from: 85, to: 85, text: 'select 1 from dual' }, { from: 201, to: 212, text: 'select\n  1\nfrom\n  dual' }]
+  it('the text lines after the first fold into it together with the END OF STMT line, and the END OF STMT fold of the same text is not a second fold', () => {
+    const got = frameFolds(ranges, undefined, bands)
+    expect(got.map((f) => [f.from, f.to, !!f.sql, !!f.quiet, !!f.auto])).toEqual([[82, 83, false, true, true], [85, 86, true, true, true], [198, 199, false, true, true], [201, 213, true, true, true]])
+    expect(got[3].summary).toBe('SQL text: 12 lines, wrapped')
+    // without bands (wrap off, or an engine without them) the framing folds are the same as before
+    expect(frameFolds(ranges).map((f) => [f.from, f.to, !!f.sql])).toEqual([[82, 83, false], [85, 86, false], [198, 199, false], [212, 213, false]])
+  })
+  it('the lines of a folded text map to its first line: the row of a hidden text line is the band row, the CURSOR row stays above it', () => {
+    const ix = indexFolds(frameFolds(ranges, undefined, bands))
+    expect(rowOfLine(205, ix)).toBe(rowOfLine(201, ix)) // a go-to into a folded text line lands on the band row
+    expect(rowOfLine(213, ix)).toBe(rowOfLine(201, ix)) // ... and so does the END OF STMT line
+    expect(foldHiding(205, ix)?.sql).toBe(true)
+    expect(foldHiding(201, ix)).toBeUndefined() // the first text line is the handle, it stays
+    expect(lineOfRow(rowOfLine(201, ix), ix)).toBe(201)
+    expect(rowOfLine(200, ix) + 1).toBe(rowOfLine(201, ix)) // the CURSOR row is right above
+    expect(visibleCount(300, ix)).toBe(300 - (1 + 1 + 1 + 12)) // the folds hide 1 (rule), 1 (END OF STMT), 1 (rule) and 12 (11 text lines and END OF STMT)
+  })
+  it('sqlBandAt finds the band that holds a text line (none for the CURSOR line above it, the END OF STMT line below it, or no bands)', () => {
+    expect(sqlBandAt(bands, 85)?.text).toBe('select 1 from dual')
+    expect(sqlBandAt(bands, 201)?.from).toBe(201)
+    expect(sqlBandAt(bands, 212)?.from).toBe(201)
+    expect(sqlBandAt(bands, 84)).toBeUndefined()
+    expect(sqlBandAt(bands, 86)).toBeUndefined()
+    expect(sqlBandAt(bands, 213)).toBeUndefined()
+    expect(sqlBandAt(bands, 1)).toBeUndefined()
+    expect(sqlBandAt(undefined, 85)).toBeUndefined()
+    expect(sqlBandAt([], 85)).toBeUndefined()
+  })
+  it('a text the engine did not list keeps its framing fold and its rows', () => {
+    const got = frameFolds(ranges, undefined, [bands[0]])
+    expect(got.map((f) => [f.from, f.to, !!f.sql])).toEqual([[82, 83, false], [85, 86, true], [198, 199, false], [212, 213, false]])
   })
 })
 

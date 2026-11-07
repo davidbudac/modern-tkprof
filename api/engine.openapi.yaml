@@ -1479,7 +1479,8 @@ paths:
         `=====` line before it (when it is one, and not line 1) and the
         END OF STMT line after its SQL text. Each is checked against the
         classification of the lines; at most 100000 ranges, `truncated` says
-        there were more.
+        there were more. It also answers `texts`: the SQL text of each statement
+        that has an END OF STMT line.
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - $ref: "#/components/parameters/File"
@@ -3187,6 +3188,22 @@ components:
             its `Bind#N` entries, ascending (empty for a block without one)
           items:
             type: array
+            items:
+              type: integer
+        texts:
+          type: array
+          description: |
+            `frame` only: the SQL text of each PARSING IN CURSOR block that ends
+            with an END OF STMT line and holds at least one text line, sorted by
+            line: `[first text line, last text line, statement id]` (the lines
+            between the PARSING IN CURSOR line and the END OF STMT line). The
+            statement's text in the document is these lines joined by newlines;
+            a statement whose text is not (its text holds an END OF STMT line of
+            its own) is left out. Absent from an engine that predates it.
+          items:
+            type: array
+            minItems: 3
+            maxItems: 3
             items:
               type: integer
         truncated:

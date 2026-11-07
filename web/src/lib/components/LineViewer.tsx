@@ -1,10 +1,10 @@
-import { memo, useCallback, useMemo, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type ReactNode } from 'react'
+import { Fragment, memo, useCallback, useMemo, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { LINE_KINDS, type CachedLine, type PageCache } from '../data/linecache'
 import { foldAt, foldHiding, headAtRow, indexFolds, lineOfRow, rowOfLine, tableOf, visibleCount, withHeads, type Fold, type FoldIndex } from '../data/folds'
-import { clampTop, revealTop, scrollFromTop, scrollGeometry, topFromScroll } from '../data/scrollmap'
+import { revealTop, scrollFromTop, scrollGeometry, topFromScroll } from '../data/scrollmap'
 import { lineTone, roleLabel } from './colors'
-import { highlightRuns, matchSpans } from '../data/lines'
+import { highlightRuns, matchSpans, sqlBandAt, type SqlBand } from '../data/lines'
 import { elaOf, splitZeros, type LineDecode } from '../data/linefields'
 import { mergeHits, refRuns, type RefRun } from '../data/linerefs'
 import { fmtDur, fmtInt } from '../data/format'
@@ -13,7 +13,8 @@ import { isMac } from '../shell/platform'
 import type { Inlay } from '../data/inlays'
 import { barFrac, magnitudeOf, type LineTimes } from '../data/linetime'
 import type { ReadableCell } from '../views/readableRows'
-import type { BindCellRow, BindChip, CallParts, Seg } from '../data/readable'
+import { sqlSegs, type BindCellRow, type BindChip, type CallParts, type Seg } from '../data/readable'
+import { prettyLines } from '../data/sqlformat'
 import { PlanCells, PlanHeads } from './PlanCells'
 import { planHidden } from '../data/planlayout'
 
@@ -26,7 +27,7 @@ const OVERSCAN = 20
 const MAX_TEXT = 10_000
 
 const toneClass = LINE_KINDS.map((k) => `lv-tone-${lineTone[k] ?? 'ink'}`)
-const K_CALL = LINE_KINDS.indexOf('call'), K_WAIT = LINE_KINDS.indexOf('wait'), K_STAT = LINE_KINDS.indexOf('stat'), K_BINDS = LINE_KINDS.indexOf('binds'), K_PARSING = LINE_KINDS.indexOf('parsing-in-cursor')
+const K_CALL = LINE_KINDS.indexOf('call'), K_WAIT = LINE_KINDS.indexOf('wait'), K_STAT = LINE_KINDS.indexOf('stat'), K_BINDS = LINE_KINDS.indexOf('binds'), K_PARSING = LINE_KINDS.indexOf('parsing-in-cursor'), K_SQL = LINE_KINDS.indexOf('sql-text')
 /** How long the pointer rests on a line's text before its card opens. */
 const CARD_DELAY = 350
 const NO_FOLDS: readonly Fold[] = []
@@ -120,6 +121,12 @@ interface Props {
   hlStmt?: number
   /** readable mode: the line ranges laid out as tables, a head row above each (the plan dumps); sorted, apart; keep the array stable */
   tables?: readonly (readonly [number, number])[]
+  /**
+   * readable mode: the SQL text of each statement, drawn as a band like a plan table (sorted, apart; keep the array stable). The folds that have
+   * `sql` set (the owner makes them in wrap mode: the text lines after the first, and the END OF STMT line, folded into the first) are drawn as one
+   * row as tall as the statement pretty-printed: the only rows of the view that are not 20 px
+   */
+  bands?: readonly SqlBand[]
   /** readable mode: Δ, as the text of the time column (over the bar) */
   deltaCol?: boolean
   /** readable mode: the file's traced time (µs): the Duration track of a fold is a log share of it, as the rows' are (`ReadableCell.trackW`) */
@@ -144,7 +151,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, deltaHits, foldable, onFold, readable, hlStmt, tables, deltaCol, spanUs, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, deltaHits, foldable, onFold, readable, hlStmt, tables, bands, deltaCol, spanUs, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -163,6 +170,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const geo = scrollGeometry(vtotal, h, ROW_H)
   const geoRef = useRef(geo)
   geoRef.current = geo
+  const vtotalRef = useRef(vtotal)
+  vtotalRef.current = vtotal
   const rowsRef = useRef(0)
   rowsRef.current = h / ROW_H
   const selRef = useRef(selected)
@@ -223,10 +232,44 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   }, [topRef])
   useLayoutEffect(() => { markTop() })
 
+  // Tall rows (the formatted view's wrap mode: an SQL band is one row as tall as its statement). The viewer's arithmetic is a grid of equal rows
+  // (`ROW_H`): the scroll bar, the keys, a go-to and the folds count rows, and a tall row is one row among them, so none of that changes. Only the
+  // pixel position does: while a rendered row is tall the layer is placed from the rows' measured boxes, and the wheel moves by pixels, so a
+  // band is read at the speed of the wheel and not flown past in one notch (`offsetOf`, `topFromOffset`, `settle`).
+  const tallRef = useRef(false) // a row of the layer is a tall one (set while rendering)
+  const wasTall = useRef(false)
+  const refine = useRef<{ row: number; how: 'center' | 'nearest' } | null>(null) // a reveal whose result is checked against the rows' real heights
+  /** The distance in px from the top of the layer to the top edge of the view when fractional row `top` is at it. */
+  const offsetOf = useCallback((top: number): number => {
+    const lay = layer.current, kids = lay?.children
+    const j = Math.floor(top) - baseRef.current
+    if (!tallRef.current || !lay || !kids || kids.length === 0 || j < 0) return (top - baseRef.current) * ROW_H
+    const at = kids[Math.min(j, kids.length - 1)].getBoundingClientRect(), lr = lay.getBoundingClientRect()
+    return j >= kids.length ? at.bottom - lr.top + (top - baseRef.current - kids.length) * ROW_H : at.top - lr.top + (top - Math.floor(top)) * at.height
+  }, [])
+  /** The fractional row at the top edge of the view when the layer is `px` down from it (the inverse of `offsetOf`). */
+  const topFromOffset = useCallback((px: number): number => {
+    const lay = layer.current, kids = lay?.children
+    if (!tallRef.current || !lay || !kids || kids.length === 0) return baseRef.current + px / ROW_H
+    const lt = lay.getBoundingClientRect().top
+    let lo = 0, hi = kids.length - 1 // the last row that starts at or above px
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (kids[mid].getBoundingClientRect().top - lt <= px) lo = mid; else hi = mid - 1 }
+    const r = kids[lo].getBoundingClientRect()
+    return baseRef.current + lo + (r.height > 0 ? Math.min(0.999, Math.max(0, (px - (r.top - lt)) / r.height)) : 0)
+  }, [])
+  /**
+   * The furthest the view can go when the layer reaches the end of the file and a tall row is among its rows: its last row ends at the bottom edge. The grid's
+   * own limit (`maxTop`) shows the last `h / ROW_H` rows, which cuts off the end of a band that is one of them. 0 when that does not apply.
+   */
+  const tailTop = useCallback((): number => {
+    const lay = layer.current, kids = lay?.children
+    if (!tallRef.current || !lay || !kids || kids.length === 0 || baseRef.current + kids.length < vtotalRef.current) return 0
+    return topFromOffset(Math.max(0, kids[kids.length - 1].getBoundingClientRect().bottom - lay.getBoundingClientRect().top - rowsRef.current * ROW_H))
+  }, [topFromOffset])
   const place = useCallback(() => {
-    if (layer.current) layer.current.style.transform = `translateY(${-(topRef.current - baseRef.current) * ROW_H}px)`
+    if (layer.current) layer.current.style.transform = `translateY(${-offsetOf(topRef.current)}px)`
     markTop()
-  }, [topRef, markTop])
+  }, [topRef, markTop, offsetOf])
 
   const hideCard = useCallback(() => {
     window.clearTimeout(cardTimer.current)
@@ -276,7 +319,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   /** `keepHead`: a move the view's size caused (the header is not recomputed for it). */
   const moveTo = useCallback((top: number, fromBar = false, keepHead = false) => {
     hideCard()
-    topRef.current = cache.total > 0 ? clampTop(geoRef.current, top) : Math.max(0, top)
+    topRef.current = cache.total > 0 ? Math.min(Math.max(geoRef.current.maxTop, tailTop()), Math.max(0, top)) : Math.max(0, top)
     const b = baseOf(topRef.current)
     if (b !== baseRef.current) setBase(b); else place()
     const el = sc.current
@@ -287,10 +330,55 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     ensurePages()
     if (!keepHead) refreshHead()
     notifyView()
-  }, [cache, topRef, place, ensurePages, hideCard, refreshHead, notifyView])
+  }, [cache, topRef, place, ensurePages, hideCard, refreshHead, notifyView, tailTop])
 
+  /** Moves the view by `dy` px (a tall row is among the rows) or, on a grid of equal rows, by the rows that is. */
+  const scrollByPx = useCallback((dy: number) => moveTo(topFromOffset(offsetOf(topRef.current) + dy)), [moveTo, topFromOffset, offsetOf, topRef])
+  /**
+   * A reveal worked out on the grid (`revealTop`) is checked against the rows' real heights when a tall row is among the ones between the top of the view and
+   * the target (the target itself too): a row below a tall one is further down than its index says, and a tall row is shown from its top. Nothing is done
+   * when those rows are all of one height, which keeps the view on its grid (a whole number of rows from the top).
+   */
+  const settle = useCallback(() => {
+    const r = refine.current
+    if (!r) return
+    // the rows of a jump are pending until their page arrives (a tall row is not one yet): wait for the top line and the target, the next commit asks again
+    if (!cache.line(lineOfRow(Math.floor(topRef.current), indexRef.current)) || !cache.line(lineOfRow(r.row, indexRef.current))) return
+    refine.current = null
+    const lay = layer.current, view = lay?.parentElement
+    if (!lay || !view || !tallRef.current) return
+    const kids = lay.children, j = r.row - baseRef.current, j0 = Math.max(0, Math.floor(topRef.current) - baseRef.current)
+    if (j < 0 || j >= kids.length) return
+    const v = view.getBoundingClientRect(), t = kids[j].getBoundingClientRect()
+    let tall = false
+    for (let i = Math.min(j0, j); i < kids.length && i <= Math.max(j0, j) && !tall; i++) tall = (kids[i] as HTMLElement).offsetHeight > ROW_H + 1 // (the rows from the top row to the target, the target's own height included)
+    if (!tall) return
+    let dy = 0
+    if (t.height >= v.height) { if (!(t.top <= v.top && t.bottom >= v.bottom)) dy = t.top - v.top } // taller than the view: from its top, or where it already fills the view
+    else if (r.how === 'center') dy = (t.top + t.bottom) / 2 - (v.top + v.bottom) / 2
+    else if (t.top < v.top) dy = t.top - v.top
+    else if (t.bottom > v.bottom) dy = t.bottom - v.bottom
+    if (Math.abs(dy) < 1) return
+    // the view's top edge stays on a line's top edge, so that no sliver of a row shows under the sticky lane row: the offset into the row at the top is rounded to
+    // whole lines of ROW_H (inside a tall row too: its lines are ROW_H each, so the rows below it stay on the grid). A centred row rounds to the nearest line, a row
+    // brought into view the way that shows it whole
+    const want = topFromOffset(offsetOf(topRef.current) + dy), r0 = Math.floor(want), at = lay.children[r0 - baseRef.current] as HTMLElement | undefined
+    const hr = at ? at.offsetHeight : ROW_H
+    const lines = (want - r0) * hr / ROW_H
+    const n = r.how === 'center' || t.height >= v.height ? Math.round(lines) : dy > 0 ? Math.ceil(lines - 1e-6) : Math.floor(lines + 1e-6)
+    moveTo(n * ROW_H >= hr - 0.5 ? r0 + 1 : r0 + (n * ROW_H) / hr)
+  }, [cache, topRef, moveTo, topFromOffset, offsetOf])
   // the committed base positions the layer before paint
-  useLayoutEffect(() => { baseRef.current = base; place() }, [base, place])
+  useLayoutEffect(() => { baseRef.current = base; place(); settle() }, [base, place, settle])
+  // the rows of a tall layer change height when a page arrives or the width changes: the layer is placed again after every commit (and once more when the last tall row has gone)
+  useLayoutEffect(() => {
+    if (tallRef.current || wasTall.current) {
+      if (tallRef.current && Math.abs(topRef.current - geoRef.current.maxTop) < 1e-6) topRef.current = Math.max(topRef.current, tailTop()) // at the end of the grid (the bar's end, End): to the real end
+      place()
+    }
+    wasTall.current = tallRef.current
+    if (refine.current) settle() // a reveal that waited for its rows
+  })
 
   // a page arrived: repaint (the owner may also have learnt the total)
   useEffect(() => cache.subscribe(() => { setTick((t) => t + 1); refreshHead() }), [cache, refreshHead])
@@ -310,8 +398,8 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       prevIndex.current = index
     }
     const p = pending.current
-    if (p && h > 0) { pending.current = null; moveTo(revealTop(topRef.current, rowOfLine(p.line, index), rowsRef.current, p.how)) } else moveTo(topRef.current, false, true)
-  }, [vtotal, h, index, moveTo, topRef])
+    if (p && h > 0) { pending.current = null; const row = rowOfLine(p.line, index); moveTo(revealTop(topRef.current, row, rowsRef.current, p.how)); refine.current = { row, how: p.how }; if (baseOf(topRef.current) === baseRef.current) settle() } else moveTo(topRef.current, false, true)
+  }, [vtotal, h, index, moveTo, settle, topRef])
 
   const [sbw, setSbw] = useState(0) // the scroll bar's width: a row over the rows leaves it out, so its columns line up
   const probe = useRef<HTMLSpanElement>(null)
@@ -352,16 +440,18 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
       if (e.ctrlKey || e.metaKey || e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
       e.preventDefault()
       const lines = e.deltaMode === 1 ? e.deltaY : e.deltaMode === 2 ? e.deltaY * Math.max(1, rowsRef.current - 1) : e.deltaY / ROW_H
-      moveTo(topRef.current + lines)
+      refine.current = null
+      if (tallRef.current) scrollByPx(lines * ROW_H); else moveTo(topRef.current + lines)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [moveTo, topRef, hideCard])
+  }, [moveTo, scrollByPx, topRef, hideCard])
 
   const onScroll = () => {
     hideCard()
     const el = sc.current!
     if (Math.abs(el.scrollTop - expected.current) < 1) return
+    refine.current = null
     moveTo(topFromScroll(geoRef.current, el.scrollTop), true)
   }
 
@@ -373,11 +463,13 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
         const row = rowOfLine(line, indexRef.current)
         if (rowsRef.current === 0) { pending.current = { line, how }; topRef.current = Math.max(0, row); return }
         moveTo(revealTop(topRef.current, row, rowsRef.current, how))
+        refine.current = { row, how }
+        if (baseOf(topRef.current) === baseRef.current) settle() // else the rows are drawn first (the layout effect of the new base)
       },
       focus: () => sc.current?.focus({ preventScroll: true }),
     }
     return () => { apiRef.current = null }
-  }, [apiRef, moveTo, topRef])
+  }, [apiRef, moveTo, settle, topRef])
 
   const lineOfEvent = (e: MouseEvent): { n: number; gutter: boolean } | null => {
     const t = e.target as HTMLElement
@@ -504,6 +596,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const count = Math.ceil(h / ROW_H) + 2 * OVERSCAN + STEP
   const end = total > 0 ? Math.min(base + count, vtotal) : base
   const rows = []
+  let tall = false // a row of this layer is the tall row of an SQL band (wrap mode)
   for (let i = base; i < end; i++) {
     const th = readable ? headAtRow(i, index) : undefined
     if (th) {
@@ -531,8 +624,14 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     const t = times && l && !readable ? times.at(n, l.text, l.kind) : undefined
     const clk = times?.clock && !readable ? t?.clock ?? '' : null, dlt = times?.delta && !readable ? t?.delta ?? '' : null
     const tb = rd?.plan ? tableOf(n, index) : undefined
-    rows.push(<Row key={n} n={n} rd={rd} hlStmt={hlStmt} dcol={!!deltaCol} span={spanUs ?? 0} phide={phide} tb={tb ? (n === tb.to ? 2 : 1) : 0} inline={!!f0?.inline} gapAbove={gapAbove} ruleTop={gapAbove && l?.kind === K_PARSING} opFold={hereFold} foldLabel={fold?.label} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={n === selected} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n) && !tbFirst && !binds && !f0?.inline} dh={deltaHits?.get(n)} filt={filt} />)
+    // an SQL text line of a band: a row of the band (wrap off), or the band's one row holding the whole statement (its fold `sql`: the lines below it are folded into it)
+    const bd = readable && l?.kind === K_SQL ? sqlBandAt(bands, n) : undefined
+    const bandText = bd && f0?.sql ? bd.text : undefined
+    if (bandText !== undefined) tall = true
+    const selIn = n === selected || (!!bd && !!f0?.sql && selected > n && selected <= f0.to) // the selected line is one of those folded into the band's row
+    rows.push(<Row key={n} n={n} rd={rd} hlStmt={hlStmt} dcol={!!deltaCol} span={spanUs ?? 0} phide={phide} tb={tb ? (n === tb.to ? 2 : 1) : 0} band={bd ? BAND_IN | (n === bd.from ? BAND_FIRST : 0) | (f0?.sql || n === bd.to ? BAND_LAST : 0) : 0} bandText={bandText} inline={!!f0?.inline} gapAbove={gapAbove} ruleTop={gapAbove && l?.kind === K_PARSING} opFold={hereFold} foldLabel={fold?.label} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={marks.get(n) ?? 0} sel={selIn} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n) && !tbFirst && !binds && !f0?.inline} dh={deltaHits?.get(n)} filt={filt} />)
   }
+  tallRef.current = tall
   const digits = String(Math.max(total, 1000)).length
   const hover = card || refTitle || onHover
   return (
@@ -573,7 +672,10 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
 /** A row's place in the time window (flags): inside it, its first line, its last line. */
 const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 
-const Row = memo(function Row({ n, rd, hlStmt, dcol, span, phide, tb, inline, gapAbove, ruleTop, opFold, foldLabel, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable, dh, filt }: {
+/** A row's place in an SQL band (flags): in one, its first row, its last row. */
+const BAND_IN = 1, BAND_FIRST = 2, BAND_LAST = 4
+
+const Row = memo(function Row({ n, rd, hlStmt, dcol, span, phide, tb, band, bandText, inline, gapAbove, ruleTop, opFold, foldLabel, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable, dh, filt }: {
   n: number; text: string | undefined; kind: number
   /** the readable row of the line (readable mode), undefined for the trace as written */
   rd?: ReadableCell
@@ -587,6 +689,8 @@ const Row = memo(function Row({ n, rd, hlStmt, dcol, span, phide, tb, inline, ga
   phide?: number
   /** readable mode: a row of a table (a plan dump under its head row): 1, its last row 2; 0 for none */
   tb?: number
+  /** readable mode: a row of an SQL band (`BAND_*` flags), 0 for none; `bandText`: the band's one row of the wrap mode holds this whole statement (the text of the statement as the document has it) */
+  band?: number; bandText?: string
   /** readable mode: a BINDS header whose binds are drawn as chips on it (its lines are folded under it) */
   inline?: boolean
   /** readable mode: quiet folds hide the lines above this row (a gap mark in its number cell); `ruleTop`: it is a CURSOR row and the hidden line is its `=====` rule (a hairline) */
@@ -640,7 +744,7 @@ const Row = memo(function Row({ n, rd, hlStmt, dcol, span, phide, tb, inline, ga
         : foldable && <button type="button" className="lv-fold" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}
     </span>
   )
-  if (rd) return <ReadableRow n={n} rd={rd} span={span} hlane={hlStmt !== undefined && !!rd.lane && rd.lane.stmt >= 0 && rd.lane.stmt === hlStmt} dcol={!!dcol} phide={phide ?? 0} tb={tb ?? 0} inline={!!inline} gapAbove={!!gapAbove} ruleTop={!!ruleTop} opFold={!!opFold} cls={cls} sel={sel} note={note} gap={gap} handle={handle} fold={fold} foldLabel={foldLabel} foldUs={foldUs} hit={!!hl && text !== undefined && matchSpans(text, hl.q, hl.regex, hl.caseSensitive).length > 0} />
+  if (rd) return <ReadableRow n={n} rd={rd} span={span} hlane={hlStmt !== undefined && !!rd.lane && rd.lane.stmt >= 0 && rd.lane.stmt === hlStmt} dcol={!!dcol} phide={phide ?? 0} tb={tb ?? 0} band={band ?? 0} bandText={bandText} inline={!!inline} gapAbove={!!gapAbove} ruleTop={!!ruleTop} opFold={!!opFold} cls={cls} sel={sel} note={note} gap={gap} handle={handle} fold={fold} foldLabel={foldLabel} foldUs={foldUs} hit={!!hl && text !== undefined && matchSpans(text, hl.q, hl.regex, hl.caseSensitive).length > 0} />
   return (
     <div className={cls} data-ln={n} role="listitem" aria-selected={sel || undefined}>
       <span className="lv-ln" title={note}>
@@ -733,8 +837,8 @@ const DeltaIcon = ({ filled }: { filled: boolean }) => (
  * lane, the fold handle, the duration (the number and its bar), what the line is, its detail and the clock. Every column but the detail has a width of its own, so they line up down the view; the detail is
  * cut where it does not fit. A plan line is a row of its plan's table: its cells in the detail, the time columns empty.
  */
-function ReadableRow({ n, rd, span, hlane, dcol, phide, tb, inline, gapAbove, ruleTop, opFold, cls, sel, note, gap, handle, fold, foldLabel, foldUs, hit }: {
-  n: number; rd: ReadableCell; span: number; hlane: boolean; dcol: boolean; phide: number; tb: number; inline: boolean; gapAbove: boolean; ruleTop: boolean; opFold: boolean; cls: string; sel: boolean; note?: string; gap: number; handle: ReactNode
+function ReadableRow({ n, rd, span, hlane, dcol, phide, tb, band, bandText, inline, gapAbove, ruleTop, opFold, cls, sel, note, gap, handle, fold, foldLabel, foldUs, hit }: {
+  n: number; rd: ReadableCell; span: number; hlane: boolean; dcol: boolean; phide: number; tb: number; band: number; bandText?: string; inline: boolean; gapAbove: boolean; ruleTop: boolean; opFold: boolean; cls: string; sel: boolean; note?: string; gap: number; handle: ReactNode
   fold: string | null; foldLabel?: string; foldUs?: number; hit: boolean
 }) {
   const dur = fold !== null ? foldUs : rd.dur
@@ -748,9 +852,9 @@ function ReadableRow({ n, rd, span, hlane, dcol, phide, tb, inline, gapAbove, ru
   const durTitle = fold !== null || dur === undefined ? undefined : `${fmtInt(dur)} µs${rd.bar?.cpu ? ` · CPU ${fmtDur(rd.bar.cpu)}` : ''}${rd.hot ? ' · a hot spot: 1 % of the traced time or more' : ''}`
   const short = !!rd.clockShort && !rd.clockFull // the clock shows its changing digits (the first row in view and the selected one: the whole stamp)
   // a row of a table: a plan's STAT line (under its head row), a bind of a BINDS block, the head of a BINDS block (its binds not drawn as chips)
-  const tbl = fold !== null ? null : plan && tb ? 'plan' : rd.bindRow ? 'bindrow' : rd.bindHead && !inline ? 'bindhead' : null
+  const tbl = fold !== null ? null : plan && tb ? 'plan' : rd.bindRow ? 'bindrow' : rd.bindHead && !inline ? 'bindhead' : band ? 'sql' : null
   return (
-    <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hlane ? ' lv-hlane' : '') + (rd.clock ? (short ? ' lv-ck2' : ' lv-ck1') : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '') + (gapAbove ? ' lv-gapa' : '') + (ruleTop ? ' lv-rulet' : '') + (rd.execFirst && fold === null ? ' lv-exec1' : '')
+    <div className={cls + ' lv-rd' + (rd.hot ? ' lv-hot' : '') + (hlane ? ' lv-hlane' : '') + (rd.clock ? (short ? ' lv-ck2' : ' lv-ck1') : '') + (hit ? ' lv-hit' : '') + (rd.pinned ? ' lv-pinned' : '') + (gapAbove ? ' lv-gapa' : '') + (ruleTop ? ' lv-rulet' : '') + (rd.execFirst && fold === null ? ' lv-exec1' : '') + (bandText !== undefined ? ' lv-sqlrow' : '')
       + (fold === null && rd.br ? ` lv-br-${rd.br}` : '') + (fold === null && rd.brIndent ? ' lv-br-ind' : '')} data-ln={n} role="listitem" aria-selected={sel || undefined} style={lane ? laneVars(lane) : undefined}>
       {/* first: the time column, Δ as text (`dcol` off: no column); the line's own time is the Duration cell's */}
       {dcol && (
@@ -773,7 +877,7 @@ function ReadableRow({ n, rd, span, hlane, dcol, phide, tb, inline, gapAbove, ru
       <DurCell us={dur} track={track} title={durTitle} />
       {tbl ? (
         // the rows of a plan's or BINDS table: one band from the Operation column to the right edge (the clock included); PLAN / BINDS is said once, in its head row
-        <TableBand head={tbl === 'bindhead'} last={tb === 2 || (tbl === 'bindrow' && !!rd.bindRow?.last)}
+        <TableBand head={tbl === 'bindhead'} first={tbl === 'sql' && !!(band & BAND_FIRST)} sql={tbl === 'sql'} last={tb === 2 || (tbl === 'bindrow' && !!rd.bindRow?.last) || (tbl === 'sql' && !!(band & BAND_LAST))}
           handle={<>{opFold && <button type="button" className="lv-fold lv-fold-op" data-act="fold" aria-expanded={true} aria-label={`Fold the block at line ${n}`} title="fold this block (z)">▾</button>}{tbl === 'bindhead' ? rd.label : ''}</>}>
           {tbl === 'plan' && plan && <PlanCells r={plan} hide={phide} />}
           {tbl === 'bindrow' && rd.bindRow && <>
@@ -785,6 +889,7 @@ function ReadableRow({ n, rd, span, hlane, dcol, phide, tb, inline, gapAbove, ru
             <span className="pc pc-tag">{rd.execNo !== undefined && <span className="rd-exec" title={`execution ${rd.execNo} of this cursor: this is its first row`}>exec {rd.execNo}</span>}</span>
             <BindHeads />
           </>}
+          {tbl === 'sql' && <SqlBandText segs={rd.parts} text={bandText} />}
         </TableBand>
       ) : (
         <>
@@ -810,14 +915,28 @@ function ReadableRow({ n, rd, span, hlane, dcol, phide, tb, inline, gapAbove, ru
 }
 
 /**
- * The band of a plan's or BINDS block's table: from the Operation column to the right edge on a sunken ground, a 1 px frame (`head`: its first row, `last`: its last), the
- * handle cell (▾ PLAN, ▾ BINDS) first, then the cells. The handle cell is as wide as Operation less the band's inset, so the cells start where Detail does.
+ * The band of a plan's or BINDS block's table, or of a statement's SQL text (`sql`): from the Operation column to the right edge on a sunken ground, a 1 px frame (`head`
+ * or `first`: its first row, `last`: its last), the handle cell (▾ PLAN, ▾ BINDS; empty for SQL) first, then the cells. The handle cell is as wide as Operation less the band's inset, so the cells start where Detail does.
  */
-function TableBand({ head, last, handle, children }: { head?: boolean; last?: boolean; handle?: ReactNode; children: ReactNode }) {
+function TableBand({ head, first, sql, last, handle, children }: { head?: boolean; first?: boolean; sql?: boolean; last?: boolean; handle?: ReactNode; children: ReactNode }) {
   return (
-    <span className={'lv-tbl' + (head ? ' lv-tbl-first lv-tbl-head' : '') + (last ? ' lv-tbl-last' : '')}>
+    <span className={'lv-tbl' + (head ? ' lv-tbl-first lv-tbl-head' : first ? ' lv-tbl-first' : '') + (last ? ' lv-tbl-last' : '') + (sql ? ' lv-tbl-sql' : '')}>
       <span className="tc-handle">{handle}</span>
       {children}
+    </span>
+  )
+}
+
+/**
+ * The text cell of an SQL band row: the trace line's own text with its highlighting (`segs`), cut at the right edge; or, for the band's one row of the wrap mode (`text`:
+ * the statement as the document has it), the whole statement laid out by the formatter, a line longer than the band wrapping onto the next. The lines of the statement are
+ * highlighted one by one, as the trace's lines are (a comment or literal that runs over a line break is not known).
+ */
+function SqlBandText({ segs, text }: { segs: Seg[]; text?: string }) {
+  const lines = useMemo(() => (text === undefined ? undefined : prettyLines(text).map(sqlSegs)), [text])
+  return (
+    <span className="lv-tx lv-sqlt">
+      {lines ? lines.map((l, i) => <Fragment key={i}>{i > 0 && '\n'}{l.map(segNode)}</Fragment>) : segs.map(segNode)}
     </span>
   )
 }

@@ -166,6 +166,7 @@ func TestLinesNextGapHandChecked(t *testing.T) {
 type blocksAnswer struct {
 	Blocks    [][2]int
 	BindLines [][]int
+	Texts     [][3]int
 	Truncated bool
 }
 
@@ -374,5 +375,87 @@ func TestLinesBlocksFrame(t *testing.T) {
 	}
 	if !has(83) || !has(86) {
 		t.Fatalf("frame blocks lack 83 and 86: %v", got.Blocks[:6])
+	}
+}
+
+// TestLinesBlocksFrameTexts: `frame` also lists the SQL text of each statement
+// that ends with an END OF STMT: the lines between its PARSING IN CURSOR line
+// and that END OF STMT line (the first and last, and the statement id), whose
+// text is the statement's text in the model line for line. A statement whose text
+// holds an END OF STMT line of its own (nasty_sql.trc) is not listed.
+func TestLinesBlocksFrameTexts(t *testing.T) {
+	check := func(t *testing.T, e *lineEnv, file int) int {
+		got := e.blocks(t, file, "frame")
+		kindOf := func(line int) trace.Kind {
+			k, _, err := kindAt(e.lis[file], line)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return k
+		}
+		ends := map[int]bool{}
+		for _, b := range got.Blocks {
+			ends[b[0]] = kindOf(b[0]) == trace.KindEndOfStmt
+		}
+		prev := 0
+		for _, x := range got.Texts {
+			a, b, st := x[0], x[1], x[2]
+			if a <= prev || b < a {
+				t.Fatalf("text %v after line %d", x, prev)
+			}
+			prev = b
+			if kindOf(a-1) != trace.KindParsingInCursor || !ends[b+1] {
+				t.Fatalf("text %v: line %d is %v, line %d an END OF STMT range: %v", x, a-1, kindOf(a-1), b+1, ends[b+1])
+			}
+			for n := a; n <= b; n++ {
+				if kindOf(n) != trace.KindSQLText {
+					t.Fatalf("text %v: line %d is %v", x, n, kindOf(n))
+				}
+			}
+			if st < 0 || st >= len(e.full.Statements) {
+				t.Fatalf("text %v: statement %d of %d", x, st, len(e.full.Statements))
+			}
+			raw, err := e.lis[file].Read(a, b-a+1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want, have := strings.TrimSuffix(string(raw), "\n"), e.full.Statements[st].Text; want != have {
+				t.Fatalf("text %v: lines %q, statement %q", x, want, have)
+			}
+		}
+		return len(got.Texts)
+	}
+	e := newLineEnv(t, []string{traces + "io_waits.trc"})
+	if n := check(t, e, 0); n == 0 {
+		t.Fatal("io_waits.trc: no texts")
+	}
+	got := e.blocks(t, 0, "frame")
+	// line 84 is the PARSING IN CURSOR line, 85 its one text line, 86 the END OF STMT
+	found := false
+	for _, x := range got.Texts {
+		found = found || (x[0] == 85 && x[1] == 85)
+	}
+	if !found {
+		t.Fatalf("no text 85..85 in %v", got.Texts)
+	}
+	// the statement of nasty_sql.trc whose text holds a PARSING IN CURSOR and an END OF STMT line of its own: its lines 75..81 are not its text
+	ne := newLineEnv(t, []string{traces + "nasty_sql.trc"})
+	for _, x := range ne.blocks(t, 0, "frame").Texts {
+		if x[0] == 75 {
+			t.Fatalf("nasty_sql.trc: the text %v of the statement at line 74 is listed", x)
+		}
+	}
+	for name, paths := range fixtureSets(t) {
+		fe := newLineEnv(t, paths)
+		for file := range fe.lis {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Fatalf("%s file %d: %v", name, file, r)
+					}
+				}()
+				check(t, fe, file)
+			}()
+		}
 	}
 }

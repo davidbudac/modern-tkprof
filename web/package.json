@@ -18,7 +18,8 @@
     "@tanstack/react-virtual": "^3.13.12",
     "echarts": "^5.6.0",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "sql-formatter": "^15.9.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -164,8 +164,8 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - `z` on an opened framing handle does nothing (`Z` is for user folds). The raw view keeps its row tint, the
   cyan number cell of a selected row and the `exec #0` on a CLOSE in `.lv-head`.
 - The toolbar may wrap below 51 rem (~816 px).
-- A prebuilt desktop sidecar (`desktop/src-tauri/binaries/`, gitignored) may predate `what=frame`: run
-  `pnpm build:engine` before checking the framing folds in desktop dev mode.
+- A prebuilt desktop sidecar (`desktop/src-tauri/binaries/`, gitignored) may predate `what=frame` or its `texts`: run
+  `pnpm build:engine` before checking the framing folds or the SQL bands in desktop dev mode.
 
 ### Row flow, Dialogue, Blocks (DESIGN § Three new views, `docs/PLAN-VIEWS.md`)
 

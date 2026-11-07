@@ -423,8 +423,9 @@ decision of round 1 changed, the text says what it is now and what it was.
   Trace view (`v`) parses every line into columns: Δ · time, line number (with
   a pin), Statement (the cursor's lane, a 14 px band), Duration (with its bar),
   Operation (what the line is: PARSE, WAIT, PLAN, Bind#3, …), Detail and the
-  wall clock on the right. It stays one row per trace line (a plan's head row
-  and the sticky lane row aside, below) inside the same virtualised viewer, so
+  wall clock on the right. It stays one row per trace line (a plan's head row,
+  the sticky lane row and, with Wrap long lines, an SQL band, aside, below)
+  inside the same virtualised viewer, so
   line numbers, search, bookmarks, folds, the side panel and every key keep
   working; the detail is cut where it does not fit (the hover card and the
   Line tab have the rest). The columns are resizable: dragging a header's edge
@@ -501,9 +502,12 @@ decision of round 1 changed, the text says what it is now and what it was.
 - **Time.** The bar lives with Duration: the number, then a 56 px track on a
   **log scale of the share of the file's traced time** (round 3: 0.01 % and
   below empty, 100 % full, four decades of 14 px). **1 % is the middle of the
-  track and is marked on every track** (a 1 px tick in `--s-critical` at 75 %,
-  drawn over the fill; fainter ink ticks at 0.1 % and 10 %): a bar past the tick
-  is a hot spot, so the hot rule (below) is on the screen, on every file. The
+  track and is marked on every track** (a 1 px tick in `--s-critical` at 38 %, 55 %
+  in the dark theme, drawn over the fill; fainter ink ticks at 0.1 % and 10 %): a bar past the tick
+  is a hot spot, so the hot rule (below) is on the screen, on every file. (The
+  tick was at 75 %: down a run of rows the tracks stack into one red dashed line
+  the length of the column in the light theme. It explains the rule, it does
+  not point at a row, so it is quiet and still findable.) The
   Duration header says `1 %` over the tick (11 px `--ink-3`, centred on it) and
   its tooltip gives the traced time and the threshold (`bar: share of the traced
   time (78.0 s), log scale from 0.01 % to 100 %; red from 1 % (780 ms): a hot
@@ -767,9 +771,15 @@ decision of round 1 changed, the text says what it is now and what it was.
     on a call row that has any group, so the groups after them start at one
     x down consecutive calls (a PARSE, its EXEC, the FETCHes). The gets are
     tkprof's words, `query` (cr=), `current` (cu=), `disk` (p=), in one quiet
-    box (`--surface-sunken`, 1 px `--hairline`, 3 px radius, 11 px type), each
-    number in a fixed 9-digit slot (1,234,567 does not move it; more pushes), a
-    0 in `--ink-3`; shown when any is above 0; the tooltip keeps `cr=498 cu=0
+    box (`--surface-sunken`, 1 px `--hairline`, 3 px radius, 11 px type) that
+    reads as a three-cell mini table, `query 498 │ current 0 │ disk 496`: each
+    cell is its label, a gap of 0.4 digit and its number right-aligned in a
+    fixed slot of 9 digits (1,234,567 does not move it; more pushes), the cells
+    apart by a 1 px `--hairline` rule and 0.5 digit of padding either side (the
+    first version had the labels and numbers evenly spread in one strip, so a
+    number sat against the next label and `query 498 current 0` read as
+    "498 current"; the rule and the padding make a number belong to its label).
+    A 0 is in `--ink-3`; shown when any is above 0; the tooltip keeps `cr=498 cu=0
     p=496`. Then `cpu 5.17 ms` (only where it is not all of the duration) and
     the notes (`hard parse`, `cached` / `closed`, the waiting share) as before.
     The widths are what lets the hot FETCH of `io_waits.trc` (every group and the
@@ -782,6 +792,75 @@ decision of round 1 changed, the text says what it is now and what it was.
     and the user asked for gets that read as a group and line up down a run of
     FETCH rows. `gets` (cr + cu) is gone: it hid whether the reads were current
     mode, and tkprof prints the three.)
+
+- **Round 3, batch 2 (decided 2026-11-07): the SQL band.** The CURSOR row stays
+  the head of a statement (`c7ry5gr75qv4b  SELECT · user 0 · 124 chars`); the SQL
+  text lines under it are a band of the same family as a plan table: from the
+  Operation column to the right edge (through Clock), inset 1 digit each side, on
+  `--surface-sunken` in a 1 px `--hairline` frame (the first text line opens it,
+  the last closes it), the Operation cell empty, the text where Detail starts, in
+  the row font and size, with the keyword, literal, bind and comment colours as
+  before (`.lv-tbl` / `TableBand` with `sql`; the plan's `.lv-tbl` rules are its
+  rules). The top and bottom rules of the SQL band are inset shadows, not borders,
+  so the band is exactly as tall as its lines and its first line is not pushed
+  down. A band is known globally, like every fold: `api/lines/blocks?what=frame`
+  also answers `texts`, `[first text line, last text line, statement id]` for each
+  statement that ends with an END OF STMT line (`frameBlocks` in `lines_blocks.go`;
+  a client guess from the frame ranges alone cannot tell a rule from an END OF
+  STMT, and `nasty_sql.trc` has an END OF STMT inside a text: a statement whose
+  model text is not those lines line for line is left out, so it keeps its rows),
+  and the statement's whole text is `doc.statements[id].text`, so nothing is
+  loaded to draw a band. An engine without `texts` leaves the lines as rows.
+  - **Wrap off:** one row per trace line of the text, cut at the right edge
+    (ellipsis), as before but in the band.
+  - **Wrap on** (the View menu's "Wrap long lines", `prefs.wrap`, which the
+    formatted view ignored until now; the raw view's wrap is unchanged): the text
+    lines after the first fold quietly into the first, together with the END OF
+    STMT line (`Fold.sql`, made by `frameFolds` when it is given the bands; a
+    one-line text folds the END OF STMT line under it all the same), and that one
+    row grows to the statement pretty-printed in full, a line longer than the band
+    wrapping onto the next (`pre-wrap`, `overflow-wrap: anywhere`). Only the SQL
+    band grows: every other formatted row stays one 20 px line. A go-to, search
+    hit or `Shift` span into a folded text line lands on the band's row (the
+    selection highlights the whole band) and does not open the fold; `z` on the
+    band shows the trace's own lines as rows (each a row of the band, as with wrap
+    off) and `z` on one of them folds it again; copy (`y`) reads the lines by
+    number from the pages, so it copies the trace's own text, the folded lines
+    included.
+  - **Pretty-printing** is `sql-formatter` (`data/sqlformat.ts`: `formatDialect`
+    with the `plsql` dialect only, so a bundler keeps just that dialect's tables;
+    keyword case preserved, 2-space indent, no blank line between the statements
+    of a PL/SQL block, which the default put between every `;`). It is a
+    dependency of the shared lib (`web/package.json`; the desktop resolves it
+    from the lib's own `node_modules`, as it does echarts). Why a library: a
+    hand-made pretty printer is the kind of code that is wrong on one statement in
+    fifty, and the formatter's plsql dialect reads Oracle's placeholders, hints
+    and PL/SQL. On a throw (an unterminated literal) or for a text over 20,000
+    characters the text is the trace's own, memoised per text in a 64-entry LRU.
+    The CLI UI bundle grew by 68 kB (1,773.79 to 1,841.84 kB, 18 kB gzipped; see
+    the plan's Log). Rejected: formatting the text of the trace's lines one by one
+    (a statement is one thing); a scroll box inside a fixed-height row (the band
+    would hide the statement it is there to show).
+  - **A tall row among 20 px rows.** The viewer's arithmetic is a grid of equal
+    rows (`ROW_H`): the scroll bar, the keys, a go-to and the folds count rows, and
+    a band is one row among them, so none of that changed and the scroll bar does
+    not jump with the width. Only the pixel position knows heights, and only while
+    a tall row is among the rendered ones: the layer is placed from the rows'
+    measured boxes (`offsetOf`, placed again after every commit, since a page
+    arriving or a resize changes a band), the wheel moves by pixels (a band is read
+    at the speed of the wheel, not flown past in one notch), a reveal worked out
+    on the grid is checked against the real heights when a tall row lies between
+    the top of the view and the target (`settle`: a row below a tall one is
+    further down than its index says; a tall row is shown from its top; the top
+    edge stays on a line's edge, so no sliver of a row shows under the sticky lane
+    row), and at the end of the file the last band can be scrolled to its end
+    (`tailTop`). A view without a tall row takes none of these paths: it is the
+    grid, as before. The sticky lane row and the plan's head overlay are laid over
+    the top 20 px whatever is under them. (The raw view's wrap mode has no such
+    handling: its rows grow and the grid arithmetic is simply wrong below the
+    first tall one; it was not a precedent to copy.) Rejected: a band as that many 20 px slots in the fold index (the
+    number of lines depends on the width and on the formatter, for every statement
+    of the file, before any of them is drawn).
 
 - **Rejected in round 2** (so they are not tried again): a sticky three-line
   lane label box (sql_id, SQL start, time here) in the Statement column: it

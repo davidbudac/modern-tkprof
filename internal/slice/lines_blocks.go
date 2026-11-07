@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 
 	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
@@ -27,7 +28,10 @@ const (
 // header line of the file to the last line of its block (see bindBlockEnd),
 // and in "bindLines" the `Bind#N` lines of each block (the formatted view
 // shows a bind as one row, its attribute lines folded under it). frame: the
-// lines the formatted view folds away (see frameBlocks), as the ranges to hide.
+// lines the formatted view folds away (see frameBlocks), as the ranges to hide,
+// and in "texts" the SQL text of each statement that ends with an END OF STMT:
+// `[first text line, last text line, statement id]` (the SQL band of the formatted
+// view; its wrap mode folds the text lines into one row).
 func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 	fi, li, f, err := s.fileParam(q)
 	if err != nil {
@@ -36,6 +40,7 @@ func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 	out := struct {
 		Blocks    [][2]int `json:"blocks"`
 		BindLines [][]int  `json:"bindLines,omitempty"`
+		Texts     [][3]int `json:"texts,omitempty"`
 		Truncated bool     `json:"truncated"`
 	}{Blocks: [][2]int{}}
 	switch q.Get("what") {
@@ -77,11 +82,11 @@ func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 			}
 		}
 	case "frame":
-		fr, trunc, err := s.frameBlocks(ctx, li, f)
+		fr, texts, trunc, err := s.frameBlocks(ctx, li, f)
 		if err != nil {
 			return nil, err
 		}
-		out.Blocks, out.Truncated = fr, trunc
+		out.Blocks, out.Texts, out.Truncated = fr, texts, trunc
 	default:
 		return nil, bad("what: must be binds, stat or frame")
 	}
@@ -94,17 +99,22 @@ func (s *Server) linesBlocks(ctx context.Context, q url.Values) (any, error) {
 // hairline above the CURSOR row, the end of the statement says nothing the SQL
 // text does not). Each is verified by classifying the lines, so a statement
 // whose text holds such a line, or a parse that is not preceded by a rule, only
-// loses the fold that would have been wrong.
-func (s *Server) frameBlocks(ctx context.Context, li *trace.LineIndex, f *fileInfo) (blocks [][2]int, truncated bool, err error) {
+// loses the fold that would have been wrong. texts are the SQL text lines
+// between the PARSING IN CURSOR line and the END OF STMT line of the statements
+// that have one (a text of no line is left out, and so is one that is not the
+// model's text of its statement line for line: a text that holds an END OF STMT
+// line, nasty_sql.trc), with the statement's id, so the client finds the whole
+// text in the document without loading these lines.
+func (s *Server) frameBlocks(ctx context.Context, li *trace.LineIndex, f *fileInfo) (blocks [][2]int, texts [][3]int, truncated bool, err error) {
 	blocks = [][2]int{}
 	for i, c := range f.cursors {
 		if i&255 == 0 {
 			if err := ctx.Err(); err != nil {
-				return nil, false, err
+				return nil, nil, false, err
 			}
 		}
 		if len(blocks)+2 > maxFrame {
-			return blocks, true, nil
+			return blocks, texts, true, nil
 		}
 		p := c.line
 		if p < 1 {
@@ -123,7 +133,7 @@ func (s *Server) frameBlocks(ctx context.Context, li *trace.LineIndex, f *fileIn
 			n := min(chunk, li.Lines()-pos+1)
 			raw, err := li.Read(pos, n)
 			if err != nil {
-				return nil, false, err
+				return nil, nil, false, err
 			}
 			lines := splitLines(raw)
 			if len(lines) == 0 {
@@ -147,6 +157,11 @@ func (s *Server) frameBlocks(ctx context.Context, li *trace.LineIndex, f *fileIn
 						blocks = append(blocks, rule)
 					}
 					blocks = append(blocks, [2]int{line, line})
+					// the model's text must be these lines (the parser reads the text by its len=, the
+					// classifier stops at the first END OF STMT line, so a text that holds one differs)
+					if st := int(s.m.Cursors[c.id].Statement); line-1 > p && st >= 0 && st < len(s.m.Statements) && strings.Count(s.m.Statements[st].Text, "\n") == line-p-2 {
+						texts = append(texts, [3]int{p + 1, line - 1, st})
+					}
 					found = true
 					break scan
 				case line > p && k != trace.KindSQLText:
@@ -160,7 +175,7 @@ func (s *Server) frameBlocks(ctx context.Context, li *trace.LineIndex, f *fileIn
 			blocks = append(blocks, rule)
 		}
 	}
-	return blocks, false, nil
+	return blocks, texts, false, nil
 }
 
 // bindHeaders are the sorted, distinct trace lines of the BINDS blocks of the

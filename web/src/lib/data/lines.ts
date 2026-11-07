@@ -175,23 +175,41 @@ export async function fetchRepeats(client: ApiClient, file: number, small: numbe
   return { folds: r.folds ?? [], truncated: !!r.truncated }
 }
 
-/** The blocks `linesBlocks` lists: BINDS blocks (the `BINDS #` line and its `bind` lines) or STAT dumps. */
+/** The blocks `linesBlocks` lists: BINDS blocks (the `BINDS #` line and its `bind` lines), STAT dumps or the framing lines of the statements. */
 export type BlockWhat = 'binds' | 'stat' | 'frame'
+
+/**
+ * The SQL text of one statement as the formatted view's SQL band: its text lines (`from..to`, 1-based, inclusive: between the PARSING IN
+ * CURSOR line and the END OF STMT line, which follows `to`) and the statement's text in the document (the lines joined by newlines).
+ */
+export interface SqlBand { from: number; to: number; text: string }
+
+/** The band whose text lines hold line `n`, by bisection (`bands` are sorted and apart); undefined for a line that is in none. */
+export function sqlBandAt(bands: readonly SqlBand[] | undefined, n: number): SqlBand | undefined {
+  if (!bands) return undefined
+  let lo = 0, hi = bands.length // the first band that starts after n
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (bands[mid].from <= n) lo = mid + 1; else hi = mid }
+  const b = lo > 0 ? bands[lo - 1] : undefined
+  return b && n <= b.to ? b : undefined
+}
 
 /**
  * Every block of a kind in `file` (`api/lines/blocks`): `[from, to]` pairs (1-based, inclusive, sorted); `truncated` when the engine
  * stopped at its limit (20,000). For `binds`, `bindLines[i]` are the `Bind#N` lines of block i (empty from an engine that does not
- * send them).
+ * send them). For `frame`, `texts` are `[first text line, last text line, statement id]` of each statement text that ends with an END OF
+ * STMT line (empty from an engine that does not send them: the SQL text lines then stay rows in wrap mode).
  */
-export async function linesBlocks(client: ApiClient, file: number, what: BlockWhat, signal?: AbortSignal): Promise<{ blocks: [number, number][]; bindLines: number[][]; truncated: boolean }> {
+export async function linesBlocks(client: ApiClient, file: number, what: BlockWhat, signal?: AbortSignal): Promise<{ blocks: [number, number][]; bindLines: number[][]; texts: [number, number, number][]; truncated: boolean }> {
   const res = await client.fetch(`/api/lines/blocks?file=${file}&what=${what}`, { signal })
   if (!res.ok) throw await failure(res)
-  const r = (await res.json()) as { blocks?: [number, number][]; bindLines?: number[][]; truncated?: boolean }
+  const r = (await res.json()) as { blocks?: [number, number][]; bindLines?: number[][]; texts?: [number, number, number][]; truncated?: boolean }
   const blocks: [number, number][] = [], bindLines: number[][] = []
   ;(r.blocks ?? []).forEach((b, i) => {
     if (b[0] >= 1 && b[1] >= b[0]) { blocks.push(b); bindLines.push((r.bindLines?.[i] ?? []).filter((l) => l > b[0] && l <= b[1])) }
   })
-  return { blocks, bindLines, truncated: !!r.truncated }
+  const texts: [number, number, number][] = [] // (ascending and apart: the viewer looks a line up by bisection)
+  for (const t of r.texts ?? []) if (t.length >= 3 && t[1] >= t[0] && t[0] > (texts.length > 0 ? texts[texts.length - 1][1] : 0)) texts.push(t)
+  return { blocks, bindLines, texts, truncated: !!r.truncated }
 }
 
 /** A BINDS block of this many binds or fewer is drawn as chips on its header row (`bindFolds`' `inlineMax`). */
@@ -224,11 +242,18 @@ export function bindFolds(blocks: readonly (readonly [number, number])[], bindLi
  * The folds of the framing lines (`api/lines/blocks?what=frame`: the `=====` rule before each PARSING IN CURSOR line and its END OF
  * STMT line, as ranges to hide): each folds quietly under the line above it (`frame`). `skip(line)`: a line that cannot be a handle
  * (a row of a plan's table: a fold that starts in a table takes its head row away).
+ * `bands` (wrap mode): the END OF STMT line of a statement with a known text folds, together with the text lines after the first, under
+ * the first text line instead (`sql`: that row is drawn as one tall row holding the whole statement); a one-line text folds the END OF
+ * STMT line under it all the same, so the row can grow.
  */
-export function frameFolds(ranges: readonly (readonly [number, number])[], skip?: (line: number) => boolean): Fold[] {
+export function frameFolds(ranges: readonly (readonly [number, number])[], skip?: (line: number) => boolean, bands?: readonly SqlBand[]): Fold[] {
   const out: Fold[] = []
+  const textOfEnd = bands && bands.length > 0 ? new Map(bands.map((b) => [b.to + 1, b])) : undefined
   for (const [a, b] of ranges) {
-    if (a < 2 || b < a || skip?.(a - 1)) continue
+    if (a < 2 || b < a) continue
+    const band = a === b ? textOfEnd?.get(a) : undefined
+    if (band) { out.push({ from: band.from, to: a, summary: `SQL text: ${(band.to - band.from + 1).toLocaleString('en-US')} ${band.to === band.from ? 'line' : 'lines'}, wrapped`, auto: true, quiet: true, frame: true, sql: true }); continue }
+    if (skip?.(a - 1)) continue
     out.push({ from: a - 1, to: b, summary: b === a ? 'a framing line (the rule above a cursor, the end of a statement)' : 'framing lines', auto: true, quiet: true, frame: true })
   }
   return out
