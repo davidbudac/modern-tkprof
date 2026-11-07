@@ -32,6 +32,9 @@
     <div class="hero-copy">
       <h1>Oracle 10046 trace analyzer</h1>
       <p class="lede">Response time by statement, execution, session and time window. Call and wait totals match <code>tkprof</code>.</p>
+    </div>
+
+    <div class="hero-row">
       <section class="dl" id="download" aria-label="Download mtkprof" data-version="0.5.0">
         <div class="dl-panel" data-os="mac">
           <h3 class="dl-os-name">macOS</h3>
@@ -44,10 +47,9 @@
             <p class="dl-more"><span class="dl-alt"><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_x64.dmg" data-asset="dmg-x64" download>Intel Mac <span class="dl-size">.dmg · 12.0 MB</span></a></span></p>
           </div>
           <div class="dl-group dl-cli">
-            <p class="dl-label">Command-line tool only <span class="dl-label-sub">(no desktop app)</span></p>
-            <div class="dl-cmd"><pre class="terminal" aria-label="Install command for the command-line tool"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy">Copy</button></div>
-            <p class="dl-note">Installs the <code>mtkprof</code> binary into <code>/usr/local/bin</code> (or <code>~/.local/bin</code>).</p>
-            <p class="dl-more"><span>Or the binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-arm64" data-asset="cli-darwin-arm64" download>Apple Silicon</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-amd64" data-asset="cli-darwin-amd64" download>Intel</a></span></p>
+            <p class="dl-label">Command line only <span class="dl-label-sub">(no desktop app)</span></p>
+            <div class="dl-cmd"><pre class="terminal" aria-label="Install command for the command-line tool"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy" aria-label="Copy install command" title="Copy"><svg class="i-copy" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M3.5 10.5h-.5a1 1 0 0 1-1-1v-6.5a1 1 0 0 1 1-1h6.5a1 1 0 0 1 1 1v.5"/></svg><svg class="i-done" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg></button></div>
+            <p class="dl-note">Installs <code>mtkprof</code> to <code>/usr/local/bin</code>. Binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-arm64" data-asset="cli-darwin-arm64" download>Apple Silicon</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-darwin-amd64" data-asset="cli-darwin-amd64" download>Intel</a></p>
           </div>
         </div>
 
@@ -61,8 +63,8 @@
             </a>
           </div>
           <div class="dl-group dl-cli">
-            <p class="dl-label">Command-line tool only <span class="dl-label-sub">(no desktop app)</span></p>
-            <p class="dl-more"><span><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-windows-amd64.exe" data-asset="cli-win" download>mtkprof-windows-amd64.exe</a> <span class="dl-size">single file, no installer</span></span></p>
+            <p class="dl-label">Command line only <span class="dl-label-sub">(no desktop app)</span></p>
+            <p class="dl-note"><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-windows-amd64.exe" data-asset="cli-win" download>mtkprof-windows-amd64.exe</a> <span class="dl-size">single file, no installer</span></p>
           </div>
         </div>
 
@@ -77,19 +79,17 @@
             <p class="dl-more"><span class="dl-alt"><a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof_0.5.0_amd64.deb" data-asset="deb" download>Debian and Ubuntu <span class="dl-size">.deb · 12.2 MB</span></a></span></p>
           </div>
           <div class="dl-group dl-cli">
-            <p class="dl-label">Command-line tool only <span class="dl-label-sub">(no desktop app)</span></p>
-            <div class="dl-cmd"><pre class="terminal" aria-label="Install command for the command-line tool"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy">Copy</button></div>
-            <p class="dl-note">Installs the <code>mtkprof</code> binary into <code>/usr/local/bin</code> (or <code>~/.local/bin</code>).</p>
-            <p class="dl-more"><span>Or the binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-amd64" data-asset="cli-linux-amd64" download>x64</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-arm64" data-asset="cli-linux-arm64" download>arm64</a></span></p>
+            <p class="dl-label">Command line only <span class="dl-label-sub">(no desktop app)</span></p>
+            <div class="dl-cmd"><pre class="terminal" aria-label="Install command for the command-line tool"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh</pre><button type="button" class="dl-copy" aria-label="Copy install command" title="Copy"><svg class="i-copy" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M3.5 10.5h-.5a1 1 0 0 1-1-1v-6.5a1 1 0 0 1 1-1h6.5a1 1 0 0 1 1 1v.5"/></svg><svg class="i-done" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg></button></div>
+            <p class="dl-note">Installs <code>mtkprof</code> to <code>/usr/local/bin</code>. Binary: <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-amd64" data-asset="cli-linux-amd64" download>x64</a> · <a href="https://github.com/davidbudac/modern-tkprof/releases/download/v0.5.0/mtkprof-linux-arm64" data-asset="cli-linux-arm64" download>arm64</a></p>
           </div>
         </div>
 
         <p class="dl-foot">
           <span class="dl-tabs" role="group" aria-label="Operating system" hidden><button type="button" data-os-tab="mac" aria-pressed="false">macOS</button><button type="button" data-os-tab="win" aria-pressed="false">Windows</button><button type="button" data-os-tab="linux" aria-pressed="false">Linux</button></span>
-          <span>v<span data-dl-version>0.5.0</span> · AIX, Solaris and checksums on the <a href="https://github.com/davidbudac/modern-tkprof/releases/latest">release page</a> · unsigned builds: <a href="docs.html#desktop-install">first start</a></span>
+          <span>v<span data-dl-version>0.5.0</span> · <a href="https://github.com/davidbudac/modern-tkprof/releases/latest">all builds, checksums</a> · unsigned: <a href="docs.html#desktop-install">first start</a></span>
         </p>
       </section>
-    </div>
 
     <figure class="hero-figure">
       <div class="window">
@@ -138,6 +138,7 @@
       </div>
       <figcaption>io_waits.trc (19c): raw lines and the resource profile</figcaption>
     </figure>
+    </div>
   </div>
 </section>
 
