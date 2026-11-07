@@ -272,6 +272,7 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   random per server (`-binds keep` to show them). It holds no secret and
   calls no model; its instructions (`internal/assist/mcp_instructions.md`, the
   initialize answer) ask for `file:line` citations instead of `mtkprof:` links.
+  Setup, protocol flow, bridge variables and troubleshooting: [MCP.md](MCP.md).
 
 ## Three new views (decided 2026-11-03, `docs/PLAN-VIEWS.md` § 8)
 

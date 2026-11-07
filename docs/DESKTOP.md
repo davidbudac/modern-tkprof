@@ -303,6 +303,11 @@ its own; the connections file does not include it, a backup (*Settings → Backu
 
 ## Assistant
 
+The desktop app configures `mtkprof mcp` as a bridge to the open trace when
+it launches a CLI assistant. No separate MCP registration is needed. To use
+the tools from your own client without the desktop app, see the
+[MCP guide](MCP.md).
+
 *Settings → Assistant* sets up the model providers the assistant talks to, and shows the CLI
 agents the engine can run.
 

@@ -94,7 +94,8 @@ first MiB), not by path. The protocol is `api/engine.openapi.yaml`; details in
 ### Claude Code (and other MCP clients)
 
 `mtkprof mcp` serves the analysis tools over MCP on stdin/stdout, so an agent
-can analyse traces from a description of the problem:
+can analyse traces from a description of the problem. Standalone use needs
+the CLI and a stdio MCP client; no desktop app or running engine is required:
 
 ```
 claude mcp add -s user mtkprof -- mtkprof mcp     # once; -binds keep to show bind values
@@ -108,6 +109,14 @@ with `overview`, `statements`, `statement`, `executions`, `pivot`, `timeline`,
 process; nothing leaves the machine except what the agent sends its model.
 Bind values are masked (type, length, a hash salted per server); SQL text is
 not. `mtkprof mcp <trace...>` opens those traces on the first tool call.
+
+The client starts the MCP process, discovers its tools and sends tool calls;
+mtkprof calculates the results and the assistant explains them. The server
+itself calls no AI model and connects to no database. The desktop assistant
+uses a separate bridge mode to query its existing engine session.
+
+See the [MCP guide](docs/MCP.md) for other clients, the request flow,
+standalone versus desktop behavior, privacy and troubleshooting.
 
 ### Desktop app
 
