@@ -138,7 +138,7 @@ The user's list ended with an empty bullet; nothing was assumed for it.
 
 ### Batch 1 (2026-11-07): Duration scale, Hot spot ↑ ↓, no overview label, sql_id popup, call Detail
 
-Commit: see `git log` (one commit, "Trace pane round 3, batch 1: …"). Tests: `pnpm --filter mtkprof-web test` 702 pass (was 699), `pnpm -r typecheck`
+Commit: `0767d7a` ("Trace pane round 3, batch 1: …"; this Log entry got its SHA in the commit after it). Tests: `pnpm --filter mtkprof-web test` 702 pass (was 699), `pnpm -r typecheck`
 clean, desktop `pnpm test` 228 pass. No Go change; `internal/ui/dist` not rebuilt (batch 3 does that).
 Evidence: `/tmp/verify-mtkprof/evidence/trace-v3/1/` (1600 and 1280 px, light and dark: `io_waits-118-final-*`, `basic_binds-48-final-*`, the
 75 s SQLT trace with two hot spots `orcl_ora_3484_S94737_SQLT_TRACE-hot{1,2}-*`, the popups `sqlid-popup-{cursor-row,lane-row}-*`, the raw
