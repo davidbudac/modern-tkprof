@@ -27,8 +27,8 @@ const doc = {
   objectName: () => undefined, userName: () => undefined,
 } as unknown as TraceDoc
 
-const rows = (pin: { line: number; tim: number } | null = null) => {
-  const f = readableRowsOf({ doc, line, tones: new Map(), pin, hot: new Map([[4, 122]]) })
+const rows = (pin: { line: number; tim: number } | null = null, spanUs = 1_000_000) => {
+  const f = readableRowsOf({ doc, line, tones: new Map(), pin, hot: new Map([[4, 122]]), spanUs })
   return (n: number) => f(n, line(n)!)
 }
 
@@ -67,13 +67,19 @@ describe('readableRowsOf', () => {
   it('hot spots, and the Duration bars on the log scale', () => {
     const r = rows()
     expect(r(4).hot).toBe(true)
-    expect(r(4).trackW).toBeCloseTo(Math.log10(122) / 7, 10) // a wait of 122 µs
+    // the bar is the log of the line's share of the traced time (1 s here), 0.01 % to 100 % over four decades
+    expect(r(4).trackW).toBeCloseTo(Math.log10(122e-6 / 1e-4) / 4, 10) // a wait of 122 µs: 0.0122 %
     expect(r(4).trackCpuW).toBeUndefined()
-    expect(r(1).trackW).toBeCloseTo(Math.log10(19) / 7, 10) // a call: its time, and its CPU part
-    expect(r(1).trackCpuW).toBeCloseTo(Math.log10(19) / 7, 10)
+    expect(r(1).trackW).toBeCloseTo(0, 10) // a call of 19 µs: under 0.01 %, an empty track
+    expect(r(1).trackCpuW).toBeCloseTo(0, 10)
     expect(r(2).trackW).toBe(0) // 0 µs: an empty track
     expect(r(3).trackW).toBeUndefined() // a blank line has no time
     expect(r(2).hot).toBe(false)
+  })
+  it('the same wait is a longer bar on a shorter file, and 1 % of the traced time is the middle of the track', () => {
+    expect(rows(null, 100_000)(4).trackW).toBeGreaterThan(rows(null, 1_000_000)(4).trackW!)
+    expect(rows(null, 12_200)(4).trackW).toBeCloseTo(0.5, 10) // 122 µs of 12.2 ms: exactly 1 %
+    expect(rows(null, 0)(4).trackW).toBe(0) // no span: empty tracks
   })
 })
 

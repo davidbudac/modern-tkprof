@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import type { TraceDoc } from '../data/doc'
 import { LINE_KINDS, PageCache, type CachedPage } from '../data/linecache'
 import { blockAt, filterFolds, foldAt, foldHiding, indexFolds, standingFolds, startsBlock, toggleFold, type Fold } from '../data/folds'
-import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
+import { ALL_SCOPE, PROFILE_BUCKETS, cursorLine, fetchDelta, fetchHot, firstAbove, hotStep, fetchLinesAnnot, fetchRepeats, fetchLineProfile, lineAt, linePermalink, linesBlocks, bindFolds, frameFolds, INLINE_BINDS, mergeFolds, nextLine, objectsAt, parseGoTo, sameSearch, search, SEARCH_PRESETS, statementsOf, stmtLineIn, type AtObjects, type LineKind, type LineProfile, type NextWhat, type RecentSearch, type RepeatFold, type SearchEnd, type SearchHit, type SearchScope } from '../data/lines'
 import { fmtCompact, fmtDur, fmtInt, fmtTz, preview } from '../data/format'
 import { copyText } from '../data/clipboard'
 import { describeRange, summarizeLines } from '../data/rangesum'
@@ -17,7 +17,7 @@ import { lineToneToken } from '../components/colors'
 import { CommandPalette, type Command } from '../components/CommandPalette'
 import { inlaysOf } from '../data/inlays'
 import { gapBefore } from '../data/gaps'
-import { anchorOf, lineTim, lineTimesOf, type TimeAnchor } from '../data/linetime'
+import { HOT_SHARE, anchorOf, lineTim, lineTimesOf, type TimeAnchor } from '../data/linetime'
 import { viewSpan } from '../data/overview'
 import { QUIET_TONE, statementTones, toneColor } from '../data/readable'
 import { readableRowsOf, type Pin } from './readableRows'
@@ -214,13 +214,6 @@ const DELTA_MODES: { mode: DeltaMode; label: string; title: string }[] = [
 /** A threshold in ms as the bar says it. */
 const fmtMs = (ms: number) => (ms >= 1000 ? `${+(ms / 1000).toFixed(3)} s` : ms < 1 ? `${+(ms * 1000).toFixed(0)} µs` : `${+ms.toFixed(3)} ms`)
 
-/** Binary search in an ascending array: the first index with `a[i] > x`. */
-function firstAbove(a: ArrayLike<number>, x: number): number {
-  let lo = 0, hi = a.length
-  while (lo < hi) { const mid = (lo + hi) >> 1; if (a[mid] > x) hi = mid; else lo = mid + 1 }
-  return lo
-}
-
 /** The strip with the visible range of the viewer as its own state: a scroll re-renders this, not the whole view. */
 type StripProps = Omit<Parameters<typeof LineStrip>[0], 'view'>
 function StripHost({ bus, last, ...props }: StripProps & { bus: React.MutableRefObject<((top: number, rows: number) => void) | null>; last: React.MutableRefObject<{ top: number; rows: number }> }) {
@@ -364,28 +357,29 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   const readable = prefs.readable
   /** the traced time of this file: 1 % of it makes a hot spot, and caps a fetch of a folded fetch loop */
   const fileSpan = useMemo(() => { const f = doc.file.files?.[file]; return f && f.lastTim > f.firstTim ? f.lastTim - f.firstTim : doc.spanUs() }, [doc, file])
+  const hotUs = Math.max(1, fileSpan * HOT_SHARE)
   const [hot, setHot] = useState<{ map: ReadonlyMap<number, number>; lines: number[] } | null>(null)
   useEffect(() => {
     if (!readable) return
     const ac = new AbortController()
-    fetchHot(client, file, Math.max(1, fileSpan * 0.01), ac.signal).then(
+    fetchHot(client, file, hotUs, ac.signal).then(
       (h) => { if (!ac.signal.aborted) setHot({ map: new Map(h.hot.map((x) => [x.line, x.us])), lines: h.hot.map((x) => x.line) }) },
       (e: unknown) => { if (!aborted(e)) setHot({ map: NO_HOT, lines: [] }) }, // an engine without the route: no hot spots
     )
     return () => ac.abort()
-  }, [client, file, fileSpan, readable, rev])
+  }, [client, file, hotUs, readable, rev])
   const wantRepeats = readable && prefs.foldRepeats
   const [repeats, setRepeats] = useState<{ folds: RepeatFold[]; key: string } | null>(null)
   const repeatsKey = `${file}:${rev}`
   useEffect(() => {
     if (!wantRepeats) return
     const ac = new AbortController()
-    fetchRepeats(client, file, Math.max(1, fileSpan * 0.01), ac.signal).then(
+    fetchRepeats(client, file, hotUs, ac.signal).then(
       (r) => { if (!ac.signal.aborted) setRepeats({ folds: r.folds, key: repeatsKey }) },
       (e: unknown) => { if (!aborted(e)) setRepeats({ folds: [], key: repeatsKey }) },
     )
     return () => ac.abort()
-  }, [client, file, fileSpan, wantRepeats, repeatsKey])
+  }, [client, file, hotUs, wantRepeats, repeatsKey])
   const repeatsLoading = wantRepeats && repeats?.key !== repeatsKey
   // the plan dumps of the file: each is laid out as one table under a head row of its own
   const [planTables, setPlanTables] = useState<{ blocks: [number, number][]; key: string } | null>(null)
@@ -975,16 +969,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
     queueMicrotask(pump)
   }, [bindQ, client, doc, file])
   const readableRows = useMemo(() => (readable
-    ? readableRowsOf({ doc, line: (n) => cache.line(n), tones, pin: ui.pin, hot: hot?.map ?? NO_HOT, hotUs: Math.max(1, fileSpan * 0.01), bindAt, missingBinds, colorBy: prefs.laneColor, labelAll: filtering })
+    ? readableRowsOf({ doc, line: (n) => cache.line(n), tones, pin: ui.pin, hot: hot?.map ?? NO_HOT, hotUs, spanUs: fileSpan, bindAt, missingBinds, colorBy: prefs.laneColor, labelAll: filtering })
     : undefined
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [readable, doc, cache, tones, ui.pin, hot, fileSpan, bindAt, missingBinds, pages, bindsTick, prefs.laneColor, filtering])
+  ), [readable, doc, cache, tones, ui.pin, hot, hotUs, fileSpan, bindAt, missingBinds, pages, bindsTick, prefs.laneColor, filtering])
   /** The next / previous hot spot from the selected line. */
+  const hasHot = !!hot && hot.lines.length > 0
   const stepHot = (dir: 1 | -1) => {
     const hs = hot?.lines ?? []
     if (hs.length === 0) { flash(readable ? 'no line takes 1 % of the traced time or more' : 'hot spots are shown in the formatted view (v)'); return }
-    const i = firstAbove(hs, selected)
-    const to = dir === 1 ? hs[i] : hs[hs[i - 1] === selected ? i - 2 : i - 1]
+    const to = hotStep(hs, selected, dir)
     if (to !== undefined) jump(to); else flash(`no hot spot ${dir === 1 ? 'after' : 'before'} line ${fmtInt(selected)}`)
   }
   const highlight = ui.status !== 'idle' && ui.searched.q !== '' ? ui.searched : null
@@ -1019,6 +1013,16 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
   // ---- the header over the top rows: the statement (and the BINDS or STAT block) at the top of the view, when it is not the ---
   // ---- selected line's (the breadcrumb says that one) ------------------------------------------------------------------------
   const selStmt = cache.line(selected)?.stmt ?? (at && at.line === selected ? at.objs.stmt : -1)
+  /** A click on a sql_id outside the rows (the sticky lane row, the header over the raw rows): the statement popup at the click, as a click on one in a row; Shift goes to the cursor's PARSING IN CURSOR line. */
+  const openStmt = useCallback((stmt: number, cursor: number, line: number, e: MouseEvent<HTMLElement>) => {
+    const c = cursor >= 0 ? doc.cursors[cursor] : undefined
+    if (e.shiftKey) {
+      const at = c && c.line > 0 && doc.fileOfCursor(c.id) === file ? c.line : stmtLineIn(doc, file, stmt)
+      if (at !== undefined) { jump(at); return }
+    }
+    const r = e.currentTarget.getBoundingClientRect()
+    setPopup({ kind: 'stmt', stmt, cursor: c?.id, anchor: { x: e.clientX, y: e.clientY, rect: r }, line })
+  }, [doc, file, jump])
   const head = useCallback((top: number) => {
     const l = cache.line(top)
     if (readableRows) { // formatted: the lane's identity, one sticky row while its lane scrolls (the cursor's own row names itself)
@@ -1033,8 +1037,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         node: (
           <>
             {lane.depth > 0 && <span className="lv-lane-dep" title={`recursive SQL, depth ${lane.depth}`}>↳{lane.depth}</span>}
-            <button type="button" className="lv-slane-id" style={{ '--lane-ink': lane.ink || undefined } as React.CSSProperties} title="open this statement"
-              onClick={() => actions.selectStmt(lst.id)}>{doc.label(lst)}</button>
+            <button type="button" className="lv-slane-id" style={{ '--lane-ink': lane.ink || undefined } as React.CSSProperties} title="peek at this statement (Shift: go to its PARSING IN CURSOR line)"
+              onClick={(e) => openStmt(lst.id, l.cursor, top, e)}>{doc.label(lst)}</button>
             <span className="lv-slane-sql" title={preview(lst.text, 300)}>{lst.text ? preview(lst.text, 48) : 'no SQL text'}</span>
             <span className="lv-slane-facts">{facts}</span>
           </>
@@ -1063,8 +1067,8 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       node: (
         <>
           <span className="lv-head-up" aria-hidden="true" title="the statement of the top line">↥</span>
-          <button type="button" className="link mono sqlid lv-head-id" title={cur && cur.line > 0 ? 'open this statement (Shift: go to its PARSING IN CURSOR line)' : 'open this statement'}
-            onClick={(e) => { if (e.shiftKey && cur && cur.line > 0) jump(cur.line); else actions.selectStmt(st.id) }}>{doc.label(st)}</button>
+          <button type="button" className="link mono sqlid lv-head-id" title={cur && cur.line > 0 ? 'peek at this statement (Shift: go to its PARSING IN CURSOR line)' : 'peek at this statement'}
+            onClick={(e) => openStmt(st.id, l.cursor, top, e)}>{doc.label(st)}</button>
           <span className="lv-head-sql" title={preview(st.text, 300)}>{preview(st.text, 60)}</span>
           {l.execNo >= 0 && <span className="lv-head-blk">exec #{l.execNo}</span>}
           {fam && (
@@ -1076,7 +1080,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
         </>
       ),
     }
-  }, [cache, doc, actions, jump, selected, selStmt, readableRows])
+  }, [cache, doc, openStmt, jump, selected, selStmt, readableRows])
 
   // ---- go to: a line, a cursor, a sql_id (and execution), a time --------------------------------------------------------
   const goToHelp = doc.wallOffsetUs
@@ -1276,10 +1280,14 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
                 title="Fold repeats: runs of 3 or more identical waits, wait blocks still long after that, and loops of 6 or more small fetches each fold into one line; click a fold's ▸ to open it (r)"><FoldRepeatsIcon /></button>
               <button type="button" className="quiet" aria-pressed={prefs.rdDelta} onClick={() => setPrefs({ rdDelta: !prefs.rdDelta })}
                 title="the Δ column, first in the row: each line's time from the pinned line (a pins one), else from the line with a time before">Δ</button>
-              <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hot || hot.lines.length === 0}
-                title={hot && hot.lines.length ? `the next line that took 1 % of the traced time (${fmtDur(fileSpan * 0.01)}) or more: ${fmtInt(hot.lines.length)} in this file (j, J back)` : 'no line takes 1 % of the traced time or more'}>
-                <span className="tb-label tb-f3">Hot spot </span>↓{hot && hot.lines.length > 0 && <small> {fmtInt(hot.lines.length)}</small>}
-              </button>
+              <span className="lines-hot" role="group" aria-label="Hot spots">
+                <span className="tb-label tb-f3" title={`a line that took 1 % of the traced time (${fmtDur(hotUs)}) or more`}>Hot spot</span>
+                <button type="button" className="quiet" onClick={() => stepHot(-1)} disabled={!hasHot} aria-label="Previous hot spot"
+                  title={hasHot ? `the previous line that took 1 % of the traced time (${fmtDur(hotUs)}) or more (J)` : 'no line takes 1 % of the traced time or more'}>↑</button>
+                <button type="button" className="quiet" onClick={() => stepHot(1)} disabled={!hasHot} aria-label="Next hot spot"
+                  title={hasHot ? `the next line that took 1 % of the traced time (${fmtDur(hotUs)}) or more: ${fmtInt(hot!.lines.length)} in this file (j)` : 'no line takes 1 % of the traced time or more'}>↓</button>
+                {hasHot && <small title={`${fmtInt(hot!.lines.length)} lines in this file took 1 % of the traced time or more`}>{fmtInt(hot!.lines.length)}</small>}
+              </span>
             </span>
           )}
           <ToolbarMenu label="Δ filter" title={`the rows whose time from the timed line before (a call, wait, cursor parse or commit) is ${fmtMs(prefs.deltaMs)} or more: ${deltaMode === 'off' ? 'off' : deltaMode === 'highlight' ? 'tinted' : 'the only ones shown'}`}
@@ -1467,7 +1475,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       })()}
       <div className={'lines-body' + (prefs.inspect ? ' with-inspect' : '')} style={prefs.inspect ? ({ '--w': `${prefs.inspectW}px` } as React.CSSProperties) : undefined}>
         <div className={'lines-main' + (busy ? ' busy' : '') + (readable && prefs.laneColor !== 'stmt' ? ' lanes-by-line' : '')} aria-busy={busy || undefined} style={{ ...(readable ? columnVars(prefs.cols) : {}), ...(hlColor ? { '--hl': hlColor } : {}) } as React.CSSProperties}>
-          <LineViewer cache={cache} readable={readableRows} hlStmt={stmt ?? undefined} tables={tables} deltaCol={prefs.rdDelta} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} deltaHits={deltaHits} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
+          <LineViewer cache={cache} readable={readableRows} hlStmt={stmt ?? undefined} tables={tables} deltaCol={prefs.rdDelta} spanUs={fileSpan} onAct={onAct} top={readable ? <FormattedHead cols={prefs.cols} delta={prefs.rdDelta} spanUs={fileSpan} onCols={(cols) => setPrefs({ cols })} /> : undefined} marks={marks} bookmarks={bmSet} notes={noteSet} selected={selected} wrap={prefs.wrap} heat={prefs.heat} times={times} gap={gapOf} inlays={inlays} mutedKinds={mutedKinds} focusCursor={ui.focus ?? undefined} links={prefs.links} onRef={onRef} refTitle={refTitle} head={head} card={inspecting ? undefined : lineCard} folds={allFolds} deltaHits={deltaHits} foldable={foldable} onFold={onFold} highlight={highlight} range={winRange} selLines={ui.lines} onLines={(l) => set({ lines: l })} onHover={following ? setHover : undefined} apiRef={apiRef} topRef={topRef}
             onViewChange={onViewChange} side={prefs.strip && profile ? <StripHost bus={viewBus} last={lastView} profile={profile} total={total} hits={stripHits} bookmarks={bmSet} marks={marks} range={winRange} hot={readable ? hot?.lines : undefined} onJump={jump} onScrub={scrubTo} /> : undefined}
             onSelect={select} onBookmark={toggleBookmark} onError={setLoadError} />
           {total === 0 && !loadError && <p className="lines-overlay muted"><Shimmer>Loading trace lines…</Shimmer></p>}

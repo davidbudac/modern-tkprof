@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LINE_KINDS } from './linecache'
 import type { LineKind } from './lines'
-import { GAP_MIN_US, anchorOf, barFrac, clockCell, fmtDelta, gapDelta, lineTim, lineTimesOf, magnitudeOf, unexplainedGap } from './linetime'
+import { GAP_MIN_US, HOT_SHARE, anchorOf, barFrac, clockCell, fmtDelta, gapDelta, lineTim, lineTimesOf, magnitudeOf, unexplainedGap } from './linetime'
 
 const EXEC = 'EXEC #140646291810920:c=832,e=1025,p=0,cr=0,cu=0,mis=1,r=0,dep=1,og=1,plh=3937172027,tim=1000500'
 const WAIT = "WAIT #140124363549808: nam='db file sequential read' ela= 100 file#=10 block#=66151 blocks=1 obj#=721 tim=1000000"
@@ -84,23 +84,34 @@ describe('gapDelta: what the Δ column shows of a gap', () => {
   })
 })
 
-describe('barFrac: the Duration bar, log scale from 1 µs (empty) to 10 s (full)', () => {
-  it('is 0 at 1 µs and below, 1 at 10 s and above, a seventh a decade', () => {
-    expect(barFrac(0)).toBe(0)
-    expect(barFrac(0.5)).toBe(0)
-    expect(barFrac(-3)).toBe(0)
-    expect(barFrac(1)).toBe(0)
-    expect(barFrac(10)).toBeCloseTo(1 / 7, 10)
-    expect(barFrac(1000)).toBeCloseTo(3 / 7, 10) // 1 ms
-    expect(barFrac(1_000_000)).toBeCloseTo(6 / 7, 10) // 1 s
-    expect(barFrac(10_000_000)).toBe(1)
-    expect(barFrac(3_600_000_000)).toBe(1) // longer: clamped
+describe('barFrac: the Duration bar, log of the share of the traced time, 0.01 % (empty) to 100 % (full)', () => {
+  const SPAN = 78_000_000 // a 78 s file
+  it('is 0 at 0.01 % and below, 1 at 100 % and above, a quarter a decade', () => {
+    expect(barFrac(SPAN * 1e-4, SPAN)).toBeCloseTo(0, 10)
+    expect(barFrac(SPAN * 1e-5, SPAN)).toBe(0)
+    expect(barFrac(SPAN * 1e-3, SPAN)).toBeCloseTo(0.25, 10) // 0.1 %
+    expect(barFrac(SPAN * 0.1, SPAN)).toBeCloseTo(0.75, 10) // 10 %
+    expect(barFrac(SPAN, SPAN)).toBe(1)
+    expect(barFrac(SPAN * 3, SPAN)).toBe(1) // longer than the file: clamped
   })
-  it('grows with the time and tells 9 µs from 637 ms', () => {
-    expect(barFrac(9)).toBeLessThan(barFrac(637_000))
-    expect(barFrac(637_000)).toBeCloseTo(Math.log10(637_000) / 7, 10)
-    expect(barFrac(9) * 56).toBeGreaterThan(7) // a 56 px track: a fill that shows
+  it('1 % is the middle on every file: a bar past it is a hot spot', () => {
+    for (const span of [1_000, 78_000_000, 3_600_000_000]) expect(barFrac(span * 0.01, span)).toBeCloseTo(0.5, 10)
+    expect(barFrac(544_000, SPAN)).toBeLessThan(0.5) // 544 ms of 78 s: 0.7 %, not hot
+    expect(barFrac(800_000, SPAN)).toBeGreaterThan(0.5) // 800 ms: 1.03 %, hot
+    // the case that started it: 544 ms, 800 ms and 5.6 s were within 8 px of each other on the absolute scale; now the last is a different bar
+    expect((barFrac(5_600_000, SPAN) - barFrac(800_000, SPAN)) * 56).toBeGreaterThan(10)
   })
+  it('is empty without a time or a span', () => {
+    expect(barFrac(0, SPAN)).toBe(0)
+    expect(barFrac(-3, SPAN)).toBe(0)
+    expect(barFrac(5, 0)).toBe(0)
+    expect(barFrac(5, -1)).toBe(0)
+    expect(barFrac(NaN, SPAN)).toBe(0)
+  })
+})
+
+describe('HOT_SHARE', () => {
+  it('is 1 %', () => expect(HOT_SHARE).toBe(0.01))
 })
 
 describe('magnitudeOf: the weight class of a duration', () => {

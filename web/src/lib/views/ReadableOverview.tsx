@@ -18,7 +18,7 @@ export interface StmtCounts { calls: number; waits: number; note?: string }
 const spanText = (us: number) => (us >= 1e6 && us < 60e6 ? `${(us / 1e6).toFixed(2)} s` : fmtDur(us))
 
 /**
- * The readable view's key: "Where the time went", a 12 px track of when the statements with the most time ran across the file's time span with a thin
+ * The readable view's key: a 12 px track of when the statements with the most time ran across the file's time span with a thin
  * time axis under it, and the statements that took the most time as chips (`sql_id 2.486 s · 38 %`), each in its lane colour; those under 1 % are one
  * `+n under 1 %` chip that opens on a click. A chip goes to the statement's first line in this file, a click on the track to the line at that time. The
  * selected line is a tick on the track, the rows in view a bracket (two 1 px ticks and a wash) that `viewBus` moves without a render. The outlined chip
@@ -115,9 +115,8 @@ export function ReadableOverview({ doc, tones, from, to, at, current, counts, vi
   return (
     <div className="rd-over" role="group" aria-label="Statements by time">
       <div className="time-bar">
-        <span className="tb-label">Where the time went · {spanText(span)}</span>
         <div className="tb-main">
-          <div className="tb-track" onClick={onTrack} role="img" aria-label="When the statements with the most time ran; click to go to that time">
+          <div className="tb-track" onClick={onTrack} role="img" aria-label={`Where the time went, ${spanText(span)}: when the statements with the most time ran; click to go to that time`}>
             {/* the biggest first: the smaller ones (often recursive, inside them) stay visible on top */}
             {spans && top.map((s) => (spans.get(s.id) ?? []).map((p, i) => (
               <span key={`${s.id}:${i}`} className="seg" style={{ left: `${x(p.start)}%`, width: `max(2px, ${x(p.end) - x(p.start)}%)`, background: toneColor(tones.get(s.id)!) }} />

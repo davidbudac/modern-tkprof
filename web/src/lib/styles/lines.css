@@ -410,6 +410,7 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
   --d-kind: calc(10 * var(--lv-chw, 0.6rem)); --d-dur: calc(10 * var(--lv-chw, 0.6rem) + var(--trk-tail)); --d-clk: calc(11.7 * var(--lv-chw, 0.6rem));
   /* a hot spot: the one red row (the error hue is kept for it) */
   --hot-fill: light-dark(color-mix(in oklch, var(--s-critical) 16%, transparent), color-mix(in oklch, var(--s-critical) 22%, transparent));
+  --hot-tick: color-mix(in oklch, var(--s-critical) 75%, transparent);
 }
 .lv-probe { position: absolute; visibility: hidden; pointer-events: none; inset-block-start: 0; font-variant-numeric: tabular-nums; white-space: pre; }
 .lv-rd-on .lv-layer { inline-size: 100%; }
@@ -519,6 +520,10 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 /* the readable mode's controls in the toolbar */
 .lines-rd { display: flex; align-items: center; gap: var(--sp-1); }
 .lines-rd > .tb-icon { display: inline-flex; align-items: center; padding-inline: 0.45rem; }
+/* Hot spot ↑ ↓ and the count: one group */
+.lines-hot { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.lines-hot > .tb-label { color: var(--ink-2); }
+.lines-hot > small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 /* the Colour menu: a swatch of the mode's first colours, the mode in bold */
 .lines-colour > button { display: inline-flex; align-items: center; gap: 0.4em; }
 .lines-colour > button b { font-weight: 600; color: inherit; }
@@ -540,11 +545,9 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lines-pin { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
 .lines-pin b { color: var(--c-commit); font-weight: 600; }
 
-/* the readable view's key: "Where the time went", a 12 px track of when the statements with the most time ran with a thin time axis and a bracket of the rows in view,
+/* the readable view's key: a 12 px track of when the statements with the most time ran with a thin time axis and a bracket of the rows in view,
    and the statements as chips (`sql_id 2.486 s · 38 %`; the ones under 1 % fold into one) */
 .rd-over { display: flex; flex-direction: column; gap: 6px; padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
-.time-bar { display: grid; grid-template-columns: 210px minmax(0, 1fr); align-items: start; column-gap: 12px; }
-.time-bar .tb-label { font-size: var(--text-xs); color: var(--ink-3); line-height: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tb-main { min-inline-size: 0; }
 .tb-track { position: relative; block-size: 12px; background: var(--surface-sunken); border-radius: 2px; cursor: pointer; }
 .tb-track .seg { position: absolute; inset-block: 0; }
@@ -646,7 +649,12 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .lv-dnum.mag-s > b { font-weight: 650; }
 .lv-dnum > small { flex: none; inline-size: 3ch; padding-inline-start: 0.5ch; font-size: inherit; color: var(--ink-3); text-align: start; }
 .lv-trk { position: relative; flex: none; inline-size: var(--trk-w); block-size: 8px; border-radius: 2px; overflow: hidden; background: color-mix(in oklch, var(--ink) 8%, transparent); --col: var(--c-other); }
-.lv-trk::after { content: ""; position: absolute; inset-block: 0; inset-inline: calc(var(--trk-w) / 7) 0; background: repeating-linear-gradient(90deg, color-mix(in oklch, var(--ink) 12%, transparent) 0 1px, transparent 1px calc(var(--trk-w) / 7)); }
+/* the scale: log of the share of the traced time, 0.01 % to 100 % over four decades; the tick at 1 % (the hot-spot share) is the middle of the track, drawn over
+   the fill so a bar past it is a hot spot; fainter ones at 0.1 % and 10 % (a quarter and three quarters) */
+.lv-trk::after { content: ""; position: absolute; inset: 0; --tick: color-mix(in oklch, var(--ink) 14%, transparent); background:
+  linear-gradient(var(--hot-tick), var(--hot-tick)) calc(var(--trk-w) / 2 - 0.5px) 0 / 1px 100% no-repeat,
+  linear-gradient(var(--tick), var(--tick)) calc(var(--trk-w) / 4 - 0.5px) 0 / 1px 100% no-repeat,
+  linear-gradient(var(--tick), var(--tick)) calc(var(--trk-w) * 3 / 4 - 0.5px) 0 / 1px 100% no-repeat; }
 .lv-fill { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: calc(var(--f) * 100%); background: var(--col); }
 .lv-fill.soft { opacity: 0.45; }
 .lv-trk-userio { --col: var(--c-userio); }
@@ -672,6 +680,8 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 /* right-aligned over the numbers: after them the rows' unit slot (3 digits of the rows' font, not the header's), 4px, and the track with its gap and pad */
 .lv-ch-dur { inline-size: var(--w-dur, var(--d-dur)); padding-inline-end: calc(var(--trk-tail) + var(--sp-1) + 3 * var(--lv-chw, 0.6rem)); }
 .lv-colhead > :first-child { border-inline-end: 1px solid transparent; }
+/* `1 %` over the tick of the tracks below: the track's middle, which is that far from the column's end edge (the track's pad and half its width) */
+.lv-ch-tick { position: absolute; inset-inline-end: calc(var(--sp-2) + var(--trk-w) / 2); transform: translateX(50%); font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; pointer-events: none; }
 .lv-ch-tx { flex: 1 1 0; min-inline-size: 0; padding-inline-start: var(--sp-2); }
 .lv-ch-clk { inline-size: var(--w-clk, var(--d-clk)); padding-inline-end: var(--sp-3); }
 .lv-ch-alend { text-align: end; }
@@ -690,6 +700,23 @@ button.quiet.tb-item[aria-pressed="true"]:hover { background: var(--wash); }
 .rd-q { font-variant-numeric: tabular-nums; }
 .rd-q > b { font-weight: 400; color: var(--ink); }
 .rd-q > small { font-size: inherit; color: var(--ink-3); }
+/* a call's Detail in groups: fixed slots (the exec tag, the rows) and one quiet box for the gets, so they line up down consecutive calls */
+.rd-slot { display: inline-block; vertical-align: top; white-space: pre; }
+.rd-slot-exec { inline-size: 6ch; }
+.rd-slot-exec > .rd-exec { margin-inline-end: 0; }
+.rd-slot-rows { inline-size: 12ch; font-variant-numeric: tabular-nums; }
+.rd-q-rows > b { display: inline-block; inline-size: 7ch; text-align: end; }
+.rd-q-rows > small { display: inline-block; padding-inline-start: 1ch; }
+.rd-gets { display: inline-flex; align-items: baseline; gap: 0.75ch; box-sizing: border-box; block-size: 18px; margin-inline-start: 1ch; padding-inline: 0.75ch; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-sunken); font-size: var(--text-xs); line-height: 16px; font-variant-numeric: tabular-nums; }
+.rd-gets > span { display: inline-flex; gap: 0.5ch; }
+.rd-gets i { font-style: normal; color: var(--ink-3); }
+.rd-gets b { inline-size: 9ch; text-align: end; font-weight: 400; color: var(--ink); }
+.rd-gets b.z { color: var(--ink-3); }
+.rd-cpu { margin-inline-start: 1.5ch; font-variant-numeric: tabular-nums; }
+.rd-cpu i { font-style: normal; color: var(--ink-3); }
+.rd-cpu b { font-weight: 400; color: var(--ink); }
+.rd-cpu small { font-size: inherit; color: var(--ink-3); }
+.rd-call + :is(.rd-hp, .rd-dim) { margin-inline-start: 2ch; }
 .rd-q + .rd-q, .rd-q + .rd-warn, .rd-q + .rd-dim, .rd-q + .rd-hp, .rd-dim + .rd-hp { margin-inline-start: 2ch; }
 .rd-ev { color: var(--ink); }
 .rd-evobj { margin-inline-start: 2ch; color: var(--ink-2); }

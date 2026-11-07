@@ -9,14 +9,14 @@ import { CLOSE_TYPES, COMMAND_NAMES } from './linefields'
 import type { LineKind } from './lines'
 import type { Role } from '../components/colors'
 
-/** A piece of a row's detail: plain text, text with a class (`rd-<c>`) and a tooltip, or a quantity (`rd-q-<q>`): its number in ink, its unit dim. */
-export type Seg = string | { t: string; c: string; title?: string } | Quantity
+/** A piece of a row's detail: plain text, text with a class (`rd-<c>`), a tooltip and perhaps a reference (`sqlid:…`: a click opens it, as in the raw view's links), or a quantity (`rd-q-<q>`): its number in ink, its unit dim. */
+export type Seg = string | { t: string; c: string; title?: string; ref?: string } | Quantity
 export interface Quantity { q: string; n: string; unit: string; title?: string }
 
-/** A duration as a quantity: `964 µs` → number 964, unit µs (with `label` after the unit). */
-function durQ(q: string, us: number, title: string, label = ''): Quantity {
+/** A duration as a quantity: `964 µs` → number 964, unit µs. */
+function durQ(q: string, us: number, title: string): Quantity {
   const s = fmtDur(us), i = s.lastIndexOf(' ')
-  return { q, n: s.slice(0, i), unit: s.slice(i + 1) + (label ? ` ${label}` : ''), title }
+  return { q, n: s.slice(0, i), unit: s.slice(i + 1), title }
 }
 /** A count as a quantity. */
 function countQ(q: string, n: number, one: string, many: string, title: string): Quantity {
@@ -48,6 +48,8 @@ export interface LineView {
   dot?: Role
   /** a call: the time it spent waiting (its e= off the CPU) when that is a good share of it, else undefined */
   waited?: WaitShare
+  /** a call (PARSE, EXEC, FETCH, CLOSE and the like): its rows, gets and CPU in the slots of the Detail cell; `parts` then holds only the notes after them */
+  call?: CallParts
   /** a BINDS header whose values are known: the head of the table of its binds */
   bindHead?: boolean
   /** a BINDS header whose values are known: its binds as chips (the viewer draws them on the header row when the block's lines are folded under it) */
@@ -69,6 +71,20 @@ export type OpKind = 'call' | 'wait' | 'struct' | 'mark'
 
 /** The share of a call that went to waiting: µs, % of the call, and `crit` from half of it. */
 export interface WaitShare { us: number; pct: number; crit: boolean }
+
+/**
+ * A call's Detail in groups, left to right: the rows (a slot of its own: empty where the call has none, so what follows lines up down
+ * consecutive calls), the gets in tkprof's words (`query` cr=, `current` cu=, `disk` p=; one framed box), the CPU where it is not all of
+ * the duration. The notes (hard parse, cached / closed) are the line's `parts`.
+ */
+export interface CallParts {
+  rows?: Quantity
+  gets?: CallGets
+  cpu?: Quantity
+}
+
+/** The three counts of a call's gets box (formatted, `zero` where the count is 0) and the trace tokens as its tooltip. */
+export interface CallGets { query: string; current: string; disk: string; zero: [boolean, boolean, boolean]; title: string }
 
 /** A bind as a row of the table of binds: its placeholder, value and type. */
 export interface BindCellRow { pos: number; name: string; value: string; type: string; none: boolean; last: boolean; title: string }
@@ -184,21 +200,26 @@ const numSeg = (t: string, title?: string): Seg => ({ t, c: 'num', title })
 
 
 /**
- * A call in columns: CPU, rows, gets (consistent + current), physical reads, each in a column of its own (empty where it is 0, so the
- * columns stay in line), then what is worth a word: a hard parse, how the cursor was closed.
+ * A call's rows, gets and CPU as the groups of its Detail (see `CallParts`) and the notes after them: a hard parse, how the cursor was closed.
+ * The rows: always on a FETCH (0 rows too), on the other calls when there are some; a call without an r= has none. The gets box is there when
+ * any of cr=, cu=, p= is above 0. The CPU only where it is not all of the duration (the duration column has that).
  */
-function describeCall(c: CallLine): LineView {
-  const gets = (c.cr ?? 0) + (c.cu ?? 0)
-  const parts: Seg[] = []
-  // the CPU only where it is not the whole duration (the duration column has that): the rest of the time went elsewhere
-  if (c.c && (c.e === undefined || (fmtDur(c.c) !== fmtDur(c.e) && c.c < c.e))) parts.push(durQ('cpu', c.c, `c=${c.c} µs: CPU, of e=${c.e ?? '?'} µs`, 'cpu'))
-  if (c.r !== undefined && (c.op === 'FETCH' || c.r > 0)) parts.push(countQ('rows', c.r, 'row', 'rows', 'r= rows processed'))
-  if (gets > 0) parts.push(countQ('gets', gets, 'get', 'gets', `cr=${c.cr ?? 0} consistent, cu=${c.cu ?? 0} current`))
-  if ((c.p ?? 0) > 0) parts.push(countQ('reads', c.p!, 'read', 'reads', 'p= physical reads'))
-  if ((c.mis ?? 0) > 0) parts.push({ t: 'hard parse', c: 'hp', title: `mis=${c.mis}: a library cache miss` })
+export function callParts(c: CallLine): { call: CallParts; notes: Seg[] } {
+  const call: CallParts = {}
+  if (c.r !== undefined && (c.op === 'FETCH' || c.r > 0)) call.rows = countQ('rows', c.r, 'row', 'rows', 'r= rows processed')
+  const cr = c.cr ?? 0, cu = c.cu ?? 0, p = c.p ?? 0
+  if (cr > 0 || cu > 0 || p > 0) call.gets = { query: fmtInt(cr), current: fmtInt(cu), disk: fmtInt(p), zero: [cr === 0, cu === 0, p === 0], title: `cr=${cr} cu=${cu} p=${p}\nquery: consistent-mode gets (cr=), current: current-mode gets (cu=), disk: physical reads (p=)` }
+  if (c.c && (c.e === undefined || (fmtDur(c.c) !== fmtDur(c.e) && c.c < c.e))) call.cpu = durQ('cpu', c.c, `c=${c.c} µs: CPU, of e=${c.e ?? '?'} µs`)
+  const notes: Seg[] = []
+  if ((c.mis ?? 0) > 0) notes.push({ t: 'hard parse', c: 'hp', title: `mis=${c.mis}: a library cache miss` })
   // the cursor was closed (0) or stays in the session's cursor cache (1, 2, 3): two words, the exact one in the tooltip
-  if (c.op === 'CLOSE' && c.type !== undefined) parts.push(dim(c.type === 0 ? 'closed' : 'cached', `type=${c.type}: ${CLOSE_TYPES[c.type] ?? `type ${c.type}`}`))
-  return { label: c.op, tone: 'cpu', op: 'call', parts, dur: c.e, waited: waitShare(c.c, c.e), bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
+  if (c.op === 'CLOSE' && c.type !== undefined) notes.push(dim(c.type === 0 ? 'closed' : 'cached', `type=${c.type}: ${CLOSE_TYPES[c.type] ?? `type ${c.type}`}`))
+  return { call, notes }
+}
+
+function describeCall(c: CallLine): LineView {
+  const { call, notes } = callParts(c)
+  return { label: c.op, tone: 'cpu', op: 'call', parts: notes, call, dur: c.e, waited: waitShare(c.c, c.e), bar: c.e !== undefined ? { us: c.e, cpu: Math.min(c.e, c.c ?? 0), role: 'cpu' } : undefined }
 }
 
 function describeWait(w: WaitLine, ctx: ReadableContext): LineView {
@@ -416,7 +437,8 @@ function describeHeader(text: string): LineView {
 function describeParsing(text: string, ctx: ReadableContext): LineView {
   const p = pairs(text)
   // one row: the sql_id, then what it is, who parsed it, how deep and how long its text is (the SQL follows on the rows below)
-  const parts: Seg[] = [{ t: p.get('sqlid') ?? '', c: 'name' }, { t: '', c: 'pgap' }]
+  const sqlid = p.get('sqlid') ?? ''
+  const parts: Seg[] = [{ t: sqlid, c: 'name', ref: sqlid ? `sqlid:${sqlid}` : undefined }, { t: '', c: 'pgap' }]
   const oct = num(p, 'oct'), uid = num(p, 'uid'), dep = num(p, 'dep'), len = num(p, 'len')
   const facts: Seg[] = []
   if (oct !== undefined) facts.push(dim(COMMAND_NAMES[oct] ?? `oct ${oct}`))

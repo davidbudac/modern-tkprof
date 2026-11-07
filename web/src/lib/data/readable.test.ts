@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { LineKind } from './lines'
-import { bindAttrSegs, describeLine, describeMarker, parseStat, planDump, sqlSegs, statementTones, waitMicro, waitRun, waitShare, type Seg } from './readable'
+import { bindAttrSegs, callParts, describeLine, parseCall, describeMarker, parseStat, planDump, sqlSegs, statementTones, waitMicro, waitRun, waitShare, type Seg } from './readable'
 
 // lines of testdata/traces/19c/io_waits.trc
 const trc = readFileSync(new URL('../../../../testdata/traces/19c/io_waits.trc', import.meta.url), 'utf8').split('\n')
@@ -13,15 +13,19 @@ describe('describeLine', () => {
   it('a call: elapsed, CPU, rows, gets and a hard parse', () => {
     const v = describeLine('PARSE #139745604251096:c=92,e=907,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=3570327658,tim=10804502774', 'call', 87)
     expect(v.label).toBe('PARSE')
-    expect(text(v.parts)).toBe('92 µs cpu|hard parse')
+    expect(text(v.parts)).toBe('hard parse') // the notes; the CPU is a group of the Detail's slots (`call`)
+    expect(v.call?.cpu).toMatchObject({ n: '92', unit: 'µs' })
     expect(v.dur).toBe(907)
     expect(v.bar).toEqual({ us: 907, cpu: 92, role: 'cpu' })
   })
   it('the CPU only where it is not all of the duration (the duration column has that)', () => {
     const close = describeLine('CLOSE #139745604251096:c=2,e=2,dep=0,type=0,tim=10804503000', 'call', 1)
     expect(text(close.parts)).toBe('closed') // type=0; the exact word (hard close) is in the tooltip
+    expect(close.call?.cpu).toBeUndefined()
     const fetch = describeLine('FETCH #139745604251096:c=28,e=28,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=3570327658,tim=10804503100', 'call', 1)
-    expect(text(fetch.parts)).toBe('1 row|3 gets')
+    expect(fetch.call?.cpu).toBeUndefined()
+    expect(fetch.call?.rows).toMatchObject({ n: '1', unit: 'row' })
+    expect(text(fetch.parts)).toBe('')
   })
   it('a wait: its time, event, object and parameters', () => {
     const line = trc.find((l) => l.includes("nam='direct path read' ") && l.includes('obj#=108611'))!
@@ -112,11 +116,42 @@ describe('the wait share of a call', () => {
   it('PARSE, EXEC and FETCH lines of io_waits.trc carry it', () => {
     const parse = describeLine(trc[87 - 1], 'call', 87)
     expect(parse.waited).toEqual({ us: 815, pct: 90, crit: true }) // c=92 e=907
-    expect(text(parse.parts)).toBe('92 µs cpu|hard parse') // the share is not in the detail's pieces
+    expect(text(parse.parts)).toBe('hard parse') // the share is not in the detail's pieces
     const fetch = describeLine(trc[122 - 1], 'call', 122)
     expect(fetch.waited).toEqual({ us: 631_420, pct: 99, crit: true }) // c=5167 e=636587
     expect(describeLine('EXEC #139745605242584:c=19,e=19,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=0,plh=0,tim=10804500070', 'call', 1).waited).toBeUndefined()
     expect(describeLine('FETCH #1:c=2000,e=2300,p=0,cr=3,cu=0,mis=0,r=1,dep=0,og=1,plh=1,tim=10804503100', 'call', 1).waited).toEqual({ us: 300, pct: 13, crit: false })
+  })
+})
+
+describe('callParts: a call\'s Detail in groups', () => {
+  const parts = (line: string) => callParts(parseCall(line)!)
+  it('a FETCH of io_waits.trc: rows, then the gets in tkprof\'s words, then the CPU (it is not all of the duration)', () => {
+    const { call, notes } = parts(trc[122 - 1])
+    expect(call.rows).toMatchObject({ n: '1', unit: 'row' })
+    expect(call.gets).toEqual({ query: '498', current: '0', disk: '496', zero: [false, true, false], title: expect.stringContaining('cr=498 cu=0 p=496') })
+    expect(call.cpu).toMatchObject({ n: '5.17', unit: 'ms' })
+    expect(notes).toEqual([])
+  })
+  it('the rows are always there on a FETCH (0 rows too), on the other calls only when there are some', () => {
+    expect(parts('FETCH #1:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=1,tim=1').call.rows).toMatchObject({ n: '0', unit: 'rows' })
+    expect(parts('EXEC #1:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=1,tim=1').call.rows).toBeUndefined()
+    expect(parts('EXEC #1:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=3,dep=0,og=1,plh=1,tim=1').call.rows).toMatchObject({ n: '3', unit: 'rows' })
+    expect(parts('FETCH #1:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=1,dep=0,og=1,plh=1,tim=1').call.rows?.unit).toBe('row')
+    expect(parts('CLOSE #1:c=2,e=2,dep=0,type=0,tim=1').call.rows).toBeUndefined() // no r= at all: the slot stays empty
+  })
+  it('the gets box is there when any of cr, cu, p is above 0, with the counts grouped and the zeros marked', () => {
+    expect(parts('EXEC #1:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=1,tim=1').call.gets).toBeUndefined()
+    expect(parts('EXEC #1:c=1,e=1,p=0,cr=0,cu=7,mis=0,r=0,dep=0,og=1,plh=1,tim=1').call.gets).toMatchObject({ query: '0', current: '7', disk: '0', zero: [true, false, true] })
+    expect(parts('FETCH #1:c=1,e=1,p=1234567,cr=2,cu=0,mis=0,r=1,dep=0,og=1,plh=1,tim=1').call.gets).toMatchObject({ query: '2', disk: '1,234,567' })
+  })
+  it('the notes are a hard parse and how a CLOSE closed the cursor', () => {
+    expect(text(parts('PARSE #1:c=92,e=907,p=0,cr=0,cu=0,mis=1,r=0,dep=0,og=1,plh=1,tim=1').notes)).toBe('hard parse')
+    expect(text(parts('CLOSE #1:c=2,e=2,dep=0,type=3,tim=1').notes)).toBe('cached')
+  })
+  it('the CURSOR row\'s sql_id is a reference that opens the statement', () => {
+    const v = describeLine(trc[84 - 1], 'parsing-in-cursor', 84)
+    expect(v.parts[0]).toEqual({ t: 'c7ry5gr75qv4b', c: 'name', ref: 'sqlid:c7ry5gr75qv4b' })
   })
 })
 

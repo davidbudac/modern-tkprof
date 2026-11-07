@@ -45,11 +45,18 @@ export function gapDelta(gapUs: number, prevOwnUs: number): { us: number; emph: 
   return { us: gapUs, emph: gapUs >= 1000 && gapUs >= 2 * prevOwnUs }
 }
 
-/** The decades of the duration bar: its track runs from 1 µs (empty) to 10 s (full). */
-export const BAR_DECADES = 7
+/** The share of the file's traced time that makes a hot spot: a call or wait of 1 % or more (the tick of every Duration track). */
+export const HOT_SHARE = 0.01
 
-/** A duration's bar as a fraction of its track: log scale, 1 µs (and anything shorter) empty, 10 s (and longer) full. */
-export const barFrac = (us: number): number => (us >= 1 ? Math.min(1, Math.log10(us) / BAR_DECADES) : 0)
+/** The Duration bar's range: the share of the traced time, four decades, 0.01 % (empty) to 100 % (full); 1 % is its midpoint. */
+export const BAR_MIN_SHARE = 1e-4
+export const BAR_DECADES = 4
+
+/**
+ * A duration's bar as a fraction of its track: log of its share of the file's traced time (`spanUs`), 0.01 % and below empty, 100 %
+ * full. The hot-spot share (1 %) is 0.5 on every file, so a bar past the middle is a hot spot. Nothing without a span (≤ 0).
+ */
+export const barFrac = (us: number, spanUs: number): number => (us > 0 && spanUs > 0 ? Math.min(1, Math.max(0, Math.log10(us / spanUs / BAR_MIN_SHARE) / BAR_DECADES)) : 0)
 
 /** How big a duration reads, for the weight of its number: microseconds, milliseconds or seconds (and more). */
 export type Magnitude = 'us' | 'ms' | 's'

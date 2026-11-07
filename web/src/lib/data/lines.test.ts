@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from './client'
 import { indexFolds, foldHiding, lineOfRow, rowOfLine, visibleCount } from './folds'
-import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, frameFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, type SearchHit } from './lines'
+import { fetchLinesAnnot, highlightRuns, lineAt, linePermalink, matchSpan, matchSpans, nextLine, bindFolds, frameFolds, linesBlocks, mergeFolds, objectsAt, parseGoTo, parseJump, cursorLine, statementsOf, stmtLineIn, probeLinesApi, readNdjson, search, callsOverRe, waitsOverRe, SEARCH_PRESETS, groupHits, GROUP_UNKNOWN, firstAbove, hotStep, type SearchHit } from './lines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -400,5 +400,30 @@ describe('mergeFolds', () => {
   })
   it('drops added folds that overlap each other', () => {
     expect(mergeFolds([], [f(1, 5), f(5, 9)]).map((x) => x.from)).toEqual([1])
+  })
+})
+
+describe('hotStep: j and J, the toolbar\'s Hot spot ↓ and ↑', () => {
+  const hot = [10, 40, 90]
+  it('firstAbove is the first index past x', () => {
+    expect(firstAbove(hot, 9)).toBe(0)
+    expect(firstAbove(hot, 10)).toBe(1)
+    expect(firstAbove(hot, 90)).toBe(3)
+    expect(firstAbove([], 5)).toBe(0)
+  })
+  it('steps down to the next hot spot, never staying on the line it is on', () => {
+    expect(hotStep(hot, 1, 1)).toBe(10)
+    expect(hotStep(hot, 10, 1)).toBe(40)
+    expect(hotStep(hot, 25, 1)).toBe(40)
+    expect(hotStep(hot, 90, 1)).toBeUndefined() // the last one: none after
+  })
+  it('steps up to the previous one, from a hot spot or from between two', () => {
+    expect(hotStep(hot, 91, -1)).toBe(90)
+    expect(hotStep(hot, 90, -1)).toBe(40) // on a hot spot: the one before it
+    expect(hotStep(hot, 25, -1)).toBe(10)
+    expect(hotStep(hot, 10, -1)).toBeUndefined() // the first one: none before
+    expect(hotStep(hot, 3, -1)).toBeUndefined()
+    expect(hotStep([], 3, -1)).toBeUndefined()
+    expect(hotStep([], 3, 1)).toBeUndefined()
   })
 })

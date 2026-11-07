@@ -492,3 +492,16 @@ export function groupHits(hits: readonly SearchHit[], stmtOf: (line: number) => 
   }
   return [...groups.values()].sort((a, b) => b.hits.length - a.hits.length || a.first - b.first)
 }
+
+/** Binary search in an ascending array: the first index with `a[i] > x`. */
+export function firstAbove(a: ArrayLike<number>, x: number): number {
+  let lo = 0, hi = a.length
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (a[mid] > x) hi = mid; else lo = mid + 1 }
+  return lo
+}
+
+/** The hot spot after (`dir` 1) or before (-1) line `from` in `lines` (ascending): never `from` itself; undefined when there is none that way. */
+export function hotStep(lines: ArrayLike<number>, from: number, dir: 1 | -1): number | undefined {
+  const i = firstAbove(lines, from)
+  return dir === 1 ? lines[i] : lines[lines[i - 1] === from ? i - 2 : i - 1]
+}

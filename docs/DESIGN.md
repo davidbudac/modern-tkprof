@@ -405,7 +405,7 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   rule sits in `prefers-reduced-motion: no-preference` and the helpers check
   it, so the end state shows at once.
 
-## Formatted Lines view (decided 2026-11-04, mock-up `docs/mockups/readable-lines/`; round 2 decided 2026-11-06, mock-up `docs/mockups/formatted-v2/`)
+## Formatted Lines view (decided 2026-11-04, mock-up `docs/mockups/readable-lines/`; round 2 decided 2026-11-06, mock-up `docs/mockups/formatted-v2/`; round 3 decided 2026-11-07, `docs/PLAN-TRACE-PANE-V3.md`)
 
 Round 2 came from three design-review lenses on the round-1 view (visual, DBA
 workflow, information design), ten changes mocked on the real rows of
@@ -433,12 +433,9 @@ decision of round 1 changed, the text says what it is now and what it was.
   the `cols` pref (px), CSS variables `--w-<column>` on the viewer, set directly
   while dragging. The defaults are in digits of the rows' font (measured), so
   they fit their values at any font size. The Duration header is right-aligned
-  over its numbers, to the pixel. Detail is one run of text, compact: a call's
-  CPU (only where it is not all of its duration), rows, gets, reads, then
-  `hard parse` or the close type; a wait's event, object and parameters. (Fixed
-  slots for them inside Detail were tried and rejected: they spread the row out
-  and pushed the notes to the middle.) One colour rule everywhere: numbers in
-  the ink, units and labels dimmed.
+  over its numbers, to the pixel. Detail is one run of text, compact: a wait's
+  event, object and parameters; a call's Detail is in groups (round 3, below).
+  One colour rule everywhere: numbers in the ink, units and labels dimmed.
 
 - **Lanes: a band column and one sticky row.** Consecutive lines of one cursor
   are one lane: a 14 px Statement column (a 6 px band in the statement's colour
@@ -502,10 +499,20 @@ decision of round 1 changed, the text says what it is now and what it was.
   longer says nothing about the 26 reads above it. (`waitShare`.)
 
 - **Time.** The bar lives with Duration: the number, then a 56 px track on a
-  **log scale** (1 µs and below empty, 10 s and above full, a faint tick per
-  decade): a wait fills in its wait-class colour, a call in slate with its CPU
-  part the solid, darker end; a track is drawn on every row with a duration so
-  the numbers line up (the fold of repeats has one, `barFrac(fold.us)`). The Δ
+  **log scale of the share of the file's traced time** (round 3: 0.01 % and
+  below empty, 100 % full, four decades of 14 px). **1 % is the middle of the
+  track and is marked on every track** (a 1 px tick in `--s-critical` at 75 %,
+  drawn over the fill; fainter ink ticks at 0.1 % and 10 %): a bar past the tick
+  is a hot spot, so the hot rule (below) is on the screen, on every file. The
+  Duration header says `1 %` over the tick (11 px `--ink-3`, centred on it) and
+  its tooltip gives the traced time and the threshold (`bar: share of the traced
+  time (78.0 s), log scale from 0.01 % to 100 %; red from 1 % (780 ms): a hot
+  spot (idle waits never)`). A wait fills in its wait-class colour, a call in
+  slate with its CPU part the solid, darker end; a track is drawn on every row
+  with a duration so the numbers line up (the fold of repeats has one,
+  `barFrac(fold.us, span)`; `span` is the file's traced time, `fileSpan` in
+  `views/Lines.tsx`, the same number as the hot threshold's). The plan's A-Time
+  bar (an operation's own time of the plan's) is another scale and stays. The Δ
   column is text only (the trace bar's Δ button and the palette hide it, pref
   `rdDelta`, on by default).
   **Δ is the unexplained gap** in the formatted view: where the line started
@@ -527,7 +534,11 @@ decision of round 1 changed, the text says what it is now and what it was.
   scale per file, full = the file's longest call or wait: 1 to 3 px wide for
   almost every row, since the scale ran to 2.448 s, so 9 µs and 637 ms differed
   by two characters. Δ over that bar is rejected, and the linear scale is gone
-  from the code, not kept dormant. Round 1's Δ was the `tim`-to-`tim`
+  from the code, not kept dormant. Rounds 1 and 2's Duration bar was a log
+  scale on absolute time, 1 µs empty to 10 s full, 8 px a decade: on a 78 s
+  file 544 ms (not hot), 800 ms (red) and 5.6 s (red) were within 8 px of each
+  other, and nothing showed where the 1 % line ran; rejected in round 3 for the
+  share-of-the-file scale above, and gone from the code. Round 1's Δ was the `tim`-to-`tim`
   difference: +1.51 ms on an idle wait repeated the wait's own 1.49 ms, and a
   PARSE read −1 µs because its `tim` sits before its CURSOR line's.)
 - **The clock shows what changes.** The whole stamp (`11:35:29.830999`) on the
@@ -647,7 +658,9 @@ decision of round 1 changed, the text says what it is now and what it was.
   (down to 14 ch), then the labels fold to icons in four steps (the Go-to
   label, then the Colour label and mode, the Δ filter's mode and count and the
   window text, then Hot spot, Δ ≥ and Δ from, then the Raw / Formatted text),
-  by container queries whose thresholds were measured with everything on. It
+  by container queries whose thresholds were measured with everything on
+  (round 3's second Hot spot button fits inside them: no overflow measured from
+  860 px up). It
   may wrap below 51 rem. Pressed toggles use the quiet style (ink on `--wash`);
   only Raw | Formatted keeps a solid segment.
 - **The Highlighting chip is folded into the overview chip.** In the formatted
@@ -657,14 +670,17 @@ decision of round 1 changed, the text says what it is now and what it was.
   the real one (`StmtMarks.totalCalls` / `totalWaits`), and the tooltip says
   `first 1,000 waits marked` while the marks are capped. The raw view has no
   overview bar and keeps the chip.
-- **The overview bar says what it is.** `Where the time went · 6.46 s` (11 px
-  `--ink-3`), 12 px tall, a thin time axis under it (round wall-clock times;
-  `+2 s` offsets for a trace without a wall clock) and a **viewport bracket**
-  (two 1 px ticks and a 20 % wash) that follows the visible rows. The chips
-  read `sql_id 2.486 s · 38 %` (seconds and share); the statements under 1 %
-  fold into one `+4 under 1 %` chip that expands on click. A chip goes to the
-  statement's first line in this file, a click on the track to the line at that
-  time.
+- **The overview bar.** A 12 px track, a thin time axis under it (round
+  wall-clock times; `+2 s` offsets for a trace without a wall clock) and a
+  **viewport bracket** (two 1 px ticks and a 20 % wash) that follows the visible
+  rows. The chips read `sql_id 2.486 s · 38 %` (seconds and share); the
+  statements under 1 % fold into one `+4 under 1 %` chip that expands on click.
+  A chip goes to the statement's first line in this file, a click on the track
+  to the line at that time. (Round 2 labelled it `Where the time went · 6.46 s`
+  in a 210 px slot at the left; round 3 dropped the words, which said nothing
+  the bar does not: the span is in the track's `aria-label` and the axis. The
+  track now takes the whole width; the statement picker of batch 3 brings the
+  slot back.)
 
 - **A selected line is never folded away.** A Fold repeats run that holds the
   selected line stands open and folds again when the selection leaves it; an
@@ -725,6 +741,48 @@ decision of round 1 changed, the text says what it is now and what it was.
   thread works) until the new rows are painted or the folds arrive;
   reduced motion dims instead.
 
+- **Round 3, batch 1 (decided 2026-11-07): the scale, Hot spot ↑ ↓, sql_id
+  clicks, a call's Detail in groups.** The Duration scale is under Time above.
+  - **Hot spot steps both ways.** The toolbar's `Hot spot ↓ 6` is `Hot spot ↑ ↓ 6`:
+    two buttons (previous `J`, next `j`) and the count in one group, disabled
+    with no hot spot, the label folding to icons at the same step as before
+    (`hotStep` in `data/lines.ts`, the one rule for the keys and the buttons).
+  - **A sql_id in the formatted rows opens its statement popup.** The CURSOR
+    row's sql_id is a reference (`sqlid:…`, a `Seg.ref`, drawn as a `.lv-ref`
+    link with `data-act="ref"`), so a click takes the path `refClickOf` takes
+    for the raw view's links (`StmtPopover` at the click; Shift: the statement's
+    PARSING IN CURSOR line in this file) whatever the `links` pref says (that
+    pref is the raw view's underlining) and does not select the row. The sticky
+    lane row's sql_id and the sql_id in the header over the raw rows
+    (`lv-head-id`) do the same through `openStmt` in `views/Lines.tsx` (their
+    Shift goes to the cursor's parse line); they used to go straight to the
+    Statements view, which is now the popup's `Open in Statements`. (The Δ
+    filter's `labelAll` still sets a lane label on every kept row but nothing
+    draws it, so there is no other sql_id in a row to click.)
+  - **A call's Detail is in groups.** `[exec N] [rows] [query · current · disk]
+    [cpu] [notes]` (`callParts` in `data/readable.ts`, `CallDetail` in
+    `LineViewer.tsx`). The rows are a slot of their own (the number right-aligned
+    in 7 digits, then `row` / `rows` in `--ink-3`; always on a FETCH, on other
+    calls when above 0; none without an r=) and the `exec N` tag has one (6 ch)
+    on a call row that has any group, so the groups after them start at one
+    x down consecutive calls (a PARSE, its EXEC, the FETCHes). The gets are
+    tkprof's words, `query` (cr=), `current` (cu=), `disk` (p=), in one quiet
+    box (`--surface-sunken`, 1 px `--hairline`, 3 px radius, 11 px type), each
+    number in a fixed 9-digit slot (1,234,567 does not move it; more pushes), a
+    0 in `--ink-3`; shown when any is above 0; the tooltip keeps `cr=498 cu=0
+    p=496`. Then `cpu 5.17 ms` (only where it is not all of the duration) and
+    the notes (`hard parse`, `cached` / `closed`, the waiting share) as before.
+    The widths are what lets the hot FETCH of `io_waits.trc` (every group and the
+    waiting share) fit a 1280 px window with the side panel closed. (Round 1
+    and 2 had one run of text, `5.17 ms cpu · 1 row · 498 gets · 496 reads`, and
+    said "fixed slots for them inside Detail were tried and rejected: they spread
+    the row out and pushed the notes to the middle". That was one slot per value
+    with the notes after them; the groups are three slots and one box, rows
+    apart from the gets because the rows answer another question than the I/O,
+    and the user asked for gets that read as a group and line up down a run of
+    FETCH rows. `gets` (cr + cu) is gone: it hid whether the reads were current
+    mode, and tkprof prints the three.)
+
 - **Rejected in round 2** (so they are not tried again): a sticky three-line
   lane label box (sql_id, SQL start, time here) in the Statement column: it
   keeps a wide column that is empty on every row but the first two of a lane
@@ -734,6 +792,11 @@ decision of round 1 changed, the text says what it is now and what it was.
   inline binds by value length (by count; see above); folding every blank line
   (a pass over the whole raw file for a handful of rows); the Highlighting chip
   beside the overview chip (two chips for one thing).
+
+- **Rejected in round 3** (batch 1): the absolute log scale of the Duration bar
+  (Time, above); a tick at 1 % only on the hot rows or only in the header (the
+  tick on every track is what makes a bar read against the rule); `gets` as the
+  sum of cr and cu (above).
 
 ## Project
 

@@ -34,7 +34,7 @@ export interface ReadableCell extends LineView {
   lane: Lane | null
   /** the line took 1 % of the traced time or more */
   hot: boolean
-  /** the Duration cell's track: the line's own time as a fraction of it (log scale, 1 µs to 10 s: `barFrac`), and a call's CPU part */
+  /** the Duration cell's track: the line's own time as a fraction of it (log of its share of the traced time, 0.01 % to 100 %: `barFrac`), and a call's CPU part */
   trackW?: number
   trackCpuW?: number
   /**
@@ -79,6 +79,8 @@ export interface ReadableInputs {
   hot: ReadonlyMap<number, number>
   /** µs of a hot spot: 1 % of the traced time (a call or wait of it, a plan operation's own time); undefined: no plan cell is hot */
   hotUs?: number
+  /** the file's traced time (µs): the Duration tracks are log shares of it (`barFrac`); undefined: empty tracks */
+  spanUs?: number
   bindAt?(line: number): BindAt | undefined
   /** a BINDS header in view whose values are not known yet: the owner asks for them (and rebuilds the rows when they come) */
   missingBinds?(line: number): void
@@ -105,6 +107,7 @@ const hmsOf = (clock: string) => (/^\d\d:\d\d:\d\d\./.test(clock) ? clock.slice(
 
 export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLine) => ReadableCell {
   const { doc, line: lineAt } = inp
+  const span = inp.spanUs ?? 0
   const kindOf = (l: CachedLine) => LINE_KINDS[l.kind] ?? 'unknown'
   // memo per line: the function is rebuilt whenever an input changes, and a scroll asks for the same lines again
   const laneMemo = new Map<number, number>()
@@ -377,8 +380,8 @@ export function readableRowsOf(inp: ReadableInputs): (line: number, l: CachedLin
       plan,
       lane: laneOf(n, l, v, step),
       hot,
-      trackW: v.bar ? barFrac(v.bar.us) : undefined,
-      trackCpuW: v.bar?.cpu !== undefined ? barFrac(v.bar.cpu) : undefined,
+      trackW: v.bar ? barFrac(v.bar.us, span) : undefined,
+      trackCpuW: v.bar?.cpu !== undefined ? barFrac(v.bar.cpu, span) : undefined,
       delta, deltaTitle, pinned, fromPin: !!inp.pin, deltaUs, deltaEmph, clock, micros, clockTitle, clockFull, clockShort,
       execFirst, execNo: execFirst && l.execNo > 0 ? l.execNo : undefined, micro, ditto, br, brIndent, // (execNo 0: the line is in no execution)
       keyW: kind === 'header' && headerKey(l.text) !== undefined ? headerKeyW(n) : undefined,

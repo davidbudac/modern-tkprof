@@ -1,4 +1,6 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
+import { fmtDur } from '../data/format'
+import { HOT_SHARE } from '../data/linetime'
 
 /**
  * A column of the formatted view that the user can resize: key (`--w-<key>` and the `cols` pref), header, default width in digits of
@@ -12,7 +14,7 @@ export const FORMATTED_COLUMNS: FormattedColumn[] = [
   { key: 'bar', label: 'Time', title: 'Δ: the time from the pinned line (a); else the unexplained gap before the line: where it started (its tim minus its own time) after where the line with a time before it ended, blank under 50 µs, amber from 1 ms and twice that line (the trace bar\'s Δ hides this column)', def: 12, min: 24 },
   { key: 'kind', label: 'Operation', title: 'what the line is: PARSE, EXEC, FETCH, CLOSE, WAIT, PLAN, BINDS, …', def: 10, min: 40 },
   // the Duration column is its number (10 digits) and the 56 px track: 10 digits + 72 px, 20 digits at the 7.2 px a digit of the default font; least: the number's room 8 digits
-  { key: 'dur', label: 'Duration', title: "the line's e= (a call) or ela= (a wait); a fold's total. The bar: log scale, 1 µs to 10 s; a wait in its class colour, a call in slate with its CPU part the solid end", def: 20, min: 136 },
+  { key: 'dur', label: 'Duration', title: "the line's e= (a call) or ela= (a wait); a fold's total. The bar: a wait in its class colour, a call in slate with its CPU part the solid end", def: 20, min: 136 },
   { key: 'clk', label: 'Clock', title: "the wall-clock time of the line's tim= in the trace's zone: the whole stamp on the first row, the selected one and where the second changes, else the digits that change", def: 11.7, min: 72 },
 ]
 
@@ -26,8 +28,9 @@ export function columnVars(cols: Readonly<Record<string, number>>): Record<strin
 /**
  * The formatted view's column headers, in the rows' columns. The edge after a header resizes its column: drag it (the width follows
  * the pointer through a CSS variable, stored when the drag ends), double-click it for the default, or focus it and use ← →.
+ * Duration also says its scale: `1 %` over the tick every track has at 1 % of the file's traced time (`spanUs`), and the numbers in its tooltip.
  */
-export function FormattedHead({ cols, delta, onCols }: { cols: Readonly<Record<string, number>>; delta: boolean; onCols(cols: Record<string, number>): void }) {
+export function FormattedHead({ cols, delta, spanUs, onCols }: { cols: Readonly<Record<string, number>>; delta: boolean; spanUs: number; onCols(cols: Record<string, number>): void }) {
   const box = useRef<HTMLDivElement>(null)
   // `dir` -1: the column is at the end edge, its grip on its start edge (dragging left widens it)
   const drag = useRef<{ key: string; x: number; w: number; min: number; dir: 1 | -1 } | null>(null)
@@ -66,12 +69,14 @@ export function FormattedHead({ cols, delta, onCols }: { cols: Readonly<Record<s
     e.preventDefault()
   }
   /** A header and its grip: on its end edge, or (`atEnd`: a column at the view's end edge) on its start edge. */
+  const barTitle = `bar: share of the traced time${spanUs > 0 ? ` (${fmtDur(spanUs)})` : ''}, log scale from 0.01 % to 100 %; red from 1 %${spanUs > 0 ? ` (${fmtDur(spanUs * HOT_SHARE)})` : ''}: a hot spot (idle waits never)`
   const cell = (key: string, atEnd = false, alignEnd = false, label?: string) => {
     const c = FORMATTED_COLUMNS.find((x) => x.key === key)!
     const dir = atEnd ? -1 : 1
     return (
-      <span className={`lv-ch lv-ch-${key}${atEnd ? ' lv-ch-atend' : ''}${alignEnd ? ' lv-ch-alend' : ''}`} title={c.title}>
+      <span className={`lv-ch lv-ch-${key}${atEnd ? ' lv-ch-atend' : ''}${alignEnd ? ' lv-ch-alend' : ''}`} title={key === 'dur' ? `${c.title}\n${barTitle}` : c.title}>
         <span className="lv-ch-label">{label ?? c.label}</span>
+        {key === 'dur' && <span className="lv-ch-tick" aria-hidden="true">{HOT_SHARE * 100} %</span>}
         <span className="lv-ch-grip" role="separator" aria-orientation="vertical" aria-label={`Resize the ${c.label} column`} aria-valuenow={cols[c.key]} aria-valuemin={c.min}
           tabIndex={0} title="drag to resize; double-click: the default width; ← → with the focus here" onPointerDown={onDown(c, dir)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
           onDoubleClick={() => set(c.key, undefined)} onKeyDown={onKey(c, dir)} />
