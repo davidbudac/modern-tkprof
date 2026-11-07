@@ -567,7 +567,6 @@ td.r, th.r { text-align: end; font-variant-numeric: tabular-nums; }
 }
 .way-head { display: grid; gap: 0.25rem; }
 .way h3 { font-size: var(--text-h3); }
-.way .for { color: var(--ink-3); font-size: var(--text-sm); }
 .way > p { color: var(--ink-2); font-size: 0.9375rem; }
 @container (width < 52rem) {
   .way { grid-template-columns: minmax(0, 1fr); }
