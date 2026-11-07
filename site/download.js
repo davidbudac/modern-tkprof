@@ -111,8 +111,8 @@
     btn.addEventListener('click', function () {
       var text = btn.parentNode.querySelector('pre').textContent.replace(/^\$ /, '').trim();
       var done = function () {
-        btn.textContent = 'Copied';
-        setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+        btn.classList.add('copied');
+        setTimeout(function () { btn.classList.remove('copied'); }, 1600);
       };
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(done, function () {});
