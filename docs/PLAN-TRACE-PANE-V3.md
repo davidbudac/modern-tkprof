@@ -182,7 +182,7 @@ header's `raw-head-popup-1600-light.png`; the drivers `drive-*.mjs` beside them,
 
 ### Batch 2 (2026-11-07): the SQL band, and two fixes to batch 1
 
-Commit: see `git log` ("Trace pane round 3, batch 2: …"). Tests: `go test ./internal/slice ./internal/engine` pass (new `TestLinesBlocksFrameTexts`, which checks
+Commit: `73b5b29` ("Trace pane round 3, batch 2: …"; this Log entry got its SHA in the commit after it). Tests: `go test ./internal/slice ./internal/engine` pass (new `TestLinesBlocksFrameTexts`, which checks
 every fixture set), `pnpm --filter mtkprof-web test` 714 pass (was 702 after batch 1: +7 `sqlformat.test.ts`, +5 in `lines.test.ts`), desktop `pnpm test` 228 pass,
 `pnpm -r typecheck` clean, `pnpm --filter mtkprof-web build` and the desktop's `vite build` resolve `sql-formatter`. `internal/ui/dist` not rebuilt (batch 3 does that).
 Evidence: `/tmp/verify-mtkprof/evidence/trace-v3/2/` (1600 and 1280 px, light and dark, wrap off `-off-` and on `-on-`: `io_waits-132-*`, `basic_binds-{36,75}-*`,
