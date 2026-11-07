@@ -13,10 +13,10 @@
 
   // key -> file name for a version, what the button says, size in bytes (fallback)
   var ASSETS = {
-    'dmg-arm':   { name: function (v) { return 'mtkprof_' + v + '_aarch64.dmg'; },      meta: 'Desktop app · Apple Silicon', alt: 'Apple Silicon Mac', kind: '.dmg',      size: 10993997 },
-    'dmg-x64':   { name: function (v) { return 'mtkprof_' + v + '_x64.dmg'; },          meta: 'Desktop app · Intel',         alt: 'Intel Mac',         kind: '.dmg',      size: 11958398 },
-    'win-setup': { name: function (v) { return 'mtkprof_' + v + '_x64-setup.exe'; },    meta: 'Desktop app · Windows 10/11 x64', kind: '.exe', size: 7691342 },
-    'appimage':  { name: function (v) { return 'mtkprof_' + v + '_amd64.AppImage'; },   meta: 'Desktop app · x64 AppImage',      kind: '.AppImage', size: 107067896 },
+    'dmg-arm':   { name: function (v) { return 'mtkprof_' + v + '_aarch64.dmg'; },      meta: 'Apple Silicon · .dmg', alt: 'Apple Silicon Mac', kind: '.dmg',      size: 10993997 },
+    'dmg-x64':   { name: function (v) { return 'mtkprof_' + v + '_x64.dmg'; },          meta: 'Intel · .dmg',         alt: 'Intel Mac',         kind: '.dmg',      size: 11958398 },
+    'win-setup': { name: function (v) { return 'mtkprof_' + v + '_x64-setup.exe'; },    meta: 'Windows 10/11 x64 · installer', kind: '.exe', size: 7691342 },
+    'appimage':  { name: function (v) { return 'mtkprof_' + v + '_amd64.AppImage'; },   meta: 'x64 · AppImage',      kind: '.AppImage', size: 107067896 },
     'deb':       { name: function (v) { return 'mtkprof_' + v + '_amd64.deb'; },        alt: 'Debian and Ubuntu',    kind: '.deb',      size: 12216186 },
     'cli-darwin-arm64': { name: function () { return 'mtkprof-darwin-arm64'; } },
     'cli-darwin-amd64': { name: function () { return 'mtkprof-darwin-amd64'; } },
