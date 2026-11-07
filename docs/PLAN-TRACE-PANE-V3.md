@@ -228,7 +228,7 @@ SQLT trace, on `basic_binds.trc` and on a trace that ends with a band), `drive-4
 
 ### Batch 3 (2026-11-07): the statement picker, the Display tab, a shorter toolbar
 
-Commit: `TBD` ("Trace pane round 3, batch 3: …"; this Log entry got its SHA in the commit after it). Tests: `pnpm --filter mtkprof-web test` 736 pass (was 714: +12 `stmtpick.test.ts`, +13 `display.test.ts`,
+Commit: `0d0c23a` ("Trace pane round 3, batch 3: …"; this Log entry got its SHA in the commit after it). Tests: `pnpm --filter mtkprof-web test` 736 pass (was 714: +12 `stmtpick.test.ts`, +13 `display.test.ts`,
 the 4 `splitChips` tests of `overview.test.ts` replaced by 1), `pnpm -r typecheck` clean, desktop `pnpm test` 228 pass, `go test` unchanged (no Go change), `scripts/ci-local.sh --no-release` PASS (vet, go test, web,
 embedded-UI check, desktop; 59 s). `make web` rebuilt `internal/ui/dist/index.html` (1,841.84 kB, after batch 2, to 1,856.62 kB: +14.8 kB, gzip 646.35 to 649.61 kB) and the embedded CLI UI was smoke-tested on
 `bin/mtkprof serve -spill io_waits.trc` (picker, list, Display tab, 0 console errors: `embedded-cli-1440.png`).
