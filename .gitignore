@@ -16,3 +16,6 @@
 /node_modules/
 # pnpm store of the Docker CI legs (desktop/scripts/ci-local.sh mounts the repository at /src)
 /.pnpm-store/
+
+# tsc -b writes it on every typecheck
+*.tsbuildinfo
