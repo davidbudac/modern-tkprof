@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
@@ -15,23 +15,9 @@ import { useScopedFindings } from '../data/scopedfindings'
 import { responseBaseUs, responseShare, responseUs, shareNote } from '../data/response'
 import type { CSSProperties } from 'react'
 import { enterFrom } from '../components/motion'
+import { filterStatements, rankStatements, stmtSorts } from '../data/stmtsearch'
+import type { StmtSortKey } from '../state/store'
 
-type SortKey = 'first' | 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
-const sorts: { id: SortKey; label: string; of: (s: StmtStats, inclusive: boolean) => number }[] = [
-  { id: 'resp', label: 'response time', of: (s) => responseUs(s) },
-  // earliest first, as in the Overview timeline lanes; statements never called sort last
-  { id: 'first', label: 'first call', of: (s) => (s.firstTim > 0 ? -s.firstTim : -Infinity) },
-  { id: 'self', label: 'self time', of: (s) => s.selfElapsed },
-  { id: 'cpu', label: 'CPU', of: (s, inc) => (inc ? s.cpu : s.selfCpu) },
-  { id: 'waits', label: 'wait time', of: (s) => s.waitUs },
-  { id: 'idle', label: 'idle time', of: (s) => s.idleUs },
-  { id: 'execs', label: 'executions', of: (s) => s.executions },
-  { id: 'rows', label: 'rows', of: (s) => s.allCalls.rows },
-  { id: 'disk', label: 'disk reads', of: (s, inc) => (inc ? s.allCalls.disk : s.allCalls.selfDisk) },
-  { id: 'query', label: 'consistent gets', of: (s, inc) => (inc ? s.allCalls.query : s.allCalls.selfQuery) },
-  { id: 'hard', label: 'hard parses', of: (s) => s.hardParses },
-  { id: 'errors', label: 'errors', of: (s) => s.errors },
-]
 const ROW_H = 76
 
 /** Two panes: the ranked statement list and the selected statement (its context is a section of the detail). */
@@ -39,28 +25,21 @@ export function Statements({ doc }: { doc: TraceDoc }) {
   const actions = useActions()
   const sel = useStore((s) => s.selection.stmt)
   const inclusive = useStore((s) => s.inclusive)
-  const [q, setQ] = useState('')
-  const [hideSys, setHideSys] = useState(false)
-  const [sortKey, setSortKey] = useState<SortKey>('resp')
+  // the list's controls live in the tab's session store, so they survive a tab switch or a visit to another view
+  const { q, hideSys, sort: sortKey } = useStore((s) => s.stmtList)
   const [listW, setListW] = usePersisted<number | null>('mtkprof.listW', null)
   const source = sourceOf(doc)
   const scope = useScope(doc)
   const roles = useSourceQuery(source, `roles:${scopeKey(scope)}`, (signal) => source.stmtRoles(scope, signal), 'roles').data
-  const sort = sorts.find((s) => s.id === sortKey)!
+  const sort = stmtSorts.find((s) => s.id === sortKey)!
   const ss = useScopedStatements(doc)
   const { stats, narrowed } = ss
   const totalUs = responseBaseUs(doc, scope, narrowed) // percentages are of the scope's response time only when the numbers are the scope's
-  const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-    const list = stats.filter((s) => {
-      if (s.allCalls.count === 0 && (narrowed || s.errors === 0)) return false
-      const st = doc.statements[s.id]
-      if (hideSys && st.parsingUserId === 0 && s.minDepth > 0) return false
-      if (needle && !(st.sqlId.toLowerCase().includes(needle) || st.text.toLowerCase().includes(needle))) return false
-      return true
-    })
-    return list.sort((a, b) => sort.of(b, inclusive) - sort.of(a, inclusive) || b.elapsed - a.elapsed)
-  }, [doc, stats, narrowed, q, hideSys, sort, inclusive])
+  // the ranking depends on the sort and the mode only, the filter on the (deferred) text: a keystroke filters a ranked list and keeps typing responsive
+  const ranked = useMemo(() => rankStatements(stats, sortKey, inclusive), [stats, sortKey, inclusive])
+  const dq = useDeferredValue(q)
+  const rows = useMemo(() => filterStatements(doc, ranked, { narrowed, hideSys, q: dq }), [doc, ranked, narrowed, hideSys, dq])
+  const filtering = dq !== q // the text is ahead of the list
   const maxResp = rows.reduce((a, s) => Math.max(a, responseUs(s)), 0)
   const scopedFindings = useScopedFindings(doc).findings
   const findingsOf = useMemo(() => { const m = new Map<number, number>(); for (const f of scopedFindings) if (f.statement >= 0) m.set(f.statement, (m.get(f.statement) ?? 0) + 1); return m }, [scopedFindings])
@@ -103,17 +82,17 @@ export function Statements({ doc }: { doc: TraceDoc }) {
           <div className="t"><h2>Statements</h2><span className="dim">{narrowed ? rows.length : rows.length === doc.statements.length ? rows.length : `${rows.length} of ${doc.statements.length}`}</span></div>
           {narrowed && <p className="xs dim" title="window, selected files and session contexts">{rows.length} of {ss.total} statements in scope{ss.loading ? ' …' : ''}</p>}
           {ss.notice && <p className="xs callout">{ss.notice}</p>}
-          <input type="search" placeholder="filter by sql_id or text" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input type="search" placeholder="filter by sql_id or text" aria-label="Filter statements" value={q} onChange={(e) => actions.setStmtList({ q: e.target.value })} />
           <div className="opts">
-            <label>by <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>{sorts.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+            <label>by <select value={sortKey} onChange={(e) => actions.setStmtList({ sort: e.target.value as StmtSortKey })}>{stmtSorts.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
             <span className="seg" role="group" aria-label="Statistics mode">
               <button aria-pressed={!inclusive} onClick={() => actions.setInclusive(false)} title="exclude recursive children, like tkprof">self</button>
               <button aria-pressed={inclusive} onClick={() => actions.setInclusive(true)} title="include recursive children">inclusive</button>
             </span>
-            <button className={'quiet' + (hideSys ? ' on' : '')} aria-pressed={hideSys} onClick={() => setHideSys(!hideSys)} title="hide recursive statements parsed by SYS">no SYS</button>
+            <button className={'quiet' + (hideSys ? ' on' : '')} aria-pressed={hideSys} onClick={() => actions.setStmtList({ hideSys: !hideSys })} title="hide recursive statements parsed by SYS">no SYS</button>
           </div>
         </div>
-        <div className="wb-scroll" ref={scrollRef}>
+        <div className="wb-scroll" ref={scrollRef} aria-busy={filtering} style={filtering ? { opacity: 0.6 } : undefined}>
           <div style={{ height: virt.getTotalSize(), position: 'relative' }}>
             {virt.getVirtualItems().map((vi) => {
               const st = rows[vi.index]
