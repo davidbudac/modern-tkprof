@@ -109,3 +109,13 @@ blocks are not the trace's: every-k-th wait of a scan never continues the one be
   for 200 ms (a wasted density query for the old layout); the re-reads colour called 0 reads "read once" (now "not read in scope");
   the unzoomed time axis asked over the sample's time extent, so the last column took the matches past it (it now asks for bins only
   and the engine bins over the matches' own extent).
+
+### 2026-11-08: batch 3 (merge, CI)
+
+- Rebased on `main` after the reference-names round (`8274d8b`, `b60e344`): both added engine routes (the contract test now counts 40
+  session routes), schemas and `DataSource` members, and edited the I/O map's user-guide row; `api.d.ts` regenerated, `make web`.
+- `scripts/ci-local.sh --no-release` passes (vet, Go tests, web 873 tests, embedded UI, desktop 228 tests); linux, windows, aix,
+  solaris cross-builds; the journey re-run on the rebased sidecar (no console errors).
+
+Commits: `d508d62` (batch 1), `68ed259` (batch 2), and the built UI with this log.
+
