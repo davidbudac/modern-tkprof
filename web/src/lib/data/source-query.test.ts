@@ -6,6 +6,7 @@ import { makeDoc } from './testdoc'
 import type { ApiClient } from './client'
 import type { ScopeProfile } from './derive'
 import type { Finding } from './types'
+import type { Scope } from '../state/store'
 import { scopedFindingsView } from './scopedfindings'
 import { waitsView } from '../views/Waits'
 
@@ -137,5 +138,118 @@ describe('scopedFindingsView: narrowed only for this scope (F01; Statements coun
   })
   it('is the whole trace when nothing narrows', () => {
     expect(scopedFindingsView(all, false, q({ data: mine }))).toEqual({ findings: all, narrowed: false, loading: false, notice: null })
+  })
+})
+
+/** A client whose answers the test releases: each fetch is recorded with its signal; an abort rejects it as fetch does. */
+function heldClient() {
+  const calls: { path: string; signal: AbortSignal; answer(status: number, body: unknown): void }[] = []
+  const client: ApiClient = {
+    base: '',
+    fetch: (path, init) => new Promise<Response>((resolve, reject) => {
+      const signal = init!.signal!
+      signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true })
+      calls.push({ path, signal, answer: (status, body) => resolve(new Response(typeof body === 'string' ? body : JSON.stringify(body), { status })) })
+    }),
+  }
+  return { client, calls }
+}
+
+const wholeScope: Scope = { window: null, files: null, contexts: null, includeIdle: false }
+const isAbort = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
+
+describe('RemoteSource: concurrent identical requests share one transport call (F05)', () => {
+  const findingsOf = (n: number) => ({ findings: Array.from({ length: n }, (_, i) => ({ rule: `r${i}` })) })
+
+  it('makes one fetch for two concurrent identical calls, both resolve; a third after settlement is answered by the cache', async () => {
+    const { client, calls } = heldClient()
+    const source = new RemoteSource(await makeDoc([]), client)
+    const a = source.findings(wholeScope, new AbortController().signal)
+    const b = source.findings(wholeScope, new AbortController().signal)
+    await tick()
+    expect(calls).toHaveLength(1)
+    calls[0].answer(200, findingsOf(2))
+    const [ra, rb] = await Promise.all([a, b])
+    expect(ra).toHaveLength(2)
+    expect(rb).toBe(ra)
+    expect(await source.findings(wholeScope)).toBe(ra)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('keeps different parameters apart', async () => {
+    const { client, calls } = heldClient()
+    const source = new RemoteSource(await makeDoc([]), client)
+    void source.findings(wholeScope)
+    void source.findings({ ...wholeScope, contexts: new Set([1]) })
+    await tick()
+    expect(calls.map((c) => c.path)).toEqual(['/api/findings', '/api/findings?contexts=1'])
+  })
+
+  it('goes on when one of two callers aborts, and the other gets the answer', async () => {
+    const { client, calls } = heldClient()
+    const source = new RemoteSource(await makeDoc([]), client)
+    const acA = new AbortController()
+    const a = source.findings(wholeScope, acA.signal)
+    const b = source.findings(wholeScope, new AbortController().signal)
+    await tick()
+    acA.abort()
+    await expect(a).rejects.toSatisfy(isAbort)
+    expect(calls[0].signal.aborted).toBe(false)
+    calls[0].answer(200, findingsOf(1))
+    expect(await b).toHaveLength(1)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('aborts the shared request when every caller aborts, and a later call starts a new one', async () => {
+    const { client, calls } = heldClient()
+    const source = new RemoteSource(await makeDoc([]), client)
+    const acA = new AbortController(), acB = new AbortController()
+    const a = source.findings(wholeScope, acA.signal)
+    const b = source.findings(wholeScope, acB.signal)
+    await tick()
+    acA.abort(); acB.abort()
+    await expect(a).rejects.toSatisfy(isAbort)
+    await expect(b).rejects.toSatisfy(isAbort)
+    expect(calls[0].signal.aborted).toBe(true)
+    const c = source.findings(wholeScope)
+    await tick()
+    expect(calls).toHaveLength(2)
+    calls[1].answer(200, findingsOf(3))
+    expect(await c).toHaveLength(3)
+  })
+
+  it('does not hand a failure to the next caller: it fetches again', async () => {
+    const { client, calls } = heldClient()
+    const source = new RemoteSource(await makeDoc([]), client)
+    const a = source.findings(wholeScope)
+    const b = source.findings(wholeScope)
+    await tick()
+    calls[0].answer(500, 'engine busy')
+    await expect(a).rejects.toThrow(/engine busy/)
+    await expect(b).rejects.toThrow(/engine busy/)
+    const c = source.findings(wholeScope)
+    await tick()
+    expect(calls).toHaveLength(2)
+    calls[1].answer(200, findingsOf(1))
+    expect(await c).toHaveLength(1)
+  })
+
+  it('keeps the bounded completed cache: the oldest answer is evicted past 200 URLs', async () => {
+    const { client, calls } = heldClient()
+    const source = new RemoteSource(await makeDoc([]), client)
+    for (let i = 0; i <= 200; i++) {
+      const p = source.findings({ ...wholeScope, contexts: new Set([i]) })
+      await tick()
+      calls[calls.length - 1].answer(200, findingsOf(0))
+      await p
+    }
+    expect(calls).toHaveLength(201)
+    await source.findings({ ...wholeScope, contexts: new Set([200]) }) // still cached
+    expect(calls).toHaveLength(201)
+    const first = source.findings({ ...wholeScope, contexts: new Set([0]) }) // evicted: asked again
+    await tick()
+    expect(calls).toHaveLength(202)
+    calls[201].answer(200, findingsOf(0))
+    await first
   })
 })
