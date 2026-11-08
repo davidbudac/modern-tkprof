@@ -23,7 +23,9 @@
 //	/api/stmt/waits      top wait events of statements
 //	/api/stmt/spans      merged time intervals of statements' calls (phases=1: cut by call phase)
 //	/api/stmt/waitspans  stretches of statements' waits with their dominant events
-//	/api/io/map          the block I/O waits in scope at their file and block (Blocks view)
+//	/api/io/map          the block I/O waits in scope at their file and block (the I/O map)
+//	/api/io/density      every block I/O wait in scope counted into the I/O map's cells
+//	/api/io/hot          block reads per block: the hottest runs of blocks, exact numbers per object and statement
 //
 // Common scope parameters: from, to (tim in µs, a row is in when its
 // [tim-ela, tim] interval overlaps), contexts (comma separated ids), stmt,
@@ -91,7 +93,7 @@ type Server struct {
 	stmtMu   sync.Mutex
 	stmtMaps map[int]*stmtLineMap // file -> the statement of every line (see stmtMapOf)
 
-	blockEvents, countP3 []bool // per event: block I/O, p3 a block count (analyze.BlockEvents, /api/io/map)
+	ioEvents analyze.IOEvents // per event: block I/O, p3 a block count, temp, write (the /api/io routes)
 }
 
 // NoCORS is the Server.AllowOrigin that turns the server's own CORS handling off.
@@ -104,7 +106,7 @@ func New(m *model.Model) *Server { return NewServer(m, MemSource(m)) }
 // rows of src (the spilled rows of an aggregation-only model, see Spill).
 func NewServer(m *model.Model, src FactSource) *Server {
 	s := &Server{m: m, src: src, cache: map[string][]byte{}}
-	s.blockEvents, s.countP3 = analyze.BlockEvents(m.Events)
+	s.ioEvents = analyze.IOEventsOf(m.Events)
 	return s
 }
 
@@ -169,6 +171,8 @@ func (s *Server) routes() map[string]func(context.Context, url.Values) (any, err
 		"/api/stmt/spans":        s.stmtSpans,
 		"/api/stmt/waitspans":    s.stmtWaitSpans,
 		"/api/io/map":            s.ioMap,
+		"/api/io/density":        s.ioDensity,
+		"/api/io/hot":            s.ioHot,
 		"/api/plan":              s.plan,
 	}
 	if s.lis != nil {

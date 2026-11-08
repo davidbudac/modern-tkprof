@@ -2944,7 +2944,10 @@ paths:
         p3 is a block count (`blocks`, `block cnt`) and positive, else 1; obj, stmt and call are -1 when none. With
         more than `limit` waits every k-th is kept (the 1st, the (k+1)-th, ...), k = ceil(total / limit), and
         `sampled` is set; `total`, `files` and `events` are over all of them. `idle` is accepted and changes nothing:
-        block I/O is never idle.
+        block I/O is never idle. With `reads=1` the first pass also counts the reads of every block (a multiblock
+        read counts each of its blocks; bounded memory, `analyze.blockCounter`) and `reads` gives each row the reads
+        of its most read block over every wait in scope (the re-reads colour); `readsExact` is false when the counter
+        had to prune (then a count is low by at most the prune's decrement).
       parameters:
         - $ref: "#/components/parameters/SessionID"
         - name: limit
@@ -2955,6 +2958,13 @@ paths:
             minimum: 1
             maximum: 200000
             default: 20000
+        - name: reads
+          in: query
+          description: 1 adds `reads` and `readsExact`
+          schema:
+            type: integer
+            enum: [0, 1]
+            default: 0
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
         - $ref: "#/components/parameters/Contexts"
@@ -2968,6 +2978,117 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IOMap"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/io/hot:
+    get:
+      operationId: sliceIOHot
+      summary: Block reads per block over every block I/O wait in scope, the hottest runs of blocks, and exact numbers per object and statement (the I/O map's Hot blocks)
+      description: >-
+        `analyze.IOHotOn`: every block I/O wait in scope (as `api/io/map`, not a sample) counts a read of each block of
+        `[block, block + blocks)` (writes are counted apart). Pass 1 counts with bounded memory: a block's first read only
+        marks it in a set of chunks of 65,536 blocks (sorted arrays, bitmaps once dense: a full scan costs about a bit per
+        block), a block read again gets a counter, and above 1,000,000 counters the map is pruned the Misra-Gries way. The
+        65,536 most read blocks read twice or more are merged into runs of adjacent blocks, and pass 2 recounts those runs
+        exactly. Every count shown is exact; `exact` is false when the prune ran or more blocks were re-read than are
+        recounted, and then a block in no run may have been read up to `bound` times. `objects` (per object, temp waits
+        per file, waits without an object per file) and `stmts` (per statement and file) are over every wait.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: limit
+          in: query
+          description: runs at most
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 100
+        - name: sort
+          in: query
+          description: the order of the runs, largest first (rereads = Σ (reads − 1) of its blocks, max = the most reads of one block, us = time)
+          schema:
+            type: string
+            enum: [rereads, max, us]
+            default: rereads
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Event"
+        - $ref: "#/components/parameters/Idle"
+      responses:
+        "200":
+          description: the block reads in scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IOHot"
+        "400":
+          $ref: "#/components/responses/SliceBadRequest"
+  /s/{id}/api/io/density:
+    get:
+      operationId: sliceIODensity
+      summary: Every block I/O wait in scope counted into the cells of the I/O map's panels (the density layer)
+      description: >-
+        `analyze.IODensityOn`: x is the I/O order (the wait's index among the matches in trace order, as `api/io/map`
+        counts it) or the time (the wait's midpoint tim − ela/2, clamped into the domain); y is the block, per panel over
+        its segments. A wait counts in every y cell its blocks touch: waits + 1, blocks + its blocks in the cell, µs + ela
+        × that share of its blocks. One pass when `xs` and `p` are given; without them a first pass finds the domain (the
+        matches, their time extent) and the files. No list of the waits is kept. Limits: 64 x segments and 4,000 x bins,
+        64 panels of 64 segments and 2,000 y bins each, 1,048,576 cells (x bins × the y bins of every panel); block
+        coordinates in [0, 2^40], x within ±2^53. The default panels are the first 64 files, with fewer y bins when the grid
+        would pass the cells limit. A wait counts as moving at most 65,536 blocks (`analyze.MaxWaitBlocks`).
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: x
+          in: query
+          schema:
+            type: string
+            enum: [order, time]
+            default: order
+        - name: xs
+          in: query
+          description: "the x bins: segments a.b.n separated by commas, ascending (order: match indices [a, b); time: tim µs [a, b)); n bins each (order: at most b − a). Absent: one segment of xbins bins over the scope"
+          schema:
+            type: string
+        - name: xbins
+          in: query
+          description: bins of the default x segment
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4000
+            default: 200
+        - name: p
+          in: query
+          description: "one panel (repeat for more): key:file.lo.hi.n,file.lo.hi.n… with the block segments [lo, hi) and their bins (at most hi − lo). The key selects the waits: f<file> (the file's), o<obj> (an object's non-temp waits), t<file> (the temp waits of a file), n<file> (a file's non-temp waits without an object), rest (non-temp waits with an obj# no o-panel selects). Absent: one panel per file over its block range with ybins bins"
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+        - name: ybins
+          in: query
+          description: bins of the default panels
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 64
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Contexts"
+        - $ref: "#/components/parameters/Stmt"
+        - $ref: "#/components/parameters/Event"
+        - $ref: "#/components/parameters/Idle"
+      responses:
+        "200":
+          description: the cells with waits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IODensity"
         "400":
           $ref: "#/components/responses/SliceBadRequest"
 components:
@@ -3808,6 +3929,14 @@ components:
           description: the ids of the events that occurred, sorted
           items:
             type: integer
+        reads:
+          type: array
+          description: with reads=1, per row the reads of its most read block over every wait in scope (0 for a write whose blocks no read touched)
+          items:
+            type: integer
+        readsExact:
+          type: boolean
+          description: with reads=1, no count is an estimate (the block counter never pruned)
     IOMapFile:
       type: object
       description: analyze.IOMapFile, the block range [lo, hi) of one file's block I/O waits
@@ -3898,6 +4027,244 @@ components:
         complete:
           type: boolean
           description: the text has the first and the last line of the script's output (else it was cut off), or it was read as tables
+    IOHot:
+      type: object
+      description: analyze.IOHot, the answer of api/io/hot
+      required: [total, reads, blockReads, distinct, reread, exact, bound, distinctExact, runsTotal, runs, objects, stmts]
+      properties:
+        total:
+          type: integer
+          description: block I/O waits in scope
+        reads:
+          type: integer
+          description: of them reads
+        blockReads:
+          type: integer
+          description: blocks the reads moved (a multiblock read counts each block)
+        distinct:
+          type: integer
+          description: distinct blocks read
+        reread:
+          type: integer
+          description: distinct blocks read twice or more
+        exact:
+          type: boolean
+          description: the runs are what counting every block gives (no prune, every re-read block recounted)
+        bound:
+          type: integer
+          description: a block in no run was read at most this many times (1 when exact)
+        distinctExact:
+          type: boolean
+          description: the distinct counts are exact (false once the seen-block sets reached their cap)
+        runsTotal:
+          type: integer
+          description: runs before the limit
+        runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/IOHotRun"
+        objects:
+          type: array
+          description: per object group, most time first
+          items:
+            $ref: "#/components/schemas/IOObjStat"
+        stmts:
+          type: array
+          description: per statement and file, most time first
+          items:
+            $ref: "#/components/schemas/IOStmtStat"
+    IOHotRun:
+      type: object
+      description: analyze.IOHotRun, adjacent blocks of one file each read twice or more; every count exact
+      required: [file, lo, hi, reads, rereads, max, min, peak, waits, writes, us, first, last, temp, objs, stmts]
+      properties:
+        file:
+          type: integer
+        lo:
+          type: integer
+          description: first block
+        hi:
+          type: integer
+          description: end, exclusive
+        reads:
+          type: integer
+          description: Σ reads of its blocks
+        rereads:
+          type: integer
+          description: Σ (reads − 1) of its blocks
+        max:
+          type: integer
+          description: the most reads of one block
+        min:
+          type: integer
+          description: the fewest reads of one block
+        peak:
+          type: integer
+          description: the block read max times (the first on a tie)
+        waits:
+          type: integer
+          description: read waits that touched the run
+        writes:
+          type: integer
+          description: write waits that touched the run
+        us:
+          type: integer
+          description: µs of its reads (each read's ela × its share of the read's blocks)
+        first:
+          type: integer
+          description: tim of the first read
+        last:
+          type: integer
+          description: tim of the last read
+        temp:
+          type: boolean
+          description: every read was temp I/O
+        objs:
+          type: array
+          description: "the objects (obj# of the non-temp reads) that read it, by blocks read, at most 3: [obj, blocks]"
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: integer
+        stmts:
+          type: array
+          description: "the statements that read it, by blocks read, at most 3: [stmt, blocks]"
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: integer
+    IOObjStat:
+      type: object
+      description: analyze.IOObjStat, what one object's waits did (temp waits per file, waits without an object per file)
+      required: [key, obj, temp, files, waits, reads, writes, us, maxUs, blocks, readBlocks, distinct, seq]
+      properties:
+        key:
+          type: string
+          description: o<obj>, t<file> (temp waits of the file), n<file> (no object)
+        obj:
+          type: integer
+          description: the obj#, -1 for t and n
+        temp:
+          type: boolean
+        files:
+          type: array
+          items:
+            type: integer
+        waits:
+          type: integer
+        reads:
+          type: integer
+        writes:
+          type: integer
+        us:
+          type: integer
+        maxUs:
+          type: integer
+        blocks:
+          type: integer
+          description: blocks moved by the reads and writes
+        readBlocks:
+          type: integer
+          description: blocks moved by the reads
+        distinct:
+          type: integer
+          description: distinct blocks read
+        seq:
+          type: integer
+          description: waits that start within 64 blocks after the previous one of the group ended (same file)
+    IOStmtStat:
+      type: object
+      description: analyze.IOStmtStat, what one statement did to the blocks of one file
+      required: [stmt, file, reads, readBlocks, readDistinct, writes, writeBlocks, writeDistinct, us]
+      properties:
+        stmt:
+          type: integer
+          description: the statement id, -1 none
+        file:
+          type: integer
+        reads:
+          type: integer
+        readBlocks:
+          type: integer
+        readDistinct:
+          type: integer
+        writes:
+          type: integer
+        writeBlocks:
+          type: integer
+        writeDistinct:
+          type: integer
+        us:
+          type: integer
+    IODensity:
+      type: object
+      description: analyze.IODensity, the answer of api/io/density
+      required: [total, x, xsegs, panels, cols, cells, events]
+      properties:
+        total:
+          type: integer
+          description: block I/O waits in scope
+        x:
+          type: string
+          enum: [order, time]
+        xsegs:
+          type: array
+          description: "the x bins as binned: [a, b, bins], numbered across the segments in order"
+          items:
+            type: array
+            minItems: 3
+            maxItems: 3
+            items:
+              type: integer
+        panels:
+          type: array
+          items:
+            $ref: "#/components/schemas/IODensityPanel"
+        cols:
+          type: array
+          description: "the columns of cells: panel, x, y, waits, blocks, us, event, eventWaits"
+          items:
+            type: string
+        cells:
+          type: array
+          description: the cells with waits, by panel, x, y; event is the one with the most waits in the cell (the lower id on a tie)
+          items:
+            type: array
+            minItems: 8
+            maxItems: 8
+            items:
+              type: integer
+        events:
+          type: array
+          description: the ids of the block I/O events that occurred, sorted
+          items:
+            type: integer
+    IODensityPanel:
+      type: object
+      description: analyze.IODensityPanel, one panel's y axis as binned
+      required: [key, segs, waits, out]
+      properties:
+        key:
+          type: string
+        segs:
+          type: array
+          description: "[file, lo, hi, bins]: block ranges [lo, hi), bins numbered across the segments in order"
+          items:
+            type: array
+            minItems: 4
+            maxItems: 4
+            items:
+              type: integer
+        waits:
+          type: integer
+          description: waits binned in it
+        out:
+          type: integer
+          description: waits its key selects that no segment or x bin holds
     ErrorCode:
       type: string
       enum: [bad_request, unauthorized, not_found, conflict, cancelled, needs_prompt, internal, remote]

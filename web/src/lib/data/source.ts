@@ -25,7 +25,9 @@ import { roleOfClass, roleOrder } from '../components/colors'
 import { scopedStatements } from './stmtstats'
 import { scopedFindings } from './findings'
 import { pxOut, responseOf, scopeResponse } from './response'
-import { ioMapOf, normalizeIOMap, type IOMap } from './iomap'
+import { ioMapOf, normalizeIOMap, type IOMap, type IOMapOpts } from './iomap'
+import { ioHotOf, type IOHot, type IOHotOpts } from './iohot'
+import { densityParams, ioDensityOf, type DensityReq, type IODensity } from './iodensity'
 import { engineRefImporter, type RefImporter } from './refimport'
 
 export type Maybe<T> = T | Promise<T>
@@ -178,7 +180,14 @@ export interface DataSource {
    * (every k-th above it), optionally of one statement / event: the Blocks view. null = not available (no facts, or an
    * engine without `api/io/map`).
    */
-  ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID, signal?: AbortSignal): Maybe<IOMap | null>
+  ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID, signal?: AbortSignal, opts?: Pick<IOMapOpts, 'reads'>): Maybe<IOMap | null>
+  /**
+   * Block reads per block over every block I/O wait in scope: the hottest runs of blocks and the exact numbers per object and
+   * statement (the I/O map's Hot blocks tab and side panel). null = not available (no facts, or an engine without `api/io/hot`).
+   */
+  ioHot(scope: Scope, opts: Pick<IOHotOpts, 'limit' | 'sort'>, stmt?: ID, event?: ID, signal?: AbortSignal): Maybe<IOHot | null>
+  /** Every block I/O wait in scope counted into the cells of the I/O map's panels (the density layer). null = not available. */
+  ioDensity(scope: Scope, req: DensityReq, stmt?: ID, event?: ID, signal?: AbortSignal): Maybe<IODensity | null>
   /**
    * Where names from the names script go (data/refimport.ts): the server behind the document; null = none (a document
    * on its own). A server without the routes (`mtkprof serve`, an older engine) answers its calls with a 404.
@@ -455,8 +464,16 @@ export class LocalSource implements DataSource {
     return this.lastFindings.out
   }
 
-  ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID): IOMap | null {
-    return this.doc.hasFacts ? ioMapOf(this.doc, scope, limit, stmt, event) : null
+  ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID, _signal?: AbortSignal, opts?: Pick<IOMapOpts, 'reads'>): IOMap | null {
+    return this.doc.hasFacts ? ioMapOf(this.doc, scope, limit, stmt, event, opts) : null
+  }
+
+  ioHot(scope: Scope, opts: Pick<IOHotOpts, 'limit' | 'sort'>, stmt?: ID, event?: ID): IOHot | null {
+    return this.doc.hasFacts ? ioHotOf(this.doc, scope, opts, stmt, event) : null
+  }
+
+  ioDensity(scope: Scope, req: DensityReq, stmt?: ID, event?: ID): IODensity | null {
+    return this.doc.hasFacts ? ioDensityOf(this.doc, scope, req, stmt, event) : null
   }
 }
 
@@ -488,8 +505,10 @@ export class RemoteSource implements DataSource {
   private noStatements = false
   /** the same for `api/findings` */
   private noFindings = false
-  /** the same for `api/io/map` */
+  /** the same for `api/io/map`, `api/io/hot`, `api/io/density` */
   private noIOMap = false
+  private noIOHot = false
+  private noIODensity = false
 
   readonly refs: RefImporter
 
@@ -502,9 +521,10 @@ export class RemoteSource implements DataSource {
   get lineage(): unknown { return this.client }
 
   /** GET base+path?params as JSON; answers are cached by URL, a cancelled request leaves nothing behind. */
-  private async get<T>(path: string, params: Params, signal?: AbortSignal): Promise<T> {
+  private async get<T>(path: string, params: Params, signal?: AbortSignal, extra: [string, string][] = []): Promise<T> {
     const q = new URLSearchParams()
     for (const [k, v] of Object.entries(params)) if (v !== undefined) q.set(k, String(v))
+    for (const [k, v] of extra) q.append(k, v)
     const qs = q.toString()
     const key = `/api/${path}${qs ? `?${qs}` : ''}`
     if (this.cache.has(key)) {
@@ -691,12 +711,32 @@ export class RemoteSource implements DataSource {
     }
   }
 
-  async ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID, signal?: AbortSignal): Promise<IOMap | null> {
+  async ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID, signal?: AbortSignal, opts?: Pick<IOMapOpts, 'reads'>): Promise<IOMap | null> {
     if (this.noIOMap) return null
     try {
-      return normalizeIOMap(await this.get<IOMap>('io/map', { limit: Math.max(1, Math.floor(limit)), stmt, event, ...scopeParams(scope, false) }, signal))
+      return normalizeIOMap(await this.get<IOMap>('io/map', { limit: Math.max(1, Math.floor(limit)), stmt, event, reads: opts?.reads ? 1 : undefined, ...scopeParams(scope, false) }, signal))
     } catch (err) {
       if (err instanceof HttpError && err.status === 404) { this.noIOMap = true; return null }
+      throw err
+    }
+  }
+
+  async ioHot(scope: Scope, opts: Pick<IOHotOpts, 'limit' | 'sort'>, stmt?: ID, event?: ID, signal?: AbortSignal): Promise<IOHot | null> {
+    if (this.noIOHot) return null
+    try {
+      return await this.get<IOHot>('io/hot', { limit: opts.limit, sort: opts.sort, stmt, event, ...scopeParams(scope, false) }, signal)
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) { this.noIOHot = true; return null }
+      throw err
+    }
+  }
+
+  async ioDensity(scope: Scope, req: DensityReq, stmt?: ID, event?: ID, signal?: AbortSignal): Promise<IODensity | null> {
+    if (this.noIODensity) return null
+    try {
+      return await this.get<IODensity>('io/density', { stmt, event, ...scopeParams(scope, false) }, signal, densityParams(req))
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) { this.noIODensity = true; return null }
       throw err
     }
   }

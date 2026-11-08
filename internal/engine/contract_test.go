@@ -175,8 +175,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 38 {
-		t.Errorf("%d session routes, want doc, report, the 19 slice endpoints, the 11 line endpoints, ref (status, apply, script, paste), brief and the assist tools", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 40 {
+		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, ref (status, apply, script, paste), brief and the assist tools", n)
 	}
 }
 
@@ -233,7 +233,8 @@ func TestContractSchemas(t *testing.T) {
 		"TextEvent": assist.TextEvent{}, "ToolCallEvent": assist.ToolCallEvent{}, "ToolResultEvent": assist.ToolResultEvent{}, "IntentEvent": assist.IntentEvent{},
 		"UsageEvent": assist.UsageEvent{}, "StateEvent": assist.StateEvent{}, "DoneEvent": assist.DoneEvent{}, "ErrorEvent": assist.ErrorEvent{},
 		"StmtStats": analyze.StmtStats{}, "ScopeProfile": analyze.ScopeProfile{}, "CallStats": analyze.CallStats{}, "Link": analyze.Link{},
-		"IOMap": analyze.IOMap{}, "IOMapFile": analyze.IOMapFile{},
+		"IOMap": analyze.IOMap{}, "IOMapFile": analyze.IOMapFile{}, "IOHot": analyze.IOHot{}, "IOHotRun": analyze.IOHotRun{},
+		"IOObjStat": analyze.IOObjStat{}, "IOStmtStat": analyze.IOStmtStat{}, "IODensity": analyze.IODensity{}, "IODensityPanel": analyze.IODensityPanel{},
 		"RefCounts": report.RefCounts{}, "RefStatus": RefStatus{}, "RefScript": RefScript{}, "RefPasteRequest": RefPasteRequest{}, "RefPasted": RefPasted{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")

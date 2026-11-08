@@ -1,6 +1,7 @@
 package slice
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -842,6 +843,80 @@ func TestIOMap(t *testing.T) {
 	}
 	for _, p := range []string{"/api/io/map?limit=0", "/api/io/map?limit=x", "/api/io/map?limit=200001", "/api/io/map?stmt=9999",
 		"/api/io/map?event=9999", "/api/io/map?idle=2", "/api/io/map?from=10&to=5", "/api/io/map?contexts=999"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
+		if rec.Code != 400 || strings.TrimSpace(rec.Body.String()) == "" {
+			t.Errorf("%s: status %d (%s), want 400 with a reason", p, rec.Code, strings.TrimSpace(rec.Body.String()))
+		}
+	}
+}
+
+// TestIOHotDensity: /api/io/hot and /api/io/density answer what analyze gives for the same query, read their
+// parameters, and reject bad ones with a reason; io/map's reads=1 adds the reads.
+func TestIOHotDensity(t *testing.T) {
+	m, err := model.Build(traces+"io_waits.trc", model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(m).Handler()
+	ev := analyze.IOEventsOf(m.Events)
+	ctx := context.Background()
+	src := analyze.ModelFacts(m)
+	mid := m.Span.FirstTim + (m.Span.LastTim-m.Span.FirstTim)/2
+	s22 := model.ID(22)
+	// io/hot
+	for _, c := range []struct {
+		q string
+		f analyze.Filter
+		o analyze.IOHotOpts
+	}{
+		{"/api/io/hot", analyze.Filter{IncludeIdle: true}, analyze.IOHotOpts{}},
+		{"/api/io/hot?limit=3&sort=max", analyze.Filter{IncludeIdle: true}, analyze.IOHotOpts{Limit: 3, Sort: "max"}},
+		{fmt.Sprintf("/api/io/hot?stmt=22&from=%d&sort=us", mid), analyze.Filter{IncludeIdle: true, Statement: &s22, StartTim: mid}, analyze.IOHotOpts{Sort: "us"}},
+	} {
+		want, err := analyze.IOHotOn(ctx, src, c.f, ev, c.o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got analyze.IOHot
+		if code := get(t, h, c.q, &got); code != 200 || !reflect.DeepEqual(&got, want) {
+			t.Errorf("%s: %d\n got %+v\nwant %+v", c.q, code, got, want)
+		}
+	}
+	// io/density
+	for _, c := range []struct {
+		q string
+		f analyze.Filter
+		r analyze.IODensityReq
+	}{
+		{"/api/io/density", analyze.Filter{IncludeIdle: true}, analyze.IODensityReq{}},
+		{fmt.Sprintf("/api/io/density?x=time&xbins=50&ybins=20&to=%d", mid), analyze.Filter{IncludeIdle: true, EndTim: mid}, analyze.IODensityReq{X: "time", XBins: 50, YBins: 20}},
+		{"/api/io/density?xs=0.100.10,100.8747.90&p=f12:12.167795.172288.40&p=t203:203.756103.756400.20,203.756400.756743.5&p=rest:12.0.200000.10",
+			analyze.Filter{IncludeIdle: true}, analyze.IODensityReq{XSegs: [][3]int64{{0, 100, 10}, {100, 8747, 90}}, Panels: []analyze.IODensityPanelReq{
+				{Key: "f12", Segs: [][4]int64{{12, 167795, 172288, 40}}}, {Key: "t203", Segs: [][4]int64{{203, 756103, 756400, 20}, {203, 756400, 756743, 5}}},
+				{Key: "rest", Segs: [][4]int64{{12, 0, 200000, 10}}}}}},
+	} {
+		want, err := analyze.IODensityOn(ctx, src, c.f, ev, c.r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got analyze.IODensity
+		if code := get(t, h, c.q, &got); code != 200 || !reflect.DeepEqual(&got, want) {
+			t.Errorf("%s: %d\n got %+v\nwant %+v", c.q, code, got, want)
+		}
+		if len(got.Cells) == 0 {
+			t.Errorf("%s: no cells", c.q)
+		}
+	}
+	// io/map reads=1
+	var r analyze.IOMap
+	if code := get(t, h, "/api/io/map?reads=1&limit=100", &r); code != 200 || len(r.Reads) != len(r.Rows) || !r.ReadsExact {
+		t.Errorf("reads=1: %d, %d reads for %d rows, exact %v", code, len(r.Reads), len(r.Rows), r.ReadsExact)
+	}
+	for _, p := range []string{"/api/io/hot?limit=0", "/api/io/hot?limit=2001", "/api/io/hot?sort=size", "/api/io/hot?stmt=9999", "/api/io/hot?event=9999",
+		"/api/io/density?x=space", "/api/io/density?xs=1.2", "/api/io/density?xs=5.5.1", "/api/io/density?xs=0.10.1,5.20.1", "/api/io/density?p=f12",
+		"/api/io/density?p=f12:12.0.10", "/api/io/density?p=z1:1.0.10.1", "/api/io/density?p=f12:12.10.10.1", "/api/io/density?xbins=0", "/api/io/density?ybins=99999",
+		"/api/io/density?xs=0.10.4001", "/api/io/density?contexts=999", "/api/io/map?reads=2"} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
 		if rec.Code != 400 || strings.TrimSpace(rec.Body.String()) == "" {

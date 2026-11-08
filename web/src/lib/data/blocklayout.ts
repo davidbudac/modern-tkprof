@@ -1,19 +1,17 @@
 // The layout of the I/O map (views/BlockMap.tsx; the view id is `blocks`), kept here so it is unit-tested without a DOM: the
 // panels (one per file, or one per object), the x axis (I/O order with short stretches widened, or time), the y axis (block
 // number: linear, or packed with the empty block ranges collapsed), the marks, the colour modes (event, object, object type,
-// schema, tablespace, file, statement, session, latency, read size), the statement brackets, the hit test, and `drawBlockMap`,
-// which paints one panel on a 2-D context with colours the component has resolved from the tokens.
+// schema, tablespace, file, statement, session, latency, read size, re-reads), the statement brackets, the hit test, and
+// `drawBlockMap`, which paints one panel (its density layer under the marks, data/densitylayout.ts) on a 2-D context with colours
+// the component has resolved from the tokens.
 import type { Event, ID } from './types'
-import { IO, extentsOf, mergeRuns, runBlocks, sampleStep, type BlockRun, type IOMap, type IOMapFile } from './iomap'
+import { IO, extentsOf, isTempEvent, isWriteEvent, mergeRuns, runBlocks, sampleStep, type BlockRun, type IOMap, type IOMapFile } from './iomap'
 import { niceStep } from './scale'
 import { roleOfClass } from '../components/colors'
 
 // ---- what a wait does -----------------------------------------------------------------
 
-/** A temp segment's I/O (`direct path read temp`, `direct path write temp`): its obj# names the statement's object, not the blocks' owner. */
-export const isTempEvent = (ev: Event | undefined): boolean => !!ev && /\btemp\b/i.test(ev.name)
-/** The wait writes the blocks (`db file single write`, `direct path write[ temp]`); else it reads them. */
-export const isWriteEvent = (ev: Event | undefined): boolean => !!ev && /\bwrites?\b/i.test(ev.name)
+export { isTempEvent, isWriteEvent } from './iomap'
 
 /** A colour: a CSS token and its shade (0 = the token, k = k steps towards the surface, `tokenShade`). */
 export interface Tone { token: string; shade: number }
@@ -50,9 +48,9 @@ export const categoryTone = (k: number): Tone => (k < MAX_CATEGORIES ? { token: 
 const REST: Tone = { token: '--c-idle', shade: 0 }
 
 /** What the colours of the marks mean. */
-export type ColorBy = 'event' | 'object' | 'type' | 'schema' | 'tablespace' | 'file' | 'statement' | 'session' | 'latency' | 'size'
+export type ColorBy = 'event' | 'object' | 'type' | 'schema' | 'tablespace' | 'file' | 'statement' | 'session' | 'latency' | 'size' | 'reread'
 
-export const COLOR_BYS: readonly ColorBy[] = ['event', 'object', 'type', 'schema', 'tablespace', 'file', 'statement', 'session', 'latency', 'size']
+export const COLOR_BYS: readonly ColorBy[] = ['event', 'object', 'type', 'schema', 'tablespace', 'file', 'statement', 'session', 'latency', 'size', 'reread']
 
 /** A persisted value read back as a colour mode (an unknown one is `event`). */
 export const colorByOf = (v: unknown): ColorBy => ((COLOR_BYS as readonly unknown[]).includes(v) ? (v as ColorBy) : 'event')
@@ -101,6 +99,9 @@ export const LATENCY_LABELS = ['< 50 µs', '50–200 µs', '0.2–1 ms', '1–5 
 /** Upper bounds (blocks, inclusive) of the read-size buckets; the last bucket has none. */
 export const SIZE_BOUNDS = [1, 8, 16, 32, 64] as const
 export const SIZE_LABELS = ['1 block', '2–8 blocks', '9–16', '17–32', '33–64', '65+ blocks'] as const
+/** Upper bounds (reads, inclusive) of the re-read buckets: how often the mark's most read block was read in scope (`IOMap.reads`). */
+export const READS_BOUNDS = [1, 2, 4, 8, 16] as const
+export const READS_LABELS = ['read once', '2 reads', '3–4', '5–8', '9–16', '17+ reads'] as const
 
 /** The bucket of a value: the first bound it is under (`incl`: at or under), else the last bucket. */
 export function bucketOf(v: number, bounds: readonly number[], incl = false): number {
@@ -109,7 +110,7 @@ export function bucketOf(v: number, bounds: readonly number[], incl = false): nu
 }
 
 /** The ramps of the latency and read-size modes: light (fast, small) to strong (slow, big), tokens in styles/blockmap.css. */
-const rampTone = (mode: 'latency' | 'size', k: number): Tone => ({ token: `--bm-${mode === 'latency' ? 'lat' : 'size'}-${k}`, shade: 0 })
+const rampTone = (mode: 'latency' | 'size' | 'reread', k: number): Tone => ({ token: `--bm-${mode === 'latency' ? 'lat' : mode === 'size' ? 'size' : 'rr'}-${k}`, shade: 0 })
 
 const TEMP_TONE: Tone = { token: '--bm-temp-r', shade: 0 }
 
@@ -120,7 +121,7 @@ const TEMP_TONE: Tone = { token: '--bm-temp-r', shade: 0 }
  * the type and schema modes; rows without an object or a name are an `unknown` (`none`) entry. Latency and read size are ramps
  * of six buckets.
  */
-export function colorRows(map: Pick<IOMap, 'rows' | 'events'>, events: readonly Event[], by: ColorBy, cx: ColorCtx = {}): Coloring {
+export function colorRows(map: Pick<IOMap, 'rows' | 'events' | 'reads'>, events: readonly Event[], by: ColorBy, cx: ColorCtx = {}): Coloring {
   const rows = map.rows
   const tones: Tone[] = []
   const toneIdx = new Map<string, number>()
@@ -205,6 +206,16 @@ export function colorRows(map: Pick<IOMap, 'rows' | 'events'>, events: readonly 
         put(i, `b${k}`, { tone: rampTone(by, k), kind: 'bucket', key: k, label: (by === 'latency' ? LATENCY_LABELS : SIZE_LABELS)[k] })
       })
       break
+    case 'reread': {
+      // the rows' reads come with the answer (`reads=1`); without them (an older engine, or the answer still on its way) every row is unknown
+      const reads = map.reads && map.reads.length === rows.length ? map.reads : null
+      rows.forEach((_, i) => {
+        if (!reads) { none(i, 'reads unknown'); return }
+        const k = bucketOf(reads[i], READS_BOUNDS, true)
+        put(i, `b${k}`, { tone: rampTone('reread', k), kind: 'bucket', key: k, label: READS_LABELS[k] })
+      })
+      break
+    }
   }
   // categories first (most rows first; files and buckets in their order), then events (in id order: temp waits in object mode), then temp, unknown, the rest
   const kindOrder = (e: LegendEntry) => (e.kind === 'event' ? (by === 'event' ? 0 : 1) : e.kind === 'none' ? (e.key === 'temp' ? 2 : 3) : e.kind === 'rest' ? 4 : 0)
@@ -827,13 +838,20 @@ export const RULER_X = 8
 /** Alpha of the marks a highlight leaves out. */
 export const DIM_ALPHA = 0.12
 
+/** The alpha of a density cell of intensity f (0..1): faint at the least, strong at the most, never opaque (the grid and bands show through). */
+export const densityAlpha = (f: number): number => (f <= 0 ? 0 : 0.1 + 0.78 * f)
+
+/** The density layer of one panel as `drawBlockMap` paints it: cell rectangles with their intensity, in one resolved colour. */
+export interface DensityPaint { rects: readonly { x: number; y: number; w: number; h: number; f: number }[]; color: string }
+
 /**
  * Paints one panel (`width` × `panel.height` px from x = 0; the ruler at negative x, see `RULER_X`): the y grid, a packed axis'
- * gaps, the faint extent bands with their solid ruler, the stretch boundaries, then the marks grouped by colour (one fillStyle
- * per colour). With `focus` (per row, 1 = highlighted) the others are painted first and faint. Returns the number of marks
- * painted.
+ * gaps, the faint extent bands with their solid ruler, the stretch boundaries, the density cells (`opts.density`), then the marks
+ * grouped by colour (one fillStyle per colour; none with `opts.marks` false). With `focus` (per row, 1 = highlighted) the others
+ * are painted first and faint. Returns the number of marks painted.
  */
-export function drawBlockMap(ctx: Paint, panel: Panel, rows: readonly number[][], xs: XScale, idx: Uint16Array, colors: PanelColors, focus?: Uint8Array | null): number {
+export function drawBlockMap(ctx: Paint, panel: Panel, rows: readonly number[][], xs: XScale, idx: Uint16Array, colors: PanelColors, focus?: Uint8Array | null,
+  opts: { density?: DensityPaint | null; marks?: boolean } = {}): number {
   const h = panel.height, w = xs.width
   ctx.globalAlpha = 1
   ctx.fillStyle = colors.grid
@@ -856,6 +874,16 @@ export function drawBlockMap(ctx: Paint, panel: Panel, rows: readonly number[][]
       ctx.fillRect(-RULER_X, sp.top, RULER_PX, bh)
     }
   }
+  if (opts.density) {
+    ctx.fillStyle = opts.density.color
+    for (const r of opts.density.rects) {
+      const a = densityAlpha(r.f)
+      if (a <= 0) continue
+      ctx.globalAlpha = a
+      ctx.fillRect(r.x, r.y, r.w, r.h)
+    }
+  }
+  if (opts.marks === false) { ctx.globalAlpha = 1; return 0 }
   const pass = (alpha: number, keep: (i: number) => boolean) => {
     ctx.globalAlpha = alpha
     const byTone: number[][] = colors.tones.map(() => [])
@@ -943,8 +971,10 @@ export function dragKind(dx: number, dy: number, flat = 10): 'x' | 'y' | 'xy' | 
 /** The answer's rows that overlap `range` ([tim − ela, tim] meets it), as an answer: the same object when every row does. */
 export function rowsIn(map: IOMap, range: TimeRange | null): IOMap {
   if (!range) return map
-  const rows = map.rows.filter((r) => r[IO.tim] - r[IO.ela] <= range.endTim && r[IO.tim] >= range.startTim)
+  const keep = map.rows.map((r) => r[IO.tim] - r[IO.ela] <= range.endTim && r[IO.tim] >= range.startTim)
+  const rows = map.rows.filter((_, i) => keep[i])
   if (rows.length === map.rows.length) return map
+  const reads = map.reads && map.reads.length === map.rows.length ? map.reads.filter((_, i) => keep[i]) : undefined
   const k = sampleStep(map)
   const files = new Map<number, IOMapFile>()
   for (const r of rows) {
@@ -952,5 +982,5 @@ export function rowsIn(map: IOMap, range: TimeRange | null): IOMap {
     if (!f) files.set(r[IO.file], { file: r[IO.file], lo, hi, n: k })
     else { f.lo = Math.min(f.lo, lo); f.hi = Math.max(f.hi, hi); f.n += k }
   }
-  return { ...map, rows, total: rows.length * k, files: [...files.values()].sort((a, b) => a.file - b.file) }
+  return { ...map, rows, total: rows.length * k, files: [...files.values()].sort((a, b) => a.file - b.file), ...(reads ? { reads } : { reads: undefined }) }
 }

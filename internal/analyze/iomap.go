@@ -24,6 +24,19 @@ type IOMap struct {
 	Rows    [][]int64   `json:"rows"`    // in trace order
 	Files   []IOMapFile `json:"files"`   // over all matches, not only the kept rows; sorted by file
 	Events  []model.ID  `json:"events"`  // the event ids that occurred, sorted
+	// Reads (IOMapOpts.Reads): per row, how many times the most read block of
+	// its [block, block + blocks) was read over every match (0: a write whose
+	// blocks no read in scope touched). ReadsExact: no count is an estimate
+	// (the block counter was never pruned, see blockCounter).
+	Reads      []int64 `json:"reads,omitempty"`
+	ReadsExact bool    `json:"readsExact,omitempty"`
+}
+
+// IOMapOpts: Reads adds IOMap.Reads; CountCap and SeenBytes are the block counter's caps (0: the defaults).
+type IOMapOpts struct {
+	Reads     bool  `json:"reads,omitempty"`
+	CountCap  int   `json:"countCap,omitempty"`
+	SeenBytes int64 `json:"seenBytes,omitempty"`
 }
 
 // IOMapCols are the columns of IOMap.Rows: the wait's end (tim) and elapsed,
@@ -50,31 +63,39 @@ func BlockEvents(events []model.Event) (isBlock, countP3 []bool) {
 // trace of millions of waits never holds more than the kept rows. Idle waits
 // never match (block I/O is never idle): f.IncludeIdle changes nothing.
 func IOMapOn(ctx context.Context, src Facts, f Filter, isBlock, countP3 []bool, limit int) (*IOMap, error) {
+	return IOMapWith(ctx, src, f, IOEvents{Block: isBlock, CountP3: countP3}, limit, IOMapOpts{})
+}
+
+// IOMapWith is IOMapOn with the events' flags and options: with o.Reads the
+// first pass also counts the reads of every block (a blockCounter, bounded
+// memory) and each kept row gets the reads of its most read block.
+func IOMapWith(ctx context.Context, src Facts, f Filter, ev IOEvents, limit int, o IOMapOpts) (*IOMap, error) {
 	mt := f.Matcher()
-	match := func(w *model.Wait) bool {
-		return w.Event >= 0 && int(w.Event) < len(isBlock) && isBlock[w.Event] && !w.Idle && mt.Wait(w)
-	}
-	blocks := func(w *model.Wait) int64 {
-		if int(w.Event) < len(countP3) && countP3[w.Event] && w.P3 > 0 {
-			return w.P3
-		}
-		return 1
-	}
 	out := &IOMap{Cols: IOMapCols, Rows: [][]int64{}, Files: []IOMapFile{}, Events: []model.ID{}}
 	files := map[int64]*IOMapFile{}
-	seen := make([]bool, len(isBlock))
+	seen := make([]bool, len(ev.Block))
+	var bc *blockCounter
+	if o.Reads {
+		bc = newBlockCounter(o.SeenBytes, o.CountCap)
+		out.Reads = []int64{}
+	}
 	err := src.EachWait(ctx, f.Scan(), func(w *model.Wait) bool {
-		if !match(w) {
+		if !ev.match(mt, w) {
 			return true
 		}
 		out.Total++
 		seen[w.Event] = true
-		hi := w.P2 + blocks(w)
+		hi := w.P2 + ev.blocks(w)
 		if r := files[w.P1]; r == nil {
 			files[w.P1] = &IOMapFile{File: w.P1, Lo: w.P2, Hi: hi, N: 1}
 		} else {
 			r.N++
 			r.Lo, r.Hi = min(r.Lo, w.P2), max(r.Hi, hi)
+		}
+		if bc != nil && !ev.write(w) {
+			bc.startWait()
+			bc.read(w.P1, w.P2, hi)
+			bc.endWait()
 		}
 		return true
 	})
@@ -90,6 +111,9 @@ func IOMapOn(ctx context.Context, src Facts, f Filter, isBlock, countP3 []bool, 
 			out.Events = append(out.Events, model.ID(e))
 		}
 	}
+	if bc != nil {
+		out.ReadsExact = bc.dec == 0
+	}
 	if out.Total == 0 {
 		return out, nil
 	}
@@ -101,12 +125,20 @@ func IOMapOn(ctx context.Context, src Facts, f Filter, isBlock, countP3 []bool, 
 	out.Rows = make([][]int64, 0, (out.Total+k-1)/k)
 	i := 0
 	err = src.EachWait(ctx, f.Scan(), func(w *model.Wait) bool {
-		if !match(w) {
+		if !ev.match(mt, w) {
 			return true
 		}
 		if i%k == 0 {
-			out.Rows = append(out.Rows, []int64{w.Tim, w.Ela, int64(w.Event), w.P1, w.P2, blocks(w), w.ObjID,
+			n := ev.blocks(w)
+			out.Rows = append(out.Rows, []int64{w.Tim, w.Ela, int64(w.Event), w.P1, w.P2, n, w.ObjID,
 				int64(w.Statement), int64(w.Call), int64(w.Line), int64(w.Context), int64(w.Dep)})
+			if bc != nil {
+				var most int64
+				for b := max(w.P2, 0); b < w.P2+n; b++ {
+					most = max(most, bc.reads(w.P1, b))
+				}
+				out.Reads = append(out.Reads, most)
+			}
 		}
 		i++
 		return true

@@ -1718,9 +1718,49 @@ export interface paths {
         };
         /**
          * The physical I/O waits with a block address in scope, at their file and block (the Blocks view)
-         * @description `analyze.IOMapOn`: every wait in scope whose event's parameters are a file number and a block address (p1 `file#` or `file number`, p2 `block#` or `first dba`: `model.Event.IsBlockIO`), in trace order. A row is [tim, ela, event, file, block, blocks, obj, stmt, call, line, ctx, dep] (`cols`); blocks is p3 when the event's p3 is a block count (`blocks`, `block cnt`) and positive, else 1; obj, stmt and call are -1 when none. With more than `limit` waits every k-th is kept (the 1st, the (k+1)-th, ...), k = ceil(total / limit), and `sampled` is set; `total`, `files` and `events` are over all of them. `idle` is accepted and changes nothing: block I/O is never idle.
+         * @description `analyze.IOMapOn`: every wait in scope whose event's parameters are a file number and a block address (p1 `file#` or `file number`, p2 `block#` or `first dba`: `model.Event.IsBlockIO`), in trace order. A row is [tim, ela, event, file, block, blocks, obj, stmt, call, line, ctx, dep] (`cols`); blocks is p3 when the event's p3 is a block count (`blocks`, `block cnt`) and positive, else 1; obj, stmt and call are -1 when none. With more than `limit` waits every k-th is kept (the 1st, the (k+1)-th, ...), k = ceil(total / limit), and `sampled` is set; `total`, `files` and `events` are over all of them. `idle` is accepted and changes nothing: block I/O is never idle. With `reads=1` the first pass also counts the reads of every block (a multiblock read counts each of its blocks; bounded memory, `analyze.blockCounter`) and `reads` gives each row the reads of its most read block over every wait in scope (the re-reads colour); `readsExact` is false when the counter had to prune (then a count is low by at most the prune's decrement).
          */
         get: operations["sliceIOMap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/io/hot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Block reads per block over every block I/O wait in scope, the hottest runs of blocks, and exact numbers per object and statement (the I/O map's Hot blocks)
+         * @description `analyze.IOHotOn`: every block I/O wait in scope (as `api/io/map`, not a sample) counts a read of each block of `[block, block + blocks)` (writes are counted apart). Pass 1 counts with bounded memory: a block's first read only marks it in a set of chunks of 65,536 blocks (sorted arrays, bitmaps once dense: a full scan costs about a bit per block), a block read again gets a counter, and above 1,000,000 counters the map is pruned the Misra-Gries way. The 65,536 most read blocks read twice or more are merged into runs of adjacent blocks, and pass 2 recounts those runs exactly. Every count shown is exact; `exact` is false when the prune ran or more blocks were re-read than are recounted, and then a block in no run may have been read up to `bound` times. `objects` (per object, temp waits per file, waits without an object per file) and `stmts` (per statement and file) are over every wait.
+         */
+        get: operations["sliceIOHot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/io/density": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every block I/O wait in scope counted into the cells of the I/O map's panels (the density layer)
+         * @description `analyze.IODensityOn`: x is the I/O order (the wait's index among the matches in trace order, as `api/io/map` counts it) or the time (the wait's midpoint tim − ela/2, clamped into the domain); y is the block, per panel over its segments. A wait counts in every y cell its blocks touch: waits + 1, blocks + its blocks in the cell, µs + ela × that share of its blocks. One pass when `xs` and `p` are given; without them a first pass finds the domain (the matches, their time extent) and the files. No list of the waits is kept. Limits: 64 x segments and 4,000 x bins, 64 panels of 64 segments and 2,000 y bins each, 1,048,576 cells (x bins × the y bins of every panel); block coordinates in [0, 2^40], x within ±2^53. The default panels are the first 64 files, with fewer y bins when the grid would pass the cells limit. A wait counts as moving at most 65,536 blocks (`analyze.MaxWaitBlocks`).
+         */
+        get: operations["sliceIODensity"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2096,6 +2136,10 @@ export interface components {
             files: components["schemas"]["IOMapFile"][];
             /** @description the ids of the events that occurred, sorted */
             events: number[];
+            /** @description with reads=1, per row the reads of its most read block over every wait in scope (0 for a write whose blocks no read touched) */
+            reads?: number[];
+            /** @description with reads=1, no count is an estimate (the block counter never pruned) */
+            readsExact?: boolean;
         };
         /** @description analyze.IOMapFile, the block range [lo, hi) of one file's block I/O waits */
         IOMapFile: {
@@ -2145,6 +2189,127 @@ export interface components {
             notes: string[];
             /** @description the text has the first and the last line of the script's output (else it was cut off), or it was read as tables */
             complete: boolean;
+        };
+        /** @description analyze.IOHot, the answer of api/io/hot */
+        IOHot: {
+            /** @description block I/O waits in scope */
+            total: number;
+            /** @description of them reads */
+            reads: number;
+            /** @description blocks the reads moved (a multiblock read counts each block) */
+            blockReads: number;
+            /** @description distinct blocks read */
+            distinct: number;
+            /** @description distinct blocks read twice or more */
+            reread: number;
+            /** @description the runs are what counting every block gives (no prune, every re-read block recounted) */
+            exact: boolean;
+            /** @description a block in no run was read at most this many times (1 when exact) */
+            bound: number;
+            /** @description the distinct counts are exact (false once the seen-block sets reached their cap) */
+            distinctExact: boolean;
+            /** @description runs before the limit */
+            runsTotal: number;
+            runs: components["schemas"]["IOHotRun"][];
+            /** @description per object group, most time first */
+            objects: components["schemas"]["IOObjStat"][];
+            /** @description per statement and file, most time first */
+            stmts: components["schemas"]["IOStmtStat"][];
+        };
+        /** @description analyze.IOHotRun, adjacent blocks of one file each read twice or more; every count exact */
+        IOHotRun: {
+            file: number;
+            /** @description first block */
+            lo: number;
+            /** @description end, exclusive */
+            hi: number;
+            /** @description Σ reads of its blocks */
+            reads: number;
+            /** @description Σ (reads − 1) of its blocks */
+            rereads: number;
+            /** @description the most reads of one block */
+            max: number;
+            /** @description the fewest reads of one block */
+            min: number;
+            /** @description the block read max times (the first on a tie) */
+            peak: number;
+            /** @description read waits that touched the run */
+            waits: number;
+            /** @description write waits that touched the run */
+            writes: number;
+            /** @description µs of its reads (each read's ela × its share of the read's blocks) */
+            us: number;
+            /** @description tim of the first read */
+            first: number;
+            /** @description tim of the last read */
+            last: number;
+            /** @description every read was temp I/O */
+            temp: boolean;
+            /** @description the objects (obj# of the non-temp reads) that read it, by blocks read, at most 3: [obj, blocks] */
+            objs: number[][];
+            /** @description the statements that read it, by blocks read, at most 3: [stmt, blocks] */
+            stmts: number[][];
+        };
+        /** @description analyze.IOObjStat, what one object's waits did (temp waits per file, waits without an object per file) */
+        IOObjStat: {
+            /** @description o<obj>, t<file> (temp waits of the file), n<file> (no object) */
+            key: string;
+            /** @description the obj#, -1 for t and n */
+            obj: number;
+            temp: boolean;
+            files: number[];
+            waits: number;
+            reads: number;
+            writes: number;
+            us: number;
+            maxUs: number;
+            /** @description blocks moved by the reads and writes */
+            blocks: number;
+            /** @description blocks moved by the reads */
+            readBlocks: number;
+            /** @description distinct blocks read */
+            distinct: number;
+            /** @description waits that start within 64 blocks after the previous one of the group ended (same file) */
+            seq: number;
+        };
+        /** @description analyze.IOStmtStat, what one statement did to the blocks of one file */
+        IOStmtStat: {
+            /** @description the statement id, -1 none */
+            stmt: number;
+            file: number;
+            reads: number;
+            readBlocks: number;
+            readDistinct: number;
+            writes: number;
+            writeBlocks: number;
+            writeDistinct: number;
+            us: number;
+        };
+        /** @description analyze.IODensity, the answer of api/io/density */
+        IODensity: {
+            /** @description block I/O waits in scope */
+            total: number;
+            /** @enum {string} */
+            x: "order" | "time";
+            /** @description the x bins as binned: [a, b, bins], numbered across the segments in order */
+            xsegs: number[][];
+            panels: components["schemas"]["IODensityPanel"][];
+            /** @description the columns of cells: panel, x, y, waits, blocks, us, event, eventWaits */
+            cols: string[];
+            /** @description the cells with waits, by panel, x, y; event is the one with the most waits in the cell (the lower id on a tie) */
+            cells: number[][];
+            /** @description the ids of the block I/O events that occurred, sorted */
+            events: number[];
+        };
+        /** @description analyze.IODensityPanel, one panel's y axis as binned */
+        IODensityPanel: {
+            key: string;
+            /** @description [file, lo, hi, bins]: block ranges [lo, hi), bins numbered across the segments in order */
+            segs: number[][];
+            /** @description waits binned in it */
+            waits: number;
+            /** @description waits its key selects that no segment or x bin holds */
+            out: number;
         };
         /** @enum {string} */
         ErrorCode: "bad_request" | "unauthorized" | "not_found" | "conflict" | "cancelled" | "needs_prompt" | "internal" | "remote";
@@ -5332,6 +5497,8 @@ export interface operations {
             query?: {
                 /** @description rows at most; above it every k-th wait is kept */
                 limit?: number;
+                /** @description 1 adds `reads` and `readsExact` */
+                reads?: 0 | 1;
                 /** @description scope start, tim in µs (a row is in when its [tim-ela, tim] overlaps the scope) */
                 from?: components["parameters"]["From"];
                 /** @description scope end, tim in µs (0 = open; not before from) */
@@ -5361,6 +5528,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IOMap"];
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+        };
+    };
+    sliceIOHot: {
+        parameters: {
+            query?: {
+                /** @description runs at most */
+                limit?: number;
+                /** @description the order of the runs, largest first (rereads = Σ (reads − 1) of its blocks, max = the most reads of one block, us = time) */
+                sort?: "rereads" | "max" | "us";
+                /** @description scope start, tim in µs (a row is in when its [tim-ela, tim] overlaps the scope) */
+                from?: components["parameters"]["From"];
+                /** @description scope end, tim in µs (0 = open; not before from) */
+                to?: components["parameters"]["To"];
+                /** @description comma-separated context ids (at most 10000); empty or absent = every context; `-` = no context at all (an explicit empty set: no row is in scope) */
+                contexts?: components["parameters"]["Contexts"];
+                /** @description one statement id */
+                stmt?: components["parameters"]["Stmt"];
+                /** @description one event id (waits only) */
+                event?: components["parameters"]["Event"];
+                /** @description include idle waits */
+                idle?: components["parameters"]["Idle"];
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the block reads in scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IOHot"];
+                };
+            };
+            400: components["responses"]["SliceBadRequest"];
+        };
+    };
+    sliceIODensity: {
+        parameters: {
+            query?: {
+                x?: "order" | "time";
+                /** @description the x bins: segments a.b.n separated by commas, ascending (order: match indices [a, b); time: tim µs [a, b)); n bins each (order: at most b − a). Absent: one segment of xbins bins over the scope */
+                xs?: string;
+                /** @description bins of the default x segment */
+                xbins?: number;
+                /** @description one panel (repeat for more): key:file.lo.hi.n,file.lo.hi.n… with the block segments [lo, hi) and their bins (at most hi − lo). The key selects the waits: f<file> (the file's), o<obj> (an object's non-temp waits), t<file> (the temp waits of a file), n<file> (a file's non-temp waits without an object), rest (non-temp waits with an obj# no o-panel selects). Absent: one panel per file over its block range with ybins bins */
+                p?: string[];
+                /** @description bins of the default panels */
+                ybins?: number;
+                /** @description scope start, tim in µs (a row is in when its [tim-ela, tim] overlaps the scope) */
+                from?: components["parameters"]["From"];
+                /** @description scope end, tim in µs (0 = open; not before from) */
+                to?: components["parameters"]["To"];
+                /** @description comma-separated context ids (at most 10000); empty or absent = every context; `-` = no context at all (an explicit empty set: no row is in scope) */
+                contexts?: components["parameters"]["Contexts"];
+                /** @description one statement id */
+                stmt?: components["parameters"]["Stmt"];
+                /** @description one event id (waits only) */
+                event?: components["parameters"]["Event"];
+                /** @description include idle waits */
+                idle?: components["parameters"]["Idle"];
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the cells with waits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IODensity"];
                 };
             };
             400: components["responses"]["SliceBadRequest"];

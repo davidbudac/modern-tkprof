@@ -9,6 +9,7 @@
 import type { TraceDoc } from './doc'
 import type { Event, ID } from './types'
 import type { Scope } from '../state/store'
+import { BlockCounter } from './blockset'
 
 /** The columns of `IOMap.rows`, in order (`analyze.IOMapCols`). */
 export const IOMAP_COLS = ['tim', 'ela', 'event', 'file', 'block', 'blocks', 'obj', 'stmt', 'call', 'line', 'ctx', 'dep'] as const
@@ -31,6 +32,13 @@ export interface IOMap {
   files: IOMapFile[]
   /** the event ids that occurred, sorted */
   events: ID[]
+  /**
+   * With `reads` asked for (`api/io/map?reads=1`): per row, how many times the most read block of its `[block, block + blocks)` was
+   * read over every match (0: a write whose blocks no read in scope touched). Absent from an older engine.
+   */
+  reads?: number[]
+  /** no count of `reads` is an estimate (the block counter was never pruned); absent = false */
+  readsExact?: boolean
 }
 
 /** The every-k-th step of an answer: 1 when nothing was left out. */
@@ -53,28 +61,63 @@ export function blocksParam(ev: Event): boolean {
   return ev.p3Name === 'blocks' || ev.p3Name === 'block cnt'
 }
 
-/**
- * The block I/O waits of the scope from the document's fact columns (the twin of `analyze.IOMapOn`): two passes, the first counts
- * and fills `files` / `events`, the second keeps every k-th match (the 1st, the (k+1)-th, ...), k = ceil(total / limit).
- * `scope.includeIdle` changes nothing; `stmt` and `event` narrow it further.
- */
-export function ioMapOf(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>, limit: number, stmt?: ID, event?: ID): IOMap {
+/** A temp segment's I/O (`direct path read temp`, `direct path write temp`): its obj# names the statement's object, not the blocks' owner (twin of `IOEvents.Temp`). */
+export const isTempEvent = (ev: Pick<Event, 'name'> | undefined): boolean => !!ev && /\btemp\b/i.test(ev.name)
+/** The wait writes the blocks (`db file single write`, `direct path write[ temp]`); else it reads them (twin of `IOEvents.Write`). */
+export const isWriteEvent = (ev: Pick<Event, 'name'> | undefined): boolean => !!ev && /\bwrites?\b/i.test(ev.name)
+
+/** The most blocks one wait counts as moving (`analyze.MaxWaitBlocks`): a larger p3 is a corrupt line, not a read. */
+export const MAX_WAIT_BLOCKS = 2 ** 16
+
+/** The scope of the I/O routes over the document's wait columns: the matching rule, the blocks of a wait, its kind (the twin of `analyze.IOEvents`). */
+export interface IOScan {
+  /** the wait is a block I/O wait in scope */
+  match(i: number): boolean
+  /** the blocks it moved: p3 when the event's p3 is a block count and positive (at most `MAX_WAIT_BLOCKS`), else 1 */
+  blocks(i: number): number
+  temp(i: number): boolean
+  write(i: number): boolean
+}
+
+/** The `IOScan` of a scope (window and contexts; idle never matters: block I/O is never idle), optionally one statement and event. */
+export function ioScan(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>, stmt?: ID, event?: ID): IOScan {
   const w = doc.waits
   const isBlock = doc.events.map(isBlockIO)
   const countP3 = doc.events.map(blocksParam)
+  const temp = doc.events.map(isTempEvent), write = doc.events.map(isWriteEvent)
   const win = scope.window, ctxs = scope.contexts
-  const match = (i: number): boolean => {
-    const ev = w.event[i]
-    if (ev < 0 || ev >= isBlock.length || !isBlock[ev] || w.flags[i] & 2) return false
-    if (win && (w.tim[i] - w.ela[i] > win.endTim || w.tim[i] < win.startTim)) return false
-    if (ctxs && !ctxs.has(w.ctx[i])) return false
-    if (stmt !== undefined && w.stmt[i] !== stmt) return false
-    return event === undefined || ev === event
+  return {
+    match(i) {
+      const ev = w.event[i]
+      if (ev < 0 || ev >= isBlock.length || !isBlock[ev] || w.flags[i] & 2) return false
+      if (win && (w.tim[i] - w.ela[i] > win.endTim || w.tim[i] < win.startTim)) return false
+      if (ctxs && !ctxs.has(w.ctx[i])) return false
+      if (stmt !== undefined && w.stmt[i] !== stmt) return false
+      return event === undefined || ev === event
+    },
+    blocks: (i) => (countP3[w.event[i]] && w.p3[i] > 0 ? Math.min(w.p3[i], MAX_WAIT_BLOCKS) : 1),
+    temp: (i) => !!temp[w.event[i]],
+    write: (i) => !!write[w.event[i]],
   }
-  const blocks = (i: number): number => (countP3[w.event[i]] && w.p3[i] > 0 ? w.p3[i] : 1)
+}
+
+/** Options of `ioMapOf` (twin of `analyze.IOMapOpts`): `reads` adds `IOMap.reads`; the caps of the block counter (0: the defaults). */
+export interface IOMapOpts { reads?: boolean; countCap?: number; seenBytes?: number }
+
+/**
+ * The block I/O waits of the scope from the document's fact columns (the twin of `analyze.IOMapWith`): two passes, the first counts
+ * and fills `files` / `events` (and, with `opts.reads`, the reads of every block), the second keeps every k-th match (the 1st, the
+ * (k+1)-th, ...), k = ceil(total / limit). `scope.includeIdle` changes nothing; `stmt` and `event` narrow it further.
+ */
+export function ioMapOf(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>, limit: number, stmt?: ID, event?: ID, opts: IOMapOpts = {}): IOMap {
+  const w = doc.waits
+  const sc = ioScan(doc, scope, stmt, event)
+  const match = sc.match, blocks = sc.blocks
+  const bc = opts.reads ? new BlockCounter(opts.seenBytes, opts.countCap) : null
   const out: IOMap = { total: 0, sampled: false, cols: [...IOMAP_COLS], rows: [], files: [], events: [] }
+  if (bc) out.reads = []
   const files = new Map<number, IOMapFile>()
-  const seen = new Uint8Array(isBlock.length)
+  const seen = new Uint8Array(doc.events.length)
   for (let i = 0; i < w.n; i++) {
     if (!match(i)) continue
     out.total++
@@ -83,16 +126,26 @@ export function ioMapOf(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>
     const r = files.get(f)
     if (!r) files.set(f, { file: f, lo, hi, n: 1 })
     else { r.n++; r.lo = Math.min(r.lo, lo); r.hi = Math.max(r.hi, hi) }
+    if (bc && !sc.write(i)) { bc.startWait(); bc.read(f, lo, hi); bc.endWait() }
   }
   out.files = [...files.values()].sort((a, b) => a.file - b.file)
   for (let e = 0; e < seen.length; e++) if (seen[e]) out.events.push(e)
+  if (bc) out.readsExact = bc.dec === 0
   if (out.total === 0) return out
   const k = Math.ceil(out.total / Math.max(1, Math.floor(limit) || 1))
   out.sampled = k > 1
   let n = 0
   for (let i = 0; i < w.n; i++) {
     if (!match(i)) continue
-    if (n % k === 0) out.rows.push([w.tim[i], w.ela[i], w.event[i], w.p1[i], w.p2[i], blocks(i), w.obj[i], w.stmt[i], w.call[i], w.line[i], w.ctx[i], w.dep[i]])
+    if (n % k === 0) {
+      const nb = blocks(i)
+      out.rows.push([w.tim[i], w.ela[i], w.event[i], w.p1[i], w.p2[i], nb, w.obj[i], w.stmt[i], w.call[i], w.line[i], w.ctx[i], w.dep[i]])
+      if (bc) {
+        let most = 0
+        for (let b = Math.max(w.p2[i], 0); b < w.p2[i] + nb; b++) most = Math.max(most, bc.reads(w.p1[i], b))
+        out.reads!.push(most)
+      }
+    }
     n++
   }
   return out
