@@ -36,6 +36,7 @@ export type KeyAnswer = { status: 'answered' } | { status: 'missing'; keychain: 
 /** where a typed key was kept besides the engine's memory */
 export type KeyKept = 'keychain' | 'session' | 'engine'
 export const assistKeyAnswer = (promptId: string, provider: string) => invoke<KeyAnswer>('assist_key_answer', { promptId, provider })
+/** Answers the engine's prompt with the typed key first; only when the engine took it is the key kept (keychain or session), so a failed delivery leaves nothing stored and the prompt can be retried. */
 export const assistKeyStoreAndAnswer = (promptId: string, provider: string, key: string, remember: boolean) =>
   invoke<KeyKept>('assist_key_store_and_answer', { promptId, provider, key, remember })
 export const assistKeyForget = (provider: string) => invoke<void>('assist_key_forget', { provider })

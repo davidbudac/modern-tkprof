@@ -1,11 +1,11 @@
 import { useEffect, useReducer, useRef, useState, type FormEvent } from 'react'
 import { assistKeyAnswer, assistKeyStoreAndAnswer, useEngine } from '../engine'
 import { useConnectionsOptional } from '../connections/ConnectionsProvider'
-import { EngineError, remoteApi } from '../connections/api'
+import { remoteApi } from '../connections/api'
 import { EXIT_MS, useExit } from '@lib/components/motion'
 import { inTauri } from '../platform'
 import { useSettings } from '../settings/settings'
-import { emptyQueue, isRetry, isYesNo, promptReducer, promptTitle, shows, type Answered, type QueuedPrompt } from './queue'
+import { answerOutcome, canSend, emptyQueue, isRetry, isYesNo, promptReducer, promptTitle, shows, type Answered, type QueuedPrompt } from './queue'
 import './prompts.css'
 
 /**
@@ -13,8 +13,15 @@ import './prompts.css'
  * db passwords, assistant API keys) as a modal, one at a time in arrival order. Answers go to
  * `POST /engine/prompts/{id}` and nowhere else: never logged, never stored. In the app an API
  * key prompt goes to the shell first, which answers it with a key remembered in the OS keychain
- * (the modal shows only when there is none) and remembers a typed one when asked to.
+ * (the modal shows only when there is none) and remembers a typed one when asked to, after the
+ * engine accepted it.
+ *
+ * The modal stays until the answer is delivered: it shows "sending" meanwhile and, if delivery
+ * fails, the error with Retry (the same answer, held in a ref until the prompt is done) and Cancel.
+ * Delivery means the engine's 2xx, or its 404 (the prompt is gone: answered elsewhere, timed out).
  */
+type Body = { answer: string; remember?: boolean } | { cancel: true }
+
 export function PromptHost() {
   const { events, client } = useEngine()
   const [queue, dispatch] = useReducer(promptReducer, emptyQueue)
@@ -22,6 +29,9 @@ export function PromptHost() {
   // apikey prompts the shell is looking up, and those of them closed meanwhile
   const lookups = useRef(new Set<string>())
   const closedDuring = useRef(new Set<string>())
+  // the answer being delivered (or that failed), for Retry; held here and nowhere else, never logged or put in the queue state
+  const pending = useRef<{ id: string; body: Body } | null>(null)
+  const inFlight = useRef(new Set<string>())
 
   useEffect(() => {
     const keyLookup = (prompt: QueuedPrompt) => {
@@ -59,19 +69,37 @@ export function PromptHost() {
   // once the queue is empty the last prompt plays its exit; a new one shows at once
   const { shown, closing } = useExit(client ? queue.items[0] : null, EXIT_MS.quick)
   if (!shown || !client) return null
-  const send = async (body: { answer: string; remember?: boolean } | { cancel: true }) => {
-    if (closing) return
-    // a cancel forgets the answer: asking again after it is not a retry
-    setAnswered('answer' in body ? { connection: shown.connection, kind: shown.kind, at: Date.now() } : null)
-    dispatch({ type: 'answered', id: shown.id })
-    try {
-      if ('answer' in body && inTauri && shown.kind === 'apikey')
-        await assistKeyStoreAndAnswer(shown.id, shown.connection, body.answer, body.remember ?? false)
-      else await remoteApi.answerPrompt(client, shown.id, 'answer' in body ? { answer: body.answer } : body)
-    } catch (e) {
-      // 404: the prompt is gone already (answered elsewhere, timed out)
-      if (!(e instanceof EngineError && e.status === 404)) console.warn('prompt answer failed:', (e as Error).message)
+  const send = async (body: Body) => {
+    if (closing || !canSend(shown) || inFlight.current.has(shown.id)) return
+    const { id, connection, kind } = shown
+    // a cancel that fails twice in a row is given up on: the user chose to leave, the engine will time the prompt out
+    const prev = pending.current
+    const secondCancel = 'cancel' in body && prev?.id === id && 'cancel' in prev.body
+    inFlight.current.add(id)
+    pending.current = { id, body }
+    dispatch({ type: 'sending', id })
+    const done = () => {
+      // a cancel forgets the answer: asking again after it is not a retry
+      setAnswered('answer' in body ? { connection, kind, at: Date.now() } : null)
+      if (pending.current?.id === id) pending.current = null
+      dispatch({ type: 'answered', id })
     }
+    try {
+      // in the app the shell answers the engine first and remembers a typed key only once the engine took it
+      if ('answer' in body && inTauri && kind === 'apikey') await assistKeyStoreAndAnswer(id, connection, body.answer, body.remember ?? false)
+      else await remoteApi.answerPrompt(client, id, 'answer' in body ? { answer: body.answer } : body)
+      done()
+    } catch (e) {
+      const o = answerOutcome(e)
+      if (o.closed || secondCancel) done()
+      else dispatch({ type: 'failed', id, error: o.error })
+    } finally {
+      inFlight.current.delete(id)
+    }
+  }
+  const retry = () => {
+    const p = pending.current
+    if (p && p.id === shown.id) void send(p.body)
   }
   // the backdrop outlives a prompt replacing another; only the card is keyed by the prompt
   return (
@@ -84,6 +112,7 @@ export function PromptHost() {
         last={answered}
         onAnswer={(a, remember) => void send({ answer: a, remember })}
         onCancel={() => void send({ cancel: true })}
+        onRetry={retry}
       />
     </div>
   )
@@ -98,9 +127,11 @@ interface ModalProps {
   /** `remember`: an API key goes to the keychain too */
   onAnswer: (a: string, remember?: boolean) => void
   onCancel: () => void
+  /** send the failed answer again */
+  onRetry: () => void
 }
 
-function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel }: ModalProps) {
+function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel, onRetry }: ModalProps) {
   const conns = useConnectionsOptional()
   const conn = conns?.entries.find((c) => c.id === prompt.connection)
   const apiKey = prompt.kind === 'apikey'
@@ -113,9 +144,11 @@ function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel }: Mod
   const yesNo = isYesNo(prompt.kind)
   const [retry] = useState(() => isRetry(last, prompt, Date.now()))
 
-  // while the card plays its exit it answers nothing (its Escape listener is still registered)
-  const answer = (a: string) => !closing && onAnswer(a)
-  const dismiss = () => !closing && onCancel()
+  const sending = !!prompt.sending
+  const failed = !sending && !!prompt.failure
+  // while the card plays its exit, or an answer is on its way, it answers nothing (its Escape listener is still registered)
+  const answer = (a: string) => !closing && !sending && onAnswer(a)
+  const dismiss = () => !closing && !sending && onCancel()
   const cancel = useRef(dismiss)
   cancel.current = dismiss
   useEffect(() => {
@@ -127,10 +160,14 @@ function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel }: Mod
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (closing) return
+    if (closing || sending) return
+    if (failed) return onRetry()
+    // the field keeps its value: a failed delivery is retried with it (it is cleared when the card leaves)
     onAnswer(value, apiKey && (remember || !keychain))
-    setValue('')
   }
+  useEffect(() => {
+    if (closing) setValue('')
+  }, [closing])
   const text = prompt.text.trim()
   return (
     <form
@@ -139,6 +176,7 @@ function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel }: Mod
       aria-modal="true"
       aria-labelledby="prompt-title"
       data-kind={prompt.kind}
+      aria-busy={sending}
       onSubmit={submit}
       autoComplete="off"
     >
@@ -167,19 +205,27 @@ function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel }: Mod
           type={shows(prompt) ? 'text' : 'password'}
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          disabled={sending}
+          readOnly={failed}
           aria-label={promptTitle(prompt)}
           autoComplete={prompt.kind === 'otp' ? 'one-time-code' : 'off'}
           spellCheck={false}
         />
       )}
-      {retry && <p className="prompt-retry" role="alert">Not accepted. Try again.</p>}
+      {retry && !failed && <p className="prompt-retry" role="alert">Not accepted. Try again.</p>}
+      {sending && <p className="prompt-sending muted small" role="status">Sending…</p>}
+      {failed && (
+        <p className="prompt-failure" role="alert">
+          Could not send the answer: {prompt.failure}
+        </p>
+      )}
       {(prompt.kind === 'password' || prompt.kind === 'passphrase') && (
         <p className="muted small">Kept only in the engine's memory for this connection until the app quits or you forget it. Never written to disk.</p>
       )}
       {apiKey &&
         (keychain ? (
           <label className="check small">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            <input type="checkbox" checked={remember} disabled={sending || failed} onChange={(e) => setRemember(e.target.checked)} />
             Remember in keychain
           </label>
         ) : inTauri ? (
@@ -190,17 +236,22 @@ function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel }: Mod
       <footer>
         {waiting > 0 && <span className="muted small">{waiting} more waiting</span>}
         <span className="spacer" />
-        {yesNo ? (
+        {failed ? (
           <>
-            <button type="button" onClick={() => answer('no')}>{prompt.kind === 'hostkey' ? 'Reject' : 'No'}</button>
-            <button type="button" className="primary" onClick={() => answer('yes')} autoFocus>
+            <button type="button" onClick={dismiss}>Cancel</button>
+            <button type="button" className="primary" onClick={onRetry} autoFocus>Retry</button>
+          </>
+        ) : yesNo ? (
+          <>
+            <button type="button" disabled={sending} onClick={() => answer('no')}>{prompt.kind === 'hostkey' ? 'Reject' : 'No'}</button>
+            <button type="button" className="primary" disabled={sending} onClick={() => answer('yes')} autoFocus>
               {prompt.kind === 'hostkey' ? 'Accept' : 'Yes'}
             </button>
           </>
         ) : (
           <>
-            <button type="button" onClick={dismiss}>Cancel</button>
-            <button type="submit" className="primary">OK</button>
+            <button type="button" disabled={sending} onClick={dismiss}>Cancel</button>
+            <button type="submit" className="primary" disabled={sending}>OK</button>
           </>
         )}
       </footer>

@@ -48,6 +48,9 @@
 .conn-view button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .prompt-card details summary { cursor: pointer; font-size: var(--text-xs); }
 .prompt-retry { color: var(--s-critical); font-size: var(--text-sm); }
+.prompt-failure { margin: 0; color: var(--s-critical); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.prompt-card[aria-busy="true"] input { opacity: 0.6; }
+.prompt-card button:disabled { cursor: default; }
 /* motion: tokens and keyframes in src/motion.css */
 @media (prefers-reduced-motion: no-preference) {
   .prompt-backdrop { animation: motion-fade-in var(--motion-fast) var(--motion-ease); }
