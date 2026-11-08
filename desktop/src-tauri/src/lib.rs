@@ -69,6 +69,9 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        // checks latest.json of the newest GitHub release (tauri.conf.json plugins.updater); the
+        // UI asks on start and installs on request (src/updates/)
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(engine::EngineManager::default())
         .manage(open::OpenQueue::default())
         .setup(|app| {

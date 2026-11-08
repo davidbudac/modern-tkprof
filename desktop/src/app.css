@@ -165,6 +165,11 @@ body { overflow: hidden; }
   font-size: var(--text-sm);
 }
 .toast button { justify-self: start; font-size: var(--text-xs); }
+/* the accent of an offer, not of a warning */
+.update-toast { border-inline-start-color: var(--focus); min-inline-size: 20rem; }
+.toast-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-block-start: var(--sp-1); }
+.toast a { color: inherit; }
+.toast-actions a { font-size: var(--text-xs); }
 
 .blocker {
   position: fixed;

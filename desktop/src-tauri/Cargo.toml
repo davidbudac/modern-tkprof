@@ -34,6 +34,7 @@ tokio = { version = "1", features = ["time", "sync"] }
 keyring = "4"
 # plain http to the engine on loopback only: no TLS, no proxy
 ureq = { version = "3", default-features = false }
+tauri-plugin-updater = "2.14"
 
 [profile.release]
 codegen-units = 1

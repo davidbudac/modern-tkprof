@@ -27,6 +27,10 @@ export interface Settings {
   assistBinds: AssistBinds
   /** an intent of the assistant (the show tool) waits as a chip in the chat until it is clicked, instead of moving the views at once */
   assistAskBeforeMoving: boolean
+  /** ask the GitHub releases for a newer version on start (src/updates/) */
+  updateCheck: boolean
+  /** a version the start's update toast does not offer ("Skip this version"); '' = none */
+  skippedVersion: string
 }
 
 export const defaults: Settings = {
@@ -40,6 +44,8 @@ export const defaults: Settings = {
   assistProviders: [],
   assistBinds: 'mask',
   assistAskBeforeMoving: false,
+  updateCheck: true,
+  skippedVersion: '',
 }
 
 /** What `engine_start`/`engine_restart` get from the settings. */

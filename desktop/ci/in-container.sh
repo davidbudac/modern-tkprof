@@ -5,6 +5,8 @@
 set -uo pipefail
 cd /src/desktop
 . ci/lib.sh
+# the key comes from ci-local.sh's environment (docker run -e)
+updater_build_args
 
 leg=${1:?usage: in-container.sh <linux|windows> [--skip-smoke] [--no-appimage]}
 shift
@@ -24,11 +26,11 @@ linux() {
   local t=x86_64-unknown-linux-gnu
   rm -rf "src-tauri/target/$t/release/bundle"
   run_step "linux-x64: engine" pnpm build:engine --target $t || return 1
-  run_step "linux-x64: deb" pnpm tauri build --target $t --bundles deb --ci || return 1
+  run_step "linux-x64: deb" pnpm tauri build --target $t --bundles deb --ci ${updater_args[@]+"${updater_args[@]}"} || return 1
   if [ $appimage -eq 1 ]; then
     # linuxdeploy is itself an AppImage: run it extracted, without FUSE
     if ! APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=true run_step "linux-x64: appimage" \
-      pnpm tauri build --target $t --bundles appimage --ci > out-logs/linux-appimage.log 2>&1; then
+      pnpm tauri build --target $t --bundles appimage --ci ${updater_args[@]+"${updater_args[@]}"} > out-logs/linux-appimage.log 2>&1; then
       tail -n 30 out-logs/linux-appimage.log
       echo "linux-x64: appimage failed (full log out-logs/linux-appimage.log; --no-appimage to build the deb only)"
       return 1
@@ -49,7 +51,7 @@ windows() {
   local t=x86_64-pc-windows-msvc
   rm -rf "src-tauri/target/$t/release/bundle"
   run_step "windows-x64: engine" pnpm build:engine --target $t || return 1
-  run_step "windows-x64: nsis" pnpm tauri build --runner cargo-xwin --target $t --bundles nsis --ci || return 1
+  run_step "windows-x64: nsis" pnpm tauri build --runner cargo-xwin --target $t --bundles nsis --ci ${updater_args[@]+"${updater_args[@]}"} || return 1
   collect_installers $t || return 1
   skip "windows-x64: smoke" "no Windows to run it on (cross-built on Linux)"
 }

@@ -201,7 +201,16 @@ in `serve` is done: see Inputs.)
 Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
 
 - Internal team tool for Windows, macOS and Linux (all first-class); private,
-  unsigned GitHub releases; no updater. Traces of 1–2 GB are the ceiling.
+  unsigned GitHub releases. Traces of 1–2 GB are the ceiling.
+- Updates (decided 2026-11-08, replacing "no updater"): tauri-plugin-updater.
+  The app reads `latest.json` of the newest GitHub release on every start
+  (setting, on by default) and offers *Install and restart*; nothing installs
+  without that click. Updates are signed with a minisign key kept off GitHub
+  (`~/.tauri/mtkprof-updater.key` on the release Mac; the public key is in
+  `tauri.conf.json`) and must carry the release's version in the signature
+  (`requireSignedVersion`: no downgrade through a forged manifest). OS code
+  signing stays out of scope. Losing the key means every installed app needs one
+  manual reinstall with a new key.
 - The Go core is the engine: `mtkprof engine` runs locally as a sidecar
   process, holds N open traces, always builds in aggregate + spill mode, and
   keeps the spill directory as a persistent index cache (user cache dir,

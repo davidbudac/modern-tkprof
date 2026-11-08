@@ -18,6 +18,7 @@ src/workspace/  session tabs, open screen, progress, restore, annotations (bookm
 src/workspace/session/  one tab's views over a lib store: the lib's shell module (web/src/lib/shell: view table,
                         ViewTabs, panes, Esc, view keys, Inspector) plus the desktop's own Notes, Reports, history, Tools menu
 src/settings/   settings (store + context), Settings and About pages
+src/updates/    the update check on start, its toast, install and relaunch (tauri-plugin-updater)
 src/connections/ connections (store, import/export, team file), remote browser, DB panel, jobs dock
 src/prompts/    PromptHost: the engine's prompt events as a queued modal
 src/library/    saved Pivot configurations (library.json) and the Library page
@@ -25,7 +26,7 @@ src/files.ts    save/open user files (reports, exports, imports)
 src/platform.ts Tauri APIs with the dev browser fallbacks
 src/pages.tsx   the desktop pages next to the tabs (Connections, Library, Settings, About)
 src-tauri/      Rust shell: engine sidecar lifecycle (src/engine.rs), app_info (src/app.rs), plugins, bundling
-scripts/      build-engine.mjs (sidecar), smoke.sh, build-mac-quick.sh, ci-local.sh, release-local.sh
+scripts/      build-engine.mjs (sidecar), smoke.sh, build-mac-quick.sh, ci-local.sh, release-local.sh, updater-manifest.mjs
 ci/           Dockerfile and helpers of the Linux/Windows legs of the local CI
 ```
 
@@ -155,7 +156,7 @@ The store plugin keeps JSON files in the app data dir (`%APPDATA%\com.davidbudac
 
 | file | keys |
 |---|---|
-| `settings.json` | `cacheDir`, `cacheCapGB`, `binds`, `salt`, `startEmpty`, `planVizUrl`, `theme` |
+| `settings.json` | `cacheDir`, `cacheCapGB`, `binds`, `salt`, `startEmpty`, `planVizUrl`, `theme`, `updateCheck`, `skippedVersion` |
 | `workspace.json` | `open` (`[{title, set: {paths, options}}]`, restored on start), `active`, `recent` (last 20 `{title, set, at}`) |
 | `annotations.json` | `{"<identity>": {bookmarks: [{file, line, label, note?, updated?}], notes: [Annotation]}}` (lib `Annotation`: statement, execution, window notes) |
 | `library.json` | `pivots`: `[{id, name, config: PivotConfig, created, updated}]` (lib `SavedPivot`) |
@@ -233,10 +234,36 @@ scripts/release-local.sh vX.Y.Z
 adds the installers to that release. It refuses unless the tree is clean, HEAD is the tag, the
 versions match and the release exists without installers; it runs all legs of `ci-local.sh`,
 uploads `out/*` (their checksums as `SHA256SUMS-desktop`) and appends the checksums to the
-release notes. It never creates or pushes the tag. There is no updater: About shows the version
-and links to the [releases page](https://github.com/davidbudac/modern-tkprof/releases); releases
-v0.3.1 and earlier are on the archived
+release notes. It never creates or pushes the tag. Releases v0.3.1 and earlier are on the archived
 [mtkprof-desktop releases page](https://github.com/davidbudac/mtkprof-desktop/releases).
+
+### Updates
+
+`tauri-plugin-updater` (`src/updates/`, user side in `../docs/DESKTOP.md` § Updates). On start
+(setting `updateCheck`) and from Settings → About the app reads
+`https://github.com/davidbudac/modern-tkprof/releases/latest/download/latest.json`
+(`plugins.updater` in `src-tauri/tauri.conf.json`); a newer version is offered in a toast, and
+*Install and restart* downloads it, stops the engine, installs and relaunches. The download must
+be signed with the updater key and name the release's version in its signature
+(`requireSignedVersion`).
+
+- **The key**: `~/.tauri/mtkprof-updater.key` on the release Mac (no password, mode 600), or
+  `TAURI_SIGNING_PRIVATE_KEY` (the key or a path; `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if it has
+  one). Its public half is `plugins.updater.pubkey`. Back it up: without it no installed app
+  accepts an update, and a new key needs a manual reinstall everywhere.
+- **Builds**: with a key `scripts/ci-local.sh` adds `bundle.createUpdaterArtifacts` (the Docker
+  legs get the key through `docker run -e`) and collects `mtkprof_<v>_<arch>.app.tar.gz` (macOS),
+  the installers' `.sig` (`-setup.exe`, `.AppImage`, `.deb`) into `out/`; without one it builds
+  the installers alone and says so.
+- **Releases**: `scripts/release-local.sh` refuses without the key, then writes `latest.json`
+  (`scripts/updater-manifest.mjs`: `darwin-{aarch64,x86_64}[-app]`, `windows-x86_64[-nsis]`,
+  `linux-x86_64[-appimage]`, `linux-x86_64-deb`) and uploads it after everything else. Until the
+  desktop half of a release is up, `releases/latest` has no `latest.json` and the check fails
+  quietly (logged).
+- **Trying it**: `?mock=update` in the dev browser mode offers a fake 9.9.9 (its install fails on
+  purpose). For a real round trip build an older app with
+  `--config '{"plugins":{"updater":{"endpoints":["http://127.0.0.1:8765/latest.json"],"dangerousInsecureTransportProtocol":true}}}'`
+  and serve a newer signed build's `.app.tar.gz` and a hand-written `latest.json` from that port.
 
 The builds are not signed:
 

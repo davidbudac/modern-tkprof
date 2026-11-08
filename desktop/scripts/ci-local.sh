@@ -50,6 +50,10 @@ mkdir -p out out-logs out-smoke
 : > out-logs/results.tsv
 export CI_RESULTS=out-logs/results.tsv
 . ci/lib.sh
+updater_key
+updater_build_args
+if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then echo "ci-local: updater artifacts on (signing key found)"
+else echo "ci-local: no updater signing key (TAURI_SIGNING_PRIVATE_KEY, ~/.tauri/mtkprof-updater.key): installers without updater artifacts"; fi
 t_start=$SECONDS
 
 # a full run replaces everything in out/; a subset only the installers of its own legs
@@ -114,7 +118,8 @@ macos_target() { # <triple> <name>
   rustup target list --installed 2>/dev/null | grep -qx "$t" || { echo "rust target $t missing: rustup target add $t"; return 1; }
   rm -rf "src-tauri/target/$t/release/bundle"
   run_step "$n: engine" pnpm build:engine --target "$t" || return 1
-  run_step "$n: dmg" pnpm tauri build --target "$t" --bundles dmg --ci || return 1
+  # app: its mtkprof.app.tar.gz is the macOS updater artifact
+  run_step "$n: dmg" pnpm tauri build --target "$t" --bundles app,dmg --ci ${updater_args[@]+"${updater_args[@]}"} || return 1
   collect_installers "$t" || return 1
   if [ $skip_smoke -eq 1 ]; then
     skip "$n: smoke" "--skip-smoke"
@@ -157,7 +162,9 @@ docker_leg() { # <linux|windows>
   [ $skip_smoke -eq 1 ] && args+=(--skip-smoke)
   [ $appimage -eq 0 ] && args+=(--no-appimage)
   # the node_modules folders and src-tauri/target are volumes so the Mac's and Linux's files never
-  # mix; dist/ and src-tauri/binaries/ are rebuilt on every run
+  # mix; dist/ and src-tauri/binaries/ are rebuilt on every run. GOFLAGS: a worktree under the
+  # repository (.claude/worktrees/*) has a .git file naming a host path, so go's VCS stamping fails
+  # in the container; the engine's version comes from -ldflags anyway
   docker run --rm --platform linux/amd64 \
     -v "$(dirname "$ROOT")":/src \
     -v mtkprof-ci-node_modules:/src/node_modules \
@@ -171,6 +178,8 @@ docker_leg() { # <linux|windows>
     -v mtkprof-ci-gocache:/root/.cache/go-build \
     -v mtkprof-ci-pnpm:/root/.local/share/pnpm \
     -e CI_RESULTS=/src/desktop/$CI_RESULTS \
+    -e TAURI_SIGNING_PRIVATE_KEY -e TAURI_SIGNING_PRIVATE_KEY_PASSWORD \
+    -e GOFLAGS=-buildvcs=false \
     $IMG bash /src/desktop/ci/in-container.sh "${args[@]}"
 }
 linux() { docker_leg linux; }

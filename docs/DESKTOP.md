@@ -9,7 +9,7 @@ button names it (*Notes ▾*) and is marked as the current page. Saved Pivot con
 
 It is a Tauri shell around the `mtkprof engine` process (`docs/ARCHITECTURE.md` § Engine mode); the
 code is in `desktop/` (build, dev mode, CI: `desktop/README.md`). Internal team tool: builds are
-unsigned, no updater.
+unsigned; the app updates itself from the releases page (see "Updates").
 
 ## Install
 
@@ -537,9 +537,25 @@ Sections, in this order, each with its actions inside it:
 | Engine | Cache location (*Change…* picks a folder, *Default* resets), cap (GiB) and plan visualizer URL (where *Open in plan viz* sends plans), *Restart engine*; then the facts: version and protocol (and the protocol the app speaks), binary, listening address, status, uptime | location, cap and URL after *Restart engine* |
 | Index cache | usage bar, *Refresh*, *Wipe cache…*; a folded rollout with the entries and *Remove* (see "Index cache") | at once |
 | Backup | export and import of connections and the library (below) | at once |
-| About (a folded rollout) | app version, the data and log folders, the releases page | |
+| About (a folded rollout) | app version, the data and log folders; *Check for updates on start*, *Check now* (or *Install and restart*), the releases page | at once |
 
 *Restart engine* restarts the engine with the new settings; open tabs re-open from the cache.
+
+### Updates
+
+From the first release after v0.5.0 the app asks the [releases page](https://github.com/davidbudac/modern-tkprof/releases)
+for a newer version a few seconds after every start (turn it off in *Settings → About → Check for
+updates on start*). When there is one, a note at the bottom right offers:
+
+- **Install and restart**: downloads the update, checks its signature, stops the engine, installs
+  it and starts the app again with your tabs. On Windows the installer shows its progress window
+  for a moment; on Linux the `.deb` asks for your password (pkexec), the AppImage replaces itself.
+- **Later**: hides it until the next start.
+- **Skip this version**: never offers that version on start again (*Check now* still finds it).
+
+*Settings → About → Check now* checks at any time and says what it found. The app needs to reach
+github.com; a failed check is only written to the log. v0.5.0 and earlier have no updater:
+install the next release by hand once.
 
 ### Backup
 

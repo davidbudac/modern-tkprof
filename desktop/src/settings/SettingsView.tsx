@@ -16,6 +16,7 @@ import { BindSeg } from './BindSeg'
 import { BindPreview, Card, Row, Switch, ThemeTiles } from './parts'
 import { engineOptionsOf, sameEngineOptions, useSettings } from './settings'
 import { TrashIcon } from '../ui/icons'
+import { checkForUpdate, installUpdate, updatesAvailable, useUpdateState, type UpdateState } from '../updates/updates'
 import './settings.css'
 
 const when = (iso: string) => {
@@ -191,9 +192,7 @@ export function SettingsView() {
                   <dd className="mono">{info.logDir}</dd>
                 </dl>
               )}
-              <Row label="Updates" desc="New versions are published on the releases page; the app does not update itself">
-                <button onClick={() => void openReleasesPage()}>Releases page</button>
-              </Row>
+              <UpdateRows app={app} />
               <div className="set-foot">Licensed under the Apache License 2.0. © 2026 David Budac</div>
             </Card>
           </details>
@@ -201,6 +200,48 @@ export function SettingsView() {
       </div>
     </div>
   )
+}
+
+/** Settings → About: the start's update check, and a check or an install now. */
+function UpdateRows({ app }: { app: string }) {
+  const { settings, update } = useSettings()
+  const engine = useEngine()
+  const state = useUpdateState()
+  const busy = state.kind === 'checking' || state.kind === 'downloading' || state.kind === 'installing'
+  return (
+    <>
+      <Row label="Check for updates on start" htmlFor="update-check" desc="Asks the mtkprof releases on GitHub for a newer version when the app starts">
+        <Switch id="update-check" checked={settings.updateCheck} onChange={(updateCheck) => update({ updateCheck })} />
+      </Row>
+      <Row label="Updates" desc={updatesAvailable ? updateText(state, app, settings.skippedVersion) : 'Not in the dev browser mode'}>
+        {state.kind === 'available' ? (
+          <button onClick={() => void installUpdate(() => engine.restart(engine.options))}>Install and restart</button>
+        ) : (
+          <button onClick={() => void checkForUpdate()} disabled={!updatesAvailable || busy}>Check now</button>
+        )}
+        <button className="quiet" onClick={() => void openReleasesPage()}>Releases page</button>
+      </Row>
+    </>
+  )
+}
+
+function updateText(s: UpdateState, app: string, skipped: string): string {
+  switch (s.kind) {
+    case 'idle':
+      return `mtkprof ${app}. New versions come from the releases page`
+    case 'checking':
+      return 'Checking for a newer version…'
+    case 'current':
+      return `mtkprof ${app} is the newest version (checked ${new Date(s.at).toLocaleTimeString()})`
+    case 'available':
+      return `mtkprof ${s.version} is available${s.version === skipped ? ' (skipped: not offered on start)' : ''}`
+    case 'downloading':
+      return `Downloading mtkprof ${s.version}…${s.total ? ` ${Math.round((100 * s.done) / s.total)}%` : ''}`
+    case 'installing':
+      return `Installing mtkprof ${s.version}; the app restarts when it is done`
+    case 'error':
+      return s.during === 'check' ? `The check failed: ${s.message}` : `The update to ${s.version} failed: ${s.message}`
+  }
 }
 
 const SECTIONS = [

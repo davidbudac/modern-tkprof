@@ -14,6 +14,7 @@ import { TabStrip } from './workspace/TabStrip'
 import { TabView } from './workspace/TabView'
 import { leaveRoute } from './workspace/workspace'
 import { WorkspaceProvider, useWorkspace, useWorkspaceState } from './workspace/WorkspaceProvider'
+import { UpdateToast } from './updates/UpdateToast'
 
 /** The desktop frame: settings first (the engine starts with them), then engine, workspace, the frame. */
 export function App() {
@@ -39,6 +40,7 @@ function EngineWithSettings() {
             <DropTarget />
             <TabShortcuts />
             <CrashToast />
+            <UpdateToast />
             <JobsPanel />
             <PromptHost />
             <FailedPanel />
