@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalS
 import { useEngine } from '../engine'
 import { appInfo, devEngine, onOpenRequest, takeOpenRequests } from '../platform'
 import { useSettings } from '../settings/settings'
+import { pruneCuts } from './cuts'
 import { Workspace, type Snapshot } from './workspace'
 
 const Ctx = createContext<Workspace | null>(null)
@@ -67,6 +68,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         .finally(() => {
           restored.current = true
           drain.current()
+          // the cuts no tab references any more and older than a week (docs/DESKTOP.md § Cuts)
+          pruneCuts(ws.getSnapshot().tabs.flatMap((t) => t.set.paths)).catch((e) => console.error('cuts:', e))
         })
     }
   }, [ws, settings.startEmpty, settings.binds, settings.salt])

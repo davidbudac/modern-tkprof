@@ -4,8 +4,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { fmtBytes, fmtDur, fmtInt, fmtWall, resolveVar, scopeOf, useActions, useClient, useStore, type ApiClient, type ID, type TraceDoc } from '@lib'
 import { responseError } from '../../../engine'
-import { safeFileName, saveAs, writeCached } from '../../../files'
+import { safeFileName, saveAs } from '../../../files'
 import { inTauri } from '../../../platform'
+import { writeCut } from '../../cuts'
 import { useWorkspace } from '../../WorkspaceProvider'
 import { traceStem, useCurrentTab } from '../useTab'
 import { MAX_CHECK_BYTES, autoCheckOf, checkPath, currentOf, jsonSettle, jsonView, pickOf, stmtChoices, type JSONResult, type JSONState, type JSONView } from './cutstate'
@@ -160,8 +161,9 @@ export function CutView({ doc }: { doc: TraceDoc }) {
     const path = await saveAs(safeFileName(fileName), fetchFile, [{ name: 'Oracle trace', extensions: ['trc'] }], 'Save the new trace')
     return path ? { text: `Saved ${path}`, path: inTauri ? path : undefined } : null
   })
+  // a name of its own in the cuts folder (<stem>-cut-<yyyymmdd-hhmmss>.trc): an earlier cut's tab keeps reading its own file
   const openNew = () => run('open', async () => {
-    const path = await writeCached('cuts', safeFileName(fileName), await fetchFile())
+    const path = await writeCut(traceStem(doc, tab), await fetchFile())
     openTab(path)
     return { text: `Opened ${path} in a new tab`, path }
   })

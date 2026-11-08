@@ -311,10 +311,22 @@ keep equal tokens: for sending the file to someone) or None; a tab opened with r
 offers only Mask and None. *Plans from outside the cut* and *Provenance lines* (a few
 `mtkprof cut:` lines in the header saying where the file comes from) can be turned off.
 
+*One statement* picks from every statement with calls, longest first; type a sql_id or part of
+the SQL text to find one. While a changed selection is planned, the map shows the previous plan
+dimmed with *Planning…*, and *Save as…*, *Open as new tab* and the check wait for the new plan.
+
 The side panel's *Re-parse check* writes the file, parses it back and compares its calls, waits
-and wall clock with the selection: a tick means the file holds exactly what the map shows.
-*Save as…* asks where; *Open as new tab* writes it to `cuts/` in the app's cache folder and opens
-it.
+and wall clock with the selection: a tick means the file holds exactly what the map shows. It
+runs by itself for a new file under 256 MB; a bigger one is checked when you ask (the engine
+refuses an unasked check over 1 GB). *Save as…* asks where; *Open as new tab* writes it to
+`cuts/` in the app's cache folder and opens it.
+
+**Cuts folder.** `cuts/` in the app's cache folder belongs to the app: every *Open as new tab*
+writes a file of its own there, `<trace>-cut-<yyyymmdd-hhmmss>.trc` (`-2`, `-3` for a second
+cut in the same second), so an earlier cut's tab keeps its file and its results; the file is
+written whole under a temporary name first. On start the app deletes the files of the folder
+that no open tab and no recent entry references and that are older than 7 days. Save a cut you
+want to keep with *Save as…*.
 
 ## Saved pivots
 
