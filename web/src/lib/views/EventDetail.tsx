@@ -103,7 +103,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
       <dl className="kv">
         <dt>Class</dt><dd>{ev.class || 'unknown'}{ev.idle ? ' (idle)' : ''}</dd>
         <dt>Parameters</dt><dd className="mono">{[ev.p1Name, ev.p2Name, ev.p3Name].filter(Boolean).join(' · ') || '–'}</dd>
-        {source.ready && isBlockIO(ev) && <><dt>Blocks</dt><dd><button type="button" className="link" onClick={() => actions.showBlocks({ event: id })} title="the Blocks view, filtered to this event">the file blocks these waits read or wrote</button></dd></>}
+        {source.ready && isBlockIO(ev) && <><dt>I/O map</dt><dd><button type="button" className="link" onClick={() => actions.showBlocks({ event: id })} title="the I/O map, filtered to this event">the file blocks these waits read or wrote</button></dd></>}
         {agg && <><dt>Whole trace</dt><dd>{fmtInt(agg.count)} waits · {fmtDur(agg.us)} · avg {fmtDur(agg.us / agg.count)} · max {fmtDur(agg.maxUs)}</dd></>}
         {(state.window || state.contexts || state.files) && <><dt>In filter</dt><dd>{fmtInt(filteredCount)} waits · {fmtDur(total)}</dd></>}
       </dl>

@@ -54,8 +54,8 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
               <span className="nm"><i className="swatch" style={{ background: `var(--c-${w.role})` }} />{w.name}</span><span className="n">{fmtDur(w.us)}</span>
               <small>{w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') ? `obj# ${w.obj}${doc.objectName(w.obj) ? ` ${doc.objectName(w.obj)}` : ''} · ` : ''}{fmtInt(w.count)} wait{w.count === 1 ? '' : 's'} · avg {fmtDur(w.us / w.count)} · max {fmtDur(w.maxUs)}{w.maxLine > 0 && <> at <LineRef line={w.maxLine} file={w.maxFile ?? doc.fileOfStmt(id)} /></>}
                 {source.ready && doc.events[w.event] && isBlockIO(doc.events[w.event]) && (
-                  <button type="button" className="link to-blocks" title="the file blocks these waits touched (the Blocks view, filtered to this statement and event)"
-                    onClick={(e) => { e.stopPropagation(); actions.showBlocks({ stmt: id, event: w.event }) }}>in Blocks</button>
+                  <button type="button" className="link to-blocks" title="the file blocks these waits touched (the I/O map, filtered to this statement and event)"
+                    onClick={(e) => { e.stopPropagation(); actions.showBlocks({ stmt: id, event: w.event }) }}>in I/O map</button>
                 )}</small>
             </div>
           ))}

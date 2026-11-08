@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-11-07
+# Handoff — state of mtkprof on 2026-11-08
 
 Read this, then `docs/DESIGN.md` (the decisions), `docs/ARCHITECTURE.md` (how the code is shaped) and
 `docs/trace-format-19c.md` (what the parser must accept). Desktop: `desktop/CLAUDE.md`, the user guide
@@ -17,7 +17,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - Latest release **v0.5.0** (2026-11-02, from `202d152`): CLI binaries (+ `-lite` builds) and the desktop
   installers (DMG arm64/x64, deb, AppImage, NSIS) in one GitHub release; notes `docs/releases/v0.5.0.md`.
   Everything after it (three new views, Lines colour-by / Δ filter, formatted view round 2, the open-list
-  round, the Trace pane's round 3) is unreleased.
+  round, the Trace pane's round 3, the I/O map) is unreleased.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -32,7 +32,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 | Text report, JSON document (format 3, packed columns), CSV export, plan JSON, ref bundle + DBMS_XPLAN overlay | `internal/report`, `internal/ref` | done |
 | CLI: `report`, `pivot`, `html`, `serve` (`-slice`, `-spill`), `json`, `export`, `lint`, `plan`, `refscript`, `compare`, `findings-config`, `fetch`, `follow`, `trace`, `ref -db`, `open`, `mcp`, `engine` (+ `engine cache`) | `cmd/mtkprof` | done |
 | Engine: sessions, jobs, SSE, prompts, persistent index cache, remote (ssh, Oracle), live follow, OpenAPI contract | `internal/engine`, `internal/remote`, `api/engine.openapi.yaml` | protocol 1; contract test |
-| UI: Overview, Statements (Row flow, Dialogue, Execution Loom), Trace/Lines (raw and formatted), Waits, Blocks, Timeline, Sessions, Pivot, Compare; shell module; motion | `web/src/lib`, `web/src/app` → `internal/ui/dist/index.html` | `pnpm --filter mtkprof-web test` |
+| UI: Overview, Statements (Row flow, Dialogue, Execution Loom), Trace/Lines (raw and formatted), Waits, I/O map, Timeline, Sessions, Pivot, Compare; shell module; motion | `web/src/lib`, `web/src/app` → `internal/ui/dist/index.html` | `pnpm --filter mtkprof-web test` |
 | Desktop: tabs, settings, connections, notes and bookmarks, library, reports, assistant, open requests, file associations | `desktop/` | `pnpm typecheck`, `pnpm test` |
 | Fixtures: 19.27, 21c XE, 23ai Free + tkprof output + generators | `testdata/` | real traces only |
 | CI and releases (no GitHub Actions, by decision) | `scripts/ci-local.sh`, `scripts/release-local.sh`, `desktop/scripts/{ci-local,release-local}.sh` | `ci-local.sh --strict` passes |
@@ -100,8 +100,10 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
   waits have a `file#` p1 that is not a datafile (`Event.IsFileP1` skips them).
 - **Wait classes** come from `internal/ref/data/event_name_19c.csv` (a real `v$event_name` export); idle
   detection uses the `Idle` class.
-- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 5); see
+- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 6); see
   CLAUDE.md.
+- **An engine session's model has no waits** (aggregation-only): anything that needs the waits' obj# or file#
+  reads `Model.WaitRefIDs` (the accumulator keeps them since 2026-11-08), not `m.Waits`.
 - **Harness quirks** (Claude Code / T3): `cd` at the start of a Bash call is unreliable, use absolute paths;
   `pkill -f`/`pgrep -f` match the wrapper shell, find servers by port (`ss -ltnp | grep :8046`, `lsof -i` on
   macOS).
@@ -193,6 +195,27 @@ Open:
   With a filter on, the Go-to label folds to `⌘K` below 1792 px. `m` with a statement highlighted in a file that has none of its lines says so; with the engine's run list cut (100,000 runs) the
   steps stop at the last run it sent.
 
+### The I/O map (2026-11-08; DESIGN § The I/O map, `docs/PLAN-IOMAP.md`)
+
+The Blocks view, rebuilt and renamed: ⌘I, a toolbar like the Trace pane's, a zoom of its own (drag by shape, wheel, keys,
+a navigator, "Use as time window"), titled axes, panels per file or per object, a linear or packed block axis, ten colour
+modes with a legend that highlights, object names from the bundle or the plans (schema / PDB / partition / obj# options),
+and a side panel (Objects, Statements, Distributions, Display). Engine: the aggregate model keeps the waits' obj# and file#,
+so a bundle (and the desktop's "Fetch reference data") names datafiles and the objects only waits mention; cache format 6.
+
+Open:
+
+- `site/docs.html` is updated in the repository but not published (ask before `scripts/publish-site.sh`).
+- The assistant's `show` tool does not offer the I/O map (`internal/assist/tools_show.go` lists the other views).
+- Other views still name objects from the bundle only (`doc.objectName`); the plan-line fallback of `data/objnames.ts`
+  is the I/O map's.
+- The navigator shows the unzoomed answer, sampled at the marks limit (5,000 rows when zoomed on arrival); its bars are
+  waits, not time. In I/O order the main axis restarts at 0 inside a zoom (the engine does not say how many waits came
+  before the range).
+- PDB of an object = the container of its first wait's session; obj# are keyed without the container, so the same obj#
+  in two PDBs of one trace set are one object.
+- Not measured: wheel zoom on 100,000 marks on WebView2 / WebKitGTK.
+
 ### Row flow, Dialogue, Blocks (DESIGN § Three new views, `docs/PLAN-VIEWS.md`)
 
 - Row flow's "table + note" state (STAT lines without `(cr=…)`) is unit-tested only: no 19c setting produces
@@ -201,7 +224,7 @@ Open:
   everything is unaccounted time and the bar does not draw that.
 - A rerun of `run_gen.sh px_io` appends to the pooled PX slaves' existing `*_mtk_px_io.trc` files.
 - Not built: the mock-up's fetch count on Row flow's client label; plan § 10 (whole-session Dialogue,
-  side-by-side Dialogue in `ExecCompare`, 2-D binning for Blocks, …).
+  side-by-side Dialogue in `ExecCompare`, 2-D binning for the I/O map, …).
 
 ### Smaller gaps
 

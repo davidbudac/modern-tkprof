@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { digitOf, viewKeyAria, viewKeyLabel, viewKeyOf, viewOfKey, type KeyLike } from './viewKeys'
+import { digitOf, letterOf, viewKeyAria, viewKeyLabel, viewKeyOf, viewOfKey, type KeyLike } from './viewKeys'
 
 const key = (k: string, mods: Partial<KeyLike> = {}): KeyLike => ({ key: k, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods })
 
@@ -20,6 +20,13 @@ describe('viewKeyOf', () => {
     expect(viewKeyOf(key('4', { metaKey: true }), false)).toBeNull()
     expect(viewKeyOf(key('4', { altKey: true }), false)).toBeNull()
   })
+  it('maps ⌘ / Ctrl letters by the letter typed, by the physical key where it types none (the I/O map is I)', () => {
+    expect(viewKeyOf(key('i', { code: 'KeyI', metaKey: true }), true)).toEqual({ kind: 'view', key: 'i' })
+    expect(viewKeyOf(key('ш', { code: 'KeyI', ctrlKey: true }), false)).toEqual({ kind: 'view', key: 'i' }) // a Cyrillic layout
+    expect(viewKeyOf(key('c', { code: 'KeyI', metaKey: true }), true)).toEqual({ kind: 'view', key: 'c' }) // Dvorak: ⌘C is Copy, no view
+    expect(viewKeyOf(key('I', { code: 'KeyI', metaKey: true, shiftKey: true }), true)).toBeNull()
+    expect(viewKeyOf(key('i', { code: 'KeyI' }), true)).toBeNull()
+  })
 })
 
 describe('viewOfKey', () => {
@@ -34,6 +41,11 @@ describe('viewOfKey', () => {
     expect(viewOfKey({ kind: 'step', dir: 1 }, views, 'overview')).toBe('lines')
     expect(viewOfKey({ kind: 'step', dir: 1 }, views, 'waits')).toBe('overview')
     expect(viewOfKey({ kind: 'step', dir: -1 }, views, 'overview')).toBe('waits')
+  })
+  it('goes to the view with that letter; no view with it is nothing', () => {
+    const rows = [{ id: 'waits', key: 4 }, { id: 'blocks', key: 'i' }] as const
+    expect(viewOfKey({ kind: 'view', key: 'i' }, rows, 'waits')).toBe('blocks')
+    expect(viewOfKey({ kind: 'view', key: 'w' }, rows, 'waits')).toBeNull()
   })
   it('gives a row without a key no digit, but steps through it', () => {
     const rows = [{ id: 'overview', key: 1 }, { id: 'waits', key: 4 }, { id: 'blocks' }, { id: 'timeline', key: 5 }] as const
@@ -50,6 +62,8 @@ describe('viewKeyLabel / viewKeyAria', () => {
     expect(viewKeyLabel(0, false)).toBe('Ctrl+0')
     expect(viewKeyAria(3, true)).toBe('Meta+3')
     expect(viewKeyAria(7, false)).toBe('Control+7')
+    expect(viewKeyLabel('i', true)).toBe('⌘I')
+    expect(viewKeyAria('i', false)).toBe('Control+I')
     expect(viewKeyLabel(undefined, true)).toBe('')
     expect(viewKeyAria(undefined, false)).toBe('')
   })
@@ -60,5 +74,14 @@ describe('digitOf', () => {
     expect(digitOf(key('&', { code: 'Digit1', shiftKey: true }))).toBe(1)
     expect(digitOf(key('7'))).toBe(7)
     expect(digitOf(key('a', { code: 'KeyA' }))).toBeNull()
+  })
+})
+
+describe('letterOf', () => {
+  it('reads the letter typed, then the code, in lower case', () => {
+    expect(letterOf(key('Dead', { code: 'KeyI', altKey: true }))).toBe('i')
+    expect(letterOf(key('g', { code: 'KeyI' }))).toBe('g')
+    expect(letterOf(key('X'))).toBe('x')
+    expect(letterOf(key('1', { code: 'Digit1' }))).toBeNull()
   })
 })

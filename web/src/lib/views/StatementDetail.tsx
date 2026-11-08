@@ -104,8 +104,8 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
               <DialogueIcon /> Dialogue</button>
           )}
           {ready && anyBlockIO && stats.waitUs > 0 && (
-            <button onClick={() => actions.showBlocks({ stmt: id })} title="Blocks: the file blocks this statement read and wrote (opens the Blocks view, filtered to it)">
-              <BlocksIcon /> Blocks</button>
+            <button onClick={() => actions.showBlocks({ stmt: id })} title="I/O map: the file blocks this statement read and wrote (opens the I/O map, filtered to it; ⌘I / Ctrl+I opens it unfiltered)">
+              <BlocksIcon /> I/O map</button>
           )}
         </span>
       </div>

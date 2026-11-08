@@ -12,6 +12,23 @@ export type View = 'overview' | 'statements' | 'waits' | 'blocks' | 'timeline' |
 
 export interface TimeWindow { startTim: number; endTim: number }
 
+/** A block range `[lo, hi)` of one file. */
+export interface BlockRange { file: number; lo: number; hi: number }
+
+/**
+ * One step of the I/O map's zoom: a time range (null: the whole scope) and the block ranges each zoomed panel shows (keyed by the
+ * panel's key, `f12` or `o108609`; a panel not in it shows all its blocks).
+ */
+export interface IOZoom { range: TimeWindow | null; blocks: Record<string, BlockRange[]> }
+
+/** Two zoom steps show the same thing. */
+export function sameIOZoom(a: IOZoom, b: IOZoom): boolean {
+  if ((a.range?.startTim ?? null) !== (b.range?.startTim ?? null) || (a.range?.endTim ?? null) !== (b.range?.endTim ?? null)) return false
+  const ka = Object.keys(a.blocks), kb = Object.keys(b.blocks)
+  const same = (x: BlockRange[], y: BlockRange[] | undefined) => !!y && x.length === y.length && x.every((r, i) => r.file === y[i].file && r.lo === y[i].lo && r.hi === y[i].hi)
+  return ka.length === kb.length && ka.every((k) => same(a.blocks[k], b.blocks[k]))
+}
+
 /** A block of an Overview lane: a statement's merged call interval (a phase segment or a wait stretch of it). */
 export interface LaneBlock { stmt: ID; startTim: number; endTim: number }
 
@@ -113,8 +130,10 @@ export interface State {
   /** show the Pivot view's "Saved" menu (the desktop shell provides `Session.library`) */
   libraryEnabled: boolean
   pivot: PivotState
-  /** the Blocks view's filter: only this statement's / event's block I/O (null = all); set by the links into Blocks (`showBlocks`) */
+  /** the I/O map's filter (view id `blocks`): only this statement's / event's block I/O (null = all); set by the links into it (`showBlocks`) */
   blocks: { stmt: ID | null; event: ID | null }
+  /** the I/O map's zoom stack: the last entry is what it shows, `[]` the whole scope; the view's own, not a filter of the other views */
+  ioZoom: IOZoom[]
   /** counts the documents shown: `swapDoc` (a live session's next snapshot) increments it; views holding server answers outside `useSourceQuery` refetch on a change */
   rev: number
   /** null unless the document is a live session's */
@@ -131,6 +150,7 @@ const initial: State = {
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
   pivot: { fact: 'calls', by: ['stmt'], sort: { calls: 'e', waits: 'ela' }, limit: 1000, stmt: null, event: null, notice: null },
   blocks: { stmt: null, event: null },
+  ioZoom: [],
   rev: 0, live: null,
 }
 
@@ -171,7 +191,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], statementCallTypes: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], ioZoom: [], statementCallTypes: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
   }
   const swapDoc: Store['swapDoc'] = (l) => {
     setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
@@ -233,25 +253,38 @@ function makeActions(setState: Store['setState']) {
     setSide(side: Side) {
       setState((s) => {
         if (!s.compare || s.side === side) return {}
-        return { side, doc: s.compare[side], window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, bookmarks: [], blocks: { stmt: null, event: null }, selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], window: null, block: null, lanesZoom: [], ioZoom: [], contexts: null, files: null, lineViewer: null, bookmarks: [], blocks: { stmt: null, event: null }, selection: { stmt: counterpart(s.compare, s.side, s.selection.stmt), event: null, call: null, exec: null } }
       })
     },
     /** Open a statement of side `side` in the Statements workbench. */
     openStmtOn(side: Side, stmt: ID) {
       setState((s) => {
         if (!s.compare) return { view: 'statements', block: null, selection: { stmt, event: null, call: null, exec: null } }
-        return { side, doc: s.compare[side], view: 'statements', blocks: { stmt: null, event: null }, window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
+        return { side, doc: s.compare[side], view: 'statements', blocks: { stmt: null, event: null }, ioZoom: [], window: null, block: null, lanesZoom: [], contexts: null, files: null, lineViewer: null, selection: { stmt, event: null, call: null, exec: null } }
       })
     },
-    /** Open the Blocks view showing only this statement's and/or event's block I/O (neither: all of it). */
-    showBlocks(f: { stmt?: ID | null; event?: ID | null } = {}) { setState({ view: 'blocks', blocks: { stmt: f.stmt ?? null, event: f.event ?? null } }) },
-    /** Change the Blocks view's filter without navigating. */
+    /** Open the I/O map (view `blocks`) showing only this statement's and/or event's block I/O (neither: all of it), unzoomed. */
+    showBlocks(f: { stmt?: ID | null; event?: ID | null } = {}) { setState({ view: 'blocks', blocks: { stmt: f.stmt ?? null, event: f.event ?? null }, ioZoom: [] }) },
+    /** Change the I/O map's filter without navigating (the zoom stays). */
     setBlocks(patch: Partial<State['blocks']>) { setState((s) => ({ blocks: { ...s.blocks, ...patch } })) },
-    setWindow(window: TimeWindow | null) { setState({ window, block: null }) },
+    /** Set or clear the time window; the I/O map's zoom (inside the old window) goes with it. */
+    setWindow(window: TimeWindow | null) { setState({ window, block: null, ioZoom: [] }) },
     /** Select a lane block of the Overview: its interval becomes the window and its statement the selection (no navigation). */
     pickBlock(stmt: ID, startTim: number, endTim: number) {
-      setState((s) => ({ window: { startTim, endTim }, block: { stmt, startTim, endTim }, selection: { ...s.selection, stmt, event: null, call: null, exec: null } }))
+      setState((s) => ({ window: { startTim, endTim }, block: { stmt, startTim, endTim }, ioZoom: [], selection: { ...s.selection, stmt, event: null, call: null, exec: null } }))
     },
+    /** Zoom the I/O map: `z` pushed on its stack, or (`replace`: a pan, a wheel step) put in place of the top entry. The entry on top again changes nothing. */
+    zoomIO(z: IOZoom, replace = false) {
+      setState((s) => {
+        const top = s.ioZoom[s.ioZoom.length - 1]
+        if (top && sameIOZoom(top, z)) return {}
+        return { ioZoom: replace && top ? [...s.ioZoom.slice(0, -1), z] : [...s.ioZoom, z] }
+      })
+    },
+    /** Back to the I/O map's previous zoom (or the whole scope). */
+    zoomOutIO() { setState((s) => (s.ioZoom.length ? { ioZoom: s.ioZoom.slice(0, -1) } : {})) },
+    /** The I/O map shows the whole scope again. */
+    resetIOZoom() { setState((s) => (s.ioZoom.length ? { ioZoom: [] } : {})) },
     /** Zoom the Overview lanes to `w` (pushed on the zoom stack; the range on top again changes nothing). */
     zoomLanes(w: TimeWindow) {
       setState((s) => {

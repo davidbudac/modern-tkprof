@@ -80,6 +80,38 @@ func (m *Model) WaitFile(w *Wait) (int64, bool) {
 	return w.P1, true
 }
 
+// RefIDSource is implemented by the sink of an aggregation-only build
+// (analyze.Accumulator): such a model keeps no waits, so the obj# and file
+// numbers they named come from it.
+type RefIDSource interface {
+	RefIDs() (objs, files []int64)
+}
+
+// WaitRefIDs returns the obj# (> 0) and file numbers (WaitFile) the waits of
+// the model named, ascending: from its waits, or from the sink of an
+// aggregation-only build. What a reference bundle can name besides the plan
+// lines' objects and the users.
+func (m *Model) WaitRefIDs() (objs, files []int64) {
+	if src, ok := m.Agg.(RefIDSource); ok && m.Aggregate {
+		return src.RefIDs()
+	}
+	os, fs := map[int64]bool{}, map[int64]bool{}
+	for i := range m.Waits {
+		w := &m.Waits[i]
+		if w.ObjID > 0 && !os[w.ObjID] {
+			os[w.ObjID] = true
+			objs = append(objs, w.ObjID)
+		}
+		if f, ok := m.WaitFile(w); ok && !fs[f] {
+			fs[f] = true
+			files = append(files, f)
+		}
+	}
+	slices.Sort(objs)
+	slices.Sort(files)
+	return objs, files
+}
+
 // ObjectName is the qualified name of an obj# resolved by ApplyRef, or "".
 func (m *Model) ObjectName(obj int64) string {
 	if i, ok := m.objIdx[obj]; ok {
@@ -140,15 +172,18 @@ func ApplyRef(m *Model, b *ref.Bundle) {
 		}
 	}
 	seenFile, foundFile := map[int64]bool{}, 0
-	for i := range m.Waits {
-		w := &m.Waits[i]
-		addObj(w.ObjID)
-		if f, ok := m.WaitFile(w); ok && !seenFile[f] {
-			seenFile[f] = true
-			if fr, ok := b.Files[f]; ok {
-				m.Files = append(m.Files, RefFile{File: f, Name: fr.Name, Tablespace: fr.Tablespace, Type: fr.Type})
-				foundFile++
-			}
+	objs, files := m.WaitRefIDs() // an aggregation-only model has no waits: its sink kept their ids
+	for _, id := range objs {
+		addObj(id)
+	}
+	for _, f := range files {
+		if seenFile[f] {
+			continue
+		}
+		seenFile[f] = true
+		if fr, ok := b.Files[f]; ok {
+			m.Files = append(m.Files, RefFile{File: f, Name: fr.Name, Tablespace: fr.Tablespace, Type: fr.Type})
+			foundFile++
 		}
 	}
 	for i := range m.PlanLines {

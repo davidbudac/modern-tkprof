@@ -164,6 +164,10 @@ export class TraceDoc {
     const o = this.objNames.get(obj)
     return o ? `${o.owner ? o.owner + '.' : ''}${o.name}${o.subobject ? '.' + o.subobject : ''}` : undefined
   }
+  /** the reference bundle's row for an obj# (owner, name, subobject, type), else undefined */
+  refObject(obj: number): RefObject | undefined { return this.objNames.get(obj) }
+  /** every bundle row the document carries (only the objects the trace names) */
+  refObjects(): Iterable<RefObject> { return this.objNames.values() }
   /** datafile of a file number (p1 of file I/O waits) from the reference bundle */
   fileName(file: number): RefFile | undefined { return this.fileNames.get(file) }
   userName(uid: number): string | undefined { return this.userNames.get(uid) }

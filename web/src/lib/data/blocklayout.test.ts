@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  BAND_ALPHA, bandsOf, blockOfY, blockTicks, bracketsOf, colorRows, drawBlockMap, eventTones, hitTest, indexOfX, isTempEvent, isWriteEvent,
-  labelRows, markRect, MIN_STRETCH_PX, orderScale, PANEL_PAD, panelHeight, panelsOf, phaseRuns, RULER_X, stmtRuns, timeScale, timOfX, xOfIndex, xOfTim,
-  xTicks, yOfBlock, type Paint,
+  BAND_ALPHA, bandsOf, blockAtY, blockOfY, blockTicks, bracketsOf, bucketOf, colorByOf, colorRows, DIM_ALPHA, drawBlockMap, eventTones, hitTest, indexOfX, isTempEvent, isWriteEvent,
+  LATENCY_BOUNDS, labelRows, linearY, markRect, MIN_SEG_PX, MIN_STRETCH_PX, orderScale, packedY, PANEL_MIN, PANEL_PAD, panelHeight, panelsOf, phaseRuns, rangesAt, RULER_X,
+  SEG_GAP_PX, segsThatFit, SIZE_BOUNDS, stmtRuns, timeScale, scaleRange, panRange, dragKind, rowsIn, timeExtent, timOfX, touchedRuns, xOfIndex, xOfTim, xTicks, yOf, yOfBlock, ySpan, yTicks, type Paint,
 } from './blocklayout'
 import { IO, type IOMap } from './iomap'
 import type { Event } from './types'
@@ -253,5 +253,181 @@ describe('the shared io_waits excerpt', () => {
     const b = bracketsOf(map.rows, () => '')
     expect(b.stmts.length).toBeGreaterThan(0)
     expect(b.runs.reduce((a, r) => a + r.i1 - r.i0, 0)).toBe(map.rows.length) // the runs cover the rows
+  })
+})
+
+describe('the colour modes of round 2', () => {
+  const rows = [
+    row({ event: 1, obj: 100, blocks: 32, block: 0, stmt: 6, ela: 30, ctx: 0 }), row({ event: 1, obj: 200, blocks: 8, block: 40, stmt: 9, ela: 600, ctx: 1 }),
+    row({ event: 2, obj: 100, file: 203, block: 1, stmt: 21, ela: 25000, ctx: 1 }), row({ event: 0, obj: -1, block: 60, stmt: 21, ela: 3000, ctx: 0 }),
+    row({ event: 0, obj: 300, block: 70, stmt: 21, ela: 150, ctx: 0 }),
+  ]
+  const cx = {
+    objType: (o: number) => ({ 100: 'TABLE', 200: 'INDEX' } as Record<number, string>)[o],
+    objOwner: (o: number) => ({ 100: 'MTK', 200: 'MTK', 300: 'SYS' } as Record<number, string>)[o],
+    tablespace: (f: number) => (f === 12 ? 'USERS' : undefined),
+    session: (c: number) => ['51.14688', '52.1'][c],
+  }
+  it('by type and schema: names ranked by rows, temp waits their own entry, the unknown ones grey', () => {
+    const t = colorRows(mapOf(rows), events, 'type', cx)
+    expect(t.legend.map((l) => [l.kind, l.key, l.rows])).toEqual([['type', 'INDEX', 1], ['type', 'TABLE', 1], ['none', 'temp', 1], ['none', -1, 2]])
+    expect(t.legend[3].label).toBe('unknown type')
+    expect([...t.entry]).toEqual([1, 0, 2, 3, 3])
+    const s = colorRows(mapOf(rows), events, 'schema', cx)
+    expect(s.legend.map((l) => [l.key, l.rows])).toEqual([['MTK', 2], ['SYS', 1], ['temp', 1], [-1, 1]])
+  })
+  it('by tablespace, file and session', () => {
+    expect(colorRows(mapOf(rows), events, 'tablespace', cx).legend.map((l) => [l.key, l.rows])).toEqual([['USERS', 4], [-1, 1]])
+    const f = colorRows(mapOf(rows), events, 'file', cx)
+    expect(f.legend.map((l) => [l.kind, l.key, l.rows, l.tone.token])).toEqual([['file', 12, 4, '--c-cpu'], ['file', 203, 1, '--c-network']])
+    expect(colorRows(mapOf(rows), events, 'session', cx).legend.map((l) => [l.key, l.rows])).toEqual([['51.14688', 3], ['52.1', 2]])
+  })
+  it('by latency and read size: six buckets on a ramp, in bucket order', () => {
+    const l = colorRows(mapOf(rows), events, 'latency')
+    expect(l.legend.map((e) => [e.key, e.label, e.rows, e.tone.token])).toEqual([
+      [0, '< 50 µs', 1, '--bm-lat-0'], [1, '50–200 µs', 1, '--bm-lat-1'], [2, '0.2–1 ms', 1, '--bm-lat-2'], [3, '1–5 ms', 1, '--bm-lat-3'], [5, '≥ 20 ms', 1, '--bm-lat-5'],
+    ])
+    const z = colorRows(mapOf(rows), events, 'size')
+    expect(z.legend.map((e) => [e.key, e.rows])).toEqual([[0, 3], [1, 1], [3, 1]])
+    expect(bucketOf(1, SIZE_BOUNDS, true)).toBe(0)
+    expect(bucketOf(128, SIZE_BOUNDS, true)).toBe(5)
+    expect(bucketOf(50, LATENCY_BOUNDS)).toBe(1)
+  })
+  it('reads a persisted mode back, an unknown one as event', () => {
+    expect(colorByOf('latency')).toBe('latency')
+    expect(colorByOf('bogus')).toBe('event')
+  })
+})
+
+describe('the block axis: linear and packed', () => {
+  it('linear is yOfBlock, and extends past its range; a range of a few blocks is widened', () => {
+    const ys = linearY({ file: 12, lo: 1000, hi: 2000 }, 108)
+    expect(yOf(ys, 12, 1500)).toBe(yOfBlock({ lo: 1000, hi: 2000 }, 108, 1500))
+    expect(yOf(ys, 12, 3000)).toBeLessThan(0)
+    expect(yOf(ys, 13, 1500)).toBeNaN()
+    const one = linearY({ file: 10, lo: 80385, hi: 80386 }, 60) // one block in a 60 px panel: 18 blocks at 3 px
+    expect([one.segs[0].lo, one.segs[0].hi]).toEqual([80376, 80394])
+  })
+  it('does not stretch a few short runs over the panel: they sit in its middle', () => {
+    const ys = packedY([{ file: 10, lo: 66397, hi: 66398 }, { file: 10, lo: 70000, hi: 70001 }, { file: 10, lo: 80385, hi: 80386 }], 60)
+    expect(ys.segs.map((s) => s.y1 - s.y0)).toEqual([MIN_SEG_PX, MIN_SEG_PX, MIN_SEG_PX])
+    const top = ys.segs[2].y0, bottom = ys.segs[0].y1
+    expect(top - PANEL_PAD).toBeCloseTo(60 - PANEL_PAD - bottom)
+  })
+  it('packs the touched runs: small gaps closed, short runs raised to the minimum, from the bottom up', () => {
+    const rows = [row({ block: 100, blocks: 8 }), row({ block: 110, blocks: 8 }), row({ block: 50000, blocks: 1 }), row({ block: 90000, blocks: 1000 }), row({ block: 7, file: 13 })]
+    const runs = touchedRuns(rows, [0, 1, 2, 3, 4])
+    expect(runs).toEqual([{ file: 12, lo: 100, hi: 118 }, { file: 12, lo: 50000, hi: 50001 }, { file: 12, lo: 90000, hi: 91000 }, { file: 13, lo: 7, hi: 8 }])
+    const ys = packedY(runs, 200)
+    // the 1,000-block run takes what the three short ones (18, 1 and 1 block: raised to the minimum) and the gaps leave
+    expect(ys.segs.map((s) => Math.round(s.y1 - s.y0))).toEqual([MIN_SEG_PX, MIN_SEG_PX, 200 - 2 * PANEL_PAD - 3 * SEG_GAP_PX - 3 * MIN_SEG_PX, MIN_SEG_PX])
+    expect(ys.segs[0].y1).toBe(200 - PANEL_PAD) // the lowest run at the bottom
+    expect(ys.segs[1].y1).toBeCloseTo(ys.segs[0].y0 - SEG_GAP_PX)
+    expect(yOf(ys, 12, 70000)).toBeNaN() // between two runs: no y
+    expect(ySpan(ys, 12, 90000, 90500)!.bottom).toBeCloseTo(ys.segs[2].y1)
+    expect(ySpan(ys, 12, 60000, 60001)).toBeNull()
+    expect(touchedRuns(rows, [0, 1, 2, 3], undefined, 2).length).toBeLessThanOrEqual(2) // at most 2 runs: the gap grows
+    expect(touchedRuns(rows, [0, 1, 3], [{ file: 12, lo: 105, hi: 90010 }])).toEqual([{ file: 12, lo: 105, hi: 118 }, { file: 12, lo: 90000, hi: 90010 }]) // clipped to a zoom
+  })
+  it('turns a drag up or down into block ranges, and reads a block off a y', () => {
+    const ys = packedY([{ file: 12, lo: 0, hi: 100 }, { file: 12, lo: 1000, hi: 1100 }], 2 * PANEL_PAD + SEG_GAP_PX + 200)
+    const [a, b] = ys.segs
+    expect(rangesAt(ys, b.y0, a.y1)).toEqual([{ file: 12, lo: 0, hi: 100 }, { file: 12, lo: 1000, hi: 1100 }])
+    expect(rangesAt(ys, a.y0 + (a.y1 - a.y0) / 2, a.y1)).toEqual([{ file: 12, lo: 0, hi: 50 }])
+    expect(blockAtY(ys, a.y1)).toEqual({ file: 12, block: 0 })
+    expect(blockAtY(ys, a.y0 - SEG_GAP_PX / 2)).toBeNull()
+    expect(yTicks(ys).map((t) => t.block)).toEqual([0, 50, 100, 1050, 1100]) // 1,000 sits 5 px over 100: left out
+    expect(yTicks(ys, 0).map((t) => t.block)).toEqual([0, 50, 100, 1000, 1050, 1100])
+  })
+})
+
+describe('a packed axis of many scattered runs', () => {
+  it('keeps every segment inside the panel: an object panel grows for its runs, then the runs merge until they fit', () => {
+    const scattered = (n: number, spread: number) => Array.from({ length: n }, (_, i) => row({ obj: 5, block: Math.round((i * spread) / n) }))
+    for (const [n, spread] of [[40, 1_000_000], [15, 100_000], [200, 10_000_000]] as const) {
+      const rows = scattered(n, spread)
+      for (const p of [...panelsOf(mapOf(rows), events, { by: 'object' }), ...panelsOf(mapOf(rows), events, { packed: true })]) {
+        expect(p.ys.segs.length).toBeLessThanOrEqual(segsThatFit(p.height))
+        for (const s of p.ys.segs) { expect(s.y0).toBeGreaterThanOrEqual(0); expect(s.y1).toBeLessThanOrEqual(p.height) }
+        const xs = orderScale(rows.length, 400)
+        expect(p.rows.every((i) => markRect(xs, rows, i, p, p.height).h > 0)).toBe(true) // every mark is on the axis
+      }
+    }
+  })
+})
+
+describe('panels by object and zoomed panels', () => {
+  const rows = [
+    row({ obj: 7, block: 100, blocks: 8 }), row({ obj: 8, block: 5000 }), row({ obj: 7, block: 108, blocks: 8 }), row({ obj: 9, block: 9000 }),
+    row({ event: 2, obj: 7, file: 203, block: 1 }), row({ obj: -1, block: 40 }), row({ obj: 7, block: 116, blocks: 8 }),
+  ]
+  it('gives the objects with the most rows a panel each, then the temp and no-object waits per file, then the rest', () => {
+    const ps = panelsOf(mapOf(rows), events, { by: 'object', maxObjects: 1 })
+    expect(ps.map((p) => [p.key, p.kind, [...p.rows], p.ys.packed])).toEqual([
+      ['o7', 'object', [0, 2, 6], true], ['t203', 'temp', [4], true], ['n12', 'none', [5], true], ['rest', 'rest', [1, 3], true],
+    ])
+    expect(ps[0].ys.segs).toHaveLength(1) // three adjacent reads: one run
+    expect(ps[0].height).toBe(PANEL_MIN)
+  })
+  it('a file panel takes the zoom\'s block range (linear) or packs within it', () => {
+    const map = mapOf(rows)
+    const zoom = { f12: [{ file: 12, lo: 90, hi: 200 }] }
+    const lin = panelsOf(map, events, { zoom })[0]
+    expect([lin.zoomed, lin.ys.segs[0].lo, lin.ys.segs[0].hi]).toEqual([true, 90, 200])
+    const m = markRect(orderScale(rows.length, 700), rows, 1, lin, lin.height) // obj 8 at block 5000: outside the zoom
+    expect(m.h).toBe(0)
+    const packed = panelsOf(map, events, { zoom, packed: true })[0]
+    expect(packed.ys.segs.map((s) => [s.lo, s.hi])).toEqual([[100, 124]])
+    expect(panelsOf(map, events, { packed: true })[0].ys.packed).toBe(true)
+  })
+})
+
+describe('drawBlockMap with a highlight', () => {
+  it('paints the others first and faint, then the highlighted rows', () => {
+    const rows = [row({ block: 1 }), row({ block: 2, event: 0 }), row({ block: 3 })]
+    const map = mapOf(rows)
+    const panel = panelsOf(map, events)[0]
+    const c = colorRows(map, events, 'event')
+    const calls: { alpha: number; x: number }[] = []
+    const ctx: Paint = { fillStyle: '', globalAlpha: 1, fillRect(x) { if (this.fillStyle !== 'grid') calls.push({ alpha: this.globalAlpha, x }) } }
+    const n = drawBlockMap(ctx, panel, rows, orderScale(3, 300), c.idx, { tones: c.tones.map(() => 'mark'), grid: 'grid', bands: [] }, Uint8Array.from([0, 1, 0]))
+    expect(n).toBe(3)
+    expect(calls.map((k) => k.alpha)).toEqual([DIM_ALPHA, DIM_ALPHA, 1])
+  })
+  it('a time axis can take its domain from the zoom', () => {
+    const xs = timeScale([row({ tim: 5000, ela: 10, block: 1 })], 100, { startTim: 1000, endTim: 2000 })
+    expect([xs.t0, xs.t1]).toEqual([1000, 2000])
+  })
+})
+
+describe('zoom ranges', () => {
+  const full = { startTim: 0, endTim: 1000 }
+  it('scale around a point that keeps its place, inside the whole range; out to the whole range is no zoom', () => {
+    expect(scaleRange(full, 250, 0.5, full)).toEqual({ startTim: 125, endTim: 625 })
+    expect(scaleRange({ startTim: 900, endTim: 1000 }, 1000, 0.5, full)).toEqual({ startTim: 950, endTim: 1000 })
+    expect(scaleRange({ startTim: 0, endTim: 600 }, 300, 2, full)).toBeNull()
+    expect(scaleRange({ startTim: 0, endTim: 30 }, 0, 0.1, full)).toEqual({ startTim: 0, endTim: 20 }) // the shortest range
+  })
+  it('pan by a share of the length, stopping at the ends', () => {
+    expect(panRange({ startTim: 100, endTim: 200 }, 0.25, full)).toEqual({ startTim: 125, endTim: 225 })
+    expect(panRange({ startTim: 100, endTim: 200 }, -2, full)).toEqual({ startTim: 0, endTim: 100 })
+  })
+  it('tell a drag by its shape; a little jitter is a click', () => {
+    expect(dragKind(2, 1)).toBeNull()
+    expect(dragKind(1, 6)).toBeNull()
+    expect(dragKind(0, 9)).toBeNull()
+    expect(dragKind(80, 6)).toBe('x')
+    expect(dragKind(3, 40)).toBe('y')
+    expect(dragKind(60, 40)).toBe('xy')
+  })
+  it('keep the rows that overlap a range, with their files', () => {
+    const rows = [row({ tim: 100, ela: 10, block: 5 }), row({ tim: 200, ela: 150, block: 9, file: 13 }), row({ tim: 300, ela: 5, block: 1 })]
+    const map = mapOf(rows)
+    expect(rowsIn(map, null)).toBe(map)
+    expect(rowsIn(map, { startTim: 0, endTim: 400 })).toBe(map)
+    const m = rowsIn(map, { startTim: 60, endTim: 120 }) // the first, and the second that started at 50
+    expect(m.rows).toHaveLength(2)
+    expect(m.files.map((f) => [f.file, f.n])).toEqual([[12, 1], [13, 1]])
+    expect(timeExtent(rows)).toEqual({ startTim: 50, endTim: 300 })
   })
 })

@@ -1,7 +1,7 @@
 # mtkprof desktop app: user guide
 
 The desktop app opens Oracle 10046 trace files, one tab per trace, with the mtkprof engine running
-next to it. It shows the same views as `mtkprof serve` (Overview, Statements, Waits, Blocks,
+next to it. It shows the same views as `mtkprof serve` (Overview, Statements, Waits, I/O map,
 Timeline, Sessions, Pivot) plus the **Lines** viewer. A *Tools ▾* menu follows after a divider: **Notes** and
 **Reports** are tools of the tab, not views of the trace; while one of them is on screen the menu
 button names it (*Notes ▾*) and is marked as the current page. Saved Pivot configurations, an
@@ -151,7 +151,8 @@ Lines or report exports.
 |---|---|
 | ⌘W | Close the tab; on a page (Settings, Connections, …) go back to the last tab |
 | ⌘T | The open screen |
-| ⌘1 … ⌘9 | The views of the trace (Blocks has no digit: ⌥⌘← / ⌥⌘→, Ctrl+PageUp / PageDown elsewhere, step through every view) |
+| ⌘1 … ⌘9 | The views of the trace (⌥⌘← / ⌥⌘→, Ctrl+PageUp / PageDown elsewhere, step through every view) |
+| ⌘I | The I/O map (Ctrl+I elsewhere) |
 | ⌃1 … ⌃8 on macOS, Alt+1 … Alt+8 elsewhere; ⌃9 / Alt+9 | The tab at that position; ⌃9 / Alt+9 the last tab |
 | Ctrl+Tab, Ctrl+Shift+Tab; ⌘⇧] and ⌘⇧[ on macOS | Next / previous tab, wrapping around |
 | Alt+← / Alt+→; ⌘[ / ⌘] on macOS; the mouse's back and forward buttons | Back / Forward in the tab's views |
@@ -213,7 +214,7 @@ Close Tab* (the window closes with *Window → Close Window*, ⇧⌘W, or the re
 | View | |
 |---|---|
 | Overview, Statements, Waits, Timeline, Sessions, Pivot | as in `mtkprof serve`; the document is sliced by the engine, so a 2 GB trace stays light |
-| **Blocks** | every physical I/O wait with a block address: one panel per datafile or tempfile, x = the n-th such wait (or *time*), y = the block number, each mark as tall as the blocks it moved; colour by *event*, *object* or *statement*; faint bands are the block ranges each object's reads touched. Full scans are diagonals, a sort spill a write stripe then a read stripe, a multipass hash join a sawtooth of re-reads. Brackets on top name the statements' stretches; the column on the right counts reads, writes and reads per block per statement. Hover a mark for its wait, click to pin it (line and statement links), drag across to make that stretch the time window, double-click to clear it; *marks* caps the rows (every k-th above it, "showing 1 in k") |
+| **I/O map** (⌘I) | every physical I/O wait with a block address: one panel per datafile or tempfile, or per object (*Panels*), x = the n-th such wait (*I/O order*) or *Time*, y = the block number (*Display* › *Block axis*: linear, or packed with the empty block ranges collapsed), each mark as tall as the blocks it moved. *Colour* by event, object, object type, schema, tablespace, file, statement, session, latency or read size; a click on a legend entry highlights its marks (⌘/Ctrl/Shift-click adds one). Objects are named from a reference bundle (owner, type, partition), else from the trace's own plans; *Display* chooses whether the schema, the PDB, the partition and the obj# show. Zoom: drag across the map (sideways: time, up or down: that panel's blocks, diagonal: both), ⌘ + wheel at the pointer, `+` / `−`, `0` for the whole range, ← → to pan, a double-click or *‹ Out* to go back; the strip on top shows the whole range with the zoom as a box you can drag. *Use as time window* makes the zoomed range every view's window. The side panel: per object (waits, time, blocks, re-reads per block, how sequential), per statement and file, latency histograms with p50 / p95 / p99 and blocks per wait per event. Full scans are diagonals, a sort spill a write stripe then a read stripe, a multipass hash join a sawtooth of re-reads. Hover a mark for its wait, click to pin it (line and statement links); *Display* › *Marks* caps the rows (every k-th above it, "showing 1 in k"; a zoom asks again, so it needs fewer) |
 | **Lines** | the raw trace file, paged. Kind colouring, gutter marks of the selected statement, the object at the clicked line, streaming search, jump to time, a file selector for sets |
 | **Notes** (*Tools ▾*) | all notes of the trace |
 | **Reports** (*Tools ▾*) | what the CLI writes, saved from the tab |

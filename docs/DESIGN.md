@@ -295,10 +295,11 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   `showBlocks`), so other views link into it: the inspector's Waits list
   (`in Blocks` on a block-I/O event: statement and event) and the Waits
   view's event detail (the event).
-- **No chord for Blocks**: digits 0 to 9 are taken and renumbering breaks
-  muscle memory and the assistant's `mtkprof:` links, so
-  `SessionViewDef.key` is optional; a row without a key has no chord and no
-  hint, ⌥⌘← / ⌥⌘→ (Ctrl+PageUp / PageDown) still step through it.
+- **No chord for Blocks** (superseded 2026-11-08: the I/O map is ⌘I, below):
+  digits 0 to 9 are taken and renumbering breaks muscle memory and the
+  assistant's `mtkprof:` links, so `SessionViewDef.key` is optional; a row
+  without a key has no chord and no hint, ⌥⌘← / ⌥⌘→ (Ctrl+PageUp / PageDown)
+  still step through it.
 - **Row flow: self time of a plan line** = inclusive minus its children's,
   clamped at 0 with a note (and a `*` on the node): row-source timings are
   sampled and a parent can report less than its children (io_waits.trc
@@ -373,6 +374,60 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   (Row flow's self-time ramp is one blue hue, never a wait-class colour;
   Dialogue's TEMP in the Loom's `--ev-temp-w` / `--ev-temp`; the block map
   is canvas 2-D per panel with its own temp hues, above).
+
+## The I/O map (decided 2026-11-08, `docs/PLAN-IOMAP.md`)
+
+The Blocks view, round 2, after the user's notes (axes, zoom, a name, a
+shortcut, object names, colour modes, more ways to look).
+
+- **Named "I/O map", reached with ⌘I** (Ctrl+I elsewhere). The view keeps its
+  id `blocks` (links, `workspace.json`, the `mtkprof.blocks.*` settings).
+  `SessionViewDef.key` is a digit or a lower-case letter; letters match
+  `KeyboardEvent.code` (any keyboard layout) and never fire from a text field
+  (⌘I can mean italic there). The digits stay as they were.
+- **Full-bleed like the Trace pane**: one toolbar row (I/O order | Time,
+  Colour, Panels, the filter chips, zoom out / in / Reset, Display, the side
+  panel), a status row (counts, the zoom, how to zoom), the figure, and a side
+  panel with the Trace pane's icon tabs (Objects, Statements, Distributions,
+  Display).
+- **The zoom is the view's own stack** (`State.ioZoom`, like `lanesZoom`): a
+  time range plus block ranges per panel. A drag no longer sets the global
+  time window; "Use as time window" does. The shape of a drag decides what it
+  zooms (sideways: time; up or down: that panel's blocks; diagonal: both), as
+  common chart tools do. Out: ‹ Out, `−`, a double-click; Reset: `0`; in: `+`,
+  ⌘/Ctrl + wheel at the pointer; ← → pan. A navigator strip shows the whole
+  range's I/O over time with the zoom as a box (drag to pan). A zoom is
+  re-queried after 200 ms of rest; the previous answer's rows inside it are
+  drawn meanwhile. A new global window, a link into the view or another trace
+  clears the stack. No engine change: `/api/io/map` with the zoom as the
+  window.
+- **Axes are titled** ("block #" in each panel's gutter; the x title under the
+  ticks says I/O order or time and what the numbers count).
+- **Object names**: the reference bundle, else the trace's own STAT lines
+  (`obj=` and the name in `op`, a type TABLE / INDEX / … read off the
+  operation), else `obj# N` (`data/objnames.ts`). Options (persisted): schema,
+  PDB (the container of the wait's session, named by the 12.2+ timestamp
+  lines' `PDB1(3)`), partition, obj#. The qualifiers are grey.
+- **Colour by** event, object, object type, schema, tablespace, file,
+  statement, session, latency, read size. Latency and read size are six-step
+  ramps (`--bm-lat-*`, `--bm-size-*`; the strong end is the slow or big one in
+  both themes). The legend's entries are buttons: a click keeps only that
+  colour bright (others at 12 %), ⌘/Ctrl/Shift-click adds one, hover previews.
+- **Panels per file or per object**; a block axis is linear or **packed** (the
+  touched runs, gaps under 1 % of the span closed, at most 40 runs, short runs
+  raised to 6 px, a block never taller than 3 px; panels per object always
+  pack). Temp waits get a panel per tempfile, waits without an object one per
+  file, objects beyond the twelfth share "other objects".
+- **Side panel numbers** count the rows drawn (≈ × k when sampled): per object
+  waits, time, blocks, distinct blocks, re-reads per block, average latency
+  and the share of waits that continue the previous one within 64 blocks
+  ("sequential"); per statement the former facts column; latency histograms
+  (powers of two of µs) with p50 / p95 / p99 and blocks per wait per event.
+- **An aggregation-only model names what its waits named** (2026-11-08): the
+  engine's sessions keep no waits, so `ApplyRef` and the reference queries
+  only saw the plans' obj# and no datafile at all. `analyze.Accumulator`
+  keeps the waits' obj# and file# (`RefIDs`, `model.RefIDSource`,
+  `Model.WaitRefIDs`); agg format 4, `CacheIndexFormat` 6.
 
 ## Motion (decided 2026-11-03)
 

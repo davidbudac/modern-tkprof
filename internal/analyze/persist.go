@@ -17,7 +17,7 @@ import (
 // counts the fields).
 
 // AccumPersistVersion is the format version of (*Accumulator).Encode.
-const AccumPersistVersion = 3 // 3: IdleUs / idle totals are between-call waits only (in-call idle waits count as waits)
+const AccumPersistVersion = 4 // 3: IdleUs / idle totals are between-call waits only (in-call idle waits count as waits); 4: the waits' obj# and file# (RefIDs)
 
 const accumMagic = "MTKPAGG1"
 
@@ -63,7 +63,7 @@ func DecodeAccumulator(r io.Reader, m *model.Model) (*Accumulator, error) {
 
 // accumFields is the number of fields of every struct the format covers.
 var accumFields = map[string]int{
-	"Accumulator": 17, "mmAcc": 5, "Minimap": 3, "facts": 8, "aggStmt": 9, "StmtStats": 33, "CallStats": 15, "Link": 3,
+	"Accumulator": 21, "mmAcc": 5, "Minimap": 3, "facts": 8, "aggStmt": 9, "StmtStats": 33, "CallStats": 15, "Link": 3,
 	"ContextStats": 9, "evAgg": 4, "idleAcc": 4, "timeline": 6, "Bucket": 9, "PXTotals": 4,
 	"execAgg": 14, "execRec": 11, "planRec": 4, "keyAgg": 2, "objKey": 2,
 }
@@ -100,6 +100,9 @@ func codeAccum(c *binfmt.Codec, a *Accumulator) {
 	c.I64(&a.pxTotals.CPUUs)
 	c.I64(&a.pxTotals.WaitUs)
 	c.I64(&a.pxTotals.IdleUs)
+	// objSet, fileSet: nil after Finish
+	binfmt.Slice(c, &a.refObjs, c.I64)
+	binfmt.Slice(c, &a.refFiles, c.I64)
 }
 
 func codeFacts(c *binfmt.Codec, f *facts) {

@@ -2,6 +2,7 @@ package analyze
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
@@ -52,6 +53,11 @@ type Accumulator struct {
 	fin      bool
 	stats    []StmtStats
 	pxTotals PXTotals
+
+	// the obj# and file# the waits named (a reference bundle's ids: the model
+	// of this build keeps no waits); sets while building, sorted by Finish
+	objSet, fileSet   map[int64]struct{}
+	refObjs, refFiles []int64
 }
 
 // NewAccumulator returns the sink for model.Options.NewSink. th are the
@@ -60,8 +66,14 @@ type Accumulator struct {
 func NewAccumulator(m *model.Model, th Thresholds) *Accumulator {
 	a := &Accumulator{m: m, th: th, main: newFacts(), px: map[model.ID]*facts{}, open: map[model.ID]*openExec{}}
 	a.think, a.inCall = newIdleAcc(), newIdleAcc()
+	a.objSet, a.fileSet = map[int64]struct{}{}, map[int64]struct{}{}
 	return a
 }
+
+// RefIDs are the obj# (> 0) and the file numbers (of file I/O events,
+// model.Model.WaitFile) the waits of the build named, ascending: what a
+// reference bundle can name (model.RefIDSource). Nil before Finish.
+func (a *Accumulator) RefIDs() (objs, files []int64) { return a.refObjs, a.refFiles }
 
 // AggOf returns the accumulator of an aggregation-only model, nil otherwise
 // (or while the build is not finished).
@@ -507,6 +519,12 @@ func (a *Accumulator) Wait(w *model.Wait, call *model.Call) {
 	idle := w.Between // think time; an idle-class wait inside a call is a wait of the call
 	a.mm.wait(a.m, w.Context, w.Tim, w.Event, w.Ela)
 	evAt(&a.events, w.Event).add(w.Ela)
+	if w.ObjID > 0 {
+		a.objSet[w.ObjID] = struct{}{}
+	}
+	if fl, ok := a.m.WaitFile(w); ok {
+		a.fileSet[fl] = struct{}{}
+	}
 	if cs := a.ctxStat(w.Context); cs != nil {
 		if idle {
 			cs.IdleUs += w.Ela
@@ -672,7 +690,18 @@ func (a *Accumulator) Finish() {
 		a.ctx = append(a.ctx, ContextStats{Context: model.ID(len(a.ctx))})
 	}
 	a.mm.finish(m)
+	a.refObjs, a.refFiles = sortedSet(a.objSet), sortedSet(a.fileSet)
+	a.objSet, a.fileSet = nil, nil
 	a.fin = true
+}
+
+func sortedSet(s map[int64]struct{}) []int64 {
+	out := make([]int64, 0, len(s))
+	for v := range s {
+		out = append(out, v)
+	}
+	slices.Sort(out)
+	return out
 }
 
 func (a *Accumulator) buildStats(kids []model.ID) []StmtStats {

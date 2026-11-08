@@ -25,8 +25,9 @@ export function PanelHead({ tab, counts, onTab, onClose }: { tab: PanelTab; coun
     const i = PANEL_TABS.findIndex((t) => t.tab === tab)
     const to = PANEL_TABS[(i + (e.key === 'ArrowRight' ? 1 : PANEL_TABS.length - 1)) % PANEL_TABS.length]
     e.preventDefault()
+    const list = e.currentTarget // React clears currentTarget after the handler
     onTab(to.tab)
-    queueMicrotask(() => (e.currentTarget as HTMLElement).querySelector<HTMLElement>(`[data-tab="${to.tab}"]`)?.focus())
+    queueMicrotask(() => list.querySelector<HTMLElement>(`[data-tab="${to.tab}"]`)?.focus())
   }
   return (
     <div className="lines-side-head">

@@ -1,5 +1,6 @@
-/* The Blocks view (views/BlockMap.tsx). Mark colours come from the tokens; the figure is canvas per panel with an SVG overlay;
-   axes, titles and brackets are DOM. */
+/* The I/O map (views/BlockMap.tsx; view id `blocks`). Mark colours come from the tokens; the figure is canvas per panel with an SVG
+   overlay; axes, titles, brackets, the toolbar and the side panel are DOM. The view is full-bleed like the Trace pane: a toolbar row,
+   a status row, then the figure (it scrolls) beside the side panel (lines.css's .lines-side). */
 :root {
   /* writes of the User I/O class (db file single write, direct path write): a darker step of --c-userio */
   --bm-write: light-dark(#a8441b, #f39a6e);
@@ -7,27 +8,87 @@
      from the orange of the datafile reads; the Loom's --ev-temp / --ev-temp-w pair is too close for 1 px marks */
   --bm-temp-r: light-dark(#0f8f84, #2bb5a8);
   --bm-temp-w: light-dark(#a1349b, #d36ccc);
+  /* latency, fast to slow: pale gold to deep plum on the light surface; on the dark one the slow end is the bright one */
+  --bm-lat-0: light-dark(oklch(86% 0.11 95), oklch(42% 0.09 300));
+  --bm-lat-1: light-dark(oklch(78% 0.14 75), oklch(52% 0.14 330));
+  --bm-lat-2: light-dark(oklch(69% 0.17 50), oklch(60% 0.18 10));
+  --bm-lat-3: light-dark(oklch(59% 0.2 28), oklch(69% 0.18 40));
+  --bm-lat-4: light-dark(oklch(48% 0.19 5), oklch(79% 0.16 65));
+  --bm-lat-5: light-dark(oklch(37% 0.15 330), oklch(90% 0.13 95));
+  /* read size, one block to 65+: one blue hue, light to strong (reversed on the dark surface) */
+  --bm-size-0: light-dark(oklch(85% 0.05 250), oklch(40% 0.06 250));
+  --bm-size-1: light-dark(oklch(76% 0.08 250), oklch(50% 0.1 250));
+  --bm-size-2: light-dark(oklch(66% 0.12 252), oklch(60% 0.13 250));
+  --bm-size-3: light-dark(oklch(56% 0.15 255), oklch(70% 0.14 248));
+  --bm-size-4: light-dark(oklch(46% 0.16 260), oklch(80% 0.12 245));
+  --bm-size-5: light-dark(oklch(36% 0.14 265), oklch(89% 0.08 240));
 }
 
-.blockmap .bm-tools { flex-wrap: wrap; }
-.bm-ctl { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-sm); color: var(--ink-2); }
-.bm-ctl select { font-size: var(--text-xs); }
+/* ---- the frame ------------------------------------------------------------------------------------------------- */
+.iom { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
+.iom > * { flex: none; }
+.iom > .iom-body { flex: 1 1 0; }
+.iom-bar { container-type: inline-size; padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); }
+.iom-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); }
+.iom-row > * { flex: none; }
+.iom-row button, .iom-zoom button { display: inline-flex; align-items: center; gap: 0.3em; white-space: nowrap; }
+.iom-row button.quiet[aria-pressed="true"] { background: var(--wash); color: var(--ink); border-color: var(--hairline-strong); }
+.iom-row .icon { inline-size: 1.05em; block-size: 1.05em; vertical-align: -0.15em; }
+.iom-seg button { font-size: var(--text-sm); padding-inline: 0.7rem; }
+.iom-ctl { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-sm); color: var(--ink-2); }
+.iom-ctl select { font-size: var(--text-sm); max-inline-size: 10.5rem; }
+.iom-zoombtns { display: inline-flex; gap: 2px; margin-inline-start: auto; }
+.iom-chip { gap: 0.25rem; }
+/* the labels fold to icons on a narrow bar */
+@container (inline-size < 52rem) { .iom-row .iom-lbl { display: none; } }
+
+.iom-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-4); padding: var(--sp-1) var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); min-block-size: 2rem; box-sizing: border-box; }
+.iom-counts b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.iom-zoom { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); padding: 1px var(--sp-1) 1px var(--sp-2); border-inline-start: 3px solid var(--c-cpu); background: color-mix(in oklch, var(--c-cpu) 9%, transparent); border-radius: 0 var(--radius) var(--radius) 0; font-variant-numeric: tabular-nums; }
+.iom-zoom button { font-size: var(--text-xs); padding-block: 0.05rem; }
+.iom-zoom .icon { inline-size: 1em; block-size: 1em; vertical-align: -0.15em; }
+.iom-hint { margin-inline-start: auto; color: var(--ink-3); font-size: var(--text-xs); }
+.iom-hint b { color: var(--ink-2); font-weight: 600; }
+.iom-hint kbd, .iom-tab kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.3em; background: var(--surface); }
+
+.iom-body { display: grid; grid-template-columns: minmax(0, 1fr); min-block-size: 0; }
+.iom-body.with-side { grid-template-columns: minmax(0, 1fr) auto; }
+.iom-main { min-block-size: 0; min-inline-size: 0; overflow: auto; padding: var(--sp-3) var(--sp-4) var(--sp-6); }
+.iom-side { --w: 24rem; overflow: hidden; }
+.iom-side-body { flex: 1; min-block-size: 0; overflow: auto; padding-block-start: var(--sp-2); }
+.iom-msg { padding: var(--sp-4); }
+
 .bm-sampled { color: var(--ink); font-weight: 600; }
 .bm-error { color: var(--s-critical); }
 
-.bm-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); gap: var(--sp-4); align-items: start; container-type: inline-size; }
-.bm-body.bm-stale .bm-figure { opacity: 0.6; transition: opacity 0.2s 0.15s; }
+/* ---- the figure ---------------------------------------------------------------------------------------------- */
+.iom-figure-wrap.bm-stale .iom-figure { opacity: 0.6; transition: opacity 0.2s 0.15s; }
 /* with motion: a pulse while the engine works, then the new figure sharpens in (useReveal) */
-@media (prefers-reduced-motion: no-preference) { .bm-body.bm-stale .bm-figure { opacity: 1; animation: motion-pulse var(--motion-pulse) ease-in-out infinite; } }
-@container (max-width: 52rem) {
-  .bm-body { grid-template-columns: minmax(0, 1fr); }
-}
+@media (prefers-reduced-motion: no-preference) { .iom-figure-wrap.bm-stale .iom-figure { opacity: 1; animation: motion-pulse var(--motion-pulse) ease-in-out infinite; } }
 .bm-figure { min-inline-size: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 
-.bm-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); }
+/* the navigator: the whole range, the zoom as a box */
+.iom-nav { position: relative; display: flex; flex-direction: column; margin-block-end: var(--sp-1); }
+.iom-nav canvas { display: block; border-block-end: 1px solid var(--c-axis); background: color-mix(in oklch, var(--ink) 3%, transparent); border-radius: var(--radius) var(--radius) 0 0; }
+.iom-nav-ov { position: absolute; inset-block-start: 0; inset-inline-start: 0; cursor: ew-resize; touch-action: none; }
+.iom-nav-lbl { position: absolute; inset-block-start: 8px; text-align: end; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
+.iom-nav-dim { fill: color-mix(in oklch, var(--surface) 62%, transparent); }
+.iom-nav-box { fill: none; stroke: var(--c-cpu); stroke-width: 1.5; cursor: grab; }
+.iom-nav-ticks { position: relative; block-size: 1rem; }
+.iom-nav-ticks span { position: absolute; top: 1px; translate: -50% 0; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
+.iom-nav-ticks span:first-child { translate: 0 0; }
+
+/* the legend: each entry a button that highlights its colour */
+.bm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-1); }
+.iom-legend-h { font-weight: 600; color: var(--ink-2); margin-inline-end: var(--sp-1); }
 .bm-legend .k { display: inline-flex; align-items: center; gap: 0.4rem; }
+.iom-legend button.k { border: 1px solid transparent; border-radius: 999px; background: none; padding: 1px 0.55rem 1px 0.4rem; font-size: var(--text-sm); color: var(--ink); cursor: pointer; }
+.iom-legend button.k:hover { background: var(--wash); }
+.iom-legend button.k[aria-pressed="true"] { border-color: var(--ink); background: var(--wash); }
 .bm-legend .swatch { inline-size: 0.7rem; block-size: 0.7rem; }
+.iom-bandkey { font-size: var(--text-xs); margin-inline-start: var(--sp-2); }
 .bm-band-swatch { background: color-mix(in oklch, var(--ink) 14%, transparent); box-shadow: inset 3px 0 0 color-mix(in oklch, var(--ink) 60%, transparent); }
+.iom-focus { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--ink-2); }
 
 /* statement and phase brackets over the first panel */
 .bm-brackets { position: relative; }
@@ -38,39 +99,75 @@
 .bm-stmt small { color: var(--ink-2); font-size: var(--text-xs); }
 .bm-phase { position: absolute; padding-inline-start: 4px; font-size: var(--text-xs); color: var(--ink-2); white-space: nowrap; }
 
-.bm-panel { display: flex; flex-direction: column; gap: 2px; }
+/* panels */
+.bm-panel { display: flex; flex-direction: column; gap: 2px; margin-block-start: var(--sp-1); }
 .bm-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); font-size: var(--text-sm); }
 .bm-title b { font-weight: 600; }
 .bm-obj { display: inline-flex; align-items: center; gap: 0.35rem; }
+.iom-unzoom { margin-inline-start: auto; font-size: var(--text-xs); padding-block: 0; }
+.iom-type { font-size: var(--text-xs); color: var(--ink-2); background: var(--wash); border-radius: 999px; padding-inline: 0.45rem; }
+.iom-obj .q { color: var(--ink-3); font-weight: 400; }
+.iom-obj.unknown .n { color: var(--ink-2); font-style: italic; font-weight: 400; }
 .bm-plot { position: relative; }
 .bm-canvas { position: absolute; top: 0; }
 .bm-overlay { position: absolute; top: 0; cursor: crosshair; touch-action: none; overflow: visible; }
+.iom-ytitle { position: absolute; left: 0; top: 0; width: 14px; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; rotate: 180deg; font-size: var(--text-xs); line-height: 1; color: var(--ink-3); white-space: nowrap; overflow: hidden; letter-spacing: 0.02em; }
 .bm-yticks { position: absolute; left: 0; top: 0; bottom: 0; }
-.bm-yticks span { position: absolute; right: 0; translate: 0 -50%; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
+.bm-yticks span { position: absolute; right: 0; translate: 0 -50%; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bm-yticks span small { color: var(--ink-2); margin-inline-end: 1px; }
+/* the first tick of a packed axis' later run: a break mark beside it */
+.bm-yticks span.iom-seam::after { content: "≈"; position: absolute; right: -11px; top: -0.55em; color: var(--ink-2); font-size: 10px; }
 .bm-brush { fill: color-mix(in oklch, var(--c-cpu) 14%, transparent); stroke: var(--c-cpu); stroke-width: 1; }
 .bm-cross { stroke: color-mix(in oklch, var(--ink) 35%, transparent); stroke-width: 1; pointer-events: none; }
 .bm-hit { fill: none; stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
 
-.bm-xaxis { position: relative; block-size: 1.4rem; border-block-start: 1px solid var(--c-axis); }
-.bm-xaxis span { position: absolute; top: 3px; translate: -50% 0; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
+.bm-xaxis { position: relative; block-size: 1.3rem; border-block-start: 1px solid var(--c-axis); margin-block-start: 2px; }
+.bm-xaxis span { position: absolute; top: 3px; translate: -50% 0; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bm-xaxis span:first-of-type { translate: 0 0; }
 .bm-break { position: absolute; top: -6px; inline-size: 1px; block-size: 11px; background: var(--ink-2); rotate: 25deg; }
-.bm-caption { max-inline-size: 70rem; }
+.iom-xtitle { margin: 0; text-align: center; color: var(--ink-2); }
+.iom-xtitle b { color: var(--ink); font-weight: 600; }
 
-.bm-facts { display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--text-sm); position: sticky; top: var(--sp-2); max-block-size: calc(100dvh - 10rem); overflow-y: auto; }
-.bm-facts h3 { font-size: var(--text-md); font-weight: 600; }
+/* ---- the side panel ------------------------------------------------------------------------------------------- */
+.iom-tab { display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--text-sm); }
+.iom-tab code { font-family: var(--font-mono); font-size: var(--text-xs); }
+.iom-objs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.iom-objrow { display: grid; gap: 2px; inline-size: 100%; text-align: start; border: 1px solid transparent; border-radius: var(--radius); background: none; padding: var(--sp-1) var(--sp-2); color: var(--ink); font-size: var(--text-sm); cursor: pointer; }
+.iom-objrow:hover { background: var(--wash); }
+.iom-objrow.on { border-color: var(--ink); background: var(--wash); }
+.iom-objrow-h { display: flex; align-items: baseline; gap: var(--sp-2); min-inline-size: 0; }
+.iom-objrow-h > b { font-weight: 600; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iom-objrow-t { margin-inline-start: auto; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+.iom-objrow-f { font-size: var(--text-xs); line-height: 1.45; }
+.iom-objrow-f b { color: var(--ink); }
+.iom-share { display: block; block-size: 3px; background: var(--wash); border-radius: 2px; overflow: hidden; }
+.iom-share i { display: block; block-size: 100%; background: var(--c-userio); }
+
 .bm-facts ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.bm-facts li.on { outline: 1px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
 .bm-facts-h { display: flex; align-items: baseline; gap: var(--sp-2); }
 .bm-facts-r { display: flex; flex-wrap: wrap; gap: 0 var(--sp-2); padding-inline-start: var(--sp-2); }
 .bm-only { margin-inline-start: auto; font-size: var(--text-xs); }
-.bm-note { padding: var(--sp-1) var(--sp-2); border-inline-start: 2px solid var(--s-warning); background: color-mix(in oklch, var(--s-warning) 8%, transparent); }
+.bm-facts-h button { font-size: var(--text-xs); padding-block: 0; }
+.bm-note { margin: 0; padding: var(--sp-1) var(--sp-2); border-inline-start: 2px solid var(--s-warning); background: color-mix(in oklch, var(--s-warning) 8%, transparent); }
 
-.bm-tip { position: fixed; z-index: 60; pointer-events: none; max-inline-size: 22rem; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); box-shadow: 0 4px 14px color-mix(in oklch, var(--ink) 14%, transparent); display: grid; gap: 2px; }
+.iom-hist { display: grid; gap: 2px; margin-block-end: var(--sp-3); }
+.iom-hist-h { display: flex; justify-content: space-between; gap: var(--sp-2); }
+.iom-hist-h b { font-weight: 500; }
+.iom-hist-f { font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.iom-hist-f b { color: var(--ink); font-weight: 600; }
+.iom-bars { display: grid; align-items: end; gap: 1px; block-size: 2.4rem; border-block-end: 1px solid var(--c-axis); }
+.iom-bars i { display: block; background: var(--c-userio); border-radius: 1px 1px 0 0; min-inline-size: 2px; }
+.iom-bars i:hover { background: var(--ink); }
+.iom-bars-axis { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--ink-3); margin-block-start: calc(-1 * var(--sp-2)); }
+
+/* ---- tooltip, popover, empty -------------------------------------------------------------------------------------- */
+.bm-tip { position: fixed; z-index: 60; pointer-events: none; max-inline-size: 24rem; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); box-shadow: 0 4px 14px color-mix(in oklch, var(--ink) 14%, transparent); display: grid; gap: 2px; }
 .bm-tip-h { display: flex; gap: var(--sp-2); align-items: baseline; }
 .stmt-pop.bm-pop { display: grid; gap: 2px; padding-inline-end: 1.8rem; inline-size: max-content; max-inline-size: min(26rem, calc(100vw - 2rem)); }
 .stmt-pop.bm-pop .stmt-pop-x { position: absolute; top: var(--sp-1); right: var(--sp-1); }
 .bm-pop-acts { margin-block-start: var(--sp-1); }
 
-.bm-empty { display: grid; gap: var(--sp-2); padding: var(--sp-4) 0; }
+.bm-empty { display: grid; gap: var(--sp-2); }
 .bm-empty p { margin: 0; }
 .bm-scope { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }

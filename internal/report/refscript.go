@@ -67,10 +67,9 @@ type refIDs struct {
 
 func collectRefIDs(m *model.Model) refIDs {
 	objs := map[int64]bool{}
-	for i := range m.Waits {
-		if id := m.Waits[i].ObjID; id > 0 {
-			objs[id] = true
-		}
+	waitObjs, waitFiles := m.WaitRefIDs() // an aggregation-only model (the engine's) has no waits: its sink kept their ids
+	for _, id := range waitObjs {
+		objs[id] = true
 	}
 	for i := range m.PlanLines {
 		if id := m.PlanLines[i].Obj; id > 0 {
@@ -78,8 +77,8 @@ func collectRefIDs(m *model.Model) refIDs {
 		}
 	}
 	files := map[int64]bool{}
-	for i := range m.Waits {
-		if f, ok := m.WaitFile(&m.Waits[i]); ok && f >= 0 {
+	for _, f := range waitFiles {
+		if f >= 0 {
 			files[f] = true
 		}
 	}

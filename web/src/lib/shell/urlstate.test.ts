@@ -67,6 +67,14 @@ describe('URL hash: the mtkprof: link grammar (exec=, contexts=)', () => {
     }
   })
 
+  it('drops the I/O map zoom: it lay inside the window the link replaces', async () => {
+    const { doc, store } = await linkDoc()
+    store.actions.zoomIO({ range: { startTim: 10, endTim: 20 }, blocks: {} })
+    apply(store, doc, '#view=blocks&win=0-500')
+    expect(store.getState().view).toBe('blocks')
+    expect(store.getState().ioZoom).toEqual([])
+  })
+
   it('reads the form the assistant writes: commas, colons and + unescaped', async () => {
     const { doc, store } = await linkDoc()
     apply(store, doc, '#view=statements&sql=sql0&exec=118:2&contexts=1,3&win=0-500')

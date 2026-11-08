@@ -72,8 +72,11 @@ import (
 // any of the formats it is made of (TestCacheIndexFormatCoversParts lists
 // them), so old entries are rebuilt instead of misread. 5: the model reads a
 // WAIT line's obj#=4294967295 (23ai's "no object") as -1, so the stored
-// waits and object aggregates of a 23ai trace changed meaning.
-const CacheIndexFormat = 5
+// waits and object aggregates of a 23ai trace changed meaning. 6: the
+// aggregates keep the obj# and file# the waits named (analyze.Accumulator
+// RefIDs), so a reference bundle names objects and datafiles of an engine
+// session, not only the plans' objects.
+const CacheIndexFormat = 6
 
 // cacheParts are the versions of the files of an entry at CacheIndexFormat.
 var cacheParts = map[string]int{

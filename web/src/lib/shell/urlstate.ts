@@ -153,6 +153,7 @@ export function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
     selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: execIn(doc, stmt, w.exec) },
     files: shown, contexts: contextsWithin(doc, ctxs && ctxs.size > 0 ? ctxs : null, shown),
     window: w.win && w.win[1] > w.win[0] ? { startTim: base + w.win[0], endTim: base + w.win[1] } : null,
+    ioZoom: [], // the I/O map's zoom is not in the hash; it was inside the window it replaces
     ...(view === 'lines' ? { linesView: { file, line: Math.max(1, w.line ?? 1), seq: st.linesView.seq + 1 } } : {}),
   })
   return doc

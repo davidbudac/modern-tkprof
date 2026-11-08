@@ -50,7 +50,7 @@ It prints a JSON summary (tab titles, offered views, active view, console errors
 | --- | --- |
 | Start-page Folder input / Paths textarea / submit | `#open-dir`, `#open-path` (one ABSOLUTE path per line; relative fails "no such file"), `form button[type=submit]` |
 | Session tabs / close / new-trace "+" | `.session-tab-main` (role=tab), `button[aria-label="Close <title>"]`, `button[aria-label="Open a trace"]` |
-| Views | `.session-nav .tabs button.tab` in the one header row (`.frame-top`), right of the tabs (text: Overview, Trace (the Lines view, id `lines`), Statements, Waits, Blocks (no digit chord), Timeline, Sessions, Pivot; Notes and Reports are under the `Tools` menu); active one has `aria-current=page`. Only while a trace tab is active |
+| Views | `.session-nav .tabs button.tab` in the one header row (`.frame-top`), right of the tabs (text: Overview, Trace (the Lines view, id `lines`), Statements, Waits, I/O map (id `blocks`, ⌘I; a `/` in the label: drive.mjs writes its screenshot into a subfolder), Timeline, Sessions, Pivot; Notes and Reports are under the `Tools` menu); active one has `aria-current=page`. Only while a trace tab is active |
 | Trace popover | click the ACTIVE tab's button again (`.session-tab.on > .session-tab-main`, `aria-expanded`); the popover is `.trace-pop` |
 | App pages | `.page-links button` (icons; `aria-label` `Connections`, `Settings`) |
 | Tab state | `.tab-dot.busy` (opening), `.tab-dot.bad` (failed), `.tab-banner.bad[role=alert]` |

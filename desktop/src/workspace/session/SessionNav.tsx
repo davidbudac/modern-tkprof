@@ -44,13 +44,14 @@ function chordsOf(rows: SessionViewDef[]): string[] | null {
   return out.length ? out : null
 }
 
-/** The key hint of the menu's rows: their chords, a run of three or more as a range (⌘5–9), so it stays about as wide as the button. */
+/** The key hint of the menu's rows: their chords, a run of three or more digits as a range (⌘5–9), so it stays about as wide as the button. */
 export function menuHint(rows: SessionViewDef[], mac: boolean): string | null {
   const keys = rows.flatMap((v) => (v.key === undefined ? [] : [v.key]))
+  const next = (a: number | string, b: number | string) => typeof a === 'number' && typeof b === 'number' && b === a + 1
   const out: string[] = []
   for (let i = 0; i < keys.length;) {
     let j = i
-    while (j + 1 < keys.length && keys[j + 1] === keys[j] + 1) j++
+    while (j + 1 < keys.length && next(keys[j], keys[j + 1])) j++
     if (j - i >= 2) out.push(`${viewKeyLabel(keys[i], mac)}–${keys[j]}`)
     else for (let k = i; k <= j; k++) out.push(viewKeyLabel(keys[k], mac))
     i = j + 1

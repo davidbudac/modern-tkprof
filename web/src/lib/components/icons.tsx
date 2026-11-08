@@ -118,3 +118,25 @@ export const RotateIcon = () => <Icon><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 
 
 /** The lanes of the formatted view (the chip that says what colours them): three vertical bars. */
 export const LanesIcon = () => <Icon><path d="M5 4v16" /><path d="M12 4v16" /><path d="M19 4v16" /></Icon>
+
+/** Zoom in / out (the I/O map's zoom buttons). */
+export const ZoomInIcon = () => <Icon><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /><path d="M11 8v6" /><path d="M8 11h6" /></Icon>
+export const ZoomOutIcon = () => <Icon><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /><path d="M8 11h6" /></Icon>
+
+/** The whole range again (reset a zoom): four corners. */
+export const ScanIcon = () => <Icon><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /></Icon>
+
+/** Back one step (the previous zoom). */
+export const UndoIcon = () => <Icon><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11" /></Icon>
+
+/** Histograms (the distributions tab). */
+export const ChartColumnIcon = () => <Icon><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></Icon>
+
+/** Database objects. */
+export const DatabaseIcon = () => <Icon><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5v14a9 3 0 0 0 18 0V5" /><path d="M3 12a9 3 0 0 0 18 0" /></Icon>
+
+/** A list (of statements). */
+export const ListIcon = () => <Icon><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" /><path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /></Icon>
+
+/** A side panel at the end of the window. */
+export const PanelRightIcon = () => <Icon><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></Icon>

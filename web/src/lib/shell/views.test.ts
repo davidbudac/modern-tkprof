@@ -4,10 +4,10 @@ import { makeDoc } from '../data/testdoc'
 import { baseViews, currentView, shownViews, type SessionViewDef } from './views'
 
 describe('baseViews', () => {
-  it('lists the nine views in nav order with their labels and digits (Blocks has none)', () => {
+  it('lists the nine views in nav order with their labels and keys (the I/O map has a letter)', () => {
     expect(baseViews.map((v) => [v.id, v.label, v.key])).toEqual([
       ['compare', 'Compare', 0], ['overview', 'Overview', 1], ['lines', 'Trace', 2], ['statements', 'Statements', 3],
-      ['waits', 'Waits', 4], ['blocks', 'Blocks', undefined], ['timeline', 'Timeline', 5], ['sessions', 'Sessions', 6], ['pivot', 'Pivot', 7],
+      ['waits', 'Waits', 4], ['blocks', 'I/O map', 'i'], ['timeline', 'Timeline', 5], ['sessions', 'Sessions', 6], ['pivot', 'Pivot', 7],
     ])
   })
 })

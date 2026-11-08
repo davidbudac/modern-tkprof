@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
+	"github.com/davidbudac/modern-tkprof/internal/ref"
 )
 
 // An aggregation-only model must answer every analysis exactly like the full
@@ -259,5 +261,48 @@ func TestAggregateFollowsAdoptedCursors(t *testing.T) {
 		if full.Statements[i].SQLID == "adopt0000001" && as[i].AllCalls.Count != 6 {
 			t.Errorf("adopt0000001 has %d calls, want 6 (2 before its parse, PARSE EXEC FETCH CLOSE after)", as[i].AllCalls.Count)
 		}
+	}
+}
+
+// An aggregation-only model keeps no waits; its accumulator keeps the obj# and file# they named, so a reference bundle
+// names the objects and datafiles of an engine session (not only the plans' objects) and the reference queries ask for them.
+func TestAggregateKeepsTheWaitsRefIDs(t *testing.T) {
+	files := []string{"../../testdata/traces/19c/io_waits.trc"}
+	full, err := model.BuildFiles(files, model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, agg := buildPair(t, files, DefaultThresholds())
+	fo, ff := full.WaitRefIDs()
+	ao, af := agg.WaitRefIDs()
+	if j(t, fo) != j(t, ao) || j(t, ff) != j(t, af) {
+		t.Fatalf("aggregate ids objs %v files %v, full model %v %v", ao, af, fo, ff)
+	}
+	if len(af) == 0 || len(ao) == 0 {
+		t.Fatalf("no ids: objs %v files %v", ao, af)
+	}
+	b, err := ref.LoadBundle("../../testdata/reference/bundle")
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.ApplyRef(full, b)
+	model.ApplyRef(agg, b)
+	if j(t, agg.Files) != j(t, full.Files) || j(t, agg.Objects) != j(t, full.Objects) {
+		t.Fatalf("aggregate names files %v objects %v, full model %v %v", agg.Files, agg.Objects, full.Files, full.Objects)
+	}
+	if len(agg.Files) == 0 {
+		t.Fatal("the bundle's datafiles were not applied to the aggregate model")
+	}
+	var buf bytes.Buffer
+	if err := AggOf(agg).Encode(&buf); err != nil {
+		t.Fatal(err)
+	}
+	back, err := DecodeAccumulator(&buf, agg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bo, bf := back.RefIDs()
+	if j(t, bo) != j(t, ao) || j(t, bf) != j(t, af) {
+		t.Fatalf("decoded ids %v %v, encoded %v %v", bo, bf, ao, af)
 	}
 }

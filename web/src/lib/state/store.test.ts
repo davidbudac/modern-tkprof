@@ -357,8 +357,8 @@ describe('swapDoc (a live session next snapshot)', () => {
   })
 })
 
-describe('the Blocks filter', () => {
-  it('showBlocks opens the Blocks view filtered; setBlocks changes the filter in place', () => {
+describe('the I/O map filter and zoom', () => {
+  it('showBlocks opens the I/O map (view blocks) filtered; setBlocks changes the filter in place', () => {
     const { getState, actions } = createStore()
     actions.showBlocks({ stmt: 3, event: 7 })
     expect(getState().view).toBe('blocks')
@@ -369,5 +369,29 @@ describe('the Blocks filter', () => {
     expect(getState().blocks).toEqual({ stmt: 3, event: null })
     actions.showBlocks()
     expect(getState().blocks).toEqual({ stmt: null, event: null })
+  })
+  it('zoomIO pushes or replaces; out pops, reset clears; a new window, a link in or another trace clears the stack', () => {
+    const { getState, actions } = createStore()
+    const a = { range: { startTim: 10, endTim: 20 }, blocks: {} }
+    const b = { range: { startTim: 12, endTim: 18 }, blocks: { f12: [{ file: 12, lo: 100, hi: 200 }] } }
+    actions.zoomIO(a)
+    actions.zoomIO({ range: { startTim: 10, endTim: 20 }, blocks: {} }) // the same again: nothing
+    actions.zoomIO(b)
+    expect(getState().ioZoom).toEqual([a, b])
+    actions.zoomIO({ range: { startTim: 13, endTim: 19 }, blocks: {} }, true) // a pan
+    expect(getState().ioZoom.map((z) => z.range?.startTim)).toEqual([10, 13])
+    actions.zoomOutIO()
+    expect(getState().ioZoom).toEqual([a])
+    actions.zoomIO(b)
+    actions.resetIOZoom()
+    expect(getState().ioZoom).toEqual([])
+    actions.zoomIO(a)
+    actions.setBlocks({ stmt: 1 })
+    expect(getState().ioZoom).toEqual([a]) // a filter chip keeps the zoom
+    actions.setWindow({ startTim: 0, endTim: 5 })
+    expect(getState().ioZoom).toEqual([])
+    actions.zoomIO(a)
+    actions.showBlocks({ stmt: 2 })
+    expect(getState().ioZoom).toEqual([])
   })
 })
