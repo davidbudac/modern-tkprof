@@ -43,7 +43,7 @@ export function Waits({ doc }: { doc: TraceDoc }) {
       <header><h2>Wait events</h2><span className="hint">{hint}</span>
         <span className="tools"><button aria-pressed={!state.includeIdle} onClick={() => actions.toggleIdle()}>hide idle</button></span></header>
       {view.notice && <p className="callout">{view.notice}</p>}
-      <DataTable columns={cols} rows={rows} rowKey={(r) => r.event} defaultSort={{ key: 'us', dir: 'desc' }} maxHeight="calc(100dvh - 12rem)"
+      <DataTable label="Wait events by event" columns={cols} rows={rows} rowKey={(r) => r.event} defaultSort={{ key: 'us', dir: 'desc' }} maxHeight="calc(100dvh - 12rem)"
         selectedKey={sel} onRowClick={(r) => actions.selectEvent(r.event)} empty={view.loading ? 'Loading the wait profile of the selection…' : undefined} />
     </section>
   )

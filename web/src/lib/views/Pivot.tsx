@@ -198,6 +198,7 @@ export function Pivot({ doc }: { doc: TraceDoc }) {
       </div>
       {pv.notice && <p className="callout pv-notice" role="status">{pv.notice} <button className="quiet" onClick={() => actions.setPivot({})} aria-label="Dismiss">×</button></p>}
       <DataTable
+        label="Pivot"
         key={`${fact}:${d1.id}:${d2?.id ?? ''}:${sortM.id}:${hiddenM.join(',')}`}
         columns={cols}
         rows={rows}

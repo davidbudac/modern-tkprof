@@ -192,8 +192,8 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
       {picked.longest.length > 0 && (
         <section className="section">
           <header><h2>Longest calls</h2><span className="hint">{win ? 'window' : 'whole trace'}</span></header>
-          <DataTable columns={longestCols} rows={picked.longest} rowKey={(b) => b.id} maxHeight="24rem" rowHeight={28}
-            selectedKey={null} onRowClick={(b) => { if (b.stmt !== NONE) actions.selectStmt(b.stmt) }} />
+          <DataTable label="Longest calls" columns={longestCols} rows={picked.longest} rowKey={(b) => b.id} maxHeight="24rem" rowHeight={28}
+            onRowClick={(b) => { if (b.stmt !== NONE) actions.selectStmt(b.stmt) }} />
         </section>
       )}
     </>

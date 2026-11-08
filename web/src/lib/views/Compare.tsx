@@ -144,7 +144,7 @@ function StatementsDelta({ data, onOpenStatement }: { data: CompareData; onOpenS
           {filters.map((f) => <button key={f.id} aria-pressed={filter === f.id} title={f.title} onClick={() => setFilter(f.id)}>{f.label} {counts[f.id]}</button>)}
         </span></span>
       </header>
-      <DataTable key={filter} columns={columns} rows={rows} rowKey={(d) => d.key} onRowClick={openDefault} rowHeight={30} maxHeight="26rem" empty="No statements in this group" />
+      <DataTable label="Statements" key={filter} columns={columns} rows={rows} rowKey={(d) => d.key} onRowClick={openDefault} rowHeight={30} maxHeight="26rem" empty="No statements in this group" />
     </section>
   )
 }
@@ -166,7 +166,7 @@ function EventsDelta({ events }: { events: CmpEvent[] }) {
   return (
     <section className="section">
       <header><h2>Wait events</h2><span className="hint">{rows.length} matched by name · by |Δ time| · idle events uncoloured</span></header>
-      <DataTable columns={columns} rows={rows} rowKey={(e) => e.name} rowHeight={30} maxHeight="22rem" empty="No wait events" />
+      <DataTable label="Wait events" columns={columns} rows={rows} rowKey={(e) => e.name} rowHeight={30} maxHeight="22rem" empty="No wait events" />
     </section>
   )
 }

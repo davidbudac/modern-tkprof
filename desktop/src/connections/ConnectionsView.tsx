@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyEvent } from 'react'
+import { isActivateKey, nextIndex } from '@lib/components/keyNav'
 import { useConnections } from './ConnectionsProvider'
 import { ConnectionForm, blankConnection } from './ConnectionForm'
 import { DeskMenu } from '../ui/DeskMenu'
@@ -58,10 +59,35 @@ export function ConnectionsView() {
   const [mode, setMode] = useState<Mode>({ kind: 'view' })
   const [addOpen, setAddOpen] = useState(false)
   const sel = entries.find((e) => e.id === selId) ?? null
+  // the list is one tab stop; the selected option is the active descendant and the arrow keys move it (a click does the same)
+  const listId = useId()
+  const listRef = useRef<HTMLUListElement>(null)
+  const selIdx = entries.findIndex((e) => e.id === selId)
+  const choose = (id: string) => {
+    setSelId(id)
+    setMode({ kind: 'view' })
+  }
+  const onListKey = (e: ReactKeyEvent) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || entries.length === 0) return
+    if (isActivateKey(e.key)) {
+      if (selIdx < 0) return
+      e.preventDefault()
+      choose(entries[selIdx].id)
+      return
+    }
+    const to = nextIndex(e.key, selIdx, entries.length)
+    if (to == null) return
+    e.preventDefault()
+    choose(entries[to].id)
+    listRef.current?.children[to]?.scrollIntoView({ block: 'nearest' })
+  }
 
   useEffect(() => {
-    if (!selId && entries.length && mode.kind === 'view') setSelId(entries[0].id)
-  }, [entries, selId, mode.kind])
+    if (mode.kind !== 'view') return
+    // no selection, or a stale one (the selected connection was deleted): fall back to the first entry, or none
+    if (entries.length && selIdx < 0) setSelId(entries[0].id)
+    else if (!entries.length && selId && loaded) setSelId(null)
+  }, [entries, selId, selIdx, loaded, mode.kind])
 
   const taken = entries.map((e) => e.id)
   return (
@@ -79,17 +105,16 @@ export function ConnectionsView() {
           <span className="tb-sep" role="separator" />
           <button onClick={() => void cx.exportFile()} disabled={!entries.length} title="Save all definitions as mtkprof-connections.json (no secrets)">Export…</button>
         </div>
-        <ul role="listbox" aria-label="Connections">
-          {entries.map((e) => (
-            <li
-              key={e.id}
-              role="option"
-              aria-selected={e.id === selId}
-              onClick={() => {
-                setSelId(e.id)
-                setMode({ kind: 'view' })
-              }}
-            >
+        <ul
+          ref={listRef}
+          role="listbox"
+          aria-label="Connections"
+          tabIndex={entries.length ? 0 : undefined}
+          aria-activedescendant={selIdx >= 0 ? `${listId}-${selIdx}` : undefined}
+          onKeyDown={onListKey}
+        >
+          {entries.map((e, i) => (
+            <li key={e.id} id={`${listId}-${i}`} role="option" aria-selected={e.id === selId} onClick={() => choose(e.id)}>
               <KindIcon kind={e.kind} />
               <div className="conn-li-main">
                 <div className="conn-li-name">
@@ -106,7 +131,7 @@ export function ConnectionsView() {
             </li>
           ))}
           {loaded && entries.length === 0 && (
-            <li className="conn-empty muted">No connections yet. Add an ssh host or a database, import a file, or set a team file.</li>
+            <li className="conn-empty muted" role="presentation">No connections yet. Add an ssh host or a database, import a file, or set a team file.</li>
           )}
         </ul>
       </aside>

@@ -179,14 +179,14 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
                     {f?.px && <span className="chip-q">PX</span>}
                     <span className="dim">{list.length} context{list.length === 1 ? '' : 's'}{on ? '' : ' · file not selected'}</span>
                   </div>
-                  <DataTable columns={ctxCols} rows={list} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="16rem"
+                  <DataTable label="Session context markers" columns={ctxCols} rows={list} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="16rem"
                     onRowClick={(r) => { if (inSel(r)) toggle(r.id) }} empty="No session context markers." />
                 </div>
               )
             })}
           </div>
         ) : (
-          <DataTable columns={ctxCols} rows={rows} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="45dvh"
+          <DataTable label="Session context markers" columns={ctxCols} rows={rows} rowKey={(r) => r.id} defaultSort={{ key: 'line', dir: 'asc' }} maxHeight="45dvh"
             onRowClick={(r) => toggle(r.id)} empty="No session context markers." />
         )}
       </section>
@@ -201,7 +201,7 @@ export function Sessions({ doc }: { doc: TraceDoc }) {
             </select>
           </span>
         </header>
-        <DataTable columns={groupCols} rows={groups} rowKey={(g) => g.key} defaultSort={hasStats ? { key: 'resp', dir: 'desc' } : { key: 'k', dir: 'asc' }} maxHeight="40dvh"
+        <DataTable label={`Sessions by ${dimLabel[dim]}`} columns={groupCols} rows={groups} rowKey={(g) => g.key} defaultSort={hasStats ? { key: 'resp', dir: 'desc' } : { key: 'k', dir: 'asc' }} maxHeight="40dvh"
           selectedKey={groupSelectedKey} onRowClick={(g) => setChecked(new Set(g.ids))} />
       </section>
     </>
