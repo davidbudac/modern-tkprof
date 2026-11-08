@@ -381,8 +381,8 @@ func BuildFiles(paths []string, opts Options) (*Model, error) {
 	b.m.File.Files[0].Followed = plan[0].followed
 	var total trace.Stats
 	var prog *progress
-	if opts.OnProgress != nil {
-		prog = &progress{fn: opts.OnProgress, stmts: func() int64 { return int64(len(b.m.Statements)) }}
+	if opts.OnProgress != nil || opts.Ctx != nil {
+		prog = &progress{ctx: opts.Ctx, fn: opts.OnProgress, stmts: func() int64 { return int64(len(b.m.Statements)) }}
 	}
 	var est rowEstimate
 	for _, pf := range plan {

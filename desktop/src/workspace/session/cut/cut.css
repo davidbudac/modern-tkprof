@@ -15,10 +15,23 @@
 .cut-head .from { color: var(--ink-2); font-size: var(--text-sm); }
 .cut-head .grow { flex: 1; }
 .cut-head .lbl { color: var(--ink-3); font-size: var(--text-sm); margin-inline-end: var(--sp-2); }
-.cut-head select { max-inline-size: 22rem; }
+/* the statement of a "One statement" cut (StmtPicker: the lib's statement picker list, one pick) */
+.cut-pick { display: inline-flex; align-items: stretch; min-inline-size: 12rem; max-inline-size: 28rem; block-size: 26px; box-sizing: border-box; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); font-size: var(--text-sm); }
+.cut-pick .stmt-pick-menu .tbpop { inline-size: min(46rem, 92vw); }
+.cut-pick-sql { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-xs); }
+.cut-pick-pop .sp-head, .cut-pick-pop .sp-row { grid-template-columns: 8rem 4.5rem 3.5rem minmax(0, 1fr); }
+.cut-pick-pop .sp-head > span:nth-child(2), .cut-pick-pop .sp-head > span:nth-child(3) { text-align: end; }
+.cut-pick-pop .sp-row { block-size: 26px; }
+.cut-pick-pop .sp-row.picked { box-shadow: inset 2px 0 0 var(--cut-kept); }
+.cut-pick-pop .sp-row.picked .sp-label { color: var(--cut-kept); }
 .cut-strip { grid-column: 1 / -1; padding: 0 var(--sp-4) var(--sp-2); }
 .cut-strip svg { display: block; overflow: visible; cursor: crosshair; touch-action: none; user-select: none; }
 .cut-stage { display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; border-block-start: 1px solid var(--hairline); padding: var(--sp-3) 0 var(--sp-2) var(--sp-4); }
+/* the previous plan while the next one is planned: drawn dimmed (the layout does not jump), with a badge; it authorises nothing */
+.cut-stage { position: relative; }
+.cut-stage.pending .cut-map, .cut-stage.pending .cut-empty { opacity: 0.45; transition: opacity var(--dur) var(--ease-out); }
+.cut-badge { position: absolute; inset-block-start: var(--sp-3); inset-inline-end: var(--sp-4); z-index: 1; font-size: var(--text-xs); font-weight: 500; color: var(--ink-2); background: var(--surface-raised); box-shadow: 0 0 0 1px var(--hairline); border-radius: 1rem; padding: 0.1rem 0.6rem; }
+.cut-side.pending > section:not(:last-child) { opacity: 0.55; }
 .cut-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 1.1rem; color: var(--ink-2); font-size: var(--text-sm); margin-block-end: var(--sp-2); }
 .cut-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
 .cut-legend i { inline-size: 0.9rem; block-size: 0.6rem; border-radius: 2px; display: inline-block; }

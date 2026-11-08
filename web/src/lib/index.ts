@@ -25,6 +25,8 @@ export { LiveBadge } from './components/LiveBadge'
 export { WindowBar } from './components/WindowBar'
 export { ResponseMini, responseSummary, useScopeResponse, type ResponseSummary } from './components/ResponseMini'
 export { FilterBar } from './components/FilterBar'
+// a toolbar button with a popover (the statement picker's; the desktop's Cut view picks its statement in one)
+export { ToolbarMenu } from './components/ToolbarMenu'
 
 // the shell both front ends share (the standalone's src/app and the desktop's session shell): the view table and its
 // tabs and chords, the side panes, the Esc chain, the details pane, the URL hash, the views' error boundary
@@ -83,6 +85,8 @@ export { traceSegmentsFrom } from './data/derive'
 export { responseOf, scopeResponse, type ScopeResponse } from './data/response'
 export { ctxKey, fileHeading, selectionInfo, effectiveContexts, contextsWithin, contextsOfFiles, fileTree, normalizeFiles, formatFilesParam, parseFilesParam } from './data/fileset'
 export { useScopedStatements } from './data/scopedstmts'
+// the statement picker's rows and filter (the Lines view's picker; the desktop's Cut view filters the whole trace with them)
+export { flatten, filterRows, sqlCut, type PickRow, type SqlCut } from './data/stmtpick'
 export type { ScopedStatements } from './data/scopedstmts'
 export { fmtInt, fmtCompact, fmtDur, fmtSecs, fmtMs, fmtPct, fmtBytes, fmtWall, fmtTz, preview, oraErr } from './data/format'
 export type * from './data/types'

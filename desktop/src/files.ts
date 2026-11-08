@@ -41,14 +41,25 @@ async function writeTo(path: string, data: FileData) {
   else await fs.writeFile(path, data)
 }
 
-/** Writes `data` to `<app cache dir>/<dir>/<name>` (the app only); its path. */
+/**
+ * Writes `data` to `<app cache dir>/<dir>/<name>` (the app only); its path. The data goes to `<name>.part` first and is
+ * renamed into place once written whole, so a write that fails (a broken stream, a full disk) leaves no truncated file
+ * under the name and does not touch a file that had it.
+ */
 export async function writeCached(dir: string, name: string, data: FileData): Promise<string> {
   const { appCacheDir, join } = await import('@tauri-apps/api/path')
-  const { mkdir } = await import('@tauri-apps/plugin-fs')
+  const fs = await import('@tauri-apps/plugin-fs')
   const folder = await join(await appCacheDir(), dir)
-  await mkdir(folder, { recursive: true })
+  await fs.mkdir(folder, { recursive: true })
   const path = await join(folder, name)
-  await writeTo(path, data)
+  const part = `${path}.part`
+  try {
+    await writeTo(part, data)
+    await fs.rename(part, path)
+  } catch (e) {
+    await fs.remove(part).catch(() => {})
+    throw e
+  }
   return path
 }
 

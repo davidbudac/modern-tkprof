@@ -4,11 +4,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { fmtBytes, fmtDur, fmtInt, fmtWall, resolveVar, scopeOf, useActions, useClient, useStore, type ApiClient, type ID, type TraceDoc } from '@lib'
 import { responseError } from '../../../engine'
-import { safeFileName, saveAs, writeCached } from '../../../files'
+import { safeFileName, saveAs } from '../../../files'
 import { inTauri } from '../../../platform'
+import { writeCut } from '../../cuts'
 import { useWorkspace } from '../../WorkspaceProvider'
 import { traceStem, useCurrentTab } from '../useTab'
+import { MAX_CHECK_BYTES, autoCheckOf, checkPath, currentOf, jsonSettle, jsonView, pickOf, stmtChoices, type JSONResult, type JSONState, type JSONView } from './cutstate'
 import { layoutOutput, layoutSources, lineY, pieceLabel, placeLabels, rowLabels, type CutCheck, type CutPiece, type CutPlan, type Label, type SourceColumn } from './cutlayout'
+import { StmtPicker } from './StmtPicker'
 import './cut.css'
 
 type Mode = 'window' | 'statement'
@@ -28,21 +31,25 @@ const LABEL: Record<Label | 'G', { name: string; v: string; hatch?: boolean }> =
 
 interface Profile { total: number; buckets: number; size: number; calls: number[]; waits: number[] }
 
-/** GET a JSON answer of the session; `path` null fetches nothing. Debounced, and aborted when the path changes. */
-function useJSON<T>(client: ApiClient, path: string | null, delay = 120): { data?: T; error?: string; loading: boolean } {
-  const [st, setSt] = useState<{ path: string | null; data?: T; error?: string }>({ path: null })
+/**
+ * GET a JSON answer of the session for the document `epoch`; `path` null fetches nothing. Debounced, and aborted when the
+ * path or the document changes (a live session's next snapshot answers the same path anew, through the same client). While
+ * another answer loads, the previous one stays (`data`, with `path` saying which request it answers: see `currentOf`).
+ */
+function useJSON<T>(client: ApiClient, path: string | null, epoch: unknown, delay = 120): JSONView<T> {
+  const [st, setSt] = useState<JSONState<T>>({ path: null })
   useEffect(() => {
     if (!path) return
     const ac = new AbortController()
+    const settle = (r: JSONResult<T>) => setSt((cur) => jsonSettle(cur, path, r, ac.signal.aborted, epoch))
     const t = setTimeout(() => {
       client.fetch(path, { signal: ac.signal })
         .then(async (r) => { if (!r.ok) throw await responseError(r, path.split('?')[0]); return r.json() as Promise<T> })
-        .then((data) => setSt({ path, data }), (e: unknown) => { if (!ac.signal.aborted) setSt({ path, error: e instanceof Error ? e.message : String(e) }) })
+        .then((data) => settle({ data }), (e: unknown) => settle({ error: e instanceof Error ? e.message : String(e) }))
     }, delay)
     return () => { clearTimeout(t); ac.abort() }
-  }, [client, path, delay])
-  const loading = !!path && st.path !== path
-  return { data: st.path === path || loading ? st.data : undefined, error: st.path === path ? st.error : undefined, loading }
+  }, [client, path, epoch, delay])
+  return jsonView(st, path, epoch)
 }
 
 /** The size of an element (ResizeObserver). */
@@ -93,9 +100,11 @@ export function CutView({ doc }: { doc: TraceDoc }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string; path?: string } | null>(null)
 
-  // the statements to pick from: by elapsed, the selected one first in line
-  const stmtChoices = useMemo(() => [...doc.stats.statements].sort((a, b) => b.elapsed - a.elapsed).slice(0, 300), [doc])
-  const pick = stmt ?? selStmt ?? stmtChoices[0]?.id ?? null
+  // the statements to pick from: every one with calls, by elapsed; the pick is one of them (a pick of an earlier live
+  // snapshot, or a selection elsewhere of a statement without calls, falls back to the longest)
+  const choices = useMemo(() => stmtChoices(doc), [doc])
+  const pick = pickOf(choices, stmt, selStmt)
+  const noStmt = mode === 'statement' && pick === null
 
   const query = useMemo(() => {
     const q = new URLSearchParams()
@@ -109,11 +118,18 @@ export function CutView({ doc }: { doc: TraceDoc }) {
     return q.toString()
   }, [win, contexts, mode, pick, edges, binds, plans, prov])
 
-  const plan = useJSON<CutPlan>(client, `/api/cut?${query}`)
+  const planPath = noStmt ? null : `/api/cut?${query}`
+  const plan = useJSON<CutPlan>(client, planPath, doc)
+  // p is what the map draws: the current plan, or the previous one while the next is planned (dimmed, "Planning…");
+  // current is the plan of this very query: only it authorises an export or a check, and only its size decides the check
   const p = plan.data
-  const autoCheck = !!p && p.bytes < 256 << 20
-  const [checkWanted, setCheckWanted] = useState<string | null>(null)
-  const check = useJSON<CutCheck>(client, p && (autoCheck || checkWanted === query) ? `/api/cut/check?${query}` : null, 300)
+  const current = currentOf(plan, planPath)
+  const pending = !!p && !current
+  const autoCheck = autoCheckOf(current)
+  // a check asked for is of this query on this document: a live session's next snapshot is asked again (a big check is
+  // not re-run on every snapshot); a small one is re-run by itself
+  const [checkWanted, setCheckWanted] = useState<{ query: string; doc: TraceDoc } | null>(null)
+  const check = useJSON<CutCheck>(client, checkPath(current, query, checkWanted?.doc === doc ? checkWanted.query : null), doc, 300)
   const files = doc.file.files ?? []
   const profilePaths = useMemo(() => files.map((_, i) => `/api/lines/profile?file=${i}&buckets=600`).join('|'), [files])
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -122,7 +138,7 @@ export function CutView({ doc }: { doc: TraceDoc }) {
     Promise.all(profilePaths.split('|').map((u) => client.fetch(u, { signal: ac.signal }).then((r) => (r.ok ? (r.json() as Promise<Profile>) : null))))
       .then((ps) => setProfiles(ps.map((x) => x ?? { total: 0, buckets: 0, size: 1, calls: [], waits: [] })), () => {})
     return () => ac.abort()
-  }, [client, profilePaths])
+  }, [client, profilePaths, doc]) // a live snapshot's files have grown
 
   useEffect(() => { setSel(null) }, [query])
   const pieces = p?.pieces ?? []
@@ -148,8 +164,9 @@ export function CutView({ doc }: { doc: TraceDoc }) {
     const path = await saveAs(safeFileName(fileName), fetchFile, [{ name: 'Oracle trace', extensions: ['trc'] }], 'Save the new trace')
     return path ? { text: `Saved ${path}`, path: inTauri ? path : undefined } : null
   })
+  // a name of its own in the cuts folder (<stem>-cut-<yyyymmdd-hhmmss>.trc): an earlier cut's tab keeps reading its own file
   const openNew = () => run('open', async () => {
-    const path = await writeCached('cuts', safeFileName(fileName), await fetchFile())
+    const path = await writeCut(traceStem(doc, tab), await fetchFile())
     openTab(path)
     return { text: `Opened ${path} in a new tab`, path }
   })
@@ -171,21 +188,16 @@ export function CutView({ doc }: { doc: TraceDoc }) {
             <button aria-pressed={mode === 'statement'} onClick={() => setMode('statement')} title="one statement's calls with their recursive work; its callers are left out">One statement</button>
           </span>
         </span>
-        {mode === 'statement' && (
-          <select aria-label="Statement" value={pick ?? ''} onChange={(e) => setStmt(Number(e.target.value))}>
-            {stmtChoices.map((s) => {
-              const st = doc.statements[s.id]
-              return <option key={s.id} value={s.id}>{(st?.sqlId || st?.commandName || `#${s.id}`) + ' · ' + fmtDur(s.elapsed) + ' · ' + (st?.text ?? '').replace(/\s+/g, ' ').slice(0, 60)}</option>
-            })}
-          </select>
-        )}
-        {inTauri && <button onClick={openNew} disabled={!p || busy !== null} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
-        <button className="primary" onClick={save} disabled={!p || busy !== null}>{busy === 'save' ? 'Saving…' : 'Save as…'}</button>
+        {mode === 'statement' && <StmtPicker choices={choices} pick={pick} onPick={setStmt} />}
+        {inTauri && <button onClick={openNew} disabled={!current || busy !== null} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
+        <button className="primary" onClick={save} disabled={!current || busy !== null} title={pending ? 'planning the cut of the new selection' : undefined}>{busy === 'save' ? 'Saving…' : 'Save as…'}</button>
       </header>
       <TimeStrip doc={doc} client={client} contexts={contexts} plan={p} mode={mode} onWindow={(w) => actions.setWindow(w)} />
-      <div className="cut-stage">
+      <div className={pending ? 'cut-stage pending' : 'cut-stage'} aria-busy={plan.loading}>
         <Legend mode={mode} multi={multi} />
-        {plan.error ? <p className="cut-msg bad" role="alert">{plan.error}</p>
+        {pending && <span className="cut-badge" role="status">Planning…</span>}
+        {noStmt ? <p className="cut-empty">No statement of this trace has calls: there is nothing to cut by statement.</p>
+          : plan.error ? <p className="cut-msg bad" role="alert">{plan.error}</p>
           : !p ? <p className="cut-empty">{plan.loading ? 'Planning the cut…' : ''}</p>
           : p.lines === 0 ? (
             <p className="cut-empty">
@@ -200,11 +212,11 @@ export function CutView({ doc }: { doc: TraceDoc }) {
           </p>
         )}
       </div>
-      <aside className="cut-side">
+      <aside className={pending ? 'cut-side pending' : 'cut-side'}>
         {p && p.lines > 0 && (
           <>
             <PieceCard doc={doc} plan={p} piece={pieces[selIdx]} mode={mode} onShow={(f, l) => actions.openLinesAt(f, l, { keepSelection: true })} />
-            <FileCard doc={doc} plan={p} check={check} autoCheck={autoCheck} onCheck={() => setCheckWanted(query)} />
+            <FileCard doc={doc} plan={p} pending={pending} check={check} autoCheck={autoCheck} onCheck={() => setCheckWanted({ query, doc })} />
             <SelectionCard doc={doc} plan={p} mode={mode} win={win} contexts={contexts} />
           </>
         )}
@@ -275,7 +287,7 @@ function TimeStrip({ doc, client, contexts, plan, mode, onWindow }: {
   const t1 = Math.max(doc.span.lastTim, t0 + 1)
   const bucket = Math.max(1, Math.ceil((t1 - t0) / 320))
   const ctx = contexts ? `&contexts=${contexts.size ? [...contexts].sort((a, b) => a - b).join(',') : '-'}` : ''
-  const tl = useJSON<{ n: number; firstTim: number; cpu: number[]; events: { event: number; us: number[] }[] }>(client, `/api/timeline?bucket=${bucket}&idle=0${ctx}`, 0)
+  const tl = useJSON<{ n: number; firstTim: number; cpu: number[]; events: { event: number; us: number[] }[] }>(client, `/api/timeline?bucket=${bucket}&idle=0${ctx}`, doc, 0)
   const [drag, setDrag] = useState<[number, number] | null>(null)
   const L0 = 120
   const R = Math.max(L0 + 10, w - 4)
@@ -625,7 +637,7 @@ function PieceCard({ doc, plan, piece, mode, onShow }: { doc: TraceDoc; plan: Cu
   )
 }
 
-function FileCard({ doc, plan, check, autoCheck, onCheck }: { doc: TraceDoc; plan: CutPlan; check: { data?: CutCheck; error?: string; loading: boolean }; autoCheck: boolean; onCheck: () => void }) {
+function FileCard({ doc, plan, pending, check, autoCheck, onCheck }: { doc: TraceDoc; plan: CutPlan; pending: boolean; check: JSONView<CutCheck>; autoCheck: boolean; onCheck: () => void }) {
   const files = doc.file.files ?? []
   const srcLines = files.reduce((a, f) => a + f.lines, 0)
   const srcBytes = files.reduce((a, f) => a + f.size, 0)
@@ -648,7 +660,8 @@ function FileCard({ doc, plan, check, autoCheck, onCheck }: { doc: TraceDoc; pla
           <dt>Bind values</dt><dd>{plan.binds === 'keep' ? 'kept' : plan.binds === 'mask' ? 'masked' : 'left out'}</dd>
         </dl>
         <div className="cut-check" aria-live="polite">
-          {check.error ? <span className="bad">Re-parse check failed to run: {check.error}</span>
+          {pending ? <span className="muted">Planning the new selection…</span>
+            : check.error ? <span className="bad">Re-parse check failed to run: {check.error}</span>
             : check.loading ? <span className="muted">Re-parsing the new file…</span>
             : ck ? (
               <>
@@ -660,7 +673,7 @@ function FileCard({ doc, plan, check, autoCheck, onCheck }: { doc: TraceDoc; pla
                   {(ck.mismatches ?? []).slice(0, 5).map((m) => <li key={m}><code>{m}</code></li>)}
                 </ul>
               </>
-            ) : !autoCheck ? <button className="quiet" onClick={onCheck}>Check: write it, parse it back, compare</button> : null}
+            ) : !autoCheck && plan.lines > 0 ? <button className="quiet" onClick={onCheck} title={plan.bytes > MAX_CHECK_BYTES ? `the new file is ${fmtBytes(plan.bytes)}: the check writes all of it to a temporary file and parses it back` : undefined}>Check: write it, parse it back, compare</button> : null}
         </div>
       </div>
     </section>

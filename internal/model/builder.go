@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -58,6 +59,12 @@ type Options struct {
 	// the final totals (equal to Diag.Bytes, Diag.Lines and len(Statements)).
 	// It runs on the parsing goroutine; keep it short. Nil costs nothing.
 	OnProgress func(bytes, lines, statements int64)
+
+	// Ctx, when set, cancels the build: BuildFiles checks it before every
+	// read of the input (the parser reads 1 MiB at a time) and returns its
+	// error, so a cancelled build stops within one read buffer. Nil: the
+	// build runs to its end.
+	Ctx context.Context
 }
 
 // Builder implements trace.Handler and produces a Model.
