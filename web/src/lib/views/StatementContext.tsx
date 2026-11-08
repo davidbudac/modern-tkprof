@@ -27,7 +27,7 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
   const source = sourceOf(doc)
   const stateScope = useScope(doc)
   const scope = narrowed ? stateScope : WHOLE
-  const waitsQ = useSourceQuery(source, `waits:${id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([id], 6, scope, signal) : null), 'waits')
+  const waitsQ = useSourceQuery(source, `waits:${id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([id], 6, scope, signal) : null), `waits:${id}`)
   if (!st || !stats) return null
   const cursorsIn = narrowed ? st.cursors.filter((c) => inScopeCursor(doc, c, stateScope)) : st.cursors
   const ctx = cursorsIn.length ? doc.contexts[doc.cursors[cursorsIn[0]].context] : undefined

@@ -154,7 +154,7 @@ function ResponseTime({ doc, stats, narrowed, scope }: { doc: TraceDoc; stats: S
   const total = responseUs(stats)
   const base = responseBaseUs(doc, scope, narrowed)
   const source = sourceOf(doc)
-  const waitsQ = useSourceQuery(source, `waits:${stats.id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([stats.id], 4, scope, signal) : null), 'waits')
+  const waitsQ = useSourceQuery(source, `waits:${stats.id}:${scopeKey(scope)}`, (signal) => (source.ready ? source.stmtWaits([stats.id], 4, scope, signal) : null), `waits:${stats.id}`)
   const waits = useMemo(() => waitsQ.data?.get(stats.id) ?? [], [waitsQ.data, stats.id])
   const segs = useMemo<Segment[]>(() => {
     const out: Segment[] = [{ role: 'cpu', label: 'CPU', us: stats.cpu }]
@@ -241,7 +241,7 @@ function CallTable({ stats }: { stats: StmtStats }) {
 function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Scope; jump: number }) {
   const actions = useActions()
   const source = sourceOf(doc)
-  const page = useSourceQuery(source, `executions:${id}:${scopeKey(scope)}`, (signal) => source.executions(id, scope, signal), 'executions')
+  const page = useSourceQuery(source, `executions:${id}:${scopeKey(scope)}`, (signal) => source.executions(id, scope, signal), `executions:${id}`)
   const exs = useMemo(() => page.data?.rows ?? [], [page.data])
   const [hidden, setHidden] = usePersisted<string[]>('mtkprof.cols.executions', [])
   const wanted = useStore((s) => s.selection.exec)
@@ -337,7 +337,7 @@ function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Sc
 /** One picked execution: its binds, or its Dialogue (the sequence diagram of its calls and waits). */
 function Binds({ doc, stmt, ex, mode, setMode }: { doc: TraceDoc; stmt: ID; ex: Execution; mode: 'binds' | 'dialogue'; setMode(m: 'binds' | 'dialogue'): void }) {
   const source = sourceOf(doc)
-  const detail = useSourceQuery(source, `detail:${stmt}:${ex.cursor}:${ex.execNo}`, (signal) => source.executionDetail(stmt, ex, signal), 'detail')
+  const detail = useSourceQuery(source, `detail:${stmt}:${ex.cursor}:${ex.execNo}`, (signal) => source.executionDetail(stmt, ex, signal), `detail:${stmt}:${ex.cursor}:${ex.execNo}`) // the key: another execution's binds never show under this one's heading
   const d = detail.data
   const binds = d?.binds ?? []
   const file = ex.ctx !== undefined ? doc.fileOfCtx(ex.ctx) : doc.fileOfCursor(ex.cursor)
