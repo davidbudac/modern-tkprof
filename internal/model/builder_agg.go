@@ -118,10 +118,39 @@ func (b *Builder) aggWait(w Wait, num uint64) {
 	}
 	if b.pendWait == 0 {
 		b.waitBuf = b.waitBuf[:0]
+	} else if n := len(b.waitBuf); n >= minWaitCompact && n >= 2*b.pendWait {
+		b.compactWaits()
 	}
 	b.waitBuf = append(b.waitBuf, w)
 	b.pendingWaits[num] = append(b.pendingWaits[num], ID(len(b.waitBuf)-1))
 	b.pendWait++
+}
+
+// minWaitCompact is the waitBuf length from which aggWait compacts it
+// (onCompact: the tests' hook).
+var (
+	minWaitCompact = 1024
+	onCompact      func()
+)
+
+// compactWaits drops the settled waits from waitBuf, renumbering the pending
+// ones. A cursor whose waits never find a call (a wait of cursor #0 outside a
+// transaction, a cursor closed without a further call) keeps pendWait above
+// zero, and waitBuf would otherwise grow with every wait of the file: it is
+// compacted when at most half of it is pending, so it stays within twice the
+// pending waits (the copying is amortised over the waits appended since).
+func (b *Builder) compactWaits() {
+	buf := make([]Wait, 0, 2*b.pendWait)
+	for _, ids := range b.pendingWaits {
+		for k, wid := range ids {
+			buf = append(buf, b.waitBuf[wid])
+			ids[k] = ID(len(buf) - 1)
+		}
+	}
+	b.waitBuf = buf
+	if onCompact != nil {
+		onCompact()
+	}
 }
 
 // foldWait hands a settled wait to the sink (call: the call it was attached
