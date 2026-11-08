@@ -54,9 +54,11 @@ func TestCheckAggregateEqualsFull(t *testing.T) {
 }
 
 // A check cancelled while it parses the cut back stops (the parse reads at
-// most one more buffer) and leaves no temporary file.
+// most one more buffer) and leaves no temporary file. The largest fixture is
+// about 1.5 read buffers; MTKPROF_CHECK_TRACE=/path/big.trc runs it on a cut
+// of many buffers, where the share of calls delivered shows the early stop.
 func TestCheckCancelledMidParse(t *testing.T) {
-	_, c := open(t, filepath.Join("..", "..", "testdata", "traces", "19c", "io_waits.trc"))
+	_, c := open(t, largest19c(t))
 	dir := t.TempDir()
 	ctx, cancel := context.WithCancel(context.Background())
 	calls, at := 0, 0
@@ -81,7 +83,8 @@ func TestCheckCancelledMidParse(t *testing.T) {
 	// the uncancelled check of the same cut sees every call: the cancelled one did not run to the end of a big file
 	cut.SetCheckHook(nil)
 	full, err := c.Check(context.Background(), cut.Selection{}, dir)
-	if err != nil || !full.OK {
+	// (a trace of MTKPROF_CHECK_TRACE need not cut perfectly: only the count of its calls matters here)
+	if err != nil || (!full.OK && os.Getenv("MTKPROF_CHECK_TRACE") == "") {
 		t.Fatalf("check: %+v %v", full, err)
 	}
 	if int64(calls) >= full.Calls {
