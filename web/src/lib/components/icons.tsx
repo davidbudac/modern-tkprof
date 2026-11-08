@@ -140,3 +140,13 @@ export const ListIcon = () => <Icon><path d="M3 6h.01" /><path d="M3 12h.01" /><
 
 /** A side panel at the end of the window. */
 export const PanelRightIcon = () => <Icon><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></Icon>
+
+/** A flame: the I/O map's Hot blocks (blocks read over and over). */
+export const FlameIcon = () => (
+  <Icon><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></Icon>
+)
+
+/** A grid of cells: the I/O map's density layer. */
+export const GridIcon = () => (
+  <Icon><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" /></Icon>
+)

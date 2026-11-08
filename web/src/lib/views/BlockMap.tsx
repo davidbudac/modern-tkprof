@@ -2,7 +2,10 @@ import { memo, useEffect, useMemo, useRef, useState, type PointerEvent as RPoint
 import { createPortal } from 'react-dom'
 import type { TraceDoc } from '../data/doc'
 import type { ID } from '../data/types'
-import { IO, isBlockIO, orderToTime, rereadOf, sampleStep, type IOMap } from '../data/iomap'
+import { IO, isBlockIO, orderToTime, rereadOf, sampleStep, type IOMap, type Reread } from '../data/iomap'
+import { HOT_SORTS, type HotSort, type IOHot, type IOHotRun, type IOObjStat, type IOStmtStat } from '../data/iohot'
+import { DC, type IODensity } from '../data/iodensity'
+import { cellAt, CELL_PX, densityLayer, densityRequest, DENSITY_MEASURES, xRangeOf, yRangeOf, type DensityLayer, type DensityMeasure, type DensityMode, type DensityRect, type DensityScale } from '../data/densitylayout'
 import {
   bandsOf, bracketsOf, colorByOf, colorRows, dragKind, hitTest, indexOfX, isTempEvent, isWriteEvent, labelRows, MIN_ZOOM_US, orderScale, panelsOf,
   panRange, rangesAt, rowsIn, RULER_X, scaleRange, timeExtent, timeScale, timOfX, xOfIndex, xOfTim, xTicks, yTicks, ySpan, drawBlockMap,
@@ -11,6 +14,7 @@ import {
 import { latBucketLo, latencyHists, LAT_BUCKETS, objectStats, sizeHists, SIZE_HIST_LABELS, type ObjStat } from '../data/iostats'
 import { DEFAULT_NAME_OPTS, hasContainers, nameCounts, nameOptsOf, objInfo, objParts, objText, pdbOfCtx, type NameOpts } from '../data/objnames'
 import { scopeKey, useScope } from '../data/scopedstmts'
+import type { Scope } from '../state/store'
 import { sourceOf, useSourceQuery } from '../data/source'
 import { activeFilters } from '../data/filters'
 import { fmtDur, fmtInt, fmtWall } from '../data/format'
@@ -26,7 +30,7 @@ import { usePopover } from '../components/usePopover'
 import { ImportNames } from './RefImport'
 import { Shimmer, useReveal } from '../components/motion'
 import {
-  ChartColumnIcon, CloseIcon, DatabaseIcon, ListIcon, PanelRightIcon, ScanIcon, SlidersHorizontalIcon, UndoIcon, ZoomInIcon, ZoomOutIcon,
+  ChartColumnIcon, CloseIcon, DatabaseIcon, FlameIcon, ListIcon, PanelRightIcon, ScanIcon, SlidersHorizontalIcon, UndoIcon, ZoomInIcon, ZoomOutIcon,
 } from '../components/icons'
 import '../styles/lines.css'
 import '../styles/blockmap.css'
@@ -47,10 +51,12 @@ const NAV_H = 30
 const NAV_LIMIT = 5000
 const QUERY_DELAY_MS = 200 // a zoom is re-queried after this long without a change (wheel, pan)
 const WHEEL_JOIN_MS = 700 // wheel steps closer than this are one zoom step (Out undoes them together)
+const HOT_RUNS = 100 // runs the Hot blocks tab lists
 
-type SideTab = 'objects' | 'statements' | 'dist' | 'display'
+type SideTab = 'objects' | 'hot' | 'statements' | 'dist' | 'display'
 const SIDE_TABS: { tab: SideTab; label: string; title: string; icon: () => React.JSX.Element }[] = [
   { tab: 'objects', label: 'Objects', title: 'per object: waits, time, blocks, re-reads, how sequential; click one to highlight its marks', icon: DatabaseIcon },
+  { tab: 'hot', label: 'Hot blocks', title: 'the blocks read most often, in runs of adjacent blocks, counted over every wait; click one to zoom to it', icon: FlameIcon },
   { tab: 'statements', label: 'Statements', title: 'per statement and file: reads, writes, distinct blocks and re-reads per block', icon: ListIcon },
   { tab: 'dist', label: 'Distributions', title: 'latency per event (a histogram and its percentiles) and blocks per wait', icon: ChartColumnIcon },
   { tab: 'display', label: 'Display', title: 'object names (schema, PDB, partition, obj#), the block axis, the extents, the marks', icon: SlidersHorizontalIcon },
@@ -73,8 +79,21 @@ const COLOR_GROUPS: { label: string; modes: { by: ColorBy; label: string; title:
   { label: 'How it went', modes: [
     { by: 'latency', label: 'Latency', title: 'how long each wait took, on a ramp from fast (light) to slow (strong)' },
     { by: 'size', label: 'Read size', title: 'how many blocks each wait moved (single block, multiblock up to 65+)' },
+    { by: 'reread', label: 'Re-reads', title: 'how many times the most read block of each mark was read in scope, counted over every wait (not the sample): once (faint) to 17+ (strong)' },
   ] },
 ]
+
+const DENSITY_MODES: { mode: DensityMode; label: string; title: string }[] = [
+  { mode: 'auto', label: 'auto', title: 'while the marks are a sample (above the marks limit), every wait counted into cells under them' },
+  { mode: 'always', label: 'on', title: 'always: every wait in scope counted into cells under the marks' },
+  { mode: 'off', label: 'off', title: 'no density layer' },
+]
+const MEASURE_LABELS: Record<DensityMeasure, { label: string; unit: string; title: string }> = {
+  waits: { label: 'Waits', unit: 'waits', title: 'the waits that touched the cell (a multiblock read over two cells counts in both)' },
+  blocks: { label: 'Blocks', unit: 'blocks', title: 'the blocks those waits moved in the cell' },
+  us: { label: 'Time', unit: 'time', title: 'their elapsed time, each wait\'s share of it by its blocks in the cell' },
+}
+const HOT_SORT_LABELS: Record<HotSort, string> = { rereads: 'most re-reads', max: 'most reads of one block', us: 'most time' }
 const colorLabel = (by: ColorBy) => COLOR_GROUPS.flatMap((g) => g.modes).find((m) => m.by === by)?.label ?? by
 
 const toneColor = (t: Tone) => (t.shade === 0 ? resolveVar(t.token) : tokenShade(t.token, t.shade))
@@ -109,11 +128,15 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] 
   return [ref, w]
 }
 
-/** `v`, `ms` after it last changed (the zoom's re-query waits for the wheel or a pan to rest); the first value and null (no zoom) at once. */
+/**
+ * `v`, `ms` after it last changed (the zoom's re-query waits for the wheel or a pan to rest); the first value and null (no zoom) at
+ * once. A null forgets the value before it: the next value is null until it has rested, never the stale one.
+ */
 function useSettled<T>(v: T | null, ms: number): T | null {
   const [s, setS] = useState(v)
   useEffect(() => {
-    if (s === v || v === null) return
+    if (v === null) { if (s !== null) setS(null); return }
+    if (s === v) return
     const t = setTimeout(() => setS(v), ms)
     return () => clearTimeout(t)
   }, [v, ms, s])
@@ -148,7 +171,7 @@ function kindCounts(doc: TraceDoc, byEvent: Map<ID, number>, k: number): string 
 const objKey = (doc: TraceDoc, r: number[]) => (isTempEvent(doc.events[r[IO.event]]) ? `t${r[IO.file]}` : r[IO.obj] >= 0 ? `o${r[IO.obj]}` : `n${r[IO.file]}`)
 
 /** What a highlight keeps bright: legend entries of a colour mode (by `entryKey`: the legend's order changes with the rows), an object group, or a statement. */
-type Focus = { kind: 'legend'; by: ColorBy; entries: string[] } | { kind: 'obj'; key: string } | { kind: 'stmt'; stmt: number } | null
+type Focus = { kind: 'legend'; by: ColorBy; entries: string[] } | { kind: 'obj'; key: string } | { kind: 'stmt'; stmt: number } | { kind: 'blocks'; file: number; lo: number; hi: number } | null
 
 /** A legend entry's identity across answers (its place in the legend is not). */
 const entryKey = (l: LegendEntry) => `${l.kind}:${l.key}`
@@ -175,6 +198,11 @@ interface Settings {
   packed: boolean
   bands: boolean
   names: NameOpts
+  density: DensityMode
+  densityBy: DensityMeasure
+  densityScale: DensityScale
+  /** draw the marks (off: the density alone) */
+  marks: boolean
 }
 
 export function BlockMap({ doc }: { doc: TraceDoc }) {
@@ -189,13 +217,22 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
   const [namesRaw, setNames] = usePersisted<NameOpts>('mtkprof.blocks.names', DEFAULT_NAME_OPTS)
   const [side, setSide] = usePersisted<boolean>('mtkprof.blocks.side', true)
   const [tabRaw, setTab] = usePersisted<string>('mtkprof.blocks.sideTab', 'objects')
+  const [densityRaw, setDensity] = usePersisted<string>('mtkprof.blocks.density', 'auto')
+  const [densityByRaw, setDensityBy] = usePersisted<string>('mtkprof.blocks.densityBy', 'waits')
+  const [densityScaleRaw, setDensityScale] = usePersisted<string>('mtkprof.blocks.densityScale', 'sqrt')
+  const [marks, setMarks] = usePersisted<boolean>('mtkprof.blocks.marks', true)
+  const [hotSortRaw, setHotSort] = usePersisted<string>('mtkprof.blocks.hotSort', 'rereads')
   const limit = (LIMITS as readonly number[]).includes(limitRaw) ? limitRaw : 20000
   const colorBy = colorByOf(colorRaw)
   const axis = axisRaw === 'time' ? 'time' : 'order'
   const panelsBy: PanelsBy = panelsRaw === 'object' ? 'object' : 'file'
   const names = useMemo(() => nameOptsOf(namesRaw), [namesRaw])
   const tab: SideTab = SIDE_TABS.some((t) => t.tab === tabRaw) ? (tabRaw as SideTab) : 'objects'
-  const settings: Settings = { colorBy, axis, panelsBy, packed: !!packed, bands: bands !== false, names }
+  const density: DensityMode = densityRaw === 'always' || densityRaw === 'off' ? densityRaw : 'auto'
+  const densityBy: DensityMeasure = (DENSITY_MEASURES as readonly string[]).includes(densityByRaw) ? (densityByRaw as DensityMeasure) : 'waits'
+  const densityScale: DensityScale = densityScaleRaw === 'log' ? 'log' : 'sqrt'
+  const hotSort: HotSort = (HOT_SORTS as readonly string[]).includes(hotSortRaw) ? (hotSortRaw as HotSort) : 'rereads'
+  const settings: Settings = { colorBy, axis, panelsBy, packed: !!packed, bands: bands !== false, names, density, densityBy, densityScale, marks: marks !== false }
 
   // the filter (statement, event) is in the store: the links into the I/O map set it (`showBlocks`); so is the zoom stack
   const { stmt: stmtSel, event: eventSel } = useStore((s) => s.blocks)
@@ -206,8 +243,9 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
   const scope = useScope(doc, qRange ? { window: qRange } : {})
   const baseScope = useScope(doc)
   const filterKey = `${stmtSel ?? ''}:${eventSel ?? ''}`
-  const q = useSourceQuery(source, `iomap:${scopeKey(scope)}:${limit}:${filterKey}`,
-    (signal) => (source.ready ? source.ioMap(scope, limit, stmtSel ?? undefined, eventSel ?? undefined, signal) : null), 'iomap')
+  const reads = colorBy === 'reread' // the re-reads colour asks the engine for each row's reads
+  const q = useSourceQuery(source, `iomap:${scopeKey(scope)}:${limit}:${filterKey}:${reads ? 'r' : ''}`,
+    (signal) => (source.ready ? source.ioMap(scope, limit, stmtSel ?? undefined, eventSel ?? undefined, signal, { reads }) : null), 'iomap')
   // the navigator shows the unzoomed answer: the last one seen for this scope and filter, else (zoomed on arrival) a small one of its own
   const baseKey = `${scopeKey(baseScope)}:${filterKey}`
   const lastBase = useRef<{ key: string; map: IOMap } | null>(null)
@@ -217,6 +255,12 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
     (signal) => (needNav && source.ready ? source.ioMap(baseScope, NAV_LIMIT, stmtSel ?? undefined, eventSel ?? undefined, signal) : null), 'iomap-nav')
   const navMap = !qRange ? q.data ?? null : lastBase.current?.key === baseKey ? lastBase.current.map : navQ.data ?? null
   const full = useMemo(() => (navMap ? timeExtent(navMap.rows) : null), [navMap])
+  // the exact numbers over every wait in scope (the Hot blocks tab, and the Objects and Statements tabs when it answers)
+  const wantHot = side && (tab === 'objects' || tab === 'hot' || tab === 'statements')
+  const hotQ = useSourceQuery(source, wantHot ? `iohot:${scopeKey(scope)}:${filterKey}:${hotSort}` : 'iohot:none',
+    (signal) => (wantHot && source.ready ? source.ioHot(scope, { limit: HOT_RUNS, sort: hotSort }, stmtSel ?? undefined, eventSel ?? undefined, signal) : null), 'iohot')
+  const hot = wantHot && !hotQ.loading ? hotQ.data ?? null : null
+  const panelsRef = useRef<Panel[]>([])
 
   // what is drawn: the answer's rows inside the zoom (the answer of the previous zoom while the new one is on its way)
   const map = q.data ?? null
@@ -261,6 +305,17 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
   }, [])
 
   const openTab = (t: SideTab) => { if (side && tab === t) setSide(false); else { setSide(true); setTab(t) } }
+  /** A hot run: highlight its marks and zoom its panel's blocks to it (with as much context again on either side, at least 8 blocks). */
+  const showRun = (r: IOHotRun) => {
+    setFocus({ kind: 'blocks', file: r.file, lo: r.lo, hi: r.hi })
+    const keys = panelsRef.current.map((p) => p.key)
+    const cands = panelsBy === 'file' ? [`f${r.file}`] : r.temp ? [`t${r.file}`]
+      : [...r.objs.map(([o]) => (o >= 0 ? `o${o}` : `n${r.file}`)), ...(r.objs.some(([o]) => o >= 0) ? ['rest'] : []), `n${r.file}`]
+    const key = cands.find((k) => keys.includes(k))
+    if (!key) return
+    const pad = Math.max(8, Math.ceil((r.hi - r.lo) / 2))
+    actions.zoomIO({ range: top?.range ?? null, blocks: { ...(top?.blocks ?? {}), [key]: [{ file: r.file, lo: Math.max(0, r.lo - pad), hi: r.hi + pad }] } })
+  }
   const zoomed = zoomStack.length > 0
   const blockZooms = top ? Object.keys(top.blocks).length : 0
   const base = doc.span.firstTim
@@ -288,6 +343,12 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
           <select value={panelsBy} onChange={(e) => { setPanelsBy(e.target.value); if (top && Object.keys(top.blocks).length) actions.zoomIO({ range: top.range, blocks: {} }) }} aria-label="One panel per">
             <option value="file">per file</option>
             <option value="object">per object</option>
+          </select>
+        </label>
+        <label className="iom-ctl" title="a layer under the marks: every wait in scope (not a sample) counted into cells of about 4 px, darker where more waits touched (Display › Density says what it counts)">
+          <span className="iom-lbl">Density</span>
+          <select value={density} onChange={(e) => setDensity(e.target.value)} aria-label="Density layer">
+            {DENSITY_MODES.map((m) => <option key={m.mode} value={m.mode} title={m.title}>{m.label}</option>)}
           </select>
         </label>
         {stmtSel !== null && (
@@ -346,7 +407,8 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
   else if (q.data === null) body = <p className="muted small iom-msg" role="status">The I/O map needs the engine route api/io/map, which this engine does not serve: update mtkprof.</p>
   else if (q.data.total === 0 && !range) body = <BlockEmpty doc={doc} only={stmtSel} event={eventSel} />
   else body = (
-    <Figure doc={doc} map={view!} full={full} navRows={navMap?.rows ?? null} range={range} top={top} settings={settings} loading={q.loading}
+    <Figure doc={doc} map={view!} whole={view === q.data} full={full} navRows={navMap?.rows ?? null} range={range} top={top} settings={settings} loading={q.loading}
+      scope={scope} stmt={stmtSel} event={eventSel} panelsRef={panelsRef}
       focus={focus} hoverEntry={hoverEntry} onHoverEntry={setHoverEntry} onFocus={setFocus} onOnly={(s) => actions.setBlocks({ stmt: s })} />
   )
 
@@ -361,11 +423,13 @@ export function BlockMap({ doc }: { doc: TraceDoc }) {
             <SideHead tab={tab} onTab={setTab} onClose={() => setSide(false)} />
             <div className="iom-side-body" role="tabpanel">
               {tab === 'display'
-                ? <DisplayTab doc={doc} settings={settings} limit={limit} setLimit={setLimit} setNames={setNames} setPacked={setPacked} setBands={setBands} />
+                ? <DisplayTab doc={doc} settings={settings} limit={limit} setLimit={setLimit} setNames={setNames} setPacked={setPacked} setBands={setBands}
+                    setDensity={setDensity} setDensityBy={setDensityBy} setDensityScale={setDensityScale} setMarks={setMarks} />
                 : !view || view.rows.length === 0
                   ? <p className="small muted">{q.loading ? 'loading…' : 'No block I/O in view.'}</p>
-                  : tab === 'objects' ? <ObjectsTab doc={doc} map={view} k={k} names={names} focus={focus} onFocus={setFocus} />
-                  : tab === 'statements' ? <StatementsTab doc={doc} map={view} k={k} only={stmtSel} focus={focus} onFocus={setFocus} onOnly={(s) => actions.setBlocks({ stmt: s })} />
+                  : tab === 'objects' ? <ObjectsTab doc={doc} map={view} k={k} names={names} focus={focus} onFocus={setFocus} hot={hot} hotLoading={hotQ.loading} />
+                  : tab === 'hot' ? <HotTab doc={doc} map={view} hot={hot} loading={hotQ.loading} error={hotQ.error} names={names} sort={hotSort} setSort={setHotSort} focus={focus} onRun={showRun} onClear={() => setFocus(null)} />
+                  : tab === 'statements' ? <StatementsTab doc={doc} map={view} k={k} only={stmtSel} focus={focus} onFocus={setFocus} onOnly={(s) => actions.setBlocks({ stmt: s })} hot={hot} />
                   : <DistTab doc={doc} map={view} k={k} />}
             </div>
           </aside>
@@ -434,8 +498,12 @@ interface Pin { rows: number[][]; row: number; anchor: { x: number; y: number } 
 interface Brush { pi: number; kind: 'x' | 'y' | 'xy'; x0: number; x1: number; y0: number; y1: number }
 
 /** The figure: the navigator, the legend, brackets, one panel per file or object, the shared x axis; the tooltip and the pinned popover. */
-function Figure({ doc, map, full, navRows, range, top, settings, loading, focus, hoverEntry, onHoverEntry, onFocus, onOnly }: {
+function Figure({ doc, map, whole, full, navRows, range, top, settings, loading, scope, stmt, event, panelsRef, focus, hoverEntry, onHoverEntry, onFocus, onOnly }: {
+  /** `map` is the answer itself, not its rows inside a zoom whose own answer is on its way (`rowsIn`) */
+  whole: boolean
   doc: TraceDoc; map: IOMap; full: TimeRange | null; navRows: number[][] | null; range: TimeRange | null; top: IOZoom | null; settings: Settings; loading: boolean
+  /** the scope of the answer (the density is asked over it) and the filter */
+  scope: Scope; stmt: ID | null; event: ID | null; panelsRef: React.MutableRefObject<Panel[]>
   focus: Focus; hoverEntry: string | null; onHoverEntry(e: string | null): void; onFocus(f: Focus): void; onOnly(s: ID | null): void
 }) {
   const actions = useActions()
@@ -454,13 +522,36 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
     session: (c) => doc.contexts[c]?.sessionId || undefined,
   }), [doc])
   const panels = useMemo(() => panelsOf(map, doc.events, { by: settings.panelsBy, packed: settings.packed, zoom: top?.blocks }), [map, doc, settings.panelsBy, settings.packed, top])
+  panelsRef.current = panels
   const brackets = useMemo(() => bracketsOf(rows, (ctx) => doc.contexts[ctx]?.action ?? ''), [rows, doc])
   const xs = useMemo<XScale>(() => (axis === 'order' ? orderScale(rows.length, plotW, brackets.runs) : timeScale(rows, plotW, range)), [axis, rows, plotW, brackets, range])
   const coloring = useMemo(() => colorRows(map, doc.events, colorBy, cx), [map, doc, colorBy, cx])
   const bands = useMemo(() => panels.map((p) => (settings.bands ? bandsOf(map, doc.events, p, coloring.objectTone) : [])), [panels, map, doc, coloring, settings.bands])
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const resolved = useMemo(() => ({ tones: coloring.tones.map(toneColor), grid: resolveVar('--c-grid'), nav: resolveVar('--ink-3') }), [coloring, theme])
+  const resolved = useMemo(() => ({ tones: coloring.tones.map(toneColor), grid: resolveVar('--c-grid'), nav: resolveVar('--ink-3'), dens: resolveVar('--bm-dens') }), [coloring, theme])
   const bandColors = useMemo(() => bands.map((bs) => bs.map((b) => ({ runs: b.runs, color: toneColor(b.tone) }))), [bands, resolved]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // the density layer: every wait of the scope counted into the cells of this layout (asked again 200 ms after the layout rests)
+  const source = sourceOf(doc)
+  const densityOn = settings.density === 'always' || (settings.density === 'auto' && map.sampled)
+  // only for the answer's own rows (the order axis of a zoom's rows drawn from the previous answer counts from another start); on an
+  // unzoomed time axis the engine bins over the matches' own extent (the sample's is narrower), and the cells land by their times
+  const reqKey = useMemo(() => (densityOn && !loading && whole && rows.length > 0
+    ? JSON.stringify(densityRequest(panels, xs, k, map.total, undefined, xs.mode === 'time' && !range)) : null), [densityOn, loading, whole, rows, panels, xs, k, map.total, range])
+  const settledReq = useSettled(reqKey, QUERY_DELAY_MS)
+  const sk = scopeKey(scope)
+  const densKey = settledReq ? `iodens:${sk}:${stmt ?? ''}:${event ?? ''}:${settledReq}` : 'iodens:none'
+  const densQ = useSourceQuery(source, densKey, (signal) => {
+    if (!settledReq || !source.ready) return null
+    const wrap = (d: IODensity | null) => (d ? { d, scope: sk } : null)
+    const r = source.ioDensity(scope, JSON.parse(settledReq), stmt ?? undefined, event ?? undefined, signal)
+    return r instanceof Promise ? r.then(wrap) : wrap(r) // a local source answers in the same render
+  }, 'iodens')
+  // an answer of another scope places the order axis' cells wrongly (their match indices count from another start); one of the
+  // same scope, or any on the time axis, stays right while a newer one loads
+  const dens: IODensity | null = densityOn && densQ.data && densQ.data.d.x === xs.mode && ((densQ.data.scope === sk && whole) || densQ.data.d.x === 'time') ? densQ.data.d : null
+  const layer = useMemo<DensityLayer | null>(() => (dens ? densityLayer(dens, panels, xs, k, settings.densityBy, settings.densityScale) : null), [dens, panels, xs, k, settings.densityBy, settings.densityScale])
+  const densPaint = useMemo(() => panels.map((_, pi) => (layer ? { rects: layer.byPanel[pi], color: resolved.dens } : null)), [panels, layer, resolved])
   /** the PDB of an object: the container of its first wait's session */
   const pdbOf = useMemo(() => {
     if (!names.pdb) return () => undefined
@@ -477,11 +568,24 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
     else if (focus?.kind === 'legend' && focus.by === colorBy) test = at(focus.entries)
     else if (focus?.kind === 'obj') test = (i) => objKey(doc, rows[i]) === focus.key
     else if (focus?.kind === 'stmt') test = (i) => rows[i][IO.stmt] === focus.stmt
+    else if (focus?.kind === 'blocks') test = (i) => rows[i][IO.file] === focus.file && rows[i][IO.block] < focus.hi && rows[i][IO.block] + rows[i][IO.blocks] > focus.lo
     if (!test) return null
     const m = new Uint8Array(rows.length)
     for (let i = 0; i < rows.length; i++) m[i] = test(i) ? 1 : 0
     return m
   }, [hoverEntry, focus, coloring, colorBy, rows, doc])
+
+  // a hot run picked in the side panel: bring the panel it zoomed into view
+  const panelsNow = useRef(panels)
+  panelsNow.current = panels
+  useEffect(() => {
+    if (focus?.kind !== 'blocks') return
+    const ps = panelsNow.current
+    let i = ps.findIndex((p) => p.zoomed && p.files.includes(focus.file))
+    if (i < 0) i = ps.findIndex((p) => p.files.includes(focus.file))
+    const el = boxRef.current?.querySelectorAll<HTMLElement>('.bm-panel')[i]
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ block: 'center' }))
+  }, [focus, boxRef])
 
   const [hoverRaw, setHover] = useState<Hover | null>(null)
   const [pinRaw, setPin] = useState<Pin | null>(null)
@@ -538,7 +642,7 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
       if (kind) { setBrush({ pi: d.pi, kind, x0: d.x0, x1: d.x1, y0: d.y0, y1: d.y1 }); setHover(null); return }
       setBrush(null) // back within the slop: a click again
     }
-    const row = hitTest(xs, rows, panels[pi], x, y)
+    const row = settings.marks ? hitTest(xs, rows, panels[pi], x, y) : -1
     setHover({ rows, panel: pi, row, x, y })
   }
   const onUp = (pi: number) => (e: RPointerEvent<SVGSVGElement>) => {
@@ -566,11 +670,13 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
       actions.zoomIO({ range: nextRange, blocks })
       return
     }
-    const row = hitTest(xs, rows, panels[pi], localX(e), localY(e))
+    const row = settings.marks ? hitTest(xs, rows, panels[pi], localX(e), localY(e)) : -1
     setPin(row >= 0 ? { rows, row, anchor: { x: e.clientX, y: e.clientY } } : null)
   }
 
   const shown = hover && hover.row >= 0 && hover.row < rows.length && !pin ? hover.row : -1
+  // no mark under the pointer: the density cell there
+  const hoverCell: DensityRect | null = hover && shown < 0 && !pin && !brush && layer ? cellAt(layer.byPanel[hover.panel] ?? [], hover.x, hover.y) : null
   const crossX = hover ? hover.x : null
 
   // brackets over the figure: the phases on top, then the statements' stretches, each bracket right above its label, on up to three
@@ -608,6 +714,7 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
             const next = cur.includes(e) ? cur.filter((x) => x !== e) : add ? [...cur, e] : [e]
             onFocus(next.length ? { kind: 'legend', by: colorBy, entries: next } : null)
           }} />
+        {densityOn && <DensityKey layer={layer} dens={dens} by={settings.densityBy} scale={settings.densityScale} loading={densQ.loading} sampled={map.sampled} k={k} marks={settings.marks} />}
         {focus?.kind === 'legend' && focus.by === colorBy && !coloring.legend.some((l) => focus.entries.includes(entryKey(l))) && (
           <p className="iom-focus small">What is highlighted has no waits in this range.
             <button type="button" className="quiet" onClick={() => onFocus(null)} aria-label="Stop highlighting" title="stop highlighting">×</button></p>
@@ -616,7 +723,7 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
           <p className="iom-focus small muted">Nothing here is named by {colorBy === 'type' ? 'a plan or ' : ''}a reference bundle: the bundle names owners, types and tablespaces. <ImportNames doc={doc} /></p>
         )}
         {focus && focus.kind !== 'legend' && (
-          <p className="iom-focus small">Highlighting {focus.kind === 'obj' ? 'one object' : <StmtLink doc={doc} id={focus.stmt} />}
+          <p className="iom-focus small">Highlighting {focus.kind === 'obj' ? 'one object' : focus.kind === 'blocks' ? <>blocks {fmtInt(focus.lo)} to {fmtInt(focus.hi - 1)} of file {focus.file}</> : <StmtLink doc={doc} id={focus.stmt} />}
             <button type="button" className="quiet" onClick={() => onFocus(null)} aria-label="Stop highlighting" title="stop highlighting">×</button></p>
         )}
         {rows.length === 0 && <p className="muted small">No block I/O in this range: zoom out (−) or reset (0).</p>}
@@ -658,7 +765,8 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
                   </span>
                 ))}
               </div>
-              <PanelCanvas panel={p} rows={rows} xs={xs} coloring={coloring} tones={resolved.tones} grid={resolved.grid} bands={bandColors[pi]} focus={mask} left={Y_AXIS - RULER_X} />
+              <PanelCanvas panel={p} rows={rows} xs={xs} coloring={coloring} tones={resolved.tones} grid={resolved.grid} bands={bandColors[pi]} focus={mask} left={Y_AXIS - RULER_X}
+                density={densPaint[pi]} marks={settings.marks} />
               <svg className="bm-overlay" style={{ left: Y_AXIS }} width={xs.width} height={p.height}
                 role="img" aria-label={`${panelName(doc, p)}: ${fmtInt(p.n)} block I/O waits; drag to zoom (across: time, up or down: blocks), double-click to zoom out, click a mark for its line`}
                 onPointerDown={onDown(pi)} onPointerMove={onMove(pi)} onPointerUp={onUp(pi)} onPointerLeave={() => setHover(null)}
@@ -671,6 +779,7 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
                 })()}
                 {crossX !== null && !brush && <line className="bm-cross" x1={crossX + 0.5} x2={crossX + 0.5} y1={0} y2={p.height} />}
                 {hover && hover.panel === pi && !brush && <line className="bm-cross" x1={0} x2={xs.width} y1={hover.y + 0.5} y2={hover.y + 0.5} />}
+                {hoverCell && hover?.panel === pi && <rect className="bm-cell" x={hoverCell.x - 0.5} y={hoverCell.y - 0.5} width={hoverCell.w + 1} height={hoverCell.h + 1} />}
                 {(pin?.row ?? shown) >= 0 && p.rows.includes(pin?.row ?? shown) && (() => {
                   const i = pin?.row ?? shown
                   const r = rows[i]
@@ -696,6 +805,7 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
         </p>
       </div>
       {shown >= 0 && hover && <Tip doc={doc} row={rows[shown]} names={names} panelEl={boxRef.current} hover={hover} />}
+      {hoverCell && hover && dens && <CellTip doc={doc} d={dens} cell={dens.cells[hoverCell.cell]} k={k} panelEl={boxRef.current} hover={hover} />}
       {pin && <PinPop doc={doc} row={rows[pin.row]} names={names} anchor={pin.anchor} onClose={() => setPin(null)} onOnly={onOnly} />}
     </div>
   )
@@ -734,8 +844,9 @@ function PanelTitle({ doc, p, names, pdbOf, bands, sampled, k }: {
 }
 
 /** One panel's canvas: painted by `drawBlockMap` whenever the data, the size, the colours or the highlight change (not on hover). */
-const PanelCanvas = memo(function PanelCanvas({ panel, rows, xs, coloring, tones, grid, bands, focus, left }: {
+const PanelCanvas = memo(function PanelCanvas({ panel, rows, xs, coloring, tones, grid, bands, focus, left, density, marks }: {
   panel: Panel; rows: number[][]; xs: XScale; coloring: Coloring; tones: string[]; grid: string; bands: { runs: { lo: number; hi: number }[]; color: string }[]; focus: Uint8Array | null; left: number
+  density: { rects: DensityRect[]; color: string } | null; marks: boolean
 }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const w = xs.width + RULER_X, h = panel.height
@@ -748,8 +859,8 @@ const PanelCanvas = memo(function PanelCanvas({ panel, rows, xs, coloring, tones
     const ctx = cv.getContext('2d')
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, RULER_X * dpr, 0)
-    drawBlockMap(ctx, panel, rows, xs, coloring.idx, { tones, grid, bands }, focus)
-  }, [panel, rows, xs, coloring, tones, grid, bands, focus, w, h])
+    drawBlockMap(ctx, panel, rows, xs, coloring.idx, { tones, grid, bands }, focus, { density, marks })
+  }, [panel, rows, xs, coloring, tones, grid, bands, focus, w, h, density, marks])
   return <canvas ref={ref} className="bm-canvas" style={{ left, inlineSize: w, blockSize: h }} />
 })
 
@@ -910,6 +1021,50 @@ function PinPop({ doc, row, names, anchor, onClose, onOnly }: { doc: TraceDoc; r
   )
 }
 
+/** The density's key: what a cell counts, its scale as a ramp from faint to strong with the largest cell's count, and that it is every wait. */
+function DensityKey({ layer, dens, by, scale, loading, sampled, k, marks }: {
+  layer: DensityLayer | null; dens: IODensity | null; by: DensityMeasure; scale: DensityScale; loading: boolean; sampled: boolean; k: number; marks: boolean
+}) {
+  const unit = MEASURE_LABELS[by].unit
+  const fmt = (v: number) => (by === 'us' ? fmtDur(v) : fmtInt(v))
+  const max = layer?.max ?? 0
+  return (
+    <div className="iom-dkey small" role="group" aria-label="Density layer">
+      <span className="iom-legend-h">Density</span>
+      {dens && max > 0 ? <>
+        <span className="iom-dramp" aria-hidden="true" />
+        <span className="muted">{by === 'us' ? 'time' : `1 ${unit === 'waits' ? 'wait' : 'block'}`}{' → '}<b>{fmt(max)}</b>{by === 'us' ? '' : ` ${unit}`} in a cell of ~{CELL_PX} px ({scale === 'log' ? 'log' : '√'} scale)</span>
+        <span className="muted">· every one of {fmtInt(dens.total)} waits{sampled ? <>, the marks show 1 in {fmtInt(k)}</> : ''}{!marks ? ' (marks hidden)' : ''}</span>
+      </> : <span className="muted">{loading ? <Shimmer>counting every wait…</Shimmer> : 'no cells in this range'}</span>}
+      {dens && loading && <Shimmer>updating…</Shimmer>}
+    </div>
+  )
+}
+
+/** A density cell: how many waits touched it, their blocks and time there, the event most of them were, where it is. */
+function CellTip({ doc, d, cell, k, hover, panelEl }: { doc: TraceDoc; d: IODensity; cell: number[]; k: number; hover: Hover; panelEl: HTMLElement | null }) {
+  const plot = panelEl?.querySelectorAll<HTMLElement>('.bm-plot')[hover.panel]
+  if (!plot || !cell) return null
+  const r = plot.getBoundingClientRect()
+  const x = r.left + Y_AXIS + hover.x, y = r.top + hover.y
+  const right = x + 300 > window.innerWidth
+  const yr = yRangeOf(d.panels[cell[DC.panel]]?.segs ?? [], cell[DC.y])
+  const xr = xRangeOf(d, cell[DC.x])
+  const ev = doc.events[cell[DC.event]]
+  const base = doc.span.firstTim
+  void k
+  return createPortal(
+    <div className="bm-tip small" style={{ left: right ? x - 12 : x + 14, top: y + 14, translate: right ? '-100% 0' : undefined }} role="tooltip">
+      <div className="bm-tip-h"><b>{fmtInt(cell[DC.waits])} {cell[DC.waits] === 1 ? 'wait' : 'waits'}</b><span className="muted">{fmtInt(cell[DC.blocks])} {cell[DC.blocks] === 1 ? 'block' : 'blocks'} · {fmtDur(cell[DC.us])}</span></div>
+      <div>mostly {ev?.name ?? `event ${cell[DC.event]}`} <span className="muted">({Math.round((100 * cell[DC.eventWaits]) / Math.max(1, cell[DC.waits]))} %)</span></div>
+      {yr && <div className="muted">file {yr.file} · {yr.hi - yr.lo > 1 ? <>blocks {fmtInt(yr.lo)} to {fmtInt(yr.hi - 1)}</> : <>block {fmtInt(yr.lo)}</>}</div>}
+      {xr && <div className="muted">{d.x === 'order' ? <>waits {fmtInt(Math.ceil(xr[0]) + 1)} to {fmtInt(Math.ceil(xr[1]))} of {fmtInt(d.total)} in I/O order</> : <>+{fmtDur(xr[0] - base)} to +{fmtDur(xr[1] - base)}</>}</div>}
+      <div className="muted">density: every wait in scope, not the sample</div>
+    </div>,
+    document.body,
+  )
+}
+
 // ---- the side panel -------------------------------------------------------------------------------
 
 /** "≈1,331" for a count of a sampled answer (× the step), else the count. */
@@ -920,8 +1075,27 @@ function SampleNote({ map, k }: { map: IOMap; k: number }) {
 }
 
 /** The Objects tab: per object (temp waits per file) what its waits did, most time first; a click highlights its marks. */
-function ObjectsTab({ doc, map, k, names, focus, onFocus }: { doc: TraceDoc; map: IOMap; k: number; names: NameOpts; focus: Focus; onFocus(f: Focus): void }) {
-  const stats = useMemo(() => objectStats(map.rows, (e) => isWriteEvent(doc.events[e]), (e) => isTempEvent(doc.events[e])), [map, doc])
+/** The Objects tab's numbers over every wait (/api/io/hot) in the sample's shape. */
+const exactObj = (o: IOObjStat): ObjStat => ({
+  key: o.key, obj: o.obj, temp: o.temp, files: o.files, waits: o.waits, reads: o.reads, writes: o.writes, us: o.us, maxUs: o.maxUs, blocks: o.blocks,
+  distinct: o.distinct, readsPerBlock: o.distinct ? o.readBlocks / o.distinct : 0, seq: o.waits >= 2 ? o.seq / (o.waits - 1) : NaN,
+})
+
+/** "exact over every one of 8,747 waits", or why the numbers are approximate. */
+function ExactNote({ hot }: { hot: IOHot }) {
+  return (
+    <p className="ld-note iom-exact">
+      <b>Exact</b>: over every one of {fmtInt(hot.total)} block I/O waits in scope{!hot.distinctExact && <> (distinct blocks estimated: more were touched than the engine tracks one by one, so a block can count twice and re-reads per block read low)</>}.
+    </p>
+  )
+}
+
+function ObjectsTab({ doc, map, k: kSample, names, focus, onFocus, hot, hotLoading }: {
+  doc: TraceDoc; map: IOMap; k: number; names: NameOpts; focus: Focus; onFocus(f: Focus): void; hot: IOHot | null; hotLoading: boolean
+}) {
+  const sample = useMemo(() => objectStats(map.rows, (e) => isWriteEvent(doc.events[e]), (e) => isTempEvent(doc.events[e])), [map, doc])
+  const stats = useMemo(() => (hot ? hot.objects.map(exactObj) : sample), [hot, sample])
+  const k = hot ? 1 : kSample
   const counts = nameCounts(doc)
   const unnamed = stats.filter((s) => s.obj >= 0 && !objInfo(doc, s.obj).name).length
   const noOwner = stats.some((s) => s.obj >= 0 && objInfo(doc, s.obj).from === 'plan')
@@ -929,7 +1103,7 @@ function ObjectsTab({ doc, map, k, names, focus, onFocus }: { doc: TraceDoc; map
   const total = stats.reduce((a, s) => a + s.us, 0)
   return (
     <div className="iom-tab">
-      <SampleNote map={map} k={k} />
+      {hot ? <ExactNote hot={hot} /> : <>{hotLoading && <p className="ld-note"><Shimmer>counting every wait…</Shimmer></p>}<SampleNote map={map} k={k} /></>}
       <p className="ld-note">
         Names: {counts.ref > 0 && <>{fmtInt(counts.ref)} from the reference bundle{counts.plan > 0 ? ', ' : ''}</>}{counts.plan > 0 && <>{fmtInt(counts.plan)} from the trace's plans</>}{counts.ref + counts.plan === 0 && 'none known'}.
         {(unnamed > 0 || noOwner) && <> {unnamed > 0 ? `${unnamed} ${unnamed === 1 ? 'object has' : 'objects have'} only an obj#` : 'Plan names have no owner or type detail'}: a reference bundle names them. <ImportNames doc={doc} /></>}
@@ -951,7 +1125,7 @@ function ObjectsTab({ doc, map, k, names, focus, onFocus }: { doc: TraceDoc; map
                 <span className="iom-share" aria-hidden="true"><i style={{ inlineSize: `${total > 0 ? (100 * s.us) / total : 0}%` }} /></span>
                 <span className="iom-objrow-f muted">
                   {approx(s.waits, k)} {s.waits === 1 ? 'wait' : 'waits'}{s.writes > 0 && <> ({approx(s.writes, k)} {s.writes === 1 ? 'write' : 'writes'})</>}
-                  {' · '}{approx(s.blocks, k)} blocks, {fmtInt(s.distinct)} distinct
+                  {' · '}{approx(s.blocks, k)} blocks, {fmtInt(s.distinct)} distinct{hot ? ' read' : ''}
                   {s.readsPerBlock >= 1.05 && <> · <b>{s.readsPerBlock.toFixed(1)}×</b> re-read</>}
                   {' · '}avg {fmtDur(s.us / s.waits)}
                   {!Number.isNaN(s.seq) && <> · <span title="the share of its waits that continue the previous one upward within 64 blocks: a full scan is near 100 %, single-block lookups near 0 %">{Math.round(s.seq * 100)} % sequential</span></>}
@@ -967,14 +1141,24 @@ function ObjectsTab({ doc, map, k, names, focus, onFocus }: { doc: TraceDoc; map
 }
 
 /** The Statements tab: per statement and file, reads and writes, the distinct blocks and how often each was read; a click highlights. */
-function StatementsTab({ doc, map, k, only, focus, onFocus, onOnly }: { doc: TraceDoc; map: IOMap; k: number; only: ID | null; focus: Focus; onFocus(f: Focus): void; onOnly(s: ID | null): void }) {
-  const rereads = useMemo(() => rereadOf(map.rows, (e) => isWriteEvent(doc.events[e])), [map, doc])
+/** The Statements tab's numbers over every wait (/api/io/hot) in the sample's shape. */
+const exactStmt = (r: IOStmtStat): Reread => ({
+  key: r.stmt, file: r.file, reads: r.reads, readBlocks: r.readBlocks, readDistinct: r.readDistinct, writes: r.writes, writeBlocks: r.writeBlocks,
+  writeDistinct: r.writeDistinct, readsPerBlock: r.readDistinct ? r.readBlocks / r.readDistinct : 0, us: r.us,
+})
+
+function StatementsTab({ doc, map, k: kSample, only, focus, onFocus, onOnly, hot }: {
+  doc: TraceDoc; map: IOMap; k: number; only: ID | null; focus: Focus; onFocus(f: Focus): void; onOnly(s: ID | null): void; hot: IOHot | null
+}) {
+  const sample = useMemo(() => rereadOf(map.rows, (e) => isWriteEvent(doc.events[e])), [map, doc])
+  const rereads = useMemo(() => (hot ? hot.stmts.map(exactStmt) : sample), [hot, sample])
+  const k = hot ? 1 : kSample
   const byStmt = new Map<number, typeof rereads>()
   for (const r of rereads) { const l = byStmt.get(r.key); if (l) l.push(r); else byStmt.set(r.key, [r]) }
   const stmts = [...byStmt.entries()].map(([s, l]) => ({ s, l, us: l.reduce((a, r) => a + r.us, 0) })).sort((a, b) => b.us - a.us || a.s - b.s)
   return (
     <div className="iom-tab bm-facts">
-      <SampleNote map={map} k={k} />
+      {hot ? <ExactNote hot={hot} /> : <SampleNote map={map} k={k} />}
       <p className="ld-note">Reads and writes per file; "× per block" is how often each distinct block was read (a multipass join reads its spill many times).</p>
       <ol>
         {stmts.map(({ s, l, us }) => {
@@ -998,6 +1182,76 @@ function StatementsTab({ doc, map, k, only, focus, onFocus, onOnly }: { doc: Tra
           )
         })}
       </ol>
+    </div>
+  )
+}
+
+/**
+ * The Hot blocks tab: the runs of adjacent blocks read twice or more, counted over every wait in scope (/api/io/hot), most re-reads
+ * first (or the sort chosen); a click zooms that panel's blocks to the run and highlights its marks.
+ */
+function HotTab({ doc, map, hot, loading, error, names, sort, setSort, focus, onRun, onClear }: {
+  doc: TraceDoc; map: IOMap; hot: IOHot | null; loading: boolean; error: string | null; names: NameOpts; sort: HotSort; setSort(s: string): void
+  focus: Focus; onRun(r: IOHotRun): void; onClear(): void
+}) {
+  if (error) return <p className="bm-error small" role="alert">Hot blocks: {error}</p>
+  if (!hot) {
+    return <p className="small muted" role="status">{loading ? <Shimmer>counting the reads of every block…</Shimmer>
+      : 'The hot blocks need the engine route api/io/hot, which this engine does not serve: update mtkprof.'}</p>
+  }
+  const base = doc.span.firstTim
+  const at = (tim: number) => (doc.wallOffsetUs ? fmtWall(doc.wallOf(tim), doc.tzOffsetMin, { micros: false }) : `+${fmtDur(tim - base)}`)
+  const pdbOf = (obj: number) => { const r = map.rows.find((x) => x[IO.obj] === obj); return r ? pdbOfCtx(doc, r[IO.ctx]) : undefined }
+  const maxRe = Math.max(1, ...hot.runs.map((r) => r.rereads))
+  const rereadReads = hot.blockReads - hot.distinct
+  return (
+    <div className="iom-tab">
+      <p className="ld-note">
+        {fmtInt(hot.blockReads)} block reads of {fmtInt(hot.distinct)} distinct blocks{hot.distinctExact ? '' : ' (about)'}: <b>{fmtInt(hot.reread)}</b> {hot.reread === 1 ? 'block was' : 'blocks were'} read
+        twice or more, {fmtInt(Math.max(0, rereadReads))} reads of a block already read in scope ({hot.blockReads > 0 ? Math.round((100 * Math.max(0, rereadReads)) / hot.blockReads) : 0} %).
+      </p>
+      {hot.exact
+        ? <p className="ld-note iom-exact"><b>Exact</b>: counted over every one of {fmtInt(hot.total)} block I/O waits in scope; every block read twice or more is in a range below{hot.runsTotal > hot.runs.length ? <> (the top {fmtInt(hot.runs.length)} of {fmtInt(hot.runsTotal)} ranges)</> : ''}.</p>
+        : <p className="bm-note small"><b>Approximate</b>: more blocks were re-read than the engine counts one by one. Every count shown is exact, but a block read up to {fmtInt(hot.bound)} {hot.bound === 1 ? 'time' : 'times'} may be missing from the list, and a range may go on past its ends.</p>}
+      <label className="ld-inline">Order
+        <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Order of the hot ranges">
+          {HOT_SORTS.map((x) => <option key={x} value={x}>{HOT_SORT_LABELS[x]}</option>)}
+        </select>
+      </label>
+      {hot.runs.length === 0 ? <p className="small muted">No block was read twice in scope: no re-reads.</p> : (
+        <ol className="iom-objs iom-hot">
+          {hot.runs.map((r) => {
+            const on = focus?.kind === 'blocks' && focus.file === r.file && focus.lo === r.lo && focus.hi === r.hi
+            const n = r.hi - r.lo
+            const obj = r.objs[0]?.[0]
+            const info = !r.temp && obj !== undefined && obj >= 0 ? objInfo(doc, obj) : null
+            return (
+              <li key={`${r.file}:${r.lo}`} className={on ? 'on' : undefined}>
+                <button type="button" className={'iom-objrow' + (on ? ' on' : '')} aria-pressed={on} onClick={() => (on ? onClear() : onRun(r))}
+                  title={on ? 'stop highlighting (the zoom stays: ‹ Out or 0)' : 'zoom the panel to these blocks and highlight their marks'}>
+                  <span className="iom-objrow-h">
+                    <b>{r.temp ? 'temp segments' : info ? <ObjName doc={doc} obj={obj!} opts={names} pdb={names.pdb ? pdbOf(obj!) : undefined} /> : 'no object'}</b>
+                    {info?.type && <span className="iom-type">{info.type}</span>}
+                    <span className="iom-objrow-t">{fmtInt(r.rereads)} re-{r.rereads === 1 ? 'read' : 'reads'}</span>
+                  </span>
+                  <span className="iom-share iom-hot-share" aria-hidden="true"><i style={{ inlineSize: `${(100 * r.rereads) / maxRe}%` }} /></span>
+                  <span className="iom-objrow-f muted">
+                    {fileTitle(doc, r.file, r.temp)} · {n > 1 ? <>blocks {fmtInt(r.lo)} to {fmtInt(r.hi - 1)} ({fmtInt(n)})</> : <>block {fmtInt(r.lo)}</>}
+                    {' · '}<b>{fmtInt(r.reads)}</b> reads, {r.min === r.max ? <><b>{fmtInt(r.max)}×</b> {n > 1 ? 'each' : ''}</> : <><b>{fmtInt(r.min)}–{fmtInt(r.max)}×</b> per block{n > 2 ? <> (most: block {fmtInt(r.peak)})</> : null}</>}
+                    {' · '}{fmtDur(r.us)}{r.writes > 0 && <> · {fmtInt(r.writes)} {r.writes === 1 ? 'write' : 'writes'}</>}
+                    {' · '}{at(r.first)} → {at(r.last)}
+                  </span>
+                </button>
+                {r.stmts.length > 0 && (
+                  <div className="iom-hot-by small muted">read by {r.stmts.map(([st, b], i) => (
+                    <span key={st}>{i > 0 && ', '}{st >= 0 ? <StmtLink doc={doc} id={st} /> : 'no statement'} <span className="muted">({fmtInt(b)} block reads)</span></span>
+                  ))}</div>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+      )}
     </div>
   )
 }
@@ -1054,8 +1308,9 @@ function DistTab({ doc, map, k }: { doc: TraceDoc; map: IOMap; k: number }) {
 }
 
 /** The Display tab: object names, the block axis, the extents, the marks, and the keys. */
-function DisplayTab({ doc, settings, limit, setLimit, setNames, setPacked, setBands }: {
+function DisplayTab({ doc, settings, limit, setLimit, setNames, setPacked, setBands, setDensity, setDensityBy, setDensityScale, setMarks }: {
   doc: TraceDoc; settings: Settings; limit: number; setLimit(n: number): void; setNames(n: NameOpts): void; setPacked(b: boolean): void; setBands(b: boolean): void
+  setDensity(m: string): void; setDensityBy(m: string): void; setDensityScale(s: string): void; setMarks(b: boolean): void
 }) {
   const n = settings.names
   const cdb = hasContainers(doc)
@@ -1084,6 +1339,29 @@ function DisplayTab({ doc, settings, limit, setLimit, setNames, setPacked, setBa
           <label className="ld-row"><input type="radio" name="iom-axis" checked={settings.packed} onChange={() => setPacked(true)} /><span className="ld-lbl">Packed</span><span /><p className="ld-note">the empty block ranges between the touched ones collapsed</p></label>
         </div>
         <p className="ld-note">Panels per object always pack their blocks.</p>
+      </section>
+      <section className="ld-sec">
+        <h4>Density <span className="h4-note">· every wait in scope, in cells under the marks</span></h4>
+        <div role="radiogroup" aria-label="Density layer">
+          {DENSITY_MODES.map((m) => (
+            <label key={m.mode} className="ld-row"><input type="radio" name="iom-density" checked={settings.density === m.mode} onChange={() => setDensity(m.mode)} />
+              <span className="ld-lbl">{m.mode === 'auto' ? 'Auto' : m.mode === 'always' ? 'On' : 'Off'}</span><span /><p className="ld-note">{m.title}</p></label>
+          ))}
+        </div>
+        <label className="ld-inline">Counts
+          <select aria-label="What a density cell counts" value={settings.densityBy} onChange={(e) => setDensityBy(e.target.value)}>
+            {DENSITY_MEASURES.map((m) => <option key={m} value={m} title={MEASURE_LABELS[m].title}>{MEASURE_LABELS[m].label}</option>)}
+          </select>
+        </label>
+        <label className="ld-inline">Scale
+          <select aria-label="Density scale" value={settings.densityScale} onChange={(e) => setDensityScale(e.target.value)}>
+            <option value="sqrt">square root</option>
+            <option value="log">logarithmic</option>
+          </select>
+        </label>
+        <p className="ld-note">A cell's shade is its count against the largest cell of all panels: square root shows the busy cells apart, log the rare ones.</p>
+        <label className="ld-row"><input type="checkbox" checked={settings.marks} onChange={(e) => setMarks(e.target.checked)} /><span className="ld-lbl">Marks</span><span />
+          <p className="ld-note">the waits as marks over the density; off: the density alone (and no mark tooltips)</p></label>
       </section>
       <section className="ld-sec">
         <h4>Show</h4>

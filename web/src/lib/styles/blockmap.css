@@ -22,6 +22,16 @@
   --bm-size-3: light-dark(oklch(56% 0.15 255), oklch(70% 0.14 248));
   --bm-size-4: light-dark(oklch(46% 0.16 260), oklch(80% 0.12 245));
   --bm-size-5: light-dark(oklch(36% 0.14 265), oklch(89% 0.08 240));
+  /* re-reads of the mark's most read block, once to 17+: once recedes (a cool grey), then warm to deep red; the dark surface
+     reverses the lightness so the most read is the brightest */
+  --bm-rr-0: light-dark(oklch(84% 0.02 250), oklch(42% 0.025 250));
+  --bm-rr-1: light-dark(oklch(80% 0.11 85), oklch(55% 0.11 80));
+  --bm-rr-2: light-dark(oklch(71% 0.15 60), oklch(64% 0.15 58));
+  --bm-rr-3: light-dark(oklch(62% 0.19 40), oklch(71% 0.17 45));
+  --bm-rr-4: light-dark(oklch(52% 0.2 25), oklch(78% 0.16 35));
+  --bm-rr-5: light-dark(oklch(41% 0.17 15), oklch(87% 0.12 25));
+  /* the density layer: one slate hue, its alpha the cell's count (blocklayout.ts densityAlpha); away from the marks' hues */
+  --bm-dens: light-dark(oklch(38% 0.05 262), oklch(86% 0.04 262));
 }
 
 /* ---- the frame ------------------------------------------------------------------------------------------------- */
@@ -89,6 +99,11 @@
 .iom-bandkey { font-size: var(--text-xs); margin-inline-start: var(--sp-2); }
 .bm-band-swatch { background: color-mix(in oklch, var(--ink) 14%, transparent); box-shadow: inset 3px 0 0 color-mix(in oklch, var(--ink) 60%, transparent); }
 .iom-focus { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--ink-2); }
+/* the density's key: a ramp of the slate hue from faint to strong, the largest cell's count */
+.iom-dkey { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+.iom-dkey b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.iom-dramp { inline-size: 7rem; block-size: 0.7rem; border-radius: 2px; border: 1px solid var(--hairline);
+  background: linear-gradient(to right, color-mix(in oklch, var(--bm-dens) 10%, transparent), color-mix(in oklch, var(--bm-dens) 88%, transparent)); }
 
 /* statement and phase brackets over the first panel */
 .bm-brackets { position: relative; }
@@ -120,6 +135,7 @@
 .bm-brush { fill: color-mix(in oklch, var(--c-cpu) 14%, transparent); stroke: var(--c-cpu); stroke-width: 1; }
 .bm-cross { stroke: color-mix(in oklch, var(--ink) 35%, transparent); stroke-width: 1; pointer-events: none; }
 .bm-hit { fill: none; stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
+.bm-cell { fill: none; stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 1; pointer-events: none; }
 
 .bm-xaxis { position: relative; block-size: 1.3rem; border-block-start: 1px solid var(--c-axis); margin-block-start: 2px; }
 .bm-xaxis span { position: absolute; top: 3px; translate: -50% 0; font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -134,7 +150,7 @@
 .iom-objs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .iom-objrow { display: grid; gap: 2px; inline-size: 100%; text-align: start; border: 1px solid transparent; border-radius: var(--radius); background: none; padding: var(--sp-1) var(--sp-2); color: var(--ink); font-size: var(--text-sm); cursor: pointer; }
 .iom-objrow:hover { background: var(--wash); }
-.iom-objrow.on { border-color: var(--ink); background: var(--wash); }
+.iom-objrow.on { border-color: var(--ink); background: var(--wash); color: var(--ink); } /* not the filled pressed button of base.css */
 .iom-objrow-h { display: flex; align-items: baseline; gap: var(--sp-2); min-inline-size: 0; }
 .iom-objrow-h > b { font-weight: 600; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .iom-objrow-t { margin-inline-start: auto; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
@@ -142,6 +158,12 @@
 .iom-objrow-f b { color: var(--ink); }
 .iom-share { display: block; block-size: 3px; background: var(--wash); border-radius: 2px; overflow: hidden; }
 .iom-share i { display: block; block-size: 100%; background: var(--c-userio); }
+/* the Hot blocks tab: the bar is the run's re-reads against the most; the statements that read it under the row */
+.iom-hot-share i { background: var(--bm-rr-4); }
+.iom-hot li { display: grid; gap: 1px; }
+.iom-hot-by { padding-inline: var(--sp-2); font-size: var(--text-xs); line-height: 1.45; }
+.iom-hot-by a, .iom-hot-by button { font-size: inherit; }
+.iom-exact { border-inline-start: 2px solid var(--c-cpu); padding-inline-start: var(--sp-2); }
 
 .bm-facts ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
 .bm-facts li.on { outline: 1px solid var(--ink); outline-offset: 3px; border-radius: 2px; }

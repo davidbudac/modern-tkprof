@@ -211,6 +211,7 @@ export function colorRows(map: Pick<IOMap, 'rows' | 'events' | 'reads'>, events:
       const reads = map.reads && map.reads.length === rows.length ? map.reads : null
       rows.forEach((_, i) => {
         if (!reads) { none(i, 'reads unknown'); return }
+        if (reads[i] <= 0) { none(i, 'not read in scope'); return } // a write whose blocks no read in scope touched (or a count pruned to nothing)
         const k = bucketOf(reads[i], READS_BOUNDS, true)
         put(i, `b${k}`, { tone: rampTone('reread', k), kind: 'bucket', key: k, label: READS_LABELS[k] })
       })
@@ -352,7 +353,9 @@ export function panelsOf(map: Pick<IOMap, 'rows' | 'files'>, events: readonly Ev
     // tall enough for its runs (up to the tallest object panel); runs that still do not fit are merged until they do
     const height = Math.max(objectPanelHeight(g.idx.length, runBlocks(runs)), Math.min(OBJECT_PANEL_MAX, heightFor(runs.length)))
     if (runs.length > segsThatFit(height)) runs = touchedRuns(rows, g.idx, zoom, segsThatFit(height))
-    const ys = runs.length ? packedY(runs, height) : linearY({ file: g.file, lo, hi }, height)
+    // no row of the sample inside the zoom's blocks: the zoom's range, linear (not the whole object as if unzoomed)
+    const ys = runs.length ? packedY(runs, height)
+      : linearY(zoom ? { file: zoom[0].file, lo: Math.min(...zoom.map((z) => z.lo)), hi: Math.max(...zoom.map((z) => z.hi)) } : { file: g.file, lo, hi }, height)
     return { key, kind: g.kind, obj: g.obj, file: files[0] ?? g.file, files, lo, hi, n: g.idx.length, height, temp: g.kind === 'temp', rows: Int32Array.from(g.idx), ys, zoomed: !!zoom }
   })
 }

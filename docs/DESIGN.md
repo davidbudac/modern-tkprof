@@ -356,7 +356,8 @@ mtkprof sees, with their notes and a case description, to an LLM agent.
   like `waits/scatter`, with `files` and `total` computed over all matches:
   the 1st, the (k+1)-th, ... match in trace order, k = ceil(total/limit), two
   passes and no list of all matches. 2-D binning (order × block cells) is v2
-  if sampled pictures turn out to hide re-reads.
+  if sampled pictures turn out to hide re-reads (built 2026-11-08: the density
+  layer, § The I/O map: density and hot blocks).
 - **Blocks: classification by parameter names** (`file#` / `file number` +
   `block#` / `first dba`; a block count in p3 when it is `blocks` /
   `block cnt`), not by an event-name list: unknown and RAC events classify
@@ -435,7 +436,9 @@ shortcut, object names, colour modes, more ways to look).
   raised to 6 px, a block never taller than 3 px; panels per object always
   pack). Temp waits get a panel per tempfile, waits without an object one per
   file, objects beyond the twelfth share "other objects".
-- **Side panel numbers** count the rows drawn (≈ × k when sampled): per object
+- **Side panel numbers** count the rows drawn (≈ × k when sampled; superseded
+  2026-11-08 for Objects and Statements, which count every wait when the engine's
+  `/api/io/hot` answers, § The I/O map: density and hot blocks): per object
   waits, time, blocks, distinct blocks, re-reads per block, average latency
   and the share of waits that continue the previous one within 64 blocks
   ("sequential"); per statement the former facts column; latency histograms
@@ -445,6 +448,61 @@ shortcut, object names, colour modes, more ways to look).
   only saw the plans' obj# and no datafile at all. `analyze.Accumulator`
   keeps the waits' obj# and file# (`RefIDs`, `model.RefIDSource`,
   `Model.WaitRefIDs`); agg format 4, `CacheIndexFormat` 6.
+
+## The I/O map: density and hot blocks (decided 2026-11-08, `docs/PLAN-IOMAP-2.md`)
+
+Above the marks limit the I/O map draws every k-th wait, and a sample hides what a
+DBA looks for (blocks read over and over, bursts, the density of a scan); its side
+panel counted the sample (distinct blocks of every k-th wait are not the trace's).
+
+- **Three answers over every matching wait**, on the scope of `/api/io/map`:
+  `/api/io/density` (the waits counted into the cells of the client's layout),
+  `/api/io/hot` (block reads per block: the hottest runs, the exact per-object and
+  per-statement numbers), and `/api/io/map?reads=1` (each row's reads, for a colour
+  mode). Added routes and an optional field: no protocol bump, no cache format change.
+- **The density follows the client's layout, not a grid of its own.** The request is
+  the order axis' slots (match indices: row slots × the sampling step) or the time
+  domain, and each panel's y segments (linear or packed), at about 4 px a cell; the
+  panel key selects the waits as the view's panels do (`f`, `o`, `t`, `n`, `rest`).
+  A wait counts in every y cell its blocks touch (waits, blocks in the cell, µs by that
+  share of its blocks); x is its index or its midpoint (clamped). An answer places its
+  cells by the block and order (or time) ranges it covers, so it stays right under a
+  resize, and on the time axis across a zoom; on the order axis only for its own scope.
+- **Drawn under the marks**, in each panel's canvas after the grid and the extent
+  bands: one slate hue (`--bm-dens`), alpha = 0.1 + 0.78 f, f = √(v / max) (default) or
+  log(1 + v) / log(1 + max) against the largest cell of every panel. Toolbar *Density*:
+  auto (default: on while the marks are a sample), on, off; Display: what a cell counts
+  (waits, blocks, time), the scale, and *Marks* off to see the density alone. A legend
+  bar names the largest cell; where no mark is under the pointer the cell's tooltip says
+  its waits, blocks, time, dominant event and share, block range and order or time range.
+- **Counting blocks: exact while it fits, bounded always, honest when not.** A block's
+  first read only marks it in a seen set of 65,536-block chunks (a sorted array of
+  offsets up to 1,024, then an 8 KB bitmap: a scan costs about a bit per block); a block
+  read again gets a counter; above 1,000,000 counters a Misra-Gries prune (subtract the
+  (cap/2 + 1)-th largest from all, the sum `dec` bounds every count's error). The
+  65,536 most read blocks become runs of adjacent blocks recounted exactly in a second
+  pass, so every number shown is exact; `exact` is false and `bound` (a block in no run
+  was read at most that often) is shown when the prune ran or more blocks were re-read
+  than are recounted. The seen set (64 MB) and the objects' / statements' distinct sets
+  (32 MB) have separate caps: the second only makes distinct counts approximate. A
+  generated 214 M distinct blocks: exact, 0.4 s, 98 MB peak heap.
+- **A wait moves at most 65,536 blocks** in these routes (`MaxWaitBlocks`): a larger p3
+  is a corrupt line. Files below 0 or from 2^31 and blocks from 2^32 are not counted.
+- **Runs rank by Σ re-reads** (the reads a big enough cache would have saved: a spill
+  read 20 times outranks one hot index block), or by the most reads of one block, or by
+  time. A run's time is each read's ela × its share of the read's blocks; objects come
+  from non-temp reads only (a temp read's obj# is the statement's object).
+- **Hot blocks is a side-panel tab**; a click highlights the run's marks (a `blocks`
+  focus) and zooms that panel's blocks to the run with as much context again on each
+  side (at least 8 blocks), keeping the time zoom, and scrolls the panel into view.
+- **Objects and Statements use the exact numbers** when `/api/io/hot` answered for the
+  same scope ("Exact"; distinct = blocks read), the sample's otherwise (≈ × k).
+- **Colour by re-reads**: the reads of the mark's most read block in scope, six steps
+  (once, 2, 3–4, 5–8, 9–16, 17+) on `--bm-rr-*` (once is a receding grey). The map is
+  asked with `reads=1` only in this mode.
+- **Twins**: `ioDensityOf`, `ioHotOf`, `ioMapOf(…, { reads })` and `BlockSet` /
+  `BlockCounter` model the Go byte sizes exactly, so caps stop at the same wait; one
+  shared case, `ioblocks-case.json`, includes pruned and capped answers.
 
 ## Motion (decided 2026-11-03)
 

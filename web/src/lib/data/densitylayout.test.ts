@@ -68,8 +68,32 @@ describe('the density layer on io_waits.trc', async () => {
     const req = densityRequest(many, orderScale(map.rows.length, 20000), 1, map.total)
     const xb = req.xsegs!.reduce((a, s) => a + s[2], 0), yb = req.panels!.reduce((a, p) => a + p.segs.reduce((b, s) => b + s[3], 0), 0)
     expect(req.panels!.length).toBe(MAX_DENSITY_PANELS)
-    expect(xb * yb).toBeLessThanOrEqual(MAX_DENSITY_CELLS * 1.05)
+    expect(xb * yb).toBeLessThanOrEqual(MAX_DENSITY_CELLS)
     expect(xb).toBeLessThanOrEqual(4000)
+  })
+
+  it('stays inside the cells limit when rounding each packed segment up would pass it (the review\'s 64 × 17 runs)', () => {
+    const map = ioMapOf(d, all, 20000)
+    const p0 = panelsOf(map, d.events, { packed: true })[1]
+    const runs = Array.from({ length: 17 }, (_, j) => ({ file: 12, lo: 1000 * j, hi: 1000 * j + 10, y0: 4 + 14 * j, y1: 4 + 14 * j + 9 }))
+    const many = Array.from({ length: 64 }, (_, i) => ({ ...p0, key: `f${i}`, height: 240, ys: { packed: true, segs: runs } }))
+    for (const w of [2600, 1970]) {
+      const req = densityRequest(many, orderScale(map.rows.length, w), 1, map.total)
+      const xb = req.xsegs!.reduce((a, s) => a + s[2], 0), yb = req.panels!.reduce((a, p) => a + p.segs.reduce((b, s) => b + s[3], 0), 0)
+      expect(xb * yb).toBeLessThanOrEqual(MAX_DENSITY_CELLS)
+    }
+  })
+
+  it('an unzoomed time axis asks for bins only: the engine bins over the matches\' own extent', () => {
+    const map = ioMapOf(d, all, 500)
+    const panels = panelsOf(map, d.events)
+    const xs = timeScale(map.rows, 900)
+    const req = densityRequest(panels, xs, sampleStep(map), map.total, undefined, true)
+    expect(req.xsegs).toBeUndefined()
+    expect(req.xbins).toBe(225)
+    const dens = ioDensityOf(d, all, req)
+    expect(dens.xsegs[0][0]).toBeLessThanOrEqual(xs.t0)
+    expect(dens.cells.reduce((a, c) => a + c[DC.waits], 0)).toBeGreaterThanOrEqual(map.total)
   })
 
   it('draws under the marks, and without them', () => {
@@ -89,6 +113,25 @@ describe('the density layer on io_waits.trc', async () => {
     calls.length = 0
     expect(drawBlockMap(ctx, panels[p], map.rows, xs, coloring.idx, { tones: coloring.tones.map(() => 'mark'), grid: 'grid', bands: [] }, null, { density: { rects: layer.byPanel[p], color: 'dens' }, marks: false })).toBe(0)
     expect(calls.includes('mark')).toBe(false)
+  })
+})
+
+describe('review fixes', async () => {
+  const dir = fileURLToPath(new URL('./testdata/', import.meta.url))
+  const d = await TraceDoc.fromRaw((JSON.parse(gunzipSync(readFileSync(dir + 'findings-io_waits.json.gz')).toString('utf8')) as { doc: RawDocument }).doc)
+  const map = ioMapOf(d, { window: null, contexts: null }, 20000)
+  it('an object panel zoomed where the sample has no row shows the zoom\'s blocks, not the whole object', () => {
+    const p = panelsOf(map, d.events, { by: 'object' }).find((x) => x.kind === 'object')!
+    const zoom = { [p.key]: [{ file: p.file, lo: p.hi + 1000, hi: p.hi + 1100 }] }
+    const z = panelsOf(map, d.events, { by: 'object', zoom }).find((x) => x.key === p.key)!
+    expect(z.zoomed).toBe(true)
+    expect(z.ys.segs[0].lo).toBe(p.hi + 1000)
+    expect(z.ys.segs[0].hi).toBe(p.hi + 1100)
+  })
+  it('re-reads: a row whose blocks no read touched is "not read in scope", not "read once"', () => {
+    const rows = map.rows.slice(0, 3)
+    const c = colorRows({ rows, events: map.events, reads: [0, 1, 5] }, d.events, 'reread')
+    expect(c.legend.map((l) => l.label)).toEqual(['read once', '5–8', 'not read in scope'])
   })
 })
 

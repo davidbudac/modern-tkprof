@@ -120,8 +120,10 @@ export function ioHotOf(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>
   const out: IOHot = { total: 0, reads: 0, blockReads: 0, distinct: 0, reread: 0, exact: false, bound: 0, distinctExact: false, runsTotal: 0, runs: [], objects: [], stmts: [] }
   interface ObjAcc { s: IOObjStat; owner: number; files: Set<number>; lastFile: number; lastEnd: number; any: boolean }
   interface StmtAcc { s: IOStmtStat; r: number; w: number }
-  const objs = new Map<string, ObjAcc>()
-  const stmts = new Map<string, StmtAcc>()
+  // numeric keys: an object by its obj# (≥ 0), the temp waits of a file -2·file − 2, the waits without an object of a file -2·file − 1;
+  // a statement and file (stmt + 1) · 2^22 + file
+  const objs = new Map<number, ObjAcc>()
+  const stmts = new Map<number, StmtAcc>()
   let owners = 0
   for (let i = 0; i < w.n; i++) {
     if (!sc.match(i)) continue
@@ -130,13 +132,14 @@ export function ioHotOf(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>
     out.total++
     bc.startWait()
     if (!ownedCapped && owned.bytes >= ownerBytes) ownedCapped = true
-    const key = temp ? `t${file}` : w.obj[i] >= 0 ? `o${w.obj[i]}` : `n${file}`
-    let oa = objs.get(key)
+    const okey = temp ? -2 * file - 2 : w.obj[i] >= 0 ? w.obj[i] : -2 * file - 1
+    let oa = objs.get(okey)
     if (!oa) {
+      const key = temp ? `t${file}` : w.obj[i] >= 0 ? `o${w.obj[i]}` : `n${file}`
       oa = { s: { key, obj: !temp && w.obj[i] >= 0 ? w.obj[i] : -1, temp, files: [], waits: 0, reads: 0, writes: 0, us: 0, maxUs: 0, blocks: 0, readBlocks: 0, distinct: 0, seq: 0 }, owner: 0, files: new Set(), lastFile: 0, lastEnd: 0, any: false }
-      objs.set(key, oa)
+      objs.set(okey, oa)
     }
-    const sk = `${w.stmt[i]}:${file}`
+    const sk = (w.stmt[i] + 1) * 2 ** 22 + file
     let sa = stmts.get(sk)
     if (!sa) {
       sa = { s: { stmt: w.stmt[i], file, reads: 0, readBlocks: 0, readDistinct: 0, writes: 0, writeBlocks: 0, writeDistinct: 0, us: 0 }, r: 0, w: 0 }
@@ -151,13 +154,12 @@ export function ioHotOf(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>
     s.blocks += n
     oa.files.add(file)
     sa.s.us += ela
-    const distinct = (own: number): number => (ownedCapped ? n : owned.addRange(own, file, lo, hi))
     if (write) {
       s.writes++
       sa.s.writes++
       sa.s.writeBlocks += n
       if (!sa.w) sa.w = ++owners
-      sa.s.writeDistinct += distinct(sa.w)
+      sa.s.writeDistinct += ownedCapped ? n : owned.addRange(sa.w, file, lo, hi)
     } else {
       out.reads++
       out.blockReads += n
@@ -165,11 +167,11 @@ export function ioHotOf(doc: TraceDoc, scope: Pick<Scope, 'window' | 'contexts'>
       s.readBlocks += n
       bc.read(file, lo, hi)
       if (!oa.owner) oa.owner = ++owners
-      s.distinct += distinct(oa.owner)
+      s.distinct += ownedCapped ? n : owned.addRange(oa.owner, file, lo, hi)
       sa.s.reads++
       sa.s.readBlocks += n
       if (!sa.r) sa.r = ++owners
-      sa.s.readDistinct += distinct(sa.r)
+      sa.s.readDistinct += ownedCapped ? n : owned.addRange(sa.r, file, lo, hi)
     }
     bc.endWait()
   }

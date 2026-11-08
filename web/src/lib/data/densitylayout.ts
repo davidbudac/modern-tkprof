@@ -18,14 +18,31 @@ export type DensityMode = 'auto' | 'always' | 'off'
 
 /**
  * The request for the map's layout: the x axis' segments (order: the rows' slots as match indices, × the sampling step `k`, cut at
- * `total`; time: the axis' domain) and each panel's y segments, each with one bin per `cell` px. The cell grows when the grid would
- * pass the engine's limits (cells, bins); panels past the 64th get no density.
+ * `total`; time: the axis' domain, or with `extent` only a bin count, so the engine bins over the matches' own time extent) and each
+ * panel's y segments, each with one bin per `cell` px. The cell grows until the grid is inside the engine's limits (cells, bins:
+ * rounding each segment up to a bin can pass them); panels past the 64th get no density.
  */
-export function densityRequest(panels: readonly Panel[], xs: XScale, k: number, total: number, cell = CELL_PX): DensityReq {
+export function densityRequest(panels: readonly Panel[], xs: XScale, k: number, total: number, cell = CELL_PX, extent = false): DensityReq {
   const ps = panels.slice(0, MAX_DENSITY_PANELS)
   const heights = ps.reduce((a, p) => a + p.ys.segs.reduce((b, s) => b + Math.max(1, s.y1 - s.y0), 0), 0)
-  const c = Math.max(cell, Math.ceil(Math.sqrt((xs.width * heights) / MAX_DENSITY_CELLS)), Math.ceil(xs.width / MAX_DENSITY_XBINS))
+  let c = Math.max(cell, Math.ceil(Math.sqrt((xs.width * heights) / MAX_DENSITY_CELLS)), Math.ceil(xs.width / MAX_DENSITY_XBINS))
+  for (;;) {
+    const req = build(ps, xs, k, total, c, extent)
+    const xb = req.xsegs ? req.xsegs.reduce((a, s) => a + s[2], 0) : req.xbins ?? 0
+    const yb = req.panels!.reduce((a, p) => a + p.segs.reduce((b, s) => b + s[3], 0), 0)
+    if (xb * yb <= MAX_DENSITY_CELLS || c > 1e6) return req
+    c = Math.ceil(c * 1.25)
+  }
+}
+
+function build(ps: readonly Panel[], xs: XScale, k: number, total: number, c: number, extent: boolean): DensityReq {
   const bins = (px: number, max: number) => Math.max(1, Math.min(max, Math.round(px / c)))
+  const panels = ps.filter((p) => p.ys.segs.length > 0).map((p) => {
+    const segs = p.ys.segs.slice(0, MAX_DENSITY_SEGS)
+    const per = Math.max(1, Math.floor(MAX_DENSITY_YBINS / segs.length))
+    return { key: p.key, segs: segs.map((s) => [s.file, s.lo, Math.max(s.hi, s.lo + 1), bins(s.y1 - s.y0, per)] as [number, number, number, number]) }
+  })
+  if (xs.mode === 'time' && extent) return { x: 'time', xbins: bins(xs.width, MAX_DENSITY_XBINS), panels }
   let xsegs: [number, number, number][]
   if (xs.mode === 'order') {
     xsegs = []
@@ -37,15 +54,7 @@ export function densityRequest(panels: readonly Panel[], xs: XScale, k: number, 
     const a = Math.floor(xs.t0)
     xsegs = [[a, Math.max(a + 1, Math.ceil(xs.t1)), bins(xs.width, MAX_DENSITY_XBINS)]]
   }
-  return {
-    x: xs.mode,
-    xsegs,
-    panels: ps.filter((p) => p.ys.segs.length > 0).map((p) => {
-      const segs = p.ys.segs.slice(0, MAX_DENSITY_SEGS)
-      const per = Math.max(1, Math.floor(MAX_DENSITY_YBINS / segs.length))
-      return { key: p.key, segs: segs.map((s) => [s.file, s.lo, Math.max(s.hi, s.lo + 1), bins(s.y1 - s.y0, per)] as [number, number, number, number]) }
-    }),
-  }
+  return { x: xs.mode, xsegs, panels }
 }
 
 /** One cell on a panel: its rectangle (px, panel coordinates), its count in the measure, its intensity (0..1) and its index in `cells`. */

@@ -18,17 +18,44 @@ interface Chunk {
   n: number
   /** the offsets while the chunk is an array */
   set: Set<number> | null
-  /** the bitmap once it is one */
-  bits: Uint32Array | null
+  /** the bitmap once it is one (32 blocks a word) */
+  bits: Int32Array | null
 }
 
 const cost = (c: Chunk): number => CHUNK_OVERHEAD + (c.bits ? BITMAP_BYTES : 2 * c.n)
 
+/** Set bits of a 32-bit word. */
+function popcount(x: number): number {
+  x -= (x >>> 1) & 0x55555555
+  x = (x & 0x33333333) + ((x >>> 2) & 0x33333333)
+  return Math.imul((x + (x >>> 4)) & 0x0f0f0f0f, 0x01010101) >>> 24
+}
+
 /** A set of (owner, file, block) keys in chunks (the twin of `blockSet`). */
 export class BlockSet {
-  private chunks = new Map<string, Chunk>()
+  /** per owner (owners are small integers): (file · 2^16 + chunk) → chunk, and the last chunk it used */
+  private owners: Map<number, Chunk>[] = []
+  private lastKey: number[] = []
+  private last: (Chunk | undefined)[] = []
   /** the modelled size */
   bytes = 0
+
+  private chunk(owner: number, file: number, h: number, make: boolean): Chunk | undefined {
+    const key = file * CHUNK + h
+    if (this.lastKey[owner] === key) return this.last[owner]
+    let m = this.owners[owner]
+    if (!m) { if (!make) return undefined; m = this.owners[owner] = new Map() }
+    let c = m.get(key)
+    if (!c) {
+      if (!make) return undefined
+      c = { n: 0, set: new Set(), bits: null }
+      m.set(key, c)
+      this.bytes += CHUNK_OVERHEAD
+    }
+    this.lastKey[owner] = key
+    this.last[owner] = c
+    return c
+  }
 
   /** Adds `[lo, hi)` of `file` to `owner`'s set (blocks below 0 left out); `seen` gets each block already there. Returns how many were not. */
   addRange(owner: number, file: number, lo: number, hi: number, seen?: (b: number) => void): number {
@@ -37,22 +64,24 @@ export class BlockSet {
     while (lo < hi) {
       const h = Math.floor(lo / CHUNK)
       const base = h * CHUNK, end = Math.min(hi, base + CHUNK)
-      const key = `${owner}:${file}:${h}`
-      let c = this.chunks.get(key)
-      if (!c) { c = { n: 0, set: new Set(), bits: null }; this.chunks.set(key, c); this.bytes += CHUNK_OVERHEAD }
+      const c = this.chunk(owner, file, h, true)!
       const before = cost(c)
       const a = lo - base, b = end - base
       if (!c.bits && c.n + (b - a) > ARRAY_MAX) {
-        c.bits = new Uint32Array(CHUNK / 32)
+        c.bits = new Int32Array(CHUNK / 32)
         for (const v of c.set!) c.bits[v >>> 5] |= 1 << (v & 31)
         c.set = null
       }
       let add = 0
       if (c.bits) {
-        for (let v = a; v < b; v++) {
-          const w = v >>> 5, m = 1 << (v & 31)
-          if (c.bits[w] & m) seen?.(base + v)
-          else { c.bits[w] |= m; add++ }
+        for (let w = a >>> 5; w <= (b - 1) >>> 5; w++) {
+          const from = Math.max(a, w << 5), to = Math.min(b, (w + 1) << 5) // the offsets of [a, b) in word w
+          const n = to - from
+          const mask = (n === 32 ? -1 : ((1 << n) - 1)) << (from & 31)
+          let old = c.bits[w] & mask
+          add += popcount(mask & ~c.bits[w])
+          if (seen) while (old !== 0) { const t = 31 - Math.clz32(old & -old); seen(base + (w << 5) + t); old &= old - 1 }
+          c.bits[w] |= mask
         }
       } else {
         for (let v = a; v < b; v++) {
@@ -70,7 +99,7 @@ export class BlockSet {
 
   has(owner: number, file: number, b: number): boolean {
     if (b < 0) return false
-    const c = this.chunks.get(`${owner}:${file}:${Math.floor(b / CHUNK)}`)
+    const c = this.chunk(owner, file, Math.floor(b / CHUNK), false)
     if (!c) return false
     const v = b % CHUNK
     return c.bits ? (c.bits[v >>> 5] & (1 << (v & 31))) !== 0 : c.set!.has(v)

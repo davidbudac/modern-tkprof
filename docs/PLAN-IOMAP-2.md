@@ -65,3 +65,47 @@ blocks are not the trace's: every-k-th wait of a scan never continues the one be
 3. Docs (DESIGN, ARCHITECTURE, HANDOFF, DESKTOP, site), `make web`, CI, commit, push.
 
 ## Log
+
+### 2026-11-08: batch 1 (engine, twins, layout)
+
+- Engine: `analyze.IOEvents` (block, p3 count, temp, write by name), `blockSet` / `blockCounter` (`blockset.go`), `IOHotOn`,
+  `IODensityOn`, `IOMapWith` (reads); `/api/io/hot`, `/api/io/density`, `io/map?reads=1` in `internal/slice/iomap.go`, the routes, the
+  parity queries (spill vs model, cache vs spill), the engine's endpoint list; OpenAPI (`IOHot`, `IOHotRun`, `IOObjStat`, `IOStmtStat`,
+  `IODensity`, `IODensityPanel`, `IOMap.reads`), the contract test (37 session routes), `desktop/src/engine/api.d.ts`.
+- TS: `data/blockset.ts`, `data/iohot.ts`, `data/iodensity.ts`, `ioMapOf(…, { reads })` with `ioScan` (the match rule, blocks, temp,
+  write shared), `isTempEvent` / `isWriteEvent` moved to `iomap.ts` (re-exported by `blocklayout.ts`), `DataSource.ioHot` /
+  `ioDensity` (RemoteSource: 404 = null), `data/densitylayout.ts`, the `reread` colour mode, `rowsIn` keeping `reads`, the density
+  paint in `drawBlockMap`.
+- Measured (spill, `testdata/big`): `io/hot` 63–90 ms, `io/density` 50–55 ms against `io/map` 27–29 ms (HANDOFF § Measured budgets);
+  generated 214 M distinct blocks: exact, 0.4 s, 98 MB peak heap (it was 298 MB and approximate before the seen set got a cap of
+  its own, apart from the objects' and statements' distinct sets).
+- An independent review found, and this batch fixed: bin counts that wrap when summed get past the density request's checks and end
+  in a divide by zero (each segment's bins and coordinates are checked before summing); the cells limit was only checked with both
+  axes given (now with the defaults too, and the default panels are the first 64 files with fewer y bins when needed); a corrupt
+  p3 (2^40) made one wait cost the whole cap and a loop per block (a wait moves at most 65,536 blocks); counter keys hold files in
+  [0, 2^31) and blocks in [0, 2^32), and others landed on another block's key (they are not counted now); the OpenAPI said the prune
+  cap was 2,000,000 (it is 1,000,000).
+
+### 2026-11-08: batch 2 (view)
+
+- `BlockMap.tsx`: the toolbar's *Density* select; Display › Density (auto / on / off, waits / blocks / time, √ / log, marks); the
+  density query in the figure (the layout as the request, re-asked 200 ms after it rests), `DensityKey`, `CellTip`, the dashed cell
+  outline under the pointer; the *Hot blocks* tab (`HotTab`, `showRun`: a `blocks` focus, the panel's block zoom, the panel scrolled
+  to the centre); exact Objects and Statements tabs (`exactObj`, `exactStmt`, `ExactNote`); the colour mode *Re-reads* asks the map
+  with `reads=1`. `FlameIcon`, `GridIcon`. CSS: `--bm-dens`, `--bm-rr-0..5`, `.iom-dkey`, `.iom-dramp`, `.bm-cell`, `.iom-hot*`.
+- Found while verifying: a pressed object or run row painted its name in the surface colour (base.css fills a pressed button; the
+  row's own style replaced the background, not the colour; the Objects rows of the last round had it too).
+- Verified (dev browser mode on the branch's sidecar, light and dark, 1280 and 1600 px; the standalone report with the reference
+  bundle): io_waits at marks 5,000 (sampled 1 in 2, density on by itself), Hot blocks and a click on the top run (stmt 22's spill:
+  tempfile 203 blocks 756,103–756,614, 6,704 reads, 2–28× per block), re-reads, exact Objects, marks off with a cell tooltip, time
+  axis with panels per object. No console errors.
+- TS twin timing on 400 k block waits: `ioHotOf` 445 → 310 ms (numeric keys, a last-chunk cache per owner, word operations on bitmaps).
+- A second independent review (the twins and the view; no twin disagreement on real inputs) found, and this batch fixed: on the order
+  axis, while a zoom settles, the density of the previous answer was drawn against the rows `rowsIn` keeps (match indices counted
+  from another start: the density is now asked and drawn only for the answer's own rows); rounding each packed segment up to a bin
+  could pass the engine's cells limit (a 400, and no density; the cell now grows until the bins fit, tested strictly); a run read only
+  by waits without an object zoomed the "other objects" panel (now its `n<file>` panel), and an object panel zoomed where the sample
+  has no row fell back to the whole object (now the zoom's range, linear); `useSettled` returned the value from before a null period
+  for 200 ms (a wasted density query for the old layout); the re-reads colour called 0 reads "read once" (now "not read in scope");
+  the unzoomed time axis asked over the sample's time extent, so the last column took the matches past it (it now asks for bins only
+  and the engine bins over the matches' own extent).

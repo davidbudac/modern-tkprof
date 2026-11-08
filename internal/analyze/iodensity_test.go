@@ -227,8 +227,8 @@ func TestIODensityLimits(t *testing.T) {
 	for _, bad := range []IODensityReq{
 		// bins that wrap around when summed (the review's crash)
 		{XSegs: [][3]int64{{0, 4294967295, big}, {4294967295, 4294967296, big}}, Panels: []IODensityPanelReq{{Key: "f7", Segs: [][4]int64{{7, 0, 4294967295, big}, {7, 4294967295, 4294967296, big}}}}},
-		{Panels: []IODensityPanelReq{{Key: "f7", Segs: [][4]int64{{7, 0, big, 2000}}}}},  // y*span overflows
-		{XSegs: [][3]int64{{-big, 10, 5}}},                                                // x out of range
+		{Panels: []IODensityPanelReq{{Key: "f7", Segs: [][4]int64{{7, 0, big, 2000}}}}}, // y*span overflows
+		{XSegs: [][3]int64{{-big, 10, 5}}}, // x out of range
 		{XBins: 4000, Panels: []IODensityPanelReq{{Key: "f12", Segs: [][4]int64{{12, 0, 1 << 20, 2000}}}}}, // 8M cells with the default x
 		{XBins: -1},
 	} {

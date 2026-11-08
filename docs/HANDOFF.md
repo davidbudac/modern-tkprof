@@ -17,7 +17,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - Latest release **v0.5.0** (2026-11-02, from `202d152`): CLI binaries (+ `-lite` builds) and the desktop
   installers (DMG arm64/x64, deb, AppImage, NSIS) in one GitHub release; notes `docs/releases/v0.5.0.md`.
   Everything after it (three new views, Lines colour-by / Δ filter, formatted view round 2, the open-list
-  round, the Trace pane's round 3, the I/O map) is unreleased.
+  round, the Trace pane's round 3, the I/O map and its density and hot blocks) is unreleased.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -123,6 +123,8 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
 | pivot on 1 GB | ≤ 300 ms | 290 ms (spill) |
 | `api/lines` page (2000 lines) | < 20 ms | ~2 ms fetch + 1 ms parse on `big_loop.trc` |
 | literal search | 2 GB < 5 s | whole `big_loop.trc` 92 ms |
+| I/O map routes (spill) | the order of `io/map` | `nbstest3` (284 MB, 386 k block waits) / `testcdb` (161 MB, 319 k): `io/map` 29 / 27 ms, `+reads=1` 42 / 32 ms, `io/hot` 90 / 63 ms, `io/density` 300 × 80 55 / 50 ms (`MTK_BIG=1 MTK_BIG_DIR=… go test ./internal/slice -run IOBig -v`); over HTTP from the engine binary, nbstest3 reopened from the cache: 30 / 88 / 74 ms, engine RSS 46 MB before and 52 MB after five I/O queries |
+| hot-block counting, bounded | idle RSS < 300 MB | generated (`MTK_SCALE=1 go test ./internal/analyze -run IOHotScale -v`): 214 M block reads over 214 M distinct blocks 0.4 s, 98 MB peak heap, exact; 4 M scattered reads over 1.4 M blocks (prunes) 1.5 s, 85 MB, the hot blocks exact |
 | follow latency | < 2 s | dbmint 149 ms (cli) / 501 ms (lib) |
 | SSH fetch | line speed, resume | 117.7 MB in 0.97 s (gzip), resume correct |
 | ADR (db) fetch | | 0.39 to ~1 MB/s |
@@ -203,9 +205,27 @@ modes with a legend that highlights, object names from the bundle or the plans (
 and a side panel (Objects, Statements, Distributions, Display). Engine: the aggregate model keeps the waits' obj# and file#,
 so a bundle (and the desktop's "Fetch reference data") names datafiles and the objects only waits mention; cache format 6.
 
+Round 3 (2026-11-08, DESIGN § The I/O map: density and hot blocks, `docs/PLAN-IOMAP-2.md`): three engine answers over every
+matching wait, not the sample: `/api/io/density` (the waits counted into the cells of the view's layout, drawn under the marks;
+toolbar *Density* auto / on / off, Display: waits / blocks / time, √ / log, marks on or off, a cell tooltip), `/api/io/hot` (block
+reads per block in bounded memory: a roaring-like seen set, counters for re-read blocks, a Misra-Gries prune; the hottest runs
+recounted exactly; the side panel's new *Hot blocks* tab, click to zoom and highlight; exact Objects and Statements tabs), and
+`/api/io/map?reads=1` (the colour mode *Re-reads*). TS twins with one shared case (`ioblocks-case.json`); no protocol bump, no cache
+format change.
+
 Open:
 
 - `site/docs.html` is updated in the repository but not published (ask before `scripts/publish-site.sh`).
+- No real trace with millions of block I/O waits: `testdata/big` tops out at 386 k (nbstest3); the bounded counting is measured on
+  generated streams only (`TestIOHotScale*`). A dbmint scenario for it would need the lab VMs (ask first).
+- Density on a packed axis (panels per object, or *packed*) bins over the segments the sample's runs give: a wait outside them is
+  not drawn (the panel's `out` count), as its mark would not be.
+- The standalone report's `ioHotOf` takes ~310 ms per 400 k block waits on the main thread (the per-object and per-statement distinct
+  sets cost most); it runs while Objects, Hot blocks or Statements shows, again on each zoom.
+- Distinct blocks per object and statement are approximate past the owners' 32 MB cap (`distinctExact`; the UI says so); a block read
+  by two object groups (a `n<file>` wait and an object) counts for each. A hot run merges adjacent blocks whatever their object.
+- The Distributions tab still counts the rows drawn (every k-th wait is an unbiased sample for histograms; it says ≈).
+- The re-reads colour of a multiblock read is its most read block's count (one hot block colours a 128-block read).
 - The assistant's `show` tool does not offer the I/O map (`internal/assist/tools_show.go` lists the other views).
 - Other views still name objects from the bundle only (`doc.objectName`); the plan-line fallback of `data/objnames.ts`
   is the I/O map's.
