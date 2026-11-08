@@ -18,6 +18,11 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   installers (DMG arm64/x64, deb, AppImage, NSIS) and, new, the signed updater artifacts and `latest.json`
   in one GitHub release; notes `docs/releases/v0.6.0.md`. The first release with the app's auto-updater
   (signing key `~/.tauri/mtkprof-updater.key` on the release Mac; `desktop/README.md` § Updates).
+- **2026-11-08 desktop review round** (`docs/REVIEW-DESKTOP-PERFORMANCE-UX-2026-11-08.md`): 14 findings on
+  transitions, work preservation, opening, prompts, keyboard and the Cut view, all fixed on `main` after v0.6.0 in one
+  multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
+  DESIGN § Transitions and § Cut the decisions. Unreleased. Anyone running the Tauri app or the `verify-mtkprof` skill
+  needs `pnpm build:engine` in `desktop/` first: the sidecar binary is gitignored and predates the engine changes.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -152,6 +157,20 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - **Visualizer** has no LICENSE file. It shows "0ms" for µs-scale plans (its display rounds to ms).
 - **History**: the stray 32 MB `mtkprof` binary (removed in `a89bc12`) is still in the history of the now
   public repo; rewriting it means a force-push.
+
+### Left by the 2026-11-08 desktop review (reviewers' should-fix items and app-only checks)
+
+- `web/src/app/TopBar.tsx` still keeps `topw` for the waits-tab count under a window (same class as F01, outside the list).
+- The open screen's picker and paths box do not apply the single-file follow rule that drops apply (F02).
+- Whether a note editor is open is still component state: after a tab switch the draft comes back when the editor is
+  reopened, not by itself (F03). The same note has two draft keys in the views and the Annotations page.
+- Same-statement scope changes in Statement detail keep the previous rows without a stale marking (F14).
+- Native keyboard and VoiceOver walkthrough in the Tauri app (F07: is the live region spoken, does Tab reach the sort
+  buttons in WKWebView). Two cut tabs side by side and `pruneCuts` on a real profile (F09) are Tauri-only checks too.
+- No fixture has more than 300 statements (max 210): the F12 picker past rank 300 was tested in vitest only.
+- Optional: a server-side singleflight in `slice.Server.wrap` (F05); whole-engine RSS during a cut check in the app (F13).
+- `ToolbarMenu` measures its popover during the drop-in animation, so its shift-back-into-view under-detects overflow
+  (seen on the Cut statement picker, worked around with an end alignment and a viewport-bound width).
 
 ### Trace pane: the formatted Lines view (round 2 2026-11-06, round 3 and 3b 2026-11-07; DESIGN § Formatted Lines view, `docs/PLAN-FORMATTED-V2.md`, `docs/PLAN-TRACE-PANE-V3.md`)
 

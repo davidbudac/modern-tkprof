@@ -1309,6 +1309,35 @@ real cut of io_waits.trc.
   new file (lines, bytes, the mix, the re-parse check), the selection and the options. Hue means
   provenance here (`--cut-*` tokens), not a resource class. Save as… (save dialog, streamed); in
   the app also *Open as new tab* (`cuts/` in the app cache folder).
+- **One plan, one identity (2026-11-08, review F10–F13).** The plan, the check and the export are
+  for the *current* query and document: a retained plan is drawn dimmed with a Planning… badge
+  while the next loads, never exported or checked; a live snapshot re-plans. The statement is
+  picked from a typed list of every statement (the picked one first), not a top-300 select.
+  Every *Open as new tab* writes its own file (`<stem>-cut-<yyyymmdd-hhmmss>[-n].trc`, `.part`
+  then rename), because a session reads its lines by path and the workspace reuses a tab per
+  path; the `cuts/` folder is pruned on start of files no tab references and older than 7 days.
+  The check is bounded on the engine too: an aggregation-only parse (a sink keeps what the
+  comparison needs), cancellable at every read (`model.Options.Ctx`), refused over 1 GiB unless
+  `force=1`, one in flight per session (a newer selection supersedes the older).
+
+## Transitions and work preservation (decided 2026-11-08, `docs/REVIEW-DESKTOP-PERFORMANCE-UX-2026-11-08.md`)
+
+- **Provenance of displayed numbers.** A source query knows when it shows another key's answer
+  (`stale` in `QueryState`); numbers (wait profile, response bar, scoped findings) are never
+  labelled with the current selection while another selection's answer is retained, and a failed
+  scoped query says so in a callout instead of falling back to the whole trace silently. Decoration
+  (statement roles, spans, highlight marks) may retain. Statement detail retains only across scopes
+  of the same statement. Identical concurrent requests share one transport call (`RemoteSource`).
+- **Drafts live in the tab, not the component.** The chat draft (per-tab chat store), the note
+  drafts (session store, keyed `<kind>:<target>`) and the Statements list controls (session store)
+  survive tab and page switches and die with the tab; nothing of them is written to disk.
+- **Opening.** Drops on the open screen use the options shown there, drops elsewhere the Settings
+  defaults, and the overlay says which; follow applies to a single file. A restored workspace and an
+  engine restart open tabs through a bounded queue (the active tab first, two at a time).
+- **Prompts** stay on screen while their answer is in flight and after a failure (Retry, Cancel);
+  404 means answered elsewhere.
+- **Keyboard** reaches the connections list (listbox), every table's sort and row selection (grid,
+  caller-named, selection announced), the resize handles' values and the Cut pieces.
 
 ## Project
 
