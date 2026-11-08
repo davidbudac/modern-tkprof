@@ -26,6 +26,7 @@
 .cut-map canvas { position: absolute; inset-inline-start: 0; inset-block-start: 0; }
 .cut-map svg { position: absolute; inset-inline-start: 0; inset-block-start: 0; overflow: visible; }
 .cut-map text { font-family: var(--font-ui); }
+.cut-map-note { margin: var(--sp-1) 0 0; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .cut-map .tb { font-size: 12px; font-weight: 600; fill: var(--ink); }
 .cut-map .ts { font-size: 11px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
 .cut-map .ti { font-size: 11px; fill: var(--ink-3); font-style: italic; }
@@ -36,7 +37,7 @@
 .cut-map .lab { cursor: pointer; }
 .cut-map .lab:hover .tb { text-decoration: underline; }
 .cut-map .selbox { fill: none; stroke: var(--ink); stroke-width: 1.5; }
-.cut-map .frame { fill: none; stroke: var(--hairline-strong); }
+.cut-map .cut-frame { fill: none; stroke: var(--hairline-strong); }
 .cut-empty { color: var(--ink-2); padding: var(--sp-5) 0; }
 
 .cut-side { border-block-start: 1px solid var(--hairline); border-inline-start: 1px solid var(--hairline); padding: var(--sp-3) var(--sp-4) var(--sp-5); overflow: auto; display: flex; flex-direction: column; gap: var(--sp-4); min-block-size: 0; }

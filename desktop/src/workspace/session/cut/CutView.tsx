@@ -443,6 +443,7 @@ function CutMap({ doc, plan, profiles, sel, onSel, mode }: { doc: TraceDoc; plan
   const ly = placeLabels(ys, 29, G.top + 8, G.top + H + 10)
   const sp = plan.pieces[sel]
   return (
+    <>
     <div className="cut-map dim" ref={ref}>
       <canvas ref={canvas} />
       <svg width={w} height={G.top + H + 30}>
@@ -460,7 +461,7 @@ function CutMap({ doc, plan, profiles, sel, onSel, mode }: { doc: TraceDoc; plan
             {out.y[i][1] - out.y[i][0] >= 12 && <text x={ox + G.ow / 2} y={(out.y[i][0] + out.y[i][1]) / 2 + 4} textAnchor="middle" fontSize={11} fill="var(--cut-gen)">✦</text>}
           </g>
         ))}
-        <rect className="frame" x={ox - 0.5} y={G.top - 0.5} width={G.ow + 1} height={out.h + 1} />
+        <rect className="cut-frame" x={ox - 0.5} y={G.top - 0.5} width={G.ow + 1} height={out.h + 1} />
         {sp && <rect className="selbox" x={ox - 3} y={out.y[sel][0] - 1} width={G.ow + 6} height={out.y[sel][1] - out.y[sel][0] + 2} rx={3} />}
         {plan.pieces.map((pc, i) => {
           const [t, sub] = pieceText(plan, pc)
@@ -476,9 +477,11 @@ function CutMap({ doc, plan, profiles, sel, onSel, mode }: { doc: TraceDoc; plan
           )
         })}
         {plan.pieces.map((_, i) => <rect key={`h${i}`} className="hit" x={ox} y={out.y[i][0]} width={G.ow} height={out.y[i][1] - out.y[i][0]} onMouseEnter={() => onSel(i)} />)}
-        <text x={ox} y={G.top + out.h + 16} className="ts">{out.k < src.k * 0.999 ? 'kept lines shrunk to fit' : 'kept lines at the scale of the source'}; small blocks at least 15 px</text>
       </svg>
     </div>
+    {/* a line of its own under the map: inside the svg it collided with the labels spread below the new file's column */}
+    <p className="cut-map-note">New file: {out.k < src.k * 0.999 ? 'kept lines shrunk to fit' : 'kept lines at the scale of the source'}; small blocks at least 15 px.</p>
+    </>
   )
 }
 
@@ -506,7 +509,7 @@ function SourceRuler({ doc, plan, c, sx, multi, mode }: { doc: TraceDoc; plan: C
   const callers = (plan.files.find((x) => x.idx === c.file)?.runs ?? []).filter((r) => r.l === 'C')
   return (
     <g>
-      <rect className="frame" x={sx - 0.5} y={c.y0 - 0.5} width={G.sw + 1} height={c.h + 1} />
+      <rect className="cut-frame" x={sx - 0.5} y={c.y0 - 0.5} width={G.sw + 1} height={c.h + 1} />
       {multi && <><text x={sx - 8} y={c.y0 + 11} textAnchor="end" className="tb">{(f?.name ?? '').replace(/\.trc$/i, '')}</text>
         <text x={sx - 8} y={c.y0 + 24} textAnchor="end" className="ts">{f?.processPid ? `pid ${String(f.processPid).split(',')[0]}` : ''}</text></>}
       {marks}
