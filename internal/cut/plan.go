@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
+	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
 // Piece is a block of the new file: kept lines (one or more runs of source
@@ -317,61 +318,215 @@ type Check struct {
 
 // Check writes the cut to a temporary file in dir, parses it and compares
 // its calls (per statement and call kind: count and elapsed), waits and
-// wall clock with what the selection keeps.
+// wall clock with what the selection keeps. See CheckMax.
 func (c *Cutter) Check(ctx context.Context, sel Selection, dir string) (*Check, error) {
+	return c.CheckMax(ctx, sel, dir, 0)
+}
+
+// TooBigError is the error of a check whose new file is bigger than its
+// limit (CheckMax): the write stopped there and nothing was parsed.
+type TooBigError struct{ Max int64 }
+
+func (e *TooBigError) Error() string {
+	return fmt.Sprintf("the new file is bigger than %d MiB, the limit of a re-parse check", e.Max>>20)
+}
+
+// CheckMax is Check with a limit: a new file bigger than maxBytes (> 0) is
+// not checked (*TooBigError). The parse back is an aggregation-only build
+// with a sink that keeps only what the comparison needs (checkSink), so its
+// memory is that of the cut's dimensions, not of its facts; ctx cancels the
+// write and the parse alike (model.Options.Ctx), and the temporary file is
+// removed however the check ends.
+func (c *Cutter) CheckMax(ctx context.Context, sel Selection, dir string, maxBytes int64) (*Check, error) {
+	return c.check(ctx, sel, dir, maxBytes, parseAgg)
+}
+
+// parser parses a written cut back (parseAgg; the tests compare it with a
+// full build).
+type parser func(ctx context.Context, path string) (*parsed, error)
+
+func (c *Cutter) check(ctx context.Context, sel Selection, dir string, maxBytes int64, parse parser) (*Check, error) {
 	fh, err := os.CreateTemp(dir, "mtkprof-cut-*.trc")
 	if err != nil {
 		return nil, err
 	}
 	path := fh.Name()
 	defer os.Remove(path)
-	p, s, err := c.run(ctx, &sel, fh)
+	var w io.Writer = fh
+	if maxBytes > 0 {
+		w = &limitWriter{w: fh, left: maxBytes, max: maxBytes}
+	}
+	p, s, err := c.run(ctx, &sel, w)
 	if cerr := fh.Close(); err == nil {
 		err = cerr
 	}
 	if err != nil {
 		return nil, err
 	}
-	m2, err := model.Build(path, model.Options{})
+	got, err := parse(ctx, path)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, fmt.Errorf("parse the cut: %w", err)
 	}
-	return compare(s, m2, p), nil
+	return compare(s, got, p), nil
 }
 
-func compare(s *selected, m2 *model.Model, p *Plan) *Check {
-	ck := &Check{CallsWant: s.nKept, WaitsWant: s.exp.waits.n, WaitUsWant: s.exp.waits.us, Lines: p.Lines, Bytes: p.Bytes,
-		Statements: len(m2.Statements), BindSets: len(m2.BindSets), Plans: len(m2.Plans), UnknownLines: m2.Diag.UnknownLines}
-	keys := stmtKeys(m2)
-	got := map[stmtKind]*count{}
-	first := int64(0)
-	for i := range m2.Calls {
-		cl := &m2.Calls[i]
-		k := stmtKind{keys[cl.Statement], cl.Kind}
-		g := got[k]
+// limitWriter fails a write that would take the output past max bytes.
+type limitWriter struct {
+	w         io.Writer
+	left, max int64
+}
+
+func (l *limitWriter) Write(b []byte) (int, error) {
+	if int64(len(b)) > l.left {
+		return 0, &TooBigError{Max: l.max}
+	}
+	n, err := l.w.Write(b)
+	l.left -= int64(n)
+	return n, err
+}
+
+// parsed is what a check compares of the cut parsed back.
+type parsed struct {
+	calls        map[stmtKind]*count // per statement (key) and call kind: count and elapsed
+	nCalls       int64
+	waits        count
+	first        int64    // the earliest wall clock of a call's end (0: none known)
+	unknown      []string // keys of the statements without SQL text
+	statements   int
+	bindSets     int
+	plans        int
+	unknownLines int
+}
+
+// parseAgg parses a cut with an aggregation-only build: the calls and waits
+// go to a checkSink instead of the model, the bind sets are counted as the
+// builder decodes them.
+func parseAgg(ctx context.Context, path string) (*parsed, error) {
+	var k *checkSink
+	m, err := model.Build(path, model.Options{Ctx: ctx, Aggregate: true, SpillBinds: true,
+		NewTee: func(m *model.Model) model.Sink { k = newCheckSink(m); return k }})
+	if err != nil {
+		return nil, err
+	}
+	return k.result(m), nil
+}
+
+// checkSink accumulates what compare needs of the calls and waits of an
+// aggregation-only build: per cursor and call kind the count and elapsed
+// (the cursor's statement is resolved at the end, after implicit cursors
+// were adopted, as a full build re-points its calls), the waits' count and
+// µs, the earliest wall clock of a call, and the number of bind sets.
+type checkSink struct {
+	m        *model.Model
+	calls    map[callKey]*count
+	n        int64
+	waits    count
+	first    int64
+	bindSets int
+}
+
+// callKey is a call's cursor (None: the call has none, stmt is its
+// statement) and kind.
+type callKey struct {
+	cur, stmt model.ID
+	kind      trace.CallKind
+}
+
+// checkHook, when set (tests), runs after every call the check sink takes.
+var checkHook func()
+
+func newCheckSink(m *model.Model) *checkSink {
+	return &checkSink{m: m, calls: map[callKey]*count{}}
+}
+
+func (k *checkSink) Call(c *model.Call) {
+	key := callKey{cur: c.Cursor, stmt: model.None, kind: c.Kind}
+	if c.Cursor < 0 {
+		key = callKey{cur: model.None, stmt: c.Statement, kind: c.Kind}
+	}
+	g := k.calls[key]
+	if g == nil {
+		g = &count{}
+		k.calls[key] = g
+	}
+	g.n++
+	g.us += c.E
+	k.n++
+	if w := k.m.CallWall(c); w != 0 && (k.first == 0 || w < k.first) {
+		k.first = w
+	}
+	if checkHook != nil {
+		checkHook()
+	}
+}
+
+func (k *checkSink) Child(*model.ChildRec, *model.Call) {}
+
+func (k *checkSink) Wait(w *model.Wait, _ *model.Call) {
+	k.waits.n++
+	k.waits.us += w.Ela
+}
+
+func (k *checkSink) Adopt(model.ID, model.ID) {}
+func (k *checkSink) Finish()                  {}
+
+func (k *checkSink) BindSet(*model.BindSet, []model.Bind) { k.bindSets++ }
+
+func (k *checkSink) result(m *model.Model) *parsed {
+	keys := stmtKeys(m)
+	out := &parsed{calls: map[stmtKind]*count{}, nCalls: k.n, waits: k.waits, first: k.first, statements: len(m.Statements),
+		bindSets: k.bindSets, plans: len(m.Plans), unknownLines: m.Diag.UnknownLines, unknown: unknownKeys(m, keys)}
+	for key, c := range k.calls {
+		st := key.stmt
+		if key.cur >= 0 && int(key.cur) < len(m.Cursors) {
+			st = m.Cursors[key.cur].Statement
+		}
+		sk := stmtKind{stmtKeyOf(keys, st), key.kind}
+		g := out.calls[sk]
 		if g == nil {
 			g = &count{}
-			got[k] = g
+			out.calls[sk] = g
 		}
-		g.n++
-		g.us += cl.E
-		ck.Calls++
-		if w := m2.CallWall(cl); w != 0 && (first == 0 || w < first) {
-			first = w
+		g.n += c.n
+		g.us += c.us
+	}
+	return out
+}
+
+// stmtKeyOf is the key of statement id ("" for none).
+func stmtKeyOf(keys []string, id model.ID) string {
+	if id < 0 || int(id) >= len(keys) {
+		return ""
+	}
+	return keys[id]
+}
+
+// unknownKeys are the keys of the statements of m without SQL text.
+func unknownKeys(m *model.Model, keys []string) []string {
+	var out []string
+	for i := range m.Statements {
+		if m.Statements[i].Kind == model.StmtUnknown {
+			out = append(out, keys[i])
 		}
 	}
-	for i := range m2.Waits {
-		ck.Waits++
-		ck.WaitUs += m2.Waits[i].Ela
-	}
-	for i := range m2.Statements {
-		if m2.Statements[i].Kind == model.StmtUnknown && !s.exp.unknown[keys[i]] {
+	return out
+}
+
+func compare(s *selected, got *parsed, p *Plan) *Check {
+	ck := &Check{CallsWant: s.nKept, WaitsWant: s.exp.waits.n, WaitUsWant: s.exp.waits.us, Lines: p.Lines, Bytes: p.Bytes,
+		Calls: got.nCalls, Waits: got.waits.n, WaitUs: got.waits.us,
+		Statements: got.statements, BindSets: got.bindSets, Plans: got.plans, UnknownLines: got.unknownLines}
+	for _, k := range got.unknown {
+		if !s.exp.unknown[k] {
 			ck.NewUnknown++
 		}
 	}
 	var mis []string
 	for k, w := range s.exp.calls {
-		if g := got[k]; g == nil || *g != *w {
+		if g := got.calls[k]; g == nil || *g != *w {
 			gg := count{}
 			if g != nil {
 				gg = *g
@@ -379,7 +534,7 @@ func compare(s *selected, m2 *model.Model, p *Plan) *Check {
 			mis = append(mis, fmt.Sprintf("%s %s: want %d calls %d µs, got %d calls %d µs", k.stmt, k.kind, w.n, w.us, gg.n, gg.us))
 		}
 	}
-	for k, g := range got {
+	for k, g := range got.calls {
 		if s.exp.calls[k] == nil {
 			mis = append(mis, fmt.Sprintf("%s %s: want none, got %d calls %d µs", k.stmt, k.kind, g.n, g.us))
 		}
@@ -389,7 +544,7 @@ func compare(s *selected, m2 *model.Model, p *Plan) *Check {
 		mis = mis[:20]
 	}
 	ck.Mismatches = mis
-	ck.WallOK = s.exp.firstWall == 0 || first == s.exp.firstWall
+	ck.WallOK = s.exp.firstWall == 0 || got.first == s.exp.firstWall
 	ck.OK = len(mis) == 0 && ck.Calls == ck.CallsWant && ck.Waits == ck.WaitsWant && ck.WaitUs == ck.WaitUsWant && ck.WallOK && ck.NewUnknown == 0
 	return ck
 }

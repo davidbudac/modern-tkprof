@@ -1798,7 +1798,7 @@ export interface paths {
         };
         /**
          * The new file written to a temporary file, parsed back and compared with the selection
-         * @description `cut.Cutter.Check`: per statement and call kind the count and elapsed of the calls, the waits (count and µs), the wall clock of the first kept call, and the statements that lost their SQL text, against what the selection keeps. `ok` when everything is equal. The temporary file is removed.
+         * @description `cut.Cutter.Check`: per statement and call kind the count and elapsed of the calls, the waits (count and µs), the wall clock of the first kept call, and the statements that lost their SQL text, against what the selection keeps. `ok` when everything is equal. The temporary file is removed. The file is parsed back with an aggregation-only build (its memory is that of the dimensions) that stops when the request is cancelled. A new file bigger than 1 GiB is refused (400) unless `force=1`. One check runs at a time per session: a request for the selection being checked waits for it, one for another selection cancels it.
          */
         get: operations["sessionCutCheck"];
         put?: never;
@@ -5831,6 +5831,8 @@ export interface operations {
                 plans?: 0 | 1;
                 /** @description 0 = no "mtkprof cut:" provenance lines in the header */
                 prov?: 0 | 1;
+                /** @description 1 = check a new file bigger than the limit (1 GiB) too; without it such a check is a 400 */
+                force?: 0 | 1;
             };
             header?: never;
             path: {

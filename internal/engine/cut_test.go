@@ -39,6 +39,15 @@ func TestCutRoutes(t *testing.T) {
 	} else if err := json.Unmarshal(r.body, &ck); err != nil || !ck.OK {
 		t.Fatalf("check %+v %v", ck, err)
 	}
+	// force=1 (check a file over the 1 GiB limit too) is a parameter of the route; anything but 0|1 is a 400
+	if r := e.req("GET", base+"/check"+q+"&force=1", nil); r.code != 200 {
+		t.Fatalf("check force=1: %d %s", r.code, r.body)
+	} else if err := json.Unmarshal(r.body, &ck); err != nil || !ck.OK {
+		t.Fatalf("check force=1 %+v %v", ck, err)
+	}
+	if r := e.req("GET", base+"/check"+q+"&force=yes", nil); r.code != 400 {
+		t.Errorf("check force=yes: %d %s", r.code, r.body)
+	}
 	r := e.req("GET", base+"/file"+q, nil)
 	if r.code != 200 || !strings.Contains(r.hdr.Get("Content-Disposition"), `filename="io_waits-cut.trc"`) {
 		t.Fatalf("file: %d %v", r.code, r.hdr)

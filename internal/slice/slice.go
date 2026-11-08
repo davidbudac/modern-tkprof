@@ -102,7 +102,17 @@ type Server struct {
 	CutSalt, CutDir string
 	cutOnce         sync.Once
 	cut             *cut.Cutter
+
+	// MaxCheckBytes is the biggest new file /api/cut/check writes and parses
+	// back without force=1 (0: DefaultMaxCheckBytes). checkMu guards check,
+	// the one check in flight (see runCheck).
+	MaxCheckBytes int64
+	checkMu       sync.Mutex
+	check         *checkRun
 }
+
+// DefaultMaxCheckBytes is the default Server.MaxCheckBytes: 1 GiB.
+const DefaultMaxCheckBytes = 1 << 30
 
 // NoCORS is the Server.AllowOrigin that turns the server's own CORS handling off.
 const NoCORS = "-"
