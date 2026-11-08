@@ -51,6 +51,26 @@ describe('useJSON state (F10)', () => {
     st = jsonSettle(st, A, { data: { lines: 1, bytes: 1 } }, true)
     expect(currentOf(jsonView(st, B), B)).toEqual({ lines: 9, bytes: 9 })
   })
+
+  it("a live session's next snapshot: the same path's answer of the earlier document is not current", () => {
+    // the client stays, the document is swapped: the plan of snapshot 1 must not authorise an export of snapshot 2
+    const doc1 = { rev: 1 }
+    const doc2 = { rev: 2 }
+    const st = jsonSettle<P>({ path: null }, A, { data: { lines: 10, bytes: 100 } }, false, doc1)
+    expect(currentOf(jsonView(st, A, doc1), A)).toEqual({ lines: 10, bytes: 100 })
+    const v = jsonView(st, A, doc2)
+    expect(v).toMatchObject({ loading: true, path: null, error: undefined })
+    expect(v.data).toEqual({ lines: 10, bytes: 100 }) // still drawn, dimmed, while the new snapshot is planned
+    expect(currentOf(v, A)).toBeUndefined()
+    expect(autoCheckOf(currentOf(v, A))).toBe(false)
+    expect(checkPath(currentOf(v, A), 'from=1&to=2', null)).toBeNull()
+    // an error of the earlier snapshot is not shown for the new one either
+    const bad = jsonSettle<P>({ path: null }, A, { error: 'boom' }, false, doc1)
+    expect(jsonView(bad, A, doc2)).toMatchObject({ loading: true, error: undefined })
+    // the new snapshot's answer is current
+    const st2 = jsonSettle(st, A, { data: { lines: 12, bytes: 120 } }, false, doc2)
+    expect(currentOf(jsonView(st2, A, doc2), A)).toEqual({ lines: 12, bytes: 120 })
+  })
 })
 
 describe('the re-parse check (F11)', () => {

@@ -32,23 +32,24 @@ const LABEL: Record<Label | 'G', { name: string; v: string; hatch?: boolean }> =
 interface Profile { total: number; buckets: number; size: number; calls: number[]; waits: number[] }
 
 /**
- * GET a JSON answer of the session; `path` null fetches nothing. Debounced, and aborted when the path changes. While another
- * path loads, the previous answer stays (`data`, with `path` saying which request it answers: see `currentOf`).
+ * GET a JSON answer of the session for the document `epoch`; `path` null fetches nothing. Debounced, and aborted when the
+ * path or the document changes (a live session's next snapshot answers the same path anew, through the same client). While
+ * another answer loads, the previous one stays (`data`, with `path` saying which request it answers: see `currentOf`).
  */
-function useJSON<T>(client: ApiClient, path: string | null, delay = 120): JSONView<T> {
+function useJSON<T>(client: ApiClient, path: string | null, epoch: unknown, delay = 120): JSONView<T> {
   const [st, setSt] = useState<JSONState<T>>({ path: null })
   useEffect(() => {
     if (!path) return
     const ac = new AbortController()
-    const settle = (r: JSONResult<T>) => setSt((cur) => jsonSettle(cur, path, r, ac.signal.aborted))
+    const settle = (r: JSONResult<T>) => setSt((cur) => jsonSettle(cur, path, r, ac.signal.aborted, epoch))
     const t = setTimeout(() => {
       client.fetch(path, { signal: ac.signal })
         .then(async (r) => { if (!r.ok) throw await responseError(r, path.split('?')[0]); return r.json() as Promise<T> })
         .then((data) => settle({ data }), (e: unknown) => settle({ error: e instanceof Error ? e.message : String(e) }))
     }, delay)
     return () => { clearTimeout(t); ac.abort() }
-  }, [client, path, delay])
-  return jsonView(st, path)
+  }, [client, path, epoch, delay])
+  return jsonView(st, path, epoch)
 }
 
 /** The size of an element (ResizeObserver). */
@@ -118,15 +119,17 @@ export function CutView({ doc }: { doc: TraceDoc }) {
   }, [win, contexts, mode, pick, edges, binds, plans, prov])
 
   const planPath = noStmt ? null : `/api/cut?${query}`
-  const plan = useJSON<CutPlan>(client, planPath)
+  const plan = useJSON<CutPlan>(client, planPath, doc)
   // p is what the map draws: the current plan, or the previous one while the next is planned (dimmed, "Planning…");
   // current is the plan of this very query: only it authorises an export or a check, and only its size decides the check
   const p = plan.data
   const current = currentOf(plan, planPath)
   const pending = !!p && !current
   const autoCheck = autoCheckOf(current)
-  const [checkWanted, setCheckWanted] = useState<string | null>(null)
-  const check = useJSON<CutCheck>(client, checkPath(current, query, checkWanted), 300)
+  // a check asked for is of this query on this document: a live session's next snapshot is asked again (a big check is
+  // not re-run on every snapshot); a small one is re-run by itself
+  const [checkWanted, setCheckWanted] = useState<{ query: string; doc: TraceDoc } | null>(null)
+  const check = useJSON<CutCheck>(client, checkPath(current, query, checkWanted?.doc === doc ? checkWanted.query : null), doc, 300)
   const files = doc.file.files ?? []
   const profilePaths = useMemo(() => files.map((_, i) => `/api/lines/profile?file=${i}&buckets=600`).join('|'), [files])
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -135,7 +138,7 @@ export function CutView({ doc }: { doc: TraceDoc }) {
     Promise.all(profilePaths.split('|').map((u) => client.fetch(u, { signal: ac.signal }).then((r) => (r.ok ? (r.json() as Promise<Profile>) : null))))
       .then((ps) => setProfiles(ps.map((x) => x ?? { total: 0, buckets: 0, size: 1, calls: [], waits: [] })), () => {})
     return () => ac.abort()
-  }, [client, profilePaths])
+  }, [client, profilePaths, doc]) // a live snapshot's files have grown
 
   useEffect(() => { setSel(null) }, [query])
   const pieces = p?.pieces ?? []
@@ -213,7 +216,7 @@ export function CutView({ doc }: { doc: TraceDoc }) {
         {p && p.lines > 0 && (
           <>
             <PieceCard doc={doc} plan={p} piece={pieces[selIdx]} mode={mode} onShow={(f, l) => actions.openLinesAt(f, l, { keepSelection: true })} />
-            <FileCard doc={doc} plan={p} pending={pending} check={check} autoCheck={autoCheck} onCheck={() => setCheckWanted(query)} />
+            <FileCard doc={doc} plan={p} pending={pending} check={check} autoCheck={autoCheck} onCheck={() => setCheckWanted({ query, doc })} />
             <SelectionCard doc={doc} plan={p} mode={mode} win={win} contexts={contexts} />
           </>
         )}
@@ -284,7 +287,7 @@ function TimeStrip({ doc, client, contexts, plan, mode, onWindow }: {
   const t1 = Math.max(doc.span.lastTim, t0 + 1)
   const bucket = Math.max(1, Math.ceil((t1 - t0) / 320))
   const ctx = contexts ? `&contexts=${contexts.size ? [...contexts].sort((a, b) => a - b).join(',') : '-'}` : ''
-  const tl = useJSON<{ n: number; firstTim: number; cpu: number[]; events: { event: number; us: number[] }[] }>(client, `/api/timeline?bucket=${bucket}&idle=0${ctx}`, 0)
+  const tl = useJSON<{ n: number; firstTim: number; cpu: number[]; events: { event: number; us: number[] }[] }>(client, `/api/timeline?bucket=${bucket}&idle=0${ctx}`, doc, 0)
   const [drag, setDrag] = useState<[number, number] | null>(null)
   const L0 = 120
   const R = Math.max(L0 + 10, w - 4)

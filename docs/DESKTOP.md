@@ -314,6 +314,8 @@ offers only Mask and None. *Plans from outside the cut* and *Provenance lines* (
 *One statement* picks from every statement with calls, longest first; type a sql_id or part of
 the SQL text to find one. While a changed selection is planned, the map shows the previous plan
 dimmed with *Planning…*, and *Save as…*, *Open as new tab* and the check wait for the new plan.
+In a live tab every new snapshot is planned again the same way; a check you asked for (a big
+cut) is not re-run by itself on the next snapshot.
 
 The side panel's *Re-parse check* writes the file, parses it back and compares its calls, waits
 and wall clock with the selection: a tick means the file holds exactly what the map shows. It

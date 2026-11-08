@@ -3,8 +3,11 @@
 import { filterRows, flatten, type PickRow, type TraceDoc } from '@lib'
 import type { CutPlan } from './cutlayout'
 
-/** The last settled answer of a `useJSON`: the path it answered and its data or error. */
-export interface JSONState<T> { path: string | null; data?: T; error?: string }
+/**
+ * The last settled answer of a `useJSON`: the path it answered, the document it answered for (`epoch`: the same path of a
+ * live session's next snapshot is another question) and its data or error.
+ */
+export interface JSONState<T> { path: string | null; epoch?: unknown; data?: T; error?: string }
 
 /** A settled request: its data or its error. */
 export type JSONResult<T> = { data: T } | { error: string }
@@ -13,22 +16,24 @@ export type JSONResult<T> = { data: T } | { error: string }
  * The state after the request for `path` settled. An aborted request never lands: its path is no longer wanted (the effect
  * was cleaned up) and a late answer must not replace the one of a newer request, however the fetch and the abort raced.
  */
-export function jsonSettle<T>(st: JSONState<T>, path: string, r: JSONResult<T>, aborted: boolean): JSONState<T> {
+export function jsonSettle<T>(st: JSONState<T>, path: string, r: JSONResult<T>, aborted: boolean, epoch?: unknown): JSONState<T> {
   if (aborted) return st
-  return 'error' in r ? { path, error: r.error } : { path, data: r.data }
+  return 'error' in r ? { path, epoch, error: r.error } : { path, epoch, data: r.data }
 }
 
 /** What a `useJSON` returns: the data it holds, the path that data answers (`null`: none), loading and the error of `path`. */
 export interface JSONView<T> { data?: T; path: string | null; loading: boolean; error?: string }
 
 /**
- * The view of `st` for the wanted `path`: while another path loads, the previous answer's data is kept (so the layout does
- * not jump) and `path` says whose it is; `current` tells the caller whether that is the answer to what it asked for.
+ * The view of `st` for the wanted `path` of the document `epoch`: while another path (or the same path of an earlier
+ * document) loads, the previous answer's data is kept (so the layout does not jump) and `path` says whose it is (null when it
+ * answers an earlier document); `currentOf` tells the caller whether that is the answer to what it asked for.
  */
-export function jsonView<T>(st: JSONState<T>, path: string | null): JSONView<T> {
+export function jsonView<T>(st: JSONState<T>, path: string | null, epoch?: unknown): JSONView<T> {
   if (!path) return { path: null, loading: false }
-  const loading = st.path !== path
-  return { data: st.data, path: st.data !== undefined ? st.path : null, loading, error: loading ? undefined : st.error }
+  const same = st.epoch === epoch
+  const loading = st.path !== path || !same
+  return { data: st.data, path: st.data !== undefined && same ? st.path : null, loading, error: loading ? undefined : st.error }
 }
 
 /** The data of `v` when it answers `path`, else undefined (a retained answer to another request is not current). */
