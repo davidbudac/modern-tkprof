@@ -226,7 +226,7 @@ function WindowNotes({ doc }: { doc: TraceDoc }) {
         {enabled && win && !editing && <button className="quiet" onClick={open} title="a note on the current time window, kept with the trace">✎ {cur ? 'Edit window note' : 'Annotate window'}</button>}
       </span>
       {editing && win ? (
-        <NoteEditor label="Note on the time window" title={`Window ${at(win.startTim)} → ${at(win.endTim)} (${fmtDur(win.endTim - win.startTim)})`} text={cur?.note}
+        <NoteEditor draftKey={`window:${win.startTim}:${win.endTim}`} label="Note on the time window" title={`Window ${at(win.startTim)} → ${at(win.endTim)} (${fmtDur(win.endTim - win.startTim)})`} text={cur?.note}
           onSave={(t) => {
             if (cur) actions.updateAnnotation(cur.id, { note: t, label: label.trim() || undefined })
             else actions.addAnnotation(makeAnnotation({ kind: 'window', note: t, from: win.startTim, to: win.endTim, ...(label.trim() ? { label: label.trim() } : {}) }))

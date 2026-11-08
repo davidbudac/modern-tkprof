@@ -10,6 +10,12 @@ import type { KindGroup } from '../data/callkinds'
 export type View = 'overview' | 'statements' | 'waits' | 'blocks' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
   | 'annotations' | 'reports' | 'cut' // desktop shell views
 
+/** How the Statements list is ranked. */
+export type StmtSortKey = 'first' | 'resp' | 'self' | 'cpu' | 'waits' | 'idle' | 'execs' | 'rows' | 'disk' | 'query' | 'hard' | 'errors'
+
+/** The Statements list's own controls (the filter text, hide recursive SYS statements, the ranking); they survive leaving the view and switching tabs. */
+export interface StmtListState { q: string; hideSys: boolean; sort: StmtSortKey }
+
 export interface TimeWindow { startTim: number; endTim: number }
 
 /** A block range `[lo, hi)` of one file. */
@@ -110,6 +116,10 @@ export interface State {
   filesOpen: boolean | null
   includeIdle: boolean
   inclusive: boolean // call statistics: inclusive of recursive children (true) or self (false)
+  /** the Statements list's filter text, hide-SYS switch and ranking */
+  stmtList: StmtListState
+  /** unsaved note text by `<kind>:<target>` (`NoteEditor`'s `draftKey`); memory only, gone with the tab (the store) and cleared by save, cancel and delete */
+  noteDrafts: Record<string, string>
   /** Types marked in SQL detail's Database calls table; null = all. */
   statementCallTypes: Set<KindGroup> | null
   theme: 'auto' | 'light' | 'dark'
@@ -145,7 +155,7 @@ export interface State {
 const initial: State = {
   doc: null, compare: null, side: 'a', loading: true, error: null, view: 'overview',
   selection: { stmt: null, event: null, call: null, exec: null },
-  window: null, block: null, lanesZoom: [], contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, theme: 'auto',
+  window: null, block: null, lanesZoom: [], contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, stmtList: { q: '', hideSys: false, sort: 'resp' }, noteDrafts: {}, theme: 'auto',
   statementCallTypes: null,
   linesAvailable: false, lineViewer: null,
   linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
@@ -194,7 +204,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], ioZoom: [], refImport: false, statementCallTypes: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], ioZoom: [], refImport: false, statementCallTypes: null, stmtList: initial.stmtList, noteDrafts: {}, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
   }
   const swapDoc: Store['swapDoc'] = (l) => {
     setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
@@ -325,6 +335,24 @@ function makeActions(setState: Store['setState']) {
     },
     toggleIdle() { setState((s) => ({ includeIdle: !s.includeIdle })) },
     setInclusive(inclusive: boolean) { setState({ inclusive }) },
+    /** Changes the Statements list's controls (a patch of `stmtList`; a patch that changes nothing keeps the state). */
+    setStmtList(patch: Partial<StmtListState>) {
+      setState((s) => {
+        const next = { ...s.stmtList, ...patch }
+        return next.q === s.stmtList.q && next.hideSys === s.stmtList.hideSys && next.sort === s.stmtList.sort ? {} : { stmtList: next }
+      })
+    },
+    /** Keeps the unsaved text of the note editor `key` (`<kind>:<target>`); `null` forgets it (saved, cancelled or deleted). */
+    setNoteDraft(key: string, text: string | null) {
+      setState((s) => {
+        if (text === null) {
+          if (!(key in s.noteDrafts)) return {}
+          const { [key]: _gone, ...rest } = s.noteDrafts
+          return { noteDrafts: rest }
+        }
+        return s.noteDrafts[key] === text ? {} : { noteDrafts: { ...s.noteDrafts, [key]: text } }
+      })
+    },
     openLines(line: number, file = 0) { setState({ lineViewer: { target: line, center: line, file } }) },
     pageLines(center: number) { setState((s) => (s.lineViewer ? { lineViewer: { ...s.lineViewer, center: Math.max(1, center) } } : {})) },
     closeLines() { setState({ lineViewer: null }) },

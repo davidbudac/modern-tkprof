@@ -1527,7 +1527,7 @@ function LinesOfFile({ doc, file }: { doc: TraceDoc; file: number }) {
       {noting !== null && (() => {
         const bm = bookmarks.find((b) => b.line === noting)
         return (
-          <NoteEditor key={noting} label={`Note on line ${noting}`} title={`Note on line ${fmtInt(noting)}${bm?.label ? `: ${bm.label}` : ''}`} text={bm?.note}
+          <NoteEditor key={noting} draftKey={`line:${file}:${noting}`} label={`Note on line ${noting}`} title={`Note on line ${fmtInt(noting)}${bm?.label ? `: ${bm.label}` : ''}`} text={bm?.note}
             onSave={(t) => { actions.setBookmarkNote(file, noting, t, preview(cache.line(noting)?.text ?? '', 80).trim()); setNoting(null); set({ tab: 'bookmarks' }); setPrefs({ inspect: true }) }}
             onCancel={() => setNoting(null)}
             onDelete={bm?.note ? () => { actions.setBookmarkNote(file, noting, ''); setNoting(null) } : undefined} />

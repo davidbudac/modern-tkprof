@@ -66,7 +66,7 @@ export function AnnotationsView({ doc }: { doc: TraceDoc }) {
 
   const edit = (a: Annotation, title: string, extra?: ReactNode) =>
     editing && 'id' in editing && editing.id === a.id ? (
-      <NoteEditor label={`Note: ${title}`} text={a.note} onSave={(t) => { actions.updateAnnotation(a.id, { note: t }); setEditing(null) }} onCancel={() => setEditing(null)} onDelete={() => { actions.removeAnnotation(a.id); setEditing(null) }}>
+      <NoteEditor draftKey={`annotation:${a.id}`} label={`Note: ${title}`} text={a.note} onSave={(t) => { actions.updateAnnotation(a.id, { note: t }); setEditing(null) }} onCancel={() => setEditing(null)} onDelete={() => { actions.removeAnnotation(a.id); setEditing(null) }}>
         {extra}
       </NoteEditor>
     ) : (
@@ -162,7 +162,7 @@ export function AnnotationsView({ doc }: { doc: TraceDoc }) {
                   <code className="small clip">{b.label}</code>
                 </span>
                 {open ? (
-                  <NoteEditor label={`Note on line ${b.line}`} text={b.note} onSave={(t) => { actions.setBookmarkNote(b.file, b.line, t); setEditing(null) }} onCancel={() => setEditing(null)}
+                  <NoteEditor draftKey={`line:${b.file}:${b.line}`} label={`Note on line ${b.line}`} text={b.note} onSave={(t) => { actions.setBookmarkNote(b.file, b.line, t); setEditing(null) }} onCancel={() => setEditing(null)}
                     onDelete={b.note ? () => { actions.setBookmarkNote(b.file, b.line, ''); setEditing(null) } : undefined} />
                 ) : (
                   <Note text={b.note ?? ''} when={b.updated} onEdit={() => setEditing({ line: b })} onDelete={() => actions.removeBookmark(b.file, b.line)} deleteLabel="Remove bookmark" />

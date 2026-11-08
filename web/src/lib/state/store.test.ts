@@ -25,6 +25,52 @@ describe('SQL detail call-type filter', () => {
   })
 })
 
+describe('Statements list controls', () => {
+  it('keeps the filter, hide-SYS and ranking in the store, patch by patch', () => {
+    const { getState, actions } = createStore()
+    expect(getState().stmtList).toEqual({ q: '', hideSys: false, sort: 'resp' })
+    actions.setStmtList({ q: 'select' })
+    actions.setStmtList({ hideSys: true, sort: 'cpu' })
+    expect(getState().stmtList).toEqual({ q: 'select', hideSys: true, sort: 'cpu' })
+    const before = getState().stmtList
+    actions.setStmtList({ q: 'select' }) // nothing changed: same object, no new state
+    expect(getState().stmtList).toBe(before)
+  })
+
+  it('survives a newer document of the same trace and a view change, and resets for another trace', () => {
+    const store = createStore()
+    store.actions.setStmtList({ q: 'dual', sort: 'execs' })
+    store.actions.setView('waits')
+    expect(store.getState().stmtList).toMatchObject({ q: 'dual', sort: 'execs' })
+    store.setLoaded({ doc: {} as never, compare: null })
+    expect(store.getState().stmtList).toEqual({ q: '', hideSys: false, sort: 'resp' })
+  })
+})
+
+describe('note drafts', () => {
+  it('are kept per key, replaced by typing and forgotten by null', () => {
+    const { getState, actions } = createStore()
+    actions.setNoteDraft('stmt:abc:1', 'half a no')
+    actions.setNoteDraft('line:0:42', 'another')
+    actions.setNoteDraft('stmt:abc:1', 'half a note')
+    expect(getState().noteDrafts).toEqual({ 'stmt:abc:1': 'half a note', 'line:0:42': 'another' })
+    actions.setNoteDraft('stmt:abc:1', null) // saved, cancelled or deleted
+    expect(getState().noteDrafts).toEqual({ 'line:0:42': 'another' })
+    const before = getState().noteDrafts
+    actions.setNoteDraft('stmt:abc:1', null) // nothing to forget: no new state
+    actions.setNoteDraft('line:0:42', 'another')
+    expect(getState().noteDrafts).toBe(before)
+  })
+
+  it('are not shared between stores (one per tab) and are dropped when another trace opens', () => {
+    const a = createStore(), b = createStore()
+    a.actions.setNoteDraft('window:1:2', 'text')
+    expect(b.getState().noteDrafts).toEqual({})
+    a.setLoaded({ doc: {} as never, compare: null })
+    expect(a.getState().noteDrafts).toEqual({})
+  })
+})
+
 describe('Lines view state', () => {
   it('openLinesAt switches to the Lines view, closes the drawer and bumps seq each time', () => {
     const { getState, actions } = createStore()
