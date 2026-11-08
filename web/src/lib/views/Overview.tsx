@@ -21,6 +21,7 @@ import { useScopedFindings } from '../data/scopedfindings'
 import { PopText, Shimmer, SoftText } from '../components/motion'
 import { selectedCount, fileCount } from '../data/fileset'
 import { concentrationLede, responseOf, responseShare, responseUs, sessionsLabel, shareNote } from '../data/response'
+import { someOf, traceInfo, whenOf } from '../data/traceinfo'
 
 const TOP_STATEMENTS = 8
 const LEDGER_ROWS = 5
@@ -47,10 +48,8 @@ export function Overview({ doc }: { doc: TraceDoc }) {
   return (
     <>
       <section className="hero">
-        <div className="hero-head">
-          <h1>Response time <PopText text={fmtDur(totalUs)} />{sessions ? <span className="dim" title="sum over the sessions of each session's span; wall: the clock time the scope covers"> · {sessions}</span> : null}{state.window ? <span className="dim"> · window</span> : null}{state.files ? <span className="dim"> · {selectedCount(doc, state.files)} of {fileCount(doc)} files</span> : null}</h1>
-          {lede && <p className="lede">{lede}</p>}
-        </div>
+        <Masthead doc={doc} scope={scope} totalUs={totalUs} notes={[sessions, state.window ? 'window' : '', state.files ? `${selectedCount(doc, state.files)} of ${fileCount(doc)} files` : '']} />
+        {lede && <p className="lede">{lede}</p>}
         <Minimap doc={doc} />
         <Axis totalUs={totalUs} />
         {/* a newer snapshot of the same scope (live follow) keeps the last profile until its own arrives: the values swap in place */}
@@ -92,6 +91,66 @@ export function Overview({ doc }: { doc: TraceDoc }) {
 
       <TraceFacts doc={doc} ss={ss} scope={scope} profile={profile.data ?? null} />
     </>
+  )
+}
+
+const TIME_NOTE = 'from the start of the first call to the end of the last call or wait, idle time between calls included; '
+  + 'several sessions: the sum of their spans (wall: the clock time they cover)'
+
+/**
+ * The head of the Overview: the time in the trace (the base of every percentage below), then when, on which database and in
+ * which session and module it ran (`traceinfo.ts`). All of it follows the scope: the window's clock, the selected files'
+ * instances, the sessions and modules of the contexts in scope.
+ */
+function Masthead({ doc, scope, totalUs, notes }: { doc: TraceDoc; scope: Scope; totalUs: number; notes: string[] }) {
+  const info = useMemo(() => traceInfo(doc, scope), [doc, scope])
+  const when = whenOf(info)
+  const note = notes.filter(Boolean).join(' · ')
+  const product = ['Oracle', info.product, info.version].filter(Boolean).join(' ')
+  const where = [info.instances.length > 1 ? `instances ${someOf(info.instances)}` : info.instances[0] && `instance ${info.instances[0]}`, info.host && `on ${info.host}`].filter(Boolean).join(' ')
+  const one = (xs: string[], many: string) => (xs.length === 1 ? xs[0] : `${xs.length} ${many}`)
+  const client = [someOf(info.drivers), info.services.length > 0 && `service ${someOf(info.services)}`].filter(Boolean).join(' · ')
+  return (
+    <div className="masthead-clip"><div className="masthead">
+      <div className="mh-cell mh-time" title={TIME_NOTE}>
+        <h1><span className="mh-l">Time in trace</span><span className="mh-v"><PopText text={fmtDur(totalUs)} /></span></h1>
+        {note && <span className="mh-s">{note}</span>}
+      </div>
+      {when && (
+        <div className="mh-cell" title={scope.window ? 'wall clock of the time window' : 'wall clock of the trace, in its own time zone'}>
+          <span className="mh-l">{scope.window ? 'Window' : 'When'}</span>
+          <span className="mh-v">{when.time}</span>
+          <span className="mh-s">{when.date}</span>
+        </div>
+      )}
+      {(info.db || info.version) && (
+        <div className="mh-cell" title={[info.platform && `${info.host || 'host'}: ${info.platform}`, info.pdbs.length > 1 && `PDBs ${someOf(info.pdbs, 20)}`].filter(Boolean).join('\n')}>
+          <span className="mh-l">Database</span>
+          <span className="mh-v">{[info.db, info.pdbs.length > 1 ? `${info.pdbs.length} PDBs` : info.pdbs[0]].filter(Boolean).join(' · ') || '–'}</span>
+          <span className="mh-s">{product}</span>
+          {where && <span className="mh-s">{where}</span>}
+          {info.role && <span className="mh-s mh-warn">{info.role}</span>}
+        </div>
+      )}
+      {(info.sessions.length > 0 || client) && (
+        <div className="mh-cell" title={[info.sessions.length > 1 && `sessions ${someOf(info.sessions, 20)}`, info.clientIds.length > 0 && `client id ${someOf(info.clientIds, 20)}`].filter(Boolean).join('\n')}>
+          <span className="mh-l">Session</span>
+          <span className="mh-v">{info.sessions.length ? one(info.sessions, 'sessions') : '–'}</span>
+          {info.sessions.length > 1 && <span className="mh-s">{someOf(info.sessions)}</span>}
+          {client && <span className="mh-s">{client}</span>}
+          {info.pxSlaves > 0 && <span className="mh-s">+ {info.pxSlaves} PX slave{info.pxSlaves === 1 ? '' : 's'}</span>}
+          {info.clientIds.length > 0 && info.sessions.length <= 1 && <span className="mh-s">client id {someOf(info.clientIds, 1)}</span>}
+        </div>
+      )}
+      {info.modules.length > 0 && (
+        <div className="mh-cell" title={[`modules ${someOf(info.modules, 20)}`, info.actions.length > 0 && `actions ${someOf(info.actions, 20)}`].filter(Boolean).join('\n')}>
+          <span className="mh-l">Module</span>
+          <span className="mh-v">{one(info.modules, 'modules')}</span>
+          {info.modules.length > 1 && <span className="mh-s">{someOf(info.modules)}</span>}
+          {info.actions.length > 0 && <span className="mh-s">{info.actions.length === 1 ? `action ${info.actions[0]}` : `${info.actions.length} actions: ${someOf(info.actions)}`}</span>}
+        </div>
+      )}
+    </div></div>
   )
 }
 

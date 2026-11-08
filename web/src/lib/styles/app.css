@@ -171,11 +171,20 @@ button[aria-pressed="true"] .cue { color: inherit; opacity: 0.7; }
 
 /* ---- hero: the ledger --------------------------------------------------- */
 .hero { display: flex; flex-direction: column; gap: var(--sp-2); }
-.hero h1 { font-size: var(--text-hero); font-weight: 500; letter-spacing: -0.01em; line-height: 1.2; }
-.hero h1 .dim { font-weight: 400; }
-.hero .lede { font-size: var(--text-lg); line-height: 1.5; max-inline-size: 72ch; color: var(--ink-2); margin-block-end: var(--sp-4); }
-.hero-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-4); }
-.hero-head .lede { padding-inline-start: var(--sp-4); border-inline-start: 1px solid var(--hairline-strong); }
+.hero .lede { font-size: var(--text-lg); line-height: 1.5; max-inline-size: 72ch; color: var(--ink-2); margin-block-end: var(--sp-3); }
+/* the masthead: time in trace, then when / database / session / module, each a label, a value and quieter lines; the cells wrap */
+/* every cell has its divider and gap at its start; the row is pulled back by that much and clipped, so the first cell of each
+   wrapped row starts flush with no divider */
+.masthead-clip { overflow: clip; margin-block-end: var(--sp-1); }
+.masthead { --mh-gap: var(--sp-5); display: flex; flex-wrap: wrap; align-items: start; row-gap: var(--sp-4); margin-inline-start: calc(-1 * var(--mh-gap) - 1px); }
+.mh-cell { display: flex; flex-direction: column; gap: 0.15rem; min-inline-size: 0; max-inline-size: 24rem; padding-inline: var(--mh-gap) 0; margin-inline-end: var(--mh-gap); border-inline-start: 1px solid var(--hairline-strong); }
+.mh-time h1 { display: flex; flex-direction: column; gap: 0.15rem; font: inherit; }
+.mh-l { color: var(--ink-2); font-size: var(--text-sm); font-weight: 400; }
+.mh-v, .mh-s { white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
+.mh-v { font-size: var(--text-xl); font-weight: 500; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.mh-time .mh-v { font-size: var(--text-display); letter-spacing: -0.015em; line-height: 1.05; }
+.mh-s { color: var(--ink-2); font-size: var(--text-sm); line-height: 1.4; }
+.mh-warn { color: var(--s-critical); font-weight: 500; }
 .axis { position: relative; block-size: 1.1rem; font-size: var(--text-xs); color: var(--ink-3); }
 .axis i { position: absolute; inset-block-start: 0; transform: translateX(-50%); font-style: normal; font-variant-numeric: tabular-nums; }
 .axis i:first-child { transform: none; }

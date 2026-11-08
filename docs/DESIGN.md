@@ -61,8 +61,16 @@ in the UI is reachable from the CLI.
   same dimensions and measures as the UI Pivot.
 - `html`: self-contained interactive explorer (curated views: Overview,
   Statements, Waits, Timeline, Sessions; Pivot and CSV export as the escape
-  hatch). `serve`: the same UI from a local server. The Overview answers
-  "where did the time go" first: the statement concentration (top k = 80%),
+  hatch). `serve`: the same UI from a local server. The Overview opens with a
+  masthead (decided 2026-11-08): **Time in trace** (the scope's response time,
+  below; named for what it is, since it includes the idle time between calls,
+  not "response time", which reads as time a user waited), then When (the
+  scope's wall clock in the trace's time zone; the window's when one is set),
+  Database (name · PDB, release, instance on host, a role other than PRIMARY),
+  Session (session id or count, client driver, service, PX slaves, client id)
+  and Module (module or count, actions), all following the file / session /
+  window scope (`web/src/lib/data/traceinfo.ts`). It then answers
+  "where did the time go": the statement concentration (top k = 80%),
   the response-time bar on a true
   time axis with a per-event ledger, the top statements on the same axis,
   then the session on wall-clock lanes (drag = time window; click a block = its interval as the window and its
@@ -104,7 +112,9 @@ in the UI is reachable from the CLI.
   its span, so single-file numbers do not change. Every percentage of the
   response time (ledger, top bar, statement shares, findings severities, the
   Files panel's per-file share, the text report) is of this sum; the
-  wall-clock span is shown beside it ("wall 3.849 s").
+  wall-clock span is shown beside it ("wall 3.849 s"). The Overview heading
+  calls this number "Time in trace"; the ledger and the shares keep the term
+  response time.
 - Fixtures are generated on the dbmint lab (`testdata/gen`) whenever a
   scenario is missing.
 
