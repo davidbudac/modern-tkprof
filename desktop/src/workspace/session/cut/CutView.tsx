@@ -8,8 +8,9 @@ import { safeFileName, saveAs, writeCached } from '../../../files'
 import { inTauri } from '../../../platform'
 import { useWorkspace } from '../../WorkspaceProvider'
 import { traceStem, useCurrentTab } from '../useTab'
-import { MAX_CHECK_BYTES, autoCheckOf, checkPath, currentOf, jsonSettle, jsonView, type JSONResult, type JSONState, type JSONView } from './cutstate'
+import { MAX_CHECK_BYTES, autoCheckOf, checkPath, currentOf, jsonSettle, jsonView, pickOf, stmtChoices, type JSONResult, type JSONState, type JSONView } from './cutstate'
 import { layoutOutput, layoutSources, lineY, pieceLabel, placeLabels, rowLabels, type CutCheck, type CutPiece, type CutPlan, type Label, type SourceColumn } from './cutlayout'
+import { StmtPicker } from './StmtPicker'
 import './cut.css'
 
 type Mode = 'window' | 'statement'
@@ -97,9 +98,11 @@ export function CutView({ doc }: { doc: TraceDoc }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string; path?: string } | null>(null)
 
-  // the statements to pick from: by elapsed, the selected one first in line
-  const stmtChoices = useMemo(() => [...doc.stats.statements].sort((a, b) => b.elapsed - a.elapsed).slice(0, 300), [doc])
-  const pick = stmt ?? selStmt ?? stmtChoices[0]?.id ?? null
+  // the statements to pick from: every one with calls, by elapsed; the pick is one of them (a pick of an earlier live
+  // snapshot, or a selection elsewhere of a statement without calls, falls back to the longest)
+  const choices = useMemo(() => stmtChoices(doc), [doc])
+  const pick = pickOf(choices, stmt, selStmt)
+  const noStmt = mode === 'statement' && pick === null
 
   const query = useMemo(() => {
     const q = new URLSearchParams()
@@ -113,7 +116,7 @@ export function CutView({ doc }: { doc: TraceDoc }) {
     return q.toString()
   }, [win, contexts, mode, pick, edges, binds, plans, prov])
 
-  const planPath = `/api/cut?${query}`
+  const planPath = noStmt ? null : `/api/cut?${query}`
   const plan = useJSON<CutPlan>(client, planPath)
   // p is what the map draws: the current plan, or the previous one while the next is planned (dimmed, "Planning…");
   // current is the plan of this very query: only it authorises an export or a check, and only its size decides the check
@@ -180,14 +183,7 @@ export function CutView({ doc }: { doc: TraceDoc }) {
             <button aria-pressed={mode === 'statement'} onClick={() => setMode('statement')} title="one statement's calls with their recursive work; its callers are left out">One statement</button>
           </span>
         </span>
-        {mode === 'statement' && (
-          <select aria-label="Statement" value={pick ?? ''} onChange={(e) => setStmt(Number(e.target.value))}>
-            {stmtChoices.map((s) => {
-              const st = doc.statements[s.id]
-              return <option key={s.id} value={s.id}>{(st?.sqlId || st?.commandName || `#${s.id}`) + ' · ' + fmtDur(s.elapsed) + ' · ' + (st?.text ?? '').replace(/\s+/g, ' ').slice(0, 60)}</option>
-            })}
-          </select>
-        )}
+        {mode === 'statement' && <StmtPicker choices={choices} pick={pick} onPick={setStmt} />}
         {inTauri && <button onClick={openNew} disabled={!current || busy !== null} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
         <button className="primary" onClick={save} disabled={!current || busy !== null} title={pending ? 'planning the cut of the new selection' : undefined}>{busy === 'save' ? 'Saving…' : 'Save as…'}</button>
       </header>
@@ -195,7 +191,8 @@ export function CutView({ doc }: { doc: TraceDoc }) {
       <div className={pending ? 'cut-stage pending' : 'cut-stage'} aria-busy={plan.loading}>
         <Legend mode={mode} multi={multi} />
         {pending && <span className="cut-badge" role="status">Planning…</span>}
-        {plan.error ? <p className="cut-msg bad" role="alert">{plan.error}</p>
+        {noStmt ? <p className="cut-empty">No statement of this trace has calls: there is nothing to cut by statement.</p>
+          : plan.error ? <p className="cut-msg bad" role="alert">{plan.error}</p>
           : !p ? <p className="cut-empty">{plan.loading ? 'Planning the cut…' : ''}</p>
           : p.lines === 0 ? (
             <p className="cut-empty">

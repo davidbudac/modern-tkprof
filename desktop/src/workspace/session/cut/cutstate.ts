@@ -1,5 +1,6 @@
 // The decisions of the Cut view that do not need React: which answer belongs to which request (useJSON), whether the plan on
 // screen is the current query's, when the re-parse check runs, and the statements the picker offers.
+import { filterRows, flatten, type PickRow, type TraceDoc } from '@lib'
 import type { CutPlan } from './cutlayout'
 
 /** The last settled answer of a `useJSON`: the path it answered and its data or error. */
@@ -50,4 +51,40 @@ export function checkPath(current: Pick<CutPlan, 'lines' | 'bytes'> | undefined,
   if (!current || current.lines === 0) return null
   if (!autoCheckOf(current) && wanted !== query) return null
   return `/api/cut/check?${query}${current.bytes > MAX_CHECK_BYTES ? (query ? '&' : '') + 'force=1' : ''}`
+}
+
+/** A statement the Cut view's picker offers (the lib's statement picker row, over the whole trace). */
+export type StmtChoice = Pick<PickRow, 'id' | 'label' | 'e' | 'executions' | 'flat' | 'hay'>
+
+/** Every statement with calls, longest first (ties: by id): what "One statement" can cut. */
+export function stmtChoices(doc: Pick<TraceDoc, 'statements' | 'stats' | 'label'>): StmtChoice[] {
+  const out: StmtChoice[] = []
+  for (const s of doc.stats.statements) {
+    const st = doc.statements[s.id]
+    if (!st || s.allCalls.count === 0) continue
+    const label = doc.label(st)
+    const flat = flatten(st.text ?? '')
+    out.push({ id: s.id, label, e: s.elapsed, executions: s.executions, flat, hay: `${label}\n${flat}`.toLowerCase() })
+  }
+  return out.sort((a, b) => b.e - a.e || a.id - b.id)
+}
+
+/**
+ * The statement a "One statement" cut is of: the one picked here, else the one selected elsewhere, else the longest; only a
+ * statement this document has with calls (a pick made on an earlier live snapshot, or a selection of a statement without
+ * calls, falls through). Null when the trace has none.
+ */
+export function pickOf(choices: readonly StmtChoice[], picked: number | null, selected: number | null): number | null {
+  const has = (id: number | null): id is number => id !== null && choices.some((c) => c.id === id)
+  if (has(picked)) return picked
+  if (has(selected)) return selected
+  return choices[0]?.id ?? null
+}
+
+/** The rows the picker lists for a filter: the picked statement first when it matches, then the others in their order. */
+export function pickerRows(choices: readonly StmtChoice[], pick: number | null, query: string): StmtChoice[] {
+  const rows: StmtChoice[] = filterRows(choices as readonly PickRow[], query)
+  const at = pick === null ? -1 : rows.findIndex((r) => r.id === pick)
+  if (at > 0) rows.unshift(...rows.splice(at, 1))
+  return rows
 }
