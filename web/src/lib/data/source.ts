@@ -497,10 +497,17 @@ function scopeParams(scope: Scope, waits: boolean): Params {
 
 const MAX_CACHE = 200
 
+/** A request of `RemoteSource.get` on its way, shared by the callers asking the same URL meanwhile. */
+interface InFlight { promise: Promise<unknown>; controller: AbortController; waiters: number }
+
+const abortError = () => new DOMException('The operation was aborted.', 'AbortError')
+
 export class RemoteSource implements DataSource {
   readonly remote = true
   readonly ready = true
   private readonly cache = new Map<string, unknown>()
+  /** requests on their way by URL (see `get`) */
+  private readonly inflight = new Map<string, InFlight>()
   /** the server answered 404 to `api/statements`: it is an older engine, do not ask again */
   private noStatements = false
   /** the same for `api/findings` */
@@ -520,7 +527,11 @@ export class RemoteSource implements DataSource {
   /** the documents of one server are revisions of one trace */
   get lineage(): unknown { return this.client }
 
-  /** GET base+path?params as JSON; answers are cached by URL, a cancelled request leaves nothing behind. */
+  /**
+   * GET base+path?params as JSON; answers are cached by URL, a cancelled request leaves nothing behind. Concurrent identical
+   * requests share one transport call (several views ask the same `roles`, `findings`, ... on a scope change): each caller
+   * joins it as a waiter, its abort only removes it, and the shared request is aborted when no waiter is left.
+   */
   private async get<T>(path: string, params: Params, signal?: AbortSignal, extra: [string, string][] = []): Promise<T> {
     const q = new URLSearchParams()
     for (const [k, v] of Object.entries(params)) if (v !== undefined) q.set(k, String(v))
@@ -532,12 +543,47 @@ export class RemoteSource implements DataSource {
       this.cache.delete(key); this.cache.set(key, v) // most recently used last
       return v
     }
-    const res = await this.client.fetch(key, { signal, headers: { accept: 'application/json' } })
-    if (!res.ok) throw new HttpError(`${path}: ${(await res.text()).trim() || res.statusText}`, res.status)
-    const v = (await res.json()) as T
-    this.cache.set(key, v)
-    if (this.cache.size > MAX_CACHE) this.cache.delete(this.cache.keys().next().value as string)
-    return v
+    if (signal?.aborted) throw abortError()
+    let f = this.inflight.get(key)
+    if (!f) {
+      const controller = new AbortController()
+      const entry: InFlight = { controller, waiters: 0, promise: Promise.resolve() }
+      entry.promise = (async () => {
+        try {
+          const res = await this.client.fetch(key, { signal: controller.signal, headers: { accept: 'application/json' } })
+          if (!res.ok) throw new HttpError(`${path}: ${(await res.text()).trim() || res.statusText}`, res.status)
+          const v: unknown = await res.json()
+          this.cache.set(key, v)
+          if (this.cache.size > MAX_CACHE) this.cache.delete(this.cache.keys().next().value as string)
+          return v
+        } finally {
+          // settled (or failed): the next caller gets the cache or a new request, never this one's failure
+          if (this.inflight.get(key) === entry) this.inflight.delete(key)
+        }
+      })()
+      this.inflight.set(key, entry)
+      f = entry
+    }
+    return (await this.join(key, f, signal)) as T
+  }
+
+  /** One caller waiting on a shared request: its abort rejects its own wait and aborts the request when it was the last. */
+  private join(key: string, f: InFlight, signal?: AbortSignal): Promise<unknown> {
+    f.waiters++
+    if (!signal) return f.promise // a caller that cannot cancel keeps the request alive
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        reject(abortError())
+        if (--f.waiters > 0) return
+        if (this.inflight.get(key) === f) this.inflight.delete(key) // a new caller starts afresh rather than join an aborted request
+        f.controller.abort()
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+      f.promise.then(
+        (v) => { signal.removeEventListener('abort', onAbort); resolve(v) },
+        (err: unknown) => { signal.removeEventListener('abort', onAbort); reject(err) },
+      )
+    })
   }
 
   async pivot(q: PivotQuery, signal?: AbortSignal): Promise<PivotData> {
@@ -749,6 +795,48 @@ export interface QueryState<T> {
   /** an answer is on its way (`data` is then the previous answer when `keep` matches, else undefined) */
   loading: boolean
   error: string | null
+  /**
+   * `data` is the answer of another key (retained by a matching `keep` while this key loads): a view must not label it with
+   * the current scope or statement. A live refresh of the same key (a new source of the same lineage) is not stale.
+   */
+  stale: boolean
+}
+
+/** The last answer `useSourceQuery` received, and what it was the answer to. */
+export interface QuerySlot<T> {
+  source: DataSource
+  key: string
+  keep?: string
+  data?: T
+  error?: string
+  /** an answer (data or error) arrived; the initial slot of a mount has none */
+  settled?: boolean
+}
+
+/**
+ * What a query shows for `key` given the last answer `st` (pure; `useSourceQuery`'s selection): the answer itself when it is
+ * this key's of this source; while this key loads, the previous answer when it is related (same source, or a source of the
+ * same lineage) and has the same key or the same `keep` string, flagged `stale` when it is another key's; else nothing.
+ */
+export function queryView<T>(st: QuerySlot<T>, source: DataSource, key: string, keep?: string): QueryState<T> {
+  if (st.settled && st.source === source && st.key === key) return { data: st.data, loading: false, error: st.error ?? null, stale: false }
+  const related = st.source === source || (source.lineage !== undefined && st.source.lineage === source.lineage)
+  const sameShape = related && ((keep !== undefined && st.keep === keep) || st.key === key)
+  const data = sameShape ? st.data : undefined
+  return { data, loading: true, error: null, stale: data !== undefined && st.key !== key }
+}
+
+/**
+ * Starts `run` for `key` and hands its answer to `land` unless the returned cancel was called first (then the request is
+ * aborted and a late answer or failure is dropped). `useSourceQuery`'s effect.
+ */
+export function startQuery<T>(source: DataSource, key: string, keep: string | undefined, run: (signal: AbortSignal) => Maybe<T>, land: (st: QuerySlot<T>) => void): () => void {
+  const ac = new AbortController()
+  Promise.resolve(run(ac.signal)).then(
+    (data) => { if (!ac.signal.aborted) land({ source, key, keep, data, settled: true }) },
+    (err: unknown) => { if (!ac.signal.aborted && !(err instanceof DOMException && err.name === 'AbortError')) land({ source, key, keep, error: err instanceof Error ? err.message : String(err), settled: true }) },
+  )
+  return () => ac.abort()
 }
 
 const NO_SIGNAL = new AbortController().signal
@@ -756,28 +844,21 @@ const NO_SIGNAL = new AbortController().signal
 /**
  * Runs `run` for the current `key` (put everything it reads in the key). A local source answers in
  * the same render; a remote one in the background: the request of a stale key is aborted, and with
- * the same `keep` string the previous answer stays visible while the next one loads. A new source of
- * the same lineage (a live session's next document) keeps the previous answer of the same key or
- * `keep` too, so a refresh does not blank the view.
+ * the same `keep` string the previous answer stays visible (`stale: true`) while the next one loads. A new
+ * source of the same lineage (a live session's next document) keeps the previous answer of the same key or
+ * `keep` too, so a refresh does not blank the view. Numbers that describe a scope take no `keep` (or a `keep`
+ * naming what they describe, e.g. the statement id) so that another scope's are never shown as this one's.
  */
 export function useSourceQuery<T>(source: DataSource, key: string, run: (signal: AbortSignal) => Maybe<T>, keep?: string): QueryState<T> {
   const runRef = useRef(run)
   runRef.current = run
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const local = useMemo(() => (source.remote ? undefined : { value: runRef.current(NO_SIGNAL) as T }), [source, key])
-  const [st, setSt] = useState<{ source: DataSource; key: string; keep?: string; data?: T; error?: string; settled?: boolean }>({ source, key })
+  const [st, setSt] = useState<QuerySlot<T>>({ source, key })
   useEffect(() => {
     if (!source.remote) return
-    const ac = new AbortController()
-    Promise.resolve(runRef.current(ac.signal)).then(
-      (data) => { if (!ac.signal.aborted) setSt({ source, key, keep, data, settled: true }) },
-      (err: unknown) => { if (!ac.signal.aborted && !(err instanceof DOMException && err.name === 'AbortError')) setSt({ source, key, keep, error: err instanceof Error ? err.message : String(err), settled: true }) },
-    )
-    return () => ac.abort()
+    return startQuery(source, key, keep, (signal) => runRef.current(signal), setSt)
   }, [source, key, keep])
-  if (local) return { data: local.value, loading: false, error: null }
-  if (st.settled && st.source === source && st.key === key) return { data: st.data, loading: false, error: st.error ?? null }
-  const related = st.source === source || (source.lineage !== undefined && st.source.lineage === source.lineage)
-  const sameShape = related && ((keep !== undefined && st.keep === keep) || st.key === key)
-  return { data: sameShape ? st.data : undefined, loading: true, error: null }
+  if (local) return { data: local.value, loading: false, error: null, stale: false }
+  return queryView(st, source, key, keep)
 }
