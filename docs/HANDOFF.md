@@ -14,10 +14,10 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - `davidbudac/modern-tkprof` is **public**, `main` pushed. One repository, two clients (since 2026-11-02;
   `davidbudac/mtkprof-desktop` is archived): engine + CLI at the root, `web/` (CLI UI and the shared lib
   `web/src/lib`), `desktop/` (Tauri 2). One version and one tag for both.
-- Latest release **v0.5.0** (2026-11-02, from `202d152`): CLI binaries (+ `-lite` builds) and the desktop
-  installers (DMG arm64/x64, deb, AppImage, NSIS) in one GitHub release; notes `docs/releases/v0.5.0.md`.
-  Everything after it (three new views, Lines colour-by / Δ filter, formatted view round 2, the open-list
-  round, the Trace pane's round 3, the I/O map and its density and hot blocks, the Cut view) is unreleased.
+- Latest release **v0.6.0** (2026-11-08, from `89f91c2`): CLI binaries (+ `-lite` builds), the desktop
+  installers (DMG arm64/x64, deb, AppImage, NSIS) and, new, the signed updater artifacts and `latest.json`
+  in one GitHub release; notes `docs/releases/v0.6.0.md`. The first release with the app's auto-updater
+  (signing key `~/.tauri/mtkprof-updater.key` on the release Mac; `desktop/README.md` § Updates).
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -137,8 +137,11 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 
 ### Needs you (a decision or a machine)
 
-- **Release**: everything since v0.5.0 is unreleased (`scripts/release-local.sh <tag>`, then
-  `desktop/scripts/release-local.sh <tag>` on the Mac).
+- **Release**: bump the app version, tag, `scripts/release-local.sh <tag>`, then
+  `desktop/scripts/release-local.sh <tag>` on the Mac (needs the updater key).
+- **Updater on Windows and Linux**: v0.6.0 → next is the first real update there; the macOS install and
+  relaunch were tested end to end against a local feed, Windows (NSIS passive) and Linux (AppImage, deb
+  via pkexec) never.
 - **Windows 11** has never been run: `ssh.exe` + `SSH_ASKPASS`, the OpenSSH agent pipe, the NSIS installer
   (cross-built only; smoke with `desktop/scripts/smoke.sh x86_64-pc-windows-msvc windows-x64` from Git Bash),
   and the plan's "UI verified by screenshot on Windows" has no record.

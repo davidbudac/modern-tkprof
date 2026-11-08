@@ -63,7 +63,9 @@ rm -f out/SHA256SUMS
 summary() {
   local rc=$?
   trap - EXIT
-  (cd out && if command -v sha256sum >/dev/null; then sha256sum -- *; else shasum -a 256 -- *; fi) 2>/dev/null \
+  # regular files only: a folder left in out/ (a quick build's .app) failed the whole sum and a release with it
+  (cd out && find . -maxdepth 1 -type f ! -name '.*' ! -name SHA256SUMS | sed 's|^\./||' | sort | tr '\n' '\0' \
+    | if command -v sha256sum >/dev/null; then xargs -0 sha256sum --; else xargs -0 shasum -a 256 --; fi) 2>/dev/null \
     > out-logs/SHA256SUMS.tmp && mv out-logs/SHA256SUMS.tmp out/SHA256SUMS || rm -f out-logs/SHA256SUMS.tmp
   printf '\n== ci-local summary (%ss) ==\n' $((SECONDS - t_start))
   awk -F'\t' '{ printf "%-28s %-8s %6s  %s\n", $1, toupper($2), $3, $4 }' out-logs/results.tsv

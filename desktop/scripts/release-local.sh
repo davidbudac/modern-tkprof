@@ -88,7 +88,7 @@ node scripts/updater-manifest.mjs "$tag" out > "$manifest" || die "latest.json f
 # ---- 3. upload to the release ----
 cp out/SHA256SUMS out-logs/SHA256SUMS-desktop
 files=()
-for f in out/*; do [ "$(basename "$f")" = SHA256SUMS ] || files+=("$f"); done
+for f in out/*; do [ -f "$f" ] && [ "$(basename "$f")" != SHA256SUMS ] && files+=("$f"); done
 files+=(out-logs/SHA256SUMS-desktop)
 add=out-logs/release-notes-desktop.md
 {
