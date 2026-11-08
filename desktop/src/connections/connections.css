@@ -66,6 +66,7 @@
 }
 .conn-list li[aria-selected="true"] { background: var(--surface-raised); box-shadow: inset 3px 0 0 var(--ink); }
 .conn-list ul[role="listbox"]:focus-visible { outline: none; }
+.conn-list ul[role="listbox"]:focus-visible:not(:has([aria-selected="true"])) { outline: 2px solid var(--focus); outline-offset: -2px; }
 .conn-list ul[role="listbox"]:focus-visible li[aria-selected="true"] { outline: 2px solid var(--focus); outline-offset: -2px; }
 .conn-list li[role="option"]:active { background: var(--wash); }
 @media (hover: hover) and (pointer: fine) {

@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { DataTable, type Column } from './DataTable'
+import { rowSelected } from './keyNav'
 
 const cols: Column<{ n: number; t: string }>[] = [
   { key: 't', header: 'Text', sort: (r) => r.t, render: (r) => r.t },
@@ -26,7 +27,13 @@ describe('DataTable markup', () => {
   it('keeps the scroll container a single labelled tab stop', () => {
     const h = html()
     expect(h).toContain('tabindex="0"')
-    expect(h).toContain('role="region"')
+    expect(h).toContain('role="region" aria-label="Text, scroll area"')
     expect(h.match(/tabindex=/g)).toHaveLength(1)
+  })
+  it('is a selection table only with both a click handler and a selectedKey (rows render in the browser, so the rule is the pure one)', () => {
+    expect(rowSelected(true, 'b', 'b')).toBe('true')
+    expect(rowSelected(true, 'b', 'a')).toBe('false')
+    expect(rowSelected(true, null, 'a')).toBe('false')
+    expect(rowSelected(false, undefined, 'a')).toBeUndefined()
   })
 })

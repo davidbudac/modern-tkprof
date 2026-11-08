@@ -83,8 +83,11 @@ export function ConnectionsView() {
   }
 
   useEffect(() => {
-    if (!selId && entries.length && mode.kind === 'view') setSelId(entries[0].id)
-  }, [entries, selId, mode.kind])
+    if (mode.kind !== 'view') return
+    // no selection, or a stale one (the selected connection was deleted): fall back to the first entry, or none
+    if (entries.length && selIdx < 0) setSelId(entries[0].id)
+    else if (!entries.length && selId && loaded) setSelId(null)
+  }, [entries, selId, selIdx, loaded, mode.kind])
 
   const taken = entries.map((e) => e.id)
   return (

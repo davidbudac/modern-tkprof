@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ariaSort, clampPane, isActivateKey, nextIndex, ownsKeys, separatorValues, toggleSort } from './keyNav'
+import { ariaSort, clampPane, isActivateKey, nextIndex, ownsKeys, separatorValues, tableKeyTarget, toggleSort } from './keyNav'
 
 describe('nextIndex', () => {
   it('moves one step and stops at the ends', () => {
@@ -85,5 +85,26 @@ describe('pane separator', () => {
     expect(clampPane(50, 220, 1000, 0.6)).toBe(220)
     expect(clampPane(900, 220, 1000, 0.6)).toBe(600)
     expect(clampPane(333.4, 220, 1000, 0.6)).toBe(333)
+  })
+})
+
+describe('tableKeyTarget', () => {
+  const base = { selectable: true, key: 'ArrowDown', modified: false, defaultPrevented: false, target: { tagName: 'DIV' }, current: -1, count: 500, visible: { start: 120, end: 140 } }
+  it('starts and moves the selection of a table with a selection model', () => {
+    expect(tableKeyTarget(base)).toBe(120)
+    expect(tableKeyTarget({ ...base, key: 'ArrowUp' })).toBe(140)
+    expect(tableKeyTarget({ ...base, current: 130 })).toBe(131)
+  })
+  it('leaves a table whose click is an action to native scrolling', () => {
+    expect(tableKeyTarget({ ...base, selectable: false })).toBeNull()
+    expect(tableKeyTarget({ ...base, selectable: false, key: 'ArrowUp' })).toBeNull()
+  })
+  it('leaves Home/End, chords, handled events, embedded controls and the header buttons alone', () => {
+    expect(tableKeyTarget({ ...base, key: 'End' })).toBeNull()
+    expect(tableKeyTarget({ ...base, modified: true })).toBeNull()
+    expect(tableKeyTarget({ ...base, defaultPrevented: true })).toBeNull()
+    expect(tableKeyTarget({ ...base, target: { tagName: 'INPUT' } })).toBeNull()
+    expect(tableKeyTarget({ ...base, target: { tagName: 'BUTTON', inHeader: true } })).toBeNull()
+    expect(tableKeyTarget({ ...base, target: { tagName: 'BUTTON' } })).toBe(120)
   })
 })

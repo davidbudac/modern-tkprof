@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ariaSort, nextIndex, ownsKeys, toggleSort } from './keyNav'
+import { ariaSort, rowSelected, tableKeyTarget, toggleSort } from './keyNav'
 
 export interface Column<T> {
   key: string
@@ -27,13 +27,15 @@ export interface TableProps<T> {
   footer?: ReactNode
   empty?: string
   className?: string
-  /** accessible name of the grid; defaults to the first column's header */
+  /** accessible name of the grid (callers pass one); defaults to the first column's header */
   label?: string
 }
 
 /**
- * Sortable, virtualized table (an ARIA grid). Keyboard: Tab reaches the scroll area, then Up/Down move the selection (on an
- * unselected table they start at the last/first visible row); each sortable header holds a button that toggles the sort.
+ * Sortable, virtualized table (an ARIA grid). Keyboard: Tab reaches the scroll area; on a table with a selection model
+ * (`onRowClick` and `selectedKey`) Up/Down move the selection (unselected, they start at the first/last visible row) and
+ * the new row is read out through a live region; a table whose click is an action (no `selectedKey`) just scrolls.
+ * Each sortable header holds a button that toggles the sort.
  */
 export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, defaultSort, rowHeight = 30, maxHeight = '60dvh', footer, empty = 'Nothing to show', className, label }: TableProps<T>) {
   const [sort, setSort] = useState(defaultSort ?? null)
@@ -65,19 +67,36 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, d
     if (!c.sort) return
     setSort((s) => toggleSort(s, c.key, c.align))
   }
+  const selectable = !!onRowClick && selectedKey !== undefined
+  const live = useRef(false)
+  const [said, setSaid] = useState('')
   const onKey = (e: React.KeyboardEvent) => {
-    if (!onRowClick || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || !ownsKeys(e.target as HTMLElement)) return
+    const t = e.target as HTMLElement
     const i = selectedKey == null ? -1 : sorted.findIndex((r) => rowKey(r) === selectedKey)
     const r = virt.range
-    const to = nextIndex(e.key, i, sorted.length, { visible: r ? { start: r.startIndex, end: r.endIndex } : null, homeEnd: false })
+    const to = tableKeyTarget({
+      selectable, key: e.key, modified: e.altKey || e.ctrlKey || e.metaKey, defaultPrevented: e.defaultPrevented,
+      target: { tagName: t.tagName, isContentEditable: t.isContentEditable, inHeader: !!t.closest?.('thead') },
+      current: i, count: sorted.length, visible: r ? { start: r.startIndex, end: r.endIndex } : null,
+    })
     if (to == null) return
     e.preventDefault()
-    onRowClick(sorted[to])
+    live.current = true
+    onRowClick!(sorted[to])
     virt.scrollToIndex(to)
   }
+  // focus stays on the scroll area, so a keyboard selection change is announced through a polite live region
+  useEffect(() => {
+    if (!live.current) return
+    live.current = false
+    const tr = scrollRef.current?.querySelector<HTMLTableRowElement>('tbody tr[aria-selected="true"]')
+    if (!tr) return
+    const n = Number(tr.getAttribute('aria-rowindex')) - 1
+    setSaid(`Row ${n} of ${sorted.length}: ${Array.from(tr.cells, (c) => c.textContent?.trim()).filter(Boolean).join(', ')}`)
+  }, [selectedKey, sorted.length])
   return (
     <div className={'tbl-wrap ' + (className ?? '')}>
-      <div className="tbl-scroll" ref={scrollRef} style={{ maxBlockSize: maxHeight }} tabIndex={0} role="region" aria-label={name} onKeyDown={onKey}>
+      <div className="tbl-scroll" ref={scrollRef} style={{ maxBlockSize: maxHeight }} tabIndex={0} role="region" aria-label={name + ', scroll area'} onKeyDown={onKey}>
         <table className="tbl" role="grid" aria-label={name} aria-rowcount={sorted.length + 1}>
           <thead>
             <tr role="row" aria-rowindex={1}>
@@ -94,7 +113,7 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, d
               const row = sorted[vi.index]
               const k = rowKey(row)
               return (
-                <tr key={k} role="row" aria-rowindex={vi.index + 2} className={onRowClick ? 'row-click' : undefined} aria-selected={selectedKey === k ? 'true' : onRowClick ? 'false' : undefined}
+                <tr key={k} role="row" aria-rowindex={vi.index + 2} className={onRowClick ? 'row-click' : undefined} aria-selected={rowSelected(selectable, selectedKey, k)}
                   onClick={onRowClick ? (e) => onRowClick(row, e) : undefined} style={{ height: rowHeight }}>
                   {columns.map((c) => {
                     const cls = [c.align === 'end' ? 'num' : '', c.className ?? '', c.bar ? 'bar' : ''].join(' ').trim()
@@ -113,6 +132,7 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, d
           </tbody>
         </table>
         {sorted.length === 0 && <div className="tbl-empty">{empty}</div>}
+        <div className="sr-only" role="status" aria-live="polite">{said}</div>
       </div>
       {footer && <div className="tbl-foot">{footer}</div>}
     </div>

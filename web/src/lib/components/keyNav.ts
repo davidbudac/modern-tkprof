@@ -42,6 +42,31 @@ export function ownsKeys(target: { tagName?: string; isContentEditable?: boolean
   return !(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable)
 }
 
+/**
+ * The row a key press in a table moves the selection to, or null when the table leaves the key alone.
+ * Only a table with a selection model (`selectable`: it has a click handler AND reports which row is selected) navigates:
+ * a table whose click is an action (open, toggle) would run that action on every arrow press, so it keeps native scrolling.
+ * Keys from embedded controls, the sortable header buttons, modifier chords and handled events are not the table's.
+ */
+export function tableKeyTarget(a: {
+  selectable: boolean
+  key: string
+  modified: boolean
+  defaultPrevented: boolean
+  target: { tagName?: string; isContentEditable?: boolean; inHeader?: boolean } | null
+  current: number
+  count: number
+  visible: { start: number; end: number } | null
+}): number | null {
+  if (!a.selectable || a.modified || a.defaultPrevented || a.target?.inHeader || !ownsKeys(a.target)) return null
+  return nextIndex(a.key, a.current, a.count, { visible: a.visible, homeEnd: false })
+}
+
+/** `aria-selected` of a table row: only a table with a selection model announces one (an action table's rows are not selectable). */
+export function rowSelected(selectable: boolean, selectedKey: string | number | null | undefined, key: string | number): 'true' | 'false' | undefined {
+  return selectable ? (selectedKey === key ? 'true' : 'false') : undefined
+}
+
 export interface SortState {
   key: string
   dir: 'asc' | 'desc'

@@ -43,6 +43,7 @@ export function ResizeHandle({ anchor, onChange, min = 220, maxFrac = 0.6, label
     if (!parent || typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(measure)
     ro.observe(parent)
+    for (const c of Array.from(parent.children)) ro.observe(c) // a sibling pane resizing moves the handle without resizing the parent
     return () => ro.disconnect()
   }, [measure])
   const change = (px: number | null) => {

@@ -315,7 +315,7 @@ function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Sc
         {exs.length > 1 && slowestEx ? <button className="link" onClick={() => openSlowest(false)} title="open the slowest execution">(#{slow?.execNo})</button> : `(#${slow?.execNo})`}
         {exs.length > 1 && ' · click a row for its binds and Dialogue · tick two to compare'}</span>
         <span className="tools"><ColumnChooser all={all.filter((c) => c.key !== 'n').map((c) => ({ key: c.key, label: c.header }))} hidden={hidden} onChange={setHidden} /></span></header>
-      <DataTable columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
+      <DataTable label="Executions" columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
         selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e, ev) => (ev?.shiftKey ? togglePick(e) : setSel(sel && sel.exec === e.exec ? null : e))} />
       {noteFor && (notesOn ? (
         <NoteEditor key={keyOf(noteFor)} label={`Note on execution #${noteFor.execNo}`} title={`Note on execution #${noteFor.execNo}`} text={editing?.note}
