@@ -4,10 +4,11 @@
 - Version: **v0.6.0**
 - Baseline: **`89f91c2b1b3a55e9e3fd055a3d0996798bb75eaf`**
 - Handoff branch: **`docs/desktop-performance-ux-review-2026-11-08`**
+- Second review: 2026-11-08, Claude (Fable 5.1), at `710a9f8` (same source tree as the baseline for every file cited). Every finding was re-read against the code; the verdicts, corrections and additions are the blockquotes headed **Second review** under each finding, the new findings F13–F14, and the implementation plan at the end.
 
 ## Purpose and evidence boundaries
 
-This document records all **12 findings** from the desktop performance and UX re-review. Findings F01–F08 were reported in the earlier review and remain present at the baseline above. F09–F12 were identified while reviewing the new Cut workflow. No fixes have been implemented as part of this review.
+This document records all **14 findings**: the 12 of the desktop performance and UX re-review (F01–F08 were reported in the earlier review and remain present at the baseline above; F09–F12 were identified while reviewing the new Cut workflow) and two added by the second review of 2026-11-08 (F13, F14). No fixes have been implemented as part of either review.
 
 The next agent should validate each finding against its current checkout, fix confirmed issues, and record the evidence and commit for each disposition. Proposed fixes below are design directions, not proof that one implementation is required.
 
@@ -30,24 +31,26 @@ Source line numbers refer to the baseline and will drift. Links are relative to 
 5. Keep changes scoped. Preserve useful existing behavior: virtualized lists, bounded line caching, cancellation of stale requests, per-trace navigation history, pane persistence, and explicit progress/error surfaces.
 6. Record exact commands, relevant results, remaining runtime checks, and implementation commit(s) in the tracking table. Do not mark an item fixed solely because a code path looks different.
 
-Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F04/F06 → F07/F12**. F10 and F11 share the Cut plan/query identity problem and should be designed together. F01 and F05 both touch source-query behavior; coordinate their cancellation and retained-data contracts. F09 is independent of preview correctness.
+Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F04/F06 → F07/F12**. F10 and F11 share the Cut plan/query identity problem and should be designed together. F01 and F05 both touch source-query behavior; coordinate their cancellation and retained-data contracts. F09 is independent of preview correctness. *Second review:* the implementation plan at the end of this document supersedes this order with seven phases (Cut correctness first, then scope trust, opening, work preservation, prompts, search cost, keyboard); it keeps the pairings named here.
 
 ## Tracking
 
 | ID | Priority | Finding | Review disposition | Executor result / evidence / commit |
 |---|---|---|---|---|
-| F01 | High | Filtered results can describe a different scope | Still present; source-confirmed | Pending |
-| F02 | High | File drop ignores displayed opening options | Still present; source-confirmed | Pending |
-| F03 | High | Navigation discards unfinished work | Still present; source-confirmed | Pending |
-| F04 | Medium | Restore starts all traces concurrently | Still present; performance risk | Pending |
-| F05 | Medium | Concurrent identical queries duplicate work | Still present; focused reproduction | Pending |
-| F06 | Medium | Statement search filters and sorts synchronously | Still present; performance risk | Pending |
-| F07 | Medium | Connections and tables have keyboard gaps | Still present; source-confirmed | Pending |
-| F08 | Medium | Failed credential submission loses its prompt | Still present; source-confirmed | Pending |
-| F09 | High | Repeated cuts overwrite output and reuse old results | New; source-confirmed plus focused tab-reuse reproduction | Pending |
-| F10 | Medium | Cut export can differ from the displayed preview | New; source-confirmed | Pending |
-| F11 | Medium | Cut auto-validation uses stale size; reparse cannot cancel | New; source-confirmed performance risk | Pending |
-| F12 | Medium | Cut picker can omit its actual target statement | New; source-confirmed | Pending |
+| F01 | High | Filtered results can describe a different scope | Still present; source-confirmed | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 2 |
+| F02 | High | File drop ignores displayed opening options | Still present; source-confirmed | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 3 |
+| F03 | High | Navigation discards unfinished work | Still present; source-confirmed | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 4 |
+| F04 | Medium | Restore starts all traces concurrently | Still present; performance risk | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 3 |
+| F05 | Medium | Concurrent identical queries duplicate work | Still present; focused reproduction | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 2 |
+| F06 | Medium | Statement search filters and sorts synchronously | Still present; performance risk | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 6 |
+| F07 | Medium | Connections and tables have keyboard gaps | Still present; source-confirmed | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 7 |
+| F08 | Medium | Failed credential submission loses its prompt | Still present; source-confirmed | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 5 |
+| F09 | High | Repeated cuts overwrite output and reuse old results | New; source-confirmed plus focused tab-reuse reproduction | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 1 |
+| F10 | Medium | Cut export can differ from the displayed preview | New; source-confirmed | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 1 |
+| F11 | Medium | Cut auto-validation uses stale size; reparse cannot cancel | New; source-confirmed performance risk | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 1 |
+| F12 | Medium | Cut picker can omit its actual target statement | New; source-confirmed | Pending · confirmed 2026-11-08 at 710a9f8 · plan phase 1 |
+| F13 | Medium | `/api/cut/check` is unbounded on the engine: full-facts build, no size or concurrency guard | New (second review); source-confirmed | Pending · plan phase 1 |
+| F14 | Medium | Statement detail retains another statement's executions and waits while loading | New (second review); source-confirmed | Pending · plan phase 2 |
 
 ## F01 — Filtered results can represent the wrong scope
 
@@ -80,6 +83,15 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Empty selections and same-scope live refreshes work correctly.
 - Test the transition in a mounted hook/view harness: the current static-render readiness tests do not exercise a settled A→pending B transition.
 
+> **Second review — confirmed, with two additions.**
+>
+> - The three code points hold as described: `useSourceQuery` returns the previous answer whenever the `keep` strings match, whatever the key; `Waits` falls back to `doc.stats.events` when a scoped profile fails (silently: no notice, the header still says "Wait events" with the window active); `useScopedFindings` reports `narrowed: true` for retained data of another scope while the new one loads, and `Findings` labels it with the *current* selection.
+> - Who uses `keep` today (grep `useSourceQuery(` in `web/src/lib`): `profile` (Waits), `findings` (scoped findings), `top` (`useScopeResponse` in `ResponseMini.tsx`: the response-time bar of the shell header shows the previous session selection's numbers while the new one loads), `roles` (Overview, Lanes, Statements: colours only, harmless), `spans` (Lanes), `hlmarks` (Lines), `waits` (StatementContext, StatementDetail), `executions` and `detail` (StatementDetail). The last three retain across *statements*, not scopes: see F14.
+> - `useScopedStatements` deliberately passes no `keep` ("Never retain another scope's totals") and shows an explicit notice on failure: that is the contract the other consumers should get, so the fix is a hook-level one, not per view.
+> - Acceptance check "late A responses cannot replace B" already holds: the effect aborts the stale request and the resolution path checks `ac.signal.aborted`. The regression test should lock it in rather than fix it.
+> - The hook already knows when it is showing another key's data (`st.key !== key`); the smallest contract change is a `stale: boolean` on `QueryState` plus a rule that a view must never label stale data with the current scope. Clearing on scope change (no `keep`) is right for numbers; keeping with a visible stale state is right for decoration.
+> - Test harness: both vitest projects run in the `node` environment with `renderToStaticMarkup` only, so a settled-A → pending-B transition cannot be mounted. Either add `jsdom` to the workspace catalog, or extract the pure "what to show" selection from the hook (`queryView(st, source, key, keep)`) and unit-test that. The plan takes the second route.
+
 ## F02 — File drop ignores the opening screen's options
 
 **Impact:** The same file is opened differently depending on whether the user chooses it with the picker or drops it. Bind values may be retained despite selecting redaction or omission on screen; follow mode can also be ignored. This report does not claim an external disclosure occurred.
@@ -100,6 +112,10 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Redaction salt and follow constraints are applied consistently.
 - Settings changes and opening-screen unmount/remount do not accidentally leave stale options in a global drop listener.
 - Drops outside the opening screen have documented, predictable behavior.
+
+> **Second review — confirmed.** `DropTarget` in `App.tsx` reads `settings.binds`/`settings.salt` and never passes `follow`; `OpenScreen` keeps `binds`, `salt`, `follow` in component state that nothing else can read. A third opener, the connections bridge (`WithConnections.openPaths`), also uses the global defaults: that one is defensible (no opening screen is visible) and should be documented as such rather than changed.
+>
+> Fix shape: lift the three options out of `OpenScreen` into the workspace snapshot (`openOptions`, not persisted), let `DropTarget` use them when `route.kind === 'open'` and the global defaults otherwise, and say which applies in the drop overlay text ("opens with the options above" / "opens with the default options"). `follow` must stay single-file: a multi-path drop with follow on should fall back to a plain open with a notice, not fail.
 
 ## F03 — Navigation discards unfinished work
 
@@ -127,6 +143,13 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Closing a trace has a defined draft-disposal or recovery policy.
 - Search, sort, and hide-SYS survive navigation, and document refreshes handle obsolete selections safely.
 
+> **Second review — confirmed.** `Routed` keys `TabView` by tab, so every switch remounts the whole tab body; `ChatPanel` keeps `draft` in `useState`; `NoteEditor` keeps `draft` in `useState`; `Statements` keeps `q`, `hideSys`, `sortKey` in `useState`. The per-tab session store (`web/src/lib/state/store.ts`) does survive the switch, as the review says.
+>
+> Where the state should live (all of these homes already exist, so no new lifecycle is needed):
+> - Chat draft: the per-tab chat store, `chatOf(tab.key, identity)` in `desktop/src/assist/conversation.ts`, which `Workspace.close` already drops with `closeChat`. Add `draft` to its snapshot, cleared on send.
+> - Statement list controls: the session store, next to `inclusive` (which already survives). The CLI's web UI gets the same benefit. Keep `listW` where it is (`usePersisted`).
+> - Note drafts: a `noteDrafts: Map<string, string>` in the session store keyed by `${kind}:${target}` (`NoteEditor` is mounted from Lines, Timeline, StatementDetail and the desktop's AnnotationsView). Save/cancel/delete clear the key. Nothing goes to disk.
+
 ## F04 — Workspace restoration starts every saved trace concurrently
 
 **Impact:** A workspace containing many distinct cold, large traces can start simultaneous parsing/indexing and document loading. This can create CPU, disk, and memory competition before the active trace becomes usable. The review did not measure peak memory or demonstrate an out-of-memory failure.
@@ -150,6 +173,10 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Engine restart and warm-cache restoration remain correct.
 - Report measured tradeoffs rather than asserting a universally faster queue size.
 
+> **Second review — confirmed, plus one more path.** `restore` maps every saved set into `open()`, each of which calls `start()` at once; `bind()` after an engine restart does the same for every tab (`for (const t of this.snap.tabs) ... void this.start(t.key)`). On the engine, `POST /engine/sessions` launches `go s.runOpen(ss)` per session with no semaphore; `Cache.OpenTrace` coalesces only identical content identities.
+>
+> `start()` already handles a tab closed meanwhile (it deletes the session it just got), so a client-side queue only has to re-check `this.tab(key)` when dequeuing. Recommendation: a small `OpenQueue` in `workspace.ts` with the active tab first and two concurrent starts, used by `restore` and the restart branch of `bind`, and no engine change until a measurement says otherwise. Measure with three or more distinct fixtures from `testdata/traces/19c` on a cold isolated cache (`-cache /tmp/...`): time to active-tab ready, total restore time, peak RSS of the engine.
+
 ## F05 — Concurrent identical queries duplicate backend work
 
 **Impact:** Multiple consumers asking for the same uncached data can trigger repeated engine scans and duplicate serialization/transport work. The result cache only helps once one request has completed.
@@ -169,6 +196,10 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Failed/aborted requests do not poison future retries, and in-flight entries are removed after settlement.
 - Existing completed-cache eviction behavior is retained.
 
+> **Second review — confirmed, and it happens in the app today, not only in a probe.** `roles:${scopeKey(scope)}` is asked with the identical key by Overview, Lanes and Statements; on every scope change the ones mounted fire separate `api/statements/roles` requests. The engine has the same shape: `slice.Server.wrap` caches a response by URL only after it completes, so concurrent identical requests each compute.
+>
+> Fix in `RemoteSource.get` first (one place, ~20 lines): an `inflight: Map<key, {promise, controller, waiters}>`; a consumer's abort removes one waiter and aborts the shared request only when none are left (`linecache.ts` has this pattern). A server-side singleflight in `wrap` is a later, optional step.
+
 ## F06 — Statement search does full synchronous processing on each keystroke
 
 **Impact:** Searching a large set of distinct, long SQL statements can occupy the UI thread. List virtualization bounds rendered rows but does not bound filtering and sorting cost.
@@ -185,6 +216,8 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Search text updates immediately; any delayed results have a clear pending state if needed.
 - Indexes refresh when the document changes and are not retained indefinitely for closed traces.
 - Compare measured interaction costs before and after on the same workload.
+
+> **Second review — confirmed, severity unmeasured.** The memo lowercases `sqlId` and `text` of every statement per keystroke and sorts the result; it also re-runs on `inclusive`, `sort` and `stats` changes, which is fine. Plan: a `WeakMap<TraceDoc, string[]>` of pre-lowercased `sqlId + ' ' + text`, and `useDeferredValue(q)` so typing stays responsive while the list lags one frame. Measure first on the fixture with the most statements (`ls -S testdata/traces/*/` and the `statements` count in `api/doc`) and record the numbers in the tracking table; a worker is not justified without them.
 
 ## F07 — Connections and tables have keyboard navigation gaps
 
@@ -210,6 +243,14 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 
 **Related new surface:** Cut's piece labels/bands at [CutView.tsx](../desktop/src/workspace/session/cut/CutView.tsx), lines 470–475 and 542, use mouse interaction to choose the explanation/source jump. Include a keyboard-operable way to inspect those pieces when addressing accessibility. This is an extension of the same category, not a claim that the entire Cut workflow is inaccessible.
 
+> **Second review — confirmed, with more of the same kind.**
+>
+> - `ConnectionsView`: `<li role="option">` with `onClick` only; no `tabIndex`, no key handler, no `aria-activedescendant`.
+> - `DataTable`: `onKey` returns when `selectedKey == null`; `<th>` has `aria-sort` and `onClick` but no focusable control; the scroll container has `tabIndex={0}` without a role or name; `<tr aria-selected>` is ignored by assistive technology outside a `grid`/`listbox`.
+> - `Statements`: the search input has only a placeholder (confirmed, no label); list rows are `role="button" tabIndex={-1}`, acceptable because `j`/`k`/arrows work from anywhere outside inputs, but say so in a `title` or a visible hint.
+> - `ResizeHandle`: `role="separator"`, `aria-orientation`, `aria-label`, `tabIndex` are there; `aria-valuenow/min/max` are not (the review's lower-confidence note holds).
+> - Cut pieces (`Bands`, label groups): `onMouseEnter`/`onClick` only. A `tabIndex={0}` + Enter/arrow on the label groups, which are already the readable targets, is enough.
+
 ## F08 — Failed credential submissions disappear without recovery
 
 **Impact:** A job can remain waiting for credentials after its prompt has disappeared, leaving no visible retry path.
@@ -227,6 +268,10 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Successful responses and authoritative close events remove it exactly once.
 - Expiry, cancellation, queue advancement, and reconnect replay work without duplicate prompts.
 - Credentials are neither logged nor stored in general-purpose draft state.
+
+> **Second review — confirmed exactly.** `send()` dispatches `answered` before the await; a non-404 error is only `console.warn`ed; the queue reducer has no in-flight state. Two more notes: in the app an `apikey` answer goes through `assistKeyStoreAndAnswer`, which stores the key in the keychain before (or regardless of) the engine accepting it, so a transport failure leaves a stored key and an open prompt; and a retry after a failure that did reach the engine is safe because the engine answers 404 for an already-answered prompt (treat 404 as "closed", as today).
+>
+> Fix: two reducer actions, `sending {id}` and `failed {id, error}`; the modal disables its buttons while sending and shows the error with the fields kept, Retry re-sends, Cancel sends a cancel. `queue.test.ts` covers the reducer; the modal's error state needs a screenshot.
 
 ## F09 — Repeated cuts overwrite prior output and show old parsed results
 
@@ -260,6 +305,12 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Reopening an existing saved file intentionally can still use the ordinary deduplication behavior.
 - Closing/restarting the app handles generated-file lifetime predictably.
 
+> **Second review — confirmed, and the consequence is worse than described.** Besides the tab reuse, the first cut's *open engine session* reads its lines from the path: the engine's line endpoints go through `trace.LineIndex` (`OpenLineIndex`/`LoadLineIndex` in `internal/trace/lineindex.go`) which opens the trace file by path, so overwriting `<stem>-cut.trc` in place makes the already-open tab's Lines and Trace views read the *new* bytes at the *old* offsets (garbage lines; needs a reproduction). A later reopen of that tab from the cache fails `LoadLineIndex`'s check ("is not the file the index was built from") and rebuilds, which is the expected guard working.
+>
+> Two more paths share the root cause: "Save as…" to a path that is already open followed by "Open it in a new tab" takes the same `openOrShow` route; and `openOrShow` is the right behaviour for files opened from the Finder or the CLI, so the fix is a unique name, not a change to `openOrShow`.
+>
+> Fix: `cuts/<stem>-cut-<yyyymmdd-hhmmss>[-n].trc` (`safeFileName` already applied), the display name unchanged in the header. Retention: on startup, delete files in the app's `cuts` folder that no tab in `workspace.json` references and that are older than 7 days (the folder is app-owned; say so in `docs/DESKTOP.md`). Write to a temporary name and rename, so a failed write cannot truncate anything.
+
 ## F10 — Cut exports can differ from the preview being displayed
 
 **Impact:** Users can approve/export a cut while viewing a plan for different options or a different selection. The export request uses the current query; the problem is that its preview is stale and undisclosed.
@@ -283,6 +334,10 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Rapid changes and late responses cannot regress the displayed plan.
 - Same-query document/client changes refresh or invalidate data appropriately.
 - F11 uses the same current-plan identity contract.
+
+> **Second review — confirmed.** `useJSON` returns `st.data` while `st.path !== path`; `p` is that retained plan; "Save as…" and "Open as new tab" are enabled on `!!p`; the export fetches the *new* query. One more hole in `useJSON`: its success path sets state without checking `ac.signal.aborted` (benign today because an aborted `fetch` rejects, but a settled `r.json()` racing the abort can still land).
+>
+> Fix: make `useJSON` return `{ data, path: forPath, loading, error }` and let the view compute `const current = plan.path === planPath ? plan.data : undefined`; buttons and `autoCheck` use `current`; the map keeps drawing the retained plan dimmed with a "Planning…" badge so the layout does not jump. F11 and F12 use the same `current`.
 
 ## F11 — Cut automatic validation uses stale size, and reparse cannot cancel
 
@@ -312,6 +367,10 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Obsolete checks do not accumulate during repeated edits.
 - Record representative CPU/memory/concurrency measurements before asserting the performance impact is resolved.
 
+> **Second review — confirmed, with a server-side half that the review only hints at (now F13).** `autoCheck` reads `p.bytes` of the retained plan; the 256 MiB guard exists only in the client; `Cutter.Check` calls `model.Build(path, model.Options{})`, a full-facts build with no context. It also runs for `p.lines === 0` plans (an empty cut: pointless temp file and parse).
+>
+> The engine already has the cancellation pattern this needs: `internal/engine/session.go` wraps the spill sink in a `cancelSink` that checks the context every 4096 facts and unwinds the build with a panic recovered by `buildFiles`, because "the builder has no context of its own". The cleaner fix is a `Ctx context.Context` on `model.Options` checked in `progressReader.Read` (`internal/model/progress.go`; `BuildFiles` wraps the reader only when `OnProgress` is set, so wrap it when either is set): every build becomes cancellable at I/O granularity, the engine can drop `cancelSink` later, and `Check` passes its request context. `compare()` needs only per-(statement, call kind) counts and µs, wait count and µs, the first wall clock, statement and unknown-line counts: an `Aggregate` build with a small `Sink` gives a bounded-memory check without weakening it.
+
 ## F12 — Cut's statement picker can omit its actual target
 
 **Impact:** The selected statement can be absent from the dropdown even while its ID is used to generate the cut. Statements outside the first 300 also cannot be chosen directly from this picker.
@@ -333,6 +392,108 @@ Suggested order: **F09 → F01 → F02 → F10/F11 → F03 → F08 → F05 → F
 - Every eligible statement can be chosen without first navigating to another view.
 - Empty traces, missing SQL IDs, and document changes are handled deliberately.
 - Changing the visible selection always changes the exported statement ID accordingly.
+
+> **Second review — confirmed.** `stmtChoices` is the top 300 by elapsed, `pick` can be a `selStmt` outside it, the request carries `pick`, the `<select>` lists only `stmtChoices`. Also: `stmt` state set on one live snapshot can name a statement the next snapshot does not have; guard with `doc.statements[pick]`.
+>
+> Fix: always put the picked statement first in the options (one `unshift` when absent), and replace the bare `<select>` with the lib's typed statement picker (`web/src/lib/data/stmtpick.ts`, the Lines view's: a `PickRow` list filtered by what the user types, already tested) over *all* statements, so every statement is reachable without leaving the view.
+
+## F13 — `/api/cut/check` is unbounded on the engine (new, second review)
+
+**Impact:** The 256 MiB automatic-check limit lives only in the client. Any `/api/cut/check` request, including a manual one on a multi-gigabyte cut, makes the engine write the whole cut to a temp file and parse it with a **full-facts** `model.Build` (every call, wait and bind set in memory), while the engine's own sessions use the aggregation-only build with a disk spill for exactly that reason. Several checks can run at once (one per request; the slice server's URL cache dedupes only completed answers). Peak memory was not measured; the shape is established.
+
+**Evidence:**
+
+- [cut.go](../internal/slice/cut.go), `cutCheck`: parses the selection and calls `Cutter.Check` with the request context, no size check, no limiter.
+- [plan.go](../internal/cut/plan.go), `Cutter.Check`: `model.Build(path, model.Options{})` (full facts, no context).
+- [session.go](../internal/engine/session.go), `buildSession`: the engine's sessions build with `Aggregate` + a spill tee and a `cancelSink`; `Check` uses none of it.
+- [slice.go](../internal/slice/slice.go), `wrap`: `s.cached(key)` only after completion.
+
+**Fix direction:** Give `model.Options` a `Ctx` checked in `progressReader.Read` (one place, every build cancellable at I/O granularity); make `Check` an `Aggregate` build with a small sink that accumulates what `compare()` needs (per statement and call kind: count, µs; waits: count, µs; the first wall clock; statements, unknown lines); a `maxCheckBytes` server limit (bad request above it unless `force=1`), and one in-flight check per session (a later identical request waits for the running one, a different one cancels it: the UI only ever wants the current query's answer).
+
+**Acceptance checks:**
+
+- A check cancelled mid-parse (client abort) stops within one read buffer and removes its temp file (`go test` with a context cancelled from the sink).
+- The numbers of the aggregate check equal the full-build check on every cut fixture (`internal/cut` tests compare both).
+- Engine RSS during a check of the largest fixture is bounded by the dimensions, not the facts (log it in the tracking table).
+- The contract test (`internal/engine`, `api/engine.openapi.yaml`) covers any new parameter; `engine.Protocol` is untouched (additive).
+
+## F14 — Statement detail retains another statement's data while loading (new, second review)
+
+**Impact:** Picking another statement shows, for the duration of the request, the previous statement's executions page, wait list and execution detail under the new statement's heading. On a local engine this is one frame; on a remote or slow session it is readable and wrong. Same mechanism as F01, different axis (statement instead of scope).
+
+**Evidence:** [StatementDetail.tsx](../web/src/lib/views/StatementDetail.tsx): `useSourceQuery(source, 'waits:${stats.id}:…', …, 'waits')`, `useSourceQuery(source, 'executions:${id}:…', …, 'executions')`, `useSourceQuery(source, 'detail:${stmt}:…', …, 'detail')` (template literals in the source); [StatementContext.tsx](../web/src/lib/views/StatementContext.tsx) the same `waits` keep. `keep` is constant, so the retained answer is another statement's whenever `id` changes.
+
+**Fix direction:** Part of the F01 contract: either include the statement id in the `keep` string (retain across scope changes of the *same* statement only) or render the `stale` state. The executions table should show its skeleton rather than another statement's rows.
+
+**Acceptance checks:** switching statements never shows rows whose statement differs from the heading; a live refresh of the same statement keeps its rows visible; the `queryView` unit test covers the `keep`-with-id case.
+
+## Implementation plan (second review, 2026-11-08)
+
+### Ground rules
+
+- Branch from `main` (the review branch holds only this document; merge it first or cherry-pick). One commit per finding or per tightly coupled pair, pushed after each phase; concise messages; the tracking table above updated in the same commit (`confirmed` → `fixed`, with the test names and, where asked, the numbers).
+- Every phase ends with: `pnpm -r typecheck`, `pnpm test` in `web/` and in `desktop/`, `go test ./internal/cut ./internal/slice ./internal/engine ./internal/model`, `make web` + Go rebuild when `web/src` changed (the built UI is committed), and for UI changes a screenshot via the `verify-mtkprof` skill (dev browser mode). `scripts/ci-local.sh --no-release` before the last push of a phase.
+- The lib (`web/src/lib`) and the desktop's adaptation change in the same commit. An engine route or parameter change goes with `api/engine.openapi.yaml`, `go test ./internal/engine`, `pnpm gen:api` and the committed `desktop/src/engine/api.d.ts`.
+- Test harness decision: both vitest projects run in `node` with `renderToStaticMarkup`; do not add `jsdom` for this work. Extract the pure decision functions (`queryView`, the open queue, the plan-identity selector, the `useJSON` reducer) and unit-test those; keep the mounted transitions for the screenshot step.
+- Measure before redesigning (F04, F06, F11/F13): the review recorded no numbers, so the first commit of those items adds the measurement (a small script or a `go test -bench`), and the tracking table records workload, cache state and result.
+- Execution model (per the user's global instructions): each phase is a self-contained brief for a lower-tier coding subagent (Sonnet); the orchestrator reviews the diff against the acceptance checks here before the commit.
+
+### Phase 1 — Cut correctness (F09, F10, F11, F12, F13) · High
+
+1. **F10 first, it is the identity everything else keys on.** `useJSON` returns `{ data, path, loading, error }`; add the `aborted` guard on the success path. In `CutView`: `const planPath = '/api/cut?' + query`, `const current = plan.path === planPath ? plan.data : undefined`; `p` (for drawing) stays the retained plan, with `className="cut-stage pending"` and a "Planning…" badge while `plan.loading`; Save/Open/`autoCheck`/`FileCard` use `current`. Unit test: a pure `planView(st, path)` selector, cases: settled same path, pending other path (data retained, `current` undefined), error.
+2. **F11 client half:** `autoCheck = !!current && current.lines > 0 && current.bytes < 256 << 20`. The check URL is built from the same `query` as `current`, so the stale-size case disappears with (1). Keep `checkWanted === query` for manual checks.
+3. **F12:** options = `[picked, ...top300 without picked]` when `picked` is not in the top 300; guard `doc.statements[pick]`; replace the `<select>` with the `stmtpick` picker over all statements (typed filter). Screenshot with `testdata/traces/19c` fixture that has > 300 statements (check `api/doc` statements count; generate on dbmint with `run_gen.sh` only if none has).
+4. **F09:** `fileName` for the cache copy = `${stem}-cut-${stamp}.trc` (`yyyymmdd-hhmmss`, plus `-2`, `-3` on a same-second collision); the header and the Save default keep `${stem}-cut.trc`. `writeCached` writes `name.part` then renames (add `rename` from `@tauri-apps/plugin-fs`). Retention: `Workspace.restore` (or a `cuts.ts` helper it calls) lists the `cuts` folder and removes files older than 7 days not referenced by any restored tab; document in `docs/DESKTOP.md`. Test: `workspace.test.ts` already mocks `platform`; add a case that two `openOrShow` calls with distinct paths yield two tabs, and a `cuts` retention unit test over a mocked directory listing.
+5. **F13 (engine):** `model.Options.Ctx` checked in `progressReader.Read` (returns `ctx.Err()`; `BuildFiles` wraps the reader when `Ctx` or `OnProgress` is set; `model.Build` already delegates to `BuildFiles`), `Cutter.Check` passes `ctx` and builds `Aggregate` with a `checkSink` that accumulates the `compare()` inputs; `compare()` takes that aggregate instead of `m2`; `maxCheckBytes` (default 1 GiB, `force=1` overrides) in `cutCheck`; one in-flight check per `slice.Server` (a mutex plus a cancel of the previous request's context when the query differs). Tests: `internal/cut` (aggregate check equals full check on every cut fixture; cancellation stops within a read and removes the temp file), `internal/engine/cut_test.go` (a `force=1` round trip), the contract test for the new parameter. Measurement: engine RSS during a check on the largest 19c fixture before and after, logged in the table. Later, optionally, replace `cancelSink` in `session.go` with `Options.Ctx` (not in this phase).
+6. Phase exit: screenshots of the Cut view in pending state, with a > 300th statement picked, and two cut tabs open side by side; tracking rows F09–F13 updated.
+
+### Phase 2 — Scope trust (F01, F14, F05) · High
+
+1. **F01/F14 contract:** extract `queryView(st, source, key, keep): QueryState & { stale: boolean }` from `useSourceQuery` into `source.ts` (pure), test it in `source-query.test.ts`: settled same key; pending, same keep, other key → `stale: true`; pending, no keep → `data: undefined`; same lineage new source → retained, `stale: false`; error path. Then the consumers:
+   - `Waits`: drop the `keep` (numbers), show a skeleton while loading, and on error a `callout` "Wait profile of the selection unavailable (…): showing the whole trace" above the table (mirror `useScopedStatements`' notice).
+   - `useScopedFindings`: `narrowed: q.data !== undefined && !q.stale`; while stale, return the whole-trace findings with `loading: true` (the `Findings` header already renders "the selection's are on their way"). `Statements` consumes `.findings` for its per-row counts: that is fine once `narrowed` is honest.
+   - `useScopeResponse`: no `keep` (numbers); `ResponseMini` renders a dimmed previous bar from its own `useRef` if a visible placeholder is wanted, labelled by `aria-busy`.
+   - `StatementDetail`/`StatementContext`: `keep` becomes `waits:${id}`, `executions:${id}`, `detail:${stmt}` (retain across scope and live refresh of the same statement only).
+   - Decorative consumers (`roles`, `spans`, `hlmarks`) keep their behaviour.
+2. **F05:** in `RemoteSource.get`, an `inflight` map keyed by the URL: the first caller creates `{ controller, promise, waiters: 1 }`, later callers join, each caller's `signal` decrements on abort and aborts the shared controller when `waiters === 0`; settlement deletes the entry before resolving (so a retry after failure is a new request). Test in `source-query.test.ts` with a mocked `ApiClient` (the review's probe: two concurrent calls → one fetch; a third after settlement → cache; one of two aborting → request continues; both aborting → request aborted; failure → next call fetches again).
+3. Phase exit: screenshots of Waits and Findings in the pending and the error state (mock a 500 via the dev browser's engine or a stubbed client); `make web`; tracking rows F01, F05, F14.
+
+### Phase 3 — Opening (F02, F04) · High / Medium
+
+1. **F02:** `openOptions: OpenOptions` on the workspace snapshot (`setOpenOptions`, not persisted; initialised from settings when the open screen mounts, as today). `OpenScreen` reads/writes it instead of local state; `DropTarget` uses `route.kind === 'open' ? ws.getSnapshot().openOptions : defaultsFromSettings`, and `follow` only when exactly one path was dropped (else a `toast` "Follow needs one file; opened without follow"). Overlay text says which options apply. Test: `workspace.test.ts` for `setOpenOptions` and a pure `dropOptions(route, openOptions, settings, paths)` selector.
+2. **F04:** measurement first (`desktop/scripts/` or a Go benchmark: open 3–4 distinct fixtures concurrently vs. queued on a cold `-cache` dir; record active-ready time, total, RSS). Then an `OpenQueue` in `workspace.ts` (active tab first, concurrency 2, re-check `this.tab(key)` on dequeue, a failed or cancelled start releases its slot) used by `restore` and by `bind`'s restart branch. `open()` from the user stays immediate. Test: the queue as a pure class with fake `start` promises (order, bound, closed-tab skip, failure release).
+3. Phase exit: screenshots are not needed for F04; one for the drop overlay text. Tracking rows F02, F04 with the numbers.
+
+### Phase 4 — Work preservation (F03) · High
+
+1. Chat draft → `ChatSession` snapshot (`draft`, `setDraft`), cleared by `send`; `conversation.test.ts` gains a case; `closeChat` already disposes it.
+2. Statement list controls → session store: `stmtList: { q: string; hideSys: boolean; sort: SortKey }` with `setStmtList(patch)`; `Statements` reads it; `store.test.ts` covers the action; the CLI UI gets it for free (its `urlstate` does not need to carry it).
+3. Note drafts → session store `noteDrafts: Record<string, string>` keyed `${kind}:${target}`; `NoteEditor` takes `draftKey` and reads/writes through the store (`web/src/lib/components/Note.tsx`); save/cancel/delete clear the key; the four mount sites pass their key. Closing a tab drops the store with the session (defined disposal: drafts die with the tab; say so in `docs/DESKTOP.md`).
+4. Phase exit: screenshot sequence (type, switch tab, come back) for the chat and a note; tracking row F03.
+
+### Phase 5 — Prompts (F08) · Medium
+
+1. `queue.ts`: `QueuedPrompt.sending?: boolean; failure?: string`; actions `sending {id}`, `failed {id, error}`; `answered` unchanged. `PromptHost.send`: dispatch `sending`, await, on success dispatch `answered`, on 404 dispatch `answered` (closed elsewhere), on other errors dispatch `failed` and keep the modal; `PromptModal` disables inputs while `sending`, shows `failure` with a Retry (re-sends the same body kept in a ref, never logged) and Cancel. For `apikey` in the app: answer the engine first, store in the keychain only on success (swap the order inside `assistKeyStoreAndAnswer` or split it).
+2. Tests: `queue.test.ts` (reducer transitions, double-submit guard, reset during sending); a screenshot of the failed state with a mocked 500.
+
+### Phase 6 — Statement search cost (F06) · Medium
+
+1. Measurement: a vitest micro-benchmark (or a `console.time` in the dev browser) of the `rows` memo on the fixture with the most statements at three needles (no match, broad, exact); record in the table.
+2. If the broad case is above ~16 ms: `searchText` per doc in a `WeakMap<TraceDoc, string[]>` (lowercased `sqlId + ' ' + text`), `useDeferredValue(q)` for the filter, and a stable pre-sort per `(sort, inclusive)` memo so the needle filter does not re-sort. Semantics unchanged (hide-SYS, inclusive/self, tie-break on `elapsed`); re-measure and record.
+
+### Phase 7 — Keyboard and assistive technology (F07) · Medium
+
+1. `ConnectionsView`: a roving `tabIndex` listbox (`aria-activedescendant`, Up/Down/Home/End/Enter), focus ring via the existing `:focus-visible` tokens.
+2. `DataTable`: `role="grid"` on the table with `aria-label` passed by the caller, `<th>` content wrapped in a `<button>` with the `aria-sort` kept on the `th`; Down on an unselected table selects the first visible row; `tr role="row"`.
+3. `Statements`: `aria-label="Filter statements"` on the search input; a hint for `j`/`k`.
+4. `ResizeHandle`: `aria-valuenow/min/max` from the current width.
+5. Cut label groups: `tabIndex={0}`, Enter selects, Up/Down move; `aria-pressed` on the selected one.
+6. Exit: a keyboard-only walkthrough in the dev browser (Playwright `keyboard.press` script in the `verify-mtkprof` run) with screenshots of the focus states; VoiceOver pass on macOS noted as done or deferred.
+
+### Not planned, by decision
+
+- Removing the "side-tab" detector findings: they are semantic state styling (the review says so). No change.
+- A worker for statement search, a global engine build limiter, process-restart recovery of drafts: only if the phase 6 / phase 3 measurements or a user request call for them.
 
 ## Validation performed during the re-review
 
