@@ -269,6 +269,8 @@ Notes belong to a trace's content (its identity), not to its file name: the same
 from another path, re-fetched under another name or opened with other bind options shows the same
 notes. They are stored in `annotations.json` in the data folder (see "Files").
 
+Unsaved work survives switching tabs, visiting a page and collapsing the assistant: the text of an open note editor, an unsent chat message and the Statements list's search, sort and *no SYS* are kept in memory with the tab, and are never written to disk, so they are gone when the tab is closed or the app quits.
+
 | Note on | How | Matched by |
 |---|---|---|
 | Statement | *✎ Add note* next to *Copy SQL* in a statement's detail; the note shows under the title (with a *✎ note* tag) and survives a re-parse | sql_id and SQL text |

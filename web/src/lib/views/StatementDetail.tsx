@@ -138,7 +138,7 @@ function StmtNote({ stmt, open, setOpen, title }: { stmt: StmtRef; open: boolean
   const note = stmtNote(useStore((s) => s.annotations), stmt)
   if (open) {
     return (
-      <NoteEditor label={`Note on statement ${title}`} text={note?.note}
+      <NoteEditor draftKey={`stmt:${stmt.sqlId}:${stmt.hash}`} label={`Note on statement ${title}`} text={note?.note}
         onSave={(t) => { if (note) actions.updateAnnotation(note.id, { note: t }); else actions.addAnnotation(makeAnnotation({ kind: 'statement', note: t, stmt })); setOpen(false) }}
         onCancel={() => setOpen(false)}
         onDelete={note ? () => { actions.removeAnnotation(note.id); setOpen(false) } : undefined} />
@@ -318,7 +318,7 @@ function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Sc
       <DataTable columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
         selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e, ev) => (ev?.shiftKey ? togglePick(e) : setSel(sel && sel.exec === e.exec ? null : e))} />
       {noteFor && (notesOn ? (
-        <NoteEditor key={keyOf(noteFor)} label={`Note on execution #${noteFor.execNo}`} title={`Note on execution #${noteFor.execNo}`} text={editing?.note}
+        <NoteEditor key={keyOf(noteFor)} draftKey={`exec:${ref.sqlId}:${ref.hash}:${keyOf(noteFor)}`} label={`Note on execution #${noteFor.execNo}`} title={`Note on execution #${noteFor.execNo}`} text={editing?.note}
           onSave={(t) => {
             if (editing) actions.updateAnnotation(editing.id, { note: t })
             else actions.addAnnotation(makeAnnotation({ kind: 'execution', note: t, stmt: ref, execNo: noteFor.execNo, cursorLine: doc.cursors[noteFor.cursor]?.line }))

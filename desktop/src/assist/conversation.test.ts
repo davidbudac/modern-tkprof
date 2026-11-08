@@ -284,6 +284,36 @@ describe('intent outcomes', () => {
   })
 })
 
+describe('chat draft', () => {
+  beforeEach(() => kv.clear())
+
+  it('lives in the tab\'s session: survives re-reads of the chat, is cleared by send, dies with closeChat', async () => {
+    const a = chatOf('tab-d', 'trace-a')
+    const seen = vi.fn()
+    a.subscribe(seen)
+    a.setDraft('half a que')
+    expect(a.getSnapshot().draft).toBe('half a que')
+    expect(seen).toHaveBeenCalledTimes(1)
+    a.setDraft('half a que') // unchanged: no notification
+    expect(seen).toHaveBeenCalledTimes(1)
+    // the panel unmounts and mounts again (a tab switch): the same session, the same draft
+    expect(chatOf('tab-d', 'trace-a').getSnapshot().draft).toBe('half a que')
+    // another tab, and another trace in the same tab, do not see it
+    expect(chatOf('tab-e', 'trace-a').getSnapshot().draft).toBe('')
+    expect(chatOf('tab-d', 'trace-b').getSnapshot().draft).toBe('')
+    const b = chatOf('tab-d', 'trace-b')
+    b.setDraft('a question')
+    const { client } = engine(() => lines(events))
+    await b.send('a question', ctxOf(client))
+    expect(b.getSnapshot().draft).toBe('') // sending clears it
+    b.setDraft('next')
+    closeChat('tab-d')
+    expect(chatOf('tab-d', 'trace-b').getSnapshot().draft).toBe('') // closing the tab disposes it
+    closeChat('tab-d')
+    closeChat('tab-e')
+  })
+})
+
 describe('closeChat', () => {
   it('drops the chat of a closed tab and stops its running turn', async () => {
     const a = chatOf('tab-1', 'trace-a')

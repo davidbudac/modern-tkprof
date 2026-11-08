@@ -296,11 +296,11 @@ export function ChatPanel({ tab, focus, onClose }: { tab: Tab; focus: boolean; o
   const backends = useBackends(client)
   const providers = useMemo(() => pickable(settings.assistProviders, backends), [settings.assistProviders, backends])
   const session = chatOf(tab.key, tab.identity)
-  const { chat, provider: picked, moved } = useSyncExternalStore(session.subscribe, session.getSnapshot)
+  const { chat, provider: picked, moved, draft } = useSyncExternalStore(session.subscribe, session.getSnapshot)
   const provider = providers.find((p) => p.id === picked) ?? providers[0]
   const experimental = provider && (backends.find((b) => b.kind === provider.kind)?.experimental ?? provider.kind === 'codex')
   const running = streaming(chat) !== null
-  const [draft, setDraft] = useState('')
+  const setDraft = session.setDraft.bind(session) // the draft lives in the tab's chat session: it survives a tab switch and the panel closing
   const [asking, setAsking] = useState<string | null>(null) // a message waiting for the consent banner
   const input = useRef<HTMLTextAreaElement>(null)
   const ask = useRef(settings.assistAskBeforeMoving)
@@ -332,7 +332,6 @@ export function ChatPanel({ tab, focus, onClose }: { tab: Tab; focus: boolean; o
         return t?.session?.store === store && t.identity === tab.identity ? receiveIntent(store, part, ask.current) : undefined
       },
     }
-    setDraft('')
     void session.send(text, ctx)
   }
   const submit = (e?: FormEvent) => {

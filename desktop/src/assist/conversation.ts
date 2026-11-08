@@ -267,7 +267,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const raf: (f: () => void) => void = typeof requestAnimationFrame === 'function' ? (f) => void requestAnimationFrame(f) : (f) => void setTimeout(f, 16)
 
 /** What the panel shows of a chat session. `moved`: the intent whose move of the views is the latest (Back is offered on that one only; it is not kept). */
-export interface ChatView { chat: Chat; provider?: string; moved?: { message: string; id: string } }
+export interface ChatView { chat: Chat; provider?: string; moved?: { message: string; id: string }; /** the unsent text of the message box; kept with the tab's chat so a tab switch or a collapsed panel does not lose it (memory only, gone with `closeChat`) */ draft: string }
 
 /**
  * One tab's chat: the state for `useSyncExternalStore`, the running turn, and its persistence. Kept per tab outside React,
@@ -275,7 +275,8 @@ export interface ChatView { chat: Chat; provider?: string; moved?: { message: st
  */
 export class ChatSession {
   private chat: Chat = emptyChat
-  private view: ChatView = { chat: emptyChat }
+  private view: ChatView = { chat: emptyChat, draft: '' }
+  private draft = ''
   private moved: ChatView['moved']
   private stored: Omit<StoredChat, 'messages'> = { v: 1, updated: 0, consent: {} }
   private conv: EngineConv | null = null
@@ -307,6 +308,13 @@ export class ChatSession {
     return this.loading
   }
 
+  /** The unsent text of the message box (not persisted: it dies with the tab's session). */
+  setDraft(text: string) {
+    if (this.draft === text) return
+    this.draft = text
+    this.emit()
+  }
+
   hasConsent(provider: string): boolean { return provider in this.stored.consent }
 
   giveConsent(provider: string) {
@@ -334,8 +342,8 @@ export class ChatSession {
   }
 
   private emit() {
-    if (this.view.chat !== this.chat || this.view.provider !== this.stored.provider || this.view.moved !== this.moved)
-      this.view = { chat: this.chat, provider: this.stored.provider, moved: this.moved }
+    if (this.view.chat !== this.chat || this.view.provider !== this.stored.provider || this.view.moved !== this.moved || this.view.draft !== this.draft)
+      this.view = { chat: this.chat, provider: this.stored.provider, moved: this.moved, draft: this.draft }
     for (const l of this.listeners) l()
   }
 
@@ -378,6 +386,7 @@ export class ChatSession {
     if (this.ctl) return
     const ctl = new AbortController()
     this.ctl = ctl
+    this.draft = ''
     const history = this.chat.messages
     const id = `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
     this.dispatch({ type: 'send', id, text, at: Date.now(), provider: ctx.provider.name }, true)
