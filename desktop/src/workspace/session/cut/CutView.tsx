@@ -11,6 +11,7 @@ import { useWorkspace } from '../../WorkspaceProvider'
 import { traceStem, useCurrentTab } from '../useTab'
 import { MAX_CHECK_BYTES, autoCheckOf, checkPath, currentOf, jsonSettle, jsonView, pickOf, stmtChoices, type JSONResult, type JSONState, type JSONView } from './cutstate'
 import { layoutOutput, layoutSources, lineY, pieceLabel, placeLabels, rowLabels, type CutCheck, type CutPiece, type CutPlan, type Label, type SourceColumn } from './cutlayout'
+import { pieceKey } from './cutkeys'
 import { StmtPicker } from './StmtPicker'
 import './cut.css'
 
@@ -479,7 +480,17 @@ function CutMap({ doc, plan, profiles, sel, onSel, mode }: { doc: TraceDoc; plan
           const [t, sub] = pieceText(plan, pc)
           const L = pieceLabel(pc)
           return (
-            <g key={`l${i}`} className="lab" onMouseEnter={() => onSel(i)} onClick={() => onSel(i)}>
+            <g key={`l${i}`} className="lab" data-piece={i} role="button" tabIndex={i === sel ? 0 : -1} aria-pressed={i === sel} aria-label={`${t}, ${sub}`}
+              onMouseEnter={() => onSel(i)} onClick={() => onSel(i)}
+              onKeyDown={(e) => {
+                if (e.altKey || e.ctrlKey || e.metaKey) return
+                const a = pieceKey(e.key, i, plan.pieces.length)
+                if (!a) return
+                e.preventDefault()
+                if (a.kind === 'select') return onSel(i)
+                onSel(a.to)
+                e.currentTarget.parentElement?.querySelector<SVGGElement>(`g.lab[data-piece="${a.to}"]`)?.focus()
+              }}>
               <path d={`M${ox + G.ow + 2},${ys[i]} C${lx - 14},${ys[i]} ${lx - 18},${ly[i]} ${lx - 6},${ly[i]}`} fill="none" stroke="var(--hairline-strong)" />
               <rect x={lx} y={ly[i] - 9} width={8} height={8} rx={2} fill={L === 'G' ? 'none' : `var(${LABEL[L].v})`} stroke={L === 'G' ? 'var(--cut-gen)' : 'none'} strokeDasharray={L === 'G' ? '2 1.5' : undefined} />
               <text x={lx + 14} y={ly[i] - 1} className="tb">{t}</text>

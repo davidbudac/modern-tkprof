@@ -49,6 +49,9 @@
 .cut-map .hit { fill: transparent; cursor: pointer; }
 .cut-map .lab { cursor: pointer; }
 .cut-map .lab:hover .tb { text-decoration: underline; }
+/* keyboard focus: the group's own outline is unreliable on SVG in WebKit, so ring the hit rect instead */
+.cut-map .lab:focus { outline: none; }
+.cut-map .lab:focus-visible > rect.hit { stroke: var(--focus); stroke-width: 2; }
 .cut-map .selbox { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 .cut-map .cut-frame { fill: none; stroke: var(--hairline-strong); }
 .cut-empty { color: var(--ink-2); padding: var(--sp-5) 0; }
