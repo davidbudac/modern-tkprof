@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSession, type TraceDoc } from '@lib'
 import { chatOf } from '../assist/conversation'
-import { Workspace, canCompare, leaveRoute, type Tab } from './workspace'
+import { Workspace, canCompare, defaultOpenOptions, dropOptions, dropOverlayText, leaveRoute, openRequest, type OpenOptions, type Route, type Tab } from './workspace'
+import { OpenQueue } from './openQueue'
 
 const kv = vi.hoisted(() => new Map<string, unknown>())
 const annotationsKV = vi.hoisted(() => new Map<string, unknown>())
@@ -200,5 +201,208 @@ describe('leaving a page', () => {
     ws.close(a)
     ws.leavePage()
     expect(ws.getSnapshot().route).toEqual({ kind: 'open' })
+  })
+})
+
+describe('open options and drops (F02)', () => {
+  const open: Route = { kind: 'open' }
+  const tab: Route = { kind: 'tab', key: 't1' }
+  const settings = { binds: 'keep' as const, salt: 'global' }
+  const shown = (o: Partial<OpenOptions>): OpenOptions => ({ binds: 'keep', salt: '', follow: false, ...o })
+
+  it('setOpenOptions replaces the snapshot value and notifies; the options are not persisted', async () => {
+    const ws = new Workspace()
+    let calls = 0
+    ws.subscribe(() => calls++)
+    expect(ws.getSnapshot().openOptions).toEqual({ binds: 'keep', salt: '', follow: false })
+    ws.setOpenOptions({ binds: 'redact', salt: 'x', follow: true })
+    expect(ws.getSnapshot().openOptions).toEqual({ binds: 'redact', salt: 'x', follow: true })
+    expect(calls).toBe(1)
+    await tick()
+    expect(kv.has('openOptions')).toBe(false)
+  })
+  it('a fresh open screen starts from the settings', () => {
+    expect(defaultOpenOptions({ binds: 'redact', salt: 's' })).toEqual({ binds: 'redact', salt: 's', follow: false })
+  })
+  it('openRequest keeps the salt only for redact and follow only when set', () => {
+    expect(openRequest({ binds: 'keep', salt: 'x', follow: false })).toEqual({ binds: 'keep', salt: undefined, follow: undefined })
+    expect(openRequest({ binds: 'redact', salt: 'x', follow: true })).toEqual({ binds: 'redact', salt: 'x', follow: true })
+    expect(openRequest({ binds: 'redact', salt: '' }).salt).toBeUndefined()
+  })
+  it('on the open screen a drop uses the displayed options, like the picker', () => {
+    const o = shown({ binds: 'redact', salt: 'mine' })
+    expect(dropOptions(open, o, settings, ['a.trc', 'b.trc'])).toEqual({ options: openRequest(o) })
+    expect(dropOptions(open, shown({ binds: 'none', salt: 'mine' }), settings, ['a.trc']).options).toMatchObject({ binds: 'none', salt: undefined })
+  })
+  it('elsewhere a drop uses the settings defaults, whatever the open screen last held', () => {
+    const o = shown({ binds: 'none', follow: true })
+    expect(dropOptions(tab, o, settings, ['a.trc'])).toEqual({ options: { binds: 'keep', salt: undefined, follow: undefined } })
+    expect(dropOptions({ kind: 'page', id: 'settings' }, o, { binds: 'redact', salt: 'g' }, ['a.trc']).options).toEqual({ binds: 'redact', salt: 'g', follow: undefined })
+  })
+  it('follow applies to one dropped path; several open without it and say so', () => {
+    const o = shown({ follow: true })
+    expect(dropOptions(open, o, settings, ['live.trc'])).toEqual({ options: { binds: 'keep', salt: undefined, follow: true } })
+    const many = dropOptions(open, o, settings, ['a.trc', 'b.trc'])
+    expect(many.options.follow).toBeUndefined()
+    expect(many.notice).toMatch(/follow/i)
+  })
+  it('the overlay says which options apply', () => {
+    expect(dropOverlayText(open, shown({ binds: 'redact', follow: true }), settings)).toBe('Opens with the options above · binds redacted · follow')
+    expect(dropOverlayText(tab, shown({ binds: 'redact', follow: true }), settings)).toBe('Opens with the default options · binds kept')
+  })
+})
+
+describe('OpenQueue (F04)', () => {
+  /** start promises the test settles by hand */
+  function harness(alive: (k: string) => boolean = () => true, limit?: number) {
+    const started: string[] = []
+    const gates = new Map<string, { ok: () => void; fail: () => void }>()
+    const q = new OpenQueue(
+      (k) => new Promise<void>((ok, fail) => { started.push(k); gates.set(k, { ok, fail: () => fail(new Error('boom')) }) }),
+      alive,
+      limit,
+    )
+    const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve() }
+    return { q, started, gates, flush }
+  }
+
+  it('starts at most two at a time, in order, and the next as one finishes', async () => {
+    const { q, started, gates, flush } = harness()
+    q.add(['a', 'b', 'c', 'd'])
+    expect(started).toEqual(['a', 'b'])
+    expect(q.active).toBe(2)
+    expect(q.queued).toBe(2)
+    gates.get('a')!.ok()
+    await flush()
+    expect(started).toEqual(['a', 'b', 'c'])
+    gates.get('c')!.ok()
+    gates.get('b')!.ok()
+    await flush()
+    expect(started).toEqual(['a', 'b', 'c', 'd'])
+    expect(q.active).toBe(1)
+  })
+  it('first puts the keys in front of those waiting, and prioritize moves one up', async () => {
+    const { q, started, gates, flush } = harness(() => true, 1)
+    q.add(['a', 'b', 'c', 'd'])
+    q.prioritize('d')
+    q.prioritize('a') // already running: ignored
+    gates.get('a')!.ok()
+    await flush()
+    expect(started).toEqual(['a', 'd'])
+    q.add(['x'], true)
+    gates.get('d')!.ok()
+    await flush()
+    expect(started).toEqual(['a', 'd', 'x'])
+  })
+  it('skips a key whose tab was closed while it waited', async () => {
+    const closed = new Set<string>()
+    const { q, started, gates, flush } = harness((k) => !closed.has(k), 1)
+    q.add(['a', 'b', 'c'])
+    closed.add('b')
+    gates.get('a')!.ok()
+    await flush()
+    expect(started).toEqual(['a', 'c'])
+  })
+  it('a failed or throwing start releases its slot', async () => {
+    const started: string[] = []
+    const gates: Record<string, () => void> = {}
+    const q = new OpenQueue(
+      (k) => {
+        started.push(k)
+        if (k === 'bad') throw new Error('sync')
+        return new Promise<void>((_, fail) => { gates[k] = () => fail(new Error('boom')) })
+      },
+      () => true,
+      1,
+    )
+    q.add(['a', 'bad', 'c'])
+    expect(started).toEqual(['a'])
+    gates.a()
+    for (let i = 0; i < 6; i++) await Promise.resolve()
+    expect(started).toEqual(['a', 'bad', 'c'])
+    expect(q.active).toBe(1)
+  })
+  it('does not queue a key twice, nor one that is running', async () => {
+    const { q, started, flush } = harness()
+    q.add(['a', 'a', 'b'])
+    q.add(['a', 'b', 'c'])
+    await flush()
+    expect(started).toEqual(['a', 'b'])
+    expect(q.queued).toBe(1)
+  })
+  it('clear drops the waiting keys and takes no more', async () => {
+    const { q, started, gates, flush } = harness(() => true, 1)
+    q.add(['a', 'b'])
+    q.clear()
+    gates.get('a')!.ok()
+    await flush()
+    q.add(['c'])
+    expect(started).toEqual(['a'])
+  })
+})
+
+describe('restoring a workspace (F04)', () => {
+  it('opens the shown tab first and no more than two traces at once', async () => {
+    kv.set('open', ['a', 'b', 'c', 'd'].map((n) => ({ title: n, set: { paths: [`${n}.trc`], options: { binds: 'keep' } } })))
+    kv.set('active', 2)
+    const posted: string[] = []
+    const ws = new Workspace()
+    const fetch = vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === 'POST' && path === '/engine/sessions') {
+        const paths = JSON.parse(String(init.body)).paths as string[]
+        posted.push(paths[0])
+        return new Response(JSON.stringify({ session: { id: `s-${paths[0]}`, state: 'opening', paths }, job: { id: `j-${paths[0]}` } }), { status: 202, headers: { 'content-type': 'application/json' } })
+      }
+      // the session never becomes ready: the slots stay taken
+      const id = decodeURIComponent(path.split('/').pop()!)
+      return new Response(JSON.stringify({ id, state: 'opening', paths: [] }), { headers: { 'content-type': 'application/json' } })
+    })
+    ws.bind({ client: { base: '', fetch } as never, addr: 'first', token: 'token' })
+    await ws.restore({ startEmpty: false })
+    for (let i = 0; i < 30; i++) await Promise.resolve()
+    expect(posted).toEqual(['c.trc', 'a.trc'])
+    expect(ws.getSnapshot().tabs.map((t) => t.state)).toEqual(['opening', 'opening', 'opening', 'opening'])
+  })
+  it('a trace that fails to open frees its slot for the next one', async () => {
+    kv.set('open', ['a', 'b', 'c'].map((n) => ({ title: n, set: { paths: [`${n}.trc`], options: { binds: 'keep' } } })))
+    kv.set('active', 0)
+    const posted: string[] = []
+    const ws = new Workspace()
+    const fetch = vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === 'POST' && path === '/engine/sessions') {
+        const paths = JSON.parse(String(init.body)).paths as string[]
+        posted.push(paths[0])
+        return new Response(JSON.stringify({ session: { id: `s-${paths[0]}`, state: 'opening', paths }, job: { id: `j-${paths[0]}` } }), { status: 202, headers: { 'content-type': 'application/json' } })
+      }
+      const id = decodeURIComponent(path.split('/').pop()!)
+      return new Response(JSON.stringify({ id, state: id === 's-a.trc' ? 'failed' : 'opening', error: 'bad trace', paths: [] }), { headers: { 'content-type': 'application/json' } })
+    })
+    ws.bind({ client: { base: '', fetch } as never, addr: 'first', token: 'token' })
+    await ws.restore({ startEmpty: false })
+    for (let i = 0; i < 40; i++) await Promise.resolve()
+    expect(posted).toEqual(['a.trc', 'b.trc', 'c.trc'])
+    expect(ws.getSnapshot().tabs.map((t) => t.state)).toEqual(['failed', 'opening', 'opening'])
+  })
+  it('closing a queued tab means it is never opened', async () => {
+    kv.set('open', ['a', 'b', 'c'].map((n) => ({ title: n, set: { paths: [`${n}.trc`], options: { binds: 'keep' } } })))
+    kv.set('active', 0)
+    const posted: string[] = []
+    const ws = new Workspace()
+    const fetch = vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === 'POST' && path === '/engine/sessions') {
+        const paths = JSON.parse(String(init.body)).paths as string[]
+        posted.push(paths[0])
+        return new Response(JSON.stringify({ session: { id: `s-${paths[0]}`, state: 'opening', paths }, job: { id: `j-${paths[0]}` } }), { status: 202, headers: { 'content-type': 'application/json' } })
+      }
+      const id = decodeURIComponent(path.split('/').pop()!)
+      return new Response(JSON.stringify({ id, state: id === 's-a.trc' ? 'failed' : 'opening', paths: [] }), { headers: { 'content-type': 'application/json' } })
+    })
+    ws.bind({ client: { base: '', fetch } as never, addr: 'first', token: 'token' })
+    await ws.restore({ startEmpty: false })
+    // c waits behind a and b (limit 2); close it before a slot frees
+    const c = ws.getSnapshot().tabs[2].key
+    ws.close(c)
+    for (let i = 0; i < 40; i++) await Promise.resolve()
+    expect(posted).toEqual(['a.trc', 'b.trc'])
   })
 })

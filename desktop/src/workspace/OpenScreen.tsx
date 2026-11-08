@@ -1,32 +1,34 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useEngine } from '../engine'
 import { isMac } from '@lib'
 import { inTauri, pickPaths } from '../platform'
 import { BindSeg } from '../settings/BindSeg'
-import { useSettings, type BindMode } from '../settings/settings'
+import { useSettings } from '../settings/settings'
 import { ago } from '../time'
 import { useWorkspace, useWorkspaceState } from './WorkspaceProvider'
 import { setSummary, setTooltip, titleOf } from './traceSet'
-import { canCompare, type OpenOptions } from './workspace'
+import { canCompare, defaultOpenOptions, openRequest, type OpenOptions } from './workspace'
 import { CompareTabsButton } from './CompareTabs'
 import { FolderIcon } from '../ui/FolderIcon'
 
 /** The "+" tab: open files or folders (dialog, drop, path), the open options, the recent trace sets. */
 export function OpenScreen() {
   const ws = useWorkspace()
-  const { recent, tabs } = useWorkspaceState()
+  const { recent, tabs, openOptions } = useWorkspaceState()
   const { status } = useEngine()
   const { settings } = useSettings()
-  const [binds, setBinds] = useState<BindMode>(settings.binds)
-  const [salt, setSalt] = useState(settings.salt)
-  const [follow, setFollow] = useState(false)
+  // The options live in the workspace (a drop anywhere on this screen opens with them); each visit starts from the settings' defaults.
+  useLayoutEffect(() => ws.setOpenOptions(defaultOpenOptions(settings)), [])
+  const { binds, follow } = openOptions
+  const salt = openOptions.salt ?? ''
+  const set = (patch: Partial<OpenOptions>) => ws.setOpenOptions({ ...openOptions, ...patch })
   const [path, setPath] = useState('')
   const [dir, setDir] = useState('')
   const dirInput = useRef<HTMLInputElement>(null)
   const pathInput = useRef<HTMLTextAreaElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const ready = status === 'ready'
-  const options = (): OpenOptions => ({ binds, salt: binds === 'redact' && salt ? salt : undefined, follow: follow || undefined })
+  const options = (): OpenOptions => openRequest(openOptions)
 
   const openPaths = (paths: string[] | null) => {
     if (!paths?.length) return
@@ -94,16 +96,16 @@ export function OpenScreen() {
             <summary><b>Options</b> · binds {binds === 'keep' ? 'kept' : binds === 'redact' ? 'redacted' : 'dropped'}{follow && ' · follow'}</summary>
             <div className="opt-row">
               <span className="muted small">Bind values</span>
-              <BindSeg value={binds} onChange={setBinds} />
+              <BindSeg value={binds} onChange={(b) => set({ binds: b })} />
               {binds === 'redact' ? (
                 <label className="small muted">
-                  Salt <input type="text" value={salt} onChange={(e) => setSalt(e.target.value)} placeholder="random per open" />
+                  Salt <input type="text" value={salt} onChange={(e) => set({ salt: e.target.value })} placeholder="random per open" />
                 </label>
               ) : (
                 <span className="muted small faint">· redacting asks for a salt</span>
               )}
               <label className="check">
-                <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} />
+                <input type="checkbox" checked={!!follow} onChange={(e) => set({ follow: e.target.checked })} />
                 Follow as it grows (live; one file)
               </label>
             </div>
