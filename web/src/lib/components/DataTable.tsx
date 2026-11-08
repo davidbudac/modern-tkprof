@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { ariaSort, nextIndex, ownsKeys, toggleSort } from './keyNav'
 
 export interface Column<T> {
   key: string
@@ -26,10 +27,15 @@ export interface TableProps<T> {
   footer?: ReactNode
   empty?: string
   className?: string
+  /** accessible name of the grid; defaults to the first column's header */
+  label?: string
 }
 
-/** Sortable, virtualized table. Keyboard: Up/Down move the selection. */
-export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, defaultSort, rowHeight = 30, maxHeight = '60dvh', footer, empty = 'Nothing to show', className }: TableProps<T>) {
+/**
+ * Sortable, virtualized table (an ARIA grid). Keyboard: Tab reaches the scroll area, then Up/Down move the selection (on an
+ * unselected table they start at the last/first visible row); each sortable header holds a button that toggles the sort.
+ */
+export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, defaultSort, rowHeight = 30, maxHeight = '60dvh', footer, empty = 'Nothing to show', className, label }: TableProps<T>) {
   const [sort, setSort] = useState(defaultSort ?? null)
   const sorted = useMemo(() => {
     if (!sort) return rows
@@ -49,6 +55,7 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, d
     for (const c of columns) if (c.bar && c.sort) m[c.key] = rows.reduce((acc, r) => Math.max(acc, Number(c.sort!(r)) || 0), 0)
     return m
   }, [rows, columns])
+  const name = label ?? columns[0]?.header
   const scrollRef = useRef<HTMLDivElement>(null)
   const virt = useVirtualizer({ count: sorted.length, getScrollElement: () => scrollRef.current, estimateSize: () => rowHeight, overscan: 12 })
   const items = virt.getVirtualItems()
@@ -56,24 +63,28 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, d
   const padBottom = items.length ? virt.getTotalSize() - items[items.length - 1].end : 0
   const toggle = (c: Column<T>) => {
     if (!c.sort) return
-    setSort((s) => (s && s.key === c.key ? { key: c.key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key: c.key, dir: c.align === 'end' ? 'desc' : 'asc' }))
+    setSort((s) => toggleSort(s, c.key, c.align))
   }
   const onKey = (e: React.KeyboardEvent) => {
-    if (!onRowClick || selectedKey == null) return
-    const i = sorted.findIndex((r) => rowKey(r) === selectedKey)
-    if (e.key === 'ArrowDown' && i < sorted.length - 1) { onRowClick(sorted[i + 1]); e.preventDefault(); virt.scrollToIndex(i + 1) }
-    if (e.key === 'ArrowUp' && i > 0) { onRowClick(sorted[i - 1]); e.preventDefault(); virt.scrollToIndex(i - 1) }
+    if (!onRowClick || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || !ownsKeys(e.target as HTMLElement)) return
+    const i = selectedKey == null ? -1 : sorted.findIndex((r) => rowKey(r) === selectedKey)
+    const r = virt.range
+    const to = nextIndex(e.key, i, sorted.length, { visible: r ? { start: r.startIndex, end: r.endIndex } : null, homeEnd: false })
+    if (to == null) return
+    e.preventDefault()
+    onRowClick(sorted[to])
+    virt.scrollToIndex(to)
   }
   return (
     <div className={'tbl-wrap ' + (className ?? '')}>
-      <div className="tbl-scroll" ref={scrollRef} style={{ maxBlockSize: maxHeight }} tabIndex={0} onKeyDown={onKey}>
-        <table className="tbl">
+      <div className="tbl-scroll" ref={scrollRef} style={{ maxBlockSize: maxHeight }} tabIndex={0} role="region" aria-label={name} onKeyDown={onKey}>
+        <table className="tbl" role="grid" aria-label={name} aria-rowcount={sorted.length + 1}>
           <thead>
-            <tr>
+            <tr role="row" aria-rowindex={1}>
               {columns.map((c) => (
                 <th key={c.key} className={[c.align === 'end' ? 'num' : '', c.className?.includes('mono') ? 'mono' : '', c.bar || /\b(clip|text)\b/.test(c.className ?? '') ? 'grow' : ''].join(' ').trim() || undefined} style={{ inlineSize: c.width }} title={c.title}
-                  aria-sort={sort?.key === c.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
-                  onClick={() => toggle(c)}>{c.header}</th>
+                  aria-sort={ariaSort(sort, c.key, !!c.sort)}
+                  onClick={() => toggle(c)}>{c.sort ? <button type="button" className="tbl-sort">{c.header}</button> : c.header}</th>
               ))}
             </tr>
           </thead>
@@ -83,7 +94,7 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, selectedKey, d
               const row = sorted[vi.index]
               const k = rowKey(row)
               return (
-                <tr key={k} className={onRowClick ? 'row-click' : undefined} aria-selected={selectedKey === k ? 'true' : undefined}
+                <tr key={k} role="row" aria-rowindex={vi.index + 2} className={onRowClick ? 'row-click' : undefined} aria-selected={selectedKey === k ? 'true' : onRowClick ? 'false' : undefined}
                   onClick={onRowClick ? (e) => onRowClick(row, e) : undefined} style={{ height: rowHeight }}>
                   {columns.map((c) => {
                     const cls = [c.align === 'end' ? 'num' : '', c.className ?? '', c.bar ? 'bar' : ''].join(' ').trim()

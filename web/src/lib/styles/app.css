@@ -347,6 +347,11 @@ button[aria-pressed="true"] .cue { color: inherit; opacity: 0.7; }
   user-select: none;
   font-weight: 500;
 }
+/* the sort button fills the header cell and looks like its text; the cell stays the click target */
+.tbl thead th > button.tbl-sort { font: inherit; color: inherit; background: none; border: 0; border-radius: 0; padding: 0; text-align: inherit; cursor: inherit; white-space: inherit; user-select: none; }
+.tbl thead th > button.tbl-sort:hover, .tbl thead th > button.tbl-sort:active { background: none; }
+.tbl thead th > button.tbl-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tbl-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .tbl thead th[aria-sort="descending"]::after { content: " ▾"; color: var(--ink-3); }
 .tbl thead th[aria-sort="ascending"]::after { content: " ▴"; color: var(--ink-3); }
 .tbl tbody tr { border-block-end: 1px solid var(--hairline); }
