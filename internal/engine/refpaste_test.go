@@ -5,7 +5,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/davidbudac/modern-tkprof/internal/ref"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 )
 
@@ -95,5 +97,77 @@ func TestRefPaste(t *testing.T) {
 	r = call(t, ts, "POST", base+"/paste", map[string]any{"text": "mtkprof-ref 1\nnote,\"objects: ORA-00942: table or view does not exist\"\n"})
 	if r.code != 400 || !strings.Contains(string(r.body), "the script said: objects: ORA-00942") {
 		t.Errorf("only notes: %d %s", r.code, r.body)
+	}
+}
+
+// A bundle reaches every open session of the trace: the other tab of the same
+// files reloads (session event, rev + 1), and a session that was still
+// opening when the bundle was stored applies it once it is ready.
+func TestRefSameTrace(t *testing.T) {
+	e, ts := newServed(t)
+	trace := traces + "io_waits.trc"
+	s1 := openTS(t, ts, trace)
+	s2 := openTS(t, ts, trace)
+	if s1.ID == s2.ID || s1.Identity != s2.Identity {
+		t.Fatalf("want two sessions of one trace: %+v %+v", s1, s2)
+	}
+	ev := openSSE(t, ts)
+	raw, err := os.ReadFile("../ref/testdata/paste_io_waits_sysdba.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := call(t, ts, "POST", "/s/"+s1.ID+"/api/ref/paste", map[string]any{"text": string(raw)})
+	if r.code != 202 {
+		t.Fatalf("paste %d %s", r.code, r.body)
+	}
+	j := waitJob(t, ts, decode[RefPasted](t, r.body).Job.ID)
+	if j.State != JobDone || !strings.Contains(j.Message, "also applied to 1 other open session of the trace") {
+		t.Errorf("job %+v", j)
+	}
+	if sessionRev(t, ts, s2.ID) != 2 {
+		t.Errorf("the other session's rev %d", sessionRev(t, ts, s2.ID))
+	}
+	if !bytes.Equal(docMasked(t, ts, s2.ID), docMasked(t, ts, s1.ID)) {
+		t.Error("the other session's document lacks the names")
+	}
+	named := report.RefCounts{Objects: 7, Files: 3, Users: 2, Plans: 6}
+	if st := decode[RefStatus](t, call(t, ts, "GET", "/s/"+s2.ID+"/api/ref", nil).body); st.Named != named {
+		t.Errorf("other session named %+v", st.Named)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	seen := false
+	for !seen && time.Now().Before(deadline) {
+		if typ, data := ev.next(); typ == "session" {
+			se := decode[SessionEvent](t, []byte(data))
+			seen = se.ID == s2.ID && se.Rev == 2
+		}
+	}
+	if !seen {
+		t.Error("no session event for the other session")
+	}
+
+	// the race catchUpRef closes: a commit stored a bundle while a session's build
+	// ran (the commit found no model to apply it to)
+	s3 := openTS(t, ts, trace)
+	ss3 := e.srv.sessions[s3.ID]
+	mtk, err := os.ReadFile("../ref/testdata/paste_io_waits_mtk.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := e.srv.refDir(ss3)
+	os.RemoveAll(dir)
+	if err := ref.WriteBundle(ref.ParsePaste(string(mtk)).Bundle, dir); err != nil {
+		t.Fatal(err)
+	}
+	e.srv.refMu.Lock()
+	e.srv.refGen[ss3.identity]++
+	e.srv.refMu.Unlock()
+	e.srv.catchUpRef(ss3)
+	if st := decode[RefStatus](t, call(t, ts, "GET", "/s/"+s3.ID+"/api/ref", nil).body); st.Named != (report.RefCounts{Objects: 5, Users: 2}) || st.Rev != 2 {
+		t.Errorf("after the catch-up %+v", st)
+	}
+	e.srv.catchUpRef(ss3) // up to date: nothing
+	if rev := sessionRev(t, ts, s3.ID); rev != 2 {
+		t.Errorf("a second catch-up applied again: rev %d", rev)
 	}
 }

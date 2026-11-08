@@ -332,6 +332,7 @@ func (s *Server) runOpen(ss *Session) {
 	ss.use.Lock()
 	ss.op = op
 	ss.use.Unlock()
+	s.catchUpRef(ss) // a bundle stored while the build ran
 	m := op.co.Model
 	files := make([]FileInfo, len(m.File.Files))
 	for i, fe := range m.File.Files {
@@ -434,7 +435,8 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 		return nil, fmt.Errorf("cache: opened %s, expected %s", co.Identity, ss.cacheID)
 	}
 	m := co.Model
-	if b := s.loadStoredRef(ss); b != nil { // a bundle kept for this trace (ref.go)
+	b, gen := s.storedRefGen(ss) // a bundle kept for this trace (ref.go)
+	if b != nil {
 		model.ApplyRef(m, b)
 	}
 	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
@@ -445,7 +447,7 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 		debug.FreeOSMemory() // the build churned through the heap; give the pages back before idling
 	}
 	ss.mu.Lock()
-	ss.ref.doc = doc
+	ss.ref.doc, ss.ref.gen = doc, gen
 	ss.mu.Unlock()
 	op.handler, op.api = s.sessionMux(ss, co, doc)
 	return op, nil

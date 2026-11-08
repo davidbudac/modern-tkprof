@@ -23,16 +23,19 @@ import (
 // a db connection), keeps it at <cache>/ref/<trace identity>/ (SessionInfo
 // .identity, the content identity of the trace files without build options,
 // so every session of the same trace shares it; the cache entries are left
-// alone, their manifests list every file), applies it to the session's model
-// (model.ApplyRef, which replaces a bundle applied before), rebuilds the
-// document, and bumps the session's rev. Opening a trace later, a cache hit
-// or not, applies the stored bundle before the first document is built.
+// alone, their manifests list every file), applies it to the model of every
+// open session of that trace (model.ApplyRef, which replaces a bundle applied
+// before), rebuilds their documents, and bumps their revs. Opening a trace
+// later, a cache hit or not, applies the stored bundle before the first
+// document is built; a commit during that build is caught up once the session
+// is ready (Server.refGen, catchUpRef).
 // DELETE /engine/cache drops the bundles of the traces no session has open.
 
 // refState is a session's reference-bundle state (Session.mu).
 type refState struct {
 	doc []byte // the document api/doc serves
 	job *Job   // the running ref job
+	gen uint64 // the commit of the kept bundle the model has (Server.refGen)
 }
 
 // document is the document api/doc serves.
@@ -299,9 +302,11 @@ func (ss *Session) modelLocked() *model.Model {
 	return ss.op.co.Model
 }
 
-// commitRef stores the staged bundle for the session's trace, applies it,
-// rebuilds the document and publishes the new revision. note is set as the
-// job's message.
+// commitRef stores the staged bundle for the session's trace and applies it
+// to every open session of that trace: this one, and the others (another tab
+// of the same files, opened with other options), each with its document
+// rebuilt and its rev bumped (a session event; the desktop reloads those
+// tabs). note is set as the job's message.
 func (s *Server) commitRef(j *Job, ss *Session, stage, note string) error {
 	b, err := ref.LoadBundle(stage)
 	if err != nil {
@@ -313,6 +318,8 @@ func (s *Server) commitRef(j *Job, ss *Session, stage, note string) error {
 	if err := j.ctx.Err(); err != nil {
 		return err
 	}
+	s.refMu.Lock() // one commit at a time; a session that opens meanwhile sees the new generation (runOpen)
+	defer s.refMu.Unlock()
 	final := s.refDir(ss)
 	old := stage + ".old"
 	os.RemoveAll(old)
@@ -324,32 +331,111 @@ func (s *Server) commitRef(j *Job, ss *Session, stage, note string) error {
 		return err
 	}
 	os.RemoveAll(old)
-
-	ss.use.Lock() // no request reads the model while it changes
-	defer ss.use.Unlock()
-	m := ss.modelLocked()
-	if m == nil {
-		return errors.New("the session is closed")
+	if s.refGen == nil {
+		s.refGen = map[string]uint64{}
 	}
-	model.ApplyRef(m, b)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
+	s.refGen[ss.identity]++
+	gen := s.refGen[ss.identity]
+
+	applied, err := s.applyRefTo(ss, b, gen)
 	if err != nil {
 		return err
 	}
-	ss.mu.Lock()
-	ss.ref.doc = doc
-	ss.rev++
-	ss.mu.Unlock()
+	if !applied {
+		return errors.New("the session is closed")
+	}
+	others := 0
+	for _, o := range s.sameTrace(ss) {
+		ok, err := s.applyRefTo(o, b, gen)
+		if err != nil {
+			s.logf("warn", "session %s: reference bundle of %s: %v", o.id, ss.id, err)
+		} else if ok {
+			others++
+		}
+	}
 	msg := b.Summary()
 	if note != "" {
 		msg += "; " + note
 	}
+	if others > 0 {
+		msg += fmt.Sprintf("; also applied to %d other open session%s of the trace", others, map[bool]string{true: "s"}[others > 1])
+	}
 	j.mu.Lock()
 	j.info.Message = msg
 	j.mu.Unlock()
+	return nil
+}
+
+// sameTrace lists the other sessions of ss's trace (the same identity; a live
+// session has none).
+func (s *Server) sameTrace(ss *Session) []*Session {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []*Session
+	for _, o := range s.sessions {
+		if o != ss && o.identity != "" && o.identity == ss.identity {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// applyRefTo applies b to the session's model (model.ApplyRef replaces a
+// bundle applied before), rebuilds its document and publishes the new
+// revision; gen is the commit b comes from. false: the session has no model
+// (still opening: runOpen applies what is kept once it is ready; or closed).
+func (s *Server) applyRefTo(ss *Session, b *ref.Bundle, gen uint64) (bool, error) {
+	ss.use.Lock() // no request reads the model while it changes
+	m := ss.modelLocked()
+	if m == nil {
+		ss.use.Unlock()
+		return false, nil
+	}
+	model.ApplyRef(m, b)
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
+	if err != nil {
+		ss.use.Unlock()
+		return false, err
+	}
+	ss.mu.Lock()
+	ss.ref.doc, ss.ref.gen = doc, gen
+	ss.rev++
+	ss.mu.Unlock()
+	ss.use.Unlock()
 	s.bc.publish("session", ss.event())
 	s.logf("info", "session %s: reference bundle applied (%s), revision %d", ss.id, b.Summary(), ss.event().Rev)
-	return nil
+	return true, nil
+}
+
+// storedRefGen reads the kept bundle of the session's trace with the commit
+// it belongs to (buildSession).
+func (s *Server) storedRefGen(ss *Session) (*ref.Bundle, uint64) {
+	s.refMu.Lock()
+	defer s.refMu.Unlock()
+	return s.loadStoredRef(ss), s.refGen[ss.identity]
+}
+
+// catchUpRef: a session that has just become ready applies the kept bundle
+// when a commit came after its build read it (that commit skipped it: no
+// model yet).
+func (s *Server) catchUpRef(ss *Session) {
+	if ss.identity == "" {
+		return
+	}
+	s.refMu.Lock()
+	defer s.refMu.Unlock()
+	ss.mu.Lock()
+	have := ss.ref.gen
+	ss.mu.Unlock()
+	gen := s.refGen[ss.identity]
+	if gen == have {
+		return
+	}
+	if b := s.loadStoredRef(ss); b != nil {
+		if _, err := s.applyRefTo(ss, b, gen); err != nil {
+			s.logf("warn", "session %s: reference bundle: %v", ss.id, err)
+		}
+	}
 }
 
 // The names script and its pasted output (docs/REF-BUNDLE.md § Paste):

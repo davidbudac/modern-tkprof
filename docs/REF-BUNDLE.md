@@ -133,8 +133,9 @@ Where it goes:
   output (paste, or *Open saved output…*). The engine reads it at once
   (`POST /s/{id}/api/ref/paste`), merges it into the bundle kept for the
   trace (a pasted entry replaces the kept one with its key, the rest stays:
-  names pasted after a database fetch keep its plans) and applies it; the
-  dialog shows, per kind, how many of the trace's ids are named. The CLI's
+  names pasted after a database fetch keep its plans) and applies it to every
+  open tab of the trace; the dialog shows, per kind, how many of the trace's
+  ids are named. The CLI's
   `serve` and the standalone HTML have no such route; their views point to
   the CLI instead.
 - **The CLI**: save the output (`sqlplus -s user/pw@db @names.sql > names.txt`)

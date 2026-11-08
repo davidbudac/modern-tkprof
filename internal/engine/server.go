@@ -72,6 +72,12 @@ type Server struct {
 	jobs     map[string]*Job
 	closed   bool
 
+	// refMu orders the kept reference bundles (ref.go): a commit (store, apply
+	// to every open session of the trace) against a session's open (read the
+	// kept bundle, become ready). refGen counts the commits per trace identity.
+	refMu  sync.Mutex
+	refGen map[string]uint64
+
 	inflight   atomic.Int64
 	lastActive atomic.Int64 // unix ns
 }

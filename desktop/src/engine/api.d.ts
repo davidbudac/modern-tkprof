@@ -795,8 +795,10 @@ export interface paths {
          *     views only, no datafiles); queries that fail are skipped and named in
          *     the finished job's `message`. The bundle is kept at
          *     `<cache>/ref/<SessionInfo.identity>/` and applied to the model, the
-         *     document is rebuilt and `rev` rises by one (a session event); the
-         *     job ends `done` with the bundle's size in `message`. Opening the same
+         *     document is rebuilt and `rev` rises by one (a session event); every
+         *     other open session of the same trace (the same `identity`) gets it
+         *     the same way (its own session event). The job ends `done` with the
+         *     bundle's size in `message` (and how many other sessions got it). Opening the same
          *     trace again applies the kept bundle before the first document.
          *     Applying another bundle replaces the first (a paste merges into it:
          *     `POST /s/{id}/api/ref/paste`). One ref job per session at a time

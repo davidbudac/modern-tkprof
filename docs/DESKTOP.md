@@ -463,8 +463,8 @@ SSH can list and fetch; diag and follow need a POSIX shell.
 - *Fetch reference data* runs the `refscript` queries for an open trace and applies the result
   to its tab (object, datafile and user names, plans). *Apply bundle from directory…* takes a
   bundle made by `mtkprof refscript` + SQL*Plus. *Paste script output…* needs no connection: the
-  Import names dialog (below). The bundle is kept per trace identity and re-applied whenever the
-  trace is opened.
+  Import names dialog (below). The bundle is kept per trace identity, applied to every open tab of
+  the trace and re-applied whenever the trace is opened.
 - Username/password over TCP or TCPS. No sysdba, wallet or Kerberos. Grants needed:
   [`docs/REMOTE.md`](REMOTE.md) § Privileges. Without `SELECT_CATALOG_ROLE`, reference data falls
   back to the `ALL_` views for objects and users (the job message lists what was skipped).
@@ -481,7 +481,7 @@ opens from the I/O map (*Import names…* in the Objects and Display tabs), the 
 2. Paste everything it printed (or *Open saved output…*); the dialog counts what it found and
    warns when the copy looks cut off. *Apply names* (⌘↩) sends it to the engine, which adds it to
    the trace's kept bundle (a pasted name replaces the kept one, the rest stays) and reloads the
-   tab. The tiles on top show how many of the trace's objects, datafiles, users and plans are
+   tab, and every other tab of the same trace. The tiles on top show how many of the trace's objects, datafiles, users and plans are
    named; the script's notes (what it could not read) are listed under the result.
 
 The format: [`docs/REF-BUNDLE.md`](REF-BUNDLE.md) § Paste.

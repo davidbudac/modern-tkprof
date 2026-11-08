@@ -350,7 +350,12 @@ api/ref/script?plans=`, and `POST api/ref/paste {text}`, which parses at once
 (202 with what it read; 400 when it holds no name) and starts a ref job that
 merges the paste into the kept bundle, stores and applies it as the other ref
 jobs do (`commitRef`; requests hold `ss.use` shared, so the apply cannot run
-inside the request). The lib: `DataSource.refs` (a `RefImporter` on a
+inside the request). Every ref job applies what it stores to all open
+sessions of the trace (same identity: another tab of the same files, opened
+with other options), each under its own `use` lock with its own document and a
+session event; `Server.refMu` orders the commits against the opens
+(`refGen` per identity: a session whose build read an older bundle catches up
+when it becomes ready, `catchUpRef`). The lib: `DataSource.refs` (a `RefImporter` on a
 `RemoteSource`; null on a `LocalSource`), the store's `refImport` flag (kept by
 `swapDoc`, so the dialog stays open across the reload the import causes),
 `RefImportHost` mounted by both shells, `ImportNames` links in the views (the
