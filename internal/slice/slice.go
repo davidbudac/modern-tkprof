@@ -104,14 +104,31 @@ type Server struct {
 	cut             *cut.Cutter
 
 	// MaxCheckBytes is the biggest new file /api/cut/check writes and parses
-	// back without force=1 (0: DefaultMaxCheckBytes). checkMu guards check,
-	// the one check in flight (see runCheck), and planBytes, the new file's
-	// size of the selections planned (/api/cut), so that a check over the
-	// limit is refused before it writes anything.
+	// back without force=1 (0: DefaultMaxCheckBytes). Checks is the gate of
+	// the one check in flight (see runCheck): nil is the server's own, a
+	// session shares one across the servers of its live snapshots. checkMu
+	// guards planBytes, the new file's size of the selections planned
+	// (/api/cut), so that a check over the limit is refused before it writes
+	// anything.
 	MaxCheckBytes int64
+	Checks        *CheckGate
+	ownChecks     CheckGate
 	checkMu       sync.Mutex
-	check         *checkRun
 	planBytes     map[string]int64
+}
+
+// CheckGate lets one /api/cut/check run at a time over the servers that
+// share it (Server.Checks).
+type CheckGate struct {
+	mu  sync.Mutex
+	run *checkRun
+}
+
+func (s *Server) checks() *CheckGate {
+	if s.Checks != nil {
+		return s.Checks
+	}
+	return &s.ownChecks
 }
 
 // DefaultMaxCheckBytes is the default Server.MaxCheckBytes: 1 GiB.

@@ -107,6 +107,8 @@ type Session struct {
 	use sync.RWMutex // requests hold it shared, close exclusively
 	op  *opened      // set when ready; nil after close
 
+	cutChecks slice.CheckGate // the api/cut/check in flight, whichever snapshot it is of
+
 	// Idle eviction (Options.IdleEvict): requests of the session's mount in
 	// flight (a doc long-poll counts) and when the last one started or ended.
 	// begin runs under Server.mu so the evictor never races a new request.
@@ -460,6 +462,7 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) (mux, api 
 	ssrv.AllowOrigin = slice.NoCORS                                  // the engine's middleware sets CORS
 	ssrv.Thresholds = ss.th                                          // api/findings: those of the document's findings
 	ssrv.CutSalt = ss.salt                                           // api/cut: masked bind values hash as the session's redaction
+	ssrv.Checks = &ss.cutChecks                                      // api/cut/check: one at a time over the session's (live) snapshots
 	api = ssrv.Handler()
 	handlers := map[string]http.Handler{
 		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),

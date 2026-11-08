@@ -65,7 +65,12 @@ func TestRunCheckSameSelectionShares(t *testing.T) {
 		go func() { defer wg.Done(); _, errs[i] = s.runCheck(context.Background(), "from=1", b.run) }()
 	}
 	waitFor(t, "the check to start", func() bool { return b.started.Load() == 1 })
-	waitFor(t, "three waiters", func() bool { s.checkMu.Lock(); defer s.checkMu.Unlock(); return s.check != nil && s.check.waiters == 3 })
+	waitFor(t, "three waiters", func() bool {
+		g := s.checks()
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		return g.run != nil && g.run.waiters == 3
+	})
 	close(b.release)
 	wg.Wait()
 	for i, err := range errs {
@@ -222,5 +227,30 @@ func TestRunCheckForceIsAnotherRun(t *testing.T) {
 	}
 	if err := <-done; !errors.Is(err, errSuperseded) {
 		t.Fatalf("the limited check: %v, want superseded", err)
+	}
+}
+
+// Servers sharing a gate (a live session's snapshots) run one check at a
+// time: the next snapshot's check of the same selection is another check,
+// it supersedes the earlier snapshot's and starts after it stopped.
+func TestRunCheckSharedGate(t *testing.T) {
+	var g CheckGate
+	a, b := &Server{Checks: &g}, &Server{Checks: &g}
+	ra, rb := newBlockingRun(), newBlockingRun()
+	done := make(chan error, 1)
+	go func() { _, err := a.runCheck(context.Background(), "q", ra.run); done <- err }()
+	waitFor(t, "the first snapshot's check", func() bool { return ra.started.Load() == 1 })
+	got := make(chan *cut.Check, 1)
+	go func() { ck, _ := b.runCheck(context.Background(), "q", rb.run); got <- ck }()
+	if err := <-done; !errors.Is(err, errSuperseded) {
+		t.Fatalf("the first snapshot's check: %v, want superseded", err)
+	}
+	waitFor(t, "the next snapshot's check", func() bool { return rb.started.Load() == 1 })
+	if ra.inFlight.Load() != 0 {
+		t.Fatal("two checks in flight")
+	}
+	close(rb.release)
+	if ck := <-got; ck == nil || !ck.OK {
+		t.Fatalf("the next snapshot's check: %+v", ck)
 	}
 }

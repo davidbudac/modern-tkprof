@@ -165,9 +165,11 @@ func (s *Server) plannedBytes(key string) (int64, bool) {
 	return n, ok
 }
 
-// checkRun is a /api/cut/check in flight: its selection (selectionKey, with
-// &force=1 when forced) and the requests waiting for its answer.
+// checkRun is a /api/cut/check in flight: the server it checks on, its
+// selection (selectionKey, with &force=1 when forced) and the requests waiting
+// for its answer.
 type checkRun struct {
+	srv     *Server
 	key     string
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -181,32 +183,35 @@ type checkRun struct {
 // replaced.
 var errSuperseded = errors.New("cut check: replaced by the check of another selection")
 
-// runCheck runs one check at a time per server: the UI only ever wants the
-// answer for its current selection, and a check writes and parses the whole
-// new file. A request for the selection being checked waits for that check;
-// a request for another selection cancels it (its waiters get
-// errSuperseded) and starts once it has stopped. A check whose waiters all
-// went away (the client aborted) is cancelled too. The check runs on its own
-// context, so one waiter leaving does not cancel it for the others.
+// runCheck runs one check at a time per gate (Server.Checks: a session's
+// servers share one): the UI only ever wants the answer for its current
+// selection, and a check writes and parses the whole new file. A request for
+// the selection being checked on the same server waits for that check; a
+// request for another selection, or for any of another server (a live
+// session's next snapshot), cancels it (its waiters get errSuperseded) and
+// starts once it has stopped. A check whose waiters all went away (the client
+// aborted) is cancelled too. The check runs on its own context, so one waiter
+// leaving does not cancel it for the others.
 func (s *Server) runCheck(ctx context.Context, key string, run func(context.Context) (*cut.Check, error)) (*cut.Check, error) {
-	s.checkMu.Lock()
-	c := s.check
-	if c == nil || c.key != key || c.cancelled() {
+	g := s.checks()
+	g.mu.Lock()
+	c := g.run
+	if c == nil || c.srv != s || c.key != key || c.cancelled() {
 		prev := c
 		if prev != nil {
 			prev.cancel()
 		}
 		cctx, cancel := context.WithCancel(context.Background())
-		c = &checkRun{key: key, ctx: cctx, cancel: cancel, done: make(chan struct{})}
-		s.check = c
+		c = &checkRun{srv: s, key: key, ctx: cctx, cancel: cancel, done: make(chan struct{})}
+		g.run = c
 		go func() {
 			defer func() {
 				cancel()
-				s.checkMu.Lock()
-				if s.check == c {
-					s.check = nil
+				g.mu.Lock()
+				if g.run == c {
+					g.run = nil
 				}
-				s.checkMu.Unlock()
+				g.mu.Unlock()
 				close(c.done)
 			}()
 			if prev != nil {
@@ -223,12 +228,12 @@ func (s *Server) runCheck(ctx context.Context, key string, run func(context.Cont
 		}()
 	}
 	c.waiters++
-	s.checkMu.Unlock()
+	g.mu.Unlock()
 	select {
 	case <-c.done:
 	case <-ctx.Done():
 	}
-	s.checkMu.Lock()
+	g.mu.Lock()
 	c.waiters--
 	finished := false
 	select {
@@ -239,7 +244,7 @@ func (s *Server) runCheck(ctx context.Context, key string, run func(context.Cont
 			c.cancel() // nobody wants it any more
 		}
 	}
-	s.checkMu.Unlock()
+	g.mu.Unlock()
 	if !finished {
 		return nil, ctx.Err()
 	}
