@@ -334,6 +334,7 @@ sqlplus user/password@service @ref.sql</pre></li>
 <pre>mtkprof report trace.trc -ref ref
 mtkprof html   trace.trc -ref ref</pre></li>
 </ol>
+<p><strong>Without directories or a connection</strong>: <code>mtkprof refscript trace.trc -paste -o names.sql</code> writes a script that prints the names (add <code>-plans</code> for DBMS_XPLAN). Run it in SQL*Plus, SQLcl or SQL Developer as any user (without <code>SELECT_CATALOG_ROLE</code> it reads the <code>ALL_</code> views and says so), then paste its output into the desktop app's <em>Import names</em> (the I/O map, the statement inspector, or Connections › Reference data), or save it and pass <code>-ref names.txt</code>. The app also hands out the script itself.</p>
 <p>With a database login, <code>mtkprof ref -db user@host:1521/service trace.trc -o ref</code> runs the same queries itself. When the plan hash in DBMS_XPLAN matches a STAT plan, access and filter predicates and optimizer estimates are overlaid on the trace's plan.</p>
 <div class="callout"><p>The bundle holds object, owner, user and datafile names and execution plans (predicates can contain literals). It holds no table data and no bind values. Review it before sharing, like the trace itself.</p></div>
 
@@ -501,7 +502,7 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
 <ul>
   <li><em>Sessions</em> lists <code>V$SESSION</code> with <em>Trace on/off</em> through <code>DBMS_MONITOR</code>.</li>
   <li><em>Trace files</em> lists the ADR's files with <em>Fetch</em> (slow for large files; use ssh above ~200 MB).</li>
-  <li><em>Fetch reference data</em> runs the <a href="#ref">refscript</a> queries for an open trace and applies the names and plans to its tab; the bundle is kept and re-applied whenever the trace is opened.</li>
+  <li><em>Fetch reference data</em> runs the <a href="#ref">refscript</a> queries for an open trace and applies the names and plans to its tab; the bundle is kept and re-applied whenever the trace is opened. <em>Paste script output…</em> does the same with a script you run yourself.</li>
   <li>Username and password over TCP or TCPS. Grants: see <a href="#remote">Privileges</a>.</li>
 </ul>
 <h3>Jobs and sharing</h3>
