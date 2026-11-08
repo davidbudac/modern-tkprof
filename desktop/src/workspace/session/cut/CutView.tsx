@@ -9,7 +9,7 @@ import { inTauri } from '../../../platform'
 import { writeCut } from '../../cuts'
 import { useWorkspace } from '../../WorkspaceProvider'
 import { traceStem, useCurrentTab } from '../useTab'
-import { MAX_CHECK_BYTES, autoCheckOf, checkPath, currentOf, jsonSettle, jsonView, pickOf, stmtChoices, type JSONResult, type JSONState, type JSONView } from './cutstate'
+import { MAX_CHECK_BYTES, autoCheckOf, canExport, checkPath, currentOf, jsonSettle, jsonView, pickOf, stmtChoices, type JSONResult, type JSONState, type JSONView } from './cutstate'
 import { layoutOutput, layoutSources, lineY, pieceLabel, placeLabels, rowLabels, type CutCheck, type CutPiece, type CutPlan, type Label, type SourceColumn } from './cutlayout'
 import { pieceKey } from './cutkeys'
 import { StmtPicker } from './StmtPicker'
@@ -190,10 +190,10 @@ export function CutView({ doc }: { doc: TraceDoc }) {
           </span>
         </span>
         {mode === 'statement' && <StmtPicker choices={choices} pick={pick} onPick={setStmt} />}
-        {inTauri && <button onClick={openNew} disabled={!current || busy !== null} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
-        <button className="primary" onClick={save} disabled={!current || busy !== null} title={pending ? 'planning the cut of the new selection' : undefined}>{busy === 'save' ? 'Saving…' : 'Save as…'}</button>
+        {inTauri && <button onClick={openNew} disabled={!canExport(current, busy !== null)} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
+        <button className="primary" onClick={save} disabled={!canExport(current, busy !== null)} title={pending ? 'planning the cut of the new selection' : current?.lines === 0 ? 'the selection keeps nothing: there is no file to save' : undefined}>{busy === 'save' ? 'Saving…' : 'Save as…'}</button>
       </header>
-      <TimeStrip doc={doc} client={client} contexts={contexts} plan={p} mode={mode} onWindow={(w) => actions.setWindow(w)} />
+      <TimeStrip doc={doc} client={client} contexts={contexts} plan={current} mode={mode} onWindow={(w) => actions.setWindow(w)} />
       <div className={pending ? 'cut-stage pending' : 'cut-stage'} aria-busy={plan.loading}>
         <Legend mode={mode} multi={multi} />
         {pending && <span className="cut-badge" role="status">Planning…</span>}

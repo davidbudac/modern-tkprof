@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_CHECK_BYTES, MAX_CHECK_BYTES, autoCheckOf, checkPath, currentOf, jsonSettle, jsonView, type JSONState } from './cutstate'
+import { AUTO_CHECK_BYTES, MAX_CHECK_BYTES, autoCheckOf, canExport, checkPath, currentOf, jsonSettle, jsonView, type JSONState } from './cutstate'
 
 type P = { lines: number; bytes: number }
 const A = '/api/cut?from=1&to=2'
@@ -102,5 +102,14 @@ describe('the re-parse check (F11)', () => {
     const huge = { lines: 1e8, bytes: MAX_CHECK_BYTES + 1 }
     expect(checkPath(huge, q, q)).toBe(`/api/cut/check?${q}&force=1`)
     expect(checkPath(huge, '', '')).toBe('/api/cut/check?force=1')
+  })
+})
+
+describe('exporting the new file', () => {
+  it('needs the current plan to keep something and no export running', () => {
+    expect(canExport(undefined, false)).toBe(false)
+    expect(canExport({ lines: 0 }, false)).toBe(false)
+    expect(canExport({ lines: 10 }, true)).toBe(false)
+    expect(canExport({ lines: 10 }, false)).toBe(true)
   })
 })

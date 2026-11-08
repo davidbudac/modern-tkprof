@@ -47,6 +47,9 @@ export const MAX_CHECK_BYTES = 1 << 30
 /** Whether the current plan is checked without asking: there is one, it keeps something, and it is small. */
 export const autoCheckOf = (current: Pick<CutPlan, 'lines' | 'bytes'> | undefined): boolean => !!current && current.lines > 0 && current.bytes < AUTO_CHECK_BYTES
 
+/** Whether the new file can be saved or opened: the current plan keeps something and no export is running. */
+export const canExport = (current: Pick<CutPlan, 'lines'> | undefined, busy: boolean): boolean => !!current && current.lines > 0 && !busy
+
 /**
  * The check request for the current plan, or null: none without a current plan (a retained plan's size says nothing about the
  * query), automatic for a small cut, else only once the user asked for this very query (`wanted`). A cut over the engine's limit

@@ -30,7 +30,7 @@ export function StmtPicker({ choices, pick, onPick }: { choices: readonly StmtCh
   }
   return (
     <span className="cut-pick" ref={root}>
-      <ToolbarMenu label="Statement" className="tbmenu-start stmt-pick-menu" open={open} onOpenChange={setOpen} button={button} disabled={choices.length === 0}
+      <ToolbarMenu label="Statement" className="stmt-pick-menu" open={open} onOpenChange={setOpen} button={button} disabled={choices.length === 0}
         title={cur ? `${cur.label}: ${cur.flat.slice(0, 200)}${cur.flat.length > 200 ? '…' : ''}\nchoose the statement to cut` : 'the trace has no statement with calls'}>
         <PickList choices={choices} pick={pick} onPick={choose} />
       </ToolbarMenu>

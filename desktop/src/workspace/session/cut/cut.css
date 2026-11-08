@@ -9,7 +9,7 @@
   --cut-out: var(--ink);
 }
 
-.cut { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; grid-template-rows: auto auto minmax(0, 1fr); block-size: 100%; min-block-size: 34rem; }
+.cut { overflow-x: clip; display: grid; grid-template-columns: minmax(0, 1fr) 24rem; grid-template-rows: auto auto minmax(0, 1fr); block-size: 100%; min-block-size: 34rem; }
 .cut-head { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; padding: var(--sp-3) var(--sp-4) var(--sp-2); }
 .cut-head h2 { font-size: var(--text-lg); font-weight: 600; margin: 0; }
 .cut-head .from { color: var(--ink-2); font-size: var(--text-sm); }
@@ -17,7 +17,9 @@
 .cut-head .lbl { color: var(--ink-3); font-size: var(--text-sm); margin-inline-end: var(--sp-2); }
 /* the statement of a "One statement" cut (StmtPicker: the lib's statement picker list, one pick) */
 .cut-pick { display: inline-flex; align-items: stretch; min-inline-size: 12rem; max-inline-size: 28rem; block-size: 26px; box-sizing: border-box; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); font-size: var(--text-sm); }
-.cut-pick .stmt-pick-menu .tbpop { inline-size: min(46rem, 92vw); }
+/* hangs from the end of the button (the button sits at the right of the header) and stays inside the window: the lib's ToolbarMenu measures it
+   mid-animation (scaled), so it cannot be relied on to shift it back */
+.cut-pick .stmt-pick-menu .tbpop { inline-size: min(46rem, calc(100vw - 2rem)); max-inline-size: calc(100vw - 2rem); }
 .cut-pick-sql { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-xs); }
 .cut-pick-pop .sp-head, .cut-pick-pop .sp-row { grid-template-columns: 8rem 4.5rem 3.5rem minmax(0, 1fr); }
 .cut-pick-pop .sp-head > span:nth-child(2), .cut-pick-pop .sp-head > span:nth-child(3) { text-align: end; }
