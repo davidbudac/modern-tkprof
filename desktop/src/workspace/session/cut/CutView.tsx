@@ -8,6 +8,7 @@ import { safeFileName, saveAs, writeCached } from '../../../files'
 import { inTauri } from '../../../platform'
 import { useWorkspace } from '../../WorkspaceProvider'
 import { traceStem, useCurrentTab } from '../useTab'
+import { MAX_CHECK_BYTES, autoCheckOf, checkPath, currentOf, jsonSettle, jsonView, type JSONResult, type JSONState, type JSONView } from './cutstate'
 import { layoutOutput, layoutSources, lineY, pieceLabel, placeLabels, rowLabels, type CutCheck, type CutPiece, type CutPlan, type Label, type SourceColumn } from './cutlayout'
 import './cut.css'
 
@@ -28,21 +29,24 @@ const LABEL: Record<Label | 'G', { name: string; v: string; hatch?: boolean }> =
 
 interface Profile { total: number; buckets: number; size: number; calls: number[]; waits: number[] }
 
-/** GET a JSON answer of the session; `path` null fetches nothing. Debounced, and aborted when the path changes. */
-function useJSON<T>(client: ApiClient, path: string | null, delay = 120): { data?: T; error?: string; loading: boolean } {
-  const [st, setSt] = useState<{ path: string | null; data?: T; error?: string }>({ path: null })
+/**
+ * GET a JSON answer of the session; `path` null fetches nothing. Debounced, and aborted when the path changes. While another
+ * path loads, the previous answer stays (`data`, with `path` saying which request it answers: see `currentOf`).
+ */
+function useJSON<T>(client: ApiClient, path: string | null, delay = 120): JSONView<T> {
+  const [st, setSt] = useState<JSONState<T>>({ path: null })
   useEffect(() => {
     if (!path) return
     const ac = new AbortController()
+    const settle = (r: JSONResult<T>) => setSt((cur) => jsonSettle(cur, path, r, ac.signal.aborted))
     const t = setTimeout(() => {
       client.fetch(path, { signal: ac.signal })
         .then(async (r) => { if (!r.ok) throw await responseError(r, path.split('?')[0]); return r.json() as Promise<T> })
-        .then((data) => setSt({ path, data }), (e: unknown) => { if (!ac.signal.aborted) setSt({ path, error: e instanceof Error ? e.message : String(e) }) })
+        .then((data) => settle({ data }), (e: unknown) => settle({ error: e instanceof Error ? e.message : String(e) }))
     }, delay)
     return () => { clearTimeout(t); ac.abort() }
   }, [client, path, delay])
-  const loading = !!path && st.path !== path
-  return { data: st.path === path || loading ? st.data : undefined, error: st.path === path ? st.error : undefined, loading }
+  return jsonView(st, path)
 }
 
 /** The size of an element (ResizeObserver). */
@@ -109,11 +113,16 @@ export function CutView({ doc }: { doc: TraceDoc }) {
     return q.toString()
   }, [win, contexts, mode, pick, edges, binds, plans, prov])
 
-  const plan = useJSON<CutPlan>(client, `/api/cut?${query}`)
+  const planPath = `/api/cut?${query}`
+  const plan = useJSON<CutPlan>(client, planPath)
+  // p is what the map draws: the current plan, or the previous one while the next is planned (dimmed, "Planning…");
+  // current is the plan of this very query: only it authorises an export or a check, and only its size decides the check
   const p = plan.data
-  const autoCheck = !!p && p.bytes < 256 << 20
+  const current = currentOf(plan, planPath)
+  const pending = !!p && !current
+  const autoCheck = autoCheckOf(current)
   const [checkWanted, setCheckWanted] = useState<string | null>(null)
-  const check = useJSON<CutCheck>(client, p && (autoCheck || checkWanted === query) ? `/api/cut/check?${query}` : null, 300)
+  const check = useJSON<CutCheck>(client, checkPath(current, query, checkWanted), 300)
   const files = doc.file.files ?? []
   const profilePaths = useMemo(() => files.map((_, i) => `/api/lines/profile?file=${i}&buckets=600`).join('|'), [files])
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -179,12 +188,13 @@ export function CutView({ doc }: { doc: TraceDoc }) {
             })}
           </select>
         )}
-        {inTauri && <button onClick={openNew} disabled={!p || busy !== null} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
-        <button className="primary" onClick={save} disabled={!p || busy !== null}>{busy === 'save' ? 'Saving…' : 'Save as…'}</button>
+        {inTauri && <button onClick={openNew} disabled={!current || busy !== null} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
+        <button className="primary" onClick={save} disabled={!current || busy !== null} title={pending ? 'planning the cut of the new selection' : undefined}>{busy === 'save' ? 'Saving…' : 'Save as…'}</button>
       </header>
       <TimeStrip doc={doc} client={client} contexts={contexts} plan={p} mode={mode} onWindow={(w) => actions.setWindow(w)} />
-      <div className="cut-stage">
+      <div className={pending ? 'cut-stage pending' : 'cut-stage'} aria-busy={plan.loading}>
         <Legend mode={mode} multi={multi} />
+        {pending && <span className="cut-badge" role="status">Planning…</span>}
         {plan.error ? <p className="cut-msg bad" role="alert">{plan.error}</p>
           : !p ? <p className="cut-empty">{plan.loading ? 'Planning the cut…' : ''}</p>
           : p.lines === 0 ? (
@@ -200,11 +210,11 @@ export function CutView({ doc }: { doc: TraceDoc }) {
           </p>
         )}
       </div>
-      <aside className="cut-side">
+      <aside className={pending ? 'cut-side pending' : 'cut-side'}>
         {p && p.lines > 0 && (
           <>
             <PieceCard doc={doc} plan={p} piece={pieces[selIdx]} mode={mode} onShow={(f, l) => actions.openLinesAt(f, l, { keepSelection: true })} />
-            <FileCard doc={doc} plan={p} check={check} autoCheck={autoCheck} onCheck={() => setCheckWanted(query)} />
+            <FileCard doc={doc} plan={p} pending={pending} check={check} autoCheck={autoCheck} onCheck={() => setCheckWanted(query)} />
             <SelectionCard doc={doc} plan={p} mode={mode} win={win} contexts={contexts} />
           </>
         )}
@@ -625,7 +635,7 @@ function PieceCard({ doc, plan, piece, mode, onShow }: { doc: TraceDoc; plan: Cu
   )
 }
 
-function FileCard({ doc, plan, check, autoCheck, onCheck }: { doc: TraceDoc; plan: CutPlan; check: { data?: CutCheck; error?: string; loading: boolean }; autoCheck: boolean; onCheck: () => void }) {
+function FileCard({ doc, plan, pending, check, autoCheck, onCheck }: { doc: TraceDoc; plan: CutPlan; pending: boolean; check: JSONView<CutCheck>; autoCheck: boolean; onCheck: () => void }) {
   const files = doc.file.files ?? []
   const srcLines = files.reduce((a, f) => a + f.lines, 0)
   const srcBytes = files.reduce((a, f) => a + f.size, 0)
@@ -648,7 +658,8 @@ function FileCard({ doc, plan, check, autoCheck, onCheck }: { doc: TraceDoc; pla
           <dt>Bind values</dt><dd>{plan.binds === 'keep' ? 'kept' : plan.binds === 'mask' ? 'masked' : 'left out'}</dd>
         </dl>
         <div className="cut-check" aria-live="polite">
-          {check.error ? <span className="bad">Re-parse check failed to run: {check.error}</span>
+          {pending ? <span className="muted">Planning the new selection…</span>
+            : check.error ? <span className="bad">Re-parse check failed to run: {check.error}</span>
             : check.loading ? <span className="muted">Re-parsing the new file…</span>
             : ck ? (
               <>
@@ -660,7 +671,7 @@ function FileCard({ doc, plan, check, autoCheck, onCheck }: { doc: TraceDoc; pla
                   {(ck.mismatches ?? []).slice(0, 5).map((m) => <li key={m}><code>{m}</code></li>)}
                 </ul>
               </>
-            ) : !autoCheck ? <button className="quiet" onClick={onCheck}>Check: write it, parse it back, compare</button> : null}
+            ) : !autoCheck && plan.lines > 0 ? <button className="quiet" onClick={onCheck} title={plan.bytes > MAX_CHECK_BYTES ? `the new file is ${fmtBytes(plan.bytes)}: the check writes all of it to a temporary file and parses it back` : undefined}>Check: write it, parse it back, compare</button> : null}
         </div>
       </div>
     </section>
