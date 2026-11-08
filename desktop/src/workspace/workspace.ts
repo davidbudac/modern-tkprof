@@ -10,6 +10,7 @@ import { libraryFor } from '../library/library'
 import { mergePanes, parsePanes, type Panes, type PanesPatch } from './panes'
 import { dirsOf, titleOf } from './traceSet'
 import { LiveFollower } from './liveFollow'
+import { OpenQueue } from './openQueue'
 
 /** The options a trace set is opened with (the open screen; defaults from the settings). */
 export interface OpenOptions {
@@ -17,6 +18,42 @@ export interface OpenOptions {
   salt?: string
   /** a live session over one growing file */
   follow?: boolean
+}
+
+/**
+ * The open options as the open screen holds them: `salt` is kept while another bind mode is
+ * chosen (it only applies with `redact`), `follow` is a plain checkbox. `openRequest` turns them
+ * into the options a trace set is opened with.
+ */
+export function openRequest(o: OpenOptions): OpenOptions {
+  return { binds: o.binds, salt: o.binds === 'redact' && o.salt ? o.salt : undefined, follow: o.follow || undefined }
+}
+
+/** The open options a fresh open screen starts from: the settings' defaults, no follow. */
+export const defaultOpenOptions = (s: { binds: BindMode; salt: string }): OpenOptions => ({ binds: s.binds, salt: s.salt, follow: false })
+
+/**
+ * The options (and a notice to show) for files dropped on the window. On the open screen they are
+ * the options shown there, for every way of opening; on any other route no options are visible, so
+ * the settings' defaults apply. `follow` is one live file: with several dropped paths the drop opens
+ * without it, and says so.
+ */
+export function dropOptions(
+  route: Route,
+  openOptions: OpenOptions,
+  settings: { binds: BindMode; salt: string },
+  paths: readonly string[],
+): { options: OpenOptions; notice?: string } {
+  const options = openRequest(route.kind === 'open' ? openOptions : defaultOpenOptions(settings))
+  if (options.follow && paths.length !== 1) return { options: { ...options, follow: undefined }, notice: 'Follow needs one file; opened without follow.' }
+  return { options }
+}
+
+/** What the drop overlay says: which options a drop opens with (see `dropOptions`). */
+export function dropOverlayText(route: Route, openOptions: OpenOptions, settings: { binds: BindMode; salt: string }): string {
+  const o = openRequest(route.kind === 'open' ? openOptions : defaultOpenOptions(settings))
+  const binds = o.binds === 'keep' ? 'binds kept' : o.binds === 'redact' ? 'binds redacted' : 'binds dropped'
+  return `${route.kind === 'open' ? 'Opens with the options above' : 'Opens with the default options'} · ${binds}${o.follow ? ' · follow' : ''}`
 }
 
 export interface TraceSet {
@@ -90,6 +127,8 @@ export interface Snapshot {
   /** the non-page route the user was on when they entered the current page (what Back and Esc return to) */
   origin?: Route
   recent: RecentEntry[]
+  /** the options the open screen shows (and drops on it use); not persisted, reset from the settings when the screen mounts */
+  openOptions: OpenOptions
 }
 
 export interface EngineRef {
@@ -125,7 +164,7 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
  * only carry its state changes (failed, closed). A plain external store for `useSyncExternalStore`.
  */
 export class Workspace {
-  private snap: Snapshot = { tabs: [], route: { kind: 'open' }, recent: [] }
+  private snap: Snapshot = { tabs: [], route: { kind: 'open' }, recent: [], openOptions: { binds: 'keep', salt: '', follow: false } }
   private listeners = new Set<() => void>()
   private engine: EngineRef | null = null
   private loading = new Set<string>()
@@ -135,6 +174,8 @@ export class Workspace {
   private flushAnnotationTimers = new Map<string, () => Promise<unknown>>()
   private unwatch = new Map<string, () => void>()
   private follower = new LiveFollower()
+  private queue: OpenQueue | null = null
+  private settleWaiters = new Set<() => void>()
   private restored = false
   private released = false
   private widthTimer: ReturnType<typeof setTimeout> | undefined
@@ -151,6 +192,11 @@ export class Workspace {
   private set(patch: Partial<Snapshot>) {
     this.snap = { ...this.snap, ...patch }
     for (const l of this.listeners) l()
+    for (const w of [...this.settleWaiters]) w()
+  }
+
+  setOpenOptions(openOptions: OpenOptions) {
+    this.set({ openOptions })
   }
 
   tab(key: string): Tab | undefined {
@@ -174,6 +220,10 @@ export class Workspace {
     const prev = this.engine
     if (prev && prev.addr === engine.addr && prev.token === engine.token) return
     this.engine = engine
+    // starts still running or waiting for the previous engine are over (their waiters see the new engine)
+    this.queue?.clear()
+    this.queue = this.newQueue()
+    for (const w of [...this.settleWaiters]) w()
     if (!prev) {
       for (const t of this.snap.tabs) if (!t.sessionId && t.origin !== 'comparison') void this.start(t.key)
       if (!this.restored) {
@@ -182,7 +232,48 @@ export class Workspace {
       }
       return
     }
-    for (const t of this.snap.tabs) if (t.origin !== 'comparison') void this.start(t.key)
+    // every tab opens again: the active one first, two at a time. The ones that wait show as opening
+    // meanwhile; their old session ids belong to the engine that is gone.
+    const keys = this.snap.tabs.filter((t) => t.origin !== 'comparison').map((t) => t.key)
+    for (const key of keys) {
+      this.follower.stop(key)
+      this.patchTab(key, { sessionId: null, state: 'opening', job: null, error: null, rev: 0 })
+    }
+    this.enqueue(keys)
+  }
+
+  private newQueue() {
+    return new OpenQueue((key) => this.startAndSettle(key), (key) => !!this.tab(key))
+  }
+
+  /**
+   * Starts the given tabs through the queue: the active tab's first, then in order. A tab that is
+   * already past `opening` or has no engine to open on is left alone.
+   */
+  private enqueue(keys: string[]) {
+    const route = this.snap.route
+    const active = route.kind === 'tab' ? route.key : null
+    const ordered = active && keys.includes(active) ? [active, ...keys.filter((k) => k !== active)] : keys
+    this.queue?.add(ordered)
+  }
+
+  /** `start`, and then waits until the tab has left `opening` (document loaded or failed), is closed, or the engine changed: what the queue counts as running. */
+  private async startAndSettle(key: string) {
+    const e = this.engine
+    await this.start(key)
+    const done = () => {
+      const t = this.tab(key)
+      return !t || t.state !== 'opening' || this.engine !== e || this.released
+    }
+    if (done()) return
+    await new Promise<void>((resolve) => {
+      const check = () => {
+        if (!done()) return
+        this.settleWaiters.delete(check)
+        resolve()
+      }
+      this.settleWaiters.add(check)
+    })
   }
 
   /** Follows `job` and `session` events; re-reads the sessions when the stream (re)connects. */
@@ -447,8 +538,11 @@ export class Workspace {
     return key
   }
 
-  /** Opens a trace set in a new tab (shown at once unless `activate` is false), and lists it first in the recent list. */
-  open(set: TraceSet, activate = true, recent = true, fileSel?: number[], panes?: Panes): string {
+  /**
+   * Opens a trace set in a new tab (shown at once unless `activate` is false), and lists it first in the recent list.
+   * With `queued` the tab is only added: the caller starts it (`enqueue`).
+   */
+  open(set: TraceSet, activate = true, recent = true, fileSel?: number[], panes?: Panes, queued = false): string {
     const key = newKey()
     const tab: Tab = {
       key,
@@ -472,7 +566,8 @@ export class Workspace {
     this.set({ tabs: [...this.snap.tabs, tab], route: activate ? { kind: 'tab', key } : this.snap.route })
     if (recent && !set.options.follow) this.addRecent(tab.title, set)
     this.persistOpen()
-    void this.start(key)
+    // a restore starts its tabs together through the queue (`restore`); an open by the user is immediate
+    if (!queued) void this.start(key)
     return key
   }
 
@@ -620,7 +715,10 @@ export class Workspace {
     // going from page to page keeps the original origin
     const origin = route.kind !== 'page' ? undefined : cur.kind === 'page' ? this.snap.origin : cur
     this.set({ route, origin })
-    if (route.kind === 'tab') this.persistOpen()
+    if (route.kind === 'tab') {
+      this.queue?.prioritize(route.key) // the user looks at a tab that still waits to open: next
+      this.persistOpen()
+    }
   }
 
   /** Leaves the current page for where the user came from (see `leaveRoute`). */
@@ -648,11 +746,13 @@ export class Workspace {
     this.set({ recent: (await kv.get<RecentEntry[]>('recent')) ?? [] })
     const open = opts.startEmpty ? [] : ((await kv.get<(Panes & { title: string; set: TraceSet; files?: number[] })[]>('open')) ?? [])
     const active = (await kv.get<number>('active')) ?? -1
-    const keys = open.filter((o) => o?.set?.paths?.length).map((o) => this.open(o.set, false, false, Array.isArray(o.files) ? o.files.filter((f) => Number.isInteger(f) && f >= 0) : undefined, parsePanes(o)))
+    // the tabs are added at once and opened through the queue (the shown one first, two at a time)
+    const keys = open.filter((o) => o?.set?.paths?.length).map((o) => this.open(o.set, false, false, Array.isArray(o.files) ? o.files.filter((f) => Number.isInteger(f) && f >= 0) : undefined, parsePanes(o), true))
     const extra = opts.extra
-    if (extra && !open.some((o) => setKey(o.set) === setKey(extra))) keys.push(this.open(extra, false))
+    if (extra && !open.some((o) => setKey(o.set) === setKey(extra))) keys.push(this.open(extra, false, true, undefined, undefined, true))
     const show = extra ? keys[keys.length - 1] : (keys[active] ?? keys[0])
     if (show) this.go({ kind: 'tab', key: show })
+    this.enqueue(keys)
   }
 
   private persistOpen() {

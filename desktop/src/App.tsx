@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ConnectionsProvider, JobsPanel, type WorkspaceBridge } from './connections'
 import { EngineProvider, useEngine } from './engine'
 import { StatusBar } from './StatusBar'
@@ -12,7 +12,7 @@ import { useTabShortcuts } from './workspace/shortcuts'
 import { useKeyHints } from './workspace/keyHints'
 import { TabStrip } from './workspace/TabStrip'
 import { TabView } from './workspace/TabView'
-import { leaveRoute } from './workspace/workspace'
+import { dropOptions, dropOverlayText, leaveRoute } from './workspace/workspace'
 import { WorkspaceProvider, useWorkspace, useWorkspaceState } from './workspace/WorkspaceProvider'
 import { UpdateToast } from './updates/UpdateToast'
 
@@ -51,7 +51,7 @@ function EngineWithSettings() {
   )
 }
 
-/** S6: connections open fetched files and live follows as workspace tabs. */
+/** S6: connections open fetched files and live follows as workspace tabs (no open screen is showing then: the settings' default options, as for a drop elsewhere). */
 function WithConnections({ children }: { children: ReactNode }) {
   const ws = useWorkspace()
   const { settings } = useSettings()
@@ -102,25 +102,56 @@ function Routed() {
   return <OpenScreen />
 }
 
-/** Files or folders dropped on the window open as one trace set, with the default options. */
+const NOTICE_MS = 7_000
+
+/**
+ * Files or folders dropped on the window open as one trace set. On the open screen with the
+ * options shown there (the same as the picker and the paths box); anywhere else with the default
+ * options from Settings (see `dropOptions`). The listener reads the workspace when the drop
+ * happens, so it never holds stale options.
+ */
 function DropTarget() {
   const ws = useWorkspace()
   const { settings } = useSettings()
   const { status } = useEngine()
+  const { route, openOptions } = useWorkspaceState()
   const [over, setOver] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const live = useRef({ settings, status })
+  live.current = { settings, status }
   useEffect(() => {
     const off = onDrop((e) => {
       setOver(e.over)
-      if (e.paths?.length && status === 'ready')
-        ws.open({ paths: e.paths, options: { binds: settings.binds, salt: settings.binds === 'redact' && settings.salt ? settings.salt : undefined } })
+      if (!e.paths?.length || live.current.status !== 'ready') return
+      const { route, openOptions } = ws.getSnapshot()
+      const d = dropOptions(route, openOptions, live.current.settings, e.paths)
+      ws.open({ paths: e.paths, options: d.options })
+      setNotice(d.notice ?? null)
     })
     return () => void off.then((f) => f())
-  }, [ws, status, settings.binds, settings.salt])
-  if (!over) return null
+  }, [ws])
+  useEffect(() => {
+    if (!notice) return
+    const t = setTimeout(() => setNotice(null), NOTICE_MS)
+    return () => clearTimeout(t)
+  }, [notice])
   return (
-    <div className="drop-overlay" aria-hidden>
-      <p>Drop trace files or folders to open them</p>
-    </div>
+    <>
+      {over && (
+        <div className="drop-overlay" aria-hidden>
+          <div style={{ textAlign: 'center' }}>
+            <p>Drop trace files or folders to open them</p>
+            <p className="muted small">{dropOverlayText(route, openOptions, settings)}</p>
+          </div>
+        </div>
+      )}
+      {notice && (
+        <div className="toast" role="status">
+          <b>{notice}</b>
+          <button className="quiet" onClick={() => setNotice(null)}>Dismiss</button>
+        </div>
+      )}
+    </>
   )
 }
 

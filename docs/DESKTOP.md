@@ -66,7 +66,14 @@ says *Waiting for the engine…* until the engine is ready).
   picked together open as one trace set in one tab, like `mtkprof report a.trc b.trc`. A folder is
   passed as it is; the engine expands it (its `*.trc` files, not its subfolders) and follows
   `TRACE CONTINUES IN FILE` chains, so a set can hold more files than you picked.
-- Drop files or folders anywhere on the window (several at once: one set).
+- Drop files or folders anywhere on the window (several at once: one set). On this screen a drop
+  opens with the **Options** shown below, exactly as the buttons and the paths box do; on any other
+  screen (a tab, Settings, ...) it opens with the default options from Settings. The drop overlay
+  says which ("Opens with the options above" / "Opens with the default options"). *Follow* is for
+  one file: dropping several paths with follow on opens them as a plain set and a notice says so.
+  The options on this screen start from the Settings defaults every time the screen is shown, and
+  are not saved. Files handed to the app from outside, and the Connections page, always use the
+  Settings defaults.
 - *Or paths*: type or paste paths (one per line for several; a folder works too).
 - **Options** (a rollout under the drop zone, folded; its summary shows the choice, e.g.
   *Options · binds kept · follow*): bind values, a *keep · redact · none* button group: *keep*
@@ -203,9 +210,13 @@ Close Tab* (the window closes with *Window → Close Window*, ⇧⌘W, or the re
   follow ended, the session was closed) the badge turns to *ended*, the last snapshot stays and
   the banner says why; *Open again* starts a new session.
 - **Restore**: on the next start the app re-opens the tabs of the last run (instant, from the
-  cache) unless *Settings → Start empty* is on. Live sessions are not re-opened.
+  cache) unless *Settings → Start empty* is on. Live sessions are not re-opened. The tab you had
+  open starts first and at most two traces are opened at a time; the others wait as *opening* until
+  a slot frees (switching to a waiting tab moves it to the front, closing it cancels it). Opening a
+  trace yourself is never queued.
 - **Engine restart**: if the engine stops unexpectedly the app restarts it (toast "Engine
-  restarted") and re-opens every tab from its paths; the views come back where they were.
+  restarted") and re-opens every tab from its paths, the active one first and two at a time; the
+  views come back where they were.
 - A crash in one tab's views shows an error card in that tab (*Reload*, *Copy details*); the
   other tabs and the frame keep working.
 
@@ -470,6 +481,13 @@ fingerprint). A password or passphrase is asked once per connection per run and 
 engine's memory until the app quits, the connection is deleted or you choose *Forget
 credentials*. One-time codes and host-key answers are never kept. After an engine restart,
 credentials are asked again. Nothing from a prompt is logged.
+
+A prompt stays on screen until the engine has taken the answer. While it is being sent the card is
+greyed (*Sending...*); if the answer could not be delivered (the engine is busy or gone, a network
+error) the card stays with the error, the field kept, and offers *Retry* (the same answer) and
+*Cancel*. If the prompt turns out to be gone already (answered elsewhere, timed out) it just closes.
+An assistant API key is typed to the engine first and put in the keychain only once the engine
+accepted it, so a failed delivery stores nothing.
 
 ### ssh
 

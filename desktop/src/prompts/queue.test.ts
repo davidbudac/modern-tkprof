@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PromptEvent } from '../engine'
-import { emptyQueue, isRetry, promptReducer, promptTitle, shows, type Answered, type PromptAction, type PromptQueue } from './queue'
+import { answerOutcome, canSend, emptyQueue, isRetry, promptReducer, promptTitle, shows, type Answered, type PromptAction, type PromptQueue } from './queue'
 
 const p = (id: string, over: Partial<PromptEvent> = {}): PromptEvent => ({
   id, connection: 'lab', kind: 'password', text: 'db@host password: ', echo: false, state: 'open', ...over,
@@ -44,6 +44,82 @@ describe('promptReducer', () => {
     expect(ids(q)).toEqual([])
     expect(ids(run([{ type: 'event', prompt: p('b') }], q))).toEqual(['b'])
     expect(promptReducer(emptyQueue, { type: 'reset' })).toBe(emptyQueue)
+  })
+})
+
+describe('answers in flight (F08)', () => {
+  const sendingQueue = () => run([{ type: 'event', prompt: p('a') }, { type: 'event', prompt: p('b') }, { type: 'sending', id: 'a' }])
+
+  it('sending keeps the prompt in the queue, marked', () => {
+    const q = sendingQueue()
+    expect(ids(q)).toEqual(['a', 'b'])
+    expect(q.items[0].sending).toBe(true)
+    expect(q.items[1].sending).toBeUndefined()
+  })
+  it('a second submit while sending changes nothing (double-submit guard)', () => {
+    const q = sendingQueue()
+    expect(canSend(q.items[0])).toBe(false)
+    expect(canSend(q.items[1])).toBe(true)
+    expect(promptReducer(q, { type: 'sending', id: 'a' })).toBe(q)
+    expect(promptReducer(q, { type: 'sending', id: 'zz' })).toBe(q)
+  })
+  it('failed leaves the prompt with the error, ready to send again', () => {
+    const q = run([{ type: 'failed', id: 'a', error: 'HTTP 500' }], sendingQueue())
+    expect(ids(q)).toEqual(['a', 'b'])
+    expect(q.items[0]).toMatchObject({ sending: false, failure: 'HTTP 500' })
+    expect(canSend(q.items[0])).toBe(true)
+    // retry: sending again clears the error
+    const again = promptReducer(q, { type: 'sending', id: 'a' })
+    expect(again.items[0]).toMatchObject({ sending: true, failure: undefined })
+  })
+  it('failed is ignored unless an answer is in flight', () => {
+    const q = run([{ type: 'event', prompt: p('a') }])
+    expect(promptReducer(q, { type: 'failed', id: 'a', error: 'x' })).toBe(q)
+    expect(promptReducer(q, { type: 'failed', id: 'zz', error: 'x' })).toBe(q)
+  })
+  it('answered removes a prompt that was sending, exactly once', () => {
+    const q = run([{ type: 'answered', id: 'a' }], sendingQueue())
+    expect(ids(q)).toEqual(['b'])
+    expect(promptReducer(q, { type: 'answered', id: 'a' })).toBe(q)
+  })
+  it('a closed event removes a prompt that was sending or had failed', () => {
+    expect(ids(run([{ type: 'event', prompt: p('a', { state: 'closed' }) }], sendingQueue()))).toEqual(['b'])
+    const failed = run([{ type: 'failed', id: 'a', error: 'x' }], sendingQueue())
+    expect(ids(run([{ type: 'event', prompt: p('a', { state: 'closed' }) }], failed))).toEqual(['b'])
+  })
+  it('an update of the prompt keeps its sending and failure state', () => {
+    const q = run([{ type: 'event', prompt: p('a', { text: 'newer' }) }], sendingQueue())
+    expect(q.items[0]).toMatchObject({ text: 'newer', sending: true })
+    const failed = run([{ type: 'failed', id: 'a', error: 'x' }, { type: 'event', prompt: p('a', { text: 'newest' }) }], sendingQueue())
+    expect(failed.items[0]).toMatchObject({ text: 'newest', sending: false, failure: 'x' })
+  })
+  it('a reconnect resets a sending prompt; a late failure for it is ignored and the replay starts fresh', () => {
+    const q = run([{ type: 'reset' }], sendingQueue())
+    expect(ids(q)).toEqual([])
+    const replay = run([{ type: 'event', prompt: p('a') }, { type: 'failed', id: 'a', error: 'late' }], q)
+    expect(replay.items[0].sending).toBeUndefined()
+    expect(replay.items[0].failure).toBeUndefined()
+  })
+  it('the sending and failed actions carry no answer', () => {
+    const q = run([{ type: 'failed', id: 'a', error: 'HTTP 500' }], sendingQueue())
+    expect(Object.keys(q.items[0])).not.toContain('answer')
+  })
+})
+
+describe('answerOutcome', () => {
+  it('treats a 404 from the engine as the prompt being closed', () => {
+    expect(answerOutcome(Object.assign(new Error('not_found: no open prompt'), { status: 404 }))).toEqual({ closed: true })
+  })
+  it('treats the shell saying the prompt is gone as closed', () => {
+    expect(answerOutcome('the key prompt is gone (its turn ended)')).toEqual({ closed: true })
+  })
+  it('keeps the message of any other failure', () => {
+    expect(answerOutcome(Object.assign(new Error('internal: boom'), { status: 500 }))).toEqual({ closed: false, error: 'internal: boom' })
+    expect(answerOutcome('answer the key prompt: HTTP 502')).toEqual({ closed: false, error: 'answer the key prompt: HTTP 502' })
+    expect(answerOutcome(new TypeError('Failed to fetch'))).toEqual({ closed: false, error: 'Failed to fetch' })
+  })
+  it('has a message for an error without one', () => {
+    expect(answerOutcome(undefined)).toEqual({ closed: false, error: 'The answer could not be delivered.' })
   })
 })
 
