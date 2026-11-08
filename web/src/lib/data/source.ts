@@ -749,6 +749,48 @@ export interface QueryState<T> {
   /** an answer is on its way (`data` is then the previous answer when `keep` matches, else undefined) */
   loading: boolean
   error: string | null
+  /**
+   * `data` is the answer of another key (retained by a matching `keep` while this key loads): a view must not label it with
+   * the current scope or statement. A live refresh of the same key (a new source of the same lineage) is not stale.
+   */
+  stale: boolean
+}
+
+/** The last answer `useSourceQuery` received, and what it was the answer to. */
+export interface QuerySlot<T> {
+  source: DataSource
+  key: string
+  keep?: string
+  data?: T
+  error?: string
+  /** an answer (data or error) arrived; the initial slot of a mount has none */
+  settled?: boolean
+}
+
+/**
+ * What a query shows for `key` given the last answer `st` (pure; `useSourceQuery`'s selection): the answer itself when it is
+ * this key's of this source; while this key loads, the previous answer when it is related (same source, or a source of the
+ * same lineage) and has the same key or the same `keep` string, flagged `stale` when it is another key's; else nothing.
+ */
+export function queryView<T>(st: QuerySlot<T>, source: DataSource, key: string, keep?: string): QueryState<T> {
+  if (st.settled && st.source === source && st.key === key) return { data: st.data, loading: false, error: st.error ?? null, stale: false }
+  const related = st.source === source || (source.lineage !== undefined && st.source.lineage === source.lineage)
+  const sameShape = related && ((keep !== undefined && st.keep === keep) || st.key === key)
+  const data = sameShape ? st.data : undefined
+  return { data, loading: true, error: null, stale: data !== undefined && st.key !== key }
+}
+
+/**
+ * Starts `run` for `key` and hands its answer to `land` unless the returned cancel was called first (then the request is
+ * aborted and a late answer or failure is dropped). `useSourceQuery`'s effect.
+ */
+export function startQuery<T>(source: DataSource, key: string, keep: string | undefined, run: (signal: AbortSignal) => Maybe<T>, land: (st: QuerySlot<T>) => void): () => void {
+  const ac = new AbortController()
+  Promise.resolve(run(ac.signal)).then(
+    (data) => { if (!ac.signal.aborted) land({ source, key, keep, data, settled: true }) },
+    (err: unknown) => { if (!ac.signal.aborted && !(err instanceof DOMException && err.name === 'AbortError')) land({ source, key, keep, error: err instanceof Error ? err.message : String(err), settled: true }) },
+  )
+  return () => ac.abort()
 }
 
 const NO_SIGNAL = new AbortController().signal
@@ -756,28 +798,21 @@ const NO_SIGNAL = new AbortController().signal
 /**
  * Runs `run` for the current `key` (put everything it reads in the key). A local source answers in
  * the same render; a remote one in the background: the request of a stale key is aborted, and with
- * the same `keep` string the previous answer stays visible while the next one loads. A new source of
- * the same lineage (a live session's next document) keeps the previous answer of the same key or
- * `keep` too, so a refresh does not blank the view.
+ * the same `keep` string the previous answer stays visible (`stale: true`) while the next one loads. A new
+ * source of the same lineage (a live session's next document) keeps the previous answer of the same key or
+ * `keep` too, so a refresh does not blank the view. Numbers that describe a scope take no `keep` (or a `keep`
+ * naming what they describe, e.g. the statement id) so that another scope's are never shown as this one's.
  */
 export function useSourceQuery<T>(source: DataSource, key: string, run: (signal: AbortSignal) => Maybe<T>, keep?: string): QueryState<T> {
   const runRef = useRef(run)
   runRef.current = run
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const local = useMemo(() => (source.remote ? undefined : { value: runRef.current(NO_SIGNAL) as T }), [source, key])
-  const [st, setSt] = useState<{ source: DataSource; key: string; keep?: string; data?: T; error?: string; settled?: boolean }>({ source, key })
+  const [st, setSt] = useState<QuerySlot<T>>({ source, key })
   useEffect(() => {
     if (!source.remote) return
-    const ac = new AbortController()
-    Promise.resolve(runRef.current(ac.signal)).then(
-      (data) => { if (!ac.signal.aborted) setSt({ source, key, keep, data, settled: true }) },
-      (err: unknown) => { if (!ac.signal.aborted && !(err instanceof DOMException && err.name === 'AbortError')) setSt({ source, key, keep, error: err instanceof Error ? err.message : String(err), settled: true }) },
-    )
-    return () => ac.abort()
+    return startQuery(source, key, keep, (signal) => runRef.current(signal), setSt)
   }, [source, key, keep])
-  if (local) return { data: local.value, loading: false, error: null }
-  if (st.settled && st.source === source && st.key === key) return { data: st.data, loading: false, error: st.error ?? null }
-  const related = st.source === source || (source.lineage !== undefined && st.source.lineage === source.lineage)
-  const sameShape = related && ((keep !== undefined && st.keep === keep) || st.key === key)
-  return { data: sameShape ? st.data : undefined, loading: true, error: null }
+  if (local) return { data: local.value, loading: false, error: null, stale: false }
+  return queryView(st, source, key, keep)
 }
