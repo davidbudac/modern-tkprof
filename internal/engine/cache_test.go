@@ -499,7 +499,7 @@ func TestCacheModes(t *testing.T) {
 // entry changes: bump CacheIndexFormat and update the expectation.
 func TestCacheIndexFormatCoversParts(t *testing.T) {
 	want := map[string]int{"dims": 2, "agg": 4, "spill": 2, "lines": 1}
-	if CacheIndexFormat != 6 {
+	if CacheIndexFormat != 7 {
 		t.Skip("update want for the new CacheIndexFormat")
 	}
 	for k, v := range want {

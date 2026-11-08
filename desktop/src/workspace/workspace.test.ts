@@ -406,3 +406,37 @@ describe('restoring a workspace (F04)', () => {
     expect(posted).toEqual(['a.trc', 'b.trc'])
   })
 })
+
+describe('opening a folder', () => {
+  const listing = (body: unknown) => vi.fn(async (_path: string, _init?: RequestInit) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } }))
+
+  it('lists a folder to choose from instead of opening it, and keeps it in the recent list', async () => {
+    const ws = new Workspace()
+    const fetch = listing({ files: [{ path: '/t/a.trc', size: 10, modified: '2026-11-08T10:00:00Z', dir: '/t' }], dirs: ['/t'] })
+    ws.bind({ client: { base: '', fetch }, addr: 'a', token: 't' })
+    await ws.openOrPick({ paths: ['/t'], options: { binds: 'keep', follow: true } })
+    const s = ws.getSnapshot()
+    expect(s.tabs).toHaveLength(0)
+    expect(s.route).toEqual({ kind: 'open' })
+    expect(s.pick).toMatchObject({ paths: ['/t'], options: { follow: true }, list: { dirs: ['/t'] } })
+    expect(fetch.mock.calls.at(-1)?.[0]).toBe('/engine/files')
+    expect(JSON.parse(String(fetch.mock.calls.at(-1)?.[1]?.body))).toEqual({ paths: ['/t'] })
+    expect(s.recent[0]).toMatchObject({ set: { paths: ['/t'] }, dirs: ['/t'], files: 1 })
+    ws.closePick()
+    expect(ws.getSnapshot().pick).toBeNull()
+  })
+
+  it('opens files at once, and paths it cannot list as before (the tab shows the error)', async () => {
+    const ws = new Workspace()
+    ws.bind({ client: { base: '', fetch: listing({ files: [{ path: '/t/a.trc', size: 1, modified: '' }], dirs: [] }) }, addr: 'a', token: 't' })
+    await ws.openOrPick({ paths: ['/t/a.trc'], options: { binds: 'keep' } })
+    expect(ws.getSnapshot().tabs.map((t) => t.set.paths)).toEqual([['/t/a.trc']])
+    expect(ws.getSnapshot().pick).toBeNull()
+
+    const gone = new Workspace()
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ error: { code: 'bad_request', message: 'paths: no such file' } }), { status: 400, headers: { 'content-type': 'application/json' } }))
+    gone.bind({ client: { base: '', fetch }, addr: 'a', token: 't' })
+    await gone.openOrPick({ paths: ['/gone'], options: { binds: 'keep' } })
+    expect(gone.getSnapshot().tabs.map((t) => t.set.paths)).toEqual([['/gone']])
+  })
+})

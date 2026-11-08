@@ -75,8 +75,10 @@ import (
 // waits and object aggregates of a 23ai trace changed meaning. 6: the
 // aggregates keep the obj# and file# the waits named (analyze.Accumulator
 // RefIDs), so a reference bundle names objects and datafiles of an engine
-// session, not only the plans' objects.
-const CacheIndexFormat = 6
+// session, not only the plans' objects. 7: an attribute marker of a
+// pre-12.2 trace ("SESSION ID:(15.1335) 2013-05-10 07:26:55.095") no
+// longer keeps its time in the value, so such a trace's contexts changed.
+const CacheIndexFormat = 7
 
 // cacheParts are the versions of the files of an entry at CacheIndexFormat.
 var cacheParts = map[string]int{

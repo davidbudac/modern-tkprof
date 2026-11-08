@@ -125,7 +125,7 @@ function DropTarget() {
       if (!e.paths?.length || live.current.status !== 'ready') return
       const { route, openOptions } = ws.getSnapshot()
       const d = dropOptions(route, openOptions, live.current.settings, e.paths)
-      ws.open({ paths: e.paths, options: d.options })
+      void ws.openOrPick({ paths: e.paths, options: d.options })
       setNotice(d.notice ?? null)
     })
     return () => void off.then((f) => f())

@@ -449,6 +449,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/engine/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The trace files of folders, without opening them
+         * @description The requested files, and the `*.trc` files directly inside the
+         *     requested folders (by name; not recursive), as an open of those paths
+         *     would read them, with size and modification time. `dirs` names the
+         *     requested paths that are folders, also those without trace files.
+         *     The desktop's folder picker lists these and peeks at each
+         *     (`POST /engine/peek`) before the user chooses what to open.
+         */
+        post: operations["listFiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/engine/peek": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A quick summary of trace files, without opening them
+         * @description One sequential pass over each file that reads only the prologue, the
+         *     `***` marker lines (statement text skipped by its `len=`) and the
+         *     first and last `tim=` of a 10046 line: the traced time anchored as
+         *     an open anchors it, the sessions with their first module, action,
+         *     client id and service, the chain markers. About the disk's read
+         *     speed (a few hundred MB a second cold, GB a second from the page
+         *     cache); summaries are kept in memory per path, size and time. A file
+         *     that cannot be read has its `error` (still 200). The request's
+         *     context cancels the pass.
+         */
+        post: operations["peekFiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/engine/askpass": {
         parameters: {
             query?: never;
@@ -2524,6 +2577,66 @@ export interface components {
             name: string;
             size: number;
         };
+        ListedFile: {
+            /** @description absolute */
+            path: string;
+            size: number;
+            /** Format: date-time */
+            modified: string;
+            /** @description the requested folder it is in; absent for a file requested by itself */
+            dir?: string;
+        };
+        FileList: {
+            files: components["schemas"]["ListedFile"][];
+            /** @description the requested paths that are folders */
+            dirs: string[];
+        };
+        PeekSession: {
+            /** @description sid.serial# of a SESSION ID marker */
+            id: string;
+            module?: string;
+            action?: string;
+            client?: string;
+            service?: string;
+            /**
+             * Format: date-time
+             * @description the time on its first SESSION ID line
+             */
+            at?: string;
+        };
+        TracePeek: {
+            path: string;
+            size: number;
+            /** Format: date-time */
+            modified: string;
+            /** @description the prologue's `Trace file` */
+            traceFile?: string;
+            version?: string;
+            instance?: string;
+            node?: string;
+            /** @description Unix process pid or Windows thread id */
+            process?: string;
+            /**
+             * Format: date-time
+             * @description wall clock of the first tim (of the first timed marker without tim), in the trace's zone
+             */
+            start?: string;
+            /** Format: date-time */
+            end?: string;
+            /** @description last tim minus first tim (the marker times' span without tim) */
+            elapsedUs: number;
+            /** @description the file has a 10046 line with a tim (an ADR folder's background process traces have none) */
+            sqlTrace: boolean;
+            sessions: components["schemas"]["PeekSession"][];
+            /** @description all distinct SESSION IDs (sessions lists the first 200) */
+            sessionCount: number;
+            continuedFrom?: string;
+            continuesIn?: string;
+            /** @description a DUMP FILE SIZE IS LIMITED marker */
+            truncated?: boolean;
+            /** @description the file could not be read; the other fields hold what was read */
+            error?: string;
+        };
         /**
          * @description opening → ready | failed; a live session: opening → live (from its first snapshot) → failed on a stream error; closed only in the event of a DELETE
          * @enum {string}
@@ -3757,6 +3870,64 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    listFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    paths: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description the files (at most 100000) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    peekFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    paths: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description one summary per path, in order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        files: components["schemas"]["TracePeek"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     askpass: {

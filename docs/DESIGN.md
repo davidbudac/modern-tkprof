@@ -1349,6 +1349,34 @@ real cut of io_waits.trc.
 - **Keyboard** reaches the connections list (listbox), every table's sort and row selection (grid,
   caller-named, selection announced), the resize handles' values and the Cut pieces.
 
+## Opening a folder (decided 2026-11-08, desktop)
+
+- **A folder is listed, not opened.** Every way of opening on the desktop (*Open folder…*, a drop,
+  the paths box, a recent folder entry, a folder handed to the app from outside) asks the engine to
+  list the paths first (`POST /engine/files`); when one is a folder the open screen shows the
+  **folder picker** instead of opening every `*.trc` in it as one set. Files given beside the folder
+  start selected. The folder is kept in Recent (it lists again from there); what is opened from it
+  becomes its own recent entry. Plain files open at once as before.
+- **The picker's table comes from a peek, not a parse** (`internal/peek`, `POST /engine/peek`): one
+  sequential pass per file that reads only the prologue, the `***` marker lines and the first and
+  last `tim=` of a 10046 line (statement text skipped by its `len=`, as the parser does). It gives
+  the traced time (from, to, span; anchored to the wall clock as the model anchors it, so the
+  numbers equal the opened trace's: the test compares every fixture with the model), the sessions
+  (`sid.serial#` with the first module, action, client id and service of each), instance, pid,
+  version, chain markers, a dump size limit, and whether the file is a SQL trace at all (an ADR
+  folder's background traces are not; *Only SQL traces* hides them, on by default). It runs at disk
+  speed (270 MB in 87 ms from the page cache); the table fills in as the peeks come back, newest
+  files first, three requests at a time, and the engine keeps the summaries per path, size and time.
+  The peek lists every SESSION ID, also of a session with no calls (an rman session in a shared
+  server trace), which the model leaves out.
+- **Choosing.** Sort by any column (newest traced start first by default), filter by name, session,
+  module, action, client id, service or instance, select with the checkboxes (Shift extends), then
+  *Open N as one trace set* (oldest first) or *Open each in a tab*; a double-click opens one file.
+  The open options of the screen apply; follow only to a single file. Esc clears the filter, then
+  leaves the picker.
+- **Next: cut from the picker** (the user's plan, not built): select a file and cut it before
+  loading, for files too big to open whole, without reading the whole file into memory.
+
 ## Project
 
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each

@@ -1,7 +1,7 @@
 import { createSession, filesFolded, fromRaw, inShellFilesWrite, mergeAnnotations, mergeBookmarks, type Bookmark, type RawCompareDocument, type RawDocument, type Session } from '@lib'
 import type { ApiClient } from '@lib/data/client'
 import { getJSON, responseError, send, sessionClient, type EngineEvents } from '../engine'
-import type { FileInfo, JobInfo, OpenSessionResponse, SessionEvent, SessionInfo, SessionOptions } from '../engine'
+import type { FileInfo, FileList, JobInfo, OpenSessionResponse, SessionEvent, SessionInfo, SessionOptions } from '../engine'
 import { logInfo, openKV } from '../platform'
 import type { BindMode } from '../settings/settings'
 import { exportAnnotations, importAnnotations, loadBookmarks, loadNotes, saveBookmarks, saveNotes, type TraceAnnotations } from './annotations'
@@ -121,6 +121,21 @@ export interface RecentEntry {
   files?: number
 }
 
+/**
+ * Folders being looked at before anything in them is opened: the open screen shows their trace
+ * files to choose from (`FolderPicker`, DESIGN § Opening a folder) instead of opening them all.
+ */
+export interface FolderPick {
+  /** a new one for every listing (the picker starts afresh) */
+  id: number
+  /** the requested paths (folders, and maybe files beside them) */
+  paths: string[]
+  /** the options the chosen files open with */
+  options: OpenOptions
+  /** what the engine listed: the trace files, and which requested paths are folders */
+  list: FileList
+}
+
 export interface Snapshot {
   tabs: Tab[]
   route: Route
@@ -129,6 +144,8 @@ export interface Snapshot {
   recent: RecentEntry[]
   /** the options the open screen shows (and drops on it use); not persisted, reset from the settings when the screen mounts */
   openOptions: OpenOptions
+  /** the folders the open screen lists to choose from; not persisted */
+  pick: FolderPick | null
 }
 
 export interface EngineRef {
@@ -142,6 +159,7 @@ const FILE = 'workspace.json'
 const RECENT_MAX = 20
 
 let seq = 0
+let pickSeq = 0
 const newKey = () => `t${Date.now().toString(36)}${(seq++).toString(36)}`
 
 const setKey = (s: TraceSet) => JSON.stringify([s.paths, s.options.binds, s.options.salt ?? '', !!s.options.follow])
@@ -164,7 +182,7 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
  * only carry its state changes (failed, closed). A plain external store for `useSyncExternalStore`.
  */
 export class Workspace {
-  private snap: Snapshot = { tabs: [], route: { kind: 'open' }, recent: [], openOptions: { binds: 'keep', salt: '', follow: false } }
+  private snap: Snapshot = { tabs: [], route: { kind: 'open' }, recent: [], openOptions: { binds: 'keep', salt: '', follow: false }, pick: null }
   private listeners = new Set<() => void>()
   private engine: EngineRef | null = null
   private loading = new Set<string>()
@@ -569,6 +587,39 @@ export class Workspace {
     // a restore starts its tabs together through the queue (`restore`); an open by the user is immediate
     if (!queued) void this.start(key)
     return key
+  }
+
+  /**
+   * Opens a trace set the user asked for, unless one of its paths is a folder: then the open screen
+   * lists the folder's trace files to choose from (`pick`) and nothing is opened yet. The folder goes
+   * first in the recent list (opening it from there lists it again). With `show`, a set that is
+   * already open in a tab is shown instead (`openOrShow`). When the paths cannot be listed (a path
+   * that is gone), the set opens as before and its tab shows the error.
+   */
+  async openOrPick(set: TraceSet, show = false): Promise<void> {
+    const e = this.engine
+    let list: FileList | null = null
+    if (e && !this.released) {
+      try {
+        list = await send<FileList>(e.client, 'POST', '/engine/files', { paths: set.paths })
+      } catch {
+        list = null
+      }
+    }
+    if (this.released) return
+    if (!list?.dirs.length) {
+      if (show) this.openOrShow(set)
+      else this.open(set)
+      return
+    }
+    this.set({ pick: { id: ++pickSeq, paths: set.paths, options: set.options, list }, route: { kind: 'open' } })
+    this.addRecent(titleOf(set.paths), set)
+    this.noteFiles(set, list.dirs, list.files.length)
+  }
+
+  /** Leaves the folder picker for the plain open screen. */
+  closePick() {
+    if (this.snap.pick) this.set({ pick: null })
   }
 
   /** Shows the tab that already has this trace set (a file opened from the Finder or the CLI a second time), else opens one. */

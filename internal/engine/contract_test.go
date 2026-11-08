@@ -14,6 +14,7 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/assist"
 	"github.com/davidbudac/modern-tkprof/internal/cut"
+	"github.com/davidbudac/modern-tkprof/internal/peek"
 	"github.com/davidbudac/modern-tkprof/internal/remote"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 )
@@ -238,6 +239,7 @@ func TestContractSchemas(t *testing.T) {
 		"IOObjStat": analyze.IOObjStat{}, "IOStmtStat": analyze.IOStmtStat{}, "IODensity": analyze.IODensity{}, "IODensityPanel": analyze.IODensityPanel{},
 		"RefCounts": report.RefCounts{}, "RefStatus": RefStatus{}, "RefScript": RefScript{}, "RefPasteRequest": RefPasteRequest{}, "RefPasted": RefPasted{},
 		"CutPlan": cut.Plan{}, "CutPiece": cut.Piece{}, "CutRun": cut.Run{}, "CutFileRuns": cut.FileRuns{}, "CutStmt": cut.StmtCut{}, "CutCheck": cut.Check{},
+		"ListedFile": ListedFile{}, "FileList": FileList{}, "TracePeek": peek.Summary{}, "PeekSession": peek.Session{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

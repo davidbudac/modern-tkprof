@@ -10,9 +10,18 @@ import { setSummary, setTooltip, titleOf } from './traceSet'
 import { canCompare, defaultOpenOptions, openRequest, type OpenOptions } from './workspace'
 import { CompareTabsButton } from './CompareTabs'
 import { FolderIcon } from '../ui/FolderIcon'
+import { FolderPicker } from './FolderPicker'
 
-/** The "+" tab: open files or folders (dialog, drop, path), the open options, the recent trace sets. */
+/**
+ * The "+" tab: open files or folders (dialog, drop, path), the open options, the recent trace sets.
+ * A folder lists its trace files to choose from first (`FolderPicker`).
+ */
 export function OpenScreen() {
+  const { pick } = useWorkspaceState()
+  return pick ? <FolderPicker key={pick.id} pick={pick} /> : <OpenChoices />
+}
+
+function OpenChoices() {
   const ws = useWorkspace()
   const { recent, tabs, openOptions } = useWorkspaceState()
   const { status } = useEngine()
@@ -32,7 +41,7 @@ export function OpenScreen() {
 
   const openPaths = (paths: string[] | null) => {
     if (!paths?.length) return
-    ws.open({ paths, options: options() })
+    void ws.openOrPick({ paths, options: options() })
   }
   const pick = (folder: boolean) => void pickPaths(folder).then(openPaths, (e) => console.error('open dialog:', e))
   const lines = (text: string) => text.split('\n').map((p) => p.trim()).filter(Boolean)
@@ -132,7 +141,7 @@ export function OpenScreen() {
         <ul>
           {recent.map((r, i) => (
             <li key={i}>
-              <button className="recent-open" disabled={!ready} onClick={() => ws.open(r.set)} title={setTooltip(r.set.paths)}>
+              <button className="recent-open" disabled={!ready} onClick={() => void ws.openOrPick(r.set)} title={setTooltip(r.set.paths)}>
                 <b className="mono recent-title">{r.dirs?.length ? <FolderIcon className="folder-mark" /> : null}<span>{titleOf(r.set.paths)}</span></b>
                 <span className="muted small mono">{setSummary(r.set.paths, r.files, r.dirs)}</span>
               </button>

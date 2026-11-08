@@ -62,11 +62,11 @@ Parsed traces are kept in the **index cache**, so the same file opens again in a
 The **+** tab is the open screen. Its buttons and the paths box sit in a dashed drop zone (it
 says *Waiting for the engine…* until the engine is ready).
 
-- *Open files…* (one or more `.trc` files) or *Open folder…* (every trace file in it). The files
-  picked together open as one trace set in one tab, like `mtkprof report a.trc b.trc`. A folder is
-  passed as it is; the engine expands it (its `*.trc` files, not its subfolders) and follows
-  `TRACE CONTINUES IN FILE` chains, so a set can hold more files than you picked.
-- Drop files or folders anywhere on the window (several at once: one set). On this screen a drop
+- *Open files…* (one or more `.trc` files) or *Open folder…*. The files picked together open as one
+  trace set in one tab, like `mtkprof report a.trc b.trc`; the engine follows `TRACE CONTINUES IN
+  FILE` chains, so a set can hold more files than you picked. A folder is not opened at once: see
+  "Choosing from a folder" below.
+- Drop files or folders anywhere on the window (several at once: one set; a folder lists first). On this screen a drop
   opens with the **Options** shown below, exactly as the buttons and the paths box do; on any other
   screen (a tab, Settings, ...) it opens with the default options from Settings. The drop overlay
   says which ("Opens with the options above" / "Opens with the default options"). *Follow* is for
@@ -74,7 +74,7 @@ says *Waiting for the engine…* until the engine is ready).
   The options on this screen start from the Settings defaults every time the screen is shown, and
   are not saved. Files handed to the app from outside, and the Connections page, always use the
   Settings defaults.
-- *Or paths*: type or paste paths (one per line for several; a folder works too).
+- *Or paths*: type or paste paths (one per line for several; a folder lists first).
 - **Options** (a rollout under the drop zone, folded; its summary shows the choice, e.g.
   *Options · binds kept · follow*): bind values, a *keep · redact · none* button group: *keep*
   (default), *redact* (replaced by a salted hash; a *Salt* field appears, and the same salt gives
@@ -82,7 +82,27 @@ says *Waiting for the engine…* until the engine is ready).
   **live** session that updates while Oracle writes it.
 - **Recent**: the last 20 trace sets with their options. Click to open again, × to forget. A
   single file shows `1 file · <its folder>`, a folder `N files in <folder>`, a set the file count;
-  a folder is marked with a folder icon.
+  a folder is marked with a folder icon, and clicking it lists the folder again.
+
+**Choosing from a folder.** A folder (from *Open folder…*, a drop, the paths box, Recent or from
+outside the app) shows its trace files (`*.trc` directly in it, not in subfolders) in a table
+instead of opening them, with what a quick read of each file found: *From* and *To* (the traced
+time, in the trace's own time zone), *Traced* (the span), *Sessions* (`sid.serial#` and module; the
+tooltip lists every session with module, action, client id and service), *Size*, and under the
+name the instance, process id and version, plus tags for a chain (*continued from*, *continues
+in*), *truncated* and *no SQL trace*. The quick read looks only at the header, the `***` lines and
+the first and last `tim=`, at disk speed; rows say *reading…* until theirs is in. Nothing is opened
+yet.
+
+- Sort by a column header (newest first by default); filter by name, session, module, action,
+  client id, service or instance; *Only SQL traces* (on) hides files without SQL trace lines, such
+  as an ADR folder's background process traces.
+- Select with the checkboxes or a click on the row (Shift-click selects a range; the header box
+  selects all shown). The bar at the bottom sums the selection (files, size, from – to).
+- *Open N as one trace set* opens the selection in one tab (oldest file first), *Open each in a
+  tab* one tab per file; a double-click on a row opens that file alone. The open **Options** of
+  the screen apply; follow only when one file is opened.
+- *← Open a trace* or Esc goes back (Esc first clears the filter). The folder goes into Recent.
 
 Under the drop zone, with two ready, non-live traces open, a card *Compare two open traces* has
 the *Compare tabs…* button (see "Tabs").

@@ -16,6 +16,10 @@ export type OpenSessionResponse = Schemas['OpenSessionResponse']
 export type CacheItem = Schemas['CacheItem']
 export type CacheList = Schemas['CacheList']
 export type CacheWipe = Schemas['CacheWipe']
+export type ListedFile = Schemas['ListedFile']
+export type FileList = Schemas['FileList']
+export type TracePeek = Schemas['TracePeek']
+export type PeekSession = Schemas['PeekSession']
 
 /** What `engine_start`/`engine_restart` answer and `engine://ready` carries. */
 export interface EngineInfo {

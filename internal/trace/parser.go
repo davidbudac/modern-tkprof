@@ -356,7 +356,16 @@ func (p *Parser) classify(line []byte) {
 // header handles the prologue lines ("Trace file ...", "Node name: ...").
 func (p *Parser) header(line []byte) {
 	p.count(KindHeader)
-	h := Header{Line: p.line}
+	h := ParseHeader(line)
+	h.Line = p.line
+	p.h.HeaderLine(h)
+}
+
+// ParseHeader splits a prologue line into its key and value ("Node name:
+// x" is Node name / x; the banner and the bare "Version 19.27..." line get
+// the keys "Oracle Database" and "Oracle Version"). Line is not set.
+func ParseHeader(line []byte) Header {
+	var h Header
 	switch {
 	case hasPrefix(line, "Trace file "):
 		h.Key, h.Value = "Trace file", string(bytes.TrimSpace(line[11:]))
@@ -372,11 +381,19 @@ func (p *Parser) header(line []byte) {
 			h.Key = string(bytes.TrimSpace(line))
 		}
 	}
-	p.h.HeaderLine(h)
+	return h
 }
 
 func (p *Parser) marker(rest []byte) {
-	m := Marker{Line: p.line}
+	m := ParseMarker(rest)
+	m.Line = p.line
+	p.h.Marker(m)
+}
+
+// ParseMarker reads a "*** ..." line from the text after "*** ". Line is
+// not set.
+func ParseMarker(rest []byte) Marker {
+	m := Marker{}
 	if len(rest) > 0 && isDigit(rest[0]) {
 		n := timestampEnd(rest)
 		if t, ok := parseTimestamp(rest[:n]); ok {
@@ -386,8 +403,7 @@ func (p *Parser) marker(rest []byte) {
 			if len(tail) >= 2 && tail[0] == '(' && tail[len(tail)-1] == ')' {
 				m.Container = string(tail[1 : len(tail)-1])
 			}
-			p.h.Marker(m)
-			return
+			return m
 		}
 	}
 	if i := bytes.Index(rest, []byte(":(")); i > 0 {
@@ -399,6 +415,12 @@ func (p *Parser) marker(rest []byte) {
 			if t, ok := parseTimestamp(body[sp+1:]); ok {
 				m.Time, m.HasTime = t, true
 				body = body[:sp]
+			} else if sp2 := bytes.LastIndexByte(body[:sp], ' '); sp2 >= 0 {
+				// up to 12.1 the time has a space: "SESSION ID:(15.1335) 2013-05-10 07:26:55.095"
+				if t, ok := parseTimestamp(body[sp2+1:]); ok {
+					m.Time, m.HasTime = t, true
+					body = body[:sp2]
+				}
 			}
 		}
 		body = bytes.TrimSpace(body)
@@ -406,8 +428,7 @@ func (p *Parser) marker(rest []byte) {
 			body = body[:n-1]
 		}
 		m.Value = string(body)
-		p.h.Marker(m)
-		return
+		return m
 	}
 	text := bytes.TrimSpace(rest)
 	if hasPrefix(text, "Unix process pid:") {
@@ -416,8 +437,7 @@ func (p *Parser) marker(rest []byte) {
 		m.Key = "Unix process pid"
 		m.Value = string(bytes.TrimSpace(text[len("Unix process pid:"):]))
 		m.Text = string(text)
-		p.h.Marker(m)
-		return
+		return m
 	}
 	if hasPrefix(text, "[ ") && bytes.HasSuffix(text, []byte(" ]")) {
 		// trcsess session switch: "*** [ Unix process pid: 133531 ]"
@@ -430,8 +450,7 @@ func (p *Parser) marker(rest []byte) {
 			m.Value = string(inner)
 		}
 		m.Text = string(text)
-		p.h.Marker(m)
-		return
+		return m
 	}
 	stripStars := func(b []byte) string {
 		b = bytes.TrimSuffix(b, []byte("***"))
@@ -457,7 +476,7 @@ func (p *Parser) marker(rest []byte) {
 		m.Kind = MarkerOther
 	}
 	m.Text = string(text)
-	p.h.Marker(m)
+	return m
 }
 
 func markerKindFor(key []byte) MarkerKind {

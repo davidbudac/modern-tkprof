@@ -23,6 +23,11 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
   DESIGN § Transitions and § Cut the decisions. Unreleased. Anyone running the Tauri app or the `verify-mtkprof` skill
   needs `pnpm build:engine` in `desktop/` first: the sidecar binary is gitignored and predates the engine changes.
+- **Folder picker** (2026-11-08, DESIGN § Opening a folder): a folder no longer opens all its traces;
+  the desktop lists them with a quick peek (`internal/peek`, `POST /engine/files`, `POST /engine/peek`)
+  and opens what the user picks. Cutting from the picker before loading (for very large files) is the
+  agreed next step, not started. With it: the 11g marker fix (`*** SESSION ID:(15.1335) 2013-05-10
+  07:26:55.095` kept the time in the value) and `CacheIndexFormat` 7. Unreleased.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -105,7 +110,7 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
   waits have a `file#` p1 that is not a datafile (`Event.IsFileP1` skips them).
 - **Wait classes** come from `internal/ref/data/event_name_19c.csv` (a real `v$event_name` export); idle
   detection uses the `Idle` class.
-- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 6); see
+- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 7); see
   CLAUDE.md.
 - **An engine session's model has no waits** (aggregation-only): anything that needs the waits' obj# or file#
   reads `Model.WaitRefIDs` (the accumulator keeps them since 2026-11-08), not `m.Waits`.

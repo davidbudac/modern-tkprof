@@ -1070,6 +1070,17 @@ the standalone `/api/lines`.
   is applied; a live session counts its snapshots, see "Live sessions").
   `options.follow=true` makes a live session. Directories in `paths` are
   expanded as on the CLI, at most 1000 inputs.
+* Folder picker (`peek.go`, DESIGN § Opening a folder): `POST /engine/files
+  {paths}` lists the requested files and the `*.trc` files directly in the
+  requested folders (size, time; `dirs` says which paths are folders);
+  `POST /engine/peek {paths}` answers a `TracePeek` per file from
+  `internal/peek`: one sequential 4 MB-buffered pass that looks only at the
+  prologue (`trace.ParseHeader`), lines starting `*** ` (`trace.ParseMarker`,
+  the parser's own code), `PARSING IN CURSOR` / `PARSE ERROR` lines (their
+  text is skipped by `len=`, so `***` inside SQL is not a marker), and the
+  first `tim=` after each timed marker (the wall-clock anchor, as
+  `model.Builder` sets it); the last `tim=` is read backwards from the end
+  (up to 16 MB). Summaries are kept in memory by path, size and time (5000).
 * Job: a cancelable piece of work with its own `context.Context` (child of
   the engine's). Kind `open`; phases `parse` (unit bytes, `done/total`, plus
   `lines` and `statements`; progress from `model.Options.OnProgress`) →

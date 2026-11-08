@@ -274,6 +274,47 @@ select { font-size: var(--text-sm); padding: 0.15rem 0.3rem; border: 1px solid v
 .recent-ago { grid-area: 1 / 2 / 3 / 3; }
 .recent-x { grid-area: 1 / 3 / 3 / 4; }
 
+/* the folder picker: a folder's trace files to choose from (workspace/FolderPicker.tsx; the table looks like the remote browser's) */
+.folder-pick { display: grid; gap: var(--sp-3); align-content: start; inline-size: min(78rem, 100%); margin-inline: auto; padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+.fp-back button { margin-inline-start: calc(-1 * var(--sp-2)); display: inline-flex; align-items: center; gap: var(--sp-1); border: 0; border-radius: 6px; block-size: 1.75rem; padding-inline: var(--sp-2); background: none; color: var(--ink-2); font-size: var(--text-sm); }
+@media (hover: hover) and (pointer: fine) { .fp-back button:hover { background: var(--wash); color: var(--ink); } }
+.fp-head { display: grid; gap: var(--sp-1); }
+.fp-head h1 { font-size: var(--text-hero); display: flex; align-items: center; gap: var(--sp-2); min-inline-size: 0; }
+.fp-head h1 > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-head h1 .folder-mark { inline-size: 1.4rem; block-size: 1.4rem; flex: none; color: var(--ink-2); }
+.fp-head p { margin: 0; }
+.fp-paths { overflow-wrap: anywhere; }
+.fp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); }
+.fp-filter { inline-size: min(24rem, 100%); font-size: var(--text-sm); padding: 0.25rem 0.5rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); color: var(--ink); }
+.fp-table-wrap { overflow: auto; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-raised); }
+.fp-table { inline-size: 100%; font-size: var(--text-sm); border-collapse: collapse; }
+.fp-table thead th { position: sticky; inset-block-start: 0; z-index: 1; background: var(--surface-raised); border-block-end: 1px solid var(--hairline-strong); white-space: nowrap; text-align: start; padding: 0; }
+.fp-table td { border-block-end: 1px solid var(--ruling); white-space: nowrap; padding: var(--sp-1) var(--sp-2); vertical-align: baseline; }
+.fp-table td.name { white-space: normal; overflow-wrap: anywhere; }
+.fp-table .num { text-align: end; font-variant-numeric: tabular-nums; }
+.fp-table .cb { inline-size: 1.5rem; }
+.fp-table tr.sel td { background: color-mix(in oklch, var(--c-cpu) 12%, transparent); }
+.fp-table tbody tr:active td { background: var(--wash); }
+@media (hover: hover) and (pointer: fine) { .fp-table tbody tr:hover td { background: var(--wash); } .fp-table tbody tr.sel:hover td { background: color-mix(in oklch, var(--c-cpu) 17%, transparent); } }
+.fp-table .empty-row { text-align: center; padding: var(--sp-4); white-space: normal; }
+.fp-table tbody { user-select: none; }
+.fp-table th.cb { padding-inline: var(--sp-1); }
+.fp-sort { all: unset; display: block; padding: var(--sp-1) var(--sp-2); font-weight: 500; cursor: pointer; }
+.fp-table th.num .fp-sort { text-align: end; }
+.fp-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 4px; }
+.fp-table td.name { min-inline-size: 16rem; }
+.fp-name { display: block; font-weight: 500; }
+.fp-sub { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1rem var(--sp-2); font-size: var(--text-xs); }
+.fp-tag { padding: 0 0.4rem; border-radius: 999px; background: var(--wash); color: var(--ink-2); white-space: nowrap; }
+.fp-tag.err { background: none; color: var(--s-critical); white-space: normal; }
+.fp-sessions { max-inline-size: 22rem; overflow: hidden; text-overflow: ellipsis; }
+.fp-nosql td { color: var(--ink-3); }
+.fp-reading { font-style: italic; }
+.fp-more { margin: 0; padding: var(--sp-2); text-align: center; }
+.fp-actions { position: sticky; inset-block-end: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-4); padding: var(--sp-3) 0; background: var(--surface); border-block-start: 1px solid var(--hairline); }
+.fp-buttons { display: flex; gap: var(--sp-2); }
+.fp-buttons button { font-size: var(--text-md); padding: 0.35rem 0.9rem; }
+
 /* the open screen's Compare card, under the drop zone */
 .compare-card { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface-raised); }
 .compare-card h2 { font-size: var(--text-md); }

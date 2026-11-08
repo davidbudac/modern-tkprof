@@ -33,8 +33,8 @@ export const fetchHealth = (client: ApiClient, signal?: AbortSignal) => getJSON<
  * A request with a JSON body (or none) to the engine: the answer's JSON, or undefined for 204;
  * an error envelope becomes an Error (`code: message`).
  */
-export async function send<T = void>(client: ApiClient, method: string, path: string, body?: unknown): Promise<T> {
-  const init: RequestInit = { method }
+export async function send<T = void>(client: ApiClient, method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const init: RequestInit = { method, signal }
   if (body !== undefined) {
     init.body = JSON.stringify(body)
     init.headers = { 'content-type': 'application/json' }

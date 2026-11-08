@@ -560,3 +560,22 @@ func TestBigLoopNoUnknown(t *testing.T) {
 		t.Errorf("%d unknown lines, first: %q", len(r.unknown), r.unknown[0])
 	}
 }
+
+// Up to 12.1 the time on an attribute marker has a space in it; the value
+// ends at the closing parenthesis all the same.
+func TestMarkerOldTimestamp(t *testing.T) {
+	for line, want := range map[string]string{
+		"SESSION ID:(15.1335) 2013-05-10 07:26:55.095":                     "15.1335",
+		"MODULE NAME:(sqltxadmin.sqlt$a (xtract)) 2013-05-10 07:26:57.029": "sqltxadmin.sqlt$a (xtract)",
+		"CLIENT ID:() 2013-05-10 07:26:55.095":                             "",
+		"SESSION ID:(51.14688) 2026-10-22T11:35:29.191647+00:00":           "51.14688",
+	} {
+		m := ParseMarker([]byte(line))
+		if m.Value != want || !m.HasTime {
+			t.Errorf("%q: value %q time %v, want %q", line, m.Value, m.HasTime, want)
+		}
+	}
+	if m := ParseMarker([]byte("SESSION ID:(15.1335) 2013-05-10 07:26:55.095")); m.Time.Second() != 55 || m.Time.Year() != 2013 {
+		t.Errorf("time %v", m.Time)
+	}
+}

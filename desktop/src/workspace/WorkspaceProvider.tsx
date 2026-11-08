@@ -26,7 +26,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   drain.current = () => {
     if (!restored.current || status !== 'ready') return
     void takeOpenRequests().then(
-      (sets) => sets.forEach((paths) => ws.openOrShow({ paths, options: { binds: settings.binds, salt: settings.binds === 'redact' && settings.salt ? settings.salt : undefined } })),
+      (sets) => sets.forEach((paths) => void ws.openOrPick({ paths, options: { binds: settings.binds, salt: settings.binds === 'redact' && settings.salt ? settings.salt : undefined } }, true)),
       (e) => console.error('open requests:', e),
     )
   }

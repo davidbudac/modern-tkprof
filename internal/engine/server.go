@@ -65,6 +65,7 @@ type Server struct {
 
 	conns connRegistry  // connections.go
 	convs conversations // assist.go
+	peeks peekCache     // peek.go
 	keys  *assist.Keys  // the assistant providers' API keys, in memory
 
 	mu       sync.Mutex
