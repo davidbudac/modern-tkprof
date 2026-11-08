@@ -149,8 +149,6 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - **Visualizer** has no LICENSE file. It shows "0ms" for µs-scale plans (its display rounds to ms).
 - **History**: the stray 32 MB `mtkprof` binary (removed in `a89bc12`) is still in the history of the now
   public repo; rewriting it means a force-push.
-- Stale remote branches (`assist/*`, `ui/*`, `lines/clock-delta-gutter`, `feat/cut` (merged), `t3/*`,
-  `feature/add-cut-worktree-reference`): delete when convenient.
 
 ### Trace pane: the formatted Lines view (round 2 2026-11-06, round 3 and 3b 2026-11-07; DESIGN § Formatted Lines view, `docs/PLAN-FORMATTED-V2.md`, `docs/PLAN-TRACE-PANE-V3.md`)
 
