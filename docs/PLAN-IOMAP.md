@@ -88,3 +88,5 @@ view keeps its id `blocks` (`State.view`, `mtkprof:` links, `workspace.json`, th
   window they replace (`apply` clears `ioZoom`); ⌘ letters by the physical key catching ⌘C on Dvorak (`letterOf` reads
   the typed letter first); the side panel's ← → losing focus (React clears `currentTarget`; the Trace pane's panel had
   the same bug); going back to no zoom waiting 200 ms; the name counts of an engine document.
+
+Commit: `4117834`.
