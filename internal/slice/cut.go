@@ -89,6 +89,7 @@ func (s *Server) cutPlan(ctx context.Context, q url.Values) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.notePlanBytes(selectionKey(q), p.Bytes)
 	for _, b := range s.cutBinds() {
 		p.BindsAllowed = append(p.BindsAllowed, b.String())
 	}
@@ -115,8 +116,15 @@ func (s *Server) cutCheck(ctx context.Context, q url.Values) (any, error) {
 	if force {
 		max = 0
 	}
-	q.Del("force")
-	ck, err := s.runCheck(ctx, q.Encode(), func(ctx context.Context) (*cut.Check, error) {
+	key := selectionKey(q)
+	if n, ok := s.plannedBytes(key); ok && max > 0 && n > max {
+		// planned already: refused before a byte is written
+		return nil, bad("%v: ask with force=1 to check it anyway", &cut.TooBigError{Max: max})
+	}
+	if force {
+		key += "&force=1" // a forced check and a limited one of the same selection answer differently
+	}
+	ck, err := s.runCheck(ctx, key, func(ctx context.Context) (*cut.Check, error) {
 		return s.cutter().CheckMax(ctx, sel, s.CutDir, max)
 	})
 	var tb *cut.TooBigError
@@ -126,8 +134,39 @@ func (s *Server) cutCheck(ctx context.Context, q url.Values) (any, error) {
 	return ck, err
 }
 
-// checkRun is a /api/cut/check in flight: its selection (the query without
-// force) and the requests waiting for its answer.
+// selectionKey is the selection of a cut query: its parameters without force,
+// in a canonical order (the same for /api/cut and /api/cut/check).
+func selectionKey(q url.Values) string {
+	c := url.Values{}
+	for k, v := range q {
+		if k != "force" {
+			c[k] = v
+		}
+	}
+	return c.Encode()
+}
+
+// maxPlanBytes bounds Server.planBytes (it starts over when full).
+const maxPlanBytes = 256
+
+func (s *Server) notePlanBytes(key string, n int64) {
+	s.checkMu.Lock()
+	defer s.checkMu.Unlock()
+	if s.planBytes == nil || len(s.planBytes) >= maxPlanBytes {
+		s.planBytes = map[string]int64{}
+	}
+	s.planBytes[key] = n
+}
+
+func (s *Server) plannedBytes(key string) (int64, bool) {
+	s.checkMu.Lock()
+	defer s.checkMu.Unlock()
+	n, ok := s.planBytes[key]
+	return n, ok
+}
+
+// checkRun is a /api/cut/check in flight: its selection (selectionKey, with
+// &force=1 when forced) and the requests waiting for its answer.
 type checkRun struct {
 	key     string
 	ctx     context.Context

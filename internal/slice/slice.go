@@ -105,10 +105,13 @@ type Server struct {
 
 	// MaxCheckBytes is the biggest new file /api/cut/check writes and parses
 	// back without force=1 (0: DefaultMaxCheckBytes). checkMu guards check,
-	// the one check in flight (see runCheck).
+	// the one check in flight (see runCheck), and planBytes, the new file's
+	// size of the selections planned (/api/cut), so that a check over the
+	// limit is refused before it writes anything.
 	MaxCheckBytes int64
 	checkMu       sync.Mutex
 	check         *checkRun
+	planBytes     map[string]int64
 }
 
 // DefaultMaxCheckBytes is the default Server.MaxCheckBytes: 1 GiB.

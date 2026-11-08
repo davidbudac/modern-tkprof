@@ -158,3 +158,69 @@ func TestCutCheckLimit(t *testing.T) {
 		t.Fatalf("under the default limit: %d %s", code, body)
 	}
 }
+
+// A check of a selection already planned over the limit is refused before it
+// writes anything: with a CutDir that does not exist, writing would fail with
+// another error. A selection not planned yet is still refused while writing.
+func TestCutCheckRefusedBeforeWrite(t *testing.T) {
+	path := "../../testdata/traces/19c/io_waits.trc"
+	m, err := model.Build(path, model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	li, err := trace.OpenLineIndex(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer li.Close()
+	s := New(m).WithLines([]*trace.LineIndex{li})
+	s.CutDir = t.TempDir() + "/missing"
+	s.MaxCheckBytes = 64 << 10
+	h := s.Handler()
+	get := func(url string) (int, string) {
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
+		return rr.Code, rr.Body.String()
+	}
+	if code, body := get("/api/cut?prov=0&plans=0"); code != http.StatusOK {
+		t.Fatalf("plan: %d %s", code, body)
+	}
+	// the same selection, its parameters in another order
+	if code, body := get("/api/cut/check?plans=0&prov=0"); code != http.StatusBadRequest || !strings.Contains(body, "force=1") {
+		t.Fatalf("planned over the limit: %d %s", code, body)
+	}
+	// not planned: the check tries to write (and fails on the missing folder)
+	if code, body := get("/api/cut/check?prov=0"); code == http.StatusOK || strings.Contains(body, "force=1") {
+		t.Fatalf("not planned: %d %s", code, body)
+	}
+}
+
+// A forced check and a limited one of the same selection are different runs:
+// the forced one never gets the limited one's refusal.
+func TestRunCheckForceIsAnotherRun(t *testing.T) {
+	path := "../../testdata/traces/19c/io_waits.trc"
+	m, err := model.Build(path, model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	li, err := trace.OpenLineIndex(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer li.Close()
+	s := New(m).WithLines([]*trace.LineIndex{li})
+	s.CutDir = t.TempDir()
+	s.MaxCheckBytes = 64 << 10
+	b := newBlockingRun()
+	// a limited check of the selection is in flight
+	done := make(chan error, 1)
+	go func() { _, err := s.runCheck(context.Background(), selectionKey(nil), b.run); done <- err }()
+	waitFor(t, "the limited check to start", func() bool { return b.started.Load() == 1 })
+	ck, err := s.cutCheck(context.Background(), map[string][]string{"force": {"1"}})
+	if err != nil || ck == nil || !ck.(*cut.Check).OK {
+		t.Fatalf("forced: %+v %v", ck, err)
+	}
+	if err := <-done; !errors.Is(err, errSuperseded) {
+		t.Fatalf("the limited check: %v, want superseded", err)
+	}
+}
