@@ -26,6 +26,7 @@ import { scopedStatements } from './stmtstats'
 import { scopedFindings } from './findings'
 import { pxOut, responseOf, scopeResponse } from './response'
 import { ioMapOf, normalizeIOMap, type IOMap } from './iomap'
+import { engineRefImporter, type RefImporter } from './refimport'
 
 export type Maybe<T> = T | Promise<T>
 
@@ -178,6 +179,11 @@ export interface DataSource {
    * engine without `api/io/map`).
    */
   ioMap(scope: Scope, limit: number, stmt?: ID, event?: ID, signal?: AbortSignal): Maybe<IOMap | null>
+  /**
+   * Where names from the names script go (data/refimport.ts): the server behind the document; null = none (a document
+   * on its own). A server without the routes (`mtkprof serve`, an older engine) answers its calls with a 404.
+   */
+  readonly refs: RefImporter | null
 }
 
 // ---- registry ----------------------------------------------------------------
@@ -217,6 +223,7 @@ const zeroPart = (): CallPart => ({ calls: 0, c: 0, e: 0, p: 0, cr: 0, cu: 0, r:
 
 export class LocalSource implements DataSource {
   readonly remote = false
+  readonly refs = null
   private dims: Partial<Record<Fact, ReturnType<typeof pivotDims>>> = {}
   constructor(private readonly doc: TraceDoc) {}
 
@@ -484,8 +491,12 @@ export class RemoteSource implements DataSource {
   /** the same for `api/io/map` */
   private noIOMap = false
 
+  readonly refs: RefImporter
+
   /** `client` is the server root, e.g. `http://127.0.0.1:8046` or `.../s/1`; the queries are `/api/<path>`. */
-  constructor(private readonly doc: TraceDoc, private readonly client: ApiClient) {}
+  constructor(private readonly doc: TraceDoc, private readonly client: ApiClient) {
+    this.refs = engineRefImporter(client)
+  }
 
   /** the documents of one server are revisions of one trace */
   get lineage(): unknown { return this.client }

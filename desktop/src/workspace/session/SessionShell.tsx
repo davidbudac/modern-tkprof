@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import {
   useStore, useStoreApi, FilesPane, FilterBar, Inspector, LineDrawer, PaneToggle, ResizeHandle,
-  currentView, inTextField, isMac, useEscapeChain, useShellPanes, useViewKeys,
+  currentView, inTextField, isMac, useEscapeChain, useShellPanes, useViewKeys, RefImportHost,
 } from '@lib'
 import { usePaneBridge } from './paneBridge'
 import { sessionViews } from './views'
@@ -87,6 +87,7 @@ export function SessionShell({ banner, panes, onPanes }: { banner?: ReactNode; p
         {shell.eventView && <PaneToggle open={shell.inspectorOpen} onToggle={() => onPanes({ inspectorOpen: !shell.inspectorOpen })} label="details pane" className="inspector-toggle" />}
       </div>
       {lines && <LineDrawer />}
+      <RefImportHost />
     </div>
   )
 }

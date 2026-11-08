@@ -175,8 +175,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 35 {
-		t.Errorf("%d session routes, want doc, report, the 19 slice endpoints, the 11 line endpoints, ref, brief and the assist tools", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 38 {
+		t.Errorf("%d session routes, want doc, report, the 19 slice endpoints, the 11 line endpoints, ref (status, apply, script, paste), brief and the assist tools", n)
 	}
 }
 
@@ -234,6 +234,7 @@ func TestContractSchemas(t *testing.T) {
 		"UsageEvent": assist.UsageEvent{}, "StateEvent": assist.StateEvent{}, "DoneEvent": assist.DoneEvent{}, "ErrorEvent": assist.ErrorEvent{},
 		"StmtStats": analyze.StmtStats{}, "ScopeProfile": analyze.ScopeProfile{}, "CallStats": analyze.CallStats{}, "Link": analyze.Link{},
 		"IOMap": analyze.IOMap{}, "IOMapFile": analyze.IOMapFile{},
+		"RefCounts": report.RefCounts{}, "RefStatus": RefStatus{}, "RefScript": RefScript{}, "RefPasteRequest": RefPasteRequest{}, "RefPasted": RefPasted{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

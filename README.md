@@ -45,6 +45,7 @@ mtkprof plan   trace.trc -list          # statements with STAT plans (sql_id, pl
 mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -o plan.json   # plan(s) as JSON rows for ora-explain-plan-viz; -plan-hash, -exec N
 mtkprof plan   trace.trc -sql_id 70qh8zxg4kk69 -viz           # "Open in plan viz" link (plan stays in the URL fragment)
 mtkprof refscript trace.trc -o ref.sql  # SQL*Plus script for the DBA: names for the trace's obj#/file#/uid, DBMS_XPLAN per sql_id (-lite: ALL_ views only)
+mtkprof refscript trace.trc -paste -o names.sql   # a script that prints the names: paste its output into the desktop app, or save it for -ref names.txt
 mtkprof report trace.trc -ref ref/       # apply the spooled bundle (also html, serve, json, export, pivot, plan): object/datafile/user names + DBMS_XPLAN
 mtkprof compare a.trc b.trc -n 30       # text report of B against A: totals, profiles, changed/new/missing statements, wait events
 mtkprof serve  a.trc b.trc -compare      # the UI with a Compare tab (also html, json): A/B toggle in the top bar switches the trace the views show
@@ -212,8 +213,11 @@ redact` writes them redacted. Details: `docs/ARCHITECTURE.md`, "Spill mode".
 Reference bundle: a trace carries only numbers (obj#, file#, user ids) and
 no plan text. `mtkprof refscript` writes a read-only SQL*Plus script tailored
 to the trace; the DBA runs it and `-ref dir` applies what it spooled to every
-output. Only `mtkprof ref -db` (same queries, run directly) and the `trace` /
-`fetch -db` commands connect to a database. See `docs/REF-BUNDLE.md` and
+output. `refscript -paste` writes a script that prints the names instead
+(any client, any user: it falls back to the ALL_ views); paste its output into
+the desktop app's *Import names*, or save it and pass `-ref names.txt`. Only
+`mtkprof ref -db` (same queries, run directly) and the `trace` / `fetch -db`
+commands connect to a database. See `docs/REF-BUNDLE.md` and
 `docs/REMOTE.md`.
 
 ### The report

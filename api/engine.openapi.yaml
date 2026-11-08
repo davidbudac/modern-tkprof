@@ -1089,6 +1089,31 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
   /s/{id}/api/ref:
+    get:
+      operationId: sessionRefStatus
+      summary: What the trace refers to by number and how much of it the session's bundle names
+      description: |
+        `wanted` counts the obj#, file# and user ids of the trace and its
+        sql_ids with text (what the reference scripts look up); `named` those
+        the applied bundle names (a sql_id: a DBMS_XPLAN plan). `job` is the
+        session's latest ref job (`POST /s/{id}/api/ref`, `POST
+        /s/{id}/api/ref/paste`): a client follows a paste by asking again
+        until it is no longer running.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "200":
+          description: the status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
     post:
       operationId: sessionRef
       summary: Apply a reference bundle to the session (job kind ref)
@@ -1104,9 +1129,10 @@ paths:
         document is rebuilt and `rev` rises by one (a session event); the
         job ends `done` with the bundle's size in `message`. Opening the same
         trace again applies the kept bundle before the first document.
-        Applying another bundle replaces the first. One ref job per session
-        at a time (409). `DELETE /engine/cache` drops the kept bundles of the
-        traces no session has open.
+        Applying another bundle replaces the first (a paste merges into it:
+        `POST /s/{id}/api/ref/paste`). One ref job per session at a time
+        (409). `DELETE /engine/cache` drops the kept bundles of the traces no
+        session has open.
       parameters:
         - $ref: "#/components/parameters/SessionID"
       requestBody:
@@ -1137,6 +1163,77 @@ paths:
                 properties:
                   job:
                     $ref: "#/components/schemas/JobInfo"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/ref/script:
+    get:
+      operationId: sessionRefScript
+      summary: The names script of the session's trace (docs/REF-BUNDLE.md § Paste)
+      description: |
+        `mtkprof refscript -paste`: one read-only PL/SQL block for SQL*Plus,
+        SQLcl or SQL Developer that prints the names of the trace's obj#,
+        file# and user ids (and with `plans` the DBMS_XPLAN plans of its
+        sql_ids) as lines to copy and paste (`POST /s/{id}/api/ref/paste`).
+        It reads the ALL_ views where the DBA_ views are not readable and
+        says so in note lines.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: plans
+          in: query
+          description: the plans too (a much longer output)
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: the script
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefScript"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/ref/paste:
+    post:
+      operationId: sessionRefPaste
+      summary: Apply the pasted output of the names script (job kind ref)
+      description: |
+        `text` is read at once: the tagged lines of the names script
+        (`mtkprof-ref 1`, `obj,…`, `file,…`, `user,…`, `plan,…`, `note,…`,
+        `mtkprof-ref end`; anything else is ignored), else CSV or
+        tab-separated tables under header rows (OBJECT_ID …, FILE# … NAME,
+        USER_ID … USERNAME). 400 when it holds no name. The answer says what
+        it read; a ref job merges it into the bundle kept for the trace (an
+        entry of the paste replaces the kept one with its key, the rest
+        stays), stores and applies that as `POST /s/{id}/api/ref` does (`rev`
+        rises by one). One ref job per session at a time (409); not on a live
+        session (400).
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefPasteRequest"
+      responses:
+        "202":
+          description: what the text holds, and the job that applies it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefPasted"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3726,6 +3823,79 @@ components:
         n:
           type: integer
           description: waits
+    RefCounts:
+      type: object
+      description: report.RefCounts, ids of each kind (obj#, file#, user ids, sql_ids)
+      required: [objects, files, users, plans]
+      additionalProperties: false
+      properties:
+        objects:
+          type: integer
+        files:
+          type: integer
+        users:
+          type: integer
+        plans:
+          type: integer
+    RefStatus:
+      type: object
+      required: [wanted, named, stored, rev]
+      additionalProperties: false
+      properties:
+        wanted:
+          $ref: "#/components/schemas/RefCounts"
+          description: what the trace refers to (sql_ids with text)
+        named:
+          $ref: "#/components/schemas/RefCounts"
+          description: of those, what the applied bundle names
+        stored:
+          type: boolean
+          description: a bundle is kept for the trace
+        rev:
+          type: integer
+        job:
+          $ref: "#/components/schemas/JobInfo"
+          description: the session's latest ref job
+    RefScript:
+      type: object
+      required: [script, name, plans, wanted]
+      additionalProperties: false
+      properties:
+        script:
+          type: string
+        name:
+          type: string
+          description: a file name for it (names-<trace>.sql)
+        plans:
+          type: boolean
+        wanted:
+          $ref: "#/components/schemas/RefCounts"
+    RefPasteRequest:
+      type: object
+      required: [text]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          description: the script's output as copied (at most 64 MiB)
+    RefPasted:
+      type: object
+      required: [job, read, notes, complete]
+      additionalProperties: false
+      properties:
+        job:
+          $ref: "#/components/schemas/JobInfo"
+        read:
+          $ref: "#/components/schemas/RefCounts"
+          description: the entries of the text
+        notes:
+          type: array
+          items:
+            type: string
+          description: the script's notes (a view it could not read and the one it read instead, plans not read)
+        complete:
+          type: boolean
+          description: the text has the first and the last line of the script's output (else it was cut off), or it was read as tables
     ErrorCode:
       type: string
       enum: [bad_request, unauthorized, not_found, conflict, cancelled, needs_prompt, internal, remote]
@@ -3801,7 +3971,7 @@ components:
           enum: [bytes, lines, files, queries, ""]
         message:
           type: string
-          description: "the error of a failed job, \"cancelled\" for a cancelled one. A finished ref job: what the bundle holds, and the reference queries it skipped. A running db fetch: a note once it is past 200 MB"
+          description: "the error of a failed job, \"cancelled\" for a cancelled one. A finished ref job: what the bundle holds, and the reference queries it skipped or what a paste held. A running db fetch: a note once it is past 200 MB"
         session:
           type: string
           description: the session the job opens (kind open) or applies to (kind ref)

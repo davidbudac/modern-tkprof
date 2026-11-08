@@ -214,7 +214,7 @@ Close Tab* (the window closes with *Window → Close Window*, ⇧⌘W, or the re
 | View | |
 |---|---|
 | Overview, Statements, Waits, Timeline, Sessions, Pivot | as in `mtkprof serve`; the document is sliced by the engine, so a 2 GB trace stays light |
-| **I/O map** (⌘I) | every physical I/O wait with a block address: one panel per datafile or tempfile, or per object (*Panels*), x = the n-th such wait (*I/O order*) or *Time*, y = the block number (*Display* › *Block axis*: linear, or packed with the empty block ranges collapsed), each mark as tall as the blocks it moved. *Colour* by event, object, object type, schema, tablespace, file, statement, session, latency or read size; a click on a legend entry highlights its marks (⌘/Ctrl/Shift-click adds one). Objects are named from a reference bundle (owner, type, partition), else from the trace's own plans; *Display* chooses whether the schema, the PDB, the partition and the obj# show. Zoom: drag across the map (sideways: time, up or down: that panel's blocks, diagonal: both), ⌘ + wheel at the pointer, `+` / `−`, `0` for the whole range, ← → to pan, a double-click or *‹ Out* to go back; the strip on top shows the whole range with the zoom as a box you can drag. *Use as time window* makes the zoomed range every view's window. The side panel: per object (waits, time, blocks, re-reads per block, how sequential), per statement and file, latency histograms with p50 / p95 / p99 and blocks per wait per event. Full scans are diagonals, a sort spill a write stripe then a read stripe, a multipass hash join a sawtooth of re-reads. Hover a mark for its wait, click to pin it (line and statement links); *Display* › *Marks* caps the rows (every k-th above it, "showing 1 in k"; a zoom asks again, so it needs fewer) |
+| **I/O map** (⌘I) | every physical I/O wait with a block address: one panel per datafile or tempfile, or per object (*Panels*), x = the n-th such wait (*I/O order*) or *Time*, y = the block number (*Display* › *Block axis*: linear, or packed with the empty block ranges collapsed), each mark as tall as the blocks it moved. *Colour* by event, object, object type, schema, tablespace, file, statement, session, latency or read size; a click on a legend entry highlights its marks (⌘/Ctrl/Shift-click adds one). Objects are named from a reference bundle (owner, type, partition), else from the trace's own plans; *Import names…* (Objects and Display tabs) gets the bundle without a connection; *Display* chooses whether the schema, the PDB, the partition and the obj# show. Zoom: drag across the map (sideways: time, up or down: that panel's blocks, diagonal: both), ⌘ + wheel at the pointer, `+` / `−`, `0` for the whole range, ← → to pan, a double-click or *‹ Out* to go back; the strip on top shows the whole range with the zoom as a box you can drag. *Use as time window* makes the zoomed range every view's window. The side panel: per object (waits, time, blocks, re-reads per block, how sequential), per statement and file, latency histograms with p50 / p95 / p99 and blocks per wait per event. Full scans are diagonals, a sort spill a write stripe then a read stripe, a multipass hash join a sawtooth of re-reads. Hover a mark for its wait, click to pin it (line and statement links); *Display* › *Marks* caps the rows (every k-th above it, "showing 1 in k"; a zoom asks again, so it needs fewer) |
 | **Lines** | the raw trace file, paged. Kind colouring, gutter marks of the selected statement, the object at the clicked line, streaming search, jump to time, a file selector for sets |
 | **Notes** (*Tools ▾*) | all notes of the trace |
 | **Reports** (*Tools ▾*) | what the CLI writes, saved from the tab |
@@ -462,11 +462,29 @@ SSH can list and fetch; diag and follow need a POSIX shell.
   see.
 - *Fetch reference data* runs the `refscript` queries for an open trace and applies the result
   to its tab (object, datafile and user names, plans). *Apply bundle from directory…* takes a
-  bundle made by `mtkprof refscript` + SQL*Plus. The bundle is kept per trace identity and
-  re-applied whenever the trace is opened.
+  bundle made by `mtkprof refscript` + SQL*Plus. *Paste script output…* needs no connection: the
+  Import names dialog (below). The bundle is kept per trace identity and re-applied whenever the
+  trace is opened.
 - Username/password over TCP or TCPS. No sysdba, wallet or Kerberos. Grants needed:
   [`docs/REMOTE.md`](REMOTE.md) § Privileges. Without `SELECT_CATALOG_ROLE`, reference data falls
   back to the `ALL_` views for objects and users (the job message lists what was skipped).
+
+### Import names (no connection)
+
+Object, datafile and user names (and, if asked, plans) from a script you run yourself: the dialog
+opens from the I/O map (*Import names…* in the Objects and Display tabs), the statement inspector
+(an obj# without a name) and Connections › Reference data › *Paste script output…*.
+
+1. *Copy script* or *Save names-<trace>.sql…* (*Execution plans too* adds DBMS_XPLAN). It is
+   one read-only PL/SQL block; run it in SQL*Plus, SQLcl or SQL Developer (Run Script) as any
+   user: without `SELECT_CATALOG_ROLE` it reads the `ALL_` views and says so.
+2. Paste everything it printed (or *Open saved output…*); the dialog counts what it found and
+   warns when the copy looks cut off. *Apply names* (⌘↩) sends it to the engine, which adds it to
+   the trace's kept bundle (a pasted name replaces the kept one, the rest stays) and reloads the
+   tab. The tiles on top show how many of the trace's objects, datafiles, users and plans are
+   named; the script's notes (what it could not read) are listed under the result.
+
+The format: [`docs/REF-BUNDLE.md`](REF-BUNDLE.md) § Paste.
 
 ### Jobs, sharing, team file
 

@@ -216,6 +216,21 @@ Open:
   in two PDBs of one trace set are one object.
 - Not measured: wheel zoom on 100,000 marks on WebView2 / WebKitGTK.
 
+### Import names (2026-11-08; DESIGN § Enrichment, `docs/REF-BUNDLE.md` § Paste)
+
+`refscript -paste` writes a names script (one read-only PL/SQL block printing tagged CSV lines; DBA_ views, else ALL_,
+with notes); the desktop's *Import names* dialog (the I/O map's Objects and Display tabs, the statement inspector,
+Connections › Reference data) hands it out and takes the pasted output; the engine merges it into the trace's kept
+bundle (`GET api/ref`, `GET api/ref/script`, `POST api/ref/paste`). `-ref names.txt` reads a saved output in the CLI.
+Run on the lab as SYSDBA and as MTK (`internal/ref/testdata/paste_io_waits_*.txt`, also the 2,500-id chunked script).
+
+Open:
+
+- A bundle applied in one session reaches the other open sessions of the same trace only when they are reopened (true of
+  every ref job).
+- The CLI's `serve` and the standalone HTML take no paste (their views point to `-ref`).
+- Not tried: SQL Developer, SQLcl and Toad/DBeaver (DBMS_OUTPUT must be on there); only SQL*Plus 19c on the lab.
+
 ### Row flow, Dialogue, Blocks (DESIGN § Three new views, `docs/PLAN-VIEWS.md`)
 
 - Row flow's "table + note" state (STAT lines without `(cr=…)`) is unit-tested only: no 19c setting produces

@@ -23,6 +23,7 @@ import { resolveVar, tokenShade } from '../components/colors'
 import { LineRef } from '../components/LineRef'
 import { StmtLink } from '../components/StmtLink'
 import { usePopover } from '../components/usePopover'
+import { ImportNames } from './RefImport'
 import { Shimmer, useReveal } from '../components/motion'
 import {
   ChartColumnIcon, CloseIcon, DatabaseIcon, ListIcon, PanelRightIcon, ScanIcon, SlidersHorizontalIcon, UndoIcon, ZoomInIcon, ZoomOutIcon,
@@ -612,7 +613,7 @@ function Figure({ doc, map, full, navRows, range, top, settings, loading, focus,
             <button type="button" className="quiet" onClick={() => onFocus(null)} aria-label="Stop highlighting" title="stop highlighting">×</button></p>
         )}
         {(colorBy === 'type' || colorBy === 'schema' || colorBy === 'tablespace') && coloring.legend.every((l) => l.kind === 'none' || l.kind === 'rest') && (
-          <p className="iom-focus small muted">Nothing here is named by {colorBy === 'type' ? 'a plan or ' : ''}a reference bundle: the bundle names owners, types and tablespaces (desktop: Connections › Reference data; CLI: <code>mtkprof refscript</code>, then <code>-ref</code>).</p>
+          <p className="iom-focus small muted">Nothing here is named by {colorBy === 'type' ? 'a plan or ' : ''}a reference bundle: the bundle names owners, types and tablespaces. <ImportNames doc={doc} /></p>
         )}
         {focus && focus.kind !== 'legend' && (
           <p className="iom-focus small">Highlighting {focus.kind === 'obj' ? 'one object' : <StmtLink doc={doc} id={focus.stmt} />}
@@ -931,7 +932,7 @@ function ObjectsTab({ doc, map, k, names, focus, onFocus }: { doc: TraceDoc; map
       <SampleNote map={map} k={k} />
       <p className="ld-note">
         Names: {counts.ref > 0 && <>{fmtInt(counts.ref)} from the reference bundle{counts.plan > 0 ? ', ' : ''}</>}{counts.plan > 0 && <>{fmtInt(counts.plan)} from the trace's plans</>}{counts.ref + counts.plan === 0 && 'none known'}.
-        {(unnamed > 0 || noOwner) && <> {unnamed > 0 ? `${unnamed} ${unnamed === 1 ? 'object has' : 'objects have'} only an obj#` : 'Plan names have no owner or type detail'}: a reference bundle names them (desktop: Connections › Reference data; CLI: <code>mtkprof refscript</code>, then <code>-ref</code>).</>}
+        {(unnamed > 0 || noOwner) && <> {unnamed > 0 ? `${unnamed} ${unnamed === 1 ? 'object has' : 'objects have'} only an obj#` : 'Plan names have no owner or type detail'}: a reference bundle names them. <ImportNames doc={doc} /></>}
       </p>
       <ol className="iom-objs">
         {stats.map((s) => {
@@ -1074,6 +1075,7 @@ function DisplayTab({ doc, settings, limit, setLimit, setNames, setPacked, setBa
         {flag('pdb', 'PDB', cdb ? 'the container the waits ran in: PDB1/MTK.MTK_CUST' : 'the container: this trace names none (a non-CDB, or older than 12.2)', !cdb)}
         {flag('sub', 'Partition', 'the subobject (partition) after the name, from a reference bundle')}
         {flag('num', 'obj#', 'the object number after the name: MTK_CUST #108609')}
+        <p className="ld-note">Owners, types, partitions, tablespaces and file names: <ImportNames doc={doc}>Import names from the database…</ImportNames></p>
       </section>
       <section className="ld-sec">
         <h4>Block axis <span className="h4-note">· panels per file</span></h4>

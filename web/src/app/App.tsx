@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   useStore, useStoreApi, usePersisted, ResizeHandle, PaneToggle, FilesPane, FilterBar, Inspector, LineDrawer, ViewErrorBoundary,
-  baseViews, currentView, useViewKeys, useShellPanes, useEscapeChain, loadFile,
+  baseViews, currentView, useViewKeys, useShellPanes, useEscapeChain, loadFile, RefImportHost,
 } from '@lib'
 import { TopBar, SubBar } from './TopBar'
 
@@ -45,6 +45,7 @@ export function App() {
         {panes.eventView && <PaneToggle open={panes.inspectorOpen} onToggle={() => setInspectorPref(!panes.inspectorOpen)} label="details pane" className="inspector-toggle" />}
       </div>
       {lines && <LineDrawer />}
+      <RefImportHost />
     </div>
   )
 }

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { RefImportDialog, engineRefImporter } from '@lib'
 import type { SessionInfo } from '../engine'
 import { useConnections } from './ConnectionsProvider'
 import { errorText, remoteApi, type DBSession, type DBTraceFile, type PlanStat } from './api'
@@ -269,6 +270,12 @@ function RefData({ conn }: { conn: Entry }) {
   const [sessions, setSessions] = useState<SessionInfo[]>([])
   const [target, setTarget] = useState('')
   const [lite, setLite] = useState(false)
+  const [pasting, setPasting] = useState(false)
+  // the target session's ref routes, for the Import names dialog
+  const importer = useMemo(
+    () => (client && target ? engineRefImporter({ base: client.base, token: client.token, fetch: (p, init) => client.fetch(`/s/${encodeURIComponent(target)}${p}`, init) }) : null),
+    [client, target],
+  )
 
   const load = useCallback(async () => {
     if (!client) return
@@ -308,6 +315,8 @@ function RefData({ conn }: { conn: Entry }) {
   }
 
   const label = (s: SessionInfo) => s.files.map((f) => f.name).join(', ') || s.paths.map(base).join(', ')
+  const targetSession = sessions.find((s) => s.id === target)
+  const targetLabel = targetSession ? label(targetSession) : undefined
   return (
     <section className="dbp-sec">
       <header>
@@ -329,8 +338,12 @@ function RefData({ conn }: { conn: Entry }) {
         </label>
         <button className="primary" onClick={() => void fromDb()} disabled={!target}>Fetch reference data</button>
         <button onClick={() => void fromDir()} disabled={!target}>Apply bundle from directory…</button>
+        <button onClick={() => setPasting(true)} disabled={!importer} title="Run a script yourself (SQL*Plus, SQL Developer) and paste what it prints: no connection needed">Paste script output…</button>
       </div>
-      <p className="note small">Runs the queries of <code>mtkprof refscript</code> on this connection; queries the user may not run are skipped (the job says which) and DBA_ views fall back to ALL_ ones. The open tab refreshes when the bundle is applied.</p>
+      <p className="note small">Runs the queries of <code>mtkprof refscript</code> on this connection; queries the user may not run are skipped (the job says which) and DBA_ views fall back to ALL_ ones. Without a connection: <b>Paste script output…</b> gives a script to run elsewhere and takes what it prints. The open tab refreshes when the names are applied.</p>
+      {importer && (
+        <RefImportDialog open={pasting} importer={importer} onClose={() => setPasting(false)} subject={targetLabel} />
+      )}
     </section>
   )
 }

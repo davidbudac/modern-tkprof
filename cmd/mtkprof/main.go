@@ -55,6 +55,7 @@ Usage:
   mtkprof plan   <trace...> -list                    statements with STAT plans
   mtkprof export <trace...> [-o dir]                 CSV tables
   mtkprof refscript <trace...> [-lite] [-o ref.sql]  SQL*Plus script collecting names and plans
+  mtkprof refscript <trace...> -paste [-plans] [-o names.sql]  script printing the names to paste into the app
   mtkprof ref -db <db-spec> <trace...> [-o dir] [-lite]  run those queries on the database, write the bundle
   mtkprof trace <db-spec> -sid S -serial N -on|-off [-waits=true] [-binds=true] [-plan-stat all_executions]   SQL trace of a session
   mtkprof trace <db-spec> -sessions | -files [-sid S -serial N] [-since 2h] | -diag   [-json]
@@ -92,7 +93,8 @@ Reference bundle (report, html, json, export, serve, pivot, plan):
   -ref dir   output of the `+"`mtkprof refscript`"+` script: objects.csv, datafiles.csv,
              users.csv, plans/<sql_id>.txt (each optional). Names for obj#, file#, user
              ids; DBMS_XPLAN text. Only `+"`ref -db`"+` connects to a database. -lite: ALL_
-             views only. See docs/REF-BUNDLE.md.
+             views only. -ref file: the saved output of the `+"`refscript -paste`"+` script.
+             See docs/REF-BUNDLE.md.
 
 Remote (fetch, follow, trace, ref -db, askpass):
   <user@host[:port]> is SSH (system ssh, or the Go library with -transport lib); <db-spec>
@@ -332,8 +334,16 @@ func cmdRefScript(args []string) error {
 	fs := flag.NewFlagSet("refscript", flag.ExitOnError)
 	out := fs.String("o", "", "output file (default stdout)")
 	lite := fs.Bool("lite", false, "ALL_ views only, runnable by any schema (no datafile names)")
+	paste := fs.Bool("paste", false, "names script: prints the names to paste into the app (or to save as a file for -ref) instead of spooling ref/")
+	plans := fs.Bool("plans", false, "with -paste: DBMS_XPLAN plans too (a much longer output)")
 	nf := addFollowFlag(fs)
 	files := parseArgs(fs, args)
+	if *paste && *lite {
+		return fmt.Errorf("-lite: not with -paste (the names script reads the ALL_ views by itself when the DBA_ views are not readable)")
+	}
+	if *plans && !*paste {
+		return fmt.Errorf("-plans: with -paste only (the spooling script always collects plans)")
+	}
 	m, err := buildModel(files, *nf)
 	if err != nil {
 		return err
@@ -343,7 +353,11 @@ func cmdRefScript(args []string) error {
 		return err
 	}
 	defer w.Close()
-	_, err = io.WriteString(w, report.RefScript(m, report.RefScriptOptions{Lite: *lite}))
+	script := report.RefScript(m, report.RefScriptOptions{Lite: *lite})
+	if *paste {
+		script = report.RefPasteScript(m, report.RefPasteOptions{Plans: *plans})
+	}
+	_, err = io.WriteString(w, script)
 	return err
 }
 

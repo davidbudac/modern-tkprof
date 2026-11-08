@@ -1,0 +1,56 @@
+/* The Import names dialog (views/RefImport.tsx). */
+.rfi-dialog { inline-size: min(48rem, calc(100vw - 2rem)); max-block-size: calc(100dvh - 2rem); padding: 0; border: 1px solid var(--hairline-strong); border-radius: var(--radius); color: var(--ink); background: var(--surface-raised); box-shadow: 0 8px 32px color-mix(in oklch, var(--ink) 18%, transparent); }
+.rfi-dialog:modal { overscroll-behavior: contain; }
+.rfi-dialog::backdrop { background: oklch(0% none none / 0.45); overscroll-behavior: contain; }
+.rfi-card { display: flex; flex-direction: column; gap: var(--sp-3); box-sizing: border-box; max-block-size: calc(100dvh - 2rem); overflow: auto; overscroll-behavior: contain; padding: var(--sp-5); }
+.rfi-card > * { margin: 0; }
+.rfi-card p { margin: 0; }
+.rfi-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.rfi-head h2 { margin: 0; font-size: var(--text-lg); }
+.rfi-x { border: 0; font-size: var(--text-lg); line-height: 1; padding: var(--sp-1) var(--sp-2); color: var(--ink-2); }
+.rfi-subject { color: var(--ink-2); overflow-wrap: anywhere; margin-block-start: calc(-1 * var(--sp-2)); }
+
+.rfi-card button.rfi-primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { .rfi-card button.rfi-primary:hover:not(:disabled) { background: color-mix(in oklch, var(--ink) 85%, var(--surface)); } }
+.rfi-card button:disabled { opacity: 0.45; cursor: default; }
+
+/* named / wanted per kind */
+.rfi-cov { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: var(--sp-2); margin: 0; }
+.rfi-cov > div { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); }
+.rfi-cov dt { font-size: var(--text-xs); color: var(--ink-2); }
+.rfi-cov dd { margin: 0; font-size: var(--text-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rfi-cov dd b { color: var(--ink); font-size: var(--text-md); }
+.rfi-bar { grid-column: 1 / -1; display: block; block-size: 3px; border-radius: 2px; background: var(--wash-strong); overflow: hidden; }
+.rfi-bar i { display: block; block-size: 100%; background: var(--ink-3); transition: inline-size var(--dur, 160ms) var(--ease-out, ease-out); }
+.rfi-part .rfi-bar i { background: var(--s-warning); }
+.rfi-full .rfi-bar i { background: var(--s-good); }
+
+/* the two steps */
+.rfi-steps { list-style: none; counter-reset: rfi; display: grid; gap: var(--sp-4); margin: 0; padding: 0; }
+.rfi-steps > li { counter-increment: rfi; display: grid; gap: var(--sp-2); padding-inline-start: 2rem; position: relative; }
+.rfi-steps > li::before { content: counter(rfi); position: absolute; inset-inline-start: 0; inset-block-start: 0.05rem; inline-size: 1.4rem; block-size: 1.4rem; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--hairline-strong); font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); }
+.rfi-steps h3 { margin: 0; font-size: var(--text-md); }
+.rfi-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.rfi-row button { white-space: nowrap; }
+.rfi-spacer { flex: 1; }
+.rfi-check { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); }
+.rfi-script summary { cursor: pointer; color: var(--ink-2); inline-size: fit-content; }
+.rfi-script pre { margin-block-start: var(--sp-2); max-block-size: 16rem; overflow: auto; overscroll-behavior: contain; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-sunken); font-size: var(--text-xs); white-space: pre; }
+.rfi-paste { box-sizing: border-box; inline-size: 100%; min-block-size: 8rem; resize: vertical; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.45; color: var(--ink); background: var(--surface); border: 1px solid var(--hairline-strong); border-radius: var(--radius); padding: var(--sp-2) var(--sp-3); white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+.rfi-paste::placeholder { color: var(--ink-3); }
+.rfi-note code, .rfi-result code, .rfi-unsupported code { font-size: 0.95em; }
+
+.rfi-warn { color: var(--s-serious); }
+.rfi-error { color: var(--s-critical); white-space: pre-wrap; overflow-wrap: anywhere; }
+.rfi-result { display: grid; gap: var(--sp-2); padding: var(--sp-3); border-inline-start: 2px solid var(--s-good); background: color-mix(in oklch, var(--s-good) 7%, transparent); border-radius: 0 var(--radius) var(--radius) 0; }
+.rfi-result.rfi-failed { border-color: var(--s-critical); background: color-mix(in oklch, var(--s-critical) 7%, transparent); }
+.rfi-done { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-3); }
+.rfi-done p { flex: 1 1 20rem; }
+.rfi-notes summary { cursor: pointer; color: var(--ink-2); inline-size: fit-content; }
+.rfi-notes ul { margin: var(--sp-1) 0 0; padding-inline-start: 1.2rem; display: grid; gap: 2px; }
+.rfi-notes li { overflow-wrap: anywhere; }
+.rfi-unsupported { padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-sunken); overflow-wrap: anywhere; }
+
+/* the link into the dialog, in a view's note */
+button.rfi-open { font-size: inherit; font-weight: 600; }
+.rfi-cli code { font-size: 0.95em; }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/davidbudac/modern-tkprof/internal/model"
@@ -349,4 +350,164 @@ func (s *Server) commitRef(j *Job, ss *Session, stage, note string) error {
 	s.bc.publish("session", ss.event())
 	s.logf("info", "session %s: reference bundle applied (%s), revision %d", ss.id, b.Summary(), ss.event().Rev)
 	return nil
+}
+
+// The names script and its pasted output (docs/REF-BUNDLE.md § Paste):
+//
+// GET /s/{id}/api/ref: what the trace refers to by number and how much of it
+// the session's bundle names, and the session's latest ref job.
+// GET /s/{id}/api/ref/script?plans=true: the names script for the trace
+// (report.RefPasteScript).
+// POST /s/{id}/api/ref/paste {text}: the script's output, read at once (202
+// with what it holds); a ref job merges it into the kept bundle (an entry of
+// the paste replaces the kept one, the rest stays) and applies that.
+
+// refPasteMax bounds a pasted text (the plans of a big trace are long).
+const refPasteMax = 64 << 20
+
+// RefStatus is the answer of GET /s/{id}/api/ref.
+type RefStatus struct {
+	Wanted report.RefCounts `json:"wanted"` // ids the trace refers to (obj#, file#, user ids, sql_ids with text)
+	Named  report.RefCounts `json:"named"`  // of those, the ones the applied bundle names
+	Stored bool             `json:"stored"` // a bundle is kept for the trace
+	Rev    int              `json:"rev"`
+	Job    *JobInfo         `json:"job,omitempty"` // the session's latest ref job
+}
+
+// RefScript is the answer of GET /s/{id}/api/ref/script.
+type RefScript struct {
+	Script string           `json:"script"`
+	Name   string           `json:"name"` // a file name for it
+	Plans  bool             `json:"plans"`
+	Wanted report.RefCounts `json:"wanted"`
+}
+
+// RefPasteRequest is the body of POST /s/{id}/api/ref/paste.
+type RefPasteRequest struct {
+	Text string `json:"text"`
+}
+
+// RefPasted is the answer of POST /s/{id}/api/ref/paste.
+type RefPasted struct {
+	Job JobInfo `json:"job"` // the ref job that applies it
+	// Read is what the text holds; Notes the script's notes (a view it could
+	// not read and the one it read instead, plans not found); Complete: the
+	// text has the first and the last line of the script's output (else it
+	// was cut off), or it was read as tables.
+	Read     report.RefCounts `json:"read"`
+	Notes    []string         `json:"notes"`
+	Complete bool             `json:"complete"`
+}
+
+// shownModelLocked is the model the session shows (a live session's latest
+// snapshot); nil once closed. The caller holds ss.use.
+func (ss *Session) shownModelLocked() *model.Model {
+	if ss.op == nil {
+		return nil
+	}
+	co, _ := ss.op.trace()
+	return co.Model
+}
+
+// refStatusHandler serves GET /s/{id}/api/ref.
+func (s *Server) refStatusHandler(ss *Session) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		m := ss.shownModelLocked() // the request holds ss.use
+		if m == nil {
+			writeError(w, errorf(CodeConflict, "session %s is closed", ss.id))
+			return
+		}
+		st := RefStatus{Wanted: report.RefCountsOf(m), Named: report.RefNamed(m)}
+		if ss.identity != "" {
+			_, err := os.Stat(s.refDir(ss))
+			st.Stored = err == nil
+		}
+		ss.mu.Lock()
+		st.Rev = ss.rev
+		if ss.ref.job != nil {
+			info := ss.ref.job.Info()
+			st.Job = &info
+		}
+		ss.mu.Unlock()
+		writeJSON(w, http.StatusOK, st)
+	}
+}
+
+// refScriptHandler serves GET /s/{id}/api/ref/script?plans=.
+func (s *Server) refScriptHandler(ss *Session) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		plans := false
+		if v := r.URL.Query().Get("plans"); v != "" {
+			var err error
+			if plans, err = strconv.ParseBool(v); err != nil {
+				writeError(w, errorf(CodeBadRequest, "plans: %v", err))
+				return
+			}
+		}
+		m := ss.shownModelLocked()
+		if m == nil {
+			writeError(w, errorf(CodeConflict, "session %s is closed", ss.id))
+			return
+		}
+		writeJSON(w, http.StatusOK, RefScript{
+			Script: report.RefPasteScript(m, report.RefPasteOptions{Plans: plans}),
+			Name:   report.RefPasteScriptName(m),
+			Plans:  plans,
+			Wanted: report.RefCountsOf(m),
+		})
+	}
+}
+
+// refPasteHandler serves POST /s/{id}/api/ref/paste {text}: 202.
+func (s *Server) refPasteHandler(ss *Session) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body RefPasteRequest
+		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, refPasteMax))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&body); err != nil {
+			writeError(w, errorf(CodeBadRequest, "body: %v", err))
+			return
+		}
+		if ss.identity == "" {
+			writeError(w, errorf(CodeBadRequest, "reference data cannot be applied to a live session; open the file normally when the follow ends"))
+			return
+		}
+		p := ref.ParsePaste(body.Text)
+		if p.Bundle.Empty() {
+			msg := fmt.Sprintf("no names in the pasted text: paste the whole output of the names script, from %q to %q", ref.PasteHeader, ref.PasteEnd)
+			if len(p.Notes) > 0 {
+				msg += "; the script said: " + strings.Join(p.Notes, "; ")
+			}
+			writeError(w, errorf(CodeBadRequest, "%s", msg))
+			return
+		}
+		pasted := p.Bundle
+		j, err := s.startRefJob(ss, nil, func(j *Job) error { return s.runRefPaste(j, ss, pasted) })
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		notes := p.Notes
+		if notes == nil {
+			notes = []string{}
+		}
+		writeJSON(w, http.StatusAccepted, RefPasted{Job: j.Info(), Read: report.RefCountsOfBundle(pasted), Notes: notes, Complete: p.Tables || p.Header && p.End})
+	}
+}
+
+// runRefPaste: merge the pasted names into the kept bundle, store and apply it.
+func (s *Server) runRefPaste(j *Job, ss *Session, pasted *ref.Bundle) error {
+	j.SetPhase("apply", "", 0, 0)
+	st, err := s.stage()
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(st)
+	b := ref.NewBundle()
+	b.Merge(s.loadStoredRef(ss)) // nil: nothing kept yet
+	b.Merge(pasted)
+	if err := ref.WriteBundle(b, st); err != nil {
+		return err
+	}
+	return s.commitRef(j, ss, st, "pasted "+pasted.Summary())
 }

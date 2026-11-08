@@ -11,6 +11,7 @@ import { scopeKey, useScope } from '../data/scopedstmts'
 import type { Scope } from '../state/store'
 import { ToolbarMenu } from '../components/ToolbarMenu'
 import { findingText } from './Findings'
+import { ImportNames } from './RefImport'
 import { useScopedFindings } from '../data/scopedfindings'
 
 const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
@@ -59,7 +60,7 @@ export function StatementContext({ doc, id, stats: scoped, narrowed = false }: {
                 )}</small>
             </div>
           ))}
-          {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio')) && <p className="faint xs">obj# names need a ref bundle (<code>mtkprof refscript</code>, <code>-ref</code>)</p>}
+          {waits.some((w) => w.obj > 0 && (w.role === 'userio' || w.role === 'sysio') && !doc.objectName(w.obj)) && <p className="faint xs">obj# without a name: <ImportNames doc={doc} /></p>}
         </div>
       )}
       {(children.length > 0 || parents.length > 0) && (

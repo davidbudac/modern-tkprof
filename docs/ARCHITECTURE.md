@@ -330,6 +330,35 @@ contract) adds `access_predicates`, `filter_predicates`, `object_alias`,
 flag per row with predicates (click to expand the text) and a header hint
 when overlaid. See `docs/REF-BUNDLE.md`.
 
+**The names script and its pasted output** (`internal/report/refpaste.go`,
+`internal/ref/paste.go`, `internal/engine/ref.go`, `web/src/lib/data/refimport.ts`,
+`web/src/lib/views/RefImport.tsx`). `report.RefPasteScript(m, {Plans})`
+(`refscript -paste`) writes one PL/SQL block over the same ids: they go in as
+`sys.odcinumberlist` literals (<= 1000 per constructor), each part runs as
+dynamic SQL with the list bound (`table(:ids)`), so a missing privilege fails
+that part alone (DBA_ then ALL_ views; a `note` line says which), and every
+row is printed by DBMS_OUTPUT as a tagged CSV line (`obj,` `file,` `user,`
+`plan,` `note,` between `mtkprof-ref 1` and `mtkprof-ref end`).
+`ref.ParsePaste(text)` reads those lines (anything else is ignored), else CSV /
+TSV tables under header rows, into a `Bundle` with the notes and whether the
+paste is complete; `ref.LoadBundle(file)` reads a saved output the same way
+(`-ref names.txt`), `ref.WriteBundle` writes a bundle in the directory layout
+and `Bundle.Merge` overlays one on another. The engine's session routes:
+`GET api/ref` (`report.RefCountsOf` / `RefNamed`: the trace's ids per kind and
+how many the applied bundle names, the session's latest ref job), `GET
+api/ref/script?plans=`, and `POST api/ref/paste {text}`, which parses at once
+(202 with what it read; 400 when it holds no name) and starts a ref job that
+merges the paste into the kept bundle, stores and applies it as the other ref
+jobs do (`commitRef`; requests hold `ss.use` shared, so the apply cannot run
+inside the request). The lib: `DataSource.refs` (a `RefImporter` on a
+`RemoteSource`; null on a `LocalSource`), the store's `refImport` flag (kept by
+`swapDoc`, so the dialog stays open across the reload the import causes),
+`RefImportHost` mounted by both shells, `ImportNames` links in the views (the
+CLI's way where the server answers 404: `mtkprof serve`, the standalone HTML),
+and `shell/files.ts` (`setFileHost`: the desktop's native save / open dialogs
+instead of a download and a file input). The dialog follows the job through
+`GET api/ref` and shows the named counts.
+
 ### Server-side slicing (`internal/slice`, `web/src/lib/data/source.ts`)
 
 `mtkprof serve -facts=false` (or `-slice`, which also works with facts) keeps the

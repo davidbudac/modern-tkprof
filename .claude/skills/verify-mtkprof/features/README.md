@@ -27,3 +27,4 @@ Maintained source for verifying user-facing behavior of the mtkprof desktop app 
 - [Lines view](./lines-view.md) covers the raw trace text viewer, search and persisted prefs.
 - [Analysis views](./analysis-views.md) covers Overview, Statements, Waits, Blocks, Timeline, Sessions and Pivot.
 - [App pages](./app-pages.md) covers Settings and Connections.
+- [Import names](./import-names.md) covers the names script dialog (I/O map, statement inspector, Connections › Reference data).

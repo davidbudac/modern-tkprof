@@ -173,6 +173,23 @@ desktop engine do (`internal/remote/db`, docs/REMOTE.md), and `ref -db`
 runs the same queries (`report.RefQueries`, the values `RefScript` prints)
 to fetch the bundle directly.
 
+**Pasted names (decided 2026-11-08).** The spooling script needs `ref/` and
+`ref/plans/` made beforehand and a directory handed back; a user who only
+wants the objects named should not need that or a database connection.
+`refscript -paste` writes a *names script*: one read-only PL/SQL block that
+prints tagged CSV lines through DBMS_OUTPUT (any client: SQL*Plus, SQLcl, SQL
+Developer), reads the ALL_ views by itself where the DBA_ views are not
+readable (so there is no `-lite` for it) and leaves plans out unless asked
+(`-plans`; they make the output long). The app's *Import names* dialog hands
+out the script and takes the copied output; the reader ignores every
+untagged line, so the whole output is pasted as it is. A paste is merged into
+the trace's kept bundle rather than replacing it (names pasted later must not
+drop plans fetched earlier); a directory or database fetch still replaces.
+Parsing and applying stay in Go (the engine): one reader for the app, `-ref
+file` and the tests; the browser only counts tagged lines to say what it
+found. The CLI's `serve` and the standalone HTML do not take pastes; their
+views point to `-ref`.
+
 ## Deferred to v2
 
 Comparison mode; raw trace line viewer (serve mode only); DBMS_XPLAN overlay

@@ -134,6 +134,8 @@ export interface State {
   blocks: { stmt: ID | null; event: ID | null }
   /** the I/O map's zoom stack: the last entry is what it shows, `[]` the whole scope; the view's own, not a filter of the other views */
   ioZoom: IOZoom[]
+  /** the Import names dialog is open (views/RefImport.tsx; the shell mounts `RefImportHost`); it stays open across `swapDoc`, the reload an import causes */
+  refImport: boolean
   /** counts the documents shown: `swapDoc` (a live session's next snapshot) increments it; views holding server answers outside `useSourceQuery` refetch on a change */
   rev: number
   /** null unless the document is a live session's */
@@ -151,6 +153,7 @@ const initial: State = {
   pivot: { fact: 'calls', by: ['stmt'], sort: { calls: 'e', waits: 'ela' }, limit: 1000, stmt: null, event: null, notice: null },
   blocks: { stmt: null, event: null },
   ioZoom: [],
+  refImport: false,
   rev: 0, live: null,
 }
 
@@ -191,7 +194,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], ioZoom: [], statementCallTypes: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], ioZoom: [], refImport: false, statementCallTypes: null, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
   }
   const swapDoc: Store['swapDoc'] = (l) => {
     setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
@@ -285,6 +288,9 @@ function makeActions(setState: Store['setState']) {
     zoomOutIO() { setState((s) => (s.ioZoom.length ? { ioZoom: s.ioZoom.slice(0, -1) } : {})) },
     /** The I/O map shows the whole scope again. */
     resetIOZoom() { setState((s) => (s.ioZoom.length ? { ioZoom: [] } : {})) },
+    /** Opens the Import names dialog (names for obj#, file#, user ids from the names script's pasted output). */
+    openRefImport() { setState({ refImport: true }) },
+    closeRefImport() { setState({ refImport: false }) },
     /** Zoom the Overview lanes to `w` (pushed on the zoom stack; the range on top again changes nothing). */
     zoomLanes(w: TimeWindow) {
       setState((s) => {

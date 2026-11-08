@@ -88,16 +88,17 @@ func (b *Bundle) Summary() string {
 // export can be dropped in) *_objects.csv is read as objects and
 // datafiles_*.csv as datafiles too. CSV headers are matched
 // case-insensitively; quotes, a UTF-8 BOM and the blank / feedback lines
-// SQL*Plus may leave around the data are tolerated.
+// SQL*Plus may leave around the data are tolerated. A file instead of a
+// directory is read as the saved output of the names script (ParsePaste).
 func LoadBundle(dir string) (*Bundle, error) {
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, fmt.Errorf("reference bundle: %w", err)
 	}
 	if !st.IsDir() {
-		return nil, fmt.Errorf("reference bundle: %s is not a directory", dir)
+		return loadPasteFile(dir)
 	}
-	b := &Bundle{Objects: map[int64]ObjectRef{}, Files: map[int64]FileRef{}, Users: map[int64]string{}, Plans: map[string]string{}, byData: map[int64]int64{}}
+	b := NewBundle()
 	for _, p := range globAll(dir, "objects.csv", "*_objects.csv") {
 		if err := b.loadObjects(p); err != nil {
 			return nil, err
@@ -194,10 +195,7 @@ func (b *Bundle) loadObjects(path string) error {
 		}
 		o := ObjectRef{ID: id, Owner: cell(row, h, "OWNER"), Name: cell(row, h, "OBJECT_NAME"), Sub: cell(row, h, "SUBOBJECT_NAME"), Type: cell(row, h, "OBJECT_TYPE")}
 		o.DataID, _ = num(cell(row, h, "DATA_OBJECT_ID"))
-		b.Objects[id] = o
-		if o.DataID > 0 && o.DataID != id {
-			b.byData[o.DataID] = id
-		}
+		b.addObject(o)
 	}
 	return nil
 }

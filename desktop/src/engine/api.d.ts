@@ -774,7 +774,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * What the trace refers to by number and how much of it the session's bundle names
+         * @description `wanted` counts the obj#, file# and user ids of the trace and its
+         *     sql_ids with text (what the reference scripts look up); `named` those
+         *     the applied bundle names (a sql_id: a DBMS_XPLAN plan). `job` is the
+         *     session's latest ref job (`POST /s/{id}/api/ref`, `POST
+         *     /s/{id}/api/ref/paste`): a client follows a paste by asking again
+         *     until it is no longer running.
+         */
+        get: operations["sessionRefStatus"];
         put?: never;
         /**
          * Apply a reference bundle to the session (job kind ref)
@@ -789,11 +798,66 @@ export interface paths {
          *     document is rebuilt and `rev` rises by one (a session event); the
          *     job ends `done` with the bundle's size in `message`. Opening the same
          *     trace again applies the kept bundle before the first document.
-         *     Applying another bundle replaces the first. One ref job per session
-         *     at a time (409). `DELETE /engine/cache` drops the kept bundles of the
-         *     traces no session has open.
+         *     Applying another bundle replaces the first (a paste merges into it:
+         *     `POST /s/{id}/api/ref/paste`). One ref job per session at a time
+         *     (409). `DELETE /engine/cache` drops the kept bundles of the traces no
+         *     session has open.
          */
         post: operations["sessionRef"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/ref/script": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The names script of the session's trace (docs/REF-BUNDLE.md § Paste)
+         * @description `mtkprof refscript -paste`: one read-only PL/SQL block for SQL*Plus,
+         *     SQLcl or SQL Developer that prints the names of the trace's obj#,
+         *     file# and user ids (and with `plans` the DBMS_XPLAN plans of its
+         *     sql_ids) as lines to copy and paste (`POST /s/{id}/api/ref/paste`).
+         *     It reads the ALL_ views where the DBA_ views are not readable and
+         *     says so in note lines.
+         */
+        get: operations["sessionRefScript"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/ref/paste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply the pasted output of the names script (job kind ref)
+         * @description `text` is read at once: the tagged lines of the names script
+         *     (`mtkprof-ref 1`, `obj,…`, `file,…`, `user,…`, `plan,…`, `note,…`,
+         *     `mtkprof-ref end`; anything else is ignored), else CSV or
+         *     tab-separated tables under header rows (OBJECT_ID …, FILE# … NAME,
+         *     USER_ID … USERNAME). 400 when it holds no name. The answer says what
+         *     it read; a ref job merges it into the bundle kept for the trace (an
+         *     entry of the paste replaces the kept one with its key, the rest
+         *     stays), stores and applies that as `POST /s/{id}/api/ref` does (`rev`
+         *     rises by one). One ref job per session at a time (409); not on a live
+         *     session (400).
+         */
+        post: operations["sessionRefPaste"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2042,6 +2106,44 @@ export interface components {
             /** @description waits */
             n: number;
         };
+        /** @description report.RefCounts, ids of each kind (obj#, file#, user ids, sql_ids) */
+        RefCounts: {
+            objects: number;
+            files: number;
+            users: number;
+            plans: number;
+        };
+        RefStatus: {
+            /** @description what the trace refers to (sql_ids with text) */
+            wanted: components["schemas"]["RefCounts"];
+            /** @description of those, what the applied bundle names */
+            named: components["schemas"]["RefCounts"];
+            /** @description a bundle is kept for the trace */
+            stored: boolean;
+            rev: number;
+            /** @description the session's latest ref job */
+            job?: components["schemas"]["JobInfo"];
+        };
+        RefScript: {
+            script: string;
+            /** @description a file name for it (names-<trace>.sql) */
+            name: string;
+            plans: boolean;
+            wanted: components["schemas"]["RefCounts"];
+        };
+        RefPasteRequest: {
+            /** @description the script's output as copied (at most 64 MiB) */
+            text: string;
+        };
+        RefPasted: {
+            job: components["schemas"]["JobInfo"];
+            /** @description the entries of the text */
+            read: components["schemas"]["RefCounts"];
+            /** @description the script's notes (a view it could not read and the one it read instead, plans not read) */
+            notes: string[];
+            /** @description the text has the first and the last line of the script's output (else it was cut off), or it was read as tables */
+            complete: boolean;
+        };
         /** @enum {string} */
         ErrorCode: "bad_request" | "unauthorized" | "not_found" | "conflict" | "cancelled" | "needs_prompt" | "internal" | "remote";
         ErrorEnvelope: {
@@ -2083,7 +2185,7 @@ export interface components {
              * @enum {string}
              */
             unit: "bytes" | "lines" | "files" | "queries" | "";
-            /** @description the error of a failed job, "cancelled" for a cancelled one. A finished ref job: what the bundle holds, and the reference queries it skipped. A running db fetch: a note once it is past 200 MB */
+            /** @description the error of a failed job, "cancelled" for a cancelled one. A finished ref job: what the bundle holds, and the reference queries it skipped or what a paste held. A running db fetch: a note once it is past 200 MB */
             message: string;
             /** @description the session the job opens (kind open) or applies to (kind ref) */
             session?: string;
@@ -3755,6 +3857,32 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    sessionRefStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     sessionRef: {
         parameters: {
             query?: never;
@@ -3787,6 +3915,67 @@ export interface operations {
                     "application/json": {
                         job: components["schemas"]["JobInfo"];
                     };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionRefScript: {
+        parameters: {
+            query?: {
+                /** @description the plans too (a much longer output) */
+                plans?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the script */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefScript"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionRefPaste: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefPasteRequest"];
+            };
+        };
+        responses: {
+            /** @description what the text holds, and the job that applies it */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefPasted"];
                 };
             };
             400: components["responses"]["BadRequest"];
