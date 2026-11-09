@@ -5,7 +5,7 @@
 // the remembered assistant keys. The page reaches all of it through `preload.ts`
 // (`window.mtkprof`) and the commands below, never Node itself.
 
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell, type IpcMainInvokeEvent } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -18,18 +18,46 @@ import { cacheDir, dataDir, isUnder, logDir, setElectronPaths } from './paths'
 import { KeyCommands, Secrets } from './secrets'
 import { storeDelete, storeFlush, storeLoad, storeSet } from './store'
 import { checkForUpdate, RELEASES_URL } from './updates'
-import { SafeStorageVault } from './vault'
+import { SafeStorageVault, tauriKeychain } from './vault'
 import { loadWindowState, trackWindowState } from './windowstate'
 
 const SCHEME = 'mtkprof'
 const ORIGIN = `${SCHEME}://app`
-/** `pnpm dev:app`: the Vite dev server instead of the built UI (unpackaged runs only). */
-const DEV_URL = !app.isPackaged ? process.env.MTKPROF_DEV_URL || null : null
+/** `pnpm dev:app`: the Vite dev server instead of the built UI (unpackaged runs only, loopback only). */
+const DEV_URL = !app.isPackaged ? devUrl(process.env.MTKPROF_DEV_URL) : null
+
+function devUrl(u: string | undefined): string | null {
+  if (!u) return null
+  try {
+    const url = new URL(u)
+    if (url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname)) return url.origin
+  } catch {
+    // below
+  }
+  console.error(`MTKPROF_DEV_URL must be http://127.0.0.1:<port> or http://localhost:<port>, not ${u}`)
+  return null
+}
+
+/** The page's own origin: the built UI, or the dev server in a dev run. */
+function own(u: string): boolean {
+  try {
+    const url = new URL(u)
+    // Node's URL gives a custom scheme the origin "null": compare scheme and host
+    if (url.protocol === `${SCHEME}:` && url.host === 'app') return true
+    return DEV_URL !== null && url.origin === DEV_URL
+  } catch {
+    return false
+  }
+}
 
 /** Dev runs, or `MTKPROF_SMOKE=1`: the UI offers "Kill engine" and `engine_kill` works. */
 const devTools = () => !app.isPackaged || process.env.MTKPROF_SMOKE === '1'
 
 setElectronPaths()
+// a packaged app takes no debugger: no fuse covers Chromium's remote debugging switches
+if (app.isPackaged && ['remote-debugging-port', 'remote-debugging-pipe', 'inspect', 'inspect-brk'].some((s) => app.commandLine.hasSwitch(s))) {
+  app.exit(1)
+}
 // smoke screenshots: a window under others (or on another space) keeps painting, so a capture is current
 if (process.env.MTKPROF_SMOKE_SHOTS && devTools()) {
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
@@ -61,6 +89,7 @@ const engine = new EngineManager({
 const keys = new KeyCommands(
   new Secrets(new SafeStorageVault(), (m) => log.warn(m)),
   () => engine.endpoint(),
+  tauriKeychain(),
 )
 const opens = new OpenQueue()
 
@@ -117,10 +146,17 @@ const dist = () => path.join(app.getAppPath(), 'dist')
 
 const CSP = [
   "default-src 'self'",
+  // the engine: its port changes with every start
   "connect-src 'self' http://127.0.0.1:*",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+  "frame-src 'none'",
+  "worker-src 'none'",
 ].join('; ')
 
 /** `mtkprof://app/<path>`: the files of `dist/`; anything else is index.html. */
@@ -129,7 +165,13 @@ function serveUI() {
     const url = new URL(req.url)
     if (url.host !== 'app') return new Response('not found', { status: 404 })
     const root = dist()
-    let file = path.join(root, decodeURIComponent(url.pathname))
+    let rel: string
+    try {
+      rel = decodeURIComponent(url.pathname)
+    } catch {
+      return new Response('bad request', { status: 400 })
+    }
+    let file = path.join(root, rel)
     if (!isUnder(file, root)) return new Response('not found', { status: 404 })
     if (url.pathname === '/' || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, 'index.html')
     const r = await net.fetch(pathToFileURL(file).toString())
@@ -139,7 +181,16 @@ function serveUI() {
   })
 }
 
-const isWebLink = (u: string) => /^https?:\/\//i.test(u)
+/** An http(s) link to hand to the system browser, re-serialized; null for anything else. */
+function webLink(u: unknown): string | null {
+  if (typeof u !== 'string' || u.length > 200_000) return null
+  try {
+    const url = new URL(u)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null
+  } catch {
+    return null
+  }
+}
 
 function createWindow() {
   const saved = loadWindowState()
@@ -158,6 +209,7 @@ function createWindow() {
       sandbox: true,
       nodeIntegration: false,
       spellcheck: false,
+      devTools: !app.isPackaged,
       backgroundThrottling: !(process.env.MTKPROF_SMOKE_SHOTS && devTools()),
     },
   })
@@ -167,25 +219,54 @@ function createWindow() {
   win.on('closed', () => (win = null))
 
   const wc = win.webContents
-  const own = (u: string) => u.startsWith(`${ORIGIN}/`) || (DEV_URL !== null && u.startsWith(DEV_URL))
   // a web link that would open a new window goes to the system browser; nothing else opens one
   wc.setWindowOpenHandler(({ url }) => {
-    if (isWebLink(url)) void shell.openExternal(url)
+    const link = webLink(url)
+    if (link) void shell.openExternal(link)
     return { action: 'deny' }
   })
   // the page never navigates away (a file dropped outside the drop handling would load it)
   wc.on('will-navigate', (e, url) => {
     if (own(url)) return
     e.preventDefault()
-    if (isWebLink(url)) void shell.openExternal(url)
+    const link = webLink(url)
+    if (link) void shell.openExternal(link)
   })
-  wc.on('render-process-gone', (_e, d) => log.error(`the page's process is gone: ${d.reason} (code ${d.exitCode})`))
+  // a reload or a crash ends the page's open writes
+  wc.on('did-start-navigation', (d) => {
+    if (d.isMainFrame && !d.isSameDocument) files.abortWrites()
+  })
+  wc.on('render-process-gone', (_e, d) => {
+    files.abortWrites()
+    log.error(`the page's process is gone: ${d.reason} (code ${d.exitCode})`)
+  })
   void win.loadURL(DEV_URL ?? `${ORIGIN}/`)
 }
 
 // ---- commands ----
 
 type Args = Record<string, unknown>
+
+/** The engine options as the page sends them (settings), checked: they become the engine's flags. */
+function engineOptions(o: unknown): EngineOptions | undefined {
+  if (o === undefined || o === null) return undefined
+  if (typeof o !== 'object') throw new Error('engine options: not an object')
+  const { cacheDir: dir, cacheCap: cap, planVizUrl: viz } = o as Record<string, unknown>
+  const out: EngineOptions = {}
+  if (dir !== undefined && dir !== null) {
+    if (typeof dir !== 'string' || !path.isAbsolute(dir) || dir.includes('\0') || dir.length > 1024) throw new Error(`engine options: cache dir must be an absolute path: ${dir}`)
+    out.cacheDir = dir
+  }
+  if (cap !== undefined && cap !== null) {
+    if (typeof cap !== 'string' || !/^\d{1,6}[KMGT]?$/.test(cap)) throw new Error(`engine options: cache cap like 20G: ${cap}`)
+    out.cacheCap = cap
+  }
+  if (viz !== undefined && viz !== null) {
+    if (typeof viz !== 'string' || (viz !== '' && webLink(viz) === null)) throw new Error(`engine options: plan viz URL must be http(s): ${viz}`)
+    out.planVizUrl = viz
+  }
+  return out
+}
 type Command = (a: Args) => unknown
 
 function dialogFilters(f: unknown): Electron.FileFilter[] | undefined {
@@ -197,9 +278,9 @@ function dialogFilters(f: unknown): Electron.FileFilter[] | undefined {
 }
 
 const commands: Record<string, Command> = {
-  engine_start: (a) => engine.start(a.opts as EngineOptions | undefined),
+  engine_start: (a) => engine.start(engineOptions(a.opts)),
   engine_stop: () => engine.stop(),
-  engine_restart: (a) => engine.restart(a.opts as EngineOptions | undefined),
+  engine_restart: (a) => engine.restart(engineOptions(a.opts)),
   engine_status: () => engine.status(),
   engine_kill: () => {
     if (!devTools()) throw new Error('engine_kill is available in dev runs and smoke runs only')
@@ -219,8 +300,8 @@ const commands: Record<string, Command> = {
   open_releases_page: () => shell.openExternal(RELEASES_URL),
   // only http(s), so a page can't launch local files or apps
   open_external_url: async (a) => {
-    const url = String(a.url ?? '')
-    if (!isWebLink(url)) throw new Error(`not a web link: ${url}`)
+    const url = webLink(a.url)
+    if (!url) throw new Error(`not a web link: ${String(a.url).slice(0, 200)}`)
     await shell.openExternal(url)
     log.info(`opened a web link (${url.length} chars)`)
   },
@@ -231,7 +312,7 @@ const commands: Record<string, Command> = {
     app.quit()
   },
   log: (a) => {
-    const m = String(a.message ?? '')
+    const m = typeof a.message === 'string' ? a.message : String(a.message ?? '')
     if (a.level === 'warn') log.warn(m, 'webview')
     else if (a.level === 'error') log.error(m, 'webview')
     else log.info(m, 'webview')
@@ -283,10 +364,10 @@ const commands: Record<string, Command> = {
   open_report: (a) => files.openReport(a.path),
 }
 
-/** Only the app's own page may call: not a frame of another origin, not another window. */
+/** Only the app's own page may call: its main frame, of its own origin, in the app window. */
 function trusted(e: IpcMainInvokeEvent): boolean {
-  const url = e.senderFrame?.url ?? ''
-  return e.sender === win?.webContents && (url.startsWith(`${ORIGIN}/`) || (DEV_URL !== null && url.startsWith(DEV_URL)))
+  const f = e.senderFrame
+  return e.sender === win?.webContents && !!f && f === e.sender.mainFrame && own(f.url)
 }
 
 /** Every command answers `{ok, value}` or `{ok: false, error}`: the page rejects with the message alone, as Tauri's invoke did. */
@@ -343,8 +424,28 @@ function smokeShot() {
   }, 3_000)
 }
 
+// every webContents (the window, any later one): no <webview>, no new windows
+app.on('web-contents-created', (_e, c) => {
+  c.on('will-attach-webview', (ev) => ev.preventDefault())
+  c.setWindowOpenHandler(({ url }) => {
+    const link = webLink(url)
+    if (link) void shell.openExternal(link)
+    return { action: 'deny' }
+  })
+})
+
+/** The page may write to the clipboard (Copy buttons); every other permission (camera, location, notifications, …) is refused. */
+function permissions() {
+  const allowed = new Set(['clipboard-sanitized-write'])
+  const ses = session.defaultSession
+  ses.setPermissionRequestHandler((_wc, perm, cb, d) => cb(allowed.has(perm) && own(d.requestingUrl)))
+  ses.setPermissionCheckHandler((_wc, perm, origin) => allowed.has(perm) && own(origin))
+}
+
 void app.whenReady().then(() => {
   log.info(`mtkprof ${app.getVersion()} (Electron ${process.versions.electron}) starting`)
+  files.adoptTeamFile(storeLoad('connections.json').teamPath)
+  permissions()
   serveUI()
   installMenu(() => win, (ev) => emit(ev))
   createWindow()

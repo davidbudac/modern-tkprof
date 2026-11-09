@@ -23,6 +23,16 @@ fileAssociations:
     description: Oracle trace file
     role: Viewer
 electronLanguages: [en-US]
+# no general Node runtime or debugger through the app binary, the UI only from the integrity-checked
+# app.asar (DESIGN § Desktop shell). `@electron/fuses read --app <app>` shows them.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+  grantFileProtocolExtraPrivileges: false
 mac:
   target: dmg
   category: public.app-category.developer-tools
@@ -41,6 +51,8 @@ nsis:
   oneClick: true
   perMachine: false
   differentialPackage: false
+  # removes a Tauri-era install (v0.6.0 and older) before installing; see the file
+  include: build/installer.nsh
 linux:
   target: [AppImage, deb]
   category: Development
@@ -49,4 +61,10 @@ linux:
   synopsis: Oracle SQL trace analyzer
   description: 'mtkprof desktop: analyze Oracle 10046 SQL trace files with the mtkprof engine.'
   maintainer: David Budac
+appImage:
+  # the Tauri-era name (amd64, not x86_64): links and the Tauri updater's AppImage swap keep working
+  artifactName: mtkprof_${version}_amd64.${ext}
+deb:
+  # the Tauri-era package name, so dpkg upgrades a Tauri install instead of adding a second package
+  packageName: mtkprof
 publish: null

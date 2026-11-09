@@ -9,7 +9,12 @@
 # the app version in package.json matches the tag. Then runs scripts/ci-local.sh with every leg and
 # smoke, uploads everything in out/ (the installers and their SHA256SUMS as SHA256SUMS-desktop) and
 # adds the installers' checksums to the release notes. The installed apps find the release through
-# GitHub's "latest release" (electron/updates.ts). It never creates or pushes the tag or creates the release.
+# GitHub's "latest release" (electron/updates.ts). Tauri-era installs (v0.6.0 and older) read
+# latest.json there: scripts/tauri-bridge.mjs signs the Electron builds with the updater key
+# (~/.tauri/mtkprof-updater.key or TAURI_SIGNING_PRIVATE_KEY) and writes it; it is uploaded last.
+# Refuses when the key is missing or the app's Electron major is no longer supported (the newest
+# three majors are; a Chromium security fix reaches users only through an Electron upgrade).
+# It never creates or pushes the tag or creates the release.
 #   --dry-run     everything except the upload (prints the commands and the notes addition)
 #   --check-only  only the checks above, no build
 set -uo pipefail
@@ -44,6 +49,17 @@ git rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "tag $tag does not 
 v_pkg=$(node -p "require('./package.json').version")
 [ "$v_pkg" = "$ver" ] || die "package.json has version '$v_pkg', tag wants $ver"
 echo "release-local: $tag = HEAD $(git rev-parse --short HEAD), tree clean, version $ver (package.json)"
+
+# the Electron in the app: one of the three newest majors (electronjs.org/docs/latest/tutorial/electron-timelines)
+e_have=$(node -p "require('electron/package.json').version" 2>/dev/null) || die "electron is not installed (pnpm install)"
+e_latest=$(npm view electron version 2>/dev/null) || die "cannot ask the npm registry for the newest Electron"
+[ $(( ${e_latest%%.*} - ${e_have%%.*} )) -le 2 ] \
+  || die "Electron $e_have is out of support (newest $e_latest): upgrade (pnpm up electron@latest), smoke, then release"
+echo "release-local: Electron $e_have (newest $e_latest)"
+
+# the Tauri-era updater key: without it the installed v0.6.0 apps never learn of this release
+[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] || [ -f "$HOME/.tauri/mtkprof-updater.key" ] \
+  || die "no updater key (~/.tauri/mtkprof-updater.key or TAURI_SIGNING_PRIVATE_KEY): Tauri installs could not update to $tag"
 [ $check_only -eq 0 ] || exit 0
 
 if [ $dry -eq 0 ]; then
@@ -59,17 +75,21 @@ fi
 scripts/ci-local.sh ${ci_args[@]+"${ci_args[@]}"} || die "ci-local.sh failed; nothing published (logs in out-logs/)"
 
 [ -z "$(git status --porcelain)" ] || { git status --short >&2; die "the build dirtied the working tree"; }
-req=('*_arm64.dmg' '*_x64.dmg' '*-setup.exe' '*.deb' SHA256SUMS)
+req=('*_arm64.dmg' '*_x64.dmg' '*-setup.exe' '*.deb' '*_aarch64.app.tar.gz' '*_x64.app.tar.gz' SHA256SUMS)
 [ $want_appimage -eq 0 ] || req+=('*.AppImage')
 for pat in "${req[@]}"; do
   # shellcheck disable=SC2086
   ls out/$pat >/dev/null 2>&1 || die "out/ has no $pat; refusing a partial release"
 done
 
+# the Tauri-era updater's feed (signs the artifacts in out/, writes their .sig next to them)
+manifest=out-logs/latest.json
+node scripts/tauri-bridge.mjs "$tag" out > "$manifest" || die "latest.json (the Tauri bridge) failed"
+
 # ---- 3. upload to the release ----
 cp out/SHA256SUMS out-logs/SHA256SUMS-desktop
 files=()
-for f in out/*; do [ -f "$f" ] && [ "$(basename "$f")" != SHA256SUMS ] && files+=("$f"); done
+for f in out/*; do [ -f "$f" ] && [ "$(basename "$f")" != SHA256SUMS ] && [ "${f%.sig}" = "$f" ] && files+=("$f"); done
 files+=(out-logs/SHA256SUMS-desktop)
 add=out-logs/release-notes-desktop.md
 {
@@ -81,12 +101,16 @@ add=out-logs/release-notes-desktop.md
 } > "$add"
 echo "--- added to the release notes ---"; cat "$add"; echo "---"
 upload=(gh release upload "$tag" "${files[@]}")
+# last, so the Tauri-era apps are only offered the update once every file it points at is up
+upload_manifest=(gh release upload "$tag" "$manifest")
 if [ $dry -eq 1 ]; then
   echo "release-local: dry run, would run:"; printf '  %q' "${upload[@]}"; echo
+  printf '  %q' "${upload_manifest[@]}"; echo
   echo "  and append $add to the notes of $tag"
   exit 0
 fi
 "${upload[@]}" || die "upload failed"
+"${upload_manifest[@]}" || die "upload of latest.json failed (the installers are up: gh release upload $tag $manifest)"
 body=out-logs/release-notes.md
 gh release view "$tag" --json body -q .body > "$body" && cat "$add" >> "$body" && gh release edit "$tag" --notes-file "$body" \
   && echo "release-local: installers added to $tag"

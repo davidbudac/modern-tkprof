@@ -8,6 +8,9 @@
 // and never goes to another endpoint under the same id. Without a keychain (Linux without a
 // Secret Service: safeStorage falls back to a fixed password, which is no protection) a
 // remembered key is kept in this process's memory until the app quits.
+// Keys the Tauri shell (v0.6.0 and older) remembered are in the OS keychain (service: the app
+// identifier, the same account and secret): on macOS a key missing here is taken over from there
+// once per provider (`security` asks the user to allow it), then kept here.
 
 const ANSWER_TIMEOUT = 5_000
 
@@ -42,6 +45,9 @@ function parse(secret: string, endpoint: string): string | null {
 }
 
 const account = (provider: string) => `assist:${provider}`
+
+/** The Tauri shell's keychain entries, read only (macOS: `security`); null when there is none. */
+export type Legacy = (account: string) => Promise<string | null>
 
 type Warn = (m: string) => void
 
@@ -80,6 +86,31 @@ export class Secrets {
     }
   }
 
+  /**
+   * The key the Tauri shell remembered for `provider` at `endpoint`, moved into the vault; tried
+   * once per provider (a refusal is not asked again).
+   */
+  async takeOver(provider: string, endpoint: string, legacy: Legacy): Promise<string | null> {
+    const tried = `legacy-tried:${provider}`
+    try {
+      if (this.vault.get(tried) !== null) return null
+      this.vault.set(tried, '1')
+    } catch {
+      return null // no vault to move it into
+    }
+    let secret: string | null
+    try {
+      secret = await legacy(account(provider))
+    } catch (e) {
+      this.warn(`assistant key of ${provider} in the old keychain entry: ${e}`)
+      return null
+    }
+    const key = secret === null ? null : parse(secret, endpoint)
+    if (!key) return null
+    this.keep(provider, endpoint, key, true)
+    return key
+  }
+
   forget(provider: string): void {
     this.session.delete(provider)
     try {
@@ -92,7 +123,7 @@ export class Secrets {
 
 /** A prompt or provider id as the engine makes them: it goes into a URL path and an account name. */
 export function checkId(what: string, id: unknown): string {
-  if (typeof id === 'string' && id.length > 0 && id.length <= 128 && /^[A-Za-z0-9._:-]+$/.test(id)) return id
+  if (typeof id === 'string' && id.length <= 128 && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(id)) return id
   throw new Error(`${what}: not an id: ${JSON.stringify(id)}`)
 }
 
@@ -106,7 +137,9 @@ interface OpenPrompt {
 }
 
 async function engineFetch(e: Endpoint, promptId: string, init?: RequestInit): Promise<Response> {
-  return fetch(`http://${e.addr}/engine/prompts/${promptId}`, {
+  // a key goes to the app's own engine on loopback, nowhere else
+  if (!/^127\.0\.0\.1:\d{1,5}$/.test(e.addr)) throw new Error(`the engine is not on loopback: ${e.addr}`)
+  return fetch(`http://${e.addr}/engine/prompts/${encodeURIComponent(promptId)}`, {
     ...init,
     headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${e.token}` },
     signal: AbortSignal.timeout(ANSWER_TIMEOUT),
@@ -135,7 +168,9 @@ export function endpointOf(p: OpenPrompt, provider: string): string {
   if (p.kind !== 'apikey' || p.connection !== provider) {
     throw new Error(`the prompt is not the key prompt of ${provider} (kind ${p.kind}, connection ${p.connection})`)
   }
-  return p.endpoint ?? ''
+  // the key is bound to where the engine sends it: no endpoint, no key
+  if (!p.endpoint) throw new Error(`the key prompt of ${provider} names no endpoint`)
+  return p.endpoint
 }
 
 /** `POST /engine/prompts/{id}` with `{"answer": key}`, straight to the engine (never a proxy). */
@@ -153,7 +188,7 @@ export async function postAnswer(e: Endpoint, promptId: string, key: string): Pr
 
 /** The three commands, over the engine's endpoint (null: not running) and the remembered keys. */
 export class KeyCommands {
-  constructor(private secrets: Secrets, private endpoint: () => Endpoint | null) {}
+  constructor(private secrets: Secrets, private endpoint: () => Endpoint | null, private legacy: Legacy | null = null) {}
 
   private engine(): Endpoint {
     const e = this.endpoint()
@@ -168,11 +203,12 @@ export class KeyCommands {
     const e = this.engine()
     const endpoint = endpointOf(await getPrompt(e, id), pv)
     const s = this.secrets.find(pv, endpoint)
-    if ('key' in s) {
-      await postAnswer(e, id, s.key)
+    const key = 'key' in s ? s.key : this.legacy && s.keychain ? await this.secrets.takeOver(pv, endpoint, this.legacy) : null
+    if (key) {
+      await postAnswer(e, id, key)
       return { status: 'answered' }
     }
-    return { status: 'missing', keychain: s.keychain }
+    return { status: 'missing', keychain: 'keychain' in s ? s.keychain : true }
   }
 
   /** Answers the prompt with the key the user typed, then remembers it when asked to. */

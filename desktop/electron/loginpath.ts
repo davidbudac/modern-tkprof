@@ -56,7 +56,8 @@ export function joinPath(parts: string[], home: string): string {
   const agents = AGENT_DIRS.flatMap((d) => (d.startsWith('~') ? (home ? [home + d.slice(1)] : []) : [d]))
   const out: string[] = []
   for (const dir of [...parts.flatMap((p) => p.split(':')), ...agents]) {
-    if (dir && !out.includes(dir)) out.push(dir)
+    // absolute entries only: a relative one (`.`, `bin`) would resolve against the engine's cwd
+    if (dir.startsWith('/') && !out.includes(dir)) out.push(dir)
   }
   return out.join(':')
 }

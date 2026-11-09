@@ -68,7 +68,8 @@ func (s *Server) loadStoredRef(ss *Session) *ref.Bundle {
 	return b
 }
 
-// pruneRefs removes the stored bundles of the traces that no session has open.
+// pruneRefs removes the stored bundles of the traces that no session has open:
+// directories named by a trace identity only, nothing else a user put there.
 func (s *Server) pruneRefs() {
 	ents, err := os.ReadDir(s.refRoot())
 	if err != nil {
@@ -81,7 +82,7 @@ func (s *Server) pruneRefs() {
 	}
 	s.mu.Unlock()
 	for _, e := range ents {
-		if !keep[e.Name()] && !strings.HasPrefix(e.Name(), ".") { // dot: a ref job's staging directory
+		if validIdentity(e.Name()) && !keep[e.Name()] { // a dot name is a ref job's staging directory
 			os.RemoveAll(filepath.Join(s.refRoot(), e.Name()))
 		}
 	}

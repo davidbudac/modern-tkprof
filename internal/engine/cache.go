@@ -176,7 +176,9 @@ func (c *Cache) Dir() string { return c.dir }
 // Cap is the size limit in bytes.
 func (c *Cache) Cap() int64 { return c.cap }
 
-// sweep removes dead build directories and entries without a manifest.
+// sweep removes dead build directories and entries without a manifest. Only
+// names the cache creates (an identity, a build directory): a -cache pointed
+// at a folder of the user's never loses anything else.
 func (c *Cache) sweep() {
 	ents, err := os.ReadDir(c.dir)
 	if err != nil {
@@ -198,6 +200,9 @@ func (c *Cache) sweep() {
 				continue // ours (a second Cache in this process)
 			}
 			os.RemoveAll(p)
+			continue
+		}
+		if !validIdentity(name) {
 			continue
 		}
 		if m, err := readManifest(p); err != nil || m.Identity != name {
@@ -626,9 +631,7 @@ func (c *Cache) Wipe() error {
 			}
 			continue
 		}
-		if !strings.HasPrefix(e.Name(), cacheBuildPfx) {
-			os.RemoveAll(filepath.Join(c.dir, e.Name()))
-		}
+		// anything else is not the cache's (sweep below takes the dead builds)
 	}
 	c.sweep()
 	if kept > 0 {

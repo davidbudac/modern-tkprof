@@ -2,10 +2,11 @@
 // encrypted with the key safeStorage keeps in the OS keychain, base64 in the file.
 
 import { safeStorage } from 'electron'
+import { execFile } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { dataDir } from './paths'
-import { VaultUnavailable, type Vault } from './secrets'
+import { dataDir, IDENTIFIER } from './paths'
+import { VaultUnavailable, type Legacy, type Vault } from './secrets'
 
 export class SafeStorageVault implements Vault {
   private file = path.join(dataDir(), 'secrets.json')
@@ -59,4 +60,19 @@ export class SafeStorageVault implements Vault {
     delete all[account]
     this.write(all)
   }
+}
+
+/**
+ * macOS: a secret of the Tauri shell's keychain entries (service `com.davidbudac.mtkprof`), read
+ * with `security`; macOS asks the user to allow it (the entry belonged to the other app). Null when
+ * there is none or the user refused.
+ */
+export function tauriKeychain(): Legacy | null {
+  if (process.platform !== 'darwin') return null
+  return (account) =>
+    new Promise((resolve) => {
+      execFile('/usr/bin/security', ['find-generic-password', '-s', IDENTIFIER, '-a', account, '-w'], { timeout: 120_000 }, (err, out) =>
+        resolve(err ? null : out.replace(/\n$/, '')),
+      )
+    })
 }

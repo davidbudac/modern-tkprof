@@ -122,7 +122,7 @@ export class EngineManager {
 
     let child: ChildProcess
     try {
-      child = spawn(this.host.sidecar, args, { env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+      child = spawn(this.host.sidecar, args, { env, cwd: os.homedir(), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
     } catch (e) {
       throw new StartError(`engine spawn: ${e}`)
     }

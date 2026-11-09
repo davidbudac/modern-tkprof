@@ -1,7 +1,7 @@
 {
   "name": "mtkprof-desktop",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "mtkprof desktop: Electron shell around the mtkprof engine",
   "author": "David Budac",
   "license": "Apache-2.0",

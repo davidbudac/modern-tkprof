@@ -2,6 +2,8 @@ import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { plainName } from './files'
+import { oneLine } from './log'
 import { joinPath } from './loginpath'
 import { OpenQueue, pathsOfArgs } from './open'
 import { checkId, KeyCommands, Secrets, VaultUnavailable, type Vault } from './secrets'
@@ -27,6 +29,26 @@ describe('engine PATH', () => {
   it('keeps order, drops repeats and adds the agent dirs', () => {
     expect(joinPath(['/a:/usr/local/bin:/b', '/b:/c::'], '/home/u')).toBe('/a:/usr/local/bin:/b:/c:/opt/homebrew/bin:/home/u/.local/bin')
     expect(joinPath(['', '/usr/bin:/bin'], '')).toBe('/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin')
+  })
+
+  it('drops relative entries', () => {
+    expect(joinPath(['.:bin:/usr/bin'], '')).toBe('/usr/bin:/opt/homebrew/bin:/usr/local/bin')
+  })
+})
+
+describe('file access', () => {
+  it('takes plain file names only', () => {
+    for (const ok of ['cdb1_ora_123-cut-20261109-101500.trc', 'my trace (2).html', 'zpráva.txt']) expect(plainName(ok)).toBe(true)
+    for (const bad of ['', '.x.trc', 'x.trc ', 'x.trc.', '../x.trc', 'a/b.trc', 'a\\b.trc', 'a:b.trc', 'nul.txt', 'COM1', 'x\u0000.trc', 'x'.repeat(201), 7]) {
+      expect(plainName(bad)).toBe(false)
+    }
+  })
+})
+
+describe('log', () => {
+  it('keeps a message on one line', () => {
+    expect(oneLine('a\nb\r[engine][INFO] x\u001b[2J')).toBe('a\\nb\\r[engine][INFO] x\\u001b[2J')
+    expect(oneLine('x'.repeat(9000))).toMatch(/^x{8192}… \(9000 chars\)$/)
   })
 })
 
@@ -102,9 +124,22 @@ describe('assistant keys', () => {
     expect(s.find('openai', EP)).toEqual({ missing: true, keychain: false })
   })
 
+  it('takes over a key the Tauri shell kept, once, for its endpoint only', async () => {
+    const v = new Mock()
+    const s = new Secrets(v)
+    const asked: string[] = []
+    const legacy = async (acc: string) => (asked.push(acc), JSON.stringify({ endpoint: EP, key: 'sk-old' }))
+    expect(await s.takeOver('openai', 'openai https://other/v1', legacy)).toBe(null)
+    // one try per provider, refused or not
+    expect(await s.takeOver('openai', EP, legacy)).toBe(null)
+    expect(asked).toEqual(['assist:openai'])
+    expect(await s.takeOver('azure', EP, async () => JSON.stringify({ endpoint: EP, key: 'sk-old' }))).toBe('sk-old')
+    expect(s.find('azure', EP)).toEqual({ key: 'sk-old' })
+  })
+
   it('ids must be engine ids', () => {
     expect(checkId('prompt', 'p-1.a:b_c')).toBe('p-1.a:b_c')
-    for (const bad of ['', 'a/b', '../x', 'a b', 'x'.repeat(129), 7]) expect(() => checkId('prompt', bad)).toThrow(/not an id/)
+    for (const bad of ['', 'a/b', '../x', '..', '.x', 'a b', 'x'.repeat(129), 7]) expect(() => checkId('prompt', bad)).toThrow(/not an id/)
   })
 })
 

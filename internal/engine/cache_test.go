@@ -440,7 +440,9 @@ func TestCacheCrashLeavesNoHalfEntry(t *testing.T) {
 	half := filepath.Join(c.Dir(), id)
 	dead := filepath.Join(c.Dir(), cacheBuildPfx+"2000000000-1")
 	live := filepath.Join(c.Dir(), fmt.Sprintf("%s%d-2", cacheBuildPfx, os.Getppid()))
-	for _, d := range []string{half, dead, live} {
+	// a folder that is not the cache's (a -cache pointed at a folder in use) is never touched
+	foreign := filepath.Join(c.Dir(), "Documents")
+	for _, d := range []string{half, dead, live, foreign} {
 		os.MkdirAll(d, 0o700)
 		os.WriteFile(filepath.Join(d, "calls.bin"), []byte("x"), 0o600)
 	}
@@ -449,7 +451,7 @@ func TestCacheCrashLeavesNoHalfEntry(t *testing.T) {
 	}
 	os.MkdirAll(half, 0o700)
 	openCache(t, root, 0)
-	for d, want := range map[string]bool{half: false, dead: false, live: true} {
+	for d, want := range map[string]bool{half: false, dead: false, live: true, foreign: true} {
 		if _, err := os.Stat(d); (err == nil) != want {
 			t.Errorf("%s: exists %t, want %t", filepath.Base(d), err == nil, want)
 		}

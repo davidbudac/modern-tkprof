@@ -115,11 +115,14 @@ macos_target() { # <arch> <name>
   rm -rf release
   run_step "$n: dmg" node_modules/.bin/electron-builder --mac dmg --"$a" || return 1
   collect_installers || return 1
+  # the bundle as the Tauri-era updater installs it (scripts/tauri-bridge.mjs signs it at release)
+  local dir=release/mac-$a tauri_arch=aarch64 v
+  [ "$a" = x64 ] && dir=release/mac tauri_arch=x64
+  v=$(node -p "require('./package.json').version")
+  run_step "$n: app.tar.gz" env COPYFILE_DISABLE=1 tar -czf "out/mtkprof_${v}_${tauri_arch}.app.tar.gz" -C "$dir" mtkprof.app || return 1
   if [ $skip_smoke -eq 1 ]; then
     skip "$n: smoke" "--skip-smoke"
   elif can_run "$a"; then
-    local dir=release/mac-$a
-    [ "$a" = x64 ] && dir=release/mac
     run_step "$n: smoke" scripts/smoke.sh "$dir/mtkprof.app/Contents/MacOS/mtkprof" "$n" > "out-logs/$n-smoke.log" 2>&1 || { tail -n 30 "out-logs/$n-smoke.log"; return 1; }
   else
     skip "$n: smoke" "this Mac cannot run $a (no Rosetta 2: softwareupdate --install-rosetta --agree-to-license)"

@@ -8,6 +8,8 @@ import { logDir } from './paths'
 type Level = 'INFO' | 'WARN' | 'ERROR'
 
 const MAX = 1 << 20
+/** a message is cut here, so one call cannot fill the log */
+const MAX_MESSAGE = 8 << 10
 let file: string | null = null
 let size = 0
 
@@ -24,9 +26,15 @@ function open(): string | null {
   return file
 }
 
+/** One line: control characters (newlines, escape sequences) escaped, so a message cannot forge lines of its own. */
+export function oneLine(m: string): string {
+  const cut = m.length > MAX_MESSAGE ? `${m.slice(0, MAX_MESSAGE)}… (${m.length} chars)` : m
+  return cut.replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, (c) => (c === '\n' ? '\\n' : c === '\r' ? '\\r' : c === '\t' ? ' ' : `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`))
+}
+
 function write(level: Level, target: string, message: string) {
   const now = new Date()
-  const line = `[${now.toISOString().slice(0, 10)}][${now.toTimeString().slice(0, 8)}][${target}][${level}] ${message}\n`
+  const line = `[${now.toISOString().slice(0, 10)}][${now.toTimeString().slice(0, 8)}][${target}][${level}] ${oneLine(message)}\n`
   try {
     process.stdout.write(line)
   } catch {
@@ -35,7 +43,7 @@ function write(level: Level, target: string, message: string) {
   const f = open()
   if (!f) return
   try {
-    if (size + line.length > MAX) {
+    if (size + Buffer.byteLength(line) > MAX) {
       fs.renameSync(f, path.join(path.dirname(f), 'mtkprof.old.log'))
       size = 0
     }

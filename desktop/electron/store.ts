@@ -18,9 +18,16 @@ interface Store {
 
 const stores = new Map<string, Store>()
 
-/** Store names are plain `.json` file names. */
+/**
+ * The UI's stores, and nothing else of the data dir: not the remembered keys (`secrets.json`), the
+ * team file record or Electron's own files. Exact names (a case variant is the same file on macOS
+ * and Windows).
+ */
+const NAMES = new Set(['settings.json', 'workspace.json', 'annotations.json', 'connections.json', 'library.json', 'assist.json', 'investigation-backup.json'])
+const MAX_VALUE = 32 << 20
+
 function fileOf(name: string): string {
-  const f = /^[\w.-]+\.json$/.test(name) ? inside(dataDir(), name) : null
+  const f = NAMES.has(name) ? inside(dataDir(), name) : null
   if (!f) throw new Error(`not a store name: ${name}`)
   return f
 }
@@ -29,10 +36,11 @@ function get(name: string): Store {
   let s = stores.get(name)
   if (s) return s
   const file = fileOf(name)
-  let data: Record<string, unknown> = {}
+  // no prototype: a key `__proto__` is a key like any other
+  let data: Record<string, unknown> = Object.create(null)
   try {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'))
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) data = parsed
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) data = Object.assign(Object.create(null), parsed)
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') log.warn(`store ${name}: ${e}; starting empty`)
   }
@@ -63,6 +71,7 @@ export const storeLoad = (name: string) => get(name).data
 
 export function storeSet(name: string, key: string, value: unknown) {
   const s = get(name)
+  if (value !== undefined && (JSON.stringify(value)?.length ?? 0) > MAX_VALUE) throw new Error(`store ${name}: value of ${key} too large`)
   if (value === undefined) delete s.data[key]
   else s.data[key] = value
   later(s)
