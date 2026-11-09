@@ -4,7 +4,7 @@ import {
   type AssistProvider, type ProviderAuth, type ProviderKind, type TestResult,
 } from '../assist/providers'
 import { assistKeyForget, getJSON, send, useEngine, type Schemas } from '../engine'
-import { inTauri } from '../platform'
+import { inApp } from '../platform'
 import type { Tab } from '../workspace/workspace'
 import { useWorkspaceState } from '../workspace/WorkspaceProvider'
 import { McpSection } from './McpSection'
@@ -71,7 +71,7 @@ export function AssistantSection() {
 
   const forgetKey = async (id: string) => {
     if (client) await send(client, 'DELETE', `/engine/assist/providers/${encodeURIComponent(id)}/key`).catch((e) => console.warn('forget key:', String(e)))
-    if (inTauri) await assistKeyForget(id).catch((e) => console.warn('forget key:', String(e)))
+    if (inApp) await assistKeyForget(id).catch((e) => console.warn('forget key:', String(e)))
   }
 
   const test = async (p: AssistProvider) => {
@@ -126,7 +126,7 @@ export function AssistantSection() {
         </Row>
         <div className="set-foot">
           Nothing about a trace is sent until you agree, once per trace and provider.{' '}
-          {inTauri
+          {inApp
             ? 'An API key is asked for on first use; Remember in keychain keeps it in the OS keychain, where the app reads it itself. It never enters this page, a file or a backup.'
             : 'An API key is asked for on first use and kept in the engine’s memory until it stops (the dev browser has no keychain).'}
         </div>
@@ -294,7 +294,7 @@ function ProviderForm({ prev, onSave, onCancel }: { prev?: AssistProvider; onSav
               </button>
             ))}
           </span>
-          {d.auth === 'bearer' && <small className="muted">Asked for on first use{inTauri ? '; it can be remembered in the keychain' : ''}.</small>}
+          {d.auth === 'bearer' && <small className="muted">Asked for on first use{inApp ? '; it can be remembered in the keychain' : ''}.</small>}
         </div>
       )}
       {k.http && (

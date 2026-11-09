@@ -4,7 +4,7 @@ import { Workspace } from './workspace'
 
 const kv = vi.hoisted(() => new Map<string, unknown>())
 vi.mock('../platform', () => ({
-  inTauri: false,
+  inApp: false,
   logInfo: vi.fn(),
   openKV: async () => ({ get: async (k: string) => kv.get(k), set: async (k: string, v: unknown) => { kv.set(k, v) }, delete: async (k: string) => { kv.delete(k) }, keys: async () => [...kv.keys()] }),
 }))

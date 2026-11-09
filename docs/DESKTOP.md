@@ -7,9 +7,9 @@ Timeline, Sessions, Pivot) plus the **Lines** viewer. A *Tools ▾* menu follows
 button names it (*Notes ▾*) and is marked as the current page. Saved Pivot configurations, an
 **Assistant** chat and **Connections** for fetching traces from other machines complete it.
 
-It is a Tauri shell around the `mtkprof engine` process (`docs/ARCHITECTURE.md` § Engine mode); the
+It is an Electron shell around the `mtkprof engine` process (`docs/ARCHITECTURE.md` § Engine mode); the
 code is in `desktop/` (build, dev mode, CI: `desktop/README.md`). Internal team tool: builds are
-unsigned; the app updates itself from the releases page (see "Updates").
+unsigned; the app checks the releases page for updates (see "Updates").
 
 ## Install
 
@@ -22,9 +22,9 @@ local build (`desktop/scripts/ci-local.sh`).
 | System | File | Notes |
 |---|---|---|
 | Windows 10/11 x64 | `mtkprof_<version>_x64-setup.exe` | per-user install, no admin rights |
-| macOS Apple Silicon | `mtkprof_<version>_aarch64.dmg` | drag to Applications |
+| macOS Apple Silicon | `mtkprof_<version>_arm64.dmg` (`_aarch64` up to v0.6.0) | drag to Applications |
 | macOS Intel | `mtkprof_<version>_x64.dmg` | drag to Applications |
-| Linux x64 | `mtkprof_<version>_amd64.AppImage` or `.deb` | |
+| Linux x64 | `mtkprof_<version>_*.AppImage` or `.deb` | |
 
 The builds are not signed, so the first start needs one extra step:
 
@@ -38,8 +38,8 @@ The builds are not signed, so the first start needs one extra step:
 - **Linux**: AppImage: `chmod +x mtkprof_*.AppImage`, then run it. It needs FUSE 2
   (`sudo apt install libfuse2` on Ubuntu 22.04+). deb: `sudo apt install ./mtkprof_*.deb`.
 
-There is no automatic update: new versions are installed by hand. *Settings → About* shows the
-app version and opens the releases page.
+Updates are installed by hand (see "Updates"). *Settings → About* shows the app version and opens
+the releases page.
 
 ## First start
 
@@ -459,9 +459,9 @@ engine found (with their own login; Codex is marked experimental).
   token, secret, password, cookie) or whose value starts with `Bearer`/`Basic` is refused, and so
   is a base URL with a user, a query or a fragment: the key goes through the key prompt.
 - The key prompt asks for a provider's API key on first use. In the app, *Remember in keychain*
-  (on by default) stores it in the OS keychain: Keychain on macOS, Credential Manager on Windows,
-  the Secret Service on Linux, under the service `com.davidbudac.mtkprof`, account
-  `assist:<provider id>`. The app's shell reads it there and answers the engine itself, so a
+  (on by default) stores it encrypted in the app's data folder (`secrets.json`), with the
+  encryption key in the OS keychain (Keychain on macOS, DPAPI on Windows, the Secret Service or
+  kwallet on Linux), account `assist:<provider id>`. The app's shell reads it there and answers the engine itself, so a
   stored key never reaches the web page, `settings.json`, a backup or a log. Unchecked, the key
   lives only in the engine's memory until the engine stops. With no keychain (Linux without a
   Secret Service) the prompt says so and the key is kept in the app's memory until it quits.
@@ -591,7 +591,7 @@ Sections, in this order, each with its actions inside it:
 | Engine | Cache location (*Change…* picks a folder, *Default* resets), cap (GiB) and plan visualizer URL (where *Open in plan viz* sends plans), *Restart engine*; then the facts: version and protocol (and the protocol the app speaks), binary, listening address, status, uptime | location, cap and URL after *Restart engine* |
 | Index cache | usage bar, *Refresh*, *Wipe cache…*; a folded rollout with the entries and *Remove* (see "Index cache") | at once |
 | Backup | export and import of connections and the library (below) | at once |
-| About (a folded rollout) | app version, the data and log folders; *Check for updates on start*, *Check now* (or *Install and restart*), the releases page | at once |
+| About (a folded rollout) | app version, the data and log folders; *Check for updates on start*, *Check now* (or *Download*), the releases page | at once |
 
 *Restart engine* restarts the engine with the new settings; open tabs re-open from the cache.
 
@@ -601,15 +601,20 @@ From the first release after v0.5.0 the app asks the [releases page](https://git
 for a newer version a few seconds after every start (turn it off in *Settings → About → Check for
 updates on start*). When there is one, a note at the bottom right offers:
 
-- **Install and restart**: downloads the update, checks its signature, stops the engine, installs
-  it and starts the app again with your tabs. On Windows the installer shows its progress window
-  for a moment; on Linux the `.deb` asks for your password (pkexec), the AppImage replaces itself.
+- **Download**: opens that release's page; install the installer for your system over the app
+  (your tabs, settings, notes and connections stay). The app does not install updates itself.
 - **Later**: hides it until the next start.
 - **Skip this version**: never offers that version on start again (*Check now* still finds it).
 
 *Settings → About → Check now* checks at any time and says what it found. The app needs to reach
 github.com; a failed check is only written to the log. v0.5.0 and earlier have no updater:
 install the next release by hand once.
+
+**Coming from v0.6.0** (the last build of the old shell): its *Install and restart* moves you to
+the new app once, on macOS and Linux; your tabs, settings, notes, connections and index cache
+carry over. On Windows install v0.7.0 by hand: its installer removes the old app first (your data
+stays). An API key the old app remembered is taken over on macOS the first time it is needed
+(macOS asks you to allow mtkprof to use it); on Windows and Linux type it once more.
 
 ### Backup
 
@@ -676,7 +681,7 @@ any time.
 | Toast "Engine stopped, restarting…" then "Engine restarted" | The engine exited unexpectedly. The shell restarts it at once, after 1 s, after 5 s and re-opens the tabs. Credentials are asked again. The cause is in the log. |
 | Blocking panel "The engine is not running" | Start failed (no ready line within 10 s), a protocol mismatch, or a fourth crash within a minute. The panel shows the error; *Retry* restarts. |
 | `protocol mismatch (engine N, app 1)` | App and engine come from different builds. Reinstall one release; app and engine move together. |
-| Linux: the app does not start or exits at once | It needs a D-Bus session bus (single-instance). Over plain ssh or a bare window manager, run `dbus-run-session -- ./mtkprof_*.AppImage`. The AppImage also needs FUSE 2. |
+| Linux: the app does not start or exits at once | The AppImage needs FUSE 2 (`sudo apt install libfuse2`). Without a Secret Service (GNOME Keyring, KWallet) the app runs, but a remembered assistant key lasts only until it quits. In a root shell or container Chromium's sandbox fails: run it with `--no-sandbox`. |
 | Index cache full or suspect | *Settings → Index cache → Wipe cache…*, or delete the cache folder with the app closed. Everything is parsed again on the next open. |
 | Fetch from a database is slow | ADR views read 0.4–1 MB/s. Use an ssh connection for files over ~200 MB. |
 | ssh asks for the password again and again | The password was rejected (a wrong one is asked again up to three times), or the engine restarted. |

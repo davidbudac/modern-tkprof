@@ -1,13 +1,13 @@
 import { useSyncExternalStore } from 'react'
 import { engineStop } from '../engine/commands'
-import { inTauri, logInfo, logWarn } from '../platform'
+import { inApp, logInfo, logWarn } from '../platform'
+import { invoke } from '../shell'
 
 /**
- * The app's updates: tauri-plugin-updater reads `latest.json` of the newest GitHub release
- * (`plugins.updater.endpoints` in tauri.conf.json), compares its version with the app's and checks
- * the download's signature against the public key there. One check on start (the
- * `updateCheck` setting), more from Settings → About; installing stops the engine, replaces the
- * app and relaunches it (on Windows the installer quits the app and starts it again).
+ * The app's updates: the shell (`electron/updates.ts`) compares the newest GitHub release with the
+ * app's version. One check on start (the `updateCheck` setting), more from Settings → About. The
+ * Electron app does not install updates itself yet (`installsItself`): "Download" opens the
+ * release page with the installers. The download/install states stay for an in-place updater.
  *
  * Dev browser mode: no updater; `?mock=update` pretends a newer version exists, to look at the UI.
  */
@@ -53,8 +53,11 @@ export function useUpdateState(): UpdateState {
   return useSyncExternalStore(subscribe, () => state)
 }
 
-/** The updater is there: the Tauri app, or the dev browser with `?mock=update`. */
-export const updatesAvailable = inTauri || mockUpdate()
+/** The updater is there: the app, or the dev browser with `?mock=update`. */
+export const updatesAvailable = inApp || mockUpdate()
+
+/** Installing replaces the app and relaunches it (the mock); false: it opens the release page. */
+export const installsItself = !inApp
 
 function mockUpdate(): boolean {
   return typeof location !== 'undefined' && new URLSearchParams(location.search).get('mock') === 'update'
@@ -69,7 +72,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
   if (!updatesAvailable || state.kind === 'checking' || state.kind === 'downloading' || state.kind === 'installing') return state
   set({ kind: 'checking' })
   try {
-    const u = inTauri ? await tauriCheck() : await mockCheck()
+    const u = inApp ? await appCheck() : await mockCheck()
     pending = u
     if (!u) {
       set({ kind: 'current', at: Date.now() })
@@ -86,9 +89,16 @@ export async function checkForUpdate(): Promise<UpdateState> {
   return state
 }
 
-async function tauriCheck(): Promise<Pending | null> {
-  const { check } = await import('@tauri-apps/plugin-updater')
-  return check({ timeout: 30_000 })
+async function appCheck(): Promise<Pending | null> {
+  const a = await invoke<{ version: string; currentVersion: string; date?: string } | null>('update_check')
+  if (!a) return null
+  return {
+    ...a,
+    async download() {},
+    async install() {
+      await invoke('open_external_url', { url: releaseUrl(a.version) })
+    },
+  }
 }
 
 async function mockCheck(): Promise<Pending> {
@@ -121,6 +131,10 @@ export async function installUpdate(restartEngine: () => Promise<void>): Promise
   const u = pending
   if (!u || state.kind !== 'available') return
   const version = u.version
+  if (!installsItself) {
+    await u.install().catch((e) => logWarn(`update ${version}: open the release page: ${message(e)}`))
+    return
+  }
   let done = 0
   let total: number | null = null
   set({ kind: 'downloading', version, done, total })
@@ -139,13 +153,10 @@ export async function installUpdate(restartEngine: () => Promise<void>): Promise
   logInfo(`update ${version}: downloaded ${done} bytes, installing`)
   let stopped = false
   try {
-    if (inTauri) await engineStop()
+    if (inApp) await engineStop()
     stopped = true
     await u.install()
-    if (inTauri) {
-      const { relaunch } = await import('@tauri-apps/plugin-process')
-      await relaunch()
-    }
+    if (inApp) await invoke('relaunch')
   } catch (e) {
     set({ kind: 'error', message: `install: ${message(e)}`, during: 'install', version })
     logWarn(`update ${version}: install: ${message(e)}`)

@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-11-08
+# Handoff — state of mtkprof on 2026-11-09
 
 Read this, then `docs/DESIGN.md` (the decisions), `docs/ARCHITECTURE.md` (how the code is shaped) and
 `docs/trace-format-19c.md` (what the parser must accept). Desktop: `desktop/CLAUDE.md`, the user guide
@@ -13,7 +13,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 
 - `davidbudac/modern-tkprof` is **public**, `main` pushed. One repository, two clients (since 2026-11-02;
   `davidbudac/mtkprof-desktop` is archived): engine + CLI at the root, `web/` (CLI UI and the shared lib
-  `web/src/lib`), `desktop/` (Tauri 2). One version and one tag for both.
+  `web/src/lib`), `desktop/` (Electron since v0.7.0; Tauri 2 until `tauri-final`, see below). One version and one tag for both.
 - Latest release **v0.6.0** (2026-11-08, from `89f91c2`): CLI binaries (+ `-lite` builds), the desktop
   installers (DMG arm64/x64, deb, AppImage, NSIS) and, new, the signed updater artifacts and `latest.json`
   in one GitHub release; notes `docs/releases/v0.6.0.md`. The first release with the app's auto-updater
@@ -23,6 +23,32 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
   DESIGN § Transitions and § Cut the decisions. Unreleased. Anyone running the Tauri app or the `verify-mtkprof` skill
   needs `pnpm build:engine` in `desktop/` first: the sidecar binary is gitignored and predates the engine changes.
+- **Electron shell, v0.7.0** (2026-11-09; DESIGN § Desktop app; the last Tauri commit is tag `tauri-final`):
+  `desktop/src-tauri` (Rust) replaced by `desktop/electron/` (TypeScript main process, preload bridge
+  `window.mtkprof`, esbuild), packaged by electron-builder (`electron-builder.yml`); the UI reaches the shell
+  only through `src/shell.ts`. Hardened after two reviews of the shell (least-privilege file access, fuses,
+  permission handlers, CSP, checked engine options; the engine's cache cleanup deletes only its own names).
+  Tauri installs (v0.6.0) move over through their own updater: `scripts/tauri-bridge.mjs` signs the Electron
+  builds with the old key and writes `latest.json` (desktop/README.md § Updates); Windows is left out of it
+  (`--with-windows`) until tried there. Verified on 2026-11-09:
+  - CI (`desktop/scripts/ci-local.sh --arm64` and the Linux/Windows legs, root `scripts/ci-local.sh --strict`):
+    checks, the arm64 DMG and its smoke, the Linux `.deb`/AppImage and their smoke in Docker, the NSIS build.
+  - The bridge end to end on macOS arm64: a Tauri 0.6.0 build with a local feed installed the signed 0.7.0
+    Electron app, relaunched it, and it ran. The `.deb` upgrade from the Tauri 0.6.0 package in Docker
+    (one package `mtkprof`, `/usr/bin/mtkprof-desktop` now the Electron app, the old engine gone; it starts).
+  - A copy of a real profile: tabs, settings, theme, the team-file record and the index cache (cache hits).
+  - By hand on macOS (driven through the accessibility API, test profile): `open -a` / Finder open of a
+    `.trc`, Cmd+W, window size restore, the open and save panels, a streamed report save, *Open standalone
+    HTML*, *Check now*, the releases page, a drag from Finder.
+  - Linux x64 natively on Oracle Linux 9 (dbmint, `~oracle/mtkprof-electron`, no root: Node, the GUI
+    libraries and Xvfb unpacked from RPMs into `~/.local/sysroot`, env in `~/.mtkprof-env`): built, smoke
+    passes. The Tauri shell cannot run there (OL9 has only WebKitGTK 4.0; the Tauri AppImage needs glibc 2.35).
+  Not tried: Windows at all (install, the Tauri-removing `build/installer.nsh`, safeStorage/DPAPI, second
+  instance argv), the x64 DMG on Intel hardware, the AppImage swap by the Tauri updater on Linux (the
+  package-level upgrade was). Installers are ~100-125 MB (Tauri: ~12 MB). `MTKPROF_PROFILE=<dir>` (with
+  `MTKPROF_SMOKE=1` for a packaged app) gives a run its own data, cache and logs: never launch a packaged
+  build without it on a machine where someone uses the app (a second launch hands its argv to the running
+  instance as files to open).
 - **Folder picker** (2026-11-08, DESIGN § Opening a folder): a folder no longer opens all its traces;
   the desktop lists them with a quick peek (`internal/peek`, `POST /engine/files`, `POST /engine/peek`)
   and opens what the user picks. Cutting from the picker before loading (for very large files) is the
@@ -205,7 +231,7 @@ Open:
   clock's "line before" is the previous trace line, not the previous displayed row.
 - `z` on an opened framing handle does nothing (`Z` is for user folds). The raw view keeps its row tint, the
   cyan number cell of a selected row and the `exec #0` on a CLOSE in `.lv-head`.
-- A prebuilt desktop sidecar (`desktop/src-tauri/binaries/`, gitignored) may predate `what=frame`, its `texts` or `api/lines/stmts`: run
+- A prebuilt desktop sidecar (`desktop/binaries/`, gitignored; `desktop/src-tauri/binaries/` on `main`) may predate `what=frame`, its `texts` or `api/lines/stmts`: run
   `pnpm build:engine` before checking the framing folds, the SQL bands, the highlight, the filter or the line map in desktop dev mode.
 - The gets box on the amber selected row reads as a slightly cooler patch in the light theme. With the side panel open at 1280 px the groups of a call's Detail are clipped
   (the waiting share and the hard-parse pill stay whole); only the panel's width gives more room.

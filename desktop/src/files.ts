@@ -1,9 +1,10 @@
-import { inTauri } from './platform'
+import { inApp, openDialog, readTextFile, saveDialog } from './platform'
+import { invoke } from './shell'
 
 /**
- * Saving and reading user files (reports, exports, imports): the save/open dialogs and the fs
- * plugin in the app (a path picked in a dialog is added to the fs scope for this run), a browser
- * download and a file input in the dev browser mode.
+ * Saving and reading user files (reports, exports, imports): the shell's save/open dialogs and its
+ * scoped writes in the app (a path picked in a dialog may be read or written for this run), a
+ * browser download and a file input in the dev browser mode.
  */
 export interface FileFilter {
   name: string
@@ -14,31 +15,46 @@ export type FileData = string | Uint8Array | ReadableStream<Uint8Array>
 
 /** Asks where to save `name` (the downloads folder first) and writes `data` there, streamed; the path, or null when cancelled. */
 export async function saveAs(name: string, data: FileData | (() => Promise<FileData>), filters?: FileFilter[], title?: string): Promise<string | null> {
-  if (!inTauri) {
+  if (!inApp) {
     download(name, typeof data === 'function' ? await data() : data)
     return name
   }
-  const { save } = await import('@tauri-apps/plugin-dialog')
-  let defaultPath = name
-  try {
-    const { downloadDir, join } = await import('@tauri-apps/api/path')
-    defaultPath = await join(await downloadDir(), name)
-  } catch {
-    // no downloads folder: the dialog's default
-  }
-  const path = await save({ defaultPath, filters, title })
+  const path = await saveDialog({ defaultName: name, filters, title })
   if (!path) {
     if (typeof data !== 'function' && data instanceof ReadableStream) void data.cancel()
     return null
   }
-  await writeTo(path, typeof data === 'function' ? await data() : data)
+  await writeTo({ path }, typeof data === 'function' ? await data() : data)
   return path
 }
 
-async function writeTo(path: string, data: FileData) {
-  const fs = await import('@tauri-apps/plugin-fs')
-  if (typeof data === 'string') await fs.writeTextFile(path, data)
-  else await fs.writeFile(path, data)
+type WriteTarget = { path: string } | { cache: { dir: string; name: string } }
+
+/** Bytes per IPC message of a streamed write. */
+const CHUNK = 4 << 20
+
+/** Streams `data` to the shell (`write_begin`, `write_chunk`…, `write_end`); a failed write keeps nothing of a cache file. The path. */
+async function writeTo(target: WriteTarget, data: FileData): Promise<string> {
+  const { id, path } = await invoke<{ id: number; path: string }>('write_begin', { target })
+  const chunk = (c: string | Uint8Array) => invoke('write_chunk', { id, chunk: c })
+  let ok = false
+  try {
+    if (typeof data === 'string') await chunk(data)
+    else if (data instanceof Uint8Array) {
+      for (let i = 0; i < data.length; i += CHUNK) await chunk(data.subarray(i, i + CHUNK))
+    } else {
+      const r = data.getReader()
+      for (;;) {
+        const { done, value } = await r.read()
+        if (done) break
+        if (value?.length) await chunk(value)
+      }
+    }
+    ok = true
+  } finally {
+    await invoke('write_end', { id, ok })
+  }
+  return path
 }
 
 /**
@@ -46,44 +62,33 @@ async function writeTo(path: string, data: FileData) {
  * renamed into place once written whole, so a write that fails (a broken stream, a full disk) leaves no truncated file
  * under the name and does not touch a file that had it.
  */
-export async function writeCached(dir: string, name: string, data: FileData): Promise<string> {
-  const { appCacheDir, join } = await import('@tauri-apps/api/path')
-  const fs = await import('@tauri-apps/plugin-fs')
-  const folder = await join(await appCacheDir(), dir)
-  await fs.mkdir(folder, { recursive: true })
-  const path = await join(folder, name)
-  const part = `${path}.part`
-  try {
-    await writeTo(part, data)
-    await fs.rename(part, path)
-  } catch (e) {
-    await fs.remove(part).catch(() => {})
-    throw e
-  }
-  return path
+/** Writes `text` to a file picked in a save dialog. */
+export async function writeText(path: string, text: string): Promise<void> {
+  await writeTo({ path }, text)
+}
+
+export function writeCached(dir: string, name: string, data: FileData): Promise<string> {
+  return writeTo({ cache: { dir, name } }, data)
 }
 
 /** Writes `data` to `<app cache dir>/<dir>/<name>` and opens it with the system's default app (dev browser: a new tab). */
 export async function openCached(dir: string, name: string, data: FileData, type: string): Promise<string> {
-  if (!inTauri) {
+  if (!inApp) {
     const url = URL.createObjectURL(await blobOf(data, type))
     window.open(url, '_blank', 'noopener')
     setTimeout(() => URL.revokeObjectURL(url), 60_000)
     return url
   }
   const path = await writeCached(dir, name, data)
-  const { openPath } = await import('@tauri-apps/plugin-opener')
-  await openPath(path)
+  await invoke('open_report', { path })
   return path
 }
 
 /** A text file the user picks (JSON imports); null when cancelled. */
 export async function pickTextFile(filters: FileFilter[], title?: string): Promise<{ name: string; text: string } | null> {
-  if (inTauri) {
-    const { open } = await import('@tauri-apps/plugin-dialog')
-    const path = await open({ multiple: false, directory: false, filters, title })
-    if (typeof path !== 'string') return null
-    const { readTextFile } = await import('@tauri-apps/plugin-fs')
+  if (inApp) {
+    const path = (await openDialog({ multiple: false, directory: false, filters, title }))?.[0]
+    if (!path) return null
     return { name: path.split(/[\\/]/).pop() || path, text: await readTextFile(path) }
   }
   return new Promise((resolve) => {

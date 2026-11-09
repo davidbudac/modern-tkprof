@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useEngine } from '../engine'
 import { isMac } from '@lib'
-import { inTauri, pickPaths } from '../platform'
+import { inApp, pickPaths } from '../platform'
 import { BindSeg } from '../settings/BindSeg'
 import { useSettings } from '../settings/settings'
 import { ago } from '../time'
@@ -49,9 +49,9 @@ function OpenChoices() {
 
   // The dev browser has no dialogs and no paths: "Open files…" takes the names from a file input
   // (resolved against the folder field), "Open folder…" opens the folder typed in the field.
-  const openFiles = () => (inTauri ? pick(false) : fileInput.current?.click())
+  const openFiles = () => (inApp ? pick(false) : fileInput.current?.click())
   const openFolder = () => {
-    if (inTauri) return pick(true)
+    if (inApp) return pick(true)
     if (dir.trim()) openPaths([dir.trim()])
     else dirInput.current?.focus()
   }
@@ -78,10 +78,10 @@ function OpenChoices() {
           <p className="actions">
             <button className="primary" disabled={!ready} onClick={openFiles}>Open files…</button>
             <button disabled={!ready} onClick={openFolder}>Open folder…</button>
-            {!inTauri && <input ref={fileInput} type="file" multiple hidden onChange={(e) => onFiles(e.target.files)} />}
+            {!inApp && <input ref={fileInput} type="file" multiple hidden onChange={(e) => onFiles(e.target.files)} />}
             {ready ? <span className="muted small">or drop them anywhere on the window</span> : <span className="muted small">Waiting for the engine…</span>}
           </p>
-          {!inTauri && (
+          {!inApp && (
             <div className="path-form">
               <label htmlFor="open-dir">Folder (dev browser mode: the engine reads it; also the base of the picked file names)</label>
               <input id="open-dir" ref={dirInput} type="text" className="mono" placeholder="/path/to/folder" value={dir} onChange={(e) => setDir(e.target.value)} spellCheck={false} />
@@ -95,7 +95,7 @@ function OpenChoices() {
               setPath('')
             }}
           >
-            <label htmlFor="open-path">{inTauri ? 'Or paths (one per line; a folder opens all its trace files)' : 'Paths (dev browser mode: one per line, files or folders)'}</label>
+            <label htmlFor="open-path">{inApp ? 'Or paths (one per line; a folder opens all its trace files)' : 'Paths (dev browser mode: one per line, files or folders)'}</label>
             <span className="row">
               <textarea id="open-path" ref={pathInput} className="mono" rows={2} placeholder="/path/to/trace.trc" value={path} onChange={(e) => setPath(e.target.value)} spellCheck={false} />
               <button type="submit" disabled={!ready || !path.trim()}>Open</button>

@@ -1,5 +1,6 @@
-import { invoke } from '@tauri-apps/api/core'
-import { inTauri, openKV } from '../platform'
+import { inApp, openDialog, openKV, readTextFile, saveDialog } from '../platform'
+import { writeText } from '../files'
+import { invoke } from '../shell'
 import type { Connection } from './model'
 import { FILE_NAME } from './model'
 
@@ -44,11 +45,11 @@ export const saveStatus = async (s: Record<string, ConnStatus>) => (await store(
 const allowed = new Set<string>()
 
 /**
- * The team file's text. Dev mode (no Tauri) reads it through the Vite server (`/@fs/<path>`,
+ * The team file's text. Dev mode (no shell) reads it through the Vite server (`/@fs/<path>`,
  * files under the project only).
  */
 export async function readTeamFile(path: string): Promise<string> {
-  if (!inTauri) {
+  if (!inApp) {
     const r = await fetch('/@fs' + (path.startsWith('/') ? '' : '/') + path, { cache: 'no-store' })
     if (!r.ok) throw new Error(`cannot read ${path}: HTTP ${r.status}`)
     return r.text()
@@ -57,7 +58,6 @@ export async function readTeamFile(path: string): Promise<string> {
     await invoke('allow_team_file', { path })
     allowed.add(path)
   }
-  const { readTextFile } = await import('@tauri-apps/plugin-fs')
   return readTextFile(path)
 }
 
@@ -65,30 +65,25 @@ const JSON_FILTER = [{ name: 'Connections', extensions: ['json'] }]
 
 /** Picks a JSON file (team file, import); null when the dialog was cancelled. */
 export async function pickJsonFile(title: string): Promise<string | null> {
-  if (!inTauri) return window.prompt(`${title} (path of a .json file under the project, dev mode)`)
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const p = await open({ title, multiple: false, directory: false, filters: JSON_FILTER })
-  return typeof p === 'string' ? p : null
+  if (!inApp) return window.prompt(`${title} (path of a .json file under the project, dev mode)`)
+  return (await openDialog({ title, multiple: false, directory: false, filters: JSON_FILTER }))?.[0] ?? null
 }
 
 /** Picks a directory (reference bundle); null when cancelled. */
 export async function pickDirectory(title: string): Promise<string | null> {
-  if (!inTauri) return window.prompt(`${title} (directory path on the engine's machine)`)
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const p = await open({ title, multiple: false, directory: true })
-  return typeof p === 'string' ? p : null
+  if (!inApp) return window.prompt(`${title} (directory path on the engine's machine)`)
+  return (await openDialog({ title, multiple: false, directory: true }))?.[0] ?? null
 }
 
 /** Reads a picked file; dev mode reads it through the Vite server. */
 export async function readPicked(path: string): Promise<string> {
-  if (!inTauri) return readTeamFile(path)
-  const { readTextFile } = await import('@tauri-apps/plugin-fs')
+  if (!inApp) return readTeamFile(path)
   return readTextFile(path)
 }
 
 /** Asks where to save and writes `text`; answers the path, or null when cancelled. Dev mode downloads it. */
 export async function saveFile(text: string): Promise<string | null> {
-  if (!inTauri) {
+  if (!inApp) {
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
     a.download = FILE_NAME
@@ -96,10 +91,8 @@ export async function saveFile(text: string): Promise<string | null> {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000)
     return FILE_NAME
   }
-  const { save } = await import('@tauri-apps/plugin-dialog')
-  const p = await save({ title: 'Export connections', defaultPath: FILE_NAME, filters: JSON_FILTER })
+  const p = await saveDialog({ title: 'Export connections', defaultName: FILE_NAME, filters: JSON_FILTER })
   if (!p) return null
-  const { writeTextFile } = await import('@tauri-apps/plugin-fs')
-  await writeTextFile(p, text)
+  await writeText(p, text)
   return p
 }

@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { fmtBytes, fmtDur, fmtInt, fmtWall, resolveVar, scopeOf, useActions, useClient, useStore, type ApiClient, type ID, type TraceDoc } from '@lib'
 import { responseError } from '../../../engine'
 import { safeFileName, saveAs } from '../../../files'
-import { inTauri } from '../../../platform'
+import { inApp } from '../../../platform'
 import { writeCut } from '../../cuts'
 import { useWorkspace } from '../../WorkspaceProvider'
 import { traceStem, useCurrentTab } from '../useTab'
@@ -163,7 +163,7 @@ export function CutView({ doc }: { doc: TraceDoc }) {
   }
   const save = () => run('save', async () => {
     const path = await saveAs(safeFileName(fileName), fetchFile, [{ name: 'Oracle trace', extensions: ['trc'] }], 'Save the new trace')
-    return path ? { text: `Saved ${path}`, path: inTauri ? path : undefined } : null
+    return path ? { text: `Saved ${path}`, path: inApp ? path : undefined } : null
   })
   // a name of its own in the cuts folder (<stem>-cut-<yyyymmdd-hhmmss>.trc): an earlier cut's tab keeps reading its own file
   const openNew = () => run('open', async () => {
@@ -190,7 +190,7 @@ export function CutView({ doc }: { doc: TraceDoc }) {
           </span>
         </span>
         {mode === 'statement' && <StmtPicker choices={choices} pick={pick} onPick={setStmt} />}
-        {inTauri && <button onClick={openNew} disabled={!canExport(current, busy !== null)} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
+        {inApp && <button onClick={openNew} disabled={!canExport(current, busy !== null)} title="writes the new file to the app cache folder and opens it in a new tab">{busy === 'open' ? 'Opening…' : 'Open as new tab'}</button>}
         <button className="primary" onClick={save} disabled={!canExport(current, busy !== null)} title={pending ? 'planning the cut of the new selection' : current?.lines === 0 ? 'the selection keeps nothing: there is no file to save' : undefined}>{busy === 'save' ? 'Saving…' : 'Save as…'}</button>
       </header>
       <TimeStrip doc={doc} client={client} contexts={contexts} plan={current} mode={mode} onWindow={(w) => actions.setWindow(w)} />

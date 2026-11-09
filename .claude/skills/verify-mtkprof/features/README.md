@@ -13,7 +13,7 @@ Maintained source for verifying user-facing behavior of the mtkprof desktop app 
 - Use `node scripts/drive.mjs` for single-shot journeys; copy and extend it for multi-step ones.
 - Prefer the stable handles in the SKILL.md table (ids, roles, aria-labels) over coordinates or DOM order.
 - Wait for named elements (`.session-tab-main`, `.session-nav .tabs button.tab`), not fixed sleeps.
-- The Tauri-only features (native file pickers, drag-drop, sidecar spawn, auto-update) are not reachable here; say so rather than substituting.
+- The app-only features (native file pickers, drag-drop, sidecar spawn, auto-update) are not reachable here; say so rather than substituting.
 - Run `scripts/cleanup.sh` at the end; evidence stays in `/tmp/verify-mtkprof/evidence/`.
 
 ## Proof and skip reporting

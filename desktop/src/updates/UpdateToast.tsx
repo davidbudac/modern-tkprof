@@ -3,7 +3,7 @@ import { EXIT_MS, useExit } from '@lib/components/motion'
 import { fmtBytes } from '@lib'
 import { useEngine } from '../engine'
 import { useSettings } from '../settings/settings'
-import { checkForUpdate, installUpdate, releaseUrl, updatesAvailable, useUpdateState, type UpdateState } from './updates'
+import { checkForUpdate, installUpdate, installsItself, releaseUrl, updatesAvailable, useUpdateState, type UpdateState } from './updates'
 
 /** after the start, so the check does not compete with the engine start and the workspace restore */
 const START_DELAY_MS = 4_000
@@ -46,7 +46,7 @@ export function UpdateToast() {
             You have {shown.current}. <a href={releaseUrl(shown.version)} target="_blank" rel="noreferrer">What's new</a>
           </span>
           <div className="toast-actions">
-            <button onClick={() => void installUpdate(restart)}>Install and restart</button>
+            <button onClick={() => void installUpdate(restart)}>{installsItself ? 'Install and restart' : 'Download'}</button>
             <button className="quiet" onClick={() => setDismissed(key)}>Later</button>
             <button className="quiet" onClick={() => update({ skippedVersion: shown.version })}>Skip this version</button>
           </div>

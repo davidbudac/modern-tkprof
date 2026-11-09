@@ -1,29 +1,24 @@
-import { invoke, isTauri } from '@tauri-apps/api/core'
-import { listen as tauriListen, type EventCallback, type UnlistenFn } from '@tauri-apps/api/event'
 import pkg from '../package.json'
+import { inApp, invoke, listen, pathForFile, type UnlistenFn } from './shell'
 
 /**
- * What the app needs from the Tauri shell, with a fallback for the dev browser mode: without the
- * Tauri API (`pnpm dev` in a browser) and with `?engine=HOST:PORT&token=TOKEN` in the URL the app
- * talks to an engine started by hand, keeps its stores in localStorage and takes paths from a
- * text box instead of the file dialog.
+ * What the app needs from the Electron shell (`src/shell.ts`), with a fallback for the dev browser
+ * mode: without the shell (`pnpm dev` in a browser) and with `?engine=HOST:PORT&token=TOKEN` in the
+ * URL the app talks to an engine started by hand, keeps its stores in localStorage and takes paths
+ * from a text box instead of the file dialog.
  */
-export const inTauri = isTauri()
+export { inApp, listen }
 
 /** `?engine=&token=` of the dev browser mode, else null. */
 export function devEngine(): { addr: string; token: string } | null {
-  if (inTauri) return null
+  if (inApp) return null
   const q = new URLSearchParams(location.search)
   const addr = q.get('engine')
   const token = q.get('token')
   return addr && token ? { addr, token } : null
 }
 
-export function listen<T>(event: string, fn: EventCallback<T>): Promise<UnlistenFn> {
-  return inTauri ? tauriListen<T>(event, fn) : Promise.resolve(() => {})
-}
-
-// ---- key-value stores (tauri-plugin-store: <app data dir>/<name>; dev browser: localStorage) ----
+// ---- key-value stores (electron/store.ts: <app data dir>/<name>; dev browser: localStorage) ----
 
 export interface KV {
   get<T>(key: string): Promise<T | undefined>
@@ -37,18 +32,24 @@ const kvs = new Map<string, Promise<KV>>()
 /** The store file `name` (`settings.json`, `workspace.json`, `annotations.json`, …), loaded once. */
 export function openKV(name: string): Promise<KV> {
   let p = kvs.get(name)
-  if (!p) kvs.set(name, (p = inTauri ? tauriKV(name) : Promise.resolve(localKV(name))))
+  if (!p) kvs.set(name, (p = inApp ? appKV(name) : Promise.resolve(localKV(name))))
   return p
 }
 
-async function tauriKV(name: string): Promise<KV> {
-  const { load } = await import('@tauri-apps/plugin-store')
-  const s = await load(name, { autoSave: 300, defaults: {} })
+/** The page's copy of the store; every change also goes to the shell, which writes the file. */
+async function appKV(name: string): Promise<KV> {
+  const data = new Map(Object.entries(await invoke<Record<string, unknown>>('store_load', { name })))
   return {
-    get: (k) => s.get(k),
-    set: (k, v) => s.set(k, v),
-    delete: async (k) => void (await s.delete(k)),
-    keys: () => s.keys(),
+    get: async <T>(k: string) => (data.has(k) ? (structuredClone(data.get(k)) as T) : undefined),
+    async set(k, v) {
+      data.set(k, structuredClone(v))
+      await invoke('store_set', { name, key: k, value: v })
+    },
+    async delete(k) {
+      data.delete(k)
+      await invoke('store_delete', { name, key: k })
+    },
+    keys: async () => [...data.keys()],
   }
 }
 
@@ -74,11 +75,28 @@ function localKV(name: string): KV {
 
 // ---- dialogs, drag-drop, log, app info ----
 
+export interface DialogFilter {
+  name: string
+  extensions: string[]
+}
+
+/** The shell's open dialog: the picked paths, or null when cancelled. A picked file may be read for the rest of the run. */
+export function openDialog(o: { directory?: boolean; multiple?: boolean; title?: string; filters?: DialogFilter[] }): Promise<string[] | null> {
+  return invoke<string[] | null>('dialog_open', o)
+}
+
+/** The shell's save dialog (in the downloads folder): the path, which may then be written, or null when cancelled. */
+export function saveDialog(o: { defaultName?: string; title?: string; filters?: DialogFilter[] }): Promise<string | null> {
+  return invoke<string | null>('dialog_save', o)
+}
+
+/** A text file picked in a dialog, the team file, or one of the app's own. */
+export const readTextFile = (path: string) => invoke<string>('fs_read_text', { path })
+
 /** Trace files (or, with `directory`, folders of them) from the open dialog; null when cancelled or in the dev browser. */
 export async function pickPaths(directory: boolean): Promise<string[] | null> {
-  if (!inTauri) return null
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const r = await open(
+  if (!inApp) return null
+  return openDialog(
     directory
       ? { directory: true, multiple: true, title: 'Open folders of trace files' }
       : {
@@ -90,30 +108,61 @@ export async function pickPaths(directory: boolean): Promise<string[] | null> {
           ],
         },
   )
-  if (r === null) return null
-  return Array.isArray(r) ? r : [r]
 }
 
 /** One folder from the dialog (the cache location); null when cancelled or in the dev browser. */
 export async function pickFolder(title: string): Promise<string | null> {
-  if (!inTauri) return null
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const r = await open({ directory: true, multiple: false, title })
-  return typeof r === 'string' ? r : null
+  if (!inApp) return null
+  const r = await openDialog({ directory: true, multiple: false, title })
+  return r?.[0] ?? null
 }
 
 export type DropState = { over: boolean; paths?: string[] }
 
-/** Files dropped on the window (Tauri's drag-drop event carries their paths; the browser's does not). */
+const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') ?? false
+
+/**
+ * Files dropped on the window, with their paths (the shell's webUtils gives a dropped File its
+ * path; a browser gives none). The window takes every file drag, so a drop never loads the file.
+ */
 export async function onDrop(fn: (e: DropState) => void): Promise<UnlistenFn> {
-  if (!inTauri) return () => {}
-  const { getCurrentWebview } = await import('@tauri-apps/api/webview')
-  return getCurrentWebview().onDragDropEvent((e) => {
-    const p = e.payload
-    if (p.type === 'enter' || p.type === 'over') fn({ over: true })
-    else if (p.type === 'leave') fn({ over: false })
-    else fn({ over: false, paths: p.paths })
-  })
+  if (!inApp) return () => {}
+  // dragenter/dragleave fire for every element crossed: count them to know when the drag left the window
+  let depth = 0
+  const enter = (e: DragEvent) => {
+    if (!hasFiles(e)) return
+    e.preventDefault()
+    if (depth++ === 0) fn({ over: true })
+  }
+  const over = (e: DragEvent) => {
+    if (!hasFiles(e)) return
+    e.preventDefault()
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  }
+  const leave = (e: DragEvent) => {
+    if (!hasFiles(e)) return
+    if (--depth <= 0) {
+      depth = 0
+      fn({ over: false })
+    }
+  }
+  const drop = (e: DragEvent) => {
+    if (!hasFiles(e)) return
+    e.preventDefault()
+    depth = 0
+    const paths = [...(e.dataTransfer?.files ?? [])].map(pathForFile).filter((p): p is string => !!p)
+    fn({ over: false, paths })
+  }
+  window.addEventListener('dragenter', enter)
+  window.addEventListener('dragover', over)
+  window.addEventListener('dragleave', leave)
+  window.addEventListener('drop', drop)
+  return () => {
+    window.removeEventListener('dragenter', enter)
+    window.removeEventListener('dragover', over)
+    window.removeEventListener('dragleave', leave)
+    window.removeEventListener('drop', drop)
+  }
 }
 
 /**
@@ -121,7 +170,7 @@ export async function onDrop(fn: (e: DropState) => void): Promise<UnlistenFn> {
  * queued in the shell until taken; empty in the dev browser.
  */
 export function takeOpenRequests(): Promise<string[][]> {
-  return inTauri ? invoke<string[][]>('take_open_requests') : Promise.resolve([])
+  return inApp ? invoke<string[][]>('take_open_requests') : Promise.resolve([])
 }
 
 /** Called when an open request is queued (`app://open`). */
@@ -129,28 +178,27 @@ export function onOpenRequest(fn: () => void): Promise<UnlistenFn> {
   return listen<null>('app://open', () => fn())
 }
 
-/** A line in the app log (tauri-plugin-log: stdout and the log dir); CI's smoke step waits on some. */
+/** A line in the app log (electron/log.ts: stdout and the log dir); CI's smoke step waits on some. */
 export function logInfo(message: string): void {
-  if (!inTauri) {
+  if (!inApp) {
     console.info(message)
     return
   }
-  void import('@tauri-apps/plugin-log').then((l) => l.info(message), () => {})
+  invoke('log', { level: 'info', message }).catch(() => {})
 }
 
-/** A warning in the app log; the release webview has no console to read. */
+/** A warning in the app log; the release window has no console to read. */
 export function logWarn(message: string): void {
-  if (!inTauri) {
+  if (!inApp) {
     console.warn(message)
     return
   }
-  void import('@tauri-apps/plugin-log').then((l) => l.warn(message), () => {})
+  invoke('log', { level: 'warn', message }).catch(() => {})
 }
 
 export async function appVersion(): Promise<string> {
-  if (!inTauri) return pkg.version
-  const { getVersion } = await import('@tauri-apps/api/app')
-  return getVersion()
+  if (!inApp) return pkg.version
+  return invoke<string>('app_version')
 }
 
 /** `app_info`: where things live, and the smoke run's trace to open. */
@@ -167,7 +215,7 @@ export interface AppInfo {
 }
 
 export async function appInfo(): Promise<AppInfo> {
-  if (inTauri) return invoke<AppInfo>('app_info')
+  if (inApp) return invoke<AppInfo>('app_info')
   return {
     cacheDir: '(engine -cache flag)',
     defaultCacheDir: '(engine -cache flag)',
@@ -179,15 +227,12 @@ export async function appInfo(): Promise<AppInfo> {
 }
 
 /**
- * The webview drops `target="_blank"` links (the engine UI's "Open in plan viz"), so web links
- * that would open a new tab go to the system browser instead. No-op in the dev browser mode.
- *
- * In the window's capture phase, and the click goes no further: tauri-plugin-shell (kept for the
- * sidecar) injects a `<body>` click handler that takes every `_blank` web link for `shell.open`,
- * which the webview isn't allowed, so the link did nothing.
+ * Web links that would open a new tab or leave the app (the engine UI's "Open in plan viz") go to
+ * the system browser instead; the shell also denies new windows and navigation away, so this only
+ * makes the click do it at once. No-op in the dev browser mode.
  */
 export function routeExternalLinks(): void {
-  if (!inTauri) return
+  if (!inApp) return
   window.addEventListener(
     'click',
     (e) => {
@@ -204,7 +249,7 @@ export function routeExternalLinks(): void {
 }
 
 export function openReleasesPage(): Promise<void> {
-  if (inTauri) return invoke<void>('open_releases_page')
+  if (inApp) return invoke<void>('open_releases_page')
   window.open('https://github.com/davidbudac/modern-tkprof/releases', '_blank', 'noopener')
   return Promise.resolve()
 }

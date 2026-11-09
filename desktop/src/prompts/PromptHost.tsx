@@ -3,7 +3,7 @@ import { assistKeyAnswer, assistKeyStoreAndAnswer, useEngine } from '../engine'
 import { useConnectionsOptional } from '../connections/ConnectionsProvider'
 import { remoteApi } from '../connections/api'
 import { EXIT_MS, useExit } from '@lib/components/motion'
-import { inTauri } from '../platform'
+import { inApp } from '../platform'
 import { useSettings } from '../settings/settings'
 import { answerOutcome, canSend, emptyQueue, isRetry, isYesNo, promptReducer, promptTitle, shows, type Answered, type QueuedPrompt } from './queue'
 import './prompts.css'
@@ -52,7 +52,7 @@ export function PromptHost() {
         })
     }
     const offPrompt = events.on('prompt', (prompt) => {
-      if (inTauri && prompt.kind === 'apikey') {
+      if (inApp && prompt.kind === 'apikey') {
         if (prompt.state === 'open') return keyLookup(prompt)
         if (lookups.current.has(prompt.id)) closedDuring.current.add(prompt.id)
       }
@@ -86,7 +86,7 @@ export function PromptHost() {
     }
     try {
       // in the app the shell answers the engine first and remembers a typed key only once the engine took it
-      if ('answer' in body && inTauri && kind === 'apikey') await assistKeyStoreAndAnswer(id, connection, body.answer, body.remember ?? false)
+      if ('answer' in body && inApp && kind === 'apikey') await assistKeyStoreAndAnswer(id, connection, body.answer, body.remember ?? false)
       else await remoteApi.answerPrompt(client, id, 'answer' in body ? { answer: body.answer } : body)
       done()
     } catch (e) {
@@ -137,7 +137,7 @@ function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel, onRet
   const apiKey = prompt.kind === 'apikey'
   const provider = useSettings().settings.assistProviders.find((p) => apiKey && p.id === prompt.connection)
   // no keychain: the shell keeps the key for this session instead
-  const keychain = inTauri && apiKey && prompt.keychain !== false
+  const keychain = inApp && apiKey && prompt.keychain !== false
   const [remember, setRemember] = useState(true)
   const [value, setValue] = useState('')
   const input = useRef<HTMLInputElement>(null)
@@ -228,7 +228,7 @@ function PromptModal({ prompt, waiting, closing, last, onAnswer, onCancel, onRet
             <input type="checkbox" checked={remember} disabled={sending || failed} onChange={(e) => setRemember(e.target.checked)} />
             Remember in keychain
           </label>
-        ) : inTauri ? (
+        ) : inApp ? (
           <p className="muted small" role="note">No keychain is available on this system: the key is kept for this session only, until the app quits.</p>
         ) : (
           <p className="muted small">Kept only in the engine's memory until it stops. Never written to disk.</p>

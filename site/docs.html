@@ -428,7 +428,7 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
 
 <!-- ================================================================ -->
 <h2 id="desktop-install">Desktop app: install and first start<a class="anchor" href="#desktop-install" aria-label="Link to this section">#</a></h2>
-<p>The desktop app opens traces in tabs with the same views as the interactive report, plus <strong>Lines</strong>, <strong>Notes</strong>, <strong>Reports</strong>, a <strong>Library</strong> of saved pivots and <strong>Connections</strong>. It is a small native shell (Tauri) that runs the mtkprof engine as a local background process.</p>
+<p>The desktop app opens traces in tabs with the same views as the interactive report, plus <strong>Lines</strong>, <strong>Notes</strong>, <strong>Reports</strong>, a <strong>Library</strong> of saved pivots and <strong>Connections</strong>. It is a desktop shell (Electron) that runs the mtkprof engine as a local background process.</p>
 <figure class="shot"><img src="img/desktop-dark.webp" width="2000" height="1255" loading="lazy" alt="The desktop app on macOS."></figure>
 <div class="table-wrap"><table>
   <thead><tr><th>System</th><th>File</th><th>Notes</th></tr></thead>
@@ -571,11 +571,12 @@ make release        <span class="c"># dist/mtkprof-&lt;os&gt;-&lt;arch&gt; for e
 
 GOOS=aix GOARCH=ppc64 go build -o mtkprof-aix ./cmd/mtkprof</pre>
 <h3>The desktop app</h3>
-<p>The app lives in <code>desktop/</code> of the same repository and builds its engine from the same source, so the two always match. It also needs Rust (stable, via rustup) and Node 22+ with pnpm; <a href="https://github.com/davidbudac/modern-tkprof/blob/main/desktop/README.md"><code>desktop/README.md</code></a> lists the system packages per platform.</p>
+<p>The app lives in <code>desktop/</code> of the same repository and builds its engine from the same source, so the two always match. It also needs Node 22+ with pnpm (Electron comes with the install); <a href="https://github.com/davidbudac/modern-tkprof/blob/main/desktop/README.md"><code>desktop/README.md</code></a> lists the system packages per platform.</p>
 <pre>pnpm install                      <span class="c"># once, at the root: one workspace for web/ and desktop/</span>
 cd desktop
-pnpm tauri build                  <span class="c"># installers under src-tauri/target/release/bundle/</span>
-scripts/build-mac-quick.sh --app  <span class="c"># macOS: just the .app, for a quick test</span></pre>
+pnpm build:engine                 <span class="c"># the engine sidecar, into binaries/</span>
+pnpm dist                         <span class="c"># installers for this system under release/</span>
+scripts/build-mac-quick.sh        <span class="c"># macOS: just the .app, for a quick test</span></pre>
 
 <!-- ================================================================ -->
 <h2 id="more">Further reading<a class="anchor" href="#more" aria-label="Link to this section">#</a></h2>

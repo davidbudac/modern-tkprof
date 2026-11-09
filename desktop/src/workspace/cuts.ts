@@ -2,7 +2,8 @@
 // the app's own: every cut gets a name of its own (an open tab reads its lines from its file, so a file is never replaced),
 // and on start the files that no tab references and that are older than a week are deleted (docs/DESKTOP.md § Cuts).
 import { safeFileName, writeCached, type FileData } from '../files'
-import { inTauri, openKV } from '../platform'
+import { inApp, openKV } from '../platform'
+import { invoke } from '../shell'
 
 /** The folder of the app's cache directory the cuts go to. */
 export const CUTS_DIR = 'cuts'
@@ -34,10 +35,7 @@ const writing = new Set<string>()
 
 /** Writes a new cut of `stem` to the cuts folder under a name of its own (written whole, then renamed into place); its path. */
 export async function writeCut(stem: string, data: FileData, at = new Date()): Promise<string> {
-  const { appCacheDir, join } = await import('@tauri-apps/api/path')
-  const { exists } = await import('@tauri-apps/plugin-fs')
-  const folder = await join(await appCacheDir(), CUTS_DIR)
-  const name = await cutFileName(stem, at, async (n) => writing.has(n) || (await exists(await join(folder, n)).catch(() => false)))
+  const name = await cutFileName(stem, at, async (n) => writing.has(n) || (await invoke<boolean>('cache_exists', { dir: CUTS_DIR, name: n }).catch(() => false)))
   writing.add(name)
   try {
     return await writeCached(CUTS_DIR, name, data)
@@ -79,24 +77,17 @@ type SavedTab = { set?: { paths?: string[] } }
  * a week. The app only; the number of files deleted.
  */
 export async function pruneCuts(open: Iterable<string> = [], now = Date.now()): Promise<number> {
-  if (!inTauri) return 0
-  const { appCacheDir, join } = await import('@tauri-apps/api/path')
-  const fs = await import('@tauri-apps/plugin-fs')
-  const folder = await join(await appCacheDir(), CUTS_DIR)
-  if (!(await fs.exists(folder))) return 0
+  if (!inApp) return 0
+  const entries = await invoke<CutEntry[]>('cache_list', { dir: CUTS_DIR })
+  if (!entries.length) return 0
+  const folder = await invoke<string>('cache_folder', { dir: CUTS_DIR })
   const kv = await openKV('workspace.json')
   const saved = [...((await kv.get<SavedTab[]>('open')) ?? []), ...((await kv.get<SavedTab[]>('recent')) ?? [])]
   const referenced = namesIn(folder, [...open, ...saved.flatMap((t) => t?.set?.paths ?? [])])
-  const entries: CutEntry[] = []
-  for (const e of await fs.readDir(folder)) {
-    if (!e.isFile) continue
-    const st = await fs.stat(await join(folder, e.name)).catch(() => null)
-    entries.push({ name: e.name, mtime: st?.mtime ? st.mtime.getTime() : null })
-  }
   let n = 0
   for (const name of cutsToDelete(entries, referenced, now)) {
     try {
-      await fs.remove(await join(folder, name))
+      await invoke('cache_remove', { dir: CUTS_DIR, name })
       n++
     } catch (e) {
       console.error(`cuts: cannot delete ${name}:`, e)

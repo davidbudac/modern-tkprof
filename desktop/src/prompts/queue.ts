@@ -15,7 +15,7 @@ export interface PromptQueue {
   items: QueuedPrompt[]
 }
 
-/** A prompt as the modal shows it; an `apikey` one knows whether there is a keychain to remember the key in (Tauri). */
+/** A prompt as the modal shows it; an `apikey` one knows whether there is a keychain to remember the key in (the app). */
 export type QueuedPrompt = PromptEvent & {
   keychain?: boolean
   /** an answer is on its way: the modal's inputs and buttons are off */

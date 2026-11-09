@@ -212,23 +212,62 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
 
 - Internal team tool for Windows, macOS and Linux (all first-class); private,
   unsigned GitHub releases. Traces of 1–2 GB are the ceiling.
-- Updates (decided 2026-11-08, replacing "no updater"): tauri-plugin-updater.
-  The app reads `latest.json` of the newest GitHub release on every start
-  (setting, on by default) and offers *Install and restart*; nothing installs
-  without that click. Updates are signed with a minisign key kept off GitHub
-  (`~/.tauri/mtkprof-updater.key` on the release Mac; the public key is in
-  `tauri.conf.json`) and must carry the release's version in the signature
-  (`requireSignedVersion`: no downgrade through a forged manifest). OS code
-  signing stays out of scope. Losing the key means every installed app needs one
-  manual reinstall with a new key.
+- Updates (decided 2026-11-08, replacing "no updater"; narrowed 2026-11-09
+  with the Electron shell): the app asks GitHub for the newest release on every
+  start (setting, on by default) and, when it is newer, offers *Download*,
+  which opens that release's page. It does not install in place: the Tauri
+  updater's signed install (minisign, `latest.json`, `requireSignedVersion`)
+  has no Electron replacement yet. electron-updater was not taken: on macOS it
+  needs a code-signed app (Squirrel.Mac) and it checks hashes, not a signature
+  of ours. An in-place install with the same guarantees (a signature over the
+  artifact and its version, verified in the main process) is open. OS code
+  signing stays out of scope.
+- The Tauri bridge (2026-11-09): installs of v0.6.0 and older keep their own
+  updater, which reads `latest.json` of the newest release. So every release
+  also ships the Electron app in the shapes that updater installs, signed with
+  the same minisign key and bound to the version (`scripts/tauri-bridge.mjs`;
+  `release-local.sh` refuses without the key): the `.app.tar.gz` on macOS (it
+  swaps the bundle and relaunches through LaunchServices; tried end to end from
+  0.6.0 on arm64), the AppImage and the `.deb` (package `mtkprof` in both
+  shells, so dpkg upgrades it). Windows only with `--with-windows` once tried
+  there: its installer removes the Tauri install first (`build/installer.nsh`).
+  Kept until no Tauri install is left to update; then `latest.json` goes.
 - The Go core is the engine: `mtkprof engine` runs locally as a sidecar
   process, holds N open traces, always builds in aggregate + spill mode, and
   keeps the spill directory as a persistent index cache (user cache dir,
   20 GB LRU) keyed by trace content identity. No Rust rewrite of the parser
   or model; no remote-engine mode; no LOD tiles (a 1024-bucket minimap in the
   document instead).
-- The shell is Tauri 2 (Rust) around the React/TS UI. Committed; GPUI is not
-  revisited.
+- The shell is Electron (TypeScript main process) around the React/TS UI
+  (2026-11-09, replacing Tauri 2; the last Tauri commit is tag `tauri-final`). Why: one language for the
+  shell and the UI, the same Chromium on every platform instead of WKWebView,
+  WebKitGTK and WebView2 (the Linux leg needed webkit workarounds, the macOS
+  webview its own keyboard and accessibility checks), and a shell any
+  contributor of the UI can change. Cost: ~100 MB more per installer and
+  Chromium's memory. What stayed: the engine as a sidecar with its token in
+  the environment, stdin held, the ready line, restart with backoff; the page
+  has no Node (`contextIsolation`, `sandbox`, one `window.mtkprof` bridge);
+  a remembered assistant key never enters the page (safeStorage in the main
+  process, which answers the engine's prompt itself); the UI's origin is
+  `mtkprof://app`, the engine's CORS allows exactly that; data, cache and log
+  dirs keep the Tauri paths, so settings, tabs, notes, connections and the
+  index cache carry over. Keys the Tauri app remembered in the macOS keychain
+  are taken over once (macOS asks to allow it); on Windows and Linux they are
+  asked for once more. GPUI is not revisited.
+- The page is trusted less than the main process (it shows trace text and
+  assistant replies), so the main process grants it least privilege (2026-11-09,
+  after a review of the shell): it reads dialog picks and the team file (whose
+  path the main process keeps); it writes save-dialog picks (once each) and the
+  cache folders `reports` and `cuts`, by file type; it opens with the system
+  only reports this run wrote; stores are an exact list of names; engine
+  options are checked, and the engine deletes only names it creates in its
+  cache. Packaged builds set Electron's fuses (no run-as-node, `NODE_OPTIONS`
+  or inspector; the UI only from the integrity-checked `app.asar`), refuse
+  remote debugging, grant only clipboard writes and keep a strict CSP.
+- Electron is kept current: a Chromium security fix reaches users only through
+  an Electron upgrade, and only the newest three majors get fixes (a major every
+  eight weeks). `desktop/scripts/release-local.sh` refuses a release whose
+  Electron major is older than that; upgrade, smoke, release.
 - One repository, two clients (2026-11-02; was a separate private repo
   `mtkprof-desktop` pinning this one as a git submodule): the engine and the
   CLI at the root, the CLI's UI and the shared lib in `web/`, the desktop app

@@ -5,8 +5,7 @@
 #
 # Steps: go vet, go test ./... (unit, golden, engine contract), web install /
 # typecheck / test / build, embedded-UI check, the desktop client's checks
-# (api types up to date, typecheck against the lib, tests; cargo fmt when cargo
-# is there), cross-build of every release target (make release with a
+# (api types up to date, typecheck against the lib, tests), cross-build of every release target (make release with a
 # throwaway version). The desktop installers are desktop/scripts/ci-local.sh.
 #   --strict      a stale internal/ui/dist/index.html (differs from a fresh web
 #                 build) fails the run; without it only a loud warning is shown
@@ -31,7 +30,7 @@ for a in "$@"; do
   esac
 done
 
-for d in "$HOME/.local/go/bin" /usr/local/go/bin "$HOME/.cargo/bin"; do
+for d in "$HOME/.local/go/bin" /usr/local/go/bin; do
   [ -d "$d" ] && PATH="$d:$PATH"
 done
 export PATH
@@ -68,8 +67,6 @@ desktop_steps() {
   ( cd "$ROOT/desktop" || exit 1
     pnpm gen:api >/dev/null && git diff --exit-code -- src/engine/api.d.ts \
       || { echo "desktop/src/engine/api.d.ts is stale: cd desktop && pnpm gen:api, and commit it"; exit 1; }
-    if command -v cargo >/dev/null; then cargo fmt --manifest-path src-tauri/Cargo.toml --check || exit 1
-    else echo "cargo not found: skipping cargo fmt"; fi
     pnpm typecheck && pnpm test )
 }
 
@@ -108,7 +105,7 @@ fi
 if [ "$WEB" = 1 ]; then
   step "web: install, typecheck, test, build" web_steps
   step "embedded UI up to date$([ "$STRICT" = 1 ] && echo ' (strict)')" embedded_ui
-  [ "$DESKTOP" = 1 ] && step "desktop: api types, cargo fmt, typecheck, test" desktop_steps
+  [ "$DESKTOP" = 1 ] && step "desktop: api types, typecheck, test" desktop_steps
 fi
 [ "$RELEASE" = 1 ] && step "make release (cross-build check)" release_check
 

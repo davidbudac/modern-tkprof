@@ -5,8 +5,6 @@
 set -uo pipefail
 cd /src/desktop
 . ci/lib.sh
-# the key comes from ci-local.sh's environment (docker run -e)
-updater_build_args
 
 leg=${1:?usage: in-container.sh <linux|windows> [--skip-smoke] [--no-appimage]}
 shift
@@ -21,38 +19,29 @@ done
 
 # the Mac's node_modules do not apply here: /src/node_modules, /src/{web,desktop}/node_modules are volumes
 run_step "$leg: pnpm install" pnpm install --frozen-lockfile || exit 1
+run_step "$leg: ui and main process" pnpm build || exit 1
 
 linux() {
-  local t=x86_64-unknown-linux-gnu
-  rm -rf "src-tauri/target/$t/release/bundle"
-  run_step "linux-x64: engine" pnpm build:engine --target $t || return 1
-  run_step "linux-x64: deb" pnpm tauri build --target $t --bundles deb --ci ${updater_args[@]+"${updater_args[@]}"} || return 1
-  if [ $appimage -eq 1 ]; then
-    # linuxdeploy is itself an AppImage: run it extracted, without FUSE
-    if ! APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=true run_step "linux-x64: appimage" \
-      pnpm tauri build --target $t --bundles appimage --ci ${updater_args[@]+"${updater_args[@]}"} > out-logs/linux-appimage.log 2>&1; then
-      tail -n 30 out-logs/linux-appimage.log
-      echo "linux-x64: appimage failed (full log out-logs/linux-appimage.log; --no-appimage to build the deb only)"
-      return 1
-    fi
-  else
-    skip "linux-x64: appimage" "--no-appimage"
-  fi
-  collect_installers $t || return 1
+  local targets=(deb)
+  [ $appimage -eq 1 ] && targets+=(AppImage) || skip "linux-x64: appimage" "--no-appimage"
+  run_step "linux-x64: engine" pnpm build:engine --target linux-x64 || return 1
+  rm -rf release
+  run_step "linux-x64: ${targets[*]}" node_modules/.bin/electron-builder --linux "${targets[@]}" --x64 || return 1
+  collect_installers || return 1
   if [ $smoke -eq 1 ]; then
     # smoke.sh starts its own Xvfb and dbus session on Linux
-    run_step "linux-x64: smoke" bash scripts/smoke.sh $t linux-x64 || return 1
+    run_step "linux-x64: smoke" bash scripts/smoke.sh release/linux-unpacked/mtkprof-desktop linux-x64 || return 1
   else
     skip "linux-x64: smoke" "--skip-smoke"
   fi
 }
 
 windows() {
-  local t=x86_64-pc-windows-msvc
-  rm -rf "src-tauri/target/$t/release/bundle"
-  run_step "windows-x64: engine" pnpm build:engine --target $t || return 1
-  run_step "windows-x64: nsis" pnpm tauri build --runner cargo-xwin --target $t --bundles nsis --ci ${updater_args[@]+"${updater_args[@]}"} || return 1
-  collect_installers $t || return 1
+  run_step "windows-x64: engine" pnpm build:engine --target win-x64 || return 1
+  rm -rf release
+  # wine runs rcedit, which puts the icon and the version into mtkprof.exe
+  run_step "windows-x64: nsis" node_modules/.bin/electron-builder --win nsis --x64 || return 1
+  collect_installers || return 1
   skip "windows-x64: smoke" "no Windows to run it on (cross-built on Linux)"
 }
 
