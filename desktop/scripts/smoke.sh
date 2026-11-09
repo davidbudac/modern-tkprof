@@ -56,8 +56,12 @@ cp "$out/$name-shots/session-1.png" "$out/$name-ready.png" 2>/dev/null
 cp "$out/$name-shots/session-2.png" "$out/$name-restarted.png" 2>/dev/null
 pids=$(grep -o 'ready on 127.0.0.1:[0-9]* (pid [0-9]*)' "$log" | grep -o 'pid [0-9]*' | grep -o '[0-9]*')
 
-kill $app 2>/dev/null
-case "$(uname -s)" in Linux) sleep 4; kill $xvfb ;; *) sleep 4 ;; esac
+# on Linux $app is dbus-run-session, which does not pass SIGTERM on: signal the app itself, and keep
+# the display up until it has quit (a lost X connection kills it before it can stop its engine)
+case "$(uname -s)" in Linux) kill $(pgrep -P $app) 2>/dev/null ;; *) kill $app 2>/dev/null ;; esac
+for _ in $(seq 15); do kill -0 $app 2>/dev/null || break; sleep 1; done
+case "$(uname -s)" in Linux) kill $xvfb ;; esac
+sleep 1
 cat "$log"
 
 ok=0
