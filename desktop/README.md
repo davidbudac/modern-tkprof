@@ -239,8 +239,9 @@ image holds the Linux and Windows toolchains (Node, pnpm, Go pinned as in the re
 runtime libraries, Xvfb, wine); `node_modules` and the go/pnpm/Electron caches live in Docker
 volumes `mtkprof-ci-*` so they never mix with the Mac's (`docker volume rm` to reset).
 
-Not yet run end to end since the switch to Electron (2026-11-09): the electron-builder legs, the
-Docker image and the release script. Timings of the Tauri runs no longer apply.
+Since the switch to Electron (2026-11-09) only the arm64 DMG and its smoke have run; the x64, Linux and
+Windows legs, the Docker image and the release script have not. The arm64 DMG is about 126 MB (the
+.app 278 MB; the Tauri DMG was a fraction of that). Timings of the Tauri runs no longer apply.
 
 Known limits: the smoke test runs the unpacked app, not the installers (the AppImage, `.deb`
 and NSIS installer are built, never installed); the Windows installer is built but never run

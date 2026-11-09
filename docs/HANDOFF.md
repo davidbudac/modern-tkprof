@@ -28,8 +28,11 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   packaged by electron-builder (`electron-builder.yml`); the UI reaches the shell only through `src/shell.ts`.
   Verified: typecheck, `pnpm test` (313, with the shell's ported Rust tests), a dev-run smoke with the
   fixture (start, simulated crash, restart, re-open from the cache, "Engine restarted" toast, both engines
-  gone after quit; screenshots by the app itself, `MTKPROF_SMOKE_SHOTS`). Not yet run: `electron-builder`
-  packaging (DMG/NSIS/AppImage/deb), `scripts/ci-local.sh` legs and the Docker image, the native dialogs,
+  gone after quit; screenshots by the app itself, `MTKPROF_SMOKE_SHOTS`). Packaged on 2026-11-09: the arm64
+  DMG (`mtkprof_0.6.0_arm64.dmg`, 126 MB; the .app 278 MB, ad-hoc signed, `.trc` association) and
+  `scripts/smoke.sh` on its app, passed twice. electron-builder downloads its dmgbuild bundle from GitHub
+  on the first DMG; that download failed twice with a 504 before it went through. Not yet run: the x64
+  DMG, the Linux/Windows legs and the Docker image, a full `scripts/ci-local.sh`, the native dialogs,
   drag-drop and Finder "Open With" by hand, Windows at all. The updater only checks and opens the release
   page (DESIGN § Updates). `MTKPROF_PROFILE=<dir>` gives dev and smoke runs their own data, cache and logs.
 - **Folder picker** (2026-11-08, DESIGN § Opening a folder): a folder no longer opens all its traces;
