@@ -9,15 +9,16 @@
   'use strict';
 
   var REPO = 'davidbudac/modern-tkprof';
-  var FALLBACK_VERSION = '0.5.0';
+  var FALLBACK_VERSION = '0.7.0';
 
   // key -> file name for a version, what the button says, size in bytes (fallback)
   var ASSETS = {
-    'dmg-arm':   { name: function (v) { return 'mtkprof_' + v + '_aarch64.dmg'; },      meta: 'Apple Silicon · .dmg', alt: 'Apple Silicon Mac', kind: '.dmg',      size: 10993997 },
-    'dmg-x64':   { name: function (v) { return 'mtkprof_' + v + '_x64.dmg'; },          meta: 'Intel · .dmg',         alt: 'Intel Mac',         kind: '.dmg',      size: 11958398 },
-    'win-setup': { name: function (v) { return 'mtkprof_' + v + '_x64-setup.exe'; },    meta: 'Windows 10/11 x64 · installer', kind: '.exe', size: 7691342 },
-    'appimage':  { name: function (v) { return 'mtkprof_' + v + '_amd64.AppImage'; },   meta: 'x64 · AppImage',      kind: '.AppImage', size: 107067896 },
-    'deb':       { name: function (v) { return 'mtkprof_' + v + '_amd64.deb'; },        alt: 'Debian and Ubuntu',    kind: '.deb',      size: 12216186 },
+    // the Apple Silicon DMG is `_arm64` since v0.7.0 (Electron); the Tauri builds named it `_aarch64`
+    'dmg-arm':   { name: function (v) { return 'mtkprof_' + v + '_arm64.dmg'; },        meta: 'Apple Silicon · .dmg', alt: 'Apple Silicon Mac', kind: '.dmg',      size: 126123479 },
+    'dmg-x64':   { name: function (v) { return 'mtkprof_' + v + '_x64.dmg'; },          meta: 'Intel · .dmg',         alt: 'Intel Mac',         kind: '.dmg',      size: 133930539 },
+    'win-setup': { name: function (v) { return 'mtkprof_' + v + '_x64-setup.exe'; },    meta: 'Windows 10/11 x64 · installer', kind: '.exe', size: 108008487 },
+    'appimage':  { name: function (v) { return 'mtkprof_' + v + '_amd64.AppImage'; },   meta: 'x64 · AppImage',      kind: '.AppImage', size: 133010805 },
+    'deb':       { name: function (v) { return 'mtkprof_' + v + '_amd64.deb'; },        alt: 'Debian and Ubuntu',    kind: '.deb',      size: 105667432 },
     'cli-darwin-arm64': { name: function () { return 'mtkprof-darwin-arm64'; } },
     'cli-darwin-amd64': { name: function () { return 'mtkprof-darwin-amd64'; } },
     'cli-linux-amd64':  { name: function () { return 'mtkprof-linux-amd64'; } },

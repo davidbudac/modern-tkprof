@@ -48,8 +48,9 @@ Implemented in the desktop and its pinned engine, beyond the original core list:
 
 Remaining work:
 
-1. Native platform coverage: Windows install/WebView2 large-trace interaction and SSH prompts,
-   Intel macOS smoke, and installer-level checks (building an installer is not installing it).
+1. Native platform coverage: Windows at all since the Electron switch (install, removal of a Tauri
+   install, large-trace interaction, SSH prompts), Intel macOS hardware, and installer-level checks
+   (building an installer is not installing it).
 2. Remote compatibility: TCPS, AIX/Solaris scripts and older Oracle trace formats. Use the
    specific remaining checks in `REMOTE.md`; do not infer support from compilation.
 3. Comparison enhancements: persisted comparison workspaces, filtered comparisons,

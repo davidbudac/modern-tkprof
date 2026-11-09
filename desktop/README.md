@@ -139,7 +139,9 @@ Assistant keys (`electron/secrets.ts`, `vault.ts`): a remembered key is encrypte
 `<data dir>/secrets.json`, bound to the endpoint it was typed for. The main process reads the open
 `apikey` prompt from the engine and answers it itself, so a stored key never enters the page.
 Without a keychain (Linux without a Secret Service: safeStorage's `basic_text`) a remembered key
-lasts until the app quits. Keys the Tauri app kept in the OS keychain are not read.
+lasts until the app quits. A key the Tauri app (v0.6.0 and older) kept in the macOS keychain is taken over
+once per provider when it is first needed (`tauriKeychain` in `electron/vault.ts`; macOS asks the user to
+allow it); on Windows and Linux those keys are not read.
 
 ## Workspace, settings, stores
 
