@@ -14,10 +14,11 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - `davidbudac/modern-tkprof` is **public**, `main` pushed. One repository, two clients (since 2026-11-02;
   `davidbudac/mtkprof-desktop` is archived): engine + CLI at the root, `web/` (CLI UI and the shared lib
   `web/src/lib`), `desktop/` (Electron since v0.7.0; Tauri 2 until `tauri-final`, see below). One version and one tag for both.
-- Latest release **v0.6.0** (2026-11-08, from `89f91c2`): CLI binaries (+ `-lite` builds), the desktop
-  installers (DMG arm64/x64, deb, AppImage, NSIS) and, new, the signed updater artifacts and `latest.json`
-  in one GitHub release; notes `docs/releases/v0.6.0.md`. The first release with the app's auto-updater
-  (signing key `~/.tauri/mtkprof-updater.key` on the release Mac; `desktop/README.md` § Updates).
+- Latest release **v0.7.0** (2026-11-09, from `36f1e14`, PR #16): the first with the Electron app. CLI
+  binaries, the installers (DMG arm64/x64, deb, AppImage, NSIS) and the Tauri bridge (`.app.tar.gz` per
+  arch and `latest.json`, signed with `~/.tauri/mtkprof-updater.key`; no Windows entry) in one GitHub
+  release; notes `docs/releases/v0.7.0.md`. Every CI leg passed for it (the x64 smoke under Rosetta),
+  Windows unsmoked. v0.6.0 (Tauri) installs on macOS and Linux are offered it by their updater.
 - **2026-11-08 desktop review round** (`docs/REVIEW-DESKTOP-PERFORMANCE-UX-2026-11-08.md`): 14 findings on
   transitions, work preservation, opening, prompts, keyboard and the Cut view, all fixed on `main` after v0.6.0 in one
   multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
