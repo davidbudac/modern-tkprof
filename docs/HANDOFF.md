@@ -77,7 +77,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 ## Build, test, run
 
 ```
-export PATH=/usr/local/go/bin:$PATH GOTOOLCHAIN=auto   # Go 1.27 on this machine
+export PATH=$HOME/.local/go/bin:$PATH GOTOOLCHAIN=auto   # Go 1.27; /usr/local/go/bin on the Macs
 make build                                  # bin/mtkprof
 make test                                   # go test ./... (unit + golden) and the web tests
 make web                                    # builds web/ and copies the single-file UI into internal/ui/dist

@@ -53,6 +53,23 @@ pnpm dev:app           # the app against the Vite dev server (UI hot reload)
 pnpm dist              # installers for this system under release/ (electron-builder)
 ```
 
+### Linux x64 installers
+
+```
+export PATH=$HOME/.local/go/bin:$PATH GOTOOLCHAIN=auto   # Go must be on PATH (/usr/local/go/bin on a Mac)
+cd modern-tkprof && pnpm install
+cd desktop
+pnpm build:engine --target linux-x64    # binaries/linux-x64/mtkprof-engine
+pnpm dist --linux --x64                 # release/mtkprof_<version>_amd64.AppImage and .deb
+chmod +x release/mtkprof_*_amd64.AppImage && ./release/mtkprof_*_amd64.AppImage
+```
+
+Build the engine first and check it: `pnpm dist` succeeds even when `binaries/linux-x64/` is empty
+(for example, `go` was not on PATH), and the installer then ships without the sidecar; the app
+fails at start with `engine spawn: spawn …/resources/bin/mtkprof-engine ENOENT`. Verify with
+`ls release/linux-unpacked/resources/bin`. `scripts/ci-local.sh --only linux` builds both
+installers in Docker and smoke-tests them.
+
 `MTKPROF_PROFILE=<dir>` (unpackaged runs, or with `MTKPROF_SMOKE=1`) puts the run's data, cache and
 logs under `<dir>`: your own tabs, settings and keys stay out of it, and it gets a single-instance
 lock of its own, so it runs beside an installed mtkprof. `pnpm dev:app` and unpackaged runs add

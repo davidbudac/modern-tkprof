@@ -15,7 +15,8 @@ file when a decision changes), `docs/ARCHITECTURE.md`, `docs/trace-format-19c.md
 
 ## Commands
 
-- Go is `/usr/local/go/bin/go` on this machine: `export PATH=/usr/local/go/bin:$PATH GOTOOLCHAIN=auto`.
+- Go is `~/.local/go/bin/go` on this Linux machine (`/usr/local/go/bin` on the Macs): `export PATH=$HOME/.local/go/bin:$PATH GOTOOLCHAIN=auto`.
+- Linux x64 desktop app: `cd desktop && pnpm build:engine --target linux-x64 && pnpm dist --linux --x64` (Go on PATH first), output in `desktop/release/`. `pnpm dist` succeeds even if the engine step failed, but the app then dies with `spawn …/resources/bin/mtkprof-engine ENOENT`: check `release/linux-unpacked/resources/bin/mtkprof-engine` exists.
 - `scripts/ci-local.sh` is the CI (vet, tests, web build, embedded-UI check, desktop checks, `make release`; `--strict`, `--no-release`, `--no-desktop`). No GitHub Actions.
 - Releases: one version and one tag for both clients. `scripts/release-local.sh <tag>` publishes the CLI binaries; `desktop/scripts/release-local.sh <tag>` (on a Mac) adds the installers to the same release.
 - `make build` → `bin/mtkprof`; `make test` runs unit + golden tests (must stay green).
