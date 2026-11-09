@@ -35,7 +35,9 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   smoke-tested natively on dbmint (Oracle Linux 9, `~oracle/mtkprof-electron`, no root: Node, the GUI
   libraries and Xvfb unpacked from RPMs into `~/.local/sysroot`, env in `~/.mtkprof-env`): the AppImage
   (133 MB) starts, `scripts/smoke.sh` on `linux-unpacked` passes (it had to signal the app, not
-  dbus-run-session). Not yet run: the x64 DMG, the Docker Linux leg and image, a full
+  dbus-run-session). The Tauri shell cannot run there: OL9/RHEL 9 ship only WebKitGTK 4.0 (libsoup 2),
+  so it does not build, and the v0.6.0 Tauri AppImage (built on Debian bookworm) stops at start: its bundled
+  libwebkit2gtk-4.1 needs glibc 2.35 and GLIBCXX_3.4.30 (OL9: 2.34). Electron needs neither. Not yet run: the x64 DMG, the Docker Linux leg and image, a full
   `scripts/ci-local.sh`, the native dialogs, drag-drop and Finder "Open With" by hand, Windows at all. The updater only checks and opens the release
   page (DESIGN § Updates). `MTKPROF_PROFILE=<dir>` gives dev and smoke runs their own data, cache and logs.
 - **Folder picker** (2026-11-08, DESIGN § Opening a folder): a folder no longer opens all its traces;
