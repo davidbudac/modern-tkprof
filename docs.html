@@ -162,7 +162,7 @@ mtkprof open   trace.trc                         <span class="c"># open it in th
 
 <h3>The command-line binary</h3>
 <p>One command for every Unix (Linux, macOS, AIX, Solaris): it picks the binary for your OS and CPU, checks it against <code>SHA256SUMS</code> and installs it as <code>mtkprof</code> in <code>/usr/local/bin</code> (or <code>~/.local/bin</code> without write access). It has no dependencies (pure Go, no cgo).</p>
-<pre><span class="c"># curl | sh, all Unix systems; set MTKPROF_VERSION=v0.5.0 or MTKPROF_LITE=1 to choose the release</span>
+<pre><span class="c"># curl | sh, all Unix systems; set MTKPROF_VERSION=v0.7.0 or MTKPROF_LITE=1 to choose the release</span>
 curl -fsSL https://raw.githubusercontent.com/davidbudac/modern-tkprof/main/install.sh | sh
 mtkprof version</pre>
 <p>Or download the binary for your platform from the <a href="https://github.com/davidbudac/modern-tkprof/releases">releases page</a>, check it against <code>SHA256SUMS</code>, make it executable and put it on your <code>PATH</code> or next to the trace:</p>
@@ -434,9 +434,9 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
   <thead><tr><th>System</th><th>File</th><th>Notes</th></tr></thead>
   <tbody>
     <tr><td>Windows 10/11 x64</td><td><code>mtkprof_&lt;version&gt;_x64-setup.exe</code></td><td>per user, no admin rights</td></tr>
-    <tr><td>macOS Apple Silicon</td><td><code>mtkprof_&lt;version&gt;_aarch64.dmg</code></td><td>drag to Applications</td></tr>
+    <tr><td>macOS Apple Silicon</td><td><code>mtkprof_&lt;version&gt;_arm64.dmg</code> (<code>_aarch64</code> up to v0.6.0)</td><td>drag to Applications</td></tr>
     <tr><td>macOS Intel</td><td><code>mtkprof_&lt;version&gt;_x64.dmg</code></td><td>drag to Applications</td></tr>
-    <tr><td>Linux x64</td><td><code>mtkprof_&lt;version&gt;_amd64.AppImage</code> or <code>.deb</code></td><td>AppImage needs FUSE 2</td></tr>
+    <tr><td>Linux x64</td><td><code>mtkprof_&lt;version&gt;_amd64.AppImage</code> or <code>.deb</code></td><td>AppImage needs FUSE 2; it also runs on RHEL and Oracle Linux 9</td></tr>
   </tbody>
 </table></div>
 <h3>Unsigned builds</h3>
@@ -446,6 +446,8 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
   <li><strong>macOS</strong>: Gatekeeper says the app was not opened. Click <em>Done</em>, open System Settings → Privacy &amp; Security, and click <em>Open Anyway</em> next to "mtkprof.app was blocked". Or in a terminal: <code>xattr -dr com.apple.quarantine /Applications/mtkprof.app</code>.</li>
   <li><strong>Linux</strong>: <code>chmod +x mtkprof_*.AppImage</code> and run it (<code>sudo apt install libfuse2</code> on Ubuntu 22.04+), or <code>sudo apt install ./mtkprof_*.deb</code>.</li>
 </ul>
+<h3>Updates</h3>
+<p>A few seconds after start the app asks GitHub for a newer release (<em>Settings → About</em> turns it off and has <em>Check now</em>). <em>Download</em> opens that release's page; install it over the app, and your tabs, settings, notes and connections stay. Coming from v0.6.0, the last build of the old shell: on macOS and Linux its <em>Install and restart</em> moves you to the new app once; on Windows install v0.7.0 by hand (it removes the old app and keeps your data).</p>
 <h3>The engine and the index cache</h3>
 <p>On start the app launches its engine, which listens on <code>127.0.0.1</code> on a free port with a random token per run; nothing else on the machine can use it. The status bar shows its state.</p>
 <p>Parsed traces are kept in the <strong>index cache</strong>, so a trace opens again in about a second. Entries are keyed by file content (size and the first MiB of each file) plus the open options, not by path; a changed file is parsed again. The cache is about the size of the traces and is capped at 20 GiB, least recently used entries first. Location and cap are in Settings.</p>
