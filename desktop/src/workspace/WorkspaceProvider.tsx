@@ -36,7 +36,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [])
   useEffect(() => drain.current(), [status])
 
-  // Dev browser mode only (`?engine=&token=`; devEngine() is null inside the Tauri app, whose window
+  // Dev browser mode only (`?engine=&token=`; devEngine() is null inside the app, whose window
   // close stops the engine): a page reload or a hot-reloaded workspace would leave this window's
   // sessions in the engine, so close them. The tabs are restored from workspace.json by the next one.
   useEffect(() => {

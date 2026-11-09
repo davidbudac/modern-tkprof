@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExterna
 import { hashOf, isMac, useStore, useStoreApi, type State } from '@lib'
 import type { ApiClient } from '@lib/data/client'
 import { assistKeyForget, getJSON, send, useEngine, type Schemas } from '../engine'
-import { inTauri } from '../platform'
+import { inApp } from '../platform'
 import { useSettings } from '../settings/settings'
 import { DeskMenu } from '../ui/DeskMenu'
 import { briefNotes, briefScope, fmtTokens, noteOf } from '../workspace/session/brief'
@@ -315,7 +315,7 @@ export function ChatPanel({ tab, focus, onClose }: { tab: Tab; focus: boolean; o
     (p: AssistProvider) => {
       if (!needsKey(p)) return
       if (client) void send(client, 'DELETE', `/engine/assist/providers/${encodeURIComponent(p.id)}/key`).catch((e) => console.warn('forget key:', String(e)))
-      if (inTauri) void assistKeyForget(p.id).catch((e) => console.warn('forget key:', String(e)))
+      if (inApp) void assistKeyForget(p.id).catch((e) => console.warn('forget key:', String(e)))
     },
     [client],
   )

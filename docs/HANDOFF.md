@@ -13,7 +13,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 
 - `davidbudac/modern-tkprof` is **public**, `main` pushed. One repository, two clients (since 2026-11-02;
   `davidbudac/mtkprof-desktop` is archived): engine + CLI at the root, `web/` (CLI UI and the shared lib
-  `web/src/lib`), `desktop/` (Tauri 2). One version and one tag for both.
+  `web/src/lib`), `desktop/` (Tauri 2 on `main`; Electron on branch `electron`, see below). One version and one tag for both.
 - Latest release **v0.6.0** (2026-11-08, from `89f91c2`): CLI binaries (+ `-lite` builds), the desktop
   installers (DMG arm64/x64, deb, AppImage, NSIS) and, new, the signed updater artifacts and `latest.json`
   in one GitHub release; notes `docs/releases/v0.6.0.md`. The first release with the app's auto-updater
@@ -23,6 +23,15 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
   DESIGN § Transitions and § Cut the decisions. Unreleased. Anyone running the Tauri app or the `verify-mtkprof` skill
   needs `pnpm build:engine` in `desktop/` first: the sidecar binary is gitignored and predates the engine changes.
+- **Electron shell** (2026-11-09, branch `electron`, not merged; DESIGN § Desktop app): `desktop/src-tauri`
+  (Rust) replaced by `desktop/electron/` (TypeScript main process, preload bridge `window.mtkprof`, esbuild),
+  packaged by electron-builder (`electron-builder.yml`); the UI reaches the shell only through `src/shell.ts`.
+  Verified: typecheck, `pnpm test` (313, with the shell's ported Rust tests), a dev-run smoke with the
+  fixture (start, simulated crash, restart, re-open from the cache, "Engine restarted" toast, both engines
+  gone after quit; screenshots by the app itself, `MTKPROF_SMOKE_SHOTS`). Not yet run: `electron-builder`
+  packaging (DMG/NSIS/AppImage/deb), `scripts/ci-local.sh` legs and the Docker image, the native dialogs,
+  drag-drop and Finder "Open With" by hand, Windows at all. The updater only checks and opens the release
+  page (DESIGN § Updates). `MTKPROF_PROFILE=<dir>` gives dev and smoke runs their own data, cache and logs.
 - **Folder picker** (2026-11-08, DESIGN § Opening a folder): a folder no longer opens all its traces;
   the desktop lists them with a quick peek (`internal/peek`, `POST /engine/files`, `POST /engine/peek`)
   and opens what the user picks. Cutting from the picker before loading (for very large files) is the
@@ -205,7 +214,7 @@ Open:
   clock's "line before" is the previous trace line, not the previous displayed row.
 - `z` on an opened framing handle does nothing (`Z` is for user folds). The raw view keeps its row tint, the
   cyan number cell of a selected row and the `exec #0` on a CLOSE in `.lv-head`.
-- A prebuilt desktop sidecar (`desktop/src-tauri/binaries/`, gitignored) may predate `what=frame`, its `texts` or `api/lines/stmts`: run
+- A prebuilt desktop sidecar (`desktop/binaries/`, gitignored; `desktop/src-tauri/binaries/` on `main`) may predate `what=frame`, its `texts` or `api/lines/stmts`: run
   `pnpm build:engine` before checking the framing folds, the SQL bands, the highlight, the filter or the line map in desktop dev mode.
 - The gets box on the amber selected row reads as a slightly cooler patch in the light theme. With the side panel open at 1280 px the groups of a call's Detail are clipped
   (the waiting share and the hard-parse pill stay whole); only the panel's width gives more room.

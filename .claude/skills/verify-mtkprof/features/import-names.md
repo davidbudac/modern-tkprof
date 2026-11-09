@@ -21,4 +21,4 @@ docs/REF-BUNDLE.md § Paste). Nothing connects to a database: the real outputs o
   finished ref jobs fill the Jobs dock, which covers buttons at the bottom right (`Clear finished` first).
 - Apply starts a ref job: wait for `.rfi-done`, not a fixed sleep; the tab reloads its document (rev + 1) underneath and the
   dialog stays open.
-- Save / Open saved output use the native dialogs in Tauri; in dev browser mode a download and a file input.
+- Save / Open saved output use the native dialogs in the app; in dev browser mode a download and a file input.

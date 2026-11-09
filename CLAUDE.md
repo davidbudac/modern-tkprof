@@ -7,7 +7,7 @@ file when a decision changes), `docs/ARCHITECTURE.md`, `docs/trace-format-19c.md
 
 - Engine + CLI: the repository root (`go.mod`, `cmd/mtkprof`, `internal/`, `api/`, `testdata/`).
 - `web/`: the CLI's UI (`web/src/app`, embedded in the binary) and the shared lib `web/src/lib`.
-- `desktop/`: the Tauri app; imports the lib as `@lib` and builds its sidecar from `cmd/mtkprof`. Read
+- `desktop/`: the Electron app; imports the lib as `@lib` and builds its sidecar from `cmd/mtkprof`. Read
   `desktop/CLAUDE.md` before working there.
 - One pnpm workspace at the root (`pnpm-workspace.yaml`); run `pnpm install` at the root. Versions both
   clients use live in its `catalog:`.

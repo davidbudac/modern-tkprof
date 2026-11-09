@@ -36,7 +36,7 @@ func cmdEngine(args []string) error {
 	listen := fs.String("listen", "127.0.0.1:0", "listen address (port 0 = any free port)")
 	cache := fs.String("cache", "", "index cache directory (default <user cache dir>/mtkprof)")
 	cacheCap := fs.String("cache-cap", "20G", "index cache size limit (bytes; suffixes K, M, G, T = powers of 1024)")
-	origins := fs.String("allow-origin", "", "comma-separated CORS origins (e.g. tauri://localhost,http://tauri.localhost)")
+	origins := fs.String("allow-origin", "", "comma-separated CORS origins (e.g. mtkprof://app,http://127.0.0.1:5173)")
 	idle := fs.Duration("idle-exit", 0, "exit after this long without sessions and requests (0 = never)")
 	evict := fs.Duration("idle", 0, "close a session after this long without requests on it and without a running job (cache entry stays; live sessions never; 0 = never)")
 	pv := planVizFlag(fs)

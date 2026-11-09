@@ -24,6 +24,6 @@ Preconditions:
 
 ## Gotchas
 
-- Dev browser mode has no Tauri store or keychain; stored connections and settings live in browser localStorage of that fresh context and vanish after the drive.
+- Dev browser mode has no app store or keychain; stored connections and settings live in browser localStorage of that fresh context and vanish after the drive.
 - The `+ Add > Oracle database` flow only works against the `mock=db` routes, not a real database.
-- Backup/Export use native file dialogs in Tauri and are not reachable here.
+- Backup/Export use native file dialogs in the app and are not reachable here.

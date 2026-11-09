@@ -1,0 +1,52 @@
+# The installers (`pnpm dist`, desktop/scripts/ci-local.sh): DMG (macOS, ad-hoc signed), NSIS
+# (Windows, per user), AppImage and .deb (Linux). The UI (dist/) and the main process
+# (dist-electron/) are bundled, so the app ships no node_modules; the engine sidecar comes from
+# binaries/<os>-<arch>/ (scripts/build-engine.mjs) into resources/bin.
+appId: com.davidbudac.mtkprof
+productName: mtkprof
+copyright: Copyright 2026 David Budac. Apache-2.0.
+artifactName: mtkprof_${version}_${arch}.${ext}
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+  - '!**/*.map'
+extraResources:
+  - from: binaries/${os}-${arch}
+    to: bin
+fileAssociations:
+  - ext: trc
+    name: Oracle trace file
+    description: Oracle trace file
+    role: Viewer
+electronLanguages: [en-US]
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+  icon: build/icon.icns
+  # ad-hoc: unsigned builds (an internal team tool), but Apple Silicon runs only signed code
+  identity: '-'
+  hardenedRuntime: false
+  gatekeeperAssess: false
+dmg:
+  writeUpdateInfo: false
+win:
+  target: nsis
+  icon: build/icon.ico
+nsis:
+  artifactName: mtkprof_${version}_${arch}-setup.${ext}
+  oneClick: true
+  perMachine: false
+  differentialPackage: false
+linux:
+  target: [AppImage, deb]
+  category: Development
+  icon: build/icons
+  executableName: mtkprof-desktop
+  synopsis: Oracle SQL trace analyzer
+  description: 'mtkprof desktop: analyze Oracle 10046 SQL trace files with the mtkprof engine.'
+  maintainer: David Budac
+publish: null

@@ -518,8 +518,8 @@ func TestAuth(t *testing.T) {
 }
 
 func TestCORS(t *testing.T) {
-	const ok = "tauri://localhost"
-	e := newEnv(t, func(o *Options) { o.AllowOrigins = []string{ok, "http://tauri.localhost"} })
+	const ok = "mtkprof://app"
+	e := newEnv(t, func(o *Options) { o.AllowOrigins = []string{ok, "http://127.0.0.1:5173"} })
 	id := e.openReady([]string{traces + "io_waits.trc"}, nil)
 	for _, path := range []string{"/engine/health", "/engine/sessions", "/s/" + id + "/api/pivot?fact=calls&by=stmt", "/s/" + id + "/api/doc", "/s/" + id + "/api/lines?file=0&from=1&n=2"} {
 		if r := e.req("GET", path, nil, "Origin", ok); r.hdr.Get("Access-Control-Allow-Origin") != ok || r.code != 200 {

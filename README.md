@@ -121,7 +121,7 @@ standalone versus desktop behavior, privacy and troubleshooting.
 
 ### Desktop app
 
-The desktop app ([`desktop/`](desktop/README.md), a Tauri shell that runs
+The desktop app ([`desktop/`](desktop/README.md), an Electron shell that runs
 `mtkprof engine` as a sidecar and shares the UI library with the CLI) opens
 traces in tabs, fetches them over ssh or from the database, and adds Lines,
 notes, reports and saved pivots. Install, unsigned-build steps and a guide:

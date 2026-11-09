@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { digitOf, inTextField, isMac, type KeyLike } from '@lib'
-import { inTauri, listen } from '../platform'
+import { inApp, listen } from '../platform'
 import { leaveRoute, type Route, type Tab, type Workspace } from './workspace'
 
 /** What a tab shortcut does. `nth` is a 1-based position (1 to 8); `last` is ⌃9 (Alt+9 elsewhere). */
@@ -91,13 +91,13 @@ export function runShortcut(ws: Workspace, action: ShortcutAction): boolean {
 
 /**
  * The window's tab shortcuts. In the macOS app ⌘W belongs to the app menu's "Close Tab" item
- * (`src-tauri/src/menu.rs`), which a native key equivalent always reaches before the webview, so
+ * (`electron/menu.ts`), which a native key equivalent always reaches before the webview, so
  * the menu's `menu://close-tab` event runs the action there and the keydown ignores ⌘W: it
  * cannot fire twice. Elsewhere, and in the dev browser, the keydown does it.
  */
 export function useTabShortcuts(ws: Workspace) {
   useEffect(() => {
-    const menuClose = inTauri && isMac
+    const menuClose = inApp && isMac
     const onKey = (e: KeyboardEvent) => {
       if (e.isComposing || inTextField(e.target)) return
       const action = shortcutOf(e, isMac)

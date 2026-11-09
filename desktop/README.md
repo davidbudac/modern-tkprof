@@ -1,8 +1,8 @@
 # mtkprof desktop
 
 The desktop client of [mtkprof](https://github.com/davidbudac/modern-tkprof), the Oracle SQL trace
-analyzer: a Tauri 2 shell that runs the mtkprof engine as a sidecar process and shows the shared
-mtkprof UI against it. Internal team tool; builds are unsigned.
+analyzer: an Electron shell that runs the mtkprof engine as a sidecar process and shows the shared
+mtkprof UI against it. (Until 2026-11-09 the shell was Tauri 2, `src-tauri/` in Rust.) Internal team tool; builds are unsigned.
 
 It lives in `desktop/` of the mtkprof repository, next to the engine and the CLI (repository
 root: `go.mod`, `cmd/mtkprof`, `internal/`, `api/`) and the shared UI library (`web/src/lib`).
@@ -18,29 +18,28 @@ src/workspace/  session tabs, open screen, progress, restore, annotations (bookm
 src/workspace/session/  one tab's views over a lib store: the lib's shell module (web/src/lib/shell: view table,
                         ViewTabs, panes, Esc, view keys, Inspector) plus the desktop's own Notes, Reports, history, Tools menu
 src/settings/   settings (store + context), Settings and About pages
-src/updates/    the update check on start, its toast, install and relaunch (tauri-plugin-updater)
+src/updates/    the update check on start and its toast (electron/updates.ts asks GitHub)
 src/connections/ connections (store, import/export, team file), remote browser, DB panel, jobs dock
 src/prompts/    PromptHost: the engine's prompt events as a queued modal
 src/library/    saved Pivot configurations (library.json) and the Library page
 src/files.ts    save/open user files (reports, exports, imports)
-src/platform.ts Tauri APIs with the dev browser fallbacks
+src/shell.ts    the page's side of the shell bridge (`window.mtkprof`: invoke, listen, a dropped file's path)
+src/platform.ts the shell's stores, dialogs, drop, log, app info, with the dev browser fallbacks
 src/pages.tsx   the desktop pages next to the tabs (Connections, Library, Settings, About)
-src-tauri/      Rust shell: engine sidecar lifecycle (src/engine.rs), app_info (src/app.rs), plugins, bundling
-scripts/      build-engine.mjs (sidecar), smoke.sh, build-mac-quick.sh, ci-local.sh, release-local.sh, updater-manifest.mjs
+electron/       main process (TypeScript, bundled by esbuild into dist-electron/): main.ts (window, mtkprof://
+                protocol, commands, single instance, open-file), engine.ts (sidecar lifecycle), loginpath.ts,
+                open.ts, secrets.ts + vault.ts (assistant keys), files.ts (scoped file access), store.ts,
+                menu.ts, windowstate.ts, updates.ts, log.ts, paths.ts; preload.ts (the bridge)
+electron-builder.yml  installers (DMG, NSIS, AppImage, deb); build/ holds the icons
+scripts/      build-engine.mjs (sidecar), build-electron.mjs, dev-app.mjs, smoke.sh, build-mac.sh,
+              build-mac-quick.sh, ci-local.sh, release-local.sh
 ci/           Dockerfile and helpers of the Linux/Windows legs of the local CI
 ```
 
 ## Prerequisites
 
-All platforms: Rust (stable, via rustup), Node 22+ with pnpm (`corepack enable` or
-`npm i -g pnpm`), Go (the version in the repository's `go.mod`), git.
-
-- **Windows**: Visual Studio Build Tools (C++ workload); WebView2 ships with Windows 10/11.
-- **macOS**: Xcode command line tools (`xcode-select --install`).
-- **Linux** (Debian/Ubuntu):
-  ```
-  sudo apt-get install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf build-essential
-  ```
+Node 22+ with pnpm (`corepack enable` or `npm i -g pnpm`), Go (the version in the repository's
+`go.mod`), git. `pnpm install` downloads Electron. No Rust, no system webview packages.
 
 ## Build and run
 
@@ -48,10 +47,25 @@ All platforms: Rust (stable, via rustup), Node 22+ with pnpm (`corepack enable` 
 git clone git@github.com:davidbudac/modern-tkprof.git
 cd modern-tkprof && pnpm install   # one pnpm workspace: web/ and desktop/
 cd desktop
-pnpm build:engine      # go build of ../cmd/mtkprof -> src-tauri/binaries/mtkprof-engine-<target-triple>
-pnpm tauri dev         # dev window with Vite hot reload
-pnpm tauri build       # installers under src-tauri/target/release/bundle/
+pnpm build:engine      # go build of ../cmd/mtkprof -> binaries/<os>-<arch>/mtkprof-engine
+pnpm app               # build the UI and the main process, run the app
+pnpm dev:app           # the app against the Vite dev server (UI hot reload)
+pnpm dist              # installers for this system under release/ (electron-builder)
 ```
+
+`MTKPROF_PROFILE=<dir>` (unpackaged runs, or with `MTKPROF_SMOKE=1`) puts the run's data, cache and
+logs under `<dir>`: your own tabs, settings and keys stay out of it, and it gets a single-instance
+lock of its own, so it runs beside an installed mtkprof. `pnpm dev:app` and unpackaged runs add
+*Reload* and *Toggle Developer Tools* to the macOS View menu.
+
+The shell (`electron/main.ts`): the page runs with `contextIsolation`, `sandbox` and no Node; it
+reaches the shell only through `window.mtkprof` (`electron/preload.ts`, typed in `src/shell.ts`):
+`invoke(command, args)` (answers `{ok, value}` or `{ok: false, error}`; `src/shell.ts` rejects with
+the message, as Tauri's invoke did), `onEvent` (`engine://ready|crashed|failed`, `app://open`,
+`menu://close-tab`) and `pathForFile` (a dropped file's path, webUtils). Commands from any other
+frame or window are refused. The UI is served from `mtkprof://app/` (a privileged standard
+scheme over `dist/`, with the CSP the Tauri config had), the engine's only allowed CORS origin;
+a new window or a navigation away goes to the system browser (http/https) or nowhere.
 
 ### Dev browser mode
 
@@ -63,7 +77,7 @@ file input, `multiple`, resolved against the Folder field since a browser gives 
 
 ```
 pnpm build:engine
-MTKPROF_TOKEN=<32+ chars> src-tauri/binaries/mtkprof-engine-* engine -listen 127.0.0.1:47011 \
+MTKPROF_TOKEN=<32+ chars> binaries/*/mtkprof-engine engine -listen 127.0.0.1:47011 \
   -cache /tmp/mtk-desk -allow-origin http://127.0.0.1:5173
 pnpm dev
 # open http://127.0.0.1:5173/?engine=127.0.0.1:47011&token=<the token>
@@ -76,21 +90,23 @@ must be under the project (`src/connections/__fixtures__/team.json` is a sample)
 panel without a database. `pnpm test` runs the unit tests (vitest: connections store, prompt
 queue, jobs, registry).
 
-`pnpm build:engine --target <triple>` builds the sidecar for another Rust target (e.g.
-`x86_64-apple-darwin` on an Apple Silicon Mac); pass the same `--target` to `pnpm tauri build`.
+`pnpm build:engine --target <os>-<arch>` builds the sidecar for another system (`mac-x64` on an
+Apple Silicon Mac, `win-x64`, `linux-x64`); electron-builder takes `binaries/<os>-<arch>/` for the
+installer of that system.
 `pnpm typecheck` checks the desktop code together with the library it imports.
 
 ## The engine sidecar
 
 The sidecar is the repository's `mtkprof` CLI (`cmd/mtkprof`), shipped as `mtkprof-engine` (so the `.deb`'s
 `/usr/bin/mtkprof-engine` does not clash with a CLI install of `mtkprof`) and run as
-`mtkprof-engine engine -allow-origin … -cache <app cache dir>/mtkprof` with a fresh bearer token
-in `MTKPROF_TOKEN` (never on the command line). The shell (`src-tauri/src/engine.rs`):
+`mtkprof-engine engine -allow-origin mtkprof://app -cache <app cache dir>/mtkprof` with a fresh bearer token
+in `MTKPROF_TOKEN` (never on the command line), from `resources/bin/` of the installed app
+(`binaries/<os>-<arch>/` in unpacked runs). The shell (`electron/engine.ts`):
 
 - reads the ready line within 10 s and refuses an engine whose `protocol` is not 1
   (`protocol mismatch (engine N, app 1)`, shown with a Retry button);
 - holds the engine's stdin, so the engine exits with the app, and stops it on exit;
-- forwards the engine's stderr to the log (`tauri-plugin-log`: stdout and the app log dir);
+- forwards the engine's output to the log (`electron/log.ts`: stdout and `<log dir>/mtkprof.log`);
 - restarts it when it exits unexpectedly: `engine://crashed {code, signal, message}`, then a new
   start at once, after 1 s, after 5 s; a fourth crash within a minute gives up with
   `engine://failed {message}`. Every start emits `engine://ready {addr, token, version, protocol,
@@ -106,14 +122,24 @@ client and an `EngineEvents` emitter fed from `GET /engine/events` (read with st
 reconnecting with backoff). The types come from the engine's OpenAPI file: `pnpm gen:api`
 regenerates `src/engine/api.d.ts`; the local CI fails when it is stale.
 
-The smoke step of the local CI (`scripts/smoke.sh`) launches the release build with `MTKPROF_SMOKE=1
-MTKPROF_SMOKE_KILL_AFTER=<s> MTKPROF_SMOKE_OPEN=<repo>/testdata/traces/19c/io_waits.trc`: the app
-opens the fixture on start (log line `session ready: …`), the shell kills its engine once, that
-many seconds after it is first ready, and the step screenshots the window before
-(`<leg>-ready.png`: the fixture's Overview) and after (`<leg>-restarted.png`: toast "Engine
-restarted", the engine dot's menu "restarts 1", the fixture re-opened), and fails unless the log shows the
-restart, the session ready twice and the engine is gone after the app quits. On Linux the app needs a D-Bus session bus (single-instance),
-so the script runs it under `dbus-run-session`.
+The smoke step of the local CI (`scripts/smoke.sh <app executable> <name>`) launches the packaged
+app (electron-builder's unpacked dir) with `MTKPROF_SMOKE=1 MTKPROF_SMOKE_KILL_AFTER=<s>
+MTKPROF_SMOKE_OPEN=<repo>/testdata/traces/19c/io_waits.trc`, a profile of its own (`MTKPROF_PROFILE`)
+and `MTKPROF_SMOKE_SHOTS=<dir>`: the app opens the fixture on start (log line `session ready: …`),
+the shell kills its engine once, that many seconds after it is first ready, and the app captures
+its own window 3 s after each `session ready` and logs the toasts showing then, so the capture
+needs no Screen Recording permission and is right even under other windows. The step keeps
+`<leg>-ready.png` (the fixture's Overview) and `<leg>-restarted.png` (toast "Engine restarted",
+the fixture re-opened) and fails unless the log shows the kill, a second ready engine, the session
+ready twice and the toast, and every engine pid is gone after the app quits. On Linux it runs
+under Xvfb and `dbus-run-session`, with `--no-sandbox` as root.
+
+Assistant keys (`electron/secrets.ts`, `vault.ts`): a remembered key is encrypted with Electron's
+`safeStorage` (its key in Keychain Services, DPAPI or the Secret Service / kwallet) into
+`<data dir>/secrets.json`, bound to the endpoint it was typed for. The main process reads the open
+`apikey` prompt from the engine and answers it itself, so a stored key never enters the page.
+Without a keychain (Linux without a Secret Service: safeStorage's `basic_text`) a remembered key
+lasts until the app quits. Keys the Tauri app kept in the OS keychain are not read.
 
 ## Workspace, settings, stores
 
@@ -151,8 +177,12 @@ live, reopen})` for sessions opened elsewhere (remote follow), `workspace.go(rou
 `src/files.ts` for saving and reading user files (dialog + fs; browser download / file input
 in the dev browser mode).
 
-The store plugin keeps JSON files in the app data dir (`%APPDATA%\com.davidbudac.mtkprof`,
-`~/Library/Application Support/com.davidbudac.mtkprof`, `~/.local/share/com.davidbudac.mtkprof`):
+`electron/store.ts` keeps JSON files in the app data dir, the folders the Tauri app used, so they
+carry over (`%APPDATA%\com.davidbudac.mtkprof`, `~/Library/Application Support/com.davidbudac.mtkprof`,
+`~/.local/share/com.davidbudac.mtkprof`; the cache is `%LOCALAPPDATA%`, `~/Library/Caches`,
+`~/.cache` under the same name, Chromium's own files in its `chromium/`). The page keeps a copy of
+each store and sends every change; a file is written 300 ms after its last change and on quit.
+`window-state.json` holds the window's bounds. The files:
 
 | file | keys |
 |---|---|
@@ -189,39 +219,35 @@ scripts/ci-local.sh --skip-smoke --keep-going
 ```
 
 It runs the checks (`pnpm install --frozen-lockfile`, `gen:api` leaving
-`src/engine/api.d.ts` unchanged, `cargo fmt --check`, `typecheck`, `test`), then builds and
-collects every installer in `out/` with `out/SHA256SUMS`, stops at the first failed step and ends
-with a table of leg, result, time and artifacts. Smoke screenshots are in `out-smoke/`, per-leg
-logs and `results.tsv` in `out-logs/` (all three are gitignored).
+`src/engine/api.d.ts` unchanged, `typecheck`, `test`), then builds and collects every installer
+in `out/` with `out/SHA256SUMS`, stops at the first failed step and ends with a table of leg,
+result, time and artifacts. Smoke screenshots are in `out-smoke/`, per-leg logs and `results.tsv`
+in `out-logs/` (all three are gitignored).
 
-For quick local iteration on a Mac, `scripts/build-mac-quick.sh [--app] [--open] [--run]` builds only
-the arm64 app (thin LTO, own cache in `src-tauri/target-quick/`; no checks, tests or smoke).
+For quick local iteration on a Mac, `scripts/build-mac-quick.sh [--dmg] [--open] [--run]` builds only
+the arm64 app (`release/mac-arm64/mtkprof.app`; no checks, tests or smoke).
 
 | leg | where | installers | smoke |
 |---|---|---|---|
-| macOS arm64, x64 | the host (a Mac) | `mtkprof_<v>_aarch64.dmg`, `mtkprof_<v>_x64.dmg` | arm64 yes; x64 only where Rosetta 2 is installed (Apple Silicon Macs without it skip it) |
-| Linux x64 | Docker, `ci/Dockerfile` (linux/amd64) | `mtkprof_<v>_amd64.deb`, `mtkprof_<v>_amd64.AppImage` (`--no-appimage` skips the AppImage) | yes (Xvfb + D-Bus in the container) |
-| Windows x64 | the same image, cross-built with `cargo-xwin` | `mtkprof_<v>_x64-setup.exe` | none: nothing here runs Windows binaries |
+| macOS arm64, x64 | the host (a Mac) | `mtkprof_<v>_arm64.dmg`, `mtkprof_<v>_x64.dmg` (ad-hoc signed) | arm64 yes; x64 only where Rosetta 2 is installed (Apple Silicon Macs without it skip it) |
+| Linux x64 | Docker, `ci/Dockerfile` (linux/amd64) | `.deb`, `.AppImage` (`--no-appimage` skips the AppImage) | yes (Xvfb + D-Bus in the container) |
+| Windows x64 | the same image, cross-built by electron-builder (wine runs rcedit) | `mtkprof_<v>_x64-setup.exe` | none: nothing here runs Windows binaries |
 
-Host needs: Node 24 and pnpm (the `packageManager` pin), Go (version of the repository's `go.mod`), Rust
-with `aarch64-apple-darwin` and `x86_64-apple-darwin`, and for Linux/Windows Docker or OrbStack (on
-Apple Silicon the amd64 image runs under Rosetta). The macOS smoke launches the app and takes
-screenshots, so it needs a logged-in GUI session and Screen Recording permission for the app that
-runs the shell. The image holds the Linux and Windows toolchains (Node, pnpm, Go and Rust pinned
-as in the repo); `node_modules`, `src-tauri/target` and the cargo/go/pnpm/xwin caches live in
-Docker volumes `mtkprof-ci-*` so they never mix with the Mac's (`docker volume rm` to reset).
+Host needs: Node 24 and pnpm (the `packageManager` pin), Go (version of the repository's `go.mod`),
+and for Linux/Windows Docker or OrbStack (on Apple Silicon the amd64 image runs under Rosetta). The
+image holds the Linux and Windows toolchains (Node, pnpm, Go pinned as in the repo; the Electron
+runtime libraries, Xvfb, wine); `node_modules` and the go/pnpm/Electron caches live in Docker
+volumes `mtkprof-ci-*` so they never mix with the Mac's (`docker volume rm` to reset).
 
-A full run takes about 10 minutes on an M4 once the image and the volumes are warm (the first
-run builds the 3.4 GB image, about 6 minutes, and compiles every crate once).
+Not yet run end to end since the switch to Electron (2026-11-09): the electron-builder legs, the
+Docker image and the release script. Timings of the Tauri runs no longer apply.
 
-Known limits: the smoke test runs the release binary, not the installers (the AppImage, `.deb`
+Known limits: the smoke test runs the unpacked app, not the installers (the AppImage, `.deb`
 and NSIS installer are built, never installed); the Windows installer is built but never run
 (no Windows smoke); the macOS x64 build is not run on an Apple Silicon Mac without Rosetta.
-The Linux binary is built on Debian 12 (glibc 2.36), so the `.deb` and AppImage need a distro at
-least that new.
 
 Releasing: one version and one tag for the CLI and the app. Bump the app version
-(`package.json`, `src-tauri/Cargo.toml` and `Cargo.lock`) to the release version, commit, tag
+(`package.json`) to the release version, commit, tag
 `vX.Y.Z` on that commit and push the tag. Then `scripts/release-local.sh vX.Y.Z` at the repository
 root publishes the GitHub release with the CLI binaries (it checks the app versions first), and on
 a Mac
@@ -239,31 +265,13 @@ release notes. It never creates or pushes the tag. Releases v0.3.1 and earlier a
 
 ### Updates
 
-`tauri-plugin-updater` (`src/updates/`, user side in `../docs/DESKTOP.md` § Updates). On start
-(setting `updateCheck`) and from Settings → About the app reads
-`https://github.com/davidbudac/modern-tkprof/releases/latest/download/latest.json`
-(`plugins.updater` in `src-tauri/tauri.conf.json`); a newer version is offered in a toast, and
-*Install and restart* downloads it, stops the engine, installs and relaunches. The download must
-be signed with the updater key and name the release's version in its signature
-(`requireSignedVersion`).
-
-- **The key**: `~/.tauri/mtkprof-updater.key` on the release Mac (no password, mode 600), or
-  `TAURI_SIGNING_PRIVATE_KEY` (the key or a path; `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if it has
-  one). Its public half is `plugins.updater.pubkey`. Back it up: without it no installed app
-  accepts an update, and a new key needs a manual reinstall everywhere.
-- **Builds**: with a key `scripts/ci-local.sh` adds `bundle.createUpdaterArtifacts` (the Docker
-  legs get the key through `docker run -e`) and collects `mtkprof_<v>_<arch>.app.tar.gz` (macOS),
-  the installers' `.sig` (`-setup.exe`, `.AppImage`, `.deb`) into `out/`; without one it builds
-  the installers alone and says so.
-- **Releases**: `scripts/release-local.sh` refuses without the key, then writes `latest.json`
-  (`scripts/updater-manifest.mjs`: `darwin-{aarch64,x86_64}[-app]`, `windows-x86_64[-nsis]`,
-  `linux-x86_64[-appimage]`, `linux-x86_64-deb`) and uploads it after everything else. Until the
-  desktop half of a release is up, `releases/latest` has no `latest.json` and the check fails
-  quietly (logged).
-- **Trying it**: `?mock=update` in the dev browser mode offers a fake 9.9.9 (its install fails on
-  purpose). For a real round trip build an older app with
-  `--config '{"plugins":{"updater":{"endpoints":["http://127.0.0.1:8765/latest.json"],"dangerousInsecureTransportProtocol":true}}}'`
-  and serve a newer signed build's `.app.tar.gz` and a hand-written `latest.json` from that port.
+`src/updates/` (user side in `../docs/DESKTOP.md` § Updates). On start (setting `updateCheck`) and
+from Settings → About the main process asks `api.github.com/repos/davidbudac/modern-tkprof/releases/latest`
+(`electron/updates.ts`); a newer, non-draft, non-prerelease tag is offered in a toast, and
+*Download* opens its release page. The app does not install updates itself: the Tauri updater's
+signed in-place install (minisign key, `latest.json`) has no replacement yet (DESIGN § Desktop
+app). `?mock=update` in the dev browser mode still shows the old download and install states
+(`installsItself`), for the day an in-place install comes back.
 
 The builds are not signed:
 

@@ -5,7 +5,7 @@ import { useConnections } from '../connections'
 import { pickTextFile, saveAs } from '../files'
 import { library } from '../library/library'
 import { getJSON, send, useEngine, type CacheList, type CacheWipe } from '../engine'
-import { appInfo, appVersion, inTauri, openReleasesPage, pickFolder, type AppInfo } from '../platform'
+import { appInfo, appVersion, inApp, openReleasesPage, pickFolder, type AppInfo } from '../platform'
 import { BrandIcon } from '../branding/BrandIcon'
 import { dirOf, titleOf } from '../workspace/traceSet'
 import { useWorkspace, useWorkspaceState } from '../workspace/WorkspaceProvider'
@@ -16,7 +16,7 @@ import { BindSeg } from './BindSeg'
 import { BindPreview, Card, Row, Switch, ThemeTiles } from './parts'
 import { engineOptionsOf, sameEngineOptions, useSettings } from './settings'
 import { TrashIcon } from '../ui/icons'
-import { checkForUpdate, installUpdate, updatesAvailable, useUpdateState, type UpdateState } from '../updates/updates'
+import { checkForUpdate, installUpdate, installsItself, updatesAvailable, useUpdateState, type UpdateState } from '../updates/updates'
 import './settings.css'
 
 const when = (iso: string) => {
@@ -113,7 +113,7 @@ export function SettingsView() {
                 onChange={(e) => update({ cacheDir: e.target.value.trim() || null })}
                 spellCheck={false}
               />
-              {inTauri && (
+              {inApp && (
                 <button onClick={() => void pickFolder('Index cache location').then((d) => d && update({ cacheDir: d }))}>
                   Change…
                 </button>
@@ -215,7 +215,7 @@ function UpdateRows({ app }: { app: string }) {
       </Row>
       <Row label="Updates" desc={updatesAvailable ? updateText(state, app, settings.skippedVersion) : 'Not in the dev browser mode'}>
         {state.kind === 'available' ? (
-          <button onClick={() => void installUpdate(() => engine.restart(engine.options))}>Install and restart</button>
+          <button onClick={() => void installUpdate(() => engine.restart(engine.options))}>{installsItself ? 'Install and restart' : 'Download'}</button>
         ) : (
           <button onClick={() => void checkForUpdate()} disabled={!updatesAvailable || busy}>Check now</button>
         )}

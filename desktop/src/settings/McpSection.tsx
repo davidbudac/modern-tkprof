@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { copyText } from '@lib/data/clipboard'
-import { appInfo, inTauri } from '../platform'
+import { appInfo, inApp } from '../platform'
 import type { AssistBinds } from './settings'
 import { Card, Row, SubHead } from './parts'
 
@@ -12,7 +12,7 @@ const arg = (s: string) => (/[\s'"]/.test(s) ? `"${s}"` : s)
 
 /** `claude mcp add` for the engine binary this app ships, with the bind setting of Settings → Assistant. */
 export function mcpAddCommand(enginePath: string | undefined, binds: AssistBinds): string {
-  const bin = inTauri && enginePath ? arg(enginePath) : 'mtkprof'
+  const bin = inApp && enginePath ? arg(enginePath) : 'mtkprof'
   return `claude mcp add -s user mtkprof -- ${bin} mcp${binds === 'keep' ? ' -binds keep' : ''}`
 }
 
@@ -82,7 +82,7 @@ export function McpSection({ binds }: { binds: AssistBinds }) {
           <ul className="mcp-notes">
             <li>
               Bind values are {binds === 'keep' ? 'kept, as set above' : 'masked, as set above'}; SQL text is sent as traced.
-              {inTauri && ' The command points into this app: run it again after moving the app.'}
+              {inApp && ' The command points into this app: run it again after moving the app.'}
             </li>
             <li>Notes, the current view and “show me” links are app-only: the agent sees the trace, not your tabs.</li>
           </ul>

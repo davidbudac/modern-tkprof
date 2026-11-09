@@ -1,12 +1,13 @@
 node_modules/
 dist/
+dist-electron/
+release/
 *.tsbuildinfo
-src-tauri/target/
-src-tauri/target-quick/
-src-tauri/gen/schemas/
-src-tauri/binaries/*
-!src-tauri/binaries/.gitkeep
+binaries/*
+!binaries/.gitkeep
 .DS_Store
 out/
 out-smoke/
 out-logs/
+# leftovers of the Tauri shell (desktop/src-tauri until 2026-11-09): its build dirs
+src-tauri/

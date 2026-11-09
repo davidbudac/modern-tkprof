@@ -12,7 +12,6 @@ export default defineConfig({
   clearScreen: false,
   resolve: { alias: { '@lib': lib }, dedupe: ['react', 'react-dom'] },
   server: { port: 5173, strictPort: true, host: '127.0.0.1' },
-  envPrefix: ['VITE_', 'TAURI_ENV_'],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

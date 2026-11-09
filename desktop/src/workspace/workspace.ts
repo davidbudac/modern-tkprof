@@ -778,7 +778,7 @@ export class Workspace {
     if (route.kind === 'page') this.go(leaveRoute(tabs, origin))
   }
 
-  /** Moves a tab to another position. (No drag in the strip yet: Tauri's file drop handler disables HTML5 drag-drop on Windows.) */
+  /** Moves a tab to another position. (No drag in the strip yet.) */
   move(key: string, to: number) {
     const tabs = [...this.snap.tabs]
     const i = tabs.findIndex((t) => t.key === key)

@@ -1,5 +1,5 @@
 # One workspace for both clients: web/ (the CLI's embedded UI and the shared lib, web/src/lib)
-# and desktop/ (the Tauri app, which imports the lib as @lib). Versions both use come from the
+# and desktop/ (the Electron app, which imports the lib as @lib). Versions both use come from the
 # catalog, so the lib's React, Vite and TypeScript are the desktop's too.
 packages:
   - web
@@ -18,3 +18,6 @@ catalog:
 
 allowBuilds:
   esbuild: true
+  # electron downloads its binary on install; electron-winstaller (Squirrel) is not used
+  electron: true
+  electron-winstaller: false
