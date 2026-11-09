@@ -459,9 +459,9 @@ engine found (with their own login; Codex is marked experimental).
   token, secret, password, cookie) or whose value starts with `Bearer`/`Basic` is refused, and so
   is a base URL with a user, a query or a fragment: the key goes through the key prompt.
 - The key prompt asks for a provider's API key on first use. In the app, *Remember in keychain*
-  (on by default) stores it in the OS keychain: Keychain on macOS, Credential Manager on Windows,
-  the Secret Service on Linux, under the service `com.davidbudac.mtkprof`, account
-  `assist:<provider id>`. The app's shell reads it there and answers the engine itself, so a
+  (on by default) stores it encrypted in the app's data folder (`secrets.json`), with the
+  encryption key in the OS keychain (Keychain on macOS, DPAPI on Windows, the Secret Service or
+  kwallet on Linux), account `assist:<provider id>`. The app's shell reads it there and answers the engine itself, so a
   stored key never reaches the web page, `settings.json`, a backup or a log. Unchecked, the key
   lives only in the engine's memory until the engine stops. With no keychain (Linux without a
   Secret Service) the prompt says so and the key is kept in the app's memory until it quits.
@@ -602,14 +602,19 @@ for a newer version a few seconds after every start (turn it off in *Settings �
 updates on start*). When there is one, a note at the bottom right offers:
 
 - **Download**: opens that release's page; install the installer for your system over the app
-  (your tabs, settings, notes and connections stay). The Tauri builds (v0.6.0 and earlier)
-  installed updates themselves; the Electron app does not yet.
+  (your tabs, settings, notes and connections stay). The app does not install updates itself.
 - **Later**: hides it until the next start.
 - **Skip this version**: never offers that version on start again (*Check now* still finds it).
 
 *Settings → About → Check now* checks at any time and says what it found. The app needs to reach
 github.com; a failed check is only written to the log. v0.5.0 and earlier have no updater:
 install the next release by hand once.
+
+**Coming from v0.6.0** (the last build of the old shell): its *Install and restart* moves you to
+the new app once, on macOS and Linux; your tabs, settings, notes, connections and index cache
+carry over. On Windows install v0.7.0 by hand: its installer removes the old app first (your data
+stays). An API key the old app remembered is taken over on macOS the first time it is needed
+(macOS asks you to allow mtkprof to use it); on Windows and Linux type it once more.
 
 ### Backup
 

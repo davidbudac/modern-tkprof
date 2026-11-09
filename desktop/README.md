@@ -239,9 +239,9 @@ image holds the Linux and Windows toolchains (Node, pnpm, Go pinned as in the re
 runtime libraries, Xvfb, wine); `node_modules` and the go/pnpm/Electron caches live in Docker
 volumes `mtkprof-ci-*` so they never mix with the Mac's (`docker volume rm` to reset).
 
-Since the switch to Electron (2026-11-09) only the arm64 DMG and its smoke have run; the x64, Linux and
-Windows legs, the Docker image and the release script have not. The arm64 DMG is about 126 MB (the
-.app 278 MB; the Tauri DMG was a fraction of that). Timings of the Tauri runs no longer apply.
+Since the switch to Electron (2026-11-09) every leg has run (macOS x64 smoke only under Rosetta). The
+installers are 100-125 MB (the arm64 .app 278 MB; the Tauri ones were about 12 MB). A run of the
+Docker legs takes about five minutes once the image is built.
 
 Known limits: the smoke test runs the unpacked app, not the installers (the AppImage, `.deb`
 and NSIS installer are built, never installed); the Windows installer is built but never run
@@ -259,8 +259,10 @@ scripts/release-local.sh vX.Y.Z
 ```
 
 adds the installers to that release. It refuses unless the tree is clean, HEAD is the tag, the
-versions match and the release exists without installers; it runs all legs of `ci-local.sh`,
-uploads `out/*` (their checksums as `SHA256SUMS-desktop`) and appends the checksums to the
+versions match, the release exists without installers, the Tauri updater key is there and the
+app's Electron major is one of the three newest (DESIGN § Desktop app); it runs all legs of
+`ci-local.sh`, signs the Tauri bridge (below) and writes its `latest.json`, uploads `out/*`
+(their checksums as `SHA256SUMS-desktop`), then `latest.json`, and appends the checksums to the
 release notes. It never creates or pushes the tag. Releases v0.3.1 and earlier are on the archived
 [mtkprof-desktop releases page](https://github.com/davidbudac/mtkprof-desktop/releases).
 
@@ -273,6 +275,33 @@ from Settings → About the main process asks `api.github.com/repos/davidbudac/m
 signed in-place install (minisign key, `latest.json`) has no replacement yet (DESIGN § Desktop
 app). `?mock=update` in the dev browser mode still shows the old download and install states
 (`installsItself`), for the day an in-place install comes back.
+
+**The Tauri bridge.** Installs of v0.6.0 and older still run the Tauri updater: it reads
+`latest.json` of the newest release, takes the entry of its platform and bundle, checks the
+download's minisign signature against the public key built into it and that the signature names
+the announced version. `scripts/tauri-bridge.mjs <tag> out` signs the Electron builds for it with
+`@tauri-apps/cli signer sign --app-version` and prints that manifest:
+
+| Tauri install | it downloads | and then |
+|---|---|---|
+| macOS (`darwin-{aarch64,x86_64}[-app]`) | `mtkprof_<v>_<aarch64,x64>.app.tar.gz` (packed by `ci-local.sh`) | swaps the `.app` bundle, relaunches it through LaunchServices |
+| Linux AppImage (`linux-x86_64[-appimage]`) | `mtkprof_<v>_amd64.AppImage` | overwrites the running AppImage |
+| Linux .deb (`linux-x86_64-deb`) | `mtkprof_<v>_amd64.deb` | `pkexec dpkg -i`: package `mtkprof` in both shells, an upgrade |
+| Windows (`windows-x86_64[-nsis]`), only with `--with-windows` | `mtkprof_<v>_x64-setup.exe` | runs it; `build/installer.nsh` removes the Tauri install first. Not tried on Windows yet, so not offered |
+
+- **The key**: `~/.tauri/mtkprof-updater.key` on the release Mac (no password, mode 600), or
+  `TAURI_SIGNING_PRIVATE_KEY` (the key or a path; `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if it has
+  one). Back it up: without it the Tauri installs cannot be moved over, only reinstalled by hand.
+- **Trying it** (done 2026-11-09 on arm64, 0.6.0 → 0.7.0): build the last Tauri app from tag
+  `tauri-final` with `--config '{"identifier":"com.davidbudac.mtkprof.bridgetest","plugins":{"updater":{"endpoints":["http://127.0.0.1:8765/latest.json"],"dangerousInsecureTransportProtocol":true}}}'`,
+  pack the Electron `.app` into a folder, `node scripts/tauri-bridge.mjs v<new> <folder> --partial
+  --base http://127.0.0.1:8765 > <folder>/latest.json`, serve the folder on that port, `launchctl
+  setenv MTKPROF_SMOKE 1; launchctl setenv MTKPROF_PROFILE <dir>` (the relaunch goes through
+  LaunchServices, so the Electron app's test profile must come from launchd; unset both after),
+  start the Tauri app and *Install and restart*.
+
+The .deb and the AppImage keep their Tauri names (`mtkprof_<v>_amd64.*`, package `mtkprof`), so
+links, dpkg and the AppImage swap carry on.
 
 The builds are not signed:
 

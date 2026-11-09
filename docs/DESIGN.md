@@ -222,6 +222,16 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
   of ours. An in-place install with the same guarantees (a signature over the
   artifact and its version, verified in the main process) is open. OS code
   signing stays out of scope.
+- The Tauri bridge (2026-11-09): installs of v0.6.0 and older keep their own
+  updater, which reads `latest.json` of the newest release. So every release
+  also ships the Electron app in the shapes that updater installs, signed with
+  the same minisign key and bound to the version (`scripts/tauri-bridge.mjs`;
+  `release-local.sh` refuses without the key): the `.app.tar.gz` on macOS (it
+  swaps the bundle and relaunches through LaunchServices; tried end to end from
+  0.6.0 on arm64), the AppImage and the `.deb` (package `mtkprof` in both
+  shells, so dpkg upgrades it). Windows only with `--with-windows` once tried
+  there: its installer removes the Tauri install first (`build/installer.nsh`).
+  Kept until no Tauri install is left to update; then `latest.json` goes.
 - The Go core is the engine: `mtkprof engine` runs locally as a sidecar
   process, holds N open traces, always builds in aggregate + spill mode, and
   keeps the spill directory as a persistent index cache (user cache dir,
@@ -229,7 +239,7 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
   or model; no remote-engine mode; no LOD tiles (a 1024-bucket minimap in the
   document instead).
 - The shell is Electron (TypeScript main process) around the React/TS UI
-  (2026-11-09, replacing Tauri 2; branch `electron`). Why: one language for the
+  (2026-11-09, replacing Tauri 2; the last Tauri commit is tag `tauri-final`). Why: one language for the
   shell and the UI, the same Chromium on every platform instead of WKWebView,
   WebKitGTK and WebView2 (the Linux leg needed webkit workarounds, the macOS
   webview its own keyboard and accessibility checks), and a shell any
@@ -237,13 +247,27 @@ Plan, protocol and the full decision log: `docs/PLAN-DESKTOP.md`.
   Chromium's memory. What stayed: the engine as a sidecar with its token in
   the environment, stdin held, the ready line, restart with backoff; the page
   has no Node (`contextIsolation`, `sandbox`, one `window.mtkprof` bridge);
-  file access stays scoped in the main process (dialog picks, the team file,
-  the app's own dirs); a remembered assistant key never enters the page
-  (safeStorage in the main process, which answers the engine's prompt
-  itself); the UI's origin is `mtkprof://app`, the engine's CORS allows exactly
-  that; data, cache and log dirs keep the Tauri paths, so settings, tabs,
-  notes and connections carry over. Keys remembered in the OS keychain by the
-  Tauri app do not (asked for once more). GPUI is not revisited.
+  a remembered assistant key never enters the page (safeStorage in the main
+  process, which answers the engine's prompt itself); the UI's origin is
+  `mtkprof://app`, the engine's CORS allows exactly that; data, cache and log
+  dirs keep the Tauri paths, so settings, tabs, notes, connections and the
+  index cache carry over. Keys the Tauri app remembered in the macOS keychain
+  are taken over once (macOS asks to allow it); on Windows and Linux they are
+  asked for once more. GPUI is not revisited.
+- The page is trusted less than the main process (it shows trace text and
+  assistant replies), so the main process grants it least privilege (2026-11-09,
+  after a review of the shell): it reads dialog picks and the team file (whose
+  path the main process keeps); it writes save-dialog picks (once each) and the
+  cache folders `reports` and `cuts`, by file type; it opens with the system
+  only reports this run wrote; stores are an exact list of names; engine
+  options are checked, and the engine deletes only names it creates in its
+  cache. Packaged builds set Electron's fuses (no run-as-node, `NODE_OPTIONS`
+  or inspector; the UI only from the integrity-checked `app.asar`), refuse
+  remote debugging, grant only clipboard writes and keep a strict CSP.
+- Electron is kept current: a Chromium security fix reaches users only through
+  an Electron upgrade, and only the newest three majors get fixes (a major every
+  eight weeks). `desktop/scripts/release-local.sh` refuses a release whose
+  Electron major is older than that; upgrade, smoke, release.
 - One repository, two clients (2026-11-02; was a separate private repo
   `mtkprof-desktop` pinning this one as a git submodule): the engine and the
   CLI at the root, the CLI's UI and the shared lib in `web/`, the desktop app

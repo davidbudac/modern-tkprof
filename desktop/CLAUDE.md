@@ -23,7 +23,11 @@ its rules apply here too. Then `README.md` here (layout, shell bridge, sidecar, 
 - `pnpm typecheck` (desktop UI with the lib, then `electron/`), `pnpm test` (`src/` and `electron/`), `pnpm gen:api`.
 - `pnpm build:engine [--target <os>-<arch>]` builds the sidecar from `../cmd/mtkprof` into `binaries/`.
 - `pnpm app` builds and runs the app; `pnpm dev:app` runs it on the Vite dev server. Set
-  `MTKPROF_PROFILE=<dir>` so a run does not use (or change) the user's own tabs, settings and keys.
+  `MTKPROF_PROFILE=<dir>` so a run does not use (or change) the user's own tabs, settings and keys; a
+  packaged build honours it only with `MTKPROF_SMOKE=1`. Never start a packaged build without both: if
+  the user's app is running, the launch hands its arguments to that window as files to open.
+- Shell security (DESIGN § Desktop app): the page gets least privilege. A new file capability names
+  its folder and file types in `electron/files.ts`; a new store name goes into `electron/store.ts`.
 - `scripts/ci-local.sh [--only checks,macos,linux,windows]` builds and smoke-tests the installers.
   Linux and Windows run in Docker with the whole repository mounted at `/src`.
 

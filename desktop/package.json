@@ -5,6 +5,7 @@
   "description": "mtkprof desktop: Electron shell around the mtkprof engine",
   "author": "David Budac",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/davidbudac/modern-tkprof",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
