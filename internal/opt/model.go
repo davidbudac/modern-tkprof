@@ -182,7 +182,7 @@ type SQL struct {
 	Label  string `json:"label"`  // what the header (or the line before it) calls it: "Final query after transformations"
 	Text   string `json:"text"`   // the statement, one line
 	SameAs int    `json:"sameAs"` // Line of the earlier identical statement; 0 none
-	Prev   int    `json:"prev"`   // Line of the previous different statement; 0 none
+	Prev   int    `json:"prev"`   // Line of the previous statement in the file; 0 none
 }
 
 // Plan is the dump's plan table with what follows it.
@@ -208,7 +208,14 @@ type PlanRow struct {
 	Bytes string `json:"bytes"`
 	Cost  string `json:"cost"`
 	Time  string `json:"time"`
+	// Extra are the cells of the columns after the seven standard ones, aligned with Plan.Cols[7:]: Pstart and
+	// Pstop of a partitioned plan, TQ, IN-OUT and PQ Distrib of a parallel one. "" for an empty cell; absent when
+	// the plan has no such column.
+	Extra []string `json:"extra,omitempty"`
 }
+
+// planStdCols is the number of columns every plan table has: Id, Operation, Name, Rows, Bytes, Cost, Time.
+const planStdCols = 7
 
 // PlanQB is an operation's query block name and object alias.
 type PlanQB struct {
@@ -244,7 +251,7 @@ type Hint struct {
 	Line int    `json:"line"`
 	Text string `json:"text"`           // the hint, "INDEX (\"O\" \"NO_SUCH_INDEX\")"; a Hint Report line as printed ("Unused: index(o no_such_index)", "use_hash(c)")
 	Err  int    `json:"err"`            // atom_hint err=
-	Used int    `json:"used"`           // atom_hint used=; a Hint Report line with no verdict (a used hint): 1
+	Used int    `json:"used"`           // atom_hint used=; 0 for a Hint Report line (the report prints no such value)
 	Note string `json:"note,omitempty"` // Hint Report: "Unused", "Syntax Error", with its reason when printed
 	// Src says which section the line is from: "dump" (Dumping Hints) or "report" (Hint Report).
 	Src string `json:"src,omitempty"`

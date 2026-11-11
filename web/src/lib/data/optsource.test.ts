@@ -56,21 +56,21 @@ describe('the digest source', () => {
 })
 
 describe('the HTTP source', () => {
-  it('asks once per dump model and once per text, and normalises the model', async () => {
+  it('keeps nothing between calls (the view\'s cache of two dumps is the one place), and normalises the model', async () => {
     const { client, fetch } = fakeClient({
       '/api/opt/dump?i=1': () => Response.json(optDumpOf(file, 1)),
       '/api/opt/text?i=1': () => new Response(textOf(30, 49)),
     })
     const s = httpSource(file, client)
-    const [a, b] = await Promise.all([s.dump(1), s.dump(1)])
-    expect(a).toBe(b)
+    const a = await s.dump(1)
+    const b = await s.dump(1)
+    expect(a).not.toBe(b)
     expect(a.landmarks).toEqual([])
-    await s.dump(1)
     const t = await s.text(1)
-    expect(await s.text(1)).toBe(t)
+    expect(await s.text(1)).not.toBe(t)
     expect(t.complete).toBe(true)
     expect([t.from, t.to, t.get(30), t.get(49), t.get(29), t.get(50)]).toEqual([30, 49, 'line 30', 'line 49', undefined, undefined])
-    expect(fetch.mock.calls.map((c) => c[0]).sort()).toEqual(['/api/opt/dump?i=1', '/api/opt/text?i=1'])
+    expect(fetch).toHaveBeenCalledTimes(4)
   })
 
   it('reports an HTTP error and asks again after it', async () => {

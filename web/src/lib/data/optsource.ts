@@ -54,29 +54,19 @@ async function failure(what: string, res: Response): Promise<Error> {
 }
 
 /**
- * A source over the routes of a 10053 session. A dump's model is asked once and its text once (the answers are kept; a failed request is
- * forgotten, so the next ask tries again). The text is taken only when it holds every line of `viewFrom..viewTo`: a shorter answer is an error.
+ * A source over the routes of a 10053 session. Every call asks the server: a dump's model and text are megabytes, and the one place that keeps them
+ * is the view's cache of two dumps (data/optcache.ts), so a dump let go is asked again. The text is taken only when it holds every line of
+ * `viewFrom..viewTo`: a shorter answer is an error.
  */
 export function httpSource(file: OptFile, client: ApiClient): OptSource {
-  const dumps = new Map<number, Promise<OptDump>>()
-  const texts = new Map<number, Promise<OptText>>()
-  const once = <T>(m: Map<number, Promise<T>>, idx: number, load: () => Promise<T>): Promise<T> => {
-    let p = m.get(idx)
-    if (!p) {
-      p = load()
-      m.set(idx, p)
-      p.catch(() => { if (m.get(idx) === p) m.delete(idx) })
-    }
-    return p
-  }
   return {
     file,
-    dump: (idx) => once(dumps, idx, async () => {
+    dump: async (idx) => {
       const res = await client.fetch(`/api/opt/dump?i=${idx}`, { headers: { accept: 'application/json' } })
       if (!res.ok) throw await failure(`dump ${idx}`, res)
       return normalizeDump((await res.json()) as OptDump)
-    }),
-    text: (idx) => once(texts, idx, async () => {
+    },
+    text: async (idx) => {
       const info = file.dumps[idx]
       if (!info) throw new Error(`the file has no dump ${idx}`)
       const res = await client.fetch(`/api/opt/text?i=${idx}`)
@@ -85,7 +75,7 @@ export function httpSource(file: OptFile, client: ApiClient): OptSource {
       const want = info.viewTo - info.viewFrom + 1
       if (lines.length < want) throw new Error(`text of dump ${idx} is short: ${lines.length} of ${want} lines (${info.viewFrom}-${info.viewTo})`)
       return chunk(lines, info.viewFrom, info.viewTo)
-    }),
+    },
   }
 }
 

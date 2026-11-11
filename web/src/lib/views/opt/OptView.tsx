@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer,
 import type { Opt10046Link, OptAnnotations, OptFold, OptSource, OptText } from '../../data/opt'
 import { enabledLandmarks, foldOf, indexDump, lmSwitches, pathOf, stepLine, type DumpIndex, type LmOn } from '../../data/optindex'
 import { glossaryOf, glossaryRegex } from '../../data/optguide'
+import { dumpCacheOf } from '../../data/optcache'
 import { buildRows, hiddenByFolds, type OptRow } from '../../data/optrows'
 import { NO_HITS, searchCount, searchNote, searchText, type SearchResult } from '../../data/optsearch'
 import { optPlanRows } from '../../data/optplan'
@@ -114,26 +115,22 @@ export function OptView(props: OptViewProps) {
   const lm: LmOn = useMemo(() => lmSwitches(lmStored), [lmStored])
   const mode: 'fmt' | 'raw' = modeStored === 'raw' ? 'raw' : 'fmt'
 
-  // the open dump: its model and its text (kept per dump, so a switch back is at once)
-  const cache = useRef(new Map<number, Promise<Loaded>>())
-  useEffect(() => { cache.current = new Map() }, [source])
+  // the open dump: its model and its text. The open dump and the previous one are kept (data/optcache.ts), so going back is at once; the others are
+  // let go and asked again. This is the only place that holds them: the sources keep nothing between calls.
+  const cache = useMemo(() => dumpCacheOf<Loaded>(source), [source])
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   useEffect(() => {
     let live = true
     const idx = ui.dump
-    let p = cache.current.get(idx)
-    if (!p) {
-      p = Promise.all([source.dump(idx), source.text(idx)]).then(([dump, text]) => {
-        const gloss = glossaryOf(dump, file)
-        return { idx, ix: indexDump(dump), text, gloss: { gloss, re: glossaryRegex(gloss) } }
-      })
-      cache.current.set(idx, p)
-    }
+    const p = cache.get(idx, () => Promise.all([source.dump(idx), source.text(idx)]).then(([dump, text]) => {
+      const gloss = glossaryOf(dump, file)
+      return { idx, ix: indexDump(dump), text, gloss: { gloss, re: glossaryRegex(gloss) } }
+    }))
     setLoadError(null)
-    p.then((l) => { if (live) setLoaded(l) }, (e) => { cache.current.delete(idx); if (live) setLoadError(String(e?.message ?? e)) })
+    p.then((l) => { if (live) setLoaded(l) }, (e) => { if (live) setLoadError(String(e?.message ?? e)) })
     return () => { live = false }
-  }, [source, file, ui.dump])
+  }, [source, file, cache, ui.dump])
   const cur = loaded && loaded.idx === ui.dump ? loaded : null
   const ix = cur?.ix ?? null
   const text = cur?.text ?? null

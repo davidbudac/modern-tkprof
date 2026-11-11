@@ -1456,7 +1456,8 @@ guide: DESKTOP § The 10053 view.
   recursive SQL is written as complete `dep=1` records between its lines), and tkprof parity holds on the
   interleaved fixture like on every other (`opt_interleaved`, compared with tkprof's output, no exclusion).
 - **19c is the tested version.** A file of another version opens best effort: the view's header says "read with the
-  19c rules; this file is 23.6" and shows how many lines of the dump fell outside any known section (`Unplaced`).
+  19c rules; this file is 23.6" and shows how many lines of the dump fell outside any known section (`Unplaced`), and the
+  outline's row of the open dump shows the same count.
   21c and 23ai were not generated; the format reference holds only a 23.6 excerpt (the bind section unchanged).
 - **Not in this version**: producing the trace from the app (turning the event on, `DBMS_SQLDIAG.DUMP_TRACE`); the
   assistant and `mtkprof mcp` (they do not open 10053 files); Compare and Cut on a 10053 tab.

@@ -340,7 +340,8 @@ interleaved file; switch it off for a file that opens as 10053.
 columns: the **outline** with the Landmarks and Bookmarks tabs on the left, the **text** in the centre with the
 where-am-I path above it and the line map beside its scroll bar, the **Guide** with the SQL tab on the right. A status
 bar below the text. When the file is not 19c, the information bar says "read with the 19c rules; this file is 23.6"
-and "158 lines outside any known section" (the lines of the open dump that sit under no known section); a dump the
+and "158 lines outside any known section" (the lines of the open dump that sit under no known section), and the open
+dump's row in the outline says the same count; a dump the
 file ended inside says "this dump is truncated: no end line". The status bar reads *Lines 1,200-1,260 of 32-18,278*
 (the visible lines of the dump's range), *Dump 1 of 2*, *3 folds closed, 12,345 lines hidden* (or *Raw: the file as
 it is*), and in a report that holds the digest only *Digest: 1,048 of 18,247 lines in this report*.
@@ -407,7 +408,11 @@ header line of each statement has a *diff with line N* button that opens this ta
 
 **The plan.** The dump's `Plan Table` shows as a plan in the text: the operations indented by depth with Rows, Bytes,
 Cost and Time as the trace prints them (`96K`), the query block and object alias and the access and filter predicates
-as rows under their operation. *Plan | Text* switches to the trace's own lines; *Open in plan viz ↗* opens the plan,
+as rows under their operation. A partitioned or parallel plan has more columns in the trace (`Pstart`, `Pstop`; `TQ`,
+`IN-OUT`, `PQ Distrib`): they follow Time, under the trace's own titles. The operation and the name give way first,
+with an ellipsis; where the band is too narrow to keep a little of both beside the extra columns (about 1,300 px of
+window with the side panels open, for a parallel plan) the extra columns are left out and the header's tooltip says
+they are in the Text view. *Plan | Text* switches to the trace's own lines; *Open in plan viz ↗* opens the plan,
 estimates only (a 10053 plan has no actual rows or times), in the plan visualizer.
 
 **The Guide** (right, tab *Guide*). What the section and the line under the selection are (the first visible line when
@@ -418,6 +423,17 @@ says "No guide text for this kind of section" (or "… of line"). Five kinds of 
 line, the banner sections between transformation steps, Optimizer Metrics, the one-line query block registry and the
 Hint Report. It says what a part is and how to read it, never what happened in this trace. The sources are kept in the
 data and listed in the format reference, not shown in the view.
+
+**Keyboard in the lists.** The outline, the landmark list, the bookmark list and the SQL tab's list of versions take
+focus: `Tab` enters a list at one row (the open node, the current landmark, the selected version), `↑` `↓` `Home` `End`
+move between the rows, `Enter` or `Space` does what a click does (the outline also takes `→` to open a node and `←` to
+close it or go to its parent). The view's single-letter keys still act with the focus in a list, and never in a text
+field, so a note box takes every letter.
+
+**Scroll.** The text scrolls by rows of 20 px; a dump of more than 400,000 rows (past what a browser can scroll) maps
+the scroll bar to the first visible row (`data/scrollmap.ts`, as in the Lines view), so the last line of a
+2,000,000-line dump is reached and a jump lands on its row. The view holds the open dump and the one before it; a
+dump opened a third time back is asked for again.
 
 **Bookmarks and notes.** `b` (or the bookmark button) bookmarks the selected line, or removes the bookmark when it has
 one; the *Bookmarks* tab lists them with the path to the line and a note box (Enter saves), × removes one. As in the
@@ -465,8 +481,10 @@ button (⌘J) opens a panel that says "The assistant does not read optimizer (10
 brief…* in the Tools menu is disabled with its reason; `mtkprof mcp` stops with "mcp: x.trc is a 10053 file; the
 assistant and MCP read 10046 traces only in this version" when every file given is a 10053 file. A 10053 file cannot be
 followed live: with *Follow as it grows* the engine refuses with "follow: x.trc is a 10053 file (optimizer trace); it
-cannot be followed live: open it without follow" (the folder picker's *Open* and *Open N as one trace set* open it without
-follow). The Reports page of the tab (Tools menu) has the *Text report* (the digest), the *JSON document* (the dumps'
+cannot be followed live: open it without follow", and the tab then opens it again without follow by itself (the folder
+picker's *Open*, *Open each in a tab* and *Open N as one trace set* open a 10053 file without follow from the start).
+A tab's title counts the files the engine opened: `io_waits.trc (+1)` becomes `io_waits.trc` once the session says it
+left the 10053 file out. The Reports page of the tab (Tools menu) has the *Text report* (the digest), the *JSON document* (the dumps'
 models and the digest's lines) and *Standalone HTML* (*Save…* and *Open standalone HTML*); *CSV (zip)* is disabled
 ("An optimizer (10053) trace has no statements, calls or waits to export as tables").
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { fmtBytes } from '@lib/data/format'
 import { send, useEngine } from '../engine'
-import { dumpsLabel, fileKindOf, kindLabel, kindTitle } from './optTabs'
+import { dumpsLabel, fileKindOf, kindLabel, kindTitle, optionsFor } from './optTabs'
 import { FolderIcon } from '../ui/FolderIcon'
 import { useWorkspace } from './WorkspaceProvider'
 import { baseName } from './traceSet'
@@ -100,8 +100,8 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
       return n
     })
 
-  /** Follow is one live file: a set of several opens without it. */
-  const optionsFor = (n: number): OpenOptions => (n === 1 ? pick.options : { ...pick.options, follow: undefined })
+  /** Follow is one live file: a set of several opens without it, and so does a 10053 file (the engine refuses to follow it). */
+  const optionsOf = (n: number, path?: string): OpenOptions => optionsFor(pick.options, n, path ? fileKindOf(peeks.get(path)) : '')
   // a 10053 file is a tab of its own: the 10046 files open as the set they form, each optimizer trace beside it
   const peekOf = (path: string) => peeks.get(path)
   const openSet = (paths: string[]) => {
@@ -112,7 +112,7 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
   const openEach = (paths: string[]) => {
     if (!paths.length) return
     ws.closePick()
-    paths.forEach((p, i) => ws.open({ paths: [p], options: optionsFor(1) }, i === paths.length - 1, true, undefined, undefined, false, fileKindOf(peeks.get(p)) === '10053' ? '10053' : undefined))
+    paths.forEach((p, i) => ws.open({ paths: [p], options: optionsOf(1, p) }, i === paths.length - 1, true, undefined, undefined, false, fileKindOf(peeks.get(p)) === '10053' ? '10053' : undefined))
   }
   // oldest first: the set's files (and the tabs of "each") in the order they were traced
   const paths = sortRows(chosen, { key: 'start', dir: 1 }).map((r) => r.file.path)

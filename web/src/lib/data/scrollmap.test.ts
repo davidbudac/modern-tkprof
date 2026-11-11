@@ -33,6 +33,22 @@ describe('scroll geometry', () => {
   })
 })
 
+describe('a dump of two million rows (the 10053 viewer, 20 px rows: 40 M px, past what a browser scrolls)', () => {
+  const total = 2_000_000
+  const g = scrollGeometry(total, 700, 20)
+  it('is capped, and the top and the bottom are reached', () => {
+    expect(g.scrollH).toBe(MAX_SCROLL_H)
+    expect(topFromScroll(g, 0)).toBe(0)
+    expect(topFromScroll(g, g.maxScroll)).toBeCloseTo(total - 35, 6) // the last row ends at the bottom edge
+    expect(scrollFromTop(g, total - 35)).toBeCloseTo(g.maxScroll, 3)
+  })
+  it('round-trips a row in the middle', () => {
+    for (const top of [1, 999_999, 1_000_000, 1_234_567, total - 36]) {
+      expect(Math.abs(topFromScroll(g, Math.round(scrollFromTop(g, top))) - top)).toBeLessThan(total / g.maxScroll + 1) // a pixel is 1/ratio rows
+    }
+  })
+})
+
 describe('revealTop', () => {
   it('centers a line', () => {
     expect(revealTop(0, 100, 31, 'center')).toBe(85)

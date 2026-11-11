@@ -5,6 +5,7 @@ import { GUIDE_SECTIONS, KIND_NAME, guideLine } from '../../data/optguide'
 import { termsOf, type GlossCtx } from '../../data/optdress'
 import { diffLines, formatSqlMemo, sqlSpans } from '../../data/optsql'
 import { fmtInt } from '../../data/format'
+import { focusRow, listKey } from './listKeys'
 
 /** Text with `code` spans for the backticks of the guide's entries. */
 export function mdLite(s: string): ReactNode[] {
@@ -61,6 +62,24 @@ export const LandmarkPanel = memo(function LandmarkPanel({ ix, lm, cur, onSwitch
   }, [d, lm, counts])
   const at = useMemo(() => items.findIndex((x) => 'line' in x && x.line === cur), [items, cur])
   const { box, first, last } = useFixedWindow(items.length, LM_ROW, at)
+  // keyboard: one option is in the tab order (the current landmark, else the first); the arrow keys move focus to the neighbouring option, scrolling to it
+  // when it is not rendered; Enter and Space go to the line
+  const lineItems = useMemo(() => items.flatMap((x, k) => ('line' in x ? [k] : [])), [items])
+  const tabK = at >= 0 ? at : (lineItems[0] ?? -1)
+  const [want, setWant] = useState(-1)
+  useEffect(() => {
+    if (want < 0) return
+    const el = box.current?.querySelector<HTMLElement>(`[data-k="${want}"]`)
+    if (el) { el.focus(); setWant(-1) }
+  }, [want, first, last, box])
+  const moveLm = (from: number, step: 1 | -1 | 'first' | 'last') => {
+    const i = lineItems.indexOf(from)
+    const to = lineItems[step === 'first' ? 0 : step === 'last' ? lineItems.length - 1 : Math.min(lineItems.length - 1, Math.max(0, i + step))]
+    if (to === undefined) return
+    const el = box.current
+    if (el && (to * LM_ROW < el.scrollTop || (to + 1) * LM_ROW > el.scrollTop + el.clientHeight)) el.scrollTop = Math.max(0, to * LM_ROW - el.clientHeight / 2)
+    setWant(to)
+  }
   const ctxOf = (line: number) => {
     const p = pathOf(ix, line)
     return p.slice(2).filter((n) => LM_CTX_KINDS.has(n.kind)).map((n) => n.crumb).join(' › ') || p.slice(1).map((n) => n.crumb).join(' › ')
@@ -89,7 +108,8 @@ export const LandmarkPanel = memo(function LandmarkPanel({ ix, lm, cur, onSwitch
                   return <div key={`h${x.h}`} className="opt-lml-h" style={style}><span className={'opt-lmk-sw ' + kind.tone} />{kind.short}<small>{fmtInt(counts[x.h])}</small></div>
                 }
                 return (
-                  <div key={`l${x.line}`} className={'opt-lml-i' + (x.line === cur ? ' on' : '')} style={style} role="option" aria-selected={x.line === cur} onClick={() => onGo(x.line)}>
+                  <div key={`l${x.line}`} className={'opt-lml-i' + (x.line === cur ? ' on' : '')} style={style} role="option" aria-selected={x.line === cur} data-k={k} tabIndex={k === tabK ? 0 : -1}
+                    onClick={() => onGo(x.line)} onKeyDown={(e) => listKey(e, { activate: () => onGo(x.line), move: (step) => moveLm(k, step) })}>
                     <span className="ln">{x.line}</span><span className="tx"><code>{x.text}</code><span>{ctxOf(x.line)}</span></span>
                   </div>
                 )
@@ -115,7 +135,7 @@ export const BookmarkPanel = memo(function BookmarkPanel({ ix, text, bookmarks, 
         <li key={l}>
           <span className="ln">{l}</span>
           <span>
-            <code className="opt-bm-go" role="button" tabIndex={0} title={`Go to line ${l}`} onClick={() => onGo(l)} onKeyDown={(e) => { if (e.key === 'Enter') onGo(l) }}>{(text.get(l) ?? '').trim() || '(blank)'}</code>
+            <code className="opt-bm-go" role="button" tabIndex={0} title={`Go to line ${l}`} onClick={() => onGo(l)} onKeyDown={(e) => { listKey(e, { activate: () => onGo(l) }) }}>{(text.get(l) ?? '').trim() || '(blank)'}</code>
             <span className="opt-bm-crumb">{pathOf(ix, l).slice(1).map((n) => n.crumb).join(' › ')}</span>
             <input type="text" placeholder="Note" aria-label={`Note on line ${l}`} defaultValue={note} key={`${l}:${note}`} disabled={readOnly}
               onBlur={(e) => { if (e.target.value !== note) onNote(l, e.target.value) }} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
@@ -139,7 +159,7 @@ export const GuidePanel = memo(function GuidePanel({ ix, text, gloss, line, sele
   return (
     <div className="opt-guide">
       <div className="opt-g-sec">
-        <span className="opt-g-k"><b>Section</b> · {kind} · lines {fmtInt(node.from)}-{fmtInt(node.to)}</span>
+        <span className="opt-g-k"><b>Section</b> · {kind !== 'Section' && <>{kind} · </>}lines {fmtInt(node.from)}-{fmtInt(node.to)}</span>
         <span className="opt-g-where" title={node.label}>{node.label}</span>
         {sec
           ? <><span className="opt-g-t">{sec.title}</span><p className="opt-g-p">{mdLite(sec.text)}</p></>
@@ -202,7 +222,8 @@ export const SqlPanel = memo(function SqlPanel({ ix, line, ui, onUi, onShow }: {
     <div className="opt-sqlv">
       <div className="opt-sqlv-list" ref={boxRef} role="listbox" aria-label="Statement versions">
         {d.sql.map((v) => (
-          <div key={v.line} className={'opt-sqlv-i' + (v === sel ? ' on' : '')} role="option" aria-selected={v === sel} title={`Line ${v.line}: ${v.label}`} onClick={() => onUi({ sel: v.line, against: 0 })}>
+          <div key={v.line} className={'opt-sqlv-i' + (v === sel ? ' on' : '')} role="option" aria-selected={v === sel} tabIndex={v === sel ? 0 : -1} title={`Line ${v.line}: ${v.label}`}
+            onClick={() => onUi({ sel: v.line, against: 0 })} onKeyDown={(e) => listKey(e, { activate: () => onUi({ sel: v.line, against: 0 }), move: (step) => focusRow(boxRef.current, '.opt-sqlv-i', e.currentTarget, step) })}>
             <span className="ln">{v.line}</span><span className="lb">{v.label}</span><small>{v.sameAs ? `same as ${v.sameAs}` : `${fmtInt(v.text.length)} chars`}</small>
           </div>
         ))}

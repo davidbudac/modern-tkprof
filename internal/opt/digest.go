@@ -273,12 +273,10 @@ func (d *Dump) WriteText(w io.Writer, line func(n int) (string, bool), o TextOpt
 		}
 		p("Hint Report\n")
 		for _, h := range report {
+			// the line as the trace prints it, and the reason it gives under an Unused or Syntax Error line
 			note := ""
-			switch {
-			case h.Note != "":
-				note = "   [" + h.Note + "]"
-			case h.Used == 1:
-				note = "   [used]"
+			if _, reason, ok := strings.Cut(h.Note, ": "); ok {
+				note = "   [reason: " + reason + "]"
 			}
 			p("%8d  %s%s\n", h.Line, h.Text, note)
 		}
@@ -354,9 +352,20 @@ func (d *Dump) writePlan(bw *bufio.Writer, line func(n int) (string, bool)) {
 		}
 	}
 	// rebuilt from the model
-	p("%4s  %-50s %-30s %8s %8s %8s %9s\n", "Id", "Operation", "Name", "Rows", "Bytes", "Cost", "Time")
+	extra := func(vals []string) string {
+		var b strings.Builder
+		for _, v := range vals {
+			fmt.Fprintf(&b, " %-10s", v)
+		}
+		return strings.TrimRight(b.String(), " ")
+	}
+	var xh []string
+	if len(pl.Cols) > planStdCols {
+		xh = pl.Cols[planStdCols:]
+	}
+	p("%4s  %-50s %-30s %8s %8s %8s %9s%s\n", "Id", "Operation", "Name", "Rows", "Bytes", "Cost", "Time", extra(xh))
 	for _, r := range pl.Rows {
-		p("%4d  %-50s %-30s %8s %8s %8s %9s\n", r.ID, strings.Repeat(" ", r.Depth)+r.Op, r.Name, r.Rows, r.Bytes, r.Cost, r.Time)
+		p("%4d  %-50s %-30s %8s %8s %8s %9s%s\n", r.ID, strings.Repeat(" ", r.Depth)+r.Op, r.Name, r.Rows, r.Bytes, r.Cost, r.Time, extra(r.Extra))
 	}
 	ids := map[int]bool{}
 	for id := range pl.QBs {

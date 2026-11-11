@@ -357,7 +357,7 @@ export function parse(text, fileName) {
           plan.rows.push({ line: i, id: +c[0].trim(), depth: op.length - op.replace(/^ +/, '').length - 1, op: op.trim(), name: c[2].trim(), rows: c[3].trim(), bytes: c[4].trim(), cost: c[5].trim(), time: (c[6] || '').trim() })
           continue
         }
-        if (/^-+\+-+\+\s*$/.test(s)) { if (plan.rows.length) { plan.tableTo = i; break } continue }
+        if (/^-+(?:\+-+)+\+\s*$/.test(s)) { if (plan.rows.length) { plan.tableTo = i; break } continue }
       }
       plan.head = head
       const qn = find(/^Query Block Name \/ Object Alias/, i, e)

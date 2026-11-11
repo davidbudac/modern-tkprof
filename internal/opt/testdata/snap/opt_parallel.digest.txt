@@ -193,7 +193,7 @@ Versions of the transformed SQL (UNPARSED QUERY IS)
 
 Final plan
 ------------------------------------------------------------------------------------------------------------------------
-lines 1606-1620
+lines 1606-1632
 ============
 Plan Table
 ============
@@ -209,6 +209,18 @@ Plan Table
 | 6   |       PX BLOCK ITERATOR  |            |       |       |       |           |:Q1000| PCWC |           |
 | 7   |        TABLE ACCESS FULL | MTK_PX_BIG |  116K |  928K |   541 |  00:00:07 |:Q1000| PCWP |           |
 | 8   |       INDEX UNIQUE SCAN  | MTK_CUST_PK|     1 |     5 |     0 |           |:Q1000| PCWP |           |
+----------------------------------------------+-----------------------------------+-------------------------+
+Query Block Name / Object Alias (identified by operation id):
+------------------------------------------------------------
+ 1 - SEL$58A6D7F6         
+ 7 - SEL$58A6D7F6         / "B"@"SEL$1"
+ 8 - SEL$58A6D7F6         / "C"@"SEL$1"
+------------------------------------------------------------
+Predicate Information:
+----------------------
+7 - access(:Z>=:Z AND :Z<=:Z)
+7 - filter("B"."AMOUNT">100)
+8 - access("C"."ID"="B"."GRP"+1)
 
 Hints
 ------------------------------------------------------------------------------------------------------------------------
@@ -217,6 +229,6 @@ Dumping Hints: line, err, used, hint
     4058  err=0 used=1  PARALLEL ("B",4)
 
 Hint Report
-    1688  full(b)   [used]
-    1689  parallel(b 4)   [used]
+    1688  full(b)
+    1689  parallel(b 4)
 

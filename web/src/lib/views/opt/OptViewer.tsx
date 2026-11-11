@@ -7,6 +7,7 @@ import { gapText, type OptRow, type RowModel } from '../../data/optrows'
 import { hasHit, hitsIn, type SearchResult } from '../../data/optsearch'
 import { sqlSpans } from '../../data/optsql'
 import { fmtInt } from '../../data/format'
+import { scrollFromTop, scrollGeometry, topFromScroll } from '../../data/scrollmap'
 
 /** Height of a row in pixels. */
 export const ROW_H = 20
@@ -14,6 +15,15 @@ export const ROW_H = 20
 const STEP = 8
 const OVER = 8
 const MAX_TEXT = 4000
+/** Id, Operation, Name, Rows, Bytes, Cost, Time: the columns every plan table has; the ones after them are the plan's extra columns. */
+const STD_COLS = 7
+/** The plan band's measures: a character of the mono face in px, what surrounds the band in the box (line numbers, margins, scroll bar), the characters of the
+ * columns that never shrink (Id, Rows, Bytes, Cost, Time) and the least the operation and the name keep before the extra columns give way. */
+const BAND_CHW = 7.2
+const BAND_CHROME = 152
+const BAND_FIXED = 4.5 + 3 * 7 + 10
+const OP_MIN = 12
+const NAME_MIN = 6
 
 /** What the owner can ask of the viewer. */
 export interface OptViewerApi {
@@ -80,14 +90,25 @@ function planVars(widths: { op: number; name: number }): CSSProperties {
   return { '--opw': widths.op, '--nmw': widths.name } as CSSProperties
 }
 
+/** The width in characters of an extra plan column (Pstart, TQ, …): its title or its widest cell. */
+const xw = (n: number): CSSProperties => ({ '--xw': n } as CSSProperties)
+
 export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer(p, ref) {
   const { ix, text, rows, mode, gloss, sel, lm, bookmarks, search, hitCur, planText, planLink } = p
   const d = ix.dump
   const box = useRef<HTMLDivElement>(null)
-  const [win, setWin] = useState({ first: 0, last: 80 })
+  // `first..last` are the rows rendered; `off` is the layer's distance from the top of the content in px, `shift` how far the first rendered row
+  // is above the top edge of the view (only a scroll map, see below, needs it)
+  const [win, setWin] = useState({ first: 0, last: 80, shift: 0 })
   const [height, setHeight] = useState(0)
+  const [width, setWidth] = useState(0)
   const frame = useRef(0)
   const anchor = useRef(p.initialTop ?? d.viewFrom)
+  // The scroll bar covers at most MAX_SCROLL_H px (a browser cannot scroll an element tens of millions of px high); a taller dump maps the scroll position
+  // to the first visible row, as the Lines viewer does (data/scrollmap.ts). `topRef` is the first visible row (fractional); `expected` the scrollTop we set
+  // ourselves, whose scroll event must not re-map the row we placed.
+  const topRef = useRef(0)
+  const expected = useRef(-1)
   const seen = useRef({ top: 0, bottom: 0 })
   const cb = useRef(p)
   cb.current = p
@@ -102,17 +123,22 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
     const rm = rowsRef.current
     if (!el || rm.count === 0) return
     const ch = el.clientHeight
-    const first0 = Math.min(rm.count - 1, Math.floor(el.scrollTop / ROW_H))
-    const lastVis = Math.min(rm.count - 1, Math.max(first0, Math.ceil((el.scrollTop + ch) / ROW_H) - 1))
+    const g = scrollGeometry(rm.count, ch, ROW_H)
+    const capped = g.scrollH < rm.count * ROW_H
+    const top = Math.abs(el.scrollTop - expected.current) < 1 ? Math.min(topRef.current, g.maxTop) : capped ? topFromScroll(g, el.scrollTop) : el.scrollTop / ROW_H
+    topRef.current = top
+    const first0 = Math.min(rm.count - 1, Math.floor(top + 1e-6))
+    const lastVis = Math.min(rm.count - 1, Math.max(first0, Math.ceil(top + ch / ROW_H - 1e-6) - 1))
     const first = Math.max(0, Math.floor(first0 / STEP) * STEP - OVER)
     const last = Math.min(rm.count, first + Math.ceil(ch / ROW_H) + STEP + 2 * OVER)
-    setWin((w) => (w.first === first && w.last === last ? w : { first, last }))
-    const top = rm.at(first0).line
+    const shift = capped ? top - first : 0
+    setWin((w) => (w.first === first && w.last === last && w.shift === shift ? w : { first, last, shift }))
+    const topLine = rm.at(first0).line
     const bottom = rm.at(lastVis).line
-    if (top !== seen.current.top || bottom !== seen.current.bottom) {
-      seen.current = { top, bottom }
-      anchor.current = top
-      cb.current.onView(top, bottom)
+    if (topLine !== seen.current.top || bottom !== seen.current.bottom) {
+      seen.current = { top: topLine, bottom }
+      anchor.current = topLine
+      cb.current.onView(topLine, bottom)
     }
   }, [])
   const schedule = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(measure) }, [measure])
@@ -120,10 +146,22 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
   // the size of the box
   useEffect(() => {
     const el = box.current!
-    const ro = new ResizeObserver(() => { setHeight(el.clientHeight); schedule() })
+    const ro = new ResizeObserver(() => { setHeight(el.clientHeight); setWidth(el.clientWidth); schedule() })
     ro.observe(el)
     return () => { ro.disconnect(); cancelAnimationFrame(frame.current); frame.current = 0 }
   }, [schedule])
+
+  /** Put row `top` (fractional) at the top edge of the view. */
+  const place = useCallback((top: number) => {
+    const el = box.current
+    const rm = rowsRef.current
+    if (!el) return
+    const g = scrollGeometry(rm.count, el.clientHeight, ROW_H)
+    const t = Math.min(g.maxTop, Math.max(0, top))
+    topRef.current = t
+    el.scrollTop = g.scrollH < rm.count * ROW_H ? scrollFromTop(g, t) : t * ROW_H
+    expected.current = el.scrollTop
+  }, [])
 
   // new rows (a fold opened, Raw, the plan as text): the first visible line stays where it is
   const lastRows = useRef<RowModel | null>(null)
@@ -134,10 +172,10 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
       const first = lastRows.current === null
       lastRows.current = rows
       const line = anchor.current
-      el.scrollTop = first && !p.initialTop ? 0 : rows.rowOf(line) * ROW_H
+      place(first && !p.initialTop ? 0 : rows.rowOf(line))
     }
     measure()
-  }, [rows, height, measure, p.initialTop])
+  }, [rows, height, measure, place, p.initialTop])
 
   useImperativeHandle(ref, () => ({
     view: () => ({ ...seen.current }),
@@ -145,19 +183,22 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
     visible: (line) => {
       const el = box.current
       if (!el) return false
-      const y = rowsRef.current.rowOf(line) * ROW_H
-      return y >= el.scrollTop - 1 && y + ROW_H <= el.scrollTop + el.clientHeight + 1
+      const r = rowsRef.current.rowOf(line)
+      const t = topRef.current
+      return r >= t - 0.05 && r + 1 <= t + el.clientHeight / ROW_H + 0.05 // one pixel of slack
     },
     reveal: (line, how = 'center') => {
       const el = box.current
       if (!el) return
-      const y = rowsRef.current.rowOf(line) * ROW_H
-      if (how === 'top') el.scrollTop = Math.max(0, y - ROW_H)
-      else if (how === 'near') { if (y < el.scrollTop) el.scrollTop = y; else if (y + ROW_H > el.scrollTop + el.clientHeight) el.scrollTop = y + ROW_H - el.clientHeight }
-      else if (y < el.scrollTop || y + ROW_H > el.scrollTop + el.clientHeight) el.scrollTop = Math.max(0, y - el.clientHeight / 2 + ROW_H)
+      const r = rowsRef.current.rowOf(line)
+      const t = topRef.current
+      const rowsIn = el.clientHeight / ROW_H
+      if (how === 'top') place(Math.max(0, r - 1))
+      else if (how === 'near') { if (r < t) place(r); else if (r + 1 > t + rowsIn) place(r + 1 - rowsIn) }
+      else if (r < t || r + 1 > t + rowsIn) place(Math.max(0, r - rowsIn / 2 + 1))
       measure()
     },
-  }), [measure])
+  }), [measure, place])
 
   // the widest line, for a horizontal scroll bar in Raw
   const maxLen = useMemo(() => {
@@ -211,6 +252,18 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
     return { op: Math.max(9, ...pl.rows.map((o) => o.depth * 2 + o.op.length)), name: Math.max(4, ...pl.rows.map((o) => o.name.length)) }
   }, [d.plan])
 
+  // the columns after Time (Pstart, Pstop; TQ, IN-OUT, PQ Distrib), with the header's own titles and the width of the widest cell. They are drawn when
+  // the band is wide enough to keep a little of the operation and the name beside them (those two give way first, with an ellipsis); in a narrower
+  // one the Text view of the plan has them.
+  const allExtra = useMemo(() => {
+    const pl = d.plan
+    if (!pl) return []
+    return pl.cols.slice(STD_COLS).map((title, k) => ({ title, w: Math.max(title.length, ...pl.rows.map((o) => o.extra?.[k]?.length ?? 0)) }))
+  }, [d.plan])
+  const extraW = allExtra.reduce((n, c) => n + c.w + 2, 0)
+  const room = (width - BAND_CHROME) / BAND_CHW - (BAND_FIXED + OP_MIN + NAME_MIN)
+  const extraCols = extraW > 0 && room >= extraW ? allExtra : []
+  const extraHidden = allExtra.length > 0 && extraCols.length === 0
   const planSwitch = (view: 'plan' | 'text') => (
     <>
       <span className="opt-seg" role="group" aria-label="The plan as">
@@ -278,7 +331,7 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
       }
       case 'planhead':
         cls.push('opt-h1', 'opt-planhead')
-        tx = <>Plan table<small>lines {fmtInt(r.plan.from)}-{fmtInt(r.plan.to)}, the table, its query blocks and predicates</small>{planSwitch('plan')}</>
+        tx = <>Plan table<small title={extraHidden ? `${allExtra.map((c) => c.title).join(', ')} ${allExtra.length === 1 ? 'is' : 'are'} in the Text view at this width` : undefined}>lines {fmtInt(r.plan.from)}-{fmtInt(r.plan.to)}, the table, its query blocks and predicates{extraHidden && <> · {allExtra.map((c) => c.title).join(', ')} are in the Text view at this width</>}</small>{planSwitch('plan')}</>
         break
       case 'plancols':
         num = ''
@@ -286,6 +339,7 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
           <span className="opt-tbl opt-tbl-head opt-tbl-first" style={planVars(planWidths)}>
             <span className="opt-pc opt-pc-id">Id</span><span className="opt-pc opt-pc-op">Operation</span><span className="opt-pc opt-pc-name">Name</span>
             <span className="opt-pc opt-pc-n">Rows</span><span className="opt-pc opt-pc-n">Bytes</span><span className="opt-pc opt-pc-n">Cost</span><span className="opt-pc opt-pc-time">Time</span>
+            {extraCols.map((c, k) => <span key={k} className="opt-pc opt-pc-x" style={xw(c.w)}>{c.title}</span>)}
           </span>
         )
         break
@@ -297,6 +351,7 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
             <span className="opt-pc opt-pc-id">{o.id}</span><span className="opt-pc opt-pc-op" style={{ '--dep': o.depth } as CSSProperties}>{o.op}</span>
             <span className="opt-pc opt-pc-name">{o.name}</span><span className="opt-pc opt-pc-n">{o.rows}</span><span className="opt-pc opt-pc-n">{o.bytes}</span>
             <span className="opt-pc opt-pc-n">{o.cost}</span><span className="opt-pc opt-pc-time">{o.time}</span>
+            {extraCols.map((c, k) => <span key={k} className="opt-pc opt-pc-x" style={xw(c.w)}>{o.extra?.[k] ?? ''}</span>)}
           </span>
         )
         break
@@ -328,15 +383,27 @@ export const OptViewer = memo(forwardRef<OptViewerApi, Props>(function OptViewer
 
   const out: ReactNode[] = []
   const end = Math.min(rows.count, win.last)
+  const geo = scrollGeometry(rows.count, height, ROW_H)
+  const capped = geo.scrollH < rows.count * ROW_H
   for (let k = Math.min(win.first, Math.max(0, rows.count - 1)); k < end; k++) out.push(renderRow(rows.at(k), k))
 
   return (
     <>
       <div ref={box} className={'opt-lv' + (mode === 'fmt' ? ' opt-fmt' : '')} tabIndex={0} role="region" aria-label={mode === 'fmt' ? 'The dump, formatted' : 'The dump, raw'} onScroll={schedule}>
-        <div className="opt-lv-inner" style={{ blockSize: rows.count * ROW_H, inlineSize: mode === 'raw' ? `calc(${maxLen}ch + 14ch)` : undefined }}>
-          <div className="opt-lv-layer" style={{ transform: `translateY(${win.first * ROW_H}px)` }} onClick={onClick} onMouseOver={onOver} onMouseLeave={() => { cardKey.current = null; setCard(null) }}>
-            {out}
-          </div>
+        <div className="opt-lv-inner" style={{ blockSize: capped ? geo.scrollH : rows.count * ROW_H, inlineSize: mode === 'raw' ? `calc(${maxLen}ch + 14ch)` : undefined }}>
+          {capped
+            ? (
+              <div className="opt-lv-stick" style={{ blockSize: height }}>
+                <div className="opt-lv-layer opt-lv-mapped" style={{ transform: `translateY(${-win.shift * ROW_H}px)` }} onClick={onClick} onMouseOver={onOver} onMouseLeave={() => { cardKey.current = null; setCard(null) }}>
+                  {out}
+                </div>
+              </div>
+            )
+            : (
+              <div className="opt-lv-layer" style={{ transform: `translateY(${win.first * ROW_H}px)` }} onClick={onClick} onMouseOver={onOver} onMouseLeave={() => { cardKey.current = null; setCard(null) }}>
+                {out}
+              </div>
+            )}
         </div>
       </div>
       {card && <div className="lv-card opt-card" style={{ '--x': `${card.x}px`, '--y': `${card.y}px` } as CSSProperties}><b>{card.term}</b>{card.text}</div>}

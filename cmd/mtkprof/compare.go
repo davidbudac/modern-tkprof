@@ -148,15 +148,7 @@ func cmdCompareDoc(kind string, args []string) error {
 		defer lis[i].Close()
 	}
 	mux := http.NewServeMux()
-	// the lines of either side; the shared handler also answers annot=1 (kinds) and annot=2 (like annot=1 here: no model)
-	sides := [2]http.Handler{slicepkg.LinesHandler(lis[:1]), slicepkg.LinesHandler(lis[1:])}
-	mux.HandleFunc("/api/lines", func(w http.ResponseWriter, r *http.Request) {
-		h := sides[0]
-		if r.URL.Query().Get("side") == "b" {
-			h = sides[1]
-		}
-		h.ServeHTTP(w, r)
-	})
+	mux.Handle("/api/lines", compareLines(a, b, lis))
 	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		if r.Method == http.MethodOptions {
@@ -182,4 +174,17 @@ func cmdCompareDoc(kind string, args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "mtkprof: serving comparison %s vs %s at http://%s/\n", fa, fb, ln.Addr())
 	return http.Serve(ln, mux)
+}
+
+// compareLines answers /api/lines for either side of a comparison (side=b is the second file). The shared handler also answers annot=1 (kinds) and
+// annot=2 (like annot=1 here: no model); it knows each side's optimizer (10053) dumps, so an interleaved trace's dump lines are not unknown lines.
+func compareLines(a, b *model.Model, lis [2]*trace.LineIndex) http.Handler {
+	sides := [2]http.Handler{slicepkg.LinesHandlerDumps(lis[:1], dumpRanges(a)), slicepkg.LinesHandlerDumps(lis[1:], dumpRanges(b))}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := sides[0]
+		if r.URL.Query().Get("side") == "b" {
+			h = sides[1]
+		}
+		h.ServeHTTP(w, r)
+	})
 }

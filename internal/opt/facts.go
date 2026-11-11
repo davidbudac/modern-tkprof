@@ -346,7 +346,8 @@ func isIDHeader(b []byte) bool {
 	return len(r) > 0 && r[0] == '|'
 }
 
-// isTableEnd matches "^-+\+-+\+\s*$".
+// isTableEnd matches "^-+(\+-+)+\+\s*$": a rule line of one or more column groups (the standard plan has
+// two, a partitioned or parallel plan has a third for Pstart/Pstop or TQ/IN-OUT/PQ Distrib).
 func isTableEnd(b []byte) bool {
 	i := 0
 	for i < len(b) && b[i] == '-' {
@@ -355,15 +356,21 @@ func isTableEnd(b []byte) bool {
 	if i == 0 || i >= len(b) || b[i] != '+' {
 		return false
 	}
-	i++
-	j := i
-	for j < len(b) && b[j] == '-' {
-		j++
+	groups := 0
+	for i < len(b) && b[i] == '+' {
+		i++
+		j := i
+		for j < len(b) && b[j] == '-' {
+			j++
+		}
+		if j == i {
+			// "+" not followed by dashes: the closing one
+			return groups > 0 && isBlank(b[i:])
+		}
+		groups++
+		i = j
 	}
-	if j == i || j >= len(b) || b[j] != '+' {
-		return false
-	}
-	return isBlank(b[j+1:])
+	return false
 }
 
 func cols(b []byte) []string {
@@ -450,8 +457,17 @@ func (ds *dstate) planLine(e *lineEnt) {
 				if depth < 0 {
 					depth = 0
 				}
-				p.Rows = append(p.Rows, PlanRow{Line: i, ID: atoi([]byte(strings.TrimSpace(c[0]))), Depth: depth, Op: strings.TrimSpace(op),
-					Name: col(c, 2), Rows: col(c, 3), Bytes: col(c, 4), Cost: col(c, 5), Time: col(c, 6)})
+				row := PlanRow{Line: i, ID: atoi([]byte(strings.TrimSpace(c[0]))), Depth: depth, Op: strings.TrimSpace(op),
+					Name: col(c, 2), Rows: col(c, 3), Bytes: col(c, 4), Cost: col(c, 5), Time: col(c, 6)}
+				// the cells beyond the seven standard columns (Pstart, Pstop; TQ, IN-OUT, PQ Distrib), one for each
+				// header column, "" for an empty cell
+				if n := len(p.Cols) - planStdCols; n > 0 {
+					row.Extra = make([]string, n)
+					for k := range row.Extra {
+						row.Extra[k] = col(c, planStdCols+k)
+					}
+				}
+				p.Rows = append(p.Rows, row)
 			}
 		case isTableEnd(b):
 			if len(p.Rows) > 0 {
@@ -673,8 +689,6 @@ func (ds *dstate) reportLine(e *lineEnt) {
 		h.Note = "Unused"
 	case hp(t, "Syntax Error:"):
 		h.Note = "Syntax Error"
-	default:
-		h.Used = 1
 	}
 	ds.d.Hints = append(ds.d.Hints, h)
 }

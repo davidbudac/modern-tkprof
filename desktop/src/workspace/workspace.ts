@@ -8,8 +8,8 @@ import { exportAnnotations, importAnnotations, loadBookmarks, loadNotes, saveBoo
 import { closeChat } from '../assist/conversation'
 import { libraryFor } from '../library/library'
 import { mergePanes, parsePanes, type Panes, type PanesPatch } from './panes'
-import { dirsOf, titleOf, baseName } from './traceSet'
-import { dumpIndexOf, dumpTabs, leftOutFile, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, type PeekOpt, type TabKind } from './optTabs'
+import { dirsOf, heldPaths, titleOf, baseName } from './traceSet'
+import { dumpIndexOf, dumpTabs, isFollowRefusal, leftOutFile, optionsFor, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, type PeekOpt, type TabKind } from './optTabs'
 import { LiveFollower } from './liveFollow'
 import { OpenQueue } from './openQueue'
 
@@ -357,6 +357,9 @@ export class Workspace {
       const dirs = dirsOf(t.set.paths, info.files)
       patch.files = info.files
       patch.dirs = dirs
+      // the title counts the files the session holds: the engine leaves a 10053 file out of a set of 10046 files, and opens the first of a set of 10053 files
+      const held = heldPaths(t.set.paths, info.files)
+      if (held && held.length < t.set.paths.length) patch.title = titleOf(held)
       this.noteFiles(t.set, dirs, info.files.length)
     }
     if (info.state === 'failed') {
@@ -367,7 +370,7 @@ export class Workspace {
       patch.error = 'the engine closed the session'
     }
     this.patchTab(key, patch)
-    if (patch.kind && t.kind !== patch.kind) this.persistOpen() // a restart reopens it as the 10053 tab it is
+    if ((patch.kind && t.kind !== patch.kind) || (patch.title && patch.title !== t.title)) this.persistOpen() // a restart reopens it as the 10053 tab it is, with the title it has
     if (this.follower.has(key)) return
     if ((info.state === 'ready' || info.state === 'live') && (info.rev > t.rev || t.state === 'opening')) void this.load(key, info.rev)
   }
@@ -672,8 +675,8 @@ export class Workspace {
     const { set, opt } = splitByKind(paths, peekOf)
     const keys: string[] = []
     // follow is one live file: a set of several, and a 10053 file, open without it
-    if (set.length) keys.push(this.open({ paths: set, options: set.length === 1 ? options : { ...options, follow: undefined } }, true))
-    opt.forEach((p, i) => keys.push(this.open({ paths: [p], options: { ...options, follow: undefined } }, !set.length && i === 0, true, undefined, undefined, false, '10053')))
+    if (set.length) keys.push(this.open({ paths: set, options: optionsFor(options, set.length, '') }, true))
+    opt.forEach((p, i) => keys.push(this.open({ paths: [p], options: optionsFor(options, 1, '10053') }, !set.length && i === 0, true, undefined, undefined, false, '10053')))
     return keys
   }
 
@@ -800,7 +803,16 @@ export class Workspace {
       this.apply(key, r.session)
       await this.refresh(key) // the job may have finished before we knew the session id
     } catch (err) {
-      if (this.engine === e) this.patchTab(key, { state: 'failed', error: message(err) })
+      if (this.engine !== e) return
+      const cur = this.tab(key)
+      if (cur?.set.options.follow && isFollowRefusal(message(err))) {
+        // a 10053 file is read whole, never followed: open it again without follow (once: the options no longer ask for it)
+        this.patchTab(key, { set: { ...cur.set, options: { ...cur.set.options, follow: undefined } }, live: false, kind: '10053' })
+        this.persistOpen()
+        void this.start(key)
+        return
+      }
+      this.patchTab(key, { state: 'failed', error: message(err) })
     }
   }
 

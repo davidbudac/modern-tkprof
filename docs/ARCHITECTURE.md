@@ -1887,8 +1887,8 @@ renamed or removed, without the TypeScript twin in the same commit; `TestJSONSha
 | `Landmarks` | key lines: `best-ap`, `best-jm`, `final-cost`, `aborted`, `verdict`, `refused`, `hint-error`, with a tone (`kept`, `rejected`, `problem`) |
 | `Folds` | ranges the formatted text closes by default, with kind, label and line count |
 | `Runs` | the costing runs, the same objects as the run nodes (`ID` links them) |
-| `SQL` | the `UNPARSED QUERY IS` statements: line, label, text, `SameAs` (line of an identical earlier one), `Prev` (line of the previous different one) |
-| `Plan` | the plan table (`Rows`, with numbers as printed: `96K`), `QBs` and `Preds` by operation id |
+| `SQL` | the `UNPARSED QUERY IS` statements: line, label, text, `SameAs` (line of an identical earlier one), `Prev` (line of the previous statement in the file) |
+| `Plan` | the plan table (`Cols`, the header's columns; `Rows`, with numbers as printed: `96K`, and `Extra`, the cells of the columns after Time), `QBs` and `Preds` by operation id |
 | `Legend` | the trace's own list of abbreviations, per dump (the glossary) |
 | `Banners`, `Roles` | what the formatted text dresses: a role per line (`bt` banner top, `bh` title, `bb` bottom, `uh` heading above an underline, `ul` the underline) |
 | `Hints`, `Binds`, `BindLines`, `Altered` | hints with their flags and the Hint Report, the peeked binds, the lines that print a bind value (what redaction acts on), the altered parameters and fix controls |
@@ -2020,7 +2020,9 @@ A dump is megabytes (4.7 MB for a ten-table join, 99 MB in the huge test). The f
 the landmarks, pages of lines and search with counts per node. The contract replaced them with two routes and a client
 that loads a dump's model and its whole text once: search, folds, dressing, the line map and every jump then run
 without a round trip, and a keystroke in the search costs one pass over the text in the browser. The cost is the memory
-of one dump's text per dump opened (kept per dump while the view lives, so switching back is instant). The standalone report has
+of the dumps held: the open one and the one before it (`data/optcache.ts`, a least-recently-used cache of two per source,
+the one place that keeps them; the sources keep nothing between calls), so switching back and forth between two dumps is
+instant and a third is asked for again. The standalone report has
 no server, so it holds the digest's lines only and the centre says what is missing.
 
 #### The row model and search in the browser (`data/optrows.ts`, `optsearch.ts`, `optindex.ts`, `optdress.ts`)
@@ -2033,7 +2035,12 @@ no server, so it holds the digest's lines only and the centre says what is missi
   run of lines a digest does not hold a `gap` row ("1,234 lines not in this report (lines 2032-3265)"); the rest `line`
   rows. A line with no row of its own takes the row before it (`rowOf`).
 - **Viewer** (`OptViewer.tsx`): a window of rows is rendered, moved in steps of 8 rows with 8 rows of overscan; a line
-  longer than 4,000 characters is cut; the glossary card is a hover element. `dressLine` gives a line its class and
+  longer than 4,000 characters is cut; the glossary card is a hover element. Rows are 20 px, and the scroll bar covers at
+  most 8,000,000 px (`data/scrollmap.ts`, shared with the Lines viewer): a dump of more than 400,000 rows maps the scroll
+  position to the first visible row, the rows are laid in a sticky layer, and a jump sets the scroll position and keeps the
+  row it placed (`expected`) until the user scrolls. The plan band draws the extra columns of `Plan.Cols[7:]` (`PlanRow.Extra`:
+  Pstart, Pstop; TQ, IN-OUT, PQ Distrib) after Time, left out when the band cannot keep 12 characters of the operation
+  and 6 of the name beside them. `dressLine` gives a line its class and
   spans (the `GBP:` prefix, `Best::`, glossary terms, `name = value` keys).
 - **Search** (`searchText`): literal or regular expression, case option, one pass over the lines the text has (120 ms
   after a keystroke); the hits are an ascending `Int32Array`, the outline's count on each node is two binary searches
@@ -2041,6 +2048,10 @@ no server, so it holds the digest's lines only and the centre says what is missi
 - **Index** (`indexDump`): nodes with parent and depth, the node that starts at a line, the folds, landmarks and SQL
   versions by line, `pathOf(line)` (the chain of nodes that hold a line, by binary search per level; it feeds the
   where-am-I path, the guide and the outline's current node).
+- **Plan table** (`internal/opt/facts.go`): the rule lines of the table have one `+` group for each column group (two in a
+  plain plan, three with Pstart/Pstop or TQ/IN-OUT/PQ Distrib), so the table ends at the last of them and the query block
+  and predicate sections after it are read; `PlanRow.Extra` holds the cells beyond the seven standard columns, one for each
+  header column, `""` for an empty cell.
 - **State kept while another tab is shown**: a `WeakMap` per source keeps the open dump, scroll position, folds
   opened or closed by hand, search, expanded outline nodes and tabs. Persisted settings: `mtkprof.opt.mode`
   (Formatted | Raw) and `mtkprof.opt.landmarks` (the switches).
@@ -2079,7 +2090,7 @@ without an entry shows "No guide text for this kind of section". Ported from the
 - **Browser side**: `web/src/lib/data/opt*.test.ts` (the Go/TS shape comparison, rows, search, index, outline, plan rows,
   SQL, guide) and `web/dev/opt.html`, a harness that mounts the view on the mock-up's model and trace
   (`pnpm --filter mtkprof-web dev`, then `/dev/opt.html`; `?digest=1`, `?dump=1&line=N`, `?old=1` for a 23.x file,
-  `?trunc=1`, `?big=1` for a synthetic 100,000-line dump, `?theme=`).
+  `?trunc=1`, `?big=1` for a synthetic 100,000-line dump (`?big=2000000`: that many lines, to try the scroll map), `?theme=`).
 
 #### Regenerating the fixtures
 

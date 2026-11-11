@@ -24,11 +24,17 @@ afterEach(() => { vi.unstubAllGlobals() })
 const opts = { binds: 'keep' } as const
 
 /** An engine that opens every session at once; `kinds` says which paths are 10053 files; `docs` the document of each path. */
-function engine(docs: Record<string, unknown>) {
+function engine(docs: Record<string, unknown>, how: { refuseFollow?: boolean; held?: (paths: string[]) => string[] } = {}) {
   const sessions = new Map<string, { id: string; paths: string[] }>()
+  const posts: { paths: string[]; follow?: boolean }[] = []
   const fetch = vi.fn(async (path: string, init?: RequestInit) => {
     if (init?.method === 'POST' && path === '/engine/sessions') {
-      const paths = JSON.parse(String(init.body)).paths as string[]
+      const body = JSON.parse(String(init.body)) as { paths: string[]; options?: { follow?: boolean } }
+      const paths = body.paths
+      posts.push({ paths, follow: body.options?.follow })
+      if (how.refuseFollow && body.options?.follow) {
+        return json({ error: { code: 'bad_request', message: `follow: ${paths[0]} is a 10053 file (optimizer trace); it cannot be followed live: open it without follow` } }, 400)
+      }
       const id = `s-${paths[0]}`
       sessions.set(id, { id, paths })
       return json({ session: { id, state: 'opening', paths }, job: { id: `j-${id}` } }, 202)
@@ -37,7 +43,7 @@ function engine(docs: Record<string, unknown>) {
     if (m) {
       const s = sessions.get(decodeURIComponent(m[1]))!
       const isOpt = !!(docs[s.paths[0]] as { opt?: unknown }).opt
-      return json({ id: s.id, state: 'ready', rev: 1, paths: s.paths, identity: `id-${s.paths[0]}`, hit: false, files: [], ...(isOpt ? { optSqlIds: ['aaa', 'bbb'] } : null) })
+      return json({ id: s.id, state: 'ready', rev: 1, paths: s.paths, identity: `id-${s.paths[0]}`, hit: false, files: (how.held ? how.held(s.paths) : []).map((p) => ({ path: p, name: p })), ...(isOpt ? { optSqlIds: ['aaa', 'bbb'] } : null) })
     }
     return json({})
   })
@@ -47,7 +53,7 @@ function engine(docs: Record<string, unknown>) {
     if (d) return new Response(JSON.stringify(docs[sessions.get(decodeURIComponent(d[1]))!.paths[0]]), { headers: { 'content-type': 'application/json', 'X-Rev': '1' } })
     return json({}, 404)
   })
-  return { fetch, sessions }
+  return { fetch, sessions, posts }
 }
 
 async function settle() { for (let i = 0; i < 60; i++) await Promise.resolve() }
@@ -220,3 +226,57 @@ describe('the note of a file left out of a set', () => {
 // keeps the unused import honest for tools that complain
 void createSession
 void ({} as Tab)
+
+describe('a 10053 file opened with follow', () => {
+  it('is opened again without follow when the engine refuses to follow it, once', async () => {
+    const ws = new Workspace()
+    const e = engine({ 'o.trc': optDoc }, { refuseFollow: true })
+    ws.bind({ client: { base: '', fetch: e.fetch } as never, addr: 'a', token: 't' })
+    const k = ws.open({ paths: ['o.trc'], options: { binds: 'keep', follow: true } })
+    await settle()
+    expect(e.posts).toEqual([{ paths: ['o.trc'], follow: true }, { paths: ['o.trc'], follow: undefined }])
+    const t = ws.tab(k)!
+    expect(t).toMatchObject({ state: 'ready', kind: '10053', live: false, error: null })
+    expect(t.set.options.follow).toBeUndefined()
+    expect(ws.getSnapshot().tabs).toHaveLength(1)
+  })
+
+  it('still fails for any other refusal', async () => {
+    const ws = new Workspace()
+    const e = engine({ 'p.trc': plainDoc() })
+    const fetch = vi.fn(async (path: string, init?: RequestInit) => (init?.method === 'POST' ? json({ error: { code: 'bad_request', message: 'follow: p.trc is not a file' } }, 400) : e.fetch(path, init)))
+    ws.bind({ client: { base: '', fetch } as never, addr: 'a', token: 't' })
+    const k = ws.open({ paths: ['p.trc'], options: { binds: 'keep', follow: true } })
+    await settle()
+    expect(ws.tab(k)).toMatchObject({ state: 'failed', live: true })
+    expect(ws.tab(k)!.error).toMatch(/not a file/)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the title of a tab', () => {
+  it('counts the files the session holds: a 10053 file left out of a 10046 set, the others of a set of 10053 files', async () => {
+    const ws = new Workspace()
+    const e = engine({ 'a.trc': plainDoc('q1'), 'o.trc': optDoc }, { held: (paths) => (paths[0] === 'a.trc' ? ['a.trc'] : ['o.trc']) })
+    ws.bind({ client: { base: '', fetch: e.fetch } as never, addr: 'a', token: 't' })
+    const mixed = ws.open({ paths: ['a.trc', 'o.trc'], options: opts })
+    expect(ws.tab(mixed)!.title).toBe('a.trc (+1)') // what was asked for, until the session says
+    const allOpt = ws.open({ paths: ['o.trc', 'x.trc', 'y.trc'], options: opts })
+    await settle()
+    expect(ws.tab(mixed)!.title).toBe('a.trc')
+    expect(ws.tab(allOpt)!.title).toBe('o.trc')
+    await settle()
+    expect((kv.get('open') as { title: string }[]).map((t) => t.title)).toEqual(['a.trc', 'o.trc'])
+  })
+
+  it('keeps the title of a set that is whole, and of a folder', async () => {
+    const ws = new Workspace()
+    const e = engine({ 'a.trc': plainDoc(), 'dir': plainDoc() }, { held: (paths) => (paths[0] === 'dir' ? ['dir/1.trc', 'dir/2.trc'] : ['a.trc', 'b.trc']) })
+    ws.bind({ client: { base: '', fetch: e.fetch } as never, addr: 'a', token: 't' })
+    const set = ws.open({ paths: ['a.trc', 'b.trc'], options: opts })
+    const folder = ws.open({ paths: ['dir'], options: opts })
+    await settle()
+    expect(ws.tab(set)!.title).toBe('a.trc (+1)')
+    expect(ws.tab(folder)!.title).toBe('dir')
+  })
+})

@@ -30,4 +30,18 @@ describe('the plan for the visualizer', () => {
     expect(rows[3].bytes).toBeUndefined()
     expect(rows.some((r) => 'actual_rows' in r || 'starts' in r)).toBe(false)
   })
+  it('passes the cells of the extra columns under the visualizer\'s own names, leaving empty cells out', () => {
+    const part: OptPlan = {
+      ...plan, cols: ['Id', 'Operation', 'Name', 'Rows', 'Bytes', 'Cost', 'Time', 'Pstart', 'Pstop', 'TQ', 'IN-OUT', 'PQ Distrib'],
+      rows: [
+        { line: 4, id: 0, depth: 0, op: 'SELECT STATEMENT', name: '', rows: '', bytes: '', cost: '285', time: '', extra: ['', '', '', '', ''] },
+        { line: 5, id: 1, depth: 1, op: 'PARTITION RANGE SINGLE', name: '', rows: '249', bytes: '5976', cost: '252', time: '00:00:04', extra: ['3', '3', ':Q1000', 'P->S', 'QC (RANDOM)'] },
+      ],
+    }
+    const rows = optPlanRows(part)
+    expect(rows[0]).toEqual({ id: 0, depth: 0, operation: 'SELECT STATEMENT', cost: 285 })
+    expect(rows[1]).toMatchObject({ pstart: '3', pstop: '3', tq: ':Q1000', in_out: 'P->S', pq_distrib: 'QC (RANDOM)' })
+    // a plan without the columns sends none
+    expect(Object.keys(optPlanRows(plan)[1]).some((k) => ['pstart', 'tq', 'in_out'].includes(k))).toBe(false)
+  })
 })

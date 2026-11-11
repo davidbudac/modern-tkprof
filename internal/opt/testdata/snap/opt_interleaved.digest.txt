@@ -1454,6 +1454,6 @@ Dumping Hints: line, err, used, hint
    28070  err=9 used=1  INDEX ("O" "NO_SUCH_INDEX")
 
 Hint Report
-   25688  Unused: index(o no_such_index)   [Unused: index specified in the hint doesn't exist]
-   25691  use_hash(c)   [used]
+   25688  Unused: index(o no_such_index)   [reason: index specified in the hint doesn't exist]
+   25691  use_hash(c)
 

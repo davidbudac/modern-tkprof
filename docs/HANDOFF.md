@@ -245,7 +245,7 @@ Built and unreleased; see "Where things stand". Open:
   baselines in use have no fixture (partitioned, parallel, dynamic sampling, DML, set operations and OR expansion that
   applies have one each, `testdata/opt/19c`; the format reference describes them from the fixtures).
 - **Other versions**: only 19.x is `Tested`; for another the header says "read with the 19c rules" and counts the
-  lines outside any known section (`Unplaced`). Wording of new refusals (`bypassed`, `not valid since`, …) is matched
+  lines outside any known section (`Unplaced`; the open dump's row in the outline says it too). Wording of new refusals (`bypassed`, `not valid since`, …) is matched
   by phrase, so a new phrase is a missed landmark, not an error.
 - **The guide is as thin as its sources**: they are the format reference's sections and the trace's legend; the section
   kinds without an entry (`col-usage`, `tsec`, `opt-metrics`, `qbreg-xml`, `hint-report`) show "No guide text".
@@ -257,6 +257,12 @@ Built and unreleased; see "Where things stand". Open:
 - The standalone report holds the digest's lines only: a dump's text outside them is "N lines not in this report"; the
   report cannot show a section's full text.
 - The 10053 mark and jump exist in the desktop only (`serve` holds one session).
+- **Left open by the independent review** (2026-11-11, found and not fixed): three slightly different detectors of a
+  10046 record; chatter lines after a dump swallow genuinely unknown lines; the 64 MB sniff limit of the follow refusal;
+  the redaction token of a multi-line quoted bind value hashes its first line only; no component tests for the React view.
+- **The plan band leaves the extra columns out** (Pstart, Pstop; TQ, IN-OUT, PQ Distrib) when it cannot keep 12
+  characters of the operation and 6 of the name beside them (a parallel plan below about 1,300 px of window); the
+  Text view has them.
 
 ### Left by the 2026-11-08 desktop review (reviewers' should-fix items and app-only checks)
 

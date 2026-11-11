@@ -36,6 +36,19 @@ export function dirsOf(paths: string[], files: Pick<FileInfo, 'path'>[]): string
   })
 }
 
+/**
+ * The requested paths that the session holds: those with a reported file of that path. The engine can leave a file out of a set (a 10053 file among
+ * 10046 files, all but the first of a set of 10053 files), and then the tab's title, made from the request, counts files that are not in it.
+ * Null when the request holds a folder (its files are not the request's paths), or when no requested path is found among the files, which is the
+ * case where the engine reports another spelling of the path (so nothing can be said).
+ */
+export function heldPaths(paths: string[], files: Pick<FileInfo, 'path'>[]): string[] | null {
+  if (files.length === 0 || dirsOf(paths, files).length > 0) return null
+  const have = new Set(files.map((f) => norm(f.path)))
+  const held = paths.filter((p) => have.has(norm(p)))
+  return held.length > 0 ? held : null
+}
+
 const LISTED = 8
 
 /**

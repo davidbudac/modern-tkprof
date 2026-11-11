@@ -639,15 +639,8 @@ func cmdServe(args []string) error {
 		ss.Thresholds = th // api/findings: those of the document's findings
 		mux.Handle("/api/", ss.Handler())
 	} else {
-		var dumps [][]trace.Dump // the optimizer (10053) dumps of each file: the lines endpoint names their lines
-		for _, fe := range m.File.Files {
-			var ds []trace.Dump
-			for _, r := range fe.Dumps {
-				ds = append(ds, trace.Dump{First: r.First, Last: r.Last, SQLID: r.SQLID, Cut: r.Cut})
-			}
-			dumps = append(dumps, ds)
-		}
-		m = nil // the model is not needed any more: the document is built, only the line indexes serve requests
+		dumps := dumpRanges(m) // the optimizer (10053) dumps of each file: the lines endpoint names their lines
+		m = nil                // the model is not needed any more: the document is built, only the line indexes serve requests
 		debug.FreeOSMemory()
 		mux.Handle("/api/lines", slicepkg.LinesHandlerDumps(lis, dumps))
 	}
@@ -903,4 +896,18 @@ func lintFile(file string) error {
 		}
 	}
 	return nil
+}
+
+// dumpRanges is the optimizer (10053) dumps of each input file of m, for the line endpoints of a server that keeps no model: they name the dumps'
+// lines (LinesHandlerDumps).
+func dumpRanges(m *model.Model) [][]trace.Dump {
+	var dumps [][]trace.Dump
+	for _, fe := range m.File.Files {
+		var ds []trace.Dump
+		for _, r := range fe.Dumps {
+			ds = append(ds, trace.Dump{First: r.First, Last: r.Last, SQLID: r.SQLID, Cut: r.Cut})
+		}
+		dumps = append(dumps, ds)
+	}
+	return dumps
 }

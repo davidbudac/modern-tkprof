@@ -163,8 +163,8 @@ func TestWriteText(t *testing.T) {
 		"Predicate Information:",
 		"err=9 used=1  INDEX (\"O\" \"NO_SUCH_INDEX\")",
 		"Hint Report",
-		"Unused: index(o no_such_index)   [Unused: index specified in the hint doesn't exist]",
-		"Syntax Error: p53   [Syntax Error]",
+		"Unused: index(o no_such_index)   [reason: index specified in the hint doesn't exist]",
+		"Syntax Error: p53",
 		"[best join order]",
 		"-> cost: ",
 		"-> aborted",
@@ -291,7 +291,7 @@ func TestHintsAndParams(t *testing.T) {
 		t.Errorf("dumped hints: %+v", dump)
 	}
 	if len(report) != 2 || report[0].Text != "Unused: index(o no_such_index)" || report[0].Note != "Unused: index specified in the hint doesn't exist" ||
-		report[1].Text != "use_hash(c)" || report[1].Used != 1 || report[1].Note != "" {
+		report[1].Text != "use_hash(c)" || report[1].Used != 0 || report[1].Note != "" {
 		t.Errorf("hint report: %+v", report)
 	}
 	hasErr := false

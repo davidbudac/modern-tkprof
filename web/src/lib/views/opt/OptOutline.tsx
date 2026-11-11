@@ -1,10 +1,11 @@
-import { memo, useEffect, useRef, type MouseEvent } from 'react'
+import { memo, useEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react'
 import type { OptDumpInfo, OptFile, Opt10046Link } from '../../data/opt'
 import type { DumpIndex, IxNode } from '../../data/optindex'
 import { dumpLabel, nodeKey, ordinal, type OutlineMode } from '../../data/optoutline'
 import { KIND_NAME } from '../../data/optguide'
 import { hitsIn, type SearchResult } from '../../data/optsearch'
 import { fmtInt } from '../../data/format'
+import { focusRow, listKey } from './listKeys'
 
 interface Props {
   file: OptFile
@@ -30,6 +31,23 @@ export const OptOutline = memo(function OptOutline(p: Props) {
   const sqlIds = new Map<string, number>()
   for (const d of file.dumps) sqlIds.set(d.sqlId, (sqlIds.get(d.sqlId) ?? 0) + 1)
   const hits = search.re ? search.hits : null
+  // one row is in the tab order (the node holding the text, else the open dump); the arrow keys move between the rows, as in a tree
+  const ROWS = '.opt-ol-row'
+  const rowKeys = (e: KeyboardEvent<HTMLElement>, o: { activate(): void; isOpen?: boolean; has?: boolean; toggle?(): void; level: number }) => {
+    if (listKey(e, { activate: o.activate, move: (step) => focusRow(box.current, ROWS, e.currentTarget, step) })) return
+    if (e.target !== e.currentTarget || e.altKey || e.ctrlKey || e.metaKey) return
+    if (e.key === 'ArrowRight' && o.has) {
+      e.preventDefault()
+      if (!o.isOpen) o.toggle?.(); else focusRow(box.current, ROWS, e.currentTarget, 1)
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      if (o.has && o.isOpen) o.toggle?.()
+      else { // to the parent: the nearest row above with a lower level
+        const rows = [...(box.current?.querySelectorAll<HTMLElement>(ROWS) ?? [])]
+        for (let k = rows.indexOf(e.currentTarget) - 1; k >= 0; k--) if (Number(rows[k].getAttribute('aria-level')) < o.level) { rows[k].focus(); break }
+      }
+    }
+  }
 
   const dumpRow = (d: OptDumpInfo) => {
     const isOpen = d.idx === open
@@ -39,7 +57,8 @@ export const OptOutline = memo(function OptOutline(p: Props) {
     const linked = p.link10046?.has(d.sqlId)
     return (
       <div key={`d${d.idx}`} className={'opt-ol-row opt-ol-dump' + (isOpen ? ' open' : '') + (isOpen && curId === null ? ' on' : '')} style={{ '--d': 0 } as React.CSSProperties}
-        role="treeitem" aria-expanded={isOpen ? showKids : undefined} aria-selected={isOpen}
+        role="treeitem" aria-level={1} aria-expanded={isOpen ? showKids : undefined} aria-selected={isOpen} tabIndex={isOpen && (curId === null || !showKids) ? 0 : -1}
+        onKeyDown={(e) => rowKeys(e, { activate: () => p.onDump(d.idx), has: isOpen, isOpen: showKids, toggle: () => p.onToggle(key), level: 1 })}
         onClick={() => p.onDump(d.idx)} title={`Dump ${d.idx + 1} of ${file.dumps.length}: lines ${fmtInt(d.viewFrom)}-${fmtInt(d.viewTo)}${d.truncated ? ' (truncated)' : ''}`}>
         <span className="opt-ol-x" onClick={(e: MouseEvent) => { if (isOpen) { e.stopPropagation(); p.onToggle(key) } }}>{isOpen ? (showKids ? '▾' : '▸') : '▸'}</span>
         <span className="opt-ol-main">
@@ -51,6 +70,7 @@ export const OptOutline = memo(function OptOutline(p: Props) {
             <span className="opt-ol-n">{fmtInt(d.lineCount)}</span>
           </span>
           <span className="opt-ol-sql">{d.sqlStart.slice(0, 80)}</span>
+          {isOpen && !file.tested && <span className="opt-ol-warn" title="Lines of the dump that sit directly under a phase or the dump, in no known section (the file is of a version the rules were not written for)">{fmtInt(d.unplaced)} {d.unplaced === 1 ? 'line' : 'lines'} outside any known section</span>}
           <span className="opt-ol-facts"><span className="opt-ol-facts-t">{d.tables.join(' · ')}{d.tables.length > 0 ? ' · ' : ''}{fmtInt(d.lineCount)} lines · plan hash {d.planHash || '—'}</span>
             {linked && <button type="button" className="link opt-ol-10046" title="This statement is in another open tab" onClick={(e) => { e.stopPropagation(); p.link10046?.open(d.sqlId) }}>10046</button>}
           </span>
@@ -105,7 +125,8 @@ export const OptOutline = memo(function OptOutline(p: Props) {
     const phase = n.kind.startsWith('phase-')
     return (
       <div key={n.id} className={'opt-ol-row' + (phase ? ' opt-ol-phase' : '') + (mono ? ' opt-ol-mono' : '') + (curId === n.id ? ' on' : '')} style={{ '--d': depth } as React.CSSProperties}
-        role="treeitem" aria-level={depth + 1} aria-expanded={has ? isOpen : undefined} aria-selected={curId === n.id}
+        role="treeitem" aria-level={depth + 2} aria-expanded={has ? isOpen : undefined} aria-selected={curId === n.id} tabIndex={curId === n.id ? 0 : -1}
+        onKeyDown={(e) => rowKeys(e, { activate: () => { if (has && !isOpen) p.onToggle(key); p.onNode(n.id) }, has, isOpen, toggle: () => p.onToggle(key), level: depth + 2 })}
         onClick={() => { if (has && !isOpen) p.onToggle(key); p.onNode(n.id) }} title={`${KIND_NAME[n.kind] ?? n.kind}: lines ${fmtInt(n.from)}-${fmtInt(n.to)}`}>
         <span className="opt-ol-x" onClick={(e: MouseEvent) => { if (has) { e.stopPropagation(); p.onToggle(key) } }}>{has ? (isOpen ? '▾' : '▸') : ''}</span>
         <span className="opt-ol-main">

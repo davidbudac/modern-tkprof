@@ -2177,7 +2177,7 @@ export interface components {
             text: string;
             /** @description line of the earlier identical statement; 0 none */
             sameAs: number;
-            /** @description line of the previous different statement; 0 none */
+            /** @description line of the previous statement in the file; 0 none */
             prev: number;
         };
         /** @description the dump's plan table with what follows it */
@@ -2212,6 +2212,8 @@ export interface components {
             bytes: string;
             cost: string;
             time: string;
+            /** @description the cells of the columns after the seven standard ones, aligned with the plan`s cols[7:] (Pstart, Pstop; TQ, IN-OUT, PQ Distrib); "" for an empty cell; absent when the plan has none */
+            extra?: string[];
         };
         /** @description an operation's query block name and object alias */
         OptPlanQB: {
@@ -2246,7 +2248,7 @@ export interface components {
             text: string;
             /** @description atom_hint err= */
             err: number;
-            /** @description atom_hint used=; a Hint Report line with no verdict (a used hint): 1 */
+            /** @description atom_hint used=; 0 for a Hint Report line (the report prints no such value) */
             used: number;
             /** @description Hint Report: "Unused", "Syntax Error", with its reason when printed */
             note?: string;

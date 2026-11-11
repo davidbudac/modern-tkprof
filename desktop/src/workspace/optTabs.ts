@@ -49,6 +49,17 @@ export function kindTitle(p: PeekOpt | null | undefined): string {
 }
 
 /**
+ * The options a file (or a set of `count` files) is opened with: follow is one live file, so a set of several opens without it, and a 10053 file is
+ * read whole and never followed (the engine refuses it). Other options are kept.
+ */
+export function optionsFor<T extends { follow?: boolean }>(options: T, count: number, kind: FileKind): T {
+  return options.follow && (count !== 1 || kind === '10053') ? { ...options, follow: undefined } : options
+}
+
+/** The engine's refusal to follow a 10053 file (`follow: x.trc is a 10053 file (optimizer trace); it cannot be followed live: open it without follow`). */
+export const isFollowRefusal = (message: string): boolean => /is a 10053 file \(optimizer trace\); it cannot be followed live/.test(message)
+
+/**
  * A request for several files, split by what the peek found: the 10046 files form the set they would have formed, each 10053 file is a tab of its
  * own. A file not peeked, or an interleaved one, is a 10046 file. Order kept inside each part.
  */

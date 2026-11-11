@@ -146,7 +146,7 @@ export interface OptSql {
   text: string
   /** the line of the earlier identical statement; 0 none */
   sameAs: number
-  /** the line of the previous different statement; 0 none */
+  /** the line of the previous statement in the file; 0 none */
   prev: number
 }
 
@@ -163,8 +163,11 @@ export interface OptPlan {
   preds: Record<string, OptPlanPred[]>
 }
 
-/** One operation; the numbers are kept as printed ("96K"). */
-export interface OptPlanRow { line: number; id: number; depth: number; op: string; name: string; rows: string; bytes: string; cost: string; time: string }
+/**
+ * One operation; the numbers are kept as printed ("96K"). `extra` are the cells of the columns after the seven
+ * standard ones, aligned with `OptPlan.cols[7:]` (Pstart, Pstop; TQ, IN-OUT, PQ Distrib); absent when the plan has none.
+ */
+export interface OptPlanRow { line: number; id: number; depth: number; op: string; name: string; rows: string; bytes: string; cost: string; time: string; extra?: string[] }
 export interface OptPlanQB { qb: string; alias: string; line: number }
 export interface OptPlanPred { text: string; line: number }
 
@@ -179,6 +182,7 @@ export interface OptHint {
   line: number
   text: string
   err: number
+  /** atom_hint used=; 0 for a Hint Report line (the report prints no such value) */
   used: number
   note?: string
   /** which section the line is from: "dump" (Dumping Hints) or "report" (Hint Report) */
@@ -335,7 +339,7 @@ export const OPT_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   Run: { req: ['id', 'n', 'of', 'qb', 'qbn', 'from', 'to', 'iter', 'final', 'sameAs', 'bestJo'], opt: ['verdict'] },
   SQL: { req: ['n', 'head', 'line', 'label', 'text', 'sameAs', 'prev'], opt: [] },
   Plan: { req: ['from', 'head', 'tableTo', 'to', 'cols', 'rows', 'qbs', 'preds'], opt: [] },
-  PlanRow: { req: ['line', 'id', 'depth', 'op', 'name', 'rows', 'bytes', 'cost', 'time'], opt: [] },
+  PlanRow: { req: ['line', 'id', 'depth', 'op', 'name', 'rows', 'bytes', 'cost', 'time'], opt: ['extra'] },
   PlanQB: { req: ['qb', 'alias', 'line'], opt: [] },
   PlanPred: { req: ['text', 'line'], opt: [] },
   Term: { req: ['term', 'text', 'line', 'codes'], opt: [] },

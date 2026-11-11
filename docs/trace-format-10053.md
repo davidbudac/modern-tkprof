@@ -242,8 +242,9 @@ statement is printed again as one line (up to 1,111 characters in the probe):
 SELECT "C"."NAME" "NAME","O"."STATUS" "STATUS",SUM("O"."AMOUNT") "AMT" FROM "MTK"."MTK_CUST" "C", …
 ```
 
-Other headers of this phase: `Stmt: ******* UNPARSED QUERY IS *******`, `BEFORE REDUCTION` / `AFTER
-REDUCTION`, `Final query after transformations:******* UNPARSED QUERY IS *******`.
+Other headers of this phase: `SQL:******* UNPARSED QUERY IS *******` (the commonest, 111 of the 269 in the ten
+fixtures), `Stmt: ******* UNPARSED QUERY IS *******`, `BEFORE REDUCTION` / `AFTER REDUCTION`, `QB before group-by
+removal:` and the like, `Final query after transformations:******* UNPARSED QUERY IS *******`.
 
 **OR expansion** (`opt_setop.trc`, a `UNION ALL` whose branches have `OR` predicates). Where it does not apply, one
 line (`opt_setop.trc:835`: `ORE: bypassed - No valid predicate for OR expansion.`). Where it applies, `ORE:` lines

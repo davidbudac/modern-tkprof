@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dumpIndexOf, dumpTabs, dumpsLabel, fileKindOf, isOptFile, kindLabel, kindTitle, leftOutFile, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, type PeekOpt } from './optTabs'
+import { dumpIndexOf, dumpTabs, dumpsLabel, fileKindOf, isFollowRefusal, isOptFile, kindLabel, kindTitle, leftOutFile, optionsFor, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, type PeekOpt } from './optTabs'
 
 describe('the kind of a file', () => {
   it('reads what the engine peek says, the interleaved kind under both of its spellings', () => {
@@ -90,5 +90,22 @@ describe('the note of a file that was left out of a set', () => {
     expect(pathNamed(['/t/a.trc', '/t/opt_two.trc'], 'opt_two.trc')).toBe('/t/opt_two.trc')
     expect(pathNamed(['C:\\t\\opt_two.trc'], 'opt_two.trc')).toBe('C:\\t\\opt_two.trc')
     expect(pathNamed(['/t'], 'opt_two.trc')).toBeNull()
+  })
+})
+
+describe('the options a file is opened with', () => {
+  const follow = { binds: 'keep' as const, follow: true }
+  it('keeps follow for one 10046 file and drops it for a set of several and for a 10053 file (the folder picker\'s "Open each in a tab" and the split)', () => {
+    expect(optionsFor(follow, 1, '10046')).toBe(follow)
+    expect(optionsFor(follow, 1, '')).toBe(follow)
+    expect(optionsFor(follow, 1, 'both')).toBe(follow)
+    expect(optionsFor(follow, 3, '10046')).toEqual({ binds: 'keep', follow: undefined })
+    expect(optionsFor(follow, 1, '10053')).toEqual({ binds: 'keep', follow: undefined })
+    const none = { binds: 'redact' as const, salt: 'x', follow: false }
+    expect(optionsFor(none, 1, '10053')).toBe(none)
+  })
+  it('reads the engine\'s refusal to follow a 10053 file', () => {
+    expect(isFollowRefusal('POST /engine/sessions: bad_request: follow: o.trc is a 10053 file (optimizer trace); it cannot be followed live: open it without follow')).toBe(true)
+    expect(isFollowRefusal('POST /engine/sessions: bad_request: follow: want one file')).toBe(false)
   })
 })

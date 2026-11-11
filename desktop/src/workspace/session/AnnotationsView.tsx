@@ -91,7 +91,7 @@ export function AnnotationsView({ doc }: { doc: TraceDoc }) {
       {msg && <p className={msg.ok ? 'small muted' : 'callout report-error'} role={msg.ok ? 'status' : 'alert'}>{msg.text}</p>}
       {total === 0 && (
         <p className="muted small">
-          {doc.opt ? <>Add notes with <b>b</b> (bookmark) on a line of the 10053 view, then the ✎ in its Bookmarks tab.</> : <>Add notes with <b>✎ Add note</b> in a statement, the ✎ column of its executions, <b>✎ Annotate window</b> in the Timeline once a time window is set, and <b>✎ Note</b> or a bookmark in the Trace view.</>}
+          {doc.opt ? <>Bookmark a line of the 10053 view with <b>b</b>, then type a note in the note field of its row in the Bookmarks tab.</> : <>Add notes with <b>✎ Add note</b> in a statement, the ✎ column of its executions, <b>✎ Annotate window</b> in the Timeline once a time window is set, and <b>✎ Note</b> or a bookmark in the Trace view.</>}
         </p>
       )}
 

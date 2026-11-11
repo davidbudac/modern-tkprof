@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { baseName, dirOf, dirsOf, setSummary, setTooltip, titleOf } from './traceSet'
+import { baseName, dirOf, dirsOf, heldPaths, setSummary, setTooltip, titleOf } from './traceSet'
 
 describe('titleOf', () => {
   it('names one file or folder', () => {
@@ -83,5 +83,18 @@ describe('setSummary', () => {
   it('gives the count alone for a set, the path count while unknown', () => {
     expect(setSummary(['/u/a.trc', '/u/b.trc'], 2)).toBe('2 files')
     expect(setSummary(['/u/a.trc', '/u/b.trc'])).toBe('2 paths')
+  })
+})
+
+describe('heldPaths', () => {
+  const f = (...p: string[]) => p.map((path) => ({ path }))
+  it('is the requested paths with a file of the session, in request order', () => {
+    expect(heldPaths(['/t/a.trc', '/t/b.trc', '/t/c.trc'], f('/t/a.trc', '/t/c.trc'))).toEqual(['/t/a.trc', '/t/c.trc'])
+    expect(heldPaths(['/t/a.trc'], f('/t/a.trc'))).toEqual(['/t/a.trc'])
+  })
+  it('says nothing for a folder, no files, or paths the engine spells otherwise', () => {
+    expect(heldPaths(['/t'], f('/t/a.trc', '/t/b.trc'))).toBeNull()
+    expect(heldPaths(['/t/a.trc'], [])).toBeNull()
+    expect(heldPaths(['/tmp/a.trc', '/tmp/b.trc'], f('/private/tmp/a.trc'))).toBeNull()
   })
 })

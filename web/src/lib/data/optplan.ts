@@ -23,9 +23,13 @@ export function planParents(rows: readonly OptPlanRow[]): (number | undefined)[]
   })
 }
 
-/** One object per plan operation, in the visualizer's JSON contract. `sqlId` and `sql` go on the first row. */
+/** The visualizer's row field for each extra column the 10053 plan table can have (its DBMS_XPLAN short names, which the visualizer's parser reads). */
+const EXTRA_FIELDS: Record<string, string> = { pstart: 'pstart', pstop: 'pstop', tq: 'tq', 'in-out': 'in_out', 'pq distrib': 'pq_distrib' }
+
+/** One object per plan operation, in the visualizer's JSON contract. `sqlId` and `sql` go on the first row. The cells of the extra columns (Pstart, Pstop, TQ, IN-OUT, PQ Distrib) go as they are printed. */
 export function optPlanRows(plan: OptPlan, meta: { sqlId?: string; planHash?: string; sql?: string } = {}): PlanRow[] {
   const parents = planParents(plan.rows)
+  const extra = plan.cols.slice(7).map((c) => EXTRA_FIELDS[c.trim().toLowerCase()])
   return plan.rows.map((o, i) => {
     const r: PlanRow = { id: o.id }
     if (parents[i] !== undefined) r.parent_id = parents[i] as number
@@ -38,6 +42,7 @@ export function optPlanRows(plan: OptPlan, meta: { sqlId?: string; planHash?: st
     if (bytes !== undefined) r.bytes = bytes
     const cost = planNumber(o.cost)
     if (cost !== undefined) r.cost = cost
+    extra.forEach((f, k) => { const v = o.extra?.[k]; if (f && v) r[f] = v })
     if (meta.sqlId) r.sql_id = meta.sqlId
     if (meta.planHash) r.plan_hash_value = meta.planHash
     if (i === 0 && meta.sql) r.sql_text = meta.sql

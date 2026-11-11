@@ -2,7 +2,7 @@
 //
 //   pnpm --filter mtkprof-web dev          then   http://localhost:5173/dev/opt.html
 //   ?digest=1     the text cut to each dump's digest ranges (gap rows)      ?theme=light|dark   (default: the system's)
-//   ?dump=1&line=N  open the second dump (and a line)                                      ?big=1      a synthetic 100,000-line dump
+//   ?dump=1&line=N  open the second dump (and a line)                                      ?big=1      a synthetic 100,000-line dump (?big=N, N over 1000: that many lines)
 //   ?old=1        the file summary with a 23.x version (the "read with the 19c rules" line)      ?trunc=1    the first dump marked truncated
 //
 // The model is web/dev/opt-two.model.json, made from the mock-up's model by `node web/dev/opt-convert.mjs` (until the Go scanner serves it); the
@@ -26,7 +26,8 @@ if (theme === 'light' || theme === 'dark') document.documentElement.setAttribute
 
 function build(digest: boolean, old: boolean, big: boolean, trunc: boolean) {
   if (big) {
-    const s = syntheticDump(100_000)
+    const n = Number(q.get('big'))
+    const s = syntheticDump(n > 1000 ? n : 100_000)
     return memoryOptSource(s.file, [s.dump], s.lines, { digest })
   }
   const file = { ...(model.file as OptFile), ...(old ? { version: '23.6.0.0.0', tested: false, release: 'Oracle Database 23ai Enterprise Edition Release 23.0.0.0.0 - Production' } : {}) }
@@ -40,7 +41,7 @@ function Harness() {
   const [goTo, setGoTo] = useState<{ dump: number; line?: number; seq?: number } | undefined>(q.get('dump') || q.get('line') ? { dump: Number(q.get('dump') ?? 0), line: q.get('line') ? Number(q.get('line')) : undefined } : undefined)
   const [open, setOpen] = useState(0)
   const [shown, setShown] = useState(true)
-  const source = useMemo(() => build(digest, q.get('old') === '1', q.get('big') === '1', q.get('trunc') === '1'), [digest])
+  const source = useMemo(() => build(digest, q.get('old') === '1', !!q.get('big') && q.get('big') !== '0', q.get('trunc') === '1'), [digest])
   // an annotations adapter of the harness (the desktop's lives in the store): bookmarks and notes in a Map
   const [marks, setMarks] = useState<ReadonlyMap<number, string>>(new Map())
   const notes: OptAnnotations = useMemo(() => ({

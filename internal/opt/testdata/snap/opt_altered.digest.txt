@@ -428,5 +428,5 @@ Dumping Hints: line, err, used, hint
    10678  err=0 used=1  OPT_PARAM ()
 
 Hint Report
-    8304  opt_param('optimizer_index_caching' 40)   [used]
+    8304  opt_param('optimizer_index_caching' 40)
 
