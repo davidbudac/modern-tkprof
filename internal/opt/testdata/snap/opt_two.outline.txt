@@ -1,0 +1,501 @@
+dump 1 267mhyr5wydy6 nth 1  lines 32-18278  view 1-18523  plan_hash 2477488908  runs 9  truncated false  unplaced 158
+1-31 file-header  File header
+32-786 phase-env  Environment
+  32-60 parser-qbs  Query blocks from the parser
+  61-76 preamble  Preamble
+  77-786 opt-info  Optimizer information
+    80-92 statement  Current SQL statement
+    93-151 legend  Legend
+    152-782 params  Parameters used by the optimizer
+      155-161 params-altered  Altered values
+      162-779 params-default  Default values
+      780-782 params-optparam  OPT_PARAM hint
+    783-786 col-usage  Column usage monitoring
+787-9382 phase-trans  Transformations
+  787-951 qt  Query transformations · SEL$2
+    841-860 tsec  Common Subexpression elimination (CSE) ×4
+    861-880 tsec  Order-by elimination (OBYE) ×4
+    881-901 tsec  Join Elimination [JE:R 12.2]
+    902-921 tsec  Count(col) to Count(*) (CNT) ×2
+    922-932 registered  Registered qb: SEL$58A6D7F6 (VIEW MERGE SEL$2; SEL$1; SEL$2)
+    933-951 tsec  Join Elimination [JE:R 12.2]
+  952-990 qt  Query transformations · SEL$58A6D7F6
+    957-990 tsec  Common Subexpression elimination (CSE) ×6
+  991-1003 peeked-binds  Peeked values of the binds
+  1004-1031 spd  SQL plan directives
+  1032-9382 cbqt  Cost-based transformations · SEL$58A6D7F6
+    1043-1056 tsec  Order-by elimination (OBYE) ×3
+    1057-1061 qt  Query transformations · SEL$58A6D7F6
+    1062-1076 tsec  Common Subexpression elimination (CSE) ×3
+    1077-1134 tsec  Approximate Aggregate Transformation (AAT)
+    1135-1139 registered  Registered qb: SEL$58A6D7F6 (COPY SEL$58A6D7F6)
+    1140-1144 registered  Registered qb: SEL$4 (COPY SEL$4)
+    1145-1149 registered  Registered qb: SEL$3 (COPY SEL$3)
+    1150-1178 cbsec  Cost-Based Subquery Unnesting
+      1169-1178 registered  Registered qb: SEL$1BA63A14 (SUBQUERY UNNEST SEL$58A6D7F6; SEL$4 SEL$3)
+    1179-1326 cbsec  Cost-Based Complex View Merging
+      1186-1202 tsec  Count(col) to Count(*) (CNT)
+      1203-1213 tsec  Set-Join Conversion (SJC)
+      1214-1218 tsec  Count(col) to Count(*) (CNT)
+      1219-1267 tsec  Join Elimination [JE:R 12.2]
+      1268-1321 tsec  Predicate Move-Around (PM)
+      1322-1326 registered  Registered qb: SEL$1BA63A14 (COPY SEL$1BA63A14)
+    1327-9350 cbsec  Cost-Based Group-By/Distinct Placement
+      1335-4212 iteration  GBP iteration 1 · (1,2,3,4) : (0,0,0,0)  [4212: GBP: Updated best state, Cost = 384.608830]
+        1347-4211 run  Run 1 of 9 · SEL$1BA63A14 (#1)  [best join order 13]  [4212: GBP: Updated best state, Cost = 384.608830]
+          1353-1380 run-head  Query block text, signature, system statistics
+          1381-1464 base-stats  Base statistical information
+          1465-1484 table  MTK_AUDIT[A]  -> TableScan
+          1485-1513 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+          1514-1556 table  MTK_CUST[C]  -> IndexRange
+          1557-1603 table  MTK_ORDERS[O]  -> TableScan
+          1604-4200 join-search  Join order search
+            1616-1867 join-order  Join order[1]:  MTK_CUST[C]#0  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  -> cost: 453.647906
+              1618-1699 join-step  Now joining: MTK_ORDERS[O]#1  -> NestedLoop
+              1700-1773 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+              1774-1867 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+            1868-2031 join-order  Join order[2]:  MTK_CUST[C]#0  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  -> aborted
+              1870-1939 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+              1940-2031 join-step  Now joining: MTK_AUDIT[A]#2
+            2032-2068 join-order  Join order[3]:  MTK_CUST[C]#0  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+              2034-2068 join-step  Now joining: MTK_AUDIT[A]#2
+            2069-2110 join-order  Join order[4]:  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  -> aborted
+              2071-2110 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            2111-2410 join-order  Join order[5]:  MTK_ORDERS[O]#1  MTK_CUST[C]#0  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+              2113-2248 join-step  Now joining: MTK_CUST[C]#0  -> Hash
+              2249-2322 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+              2323-2410 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            2411-2574 join-order  Join order[6]:  MTK_ORDERS[O]#1  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  -> aborted
+              2413-2482 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+              2483-2574 join-step  Now joining: MTK_AUDIT[A]#2
+            2575-2871 join-order  Join order[7]:  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+              2577-2679 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+              2680-2782 join-step  Now joining: MTK_CUST[C]#0  -> NestedLoop
+              2783-2871 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            2872-2942 join-order  Join order[8]:  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  -> aborted
+              2874-2942 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            2943-3217 join-order  Join order[9]:  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  MTK_AUDIT[A]#2  -> aborted
+              2945-3014 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+              3015-3125 join-step  Now joining: MTK_CUST[C]#0  -> Hash
+              3126-3217 join-step  Now joining: MTK_AUDIT[A]#2
+            3218-3300 join-order  Join order[10]:  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  MTK_CUST[C]#0  -> aborted
+              3220-3300 join-step  Now joining: MTK_AUDIT[A]#2
+            3301-3501 join-order  Join order[11]:  MTK_AUDIT[A]#2  MTK_CUST[C]#0  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+              3310-3355 join-step  Now joining: MTK_CUST[C]#0  -> NestedLoop
+              3356-3501 join-step  Now joining: MTK_ORDERS[O]#1
+            3502-3542 join-order  Join order[12]:  MTK_AUDIT[A]#2  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  -> aborted
+              3504-3542 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            3543-3891 join-order  Join order[13]:  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  -> cost: 384.608830  [best]
+              3552-3693 join-step  Now joining: MTK_ORDERS[O]#1  -> NestedLoop
+              3694-3796 join-step  Now joining: MTK_CUST[C]#0  -> NestedLoop
+              3797-3891 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+            3892-4084 join-order  Join order[14]:  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  -> aborted
+              3894-3963 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+              3964-4084 join-step  Now joining: MTK_CUST[C]#0
+            4085-4132 join-order  Join order[15]:  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  MTK_ORDERS[O]#1  -> aborted
+              4094-4132 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            4133-4142 join-order  Join order[16]:  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  -> aborted
+            4143-4152 join-order  Join order[17]:  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  MTK_CUST[C]#0  MTK_AUDIT[A]#2  -> aborted
+            4153-4162 join-order  Join order[18]:  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  MTK_CUST[C]#0  MTK_ORDERS[O]#1  -> aborted
+          4201-4210 final-cost  Final cost
+      4213-5531 iteration  GBP iteration 2 · (1,2,3,4) : (C,0,C,C)  [5531: GBP: Not update best state, Cost = 385.608830]
+        4263-5173 run  Run 2 of 9 · SEL$9108899D (#2)  [best join order 3]  [5531: GBP: Not update best state, Cost = 385.608830]
+          4269-4290 run-head  Query block text, signature, system statistics
+          4291-4359 base-stats  Base statistical information
+          4360-4401 table  MTK_ORDERS[O]  -> TableScan
+          4402-4430 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+          4431-4455 table  MTK_AUDIT[A]  -> TableScan
+          4456-5162 join-search  Join order search
+            4468-4658 join-order  Join order[1]:  MTK_ORDERS[O]#0  MTK_AUDIT[A]#1  MTK_ORDERS[MTK_ORDERS]#2  -> cost: 479.649304
+              4470-4572 join-step  Now joining: MTK_AUDIT[A]#1  -> HashSemi
+              4573-4658 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> HashSemi
+            4659-4823 join-order  Join order[2]:  MTK_ORDERS[O]#0  MTK_ORDERS[MTK_ORDERS]#2  MTK_AUDIT[A]#1  -> aborted
+              4661-4730 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> HashSemi
+              4731-4823 join-step  Now joining: MTK_AUDIT[A]#1
+            4824-5060 join-order  Join order[3]:  MTK_AUDIT[A]#1  MTK_ORDERS[O]#0  MTK_ORDERS[MTK_ORDERS]#2  -> cost: 382.608516  [best]
+              4833-4974 join-step  Now joining: MTK_ORDERS[O]#0  -> NestedLoop
+              4975-5060 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> HashSemi
+            5061-5108 join-order  Join order[4]:  MTK_AUDIT[A]#1  MTK_ORDERS[MTK_ORDERS]#2  MTK_ORDERS[O]#0  -> aborted
+              5070-5108 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2
+            5109-5118 join-order  Join order[5]:  MTK_ORDERS[MTK_ORDERS]#2  MTK_ORDERS[O]#0  MTK_AUDIT[A]#1  -> aborted
+            5119-5128 join-order  Join order[6]:  MTK_ORDERS[MTK_ORDERS]#2  MTK_AUDIT[A]#1  MTK_ORDERS[O]#0  -> aborted
+          5163-5172 final-cost  Final cost
+        5174-5529 run  Run 3 of 9 · SEL$FDFFF663 (#1)  [best join order 1]  [5531: GBP: Not update best state, Cost = 385.608830]
+          5180-5205 run-head  Query block text, signature, system statistics
+          5206-5244 base-stats  Base statistical information
+          5245-5292 table  MTK_CUST[C]  -> IndexRange
+          5293-5518 join-search  Join order search
+            5304-5423 join-order  Join order[1]:  VW_GBC_1[VW_GBC_1]#0  MTK_CUST[C]#1  -> cost: 385.608830  [best]
+              5306-5423 join-step  Now joining: MTK_CUST[C]#1  -> NestedLoop
+            5424-5495 join-order  Join order[2]:  MTK_CUST[C]#1  VW_GBC_1[VW_GBC_1]#0  -> aborted
+              5426-5495 join-step  Now joining: VW_GBC_1[VW_GBC_1]#0
+          5519-5528 final-cost  Final cost
+      5532-8071 iteration  GBP iteration 3 · (1,2,3,4) : (0,F,0,0)  [8071: GBP: Not update best state, Cost = 389.632355]
+        5600-5727 run  Run 4 of 9 · SEL$B3BA96B0 (#3)  [best join order 1]  [8071: GBP: Not update best state, Cost = 389.632355]
+          5606-5625 run-head  Query block text, signature, system statistics
+          5626-5648 base-stats  Base statistical information
+          5649-5696 table  MTK_CUST[C]  -> IndexRange
+          5697-5716 join-search  Join order search
+            5704-5707 join-order  Join order[1]:  MTK_CUST[C]#0  -> cost: 6.002106  [best]
+          5717-5726 final-cost  Final cost
+        5728-8069 run  Run 5 of 9 · SEL$AF1ADED3 (#1)  [best join order 12]  [8071: GBP: Not update best state, Cost = 389.632355]
+          5734-5761 run-head  Query block text, signature, system statistics
+          5762-5841 base-stats  Base statistical information
+          5842-5861 table  MTK_AUDIT[A]  -> TableScan
+          5862-5890 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+          5891-5915 table  MTK_ORDERS[O]  -> TableScan
+          5916-8058 join-search  Join order search
+            5928-6177 join-order  Join order[1]:  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  -> cost: 486.873548
+              5930-6001 join-step  Now joining: MTK_ORDERS[O]#1  -> Hash
+              6002-6083 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+              6084-6177 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+            6178-6349 join-order  Join order[2]:  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  -> aborted
+              6180-6249 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+              6250-6349 join-step  Now joining: MTK_AUDIT[A]#2
+            6350-6386 join-order  Join order[3]:  VW_GBF_2[VW_GBF_2]#0  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+              6352-6386 join-step  Now joining: MTK_AUDIT[A]#2
+            6387-6427 join-order  Join order[4]:  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  -> aborted
+              6389-6427 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            6428-6687 join-order  Join order[5]:  MTK_ORDERS[O]#1  VW_GBF_2[VW_GBF_2]#0  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+              6430-6517 join-step  Now joining: VW_GBF_2[VW_GBF_2]#0  -> Hash
+              6518-6599 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+              6600-6687 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            6688-6859 join-order  Join order[6]:  MTK_ORDERS[O]#1  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  -> aborted
+              6690-6759 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+              6760-6859 join-step  Now joining: MTK_AUDIT[A]#2
+            6860-7112 join-order  Join order[7]:  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+              6862-6964 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+              6965-7023 join-step  Now joining: VW_GBF_2[VW_GBF_2]#0  -> Hash
+              7024-7112 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            7113-7262 join-order  Join order[8]:  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  VW_GBF_2[VW_GBF_2]#0  -> aborted
+              7115-7184 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+              7185-7262 join-step  Now joining: VW_GBF_2[VW_GBF_2]#0
+            7263-7341 join-order  Join order[9]:  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  VW_GBF_2[VW_GBF_2]#0  MTK_AUDIT[A]#2  -> aborted
+              7265-7341 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            7342-7502 join-order  Join order[10]:  MTK_AUDIT[A]#2  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+              7351-7373 join-step  Now joining: VW_GBF_2[VW_GBF_2]#0  -> NestedLoop
+              7374-7502 join-step  Now joining: MTK_ORDERS[O]#1
+            7503-7543 join-order  Join order[11]:  MTK_AUDIT[A]#2  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  -> aborted
+              7505-7543 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            7544-7795 join-order  Join order[12]:  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[MTK_ORDERS]#3  -> cost: 389.632355  [best]
+              7553-7641 join-step  Now joining: MTK_ORDERS[O]#1  -> NestedLoop
+              7642-7700 join-step  Now joining: VW_GBF_2[VW_GBF_2]#0  -> Hash
+              7701-7795 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+            7796-7944 join-order  Join order[13]:  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  VW_GBF_2[VW_GBF_2]#0  -> aborted
+              7798-7867 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+              7868-7944 join-step  Now joining: VW_GBF_2[VW_GBF_2]#0
+            7945-7992 join-order  Join order[14]:  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[O]#1  -> aborted
+              7954-7992 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+            7993-8002 join-order  Join order[15]:  MTK_ORDERS[MTK_ORDERS]#3  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  -> aborted
+            8003-8012 join-order  Join order[16]:  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  VW_GBF_2[VW_GBF_2]#0  MTK_AUDIT[A]#2  -> aborted
+            8013-8022 join-order  Join order[17]:  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  VW_GBF_2[VW_GBF_2]#0  MTK_ORDERS[O]#1  -> aborted
+          8059-8068 final-cost  Final cost
+      8072-9294 iteration  GBP iteration 4 · (1,2,3,4) : (C,F,C,C)  [9294: GBP: Not update best state, Cost = 390.632806]
+        8149-8898 run  Run 6 of 9 · SEL$9108899D (#4)  [best join order 3]  [9294: GBP: Not update best state, Cost = 390.632806]
+          8155-8176 run-head  Query block text, signature, system statistics
+          8177-8245 base-stats  Base statistical information
+          8246-8265 table  MTK_ORDERS[O]  -> TableScan
+          8266-8294 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+          8295-8319 table  MTK_AUDIT[A]  -> TableScan
+          8320-8887 join-search  Join order search
+            8332-8522 join-order  Join order[1]:  MTK_ORDERS[O]#0  MTK_AUDIT[A]#1  MTK_ORDERS[MTK_ORDERS]#2  -> cost: 479.850752
+              8334-8436 join-step  Now joining: MTK_AUDIT[A]#1  -> HashSemi
+              8437-8522 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> HashSemi
+            8523-8601 join-order  Join order[2]:  MTK_ORDERS[O]#0  MTK_ORDERS[MTK_ORDERS]#2  MTK_AUDIT[A]#1  -> aborted
+              8525-8601 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2
+            8602-8785 join-order  Join order[3]:  MTK_AUDIT[A]#1  MTK_ORDERS[O]#0  MTK_ORDERS[MTK_ORDERS]#2  -> cost: 382.609094  [best]
+              8611-8699 join-step  Now joining: MTK_ORDERS[O]#0  -> NestedLoop
+              8700-8785 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> HashSemi
+            8786-8833 join-order  Join order[4]:  MTK_AUDIT[A]#1  MTK_ORDERS[MTK_ORDERS]#2  MTK_ORDERS[O]#0  -> aborted
+              8795-8833 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2
+            8834-8843 join-order  Join order[5]:  MTK_ORDERS[MTK_ORDERS]#2  MTK_ORDERS[O]#0  MTK_AUDIT[A]#1  -> aborted
+            8844-8853 join-order  Join order[6]:  MTK_ORDERS[MTK_ORDERS]#2  MTK_AUDIT[A]#1  MTK_ORDERS[O]#0  -> aborted
+          8888-8897 final-cost  Final cost
+        8899-9026 run  Run 7 of 9 · SEL$9ECC4B75 (#5)  [best join order 1]  [9294: GBP: Not update best state, Cost = 390.632806]
+          8905-8924 run-head  Query block text, signature, system statistics
+          8925-8947 base-stats  Base statistical information
+          8948-8995 table  MTK_CUST[C]  -> IndexRange
+          8996-9015 join-search  Join order search
+            9003-9006 join-order  Join order[1]:  MTK_CUST[C]#0  -> cost: 6.002106  [best]
+          9016-9025 final-cost  Final cost
+        9027-9291 run  Run 8 of 9 · SEL$6F84294F (#1)  [best join order 1]  [9294: GBP: Not update best state, Cost = 390.632806]
+          9033-9058 run-head  Query block text, signature, system statistics
+          9059-9100 base-stats  Base statistical information
+          9101-9280 join-search  Join order search
+            9111-9186 join-order  Join order[1]:  VW_GBF_4[VW_GBF_4]#0  VW_GBC_3[VW_GBC_3]#1  -> cost: 390.632806  [best]
+              9113-9186 join-step  Now joining: VW_GBC_3[VW_GBC_3]#1  -> Hash
+            9187-9258 join-order  Join order[2]:  VW_GBC_3[VW_GBC_3]#1  VW_GBF_4[VW_GBF_4]#0  -> aborted
+              9189-9258 join-step  Now joining: VW_GBF_4[VW_GBF_4]#0
+          9281-9290 final-cost  Final cost
+    9351-9365 cbsec  Cost-based predicate pushdown (JPPD)
+    9366-9382 cbsec  Statistic-based Query Transformation (SQT)
+      9379-9382 tsec  Common Subexpression elimination (CSE)
+9383-15730 phase-cost  Costing
+  9383-9384 final-query  Final query after transformations
+  9385-15567 run  Run 9 of 9 · SEL$1BA63A14 (#1)  [final]  [best join order 13]
+    9391-9418 run-head  Query block text, signature, system statistics
+    9419-9502 base-stats  Base statistical information
+    9503-9522 table  MTK_AUDIT[A]  -> TableScan
+    9523-9551 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+    9552-9594 table  MTK_CUST[C]  -> IndexRange
+    9595-9641 table  MTK_ORDERS[O]  -> TableScan
+    9642-12248 join-search  Join order search
+      9654-9905 join-order  Join order[1]:  MTK_CUST[C]#0  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  -> cost: 453.647906
+        9656-9737 join-step  Now joining: MTK_ORDERS[O]#1  -> NestedLoop
+        9738-9811 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+        9812-9905 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+      9906-10069 join-order  Join order[2]:  MTK_CUST[C]#0  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  -> aborted
+        9908-9977 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+        9978-10069 join-step  Now joining: MTK_AUDIT[A]#2
+      10070-10106 join-order  Join order[3]:  MTK_CUST[C]#0  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+        10072-10106 join-step  Now joining: MTK_AUDIT[A]#2
+      10107-10148 join-order  Join order[4]:  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  -> aborted
+        10109-10148 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+      10149-10448 join-order  Join order[5]:  MTK_ORDERS[O]#1  MTK_CUST[C]#0  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+        10151-10286 join-step  Now joining: MTK_CUST[C]#0  -> Hash
+        10287-10360 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+        10361-10448 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+      10449-10612 join-order  Join order[6]:  MTK_ORDERS[O]#1  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  -> aborted
+        10451-10520 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+        10521-10612 join-step  Now joining: MTK_AUDIT[A]#2
+      10613-10909 join-order  Join order[7]:  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+        10615-10717 join-step  Now joining: MTK_AUDIT[A]#2  -> HashSemi
+        10718-10820 join-step  Now joining: MTK_CUST[C]#0  -> NestedLoop
+        10821-10909 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+      10910-10980 join-order  Join order[8]:  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  -> aborted
+        10912-10980 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+      10981-11255 join-order  Join order[9]:  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  MTK_AUDIT[A]#2  -> aborted
+        10983-11052 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+        11053-11163 join-step  Now joining: MTK_CUST[C]#0  -> Hash
+        11164-11255 join-step  Now joining: MTK_AUDIT[A]#2
+      11256-11338 join-order  Join order[10]:  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  MTK_CUST[C]#0  -> aborted
+        11258-11338 join-step  Now joining: MTK_AUDIT[A]#2
+      11339-11539 join-order  Join order[11]:  MTK_AUDIT[A]#2  MTK_CUST[C]#0  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  -> aborted
+        11348-11393 join-step  Now joining: MTK_CUST[C]#0  -> NestedLoop
+        11394-11539 join-step  Now joining: MTK_ORDERS[O]#1
+      11540-11580 join-order  Join order[12]:  MTK_AUDIT[A]#2  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  -> aborted
+        11542-11580 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+      11581-11929 join-order  Join order[13]:  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  MTK_CUST[C]#0  MTK_ORDERS[MTK_ORDERS]#3  -> cost: 384.608830  [best]
+        11590-11731 join-step  Now joining: MTK_ORDERS[O]#1  -> NestedLoop
+        11732-11834 join-step  Now joining: MTK_CUST[C]#0  -> NestedLoop
+        11835-11929 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+      11930-12122 join-order  Join order[14]:  MTK_AUDIT[A]#2  MTK_ORDERS[O]#1  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  -> aborted
+        11932-12001 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3  -> HashSemi
+        12002-12122 join-step  Now joining: MTK_CUST[C]#0
+      12123-12170 join-order  Join order[15]:  MTK_AUDIT[A]#2  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  MTK_ORDERS[O]#1  -> aborted
+        12132-12170 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#3
+      12171-12180 join-order  Join order[16]:  MTK_ORDERS[MTK_ORDERS]#3  MTK_CUST[C]#0  MTK_ORDERS[O]#1  MTK_AUDIT[A]#2  -> aborted
+      12181-12190 join-order  Join order[17]:  MTK_ORDERS[MTK_ORDERS]#3  MTK_ORDERS[O]#1  MTK_CUST[C]#0  MTK_AUDIT[A]#2  -> aborted
+      12191-12200 join-order  Join order[18]:  MTK_ORDERS[MTK_ORDERS]#3  MTK_AUDIT[A]#2  MTK_CUST[C]#0  MTK_ORDERS[O]#1  -> aborted
+    12249-14299 ap-search  Adaptive plan: inflection point, join #1
+    14302-15509 ap-search  Adaptive plan: inflection point, join #2
+    15557-15566 final-cost  Final cost
+15731-18278 phase-result  Result
+  15731-15753 stmt-dump  Statement dump
+  15754-15812 plan  Explain plan
+    15757-15785 plan-table  Plan table
+    15786-15798 plan-qbs  Query block name / object alias
+    15799-15812 plan-preds  Predicate information
+  15813-15882 other-xml  Content of other_xml column
+    15826-15843 peeked  Peeked binds
+    15845-15848 opt-metrics  Optimizer metrics
+    15849-15852 qbreg-xml  Query block registry (XML)
+    15853-15882 outline-data  Outline data
+  15883-18235 state-dump  Optimizer state dump
+    15884-16497 state-params  Parameters
+    16498-18235 state-fix  Fix controls
+  18236-18275 qb-registry  Query block registry
+  18276-18278 hints  Dumping hints
+18279-18523 after  After the dump
+dump 2 4c6x0jk0jpuzn nth 1  lines 18524-27908  view 18524-27963  plan_hash 2572512466  runs 8  truncated false  unplaced 92
+18524-19278 phase-env  Environment
+  18524-18553 parser-qbs  Query blocks from the parser
+  18554-18569 preamble  Preamble
+  18570-19278 opt-info  Optimizer information
+    18573-18584 statement  Current SQL statement
+    18585-18643 legend  Legend
+    18644-19274 params  Parameters used by the optimizer
+      18647-18653 params-altered  Altered values
+      18654-19271 params-default  Default values
+      19272-19274 params-optparam  OPT_PARAM hint
+    19275-19278 col-usage  Column usage monitoring
+19279-23690 phase-trans  Transformations
+  19279-19433 qt  Query transformations · SEL$4
+    19317-19336 tsec  Common Subexpression elimination (CSE) ×4
+    19337-19341 tsec  Order-by elimination (OBYE)
+    19342-19379 tsec  Join Elimination [JE:R 12.2] ×2
+    19380-19386 tsec  Count(col) to Count(*) (CNT)
+    19387-19398 registered  Registered qb: SEL$58A6D7F6 (VIEW MERGE SEL$2; SEL$1; SEL$2)
+    19399-19410 registered  Registered qb: SEL$5D4F31E4 (VIEW MERGE SEL$4; SEL$58A6D7F6; SEL$4)
+    19411-19433 tsec  Join Elimination [JE:R 12.2]
+  19434-19462 qt  Query transformations · SEL$5D4F31E4
+    19439-19462 tsec  Common Subexpression elimination (CSE) ×4
+  19463-19467 peeked-binds  Peeked values of the binds
+  19468-19490 spd  SQL plan directives
+  19491-23690 cbqt  Cost-based transformations · SEL$5D4F31E4
+    19506-19509 tsec  Order-by elimination (OBYE)
+    19510-19514 qt  Query transformations · SEL$5D4F31E4
+    19515-19524 tsec  Common Subexpression elimination (CSE) ×2
+    19525-19558 tsec  Approximate Aggregate Transformation (AAT)
+    19559-19563 registered  Registered qb: SEL$5D4F31E4 (COPY SEL$5D4F31E4)
+    19564-19568 registered  Registered qb: SEL$3 (COPY SEL$3)
+    19569-19573 cbsec  Cost-Based Subquery Unnesting
+    19574-23596 cbsec  Cost-Based Complex View Merging
+      19584-19594 tsec  Count(col) to Count(*) (CNT)
+      19595-20641 iteration  CVM iteration 1 · (2) : (0)  [20641: CVM: Updated best state, Cost = 288.995289]
+        19628-19819 run  Run 1 of 8 · SEL$3 (#2)  [best join order 1]  [20641: CVM: Updated best state, Cost = 288.995289]
+          19634-19653 run-head  Query block text, signature, system statistics
+          19654-19686 base-stats  Base statistical information
+          19687-19726 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+          19727-19750 join-search  Join order search
+            19734-19750 join-order  Join order[1]:  MTK_ORDERS[MTK_ORDERS]#0  -> cost: 137.878807  [best]
+          19751-19808 table  MTK_ORDERS[MTK_ORDERS]  -> IndexRange
+          19809-19818 final-cost  Final cost
+        19820-20638 run  Run 2 of 8 · SEL$5D4F31E4 (#1)  [best join order 1]  [20641: CVM: Updated best state, Cost = 288.995289]
+          19826-19851 run-head  Query block text, signature, system statistics
+          19852-19900 base-stats  Base statistical information
+          19901-19937 table  MTK_CUST[C]  -> IndexRange
+          19938-19989 table  MTK_ORDERS[O]  -> TableScan
+          19990-20627 join-search  Join order search
+            20001-20144 join-order  Join order[1]:  MTK_ORDERS[O]#0  MTK_CUST[C]#1  from$_subquery$_004[T]#2  -> cost: 288.995289  [best]
+              20003-20073 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+              20074-20144 join-step  Now joining: from$_subquery$_004[T]#2  -> Hash
+            20145-20295 join-order  Join order[2]:  MTK_CUST[C]#1  MTK_ORDERS[O]#0  from$_subquery$_004[T]#2  -> aborted
+              20147-20231 join-step  Now joining: MTK_ORDERS[O]#0  -> Hash
+              20232-20295 join-step  Now joining: from$_subquery$_004[T]#2
+            20296-20447 join-order  Join order[3]:  MTK_CUST[C]#1  from$_subquery$_004[T]#2  MTK_ORDERS[O]#0  -> aborted
+              20298-20355 join-step  Now joining: from$_subquery$_004[T]#2  -> Hash
+              20356-20447 join-step  Now joining: MTK_ORDERS[O]#0
+            20448-20611 join-order  Join order[4]:  from$_subquery$_004[T]#2  MTK_CUST[C]#1  MTK_ORDERS[O]#0  -> aborted
+              20450-20519 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+              20520-20611 join-step  Now joining: MTK_ORDERS[O]#0
+          20628-20637 final-cost  Final cost
+      20642-23452 iteration  CVM iteration 2 · (2) : (1)  [23452: CVM: Updated best state, Cost = 288.985246]
+        20685-21791 run  Run 3 of 8 · SEL$9CF07349 (#1)  [best join order 1]  [23452: CVM: Updated best state, Cost = 288.985246]
+          20691-20716 run-head  Query block text, signature, system statistics
+          20717-20786 base-stats  Base statistical information
+          20787-20823 table  MTK_CUST[C]  -> IndexRange
+          20824-20865 table  MTK_ORDERS[O]  -> TableScan
+          20866-20907 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+          20908-21780 join-search  Join order search
+            20919-21096 join-order  Join order[1]:  MTK_ORDERS[O]#0  MTK_CUST[C]#1  MTK_ORDERS[MTK_ORDERS]#2  -> cost: 288.985246  [best]
+              20921-20994 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+              20995-21096 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> Hash
+            21097-21142 join-order  Join order[2]:  MTK_ORDERS[O]#0  MTK_ORDERS[MTK_ORDERS]#2  MTK_CUST[C]#1  -> aborted
+              21099-21142 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2
+            21143-21329 join-order  Join order[3]:  MTK_CUST[C]#1  MTK_ORDERS[O]#0  MTK_ORDERS[MTK_ORDERS]#2  -> aborted
+              21145-21232 join-step  Now joining: MTK_ORDERS[O]#0  -> Hash
+              21233-21329 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2
+            21330-21516 join-order  Join order[4]:  MTK_CUST[C]#1  MTK_ORDERS[MTK_ORDERS]#2  MTK_ORDERS[O]#0  -> aborted
+              21332-21410 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> Hash
+              21411-21516 join-step  Now joining: MTK_ORDERS[O]#0
+            21517-21563 join-order  Join order[5]:  MTK_ORDERS[MTK_ORDERS]#2  MTK_ORDERS[O]#0  MTK_CUST[C]#1  -> aborted
+              21519-21563 join-step  Now joining: MTK_ORDERS[O]#0
+            21564-21753 join-order  Join order[6]:  MTK_ORDERS[MTK_ORDERS]#2  MTK_CUST[C]#1  MTK_ORDERS[O]#0  -> aborted
+              21566-21647 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+              21648-21753 join-step  Now joining: MTK_ORDERS[O]#0
+          21781-21790 final-cost  Final cost
+        21802-22837 iteration  JPPD iteration 1 · (2) : (0)  [22837: JPPD: Updated best state, Cost = 288.995289]
+          21824-22015 run  Run 4 of 8 · SEL$3 (#2)  [same as run 1]  [best join order 1]  [22837: JPPD: Updated best state, Cost = 288.995289]
+            21830-21849 run-head  Query block text, signature, system statistics
+            21850-21882 base-stats  Base statistical information
+            21883-21922 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+            21923-21946 join-search  Join order search
+              21930-21946 join-order  Join order[1]:  MTK_ORDERS[MTK_ORDERS]#0  -> cost: 137.878807  [best]
+            21947-22004 table  MTK_ORDERS[MTK_ORDERS]  -> IndexRange
+            22005-22014 final-cost  Final cost
+          22016-22834 run  Run 5 of 8 · SEL$5D4F31E4 (#1)  [same as run 2]  [best join order 1]  [22837: JPPD: Updated best state, Cost = 288.995289]
+            22022-22047 run-head  Query block text, signature, system statistics
+            22048-22096 base-stats  Base statistical information
+            22097-22133 table  MTK_CUST[C]  -> IndexRange
+            22134-22185 table  MTK_ORDERS[O]  -> TableScan
+            22186-22823 join-search  Join order search
+              22197-22340 join-order  Join order[1]:  MTK_ORDERS[O]#0  MTK_CUST[C]#1  from$_subquery$_004[T]#2  -> cost: 288.995289  [best]
+                22199-22269 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+                22270-22340 join-step  Now joining: from$_subquery$_004[T]#2  -> Hash
+              22341-22491 join-order  Join order[2]:  MTK_CUST[C]#1  MTK_ORDERS[O]#0  from$_subquery$_004[T]#2  -> aborted
+                22343-22427 join-step  Now joining: MTK_ORDERS[O]#0  -> Hash
+                22428-22491 join-step  Now joining: from$_subquery$_004[T]#2
+              22492-22643 join-order  Join order[3]:  MTK_CUST[C]#1  from$_subquery$_004[T]#2  MTK_ORDERS[O]#0  -> aborted
+                22494-22551 join-step  Now joining: from$_subquery$_004[T]#2  -> Hash
+                22552-22643 join-step  Now joining: MTK_ORDERS[O]#0
+              22644-22807 join-order  Join order[4]:  from$_subquery$_004[T]#2  MTK_CUST[C]#1  MTK_ORDERS[O]#0  -> aborted
+                22646-22715 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+                22716-22807 join-step  Now joining: MTK_ORDERS[O]#0
+            22824-22833 final-cost  Final cost
+        22838-23447 iteration  JPPD iteration 2 · (2) : (1)  [23447: JPPD: Not update best state, Cost = 288.995289]
+          22868-23005 run  Run 6 of 8 · SEL$B01C6807 (#2)  [best join order 1]  [23447: JPPD: Not update best state, Cost = 288.995289]
+            22874-22893 run-head  Query block text, signature, system statistics
+            22894-22926 base-stats  Base statistical information
+            22927-22974 table  MTK_ORDERS[MTK_ORDERS]  -> IndexRange
+            22975-22994 join-search  Join order search
+              22982-22985 join-order  Join order[1]:  MTK_ORDERS[MTK_ORDERS]#0  -> cost: 2.000559  [best]
+            22995-23004 final-cost  Final cost
+          23006-23445 run  Run 7 of 8 · SEL$5D4F31E4 (#1)  [best join order 1]  [23447: JPPD: Not update best state, Cost = 288.995289]
+            23012-23037 run-head  Query block text, signature, system statistics
+            23038-23086 base-stats  Base statistical information
+            23087-23123 table  MTK_CUST[C]  -> IndexRange
+            23124-23175 table  MTK_ORDERS[O]  -> TableScan
+            23176-23434 join-search  Join order search
+              23186-23285 join-order  Join order[1]:  MTK_ORDERS[O]#1  MTK_CUST[C]#2  from$_subquery$_004[T]#0  -> cost: 547.205235  [best]
+                23188-23258 join-step  Now joining: MTK_CUST[C]#2  -> Hash
+                23259-23285 join-step  Now joining: from$_subquery$_004[T]#0  -> NestedLoop
+              23286-23309 join-order  Join order[2]:  MTK_CUST[C]#2  from$_subquery$_004[T]#0  MTK_ORDERS[O]#1  -> aborted
+                23288-23309 join-step  Now joining: from$_subquery$_004[T]#0
+              23310-23418 join-order  Join order[3]:  MTK_CUST[C]#2  MTK_ORDERS[O]#1  from$_subquery$_004[T]#0  -> aborted
+                23312-23396 join-step  Now joining: MTK_ORDERS[O]#1  -> Hash
+                23397-23418 join-step  Now joining: from$_subquery$_004[T]#0
+            23435-23444 final-cost  Final cost
+      23462-23481 tsec  Set-Join Conversion (SJC) ×2
+      23482-23500 tsec  Count(col) to Count(*) (CNT)
+      23501-23537 tsec  Join Elimination [JE:R 12.2]
+      23538-23591 tsec  Predicate Move-Around (PM)
+      23592-23596 registered  Registered qb: SEL$9CF07349 (COPY SEL$9CF07349)
+    23597-23660 cbsec  Cost-Based Group-By/Distinct Placement
+    23661-23675 cbsec  Cost-based predicate pushdown (JPPD)
+    23676-23690 cbsec  Statistic-based Query Transformation (SQT)
+      23687-23690 tsec  Common Subexpression elimination (CSE)
+23691-25407 phase-cost  Costing
+  23691-23692 final-query  Final query after transformations
+  23693-25307 run  Run 8 of 8 · SEL$9CF07349 (#1)  [final]  [best join order 1]
+    23699-23724 run-head  Query block text, signature, system statistics
+    23725-23788 base-stats  Base statistical information
+    23789-23825 table  MTK_CUST[C]  -> IndexRange
+    23826-23872 table  MTK_ORDERS[O]  -> TableScan
+    23873-23913 table  MTK_ORDERS[MTK_ORDERS]  -> TableScan
+    23914-24788 join-search  Join order search
+      23925-24099 join-order  Join order[1]:  MTK_ORDERS[O]#0  MTK_CUST[C]#1  MTK_ORDERS[MTK_ORDERS]#2  -> cost: 288.985246  [best]
+        23927-23999 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+        24000-24099 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> Hash
+      24100-24144 join-order  Join order[2]:  MTK_ORDERS[O]#0  MTK_ORDERS[MTK_ORDERS]#2  MTK_CUST[C]#1  -> aborted
+        24102-24144 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2
+      24145-24328 join-order  Join order[3]:  MTK_CUST[C]#1  MTK_ORDERS[O]#0  MTK_ORDERS[MTK_ORDERS]#2  -> aborted
+        24147-24233 join-step  Now joining: MTK_ORDERS[O]#0  -> Hash
+        24234-24328 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2
+      24329-24512 join-order  Join order[4]:  MTK_CUST[C]#1  MTK_ORDERS[MTK_ORDERS]#2  MTK_ORDERS[O]#0  -> aborted
+        24331-24408 join-step  Now joining: MTK_ORDERS[MTK_ORDERS]#2  -> Hash
+        24409-24512 join-step  Now joining: MTK_ORDERS[O]#0
+      24513-24558 join-order  Join order[5]:  MTK_ORDERS[MTK_ORDERS]#2  MTK_ORDERS[O]#0  MTK_CUST[C]#1  -> aborted
+        24515-24558 join-step  Now joining: MTK_ORDERS[O]#0
+      24559-24745 join-order  Join order[6]:  MTK_ORDERS[MTK_ORDERS]#2  MTK_CUST[C]#1  MTK_ORDERS[O]#0  -> aborted
+        24561-24641 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+        24642-24745 join-step  Now joining: MTK_ORDERS[O]#0
+    24789-25263 ap-search  Adaptive plan: inflection point, join #2
+    25297-25306 final-cost  Final cost
+25408-27908 phase-result  Result
+  25408-25428 stmt-dump  Statement dump
+  25429-25471 plan  Explain plan
+    25432-25451 plan-table  Plan table
+    25452-25461 plan-qbs  Query block name / object alias
+    25462-25471 plan-preds  Predicate information
+  25472-25529 other-xml  Content of other_xml column
+    25486-25489 opt-metrics  Optimizer metrics
+    25490-25493 qbreg-xml  Query block registry (XML)
+    25494-25520 outline-data  Outline data
+    25521-25529 hint-report  Hint report
+  25530-27882 state-dump  Optimizer state dump
+    25531-26144 state-params  Parameters
+    26145-27882 state-fix  Fix controls
+  27883-27902 qb-registry  Query block registry
+  27903-27908 hints  Dumping hints
+27909-27963 after  After the dump

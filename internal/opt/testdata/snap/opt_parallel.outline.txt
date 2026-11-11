@@ -1,0 +1,63 @@
+dump 1 cn3n6q7gm71wh nth 1  lines 32-4059  view 1-4069  plan_hash 3269817289  runs 1  truncated false  unplaced 26
+1-31 file-header  File header
+32-771 phase-env  Environment
+  32-46 parser-qbs  Query blocks from the parser
+  47-64 preamble  Preamble
+  65-771 opt-info  Optimizer information
+    68-77 statement  Current SQL statement
+    78-136 legend  Legend
+    137-767 params  Parameters used by the optimizer
+      140-147 params-altered  Altered values
+      148-764 params-default  Default values
+      765-767 params-optparam  OPT_PARAM hint
+    768-771 col-usage  Column usage monitoring
+772-1008 phase-trans  Transformations
+  772-889 qt  Query transformations · SEL$2
+    813-822 tsec  Common Subexpression elimination (CSE) ×2
+    823-827 tsec  Order-by elimination (OBYE)
+    828-847 tsec  Join Elimination [JE:R 12.2]
+    848-861 tsec  Count(col) to Count(*) (CNT) ×2
+    862-872 registered  Registered qb: SEL$58A6D7F6 (VIEW MERGE SEL$2; SEL$1; SEL$2)
+    873-889 tsec  Join Elimination [JE:R 12.2]
+  890-986 qt  Query transformations · SEL$58A6D7F6
+    913-917 tsec  Common Subexpression elimination (CSE)
+    918-926 tsec  Approximate Aggregate Transformation (AAT)
+    927-931 tsec  Subquery Unnest (SU)
+    932-938 tsec  Set-Join Conversion (SJC)
+    939-955 tsec  Join Elimination [JE:R 12.2]
+    956-967 tsec  Predicate Move-Around (PM)
+    968-986 cbsec  Statistic-based Query Transformation (SQT)
+      980-986 tsec  Common Subexpression elimination (CSE)
+  987-991 peeked-binds  Peeked values of the binds
+  992-1008 spd  SQL plan directives
+1009-1585 phase-cost  Costing
+  1009-1010 final-query  Final query after transformations
+  1011-1558 run  Run 1 of 1 · SEL$58A6D7F6 (#0)  [final]  [best join order 2]
+    1017-1039 run-head  Query block text, signature, system statistics
+    1040-1074 base-stats  Base statistical information
+    1075-1101 table  MTK_PX_BIG[B]  -> TableScan
+    1102-1139 table  MTK_CUST[C]  -> IndexFFS
+    1140-1395 join-search  Join order search
+      1151-1260 join-order  Join order[1]:  MTK_CUST[C]#0  MTK_PX_BIG[B]#1  -> cost: 553.339429
+        1153-1260 join-step  Now joining: MTK_PX_BIG[B]#1  -> Hash
+      1261-1381 join-order  Join order[2]:  MTK_PX_BIG[B]#1  MTK_CUST[C]#0  -> cost: 543.221562  [best]
+        1263-1381 join-step  Now joining: MTK_CUST[C]#0  -> NestedLoop
+    1396-1529 ap-search  Adaptive plan: inflection point, join #1
+    1548-1557 final-cost  Final cost
+1586-4059 phase-result  Result
+  1586-1602 stmt-dump  Statement dump
+  1603-1633 plan  Explain plan
+    1606-1621 plan-table  Plan table
+    1622-1627 plan-qbs  Query block name / object alias
+    1628-1633 plan-preds  Predicate information
+  1634-1691 other-xml  Content of other_xml column
+    1659-1662 opt-metrics  Optimizer metrics
+    1663-1666 qbreg-xml  Query block registry (XML)
+    1667-1684 outline-data  Outline data
+    1685-1691 hint-report  Hint report
+  1692-4044 state-dump  Optimizer state dump
+    1693-2306 state-params  Parameters
+    2307-4044 state-fix  Fix controls
+  4045-4054 qb-registry  Query block registry
+  4055-4059 hints  Dumping hints
+4060-4069 after  After the dump

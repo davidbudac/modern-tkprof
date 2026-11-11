@@ -1,0 +1,222 @@
+mtkprof - Oracle optimizer trace (event 10053) digest
+========================================================================================================================
+Trace file : opt_parallel.trc
+Database   : Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production  version 19.27.0.0.0
+Volume     : 4,069 lines  1 dumps
+
+Dumps
+   1  cn3n6q7gm71wh   lines 32-4,059  runs 1  MTK_CUST, MTK_PX_BIG
+
+========================================================================================================================
+OPTIMIZER DUMP 1   sql_id cn3n6q7gm71wh   dump 1 of this sql_id   plan hash 3269817289   lines 32-4,059
+view lines 1-4,069 (4,069 lines)   costing runs 1   tables MTK_CUST, MTK_PX_BIG
+26 lines of the dump are in no known section
+------------------------------------------------------------------------------------------------------------------------
+
+SQL as typed (lines 69-71)
+------------------------------------------------------------------------------------------------------------------------
+select /*+ parallel(b 4) full(b) */ /* mtk_opt_1111t121258664 parallel */ count(*), sum(b.amount)
+  from mtk_px_big b join mtk_cust c on c.id = b.grp + 1
+ where b.amount > 100
+
+Altered parameters and fix controls
+------------------------------------------------------------------------------------------------------------------------
+  parallel_query_default_dop               = 2                        (line 144)
+
+Peeked binds
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Outline (lines from-to, line count)
+------------------------------------------------------------------------------------------------------------------------
+    from       to    lines  section
+       1       31       31  File header
+      32      771      740  Environment
+      32       46       15    Query blocks from the parser
+      47       64       18    Preamble
+      65      771      707    Optimizer information
+      68       77       10      Current SQL statement
+      78      136       59      Legend
+     137      767      631      Parameters used by the optimizer
+     140      147        8        Altered values
+     148      764      617        Default values
+     765      767        3        OPT_PARAM hint
+     768      771        4      Column usage monitoring
+     772     1008      237  Transformations
+     772      889      118    Query transformations · SEL$2
+     813      822       10      Common Subexpression elimination (CSE) ×2
+     823      827        5      Order-by elimination (OBYE)
+     828      847       20      Join Elimination [JE:R 12.2]
+     848      861       14      Count(col) to Count(*) (CNT) ×2
+     862      872       11      Registered qb: SEL$58A6D7F6 (VIEW MERGE SEL$2; SEL$1; SEL$2)
+     873      889       17      Join Elimination [JE:R 12.2]
+     890      986       97    Query transformations · SEL$58A6D7F6
+     913      917        5      Common Subexpression elimination (CSE)
+     918      926        9      Approximate Aggregate Transformation (AAT)
+     927      931        5      Subquery Unnest (SU)
+     932      938        7      Set-Join Conversion (SJC)
+     939      955       17      Join Elimination [JE:R 12.2]
+     956      967       12      Predicate Move-Around (PM)
+     968      986       19      Statistic-based Query Transformation (SQT)
+     980      986        7        Common Subexpression elimination (CSE)
+     987      991        5    Peeked values of the binds
+     992     1008       17    SQL plan directives
+    1009     1585      577  Costing
+    1009     1010        2    Final query after transformations
+    1011     1558      548    Run 1 of 1 · SEL$58A6D7F6 (#0)  [final plan]  best join order 2
+    1017     1039       23      Query block text, signature, system statistics
+    1040     1074       35      Base statistical information
+    1075     1101       27      MTK_PX_BIG[B]  -> TableScan
+    1102     1139       38      MTK_CUST[C]  -> IndexFFS
+    1140     1395      256      Join order search
+    1151     1260      110        Join order[1]:  MTK_CUST[C]#0  MTK_PX_BIG[B]#1  -> cost: 553.339429
+    1153     1260      108          Now joining: MTK_PX_BIG[B]#1  -> Hash
+    1261     1381      121        Join order[2]:  MTK_PX_BIG[B]#1  MTK_CUST[C]#0  -> cost: 543.221562  [best join order]
+    1263     1381      119          Now joining: MTK_CUST[C]#0  -> NestedLoop
+    1396     1529      134      Adaptive plan: inflection point, join #1
+    1548     1557       10      Final cost
+    1586     4059     2474  Result
+    1586     1602       17    Statement dump
+    1603     1633       31    Explain plan
+    1606     1621       16      Plan table
+    1622     1627        6      Query block name / object alias
+    1628     1633        6      Predicate information
+    1634     1691       58    Content of other_xml column
+    1659     1662        4      Optimizer metrics
+    1663     1666        4      Query block registry (XML)
+    1667     1684       18      Outline data
+    1685     1691        7      Hint report
+    1692     4044     2353    Optimizer state dump
+    1693     2306      614      Parameters
+    2307     4044     1738      Fix controls
+    4045     4054       10    Query block registry
+    4055     4059        5    Dumping hints
+    4060     4069       10  After the dump
+
+Landmark lines (verbatim, with their line numbers)
+------------------------------------------------------------------------------------------------------------------------
+Best:: AccessPath (the access path kept for a table): 2
+    1099  Best:: AccessPath: TableScan
+    1133  Best:: AccessPath: IndexFFS
+
+Best:: JoinMethod (the join method kept for a join step): 2
+    1255  Best:: JoinMethod: Hash
+    1376  Best:: JoinMethod: NestedLoop
+
+Final cost for query block (the end of a costing run): 1
+    1548  Final cost for query block SEL$58A6D7F6 (#0) - All Rows Plan:
+
+Transformations and checks the trace says were bypassed or refused: 42
+     777  JF: Bypassed: not a UNION or UNION-ALL query block.
+     778  ST: not valid since star transformation parameter is FALSE
+     780  TE: Bypassed: No partitioned table in query block.
+     786  ORE: bypassed - No valid predicate for OR expansion.
+     788  VT: Bypassed: inmemory is disabled.
+     790  invalid because Not enabled by hint/parameter
+     791  BJ: Bypassed: Not enabled by hint/parameter.
+     793  JPPD:     JPPD bypassed: View has unsupported constructs.
+     795  JF: Bypassed: not a UNION or UNION-ALL query block.
+     796  ST: not valid since star transformation parameter is FALSE
+     798  TE: Bypassed: No partitioned table in query block.
+     804  ORE: bypassed - No valid predicate for OR expansion.
+     806  VT: Bypassed: inmemory is disabled.
+     808  invalid because Not enabled by hint/parameter
+     809  BJ: Bypassed: Not enabled by hint/parameter.
+     810  CBQT bypassed for query block SEL$2 (#0): no complex view, sub-queries or UNION (ALL) queries.
+     820  CSE:     CSE not performed on query block SEL$1 (#0).
+     821  CSE:     CSE not performed on query block SEL$2 (#0).
+     826  OBYE:     OBYE bypassed: no order by to eliminate.
+     837  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+     839  JE:[V2]: Cannot eliminate B by ref. join elim - no constr. based join pred(s)
+     882  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+     884  JE:[V2]: Cannot eliminate B by ref. join elim - no constr. based join pred(s)
+     895  JF: Bypassed: not a UNION or UNION-ALL query block.
+     896  ST: not valid since star transformation parameter is FALSE
+     898  TE: Bypassed: No partitioned table in query block.
+     904  ORE: bypassed - No valid predicate for OR expansion.
+     906  VT: Bypassed: inmemory is disabled.
+     908  invalid because Not enabled by hint/parameter
+     909  BJ: Bypassed: Not enabled by hint/parameter.
+     910  CBQT bypassed for query block SEL$58A6D7F6 (#0): no complex view, sub-queries or UNION (ALL) queries.
+     916  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+     935  SJC: not performed
+     948  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+     950  JE:[V2]: Cannot eliminate B by ref. join elim - no constr. based join pred(s)
+     959  PM:     PM bypassed: Outer query contains no views.
+     960  PM:     PM bypassed: Outer query contains no views.
+     965  invalid because query block has less than two views
+     966  UPT: Bypassed: query block has less than two views.
+     971  SQT:     SQT bypassed: Disabled by parameter.
+     983  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+    1141  PJE:  Bypassed; QB is not duplicate insignificant SEL$58A6D7F6 (#0)
+
+
+Versions of the transformed SQL (UNPARSED QUERY IS)
+------------------------------------------------------------------------------------------------------------------------
+[1] line 832  SQL
+    SELECT "B"."ID" "QCSJ_C000000000300000",
+           "B"."GRP" "GRP",
+           "B"."AMOUNT" "QCSJ_C000000000300002_2",
+           "C"."ID" "QCSJ_C000000000300001",
+           "C"."AMOUNT" "QCSJ_C000000000300003"
+    FROM "MTK"."MTK_PX_BIG" "B",
+      "MTK"."MTK_CUST" "C"
+    WHERE "C"."ID"="B"."GRP"+1
+
+[2] line 835  SQL: the same statement as line 832
+
+[3] line 842  SQL: the same statement as line 832
+
+[4] line 877  SQL   (previous statement: line 842)
+    SELECT /*+ FULL ("B") PARALLEL ("B",4) */ COUNT(*) "COUNT(*)",SUM("B"."AMOUNT") "SUM(B.AMOUNT)"
+    FROM "MTK"."MTK_PX_BIG" "B",
+      "MTK"."MTK_CUST" "C"
+    WHERE "B"."AMOUNT">100
+      AND "C"."ID"="B"."GRP"+1
+
+[5] line 880  SQL: the same statement as line 877
+
+[6] line 887  SQL: the same statement as line 877
+
+[7] line 925  Query after View Removal: the same statement as line 877
+
+[8] line 943  SQL: the same statement as line 877
+
+[9] line 946  SQL: the same statement as line 877
+
+[10] line 953  SQL: the same statement as line 877
+
+[11] line 996  Stmt: the same statement as line 877
+
+[12] line 1010  Final query after transformations: the same statement as line 877
+
+
+Final plan
+------------------------------------------------------------------------------------------------------------------------
+lines 1606-1620
+============
+Plan Table
+============
+----------------------------------------------+-----------------------------------+-------------------------+
+| Id  | Operation                | Name       | Rows  | Bytes | Cost  | Time      |  TQ  |IN-OUT|PQ Distrib |
+----------------------------------------------+-----------------------------------+-------------------------+
+| 0   | SELECT STATEMENT         |            |       |       |   543 |           |      |      |           |
+| 1   |  SORT AGGREGATE          |            |     1 |    13 |       |           |      |      |           |
+| 2   |   PX COORDINATOR         |            |       |       |       |           |      |      |           |
+| 3   |    PX SEND QC (RANDOM)   | :TQ10000   |     1 |    13 |       |           |:Q1000| P->S |QC (RANDOM)|
+| 4   |     SORT AGGREGATE       |            |     1 |    13 |       |           |:Q1000| PCWP |           |
+| 5   |      NESTED LOOPS        |            |  116K | 1508K |   543 |  00:00:07 |:Q1000| PCWP |           |
+| 6   |       PX BLOCK ITERATOR  |            |       |       |       |           |:Q1000| PCWC |           |
+| 7   |        TABLE ACCESS FULL | MTK_PX_BIG |  116K |  928K |   541 |  00:00:07 |:Q1000| PCWP |           |
+| 8   |       INDEX UNIQUE SCAN  | MTK_CUST_PK|     1 |     5 |     0 |           |:Q1000| PCWP |           |
+
+Hints
+------------------------------------------------------------------------------------------------------------------------
+Dumping Hints: line, err, used, hint
+    4057  err=0 used=1  FULL ("B")
+    4058  err=0 used=1  PARALLEL ("B",4)
+
+Hint Report
+    1688  full(b)   [used]
+    1689  parallel(b 4)   [used]
+

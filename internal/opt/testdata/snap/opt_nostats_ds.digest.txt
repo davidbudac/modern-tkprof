@@ -1,0 +1,465 @@
+mtkprof - Oracle optimizer trace (event 10053) digest
+========================================================================================================================
+Trace file : opt_nostats_ds.trc
+Database   : Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production  version 19.27.0.0.0
+Volume     : 7,089 lines  1 dumps
+
+Dumps
+   1  4akv1qakm5fu6   lines 32-7,057  runs 9  MTK_CUST, MTK_NOSTATS
+
+========================================================================================================================
+OPTIMIZER DUMP 1   sql_id 4akv1qakm5fu6   dump 1 of this sql_id   plan hash 526485899   lines 32-7,057
+view lines 1-7,089 (7,089 lines)   costing runs 9   tables MTK_CUST, MTK_NOSTATS
+141 lines of the dump are in no known section
+------------------------------------------------------------------------------------------------------------------------
+
+SQL as typed (lines 67-71)
+------------------------------------------------------------------------------------------------------------------------
+explain plan for
+select /* mtk_opt_1111t121257086 nostats_ds */ c.name, n.grp, sum(n.amount)
+  from mtk_nostats n join mtk_cust c on c.id = n.cust_id
+ where n.grp = 'G3' and c.id < 5000
+ group by c.name, n.grp
+
+Altered parameters and fix controls
+------------------------------------------------------------------------------------------------------------------------
+  optimizer_dynamic_sampling               = 4                        (line 144)
+
+Peeked binds
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Outline (lines from-to, line count)
+------------------------------------------------------------------------------------------------------------------------
+    from       to    lines  section
+       1       31       31  File header
+      32      771      740  Environment
+      32       46       15    Query blocks from the parser
+      47       62       16    Preamble
+      63      771      709    Optimizer information
+      66       77       12      Current SQL statement
+      78      136       59      Legend
+     137      767      631      Parameters used by the optimizer
+     140      147        8        Altered values
+     148      764      617        Default values
+     765      767        3        OPT_PARAM hint
+     768      771        4      Column usage monitoring
+     772     3257     2486  Transformations
+     772      869       98    Query transformations · SEL$2
+     796      805       10      Common Subexpression elimination (CSE) ×2
+     806      810        5      Order-by elimination (OBYE)
+     811      829       19      Join Elimination [JE:R 12.2]
+     830      841       12      Count(col) to Count(*) (CNT) ×2
+     842      852       11      Registered qb: SEL$58A6D7F6 (VIEW MERGE SEL$2; SEL$1; SEL$2)
+     853      869       17      Join Elimination [JE:R 12.2]
+     870      888       19    Query transformations · SEL$58A6D7F6
+     875      888       14      Common Subexpression elimination (CSE) ×2
+     889      893        5    Peeked values of the binds
+     894      910       17    SQL plan directives
+     911     3257     2347    Cost-based transformations · SEL$58A6D7F6
+     919      922        4      Order-by elimination (OBYE)
+     923      927        5      Query transformations · SEL$58A6D7F6
+     928      932        5      Common Subexpression elimination (CSE)
+     933      972       40      Approximate Aggregate Transformation (AAT)
+     973      983       11      Set-Join Conversion (SJC)
+     984      988        5      Count(col) to Count(*) (CNT)
+     989     1005       17      Join Elimination [JE:R 12.2]
+    1006     1056       51      Predicate Move-Around (PM)
+    1057     1061        5      Registered qb: SEL$58A6D7F6 (COPY SEL$58A6D7F6)
+    1062     3225     2164      Cost-Based Group-By/Distinct Placement
+    1070     1500      431        GBP iteration 1 · (1,2) : (0,0)  [GBP: Updated best state, Cost = 406.406567]
+    1084     1498      415          Run 1 of 9 · SEL$58A6D7F6 (#1)  best join order 1  [GBP: Updated best state, Cost = 406.406567]  in GBP iteration 1
+    1090     1113       24            Query block text, signature, system statistics
+    1114     1146       33            Base statistical information
+    1147     1214       68            MTK_NOSTATS[N]  -> TableScan
+    1215     1260       46            MTK_CUST[C]  -> IndexRange
+    1261     1487      227            Join order search
+    1272     1382      111              Join order[1]:  MTK_NOSTATS[N]#0  MTK_CUST[C]#1  -> cost: 406.406567  [best join order]
+    1274     1382      109                Now joining: MTK_CUST[C]#1  -> Hash
+    1383     1465       83              Join order[2]:  MTK_CUST[C]#1  MTK_NOSTATS[N]#0  -> aborted
+    1385     1465       81                Now joining: MTK_NOSTATS[N]#0
+    1488     1497       10            Final cost
+    1501     2041      541        GBP iteration 2 · (1,2) : (0,C)  [GBP: Not update best state, Cost = 407.414026]
+    1553     1708      156          Run 2 of 9 · SEL$48F27520 (#2)  best join order 1  [GBP: Not update best state, Cost = 407.414026]  in GBP iteration 2
+    1559     1578       20            Query block text, signature, system statistics
+    1579     1598       20            Base statistical information
+    1599     1659       61            MTK_NOSTATS[N]  -> TableScan
+    1660     1697       38            Join order search
+    1667     1681       15              Join order[1]:  MTK_NOSTATS[N]#0  -> cost: 103.231314  [best join order]
+    1698     1707       10            Final cost
+    1709     2038      330          Run 3 of 9 · SEL$EEAA4C8B (#1)  best join order 1  [GBP: Not update best state, Cost = 407.414026]  in GBP iteration 2
+    1715     1738       24            Query block text, signature, system statistics
+    1739     1773       35            Base statistical information
+    1774     1819       46            MTK_CUST[C]  -> IndexRange
+    1820     2027      208            Join order search
+    1831     1934      104              Join order[1]:  VW_GBC_1[VW_GBC_1]#0  MTK_CUST[C]#1  -> cost: 407.414026  [best join order]
+    1833     1934      102                Now joining: MTK_CUST[C]#1  -> Hash
+    1935     2005       71              Join order[2]:  MTK_CUST[C]#1  VW_GBC_1[VW_GBC_1]#0  -> aborted
+    1937     2005       69                Now joining: VW_GBC_1[VW_GBC_1]#0
+    2028     2037       10            Final cost
+    2042     2562      521        GBP iteration 3 · (1,2) : (F,0)  [GBP: Not update best state, Cost = 406.441967]
+    2106     2231      126          Run 4 of 9 · SEL$81C0CD23 (#3)  best join order 1  [GBP: Not update best state, Cost = 406.441967]  in GBP iteration 3
+    2112     2131       20            Query block text, signature, system statistics
+    2132     2153       22            Base statistical information
+    2154     2200       47            MTK_CUST[C]  -> IndexRange
+    2201     2220       20            Join order search
+    2208     2211        4              Join order[1]:  MTK_CUST[C]#0  -> cost: 303.135367  [best join order]
+    2221     2230       10            Final cost
+    2232     2559      328          Run 5 of 9 · SEL$6B848FDE (#1)  best join order 1  [GBP: Not update best state, Cost = 406.441967]  in GBP iteration 3
+    2238     2261       24            Query block text, signature, system statistics
+    2262     2292       31            Base statistical information
+    2293     2360       68            MTK_NOSTATS[N]  -> TableScan
+    2361     2548      188            Join order search
+    2371     2444       74              Join order[1]:  MTK_NOSTATS[N]#0  VW_GBF_2[VW_GBF_2]#1  -> cost: 406.441967  [best join order]
+    2373     2444       72                Now joining: VW_GBF_2[VW_GBF_2]#1  -> Hash
+    2445     2526       82              Join order[2]:  VW_GBF_2[VW_GBF_2]#1  MTK_NOSTATS[N]#0  -> aborted
+    2447     2526       80                Now joining: MTK_NOSTATS[N]#0
+    2549     2558       10            Final cost
+    2563     3169      607        GBP iteration 4 · (1,2) : (F,C)  [GBP: Not update best state, Cost = 407.476401]
+    2640     2791      152          Run 6 of 9 · SEL$48F27520 (#4)  best join order 1  [GBP: Not update best state, Cost = 407.476401]  in GBP iteration 4
+    2646     2665       20            Query block text, signature, system statistics
+    2666     2685       20            Base statistical information
+    2686     2742       57            MTK_NOSTATS[N]  -> TableScan
+    2743     2780       38            Join order search
+    2750     2764       15              Join order[1]:  MTK_NOSTATS[N]#0  -> cost: 103.259033  [best join order]
+    2781     2790       10            Final cost
+    2792     2917      126          Run 7 of 9 · SEL$00DD0A42 (#5)  best join order 1  [GBP: Not update best state, Cost = 407.476401]  in GBP iteration 4
+    2798     2817       20            Query block text, signature, system statistics
+    2818     2839       22            Base statistical information
+    2840     2886       47            MTK_CUST[C]  -> IndexRange
+    2887     2906       20            Join order search
+    2894     2897        4              Join order[1]:  MTK_CUST[C]#0  -> cost: 303.135367  [best join order]
+    2907     2916       10            Final cost
+    2918     3165      248          Run 8 of 9 · SEL$F274D5A2 (#1)  best join order 1  [GBP: Not update best state, Cost = 407.476401]  in GBP iteration 4
+    2924     2947       24            Query block text, signature, system statistics
+    2948     2984       37            Base statistical information
+    2985     3154      170            Join order search
+    2995     3061       67              Join order[1]:  VW_GBC_3[VW_GBC_3]#0  VW_GBF_4[VW_GBF_4]#1  -> cost: 407.476401  [best join order]
+    2997     3061       65                Now joining: VW_GBF_4[VW_GBF_4]#1  -> Hash
+    3062     3132       71              Join order[2]:  VW_GBF_4[VW_GBF_4]#1  VW_GBC_3[VW_GBC_3]#0  -> aborted
+    3064     3132       69                Now joining: VW_GBC_3[VW_GBC_3]#0
+    3155     3164       10            Final cost
+    3226     3240       15      Cost-based predicate pushdown (JPPD)
+    3241     3257       17      Statistic-based Query Transformation (SQT)
+    3254     3257        4        Common Subexpression elimination (CSE)
+    3258     4570     1313  Costing
+    3258     3259        2    Final query after transformations
+    3260     4422     1163    Run 9 of 9 · SEL$58A6D7F6 (#1)  [final plan]  best join order 1
+    3266     3289       24      Query block text, signature, system statistics
+    3290     3322       33      Base statistical information
+    3323     3390       68      MTK_NOSTATS[N]  -> TableScan
+    3391     3436       46      MTK_CUST[C]  -> IndexRange
+    3437     3671      235      Join order search
+    3448     3558      111        Join order[1]:  MTK_NOSTATS[N]#0  MTK_CUST[C]#1  -> cost: 406.406567  [best join order]
+    3450     3558      109          Now joining: MTK_CUST[C]#1  -> Hash
+    3559     3641       83        Join order[2]:  MTK_CUST[C]#1  MTK_NOSTATS[N]#0  -> aborted
+    3561     3641       81          Now joining: MTK_NOSTATS[N]#0
+    3672     4390      719      Adaptive plan: inflection point, join #1
+    4412     4421       10      Final cost
+    4571     7057     2487  Result
+    4571     4591       21    Statement dump
+    4592     4629       38    Explain plan
+    4595     4612       18      Plan table
+    4613     4621        9      Query block name / object alias
+    4622     4629        8      Predicate information
+    4630     4668       39    Content of other_xml column
+    4640     4643        4      Optimizer metrics
+    4644     4647        4      Query block registry (XML)
+    4648     4668       21      Outline data
+    4669     7021     2353    Optimizer state dump
+    4670     5283      614      Parameters
+    5284     7021     1738      Fix controls
+    7022     7054       33    Query block registry
+    7055     7057        3    Dumping hints
+    7058     7089       32  After the dump
+
+Landmark lines (verbatim, with their line numbers)
+------------------------------------------------------------------------------------------------------------------------
+Best:: AccessPath (the access path kept for a table): 10
+    1212  Best:: AccessPath: TableScan
+    1253  Best:: AccessPath: IndexRange
+    1654  Best:: AccessPath: TableScan
+    1812  Best:: AccessPath: IndexRange
+    2194  Best:: AccessPath: IndexRange
+    2354  Best:: AccessPath: TableScan
+    2737  Best:: AccessPath: TableScan
+    2880  Best:: AccessPath: IndexRange
+    3388  Best:: AccessPath: TableScan
+    3429  Best:: AccessPath: IndexRange
+
+Best:: JoinMethod (the join method kept for a join step): 5
+    1377  Best:: JoinMethod: Hash
+    1929  Best:: JoinMethod: Hash
+    2439  Best:: JoinMethod: Hash
+    3056  Best:: JoinMethod: Hash
+    3553  Best:: JoinMethod: Hash
+
+Final cost for query block (the end of a costing run): 9
+    1488  Final cost for query block SEL$58A6D7F6 (#1) - All Rows Plan:
+    1698  Final cost for query block SEL$48F27520 (#2) - All Rows Plan:
+    2028  Final cost for query block SEL$EEAA4C8B (#1) - All Rows Plan:
+    2221  Final cost for query block SEL$81C0CD23 (#3) - All Rows Plan:
+    2549  Final cost for query block SEL$6B848FDE (#1) - All Rows Plan:
+    2781  Final cost for query block SEL$48F27520 (#4) - All Rows Plan:
+    2907  Final cost for query block SEL$00DD0A42 (#5) - All Rows Plan:
+    3155  Final cost for query block SEL$F274D5A2 (#1) - All Rows Plan:
+    4412  Final cost for query block SEL$58A6D7F6 (#1) - All Rows Plan:
+
+Join order aborted: 5
+    1464  Join order aborted: cost > best plan cost
+    2004  Join order aborted: cost > best plan cost
+    2525  Join order aborted: cost > best plan cost
+    3131  Join order aborted: cost > best plan cost
+    3640  Join order aborted: cost > best plan cost
+
+Verdicts of the cost-based transformations: 4
+    1500  GBP: Updated best state, Cost = 406.406567
+    2041  GBP: Not update best state, Cost = 407.414026
+    2562  GBP: Not update best state, Cost = 406.441967
+    3169  GBP: Not update best state, Cost = 407.476401
+
+Transformations and checks the trace says were bypassed or refused: 57
+     777  JF: Bypassed: not a UNION or UNION-ALL query block.
+     778  ST: not valid since star transformation parameter is FALSE
+     780  TE: Bypassed: No partitioned table in query block.
+     786  ORE: bypassed - No valid predicate for OR expansion.
+     788  VT: Bypassed: inmemory is disabled.
+     790  invalid because Not enabled by hint/parameter
+     791  BJ: Bypassed: Not enabled by hint/parameter.
+     793  JPPD:     JPPD bypassed: View has unsupported constructs.
+     803  CSE:     CSE not performed on query block SEL$1 (#0).
+     804  CSE:     CSE not performed on query block SEL$2 (#0).
+     809  OBYE:     OBYE bypassed: no order by to eliminate.
+     820  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+     822  JE:[V2]: Cannot eliminate N by ref. join elim - no constr. based join pred(s)
+     862  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+     864  JE:[V2]: Cannot eliminate N by ref. join elim - no constr. based join pred(s)
+     878  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+     885  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+     922  OBYE:     OBYE bypassed: no order by to eliminate.
+     931  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+     950  invalid because query block has less than two views
+     951  UPT: Bypassed: query block has less than two views.
+     954  ORE: bypassed - No valid predicate for OR expansion.
+     976  SJC: not performed
+     998  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+    1000  JE:[V2]: Cannot eliminate N by ref. join elim - no constr. based join pred(s)
+    1009  PM:     PM bypassed: Outer query contains no views.
+    1010  PM:     PM bypassed: Outer query contains no views.
+    1033  VT: Bypassed: inmemory is disabled.
+    1045  invalid because Not enabled by hint/parameter
+    1046  BJ: Bypassed: Not enabled by hint/parameter.
+    1262  PJE:  Bypassed; QB is not duplicate insignificant SEL$58A6D7F6 (#1)
+    1486  LORE: Or-Expansion validity checks failed on query block SEL$58A6D7F6 (#1) because Cost based OR expansion enabled
+    1661  PJE:  Bypassed; QB has a single table SEL$48F27520 (#2)
+    1696  LORE: Or-Expansion validity checks failed on query block SEL$48F27520 (#2) because Cost based OR expansion enabled
+    1821  PJE:  Bypassed; QB is not duplicate insignificant SEL$EEAA4C8B (#1)
+    2026  LORE: Or-Expansion validity checks failed on query block SEL$EEAA4C8B (#1) because Cost based OR expansion enabled
+    2202  PJE:  Bypassed; QB has a single table SEL$81C0CD23 (#3)
+    2219  LORE: Or-Expansion validity checks failed on query block SEL$81C0CD23 (#3) because Cost based OR expansion enabled
+    2362  PJE:  Bypassed; QB is not duplicate insignificant SEL$6B848FDE (#1)
+    2547  LORE: Or-Expansion validity checks failed on query block SEL$6B848FDE (#1) because Cost based OR expansion enabled
+    2744  PJE:  Bypassed; QB has a single table SEL$48F27520 (#4)
+    2779  LORE: Or-Expansion validity checks failed on query block SEL$48F27520 (#4) because Cost based OR expansion enabled
+    2888  PJE:  Bypassed; QB has a single table SEL$00DD0A42 (#5)
+    2905  LORE: Or-Expansion validity checks failed on query block SEL$00DD0A42 (#5) because Cost based OR expansion enabled
+    2986  PJE:  Bypassed; QB is not duplicate insignificant SEL$F274D5A2 (#1)
+    3153  LORE: Or-Expansion validity checks failed on query block SEL$F274D5A2 (#1) because Cost based OR expansion enabled
+    3178  invalid because query block has less than two views
+    3179  UPT: Bypassed: query block has less than two views.
+    3185  TE: Bypassed: No partitioned table in query block.
+    3193  TE: Bypassed: No partitioned table in query block.
+    3203  ORE: bypassed - No valid predicate for OR expansion.
+    3212  ST: not valid since star transformation parameter is FALSE
+    3218  JF: Bypassed: not a UNION or UNION-ALL query block.
+    3244  SQT:     SQT bypassed: Disabled by parameter.
+    3257  CSE:     CSE not performed on query block SEL$58A6D7F6 (#1).
+    3438  PJE:  Bypassed; QB is not duplicate insignificant SEL$58A6D7F6 (#1)
+    3668  LORE: Or-Expansion validity checks failed on query block SEL$58A6D7F6 (#1) because Cost based OR expansion enabled
+
+
+Versions of the transformed SQL (UNPARSED QUERY IS)
+------------------------------------------------------------------------------------------------------------------------
+[1] line 815  SQL
+    SELECT "N"."ID" "QCSJ_C000000000300000",
+           "N"."CUST_ID" "CUST_ID",
+           "N"."GRP" "GRP",
+           "N"."AMOUNT" "QCSJ_C000000000300002",
+           "C"."ID" "QCSJ_C000000000300001",
+           "C"."NAME" "NAME",
+           "C"."AMOUNT" "QCSJ_C000000000300003"
+    FROM "MTK"."MTK_NOSTATS" "N",
+      "MTK"."MTK_CUST" "C"
+    WHERE "C"."ID"="N"."CUST_ID"
+
+[2] line 818  SQL: the same statement as line 815
+
+[3] line 825  SQL: the same statement as line 815
+
+[4] line 857  SQL   (previous statement: line 825)
+    SELECT "C"."NAME" "NAME","N"."GRP" "GRP",SUM("N"."AMOUNT") "SUM(N.AMOUNT)"
+    FROM "MTK"."MTK_NOSTATS" "N",
+      "MTK"."MTK_CUST" "C"
+    WHERE "N"."GRP"='G3'
+      AND "C"."ID"<5000
+      AND "C"."ID"="N"."CUST_ID"
+    GROUP BY "C"."NAME","N"."GRP"
+
+[5] line 860  SQL: the same statement as line 857
+
+[6] line 867  SQL: the same statement as line 857
+
+[7] line 898  Stmt: the same statement as line 857
+
+[8] line 940  Query after View Removal: the same statement as line 857
+
+[9] line 978  QB before group-by removal: the same statement as line 857
+
+[10] line 993  SQL: the same statement as line 857
+
+[11] line 996  SQL: the same statement as line 857
+
+[12] line 1003  SQL: the same statement as line 857
+
+[13] line 1024  QB before group-by removal: the same statement as line 857
+
+[14] line 1027  BEFORE REDUCTION   (previous statement: line 1024)
+    SELECT "C"."NAME" "NAME",'G3' "GRP",SUM("N"."AMOUNT") "SUM(N.AMOUNT)"
+    FROM "MTK"."MTK_NOSTATS" "N",
+      "MTK"."MTK_CUST" "C"
+    WHERE "N"."GRP"='G3'
+      AND "C"."ID"<5000
+      AND "C"."ID"="N"."CUST_ID"
+    GROUP BY "C"."NAME"
+
+[15] line 1073  GBP: Original query: the same statement as line 1027
+
+[16] line 1518  QB before group-by removal   (previous statement: line 1073)
+    SELECT "N"."CUST_ID" "ITEM_1",SUM("N"."AMOUNT") "ITEM_2"
+    FROM "MTK"."MTK_NOSTATS" "N"
+    WHERE "N"."GRP"='G3'
+    GROUP BY "N"."CUST_ID"
+
+[17] line 1520  QB before group-by removal   (previous statement: line 1518)
+    SELECT "C"."NAME" "NAME",'G3' "GRP",SUM("VW_GBC_1"."ITEM_2") "SUM(N.AMOUNT)"
+    FROM (
+        SELECT "N"."CUST_ID" "ITEM_1",SUM("N"."AMOUNT") "ITEM_2"
+        FROM "MTK"."MTK_NOSTATS" "N"
+        WHERE "N"."GRP"='G3'
+        GROUP BY "N"."CUST_ID") "VW_GBC_1",
+      "MTK"."MTK_CUST" "C"
+    WHERE "C"."ID"<5000
+      AND "C"."ID"="VW_GBC_1"."ITEM_1"
+    GROUP BY "C"."NAME"
+
+[18] line 1531  GBP: Transformed query: the same statement as line 1520
+
+[19] line 2059  QB before group-by removal   (previous statement: line 1531)
+    SELECT "C"."ID" "ITEM_1",COUNT(*) "ITEM_2","C"."NAME" "ITEM_3"
+    FROM "MTK"."MTK_CUST" "C"
+    WHERE "C"."ID"<5000
+    GROUP BY "C"."ID","C"."NAME"
+
+[20] line 2061  QB before group-by elimination: the same statement as line 2059
+
+[21] line 2070  QB after group-by elimination   (previous statement: line 2061)
+    SELECT "C"."ID" "ITEM_1",1 "ITEM_2","C"."NAME" "ITEM_3"
+    FROM "MTK"."MTK_CUST" "C"
+    WHERE "C"."ID"<5000
+
+[22] line 2079  QB after group-by removal: the same statement as line 2070
+
+[23] line 2090  GBP: Transformed query   (previous statement: line 2079)
+    SELECT "VW_GBF_2"."ITEM_3" "NAME",
+           'G3' "GRP",
+           SUM("N"."AMOUNT"*"VW_GBF_2"."ITEM_2") "SUM(N.AMOUNT)"
+    FROM (
+        SELECT "C"."ID" "ITEM_1",1 "ITEM_2","C"."NAME" "ITEM_3"
+        FROM "MTK"."MTK_CUST" "C"
+        WHERE "C"."ID"<5000) "VW_GBF_2",
+      "MTK"."MTK_NOSTATS" "N"
+    WHERE "N"."GRP"='G3'
+      AND "VW_GBF_2"."ITEM_1"="N"."CUST_ID"
+    GROUP BY "VW_GBF_2"."ITEM_3"
+
+[24] line 2580  QB before group-by removal: the same statement as line 1518
+
+[25] line 2582  QB before group-by removal: the same statement as line 2059
+
+[26] line 2584  QB before group-by elimination: the same statement as line 2059
+
+[27] line 2593  QB after group-by elimination: the same statement as line 2070
+
+[28] line 2602  QB after group-by removal: the same statement as line 2070
+
+[29] line 2613  GBP: Transformed query   (previous statement: line 2602)
+    SELECT "VW_GBF_4"."ITEM_3" "NAME",
+           'G3' "GRP",
+           SUM("VW_GBC_3"."ITEM_2"*"VW_GBF_4"."ITEM_2") "SUM(N.AMOUNT)"
+    FROM (
+        SELECT "C"."ID" "ITEM_1",1 "ITEM_2","C"."NAME" "ITEM_3"
+        FROM "MTK"."MTK_CUST" "C"
+        WHERE "C"."ID"<5000) "VW_GBF_4",
+      (
+        SELECT "N"."CUST_ID" "ITEM_1",SUM("N"."AMOUNT") "ITEM_2"
+        FROM "MTK"."MTK_NOSTATS" "N"
+        WHERE "N"."GRP"='G3'
+        GROUP BY "N"."CUST_ID") "VW_GBC_3"
+    WHERE "VW_GBF_4"."ITEM_1"="VW_GBC_3"."ITEM_1"
+    GROUP BY "VW_GBF_4"."ITEM_3"
+
+[30] line 3211  ST: Query in kkqstardrv: the same statement as line 1027
+
+[31] line 3259  Final query after transformations   (previous statement: line 3211)
+    SELECT "C"."NAME" "NAME",'G3' "GRP",SUM("N"."AMOUNT") "SUM(N.AMOUNT)"
+    FROM "MTK"."MTK_NOSTATS" "N",
+      "MTK"."MTK_CUST" "C"
+    WHERE "N"."GRP"='G3'
+      AND "C"."ID"<5000
+      AND "C"."ID"="N"."CUST_ID"
+      AND "N"."CUST_ID"<5000
+    GROUP BY "C"."NAME"
+
+
+Final plan
+------------------------------------------------------------------------------------------------------------------------
+lines 4595-4628
+============
+Plan Table
+============
+------------------------------------------------------------+-----------------------------------+
+| Id  | Operation                              | Name       | Rows  | Bytes | Cost  | Time      |
+------------------------------------------------------------+-----------------------------------+
+| 0   | SELECT STATEMENT                       |            |       |       |   406 |           |
+| 1   |  HASH GROUP BY                         |            |   540 |   39K |   406 |  00:00:05 |
+| 2   |   HASH JOIN                            |            |   540 |   39K |   405 |  00:00:05 |
+| 3   |    NESTED LOOPS                        |            |   540 |   39K |   405 |  00:00:05 |
+| 4   |     NESTED LOOPS                       |            |       |       |       |           |
+| 5   |      STATISTICS COLLECTOR              |            |       |       |       |           |
+| 6   |       TABLE ACCESS FULL                | MTK_NOSTATS|   540 |   17K |   102 |  00:00:02 |
+| 7   |      INDEX UNIQUE SCAN                 | MTK_CUST_PK|  4999 |       |    11 |  00:00:01 |
+| 8   |     TABLE ACCESS BY INDEX ROWID        | MTK_CUST   |     1 |    41 |   303 |  00:00:04 |
+| 9   |    TABLE ACCESS BY INDEX ROWID BATCHED | MTK_CUST   |  4999 |  200K |   303 |  00:00:04 |
+| 10  |     INDEX RANGE SCAN                   | MTK_CUST_PK|  4999 |       |    11 |  00:00:01 |
+------------------------------------------------------------+-----------------------------------+
+Query Block Name / Object Alias (identified by operation id):
+------------------------------------------------------------
+ 1 - SEL$58A6D7F6         
+ 6 - SEL$58A6D7F6         / "N"@"SEL$1"
+ 7 - SEL$58A6D7F6         / "C"@"SEL$1"
+ 8 - SEL$58A6D7F6         / "C"@"SEL$1"
+ 9 - SEL$58A6D7F6         / "C"@"SEL$1"
+10 - SEL$58A6D7F6         / "C"@"SEL$1"
+------------------------------------------------------------
+Predicate Information:
+----------------------
+2 - access("C"."ID"="N"."CUST_ID")
+6 - filter(("N"."GRP"='G3' AND "N"."CUST_ID"<5000))
+7 - access("C"."ID"="N"."CUST_ID")
+7 - filter("C"."ID"<5000)
+10 - access("C"."ID"<5000)
+
+Hints
+------------------------------------------------------------------------------------------------------------------------
+none
+

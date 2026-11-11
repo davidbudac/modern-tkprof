@@ -1,0 +1,869 @@
+mtkprof - Oracle optimizer trace (event 10053) digest
+========================================================================================================================
+Trace file : opt_join8.trc
+Database   : Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production  version 19.27.0.0.0
+Volume     : 14,651 lines  1 dumps
+
+Dumps
+   1  6h8v16hz0c16j   lines 32-14,589  runs 1  MTK_ORDERS, MTK_CUST
+
+========================================================================================================================
+OPTIMIZER DUMP 1   sql_id 6h8v16hz0c16j   dump 1 of this sql_id   plan hash 2370921470   lines 32-14,589
+view lines 1-14,651 (14,651 lines)   costing runs 1   tables MTK_ORDERS, MTK_CUST
+485 lines of the dump are in no known section
+------------------------------------------------------------------------------------------------------------------------
+
+SQL as typed (lines 66-76)
+------------------------------------------------------------------------------------------------------------------------
+explain plan for
+select /* mtk_opt_1111t121256770 join8 */ c1.name, c2.name, c3.name, c4.name, o1.amount, o2.amount, o3.amount, o4.amount
+  from mtk_cust c1, mtk_orders o1, mtk_cust c2, mtk_orders o2, mtk_cust c3, mtk_orders o3, mtk_cust c4, mtk_orders o4
+ where o1.cust_id = c1.id
+   and c2.id = o1.id
+   and o2.cust_id = c2.id
+   and c3.id = o2.id
+   and o3.cust_id = c3.id
+   and c4.id = o3.id
+   and o4.cust_id = c4.id
+   and c1.id between 1 and 10
+
+Altered parameters and fix controls
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Peeked binds
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Outline (lines from-to, line count)
+------------------------------------------------------------------------------------------------------------------------
+    from       to    lines  section
+       1       31       31  File header
+      32      776      745  Environment
+      32       45       14    Query blocks from the parser
+      46       61       16    Preamble
+      62      776      715    Optimizer information
+      65       82       18      Current SQL statement
+      83      141       59      Legend
+     142      772      631      Parameters used by the optimizer
+     145      151        7        Altered values
+     152      769      618        Default values
+     770      772        3        OPT_PARAM hint
+     773      776        4      Column usage monitoring
+     777     1758      982  Transformations
+     777     1366      590    Query transformations · SEL$1
+     800      804        5      Common Subexpression elimination (CSE)
+     805      809        5      Order-by elimination (OBYE)
+     810     1366      557      Join Elimination [JE:R 12.2] ×2
+    1367     1725      359    Query transformations · SEL$1
+    1390     1394        5      Common Subexpression elimination (CSE)
+    1395     1403        9      Approximate Aggregate Transformation (AAT)
+    1404     1408        5      Subquery Unnest (SU)
+    1409     1415        7      Set-Join Conversion (SJC)
+    1416     1692      277      Join Elimination [JE:R 12.2]
+    1693     1704       12      Predicate Move-Around (PM)
+    1705     1725       21      Statistic-based Query Transformation (SQT)
+    1719     1725        7        Common Subexpression elimination (CSE)
+    1726     1730        5    Peeked values of the binds
+    1731     1758       28    SQL plan directives
+    1759    12053    10295  Costing
+    1759     1760        2    Final query after transformations
+    1761    11567     9807    Run 1 of 1 · SEL$1 (#0)  [final plan]  best join order 1
+    1767     1802       36      Query block text, signature, system statistics
+    1803     1943      141      Base statistical information
+    1944     1986       43      MTK_CUST[C1]  -> IndexRange
+    1987     2029       43      MTK_ORDERS[O1]  -> IndexRange
+    2030     2049       20      MTK_CUST[C2]  -> TableScan
+    2050     2069       20      MTK_ORDERS[O2]  -> TableScan
+    2070     2089       20      MTK_CUST[C3]  -> TableScan
+    2090     2109       20      MTK_ORDERS[O3]  -> TableScan
+    2110     2129       20      MTK_CUST[C4]  -> TableScan
+    2130     2152       23      MTK_ORDERS[O4]  -> TableScan
+    2153     6610     4458      Join order search
+    2163     2746      584        Join order[1]:  MTK_CUST[C1]#0  MTK_ORDERS[O1]#1  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> cost: 224.864830  [best join order]
+    2165     2244       80          Now joining: MTK_ORDERS[O1]#1  -> NestedLoop
+    2245     2332       88          Now joining: MTK_CUST[C2]#2  -> NestedLoop
+    2333     2409       77          Now joining: MTK_ORDERS[O2]#5  -> NestedLoop
+    2410     2496       87          Now joining: MTK_CUST[C3]#3  -> NestedLoop
+    2497     2573       77          Now joining: MTK_ORDERS[O3]#6  -> NestedLoop
+    2574     2660       87          Now joining: MTK_CUST[C4]#4  -> NestedLoop
+    2661     2746       86          Now joining: MTK_ORDERS[O4]#7  -> NestedLoop
+    2747     3335      589        Join order[2]:  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    2749     2843       95          Now joining: MTK_CUST[C1]#0  -> Hash
+    2844     2931       88          Now joining: MTK_CUST[C2]#2  -> NestedLoop
+    2932     3008       77          Now joining: MTK_ORDERS[O2]#5  -> NestedLoop
+    3009     3095       87          Now joining: MTK_CUST[C3]#3  -> NestedLoop
+    3096     3172       77          Now joining: MTK_ORDERS[O3]#6  -> NestedLoop
+    3173     3259       87          Now joining: MTK_CUST[C4]#4  -> NestedLoop
+    3260     3335       76          Now joining: MTK_ORDERS[O4]#7
+    3336     3682      347        Join order[3]:  MTK_ORDERS[O1]#1  MTK_CUST[C2]#2  MTK_CUST[C1]#0  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    3338     3424       87          Now joining: MTK_CUST[C2]#2  -> NestedLoop
+    3425     3519       95          Now joining: MTK_CUST[C1]#0  -> Hash
+    3520     3596       77          Now joining: MTK_ORDERS[O2]#5  -> Hash
+    3597     3682       86          Now joining: MTK_CUST[C3]#3
+    3683     3956      274        Join order[4]:  MTK_ORDERS[O1]#1  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_CUST[C1]#0  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    3685     3761       77          Now joining: MTK_ORDERS[O2]#5  -> Hash
+    3762     3870      109          Now joining: MTK_CUST[C1]#0  -> Hash
+    3871     3956       86          Now joining: MTK_CUST[C3]#3
+    3957     4044       88        Join order[5]:  MTK_ORDERS[O1]#1  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_CUST[C1]#0  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    3959     4044       86          Now joining: MTK_CUST[C3]#3
+    4045     4047        3        Join order[6]:  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    4048     4050        3        Join order[7]:  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    4051     4053        3        Join order[8]:  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    4054     4056        3        Join order[9]:  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O4]#7  -> aborted
+    4057     4059        3        Join order[10]:  MTK_CUST[C4]#4  MTK_ORDERS[O3]#6  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O4]#7  -> aborted
+    4060     4062        3        Join order[11]:  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  MTK_ORDERS[O3]#6  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  -> aborted
+    4063     4179      117        Join order[12]:  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    4065     4179      115          Now joining: MTK_CUST[C2]#2
+    4180     4296      117        Join order[13]:  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    4182     4296      115          Now joining: MTK_CUST[C3]#3
+    4297     4413      117        Join order[14]:  MTK_ORDERS[O3]#6  MTK_CUST[C3]#3  MTK_CUST[C4]#4  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O4]#7  -> aborted
+    4299     4413      115          Now joining: MTK_CUST[C3]#3
+    4414     4530      117        Join order[15]:  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O4]#7  -> aborted
+    4416     4530      115          Now joining: MTK_CUST[C4]#4
+    4531     4648      118        Join order[16]:  MTK_ORDERS[O4]#7  MTK_CUST[C4]#4  MTK_ORDERS[O3]#6  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  -> aborted
+    4533     4648      116          Now joining: MTK_CUST[C4]#4
+    4649     5237      589        Join order[17]:  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    4651     4745       95          Now joining: MTK_CUST[C1]#0  -> Hash
+    4746     4833       88          Now joining: MTK_CUST[C2]#2  -> NestedLoop
+    4834     4910       77          Now joining: MTK_ORDERS[O2]#5  -> NestedLoop
+    4911     4997       87          Now joining: MTK_CUST[C3]#3  -> NestedLoop
+    4998     5074       77          Now joining: MTK_ORDERS[O3]#6  -> NestedLoop
+    5075     5161       87          Now joining: MTK_CUST[C4]#4  -> NestedLoop
+    5162     5237       76          Now joining: MTK_ORDERS[O4]#7
+    5238     5584      347        Join order[18]:  MTK_ORDERS[O1]#1  MTK_CUST[C2]#2  MTK_CUST[C1]#0  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    5240     5326       87          Now joining: MTK_CUST[C2]#2  -> NestedLoop
+    5327     5421       95          Now joining: MTK_CUST[C1]#0  -> Hash
+    5422     5498       77          Now joining: MTK_ORDERS[O2]#5  -> Hash
+    5499     5584       86          Now joining: MTK_CUST[C3]#3
+    5585     5858      274        Join order[19]:  MTK_ORDERS[O1]#1  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_CUST[C1]#0  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    5587     5663       77          Now joining: MTK_ORDERS[O2]#5  -> Hash
+    5664     5772      109          Now joining: MTK_CUST[C1]#0  -> Hash
+    5773     5858       86          Now joining: MTK_CUST[C3]#3
+    5859     5946       88        Join order[20]:  MTK_ORDERS[O1]#1  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_CUST[C1]#0  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    5861     5946       86          Now joining: MTK_CUST[C3]#3
+    5947     5949        3        Join order[21]:  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    5950     5952        3        Join order[22]:  MTK_CUST[C2]#2  MTK_ORDERS[O2]#5  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    5953     5955        3        Join order[23]:  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    5956     5958        3        Join order[24]:  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O4]#7  -> aborted
+    5959     5961        3        Join order[25]:  MTK_CUST[C4]#4  MTK_ORDERS[O3]#6  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O4]#7  -> aborted
+    5962     5964        3        Join order[26]:  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  MTK_ORDERS[O3]#6  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  -> aborted
+    5965     6081      117        Join order[27]:  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_CUST[C3]#3  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    5967     6081      115          Now joining: MTK_CUST[C2]#2
+    6082     6198      117        Join order[28]:  MTK_ORDERS[O2]#5  MTK_CUST[C3]#3  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_ORDERS[O4]#7  -> aborted
+    6084     6198      115          Now joining: MTK_CUST[C3]#3
+    6199     6315      117        Join order[29]:  MTK_ORDERS[O3]#6  MTK_CUST[C3]#3  MTK_CUST[C4]#4  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O4]#7  -> aborted
+    6201     6315      115          Now joining: MTK_CUST[C3]#3
+    6316     6432      117        Join order[30]:  MTK_ORDERS[O3]#6  MTK_CUST[C4]#4  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  MTK_ORDERS[O4]#7  -> aborted
+    6318     6432      115          Now joining: MTK_CUST[C4]#4
+    6433     6549      117        Join order[31]:  MTK_ORDERS[O4]#7  MTK_CUST[C4]#4  MTK_ORDERS[O3]#6  MTK_CUST[C3]#3  MTK_ORDERS[O2]#5  MTK_CUST[C2]#2  MTK_ORDERS[O1]#1  MTK_CUST[C1]#0  -> aborted
+    6435     6549      115          Now joining: MTK_CUST[C4]#4
+    6611     7148      538      Adaptive plan: inflection point, join #1
+    7151     8141      991      Adaptive plan: inflection point, join #2
+    8144     8586      443      Adaptive plan: inflection point, join #3
+    8589     9579      991      Adaptive plan: inflection point, join #4
+    9582    10024      443      Adaptive plan: inflection point, join #5
+   10027    11017      991      Adaptive plan: inflection point, join #6
+   11020    11462      443      Adaptive plan: inflection point, join #7
+   11557    11566       10      Final cost
+   12054    14589     2536  Result
+   12054    12086       33    Statement dump
+   12087    12177       91    Explain plan
+   12090    12134       45      Plan table
+   12135    12160       26      Query block name / object alias
+   12161    12177       17      Predicate information
+   12178    12226       49    Content of other_xml column
+   12187    12190        4      Optimizer metrics
+   12191    12194        4      Query block registry (XML)
+   12195    12226       32      Outline data
+   12227    14579     2353    Optimizer state dump
+   12228    12841      614      Parameters
+   12842    14579     1738      Fix controls
+   14580    14586        7    Query block registry
+   14587    14589        3    Dumping hints
+   14590    14651       62  After the dump
+
+Landmark lines (verbatim, with their line numbers)
+------------------------------------------------------------------------------------------------------------------------
+Best:: AccessPath (the access path kept for a table): 8
+    1983  Best:: AccessPath: IndexRange
+    2026  Best:: AccessPath: IndexRange
+    2047  Best:: AccessPath: TableScan
+    2067  Best:: AccessPath: TableScan
+    2087  Best:: AccessPath: TableScan
+    2107  Best:: AccessPath: TableScan
+    2127  Best:: AccessPath: TableScan
+    2147  Best:: AccessPath: TableScan
+
+Best:: JoinMethod (the join method kept for a join step): 29
+    2242  Best:: JoinMethod: NestedLoop
+    2330  Best:: JoinMethod: NestedLoop
+    2407  Best:: JoinMethod: NestedLoop
+    2494  Best:: JoinMethod: NestedLoop
+    2571  Best:: JoinMethod: NestedLoop
+    2658  Best:: JoinMethod: NestedLoop
+    2735  Best:: JoinMethod: NestedLoop
+    2841  Best:: JoinMethod: Hash
+    2929  Best:: JoinMethod: NestedLoop
+    3006  Best:: JoinMethod: NestedLoop
+    3093  Best:: JoinMethod: NestedLoop
+    3170  Best:: JoinMethod: NestedLoop
+    3257  Best:: JoinMethod: NestedLoop
+    3422  Best:: JoinMethod: NestedLoop
+    3517  Best:: JoinMethod: Hash
+    3594  Best:: JoinMethod: Hash
+    3759  Best:: JoinMethod: Hash
+    3868  Best:: JoinMethod: Hash
+    4743  Best:: JoinMethod: Hash
+    4831  Best:: JoinMethod: NestedLoop
+    4908  Best:: JoinMethod: NestedLoop
+    4995  Best:: JoinMethod: NestedLoop
+    5072  Best:: JoinMethod: NestedLoop
+    5159  Best:: JoinMethod: NestedLoop
+    5324  Best:: JoinMethod: NestedLoop
+    5419  Best:: JoinMethod: Hash
+    5496  Best:: JoinMethod: Hash
+    5661  Best:: JoinMethod: Hash
+    5770  Best:: JoinMethod: Hash
+
+Final cost for query block (the end of a costing run): 1
+   11557  Final cost for query block SEL$1 (#0) - All Rows Plan:
+
+Join order aborted: 30
+    3334  Join order aborted: cost > best plan cost
+    3681  Join order aborted: cost > best plan cost
+    3955  Join order aborted: cost > best plan cost
+    4043  Join order aborted: cost > best plan cost
+    4046  Join order aborted: cost > best plan cost
+    4049  Join order aborted: cost > best plan cost
+    4052  Join order aborted: cost > best plan cost
+    4055  Join order aborted: cost > best plan cost
+    4058  Join order aborted: cost > best plan cost
+    4061  Join order aborted: cost > best plan cost
+    4178  Join order aborted: cost > best plan cost
+    4295  Join order aborted: cost > best plan cost
+    4412  Join order aborted: cost > best plan cost
+    4529  Join order aborted: cost > best plan cost
+    4646  Join order aborted: cost > best plan cost
+    5236  Join order aborted: cost > best plan cost
+    5583  Join order aborted: cost > best plan cost
+    5857  Join order aborted: cost > best plan cost
+    5945  Join order aborted: cost > best plan cost
+    5948  Join order aborted: cost > best plan cost
+    5951  Join order aborted: cost > best plan cost
+    5954  Join order aborted: cost > best plan cost
+    5957  Join order aborted: cost > best plan cost
+    5960  Join order aborted: cost > best plan cost
+    5963  Join order aborted: cost > best plan cost
+    6080  Join order aborted: cost > best plan cost
+    6197  Join order aborted: cost > best plan cost
+    6314  Join order aborted: cost > best plan cost
+    6431  Join order aborted: cost > best plan cost
+    6548  Join order aborted: cost > best plan cost
+
+Transformations and checks the trace says were bypassed or refused: 428
+     782  JF: Bypassed: not a UNION or UNION-ALL query block.
+     783  ST: not valid since star transformation parameter is FALSE
+     785  TE: Bypassed: No partitioned table in query block.
+     791  ORE: bypassed - No valid predicate for OR expansion.
+     793  VT: Bypassed: inmemory is disabled.
+     795  invalid because Not enabled by hint/parameter
+     796  BJ: Bypassed: Not enabled by hint/parameter.
+     797  CBQT bypassed for query block SEL$1 (#0): no complex view, sub-queries or UNION (ALL) queries.
+     803  CSE:     CSE not performed on query block SEL$1 (#0).
+     808  OBYE:     OBYE bypassed: no order by to eliminate.
+     819  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+     821  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+     823  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+     825  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+     827  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+     829  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+     831  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+     833  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+     835  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+     837  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+     839  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+     841  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+     843  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+     845  JE:[V2]: Cannot eliminate C4 by ref. join elim - predicate column refs.
+     847  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     849  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     851  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     853  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+     855  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+     857  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     859  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     861  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     863  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+     865  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+     867  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     869  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     871  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     873  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+     875  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+     877  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+     879  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+     881  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+     883  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+     885  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+     887  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+     889  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+     891  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+     893  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+     895  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+     897  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+     899  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+     901  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+     903  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+     905  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+     907  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+     909  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     911  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     913  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+     915  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+     917  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     919  JE:[V2]: Cannot eliminate C3 by ref. join elim - predicate column refs.
+     921  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     923  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     925  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     927  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+     929  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+     931  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+     933  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     935  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     937  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     939  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+     941  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+     943  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+     945  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+     947  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+     949  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+     951  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+     953  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+     955  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+     957  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+     959  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+     961  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+     963  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+     965  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+     967  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+     969  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+     971  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+     973  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+     975  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+     977  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+     979  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+     981  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+     983  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+     985  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+     987  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+     989  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+     991  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+     993  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+     995  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+     997  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+     999  JE:[V2]: Cannot eliminate C2 by ref. join elim - predicate column refs.
+    1001  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1003  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1005  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1007  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+    1009  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1011  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1013  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1015  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1017  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1019  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1021  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1023  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1025  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1027  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1029  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1031  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1033  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1035  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1037  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1039  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1041  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1043  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1045  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1047  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1049  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1051  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1053  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1055  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1057  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1059  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1061  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1063  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1065  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1067  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1069  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1071  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1073  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1075  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1077  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1079  JE:[V2]: Cannot eliminate C1 by ref. join elim - predicate column refs.
+    1081  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1099  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1101  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+    1103  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+    1105  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1107  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1109  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+    1111  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+    1113  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1115  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1117  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+    1119  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+    1121  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1123  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1125  JE:[V2]: Cannot eliminate C4 by ref. join elim - predicate column refs.
+    1127  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1129  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1131  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1133  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+    1135  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+    1137  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1139  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1141  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1143  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+    1145  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+    1147  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1149  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1151  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1153  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+    1155  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+    1157  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1159  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+    1161  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1163  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1165  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1167  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1169  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+    1171  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1173  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1175  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1177  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1179  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+    1181  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1183  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1185  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1187  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1189  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1191  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1193  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+    1195  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1197  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1199  JE:[V2]: Cannot eliminate C3 by ref. join elim - predicate column refs.
+    1201  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1203  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1205  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1207  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+    1209  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1211  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1213  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1215  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1217  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1219  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+    1221  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1223  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1225  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1227  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+    1229  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1231  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1233  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1235  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+    1237  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1239  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1241  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1243  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1245  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1247  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+    1249  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1251  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1253  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1255  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1257  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1259  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1261  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+    1263  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1265  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1267  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1269  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1271  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+    1273  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1275  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1277  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1279  JE:[V2]: Cannot eliminate C2 by ref. join elim - predicate column refs.
+    1281  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1283  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1285  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1287  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+    1289  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1291  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1293  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1295  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1297  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1299  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1301  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1303  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1305  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1307  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1309  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1311  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1313  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1315  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1317  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1319  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1321  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1323  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1325  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1327  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1329  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1331  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1333  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1335  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1337  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1339  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1341  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1343  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1345  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1347  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1349  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1351  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1353  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1355  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1357  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1359  JE:[V2]: Cannot eliminate C1 by ref. join elim - predicate column refs.
+    1361  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1372  JF: Bypassed: not a UNION or UNION-ALL query block.
+    1373  ST: not valid since star transformation parameter is FALSE
+    1375  TE: Bypassed: No partitioned table in query block.
+    1381  ORE: bypassed - No valid predicate for OR expansion.
+    1383  VT: Bypassed: inmemory is disabled.
+    1385  invalid because Not enabled by hint/parameter
+    1386  BJ: Bypassed: Not enabled by hint/parameter.
+    1387  CBQT bypassed for query block SEL$1 (#0): no complex view, sub-queries or UNION (ALL) queries.
+    1393  CSE:     CSE not performed on query block SEL$1 (#0).
+    1412  SJC: not performed
+    1425  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1427  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+    1429  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+    1431  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1433  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1435  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+    1437  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+    1439  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1441  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1443  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+    1445  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+    1447  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1449  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+    1451  JE:[V2]: Cannot eliminate C4 by ref. join elim - predicate column refs.
+    1453  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1455  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1457  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1459  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+    1461  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+    1463  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1465  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1467  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1469  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+    1471  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+    1473  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1475  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1477  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1479  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+    1481  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+    1483  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+    1485  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+    1487  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1489  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1491  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1493  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1495  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+    1497  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1499  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1501  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1503  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1505  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+    1507  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1509  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+    1511  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1513  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+    1515  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1517  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1519  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+    1521  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1523  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1525  JE:[V2]: Cannot eliminate C3 by ref. join elim - predicate column refs.
+    1527  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1529  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1531  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1533  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+    1535  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1537  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1539  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1541  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1543  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1545  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+    1547  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1549  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+    1551  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+    1553  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+    1555  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1557  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1559  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1561  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+    1563  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1565  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1567  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1569  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1571  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1573  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+    1575  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1577  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+    1579  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1581  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+    1583  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1585  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1587  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+    1589  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1591  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1593  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1595  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1597  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+    1599  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1601  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1603  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1605  JE:[V2]: Cannot eliminate C2 by ref. join elim - predicate column refs.
+    1607  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1609  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1611  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1613  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+    1615  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1617  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+    1619  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+    1621  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1623  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1625  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1627  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1629  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1631  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1633  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1635  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1637  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1639  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+    1641  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1643  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+    1645  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1647  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1649  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+    1651  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1653  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1655  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1657  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1659  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1661  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1663  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1665  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1667  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1669  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1671  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1673  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1675  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1677  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+    1679  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1681  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+    1683  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1685  JE:[V2]: Cannot eliminate C1 by ref. join elim - predicate column refs.
+    1687  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+    1696  PM:     PM bypassed: Outer query contains no views.
+    1697  PM:     PM bypassed: Outer query contains no views.
+    1702  invalid because query block has less than two views
+    1703  UPT: Bypassed: query block has less than two views.
+    1708  SQT:     SQT bypassed: Disabled by parameter.
+    1722  CSE:     CSE not performed on query block SEL$1 (#0).
+   11465  AP: Adaptive joins bypassed for table C2 @ SEL$1 due to Swapped hash join
+   11469  AP: Adaptive joins bypassed for table C3 @ SEL$1 due to Swapped hash join
+   11475  AP: Adaptive joins bypassed for table C4 @ SEL$1 due to Swapped hash join
+   11503  AP: Adaptive joins bypassed for table C2 @ SEL$1 due to Swapped hash join
+   11521  AP: Adaptive joins bypassed for table C3 @ SEL$1 due to Swapped hash join
+   11539  AP: Adaptive joins bypassed for table C4 @ SEL$1 due to Swapped hash join
+
+
+Versions of the transformed SQL (UNPARSED QUERY IS)
+------------------------------------------------------------------------------------------------------------------------
+[1] line 814  SQL
+    SELECT "C1"."NAME" "NAME",
+           "C2"."NAME" "NAME",
+           "C3"."NAME" "NAME",
+           "C4"."NAME" "NAME",
+           "O1"."AMOUNT" "AMOUNT",
+           "O2"."AMOUNT" "AMOUNT",
+           "O3"."AMOUNT" "AMOUNT",
+           "O4"."AMOUNT" "AMOUNT"
+    FROM "MTK"."MTK_CUST" "C1",
+      "MTK"."MTK_ORDERS" "O1",
+      "MTK"."MTK_CUST" "C2",
+      "MTK"."MTK_ORDERS" "O2",
+      "MTK"."MTK_CUST" "C3",
+      "MTK"."MTK_ORDERS" "O3",
+      "MTK"."MTK_CUST" "C4",
+      "MTK"."MTK_ORDERS" "O4"
+    WHERE "O1"."CUST_ID"="C1"."ID"
+      AND "C2"."ID"="O1"."ID"
+      AND "O2"."CUST_ID"="C2"."ID"
+      AND "C3"."ID"="O2"."ID"
+      AND "O3"."CUST_ID"="C3"."ID"
+      AND "C4"."ID"="O3"."ID"
+      AND "O4"."CUST_ID"="C4"."ID"
+      AND "C1"."ID">=1
+      AND "C1"."ID"<=10
+
+[2] line 817  SQL: the same statement as line 814
+
+[3] line 1084  SQL: the same statement as line 814
+
+[4] line 1094  SQL: the same statement as line 814
+
+[5] line 1097  SQL: the same statement as line 814
+
+[6] line 1364  SQL: the same statement as line 814
+
+[7] line 1402  Query after View Removal: the same statement as line 814
+
+[8] line 1420  SQL: the same statement as line 814
+
+[9] line 1423  SQL: the same statement as line 814
+
+[10] line 1690  SQL: the same statement as line 814
+
+[11] line 1735  Stmt   (previous statement: line 1690)
+    SELECT "C1"."NAME" "NAME",
+           "C2"."NAME" "NAME",
+           "C3"."NAME" "NAME",
+           "C4"."NAME" "NAME",
+           "O1"."AMOUNT" "AMOUNT",
+           "O2"."AMOUNT" "AMOUNT",
+           "O3"."AMOUNT" "AMOUNT",
+           "O4"."AMOUNT" "AMOUNT"
+    FROM "MTK"."MTK_CUST" "C1",
+      "MTK"."MTK_ORDERS" "O1",
+      "MTK"."MTK_CUST" "C2",
+      "MTK"."MTK_ORDERS" "O2",
+      "MTK"."MTK_CUST" "C3",
+      "MTK"."MTK_ORDERS" "O3",
+      "MTK"."MTK_CUST" "C4",
+      "MTK"."MTK_ORDERS" "O4"
+    WHERE "O1"."CUST_ID"="C1"."ID"
+      AND "C2"."ID"="O1"."ID"
+      AND "O2"."CUST_ID"="C2"."ID"
+      AND "C3"."ID"="O2"."ID"
+      AND "O3"."CUST_ID"="C3"."ID"
+      AND "C4"."ID"="O3"."ID"
+      AND "O4"."CUST_ID"="C4"."ID"
+      AND "C1"."ID">=1
+      AND "C1"."ID"<=10
+      AND "O1"."CUST_ID">=1
+      AND "O1"."CUST_ID"<=10
+      AND 10>=1
+
+[12] line 1760  Final query after transformations: the same statement as line 1735
+
+
+Final plan
+------------------------------------------------------------------------------------------------------------------------
+lines 12090-12176
+============
+Plan Table
+============
+---------------------------------------------------------------------------------+-----------------------------------+
+| Id  | Operation                                            | Name              | Rows  | Bytes | Cost  | Time      |
+---------------------------------------------------------------------------------+-----------------------------------+
+| 0   | SELECT STATEMENT                                     |                   |       |       |   225 |           |
+| 1   |  HASH JOIN                                           |                   |    49 |   10K |   225 |  00:00:03 |
+| 2   |   NESTED LOOPS                                       |                   |    49 |   10K |   225 |  00:00:03 |
+| 3   |    NESTED LOOPS                                      |                   |    50 |   10K |   225 |  00:00:03 |
+| 4   |     STATISTICS COLLECTOR                             |                   |       |       |       |           |
+| 5   |      NESTED LOOPS                                    |                   |    10 |  2090 |   165 |  00:00:02 |
+| 6   |       HASH JOIN                                      |                   |    49 |  8232 |   155 |  00:00:02 |
+| 7   |        NESTED LOOPS                                  |                   |    49 |  8232 |   155 |  00:00:02 |
+| 8   |         STATISTICS COLLECTOR                         |                   |       |       |       |           |
+| 9   |          NESTED LOOPS                                |                   |    10 |  1530 |    95 |  00:00:02 |
+| 10  |           HASH JOIN                                  |                   |    50 |  5600 |    85 |  00:00:02 |
+| 11  |            NESTED LOOPS                              |                   |    50 |  5600 |    85 |  00:00:02 |
+| 12  |             STATISTICS COLLECTOR                     |                   |       |       |       |           |
+| 13  |              NESTED LOOPS                            |                   |    10 |   970 |    25 |  00:00:01 |
+| 14  |               HASH JOIN                              |                   |    10 |   560 |    23 |  00:00:01 |
+| 15  |                NESTED LOOPS                          |                   |    10 |   560 |    23 |  00:00:01 |
+| 16  |                 STATISTICS COLLECTOR                 |                   |       |       |       |           |
+| 17  |                  TABLE ACCESS BY INDEX ROWID BATCHED | MTK_CUST          |    10 |   410 |     3 |  00:00:01 |
+| 18  |                   INDEX RANGE SCAN                   | MTK_CUST_PK       |    10 |       |     2 |  00:00:01 |
+| 19  |                 TABLE ACCESS BY INDEX ROWID BATCHED  | MTK_ORDERS        |     1 |    15 |     2 |  00:00:01 |
+| 20  |                  INDEX RANGE SCAN                    | MTK_ORDERS_CUST_IX|     1 |       |     1 |  00:00:01 |
+| 21  |                TABLE ACCESS BY INDEX ROWID BATCHED   | MTK_ORDERS        |     1 |    15 |     2 |  00:00:01 |
+| 22  |                 INDEX RANGE SCAN                     | MTK_ORDERS_CUST_IX|     1 |       |     1 |  00:00:01 |
+| 23  |               TABLE ACCESS BY INDEX ROWID            | MTK_CUST          |     1 |    41 |     1 |  00:00:01 |
+| 24  |                INDEX UNIQUE SCAN                     | MTK_CUST_PK       |     1 |       |     0 |           |
+| 25  |             TABLE ACCESS BY INDEX ROWID BATCHED      | MTK_ORDERS        |     5 |    75 |     6 |  00:00:01 |
+| 26  |              INDEX RANGE SCAN                        | MTK_ORDERS_CUST_IX|     5 |       |     1 |  00:00:01 |
+| 27  |            TABLE ACCESS FULL                         | MTK_ORDERS        |     5 |    75 |     6 |  00:00:01 |
+| 28  |           TABLE ACCESS BY INDEX ROWID                | MTK_CUST          |     1 |    41 |     1 |  00:00:01 |
+| 29  |            INDEX UNIQUE SCAN                         | MTK_CUST_PK       |     1 |       |     0 |           |
+| 30  |         TABLE ACCESS BY INDEX ROWID BATCHED          | MTK_ORDERS        |     5 |    75 |     6 |  00:00:01 |
+| 31  |          INDEX RANGE SCAN                            | MTK_ORDERS_CUST_IX|     5 |       |     1 |  00:00:01 |
+| 32  |        TABLE ACCESS FULL                             | MTK_ORDERS        |     5 |    75 |     6 |  00:00:01 |
+| 33  |       TABLE ACCESS BY INDEX ROWID                    | MTK_CUST          |     1 |    41 |     1 |  00:00:01 |
+| 34  |        INDEX UNIQUE SCAN                             | MTK_CUST_PK       |     1 |       |     0 |           |
+| 35  |     INDEX RANGE SCAN                                 | MTK_ORDERS_CUST_IX|     5 |       |     1 |  00:00:01 |
+| 36  |    TABLE ACCESS BY INDEX ROWID                       | MTK_ORDERS        |     5 |    50 |     6 |  00:00:01 |
+| 37  |   TABLE ACCESS FULL                                  | MTK_ORDERS        |     5 |    50 |     6 |  00:00:01 |
+---------------------------------------------------------------------------------+-----------------------------------+
+Query Block Name / Object Alias (identified by operation id):
+------------------------------------------------------------
+ 1 - SEL$1                
+ 2 - SEL$1                
+17 - SEL$1                / "C1"@"SEL$1"
+18 - SEL$1                / "C1"@"SEL$1"
+19 - SEL$1                / "O1"@"SEL$1"
+20 - SEL$1                / "O1"@"SEL$1"
+21 - SEL$1                / "O1"@"SEL$1"
+22 - SEL$1                / "O1"@"SEL$1"
+23 - SEL$1                / "C2"@"SEL$1"
+24 - SEL$1                / "C2"@"SEL$1"
+25 - SEL$1                / "O2"@"SEL$1"
+26 - SEL$1                / "O2"@"SEL$1"
+27 - SEL$1                / "O2"@"SEL$1"
+28 - SEL$1                / "C3"@"SEL$1"
+29 - SEL$1                / "C3"@"SEL$1"
+30 - SEL$1                / "O3"@"SEL$1"
+31 - SEL$1                / "O3"@"SEL$1"
+32 - SEL$1                / "O3"@"SEL$1"
+33 - SEL$1                / "C4"@"SEL$1"
+34 - SEL$1                / "C4"@"SEL$1"
+35 - SEL$1                / "O4"@"SEL$1"
+36 - SEL$1                / "O4"@"SEL$1"
+37 - SEL$1                / "O4"@"SEL$1"
+------------------------------------------------------------
+Predicate Information:
+----------------------
+1 - access("O4"."CUST_ID"="C4"."ID")
+6 - access("O3"."CUST_ID"="C3"."ID")
+10 - access("O2"."CUST_ID"="C2"."ID")
+14 - access("O1"."CUST_ID"="C1"."ID")
+18 - access("C1"."ID">=1 AND "C1"."ID"<=10)
+20 - access("O1"."CUST_ID"="C1"."ID")
+20 - filter(("O1"."CUST_ID"<=10 AND "O1"."CUST_ID">=1))
+22 - access("O1"."CUST_ID">=1 AND "O1"."CUST_ID"<=10)
+24 - access("C2"."ID"="O1"."ID")
+26 - access("O2"."CUST_ID"="C2"."ID")
+29 - access("C3"."ID"="O2"."ID")
+31 - access("O3"."CUST_ID"="C3"."ID")
+34 - access("C4"."ID"="O3"."ID")
+35 - access("O4"."CUST_ID"="C4"."ID")
+
+Hints
+------------------------------------------------------------------------------------------------------------------------
+none
+

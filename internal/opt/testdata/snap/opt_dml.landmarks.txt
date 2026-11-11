@@ -1,0 +1,168 @@
+dump 1 419jcqfm9713k: 47 landmarks
+774 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+775 refused rejected  ST: not valid since star transformation parameter is FALSE
+777 refused rejected  TE: Bypassed: No partitioned table in query block.
+783 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+785 refused rejected  VT: Bypassed: inmemory is disabled.
+787 refused rejected  invalid because Not enabled by hint/parameter
+788 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+790 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+791 refused rejected  ST: not valid since star transformation parameter is FALSE
+793 refused rejected  TE: Bypassed: Top query block of a DML.
+796 refused rejected  VT: Bypassed: inmemory is disabled.
+798 refused rejected  invalid because Not enabled by hint/parameter
+799 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+800 refused rejected  CBQT bypassed for query block INS$1 (#0): no complex view, sub-queries or UNION (ALL) queries.
+806 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+811 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+824 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+825 refused rejected  ST: not valid since star transformation parameter is FALSE
+827 refused rejected  TE: Bypassed: No partitioned table in query block.
+833 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+835 refused rejected  VT: Bypassed: inmemory is disabled.
+837 refused rejected  invalid because Not enabled by hint/parameter
+838 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+840 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+841 refused rejected  ST: not valid since star transformation parameter is FALSE
+843 refused rejected  TE: Bypassed: Top query block of a DML.
+846 refused rejected  VT: Bypassed: inmemory is disabled.
+848 refused rejected  invalid because Not enabled by hint/parameter
+849 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+850 refused rejected  CBQT bypassed for query block INS$1 (#0): no complex view, sub-queries or UNION (ALL) queries.
+856 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+873 refused rejected  SJC: not performed
+882 refused rejected  PM:     PM bypassed: Outer query contains no views.
+883 refused rejected  PM:     PM bypassed: Outer query contains no views.
+890 refused rejected  invalid because Not a SELECT statement
+891 refused rejected  UPT: Bypassed: Not a SELECT statement.
+894 refused rejected  invalid because Not a SELECT statement
+895 refused rejected  UPT: Bypassed: Not a SELECT statement.
+896 refused rejected  SQT:    SQT bypassed: non select statement.
+910 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+1012 best-ap kept  Best:: AccessPath: TableScan
+1019 refused rejected  PJE:  Bypassed; QB has a single table SEL$1 (#0)
+1045 final-cost kept  Final cost for query block SEL$1 (#0) - All Rows Plan:
+1115 best-ap kept  Best:: AccessPath: TableScan
+1122 refused rejected  PJE:  Bypassed; QB has a single table INS$1 (#0)
+1140 refused rejected  AP: Adaptive joins bypassed for query block INS$1 due to top-level query block of non-SELECT
+1146 final-cost kept  Final cost for query block INS$1 (#0) - All Rows Plan:
+dump 2 21298g6n3w6yw: 74 landmarks
+4361 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+4362 refused rejected  ST: not valid since star transformation parameter is FALSE
+4364 refused rejected  TE: Bypassed: No partitioned table in query block.
+4370 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+4372 refused rejected  VT: Bypassed: inmemory is disabled.
+4374 refused rejected  invalid because Not enabled by hint/parameter
+4375 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+4377 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+4378 refused rejected  ST: not valid since star transformation parameter is FALSE
+4380 refused rejected  TE: Bypassed: No partitioned table in query block.
+4386 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+4388 refused rejected  VT: Bypassed: inmemory is disabled.
+4390 refused rejected  invalid because Not enabled by hint/parameter
+4391 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+4403 refused rejected  CSE:     CSE not performed on query block SEL$2 (#0).
+4408 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+4409 refused rejected  CSE:     CSE not performed on query block UPD$1 (#0).
+4414 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+4440 refused rejected  CSE:     CSE not performed on query block SEL$2 (#0).
+4445 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+4446 refused rejected  CSE:     CSE not performed on query block UPD$1 (#0).
+4457 refused rejected  CSE:     CSE not performed on query block SEL$2 (#0).
+4462 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+4463 refused rejected  CSE:     CSE not performed on query block UPD$1 (#0).
+4504 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+4518 refused rejected  CSE:     CSE not performed on query block SEL$2 (#0).
+4523 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+4524 refused rejected  CSE:     CSE not performed on query block UPD$1 (#0).
+4546 refused rejected  invalid because Not a SELECT statement
+4547 refused rejected  UPT: Bypassed: Not a SELECT statement.
+4550 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+4556 refused rejected  invalid because Not a SELECT statement
+4557 refused rejected  UPT: Bypassed: Not a SELECT statement.
+4560 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+4566 refused rejected  invalid because Not a SELECT statement
+4567 refused rejected  UPT: Bypassed: Not a SELECT statement.
+4570 refused rejected  ORE: bypassed - Top query block of a DML.
+4656 refused rejected  SJC: not performed
+4657 refused rejected  SJC: not performed
+4675 refused rejected  PM:     PM bypassed: Outer query contains no views.
+4676 refused rejected  PM:     PM bypassed: Outer query contains no views.
+4696 refused rejected  VT: Bypassed: inmemory is disabled.
+4698 refused rejected  VT: Bypassed: inmemory is disabled.
+4710 refused rejected  invalid because Not enabled by hint/parameter
+4711 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+4713 refused rejected  invalid because Not enabled by hint/parameter
+4714 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+4733 refused rejected  invalid because Not a SELECT statement
+4734 refused rejected  UPT: Bypassed: Not a SELECT statement.
+4737 refused rejected  invalid because Not a SELECT statement
+4738 refused rejected  UPT: Bypassed: Not a SELECT statement.
+4744 refused rejected  TE: Bypassed: No partitioned table in query block.
+4746 refused rejected  TE: Bypassed: Top query block of a DML.
+4754 refused rejected  TE: Bypassed: No partitioned table in query block.
+4756 refused rejected  TE: Bypassed: Top query block of a DML.
+4766 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+4776 refused rejected  ST: not valid since star transformation parameter is FALSE
+4777 refused rejected  ST: not valid since star transformation parameter is FALSE
+4783 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+4785 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+4807 refused rejected  SQT:    SQT bypassed: non select statement.
+4827 refused rejected  CSE:     CSE not performed on query block SEL$1 (#2).
+4828 refused rejected  CSE:     CSE not performed on query block SEL$10439C08 (#1).
+4907 best-ap kept  Best:: AccessPath: TableScan
+4914 refused rejected  PJE:  Bypassed; QB has a single table SEL$1 (#2)
+4931 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$1 (#2) because Cost based OR expansion enabled
+4940 final-cost kept  Final cost for query block SEL$1 (#2) - All Rows Plan:
+5039 best-ap kept  Best:: AccessPath: TableScan
+5059 best-ap kept  Best:: AccessPath: TableScan
+5178 best-jm kept  Best:: JoinMethod: Hash
+5300 aborted rejected  Join order aborted: cost > best plan cost
+5320 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$10439C08 (#1) because Cost based OR expansion enabled
+5323 refused rejected  AP: Adaptive joins bypassed for query block SEL$10439C08 due to top-level query block of non-SELECT
+5337 final-cost kept  Final cost for query block SEL$10439C08 (#1) - All Rows Plan:
+dump 3 3n5p9kvkzuy42: 44 landmarks
+8588 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+8589 refused rejected  ST: not valid since star transformation parameter is FALSE
+8591 refused rejected  TE: Bypassed: No partitioned table in query block.
+8597 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+8599 refused rejected  VT: Bypassed: inmemory is disabled.
+8601 refused rejected  invalid because Not enabled by hint/parameter
+8602 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+8612 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+8613 refused rejected  CSE:     CSE not performed on query block DEL$1 (#0).
+8618 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+8636 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+8637 refused rejected  CSE:     CSE not performed on query block DEL$1 (#0).
+8648 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+8649 refused rejected  CSE:     CSE not performed on query block DEL$1 (#0).
+8689 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+8702 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+8703 refused rejected  CSE:     CSE not performed on query block DEL$1 (#0).
+8724 refused rejected  invalid because Not a SELECT statement
+8725 refused rejected  UPT: Bypassed: Not a SELECT statement.
+8728 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+8734 refused rejected  invalid because Not a SELECT statement
+8735 refused rejected  UPT: Bypassed: Not a SELECT statement.
+8738 refused rejected  ORE: bypassed - Top query block of a DML.
+8801 refused rejected  SJC: not performed
+8810 refused rejected  PM:     PM bypassed: Outer query contains no views.
+8811 refused rejected  PM:     PM bypassed: Outer query contains no views.
+8829 refused rejected  VT: Bypassed: inmemory is disabled.
+8841 refused rejected  invalid because Not enabled by hint/parameter
+8842 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+8861 refused rejected  invalid because Not a SELECT statement
+8862 refused rejected  UPT: Bypassed: Not a SELECT statement.
+8868 refused rejected  TE: Bypassed: Top query block of a DML.
+8876 refused rejected  TE: Bypassed: Top query block of a DML.
+8890 refused rejected  ST: not valid since star transformation parameter is FALSE
+8896 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+8918 refused rejected  SQT:    SQT bypassed: non select statement.
+8929 refused rejected  CSE:     CSE not performed on query block SEL$3BA1AD7C (#1).
+9020 best-ap kept  Best:: AccessPath: TableScan
+9049 best-ap kept  Best:: AccessPath: TableScan
+9173 best-jm kept  Best:: JoinMethod: Hash
+9287 aborted rejected  Join order aborted: cost > best plan cost
+9306 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$3BA1AD7C (#1) because Cost based OR expansion enabled
+9309 refused rejected  AP: Adaptive joins bypassed for query block SEL$3BA1AD7C due to top-level query block of non-SELECT
+9324 final-cost kept  Final cost for query block SEL$3BA1AD7C (#1) - All Rows Plan:

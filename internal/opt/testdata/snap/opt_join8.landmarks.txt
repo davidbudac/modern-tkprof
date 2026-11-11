@@ -1,0 +1,497 @@
+dump 1 6h8v16hz0c16j: 496 landmarks
+782 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+783 refused rejected  ST: not valid since star transformation parameter is FALSE
+785 refused rejected  TE: Bypassed: No partitioned table in query block.
+791 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+793 refused rejected  VT: Bypassed: inmemory is disabled.
+795 refused rejected  invalid because Not enabled by hint/parameter
+796 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+797 refused rejected  CBQT bypassed for query block SEL$1 (#0): no complex view, sub-queries or UNION (ALL) queries.
+803 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+808 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+819 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+821 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+823 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+825 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+827 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+829 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+831 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+833 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+835 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+837 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+839 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+841 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+843 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+845 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - predicate column refs.
+847 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+849 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+851 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+853 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+855 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+857 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+859 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+861 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+863 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+865 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+867 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+869 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+871 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+873 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+875 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+877 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+879 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+881 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+883 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+885 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+887 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+889 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+891 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+893 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+895 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+897 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+899 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+901 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+903 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+905 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+907 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+909 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+911 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+913 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+915 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+917 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+919 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - predicate column refs.
+921 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+923 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+925 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+927 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+929 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+931 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+933 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+935 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+937 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+939 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+941 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+943 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+945 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+947 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+949 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+951 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+953 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+955 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+957 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+959 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+961 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+963 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+965 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+967 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+969 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+971 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+973 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+975 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+977 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+979 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+981 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+983 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+985 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+987 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+989 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+991 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+993 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+995 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+997 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+999 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - predicate column refs.
+1001 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1003 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1005 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1007 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+1009 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1011 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1013 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1015 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1017 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1019 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1021 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1023 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1025 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1027 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1029 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1031 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1033 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1035 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1037 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1039 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1041 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1043 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1045 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1047 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1049 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1051 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1053 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1055 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1057 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1059 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1061 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1063 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1065 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1067 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1069 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1071 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1073 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1075 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1077 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1079 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - predicate column refs.
+1081 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1099 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1101 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+1103 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+1105 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1107 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1109 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+1111 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+1113 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1115 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1117 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+1119 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+1121 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1123 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1125 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - predicate column refs.
+1127 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1129 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1131 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1133 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+1135 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+1137 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1139 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1141 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1143 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+1145 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+1147 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1149 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1151 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1153 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+1155 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+1157 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1159 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+1161 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1163 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1165 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1167 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1169 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+1171 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1173 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1175 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1177 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1179 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+1181 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1183 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1185 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1187 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1189 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1191 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1193 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+1195 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1197 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1199 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - predicate column refs.
+1201 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1203 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1205 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1207 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+1209 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1211 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1213 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1215 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1217 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1219 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+1221 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1223 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1225 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1227 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+1229 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1231 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1233 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1235 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+1237 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1239 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1241 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1243 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1245 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1247 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+1249 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1251 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1253 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1255 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1257 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1259 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1261 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+1263 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1265 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1267 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1269 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1271 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+1273 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1275 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1277 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1279 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - predicate column refs.
+1281 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1283 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1285 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1287 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+1289 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1291 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1293 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1295 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1297 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1299 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1301 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1303 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1305 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1307 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1309 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1311 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1313 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1315 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1317 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1319 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1321 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1323 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1325 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1327 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1329 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1331 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1333 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1335 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1337 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1339 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1341 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1343 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1345 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1347 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1349 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1351 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1353 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1355 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1357 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1359 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - predicate column refs.
+1361 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1372 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+1373 refused rejected  ST: not valid since star transformation parameter is FALSE
+1375 refused rejected  TE: Bypassed: No partitioned table in query block.
+1381 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+1383 refused rejected  VT: Bypassed: inmemory is disabled.
+1385 refused rejected  invalid because Not enabled by hint/parameter
+1386 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+1387 refused rejected  CBQT bypassed for query block SEL$1 (#0): no complex view, sub-queries or UNION (ALL) queries.
+1393 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+1412 refused rejected  SJC: not performed
+1425 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1427 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+1429 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+1431 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1433 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1435 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+1437 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+1439 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1441 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1443 refused rejected  JE:[V2]: Cannot eliminate table O4 by self join elim due to predicate column refs.
+1445 refused rejected  JE:[V2]: Cannot eliminate O4 by self join elim - no constr. based join pred(s)
+1447 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1449 refused rejected  JE:[V2]: Cannot eliminate O4 by ref. join elim - no constr. based join pred(s)
+1451 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - predicate column refs.
+1453 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1455 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1457 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1459 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+1461 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+1463 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1465 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1467 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1469 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+1471 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+1473 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1475 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1477 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1479 refused rejected  JE:[V2]: Cannot eliminate table C4 by self join elim due to predicate column refs.
+1481 refused rejected  JE:[V2]: Cannot eliminate C4 by self join elim - no constr. based join pred(s)
+1483 refused rejected  JE:[V2]: Cannot eliminate C4 by ref. join elim - no constr. based join pred(s)
+1485 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+1487 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1489 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1491 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1493 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1495 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+1497 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1499 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1501 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1503 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1505 refused rejected  JE:[V2]: Cannot eliminate table O3 by self join elim due to predicate column refs.
+1507 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1509 refused rejected  JE:[V2]: Cannot eliminate O3 by self join elim - no constr. based join pred(s)
+1511 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1513 refused rejected  JE:[V2]: Cannot eliminate O3 by ref. join elim - no constr. based join pred(s)
+1515 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1517 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1519 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+1521 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1523 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1525 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - predicate column refs.
+1527 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1529 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1531 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1533 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+1535 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1537 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1539 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1541 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1543 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1545 refused rejected  JE:[V2]: Cannot eliminate table C3 by self join elim due to predicate column refs.
+1547 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1549 refused rejected  JE:[V2]: Cannot eliminate C3 by self join elim - no constr. based join pred(s)
+1551 refused rejected  JE:[V2]: Cannot eliminate C3 by ref. join elim - no constr. based join pred(s)
+1553 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+1555 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1557 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1559 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1561 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+1563 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1565 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1567 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1569 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1571 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1573 refused rejected  JE:[V2]: Cannot eliminate table O2 by self join elim due to predicate column refs.
+1575 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1577 refused rejected  JE:[V2]: Cannot eliminate O2 by self join elim - no constr. based join pred(s)
+1579 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1581 refused rejected  JE:[V2]: Cannot eliminate O2 by ref. join elim - no constr. based join pred(s)
+1583 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1585 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1587 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+1589 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1591 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1593 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1595 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1597 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+1599 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1601 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1603 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1605 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - predicate column refs.
+1607 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1609 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1611 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1613 refused rejected  JE:[V2]: Cannot eliminate table C2 by self join elim due to predicate column refs.
+1615 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1617 refused rejected  JE:[V2]: Cannot eliminate C2 by self join elim - no constr. based join pred(s)
+1619 refused rejected  JE:[V2]: Cannot eliminate C2 by ref. join elim - no constr. based join pred(s)
+1621 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1623 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1625 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1627 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1629 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1631 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1633 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1635 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1637 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1639 refused rejected  JE:[V2]: Cannot eliminate table O1 by self join elim due to predicate column refs.
+1641 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1643 refused rejected  JE:[V2]: Cannot eliminate O1 by self join elim - no constr. based join pred(s)
+1645 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1647 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1649 refused rejected  JE:[V2]: Cannot eliminate O1 by ref. join elim - no constr. based join pred(s)
+1651 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1653 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1655 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1657 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1659 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1661 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1663 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1665 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1667 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1669 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1671 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1673 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1675 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1677 refused rejected  JE:[V2]: Cannot eliminate table C1 by self join elim due to predicate column refs.
+1679 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1681 refused rejected  JE:[V2]: Cannot eliminate C1 by self join elim - no constr. based join pred(s)
+1683 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1685 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - predicate column refs.
+1687 refused rejected  JE:[V2]: Cannot eliminate C1 by ref. join elim - no constr. based join pred(s)
+1696 refused rejected  PM:     PM bypassed: Outer query contains no views.
+1697 refused rejected  PM:     PM bypassed: Outer query contains no views.
+1702 refused rejected  invalid because query block has less than two views
+1703 refused rejected  UPT: Bypassed: query block has less than two views.
+1708 refused rejected  SQT:     SQT bypassed: Disabled by parameter.
+1722 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+1983 best-ap kept  Best:: AccessPath: IndexRange
+2026 best-ap kept  Best:: AccessPath: IndexRange
+2047 best-ap kept  Best:: AccessPath: TableScan
+2067 best-ap kept  Best:: AccessPath: TableScan
+2087 best-ap kept  Best:: AccessPath: TableScan
+2107 best-ap kept  Best:: AccessPath: TableScan
+2127 best-ap kept  Best:: AccessPath: TableScan
+2147 best-ap kept  Best:: AccessPath: TableScan
+2242 best-jm kept  Best:: JoinMethod: NestedLoop
+2330 best-jm kept  Best:: JoinMethod: NestedLoop
+2407 best-jm kept  Best:: JoinMethod: NestedLoop
+2494 best-jm kept  Best:: JoinMethod: NestedLoop
+2571 best-jm kept  Best:: JoinMethod: NestedLoop
+2658 best-jm kept  Best:: JoinMethod: NestedLoop
+2735 best-jm kept  Best:: JoinMethod: NestedLoop
+2841 best-jm kept  Best:: JoinMethod: Hash
+2929 best-jm kept  Best:: JoinMethod: NestedLoop
+3006 best-jm kept  Best:: JoinMethod: NestedLoop
+3093 best-jm kept  Best:: JoinMethod: NestedLoop
+3170 best-jm kept  Best:: JoinMethod: NestedLoop
+3257 best-jm kept  Best:: JoinMethod: NestedLoop
+3334 aborted rejected  Join order aborted: cost > best plan cost
+3422 best-jm kept  Best:: JoinMethod: NestedLoop
+3517 best-jm kept  Best:: JoinMethod: Hash
+3594 best-jm kept  Best:: JoinMethod: Hash
+3681 aborted rejected  Join order aborted: cost > best plan cost
+3759 best-jm kept  Best:: JoinMethod: Hash
+3868 best-jm kept  Best:: JoinMethod: Hash
+3955 aborted rejected  Join order aborted: cost > best plan cost
+4043 aborted rejected  Join order aborted: cost > best plan cost
+4046 aborted rejected  Join order aborted: cost > best plan cost
+4049 aborted rejected  Join order aborted: cost > best plan cost
+4052 aborted rejected  Join order aborted: cost > best plan cost
+4055 aborted rejected  Join order aborted: cost > best plan cost
+4058 aborted rejected  Join order aborted: cost > best plan cost
+4061 aborted rejected  Join order aborted: cost > best plan cost
+4178 aborted rejected  Join order aborted: cost > best plan cost
+4295 aborted rejected  Join order aborted: cost > best plan cost
+4412 aborted rejected  Join order aborted: cost > best plan cost
+4529 aborted rejected  Join order aborted: cost > best plan cost
+4646 aborted rejected  Join order aborted: cost > best plan cost
+4743 best-jm kept  Best:: JoinMethod: Hash
+4831 best-jm kept  Best:: JoinMethod: NestedLoop
+4908 best-jm kept  Best:: JoinMethod: NestedLoop
+4995 best-jm kept  Best:: JoinMethod: NestedLoop
+5072 best-jm kept  Best:: JoinMethod: NestedLoop
+5159 best-jm kept  Best:: JoinMethod: NestedLoop
+5236 aborted rejected  Join order aborted: cost > best plan cost
+5324 best-jm kept  Best:: JoinMethod: NestedLoop
+5419 best-jm kept  Best:: JoinMethod: Hash
+5496 best-jm kept  Best:: JoinMethod: Hash
+5583 aborted rejected  Join order aborted: cost > best plan cost
+5661 best-jm kept  Best:: JoinMethod: Hash
+5770 best-jm kept  Best:: JoinMethod: Hash
+5857 aborted rejected  Join order aborted: cost > best plan cost
+5945 aborted rejected  Join order aborted: cost > best plan cost
+5948 aborted rejected  Join order aborted: cost > best plan cost
+5951 aborted rejected  Join order aborted: cost > best plan cost
+5954 aborted rejected  Join order aborted: cost > best plan cost
+5957 aborted rejected  Join order aborted: cost > best plan cost
+5960 aborted rejected  Join order aborted: cost > best plan cost
+5963 aborted rejected  Join order aborted: cost > best plan cost
+6080 aborted rejected  Join order aborted: cost > best plan cost
+6197 aborted rejected  Join order aborted: cost > best plan cost
+6314 aborted rejected  Join order aborted: cost > best plan cost
+6431 aborted rejected  Join order aborted: cost > best plan cost
+6548 aborted rejected  Join order aborted: cost > best plan cost
+11465 refused rejected  AP: Adaptive joins bypassed for table C2 @ SEL$1 due to Swapped hash join
+11469 refused rejected  AP: Adaptive joins bypassed for table C3 @ SEL$1 due to Swapped hash join
+11475 refused rejected  AP: Adaptive joins bypassed for table C4 @ SEL$1 due to Swapped hash join
+11503 refused rejected  AP: Adaptive joins bypassed for table C2 @ SEL$1 due to Swapped hash join
+11521 refused rejected  AP: Adaptive joins bypassed for table C3 @ SEL$1 due to Swapped hash join
+11539 refused rejected  AP: Adaptive joins bypassed for table C4 @ SEL$1 due to Swapped hash join
+11557 final-cost kept  Final cost for query block SEL$1 (#0) - All Rows Plan:

@@ -1,0 +1,91 @@
+dump 1 988u4f9s40dhd: 90 landmarks
+778 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+779 refused rejected  ST: not valid since star transformation parameter is FALSE
+781 refused rejected  TE: Bypassed: No relevant table found.
+787 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+789 refused rejected  VT: Bypassed: inmemory is disabled.
+791 refused rejected  invalid because Not enabled by hint/parameter
+792 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+794 refused rejected  JPPD:     JPPD bypassed: View has unsupported constructs.
+804 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+805 refused rejected  CSE:     CSE not performed on query block SEL$2 (#0).
+810 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+821 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+823 refused rejected  JE:[V2]: Cannot eliminate P by ref. join elim - no constr. based join pred(s)
+863 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+865 refused rejected  JE:[V2]: Cannot eliminate P by ref. join elim - no constr. based join pred(s)
+879 refused rejected  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+886 refused rejected  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+923 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+932 refused rejected  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+951 refused rejected  invalid because query block has less than two views
+952 refused rejected  UPT: Bypassed: query block has less than two views.
+955 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+977 refused rejected  SJC: not performed
+999 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+1001 refused rejected  JE:[V2]: Cannot eliminate P by ref. join elim - no constr. based join pred(s)
+1010 refused rejected  PM:     PM bypassed: Outer query contains no views.
+1011 refused rejected  PM:     PM bypassed: Outer query contains no views.
+1037 refused rejected  VT: Bypassed: inmemory is disabled.
+1049 refused rejected  invalid because Not enabled by hint/parameter
+1050 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+1213 best-ap kept  Best:: AccessPath: IndexRange
+1250 best-ap kept  Best:: AccessPath: IndexRange
+1260 refused rejected  PJE:  Bypassed; QB is not duplicate insignificant SEL$58A6D7F6 (#1)
+1369 best-jm kept  Best:: JoinMethod: Hash
+1471 aborted rejected  Join order aborted: cost > best plan cost
+1493 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$58A6D7F6 (#1) because Cost based OR expansion enabled
+1495 final-cost kept  Final cost for query block SEL$58A6D7F6 (#1) - All Rows Plan:
+1507 verdict kept  GBP: Updated best state, Cost = 285.105262
+1665 best-ap kept  Best:: AccessPath: IndexRange
+1675 refused rejected  PJE:  Bypassed; QB has a single table SEL$F0CF0768 (#2)
+1714 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$F0CF0768 (#2) because Cost based OR expansion enabled
+1716 final-cost kept  Final cost for query block SEL$F0CF0768 (#2) - All Rows Plan:
+1828 best-ap kept  Best:: AccessPath: IndexRange
+1838 refused rejected  PJE:  Bypassed; QB is not duplicate insignificant SEL$AF1EF9A2 (#1)
+1947 best-jm kept  Best:: JoinMethod: Hash
+2023 aborted rejected  Join order aborted: cost > best plan cost
+2045 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$AF1EF9A2 (#1) because Cost based OR expansion enabled
+2047 final-cost kept  Final cost for query block SEL$AF1EF9A2 (#1) - All Rows Plan:
+2060 verdict rejected  GBP: Not update best state, Cost = 286.108278
+2212 best-ap kept  Best:: AccessPath: IndexRange
+2220 refused rejected  PJE:  Bypassed; QB has a single table SEL$81C0CD23 (#3)
+2237 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$81C0CD23 (#3) because Cost based OR expansion enabled
+2239 final-cost kept  Final cost for query block SEL$81C0CD23 (#3) - All Rows Plan:
+2360 best-ap kept  Best:: AccessPath: TableScan
+2369 refused rejected  PJE:  Bypassed; QB is not duplicate insignificant SEL$6B848FDE (#1)
+2463 best-jm kept  Best:: JoinMethod: Hash
+2567 aborted rejected  Join order aborted: cost > best plan cost
+2589 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$6B848FDE (#1) because Cost based OR expansion enabled
+2591 final-cost kept  Final cost for query block SEL$6B848FDE (#1) - All Rows Plan:
+2604 verdict rejected  GBP: Not update best state, Cost = 307.430628
+2776 best-ap kept  Best:: AccessPath: TableScan
+2785 refused rejected  PJE:  Bypassed; QB has a single table SEL$F0CF0768 (#4)
+2824 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$F0CF0768 (#4) because Cost based OR expansion enabled
+2826 final-cost kept  Final cost for query block SEL$F0CF0768 (#4) - All Rows Plan:
+2920 best-ap kept  Best:: AccessPath: IndexRange
+2928 refused rejected  PJE:  Bypassed; QB has a single table SEL$70680072 (#5)
+2945 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$70680072 (#5) because Cost based OR expansion enabled
+2947 final-cost kept  Final cost for query block SEL$70680072 (#5) - All Rows Plan:
+3030 refused rejected  PJE:  Bypassed; QB is not duplicate insignificant SEL$0A223F8F (#1)
+3098 best-jm kept  Best:: JoinMethod: Hash
+3174 aborted rejected  Join order aborted: cost > best plan cost
+3196 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$0A223F8F (#1) because Cost based OR expansion enabled
+3198 final-cost kept  Final cost for query block SEL$0A223F8F (#1) - All Rows Plan:
+3212 verdict rejected  GBP: Not update best state, Cost = 308.632634
+3221 refused rejected  invalid because query block has less than two views
+3222 refused rejected  UPT: Bypassed: query block has less than two views.
+3228 refused rejected  TE: Bypassed: No relevant table found.
+3236 refused rejected  TE: Bypassed: No relevant table found.
+3246 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+3255 refused rejected  ST: not valid since star transformation parameter is FALSE
+3261 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+3287 refused rejected  SQT:     SQT bypassed: Disabled by parameter.
+3300 refused rejected  CSE:     CSE not performed on query block SEL$58A6D7F6 (#1).
+3428 best-ap kept  Best:: AccessPath: IndexRange
+3465 best-ap kept  Best:: AccessPath: IndexRange
+3475 refused rejected  PJE:  Bypassed; QB is not duplicate insignificant SEL$58A6D7F6 (#1)
+3584 best-jm kept  Best:: JoinMethod: Hash
+3686 aborted rejected  Join order aborted: cost > best plan cost
+3714 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$58A6D7F6 (#1) because Cost based OR expansion enabled
+4346 final-cost kept  Final cost for query block SEL$58A6D7F6 (#1) - All Rows Plan:

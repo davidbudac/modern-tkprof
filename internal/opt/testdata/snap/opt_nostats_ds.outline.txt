@@ -1,0 +1,141 @@
+dump 1 4akv1qakm5fu6 nth 1  lines 32-7057  view 1-7089  plan_hash 526485899  runs 9  truncated false  unplaced 141
+1-31 file-header  File header
+32-771 phase-env  Environment
+  32-46 parser-qbs  Query blocks from the parser
+  47-62 preamble  Preamble
+  63-771 opt-info  Optimizer information
+    66-77 statement  Current SQL statement
+    78-136 legend  Legend
+    137-767 params  Parameters used by the optimizer
+      140-147 params-altered  Altered values
+      148-764 params-default  Default values
+      765-767 params-optparam  OPT_PARAM hint
+    768-771 col-usage  Column usage monitoring
+772-3257 phase-trans  Transformations
+  772-869 qt  Query transformations · SEL$2
+    796-805 tsec  Common Subexpression elimination (CSE) ×2
+    806-810 tsec  Order-by elimination (OBYE)
+    811-829 tsec  Join Elimination [JE:R 12.2]
+    830-841 tsec  Count(col) to Count(*) (CNT) ×2
+    842-852 registered  Registered qb: SEL$58A6D7F6 (VIEW MERGE SEL$2; SEL$1; SEL$2)
+    853-869 tsec  Join Elimination [JE:R 12.2]
+  870-888 qt  Query transformations · SEL$58A6D7F6
+    875-888 tsec  Common Subexpression elimination (CSE) ×2
+  889-893 peeked-binds  Peeked values of the binds
+  894-910 spd  SQL plan directives
+  911-3257 cbqt  Cost-based transformations · SEL$58A6D7F6
+    919-922 tsec  Order-by elimination (OBYE)
+    923-927 qt  Query transformations · SEL$58A6D7F6
+    928-932 tsec  Common Subexpression elimination (CSE)
+    933-972 tsec  Approximate Aggregate Transformation (AAT)
+    973-983 tsec  Set-Join Conversion (SJC)
+    984-988 tsec  Count(col) to Count(*) (CNT)
+    989-1005 tsec  Join Elimination [JE:R 12.2]
+    1006-1056 tsec  Predicate Move-Around (PM)
+    1057-1061 registered  Registered qb: SEL$58A6D7F6 (COPY SEL$58A6D7F6)
+    1062-3225 cbsec  Cost-Based Group-By/Distinct Placement
+      1070-1500 iteration  GBP iteration 1 · (1,2) : (0,0)  [1500: GBP: Updated best state, Cost = 406.406567]
+        1084-1498 run  Run 1 of 9 · SEL$58A6D7F6 (#1)  [best join order 1]  [1500: GBP: Updated best state, Cost = 406.406567]
+          1090-1113 run-head  Query block text, signature, system statistics
+          1114-1146 base-stats  Base statistical information
+          1147-1214 table  MTK_NOSTATS[N]  -> TableScan
+          1215-1260 table  MTK_CUST[C]  -> IndexRange
+          1261-1487 join-search  Join order search
+            1272-1382 join-order  Join order[1]:  MTK_NOSTATS[N]#0  MTK_CUST[C]#1  -> cost: 406.406567  [best]
+              1274-1382 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+            1383-1465 join-order  Join order[2]:  MTK_CUST[C]#1  MTK_NOSTATS[N]#0  -> aborted
+              1385-1465 join-step  Now joining: MTK_NOSTATS[N]#0
+          1488-1497 final-cost  Final cost
+      1501-2041 iteration  GBP iteration 2 · (1,2) : (0,C)  [2041: GBP: Not update best state, Cost = 407.414026]
+        1553-1708 run  Run 2 of 9 · SEL$48F27520 (#2)  [best join order 1]  [2041: GBP: Not update best state, Cost = 407.414026]
+          1559-1578 run-head  Query block text, signature, system statistics
+          1579-1598 base-stats  Base statistical information
+          1599-1659 table  MTK_NOSTATS[N]  -> TableScan
+          1660-1697 join-search  Join order search
+            1667-1681 join-order  Join order[1]:  MTK_NOSTATS[N]#0  -> cost: 103.231314  [best]
+          1698-1707 final-cost  Final cost
+        1709-2038 run  Run 3 of 9 · SEL$EEAA4C8B (#1)  [best join order 1]  [2041: GBP: Not update best state, Cost = 407.414026]
+          1715-1738 run-head  Query block text, signature, system statistics
+          1739-1773 base-stats  Base statistical information
+          1774-1819 table  MTK_CUST[C]  -> IndexRange
+          1820-2027 join-search  Join order search
+            1831-1934 join-order  Join order[1]:  VW_GBC_1[VW_GBC_1]#0  MTK_CUST[C]#1  -> cost: 407.414026  [best]
+              1833-1934 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+            1935-2005 join-order  Join order[2]:  MTK_CUST[C]#1  VW_GBC_1[VW_GBC_1]#0  -> aborted
+              1937-2005 join-step  Now joining: VW_GBC_1[VW_GBC_1]#0
+          2028-2037 final-cost  Final cost
+      2042-2562 iteration  GBP iteration 3 · (1,2) : (F,0)  [2562: GBP: Not update best state, Cost = 406.441967]
+        2106-2231 run  Run 4 of 9 · SEL$81C0CD23 (#3)  [best join order 1]  [2562: GBP: Not update best state, Cost = 406.441967]
+          2112-2131 run-head  Query block text, signature, system statistics
+          2132-2153 base-stats  Base statistical information
+          2154-2200 table  MTK_CUST[C]  -> IndexRange
+          2201-2220 join-search  Join order search
+            2208-2211 join-order  Join order[1]:  MTK_CUST[C]#0  -> cost: 303.135367  [best]
+          2221-2230 final-cost  Final cost
+        2232-2559 run  Run 5 of 9 · SEL$6B848FDE (#1)  [best join order 1]  [2562: GBP: Not update best state, Cost = 406.441967]
+          2238-2261 run-head  Query block text, signature, system statistics
+          2262-2292 base-stats  Base statistical information
+          2293-2360 table  MTK_NOSTATS[N]  -> TableScan
+          2361-2548 join-search  Join order search
+            2371-2444 join-order  Join order[1]:  MTK_NOSTATS[N]#0  VW_GBF_2[VW_GBF_2]#1  -> cost: 406.441967  [best]
+              2373-2444 join-step  Now joining: VW_GBF_2[VW_GBF_2]#1  -> Hash
+            2445-2526 join-order  Join order[2]:  VW_GBF_2[VW_GBF_2]#1  MTK_NOSTATS[N]#0  -> aborted
+              2447-2526 join-step  Now joining: MTK_NOSTATS[N]#0
+          2549-2558 final-cost  Final cost
+      2563-3169 iteration  GBP iteration 4 · (1,2) : (F,C)  [3169: GBP: Not update best state, Cost = 407.476401]
+        2640-2791 run  Run 6 of 9 · SEL$48F27520 (#4)  [best join order 1]  [3169: GBP: Not update best state, Cost = 407.476401]
+          2646-2665 run-head  Query block text, signature, system statistics
+          2666-2685 base-stats  Base statistical information
+          2686-2742 table  MTK_NOSTATS[N]  -> TableScan
+          2743-2780 join-search  Join order search
+            2750-2764 join-order  Join order[1]:  MTK_NOSTATS[N]#0  -> cost: 103.259033  [best]
+          2781-2790 final-cost  Final cost
+        2792-2917 run  Run 7 of 9 · SEL$00DD0A42 (#5)  [best join order 1]  [3169: GBP: Not update best state, Cost = 407.476401]
+          2798-2817 run-head  Query block text, signature, system statistics
+          2818-2839 base-stats  Base statistical information
+          2840-2886 table  MTK_CUST[C]  -> IndexRange
+          2887-2906 join-search  Join order search
+            2894-2897 join-order  Join order[1]:  MTK_CUST[C]#0  -> cost: 303.135367  [best]
+          2907-2916 final-cost  Final cost
+        2918-3165 run  Run 8 of 9 · SEL$F274D5A2 (#1)  [best join order 1]  [3169: GBP: Not update best state, Cost = 407.476401]
+          2924-2947 run-head  Query block text, signature, system statistics
+          2948-2984 base-stats  Base statistical information
+          2985-3154 join-search  Join order search
+            2995-3061 join-order  Join order[1]:  VW_GBC_3[VW_GBC_3]#0  VW_GBF_4[VW_GBF_4]#1  -> cost: 407.476401  [best]
+              2997-3061 join-step  Now joining: VW_GBF_4[VW_GBF_4]#1  -> Hash
+            3062-3132 join-order  Join order[2]:  VW_GBF_4[VW_GBF_4]#1  VW_GBC_3[VW_GBC_3]#0  -> aborted
+              3064-3132 join-step  Now joining: VW_GBC_3[VW_GBC_3]#0
+          3155-3164 final-cost  Final cost
+    3226-3240 cbsec  Cost-based predicate pushdown (JPPD)
+    3241-3257 cbsec  Statistic-based Query Transformation (SQT)
+      3254-3257 tsec  Common Subexpression elimination (CSE)
+3258-4570 phase-cost  Costing
+  3258-3259 final-query  Final query after transformations
+  3260-4422 run  Run 9 of 9 · SEL$58A6D7F6 (#1)  [final]  [best join order 1]
+    3266-3289 run-head  Query block text, signature, system statistics
+    3290-3322 base-stats  Base statistical information
+    3323-3390 table  MTK_NOSTATS[N]  -> TableScan
+    3391-3436 table  MTK_CUST[C]  -> IndexRange
+    3437-3671 join-search  Join order search
+      3448-3558 join-order  Join order[1]:  MTK_NOSTATS[N]#0  MTK_CUST[C]#1  -> cost: 406.406567  [best]
+        3450-3558 join-step  Now joining: MTK_CUST[C]#1  -> Hash
+      3559-3641 join-order  Join order[2]:  MTK_CUST[C]#1  MTK_NOSTATS[N]#0  -> aborted
+        3561-3641 join-step  Now joining: MTK_NOSTATS[N]#0
+    3672-4390 ap-search  Adaptive plan: inflection point, join #1
+    4412-4421 final-cost  Final cost
+4571-7057 phase-result  Result
+  4571-4591 stmt-dump  Statement dump
+  4592-4629 plan  Explain plan
+    4595-4612 plan-table  Plan table
+    4613-4621 plan-qbs  Query block name / object alias
+    4622-4629 plan-preds  Predicate information
+  4630-4668 other-xml  Content of other_xml column
+    4640-4643 opt-metrics  Optimizer metrics
+    4644-4647 qbreg-xml  Query block registry (XML)
+    4648-4668 outline-data  Outline data
+  4669-7021 state-dump  Optimizer state dump
+    4670-5283 state-params  Parameters
+    5284-7021 state-fix  Fix controls
+  7022-7054 qb-registry  Query block registry
+  7055-7057 hints  Dumping hints
+7058-7089 after  After the dump

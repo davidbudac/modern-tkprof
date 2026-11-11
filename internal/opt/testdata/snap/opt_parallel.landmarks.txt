@@ -1,0 +1,48 @@
+dump 1 cn3n6q7gm71wh: 47 landmarks
+777 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+778 refused rejected  ST: not valid since star transformation parameter is FALSE
+780 refused rejected  TE: Bypassed: No partitioned table in query block.
+786 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+788 refused rejected  VT: Bypassed: inmemory is disabled.
+790 refused rejected  invalid because Not enabled by hint/parameter
+791 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+793 refused rejected  JPPD:     JPPD bypassed: View has unsupported constructs.
+795 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+796 refused rejected  ST: not valid since star transformation parameter is FALSE
+798 refused rejected  TE: Bypassed: No partitioned table in query block.
+804 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+806 refused rejected  VT: Bypassed: inmemory is disabled.
+808 refused rejected  invalid because Not enabled by hint/parameter
+809 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+810 refused rejected  CBQT bypassed for query block SEL$2 (#0): no complex view, sub-queries or UNION (ALL) queries.
+820 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+821 refused rejected  CSE:     CSE not performed on query block SEL$2 (#0).
+826 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+837 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+839 refused rejected  JE:[V2]: Cannot eliminate B by ref. join elim - no constr. based join pred(s)
+882 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+884 refused rejected  JE:[V2]: Cannot eliminate B by ref. join elim - no constr. based join pred(s)
+895 refused rejected  JF: Bypassed: not a UNION or UNION-ALL query block.
+896 refused rejected  ST: not valid since star transformation parameter is FALSE
+898 refused rejected  TE: Bypassed: No partitioned table in query block.
+904 refused rejected  ORE: bypassed - No valid predicate for OR expansion.
+906 refused rejected  VT: Bypassed: inmemory is disabled.
+908 refused rejected  invalid because Not enabled by hint/parameter
+909 refused rejected  BJ: Bypassed: Not enabled by hint/parameter.
+910 refused rejected  CBQT bypassed for query block SEL$58A6D7F6 (#0): no complex view, sub-queries or UNION (ALL) queries.
+916 refused rejected  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+935 refused rejected  SJC: not performed
+948 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+950 refused rejected  JE:[V2]: Cannot eliminate B by ref. join elim - no constr. based join pred(s)
+959 refused rejected  PM:     PM bypassed: Outer query contains no views.
+960 refused rejected  PM:     PM bypassed: Outer query contains no views.
+965 refused rejected  invalid because query block has less than two views
+966 refused rejected  UPT: Bypassed: query block has less than two views.
+971 refused rejected  SQT:     SQT bypassed: Disabled by parameter.
+983 refused rejected  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+1099 best-ap kept  Best:: AccessPath: TableScan
+1133 best-ap kept  Best:: AccessPath: IndexFFS
+1141 refused rejected  PJE:  Bypassed; QB is not duplicate insignificant SEL$58A6D7F6 (#0)
+1255 best-jm kept  Best:: JoinMethod: Hash
+1376 best-jm kept  Best:: JoinMethod: NestedLoop
+1548 final-cost kept  Final cost for query block SEL$58A6D7F6 (#0) - All Rows Plan:

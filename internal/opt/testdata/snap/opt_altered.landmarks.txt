@@ -1,0 +1,94 @@
+dump 1 52jbu890bzknx: 93 landmarks
+792 refused rejected  CBQT bypassed for query block SEL$2 (#0): Disabled by parameter.
+802 refused rejected  CSE:     CSE not performed on query block SEL$4 (#0).
+807 refused rejected  CSE:     CSE not performed on query block SEL$3 (#0).
+812 refused rejected  CSE:     CSE not performed on query block SEL$1 (#0).
+813 refused rejected  CSE:     CSE not performed on query block SEL$2 (#0).
+822 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+827 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+832 refused rejected  OBYE:     OBYE bypassed: no order by to eliminate.
+844 refused rejected  JE:[V2]: Cannot eliminate O by ref. join elim - no constr. based join pred(s)
+846 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - predicate column refs.
+848 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+901 refused rejected  JE:[V2]: Cannot eliminate O by ref. join elim - no constr. based join pred(s)
+903 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - predicate column refs.
+905 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+915 refused rejected  CBQT bypassed for query block SEL$58A6D7F6 (#0): Disabled by parameter.
+925 refused rejected  CSE:     CSE not performed on query block SEL$4 (#0).
+930 refused rejected  CSE:     CSE not performed on query block SEL$3 (#0).
+931 refused rejected  CSE:     CSE not performed on query block SEL$58A6D7F6 (#0).
+973 refused rejected  SJC: not performed
+988 refused rejected  JE:[V2]: Cannot eliminate O by ref. join elim - no constr. based join pred(s)
+990 refused rejected  JE:[V2]: Cannot eliminate table O by self join elim due to predicate column refs.
+992 refused rejected  JE:[V2]: Cannot eliminate O by self join elim - no constr. based join pred(s)
+994 refused rejected  JE:[V2]: Cannot eliminate O by ref. join elim - no constr. based join pred(s)
+996 refused rejected  JE:[V2]: Cannot eliminate O by ref. join elim - no constr. based join pred(s)
+998 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - predicate column refs.
+1000 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+1002 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+1004 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+1006 refused rejected  JE:[V2]: Cannot eliminate C by ref. join elim - no constr. based join pred(s)
+1008 refused rejected  JE:[V2]: Cannot eliminate table MTK_ORDERS by self join elim due to predicate column refs.
+1010 refused rejected  JE:[V2]: Cannot eliminate MTK_ORDERS by self join elim - no constr. based join pred(s)
+1012 refused rejected  JE:[V2]: Cannot eliminate MTK_ORDERS by ref. join elim - no constr. based join pred(s)
+1014 refused rejected  JE:[V2]: Cannot eliminate MTK_ORDERS by ref. join elim - no constr. based join pred(s)
+1016 refused rejected  JE:[V2]: Cannot eliminate MTK_ORDERS by ref. join elim - no constr. based join pred(s)
+1018 refused rejected  JE:[V2]: Cannot eliminate A by ref. join elim - no constr. based join pred(s)
+1020 refused rejected  JE:[V2]: Cannot eliminate A by ref. join elim - no constr. based join pred(s)
+1022 refused rejected  JE:[V2]: Cannot eliminate A by ref. join elim - no constr. based join pred(s)
+1031 refused rejected  PM:     PM bypassed: Outer query contains no views.
+1032 refused rejected  PM:     PM bypassed: Outer query contains no views.
+1045 refused rejected  invalid because query block has less than two views
+1046 refused rejected  UPT: Bypassed: query block has less than two views.
+1051 refused rejected  SQT:     SQT bypassed: Disabled by parameter.
+1065 refused rejected  CSE:     CSE not performed on query block SEL$1BA63A14 (#0).
+1249 best-ap kept  Best:: AccessPath: TableScan
+1278 best-ap kept  Best:: AccessPath: TableScan
+1320 best-ap kept  Best:: AccessPath: IndexRange
+1363 best-ap kept  Best:: AccessPath: IndexRange
+1373 refused rejected  PJE:  Bypassed; QB is not duplicate insignificant SEL$1BA63A14 (#0)
+1466 best-jm kept  Best:: JoinMethod: NestedLoop
+1540 best-jm kept  Best:: JoinMethod: HashSemi
+1629 best-jm kept  Best:: JoinMethod: HashSemi
+1663 refused rejected  LORE: Or-Expansion validity checks failed on query block SEL$1BA63A14 (#0) because NO_EXPAND hint
+1665 final-cost kept  Final cost for query block SEL$1BA63A14 (#0) - All Rows Plan:
+1818 best-ap kept  Best:: AccessPath: TableScan
+1845 best-ap kept  Best:: AccessPath: TableScan
+1887 best-ap kept  Best:: AccessPath: IndexRange
+1930 best-ap kept  Best:: AccessPath: IndexRange
+1940 refused rejected  PJE:  Bypassed; QB is not duplicate insignificant SEL$1BA63A14 (#0)
+2033 best-jm kept  Best:: JoinMethod: NestedLoop
+2107 best-jm kept  Best:: JoinMethod: HashSemi
+2196 best-jm kept  Best:: JoinMethod: HashSemi
+2273 best-jm kept  Best:: JoinMethod: HashSemi
+2366 aborted rejected  Join order aborted: cost > best plan cost
+2403 aborted rejected  Join order aborted: cost > best plan cost
+2445 aborted rejected  Join order aborted: cost > best plan cost
+2553 best-jm kept  Best:: JoinMethod: Hash
+2627 best-jm kept  Best:: JoinMethod: HashSemi
+2716 aborted rejected  Join order aborted: cost > best plan cost
+2787 best-jm kept  Best:: JoinMethod: HashSemi
+2880 aborted rejected  Join order aborted: cost > best plan cost
+2963 best-jm kept  Best:: JoinMethod: HashSemi
+3068 best-jm kept  Best:: JoinMethod: NestedLoop
+3158 aborted rejected  Join order aborted: cost > best plan cost
+3229 aborted rejected  Join order aborted: cost > best plan cost
+3300 best-jm kept  Best:: JoinMethod: HashSemi
+3413 best-jm kept  Best:: JoinMethod: Hash
+3506 aborted rejected  Join order aborted: cost > best plan cost
+3589 aborted rejected  Join order aborted: cost > best plan cost
+3643 best-jm kept  Best:: JoinMethod: NestedLoop
+3795 aborted rejected  Join order aborted: cost > best plan cost
+3836 aborted rejected  Join order aborted: cost > best plan cost
+3991 best-jm kept  Best:: JoinMethod: NestedLoop
+4096 best-jm kept  Best:: JoinMethod: NestedLoop
+4186 best-jm kept  Best:: JoinMethod: HashSemi
+4263 best-jm kept  Best:: JoinMethod: HashSemi
+4387 aborted rejected  Join order aborted: cost > best plan cost
+4435 aborted rejected  Join order aborted: cost > best plan cost
+4445 aborted rejected  Join order aborted: cost > best plan cost
+4455 aborted rejected  Join order aborted: cost > best plan cost
+4465 aborted rejected  Join order aborted: cost > best plan cost
+7916 refused rejected  AP: adaptive joins bypassed for table MTK_ORDERS @ SEL$1BA63A14 due to Previous join uses prefetching
+7952 refused rejected  AP: Adaptive joins bypassed for table MTK_ORDERS @ SEL$1BA63A14 due to Join method is MJC
+7962 final-cost kept  Final cost for query block SEL$1BA63A14 (#0) - All Rows Plan:

@@ -1,0 +1,626 @@
+mtkprof - Oracle optimizer trace (event 10053) digest
+========================================================================================================================
+Trace file : opt_dml.trc
+Database   : Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production  version 19.27.0.0.0
+Volume     : 11,815 lines  3 dumps
+
+Dumps
+   1  419jcqfm9713k   lines 32-3,605  runs 2  MTK_DML_SCRATCH, MTK_DML_SRC
+   2  21298g6n3w6yw   lines 3,611-7,839  runs 2  MTK_DML_TGT, MTK_DML_SRC
+   3  3n5p9kvkzuy42   lines 7,845-11,810  runs 1  MTK_DML_TGT, MTK_DML_SRC
+
+========================================================================================================================
+OPTIMIZER DUMP 1   sql_id 419jcqfm9713k   dump 1 of this sql_id   plan hash 892686419   lines 32-3,605
+view lines 1-3,610 (3,610 lines)   costing runs 2   tables MTK_DML_SCRATCH, MTK_DML_SRC
+18 lines of the dump are in no known section
+------------------------------------------------------------------------------------------------------------------------
+
+SQL as typed (lines 67-68)
+------------------------------------------------------------------------------------------------------------------------
+insert /* mtk_opt_1111t121258984 dml_ins */ into mtk_dml_scratch (id, grp, val)
+select s.id + 100000, s.grp, s.val from mtk_dml_src s where s.status = 'NEW'
+
+Altered parameters and fix controls
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Peeked binds
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Outline (lines from-to, line count)
+------------------------------------------------------------------------------------------------------------------------
+    from       to    lines  section
+       1       31       31  File header
+      32      768      737  Environment
+      32       45       14    Query blocks from the parser
+      46       62       17    Preamble
+      63      768      706    Optimizer information
+      66       74        9      Current SQL statement
+      75      133       59      Legend
+     134      764      631      Parameters used by the optimizer
+     137      143        7        Altered values
+     144      761      618        Default values
+     762      764        3        OPT_PARAM hint
+     765      768        4      Column usage monitoring
+     769      935      167  Transformations
+     769      818       50    Query transformations · INS$1
+     803      807        5      Common Subexpression elimination (CSE)
+     808      818       11      Order-by elimination (OBYE)
+     819      913       95    Query transformations · INS$1
+     853      857        5      Common Subexpression elimination (CSE)
+     858      864        7      Approximate Aggregate Transformation (AAT)
+     865      869        5      Subquery Unnest (SU)
+     870      878        9      Set-Join Conversion (SJC)
+     879      906       28      Predicate Move-Around (PM)
+     907      913        7      Common Subexpression elimination (CSE)
+     914      918        5    Peeked values of the binds
+     919      935       17    SQL plan directives
+     936     1174      239  Costing
+     936      937        2    Final query after transformations
+     938     1055      118    Run 1 of 2 · SEL$1 (#0)  [final plan]  best join order 1
+     944      963       20      Query block text, signature, system statistics
+     964      985       22      Base statistical information
+     986     1017       32      MTK_DML_SRC[S]  -> TableScan
+    1018     1044       27      Join order search
+    1025     1028        4        Join order[1]:  MTK_DML_SRC[S]#0  -> cost: 5.020690  [best join order]
+    1045     1054       10      Final cost
+    1056     1156      101    Run 2 of 2 · INS$1 (#0)  [final plan]  best join order 1
+    1062     1081       20      Query block text, signature, system statistics
+    1082     1097       16      Base statistical information
+    1098     1120       23      MTK_DML_SCRATCH[MTK_DML_SCRATCH]  -> TableScan
+    1121     1145       25      Join order search
+    1128     1131        4        Join order[1]:  MTK_DML_SCRATCH[MTK_DML_SCRATCH]#0  -> cost: 3.001844  [best join order]
+    1146     1155       10      Final cost
+    1175     3605     2431  Result
+    1175     1189       15    Statement dump
+    1190     1211       22    Explain plan
+    1193     1202       10      Plan table
+    1203     1207        5      Query block name / object alias
+    1208     1211        4      Predicate information
+    1212     1241       30    Content of other_xml column
+    1220     1223        4      Optimizer metrics
+    1224     1227        4      Query block registry (XML)
+    1228     1241       14      Outline data
+    1242     3594     2353    Optimizer state dump
+    1243     1856      614      Parameters
+    1857     3594     1738      Fix controls
+    3595     3602        8    Query block registry
+    3603     3605        3    Dumping hints
+    3606     3610        5  After the dump
+
+Landmark lines (verbatim, with their line numbers)
+------------------------------------------------------------------------------------------------------------------------
+Best:: AccessPath (the access path kept for a table): 2
+    1012  Best:: AccessPath: TableScan
+    1115  Best:: AccessPath: TableScan
+
+Final cost for query block (the end of a costing run): 2
+    1045  Final cost for query block SEL$1 (#0) - All Rows Plan:
+    1146  Final cost for query block INS$1 (#0) - All Rows Plan:
+
+Transformations and checks the trace says were bypassed or refused: 43
+     774  JF: Bypassed: not a UNION or UNION-ALL query block.
+     775  ST: not valid since star transformation parameter is FALSE
+     777  TE: Bypassed: No partitioned table in query block.
+     783  ORE: bypassed - No valid predicate for OR expansion.
+     785  VT: Bypassed: inmemory is disabled.
+     787  invalid because Not enabled by hint/parameter
+     788  BJ: Bypassed: Not enabled by hint/parameter.
+     790  JF: Bypassed: not a UNION or UNION-ALL query block.
+     791  ST: not valid since star transformation parameter is FALSE
+     793  TE: Bypassed: Top query block of a DML.
+     796  VT: Bypassed: inmemory is disabled.
+     798  invalid because Not enabled by hint/parameter
+     799  BJ: Bypassed: Not enabled by hint/parameter.
+     800  CBQT bypassed for query block INS$1 (#0): no complex view, sub-queries or UNION (ALL) queries.
+     806  CSE:     CSE not performed on query block SEL$1 (#0).
+     811  OBYE:     OBYE bypassed: no order by to eliminate.
+     824  JF: Bypassed: not a UNION or UNION-ALL query block.
+     825  ST: not valid since star transformation parameter is FALSE
+     827  TE: Bypassed: No partitioned table in query block.
+     833  ORE: bypassed - No valid predicate for OR expansion.
+     835  VT: Bypassed: inmemory is disabled.
+     837  invalid because Not enabled by hint/parameter
+     838  BJ: Bypassed: Not enabled by hint/parameter.
+     840  JF: Bypassed: not a UNION or UNION-ALL query block.
+     841  ST: not valid since star transformation parameter is FALSE
+     843  TE: Bypassed: Top query block of a DML.
+     846  VT: Bypassed: inmemory is disabled.
+     848  invalid because Not enabled by hint/parameter
+     849  BJ: Bypassed: Not enabled by hint/parameter.
+     850  CBQT bypassed for query block INS$1 (#0): no complex view, sub-queries or UNION (ALL) queries.
+     856  CSE:     CSE not performed on query block SEL$1 (#0).
+     873  SJC: not performed
+     882  PM:     PM bypassed: Outer query contains no views.
+     883  PM:     PM bypassed: Outer query contains no views.
+     890  invalid because Not a SELECT statement
+     891  UPT: Bypassed: Not a SELECT statement.
+     894  invalid because Not a SELECT statement
+     895  UPT: Bypassed: Not a SELECT statement.
+     896  SQT:    SQT bypassed: non select statement.
+     910  CSE:     CSE not performed on query block SEL$1 (#0).
+    1019  PJE:  Bypassed; QB has a single table SEL$1 (#0)
+    1122  PJE:  Bypassed; QB has a single table INS$1 (#0)
+    1140  AP: Adaptive joins bypassed for query block INS$1 due to top-level query block of non-SELECT
+
+
+Versions of the transformed SQL (UNPARSED QUERY IS)
+------------------------------------------------------------------------------------------------------------------------
+[1] line 923  Stmt
+    SELECT 0
+    FROM "MTK"."MTK_DML_SCRATCH" "MTK_DML_SCRATCH"
+
+[2] line 937  Final query after transformations: the same statement as line 923
+
+
+Final plan
+------------------------------------------------------------------------------------------------------------------------
+lines 1193-1210
+============
+Plan Table
+============
+---------------------------------------------------+-----------------------------------+
+| Id  | Operation                 | Name           | Rows  | Bytes | Cost  | Time      |
+---------------------------------------------------+-----------------------------------+
+| 0   | INSERT STATEMENT          |                |       |       |     5 |           |
+| 1   |  LOAD TABLE CONVENTIONAL  | MTK_DML_SCRATCH|       |       |       |           |
+| 2   |   TABLE ACCESS FULL       | MTK_DML_SRC    |   500 |  8000 |     5 |  00:00:01 |
+---------------------------------------------------+-----------------------------------+
+Query Block Name / Object Alias (identified by operation id):
+------------------------------------------------------------
+ 1 - SEL$1                
+ 2 - SEL$1                / "S"@"SEL$1"
+------------------------------------------------------------
+Predicate Information:
+----------------------
+2 - filter("S"."STATUS"='NEW')
+
+Hints
+------------------------------------------------------------------------------------------------------------------------
+none
+
+========================================================================================================================
+OPTIMIZER DUMP 2   sql_id 21298g6n3w6yw   dump 1 of this sql_id   plan hash 1601430856   lines 3,611-7,839
+view lines 3,611-7,844 (4,234 lines)   costing runs 2   tables MTK_DML_TGT, MTK_DML_SRC
+36 lines of the dump are in no known section
+------------------------------------------------------------------------------------------------------------------------
+
+SQL as typed (lines 3653-3655)
+------------------------------------------------------------------------------------------------------------------------
+update /* mtk_opt_1111t121258984 dml_upd */ mtk_dml_tgt t
+   set t.val = (select max(s.val) from mtk_dml_src s where s.grp = t.grp)
+ where t.id in (select s.id from mtk_dml_src s where s.status = 'DEAD')
+
+Altered parameters and fix controls
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Peeked binds
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Outline (lines from-to, line count)
+------------------------------------------------------------------------------------------------------------------------
+    from       to    lines  section
+    3611     4355      745  Environment
+    3611     3631       21    Query blocks from the parser
+    3632     3648       17    Preamble
+    3649     4355      707    Optimizer information
+    3652     3661       10      Current SQL statement
+    3662     3720       59      Legend
+    3721     4351      631      Parameters used by the optimizer
+    3724     3730        7        Altered values
+    3731     4348      618        Default values
+    4349     4351        3        OPT_PARAM hint
+    4352     4355        4      Column usage monitoring
+    4356     4828      473  Transformations
+    4356     4426       71    Query transformations · UPD$1
+    4396     4410       15      Common Subexpression elimination (CSE) ×3
+    4411     4419        9      Order-by elimination (OBYE)
+    4420     4426        7      Count(col) to Count(*) (CNT)
+    4427     4466       40    Query transformations · UPD$1
+    4433     4466       34      Common Subexpression elimination (CSE) ×6
+    4467     4471        5    Peeked values of the binds
+    4472     4489       18    SQL plan directives
+    4490     4828      339    Cost-based transformations · UPD$1
+    4501     4504        4      Order-by elimination (OBYE)
+    4505     4510        6      Query transformations · UPD$1
+    4511     4525       15      Common Subexpression elimination (CSE) ×3
+    4526     4580       55      Approximate Aggregate Transformation (AAT)
+    4581     4585        5      Registered qb: UPD$1 (COPY UPD$1)
+    4586     4590        5      Registered qb: SEL$2 (COPY SEL$2)
+    4591     4595        5      Registered qb: SEL$1 (COPY SEL$1)
+    4596     4620       25      Cost-Based Subquery Unnesting
+    4613     4620        8        Registered qb: SEL$10439C08 (SUBQUERY UNNEST UPD$1; SEL$2)
+    4621     4792      172      Cost-Based Complex View Merging
+    4630     4648       19        Count(col) to Count(*) (CNT)
+    4649     4666       18        Set-Join Conversion (SJC) ×2
+    4667     4671        5        Count(col) to Count(*) (CNT)
+    4672     4792      121        Predicate Move-Around (PM)
+    4793     4828       36      Cost-based predicate pushdown (JPPD)
+    4820     4828        9        Common Subexpression elimination (CSE) ×2
+    4829     5383      555  Costing
+    4829     4830        2    Final query after transformations
+    4831     4950      120    Run 1 of 2 · SEL$1 (#2)  [final plan]  best join order 1
+    4837     4856       20      Query block text, signature, system statistics
+    4857     4882       26      Base statistical information
+    4883     4912       30      MTK_DML_SRC[S]  -> TableScan
+    4913     4939       27      Join order search
+    4920     4923        4        Join order[1]:  MTK_DML_SRC[S]#0  -> cost: 5.018056  [best join order]
+    4940     4949       10      Final cost
+    4951     5347      397    Run 2 of 2 · SEL$10439C08 (#1)  [final plan]  best join order 1
+    4957     4977       21      Query block text, signature, system statistics
+    4978     5012       35      Base statistical information
+    5013     5041       29      MTK_DML_SRC[S]  -> TableScan
+    5042     5064       23      MTK_DML_TGT[T]  -> TableScan
+    5065     5336      272      Join order search
+    5071     5183      113        Join order[1]:  MTK_DML_SRC[S]#0  MTK_DML_TGT[T]#1  -> cost: 10.066206  [best join order]
+    5073     5183      111          Now joining: MTK_DML_TGT[T]#1  -> Hash
+    5184     5301      118        Join order[2]:  MTK_DML_TGT[T]#1  MTK_DML_SRC[S]#0  -> aborted
+    5186     5301      116          Now joining: MTK_DML_SRC[S]#0
+    5337     5346       10      Final cost
+    5384     7839     2456  Result
+    5384     5400       17    Statement dump
+    5401     5431       31    Explain plan
+    5404     5417       14      Plan table
+    5418     5425        8      Query block name / object alias
+    5426     5431        6      Predicate information
+    5432     5472       41    Content of other_xml column
+    5445     5448        4      Optimizer metrics
+    5449     5452        4      Query block registry (XML)
+    5453     5472       20      Outline data
+    5473     7825     2353    Optimizer state dump
+    5474     6087      614      Parameters
+    6088     7825     1738      Fix controls
+    7826     7836       11    Query block registry
+    7837     7839        3    Dumping hints
+    7840     7844        5  After the dump
+
+Landmark lines (verbatim, with their line numbers)
+------------------------------------------------------------------------------------------------------------------------
+Best:: AccessPath (the access path kept for a table): 3
+    4907  Best:: AccessPath: TableScan
+    5039  Best:: AccessPath: TableScan
+    5059  Best:: AccessPath: TableScan
+
+Best:: JoinMethod (the join method kept for a join step): 1
+    5178  Best:: JoinMethod: Hash
+
+Final cost for query block (the end of a costing run): 2
+    4940  Final cost for query block SEL$1 (#2) - All Rows Plan:
+    5337  Final cost for query block SEL$10439C08 (#1) - All Rows Plan:
+
+Join order aborted: 1
+    5300  Join order aborted: cost > best plan cost
+
+Transformations and checks the trace says were bypassed or refused: 67
+    4361  JF: Bypassed: not a UNION or UNION-ALL query block.
+    4362  ST: not valid since star transformation parameter is FALSE
+    4364  TE: Bypassed: No partitioned table in query block.
+    4370  ORE: bypassed - No valid predicate for OR expansion.
+    4372  VT: Bypassed: inmemory is disabled.
+    4374  invalid because Not enabled by hint/parameter
+    4375  BJ: Bypassed: Not enabled by hint/parameter.
+    4377  JF: Bypassed: not a UNION or UNION-ALL query block.
+    4378  ST: not valid since star transformation parameter is FALSE
+    4380  TE: Bypassed: No partitioned table in query block.
+    4386  ORE: bypassed - No valid predicate for OR expansion.
+    4388  VT: Bypassed: inmemory is disabled.
+    4390  invalid because Not enabled by hint/parameter
+    4391  BJ: Bypassed: Not enabled by hint/parameter.
+    4403  CSE:     CSE not performed on query block SEL$2 (#0).
+    4408  CSE:     CSE not performed on query block SEL$1 (#0).
+    4409  CSE:     CSE not performed on query block UPD$1 (#0).
+    4414  OBYE:     OBYE bypassed: no order by to eliminate.
+    4440  CSE:     CSE not performed on query block SEL$2 (#0).
+    4445  CSE:     CSE not performed on query block SEL$1 (#0).
+    4446  CSE:     CSE not performed on query block UPD$1 (#0).
+    4457  CSE:     CSE not performed on query block SEL$2 (#0).
+    4462  CSE:     CSE not performed on query block SEL$1 (#0).
+    4463  CSE:     CSE not performed on query block UPD$1 (#0).
+    4504  OBYE:     OBYE bypassed: no order by to eliminate.
+    4518  CSE:     CSE not performed on query block SEL$2 (#0).
+    4523  CSE:     CSE not performed on query block SEL$1 (#0).
+    4524  CSE:     CSE not performed on query block UPD$1 (#0).
+    4546  invalid because Not a SELECT statement
+    4547  UPT: Bypassed: Not a SELECT statement.
+    4550  ORE: bypassed - No valid predicate for OR expansion.
+    4556  invalid because Not a SELECT statement
+    4557  UPT: Bypassed: Not a SELECT statement.
+    4560  ORE: bypassed - No valid predicate for OR expansion.
+    4566  invalid because Not a SELECT statement
+    4567  UPT: Bypassed: Not a SELECT statement.
+    4570  ORE: bypassed - Top query block of a DML.
+    4656  SJC: not performed
+    4657  SJC: not performed
+    4675  PM:     PM bypassed: Outer query contains no views.
+    4676  PM:     PM bypassed: Outer query contains no views.
+    4696  VT: Bypassed: inmemory is disabled.
+    4698  VT: Bypassed: inmemory is disabled.
+    4710  invalid because Not enabled by hint/parameter
+    4711  BJ: Bypassed: Not enabled by hint/parameter.
+    4713  invalid because Not enabled by hint/parameter
+    4714  BJ: Bypassed: Not enabled by hint/parameter.
+    4733  invalid because Not a SELECT statement
+    4734  UPT: Bypassed: Not a SELECT statement.
+    4737  invalid because Not a SELECT statement
+    4738  UPT: Bypassed: Not a SELECT statement.
+    4744  TE: Bypassed: No partitioned table in query block.
+    4746  TE: Bypassed: Top query block of a DML.
+    4754  TE: Bypassed: No partitioned table in query block.
+    4756  TE: Bypassed: Top query block of a DML.
+    4766  ORE: bypassed - No valid predicate for OR expansion.
+    4776  ST: not valid since star transformation parameter is FALSE
+    4777  ST: not valid since star transformation parameter is FALSE
+    4783  JF: Bypassed: not a UNION or UNION-ALL query block.
+    4785  JF: Bypassed: not a UNION or UNION-ALL query block.
+    4807  SQT:    SQT bypassed: non select statement.
+    4827  CSE:     CSE not performed on query block SEL$1 (#2).
+    4828  CSE:     CSE not performed on query block SEL$10439C08 (#1).
+    4914  PJE:  Bypassed; QB has a single table SEL$1 (#2)
+    4931  LORE: Or-Expansion validity checks failed on query block SEL$1 (#2) because Cost based OR expansion enabled
+    5320  LORE: Or-Expansion validity checks failed on query block SEL$10439C08 (#1) because Cost based OR expansion enabled
+    5323  AP: Adaptive joins bypassed for query block SEL$10439C08 due to top-level query block of non-SELECT
+
+
+Versions of the transformed SQL (UNPARSED QUERY IS)
+------------------------------------------------------------------------------------------------------------------------
+[1] line 4476  Stmt
+    SELECT 0
+    FROM "MTK"."MTK_DML_TGT" "T"
+    WHERE "T"."ID"=ANY (
+        SELECT "S"."ID" "ID"
+        FROM "MTK"."MTK_DML_SRC" "S"
+        WHERE "S"."STATUS"='DEAD')
+
+[2] line 4534  SQE: Query valid for SQ elimination: the same statement as line 4476
+
+[3] line 4536  SQE: Query after SQ elimination: the same statement as line 4476
+
+[4] line 4775  ST: Query in kkqstardrv   (previous statement: line 4536)
+    SELECT 0
+    FROM "MTK"."MTK_DML_SRC" "S",
+      "MTK"."MTK_DML_TGT" "T"
+    WHERE "T"."ID"="S"."ID"
+      AND "S"."STATUS"='DEAD'
+
+[5] line 4830  Final query after transformations: the same statement as line 4775
+
+
+Final plan
+------------------------------------------------------------------------------------------------------------------------
+lines 5404-5430
+============
+Plan Table
+============
+------------------------------------------+-----------------------------------+
+| Id  | Operation            | Name       | Rows  | Bytes | Cost  | Time      |
+------------------------------------------+-----------------------------------+
+| 0   | UPDATE STATEMENT     |            |       |       |  3010 |           |
+| 1   |  UPDATE              | MTK_DML_TGT|       |       |       |           |
+| 2   |   HASH JOIN          |            |   500 |   10K |    10 |  00:00:01 |
+| 3   |    TABLE ACCESS FULL | MTK_DML_SRC|   500 |  4500 |     5 |  00:00:01 |
+| 4   |    TABLE ACCESS FULL | MTK_DML_TGT|  2000 |   21K |     5 |  00:00:01 |
+| 5   |   SORT AGGREGATE     |            |     1 |     7 |       |           |
+| 6   |    TABLE ACCESS FULL | MTK_DML_SRC|   100 |   700 |     5 |  00:00:01 |
+------------------------------------------+-----------------------------------+
+Query Block Name / Object Alias (identified by operation id):
+------------------------------------------------------------
+ 1 - SEL$10439C08         
+ 3 - SEL$10439C08         / "S"@"SEL$2"
+ 4 - SEL$10439C08         / "T"@"UPD$1"
+ 5 - SEL$1                
+ 6 - SEL$1                / "S"@"SEL$1"
+------------------------------------------------------------
+Predicate Information:
+----------------------
+2 - access("T"."ID"="S"."ID")
+3 - filter("S"."STATUS"='DEAD')
+6 - filter("S"."GRP"=:B1)
+
+Hints
+------------------------------------------------------------------------------------------------------------------------
+none
+
+========================================================================================================================
+OPTIMIZER DUMP 3   sql_id 3n5p9kvkzuy42   dump 1 of this sql_id   plan hash 2343238807   lines 7,845-11,810
+view lines 7,845-11,815 (3,971 lines)   costing runs 1   tables MTK_DML_TGT, MTK_DML_SRC
+26 lines of the dump are in no known section
+------------------------------------------------------------------------------------------------------------------------
+
+SQL as typed (lines 7880-7882)
+------------------------------------------------------------------------------------------------------------------------
+delete /* mtk_opt_1111t121258984 dml_del */ from mtk_dml_tgt t
+ where t.status = 'OLD'
+   and exists (select 1 from mtk_dml_src s where s.id = t.id and s.status = 'DEAD')
+
+Altered parameters and fix controls
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Peeked binds
+------------------------------------------------------------------------------------------------------------------------
+none
+
+Outline (lines from-to, line count)
+------------------------------------------------------------------------------------------------------------------------
+    from       to    lines  section
+    7845     8582      738  Environment
+    7845     7858       14    Query blocks from the parser
+    7859     7875       17    Preamble
+    7876     8582      707    Optimizer information
+    7879     7888       10      Current SQL statement
+    7889     7947       59      Legend
+    7948     8578      631      Parameters used by the optimizer
+    7951     7957        7        Altered values
+    7958     8575      618        Default values
+    8576     8578        3        OPT_PARAM hint
+    8579     8582        4      Column usage monitoring
+    8583     8929      347  Transformations
+    8583     8623       41    Query transformations · DEL$1
+    8605     8614       10      Common Subexpression elimination (CSE) ×2
+    8615     8623        9      Order-by elimination (OBYE)
+    8624     8652       29    Query transformations · DEL$1
+    8629     8652       24      Common Subexpression elimination (CSE) ×4
+    8653     8657        5    Peeked values of the binds
+    8658     8674       17    SQL plan directives
+    8675     8929      255    Cost-based transformations · DEL$1
+    8686     8689        4      Order-by elimination (OBYE)
+    8690     8694        5      Query transformations · DEL$1
+    8695     8704       10      Common Subexpression elimination (CSE) ×2
+    8705     8748       44      Approximate Aggregate Transformation (AAT)
+    8749     8753        5      Registered qb: DEL$1 (COPY DEL$1)
+    8754     8758        5      Registered qb: SEL$1 (COPY SEL$1)
+    8759     8780       22      Cost-Based Subquery Unnesting
+    8773     8780        8        Registered qb: SEL$3BA1AD7C (SUBQUERY UNNEST DEL$1; SEL$1)
+    8781     8903      123      Cost-Based Complex View Merging
+    8798     8806        9        Set-Join Conversion (SJC)
+    8807     8903       97        Predicate Move-Around (PM)
+    8904     8929       26      Cost-based predicate pushdown (JPPD)
+    8926     8929        4        Common Subexpression elimination (CSE)
+    8930     9361      432  Costing
+    8930     8931        2    Final query after transformations
+    8932     9334      403    Run 1 of 1 · SEL$3BA1AD7C (#1)  [final plan]  best join order 1
+    8938     8958       21      Query block text, signature, system statistics
+    8959     8993       35      Base statistical information
+    8994     9022       29      MTK_DML_SRC[S]  -> TableScan
+    9023     9054       32      MTK_DML_TGT[T]  -> TableScan
+    9055     9323      269      Join order search
+    9065     9178      114        Join order[1]:  MTK_DML_SRC[S]#0  MTK_DML_TGT[T]#1  -> cost: 10.066433  [best join order]
+    9067     9178      112          Now joining: MTK_DML_TGT[T]#1  -> Hash
+    9179     9288      110        Join order[2]:  MTK_DML_TGT[T]#1  MTK_DML_SRC[S]#0  -> aborted
+    9181     9288      108          Now joining: MTK_DML_SRC[S]#0
+    9324     9333       10      Final cost
+    9362    11810     2449  Result
+    9362     9378       17    Statement dump
+    9379     9405       27    Explain plan
+    9382     9393       12      Plan table
+    9394     9399        6      Query block name / object alias
+    9400     9405        6      Predicate information
+    9406     9444       39    Content of other_xml column
+    9419     9422        4      Optimizer metrics
+    9423     9426        4      Query block registry (XML)
+    9427     9444       18      Outline data
+    9445    11797     2353    Optimizer state dump
+    9446    10059      614      Parameters
+   10060    11797     1738      Fix controls
+   11798    11807       10    Query block registry
+   11808    11810        3    Dumping hints
+   11811    11815        5  After the dump
+
+Landmark lines (verbatim, with their line numbers)
+------------------------------------------------------------------------------------------------------------------------
+Best:: AccessPath (the access path kept for a table): 2
+    9020  Best:: AccessPath: TableScan
+    9049  Best:: AccessPath: TableScan
+
+Best:: JoinMethod (the join method kept for a join step): 1
+    9173  Best:: JoinMethod: Hash
+
+Final cost for query block (the end of a costing run): 1
+    9324  Final cost for query block SEL$3BA1AD7C (#1) - All Rows Plan:
+
+Join order aborted: 1
+    9287  Join order aborted: cost > best plan cost
+
+Transformations and checks the trace says were bypassed or refused: 39
+    8588  JF: Bypassed: not a UNION or UNION-ALL query block.
+    8589  ST: not valid since star transformation parameter is FALSE
+    8591  TE: Bypassed: No partitioned table in query block.
+    8597  ORE: bypassed - No valid predicate for OR expansion.
+    8599  VT: Bypassed: inmemory is disabled.
+    8601  invalid because Not enabled by hint/parameter
+    8602  BJ: Bypassed: Not enabled by hint/parameter.
+    8612  CSE:     CSE not performed on query block SEL$1 (#0).
+    8613  CSE:     CSE not performed on query block DEL$1 (#0).
+    8618  OBYE:     OBYE bypassed: no order by to eliminate.
+    8636  CSE:     CSE not performed on query block SEL$1 (#0).
+    8637  CSE:     CSE not performed on query block DEL$1 (#0).
+    8648  CSE:     CSE not performed on query block SEL$1 (#0).
+    8649  CSE:     CSE not performed on query block DEL$1 (#0).
+    8689  OBYE:     OBYE bypassed: no order by to eliminate.
+    8702  CSE:     CSE not performed on query block SEL$1 (#0).
+    8703  CSE:     CSE not performed on query block DEL$1 (#0).
+    8724  invalid because Not a SELECT statement
+    8725  UPT: Bypassed: Not a SELECT statement.
+    8728  ORE: bypassed - No valid predicate for OR expansion.
+    8734  invalid because Not a SELECT statement
+    8735  UPT: Bypassed: Not a SELECT statement.
+    8738  ORE: bypassed - Top query block of a DML.
+    8801  SJC: not performed
+    8810  PM:     PM bypassed: Outer query contains no views.
+    8811  PM:     PM bypassed: Outer query contains no views.
+    8829  VT: Bypassed: inmemory is disabled.
+    8841  invalid because Not enabled by hint/parameter
+    8842  BJ: Bypassed: Not enabled by hint/parameter.
+    8861  invalid because Not a SELECT statement
+    8862  UPT: Bypassed: Not a SELECT statement.
+    8868  TE: Bypassed: Top query block of a DML.
+    8876  TE: Bypassed: Top query block of a DML.
+    8890  ST: not valid since star transformation parameter is FALSE
+    8896  JF: Bypassed: not a UNION or UNION-ALL query block.
+    8918  SQT:    SQT bypassed: non select statement.
+    8929  CSE:     CSE not performed on query block SEL$3BA1AD7C (#1).
+    9306  LORE: Or-Expansion validity checks failed on query block SEL$3BA1AD7C (#1) because Cost based OR expansion enabled
+    9309  AP: Adaptive joins bypassed for query block SEL$3BA1AD7C due to top-level query block of non-SELECT
+
+
+Versions of the transformed SQL (UNPARSED QUERY IS)
+------------------------------------------------------------------------------------------------------------------------
+[1] line 8662  Stmt
+    SELECT 0
+    FROM "MTK"."MTK_DML_TGT" "T"
+    WHERE "T"."STATUS"='OLD'
+      AND EXISTS (
+        SELECT 1 "1"
+        FROM "MTK"."MTK_DML_SRC" "S"
+        WHERE "S"."ID"="T"."ID"
+          AND "S"."STATUS"='DEAD')
+
+[2] line 8712  SQE: Query valid for SQ elimination: the same statement as line 8662
+
+[3] line 8714  SQE: Query after SQ elimination: the same statement as line 8662
+
+[4] line 8889  ST: Query in kkqstardrv   (previous statement: line 8714)
+    SELECT 0
+    FROM "MTK"."MTK_DML_SRC" "S",
+      "MTK"."MTK_DML_TGT" "T"
+    WHERE "T"."STATUS"='OLD'
+      AND "S"."ID"="T"."ID"
+      AND "S"."STATUS"='DEAD'
+
+[5] line 8931  Final query after transformations: the same statement as line 8889
+
+
+Final plan
+------------------------------------------------------------------------------------------------------------------------
+lines 9382-9404
+============
+Plan Table
+============
+------------------------------------------+-----------------------------------+
+| Id  | Operation            | Name       | Rows  | Bytes | Cost  | Time      |
+------------------------------------------+-----------------------------------+
+| 0   | DELETE STATEMENT     |            |       |       |    10 |           |
+| 1   |  DELETE              | MTK_DML_TGT|       |       |       |           |
+| 2   |   HASH JOIN          |            |   500 |  9000 |    10 |  00:00:01 |
+| 3   |    TABLE ACCESS FULL | MTK_DML_SRC|   500 |  4500 |     5 |  00:00:01 |
+| 4   |    TABLE ACCESS FULL | MTK_DML_TGT|   667 |  6003 |     5 |  00:00:01 |
+------------------------------------------+-----------------------------------+
+Query Block Name / Object Alias (identified by operation id):
+------------------------------------------------------------
+ 1 - SEL$3BA1AD7C         
+ 3 - SEL$3BA1AD7C         / "S"@"SEL$1"
+ 4 - SEL$3BA1AD7C         / "T"@"DEL$1"
+------------------------------------------------------------
+Predicate Information:
+----------------------
+2 - access("S"."ID"="T"."ID")
+3 - filter("S"."STATUS"='DEAD')
+4 - filter("T"."STATUS"='OLD')
+
+Hints
+------------------------------------------------------------------------------------------------------------------------
+none
+

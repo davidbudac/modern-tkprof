@@ -1,0 +1,195 @@
+dump 1 419jcqfm9713k nth 1  lines 32-3605  view 1-3610  plan_hash 892686419  runs 2  truncated false  unplaced 18
+1-31 file-header  File header
+32-768 phase-env  Environment
+  32-45 parser-qbs  Query blocks from the parser
+  46-62 preamble  Preamble
+  63-768 opt-info  Optimizer information
+    66-74 statement  Current SQL statement
+    75-133 legend  Legend
+    134-764 params  Parameters used by the optimizer
+      137-143 params-altered  Altered values
+      144-761 params-default  Default values
+      762-764 params-optparam  OPT_PARAM hint
+    765-768 col-usage  Column usage monitoring
+769-935 phase-trans  Transformations
+  769-818 qt  Query transformations · INS$1
+    803-807 tsec  Common Subexpression elimination (CSE)
+    808-818 tsec  Order-by elimination (OBYE)
+  819-913 qt  Query transformations · INS$1
+    853-857 tsec  Common Subexpression elimination (CSE)
+    858-864 tsec  Approximate Aggregate Transformation (AAT)
+    865-869 tsec  Subquery Unnest (SU)
+    870-878 tsec  Set-Join Conversion (SJC)
+    879-906 tsec  Predicate Move-Around (PM)
+    907-913 tsec  Common Subexpression elimination (CSE)
+  914-918 peeked-binds  Peeked values of the binds
+  919-935 spd  SQL plan directives
+936-1174 phase-cost  Costing
+  936-937 final-query  Final query after transformations
+  938-1055 run  Run 1 of 2 · SEL$1 (#0)  [final]  [best join order 1]
+    944-963 run-head  Query block text, signature, system statistics
+    964-985 base-stats  Base statistical information
+    986-1017 table  MTK_DML_SRC[S]  -> TableScan
+    1018-1044 join-search  Join order search
+      1025-1028 join-order  Join order[1]:  MTK_DML_SRC[S]#0  -> cost: 5.020690  [best]
+    1045-1054 final-cost  Final cost
+  1056-1156 run  Run 2 of 2 · INS$1 (#0)  [final]  [best join order 1]
+    1062-1081 run-head  Query block text, signature, system statistics
+    1082-1097 base-stats  Base statistical information
+    1098-1120 table  MTK_DML_SCRATCH[MTK_DML_SCRATCH]  -> TableScan
+    1121-1145 join-search  Join order search
+      1128-1131 join-order  Join order[1]:  MTK_DML_SCRATCH[MTK_DML_SCRATCH]#0  -> cost: 3.001844  [best]
+    1146-1155 final-cost  Final cost
+1175-3605 phase-result  Result
+  1175-1189 stmt-dump  Statement dump
+  1190-1211 plan  Explain plan
+    1193-1202 plan-table  Plan table
+    1203-1207 plan-qbs  Query block name / object alias
+    1208-1211 plan-preds  Predicate information
+  1212-1241 other-xml  Content of other_xml column
+    1220-1223 opt-metrics  Optimizer metrics
+    1224-1227 qbreg-xml  Query block registry (XML)
+    1228-1241 outline-data  Outline data
+  1242-3594 state-dump  Optimizer state dump
+    1243-1856 state-params  Parameters
+    1857-3594 state-fix  Fix controls
+  3595-3602 qb-registry  Query block registry
+  3603-3605 hints  Dumping hints
+3606-3610 after  After the dump
+dump 2 21298g6n3w6yw nth 1  lines 3611-7839  view 3611-7844  plan_hash 1601430856  runs 2  truncated false  unplaced 36
+3611-4355 phase-env  Environment
+  3611-3631 parser-qbs  Query blocks from the parser
+  3632-3648 preamble  Preamble
+  3649-4355 opt-info  Optimizer information
+    3652-3661 statement  Current SQL statement
+    3662-3720 legend  Legend
+    3721-4351 params  Parameters used by the optimizer
+      3724-3730 params-altered  Altered values
+      3731-4348 params-default  Default values
+      4349-4351 params-optparam  OPT_PARAM hint
+    4352-4355 col-usage  Column usage monitoring
+4356-4828 phase-trans  Transformations
+  4356-4426 qt  Query transformations · UPD$1
+    4396-4410 tsec  Common Subexpression elimination (CSE) ×3
+    4411-4419 tsec  Order-by elimination (OBYE)
+    4420-4426 tsec  Count(col) to Count(*) (CNT)
+  4427-4466 qt  Query transformations · UPD$1
+    4433-4466 tsec  Common Subexpression elimination (CSE) ×6
+  4467-4471 peeked-binds  Peeked values of the binds
+  4472-4489 spd  SQL plan directives
+  4490-4828 cbqt  Cost-based transformations · UPD$1
+    4501-4504 tsec  Order-by elimination (OBYE)
+    4505-4510 qt  Query transformations · UPD$1
+    4511-4525 tsec  Common Subexpression elimination (CSE) ×3
+    4526-4580 tsec  Approximate Aggregate Transformation (AAT)
+    4581-4585 registered  Registered qb: UPD$1 (COPY UPD$1)
+    4586-4590 registered  Registered qb: SEL$2 (COPY SEL$2)
+    4591-4595 registered  Registered qb: SEL$1 (COPY SEL$1)
+    4596-4620 cbsec  Cost-Based Subquery Unnesting
+      4613-4620 registered  Registered qb: SEL$10439C08 (SUBQUERY UNNEST UPD$1; SEL$2)
+    4621-4792 cbsec  Cost-Based Complex View Merging
+      4630-4648 tsec  Count(col) to Count(*) (CNT)
+      4649-4666 tsec  Set-Join Conversion (SJC) ×2
+      4667-4671 tsec  Count(col) to Count(*) (CNT)
+      4672-4792 tsec  Predicate Move-Around (PM)
+    4793-4828 cbsec  Cost-based predicate pushdown (JPPD)
+      4820-4828 tsec  Common Subexpression elimination (CSE) ×2
+4829-5383 phase-cost  Costing
+  4829-4830 final-query  Final query after transformations
+  4831-4950 run  Run 1 of 2 · SEL$1 (#2)  [final]  [best join order 1]
+    4837-4856 run-head  Query block text, signature, system statistics
+    4857-4882 base-stats  Base statistical information
+    4883-4912 table  MTK_DML_SRC[S]  -> TableScan
+    4913-4939 join-search  Join order search
+      4920-4923 join-order  Join order[1]:  MTK_DML_SRC[S]#0  -> cost: 5.018056  [best]
+    4940-4949 final-cost  Final cost
+  4951-5347 run  Run 2 of 2 · SEL$10439C08 (#1)  [final]  [best join order 1]
+    4957-4977 run-head  Query block text, signature, system statistics
+    4978-5012 base-stats  Base statistical information
+    5013-5041 table  MTK_DML_SRC[S]  -> TableScan
+    5042-5064 table  MTK_DML_TGT[T]  -> TableScan
+    5065-5336 join-search  Join order search
+      5071-5183 join-order  Join order[1]:  MTK_DML_SRC[S]#0  MTK_DML_TGT[T]#1  -> cost: 10.066206  [best]
+        5073-5183 join-step  Now joining: MTK_DML_TGT[T]#1  -> Hash
+      5184-5301 join-order  Join order[2]:  MTK_DML_TGT[T]#1  MTK_DML_SRC[S]#0  -> aborted
+        5186-5301 join-step  Now joining: MTK_DML_SRC[S]#0
+    5337-5346 final-cost  Final cost
+5384-7839 phase-result  Result
+  5384-5400 stmt-dump  Statement dump
+  5401-5431 plan  Explain plan
+    5404-5417 plan-table  Plan table
+    5418-5425 plan-qbs  Query block name / object alias
+    5426-5431 plan-preds  Predicate information
+  5432-5472 other-xml  Content of other_xml column
+    5445-5448 opt-metrics  Optimizer metrics
+    5449-5452 qbreg-xml  Query block registry (XML)
+    5453-5472 outline-data  Outline data
+  5473-7825 state-dump  Optimizer state dump
+    5474-6087 state-params  Parameters
+    6088-7825 state-fix  Fix controls
+  7826-7836 qb-registry  Query block registry
+  7837-7839 hints  Dumping hints
+7840-7844 after  After the dump
+dump 3 3n5p9kvkzuy42 nth 1  lines 7845-11810  view 7845-11815  plan_hash 2343238807  runs 1  truncated false  unplaced 26
+7845-8582 phase-env  Environment
+  7845-7858 parser-qbs  Query blocks from the parser
+  7859-7875 preamble  Preamble
+  7876-8582 opt-info  Optimizer information
+    7879-7888 statement  Current SQL statement
+    7889-7947 legend  Legend
+    7948-8578 params  Parameters used by the optimizer
+      7951-7957 params-altered  Altered values
+      7958-8575 params-default  Default values
+      8576-8578 params-optparam  OPT_PARAM hint
+    8579-8582 col-usage  Column usage monitoring
+8583-8929 phase-trans  Transformations
+  8583-8623 qt  Query transformations · DEL$1
+    8605-8614 tsec  Common Subexpression elimination (CSE) ×2
+    8615-8623 tsec  Order-by elimination (OBYE)
+  8624-8652 qt  Query transformations · DEL$1
+    8629-8652 tsec  Common Subexpression elimination (CSE) ×4
+  8653-8657 peeked-binds  Peeked values of the binds
+  8658-8674 spd  SQL plan directives
+  8675-8929 cbqt  Cost-based transformations · DEL$1
+    8686-8689 tsec  Order-by elimination (OBYE)
+    8690-8694 qt  Query transformations · DEL$1
+    8695-8704 tsec  Common Subexpression elimination (CSE) ×2
+    8705-8748 tsec  Approximate Aggregate Transformation (AAT)
+    8749-8753 registered  Registered qb: DEL$1 (COPY DEL$1)
+    8754-8758 registered  Registered qb: SEL$1 (COPY SEL$1)
+    8759-8780 cbsec  Cost-Based Subquery Unnesting
+      8773-8780 registered  Registered qb: SEL$3BA1AD7C (SUBQUERY UNNEST DEL$1; SEL$1)
+    8781-8903 cbsec  Cost-Based Complex View Merging
+      8798-8806 tsec  Set-Join Conversion (SJC)
+      8807-8903 tsec  Predicate Move-Around (PM)
+    8904-8929 cbsec  Cost-based predicate pushdown (JPPD)
+      8926-8929 tsec  Common Subexpression elimination (CSE)
+8930-9361 phase-cost  Costing
+  8930-8931 final-query  Final query after transformations
+  8932-9334 run  Run 1 of 1 · SEL$3BA1AD7C (#1)  [final]  [best join order 1]
+    8938-8958 run-head  Query block text, signature, system statistics
+    8959-8993 base-stats  Base statistical information
+    8994-9022 table  MTK_DML_SRC[S]  -> TableScan
+    9023-9054 table  MTK_DML_TGT[T]  -> TableScan
+    9055-9323 join-search  Join order search
+      9065-9178 join-order  Join order[1]:  MTK_DML_SRC[S]#0  MTK_DML_TGT[T]#1  -> cost: 10.066433  [best]
+        9067-9178 join-step  Now joining: MTK_DML_TGT[T]#1  -> Hash
+      9179-9288 join-order  Join order[2]:  MTK_DML_TGT[T]#1  MTK_DML_SRC[S]#0  -> aborted
+        9181-9288 join-step  Now joining: MTK_DML_SRC[S]#0
+    9324-9333 final-cost  Final cost
+9362-11810 phase-result  Result
+  9362-9378 stmt-dump  Statement dump
+  9379-9405 plan  Explain plan
+    9382-9393 plan-table  Plan table
+    9394-9399 plan-qbs  Query block name / object alias
+    9400-9405 plan-preds  Predicate information
+  9406-9444 other-xml  Content of other_xml column
+    9419-9422 opt-metrics  Optimizer metrics
+    9423-9426 qbreg-xml  Query block registry (XML)
+    9427-9444 outline-data  Outline data
+  9445-11797 state-dump  Optimizer state dump
+    9446-10059 state-params  Parameters
+    10060-11797 state-fix  Fix controls
+  11798-11807 qb-registry  Query block registry
+  11808-11810 hints  Dumping hints
+11811-11815 after  After the dump
