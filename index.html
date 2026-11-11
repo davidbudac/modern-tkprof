@@ -287,7 +287,7 @@
         </ul>
       </div>
       <figure class="shot agent-shot">
-        <pre class="terminal" aria-label="The start of the digest that mtkprof report prints for an optimizer trace holding two dumps"><span class="p">$ </span>mtkprof report opt_two.trc
+        <pre class="terminal" aria-label="Parts of the digest that mtkprof report prints for an optimizer trace holding two dumps"><span class="p">$ </span>mtkprof report opt_two.trc
 mtkprof - Oracle optimizer trace (event 10053) digest
 Trace file : opt_two.trc
 Volume     : 27,963 lines  2 dumps
@@ -297,10 +297,10 @@ Dumps
    2  4c6x0jk0jpuzn   lines 18,524-27,908  runs 8  MTK_ORDERS, MTK_CUST
 
 Outline (lines from-to, line count)
-    1335     4212     2878  GBP iteration 1  <span class="c">[GBP: Updated best state, Cost = 384.608830]</span>
-    1347     4211     2865    Run 1 of 9 · SEL$1BA63A14 (#1)  best join order 13
-    1616     1867      252      Join order[1]:  MTK_CUST[C]#0  MTK_ORDERS[O]#1  …  -&gt; cost: 453.647906
-    1618     1699       82        Now joining: MTK_ORDERS[O]#1  -&gt; NestedLoop <span class="c">…</span></pre>
+    1335     4212     2878        GBP iteration 1 · (1,2,3,4) : (0,0,0,0)  <span class="c">[GBP: Updated best state, Cost = 384.608830]</span>
+    1347     4211     2865          Run 1 of 9 · SEL$1BA63A14 (#1)  best join order 13  <span class="c">[GBP: Updated best state, …]</span>
+    1616     1867      252              Join order[1]:  MTK_CUST[C]#0  MTK_ORDERS[O]#1  …  -&gt; cost: 453.647906
+    1618     1699       82                Now joining: MTK_ORDERS[O]#1  -&gt; NestedLoop <span class="c">…</span></pre>
       </figure>
     </div>
 
