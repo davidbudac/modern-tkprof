@@ -20,10 +20,22 @@ const MaxLines = 2000
 // With annot=2 (only where a Server serves it, see Server.Handler; otherwise
 // it answers like annot=1) every line also carries the ids `at` would answer
 // for it, see annotate2.
-func LinesHandler(lis []*trace.LineIndex) http.Handler { return linesHandler(lis, nil) }
+func LinesHandler(lis []*trace.LineIndex) http.Handler { return linesHandler(lis, nil, nil) }
 
-// linesHandler is LinesHandler; ann2 (when not nil) serves annot=2 of file fi.
-func linesHandler(lis []*trace.LineIndex, ann2 func(w http.ResponseWriter, fi int, from, n int)) http.Handler {
+// LinesHandlerDumps is LinesHandler for a server that has no model but knows the
+// optimizer (10053) dumps of each file (dumps[fi]): their lines are annotated as
+// optimizer lines.
+func LinesHandlerDumps(lis []*trace.LineIndex, dumps [][]trace.Dump) http.Handler {
+	return linesHandler(lis, func(fi int) []trace.Dump {
+		if fi < len(dumps) {
+			return dumps[fi]
+		}
+		return nil
+	}, nil)
+}
+
+// linesHandler is LinesHandler; dumps (when not nil) gives the optimizer dumps of file fi; ann2 (when not nil) serves annot=2 of file fi.
+func linesHandler(lis []*trace.LineIndex, dumps func(fi int) []trace.Dump, ann2 func(w http.ResponseWriter, fi int, from, n int)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fi, _ := strconv.Atoi(r.URL.Query().Get("file"))
 		if fi < 0 || fi >= len(lis) {
@@ -42,7 +54,11 @@ func linesHandler(lis []*trace.LineIndex, ann2 func(w http.ResponseWriter, fi in
 			return
 		}
 		if annot == "1" || annot == "2" {
-			serveAnnotated(w, li, from, n)
+			var ds []trace.Dump
+			if dumps != nil {
+				ds = dumps(fi)
+			}
+			serveAnnotated(w, li, from, n, ds)
 			return
 		}
 		b, err := li.Read(from, n)

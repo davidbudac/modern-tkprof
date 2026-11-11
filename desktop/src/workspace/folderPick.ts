@@ -4,10 +4,10 @@
 
 import type { ListedFile, TracePeek } from '../engine'
 import { baseName } from './traceSet'
-import { fileKindOf, kindLabel, type PeekOpt } from './optTabs'
+import { fileKindOf, kindLabel } from './optTabs'
 
-/** What a peek reports: the generated type plus the 10053 fields (`PeekOpt`, until `api.d.ts` has them). */
-export type Peek = TracePeek & PeekOpt
+/** What a peek reports (the generated type: it carries the 10053 fields). */
+export type Peek = TracePeek
 
 /** A listed file and, once it is in, its peek. */
 export interface PickRow {

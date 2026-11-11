@@ -2,15 +2,15 @@
 // the labels of the kinds, which open tab a jump between a 10046 trace and a 10053 dump goes to, and the note of a file that was left out of a set.
 // (DESIGN / docs/PLAN-10053.md § Tabs and the link to a 10046 trace.)
 
+import type { SessionInfo, TracePeek } from '../engine'
+
 /**
- * The fields the engine adds for the 10053 reader (docs/PLAN-10053.md § Build contract); until `pnpm gen:api` brings them into `api.d.ts` they are
- * declared here, next to their use. `kind` of a peek: "10046", "10053" (dumps and no 10046 record) or "both" (an interleaved file; the engine's
- * `FileKind` prints it "10046+10053"); "" when neither was seen.
+ * The fields the engine adds for the 10053 reader (docs/PLAN-10053.md § Build contract), from the generated types (`api.d.ts`). `kind` of a peek:
+ * "10046", "10053" (dumps and no 10046 record) or "both" (an interleaved file); absent when neither was seen. `fileKindOf` also tolerates the
+ * engine's `FileKind` spelling "10046+10053".
  */
-// from api.d.ts once regenerated
-export interface PeekOpt { kind?: string; optDumps?: number; optSqlIds?: string[] }
-// from api.d.ts once regenerated
-export interface SessionOpt { optSqlIds?: string[] }
+export type PeekOpt = Pick<TracePeek, 'optDumps' | 'optSqlIds'> & { kind?: string } // a TracePeek is one; a string so that the engine's FileKind spelling is read too
+export type SessionOpt = Pick<SessionInfo, 'optSqlIds'>
 
 /** The kind of a tab: only the 10053 tabs are marked; an absent kind is a 10046 trace (as it always was). */
 export type TabKind = '10053'

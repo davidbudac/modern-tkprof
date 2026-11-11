@@ -238,3 +238,77 @@ func (t *optTracker) open(n int) (Dump, bool) {
 	d.Last, d.Cut = max(n, d.First), true
 	return d, true
 }
+
+// maxChatterGuess is how far after a dump's END banner a page that starts
+// there is assumed to be still in the adaptive-plan chatter (see MarkOpt).
+const maxChatterGuess = 2000
+
+// MarkOpt gives the optimizer lines of a page the kind the parser counts
+// them as (KindOpt). kinds are what Classify or a Classifier said of lines
+// (the first of which is line number lo of the file; a caller that seeds the
+// SQL-text state classifies a few lines before its page and passes them
+// all), dumps the file's dumps in file order (Stats.Dumps, FileEntry.Dumps).
+// Inside a dump a line the stateless classifier did not recognise, a bind
+// line outside a real BINDS block and a "=" banner other than the 21-"="
+// separator become optimizer lines, as do the unrecognised lines after its END
+// banner up to the next record and the lines the event writes while a
+// statement runs ("AP: ..."). The parser decides all this with a state kept
+// from the start of the file; a page that starts after a dump's end can only
+// guess whether it starts in the chatter (it does for maxChatterGuess lines).
+func MarkOpt(kinds []Kind, lines [][]byte, lo int, dumps []Dump) {
+	if len(dumps) == 0 || len(kinds) == 0 {
+		return
+	}
+	di := 0            // the first dump that has not ended before the line
+	realBinds := false // inside a BINDS block the 10046 records opened
+	chatter := false   // after a dump's END banner, no record yet
+	n0 := lo
+	for di < len(dumps) && dumps[di].Last < n0 {
+		di++
+	}
+	if di > 0 && n0 > dumps[di-1].Last && n0-dumps[di-1].Last <= maxChatterGuess && (di >= len(dumps) || n0 < dumps[di].First) {
+		chatter = true
+	}
+	for i, l := range lines {
+		n := lo + i
+		for di < len(dumps) && dumps[di].Last < n {
+			if dumps[di].Last+1 == n {
+				chatter = true
+			}
+			di++
+		}
+		k := kinds[i]
+		if k == KindBinds {
+			realBinds = true
+		} else if k != KindBindLine && k != KindBlank {
+			realBinds = false
+		}
+		in := di < len(dumps) && dumps[di].First <= n
+		switch {
+		case in:
+			chatter = false
+			switch k {
+			case KindUnknown:
+				kinds[i] = KindOpt
+			case KindBindLine:
+				if !realBinds {
+					kinds[i] = KindOpt
+				}
+			case KindSeparator:
+				if !isSeparator21(l) {
+					kinds[i] = KindOpt
+				}
+			}
+		case chatter:
+			switch k {
+			case KindUnknown:
+				kinds[i] = KindOpt
+			case KindBlank:
+			default:
+				chatter = false
+			}
+		case k == KindUnknown && n > dumps[0].First && len(l) > 0 && runtimeOptLine(l):
+			kinds[i] = KindOpt
+		}
+	}
+}

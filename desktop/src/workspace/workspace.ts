@@ -9,7 +9,7 @@ import { closeChat } from '../assist/conversation'
 import { libraryFor } from '../library/library'
 import { mergePanes, parsePanes, type Panes, type PanesPatch } from './panes'
 import { dirsOf, titleOf, baseName } from './traceSet'
-import { dumpIndexOf, dumpTabs, leftOutFile, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, type PeekOpt, type SessionOpt, type TabKind } from './optTabs'
+import { dumpIndexOf, dumpTabs, leftOutFile, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, type PeekOpt, type TabKind } from './optTabs'
 import { LiveFollower } from './liveFollow'
 import { OpenQueue } from './openQueue'
 
@@ -351,7 +351,7 @@ export class Workspace {
     const t = this.tab(key)
     if (!t || t.sessionId !== info.id) return
     const patch: Partial<Tab> = { identity: info.identity || t.identity, hit: info.hit }
-    const optIds = (info as SessionInfo & SessionOpt).optSqlIds
+    const optIds = info.optSqlIds
     if (optIds) { patch.kind = '10053'; patch.optSqlIds = optIds } // present only for a 10053 session
     if (info.files?.length && !t.live) {
       const dirs = dirsOf(t.set.paths, info.files)

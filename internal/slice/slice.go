@@ -167,7 +167,7 @@ func (s *Server) Handler() http.Handler {
 		mux.HandleFunc(path, s.wrap(fn))
 	}
 	if s.lis != nil { // the endpoints that read the trace text (WithLines)
-		mux.Handle("/api/lines", s.cors(linesHandler(s.lis, s.serveAnnotated2)))
+		mux.Handle("/api/lines", s.cors(linesHandler(s.lis, s.dumpsOf, s.serveAnnotated2)))
 		mux.Handle("/api/search", s.cors(http.HandlerFunc(s.search)))
 		mux.Handle("/api/cut/file", s.cors(http.HandlerFunc(s.cutFile)))
 	}

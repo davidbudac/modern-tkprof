@@ -82,7 +82,7 @@ export const OptOutline = memo(function OptOutline(p: Props) {
       </>
       if (r?.verdict) l2 = <><span className={'opt-ol-dot ' + (r.verdict.kept ? 'kept' : 'rejected')} /><span className="mono" title={`${r.iter}: the verdict of the iteration it belongs to (line ${r.verdict.line})`}>{r.verdict.text}</span></>
       else if (r?.final) l2 = <span>after Final query after transformations, line {fmtInt(dd.finalQueryLine)}</span>
-      if (mode === 'runs') l3 = <span>{r?.final && !r.iter ? `after Final query after transformations, line ${fmtInt(dd.finalQueryLine)}` : (n.iter && dd.byId.get(n.iter)?.label) || n.iterLabel || r?.iter || ''}</span>
+      if (mode === 'runs' && !(r?.final && !r.iter)) l3 = <span>{(n.iter && dd.byId.get(n.iter)?.label) || n.iterLabel || r?.iter || ''}</span> // the final run has no iteration; its line 2 already says where it comes from
     } else if (n.kind === 'iteration') {
       l1 = <span className="opt-ol-label">{n.label}</span>
       if (n.verdict) l2 = <><span className={'opt-ol-dot ' + (n.verdict.kept ? 'kept' : 'rejected')} /><span className="mono">{n.verdict.text.replace(/^\w+: /, '')}</span></>

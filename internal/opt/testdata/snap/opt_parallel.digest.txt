@@ -2,7 +2,7 @@ mtkprof - Oracle optimizer trace (event 10053) digest
 ========================================================================================================================
 Trace file : opt_parallel.trc
 Database   : Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production  version 19.27.0.0.0
-Volume     : 4,069 lines  1 dumps
+Volume     : 4,069 lines  1 dump
 
 Dumps
    1  cn3n6q7gm71wh   lines 32-4,059  runs 1  MTK_CUST, MTK_PX_BIG

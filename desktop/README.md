@@ -182,12 +182,19 @@ the original tabs only while their content identities still match. Comparison ta
 engine restarts but are excluded from workspace restoration after app exit. Tabs can be
 reordered with the adjacent buttons or Alt+Shift+Left/Right while the title has focus.
 
-**10053 tabs.** A file of optimizer (10053) dumps and no 10046 record is always a tab of its own (a set given with 10046
-files leaves it out with a notice). Its session document has an `opt` field, which makes the shell show the lib's 10053
-view (`web/src/lib/views/opt`) and none of the 10046 views; the view reads each dump through `GET api/opt/dump?i=N` and
-`GET api/opt/text?i=N`. The engine's session object carries `optSqlIds`, which the "10053" mark on a statement of
-another tab reads; the mark and the dump's "10046" link switch tabs and select the dump (and line). Notes and bookmarks
-on lines use the same annotations store as the Trace pane. User guide: `docs/DESKTOP.md` § The 10053 view.
+**10053 tabs.** A file of optimizer (10053) dumps and no 10046 record is always a tab of its own: the folder picker
+opens it beside the 10046 set it was selected with, and files that arrive in one request without the picker open as
+the 10046 set with a note that offers the 10053 file as a tab (`workspace.noteAction`). The tab has `kind: '10053'`
+(`workspace.json` keeps it, the Recent list and the tab strip show a *10053* badge). Its session document has an
+`opt` field, which makes the shell show the lib's 10053 view (`web/src/lib/views/opt`) and none of the 10046 views, no
+filter bar and no Files panel; the view reads each dump through `GET api/opt/dump?i=N` and `GET api/opt/text?i=N`.
+The engine's session object carries `optSqlIds` once the session is ready; the "10053" mark on a statement of
+another tab reads it (`OptLinksContext`, `workspace.dumpLink`) and opens the first dump with that sql_id in the most
+recently used tab that has one; the dump's "10046" link (`workspace.statementLink`) selects the statement in the
+Statements view of the most recently used 10046 tab. The assistant panel of a 10053 tab is `OptAssistantNotice`;
+Compare, Cut, the brief and the CSV report are off (`canCompare`, `session/views.tsx`, `SessionNav`, `ReportsView`).
+Notes and bookmarks on lines use the same annotations store as the Trace pane. User guide: `docs/DESKTOP.md` § The
+10053 view.
 
 Settings → Backup defaults to the existing connections/library format (version 1). Optional
 investigation metadata uses version 2: merged notes/bookmarks, theme/bind/start-empty defaults,

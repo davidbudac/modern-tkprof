@@ -329,7 +329,7 @@ func TestLinesBlocksFrame(t *testing.T) {
 		t.Fatalf("frame blocks %v truncated=%v", got.Blocks, got.Truncated)
 	}
 	kindOf := func(line int) trace.Kind {
-		k, _, err := kindAt(e.lis[0], line)
+		k, _, err := kindAt(e.lis[0], line, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -387,7 +387,7 @@ func TestLinesBlocksFrameTexts(t *testing.T) {
 	check := func(t *testing.T, e *lineEnv, file int) int {
 		got := e.blocks(t, file, "frame")
 		kindOf := func(line int) trace.Kind {
-			k, _, err := kindAt(e.lis[file], line)
+			k, _, err := kindAt(e.lis[file], line, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

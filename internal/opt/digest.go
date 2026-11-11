@@ -39,7 +39,7 @@ func WriteDigest(w io.Writer, s *Scan, line func(n int) (string, bool), o TextOp
 	p("%s\n", strings.Repeat("=", digestWidth))
 	p("Trace file : %s\n", dash(f.Name))
 	p("Database   : %s  version %s\n", dash(f.Release), dash(f.Version))
-	p("Volume     : %s lines  %d dumps\n", commas(f.Lines), len(s.Dumps))
+	p("Volume     : %s lines  %d %s\n", commas(f.Lines), len(s.Dumps), map[bool]string{true: "dump", false: "dumps"}[len(s.Dumps) == 1])
 	var notes []string
 	if !f.Tested && len(s.Dumps) > 0 {
 		v := f.Version

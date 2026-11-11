@@ -312,7 +312,7 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 	if line > li.Lines() {
 		return nil, notFound("no such line")
 	}
-	kind, text, err := kindAt(li, line)
+	kind, text, err := kindAt(li, line, s.dumpsOf(fi))
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +384,7 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 				a.Call, a.ExecNo, a.BindSet = c.ID, c.ExecNo, c.BindSet
 			}
 		}
-	case (kind == trace.KindBinds || kind == trace.KindBindLine || ((kind == trace.KindUnknown || kind == trace.KindBlank) && continuesBinds(li, line))) && s.bindOwner(f, ci, line, &owner) == nil && owner.ID != model.None:
+	case (kind == trace.KindBinds || kind == trace.KindBindLine || (bindContinuation(kind) && continuesBinds(li, line))) && s.bindOwner(f, ci, line, &owner) == nil && owner.ID != model.None:
 		// a BINDS block is attached to the EXEC that follows it
 		fromCall(&owner)
 	case prev != nil:
@@ -446,6 +446,14 @@ func continuesBinds(li *trace.LineIndex, line int) bool {
 		}
 	}
 	return false
+}
+
+// bindContinuation: a line of this kind may continue the BINDS block above it
+// (a memory dump row, the rest of a multi-line value; an optimizer line the
+// parser counts after the block: the runtime "AP: ..." lines of an interleaved
+// trace sit between the block and its EXEC).
+func bindContinuation(k trace.Kind) bool {
+	return k == trace.KindUnknown || k == trace.KindBlank || k == trace.KindOpt
 }
 
 // maxExecWalk bounds the walks over call rows of execSpan.

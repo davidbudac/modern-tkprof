@@ -313,3 +313,67 @@ func TestInterleavedFixture(t *testing.T) {
 		t.Errorf("%d optimizer lines", st.Kinds[KindOpt])
 	}
 }
+
+// TestMarkOpt: a page's kinds from the stateless classifier, with MarkOpt, name
+// the same lines optimizer lines as the parser does, for the whole file and
+// for pages that start anywhere (the lookback the line endpoints classify
+// first is 64 lines).
+func TestMarkOpt(t *testing.T) {
+	for _, f := range []string{"../../testdata/traces/19c/opt_interleaved.trc", "../../testdata/opt/19c/opt_unified.trc", "../../testdata/opt/19c/opt_two.trc"} {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			t.Skip(err)
+		}
+		text := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
+		lines := make([][]byte, len(text))
+		for i, s := range text {
+			lines[i] = []byte(strings.TrimSuffix(s, "\r"))
+		}
+		// the parser's verdict per line
+		parsed := make([]Kind, len(lines))
+		p := New(&recorder{})
+		p.kindHook = func(line int, k Kind) { parsed[line-1] = k }
+		st, err := p.Run(strings.NewReader(string(raw)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(st.Dumps) == 0 {
+			t.Fatalf("%s: no dump", f)
+		}
+		page := func(from, n int) []Kind {
+			lo := max(1, from-64)
+			hi := min(len(lines), from+n-1)
+			c := NewClassifier(lo == 1)
+			kinds := make([]Kind, 0, hi-lo+1)
+			for _, l := range lines[lo-1 : hi] {
+				kinds = append(kinds, c.Next(l))
+			}
+			MarkOpt(kinds, lines[lo-1:hi], lo, st.Dumps)
+			return kinds[from-lo:]
+		}
+		bad, opt := 0, 0
+		check := func(from int, got []Kind) {
+			for i, k := range got {
+				n := from + i
+				if (k == KindOpt) != (parsed[n-1] == KindOpt) {
+					if bad++; bad <= 5 {
+						t.Errorf("%s line %d %q: page kind %s, parser %s", filepath.Base(f), n, lines[n-1], k, parsed[n-1])
+					}
+				}
+				if k == KindOpt {
+					opt++
+				}
+			}
+		}
+		check(1, page(1, len(lines))) // the whole file at once
+		if opt != st.Kinds[KindOpt] {
+			t.Errorf("%s: %d optimizer lines, the parser counts %d", filepath.Base(f), opt, st.Kinds[KindOpt])
+		}
+		for from := 1; from <= len(lines); from += 997 { // pages of 150 lines from places across the file
+			check(from, page(from, 150))
+		}
+		if bad > 0 {
+			t.Errorf("%s: %d lines differ", filepath.Base(f), bad)
+		}
+	}
+}

@@ -2,7 +2,7 @@ mtkprof - Oracle optimizer trace (event 10053) digest
 ========================================================================================================================
 Trace file : opt_join8.trc
 Database   : Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production  version 19.27.0.0.0
-Volume     : 14,651 lines  1 dumps
+Volume     : 14,651 lines  1 dump
 
 Dumps
    1  6h8v16hz0c16j   lines 32-14,589  runs 1  MTK_ORDERS, MTK_CUST

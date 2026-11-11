@@ -58,7 +58,7 @@ func (e *stmtEnv) annotStmtsKinds(t testing.TB, fi int) ([]int32, []string) {
 	out := make([]int32, 0, li.Lines())
 	kinds := make([]string, 0, li.Lines())
 	for from := 1; from <= li.Lines(); from += 2000 {
-		lines, err := e.s.annotate2(li, f, from, 2000)
+		lines, err := e.s.annotate2(li, fi, f, from, 2000)
 		if err != nil {
 			t.Fatal(err)
 		}

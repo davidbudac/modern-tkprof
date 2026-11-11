@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"math"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -312,6 +313,12 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 		if st.Kinds[k] > 0 {
 			m.Diag.LineKinds[k.String()] = st.Kinds[k]
 		}
+	}
+	if b.agg && m.OptOnly() {
+		// a 10053 file has no calls, waits or binds to aggregate: the mode's note would only mislead
+		m.Diag.Notes = slices.DeleteFunc(m.Diag.Notes, func(n string) bool {
+			return strings.HasPrefix(n, "spill mode:") || strings.HasPrefix(n, "aggregate mode:")
+		})
 	}
 	if len(m.File.Files) == 1 {
 		fe := &m.File.Files[0]

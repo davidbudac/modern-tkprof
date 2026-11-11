@@ -43,7 +43,7 @@ func (s *Server) serveAnnotated2(w http.ResponseWriter, fi, from, n int) {
 	from = max(from, 1)
 	page := annotPage2{From: from, Total: li.Lines(), Lines: []annotLine2{}}
 	if from <= li.Lines() && n > 0 {
-		lines, err := s.annotate2(li, f, from, n)
+		lines, err := s.annotate2(li, fi, f, from, n)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -58,8 +58,8 @@ func (s *Server) serveAnnotated2(w http.ResponseWriter, fi, from, n int) {
 // page are found by binary search, then both row streams, the cursor list and
 // the plan list are walked forward with the lines, so the cost is the page's
 // lines plus the rows within it (plus one bindOwner scan per BINDS block).
-func (s *Server) annotate2(li *trace.LineIndex, f *fileInfo, from, n int) ([]annotLine2, error) {
-	lines, kinds, err := annotateRaw(li, from, n)
+func (s *Server) annotate2(li *trace.LineIndex, fi int, f *fileInfo, from, n int) ([]annotLine2, error) {
+	lines, kinds, err := annotateRaw(li, from, n, s.dumpsOf(fi))
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (s *Server) annotate2(li *trace.LineIndex, f *fileInfo, from, n int) ([]ann
 		*a = annotIDs{-1, -1, -1, -1, -1}
 		fromCall := func(c *model.Call) { a.C, a.S, a.U, a.X = int32(c.ID), int32(c.Statement), int32(c.Cursor), c.ExecNo }
 		isBinds := kind == trace.KindBinds || kind == trace.KindBindLine
-		if !isBinds && (kind == trace.KindUnknown || kind == trace.KindBlank) {
+		if !isBinds && bindContinuation(kind) {
 			// a continuation line of a bind value or dump belongs to the block
 			// above it (see continuesBinds); a page that starts on one asks
 			if i == 0 {

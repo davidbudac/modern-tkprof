@@ -2,7 +2,7 @@ mtkprof - Oracle optimizer trace (event 10053) digest
 ========================================================================================================================
 Trace file : opt_subq_binds.trc
 Database   : Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production  version 19.27.0.0.0
-Volume     : 18,523 lines  1 dumps
+Volume     : 18,523 lines  1 dump
 
 Dumps
    1  7rykyq87czpu5   lines 32-18,278  runs 9  MTK_ORDERS, MTK_CUST, MTK_AUDIT

@@ -3,6 +3,7 @@ package model
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -51,6 +52,28 @@ func TestOptInputs(t *testing.T) {
 	for _, in := range [][]string{{plainFx}, {two, plainFx}, {mixedFx}, {"nosuch.trc"}} {
 		if name, ok := AllOpt(in); ok {
 			t.Errorf("AllOpt(%v) = %q", in, name)
+		}
+	}
+}
+
+// An aggregate or spill build of a 10053 file has no calls, waits or binds to
+// aggregate: its mode's note is left out (the same build of a 10046 trace keeps it).
+func TestOptOnlyNoModeNote(t *testing.T) {
+	modeNote := func(m *Model) bool {
+		for _, n := range m.Diag.Notes {
+			if strings.HasPrefix(n, "aggregate mode:") || strings.HasPrefix(n, "spill mode:") {
+				return true
+			}
+		}
+		return false
+	}
+	for file, want := range map[string]bool{optTwoFx: false, plainFx: true, mixedFx: true} {
+		m, err := BuildFiles([]string{file}, Options{Aggregate: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := modeNote(m); got != want {
+			t.Errorf("%s: mode note %v, want %v (notes %q)", filepath.Base(file), got, want, m.Diag.Notes)
 		}
 	}
 }

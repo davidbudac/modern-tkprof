@@ -973,3 +973,68 @@ func (w *timedWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 func (w *timedWriter) Flush() {}
+
+// The lines of an optimizer (10053) dump written into a 10046 trace come out as
+// optimizer lines (annot=1 and annot=2, from the model and from the spill
+// server; the plain handler too when it is given the dumps), the 10046 records
+// between them keep their kinds; the count is the parser's.
+func TestLinesAnnotOptimizerDumps(t *testing.T) {
+	f := traces + "opt_interleaved.trc"
+	e := newLineEnv(t, []string{f})
+	want := e.full.Diag.LineKinds["optimizer"]
+	if want < 20000 {
+		t.Fatalf("the parser counted %d optimizer lines", want)
+	}
+	var ds []trace.Dump
+	for _, r := range e.full.File.Files[0].Dumps {
+		ds = append(ds, trace.Dump{First: r.First, Last: r.Last})
+	}
+	plain := LinesHandlerDumps(e.lis, [][]trace.Dump{ds})
+	total := e.lis[0].Lines()
+	for _, annot := range []string{"1", "2"} {
+		got, calls := 0, 0
+		for from := 1; from <= total; from += 1500 {
+			url := fmt.Sprintf("/api/lines?file=0&from=%d&n=1500&annot=%s", from, annot)
+			code, body := e.both(t, url)
+			if code != 200 {
+				t.Fatalf("%s: %d %s", url, code, body)
+			}
+			var pg struct {
+				Lines []struct{ T, K string }
+			}
+			if err := json.Unmarshal(body, &pg); err != nil {
+				t.Fatal(err)
+			}
+			for _, l := range pg.Lines {
+				switch l.K {
+				case "optimizer":
+					got++
+				case "call":
+					calls++
+				}
+			}
+			if annot == "1" {
+				_, pb := fetch(plain, url)
+				if !bytes.Equal(pb, body) {
+					t.Fatalf("%s: the handler given the dumps answers otherwise than the server", url)
+				}
+			}
+		}
+		if got != want {
+			t.Errorf("annot=%s: %d optimizer lines, the parser counts %d", annot, got, want)
+		}
+		if calls == 0 {
+			t.Errorf("annot=%s: no call line kept its kind", annot)
+		}
+	}
+	// the same page without the dumps: unrecognised lines (what the Lines view used to show)
+	_, body := fetch(LinesHandler(e.lis), "/api/lines?file=0&from=54&n=8&annot=1")
+	if !strings.Contains(string(body), `"k":"unknown"`) {
+		t.Errorf("without dumps: %s", body)
+	}
+	// the single-line kind of api/at
+	code, body := fetch(e.mem, "/api/at?file=0&line=58")
+	if code != 200 || !strings.Contains(string(body), `"kind":"optimizer"`) {
+		t.Errorf("api/at of a dump line: %d %.200s", code, body)
+	}
+}

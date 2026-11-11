@@ -2,7 +2,7 @@ mtkprof - Oracle optimizer trace (event 10053) digest
 ========================================================================================================================
 Trace file : opt_nostats_ds.trc
 Database   : Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production  version 19.27.0.0.0
-Volume     : 7,089 lines  1 dumps
+Volume     : 7,089 lines  1 dump
 
 Dumps
    1  4akv1qakm5fu6   lines 32-7,057  runs 9  MTK_CUST, MTK_NOSTATS

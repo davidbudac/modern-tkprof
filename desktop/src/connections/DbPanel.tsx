@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefImportDialog, engineRefImporter } from '@lib'
 import type { SessionInfo } from '../engine'
-import type { SessionOpt } from '../workspace/optTabs'
 import { useConnections } from './ConnectionsProvider'
 import { errorText, remoteApi, type DBSession, type DBTraceFile, type PlanStat } from './api'
 import type { Entry } from './model'
@@ -283,7 +282,7 @@ function RefData({ conn }: { conn: Entry }) {
     try {
       // a bundle is kept per trace identity; a live session has none
       // (an optimizer (10053) trace has no object, file or user ids to name: its sessions are not offered)
-      const list = (await remoteApi.sessionsList(client)).sessions.filter((s) => s.state === 'ready' && s.identity && !(s as SessionInfo & SessionOpt).optSqlIds)
+      const list = (await remoteApi.sessionsList(client)).sessions.filter((s) => s.state === 'ready' && s.identity && !s.optSqlIds)
       setSessions(list)
       const active = bridge.activeSession?.()
       setTarget((t) => (t && list.some((s) => s.id === t) ? t : list.find((s) => s.id === active)?.id ?? list[0]?.id ?? ''))
