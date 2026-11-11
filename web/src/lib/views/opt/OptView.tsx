@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { Fragment, type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { Opt10046Link, OptAnnotations, OptFold, OptSource, OptText } from '../../data/opt'
 import { enabledLandmarks, foldOf, indexDump, lmSwitches, pathOf, stepLine, type DumpIndex, type LmOn } from '../../data/optindex'
 import { glossaryOf, glossaryRegex } from '../../data/optguide'
@@ -11,6 +11,8 @@ import { fmtInt } from '../../data/format'
 import { inTextField } from '../../shell/viewKeys'
 import { usePersisted } from '../../state/persist'
 import { LineStrip } from '../../components/LineStrip'
+import { ResizeHandle } from '../../components/ResizeHandle'
+import { PaneToggle } from '../../components/PaneToggle'
 import { ToolbarMenu } from '../../components/ToolbarMenu'
 import { BookOpenIcon, BookmarkIcon, ChevronDownIcon, ChevronUpIcon, CodeIcon, FlagIcon, ListTreeIcon } from '../../components/icons'
 import { Shimmer } from '../../components/motion'
@@ -40,6 +42,10 @@ export interface OptViewProps {
 }
 
 type LTab = 'outline' | 'landmarks' | 'bookmarks'
+
+/** The side panels: dragged widths in px (null = the CSS default) and whether each is shown; persisted for every 10053 file. */
+interface Panes { lw: number | null; rw: number | null; l: boolean; r: boolean }
+const PANES: Panes = { lw: null, rw: null, l: true, r: true }
 type RTab = 'guide' | 'sql'
 
 interface Ui {
@@ -114,6 +120,13 @@ export function OptView(props: OptViewProps) {
   const [modeStored, setModeStored] = usePersisted<'fmt' | 'raw'>('mtkprof.opt.mode', 'fmt')
   const lm: LmOn = useMemo(() => lmSwitches(lmStored), [lmStored])
   const mode: 'fmt' | 'raw' = modeStored === 'raw' ? 'raw' : 'fmt'
+  const [panesStored, setPanes] = usePersisted<Panes>('mtkprof.opt.panes', PANES)
+  const panes: Panes = { ...PANES, ...panesStored }
+  const setPane = (p: Partial<Panes>) => setPanes({ ...panes, ...p })
+  const workStyle = {
+    ...(panes.lw ? { '--opt-left': `${panes.lw}px` } : null), ...(panes.rw ? { '--opt-right': `${panes.rw}px` } : null),
+    ...(panes.l ? null : { '--opt-left-w': '0px' }), ...(panes.r ? null : { '--opt-right-w': '0px' }),
+  } as CSSProperties
 
   // the open dump: its model and its text. The open dump and the previous one are kept (data/optcache.ts), so going back is at once; the others are
   // let go and asked again. This is the only place that holds them: the sources keep nothing between calls.
@@ -426,8 +439,8 @@ export function OptView(props: OptViewProps) {
         </ToolbarMenu>
       </div></div>
 
-      <div className="opt-work">
-        <aside className="opt-side opt-side-l" aria-label="Outline">
+      <div className="opt-work" style={workStyle}>
+        <aside className="opt-side opt-side-l" aria-label="Outline" hidden={!panes.l}>
           <div className="opt-side-head">
             <div className="lines-tabs" role="tablist" aria-label="Left panel">
               {showLeft('outline', 'Outline', 'The dumps and their sections, with line counts and search hits', <ListTreeIcon />)}
@@ -491,7 +504,7 @@ export function OptView(props: OptViewProps) {
           </div>
         </section>
 
-        <aside className="opt-side opt-side-r" aria-label="Guide">
+        <aside className="opt-side opt-side-r" aria-label="Guide" hidden={!panes.r}>
           <div className="opt-side-head">
             <div className="lines-tabs" role="tablist" aria-label="Right panel">
               {showRight('guide', 'Guide', 'What the section and the line under the selection are', <BookOpenIcon />)}
@@ -504,6 +517,11 @@ export function OptView(props: OptViewProps) {
             {ix && ui.rtab === 'sql' && <SqlPanel ix={ix} line={focus} ui={ui.sql} onUi={(p) => set((s) => ({ sql: { ...s.sql, ...p } }))} onShow={(l) => select(l, 'top')} />}
           </div>
         </aside>
+
+        {panes.l && <ResizeHandle anchor="start" className="resizer-opt-l" label="Resize the left panel" min={220} maxFrac={0.4} onChange={(px) => setPane({ lw: px })} />}
+        <PaneToggle side="start" open={panes.l} onToggle={() => setPane({ l: !panes.l })} label={`the left panel (${ltitle})`} className="opt-toggle-l" />
+        {panes.r && <ResizeHandle anchor="end" className="resizer-opt-r" label="Resize the right panel" min={220} maxFrac={0.4} onChange={(px) => setPane({ rw: px })} />}
+        <PaneToggle open={panes.r} onToggle={() => setPane({ r: !panes.r })} label={`the right panel (${rtitle})`} className="opt-toggle-r" />
       </div>
     </section>
   )

@@ -23,7 +23,16 @@
 .opt .tb-sep { inline-size: 1px; block-size: 1.4rem; background: var(--hairline); }
 
 /* the working area */
-.opt-work { display: grid; grid-template-columns: var(--opt-left) minmax(0, 1fr) var(--opt-right); min-block-size: 0; }
+.opt-work { position: relative; display: grid; grid-template-columns: var(--opt-left-w, var(--opt-left)) minmax(0, 1fr) var(--opt-right-w, var(--opt-right)); min-block-size: 0; }
+/* the side panels resize (ResizeHandle) and collapse (PaneToggle): a collapsed one is [hidden] and its column 0 wide (--opt-left-w / --opt-right-w) */
+.opt-side-l { grid-column: 1; grid-row: 1; }
+.opt-centre { grid-column: 2; grid-row: 1; }
+.opt-side-r { grid-column: 3; grid-row: 1; }
+.opt-side[hidden] { display: none; }
+.resizer-opt-l { inset-inline-start: var(--opt-left); }
+.resizer-opt-r { inset-inline-start: calc(100% - var(--opt-right)); }
+.opt-toggle-l { --pane-w: var(--opt-left-w, var(--opt-left)); }
+.opt-toggle-r { --pane-w: var(--opt-right-w, var(--opt-right)); }
 .opt-side { container: opt-side / inline-size; box-sizing: border-box; min-block-size: 0; min-inline-size: 0; display: flex; flex-direction: column; background: var(--surface-sunken); font-size: var(--text-sm); }
 .opt-side-l { border-inline-end: 1px solid var(--hairline); }
 .opt-side-r { border-inline-start: 1px solid var(--hairline); }
