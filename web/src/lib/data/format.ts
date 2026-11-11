@@ -58,3 +58,7 @@ export function preview(text: string, max = 120): string {
 }
 
 export function oraErr(code: number): string { return `ORA-${String(code).padStart(5, '0')}` }
+
+const htmlEsc: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+/** A value as text inside an HTML string (an ECharts tooltip formatter's result is set as innerHTML): a name read from a trace is data, never markup. */
+export function escHtml(v: unknown): string { return String(v ?? '').replace(/[&<>"']/g, (c) => htmlEsc[c]) }

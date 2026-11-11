@@ -5,7 +5,7 @@ import type { EChartsOption } from 'echarts'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
 import type { ID } from '../data/types'
-import { fmtDur, fmtInt, fmtPct, preview, fmtCompact, fmtWall } from '../data/format'
+import { fmtDur, fmtInt, fmtPct, preview, fmtCompact, fmtWall, escHtml } from '../data/format'
 import { LineRef } from '../components/LineRef'
 import { scopeOf } from '../state/store'
 import { useStore, useActions, useStoreApi } from '../state/session'
@@ -46,7 +46,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
     const cats = hist.edges.slice(lo, hi + 1).map((e) => fmtDur(e))
     return {
       grid: { left: 8, right: 12, top: 12, bottom: 24, containLabel: true },
-      tooltip: { trigger: 'axis', formatter: (p: unknown) => { const q = (p as { axisValue: string; value: number; dataIndex: number }[])[0]; return `≥ ${q.axisValue}: ${fmtInt(q.value)} waits, ${fmtDur(hist.sums[lo + q.dataIndex])}` } },
+      tooltip: { trigger: 'axis', formatter: (p: unknown) => { const q = (p as { axisValue: string; value: number; dataIndex: number }[])[0]; return `≥ ${escHtml(q.axisValue)}: ${fmtInt(q.value)} waits, ${fmtDur(hist.sums[lo + q.dataIndex])}` } },
       xAxis: { type: 'category', data: cats, axisLabel: { hideOverlap: true } },
       yAxis: { type: 'value', minInterval: 1 },
       series: [{ type: 'bar', data: hist.counts.slice(lo, hi + 1), itemStyle: { color: cssColor(role), borderRadius: [3, 3, 0, 0] }, barCategoryGap: '10%' }],
@@ -70,7 +70,7 @@ export function EventDetail({ doc, id }: { doc: TraceDoc; id: ID }) {
           const d = dots[(p as { data: number[] }).data[2]]
           if (!d) return ''
           const st = doc.statements[d.stmt]
-          return `${label(d.tim - d.ela - base)}<br><b>${fmtDur(d.ela)}</b>${st ? `<br>${doc.label(st)}` : ''}<br>line ${fmtInt(d.line)}${linesAvailable ? ' (click to view)' : ''}`
+          return `${escHtml(label(d.tim - d.ela - base))}<br><b>${fmtDur(d.ela)}</b>${st ? `<br>${escHtml(doc.label(st))}` : ''}<br>line ${fmtInt(d.line)}${linesAvailable ? ' (click to view)' : ''}`
         },
       },
       xAxis: { type: 'value', min: 0, max: span, splitNumber: 5, axisLabel: { hideOverlap: true, formatter: (v: number) => label(v) } },

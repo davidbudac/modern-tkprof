@@ -9,7 +9,7 @@ import { LineRef } from '../components/LineRef'
 import { callKindName, NONE, type ID } from '../data/types'
 import { groupIndex, groupOf, kindGroups, phaseBackground } from '../data/callkinds'
 import { phasePattern } from '../components/phaseBrush'
-import { fmtDur, fmtInt, fmtWall, fmtCompact, preview } from '../data/format'
+import { fmtDur, fmtInt, fmtWall, fmtCompact, preview, escHtml } from '../data/format'
 import { scopeOf } from '../state/store'
 import { useAxis, useScopedStatements } from '../data/scopedstmts'
 import { useStore, useActions } from '../state/session'
@@ -101,7 +101,7 @@ export function Timeline({ doc }: { doc: TraceDoc }) {
           const startTim = b.tim - b.e
           const when = doc.wallOffsetUs ? fmtWall(doc.wallOf(startTim), doc.tzOffsetMin, { micros: true }) : `+${fmtDur(startTim - base)}`
           const lines = [
-            `<b>${callKindName[b.kind] ?? 'CALL'}</b> ${st ? doc.label(st) : ''}${b.execNo ? ` · exec #${b.execNo}` : ''}`,
+            `<b>${callKindName[b.kind] ?? 'CALL'}</b> ${st ? escHtml(doc.label(st)) : ''}${b.execNo ? ` · exec #${b.execNo}` : ''}`,
             `start ${when}`,
             `elapsed ${fmtDur(b.e)} · cpu ${fmtDur(b.c)} · rows ${fmtInt(b.r)}`,
             `line ${fmtInt(b.line)}${b.dep ? ` · depth ${b.dep}` : ''}`,
