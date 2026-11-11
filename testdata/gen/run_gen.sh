@@ -5,6 +5,9 @@
 #   ./run_gen.sh errors lobs     -> only those scenarios (schema setup still runs; it is idempotent)
 #   ./run_gen.sh workload        -> four concurrent sessions into out/workload/ (a directory test set)
 #   ./run_gen.sh big             -> only the big loop  (BIG_ITER=120000 by default, ~990 bytes of trace per iteration)
+#   ./run_gen.sh opt             -> the 10053 (optimizer trace) scenarios: ten 10053-only traces (out/opt_*.trc, no
+#                                   tkprof) and opt_interleaved (10046 + 10053, with tkprof); also in the default run.
+#                                   Any of them by name too: ./run_gen.sh opt_two opt_part
 #
 # Env: MTK_PASSWORD (default mtk), MTK_SERVICE (default //localhost:1521/pdb1.world),
 #      ORACLE_SID (default cdb1), BIG_ITER (default 120000), OUT (default ./out)
@@ -22,12 +25,17 @@ OUT=${OUT:-$PWD/out}
 CONN="mtk/${MTK_PASSWORD}@${MTK_SERVICE}"
 mkdir -p "$OUT/log" "$OUT/ref"
 
-ALL_SCENARIOS="basic_binds plsql_recursive errors io_waits lobs plan_stat_all level_4 level_8 level_1 truncated cursor_cache nasty_sql multisession parallel midtrace_start plan_change exec_loom stats_basic px_io"
+ALL_SCENARIOS="basic_binds plsql_recursive errors io_waits lobs plan_stat_all level_4 level_8 level_1 truncated cursor_cache nasty_sql multisession parallel midtrace_start plan_change exec_loom stats_basic px_io opt"
+# 10053-only scenarios: the file is an optimizer trace without 10046 records, so tkprof is not run on it
+OPT_SCENARIOS="opt_subq_binds opt_two opt_join8 opt_nostats_ds opt_part opt_parallel opt_dml opt_setop opt_altered opt_unified"
 if [ $# -eq 0 ]; then
   TARGETS="$ALL_SCENARIOS ref big"
 else
   TARGETS="$*"
 fi
+
+# the group word "opt" stands for all the 10053 scenarios (opt_interleaved, the only one with 10046 records, goes through tkprof)
+TARGETS=$(printf '%s\n' $TARGETS | sed "s/^opt\$/$OPT_SCENARIOS opt_interleaved/" | tr '\n' ' ')
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 
@@ -110,6 +118,22 @@ for t in $TARGETS; do
       done
       [ $found = 1 ] || log "WARN: no PX slave trace found"
       tkprof_both px_io
+      ;;
+    opt_parallel)
+      # 10053 only, no tkprof. The query coordinator's trace is the fixture; PX slave trace files of the run
+      # (if any) are copied to out/opt_parallel_slave_pNNN.trc for inspection, not meant for testdata
+      log "scenario opt_parallel"
+      touch "$OUT/.opt_px_marker"; sleep 1
+      run_scenario opt_parallel
+      for slave in $(find "$TRACE_DIR" -maxdepth 1 -name "${ORACLE_SID}_p0*.trc" -newer "$OUT/.opt_px_marker" | sort); do
+        p=$(basename "$slave" | cut -d_ -f2)
+        cp -p "$slave" "$OUT/opt_parallel_slave_$p.trc"
+        log "opt_parallel slave trace: $(basename "$slave") ($(stat -c %s "$slave") bytes, $(grep -c 'Registered qb' "$slave") optimizer dumps)"
+      done
+      ;;
+    opt_subq_binds|opt_two|opt_join8|opt_nostats_ds|opt_part|opt_dml|opt_setop|opt_altered|opt_unified)
+      log "scenario $t (10053 only)"
+      run_scenario "$t"
       ;;
     midtrace_start)
       log "scenario midtrace_start (two files: part1 + continuation)"

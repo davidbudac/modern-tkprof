@@ -190,8 +190,119 @@ begin
   dbms_stats.gather_table_stats(user, 'MTK_AUDIT',  cascade => true);
 end;
 /
+-- 10053 (optimizer trace) fixtures, sc_opt_*.sql: small tables of their own so the existing ones and their
+-- statistics stay untouched. Idempotent: CREATE only if missing, data only if empty, nothing dropped or truncated.
+--   mtk_nostats   20k rows, deliberately WITHOUT statistics (never gathered, statistics locked so the nightly job
+--                 leaves it alone): the optimizer prints (NOT ANALYZED) and samples dynamically
+--   mtk_part      40k rows, range-partitioned by sale_date (4 yearly partitions), local index, statistics gathered
+--   mtk_dml_src / mtk_dml_tgt / mtk_dml_scratch   2,000 / 2,000 / 100 rows, targets of the rolled-back DML scenario
+declare
+  procedure ddl(p_sql varchar2) is
+  begin
+    execute immediate p_sql;
+    dbms_output.put_line('created: ' || substr(p_sql, 1, 60));
+  exception
+    when others then
+      if sqlcode in (-955, -1408, -2260, -2264, -2275) then
+        dbms_output.put_line('exists:  ' || substr(p_sql, 1, 60));
+      else
+        raise;
+      end if;
+  end;
+begin
+  ddl('create table mtk_nostats (
+         id      number,
+         cust_id number,
+         grp     varchar2(10),
+         amount  number(12,2),
+         pad     varchar2(100))');
+  ddl('create table mtk_part (
+         id        number,
+         cust_id   number,
+         sale_date date,
+         amount    number(12,2),
+         region    varchar2(10))
+       partition by range (sale_date) (
+         partition mtk_part_2021 values less than (date ''2022-01-01''),
+         partition mtk_part_2022 values less than (date ''2023-01-01''),
+         partition mtk_part_2023 values less than (date ''2024-01-01''),
+         partition mtk_part_2024 values less than (date ''2025-01-01''))');
+  ddl('create index mtk_part_cust_ix on mtk_part(cust_id) local');
+  ddl('create table mtk_dml_src (
+         id     number constraint mtk_dml_src_pk primary key,
+         grp    number,
+         val    number(12,2),
+         status varchar2(10))');
+  ddl('create table mtk_dml_tgt (
+         id     number constraint mtk_dml_tgt_pk primary key,
+         grp    number,
+         val    number(12,2),
+         status varchar2(10))');
+  ddl('create table mtk_dml_scratch (
+         id  number,
+         grp number,
+         val number(12,2))');
+end;
+/
+
+declare
+  v_n number;
+begin
+  -- mtk_nostats: keep it without statistics. Lock first (a no-op if already locked), then a conventional insert
+  -- (a direct-path insert or CTAS would gather statistics online).
+  begin
+    dbms_stats.lock_table_stats(user, 'MTK_NOSTATS');
+  exception when others then dbms_output.put_line('lock_table_stats MTK_NOSTATS: ' || sqlerrm);
+  end;
+  select count(*) into v_n from mtk_nostats where rownum = 1;
+  if v_n = 0 then
+    insert into mtk_nostats (id, cust_id, grp, amount, pad)
+    select level, mod(level * 31, 20000) + 1, 'G' || mod(level, 8),
+           round(dbms_random.value(1, 1000), 2), rpad('n', 100, 'n')
+      from dual connect by level <= 20000;
+    dbms_output.put_line('mtk_nostats loaded: ' || sql%rowcount);
+    commit;
+  end if;
+
+  select count(*) into v_n from mtk_part where rownum = 1;
+  if v_n = 0 then
+    insert into mtk_part (id, cust_id, sale_date, amount, region)
+    select level, mod(level * 7919, 20000) + 1,
+           date '2021-01-01' + mod(level * 37, 1461),
+           round(dbms_random.value(1, 5000), 2),
+           case mod(level, 4) when 0 then 'EMEA' when 1 then 'AMER' when 2 then 'APAC' else 'LATAM' end
+      from dual connect by level <= 40000;
+    dbms_output.put_line('mtk_part loaded: ' || sql%rowcount);
+    commit;
+    dbms_stats.gather_table_stats(user, 'MTK_PART', cascade => true, granularity => 'ALL');
+  end if;
+
+  select count(*) into v_n from mtk_dml_src where rownum = 1;
+  if v_n = 0 then
+    insert into mtk_dml_src (id, grp, val, status)
+    select level, mod(level, 20), round(dbms_random.value(1, 100), 2),
+           case mod(level, 4) when 0 then 'NEW' when 1 then 'OLD' when 2 then 'DEAD' else 'OPEN' end
+      from dual connect by level <= 2000;
+    insert into mtk_dml_tgt (id, grp, val, status)
+    select level, mod(level, 20), round(dbms_random.value(1, 100), 2),
+           case mod(level, 3) when 0 then 'NEW' when 1 then 'OLD' else 'OPEN' end
+      from dual connect by level <= 2000;
+    insert into mtk_dml_scratch (id, grp, val)
+    select level, mod(level, 20), level from dual connect by level <= 100;
+    dbms_output.put_line('mtk_dml_* loaded');
+    commit;
+    dbms_stats.gather_table_stats(user, 'MTK_DML_SRC',     cascade => true);
+    dbms_stats.gather_table_stats(user, 'MTK_DML_TGT',     cascade => true);
+    dbms_stats.gather_table_stats(user, 'MTK_DML_SCRATCH', cascade => true);
+  end if;
+end;
+/
+
 select object_type, object_name, status from user_objects order by 1, 2;
 select 'mtk_cust' t, count(*) from mtk_cust union all select 'mtk_orders', count(*) from mtk_orders
 union all select 'mtk_lob', count(*) from mtk_lob union all select 'mtk_audit', count(*) from mtk_audit
-union all select 'mtk_px_big', count(*) from mtk_px_big union all select 'mtk_loom_cold', count(*) from mtk_loom_cold;
+union all select 'mtk_px_big', count(*) from mtk_px_big union all select 'mtk_loom_cold', count(*) from mtk_loom_cold
+union all select 'mtk_nostats', count(*) from mtk_nostats union all select 'mtk_part', count(*) from mtk_part
+union all select 'mtk_dml_src', count(*) from mtk_dml_src union all select 'mtk_dml_tgt', count(*) from mtk_dml_tgt
+union all select 'mtk_dml_scratch', count(*) from mtk_dml_scratch;
 exit
