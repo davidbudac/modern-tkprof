@@ -26,6 +26,9 @@ type indexes struct {
 	files   map[int]*fileIndex
 	adopted map[model.ID]int           // cursor -> line of the PARSING IN CURSOR that adopted it (0: none)
 	cursors map[int]map[uint64][]curAt // per file: cursor number -> instances in line order
+
+	crlfMu sync.Mutex
+	crlf   map[int]bool // file -> its lines end in \r\n (see fileCRLF)
 }
 
 type curAt struct {
@@ -287,6 +290,7 @@ func (x *indexes) readLines(f, from, n int) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	crlf := x.isCRLF(f)
 	var out [][]byte
 	for len(raw) > 0 && len(out) < n {
 		i := bytes.IndexByte(raw, '\n')
@@ -296,9 +300,56 @@ func (x *indexes) readLines(f, from, n int) ([][]byte, error) {
 		} else {
 			l, raw = raw[:i], raw[i+1:]
 		}
-		out = append(out, bytes.TrimSuffix(l, []byte("\r")))
+		if crlf {
+			l = bytes.TrimSuffix(l, []byte("\r"))
+		}
+		out = append(out, l)
 	}
 	return out, nil
+}
+
+// isCRLF: the lines of file f end in \r\n (fileCRLF, looked at once).
+func (x *indexes) isCRLF(f int) bool {
+	x.crlfMu.Lock()
+	defer x.crlfMu.Unlock()
+	if v, ok := x.crlf[f]; ok {
+		return v
+	}
+	v := false
+	if fh, err := os.Open(x.path(f)); err == nil {
+		v = fileCRLF(fh)
+		fh.Close()
+	}
+	if x.crlf == nil {
+		x.crlf = map[int]bool{}
+	}
+	x.crlf[f] = v
+	return v
+}
+
+// fileCRLF: the first line of f ends in \r\n. As trace.Parser, the cut takes
+// the \r off the lines of such a file only: in a file with \n line ends a \r
+// before the \n belongs to the line (statement text sent with CRLF line ends,
+// which len= counts).
+func fileCRLF(f io.ReaderAt) bool {
+	buf := make([]byte, 64<<10)
+	var off int64
+	var last byte
+	for {
+		n, err := f.ReadAt(buf, off)
+		if i := bytes.IndexByte(buf[:n], '\n'); i > 0 {
+			return buf[i-1] == '\r'
+		} else if i == 0 {
+			return off > 0 && last == '\r'
+		}
+		if n > 0 {
+			last = buf[n-1]
+		}
+		off += int64(n)
+		if err != nil {
+			return false
+		}
+	}
 }
 
 func readLinesSlow(path string, from, n int) ([]byte, error) {
@@ -460,13 +511,14 @@ type lineReader struct {
 	f    *os.File
 	br   *bufio.Reader
 	li   *trace.LineIndex
-	line int // number of the next line
+	line int  // number of the next line
+	crlf bool // the file's lines end in \r\n (fileCRLF)
 	buf  []byte
 	err  error
 }
 
 func newLineReader(f *os.File, li *trace.LineIndex) *lineReader {
-	return &lineReader{f: f, br: bufio.NewReaderSize(f, 1<<20), li: li, line: 1}
+	return &lineReader{f: f, br: bufio.NewReaderSize(f, 1<<20), li: li, line: 1, crlf: fileCRLF(f)}
 }
 
 // seek makes line the next one, skipping (or jumping over) the lines before it.
@@ -505,7 +557,10 @@ func (r *lineReader) next() (int, []byte, bool) {
 		}
 		break
 	}
-	b := bytes.TrimSuffix(bytes.TrimSuffix(r.buf, []byte("\n")), []byte("\r"))
+	b := bytes.TrimSuffix(r.buf, []byte("\n"))
+	if r.crlf {
+		b = bytes.TrimSuffix(b, []byte("\r"))
+	}
 	ln := r.line
 	r.line++
 	return ln, b, true
