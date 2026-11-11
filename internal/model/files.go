@@ -241,7 +241,7 @@ func planFiles(paths []string, opts Options) ([]plannedFile, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	var notes []string
+	files, notes := DropOptFiles(files)
 	keyOf := func(p string) string {
 		if abs, err := filepath.Abs(p); err == nil {
 			return abs

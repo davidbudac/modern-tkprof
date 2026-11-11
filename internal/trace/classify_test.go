@@ -57,7 +57,9 @@ func parserKinds(t *testing.T, path string) (kinds []int, lines [][]byte, st Sta
 // every line except the documented ones: bind value continuation lines
 // (Classify: unknown), blank lines inside BINDS blocks (the parser counts
 // nothing), PARSE ERROR statement text, a literal END OF STMT inside SQL text
-// (the parser checks len=), and the prologue (Classify: unknown).
+// (the parser checks len=), and the prologue (Classify: unknown). Lines the
+// parser counts as optimizer (10053 dump) lines are left out of the
+// comparison (see dump.go; TestDumpLineKinds covers them).
 func TestClassifyMatchesParser(t *testing.T) {
 	files, _ := filepath.Glob("../../testdata/traces/*/*.trc")
 	if len(files) == 0 {
@@ -73,6 +75,11 @@ func TestClassifyMatchesParser(t *testing.T) {
 			var k Kind
 			k, _ = Classify(lines[i], inSQL)
 			pk := kinds[i]
+			if pk == int(KindOpt) {
+				// optimizer dump lines: the parser decides by dump state (see
+				// dump.go), which the stateless Classify does not have
+				continue
+			}
 			// the parser's state decides whether the next line is SQL text
 			// (not Classify's: a literal END OF STMT inside a statement
 			// would cascade); PARSE ERROR text is counted as sql-text too

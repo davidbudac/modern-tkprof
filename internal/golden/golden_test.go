@@ -200,3 +200,31 @@ func TestAgainstTkprof(t *testing.T) {
 		})
 	}
 }
+
+// The interleaved fixture (event 10046 and 10053 on in one session) is held to
+// tkprof like every other trace, with no exclusion: tkprof ignores the
+// optimizer's lines and so does the model (it counts them as "optimizer"
+// lines, not as unknown ones). TestAgainstTkprof compares it; this test fails
+// if that comparison is lost (the tkprof output is gone) or if the model
+// stops understanding the dumps.
+func TestInterleavedFixtureIsCompared(t *testing.T) {
+	trc := filepath.Join(fixtures, "19c", "opt_interleaved.trc")
+	if _, err := os.Stat(trc); err != nil {
+		t.Skip("no interleaved fixture")
+	}
+	for _, ext := range []string{".tkprof.txt", ".tkprof-noagg.txt"} {
+		if _, err := os.Stat(strings.TrimSuffix(trc, ".trc") + ext); err != nil {
+			t.Errorf("no tkprof output %s: the interleaved fixture is not compared with tkprof", ext)
+		}
+	}
+	m, err := model.Build(trc, model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Diag.UnknownLines != 0 {
+		t.Errorf("%d unknown lines in the interleaved fixture", m.Diag.UnknownLines)
+	}
+	if m.Diag.LineKinds["optimizer"] == 0 || len(m.File.Files[0].Dumps) == 0 {
+		t.Errorf("no optimizer dump found: kinds %v", m.Diag.LineKinds)
+	}
+}

@@ -19,7 +19,7 @@ import (
 // (TestPersistCoversEveryField counts the fields to catch a forgotten one).
 
 // PersistVersion is the format version of Encode.
-const PersistVersion = 2 // per-file truncation status
+const PersistVersion = 3 // 3: per-file optimizer (10053) dumps; 2: per-file truncation status
 
 const persistMagic = "MTKPDIMS"
 
@@ -73,7 +73,7 @@ func (m *Model) indexRef() {
 // persistFields is the number of fields of every struct the format covers
 // (TestPersistCoversEveryField compares them with the structs).
 var persistFields = map[string]int{
-	"Model": 29, "FileInfo": 14, "FileEntry": 20, "KV": 2, "Span": 6, "Statement": 14, "Cursor": 13,
+	"Model": 29, "FileInfo": 14, "FileEntry": 21, "DumpRange": 4, "KV": 2, "Span": 6, "Statement": 14, "Cursor": 13,
 	"Event": 7, "Context": 13, "Plan": 8, "PlanLine": 23, "Transaction": 8, "ErrorEvent": 10,
 	"Marker": 5, "UnknownLine": 2, "Diagnostics": 11, "RefObject": 5, "RefFile": 4, "RefUser": 2,
 	"ctxExtent": 3, "wallAnchor": 3,
@@ -153,6 +153,12 @@ func codeFileEntry(c *binfmt.Codec, e *FileEntry) {
 	c.Strings(&e.ContinuedFrom)
 	c.Strings(&e.ContinuesIn)
 	c.Bool(&e.Truncated)
+	binfmt.Slice(c, &e.Dumps, func(d *DumpRange) {
+		c.Int(&d.First)
+		c.Int(&d.Last)
+		c.Str(&d.SQLID)
+		c.Bool(&d.Cut)
+	})
 	c.I64(&e.offsetUs)
 	c.Bool(&e.offsetSet)
 }

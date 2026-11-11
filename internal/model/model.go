@@ -65,8 +65,20 @@ type FileEntry struct {
 
 	Truncated bool `json:"truncated,omitempty"`
 
+	// Dumps are the optimizer (10053) dumps found in the file, in file order;
+	// their lines are not 10046 lines (Diagnostics.LineKinds "optimizer").
+	Dumps []DumpRange `json:"dumps,omitempty"`
+
 	offsetUs  int64 // wall µs - tim of the first anchor in this file
 	offsetSet bool
+}
+
+// DumpRange is one optimizer (10053) dump in a trace file (trace.Dump).
+type DumpRange struct {
+	First int    `json:"first"` // line of its first "Registered qb: ... (PARSER)" line
+	Last  int    `json:"last"`  // line of its END banner (the last line read of a cut dump)
+	SQLID string `json:"sqlId,omitempty"`
+	Cut   bool   `json:"cut,omitempty"` // the file ends inside the dump
 }
 
 // StatementKind distinguishes real SQL from synthetic statements.

@@ -12,7 +12,7 @@ import (
 func TestPersistCoversEveryField(t *testing.T) {
 	for _, v := range []any{Model{}, FileInfo{}, FileEntry{}, KV{}, Span{}, Statement{}, Cursor{}, Event{}, Context{},
 		Plan{}, PlanLine{}, Transaction{}, ErrorEvent{}, Marker{}, UnknownLine{}, Diagnostics{}, RefObject{}, RefFile{},
-		RefUser{}, ctxExtent{}, wallAnchor{}} {
+		RefUser{}, ctxExtent{}, wallAnchor{}, DumpRange{}} {
 		typ := reflect.TypeOf(v)
 		want, ok := persistFields[typ.Name()]
 		if !ok {

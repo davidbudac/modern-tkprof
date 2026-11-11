@@ -24,6 +24,9 @@ import (
 // MaxSessions bounds Summary.Sessions; SessionCount counts all of them.
 const MaxSessions = 200
 
+// MaxOptDumps bounds Summary.OptSQLIDs; OptDumps counts all of the dumps.
+const MaxOptDumps = 100
+
 // Session is a SESSION ID of the file with the first module, action,
 // client id and service written for it.
 type Session struct {
@@ -56,6 +59,20 @@ type Summary struct {
 	SQLTrace     bool      `json:"sqlTrace"`
 	Sessions     []Session `json:"sessions"`
 	SessionCount int       `json:"sessionCount"`
+	// What the file holds: "10046" (SQL trace records), "10053" (optimizer
+	// dumps and no 10046 record) or "both" (event 10046 and 10053 on in one
+	// session: an interleaved file); "" when neither was seen (a background
+	// process trace). The file is read to its end for it, so the answer is
+	// complete unless the read was cancelled first (Read returns the error,
+	// Summary.Error is then set): Kind and the dump fields hold what was seen,
+	// and a "10053" can still turn out to be "both".
+	Kind string `json:"kind,omitempty"`
+	// OptDumps is the number of optimizer (10053) dumps seen (a dump starts
+	// at its first "Registered qb: ... (PARSER)" line); OptSQLIDs the sql_id
+	// of the first MaxOptDumps of them, in file order ("" for a dump cut
+	// before its sql_id line).
+	OptDumps  int      `json:"optDumps,omitempty"`
+	OptSQLIDs []string `json:"optSqlIds,omitempty"`
 	// chain markers and the dump size limit
 	ContinuedFrom string `json:"continuedFrom,omitempty"`
 	ContinuesIn   string `json:"continuesIn,omitempty"`
@@ -100,6 +117,7 @@ func Read(ctx context.Context, r io.ReaderAt, size int64, s *Summary) error {
 	carry := 0
 	for base+int64(carry) < size {
 		if err := ctx.Err(); err != nil {
+			p.setKind()
 			return err
 		}
 		n, err := r.ReadAt(buf[carry:], base+int64(carry))
@@ -115,12 +133,14 @@ func Read(ctx context.Context, r io.ReaderAt, size int64, s *Summary) error {
 			} // else a line longer than the buffer: cut it here
 		}
 		p.region(data[:end], base)
+		p.scanDumps(data[:end])
 		if n == 0 {
 			break
 		}
 		carry = copy(buf, data[end:])
 		base += int64(end)
 	}
+	p.setKind()
 	p.finish(ctx, r, size)
 	return nil
 }
@@ -149,6 +169,12 @@ type peeker struct {
 
 	sessions map[string]int // id -> index in s.Sessions (-1: past MaxSessions)
 	cur      int            // the session the attribute markers belong to
+
+	// optimizer dumps (scanDumps)
+	record bool // a 10046 record was seen
+	inDump bool
+	wantID bool // the dump's sql_id line is still to come
+	idAt   int  // index of the dump in s.OptSQLIDs, -1 past MaxOptDumps
 }
 
 var (
@@ -204,6 +230,7 @@ func (p *peeker) region(b []byte, base int64) {
 			continue
 		}
 		// SQL text after a PARSING IN CURSOR or PARSE ERROR line
+		p.record = true
 		n := lenField(b[at:end])
 		textAt := base + int64(end) + 1
 		if k == 1 {
@@ -543,4 +570,78 @@ func trimCR(b []byte) []byte {
 		return b[:n-1]
 	}
 	return b
+}
+
+var (
+	dumpStartKey = []byte("Registered qb: ")
+	dumpSQLIDKey = []byte("----- Current SQL Statement for this session (sql_id=")
+	dumpEndKey   = []byte(" END SQL Statement Dump ")
+)
+
+// scanDumps follows the optimizer dumps through b (whole lines): a dump
+// starts at a "Registered qb: ... (PARSER)" line and ends at the END banner.
+// It looks for those lines with substring searches, not line by line, so a
+// 10046 trace costs one more search for the start key per chunk.
+func (p *peeker) scanDumps(b []byte) {
+	s := p.s
+	for pos := 0; pos < len(b); {
+		if !p.inDump {
+			at := lineIndex(b, pos, dumpStartKey)
+			if at < 0 {
+				return
+			}
+			pos = lineEnd(b, at)
+			if !trace.IsDumpStart(trimCR(b[at:pos])) {
+				continue
+			}
+			p.inDump, p.wantID, p.idAt = true, true, -1
+			s.OptDumps++
+			if len(s.OptSQLIDs) < MaxOptDumps {
+				s.OptSQLIDs = append(s.OptSQLIDs, "")
+				p.idAt = len(s.OptSQLIDs) - 1
+			}
+			continue
+		}
+		stop, next := len(b), len(b)
+		for i := pos; i < len(b); {
+			j := bytes.Index(b[i:], dumpEndKey)
+			if j < 0 {
+				break
+			}
+			ls, le := lineStart(b, i+j), lineEnd(b, i+j)
+			if trace.IsDumpEnd(trimCR(b[ls:le])) {
+				stop, next = ls, le
+				break
+			}
+			i = le
+		}
+		if p.wantID {
+			if at := lineIndex(b[:stop], pos, dumpSQLIDKey); at >= 0 {
+				if id, ok := trace.DumpSQLID(trimCR(b[at:lineEnd(b[:stop], at)])); ok {
+					p.wantID = false
+					if p.idAt >= 0 {
+						s.OptSQLIDs[p.idAt] = id
+					}
+				}
+			}
+		}
+		if stop == len(b) && next == len(b) {
+			return // the END banner is in a later chunk
+		}
+		p.inDump = false
+		pos = next
+	}
+}
+
+// setKind sets Summary.Kind from what was seen so far.
+func (p *peeker) setKind() {
+	s := p.s
+	switch rec, opt := p.record || s.SQLTrace, s.OptDumps > 0; {
+	case rec && opt:
+		s.Kind = "both"
+	case rec:
+		s.Kind = "10046"
+	case opt:
+		s.Kind = "10053"
+	}
 }

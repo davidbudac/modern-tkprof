@@ -762,6 +762,13 @@ func (h *lintHandler) Binds(b trace.BindSet) {
 	}
 }
 
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
 func cmdLint(args []string) error {
 	fs := flag.NewFlagSet("lint", flag.ExitOnError)
 	files := parseArgs(fs, args)
@@ -786,10 +793,21 @@ func lintFile(file string) error {
 	}
 	el := time.Since(start)
 	fmt.Printf("file: %s\nlines: %d  bytes: %d  max line: %d  time: %s (%.0f MB/s)\n", file, st.Lines, st.Bytes, st.MaxLine, el.Round(time.Millisecond), float64(st.Bytes)/1e6/el.Seconds())
+	fmt.Printf("file kind: %s\n", st.FileKind())
 	fmt.Println("line kinds:")
 	for k := trace.Kind(0); int(k) < len(st.Kinds); k++ {
 		if st.Kinds[k] > 0 {
 			fmt.Printf("  %-18s %d\n", k.String(), st.Kinds[k])
+		}
+	}
+	if len(st.Dumps) > 0 {
+		fmt.Printf("dumps: %d (optimizer, event 10053)\n", len(st.Dumps))
+		for _, d := range st.Dumps {
+			cut := ""
+			if d.Cut {
+				cut = "  cut"
+			}
+			fmt.Printf("  lines %d-%d  sql_id %s%s\n", d.First, d.Last, orDash(d.SQLID), cut)
 		}
 	}
 	printMap := func(title string, m map[string]int) {

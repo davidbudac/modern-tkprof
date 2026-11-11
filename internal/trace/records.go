@@ -30,6 +30,7 @@ const (
 	KindParseError
 	KindLob
 	KindRPC
+	KindOpt // a line of an optimizer (10053) dump, or of the chatter after one
 	kindCount
 )
 
@@ -52,6 +53,7 @@ var kindNames = [...]string{
 	KindParseError:      "parse-error",
 	KindLob:             "lob",
 	KindRPC:             "rpc",
+	KindOpt:             "optimizer",
 }
 
 func (k Kind) String() string {

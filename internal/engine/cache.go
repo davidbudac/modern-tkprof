@@ -78,7 +78,11 @@ import (
 // session, not only the plans' objects. 7: an attribute marker of a
 // pre-12.2 trace ("SESSION ID:(15.1335) 2013-05-10 07:26:55.095") no
 // longer keeps its time in the value, so such a trace's contexts changed.
-const CacheIndexFormat = 7
+// 8: the lines of an optimizer (10053) dump are no longer unknown lines
+// (line kind "optimizer"), the model keeps the dumps' line ranges per file
+// (model.PersistVersion 3) and notes them under the trace facts, so a session
+// cached before this holds the old unknown-line counts and no note.
+const CacheIndexFormat = 8
 
 // cacheParts are the versions of the files of an entry at CacheIndexFormat.
 var cacheParts = map[string]int{

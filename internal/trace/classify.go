@@ -154,6 +154,11 @@ func isBindLineShape(line []byte) bool {
 //     statement text and the prologue lines (KindHeader) are not recognised
 //     (they come out as KindUnknown).
 //
+// Neither Classify nor Classifier knows optimizer (10053) dumps (dump.go): the
+// lines of a dump come out as KindUnknown, KindBindLine ("Bind Info" block),
+// KindSeparator (its banners) and so on; only the Parser, which keeps the
+// dump state, counts them as KindOpt.
+//
 // A caller that starts in the middle of a file does not know whether line 1 of
 // its page is inside SQL text; it can seed inSQL by classifying a few lines
 // before (see slice.LinesHandler), and is wrong only until the next END OF STMT.

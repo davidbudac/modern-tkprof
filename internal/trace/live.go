@@ -16,6 +16,9 @@ import (
 // Stats are the statistics of the lines processed so far.
 func (p *Parser) Stats() Stats {
 	st := p.stats
+	if d, ok := p.opt.open(p.line); ok { // a dump in progress counts as cut
+		st.Dumps = append(slices.Clone(st.Dumps), d)
+	}
 	return st
 }
 
