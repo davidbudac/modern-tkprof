@@ -96,17 +96,21 @@ the first and last `tim=`, at disk speed; rows say *reading…* until theirs is 
 yet.
 
 - Sort by a column header (newest first by default); filter by name, session, module, action,
-  client id, service or instance; *Only SQL traces* (on) hides files without SQL trace lines, such
-  as an ADR folder's background process traces. A file of optimizer (10053) dumps is not one of those: its
-  row is tagged *10053* (*10046 + 10053* when one session wrote both events to it) with the number of dumps,
-  and the tooltip lists their sql_ids; it has no traced time, because a dump carries no `tim=`. A 10053 file
-  opens in its own tab, also when it is selected with 10046 files (*Open N as one trace set* leaves it out and
-  says so), see "The 10053 view".
+  client id, service, instance or kind (`10053`); *Only SQL and optimizer traces* (on) hides files that have
+  neither SQL trace lines nor optimizer dumps, such as an ADR folder's background process traces. A file of
+  optimizer (10053) dumps stays: a tag after its name reads *10053* (*10046 + 10053* when one session wrote both
+  events to it) with the number of dumps (*2 dumps*), and the tag's tooltip says what opening it does. Its *From*,
+  *To* and *Traced* come from the `***` timestamp lines, because a dump has no `tim=`: *Traced* is a span of a
+  fraction of a second, not a traced time. A 10053 file opens in a tab of its own, also when it is selected with
+  10046 files (below), see "The 10053 view".
 - Select with the checkboxes or a click on the row (Shift-click selects a range; the header box
   selects all shown). The bar at the bottom sums the selection (files, size, from – to).
 - *Open N as one trace set* opens the selection in one tab (oldest file first), *Open each in a
   tab* one tab per file; a double-click on a row opens that file alone. The open **Options** of
-  the screen apply; follow only when one file is opened.
+  the screen apply; follow only when one file is opened. When the selection holds 10053 files, the
+  10046 files form the set and each 10053 file gets a tab of its own, after it: the button reads *Open 3 as
+  one trace set, 2 on their own* (*Open 2 optimizer traces* when every file is a 10053 file), and the line
+  above it says that the optimizer trace opens in a tab of its own.
 - *← Open a trace* or Esc goes back (Esc first clears the filter). The folder goes into Recent.
 
 Under the drop zone, with two ready, non-live traces open, a card *Compare two open traces* has
@@ -183,7 +187,7 @@ Lines or report exports.
 |---|---|
 | ⌘W | Close the tab; on a page (Settings, Connections, …) go back to the last tab |
 | ⌘T | The open screen |
-| ⌘1 … ⌘9 | The views of the trace (⌥⌘← / ⌥⌘→, Ctrl+PageUp / PageDown elsewhere, step through every view) |
+| ⌘1 … ⌘9 | The views of the trace (⌥⌘← / ⌥⌘→, Ctrl+PageUp / PageDown elsewhere, step through every view). A 10053 tab has one view, 10053, on ⌘1; Notes ⌘8 and Reports ⌘9 as for any tab |
 | ⌘I | The I/O map (Ctrl+I elsewhere) |
 | ⌃1 … ⌃8 on macOS, Alt+1 … Alt+8 elsewhere; ⌃9 / Alt+9 | The tab at that position; ⌃9 / Alt+9 the last tab |
 | Ctrl+Tab, Ctrl+Shift+Tab; ⌘⇧] and ⌘⇧[ on macOS | Next / previous tab, wrapping around |
@@ -297,11 +301,22 @@ of the file alone, never part of a trace set. The view is a reader: it makes the
 are. It does not compute anything from the costs.
 
 **What opens as 10053.** A file with at least one dump (from a `Registered qb: … (PARSER)` line to `END SQL Statement
-Dump`) and no 10046 record. Dropped or opened together with 10046 files, it is left out of the set and a notice says
-which file, to be opened on its own; of several 10053 files given together the first opens and the others are named in a
-notice. A file with 10046 and 10053 written together by one session (an *interleaved* file) opens as a 10046 trace as
-before; see "An interleaved file" below. The file is read with the 19c rules: for another version the header says so
-(below).
+Dump`) and no 10046 record. From the folder picker a 10053 file opens in a tab of its own, also when it is selected
+with 10046 files (above). When files arrive in one request without the picker (a drop of several files, the paths
+box, Recent, `mtkprof open a.trc b.trc`), the engine leaves a 10053 file out of the set and the set's Overview, in
+its *Trace* section, carries the note "opt_two.trc is a 10053 file; open it on its own" with an *Open opt_two.trc*
+button that opens it in a tab of its own. Of a set made only of 10053 files the first opens and the others are named
+in the same words in notes above the 10053 view, each with its *Open* button. A file with 10046 and 10053 written
+together by one session (an *interleaved* file) opens as a 10046 trace as before; see "An interleaved file" below.
+The file is read with the 19c rules: for another version the information bar says so (below).
+
+**The tab.** Its title carries a *10053* badge, in the tab strip and in the Recent list; a restored tab shows the
+badge before it has opened (`workspace.json` keeps the kind). The view bar has the one view, *10053* (⌘1 /
+Ctrl+1), and the Tools menu holds Notes and Reports; there is no filter bar and no Files panel. The trace popover
+(the tab's title) names the file and its size, the Oracle version, instance and node, the pluggable database and the
+session from the `***` lines, the number of dumps and lines, and for another version the 19c-rules line. The open
+dump, the scroll position, the folds opened by hand, the search and the opened outline nodes are kept while the tab
+exists, not across a restart; *Formatted | Raw* and the landmark switches are kept across restarts.
 
 **Making a 10053 trace.** The app does not turn the event on. Any of these writes the dumps to the session's trace
 file (find it as for a 10046 trace, `v$diag_info` › Default Trace File); a statement that finds a shareable cursor
@@ -325,8 +340,10 @@ interleaved file; switch it off for a file that opens as 10053.
 columns: the **outline** with the Landmarks and Bookmarks tabs on the left, the **text** in the centre with the
 where-am-I path above it and the line map beside its scroll bar, the **Guide** with the SQL tab on the right. A status
 bar below the text. When the file is not 19c, the information bar says "read with the 19c rules; this file is 23.6"
-and how many lines of the open dump are outside any known section; a dump the file ended inside says "this dump is
-truncated: no end line".
+and "158 lines outside any known section" (the lines of the open dump that sit under no known section); a dump the
+file ended inside says "this dump is truncated: no end line". The status bar reads *Lines 1,200-1,260 of 32-18,278*
+(the visible lines of the dump's range), *Dump 1 of 2*, *3 folds closed, 12,345 lines hidden* (or *Raw: the file as
+it is*), and in a report that holds the digest only *Digest: 1,048 of 18,247 lines in this report*.
 
 **The text.** *Formatted | Raw* (`v`, kept across sessions). *Formatted* is the trace's own lines in file order,
 dressed: banners are headings, landmark lines are tinted, noise is folded, the one-line `UNPARSED QUERY IS`
@@ -364,26 +381,29 @@ The line number is at the right end.
 grey rejected, red problems), search hits at the right edge, bookmarks, and the visible range as a box. Click or drag on
 it to go there.
 
-**Landmarks** (left, tab *Landmarks*). Key lines in the trace's words: *Updated / Not update best state* and *Will not
-…* (verdicts), *Final cost for query block*, *Best:: AccessPath*, *Hint with an error*, *Best:: JoinMethod*, *Join
-order aborted* and *Bypassed or refused transformation*. Each kind has a switch with its count; the list below shows the
-lines of the kinds that are on, grouped by kind, with the line number, the line and where it is. All are on except the
-refusals (one line per transformation per query block, in the hundreds). A kind that is off is not tinted, not on the
-line map and not stepped through. The switches are kept across sessions. `]` and `[` (or the *Landmark* arrows in the
-toolbar, which also show "3 / 232") step to the next and previous landmark of the kinds that are on; `r` and
-`Shift+R` step to the next and previous **costing run**.
+**Landmarks** (left, tab *Landmarks*). Key lines in the trace's words, seven kinds: *Updated / Not update best state,
+Will not …* (verdicts), *Final cost for query block*, *Best:: AccessPath*, *Hint with an error*, *Best:: JoinMethod*,
+*Join order aborted* and *Bypassed or refused transformation*. Each kind has a switch with its count; the list below
+shows the lines of the kinds that are on, grouped by kind, with the line number, the line and where it is. All are on
+except the refusals (one line per transformation per query block, in the hundreds). A kind that is off is not tinted,
+not on the line map and not stepped through. Tints: green for kept, grey for rejected, red for problems; amber is the
+selection and the search. The switches are kept across sessions. `]` and `[` (or the *Landmark* arrows in the toolbar,
+which also show "3 / 232", or "– / 232" while no landmark is selected) step to the next and previous landmark of the
+kinds that are on, and wrap around; `r` and `Shift+R` step to the next and previous **costing run**.
 
 **Search.** The box in the toolbar searches the open dump (literal; `.*` makes it a regular expression, `Aa` matches
 case), shows "3 / 41", and tints the hits in the text, on the line map and in the outline's counts. `/` or `⌘F`
 (`Ctrl+F`) focuses it, `Enter` or `F3` goes to the next hit, `Shift+Enter` or `Shift+F3` to the previous, `Esc` returns
-to the text. An invalid expression says *invalid*. The whole dump is searched in the browser, hidden lines included.
+to the text. A regular expression that does not parse makes the count read *invalid*. The whole dump is searched in the
+browser, hidden lines included; in a report that holds the digest only, the lines in the report are searched and the
+status bar says "Search: searched the 1,048 lines in this report only".
 
 **SQL** (right, tab *SQL*). Every `UNPARSED QUERY IS` statement of the dump, pretty-printed, in the order of the file,
-each with its line, its label (what the trace calls it, for example *Final query after transformations*) and its size,
-or "same as N" when it equals an earlier one. *Show in text* goes to its line. *Diff* shows it against the previous
-statement of the dump (it is often another query block's text) as lines out and in; the *Against* menu picks another
-earlier version. In the text, the header line of each statement has a *diff with line N* button that opens this tab on
-the diff.
+each with its line, its label (what the trace calls it, for example *Final query after transformations*) and its size
+(in characters), or "same as N" when it equals an earlier one. *Show in text* goes to its line. *Diff* (off when the tab
+opens) shows it against the previous statement of the dump (it is often another query block's text) as lines out and
+in, "3 lines out, 5 in, in the pretty-printed text"; the *Against* menu picks another earlier version. In the text, the
+header line of each statement has a *diff with line N* button that opens this tab on the diff.
 
 **The plan.** The dump's `Plan Table` shows as a plan in the text: the operations indented by depth with Rows, Bytes,
 Cost and Time as the trace prints them (`96K`), the query block and object alias and the access and filter predicates
@@ -393,12 +413,17 @@ estimates only (a 10053 plan has no actual rows or times), in the plan visualize
 **The Guide** (right, tab *Guide*). What the section and the line under the selection are (the first visible line when
 nothing is selected): a fixed explanation per kind of section and per kind of line, and the terms on the line from the
 trace's own legend. An explanation exists only where a named source backs it (the trace's legend, the format reference
-`docs/trace-format-10053.md`); otherwise it says "No guide text for this kind of section". It says what a part is and
-how to read it, never what happened in this trace.
+`docs/trace-format-10053.md`, which cites Breitling, the Oracle Optimizer blog, Lewis, Pagano and Pachot); otherwise it
+says "No guide text for this kind of section" (or "… of line"). Five kinds of section have no entry: the column usage
+line, the banner sections between transformation steps, Optimizer Metrics, the one-line query block registry and the
+Hint Report. It says what a part is and how to read it, never what happened in this trace. The sources are kept in the
+data and listed in the format reference, not shown in the view.
 
-**Bookmarks and notes.** `b` (or the bookmark button) bookmarks the selected line; the *Bookmarks* tab lists them with
-the path to the line and a note box (Enter saves), × removes one. As in the Lines view they belong to the trace and
-are listed in **Notes**; a note's link opens the 10053 tab at that line.
+**Bookmarks and notes.** `b` (or the bookmark button) bookmarks the selected line, or removes the bookmark when it has
+one; the *Bookmarks* tab lists them with the path to the line and a note box (Enter saves), × removes one. As in the
+Lines view they belong to the trace (by its content identity) and are listed in **Notes**, in the *Lines* group, as
+*dump 2 · line 15,838* with the bookmark's label (the dump and its sql_id) beside it; a click opens the 10053 tab on that dump and selects the line. A 10053
+tab has no statement, execution or window notes.
 
 **Keys** (`?` lists them in the view):
 
@@ -413,24 +438,37 @@ are listed in **Notes**; a note's link opens the 10053 tab at that line.
 | `b` | Bookmark the line |
 | `↑` `↓` or `k` `j` | Move the selection |
 | `g`, `Shift+G` | First, last line of the dump |
-| `d` | Next dump |
-| `?`, `Esc` | The keys list; close it |
+| `d` | Next dump (wraps; only when the file has more than one) |
+| `?`, `Esc` | The keys list; close it (`Esc` in the search box returns to the text) |
 
-**The 10053 mark and the jump.** A statement of a 10046 tab shows a **10053** mark when another open tab holds a dump
-with the same sql_id; clicking it switches to that tab, opens the dump and selects its first line. In the 10053 tab the
-dump's row in the outline shows a **10046** link that switches back to the tab with the statement. Nothing is joined:
-the two tabs keep their own numbers (a dump has no times; the statement's plan hash in the 10046 trace is the
-`plan_hash` of the dump's other_xml section).
+The keys act while the view is on screen and the focus is not in a text field, and without ⌘, Ctrl or Alt; `F3` and
+`⌘F` / `Ctrl+F` also work from the search box. A click on a line selects it.
+
+**The 10053 mark and the jump.** In a 10046 tab a **10053** mark stands beside a statement's sql_id in the Statements
+list and beside its title in the statement's detail, when another open tab holds a dump with that sql_id. A click
+switches to that tab and shows the 10053 view on the first dump of the file with that sql_id; no line is selected.
+When several open 10053 tabs hold the sql_id, the one shown most recently is chosen. In the 10053 tab a dump's row in
+the outline shows a **10046** link when another open 10046 tab (not a comparison) has a statement with that sql_id; a
+click switches to the one shown most recently and selects the statement in its Statements view. Nothing is joined: the
+two tabs keep their own numbers (a dump has no times; the statement's plan hash in the 10046 trace is the `plan_hash`
+of the dump's other_xml section). The marks exist in the desktop only: `mtkprof serve` holds one session.
 
 **An interleaved file.** A file in which one session wrote 10046 and 10053 together opens as a 10046 trace as before.
-Its dumps are no longer counted as unknown lines, and the trace facts (the tab's popover) carry a note: "2 optimizer
-(10053) dumps in this file, lines 54-18358 and 18734-27979; not shown as 10053 yet". To read the dumps, produce a file
-with the 10053 event alone.
+Its dumps are no longer counted as unknown lines, and the notes of the Overview's *Trace* section (and the *Notes* line
+of `mtkprof report`) carry: "2 optimizer (10053) dumps in this file, lines 54-18356 and 18684-28072; not shown as 10053
+yet". To read the dumps, produce a file with the 10053 event alone.
 
-**What a 10053 tab does not have.** The 10046 views (Overview … Pivot, the I/O map, Lines), the Files panel, filters
-and time window, Cut, Compare, saved pivots and the assistant: a dump has no calls, waits or times, and the assistant
-and `mtkprof mcp` do not open 10053 files. The Reports page of the tab (Tools menu) writes the 10053 text digest and the
-standalone HTML (below), not the 10046 reports.
+**What a 10053 tab does not have.** The 10046 views (Overview … Pivot, the I/O map, Lines), the filter bar, the Files
+panel and the time window, Cut (not offered), saved pivots, reference data import: a dump has no calls, waits or times.
+*Compare with…* in the tab's menu is disabled ("An optimizer (10053) trace has nothing to compare"). The assistant
+button (⌘J) opens a panel that says "The assistant does not read optimizer (10053) traces in this version", and *Copy
+brief…* in the Tools menu is disabled with its reason; `mtkprof mcp` stops with "mcp: x.trc is a 10053 file; the
+assistant and MCP read 10046 traces only in this version" when every file given is a 10053 file. A 10053 file cannot be
+followed live: with *Follow as it grows* the engine refuses with "follow: x.trc is a 10053 file (optimizer trace); it
+cannot be followed live: open it without follow" (the folder picker's *Open* and *Open N as one trace set* open it without
+follow). The Reports page of the tab (Tools menu) has the *Text report* (the digest), the *JSON document* (the dumps'
+models and the digest's lines) and *Standalone HTML* (*Save…* and *Open standalone HTML*); *CSV (zip)* is disabled
+("An optimizer (10053) trace has no statements, calls or waits to export as tables").
 
 **Reports.** `mtkprof report file.trc` (and the text report in the Reports view) prints the **digest**: the trace
 without its noise, nothing computed. Per dump, the sql_id and the statement as typed, the altered parameters and fix
@@ -439,8 +477,12 @@ numbers, each version of the transformed SQL pretty-printed, the final plan with
 their flags. `mtkprof html file.trc` (and *Open standalone HTML*) writes one HTML file with the same view fed with the
 digest: the lines of the digest are in it and nothing else, so the text says "1,234 lines not in this report (lines
 2032-3265)" where lines are missing, and search reads the lines in the report only. `-redact-binds` and `-binds none`
-apply to the bind sections (*Bind Info*, *Peeked Binds*) as to 10046 binds; literals in the SQL text and in the
-predicates stay. `mtkprof lint file.trc` lists the 10053 line kinds and the dumps (line range and sql_id).
+apply to the bind sections (*Bind Info*, *Peeked Binds*) of the digest and of the standalone HTML as to 10046 binds: a
+value becomes a token of the 10046 kind (`<NUMBER len=2 h=4fc82b26>`, the same for the same value in either kind of
+report), and with `-binds none` the digest says "2 binds; values left out (-binds none)" and the HTML's `value=` lines
+are empty; literals in the SQL text and in the predicates stay. The view in a tab, on `serve` or in the desktop, reads
+the file through the engine's routes and shows the binds as they are in the file; the Open options act on the Reports
+page's outputs. `mtkprof lint file.trc` lists the 10053 line kinds and the dumps (line range and sql_id).
 
 ## Notes and bookmarks
 

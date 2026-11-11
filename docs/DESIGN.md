@@ -1408,15 +1408,21 @@ real cut of io_waits.trc.
   numbers equal the opened trace's: the test compares every fixture with the model), the sessions
   (`sid.serial#` with the first module, action, client id and service of each), instance, pid,
   version, chain markers, a dump size limit, and whether the file is a SQL trace at all (an ADR
-  folder's background traces are not; *Only SQL traces* hides them, on by default). It runs at disk
+  folder's background traces are not; *Only SQL and optimizer traces* hides the files that are neither, on by
+  default). Since 2026-11-11 it also reports the file's kind (`10046`, `10053` or `both`) and counts the
+  optimizer dumps with the sql_ids of the first hundred (§ The 10053 reader); the picker tags such a file *10053*
+  or *10046 + 10053* with the number of dumps. A 10053 file has `From` and `To` from its `***` timestamp lines and no
+  traced time. It runs at disk
   speed (270 MB in 87 ms from the page cache); the table fills in as the peeks come back, newest
   files first, three requests at a time, and the engine keeps the summaries per path, size and time.
   The peek lists every SESSION ID, also of a session with no calls (an rman session in a shared
   server trace), which the model leaves out.
 - **Choosing.** Sort by any column (newest traced start first by default), filter by name, session,
-  module, action, client id, service or instance, select with the checkboxes (Shift extends), then
+  module, action, client id, service, instance or kind, select with the checkboxes (Shift extends), then
   *Open N as one trace set* (oldest first) or *Open each in a tab*; a double-click opens one file.
-  The open options of the screen apply; follow only to a single file. Esc clears the filter, then
+  The open options of the screen apply; follow only to a single file. A selection with 10053 files opens the
+  10046 files as the set and each 10053 file as a tab of its own (the button says *Open A as one trace set, B on
+  their own*). Esc clears the filter, then
   leaves the picker.
 - **Next: cut from the picker** (the user's plan, not built): select a file and cut it before
   loading, for files too big to open whole, without reading the whole file into memory.
@@ -1445,7 +1451,7 @@ guide: DESKTOP § The 10053 view.
   Statement Dump`.
 - **An interleaved file (10046 and 10053 on in one session) is not read as 10053 yet.** It opens as a 10046 trace as
   before. Two things change: the dumps' lines are no longer counted as unknown lines (line kind `optimizer`), and the
-  trace facts carry a note ("2 optimizer (10053) dumps in this file, lines 54-18358 and 18734-27979; not shown as
+  trace facts carry a note ("2 optimizer (10053) dumps in this file, lines 54-18356 and 18684-28072; not shown as
   10053 yet"). A 10046 record inside a dump keeps its kind and its place in the 10046 model (the optimizer's own
   recursive SQL is written as complete `dep=1` records between its lines), and tkprof parity holds on the
   interleaved fixture like on every other (`opt_interleaved`, compared with tkprof's output, no exclusion).
@@ -1486,7 +1492,7 @@ right, the toolbar above.
 - **Costing runs** show the verdict of the iteration they belong to, and the run that produced the final plan
   (costed after `Final query after transformations`) is labelled. A run whose text equals an earlier one, addresses
   and memory figures ignored, is marked "same as run N" and folded. This compares text; it does not read numbers.
-- **SQL**: every `UNPARSED QUERY IS` statement pretty-printed, with a diff against the previous version. The
+- **SQL**: every `UNPARSED QUERY IS` statement pretty-printed, with a diff (a button, off when a tab opens) against the previous version. The
   previous version is the previous statement in the file, which is often another query block's text; a menu picks
   another to diff against. The pretty-printer is the reader's own (token and parenthesis based, not a parser),
   ported to Go as well so that the view and the text digest print the same lines; it is not the Trace pane's.
@@ -1512,9 +1518,14 @@ right, the toolbar above.
 - A 10053 file is always its own tab (desktop) or its own `serve` / report run. Given inside a set of 10046 files it
   is left out of the set with a note; of a set made only of 10053 files the first is opened and the others are named
   in a note.
-- **A jump only.** A statement of a 10046 tab shows a "10053" mark when another open tab holds a dump with the same
-  sql_id; the mark switches to that dump, and the dump links back. No data is joined. Desktop only (`serve` holds one
-  session).
+- **A jump only.** A statement of a 10046 tab (the Statements list and the statement's detail) shows a "10053" mark
+  when another open tab holds a dump with the same sql_id; the mark switches to the most recently shown such tab and
+  opens the first dump with that sql_id (no line is selected), and the dump's row links back ("10046": the Statements
+  view of the most recently shown 10046 tab that has the statement). No data is joined. Desktop only (`serve` holds
+  one session).
+- **From the folder picker** a selection of 10046 and 10053 files opens as the 10046 set plus one tab for each 10053
+  file. Files that arrive in one request without the picker open as the 10046 set; the note about the 10053 file left
+  out has a button that opens it in a tab. Live follow of a 10053 file is refused by the engine.
 
 **Clients**
 
@@ -1530,7 +1541,11 @@ fix controls, the peeked binds, the outline with line numbers and line counts, t
 their line numbers, each version of the transformed SQL pretty-printed, the final plan with its predicates, the
 hints with their flags. It keeps about 5 to 8.5 % of a dump's lines on the fixtures. `-redact-binds` and `-binds
 none` apply to the bind sections (`Bind Info`, `Peeked Binds`) as they do to 10046 binds; literals in the SQL text
-and the predicates stay, as in the 10046 reports. A server's `api/opt/text` is the file as it is.
+and the predicates stay, as in the 10046 reports. A redacted value is the 10046 token (`<NUMBER len=2 h=4fc82b26>`);
+`-binds none` empties the value (the text digest says "2 binds; values left out (-binds none)"). The redaction acts on
+the text digest and on the document's digest (the standalone HTML, `mtkprof json`, the engine's exports). A server's
+`api/opt/dump` and `api/opt/text` are the file as it is, so the view in the desktop and in `serve` shows the binds as
+traced.
 
 **Correctness contract**
 

@@ -1866,11 +1866,12 @@ Pipeline for a 10053 file:
   10046 record (`PARSING IN CURSOR` through `END OF STMT`, a `BINDS #` block with its lines and quoted multi-line
   values, `PARSE`, `EXEC`, `FETCH`, `CLOSE`, `WAIT`, `STAT`, `XCTEND`, `ERROR`). A skipped line is outside the outline,
   the landmarks, the facts and the digest; its ranges are subtracted from the digest. `Records10046` counts them.
-- **Memory and speed, measured** (`go test ./internal/opt -run 'Throughput|Huge' -v`, 2026-11-11, the owner's Mac): 200
-  dumps of the two-dump fixture back to back, 132 MB, 2,796,300 lines: 447 ms = 295 MB/s (the test requires 100
-  MB/s); one dump of 2,014,895 lines (99 MB, the size reported for a statement with a 120 s parse) in 338 ms = 294
+- **Memory and speed, measured** (`go test ./internal/opt -run 'Throughput|Huge' -v`, 2026-11-11, on an Apple M4):
+  200 dumps of the two-dump fixture back to back, 132 MB, 2,796,300 lines: 459 ms = 287 MB/s (the test requires 100
+  MB/s); one dump of 2,014,895 lines (99 MB, the size reported for a statement with a 120 s parse) in 344 ms = 288
   MB/s, with 27,313 nodes, 24,268 landmarks, 71,574 roles and 51,545 digest ranges, **24 MB** of heap held by the
-  model (the test requires less than half the file size) and a 3.5 MB text digest written in 8.6 ms.
+  model (the test requires less than half the file size) and a 3.5 MB text digest written in 9.3 ms. Runs differ by a
+  few per cent; the figure to quote is about 290 MB/s.
 
 #### The model (`internal/opt/model.go`)
 
@@ -1967,7 +1968,7 @@ The 10046 parser must not take a dump's lines for 10046 lines, so it tracks dump
   order. The folder picker reads them.
 - **An interleaved file** is a 10046 trace to the model: `model.FileEntry.Dumps` (`DumpRange`: first, last, sql_id,
   cut) keeps the ranges and `noteDumps` adds one note per file under the trace facts (`DumpNote`: "2 optimizer
-  (10053) dumps in this file, lines 54-18358 and 18734-27979; not shown as 10053 yet", at most five ranges, then "and
+  (10053) dumps in this file, lines 54-18356 and 18684-28072; not shown as 10053 yet", at most five ranges, then "and
   N more"; a set names the file). Persisted: `model.PersistVersion` 3 and **`engine.CacheIndexFormat` 8** (before, a
   session cached from such a file holds unknown-line counts and no note).
 - **Sets**: `model.DropOptFiles` takes the files that hold only dumps out of a set that also has other files and returns
@@ -1981,22 +1982,34 @@ The 10046 parser must not take a dump's lines for 10046 lines, so it tracks dump
 - **The model of a 10053 file is empty.** `Model.OptOnly()` is true for a single file with dumps and none of the 10046
   record line kinds; the dumps are read by `internal/opt` from the file itself (`report.OptScan` returns nil for any
   other model: an ordinary trace, an interleaved one, a set). So a 10053 session's dumps are never in the index cache;
-  the cache holds the empty model, and the scan (about 300 MB/s) runs when the session opens.
+  the cache holds the empty model, and the scan (about 290 MB/s on an Apple M4) runs when the session opens.
 - **The document**: `report.DocOptions.Opt` (`report.OptInput`: the scan, a line function, `Digest`, the bind text
   options) adds the member `opt` (`OptDoc`: `file` and, with `Digest`, `digest.dumps` and `digest.lines`, runs of
   consecutive lines of the dumps' digest ranges). `Digest` is set for a client without a server (`html`, `json`, the
-  default command, the engine's HTML export).
+  default command, the engine's HTML and JSON exports).
 - **The routes**: `slice.OptServer` serves `GET /api/opt/dump?i=N` and `GET /api/opt/text?i=N` (404 for a server of a file
   that is not a 10053 one, or an N out of range). It keeps the scan (made once) and the JSON of the dumps served, and
   reads the text through the file's line index, else through an `opt.LineReader` it makes on first use. `serve` and
-  the engine's sessions mount it; the engine adds both routes to the session's route list (OpenAPI).
+  the engine's sessions mount it (`/s/{id}/api/opt/dump`, `/s/{id}/api/opt/text`; the plain-text 404 for a session that is not a
+  10053 file, the JSON envelope for no such session); the engine adds both routes to the session's route list (OpenAPI).
+  The routes ignore the session's bind mode: the dump's model and the text are the file's.
 - **Sets**: `model.OptInputs` is `DropOptFiles` for the entry points that read a 10053 file as such (the CLI, the
   engine's sessions): a mixed set loses its 10053 files, a set of only 10053 files is cut to its first file, and each file
   left out is named in a note added to the document's notes. The engine's session object (`SessionInfo`) and its
-  session events carry `optSqlIds`.
-- **CLI**: `report`, `html`, `json`, the default command and `serve` read a 10053 file with `internal/opt`. A command
-  with nothing to show for it fails with one line (`buildTrace`), for example "x.trc is a 10053 file: nothing to pivot;
-  mtkprof report prints its digest".
+  session events carry `optSqlIds`, set when the session is ready (the answer to `POST /engine/sessions`, in state
+  `opening`, has none).
+- **CLI**: `report`, `html`, `json`, the default command and `serve` read a 10053 file with `internal/opt`; `lint` lists
+  its line kinds and dumps. A command with nothing to show for it fails with one line (`buildTrace`): "x.trc is a 10053
+  file: nothing to pivot; mtkprof report prints its digest", with "nothing to export" (`export`), "no STAT plans to
+  extract" (`plan`), "no object names to collect" (`refscript`) or "to look up" (`ref -db`), "no brief to make" (`brief`)
+  and "nothing to compare" (`compare`) in the place of "nothing to pivot". `mtkprof mcp` given only 10053 files stops
+  with "mcp: x.trc is a 10053 file; the assistant and MCP read 10046 traces only in this version".
+- **Refusals in the engine** (`optRefusal`, `internal/engine`): the assistant, the brief and the comparison answer a
+  10053 session with `bad_request` "x.trc is a 10053 file: …" (the assistant reads 10046 traces only in this
+  version; a brief is made of 10046 traces only; it cannot be compared); `api/report?format=csv` with "x.trc is a 10053
+  file: nothing to export as tables; format=text is its digest"; a session opened with `options.follow` on a local
+  10053 file with "follow: x.trc is a 10053 file (optimizer trace); it cannot be followed live: open it without follow"
+  (`startLive` sniffs the file, up to 64 MB, before it starts; a remote follow's mirror is not sniffed).
 - **Bind redaction of the digest** uses the 10046 token (`model.RedactToken`, so a value gives the same token in either
   kind of report); a string value is hashed without the double quotes the 10053 prints around it, and its length is that of
   the unquoted value.
@@ -2073,8 +2086,11 @@ without an entry shows "No guide text for this kind of section". Ported from the
 `testdata/gen/run_gen.sh opt` on the lab (the `dbmint-oracle-test` skill; it needs `dangerouslyDisableSandbox`) runs the
 ten 10053-only scenarios `sc_opt_*.sql` (`opt_subq_binds`, `opt_two`, `opt_join8`, `opt_nostats_ds`, `opt_part`,
 `opt_parallel`, `opt_dml`, `opt_setop`, `opt_altered`, `opt_unified`; no tkprof) and `opt_interleaved` (10046 and 10053
-together, with tkprof); any of them by name. The 10053-only traces go to `testdata/opt/19c/`, the interleaved one and
-its tkprof output to `testdata/traces/19c/`. Every statement carries a tag from `_opt_tag.sql` (month, day, time to
+together, with tkprof); any of them by name. The script writes `out/<scenario>.trc` (the interleaved one also `.tkprof.txt` and
+`.tkprof-noagg.txt`) next to itself on the lab host, `OUT`, default `testdata/gen/out`, and the logs to `out/log/`; it
+copies nothing into the repository, so the copying is by hand: the ten 10053-only traces to `testdata/opt/19c/`, the
+interleaved one and its tkprof output to `testdata/traces/19c/`. `opt_parallel` also copies the PX slave trace files of the
+run to `out/opt_parallel_slave_pNNN.trc` and logs how many dumps each holds; none is kept. Every statement carries a tag from `_opt_tag.sql` (month, day, time to
 the millisecond) so it is hard parsed and writes a dump on every run, which means **a regenerated fixture has new
 sql_ids**: the snapshots change and need `-update` and a read of the diff. The generator creates its extra objects in
 schema `MTK` idempotently (CREATE only, never DROP or TRUNCATE; `01_schema.sql`). The fixtures are: a statement with two

@@ -63,7 +63,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   the standalone HTML (`html`); a statement of a 10046 tab and a dump of the same sql_id jump to each other. It
   computes nothing from the costs. 19c is tested (ten lab scenarios and an interleaved file, `testdata/opt/19c`,
   `testdata/traces/19c/opt_interleaved.*`); another version opens best effort. An interleaved file (10046 and 10053
-  in one session) still opens as a 10046 trace, with a note. The scan (`internal/opt`) reads ~295 MB/s in 24 MB for a
+  in one session) still opens as a 10046 trace, with a note. The scan (`internal/opt`) reads ~290 MB/s (Apple M4) in 24 MB for a
   two-million-line dump; snapshots pin its output. **Unreleased, on `main`**; no version chosen
   (`docs/releases/next-10053.md` is the draft). Cache format 8 (`engine.CacheIndexFormat`, `model.PersistVersion`
   3): a session cached before holds unknown-line counts for a file with dumps.
@@ -151,7 +151,7 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
 - **Wait classes** come from `internal/ref/data/event_name_19c.csv` (a real `v$event_name` export); idle
   detection uses the `Idle` class.
 - **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 8; 8 is the
-  optimizer dumps of a 10053 or interleaved file in `FileEntry.Dumps`); see CLAUDE.md.
+  line kind `optimizer` and the dump ranges of a file in `FileEntry.Dumps`, `model.PersistVersion` 3); see CLAUDE.md.
 - **An engine session's model has no waits** (aggregation-only): anything that needs the waits' obj# or file#
   reads `Model.WaitRefIDs` (the accumulator keeps them since 2026-11-08), not `m.Waits`.
 - **A dump can precede its statement's `PARSING IN CURSOR`.** In an interleaved file a statement with binds has
@@ -170,13 +170,13 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
   searches (JPPD in CVM) put the inner runs in the outer iteration's `RunIDs` too.
 - **`plan_hash` of other_xml is the 10046 `plh`; the dump header's `plan_hash_value` is not.** `DumpInfo.PlanHash`
   is the first; the header's (`plan_hash_value=-1817478388(93ab7b0c)`) is another hash and is not the `plh` of the
-  EXEC line (checked on two statements).
+  EXEC line (checked on the two statements of `opt_interleaved`).
 - **A regenerated 10053 fixture has new sql_ids** (every scenario tags its statement with a time stamp so it is hard
   parsed on every run): the snapshots then change and need `go test ./internal/opt -run Snapshot -update` and a read
   of the diff. `docs/mockups/10053-reader/data/two.trc` is a separate copy the parity test reads; it does not
   change.
 - **`peek.Summary.SQLTrace` is a 10046 property** (a line with `tim=`); a 10053-only file has it false and
-  `Kind` `"10053"`. Anything that filters on `SQLTrace` (the folder picker's *Only SQL traces*) must look at `Kind`
+  `Kind` `"10053"`. Anything that filters on `SQLTrace` (the folder picker's *Only SQL and optimizer traces*) must look at `Kind`
   too.
 - **Harness quirks** (Claude Code / T3): `cd` at the start of a Bash call is unreliable, use absolute paths;
   `pkill -f`/`pgrep -f` match the wrapper shell, find servers by port (`ss -ltnp | grep :8046`, `lsof -i` on
@@ -241,9 +241,9 @@ Built and unreleased; see "Where things stand". Open:
   unchanged); `DBMS_SQLDIAG.DUMP_TRACE` output (the probe failed on a missing grant) and `trace[sql:<sql_id>]`
   filtering; a dump cut by `max_dump_file_size`, and a session whose trace continues in another file (the scan marks a
   dump the file ends inside as truncated and the parser cuts at `TRACE CONTINUES IN FILE`; neither has a real fixture, and a
-  10053 file is read alone, chains are not followed); star transformation, OR expansion that applies and SQL plan
-  baselines in use have no fixture (partitioned, parallel, dynamic sampling, DML and set operations have one each since
-  the research; the format reference still lists them as unseen).
+  10053 file is read alone, chains are not followed); star transformation and SQL plan
+  baselines in use have no fixture (partitioned, parallel, dynamic sampling, DML, set operations and OR expansion that
+  applies have one each, `testdata/opt/19c`; the format reference describes them from the fixtures).
 - **Other versions**: only 19.x is `Tested`; for another the header says "read with the 19c rules" and counts the
   lines outside any known section (`Unplaced`). Wording of new refusals (`bypassed`, `not valid since`, …) is matched
   by phrase, so a new phrase is a missed landmark, not an error.
@@ -256,7 +256,7 @@ Built and unreleased; see "Where things stand". Open:
   `CompressionStream` (else the link says so).
 - The standalone report holds the digest's lines only: a dump's text outside them is "N lines not in this report"; the
   report cannot show a section's full text.
-- The 10046 mark and jump exist in the desktop only (`serve` holds one session).
+- The 10053 mark and jump exist in the desktop only (`serve` holds one session).
 
 ### Left by the 2026-11-08 desktop review (reviewers' should-fix items and app-only checks)
 
