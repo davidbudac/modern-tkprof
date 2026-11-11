@@ -63,7 +63,8 @@ const (
 	MaxStmtList      = 200
 	maxContexts      = 10000
 	maxCacheEntries  = 128
-	maxCacheBytes    = 4 << 20
+	maxCacheBytes    = 4 << 20  // the biggest answer kept
+	maxCacheTotal    = 32 << 20 // all kept answers of one server (one per open trace)
 )
 
 // Server serves the slicing endpoints over one model and its fact source.
@@ -80,9 +81,11 @@ type Server struct {
 	// the ones the document's findings were built with.
 	Thresholds *analyze.Thresholds
 
-	mu    sync.Mutex
-	cache map[string][]byte // GET query -> response body
-	order []string
+	mu         sync.Mutex
+	cache      map[string][]byte // GET query -> response body
+	order      []string          // the keys of cache, oldest first
+	cacheBytes int               // bytes of the bodies in cache
+	cacheGen   uint64            // Invalidate counts: an answer computed before one is not kept
 
 	lis      []*trace.LineIndex // WithLines
 	fileOnce sync.Once
@@ -251,7 +254,7 @@ func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.Ha
 			return
 		}
 		key := r.URL.Path + "?" + r.URL.RawQuery
-		body, ok := s.cached(key)
+		body, ok, gen := s.cached(key)
 		if !ok {
 			v, err := fn(r.Context(), r.URL.Query())
 			if err != nil {
@@ -272,7 +275,7 @@ func (s *Server) wrap(fn func(context.Context, url.Values) (any, error)) http.Ha
 				http.Error(w, merr.Error(), http.StatusInternalServerError)
 				return
 			}
-			s.store(key, body)
+			s.store(key, body, gen)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(body)
@@ -304,28 +307,44 @@ func (s *Server) cors(h http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) cached(key string) ([]byte, bool) {
+func (s *Server) cached(key string) (body []byte, ok bool, gen uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	b, ok := s.cache[key]
-	return b, ok
+	return b, ok, s.cacheGen
 }
 
-func (s *Server) store(key string, body []byte) {
+// store keeps an answer computed while the cache was at gen. The oldest
+// answers go when there are too many or they are too big together.
+func (s *Server) store(key string, body []byte, gen uint64) {
 	if len(body) > maxCacheBytes {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if gen != s.cacheGen {
+		return // the model changed while it was computed
+	}
 	if _, ok := s.cache[key]; ok {
 		return
 	}
-	if len(s.order) >= maxCacheEntries {
+	for len(s.order) > 0 && (len(s.order) >= maxCacheEntries || s.cacheBytes+len(body) > maxCacheTotal) {
+		s.cacheBytes -= len(s.cache[s.order[0]])
 		delete(s.cache, s.order[0])
 		s.order = s.order[1:]
 	}
 	s.cache[key] = body
 	s.order = append(s.order, key)
+	s.cacheBytes += len(body)
+}
+
+// Invalidate drops every kept answer: the model changed under the server
+// (the engine applied a reference bundle, whose names are in answers).
+func (s *Server) Invalidate() {
+	s.mu.Lock()
+	s.cache, s.order, s.cacheBytes = map[string][]byte{}, nil, 0
+	s.cacheGen++
+	s.mu.Unlock()
 }
 
 // ---- parameters --------------------------------------------------------------

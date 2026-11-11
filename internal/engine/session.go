@@ -131,8 +131,9 @@ func (ss *Session) end() {
 type opened struct {
 	co      *CacheOpened
 	handler http.Handler
-	api     http.Handler // the slice routes of co (the assist tools read through them)
-	release func()       // instead of co.Close (a live session, live.go)
+	api     http.Handler  // the slice routes of co (the assist tools read through them)
+	release func()        // instead of co.Close (a live session, live.go)
+	slice   *slice.Server // its kept answers go when the model changes (applyRefTo); nil for a live session
 }
 
 // trace is what the session shows now: the trace and its slice routes (a
@@ -451,18 +452,19 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 	ss.mu.Lock()
 	ss.ref.doc, ss.ref.gen = doc, gen
 	ss.mu.Unlock()
-	op.handler, op.api = s.sessionMux(ss, co, doc)
+	op.handler, op.api, op.slice = s.sessionMux(ss, co, doc)
 	return op, nil
 }
 
 // sessionMux serves the routes of a session (sessionRoutes) from an opened
-// trace and its document; api is its slice routes alone.
-func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) (mux, api http.Handler) {
-	ssrv := slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
-	ssrv.AllowOrigin = slice.NoCORS                                  // the engine's middleware sets CORS
-	ssrv.Thresholds = ss.th                                          // api/findings: those of the document's findings
-	ssrv.CutSalt = ss.salt                                           // api/cut: masked bind values hash as the session's redaction
-	ssrv.Checks = &ss.cutChecks                                      // api/cut/check: one at a time over the session's (live) snapshots
+// trace and its document; api is its slice routes alone, ssrv the slice
+// server behind api.
+func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) (mux, api http.Handler, ssrv *slice.Server) {
+	ssrv = slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
+	ssrv.AllowOrigin = slice.NoCORS                                 // the engine's middleware sets CORS
+	ssrv.Thresholds = ss.th                                         // api/findings: those of the document's findings
+	ssrv.CutSalt = ss.salt                                          // api/cut: masked bind values hash as the session's redaction
+	ssrv.Checks = &ss.cutChecks                                     // api/cut/check: one at a time over the session's (live) snapshots
 	api = ssrv.Handler()
 	handlers := map[string]http.Handler{
 		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),
@@ -488,7 +490,7 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) (mux, api 
 		}
 		m.Handle(p, h)
 	}
-	return m, api
+	return m, api, ssrv
 }
 
 // buildFiles is model.BuildFiles that turns a cancellation (cancelSink) or a

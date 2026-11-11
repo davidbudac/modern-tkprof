@@ -385,24 +385,32 @@ func (s *Server) sameTrace(ss *Session) []*Session {
 // bundle applied before), rebuilds its document and publishes the new
 // revision; gen is the commit b comes from. false: the session has no model
 // (still opening: runOpen applies what is kept once it is ready; or closed).
+// The session's kept slice answers are dropped.
 func (s *Server) applyRefTo(ss *Session, b *ref.Bundle, gen uint64) (bool, error) {
-	ss.use.Lock() // no request reads the model while it changes
-	m := ss.modelLocked()
-	if m == nil {
-		ss.use.Unlock()
-		return false, nil
+	applied, err := func() (bool, error) {
+		ss.use.Lock() // no request reads the model while it changes
+		defer ss.use.Unlock()
+		m := ss.modelLocked()
+		if m == nil {
+			return false, nil
+		}
+		model.ApplyRef(m, b)
+		if ss.op.slice != nil {
+			ss.op.slice.Invalidate() // answers kept from before have the old names, or none
+		}
+		doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
+		if err != nil {
+			return false, err
+		}
+		ss.mu.Lock()
+		ss.ref.doc, ss.ref.gen = doc, gen
+		ss.rev++
+		ss.mu.Unlock()
+		return true, nil
+	}()
+	if !applied || err != nil {
+		return applied, err
 	}
-	model.ApplyRef(m, b)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
-	if err != nil {
-		ss.use.Unlock()
-		return false, err
-	}
-	ss.mu.Lock()
-	ss.ref.doc, ss.ref.gen = doc, gen
-	ss.rev++
-	ss.mu.Unlock()
-	ss.use.Unlock()
 	s.bc.publish("session", ss.event())
 	s.logf("info", "session %s: reference bundle applied (%s), revision %d", ss.id, b.Summary(), ss.event().Rev)
 	return true, nil

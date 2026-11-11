@@ -702,7 +702,7 @@ func (lv *live) snapshot() error {
 	co := &CacheOpened{Model: m, Source: src, Lines: lis}
 	lv.rev++
 	snap := &liveSnap{rev: lv.rev, doc: doc, co: co}
-	snap.handler, snap.api = lv.srv.sessionMux(ss, co, doc)
+	snap.handler, snap.api, _ = lv.srv.sessionMux(ss, co, doc)
 	lv.cur.Store(snap)
 	lv.mu.Lock()
 	close(lv.next)
