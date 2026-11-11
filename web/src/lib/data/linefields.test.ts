@@ -290,3 +290,15 @@ describe('splitZeros', () => {
     expect(zeros).toEqual([])
   })
 })
+
+describe('an optimizer (10053) line in a 10046 trace', () => {
+  it('is named as such, with a note, rather than called an unrecognised line', () => {
+    const d = decodeLine('Registered qb: SEL$1 0x70da90 (PARSER)', 'optimizer', {}, { verbose: true }) // the line inspector's card; the compact decode of a kind without fields is null
+    expect(decodeLine('Registered qb: SEL$1 0x70da90 (PARSER)', 'optimizer')).toBeNull()
+    expect(d?.title).toBe('Optimizer (10053) line')
+    expect(d?.kindLabel).toBe('Optimizer (10053) line')
+    expect(d?.fields).toEqual([])
+    expect(d?.note).toMatch(/optimizer \(10053\) dump/)
+    expect(d?.note).not.toMatch(/did not recognise|does not match/)
+  })
+})

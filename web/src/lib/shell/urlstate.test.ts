@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createStore } from '../state/store'
-import { makeDoc } from '../data/testdoc'
+import { makeDoc, makeOptDoc, optFileOf } from '../data/testdoc'
 import type { Event } from '../data/types'
 import { apply, hashOf, unresolved } from './urlstate'
 
@@ -114,5 +114,50 @@ describe('URL hash: the mtkprof: link grammar (exec=, contexts=)', () => {
     apply(store, doc, '#sql=sql0&exec=118:1')
     store.actions.pickStmt(1)
     expect(hashOf(doc, store.getState())).toBe('#view=statements&sql=sql1')
+  })
+})
+
+describe('URL hash: the 10053 view', () => {
+  const file = optFileOf(3)
+
+  it('is the only view of a 10053 document: any other view in a link opens it, the dump is part of the hash', async () => {
+    const doc = await makeOptDoc({ file })
+    const store = createStore()
+    store.setLoaded({ doc, compare: null })
+    expect(hashOf(doc, store.getState())).toBe('#view=opt')
+    store.actions.openOpt(2, 55)
+    store.actions.setOptDump(2)
+    expect(hashOf(doc, store.getState())).toBe('#view=opt&dump=2')
+
+    const other = createStore()
+    other.setLoaded({ doc, compare: null })
+    apply(other, doc, '#view=opt&dump=1')
+    expect(other.getState().view).toBe('opt')
+    expect(other.getState().optDump).toBe(1)
+    expect(other.getState().optGo).toMatchObject({ dump: 1 })
+    apply(other, doc, '#view=waits&sql=abc')
+    expect(other.getState().view).toBe('opt')
+    apply(other, doc, '') // Back to a hash without a dump: the first
+    expect(other.getState().optDump).toBe(0)
+    apply(other, doc, '#view=opt&dump=9') // no such dump
+    expect(other.getState().optDump).toBe(0)
+  })
+
+  it('does not let an ordinary document have the 10053 view', async () => {
+    const doc = await makeDoc([{ ctx: 0, stmt: 0, kind: 2, e: 1 }])
+    const store = createStore()
+    store.setLoaded({ doc, compare: null })
+    apply(store, doc, '#view=opt&dump=1')
+    expect(store.getState().view).toBe('overview')
+    expect(hashOf(doc, store.getState())).toBe('')
+  })
+
+  it('names the keys a document does not have', async () => {
+    const opt = await makeOptDoc({ file })
+    const plain = await makeDoc([{ ctx: 0, stmt: 0, kind: 2, e: 1 }])
+    expect(unresolved(opt, '#view=opt&dump=1')).toEqual([])
+    expect(unresolved(opt, '#view=opt&dump=3')).toEqual(['dump'])
+    expect(unresolved(opt, '#view=waits')).toEqual(['view'])
+    expect(unresolved(plain, '#view=opt')).toEqual(['view'])
   })
 })

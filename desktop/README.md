@@ -182,6 +182,13 @@ the original tabs only while their content identities still match. Comparison ta
 engine restarts but are excluded from workspace restoration after app exit. Tabs can be
 reordered with the adjacent buttons or Alt+Shift+Left/Right while the title has focus.
 
+**10053 tabs.** A file of optimizer (10053) dumps and no 10046 record is always a tab of its own (a set given with 10046
+files leaves it out with a notice). Its session document has an `opt` field, which makes the shell show the lib's 10053
+view (`web/src/lib/views/opt`) and none of the 10046 views; the view reads each dump through `GET api/opt/dump?i=N` and
+`GET api/opt/text?i=N`. The engine's session object carries `optSqlIds`, which the "10053" mark on a statement of
+another tab reads; the mark and the dump's "10046" link switch tabs and select the dump (and line). Notes and bookmarks
+on lines use the same annotations store as the Trace pane. User guide: `docs/DESKTOP.md` § The 10053 view.
+
 Settings → Backup defaults to the existing connections/library format (version 1). Optional
 investigation metadata uses version 2: merged notes/bookmarks, theme/bind/start-empty defaults,
 and workspace path references that require explicit opening. Pending annotation writes are

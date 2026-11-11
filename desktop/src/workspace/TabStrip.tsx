@@ -49,7 +49,7 @@ export function TabStrip() {
           ws.go({ kind: 'tab', key: tab.key })
         } else ws.go({ kind: 'open' })
       }}><BrandIcon motion={busy ? 'loop' : undefined} /><span className="brand-name">mtkprof</span></button>
-      <nav className="session-tabs" aria-label="Open traces" role="tablist" style={{ '--tabs': tabs.length } as CSSProperties}>
+      <nav className="session-tabs" aria-label="Open traces" role="tablist" style={{ '--tabs': tabs.length, '--badged': tabs.filter((t) => t.kind === '10053').length } as CSSProperties}>
         {tabs.map((t, index) => (
           <SessionTab key={t.key} tab={t} index={index} on={route.kind === 'tab' && route.key === t.key} onMenu={setMenu} />
         ))}
@@ -151,6 +151,7 @@ function SessionTab({ tab: t, index, on, onMenu }: { tab: Tab; index: number; on
         {stateMark(t)}
         {t.dirs.length > 0 && <FolderIcon className="folder-mark" />}
         <span className="mono">{t.title}</span>
+        {t.kind === '10053' && <span className="kind-badge" title="An optimizer (10053) trace">10053</span>}
         {trace ? <SessionProvider session={trace}><TabTraceExtras files={t.files} live={t.live} /></SessionProvider> : t.live && <span className="badge-live">live</span>}
         {digit && <kbd className="key-hint" data-for="tabs" aria-hidden="true">{tabKeyLabel(digit, isMac)}</kbd>}
       </button>
@@ -194,7 +195,7 @@ function TabMenu({ at, onClose, onCompare }: { at: { key: string; x: number; y: 
       <button role="menuitem" disabled={index === 0} onClick={act(() => ws.move(tab.key, index - 1))}>Move left <kbd>{mod}←</kbd></button>
       <button role="menuitem" disabled={index === tabs.length - 1} onClick={act(() => ws.move(tab.key, index + 1))}>Move right <kbd>{mod}→</kbd></button>
       <hr />
-      <button role="menuitem" disabled={!canCmp} onClick={act(() => onCompare(tab.key))} title={canCmp ? 'Compare this trace with another open one' : 'Needs two ready, non-live traces'}>Compare with…</button>
+      <button role="menuitem" disabled={!canCmp} onClick={act(() => onCompare(tab.key))} title={tab.kind === '10053' ? 'An optimizer (10053) trace has nothing to compare' : canCmp ? 'Compare this trace with another open one' : 'Needs two ready, non-live traces'}>Compare with…</button>
       <hr />
       <button role="menuitem" onClick={act(() => ws.close(tab.key))}>Close <kbd>{isMac ? '⌘W' : 'Ctrl+W'}</kbd></button>
       <button role="menuitem" disabled={tabs.length < 2} onClick={act(() => { ws.go({ kind: 'tab', key: tab.key }); tabs.filter((t) => t.key !== tab.key).forEach((t) => ws.close(t.key)) })}>Close others</button>

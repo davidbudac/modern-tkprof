@@ -1,6 +1,7 @@
 // A small hand-built trace set for the unit tests (not a trace fixture: it only has the columns the code under test reads).
 import { TraceDoc } from './doc'
-import type { RawDocument, StmtStats, CallStats, FileEntry, Context, Event } from './types'
+import type { OptDump, OptFile } from './opt'
+import type { RawDocument, RawOpt, StmtStats, CallStats, FileEntry, Context, Event } from './types'
 
 export const zeroCallStats = (): CallStats => ({
   count: 0, misses: 0, cpu: 0, elapsed: 0, disk: 0, query: 0, current: 0, rows: 0, waitUs: 0, idleUs: 0,
@@ -71,4 +72,27 @@ export async function makeDoc(calls: CallSpec[], opts: { files?: FileEntry[]; co
     stats: { statements: [zeroStmt(0), zeroStmt(1)], profile: { label: '', totalUs: 0, cpuUs: 0, waitUs: 0, idleUs: 0, unaccountedUs: 0, rows: [] }, events: [], timeline: [], bucketUs: 0 },
   }
   return TraceDoc.fromRaw(raw as unknown as RawDocument)
+}
+
+/** A 10053 document: the empty 10046 model plus `opt` (and, with `notes`, the document's notes). */
+export async function makeOptDoc(opt: RawOpt, notes?: string[]): Promise<TraceDoc> {
+  const d = await makeDoc([])
+  Object.assign(d, { opt })
+  if (notes) Object.assign(d.diag, { notes })
+  return d
+}
+
+/** A minimal OptFile of `n` dumps, each `size` lines long, one after the other from line 10 (the dumps' models are made by `optDumpOf`). */
+export function optFileOf(n: number, size = 20): OptFile {
+  const dumps = Array.from({ length: n }, (_, i) => {
+    const from = 10 + i * size
+    return { idx: i, from, end: from + size - 1, viewFrom: from, viewTo: from + size - 1, lineCount: size, sqlId: `sqlid${i}`, nth: 1, stmtText: 'select 1', sqlStart: 'select 1', tables: ['T'], planHash: '', runCount: 0, unplaced: 0 }
+  })
+  return { name: 'opt.trc', lines: 10 + n * size, release: 'Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production', version: '19.27.0.0.0', tested: true, records10046: 0, dumps }
+}
+
+/** The model of dump `idx` of `file` as the engine's JSON gives it: what Go leaves empty is `null`. */
+export function optDumpOf(file: OptFile, idx: number, digest: { from: number; to: number }[] = []): OptDump {
+  const info = file.dumps[idx]
+  return { ...info, stmtLine: info.from, stmtTo: info.from, tree: { id: 'dump', kind: 'dump', label: 'dump', crumb: 'dump', from: info.viewFrom, to: info.viewTo, lvl: 0 }, landmarks: null, folds: null, runs: null, sql: null, legend: null, banners: null, roles: null, hints: null, binds: null, altered: null, bindLines: null, digest, plan: null } as unknown as OptDump
 }

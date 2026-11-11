@@ -12,7 +12,7 @@ export const sessionViews: readonly SessionViewDef[] = [
   ...baseViews,
   { id: 'annotations', label: 'Notes', key: 8, group: 'tools', render: (d) => <AnnotationsView doc={d} /> },
   { id: 'reports', label: 'Reports', key: 9, group: 'tools', render: (d) => <ReportsView doc={d} /> },
-  { id: 'cut', label: 'Cut', group: 'tools', full: true, show: (d) => !!d.slice, render: (d) => <CutView doc={d} /> },
+  { id: 'cut', label: 'Cut', group: 'tools', full: true, show: (d) => !d.opt && !!d.slice, render: (d) => <CutView doc={d} /> },
 ]
 
 /** The rows of `sessionViews` this trace has, in nav order. */

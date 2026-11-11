@@ -1,4 +1,4 @@
-import { createSession, filesFolded, fromRaw, inShellFilesWrite, mergeAnnotations, mergeBookmarks, type Bookmark, type RawCompareDocument, type RawDocument, type Session } from '@lib'
+import { createSession, filesFolded, fromRaw, inShellFilesWrite, mergeAnnotations, mergeBookmarks, type Bookmark, type NoteAction, type Opt10046Link, type Opt10053Link, type RawCompareDocument, type RawDocument, type Session, type TraceDoc } from '@lib'
 import type { ApiClient } from '@lib/data/client'
 import { getJSON, responseError, send, sessionClient, type EngineEvents } from '../engine'
 import type { FileInfo, FileList, JobInfo, OpenSessionResponse, SessionEvent, SessionInfo, SessionOptions } from '../engine'
@@ -8,7 +8,8 @@ import { exportAnnotations, importAnnotations, loadBookmarks, loadNotes, saveBoo
 import { closeChat } from '../assist/conversation'
 import { libraryFor } from '../library/library'
 import { mergePanes, parsePanes, type Panes, type PanesPatch } from './panes'
-import { dirsOf, titleOf } from './traceSet'
+import { dirsOf, titleOf, baseName } from './traceSet'
+import { dumpIndexOf, dumpTabs, leftOutFile, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, type PeekOpt, type SessionOpt, type TabKind } from './optTabs'
 import { LiveFollower } from './liveFollow'
 import { OpenQueue } from './openQueue'
 
@@ -91,6 +92,12 @@ export interface Tab {
   fileSel?: number[]
   /** which side panes are open and how wide (see `panes.ts`), kept in `workspace.json` */
   panes?: Panes
+  /** `10053`: an optimizer trace, a tab of its own with the 10053 view; absent: a 10046 trace. Known from the session (`optSqlIds`) or the document (`opt`), kept in `workspace.json` so a restored tab is labelled before it opens */
+  kind?: TabKind
+  /** a 10053 tab: the distinct sql_ids of its dumps (the engine's `optSqlIds`; the "10053" mark on a statement of another tab reads it) */
+  optSqlIds?: string[]
+  /** a jump to a dump that arrived before the tab's document did: the sql_id whose dump opens when it is in */
+  openDump?: string
   /** the lib session (store + client), once the first document is in; the store survives engine restarts and live updates */
   session: Session | null
   /** an adopted session's way to open again after an engine restart; without it the tab fails */
@@ -119,6 +126,8 @@ export interface RecentEntry {
   /** the requested paths that were folders, and how many files the engine opened (known after the first open) */
   dirs?: string[]
   files?: number
+  /** `10053`: the set is one optimizer trace (known after the first open) */
+  kind?: TabKind
 }
 
 /**
@@ -197,6 +206,9 @@ export class Workspace {
   private restored = false
   private released = false
   private widthTimer: ReturnType<typeof setTimeout> | undefined
+  /** when each tab was last shown, as a count of the times any tab was (a tie-free clock): the jumps between a 10046 trace and a 10053 dump take the most recently used candidate */
+  private used = new Map<string, number>()
+  private useSeq = 0
 
   /** called once, with the first engine: re-open last run's tabs (see WorkspaceProvider) */
   onFirstEngine: (() => void) | null = null
@@ -339,6 +351,8 @@ export class Workspace {
     const t = this.tab(key)
     if (!t || t.sessionId !== info.id) return
     const patch: Partial<Tab> = { identity: info.identity || t.identity, hit: info.hit }
+    const optIds = (info as SessionInfo & SessionOpt).optSqlIds
+    if (optIds) { patch.kind = '10053'; patch.optSqlIds = optIds } // present only for a 10053 session
     if (info.files?.length && !t.live) {
       const dirs = dirsOf(t.set.paths, info.files)
       patch.files = info.files
@@ -353,6 +367,7 @@ export class Workspace {
       patch.error = 'the engine closed the session'
     }
     this.patchTab(key, patch)
+    if (patch.kind && t.kind !== patch.kind) this.persistOpen() // a restart reopens it as the 10053 tab it is
     if (this.follower.has(key)) return
     if ((info.state === 'ready' || info.state === 'live') && (info.rev > t.rev || t.state === 'opening')) void this.load(key, info.rev)
   }
@@ -395,6 +410,14 @@ export class Workspace {
     const l = await fromRaw(raw, client)
     const cur = this.tab(key)
     if (!cur || cur.sessionId !== id) return
+    // the document says what the tab is (a restored tab only guessed)
+    const opt = l.doc.opt
+    const kind: TabKind | undefined = opt ? '10053' : undefined
+    if (cur.kind !== kind || (opt && !cur.optSqlIds)) {
+      this.patchTab(key, { kind, optSqlIds: opt ? sqlIdsOf(opt.file.dumps) : undefined })
+      if (cur.kind !== kind) this.persistOpen()
+    }
+    this.noteKind(cur.set, kind) // the recent list marks it
     let session = cur.session
     if (!session) {
       session = { ...createSession(client), library: libraryFor() }
@@ -408,6 +431,10 @@ export class Workspace {
       session.store.setState({ linesApi: true, linesAvailable: true, lineRefTarget: 'drawer' })
       if (cur.identity) session.store.setState({ bookmarks: await loadBookmarks(cur.identity), annotations: await loadNotes(cur.identity) })
       this.watchSession(key, session)
+      if (opt && cur.openDump) { // a jump from another tab that came before the document
+        const i = dumpIndexOf(opt.file.dumps, cur.openDump)
+        if (i >= 0) session.store.actions.openOpt(i)
+      }
     } else {
       if (session.client !== client) session = { ...session, client }
       session.store.setState({ linesApi: true })
@@ -420,6 +447,7 @@ export class Workspace {
       state: cur.state === 'failed' ? 'failed' : live ? 'live' : 'ready',
       rev: Math.max(rev, Number.isFinite(xrev) ? xrev : 0),
       error: cur.state === 'failed' ? cur.error : null,
+      ...(cur.openDump ? { openDump: undefined } : null),
     })
     if (first) logInfo(`session ready: ${cur.title} (${id}${cur.hit ? ', cache hit' : ''})`)
     // a live session: from this snapshot on the long poll (api/doc?rev=) keeps the document current, until the engine stops it
@@ -560,7 +588,7 @@ export class Workspace {
    * Opens a trace set in a new tab (shown at once unless `activate` is false), and lists it first in the recent list.
    * With `queued` the tab is only added: the caller starts it (`enqueue`).
    */
-  open(set: TraceSet, activate = true, recent = true, fileSel?: number[], panes?: Panes, queued = false): string {
+  open(set: TraceSet, activate = true, recent = true, fileSel?: number[], panes?: Panes, queued = false, kind?: TabKind): string {
     const key = newKey()
     const tab: Tab = {
       key,
@@ -580,9 +608,11 @@ export class Workspace {
       fileSel,
       panes,
       session: null,
+      ...(kind ? { kind } : null),
     }
     this.set({ tabs: [...this.snap.tabs, tab], route: activate ? { kind: 'tab', key } : this.snap.route })
-    if (recent && !set.options.follow) this.addRecent(tab.title, set)
+    if (activate) this.used.set(key, ++this.useSeq)
+    if (recent && !set.options.follow) this.addRecent(tab.title, set, kind)
     this.persistOpen()
     // a restore starts its tabs together through the queue (`restore`); an open by the user is immediate
     if (!queued) void this.start(key)
@@ -629,6 +659,88 @@ export class Workspace {
     if (!tab) return this.open(set)
     this.go({ kind: 'tab', key: tab.key })
     return tab.key
+  }
+
+  // ---- 10053 (optimizer trace) tabs ---------------------------------------------------------------
+
+  /**
+   * Opens a request for several files as tabs, split by what a peek found (`peekOf`; DESIGN § Opening a folder): the 10046 files form the set
+   * they would have formed (one tab), each 10053 file is a tab of its own, after it. The first tab opened is shown. A file that was not peeked is a
+   * 10046 file; the engine itself leaves a 10053 file out of a set and says so in a note (`noteAction` offers to open it). Returns the tabs' keys.
+   */
+  openSplit(paths: string[], peekOf: (path: string) => PeekOpt | null | undefined, options: OpenOptions): string[] {
+    const { set, opt } = splitByKind(paths, peekOf)
+    const keys: string[] = []
+    // follow is one live file: a set of several, and a 10053 file, open without it
+    if (set.length) keys.push(this.open({ paths: set, options: set.length === 1 ? options : { ...options, follow: undefined } }, true))
+    opt.forEach((p, i) => keys.push(this.open({ paths: [p], options: { ...options, follow: undefined } }, !set.length && i === 0, true, undefined, undefined, false, '10053')))
+    return keys
+  }
+
+  /** When the tab was last shown, in the order of showing (0: never). */
+  lastUsed(key: string): number {
+    return this.used.get(key) ?? 0
+  }
+
+  /** The "10053" mark of the 10046 tab `from`: whether another open tab holds a dump of the sql_id, and the jump to the most recently used one's first such dump. */
+  dumpLink(from: string): Opt10053Link {
+    return {
+      has: (sqlId) => dumpTabs(this.snap.tabs, sqlId, from).length > 0,
+      open: (sqlId) => this.openDump(from, sqlId),
+    }
+  }
+
+  private openDump(from: string, sqlId: string) {
+    const tab = pickJumpTab(dumpTabs(this.snap.tabs, sqlId, from), this.used)
+    if (!tab) return
+    const dumps = tab.session?.store.getState().doc?.opt?.file.dumps
+    if (tab.session && dumps) {
+      const i = dumpIndexOf(dumps, sqlId)
+      if (i >= 0) tab.session.store.actions.openOpt(i)
+    } else this.patchTab(tab.key, { openDump: sqlId }) // its document is not in yet: the dump opens with it
+    this.go({ kind: 'tab', key: tab.key })
+  }
+
+  /** The "10046" link of the 10053 tab `from`: whether another open 10046 tab has a statement with the sql_id, and the jump to the most recently used one, selecting it. */
+  statementLink(from: string): Opt10046Link {
+    return {
+      has: (sqlId) => statementTabs(this.snap.tabs, sqlId, from, hasStatement).length > 0,
+      open: (sqlId) => {
+        const tab = pickJumpTab(statementTabs(this.snap.tabs, sqlId, from, hasStatement), this.used)
+        const doc = tab?.session?.store.getState().doc
+        if (!tab || !tab.session || !doc) return
+        const stmt = doc.statements.findIndex((x) => x.sqlId === sqlId)
+        if (stmt >= 0) tab.session.store.actions.selectStmt(stmt)
+        this.go({ kind: 'tab', key: tab.key })
+      },
+    }
+  }
+
+  /**
+   * A button for a note of tab `key`'s document that says a 10053 file was left out of the set ("x.trc is a 10053 file; open it on its own"):
+   * it opens that file in a tab of its own. The file is found among the requested paths, else in the folders among them.
+   */
+  noteAction(key: string, note: string): NoteAction | null {
+    const tab = this.tab(key)
+    if (!tab || tab.origin === 'comparison') return null
+    const opened = new Set(tab.files.map((f) => baseName(f.path)))
+    const name = leftOutFile(note) ?? tab.set.paths.map(baseName).find((n) => !opened.has(n) && note.includes(n)) ?? null
+    if (!name || opened.has(name)) return null
+    return { label: `Open ${name}`, title: `Open ${name} in a tab of its own`, run: () => void this.openLeftOut(tab, name) }
+  }
+
+  private async openLeftOut(tab: Tab, name: string) {
+    let path = pathNamed(tab.set.paths, name)
+    const e = this.engine
+    if (!path && e) {
+      try {
+        const list = await send<FileList>(e.client, 'POST', '/engine/files', { paths: tab.dirs.length ? tab.dirs : tab.set.paths })
+        path = list.files.find((f) => baseName(f.path) === name)?.path ?? null
+      } catch (err) {
+        console.warn('open the left-out file:', message(err))
+      }
+    }
+    if (path) this.openOrShow({ paths: [path], options: { binds: tab.set.options.binds, salt: tab.set.options.salt } })
   }
 
   /**
@@ -720,6 +832,7 @@ export class Workspace {
     }
     this.unwatch.get(key)?.()
     this.unwatch.delete(key)
+    this.used.delete(key)
     this.follower.stop(key) // cancels the open long poll
     closeChat(key)
     this.set({ tabs: rest, route })
@@ -767,6 +880,7 @@ export class Workspace {
     const origin = route.kind !== 'page' ? undefined : cur.kind === 'page' ? this.snap.origin : cur
     this.set({ route, origin })
     if (route.kind === 'tab') {
+      this.used.set(route.key, ++this.useSeq)
       this.queue?.prioritize(route.key) // the user looks at a tab that still waits to open: next
       this.persistOpen()
     }
@@ -795,10 +909,10 @@ export class Workspace {
   async restore(opts: { startEmpty: boolean; extra?: TraceSet | null }) {
     const kv = await openKV(FILE)
     this.set({ recent: (await kv.get<RecentEntry[]>('recent')) ?? [] })
-    const open = opts.startEmpty ? [] : ((await kv.get<(Panes & { title: string; set: TraceSet; files?: number[] })[]>('open')) ?? [])
+    const open = opts.startEmpty ? [] : ((await kv.get<(Panes & { title: string; set: TraceSet; files?: number[]; kind?: string })[]>('open')) ?? [])
     const active = (await kv.get<number>('active')) ?? -1
     // the tabs are added at once and opened through the queue (the shown one first, two at a time)
-    const keys = open.filter((o) => o?.set?.paths?.length).map((o) => this.open(o.set, false, false, Array.isArray(o.files) ? o.files.filter((f) => Number.isInteger(f) && f >= 0) : undefined, parsePanes(o), true))
+    const keys = open.filter((o) => o?.set?.paths?.length).map((o) => this.open(o.set, false, false, Array.isArray(o.files) ? o.files.filter((f) => Number.isInteger(f) && f >= 0) : undefined, parsePanes(o), true, o.kind === '10053' ? '10053' : undefined))
     const extra = opts.extra
     if (extra && !open.some((o) => setKey(o.set) === setKey(extra))) keys.push(this.open(extra, false, true, undefined, undefined, true))
     const show = extra ? keys[keys.length - 1] : (keys[active] ?? keys[0])
@@ -811,14 +925,15 @@ export class Workspace {
     const r = this.snap.route
     const active = r.kind === 'tab' ? keep.findIndex((t) => t.key === r.key) : -1
     void openKV(FILE).then(async (kv) => {
-      await kv.set('open', keep.map((t) => ({ title: t.title, set: t.set, ...(t.fileSel ? { files: t.fileSel } : null), ...t.panes })))
+      await kv.set('open', keep.map((t) => ({ title: t.title, set: t.set, ...(t.kind ? { kind: t.kind } : null), ...(t.fileSel ? { files: t.fileSel } : null), ...t.panes })))
       await kv.set('active', active)
     })
   }
 
-  private addRecent(title: string, set: TraceSet) {
+  private addRecent(title: string, set: TraceSet, kind?: TabKind) {
     const k = setKey(set)
-    const recent = [{ title, set, at: new Date().toISOString() }, ...this.snap.recent.filter((r) => setKey(r.set) !== k)].slice(0, RECENT_MAX)
+    const old = this.snap.recent.find((r) => setKey(r.set) === k)
+    const recent = [{ title, set, at: new Date().toISOString(), ...((kind ?? old?.kind) ? { kind: kind ?? old?.kind } : null) }, ...this.snap.recent.filter((r) => setKey(r.set) !== k)].slice(0, RECENT_MAX)
     this.set({ recent })
     void openKV(FILE).then((kv) => kv.set('recent', recent))
   }
@@ -834,6 +949,21 @@ export class Workspace {
     void openKV(FILE).then((kv) => kv.set('recent', recent))
   }
 
+  /** Records on the set's recent entry that it is a 10053 trace (or not): the open screen marks it. */
+  private noteKind(set: TraceSet, kind: TabKind | undefined) {
+    const k = setKey(set)
+    const at = this.snap.recent.findIndex((r) => setKey(r.set) === k)
+    const r = this.snap.recent[at]
+    if (!r || r.kind === kind) return
+    const recent = this.snap.recent.map((x, i) => {
+      if (i !== at) return x
+      const { kind: _old, ...rest } = x
+      return kind ? { ...rest, kind } : rest
+    })
+    this.set({ recent })
+    void openKV(FILE).then((kv) => kv.set('recent', recent))
+  }
+
   removeRecent(at: number) {
     const recent = this.snap.recent.filter((_, i) => i !== at)
     this.set({ recent })
@@ -841,5 +971,15 @@ export class Workspace {
   }
 }
 
-/** Comparison uses full traces, independently of current filters and selections. */
-export const canCompare = (t: Tab) => t.origin !== 'comparison' && t.state === 'ready' && !t.live && !!t.sessionId && !!t.session
+/** Whether the tab's document has a statement with this sql_id (the sql_ids of a document are kept per document, not rebuilt for every ask). */
+const sqlIdCache = new WeakMap<TraceDoc, ReadonlySet<string>>()
+function hasStatement(t: Tab, sqlId: string): boolean {
+  const doc = t.session?.store.getState().doc
+  if (!doc) return false
+  let ids = sqlIdCache.get(doc)
+  if (!ids) sqlIdCache.set(doc, (ids = new Set(doc.statements.map((x) => x.sqlId).filter(Boolean))))
+  return ids.has(sqlId)
+}
+
+/** Comparison uses full traces, independently of current filters and selections. A 10053 tab is not offered as a side: it has nothing to compare. */
+export const canCompare = (t: Tab) => t.origin !== 'comparison' && t.kind !== '10053' && t.state === 'ready' && !t.live && !!t.sessionId && !!t.session

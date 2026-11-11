@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef } from 'r
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TraceDoc } from '../data/doc'
 import { StmtLink } from '../components/StmtLink'
+import { OptMark } from '../components/OptMark'
 import type { StmtStats } from '../data/types'
 import { fmtDur, fmtInt, fmtPct, fmtWall, preview, fmtCompact } from '../data/format'
 import { useStore, useActions } from '../state/session'
@@ -109,6 +110,7 @@ export function Statements({ doc }: { doc: TraceDoc }) {
                   <div className="n">{sortKey === 'first' ? firstCall(doc, st) : sortKey === 'resp' || sortKey === 'self' || sortKey === 'cpu' || sortKey === 'waits' || sortKey === 'idle' ? fmtDur(sort.of(st, inclusive)) : fmtCompact(sort.of(st, inclusive))}<small title={sortKey === 'resp' ? shareNote(responseShare(st, totalUs)) : undefined}>{sortKey === 'resp' ? fmtPct(resp, totalUs, 0) : fmtDur(resp)}</small></div>
                   <div className="id">
                     <StmtLink doc={doc} id={st.id} direct />
+                    <OptMark sqlId={s.sqlId} />
                     <span>{fmtInt(st.executions)} exec{st.executions === 1 ? '' : 's'}</span>
                     {st.allCalls.rows > 0 && <span>{fmtCompact(st.allCalls.rows)} row{st.allCalls.rows === 1 ? '' : 's'}</span>}
                     {st.minDepth > 0 && <span>depth {st.minDepth}</span>}

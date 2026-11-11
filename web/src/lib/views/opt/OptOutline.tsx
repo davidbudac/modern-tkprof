@@ -51,7 +51,7 @@ export const OptOutline = memo(function OptOutline(p: Props) {
             <span className="opt-ol-n">{fmtInt(d.lineCount)}</span>
           </span>
           <span className="opt-ol-sql">{d.sqlStart.slice(0, 80)}</span>
-          <span className="opt-ol-facts">{d.tables.join(' · ')}{d.tables.length > 0 ? ' · ' : ''}{fmtInt(d.lineCount)} lines · plan hash {d.planHash || '—'}
+          <span className="opt-ol-facts"><span className="opt-ol-facts-t">{d.tables.join(' · ')}{d.tables.length > 0 ? ' · ' : ''}{fmtInt(d.lineCount)} lines · plan hash {d.planHash || '—'}</span>
             {linked && <button type="button" className="link opt-ol-10046" title="This statement is in another open tab" onClick={(e) => { e.stopPropagation(); p.link10046?.open(d.sqlId) }}>10046</button>}
           </span>
         </span>

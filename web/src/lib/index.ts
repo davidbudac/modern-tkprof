@@ -17,6 +17,10 @@ export { Lines } from './views/Lines'
 // the 10053 (optimizer trace) view and what it reads: a source of dumps and their text, bookmarks and notes, the link to a 10046 statement
 export { OptView } from './views/opt/OptView'
 export type { OptViewProps } from './views/opt/OptView'
+export { OptTab } from './views/opt/OptTab'
+export { OptMark } from './components/OptMark'
+export { OptLinksContext, useOptLinks } from './shell/optlinks'
+export type { OptLinks, Opt10053Link, NoteAction } from './shell/optlinks'
 export { FilesPanel, FilesPane, FilesToggle } from './views/FilesPanel'
 
 // components
@@ -33,7 +37,7 @@ export { ToolbarMenu } from './components/ToolbarMenu'
 
 // the shell both front ends share (the standalone's src/app and the desktop's session shell): the view table and its
 // tabs and chords, the side panes, the Esc chain, the details pane, the URL hash, the views' error boundary
-export { baseViews, shownViews, currentView, type SessionViewDef } from './shell/views'
+export { baseViews, shownViews, currentView, is10046, type SessionViewDef } from './shell/views'
 export { ViewTabs } from './shell/ViewTabs'
 export { viewKeyOf, viewOfKey, viewKeyLabel, viewKeyAria, digitOf, inTextField, useViewKeys } from './shell/viewKeys'
 export type { KeyLike, ViewKeyAction } from './shell/viewKeys'
@@ -49,7 +53,7 @@ export { ViewErrorBoundary, errorDetails } from './shell/ViewErrorBoundary'
 
 // state: one store per open trace, provided through the context
 export { createStore, carryOver, scopeOf, scopeNarrows, callFilter, waitFilter, filesPanelOpen, activeBlock } from './state/store'
-export type { Store, Actions, State, View, Side, Selection, TimeWindow, LaneBlock, Scope, Bookmark, LinesView, PivotState, LiveStatus } from './state/store'
+export type { Store, Actions, State, View, Side, Selection, TimeWindow, LaneBlock, Scope, Bookmark, LinesView, PivotState, LiveStatus, OptGo } from './state/store'
 export {
   SessionContext, SessionProvider, createSession, useSession, useStore, useStoreApi, useActions, useClient, useLibrary,
 } from './state/session'
@@ -96,6 +100,10 @@ export type * from './data/types'
 // the 10053 reader's data: the model's TypeScript twin, the source interface and an in-memory source (tests, the standalone report)
 export { memoryOptSource, storeAnnotations, completeText, sparseText, splitLines, normalizeDump } from './data/opt'
 export type { OptSource, OptText, OptFile, OptDump, OptDumpInfo, OptNode, OptAnnotations, Opt10046Link, OptRange } from './data/opt'
+// where the apps get the 10053 view's data (the document's digest, or the session's api/opt routes), and what a shell must know of a 10053 document
+export { digestSource, httpSource, optSourceOf, attachOptClient } from './data/optsource'
+export { isOptDoc, viewFits, startView, dumpOfLine, lineLabel, optFacts } from './data/optdoc'
+export type { OptFacts } from './data/optdoc'
 // annotations (notes on statements, executions, windows, lines) and saved Pivot configurations
 export {
   textHash, stmtRef, resolveStmt, resolveExec, stmtNote, execNotes, execKey, makeAnnotation, newAnnotationId, bookmarkToAnnotation, annotationToBookmark,

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ListedFile, TracePeek } from '../engine'
-import { DEFAULT_SORT, filterRows, fmtEnd, fmtSpan, fmtStamp, notSQL, peekBatches, selectionSummary, sessionsText, sortRows, toRows } from './folderPick'
+import { kindLabel, dumpsLabel, type PeekOpt } from './optTabs'
+import { type Peek, DEFAULT_SORT, filterRows, fmtEnd, fmtSpan, fmtStamp, notSQL, peekBatches, selectionSummary, sessionsText, sortRows, toRows } from './folderPick'
 
 const file = (name: string, size: number, modified: string): ListedFile => ({ path: `/t/${name}`, size, modified, dir: '/t' })
-const peek = (name: string, p: Partial<TracePeek>): TracePeek => ({ path: `/t/${name}`, size: 0, modified: '', elapsedUs: 0, sqlTrace: true, sessions: [], sessionCount: 0, ...p })
+const peek = (name: string, p: Partial<TracePeek> & PeekOpt): Peek => ({ path: `/t/${name}`, size: 0, modified: '', elapsedUs: 0, sqlTrace: true, sessions: [], sessionCount: 0, ...p })
 
 const files = [file('a.trc', 100, '2026-11-08T10:00:00Z'), file('b.trc', 5000, '2026-11-08T12:00:00Z'), file('c.trc', 10, '2026-11-08T11:00:00Z'), file('mmon.trc', 1, '2026-11-08T13:00:00Z')]
 const peeks = new Map([
@@ -47,5 +48,29 @@ describe('folder picker rows', () => {
     expect(sessionsText(peeks.get('/t/b.trc')!)).toBe('2 sessions: 60.2, 61.9')
     expect(sessionsText(peeks.get('/t/mmon.trc')!)).toBe('–')
     expect(selectionSummary(rows.slice(0, 3))).toEqual({ files: 3, bytes: 5110, start: '2026-11-08T09:00:00+01:00', end: '2026-11-09T01:00:00+01:00' })
+  })
+})
+
+describe('folder picker: 10053 files', () => {
+  const opt = ['/t/p.trc', '/t/q.trc', '/t/r.trc']
+  const fs = [...files, ...opt.map((p) => file(p.slice(3), 10, '2026-11-08T08:00:00Z'))]
+  const withOpt = toRows(fs, new Map([...peeks, ['/t/p.trc', peek('p.trc', { sqlTrace: false, kind: '10053', optDumps: 3 })], ['/t/q.trc', peek('q.trc', { kind: 'both', optDumps: 2 })], ['/t/r.trc', peek('r.trc', { kind: '10046' })]]))
+
+  it('shows each file\'s kind and its dumps, nothing for a plain 10046 trace', () => {
+    const label = (name: string) => { const r = withOpt.find((x) => x.name === name)!; return [kindLabel(r.peek), dumpsLabel(r.peek)] }
+    expect(label('p.trc')).toEqual(['10053', '3 dumps'])
+    expect(label('q.trc')).toEqual(['10046 + 10053', '2 dumps'])
+    expect(label('r.trc')).toEqual(['', ''])
+    expect(label('a.trc')).toEqual(['', ''])
+  })
+
+  it('does not hide an optimizer trace as "no SQL trace" (it has no tim= to be a SQL trace), but still the background trace', () => {
+    expect(names(filterRows(withOpt, '', true))).toContain('p.trc')
+    expect(names(filterRows(withOpt, '', true))).not.toContain('mmon.trc')
+    expect(notSQL(withOpt)).toBe(1)
+  })
+
+  it('finds files by their kind', () => {
+    expect(names(filterRows(withOpt, '10053', false)).sort()).toEqual(['p.trc', 'q.trc'])
   })
 })

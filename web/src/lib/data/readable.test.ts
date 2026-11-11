@@ -220,3 +220,12 @@ describe('structure: what the rows say', () => {
     expect(describeLine('BINDS #1:', 'binds', 5).chips).toBeUndefined() // values not known yet
   })
 })
+
+describe('an optimizer (10053) line of an interleaved trace in the readable view', () => {
+  it('is a plain dim line, not an error', () => {
+    const v = describeLine('Registered qb: SEL$1 0x70da90 (PARSER)', 'optimizer', 5)
+    expect(v.tone).toBe('dim')
+    expect(v.label).toBe('')
+    expect(JSON.stringify(v.parts)).toContain('Registered qb')
+  })
+})

@@ -172,3 +172,13 @@ describe('PageCache.nextOfKind', () => {
     expect(c.nextOfKind(1, W, 1)).toBe(3)
   })
 })
+
+describe('the optimizer line kind (a 10053 dump inside a 10046 trace)', () => {
+  it('is a kind of its own in a page, not the unknown kind a name outside the list falls back to', () => {
+    const p = packPage({ from: 1, total: 3, lines: [{ t: 'Registered qb: SEL$1 0x70da90 (PARSER)', k: 'optimizer' }, { t: 'x', k: 'unknown' }, { t: 'y', k: 'kind-from-the-future' as never }] })
+    expect(LINE_KINDS[p.kinds[0]]).toBe('optimizer')
+    expect(LINE_KINDS[p.kinds[1]]).toBe('unknown')
+    expect(LINE_KINDS[p.kinds[2]]).toBe('unknown')
+    expect(p.kinds[0]).not.toBe(0)
+  })
+})

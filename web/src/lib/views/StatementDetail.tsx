@@ -29,6 +29,7 @@ import { RowFlow } from './RowFlow'
 import { NO_STATS_NOTE, type FlowScale } from '../data/rowflow'
 import { isBlockIO } from '../data/iomap'
 import { Shimmer } from '../components/motion'
+import { OptMark } from '../components/OptMark'
 
 /** A request from the statement's view buttons: show the plan as a Row flow, or the slowest execution's Dialogue (`seq` repeats a click). */
 type Jump = { to: 'flow' | 'dialogue'; seq: number }
@@ -85,7 +86,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
   ]
   return (
     <>
-      <div className="title"><h1 className="mono">{doc.label(st)}</h1></div>
+      <div className="title"><h1 className="mono">{doc.label(st)}</h1><OptMark sqlId={st.sqlId} /></div>
       <p className="stmt-facts dim" aria-label="Statement facts">
         {facts.map((f, i) => <Fragment key={i}>{i > 0 && ' · '}{f}</Fragment>)}
       </p>

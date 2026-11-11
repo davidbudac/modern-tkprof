@@ -2,6 +2,7 @@ import { contextsWithin, formatFilesParam, normalizeFiles, parseFilesParam } fro
 import { execKey } from '../data/annotations'
 import type { TraceDoc } from '../data/doc'
 import type { Store, Side, State, View } from '../state/store'
+import { startView, viewFits } from '../data/optdoc'
 import { baseViews } from './views'
 
 /**
@@ -10,13 +11,14 @@ import { baseViews } from './views'
  * `sql` is the sql_id (`@N` = statement index for statements without one), `ev` the
  * event name, `win` the window as microseconds from the start of the trace, `exec` one execution of the statement
  * (`<cursorLine>:<execNo>`, `execKey`), `contexts` the selected session contexts (`0,2`; absent = all), `files` the
- * shown input files (indexes, `0,2`; absent = all); the Lines view adds `file` (input file index) and `line`.
+ * shown input files (indexes, `0,2`; absent = all); the Lines view adds `file` (input file index) and `line`; the 10053 view (`view=opt`, the only
+ * view of a 10053 file, and of no other) adds `dump` (the open dump, absent = the first). A view the document cannot have is dropped by `apply`.
  * The assistant's `mtkprof:` links are the same hash (engine/internal/assist/system_prompt.md).
  * The `?doc=` query string is left alone.
  */
 const views: View[] = baseViews.map((v) => v.id) // the views a link can name: the view table's (views.tsx)
 
-type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null; exec: string; contexts: string; files: string; file: number; line: number }
+type Wanted = { view: View; side: Side; sql: string; ev: string; win: [number, number] | null; exec: string; contexts: string; files: string; file: number; line: number; dump: number }
 
 function sqlKey(doc: TraceDoc, id: number | null): string {
   if (id === null) return ''
@@ -46,6 +48,7 @@ function wanted(doc: TraceDoc, s: State): Wanted {
     files: formatFilesParam(s.files),
     file: s.view === 'lines' ? s.linesView.file : 0,
     line: s.view === 'lines' ? s.linesView.line : 0,
+    dump: s.view === 'opt' ? s.optDump : 0,
   }
 }
 
@@ -63,6 +66,7 @@ function format(w: Wanted): string {
     if (w.file) p.set('file', String(w.file))
     if (w.line > 1) p.set('line', String(w.line))
   }
+  if (w.view === 'opt' && w.dump > 0) p.set('dump', String(w.dump))
   const t = p.toString()
   return t ? '#' + t : ''
 }
@@ -86,6 +90,7 @@ function parse(hash: string): Parsed {
   if (p.has('files')) out.files = parseFilesParam(p.get('files'))
   if (/^\d+$/.test(p.get('file') ?? '')) out.file = Number(p.get('file'))
   if (/^\d+$/.test(p.get('line') ?? '')) out.line = Number(p.get('line'))
+  if (/^\d+$/.test(p.get('dump') ?? '')) out.dump = Number(p.get('dump'))
   return out
 }
 
@@ -118,7 +123,7 @@ export function unresolved(doc: TraceDoc, hash: string): string[] {
   const nFiles = doc.file.files?.length ?? 1
   const fileLines = doc.file.files?.[w.file ?? 0]?.lines ?? 0
   const bad: Record<string, boolean> = {
-    view: !w.view || w.view === 'compare',
+    view: !w.view || w.view === 'compare' || !viewFits(doc, w.view),
     sql: stmt === null,
     ev: !w.ev || !doc.events.some((e) => e.name === w.ev),
     win: !w.win || w.win[0] < 0 || w.win[1] <= w.win[0],
@@ -127,8 +132,15 @@ export function unresolved(doc: TraceDoc, hash: string): string[] {
     files: !within(w.files, nFiles),
     file: w.file === undefined || w.file >= nFiles,
     line: !w.line || (fileLines > 0 && w.line > fileLines),
+    dump: w.dump === undefined || !doc.opt || w.dump >= doc.opt.file.dumps.length,
   }
   return Object.keys(bad).filter((k) => p.has(k) && bad[k])
+}
+
+/** The 10053 view's position a hash asks for: the dump (a request to the view only when it is another than the one shown). */
+function optPosition(st: State, nDumps: number, dump: number | undefined): Pick<State, 'optDump' | 'optGo'> | null {
+  const d = dump !== undefined && dump < nDumps ? dump : 0
+  return d === st.optDump ? null : { optDump: d, optGo: { dump: d, seq: (st.optGo?.seq ?? 0) + 1 } }
 }
 
 /** Applies a hash to the store (unknown sql_ids / events / executions / contexts are ignored). */
@@ -141,7 +153,7 @@ export function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   const ev = w.ev ? doc.events.findIndex((e) => e.name === w.ev) : -1
   const base = doc.span.firstTim
   const st = store.getState()
-  const view = (w.view === 'compare' && !cmp) || (w.view === 'lines' && !(st.linesApi && doc.slice)) ? undefined : w.view
+  const view = (w.view === 'compare' && !cmp) || (w.view === 'lines' && !(st.linesApi && doc.slice)) || (w.view && !viewFits(doc, w.view)) ? undefined : w.view
   const files = doc.file.files?.length ?? 1
   const known = w.files ? new Set([...w.files].filter((f) => f < files)) : null // indexes this trace does not have are ignored; none left = all files
   const shown = normalizeFiles(doc, known && known.size > 0 ? known : null)
@@ -149,11 +161,12 @@ export function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   const ctxs = w.contexts ? new Set([...w.contexts].filter((c) => c < doc.contexts.length)) : null // unknown contexts are ignored; none left = all
   store.setState({
     doc, side: cmp ? side : 'a',
-    view: view ?? (stmt !== null ? 'statements' : 'overview'),
+    view: view ?? (doc.opt ? startView(doc) : stmt !== null ? 'statements' : 'overview'),
     selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: execIn(doc, stmt, w.exec) },
     files: shown, contexts: contextsWithin(doc, ctxs && ctxs.size > 0 ? ctxs : null, shown),
     window: w.win && w.win[1] > w.win[0] ? { startTim: base + w.win[0], endTim: base + w.win[1] } : null,
     ioZoom: [], // the I/O map's zoom is not in the hash; it was inside the window it replaces
+    ...(doc.opt ? optPosition(st, doc.opt.file.dumps.length, w.dump) : null),
     ...(view === 'lines' ? { linesView: { file, line: Math.max(1, w.line ?? 1), seq: st.linesView.seq + 1 } } : {}),
   })
   return doc
@@ -202,7 +215,7 @@ export function startUrlSync(store: Store): void {
     }
     if (!doc || !prev) return
     const a = wanted(doc, prev), b = wanted(doc, s)
-    const onlyWindow = a.view === b.view && a.sql === b.sql && a.ev === b.ev
+    const onlyWindow = a.view === b.view && a.sql === b.sql && a.ev === b.ev && a.dump === b.dump // another 10053 dump is a step of its own
     const firstPick = a.view === b.view && a.sql === '' && b.sql !== '' && a.ev === b.ev
     const lineStep = a.view === 'lines' && b.view === 'lines' && a.file === b.file // clicking through lines must not flood Back
     prev = s

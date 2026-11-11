@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import {
-  NoteEditor, annotationsFile, annotationsMarkdown, fmtDur, fmtInt, fmtWall, mergeAnnotations, mergeBookmarks, parseAnnotationsFile, preview,
+  NoteEditor, annotationsFile, annotationsMarkdown, dumpOfLine, fmtDur, fmtInt, fmtWall, mergeAnnotations, mergeBookmarks, parseAnnotationsFile, preview,
   resolveExec, resolveStmt, useActions, useStore, type Annotation, type Bookmark, type StmtRef, type TraceDoc,
 } from '@lib'
 import { pickTextFile, safeFileName, saveAs } from '../../files'
@@ -91,7 +91,7 @@ export function AnnotationsView({ doc }: { doc: TraceDoc }) {
       {msg && <p className={msg.ok ? 'small muted' : 'callout report-error'} role={msg.ok ? 'status' : 'alert'}>{msg.text}</p>}
       {total === 0 && (
         <p className="muted small">
-          Add notes with <b>✎ Add note</b> in a statement, the ✎ column of its executions, <b>✎ Annotate window</b> in the Timeline once a time window is set, and <b>✎ Note</b> or a bookmark in the Trace view.
+          {doc.opt ? <>Add notes with <b>b</b> (bookmark) on a line of the 10053 view, then the ✎ in its Bookmarks tab.</> : <>Add notes with <b>✎ Add note</b> in a statement, the ✎ column of its executions, <b>✎ Annotate window</b> in the Timeline once a time window is set, and <b>✎ Note</b> or a bookmark in the Trace view.</>}
         </p>
       )}
 
@@ -156,9 +156,16 @@ export function AnnotationsView({ doc }: { doc: TraceDoc }) {
             return (
               <li key={key}>
                 <span className="ann-head">
+                  {doc.opt ? (
+                    // a line of a 10053 file: the 10053 view at its dump and line
+                    <button className="link mono" onClick={() => actions.openOpt(dumpOfLine(doc.opt!.file, b.line) ?? 0, b.line)} title="open this line in the 10053 view">
+                      {(() => { const d = dumpOfLine(doc.opt!.file, b.line); return d === null ? '' : `dump ${d + 1} · ` })()}line {fmtInt(b.line)}
+                    </button>
+                  ) : (
                   <button className="link mono" onClick={() => (linesApi ? actions.openLinesAt(b.file, b.line) : actions.openLines(b.line, b.file))}>
                     {doc.traceFileName(b.file) ? `${doc.traceFileName(b.file)}:` : 'line '}{fmtInt(b.line)}
                   </button>
+                  )}
                   <code className="small clip">{b.label}</code>
                 </span>
                 {open ? (

@@ -71,7 +71,7 @@ function OpenChoices() {
       <section className="open-main">
         <h1>Open a trace</h1>
         <p className="muted">
-          Oracle 10046 trace files, or folders of them. Several files open as one trace set.{' '}
+          Oracle 10046 trace files, or folders of them. Several files open as one trace set; an optimizer (10053) trace opens in a tab of its own.{' '}
           <button className="link" onClick={() => ws.go({ kind: 'page', id: 'tracing' })}>How to make a trace</button>
         </p>
         <div className="drop-zone">
@@ -142,7 +142,7 @@ function OpenChoices() {
           {recent.map((r, i) => (
             <li key={i}>
               <button className="recent-open" disabled={!ready} onClick={() => void ws.openOrPick(r.set)} title={setTooltip(r.set.paths)}>
-                <b className="mono recent-title">{r.dirs?.length ? <FolderIcon className="folder-mark" /> : null}<span>{titleOf(r.set.paths)}</span></b>
+                <b className="mono recent-title">{r.dirs?.length ? <FolderIcon className="folder-mark" /> : null}<span>{titleOf(r.set.paths)}</span>{r.kind === '10053' && <span className="kind-badge" title="An optimizer (10053) trace">10053</span>}</b>
                 <span className="muted small mono">{setSummary(r.set.paths, r.files, r.dirs)}</span>
               </button>
               <span className="recent-ago muted small">{r.set.options.binds !== 'keep' && `binds ${r.set.options.binds} · `}{ago(r.at)}</span>

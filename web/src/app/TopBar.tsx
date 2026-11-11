@@ -1,10 +1,31 @@
-import { fmtWall, fmtTz, fmtBytes, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, sourceOf, useSourceQuery, useScopedStatements, fileHeading, selectionInfo, ResponseMini, useScopeResponse, ViewTabs, baseViews, type TraceDoc, type View } from '@lib'
+import { fmtWall, fmtTz, fmtBytes, fmtInt, optFacts, useStore, useActions, scopeOf, ctxKey, FilesToggle, LiveBadge, sourceOf, useSourceQuery, useScopedStatements, fileHeading, selectionInfo, ResponseMini, useScopeResponse, ViewTabs, baseViews, type TraceDoc, type View } from '@lib'
 
 const themeNext = { auto: 'light', light: 'dark', dark: 'auto' } as const
 const themeGlyph = { auto: '◐', light: '○', dark: '●' } as const
 
-/** File, the whole-trace profile in miniature, the views, filters and theme. */
-export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => void }) {
+/** File, the whole-trace profile in miniature, the views, filters and theme. A 10053 file has none of the 10046 counts: `OptTopBar`. */
+export function TopBar(p: { doc: TraceDoc; onShowInfo?: () => void }) {
+  return p.doc.opt ? <OptTopBar {...p} /> : <TraceTopBar {...p} />
+}
+
+/** The top bar of a 10053 file: its name and size, the 10053 view's tab and the theme; no statement, wait or session counts (the file has none). */
+function OptTopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => void }) {
+  const actions = useActions()
+  const theme = useStore((s) => s.theme)
+  const path = doc.file.traceFile || doc.file.path
+  const name = doc.opt?.file.name || path.split(/[\\/]/).pop() || path
+  return (
+    <header className="topbar">
+      <span className="brand">mtkprof</span>
+      <span className="file mono" title={path}>{name}<span className="dim"> · {fmtBytes(doc.diag.bytes)}</span></span>
+      <ViewTabs views={baseViews} />
+      {onShowInfo && <button className="quiet theme" onClick={onShowInfo} title="show the trace info bar" aria-label="Show trace info bar">ⓘ</button>}
+      <button className="quiet theme" onClick={() => actions.setTheme(themeNext[theme])} title={`theme: ${theme}`} aria-label={`Theme ${theme}`}>{themeGlyph[theme]}</button>
+    </header>
+  )
+}
+
+function TraceTopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => void }) {
   const actions = useActions()
   const state = useStore((s) => s)
   const compare = state.compare
@@ -52,6 +73,26 @@ export function TopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => 
 
 /** Where the trace came from: database, session, module, time span. */
 export function SubBar({ doc, onClose }: { doc: TraceDoc; onClose: () => void }) {
+  return doc.opt ? <OptSubBar doc={doc} onClose={onClose} /> : <TraceSubBar doc={doc} onClose={onClose} />
+}
+
+/** The facts of a 10053 file that mean something: the release and version, the session and pluggable database of its markers, the dumps. */
+function OptSubBar({ doc, onClose }: { doc: TraceDoc; onClose: () => void }) {
+  const f = optFacts(doc)
+  const n = doc.opt?.file.dumps.length ?? 0
+  return (
+    <div className="subbar">
+      {(f.release || f.version) && <span>Oracle <b>{f.version.replace(/\.0\.0\.0$/, '') || f.release}</b>{doc.file.instance && <> · instance <b>{doc.file.instance}</b>{doc.file.node && <> on {doc.file.node.split('.')[0]}</>}</>}</span>}
+      {f.pdb && <span>pluggable database <b>{f.pdb}</b></span>}
+      {f.session && <span>session <b>{f.session}</b></span>}
+      <span><b>{n}</b> optimizer {n === 1 ? 'dump' : 'dumps'} · {fmtInt(doc.opt?.file.lines ?? 0)} lines</span>
+      {doc.file.truncated && <span className="warn">cut by max_dump_file_size</span>}
+      <button className="quiet close" onClick={onClose} title="hide this bar (ⓘ in the top bar shows it again)" aria-label="Hide trace info bar">×</button>
+    </div>
+  )
+}
+
+function TraceSubBar({ doc, onClose }: { doc: TraceDoc; onClose: () => void }) {
   // follows the file selection: the first context of the selected files, their wall-clock span
   const span = selectionInfo(doc, useStore((s) => s.files))
   const c0 = span.contexts[0]

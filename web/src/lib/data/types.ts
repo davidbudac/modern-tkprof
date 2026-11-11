@@ -1,4 +1,5 @@
 // Mirrors the JSON document written by internal/report/doc.go (format 3).
+import type { OptDump, OptFile } from './opt'
 
 export type ID = number // -1 = none
 export const NONE: ID = -1
@@ -42,7 +43,12 @@ export interface FileEntry {
   truncated?: boolean
   continuedFrom?: string[]
   continuesIn?: string[]
+  /** the optimizer (10053) dumps found inside this file (an interleaved 10046 + 10053 trace); absent when it has none */
+  dumps?: FileDump[]
 }
+
+/** One optimizer (10053) dump inside a 10046 trace file (model.DumpRange): its first and last line. */
+export interface FileDump { first: number; last: number; sqlId?: string; cut?: boolean }
 
 export interface Span {
   firstTim: number
@@ -357,6 +363,17 @@ export interface RefObject { id: number; owner: string; name: string; subobject?
 export interface RefFile { file: number; name: string; tablespace?: string; type?: string }
 export interface RefUser { id: number; name: string }
 
+/**
+ * The document of a 10053 file (`opt`, absent for every other file; internal/report): the file's summary and, in a document made for a
+ * client without a server (the standalone HTML), the digest: the dumps' models and the lines the report keeps, as runs of consecutive lines.
+ */
+export interface RawOpt {
+  file: OptFile
+  digest?: { dumps: OptDump[]; lines: OptDigestRun[] } | null
+}
+/** `text[i]` is line `from + i` of the file. */
+export interface OptDigestRun { from: number; text: string[] }
+
 export interface RawDocument {
   tool: string
   version: string
@@ -376,6 +393,8 @@ export interface RawDocument {
   diag: Diagnostics
   unknown: { line: number; text: string }[] | null
   facts?: RawFacts
+  /** a 10053 file: the document of an empty 10046 model plus this */
+  opt?: RawOpt | null
   planViz?: string
   /** the server that sent the document answers the /api/pivot, /api/timeline, ... queries (`serve -facts=false`) */
   slice?: boolean

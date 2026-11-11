@@ -596,3 +596,9 @@ button.note-btn.on { color: var(--c-note); }
 .view-error-card p { margin: 0; }
 .view-error-msg { margin: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--surface-sunken); font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
 .view-error-actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* the "10053" mark on a statement that has a dump in another tab (components/OptMark.tsx) and the kind badge of a 10053 tab */
+.opt-mark { font: inherit; font-size: var(--text-xs, 0.72rem); line-height: 1; padding: 0.15em 0.4em; border-radius: 0.3em; border: 1px solid var(--hairline); background: var(--surface-raised); color: var(--ink-2); cursor: pointer; letter-spacing: 0.02em; }
+.opt-mark:hover { border-color: var(--ink-3); color: var(--ink); }
+.opt-note { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; margin: 0; padding: 0.4rem 1rem; border-block-end: 1px solid var(--hairline); font-size: var(--text-sm, 0.85rem); color: var(--ink-2); }
+.opt-note button { font-size: inherit; }

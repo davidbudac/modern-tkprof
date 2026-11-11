@@ -184,11 +184,12 @@
 .opt-ol-dump .opt-ol-x { line-height: 20px; }
 .opt-ol-dump .opt-ol-label { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); }
 .opt-ol-dump .opt-ol-sql { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; }
-.opt-ol-dump .opt-ol-facts { font-size: var(--text-xs); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
+.opt-ol-dump .opt-ol-facts { font-size: var(--text-xs); color: var(--ink-3); display: flex; align-items: baseline; min-inline-size: 0; }
+.opt-ol-facts-t { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* the "10046" link stays in view: only the text gives way */
 .opt-ol-dump.open { background: var(--surface); }
 .opt-ol-dump.open + .opt-ol-row { margin-block-start: var(--sp-1); }
 .opt-ol-dump .opt-ol-k { flex: none; font-size: var(--text-xs); color: var(--ink-3); }
-.opt-ol-10046 { margin-inline-start: var(--sp-2); font-size: var(--text-xs); }
+.opt-ol-10046 { flex: none; margin-inline-start: var(--sp-2); font-size: var(--text-xs); }
 .opt-ol-phase .opt-ol-label { font-weight: 600; }
 .opt-ol-l3 { color: var(--ink-3); }
 

@@ -33,10 +33,10 @@ export function App() {
   return (
     <div className={'shell' + panes.shellClass + (lines ? ' has-lines' : '') + (infoBar ? '' : ' no-subbar')}>
       <TopBar doc={doc} onShowInfo={infoBar ? undefined : () => setInfoBar(true)} />
-      <FilterBar doc={doc} />
+      {doc.opt ? <div /> : <FilterBar doc={doc} />}{/* a 10053 file has no scope to filter; the row stays (the shell's grid) */}
       {infoBar && <SubBar doc={doc} onClose={() => setInfoBar(false)} />}
       <div className="body" ref={panes.body} style={panes.bodyStyle}>
-        <FilesPane doc={doc} onWidth={setFilesW} />
+        {!doc.opt && <FilesPane doc={doc} onWidth={setFilesW} />}
         <ViewErrorBoundary title={path.split(/[\\/]/).pop() ?? path} context={[`path: ${path}`, `view: ${current.id}`]} resetKey={resetKey}>
           <main className={'main' + (current.full ? ' full' : '')}>{current.render(doc, store.getState())}</main>
         </ViewErrorBoundary>

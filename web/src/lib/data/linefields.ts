@@ -86,7 +86,7 @@ const KIND_LABELS: Record<LineKind, string> = {
   unknown: 'Unrecognised line', blank: 'Blank line', header: 'Trace header', separator: 'Separator', marker: 'Marker',
   'parsing-in-cursor': 'Cursor parse', 'sql-text': 'SQL text', 'end-of-stmt': 'End of statement', call: 'Call', wait: 'Wait event',
   stat: 'Row-source statistics', binds: 'Bind values', 'bind-line': 'Bind values', xctend: 'Transaction end', error: 'Error',
-  'parse-error': 'Parse error', lob: 'LOB operation', rpc: 'Remote call',
+  'parse-error': 'Parse error', lob: 'LOB operation', rpc: 'Remote call', optimizer: 'Optimizer (10053) line',
 }
 /** the remark of the verbose card for kinds without fields */
 const KIND_NOTES: Partial<Record<LineKind, string>> = {
@@ -97,6 +97,7 @@ const KIND_NOTES: Partial<Record<LineKind, string>> = {
   'sql-text': 'The text of the statement parsed in the cursor above.',
   'end-of-stmt': 'END OF STMT: the statement text ends above and the cursor body (calls, waits) follows.',
   rpc: 'A remote procedure call line (unverified in the 19c format).',
+  optimizer: 'A line of an optimizer (10053) dump written into this trace. This file holds 10046 and 10053 together; the dump is not shown as 10053 yet, so it is only kept here as plain text.',
 }
 
 /** The `key=value` pairs of a text (values up to the next space; single quotes stripped). */

@@ -35,7 +35,7 @@ export async function fetchLines(client: ApiClient, from: number, n: number, sig
 /** The parser's kind of a trace line (`trace.Kind.String()`; api/engine.openapi.yaml `LineKind`). */
 export type LineKind =
   | 'unknown' | 'blank' | 'header' | 'separator' | 'marker' | 'parsing-in-cursor' | 'sql-text' | 'end-of-stmt' | 'call' | 'wait'
-  | 'stat' | 'binds' | 'bind-line' | 'xctend' | 'error' | 'parse-error' | 'lob' | 'rpc'
+  | 'stat' | 'binds' | 'bind-line' | 'xctend' | 'error' | 'parse-error' | 'lob' | 'rpc' | 'optimizer'
 
 /** One probe at load: does this origin answer /api/at with JSON? (A dev server's SPA fallback answers text/html.) */
 export async function probeLinesApi(client: ApiClient): Promise<boolean> {

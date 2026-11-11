@@ -1,6 +1,6 @@
 import type {
   RawDocument, Statement, Cursor, Context, Event, Plan, PlanLine, Transaction, ErrorEvent,
-  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding, ContextStats, RefObject, RefFile, Minimap,
+  StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding, ContextStats, RefObject, RefFile, Minimap, RawOpt,
 } from './types'
 import { NONE } from './types'
 import { unpackTable, type NumCol } from './columns'
@@ -57,6 +57,8 @@ export class TraceDoc {
   readonly unknown: { line: number; text: string }[]
   readonly stats: { statements: StmtStats[]; profile: Profile; events: EventAgg[]; timeline: Bucket[]; bucketUs: number; findings: Finding[]; findingsConfig: Record<string, number>; contexts: ContextStats[]; minimap?: Minimap }
 
+  /** a 10053 file (the optimizer trace): the file summary and, in a standalone report, the digest; absent for every 10046 trace */
+  readonly opt?: RawOpt
   readonly hasFacts: boolean
   /** the server that sent this document answers the slicing queries; without fact tables the views ask it (see source.ts) */
   readonly slice: boolean
@@ -89,8 +91,8 @@ export class TraceDoc {
     this.version = raw.version
     this.file = raw.file
     this.span = raw.span
-    this.statements = raw.statements
-    this.cursors = raw.cursors
+    this.statements = raw.statements ?? [] // Go writes `null` for the empty model of a 10053 file
+    this.cursors = raw.cursors ?? []
     this.contexts = raw.contexts ?? []
     this.events = raw.events ?? []
     this.plans = raw.plans ?? []
@@ -101,6 +103,7 @@ export class TraceDoc {
     this.diag = raw.diag
     this.unknown = raw.unknown ?? []
     this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [], findingsConfig: raw.stats.findingsConfig ?? {}, contexts: raw.stats.contexts ?? [] }
+    this.opt = raw.opt ?? undefined
     this.hasFacts = !!raw.facts
     this.slice = !!raw.slice
     this.hasRef = !!(raw.objects?.length || raw.files?.length || raw.users?.length)

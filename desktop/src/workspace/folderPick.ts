@@ -4,12 +4,16 @@
 
 import type { ListedFile, TracePeek } from '../engine'
 import { baseName } from './traceSet'
+import { fileKindOf, kindLabel, type PeekOpt } from './optTabs'
+
+/** What a peek reports: the generated type plus the 10053 fields (`PeekOpt`, until `api.d.ts` has them). */
+export type Peek = TracePeek & PeekOpt
 
 /** A listed file and, once it is in, its peek. */
 export interface PickRow {
   file: ListedFile
   name: string
-  peek: TracePeek | null
+  peek: Peek | null
 }
 
 export type PickSortKey = 'name' | 'size' | 'start' | 'end' | 'elapsed' | 'sessions'
@@ -21,7 +25,7 @@ export interface PickSort {
 /** Newest first: what an ADR trace folder is usually opened for. */
 export const DEFAULT_SORT: PickSort = { key: 'start', dir: -1 }
 
-export const toRows = (files: readonly ListedFile[], peeks: ReadonlyMap<string, TracePeek>): PickRow[] =>
+export const toRows = (files: readonly ListedFile[], peeks: ReadonlyMap<string, Peek>): PickRow[] =>
   files.map((file) => ({ file, name: baseName(file.path), peek: peeks.get(file.path) ?? null }))
 
 const ms = (iso: string | undefined) => (iso ? Date.parse(iso) : NaN)
@@ -55,17 +59,20 @@ export function sortRows(rows: readonly PickRow[], s: PickSort): PickRow[] {
   })
 }
 
+/** The peek found neither a SQL trace (10046) nor optimizer (10053) dumps in the file: a background process trace, say. */
+export const noTrace = (p: Peek | null) => !!p && !p.error && !p.sqlTrace && fileKindOf(p) === ''
+
 /**
  * The rows the filter keeps: every word of `text` in the file name, a session id, module, action,
- * client id, service or the instance; with `sqlOnly`, not the files the peek found no SQL trace in
- * (a file not peeked yet, or one that failed, stays).
+ * client id, service, the instance or the kind (`10053`); with `sqlOnly`, not the files the peek found no SQL trace
+ * (and no optimizer dump) in (a file not peeked yet, or one that failed, stays).
  */
 export function filterRows(rows: readonly PickRow[], text: string, sqlOnly: boolean): PickRow[] {
   const words = text.toLowerCase().split(/\s+/).filter(Boolean)
   return rows.filter((r) => {
-    if (sqlOnly && r.peek && !r.peek.error && !r.peek.sqlTrace) return false
+    if (sqlOnly && noTrace(r.peek)) return false
     if (!words.length) return true
-    const hay = [r.name, r.peek?.instance, ...(r.peek?.sessions ?? []).flatMap((s) => [s.id, s.module, s.action, s.client, s.service])]
+    const hay = [r.name, r.peek?.instance, kindLabel(r.peek), ...(r.peek?.sessions ?? []).flatMap((s) => [s.id, s.module, s.action, s.client, s.service])]
       .filter(Boolean)
       .join('\n')
       .toLowerCase()
@@ -73,8 +80,8 @@ export function filterRows(rows: readonly PickRow[], text: string, sqlOnly: bool
   })
 }
 
-/** How many files the peek found no SQL trace in. */
-export const notSQL = (rows: readonly PickRow[]) => rows.filter((r) => r.peek && !r.peek.error && !r.peek.sqlTrace).length
+/** How many files the peek found no SQL trace (and no optimizer dump) in. */
+export const notSQL = (rows: readonly PickRow[]) => rows.filter((r) => noTrace(r.peek)).length
 
 /**
  * The peek requests for `files` in this order: several small files per request (up to `maxFiles`,

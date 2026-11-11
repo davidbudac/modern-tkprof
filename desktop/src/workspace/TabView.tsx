@@ -1,11 +1,12 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import { ComparisonTab } from './CompareTabs'
-import { ResizeHandle, SessionProvider, ViewErrorBoundary, fmtBytes, fmtInt } from '@lib'
+import { OptLinksContext, ResizeHandle, SessionProvider, ViewErrorBoundary, fmtBytes, fmtInt, type OptLinks } from '@lib'
 import { ChatPanel } from '../assist/ChatPanel'
+import { OptAssistantNotice } from '../assist/OptAssistantNotice'
 import { BrandIcon } from '../branding/BrandIcon'
 import type { JobInfo } from '../engine'
 import { SessionShell } from './session/SessionShell'
-import { useWorkspace } from './WorkspaceProvider'
+import { useWorkspace, useWorkspaceState } from './WorkspaceProvider'
 import type { Tab } from './workspace'
 import { Shimmer } from '@lib/components/motion'
 
@@ -40,6 +41,14 @@ export function TabView({ tab }: { tab: Tab }) {
 /** The tab's views once the document is in, else the open progress or the failure. */
 function TabBody({ tab }: { tab: Tab }) {
   const ws = useWorkspace()
+  const { tabs } = useWorkspaceState()
+  // what the views of this tab can do across tabs: the "10053" mark on a statement, the dump list's "10046" link, a button beside a note.
+  // A new object when the tabs change, so a mounted view redraws its marks.
+  const links = useMemo<OptLinks>(
+    () => ({ to10053: ws.dumpLink(tab.key), to10046: ws.statementLink(tab.key), noteAction: (note) => ws.noteAction(tab.key, note) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ws, tab.key, tabs],
+  )
   // Only the active tab is mounted (App's Routed keys it), so a tab switch remounts this. Mounted without a session
   // means the user watched it open: its views reveal once. Mounted with one (a switch, a re-open banner) they show at once.
   const reveal = useRef(!tab.session).current
@@ -69,15 +78,19 @@ function TabBody({ tab }: { tab: Tab }) {
     // the assistant is a flex sibling of the views, so the lib's grid (and its Files-panel fold) stays as it is
     const views = (
       <SessionProvider session={tab.session}>
+        <OptLinksContext.Provider value={links}>
         <div className="tab-split" style={width ? ({ '--assistant-w': `${width}px` } as CSSProperties) : undefined}>
           <SessionShell banner={banner} panes={tab.panes} onPanes={(patch) => ws.setPanes(tab.key, patch)} />
           {assistant && (
             <>
               <ResizeHandle anchor="end" min={280} className="resizer-assistant" label="Resize the assistant" onChange={(w) => ws.setPanes(tab.key, { assistantW: w ?? undefined })} />
-              <ChatPanel tab={tab} focus={!wasOpen.current} onClose={() => ws.setPanes(tab.key, { assistantOpen: false })} />
+              {tab.kind === '10053'
+                ? <OptAssistantNotice onClose={() => ws.setPanes(tab.key, { assistantOpen: false })} />
+                : <ChatPanel tab={tab} focus={!wasOpen.current} onClose={() => ws.setPanes(tab.key, { assistantOpen: false })} />}
             </>
           )}
         </div>
+        </OptLinksContext.Provider>
       </SessionProvider>
     )
     return reveal ? <div className="tab-reveal">{views}</div> : views

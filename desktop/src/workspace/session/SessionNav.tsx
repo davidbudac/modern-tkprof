@@ -20,7 +20,7 @@ function AssistantToggle() {
   const chord = isMac ? '⌘J' : 'Ctrl+J'
   return (
     <button className="tab assistant-toggle" aria-pressed={open} onClick={() => ws.setPanes(tab.key, { assistantOpen: !open })}
-      aria-label="Assistant" title={`Ask an assistant about this trace (${chord})`} aria-keyshortcuts={isMac ? 'Meta+J' : 'Control+J'}>
+      aria-label="Assistant" title={tab.kind === '10053' ? `The assistant does not read optimizer (10053) traces in this version (${chord})` : `Ask an assistant about this trace (${chord})`} aria-keyshortcuts={isMac ? 'Meta+J' : 'Control+J'}>
       <AssistantIcon /><kbd className="key-hint" data-for="views" aria-hidden="true">{chord}</kbd>
     </button>
   )
@@ -97,7 +97,7 @@ function useOverflow(nav: RefObject<HTMLDivElement | null>, shown: string): View
  * In a narrow window it also holds the views whose tabs do not fit the bar (`over`, on top) and reads `More ▾`.
  * When one of its views is on screen the button names it and is marked as the current page.
  */
-function ToolsMenu({ over, tools, onBrief }: { over: SessionViewDef[]; tools: SessionViewDef[]; onBrief: () => void }) {
+function ToolsMenu({ over, tools, onBrief, briefOff }: { over: SessionViewDef[]; tools: SessionViewDef[]; onBrief: () => void; /** why there is no brief (a 10053 tab), else undefined */ briefOff?: string }) {
   const actions = useActions()
   const view = useStore((s) => s.view)
   const [open, setOpen] = useState(false)
@@ -113,7 +113,7 @@ function ToolsMenu({ over, tools, onBrief }: { over: SessionViewDef[]; tools: Se
       {over.length > 0 && tools.length > 0 && <hr />}
       {tools.map(row)}
       <hr />
-      <button onClick={onBrief} title="A Markdown summary of this trace, with your notes, to paste into an LLM">Copy brief…</button>
+      <button onClick={onBrief} disabled={!!briefOff} title={briefOff ?? 'A Markdown summary of this trace, with your notes, to paste into an LLM'}>Copy brief…</button>
     </DeskMenu>
   )
 }
@@ -154,7 +154,7 @@ export function SessionNav() {
           <>
             <span className="tabs-divider" role="separator" />
             <span className="tools-slot">
-              <ToolsMenu over={over} tools={tools} onBrief={() => setBriefOpen(true)} />
+              <ToolsMenu over={over} tools={tools} onBrief={() => setBriefOpen(true)} briefOff={doc.opt ? 'The brief is made from a 10046 trace; an optimizer (10053) trace has none in this version' : undefined} />
               {menuChords && <kbd className="key-hint" data-for="views" aria-hidden="true">{menuChords}</kbd>}
             </span>
           </>

@@ -21,6 +21,7 @@ import { useScopedFindings } from '../data/scopedfindings'
 import { PopText, Shimmer, SoftText } from '../components/motion'
 import { selectedCount, fileCount } from '../data/fileset'
 import { concentrationLede, responseOf, responseShare, responseUs, sessionsLabel, shareNote } from '../data/response'
+import { useOptLinks } from '../shell/optlinks'
 import { someOf, traceInfo, whenOf } from '../data/traceinfo'
 
 const TOP_STATEMENTS = 8
@@ -299,6 +300,7 @@ function Note({ doc, st, waits }: { doc: TraceDoc; st: StmtStats; waits?: StmtWa
  * (unrecognised lines, notes) stays whole-trace.
  */
 function TraceFacts({ doc, ss, scope, profile }: { doc: TraceDoc; ss: ScopedStatements; scope: Scope; profile: ScopeProfile | null }) {
+  const links = useOptLinks()
   const stats = doc.stats
   const narrows = ss.narrowed
   const rowsOf = ss.stats
@@ -319,6 +321,7 @@ function TraceFacts({ doc, ss, scope, profile }: { doc: TraceDoc; ss: ScopedStat
   if (doc.diag.assumedCursors) facts.push(`${doc.diag.assumedCursors} cursor${doc.diag.assumedCursors === 1 ? '' : 's'} opened before trace start (attributed as tkprof)`)
   if (doc.file.truncated) facts.push('cut by max_dump_file_size')
   facts.push(...(doc.diag.notes ?? []))
+  const acts = (doc.diag.notes ?? []).flatMap((n) => { const a = links.noteAction?.(n); return a ? [a] : [] }) // the desktop: open the 10053 file a note says was left out
   return (
     <section className="section facts-sec">
       <header><h2>Trace</h2>{narrows && <span className="hint">counts of the selection · notes are for the whole set</span>}</header>
@@ -332,6 +335,7 @@ function TraceFacts({ doc, ss, scope, profile }: { doc: TraceDoc; ss: ScopedStat
         <div className="fact" title="buffer gets in consistent mode (cr=)"><span className="v">{fmtCompact(query)}</span><span className="l">consistent gets</span></div>
       </div>
       <p className="small muted">{facts.join(' · ')}</p>
+      {acts.length > 0 && <p className="small">{acts.map((a, i) => <button key={i} type="button" className="quiet" title={a.title} onClick={a.run}>{a.label}</button>)}</p>}
     </section>
   )
 }

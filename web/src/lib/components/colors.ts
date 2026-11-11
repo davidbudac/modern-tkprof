@@ -97,6 +97,7 @@ export const lineTone: Record<LineKind, LineTone> = {
   'parse-error': 'error',
   lob: 'other',
   rpc: 'other',
+  optimizer: 'dim',
   marker: 'dim',
   header: 'dim',
   separator: 'dim',

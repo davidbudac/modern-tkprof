@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { fmtBytes } from '@lib/data/format'
-import { send, useEngine, type TracePeek } from '../engine'
+import { send, useEngine } from '../engine'
+import { dumpsLabel, fileKindOf, kindLabel, kindTitle } from './optTabs'
 import { FolderIcon } from '../ui/FolderIcon'
 import { useWorkspace } from './WorkspaceProvider'
 import { baseName } from './traceSet'
 import type { FolderPick, OpenOptions } from './workspace'
 import {
-  DEFAULT_SORT, filterRows, fmtEnd, fmtSpan, fmtStamp, notSQL, peekBatches, selectionSummary, sessionsText, sessionsTitle, sortRows, toRows,
-  type PickRow, type PickSort, type PickSortKey,
+  DEFAULT_SORT, filterRows, fmtEnd, fmtSpan, fmtStamp, noTrace, notSQL, peekBatches, selectionSummary, sessionsText, sessionsTitle, sortRows, toRows,
+  type PickRow, type PickSort, type PickSortKey, type Peek,
 } from './folderPick'
 
 /** Peek requests in flight at once. */
@@ -24,7 +25,7 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
   const ws = useWorkspace()
   const { client, status } = useEngine()
   const files = pick.list.files
-  const [peeks, setPeeks] = useState<ReadonlyMap<string, TracePeek>>(() => new Map())
+  const [peeks, setPeeks] = useState<ReadonlyMap<string, Peek>>(() => new Map())
   const [sort, setSort] = useState<PickSort>(DEFAULT_SORT)
   const [filter, setFilter] = useState('')
   const [sqlOnly, setSqlOnly] = useState(true)
@@ -42,9 +43,9 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
     const run = async () => {
       while (next < batches.length && !ctl.signal.aborted) {
         const paths = batches[next++]
-        let got: TracePeek[]
+        let got: Peek[]
         try {
-          got = (await send<{ files: TracePeek[] }>(client, 'POST', '/engine/peek', { paths }, ctl.signal)).files
+          got = (await send<{ files: Peek[] }>(client, 'POST', '/engine/peek', { paths }, ctl.signal)).files
         } catch (e) {
           if (ctl.signal.aborted) return
           const error = e instanceof Error ? e.message : String(e)
@@ -68,6 +69,7 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
   const drawn = all ? shown : shown.slice(0, ROWS)
   const chosen = useMemo(() => rows.filter((r) => selected.has(r.file.path)), [rows, selected])
   const sum = selectionSummary(chosen)
+  const nOpt = chosen.filter((r) => fileKindOf(r.peek) === '10053').length
   const peeked = peeks.size
   const ready = status === 'ready'
 
@@ -100,15 +102,17 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
 
   /** Follow is one live file: a set of several opens without it. */
   const optionsFor = (n: number): OpenOptions => (n === 1 ? pick.options : { ...pick.options, follow: undefined })
+  // a 10053 file is a tab of its own: the 10046 files open as the set they form, each optimizer trace beside it
+  const peekOf = (path: string) => peeks.get(path)
   const openSet = (paths: string[]) => {
     if (!paths.length) return
     ws.closePick()
-    ws.open({ paths, options: optionsFor(paths.length) })
+    ws.openSplit(paths, peekOf, pick.options)
   }
   const openEach = (paths: string[]) => {
     if (!paths.length) return
     ws.closePick()
-    paths.forEach((p, i) => ws.open({ paths: [p], options: optionsFor(1) }, i === paths.length - 1))
+    paths.forEach((p, i) => ws.open({ paths: [p], options: optionsFor(1) }, i === paths.length - 1, true, undefined, undefined, false, fileKindOf(peeks.get(p)) === '10053' ? '10053' : undefined))
   }
   // oldest first: the set's files (and the tabs of "each") in the order they were traced
   const paths = sortRows(chosen, { key: 'start', dir: 1 }).map((r) => r.file.path)
@@ -161,7 +165,7 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
             />
             <label className="check">
               <input type="checkbox" checked={sqlOnly} onChange={(e) => setSqlOnly(e.target.checked)} />
-              Only SQL traces
+              Only SQL and optimizer traces
             </label>
             {hidden > 0 && <span className="muted small">{hidden} without SQL trace hidden</span>}
           </div>
@@ -218,13 +222,14 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
                   {sum.start && <> · {fmtStamp(sum.start)} – {fmtEnd(sum.start, sum.end)}</>}
                   {offscreen > 0 && <span className="muted"> · {offscreen} not shown by the filter</span>}
                   {pick.options.follow && sum.files > 1 && <span className="muted"> · a set of several opens without follow</span>}
+                  {nOpt > 0 && sum.files > nOpt && <span className="muted"> · {nOpt === 1 ? 'the optimizer (10053) trace opens' : 'the optimizer (10053) traces open'} in {nOpt === 1 ? 'a tab' : 'tabs'} of {nOpt === 1 ? 'its' : 'their'} own</span>}
                 </>
               )}
             </span>
             <span className="fp-buttons">
               {sum.files > 1 && <button disabled={!ready} onClick={() => openEach(paths)}>Open each in a tab</button>}
               <button className="primary" disabled={!ready || sum.files === 0} onClick={() => openSet(paths)}>
-                {sum.files > 1 ? `Open ${sum.files} as one trace set` : 'Open'}
+                {sum.files > 1 ? (nOpt > 0 ? (nOpt === sum.files ? `Open ${sum.files} optimizer traces` : `Open ${sum.files - nOpt} as one trace set, ${nOpt} on their own`) : `Open ${sum.files} as one trace set`) : 'Open'}
               </button>
             </span>
           </div>
@@ -238,7 +243,7 @@ function Row({ row, on, onToggle, onOpen }: { row: PickRow; on: boolean; onToggl
   const p = row.peek
   const facts = p && !p.error ? [p.instance, p.process && `pid ${p.process}`, p.version].filter(Boolean).join(' · ') : ''
   return (
-    <tr className={(on ? 'sel' : '') + (p && !p.error && !p.sqlTrace ? ' fp-nosql' : '')} onClick={onToggle} onDoubleClick={onOpen} aria-selected={on}>
+    <tr className={(on ? 'sel' : '') + (noTrace(p) ? ' fp-nosql' : '')} onClick={onToggle} onDoubleClick={onOpen} aria-selected={on}>
       <td className="cb" onClick={(e) => e.stopPropagation()}>
         <input type="checkbox" checked={on} readOnly onClick={onToggle} aria-label={`Select ${row.name}`} />
       </td>
@@ -248,7 +253,8 @@ function Row({ row, on, onToggle, onOpen }: { row: PickRow; on: boolean; onToggl
           <span className="fp-sub muted">
             {facts}
             {p?.error && <span className="fp-tag err">{p.error}</span>}
-            {p && !p.error && !p.sqlTrace && <span className="fp-tag">no SQL trace</span>}
+            {p && !p.error && kindLabel(p) && <span className="fp-tag fp-kind" title={kindTitle(p)}>{kindLabel(p)}{dumpsLabel(p) && <> · {dumpsLabel(p)}</>}</span>}
+            {noTrace(p) && <span className="fp-tag">no SQL trace</span>}
             {p?.continuedFrom && <span className="fp-tag" title={p.continuedFrom}>continued from {baseName(p.continuedFrom)}</span>}
             {p?.continuesIn && <span className="fp-tag" title={p.continuesIn}>continues in {baseName(p.continuesIn)}</span>}
             {p?.truncated && <span className="fp-tag">truncated</span>}

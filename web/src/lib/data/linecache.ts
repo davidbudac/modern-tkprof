@@ -11,7 +11,7 @@ export interface CachedLine { text: string; kind: number; call: number; stmt: nu
 
 export const LINE_KINDS: readonly LineKind[] = [
   'unknown', 'blank', 'header', 'separator', 'marker', 'parsing-in-cursor', 'sql-text', 'end-of-stmt', 'call', 'wait',
-  'stat', 'binds', 'bind-line', 'xctend', 'error', 'parse-error', 'lob', 'rpc',
+  'stat', 'binds', 'bind-line', 'xctend', 'error', 'parse-error', 'lob', 'rpc', 'optimizer',
 ]
 const kindIndex = new Map<string, number>(LINE_KINDS.map((k, i) => [k, i]))
 

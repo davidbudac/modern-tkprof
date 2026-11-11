@@ -77,10 +77,10 @@ export function SessionShell({ banner, panes, onPanes }: { banner?: ReactNode; p
   const current = currentView(sessionViews, doc, state)
   return (
     <div className={'shell' + shell.shellClass + (lines ? ' has-lines' : '')}>
-      <FilterBar doc={doc} />
+      {doc.opt ? <div /> : <FilterBar doc={doc} />}{/* a 10053 file has no scope to filter; the row stays (the grid) */}
       <div className="banner-slot">{banner}</div>
       <div className="body" ref={shell.body} style={shell.bodyStyle}>
-        <FilesPane doc={doc} onWidth={(w) => onPanes({ filesW: w ?? undefined })} />
+        {!doc.opt && <FilesPane doc={doc} onWidth={(w) => onPanes({ filesW: w ?? undefined })} />}
         <main className={'main' + (current.full ? ' full' : '')}>{current.render(doc, state)}</main>
         {shell.inspectorOpen && <Inspector doc={doc} />}
         {shell.inspectorOpen && <ResizeHandle anchor="end" className="resizer-inspector" label="Resize details pane" onChange={(w) => onPanes({ inspectorW: w ?? undefined })} />}

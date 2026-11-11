@@ -13,6 +13,14 @@ const FORMATS: { id: Format; label: string; ext: string; type: string; what: Rea
   { id: 'html', label: 'Standalone HTML', ext: 'html', type: 'text/html', what: <>the single-file report (the UI with the document inlined), to send to someone</> },
 ]
 
+/** What the reports are for a 10053 file: the text digest and the HTML with the digest exist; the CSV tables (statements, calls, waits) have no form for it. */
+const OPT_FORMS: Record<Format, { what: ReactNode; off?: string }> = {
+  text: { what: <>the text digest of the optimizer trace: per dump the SQL, the altered parameters, the landmark lines, the transformed SQL versions and the final plan (<code>mtkprof report</code>)</> },
+  json: { what: <>the document <code>mtkprof json</code> writes: the dumps' models and the digest's lines</> },
+  csv: { what: <>statements, calls, waits, binds, … in one zip</>, off: 'An optimizer (10053) trace has no statements, calls or waits to export as tables' },
+  html: { what: <>the single-file report: the 10053 view with the digest in it, to send to someone (the lines the digest keeps; the rest is marked as not in the report)</> },
+}
+
 const SORTS = ['elapsed', 'self', 'cpu', 'execs', 'disk', 'query', 'rows', 'line'] as const
 
 interface TextOptions {
@@ -43,7 +51,7 @@ export function ReportsView({ doc }: { doc: TraceDoc }) {
 
   const fetchReport = async (f: Format) => {
     const q = new URLSearchParams({ format: f })
-    if (f === 'text') {
+    if (f === 'text' && !doc.opt) { // the digest of an optimizer trace has none of the 10046 report's options
       q.set('sort', opts.sort)
       q.set('top', String(opts.top))
       q.set('execs', String(opts.execs))
@@ -92,14 +100,17 @@ export function ReportsView({ doc }: { doc: TraceDoc }) {
         <span className="hint">the outputs of the mtkprof CLI for this trace, produced by the engine</span>
       </header>
       <ul className="report-list">
-        {FORMATS.map((f) => (
+        {FORMATS.map((f0) => {
+          const f = doc.opt ? { ...f0, ...OPT_FORMS[f0.id] } : { ...f0, off: undefined as string | undefined }
+          return (
           <li key={f.id}>
             <div>
               <b>{f.label}</b> <span className="muted small">.{f.ext}</span>
               <p className="small muted">{f.what}</p>
+              {f.off && <p className="small muted">{f.off}</p>}
             </div>
             <span className="actions">
-              <button onClick={() => go(f.id, false)} disabled={busy !== null}>
+              <button onClick={() => go(f.id, false)} disabled={busy !== null || !!f.off} title={f.off}>
                 {busy === f.id ? 'Saving…' : 'Save…'}
               </button>
               {f.id === 'html' && (
@@ -108,7 +119,7 @@ export function ReportsView({ doc }: { doc: TraceDoc }) {
                 </button>
               )}
             </span>
-            {f.id === 'text' && (
+            {f.id === 'text' && !doc.opt && (
               <details className="rollout report-opts">
                 <summary>
                   <b>Options</b> · sort {opts.sort} · top {opts.top} · {opts.execs < 0 ? 'all' : opts.execs} executions · {opts.binds} bind sets · width {opts.width} · SYS {opts.sys ? 'on' : 'off'}
@@ -136,7 +147,8 @@ export function ReportsView({ doc }: { doc: TraceDoc }) {
               </details>
             )}
           </li>
-        ))}
+          )
+        })}
       </ul>
       {msg && (
         <p className={msg.ok ? 'small muted' : 'callout report-error'} role={msg.ok ? 'status' : 'alert'}>

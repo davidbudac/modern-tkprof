@@ -6,8 +6,9 @@ import type { Annotation } from '../data/annotations'
 import { pivotConfigOf, resolvePivotConfig, type PivotConfig } from '../data/pivotconfig'
 import { contextsWithin, effectiveContexts, fileCount, normalizeFiles } from '../data/fileset'
 import type { KindGroup } from '../data/callkinds'
+import { startView, viewFits } from '../data/optdoc'
 
-export type View = 'overview' | 'statements' | 'waits' | 'blocks' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
+export type View = 'opt' | 'overview' | 'statements' | 'waits' | 'blocks' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
   | 'annotations' | 'reports' | 'cut' // desktop shell views
 
 /** How the Statements list is ranked. */
@@ -87,6 +88,9 @@ export interface LiveStatus {
   retryAt: number | null
 }
 
+/** A request to the 10053 view: open dump `dump` and, with `line`, that line of the file. */
+export interface OptGo { dump: number; line?: number; seq: number }
+
 /** The Lines view's position: `seq` changes when something outside asks it to move to `line` (a deep link, a jump), clicks inside only update `line`. */
 export interface LinesView {
   file: number; line: number; seq: number
@@ -133,6 +137,10 @@ export interface State {
   lineRefTarget: 'drawer' | 'view'
   linesView: LinesView
   bookmarks: Bookmark[]
+  /** the 10053 view: a request to open this dump (and line of the file); a new `seq` is a new request. The view takes it when it mounts or sees it change (`OptTab`) */
+  optGo: OptGo | null
+  /** the 10053 view: the dump open (the one the user chose last; part of the URL state) */
+  optDump: number
   /** notes on statements, executions and time windows (lines: `bookmarks`); kept for the page lifetime unless a shell persists them */
   annotations: Annotation[]
   /** show the add-note affordances (the desktop shell persists the notes) */
@@ -158,7 +166,7 @@ const initial: State = {
   window: null, block: null, lanesZoom: [], contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, stmtList: { q: '', hideSys: false, sort: 'resp' }, noteDrafts: {}, theme: 'auto',
   statementCallTypes: null,
   linesAvailable: false, lineViewer: null,
-  linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [],
+  linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [], optGo: null, optDump: 0,
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
   pivot: { fact: 'calls', by: ['stmt'], sort: { calls: 'e', waits: 'ela' }, limit: 1000, stmt: null, event: null, notice: null },
   blocks: { stmt: null, event: null },
@@ -204,7 +212,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: 'overview', files: null, block: null, lanesZoom: [], ioZoom: [], refImport: false, statementCallTypes: null, stmtList: initial.stmtList, noteDrafts: {}, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: startView(l.doc), optGo: null, optDump: 0, files: null, block: null, lanesZoom: [], ioZoom: [], refImport: false, statementCallTypes: null, stmtList: initial.stmtList, noteDrafts: {}, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
   }
   const swapDoc: Store['swapDoc'] = (l) => {
     setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
@@ -224,7 +232,7 @@ export function createStore(): Store {
  * files are stable from one snapshot to the next; a later one only adds): ids the document does not have are dropped,
  * everything else (sets included) keeps its identity, so nothing is recomputed for nothing.
  */
-export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selection' | 'block' | 'contexts' | 'files' | 'pivot' | 'blocks' | 'lineViewer' | 'linesView'> {
+export function carryOver(s: State, doc: TraceDoc): Pick<State, 'view' | 'optDump' | 'doc' | 'selection' | 'block' | 'contexts' | 'files' | 'pivot' | 'blocks' | 'lineViewer' | 'linesView'> {
   const nStmts = doc.statements.length, nEvents = doc.events.length, nFiles = fileCount(doc)
   const id = (v: ID | null, n: number): ID | null => (v !== null && v >= 0 && v < n ? v : null)
   const subset = <T extends number>(set: Set<T> | null, n: number): Set<T> | null => {
@@ -242,6 +250,9 @@ export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selecti
   const pivot = id(pv.stmt, nStmts) === pv.stmt && id(pv.event, nEvents) === pv.event ? pv : { ...pv, stmt: id(pv.stmt, nStmts), event: id(pv.event, nEvents) }
   return {
     doc,
+    // a newer document of the same trace is of the same kind; if it is not, the view of the other kind does not carry over
+    view: viewFits(doc, s.view) ? s.view : startView(doc),
+    optDump: doc.opt ? Math.min(s.optDump, Math.max(0, doc.opt.file.dumps.length - 1)) : 0,
     selection: same ? sel : selection,
     block: s.block && id(s.block.stmt, nStmts) !== null ? s.block : null,
     contexts: subset(s.contexts, doc.contexts.length),
@@ -255,7 +266,12 @@ export function carryOver(s: State, doc: TraceDoc): Pick<State, 'doc' | 'selecti
 
 function makeActions(setState: Store['setState']) {
   return {
-    setView(view: View) { setState({ view }) },
+    /** Show a view; one the document cannot have (`opt` on a 10046 trace, a 10046 view on a 10053 file) is ignored, so it is never the remembered view of the other kind. */
+    setView(view: View) { setState((s) => (viewFits(s.doc, view) ? { view } : {})) },
+    /** Open the 10053 view at a dump (and a line of the file); the view takes the request when it is on screen. */
+    openOpt(dump: number, line?: number) { setState((s) => ({ view: 'opt', optGo: { dump, ...(line ? { line } : null), seq: (s.optGo?.seq ?? 0) + 1 }, optDump: dump })) },
+    /** The dump the 10053 view shows changed. */
+    setOptDump(optDump: number) { setState((s) => (s.optDump === optDump ? {} : { optDump })) },
     /** Select a statement; selecting one opens it in the Statements workbench. */
     selectStmt(stmt: ID | null) { setState((s) => ({ view: stmt === null ? s.view : 'statements', selection: { ...s.selection, stmt, event: stmt === null ? s.selection.event : null, call: null, exec: null } })) },
     /** Select a statement without leaving the current view (list navigation inside the workbench). */
@@ -459,5 +475,5 @@ export function waitFilter(s: Pick<State, 'doc' | 'window' | 'contexts' | 'inclu
 
 /** Whether the Files panel is shown: the user's choice, else open for a document of several files (none for a single file). */
 export function filesPanelOpen(s: Pick<State, 'doc' | 'filesOpen'>): boolean {
-  return !!s.doc?.multiFile && (s.filesOpen ?? true)
+  return !!s.doc?.multiFile && !s.doc.opt && (s.filesOpen ?? true)
 }
