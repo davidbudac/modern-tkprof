@@ -195,7 +195,7 @@ func (s *Server) startRefJob(ss *Session, c *connection, work func(*Job) error) 
 	j.publish()
 	go func() {
 		defer s.wg.Done()
-		err := work(j)
+		err := guarded("the reference job", func() error { return work(j) })
 		if err != nil && j.ctx.Err() == nil {
 			s.logf("error", "session %s: reference bundle failed: %v", ss.id, err)
 		}

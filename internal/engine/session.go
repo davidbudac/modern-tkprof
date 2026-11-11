@@ -312,7 +312,11 @@ func (s *Server) runOpen(ss *Session) {
 	defer close(ss.done)
 	job := ss.job
 	start := time.Now()
-	op, err := s.buildSession(job, ss)
+	var op *opened
+	err := guarded("opening the trace", func() (err error) {
+		op, err = s.buildSession(job, ss)
+		return err
+	})
 	if err == nil && job.ctx.Err() != nil {
 		op.close()
 		err = errCancelled
@@ -334,7 +338,10 @@ func (s *Server) runOpen(ss *Session) {
 	ss.use.Lock()
 	ss.op = op
 	ss.use.Unlock()
-	s.catchUpRef(ss) // a bundle stored while the build ran
+	// a bundle stored while the build ran; the trace is open without it if that fails
+	if err := guarded("applying the kept names", func() error { s.catchUpRef(ss); return nil }); err != nil {
+		s.logf("error", "session %s: %v", ss.id, err)
+	}
 	m := op.co.Model
 	files := make([]FileInfo, len(m.File.Files))
 	for i, fe := range m.File.Files {

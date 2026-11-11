@@ -548,7 +548,7 @@ func (s *Server) remoteJob(kind, unit, conn string, files []string, work func(*J
 	go func() {
 		defer s.wg.Done()
 		defer s.release(files)
-		err := work(j)
+		err := guarded(kind, func() error { return work(j) })
 		if err != nil && j.ctx.Err() == nil && !errors.Is(err, context.Canceled) {
 			if conn == "" { // FollowRemote
 				s.logf("error", "%s failed: %v", kind, err)
