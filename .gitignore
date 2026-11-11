@@ -19,3 +19,7 @@
 
 # tsc -b writes it on every typecheck
 *.tsbuildinfo
+
+# Antognini's 10053 traces: licence forbids commercial redistribution, kept local only (testdata/opt/README.md)
+/testdata/opt/*/antognini_*.trc
+/testdata/opt/LICENSES/antognini.txt
