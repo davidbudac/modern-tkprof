@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mtkprof · 10053 reader (mock-up)</title>
+<style>
+/*@CSS*/
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <span class="brand">mtkprof</span>
+    <span class="file" id="file-name"></span>
+    <nav class="tabs" aria-label="Views">
+      <button class="tab" type="button" aria-current="page" title="The 10053 view: the optimizer trace, outline, text and guide">10053 <small id="tab-count"></small></button>
+    </nav>
+    <button id="theme" class="quiet theme" type="button" title="Theme: auto (the system), light or dark">Theme <b id="theme-label">Auto</b></button>
+  </header>
+  <div class="subbar" id="subbar"></div>
+
+  <div class="lines-bar"><div class="lines-row" id="toolbar">
+    <div class="lines-mode" role="radiogroup" aria-label="Text">
+      <button type="button" role="radio" id="m-fmt" aria-checked="true" title="Formatted: the trace's lines dressed, noise folded  (v)">Formatted</button>
+      <button type="button" role="radio" id="m-raw" aria-checked="false" title="Raw: the file untouched  (v)">Raw</button>
+    </div>
+    <div class="lines-search">
+      <input type="search" id="q" placeholder="Search the dump" aria-label="Search the open dump" title="Search the open dump: literal, or a regular expression with .*  (/ to focus; Enter, Shift+Enter or F3 for the next and previous hit)" autocomplete="off" spellcheck="false">
+      <button type="button" class="quiet" id="q-re" aria-pressed="false" title="Regular expression">.*</button>
+      <button type="button" class="quiet" id="q-cs" aria-pressed="false" title="Match case">Aa</button>
+      <span class="count" id="q-count"></span>
+      <button type="button" class="quiet icon-btn" id="q-prev" title="Previous hit  (Shift+Enter, Shift+F3)" aria-label="Previous hit"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>
+      <button type="button" class="quiet icon-btn" id="q-next" title="Next hit  (Enter, F3)" aria-label="Next hit"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+    </div>
+    <span class="tb-sep"></span>
+    <div class="tb-group">
+      <span class="tb-label">Landmark</span>
+      <button type="button" class="quiet icon-btn" id="lm-prev" title="Previous landmark  ([)" aria-label="Previous landmark"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>
+      <button type="button" class="quiet icon-btn" id="lm-next" title="Next landmark  (])" aria-label="Next landmark"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <small id="lm-count"></small>
+    </div>
+    <div class="tb-group">
+      <span class="tb-label">Run</span>
+      <button type="button" class="quiet icon-btn" id="run-prev" title="Previous costing run  (Shift+R)" aria-label="Previous costing run"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>
+      <button type="button" class="quiet icon-btn" id="run-next" title="Next costing run  (r)" aria-label="Next costing run"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+    </div>
+    <span class="tb-sep"></span>
+    <button type="button" class="quiet" id="fold-all" title="Open every fold, or back to the default folds  (Shift+Z; z opens or closes the fold at the selected line)">Unfold all</button>
+    <button type="button" class="quiet icon-btn" id="bm" title="Bookmark the selected line  (b)" aria-label="Bookmark the selected line"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></button>
+    <div class="tbmenu tb-end">
+      <button type="button" class="quiet" id="keys-btn" aria-expanded="false" title="The keys of this view  (?)">Keys <kbd>?</kbd></button>
+      <div class="tbpop" id="keys-pop" hidden>
+        <table class="keys"><caption>Keys</caption><tbody>
+          <tr><th>Formatted | Raw</th><td><kbd>v</kbd></td></tr>
+          <tr><th>Search</th><td><kbd>/</kbd></td></tr>
+          <tr><th>Next, previous hit</th><td><kbd>Enter</kbd><kbd>Shift+Enter</kbd> in the box, <kbd>F3</kbd><kbd>Shift+F3</kbd></td></tr>
+          <tr><th>Next, previous landmark</th><td><kbd>]</kbd><kbd>[</kbd></td></tr>
+          <tr><th>Next, previous costing run</th><td><kbd>r</kbd><kbd>Shift+R</kbd></td></tr>
+          <tr><th>Open or close the fold at the line</th><td><kbd>z</kbd></td></tr>
+          <tr><th>Unfold all, back to the defaults</th><td><kbd>Shift+Z</kbd></td></tr>
+          <tr><th>Bookmark the line</th><td><kbd>b</kbd></td></tr>
+          <tr><th>Move the selection</th><td><kbd>↑</kbd><kbd>↓</kbd> <kbd>k</kbd><kbd>j</kbd></td></tr>
+          <tr><th>First, last line of the dump</th><td><kbd>g</kbd><kbd>Shift+G</kbd></td></tr>
+          <tr><th>Next dump</th><td><kbd>d</kbd></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="work">
+    <aside class="side side-l" aria-label="Outline">
+      <div class="side-head">
+        <div class="side-tabs" role="tablist" id="ltabs"></div>
+        <h2 class="side-title" id="ltitle"></h2>
+      </div>
+      <div class="side-body" id="lbody"></div>
+    </aside>
+    <section class="centre" aria-label="Text">
+      <div class="lines-at"><nav class="lines-crumbs" id="crumbs" aria-label="Where the text is"></nav><span class="at-line" id="at-line"></span></div>
+      <div class="lv-box">
+        <div class="lv lv-fmt" id="lv" tabindex="0"><div class="lv-inner" id="lv-inner"><div class="lv-layer" id="lv-layer"></div></div></div>
+        <canvas class="lv-strip" id="strip" title="The dump: phases as bands, landmarks (left edge) and search hits (right edge) as ticks, the visible range as a box. Click or drag to go there."></canvas>
+      </div>
+      <div class="lines-status-bar" id="status"></div>
+    </section>
+    <aside class="side side-r" aria-label="Guide">
+      <div class="side-head">
+        <div class="side-tabs" role="tablist" id="rtabs"></div>
+        <h2 class="side-title" id="rtitle"></h2>
+      </div>
+      <div class="side-body" id="rbody"></div>
+    </aside>
+  </div>
+</div>
+<div class="lv-card" id="card" hidden></div>
+<script>
+const DATA = /*@DATA*/null;
+/*@JS*/
+</script>
+</body>
+</html>

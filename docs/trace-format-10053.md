@@ -92,13 +92,15 @@ optimizer mode set to all/first_rows`, the `Automatic degree of parallelism (AUT
   OBYE, OST, ST, CNT, JE, JF, CBY, SLP, DP, VT, AAT, ORE, LORE. Terms: qb, LB, DK, LB/K, DB/K, CLUF, NDV, Resp,
   Card, Resc, NL, SM, HA, CPUSPEED, IOTFRSPEED, IOSEEKTIM, SREADTIM, MREADTIM, MBRC, MAXTHR, SLAVETHR, dmeth (with
   its ten codes), sel, ptn, AP. Prefixes used but not in the legend: TE (table expansion), BJ (bushy join), PJE,
-  OJE, CSE, GBP (group-by placement), SPD (SQL plan directives), CBRID.
+  OJE, CSE (common subexpression elimination, by its banner), GBP (group-by placement), SPD (SQL plan
+  directives), CBRID, and UPT (`Checking validity of unpivot transformation`), SQE (`Trying SQ elimination`),
+  SQT (`Considering Statistic-based Query Transformation`), DCL (`Checking validity of group-by elimination`).
 - `PARAMETERS USED BY THE OPTIMIZER`:
   - `PARAMETERS WITH ALTERED VALUES`, then `Compilation Environment Dump` (`name = value` lines, empty when
     nothing is altered) and `Bug Fix Control Environment` (altered fix controls).
-  - `PARAMETERS WITH DEFAULT VALUES`, then `Compilation Environment Dump` (about 570 lines such as
-    `optimizer_features_enable           = 19.1.0`, hidden parameters included) and `Bug Fix Control
-    Environment` (about 1,700 lines `    fix 37589069 = enabled`).
+  - `PARAMETERS WITH DEFAULT VALUES`, then `Compilation Environment Dump` (about 610 lines such as
+    `optimizer_features_enable           = 19.1.0`, hidden parameters included). The fix controls are not
+    listed here: the full list is in the `Optimizer state dump` (section 9).
   - `PARAMETERS IN OPT_PARAM HINT` (empty without such a hint).
 - `Column Usage Monitoring is ON: tracking level = 53`.
 
@@ -162,8 +164,11 @@ GBP: Starting iteration 2, state space = (1,2,3,4) : (C,0,C,C)
 GBP: Not update best state, Cost = 385.608830
 ```
 
-Seen with the prefixes `GBP`, `CVM`, `JPPD` (`JPPD: Will not use JPPD from query block SEL$1 (#1)`). Between
-iterations: `CBQT: Looking for cost annotations for query block …, key = …`, `CBQT: Saved costed qb# 2 (…)`.
+Seen with the prefixes `GBP`, `CVM`, `JPPD` (`JPPD: Will not use JPPD from query block SEL$1 (#1)`, `CVM: Will
+not merge view SEL$2 (#2)`). Between iterations: `CBQT: Looking for cost annotations for query block …, key =
+…`, `CBQT: Saved costed qb# 2 (…)`. **Searches nest**: in the hinted probe statement the JPPD iterations 1 and
+2 run inside CVM iteration 2, and a second JPPD search follows the CVM verdict. A run can be ten lines long
+when its cost is reused (`CBQT: Replaced cost annotations`).
 A parse-time line per step, `TIMER: SU: iteration (#1) SEL$… cpu: 105.656 sec elapsed: 110.375 sec`, exists
 from 12.1.0.2 under fix control 16923858 *(unverified; Franck Pachot, dbi-services)*.
 
@@ -172,8 +177,8 @@ from 12.1.0.2 under fix control 16923858 *(unverified; Franck Pachot, dbi-servic
 From `kkoqbc: optimizing query block SEL$1BA63A14 (#1)` to `kkoqbc: finish optimizing query block …`. The same
 query block is costed once per iteration that contains it (nine runs in the probe trace).
 
-**Header**: `QUERY BLOCK TEXT` (the original statement again), `QUERY BLOCK SIGNATURE` (`signature
-(optimizer): …`), `SYSTEM STATISTICS INFORMATION`:
+**Header**: `QUERY BLOCK TEXT` (the original statement again, or `Not available.`), `QUERY BLOCK SIGNATURE`
+(`signature (optimizer): …`), `SYSTEM STATISTICS INFORMATION`:
 
 ```
 Using dictionary system stats.
@@ -239,7 +244,8 @@ Selectivities switch to exponent notation when small. Dynamic sampling blocks (`
 initial checks. **`, `** Generated dynamic sampling query:`, `** Using dynamic sampling card. : 78835`) sit
 inside this section *(unverified; modb.pro 19.3 sample)*.
 
-**`OPTIMIZER STATISTICS AND COMPUTATIONS`** / **`GENERAL PLANS`**: the join order search.
+**`OPTIMIZER STATISTICS AND COMPUTATIONS`** (a bare line, no banner) / **`GENERAL PLANS`** (a banner): the
+join order search.
 
 ```
 Considering cardinality-based initial join order.
@@ -284,9 +290,9 @@ Final cost for query block SEL$1BA63A14 (#1) - All Rows Plan:
 
 ### 8. Adaptive plan
 
-After the final costing run: `AP: Costing Nested Loops Join for inflection point at card 77.00` / `AP: Costing
-Hash Join for inflection point at card 77.00`, repeated while the search narrows (about 22 pairs and 2,000
-lines in the probe), each with a full costing of the join.
+Inside the final costing run, between its join order search and its `Final cost`: `AP: Costing Nested Loops
+Join for inflection point at card 77.00` / `AP: Costing Hash Join for inflection point at card 77.00`, repeated
+while the search narrows (about 22 pairs and 2,000 lines in the probe), each with a full costing of the join.
 
 ### 9. `Starting SQL statement dump`
 
@@ -302,10 +308,12 @@ then the statement text twice more (`----- Current SQL Statement …`, `sql_text
   Name / Object Alias (identified by operation id):` and `Predicate Information:` in DBMS_XPLAN's wording
   (`4 - access("O"."STATUS"="STATUS")`, with the original bind names).
 - `Content of other_xml column`: `db_version`, `parse_schema`, `plan_hash_full`, `plan_hash`, `plan_hash_2`,
-  `adaptive_plan  : yes`, `Peeked Binds` (`position=1`, `datatype(string)=NUMBER`, `value=11`), `Optimizer
+  `Peeked Binds` (`position=1`, `datatype(string)=NUMBER`, `value=11`), `adaptive_plan  : yes`, `Optimizer
   Metrics`, `QUERY BLOCK REGISTRY` (one line of XML), `Outline Data:` (the hint block `/*+ BEGIN_OUTLINE_DATA …
-  END_OUTLINE_DATA */`).
-- `Optimizer state dump:`: every parameter and fix control once more (2,641 lines), then `Query Block
+  END_OUTLINE_DATA */`), and for a hinted statement a `Hint Report` (per query block and table: `Unused:
+  use_hash(c)`, `Syntax Error: …`, with the reason) ending in `End Hint Report`.
+- `Optimizer state dump:`: every parameter once more and the fix controls (1,735 lines `    fix 37589069 =
+  enabled`; about 2,350 lines together), then `Query Block
   Registry:` as an indented tree, the final block marked:
 
   ```
@@ -336,8 +344,8 @@ then the statement text twice more (`----- Current SQL Statement …`, `sql_text
 | 8 tables | 13,486 | 651 KB | 48 | 1 |
 | 10 tables | 93,620 | 4.7 MB | 498 | 1 |
 
-In the first trace 86 % of the bytes are sections 4 to 8; the parameters and fix controls, printed twice, are
-112 KB whatever the statement. A trace of about 2 million lines is reported for a statement with a 120 s parse
+In the first trace 86 % of the bytes are sections 4 to 8; the parameters (printed twice) and the fix controls
+(once) are 112 KB whatever the statement. A trace of about 2 million lines is reported for a statement with a 120 s parse
 *(Franck Pachot, dbi-services)*.
 
 ## Not verified

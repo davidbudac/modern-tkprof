@@ -1,0 +1,121 @@
+/* ---- the page shell: the app's top bar and info bar, the Trace pane's toolbar row, then outline | text | guide ------------------------
+   Rules marked (app) are copied from web/src/lib/styles/app.css or lines.css; the rest are the 10053 view's own. */
+
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-display: swap; src: url("../../../web/src/lib/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-display: swap; src: url("../../../web/src/lib/fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-display: swap; src: url("../../../web/src/lib/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-display: swap; src: url("../../../web/src/lib/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-display: swap; src: url("../../../web/src/lib/fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
+
+:root { --c-note: light-dark(#b07800, #e0a92a); --w-left: 26rem; --w-right: 22rem; --lv-row: 20px; }
+html, body { block-size: 100%; overflow: hidden; }
+
+.app { display: grid; grid-template-rows: var(--topbar-h) var(--subbar-h) auto minmax(0, 1fr); block-size: 100dvh; }
+
+/* (app) the top bar */
+.topbar { display: flex; align-items: center; gap: var(--sp-4); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface-raised); white-space: nowrap; }
+.topbar .brand { font-weight: 600; letter-spacing: 0.01em; }
+.topbar .file { font-size: var(--text-sm); color: var(--ink); }
+.tabs { display: flex; gap: 2px; margin-inline-start: auto; }
+.tab { border: 0; border-radius: 5px; padding-block: 0.3rem; padding-inline: 0.7rem; color: var(--ink-2); font-size: var(--text-md); }
+.tab small { color: var(--ink-3); margin-inline-start: 0.35rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.tab[aria-current="page"] { background: var(--wash); color: var(--ink); font-weight: 500; }
+.tab[disabled] { cursor: default; opacity: 0.55; }
+.topbar .theme { font-size: var(--text-sm); }
+.topbar .theme b { font-weight: 500; }
+/* (app) the info bar */
+.subbar { display: flex; gap: var(--sp-5); align-items: center; padding-inline: var(--sp-4); font-size: var(--text-sm); color: var(--ink-2); border-block-end: 1px solid var(--hairline); white-space: nowrap; overflow: hidden; }
+.subbar b { color: var(--ink); font-weight: 600; }
+.subbar .mono { font-size: var(--text-sm); }
+.subbar .note { margin-inline-start: auto; color: var(--ink-3); }
+
+/* (app) quiet = a button in toolbar chrome */
+button.quiet { border-color: color-mix(in oklch, var(--hairline-strong) 60%, transparent); color: var(--ink-2); }
+@media (hover: hover) and (pointer: fine) { button.quiet:hover { background: var(--wash); border-color: var(--hairline-strong); color: var(--ink); } }
+button.quiet[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+button.icon-btn { display: inline-flex; align-items: center; justify-content: center; padding-inline: 0.4rem; }
+button.icon-btn > .icon, button > .icon { inline-size: 1.15em; block-size: 1lh; flex: none; }
+button:disabled { opacity: 0.45; cursor: default; }
+kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); border: 1px solid var(--hairline-strong); border-radius: 3px; padding-inline: 0.35em; background: var(--surface-sunken); }
+
+/* (app) the toolbar: one row */
+.lines-bar { padding-block: var(--sp-2); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface); }
+.lines-row { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+.lines-row > * { flex: none; }
+.lines-row > .tb-end { margin-inline-start: auto; }
+.lines-mode { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--hairline-strong); border-radius: calc(var(--radius) + 2px); background: var(--surface-sunken); }
+.lines-mode > button { display: inline-flex; align-items: center; gap: 0.45em; border: 0; border-radius: var(--radius); background: transparent; padding: 0.3rem 0.8rem; font-size: var(--text-sm); font-weight: 500; color: var(--ink-2); }
+.lines-mode > button:hover { color: var(--ink); background: var(--wash); }
+.lines-mode > button[aria-checked="true"] { background: var(--ink); color: var(--surface-raised); box-shadow: 0 1px 2px color-mix(in oklch, var(--ink) 25%, transparent); }
+.lines-row > .lines-search { flex: 1 1 auto; }
+.lines-search { display: flex; align-items: stretch; max-inline-size: 32rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); }
+.lines-search:has(> input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -1px; }
+.lines-search input[type="search"] { flex: 1; min-inline-size: 14ch; border: 0; background: transparent; outline: none; font-family: var(--font-mono); font-size: var(--text-sm); padding-inline: var(--sp-2); }
+.lines-search input.bad { color: var(--s-critical); }
+.lines-search > button { border: 0; border-radius: 0; border-inline-start: 1px solid var(--hairline); white-space: nowrap; font-family: var(--font-mono); padding-inline: 0.5rem; }
+.lines-search > button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.lines-search > .count { display: inline-flex; align-items: center; padding-inline: var(--sp-2); border-inline-start: 1px solid var(--hairline); font-size: var(--text-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; min-inline-size: 7ch; justify-content: flex-end; }
+.tb-group { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.tb-group > .tb-label { color: var(--ink-2); font-size: var(--text-sm); padding-inline: 0.15rem 0.2rem; }
+.tb-group > small { color: var(--ink-3); font-variant-numeric: tabular-nums; font-size: var(--text-xs); min-inline-size: 7ch; }
+.tb-sep { inline-size: 1px; block-size: 1.4rem; background: var(--hairline); }
+.tb-group button { padding-inline: 0.35rem; }
+
+/* the working area: outline | text | guide */
+.work { display: grid; grid-template-columns: var(--w-left) minmax(0, 1fr) var(--w-right); min-block-size: 0; }
+
+/* (app) the side panel: icon tabs over a body; here one on each side */
+.side { container: side / inline-size; box-sizing: border-box; min-block-size: 0; min-inline-size: 0; display: flex; flex-direction: column; background: var(--surface-sunken); font-size: var(--text-sm); }
+.side-l { border-inline-end: 1px solid var(--hairline); }
+.side-r { border-inline-start: 1px solid var(--hairline); }
+.side-head { flex: none; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--hairline); }
+.side-tabs { flex: none; display: inline-flex; border: 1px solid var(--hairline-strong); border-radius: var(--radius); overflow: clip; }
+.side-tab { position: relative; display: inline-flex; align-items: center; justify-content: center; inline-size: 2rem; block-size: 1.75rem; padding: 0; border: 0; border-radius: 0; background: none; color: var(--ink-2); font-size: 1rem; }
+.side-tab + .side-tab { border-inline-start: 1px solid var(--hairline-strong); }
+.side-tab:hover { background: var(--wash); color: var(--ink); }
+.side-tab[aria-selected="true"] { background: var(--ink); color: var(--surface); }
+.side-tab .icon { inline-size: 1em; block-size: 1em; }
+.side-tab small { position: absolute; inset-block-start: 1px; inset-inline-end: 1px; min-inline-size: 1.2em; padding-inline: 2px; border-radius: 999px; background: var(--c-userio); color: #fff; font-size: 9px; font-weight: 600; line-height: 1.45; text-align: center; font-variant-numeric: tabular-nums; pointer-events: none; }
+.side-title { flex: 1 1 0; min-inline-size: 0; margin: 0; font-size: var(--text-md); font-weight: 600; color: var(--ink); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
+.side-title small { margin-inline-start: 0.5em; font-size: var(--text-xs); font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.side-body { flex: 1; min-block-size: 0; overflow: auto; }
+.side-note { padding: var(--sp-3); color: var(--ink-3); }
+
+/* the centre: path, text with its line map, status */
+.centre { display: flex; flex-direction: column; min-inline-size: 0; min-block-size: 0; background: var(--surface-raised); }
+.centre > * { flex: none; }
+.centre > .lv-box { flex: 1 1 0; }
+
+/* (app) the breadcrumb row: one fixed row */
+.lines-at { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-3); padding-block: var(--sp-1); padding-inline: var(--sp-4); border-block-end: 1px solid var(--hairline); background: var(--surface-sunken); font-size: var(--text-sm); box-sizing: border-box; block-size: 2rem; }
+.lines-crumbs { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-2); overflow: hidden; white-space: nowrap; }
+.lines-crumbs > * { flex: none; }
+/* the middle crumbs give way (an ellipsis, the whole name in the tooltip); the dump and the deepest stay whole */
+.lines-crumbs > button { flex: 0 1 auto; min-inline-size: 5ch; overflow: hidden; text-overflow: ellipsis; }
+.lines-crumbs > button.crumb-id, .lines-crumbs > button.crumb-last { flex: none; }
+.lines-crumbs button.link { font-size: inherit; padding-block: 0; text-decoration-color: color-mix(in oklch, var(--ink) 35%, transparent); }
+.lines-crumbs button.link:hover { text-decoration-color: currentColor; }
+.lines-crumbs .crumb-id { font-family: var(--font-mono); font-weight: 500; }
+.lines-crumbs .crumb-last { font-weight: 600; }
+.crumb-sep { color: var(--ink-3); }
+.lines-at .at-line { flex: none; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* (app) the status bar */
+.lines-status-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-1) var(--sp-5); padding-block: var(--sp-1); padding-inline: var(--sp-4); border-block-start: 1px solid var(--hairline); background: var(--surface-sunken); color: var(--ink-2); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; }
+.lines-status-bar .end { margin-inline-start: auto; color: var(--ink-3); }
+.lines-status-bar b { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* a popover under a toolbar button (the keys) */
+.tbmenu { position: relative; display: inline-flex; }
+.tbpop { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 0; z-index: 30; padding: var(--sp-2) var(--sp-3); background: var(--surface-raised); border: 1px solid var(--hairline-strong); border-radius: var(--radius); box-shadow: 0 6px 20px color-mix(in oklch, var(--ink) 14%, transparent); font-size: var(--text-sm); inline-size: max-content; }
+.tbpop[hidden] { display: none; }
+.keys { border-collapse: collapse; }
+.keys th { font-weight: 400; text-align: start; padding-inline-end: var(--sp-4); white-space: nowrap; color: var(--ink-2); font-size: var(--text-sm); }
+.keys td { padding-block: 2px; white-space: nowrap; }
+.keys kbd { margin-inline-end: 0.3em; }
+.keys caption { text-align: start; font-weight: 600; padding-block-end: var(--sp-1); }
+
+/* (app) the hover card: one element, fixed near the pointer */
+.lv-card { position: fixed; inset-inline-start: var(--x, 0); inset-block-start: var(--y, 0); z-index: 40; pointer-events: none; inline-size: max-content; max-inline-size: min(28rem, calc(100vw - 1rem)); padding: var(--sp-2) var(--sp-3); background: var(--surface-raised); color: var(--ink); border: 1px solid var(--hairline-strong); border-radius: var(--radius); box-shadow: 0 6px 20px color-mix(in oklch, var(--ink) 18%, transparent); font-size: var(--text-xs); line-height: 1.45; }
+.lv-card[hidden] { display: none; }
+.lv-card b { font-family: var(--font-mono); font-weight: 600; margin-inline-end: 0.6em; }
