@@ -1,0 +1,6 @@
+{
+  // the dev harness is not part of the production build or of `tsc -b`; this checks it: `pnpm --filter mtkprof-web exec tsc -p dev`
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "baseUrl": "..", "tsBuildInfoFile": null },
+  "include": ["./*.tsx", "./*.ts", "../src/vite-env.d.ts", "../src/lib"]
+}

@@ -150,3 +150,14 @@ export const FlameIcon = () => (
 export const GridIcon = () => (
   <Icon><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" /></Icon>
 )
+
+// ---- the 10053 view's side panels ------------------------------------------------------------------------------------------------------------
+
+/** The Landmarks tab: a flag. */
+export const FlagIcon = () => <Icon><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><path d="M4 22v-7" /></Icon>
+
+/** The Guide tab: an open book. */
+export const BookOpenIcon = () => <Icon><path d="M12 7v14" /><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></Icon>
+
+/** The SQL tab: angle brackets. */
+export const CodeIcon = () => <Icon><path d="m16 18 6-6-6-6" /><path d="m8 6-6 6 6 6" /></Icon>

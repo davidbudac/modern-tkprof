@@ -10,6 +10,12 @@ const LANE = 3
 /** The lines of the time window (1-based, inclusive). */
 interface Range { from: number; to: number }
 
+/** A stretch of the file drawn as a neutral band in the middle lane (the 10053 reader's phases): the lines it covers and how dark it is (0 to 1). */
+export interface StripBand { from: number; to: number; alpha: number }
+
+/** A tick of the start lane: a line, its colour token and its size (the 10053 reader's landmarks: a 3 x 1 px tick, or 6 x 3 for a problem). */
+export interface StripMark { line: number; token: string; w?: number; h?: number }
+
 /** A highlighted statement's lines per bucket of the file, and the colour token it is drawn in (`--c-cpu`: the strip resolves it per theme). */
 export interface StripLayer { id: number; token: string; counts: readonly number[] }
 
@@ -26,10 +32,16 @@ interface Props {
   bookmarks: ReadonlySet<number>
   /** the lines of the time window */
   range: Range | null
+  /** stretches drawn as neutral bands under the ticks (omit for none) */
+  bands?: readonly StripBand[]
+  /** ticks at the start edge in a colour of their own, under the bookmarks (omit for none) */
+  marks?: readonly StripMark[]
   /** the hot spots of the readable view (lines of 1 % of the traced time or more): a quiet tick at the start edge */
   hot?: readonly number[]
   /** the visible range: first line (1-based) and the lines that fit */
   view: { top: number; rows: number }
+  /** the tooltip of the strip (omit for none) */
+  title?: string
   /** a click, and the end of a drag: the line under the pointer */
   onJump(line: number): void
   /** the view follows the pointer while it is down (the viewer scrolls, nothing is selected yet) */
@@ -64,7 +76,7 @@ export function LineStrip(props: Props) {
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, STRIP_W, h)
-    const { total: n, layers, shape, selected, hits, bookmarks, range, view, hot } = latest.current
+    const { total: n, layers, shape, selected, hits, bookmarks, range, view, hot, bands, marks } = latest.current
     const ink = resolveVar('--ink'), ink2 = resolveVar('--ink-2'), crit = resolveVar('--s-critical'), amber = resolveVar('--c-commit')
 
     if (n > 0 && shape && layers.length > 0) {
@@ -81,6 +93,24 @@ export function LineStrip(props: Props) {
     }
 
     if (n > 0) {
+      if (bands?.length) {
+        ctx.fillStyle = ink
+        for (const b of bands) {
+          const y0 = ((b.from - 1) / n) * h, y1 = (b.to / n) * h
+          ctx.globalAlpha = b.alpha
+          ctx.fillRect(LANE, y0, STRIP_W - 2 * LANE, Math.max(1, y1 - y0))
+        }
+        ctx.globalAlpha = 1
+      }
+      if (marks?.length) {
+        const colors = new Map<string, string>()
+        for (const m of marks) {
+          let c = colors.get(m.token)
+          if (c === undefined) { c = resolveVar(m.token); colors.set(m.token, c) }
+          ctx.fillStyle = c
+          ctx.fillRect(0, Math.floor(((m.line - 1) / n) * h), m.w ?? LANE, m.h ?? 1)
+        }
+      }
       if (hot?.length) {
         ctx.fillStyle = crit
         for (const y of stripMarks(hot, n, h)) ctx.fillRect(0, y, LANE, 1)
@@ -118,8 +148,8 @@ export function LineStrip(props: Props) {
   const schedule = useRef(() => { if (!frame.current) frame.current = requestAnimationFrame(paint.current) })
 
   // repaint (once per frame) after every render that brought other props
-  const { total, layers, shape, selected, hits, bookmarks, range, view, hot } = props
-  useEffect(() => schedule.current(), [total, layers, shape, selected, hits, bookmarks, range, view.top, view.rows, hot])
+  const { total, layers, shape, selected, hits, bookmarks, range, view, hot, bands, marks } = props
+  useEffect(() => schedule.current(), [total, layers, shape, selected, hits, bookmarks, range, view.top, view.rows, hot, bands, marks])
 
   // the size, and the theme (the colours are tokens that change with it)
   useEffect(() => {
@@ -158,5 +188,5 @@ export function LineStrip(props: Props) {
     latest.current.onJump(lineOf(e))
   }
 
-  return <canvas ref={cv} className="lv-strip" aria-hidden="true" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { dragging.current = null }} />
+  return <canvas ref={cv} className="lv-strip" aria-hidden="true" title={props.title} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { dragging.current = null }} />
 }

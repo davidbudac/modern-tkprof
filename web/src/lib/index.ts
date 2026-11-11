@@ -14,6 +14,9 @@ export { Compare } from './views/Compare'
 export { EventDetail } from './views/EventDetail'
 export { Findings } from './views/Findings'
 export { Lines } from './views/Lines'
+// the 10053 (optimizer trace) view and what it reads: a source of dumps and their text, bookmarks and notes, the link to a 10046 statement
+export { OptView } from './views/opt/OptView'
+export type { OptViewProps } from './views/opt/OptView'
 export { FilesPanel, FilesPane, FilesToggle } from './views/FilesPanel'
 
 // components
@@ -90,6 +93,9 @@ export { flatten, filterRows, sqlCut, type PickRow, type SqlCut } from './data/s
 export type { ScopedStatements } from './data/scopedstmts'
 export { fmtInt, fmtCompact, fmtDur, fmtSecs, fmtMs, fmtPct, fmtBytes, fmtWall, fmtTz, preview, oraErr } from './data/format'
 export type * from './data/types'
+// the 10053 reader's data: the model's TypeScript twin, the source interface and an in-memory source (tests, the standalone report)
+export { memoryOptSource, storeAnnotations, completeText, sparseText, splitLines, normalizeDump } from './data/opt'
+export type { OptSource, OptText, OptFile, OptDump, OptDumpInfo, OptNode, OptAnnotations, Opt10046Link, OptRange } from './data/opt'
 // annotations (notes on statements, executions, windows, lines) and saved Pivot configurations
 export {
   textHash, stmtRef, resolveStmt, resolveExec, stmtNote, execNotes, execKey, makeAnnotation, newAnnotationId, bookmarkToAnnotation, annotationToBookmark,
