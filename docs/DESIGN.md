@@ -20,8 +20,9 @@ Comparison of two traces or two executions is v2.
 
 ## Inputs
 
-- Oracle 19c and later, event 10046 / `sql_trace` / `DBMS_MONITOR` only.
-  No 10053, ASH or AWR inputs. 19c, 21c (XE) and 23ai (Free) are tested
+- Oracle 19c and later, event 10046 / `sql_trace` / `DBMS_MONITOR`. Optimizer
+  traces (event 10053) are an input since 2026-11-11, read by the 10053
+  reader (§ The 10053 reader, below); still no ASH or AWR inputs. 19c, 21c (XE) and 23ai (Free) are tested
   with real fixtures and tkprof parity (`testdata/traces/{19c,21c,23ai}`; no
   PX traces on 21c/23ai, XE/Free have no parallel execution); 12.x is "should
   work, untested".
@@ -84,6 +85,10 @@ in the UI is reachable from the CLI.
   the wait strips.
   UI, findings and CLI text state facts only: numbers, names, terse fragments;
   no narration, no remedies or advice (plan advisor suggestions are not shown).
+  One exception, decided 2026-11-11: the guide of the 10053 view (§ The 10053
+  reader) holds fixed explanations of what a section or a line of an optimizer
+  trace is, each backed by a named source; it has no sentence about the
+  decisions of a particular trace.
 - `json` and `export` (CSV tables) for other tools.
 - Bind values are kept by default; `-redact-binds` replaces them with type,
   length and a stable hash (`-redact-salt S` salts the hash); `-binds none`
@@ -1415,6 +1420,134 @@ real cut of io_waits.trc.
   leaves the picker.
 - **Next: cut from the picker** (the user's plan, not built): select a file and cut it before
   loading, for files too big to open whole, without reading the whole file into memory.
+
+## The 10053 reader (decided 2026-11-11, `docs/PLAN-10053.md`)
+
+Settled with the owner in a question-by-question review (33 questions) after the research in
+`docs/trace-format-10053.md` (19.27 lab traces) and before the build; the look was agreed on a mock-up first
+(`docs/mockups/10053-reader/`, on a real lab trace, light and dark). Code: ARCHITECTURE § The 10053 reader; user
+guide: DESKTOP § The 10053 view.
+
+**Scope**
+
+- **A reader, named "10053"** in the UI (the view, the mark on a statement), the docs and the CLI. A 10053 trace is
+  the optimizer's log of one hard parse: one dump per optimized statement, no `tim=` and no per-line time, a record
+  of decisions, not of time. As it comes it is hard to read: 18,523 lines for a two-table statement with two
+  subqueries, 93,620 for a ten-table join with no index, the same query block costed up to nine times, every
+  parameter printed twice. The reader makes the file navigable and says what its parts are. **It computes nothing
+  from the costs**: no summary per statement, no sentence about why a plan won, no comparison of numbers. The text
+  stays the trace's own lines in file order; the view dresses it and never re-renders it as tables of numbers (the
+  plan table is the one thing drawn as something else, with a switch back to the trace's text). Computed readings
+  are candidates for later (below), to be chosen after the reader has been used on real traces.
+- **Input: a file that holds only 10053 dumps**: at least one dump and no 10046 record (`opt.File.Pure()`,
+  `trace.FileKind10053`). This is how the traces arrive: taken separately for one or a few statements after a 10046
+  trace pointed at them. A dump runs from the first `Registered qb: … (PARSER)` line outside a dump to `END SQL
+  Statement Dump`.
+- **An interleaved file (10046 and 10053 on in one session) is not read as 10053 yet.** It opens as a 10046 trace as
+  before. Two things change: the dumps' lines are no longer counted as unknown lines (line kind `optimizer`), and the
+  trace facts carry a note ("2 optimizer (10053) dumps in this file, lines 54-18358 and 18734-27979; not shown as
+  10053 yet"). A 10046 record inside a dump keeps its kind and its place in the 10046 model (the optimizer's own
+  recursive SQL is written as complete `dep=1` records between its lines), and tkprof parity holds on the
+  interleaved fixture like on every other (`opt_interleaved`, compared with tkprof's output, no exclusion).
+- **19c is the tested version.** A file of another version opens best effort: the view's header says "read with the
+  19c rules; this file is 23.6" and shows how many lines of the dump fell outside any known section (`Unplaced`).
+  21c and 23ai were not generated; the format reference holds only a 23.6 excerpt (the bind section unchanged).
+- **Not in this version**: producing the trace from the app (turning the event on, `DBMS_SQLDIAG.DUMP_TRACE`); the
+  assistant and `mtkprof mcp` (they do not open 10053 files); Compare and Cut on a 10053 tab.
+
+**The view**
+
+A view of its own, not a mode of the Lines view: the outline on the left, the text in the centre, the guide on the
+right, the toolbar above.
+
+- **Outline in file order, full depth**: dump → phase (Environment, Transformations, Costing, Result) → section →
+  iteration of a cost-based search → costing run → table / join order → join step. A node shows its line count; a
+  join order node shows the trace's own words for it (its tables, "aborted" or its cost). The outline follows the
+  text, so a query block that is costed once per iteration that contains it has runs that are not adjacent; the
+  plan's first idea, a level of query blocks above the runs, was replaced by iterations as a level with the query
+  block named on the run, and an *All | Runs* switch that lists the runs alone, in file order, with their verdicts.
+- **Several dumps in a file**: the outline's top level lists them (sql_id, the first words of the SQL, the tables,
+  line count, plan hash); one is open at a time. Two dumps of one sql_id are two entries, numbered in file order.
+- **Centre: Formatted, with a Raw toggle** (persisted). Formatted is the trace's own lines in file order, dressed:
+  banners become headings, landmarks are tinted, noise is folded, one-line SQL is pretty-printed, the plan table can
+  show as a plan. Raw is the open dump's lines untouched (the file prologue is part of dump 1's lines).
+- **Noise folded by default**, each fold with its line count and reason: the parameters with default values, the
+  optimizer state dump (the second parameter dump, with the fix controls as a fold inside it), the adaptive plan's
+  re-costing, a costing run whose text repeats an earlier one, the statement text repeated, a repeated
+  `UNPARSED QUERY IS` statement.
+- **Landmarks**: key lines in the trace's words, tinted in the text and listed, with next / previous keys. Seven
+  kinds: verdicts (`Updated best state`, `Not update best state`, `Will not use`, `Will not merge`), `Final cost for
+  query block`, `Best:: AccessPath`, hints with an error, `Best:: JoinMethod`, `Join order aborted`, and
+  bypassed or refused transformations. Each kind has a switch (persisted). On by default are the kinds that end a
+  unit the outline shows (a verdict ends an iteration, Final cost a run, Best:: AccessPath a table, Best::
+  JoinMethod a join step, Join order aborted a join order) and hint errors; the refusals are off (190 lines in the
+  mock-up's trace, one per transformation per query block). A kind that is off is not tinted, not on the line map
+  and not stepped through. Tints: kept green, rejected neutral, problem red; amber stays the selection and search.
+- **Costing runs** show the verdict of the iteration they belong to, and the run that produced the final plan
+  (costed after `Final query after transformations`) is labelled. A run whose text equals an earlier one, addresses
+  and memory figures ignored, is marked "same as run N" and folded. This compares text; it does not read numbers.
+- **SQL**: every `UNPARSED QUERY IS` statement pretty-printed, with a diff against the previous version. The
+  previous version is the previous statement in the file, which is often another query block's text; a menu picks
+  another to diff against. The pretty-printer is the reader's own (token and parenthesis based, not a parser),
+  ported to Go as well so that the view and the text digest print the same lines; it is not the Trace pane's.
+- **Final plan**: the dump's `Plan Table` as a plan (indented operations, query block names and predicates as
+  sub-rows under their operation), with a *Plan | Text* switch and *Open in plan viz* (estimates only: a 10053 plan
+  table has no actual rows or times).
+- **Guide, "sourced or silent"**: fixed explanations per kind of section and per kind of line, and a glossary of
+  terms as tooltips on the terms in the text. An entry exists only when a named source backs it: the trace's own
+  Legend, `docs/trace-format-10053.md` (lab-verified; it cites Breitling, the Oracle Optimizer blog, Lewis, Pagano,
+  Pachot and Oracle's reference), or the lab. A section or line kind without one shows "No guide text". Each
+  entry keeps its source in the data; the sources are listed in the docs, not in the UI. Sentences about this
+  trace's decisions, computed from its numbers, are not in this version.
+- **Also**: literal and regular-expression search with the number of hits on each outline node; a where-am-I path
+  above the text, each part a link (dump › Costing › SEL$1BA63A14 run 3 of 9 › Join order 7 › Now joining:
+  MTK_CUST); a line map beside the scroll bar (phases as bands, landmarks and hits as ticks, the visible range);
+  notes and bookmarks on lines (desktop, as in the Trace pane, listed in Annotations).
+- **The dump is searched in the browser.** A dump is megabytes, so the client loads a dump's model and its whole
+  text once and searches and dresses it itself, instead of a route per question (decided with the build contract,
+  2026-11-11, which replaced the plan's routes for the outline, landmarks, pages of lines and search).
+
+**Tabs and the link to a 10046 trace**
+
+- A 10053 file is always its own tab (desktop) or its own `serve` / report run. Given inside a set of 10046 files it
+  is left out of the set with a note; of a set made only of 10053 files the first is opened and the others are named
+  in a note.
+- **A jump only.** A statement of a 10046 tab shows a "10053" mark when another open tab holds a dump with the same
+  sql_id; the mark switches to that dump, and the dump links back. No data is joined. Desktop only (`serve` holds one
+  session).
+
+**Clients**
+
+| Client | What it has |
+|---|---|
+| Desktop, `mtkprof serve` | the view |
+| Standalone HTML (`mtkprof html`, the default command) | the same view fed with the digest; where text is not included the centre says "1,234 lines not in this report (lines 2032-3265)" |
+| Text (`mtkprof report`, the default command) | the digest |
+| `mtkprof lint` | the 10053 line kinds and the dumps |
+
+**The digest** is the trace without its noise, nothing computed. Per dump: sql_id and SQL, the altered parameters and
+fix controls, the peeked binds, the outline with line numbers and line counts, the landmark lines verbatim with
+their line numbers, each version of the transformed SQL pretty-printed, the final plan with its predicates, the
+hints with their flags. It keeps about 5 to 8.5 % of a dump's lines on the fixtures. `-redact-binds` and `-binds
+none` apply to the bind sections (`Bind Info`, `Peeked Binds`) as they do to 10046 binds; literals in the SQL text
+and the predicates stay, as in the 10046 reports. A server's `api/opt/text` is the file as it is.
+
+**Correctness contract**
+
+- **Best effort on what Oracle writes.** The format is undocumented free text that changes with releases; an
+  unrecognized line stays readable where it is and is counted, and nothing is guaranteed for traces not seen.
+- **Our own output is pinned.** Every lab fixture has a committed outline, landmark list and text digest (a
+  snapshot); a change of the scan that alters one shows in the diff. The scan also agrees with the approved
+  mock-up's parser on its trace (deliberate differences are asserted with their reason). The 10046 golden tests do
+  not change, for files with and without dumps.
+- **Fixtures are real**, generated on the lab by `testdata/gen` (`sc_opt_*.sql`). The generator may create new
+  objects in schema `MTK` (a partitioned table, a table without statistics): idempotent CREATE only, never DROP or
+  TRUNCATE, as for the existing tables.
+
+**Afterwards** — candidates without order or commitment, chosen after the reader has been used on real traces: a
+computed summary per statement; decision views (transformation ledger, access paths per table, join order explorer);
+the origin of a row estimate joined to the 10046 actual rows of the same plan; comparing two dumps; reading the dumps
+of an interleaved file; a digest tool for the assistant and MCP; 21c and 23ai fixtures.
 
 ## Project
 

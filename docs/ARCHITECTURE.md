@@ -26,6 +26,15 @@ trace file ──► internal/trace (streaming line parser, emits typed records 
            ──► web/             (Vite + TS explorer, embedded)
 ```
 
+An optimizer (10053) trace is not a 10046 trace and takes a path of its own (§ The 10053 reader):
+
+```
+trace file ──► internal/trace  (SniffFile / internal/peek: the file's kind; the parser counts dump lines as "optimizer")
+           ──► internal/opt    (one streaming scan: File + a Dump per optimizer dump; text digest)
+           ──► api/doc "opt" field, or the routes api/opt/dump and api/opt/text of the session
+           ──► web/ OptSource  ──► web/src/lib/views/opt (OptView)
+```
+
 ### internal/trace — line parser
 
 * Reads with a large buffered reader, line by line, no regexes on the hot path.
@@ -1538,8 +1547,10 @@ notable; `plan-change` is notable or serious as above.
 
 ```
 cmd/mtkprof/        CLI (report, compare, pivot, json, html, serve, plan, refscript, findings-config, lint, export, engine); trace arguments are files and directories
-internal/trace/     streaming parser (+ LineIndex with Save/Load)
-internal/model/     model + builder (+ persist.go: binary encoding of the dimension tables; ref.go: Event.IsBlockIO / BlocksParam)
+internal/trace/     streaming parser (+ LineIndex with Save/Load; dump.go: optimizer (10053) dump tracking; kind.go: FileKind, SniffFile)
+internal/opt/       the 10053 reader's model and scan (model.go is the data contract), digest, SQL pretty-printer; snapshots in testdata/snap
+internal/model/     model + builder (+ persist.go: binary encoding of the dimension tables; ref.go: Event.IsBlockIO / BlocksParam;
+                    optdump.go: the note for dumps in a 10046 file, DropOptFiles)
 internal/analyze/   aggregations (+ the streaming Accumulator of the aggregation-only mode, its persistence, the minimap; the I/O map's iomap.go IOMapOn / IOMapWith, iohot.go IOHotOn, iodensity.go IODensityOn, blockset.go blockSet / blockCounter, ioevents.go IOEvents)
 internal/report/    text / json / csv renderers
 internal/slice/     server-side slicing: in-memory and spill (disk, persistable) FactSources, the /api endpoints (iomap.go: /api/io/map, /api/io/hot, /api/io/density)
@@ -1552,12 +1563,14 @@ api/                engine.openapi.yaml (the engine protocol, checked by interna
 web/                Vite + TypeScript UI (web/vendor/ora-plan-core: vendored shared plan core)
   web/src/lib/      the UI library (views, components, data incl. ApiClient, state, styles); imported as @lib; never imports app/
   web/src/lib/views/ the views; the three of docs/PLAN-VIEWS.md: RowFlow.tsx, Dialogue.tsx (statement inspector), BlockMap.tsx (tab),
-                    styled by styles/rowflow.css, dialogue.css, blockmap.css
+                    styled by styles/rowflow.css, dialogue.css, blockmap.css; opt/ the 10053 view (OptView.tsx and its panels), styles/opt.css
   web/src/lib/data/ data code with its tests beside it: rowflow.ts, dialogue.ts, iomap.ts + blocklayout.ts for those views;
+                    opt*.ts for the 10053 view (opt.ts mirrors internal/opt/model.go);
                     testdata/ the cases shared with Go (iomap-case.json, findings-*.json.gz, …)
+  web/dev/          dev harnesses outside the production build (opt.html: the 10053 view on a model and a trace of the repository)
   web/src/lib/shell/ the shell behaviour both front ends share (view table, tabs, keys, panes, inspector, URL hash, error boundary)
   web/src/app/      the standalone shell (App, TopBar, main) used by html and serve
-testdata/           real 19c/21c/23ai fixtures (+ tkprof output as golden reference), generator scripts
+testdata/           real 19c/21c/23ai fixtures (+ tkprof output as golden reference), generator scripts; opt/19c: the 10053 fixtures
 docs/               this file, trace-format-19c.md, ROADMAP.md
 ```
 
@@ -1800,3 +1813,273 @@ scans are diagonals, re-reads repeated hits, a sort spill a write stripe then a 
 - Engine side: an engine session's model is aggregation-only (no waits), so `analyze.Accumulator` keeps the obj# and file#
   its waits named (`RefIDs`; `model.RefIDSource`, `Model.WaitRefIDs`) for `model.ApplyRef` and `report.RefQueries`
   (before, a bundle named only the plans' objects there, and the database fetch asked for no datafiles).
+
+### The 10053 reader (`internal/opt`, `internal/trace/dump.go`, `web/src/lib/views/opt`)
+
+Decisions: DESIGN § The 10053 reader. File format: `docs/trace-format-10053.md`. Approved mock-up:
+`docs/mockups/10053-reader/` (its throwaway parser `tools/parse.mjs` is what the Go scan was ported from).
+
+Pipeline for a 10053 file:
+
+1. **Sniff** (`trace.SniffFile`, `internal/peek`): the file's kind, `10046`, `10053` (at least one dump and no 10046
+   record) or `both`. A 10053 file takes the path below; a `both` file is a 10046 trace with a note; a trace set
+   leaves its 10053-only files out (`model.DropOptFiles`, `model.OptInputs`).
+2. **Scan** (`opt.ScanFile` / `opt.ScanReader`): one streaming pass gives `opt.File` (name, lines, release, version,
+   `Tested`, `Records10046`, a `DumpInfo` per dump) and an `opt.Dump` per dump.
+3. **Document or routes**: the document of a 10053 file (`api/doc`, the JSON the standalone HTML embeds, `mtkprof
+   json`) is the document of an empty 10046 model plus one field, `opt` (`file`, and in a document made for a client
+   without a server, `digest`: the dumps and the digest's lines). A session of an engine or of `serve` serves
+   `GET api/opt/dump?i=N` (the `opt.Dump` as JSON) and `GET api/opt/text?i=N` (the lines `viewFrom..viewTo` of dump N,
+   `text/plain`, joined by `\n`, no `\r`). The engine's session object gains `optSqlIds` for the desktop's "10053"
+   mark. A shell that sees `doc.opt` shows the 10053 view and none of the 10046 views.
+4. **Source** (`OptSource` in `data/opt.ts`): `file`, `dump(idx)`, `text(idx)`. Three implementations: HTTP (the apps),
+   the report's document (standalone: a sparse text of the digest's lines) and memory (`memoryOptSource`, the tests and
+   the dev harness).
+5. **View** (`views/opt/OptView.tsx`): indexes the dump once (`indexDump`), builds the rows (`buildRows`), searches,
+   dresses lines, shows the panels.
+
+#### The scan (`internal/opt/scan.go`, `dump.go`, `outline.go`, `facts.go`, `landmark.go`)
+
+- **One streaming pass, lagging stages.** Each line is read once into a ring of 16 lines. Four stages follow the read
+  at fixed distances, so each sees the lines it needs ahead of it: the read stage (marks the lines of 10046 records
+  and counts them), banner pass 1 (a rule line, a title, a rule line; needs one line ahead), banner pass 2 (a title
+  with an underline of about its length; needs the roles of the two lines after) and the main stage (five lines
+  behind the read). A flush at the end of the file runs them to the last line. What is kept of the text is the ring;
+  everything else is the model, so **memory is proportional to the model, not to the file**.
+- **Where a dump starts and ends.** A `Registered qb: X 0x… (PARSER)` line starts a dump (`opt.IsStart`; the same
+  rule as `trace.IsDumpStart`), the `END SQL Statement Dump` banner ends it (`opt.IsEnd`). Further `(PARSER)` lines
+  while the parser's query blocks are still running are part of the dump; one after they are over starts a new dump
+  and marks the first `Truncated`. A file that ends inside a dump marks it `Truncated` too. A file of another
+  version, an empty file or one with no dump gives a `Scan` without an error.
+- **Views tile the file.** `ViewFrom..ViewTo` is what the reader shows for a dump: dump 1 starts at line 1 (the
+  prologue is its node `file-header`), each dump runs to the line before the next one, so the lines after the END
+  line (the adaptive plan's `AP: qesdp…` lines at the first execution) belong to the dump before them (node `after`).
+  `From..End` is the dump itself. The test `checkInvariants` requires that the views tile the file.
+- **A dump's state** (`dstate`): a stack of open outline nodes, one level number per node kind (a phase 1, a costing
+  run 5, …): opening a node of level L closes the open nodes of level L and deeper, which is all the outline needs
+  (it is parse.mjs's stack machine). Beside it the state machines of the facts: the statement as typed, the legend,
+  the tables (the "Objects referenced in the statement" list and the costing runs' table lines, generated view names
+  left out), the plan table with its query blocks and predicates, the peeked binds (other_xml's section, else Bind
+  Info), the hints and the Hint Report, the `UNPARSED QUERY IS` statements, the altered parameters and `OPT_PARAM`
+  ones, and the run header's repeat of the statement.
+- **The 10046 records inside a dump** (an interleaved file): the read stage marks a line `skip` when it belongs to a
+  10046 record (`PARSING IN CURSOR` through `END OF STMT`, a `BINDS #` block with its lines and quoted multi-line
+  values, `PARSE`, `EXEC`, `FETCH`, `CLOSE`, `WAIT`, `STAT`, `XCTEND`, `ERROR`). A skipped line is outside the outline,
+  the landmarks, the facts and the digest; its ranges are subtracted from the digest. `Records10046` counts them.
+- **Memory and speed, measured** (`go test ./internal/opt -run 'Throughput|Huge' -v`, 2026-11-11, the owner's Mac): 200
+  dumps of the two-dump fixture back to back, 132 MB, 2,796,300 lines: 447 ms = 295 MB/s (the test requires 100
+  MB/s); one dump of 2,014,895 lines (99 MB, the size reported for a statement with a 120 s parse) in 338 ms = 294
+  MB/s, with 27,313 nodes, 24,268 landmarks, 71,574 roles and 51,545 digest ranges, **24 MB** of heap held by the
+  model (the test requires less than half the file size) and a 3.5 MB text digest written in 8.6 ms.
+
+#### The model (`internal/opt/model.go`)
+
+`model.go` is the data contract: the JSON of these types is what the engine serves, the standalone report embeds and
+`data/opt.ts` mirrors (`data/opt.test.ts` reads `model.go` and fails when the two drift; a field may be added, never
+renamed or removed, without the TypeScript twin in the same commit; `TestJSONShape` pins the Go side). Line numbers are
+1-based file positions, a `Range` is inclusive.
+
+| Part | What it is for |
+|---|---|
+| `File`, `DumpInfo` | the dump list (sql_id, `Nth` among the dumps of that sql_id, statement start, tables, `PlanHash`, run count, line counts, `Unplaced`, `Truncated`) and the 10046 mark's key (`SQLID`). `PlanHash` is the `plan_hash` of other_xml, which is the `plh` of the 10046 EXEC line; the dump header's `plan_hash_value` is another hash |
+| `Dump.Tree` (`Node`) | the outline: kinds in `kinds.go` (`KindMeaning` gives each a line; the guide's `GUIDE_SECTIONS` covers the same list), the `from..to` of every node, nodes nest and siblings are in file order, with the fields each kind carries (a run's query block, number, verdict, `SameAs`, `BestJo`; a join order's tables, cost, `IsBest`; a table's `Best`; a join step's `Method`; `Result`, the right-hand text of the row) |
+| `Landmarks` | key lines: `best-ap`, `best-jm`, `final-cost`, `aborted`, `verdict`, `refused`, `hint-error`, with a tone (`kept`, `rejected`, `problem`) |
+| `Folds` | ranges the formatted text closes by default, with kind, label and line count |
+| `Runs` | the costing runs, the same objects as the run nodes (`ID` links them) |
+| `SQL` | the `UNPARSED QUERY IS` statements: line, label, text, `SameAs` (line of an identical earlier one), `Prev` (line of the previous different one) |
+| `Plan` | the plan table (`Rows`, with numbers as printed: `96K`), `QBs` and `Preds` by operation id |
+| `Legend` | the trace's own list of abbreviations, per dump (the glossary) |
+| `Banners`, `Roles` | what the formatted text dresses: a role per line (`bt` banner top, `bh` title, `bb` bottom, `uh` heading above an underline, `ul` the underline) |
+| `Hints`, `Binds`, `BindLines`, `Altered` | hints with their flags and the Hint Report, the peeked binds, the lines that print a bind value (what redaction acts on), the altered parameters and fix controls |
+| `Digest` | the line ranges the digest keeps, ascending, not overlapping |
+
+**Node kinds** are the sections of the format (`kinds.go`): `dump`, `file-header`, `after`, four `phase-*`
+(environment, transformations, costing, result), then under them `parser-qbs`, `preamble`, `opt-info`, `statement`,
+`legend`, `params*`, `qt`, `cbqt`, `cbsec`, `tsec`, `registered`, `peeked-binds`, `spd`, `iteration`, `run`,
+`final-query`, `run-head`, `base-stats`, `table`, `join-search`, `join-order`, `join-step`, `ap-search`, `final-cost`,
+`stmt-dump`, `plan*`, `other-xml` with its parts, `state-dump*`, `qb-registry` and `hints`. The meaning of each is one
+line in `kindMeaning`; a line in no section of the open phase counts in `Unplaced`.
+
+#### How the parts are decided
+
+- **Landmarks** (`classifyLandmark`, by the line's first bytes, no regular expressions): `Best:: AccessPath:` and
+  `Best:: JoinMethod:` (kept); `Final cost for query block` (kept); `Join order aborted` (rejected); `XXX: Updated
+  best state` (kept), `: Not update best state`, `: Will not use`, `: Will not merge` (rejected); an `atom_hint` with
+  `err=` 1 to 9, `Syntax Error:` and `WARNING: SOME HINTS HAVE ERRORS` (problem); a line with the word `bypassed`
+  (any case), `not valid since`, `Cannot`, `invalid because`, `validity checks failed` or `not performed` (rejected).
+  The first rule that matches wins; the text is the line trimmed.
+- **Iterations and verdicts.** `XXX: Starting iteration n, state space = …` opens an `iteration` node; the verdict
+  line of the same prefix (`Updated best state` or `Not update best state`) closes it and is stored on it with its
+  line and `Kept`. Searches nest (JPPD inside CVM): an iteration's `RunIDs` include the runs of the iterations inside
+  it, and a run shows the verdict of the innermost iteration that holds it.
+- **Costing runs.** `kkoqbc: optimizing query block X (#n)` to `kkoqbc: finish optimizing query block` is a `run`; runs
+  are numbered in file order (`n of N`); a run costed after `Final query after transformations` (the Costing phase)
+  is `Final`; `BestJo` is the `Best join order: N` of its Final cost, and the join order with that number has
+  `IsBest`. `SameAs`: while a run's lines pass, a hash of its text (two 64-bit mixes and the line count) is kept with
+  `0x…` numbers and the numbers after `addr=`, `in-use=` and `alloc=` replaced; a run with the key of an earlier run
+  gets that run's number and a fold "same as run N".
+- **Folds**, all closed by default, one per start line (the outer one wins): `params` (the default-value parameters,
+  trimmed of blank lines), `state` (the optimizer state dump) with `fix` inside it (the fix controls), `ap` (an
+  adaptive plan search), `same-run`, `stmt-again` (a run header's or statement dump's repeat of the statement text,
+  compared with the statement as typed) and `same-sql` (an `UNPARSED QUERY IS` statement equal to an earlier one).
+- **SQL versions.** Each `UNPARSED QUERY IS` header gives a label (what the header, or the line before it, calls
+  it); the statement is the line after. `SameAs` and `Prev` link versions. `FormatSQL` / `FormatSQLLines`
+  (`sqlfmt.go`) is a port of the mock-up's `sqlfmt.js` and of `data/optsql.ts`; `internal/opt/testdata/sqlfmt_golden.json`
+  (made by `gen_sqlfmt_golden.mjs` from the JavaScript formatter) pins that Go prints what the browser prints.
+- **The digest** (`Digest`, `WriteDigest`): a set of line ranges, accumulated as the lines pass. The parser's query
+  blocks, the preamble, the altered and `OPT_PARAM` parameters, the peeked-binds sections, the plan, the query block
+  registry, the hints and other_xml (without its one-line XML registry) are kept whole; so are each landmark with the
+  lines indented deeper that follow it (the `Cost:` line after `Best::`, the four lines after `Final cost`), the
+  iteration lines and the run's first and last lines. The text digest prints the sections of the model: sql_id and
+  SQL as typed, altered parameters, peeked binds, the outline with `from`, `to` and line counts, landmark lines
+  verbatim with their line numbers by kind, each SQL version pretty-printed (an identical one only named), the final
+  plan (the trace's own lines when a line function is given, else rebuilt from the model), the hints. On the 15
+  dumps of the fixtures it keeps 5.0 to 8.5 % of the lines (`TestDigestShare`, which fails above one third).
+- **Redaction** (`TextOptions`): `-binds none` leaves the values of `Dump.Binds` out and says so; `-redact-binds`
+  replaces `Binds[].value` through the function the CLI gives it (the type and the value); the standalone report's
+  digest lines at `Dump.BindLines` are replaced the same way. The SQL text and predicates keep their literals.
+
+#### The parser's dump tracking (`internal/trace/dump.go`, `kind.go`)
+
+The 10046 parser must not take a dump's lines for 10046 lines, so it tracks dumps with a three-state tracker
+(`optTracker`: outside, in a dump, in the chatter after the END banner):
+
+- A dump starts at a `Registered qb: <name> 0x<hex> (PARSER)` line seen outside a dump and ends at the `END SQL
+  Statement Dump` banner (`IsDumpStart`, `IsDumpEnd`). `Stats.Dumps` lists them (`First`, `Last`, `SQLID`, `Cut`).
+  A dump cut short by the end of the file, or by a `TRACE CONTINUES IN FILE` marker, has `Cut`.
+- Inside a dump a line keeps the kind of a valid 10046 record, of a `*** ` marker or of the 21 `=` separator; every
+  other line is `KindOpt` ("optimizer"). The bind lines of `Bind Info` look like a `BINDS` body, but only a real
+  `BINDS #` header opens the parser's bind state, so they stay optimizer lines.
+- After the END banner come up to a few hundred lines of adaptive-plan chatter (`AP: qesdp…`); they are `KindOpt` up
+  to the next record, marker, separator or dump. After a first dump, the lines the event writes while the statement
+  runs (`AP: …`, and `kkeCostToTime: …` with its two continuation lines before a STAT line) are optimizer lines
+  wherever they sit between records.
+- A trace without dumps pays one comparison per line; the 10046 golden tests pass unchanged.
+- `Stats.FileKind()` and `trace.SniffFile` give the `FileKind`: `FileKind10046`, `FileKind10053`, `FileKindBoth`,
+  `FileKindNone`. `SniffOptions.StopAtRecord` ends the read at the first 10046 record (enough to decide "10053 only":
+  cheap for a 10046 trace, whose first record is near the start; a file whose first record precedes its first dump
+  then reads as 10046), `MaxBytes` bounds the read.
+
+#### File kind, peek, set exclusion, the interleaved note
+
+- **Peek** (`internal/peek`): `Summary.Kind` is `"10046"`, `"10053"` or `"both"` (`""` for a background process
+  trace), `OptDumps` counts the dumps and `OptSQLIDs` lists the sql_ids of the first `MaxOptDumps` (100) in file
+  order. The folder picker reads them.
+- **An interleaved file** is a 10046 trace to the model: `model.FileEntry.Dumps` (`DumpRange`: first, last, sql_id,
+  cut) keeps the ranges and `noteDumps` adds one note per file under the trace facts (`DumpNote`: "2 optimizer
+  (10053) dumps in this file, lines 54-18358 and 18734-27979; not shown as 10053 yet", at most five ranges, then "and
+  N more"; a set names the file). Persisted: `model.PersistVersion` 3 and **`engine.CacheIndexFormat` 8** (before, a
+  session cached from such a file holds unknown-line counts and no note).
+- **Sets**: `model.DropOptFiles` takes the files that hold only dumps out of a set that also has other files and returns
+  one note per file ("opt_two.trc is a 10053 file; open it on its own"). A set of one file, or made only of 10053
+  files, is returned as it is.
+- **The engine session of a 10053 file** is a session of its own kind; it is never part of a set, and the desktop opens
+  it in its own tab.
+
+#### The Go side around the scan (`internal/report/opt.go`, `internal/slice/opt.go`, `cmd/mtkprof/opt.go`, `internal/engine`)
+
+- **The model of a 10053 file is empty.** `Model.OptOnly()` is true for a single file with dumps and none of the 10046
+  record line kinds; the dumps are read by `internal/opt` from the file itself (`report.OptScan` returns nil for any
+  other model: an ordinary trace, an interleaved one, a set). So a 10053 session's dumps are never in the index cache;
+  the cache holds the empty model, and the scan (about 300 MB/s) runs when the session opens.
+- **The document**: `report.DocOptions.Opt` (`report.OptInput`: the scan, a line function, `Digest`, the bind text
+  options) adds the member `opt` (`OptDoc`: `file` and, with `Digest`, `digest.dumps` and `digest.lines`, runs of
+  consecutive lines of the dumps' digest ranges). `Digest` is set for a client without a server (`html`, `json`, the
+  default command, the engine's HTML export).
+- **The routes**: `slice.OptServer` serves `GET /api/opt/dump?i=N` and `GET /api/opt/text?i=N` (404 for a server of a file
+  that is not a 10053 one, or an N out of range). It keeps the scan (made once) and the JSON of the dumps served, and
+  reads the text through the file's line index, else through an `opt.LineReader` it makes on first use. `serve` and
+  the engine's sessions mount it; the engine adds both routes to the session's route list (OpenAPI).
+- **Sets**: `model.OptInputs` is `DropOptFiles` for the entry points that read a 10053 file as such (the CLI, the
+  engine's sessions): a mixed set loses its 10053 files, a set of only 10053 files is cut to its first file, and each file
+  left out is named in a note added to the document's notes. The engine's session object (`SessionInfo`) and its
+  session events carry `optSqlIds`.
+- **CLI**: `report`, `html`, `json`, the default command and `serve` read a 10053 file with `internal/opt`. A command
+  with nothing to show for it fails with one line (`buildTrace`), for example "x.trc is a 10053 file: nothing to pivot;
+  mtkprof report prints its digest".
+- **Bind redaction of the digest** uses the 10046 token (`model.RedactToken`, so a value gives the same token in either
+  kind of report); a string value is hashed without the double quotes the 10053 prints around it, and its length is that of
+  the unquoted value.
+
+#### Why the client holds a dump's whole text
+
+A dump is megabytes (4.7 MB for a ten-table join, 99 MB in the huge test). The first plan was routes for the outline,
+the landmarks, pages of lines and search with counts per node. The contract replaced them with two routes and a client
+that loads a dump's model and its whole text once: search, folds, dressing, the line map and every jump then run
+without a round trip, and a keystroke in the search costs one pass over the text in the browser. The cost is the memory
+of one dump's text per dump opened (kept per dump while the view lives, so switching back is instant). The standalone report has
+no server, so it holds the digest's lines only and the centre says what is missing.
+
+#### The row model and search in the browser (`data/optrows.ts`, `optsearch.ts`, `optindex.ts`, `optdress.ts`)
+
+- **Rows.** `buildRows(ix, text, {mode, closed, planText})` makes the rows of the open dump; every row is 20 px and keeps
+  the line it stands for, so search, landmarks, bookmarks and the line map work on rows. Raw with every line present
+  builds nothing: row k is line `viewFrom + k`. Otherwise one pass: a closed fold becomes a `fold` row (its first line,
+  count and reason) and jumps over the range; the plan table becomes a `planhead`, `plancols`, `planop` and `planpred`
+  rows; a banner or underline heading a `head` row; an `UNPARSED QUERY IS` statement the pretty-printed `sql` rows; a
+  run of lines a digest does not hold a `gap` row ("1,234 lines not in this report (lines 2032-3265)"); the rest `line`
+  rows. A line with no row of its own takes the row before it (`rowOf`).
+- **Viewer** (`OptViewer.tsx`): a window of rows is rendered, moved in steps of 8 rows with 8 rows of overscan; a line
+  longer than 4,000 characters is cut; the glossary card is a hover element. `dressLine` gives a line its class and
+  spans (the `GBP:` prefix, `Best::`, glossary terms, `name = value` keys).
+- **Search** (`searchText`): literal or regular expression, case option, one pass over the lines the text has (120 ms
+  after a keystroke); the hits are an ascending `Int32Array`, the outline's count on each node is two binary searches
+  over the node's line range. On a digest the search reads the lines in the report only and says so.
+- **Index** (`indexDump`): nodes with parent and depth, the node that starts at a line, the folds, landmarks and SQL
+  versions by line, `pathOf(line)` (the chain of nodes that hold a line, by binary search per level; it feeds the
+  where-am-I path, the guide and the outline's current node).
+- **State kept while another tab is shown**: a `WeakMap` per source keeps the open dump, scroll position, folds
+  opened or closed by hand, search, expanded outline nodes and tabs. Persisted settings: `mtkprof.opt.mode`
+  (Formatted | Raw) and `mtkprof.opt.landmarks` (the switches).
+
+#### The guide (`data/optguide.ts`)
+
+`GUIDE_SECTIONS` (per node kind) and `GUIDE_LINES` (the first pattern that matches a line wins) hold the fixed
+explanations; the glossary is the dump's own Legend plus a few terms the format reference names that the legend
+leaves out (`TE`, `BJ`, `GBP`, `SPD`, `objn`). Each entry carries a `source`: a section of `docs/trace-format-10053.md`
+or the Legend line of the trace. The source is data, not shown. No entry says anything about a trace's numbers; a kind
+without an entry shows "No guide text for this kind of section". Ported from the mock-up's `guide.js`.
+
+#### Tests
+
+- **Snapshots** (`internal/opt/testdata/snap`): per fixture an outline (`*.outline.txt`), the landmark list
+  (`*.landmarks.txt`) and the text digest (`*.digest.txt`); `TestSnapshot` compares and prints the first differing line.
+  After an intended change: `go test ./internal/opt -run Snapshot -update`, then read the diff of the snapshot files.
+- **Parity with the mock-up** (`parity_test.go`): the scan of the mock-up's `data/two.trc` against its `model.json`
+  (527 nodes, 422 landmarks, 63 folds, 47 SQL versions, plans of 22 and 16 operations, node counts per kind). The
+  deliberate differences are asserted with their reason in the test's header: the legend per dump, an iteration's
+  runs including nested ones, `SQLStart` cut at 240 characters, banners in file order, tables including the costing runs'.
+- **Self-consistency** (`checkInvariants`, run on every fixture by `TestAgree`, on every prefix and on every damaged
+  file): the views tile the file, the outline nests and its siblings do not overlap, landmarks, folds, banners, roles,
+  SQL, plan, hints, bind lines and digest ranges lie inside their dump's view, landmarks and digest ranges ascend, the
+  runs are the run nodes, a run with a join search names a join order that exists, `File.Dumps` equals the dumps.
+- **Prefixes** (`TestPrefixes`): every fixture cut at 199 evenly spaced lines: no panic, the last dump `Truncated`
+  exactly when the cut is inside it, a complete dump equal to the full scan's, the digest writes. **Mutations**
+  (`TestMutations`): 300 damaged copies (each with 1 to 40 lines dropped, repeated, swapped or replaced by lines that
+  mean something to the scan) of the first and last 9,000 lines of three fixtures, same invariants. `TestFormatSQLRandom` keeps every token of 3,000 random statements.
+- **Fixtures and the 10046 side**: `TestNo10053In10046` (no 10046 fixture holds a dump, and every `opt_*` one does),
+  `TestInterleaved` (no landmark, digest line, node start or bind line is a 10046 record), `internal/trace` dump tests
+  (start and end, `Bind Info` as optimizer lines, recursive records kept, chatter, cut, a growing file, every fixture),
+  `internal/model` (`TestInterleavedFile`, `TestSetLeavesOutOptFiles`), `internal/golden`
+  (`TestInterleavedFixtureIsCompared`: tkprof parity on `opt_interleaved`, 0 unknown lines), `internal/peek` (`TestPeekKind`
+  across chunk boundaries), `cmd/mtkprof` (`lint`). The throughput tests above are tests too.
+- **Browser side**: `web/src/lib/data/opt*.test.ts` (the Go/TS shape comparison, rows, search, index, outline, plan rows,
+  SQL, guide) and `web/dev/opt.html`, a harness that mounts the view on the mock-up's model and trace
+  (`pnpm --filter mtkprof-web dev`, then `/dev/opt.html`; `?digest=1`, `?dump=1&line=N`, `?old=1` for a 23.x file,
+  `?trunc=1`, `?big=1` for a synthetic 100,000-line dump, `?theme=`).
+
+#### Regenerating the fixtures
+
+`testdata/gen/run_gen.sh opt` on the lab (the `dbmint-oracle-test` skill; it needs `dangerouslyDisableSandbox`) runs the
+ten 10053-only scenarios `sc_opt_*.sql` (`opt_subq_binds`, `opt_two`, `opt_join8`, `opt_nostats_ds`, `opt_part`,
+`opt_parallel`, `opt_dml`, `opt_setop`, `opt_altered`, `opt_unified`; no tkprof) and `opt_interleaved` (10046 and 10053
+together, with tkprof); any of them by name. The 10053-only traces go to `testdata/opt/19c/`, the interleaved one and
+its tkprof output to `testdata/traces/19c/`. Every statement carries a tag from `_opt_tag.sql` (month, day, time to
+the millisecond) so it is hard parsed and writes a dump on every run, which means **a regenerated fixture has new
+sql_ids**: the snapshots change and need `-update` and a read of the diff. The generator creates its extra objects in
+schema `MTK` idempotently (CREATE only, never DROP or TRUNCATE; `01_schema.sql`). The fixtures are: a statement with two
+subqueries and binds (`opt_subq_binds`, 18,523 lines); two statements in one file, one with a bad hint (`opt_two`);
+an eight-table join by `explain plan` (`opt_join8`); a table without statistics and dynamic sampling
+(`opt_nostats_ds`); a partitioned table (`opt_part`); a parallel plan (`opt_parallel`, the coordinator's trace); three
+DML statements (`opt_dml`); a `UNION ALL` with a `WITH` clause (`opt_setop`); altered optimizer parameters and an
+`opt_param` hint (`opt_altered`); unified tracing, `trace[rdbms.SQL_Optimizer.*]` (`opt_unified`).

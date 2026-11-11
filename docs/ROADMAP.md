@@ -45,6 +45,12 @@ Implemented in the desktop and its pinned engine, beyond the original core list:
   pending scope queries no longer reuse unrelated scope totals. Window actions appear once.
 - Opt-in investigation backups (notes/bookmarks, selected settings and workspace references),
   and accessible tab reordering in the desktop.
+- The 10053 reader (2026-11-11, `docs/PLAN-10053.md`, unreleased): optimizer traces (event 10053) open in a tab of
+  their own with a view of their own (outline in file order, Formatted | Raw text, landmarks, folds, costing runs,
+  SQL versions with a diff, the final plan, a sourced guide, search); the CLI prints a text digest and writes the
+  standalone HTML; a statement of a 10046 tab and a dump of the same sql_id jump to each other. 19c is tested; an
+  interleaved file (10046 and 10053 together) still opens as a 10046 trace with a note. A reader: it computes
+  nothing from the costs.
 
 Remaining work:
 
@@ -56,6 +62,10 @@ Remaining work:
 3. Comparison enhancements: persisted comparison workspaces, filtered comparisons,
    comparison report export and cross-trace execution drill-down.
 4. Deferred product features: partial documents during parse and detachable windows.
+5. 10053 reader, candidates without order, chosen after use on real traces: a computed summary per statement;
+   decision views (transformation ledger, access paths per table, join order explorer); the origin of a row
+   estimate joined to the 10046 actual rows of the same plan; comparing two dumps; reading the dumps of an
+   interleaved file; producing the trace from the app; a digest tool for the assistant and MCP; 21c and 23ai fixtures.
 
 The list below is the original roadmap, retained as history rather than a current backlog.
 

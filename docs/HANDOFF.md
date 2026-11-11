@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-11-09
+# Handoff — state of mtkprof on 2026-11-11
 
 Read this, then `docs/DESIGN.md` (the decisions), `docs/ARCHITECTURE.md` (how the code is shaped) and
 `docs/trace-format-19c.md` (what the parser must accept). Desktop: `desktop/CLAUDE.md`, the user guide
@@ -55,6 +55,18 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   and opens what the user picks. Cutting from the picker before loading (for very large files) is the
   agreed next step, not started. With it: the 11g marker fix (`*** SESSION ID:(15.1335) 2013-05-10
   07:26:55.095` kept the time in the value) and `CacheIndexFormat` 7. Unreleased.
+- **The 10053 reader** (2026-11-11; DESIGN § The 10053 reader, `docs/PLAN-10053.md`, ARCHITECTURE § The 10053 reader,
+  DESKTOP § The 10053 view; format `docs/trace-format-10053.md`; mock-up `docs/mockups/10053-reader/`). Optimizer
+  (event 10053) traces are an input: a file of dumps and no 10046 record opens in a tab of its own with the 10053
+  view (outline in file order, Formatted | Raw text, landmarks, folds, costing runs, SQL versions with a diff, the
+  plan, a sourced guide, search, line map, notes and bookmarks); the CLI prints a text digest (`report`) and writes
+  the standalone HTML (`html`); a statement of a 10046 tab and a dump of the same sql_id jump to each other. It
+  computes nothing from the costs. 19c is tested (ten lab scenarios and an interleaved file, `testdata/opt/19c`,
+  `testdata/traces/19c/opt_interleaved.*`); another version opens best effort. An interleaved file (10046 and 10053
+  in one session) still opens as a 10046 trace, with a note. The scan (`internal/opt`) reads ~295 MB/s in 24 MB for a
+  two-million-line dump; snapshots pin its output. **Unreleased, on `main`**; no version chosen
+  (`docs/releases/next-10053.md` is the draft). Cache format 8 (`engine.CacheIndexFormat`, `model.PersistVersion`
+  3): a session cached before holds unknown-line counts for a file with dumps.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -71,7 +83,8 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 | Engine: sessions, jobs, SSE, prompts, persistent index cache, remote (ssh, Oracle), live follow, OpenAPI contract | `internal/engine`, `internal/remote`, `api/engine.openapi.yaml` | protocol 1; contract test |
 | UI: Overview, Statements (Row flow, Dialogue, Execution Loom), Trace/Lines (raw and formatted), Waits, I/O map, Timeline, Sessions, Pivot, Compare; shell module; motion | `web/src/lib`, `web/src/app` → `internal/ui/dist/index.html` | `pnpm --filter mtkprof-web test` |
 | Desktop: tabs, settings, connections, notes and bookmarks, library, reports, assistant, open requests, file associations | `desktop/` | `pnpm typecheck`, `pnpm test` |
-| Fixtures: 19.27, 21c XE, 23ai Free + tkprof output + generators | `testdata/` | real traces only |
+| 10053 reader: dump tracking in the parser, `opt` scan and model (outline, landmarks, folds, runs, SQL versions, plan, digest), the 10053 view and its guide, peek kind, set exclusion | `internal/trace/dump.go`, `internal/opt`, `internal/peek`, `internal/model/optdump.go`, `web/src/lib/views/opt`, `web/src/lib/data/opt*.ts` | snapshot, parity, prefix and mutation tests (`go test ./internal/opt`); `pnpm --filter mtkprof-web test`; harness `web/dev/opt.html` |
+| Fixtures: 19.27, 21c XE, 23ai Free + tkprof output + generators; the 10053 ones in `testdata/opt/19c` | `testdata/` | real traces only |
 | CI and releases (no GitHub Actions, by decision) | `scripts/ci-local.sh`, `scripts/release-local.sh`, `desktop/scripts/{ci-local,release-local}.sh` | `ci-local.sh --strict` passes |
 
 ## Build, test, run
@@ -137,10 +150,34 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
   waits have a `file#` p1 that is not a datafile (`Event.IsFileP1` skips them).
 - **Wait classes** come from `internal/ref/data/event_name_19c.csv` (a real `v$event_name` export); idle
   detection uses the `Idle` class.
-- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 7); see
-  CLAUDE.md.
+- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 8; 8 is the
+  optimizer dumps of a 10053 or interleaved file in `FileEntry.Dumps`); see CLAUDE.md.
 - **An engine session's model has no waits** (aggregation-only): anything that needs the waits' obj# or file#
   reads `Model.WaitRefIDs` (the accumulator keeps them since 2026-11-08), not `m.Waits`.
+- **A dump can precede its statement's `PARSING IN CURSOR`.** In an interleaved file a statement with binds has
+  `PARSING IN CURSOR`, `PARSE`, then the dump, then `EXEC` (the optimization is deferred to the first execution, for
+  bind peeking); one without binds has the dump first, then `PARSING IN CURSOR` and `PARSE`. Join a dump to a
+  statement by sql_id, never by position.
+- **10046 records inside a dump.** The optimizer's dictionary lookups are complete `dep=1` records between its lines.
+  The parser keeps their kind (and tkprof parity holds); the `opt` scan marks them `skip` and keeps them out of the
+  outline, landmarks, facts and digest. The two detectors (`trace.optTracker`, `opt.scanner.recordStage`) are
+  written twice and must agree on what a record is (`TestInterleaved`, `TestPeekKind`).
+- **The `Bind Info` block looks like a `BINDS` body** (`Bind#0`, `oacdty=`, `value=`). Only a real `BINDS #` header
+  opens the parser's bind state, so these stay optimizer lines; `value=` lines under `Bind Info` and `Peeked Binds`
+  are what redaction acts on (`Dump.BindLines`).
+- **The 10053 outline is in file order**, so the runs of one query block are not adjacent (a block is costed once per
+  iteration that holds it, nine times in `opt_subq_binds`); the *Runs* mode lists them alone. Nested cost-based
+  searches (JPPD in CVM) put the inner runs in the outer iteration's `RunIDs` too.
+- **`plan_hash` of other_xml is the 10046 `plh`; the dump header's `plan_hash_value` is not.** `DumpInfo.PlanHash`
+  is the first; the header's (`plan_hash_value=-1817478388(93ab7b0c)`) is another hash and is not the `plh` of the
+  EXEC line (checked on two statements).
+- **A regenerated 10053 fixture has new sql_ids** (every scenario tags its statement with a time stamp so it is hard
+  parsed on every run): the snapshots then change and need `go test ./internal/opt -run Snapshot -update` and a read
+  of the diff. `docs/mockups/10053-reader/data/two.trc` is a separate copy the parity test reads; it does not
+  change.
+- **`peek.Summary.SQLTrace` is a 10046 property** (a line with `tim=`); a 10053-only file has it false and
+  `Kind` `"10053"`. Anything that filters on `SQLTrace` (the folder picker's *Only SQL traces*) must look at `Kind`
+  too.
 - **Harness quirks** (Claude Code / T3): `cd` at the start of a Bash call is unreliable, use absolute paths;
   `pkill -f`/`pgrep -f` match the wrapper shell, find servers by port (`ss -ltnp | grep :8046`, `lsof -i` on
   macOS).
@@ -189,6 +226,37 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - **Visualizer** has no LICENSE file. It shows "0ms" for µs-scale plans (its display rounds to ms).
 - **History**: the stray 32 MB `mtkprof` binary (removed in `a89bc12`) is still in the history of the now
   public repo; rewriting it means a force-push.
+
+### The 10053 reader (2026-11-11; DESIGN § The 10053 reader, `docs/PLAN-10053.md`)
+
+Built and unreleased; see "Where things stand". Open:
+
+- **Candidates for later** (no order, chosen after use on real traces): a computed summary per statement; decision views
+  (transformation ledger, access paths per table, join order explorer); the origin of a row estimate joined to the 10046
+  actual rows of the same plan; comparing two dumps; reading the dumps of an interleaved file; a digest tool for the
+  assistant and MCP; 21c and 23ai fixtures.
+- **Not in this version**: producing the trace from the app (turning the event on, `DBMS_SQLDIAG.DUMP_TRACE`); the
+  assistant and `mtkprof mcp` do not open 10053 files; Compare and Cut on a 10053 tab.
+- **Not verified in the lab** (format reference § Not verified): 21c and 23ai (a 23.6 excerpt shows the bind section
+  unchanged); `DBMS_SQLDIAG.DUMP_TRACE` output (the probe failed on a missing grant) and `trace[sql:<sql_id>]`
+  filtering; a dump cut by `max_dump_file_size`, and a session whose trace continues in another file (the scan marks a
+  dump the file ends inside as truncated and the parser cuts at `TRACE CONTINUES IN FILE`; neither has a real fixture, and a
+  10053 file is read alone, chains are not followed); star transformation, OR expansion that applies and SQL plan
+  baselines in use have no fixture (partitioned, parallel, dynamic sampling, DML and set operations have one each since
+  the research; the format reference still lists them as unseen).
+- **Other versions**: only 19.x is `Tested`; for another the header says "read with the 19c rules" and counts the
+  lines outside any known section (`Unplaced`). Wording of new refusals (`bypassed`, `not valid since`, …) is matched
+  by phrase, so a new phrase is a missed landmark, not an error.
+- **The guide is as thin as its sources**: they are the format reference's sections and the trace's legend; the section
+  kinds without an entry (`col-usage`, `tsec`, `opt-metrics`, `qbreg-xml`, `hint-report`) show "No guide text".
+  Nothing in the guide is about a trace's numbers.
+- **Rough spots in the view**: the side panels are fixed width (26 rem and 22 rem, no resize handle); the outline is not
+  virtualised (the landmark list is), so a dump with hundreds of join orders opened to full depth renders every row (498
+  join orders in the ten-table probe); a line over 4,000 characters is cut in the text; the plan link needs
+  `CompressionStream` (else the link says so).
+- The standalone report holds the digest's lines only: a dump's text outside them is "N lines not in this report"; the
+  report cannot show a section's full text.
+- The 10046 mark and jump exist in the desktop only (`serve` holds one session).
 
 ### Left by the 2026-11-08 desktop review (reviewers' should-fix items and app-only checks)
 

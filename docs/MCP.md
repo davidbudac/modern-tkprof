@@ -37,6 +37,9 @@ then narrows its investigation to statements, executions, waits or a time
 window. You can give several files or a directory for one trace set. The
 paths must be readable on the machine where the MCP server runs.
 
+The server reads SQL traces (event 10046): it does not open optimizer (10053)
+trace files, and neither does the desktop's assistant.
+
 To scope the registration to a repository, use `-s project` instead of
 `-s user`. To include bind values in tool results, append `-binds keep` to
 the server command when configuring it:

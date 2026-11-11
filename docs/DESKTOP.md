@@ -2,7 +2,8 @@
 
 The desktop app opens Oracle 10046 trace files, one tab per trace, with the mtkprof engine running
 next to it. It shows the same views as `mtkprof serve` (Overview, Statements, Waits, I/O map,
-Timeline, Sessions, Pivot) plus the **Lines** viewer. A *Tools ▾* menu follows after a divider: **Notes** and
+Timeline, Sessions, Pivot) plus the **Lines** viewer. A file of optimizer trace dumps (event 10053)
+opens in a tab of its own with the **10053** view (see "The 10053 view"). A *Tools ▾* menu follows after a divider: **Notes** and
 **Reports** are tools of the tab, not views of the trace; while one of them is on screen the menu
 button names it (*Notes ▾*) and is marked as the current page. Saved Pivot configurations, an
 **Assistant** chat and **Connections** for fetching traces from other machines complete it.
@@ -96,7 +97,11 @@ yet.
 
 - Sort by a column header (newest first by default); filter by name, session, module, action,
   client id, service or instance; *Only SQL traces* (on) hides files without SQL trace lines, such
-  as an ADR folder's background process traces.
+  as an ADR folder's background process traces. A file of optimizer (10053) dumps is not one of those: its
+  row is tagged *10053* (*10046 + 10053* when one session wrote both events to it) with the number of dumps,
+  and the tooltip lists their sql_ids; it has no traced time, because a dump carries no `tim=`. A 10053 file
+  opens in its own tab, also when it is selected with 10046 files (*Open N as one trace set* leaves it out and
+  says so), see "The 10053 view".
 - Select with the checkboxes or a click on the row (Shift-click selects a range; the header box
   selects all shown). The bar at the bottom sums the selection (files, size, from – to).
 - *Open N as one trace set* opens the selection in one tab (oldest file first), *Open each in a
@@ -283,6 +288,160 @@ slower than its loop (or after a ten times longer gap) stays outside it. A bar u
 puts CPU, the waits, the client gaps and the untimed rest to scale, with the time to first row.
 Hover a mark for its numbers, click it to pin them with the trace lines.
 
+## The 10053 view
+
+An optimizer trace (event 10053) is the optimizer's log of one hard parse: the statistics it read, the estimates it
+derived, the transformations and join orders it weighed. The file holds one *dump* per optimized statement and no
+times. A file that holds dumps and no 10046 record opens as a **10053 tab**: the tab, its view and its keys are those
+of the file alone, never part of a trace set. The view is a reader: it makes the file navigable and says what its parts
+are. It does not compute anything from the costs.
+
+**What opens as 10053.** A file with at least one dump (from a `Registered qb: … (PARSER)` line to `END SQL Statement
+Dump`) and no 10046 record. Dropped or opened together with 10046 files, it is left out of the set and a notice says
+which file, to be opened on its own; of several 10053 files given together the first opens and the others are named in a
+notice. A file with 10046 and 10053 written together by one session (an *interleaved* file) opens as a 10046 trace as
+before; see "An interleaved file" below. The file is read with the 19c rules: for another version the header says so
+(below).
+
+**Making a 10053 trace.** The app does not turn the event on. Any of these writes the dumps to the session's trace
+file (find it as for a 10046 trace, `v$diag_info` › Default Trace File); a statement that finds a shareable cursor
+writes nothing, so a statement must be hard parsed (a comment that makes it unique does that):
+
+```
+alter session set events '10053 trace name context forever, level 1';
+select /* my test */ ... ;                              -- a hard parse; explain plan for … is one too
+alter session set events '10053 trace name context off';
+
+alter session set events 'trace[rdbms.SQL_Optimizer.*]';  -- unified tracing, 11g+; same format; '… off' stops it
+
+exec dbms_sqldiag.dump_trace(p_sql_id => '…', p_child_number => 0, p_component => 'Optimizer', p_file_id => 'mytest')
+```
+
+`DBMS_SQLDIAG.DUMP_TRACE` re-optimizes an existing cursor without running it; the environment comes from
+`V$SQL_OPTIMIZER_ENV`, so the result may differ from the original parse. Event 10046 on in the same session writes one
+interleaved file; switch it off for a file that opens as 10053.
+
+**Layout.** An information bar on top (file name, release, version, number of dumps, lines), the toolbar, then three
+columns: the **outline** with the Landmarks and Bookmarks tabs on the left, the **text** in the centre with the
+where-am-I path above it and the line map beside its scroll bar, the **Guide** with the SQL tab on the right. A status
+bar below the text. When the file is not 19c, the information bar says "read with the 19c rules; this file is 23.6"
+and how many lines of the open dump are outside any known section; a dump the file ended inside says "this dump is
+truncated: no end line".
+
+**The text.** *Formatted | Raw* (`v`, kept across sessions). *Formatted* is the trace's own lines in file order,
+dressed: banners are headings, landmark lines are tinted, noise is folded, the one-line `UNPARSED QUERY IS`
+statements are pretty-printed, the plan table can show as a plan, terms from the trace's legend have a dotted
+underline and a card on hover. Nothing is re-rendered as a table of numbers. *Raw* is the open dump's lines
+untouched (dump 1's lines include the file prologue). Line numbers are the file's. Click a line to select it
+(`↑` `↓` or `j` `k` move the selection; `g` and `Shift+G` go to the first and last line of the dump).
+
+**Folds.** Closed by default, each showing its line count and reason: the parameters with default values, the optimizer
+state dump (its fix controls are a fold inside it), the adaptive plan's re-costing, a costing run whose text repeats
+an earlier one ("same as run 2"), the statement text repeated, a repeated `UNPARSED` statement. Click the ▸ or the row,
+or press `z` on the selected line, to open or close one; `Shift+Z` or the *Unfold all* button opens every fold, and the
+button then reads *Default folds* and brings the defaults back. The status bar says how many folds are closed and how
+many lines they hide. A jump to a hidden line (a search hit, a landmark, a bookmark) opens the folds around it.
+
+**The outline** (left, tab *Outline*; *All | Runs*). The dumps of the file are its top level: sql_id, *dump N* (and
+*#2* when a sql_id appears twice), the first words of the statement, the tables, the line count and the plan hash; a
+*truncated* tag; the number of search hits. One dump is open at a time; click another to open it. Under the open dump
+are its sections in file order, full depth: phases (Environment, Transformations, Costing, Result), query
+transformations, each cost-based search with its iterations, each **costing run**, then its tables, join orders and join
+steps. Every row shows its line count (the tooltip adds the lines); a click goes to its first line and opens it; ▾ and
+▸ fold the outline. A run shows its iteration's verdict ("GBP: Updated best state, Cost = 384.608830", green dot if kept,
+grey if not), a **final plan** tag for the run costed after *Final query after transformations*, and **same as run N**
+for a run whose text equals an earlier one, addresses and memory figures ignored (this compares text, not numbers). A
+join order shows its tables and its own result from the trace (`cost: 453.647906` or `aborted`) and a **best** tag on
+the one the run's *Best join order* names; a table shows its *Best:: AccessPath*, a join step its *Best:: JoinMethod*.
+The outline is in file order, so the runs of one query block are not adjacent (a block is costed once per iteration
+that holds it); *Runs* lists the runs alone, in file order. With a search on, each row shows its hit count.
+
+**Where am I.** Above the text a path of links names the sections that hold the first visible line (or the selected
+one): dump › Costing › SEL$1BA63A14 run 3 of 9 › Join order 7 › Now joining: MTK_CUST. Click a part to go to its start.
+The line number is at the right end.
+
+**The line map** beside the scroll bar draws the dump: phases as bands, landmarks as ticks at the left edge (green kept,
+grey rejected, red problems), search hits at the right edge, bookmarks, and the visible range as a box. Click or drag on
+it to go there.
+
+**Landmarks** (left, tab *Landmarks*). Key lines in the trace's words: *Updated / Not update best state* and *Will not
+…* (verdicts), *Final cost for query block*, *Best:: AccessPath*, *Hint with an error*, *Best:: JoinMethod*, *Join
+order aborted* and *Bypassed or refused transformation*. Each kind has a switch with its count; the list below shows the
+lines of the kinds that are on, grouped by kind, with the line number, the line and where it is. All are on except the
+refusals (one line per transformation per query block, in the hundreds). A kind that is off is not tinted, not on the
+line map and not stepped through. The switches are kept across sessions. `]` and `[` (or the *Landmark* arrows in the
+toolbar, which also show "3 / 232") step to the next and previous landmark of the kinds that are on; `r` and
+`Shift+R` step to the next and previous **costing run**.
+
+**Search.** The box in the toolbar searches the open dump (literal; `.*` makes it a regular expression, `Aa` matches
+case), shows "3 / 41", and tints the hits in the text, on the line map and in the outline's counts. `/` or `⌘F`
+(`Ctrl+F`) focuses it, `Enter` or `F3` goes to the next hit, `Shift+Enter` or `Shift+F3` to the previous, `Esc` returns
+to the text. An invalid expression says *invalid*. The whole dump is searched in the browser, hidden lines included.
+
+**SQL** (right, tab *SQL*). Every `UNPARSED QUERY IS` statement of the dump, pretty-printed, in the order of the file,
+each with its line, its label (what the trace calls it, for example *Final query after transformations*) and its size,
+or "same as N" when it equals an earlier one. *Show in text* goes to its line. *Diff* shows it against the previous
+statement of the dump (it is often another query block's text) as lines out and in; the *Against* menu picks another
+earlier version. In the text, the header line of each statement has a *diff with line N* button that opens this tab on
+the diff.
+
+**The plan.** The dump's `Plan Table` shows as a plan in the text: the operations indented by depth with Rows, Bytes,
+Cost and Time as the trace prints them (`96K`), the query block and object alias and the access and filter predicates
+as rows under their operation. *Plan | Text* switches to the trace's own lines; *Open in plan viz ↗* opens the plan,
+estimates only (a 10053 plan has no actual rows or times), in the plan visualizer.
+
+**The Guide** (right, tab *Guide*). What the section and the line under the selection are (the first visible line when
+nothing is selected): a fixed explanation per kind of section and per kind of line, and the terms on the line from the
+trace's own legend. An explanation exists only where a named source backs it (the trace's legend, the format reference
+`docs/trace-format-10053.md`); otherwise it says "No guide text for this kind of section". It says what a part is and
+how to read it, never what happened in this trace.
+
+**Bookmarks and notes.** `b` (or the bookmark button) bookmarks the selected line; the *Bookmarks* tab lists them with
+the path to the line and a note box (Enter saves), × removes one. As in the Lines view they belong to the trace and
+are listed in **Notes**; a note's link opens the 10053 tab at that line.
+
+**Keys** (`?` lists them in the view):
+
+| Key | Action |
+|---|---|
+| `v` | Formatted \| Raw |
+| `/`, `⌘F` / `Ctrl+F` | Search |
+| `Enter`, `Shift+Enter` in the box; `F3`, `Shift+F3` | Next, previous hit |
+| `]`, `[` | Next, previous landmark |
+| `r`, `Shift+R` | Next, previous costing run |
+| `z`; `Shift+Z` | Open or close the fold at the line; unfold all, back to the defaults |
+| `b` | Bookmark the line |
+| `↑` `↓` or `k` `j` | Move the selection |
+| `g`, `Shift+G` | First, last line of the dump |
+| `d` | Next dump |
+| `?`, `Esc` | The keys list; close it |
+
+**The 10053 mark and the jump.** A statement of a 10046 tab shows a **10053** mark when another open tab holds a dump
+with the same sql_id; clicking it switches to that tab, opens the dump and selects its first line. In the 10053 tab the
+dump's row in the outline shows a **10046** link that switches back to the tab with the statement. Nothing is joined:
+the two tabs keep their own numbers (a dump has no times; the statement's plan hash in the 10046 trace is the
+`plan_hash` of the dump's other_xml section).
+
+**An interleaved file.** A file in which one session wrote 10046 and 10053 together opens as a 10046 trace as before.
+Its dumps are no longer counted as unknown lines, and the trace facts (the tab's popover) carry a note: "2 optimizer
+(10053) dumps in this file, lines 54-18358 and 18734-27979; not shown as 10053 yet". To read the dumps, produce a file
+with the 10053 event alone.
+
+**What a 10053 tab does not have.** The 10046 views (Overview … Pivot, the I/O map, Lines), the Files panel, filters
+and time window, Cut, Compare, saved pivots and the assistant: a dump has no calls, waits or times, and the assistant
+and `mtkprof mcp` do not open 10053 files. The Reports page of the tab (Tools menu) writes the 10053 text digest and the
+standalone HTML (below), not the 10046 reports.
+
+**Reports.** `mtkprof report file.trc` (and the text report in the Reports view) prints the **digest**: the trace
+without its noise, nothing computed. Per dump, the sql_id and the statement as typed, the altered parameters and fix
+controls, the peeked binds, the outline with line numbers and line counts, the landmark lines verbatim with their line
+numbers, each version of the transformed SQL pretty-printed, the final plan with its predicates and the hints with
+their flags. `mtkprof html file.trc` (and *Open standalone HTML*) writes one HTML file with the same view fed with the
+digest: the lines of the digest are in it and nothing else, so the text says "1,234 lines not in this report (lines
+2032-3265)" where lines are missing, and search reads the lines in the report only. `-redact-binds` and `-binds none`
+apply to the bind sections (*Bind Info*, *Peeked Binds*) as to 10046 binds; literals in the SQL text and in the
+predicates stay. `mtkprof lint file.trc` lists the 10053 line kinds and the dumps (line range and sql_id).
+
 ## Notes and bookmarks
 
 Notes belong to a trace's content (its identity), not to its file name: the same trace opened
@@ -297,6 +456,7 @@ Unsaved work survives switching tabs, visiting a page and collapsing the assista
 | Execution | the ✎ column of the executions table (lit when the execution has a note) | cursor line and execution number |
 | Time window | set a window (drag in the minimap or the timeline), then *✎ Annotate window* in the Timeline, with an optional label. Window notes are chips above the timeline; a click applies the window | start and end |
 | Line | *Note…* in the selected line's *Actions* menu in Lines (also bookmarks the line); the side panel's *Bookmarks* tab shows the notes, the gutter marks noted lines with ✎ | file and line |
+| Line of a 10053 file | `b` in the 10053 view bookmarks the selected line; the *Bookmarks* tab of its left panel has a note box per bookmark | file and line |
 
 The **Notes** view of a tab lists them with links (statement → its detail, execution → its row,
 window → the Timeline with the window applied, line → the Lines view), edit and delete.
