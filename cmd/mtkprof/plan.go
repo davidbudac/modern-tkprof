@@ -30,7 +30,7 @@ func cmdPlan(args []string) error {
 	base := planVizFlag(fs)
 	nf := addFollowFlag(fs)
 	files := parseArgs(fs, args)
-	m, err := buildModel(files, *nf)
+	m, err := buildTrace("no STAT plans to extract", files, *nf)
 	if err != nil {
 		return err
 	}

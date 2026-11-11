@@ -393,7 +393,7 @@ func (s *Server) applyRefTo(ss *Session, b *ref.Bundle, gen uint64) (bool, error
 		return false, nil
 	}
 	model.ApplyRef(m, b)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
+	doc, err := report.DocumentBytes(m, ss.docOptions(ss.op.opt, false))
 	if err != nil {
 		ss.use.Unlock()
 		return false, err

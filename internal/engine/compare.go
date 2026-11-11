@@ -34,6 +34,12 @@ func (s *Server) compareSessions(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeConflict, "comparison requires two ready, non-live sessions"))
 		return
 	}
+	for _, o := range []*Session{sa, sb} {
+		if err := optRefusal(o.op.co.Model, "it cannot be compared in this version"); err != nil {
+			writeError(w, err)
+			return
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	if err := report.CompareJSON(w, sa.op.co.Model, sb.op.co.Model, report.DocOptions{Facts: false, PlanVizURL: s.opts.PlanVizURL}); err != nil {

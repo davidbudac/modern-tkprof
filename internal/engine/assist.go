@@ -69,6 +69,10 @@ func (ss *Session) redactor(binds, salt string) (*assist.Redactor, error) {
 // values unless ?binds=keep.
 func (s *Server) toolHandler(ss *Session, co *CacheOpened, api http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if err := optRefusal(co.Model, "the assistant reads 10046 traces only in this version"); err != nil {
+			writeError(w, err)
+			return
+		}
 		args, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		if err != nil {
 			writeError(w, errorf(CodeBadRequest, "body: %v", err))
@@ -231,6 +235,10 @@ func (s *Server) createConversation(w http.ResponseWriter, r *http.Request) {
 	ss.use.RUnlock()
 	if m == nil {
 		writeError(w, errorf(CodeConflict, "session %s is %s", ss.id, ss.Info().State))
+		return
+	}
+	if err := optRefusal(m, "the assistant reads 10046 traces only in this version"); err != nil {
+		writeError(w, err)
 		return
 	}
 	if _, err := briefFilter(req.Scope, len(m.Contexts)); err != nil {

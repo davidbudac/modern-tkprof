@@ -169,3 +169,16 @@ func (s Stats) FileKind() FileKind {
 	}
 	return FileKindNone
 }
+
+// RecordKindNames are the String() names of the line kinds only a SQL trace
+// (event 10046) writes: the keys of a model's Diagnostics.LineKinds that make
+// a file a 10046 one.
+func RecordKindNames() []string {
+	var out []string
+	for k := Kind(0); k < kindCount; k++ {
+		if isRecordKind(k) {
+			out = append(out, k.String())
+		}
+	}
+	return out
+}

@@ -209,6 +209,11 @@ func (s *Server) startLive(spec liveSpec) (*Session, error) {
 		if !fi.Mode().IsRegular() {
 			return nil, errorf(CodeBadRequest, "follow: %s is not a file", path)
 		}
+		// A 10053 file is read whole, not followed: refused (the part of a big
+		// file read for this is bounded).
+		if sn, err := trace.SniffFile(path, trace.SniffOptions{StopAtRecord: true, MaxBytes: 64 << 20}); err == nil && sn.Kind == trace.FileKind10053 {
+			return nil, errorf(CodeBadRequest, "follow: %s is a 10053 file (optimizer trace); it cannot be followed live: open it without follow", filepath.Base(path))
+		}
 	}
 	batch, err := liveBatch(spec.opts)
 	if err != nil {
@@ -702,7 +707,7 @@ func (lv *live) snapshot() error {
 	co := &CacheOpened{Model: m, Source: src, Lines: lis}
 	lv.rev++
 	snap := &liveSnap{rev: lv.rev, doc: doc, co: co}
-	snap.handler, snap.api = lv.srv.sessionMux(ss, co, doc)
+	snap.handler, snap.api = lv.srv.sessionMux(ss, co, doc, nil)
 	lv.cur.Store(snap)
 	lv.mu.Lock()
 	close(lv.next)

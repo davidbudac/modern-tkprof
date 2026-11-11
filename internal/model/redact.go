@@ -98,7 +98,15 @@ func RedactedValueSalt(b *Bind, salt string) string {
 	if b.IsDump {
 		return fmt.Sprintf("<%s dump len=%d>", typ, n)
 	}
-	in := b.Value
+	return RedactToken(typ, b.Value, n, salt)
+}
+
+// RedactToken is the token "<TYPE len=N h=XXXXXXXX>" of a value of the type
+// named typ (length n, the hash of value and salt, see RedactBindsSalt). The
+// optimizer (10053) reader redacts a peeked bind with it too, so one value
+// has one token in either kind of report.
+func RedactToken(typ, value string, n int, salt string) string {
+	in := value
 	if salt != "" {
 		in = salt + "\x00" + in
 	}

@@ -1466,6 +1466,74 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/opt/dump:
+    get:
+      operationId: sessionOptDump
+      summary: The model of one dump of a 10053 session
+      description: |
+        The model (`opt.Dump`: outline, landmarks, folds, costing runs, the
+        versions of the SQL, the plan, hints, binds, altered parameters, the
+        digest ranges) of dump `i` of the session's optimizer (10053) file.
+        The dumps are listed in the document's `opt.file.dumps`. The model is
+        read from the file when the session opens and kept for the session.
+        The values are those of the file: `binds` the session was opened with
+        (`redact`, `none`) act on the reports (`api/report`), not here.
+        404 when the session is not a 10053 file, or `i` is not a dump of it.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: i
+          in: query
+          required: true
+          description: 0-based index of the dump (`opt.file.dumps[].idx`)
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: the dump
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OptDump"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope), or the session is not a 10053 file or has no such dump (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/opt/text:
+    get:
+      operationId: sessionOptText
+      summary: The text of one dump of a 10053 session
+      description: |
+        The lines `viewFrom` to `viewTo` of dump `i` (the dump and the lines
+        around it that the reader shows for it, see `opt.DumpInfo`) as
+        `text/plain`: exactly `lineCount` lines joined by `\n`, without a
+        final line terminator and without `\r`. The file as it is, whatever
+        bind handling the session was opened with. 404 when the session is not
+        a 10053 file, or `i` is not a dump of it.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: i
+          in: query
+          required: true
+          description: 0-based index of the dump
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: the lines
+          content:
+            text/plain:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: no such session (envelope), or the session is not a 10053 file or has no such dump (plain text)
+        "409":
+          $ref: "#/components/responses/Conflict"
   /s/{id}/api/lines:
     get:
       operationId: sessionLines
@@ -3531,8 +3599,627 @@ components:
   schemas:
     LineKind:
       type: string
-      description: the parser's kind of a trace line (trace.Kind.String())
-      enum: [unknown, blank, header, separator, marker, parsing-in-cursor, sql-text, end-of-stmt, call, wait, stat, binds, bind-line, xctend, error, parse-error, lob, rpc]
+      description: the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one
+      enum: [unknown, blank, header, separator, marker, parsing-in-cursor, sql-text, end-of-stmt, call, wait, stat, binds, bind-line, xctend, error, parse-error, lob, rpc, optimizer]
+    OptDoc:
+      type: object
+      description: "the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record"
+      required: [file]
+      additionalProperties: false
+      properties:
+        file:
+          $ref: "#/components/schemas/OptFile"
+        digest:
+          $ref: "#/components/schemas/OptDigest"
+    OptDigest:
+      type: object
+      description: "the digest of a 10053 file, in a document made for a client without a server (mtkprof html, json, the default command, the engine's HTML and JSON export); a document served by a server leaves it out and the client reads the api/opt routes"
+      required: [dumps, lines]
+      additionalProperties: false
+      properties:
+        dumps:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptDump"
+          description: the model of every dump, bind values redacted or dropped as asked
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptLines"
+          description: the lines of the dumps' digest ranges, ascending, in runs of consecutive lines
+    OptLines:
+      type: object
+      description: a run of consecutive lines
+      required: [from, text]
+      additionalProperties: false
+      properties:
+        from:
+          type: integer
+          description: line number of text[0]
+        text:
+          type: array
+          items:
+            type: string
+    OptRange:
+      type: object
+      description: a run of lines, inclusive at both ends
+      required: [from, to]
+      additionalProperties: false
+      properties:
+        from:
+          type: integer
+        to:
+          type: integer
+    OptFile:
+      type: object
+      description: "what one pass over a 10053 file finds (opt.File)"
+      required: [name, lines, release, version, tested, records10046, dumps]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: base name of the file
+        lines:
+          type: integer
+          description: lines in the file
+        release:
+          type: string
+          description: "prologue line 2, e.g. Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production"
+        version:
+          type: string
+          description: 'prologue "Version 19.27.0.0.0" as 19.27.0.0.0; empty when the file has no prologue'
+        tested:
+          type: boolean
+          description: the version is a 19.x one (the rules were written for 19c)
+        records10046:
+          type: integer
+          description: the 10046 records in the file, inside or outside dumps; a file is a 10053 file when it has a dump and this is 0
+        dumps:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptDumpInfo"
+    OptDumpInfo:
+      type: object
+      description: the summary of one dump
+      required: [idx, from, end, viewFrom, viewTo, lineCount, sqlId, nth, stmtText, sqlStart, tables, planHash, runCount, unplaced]
+      additionalProperties: false
+      properties:
+        idx:
+          type: integer
+          description: 0-based position in the file
+        from:
+          type: integer
+          description: the first `Registered qb ... (PARSER)` line, where the dump starts
+        end:
+          type: integer
+          description: the `END SQL Statement Dump` line
+        viewFrom:
+          type: integer
+          description: "first line the reader shows for the dump: the file prologue for the first dump; the views of a file's dumps tile the file"
+        viewTo:
+          type: integer
+          description: last line the reader shows (the lines after the dump up to the next one, the adaptive plan's execution lines, included)
+        lineCount:
+          type: integer
+          description: viewTo - viewFrom + 1
+        truncated:
+          type: boolean
+          description: the file ended, or another dump began, before the end line
+        sqlId:
+          type: string
+        nth:
+          type: integer
+          description: 1-based count among the file's dumps of this sql_id
+        stmtText:
+          type: string
+          description: the statement as typed, from `Current SQL Statement for this session`
+        sqlStart:
+          type: string
+          description: stmtText on one line, white space collapsed, cut at 240 characters
+        tables:
+          type: array
+          items:
+            type: string
+          description: distinct table names of the parser's query blocks and costing runs, in order of first mention
+        planHash:
+          type: string
+          description: '"plan_hash" of the other_xml section (the plh of a 10046 EXEC line); empty when absent'
+        runCount:
+          type: integer
+          description: costing runs
+        unplaced:
+          type: integer
+          description: lines of the dump that sit directly under a phase or the dump node, in no known section (the measure for a file of an untested version)
+    OptDump:
+      type: object
+      description: "the whole model of one dump (opt.Dump); it holds all the properties of OptDumpInfo as well"
+      required: [idx, from, end, viewFrom, viewTo, lineCount, sqlId, nth, stmtText, sqlStart, tables, planHash, runCount, unplaced, stmtLine, stmtTo, tree, landmarks, folds, runs, sql, legend, banners, roles, hints, binds, altered, bindLines, digest]
+      additionalProperties: false
+      properties:
+        idx:
+          type: integer
+        from:
+          type: integer
+        end:
+          type: integer
+        viewFrom:
+          type: integer
+        viewTo:
+          type: integer
+        lineCount:
+          type: integer
+        truncated:
+          type: boolean
+        sqlId:
+          type: string
+        nth:
+          type: integer
+        stmtText:
+          type: string
+        sqlStart:
+          type: string
+        tables:
+          type: array
+          items:
+            type: string
+        planHash:
+          type: string
+        runCount:
+          type: integer
+        unplaced:
+          type: integer
+        stmtLine:
+          type: integer
+          description: first line of the statement text
+        stmtTo:
+          type: integer
+          description: its last line
+        tree:
+          $ref: "#/components/schemas/OptNode"
+        landmarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptLandmark"
+        folds:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptFold"
+        runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptRun"
+        sql:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptSQL"
+        plan:
+          $ref: "#/components/schemas/OptPlan"
+        legend:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptTerm"
+        banners:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptBanner"
+        roles:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'the lines the formatted text dresses, by line number: bt banner top, bh banner title, bb banner bottom, uh a heading line, ul its underline'
+        hints:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptHint"
+        binds:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptBind"
+        altered:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptParam"
+        bindLines:
+          type: array
+          items:
+            type: integer
+          description: the lines that print a bind value (`value=11` under Bind Info and Peeked Binds); what -redact-binds and -binds none act on
+        digest:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptRange"
+          description: the line ranges the digest keeps, ascending, not overlapping
+    OptNode:
+      type: object
+      description: "a section of the outline; kind is one of the kinds of internal/opt/kinds.go, the optional fields are set for the kinds named beside them in opt.Node"
+      required: [id, kind, label, crumb, from, to, lvl]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: unique in the dump, stable for one file ("n12")
+        kind:
+          type: string
+        label:
+          type: string
+          description: the outline row
+        crumb:
+          type: string
+          description: the short form for the where-am-I path
+        from:
+          type: integer
+        to:
+          type: integer
+        lvl:
+          type: integer
+          description: depth, 0 the dump, 1 a phase
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptNode"
+        qb:
+          type: string
+          description: "run, registered: the query block name"
+        qbn:
+          type: string
+          description: 'run: the "(#n)" number'
+        n:
+          type: integer
+          description: "run, iteration, join-order: its number"
+        of:
+          type: integer
+          description: "run: the dump's run count"
+        title:
+          type: string
+          description: "tsec, cbsec: the banner title"
+        count:
+          type: integer
+          description: "tsec, cbsec: how many consecutive sections of this title the node merges"
+        prefix:
+          type: string
+          description: 'iteration: "GBP", "CVM", "JPPD", ...'
+        space:
+          type: string
+          description: "iteration: the state space text"
+        runs:
+          type: array
+          items:
+            type: string
+          description: "iteration: ids of its runs, nested iterations' runs included"
+        verdict:
+          $ref: "#/components/schemas/OptVerdict"
+        iter:
+          type: string
+          description: "run: id of the innermost iteration holding it"
+        iterLabel:
+          type: string
+          description: "run: that iteration's crumb"
+        final:
+          type: boolean
+          description: "run: after `Final query after transformations`"
+        sameAs:
+          type: integer
+          description: "run: the number of the earlier run with the same text; 0 none"
+        bestJo:
+          type: integer
+          description: 'run: "Best join order: N"'
+        table:
+          type: string
+          description: 'table: the name; join-step: "MTK_ORDERS[O]#1"'
+        best:
+          type: string
+          description: 'table: the access path of its "Best:: AccessPath" line'
+        tables:
+          type: array
+          items:
+            type: string
+          description: "join-order: its tables as printed"
+        cost:
+          type: string
+          description: 'join-order: the cost of its last "Best so far" line, as printed'
+        isBest:
+          type: boolean
+          description: "join-order: the run's `Best join order` names it"
+        method:
+          type: string
+          description: 'join-step: the method of its "Best:: JoinMethod" line'
+        result:
+          type: string
+          description: "the right-hand text of the outline row, in the trace's words: a table's access path, a join order's cost or aborted, a join step's method"
+        bannerBottom:
+          type: integer
+          description: "params-default: the last line of its banner"
+    OptVerdict:
+      type: object
+      description: the line that closes a cost-based iteration
+      required: [text, line, kept]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          description: '"GBP: Updated best state, Cost = 384.608830"'
+        line:
+          type: integer
+        kept:
+          type: boolean
+          description: '"Updated best state"; false for "Not update best state"'
+    OptLandmark:
+      type: object
+      description: a key line
+      required: [line, kind, tone, text]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        kind:
+          type: string
+          description: best-ap, best-jm, final-cost, aborted, verdict, refused or hint-error
+        tone:
+          type: string
+          description: kept, rejected or problem
+        text:
+          type: string
+          description: the line, trimmed
+    OptFold:
+      type: object
+      description: a run of lines the formatted text closes by default
+      required: [id, from, to, lines, kind, label, closed]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        kind:
+          type: string
+          description: params, state, fix, ap, same-run, stmt-again or same-sql
+        label:
+          type: string
+          description: the reason shown on the closed row
+        closed:
+          type: boolean
+    OptRun:
+      type: object
+      description: "a costing run (`kkoqbc: optimizing` to `kkoqbc: finish optimizing`), also a node of the tree"
+      required: [id, n, of, qb, qbn, from, to, iter, final, sameAs, bestJo]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: the node's id
+        n:
+          type: integer
+        of:
+          type: integer
+        qb:
+          type: string
+        qbn:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        verdict:
+          $ref: "#/components/schemas/OptVerdict"
+        iter:
+          type: string
+          description: 'the crumb of its iteration, "CVM iteration 1"; empty outside any'
+        final:
+          type: boolean
+        sameAs:
+          type: integer
+          description: 0 none
+        bestJo:
+          type: integer
+    OptSQL:
+      type: object
+      description: one `UNPARSED QUERY IS` statement
+      required: [n, head, line, label, text, sameAs, prev]
+      additionalProperties: false
+      properties:
+        n:
+          type: integer
+          description: 1-based, in file order within the dump
+        head:
+          type: integer
+          description: the header line
+        line:
+          type: integer
+          description: the statement's line
+        label:
+          type: string
+          description: 'what the header (or the line before it) calls it: "Final query after transformations"'
+        text:
+          type: string
+          description: the statement, one line
+        sameAs:
+          type: integer
+          description: line of the earlier identical statement; 0 none
+        prev:
+          type: integer
+          description: line of the previous different statement; 0 none
+    OptPlan:
+      type: object
+      description: the dump's plan table with what follows it
+      required: [from, head, tableTo, to, cols, rows, qbs, preds]
+      additionalProperties: false
+      properties:
+        from:
+          type: integer
+          description: first line of the `Plan Table` banner
+        head:
+          type: integer
+          description: the column header line
+        tableTo:
+          type: integer
+          description: last line of the table
+        to:
+          type: integer
+          description: last line of the predicate section
+        cols:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptPlanRow"
+        qbs:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/OptPlanQB"
+          description: by operation id
+        preds:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/OptPlanPred"
+          description: by operation id
+    OptPlanRow:
+      type: object
+      description: one operation; the numbers are kept as printed ("96K")
+      required: [line, id, depth, op, name, rows, bytes, cost, time]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        id:
+          type: integer
+        depth:
+          type: integer
+        op:
+          type: string
+        name:
+          type: string
+        rows:
+          type: string
+        bytes:
+          type: string
+        cost:
+          type: string
+        time:
+          type: string
+    OptPlanQB:
+      type: object
+      description: an operation's query block name and object alias
+      required: [qb, alias, line]
+      additionalProperties: false
+      properties:
+        qb:
+          type: string
+        alias:
+          type: string
+        line:
+          type: integer
+    OptPlanPred:
+      type: object
+      description: one predicate line of an operation, `access(...)` or `filter(...)`
+      required: [text, line]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+        line:
+          type: integer
+    OptTerm:
+      type: object
+      description: an entry of the trace's own Legend
+      required: [term, text, line, codes]
+      additionalProperties: false
+      properties:
+        term:
+          type: string
+        text:
+          type: string
+        line:
+          type: integer
+        codes:
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: string
+          description: "dmeth's numbered meanings as [code, meaning] pairs; empty otherwise"
+    OptBanner:
+      type: object
+      description: a title between two rule lines
+      required: [top, title, bottom, text]
+      additionalProperties: false
+      properties:
+        top:
+          type: integer
+        title:
+          type: integer
+        bottom:
+          type: integer
+        text:
+          type: string
+    OptHint:
+      type: object
+      description: one line of `Dumping Hints` or of the Hint Report
+      required: [line, text, err, used]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        text:
+          type: string
+          description: 'the hint, INDEX ("O" "NO_SUCH_INDEX"); a Hint Report line as printed ("Unused: index(o no_such_index)", "use_hash(c)")'
+        err:
+          type: integer
+          description: atom_hint err=
+        used:
+          type: integer
+          description: "atom_hint used=; a Hint Report line with no verdict (a used hint): 1"
+        note:
+          type: string
+          description: 'Hint Report: "Unused", "Syntax Error", with its reason when printed'
+        src:
+          type: string
+          enum: [dump, report]
+          description: which section the line is from, Dumping Hints (dump) or the Hint Report (report)
+    OptBind:
+      type: object
+      description: a peeked bind of the other_xml section (or of Bind Info when that section has none)
+      required: [pos, type, value, line]
+      additionalProperties: false
+      properties:
+        pos:
+          type: integer
+        type:
+          type: string
+          description: '"NUMBER"'
+        value:
+          type: string
+          description: as printed; empty when the trace prints none
+        line:
+          type: integer
+          description: the `value=` line; 0 when none
+        dup:
+          type: integer
+          description: 'the position of the bind this one repeats (other_xml dup_position=; Bind Info "No oacdef for this bind."); 0 when it is not a repeat'
+    OptParam:
+      type: object
+      description: an altered parameter or fix control (PARAMETERS WITH ALTERED VALUES, PARAMETERS IN OPT_PARAM HINT)
+      required: [name, value, line, from]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        line:
+          type: integer
+        from:
+          type: string
+          enum: [altered, opt_param]
     LinesPage:
       type: object
       properties:
@@ -4915,6 +5602,19 @@ components:
         error:
           type: string
           description: the file could not be read; the other fields hold what was read
+        kind:
+          type: string
+          enum: ["10046", "10053", "both"]
+          description: "what the file holds: 10046 (SQL trace records), 10053 (optimizer dumps and no 10046 record) or both (event 10046 and 10053 on in one session: an interleaved file); absent when neither was seen. The file is read to its end for it"
+        optDumps:
+          type: integer
+          description: "the number of optimizer (10053) dumps in the file (a dump starts at its first `Registered qb: ... (PARSER)` line)"
+        optSqlIds:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+          description: the sql_id of the first 100 dumps, in file order ("" for a dump cut before its sql_id line)
     SessionState:
       type: string
       description: "opening → ready | failed; a live session: opening → live (from its first snapshot) → failed on a stream error; closed only in the event of a DELETE"
@@ -4965,6 +5665,11 @@ components:
         error:
           type: string
           description: why the session failed ("cancelled" when its job was cancelled)
+        optSqlIds:
+          type: array
+          items:
+            type: string
+          description: for a 10053 session once it is ready, the distinct sql_ids of the dumps of its file, in file order; absent for every other session
     SessionList:
       type: object
       required: [sessions]
@@ -5587,6 +6292,11 @@ components:
           $ref: "#/components/schemas/SessionState"
         rev:
           type: integer
+        optSqlIds:
+          type: array
+          items:
+            type: string
+          description: as in SessionInfo
     PromptEvent:
       type: object
       required: [id, connection, kind, text, echo, state]
@@ -5980,6 +6690,8 @@ components:
           type: array
           items:
             type: object
+        opt:
+          $ref: "#/components/schemas/OptDoc"
         stats:
           type: object
           properties:

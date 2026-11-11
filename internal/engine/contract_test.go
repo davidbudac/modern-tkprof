@@ -14,6 +14,7 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/assist"
 	"github.com/davidbudac/modern-tkprof/internal/cut"
+	"github.com/davidbudac/modern-tkprof/internal/opt"
 	"github.com/davidbudac/modern-tkprof/internal/peek"
 	"github.com/davidbudac/modern-tkprof/internal/remote"
 	"github.com/davidbudac/modern-tkprof/internal/report"
@@ -177,8 +178,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 43 {
-		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief and the assist tools", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 45 {
+		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools and the 2 opt routes", n)
 	}
 }
 
@@ -220,6 +221,23 @@ func TestContractProtocol(t *testing.T) {
 	}
 }
 
+// jsonFields are the JSON names of the fields of a struct type; the fields of
+// an embedded struct without a name of its own count as the struct's.
+func jsonFields(typ reflect.Type) []string {
+	var have []string
+	for i := 0; i < typ.NumField(); i++ {
+		f := typ.Field(i)
+		tag, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		switch {
+		case f.Anonymous && tag == "" && f.Type.Kind() == reflect.Struct:
+			have = append(have, jsonFields(f.Type)...)
+		case tag != "" && tag != "-":
+			have = append(have, tag)
+		}
+	}
+	return have
+}
+
 // TestContractSchemas: the control-plane schemas have exactly the JSON
 // fields of the Go types, the error codes are the engine's, and every $ref
 // resolves.
@@ -240,6 +258,11 @@ func TestContractSchemas(t *testing.T) {
 		"RefCounts": report.RefCounts{}, "RefStatus": RefStatus{}, "RefScript": RefScript{}, "RefPasteRequest": RefPasteRequest{}, "RefPasted": RefPasted{},
 		"CutPlan": cut.Plan{}, "CutPiece": cut.Piece{}, "CutRun": cut.Run{}, "CutFileRuns": cut.FileRuns{}, "CutStmt": cut.StmtCut{}, "CutCheck": cut.Check{},
 		"ListedFile": ListedFile{}, "FileList": FileList{}, "TracePeek": peek.Summary{}, "PeekSession": peek.Session{},
+		"OptDoc": report.OptDoc{}, "OptDigest": report.OptDigest{}, "OptLines": report.OptLines{}, "OptRange": opt.Range{},
+		"OptFile": opt.File{}, "OptDumpInfo": opt.DumpInfo{}, "OptDump": opt.Dump{}, "OptNode": opt.Node{}, "OptVerdict": opt.Verdict{},
+		"OptLandmark": opt.Landmark{}, "OptFold": opt.Fold{}, "OptRun": opt.Run{}, "OptSQL": opt.SQL{}, "OptPlan": opt.Plan{},
+		"OptPlanRow": opt.PlanRow{}, "OptPlanQB": opt.PlanQB{}, "OptPlanPred": opt.PlanPred{}, "OptTerm": opt.Term{},
+		"OptBanner": opt.Banner{}, "OptHint": opt.Hint{}, "OptBind": opt.Bind{}, "OptParam": opt.Param{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {
@@ -250,14 +273,7 @@ func TestContractSchemas(t *testing.T) {
 		for _, c := range children(keys, p) {
 			doc = append(doc, keys[c].key)
 		}
-		var have []string
-		typ := reflect.TypeOf(v)
-		for i := 0; i < typ.NumField(); i++ {
-			tag, _, _ := strings.Cut(typ.Field(i).Tag.Get("json"), ",")
-			if tag != "" && tag != "-" {
-				have = append(have, tag)
-			}
-		}
+		have := jsonFields(reflect.TypeOf(v))
 		slices.Sort(doc)
 		slices.Sort(have)
 		if !slices.Equal(doc, have) {

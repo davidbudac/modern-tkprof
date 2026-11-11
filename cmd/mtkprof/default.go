@@ -71,7 +71,17 @@ func cmdDefault(args []string) error {
 	if err != nil {
 		return err
 	}
-	err = report.Text(f, m, opts)
+	oi, done, oerr := optInput(m, bf, true, true) // one scan for the text and the HTML
+	if oerr != nil {
+		f.Close()
+		return oerr
+	}
+	defer done()
+	if oi != nil { // a 10053 file: the text report is its digest
+		err = report.OptText(f, oi)
+	} else {
+		err = report.Text(f, m, opts)
+	}
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}
@@ -82,5 +92,5 @@ func cmdDefault(args []string) error {
 	if !ui.Built() {
 		return fmt.Errorf("built without the web UI (make web, then rebuild): %s.html not written", base)
 	}
-	return writeHTML(base+".html", m, report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th})
+	return writeHTML(base+".html", m, report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th, Opt: oi})
 }

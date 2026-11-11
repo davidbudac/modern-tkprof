@@ -75,7 +75,7 @@ func cmdPivot(args []string) error {
 			sortM = measures[0]
 		}
 	}
-	m, err := buildModel(files, *nf)
+	m, err := buildTrace("nothing to pivot", files, *nf)
 	if err != nil {
 		return err
 	}

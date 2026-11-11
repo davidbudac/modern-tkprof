@@ -69,6 +69,9 @@ type SessionInfo struct {
 	Lines         int64      `json:"lines"`
 	Job           string     `json:"job,omitempty"` // the open job
 	Error         string     `json:"error,omitempty"`
+	// OptSQLIDs are the distinct sql_ids of the dumps of a 10053 session (in
+	// file order), once it is ready; absent for every other session.
+	OptSQLIDs []string `json:"optSqlIds,omitempty"`
 }
 
 // SessionEvent is the payload of a session event.
@@ -76,6 +79,8 @@ type SessionEvent struct {
 	ID    string `json:"id"`
 	State string `json:"state"`
 	Rev   int    `json:"rev"`
+	// OptSQLIDs as in SessionInfo.
+	OptSQLIDs []string `json:"optSqlIds,omitempty"`
 }
 
 // Session is one open trace set. Once ready it serves the handlers of
@@ -104,6 +109,9 @@ type Session struct {
 	hit   bool
 	ref   refState // ref.go
 
+	notes  []string // notes of the inputs (10053 files left out of the set), added to the document's notes
+	optIDs []string // OptSQLIDs, under mu
+
 	use sync.RWMutex // requests hold it shared, close exclusively
 	op  *opened      // set when ready; nil after close
 
@@ -130,6 +138,7 @@ func (ss *Session) end() {
 // opened is what a ready session serves from.
 type opened struct {
 	co      *CacheOpened
+	opt     *slice.OptServer // the routes of a 10053 file; nil for every other session
 	handler http.Handler
 	api     http.Handler // the slice routes of co (the assist tools read through them)
 	release func()       // instead of co.Close (a live session, live.go)
@@ -148,6 +157,7 @@ func (o *opened) trace() (*CacheOpened, http.Handler) {
 // close releases the line indexes and the spill files and unpins the cache
 // entry (its files stay).
 func (o *opened) close() {
+	o.opt.Close()
 	if o.release != nil {
 		o.release()
 		return
@@ -161,13 +171,13 @@ func (ss *Session) Info() SessionInfo {
 	defer ss.mu.Unlock()
 	return SessionInfo{ID: ss.id, Paths: ss.paths, State: ss.state, Rev: ss.rev, Identity: ss.identity,
 		CacheIdentity: ss.cacheID, Hit: ss.hit, Files: ss.files, Opened: ss.opened.UTC().Format(time.RFC3339), Bytes: ss.bytes, Lines: ss.lines,
-		Job: ss.job.info.ID, Error: ss.err}
+		Job: ss.job.info.ID, Error: ss.err, OptSQLIDs: ss.optIDs}
 }
 
 func (ss *Session) event() SessionEvent {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	return SessionEvent{ID: ss.id, State: ss.state, Rev: ss.rev}
+	return SessionEvent{ID: ss.id, State: ss.state, Rev: ss.rev, OptSQLIDs: ss.optIDs}
 }
 
 // close waits for the requests in flight and releases what the session holds.
@@ -264,13 +274,18 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeBadRequest, "paths: %v", err))
 		return
 	}
+	// A 10053 file is a session of its own: in a set of 10046 files it is left
+	// out, of a set of 10053 files the first is opened (the others are named in
+	// a note). Before the identities, so the cache entry and the line indexes
+	// are those of the files that stay.
+	inputs, notes := model.OptInputs(inputs)
 	ids, err := IdentityOfFiles(inputs)
 	if err != nil {
 		writeError(w, errorf(CodeBadRequest, "paths: %v", err))
 		return
 	}
 	ss := &Session{id: newID("s"), paths: paths, inputs: inputs, identity: TraceIdentity(ids), opened: time.Now(),
-		bindMode: mode, salt: o.Salt, th: th, done: make(chan struct{}), state: SessionOpening, rev: 1, files: fileInfos(inputs)}
+		bindMode: mode, salt: o.Salt, th: th, done: make(chan struct{}), state: SessionOpening, rev: 1, files: fileInfos(inputs), notes: notes}
 	if ss.cacheID, err = CacheIdentity(inputs, ss.cacheOptions(nil)); err != nil {
 		writeError(w, errorf(CodeBadRequest, "paths: %v", err))
 		return
@@ -343,6 +358,9 @@ func (s *Server) runOpen(ss *Session) {
 	ss.lastUsed.Store(time.Now().UnixNano())
 	ss.mu.Lock()
 	ss.state, ss.files, ss.bytes, ss.lines, ss.hit = SessionReady, files, m.Diag.Bytes, int64(m.Diag.Lines), op.co.Hit
+	if op.opt != nil {
+		ss.optIDs = op.opt.SQLIDs()
+	}
 	ss.mu.Unlock()
 	job.mu.Lock()
 	job.info.Phase = "ready"
@@ -377,7 +395,7 @@ func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
 
 // sessionRoutes are the routes of a ready session, relative to /s/{id}.
 func sessionRoutes() []string {
-	out := []string{"GET /api/doc", "GET /api/report", "GET /api/ref", "POST /api/ref", "GET /api/ref/script", "POST /api/ref/paste", "POST /api/brief", "POST /api/assist/tools/{name}"}
+	out := []string{"GET /api/doc", "GET /api/report", "GET /api/opt/dump", "GET /api/opt/text", "GET /api/ref", "POST /api/ref", "GET /api/ref/script", "POST /api/ref/paste", "POST /api/brief", "POST /api/assist/tools/{name}"}
 	for _, ep := range append(slice.Endpoints(), slice.LineEndpoints()...) {
 		out = append(out, "GET "+ep)
 	}
@@ -437,11 +455,18 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 		return nil, fmt.Errorf("cache: opened %s, expected %s", co.Identity, ss.cacheID)
 	}
 	m := co.Model
+	m.Diag.Notes = append(m.Diag.Notes, ss.notes...)
+	if sc, err := report.OptScan(m); err != nil {
+		return nil, fmt.Errorf("%s: %w", m.File.Files[0].Name, err)
+	} else if sc != nil { // a 10053 file: its dumps are read from the file, not from the cache
+		op.opt = slice.NewOptServer(m.File.Files[0].Path, sc, co.Lines[0])
+		op.opt.AllowOrigin = slice.NoCORS
+	}
 	b, gen := s.storedRefGen(ss) // a bundle kept for this trace (ref.go)
 	if b != nil {
 		model.ApplyRef(m, b)
 	}
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th})
+	doc, err := report.DocumentBytes(m, ss.docOptions(op.opt, false))
 	if err != nil {
 		return nil, err
 	}
@@ -451,13 +476,35 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 	ss.mu.Lock()
 	ss.ref.doc, ss.ref.gen = doc, gen
 	ss.mu.Unlock()
-	op.handler, op.api = s.sessionMux(ss, co, doc)
+	op.handler, op.api = s.sessionMux(ss, co, doc, op.opt)
 	return op, nil
 }
 
+// docOptions are the options of the session's document. o is the server of
+// its 10053 file (nil for any other file); digest puts the digest of the
+// dumps in the document (a report made for a client without a server).
+func (ss *Session) docOptions(o *slice.OptServer, digest bool) report.DocOptions {
+	d := report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th}
+	if o != nil {
+		d.Opt = ss.optInput(o, digest)
+	}
+	return d
+}
+
+// optInput is what the documents and the text report of a 10053 session are
+// made from. nil when the file cannot be scanned (it was, at open).
+func (ss *Session) optInput(o *slice.OptServer, digest bool) *report.OptInput {
+	sc, err := o.Scan()
+	if err != nil || sc == nil {
+		return nil
+	}
+	return &report.OptInput{Scan: sc, Digest: digest, Text: report.OptBindText(ss.bindMode, ss.salt)}
+}
+
 // sessionMux serves the routes of a session (sessionRoutes) from an opened
-// trace and its document; api is its slice routes alone.
-func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) (mux, api http.Handler) {
+// trace and its document; api is its slice routes alone. ot serves the two
+// api/opt routes of a 10053 file (nil: they answer 404).
+func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte, ot *slice.OptServer) (mux, api http.Handler) {
 	ssrv := slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
 	ssrv.AllowOrigin = slice.NoCORS                                  // the engine's middleware sets CORS
 	ssrv.Thresholds = ss.th                                          // api/findings: those of the document's findings
@@ -465,7 +512,9 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte) (mux, api 
 	ssrv.Checks = &ss.cutChecks                                      // api/cut/check: one at a time over the session's (live) snapshots
 	api = ssrv.Handler()
 	handlers := map[string]http.Handler{
-		"GET /api/report": http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL).serve),
+		"GET /api/report":   http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL, ot).serve),
+		"GET /api/opt/dump": ot.DumpHandler(), // 404 unless the session is a 10053 file
+		"GET /api/opt/text": ot.TextHandler(),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// ?rev= is accepted and ignored here: the current document is served
 			// (its revision is the session's rev, which a reference bundle
@@ -675,4 +724,14 @@ func (s *Server) evictLoop(d time.Duration) {
 			s.evictIdle(d, now)
 		}
 	}
+}
+
+// optRefusal is the error for what a 10053 session does not do in this
+// version (the assistant, the brief, the comparison): nil for any other
+// session.
+func optRefusal(m *model.Model, what string) error {
+	if m == nil || !m.OptOnly() {
+		return nil
+	}
+	return errorf(CodeBadRequest, "%s is a 10053 file: %s", m.File.Files[0].Name, what)
 }

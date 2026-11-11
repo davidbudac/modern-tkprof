@@ -57,7 +57,7 @@ func cmdBrief(args []string) error {
 			return err
 		}
 	}
-	m, err := buildModel(files, *nf)
+	m, err := buildTrace("no brief to make", files, *nf)
 	if err != nil {
 		return err
 	}

@@ -157,6 +157,9 @@ func (l *Local) open(paths []string) error {
 		}
 		abs[i] = a
 	}
+	if name, ok := model.AllOpt(abs); ok {
+		return argErrorf("%s is a 10053 (optimizer) trace file; the assistant reads 10046 traces only in this version", name)
+	}
 	start := time.Now()
 	m, err := model.BuildFiles(abs, model.Options{})
 	if err != nil {

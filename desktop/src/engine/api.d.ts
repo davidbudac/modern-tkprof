@@ -1011,6 +1011,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/s/{id}/api/opt/dump": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The model of one dump of a 10053 session
+         * @description The model (`opt.Dump`: outline, landmarks, folds, costing runs, the
+         *     versions of the SQL, the plan, hints, binds, altered parameters, the
+         *     digest ranges) of dump `i` of the session's optimizer (10053) file.
+         *     The dumps are listed in the document's `opt.file.dumps`. The model is
+         *     read from the file when the session opens and kept for the session.
+         *     The values are those of the file: `binds` the session was opened with
+         *     (`redact`, `none`) act on the reports (`api/report`), not here.
+         *     404 when the session is not a 10053 file, or `i` is not a dump of it.
+         */
+        get: operations["sessionOptDump"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/opt/text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The text of one dump of a 10053 session
+         * @description The lines `viewFrom` to `viewTo` of dump `i` (the dump and the lines
+         *     around it that the reader shows for it, see `opt.DumpInfo`) as
+         *     `text/plain`: exactly `lineCount` lines joined by `\n`, without a
+         *     final line terminator and without `\r`. The file as it is, whatever
+         *     bind handling the session was opened with. 404 when the session is not
+         *     a 10053 file, or `i` is not a dump of it.
+         */
+        get: operations["sessionOptText"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/s/{id}/api/lines": {
         parameters: {
             query?: never;
@@ -1887,10 +1939,343 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description the parser's kind of a trace line (trace.Kind.String())
+         * @description the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one
          * @enum {string}
          */
-        LineKind: "unknown" | "blank" | "header" | "separator" | "marker" | "parsing-in-cursor" | "sql-text" | "end-of-stmt" | "call" | "wait" | "stat" | "binds" | "bind-line" | "xctend" | "error" | "parse-error" | "lob" | "rpc";
+        LineKind: "unknown" | "blank" | "header" | "separator" | "marker" | "parsing-in-cursor" | "sql-text" | "end-of-stmt" | "call" | "wait" | "stat" | "binds" | "bind-line" | "xctend" | "error" | "parse-error" | "lob" | "rpc" | "optimizer";
+        /** @description the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record */
+        OptDoc: {
+            file: components["schemas"]["OptFile"];
+            digest?: components["schemas"]["OptDigest"];
+        };
+        /** @description the digest of a 10053 file, in a document made for a client without a server (mtkprof html, json, the default command, the engine's HTML and JSON export); a document served by a server leaves it out and the client reads the api/opt routes */
+        OptDigest: {
+            /** @description the model of every dump, bind values redacted or dropped as asked */
+            dumps: components["schemas"]["OptDump"][];
+            /** @description the lines of the dumps' digest ranges, ascending, in runs of consecutive lines */
+            lines: components["schemas"]["OptLines"][];
+        };
+        /** @description a run of consecutive lines */
+        OptLines: {
+            /** @description line number of text[0] */
+            from: number;
+            text: string[];
+        };
+        /** @description a run of lines, inclusive at both ends */
+        OptRange: {
+            from: number;
+            to: number;
+        };
+        /** @description what one pass over a 10053 file finds (opt.File) */
+        OptFile: {
+            /** @description base name of the file */
+            name: string;
+            /** @description lines in the file */
+            lines: number;
+            /** @description prologue line 2, e.g. Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production */
+            release: string;
+            /** @description prologue "Version 19.27.0.0.0" as 19.27.0.0.0; empty when the file has no prologue */
+            version: string;
+            /** @description the version is a 19.x one (the rules were written for 19c) */
+            tested: boolean;
+            /** @description the 10046 records in the file, inside or outside dumps; a file is a 10053 file when it has a dump and this is 0 */
+            records10046: number;
+            dumps: components["schemas"]["OptDumpInfo"][];
+        };
+        /** @description the summary of one dump */
+        OptDumpInfo: {
+            /** @description 0-based position in the file */
+            idx: number;
+            /** @description the first `Registered qb ... (PARSER)` line, where the dump starts */
+            from: number;
+            /** @description the `END SQL Statement Dump` line */
+            end: number;
+            /** @description first line the reader shows for the dump: the file prologue for the first dump; the views of a file's dumps tile the file */
+            viewFrom: number;
+            /** @description last line the reader shows (the lines after the dump up to the next one, the adaptive plan's execution lines, included) */
+            viewTo: number;
+            /** @description viewTo - viewFrom + 1 */
+            lineCount: number;
+            /** @description the file ended, or another dump began, before the end line */
+            truncated?: boolean;
+            sqlId: string;
+            /** @description 1-based count among the file's dumps of this sql_id */
+            nth: number;
+            /** @description the statement as typed, from `Current SQL Statement for this session` */
+            stmtText: string;
+            /** @description stmtText on one line, white space collapsed, cut at 240 characters */
+            sqlStart: string;
+            /** @description distinct table names of the parser's query blocks and costing runs, in order of first mention */
+            tables: string[];
+            /** @description "plan_hash" of the other_xml section (the plh of a 10046 EXEC line); empty when absent */
+            planHash: string;
+            /** @description costing runs */
+            runCount: number;
+            /** @description lines of the dump that sit directly under a phase or the dump node, in no known section (the measure for a file of an untested version) */
+            unplaced: number;
+        };
+        /** @description the whole model of one dump (opt.Dump); it holds all the properties of OptDumpInfo as well */
+        OptDump: {
+            idx: number;
+            from: number;
+            end: number;
+            viewFrom: number;
+            viewTo: number;
+            lineCount: number;
+            truncated?: boolean;
+            sqlId: string;
+            nth: number;
+            stmtText: string;
+            sqlStart: string;
+            tables: string[];
+            planHash: string;
+            runCount: number;
+            unplaced: number;
+            /** @description first line of the statement text */
+            stmtLine: number;
+            /** @description its last line */
+            stmtTo: number;
+            tree: components["schemas"]["OptNode"];
+            landmarks: components["schemas"]["OptLandmark"][];
+            folds: components["schemas"]["OptFold"][];
+            runs: components["schemas"]["OptRun"][];
+            sql: components["schemas"]["OptSQL"][];
+            plan?: components["schemas"]["OptPlan"];
+            legend: components["schemas"]["OptTerm"][];
+            banners: components["schemas"]["OptBanner"][];
+            /** @description the lines the formatted text dresses, by line number: bt banner top, bh banner title, bb banner bottom, uh a heading line, ul its underline */
+            roles: {
+                [key: string]: string;
+            };
+            hints: components["schemas"]["OptHint"][];
+            binds: components["schemas"]["OptBind"][];
+            altered: components["schemas"]["OptParam"][];
+            /** @description the lines that print a bind value (`value=11` under Bind Info and Peeked Binds); what -redact-binds and -binds none act on */
+            bindLines: number[];
+            /** @description the line ranges the digest keeps, ascending, not overlapping */
+            digest: components["schemas"]["OptRange"][];
+        };
+        /** @description a section of the outline; kind is one of the kinds of internal/opt/kinds.go, the optional fields are set for the kinds named beside them in opt.Node */
+        OptNode: {
+            /** @description unique in the dump, stable for one file ("n12") */
+            id: string;
+            kind: string;
+            /** @description the outline row */
+            label: string;
+            /** @description the short form for the where-am-I path */
+            crumb: string;
+            from: number;
+            to: number;
+            /** @description depth, 0 the dump, 1 a phase */
+            lvl: number;
+            children?: components["schemas"]["OptNode"][];
+            /** @description run, registered: the query block name */
+            qb?: string;
+            /** @description run: the "(#n)" number */
+            qbn?: string;
+            /** @description run, iteration, join-order: its number */
+            n?: number;
+            /** @description run: the dump's run count */
+            of?: number;
+            /** @description tsec, cbsec: the banner title */
+            title?: string;
+            /** @description tsec, cbsec: how many consecutive sections of this title the node merges */
+            count?: number;
+            /** @description iteration: "GBP", "CVM", "JPPD", ... */
+            prefix?: string;
+            /** @description iteration: the state space text */
+            space?: string;
+            /** @description iteration: ids of its runs, nested iterations' runs included */
+            runs?: string[];
+            verdict?: components["schemas"]["OptVerdict"];
+            /** @description run: id of the innermost iteration holding it */
+            iter?: string;
+            /** @description run: that iteration's crumb */
+            iterLabel?: string;
+            /** @description run: after `Final query after transformations` */
+            final?: boolean;
+            /** @description run: the number of the earlier run with the same text; 0 none */
+            sameAs?: number;
+            /** @description run: "Best join order: N" */
+            bestJo?: number;
+            /** @description table: the name; join-step: "MTK_ORDERS[O]#1" */
+            table?: string;
+            /** @description table: the access path of its "Best:: AccessPath" line */
+            best?: string;
+            /** @description join-order: its tables as printed */
+            tables?: string[];
+            /** @description join-order: the cost of its last "Best so far" line, as printed */
+            cost?: string;
+            /** @description join-order: the run's `Best join order` names it */
+            isBest?: boolean;
+            /** @description join-step: the method of its "Best:: JoinMethod" line */
+            method?: string;
+            /** @description the right-hand text of the outline row, in the trace's words: a table's access path, a join order's cost or aborted, a join step's method */
+            result?: string;
+            /** @description params-default: the last line of its banner */
+            bannerBottom?: number;
+        };
+        /** @description the line that closes a cost-based iteration */
+        OptVerdict: {
+            /** @description "GBP: Updated best state, Cost = 384.608830" */
+            text: string;
+            line: number;
+            /** @description "Updated best state"; false for "Not update best state" */
+            kept: boolean;
+        };
+        /** @description a key line */
+        OptLandmark: {
+            line: number;
+            /** @description best-ap, best-jm, final-cost, aborted, verdict, refused or hint-error */
+            kind: string;
+            /** @description kept, rejected or problem */
+            tone: string;
+            /** @description the line, trimmed */
+            text: string;
+        };
+        /** @description a run of lines the formatted text closes by default */
+        OptFold: {
+            id: string;
+            from: number;
+            to: number;
+            lines: number;
+            /** @description params, state, fix, ap, same-run, stmt-again or same-sql */
+            kind: string;
+            /** @description the reason shown on the closed row */
+            label: string;
+            closed: boolean;
+        };
+        /** @description a costing run (`kkoqbc: optimizing` to `kkoqbc: finish optimizing`), also a node of the tree */
+        OptRun: {
+            /** @description the node's id */
+            id: string;
+            n: number;
+            of: number;
+            qb: string;
+            qbn: string;
+            from: number;
+            to: number;
+            verdict?: components["schemas"]["OptVerdict"];
+            /** @description the crumb of its iteration, "CVM iteration 1"; empty outside any */
+            iter: string;
+            final: boolean;
+            /** @description 0 none */
+            sameAs: number;
+            bestJo: number;
+        };
+        /** @description one `UNPARSED QUERY IS` statement */
+        OptSQL: {
+            /** @description 1-based, in file order within the dump */
+            n: number;
+            /** @description the header line */
+            head: number;
+            /** @description the statement's line */
+            line: number;
+            /** @description what the header (or the line before it) calls it: "Final query after transformations" */
+            label: string;
+            /** @description the statement, one line */
+            text: string;
+            /** @description line of the earlier identical statement; 0 none */
+            sameAs: number;
+            /** @description line of the previous different statement; 0 none */
+            prev: number;
+        };
+        /** @description the dump's plan table with what follows it */
+        OptPlan: {
+            /** @description first line of the `Plan Table` banner */
+            from: number;
+            /** @description the column header line */
+            head: number;
+            /** @description last line of the table */
+            tableTo: number;
+            /** @description last line of the predicate section */
+            to: number;
+            cols: string[];
+            rows: components["schemas"]["OptPlanRow"][];
+            /** @description by operation id */
+            qbs: {
+                [key: string]: components["schemas"]["OptPlanQB"];
+            };
+            /** @description by operation id */
+            preds: {
+                [key: string]: components["schemas"]["OptPlanPred"][];
+            };
+        };
+        /** @description one operation; the numbers are kept as printed ("96K") */
+        OptPlanRow: {
+            line: number;
+            id: number;
+            depth: number;
+            op: string;
+            name: string;
+            rows: string;
+            bytes: string;
+            cost: string;
+            time: string;
+        };
+        /** @description an operation's query block name and object alias */
+        OptPlanQB: {
+            qb: string;
+            alias: string;
+            line: number;
+        };
+        /** @description one predicate line of an operation, `access(...)` or `filter(...)` */
+        OptPlanPred: {
+            text: string;
+            line: number;
+        };
+        /** @description an entry of the trace's own Legend */
+        OptTerm: {
+            term: string;
+            text: string;
+            line: number;
+            /** @description dmeth's numbered meanings as [code, meaning] pairs; empty otherwise */
+            codes: string[][];
+        };
+        /** @description a title between two rule lines */
+        OptBanner: {
+            top: number;
+            title: number;
+            bottom: number;
+            text: string;
+        };
+        /** @description one line of `Dumping Hints` or of the Hint Report */
+        OptHint: {
+            line: number;
+            /** @description the hint, INDEX ("O" "NO_SUCH_INDEX"); a Hint Report line as printed ("Unused: index(o no_such_index)", "use_hash(c)") */
+            text: string;
+            /** @description atom_hint err= */
+            err: number;
+            /** @description atom_hint used=; a Hint Report line with no verdict (a used hint): 1 */
+            used: number;
+            /** @description Hint Report: "Unused", "Syntax Error", with its reason when printed */
+            note?: string;
+            /**
+             * @description which section the line is from, Dumping Hints (dump) or the Hint Report (report)
+             * @enum {string}
+             */
+            src?: "dump" | "report";
+        };
+        /** @description a peeked bind of the other_xml section (or of Bind Info when that section has none) */
+        OptBind: {
+            pos: number;
+            /** @description "NUMBER" */
+            type: string;
+            /** @description as printed; empty when the trace prints none */
+            value: string;
+            /** @description the `value=` line; 0 when none */
+            line: number;
+            /** @description the position of the bind this one repeats (other_xml dup_position=; Bind Info "No oacdef for this bind."); 0 when it is not a repeat */
+            dup?: number;
+        };
+        /** @description an altered parameter or fix control (PARAMETERS WITH ALTERED VALUES, PARAMETERS IN OPT_PARAM HINT) */
+        OptParam: {
+            name: string;
+            value: string;
+            line: number;
+            /** @enum {string} */
+            from: "altered" | "opt_param";
+        };
         LinesPage: {
             from?: number;
             /** @description the line count of the file */
@@ -2636,6 +3021,15 @@ export interface components {
             truncated?: boolean;
             /** @description the file could not be read; the other fields hold what was read */
             error?: string;
+            /**
+             * @description what the file holds: 10046 (SQL trace records), 10053 (optimizer dumps and no 10046 record) or both (event 10046 and 10053 on in one session: an interleaved file); absent when neither was seen. The file is read to its end for it
+             * @enum {string}
+             */
+            kind?: "10046" | "10053" | "both";
+            /** @description the number of optimizer (10053) dumps in the file (a dump starts at its first `Registered qb: ... (PARSER)` line) */
+            optDumps?: number;
+            /** @description the sql_id of the first 100 dumps, in file order ("" for a dump cut before its sql_id line) */
+            optSqlIds?: string[];
         };
         /**
          * @description opening → ready | failed; a live session: opening → live (from its first snapshot) → failed on a stream error; closed only in the event of a DELETE
@@ -2665,6 +3059,8 @@ export interface components {
             job?: string;
             /** @description why the session failed ("cancelled" when its job was cancelled) */
             error?: string;
+            /** @description for a 10053 session once it is ready, the distinct sql_ids of the dumps of its file, in file order; absent for every other session */
+            optSqlIds?: string[];
         };
         SessionList: {
             sessions: components["schemas"]["SessionInfo"][];
@@ -3031,6 +3427,8 @@ export interface components {
             id: string;
             state: components["schemas"]["SessionState"];
             rev: number;
+            /** @description as in SessionInfo */
+            optSqlIds?: string[];
         };
         PromptEvent: {
             id: string;
@@ -3243,6 +3641,7 @@ export interface components {
             markers?: Record<string, never>[];
             diag?: Record<string, never>;
             unknown?: Record<string, never>[];
+            opt?: components["schemas"]["OptDoc"];
             stats?: {
                 minimap?: {
                     bucketUs?: number;
@@ -4544,6 +4943,76 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionOptDump: {
+        parameters: {
+            query: {
+                /** @description 0-based index of the dump (`opt.file.dumps[].idx`) */
+                i: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the dump */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OptDump"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description no such session (envelope), or the session is not a 10053 file or has no such dump (plain text) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionOptText: {
+        parameters: {
+            query: {
+                /** @description 0-based index of the dump */
+                i: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the lines */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description no such session (envelope), or the session is not a 10053 file or has no such dump (plain text) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             409: components["responses"]["Conflict"];
         };
     };

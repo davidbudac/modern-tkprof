@@ -12,6 +12,7 @@ import (
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/model"
+	"github.com/davidbudac/modern-tkprof/internal/opt"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 	"github.com/davidbudac/modern-tkprof/internal/slice"
 	"github.com/davidbudac/modern-tkprof/internal/ui"
@@ -32,9 +33,11 @@ type sessionReport struct {
 	th      *analyze.Thresholds
 	base    string // download name without extension
 	planViz string
+	ss      *Session
+	opt     *slice.OptServer // the session's 10053 file; nil for any other
 }
 
-func newSessionReport(ss *Session, co *CacheOpened, planViz string) *sessionReport {
+func newSessionReport(ss *Session, co *CacheOpened, planViz string, ot *slice.OptServer) *sessionReport {
 	base := "mtkprof"
 	if len(ss.paths) > 0 {
 		base = filepath.Base(strings.TrimSuffix(strings.TrimRight(ss.paths[0], "/\\"), ".trc"))
@@ -42,7 +45,23 @@ func newSessionReport(ss *Session, co *CacheOpened, planViz string) *sessionRepo
 	if planViz == "" {
 		planViz = report.DefaultPlanVizURL
 	}
-	return &sessionReport{m: co.Model, src: co.Source, th: ss.th, base: base, planViz: planViz}
+	return &sessionReport{m: co.Model, src: co.Source, th: ss.th, base: base, planViz: planViz, ss: ss, opt: ot}
+}
+
+// optInput is the input of the documents and the text report of a 10053
+// session, made for a client without a server: with the digest. The returned
+// function closes the file's line reader.
+func (sr *sessionReport) optInput() (*report.OptInput, func(), error) {
+	in := sr.ss.optInput(sr.opt, true)
+	if in == nil {
+		return nil, nil, errorf(CodeInternal, "the 10053 file cannot be read")
+	}
+	line, closeFn, err := opt.FileLines(sr.m.File.Files[0].Path)
+	if err != nil {
+		return nil, nil, errorf(CodeInternal, "%v", err)
+	}
+	in.Line = line
+	return in, func() { closeFn() }, nil
 }
 
 // countWriter counts the bytes that reached the response, to tell a failure
@@ -77,12 +96,35 @@ func (sr *sessionReport) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		ctype, ext = "text/plain; charset=utf-8", ".txt"
 		write = func(w io.Writer) error { return report.Text(w, sr.m, o) }
+		if sr.opt != nil { // a 10053 file: its digest
+			write = func(w io.Writer) error {
+				in, done, err := sr.optInput()
+				if err != nil {
+					return err
+				}
+				defer done()
+				return report.OptText(w, in)
+			}
+		}
 	case "json":
 		ctype, ext = "application/json", ".json"
 		write = func(w io.Writer) error {
-			return report.JSON(w, sr.m, report.DocOptions{Facts: false, Packed: false, PlanVizURL: sr.planViz, Thresholds: sr.th})
+			do := report.DocOptions{Facts: false, Packed: false, PlanVizURL: sr.planViz, Thresholds: sr.th}
+			if sr.opt != nil {
+				in, done, err := sr.optInput()
+				if err != nil {
+					return err
+				}
+				defer done()
+				do.Opt = in
+			}
+			return report.JSON(w, sr.m, do)
 		}
 	case "csv":
+		if sr.opt != nil {
+			writeError(w, errorf(CodeBadRequest, "%s is a 10053 file: nothing to export as tables; format=text is its digest", sr.m.File.Files[0].Name))
+			return
+		}
 		ctype, ext = "application/zip", ".csv.zip"
 		write = func(w io.Writer) error { return report.ExportCSVZip(r.Context(), w, sr.m, sr.src) }
 	case "html":
@@ -92,8 +134,17 @@ func (sr *sessionReport) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		ctype, ext = "text/html; charset=utf-8", ".html"
 		write = func(w io.Writer) error {
+			do := report.DocOptions{Facts: false, Packed: true, PlanVizURL: sr.planViz, Thresholds: sr.th}
+			if sr.opt != nil {
+				in, done, err := sr.optInput()
+				if err != nil {
+					return err
+				}
+				defer done()
+				do.Opt = in
+			}
 			return ui.WriteStandalone(w, func(w io.Writer) error {
-				return report.WriteDocument(w, sr.m, report.DocOptions{Facts: false, Packed: true, PlanVizURL: sr.planViz, Thresholds: sr.th})
+				return report.WriteDocument(w, sr.m, do)
 			})
 		}
 	default:

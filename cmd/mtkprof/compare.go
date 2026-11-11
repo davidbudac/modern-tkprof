@@ -51,7 +51,7 @@ func parseTwo(fs *flag.FlagSet, args []string) (string, string, error) {
 func buildPair(fa, fb, ref string, bf *bindFlags) (*model.Model, *model.Model, error) {
 	var ms [2]*model.Model
 	for i, f := range []string{fa, fb} {
-		m, err := buildModel([]string{f}, false)
+		m, err := buildTrace("nothing to compare", []string{f}, false)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -74,11 +74,11 @@ func cmdCompare(args []string) error {
 	if err != nil {
 		return err
 	}
-	a, err := buildModel([]string{fa}, false)
+	a, err := buildTrace("nothing to compare", []string{fa}, false)
 	if err != nil {
 		return err
 	}
-	b, err := buildModel([]string{fb}, false)
+	b, err := buildTrace("nothing to compare", []string{fb}, false)
 	if err != nil {
 		return err
 	}

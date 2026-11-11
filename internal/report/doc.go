@@ -54,6 +54,11 @@ type Document struct {
 	// /api/pivot, /api/timeline, ... queries (internal/slice), so a document
 	// without fact tables is still fully interactive.
 	Slice bool `json:"slice,omitempty"`
+
+	// Opt is present for a 10053 file only (opt.go): the model of its dumps,
+	// and for a client without a server their digest. The rest of such a
+	// document is that of an empty 10046 model.
+	Opt *OptDoc `json:"opt,omitempty"`
 }
 
 // Facts are the columnar fact tables as plain JSON arrays. The packed form
@@ -187,6 +192,10 @@ type DocOptions struct {
 	PlanVizURL string // base URL of the plan visualizer, carried into Document.PlanViz
 
 	Slice bool // the serving process answers the slicing API: sets Document.Slice
+
+	// Opt makes the document that of a 10053 file (Document.Opt); nil for
+	// every other file.
+	Opt *OptInput
 }
 
 // BuildDocument assembles the document from a model. Fact tables, if asked
@@ -232,7 +241,62 @@ func buildDocument(m *model.Model, o DocOptions, withFacts bool) *Document {
 	}
 	d.PlanViz = o.PlanVizURL
 	d.Slice = o.Slice
+	if o.Opt != nil {
+		d.Opt = buildOpt(o.Opt)
+		d.Diag.Notes = withoutDumpNotes(m)
+		d.emptyLists()
+	}
 	return d
+}
+
+// emptyLists turns the nil lists of the document of a model with no records
+// into empty ones: the document of a 10053 file has no null list.
+func (d *Document) emptyLists() {
+	if d.Statements == nil {
+		d.Statements = []model.Statement{}
+	}
+	if d.Cursors == nil {
+		d.Cursors = []model.Cursor{}
+	}
+	if d.Contexts == nil {
+		d.Contexts = []model.Context{}
+	}
+	if d.Events == nil {
+		d.Events = []model.Event{}
+	}
+	if d.Plans == nil {
+		d.Plans = []model.Plan{}
+	}
+	if d.PlanLines == nil {
+		d.PlanLines = []model.PlanLine{}
+	}
+	if d.Transactions == nil {
+		d.Transactions = []model.Transaction{}
+	}
+	if d.Errors == nil {
+		d.Errors = []model.ErrorEvent{}
+	}
+	if d.Markers == nil {
+		d.Markers = []model.Marker{}
+	}
+	if d.Unknown == nil {
+		d.Unknown = []model.UnknownLine{}
+	}
+	if d.Stats.Statements == nil {
+		d.Stats.Statements = []analyze.StmtStats{}
+	}
+	if d.Stats.Events == nil {
+		d.Stats.Events = []analyze.EventAgg{}
+	}
+	if d.Stats.Timeline == nil {
+		d.Stats.Timeline = []analyze.Bucket{}
+	}
+	if d.Stats.Findings == nil {
+		d.Stats.Findings = []analyze.Finding{}
+	}
+	if d.Stats.Contexts == nil {
+		d.Stats.Contexts = []analyze.ContextStats{}
+	}
 }
 
 // buildFacts lays out the fact tables. The µs measures of calls (c, e, selfE,

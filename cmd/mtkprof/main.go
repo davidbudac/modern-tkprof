@@ -344,7 +344,7 @@ func cmdRefScript(args []string) error {
 	if *plans && !*paste {
 		return fmt.Errorf("-plans: with -paste only (the spooling script always collects plans)")
 	}
-	m, err := buildModel(files, *nf)
+	m, err := buildTrace("no object names to collect", files, *nf)
 	if err != nil {
 		return err
 	}
@@ -396,6 +396,14 @@ func cmdReport(args []string) error {
 		return err
 	}
 	defer w.Close()
+	oi, done, err := optInput(m, bf, false, true)
+	if err != nil {
+		return err
+	}
+	defer done()
+	if oi != nil { // a 10053 file: its digest
+		return report.OptText(w, oi)
+	}
 	return report.Text(w, m, opts)
 }
 
@@ -432,7 +440,12 @@ func cmdJSON(args []string) error {
 		return err
 	}
 	defer w.Close()
-	return report.JSON(w, m, report.DocOptions{Facts: *facts && !aggregate, Packed: *packed, PlanVizURL: *pv, Thresholds: th})
+	do, done, err := withOpt(report.DocOptions{Facts: *facts && !aggregate, Packed: *packed, PlanVizURL: *pv, Thresholds: th}, m, bf, true)
+	if err != nil {
+		return err
+	}
+	defer done()
+	return report.JSON(w, m, do)
 }
 
 func cmdHTML(args []string) error {
@@ -469,7 +482,12 @@ func cmdHTML(args []string) error {
 	if path == "" {
 		path = outBase(files) + ".html"
 	}
-	return writeHTML(path, m, report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th})
+	do, done, err := withOpt(report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th}, m, bf, true)
+	if err != nil {
+		return err
+	}
+	defer done()
+	return writeHTML(path, m, do)
 }
 
 // writeHTML writes the self-contained HTML report of m to path.
@@ -504,7 +522,7 @@ func cmdExport(args []string) error {
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
 	files := parseArgs(fs, args)
-	m, err := buildModel(files, *nf)
+	m, err := buildTrace("nothing to export", files, *nf)
 	if err != nil {
 		return err
 	}
@@ -569,7 +587,14 @@ func cmdServe(args []string) error {
 		return err
 	}
 	bf.apply(m)
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th, Slice: slicing})
+	// A 10053 file: the document says so ("opt.file"), and the two api/opt routes
+	// answer for its dumps. No digest: the browser reads the routes.
+	oi, done, err := optInput(m, bf, false, false)
+	if err != nil {
+		return err
+	}
+	defer done()
+	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th, Slice: slicing, Opt: oi})
 	if err != nil {
 		return err
 	}
@@ -599,6 +624,11 @@ func cmdServe(args []string) error {
 		lis = append(lis, li)
 	}
 	mux := http.NewServeMux()
+	if osrv := optServer(m, oi, lis); osrv != nil {
+		defer osrv.Close()
+		mux.Handle("/api/opt/dump", osrv.DumpHandler())
+		mux.Handle("/api/opt/text", osrv.TextHandler())
+	}
 	// The slicing modes serve the line endpoints too (lines incl. annot=1,
 	// lines/at, at, search); /api/doc below is the longer pattern's exception.
 	if src != nil || slicing {
@@ -669,6 +699,17 @@ func removeSpillOnSignal(sp *slicepkg.Spill) {
 
 func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	start := time.Now()
+	// A 10053 file is a run of its own: left out of a set of 10046 files, the
+	// first of a set of 10053 files (the others are named in a note).
+	optNotes = nil
+	if exp, err := model.ExpandInputs(files); err == nil && len(exp) > 1 {
+		if kept, notes := model.OptInputs(exp); len(notes) > 0 {
+			files, optNotes = kept, notes
+			for _, n := range notes {
+				fmt.Fprintln(os.Stderr, "note:", n)
+			}
+		}
+	}
 	aggMode := aggregate || spillCfg.on
 	if (lowMem || aggMode) && os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(20)
@@ -693,6 +734,7 @@ func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	if err != nil {
 		return nil, err
 	}
+	m.Diag.Notes = append(m.Diag.Notes, optNotes...)
 	what := files[0]
 	if n := len(m.File.Files); n > 1 {
 		what = fmt.Sprintf("%d files (%s ...)", n, m.File.Files[0].Name)

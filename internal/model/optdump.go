@@ -70,8 +70,10 @@ func DumpNote(name string, ds []DumpRange) string {
 	return b.String()
 }
 
-// noteDumps adds one note per file that holds optimizer dumps.
-func (m *Model) noteDumps() {
+// DumpNotes are the notes noteDumps adds: one per file that holds optimizer
+// dumps.
+func (m *Model) DumpNotes() []string {
+	var out []string
 	multi := len(m.File.Files) > 1
 	for _, fe := range m.File.Files {
 		name := ""
@@ -79,9 +81,76 @@ func (m *Model) noteDumps() {
 			name = fe.Name
 		}
 		if n := DumpNote(name, fe.Dumps); n != "" {
-			m.Diag.Notes = append(m.Diag.Notes, n)
+			out = append(out, n)
 		}
 	}
+	return out
+}
+
+// noteDumps adds one note per file that holds optimizer dumps.
+func (m *Model) noteDumps() {
+	m.Diag.Notes = append(m.Diag.Notes, m.DumpNotes()...)
+}
+
+// OptOnly reports whether the model is that of a single 10053 file: it has
+// optimizer dumps and no 10046 record of any kind (the line kinds the parser
+// counted). The model of such a file is empty; the reader of the dumps
+// (internal/opt) is run on the file itself.
+func (m *Model) OptOnly() bool {
+	if len(m.File.Files) != 1 || len(m.File.Files[0].Dumps) == 0 {
+		return false
+	}
+	for _, k := range trace.RecordKindNames() {
+		if m.Diag.LineKinds[k] > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// OptInputs is DropOptFiles for the entry points that read a 10053 file as
+// such (the CLI, the engine's sessions): a set made only of 10053 files is
+// cut to its first file, and the others are named in a note ("x.trc is a
+// 10053 file; open it on its own") like the files DropOptFiles leaves out of
+// a mixed set. Other sets and single files are returned as they are.
+func OptInputs(files []string) (kept, notes []string) {
+	if len(files) < 2 {
+		return files, nil
+	}
+	only, n := sniffOpt(files)
+	switch {
+	case n == 0:
+		return files, nil
+	case n == len(files):
+		for _, f := range files[1:] {
+			notes = append(notes, fmt.Sprintf("%s is a 10053 file; open it on its own", filepath.Base(f)))
+		}
+		return files[:1], notes
+	}
+	return dropOnly(files, only)
+}
+
+// sniffOpt tells which of the files hold only optimizer dumps.
+func sniffOpt(files []string) (only []bool, n int) {
+	only = make([]bool, len(files))
+	for i, f := range files {
+		if sn, err := trace.SniffFile(f, trace.SniffOptions{StopAtRecord: true}); err == nil && sn.Kind == trace.FileKind10053 {
+			only[i] = true
+			n++
+		}
+	}
+	return only, n
+}
+
+func dropOnly(files []string, only []bool) (kept, notes []string) {
+	for i, f := range files {
+		if only[i] {
+			notes = append(notes, fmt.Sprintf("%s is a 10053 file; open it on its own", filepath.Base(f)))
+		} else {
+			kept = append(kept, f)
+		}
+	}
+	return kept, notes
 }
 
 // DropOptFiles takes the files that hold only optimizer (10053) dumps out of
@@ -96,23 +165,26 @@ func DropOptFiles(files []string) (kept, notes []string) {
 	if len(files) < 2 {
 		return files, nil
 	}
-	only := make([]bool, len(files))
-	n := 0
-	for i, f := range files {
-		if sn, err := trace.SniffFile(f, trace.SniffOptions{StopAtRecord: true}); err == nil && sn.Kind == trace.FileKind10053 {
-			only[i] = true
-			n++
-		}
-	}
+	only, n := sniffOpt(files)
 	if n == 0 || n == len(files) {
 		return files, nil
 	}
-	for i, f := range files {
-		if only[i] {
-			notes = append(notes, fmt.Sprintf("%s is a 10053 file; open it on its own", filepath.Base(f)))
-		} else {
-			kept = append(kept, f)
+	return dropOnly(files, only)
+}
+
+// AllOpt reports whether every file the paths name (directories expanded) is
+// a 10053 file, and gives the name of the first. Commands that do not read
+// 10053 files use it to refuse before they parse anything. An unreadable
+// path is not one.
+func AllOpt(paths []string) (string, bool) {
+	files, err := ExpandInputs(paths)
+	if err != nil || len(files) == 0 {
+		return "", false
+	}
+	for _, f := range files {
+		if sn, err := trace.SniffFile(f, trace.SniffOptions{StopAtRecord: true}); err != nil || sn.Kind != trace.FileKind10053 {
+			return "", false
 		}
 	}
-	return kept, notes
+	return filepath.Base(files[0]), true
 }

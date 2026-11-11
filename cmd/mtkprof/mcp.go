@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/davidbudac/modern-tkprof/internal/assist"
+	"github.com/davidbudac/modern-tkprof/internal/model"
 )
 
 // cmdMCP is `mtkprof mcp`: the analysis tools as a stdio MCP server. Stdout
@@ -41,6 +42,9 @@ func cmdMCP(args []string) error {
 	}
 	if *binds != "mask" && *binds != "keep" {
 		return fmt.Errorf("mcp: -binds: want mask or keep, not %q", *binds)
+	}
+	if name, ok := model.AllOpt(files); ok {
+		return fmt.Errorf("mcp: %s is a 10053 file; the assistant and MCP read 10046 traces only in this version", name)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

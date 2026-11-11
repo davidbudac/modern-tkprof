@@ -61,7 +61,7 @@ func cmdRef(args []string) error {
 	if err != nil {
 		return fmt.Errorf("ref: %w (usage: mtkprof ref -db <user@host[:port]/service> <trace...> [-o dir] [-lite] [-tcps])", err)
 	}
-	m, err := buildModel(c.files, c.noFollow)
+	m, err := buildTrace("no object names to look up", c.files, c.noFollow)
 	if err != nil {
 		return err
 	}
