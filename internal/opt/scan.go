@@ -152,6 +152,25 @@ func (s *scanner) feed(line []byte) {
 	s.advance()
 }
 
+// releaseVersion reads the version from the banner of a release before 18c, which writes no "Version" line:
+// "Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production" -> "11.2.0.3.0". From 18c the
+// banner says "Release 19.0.0.0.0", not the release update, so a version ending in .0.0.0.0 gives "".
+func releaseVersion(release string) string {
+	_, rest, ok := strings.Cut(release, "Release ")
+	if !ok {
+		return ""
+	}
+	i := 0
+	for i < len(rest) && (isDigit(rest[i]) || rest[i] == '.') {
+		i++
+	}
+	v := strings.TrimRight(rest[:i], ".")
+	if v == "" || !isDigit(v[0]) || strings.HasSuffix(v, ".0.0.0.0") {
+		return ""
+	}
+	return v
+}
+
 func (s *scanner) prologue(b []byte) {
 	if s.file.Version == "" && hp(b, "Version ") {
 		rest := b[len("Version "):]
@@ -404,6 +423,9 @@ func (s *scanner) startDump(i int) {
 func (s *scanner) result() *Scan {
 	sc := &Scan{File: s.file, Dumps: s.dumps}
 	sc.File.Lines = s.head
+	if sc.File.Version == "" {
+		sc.File.Version = releaseVersion(sc.File.Release)
+	}
 	sc.File.Tested = strings.HasPrefix(sc.File.Version, "19.")
 	sc.File.Dumps = make([]DumpInfo, len(s.dumps))
 	for i, d := range s.dumps {

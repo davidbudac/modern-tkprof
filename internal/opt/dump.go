@@ -72,7 +72,9 @@ type dstate struct {
 	unplaced int
 
 	// facts
-	stmtState  int // 0 waiting, 1 collecting, 2 done
+	stmtState  int    // 0 waiting, 1 collecting, 2 done, 3 a line of asterisks seen: the end if "Legend" follows
+	stmtStars  int    // state 3: the asterisks' line number
+	starsLine  []byte // and its text
 	stmtBuf    []byte
 	stmtLines  int
 	stmtCS     int

@@ -154,7 +154,20 @@ func (ds *dstate) facts(e *lineEnt) {
 		c0 = b[0]
 	}
 
-	// the statement as typed: the lines between "Current SQL Statement" and "Parser State"
+	// the statement as typed: the lines between "Current SQL Statement" and "Parser State" (12.2+), or, in 11.2 and
+	// 12.1, which write no parser state, the banner of asterisks before "Legend"
+	if ds.stmtState == 3 {
+		switch {
+		case c0 == 'L' && isLegendHeader(b):
+			ds.endStmt(ds.stmtStars - 1)
+		case c0 == '-' && hp(b, "----- Parser State -----"):
+			ds.addStmtLine(ds.starsLine)
+			ds.endStmt(i - 1)
+		default:
+			ds.addStmtLine(ds.starsLine)
+			ds.stmtState = 1
+		}
+	}
 	switch ds.stmtState {
 	case 0:
 		if c0 == '-' && hp(b, "----- Current SQL Statement for this session (sql_id=") {
@@ -172,19 +185,15 @@ func (ds *dstate) facts(e *lineEnt) {
 			ds.stmtState = 1
 		}
 	case 1:
-		if c0 == '-' && hp(b, "----- Parser State -----") {
-			d.StmtTo = i - 1
-			d.StmtText = string(ds.stmtBuf)
-			d.SQLStart = cutRunes(collapseSpace(d.StmtText), 240)
-			ds.stmtState = 2
-			ds.keep(ds.stmtCS, d.StmtTo)
-			ds.stmtBuf = nil
-		} else if len(ds.stmtBuf) < 1<<20 {
-			if ds.stmtLines > 0 {
-				ds.stmtBuf = append(ds.stmtBuf, '\n')
-			}
-			ds.stmtBuf = append(ds.stmtBuf, b...)
-			ds.stmtLines++
+		switch {
+		case c0 == '-' && hp(b, "----- Parser State -----"):
+			ds.endStmt(i - 1)
+		case c0 == '*' && isStars(b):
+			// the end in 11.2 and 12.1 when "Legend" follows; otherwise a line of the statement
+			ds.stmtStars, ds.starsLine = i, append(ds.starsLine[:0], b...)
+			ds.stmtState = 3
+		default:
+			ds.addStmtLine(b)
 		}
 	}
 
@@ -279,6 +288,41 @@ func (ds *dstate) facts(e *lineEnt) {
 	}
 }
 
+func (ds *dstate) addStmtLine(b []byte) {
+	if len(ds.stmtBuf) >= 1<<20 {
+		return
+	}
+	if ds.stmtLines > 0 {
+		ds.stmtBuf = append(ds.stmtBuf, '\n')
+	}
+	ds.stmtBuf = append(ds.stmtBuf, b...)
+	ds.stmtLines++
+}
+
+func (ds *dstate) endStmt(to int) {
+	d := ds.d
+	d.StmtTo = to
+	d.StmtText = string(ds.stmtBuf)
+	d.SQLStart = cutRunes(collapseSpace(d.StmtText), 240)
+	ds.stmtState = 2
+	ds.keep(ds.stmtCS, d.StmtTo)
+	ds.stmtBuf = nil
+}
+
+// isStars: a line of 40 or more asterisks, the banner that ends the statement text in 11.2 and 12.1 (43 there).
+func isStars(b []byte) bool {
+	b = trimB(b)
+	if len(b) < 40 {
+		return false
+	}
+	for _, c := range b {
+		if c != '*' {
+			return false
+		}
+	}
+	return true
+}
+
 func (ds *dstate) statementAgain(e *lineEnt) {
 	i, b := e.n, e.b
 	sd := &ds.sd
@@ -291,7 +335,8 @@ func (ds *dstate) statementAgain(e *lineEnt) {
 			sd.c2, sd.c2State = i, 1
 		}
 	case 1:
-		if hp(b, "----- Parser State -----") {
+		// 11.2 and 12.1 write no parser state: the copy ends at sql_text_length=
+		if hp(b, "----- Parser State -----") || hp(b, "sql_text_length=") {
 			sd.c2State = 2
 			if !sd.c2Over && i-1 > sd.c2+1 && strings.TrimSpace(string(sd.c2Buf)) == strings.TrimSpace(ds.d.StmtText) {
 				ds.addFold(sd.c2+1, i-1, FoldStmtAgn, "statement text, as at line "+strconv.Itoa(ds.d.StmtLine))

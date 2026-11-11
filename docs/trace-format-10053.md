@@ -7,8 +7,14 @@ added the cases it lacked. The fixtures are in `testdata/opt/19c/` (ten files wi
 `testdata/gen/sc_opt_*.sql` (§ The scenarios). Excerpts below are quoted from them as `file:line`. Anything not seen
 in a fixture is marked *(unverified)* with its source, or says that only the probe trace showed it. 21c and 23ai were
 not generated. Traces of 11.2, 12.1 and 19.6 collected from public repositories (`testdata/opt/11g/`, `12c/`,
-`interleaved/19c/`; sources in `testdata/opt/README.md`) open with these rules with no unknown line in their dumps;
-the rules were not checked against them line by line.
+`interleaved/19c/`; sources in `testdata/opt/README.md`) open with these rules with no unknown line in their dumps.
+Their outline, runs, landmarks, plan and plan hash were checked against the text by script (2026-11-11); two
+differences of 11.2 and 12.1 were found and are handled: the prologue has no `Version` line (the version is in the
+banner, `Release 11.2.0.3.0`), and there is no `----- Parser State -----`: the statement text ends at a line of 43
+asterisks followed by `Legend`, and its copy in the statement dump at `sql_text_length=`. Also seen there: 11.2's
+legacy OR-expansion costs its branches (`SEL$1_1`, `SEL$1_2`) inside one `kkoqbc` run, so that run has two `Final
+cost` lines; a `Final query after transformations:` header can have no statement under it; Windows traces may end
+lines with `\r\r\n`.
 
 mtkprof reads this format since 2026-11-11 (`docs/DESIGN.md` § The 10053 reader): a file with dumps and no 10046
 record opens as a 10053 trace; a file with both opens as a 10046 trace with a note, and the dumps' lines are counted as
