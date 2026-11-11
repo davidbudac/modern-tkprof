@@ -2,9 +2,11 @@ package engine
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -155,17 +157,30 @@ func (sr *sessionReport) serve(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", ctype)
 	h.Set("Content-Disposition", contentDisposition(sr.base+ext))
 	h.Set("Cache-Control", "no-store")
+	streamReport(w, r, write)
+}
+
+// streamReport sends what write produces as the body. A failure before the
+// first byte reached the client is answered as an error; a later one aborts
+// the response (the status line is gone), so the client sees a broken
+// download and not a complete one (as slice's cut download).
+func streamReport(w http.ResponseWriter, r *http.Request, write func(io.Writer) error) {
 	cw := &countWriter{w: w}
 	bw := bufio.NewWriterSize(cw, 256<<10)
 	err := write(bw)
 	if err == nil {
 		err = bw.Flush()
 	}
-	if err != nil && cw.n == 0 && r.Context().Err() == nil {
-		h.Del("Content-Disposition")
-		writeError(w, err)
+	if err == nil || r.Context().Err() != nil {
+		return // done, or the client went away
 	}
-	// else: the status line is long sent, the answer just ends short
+	if cw.n == 0 {
+		w.Header().Del("Content-Disposition")
+		writeError(w, err)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "mtkprof: report: %v\n", err)
+	panic(http.ErrAbortHandler)
 }
 
 // textOptions are the TextOptions of the query, the defaults those of the CLI

@@ -9,7 +9,7 @@ import { sourceOf, useSourceQuery } from '../data/source'
 import { foldTimeline, selectionBucket } from '../data/derive'
 import { useAxis } from '../data/scopedstmts'
 import { resolveVar, roleShade, type Role } from '../components/colors'
-import { fmtDur, fmtWall } from '../data/format'
+import { fmtDur, fmtWall, escHtml } from '../data/format'
 import { Shimmer } from '../components/motion'
 
 /** Stacked activity per time bucket (CPU + waits by event or by class) with a zoom slider that sets the global window. */
@@ -46,8 +46,8 @@ export function TimelineChart({ doc, by = 'event' }: { doc: TraceDoc; by?: 'even
         trigger: 'axis',
         formatter: (params: unknown) => {
           const ps = params as { seriesName: string; value: number; axisValue: string; marker: string }[]
-          const lines = ps.filter((p) => p.value > 0).map((p) => `${p.marker} ${p.seriesName} <b style="float:right;margin-left:1em">${(100 * p.value / bucketSec).toFixed(0)}%</b>`)
-          return `<div>${ps[0]?.axisValue}</div>` + lines.join('<br>')
+          const lines = ps.filter((p) => p.value > 0).map((p) => `${p.marker} ${escHtml(p.seriesName)} <b style="float:right;margin-left:1em">${(100 * p.value / bucketSec).toFixed(0)}%</b>`)
+          return `<div>${escHtml(ps[0]?.axisValue)}</div>` + lines.join('<br>')
         },
       },
       xAxis: { type: 'category', data: labels, axisLabel: { hideOverlap: true } },
