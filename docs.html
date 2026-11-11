@@ -46,6 +46,7 @@
     <li><a href="#ref">Object names and plans</a></li>
     <li><a href="#remote">Remote traces</a></li>
     <li><a href="#outputs">Plans, JSON, CSV</a></li>
+    <li><a href="#opt">Optimizer traces (10053)</a></li>
     <li><a href="#claude">AI clients (MCP)</a></li>
   </ul>
   <p>Desktop app</p>
@@ -70,7 +71,7 @@
 <article class="docs-main prose">
 
 <h1>Documentation</h1>
-<p class="intro">mtkprof analyzes Oracle 10046 SQL trace files (from <code>sql_trace</code> events or <code>DBMS_MONITOR</code>). This page covers the command line, the interactive report and the desktop app.</p>
+<p class="intro">mtkprof analyzes Oracle 10046 SQL trace files (from <code>sql_trace</code> events or <code>DBMS_MONITOR</code>) and reads optimizer (10053) traces. This page covers the command line, the interactive report and the desktop app.</p>
 
 <!-- ================================================================ -->
 <h2 id="overview">Overview<a class="anchor" href="#overview" aria-label="Link to this section">#</a></h2>
@@ -212,7 +213,7 @@ mtkprof trace scott@dbhost/pdb1 -files -since 2h                <span class="c">
   <thead><tr><th>Command</th><th>What it does</th></tr></thead>
   <tbody>
     <tr><td><code>mtkprof &lt;trace…&gt;</code></td><td>text report and HTML report next to the trace</td></tr>
-    <tr><td><code>report</code></td><td>text report: profile, statements, executions, binds, plans, sessions, time buckets, findings. <code>-sort elapsed|cpu|execs|disk</code>, <code>-top N</code>, <code>-execs N</code> (executions listed per statement, 0 none, -1 all), <code>-binds N</code>, <code>-sys</code>, <code>-o file</code></td></tr>
+    <tr><td><code>report</code></td><td>text report (for a <a href="#opt">10053 file</a>: its digest): profile, statements, executions, binds, plans, sessions, time buckets, findings. <code>-sort elapsed|cpu|execs|disk</code>, <code>-top N</code>, <code>-execs N</code> (executions listed per statement, 0 none, -1 all), <code>-binds N</code>, <code>-sys</code>, <code>-o file</code></td></tr>
     <tr><td><code>html</code></td><td>self-contained interactive report (<code>-o out.html</code>)</td></tr>
     <tr><td><code>serve</code></td><td>the same UI served at <code>http://127.0.0.1:8046/</code> (<code>-addr</code>); <code>-spill</code> and <code>-facts=false</code> for <a href="#big">big traces</a></td></tr>
     <tr><td><code>pivot</code></td><td>group-by on the command line: <code>-fact calls|waits</code>, <code>-by dim[,dim…]</code> (up to 4), <code>-measure</code>, <code>-window</code>, <code>-context</code>, <code>-csv</code>. <code>-by '?'</code> lists dimensions and measures</td></tr>
@@ -227,7 +228,7 @@ mtkprof trace scott@dbhost/pdb1 -files -since 2h                <span class="c">
     <tr><td><code>mcp</code></td><td>the analysis tools as an MCP server for Claude Code or another agent; see <a href="#claude">AI clients (MCP)</a></td></tr>
     <tr><td><code>brief</code></td><td>a Markdown brief of the trace's numbers and your notes, for handing to an LLM agent; bind values masked by default</td></tr>
     <tr><td><code>findings-config</code></td><td>the default finding thresholds as JSON; edit and pass with <code>-findings-config f.json</code></td></tr>
-    <tr><td><code>lint</code></td><td>what the parser saw: line kinds, events, unknown lines</td></tr>
+    <tr><td><code>lint</code></td><td>what the parser saw: line kinds, events, unknown lines, optimizer (10053) dumps</td></tr>
     <tr><td><code>engine</code></td><td>the local backend of the desktop app; see <a href="#engine">The engine</a></td></tr>
   </tbody>
 </table></div>
@@ -372,12 +373,32 @@ mtkprof export trace.trc -o csv/                            <span class="c"># st
 mtkprof pivot  trace.trc -by module,stmt -measure e,c,count -window 10:15:00,10:20:00 -csv</pre>
 
 <!-- ================================================================ -->
+<h2 id="opt">Optimizer traces (10053)<a class="anchor" href="#opt" aria-label="Link to this section">#</a></h2>
+<p>An optimizer trace is the optimizer's log of one hard parse: the statistics it read, the estimates it derived, the transformations and join orders it weighed. The file holds one <em>dump</em> per optimized statement and no times, and it is long: 18,523 lines for a two-table statement with two subqueries, 93,620 for a ten-table join. mtkprof reads it so that it can be navigated; it computes nothing from the costs.</p>
+<p>Turn the event on in the session, run the statement (it must be hard parsed; <code>explain plan for</code> is one), turn it off, and open the trace file:</p>
+<pre>alter session set events '10053 trace name context forever, level 1';
+<span class="c">-- ... the statement ...</span>
+alter session set events '10053 trace name context off';
+<span class="c">-- or: alter session set events 'trace[rdbms.SQL_Optimizer.*]';  (same format)</span></pre>
+<ul>
+  <li><strong>What opens as 10053.</strong> A file with at least one dump and no 10046 record, in a tab of its own (desktop) or its own <code>serve</code> or report run. Given with 10046 files it is left out of the set, with a note. A file in which one session wrote 10046 and 10053 together still opens as a 10046 trace; its dumps are noted under the trace facts and no longer counted as unknown lines.</li>
+  <li><strong>The view.</strong> The outline lists the dumps and, for the open one, its sections in file order down to the join steps, with line counts. The text is the trace's own lines, <em>Formatted</em> (banners as headings, key lines tinted, noise folded with the line count of each fold, SQL pretty-printed, the plan table as a plan) or <em>Raw</em>. The guide on the right says what the section and the line under the cursor are; each entry is backed by a named source, and where there is none it says so. A line map, a where-am-I path, search with hit counts on the outline, and notes and bookmarks on lines (desktop) complete it.</li>
+  <li><strong>Landmarks.</strong> Verdicts of the cost-based transformations, <code>Final cost</code>, <code>Best:: AccessPath</code> and <code>JoinMethod</code>, aborted join orders, hint errors and refused transformations: a switch for each kind, <kbd>]</kbd> and <kbd>[</kbd> step through them, <kbd>r</kbd> and <kbd>Shift+R</kbd> through the costing runs.</li>
+  <li><strong>Costing runs.</strong> Each run shows the verdict of its iteration, the run that gave the final plan is labelled, and a run whose text equals an earlier one is marked <em>same as run N</em> and folded. This compares text, not numbers.</li>
+  <li><strong>SQL and plan.</strong> Every <code>UNPARSED QUERY IS</code> statement pretty-printed, with a diff against the previous version; the final plan with its predicates and <em>Open in plan viz</em>.</li>
+  <li><strong>From a 10046 trace.</strong> A statement of a 10046 tab shows a <em>10053</em> mark when another open tab holds a dump with the same sql_id; the mark jumps to it and the dump links back (desktop).</li>
+  <li><strong>Command line.</strong> <code>mtkprof report file.trc</code> prints a digest: per dump the SQL, the altered parameters, the peeked binds, the outline with line numbers, the landmark lines, each version of the SQL, the final plan and the hints. <code>mtkprof html file.trc</code> writes the same view with the digest inside, and says where lines are not in the report. <code>-redact-binds</code> and <code>-binds none</code> apply to the bind sections. <code>mtkprof lint</code> lists the dumps.</li>
+</ul>
+<div class="callout"><p>19c is the tested version; another version opens best effort, and the view says so. The desktop app does not produce the trace, and the assistant and <code>mtkprof mcp</code> do not open 10053 files.</p></div>
+
+<!-- ================================================================ -->
 <h2 id="claude">AI clients (MCP)<a class="anchor" href="#claude" aria-label="Link to this section">#</a></h2>
 <p><code>mtkprof mcp</code> exposes trace analysis through the Model Context Protocol (MCP), so an agent such as Claude Code can investigate a description of the problem. Standalone use needs the mtkprof CLI and a client that launches stdio MCP servers; no desktop app, running engine or database connection is required. The client supplies the AI model and its authentication.</p>
 <p>Check that <code>mtkprof version</code> and <code>mtkprof mcp -h</code> work, then register it once in Claude Code (<code>-s project</code> instead writes it to the repository's <code>.mcp.json</code>). Choose the default masking command or the command that exposes bind values:</p>
 <pre>claude mcp add -s user mtkprof -- mtkprof mcp              <span class="c"># once, for all your projects</span>
 claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># show bind values as traced</span></pre>
 <p>Then ask in Claude Code in your own words, with the path of the trace, for example: <q>the nightly load traced in /u01/diag/rdbms/orcl/orcl/trace/orcl_ora_4711.trc got slow after 14:05. What is it waiting on, and which statement is to blame?</q> The agent opens the trace, maps the description onto it (a time becomes a window, a user or module a session, a query a statement) and answers with evidence: sql_ids, executions, wait events and trace lines as <code>file.trc:line</code>.</p>
+<p>The tools read SQL traces (event 10046); they do not open optimizer (<a href="#opt">10053</a>) trace files.</p>
 <h3>How the client and server work together</h3>
 <ol>
   <li>The client starts <code>mtkprof mcp</code> as a subprocess and connects to stdin/stdout.</li>
@@ -461,6 +482,7 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
   <li><strong>Options</strong>: bind values <em>keep</em>, <em>redact</em> or <em>none</em>; <em>Follow as it grows</em> opens one file as a <strong>live</strong> tab.</li>
   <li><strong>Recent</strong>: the last 20 trace sets with their options.</li>
 </ul>
+<p>A file of optimizer (10053) dumps opens in a tab of its own with the <a href="#opt">10053 view</a>; in a folder, its row is tagged <em>10053</em> and counts its dumps.</p>
 <p>From outside the app: double-click a <code>.trc</code> file (the installers register the extension), use <em>Open With → mtkprof</em>, drop files on the Dock icon, or run <code>mtkprof open a.trc b.trc</code> / <code>mtkprof open dir/</code> in a terminal. A set that is already open just gets its tab shown.</p>
 <p>While a trace opens its tab shows the phase, bytes and percent, and <em>Cancel</em>. Each tab keeps its own selection, filters, time window and Lines position. Live tabs refresh on their own about once a second while the file grows. On the next start the app reopens the tabs of the last run from the cache; if the engine dies it is restarted and the tabs come back where they were.</p>
 
@@ -551,6 +573,7 @@ claude mcp add -s user mtkprof -- mtkprof mcp -binds keep  <span class="c"># sho
 <!-- ================================================================ -->
 <h2 id="formats">Supported traces<a class="anchor" href="#formats" aria-label="Link to this section">#</a></h2>
 <p>Oracle 19c, 21c and 23ai, tested against real traces and <code>tkprof</code> output for all three; 12c mostly works but is untested. The parser understands every line kind of the 19c format, including bind memory dumps, truncated and split files, <code>trcsess</code> output and PX slave traces. <code>mtkprof lint trace.trc</code> shows what it saw, including any unknown lines.</p>
+<p>Optimizer (10053) traces are read too (<a href="#opt">above</a>); 19c is the tested version.</p>
 <p>Parity with tkprof is a test: call statistics, library cache misses and wait tables are compared with Oracle's own tkprof output on every fixture. Where mtkprof reports something differently on purpose (response time including recursive children and idle time, for example), it is a separate number, not a changed one.</p>
 
 <!-- ================================================================ -->
