@@ -398,13 +398,18 @@ func (c *Conversation) callHosted(ctx context.Context, t *Turn, id, name string,
 	ch := make(chan answer, 1)
 	go func() {
 		var a answer
+		defer func() {
+			if r := recover(); r != nil { // a tool that panics fails this call, not the engine
+				a = answer{err: fmt.Errorf("the tool %s failed: %v", name, r)}
+			}
+			ch <- a
+		}()
 		if err := c.host.Trace(func(b Env) error {
 			a.res, a.err = Call(ctx, c.env(b, t, id), name, args)
 			return nil
 		}); err != nil {
 			a.err = err
 		}
-		ch <- a
 	}()
 	select {
 	case a := <-ch:

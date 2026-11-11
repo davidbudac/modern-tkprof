@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/davidbudac/modern-tkprof/internal/cut"
@@ -206,6 +207,9 @@ func (s *Server) runCheck(ctx context.Context, key string, run func(context.Cont
 		g.run = c
 		go func() {
 			defer func() {
+				if r := recover(); r != nil { // a panic of the check fails this check, not the process
+					c.res, c.err = nil, fmt.Errorf("internal error in the cut check: %v\n%s", r, debug.Stack())
+				}
 				cancel()
 				g.mu.Lock()
 				if g.run == c {
