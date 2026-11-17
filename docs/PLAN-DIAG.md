@@ -1,6 +1,6 @@
 # Diagnostic dumps: plan
 
-Written 2026-11-17. Not started. The owner set the frame on 2026-11-17: 10046 and 10053 stay the primary
+Written 2026-11-17. Stage 1 (research) is done, see the Log; nothing is built. The owner set the frame on 2026-11-17: 10046 and 10053 stay the primary
 formats, everything here is a best-effort add-on; computed views are allowed (unlike the 10053 reader); there
 are no real incident or systemstate files to work from, so the lab and public samples are the only sources.
 
@@ -9,8 +9,8 @@ records and 10053 dumps: heap dumps, PGA memory summaries, call stacks, process 
 analysis, deadlock graphs. The code already uses "dump" for a 10053 dump (`trace.Dump`, `opt.Dump`,
 `api/opt/dump`), so the new code says `diag` and `Section`.
 
-**Every statement about a dump's format in this file is from memory and unverified.** Stage 1 checks each on
-the lab and corrects this plan before anything is built on it.
+**The formats are in `docs/trace-format-diag.md`**, read off lab traces on 2026-11-17 (stage 1). This plan was
+written from memory before that and corrected afterwards; where the two differ the format reference is right.
 
 ## Why
 
@@ -37,9 +37,10 @@ the lab and corrects this plan before anything is built on it.
   | 1 | typed sections in the outline, with their own nodes, folds and landmarks | the kinds below |
   | 2 | a computed summary of a section, checked against the dump's own totals where it prints any | heap, PGA, process state, hang analysis, deadlock, system state |
 
-- **Section kinds in this plan**, in build order: heap dump; PGA memory summary (the top-uses block of an
-  ORA-4030 trace); call stack, error stack and current SQL; process state; hang analysis; deadlock graph;
-  system state.
+- **Section kinds in this plan**, in build order: heap dump; PGA memory dumps (`pga_summary`, whose blocks are
+  the memory part of an out-of-memory trace, and `pga_detail_dump`); the diagnostic dump an errorstack, a
+  deadlock or an incident writes (call stack, current SQL, cursors); process state; hang analysis; deadlock
+  graph; system state; the table of contents of an incident file.
 - **Not in this plan**: block, redo, controlfile, buffer cache and library cache dumps; other event traces
   (10032, 10104, …); ORA-4031 analysis beyond the heap grammar; RAC-wide dumps (the lab has one instance);
   taking a dump from the app (an `oradebug` on a production system is not something a viewer should start);
@@ -101,8 +102,10 @@ One view for every diag file, `web/src/lib/views/diag`, a tab kind of its own in
   `Total free space` and `Permanent space` lines and the reading says "matches the dump's totals" or by how much
   it differs. This is the parity test of this reader. A second reference where it can be run: the output of
   `heapdump_analyzer` on the same file, committed beside the fixture as tkprof's output is.
-- **PGA memory summary** (ORA-4030, ORA-4036): the dump's own top-uses and per-process tables read as tables,
-  beside the readings of the heap dumps that follow them in the same file.
+- **PGA memory dumps**: the dump's own tables read as tables (top uses of the process, the heap summary by
+  depth, memory per Oracle process, estimated uses for all processes; `pga_detail_dump` with exact bytes),
+  beside the readings of the heap dumps in the same file. The summary's figures are rounded, so it has no
+  total to check.
 - **Call stack, error stack, current SQL**: the frames as a list with the dump's own frames folded, the stack
   as one copyable line (the form `oradebug short_stack` prints), the error, the statement and its sql_id, the
   PL/SQL stack. No interpretation of function names.
@@ -111,10 +114,13 @@ One view for every diag file, `web/src/lib/views/diag`, a tab kind of its own in
   what it waits for and since when, what it holds.
 - **Hang analysis and deadlock graph**: the chains and the graph as Oracle printed them, as a table and a small
   node-and-arrow drawing; the sessions and statements named in them.
-- **System state**: one row per process (pid, name, session, waiting for, time in wait, blocker when the dump
-  names one), and a resource table (holders and waiters per enqueue, library object, latch or mutex) built in
-  two passes: the first collects what is waited on, the second who holds it. A process opens with the process
-  state reading, on demand.
+- **System state**: one row per process from the dump's own `Process Summary` (pid, name, ospid, session,
+  waiting for), completed from each session's wait stack (time in wait) and from the blockers the dump names
+  itself (`Dumping 1 direct blocker(s)`, `Dumping final blocker`, `There are N sessions blocked by this
+  session`), drawn as the blocker tree. A process opens with the process state reading, on demand. A resource
+  table of holders and waiters per enqueue, library object or latch is not built: the dump's blocker lines make
+  it unnecessary for sessions, and the lab shows no latch or mutex wait to build it from (a candidate for
+  later).
 
 ### Clients
 
@@ -133,9 +139,13 @@ its check, a process's lines, the chains). Text and UI stay equal in numbers. Co
 
 - **Best effort on what Oracle writes; our own output is pinned**: a snapshot per fixture (outline, readings,
   digest), invariants on every fixture, prefix and mutation tests, as for `internal/opt`.
-- **Where a dump prints a total, the reading must equal it** on every fixture (a test, not a display).
-- **Fixtures are real**: lab scenarios `sc_diag_*.sql`, plus public samples of other versions with their
-  sources and licences, as `testdata/opt/11g` and `12c` are.
+- **Where a dump prints a total, the reading must equal it** on every fixture (a test, not a display). Checked
+  by hand in stage 1 on 87 heaps: chunks against `Total heap size`, the free lists against `Total free space`,
+  the perm chunks against `Permanent space`. A PDB-filtered dump, a sampled heap and a header without extents
+  have nothing to check, and the reading says so.
+- **Fixtures are real**: lab scenarios `sc_diag_*.sql` (`testdata/diag/19c/`, the ones over 3 MB in the
+  ignored `testdata/big/diag/`). No public sample of another version can be committed (stage 1 found a few
+  10.2 and 11.2 files, none with a licence), so **only 19c is tested**.
 - **Redaction**: `-redact-binds` and `-binds none` act on the bind values a cursor dump prints, with the 10046
   token. Memory contents (a heap dump taken with contents) are never in a digest.
 
@@ -182,7 +192,7 @@ any of them leaves a working reader.
   | `diag_in_10046` | a 10046 trace with an errorstack written on an ORA-00942, with tkprof output |
   | `diag_deadlock` | ORA-00060 between two sessions |
   | `diag_hang`, `diag_sysstate` | hang analysis and system state taken while three sessions wait in a chain |
-  | `diag_ora4030` | the incident file of a real ORA-4030 (a local SYSDBA session under a memory limit) |
+  | `diag_ora4030` | the incident file of a real ORA-4030 (a local SYSDBA session under a memory limit); **not obtained**, see the Log |
 
 - **`diag_ora4030` is asked for separately**: it writes an incident to the lab's ADR and an alert log entry.
 - **Find out and write down** in `docs/trace-format-diag.md`, per kind: how it is produced, the lines that start
@@ -222,11 +232,13 @@ Each adds, for its kinds: the start and end rules in the tracker, a reader in `i
 landmarks, its text in the digest, the panel in the view, guide entries with sources, snapshots and a screenshot.
 Particular to a stage:
 
-- **3**: the totals test; the `heapdump_analyzer` reference if its licence allows running it at generation time;
-  a bound on distinct comments (the rest summed as "other", said so).
+- **3**: the totals test; the output of `heapdump_analyzer` (Apache 2.0, `tanelpoder/tpt-oracle`
+  `tools/unix/heapdump_analyzer`) on each heap fixture committed beside it as a second reference; a bound on
+  distinct comments (the rest summed as "other", said so). The shared pool dump (32.7 MB) is the throughput test.
 - **4**: `diagSqlIds` and `diagSessions` on the session object, the marks in the Statements and Sessions views.
-- **6**: the two-pass resource table with bounded memory; a top-level cache part for the scan **only if** a
-  fresh open of a 1 GB file measures over 5 s (a new persisted struct, its own version, the format bump).
+- **6**: the level-266 fixture is 4.9 MB, over the limit: it is committed as an exception if the reader is
+  built (level 1 has processes and sessions only); a top-level cache part for the scan **only if** a fresh open
+  of a 1 GB file measures over 5 s (a new persisted struct, its own version, the format bump).
 
 ### Stage 7: documents
 
@@ -258,8 +270,12 @@ ROADMAP, README, the site's pages (not published), a release notes draft, this f
 
 - **System state is the least supported kind.** A lab instance has a few dozen processes; the format's variety
   shows on busy production systems, of which there is no sample. It ships marked "tested on a small lab system".
-- **Start and end of a section** are the main risk to the primary formats; a kind with no reliable end stays at
-  level 0.
+- **Start and end of a section** are the main risk to the primary formats. A heap dump, a system state and a
+  hang analysis have an end line. A diagnostic dump (errorstack) and a process state have none: inside a 10046
+  trace they run to the next valid 10046 record, a rule seen on one fixture (`diag_in_10046`).
+- **No real ORA-04030 trace.** The lab host fails the allocation with ORA-27102 (an ORA-06544 incident) under
+  any memory limit tried; the memory blocks are read from `pga_summary`, and that an ORA-04030 trace prints
+  the same blocks is not shown by a fixture.
 - **Other versions** are read with the 19c rules; only public samples say how well.
 - **No reference tool for system state** can be committed (`ass109.awk` is Oracle Support's); snapshots only.
 
@@ -275,3 +291,27 @@ ROADMAP, README, the site's pages (not published), a release notes draft, this f
 8. The assistant and `mtkprof mcp` do not read diag files in this version.
 
 ## Log
+
+### 2026-11-17: plan
+
+Written after the owner's three answers (an add-on; computed views allowed; no real samples) and "follow your
+recommendation".
+
+### 2026-11-17: stage 1, research
+
+- **Lab**: the dbmint VMs were already up. `testdata/gen/run_gen.sh diag` and 19 scenarios `sc_diag_*.sql`
+  (helpers `_diag_*.sql`; `01_schema.sql` gained the package `mtk_diag_mem` and two procedures, CREATE OR REPLACE
+  only). 16 fixtures in `testdata/diag/19c/` (`testdata/diag/README.md`), seven larger files in
+  `testdata/big/diag/`.
+- **Format reference**: `docs/trace-format-diag.md`.
+- **What the lab changed in this plan**: a heap dump's totals check holds on every heap tried; the PGA dumps
+  are `pga_summary` and `pga_detail_dump`, not an ORA-04030 trace; a system state names its blockers, so the
+  resource table went; an incident file carries its own table of contents; an errorstack and a process state
+  have no end line; hang analysis prints a numeric `current sql_id`.
+- **ORA-04030 was not obtained.** About ten attempts as SYSDBA under `ulimit -d` / `-v` and with event 10261
+  left **five ORA-06544 incidents** in the lab's ADR (48 to 53); nothing was deleted. The scenario is `diag_oom`.
+- **Public samples**: none committable (10.2 XE and 11.2 RAC files without a licence, kept out of the
+  repository).
+- **A latent mismatch in the 10046 code**, found by `diag_in_10046`: `trace.Classify` takes 211 lines of the dump
+  after a `BINDS` block for bind lines and the parser does not (`TestClassifyMatchesParser`). The fixture waits
+  in `testdata/diag/19c/` until stage 2 fixes it with the section tracker.

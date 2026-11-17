@@ -1,0 +1,305 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_14126_mtk_diag_hang_event.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 74
+Unix process pid: 14126, image: oracle@ol9-19-dg1.localdomain (TNS V1-V3)
+
+
+*** 2026-11-17T21:35:48.152559+00:00 (CDB$ROOT(1))
+*** SESSION ID:(52.42894) 2026-11-17T21:35:48.152578+00:00
+*** CLIENT ID:(mtk_client_diag_hang_event) 2026-11-17T21:35:48.152581+00:00
+*** SERVICE NAME:(SYS$USERS) 2026-11-17T21:35:48.152584+00:00
+*** MODULE NAME:(mtk_diag_hang_event) 2026-11-17T21:35:48.152586+00:00
+*** ACTION NAME:(start) 2026-11-17T21:35:48.152588+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-11-17T21:35:48.152590+00:00
+*** CONTAINER ID:(1) 2026-11-17T21:35:48.152593+00:00
+ 
+===============================================================================
+HANG ANALYSIS:
+  instances (db_name.oracle_sid): cdb1.cdb1
+  oradebug_node_dump_level: 3
+  os thread scheduling delay history: (sampling every 1.000000 secs)
+    0.000000 secs at [ 21:35:47 ]
+      NOTE: scheduling delay has not been sampled for 0.519027 secs
+    0.000000 secs from [ 21:35:43 - 21:35:48 ], 5 sec avg
+    0.000000 secs from [ 21:34:48 - 21:35:48 ], 1 min avg
+    0.000000 secs from [ 21:30:48 - 21:35:48 ], 5 min avg
+  vktm time drift history
+===============================================================================
+ 
+Chains most likely to have caused the hang:
+ [a] Chain 1 Signature: 'PL/SQL lock timer'<='enq: TX - row lock contention'<='enq: TX - row lock contention'
+     Chain 1 Signature Hash: 0x5e4fa8d6
+ [b] Chain 2 Signature: 'Streams AQ: waiting for messages in the queue'
+     Chain 2 Signature Hash: 0xa00e2e87
+ [c] Chain 3 Signature: 'Redo Transport Attach'
+     Chain 3 Signature Hash: 0xa4e49b5e
+ 
+===============================================================================
+Non-intersecting chains:
+ 
+-------------------------------------------------------------------------------
+Chain 1:
+-------------------------------------------------------------------------------
+    Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 14128
+              process id: 41, oracle@ol9-19-dg1.localdomain
+              session id: 255
+        session serial #: 5904
+             module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+                  pdb id: 3 (PDB1)
+    }
+    is waiting for 'enq: TX - row lock contention' with wait info:
+    {
+                      p1: 'name|mode'=0x54580006
+                      p2: 'usn<<16 | slot'=0x30011
+                      p3: 'sequence'=0x5d6b
+            time in wait: 4.009843 sec
+           timeout after: 55.990157 sec
+                 wait id: 23
+                blocking: 0 sessions
+          current sql_id: 3373088609
+            wait history:
+              * time between current wait and wait #1: 0.000136 sec
+              1.       event: 'SQL*Net message from client'
+                 time waited: 0.000246 sec
+                     wait id: 22               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #1 and #2: 0.000003 sec
+              2.       event: 'SQL*Net message to client'
+                 time waited: 0.000002 sec
+                     wait id: 21               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #2 and #3: 0.000052 sec
+              3.       event: 'PL/SQL lock timer'
+                 time waited: 2.000089 sec
+                     wait id: 20               p1: 'duration'=0x0
+    }
+    and is blocked by
+ => Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 14130
+              process id: 68, oracle@ol9-19-dg1.localdomain
+              session id: 22
+        session serial #: 39906
+             module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+                  pdb id: 3 (PDB1)
+    }
+    which is waiting for 'enq: TX - row lock contention' with wait info:
+    {
+                      p1: 'name|mode'=0x54580006
+                      p2: 'usn<<16 | slot'=0x90010
+                      p3: 'sequence'=0x5d8b
+            time in wait: 4.968604 sec
+           timeout after: 55.031396 sec
+                 wait id: 28
+                blocking: 1 session
+          current sql_id: 3824709289
+            wait history:
+              * time between current wait and wait #1: 0.000068 sec
+              1.       event: 'SQL*Net message from client'
+                 time waited: 0.000148 sec
+                     wait id: 27               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #1 and #2: 0.000000 sec
+              2.       event: 'SQL*Net message to client'
+                 time waited: 0.000000 sec
+                     wait id: 26               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #2 and #3: 0.000008 sec
+              3.       event: 'SQL*Net message from client'
+                 time waited: 0.000158 sec
+                     wait id: 25               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+    }
+    and is blocked by
+ => Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 14125
+              process id: 6, oracle@ol9-19-dg1.localdomain
+              session id: 45
+        session serial #: 38231
+             module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+                  pdb id: 3 (PDB1)
+    }
+    which is waiting for 'PL/SQL lock timer' with wait info:
+    {
+                      p1: 'duration'=0x0
+            time in wait: 6.049487 sec
+           timeout after: 9.950513 sec
+                 wait id: 25
+                blocking: 2 sessions
+          current sql_id: 325942433
+            wait history:
+              * time between current wait and wait #1: 0.000056 sec
+              1.       event: 'SQL*Net message from client'
+                 time waited: 0.000075 sec
+                     wait id: 24               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #1 and #2: 0.000000 sec
+              2.       event: 'SQL*Net message to client'
+                 time waited: 0.000001 sec
+                     wait id: 23               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #2 and #3: 0.000006 sec
+              3.       event: 'SQL*Net message from client'
+                 time waited: 0.000085 sec
+                     wait id: 22               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+    }
+ 
+Chain 1 Signature: 'PL/SQL lock timer'<='enq: TX - row lock contention'<='enq: TX - row lock contention'
+Chain 1 Signature Hash: 0x5e4fa8d6
+-------------------------------------------------------------------------------
+ 
+===============================================================================
+Sessions in an involuntary wait or not in a wait:
+ 
+-------------------------------------------------------------------------------
+Chain 2:
+-------------------------------------------------------------------------------
+    Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 12239
+              process id: 40, oracle@ol9-19-dg1.localdomain (J001)
+              session id: 3
+        session serial #: 48564
+             module name: 1 (DBMS_SCHEDULER-dg1.localdomain (TNS V1-V3))
+                  pdb id: 1 (CDB$ROOT)
+    }
+    is waiting for 'Streams AQ: waiting for messages in the queue' with wait info:
+    {
+                      p1: 'queue id'=0x14660
+                      p2: 'process#'=0xa258d408
+                      p3: 'wait time'=0x5
+            time in wait: 0.945994 sec
+      heur. time in wait: 20.947437 sec
+           timeout after: 4.054006 sec
+                 wait id: 15
+                blocking: 0 sessions
+          current sql_id: 2279214261
+            wait history:
+              * time between current wait and wait #1: 0.000293 sec
+              1.       event: 'Streams AQ: waiting for messages in the queue'
+                 time waited: 5.000091 sec
+                     wait id: 14               p1: 'queue id'=0x14660
+                                               p2: 'process#'=0xa258d408
+                                               p3: 'wait time'=0x5
+              * time between wait #1 and #2: 0.000223 sec
+              2.       event: 'Streams AQ: waiting for messages in the queue'
+                 time waited: 5.000090 sec
+                     wait id: 13               p1: 'queue id'=0x14660
+                                               p2: 'process#'=0xa258d408
+                                               p3: 'wait time'=0x5
+              * time between wait #2 and #3: 0.000284 sec
+              3.       event: 'Streams AQ: waiting for messages in the queue'
+                 time waited: 5.000092 sec
+                     wait id: 12               p1: 'queue id'=0x14660
+                                               p2: 'process#'=0xa258d408
+                                               p3: 'wait time'=0x5
+    }
+ 
+Chain 2 Signature: 'Streams AQ: waiting for messages in the queue'
+Chain 2 Signature Hash: 0xa00e2e87
+-------------------------------------------------------------------------------
+ 
+-------------------------------------------------------------------------------
+Chain 3:
+-------------------------------------------------------------------------------
+    Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 2929
+              process id: 48, oracle@ol9-19-dg1.localdomain (TT00)
+              session id: 27
+        session serial #: 50573
+                  pdb id: 1 (CDB$ROOT)
+    }
+    is waiting for 'Redo Transport Attach' with wait info:
+    {
+            time in wait: 4.494975 sec
+           timeout after: never
+                 wait id: 618
+                blocking: 0 sessions
+          current sql_id: 0
+            wait history:
+              * time between current wait and wait #1: 0.000013 sec
+              1.       event: 'Data Guard: Gap Manager'
+                 time waited: 1.000071 sec
+                     wait id: 617             
+              * time between wait #1 and #2: 0.000005 sec
+              2.       event: 'control file sequential read'
+                 time waited: 0.000001 sec
+                     wait id: 616              p1: 'file#'=0x0
+                                               p2: 'block#'=0x12
+                                               p3: 'blocks'=0x1
+              * time between wait #2 and #3: 0.000001 sec
+              3.       event: 'control file sequential read'
+                 time waited: 0.000001 sec
+                     wait id: 615              p1: 'file#'=0x0
+                                               p2: 'block#'=0x10
+                                               p3: 'blocks'=0x1
+    }
+ 
+Chain 3 Signature: 'Redo Transport Attach'
+Chain 3 Signature Hash: 0xa4e49b5e
+-------------------------------------------------------------------------------
+ 
+===============================================================================
+Extra information that will be dumped at higher levels:
+[level  4] :   1 node dumps -- [LEAF] [LEAF_NW] 
+[level  5] :   4 node dumps -- [NO_WAIT] [INVOL_WT] [SINGLE_NODE] [NLEAF] [SINGLE_NODE_NW] 
+ 
+State of ALL nodes
+([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):
+[2]/1/3/48564/0xa272a008/12239/SINGLE_NODE/
+[21]/1/22/39906/0xa2759640/14130/NLEAF/[44]
+[26]/1/27/50573/0xa2765dc8/2929/SINGLE_NODE/
+[44]/1/45/38231/0xa2792c18/14125/LEAF/
+[254]/1/255/5904/0xa299efe8/14128/NLEAF/[21]
+
+*** 2026-11-17T21:35:48.153585+00:00 (CDB$ROOT(1))
+===============================================================================
+END OF HANG ANALYSIS
+===============================================================================
+
+*** 2026-11-17T21:35:48.153607+00:00 (CDB$ROOT(1))
+===============================================================================
+HANG ANALYSIS DUMPS:
+  oradebug_node_dump_level: 3
+===============================================================================
+ 
+State of LOCAL nodes
+([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):
+[2]/1/3/48564/0xa272a008/12239/SINGLE_NODE/
+[21]/1/22/39906/0xa2759640/14130/NLEAF/[44]
+[26]/1/27/50573/0xa2765dc8/2929/SINGLE_NODE/
+[44]/1/45/38231/0xa2792c18/14125/LEAF/
+[254]/1/255/5904/0xa299efe8/14128/NLEAF/[21]
+ 
+ 
+No processes qualify for dumping.
+ 
+===============================================================================
+HANG ANALYSIS DUMPS: END
+===============================================================================

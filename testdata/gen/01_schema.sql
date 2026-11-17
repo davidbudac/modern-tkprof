@@ -298,6 +298,56 @@ begin
 end;
 /
 
+-- diag_* scenarios (sc_diag_*.sql, diagnostic dumps): a package whose variable holds memory in the session's UGA
+-- (package state lives in the UGA), and two procedures that run an event inside nested PL/SQL frames with two
+-- cursors open. CREATE OR REPLACE only.
+create or replace package mtk_diag_mem as
+  type t_strs is table of varchar2(4000) index by pls_integer;
+  g_hold t_strs;                                   -- grows by fill(); freed by release()
+  procedure fill(p_rows in pls_integer, p_len in pls_integer default 1000);
+  procedure release;
+  function held return pls_integer;
+end mtk_diag_mem;
+/
+create or replace package body mtk_diag_mem as
+  procedure fill(p_rows in pls_integer, p_len in pls_integer default 1000) is
+    v_base pls_integer := g_hold.count;
+  begin
+    for i in 1 .. p_rows loop
+      g_hold(v_base + i) := rpad(to_char(v_base + i), p_len, chr(65 + mod(i, 26)));
+    end loop;
+  end fill;
+  procedure release is
+  begin
+    g_hold.delete;
+  end release;
+  function held return pls_integer is
+  begin
+    return g_hold.count;
+  end held;
+end mtk_diag_mem;
+/
+create or replace procedure mtk_diag_inner(p_event in varchar2, p_cust in number) is
+  c_ord  sys_refcursor;
+  c_cust sys_refcursor;
+  v_id   number;
+  v_amt  number;
+begin
+  open c_ord  for select /* mtk_diag_c_ord */ id, amount from mtk_orders where cust_id = p_cust and amount > p_cust order by amount;
+  open c_cust for select /* mtk_diag_c_cust */ id, amount from mtk_cust where id between p_cust and p_cust + 10 order by id;
+  fetch c_ord  into v_id, v_amt;
+  fetch c_cust into v_id, v_amt;
+  execute immediate p_event;
+  close c_ord;
+  close c_cust;
+end mtk_diag_inner;
+/
+create or replace procedure mtk_diag_outer(p_event in varchar2, p_cust in number) is
+begin
+  mtk_diag_inner(p_event, p_cust);
+end mtk_diag_outer;
+/
+
 select object_type, object_name, status from user_objects order by 1, 2;
 select 'mtk_cust' t, count(*) from mtk_cust union all select 'mtk_orders', count(*) from mtk_orders
 union all select 'mtk_lob', count(*) from mtk_lob union all select 'mtk_audit', count(*) from mtk_audit
