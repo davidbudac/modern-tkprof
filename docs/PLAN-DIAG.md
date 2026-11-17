@@ -1,0 +1,277 @@
+# Diagnostic dumps: plan
+
+Written 2026-11-17. Not started. The owner set the frame on 2026-11-17: 10046 and 10053 stay the primary
+formats, everything here is a best-effort add-on; computed views are allowed (unlike the 10053 reader); there
+are no real incident or systemstate files to work from, so the lab and public samples are the only sources.
+
+"Diagnostic dump" (short: **diag**) is the name used here for what Oracle writes to a trace file besides 10046
+records and 10053 dumps: heap dumps, PGA memory summaries, call stacks, process state, system state, hang
+analysis, deadlock graphs. The code already uses "dump" for a 10053 dump (`trace.Dump`, `opt.Dump`,
+`api/opt/dump`), so the new code says `diag` and `Section`.
+
+**Every statement about a dump's format in this file is from memory and unverified.** Stage 1 checks each on
+the lab and corrects this plan before anything is built on it.
+
+## Why
+
+- A trace directory holds more than SQL traces. Today a file with neither 10046 records nor 10053 dumps opens as
+  an empty 10046 trace whose lines are all unknown, and a dump inside a 10046 trace (an errorstack, a deadlock
+  graph) counts as unknown lines.
+- These dumps are unreadable at their size: a heap dump is one line per chunk, a system state one tree of state
+  objects per process. The existing tools are awk scripts (`heapdump_analyzer` by Tanel Poder, Oracle Support's
+  `ass109.awk`).
+- Most of what a reader needs exists: the line index and paged lines, search, the outline and line map of the
+  10053 view, notes and bookmarks, the folder picker, the ADR fetch.
+
+## Decisions
+
+### Scope
+
+- **An add-on.** DESIGN § Purpose keeps its six questions. Diag files are a third input, read best effort.
+  Nothing here may cost the primary formats anything (see "Guard rails").
+- **Three levels of reading**, so that every file gets something and only a few kinds get a lot:
+
+  | Level | What it gives | Which files |
+  |---|---|---|
+  | 0 | opens in the reader: outline from markers and banners, paged text, search, line map, notes | any trace file |
+  | 1 | typed sections in the outline, with their own nodes, folds and landmarks | the kinds below |
+  | 2 | a computed summary of a section, checked against the dump's own totals where it prints any | heap, PGA, process state, hang analysis, deadlock, system state |
+
+- **Section kinds in this plan**, in build order: heap dump; PGA memory summary (the top-uses block of an
+  ORA-4030 trace); call stack, error stack and current SQL; process state; hang analysis; deadlock graph;
+  system state.
+- **Not in this plan**: block, redo, controlfile, buffer cache and library cache dumps; other event traces
+  (10032, 10104, …); ORA-4031 analysis beyond the heap grammar; RAC-wide dumps (the lab has one instance);
+  taking a dump from the app (an `oradebug` on a production system is not something a viewer should start);
+  the assistant and `mtkprof mcp`; Compare, Cut and live follow on a diag tab. A section of a kind not listed
+  is read at level 0.
+- **19c is the tested version**, as for 10053: another version opens with "read with the 19c rules" and a
+  count of lines outside any known part.
+
+### A file is a sequence of sections
+
+Today a file has one kind (`trace.FileKind`: none, 10046, 10053, both). That stays for the primary formats;
+sections are added beside it.
+
+- **`trace.Section`** (`Kind`, `First`, `Last`, `Cut`): a range of lines of one diag kind. The parser gets a
+  `sectionTracker` beside `optTracker`, called under the same condition (the line matched no record, or the
+  tracker is inside a section). Its lines are a new line kind `KindDiag` ("diagnostic") and no longer unknown.
+  Precedence: cursor text and `BINDS` state, then an optimizer dump, then a section. A valid 10046 record
+  inside a section keeps its kind, as inside an optimizer dump.
+- **The parser only finds where sections start and end.** Reading them is `internal/diag`, as reading a 10053
+  dump is `internal/opt`.
+- **A file opens by its kind, and can be opened another way.** A session takes an option `view`: `10046`,
+  `10053` or `diag`; the default follows the file (10046 records: `10046`; only optimizer dumps: `10053`;
+  otherwise `diag`). A 10046 trace that holds sections stays a 10046 trace with a note under the trace facts
+  ("1 call stack and 1 process state in this file, lines 812-4410") and a button that opens the same file in a
+  diag tab.
+- **The same option opens the dumps of an interleaved file** as a 10053 tab (the `opt` scan already skips the
+  10046 records, `TestInterleaved`). This closes the item deferred in DESIGN § The 10053 reader.
+- **Sets**: a diag-only file in a set of 10046 files is left out with a note, as a 10053 file is
+  (`model.DropOptFiles` generalised).
+
+### The reader
+
+One view for every diag file, `web/src/lib/views/diag`, a tab kind of its own in the desktop.
+
+- **Left: the outline**, in file order: file header, sections, and inside a typed section its own nodes (a
+  heap's extents and sub-heaps, a process's state objects, a system state's processes). Only the top levels are
+  held; the children of a node are asked for when it is opened (a system state has millions of state objects).
+- **Centre: the file's text, paged.** These files reach gigabytes, so the 10053 view's "whole text in the
+  browser" does not carry over. The viewer is new, built on the Lines view's data layer (`data/linecache.ts`,
+  `data/scrollmap.ts`, `api/lines`, `api/search`) with the row rendering of `OptViewer` as its pattern;
+  `views/Lines.tsx` (1,600 lines, tied to the 10046 model) is not taken apart. Folds and landmarks come with
+  the typed sections.
+- **Right: the reading of the selected section** (level 2), or "No reading for this kind of section".
+- **Also**: search with hit counts per outline node where the node is loaded, the where-am-I path, the line map,
+  notes and bookmarks (desktop), as in the 10053 view.
+- **A jump to the primary formats, no joined data**: a section that names a sql_id or a session (sid.serial#)
+  shows a mark when another open tab holds that statement or session, and the 10046 side marks back. Desktop
+  only, the mechanism of the "10053" mark (`optSqlIds`).
+- **The guide stays "sourced or silent"**: an entry only where the format reference backs it.
+- **A mock-up on real lab files comes before the UI is built** (one page: the reader on an errorstack file, the
+  heap reading, the process reading), light and dark, approved or corrected by the owner.
+
+### The readings (level 2)
+
+- **Heap dump.** One pass over the chunk lines gives, per heap: chunks and bytes by type (free, freeable, perm,
+  recreate, …) and by comment, the sub-heaps with their parent chunk, the free-list buckets. Shown as a sortable
+  table with bars (by comment, by type, sub-heaps), the heap tree (heap, sub-heap, comment), and a jump from a
+  row to its chunks in the text. **Self-check**: the sums are compared with the dump's own `Total heap size`,
+  `Total free space` and `Permanent space` lines and the reading says "matches the dump's totals" or by how much
+  it differs. This is the parity test of this reader. A second reference where it can be run: the output of
+  `heapdump_analyzer` on the same file, committed beside the fixture as tkprof's output is.
+- **PGA memory summary** (ORA-4030, ORA-4036): the dump's own top-uses and per-process tables read as tables,
+  beside the readings of the heap dumps that follow them in the same file.
+- **Call stack, error stack, current SQL**: the frames as a list with the dump's own frames folded, the stack
+  as one copyable line (the form `oradebug short_stack` prints), the error, the statement and its sql_id, the
+  PL/SQL stack. No interpretation of function names.
+- **Process state**: the tree of state objects by owner; for the kinds the lab shows to be regular (process,
+  session, call, enqueue, library object lock and pin, cursor) one line each: who the session is, what it runs,
+  what it waits for and since when, what it holds.
+- **Hang analysis and deadlock graph**: the chains and the graph as Oracle printed them, as a table and a small
+  node-and-arrow drawing; the sessions and statements named in them.
+- **System state**: one row per process (pid, name, session, waiting for, time in wait, blocker when the dump
+  names one), and a resource table (holders and waiters per enqueue, library object, latch or mutex) built in
+  two passes: the first collects what is waited on, the second who holds it. A process opens with the process
+  state reading, on demand.
+
+### Clients
+
+| Client | What it has |
+|---|---|
+| Desktop, `mtkprof serve` | the reader |
+| Standalone HTML (`mtkprof html`, the default command) | the reader fed with the digest: outline, readings, no text beyond the digest's lines |
+| Text (`mtkprof report`, the default command) | the digest |
+| `mtkprof lint` | the diag line kind and the sections |
+
+**The digest**: the file header, the outline with line numbers, and every reading as text (a heap's tables with
+its check, a process's lines, the chains). Text and UI stay equal in numbers. Commands with nothing to show
+(`pivot`, `export`, `plan`, `compare`, …) refuse with one line, as for 10053.
+
+### Correctness and privacy
+
+- **Best effort on what Oracle writes; our own output is pinned**: a snapshot per fixture (outline, readings,
+  digest), invariants on every fixture, prefix and mutation tests, as for `internal/opt`.
+- **Where a dump prints a total, the reading must equal it** on every fixture (a test, not a display).
+- **Fixtures are real**: lab scenarios `sc_diag_*.sql`, plus public samples of other versions with their
+  sources and licences, as `testdata/opt/11g` and `12c` are.
+- **Redaction**: `-redact-binds` and `-binds none` act on the bind values a cursor dump prints, with the 10046
+  token. Memory contents (a heap dump taken with contents) are never in a digest.
+
+### Guard rails for the primary formats
+
+- The 10046 golden tests and the `internal/opt` snapshots do not change.
+- Every existing fixture has zero sections and the same unknown-line count as today (a test); a section
+  start must not be matched inside 10046 or 10053 content.
+- Parser throughput on a trace without sections stays within 2 % (`internal/trace` benchmark).
+- Each stage leaves the branch releasable; no stage is a condition of a release.
+
+## Sequence
+
+Built on the branch `t3/oracle-trace-dump-support`, merged to `main` after the 10053 release is tagged, so that
+release holds no half-built reader. Each stage ends with `scripts/ci-local.sh --strict` green and a short report.
+
+| Stage | What | Needs the owner |
+|---|---|---|
+| 0 | Release the 10053 reader (HANDOFF § Needs you) | version, tag, the Mac |
+| 1 | Research on the lab, the format reference, this plan corrected | start the lab VMs; one OK for the ORA-4030 run |
+| 2 | Sections in the parser, `internal/diag` at level 0, the `view` option, the reader at level 0 | the mock-up |
+| 3 | Heap dumps and the PGA summary | |
+| 4 | Call stack, error stack, process state; the jump to a 10046 tab | |
+| 5 | Hang analysis and deadlock graph | |
+| 6 | System state | |
+| 7 | Documents, site pages, release notes draft | publishing the site, the release |
+
+Stages 3 to 6 are independent of each other after stage 2; the order is by value for the work. Stopping after
+any of them leaves a working reader.
+
+### Stage 1: research
+
+- **Generate on dbmint (19.27)**, session-level events and immediate dumps only, in schema `MTK` or as SYSDBA
+  where a dump needs it; nothing that changes an instance parameter, no DROP or TRUNCATE:
+
+  | Scenario | What it produces |
+  |---|---|
+  | `diag_heap_pga`, `diag_heap_uga` | heap dump summaries of a session that built a PL/SQL collection and sorted |
+  | `diag_heap_sub` | the same with the largest sub-heaps dumped (the levels with the high bits, to confirm) |
+  | `diag_heap_contents` | a small dump with contents, to learn the lines a reading must skip |
+  | `diag_heap_large` | the large pool (a small SGA heap); the shared pool dump goes to the uncommitted big set |
+  | `diag_errorstack` | errorstack level 3 from inside PL/SQL with open cursors and binds |
+  | `diag_procstate` | process state of a session holding a row lock |
+  | `diag_in_10046` | a 10046 trace with an errorstack written on an ORA-00942, with tkprof output |
+  | `diag_deadlock` | ORA-00060 between two sessions |
+  | `diag_hang`, `diag_sysstate` | hang analysis and system state taken while three sessions wait in a chain |
+  | `diag_ora4030` | the incident file of a real ORA-4030 (a local SYSDBA session under a memory limit) |
+
+- **`diag_ora4030` is asked for separately**: it writes an incident to the lab's ADR and an alert log entry.
+- **Find out and write down** in `docs/trace-format-diag.md`, per kind: how it is produced, the lines that start
+  and end it, its line grammar, which totals it prints, sizes, and what an incident file's own table of contents
+  looks like. Then look for public samples of 11.2 and 12.x and record their licences.
+- **Exit**: the format reference and the fixtures committed; every "to confirm" in this plan resolved; the
+  section kinds whose start or end cannot be found reliably are moved to level 0 and said so.
+
+### Stage 2: sections and the reader at level 0
+
+- **Parser** (`internal/trace/section.go`, `kind.go`, `classify.go`): `Section`, `sectionTracker`, `KindDiag`,
+  `Stats.Sections`; `lint` lists them; a fuzz target for the tracker.
+- **Model** (`internal/model`): `FileEntry.Sections`, the note, `DropOptFiles` generalised.
+  **Cache**: a new line kind and a persisted field, so `model.PersistVersion` 4, `engine.CacheIndexFormat` 9,
+  `TestCacheIndexFormatCoversParts` updated.
+- **`internal/diag`**: `ScanFile` / `ScanReader`, one streaming pass, memory by the model: `diag.File`
+  (header, sections, top-level outline, lines outside any known part) and `Children(node)`, which scans one
+  node's line range through the line index. The banner detection of `internal/opt` (rule, title, rule; a title
+  over an underline) is moved to a small shared package if the opt snapshots stay byte-identical, else copied.
+- **Peek** (`internal/peek`): `Kind` gains `"diag"`; `Sections` lists the kinds with counts for the folder
+  picker's tags. The picker's default filter keeps hiding files that are neither SQL nor optimizer traces.
+- **Engine and `serve`** (`internal/slice/diag.go`, `internal/engine`): the build contract below; the `view`
+  option on `POST /engine/sessions` and on `serve`; OpenAPI, the contract test, `pnpm gen:api`. Additive:
+  `engine.Protocol` stays 1.
+- **CLI** (`cmd/mtkprof`): `report`, `html`, `json`, the default command and `serve` read a diag file;
+  the one-line refusals.
+- **UI**: `data/diag.ts` (the mirror of `model.go`, with the drift test), `DiagSource` (HTTP, document, memory),
+  the view, the tab kind, the note's button, the harness `web/dev/diag.html`.
+- **Tests**: snapshots, invariants (sections do not overlap, nodes nest, children lie inside their node),
+  prefixes, mutations, the guard-rail tests, tkprof parity with zero unknown lines on `diag_in_10046`,
+  throughput.
+
+### Stages 3 to 6: one kind at a time
+
+Each adds, for its kinds: the start and end rules in the tracker, a reader in `internal/diag` (`heap.go`,
+`stack.go`, `procstate.go`, `hang.go`, `deadlock.go`, `sysstate.go`) with its part of `model.go`, its folds and
+landmarks, its text in the digest, the panel in the view, guide entries with sources, snapshots and a screenshot.
+Particular to a stage:
+
+- **3**: the totals test; the `heapdump_analyzer` reference if its licence allows running it at generation time;
+  a bound on distinct comments (the rest summed as "other", said so).
+- **4**: `diagSqlIds` and `diagSessions` on the session object, the marks in the Statements and Sessions views.
+- **6**: the two-pass resource table with bounded memory; a top-level cache part for the scan **only if** a
+  fresh open of a 1 GB file measures over 5 s (a new persisted struct, its own version, the format bump).
+
+### Stage 7: documents
+
+DESIGN (§ Inputs and a new § Diagnostic dumps), ARCHITECTURE, DESKTOP, HANDOFF (state, the budgets measured),
+ROADMAP, README, the site's pages (not published), a release notes draft, this file's log.
+
+## Build contract (to be fixed at the start of stage 2)
+
+- **The document** of a diag session is the document of an empty 10046 model plus `diag`: `file` always, and
+  `digest` (the readings and the digest's lines) in a document made for a client without a server. A shell that
+  sees `doc.diag` shows the reader and none of the 10046 views.
+- **Routes** of a diag session, beside `api/lines` and `api/search` which it serves as any session does:
+  - `GET api/diag/file` → `diag.File`.
+  - `GET api/diag/outline?node=ID` → the children of a node.
+  - `GET api/diag/section?i=N` → the reading of section N (404 for a kind without one).
+- **The session object** gains `view`, and `diagSqlIds` and `diagSessions` once ready.
+
+## Budgets to measure
+
+| | target |
+|---|---|
+| diag scan | 200 MB/s or more |
+| memory held by the scan | under 64 MB for a 2 GB file |
+| fresh open of a 1 GB system state | under 5 s |
+| children of a 100,000-line node | under 50 ms |
+| 10046 parse of a trace without sections | within 2 % of today |
+
+## Known weak points
+
+- **System state is the least supported kind.** A lab instance has a few dozen processes; the format's variety
+  shows on busy production systems, of which there is no sample. It ships marked "tested on a small lab system".
+- **Start and end of a section** are the main risk to the primary formats; a kind with no reliable end stays at
+  level 0.
+- **Other versions** are read with the 19c rules; only public samples say how well.
+- **No reference tool for system state** can be committed (`ass109.awk` is Oracle Support's); snapshots only.
+
+## Decided here for the owner (say if any should differ)
+
+1. The work stays on the branch until the 10053 release is tagged.
+2. The name is "diag" in the code and "dump" in the UI.
+3. A file can be opened in another view (`view`), which also opens the 10053 dumps of an interleaved file.
+4. The centre text is paged from the server, not held whole in the browser.
+5. One mock-up for the whole reader, not one per kind.
+6. The scan is not cached until a measurement asks for it.
+7. Hang analysis and deadlock graphs are in; ORA-4031, RAC dumps and taking dumps from the app are out.
+8. The assistant and `mtkprof mcp` do not read diag files in this version.
+
+## Log
