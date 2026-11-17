@@ -59,7 +59,7 @@ func (s *Server) serveAnnotated2(w http.ResponseWriter, fi, from, n int) {
 // the plan list are walked forward with the lines, so the cost is the page's
 // lines plus the rows within it (plus one bindOwner scan per BINDS block).
 func (s *Server) annotate2(li *trace.LineIndex, fi int, f *fileInfo, from, n int) ([]annotLine2, error) {
-	lines, kinds, err := annotateRaw(li, from, n, s.dumpsOf(fi))
+	lines, kinds, err := annotateRaw(li, from, n, s.marksOf(fi))
 	if err != nil {
 		return nil, err
 	}

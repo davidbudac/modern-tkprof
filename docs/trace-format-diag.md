@@ -100,7 +100,11 @@ No stack allocations
   lines, each with its chunks; a `kghdsx` chunk of size 0 is a list head), `Total free space`, `UNPINNED
   RECREATABLE CHUNKS (lru first):` (SGA heaps add a `SEPARATOR` line and `Unpinned space = N rcr=N trn=N`),
   `PERMANENT CHUNKS:` (each perm chunk again, with its parts as `cprm` lines), `Permanent space`.
-- **End**: the line of `*` after `Permanent space` (`No stack allocations` can stand between). A heap header
+- **End**: the first line of 54 `*` after the start. After `Permanent space` the rule does not always follow
+  at once: `No stack allocations` can stand between, and a heap with sub-heaps lists them (`N LARGEST SUB HEAPS`,
+  `SUBHEAP n: desc=`) and dumps each before its own end rule, so the first rule after a parent's start is the
+  start rule of its first sub-heap (`diag_heap_sub:934`). Rules are shared: one rule can end a heap and lead the
+  next (the large pool headers, `diag_heap_large:40`), or two stand in a row. A heap header
   with no extents (the `sga heap` latch directory at *(big)* `:198`, `IMCA_RO`, `IMCA_RW`, the first `large pool`
   header) ends at the next line of `*` and prints no totals.
 - **Sub-heaps** (levels with the high bits): after a heap's `Permanent space`,
@@ -266,9 +270,11 @@ Process global information:
   ```
 
   or `Not in wait; last wait ended 0.058207 sec ago`. **The dump names the blockers itself.**
-- **End**: no `END OF PROCESS STATE` line exists in 19.27. A process state dump of its own ends with a `Fixed
-  Areas Dump (level=65)` and `KSM MGA PRIVATE DUMP END` (`diag_procstate:3405`, `:10393`); inside a
-  diagnostic dump the next `----- Title -----` at column 0 after the last state object ends it.
+- **End**: `END OF PROCESS STATE` on a line of its own, the last line of a process state dump of its own
+  (`diag_procstate:10394`) and of the one inside an errorstack (`diag_errorstack_l2:8732`). *(Corrected in
+  stage 2: this reference first said 19.27 writes no such line.)* The dump before it ends with a `Fixed
+  Areas Dump (level=65)` and `KSM MGA PRIVATE DUMP END` (`diag_procstate:10393`). The line is nested in an
+  outer dump (errorstack, deadlock) as a line like any other: the outer one has no end line.
 
 ## System state
 
@@ -394,6 +400,13 @@ unknown lines. Put in `testdata/traces/19c/` it breaks `TestClassifyMatchesParse
 of the dump (`Dump of memory …`, ` Bind#0`, `oacdty=…`) are `bind-line` to `trace.Classify` and unknown to the
 parser, because a real `BINDS` block precedes the dump. The fixture therefore waits in `testdata/diag/19c/`
 until the parser tracks sections (stage 2), and `go test ./internal/golden` passes with it in either place.
+
+## What the parser does with them (stage 2)
+
+`internal/trace/section.go` (header comment) has the rules; one section per `HEAP DUMP`, runs of heaps
+adjacent, the other kinds as above. Lines no section takes: the `Processing Oradebug command ...` and
+`Oradebug command ... console output` wrapper lines, the caller's short stack before a system state, the
+`ksqdld_hdr_dump()` line before a deadlock graph, the latch directory before the first shared pool heap.
 
 ## Not verified
 

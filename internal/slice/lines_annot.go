@@ -80,10 +80,27 @@ func classifyRun(lines [][]byte, lo int) []trace.Kind {
 	return kinds
 }
 
+// marks are the ranges of a file whose lines the stateless classifier cannot
+// tell by themselves: the optimizer (10053) dumps (their lines are optimizer
+// lines, trace.MarkOpt) and the diagnostic dump sections (their lines are
+// diagnostic lines, trace.MarkSections). A nil *marks is a file without any,
+// or a server that does not know them.
+type marks struct {
+	dumps    []trace.Dump
+	sections []trace.Section
+}
+
+func (m *marks) mark(kinds []trace.Kind, lines [][]byte, lo int) {
+	if m == nil {
+		return
+	}
+	trace.MarkOpt(kinds, lines, lo, m.dumps)
+	trace.MarkSections(kinds, lines, lo, m.sections)
+}
+
 // annotateRaw reads up to n lines from line `from` (1-based) and classifies them;
-// dumps are the file's optimizer (10053) dumps, whose lines are optimizer lines
-// (trace.MarkOpt), nil for a file without any or a server that does not know them.
-func annotateRaw(li *trace.LineIndex, from, n int, dumps []trace.Dump) ([][]byte, []trace.Kind, error) {
+// mk holds the file's optimizer (10053) dumps and diagnostic dump sections.
+func annotateRaw(li *trace.LineIndex, from, n int, mk *marks) ([][]byte, []trace.Kind, error) {
 	lo := max(1, from-annotLookback)
 	raw, err := li.Read(lo, from-lo+n)
 	if err != nil {
@@ -91,7 +108,7 @@ func annotateRaw(li *trace.LineIndex, from, n int, dumps []trace.Dump) ([][]byte
 	}
 	lines := splitLines(raw)
 	kinds := classifyRun(lines, lo)
-	trace.MarkOpt(kinds, lines, lo, dumps)
+	mk.mark(kinds, lines, lo)
 	if from-lo > len(lines) { // the file ends before the page
 		return nil, nil, nil
 	}
@@ -99,8 +116,8 @@ func annotateRaw(li *trace.LineIndex, from, n int, dumps []trace.Dump) ([][]byte
 }
 
 // annotate returns up to n lines from line `from` (1-based) with their kinds.
-func annotate(li *trace.LineIndex, from, n int, dumps []trace.Dump) ([]annotLine, error) {
-	lines, kinds, err := annotateRaw(li, from, n, dumps)
+func annotate(li *trace.LineIndex, from, n int, mk *marks) ([]annotLine, error) {
+	lines, kinds, err := annotateRaw(li, from, n, mk)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +129,7 @@ func annotate(li *trace.LineIndex, from, n int, dumps []trace.Dump) ([]annotLine
 }
 
 // kindAt is the kind of line `line` (1-based, within the file) and its text.
-func kindAt(li *trace.LineIndex, line int, dumps []trace.Dump) (trace.Kind, []byte, error) {
+func kindAt(li *trace.LineIndex, line int, mk *marks) (trace.Kind, []byte, error) {
 	lo := max(1, line-annotLookback)
 	raw, err := li.Read(lo, line-lo+1)
 	if err != nil {
@@ -123,16 +140,16 @@ func kindAt(li *trace.LineIndex, line int, dumps []trace.Dump) (trace.Kind, []by
 		return trace.KindUnknown, nil, nil
 	}
 	kinds := classifyRun(lines, lo)
-	trace.MarkOpt(kinds, lines, lo, dumps)
+	mk.mark(kinds, lines, lo)
 	return kinds[len(kinds)-1], lines[len(lines)-1], nil
 }
 
 // serveAnnotated answers /api/lines?...&annot=1.
-func serveAnnotated(w http.ResponseWriter, li *trace.LineIndex, from, n int, dumps []trace.Dump) {
+func serveAnnotated(w http.ResponseWriter, li *trace.LineIndex, from, n int, mk *marks) {
 	from = max(from, 1)
 	page := annotPage{From: from, Total: li.Lines(), Lines: []annotLine{}}
 	if from <= li.Lines() && n > 0 {
-		lines, err := annotate(li, from, n, dumps)
+		lines, err := annotate(li, from, n, mk)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -156,19 +173,23 @@ func writePage(w http.ResponseWriter, page any) {
 	w.Write(buf.Bytes())
 }
 
-// dumpsOf are the optimizer (10053) dumps of input file fi, from the model's
-// per-file ranges (nil: none, or a file the model does not know).
-func (s *Server) dumpsOf(fi int) []trace.Dump {
+// marksOf are the optimizer (10053) dumps and the diagnostic dump sections of
+// input file fi, from the model's per-file ranges (nil: none, or a file the
+// model does not know).
+func (s *Server) marksOf(fi int) *marks {
 	if s.m == nil || fi < 0 || fi >= len(s.m.File.Files) {
 		return nil
 	}
-	rs := s.m.File.Files[fi].Dumps
-	if len(rs) == 0 {
+	fe := s.m.File.Files[fi]
+	if len(fe.Dumps) == 0 && len(fe.Sections) == 0 {
 		return nil
 	}
-	out := make([]trace.Dump, len(rs))
-	for i, r := range rs {
-		out[i] = trace.Dump{First: r.First, Last: r.Last, SQLID: r.SQLID, Cut: r.Cut}
+	mk := &marks{}
+	for _, r := range fe.Dumps {
+		mk.dumps = append(mk.dumps, trace.Dump{First: r.First, Last: r.Last, SQLID: r.SQLID, Cut: r.Cut})
 	}
-	return out
+	for _, r := range fe.Sections {
+		mk.sections = append(mk.sections, trace.Section{Kind: trace.ParseSectionKind(r.Kind), First: r.First, Last: r.Last, Cut: r.Cut})
+	}
+	return mk
 }

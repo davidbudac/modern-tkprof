@@ -1939,10 +1939,10 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one
+         * @description the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one; diagnostic is a line of a diagnostic dump section (a heap dump, an errorstack, a process state, ...; trace.Section)
          * @enum {string}
          */
-        LineKind: "unknown" | "blank" | "header" | "separator" | "marker" | "parsing-in-cursor" | "sql-text" | "end-of-stmt" | "call" | "wait" | "stat" | "binds" | "bind-line" | "xctend" | "error" | "parse-error" | "lob" | "rpc" | "optimizer";
+        LineKind: "unknown" | "blank" | "header" | "separator" | "marker" | "parsing-in-cursor" | "sql-text" | "end-of-stmt" | "call" | "wait" | "stat" | "binds" | "bind-line" | "xctend" | "error" | "parse-error" | "lob" | "rpc" | "optimizer" | "diagnostic";
         /** @description the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record */
         OptDoc: {
             file: components["schemas"]["OptFile"];
@@ -2991,6 +2991,14 @@ export interface components {
              */
             at?: string;
         };
+        PeekSection: {
+            /**
+             * @description the kind of diagnostic dump section: a heap dump, the PGA memory summary, the PGA memory detail dump, the diagnostic dump of an errorstack (call stack, current SQL, cursors), a process state, a system state, a hang analysis, a deadlock graph, the contents of an incident file
+             * @enum {string}
+             */
+            kind: "heap" | "pga-summary" | "pga-detail" | "diagdump" | "procstate" | "sysstate" | "hang" | "deadlock" | "incident";
+            count: number;
+        };
         TracePeek: {
             path: string;
             size: number;
@@ -3024,10 +3032,12 @@ export interface components {
             /** @description the file could not be read; the other fields hold what was read */
             error?: string;
             /**
-             * @description what the file holds: 10046 (SQL trace records), 10053 (optimizer dumps and no 10046 record) or both (event 10046 and 10053 on in one session: an interleaved file); absent when neither was seen. The file is read to its end for it
+             * @description what the file holds: 10046 (SQL trace records), 10053 (optimizer dumps and no 10046 record), both (event 10046 and 10053 on in one session: an interleaved file) or diag (diagnostic dumps, see sections, and neither of the others); absent when none was seen. The file is read to its end for it
              * @enum {string}
              */
-            kind?: "10046" | "10053" | "both";
+            kind?: "10046" | "10053" | "both" | "diag";
+            /** @description the diagnostic dump sections of the file counted by kind, in the order the kinds first appear; absent when it has none. Set only for a file of kind diag: a 10046 or 10053 file is not searched for them */
+            sections?: components["schemas"]["PeekSection"][];
             /** @description the number of optimizer (10053) dumps in the file (a dump starts at its first `Registered qb: ... (PARSER)` line) */
             optDumps?: number;
             /** @description the sql_id of the first 100 dumps, in file order ("" for a dump cut before its sql_id line) */

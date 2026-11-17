@@ -639,10 +639,10 @@ func cmdServe(args []string) error {
 		ss.Thresholds = th // api/findings: those of the document's findings
 		mux.Handle("/api/", ss.Handler())
 	} else {
-		dumps := dumpRanges(m) // the optimizer (10053) dumps of each file: the lines endpoint names their lines
-		m = nil                // the model is not needed any more: the document is built, only the line indexes serve requests
+		dumps, sections := dumpRanges(m), sectionRanges(m) // the optimizer (10053) dumps and the diagnostic dump sections of each file: the lines endpoint names their lines
+		m = nil                                            // the model is not needed any more: the document is built, only the line indexes serve requests
 		debug.FreeOSMemory()
-		mux.Handle("/api/lines", slicepkg.LinesHandlerDumps(lis, dumps))
+		mux.Handle("/api/lines", slicepkg.LinesHandlerRanges(lis, dumps, sections))
 	}
 	mux.HandleFunc("/api/doc", func(w http.ResponseWriter, r *http.Request) {
 		// local dev server: let `pnpm dev` load ?doc=http://127.0.0.1:8046/api/doc
@@ -853,6 +853,16 @@ func lintFile(file string) error {
 			fmt.Printf("  lines %d-%d  sql_id %s%s\n", d.First, d.Last, orDash(d.SQLID), cut)
 		}
 	}
+	if len(st.Sections) > 0 {
+		fmt.Printf("sections: %d (diagnostic dumps)\n", len(st.Sections))
+		for _, sc := range st.Sections {
+			cut := ""
+			if sc.Cut {
+				cut = "  cut"
+			}
+			fmt.Printf("  lines %d-%d  %s%s\n", sc.First, sc.Last, sc.Kind, cut)
+		}
+	}
 	printMap := func(title string, m map[string]int) {
 		if len(m) == 0 {
 			return
@@ -898,8 +908,21 @@ func lintFile(file string) error {
 	return nil
 }
 
+// sectionRanges is the diagnostic dump sections of each input file of m, for the same (LinesHandlerRanges).
+func sectionRanges(m *model.Model) [][]trace.Section {
+	var out [][]trace.Section
+	for _, fe := range m.File.Files {
+		var ss []trace.Section
+		for _, r := range fe.Sections {
+			ss = append(ss, trace.Section{Kind: trace.ParseSectionKind(r.Kind), First: r.First, Last: r.Last, Cut: r.Cut})
+		}
+		out = append(out, ss)
+	}
+	return out
+}
+
 // dumpRanges is the optimizer (10053) dumps of each input file of m, for the line endpoints of a server that keeps no model: they name the dumps'
-// lines (LinesHandlerDumps).
+// lines (LinesHandlerRanges).
 func dumpRanges(m *model.Model) [][]trace.Dump {
 	var dumps [][]trace.Dump
 	for _, fe := range m.File.Files {

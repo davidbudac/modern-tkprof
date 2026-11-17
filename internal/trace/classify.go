@@ -157,7 +157,11 @@ func isBindLineShape(line []byte) bool {
 // Neither Classify nor Classifier knows optimizer (10053) dumps (dump.go): the
 // lines of a dump come out as KindUnknown, KindBindLine ("Bind Info" block),
 // KindSeparator (its banners) and so on; only the Parser, which keeps the
-// dump state, counts them as KindOpt.
+// dump state, counts them as KindOpt. Diagnostic dump sections (section.go) are
+// the same: the lines of one come out as unknown, bind lines or separators,
+// and only the Parser counts them as KindDiag; a caller that has the file's
+// sections applies MarkSections to what Classify said, as MarkOpt does for
+// the optimizer dumps.
 //
 // A caller that starts in the middle of a file does not know whether line 1 of
 // its page is inside SQL text; it can seed inSQL by classifying a few lines

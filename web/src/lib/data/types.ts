@@ -45,7 +45,12 @@ export interface FileEntry {
   continuesIn?: string[]
   /** the optimizer (10053) dumps found inside this file (an interleaved 10046 + 10053 trace); absent when it has none */
   dumps?: FileDump[]
+  /** the diagnostic dump sections found in this file (heap dump, errorstack, process state, ...); absent when it has none */
+  sections?: FileSection[]
 }
+
+/** One diagnostic dump section inside a trace file (model.SectionRange): its kind (heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident) and first and last line. */
+export interface FileSection { kind: string; first: number; last: number; cut?: boolean }
 
 /** One optimizer (10053) dump inside a 10046 trace file (model.DumpRange): its first and last line. */
 export interface FileDump { first: number; last: number; sqlId?: string; cut?: boolean }

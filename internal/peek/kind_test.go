@@ -11,12 +11,13 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
-// The kind, the number of dumps and their sql_ids agree with the parser's on
-// every fixture: 10046 for the traces, 10053 for the optimizer files, both
-// for the interleaved one.
+// The kind, the number of dumps and their sql_ids, and the diagnostic dump
+// sections agree with the parser's on every fixture: 10046 for the traces,
+// 10053 for the optimizer files, both for the interleaved one, diag for the
+// files of diagnostic dumps.
 func TestPeekKind(t *testing.T) {
 	var files []string
-	for _, g := range []string{"traces/*/*.trc", "opt/*/*.trc"} {
+	for _, g := range []string{"traces/*/*.trc", "opt/*/*.trc", "diag/19c/*.trc"} {
 		fs, _ := filepath.Glob(filepath.Join("..", "..", "testdata", g))
 		files = append(files, fs...)
 	}
@@ -33,7 +34,7 @@ func TestPeekKind(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := map[trace.FileKind]string{trace.FileKind10046: "10046", trace.FileKind10053: "10053", trace.FileKindBoth: "both", trace.FileKindNone: ""}[st.FileKind()]
+		want := map[trace.FileKind]string{trace.FileKind10046: "10046", trace.FileKind10053: "10053", trace.FileKindBoth: "both", trace.FileKindDiag: "diag", trace.FileKindNone: ""}[st.FileKind()]
 		if s.Kind != want {
 			t.Errorf("%s: kind %q, parser says %q", f, s.Kind, want)
 		}
@@ -44,7 +45,27 @@ func TestPeekKind(t *testing.T) {
 		if s.OptDumps != len(st.Dumps) || !slices.Equal(s.OptSQLIDs, ids) {
 			t.Errorf("%s: %d dumps %v, parser %d %v", f, s.OptDumps, s.OptSQLIDs, len(st.Dumps), ids)
 		}
+		var secs []SectionCount // the parser's sections by kind, in order of first appearance
+		for _, sec := range st.Sections {
+			if i := slices.IndexFunc(secs, func(c SectionCount) bool { return c.Kind == sec.Kind.String() }); i >= 0 {
+				secs[i].Count++
+			} else {
+				secs = append(secs, SectionCount{Kind: sec.Kind.String(), Count: 1})
+			}
+		}
+		if s.Kind != "diag" {
+			secs = nil // a 10046 or 10053 file is not searched for sections
+		}
+		if !slices.Equal(s.Sections, secs) {
+			t.Errorf("%s: sections %v, parser %v", f, s.Sections, secs)
+		}
 		seen[s.Kind]++
+		if len(secs) > 0 {
+			seen["sections"]++
+		}
+	}
+	if seen["diag"] < 14 || seen["sections"] != seen["diag"] { // only diagnostic-only files report sections
+		t.Errorf("diag files %d, files with sections %d", seen["diag"], seen["sections"])
 	}
 	if seen["10053"] < 5 || seen["both"] != 1 || seen["10046"] < 30 {
 		t.Errorf("kinds seen %v", seen)
@@ -130,4 +151,72 @@ func (c *cancelAfterFirstRead) ReadAt(p []byte, off int64) (int, error) {
 	n, err := c.Reader.ReadAt(p, off)
 	c.cancel()
 	return n, err
+}
+
+// Sections by kind in order of first appearance, from synthetic text: nested
+// starts are not counted, a 10046 or 10053 file keeps its kind and reports no
+// sections, a start in statement text is not a section.
+func TestPeekSections(t *testing.T) {
+	heap := `HEAP DUMP heap name="pga heap"  desc=0x7f952ce9a220`
+	rule := strings.Repeat("*", 54)
+	cursor := "PARSING IN CURSOR #1 len=13 dep=0 uid=1 oct=3 lid=1 tim=100 hv=1 ad='0' sqlid='a'\nPROCESS STATE\nEND OF STMT\n"
+	for _, c := range []struct {
+		name, text, kind string
+		want             []SectionCount
+	}{
+		{"nothing", "*** 2026-10-22T11:35:29.000000+00:00\nsome text\n", "", nil},
+		{"one", "PROCESS STATE\nx\nEND OF PROCESS STATE\n", "diag", []SectionCount{{"procstate", 1}}},
+		{"two kinds", rule + "\n" + heap + "\nx\n" + rule + "\n" + rule + "\n" + heap + "\n" + rule + "\nHANG ANALYSIS:\nx\n", "diag", []SectionCount{{"heap", 2}, {"hang", 1}}},
+		{"nested", "dbkedDefDump(): Starting a non-incident diagnostic dump (flags=0x0, level=1, mask=0x0)\n" + heap + "\nPROCESS STATE\n", "diag", []SectionCount{{"diagdump", 1}}},
+		{"10046 with a dump", "EXEC #1:c=1,e=1,p=0,cr=0,cu=0,mis=0,r=0,dep=0,og=1,plh=0,tim=61000000\nPROCESS STATE\nx\n", "10046", nil},
+		{"in statement text", cursor, "10046", nil},
+		{"a key that is not a start", "xPROCESS STATE\nPROCESS STATE (2)\nEND OF PROCESS STATE\n", "", nil},
+		{"10053 and a section", "Registered qb: SEL$1 0xe8eab888 (PARSER)\n====================== END SQL Statement Dump ======================\n*** 2026-10-22T11:35:29.000000+00:00\nSYSTEM STATE (level=1)\nx\nEND OF SYSTEM STATE\n", "10053", nil},
+	} {
+		var s Summary
+		if err := Read(context.Background(), strings.NewReader(c.text), int64(len(c.text)), &s); err != nil {
+			t.Fatal(err)
+		}
+		if s.Kind != c.kind || !slices.Equal(s.Sections, c.want) {
+			t.Errorf("%s: kind %q sections %v, want %q %v", c.name, s.Kind, s.Sections, c.kind, c.want)
+		}
+	}
+}
+
+// A section whose start line is in a later chunk than the first one.
+func TestPeekSectionAcrossChunks(t *testing.T) {
+	var b bytes.Buffer
+	b.WriteString("*** 2026-10-22T11:35:29.000000+00:00\n")
+	filler := strings.Repeat("x", 99) + "\n"
+	for b.Len() < 2*chunk+10 {
+		b.WriteString(filler)
+	}
+	b.WriteString("SYSTEM STATE (level=1)\n")
+	for b.Len() < 3*chunk+10 {
+		b.WriteString(filler)
+	}
+	b.WriteString("END OF SYSTEM STATE\nHANG ANALYSIS:\nx\n")
+	var s Summary
+	if err := Read(context.Background(), bytes.NewReader(b.Bytes()), int64(b.Len()), &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Kind != "diag" || !slices.Equal(s.Sections, []SectionCount{{"sysstate", 1}, {"hang", 1}}) {
+		t.Errorf("kind %q sections %v", s.Kind, s.Sections)
+	}
+}
+
+// A read cancelled while it follows the sections answers what it saw (no sections), with the error.
+func TestPeekSectionsCancelled(t *testing.T) {
+	var b bytes.Buffer
+	b.WriteString("PROCESS STATE\n")
+	filler := strings.Repeat("x", 99) + "\n"
+	for b.Len() < chunk+100 {
+		b.WriteString(filler)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	r := &cancelAfterFirstRead{Reader: bytes.NewReader(b.Bytes()), cancel: cancel}
+	var s Summary
+	if err := Read(ctx, r, int64(b.Len()), &s); err == nil {
+		t.Fatal("read not cancelled")
+	}
 }

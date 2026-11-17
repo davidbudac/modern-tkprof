@@ -21,6 +21,10 @@ type Stats struct {
 	// adaptive-plan chatter after a dump. Add does not sum them: their line
 	// numbers belong to one file.
 	Dumps []Dump
+	// Sections are the diagnostic dumps (heap dump, errorstack, process state,
+	// ...) found in the file, in file order (see section.go). Their lines are
+	// counted as KindDiag. Add does not sum them either.
+	Sections []Section
 }
 
 // Add accumulates o into s (summing the runs of several files).
@@ -66,7 +70,8 @@ type Parser struct {
 	bindBuf BindSet
 	arena   []byte // chunk that bind values are copied into (see str)
 
-	opt optTracker // optimizer dumps (dump.go)
+	opt optTracker     // optimizer dumps (dump.go)
+	sec sectionTracker // diagnostic dump sections (section.go)
 
 	kindHook func(line int, k Kind) // tests: sees every counted line kind
 }
@@ -82,6 +87,7 @@ const lenSlack = 4
 func New(h Handler) *Parser {
 	p := &Parser{h: h, inHeader: true, intern: make(map[string]string, 256)}
 	p.opt.dumps, p.opt.id = &p.stats.Dumps, p.internBytes
+	p.sec.out = &p.stats.Sections
 	return p
 }
 
@@ -242,6 +248,7 @@ func (p *Parser) finishPerr() {
 
 func (p *Parser) finish() {
 	p.opt.finish(p.line)
+	p.leaveSection()
 	if p.cur != nil {
 		p.finishCursor()
 	}
@@ -311,8 +318,14 @@ func isLobLine(line []byte) bool {
 func (p *Parser) classify(line []byte) {
 	r := recordKind(line)
 	if (p.opt.st != optOut || r.kind == KindUnknown) && p.opt.line(p.line, line, r) {
+		if p.sec.st != secOut { // a section ends where an optimizer line begins
+			p.leaveSection()
+		}
 		p.inHeader = false
 		p.count(KindOpt)
+		return
+	}
+	if (p.sec.st != secOut || r.kind == KindUnknown) && p.section(line, r) {
 		return
 	}
 	switch r.kind {
@@ -368,6 +381,61 @@ func (p *Parser) classify(line []byte) {
 			p.callFields(&c, bytes.TrimSpace(line[r.n:]))
 			p.h.Call(c)
 		}
+	}
+}
+
+// section asks the section tracker about a line; true means it took it (a
+// diagnostic line, or a rule it holds back).
+func (p *Parser) section(line []byte, r rec) bool {
+	act := p.sec.line(p.line, line, r)
+	switch p.sec.rel {
+	case relDiag:
+		p.countAt(p.sec.relLine, KindDiag)
+	case relStray:
+		p.stray(p.sec.relLine)
+	}
+	switch act {
+	case secDiag:
+		p.inHeader = false
+		p.count(KindDiag)
+		return true
+	case secWait:
+		return true
+	}
+	return false
+}
+
+// leaveSection ends the section in progress, or settles a held rule, because
+// the input ends or an optimizer line comes first.
+func (p *Parser) leaveSection() {
+	if p.sec.st == secHeld {
+		p.stray(p.sec.held)
+		p.sec.st, p.sec.held = secOut, 0
+		return
+	}
+	p.sec.endOfInput()
+}
+
+// stray counts the line n, a line of 54 "*" that no heap dump followed, as
+// the line it is outside a section: a prologue line or an unknown one.
+func (p *Parser) stray(n int) {
+	if p.inHeader {
+		p.countAt(n, KindHeader)
+		h := ParseHeader(starRule)
+		h.Line = n
+		p.h.HeaderLine(h)
+		return
+	}
+	p.countAt(n, KindUnknown)
+	p.stats.Unknown++
+	p.h.Unknown(n, starRule)
+}
+
+// countAt is count for a line that is not the current one (a held rule).
+func (p *Parser) countAt(n int, k Kind) {
+	p.stats.Kinds[k]++
+	if p.kindHook != nil {
+		p.kindHook(n, k)
 	}
 }
 

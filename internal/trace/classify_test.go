@@ -59,7 +59,9 @@ func parserKinds(t *testing.T, path string) (kinds []int, lines [][]byte, st Sta
 // nothing), PARSE ERROR statement text, a literal END OF STMT inside SQL text
 // (the parser checks len=), and the prologue (Classify: unknown). Lines the
 // parser counts as optimizer (10053 dump) lines are left out of the
-// comparison (see dump.go; TestDumpLineKinds covers them).
+// comparison (see dump.go; TestDumpLineKinds covers them). The lines of
+// diagnostic dump sections (section.go) are compared after MarkSections, which
+// is how a page of the line endpoints gets them.
 func TestClassifyMatchesParser(t *testing.T) {
 	files, _ := filepath.Glob("../../testdata/traces/*/*.trc")
 	if len(files) == 0 {
@@ -71,20 +73,28 @@ func TestClassifyMatchesParser(t *testing.T) {
 		inSQL := false
 		inHeader := true
 		diffs := map[string]int{}
+		// what Classify says of every line, then the file's diagnostic sections applied to it
+		// as the line endpoints do (MarkSections); the optimizer dumps are
+		// left out of the comparison below
+		ks := make([]Kind, len(lines))
 		for i := 1; i < len(lines); i++ {
-			var k Kind
-			k, _ = Classify(lines[i], inSQL)
+			ks[i], _ = Classify(lines[i], inSQL)
+			pk := kinds[i]
+			// the parser's state decides whether the next line is SQL text
+			// (not Classify's: a literal END OF STMT inside a statement
+			// would cascade); PARSE ERROR text is counted as sql-text too
+			// but Classify never enters SQL text for it
+			inSQL = pk == int(KindParsingInCursor) || (pk == int(KindSQLText) && inSQL)
+		}
+		MarkSections(ks[1:], lines[1:], 1, st.Sections)
+		for i := 1; i < len(lines); i++ {
+			k := ks[i]
 			pk := kinds[i]
 			if pk == int(KindOpt) {
 				// optimizer dump lines: the parser decides by dump state (see
 				// dump.go), which the stateless Classify does not have
 				continue
 			}
-			// the parser's state decides whether the next line is SQL text
-			// (not Classify's: a literal END OF STMT inside a statement
-			// would cascade); PARSE ERROR text is counted as sql-text too
-			// but Classify never enters SQL text for it
-			inSQL = pk == int(KindParsingInCursor) || (pk == int(KindSQLText) && inSQL)
 			if pk == int(KindMarker) || pk == int(KindSeparator) {
 				inHeader = false
 			}

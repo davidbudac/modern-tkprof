@@ -3599,8 +3599,8 @@ components:
   schemas:
     LineKind:
       type: string
-      description: the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one
-      enum: [unknown, blank, header, separator, marker, parsing-in-cursor, sql-text, end-of-stmt, call, wait, stat, binds, bind-line, xctend, error, parse-error, lob, rpc, optimizer]
+      description: "the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one; diagnostic is a line of a diagnostic dump section (a heap dump, an errorstack, a process state, ...; trace.Section)"
+      enum: [unknown, blank, header, separator, marker, parsing-in-cursor, sql-text, end-of-stmt, call, wait, stat, binds, bind-line, xctend, error, parse-error, lob, rpc, optimizer, diagnostic]
     OptDoc:
       type: object
       description: "the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record"
@@ -5552,6 +5552,17 @@ components:
           type: string
           format: date-time
           description: the time on its first SESSION ID line
+    PeekSection:
+      type: object
+      required: [kind, count]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident]
+          description: "the kind of diagnostic dump section: a heap dump, the PGA memory summary, the PGA memory detail dump, the diagnostic dump of an errorstack (call stack, current SQL, cursors), a process state, a system state, a hang analysis, a deadlock graph, the contents of an incident file"
+        count:
+          type: integer
     TracePeek:
       type: object
       required: [path, size, modified, elapsedUs, sqlTrace, sessions, sessionCount]
@@ -5609,8 +5620,13 @@ components:
           description: the file could not be read; the other fields hold what was read
         kind:
           type: string
-          enum: ["10046", "10053", "both"]
-          description: "what the file holds: 10046 (SQL trace records), 10053 (optimizer dumps and no 10046 record) or both (event 10046 and 10053 on in one session: an interleaved file); absent when neither was seen. The file is read to its end for it"
+          enum: ["10046", "10053", "both", "diag"]
+          description: "what the file holds: 10046 (SQL trace records), 10053 (optimizer dumps and no 10046 record), both (event 10046 and 10053 on in one session: an interleaved file) or diag (diagnostic dumps, see sections, and neither of the others); absent when none was seen. The file is read to its end for it"
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/PeekSection"
+          description: "the diagnostic dump sections of the file counted by kind, in the order the kinds first appear; absent when it has none. Set only for a file of kind diag: a 10046 or 10053 file is not searched for them"
         optDumps:
           type: integer
           description: "the number of optimizer (10053) dumps in the file (a dump starts at its first `Registered qb: ... (PARSER)` line)"

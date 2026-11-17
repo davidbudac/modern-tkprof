@@ -1038,3 +1038,77 @@ func TestLinesAnnotOptimizerDumps(t *testing.T) {
 		t.Errorf("api/at of a dump line: %d %.200s", code, body)
 	}
 }
+
+// The lines of a diagnostic dump (an errorstack inside a 10046 trace, the whole
+// of a heap dump file) come out as diagnostic lines (annot=1 and annot=2, from
+// the model and from the spill server; the plain handler too when it is given
+// the sections), the records around them keep their kinds; the count is the
+// parser's. A 10046 trace without sections answers as before.
+func TestLinesAnnotDiagSections(t *testing.T) {
+	for _, f := range []string{traces + "diag_in_10046.trc", "../../testdata/diag/19c/diag_heap_pga.trc", "../../testdata/diag/19c/diag_hang.trc"} {
+		e := newLineEnv(t, []string{f})
+		want := e.full.Diag.LineKinds["diagnostic"]
+		if want < 200 || len(e.full.File.Files[0].Sections) == 0 {
+			t.Fatalf("%s: the parser counted %d diagnostic lines, %v", f, want, e.full.File.Files[0].Sections)
+		}
+		var ss []trace.Section
+		for _, r := range e.full.File.Files[0].Sections {
+			ss = append(ss, trace.Section{Kind: trace.ParseSectionKind(r.Kind), First: r.First, Last: r.Last, Cut: r.Cut})
+		}
+		plain := LinesHandlerRanges(e.lis, nil, [][]trace.Section{ss})
+		total := e.lis[0].Lines()
+		for _, annot := range []string{"1", "2"} {
+			got := 0
+			for from := 1; from <= total; from += 1500 {
+				url := fmt.Sprintf("/api/lines?file=0&from=%d&n=1500&annot=%s", from, annot)
+				code, body := e.both(t, url)
+				if code != 200 {
+					t.Fatalf("%s: %d %s", url, code, body)
+				}
+				var pg struct {
+					Lines []struct{ T, K string }
+				}
+				if err := json.Unmarshal(body, &pg); err != nil {
+					t.Fatal(err)
+				}
+				for i, l := range pg.Lines {
+					switch l.K {
+					case "diagnostic":
+						got++
+					case "unknown": // a PARSE ERROR's statement text is one the stateless classifier cannot tell; a section's line never is
+						for _, sc := range ss {
+							if n := from + i; n >= sc.First && n <= sc.Last {
+								t.Errorf("%s annot=%s: line %d of a section is unknown: %q", f, annot, n, l.T)
+							}
+						}
+					}
+				}
+				if annot == "1" {
+					_, pb := fetch(plain, url)
+					if !bytes.Equal(pb, body) {
+						t.Fatalf("%s: the handler given the sections answers otherwise than the server", url)
+					}
+				}
+			}
+			if got != want {
+				t.Errorf("%s annot=%s: %d diagnostic lines, the parser counts %d", f, annot, got, want)
+			}
+		}
+		// a page that starts inside the section
+		s := e.full.File.Files[0].Sections[0]
+		_, body := fetch(e.mem, fmt.Sprintf("/api/lines?file=0&from=%d&n=3&annot=1", s.First+100))
+		if strings.Count(string(body), `"k":"diagnostic"`) != 3 {
+			t.Errorf("%s: a page inside the section: %s", f, body)
+		}
+		// the same page without the sections: unrecognised lines
+		_, body = fetch(LinesHandler(e.lis), fmt.Sprintf("/api/lines?file=0&from=%d&n=3&annot=1", s.First+100))
+		if strings.Contains(string(body), `"k":"diagnostic"`) {
+			t.Errorf("%s: without sections: %s", f, body)
+		}
+		// the single-line kind of api/at
+		code, body := fetch(e.mem, fmt.Sprintf("/api/at?file=0&line=%d", s.First+100))
+		if code != 200 || !strings.Contains(string(body), `"kind":"diagnostic"`) {
+			t.Errorf("%s: api/at of a section line: %d %.200s", f, code, body)
+		}
+	}
+}

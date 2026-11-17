@@ -270,9 +270,10 @@ ROADMAP, README, the site's pages (not published), a release notes draft, this f
 
 - **System state is the least supported kind.** A lab instance has a few dozen processes; the format's variety
   shows on busy production systems, of which there is no sample. It ships marked "tested on a small lab system".
-- **Start and end of a section** are the main risk to the primary formats. A heap dump, a system state and a
-  hang analysis have an end line. A diagnostic dump (errorstack) and a process state have none: inside a 10046
-  trace they run to the next valid 10046 record, a rule seen on one fixture (`diag_in_10046`).
+- **Start and end of a section** are the main risk to the primary formats. A heap dump, a process state, a
+  system state, a hang analysis and a PGA detail dump have an end line. A diagnostic dump (errorstack), a PGA
+  summary, a deadlock trace and an incident have none: they run to the next valid 10046 record or the end of
+  the file, a rule seen inside a 10046 trace on one fixture (`diag_in_10046`).
 - **No real ORA-04030 trace.** The lab host fails the allocation with ORA-27102 (an ORA-06544 incident) under
   any memory limit tried; the memory blocks are read from `pga_summary`, and that an ORA-04030 trace prints
   the same blocks is not shown by a fixture.
@@ -315,3 +316,34 @@ recommendation".
 - **A latent mismatch in the 10046 code**, found by `diag_in_10046`: `trace.Classify` takes 211 lines of the dump
   after a `BINDS` block for bind lines and the parser does not (`TestClassifyMatchesParser`). The fixture waits
   in `testdata/diag/19c/` until stage 2 fixes it with the section tracker.
+
+### 2026-11-18: stage 2, the parser's sections
+
+- **Built**: `internal/trace/section.go` (`Section`, nine kinds, `sectionTracker`, the line kind `diagnostic`,
+  `FileKindDiag`, sniff), `trace.MarkSections` for the page classifier, `model.FileEntry.Sections` with the note
+  under the trace facts, the set exclusion of a diag-only file, `peek` (`Kind` "diag", `Sections`), `lint`, the
+  line annotation and the Lines view's neutral tone for the new kind. Cache: `model.PersistVersion` 4,
+  `engine.CacheIndexFormat` 9. The API change is additive (`LineKind`, `TracePeek.sections`), protocol 1.
+- **Guard rails held**: the lint output of all 116 earlier fixtures is identical before and after
+  (`internal/trace/testdata/fixture_kinds_before.txt`, `TestFixtureKindsUnchanged`); golden and 10053 snapshots
+  unchanged; `BenchmarkParseFile` on 1.2 GB of 10046 traces 668-671 MB/s before and after, interleaved runs.
+- **`diag_in_10046` is in `testdata/traces/19c/`**: compared with tkprof without exclusion, zero unknown lines
+  (29,371 before), `TestClassifyMatchesParser` passes.
+- **Corrections to the format reference**: `END OF PROCESS STATE` does exist in 19.27 (the first reading missed
+  it); the `*` rules between heaps are shared, so a run of heaps is partitioned at them.
+- **Peek**: searching every file for section starts halved the peek's speed on 10046 traces (5.9 to 2.65
+  GB/s), so the search stops at the first 10046 record or optimizer dump and `Sections` is set for diag-only
+  files; a 10046 trace's sections are found when it is parsed.
+- **A fix in Cut** (`internal/cut/text.go`), needed by the new fixture and not by sections: a blank line after
+  a separator was dropped as a record continuation, which left a gap and an extra generated timestamp.
+- **Left unknown on purpose**: oradebug's wrapper lines, the caller's short stack before a system state, the
+  `ksqdld_hdr_dump()` line before a deadlock, the latch directory before the first shared pool heap.
+- A diag-only file still opens as an empty 10046 model; the reader is the next step.
+
+### 2026-11-18: the mock-up
+
+`docs/mockups/diag-reader/` (plain HTML, a throwaway parser `tools/parse.mjs` on the lab files, eleven
+screenshots in `shots/`): the error stack, process, heap, system state and hang analysis readings, light and
+dark, and two layouts for the owner to choose from (A: a *Reading | Text* switch in the centre; B: the text in
+the centre and the reading in the right panel). Its parser found the totals check true on all 80 heaps of
+`diag_heap_sub`. Not approved yet.

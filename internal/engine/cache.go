@@ -81,8 +81,12 @@ import (
 // 8: the lines of an optimizer (10053) dump are no longer unknown lines
 // (line kind "optimizer"), the model keeps the dumps' line ranges per file
 // (model.PersistVersion 3) and notes them under the trace facts, so a session
+// cached before this holds the old unknown-line counts and no note. 9: the
+// lines of a diagnostic dump (heap dump, errorstack, process state, ...) are no
+// longer unknown lines (line kind "diagnostic"), and the model keeps their
+// section ranges per file (model.PersistVersion 4) and notes them, so a session
 // cached before this holds the old unknown-line counts and no note.
-const CacheIndexFormat = 8
+const CacheIndexFormat = 9
 
 // cacheParts are the versions of the files of an entry at CacheIndexFormat.
 var cacheParts = map[string]int{

@@ -257,7 +257,7 @@ func TestContractSchemas(t *testing.T) {
 		"IOObjStat": analyze.IOObjStat{}, "IOStmtStat": analyze.IOStmtStat{}, "IODensity": analyze.IODensity{}, "IODensityPanel": analyze.IODensityPanel{},
 		"RefCounts": report.RefCounts{}, "RefStatus": RefStatus{}, "RefScript": RefScript{}, "RefPasteRequest": RefPasteRequest{}, "RefPasted": RefPasted{},
 		"CutPlan": cut.Plan{}, "CutPiece": cut.Piece{}, "CutRun": cut.Run{}, "CutFileRuns": cut.FileRuns{}, "CutStmt": cut.StmtCut{}, "CutCheck": cut.Check{},
-		"ListedFile": ListedFile{}, "FileList": FileList{}, "TracePeek": peek.Summary{}, "PeekSession": peek.Session{},
+		"ListedFile": ListedFile{}, "FileList": FileList{}, "TracePeek": peek.Summary{}, "PeekSession": peek.Session{}, "PeekSection": peek.SectionCount{},
 		"OptDoc": report.OptDoc{}, "OptDigest": report.OptDigest{}, "OptLines": report.OptLines{}, "OptRange": opt.Range{},
 		"OptFile": opt.File{}, "OptDumpInfo": opt.DumpInfo{}, "OptDump": opt.Dump{}, "OptNode": opt.Node{}, "OptVerdict": opt.Verdict{},
 		"OptLandmark": opt.Landmark{}, "OptFold": opt.Fold{}, "OptRun": opt.Run{}, "OptSQL": opt.SQL{}, "OptPlan": opt.Plan{},

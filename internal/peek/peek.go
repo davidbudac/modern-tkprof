@@ -27,6 +27,12 @@ const MaxSessions = 200
 // MaxOptDumps bounds Summary.OptSQLIDs; OptDumps counts all of the dumps.
 const MaxOptDumps = 100
 
+// SectionCount is how many diagnostic dump sections of one kind a file holds.
+type SectionCount struct {
+	Kind  string `json:"kind"` // trace.SectionKind.String(): heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident
+	Count int    `json:"count"`
+}
+
 // Session is a SESSION ID of the file with the first module, action,
 // client id and service written for it.
 type Session struct {
@@ -60,13 +66,21 @@ type Summary struct {
 	Sessions     []Session `json:"sessions"`
 	SessionCount int       `json:"sessionCount"`
 	// What the file holds: "10046" (SQL trace records), "10053" (optimizer
-	// dumps and no 10046 record) or "both" (event 10046 and 10053 on in one
-	// session: an interleaved file); "" when neither was seen (a background
-	// process trace). The file is read to its end for it, so the answer is
-	// complete unless the read was cancelled first (Read returns the error,
+	// dumps and no 10046 record), "both" (event 10046 and 10053 on in one
+	// session: an interleaved file) or "diag" (diagnostic dumps, see Sections,
+	// and neither of the others); "" when none was seen (a background process
+	// trace). The file is read to its end for it, so the answer is complete
+	// unless the read was cancelled first (Read returns the error,
 	// Summary.Error is then set): Kind and the dump fields hold what was seen,
 	// and a "10053" can still turn out to be "both".
 	Kind string `json:"kind,omitempty"`
+	// Sections counts the diagnostic dump sections of the file by kind, in the
+	// order the kinds first appear (trace.Section: heap dump, PGA memory dump,
+	// the diagnostic dump of an errorstack, process state, system state, hang
+	// analysis, deadlock graph, incident contents); absent when it has none.
+	// Set only for a file of Kind "diag": a 10046 or 10053 file is not searched
+	// for them (its sections are found when it is parsed).
+	Sections []SectionCount `json:"sections,omitempty"`
 	// OptDumps is the number of optimizer (10053) dumps seen (a dump starts
 	// at its first "Registered qb: ... (PARSER)" line); OptSQLIDs the sql_id
 	// of the first MaxOptDumps of them, in file order ("" for a dump cut
@@ -134,11 +148,19 @@ func Read(ctx context.Context, r io.ReaderAt, size int64, s *Summary) error {
 		}
 		p.region(data[:end], base)
 		p.scanDumps(data[:end])
+		p.scanSections(data[:end])
 		if n == 0 {
 			break
 		}
 		carry = copy(buf, data[end:])
 		base += int64(end)
+	}
+	// Sections is for a file that is neither a 10046 nor a 10053 trace (see sectionKeys)
+	if p.diagHit && !p.record && !p.s.SQLTrace && p.s.OptDumps == 0 {
+		if err := p.sections(ctx, r, size); err != nil {
+			p.setKind()
+			return err
+		}
 	}
 	p.setKind()
 	p.finish(ctx, r, size)
@@ -169,6 +191,9 @@ type peeker struct {
 
 	sessions map[string]int // id -> index in s.Sessions (-1: past MaxSessions)
 	cur      int            // the session the attribute markers belong to
+
+	// diagnostic dump sections: a line that may start one was seen (scanSections)
+	diagHit bool
 
 	// optimizer dumps (scanDumps)
 	record bool // a 10046 record was seen
@@ -633,6 +658,81 @@ func (p *peeker) scanDumps(b []byte) {
 	}
 }
 
+// sectionKeys are text a start line of a diagnostic dump section
+// (trace.IsSectionStart) contains, one per kind, chosen for how fast
+// bytes.Index passes over trace text (rare bytes, not whole lines). Each
+// chunk is searched for them until a line that is a start line is found: that
+// makes Read follow the file with the parser's own rules (sections), so what it
+// reports is what the parser finds, nested starts and all. A file without any
+// (every 10046 and 10053 trace) costs one search per key per chunk, and only
+// up to its first 10046 record or optimizer dump: from there on the file is a
+// 10046 or 10053 trace whatever else it holds, its Kind does not depend on
+// sections, and the search would halve the peek's speed on the primary formats
+// (5.9 to 2.65 GB/s measured on a 10046 trace). Sections is therefore set for
+// diagnostic-only files; a 10046 trace's sections are found when it is parsed.
+var sectionKeys = [][]byte{
+	[]byte(`HEAP DUMP heap name="`), []byte("PROCESS STATE"), []byte("M STATE (level="), []byte("HANG ANALYSIS:"), []byte("K DETECTED"),
+	[]byte("USES FOR THIS PROCESS"), []byte("Begin PGA"), []byte("Dump(): Starting "), []byte("[TOC00000]"),
+}
+
+// scanSections looks in b (whole lines) for a section start line.
+func (p *peeker) scanSections(b []byte) {
+	if p.diagHit || p.record || p.s.SQLTrace || p.s.OptDumps > 0 {
+		return
+	}
+	for _, k := range sectionKeys {
+		for pos := 0; pos < len(b); {
+			j := bytes.Index(b[pos:], k)
+			if j < 0 {
+				break
+			}
+			at := pos + j
+			ls, le := lineStart(b, at), lineEnd(b, at)
+			if _, ok := trace.IsSectionStart(trimCR(b[ls:le])); ok {
+				p.diagHit = true
+				return
+			}
+			pos = le
+		}
+	}
+}
+
+// sections reads the file to its end with the parser's rules for the lines
+// that are not records (trace.SniffReader) and sets Summary.Sections.
+func (p *peeker) sections(ctx context.Context, r io.ReaderAt, size int64) error {
+	sn, err := trace.SniffReader(&ctxReader{ctx: ctx, r: io.NewSectionReader(r, 0, size)}, trace.SniffOptions{})
+	if err != nil {
+		return err
+	}
+	var counts []SectionCount
+	for _, sec := range sn.Sections {
+		name := sec.Kind.String()
+		i := 0
+		for i < len(counts) && counts[i].Kind != name {
+			i++
+		}
+		if i == len(counts) {
+			counts = append(counts, SectionCount{Kind: name})
+		}
+		counts[i].Count++
+	}
+	p.s.Sections = counts
+	return nil
+}
+
+// ctxReader stops a read when its context is cancelled.
+type ctxReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (c *ctxReader) Read(b []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.r.Read(b)
+}
+
 // setKind sets Summary.Kind from what was seen so far.
 func (p *peeker) setKind() {
 	s := p.s
@@ -643,5 +743,7 @@ func (p *peeker) setKind() {
 		s.Kind = "10046"
 	case opt:
 		s.Kind = "10053"
+	case len(s.Sections) > 0:
+		s.Kind = "diag"
 	}
 }

@@ -312,7 +312,7 @@ func (s *Server) at(_ context.Context, q url.Values) (any, error) {
 	if line > li.Lines() {
 		return nil, notFound("no such line")
 	}
-	kind, text, err := kindAt(li, line, s.dumpsOf(fi))
+	kind, text, err := kindAt(li, line, s.marksOf(fi))
 	if err != nil {
 		return nil, err
 	}
