@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mtkprof · dump reader (mock-up)</title>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/page.css">
+<link rel="stylesheet" href="css/view.css">
+<link rel="stylesheet" href="css/diag.css">
+</head>
+<body>
+<div class="app" id="app" data-variant="a">
+  <header class="topbar">
+    <span class="brand">mtkprof</span>
+    <span class="file mono" id="file-name"></span>
+    <nav class="tabs" aria-label="Views">
+      <button class="tab" type="button" aria-current="page" title="The dump view: outline, text and readings">Dump <small id="tab-count"></small></button>
+    </nav>
+    <div class="lines-mode variant" role="radiogroup" aria-label="Where a reading lives (the choice the owner has to make)">
+      <span class="vlabel">Layout</span>
+      <button type="button" role="radio" id="var-a" aria-checked="true" title="A: the centre switches between Reading and Text; the right panel is the guide and details">A</button>
+      <button type="button" role="radio" id="var-b" aria-checked="false" title="B: the centre is always the text; the reading is in the right panel, wider and resizable">B</button>
+    </div>
+    <button id="theme" class="quiet theme" type="button" title="Theme: auto (the system), light or dark">Theme <b id="theme-label">Auto</b></button>
+  </header>
+  <div class="subbar" id="subbar"></div>
+
+  <div class="lines-bar"><div class="lines-row" id="toolbar">
+    <div class="lines-mode" role="radiogroup" aria-label="Example" id="states"></div>
+    <span class="tb-sep"></span>
+    <div class="lines-mode" role="radiogroup" aria-label="Centre" id="modes">
+      <button type="button" role="radio" id="m-read" aria-checked="true" title="The reading of the selected section">Reading</button>
+      <button type="button" role="radio" id="m-text" aria-checked="false" title="The file's own text">Text</button>
+    </div>
+    <div class="lines-search">
+      <input type="search" id="q" placeholder="Search the text" aria-label="Search the loaded text" title="Search the loaded text, literal, case-insensitive  (/ to focus; Enter, Shift+Enter or F3 for the next and previous hit)" autocomplete="off" spellcheck="false">
+      <span class="count" id="q-count"></span>
+      <button type="button" class="quiet icon-btn" id="q-prev" title="Previous hit  (Shift+Enter, Shift+F3)" aria-label="Previous hit"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>
+      <button type="button" class="quiet icon-btn" id="q-next" title="Next hit  (Enter, F3)" aria-label="Next hit"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+    </div>
+    <button type="button" class="quiet" id="fold-all" title="Open every fold, or back to the default folds  (Shift+Z; z opens or closes the fold at the selected line)">Unfold all</button>
+  </div></div>
+
+  <div class="work">
+    <aside class="side side-l" aria-label="Outline">
+      <div class="side-head">
+        <h2 class="side-title" id="ltitle"></h2>
+        <button type="button" class="quiet sm" id="ol-expand" title="Open the nodes down to three levels">Expand</button>
+        <button type="button" class="quiet sm" id="ol-collapse" title="Back to the first level and the path to the selection">Collapse</button>
+      </div>
+      <label class="side-ctl" id="ol-ctl" hidden><input type="checkbox"> <span></span></label>
+      <div class="side-body" id="lbody" role="tree"></div>
+    </aside>
+    <section class="centre" aria-label="Centre">
+      <div class="lines-at"><nav class="lines-crumbs" id="crumbs" aria-label="Where the text is"></nav><span class="at-line" id="at-line"></span></div>
+      <div class="lv-box" id="lv-box">
+        <div class="lv lv-fmt" id="lv" tabindex="0"><div class="lv-inner" id="lv-inner"><div class="lv-layer" id="lv-layer"></div></div></div>
+        <canvas class="lv-strip" id="strip" title="The file: sections as bands, search hits at the right edge, the visible range as a box. Click or drag to go there."></canvas>
+      </div>
+      <div class="rd-centre" id="rd-centre" hidden></div>
+      <div class="lines-status-bar" id="status"></div>
+      <div class="loading" id="loading" hidden>Loading the data of the example</div>
+    </section>
+    <aside class="side side-r" aria-label="Right panel">
+      <div class="resizer" id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize the reading panel" tabindex="0" title="Drag to resize"></div>
+      <div class="side-head"><h2 class="side-title" id="rtitle"></h2></div>
+      <div class="side-body" id="rbody"></div>
+    </aside>
+  </div>
+</div>
+<script src="js/util.js"></script>
+<script src="js/guide.js"></script>
+<script src="js/readings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
