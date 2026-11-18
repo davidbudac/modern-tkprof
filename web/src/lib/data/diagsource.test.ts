@@ -41,6 +41,21 @@ describe('the HTTP source', () => {
     await expect(s.reading('nothing')).rejects.toBeInstanceOf(NoReading)
   })
 
+  it('asks the chunk lines of a selection: the comment (an empty one is the blank comment), the type and `after`, each encoded', async () => {
+    const page = { node: 'h1', lines: [46, 50], more: 0, total: 2 }
+    const { client, fetch } = fakeClient({
+      '/api/diag/reading/lines?node=h1&comment=koh-kghu%20call': json(page),
+      '/api/diag/reading/lines?node=h1&comment=': json(page),
+      '/api/diag/reading/lines?node=h1&type=recrPC001&after=2000': json(page),
+    })
+    const s = httpDiagSource(file, client)
+    expect(await s.readingLines('h1', { comment: 'koh-kghu call' })).toEqual(page)
+    await s.readingLines('h1', { comment: '' })
+    await s.readingLines('h1', { type: 'recrPC001', after: 2000 })
+    expect(fetch).toHaveBeenCalledTimes(3)
+    await expect(s.readingLines('h2', { comment: 'x' })).rejects.toThrow('chunk lines of h2: 404')
+  })
+
   it('serves the text from api/lines of input file 0 and search from api/search', async () => {
     const { client, fetch } = fakeClient({
       '/api/lines?annot=1&file=0&from=2001&n=2000': json({ from: 2001, total: 5000, lines: [{ t: 'a', k: 'diagnostic' }] }),
@@ -74,8 +89,20 @@ describe('the digest source', () => {
     expect((await s.outline('root', 1)).children.map((n) => n.id)).toEqual(['b'])
   })
 
-  it('has no readings', async () => {
-    await expect(s.reading('a1')).rejects.toBeInstanceOf(NoReading)
+  it('has the readings the digest kept, and says "not in this report" for one it left out (a node with a reading that is not in `readings`)', async () => {
+    const kept = digestDiagSource({ file, digest: { ...digest, readings: { 'a:1-100:1:f': { kind: 'heap', name: 'pga heap' } }, readingsOmitted: 3 } })
+    expect(await kept.reading('a:1-100:1:f')).toEqual({ kind: 'heap', name: 'pga heap' })
+    const err = await kept.reading('b').then(() => null, (e: unknown) => e)
+    expect(err).toBeInstanceOf(NoReading)
+    expect((err as NoReading).omitted).toBe(true)
+    expect((err as NoReading).message).toBe('This reading is not in this report')
+    const old = await s.reading('a1').then(() => null, (e: unknown) => e)
+    expect(old).toBeInstanceOf(NoReading)
+    expect((old as NoReading).omitted).toBe(true)
+  })
+
+  it('does not have the chunk lines of a heap', async () => {
+    await expect(s.readingLines('a:1-100:1:f', { comment: 'x' })).rejects.toThrow('not in this report')
   })
 })
 

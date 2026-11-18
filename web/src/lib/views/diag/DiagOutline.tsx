@@ -23,6 +23,17 @@ interface Props {
 
 const ROWS = '.opt-ol-row'
 
+/** The most a heap dump's depth indents its row. */
+const MAX_HEAP_INDENT = 6
+
+/**
+ * A heap dump of the top level is indented by the depth its header gives ("dsx heap depth"), so the sub-heaps of a dump run read as children of their heap
+ * (the dump lists them one after another, flat, as the file does). A nested node keeps the level its place in the tree gives it.
+ */
+export function heapIndent(n: DiagNode, depth: number): number {
+  return depth === 0 && n.kind === 'heap' && n.depth ? Math.min(n.depth, MAX_HEAP_INDENT) : 0
+}
+
 /**
  * The outline: the nodes of the file in file order, the top level and what was opened below it, with their line counts and, while a search is on,
  * the hits inside each. The children of a node come when it is opened, in pages; a row at the end of a page that is not the last loads the next.
@@ -63,10 +74,11 @@ export const DiagOutline = memo(function DiagOutline(p: Props) {
     const has = n.hasChildren
     const title = `${KIND_NAME[n.kind] ?? n.kind}: lines ${fmtInt(n.from)}-${fmtInt(n.to)}${n.cut ? ' (no end line)' : ''}`
     const sub = n.kind === 'trace10046' ? `${fmtInt(n.records ?? 0)} records` : n.sub
+    const level = r.depth + heapIndent(n, r.depth)
     return (
-      <div key={n.id} className={'opt-ol-row' + (on ? ' on' : '') + (path.has(n.id) ? ' inpath' : '')} style={{ '--d': r.depth } as CSSProperties}
-        role="treeitem" aria-level={r.depth + 1} aria-expanded={has ? r.open : undefined} aria-selected={on} tabIndex={i === tabAt ? 0 : -1} data-node={n.id}
-        onKeyDown={(e) => rowKeys(e, { activate: () => p.onSelect(n.id), has, isOpen: r.open, toggle: () => p.onToggle(n.id), level: r.depth + 1 })}
+      <div key={n.id} className={'opt-ol-row' + (on ? ' on' : '') + (path.has(n.id) ? ' inpath' : '')} style={{ '--d': level } as CSSProperties}
+        role="treeitem" aria-level={level + 1} aria-expanded={has ? r.open : undefined} aria-selected={on} tabIndex={i === tabAt ? 0 : -1} data-node={n.id}
+        onKeyDown={(e) => rowKeys(e, { activate: () => p.onSelect(n.id), has, isOpen: r.open, toggle: () => p.onToggle(n.id), level: level + 1 })}
         onClick={() => p.onSelect(n.id)} title={title}>
         <span className="opt-ol-x" onClick={(e: MouseEvent) => { if (has) { e.stopPropagation(); p.onToggle(n.id) } }}>{has ? (r.open ? '▾' : '▸') : ''}</span>
         <span className="opt-ol-main">

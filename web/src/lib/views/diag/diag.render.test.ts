@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { DiagFile, DiagNode } from '../../data/diag'
 import { DiagOutlineStore } from '../../data/diagoutline'
 import { memoryDiagSource } from '../../data/diag'
-import { DiagOutline } from './DiagOutline'
+import { DiagOutline, heapIndent } from './DiagOutline'
 import { DiagGuide, md } from './DiagGuide'
 import { DiagFacts } from './DiagFacts'
 import { readingView, registerReading, registeredReadings, unregisterReading } from './readings'
@@ -39,6 +39,19 @@ describe('the outline', () => {
     expect(h).toContain('title="1 search hit"')
   })
 
+  it('indents the heap dumps of the top level by their depth, so the sub-heaps read as children of their heap; a nested heap keeps the level of its place', () => {
+    const heaps = [node('h0', 1, 10, false, { kind: 'heap', title: 'Heap dump: pga heap', depth: 0 }), node('h1', 11, 20, false, { kind: 'heap', title: 'Heap dump: koh-kghu call', depth: 1 }), node('h2', 21, 30, false, { kind: 'heap', title: 'Heap dump: deep', depth: 2 })]
+    const s = new DiagOutlineStore(memoryDiagSource({ ...file(), outline: heaps, outlineTotal: 3 }, {}, ['x']))
+    const h = html(createElement(DiagOutline, { rows: s.rows(), selected: null, path: new Set<string>(), hits: null, digest: false, onSelect: () => {}, onToggle: () => {}, onMore: () => {} }))
+    expect(h).toMatch(/style="--d:0"[^>]*aria-level="1"[^>]*data-node="h0"/)
+    expect(h).toMatch(/style="--d:1"[^>]*aria-level="2"[^>]*data-node="h1"/)
+    expect(h).toMatch(/style="--d:2"[^>]*aria-level="3"[^>]*data-node="h2"/)
+    expect(heapIndent(heaps[1], 0)).toBe(1)
+    expect(heapIndent(heaps[1], 1)).toBe(0)
+    expect(heapIndent(node('t', 1, 2), 0)).toBe(0)
+    expect(heapIndent(node('x', 1, 2, false, { kind: 'heap', depth: 99 }), 0)).toBe(6)
+  })
+
   it('draws the children of an open node one level down', async () => {
     await store.openNode('a')
     const h = draw('a1')
@@ -51,7 +64,7 @@ describe('the outline', () => {
 describe('the guide', () => {
   const draw = (n: DiagNode | null, o: { selected?: boolean; hits?: number | null; q?: string; digest?: boolean } = {}) =>
     html(createElement(DiagGuide, { node: n, selected: o.selected ?? true, hits: o.hits ?? null, q: o.q ?? '', digest: o.digest ?? false, onGo: () => {} }))
-  afterEach(() => unregisterReading('heap'))
+  afterEach(() => unregisterReading('callstack'))
 
   it('says what is selected, its lines, kind, children and reading, with the sourced text and its source', () => {
     const h = draw(node('t', 50, 187, false, { kind: 'title', title: 'Call Stack Trace' }))
@@ -73,9 +86,9 @@ describe('the guide', () => {
   })
 
   it('lists the reading of a node, and whether this version can show it', () => {
-    const n = node('h', 32, 923, true, { kind: 'heap', title: 'Heap dump: pga heap', name: 'pga heap', depth: 0, size: 4707160, reading: 'heap' })
+    const n = node('h', 32, 923, true, { kind: 'heap', title: 'Heap dump: pga heap', name: 'pga heap', depth: 0, size: 4707160, reading: 'callstack' })
     expect(draw(n)).toContain('this version has no view for it')
-    registerReading('heap', () => null)
+    registerReading('callstack', () => null)
     expect(draw(n)).toContain('(centre, Reading)')
     expect(draw(n)).toContain('pga heap')
     expect(draw(n)).toContain('4.5 MB')
@@ -132,13 +145,13 @@ describe('the facts bar', () => {
 })
 
 describe('the registry of readings', () => {
-  it('has none now, registers a component by kind and forgets it', () => {
-    expect(registeredReadings()).toEqual([])
+  it('has the heap and the PGA readings, registers a component by kind and forgets it', () => {
+    expect(registeredReadings().sort()).toEqual(['heap', 'pga-detail', 'pga-summary'])
     const C = () => null
-    registerReading('heap', C)
-    expect(readingView('heap')).toBe(C)
+    registerReading('callstack', C)
+    expect(readingView('callstack')).toBe(C)
+    expect(readingView('hang')).toBeUndefined()
+    unregisterReading('callstack')
     expect(readingView('callstack')).toBeUndefined()
-    unregisterReading('heap')
-    expect(readingView('heap')).toBeUndefined()
   })
 })

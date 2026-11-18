@@ -1,6 +1,7 @@
 import { Fragment, type CSSProperties, useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react'
 import type { DiagNode, DiagSource } from '../../data/diag'
 import { outlineStoreOf } from '../../data/diagoutline'
+import { readingUiOf } from '../../data/diagheap'
 import { LINE_KINDS, PageCache } from '../../data/linecache'
 import type { OptAnnotations } from '../../data/opt'
 import { stepLine } from '../../data/optindex'
@@ -9,7 +10,7 @@ import { fmtInt } from '../../data/format'
 import { inTextField } from '../../shell/viewKeys'
 import { usePersisted } from '../../state/persist'
 import { LineViewer, type RowHighlight, type ViewerApi } from '../../components/LineViewer'
-import { LineStrip, type StripBand } from '../../components/LineStrip'
+import { LineStrip, type StripBand, type StripMark } from '../../components/LineStrip'
 import { ResizeHandle } from '../../components/ResizeHandle'
 import { PaneToggle } from '../../components/PaneToggle'
 import { ToolbarMenu } from '../../components/ToolbarMenu'
@@ -122,6 +123,14 @@ export function DiagView(props: DiagViewProps) {
   const mem = useMemoryAnnotations()
   const notes = props.annotations ?? mem
 
+  // the centre's mode is persisted, as the 10053 view's Formatted | Raw: a node that has a reading is shown in the mode last chosen (Reading to begin with)
+  const [modePref, setModePref] = usePersisted<Mode>('mtkprof.diag.mode', 'reading')
+  const modePrefRef = useRef(modePref)
+  modePrefRef.current = modePref
+  // what the readings keep (selected rows) and the chunk lines marked in the text for the selected node's selected row
+  const readingUi = useMemo(() => readingUiOf(source), [source])
+  useSyncExternalStore(readingUi.subscribe, readingUi.getVersion)
+
   const [panesStored, setPanes] = usePersisted<Panes>('mtkprof.diag.panes', PANES)
   const panes: Panes = { ...PANES, ...panesStored }
   const setPane = (p: Partial<Panes>) => setPanes({ ...panes, ...p })
@@ -149,7 +158,7 @@ export function DiagView(props: DiagViewProps) {
   const qBox = useRef<HTMLInputElement>(null)
 
   // ---- selecting: a node, a line ----
-  const modeFor = (n: DiagNode | undefined): Mode => (n?.reading && readingView(n.reading) ? 'reading' : 'text')
+  const modeFor = (n: DiagNode | undefined): Mode => (n?.reading && readingView(n.reading) ? modePrefRef.current : 'text')
   const selectNode = useCallback((id: string) => {
     const n = store.node(id)
     if (!n) return
@@ -228,6 +237,9 @@ export function DiagView(props: DiagViewProps) {
   // ---- the line map and the bookmarks ----
   const top = store.top()
   const stripBands = useMemo(() => bandsOf(top), [top])
+  const chunkLines = readingUi.marksOf(ui.node)
+  const chunkMarks = useMemo<ReadonlyMap<number, number> | undefined>(() => (chunkLines ? new Map(chunkLines.map((l) => [l, 1])) : undefined), [chunkLines])
+  const chunkTicks = useMemo<readonly StripMark[] | undefined>(() => chunkLines?.map((line) => ({ line, token: '--c-cpu', w: 6, h: 2 })), [chunkLines])
   const bmSet = useMemo<ReadonlySet<number>>(() => new Set(notes.bookmarks.keys()), [notes.bookmarks])
   const noteMap = useMemo(() => { const m = new Map<number, string>(); for (const [l, t] of notes.bookmarks) if (t) m.set(l, t); return m }, [notes.bookmarks])
   const scrub = useCallback((line: number) => viewer.current?.reveal(line, 'center'), [])
@@ -244,7 +256,7 @@ export function DiagView(props: DiagViewProps) {
       case '/': if (!text) return; e.preventDefault(); qBox.current?.focus(); qBox.current?.select(); break
       case 'g': if (!text) return; e.preventDefault(); goBox.current?.focus(); goBox.current?.select(); break
       case 'b': if (ui.sel) notes.toggle(ui.sel); break
-      case 'v': if (selNode?.reading) set((s) => ({ mode: s.mode === 'reading' ? 'text' : 'reading' })); break
+      case 'v': if (selNode?.reading) setMode(effMode === 'reading' ? 'text' : 'reading'); break
       case '?': set((s) => ({ keys: !s.keys })); break
       case 'Escape': if (ui.keys) set({ keys: false }); break
       default: return
@@ -260,8 +272,9 @@ export function DiagView(props: DiagViewProps) {
   }, [])
 
   // back to the text: show the selected line
-  const setMode = (m: Mode) => {
-    if (m === ui.mode) return
+  function setMode(m: Mode) {
+    setModePref(m)
+    if (m === effMode) return
     set({ mode: m })
     if (m === 'text' && ui.sel) viewer.current?.reveal(ui.sel, 'center')
   }
@@ -363,10 +376,10 @@ export function DiagView(props: DiagViewProps) {
           </div>
           {cache ? (
             <div className="dg-lv" hidden={effMode === 'reading'}>
-              <LineViewer cache={cache} bookmarks={bmSet} notes={noteMap} selected={ui.sel} wrap={false} highlight={highlight} plainKinds={PLAIN} dress={headings} rules
+              <LineViewer cache={cache} marks={chunkMarks} bookmarks={bmSet} notes={noteMap} selected={ui.sel} wrap={false} highlight={highlight} plainKinds={PLAIN} dress={headings} rules
                 apiRef={viewer} topRef={topRef} onViewChange={onView} onSelect={(l) => selectLine(l, 'nearest', true)} onBookmark={(l) => notes.toggle(l)} onError={setLoadError}
                 side={file.lines > 0 ? (
-                  <LineStrip total={file.lines} layers={[]} shape={null} selected={ui.sel} hits={hasSearch ? hits : EMPTY_HITS} bookmarks={bmSet} range={null} bands={stripBands}
+                  <LineStrip total={file.lines} layers={[]} shape={null} selected={ui.sel} hits={hasSearch ? hits : EMPTY_HITS} bookmarks={bmSet} range={null} bands={stripBands} marks={chunkTicks}
                     view={{ top: bandTop, rows: Math.max(1, view.rows) }}
                     title="The file: the parts as bands, search hits at the right edge, bookmarks at the left, the visible range as a box. Click or drag to go there."
                     onScrub={scrub} onJump={goLine} />

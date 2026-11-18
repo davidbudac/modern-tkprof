@@ -3,7 +3,7 @@ import { NoReading, type DiagNode, type DiagReading, type DiagSource } from '../
 import { Shimmer } from '../../components/motion'
 import { readingView } from './readings'
 
-type St = { id: string; state: 'loading' } | { id: string; state: 'ok'; reading: DiagReading } | { id: string; state: 'none' } | { id: string; state: 'error'; message: string }
+type St = { id: string; state: 'loading' } | { id: string; state: 'ok'; reading: DiagReading } | { id: string; state: 'none'; omitted: boolean } | { id: string; state: 'error'; message: string }
 
 /** What a source answered for a node, kept per source so that going back to a node (or to Reading from Text) asks nothing. */
 const answers = new WeakMap<DiagSource, Map<string, Promise<DiagReading>>>()
@@ -34,7 +34,7 @@ export function ReadingHost({ node, source, goLine, selectNode }: { node: DiagNo
     setSt({ id: node.id, state: 'loading' })
     readingOf(source, node.id).then(
       (reading) => { if (live) setSt({ id: node.id, state: 'ok', reading }) },
-      (e: unknown) => { if (live) setSt(e instanceof NoReading ? { id: node.id, state: 'none' } : { id: node.id, state: 'error', message: e instanceof Error ? e.message : String(e) }) },
+      (e: unknown) => { if (live) setSt(e instanceof NoReading ? { id: node.id, state: 'none', omitted: e.omitted } : { id: node.id, state: 'error', message: e instanceof Error ? e.message : String(e) }) },
     )
     return () => { live = false }
   }, [source, node.id, View])
@@ -46,6 +46,11 @@ export function ReadingHost({ node, source, goLine, selectNode }: { node: DiagNo
     )
   }
   if (st.id !== node.id || st.state === 'loading') return <p className="dg-reading-note"><Shimmer>Loading the reading…</Shimmer></p>
+  if (st.state === 'none' && st.omitted) {
+    return (
+      <p className="dg-reading-note"><b>This reading is not in this report.</b> The report keeps the readings of the first parts of the file only, to stay small. Open the file with <code>mtkprof serve</code> or the desktop app to see it.</p>
+    )
+  }
   if (st.state === 'none') return <p className="dg-reading-note"><b>No reading for this part.</b> The engine has none for it; it is shown as text only.</p>
   if (st.state === 'error') return <p className="dg-reading-note dg-err" role="alert">Could not read the reading: {st.message}</p>
   return <View node={node} reading={st.reading} source={source} goLine={goLine} selectNode={selectNode} />

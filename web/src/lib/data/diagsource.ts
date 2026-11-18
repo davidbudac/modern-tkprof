@@ -8,6 +8,7 @@
 import type { ApiClient } from './client'
 import type { TraceDoc } from './doc'
 import { NoReading, normalizeFile, normalizeOutline, ROOT, type DiagChildren, type DiagDigestNode, type DiagFile, type DiagOutline, type DiagReading, type DiagSource, type DiagText, type RawDump } from './diag'
+import type { HeapLines } from './diagreadings'
 import { fetchLinesAnnot, search } from './lines'
 
 // ---- the digest source ------------------------------------------------------------------------------------------------------------
@@ -15,13 +16,17 @@ import { fetchLinesAnnot, search } from './lines'
 /** The error of a node that the standalone report does not hold the children of. */
 const NOT_IN_REPORT = 'this report holds the outline to two levels only: the children of this part are not in it. Open the file with mtkprof serve or the desktop app.'
 
+/** What the view says of a node whose reading the digest did not keep. */
+export const READING_NOT_IN_REPORT = 'This reading is not in this report'
+
 /**
- * A source over a document's digest: the top level and the children of each of its nodes, which is all the report holds. The children of any other
- * node, the readings and the text are not in it.
+ * A source over a document's digest: the top level and the children of each of its nodes, which is all the report holds, and the readings of the nodes the
+ * digest kept one for (`dump.digest.readings`). The children of any other node, a reading the digest left out, the chunk lines of a heap and the text are not in it.
  */
 export function digestDiagSource(dump: RawDump): DiagSource {
   const file = normalizeFile(dump.file)
   const pre = new Map<string, DiagChildren>()
+  const readings = dump.digest?.readings ?? {}
   for (const n of dump.digest?.outline ?? []) {
     const d = n as DiagDigestNode
     // `more` is the children the report does not list: they cannot be asked for, so they are counted in `unlisted`
@@ -40,7 +45,12 @@ export function digestDiagSource(dump: RawDump): DiagSource {
       const o = pre.get(node)
       return o ? Promise.resolve(o) : Promise.reject(new Error(NOT_IN_REPORT))
     },
-    reading: () => Promise.reject(new NoReading('readings are not in a standalone report')),
+    reading: (node) => {
+      const r = readings[node]
+      if (r) return Promise.resolve(r)
+      return Promise.reject(new NoReading(READING_NOT_IN_REPORT, true))
+    },
+    readingLines: () => Promise.reject(new Error('the chunk lines are not in this report')),
   }
 }
 
@@ -80,6 +90,13 @@ export function httpDiagSource(file: DiagFile, client: ApiClient): DiagSource {
       if (res.status === 404) throw new NoReading()
       if (!res.ok) throw await failure(`reading of ${node}`, res)
       return (await res.json()) as DiagReading
+    },
+    readingLines: (node, q) => {
+      const p = [`node=${encodeURIComponent(node)}`]
+      if (q.comment !== undefined) p.push(`comment=${encodeURIComponent(q.comment)}`) // `comment=` is the blank comment
+      if (q.type) p.push(`type=${encodeURIComponent(q.type)}`)
+      if (q.after) p.push(`after=${q.after}`)
+      return json<HeapLines>(`chunk lines of ${node}`, `/api/diag/reading/lines?${p.join('&')}`)
     },
   }
 }

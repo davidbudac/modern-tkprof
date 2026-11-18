@@ -4,6 +4,7 @@
 // The Go file is the contract. A field may be added there, never renamed or removed, without changing this file in the same commit
 // (data/diag.test.ts compares the two). Line numbers are 1-based positions in the file; a range is inclusive at both ends.
 import type { AnnotPage, AnnotLine, SearchEnd, SearchHit, SearchQuery } from './lines'
+import type { HeapLines, HeapLinesQuery } from './diagreadings'
 
 /** What one pass over a trace file finds (the file's facts, the parser's sections and the top level of the outline). */
 export interface DiagFile {
@@ -57,6 +58,8 @@ export interface DiagNode {
   cut?: boolean
   /** the node has a computed reading of this kind (`api/diag/reading?node=`): heap, pga-summary, pga-detail, ... Absent when it has none */
   reading?: string
+  /** a short reason, in plain words, for a part whose text is noise by default ("frame data: registers and memory of each frame"): a client shows it closed. Absent for every other part */
+  fold?: string
 }
 
 /** The children of a node. */
@@ -74,7 +77,13 @@ export interface DiagOutline {
 export interface DiagChildren extends DiagOutline { unlisted?: number }
 
 /** The digest of a diag file in a standalone report: every node of the top level with its own children (one level down, at most 100). */
-export interface DiagDigest { outline: DiagDigestNode[] }
+export interface DiagDigest {
+  outline: DiagDigestNode[]
+  /** the readings of the nodes of `outline` that have one, by node id (what `api/diag/reading` answers for each); a node with a reading that is not here was left out: see `readingsOmitted` */
+  readings?: Record<string, DiagReading>
+  /** how many nodes with a reading did not get one in the digest (at most 200 readings, 8 MB of them) */
+  readingsOmitted?: number
+}
 export interface DiagDigestNode extends DiagNode { children: DiagNode[]; more?: number }
 
 /** The `dump` member of the document of a diag session. */
@@ -89,9 +98,12 @@ export const ROOT = 'root'
 /** The largest answer of `api/diag/outline` (diag.Cap). */
 export const OUTLINE_CAP = 2000
 
-/** The node has no reading (the server answered 404): not an error to show, the view says so. */
+/**
+ * The node has no reading (the server answered 404): not an error to show, the view says so. `omitted`: the node has one, and the standalone report did
+ * not keep it (the digest holds at most 200 readings, 8 MB of them): the view says "This reading is not in this report".
+ */
 export class NoReading extends Error {
-  constructor(message = 'no reading for this node') { super(message); this.name = 'NoReading' }
+  constructor(message = 'no reading for this node', readonly omitted = false) { super(message); this.name = 'NoReading' }
 }
 
 /** The text of the file, in pages, and search over it. */
@@ -115,6 +127,8 @@ export interface DiagSource {
   outline(node: string, after?: number): Promise<DiagChildren>
   /** the reading of a node; rejects with `NoReading` for a node that has none */
   reading(node: string): Promise<DiagReading>
+  /** the chunk lines of a heap reading's selection (`api/diag/reading/lines`): a comment group and/or a type, ascending, at most 2,000 per answer, `after` a line; rejects where the source has no text */
+  readingLines(node: string, q: HeapLinesQuery): Promise<HeapLines>
 }
 
 // ---- the shape, for the test that compares this file with the Go types --------------------------------------------------------------------
@@ -127,7 +141,7 @@ export const DIAG_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   File: { req: ['name', 'lines', 'release', 'version', 'tested', 'records10046', 'sections', 'unplaced', 'outline', 'outlineTotal'], opt: ['incident'] },
   Section: { req: ['kind', 'first', 'last'], opt: ['cut'] },
   Incident: { req: ['dumpFile'], opt: ['continuedFrom', 'id', 'problem'] },
-  Node: { req: ['id', 'kind', 'title', 'from', 'to', 'lines', 'hasChildren'], opt: ['sub', 'n', 'name', 'depth', 'size', 'records', 'cut', 'reading'] },
+  Node: { req: ['id', 'kind', 'title', 'from', 'to', 'lines', 'hasChildren'], opt: ['sub', 'n', 'name', 'depth', 'size', 'records', 'cut', 'reading', 'fold'] },
   Outline: { req: ['node', 'children', 'more'], opt: ['next'] },
 }
 
@@ -194,13 +208,13 @@ export function memoryText(lines: readonly string[] | { count: number; at(line: 
 /**
  * An in-memory source. `children` are the outlines the source can answer by node id (a node with `hasChildren` and no entry answers with none; `root` is the
  * whole top level, `file.outline` when it has no entry);
- * `readings` by node id (a node without one rejects with `NoReading`); `text` is the file's lines, or null for a source without text.
+ * `readings` by node id (a node without one rejects with `NoReading`; `readingLines` answers the chunk lines of a heap reading's selection); `text` is the file's lines, or null for a source without text.
  */
 export function memoryDiagSource(
   file: DiagFile,
   children: Readonly<Record<string, DiagNode[]>>,
   text: readonly string[] | { count: number; at(line: number): string } | null,
-  opts: { digest?: boolean; readings?: Readonly<Record<string, DiagReading>>; pageSize?: number } = {},
+  opts: { digest?: boolean; readings?: Readonly<Record<string, DiagReading>>; pageSize?: number; readingLines?(node: string, q: HeapLinesQuery): HeapLines } = {},
 ): DiagSource {
   const cap = opts.pageSize ?? OUTLINE_CAP
   return {
@@ -218,5 +232,6 @@ export function memoryDiagSource(
       const r = opts.readings?.[node]
       return r ? Promise.resolve(r) : Promise.reject(new NoReading())
     },
+    readingLines: (node, q) => (opts.readingLines ? Promise.resolve(opts.readingLines(node, q)) : Promise.reject(new Error('this source has no chunk lines'))),
   }
 }
