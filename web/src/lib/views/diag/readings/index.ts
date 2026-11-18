@@ -4,9 +4,13 @@
 //   heap          readings/heap.tsx   (the heap reading: check, heap tree, by comment / by type / sub-heaps, chunk lines, free lists)
 //   pga-summary   readings/pga.tsx
 //   pga-detail    readings/pga.tsx
+//   callstack     readings/callstack.tsx   (a diagnostic dump, an incident: error, statement, PL/SQL stack, the stack as one line, frames, cursors)
+//   procstate     readings/procstate.tsx   (a process state, a process of a system state: who, what it runs, waits, blockers, holds)
 //
 // A node whose reading has no component here is shown as text, with "This version has no view for this reading" behind the Reading switch.
 import './heap'
 import './pga'
+import './callstack'
+import './procstate'
 export { readingView, registerReading, registeredReadings, unregisterReading } from './registry'
 export type { ReadingProps, ReadingView } from './registry'

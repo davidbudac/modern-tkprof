@@ -7,7 +7,7 @@
 // object for the same document.
 import type { ApiClient } from './client'
 import type { TraceDoc } from './doc'
-import { NoReading, normalizeFile, normalizeOutline, ROOT, type DiagChildren, type DiagDigestNode, type DiagFile, type DiagOutline, type DiagReading, type DiagSource, type DiagText, type RawDump } from './diag'
+import { chainIn, NoReading, normalizeFile, normalizeNode, normalizeOutline, PathUnavailable, ROOT, type DiagChildren, type DiagNode, type PathBy, type DiagDigestNode, type DiagFile, type DiagOutline, type DiagReading, type DiagSource, type DiagText, type RawDump } from './diag'
 import type { HeapLines } from './diagreadings'
 import { fetchLinesAnnot, search } from './lines'
 
@@ -50,6 +50,12 @@ export function digestDiagSource(dump: RawDump): DiagSource {
       if (r) return Promise.resolve(r)
       return Promise.reject(new NoReading(READING_NOT_IN_REPORT, true))
     },
+    // what the report holds: the top level and each top-level node's children (one level down)
+    path: (by) => {
+      const kids: Record<string, DiagNode[]> = {}
+      for (const [id, c] of pre) kids[id] = c.children
+      return Promise.resolve(chainIn(file, kids, by))
+    },
     readingLines: () => Promise.reject(new Error('the chunk lines are not in this report')),
   }
 }
@@ -90,6 +96,16 @@ export function httpDiagSource(file: DiagFile, client: ApiClient): DiagSource {
       if (res.status === 404) throw new NoReading()
       if (!res.ok) throw await failure(`reading of ${node}`, res)
       return (await res.json()) as DiagReading
+    },
+    path: async (by: PathBy) => {
+      const q = 'line' in by ? `line=${by.line}` : `node=${encodeURIComponent(by.node)}`
+      const res = await client.fetch(`/api/diag/path?${q}`, { headers: { accept: 'application/json' } })
+      // a 404 that is the engine's own JSON says there is no such line or node; any other 404 is a route this engine does not have
+      if (res.status === 404 && !(res.headers.get('content-type') ?? '').includes('json')) throw new PathUnavailable()
+      if (res.status === 404) return []
+      if (!res.ok) throw await failure(`path of ${'line' in by ? `line ${by.line}` : by.node}`, res)
+      const body = (await res.json()) as { nodes?: DiagNode[] | null }
+      return (body.nodes ?? []).map(normalizeNode)
     },
     readingLines: (node, q) => {
       const p = [`node=${encodeURIComponent(node)}`]

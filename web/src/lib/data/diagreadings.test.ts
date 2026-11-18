@@ -1,10 +1,11 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { normalizeHeap, normalizePgaDetail, normalizePgaSummary, READING_AHEAD, READING_KEYS } from './diagreadings'
+import { normalizeCallStack, normalizeHeap, normalizePgaDetail, normalizePgaSummary, normalizeProcState, READING_AHEAD, READING_EMBEDS, READING_KEYS } from './diagreadings'
+import { HAS_STACK_FIXTURE, loadStackFixtures } from './diagstackfixture'
 import { HAS_READINGS_FIXTURE, loadReadingFixtures } from './diagreadingsfixture'
 
-const GO = ['heap.go', 'pga.go', 'digest.go'].map((f) => fileURLToPath(new URL(`../../../../internal/diag/${f}`, import.meta.url)))
+const GO = ['heap.go', 'pga.go', 'stack.go', 'procstate.go', 'digest.go'].map((f) => fileURLToPath(new URL(`../../../../internal/diag/${f}`, import.meta.url)))
 
 /** The JSON names of the fields of each struct of the Go files: `req` always there, `opt` with omitempty. A struct or a field without a json tag (the scan's own) is not one. */
 function goKeys(src: string): Record<string, { req: string[]; opt: string[] }> {
@@ -22,7 +23,7 @@ function goKeys(src: string): Record<string, { req: string[]; opt: string[] }> {
   return out
 }
 
-describe('the twin of the readings in internal/diag/heap.go, pga.go and digest.go', () => {
+describe('the twin of the readings in internal/diag/heap.go, pga.go, stack.go, procstate.go and digest.go', () => {
   it.skipIf(!GO.every((f) => existsSync(f)))('has every struct and every JSON name of the Go files, optional where Go says omitempty (a field ahead of Go is listed)', () => {
     const go: Record<string, { req: string[]; opt: string[] }> = {}
     for (const f of GO) Object.assign(go, goKeys(readFileSync(f, 'utf8')))
@@ -80,6 +81,61 @@ describe('the twin of the readings in internal/diag/heap.go, pga.go and digest.g
     walk('PGADetail', d, 'detail')
     each('PGAUse', d.rows, 'detail.rows')
   })
+
+  it.skipIf(!HAS_STACK_FIXTURE)('reads the engine\'s JSON of real call stack and process readings: every key it has is declared, every required key is there', () => {
+    const fx = loadStackFixtures()
+    const keysOf = (type: string): string[] => {
+      const k = READING_KEYS[type]
+      return [...k.req, ...k.opt, ...(READING_EMBEDS[type] ?? []).flatMap(keysOf)]
+    }
+    const walk = (type: string, v: unknown, path: string) => {
+      const k = READING_KEYS[type]
+      expect(k, `${path}: no ${type} in READING_KEYS`).toBeDefined()
+      const o = v as Record<string, unknown>
+      for (const key of Object.keys(o)) expect(keysOf(type), `${path}.${key} is not in the twin`).toContain(key)
+      for (const key of [...k.req, ...(READING_EMBEDS[type] ?? []).flatMap((e) => READING_KEYS[e].req)]) expect(o, `${path} lacks ${key}`).toHaveProperty(key)
+    }
+    const each = (type: string, xs: unknown[] | undefined | null, path: string) => (xs ?? []).forEach((x, i) => walk(type, x, `${path}[${i}]`))
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    for (const f of [fx.errorstack, fx.deadlock, fx.in10046, fx.incident, fx.incidentDump]) {
+      const c = f.reading as any
+      walk('CallStack', c, 'callstack')
+      walk('DumpStart', c.start, 'start')
+      if (c.error) { walk('DumpError', c.error, 'error'); each('DumpLine', c.error.lines, 'error.lines'); if (c.error.signal) walk('DumpSignal', c.error.signal, 'signal'); if (c.error.incident) walk('DumpIncident', c.error.incident, 'incident') }
+      each('DumpLine', c.barriers, 'barriers')
+      if (c.statement) walk('DumpStatement', c.statement, 'statement')
+      each('PLSQLFrame', c.plsql, 'plsql')
+      each('StackFrame', c.frames, 'frames')
+      each('DumpCursor', c.cursors, 'cursors')
+      for (const cu of c.cursors) each('DumpBind', cu.binds, 'binds')
+      each('DumpLink', c.links, 'links')
+    }
+    for (const f of [fx.errorstackProc, fx.procstate, fx.deadlockProc, fx.sysBlocker, fx.sysBlocked]) {
+      const p = f.reading as any
+      walk('ProcState', p, 'procstate')
+      if (p.process) walk('ProcInfo', p.process, 'process')
+      each('ProcSession', p.sessions, 'sessions')
+      for (const s of p.sessions) {
+        if (!s.wait) continue
+        walk('ProcWait', s.wait, 'wait')
+        each('WaitEntry', s.wait.stack, 'stack')
+        each('SessionRef', s.wait.blockers, 'blockers')
+        if (s.wait.finalBlocker) walk('SessionRef', s.wait.finalBlocker, 'finalBlocker')
+        each('ProcWaiter', s.wait.waiters, 'waiters')
+        for (const w of s.wait.waiters) if (w.rowWait) walk('RowWait', w.rowWait, 'rowWait')
+        each('WaitHistory', s.wait.history, 'history')
+      }
+      walk('ProcObjects', p.objects, 'objects')
+      each('ObjectType', p.objects.byType, 'byType')
+      each('ProcEnqueue', p.enqueues, 'enqueues')
+      each('ProcTransaction', p.transactions, 'transactions')
+      for (const t of p.transactions) each('BlockRow', t.blocks, 'blocks')
+      each('ProcDMLLock', p.dmlLocks, 'dmlLocks')
+      each('ProcLibObject', p.locks, 'locks')
+      each('ProcLibObject', p.pins, 'pins')
+    }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+  })
 })
 
 describe('what Go leaves null', () => {
@@ -97,5 +153,18 @@ describe('what Go leaves null', () => {
     const s = normalizePgaSummary({ kind: 'pga-summary', node: 'n', top: null, private: null, instance: null, swap: null, processes: { line: 1, top: null, all: null } } as never)
     expect([s.top, s.private, s.instance, s.swap, s.processes!.top, s.processes!.all]).toEqual([[], [], [], [], [], []])
     expect(normalizePgaDetail({ kind: 'pga-detail', node: 'n', rows: null } as never).rows).toEqual([])
+  })
+})
+
+describe('what Go leaves null in the call stack and process readings', () => {
+  it('is made empty', () => {
+    const c = normalizeCallStack({ kind: 'callstack', node: 'n', error: { lines: null }, barriers: null, plsql: null, frames: null, cursors: [{ sqlId: 'a', binds: null }], links: null, notes: null } as never)
+    expect([c.error?.lines, c.barriers, c.plsql, c.frames, c.links, c.notes]).toEqual([[], [], [], [], [], []])
+    expect(c.cursors[0].binds).toEqual([])
+    const p = normalizeProcState({ kind: 'procstate', node: 'n', sessions: [{ key: '1.2', wait: { stack: null, blockers: null, waiters: [{ params: null }], history: null } }], objects: { total: 0, depth: 0, byType: null }, enqueues: null, transactions: [{ blocks: null }], dmlLocks: null, locks: null, pins: null, notes: null } as never)
+    expect([p.enqueues, p.dmlLocks, p.locks, p.pins, p.notes, p.objects.byType]).toEqual([[], [], [], [], [], []])
+    expect(p.transactions[0].blocks).toEqual([])
+    expect(p.sessions[0].wait).toMatchObject({ stack: [], blockers: [], history: [] })
+    expect(p.sessions[0].wait!.waiters[0].params).toEqual([])
   })
 })

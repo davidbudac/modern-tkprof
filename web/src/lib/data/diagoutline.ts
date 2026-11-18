@@ -2,7 +2,7 @@
 // was (a system state has millions of state objects; nothing is held that was not asked for). A node's children come in pages of at most 2,000
 // (`after`), a page is asked for by the row "N of M shown · load more". The store keeps what was opened, so a tab that is shown again finds its outline
 // as it left it. It is plain data and a subscription, so the tests need no browser.
-import { ROOT, type DiagChildren, type DiagNode, type DiagSource } from './diag'
+import { PathUnavailable, ROOT, type DiagChildren, type DiagNode, type DiagSource, type PathBy } from './diag'
 
 /** The children of one node, as far as they are loaded. */
 export interface Kids {
@@ -233,6 +233,97 @@ export class DiagOutlineStore {
     this.headCache = { ver: this.ver, map }
     return map
   }
+
+  // ---- nodes that are not loaded (api/diag/path) ----
+
+  /** The deeper chains the source has told, for the where-am-I path of a line inside a part whose children are not loaded: the last 64. */
+  private readonly deep: DiagNode[][] = []
+  private readonly deepAsked = new Map<number, Promise<void>>()
+  /** Set once the source said it cannot locate (`PathUnavailable`): nothing is asked again. */
+  private noPath = false
+
+  /** Whether a line lies in a part whose children the outline has not loaded, so that `pathAt` stops above where the line really is. */
+  needsDeep(line: number): boolean {
+    if (this.noPath) return false
+    const last = this.pathAt(line).at(-1)
+    return !!last && last.hasChildren && !this.kids.has(last.id) && !this.deep.some((c) => { const n = c.at(-1)!; return line >= n.from && line <= n.to })
+  }
+
+  /**
+   * The where-am-I path of a line: the loaded nodes that hold it and, below them, the chain `api/diag/path` told for a part that was not loaded (`fetchDeep`
+   * asks for it). Only chains that start with the loaded path count: the outline may have changed since.
+   */
+  pathAtDeep(line: number): DiagNode[] {
+    const loaded = this.pathAt(line)
+    for (const c of this.deep) {
+      const n = c.at(-1)!
+      if (line < n.from || line > n.to || c.length <= loaded.length) continue
+      if (loaded.every((x, i) => c[i]?.id === x.id)) return c
+    }
+    return loaded
+  }
+
+  /** Asks the source for the chain of a line that is in an unloaded part (once per line at a time); the store changes when it arrives. */
+  fetchDeep(line: number): Promise<void> {
+    if (!this.needsDeep(line)) return Promise.resolve()
+    const run = this.deepAsked.get(line)
+    if (run) return run
+    const p = this.source.path({ line }).then(
+      (chain) => {
+        if (this.closed || chain.length === 0) return
+        this.deep.push(chain)
+        if (this.deep.length > 64) this.deep.shift()
+        this.bump()
+      },
+      (e: unknown) => { if (e instanceof PathUnavailable) this.noPath = true },
+    ).finally(() => { this.deepAsked.delete(line) })
+    this.deepAsked.set(line, p)
+    return p
+  }
+
+  /**
+   * Loads the nodes of a chain (`source.path`) into the outline, a page of children at a time where a node is not in the first, and opens it down to its parent:
+   * the node of the chain's end is then a row of the outline. Resolves to that node, or undefined when the source cannot tell, has none, or a parent does not list it.
+   */
+  async locate(by: PathBy): Promise<DiagNode | undefined> {
+    const known = 'node' in by ? this.nodes.get(by.node) : undefined
+    if (known) { this.revealNode(known.id); return known }
+    let chain: DiagNode[]
+    try { chain = await this.source.path(by) } catch (e) { if (e instanceof PathUnavailable) this.noPath = true; return undefined }
+    if (this.closed || chain.length === 0) return undefined
+    let parent = ROOT
+    for (const n of chain) {
+      if (!this.nodes.has(n.id)) {
+        await this.load(parent)
+        for (let guard = 0; !this.nodes.has(n.id) && guard < 50; guard++) {
+          const k = this.kids.get(parent)
+          if (!k || k.more === 0 || k.error) break
+          await this.loadMore(parent)
+        }
+        if (!this.nodes.has(n.id)) return undefined
+      }
+      parent = n.id
+    }
+    const end = this.nodes.get(chain[chain.length - 1].id)
+    if (end) this.revealNode(end.id)
+    return end
+  }
+
+  /** The loaded nodes that have a fold reason (`DiagNode.fold`), in file order, outermost first where one holds another. */
+  folded(): DiagNode[] {
+    if (this.foldCache?.ver === this.ver) return this.foldCache.list
+    const out: DiagNode[] = []
+    const walk = (id: string) => {
+      const k = this.kids.get(id)
+      if (!k) return
+      for (const n of k.nodes) { if (n.fold) out.push(n); walk(n.id) }
+    }
+    walk(ROOT)
+    out.sort((a, b) => a.from - b.from || b.to - a.to)
+    this.foldCache = { ver: this.ver, list: out }
+    return out
+  }
+  private foldCache: { ver: number; list: DiagNode[] } | null = null
 
   /** The top-level nodes, with where each is: the line map's bands. */
   top(): readonly DiagNode[] { return this.kids.get(ROOT)?.nodes ?? [] }

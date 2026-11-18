@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diagDumpNote, dumpIndexOf, dumpTabs, dumpsLabel, fileKindOf, hasOwnTab, isDumpFile, isFollowRefusal, isOptFile, kindBadge, kindLabel, kindTitle, leftOutFile, optDumpNote, optionsFor, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, tabKindForFile, tabKindOf, tabKindOfView, type PeekOpt } from './optTabs'
+import { diagDumpNote, diagTabs, dumpIndexOf, dumpTabs, dumpsLabel, fileKindOf, hasOwnTab, isDumpFile, isFollowRefusal, isOptFile, kindBadge, kindLabel, kindTitle, leftOutFile, optDumpNote, optionsFor, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, tabKindForFile, tabKindOf, tabKindOfView, traceTabs, type PeekOpt } from './optTabs'
 
 describe('the kind of a file', () => {
   it('reads what the engine peek says, the interleaved kind under both of its spellings', () => {
@@ -177,5 +177,31 @@ describe('the options a file is opened with', () => {
   it('reads the engine\'s refusal to follow a 10053 file', () => {
     expect(isFollowRefusal('POST /engine/sessions: bad_request: follow: o.trc is a 10053 file (optimizer trace); it cannot be followed live: open it without follow')).toBe(true)
     expect(isFollowRefusal('POST /engine/sessions: bad_request: follow: want one file')).toBe(false)
+  })
+})
+
+describe('the jump between a SQL trace tab and a dump tab', () => {
+  const t = (key: string, o: object = {}) => ({ key, origin: 'paths', ...o })
+  const tabs = [
+    t('a'), t('b', { kind: 'dump', diagSqlIds: ['s1', 's2'], diagSessions: ['1.2'] }), t('c', { kind: 'dump', diagSqlIds: ['s2'], diagSessions: [] }),
+    t('d'), t('o', { kind: '10053', optSqlIds: ['s1'] }), t('cmp', { origin: 'comparison' }), t('e', { kind: 'dump' }),
+  ]
+
+  it('finds the other dump tabs that name the statement or the session, by what the engine listed, never another kind of tab', () => {
+    expect(diagTabs(tabs, { sqlId: 's2' }, 'a').map((x) => x.key)).toEqual(['b', 'c'])
+    expect(diagTabs(tabs, { sqlId: 's1' }, 'a').map((x) => x.key)).toEqual(['b']) // the 10053 tab o has s1 too: it is not a dump tab
+    expect(diagTabs(tabs, { session: '1.2' }, 'a').map((x) => x.key)).toEqual(['b'])
+    expect(diagTabs(tabs, { sqlId: 's2' }, 'b').map((x) => x.key)).toEqual(['c'])
+    expect(diagTabs(tabs, { sqlId: 'nope' }, 'a')).toEqual([])
+    expect(diagTabs(tabs, { session: '' }, 'a')).toEqual([])
+    expect(diagTabs(tabs, { session: '9.9' }, 'a')).toEqual([])
+  })
+
+  it('finds the other SQL trace tabs that hold the statement or the session, never a dump, 10053 or comparison tab', () => {
+    const has = (x: { key: string }) => true && x.key !== 'zzz'
+    expect(traceTabs(tabs, { sqlId: 'q' }, 'a', has).map((x) => x.key)).toEqual(['d'])
+    expect(traceTabs(tabs, { session: '1.2' }, 'd', has).map((x) => x.key)).toEqual(['a'])
+    expect(traceTabs(tabs, { sqlId: '' }, 'a', has)).toEqual([])
+    expect(traceTabs(tabs, { sqlId: 'q' }, 'a', () => false)).toEqual([])
   })
 })

@@ -68,3 +68,8 @@
 .dg-kv dd { margin: 0; min-inline-size: 0; overflow-wrap: anywhere; }
 .dg-go { font-family: var(--font-mono); font-size: inherit; padding: 0; }
 .dg-guide .opt-g-sec .opt-g-t { overflow-wrap: anywhere; }
+
+/* the folds of the text: Unfold all | Fold all in the toolbar */
+.dg-folds { display: inline-flex; gap: var(--sp-1); flex: none; }
+.dg-folds button.quiet { font-size: var(--text-xs); padding: 0.1rem 0.5rem; }
+.dg-folds button.quiet[disabled] { opacity: 0.45; cursor: default; }

@@ -64,7 +64,7 @@ describe('the outline', () => {
 describe('the guide', () => {
   const draw = (n: DiagNode | null, o: { selected?: boolean; hits?: number | null; q?: string; digest?: boolean } = {}) =>
     html(createElement(DiagGuide, { node: n, selected: o.selected ?? true, hits: o.hits ?? null, q: o.q ?? '', digest: o.digest ?? false, onGo: () => {} }))
-  afterEach(() => unregisterReading('callstack'))
+  afterEach(() => unregisterReading('hang'))
 
   it('says what is selected, its lines, kind, children and reading, with the sourced text and its source', () => {
     const h = draw(node('t', 50, 187, false, { kind: 'title', title: 'Call Stack Trace' }))
@@ -86,9 +86,9 @@ describe('the guide', () => {
   })
 
   it('lists the reading of a node, and whether this version can show it', () => {
-    const n = node('h', 32, 923, true, { kind: 'heap', title: 'Heap dump: pga heap', name: 'pga heap', depth: 0, size: 4707160, reading: 'callstack' })
+    const n = node('h', 32, 923, true, { kind: 'heap', title: 'Heap dump: pga heap', name: 'pga heap', depth: 0, size: 4707160, reading: 'hang' })
     expect(draw(n)).toContain('this version has no view for it')
-    registerReading('callstack', () => null)
+    registerReading('hang', () => null)
     expect(draw(n)).toContain('(centre, Reading)')
     expect(draw(n)).toContain('pga heap')
     expect(draw(n)).toContain('4.5 MB')
@@ -145,13 +145,13 @@ describe('the facts bar', () => {
 })
 
 describe('the registry of readings', () => {
-  it('has the heap and the PGA readings, registers a component by kind and forgets it', () => {
-    expect(registeredReadings().sort()).toEqual(['heap', 'pga-detail', 'pga-summary'])
+  it('has the heap, PGA, call stack and process readings, registers a component by kind and forgets it', () => {
+    expect(registeredReadings().sort()).toEqual(['callstack', 'heap', 'pga-detail', 'pga-summary', 'procstate'])
     const C = () => null
-    registerReading('callstack', C)
-    expect(readingView('callstack')).toBe(C)
     expect(readingView('hang')).toBeUndefined()
-    unregisterReading('callstack')
-    expect(readingView('callstack')).toBeUndefined()
+    registerReading('hang', C)
+    expect(readingView('hang')).toBe(C)
+    unregisterReading('hang')
+    expect(readingView('hang')).toBeUndefined()
   })
 })

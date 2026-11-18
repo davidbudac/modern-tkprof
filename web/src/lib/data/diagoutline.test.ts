@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { memoryDiagSource, type DiagFile, type DiagNode, type DiagSource } from './diag'
+import { memoryDiagSource, PathUnavailable, type DiagFile, type DiagNode, type DiagSource } from './diag'
 import { DiagOutlineStore, nodeIn, outlineStoreOf } from './diagoutline'
 import { syntheticDiag, SYN_PART, SYN_SECTION } from './diagsynth'
 import { HAS_DIAG_FIXTURE, loadDiagFixture } from './diagfixture'
@@ -240,5 +240,71 @@ describe('nodeIn', () => {
     expect(nodeIn(l, 25)).toBeUndefined()
     expect(nodeIn(l, 40)?.id).toBe('c')
     expect(nodeIn([], 1)).toBeUndefined()
+  })
+})
+
+describe('nodes that are not loaded (api/diag/path)', () => {
+  const top = [node('a', 1, 100, true), node('b', 101, 200, true), node('c', 201, 300)]
+  const kids = { a: [node('a1', 1, 50, true), node('a2', 51, 100)], a1: [node('a1x', 1, 25), node('a1y', 26, 50)], b: [node('b1', 101, 200, true)], b1: [node('b1x', 101, 150, false, { fold: 'noise' })] }
+  const src = () => memoryDiagSource(fileOf(top, 3, 300), kids, ['x'])
+
+  it('the memory source computes the chain of a line and of a node', async () => {
+    const s = src()
+    expect((await s.path({ line: 30 })).map((n) => n.id)).toEqual(['a', 'a1', 'a1y'])
+    expect((await s.path({ line: 120 })).map((n) => n.id)).toEqual(['b', 'b1', 'b1x'])
+    expect((await s.path({ node: 'a2' })).map((n) => n.id)).toEqual(['a', 'a2'])
+    expect(await s.path({ line: 9999 })).toEqual([])
+    expect(await s.path({ node: 'nope' })).toEqual([])
+  })
+
+  it('loads the chain of a node, opens the outline down to it and returns it', async () => {
+    const s = new DiagOutlineStore(src())
+    expect(s.node('a1y')).toBeUndefined()
+    const n = await s.locate({ node: 'a1y' })
+    expect(n?.id).toBe('a1y')
+    expect(ids(s)).toEqual(['a', 'a1', 'a1x', 'a1y', 'a2', 'b', 'c'])
+    expect(s.pathTo('a1y').map((x) => x.id)).toEqual(['a', 'a1', 'a1y'])
+    // a node already loaded is revealed without asking the source
+    const source = src()
+    const path = vi.spyOn(source, 'path')
+    const s2 = new DiagOutlineStore(source)
+    await s2.openNode('a')
+    expect((await s2.locate({ node: 'a2' }))?.id).toBe('a2')
+    expect(path).not.toHaveBeenCalled()
+  })
+
+  it('locates a line, and a node that sits beyond the first page of its parent', async () => {
+    const wide = Array.from({ length: 5 }, (_, i) => node(`w${i}`, 1 + i * 10, 10 + i * 10))
+    const source = memoryDiagSource(fileOf([node('p', 1, 50, true)], 1, 50), { p: wide }, ['x'], { pageSize: 2 })
+    const s = new DiagOutlineStore(source)
+    const n = await s.locate({ line: 45 })
+    expect(n?.id).toBe('w4')
+    expect(s.kidsOf('p')?.nodes.map((x) => x.id)).toEqual(['w0', 'w1', 'w2', 'w3', 'w4'])
+    expect(s.isOpen('p')).toBe(true)
+  })
+
+  it('answers undefined when the source cannot tell, and stops asking for the where-am-I path', async () => {
+    const source: DiagSource = { ...src(), path: () => Promise.reject(new PathUnavailable()) }
+    const s = new DiagOutlineStore(source)
+    expect(await s.locate({ node: 'a1' })).toBeUndefined()
+    expect(s.needsDeep(10)).toBe(false)
+    expect((await new DiagOutlineStore(src()).locate({ node: 'nope' }))).toBeUndefined()
+  })
+
+  it('shows the where-am-I path of a line inside an unloaded part once the chain has arrived', async () => {
+    const s = new DiagOutlineStore(src())
+    expect(s.pathAt(30).map((n) => n.id)).toEqual(['a']) // a's children are not loaded
+    expect(s.needsDeep(30)).toBe(true)
+    expect(s.pathAtDeep(30).map((n) => n.id)).toEqual(['a'])
+    await s.fetchDeep(30)
+    expect(s.pathAtDeep(30).map((n) => n.id)).toEqual(['a', 'a1', 'a1y'])
+    expect(s.needsDeep(30)).toBe(false)
+    expect(s.needsDeep(20)).toBe(true) // line 20 is in a1x, which that chain did not end in
+  })
+
+  it('lists the loaded nodes that have a fold reason, outermost first', async () => {
+    const s = new DiagOutlineStore(src())
+    await s.locate({ node: 'b1x' })
+    expect(s.folded().map((n) => n.id)).toEqual(['b1x'])
   })
 })

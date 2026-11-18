@@ -142,3 +142,53 @@ svg.rd-hist { display: block; max-inline-size: 100%; block-size: auto; overflow:
 .rd-more { all: unset; cursor: pointer; font-size: var(--text-xs); color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 2px; }
 .rd-more:hover, .rd-more:focus-visible { color: var(--ink); }
 .rd-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- the call stack and process readings ---------------------------------------------------------------------------------------------------------------- */
+
+/* the stack as one line: a block that selects as one piece, and the Copy button under it */
+.rd-oneline { padding: var(--sp-2) var(--sp-3); background: var(--surface-sunken); border: 1px solid var(--hairline); border-radius: var(--radius); max-block-size: 6.5rem; overflow: auto; }
+.rd-oneline code { font-size: var(--text-xs); line-height: 1.6; overflow-wrap: anywhere; user-select: all; }
+.rd-copy { font-size: var(--text-xs); }
+.rd-chk-l { display: inline-flex; align-items: center; gap: 0.4em; cursor: pointer; }
+.rd-chk-l input { margin: 0; accent-color: var(--ink); }
+
+/* the frames: the dump's own ones in a row of their own that opens */
+.rd-frames td.fn { font-size: var(--text-sm); }
+.rd-frames .comp { color: var(--ink-3); font-size: var(--text-xs); white-space: nowrap; }
+tr.rd-own td { color: var(--ink-3); }
+tr.rd-ownrow td { padding-block: 2px; }
+.rd-foldrow { all: unset; box-sizing: border-box; cursor: pointer; color: var(--ink-2); font-size: var(--text-xs); display: inline-flex; align-items: baseline; gap: 0.5em; padding-block: 1px; }
+.rd-foldrow:hover { color: var(--ink); }
+.rd-foldrow:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rd-foldrow .rd-tw-i { inline-size: 1em; text-align: center; color: var(--ink-3); }
+.rd-foldrow b { font-weight: 600; color: var(--ink); }
+.rd-tag { margin-inline-start: 0.6em; padding: 0 0.4em; border: 1px solid var(--hairline-strong); border-radius: 3px; font: 500 var(--text-xs) var(--font-ui); color: var(--ink-2); white-space: nowrap; }
+@container rd (max-width: 36rem) { .rd-frames .comp, .rd-frames th.comp { display: none; } .rd-cursors .st, .rd-cursors th.st { display: none; } }
+
+/* the cursors and their binds */
+.rd-cursors td.tw { inline-size: 1.4em; padding-inline-end: 0; }
+.rd-cursors td.wrap { max-inline-size: 36rem; }
+tr.rd-sub > td { padding-block: var(--sp-1) var(--sp-2); background: var(--surface-sunken); }
+.rd-binds { background: transparent; }
+.rd-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+
+/* the error: the ORA- lines as the dump printed them */
+.rd-err-l { display: grid; gap: 2px; }
+
+/* sessions the dump names, and the "10046" link back to a SQL trace */
+.rd-sess { display: inline-flex; align-items: baseline; gap: 0.4em; }
+.rd-sessbtn { font-family: var(--font-mono); font-size: inherit; color: var(--ink); font-weight: 600; text-decoration: underline dotted; text-underline-offset: 2px; }
+.rd-sessbtn:hover, .rd-sessbtn:focus-visible { text-decoration-style: solid; }
+.rd-sess-h { margin: var(--sp-3) 0 0; font-size: var(--text-sm); font-weight: 600; padding-block-start: var(--sp-3); border-block-start: 1px solid var(--hairline-strong); }
+.rd-sess-h + .rd-sec { border-block-start: 0; padding-block-start: 0; }
+.rd-10046 { margin-inline-start: 0.2em; }
+.rd-waiter { margin-block-start: 2px; padding-inline-start: var(--sp-3); }
+.rd-params { margin-block-start: 2px; font-size: var(--text-xs); }
+
+/* the wait history */
+.rd-wh { list-style: none; margin: 0; padding: 0; columns: 2 24rem; column-gap: var(--sp-5); }
+.rd-wh li { display: grid; grid-template-columns: 2ch minmax(0, 1fr) 5.5ch 3rem 5ch; gap: var(--sp-2); align-items: baseline; padding-block: 1px; break-inside: avoid; border-block-end: 1px solid var(--ruling); line-height: 1.55; }
+.rd-wh .ev { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-wh .num { text-align: end; font-variant-numeric: tabular-nums; }
+.rd-wh .bc { display: block; block-size: 4px; background: var(--wash); border-radius: 1px; overflow: hidden; align-self: center; }
+.rd-wh .bc > i { display: block; block-size: 100%; background: color-mix(in oklch, var(--acc) 70%, var(--surface-raised)); }

@@ -1,4 +1,4 @@
-import { createSession, filesFolded, fromRaw, inShellFilesWrite, mergeAnnotations, mergeBookmarks, type Bookmark, type NoteAction, type Opt10046Link, type Opt10053Link, type RawCompareDocument, type RawDocument, type Session, type TraceDoc } from '@lib'
+import { createSession, filesFolded, firstLineNaming, fromRaw, inShellFilesWrite, mergeAnnotations, mergeBookmarks, type Bookmark, type DiagLink, type NoteAction, type Opt10046Link, type Opt10053Link, type RawCompareDocument, type RawDocument, type Session, type TraceDoc } from '@lib'
 import type { ApiClient } from '@lib/data/client'
 import { getJSON, responseError, send, sessionClient, type EngineEvents } from '../engine'
 import type { FileInfo, FileList, JobInfo, OpenSessionResponse, SessionEvent, SessionInfo, SessionOptions } from '../engine'
@@ -9,7 +9,7 @@ import { closeChat } from '../assist/conversation'
 import { libraryFor } from '../library/library'
 import { mergePanes, parsePanes, type Panes, type PanesPatch } from './panes'
 import { dirsOf, heldPaths, titleOf, baseName } from './traceSet'
-import { diagDumpNote, dumpIndexOf, dumpTabs, isFollowRefusal, leftOutFile, optDumpNote, optionsFor, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, tabKindOf, tabKindOfView, type PeekOpt, type SessionViewName, type TabKind } from './optTabs'
+import { diagDumpNote, diagTabs, dumpIndexOf, dumpTabs, isFollowRefusal, leftOutFile, optDumpNote, optionsFor, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, tabKindOf, tabKindOfView, traceTabs, type DiagKey as JumpKey, type PeekOpt, type SessionViewName, type TabKind } from './optTabs'
 import { LiveFollower } from './liveFollow'
 import { OpenQueue } from './openQueue'
 
@@ -98,6 +98,9 @@ export interface Tab {
   kind?: TabKind
   /** a 10053 tab: the distinct sql_ids of its dumps (the engine's `optSqlIds`; the "10053" mark on a statement of another tab reads it) */
   optSqlIds?: string[]
+  /** a dump tab: the statements (`diagSqlIds`) and the sessions as `sid.serial` (`diagSessions`) its file names, from the engine's session; the "dump" mark of a SQL trace tab reads them */
+  diagSqlIds?: string[]
+  diagSessions?: string[]
   /** a jump to a dump that arrived before the tab's document did: the sql_id whose dump opens when it is in */
   openDump?: string
   /** the lib session (store + client), once the first document is in; the store survives engine restarts and live updates */
@@ -357,6 +360,8 @@ export class Workspace {
     const optIds = info.optSqlIds
     if (optIds) { patch.kind = '10053'; patch.optSqlIds = optIds } // present only for a 10053 session
     else if (tabKindOfView(info.view) === 'dump') patch.kind = 'dump' // a file opened by default (or asked to open) in the dump reader
+    if (info.diagSqlIds) patch.diagSqlIds = info.diagSqlIds // present only for a diag session once it is ready
+    if (info.diagSessions) patch.diagSessions = info.diagSessions
     if (info.files?.length && !t.live) {
       const dirs = dirsOf(t.set.paths, info.files)
       patch.files = info.files
@@ -725,6 +730,49 @@ export class Workspace {
   }
 
   /**
+   * The "dump" mark of the SQL trace tab `from`: whether another open dump tab names the statement (its sql_id) or the session (`sid.serial`), and the jump to the
+   * most recently used one. The jump shows the dump tab and, when its text can be searched, selects the first place the file names it. Nothing is joined.
+   */
+  diagLink(from: string): DiagLink {
+    return {
+      has: (by) => diagTabs(this.snap.tabs, by, from).length > 0,
+      open: (by) => {
+        const tab = pickJumpTab(diagTabs(this.snap.tabs, by, from), this.used)
+        if (!tab) return
+        this.go({ kind: 'tab', key: tab.key })
+        const s = tab.session
+        if (!s) return
+        // the first line of the dump that names it: its outline opens down to it and the text shows it; where that cannot be found the tab is simply shown
+        void firstLineNaming(s.client, by).then((line) => { if (line) s.store.actions.openDump({ line }) }, () => undefined)
+      },
+    }
+  }
+
+  /**
+   * The "10046" link of the dump tab `from`: whether another open SQL trace tab holds the statement or the session, and the jump to the one most recently shown,
+   * selecting the statement, or the session in its Sessions view.
+   */
+  traceLink(from: string): DiagLink {
+    return {
+      has: (by) => traceTabs(this.snap.tabs, by, from, holdsKey).length > 0,
+      open: (by) => {
+        const tab = pickJumpTab(traceTabs(this.snap.tabs, by, from, holdsKey), this.used)
+        const st = tab?.session?.store
+        const doc = st?.getState().doc
+        if (!tab || !st || !doc) return
+        if ('sqlId' in by) {
+          const i = doc.statements.findIndex((x) => x.sqlId === by.sqlId)
+          if (i >= 0) st.actions.selectStmt(i)
+        } else {
+          const i = doc.contexts.findIndex((c) => c.sessionId === by.session)
+          if (i >= 0) { st.actions.setContexts(new Set([doc.contexts[i].id ?? i])); st.actions.setView('sessions') }
+        }
+        this.go({ kind: 'tab', key: tab.key })
+      },
+    }
+  }
+
+  /**
    * A button for a note of tab `key`'s document that says a 10053 file was left out of the set ("x.trc is a 10053 file; open it on its own"):
    * it opens that file in a tab of its own. The file is found among the requested paths, else in the folders among them.
    */
@@ -1032,6 +1080,18 @@ function hasStatement(t: Tab, sqlId: string): boolean {
   let ids = sqlIdCache.get(doc)
   if (!ids) sqlIdCache.set(doc, (ids = new Set(doc.statements.map((x) => x.sqlId).filter(Boolean))))
   return ids.has(sqlId)
+}
+
+const sessionIdCache = new WeakMap<TraceDoc, ReadonlySet<string>>()
+
+/** Whether the tab's SQL trace holds the statement (its sql_id) or the session (a context with this `sid.serial`). */
+function holdsKey(t: Tab, by: JumpKey): boolean {
+  if ('sqlId' in by) return hasStatement(t, by.sqlId)
+  const doc = t.session?.store.getState().doc
+  if (!doc) return false
+  let ids = sessionIdCache.get(doc)
+  if (!ids) sessionIdCache.set(doc, (ids = new Set(doc.contexts.map((c) => c.sessionId).filter(Boolean))))
+  return ids.has(by.session)
 }
 
 /** Comparison uses full traces, independently of current filters and selections. A 10053 or dump tab is not offered as a side: it has nothing to compare. */

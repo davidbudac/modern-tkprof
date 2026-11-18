@@ -106,6 +106,17 @@ export class NoReading extends Error {
   constructor(message = 'no reading for this node', readonly omitted = false) { super(message); this.name = 'NoReading' }
 }
 
+/**
+ * The route `api/diag/path` is not in the engine that answered (an older engine: a 404 that is not the engine's JSON error): a client that wanted to
+ * locate a node that is not loaded says so and shows what it can without it.
+ */
+export class PathUnavailable extends Error {
+  constructor() { super('this engine cannot locate a node that is not loaded (api/diag/path)'); this.name = 'PathUnavailable' }
+}
+
+/** What a node is asked for by: a line of the file (the chain down to the deepest node that holds it) or a node id (the chain down to it). */
+export type PathBy = { line: number } | { node: string }
+
 /** The text of the file, in pages, and search over it. */
 export interface DiagText {
   /** `n` lines (at most 2,000) from line `from`, each with its kind (`api/lines?annot=1`) */
@@ -127,6 +138,12 @@ export interface DiagSource {
   outline(node: string, after?: number): Promise<DiagChildren>
   /** the reading of a node; rejects with `NoReading` for a node that has none */
   reading(node: string): Promise<DiagReading>
+  /**
+   * The chain of nodes from the top level down to the deepest node that holds a line, or down to a node (`api/diag/path`), outermost first; empty for a line
+   * or a node the file does not have. Rejects with `PathUnavailable` where the source cannot tell (an engine without the route). The digest source answers
+   * from what it holds, so the chain may stop at the report's depth.
+   */
+  path(by: PathBy): Promise<DiagNode[]>
   /** the chunk lines of a heap reading's selection (`api/diag/reading/lines`): a comment group and/or a type, ascending, at most 2,000 per answer, `after` a line; rejects where the source has no text */
   readingLines(node: string, q: HeapLinesQuery): Promise<HeapLines>
 }
@@ -169,6 +186,34 @@ export function kindOfLine(text: string): AnnotLine['k'] {
   if (text.trim() === '') return 'blank'
   if (text.startsWith('*** ')) return 'marker'
   return 'diagnostic'
+}
+
+/**
+ * The chain of `by` through a tree held in memory (the top level `children[ROOT]`, else `file.outline`, and the lists of `children` by node id): a line's is
+ * the nodes that hold it, down to the deepest one the lists have; a node's is found by a search of the lists. Empty when there is none.
+ */
+export function chainIn(file: DiagFile, children: Readonly<Record<string, DiagNode[]>>, by: PathBy): DiagNode[] {
+  const top = children[ROOT] ?? file.outline
+  if ('line' in by) {
+    const out: DiagNode[] = []
+    let list: DiagNode[] | undefined = top
+    while (list) {
+      const n: DiagNode | undefined = list.find((x) => by.line >= x.from && by.line <= x.to)
+      if (!n) break
+      out.push(n)
+      list = children[n.id]
+    }
+    return out
+  }
+  const walk = (list: DiagNode[], chain: DiagNode[], depth: number): DiagNode[] | null => {
+    for (const n of list) {
+      if (n.id === by.node) return [...chain, n]
+      const kids = children[n.id]
+      if (kids && depth < 12) { const r = walk(kids, [...chain, n], depth + 1); if (r) return r }
+    }
+    return null
+  }
+  return walk(top, [], 0) ?? []
 }
 
 /** Lines (`all[0]` is line 1) as a text: pages and a literal or regular expression search, as the server answers them. `at` makes a line on demand (a file too big to hold). */
@@ -232,6 +277,7 @@ export function memoryDiagSource(
       const r = opts.readings?.[node]
       return r ? Promise.resolve(r) : Promise.reject(new NoReading())
     },
+    path: (by) => Promise.resolve(chainIn(file, children, by)),
     readingLines: (node, q) => (opts.readingLines ? Promise.resolve(opts.readingLines(node, q)) : Promise.reject(new Error('this source has no chunk lines'))),
   }
 }

@@ -19,6 +19,7 @@ export { OptView } from './views/opt/OptView'
 export type { OptViewProps } from './views/opt/OptView'
 export { OptTab } from './views/opt/OptTab'
 export { OptMark } from './components/OptMark'
+export { DumpMark, TraceMark } from './components/DumpMark'
 // the dump reader (a diag session: `doc.dump`) and what it reads: a source of the file's facts, outline, readings and text
 export { DiagView } from './views/diag/DiagView'
 export type { DiagViewProps } from './views/diag/DiagView'
@@ -27,6 +28,8 @@ export { registerReading, readingView } from './views/diag/readings'
 export type { ReadingProps, ReadingView } from './views/diag/readings'
 export { OptLinksContext, useOptLinks } from './shell/optlinks'
 export type { OptLinks, Opt10053Link, NoteAction } from './shell/optlinks'
+export { firstLineNaming } from './data/diagmarks'
+export type { DiagKey, DiagLink } from './data/diagmarks'
 export { FilesPanel, FilesPane, FilesToggle } from './views/FilesPanel'
 
 // components

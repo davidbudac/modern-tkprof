@@ -2,6 +2,8 @@ import { Fragment, type CSSProperties, useCallback, useEffect, useMemo, useReduc
 import type { DiagNode, DiagSource } from '../../data/diag'
 import { outlineStoreOf } from '../../data/diagoutline'
 import { readingUiOf } from '../../data/diagheap'
+import { foldAll, FOLDED, isFoldOpen, setFold, textFolds, unfoldFor, type FoldState } from '../../data/diagfold'
+import { foldHiding } from '../../data/folds'
 import { LINE_KINDS, PageCache } from '../../data/linecache'
 import type { OptAnnotations } from '../../data/opt'
 import { stepLine } from '../../data/optindex'
@@ -61,10 +63,12 @@ interface Ui {
   keys: boolean
   goText: string
   top: number
+  /** which folds of the text are open (all closed to begin with) */
+  fold: FoldState
 }
 type Patch = Partial<Ui> | ((s: Ui) => Partial<Ui>)
 const reduce = (s: Ui, p: Patch): Ui => ({ ...s, ...(typeof p === 'function' ? p(s) : p) })
-const freshUi = (): Ui => ({ sel: 0, node: null, mode: 'text', q: '', re: false, cs: false, hitCur: 0, ltab: 'outline', keys: false, goText: '', top: 0 })
+const freshUi = (): Ui => ({ sel: 0, node: null, mode: 'text', q: '', re: false, cs: false, hitCur: 0, ltab: 'outline', keys: false, goText: '', top: 0, fold: FOLDED })
 
 /** What a view keeps while another tab is shown (the component unmounts): one per source. The outline store is kept beside it (`outlineStoreOf`). */
 const kept = new WeakMap<DiagSource, Ui>()
@@ -89,7 +93,7 @@ const k = (...a: string[]) => <>{a.map((x) => <kbd key={x}>{x}</kbd>)}</>
 const KEY_ROWS: [string, React.ReactNode][] = [
   ['Search', k('/')], ['Next, previous hit', <>{k('Enter', 'Shift+Enter')} in the box, {k('F3', 'Shift+F3')}</>], ['Go to a line', k('g')],
   ['Bookmark the line', k('b')], ['Move the selection', <>{k('↑', '↓')}, {k('PageUp', 'PageDown')}, {k('Home', 'End')} in the text</>],
-  ['Reading | Text', k('v')], ['This list', k('?')],
+  ['Reading | Text', k('v')], ['Fold or unfold the part at the selection', k('z')], ['This list', k('?')],
 ]
 
 /** The line map's bands: the top-level nodes, each in a shade of its kind (a section darker than the lines between). */
@@ -157,28 +161,67 @@ export function DiagView(props: DiagViewProps) {
   const goBox = useRef<HTMLInputElement>(null)
   const qBox = useRef<HTMLInputElement>(null)
 
+  // ---- the folds of the text: the loaded parts that have a reason (`DiagNode.fold`), closed to begin with ----
+  const foldNodes = store.folded()
+  const tf = useMemo(() => textFolds(foldNodes, ui.fold), [foldNodes, ui.fold])
+  const foldNodesRef = useRef(foldNodes)
+  foldNodesRef.current = foldNodes
+  const closedFolds = tf.folds.length
+  const anyFold = tf.handles.size > 0
+  const onFold = useCallback((line: number) => {
+    const n = tf.nodeOf.get(line)
+    if (n) set((s) => ({ fold: setFold(s.fold, n.id, !isFoldOpen(s.fold, n.id)) }))
+  }, [tf])
+
+  // a reveal that has to wait for the viewer to lay out the folds that were just opened (its own effect remaps the rows first: this one is the parent's, which runs after)
+  const pendingReveal = useRef<{ line: number; how: 'center' | 'nearest' | 'top' } | null>(null)
+  useEffect(() => {
+    const p = pendingReveal.current
+    if (!p) return
+    pendingReveal.current = null
+    viewer.current?.reveal(p.line, p.how)
+  })
+  /** Shows a line in the text, opening the folds that hide it. */
+  const revealLine = useCallback((line: number, how: 'center' | 'nearest' | 'top') => {
+    const cur = uiRef.current.fold
+    const next = unfoldFor(foldNodesRef.current, cur, line)
+    if (next === cur) { viewer.current?.reveal(line, how); return }
+    pendingReveal.current = { line, how }
+    set({ fold: next })
+  }, [])
+
   // ---- selecting: a node, a line ----
   const modeFor = (n: DiagNode | undefined): Mode => (n?.reading && readingView(n.reading) ? modePrefRef.current : 'text')
   const selectNode = useCallback((id: string) => {
     const n = store.node(id)
-    if (!n) return
+    if (!n) {
+      // a node the outline has not loaded (a process of a system state, a heap inside a PGA summary): the source tells the chain, the outline opens down to it
+      void store.locate({ node: id }).then((found) => { if (found) selectNode(found.id) })
+      return
+    }
     store.revealNode(id)
     const mode = modeFor(n)
     set({ node: id, sel: n.from, mode })
-    if (cache) viewer.current?.reveal(n.from, 'top')
-  }, [store, cache])
+    if (cache) revealLine(n.from, 'top')
+  }, [store, cache, revealLine])
   /**
-   * Select a line: the node that holds it becomes the selected node (as far as the outline is loaded) and the text shows the line. `keepNode`: the node stays
+   * Select a line: the node that holds it becomes the selected node (as far as the outline is loaded; a line in a part that is not loaded asks the source for the
+   * chain, opens the outline down to it and selects that node) and the text shows the line. `keepNode`: the node stays
    * (a link inside a reading shows a line of the text and the reading's node stays the selection, so Reading is one click away); `keepMode`: the centre stays as it is.
    */
   const selectLine = useCallback((line: number, how: 'center' | 'nearest' | 'top' = 'nearest', keepMode = false, keepNode = false) => {
     const n = store.nodeAt(line)
     if (n && !keepNode) store.revealNode(n.id)
     set((s) => ({ sel: line, node: keepNode ? s.node : n ? n.id : null, mode: keepMode ? s.mode : 'text' }))
-    viewer.current?.reveal(line, how)
-  }, [store])
+    revealLine(line, how)
+    if (!keepNode && store.needsDeep(line)) {
+      void store.locate({ line }).then((found) => { if (found && uiRef.current.sel === line) set({ node: found.id }) })
+    }
+  }, [store, revealLine])
   const goLine = useCallback((line: number) => selectLine(Math.min(Math.max(1, line), Math.max(1, file.lines)), 'center'), [selectLine, file.lines])
   const readingGo = useCallback((line: number) => selectLine(Math.min(Math.max(1, line), Math.max(1, file.lines)), 'center', false, true), [selectLine, file.lines])
+  /** A click on the line map: a line in a closed fold goes to the fold's heading (the fold opens for a go-to, a search hit or a bookmark, not for a click on the map). */
+  const mapJump = useCallback((line: number) => { const f = foldHiding(line, tf.folds); if (f) selectLine(f.from, 'center'); else goLine(line) }, [tf, selectLine, goLine])
 
   // a requested node and line (a jump from outside)
   const goKey = props.goTo ? `${props.goTo.node ?? ''}:${props.goTo.line ?? 0}:${props.goTo.seq ?? 0}` : ''
@@ -194,7 +237,10 @@ export function DiagView(props: DiagViewProps) {
     const g = pendingGo.current
     if (!g) return
     pendingGo.current = null
-    if (g.node && store.node(g.node)) { selectNode(g.node); if (g.line) goLine(g.line) } else if (g.line) goLine(g.line)
+    void (async () => {
+      if (g.node) { const n = store.node(g.node) ?? (await store.locate({ node: g.node })); if (n) selectNode(n.id) }
+      if (g.line) { if (!g.node && store.needsDeep(g.line)) await store.locate({ line: g.line }); goLine(g.line) }
+    })()
   })
 
   // ---- where the text is: the selected line when it is in view, else the first visible line ----
@@ -206,9 +252,17 @@ export function DiagView(props: DiagViewProps) {
   const reading = selNode?.reading
   const readingOk = !!reading
   const effMode: Mode = readingOk && ui.mode === 'reading' ? 'reading' : 'text'
-  const path = (effMode === 'reading' || !text) && selNode ? store.pathTo(selNode.id) : text ? store.pathAt(focus) : []
+  const path = (effMode === 'reading' || !text) && selNode ? store.pathTo(selNode.id) : text ? store.pathAtDeep(focus) : []
   const pathKey = path.map((n) => n.id).join('|')
   const pathSet = useMemo(() => new Set(pathKey ? pathKey.split('|') : []), [pathKey])
+
+  // a line inside a part whose children are not loaded: the source tells the chain, so the path above the text is the part's own and not the loaded ancestor's
+  const needDeep = text && effMode === 'text' && store.needsDeep(focus)
+  useEffect(() => {
+    if (!needDeep) return
+    const t = window.setTimeout(() => { void store.fetchDeep(focus) }, 200)
+    return () => window.clearTimeout(t)
+  }, [needDeep, store, focus])
 
   // the node the guide is about: the selected one, else the deepest the text shows
   const guideNode = selNode ?? path.at(-1) ?? null
@@ -256,6 +310,12 @@ export function DiagView(props: DiagViewProps) {
       case '/': if (!text) return; e.preventDefault(); qBox.current?.focus(); qBox.current?.select(); break
       case 'g': if (!text) return; e.preventDefault(); goBox.current?.focus(); goBox.current?.select(); break
       case 'b': if (ui.sel) notes.toggle(ui.sel); break
+      case 'z': {
+        const f = foldHiding(ui.sel, tf.folds)
+        const h = f ? f.from : ui.sel
+        if (tf.handles.has(h)) { e.preventDefault(); onFold(h) }
+        break
+      }
       case 'v': if (selNode?.reading) setMode(effMode === 'reading' ? 'text' : 'reading'); break
       case '?': set((s) => ({ keys: !s.keys })); break
       case 'Escape': if (ui.keys) set({ keys: false }); break
@@ -320,6 +380,12 @@ export function DiagView(props: DiagViewProps) {
           <button type="button" className="quiet icon-btn" onClick={() => stepHit(-1)} disabled={hits.length === 0} title="Previous hit  (Shift+Enter, Shift+F3)" aria-label="Previous hit"><ChevronUpIcon /></button>
           <button type="button" className="quiet icon-btn" onClick={() => stepHit(1)} disabled={hits.length === 0} title="Next hit  (Enter, F3)" aria-label="Next hit"><ChevronDownIcon /></button>
         </form>
+        {anyFold && (
+          <span className="dg-folds" role="group" aria-label="Folds of the text">
+            <button type="button" className="quiet" disabled={closedFolds === 0} onClick={() => set({ fold: foldAll(true) })} title={`Open the ${closedFolds} closed part${closedFolds === 1 ? '' : 's'} of the text (registers and memory of the frames, block dumps, ...)`}>Unfold all</button>
+            <button type="button" className="quiet" disabled={closedFolds === tf.handles.size} onClick={() => set({ fold: foldAll(false) })} title="Close every part the engine marks as bulk">Fold all</button>
+          </span>
+        )}
         <span className="tb-sep" />
         <form className="dg-goto" onSubmit={(e) => {
           e.preventDefault()
@@ -376,13 +442,13 @@ export function DiagView(props: DiagViewProps) {
           </div>
           {cache ? (
             <div className="dg-lv" hidden={effMode === 'reading'}>
-              <LineViewer cache={cache} marks={chunkMarks} bookmarks={bmSet} notes={noteMap} selected={ui.sel} wrap={false} highlight={highlight} plainKinds={PLAIN} dress={headings} rules
+              <LineViewer cache={cache} marks={chunkMarks} bookmarks={bmSet} notes={noteMap} selected={ui.sel} wrap={false} highlight={highlight} plainKinds={PLAIN} dress={headings} rules folds={tf.folds} foldable={tf.handles} onFold={onFold}
                 apiRef={viewer} topRef={topRef} onViewChange={onView} onSelect={(l) => selectLine(l, 'nearest', true)} onBookmark={(l) => notes.toggle(l)} onError={setLoadError}
                 side={file.lines > 0 ? (
                   <LineStrip total={file.lines} layers={[]} shape={null} selected={ui.sel} hits={hasSearch ? hits : EMPTY_HITS} bookmarks={bmSet} range={null} bands={stripBands} marks={chunkTicks}
                     view={{ top: bandTop, rows: Math.max(1, view.rows) }}
                     title="The file: the parts as bands, search hits at the right edge, bookmarks at the left, the visible range as a box. Click or drag to go there."
-                    onScrub={scrub} onJump={goLine} />
+                    onScrub={scrub} onJump={mapJump} />
                 ) : undefined} />
               {loadError && <p className="opt-error dg-load-error" role="alert">Could not read the text: {loadError}</p>}
             </div>
@@ -403,6 +469,7 @@ export function DiagView(props: DiagViewProps) {
               : text
               ? <span>Lines <b>{fmtInt(view.top)}-{fmtInt(Math.min(file.lines, bottom))}</b> of {fmtInt(file.lines)}</span>
               : <span><b>{fmtInt(file.lines)}</b> lines in the file; the text is not in this report</span>}
+            {effMode === 'text' && closedFolds > 0 && <span title="Click the heading of a closed part, or press z, to open it">{fmtInt(closedFolds)} {closedFolds === 1 ? 'fold' : 'folds'} closed, {fmtInt(tf.hiddenLines)} lines hidden</span>}
             {selNode && <span>Selected <b>{selNode.title}</b></span>}
             {search.status === 'running' && <span>Searching…</span>}
             {search.status === 'done' && search.truncated && <span className="end">Search: stopped at {fmtInt(hits.length)} hits</span>}

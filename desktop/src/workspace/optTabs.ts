@@ -116,7 +116,7 @@ export function splitByKind(paths: readonly string[], peekOf: (path: string) => 
 // ---- the jump between a 10046 tab and a 10053 tab -----------------------------------------------------------------------------------
 
 /** The part of a tab a jump looks at. */
-export interface JumpTab { key: string; kind?: TabKind; origin: string; optSqlIds?: string[] }
+export interface JumpTab { key: string; kind?: TabKind; origin: string; optSqlIds?: string[]; diagSqlIds?: string[]; diagSessions?: string[] }
 
 /** The candidates for a jump, the most recently used first: ties keep the later tab (opened later) first. A tab never used counts as 0. */
 export function pickJumpTab<T extends { key: string }>(candidates: readonly T[], lastUsed: ReadonlyMap<string, number>): T | undefined {
@@ -135,6 +135,24 @@ export const dumpTabs = <T extends JumpTab>(tabs: readonly T[], sqlId: string, e
 /** The open 10046 tabs other than `except` that have a statement with `sqlId` (`has` asks the tab's document). */
 export const statementTabs = <T extends JumpTab>(tabs: readonly T[], sqlId: string, except: string, has: (t: T, sqlId: string) => boolean): T[] =>
   sqlId ? tabs.filter((t) => t.key !== except && t.kind !== '10053' && t.origin !== 'comparison' && has(t, sqlId)) : []
+
+// ---- the jump between a 10046 tab and a dump tab (the dump reader) ---------------------------------------------------------------------
+
+/** What a statement or a session is named by in both kinds of tab: its sql_id, or its `sid.serial` (the 10046 session id). No other data is joined. */
+export type DiagKey = { sqlId: string } | { session: string }
+
+/** The open dump tabs other than `except` whose file names the statement (`diagSqlIds`) or the session (`diagSessions`), as the engine listed them. */
+export function diagTabs<T extends JumpTab>(tabs: readonly T[], by: DiagKey, except: string): T[] {
+  const list = (t: T) => ('sqlId' in by ? t.diagSqlIds : t.diagSessions)
+  const key = 'sqlId' in by ? by.sqlId : by.session
+  return key ? tabs.filter((t) => t.key !== except && t.kind === 'dump' && !!list(t)?.includes(key)) : []
+}
+
+/** The open SQL trace tabs other than `except` that hold the statement or the session (`has` asks the tab's document); never a 10053, dump or comparison tab. */
+export function traceTabs<T extends JumpTab>(tabs: readonly T[], by: DiagKey, except: string, has: (t: T, by: DiagKey) => boolean): T[] {
+  const key = 'sqlId' in by ? by.sqlId : by.session
+  return key ? tabs.filter((t) => t.key !== except && t.kind === undefined && t.origin !== 'comparison' && has(t, by)) : []
+}
 
 /** The first dump of the file with this sql_id (a statement dumped twice shows its first), or -1. */
 export const dumpIndexOf = (dumps: readonly { idx: number; sqlId: string }[], sqlId: string): number => dumps.find((d) => d.sqlId === sqlId)?.idx ?? -1

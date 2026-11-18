@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ApiClient } from './client'
-import { NoReading, type DiagFile, type DiagNode } from './diag'
+import { NoReading, PathUnavailable, type DiagFile, type DiagNode } from './diag'
 import { attachDiagClient, diagSourceOf, digestDiagSource, httpDiagSource } from './diagsource'
 import { makeDiagDoc } from './testdoc'
 
@@ -39,6 +39,23 @@ describe('the HTTP source', () => {
     const s = httpDiagSource(file, client)
     expect(await s.reading('h1')).toEqual({ kind: 'heap', chunks: 12 })
     await expect(s.reading('nothing')).rejects.toBeInstanceOf(NoReading)
+  })
+
+  it('asks api/diag/path by line or by node and treats a 404 of the route itself as unavailable', async () => {
+    const chain = [node('a:1-100:1:f', 1, 100, true), node('a1', 1, 50)]
+    const { client, fetch } = fakeClient({
+      '/api/diag/path?line=7': json({ nodes: chain }),
+      '/api/diag/path?node=a%3A1-100%3A1%3Af': json({ nodes: null }),
+      '/api/diag/path?line=9999': () => new Response('{"error":{"code":"not_found","message":"no such line"}}', { status: 404, headers: { 'content-type': 'application/json' } }),
+    })
+    const s = httpDiagSource(file, client)
+    expect(await s.path({ line: 7 })).toEqual(chain)
+    expect(await s.path({ node: 'a:1-100:1:f' })).toEqual([])
+    expect(await s.path({ line: 9999 })).toEqual([]) // the engine says there is no such line
+    expect(fetch.mock.calls.map((c) => c[0])).toEqual(['/api/diag/path?line=7', '/api/diag/path?node=a%3A1-100%3A1%3Af', '/api/diag/path?line=9999'])
+    // an engine without the route answers its plain "404 page not found"
+    const old = fakeClient({ '/api/diag/path?line=7': () => new Response('404 page not found', { status: 404 }) })
+    await expect(httpDiagSource(file, old.client).path({ line: 7 })).rejects.toBeInstanceOf(PathUnavailable)
   })
 
   it('asks the chunk lines of a selection: the comment (an empty one is the blank comment), the type and `after`, each encoded', async () => {
@@ -99,6 +116,13 @@ describe('the digest source', () => {
     const old = await s.reading('a1').then(() => null, (e: unknown) => e)
     expect(old).toBeInstanceOf(NoReading)
     expect((old as NoReading).omitted).toBe(true)
+  })
+
+  it('answers a path from what it holds: the top level and its children, not deeper', async () => {
+    expect((await s.path({ line: 30 })).map((n) => n.id)).toEqual(['a:1-100:1:f', 'a1'])
+    expect((await s.path({ node: 'a1' })).map((n) => n.id)).toEqual(['a:1-100:1:f', 'a1'])
+    expect((await s.path({ line: 200 })).map((n) => n.id)).toEqual(['b'])
+    expect(await s.path({ node: 'deeper' })).toEqual([])
   })
 
   it('does not have the chunk lines of a heap', async () => {

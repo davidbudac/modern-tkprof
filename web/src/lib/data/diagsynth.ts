@@ -30,8 +30,25 @@ export function syntheticDiag(lines = 5_000_000): { file: DiagFile; source: Diag
   const file: DiagFile = { name: 'synthetic.trc', lines, release: 'Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production', version: '19.27.0.0.0', tested: true, records10046: 0, sections: [], unplaced: 0, outline: top, outlineTotal: sections }
   // the whole top level and the parts of any node are made when asked for
   const base = memoryDiagSource(file, {}, { count: lines, at: synthLine })
+  const partOf = (sec: DiagNode, k: number): DiagNode => {
+    const from = sec.from + k * SYN_PART
+    const to = Math.min(sec.to, from + SYN_PART - 1)
+    return { id: `syn:${sec.id.slice(4)}:${k}`, kind: 'title', title: k === 0 ? 'Heap header' : `Part ${k}`, from, to, lines: to - from + 1, hasChildren: false, n: k }
+  }
   const source: DiagSource = {
     ...base,
+    path: (by) => {
+      let sec: DiagNode | undefined
+      if ('line' in by) sec = by.line >= 1 && by.line <= lines ? node(Math.floor((by.line - 1) / SYN_SECTION)) : undefined
+      else {
+        const m = /^syn:(\d+)(?::(\d+))?$/.exec(by.node)
+        if (!m || Number(m[1]) >= sections) return Promise.resolve([])
+        const s0 = node(Number(m[1]))
+        return Promise.resolve(m[2] === undefined ? [s0] : [s0, partOf(s0, Number(m[2]))])
+      }
+      if (!sec || !sec.hasChildren || !('line' in by)) return Promise.resolve(sec ? [sec] : [])
+      return Promise.resolve([sec, partOf(sec, Math.floor((by.line - sec.from) / SYN_PART))])
+    },
     outline: (id, after = 0) => {
       if (id === 'root') {
         const page = Array.from({ length: Math.max(0, Math.min(2000, sections - after)) }, (_, k) => node(after + k))

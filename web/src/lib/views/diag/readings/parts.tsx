@@ -1,8 +1,11 @@
 // What the dump reader's readings share: a line number that links into the text, a sortable column header, a thin bar, the reading's kept state as a hook, and the
 // free-list histogram.
-import { useCallback, useSyncExternalStore, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { DiagSource } from '../../../data/diag'
 import { fmtInt } from '../../../data/format'
+import { copyText } from '../../../data/clipboard'
+import { processOfSession } from '../../../data/diagstack'
+import { TraceMark } from '../../../components/DumpMark'
 import { histLayout, readingUiOf, type Sort } from '../../../data/diagheap'
 import type { HeapBucket } from '../../../data/diagreadings'
 import '../../../styles/diagreading.css'
@@ -53,5 +56,48 @@ export function BucketHist({ buckets, what }: { buckets: readonly HeapBucket[]; 
         </g>
       ))}
     </svg>
+  )
+}
+
+/** A line of text that may be very long and wraps after each `<-` (the stack as one line), in a block that selects as one piece, with the Copy button's feedback. */
+export function CopyBlock({ text, label, children }: { text: string; label: string; children?: ReactNode }) {
+  const [done, setDone] = useState<'' | 'ok' | 'fail'>('')
+  const timer = useRef(0)
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+  const parts = text.split('<-')
+  return (
+    <>
+      <div className="rd-oneline"><code className="rd-mono" aria-label={label}>{parts.map((p, i) => <Fragment key={i}>{i > 0 && <>{'<-'}<wbr /></>}{p}</Fragment>)}</code></div>
+      <div className="rd-actions">
+        <button type="button" className="quiet rd-copy" disabled={!text}
+          onClick={() => { void copyText(text).then((ok) => { setDone(ok ? 'ok' : 'fail'); window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setDone(''), 1600) }) }}>
+          {done === 'ok' ? 'Copied' : done === 'fail' ? 'Could not copy' : 'Copy'}
+        </button>
+        {children}
+      </div>
+    </>
+  )
+}
+
+/**
+ * A session the dump names (`sid.serial`) as a link to the reading of its process where that process is in this file (found by `processOfSession`, which asks
+ * once), else its text; beside it the "10046" link to a SQL trace that holds the session (desktop).
+ */
+export function SessionLink({ source, self, session, selectNode, label }: { source: DiagSource; self: string; session: string; selectNode(id: string): void; label?: ReactNode }) {
+  const [node, setNode] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    setNode(null)
+    void processOfSession(source, session).then((n) => { if (live) setNode(n) })
+    return () => { live = false }
+  }, [source, session])
+  const text = label ?? session
+  return (
+    <span className="rd-sess">
+      {node && node !== self
+        ? <button type="button" className="rd-lnk rd-sessbtn" title={`Show the reading of the process that holds session ${session}`} onClick={() => selectNode(node)}>{text}</button>
+        : <span className="rd-mono rd-strong">{text}</span>}
+      <TraceMark by={{ session }} />
+    </span>
   )
 }
