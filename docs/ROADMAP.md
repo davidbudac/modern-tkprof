@@ -49,8 +49,15 @@ Implemented in the desktop and its pinned engine, beyond the original core list:
   their own with a view of their own (outline in file order, Formatted | Raw text, landmarks, folds, costing runs,
   SQL versions with a diff, the final plan, a sourced guide, search); the CLI prints a text digest and writes the
   standalone HTML; a statement of a 10046 tab and a dump of the same sql_id jump to each other. 19c is tested; an
-  interleaved file (10046 and 10053 together) still opens as a 10046 trace with a note. A reader: it computes
-  nothing from the costs.
+  interleaved file (10046 and 10053 together) still opens as a 10046 trace with a note, and since the dump reader can
+  be opened as 10053 on request. A reader: it computes nothing from the costs.
+- The dump reader (2026-11-18, `docs/PLAN-DIAG.md`, unreleased, on the branch `t3/oracle-trace-dump-support`): the
+  diagnostic dumps Oracle writes to trace files (heap and PGA memory dumps, errorstacks, process and system state,
+  hang analysis, deadlock graphs, incident files) open in a *dump* tab with an outline on demand, the paged text and
+  a computed reading per kind (a heap's sums checked against the dump's own totals; the call stack; the process; the
+  system state's process table and blocker tree; the hang chains; the deadlock cycle); the CLI prints a text digest;
+  the `view` option opens a file another way; a statement or session of a 10046 tab and a dump that names it jump to
+  each other. A best-effort add-on; 19c is tested.
 
 Remaining work:
 
@@ -64,8 +71,12 @@ Remaining work:
 4. Deferred product features: partial documents during parse and detachable windows.
 5. 10053 reader, candidates without order, chosen after use on real traces: a computed summary per statement;
    decision views (transformation ledger, access paths per table, join order explorer); the origin of a row
-   estimate joined to the 10046 actual rows of the same plan; comparing two dumps; reading the dumps of an
-   interleaved file; producing the trace from the app; a digest tool for the assistant and MCP; 21c and 23ai fixtures.
+   estimate joined to the 10046 actual rows of the same plan; comparing two dumps; producing the trace from the app;
+   a digest tool for the assistant and MCP; 21c and 23ai fixtures. (Reading the dumps of an interleaved file is done:
+   the dump reader's `view` option.)
+6. Dump reader: merge to `main` after the 10053 release is tagged. Candidates: a resource table of holders and
+   waiters; a cache part for the scan, if a fresh open of a 1 GB file measures over 5 s. Not verified (HANDOFF § The
+   dump reader): versions other than 19c, a busy instance's system state, a real ORA-04030 trace.
 
 The list below is the original roadmap, retained as history rather than a current backlog.
 

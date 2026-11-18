@@ -60,9 +60,8 @@ import "bytes"
 // are markers or blank lines are not part of it), and it is never Cut. The
 // kinds with an end line:
 //
-//	procstate    END OF PROCESS STATE (docs/trace-format-diag.md says 19.27
-//	             writes none; the lab's process state files end with it, as
-//	             the one inside an errorstack does)
+//	procstate    END OF PROCESS STATE (a process state dump of its own ends
+//	             with it, as the one inside an errorstack does)
 //	sysstate     END OF SYSTEM STATE
 //	pga-detail   End PGA memory detail dump and the "=" rule that follows it
 //	hang         END OF HANG ANALYSIS and its rule, and, when a "HANG ANALYSIS

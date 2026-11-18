@@ -11,13 +11,13 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/trace"
 )
 
-// The three routes of a diag session (docs/PLAN-DIAG.md § Build contract), beside api/lines and api/search,
+// The routes of a diag session (docs/PLAN-DIAG.md § Build contract), beside api/lines and api/search,
 // which any session serves for the text of its file:
 //
 //	GET /api/diag/file                  diag.File: facts of the file, its sections and its top-level outline
 //	GET /api/diag/outline?node=ID[&after=N]   {node, children, more, next}: the children of a node, read from
 //	                                    the lines of that node alone, at most diag.Cap of them; "root" is the top level
-//	GET /api/diag/reading?node=ID       the reading of a node: {kind, ...} (diag.HeapReading, PGASummary, PGADetail);
+//	GET /api/diag/reading?node=ID       the reading of a node: {kind, ...} (heap, PGA, call stack, process, system state, hang, deadlock);
 //	                                    404 "no reading for this kind of section" for a node whose kind has none;
 //	                                    400 without node; 404 for an id that is not a node of the file
 //	GET /api/diag/reading/lines?node=ID&comment=TEXT[&type=T][&after=N]

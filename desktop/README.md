@@ -196,6 +196,18 @@ Compare, Cut, the brief and the CSV report are off (`canCompare`, `session/views
 Notes and bookmarks on lines use the same annotations store as the Trace pane. User guide: `docs/DESKTOP.md` § The
 10053 view.
 
+**Dump tabs.** A file of diagnostic dumps only (the peek's kind `diag`) is a tab of its own in the same way (`kind:
+'dump'`, a *dump* badge; `optTabs.ts`: `isDumpFile`, `splitByKind`, `tabKindOfView`), and the folder picker's *Show*
+filter lists such files only with *Also dump files* or *All files* (`folderPick.ts`). Its session document has a `dump`
+field: the shell shows the lib's dump reader (`web/src/lib/views/diag`) and none of the 10046 views; the reader reads
+`api/diag/*`, `api/lines` and `api/search`. A tab's `TraceSet.options.view` is the session's `view` option: a note of a
+10046 tab that says the file holds diagnostic dumps or optimizer dumps gets *Open in the dump reader* or *Open as
+10053* (`workspace.noteAction`), and the reader's *Open as SQL trace* is `workspace.openAs`; the same file open in two
+views is two sets. The engine's session object carries `view` and, for a diag session once ready, `diagSqlIds` and
+`diagSessions`; the "dump" mark on a statement or session of a 10046 tab reads them (`workspace.diagLink`) and the
+reading's "10046" link goes back (`workspace.traceLink`). The assistant panel says it does not read diagnostic dump
+files; Compare, Cut, the brief and the CSV report are off. User guide: `docs/DESKTOP.md` § The dump reader.
+
 Settings → Backup defaults to the existing connections/library format (version 1). Optional
 investigation metadata uses version 2: merged notes/bookmarks, theme/bind/start-empty defaults,
 and workspace path references that require explicit opening. Pending annotation writes are

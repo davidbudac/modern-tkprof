@@ -96,7 +96,7 @@ export const GUIDE: readonly GuideEntry[] = [
   {
     match: kind('sysstate'), title: 'System state', src: 'System state',
     text: 'Starts at `SYSTEM STATE (level=N[, with short stacks])` with a dash underline, ends at `END OF SYSTEM STATE`. `Dumping the Process Summary` has one line per process: Oracle pid, name (`USER` for a foreground), `ospid`, `sid`, `ser`, and `waiting for \'event\'`, with an optional `Cmd:` line.',
-    note: 'The dump names blockers itself: `Dumping 1 direct blocker(s)`, `Dumping final blocker`, `There are N sessions blocked by this session`.',
+    note: 'The dump names blockers itself: `Dumping 1 direct blocker(s)`, `Dumping final blocker`, `There are N sessions blocked by this session`. Level 1 prints no child state objects, so a session\'s statement is only the address of its library handle (`sql: 0x797b5b90`); levels 2, 258 and 266 print the library object locks, so the statement and its sql_id are known. The summary and the bodies are written at different moments: a process can have moved on between them.',
   },
   {
     match: kind('process'), title: 'PROCESS n', src: 'System state',
@@ -109,10 +109,12 @@ export const GUIDE: readonly GuideEntry[] = [
   {
     match: kind('hang', 'chain'), title: 'Hang analysis', src: 'Hang analysis',
     text: 'Starts at a rule of 79 `=` and `HANG ANALYSIS:`; ends at `END OF HANG ANALYSIS`, followed by a `HANG ANALYSIS DUMPS:` block. `Chains most likely to have caused the hang:` lists each chain with its signature. Each `Chain N:` lists sessions, the first waiting, each next one after `and is blocked by`. `current sql_id` is a **number** here, not the 13-character sql_id.',
+    note: 'The number `current sql_id` prints is the high half of the sql_id (bytes 9 to 12 of the statement\'s `FullHashValue`), not the hash value: it cannot be matched to the `hv=` of a SQL trace.',
   },
   {
     match: kind('deadlock'), title: 'Deadlock graph', src: 'Deadlock graph',
     text: 'Starts at `DEADLOCK DETECTED ( ORA-00060 )`. The graph is a fixed-column table, one row per resource, with its blockers and waiters; the sessions\' blocks follow, each with its `current SQL:`. After `End of information for waiting sessions` a whole diagnostic dump follows, so the graph is a few dozen lines of a large file.',
+    note: 'The trace is the victim\'s: the process that received ORA-00060 writes it, so the `*** SESSION ID:` marker before the graph names the victim. `Rows waited on:` is in the dump that follows the graph.',
   },
   {
     match: kind('incident'), title: 'Incident file', src: 'Incident file',

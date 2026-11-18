@@ -22,7 +22,12 @@ Comparison of two traces or two executions is v2.
 
 - Oracle 19c and later, event 10046 / `sql_trace` / `DBMS_MONITOR`. Optimizer
   traces (event 10053) are an input since 2026-11-11, read by the 10053
-  reader (§ The 10053 reader, below); still no ASH or AWR inputs. 19c, 21c (XE) and 23ai (Free) are tested
+  reader (§ The 10053 reader, below). The diagnostic dumps Oracle writes to
+  trace files (heap dumps, PGA memory dumps, errorstacks, process and system
+  state, hang analysis, deadlock graphs, incident files) are a third input
+  since 2026-11-18, read best effort by the dump reader (§ Diagnostic dumps,
+  below); 10046 and 10053 stay the primary formats. Still no ASH or AWR
+  inputs. 19c, 21c (XE) and 23ai (Free) are tested
   with real fixtures and tkprof parity (`testdata/traces/{19c,21c,23ai}`; no
   PX traces on 21c/23ai, XE/Free have no parallel execution); 12.x is "should
   work, untested".
@@ -1408,10 +1413,13 @@ real cut of io_waits.trc.
   numbers equal the opened trace's: the test compares every fixture with the model), the sessions
   (`sid.serial#` with the first module, action, client id and service of each), instance, pid,
   version, chain markers, a dump size limit, and whether the file is a SQL trace at all (an ADR
-  folder's background traces are not; *Only SQL and optimizer traces* hides the files that are neither, on by
-  default). Since 2026-11-11 it also reports the file's kind (`10046`, `10053` or `both`) and counts the
+  folder's background traces are not; the picker's *Show* filter lists the SQL and optimizer traces by default,
+  *Also dump files* adds the files of diagnostic dumps, *All files* every file; until 2026-11-18 a checkbox
+  *Only SQL and optimizer traces*). Since 2026-11-11 it also reports the file's kind (`10046`, `10053` or `both`) and counts the
   optimizer dumps with the sql_ids of the first hundred (§ The 10053 reader); the picker tags such a file *10053*
-  or *10046 + 10053* with the number of dumps. A 10053 file has `From` and `To` from its `***` timestamp lines and no
+  or *10046 + 10053* with the number of dumps. Since 2026-11-18 the kind can also be `diag` (diagnostic dumps and
+  neither of the others), with the sections counted by kind; the picker tags such a file *dump* ("2 heap dumps,
+  1 process state") and opens it in a tab of its own (§ Diagnostic dumps). A 10053 file has `From` and `To` from its `***` timestamp lines and no
   traced time. It runs at disk
   speed (270 MB in 87 ms from the page cache); the table fills in as the peeks come back, newest
   files first, three requests at a time, and the engine keeps the summaries per path, size and time.
@@ -1449,10 +1457,12 @@ guide: DESKTOP § The 10053 view.
   `trace.FileKind10053`). This is how the traces arrive: taken separately for one or a few statements after a 10046
   trace pointed at them. A dump runs from the first `Registered qb: … (PARSER)` line outside a dump to `END SQL
   Statement Dump`.
-- **An interleaved file (10046 and 10053 on in one session) is not read as 10053 yet.** It opens as a 10046 trace as
-  before. Two things change: the dumps' lines are no longer counted as unknown lines (line kind `optimizer`), and the
-  trace facts carry a note ("2 optimizer (10053) dumps in this file, lines 54-18356 and 18684-28072; not shown as
-  10053 yet"). A 10046 record inside a dump keeps its kind and its place in the 10046 model (the optimizer's own
+- **An interleaved file (10046 and 10053 on in one session) opens as a 10046 trace** as before. Two things change: the
+  dumps' lines are no longer counted as unknown lines (line kind `optimizer`), and the trace facts carry a note ("2
+  optimizer (10053) dumps in this file, lines 54-18356 and 18684-28072; not shown as 10053 yet"). Since 2026-11-18
+  the same file can be opened as 10053 on request (the session option `view`, § Diagnostic dumps: the desktop's
+  *Open as 10053* beside that note, `-view 10053` in the CLI); the scan then skips the 10046 records, as it always
+  did. The note's wording predates that and was not changed. A 10046 record inside a dump keeps its kind and its place in the 10046 model (the optimizer's own
   recursive SQL is written as complete `dep=1` records between its lines), and tkprof parity holds on the
   interleaved fixture like on every other (`opt_interleaved`, compared with tkprof's output, no exclusion).
 - **19c is the tested version.** A file of another version opens best effort: the view's header says "read with the
@@ -1562,8 +1572,161 @@ traced.
 
 **Afterwards** — candidates without order or commitment, chosen after the reader has been used on real traces: a
 computed summary per statement; decision views (transformation ledger, access paths per table, join order explorer);
-the origin of a row estimate joined to the 10046 actual rows of the same plan; comparing two dumps; reading the dumps
-of an interleaved file; a digest tool for the assistant and MCP; 21c and 23ai fixtures.
+the origin of a row estimate joined to the 10046 actual rows of the same plan; comparing two dumps; a digest tool for
+the assistant and MCP; 21c and 23ai fixtures. (Reading the dumps of an interleaved file was on this list; the `view`
+option did it on 2026-11-18.)
+
+## Diagnostic dumps (decided 2026-11-17, `docs/PLAN-DIAG.md`)
+
+The owner set the frame on 2026-11-17 (an add-on; computed views allowed; no real incident or system state files to
+work from) and the look on 2026-11-18 on a mock-up made from lab files (`docs/mockups/diag-reader/`, light and dark,
+two layouts). Formats: `docs/trace-format-diag.md` (19.27 lab traces). Code: ARCHITECTURE § The dump reader; user
+guide: DESKTOP § The dump reader.
+
+**Scope**
+
+- **"Diagnostic dump"** is what Oracle writes to a trace file besides 10046 records and 10053 dumps: heap dumps, PGA
+  memory dumps (`pga_summary`, `pga_detail_dump`), the diagnostic dump of an errorstack, a deadlock or an incident
+  (error stack, call stack, current SQL, cursors), process state, system state, hang analysis, deadlock graphs and
+  the table of contents of an incident file. The code says `diag` (`trace.Section`, `internal/diag`) because "dump"
+  already names a 10053 dump there; the UI says "dump" (the *dump* tab, the dump reader).
+- **An add-on.** § Purpose keeps its six questions; 10046 and 10053 stay the primary formats. What protects them: a
+  section is looked for only on lines no 10046 record matched (and on every line while one is open), and any line a
+  primary format owns ends it; the 10046 golden tests and the `internal/opt` snapshots did not change; every earlier
+  fixture has zero sections and the same line kinds as before (a test against a table made before the change); the
+  parser's throughput on a trace without sections stays within 2 % (measured: 668-671 MB/s before and after); the
+  peek stops looking for sections at the first 10046 record or optimizer dump (looking further halved its speed).
+- **Three levels of reading**, so that every file gets something and only a few kinds get a lot: 0, any trace file
+  opens in the reader (outline from titles and banners, paged text, search, line map, notes); 1, the nine kinds of
+  section are typed in the outline with their own parts and folds; 2, a computed reading of a heap dump, a PGA
+  memory dump, a diagnostic dump, a process state, a system state, a hang analysis and a deadlock graph. A part of a
+  kind not listed is read at level 0.
+- **19c is the tested version**, as for 10053: another version opens with "read with the 19c rules" and a count of
+  the lines outside any known part. No public sample of another version could be committed (stage 1 found a few
+  10.2 and 11.2 files without a licence).
+- **Not in this version**: block, redo, controlfile, buffer cache and library cache dumps; other event traces (10032,
+  10104, …); ORA-4031 analysis beyond the heap grammar; RAC-wide dumps (the lab has one instance); taking a dump from
+  the app (an `oradebug` on a production system is not something a viewer should start); a resource table of holders
+  and waiters per enqueue, library object or latch (the dump's own blocker lines make it unnecessary for sessions,
+  and the lab shows no latch or mutex wait to build it from); the assistant and `mtkprof mcp`; Compare, Cut and live
+  follow on a dump tab.
+
+**A file is a sequence of sections**
+
+- The file kind (`trace.FileKind`) stays for the primary formats and gains `diag`: at least one section, no 10046
+  record and no optimizer dump. Sections are reported beside the kind (`trace.Section`: kind, first and last line,
+  `Cut`); a 10046 trace that holds an errorstack stays a 10046 trace.
+- **The parser only finds where sections start and end** (`sectionTracker`, beside the optimizer dump tracker); its
+  lines are the line kind `diagnostic`, no longer unknown. Precedence: cursor text, `PARSE ERROR` text and `BINDS`
+  state, then an optimizer dump, then a section. A valid 10046 record inside a section ends it and keeps its kind.
+  Reading the inside is `internal/diag`, as reading a 10053 dump is `internal/opt`.
+- A 10046 trace with sections carries a note under the trace facts ("1 diagnostic dump in this file, lines
+  114-29753"); in the desktop the note has a button that opens the same file in the dump reader.
+- **Sets**: a file of diagnostic dumps only is left out of a set of 10046 files with a note ("x.trc holds diagnostic
+  dumps only; open it on its own"), as a 10053 file is; of a set made only of such files the first is opened.
+
+**The `view` option**
+
+- A session takes `view`: `10046`, `10053` or `diag` (`POST /engine/sessions`, `-view` on `report`, `html`, `json`, the
+  default command and `serve`). The default follows the file: 10046 records → `10046`; only optimizer dumps →
+  `10053`; otherwise, for one file, `diag` (also a file in which nothing is recognised: its header and "Other lines"
+  are still an outline).
+- `diag` opens any single file, a 10046 trace too (its records are runs titled "SQL trace (10046) lines"); `10053`
+  opens the dumps of an interleaved file (§ The 10053 reader). Refused with one line: a view on a set, a view with
+  live follow, `10053` on a file without a dump. The engine's protocol stays 1 (additive).
+
+**The reader**
+
+One view for every diag file (`web/src/lib/views/diag`), a tab kind of its own in the desktop (*dump*).
+
+- **Layout A** (owner, 2026-11-18): the outline on the left, the centre, the guide on the right, the toolbar above.
+  A node's reading is shown in the centre behind a *Reading | Text* switch, which shows only for a node that has a
+  reading (layout B, the reading in the right panel, was not chosen).
+- **The selection decides which reading is shown** (owner, 2026-11-18): an outline node or a link inside a reading.
+  Scrolling the text moves the where-am-I path and leaves the reading alone.
+- **Outline in file order, on demand**: the top level tiles the file (the header, every section and every run of
+  lines between sections); the children of a node are asked for when it is opened, in pages of 2,000 (a system state
+  has many thousands of state objects; nothing is held that was not asked for).
+- **The text is paged from the server.** These files reach gigabytes, so the 10053 view's "whole text in the browser"
+  does not carry over: the reader uses the Lines view's data layer (`api/lines`, `api/search`, the page cache and the
+  scroll map).
+- **Folds**: the engine marks the parts whose lines are bulk by default (the registers and memory of each frame, the
+  process map, the fixed areas, block dumps, …; each rule with the fixture lines that show it), the text shows them
+  closed with their line count and reason.
+- **The guide is "sourced or silent"**: an entry only where the format reference backs it, with its source shown;
+  a kind without one says "No guide text for this kind of section".
+- **Also**: search (on the server, literal or regular expression) with hit counts on the loaded outline nodes, the
+  where-am-I path, the line map, notes and bookmarks on lines (desktop), as in the 10053 view.
+
+**The readings (level 2)**
+
+Computed on demand from a node's own lines, addressed by node (a heap dump can sit inside an errorstack or a PGA
+summary), never persisted.
+
+- **Heap dump**: per heap, the chunks and bytes by type, by comment (grouped by the part before `^`; the 300 largest,
+  the rest summed as "other" and said so), by sub-heap and in the free lists; the heap tree; a jump from a row to its
+  chunk lines in the text. **The correctness rule**: the sums are compared with the totals the dump prints (`Total
+  heap size`, `Total free space`, `Permanent space`, the reserved free space where printed) and the reading says
+  "matches" or by how much it differs; where nothing can be checked (a PDB-filtered dump, a sampled heap, a header
+  without extents) it says why. It is the parity test of this reader: on the committed fixtures no check differs
+  (288 of the 300 checks of 100 heaps match, 12 say why they cannot be made). The second
+  reference is `heapdump_analyzer` (Tanel Poder, Apache 2.0), whose output is committed beside each heap fixture and
+  agrees on every (heap, type, comment) group.
+- **PGA memory dumps**: the dump's own tables as tables (top uses of the process, the private heap summary by depth,
+  memory per Oracle process, estimated uses for all processes, swap; `pga_detail_dump` with exact bytes). The
+  summary's figures are rounded and it prints no total, so nothing is checked and the reading says so.
+- **Call stack** (an errorstack, a deadlock's or an incident's diagnostic dump): the error, the statement and its
+  sql_id, the PL/SQL stack, the frames with the dump's own frames folded (a fixed rule on the leading function names),
+  the stack as one copyable line in the form `oradebug short_stack` prints, the open and cached cursors with their
+  binds, the dumps nested in it. No interpretation of function names.
+- **Process state** (a `PROCESS STATE` dump, or a `PROCESS n` of a system state): who the process and its session
+  are, what the session runs, what it waits for and since when, who blocks it, what it holds (enqueues, transactions,
+  DML locks, library object locks and pins).
+- **System state**: one row per process from the dump's own `Process Summary`, completed from each process's body
+  (time in wait, user, module, statement), and the blocker tree **as the dump names it** (the summary's `Blocked by`
+  / `Final Blocker` lines and the bodies' direct blocker lines); no blocker is inferred. **Idle background processes
+  are hidden by default**, with their count and a switch; blocked and blocking sessions always show (owner,
+  2026-11-18). Idle means the wait event's class is Idle in the event reference the 10046 side uses, or the process has
+  no session. Decided without asking, to be corrected on the real view: time in wait is shown for every process and
+  dimmed with the idle ones; the heap tree shows the selected heap's ancestors, siblings and children, not the whole
+  dump run. System state is the least supported kind: "tested on a small lab system".
+- **Hang analysis and deadlock graph**: the chains and the graph as Oracle printed them, the sessions and statements
+  named in them; a deadlock's cycle and its victim (the session whose trace holds the graph).
+
+What is computed is sums, groupings and the tree of what the dump names; everything else is shown as the dump printed
+it (sizes as printed beside their bytes, waits, stacks, statement text).
+
+**Clients**
+
+| Client | What it has |
+|---|---|
+| Desktop, `mtkprof serve` | the reader |
+| Standalone HTML (`mtkprof html`, the default command) | the reader fed with the digest: the outline to two levels and the readings it holds; no text of the file |
+| Text (`mtkprof report`, the default command) | the digest |
+| `mtkprof lint` | the line kind `diagnostic` and the sections |
+
+**The digest**: the file's facts, the outline to two levels with line numbers, and the reading of each node in it as
+text. Text and UI are equal in numbers; the text prints shorter lists and says so. Commands with nothing to show
+(`pivot`, `export`, `plan`, `refscript`, `compare`, …) refuse with one line, as for 10053.
+
+**A jump, no joined data.** A dump names statements (sql_id) and sessions (sid.serial). In the desktop a statement or
+session of a 10046 tab shows a *dump* mark when an open dump tab names it, and a reading shows a *10046* link on a
+statement or session another open tab holds. Nothing is joined. Desktop only (`serve` holds one session), the
+mechanism of the "10053" mark.
+
+**Correctness and privacy**
+
+- Best effort on what Oracle writes; our own output is pinned: snapshots per fixture (outline, readings, digest),
+  invariants on every fixture, prefix and mutation tests, as for `internal/opt`.
+- **Fixtures are real**, lab scenarios `sc_diag_*.sql` (`testdata/diag/19c/`; the ones over the size limit in the
+  ignored `testdata/big/diag/`); **only 19c is tested**; no ORA-04030 trace could be produced on the lab (see HANDOFF).
+- **Redaction**: `-redact-binds` and `-binds none` act on the bind values a cursor dump prints, with the 10046 token,
+  in the text digest and in the readings of a document. The routes serve the file as it is. Memory contents (a heap
+  dump taken with contents) are never in a digest. Literals in statement text stay, as in the 10046 reports.
+
+**Afterwards** — candidates, not commitments: a resource table of holders and waiters per enqueue, library object or
+latch; a cache part for the scan, only if a fresh open of a 1 GB file measures over 5 s (the scan is not cached until a
+measurement asks for it).
 
 ## Project
 

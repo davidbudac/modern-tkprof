@@ -41,7 +41,11 @@ The server reads SQL traces (event 10046): it does not open optimizer (10053)
 trace files, and neither does the desktop's assistant. `mtkprof mcp` given only
 10053 files stops with `mcp: x.trc is a 10053 file; the assistant and MCP read 10046
 traces only in this version`, and the `open_trace` tool answers a 10053 file with `x.trc is a 10053
-(optimizer) trace file; the assistant reads 10046 traces only in this version`.
+(optimizer) trace file; the assistant reads 10046 traces only in this version`. Nor does it open files of
+diagnostic dumps (heap dumps, errorstacks, process and system state, …, read by the dump reader): `mtkprof mcp` given
+only such files stops with `mcp: x.trc holds diagnostic dumps only (a diag file); the assistant and MCP read 10046
+traces only in this version`, and `open_trace` answers one with `x.trc holds diagnostic dumps only (a diag file); the
+assistant reads 10046 traces only in this version`.
 
 To scope the registration to a repository, use `-s project` instead of
 `-s user`. To include bind values in tool results, append `-binds keep` to

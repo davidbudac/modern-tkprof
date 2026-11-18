@@ -1,6 +1,7 @@
 // The computed readings of the dump reader (docs/PLAN-DIAG.md § The readings): the TypeScript twins of internal/diag/heap.go (the heap reading and the
 // chunk lines of a selection), internal/diag/pga.go (the PGA summary and the PGA detail), internal/diag/stack.go (the call stack), internal/diag/procstate.go
-// (the process state) and the digest's `readings` (internal/diag/digest.go).
+// (the process state), internal/diag/sysstate.go (the system state), internal/diag/hang.go (the hang analysis), internal/diag/deadlock.go (the deadlock graph) and the
+// digest's `readings` (internal/diag/digest.go).
 //
 // The Go files are the contract. A field may be added there, never renamed or removed, without changing this file in the same commit
 // (data/diagreadings.test.ts compares the two). A line number is a 1-based position in the file. A size is `{ text, bytes }`: as the dump printed it,
@@ -410,6 +411,310 @@ export interface ProcState {
   notes: string[]
 }
 
+// ---- the system state reading (sysstate.go) ------------------------------------------------------------------------------------------------
+
+/** The short stack of the process that took the dump, printed before the section. */
+export interface SysCaller { line: number; stack: string; stackNoOwn: string; own: number }
+
+/** The processes of the summary counted (all of them, listed or not). */
+export interface SysCounts {
+  processes: number
+  /** foreground (USER) */
+  user: number
+  /** named processes */
+  background: number
+  pseudo: number
+  /** idle processes of every kind; the idle background ones are hidden by default */
+  idle: number
+  idleBackground: number
+  /** with no session (sid 0 ser 0, or the pseudo process) */
+  withoutSession: number
+  omitted?: number
+}
+
+/** A row of the process table: the dump's own summary line, completed from the process's body. */
+export interface SysProc {
+  pid: number
+  name: string
+  /** foreground, background, pseudo */
+  kind: string
+  /** as printed ("2188", "2299_2300" for a thread) */
+  ospid?: string
+  sid: number
+  serial: number
+  /** "sid.serial"; absent for a process with no session */
+  session?: string
+  /** the summary line */
+  line: number
+  /** what the summary says it waits for; absent when it prints none */
+  event?: string
+  /** the wait class of the event reference, '' for an event it does not know */
+  class?: string
+  /** the event of the body's wait stack when it is not the summary's (the bodies are written later); `waitSec` belongs to it */
+  bodyEvent?: string
+  idle: boolean
+  background: boolean
+  /** the session of the process is the one that took the dump */
+  caller?: boolean
+  cmd?: string
+  blockedBy: SessionRef[]
+  finalBlocker?: SessionRef
+  /** the id of the PROCESS n node of the outline (its process reading) and its first line */
+  node?: string
+  nodeLine?: number
+  body: boolean
+  flags?: string
+  user?: string
+  container?: string
+  module?: string
+  action?: string
+  program?: string
+  machine?: string
+  command?: number
+  inWait: boolean
+  waitSec?: number
+  lastWaitEndedSec?: number
+  blocks: number
+  blocked: boolean
+  sqlId?: string
+  sqlText?: string
+  sqlLine?: number
+  sqlHandle?: string
+  sessionLine?: number
+}
+
+/** A session of the blocker tree; the roots are the final blockers. */
+export interface SysTreeNode {
+  /** "sid.serial" */
+  session: string
+  sid: number
+  serial: number
+  inst?: number
+  /** not one of this dump's processes (another instance, a stale serial) */
+  foreign?: boolean
+  /** the direct blockers lead back to it: the tree is cut here */
+  cycle?: boolean
+  pid?: number
+  user?: string
+  module?: string
+  action?: string
+  event?: string
+  waitSec?: number
+  inWait: boolean
+  sqlId?: string
+  sqlText?: string
+  cmd?: string
+  blocks: number
+  descendants: number
+  finalBlocker?: string
+  alsoBlockedBy?: string[]
+  node?: string
+  line: number
+  children: SysTreeNode[]
+}
+
+/** The reading of a system state (`api/diag/reading` of a node of kind `sysstate`). */
+export interface SysState {
+  kind: 'sysstate'
+  node: string
+  from: number
+  to: number
+  lines: number
+  /** the text in the parentheses of the title as printed ("level=10, with short stacks") */
+  level: string
+  levelNum?: number
+  shortStacks: boolean
+  titleLine: number
+  /** the oradebug command that took the dump, from the line before the section */
+  command?: string
+  commandLine?: number
+  caller?: SysCaller
+  /** the session that wrote the trace ("sid.serial") */
+  session?: string
+  summaryLine?: number
+  summaryMarks: boolean
+  bodyMarks: boolean
+  counts: SysCounts
+  processes: SysProc[]
+  processesOmitted: number
+  tree: SysTreeNode[]
+  treeNodes: number
+  treeOmitted: number
+  /** sessions that name a direct blocker */
+  blocked: number
+  roots: number
+  ended: boolean
+  notes: string[]
+}
+
+// ---- the hang analysis reading (hang.go) ---------------------------------------------------------------------------------------------------
+
+/** An entry of "Chains most likely to have caused the hang". */
+export interface HangListed { letter: string; chain: number; signature: string; events: string[]; hash?: string; line: number }
+
+/** An entry of a session's wait history in a hang analysis, latest first. */
+export interface HangWait { n: number; event: string; waitedSec?: number; gapSec?: number; waitId?: number; params: string[]; line: number; gapLabel?: string }
+
+/** One session of a chain, in the order the dump prints them: the first waits, each next one blocks the one before, the last is the head. */
+export interface HangSession {
+  position: number
+  line: number
+  from: number
+  to: number
+  instance?: string
+  osId?: string
+  processId?: number
+  process?: string
+  sid: number
+  serial: number
+  /** "sid.serial" */
+  key: string
+  /** as printed: the dump joins the module with what follows it in a buffer */
+  module?: string
+  moduleNum?: number
+  pdbId?: number
+  pdb?: string
+  waiting: boolean
+  event?: string
+  state?: string
+  params: string[]
+  timeInWaitSec?: number
+  heurTimeInWaitSec?: number
+  timeoutSec?: number
+  /** "55.970964 sec" or "never" */
+  timeoutText?: string
+  waitId?: number
+  blocking?: number
+  lastWaitText?: string
+  /** "current sql_id": the HIGH 32 BITS of the statement's sql_id as a number; not the sql_id, not the hash value */
+  sqlIdHigh?: number
+  sqlText?: string
+  sqlCut?: boolean
+  shortStack?: string
+  shortStackNoOwn?: string
+  shortStackOwn?: number
+  history: HangWait[]
+  historyTotal: number
+  historyLine?: number
+}
+
+export interface HangChain {
+  n: number
+  line: number
+  from: number
+  to: number
+  /** "Non-intersecting chains" or "Sessions in an involuntary wait or not in a wait" */
+  group?: string
+  signature?: string
+  /** the head's event first */
+  events: string[]
+  hash?: string
+  listed: boolean
+  letter?: string
+  sessions: HangSession[]
+  sessionsTotal: number
+}
+
+/** A row of "State of ALL nodes": "[254]/1/255/22508/0xa299efe8/13912/NLEAF/[51]". */
+export interface HangNode { line: number; num: number; cnode: number; sid: number; serial: number; key: string; session: string; ospid: string; state: string; adj: number[] }
+export interface HangNodes { line: number; header?: string; rows: HangNode[]; total: number }
+export interface HangDumps { line: number; level?: number; local?: HangNodes; lines: string[]; ended: boolean }
+
+/** The reading of a hang analysis (`api/diag/reading` of a node of kind `hang`). */
+export interface HangReading {
+  kind: 'hang'
+  node: string
+  from: number
+  to: number
+  lines: number
+  instances: string[]
+  level?: number
+  /** "oradebug"; absent in the event form */
+  initiatedBy?: string
+  headerLine: number
+  delays: string[]
+  listed: HangListed[]
+  chains: HangChain[]
+  chainsTotal: number
+  nodes?: HangNodes
+  extra: string[]
+  dumps?: HangDumps
+  ended: boolean
+  notes: string[]
+}
+
+// ---- the deadlock reading (deadlock.go) ----------------------------------------------------------------------------------------------------
+
+/** One side of a row of the deadlock graph; a cell the dump leaves empty is absent. */
+export interface DeadlockParty { process?: number; session?: number; holds?: string; waits?: string; serial?: number; key?: string }
+export interface DeadlockRow { line: number; resource: string; type: string; blocker: DeadlockParty; waiter: DeadlockParty }
+export interface DeadlockGraph { line: number; header: string[]; rows: DeadlockRow[]; rowsTotal: number }
+/** `waiter` waits for `resource`, which `blocker` holds. */
+export interface DeadlockEdge { waiter: string; blocker: string; resource: string; mode?: string; line: number }
+export interface DeadlockCycle { closed: boolean; sessions: string[]; edges: DeadlockEdge[] }
+export interface DeadlockSession {
+  line: number
+  from: number
+  to: number
+  number: number
+  heldResource?: string
+  acquired?: string
+  acquiredSec?: number
+  sid: number
+  serial: number
+  key: string
+  audsid?: number
+  userId?: number
+  user?: string
+  container?: string
+  containerId?: number
+  containerName?: string
+  pid?: number
+  osUser?: string
+  ospid?: string
+  image?: string
+  clientOsUser?: string
+  clientOspid?: string
+  machine?: string
+  program?: string
+  module?: string
+  action?: string
+  sqlText?: string
+  sqlLine?: number
+  sqlCut?: boolean
+  inGraph: boolean
+}
+/** The session that wrote the trace: ORA-00060 is raised in one of the sessions of the cycle and its process writes the dump. */
+export interface DeadlockVictim { session: string; line: number; inGraph: boolean }
+export interface DeadlockRowWaits { line: number; session: number; noRow?: boolean; obj?: string; rowid?: string; objn?: number; file?: number; block?: number; slot?: number }
+export interface DeadlockRowsWaited { line: number; rows: DeadlockRowWaits[]; total: number }
+/** The diagnostic dump nested in the section: its call stack reading is `node`'s. */
+export interface DeadlockDump { node: string; from: number; to: number; title: string }
+
+/** The reading of a deadlock graph (`api/diag/reading` of a node of kind `deadlock`). */
+export interface Deadlock {
+  kind: 'deadlock'
+  node: string
+  from: number
+  to: number
+  lines: number
+  /** "ORA-00060" */
+  ora: string
+  line: number
+  /** "Transaction Deadlock" */
+  type?: string
+  graph: DeadlockGraph
+  cycle: DeadlockCycle
+  sessions: DeadlockSession[]
+  sessionsTotal: number
+  sessionsLine?: number
+  sessionsEnded: boolean
+  victim?: DeadlockVictim
+  rowsWaited?: DeadlockRowsWaited
+  dump?: DeadlockDump
+  notes: string[]
+}
+
 // ---- the shape, for the test that compares this file with the Go types ---------------------------------------------------------------------
 
 /**
@@ -478,6 +783,30 @@ export const READING_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   BlockRow: { req: ['itli', 'rdba', 'sqlId', 'obj', 'line'], opt: [] },
   ProcDMLLock: { req: ['address', 'line', 'table'], opt: ['session', 'flags', 'mode', 'modeName'] },
   ProcLibObject: { req: ['address', 'line', 'handle', 'mode'], opt: ['session', 'namespace', 'type', 'name', 'sqlId', 'count'] },
+  SysState: { req: ['kind', 'node', 'from', 'to', 'lines', 'level', 'shortStacks', 'titleLine', 'summaryMarks', 'bodyMarks', 'counts', 'processes', 'processesOmitted', 'tree', 'treeNodes', 'treeOmitted', 'blocked', 'roots', 'ended', 'notes'], opt: ['levelNum', 'command', 'commandLine', 'caller', 'session', 'summaryLine'] },
+  SysCaller: { req: ['line', 'stack', 'stackNoOwn', 'own'], opt: [] },
+  SysCounts: { req: ['processes', 'user', 'background', 'pseudo', 'idle', 'idleBackground', 'withoutSession'], opt: ['omitted'] },
+  SysProc: { req: ['pid', 'name', 'kind', 'sid', 'serial', 'line', 'idle', 'background', 'blockedBy', 'body', 'inWait', 'blocks', 'blocked'], opt: ['ospid', 'session', 'event', 'class', 'bodyEvent', 'caller', 'cmd', 'finalBlocker', 'node', 'nodeLine', 'flags', 'user', 'container', 'module', 'action', 'program', 'machine', 'command', 'waitSec', 'lastWaitEndedSec', 'sqlId', 'sqlText', 'sqlLine', 'sqlHandle', 'sessionLine'] },
+  SysTreeNode: { req: ['session', 'sid', 'serial', 'inWait', 'blocks', 'descendants', 'line', 'children'], opt: ['inst', 'foreign', 'cycle', 'pid', 'user', 'module', 'action', 'event', 'waitSec', 'sqlId', 'sqlText', 'cmd', 'finalBlocker', 'alsoBlockedBy', 'node'] },
+  HangReading: { req: ['kind', 'node', 'from', 'to', 'lines', 'instances', 'headerLine', 'delays', 'listed', 'chains', 'chainsTotal', 'extra', 'ended', 'notes'], opt: ['level', 'initiatedBy', 'nodes', 'dumps'] },
+  HangListed: { req: ['letter', 'chain', 'signature', 'events', 'line'], opt: ['hash'] },
+  HangChain: { req: ['n', 'line', 'from', 'to', 'events', 'listed', 'sessions', 'sessionsTotal'], opt: ['group', 'signature', 'hash', 'letter'] },
+  HangSession: { req: ['position', 'line', 'from', 'to', 'sid', 'serial', 'key', 'waiting', 'params', 'history', 'historyTotal'], opt: ['instance', 'osId', 'processId', 'process', 'module', 'moduleNum', 'pdbId', 'pdb', 'event', 'state', 'timeInWaitSec', 'heurTimeInWaitSec', 'timeoutSec', 'timeoutText', 'waitId', 'blocking', 'lastWaitText', 'sqlIdHigh', 'sqlText', 'sqlCut', 'shortStack', 'shortStackNoOwn', 'shortStackOwn', 'historyLine'] },
+  HangWait: { req: ['n', 'event', 'params', 'line'], opt: ['waitedSec', 'gapSec', 'waitId', 'gapLabel'] },
+  HangNodes: { req: ['line', 'rows', 'total'], opt: ['header'] },
+  HangNode: { req: ['line', 'num', 'cnode', 'sid', 'serial', 'key', 'session', 'ospid', 'state', 'adj'], opt: [] },
+  HangDumps: { req: ['line', 'lines', 'ended'], opt: ['level', 'local'] },
+  Deadlock: { req: ['kind', 'node', 'from', 'to', 'lines', 'ora', 'line', 'graph', 'cycle', 'sessions', 'sessionsTotal', 'sessionsEnded', 'notes'], opt: ['type', 'sessionsLine', 'victim', 'rowsWaited', 'dump'] },
+  DeadlockGraph: { req: ['line', 'header', 'rows', 'rowsTotal'], opt: [] },
+  DeadlockRow: { req: ['line', 'resource', 'type', 'blocker', 'waiter'], opt: [] },
+  DeadlockParty: { req: [], opt: ['process', 'session', 'holds', 'waits', 'serial', 'key'] },
+  DeadlockCycle: { req: ['closed', 'sessions', 'edges'], opt: [] },
+  DeadlockEdge: { req: ['waiter', 'blocker', 'resource', 'line'], opt: ['mode'] },
+  DeadlockSession: { req: ['line', 'from', 'to', 'number', 'sid', 'serial', 'key', 'inGraph'], opt: ['heldResource', 'acquired', 'acquiredSec', 'audsid', 'userId', 'user', 'container', 'containerId', 'containerName', 'pid', 'osUser', 'ospid', 'image', 'clientOsUser', 'clientOspid', 'machine', 'program', 'module', 'action', 'sqlText', 'sqlLine', 'sqlCut'] },
+  DeadlockVictim: { req: ['session', 'line', 'inGraph'], opt: [] },
+  DeadlockRowsWaited: { req: ['line', 'rows', 'total'], opt: [] },
+  DeadlockRowWaits: { req: ['line', 'session'], opt: ['noRow', 'obj', 'rowid', 'objn', 'file', 'block', 'slot'] },
+  DeadlockDump: { req: ['node', 'from', 'to', 'title'], opt: [] },
   Digest: { req: ['outline'], opt: ['readings', 'readingsOmitted'] },
   DigestNode: { req: ['children'], opt: ['more'] },
 }
@@ -495,6 +824,9 @@ export const isPgaSummary = (r: DiagReading): r is DiagReading & PGASummary => r
 export const isCallStack = (r: DiagReading): r is DiagReading & CallStack => r.kind === 'callstack'
 export const isProcState = (r: DiagReading): r is DiagReading & ProcState => r.kind === 'procstate'
 export const isPgaDetail = (r: DiagReading): r is DiagReading & PGADetail => r.kind === 'pga-detail'
+export const isSysState = (r: DiagReading): r is DiagReading & SysState => r.kind === 'sysstate'
+export const isHang = (r: DiagReading): r is DiagReading & HangReading => r.kind === 'hang'
+export const isDeadlock = (r: DiagReading): r is DiagReading & Deadlock => r.kind === 'deadlock'
 
 const arr = <T>(v: T[] | null | undefined): T[] => v ?? []
 
@@ -565,6 +897,55 @@ export function normalizeProcState(raw: DiagReading): ProcState {
     dmlLocks: arr(r.dmlLocks),
     locks: arr(r.locks),
     pins: arr(r.pins),
+    notes: arr(r.notes),
+  }
+}
+
+const normTree = (t: SysTreeNode): SysTreeNode => ({ ...t, children: arr(t.children).map(normTree) })
+
+/** A system state reading with the lists Go may leave `null` made empty. */
+export function normalizeSysState(raw: DiagReading): SysState {
+  const r = raw as unknown as SysState
+  return {
+    ...r,
+    processes: arr(r.processes).map((p) => ({ ...p, blockedBy: arr(p.blockedBy) })),
+    processesOmitted: r.processesOmitted ?? 0,
+    tree: arr(r.tree).map(normTree),
+    notes: arr(r.notes),
+  }
+}
+
+const normNodes = (n: HangNodes): HangNodes => ({ ...n, rows: arr(n.rows).map((x) => ({ ...x, adj: arr(x.adj) })) })
+
+/** A hang reading with the lists Go may leave `null` made empty. */
+export function normalizeHang(raw: DiagReading): HangReading {
+  const r = raw as unknown as HangReading
+  return {
+    ...r,
+    instances: arr(r.instances),
+    delays: arr(r.delays),
+    listed: arr(r.listed).map((l) => ({ ...l, events: arr(l.events) })),
+    chains: arr(r.chains).map((c) => ({
+      ...c,
+      events: arr(c.events),
+      sessions: arr(c.sessions).map((s) => ({ ...s, params: arr(s.params), history: arr(s.history).map((h) => ({ ...h, params: arr(h.params) })) })),
+    })),
+    extra: arr(r.extra),
+    ...(r.nodes ? { nodes: normNodes(r.nodes) } : null),
+    ...(r.dumps ? { dumps: { ...r.dumps, lines: arr(r.dumps.lines), ...(r.dumps.local ? { local: normNodes(r.dumps.local) } : null) } } : null),
+    notes: arr(r.notes),
+  }
+}
+
+/** A deadlock reading with the lists Go may leave `null` made empty. */
+export function normalizeDeadlock(raw: DiagReading): Deadlock {
+  const r = raw as unknown as Deadlock
+  return {
+    ...r,
+    graph: { ...r.graph, header: arr(r.graph?.header), rows: arr(r.graph?.rows), rowsTotal: r.graph?.rowsTotal ?? arr(r.graph?.rows).length },
+    cycle: { closed: !!r.cycle?.closed, sessions: arr(r.cycle?.sessions), edges: arr(r.cycle?.edges) },
+    sessions: arr(r.sessions),
+    ...(r.rowsWaited ? { rowsWaited: { ...r.rowsWaited, rows: arr(r.rowsWaited.rows) } } : null),
     notes: arr(r.notes),
   }
 }

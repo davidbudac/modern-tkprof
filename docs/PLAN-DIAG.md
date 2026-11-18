@@ -1,6 +1,7 @@
 # Diagnostic dumps: plan
 
-Written 2026-11-17. Stage 1 (research) is done, see the Log; nothing is built. The owner set the frame on 2026-11-17: 10046 and 10053 stay the primary
+Written 2026-11-17. Built on 2026-11-17 and 18 (stages 1 to 7, see the Log), on the branch
+`t3/oracle-trace-dump-support`, unreleased. The owner set the frame on 2026-11-17: 10046 and 10053 stay the primary
 formats, everything here is a best-effort add-on; computed views are allowed (unlike the 10053 reader); there
 are no real incident or systemstate files to work from, so the lab and public samples are the only sources.
 
@@ -467,3 +468,21 @@ selected heap's ancestors, siblings and children, not the whole dump run.
   dump whose summary is 20,000 lines.
 - **Not done**: a resource table of holders and waiters (decided out); hang analysis of a RAC system (no sample), a session
   not in a wait in a hang chain (the reader keeps the line's text, no fixture shows one); the UI side of all of this.
+
+### 2026-11-18: the reading screens, the documents, the end of the build
+
+- **Screens**: heap, PGA summary and detail, call stack, process, system state, hang analysis and deadlock
+  readings (`web/src/lib/views/diag/readings/`), folds in the text for nodes with `fold`, the "dump" and "10046"
+  jump marks in the desktop, `path()` to locate a part the outline has not loaded. Each was looked at on the
+  lab files in `mtkprof serve`, the standalone report and the desktop's dev browser mode, light and dark.
+- **The deadlock cycle drawing is not in the mock-up**; it was designed during the build and is the screen the
+  owner has not seen.
+- **Documents** (stage 7): DESIGN § Diagnostic dumps, ARCHITECTURE § The dump reader, DESKTOP § The dump
+  reader, HANDOFF, ROADMAP, MCP, README, the site's pages (not published), `docs/releases/next-diag.md`.
+- **CI**: `scripts/ci-local.sh --strict` passes on the branch.
+- **Left open** (also in HANDOFF § Open): the note of an interleaved file still ends "not shown as 10053 yet"
+  although *Open as 10053* stands beside it (the wording is pinned by a dozen tests on both sides); the
+  level-266 system state fixture (4.9 MB) is not committed, so the statements in the blocker tree are tested
+  only where `testdata/big/diag/` exists; `DeadlockSession` has no sql_id, so a deadlock's statement has no
+  jump to a 10046 tab; the real Electron window, Windows and Linux were not tried; no version but 19c.
+

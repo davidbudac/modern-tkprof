@@ -6,11 +6,17 @@
 //   pga-detail    readings/pga.tsx
 //   callstack     readings/callstack.tsx   (a diagnostic dump, an incident: error, statement, PL/SQL stack, the stack as one line, frames, cursors)
 //   procstate     readings/procstate.tsx   (a process state, a process of a system state: who, what it runs, waits, blockers, holds)
+//   sysstate      readings/sysstate.tsx    (the blocker tree, the process table with the idle background processes hidden)
+//   hang          readings/hang.tsx        (the chains as trees of session cards, the "State of ALL nodes" table)
+//   deadlock      readings/deadlock.tsx    (the cycle drawn, the graph as the dump's table, the sessions' blocks, the rows waited on)
 //
 // A node whose reading has no component here is shown as text, with "This version has no view for this reading" behind the Reading switch.
 import './heap'
 import './pga'
 import './callstack'
 import './procstate'
+import './sysstate'
+import './hang'
+import './deadlock'
 export { readingView, registerReading, registeredReadings, unregisterReading } from './registry'
 export type { ReadingProps, ReadingView } from './registry'
