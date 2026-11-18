@@ -179,8 +179,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 48 {
-		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools, the 2 opt routes and the 3 diag routes", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 49 {
+		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools, the 2 opt routes and the 4 diag routes", n)
 	}
 }
 
@@ -266,6 +266,13 @@ func TestContractSchemas(t *testing.T) {
 		"OptBanner": opt.Banner{}, "OptHint": opt.Hint{}, "OptBind": opt.Bind{}, "OptParam": opt.Param{},
 		"DiagDoc": report.DiagDoc{}, "DiagDigest": diag.Digest{}, "DiagFile": diag.File{}, "DiagSection": diag.Section{}, "DiagIncident": diag.Incident{},
 		"DiagNode": diag.Node{}, "DiagOutline": diag.Outline{},
+		"DiagHeapReading": diag.HeapReading{}, "DiagHeapFlags": diag.HeapFlags{}, "DiagHeapContents": diag.HeapContents{}, "DiagHeapCheck": diag.HeapCheck{}, "DiagHeapType": diag.HeapType{},
+		"DiagHeapVariant": diag.HeapVariant{}, "DiagHeapComment": diag.HeapComment{}, "DiagHeapTypeShare": diag.HeapTypeShare{}, "DiagHeapOther": diag.HeapOther{},
+		"DiagHeapFreeLists": diag.HeapFreeLists{}, "DiagHeapBucket": diag.HeapBucket{}, "DiagHeapReserved": diag.HeapReserved{}, "DiagHeapPermanent": diag.HeapPermanent{},
+		"DiagHeapUnpinned": diag.HeapUnpinned{}, "DiagHeapSub": diag.HeapSub{}, "DiagHeapLargest": diag.HeapLargest{}, "DiagHeapRun": diag.HeapRun{}, "DiagHeapLines": diag.HeapLines{},
+		"DiagPGASummary": diag.PGASummary{}, "DiagPGAUse": diag.PGAUse{}, "DiagPGASize": diag.PGASize{}, "DiagPGABlock": diag.PGABlock{}, "DiagPGABlockRow": diag.PGABlockRow{},
+		"DiagPGAInstance": diag.PGAInstance{}, "DiagPGAProcesses": diag.PGAProcesses{}, "DiagPGAProc": diag.PGAProc{}, "DiagPGASession": diag.PGASession{},
+		"DiagPGAEstimated": diag.PGAEstimated{}, "DiagPGAKV": diag.PGAKV{}, "DiagPGADetail": diag.PGADetail{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

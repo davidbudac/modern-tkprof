@@ -1,0 +1,6 @@
+
+  -- Heapdump Analyzer v1.03 by Tanel Poder ( https://blog.tanelpoder.com )
+
+    Total_size #Chunks  Chunk_size,        From_heap,       Chunk_type,  Alloc_reason
+  ------------ ------- ------------ ----------------- ----------------- -----------------
+

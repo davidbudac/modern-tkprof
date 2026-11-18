@@ -75,11 +75,13 @@ func (w *walker) line(n int, prev, cur, next []byte) {
 		}
 		return
 	}
-	if w.prof&pNested != 0 && len(cur) >= 10 && nestedFirst(c) {
-		if k, ok := trace.IsSectionStart(cur); ok {
+	if (w.prof&pNested != 0 && len(cur) >= 10 && nestedFirst(c)) || (w.prof&pHeapNest != 0 && c == 'H') {
+		if k, ok := trace.IsSectionStart(cur); ok && (w.prof&pNested != 0 || k == trace.SectionHeap) {
 			h := &head{kind: nodeKind(k), from: n, hl: 1, rank: rankNested, end: endOf(k)}
 			if h.end == endNone {
 				h.rank = rankNestedPlain
+			} else if w.prof&pNested == 0 {
+				h.rank = rankTitle + 1 // nests in the banner it stands in
 			}
 			sf := startFacts(k, cur)
 			h.sk, h.sf, h.facts = k, &sf, sectionFactsLines

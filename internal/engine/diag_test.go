@@ -42,7 +42,7 @@ func envError(t *testing.T, body []byte) (code, msg string) {
 }
 
 // TestDiagSession: a file of diagnostic dumps opens as a diag session by default, with the document's dump
-// member, the three api/diag routes, and the file's lines and search.
+// member, the api/diag routes, and the file's lines and search.
 func TestDiagSession(t *testing.T) {
 	e := newEnv(t)
 	sid := e.openReady([]string{diagErrorstack}, nil)
@@ -110,15 +110,20 @@ func TestDiagSession(t *testing.T) {
 		}
 		envError(t, r.body)
 	}
-	r = e.req("GET", "/s/"+sid+"/api/diag/section?i=0", nil)
+	// a node without a reading
+	r = e.req("GET", "/s/"+sid+"/api/diag/reading?node="+top.ID, nil)
 	if code, msg := envError(t, r.body); r.code != 404 || code != "not_found" || msg != "no reading for this kind of section" {
-		t.Errorf("section: %d %s %q", r.code, code, msg)
+		t.Errorf("reading of a diagnostic dump: %d %s %q", r.code, code, msg)
 	}
-	if r := e.req("GET", "/s/"+sid+"/api/diag/section?i=9", nil); r.code != 404 {
-		t.Errorf("section 9: %d", r.code)
+	for q, want := range map[string]int{"": 400, "?node=heap:1-99999999:1:200": 404, "?node=nonsense": 404, "?node=root": 404} {
+		r := e.req("GET", "/s/"+sid+"/api/diag/reading"+q, nil)
+		if r.code != want {
+			t.Errorf("reading%s: %d, want %d (%s)", q, r.code, want, r.body)
+		}
+		envError(t, r.body)
 	}
-	if r := e.req("GET", "/s/"+sid+"/api/diag/section?i=x", nil); r.code != 400 {
-		t.Errorf("section x: %d", r.code)
+	if r := e.req("GET", "/s/"+sid+"/api/diag/section?i=0", nil); r.code != 404 {
+		t.Errorf("the old section route: %d", r.code)
 	}
 	if r := e.req("GET", "/s/"+sid+"/api/diag/file", nil, "Authorization", ""); r.code != http.StatusUnauthorized {
 		t.Errorf("without a token: %d", r.code)
@@ -153,7 +158,7 @@ func TestDiagSession(t *testing.T) {
 	if r := e.req("GET", "/s/"+tid+"/api/doc", nil); bytes.Contains(r.body, []byte(`"dump":`)) {
 		t.Errorf("10046 document has a dump member")
 	}
-	for _, route := range []string{"file", "outline?node=root", "section?i=0"} {
+	for _, route := range []string{"file", "outline?node=root", "reading?node=root", "reading/lines?node=root&comment=x"} {
 		r := e.req("GET", "/s/"+tid+"/api/diag/"+route, nil)
 		if code, _ := envError(t, r.body); r.code != 404 || code != "not_found" {
 			t.Errorf("10046 session %s: %d", route, r.code)
@@ -335,5 +340,94 @@ func TestDiagSets(t *testing.T) {
 	}
 	if v := decode[SessionInfo](t, e.req("GET", "/engine/sessions/"+m.Session.ID, nil).body).View; v != "10046" {
 		t.Errorf("mixed set view %q", v)
+	}
+}
+
+// TestDiagReadings: a heap dump's reading by node, the lines of a comment, the errors, and the readings in
+// the document made for a client without a server.
+func TestDiagReadings(t *testing.T) {
+	e := newEnv(t)
+	sid := e.openReady([]string{diagDir + "diag_heap_pga.trc"}, nil)
+	f := decode[diag.File](t, e.req("GET", "/s/"+sid+"/api/diag/file", nil).body)
+	heap := f.Outline[1]
+	if heap.Kind != "heap" || heap.Reading != "heap" {
+		t.Fatalf("second top node: %+v", heap)
+	}
+	if f.Outline[0].Reading != "" {
+		t.Errorf("the header has a reading: %+v", f.Outline[0])
+	}
+	r := e.req("GET", "/s/"+sid+"/api/diag/reading?node="+heap.ID, nil)
+	if r.code != 200 || !strings.HasPrefix(string(r.body), `{"kind":"heap","node":"`+heap.ID+`"`) {
+		t.Fatalf("reading: %d %.200s", r.code, r.body)
+	}
+	if bytes.Contains(r.body, []byte("null")) {
+		t.Errorf("a null in the reading")
+	}
+	h := decode[diag.HeapReading](t, r.body)
+	if h.Name != "pga heap" || h.Chunks != 321 || len(h.Checks) != 3 {
+		t.Fatalf("reading: %+v", h)
+	}
+	for _, c := range h.Checks {
+		if c.State != diag.CheckMatch {
+			t.Errorf("check %+v", c)
+		}
+	}
+	c0 := h.ByComment[0]
+	r = e.req("GET", "/s/"+sid+"/api/diag/reading/lines?node="+heap.ID+"&comment="+strings.ReplaceAll(c0.Comment, " ", "+"), nil)
+	hl := decode[diag.HeapLines](t, r.body)
+	if r.code != 200 || len(hl.Lines) != c0.Chunks || hl.Lines[0] != c0.Line || hl.More != 0 || hl.Total != c0.Chunks {
+		t.Errorf("reading/lines: %d %d lines, first %v, more %d; the comment has %d chunks, first at %d", r.code, len(hl.Lines), hl.Lines, hl.More, c0.Chunks, c0.Line)
+	}
+	r = e.req("GET", "/s/"+sid+"/api/diag/reading/lines?node="+heap.ID+"&comment=perm&type=perm&after=300", nil)
+	hl = decode[diag.HeapLines](t, r.body)
+	if r.code != 200 || len(hl.Lines) == 0 || hl.Lines[0] <= 300 || hl.Total < len(hl.Lines) {
+		t.Errorf("after: %d %+v", r.code, hl)
+	}
+	if r := e.req("GET", "/s/"+sid+"/api/diag/reading/lines?node="+heap.ID+"&type=free", nil); decode[diag.HeapLines](t, r.body).Total != 10 {
+		t.Errorf("by type alone: %d %s", r.code, r.body)
+	}
+	for q, want := range map[string]int{"": 400, "?node=" + heap.ID: 400, "?node=nonsense&comment=x": 404, "?node=" + f.Outline[0].ID + "&comment=x": 404,
+		"?node=" + heap.ID + "&comment=x&after=-1": 400, "?node=" + heap.ID + "&comment=x&after=z": 400} {
+		r := e.req("GET", "/s/"+sid+"/api/diag/reading/lines"+q, nil)
+		if r.code != want {
+			t.Errorf("reading/lines%s: %d, want %d (%s)", q, r.code, want, r.body)
+		}
+		envError(t, r.body)
+	}
+	// the digest: the document made for a client without a server carries the readings of its nodes
+	js := decode[diagDocShape](t, e.req("GET", "/s/"+sid+"/api/report?format=json", nil).body)
+	if js.Dump == nil || js.Dump.Digest == nil || len(js.Dump.Digest.Readings) != 3 {
+		t.Fatalf("digest readings: %+v", js.Dump)
+	}
+	var viaDoc diag.HeapReading
+	if err := json.Unmarshal(js.Dump.Digest.Readings[heap.ID], &viaDoc); err != nil || viaDoc.Chunks != h.Chunks || len(viaDoc.ByComment) != len(h.ByComment) {
+		t.Errorf("the reading in the document: %v %+v", err, viaDoc.Chunks)
+	}
+	// and the text report
+	txt := e.req("GET", "/s/"+sid+"/api/report?format=text", nil)
+	if !strings.Contains(string(txt.body), "Reading: heap \"pga heap\"") || !strings.Contains(string(txt.body), "match   chunks of the extents against Total heap size: 4,707,160 = 4,707,160 (line 679)") {
+		t.Errorf("text report: %.600s", txt.body)
+	}
+	// a PGA summary and a nested heap are read by their nodes
+	psid := e.openReady([]string{diagDir + "diag_pga_summary.trc"}, nil)
+	pf := decode[diag.File](t, e.req("GET", "/s/"+psid+"/api/diag/file", nil).body)
+	var pn diag.Node
+	for _, n := range pf.Outline {
+		if n.Reading == "pga-summary" {
+			pn = n
+		}
+	}
+	r = e.req("GET", "/s/"+psid+"/api/diag/reading?node="+pn.ID, nil)
+	if r.code != 200 || !strings.HasPrefix(string(r.body), `{"kind":"pga-summary"`) {
+		t.Fatalf("pga-summary: %d %.100s", r.code, r.body)
+	}
+	banner := decode[diag.Outline](t, e.req("GET", "/s/"+psid+"/api/diag/outline?node="+pn.ID, nil).body).Children[0]
+	nested := decode[diag.Outline](t, e.req("GET", "/s/"+psid+"/api/diag/outline?node="+banner.ID, nil).body).Children
+	if len(nested) != 1 || nested[0].Kind != "heap" || nested[0].Reading != "heap" {
+		t.Fatalf("the sampled heap under the banner: %+v", nested)
+	}
+	nh := decode[diag.HeapReading](t, e.req("GET", "/s/"+psid+"/api/diag/reading?node="+nested[0].ID, nil).body)
+	if !nh.Flags.Sampled || nh.Checks[0].State != diag.CheckNone || len(nh.Run) != 1 {
+		t.Errorf("sampled heap: %+v", nh.Flags)
 	}
 }

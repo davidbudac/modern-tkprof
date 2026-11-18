@@ -1,6 +1,7 @@
 package diag
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -10,11 +11,30 @@ import (
 // DigestChildren is how many children of a node the digest lists (the rest are counted).
 const DigestChildren = 100
 
+const (
+	// DigestReadings is how many nodes of the digest get a reading in it (the first ones in file order); the
+	// nodes are the top-level nodes and their listed children that have one (Node.Reading).
+	DigestReadings = 200
+	// DigestReadingBytes bounds the JSON of the readings of a digest: readings are added in file order until
+	// the next would pass it.
+	DigestReadingBytes = 8 << 20
+)
+
 // Digest is the outline of a file to a fixed depth: every node of the top level with its own children
-// (one level down). It is what a client without a server shows (the standalone HTML report) and what
-// the text report prints. The computed readings of the later stages join it.
+// (one level down), and the readings of those nodes that have one. It is what a client without a server
+// shows (the standalone HTML report) and what the text report prints.
 type Digest struct {
 	Outline []DigestNode `json:"outline"`
+	// Readings are the readings of the nodes of Outline (top level and listed children) that have one, by
+	// node id: the first DigestReadings of them in file order, as long as their JSON stays under
+	// DigestReadingBytes. A heap dump nested deeper in a section (inside an errorstack, inside a banner of a
+	// PGA summary) is not here: the client asks api/diag/reading for it. Each value is the JSON of the
+	// reading, as api/diag/reading answers it ({"kind": ..., ...}).
+	Readings map[string]json.RawMessage `json:"readings,omitempty"`
+	// ReadingsOmitted counts the nodes with a reading that did not get one (the bounds above).
+	ReadingsOmitted int `json:"readingsOmitted,omitempty"`
+
+	rd map[string]Reading // the same readings, typed (a digest made here, not one decoded from JSON)
 }
 
 // DigestNode is a top-level node with its children.
@@ -39,11 +59,39 @@ func (r *Reader) Digest() (*Digest, error) {
 		}
 		d.Outline = append(d.Outline, dn)
 	}
+	size := 0
+	for _, n := range d.readingNodes() {
+		if len(d.Readings) >= DigestReadings {
+			d.ReadingsOmitted++
+			continue
+		}
+		rd, err := r.Reading(n.ID)
+		if err != nil { // a node whose lines are no reading's (cannot happen for a node of the scan): none
+			d.ReadingsOmitted++
+			continue
+		}
+		b, err := json.Marshal(rd)
+		if err != nil {
+			return nil, err
+		}
+		if size+len(b) > DigestReadingBytes {
+			d.ReadingsOmitted++
+			continue
+		}
+		size += len(b)
+		if d.Readings == nil {
+			d.Readings = map[string]json.RawMessage{}
+			d.rd = map[string]Reading{}
+		}
+		d.Readings[n.ID] = b
+		d.rd[n.ID] = rd
+	}
 	return d, nil
 }
 
 // WriteDigest writes the text digest of a file: its facts, then the outline to two levels, with the first
-// and last line of each part and its line count. No readings yet (docs/PLAN-DIAG.md level 2).
+// and last line of each part and its line count, and under each part that has one its reading (heap totals and
+// the check against them, the PGA tables).
 func WriteDigest(w io.Writer, r *Reader) error {
 	d, err := r.Digest()
 	if err != nil {
@@ -105,16 +153,37 @@ func WriteDigest(w io.Writer, r *Reader) error {
 		}
 		p("%s%s  %*s  %s%s%s\n", strings.Repeat("  ", indent), rng, lw, thousands(n.Lines), n.Title, cut, sub)
 	}
+	opts := textOpts{many: countHeaps(d) > manyHeaps}
 	for _, dn := range d.Outline {
 		row(0, dn.Node)
+		if rd, ok := d.rd[dn.ID]; ok {
+			writeReading(w, "    ", rd, opts)
+		}
 		for _, c := range dn.Children {
 			row(1, c)
+			if rd, ok := d.rd[c.ID]; ok {
+				writeReading(w, "      ", rd, opts)
+			}
 		}
 		if dn.More > 0 {
 			p("    ... %s more parts not listed\n", thousands(dn.More))
 		}
 	}
+	if d.ReadingsOmitted > 0 {
+		p("\n%s of the parts that have a reading are shown without it (the digest holds at most %d readings, %d MB of them)\n", thousands(d.ReadingsOmitted), DigestReadings, DigestReadingBytes>>20)
+	}
 	return nil
+}
+
+// countHeaps counts the heap dumps of the top level of the digest.
+func countHeaps(d *Digest) int {
+	n := 0
+	for _, dn := range d.Outline {
+		if dn.Kind == "heap" {
+			n++
+		}
+	}
+	return n
 }
 
 func thousands(n int) string {

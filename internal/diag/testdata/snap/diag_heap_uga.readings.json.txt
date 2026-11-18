@@ -1,0 +1,1141 @@
+== heap 32-1480
+{
+  "byComment": [
+    {
+      "bytes": 12114184,
+      "chunks": 131,
+      "comment": "kxs-heap-w",
+      "line": 43,
+      "types": [
+        {
+          "bytes": 12105944,
+          "chunks": 129,
+          "type": "freeable"
+        },
+        {
+          "bytes": 8240,
+          "chunks": 2,
+          "type": "recreate"
+        }
+      ]
+    },
+    {
+      "bytes": 2399440,
+      "chunks": 143,
+      "comment": "koh-kghu sessi",
+      "line": 307,
+      "types": [
+        {
+          "bytes": 2384560,
+          "chunks": 131,
+          "type": "freeable"
+        },
+        {
+          "bytes": 14880,
+          "chunks": 12,
+          "type": "recreate"
+        }
+      ]
+    },
+    {
+      "bytes": 197760,
+      "chunks": 74,
+      "comment": "",
+      "line": 42,
+      "types": [
+        {
+          "bytes": 197760,
+          "chunks": 74,
+          "type": "free"
+        }
+      ]
+    },
+    {
+      "bytes": 82200,
+      "chunks": 5,
+      "comment": "kxsFrame16kPage",
+      "line": 164,
+      "types": [
+        {
+          "bytes": 82200,
+          "chunks": 5,
+          "type": "freeable"
+        }
+      ]
+    },
+    "... 54 more"
+  ],
+  "byType": [
+    {
+      "bytes": 14845608,
+      "chunks": 681,
+      "type": "freeable"
+    },
+    {
+      "bytes": 197760,
+      "chunks": 74,
+      "type": "free"
+    },
+    {
+      "bytes": 62232,
+      "chunks": 13,
+      "type": "perm"
+    },
+    {
+      "bytes": 41224,
+      "chunks": 25,
+      "type": "recreate"
+    }
+  ],
+  "bytes": 15146824,
+  "checks": [
+    {
+      "computed": 15146824,
+      "line": 1257,
+      "name": "heap",
+      "printed": 15146824,
+      "state": "match",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 197760,
+      "line": 1358,
+      "name": "free",
+      "printed": 197760,
+      "state": "match",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 62232,
+      "line": 1479,
+      "name": "perm",
+      "printed": 62232,
+      "state": "match",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 793,
+  "comments": 58,
+  "depth": 1,
+  "desc": "0x7f81376782d0",
+  "extents": 122,
+  "flags": {},
+  "freeLists": {
+    "buckets": [
+      {
+        "bytes": 256,
+        "chunks": 4,
+        "n": 0,
+        "size": 56
+      },
+      {
+        "bytes": 3248,
+        "chunks": 26,
+        "n": 1,
+        "size": 88
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 2,
+        "size": 152
+      },
+      {
+        "bytes": 224,
+        "chunks": 1,
+        "n": 3,
+        "size": 168
+      },
+      "... 20 more"
+    ],
+    "bytes": 197760,
+    "chunks": 74,
+    "line": 1258,
+    "present": true,
+    "printed": 197760
+  },
+  "from": 32,
+  "heapSize": 15146824,
+  "kind": "heap",
+  "largest": [],
+  "lines": 1449,
+  "name": "session heap",
+  "node": "heap:32-1480:1:100",
+  "parent": "0x7f8138843e00",
+  "pdb": 3,
+  "permanent": {
+    "bytes": 62232,
+    "chunks": 13,
+    "line": 1360,
+    "printed": 62232
+  },
+  "run": [
+    {
+      "depth": 1,
+      "desc": "0x7f81376782d0",
+      "from": 32,
+      "name": "session heap",
+      "node": "heap:32-1480:1:100",
+      "size": 15146824,
+      "to": 1480
+    }
+  ],
+  "subheaps": [
+    {
+      "chunks": 37,
+      "desc": "0x7f8136753078",
+      "extents": 38,
+      "held": 9199848,
+      "line": 119,
+      "name": "kxs-heap-w",
+      "size": 9203968
+    },
+    {
+      "chunks": 92,
+      "desc": "0x7f8136e931d8",
+      "extents": 93,
+      "held": 2906096,
+      "line": 376,
+      "name": "kxs-heap-w",
+      "size": 2910216
+    },
+    {
+      "chunks": 125,
+      "desc": "0x7f8136e96de8",
+      "extents": 126,
+      "held": 2367792,
+      "line": 682,
+      "name": "koh-kghu sessi",
+      "size": 2369032
+    },
+    {
+      "chunks": 9,
+      "desc": "0x7f8136e61a38",
+      "extents": 10,
+      "held": 51344,
+      "line": 958,
+      "name": "Alloc environm",
+      "size": 52056
+    },
+    "... 21 more"
+  ],
+  "subheapsTotal": 25,
+  "to": 1480
+}
+== heap 1483-2920
+{
+  "byComment": [
+    {
+      "bytes": 12071216,
+      "chunks": 131,
+      "comment": "kxs-heap-w",
+      "line": 1494,
+      "types": [
+        {
+          "bytes": 12062976,
+          "chunks": 129,
+          "type": "freeable"
+        },
+        {
+          "bytes": 8240,
+          "chunks": 2,
+          "type": "recreate"
+        }
+      ]
+    },
+    {
+      "bytes": 2368560,
+      "chunks": 140,
+      "comment": "koh-kghu sessi",
+      "line": 1703,
+      "types": [
+        {
+          "bytes": 2353680,
+          "chunks": 128,
+          "type": "freeable"
+        },
+        {
+          "bytes": 14880,
+          "chunks": 12,
+          "type": "recreate"
+        }
+      ]
+    },
+    {
+      "bytes": 205512,
+      "chunks": 71,
+      "comment": "",
+      "line": 1493,
+      "types": [
+        {
+          "bytes": 205512,
+          "chunks": 71,
+          "type": "free"
+        }
+      ]
+    },
+    {
+      "bytes": 82200,
+      "chunks": 5,
+      "comment": "kxsFrame16kPage",
+      "line": 1997,
+      "types": [
+        {
+          "bytes": 82200,
+          "chunks": 5,
+          "type": "freeable"
+        }
+      ]
+    },
+    "... 54 more"
+  ],
+  "byType": [
+    {
+      "bytes": 14772392,
+      "chunks": 680,
+      "type": "freeable"
+    },
+    {
+      "bytes": 205512,
+      "chunks": 71,
+      "type": "free"
+    },
+    {
+      "bytes": 62232,
+      "chunks": 13,
+      "type": "perm"
+    },
+    {
+      "bytes": 41224,
+      "chunks": 25,
+      "type": "recreate"
+    }
+  ],
+  "bytes": 15081360,
+  "checks": [
+    {
+      "computed": 15081360,
+      "line": 2700,
+      "name": "heap",
+      "printed": 15081360,
+      "state": "match",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 205512,
+      "line": 2798,
+      "name": "free",
+      "printed": 205512,
+      "state": "match",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 62232,
+      "line": 2919,
+      "name": "perm",
+      "printed": 62232,
+      "state": "match",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 789,
+  "comments": 58,
+  "depth": 1,
+  "desc": "0x7f81376782d0",
+  "extents": 121,
+  "flags": {},
+  "freeLists": {
+    "buckets": [
+      {
+        "bytes": 312,
+        "chunks": 5,
+        "n": 0,
+        "size": 56
+      },
+      {
+        "bytes": 2096,
+        "chunks": 17,
+        "n": 1,
+        "size": 88
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 2,
+        "size": 152
+      },
+      {
+        "bytes": 168,
+        "chunks": 1,
+        "n": 3,
+        "size": 168
+      },
+      "... 20 more"
+    ],
+    "bytes": 205512,
+    "chunks": 71,
+    "line": 2701,
+    "present": true,
+    "printed": 205512
+  },
+  "from": 1483,
+  "heapSize": 15081360,
+  "kind": "heap",
+  "largest": [],
+  "lines": 1438,
+  "name": "session heap",
+  "node": "heap:1483-2920:1:100",
+  "parent": "0x7f8138843e00",
+  "pdb": 3,
+  "permanent": {
+    "bytes": 62232,
+    "chunks": 13,
+    "line": 2800,
+    "printed": 62232
+  },
+  "run": [
+    {
+      "depth": 1,
+      "desc": "0x7f81376782d0",
+      "from": 1483,
+      "name": "session heap",
+      "node": "heap:1483-2920:1:100",
+      "size": 15081360,
+      "to": 2920
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138841220",
+      "from": 2921,
+      "name": "pga heap",
+      "node": "heap:2921-3816:1:100",
+      "size": 4707160,
+      "to": 3816
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138843b40",
+      "from": 3817,
+      "name": "top call heap",
+      "node": "heap:3817-3939:1:100",
+      "size": 720632,
+      "to": 3939
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138843e00",
+      "from": 3940,
+      "name": "top uga heap",
+      "node": "heap:3940-4404:1:100",
+      "size": 16184488,
+      "to": 4404
+    }
+  ],
+  "subheaps": [
+    {
+      "chunks": 37,
+      "desc": "0x7f8136e931d8",
+      "extents": 38,
+      "held": 9165728,
+      "line": 1754,
+      "name": "kxs-heap-w",
+      "size": 9169848
+    },
+    {
+      "chunks": 92,
+      "desc": "0x7f8136753078",
+      "extents": 93,
+      "held": 2897248,
+      "line": 1895,
+      "name": "kxs-heap-w",
+      "size": 2901368
+    },
+    {
+      "chunks": 122,
+      "desc": "0x7f8136e96de8",
+      "extents": 123,
+      "held": 2336912,
+      "line": 2124,
+      "name": "koh-kghu sessi",
+      "size": 2338152
+    },
+    {
+      "chunks": 9,
+      "desc": "0x7f8136e61a38",
+      "extents": 10,
+      "held": 51344,
+      "line": 2401,
+      "name": "Alloc environm",
+      "size": 52056
+    },
+    "... 21 more"
+  ],
+  "subheapsTotal": 25,
+  "to": 2920
+}
+== heap 2921-3816
+{
+  "byComment": [
+    {
+      "bytes": 3555464,
+      "chunks": 160,
+      "comment": "koh-kghu call",
+      "line": 2936,
+      "types": [
+        {
+          "bytes": 3551744,
+          "chunks": 157,
+          "type": "freeable"
+        },
+        {
+          "bytes": 3720,
+          "chunks": 3,
+          "type": "recreate"
+        }
+      ]
+    },
+    {
+      "bytes": 392464,
+      "chunks": 40,
+      "comment": "perm",
+      "line": 3314,
+      "types": [
+        {
+          "bytes": 392464,
+          "chunks": 40,
+          "type": "perm"
+        }
+      ]
+    },
+    {
+      "bytes": 228904,
+      "chunks": 1,
+      "comment": "Fixed UGA heap",
+      "line": 3330,
+      "types": [
+        {
+          "bytes": 228904,
+          "chunks": 1,
+          "type": "recreate"
+        }
+      ]
+    },
+    {
+      "bytes": 217424,
+      "chunks": 26,
+      "comment": "diag pga",
+      "line": 2932,
+      "types": [
+        {
+          "bytes": 214240,
+          "chunks": 25,
+          "type": "freeable"
+        },
+        {
+          "bytes": 3184,
+          "chunks": 1,
+          "type": "recreate"
+        }
+      ]
+    },
+    "... 54 more"
+  ],
+  "byType": [
+    {
+      "bytes": 3994328,
+      "chunks": 259,
+      "type": "freeable"
+    },
+    {
+      "bytes": 392464,
+      "chunks": 40,
+      "type": "perm"
+    },
+    {
+      "bytes": 264488,
+      "chunks": 14,
+      "type": "recreate"
+    },
+    {
+      "bytes": 55880,
+      "chunks": 10,
+      "type": "free"
+    }
+  ],
+  "bytes": 4707160,
+  "checks": [
+    {
+      "computed": 4707160,
+      "line": 3572,
+      "name": "heap",
+      "printed": 4707160,
+      "state": "match",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 55880,
+      "line": 3609,
+      "name": "free",
+      "printed": 55880,
+      "state": "match",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 392464,
+      "line": 3814,
+      "name": "perm",
+      "printed": 392464,
+      "state": "match",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 323,
+  "comments": 58,
+  "depth": 0,
+  "desc": "0x7f8138841220",
+  "extents": 103,
+  "flags": {},
+  "freeLists": {
+    "buckets": [
+      {
+        "bytes": 112,
+        "chunks": 2,
+        "n": 0,
+        "size": 56
+      },
+      {
+        "bytes": 304,
+        "chunks": 3,
+        "n": 1,
+        "size": 88
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 2,
+        "size": 152
+      },
+      {
+        "bytes": 176,
+        "chunks": 1,
+        "n": 3,
+        "size": 168
+      },
+      "... 20 more"
+    ],
+    "bytes": 55880,
+    "chunks": 10,
+    "line": 3573,
+    "present": true,
+    "printed": 55880
+  },
+  "from": 2921,
+  "heapSize": 4707160,
+  "kind": "heap",
+  "largest": [],
+  "lines": 896,
+  "name": "pga heap",
+  "node": "heap:2921-3816:1:100",
+  "pdb": 0,
+  "permanent": {
+    "bytes": 392464,
+    "chunks": 40,
+    "line": 3611,
+    "printed": 392464
+  },
+  "run": [
+    {
+      "depth": 1,
+      "desc": "0x7f81376782d0",
+      "from": 1483,
+      "name": "session heap",
+      "node": "heap:1483-2920:1:100",
+      "size": 15081360,
+      "to": 2920
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138841220",
+      "from": 2921,
+      "name": "pga heap",
+      "node": "heap:2921-3816:1:100",
+      "size": 4707160,
+      "to": 3816
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138843b40",
+      "from": 3817,
+      "name": "top call heap",
+      "node": "heap:3817-3939:1:100",
+      "size": 720632,
+      "to": 3939
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138843e00",
+      "from": 3940,
+      "name": "top uga heap",
+      "node": "heap:3940-4404:1:100",
+      "size": 16184488,
+      "to": 4404
+    }
+  ],
+  "subheaps": [
+    {
+      "chunks": 157,
+      "desc": "0x7f81376711e8",
+      "extents": 158,
+      "held": 3551744,
+      "line": 3147,
+      "name": "koh-kghu call",
+      "size": 3552984
+    },
+    {
+      "chunks": 0,
+      "desc": "0x7f8138722c10",
+      "extents": 1,
+      "held": 0,
+      "line": 3331,
+      "name": "Fixed UGA heap",
+      "size": 228904
+    },
+    {
+      "chunks": 25,
+      "desc": "0x7f81387fc7c8",
+      "extents": 26,
+      "held": 214240,
+      "line": 3424,
+      "name": "diag pga",
+      "size": 217424
+    },
+    {
+      "chunks": 9,
+      "desc": "0x7f81387219a8",
+      "extents": 10,
+      "held": 62448,
+      "line": 3558,
+      "name": "Alloc environm",
+      "size": 63752
+    },
+    "... 10 more"
+  ],
+  "subheapsTotal": 14,
+  "to": 3816
+}
+== heap 3817-3939
+{
+  "byComment": [
+    {
+      "bytes": 640776,
+      "chunks": 12,
+      "comment": "",
+      "line": 3827,
+      "types": [
+        {
+          "bytes": 640776,
+          "chunks": 12,
+          "type": "free"
+        }
+      ]
+    },
+    {
+      "bytes": 79200,
+      "chunks": 20,
+      "comment": "callheap",
+      "line": 3842,
+      "types": [
+        {
+          "bytes": 77232,
+          "chunks": 18,
+          "type": "freeable"
+        },
+        {
+          "bytes": 1968,
+          "chunks": 2,
+          "type": "recreate"
+        }
+      ]
+    },
+    {
+      "bytes": 656,
+      "chunks": 2,
+      "comment": "perm",
+      "line": 3855,
+      "types": [
+        {
+          "bytes": 656,
+          "chunks": 2,
+          "type": "perm"
+        }
+      ]
+    }
+  ],
+  "byType": [
+    {
+      "bytes": 640776,
+      "chunks": 12,
+      "type": "free"
+    },
+    {
+      "bytes": 77232,
+      "chunks": 18,
+      "type": "freeable"
+    },
+    {
+      "bytes": 1968,
+      "chunks": 2,
+      "type": "recreate"
+    },
+    {
+      "bytes": 656,
+      "chunks": 2,
+      "type": "perm"
+    }
+  ],
+  "bytes": 720632,
+  "checks": [
+    {
+      "computed": 720632,
+      "line": 3891,
+      "name": "heap",
+      "printed": 720632,
+      "state": "match",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 640776,
+      "line": 3930,
+      "name": "free",
+      "printed": 640776,
+      "state": "match",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 656,
+      "line": 3938,
+      "name": "perm",
+      "printed": 656,
+      "state": "match",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 34,
+  "comments": 3,
+  "depth": 0,
+  "desc": "0x7f8138843b40",
+  "extents": 11,
+  "flags": {},
+  "freeLists": {
+    "buckets": [
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 0,
+        "size": 56
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 1,
+        "size": 88
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 2,
+        "size": 152
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 3,
+        "size": 168
+      },
+      "... 20 more"
+    ],
+    "bytes": 640776,
+    "chunks": 12,
+    "line": 3892,
+    "present": true,
+    "printed": 640776
+  },
+  "from": 3817,
+  "heapSize": 720632,
+  "kind": "heap",
+  "largest": [],
+  "lines": 123,
+  "name": "top call heap",
+  "node": "heap:3817-3939:1:100",
+  "pdb": 1,
+  "permanent": {
+    "bytes": 656,
+    "chunks": 2,
+    "line": 3932,
+    "printed": 656
+  },
+  "run": [
+    {
+      "depth": 1,
+      "desc": "0x7f81376782d0",
+      "from": 1483,
+      "name": "session heap",
+      "node": "heap:1483-2920:1:100",
+      "size": 15081360,
+      "to": 2920
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138841220",
+      "from": 2921,
+      "name": "pga heap",
+      "node": "heap:2921-3816:1:100",
+      "size": 4707160,
+      "to": 3816
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138843b40",
+      "from": 3817,
+      "name": "top call heap",
+      "node": "heap:3817-3939:1:100",
+      "size": 720632,
+      "to": 3939
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138843e00",
+      "from": 3940,
+      "name": "top uga heap",
+      "node": "heap:3940-4404:1:100",
+      "size": 16184488,
+      "to": 4404
+    }
+  ],
+  "subheaps": [
+    {
+      "chunks": 18,
+      "desc": "0x7f8138842160",
+      "extents": 19,
+      "held": 77232,
+      "line": 3872,
+      "name": "callheap",
+      "size": 78216
+    },
+    {
+      "chunks": 0,
+      "desc": "0x7f81388422a8",
+      "extents": 1,
+      "held": 0,
+      "line": 3868,
+      "name": "callheap",
+      "size": 984
+    }
+  ],
+  "subheapsTotal": 2,
+  "to": 3939
+}
+== heap 3940-4404
+{
+  "byComment": [
+    {
+      "bytes": 15086224,
+      "chunks": 121,
+      "comment": "session heap",
+      "line": 3950,
+      "types": [
+        {
+          "bytes": 15020840,
+          "chunks": 120,
+          "type": "freeable"
+        },
+        {
+          "bytes": 65384,
+          "chunks": 1,
+          "type": "recreate"
+        }
+      ]
+    },
+    {
+      "bytes": 1098136,
+      "chunks": 29,
+      "comment": "",
+      "line": 3952,
+      "types": [
+        {
+          "bytes": 1098136,
+          "chunks": 29,
+          "type": "free"
+        }
+      ]
+    },
+    {
+      "bytes": 128,
+      "chunks": 1,
+      "comment": "perm",
+      "line": 4219,
+      "types": [
+        {
+          "bytes": 128,
+          "chunks": 1,
+          "type": "perm"
+        }
+      ]
+    }
+  ],
+  "byType": [
+    {
+      "bytes": 15020840,
+      "chunks": 120,
+      "type": "freeable"
+    },
+    {
+      "bytes": 1098136,
+      "chunks": 29,
+      "type": "free"
+    },
+    {
+      "bytes": 65384,
+      "chunks": 1,
+      "type": "recreate"
+    },
+    {
+      "bytes": 128,
+      "chunks": 1,
+      "type": "perm"
+    }
+  ],
+  "bytes": 16184488,
+  "checks": [
+    {
+      "computed": 16184488,
+      "line": 4342,
+      "name": "heap",
+      "printed": 16184488,
+      "state": "match",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 1098136,
+      "line": 4398,
+      "name": "free",
+      "printed": 1098136,
+      "state": "match",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 128,
+      "line": 4403,
+      "name": "perm",
+      "printed": 128,
+      "state": "match",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 151,
+  "comments": 3,
+  "depth": 0,
+  "desc": "0x7f8138843e00",
+  "extents": 121,
+  "flags": {},
+  "freeLists": {
+    "buckets": [
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 0,
+        "size": 56
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 1,
+        "size": 88
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 2,
+        "size": 152
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 3,
+        "size": 168
+      },
+      "... 20 more"
+    ],
+    "bytes": 1098136,
+    "chunks": 29,
+    "line": 4343,
+    "present": true,
+    "printed": 1098136
+  },
+  "from": 3940,
+  "heapSize": 16184488,
+  "kind": "heap",
+  "largest": [],
+  "lines": 465,
+  "name": "top uga heap",
+  "node": "heap:3940-4404:1:100",
+  "pdb": 1,
+  "permanent": {
+    "bytes": 128,
+    "chunks": 1,
+    "line": 4400,
+    "printed": 128
+  },
+  "run": [
+    {
+      "depth": 1,
+      "desc": "0x7f81376782d0",
+      "from": 1483,
+      "name": "session heap",
+      "node": "heap:1483-2920:1:100",
+      "size": 15081360,
+      "to": 2920
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138841220",
+      "from": 2921,
+      "name": "pga heap",
+      "node": "heap:2921-3816:1:100",
+      "size": 4707160,
+      "to": 3816
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138843b40",
+      "from": 3817,
+      "name": "top call heap",
+      "node": "heap:3817-3939:1:100",
+      "size": 720632,
+      "to": 3939
+    },
+    {
+      "depth": 0,
+      "desc": "0x7f8138843e00",
+      "from": 3940,
+      "name": "top uga heap",
+      "node": "heap:3940-4404:1:100",
+      "size": 16184488,
+      "to": 4404
+    }
+  ],
+  "subheaps": [
+    {
+      "chunks": 120,
+      "desc": "0x7f81376782d0",
+      "extents": 121,
+      "held": 15020840,
+      "line": 4221,
+      "name": "session heap",
+      "node": "heap:1483-2920:1:100",
+      "size": 15086224
+    }
+  ],
+  "subheapsTotal": 1,
+  "to": 4404
+}

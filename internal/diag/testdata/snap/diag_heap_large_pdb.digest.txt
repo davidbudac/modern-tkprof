@@ -6,7 +6,24 @@ Diagnostic dump file diag_heap_large_pdb.trc
 Outline: first-last line, number of lines, title
  1-31  31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
 32-39   8  Heap dump: large pool
+    Reading: heap "large pool", desc 0x60354e60, depth ?, pdb id 1
+      0 extents, 0 chunks, 0 bytes in the extents
+      the header has no extents
+      Checked against the totals the dump prints:
+        none    chunks of the extents against Total heap size: the heap header has no extents: the dump lists no chunks and prints no totals
+        none    chunks of the free lists against Total free space: for the same reason
+        none    perm chunks under PERMANENT CHUNKS against Permanent space: for the same reason
 40-72  33  Heap dump: large pool  [16.0 MB, depth 0]
+    Reading: heap "large pool", desc 0x603567b8, depth 0, pdb id 1
+      1 extent, 0 chunks, 0 bytes in the extents
+      taken inside a PDB: only the chunks clearly belonging to pdb id 3 are dumped
+      Checked against the totals the dump prints:
+        none    chunks of the extents against Total heap size: the dump was taken inside a PDB and leaves out the chunks of other containers (only chunks clearly belonging to pdb id 3 are dumped) (the dump prints 16,777,112 at line 54)
+        none    chunks of the free lists against Total free space: for the same reason (the dump prints 16,285,328 at line 66)
+        none    perm chunks under PERMANENT CHUNKS against Permanent space: for the same reason (the dump prints 128 at line 71)
+      Free lists (line 55): 0 chunks, 0 bytes in 0 of 10 buckets
+      Permanent chunks (line 70): 0 perm chunks, 0 bytes
+      Unpinned space (line 69): 0 bytes, rcr=0 trn=0
   53-54   2  Extents  [1 extent]
   55-66  12  Free lists
   67-69   3  Unpinned recreatable chunks

@@ -430,7 +430,7 @@ func (s *scanner) gapNode(a, b, hdrEnd int, idx *int) Node {
 		n.Kind, n.Title = "other", "Other lines"
 		n.Sub = first
 		if first == "" {
-			n.Sub = "markers and blank lines"
+			n.Sub = markersOnlySub
 		}
 		n.unk = unk
 	}
@@ -458,6 +458,6 @@ func (s *scanner) sectionNode(sec trace.Section, first int) Node {
 	k := nodeKind(sec.Kind)
 	n := Node{ID: nodeID(k, first, sec.Last, 1, ownProfile(k)), Kind: k, Title: facts.title(sec.Kind), Sub: facts.sub(sec.Kind),
 		From: first, To: sec.Last, Lines: sec.Last - first + 1, HasChildren: kids, Cut: sec.Cut,
-		Name: facts.name, Depth: facts.depth, Size: facts.size}
+		Name: facts.name, Depth: facts.depth, Size: facts.size, Reading: ReadingKindOf(k)}
 	return n
 }

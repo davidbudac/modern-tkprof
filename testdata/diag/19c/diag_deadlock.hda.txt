@@ -1,0 +1,91 @@
+
+  -- Heapdump Analyzer v1.03 by Tanel Poder ( https://blog.tanelpoder.com )
+
+    Total_size #Chunks  Chunk_size,        From_heap,       Chunk_type,  Alloc_reason
+  ------------ ------- ------------ ----------------- ----------------- -----------------
+          3456    1         3456 ,   KGLH0^29fcccda,             free,                 
+          3328    1         3328 ,    SQLA^29fcccda,             free,                 
+          3144    1         3144 ,   KGLH0^29fcccda,             perm,  perm           
+          1064    1         1064 ,    SQLA^29fcccda,         freeable,  16982.kgght    
+          1040    1         1040 ,    SQLA^29fcccda,         freeable,  ctxdef:kksLoadC
+           760    5          152 ,   KGLH0^29fcccda,         freeable,  kgltbtab       
+           624    1          624 ,    SQLA^29fcccda,         recreate,  237.kggec      
+           600    1          600 ,   KGLH0^29fcccda,         freeable,  DV policy chain
+           568    1          568 ,    SQLA^29fcccda,         freeable,  qerixs : rixalo
+           552    1          552 ,    SQLA^29fcccda,         freeable,  615.kggec      
+           544    2          272 ,    SQLA^29fcccda,         freeable,  kccdef: qkxrMem
+           456    1          456 ,    SQLA^29fcccda,         freeable,  opixpop:kctdef 
+           456    1          456 ,    SQLA^29fcccda,         freeable,  kctdef : qcdlgo
+           384    3          128 ,    SQLA^29fcccda,         freeable,  opn: qkexrInitO
+           360    9           40 ,    SQLA^29fcccda,         freeable,  idndef : qcuAll
+           312    1          312 ,    SQLA^29fcccda,         freeable,  pqctx:kkfdParal
+           312    1          312 ,    SQLA^29fcccda,         freeable,  kdus : qerfuCre
+           296    1          296 ,    SQLA^29fcccda,         freeable,  unmdef in opipr
+           256    1          256 ,    SQLA^29fcccda,         freeable,  qesmaInitIdxCtx
+           192    3           64 ,    SQLA^29fcccda,         freeable,  kksol : kksnsg 
+           184    1          184 ,    SQLA^29fcccda,         freeable,  audRegFro:audta
+           184    1          184 ,    SQLA^29fcccda,         freeable,  237.kggec      
+           176    2           88 ,    SQLA^29fcccda,         freeable,  qertbAllocatePa
+           168    3           56 ,    SQLA^29fcccda,         freeable,  idndef*[]: qkex
+           160    1          160 ,    SQLA^29fcccda,         freeable,  qeeOpt: qeesCre
+           152    1          152 ,    SQLA^29fcccda,         freeable,  qcctx : kkmqccr
+           144    1          144 ,    SQLA^29fcccda,         freeable,  kglds: qesmaIni
+           144    1          144 ,    SQLA^29fcccda,         freeable,  kggsmCommonInit
+           128    2           64 ,    SQLA^29fcccda,         freeable,  qksfgiAddDepend
+           128    2           64 ,    SQLA^29fcccda,         freeable,  qesmaInitTblCtx
+           128    2           64 ,    SQLA^29fcccda,         freeable,  kksol : kkscuf 
+           128    1          128 ,   KGLH0^29fcccda,             perm,  perm           
+           128    1          128 ,    SQLA^29fcccda,         freeable,  KGHSC_ALLOC_BUF
+           128    1          128 ,    SQLA^29fcccda,             perm,  perm           
+           120    3           40 ,    SQLA^29fcccda,         freeable,  kggsmInitCompac
+           120    3           40 ,    SQLA^29fcccda,         freeable,  chedef : qcuatc
+           120    1          120 ,    SQLA^29fcccda,         freeable,  kglnm: qesmaIni
+           112    2           56 ,    SQLA^29fcccda,         freeable,  qosdInitExprCtx
+           112    1          112 ,    SQLA^29fcccda,         freeable,  qerfus : qerfuA
+           104    1          104 ,    SQLA^29fcccda,         freeable,  opn: qkexrInitO
+           104    1          104 ,    SQLA^29fcccda,         freeable,  opiprwd : opitc
+           104    1          104 ,    SQLA^29fcccda,         freeable,  kafco : qkacol 
+            96    1           96 ,    SQLA^29fcccda,         freeable,  qosdUpdateExprM
+            96    1           96 ,    SQLA^29fcccda,         freeable,  qkaapd : qkaqkn
+            96    1           96 ,    SQLA^29fcccda,         freeable,  qerfup : qerfuC
+            96    1           96 ,    SQLA^29fcccda,         freeable,  ctxqrol : kkqsr
+            88    1           88 ,    SQLA^29fcccda,         freeable,  qcsctx: kkmqccr
+            88    1           88 ,    SQLA^29fcccda,         freeable,  kkpoxgii: Alloc
+            88    1           88 ,    SQLA^29fcccda,         freeable,  ctxPlanSig:qksc
+            88    1           88 ,    SQLA^29fcccda,         freeable,  615.kggec      
+            88    1           88 ,    SQLA^29fcccda,         freeable,  16982.kgght    
+            80    2           40 ,    SQLA^29fcccda,         freeable,  qeKey[]: qkxrXf
+            80    1           80 ,    SQLA^29fcccda,         freeable,  qesmaInfo      
+            80    1           80 ,    SQLA^29fcccda,         freeable,  qcpctx: kkmqccr
+            80    1           80 ,    SQLA^29fcccda,         freeable,  kggsmInit:sm   
+            72    1           72 ,    SQLA^29fcccda,         freeable,  qksmm: qksmmCs 
+            64    1           64 ,    SQLA^29fcccda,         freeable,  qosdInitExprCtx
+            64    1           64 ,    SQLA^29fcccda,         freeable,  kggsmInitCompac
+            64    1           64 ,    SQLA^29fcccda,         freeable,  kggslHd:Init   
+            64    1           64 ,    SQLA^29fcccda,         freeable,  kafco* : qkanin
+            64    1           64 ,    SQLA^29fcccda,         freeable,  cxach : opiSem 
+            56    1           56 ,    SQLA^29fcccda,         freeable,  qeeRwo: qeeCrea
+            56    1           56 ,    SQLA^29fcccda,         freeable,  qctctx: kkmqccr
+            56    1           56 ,    SQLA^29fcccda,         freeable,  qcmemctx : kkmq
+            48    1           48 ,    SQLA^29fcccda,         freeable,  qksfgiAddDepend
+            48    1           48 ,    SQLA^29fcccda,         freeable,  qeeRwo: qeeCrea
+            48    1           48 ,    SQLA^29fcccda,         freeable,  qeSel: qkxrXfor
+            48    1           48 ,    SQLA^29fcccda,         freeable,  ktamd : ktagmd 
+            48    1           48 ,    SQLA^29fcccda,         freeable,  kggsmInitCompac
+            48    1           48 ,    SQLA^29fcccda,         freeable,  kduuskflag : qe
+            48    1           48 ,    SQLA^29fcccda,         freeable,  fupdef_fuedef :
+            48    1           48 ,    SQLA^29fcccda,         freeable,  fupdef : kkqvmd
+            40    1           40 ,    SQLA^29fcccda,         freeable,  xplGenXpl:planL
+            40    1           40 ,    SQLA^29fcccda,         freeable,  ub1[]: qkexrXfo
+            40    1           40 ,    SQLA^29fcccda,         freeable,  qosdInitExprCtx
+            40    1           40 ,    SQLA^29fcccda,         freeable,  qerixs:fbts_qer
+            40    1           40 ,    SQLA^29fcccda,         freeable,  qcptgc: kkmqccr
+            40    1           40 ,    SQLA^29fcccda,         freeable,  opixfalo:froaty
+            40    1           40 ,    SQLA^29fcccda,         freeable,  opixfalo:ctxkct
+            40    1           40 ,    SQLA^29fcccda,         freeable,  kobjn : kkdcchs
+            40    1           40 ,    SQLA^29fcccda,         freeable,  kksoff : opitca
+            40    1           40 ,    SQLA^29fcccda,         freeable,  kggac: kggacCre
+            40    1           40 ,    SQLA^29fcccda,         freeable,  kduufop in qerf
+            40    1           40 ,    SQLA^29fcccda,         freeable,  kduufnzop in qe
+            40    1           40 ,    SQLA^29fcccda,         freeable,  kafco : rixalo 
+

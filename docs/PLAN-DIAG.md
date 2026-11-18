@@ -264,7 +264,12 @@ ROADMAP, README, the site's pages (not published), a release notes draft, this f
   - `GET api/diag/reading?node=ID` → the reading of a node, `{kind, …}`; a node that has one says so
     (`Node.reading`, the reading's kind). Readings are addressed by node, not by section number, because a heap
     dump or a process state can sit inside another section. (Stage 2 shipped the seam as `api/diag/section?i=N`;
-    stage 3 replaces it.)
+    stage 3 replaced it.)
+  - `GET api/diag/reading/lines?node=ID&comment=TEXT[&type=T][&after=N]` → `{node, lines, more, next, total}`: the
+    numbers of the chunk lines of a heap reading's extents with that comment group (and type), ascending after
+    line N, at most 2,000 per answer (`next` is the `after` of the next page).
+  - The digest (`dump.digest`) carries the readings of its nodes (the top-level nodes and their listed
+    children) as `readings`, by node id: at most 200, 8 MB of JSON; `readingsOmitted` counts the rest.
 - **`view`** on `POST /engine/sessions` and as `-view` on `report`, `html`, `json`, the default command and
   `serve`: `10046`, `10053`, `diag`. Default: 10046 records → `10046`; only optimizer dumps → `10053`; else one
   file → `diag`. `diag` opens any single file (its 10046 records are "SQL trace (10046) lines" runs); `10053`
@@ -377,3 +382,20 @@ Layout A (a *Reading | Text* switch in the centre); the selection alone decides 
 background processes of a system state are hidden by default. Decided without asking, to be corrected on the
 real view: time in wait is shown for every process and dimmed with the idle ones; the heap tree shows the
 selected heap's ancestors, siblings and children, not the whole dump run.
+
+### 2026-11-18: stage 3, heap and PGA readings (Go side)
+
+- **Built**: `internal/diag/heap.go` (the heap reading, `Reader.Reading`, `Reader.HeapLines`), `pga.go` (`pga-summary`
+  and `pga-detail`), `reading.go`, `readingtext.go` (the text of the readings for the digest); `Node.reading`;
+  routes `api/diag/reading` and `api/diag/reading/lines` (the seam `api/diag/section` is gone); OpenAPI (additive,
+  protocol 1); `pnpm gen:api`. No cache format changed: readings are computed on demand and kept 8 at a time.
+- **Totals**: on the 100 heaps of the committed fixtures 288 of 300 checks match and 12 say why they cannot be
+  made; no differ. The shared pool dump: 8 match, 9 none (headers without extents). The reading also makes a
+  fourth check, of the reserved free lists, where the dump prints them.
+- **heapdump_analyzer** agrees with the reading on every (heap, type, comment) group of every heap fixture and on
+  the shared pool dump (`testdata/diag/README.md`).
+- **Nested heaps**: a sampled heap of a PGA summary is a node under the part it stands in (the outline of
+  `diag_pga_summary` changed; so did the ids of that file's nodes); a heap nested in another section has a
+  reading too, and its run is itself. The digest holds only the readings of top-level nodes and their children.
+- **Measured** (Apple M4): the reading of the 357,000-line heap of the shared pool dump 43 ms, `reading/lines` for a
+  comment of 26,000 chunks 33 ms, the largest committed heap (17,000 lines) 1 ms.

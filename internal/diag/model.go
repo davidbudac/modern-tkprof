@@ -95,6 +95,10 @@ type Node struct {
 	Size    int64  `json:"size,omitempty"`    // heap: "dsx heap size" of the header, bytes
 	Records int    `json:"records,omitempty"` // trace10046: the number of 10046 records in the run
 	Cut     bool   `json:"cut,omitempty"`     // a section whose end line was not reached
+	// Reading is the kind of the computed reading the node has (Reader.Reading, GET api/diag/reading): "heap" for
+	// a heap dump, "pga-summary", "pga-detail"; later stages add callstack, procstate, hang, deadlock, sysstate.
+	// Absent when the node has none.
+	Reading string `json:"reading,omitempty"`
 
 	unk int // other: lines that count as unplaced (the scan sums them for File.Unplaced)
 }

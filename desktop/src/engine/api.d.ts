@@ -1113,7 +1113,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/s/{id}/api/diag/section": {
+    "/s/{id}/api/diag/reading": {
         parameters: {
             query?: never;
             header?: never;
@@ -1121,13 +1121,44 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The reading of one section of a diag session's file
-         * @description The computed reading of section `i` of `diag.File.sections` (a heap's totals, a call stack, a process
-         *     state). The readings are later stages of the dump reader: for now every section answers 404
-         *     (envelope) "no reading for this kind of section"; so does a session that is not a diag one, with
-         *     another message.
+         * The computed reading of a node of a diag session's outline
+         * @description The reading of node `node`: a JSON object whose first field is `kind` (the same string as
+         *     `DiagNode.reading`) followed by the fields of that kind: `heap` (`DiagHeapReading`: where a heap
+         *     dump's memory is by chunk type, comment and sub-heap, and its free lists, checked against the totals the
+         *     dump prints), `pga-summary` (`DiagPGASummary`) and `pga-detail` (`DiagPGADetail`: the PGA dumps' own
+         *     tables). Later stages add more kinds. Readings are addressed by node because a heap dump can sit inside
+         *     another section (an errorstack, a banner of a PGA summary). A reading is computed on demand by scanning
+         *     the node's own lines (a heap of 500,000 lines in well under a second) and kept in a small cache; nothing
+         *     is persisted. 404 (envelope) for a node whose kind has no reading ("no reading for this kind of
+         *     section"), for an id that is not a node of the file, and for a session that is not a diag one; 400 without
+         *     `node`.
          */
-        get: operations["sessionDiagSection"];
+        get: operations["sessionDiagReading"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/diag/reading/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The chunk lines of a comment of a heap reading
+         * @description For a node of kind heap: the numbers of the chunk lines of its extents whose comment group is `comment`
+         *     (`DiagHeapComment.comment`, the part before "^"; `comment=` with nothing after it is the blank comment of
+         *     a free chunk) and, with `type`, whose type is `type` (a grouped type such as `recr`, or a printed one such
+         *     as `recrPC001`), in ascending order, after line `after`. At most 2000 are listed per answer; `more` says
+         *     how many follow and `next` is the `after` that asks for the next page. `comment` or `type` is required
+         *     (400). 404 (envelope) for a node that is not a heap dump or not a node of the file.
+         */
+        get: operations["sessionDiagReadingLines"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2036,6 +2067,12 @@ export interface components {
         DiagDigest: {
             /** @description every node of the top level with its own children (one level down, at most 100) */
             outline: components["schemas"]["DiagDigestNode"][];
+            /** @description the readings of the nodes of `outline` (top level and listed children) that have one, by node id: the first 200 of them in file order, as long as their JSON stays under 8 MB; each value is what `api/diag/reading` answers for that node. A heap dump nested deeper in a section (inside an errorstack, inside a banner of a PGA summary) is not here. */
+            readings?: {
+                [key: string]: components["schemas"]["DiagReading"];
+            };
+            /** @description nodes with a reading that did not get one (the bounds above) */
+            readingsOmitted?: number;
         };
         /** @description a node of the top level and its children */
         DiagDigestNode: components["schemas"]["DiagNode"] & {
@@ -2111,6 +2148,11 @@ export interface components {
             records?: number;
             /** @description a section whose end line was not reached */
             cut?: boolean;
+            /**
+             * @description the kind of the computed reading the node has (`api/diag/reading?node=`); absent when it has none. Later stages add callstack, procstate, hang, deadlock, sysstate.
+             * @enum {string}
+             */
+            reading?: "heap" | "pga-summary" | "pga-detail";
         };
         /** @description the children of a node (diag.Outline) */
         DiagOutline: {
@@ -2122,6 +2164,429 @@ export interface components {
             more: number;
             /** @description when more > 0, the `after` to ask for the next page */
             next?: number;
+        };
+        /** @description a computed reading of a node; the first field `kind` says which (docs/PLAN-DIAG.md § The readings) */
+        DiagReading: components["schemas"]["DiagHeapReading"] | components["schemas"]["DiagPGASummary"] | components["schemas"]["DiagPGADetail"];
+        /** @description the reading of a heap dump (diag.HeapReading): where the memory is, by chunk type, comment and sub-heap, and the free lists, checked against the totals the dump prints. Answer of api/diag/reading for a node of kind heap (`reading` "heap"); the first field is `kind`. */
+        DiagHeapReading: {
+            /**
+             * @description "heap" (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            kind: "heap";
+            /** @description the id of the node */
+            node: string;
+            /** @description the heap name as printed, trimmed ("pga heap", "sga heap(1,0)") */
+            name: string;
+            /** @description the heap descriptor as printed ("0x7f952ce9a220") */
+            desc: string;
+            /** @description the descriptor of the parent heap; absent for a top heap */
+            parent?: string;
+            /** @description the node of the parent heap's own dump, when the file holds it (in the same dump run) */
+            parentNode?: string;
+            /** @description "dsx heap depth"; absent when the header has none */
+            depth?: number;
+            /** @description "pdb id" of the header */
+            pdb?: number;
+            /** @description the node's first line */
+            from: number;
+            /** @description the node's last line */
+            to: number;
+            /** @description to - from + 1 */
+            lines: number;
+            /** @description EXTENT lines */
+            extents: number;
+            /** @description chunk lines of the extents */
+            chunks: number;
+            /** @description their sum: what the heap check compares with "Total heap size" */
+            bytes: number;
+            /** @description "dsx heap size" of the header; 0 when it has none */
+            heapSize: number;
+            flags: components["schemas"]["DiagHeapFlags"];
+            /** @description the sums compared with the totals the dump prints, in this order: heap, free, perm, and reserved when the dump has reserved free lists */
+            checks: components["schemas"]["DiagHeapCheck"][];
+            /** @description by bytes, largest first */
+            byType: components["schemas"]["DiagHeapType"][];
+            /** @description the 300 comments with the most bytes (largest first, ties by name); otherComments sums the rest */
+            byComment: components["schemas"]["DiagHeapComment"][];
+            /** @description the comments beyond the 300 listed, summed; absent when all are listed */
+            otherComments?: components["schemas"]["DiagHeapOther"];
+            /** @description how many comments there are in all (byComment and the ones in otherComments) */
+            comments: number;
+            freeLists: components["schemas"]["DiagHeapFreeLists"];
+            permanent?: components["schemas"]["DiagHeapPermanent"];
+            unpinned?: components["schemas"]["DiagHeapUnpinned"];
+            /** @description by size, largest first, at most 100; otherSubheaps sums the rest */
+            subheaps: components["schemas"]["DiagHeapSub"][];
+            /** @description how many sub-heaps the dump shows in all */
+            subheapsTotal: number;
+            /** @description the sub-heaps beyond the 100 listed (count, chunks, bytes held) */
+            otherSubheaps?: components["schemas"]["DiagHeapOther"];
+            /** @description the "N LARGEST SUB HEAPS" block, in the order printed */
+            largest: components["schemas"]["DiagHeapLargest"][];
+            /** @description the heaps of the same dump run (the heaps one command dumped, in file order), at most 400; a heap nested in another section is its own run */
+            run: components["schemas"]["DiagHeapRun"][];
+            /** @description heaps of the run left out of run */
+            runMore?: number;
+        };
+        /** @description what limits the reading */
+        DiagHeapFlags: {
+            /** @description the dump holds memory contents ("Dump of memory" blocks); they are skipped and counted */
+            contents?: components["schemas"]["DiagHeapContents"];
+            /** @description the dump was taken inside a PDB and leaves out the chunks of other containers: the pdb id it is limited to */
+            pdbFiltered?: number;
+            /** @description "Dumping sample extents": some extents only, no totals */
+            sampled?: boolean;
+            /** @description the percent of free memory the dump names */
+            sampledPercent?: number;
+            /** @description the header is followed by no extent (the heap of a latch directory, IMCA_RO) */
+            noExtents?: boolean;
+            /** @description the dump stops before its end */
+            cut?: boolean;
+        };
+        /** @description the memory contents a dump taken with contents holds */
+        DiagHeapContents: {
+            /** @description "Dump of memory from ..." lines */
+            blocks: number;
+            /** @description those lines and the rows under them (all skipped) */
+            lines: number;
+        };
+        /** @description one comparison of a sum over chunk lines with a total the dump prints */
+        DiagHeapCheck: {
+            /** @description heap, free, perm or reserved */
+            name: string;
+            /** @description in words, e.g. "chunks of the extents against Total heap size" */
+            what: string;
+            /** @description match, differ (with diff) or none (with reason) */
+            state: string;
+            /** @description the sum over the chunk lines */
+            computed: number;
+            /** @description the number on the dump's line; absent when the dump has none */
+            printed?: number;
+            /** @description the printed line's number */
+            line?: number;
+            /** @description computed - printed, for differ */
+            diff?: number;
+            /** @description why the check could not be made (state none), in plain words */
+            reason?: string;
+        };
+        /** @description the chunks of one type; the shared pool family recr<P|U><C|T|R><nnn> is one type "recr" */
+        DiagHeapType: {
+            type: string;
+            chunks: number;
+            bytes: number;
+            /** @description for "recr": the printed types (recrPC001, ...), largest first */
+            variants?: components["schemas"]["DiagHeapVariant"][];
+        };
+        /** @description the chunks of one printed type of a family */
+        DiagHeapVariant: {
+            type: string;
+            chunks: number;
+            bytes: number;
+        };
+        /** @description the chunks of one comment, grouped by the part before "^" (the shared pool puts a hash after it) */
+        DiagHeapComment: {
+            /** @description trimmed; empty for the blank comment of a free chunk */
+            comment: string;
+            /** @description the types it occurs with, largest first */
+            types: components["schemas"]["DiagHeapTypeShare"][];
+            chunks: number;
+            bytes: number;
+            /** @description the line of its first chunk */
+            line: number;
+            /** @description how many distinct "^suffix" values the group holds; absent for a comment without one */
+            suffixes?: number;
+        };
+        /** @description a comment's chunks of one type */
+        DiagHeapTypeShare: {
+            type: string;
+            chunks: number;
+            bytes: number;
+        };
+        /** @description what a bounded list leaves out, summed */
+        DiagHeapOther: {
+            /** @description comments (or sub-heaps) in it */
+            count: number;
+            chunks: number;
+            bytes: number;
+        };
+        /** @description the free lists */
+        DiagHeapFreeLists: {
+            /** @description the dump prints FREE LISTS: */
+            present: boolean;
+            /** @description of that line */
+            line?: number;
+            /** @description chunks in the lists (not the list heads) */
+            chunks: number;
+            bytes: number;
+            /** @description "Total free space" */
+            printed?: number;
+            /** @description every bucket the dump prints, empty ones too, in the order printed */
+            buckets: components["schemas"]["DiagHeapBucket"][];
+            /** @description the reserved free lists of an SGA heap, with their non-empty buckets */
+            reserved?: components["schemas"]["DiagHeapReserved"][];
+        };
+        /** @description one free list */
+        DiagHeapBucket: {
+            /** @description "Bucket N" */
+            n: number;
+            /** @description "size=": the smallest chunk the list holds */
+            size: number;
+            chunks: number;
+            bytes: number;
+        };
+        /** @description a block of reserved free lists ("RESERVED FREE LISTS:", "... FOR SIZES 64KB to 256KB:") */
+        DiagHeapReserved: {
+            title: string;
+            line: number;
+            chunks: number;
+            bytes: number;
+            /** @description "Total of this reserved free space" */
+            printed?: number;
+            /** @description the non-empty buckets */
+            buckets: components["schemas"]["DiagHeapBucket"][];
+        };
+        /** @description the PERMANENT CHUNKS: part */
+        DiagHeapPermanent: {
+            line: number;
+            /** @description chunk lines of type perm */
+            chunks: number;
+            bytes: number;
+            /** @description "Permanent space" */
+            printed?: number;
+        };
+        /** @description the unpinned part of an SGA heap ("Unpinned space = N rcr=N trn=N") */
+        DiagHeapUnpinned: {
+            line: number;
+            bytes: number;
+            rcr: number;
+            trn: number;
+        };
+        /** @description a sub-heap seen in this heap */
+        DiagHeapSub: {
+            /** @description its descriptor ("0x7f952bcd11e8") */
+            desc: string;
+            /** @description the comment of the chunk that holds its descriptor, else of its first chunk */
+            name: string;
+            /** @description the ds line's sz= (the sub-heap's own size); absent when the dump has no ds line for it */
+            size?: number;
+            /** @description bytes of this heap's chunks that carry ds=<desc> */
+            held: number;
+            /** @description those chunks */
+            chunks: number;
+            /** @description the ds line's ct= */
+            extents?: number;
+            /** @description the ds line, else the first chunk that carries the descriptor */
+            line: number;
+            /** @description the node of its own dump, when the file holds it */
+            node?: string;
+        };
+        /** @description a line of the "N LARGEST SUB HEAPS" block */
+        DiagHeapLargest: {
+            desc: string;
+            name: string;
+            /** @description "size=" as printed (a little more than the sub-heap's own total) */
+            size: number;
+            line: number;
+            /** @description the node of its own dump, when the file holds it */
+            node?: string;
+        };
+        /** @description a heap of the same dump run */
+        DiagHeapRun: {
+            node: string;
+            name: string;
+            desc: string;
+            /** @description the node of its parent heap in this run */
+            parent?: string;
+            depth?: number;
+            /** @description "dsx heap size" */
+            size: number;
+            from: number;
+            to: number;
+        };
+        /** @description the chunk lines of a comment (answer of api/diag/reading/lines) */
+        DiagHeapLines: {
+            node: string;
+            /** @description line numbers of chunk lines of the extents, ascending, at most 2000 */
+            lines: number[];
+            /** @description how many matching lines follow those listed */
+            more: number;
+            /** @description when more > 0, the `after` for the next page (the last line listed) */
+            next?: number;
+            /** @description how many chunk lines match in all */
+            total: number;
+        };
+        /** @description the reading of a pga_summary dump (diag.PGASummary), answer of api/diag/reading for a node of kind pga-summary (`reading` "pga-summary"): the dump's own tables. The figures are rounded, so nothing is checked. */
+        DiagPGASummary: {
+            /**
+             * @description "pga-summary" (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            kind: "pga-summary";
+            node: string;
+            from: number;
+            to: number;
+            lines: number;
+            /** @description says the figures are rounded and nothing can be checked */
+            note: string;
+            /** @description TOP 10 MEMORY USES FOR THIS PROCESS */
+            top: components["schemas"]["DiagPGAUse"][];
+            /** @description its line */
+            topLine?: number;
+            /** @description PRIVATE HEAP SUMMARY DUMP and the "Summary of subheaps at depth N" blocks */
+            private: components["schemas"]["DiagPGABlock"][];
+            /** @description the instance-wide private memory usage figures ("Global SGA Info", "SGA Info (PDB 3)") */
+            instance: components["schemas"]["DiagPGAInstance"][];
+            processes?: components["schemas"]["DiagPGAProcesses"];
+            estimated?: components["schemas"]["DiagPGAEstimated"];
+            /** @description the SWAP INFORMATION lines */
+            swap: components["schemas"]["DiagPGAKV"][];
+        };
+        /** @description a row of the top uses of memory, of the estimated uses for all processes, or of a pga_detail_dump */
+        DiagPGAUse: {
+            line: number;
+            /** @description absent in a pga_detail_dump */
+            percent?: number;
+            size: components["schemas"]["DiagPGASize"];
+            /** @description chunks, processes or heaps, per unit */
+            count: number;
+            /** @description chunks, processes, heaps */
+            unit: string;
+            /** @description trimmed */
+            comment: string;
+            /** @description PL/SQL, SQL */
+            category?: string;
+            /** @description the heap the chunks are in (the line under the row), trimmed */
+            heap?: string;
+            /** @description "0x7f72d80b11e8" */
+            ds?: string;
+            /** @description "dsprt=", absent for (nil) */
+            dsParent?: string;
+            /** @description estimated uses: the chunks of the line under the row */
+            chunks?: number;
+        };
+        /** @description a size as the dump prints it, and in bytes */
+        DiagPGASize: {
+            /** @description "3429 KB", "108 MB", "3512312 bytes" */
+            text: string;
+            /** @description the printed figure times 1024 per KB, 1024 squared per MB, ... */
+            bytes: number;
+        };
+        /** @description a block of the private heap summary: the heap itself (depth 0) or the sub-heaps at one depth */
+        DiagPGABlock: {
+            line: number;
+            title: string;
+            depth: number;
+            total: components["schemas"]["DiagPGASize"];
+            commented?: components["schemas"]["DiagPGASize"];
+            permanent?: components["schemas"]["DiagPGASize"];
+            free?: components["schemas"]["DiagPGASize"];
+            emptyExtents?: components["schemas"]["DiagPGASize"];
+            rows: components["schemas"]["DiagPGABlockRow"][];
+        };
+        /** @description a line of a block: size, count of chunks or heaps, comment, free memory held */
+        DiagPGABlockRow: {
+            line: number;
+            size: components["schemas"]["DiagPGASize"];
+            count: number;
+            unit: string;
+            comment: string;
+            freeHeld?: components["schemas"]["DiagPGASize"];
+        };
+        /** @description a line of the instance-wide summary */
+        DiagPGAInstance: {
+            line: number;
+            scope: string;
+            name: string;
+            /** @description as printed: "512 MB", "0 %", "1" */
+            value: string;
+        };
+        /** @description "Private memory usage per Oracle process" */
+        DiagPGAProcesses: {
+            line: number;
+            /** @description "(percentage is of 644 MB total allocated memory)" */
+            totalAllocated?: components["schemas"]["DiagPGASize"];
+            /** @description "MGA used size accounted under PGA values", the size as printed */
+            mga?: string;
+            /** @description Top 10 processes */
+            top: components["schemas"]["DiagPGAProc"][];
+            /** @description All processes, at most 5000 */
+            all: components["schemas"]["DiagPGAProc"][];
+            /** @description processes left out of all */
+            allOmitted?: number;
+        };
+        /** @description a process row: "17% ospid 2361 (MMON): 14 MB used, 108 MB alloc, 512 KB freeable" */
+        DiagPGAProc: {
+            line: number;
+            /** @description the top 10 only */
+            percent?: number;
+            /** @description as printed: "2361", "2299_2300" (a thread) */
+            ospid: string;
+            /** @description "MMON"; blank for a foreground process */
+            name: string;
+            /** @description the "(3)" after the name */
+            pdb?: string;
+            used: components["schemas"]["DiagPGASize"];
+            alloc: components["schemas"]["DiagPGASize"];
+            freeable?: components["schemas"]["DiagPGASize"];
+            /** @description the session detail printed under a process over 32 MB */
+            session?: components["schemas"]["DiagPGASession"];
+        };
+        /** @description "Begin session detail for pid N" ... "End session detail" */
+        DiagPGASession: {
+            from: number;
+            to: number;
+            pid: number;
+            sid: number;
+            serial: number;
+            /** @description "0/SYS" */
+            user?: string;
+            /** @description "1/CDB$ROOT" */
+            pdb?: string;
+            ospid?: string;
+            image?: string;
+            machine?: string;
+            program?: string;
+            /** @description empty or "<none>" when there is none */
+            currentSql?: string;
+        };
+        /** @description "ESTIMATED MEMORY USES FOR ALL PROCESSES" */
+        DiagPGAEstimated: {
+            line: number;
+            /** @description "from 10 snapshots out of 74 processes" */
+            snapshots: number;
+            processes: number;
+            rows: components["schemas"]["DiagPGAUse"][];
+            /** @description rows left out (the 5000-row bound) */
+            omitted?: number;
+        };
+        /** @description a name and a value as printed */
+        DiagPGAKV: {
+            line: number;
+            name: string;
+            value: string;
+        };
+        /** @description the reading of a pga_detail_dump (diag.PGADetail), answer of api/diag/reading for a node of kind pga-detail (`reading` "pga-detail"): the rows with exact bytes */
+        DiagPGADetail: {
+            /**
+             * @description "pga-detail" (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            kind: "pga-detail";
+            node: string;
+            from: number;
+            to: number;
+            lines: number;
+            /** @description "PGA memory detail for pid 6, OS pid 14085" */
+            pid?: number;
+            ospid?: number;
+            /** @description exact bytes: size.text is "3512312 bytes" */
+            rows: components["schemas"]["DiagPGAUse"][];
+            /** @description the sum of the rows (a listing of the largest uses, not a total of the process) */
+            bytes: number;
+            chunks: number;
+            /** @description rows left out (the 5000-row bound) */
+            omitted?: number;
         };
         /** @description the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record */
         OptDoc: {
@@ -5270,11 +5735,11 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
-    sessionDiagSection: {
+    sessionDiagReading: {
         parameters: {
             query: {
-                /** @description 0-based index into `diag.File.sections` */
-                i: number;
+                /** @description a node id (`diag.Node.id`) whose `reading` is set */
+                node: string;
             };
             header?: never;
             path: {
@@ -5285,6 +5750,51 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description the reading */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiagReading"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionDiagReadingLines: {
+        parameters: {
+            query: {
+                /** @description the id of a heap node */
+                node: string;
+                /** @description the comment group (as `DiagHeapComment.comment` lists it) */
+                comment?: string;
+                /** @description the chunk type, grouped (`recr`) or as printed */
+                type?: string;
+                /** @description a line number; only lines after it are listed (the `next` of the answer before) */
+                after?: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the chunk lines */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiagHeapLines"];
+                };
+            };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];

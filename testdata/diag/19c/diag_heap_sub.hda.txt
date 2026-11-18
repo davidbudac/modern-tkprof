@@ -1,0 +1,615 @@
+
+  -- Heapdump Analyzer v1.03 by Tanel Poder ( https://blog.tanelpoder.com )
+
+    Total_size #Chunks  Chunk_size,        From_heap,       Chunk_type,  Alloc_reason
+  ------------ ------- ------------ ----------------- ----------------- -----------------
+      17295168  264        65512 ,     top uga heap,         freeable,  session heap   
+       9825280  152        64640 ,     session heap,         freeable,  kxs-heap-w     
+       8393984   32       262312 ,     session heap,         freeable,  kxs-heap-w     
+       8372736    4      2093184 ,     session heap,         freeable,  kxs-heap-w     
+       8260864   32       258152 ,     session heap,         freeable,  kxs-heap-w     
+       8037312  492        16336 ,   koh-kghu call ,         freeable,  pl/sql vc2     
+       7364400  114        64600 ,       kxs-heap-w,         freeable,  sort subheap   
+       7359840  114        64560 ,     sort subheap,             perm,  perm           
+       6844320  420        16296 ,   koh-kghu sessi,         freeable,  pl/sql vc2     
+       6485392  397        16336 ,     session heap,         freeable,  koh-kghu sessi 
+       6296448   24       262352 ,     top uga heap,         freeable,  session heap   
+       6294528   24       262272 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+       6279672    3      2093224 ,     top uga heap,         freeable,  session heap   
+       6279432    3      2093144 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+       6279312    3      2093104 ,   QERHN hash-joi,         freeable,  QERHN list arra
+       6196608   24       258192 ,     top uga heap,         freeable,  session heap   
+       6194688   24       258112 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+       6193728   24       258072 ,   QERHN hash-joi,         freeable,  kllcqas:kllsltb
+       5506872   21       262232 ,   QERHN hash-joi,         freeable,  QERHN HT segmen
+       4912800  300        16376 ,         pga heap,         freeable,  koh-kghu call  
+       4912800  150        32752 ,         pga heap,         freeable,  koh-kghu call  
+       4186624    4      1046656 ,     session heap,         freeable,  kxs-heap-w     
+       3140088    3      1046696 ,     top uga heap,         freeable,  session heap   
+       3139848    3      1046616 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+       3139728    3      1046576 ,   QERHN hash-joi,         freeable,  QERHN list arra
+       2780520   85        32712 ,     session heap,         freeable,  koh-kghu sessi 
+       2456400  150        16376 ,   koh-kghu call ,         freeable,  pl/sql vc2     
+       2100480   32        65640 ,     session heap,         freeable,  kxs-heap-w     
+       2093568    4       523392 ,     session heap,         freeable,  kxs-heap-w     
+       1576320   24        65680 ,     top uga heap,         freeable,  session heap   
+       1574400   24        65600 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+       1573440   24        65560 ,   QERHN hash-joi,         freeable,  QERHN Bit vecto
+       1572288   24        65512 ,    top call heap,             free,                 
+       1570296    3       523432 ,     top uga heap,         freeable,  session heap   
+       1570056    3       523352 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+       1569936    3       523312 ,   QERHN hash-joi,         freeable,  QERHN list arra
+       1568832   24        65368 ,     top uga heap,             free,                 
+       1567296   24        65304 ,     top uga heap,             free,                 
+       1047040    4       261760 ,     session heap,         freeable,  kxs-heap-w     
+        786696    3       262232 ,   QERHN hash-joi,         freeable,  HT buckets     
+        786360    3       262120 ,     top uga heap,         freeable,  session heap   
+        786288    6       131048 ,     top uga heap,         freeable,  session heap   
+        786048   12        65504 ,         pga heap,         freeable,  koh-kghu call  
+        785400    3       261800 ,     top uga heap,         freeable,  session heap   
+        785160    3       261720 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+        785040    3       261680 ,   QERHN hash-joi,         freeable,  QERHN list arra
+        686712    3       228904 ,         pga heap,         recreate,  Fixed UGA heap 
+        686136    3       228712 ,   Fixed UGA heap,         freeable,  Fixed Uga      
+        637440   20        31872 ,     session heap,         freeable,  kxs-heap-w     
+        532224  126         4224 ,     session heap,         freeable,  kxs-heap-w     
+        524320    4       131080 ,     session heap,             free,                 
+        524000    4       131000 ,     session heap,         freeable,  kxs-heap-w     
+        523776    4       130944 ,     session heap,         freeable,  kxs-heap-w     
+        477480   15        31832 ,       kxs-heap-w,         freeable,  sort subheap   
+        476880   15        31792 ,     sort subheap,             perm,  perm           
+        466336    4       116584 ,     session heap,         freeable,  kxs-heap-w     
+        392880    3       130960 ,       kxs-heap-w,             perm,  perm           
+        392712    3       130904 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+        392592    3       130864 ,   QERHN hash-joi,         freeable,  QERHN list arra
+        376560   90         4184 ,       kxs-heap-w,         freeable,  sort subheap   
+        355872    3       118624 ,         pga heap,             perm,  perm           
+        349872    3       116624 ,     top uga heap,         freeable,  session heap   
+        349632    3       116544 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+        349512    3       116504 ,   QERHN hash-joi,         freeable,  kllcqc:kllcqslt
+        330240   20        16512 ,     session heap,         freeable,  kxs-heap-w     
+        328800   20        16440 ,     session heap,         freeable,  kxsFrame16kPage
+        298944   72         4152 ,     session heap,         freeable,  kxsFrame4kPage 
+        262176    4        65544 ,     session heap,         freeable,  kxs-heap-w     
+        261856    4        65464 ,     session heap,         freeable,  kxs-heap-w     
+        247080   15        16472 ,       kxs-heap-w,         freeable,  sort subheap   
+        246480   15        16432 ,     sort subheap,             perm,  perm           
+        215184    3        71728 ,         pga heap,             perm,  perm           
+        207504   99         2096 ,     sort subheap,             perm,  perm           
+        196512    3        65504 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+        196392    3        65464 ,   QERHN hash-joi,         freeable,  QERHN list arra
+        196272    3        65424 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+        196152    3        65384 ,     top uga heap,         recreate,  session heap   
+        168936    3        56312 ,    top call heap,             free,                 
+        166400   20         8320 ,     session heap,         freeable,  kxs-heap-w     
+        165144    3        55048 ,         pga heap,         freeable,  diag pga       
+        165024    3        55008 ,         diag pga,         freeable,  dbgdInitPrsCtx 
+        164736    6        27456 ,         pga heap,         freeable,  diag pga       
+        164496    6        27416 ,         diag pga,         freeable,  dbgeInitProcess
+        153600   75         2048 ,     sort subheap,             free,                 
+        146944    4        36736 ,     session heap,             perm,  perm           
+        139392   33         4224 ,    top call heap,         freeable,  callheap       
+        138072   33         4184 ,         callheap,             free,                 
+        131296    4        32824 ,     session heap,         freeable,  kxsFrame32kPage
+        129624    3        43208 ,    top call heap,             free,                 
+        124200   15         8280 ,       kxs-heap-w,         freeable,  sort subheap   
+        123600   15         8240 ,     sort subheap,             perm,  perm           
+        122952    3        40984 ,         pga heap,         freeable,  kfkio bucket   
+        120960   48         2520 ,     session heap,         freeable,  koh-kghu sessio
+        120640  145          832 ,     session heap,             free,                 
+         99408    6        16568 ,         pga heap,         freeable,  diag pga       
+         99264   12         8272 ,   Alloc environm,         freeable,  Alloc server h 
+         99168    6        16528 ,         diag pga,         freeable,  dbgtc heap     
+         99072    6        16512 ,   Alloc environm,        mfreeable,  alloc server hn
+         98376    3        32792 ,   koh-kghu call ,             free,                 
+         98256    3        32752 ,   QERHN hash-joi,         freeable,  QERHN list arra
+         98256    3        32752 ,         pga heap,             free,                 
+         97896    3        32632 ,   QERHN hash-joi,             free,                 
+         94272   24         3928 ,     top uga heap,             free,                 
+         87864   21         4184 ,         pga heap,         freeable,  diag pga       
+         81288    3        27096 ,     session heap,             free,                 
+         74808    9         8312 ,         pga heap,         freeable,  Alloc environm 
+         74368   56         1328 ,     session heap,         freeable,  kxsc: kkspsc0 2
+         74088    9         8232 ,   Alloc server h,        mfreeable,  ttc conv buf al
+         73800    3        24600 ,         pga heap,         freeable,  kfksb bucket   
+         70624    4        17656 ,     session heap,             perm,  perm           
+         66208    4        16552 ,     session heap,         freeable,  Alloc environm 
+         65952    4        16488 ,       dbgtc heap,         freeable,  7114.kgght     
+         65792    4        16448 ,       7114.kgght,             perm,  perm           
+         65544    1        65544 ,     top uga heap,             free,                 
+         65504    1        65504 ,     top uga heap,         freeable,  session heap   
+         62208   12         5184 ,         pga heap,         freeable,  qmd_init_pga:b 
+         62160   15         4144 ,     sort subheap,             perm,  perm           
+         61584    3        20528 ,         pga heap,             perm,  perm           
+         59520   48         1240 ,     session heap,         recreate,  koh-kghu sessi 
+         57888    3        19296 ,         pga heap,             perm,  perm           
+         52032    8         6504 ,     session heap,         freeable,  kxs-heap-w     
+         51072    3        17024 ,         pga heap,         freeable,  kgh stack      
+         51048    3        17016 ,         pga heap,             perm,  perm           
+         50208   12         4184 ,     session heap,         freeable,  Alloc environm 
+         50208   12         4184 ,         pga heap,         freeable,  Alloc environm 
+         49656    3        16552 ,         pga heap,         freeable,  Alloc environm 
+         49224    3        16408 ,    top call heap,             free,                 
+         49128    3        16376 ,     session heap,         freeable,  koh-kghu sessi 
+         49080    3        16360 ,     session heap,         freeable,  koh-kghu sessi 
+         49008    3        16336 ,   koh-kghu sessi,         freeable,  pl/sql vc2     
+         48960    3        16320 ,   koh-kghu sessi,         freeable,  pl/sql vc2     
+         48888    3        16296 ,   koh-kghu sessi,         freeable,  pmucalm coll   
+         48672   12         4056 ,   Alloc environm,         recreate,  Alloc server h 
+         47808    3        15936 ,     session heap,         freeable,  kxs-heap-w     
+         47688    3        15896 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+         47424    3        15808 ,     session heap,         freeable,  kxs-heap-w     
+         47304    3        15768 ,       kxs-heap-w,         freeable,  QERHN hash-joi 
+         43272    3        14424 ,     top uga heap,             free,                 
+         40800 1020           40 ,     session heap,         freeable,  kgsc ht segs   
+         38376    9         4264 ,    top call heap,         freeable,  callheap       
+         38016    9         4224 ,         callheap,             free,                 
+         37944    3        12648 ,         pga heap,             perm,  perm           
+         37608    3        12536 ,         pga heap,             perm,  perm           
+         37440    9         4160 ,     session heap,         freeable,  koh-kghu sessi 
+         36768    6         6128 ,         pga heap,         freeable,  diag pga       
+         36528    6         6088 ,         diag pga,         freeable,  dbgdutlHeapAll 
+         36440    1        36440 ,     session heap,         freeable,  kxs-heap-w     
+         35904   17         2112 ,     session heap,         freeable,  koh-kghu sessi 
+         33792    8         4224 ,     session heap,         freeable,  Alloc environm 
+         33248    4         8312 ,     session heap,         freeable,  Alloc environm 
+         33024    4         8256 ,         pga heap,             free,                 
+         32992    4         8248 ,     session heap,         freeable,  kxsFrame8kPage 
+         32960    8         4120 ,     session heap,         recreate,  kxs-heap-w     
+         32712    1        32712 ,     session heap,         freeable,  kxs-heap-w     
+         31320    3        10440 ,   QERHN hash-joi,             perm,  perm           
+         30024    9         3336 ,     session heap,         freeable,  kxs-heap-w     
+         29664    9         3296 ,       kxs-heap-w,         freeable,  sort subheap   
+         29568    7         4224 ,         pga heap,         freeable,  diag pga       
+         29056    4         7264 ,     session heap,         freeable,  auditLoadNextG 
+         27192    3         9064 ,         pga heap,             perm,  perm           
+         26640    9         2960 ,     session heap,         freeable,  kxs-heap-w     
+         26280    9         2920 ,       kxs-heap-w,         freeable,  sort subheap   
+         26248    1        26248 ,     session heap,             free,                 
+         25488    3         8496 ,         pga heap,             perm,  perm           
+         25320    3         8440 ,         pga heap,         recreate,  KFK_IO_SUBHEAP 
+         25224    3         8408 ,         pga heap,         recreate,  PLS PGA hp     
+         25104    3         8368 ,         pga heap,             perm,  perm           
+         24936    3         8312 ,    top call heap,         freeable,  callheap       
+         24840    3         8280 ,         pga heap,             perm,  perm           
+         24816    6         4136 ,         pga heap,             perm,  perm           
+         24816    3         8272 ,         callheap,             free,                 
+         24768    3         8256 ,         pga heap,         freeable,  koh-kghu call  
+         24768    3         8256 ,         pga heap,         freeable,  PLS PGA hp     
+         24744    3         8248 ,         pga heap,             perm,  perm           
+         24648    3         8216 ,   koh-kghu call ,         freeable,  pl/sql vc2     
+         24648    3         8216 ,   QERHN hash-joi,         freeable,  QERHNPRSA:rprv 
+         24192    4         6048 ,   dbgdutlHeapAll,             perm,  perm           
+         24096    6         4016 ,         diag pga,             perm,  perm           
+         23680   40          592 ,     session heap,         freeable,  kgiob          
+         22704    6         3784 ,         pga heap,             perm,  perm           
+         22680    9         2520 ,         pga heap,         freeable,  koh-kghu call h
+         22296    3         7432 ,         pga heap,             perm,  perm           
+         22272    6         3712 ,   Alloc environm,        mfreeable,  alloc error hnd
+         21672    3         7224 ,   auditLoadNextG,         freeable,  kzap audit cont
+         19824    3         6608 ,         pga heap,         freeable,  diag pga       
+         19704    3         6568 ,         diag pga,         freeable,  defFile:dbgtfNo
+         19440    3         6480 ,         pga heap,             perm,  perm           
+         19392    3         6464 ,       kxs-heap-w,         freeable,  Scan compressio
+         19392    3         6464 ,       kxs-heap-w,             free,                 
+         19344    3         6448 ,         pga heap,             perm,  perm           
+         18088    7         2584 ,   Alloc server h,             perm,  perm           
+         17664    4         4416 ,     session heap,         recreate,  auditLoadNextG 
+         17544   51          344 ,     session heap,         freeable,  kgsc ht segs   
+         17256    3         5752 ,         pga heap,             perm,  perm           
+         17056    4         4264 ,     session heap,         freeable,  Alloc environm 
+         16896    4         4224 ,         pga heap,         freeable,  Alloc environm 
+         16768   16         1048 ,     session heap,         recreate,  kxs-heap-p     
+         16736    4         4184 ,   Alloc environm,         freeable,  Alloc server h 
+         16736    4         4184 ,         diag pga,         freeable,  dbgdutlHeapAll 
+         16576    4         4144 ,   dbgdutlHeapAll,             perm,  perm           
+         16480    4         4120 ,     session heap,         freeable,  kxs-heap-w     
+         16224    4         4056 ,     session heap,         recreate,  sioheap_kdlwug 
+         16096    4         4024 ,     session heap,         freeable,  kodpai image   
+         15432    3         5144 ,   qmd_init_pga:b,         freeable,  Repository/Prot
+         15432    3         5144 ,   qmd_init_pga:b,         freeable,  Query/Schema/XO
+         15432    3         5144 ,   qmd_init_pga:b,         freeable,  Default Bucket 
+         15432    3         5144 ,   qmd_init_pga:b,         freeable,  Binary XML Buck
+         14760    3         4920 ,         pga heap,             perm,  perm           
+         14736    3         4912 ,         pga heap,             perm,  perm           
+         13008    3         4336 ,         pga heap,             perm,  perm           
+         12864    3         4288 ,    top call heap,         freeable,  callheap       
+         12744    3         4248 ,         callheap,             free,                 
+         12672    3         4224 ,   auditLoadNextG,         freeable,  kzap audit poli
+         12672    3         4224 ,   Alloc environm,        mfreeable,  alloc authentic
+         12552    3         4184 ,   Alloc environm,         freeable,  Alloc statemen 
+         12552    3         4184 ,   Alloc environm,         freeable,  Alloc authenti 
+         12552    3         4184 ,         pga heap,         freeable,  KFK_IO_SUBHEAP 
+         12552    3         4184 ,         diag pga,         freeable,  dbgtc heap     
+         12480    3         4160 ,         pga heap,         freeable,  koh-kghu call  
+         12480    3         4160 ,         pga heap,         freeable,  kbcpctxp       
+         12432    3         4144 ,         pga heap,         freeable,  diag pga       
+         12432    3         4144 ,         diag pga,         freeable,  dbgtc heap     
+         12432    3         4144 ,         diag pga,         freeable,  dbgeccFCInit:FC
+         12408    3         4136 ,    top call heap,         freeable,  callheap       
+         12360    3         4120 ,   koh-kghu call ,         freeable,  pl/sql vc2     
+         12360    3         4120 ,         pga heap,         freeable,  kfnorpg aiobff_
+         12360    3         4120 ,         pga heap,             perm,  perm           
+         12168    3         4056 ,         pga heap,         recreate,  KSFQ heap      
+         12048    2         6024 ,         pga heap,             free,                 
+         11712    3         3904 ,     top uga heap,             free,                 
+         11424    3         3808 ,   QERHN hash-joi,             free,                 
+         11304    3         3768 ,     session heap,         freeable,  kxs-heap-w     
+         11184    3         3728 ,       kxs-heap-w,         recreate,  sort subheap   
+         11160    9         1240 ,         pga heap,         recreate,  koh-kghu call  
+         10944   24          456 ,     session heap,             perm,  perm           
+         10824    3         3608 ,         pga heap,             perm,  perm           
+         10800    3         3600 ,         callheap,             free,                 
+         10624    8         1328 ,     session heap,         freeable,  kxsc: kkspbd0  
+         10480   10         1048 ,     session heap,         freeable,  kxs-heap-p     
+         10440    9         1160 ,     sort subheap,             free,                 
+         10248    1        10248 ,         pga heap,             free,                 
+         10008    3         3336 ,     session heap,             free,                 
+          9552    3         3184 ,         pga heap,         recreate,  diag pga       
+          9552    3         3184 ,         pga heap,         recreate,  XVMsubheap     
+          9472    4         2368 ,     session heap,         freeable,  kpuinit env han
+          9288    3         3096 ,         pga heap,         freeable,  KZTHSM SEGARR  
+          9072    6         1512 ,         pga heap,             perm,  perm           
+          8832   69          128 ,     session heap,             free,                 
+          8664    3         2888 ,       kxs-heap-w,         recreate,  QERHN hash-joi 
+          8592    3         2864 ,     session heap,             free,                 
+          8544    4         2136 ,     session heap,         freeable,  PLS UGA hp     
+          8472    3         2824 ,         diag pga,         freeable,  adr context    
+          8384    8         1048 ,     session heap,         recreate,  kxs-heap-d     
+          8288    4         2072 ,     session heap,         freeable,  kokl lob id has
+          8288    2         4144 ,   Alloc server h,             free,  F:kpoakv: al8kv
+          8256    3         2752 ,         diag pga,             perm,  perm           
+          8256    1         8256 ,     session heap,         freeable,  koh-kghu sessi 
+          8256    1         8256 ,         pga heap,         freeable,  diag pga       
+          8128    4         2032 ,     session heap,             perm,  perm           
+          8032    4         2008 ,     session heap,         recreate,  PLS UGA hp     
+          7800    3         2600 ,         pga heap,         freeable,  kjztprq struct 
+          7616    7         1088 ,   Alloc server h,             free,                 
+          7608    3         2536 ,         diag pga,         freeable,  fcctx:dbgeccFCI
+          7560    3         2520 ,   QERHN hash-joi,             perm,  perm           
+          7488    3         2496 ,         pga heap,             perm,  perm           
+          7104    3         2368 ,         pga heap,         freeable,  kpuinit env han
+          7080    3         2360 ,       kxs-heap-w,             free,                 
+          7056    9          784 ,     sort subheap,             free,                 
+          6984    3         2328 ,   Alloc statemen,             free,                 
+          6792    3         2264 ,     session heap,         freeable,  kxs-heap-w     
+          6792    3         2264 ,         pga heap,         freeable,  kews sqlstat st
+          6768    3         2256 ,         pga heap,             perm,  perm           
+          6672    3         2224 ,       kxs-heap-w,         freeable,  sort subheap   
+          6576    3         2192 ,   Alloc environm,         recreate,  Alloc statemen 
+          6480    3         2160 ,         pga heap,             perm,  perm           
+          6456    3         2152 ,         pga heap,         freeable,  5954.kgght     
+          6408    3         2136 ,         pga heap,         freeable,  PLS PGA hp     
+          6336    3         2112 ,         pga heap,         freeable,  koh-kghu call  
+          6216    3         2072 ,   koh-kghu call ,         freeable,  pl/sql vc2     
+          6216    3         2072 ,   QERHN hash-joi,         freeable,  QERHNPRSA:dmpv 
+          6216    3         2072 ,   QERHN hash-joi,         freeable,  QERHNPRSA:cirb 
+          6216    3         2072 ,         pga heap,         freeable,  kfnorpg aiosrq_
+          6072    3         2024 ,         diag pga,             perm,  perm           
+          6032    2         3016 ,       dbgtc heap,             free,                 
+          6024    3         2008 ,       kxs-heap-w,             perm,  perm           
+          5952    4         1488 ,     session heap,         freeable,  kgsc:kxsc      
+          5904    6          984 ,    top call heap,         recreate,  callheap       
+          5856    6          976 ,         diag pga,         freeable,  dbgr cache entr
+          5856    3         1952 ,   Alloc environm,        mfreeable,  alloc statement
+          5568    3         1856 ,     top uga heap,             free,                 
+          5448    3         1816 ,   Alloc statemen,        mfreeable,  alloc bind hndl
+          5280    3         1760 ,         pga heap,         freeable,  diag pga       
+          5248    1         5248 ,         pga heap,         freeable,  Alloc environm 
+          5216    4         1304 ,     session heap,             perm,  perm           
+          5208    1         5208 ,   Alloc environm,         freeable,  Alloc server h 
+          5040   63           80 ,   koh-kghu sessi,             free,                 
+          4864    4         1216 ,     session heap,         freeable,  Alloc environm 
+          4824    3         1608 ,   Alloc authenti,             free,                 
+          4728    3         1576 ,         pga heap,         freeable,  KFK_IO_SUBHEAP 
+          4584    3         1528 ,         pga heap,         freeable,  KGNFS pcontext 
+          4512    4         1128 ,     session heap,         freeable,  13753.kggec    
+          4496    2         2248 ,   Alloc server h,             free,                 
+          4448    4         1112 ,     session heap,         freeable,  auditLoadNextG 
+          4328    1         4328 ,         pga heap,             free,                 
+          4320    3         1440 ,     sort subheap,             free,                 
+          4080    6          680 ,     session heap,             free,                 
+          4056    1         4056 ,         diag pga,         recreate,  dbgdutlHeapAll 
+          3960    3         1320 ,   Alloc authenti,        mfreeable,  LDI internal fo
+          3912    3         1304 ,         pga heap,         recreate,  Alloc environm 
+          3768    3         1256 ,       kxs-heap-w,             perm,  perm           
+          3720    3         1240 ,    top call heap,         freeable,  callheap       
+          3696    2         1848 ,         diag pga,         recreate,  dbgdutlHeapAll 
+          3600    3         1200 ,         callheap,             free,                 
+          3568    1         3568 ,     session heap,         freeable,  kxs-heap-w     
+          3552    6          592 ,         pga heap,         freeable,  kopolal void   
+          3528    3         1176 ,   Alloc environm,         recreate,  Alloc authenti 
+          3384    3         1128 ,         pga heap,         freeable,  615.kggec      
+          3384    3         1128 ,         pga heap,         freeable,  5954.kgght     
+          3336    3         1112 ,   Alloc environm,             perm,  perm           
+          3328    4          832 ,     session heap,             perm,  perm           
+          3312    3         1104 ,         pga heap,         recreate,  joxp heap      
+          3312    3         1104 ,         pga heap,         freeable,  KZTHSM SEGARR  
+          3312    1         3312 ,         diag pga,         freeable,  dbgdutlHeapAll 
+          3232    4          808 ,     session heap,             perm,  perm           
+          3216    3         1072 ,   auditLoadNextG,             perm,  perm           
+          3216    3         1072 ,         pga heap,         freeable,  kopolal void   
+          3168    3         1056 ,   QERHN hash-joi,         freeable,  QERHNPRSA:selv 
+          3168    3         1056 ,     session heap,             free,                 
+          3144    3         1048 ,   koh-kghu sessi,         freeable,  pliost struct  
+          3144    3         1048 ,   koh-kghu call ,         freeable,  pmucalm coll   
+          3144    3         1048 ,   QERHN hash-joi,         freeable,  QERHNPRSA:filv 
+          3144    3         1048 ,   Alloc statemen,             perm,  perm           
+          3048    3         1016 ,     session heap,             free,                 
+          3024    6          504 ,         diag pga,         freeable,  dbgrim IMDA    
+          3024    6          504 ,         diag pga,         freeable,  dbgr lru list  
+          3008    8          376 ,     session heap,         freeable,  kgsc ht segs   
+          2952    3          984 ,         pga heap,             perm,  perm           
+          2848    4          712 ,     session heap,         recreate,  Alloc environm 
+          2808    3          936 ,         pga heap,         recreate,  qmd_init_pga:b 
+          2736    2         1368 ,   Alloc server h,             perm,  perm           
+          2712    3          904 ,         pga heap,         freeable,  diag pga       
+          2616    3          872 ,         pga heap,         freeable,  KGODM FHASHTABL
+          2592    3          864 ,         diag pga,         freeable,  dbgtc heap     
+          2496    4          624 ,     session heap,         recreate,  13753.kggec    
+          2496    3          832 ,     top uga heap,             free,                 
+          2448    3          816 ,         diag pga,             perm,  perm           
+          2432    2         1216 ,         pga heap,         freeable,  diag pga       
+          2400    3          800 ,         pga heap,             perm,  perm           
+          2376    3          792 ,   QERHN hash-joi,         freeable,  KXHF chunk     
+          2376    3          792 ,         callheap,             free,  F:kprbalo temp 
+          2368    4          592 ,     session heap,         freeable,  session languag
+          2368    4          592 ,     session heap,         freeable,  kzupci: kzalpag
+          2368    4          592 ,     session heap,         freeable,  Session NCHAR l
+          2368    1         2368 ,     session heap,             free,                 
+          2352    2         1176 ,         diag pga,         freeable,  dbgdutlHeapAll 
+          2288    2         1144 ,         pga heap,         freeable,  diag pga       
+          2256    3          752 ,    top call heap,             free,                 
+          2256    2         1128 ,       dbgtc heap,         freeable,  7114.kgght     
+          2256    2         1128 ,       dbgtc heap,         freeable,  7100.kggec     
+          2256    2         1128 ,       dbgtc heap,         freeable,  615.kggec      
+          2240   28           80 ,     session heap,         freeable,  parameter value
+          2208    2         1104 ,         diag pga,         freeable,  dbgdutlHeapAll 
+          2176    2         1088 ,       7114.kgght,             perm,  perm           
+          2176    2         1088 ,       7100.kggec,             perm,  perm           
+          2176    2         1088 ,        615.kggec,             perm,  perm           
+          2144    4          536 ,     session heap,         freeable,  kokl transactio
+          2112    4          528 ,     session heap,             free,                 
+          2112    3          704 ,   QERHN hash-joi,             perm,  perm           
+          2112    1         2112 ,     session heap,             free,                 
+          2064    3          688 ,   qmd_init_pga:b,             free,                 
+          2064    3          688 ,       kxs-heap-w,         freeable,  sort           
+          2000    2         1000 ,   dbgdutlHeapAll,             perm,  perm           
+          1984    8          248 ,     session heap,         freeable,  kgiob          
+          1984    2          992 ,   dbgdutlHeapAll,             perm,  perm           
+          1944    3          648 ,         diag pga,         recreate,  dbgtc heap     
+          1872    3          624 ,         pga heap,         recreate,  615.kggec      
+          1872    3          624 ,         pga heap,         recreate,  5954.kgght     
+          1848    3          616 ,       kxs-heap-w,             perm,  perm           
+          1848    1         1848 ,     session heap,             free,                 
+          1848    1         1848 ,         diag pga,         freeable,  dbgdutlHeapAll 
+          1824    3          608 ,   Alloc authenti,        mfreeable,  session languag
+          1824    3          608 ,   Alloc authenti,        mfreeable,  session NCHAR l
+          1824    3          608 ,   Alloc authenti,        mfreeable,  client session 
+          1776    3          592 ,         pga heap,         freeable,  krbabrPgaRespMs
+          1776    3          592 ,         pga heap,         freeable,  krbabrPgaReqMsg
+          1776    3          592 ,         diag pga,         freeable,  dbgdInitPrsCtx 
+          1752    3          584 ,         diag pga,         freeable,  tctx:dbgtcNotif
+          1728    9          192 ,   Alloc server h,        mfreeable,  allocate tsm co
+          1704    3          568 ,         pga heap,         freeable,  joxp ht heap   
+          1704    3          568 ,         pga heap,         freeable,  joxp heap      
+          1632    3          544 ,   QERHN hash-joi,         freeable,  kcblin_internal
+          1608    3          536 ,   QERHN hash-joi,         freeable,  QERHNPRSA:dmfv 
+          1608    3          536 ,         pga heap,             perm,  perm           
+          1584    3          528 ,   Alloc statemen,             free,                 
+          1584    3          528 ,    top call heap,             perm,  perm           
+          1560    3          520 ,   Alloc environm,             perm,  perm           
+          1512    3          504 ,         diag pga,         freeable,  tagctx:dbgeccTa
+          1504    4          376 ,     session heap,         freeable,  PLS cca hp desc
+          1472    8          184 ,     session heap,         freeable,  audXscLstce:kza
+          1440    4          360 ,     session heap,         freeable,  kgsc ht segs   
+          1408   16           88 ,     session heap,         freeable,  parameter value
+          1392    3          464 ,       kxs-heap-w,             free,                 
+          1392    3          464 ,         pga heap,         freeable,  keumnfy:1      
+          1376    1         1376 ,     session heap,             free,                 
+          1368    3          456 ,         pga heap,         freeable,  kopolal void   
+          1368    1         1368 ,     session heap,             free,                 
+          1320    3          440 ,         callheap,         freeable,  Allocated in pe
+          1296    3          432 ,   Alloc environm,             free,                 
+          1296    3          432 ,         pga heap,         freeable,  krbabrPgaStbyRe
+          1296    3          432 ,         pga heap,             perm,  perm           
+          1288    7          184 ,     session heap,         freeable,  kgiobdtb       
+          1272    3          424 ,       kxs-heap-w,         freeable,  sort           
+          1272    3          424 ,       kxs-heap-w,         freeable,  QERHN Heap Desc
+          1248    6          208 ,         pga heap,             perm,  perm           
+          1248    4          312 ,     session heap,             free,                 
+          1248    3          416 ,         callheap,         freeable,  Allocated in pe
+          1248    2          624 ,       dbgtc heap,         recreate,  7114.kgght     
+          1248    2          624 ,       dbgtc heap,         recreate,  7100.kggec     
+          1248    2          624 ,       dbgtc heap,         recreate,  615.kggec      
+          1216    4          304 ,     session heap,         freeable,  bcheapd_kdlwuga
+          1200    2          600 ,   dbgdutlHeapAll,             perm,  perm           
+          1200    2          600 ,         pga heap,         freeable,  diag pga       
+          1152    9          128 ,   Alloc server h,             perm,  perm           
+          1144    1         1144 ,         pga heap,             free,                 
+          1128    3          376 ,     session heap,             free,                 
+          1128    3          376 ,         pga heap,         freeable,  PLS cca hp desc
+          1120    4          280 ,     session heap,         freeable,  kokahin kgglk  
+          1120    2          560 ,         diag pga,         freeable,  dbgdutlHeapAll 
+          1104    2          552 ,         pga heap,         freeable,  diag pga       
+          1080    9          120 ,   koh-kghu call ,             free,                 
+          1056   12           88 ,   Alloc environm,             free,                 
+          1056    3          352 ,         callheap,         freeable,  Typecheck heap 
+          1056    2          528 ,   dbgdutlHeapAll,         freeable,  dbgdaMakeArgNod
+          1040    2          520 ,   dbgdutlHeapAll,             perm,  perm           
+          1032    3          344 ,       kxs-heap-w,         freeable,  sort subheap   
+          1032    3          344 ,         pga heap,         freeable,  kopolal void   
+          1032    3          344 ,         pga heap,             perm,  perm           
+          1024    2          512 ,         diag pga,         freeable,  dbgdutlHeapAll 
+           992    4          248 ,     session heap,         freeable,  kgiobdtb       
+           968   11           88 ,     session heap,             free,                 
+           960   24           40 ,         diag pga,         freeable,  dbgeccTbvInit:t
+           960    6          160 ,         diag pga,         freeable,  dbgdutlHeapAllo
+           960    3          320 ,     top uga heap,             free,                 
+           944    2          472 ,   dbgdutlHeapAll,             perm,  perm           
+           936    3          312 ,         diag pga,         freeable,  dbgeInitGlobalC
+           888    3          296 ,       kxs-heap-w,         freeable,  Longop hint    
+           864    4          216 ,     session heap,         freeable,  kodmcon kodmc  
+           848    1          848 ,         diag pga,         freeable,  dbgdutlHeapAll 
+           832    8          104 ,     session heap,         freeable,  parameter value
+           832    4          208 ,     session heap,         freeable,  sioheapd_kdlwug
+           832    1          832 ,     session heap,         freeable,  kxs-heap-w     
+           816    3          272 ,   Alloc authenti,             free,                 
+           776    1          776 ,     session heap,         freeable,  kxs-heap-p     
+           768    6          128 ,   Alloc environm,             perm,  perm           
+           768    6          128 ,       kxs-heap-w,             perm,  perm           
+           768    6          128 ,         callheap,             perm,  perm           
+           768    4          192 ,     session heap,         freeable,  audXscLstce:kza
+           736    4          184 ,     session heap,         freeable,  kzxauscini     
+           736    4          184 ,     session heap,         freeable,  auditLoadNextGe
+           736    4          184 ,     session heap,         freeable,  13753.kggec    
+           720    3          240 ,   Alloc environm,        mfreeable,  alloc service h
+           720    1          720 ,     session heap,         freeable,  kxs-heap-p     
+           696    3          232 ,         pga heap,         freeable,  iovecheapd_kdlw
+           640    2          320 ,       7114.kgght,             free,                 
+           640    2          320 ,       7100.kggec,             free,                 
+           640    2          320 ,        615.kggec,             free,                 
+           624    3          208 ,         pga heap,         freeable,  KFIO PGA struct
+           616   11           56 ,     session heap,             free,                 
+           600    3          200 ,         diag pga,             free,                 
+           600    1          600 ,         pga heap,             free,                 
+           576   12           48 ,     session heap,         freeable,  audtni:allocate
+           576   12           48 ,     session heap,         freeable,  audbni:allocate
+           576    3          192 ,   Alloc environm,             free,                 
+           560    7           80 ,     session heap,             free,                 
+           552    3          184 ,         pga heap,         freeable,  sdbgrf: iosb   
+           552    3          184 ,         pga heap,         freeable,  615.kggec      
+           552    3          184 ,         pga heap,         freeable,  5954.kgght     
+           552    3          184 ,         diag pga,             free,                 
+           552    1          552 ,         pga heap,         freeable,  Alloc environm 
+           544    4          136 ,     session heap,         freeable,  parameter value
+           544    2          272 ,       dbgtc heap,             free,                 
+           528   11           48 ,     session heap,         freeable,  audXscLstcc:kza
+           528    3          176 ,   QERHN hash-joi,             free,                 
+           528    3          176 ,         pga heap,             free,                 
+           528    2          264 ,   dbgdutlHeapAll,             perm,  perm           
+           512    4          128 ,     session heap,         freeable,  kqlpWrntoStr:st
+           512    4          128 ,     session heap,             perm,  perm           
+           512    1          512 ,   Alloc environm,         freeable,  Alloc server h 
+           504    3          168 ,         pga heap,         freeable,  KFIO heap      
+           480    3          160 ,         pga heap,         freeable,  regheapd_kdlwpg
+           480    3          160 ,         pga heap,         freeable,  qmd_init_pga:bu
+           480    3          160 ,         pga heap,         freeable,  ksws pq help sv
+           480    3          160 ,         pga heap,         freeable,  KSZ pga subheap
+           480    3          160 ,         pga heap,         freeable,  KSFQ heap descr
+           480    3          160 ,         diag pga,         freeable,  heap:dbgtcNotif
+           464    2          232 ,       dbgtc heap,             free,                 
+           456    3          152 ,   QERHN hash-joi,             free,                 
+           456    3          152 ,   Alloc statemen,        mfreeable,  statement text 
+           456    3          152 ,         pga heap,         freeable,  KGODM FHASHTABL
+           456    3          152 ,         pga heap,             perm,  perm           
+           448    4          112 ,     session heap,         freeable,  parameter value
+           448    4          112 ,     session heap,         freeable,  kwqmahal       
+           448    4          112 ,     session heap,         freeable,  kwqidwh memory 
+           448    4          112 ,     session heap,         freeable,  kwqica hash tab
+           448    4          112 ,     session heap,         freeable,  kwqb context me
+           448    4          112 ,     session heap,         freeable,  kwqaalag       
+           432    3          144 ,         pga heap,         freeable,  control file ca
+           432    3          144 ,         diag pga,         freeable,  dbgr-meta-data 
+           408    3          136 ,     session heap,             free,                 
+           408    3          136 ,         pga heap,         freeable,  KCFIS GCTX     
+           400    2          200 ,       dbgtc heap,             free,                 
+           400    1          400 ,     session heap,             free,                 
+           384    8           48 ,     session heap,         freeable,  audboi:allocate
+           384    4           96 ,     session heap,         freeable,  parameter value
+           384    3          128 ,   qmd_init_pga:b,             perm,  perm           
+           384    3          128 ,   koh-kghu sessi,             perm,  perm           
+           384    3          128 ,   koh-kghu call ,             perm,  perm           
+           384    3          128 ,   auditLoadNextG,             perm,  perm           
+           384    3          128 ,   QERHN hash-joi,             perm,  perm           
+           384    3          128 ,   Fixed UGA heap,             perm,  perm           
+           384    3          128 ,   Alloc statemen,             perm,  perm           
+           384    3          128 ,   Alloc authenti,             perm,  perm           
+           384    3          128 ,    top call heap,             perm,  perm           
+           384    3          128 ,     top uga heap,             perm,  perm           
+           384    3          128 ,     sort subheap,             perm,  perm           
+           384    3          128 ,         pga heap,             perm,  perm           
+           384    3          128 ,         diag pga,         freeable,  fstack:dbgtfNot
+           384    3          128 ,         diag pga,         freeable,  dbgr cache entr
+           384    3          128 ,         diag pga,             perm,  perm           
+           368    2          184 ,     session heap,             free,                 
+           368    2          184 ,       dbgtc heap,         freeable,  7114.kgght     
+           368    2          184 ,       dbgtc heap,         freeable,  7100.kggec     
+           368    2          184 ,       dbgtc heap,         freeable,  615.kggec      
+           360    3          120 ,         pga heap,         freeable,  skgfzctx       
+           352    4           88 ,     session heap,         freeable,  kdlw:UGA state 
+           336    3          112 ,   Alloc statemen,        mfreeable,  alloc stmt cach
+           336    3          112 ,         pga heap,         freeable,  skgdllctx      
+           336    3          112 ,         pga heap,         freeable,  dbgdInitEventGr
+           336    3          112 ,         pga heap,             free,                 
+           320    4           80 ,     session heap,         freeable,  system trigger 
+           320    4           80 ,     session heap,         freeable,  dbgdInitEventGr
+           312    3          104 ,   Alloc statemen,        mfreeable,  realloc kwfcstm
+           312    3          104 ,   Alloc authenti,        mfreeable,  alloc stmtcache
+           312    3          104 ,         pga heap,         freeable,  kgopc pcontext 
+           312    3          104 ,         pga heap,         freeable,  kfnorpg        
+           288    6           48 ,         diag pga,         freeable,  dbgeccTbvInit:t
+           288    4           72 ,     session heap,         freeable,  koh-kghu sessio
+           288    4           72 ,     session heap,         freeable,  kgsc ht segs   
+           288    3           96 ,         pga heap,         freeable,  KJZT context   
+           288    3           96 ,         diag pga,         freeable,  dbgdpFillPrsCtx
+           288    2          144 ,   dbgdutlHeapAll,             free,                 
+           264    3           88 ,   QERHN hash-joi,         freeable,  kllcqc:kllcq   
+           264    3           88 ,     sort subheap,             free,                 
+           264    3           88 ,         pga heap,             free,                 
+           256    4           64 ,     session heap,         freeable,  kzialslti      
+           256    4           64 ,     session heap,         freeable,  audboi:allocate
+           256    4           64 ,     session heap,             free,                 
+           256    2          128 ,   dbgdutlHeapAll,             perm,  perm           
+           256    2          128 ,       dbgtc heap,             perm,  perm           
+           256    2          128 ,       7114.kgght,             perm,  perm           
+           256    2          128 ,       7100.kggec,             perm,  perm           
+           256    2          128 ,        615.kggec,             perm,  perm           
+           240    6           40 ,         diag pga,         freeable,  dbgr lru list  
+           240    6           40 ,         diag pga,         freeable,  dbgr cache entr
+           240    6           40 ,         callheap,         freeable,  ICD allocated r
+           240    3           80 ,         pga heap,         freeable,  koh-kghu call h
+           240    3           80 ,         diag pga,         freeable,  dbgr lru list  
+           240    3           80 ,         diag pga,         freeable,  dbgdInitEventGr
+           224    4           56 ,     session heap,         freeable,  ksulu : ksulueo
+           224    2          112 ,       7114.kgght,             perm,  perm           
+           224    2          112 ,       7100.kggec,             perm,  perm           
+           224    2          112 ,        615.kggec,             perm,  perm           
+           224    1          224 ,     session heap,             free,                 
+           216    3           72 ,     session heap,             free,                 
+           216    3           72 ,         pga heap,         freeable,  krbabrPgaReqCtx
+           208    2          104 ,         pga heap,             free,                 
+           192    4           48 ,     session heap,         freeable,  kwqmahal       
+           192    4           48 ,     session heap,         freeable,  kwqidwh memory 
+           192    4           48 ,     session heap,         freeable,  kwqica hash tab
+           192    4           48 ,     session heap,         freeable,  kwqb context me
+           192    4           48 ,     session heap,         freeable,  kwqaalag       
+           192    3           64 ,       kxs-heap-w,         freeable,  Extent Starting
+           192    3           64 ,       kxs-heap-w,         freeable,  Extent Sizes   
+           192    3           64 ,         pga heap,         freeable,  kzsna:login nam
+           192    3           64 ,         pga heap,         freeable,  krbrpcact      
+           192    3           64 ,         pga heap,         freeable,  allocate kzthsm
+           192    3           64 ,         pga heap,         freeable,  KFVACFS PGA    
+           192    3           64 ,         pga heap,             free,                 
+           168    3           56 ,   qmd_init_pga:b,         freeable,  qmd_init_pga:bu
+           168    3           56 ,   QERHN hash-joi,         freeable,  bfit:qerhnFitIn
+           168    3           56 ,   Alloc statemen,        mfreeable,  Bind length vec
+           168    3           56 ,         pga heap,         freeable,  KGODM pga conte
+           168    3           56 ,         pga heap,         freeable,  KCFIS GCTX PGAL
+           168    3           56 ,         pga heap,             perm,  perm           
+           160    4           40 ,   dbgdutlHeapAll,         freeable,  dbgdapSetArg:bu
+           160    4           40 ,     session heap,         freeable,  kttuga         
+           160    4           40 ,     session heap,         freeable,  koklug hxctx in
+           160    4           40 ,     session heap,         freeable,  koklug hlctx in
+           160    4           40 ,     session heap,         freeable,  koddcal void   
+           160    4           40 ,     session heap,         freeable,  kdlu:UGA state 
+           144    3           48 ,         pga heap,             free,                 
+           144    2           72 ,   dbgdutlHeapAll,         freeable,  dbgdaMakeActNod
+           128    2           64 ,   dbgdutlHeapAll,             free,                 
+           120    3           40 ,       kxs-heap-w,         freeable,  Skip Extents   
+           120    3           40 ,         pga heap,         freeable,  control file ca
+           112    2           56 ,   dbgdutlHeapAll,         freeable,  dbgdaLinkAction
+           112    2           56 ,   dbgdutlHeapAll,             free,                 
+           112    2           56 ,   Alloc server h,        mfreeable,  alloc dblink   
+            72    1           72 ,     session heap,         freeable,  audXscLstcc:kza
+

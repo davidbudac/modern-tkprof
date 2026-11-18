@@ -33,6 +33,8 @@ type Reader struct {
 	tocOnce sync.Once
 	titles  map[int]string
 
+	readingState // the readings kept, see reading.go
+
 	closer func() error // OpenFile: closes the line index
 }
 
@@ -70,6 +72,12 @@ func (r *Reader) Close() error {
 	c := r.closer
 	r.closer = nil
 	return c()
+}
+
+func wrapNoNode(id string) error { return fmt.Errorf("%w: %q", ErrNoNode, id) }
+
+func wrapNoNodeLines(id string, lines int) error {
+	return fmt.Errorf("%w: %q (the file has %d lines)", ErrNoNode, id, lines)
 }
 
 // nodeID makes the id of a node: kind, first and last line, the lines of its heading and the rules its own
@@ -198,6 +206,7 @@ func (b *builder) pop(to int) {
 	}
 	if h.to == 0 {
 		h.to = to
+		h.cut = h.end != endNone
 	}
 	if h.to < h.from+h.hl-1 {
 		h.to = h.from + h.hl - 1
@@ -226,7 +235,7 @@ func (b *builder) emitTop(h *head) {
 func headNode(h *head, base profile) Node {
 	n := Node{ID: nodeID(h.kind, h.from, h.to, h.hl, base|ownProfile(h.kind)), Kind: h.kind, Title: h.title, Sub: h.sub,
 		From: h.from, To: h.to, Lines: h.to - h.from + 1, HasChildren: h.nkid > 0,
-		N: h.n, Name: h.name, Depth: h.depth, Size: h.size}
+		N: h.n, Name: h.name, Depth: h.depth, Size: h.size, Cut: h.cut, Reading: ReadingKindOf(h.kind)}
 	if h.kind == "extents" {
 		n.Sub = pluralN(h.nkid, "extent")
 	}

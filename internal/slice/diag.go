@@ -17,15 +17,22 @@ import (
 //	GET /api/diag/file                  diag.File: facts of the file, its sections and its top-level outline
 //	GET /api/diag/outline?node=ID[&after=N]   {node, children, more, next}: the children of a node, read from
 //	                                    the lines of that node alone, at most diag.Cap of them; "root" is the top level
-//	GET /api/diag/section?i=N           the reading of section N of diag.File.sections: 404 "no reading for this
-//	                                    kind of section" (the readings are later stages)
+//	GET /api/diag/reading?node=ID       the reading of a node: {kind, ...} (diag.HeapReading, PGASummary, PGADetail);
+//	                                    404 "no reading for this kind of section" for a node whose kind has none;
+//	                                    400 without node; 404 for an id that is not a node of the file
+//	GET /api/diag/reading/lines?node=ID&comment=TEXT[&type=T][&after=N]
+//	                                    for a heap reading: the numbers of the chunk lines of the extents whose
+//	                                    comment group is TEXT (HeapComment.comment; "comment=" is the blank
+//	                                    comment) and, with type, whose type is T (grouped: recr, or as printed),
+//	                                    ascending, after line N, at most diag.LinesCap per answer:
+//	                                    {node, lines, more, next, total}. comment or type is required.
 //
 // Errors are the engine's envelope {"error": {"code", "message"}}, also here: a diag session is the only
 // one that serves these routes; for any other session they answer 404 "not a diag session".
 
 // DiagRoutes are the paths a DiagServer serves (GET).
 func DiagRoutes() []string {
-	return []string{"/api/diag/file", "/api/diag/outline", "/api/diag/section"}
+	return []string{"/api/diag/file", "/api/diag/outline", "/api/diag/reading", "/api/diag/reading/lines"}
 }
 
 // DiagServer serves the routes of one diag file. The scan of the file is made once and kept; the lines the
@@ -106,15 +113,19 @@ func (d *DiagServer) FileHandler() http.Handler { return d.handler(d.serveFile) 
 // OutlineHandler serves GET /api/diag/outline.
 func (d *DiagServer) OutlineHandler() http.Handler { return d.handler(d.serveOutline) }
 
-// SectionHandler serves GET /api/diag/section.
-func (d *DiagServer) SectionHandler() http.Handler { return d.handler(d.serveSection) }
+// ReadingHandler serves GET /api/diag/reading.
+func (d *DiagServer) ReadingHandler() http.Handler { return d.handler(d.serveReading) }
 
-// Handler serves the three routes.
+// ReadingLinesHandler serves GET /api/diag/reading/lines.
+func (d *DiagServer) ReadingLinesHandler() http.Handler { return d.handler(d.serveReadingLines) }
+
+// Handler serves the routes.
 func (d *DiagServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/api/diag/file", d.FileHandler())
 	mux.Handle("/api/diag/outline", d.OutlineHandler())
-	mux.Handle("/api/diag/section", d.SectionHandler())
+	mux.Handle("/api/diag/reading", d.ReadingHandler())
+	mux.Handle("/api/diag/reading/lines", d.ReadingLinesHandler())
 	return mux
 }
 
@@ -225,22 +236,78 @@ func (d *DiagServer) serveOutline(w http.ResponseWriter, r *http.Request) {
 	writeJSONBytes(w, b)
 }
 
-func (d *DiagServer) serveSection(w http.ResponseWriter, r *http.Request) {
-	i, err := strconv.Atoi(r.URL.Query().Get("i"))
-	if err != nil {
-		writeEnvelope(w, http.StatusBadRequest, "bad_request", "i: want the number of a section (diag.File.sections)")
+// readerError answers an error of the reader: 404 for an unknown node or a node without a reading.
+func readerError(w http.ResponseWriter, err error) {
+	switch {
+	case isNoNode(err):
+		writeEnvelope(w, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, diag.ErrNoReading):
+		writeEnvelope(w, http.StatusNotFound, "not_found", err.Error())
+	default:
+		writeEnvelope(w, http.StatusInternalServerError, "internal", err.Error())
+	}
+}
+
+func (d *DiagServer) serveReading(w http.ResponseWriter, r *http.Request) {
+	node := r.URL.Query().Get("node")
+	if node == "" {
+		writeEnvelope(w, http.StatusBadRequest, "bad_request", "node: want the id of a node (diag.Node.id)")
 		return
 	}
-	sc, err := d.Scan()
+	rd, err := d.Reader()
 	if err != nil {
 		writeEnvelope(w, http.StatusInternalServerError, "internal", err.Error())
 		return
 	}
-	if i < 0 || i >= len(sc.File.Sections) {
-		writeEnvelope(w, http.StatusNotFound, "not_found", "no such section")
+	out, err := rd.Reading(node)
+	if err != nil {
+		readerError(w, err)
 		return
 	}
-	writeEnvelope(w, http.StatusNotFound, "not_found", "no reading for this kind of section")
+	b, err := json.Marshal(out)
+	if err != nil {
+		writeEnvelope(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
+	writeJSONBytes(w, b)
+}
+
+func (d *DiagServer) serveReadingLines(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	node := q.Get("node")
+	if node == "" {
+		writeEnvelope(w, http.StatusBadRequest, "bad_request", "node: want the id of a node (diag.Node.id)")
+		return
+	}
+	if !q.Has("comment") && q.Get("type") == "" {
+		writeEnvelope(w, http.StatusBadRequest, "bad_request", "comment or type: want the comment group and/or the type of the chunks")
+		return
+	}
+	after := 0
+	if a := q.Get("after"); a != "" {
+		n, err := strconv.Atoi(a)
+		if err != nil || n < 0 {
+			writeEnvelope(w, http.StatusBadRequest, "bad_request", "after: want a line number, 0 or more")
+			return
+		}
+		after = n
+	}
+	rd, err := d.Reader()
+	if err != nil {
+		writeEnvelope(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
+	out, err := rd.HeapLines(node, q.Get("comment"), q.Has("comment"), q.Get("type"), after)
+	if err != nil {
+		readerError(w, err)
+		return
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		writeEnvelope(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
+	writeJSONBytes(w, b)
 }
 
 func isNoNode(err error) bool { return errors.Is(err, diag.ErrNoNode) }

@@ -1602,25 +1602,90 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /s/{id}/api/diag/section:
+  /s/{id}/api/diag/reading:
     get:
-      operationId: sessionDiagSection
-      summary: The reading of one section of a diag session's file
+      operationId: sessionDiagReading
+      summary: The computed reading of a node of a diag session's outline
       description: |
-        The computed reading of section `i` of `diag.File.sections` (a heap's totals, a call stack, a process
-        state). The readings are later stages of the dump reader: for now every section answers 404
-        (envelope) "no reading for this kind of section"; so does a session that is not a diag one, with
-        another message.
+        The reading of node `node`: a JSON object whose first field is `kind` (the same string as
+        `DiagNode.reading`) followed by the fields of that kind: `heap` (`DiagHeapReading`: where a heap
+        dump's memory is by chunk type, comment and sub-heap, and its free lists, checked against the totals the
+        dump prints), `pga-summary` (`DiagPGASummary`) and `pga-detail` (`DiagPGADetail`: the PGA dumps' own
+        tables). Later stages add more kinds. Readings are addressed by node because a heap dump can sit inside
+        another section (an errorstack, a banner of a PGA summary). A reading is computed on demand by scanning
+        the node's own lines (a heap of 500,000 lines in well under a second) and kept in a small cache; nothing
+        is persisted. 404 (envelope) for a node whose kind has no reading ("no reading for this kind of
+        section"), for an id that is not a node of the file, and for a session that is not a diag one; 400 without
+        `node`.
       parameters:
         - $ref: "#/components/parameters/SessionID"
-        - name: i
+        - name: node
           in: query
           required: true
-          description: 0-based index into `diag.File.sections`
+          description: "a node id (`diag.Node.id`) whose `reading` is set"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: the reading
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagReading"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/reading/lines:
+    get:
+      operationId: sessionDiagReadingLines
+      summary: The chunk lines of a comment of a heap reading
+      description: |
+        For a node of kind heap: the numbers of the chunk lines of its extents whose comment group is `comment`
+        (`DiagHeapComment.comment`, the part before "^"; `comment=` with nothing after it is the blank comment of
+        a free chunk) and, with `type`, whose type is `type` (a grouped type such as `recr`, or a printed one such
+        as `recrPC001`), in ascending order, after line `after`. At most 2000 are listed per answer; `more` says
+        how many follow and `next` is the `after` that asks for the next page. `comment` or `type` is required
+        (400). 404 (envelope) for a node that is not a heap dump or not a node of the file.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: node
+          in: query
+          required: true
+          description: "the id of a heap node"
+          schema:
+            type: string
+        - name: comment
+          in: query
+          required: false
+          description: the comment group (as `DiagHeapComment.comment` lists it)
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: false
+          description: the chunk type, grouped (`recr`) or as printed
+          schema:
+            type: string
+        - name: after
+          in: query
+          required: false
+          description: a line number; only lines after it are listed (the `next` of the answer before)
           schema:
             type: integer
             minimum: 0
+            default: 0
       responses:
+        "200":
+          description: the chunk lines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagHeapLines"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3728,6 +3793,14 @@ components:
           items:
             $ref: "#/components/schemas/DiagDigestNode"
           description: every node of the top level with its own children (one level down, at most 100)
+        readings:
+          type: object
+          description: "the readings of the nodes of `outline` (top level and listed children) that have one, by node id: the first 200 of them in file order, as long as their JSON stays under 8 MB; each value is what `api/diag/reading` answers for that node. A heap dump nested deeper in a section (inside an errorstack, inside a banner of a PGA summary) is not here."
+          additionalProperties:
+            $ref: "#/components/schemas/DiagReading"
+        readingsOmitted:
+          type: integer
+          description: nodes with a reading that did not get one (the bounds above)
     DiagDigestNode:
       description: a node of the top level and its children
       allOf:
@@ -3860,6 +3933,10 @@ components:
         cut:
           type: boolean
           description: a section whose end line was not reached
+        reading:
+          type: string
+          enum: [heap, pga-summary, pga-detail]
+          description: "the kind of the computed reading the node has (`api/diag/reading?node=`); absent when it has none. Later stages add callstack, procstate, hang, deadlock, sysstate."
     DiagOutline:
       type: object
       description: the children of a node (diag.Outline)
@@ -3880,6 +3957,773 @@ components:
         next:
           type: integer
           description: when more > 0, the `after` to ask for the next page
+    DiagReading:
+      description: "a computed reading of a node; the first field `kind` says which (docs/PLAN-DIAG.md § The readings)"
+      oneOf:
+        - $ref: "#/components/schemas/DiagHeapReading"
+        - $ref: "#/components/schemas/DiagPGASummary"
+        - $ref: "#/components/schemas/DiagPGADetail"
+      discriminator:
+        propertyName: kind
+        mapping:
+          heap: "#/components/schemas/DiagHeapReading"
+          pga-summary: "#/components/schemas/DiagPGASummary"
+          pga-detail: "#/components/schemas/DiagPGADetail"
+    DiagHeapReading:
+      type: object
+      description: 'the reading of a heap dump (diag.HeapReading): where the memory is, by chunk type, comment and sub-heap, and the free lists, checked against the totals the dump prints. Answer of api/diag/reading for a node of kind heap (`reading` "heap"); the first field is `kind`.'
+      required: [kind, node, name, desc, from, to, lines, extents, chunks, bytes, heapSize, flags, checks, byType, byComment, comments, freeLists, subheaps, subheapsTotal, largest, run]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"heap"'
+        node:
+          type: string
+          description: 'the id of the node'
+        name:
+          type: string
+          description: 'the heap name as printed, trimmed ("pga heap", "sga heap(1,0)")'
+        desc:
+          type: string
+          description: 'the heap descriptor as printed ("0x7f952ce9a220")'
+        parent:
+          type: string
+          description: 'the descriptor of the parent heap; absent for a top heap'
+        parentNode:
+          type: string
+          description: 'the node of the parent heap''s own dump, when the file holds it (in the same dump run)'
+        depth:
+          type: integer
+          description: '"dsx heap depth"; absent when the header has none'
+        pdb:
+          type: integer
+          description: '"pdb id" of the header'
+        from:
+          type: integer
+          description: 'the node''s first line'
+        to:
+          type: integer
+          description: 'the node''s last line'
+        lines:
+          type: integer
+          description: 'to - from + 1'
+        extents:
+          type: integer
+          description: 'EXTENT lines'
+        chunks:
+          type: integer
+          description: 'chunk lines of the extents'
+        bytes:
+          type: integer
+          description: 'their sum: what the heap check compares with "Total heap size"'
+        heapSize:
+          type: integer
+          description: '"dsx heap size" of the header; 0 when it has none'
+        flags:
+          $ref: "#/components/schemas/DiagHeapFlags"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapCheck"
+          description: 'the sums compared with the totals the dump prints, in this order: heap, free, perm, and reserved when the dump has reserved free lists'
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapType"
+          description: 'by bytes, largest first'
+        byComment:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapComment"
+          description: 'the 300 comments with the most bytes (largest first, ties by name); otherComments sums the rest'
+        otherComments:
+          allOf:
+            - $ref: "#/components/schemas/DiagHeapOther"
+          description: 'the comments beyond the 300 listed, summed; absent when all are listed'
+        comments:
+          type: integer
+          description: 'how many comments there are in all (byComment and the ones in otherComments)'
+        freeLists:
+          $ref: "#/components/schemas/DiagHeapFreeLists"
+        permanent:
+          $ref: "#/components/schemas/DiagHeapPermanent"
+        unpinned:
+          $ref: "#/components/schemas/DiagHeapUnpinned"
+        subheaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapSub"
+          description: 'by size, largest first, at most 100; otherSubheaps sums the rest'
+        subheapsTotal:
+          type: integer
+          description: 'how many sub-heaps the dump shows in all'
+        otherSubheaps:
+          allOf:
+            - $ref: "#/components/schemas/DiagHeapOther"
+          description: 'the sub-heaps beyond the 100 listed (count, chunks, bytes held)'
+        largest:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapLargest"
+          description: 'the "N LARGEST SUB HEAPS" block, in the order printed'
+        run:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapRun"
+          description: 'the heaps of the same dump run (the heaps one command dumped, in file order), at most 400; a heap nested in another section is its own run'
+        runMore:
+          type: integer
+          description: 'heaps of the run left out of run'
+    DiagHeapFlags:
+      type: object
+      description: 'what limits the reading'
+      additionalProperties: false
+      properties:
+        contents:
+          allOf:
+            - $ref: "#/components/schemas/DiagHeapContents"
+          description: 'the dump holds memory contents ("Dump of memory" blocks); they are skipped and counted'
+        pdbFiltered:
+          type: integer
+          description: 'the dump was taken inside a PDB and leaves out the chunks of other containers: the pdb id it is limited to'
+        sampled:
+          type: boolean
+          description: '"Dumping sample extents": some extents only, no totals'
+        sampledPercent:
+          type: integer
+          description: 'the percent of free memory the dump names'
+        noExtents:
+          type: boolean
+          description: 'the header is followed by no extent (the heap of a latch directory, IMCA_RO)'
+        cut:
+          type: boolean
+          description: 'the dump stops before its end'
+    DiagHeapContents:
+      type: object
+      description: 'the memory contents a dump taken with contents holds'
+      required: [blocks, lines]
+      additionalProperties: false
+      properties:
+        blocks:
+          type: integer
+          description: '"Dump of memory from ..." lines'
+        lines:
+          type: integer
+          description: 'those lines and the rows under them (all skipped)'
+    DiagHeapCheck:
+      type: object
+      description: 'one comparison of a sum over chunk lines with a total the dump prints'
+      required: [name, what, state, computed]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: 'heap, free, perm or reserved'
+        what:
+          type: string
+          description: 'in words, e.g. "chunks of the extents against Total heap size"'
+        state:
+          type: string
+          description: 'match, differ (with diff) or none (with reason)'
+        computed:
+          type: integer
+          description: 'the sum over the chunk lines'
+        printed:
+          type: integer
+          description: 'the number on the dump''s line; absent when the dump has none'
+        line:
+          type: integer
+          description: 'the printed line''s number'
+        diff:
+          type: integer
+          description: 'computed - printed, for differ'
+        reason:
+          type: string
+          description: 'why the check could not be made (state none), in plain words'
+    DiagHeapType:
+      type: object
+      description: 'the chunks of one type; the shared pool family recr<P|U><C|T|R><nnn> is one type "recr"'
+      required: [type, chunks, bytes]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapVariant"
+          description: 'for "recr": the printed types (recrPC001, ...), largest first'
+    DiagHeapVariant:
+      type: object
+      description: 'the chunks of one printed type of a family'
+      required: [type, chunks, bytes]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+    DiagHeapComment:
+      type: object
+      description: 'the chunks of one comment, grouped by the part before "^" (the shared pool puts a hash after it)'
+      required: [comment, types, chunks, bytes, line]
+      additionalProperties: false
+      properties:
+        comment:
+          type: string
+          description: 'trimmed; empty for the blank comment of a free chunk'
+        types:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapTypeShare"
+          description: 'the types it occurs with, largest first'
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+        line:
+          type: integer
+          description: 'the line of its first chunk'
+        suffixes:
+          type: integer
+          description: 'how many distinct "^suffix" values the group holds; absent for a comment without one'
+    DiagHeapTypeShare:
+      type: object
+      description: 'a comment''s chunks of one type'
+      required: [type, chunks, bytes]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+    DiagHeapOther:
+      type: object
+      description: 'what a bounded list leaves out, summed'
+      required: [count, chunks, bytes]
+      additionalProperties: false
+      properties:
+        count:
+          type: integer
+          description: 'comments (or sub-heaps) in it'
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+    DiagHeapFreeLists:
+      type: object
+      description: 'the free lists'
+      required: [present, chunks, bytes, buckets]
+      additionalProperties: false
+      properties:
+        present:
+          type: boolean
+          description: 'the dump prints FREE LISTS:'
+        line:
+          type: integer
+          description: 'of that line'
+        chunks:
+          type: integer
+          description: 'chunks in the lists (not the list heads)'
+        bytes:
+          type: integer
+        printed:
+          type: integer
+          description: '"Total free space"'
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapBucket"
+          description: 'every bucket the dump prints, empty ones too, in the order printed'
+        reserved:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapReserved"
+          description: 'the reserved free lists of an SGA heap, with their non-empty buckets'
+    DiagHeapBucket:
+      type: object
+      description: 'one free list'
+      required: [n, size, chunks, bytes]
+      additionalProperties: false
+      properties:
+        "n":
+          type: integer
+          description: '"Bucket N"'
+        size:
+          type: integer
+          description: '"size=": the smallest chunk the list holds'
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+    DiagHeapReserved:
+      type: object
+      description: 'a block of reserved free lists ("RESERVED FREE LISTS:", "... FOR SIZES 64KB to 256KB:")'
+      required: [title, line, chunks, bytes, buckets]
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+        line:
+          type: integer
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+        printed:
+          type: integer
+          description: '"Total of this reserved free space"'
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapBucket"
+          description: 'the non-empty buckets'
+    DiagHeapPermanent:
+      type: object
+      description: 'the PERMANENT CHUNKS: part'
+      required: [line, chunks, bytes]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        chunks:
+          type: integer
+          description: 'chunk lines of type perm'
+        bytes:
+          type: integer
+        printed:
+          type: integer
+          description: '"Permanent space"'
+    DiagHeapUnpinned:
+      type: object
+      description: 'the unpinned part of an SGA heap ("Unpinned space = N rcr=N trn=N")'
+      required: [line, bytes, rcr, trn]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        bytes:
+          type: integer
+        rcr:
+          type: integer
+        trn:
+          type: integer
+    DiagHeapSub:
+      type: object
+      description: 'a sub-heap seen in this heap'
+      required: [desc, name, held, chunks, line]
+      additionalProperties: false
+      properties:
+        desc:
+          type: string
+          description: 'its descriptor ("0x7f952bcd11e8")'
+        name:
+          type: string
+          description: 'the comment of the chunk that holds its descriptor, else of its first chunk'
+        size:
+          type: integer
+          description: 'the ds line''s sz= (the sub-heap''s own size); absent when the dump has no ds line for it'
+        held:
+          type: integer
+          description: 'bytes of this heap''s chunks that carry ds=<desc>'
+        chunks:
+          type: integer
+          description: 'those chunks'
+        extents:
+          type: integer
+          description: 'the ds line''s ct='
+        line:
+          type: integer
+          description: 'the ds line, else the first chunk that carries the descriptor'
+        node:
+          type: string
+          description: 'the node of its own dump, when the file holds it'
+    DiagHeapLargest:
+      type: object
+      description: 'a line of the "N LARGEST SUB HEAPS" block'
+      required: [desc, name, size, line]
+      additionalProperties: false
+      properties:
+        desc:
+          type: string
+        name:
+          type: string
+        size:
+          type: integer
+          description: '"size=" as printed (a little more than the sub-heap''s own total)'
+        line:
+          type: integer
+        node:
+          type: string
+          description: 'the node of its own dump, when the file holds it'
+    DiagHeapRun:
+      type: object
+      description: 'a heap of the same dump run'
+      required: [node, name, desc, size, from, to]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+        name:
+          type: string
+        desc:
+          type: string
+        parent:
+          type: string
+          description: 'the node of its parent heap in this run'
+        depth:
+          type: integer
+        size:
+          type: integer
+          description: '"dsx heap size"'
+        from:
+          type: integer
+        to:
+          type: integer
+    DiagHeapLines:
+      type: object
+      description: 'the chunk lines of a comment (answer of api/diag/reading/lines)'
+      required: [node, lines, more, total]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+        lines:
+          type: array
+          items:
+            type: integer
+          description: 'line numbers of chunk lines of the extents, ascending, at most 2000'
+        more:
+          type: integer
+          description: 'how many matching lines follow those listed'
+        next:
+          type: integer
+          description: 'when more > 0, the `after` for the next page (the last line listed)'
+        total:
+          type: integer
+          description: 'how many chunk lines match in all'
+    DiagPGASummary:
+      type: object
+      description: 'the reading of a pga_summary dump (diag.PGASummary), answer of api/diag/reading for a node of kind pga-summary (`reading` "pga-summary"): the dump''s own tables. The figures are rounded, so nothing is checked.'
+      required: [kind, node, from, to, lines, note, top, private, instance, swap]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"pga-summary"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        note:
+          type: string
+          description: 'says the figures are rounded and nothing can be checked'
+        top:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAUse"
+          description: 'TOP 10 MEMORY USES FOR THIS PROCESS'
+        topLine:
+          type: integer
+          description: 'its line'
+        private:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGABlock"
+          description: 'PRIVATE HEAP SUMMARY DUMP and the "Summary of subheaps at depth N" blocks'
+        instance:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAInstance"
+          description: 'the instance-wide private memory usage figures ("Global SGA Info", "SGA Info (PDB 3)")'
+        processes:
+          $ref: "#/components/schemas/DiagPGAProcesses"
+        estimated:
+          $ref: "#/components/schemas/DiagPGAEstimated"
+        swap:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAKV"
+          description: 'the SWAP INFORMATION lines'
+    DiagPGAUse:
+      type: object
+      description: 'a row of the top uses of memory, of the estimated uses for all processes, or of a pga_detail_dump'
+      required: [line, size, count, unit, comment]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        percent:
+          type: integer
+          description: 'absent in a pga_detail_dump'
+        size:
+          $ref: "#/components/schemas/DiagPGASize"
+        count:
+          type: integer
+          description: 'chunks, processes or heaps, per unit'
+        unit:
+          type: string
+          description: 'chunks, processes, heaps'
+        comment:
+          type: string
+          description: 'trimmed'
+        category:
+          type: string
+          description: 'PL/SQL, SQL'
+        heap:
+          type: string
+          description: 'the heap the chunks are in (the line under the row), trimmed'
+        ds:
+          type: string
+          description: '"0x7f72d80b11e8"'
+        dsParent:
+          type: string
+          description: '"dsprt=", absent for (nil)'
+        chunks:
+          type: integer
+          description: 'estimated uses: the chunks of the line under the row'
+    DiagPGASize:
+      type: object
+      description: 'a size as the dump prints it, and in bytes'
+      required: [text, bytes]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          description: '"3429 KB", "108 MB", "3512312 bytes"'
+        bytes:
+          type: integer
+          description: 'the printed figure times 1024 per KB, 1024 squared per MB, ...'
+    DiagPGABlock:
+      type: object
+      description: 'a block of the private heap summary: the heap itself (depth 0) or the sub-heaps at one depth'
+      required: [line, title, depth, total, rows]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        title:
+          type: string
+        depth:
+          type: integer
+        total:
+          $ref: "#/components/schemas/DiagPGASize"
+        commented:
+          $ref: "#/components/schemas/DiagPGASize"
+        permanent:
+          $ref: "#/components/schemas/DiagPGASize"
+        free:
+          $ref: "#/components/schemas/DiagPGASize"
+        emptyExtents:
+          $ref: "#/components/schemas/DiagPGASize"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGABlockRow"
+    DiagPGABlockRow:
+      type: object
+      description: 'a line of a block: size, count of chunks or heaps, comment, free memory held'
+      required: [line, size, count, unit, comment]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        size:
+          $ref: "#/components/schemas/DiagPGASize"
+        count:
+          type: integer
+        unit:
+          type: string
+        comment:
+          type: string
+        freeHeld:
+          $ref: "#/components/schemas/DiagPGASize"
+    DiagPGAInstance:
+      type: object
+      description: 'a line of the instance-wide summary'
+      required: [line, scope, name, value]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        scope:
+          type: string
+        name:
+          type: string
+        value:
+          type: string
+          description: 'as printed: "512 MB", "0 %", "1"'
+    DiagPGAProcesses:
+      type: object
+      description: '"Private memory usage per Oracle process"'
+      required: [line, top, all]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        totalAllocated:
+          allOf:
+            - $ref: "#/components/schemas/DiagPGASize"
+          description: '"(percentage is of 644 MB total allocated memory)"'
+        mga:
+          type: string
+          description: '"MGA used size accounted under PGA values", the size as printed'
+        top:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAProc"
+          description: 'Top 10 processes'
+        all:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAProc"
+          description: 'All processes, at most 5000'
+        allOmitted:
+          type: integer
+          description: 'processes left out of all'
+    DiagPGAProc:
+      type: object
+      description: 'a process row: "17% ospid 2361 (MMON): 14 MB used, 108 MB alloc, 512 KB freeable"'
+      required: [line, ospid, name, used, alloc]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        percent:
+          type: integer
+          description: 'the top 10 only'
+        ospid:
+          type: string
+          description: 'as printed: "2361", "2299_2300" (a thread)'
+        name:
+          type: string
+          description: '"MMON"; blank for a foreground process'
+        pdb:
+          type: string
+          description: 'the "(3)" after the name'
+        used:
+          $ref: "#/components/schemas/DiagPGASize"
+        alloc:
+          $ref: "#/components/schemas/DiagPGASize"
+        freeable:
+          $ref: "#/components/schemas/DiagPGASize"
+        session:
+          allOf:
+            - $ref: "#/components/schemas/DiagPGASession"
+          description: 'the session detail printed under a process over 32 MB'
+    DiagPGASession:
+      type: object
+      description: '"Begin session detail for pid N" ... "End session detail"'
+      required: [from, to, pid, sid, serial]
+      additionalProperties: false
+      properties:
+        from:
+          type: integer
+        to:
+          type: integer
+        pid:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        user:
+          type: string
+          description: '"0/SYS"'
+        pdb:
+          type: string
+          description: '"1/CDB$ROOT"'
+        ospid:
+          type: string
+        image:
+          type: string
+        machine:
+          type: string
+        program:
+          type: string
+        currentSql:
+          type: string
+          description: 'empty or "<none>" when there is none'
+    DiagPGAEstimated:
+      type: object
+      description: '"ESTIMATED MEMORY USES FOR ALL PROCESSES"'
+      required: [line, snapshots, processes, rows]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        snapshots:
+          type: integer
+          description: '"from 10 snapshots out of 74 processes"'
+        processes:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAUse"
+        omitted:
+          type: integer
+          description: 'rows left out (the 5000-row bound)'
+    DiagPGAKV:
+      type: object
+      description: 'a name and a value as printed'
+      required: [line, name, value]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        name:
+          type: string
+        value:
+          type: string
+    DiagPGADetail:
+      type: object
+      description: 'the reading of a pga_detail_dump (diag.PGADetail), answer of api/diag/reading for a node of kind pga-detail (`reading` "pga-detail"): the rows with exact bytes'
+      required: [kind, node, from, to, lines, rows, bytes, chunks]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"pga-detail"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        pid:
+          type: integer
+          description: '"PGA memory detail for pid 6, OS pid 14085"'
+        ospid:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAUse"
+          description: 'exact bytes: size.text is "3512312 bytes"'
+        bytes:
+          type: integer
+          description: 'the sum of the rows (a listing of the largest uses, not a total of the process)'
+        chunks:
+          type: integer
+        omitted:
+          type: integer
+          description: 'rows left out (the 5000-row bound)'
     OptDoc:
       type: object
       description: "the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record"

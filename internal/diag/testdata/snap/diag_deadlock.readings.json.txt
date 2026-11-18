@@ -1,0 +1,371 @@
+== heap 7162-8118
+{
+  "byComment": [
+    {
+      "bytes": 3328,
+      "chunks": 1,
+      "comment": "",
+      "line": 7171,
+      "types": [
+        {
+          "bytes": 3328,
+          "chunks": 1,
+          "type": "free"
+        }
+      ]
+    },
+    {
+      "bytes": 1152,
+      "chunks": 2,
+      "comment": "16982.kgght",
+      "line": 7318,
+      "types": [
+        {
+          "bytes": 1152,
+          "chunks": 2,
+          "type": "freeable"
+        }
+      ]
+    },
+    {
+      "bytes": 1040,
+      "chunks": 1,
+      "comment": "ctxdef:kksLoadC",
+      "line": 8024,
+      "types": [
+        {
+          "bytes": 1040,
+          "chunks": 1,
+          "type": "freeable"
+        }
+      ]
+    },
+    {
+      "bytes": 808,
+      "chunks": 2,
+      "comment": "237.kggec",
+      "line": 7191,
+      "types": [
+        {
+          "bytes": 624,
+          "chunks": 1,
+          "type": "recreate"
+        },
+        {
+          "bytes": 184,
+          "chunks": 1,
+          "type": "freeable"
+        }
+      ]
+    },
+    "... 66 more"
+  ],
+  "byType": [
+    {
+      "bytes": 12120,
+      "chunks": 102,
+      "type": "freeable"
+    },
+    {
+      "bytes": 3328,
+      "chunks": 1,
+      "type": "free"
+    },
+    {
+      "bytes": 624,
+      "chunks": 1,
+      "type": "recreate"
+    },
+    {
+      "bytes": 128,
+      "chunks": 1,
+      "type": "perm"
+    }
+  ],
+  "bytes": 16200,
+  "checks": [
+    {
+      "computed": 16200,
+      "line": 8080,
+      "name": "heap",
+      "printed": 16200,
+      "state": "match",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 3328,
+      "line": 8103,
+      "name": "free",
+      "printed": 3328,
+      "state": "match",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 128,
+      "line": 8117,
+      "name": "perm",
+      "printed": 128,
+      "state": "match",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 105,
+  "comments": 70,
+  "depth": 1,
+  "desc": "0x798e0b68",
+  "extents": 4,
+  "flags": {
+    "contents": {
+      "blocks": 107,
+      "lines": 816
+    }
+  },
+  "freeLists": {
+    "buckets": [
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 0,
+        "size": 24
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 1,
+        "size": 88
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 2,
+        "size": 152
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 3,
+        "size": 280
+      },
+      "... 8 more"
+    ],
+    "bytes": 3328,
+    "chunks": 1,
+    "line": 8081,
+    "present": true,
+    "printed": 3328
+  },
+  "from": 7162,
+  "heapSize": 16200,
+  "kind": "heap",
+  "largest": [],
+  "lines": 957,
+  "name": "SQLA^29fcccda",
+  "node": "heap:7162-8118:1:12f",
+  "parent": "0x60176a68",
+  "pdb": 3,
+  "permanent": {
+    "bytes": 128,
+    "chunks": 1,
+    "line": 8105,
+    "printed": 128
+  },
+  "run": [
+    {
+      "depth": 1,
+      "desc": "0x798e0b68",
+      "from": 7162,
+      "name": "SQLA^29fcccda",
+      "node": "heap:7162-8118:1:12f",
+      "size": 16200,
+      "to": 8118
+    }
+  ],
+  "subheaps": [
+    {
+      "chunks": 0,
+      "desc": "0x78c139a8",
+      "extents": 1,
+      "held": 0,
+      "line": 7192,
+      "name": "237.kggec",
+      "size": 624
+    }
+  ],
+  "subheapsTotal": 1,
+  "to": 8118
+}
+== heap 8171-8666
+{
+  "byComment": [
+    {
+      "bytes": 3456,
+      "chunks": 1,
+      "comment": "",
+      "line": 8180,
+      "types": [
+        {
+          "bytes": 3456,
+          "chunks": 1,
+          "type": "free"
+        }
+      ]
+    },
+    {
+      "bytes": 3272,
+      "chunks": 2,
+      "comment": "perm",
+      "line": 8226,
+      "types": [
+        {
+          "bytes": 3272,
+          "chunks": 2,
+          "type": "perm"
+        }
+      ]
+    },
+    {
+      "bytes": 760,
+      "chunks": 5,
+      "comment": "kgltbtab",
+      "line": 8396,
+      "types": [
+        {
+          "bytes": 760,
+          "chunks": 5,
+          "type": "freeable"
+        }
+      ]
+    },
+    {
+      "bytes": 600,
+      "chunks": 1,
+      "comment": "DV policy chain",
+      "line": 8207,
+      "types": [
+        {
+          "bytes": 600,
+          "chunks": 1,
+          "type": "freeable"
+        }
+      ]
+    }
+  ],
+  "byType": [
+    {
+      "bytes": 3456,
+      "chunks": 1,
+      "type": "free"
+    },
+    {
+      "bytes": 3272,
+      "chunks": 2,
+      "type": "perm"
+    },
+    {
+      "bytes": 1360,
+      "chunks": 6,
+      "type": "freeable"
+    }
+  ],
+  "bytes": 8088,
+  "checks": [
+    {
+      "computed": 8088,
+      "line": 8431,
+      "name": "heap",
+      "printed": 8088,
+      "state": "match",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 3456,
+      "line": 8473,
+      "name": "free",
+      "printed": 3456,
+      "state": "match",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 3272,
+      "line": 8665,
+      "name": "perm",
+      "printed": 3272,
+      "state": "match",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 9,
+  "comments": 4,
+  "depth": 1,
+  "desc": "0x798dfbf0",
+  "extents": 2,
+  "flags": {
+    "contents": {
+      "blocks": 12,
+      "lines": 435
+    }
+  },
+  "freeLists": {
+    "buckets": [
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 0,
+        "size": 24
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 1,
+        "size": 72
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 2,
+        "size": 96
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 3,
+        "size": 112
+      },
+      "... 8 more"
+    ],
+    "bytes": 3456,
+    "chunks": 1,
+    "line": 8432,
+    "present": true,
+    "printed": 3456
+  },
+  "from": 8171,
+  "heapSize": 8088,
+  "kind": "heap",
+  "largest": [],
+  "lines": 496,
+  "name": "KGLH0^29fcccda",
+  "node": "heap:8171-8666:1:12f",
+  "parent": "0x60176a68",
+  "pdb": 3,
+  "permanent": {
+    "bytes": 3272,
+    "chunks": 2,
+    "line": 8475,
+    "printed": 3272
+  },
+  "run": [
+    {
+      "depth": 1,
+      "desc": "0x798dfbf0",
+      "from": 8171,
+      "name": "KGLH0^29fcccda",
+      "node": "heap:8171-8666:1:12f",
+      "size": 8088,
+      "to": 8666
+    }
+  ],
+  "subheaps": [],
+  "subheapsTotal": 0,
+  "to": 8666
+}

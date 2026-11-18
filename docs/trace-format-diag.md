@@ -136,6 +136,28 @@ shared pool fixtures and the two heaps inside `diag_in_10046`):
 
 The check cannot be made for a PDB-filtered dump, a sampled heap or a header without extents.
 
+Read again for the reader (stage 3), on the 100 heaps of the committed fixtures and the five of the shared pool
+dump (the totals test, `internal/diag`):
+
+- the same holds for every heap: 288 of the 300 checks of the committed fixtures match, the other 12 are heaps
+  that cannot be checked (6 headers without extents, 3 of a PDB-filtered dump, 3 of the sampled heap) and no
+  check differs;
+- an SGA heap prints **reserved free lists** after `Total free space`: `RESERVED FREE LISTS:` (and `... FOR SIZES
+  64KB to 256KB:`, `... OVER 256KB:`) with ` Reserved bucket N size=` lines, each block closed by `Total of this
+  reserved free space` and the whole by `Total of all reserved free space` (a heap with one block prints only the
+  first). The `R-free` chunks under them sum to that total (shared pool: 24,345,192 for `sga heap(1,0)`); the
+  reader makes it a fourth check;
+- the chunk types of the shared pool also include `R-stopper` (`reserved stoppe`) and `mfreeable` (with
+  `prv=`/`nxt=`), and the `recr` family has the shape `recr<P|U><C|T|R><nnn>`; `recreate` is not in it;
+- a ` ds <addr> sz= ct=` line (the address without `0x` and, in the SGA, zero-padded) follows any chunk that
+  holds a sub-heap descriptor, not only `recreate` ones (`recrPC001` in the shared pool); the `ds=0x..` of a
+  chunk has no leading zeros;
+- a **sampled heap** of a `pga_summary` stands inside the part `PRIVATE MEMORY SUMMARY FOR THIS PROCESS` (the
+  outline gives it a node under that part); it prints chunk lines of the sampled extents and no totals, no free
+  lists;
+- a heap dump cut by the end of the file may stop in the middle of a line: a total printed on the last line is
+  not taken.
+
 ## PGA memory dumps
 
 **`pga_summary`** (`diag_pga_summary`) is the memory part an out-of-memory trace prints. Blocks in order:

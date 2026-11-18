@@ -208,7 +208,7 @@ func TestDiagSets(t *testing.T) {
 	}
 }
 
-// TestDiagServe: serve answers the document (dump.file, no digest), the three routes, lines and search.
+// TestDiagServe: serve answers the document (dump.file, no digest), the routes, lines and search.
 func TestDiagServe(t *testing.T) {
 	f, err := filepath.Abs(diagFixtures + "diag_hang.trc")
 	if err != nil {
@@ -258,9 +258,18 @@ func TestDiagServe(t *testing.T) {
 	if err := json.Unmarshal(body, &o); code != 200 || err != nil || len(o.Children) != 4 {
 		t.Fatalf("outline: %d %v %s", code, err, body)
 	}
-	code, _, body = get("/api/diag/section?i=0")
+	code, _, body = get("/api/diag/reading?node=" + hang.ID)
 	if code != 404 || !strings.Contains(string(body), "no reading for this kind of section") {
-		t.Errorf("section: %d %s", code, body)
+		t.Errorf("reading of a hang analysis: %d %s", code, body)
+	}
+	if code, _, _ := get("/api/diag/reading"); code != 400 {
+		t.Errorf("reading without a node: %d", code)
+	}
+	if code, _, _ := get("/api/diag/reading/lines?node=" + hang.ID); code != 400 {
+		t.Errorf("reading/lines without a comment: %d", code)
+	}
+	if code, _, _ := get("/api/diag/section?i=0"); code != 404 {
+		t.Errorf("the old section route: %d", code)
 	}
 	if code, _, _ := get("/api/diag/outline?node=heap:1-9999999:1:200"); code != 404 {
 		t.Errorf("outline of a node past the end: %d", code)
@@ -272,5 +281,34 @@ func TestDiagServe(t *testing.T) {
 	code, _, body = get("/api/search?file=0&q=END+OF+HANG+ANALYSIS")
 	if code != 200 || !strings.Contains(string(body), `"line":254`) {
 		t.Errorf("search: %d %.200s", code, body)
+	}
+}
+
+// TestDiagReportHeap: the text report of a heap dump has the reading under its node: the checks against the
+// totals, the types and comments.
+func TestDiagReportHeap(t *testing.T) {
+	out := runTo(t, cmdReport, diagFixtures+"diag_heap_pga.trc")
+	for _, want := range []string{
+		`Reading: heap "pga heap", desc 0x7f952ce9a220, depth 0, pdb id 0`,
+		"match   chunks of the extents against Total heap size: 4,707,160 = 4,707,160 (line 679)",
+		"match   chunks of the free lists against Total free space: 49,560 = 49,560 (line 716)",
+		"match   perm chunks under PERMANENT CHUNKS against Permanent space: 392,464 = 392,464 (line 921)",
+		"By type:", "By comment (15 of 58, most bytes first):", "koh-kghu call", "Sub-heaps: 14",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the report of diag_heap_pga lacks %q", want)
+		}
+	}
+	// the document carries the same readings
+	var doc diagDoc
+	if err := json.Unmarshal([]byte(runTo(t, cmdJSON, diagFixtures+"diag_heap_pga.trc")), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Dump == nil || doc.Dump.Digest == nil || len(doc.Dump.Digest.Readings) != 3 {
+		t.Fatalf("document: %+v", doc.Dump)
+	}
+	pd := runTo(t, cmdReport, diagFixtures+"diag_pga_detail.trc")
+	if !strings.Contains(pd, "Reading: PGA memory detail for pid 6, OS pid 14085") || !strings.Contains(pd, "3,512,312") {
+		t.Errorf("the report of diag_pga_detail: %.400s", pd)
 	}
 }

@@ -595,7 +595,7 @@ func cmdServe(args []string) error {
 	}
 	bf.apply(m)
 	// A 10053 file: the document says so ("opt.file"), and the two api/opt routes
-	// answer for its dumps. A diag file: "dump.file", and the three api/diag routes. No digest: the
+	// answer for its dumps. A diag file: "dump.file", and the api/diag routes. No digest: the
 	// browser reads the routes.
 	v, err := openView(m, bf, false, false)
 	if err != nil {
@@ -645,7 +645,8 @@ func cmdServe(args []string) error {
 		defer dsrv.Close()
 		mux.Handle("/api/diag/file", dsrv.FileHandler())
 		mux.Handle("/api/diag/outline", dsrv.OutlineHandler())
-		mux.Handle("/api/diag/section", dsrv.SectionHandler())
+		mux.Handle("/api/diag/reading", dsrv.ReadingHandler())
+		mux.Handle("/api/diag/reading/lines", dsrv.ReadingLinesHandler())
 	}
 	// The slicing modes serve the line endpoints too (lines incl. annot=1,
 	// lines/at, at, search); /api/doc below is the longer pattern's exception.

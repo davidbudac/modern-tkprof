@@ -3,6 +3,7 @@ package diag
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"sort"
@@ -192,6 +193,9 @@ func outlineText(t testing.TB, r *Reader) string {
 		if n.Cut {
 			extra += " cut"
 		}
+		if n.Reading != "" {
+			extra += " reading=" + n.Reading
+		}
 		sub := ""
 		if n.Sub != "" {
 			sub = "  [" + n.Sub + "]"
@@ -275,3 +279,5 @@ func firstDiff(want, got string) string {
 func sectionKindOf(kind string) trace.SectionKind { return trace.ParseSectionKind(kind) }
 
 func filepathJoin(a, b string) string { return filepath.Join(a, b) }
+
+func newRand(seed int64) *rand.Rand { return rand.New(rand.NewSource(seed)) }

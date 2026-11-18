@@ -3,8 +3,8 @@ section heap 32-39
 section heap 40-72
 outline:
   1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
-  32-39 (8) heap: Heap dump: large pool
-+ 40-72 (33) heap: Heap dump: large pool  [16.0 MB, depth 0] depth=0 size=16777112
+  32-39 (8) heap: Heap dump: large pool reading=heap
++ 40-72 (33) heap: Heap dump: large pool  [16.0 MB, depth 0] depth=0 size=16777112 reading=heap
     + 53-54 (2) extents: Extents  [1 extent]
     + 55-66 (12) freelists: Free lists
       67-69 (3) unpinned: Unpinned recreatable chunks

@@ -449,7 +449,7 @@ func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
 
 // sessionRoutes are the routes of a ready session, relative to /s/{id}.
 func sessionRoutes() []string {
-	out := []string{"GET /api/doc", "GET /api/report", "GET /api/opt/dump", "GET /api/opt/text", "GET /api/diag/file", "GET /api/diag/outline", "GET /api/diag/section", "GET /api/ref", "POST /api/ref", "GET /api/ref/script", "POST /api/ref/paste", "POST /api/brief", "POST /api/assist/tools/{name}"}
+	out := []string{"GET /api/doc", "GET /api/report", "GET /api/opt/dump", "GET /api/opt/text", "GET /api/diag/file", "GET /api/diag/outline", "GET /api/diag/reading", "GET /api/diag/reading/lines", "GET /api/ref", "POST /api/ref", "GET /api/ref/script", "POST /api/ref/paste", "POST /api/brief", "POST /api/assist/tools/{name}"}
 	for _, ep := range append(slice.Endpoints(), slice.LineEndpoints()...) {
 		out = append(out, "GET "+ep)
 	}
@@ -614,7 +614,7 @@ func (ss *Session) optInput(o *slice.OptServer, digest bool) *report.OptInput {
 // sessionMux serves the routes of a session (sessionRoutes) from an opened
 // trace and its document; api is its slice routes alone, ssrv the slice
 // server behind api. ot serves the two api/opt routes of a 10053 session, dg
-// the three api/diag routes of a diag one (nil: they answer 404).
+// the api/diag routes of a diag one (nil: they answer 404).
 func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte, ot *slice.OptServer, dg *slice.DiagServer) (mux, api http.Handler, ssrv *slice.Server) {
 	ssrv = slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
 	ssrv.AllowOrigin = slice.NoCORS                                 // the engine's middleware sets CORS
@@ -623,12 +623,13 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte, ot *slice.
 	ssrv.Checks = &ss.cutChecks                                     // api/cut/check: one at a time over the session's (live) snapshots
 	api = ssrv.Handler()
 	handlers := map[string]http.Handler{
-		"GET /api/report":       http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL, ot, dg).serve),
-		"GET /api/opt/dump":     ot.DumpHandler(), // 404 unless the session is a 10053 file
-		"GET /api/opt/text":     ot.TextHandler(),
-		"GET /api/diag/file":    dg.FileHandler(), // 404 unless the session is a diag one
-		"GET /api/diag/outline": dg.OutlineHandler(),
-		"GET /api/diag/section": dg.SectionHandler(),
+		"GET /api/report":             http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL, ot, dg).serve),
+		"GET /api/opt/dump":           ot.DumpHandler(), // 404 unless the session is a 10053 file
+		"GET /api/opt/text":           ot.TextHandler(),
+		"GET /api/diag/file":          dg.FileHandler(), // 404 unless the session is a diag one
+		"GET /api/diag/outline":       dg.OutlineHandler(),
+		"GET /api/diag/reading":       dg.ReadingHandler(),
+		"GET /api/diag/reading/lines": dg.ReadingLinesHandler(),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// ?rev= is accepted and ignored here: the current document is served
 			// (its revision is the session's rev, which a reference bundle

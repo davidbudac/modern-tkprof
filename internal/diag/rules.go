@@ -33,6 +33,9 @@ import (
 //	                 (rank 1); one framed by dashes only sits inside the      diag_sysstate_l1:2481-2483 (Sampled
 //	                 part it is in (a leaf, rank leafRank)                    Session History of session 1 ...)
 //	                 a title over an underline of about its length            diag_procstate:35-36 (PROCESS STATE)
+//	nested heap      HEAP DUMP heap name="..." inside a PGA summary: the heap   diag_pga_summary:90 (a sampled heap, in
+//	                 dump of a heap with much free memory, a part of the       the part PRIVATE MEMORY SUMMARY), rank
+//	                 banner it stands in (rank rankTitle+1), with its end line rankTitle+1
 //	nested section   a section start inside another section's lines           diag_errorstack_l2:5046 (PROCESS STATE in
 //	                 (trace.IsSectionStart), rank 0, with its end line        a diagnostic dump), diag_deadlock:86
 //	                 where the kind has one                                   (dbkedDefDump inside a deadlock)
@@ -85,6 +88,7 @@ const (
 	pTOC
 	pHeap
 	pSummary
+	pHeapNest // a heap dump nested in the part (a sampled heap of a PGA summary), and nothing else that starts a section
 )
 
 // ownProfile is the set of rules a node of this kind brings for its own lines. The kinds that are parts of
@@ -103,7 +107,7 @@ func ownProfile(kind string) profile {
 	case "procstate", "process", "so":
 		return pSO | pBanner | pTitle
 	case "pga-summary":
-		return pBanner | pTitle
+		return pBanner | pTitle | pHeapNest
 	case "diagdump", "deadlock":
 		return pTitle | pFrame | pBanner | pNested
 	}
@@ -215,6 +219,7 @@ type head struct {
 	end   endRule // where the part ends by itself, when it does
 	to    int     // set when the part was closed by its end line
 	nkid  int     // heads added directly under this one
+	cut   bool    // a part with an end line of its own that was closed without reaching it
 	facts int     // lines after the start still looked at for the facts of the title
 	toc   bool
 	// a nested section: its kind and what its title is made of
