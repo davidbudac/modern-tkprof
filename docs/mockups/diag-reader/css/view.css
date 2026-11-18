@@ -1,0 +1,116 @@
+/* ---- the text: a virtualised viewer of 20 px rows (the app's LineViewer), the line map beside the scroll bar ---------------------------- */
+.lv-box { display: flex; min-block-size: 0; position: relative; }
+.lv { position: relative; flex: 1; min-inline-size: 0; overflow: auto; overscroll-behavior: contain; background: var(--surface-raised); font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--lv-row); }
+.lv:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.lv-inner { position: relative; }
+.lv-layer { position: absolute; inset-block-start: 0; inset-inline-start: 0; min-inline-size: 100%; will-change: transform; }
+.lv-fmt .lv-layer { inline-size: 100%; }
+.lv-row { display: flex; block-size: var(--lv-row); white-space: pre; contain: layout paint; position: relative; cursor: default; }
+/* (app) the number cell: sticky, sunken, with room for the bookmark mark and the landmark bar */
+.lv-ln { flex: none; position: sticky; inset-inline-start: 0; z-index: 1; box-sizing: content-box; min-inline-size: 6ch; padding-inline: 1.1em var(--sp-2); text-align: end; color: var(--ink-3); background: var(--surface-sunken); border-inline-end: 1px solid var(--hairline); user-select: none; font-variant-numeric: tabular-nums; }
+.lv-fh { flex: none; inline-size: 1.2em; padding-inline-start: var(--sp-1); box-sizing: content-box; text-align: center; }
+.lv-fold { all: unset; box-sizing: border-box; display: block; inline-size: 1.2em; block-size: var(--lv-row); text-align: center; font: inherit; line-height: var(--lv-row); color: var(--ink-3); cursor: pointer; }
+.lv-fold:hover, .lv-fold:focus-visible { color: var(--ink); background: var(--wash); }
+.lv-tx { padding-inline: var(--sp-2) var(--sp-4); }
+.lv-fmt .lv-tx { flex: 1 1 0; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.lv-tx mark { background: color-mix(in oklch, var(--c-commit) 38%, transparent); color: inherit; border-radius: 2px; }
+.lv-tx mark.cur { background: color-mix(in oklch, var(--c-commit) 70%, transparent); box-shadow: 0 0 0 1px var(--c-commit); }
+/* (app) the selection: one amber fill, the number cell included */
+.lv-sel { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.lv-sel .lv-ln { color: var(--ink); font-weight: 600; background: color-mix(in oklch, var(--c-commit) 24%, var(--surface-sunken)); }
+.lv-row:not(.lv-sel):hover { background: var(--wash); }
+/* (app) a bookmark: a diamond in the number cell */
+.lv-bm .lv-ln::after { content: "◆"; position: absolute; inset-inline-start: 7px; font-size: 0.55rem; color: var(--c-commit); }
+.lv-note .lv-ln::after { content: "✎"; position: absolute; inset-inline-start: 5px; font-size: 0.65rem; color: var(--c-note); }
+
+/* formatted dress: banner headings (one row for three lines), minor headings, rules, prefixes, keys */
+.x-h1 { background: var(--surface-sunken); box-shadow: inset 0 1px 0 var(--hairline-strong); }
+.x-h1 .lv-tx, .x-h2 .lv-tx { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
+.x-h1 .lv-tx { letter-spacing: 0.005em; }
+.x-h2 .lv-tx { color: var(--ink); }
+.x-h1 .lv-tx small, .x-h2 .lv-tx small { font-weight: 400; color: var(--ink-3); font-family: var(--font-mono); font-size: var(--text-xs); margin-inline-start: 1.2ch; }
+.x-h3 .lv-tx { font-weight: 500; color: var(--ink); }
+.x-dash { color: var(--ink-3); font-weight: 400; }
+.x-rule .lv-tx { position: relative; }
+.x-rule .lv-tx::after { content: ""; position: absolute; inset-inline: var(--sp-2) var(--sp-4); inset-block-start: 50%; border-block-start: 1px solid var(--hairline-strong); }
+.x-pfx { color: var(--ink-2); font-weight: 500; }
+.x-best { font-weight: 600; }
+.x-dim { color: var(--ink-3); }
+.rd-key { color: var(--ink-3); }
+.rd-kw { color: color-mix(in oklch, var(--c-cpu) 70%, var(--ink)); }
+.rd-str { color: color-mix(in oklch, var(--c-network) 70%, var(--ink)); }
+.rd-bind { color: color-mix(in oklch, var(--c-other) 70%, var(--ink)); font-weight: 500; }
+.rd-cmt { color: var(--ink-3); font-style: italic; }
+/* a glossary term: no mark at rest; a dotted underline on the row under the pointer and the selected row (as the app's references) */
+.gl { text-decoration: none; text-underline-offset: 2px; cursor: help; }
+.lv-row:hover .gl, .lv-sel .gl { text-decoration: underline dotted color-mix(in oklch, var(--ink) 45%, transparent); }
+
+/* a closed fold: one row, the first line's text, then what is hidden (count and why) */
+.x-fold .lv-tx { color: var(--ink-2); }
+.fold-sum { display: inline-block; margin-inline-start: var(--sp-3); padding-inline: 0.55em; border-radius: 999px; background: var(--wash); color: var(--ink-2); font-family: var(--font-ui); font-size: var(--text-xs); line-height: 16px; vertical-align: 1px; font-style: normal; }
+.fold-sum b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.fold-sum i { font-style: normal; color: var(--c-commit); font-weight: 600; }
+.x-fold-run .fold-sum { background: color-mix(in oklch, var(--ink) 9%, transparent); }
+
+/* (app) the line map: the whole dump in 16 px beside the scroll bar */
+.lv-strip { flex: none; inline-size: 16px; block-size: 100%; cursor: pointer; background: var(--surface-sunken); border-inline-start: 1px solid var(--hairline); box-sizing: content-box; touch-action: none; user-select: none; }
+
+/* ---- the outline ---------------------------------------------------------------------------------------------------------------------- */
+.ol { padding-block: var(--sp-1) var(--sp-4); }
+.ol-row { display: flex; align-items: flex-start; gap: var(--sp-2); box-sizing: border-box; min-block-size: 22px; padding-inline: var(--sp-2) var(--sp-3); padding-inline-start: calc(var(--sp-2) + var(--d) * 0.7rem); white-space: nowrap; cursor: pointer; }
+.ol-row:hover { background: var(--wash); }
+.ol-row.on { background: color-mix(in oklch, var(--c-commit) 20%, transparent); }
+.ol-row.on .ol-label { font-weight: 600; }
+.ol-x { flex: none; inline-size: 1.4ch; color: var(--ink-3); text-align: center; font-size: 0.75rem; line-height: 22px; }
+.ol-main { padding-block: 3px; }
+.ol-main { flex: 1 1 0; min-inline-size: 0; display: flex; flex-direction: column; }
+.ol-l1 { display: flex; align-items: baseline; gap: var(--sp-2); min-inline-size: 0; }
+.ol-label { flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.ol-mono .ol-label { font-family: var(--font-mono); font-size: var(--text-xs); }
+.ol-res { flex: none; margin-inline-start: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); }
+.ol-res.rej { color: var(--ink-3); }
+.ol-n { flex: none; min-inline-size: 5.5ch; text-align: end; color: var(--ink-3); font-variant-numeric: tabular-nums; font-size: var(--text-xs); }
+.ol-l1 .ol-res + .ol-n { margin-inline-start: 0; }
+.ol-l1 .ol-label + .ol-n { margin-inline-start: auto; }
+.ol-hits { flex: none; padding-inline: 0.45em; border-radius: 999px; background: color-mix(in oklch, var(--c-commit) 35%, transparent); color: var(--ink); font-size: 10px; font-weight: 600; line-height: 15px; font-variant-numeric: tabular-nums; }
+.ol-l2 { display: flex; align-items: center; gap: var(--sp-2); min-inline-size: 0; font-size: var(--text-xs); color: var(--ink-2); }
+.ol-l2 > span { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.ol-l2 .mono { font-size: var(--text-xs); }
+.ol-tag { flex: none; padding-inline: 0.5em; border-radius: 999px; font-size: 10px; line-height: 15px; font-weight: 500; background: var(--wash-strong); color: var(--ink); }
+.ol-tag.final { background: var(--ink); color: var(--surface); }
+.ol-tag.same { background: transparent; box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--ink-2); }
+.ol-tag.best { background: color-mix(in oklch, var(--s-good) 18%, transparent); }
+.ol-dot { flex: none; inline-size: 6px; block-size: 6px; border-radius: 50%; background: var(--lm); }
+.ol-dot.kept { --lm: var(--s-good); }
+.ol-dot.rejected { --lm: var(--ink-3); background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+/* a dump: two lines, the sql_id and the SQL, then the tables, lines and plan hash */
+.ol-dump { padding-block: var(--sp-2); border-block-end: 1px solid var(--hairline); align-items: flex-start; }
+.ol-dump .ol-x { line-height: 20px; }
+.ol-dump .ol-label { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); }
+.ol-dump .ol-sql { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; }
+.ol-dump .ol-facts { font-size: var(--text-xs); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
+.ol-dump.open { background: var(--surface); }
+.ol-dump.open + .ol-row { margin-block-start: var(--sp-1); }
+.ol-dump .ol-k { flex: none; font-size: var(--text-xs); color: var(--ink-3); }
+.ol-phase .ol-label { font-weight: 600; }
+.side-title .ol-seg { float: right; margin-inline-start: var(--sp-2); }
+.side-title .x-seg button { all: unset; padding-inline: 0.6em; font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; line-height: 20px; color: var(--ink-2); cursor: pointer; }
+.side-title .x-seg { display: inline-flex; border: 1px solid var(--hairline-strong); border-radius: var(--radius); overflow: clip; vertical-align: middle; }
+.side-title .x-seg button + button { border-inline-start: 1px solid var(--hairline-strong); }
+.side-title .x-seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+/* ---- the guide ---- */
+.guide { padding: var(--sp-3) var(--sp-3) var(--sp-5); display: grid; gap: var(--sp-3); line-height: 1.5; }
+.g-sec { display: grid; gap: var(--sp-1); }
+.g-sec + .g-sec { padding-block-start: var(--sp-3); border-block-start: 1px solid var(--hairline); }
+.g-k { font-size: var(--text-xs); color: var(--ink-3); }
+.g-k b { font-weight: 500; color: var(--ink-2); }
+.g-t { font-size: var(--text-md); font-weight: 600; color: var(--ink); }
+.g-p { color: var(--ink); }
+.g-p code, .g-term code { font-size: 0.95em; background: var(--wash); border-radius: 3px; padding-inline: 0.25em; overflow-wrap: anywhere; }
+.g-none { color: var(--ink-3); }
+.g-where { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-terms { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px var(--sp-3); margin: 0; }
+.g-terms dt { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; color: var(--ink); line-height: 1.7; }
+.g-terms dd { margin: 0; color: var(--ink-2); }
+

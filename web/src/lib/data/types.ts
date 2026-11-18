@@ -1,5 +1,6 @@
 // Mirrors the JSON document written by internal/report/doc.go (format 3).
 import type { OptDump, OptFile } from './opt'
+import type { RawDump } from './diag'
 
 export type ID = number // -1 = none
 export const NONE: ID = -1
@@ -45,7 +46,12 @@ export interface FileEntry {
   continuesIn?: string[]
   /** the optimizer (10053) dumps found inside this file (an interleaved 10046 + 10053 trace); absent when it has none */
   dumps?: FileDump[]
+  /** the diagnostic dump sections found in this file (heap dump, errorstack, process state, ...); absent when it has none */
+  sections?: FileSection[]
 }
+
+/** One diagnostic dump section inside a trace file (model.SectionRange): its kind (heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident) and first and last line. */
+export interface FileSection { kind: string; first: number; last: number; cut?: boolean }
 
 /** One optimizer (10053) dump inside a 10046 trace file (model.DumpRange): its first and last line. */
 export interface FileDump { first: number; last: number; sqlId?: string; cut?: boolean }
@@ -395,6 +401,8 @@ export interface RawDocument {
   facts?: RawFacts
   /** a 10053 file: the document of an empty 10046 model plus this */
   opt?: RawOpt | null
+  /** a diag session (the dump reader): the document of an empty 10046 model plus this (`file`, and in a document made for a client without a server, the digest) */
+  dump?: RawDump | null
   planViz?: string
   /** the server that sent the document answers the /api/pivot, /api/timeline, ... queries (`serve -facts=false`) */
   slice?: boolean

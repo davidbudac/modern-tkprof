@@ -7,7 +7,10 @@ import (
 )
 
 // FileKind says what a trace file holds: 10046 records, optimizer (10053)
-// dumps, or both (a session with both events on writes one interleaved file).
+// dumps, or both (a session with both events on writes one interleaved file);
+// or, when it has neither, diagnostic dump sections (section.go). Sections in
+// a file that also has records or optimizer dumps do not change its kind: the
+// primary formats win and the sections are reported beside it.
 type FileKind uint8
 
 const (
@@ -15,6 +18,7 @@ const (
 	FileKind10046
 	FileKind10053 // at least one dump and no 10046 record
 	FileKindBoth
+	FileKindDiag // at least one diagnostic dump section, no 10046 record and no optimizer dump
 )
 
 func (k FileKind) String() string {
@@ -25,6 +29,8 @@ func (k FileKind) String() string {
 		return "10053"
 	case FileKindBoth:
 		return "10046+10053"
+	case FileKindDiag:
+		return "diag"
 	}
 	return "none"
 }
@@ -48,13 +54,29 @@ type SniffOptions struct {
 	// MaxBytes stops the read after about this many bytes (0: no limit); the
 	// result is then not Complete and its Kind is what was seen so far.
 	MaxBytes int64
+	// Line, when set, is called for every line read, after the trackers have
+	// seen it, with its 1-based number, its text without the line terminator
+	// (valid during the call only), the kind the stateless classifier gives
+	// it (KindUnknown inside the text of a cursor) and the diagnostic dump
+	// section that is open after the line: its Kind and First, the zero
+	// Section when none is (a rule held back to see whether a heap dump
+	// follows counts as outside; a section that ends on a line where another
+	// begins shows the new one). It is how internal/diag reads what it needs
+	// of the lines in the same pass that finds the sections.
+	Line func(n int, line []byte, k Kind, open Section)
 }
 
 // Sniff is what SniffFile found.
 type Sniff struct {
 	Kind  FileKind
 	Dumps []Dump // the dumps begun in the part read; a cut one has Cut set
-	Lines int    // lines read
+	// Sections are the diagnostic dump sections begun in the part read (a cut
+	// one has Cut set). They are what the parser finds, except where the
+	// parser's own states decide: the sniff leaves out the text of a cursor
+	// (up to its first END OF STMT) but does not follow a PARSE ERROR's text or
+	// a BINDS block.
+	Sections []Section
+	Lines    int // lines read
 	// Complete: the read reached the end of the file (not stopped by
 	// StopAtRecord or MaxBytes).
 	Complete bool
@@ -78,6 +100,8 @@ func SniffReader(r io.Reader, o SniffOptions) (Sniff, error) {
 	var res Sniff
 	var dumps []Dump
 	ids := map[string]string{}
+	var sections []Section
+	sec := sectionTracker{out: &sections}
 	t := optTracker{dumps: &dumps, id: func(b []byte) string {
 		if s, ok := ids[string(b)]; ok {
 			return s
@@ -88,7 +112,7 @@ func SniffReader(r io.Reader, o SniffOptions) (Sniff, error) {
 	}}
 	br := bufio.NewReaderSize(r, 256<<10)
 	var read int64
-	record, stopped, inLong := false, false, false
+	record, stopped, inLong, inText := false, false, false, false
 	for !stopped {
 		chunk, err := br.ReadSlice('\n')
 		full := err == bufio.ErrBufferFull // a line longer than the buffer: its start decides
@@ -104,9 +128,34 @@ func SniffReader(r io.Reader, o SniffOptions) (Sniff, error) {
 			}
 			line = trimCR(line)
 			rk := recordKind(line)
+			opt := false
 			if t.st != optOut || rk.kind == KindUnknown {
-				t.line(res.Lines, line, rk)
+				opt = t.line(res.Lines, line, rk)
 			}
+			wasText := inText
+			switch {
+			case inText: // the text of a cursor holds no section (nor does a BINDS block or a PARSE ERROR's text; those are not followed)
+				inText = string(line) != "END OF STMT"
+			case opt:
+				if sec.st != secOut { // the parser ends a section at an optimizer line
+					sec.endOfInput()
+					sec.st = secOut
+				}
+			case sec.st != secOut || rk.kind == KindUnknown:
+				sec.line(res.Lines, line, rk)
+			}
+			if o.Line != nil {
+				k := rk.kind
+				if wasText {
+					k = KindUnknown
+				}
+				var open Section
+				if sec.st != secOut && sec.st != secHeld {
+					open = sec.cur
+				}
+				o.Line(res.Lines, line, k, open)
+			}
+			inText = inText || rk.kind == KindParsingInCursor
 			if isRecordKind(rk.kind) {
 				// a record inside a dump (event 10046 on) or outside it
 				record = true
@@ -126,7 +175,8 @@ func SniffReader(r io.Reader, o SniffOptions) (Sniff, error) {
 		}
 	}
 	t.finish(res.Lines)
-	res.Dumps = dumps
+	sec.endOfInput()
+	res.Dumps, res.Sections = dumps, sections
 	switch {
 	case record && len(dumps) > 0:
 		res.Kind = FileKindBoth
@@ -134,6 +184,8 @@ func SniffReader(r io.Reader, o SniffOptions) (Sniff, error) {
 		res.Kind = FileKind10046
 	case len(dumps) > 0:
 		res.Kind = FileKind10053
+	case len(sections) > 0:
+		res.Kind = FileKindDiag
 	}
 	return res, nil
 }
@@ -150,7 +202,8 @@ func isRecordKind(k Kind) bool {
 }
 
 // FileKind is the kind of the file the statistics describe: it has 10046
-// records when the parser counted any, optimizer dumps when it found any.
+// records when the parser counted any, optimizer dumps when it found any, and
+// is a diag file when it has neither but sections.
 func (s Stats) FileKind() FileKind {
 	record := false
 	for k := Kind(0); k < kindCount; k++ {
@@ -166,6 +219,8 @@ func (s Stats) FileKind() FileKind {
 		return FileKind10046
 	case len(s.Dumps) > 0:
 		return FileKind10053
+	case len(s.Sections) > 0:
+		return FileKindDiag
 	}
 	return FileKindNone
 }

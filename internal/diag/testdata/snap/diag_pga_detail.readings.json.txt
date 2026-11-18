@@ -1,0 +1,69 @@
+== pga-detail 46-1001
+{
+  "bytes": 10959840,
+  "chunks": 1627,
+  "from": 46,
+  "kind": "pga-detail",
+  "lines": 956,
+  "node": "pga-detail:46-1001:1:0",
+  "ospid": 14085,
+  "pid": 6,
+  "rows": [
+    {
+      "category": "PL/SQL",
+      "comment": "pl/sql vc2",
+      "count": 217,
+      "ds": "0x7f584c9111e8",
+      "dsParent": "0x7f584dae2220",
+      "heap": "koh-kghu call",
+      "line": 51,
+      "size": {
+        "bytes": 3512312,
+        "text": "3512312 bytes"
+      },
+      "unit": "chunks"
+    },
+    {
+      "category": "SQL",
+      "comment": "sort key",
+      "count": 91,
+      "ds": "0x7f584bda6858",
+      "dsParent": "0x7f584bda4078",
+      "heap": "sort subheap",
+      "line": 53,
+      "size": {
+        "bytes": 2822576,
+        "text": "2822576 bytes"
+      },
+      "unit": "chunks"
+    },
+    {
+      "category": "PL/SQL",
+      "comment": "pl/sql vc2",
+      "count": 148,
+      "ds": "0x7f584c135be8",
+      "dsParent": "0x7f584c9182d0",
+      "heap": "koh-kghu sessi",
+      "line": 55,
+      "size": {
+        "bytes": 2349904,
+        "text": "2349904 bytes"
+      },
+      "unit": "chunks"
+    },
+    {
+      "comment": "free memory",
+      "count": 12,
+      "ds": "0x7f584dae4b40",
+      "heap": "top call heap",
+      "line": 57,
+      "size": {
+        "bytes": 575224,
+        "text": "575224 bytes"
+      },
+      "unit": "chunks"
+    },
+    "... 470 more"
+  ],
+  "to": 1001
+}

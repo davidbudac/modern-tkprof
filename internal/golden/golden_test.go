@@ -228,3 +228,31 @@ func TestInterleavedFixtureIsCompared(t *testing.T) {
 		t.Errorf("no optimizer dump found: kinds %v", m.Diag.LineKinds)
 	}
 }
+
+// The trace with an errorstack written inside it (a diagnostic dump of 29,000
+// lines between 10046 records) is held to tkprof like every other trace, with
+// no exclusion: tkprof ignores the dump and so does the model (it counts the
+// lines as "diagnostic" lines, not as unknown ones). TestAgainstTkprof compares
+// it; this test fails if that comparison is lost (the tkprof output is gone) or
+// if the model stops understanding the dump.
+func TestDiagInTraceFixtureIsCompared(t *testing.T) {
+	trc := filepath.Join(fixtures, "19c", "diag_in_10046.trc")
+	if _, err := os.Stat(trc); err != nil {
+		t.Skip("no diag-in-trace fixture")
+	}
+	for _, ext := range []string{".tkprof.txt", ".tkprof-noagg.txt"} {
+		if _, err := os.Stat(strings.TrimSuffix(trc, ".trc") + ext); err != nil {
+			t.Errorf("no tkprof output %s: the diag-in-trace fixture is not compared with tkprof", ext)
+		}
+	}
+	m, err := model.Build(trc, model.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Diag.UnknownLines != 0 || len(m.Unknown) != 0 {
+		t.Errorf("%d unknown lines in the diag-in-trace fixture", m.Diag.UnknownLines)
+	}
+	if m.Diag.LineKinds["diagnostic"] == 0 || len(m.File.Files[0].Sections) == 0 {
+		t.Errorf("no diagnostic dump found: kinds %v", m.Diag.LineKinds)
+	}
+}

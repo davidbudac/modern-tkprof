@@ -1,4 +1,4 @@
-import { createSession, filesFolded, fromRaw, inShellFilesWrite, mergeAnnotations, mergeBookmarks, type Bookmark, type NoteAction, type Opt10046Link, type Opt10053Link, type RawCompareDocument, type RawDocument, type Session, type TraceDoc } from '@lib'
+import { createSession, filesFolded, firstLineNaming, fromRaw, inShellFilesWrite, mergeAnnotations, mergeBookmarks, type Bookmark, type DiagLink, type NoteAction, type Opt10046Link, type Opt10053Link, type RawCompareDocument, type RawDocument, type Session, type TraceDoc } from '@lib'
 import type { ApiClient } from '@lib/data/client'
 import { getJSON, responseError, send, sessionClient, type EngineEvents } from '../engine'
 import type { FileInfo, FileList, JobInfo, OpenSessionResponse, SessionEvent, SessionInfo, SessionOptions } from '../engine'
@@ -9,7 +9,7 @@ import { closeChat } from '../assist/conversation'
 import { libraryFor } from '../library/library'
 import { mergePanes, parsePanes, type Panes, type PanesPatch } from './panes'
 import { dirsOf, heldPaths, titleOf, baseName } from './traceSet'
-import { dumpIndexOf, dumpTabs, isFollowRefusal, leftOutFile, optionsFor, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, type PeekOpt, type TabKind } from './optTabs'
+import { diagDumpNote, diagTabs, dumpIndexOf, dumpTabs, isFollowRefusal, leftOutFile, optDumpNote, optionsFor, pathNamed, pickJumpTab, splitByKind, sqlIdsOf, statementTabs, tabKindOf, tabKindOfView, traceTabs, type DiagKey as JumpKey, type PeekOpt, type SessionViewName, type TabKind } from './optTabs'
 import { LiveFollower } from './liveFollow'
 import { OpenQueue } from './openQueue'
 
@@ -19,6 +19,8 @@ export interface OpenOptions {
   salt?: string
   /** a live session over one growing file */
   follow?: boolean
+  /** how the session reads its file (`SessionOptions.view`): absent, the file decides; one file only. Set by "Open in the dump reader" and "Open as 10053" */
+  view?: SessionViewName
 }
 
 /**
@@ -92,10 +94,13 @@ export interface Tab {
   fileSel?: number[]
   /** which side panes are open and how wide (see `panes.ts`), kept in `workspace.json` */
   panes?: Panes
-  /** `10053`: an optimizer trace, a tab of its own with the 10053 view; absent: a 10046 trace. Known from the session (`optSqlIds`) or the document (`opt`), kept in `workspace.json` so a restored tab is labelled before it opens */
+  /** `10053`: an optimizer trace, a tab of its own with the 10053 view; `dump`: a file read as diagnostic dumps, a tab of its own with the dump reader; absent: a 10046 trace. Known from the session (`optSqlIds`, `view`) or the document (`opt`, `dump`), kept in `workspace.json` so a restored tab is labelled before it opens */
   kind?: TabKind
   /** a 10053 tab: the distinct sql_ids of its dumps (the engine's `optSqlIds`; the "10053" mark on a statement of another tab reads it) */
   optSqlIds?: string[]
+  /** a dump tab: the statements (`diagSqlIds`) and the sessions as `sid.serial` (`diagSessions`) its file names, from the engine's session; the "dump" mark of a SQL trace tab reads them */
+  diagSqlIds?: string[]
+  diagSessions?: string[]
   /** a jump to a dump that arrived before the tab's document did: the sql_id whose dump opens when it is in */
   openDump?: string
   /** the lib session (store + client), once the first document is in; the store survives engine restarts and live updates */
@@ -126,7 +131,7 @@ export interface RecentEntry {
   /** the requested paths that were folders, and how many files the engine opened (known after the first open) */
   dirs?: string[]
   files?: number
-  /** `10053`: the set is one optimizer trace (known after the first open) */
+  /** `10053` or `dump`: the set is one optimizer trace, or one file read as diagnostic dumps (known after the first open) */
   kind?: TabKind
 }
 
@@ -171,12 +176,13 @@ let seq = 0
 let pickSeq = 0
 const newKey = () => `t${Date.now().toString(36)}${(seq++).toString(36)}`
 
-const setKey = (s: TraceSet) => JSON.stringify([s.paths, s.options.binds, s.options.salt ?? '', !!s.options.follow])
+const setKey = (s: TraceSet) => JSON.stringify([s.paths, s.options.binds, s.options.salt ?? '', !!s.options.follow, ...(s.options.view ? [s.options.view] : [])]) // (the same file open in two views is two sets)
 
 function bodyOptions(o: OpenOptions): Partial<SessionOptions> {
   const b: Partial<SessionOptions> = { binds: o.binds }
   if (o.salt) b.salt = o.salt
   if (o.follow) b.follow = true
+  if (o.view) b.view = o.view
   return b
 }
 
@@ -353,6 +359,9 @@ export class Workspace {
     const patch: Partial<Tab> = { identity: info.identity || t.identity, hit: info.hit }
     const optIds = info.optSqlIds
     if (optIds) { patch.kind = '10053'; patch.optSqlIds = optIds } // present only for a 10053 session
+    else if (tabKindOfView(info.view) === 'dump') patch.kind = 'dump' // a file opened by default (or asked to open) in the dump reader
+    if (info.diagSqlIds) patch.diagSqlIds = info.diagSqlIds // present only for a diag session once it is ready
+    if (info.diagSessions) patch.diagSessions = info.diagSessions
     if (info.files?.length && !t.live) {
       const dirs = dirsOf(t.set.paths, info.files)
       patch.files = info.files
@@ -415,7 +424,7 @@ export class Workspace {
     if (!cur || cur.sessionId !== id) return
     // the document says what the tab is (a restored tab only guessed)
     const opt = l.doc.opt
-    const kind: TabKind | undefined = opt ? '10053' : undefined
+    const kind: TabKind | undefined = l.doc.dump ? 'dump' : opt ? '10053' : undefined
     if (cur.kind !== kind || (opt && !cur.optSqlIds)) {
       this.patchTab(key, { kind, optSqlIds: opt ? sqlIdsOf(opt.file.dumps) : undefined })
       if (cur.kind !== kind) this.persistOpen()
@@ -591,7 +600,7 @@ export class Workspace {
    * Opens a trace set in a new tab (shown at once unless `activate` is false), and lists it first in the recent list.
    * With `queued` the tab is only added: the caller starts it (`enqueue`).
    */
-  open(set: TraceSet, activate = true, recent = true, fileSel?: number[], panes?: Panes, queued = false, kind?: TabKind): string {
+  open(set: TraceSet, activate = true, recent = true, fileSel?: number[], panes?: Panes, queued = false, kind: TabKind | undefined = tabKindOfView(set.options.view)): string {
     const key = newKey()
     const tab: Tab = {
       key,
@@ -672,11 +681,12 @@ export class Workspace {
    * 10046 file; the engine itself leaves a 10053 file out of a set and says so in a note (`noteAction` offers to open it). Returns the tabs' keys.
    */
   openSplit(paths: string[], peekOf: (path: string) => PeekOpt | null | undefined, options: OpenOptions): string[] {
-    const { set, opt } = splitByKind(paths, peekOf)
+    const { set, opt, dump } = splitByKind(paths, peekOf)
     const keys: string[] = []
-    // follow is one live file: a set of several, and a 10053 file, open without it
+    // follow is one live file: a set of several, a 10053 file and a file of diagnostic dumps open without it
     if (set.length) keys.push(this.open({ paths: set, options: optionsFor(options, set.length, '') }, true))
     opt.forEach((p, i) => keys.push(this.open({ paths: [p], options: optionsFor(options, 1, '10053') }, !set.length && i === 0, true, undefined, undefined, false, '10053')))
+    dump.forEach((p, i) => keys.push(this.open({ paths: [p], options: optionsFor(options, 1, 'diag') }, !set.length && !opt.length && i === 0, true, undefined, undefined, false, 'dump')))
     return keys
   }
 
@@ -720,16 +730,95 @@ export class Workspace {
   }
 
   /**
+   * The "dump" mark of the SQL trace tab `from`: whether another open dump tab names the statement (its sql_id) or the session (`sid.serial`), and the jump to the
+   * most recently used one. The jump shows the dump tab and, when its text can be searched, selects the first place the file names it. Nothing is joined.
+   */
+  diagLink(from: string): DiagLink {
+    return {
+      has: (by) => diagTabs(this.snap.tabs, by, from).length > 0,
+      open: (by) => {
+        const tab = pickJumpTab(diagTabs(this.snap.tabs, by, from), this.used)
+        if (!tab) return
+        this.go({ kind: 'tab', key: tab.key })
+        const s = tab.session
+        if (!s) return
+        // the first line of the dump that names it: its outline opens down to it and the text shows it; where that cannot be found the tab is simply shown
+        void firstLineNaming(s.client, by).then((line) => { if (line) s.store.actions.openDump({ line }) }, () => undefined)
+      },
+    }
+  }
+
+  /**
+   * The "10046" link of the dump tab `from`: whether another open SQL trace tab holds the statement or the session, and the jump to the one most recently shown,
+   * selecting the statement, or the session in its Sessions view.
+   */
+  traceLink(from: string): DiagLink {
+    return {
+      has: (by) => traceTabs(this.snap.tabs, by, from, holdsKey).length > 0,
+      open: (by) => {
+        const tab = pickJumpTab(traceTabs(this.snap.tabs, by, from, holdsKey), this.used)
+        const st = tab?.session?.store
+        const doc = st?.getState().doc
+        if (!tab || !st || !doc) return
+        if ('sqlId' in by) {
+          const i = doc.statements.findIndex((x) => x.sqlId === by.sqlId)
+          if (i >= 0) st.actions.selectStmt(i)
+        } else {
+          const i = doc.contexts.findIndex((c) => c.sessionId === by.session)
+          if (i >= 0) { st.actions.setContexts(new Set([doc.contexts[i].id ?? i])); st.actions.setView('sessions') }
+        }
+        this.go({ kind: 'tab', key: tab.key })
+      },
+    }
+  }
+
+  /**
    * A button for a note of tab `key`'s document that says a 10053 file was left out of the set ("x.trc is a 10053 file; open it on its own"):
    * it opens that file in a tab of its own. The file is found among the requested paths, else in the folders among them.
    */
   noteAction(key: string, note: string): NoteAction | null {
     const tab = this.tab(key)
     if (!tab || tab.origin === 'comparison') return null
+    // a note that says the file holds diagnostic dumps, or optimizer dumps: the file opens in the reader of those, in a tab of its own
+    const dumps = diagDumpNote(note)
+    if (dumps !== null && tab.kind !== 'dump') return this.openAsAction(tab, dumps, 'diag', 'Open in the dump reader', 'Open this file in a new tab, read as diagnostic dumps: an outline of the file, its text and search')
+    const opt = optDumpNote(note)
+    if (opt !== null && tab.kind !== '10053') return this.openAsAction(tab, opt, '10053', 'Open as 10053', 'Open this file in a new tab, read as optimizer (10053) dumps (the 10046 records inside it are left out)')
     const opened = new Set(tab.files.map((f) => baseName(f.path)))
     const name = leftOutFile(note) ?? tab.set.paths.map(baseName).find((n) => !opened.has(n) && note.includes(n)) ?? null
     if (!name || opened.has(name)) return null
     return { label: `Open ${name}`, title: `Open ${name} in a tab of its own`, run: () => void this.openLeftOut(tab, name) }
+  }
+
+  /** The path of the file of tab `tab` that a note names ('' for the tab's only file), or null when it cannot be told. */
+  private fileOfNote(tab: Tab, name: string): string | null {
+    if (name) return tab.files.find((f) => baseName(f.path) === name)?.path ?? null
+    if (tab.files.length === 1) return tab.files[0].path
+    const only = tab.set.paths.length === 1 && !tab.dirs.includes(tab.set.paths[0]) ? tab.set.paths[0] : null
+    return tab.files.length === 0 ? only : null
+  }
+
+  private openAsAction(tab: Tab, name: string, view: SessionViewName, label: string, title: string): NoteAction | null {
+    const path = this.fileOfNote(tab, name)
+    if (!path) return null
+    return { label, title, run: () => void this.openOrShow({ paths: [path], options: { binds: tab.set.options.binds, salt: tab.set.options.salt, view } }) }
+  }
+
+  /**
+   * The tab's file again in a new tab, read another way (`view` of a session): the dump reader's "Open as SQL trace". One file only (the engine refuses a
+   * view on a set); a tab that already reads the file that way is shown instead.
+   */
+  openAs(key: string, view: SessionViewName): string | null {
+    const tab = this.tab(key)
+    if (!tab || tab.origin !== 'paths' || tab.set.paths.length !== 1 || tab.dirs.length > 0) return null
+    // a tab that reads this file that way already (the SQL trace the dump tab was opened from, opened without a view because the file decided) is shown
+    const want = tabKindOfView(view)
+    const same = this.snap.tabs.find((t) => t.key !== key && t.origin === 'paths' && !t.live && t.state !== 'failed' && t.set.paths.length === 1 && t.set.paths[0] === tab.set.paths[0] && t.kind === want)
+    if (same) {
+      this.go({ kind: 'tab', key: same.key })
+      return same.key
+    }
+    return this.openOrShow({ paths: tab.set.paths, options: { binds: tab.set.options.binds, salt: tab.set.options.salt, view } })
   }
 
   private async openLeftOut(tab: Tab, name: string) {
@@ -924,7 +1013,7 @@ export class Workspace {
     const open = opts.startEmpty ? [] : ((await kv.get<(Panes & { title: string; set: TraceSet; files?: number[]; kind?: string })[]>('open')) ?? [])
     const active = (await kv.get<number>('active')) ?? -1
     // the tabs are added at once and opened through the queue (the shown one first, two at a time)
-    const keys = open.filter((o) => o?.set?.paths?.length).map((o) => this.open(o.set, false, false, Array.isArray(o.files) ? o.files.filter((f) => Number.isInteger(f) && f >= 0) : undefined, parsePanes(o), true, o.kind === '10053' ? '10053' : undefined))
+    const keys = open.filter((o) => o?.set?.paths?.length).map((o) => this.open(o.set, false, false, Array.isArray(o.files) ? o.files.filter((f) => Number.isInteger(f) && f >= 0) : undefined, parsePanes(o), true, tabKindOf(o.kind)))
     const extra = opts.extra
     if (extra && !open.some((o) => setKey(o.set) === setKey(extra))) keys.push(this.open(extra, false, true, undefined, undefined, true))
     const show = extra ? keys[keys.length - 1] : (keys[active] ?? keys[0])
@@ -993,5 +1082,17 @@ function hasStatement(t: Tab, sqlId: string): boolean {
   return ids.has(sqlId)
 }
 
-/** Comparison uses full traces, independently of current filters and selections. A 10053 tab is not offered as a side: it has nothing to compare. */
-export const canCompare = (t: Tab) => t.origin !== 'comparison' && t.kind !== '10053' && t.state === 'ready' && !t.live && !!t.sessionId && !!t.session
+const sessionIdCache = new WeakMap<TraceDoc, ReadonlySet<string>>()
+
+/** Whether the tab's SQL trace holds the statement (its sql_id) or the session (a context with this `sid.serial`). */
+function holdsKey(t: Tab, by: JumpKey): boolean {
+  if ('sqlId' in by) return hasStatement(t, by.sqlId)
+  const doc = t.session?.store.getState().doc
+  if (!doc) return false
+  let ids = sessionIdCache.get(doc)
+  if (!ids) sessionIdCache.set(doc, (ids = new Set(doc.contexts.map((c) => c.sessionId).filter(Boolean))))
+  return ids.has(by.session)
+}
+
+/** Comparison uses full traces, independently of current filters and selections. A 10053 or dump tab is not offered as a side: it has nothing to compare. */
+export const canCompare = (t: Tab) => t.origin !== 'comparison' && !t.kind && t.state === 'ready' && !t.live && !!t.sessionId && !!t.session

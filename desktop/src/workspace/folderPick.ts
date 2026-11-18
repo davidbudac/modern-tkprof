@@ -4,7 +4,7 @@
 
 import type { ListedFile, TracePeek } from '../engine'
 import { baseName } from './traceSet'
-import { fileKindOf, kindLabel } from './optTabs'
+import { fileKindOf, isDumpFile, kindLabel } from './optTabs'
 
 /** What a peek reports (the generated type: it carries the 10053 fields). */
 export type Peek = TracePeek
@@ -59,18 +59,32 @@ export function sortRows(rows: readonly PickRow[], s: PickSort): PickRow[] {
   })
 }
 
-/** The peek found neither a SQL trace (10046) nor optimizer (10053) dumps in the file: a background process trace, say. */
+/** The peek found neither a SQL trace (10046), optimizer (10053) dumps nor diagnostic dumps in the file: a background process trace, say. */
 export const noTrace = (p: Peek | null) => !!p && !p.error && !p.sqlTrace && fileKindOf(p) === ''
+
+/** The peek found diagnostic dumps and no SQL trace or optimizer dump: a heap dump, an errorstack, a process or system state, ... (the dump reader reads it). */
+export const dumpOnly = (p: Peek | null) => !!p && !p.error && isDumpFile(p)
+
+/**
+ * Which files the picker lists: the SQL and optimizer traces (the default: a trace folder holds mostly other files), those and the files of diagnostic
+ * dumps (`dumps`), or every file (`all`).
+ */
+export type PickFilter = 'sql' | 'dumps' | 'all'
+
+export const FILTER_LABEL: Record<PickFilter, string> = { sql: 'SQL and optimizer traces', dumps: 'Also dump files', all: 'All files' }
+
+/** Whether the filter hides the file: `sql` hides the dump files and the files with neither; `dumps` those with neither; `all` none. A file not peeked yet, or one that failed, stays. */
+const hides = (f: PickFilter, p: Peek | null) => (f === 'sql' && (noTrace(p) || dumpOnly(p))) || (f === 'dumps' && noTrace(p))
 
 /**
  * The rows the filter keeps: every word of `text` in the file name, a session id, module, action,
- * client id, service, the instance or the kind (`10053`); with `sqlOnly`, not the files the peek found no SQL trace
- * (and no optimizer dump) in (a file not peeked yet, or one that failed, stays).
+ * client id, service, the instance or the kind (`10053`, `dump`); `filter` as `PickFilter` (a boolean is the old checkbox: true is `sql`, false `all`).
  */
-export function filterRows(rows: readonly PickRow[], text: string, sqlOnly: boolean): PickRow[] {
+export function filterRows(rows: readonly PickRow[], text: string, filter: PickFilter | boolean): PickRow[] {
+  const f: PickFilter = filter === true ? 'sql' : filter === false ? 'all' : filter
   const words = text.toLowerCase().split(/\s+/).filter(Boolean)
   return rows.filter((r) => {
-    if (sqlOnly && noTrace(r.peek)) return false
+    if (hides(f, r.peek)) return false
     if (!words.length) return true
     const hay = [r.name, r.peek?.instance, kindLabel(r.peek), ...(r.peek?.sessions ?? []).flatMap((s) => [s.id, s.module, s.action, s.client, s.service])]
       .filter(Boolean)
@@ -80,8 +94,22 @@ export function filterRows(rows: readonly PickRow[], text: string, sqlOnly: bool
   })
 }
 
-/** How many files the peek found no SQL trace (and no optimizer dump) in. */
+/** How many files the peek found no SQL trace (and no optimizer or diagnostic dump) in. */
 export const notSQL = (rows: readonly PickRow[]) => rows.filter((r) => noTrace(r.peek)).length
+
+/** What a filter leaves out: the dump files and the files with nothing the app reads. */
+export function hiddenCounts(rows: readonly PickRow[], filter: PickFilter): { dumps: number; other: number } {
+  return {
+    dumps: filter === 'sql' ? rows.filter((r) => dumpOnly(r.peek)).length : 0,
+    other: filter === 'all' ? 0 : notSQL(rows),
+  }
+}
+
+/** "2 dump files and 3 without SQL trace hidden" (empty when nothing is hidden). */
+export function hiddenText(h: { dumps: number; other: number }): string {
+  const parts = [h.dumps > 0 && `${h.dumps} dump ${h.dumps === 1 ? 'file' : 'files'}`, h.other > 0 && `${h.other} without SQL trace`].filter(Boolean)
+  return parts.length ? `${parts.join(' and ')} hidden` : ''
+}
 
 /**
  * The peek requests for `files` in this order: several small files per request (up to `maxFiles`,

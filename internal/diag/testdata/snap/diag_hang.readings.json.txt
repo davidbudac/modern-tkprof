@@ -1,0 +1,525 @@
+== hang 42-275
+{
+  "chains": [
+    {
+      "events": [
+        "PL/SQL lock timer",
+        "enq: TX - row lock contention",
+        "enq: TX - row lock contention"
+      ],
+      "from": 65,
+      "group": "Non-intersecting chains",
+      "hash": "0x5e4fa8d6",
+      "letter": "a",
+      "line": 65,
+      "listed": true,
+      "n": 1,
+      "sessions": [
+        {
+          "blocking": 0,
+          "event": "enq: TX - row lock contention",
+          "from": 67,
+          "history": [
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between current wait and wait #1: 0.000132 sec",
+              "gapSec": 0.000132,
+              "line": 91,
+              "n": 1,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 23,
+              "waitedSec": 0.000262
+            },
+            {
+              "event": "SQL*Net message to client",
+              "gapLabel": "* time between wait #1 and #2: 0.000005 sec",
+              "gapSec": 0.000005,
+              "line": 96,
+              "n": 2,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 22,
+              "waitedSec": 0.000001
+            },
+            {
+              "event": "PL/SQL lock timer",
+              "gapLabel": "* time between wait #2 and #3: 0.000050 sec",
+              "gapSec": 0.00005,
+              "line": 101,
+              "n": 3,
+              "params": [
+                "p1: 'duration'=0x0"
+              ],
+              "waitId": 21,
+              "waitedSec": 2.000067
+            }
+          ],
+          "historyLine": 89,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "255.22508",
+          "line": 67,
+          "module": "mtk_diag_chain-dg1.localdomain (TNS V1-V3)",
+          "moduleNum": 3,
+          "osId": "13912",
+          "params": [
+            "p1: 'name|mode'=0x54580006",
+            "p2: 'usn\u003c\u003c16 | slot'=0x90004",
+            "p3: 'sequence'=0x5d88"
+          ],
+          "pdb": "PDB1",
+          "pdbId": 3,
+          "position": 1,
+          "process": "oracle@ol9-19-dg1.localdomain",
+          "processId": 61,
+          "serial": 22508,
+          "shortStack": "ksedsts\u003c-ksdxfstk\u003c-ksdxcb\u003c-sspuser\u003c-__sighandler()\u003c-semtimedop\u003c-sskgpwwait\u003c-skgpwwait\u003c-ksliwat\u003c-kslwaitctx\u003c-ksqcmi\u003c-ksqgtlctx\u003c-ksqgelctx\u003c-ktuGetTxForXid\u003c-ktcwit1\u003c-kdddgb\u003c-kddlkr\u003c-qerfuProcessFetchedRow\u003c-qerfuLockingRowProcedure\u003c-qerixFetchUniqueIndex\u003c-qerfuStart\u003c-selexe0\u003c-opiexe\u003c-kpoal8\u003c-opiodr\u003c-ttcpip\u003c-opitsk\u003c-opiino\u003c-opiodr\u003c-opidrv\u003c-sou2o\u003c-opimai_real\u003c-ssthrdmain\u003c-main\u003c-__libc_start_call_main",
+          "shortStackNoOwn": "semtimedop\u003c-sskgpwwait\u003c-skgpwwait\u003c-ksliwat\u003c-kslwaitctx\u003c-ksqcmi\u003c-ksqgtlctx\u003c-ksqgelctx\u003c-ktuGetTxForXid\u003c-ktcwit1\u003c-kdddgb\u003c-kddlkr\u003c-qerfuProcessFetchedRow\u003c-qerfuLockingRowProcedure\u003c-qerixFetchUniqueIndex\u003c-qerfuStart\u003c-selexe0\u003c-opiexe\u003c-kpoal8\u003c-opiodr\u003c-ttcpip\u003c-opitsk\u003c-opiino\u003c-opiodr\u003c-opidrv\u003c-sou2o\u003c-opimai_real\u003c-ssthrdmain\u003c-main\u003c-__libc_start_call_main",
+          "shortStackOwn": 5,
+          "sid": 255,
+          "sqlIdHigh": 3373088609,
+          "sqlText": "select id from mtk_cust where id = 302 for update wait 60",
+          "state": "is waiting for 'enq: TX - row lock contention' with wait info:",
+          "timeInWaitSec": 4.029036,
+          "timeoutSec": 55.970964,
+          "timeoutText": "55.970964 sec",
+          "to": 105,
+          "waitId": 24,
+          "waiting": true
+        },
+        {
+          "blocking": 1,
+          "event": "enq: TX - row lock contention",
+          "from": 106,
+          "history": [
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between current wait and wait #1: 0.000066 sec",
+              "gapSec": 0.000066,
+              "line": 130,
+              "n": 1,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 26,
+              "waitedSec": 0.000107
+            },
+            {
+              "event": "SQL*Net message to client",
+              "gapLabel": "* time between wait #1 and #2: 0.000001 sec",
+              "gapSec": 0.000001,
+              "line": 135,
+              "n": 2,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 25,
+              "waitedSec": 0
+            },
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between wait #2 and #3: 0.000006 sec",
+              "gapSec": 0.000006,
+              "line": 140,
+              "n": 3,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 24,
+              "waitedSec": 0.000109
+            }
+          ],
+          "historyLine": 128,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "52.55849",
+          "line": 106,
+          "module": "mtk_diag_chain-dg1.localdomain (TNS V1-V3)",
+          "moduleNum": 3,
+          "osId": "13914",
+          "params": [
+            "p1: 'name|mode'=0x54580006",
+            "p2: 'usn\u003c\u003c16 | slot'=0x10001",
+            "p3: 'sequence'=0x4e99"
+          ],
+          "pdb": "PDB1",
+          "pdbId": 3,
+          "position": 2,
+          "process": "oracle@ol9-19-dg1.localdomain",
+          "processId": 68,
+          "serial": 55849,
+          "shortStack": "ksedsts\u003c-ksdxfstk\u003c-ksdxcb\u003c-sspuser\u003c-__sighandler()\u003c-semtimedop\u003c-sskgpwwait\u003c-skgpwwait\u003c-ksliwat\u003c-kslwaitctx\u003c-ksqcmi\u003c-ksqgtlctx\u003c-ksqgelctx\u003c-ktuGetTxForXid\u003c-ktcwit1\u003c-kdddgb\u003c-kddlkr\u003c-qerfuProcessFetchedRow\u003c-qerfuLockingRowProcedure\u003c-qerixFetchUniqueIndex\u003c-qerfuStart\u003c-selexe0\u003c-opiexe\u003c-kpoal8\u003c-opiodr\u003c-ttcpip\u003c-opitsk\u003c-opiino\u003c-opiodr\u003c-opidrv\u003c-sou2o\u003c-opimai_real\u003c-ssthrdmain\u003c-main\u003c-__libc_start_call_main",
+          "shortStackNoOwn": "semtimedop\u003c-sskgpwwait\u003c-skgpwwait\u003c-ksliwat\u003c-kslwaitctx\u003c-ksqcmi\u003c-ksqgtlctx\u003c-ksqgelctx\u003c-ktuGetTxForXid\u003c-ktcwit1\u003c-kdddgb\u003c-kddlkr\u003c-qerfuProcessFetchedRow\u003c-qerfuLockingRowProcedure\u003c-qerixFetchUniqueIndex\u003c-qerfuStart\u003c-selexe0\u003c-opiexe\u003c-kpoal8\u003c-opiodr\u003c-ttcpip\u003c-opitsk\u003c-opiino\u003c-opiodr\u003c-opidrv\u003c-sou2o\u003c-opimai_real\u003c-ssthrdmain\u003c-main\u003c-__libc_start_call_main",
+          "shortStackOwn": 5,
+          "sid": 52,
+          "sqlIdHigh": 3824709289,
+          "sqlText": "select id from mtk_cust where id = 301 for update wait 60",
+          "state": "which is waiting for 'enq: TX - row lock contention' with wait info:",
+          "timeInWaitSec": 5.030909,
+          "timeoutSec": 54.969091,
+          "timeoutText": "54.969091 sec",
+          "to": 145,
+          "waitId": 27,
+          "waiting": true
+        },
+        {
+          "blocking": 2,
+          "event": "PL/SQL lock timer",
+          "from": 146,
+          "history": [
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between current wait and wait #1: 0.000066 sec",
+              "gapSec": 0.000066,
+              "line": 168,
+              "n": 1,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 27,
+              "waitedSec": 0.000076
+            },
+            {
+              "event": "SQL*Net message to client",
+              "gapLabel": "* time between wait #1 and #2: 0.000001 sec",
+              "gapSec": 0.000001,
+              "line": 173,
+              "n": 2,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 26,
+              "waitedSec": 0
+            },
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between wait #2 and #3: 0.000006 sec",
+              "gapSec": 0.000006,
+              "line": 178,
+              "n": 3,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 25,
+              "waitedSec": 0.000088
+            }
+          ],
+          "historyLine": 166,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "61.26319",
+          "line": 146,
+          "module": "mtk_diag_chain-dg1.localdomain (TNS V1-V3)",
+          "moduleNum": 3,
+          "osId": "13909",
+          "params": [
+            "p1: 'duration'=0x0"
+          ],
+          "pdb": "PDB1",
+          "pdbId": 3,
+          "position": 3,
+          "process": "oracle@ol9-19-dg1.localdomain",
+          "processId": 6,
+          "serial": 26319,
+          "shortStack": "ksedsts\u003c-ksdxfstk\u003c-ksdxcb\u003c-sspuser\u003c-__sighandler()\u003c-semtimedop\u003c-sskgpwwait\u003c-skgpwwait\u003c-ksliwat\u003c-kslwaitctx\u003c-psdwat\u003c-pevm_icd_call_common\u003c-pfrinstr_ICAL\u003c-pfrrun_no_tool\u003c-pfrrun\u003c-plsql_run\u003c-peicnt\u003c-kkxexe\u003c-opiexe\u003c-kpoal8\u003c-opiodr\u003c-ttcpip\u003c-opitsk\u003c-opiino\u003c-opiodr\u003c-opidrv\u003c-sou2o\u003c-opimai_real\u003c-ssthrdmain\u003c-main\u003c-__libc_start_call_main",
+          "shortStackNoOwn": "semtimedop\u003c-sskgpwwait\u003c-skgpwwait\u003c-ksliwat\u003c-kslwaitctx\u003c-psdwat\u003c-pevm_icd_call_common\u003c-pfrinstr_ICAL\u003c-pfrrun_no_tool\u003c-pfrrun\u003c-plsql_run\u003c-peicnt\u003c-kkxexe\u003c-opiexe\u003c-kpoal8\u003c-opiodr\u003c-ttcpip\u003c-opitsk\u003c-opiino\u003c-opiodr\u003c-opidrv\u003c-sou2o\u003c-opimai_real\u003c-ssthrdmain\u003c-main\u003c-__libc_start_call_main",
+          "shortStackOwn": 5,
+          "sid": 61,
+          "sqlIdHigh": 325942433,
+          "sqlText": "BEGIN dbms_session.sleep(16); END;",
+          "state": "which is waiting for 'PL/SQL lock timer' with wait info:",
+          "timeInWaitSec": 6.103729,
+          "timeoutSec": 9.896271,
+          "timeoutText": "9.896271 sec",
+          "to": 183,
+          "waitId": 28,
+          "waiting": true
+        }
+      ],
+      "sessionsTotal": 3,
+      "signature": "'PL/SQL lock timer'\u003c='enq: TX - row lock contention'\u003c='enq: TX - row lock contention'",
+      "to": 188
+    },
+    {
+      "events": [
+        "Streams AQ: waiting for messages in the queue"
+      ],
+      "from": 192,
+      "group": "Sessions in an involuntary wait or not in a wait",
+      "hash": "0xa00e2e87",
+      "letter": "b",
+      "line": 192,
+      "listed": true,
+      "n": 2,
+      "sessions": [
+        {
+          "blocking": 0,
+          "event": "Streams AQ: waiting for messages in the queue",
+          "from": 194,
+          "heurTimeInWaitSec": 14.265527,
+          "history": [
+            {
+              "event": "Streams AQ: waiting for messages in the queue",
+              "gapLabel": "* time between current wait and wait #1: 0.000276 sec",
+              "gapSec": 0.000276,
+              "line": 219,
+              "n": 1,
+              "params": [
+                "p1: 'queue id'=0x14660",
+                "p2: 'process#'=0xa258d408",
+                "p3: 'wait time'=0x5"
+              ],
+              "waitId": 9,
+              "waitedSec": 5.000091
+            },
+            {
+              "event": "Streams AQ: waiting for messages in the queue",
+              "gapLabel": "* time between wait #1 and #2: 0.000315 sec",
+              "gapSec": 0.000315,
+              "line": 225,
+              "n": 2,
+              "params": [
+                "p1: 'queue id'=0x14660",
+                "p2: 'process#'=0xa258d408",
+                "p3: 'wait time'=0x5"
+              ],
+              "waitId": 8,
+              "waitedSec": 5.000115
+            },
+            {
+              "event": "jobq slave wait",
+              "gapLabel": "* time between wait #2 and #3: 0.002377 sec",
+              "gapSec": 0.002377,
+              "line": 231,
+              "n": 3,
+              "params": [],
+              "waitId": 7,
+              "waitedSec": 0.493097
+            }
+          ],
+          "historyLine": 217,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "3.37475",
+          "line": 194,
+          "module": "DBMS_SCHEDULERstack_l1aldomain (TNS V1-V3)",
+          "moduleNum": 1,
+          "osId": "12239",
+          "params": [
+            "p1: 'queue id'=0x14660",
+            "p2: 'process#'=0xa258d408",
+            "p3: 'wait time'=0x5"
+          ],
+          "pdb": "CDB$ROOT",
+          "pdbId": 1,
+          "position": 1,
+          "process": "oracle@ol9-19-dg1.localdomain (J001)",
+          "processId": 40,
+          "serial": 37475,
+          "shortStack": "ksedsts\u003c-ksdxfstk\u003c-ksdxcb\u003c-sspuser\u003c-__sighandler()\u003c-semtimedop\u003c-sskgpwwait\u003c-skgpwwait\u003c-ksliwat\u003c-kslwaitctx\u003c-kwqidexfcy\u003c-kwqidrdq\u003c-kwqidsfmp\u003c-kwqidafm0\u003c-kwqididqx\u003c-kwqidxdeq0\u003c-kwqidxdeq102\u003c-kwqiadtdeq\u003c-spefcmpa\u003c-spefmccallstd\u003c-peftrusted\u003c-psdexsp\u003c-rpiswu2\u003c-kxe_push_env_internal_pp_\u003c-kkx_push_env_for_ICD_for_new_session\u003c-psdextp\u003c-pefccal\u003c-pefcal\u003c-pevm_FCAL\u003c-pfrinstr_FCAL\u003c-pfrrun_no_tool\u003c-pfrrun\u003c-plsql_run\u003c-peicnt\u003c-kkxexe\u003c-opiexe\u003c-kpoal8\u003c-opiodr\u003c-kpoodr\u003c-upirtrc\u003c-kpurcsc\u003c-kpuexec\u003c-OCIStmtExecute\u003c-jslvec_execcb\u003c-jslvs",
+          "shortStackNoOwn": "semtimedop\u003c-sskgpwwait\u003c-skgpwwait\u003c-ksliwat\u003c-kslwaitctx\u003c-kwqidexfcy\u003c-kwqidrdq\u003c-kwqidsfmp\u003c-kwqidafm0\u003c-kwqididqx\u003c-kwqidxdeq0\u003c-kwqidxdeq102\u003c-kwqiadtdeq\u003c-spefcmpa\u003c-spefmccallstd\u003c-peftrusted\u003c-psdexsp\u003c-rpiswu2\u003c-kxe_push_env_internal_pp_\u003c-kkx_push_env_for_ICD_for_new_session\u003c-psdextp\u003c-pefccal\u003c-pefcal\u003c-pevm_FCAL\u003c-pfrinstr_FCAL\u003c-pfrrun_no_tool\u003c-pfrrun\u003c-plsql_run\u003c-peicnt\u003c-kkxexe\u003c-opiexe\u003c-kpoal8\u003c-opiodr\u003c-kpoodr\u003c-upirtrc\u003c-kpurcsc\u003c-kpuexec\u003c-OCIStmtExecute\u003c-jslvec_execcb\u003c-jslvs",
+          "shortStackOwn": 5,
+          "sid": 3,
+          "sqlIdHigh": 2279214261,
+          "sqlText": "DECLARE job BINARY_INTEGER := :job;  next_date TIMESTAMP WITH TIME ZONE := :mydate;  broken BOOLEAN := FALSE;  job_name VARCHAR2(128) := :job_name;  job_subname VARCHAR2(128) := :job_subname;  job_owner VARCHAR2(128) := :job_owner;  job_start TIMESTAMP WITH TIME ZONE := :job_start;  job_scheduled_start TIMESTAMP WITH",
+          "state": "is waiting for 'Streams AQ: waiting for messages in the queue' with wait info:",
+          "timeInWaitSec": 4.26473,
+          "timeoutSec": 0.73527,
+          "timeoutText": "0.735270 sec",
+          "to": 235,
+          "waitId": 10,
+          "waiting": true
+        }
+      ],
+      "sessionsTotal": 1,
+      "signature": "'Streams AQ: waiting for messages in the queue'",
+      "to": 240
+    }
+  ],
+  "chainsTotal": 2,
+  "delays": [
+    "os thread scheduling delay history: (sampling every 1.000000 secs)",
+    "0.000000 secs at [ 21:34:41 ]",
+    "NOTE: scheduling delay has not been sampled for 0.053973 secs",
+    "0.000000 secs from [ 21:34:37 - 21:34:42 ], 5 sec avg",
+    "... 3 more"
+  ],
+  "dumps": {
+    "ended": true,
+    "level": 3,
+    "line": 259,
+    "lines": [
+      "No processes qualify for dumping."
+    ],
+    "local": {
+      "header": "([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):",
+      "line": 263,
+      "rows": [
+        {
+          "adj": [],
+          "cnode": 1,
+          "key": "3.37475",
+          "line": 265,
+          "num": 2,
+          "ospid": "12239",
+          "serial": 37475,
+          "session": "0xa272a008",
+          "sid": 3,
+          "state": "SINGLE_NODE"
+        },
+        {
+          "adj": [
+            60
+          ],
+          "cnode": 1,
+          "key": "52.55849",
+          "line": 266,
+          "num": 51,
+          "ospid": "13914",
+          "serial": 55849,
+          "session": "0xa27a4370",
+          "sid": 52,
+          "state": "NLEAF"
+        },
+        {
+          "adj": [],
+          "cnode": 1,
+          "key": "61.26319",
+          "line": 267,
+          "num": 60,
+          "ospid": "13909",
+          "serial": 26319,
+          "session": "0xa27baa98",
+          "sid": 61,
+          "state": "LEAF"
+        },
+        {
+          "adj": [
+            51
+          ],
+          "cnode": 1,
+          "key": "255.22508",
+          "line": 268,
+          "num": 254,
+          "ospid": "13912",
+          "serial": 22508,
+          "session": "0xa299efe8",
+          "sid": 255,
+          "state": "NLEAF"
+        }
+      ],
+      "total": 4
+    }
+  },
+  "ended": true,
+  "extra": [
+    "[level  4] :   1 node dumps -- [LEAF] [LEAF_NW]",
+    "[level  5] :   3 node dumps -- [NO_WAIT] [INVOL_WT] [SINGLE_NODE] [NLEAF] [SINGLE_NODE_NW]"
+  ],
+  "from": 42,
+  "headerLine": 42,
+  "initiatedBy": "oradebug",
+  "instances": [
+    "cdb1.cdb1"
+  ],
+  "kind": "hang",
+  "level": 3,
+  "lines": 234,
+  "listed": [
+    {
+      "chain": 1,
+      "events": [
+        "PL/SQL lock timer",
+        "enq: TX - row lock contention",
+        "enq: TX - row lock contention"
+      ],
+      "hash": "0x5e4fa8d6",
+      "letter": "a",
+      "line": 56,
+      "signature": "'PL/SQL lock timer'\u003c='enq: TX - row lock contention'\u003c='enq: TX - row lock contention'"
+    },
+    {
+      "chain": 2,
+      "events": [
+        "Streams AQ: waiting for messages in the queue"
+      ],
+      "hash": "0xa00e2e87",
+      "letter": "b",
+      "line": 58,
+      "signature": "'Streams AQ: waiting for messages in the queue'"
+    }
+  ],
+  "node": "hang:42-275:1:40",
+  "nodes": {
+    "header": "([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):",
+    "line": 245,
+    "rows": [
+      {
+        "adj": [],
+        "cnode": 1,
+        "key": "3.37475",
+        "line": 247,
+        "num": 2,
+        "ospid": "12239",
+        "serial": 37475,
+        "session": "0xa272a008",
+        "sid": 3,
+        "state": "SINGLE_NODE"
+      },
+      {
+        "adj": [
+          60
+        ],
+        "cnode": 1,
+        "key": "52.55849",
+        "line": 248,
+        "num": 51,
+        "ospid": "13914",
+        "serial": 55849,
+        "session": "0xa27a4370",
+        "sid": 52,
+        "state": "NLEAF"
+      },
+      {
+        "adj": [],
+        "cnode": 1,
+        "key": "61.26319",
+        "line": 249,
+        "num": 60,
+        "ospid": "13909",
+        "serial": 26319,
+        "session": "0xa27baa98",
+        "sid": 61,
+        "state": "LEAF"
+      },
+      {
+        "adj": [
+          51
+        ],
+        "cnode": 1,
+        "key": "255.22508",
+        "line": 250,
+        "num": 254,
+        "ospid": "13912",
+        "serial": 22508,
+        "session": "0xa299efe8",
+        "sid": 255,
+        "state": "NLEAF"
+      }
+    ],
+    "total": 4
+  },
+  "notes": [],
+  "to": 275
+}

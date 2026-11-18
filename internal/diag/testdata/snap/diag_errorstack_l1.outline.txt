@@ -1,0 +1,24 @@
+file diag_errorstack_l1.trc: 5050 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 0 unplaced
+section diagdump 32-5050
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
++ 32-5050 (5019) diagdump: Diagnostic dump (level 1) reading=callstack
+      33-34 (2) title: Error Stack Dump
+      35-36 (2) title: Current SQL Statement for this session (sql_id=8fdx3ffur0ddr)  [alter session set events 'immediate trace name errorstack level 1']
+      37-41 (5) title: Parser State
+      42-42 (1) title: PL/SQL Stack
+      43-49 (7) title: PL/SQL Call Stack
+      50-187 (138) title: Call Stack Trace
+    + 188-2699 (2512) title: Binary Stack Dump fold="frame data: registers and memory of each frame"
+      2700-4838 (2139) title: Argument/Register Address Dump fold="memory around the arguments' and registers' addresses"
+      4839-4839 (1) title: End of Call Stack Trace
+      4840-5005 (166) title: Process Map Dump fold="the process's memory map: address ranges of the binary and its libraries"
+      5006-5023 (18) title: Process Resource Limits
+      5024-5024 (1) title: Java Stack
+      5025-5038 (14) title: KSWRDUMP START
+      5039-5039 (1) title: KSWRDUMP END
+      5040-5045 (6) title: KSMEM_DUMP START
+      5046-5046 (1) title: KSMEM_DUMP END
+      5047-5048 (2) title: KSM MGA PRIVATE DUMP START
+      5049-5049 (1) title: KSM MGA PRIVATE DUMP END
+      5050-5050 (1) title: VKTM Time Drifts Circular Buffer

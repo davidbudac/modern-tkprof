@@ -1,0 +1,21 @@
+file diag_heap_contents.trc: 26247 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 0 unplaced
+section heap 32-17213
+section heap 17214-17808
+section heap 17809-26247
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
++ 32-17213 (17182) heap: Heap dump: pga heap  [1.1 MB, depth 0] depth=0 size=1104440 reading=heap
+    + 41-11655 (11615) extents: Extents  [48 extents]
+    + 11656-11743 (88) freelists: Free lists
+      11744-11744 (1) unpinned: Unpinned recreatable chunks
+      11745-17213 (5469) permanent: Permanent chunks
++ 17214-17808 (595) heap: Heap dump: top call heap  [64.0 KB, depth 0] depth=0 size=65512 reading=heap
+    + 17223-17548 (326) extents: Extents  [1 extent]
+    + 17549-17780 (232) freelists: Free lists
+      17781-17781 (1) unpinned: Unpinned recreatable chunks
+      17782-17808 (27) permanent: Permanent chunks
++ 17809-26247 (8439) heap: Heap dump: top uga heap  [255.9 KB, depth 0] depth=0 size=262048 reading=heap
+    + 17818-26204 (8387) extents: Extents  [4 extents]
+    + 26205-26231 (27) freelists: Free lists
+      26232-26232 (1) unpinned: Unpinned recreatable chunks
+      26233-26247 (15) permanent: Permanent chunks

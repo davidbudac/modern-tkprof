@@ -1,7 +1,7 @@
 // What the active session tab says about its trace (the tab is the trace's identity; TabStrip.tsx lays it out): a file count, the
 // live mark, the file's status, the response time in miniature and a cue inside the tab's button, the live badge beside it, and the
 // trace popover under it. All of it inside the tab's SessionProvider, and nothing until the document is in.
-import { fmtWall, fmtTz, fmtBytes, fmtDur, fmtInt, fmtPct, optFacts, useStore, fileHeading, selectionInfo, useScopeResponse, FilesToggle, FileStatus, type ResponseSummary, type TraceDoc } from '@lib'
+import { fmtWall, fmtTz, fmtBytes, fmtDur, fmtInt, fmtPct, optFacts, describeFile, useStore, fileHeading, selectionInfo, useScopeResponse, FilesToggle, FileStatus, type ResponseSummary, type TraceDoc } from '@lib'
 import type { FileInfo } from '../../engine'
 
 /** The response time in a few pixels: the class split of the scope, no text (the numbers are in the trace popover). */
@@ -33,8 +33,8 @@ export function TabTraceExtras({ files, live }: { files?: FileInfo[]; live: bool
 }
 
 function Extras({ doc, files, live }: { doc: TraceDoc; files?: FileInfo[]; live: boolean }) {
-  // the 10053 mark is the tab's own; a 10053 file has no response time, files panel or status to show
-  return doc.opt ? <span className="cue" aria-hidden="true">▾</span> : <TraceExtras doc={doc} files={files} live={live} />
+  // the 10053 and dump marks are the tab's own; a 10053 file or a dump file has no response time, files panel or status to show
+  return doc.opt || doc.dump ? <span className="cue" aria-hidden="true">▾</span> : <TraceExtras doc={doc} files={files} live={live} />
 }
 
 function TraceExtras({ doc, files, live }: { doc: TraceDoc; files?: FileInfo[]; live: boolean }) {
@@ -80,8 +80,27 @@ function OptTracePop({ doc, at, closing }: { doc: TraceDoc; at: { top: number; l
   )
 }
 
+/** The popover of a file read as diagnostic dumps: its name, release, the session and pluggable database from its markers, what it holds and how many lines. */
+function DumpTracePop({ doc, at, closing }: { doc: TraceDoc; at: { top: number; left: number }; closing?: boolean }) {
+  const f = optFacts(doc)
+  const file = doc.dump!.file
+  const path = doc.file.traceFile || doc.file.path
+  return (
+    <div className={'pop trace-pop' + (closing ? ' closing' : '')} role="dialog" aria-label="Trace" inert={closing} style={{ insetBlockStart: at.top, insetInlineStart: at.left }}>
+      <h4 className="mono">{file.name || path.split(/[\\/]/).pop()} · {fmtBytes(doc.diag.bytes)} <span className="kind-badge">dump</span></h4>
+      <dl className="kv">
+        {(f.release || f.version) && <><dt>Oracle</dt><dd><b>{f.version.replace(/\.0\.0\.0$/, '') || f.release}</b>{doc.file.instance && <> · instance <b>{doc.file.instance}</b>{doc.file.node && <> on {doc.file.node.split('.')[0]}</>}</>}</dd></>}
+        {f.pdb && <><dt>pdb</dt><dd><b>{f.pdb}</b></dd></>}
+        {f.session && <><dt>session</dt><dd><b>{f.session}</b></dd></>}
+        <dt>holds</dt><dd>{describeFile(file)} · {fmtInt(file.lines)} lines</dd>
+        {!file.tested && <><dt>version</dt><dd>read with the 19c rules; this file is {file.version || 'of no known version'}</dd></>}
+      </dl>
+    </div>
+  )
+}
+
 function TracePop({ doc, files, at, closing }: { doc: TraceDoc; files?: FileInfo[]; at: { top: number; left: number }; closing?: boolean }) {
-  return doc.opt ? <OptTracePop doc={doc} at={at} closing={closing} /> : <TracePop10046 doc={doc} files={files} at={at} closing={closing} />
+  return doc.dump ? <DumpTracePop doc={doc} at={at} closing={closing} /> : doc.opt ? <OptTracePop doc={doc} at={at} closing={closing} /> : <TracePop10046 doc={doc} files={files} at={at} closing={closing} />
 }
 
 function TracePop10046({ doc, files, at, closing }: { doc: TraceDoc; files?: FileInfo[]; at: { top: number; left: number }; closing?: boolean }) {

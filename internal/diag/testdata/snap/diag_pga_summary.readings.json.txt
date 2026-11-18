@@ -1,0 +1,632 @@
+== pga-summary 33-776
+{
+  "estimated": {
+    "line": 355,
+    "processes": 74,
+    "rows": [
+      {
+        "comment": "unsnapshotted",
+        "count": 64,
+        "line": 361,
+        "percent": 40,
+        "size": {
+          "bytes": 271581184,
+          "text": "259 MB"
+        },
+        "unit": "processes"
+      },
+      {
+        "chunks": 19,
+        "comment": "free memory",
+        "count": 5,
+        "heap": "top uga heap",
+        "line": 362,
+        "percent": 14,
+        "size": {
+          "bytes": 91226112,
+          "text": "87 MB"
+        },
+        "unit": "processes"
+      },
+      {
+        "chunks": 80,
+        "comment": "KSFQ Buffers",
+        "count": 5,
+        "heap": "KSFQ heap",
+        "line": 364,
+        "percent": 12,
+        "size": {
+          "bytes": 84934656,
+          "text": "81 MB"
+        },
+        "unit": "processes"
+      },
+      {
+        "chunks": 62,
+        "comment": "log read buffer",
+        "count": 4,
+        "heap": "pga heap",
+        "line": 366,
+        "percent": 10,
+        "size": {
+          "bytes": 65011712,
+          "text": "62 MB"
+        },
+        "unit": "processes"
+      },
+      "... 196 more"
+    ],
+    "snapshots": 10
+  },
+  "from": 33,
+  "instance": [
+    {
+      "line": 124,
+      "name": "global target",
+      "scope": "Global SGA Info",
+      "value": "512 MB"
+    },
+    {
+      "line": 125,
+      "name": "auto target",
+      "scope": "Global SGA Info",
+      "value": "70 MB"
+    },
+    {
+      "line": 126,
+      "name": "max pga",
+      "scope": "Global SGA Info",
+      "value": "200 MB"
+    },
+    {
+      "line": 127,
+      "name": "pga limit",
+      "scope": "Global SGA Info",
+      "value": "0 MB"
+    },
+    "... 28 more"
+  ],
+  "kind": "pga-summary",
+  "lines": 744,
+  "node": "pga-summary:33-776:1:405",
+  "note": "The figures of this dump are rounded (a whole KB or MB as printed) and it prints no total to check them against; the sizes in bytes are the printed figures times 1024 per unit.",
+  "private": [
+    {
+      "commented": {
+        "bytes": 10485760,
+        "text": "10 MB"
+      },
+      "depth": 0,
+      "emptyExtents": {
+        "bytes": 393216,
+        "text": "384 KB"
+      },
+      "free": {
+        "bytes": 570368,
+        "text": "557 KB"
+      },
+      "line": 60,
+      "permanent": {
+        "bytes": 385024,
+        "text": "376 KB"
+      },
+      "rows": [
+        {
+          "comment": "session heap",
+          "count": 1,
+          "line": 64,
+          "size": {
+            "bytes": 5699584,
+            "text": "5566 KB"
+          },
+          "unit": "heaps"
+        },
+        {
+          "comment": "koh-kghu call",
+          "count": 2,
+          "freeHeld": {
+            "bytes": 53248,
+            "text": "52 KB"
+          },
+          "line": 65,
+          "size": {
+            "bytes": 3607552,
+            "text": "3523 KB"
+          },
+          "unit": "heaps"
+        }
+      ],
+      "title": "Private heap summary",
+      "total": {
+        "bytes": 10485760,
+        "text": "10 MB"
+      }
+    },
+    {
+      "commented": {
+        "bytes": 9601024,
+        "text": "9376 KB"
+      },
+      "depth": 1,
+      "emptyExtents": {
+        "bytes": 72704,
+        "text": "71 KB"
+      },
+      "free": {
+        "bytes": 219136,
+        "text": "214 KB"
+      },
+      "line": 67,
+      "permanent": {
+        "bytes": 84992,
+        "text": "83 KB"
+      },
+      "rows": [
+        {
+          "comment": "pl/sql vc2",
+          "count": 217,
+          "freeHeld": {
+            "bytes": 32768,
+            "text": "32 KB"
+          },
+          "line": 71,
+          "size": {
+            "bytes": 3545088,
+            "text": "3462 KB"
+          },
+          "unit": "chunks"
+        },
+        {
+          "comment": "kxs-heap-w",
+          "count": 1,
+          "freeHeld": {
+            "bytes": 96256,
+            "text": "94 KB"
+          },
+          "line": 72,
+          "size": {
+            "bytes": 3005440,
+            "text": "2935 KB"
+          },
+          "unit": "heaps"
+        },
+        {
+          "comment": "koh-kghu sessi",
+          "count": 12,
+          "freeHeld": {
+            "bytes": 3072,
+            "text": "3 KB"
+          },
+          "line": 73,
+          "size": {
+            "bytes": 2403328,
+            "text": "2347 KB"
+          },
+          "unit": "heaps"
+        }
+      ],
+      "title": "Summary of subheaps at depth 1",
+      "total": {
+        "bytes": 9905152,
+        "text": "9673 KB"
+      }
+    },
+    {
+      "commented": {
+        "bytes": 5401600,
+        "text": "5275 KB"
+      },
+      "depth": 2,
+      "emptyExtents": {
+        "bytes": 20480,
+        "text": "20 KB"
+      },
+      "free": {
+        "bytes": 48128,
+        "text": "47 KB"
+      },
+      "line": 75,
+      "permanent": {
+        "bytes": 37888,
+        "text": "37 KB"
+      },
+      "rows": [
+        {
+          "comment": "sort subheap",
+          "count": 1,
+          "line": 79,
+          "size": {
+            "bytes": 2894848,
+            "text": "2827 KB"
+          },
+          "unit": "heaps"
+        },
+        {
+          "comment": "pl/sql vc2",
+          "count": 148,
+          "freeHeld": {
+            "bytes": 18432,
+            "text": "18 KB"
+          },
+          "line": 80,
+          "size": {
+            "bytes": 2367488,
+            "text": "2312 KB"
+          },
+          "unit": "chunks"
+        }
+      ],
+      "title": "Summary of subheaps at depth 2",
+      "total": {
+        "bytes": 5487616,
+        "text": "5359 KB"
+      }
+    }
+  ],
+  "processes": {
+    "all": [
+      {
+        "alloc": {
+          "bytes": 1537024,
+          "text": "1501 KB"
+        },
+        "line": 199,
+        "name": "PMON",
+        "ospid": "2188",
+        "used": {
+          "bytes": 1399808,
+          "text": "1367 KB"
+        }
+      },
+      {
+        "alloc": {
+          "bytes": 1537024,
+          "text": "1501 KB"
+        },
+        "line": 200,
+        "name": "CLMN",
+        "ospid": "2192",
+        "used": {
+          "bytes": 1399808,
+          "text": "1367 KB"
+        }
+      },
+      {
+        "alloc": {
+          "bytes": 1520640,
+          "text": "1485 KB"
+        },
+        "line": 201,
+        "name": "PSP0",
+        "ospid": "2196",
+        "used": {
+          "bytes": 1381376,
+          "text": "1349 KB"
+        }
+      },
+      {
+        "alloc": {
+          "bytes": 1520640,
+          "text": "1485 KB"
+        },
+        "line": 202,
+        "name": "VKTM",
+        "ospid": "2283",
+        "used": {
+          "bytes": 1381376,
+          "text": "1349 KB"
+        }
+      },
+      "... 70 more"
+    ],
+    "line": 171,
+    "mga": "0 KB",
+    "top": [
+      {
+        "alloc": {
+          "bytes": 113246208,
+          "text": "108 MB"
+        },
+        "line": 183,
+        "name": "MMON",
+        "ospid": "2361",
+        "percent": 17,
+        "session": {
+          "currentSql": "\u003cnone\u003e",
+          "from": 233,
+          "image": "oracle@ol9-19-dg1.localdomain (MMON)",
+          "ospid": "2361",
+          "pdb": "1/CDB$ROOT",
+          "pid": 34,
+          "serial": 28589,
+          "sid": 19,
+          "to": 241,
+          "user": "0/SYS"
+        },
+        "used": {
+          "bytes": 14680064,
+          "text": "14 MB"
+        }
+      },
+      {
+        "alloc": {
+          "bytes": 45088768,
+          "text": "43 MB"
+        },
+        "line": 184,
+        "name": "ARC1",
+        "ospid": "2933",
+        "percent": 7,
+        "session": {
+          "currentSql": "\u003cnone\u003e",
+          "from": 284,
+          "image": "oracle@ol9-19-dg1.localdomain (ARC1)",
+          "ospid": "2933",
+          "pdb": "1/CDB$ROOT",
+          "pid": 50,
+          "serial": 60879,
+          "sid": 28,
+          "to": 292,
+          "user": "0/SYS"
+        },
+        "used": {
+          "bytes": 42991616,
+          "text": "41 MB"
+        }
+      },
+      {
+        "alloc": {
+          "bytes": 45088768,
+          "text": "43 MB"
+        },
+        "line": 185,
+        "name": "ARC3",
+        "ospid": "2937",
+        "percent": 7,
+        "session": {
+          "currentSql": "\u003cnone\u003e",
+          "from": 308,
+          "image": "oracle@ol9-19-dg1.localdomain (ARC3)",
+          "ospid": "2937",
+          "pdb": "1/CDB$ROOT",
+          "pid": 52,
+          "serial": 17799,
+          "sid": 29,
+          "to": 316,
+          "user": "0/SYS"
+        },
+        "used": {
+          "bytes": 42991616,
+          "text": "41 MB"
+        }
+      },
+      {
+        "alloc": {
+          "bytes": 44040192,
+          "text": "42 MB"
+        },
+        "freeable": {
+          "bytes": 524288,
+          "text": "512 KB"
+        },
+        "line": 186,
+        "name": "ARC0",
+        "ospid": "2927",
+        "percent": 7,
+        "session": {
+          "currentSql": "\u003cnone\u003e",
+          "from": 270,
+          "image": "oracle@ol9-19-dg1.localdomain (ARC0)",
+          "ospid": "2927",
+          "pdb": "1/CDB$ROOT",
+          "pid": 47,
+          "serial": 42102,
+          "sid": 258,
+          "to": 278,
+          "user": "0/SYS"
+        },
+        "used": {
+          "bytes": 41943040,
+          "text": "40 MB"
+        }
+      },
+      "... 6 more"
+    ],
+    "totalAllocated": {
+      "bytes": 675282944,
+      "text": "644 MB"
+    }
+  },
+  "swap": [
+    {
+      "line": 774,
+      "name": "Memory (Avail / Total)",
+      "value": "315.03M / 6475.71M"
+    },
+    {
+      "line": 775,
+      "name": "Swap (Avail / Total)",
+      "value": "4092.21M /  4096.00M"
+    },
+    {
+      "line": 776,
+      "name": "Commit (AS / Limit)",
+      "value": "4364.65M / 7333.85M"
+    }
+  ],
+  "to": 776,
+  "top": [
+    {
+      "category": "PL/SQL",
+      "comment": "pl/sql vc2",
+      "count": 217,
+      "ds": "0x7f72d80b11e8",
+      "dsParent": "0x7f72d9282220",
+      "heap": "koh-kghu call",
+      "line": 35,
+      "percent": 32,
+      "size": {
+        "bytes": 3511296,
+        "text": "3429 KB"
+      },
+      "unit": "chunks"
+    },
+    {
+      "category": "SQL",
+      "comment": "sort key",
+      "count": 91,
+      "ds": "0x7f72d7537898",
+      "dsParent": "0x7f72d7534078",
+      "heap": "sort subheap",
+      "line": 37,
+      "percent": 26,
+      "size": {
+        "bytes": 2822144,
+        "text": "2756 KB"
+      },
+      "unit": "chunks"
+    },
+    {
+      "category": "PL/SQL",
+      "comment": "pl/sql vc2",
+      "count": 148,
+      "ds": "0x7f72d78d7de8",
+      "dsParent": "0x7f72d80b82d0",
+      "heap": "koh-kghu sessi",
+      "line": 39,
+      "percent": 21,
+      "size": {
+        "bytes": 2349056,
+        "text": "2294 KB"
+      },
+      "unit": "chunks"
+    },
+    {
+      "comment": "free memory",
+      "count": 10,
+      "ds": "0x7f72d9284b40",
+      "heap": "top call heap",
+      "line": 41,
+      "percent": 5,
+      "size": {
+        "bytes": 508928,
+        "text": "497 KB"
+      },
+      "unit": "chunks"
+    },
+    "... 6 more"
+  ],
+  "topLine": 33
+}
+== heap 82-99
+{
+  "byComment": [
+    {
+      "bytes": 122536,
+      "chunks": 3,
+      "comment": "",
+      "line": 93,
+      "types": [
+        {
+          "bytes": 122536,
+          "chunks": 3,
+          "type": "free"
+        }
+      ]
+    },
+    {
+      "bytes": 8488,
+      "chunks": 2,
+      "comment": "callheap",
+      "line": 96,
+      "types": [
+        {
+          "bytes": 8488,
+          "chunks": 2,
+          "type": "freeable"
+        }
+      ]
+    }
+  ],
+  "byType": [
+    {
+      "bytes": 122536,
+      "chunks": 3,
+      "type": "free"
+    },
+    {
+      "bytes": 8488,
+      "chunks": 2,
+      "type": "freeable"
+    }
+  ],
+  "bytes": 131024,
+  "checks": [
+    {
+      "computed": 131024,
+      "name": "heap",
+      "reason": "the heap was sampled (\"Dumping sample extents\"): only some extents are listed and no totals are printed",
+      "state": "none",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 0,
+      "name": "free",
+      "reason": "the heap was sampled (\"Dumping sample extents\"): only some extents are listed and no totals are printed",
+      "state": "none",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 0,
+      "name": "perm",
+      "reason": "the heap was sampled (\"Dumping sample extents\"): only some extents are listed and no totals are printed",
+      "state": "none",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 5,
+  "comments": 2,
+  "depth": 0,
+  "desc": "0x7f72d9284b40",
+  "extents": 2,
+  "flags": {
+    "sampled": true,
+    "sampledPercent": 76
+  },
+  "freeLists": {
+    "buckets": [],
+    "bytes": 0,
+    "chunks": 0,
+    "present": false
+  },
+  "from": 82,
+  "heapSize": 589608,
+  "kind": "heap",
+  "largest": [],
+  "lines": 18,
+  "name": "top call heap",
+  "node": "heap:82-99:1:505",
+  "pdb": 1,
+  "run": [
+    {
+      "depth": 0,
+      "desc": "0x7f72d9284b40",
+      "from": 82,
+      "name": "top call heap",
+      "node": "heap:82-99:1:505",
+      "size": 589608,
+      "to": 99
+    }
+  ],
+  "subheaps": [
+    {
+      "chunks": 2,
+      "desc": "0x7f72d9283160",
+      "held": 8488,
+      "line": 96,
+      "name": "callheap"
+    }
+  ],
+  "subheapsTotal": 1,
+  "to": 99
+}

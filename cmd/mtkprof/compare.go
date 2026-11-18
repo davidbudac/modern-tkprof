@@ -177,9 +177,9 @@ func cmdCompareDoc(kind string, args []string) error {
 }
 
 // compareLines answers /api/lines for either side of a comparison (side=b is the second file). The shared handler also answers annot=1 (kinds) and
-// annot=2 (like annot=1 here: no model); it knows each side's optimizer (10053) dumps, so an interleaved trace's dump lines are not unknown lines.
+// annot=2 (like annot=1 here: no model); it knows each side's optimizer (10053) dumps and diagnostic dump sections, so their lines are not unknown lines.
 func compareLines(a, b *model.Model, lis [2]*trace.LineIndex) http.Handler {
-	sides := [2]http.Handler{slicepkg.LinesHandlerDumps(lis[:1], dumpRanges(a)), slicepkg.LinesHandlerDumps(lis[1:], dumpRanges(b))}
+	sides := [2]http.Handler{slicepkg.LinesHandlerRanges(lis[:1], dumpRanges(a), sectionRanges(a)), slicepkg.LinesHandlerRanges(lis[1:], dumpRanges(b), sectionRanges(b))}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := sides[0]
 		if r.URL.Query().Get("side") == "b" {

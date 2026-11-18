@@ -1,0 +1,65 @@
+{
+ "summary": {
+  "errorstack": {
+   "lines": 36651,
+   "loaded": 36651,
+   "nodes": 163,
+   "folds": 236,
+   "foldedLines": 47048,
+   "modelKB": 57
+  },
+  "heap": {
+   "lines": 18635,
+   "loaded": 18635,
+   "nodes": 85,
+   "folds": 160,
+   "foldedLines": 3797,
+   "modelKB": 319
+  },
+  "sysstate": {
+   "lines": 83386,
+   "loaded": 7281,
+   "nodes": 230,
+   "folds": 12,
+   "foldedLines": 285,
+   "modelKB": 226
+  },
+  "hang": {
+   "lines": 279,
+   "loaded": 279,
+   "nodes": 18,
+   "folds": 0,
+   "foldedLines": 0,
+   "modelKB": 8
+  }
+ },
+ "stats": {
+  "heap": {
+   "heaps": 80,
+   "withTotals": 80,
+   "chunksOk": 80,
+   "freeOk": 80,
+   "permOk": 80,
+   "bad": []
+  },
+  "sysstate": {
+   "total": 85,
+   "user": 8,
+   "bg": 76,
+   "idleBg": 73,
+   "pseudo": 1,
+   "waiting": 71,
+   "chain": [
+    "255.62769",
+    "45.12004",
+    "52.41898"
+   ]
+  },
+  "hang": {
+   "chains": [
+    3,
+    1
+   ]
+  }
+ }
+}

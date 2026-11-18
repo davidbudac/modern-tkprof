@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import {
   useStore, useStoreApi, FilesPane, FilterBar, Inspector, LineDrawer, PaneToggle, ResizeHandle,
-  currentView, inTextField, isMac, useEscapeChain, useShellPanes, useViewKeys, RefImportHost,
+  currentView, inTextField, isMac, isReaderDoc, useEscapeChain, useShellPanes, useViewKeys, RefImportHost,
 } from '@lib'
 import { usePaneBridge } from './paneBridge'
 import { sessionViews } from './views'
@@ -77,10 +77,10 @@ export function SessionShell({ banner, panes, onPanes }: { banner?: ReactNode; p
   const current = currentView(sessionViews, doc, state)
   return (
     <div className={'shell' + shell.shellClass + (lines ? ' has-lines' : '')}>
-      {doc.opt ? <div /> : <FilterBar doc={doc} />}{/* a 10053 file has no scope to filter; the row stays (the grid) */}
+      {isReaderDoc(doc) ? <div /> : <FilterBar doc={doc} />}{/* a 10053 file or a dump file has no scope to filter; the row stays (the grid) */}
       <div className="banner-slot">{banner}</div>
       <div className="body" ref={shell.body} style={shell.bodyStyle}>
-        {!doc.opt && <FilesPane doc={doc} onWidth={(w) => onPanes({ filesW: w ?? undefined })} />}
+        {!isReaderDoc(doc) && <FilesPane doc={doc} onWidth={(w) => onPanes({ filesW: w ?? undefined })} />}
         <main className={'main' + (current.full ? ' full' : '')}>{current.render(doc, state)}</main>
         {shell.inspectorOpen && <Inspector doc={doc} />}
         {shell.inspectorOpen && <ResizeHandle anchor="end" className="resizer-inspector" label="Resize details pane" onChange={(w) => onPanes({ inspectorW: w ?? undefined })} />}

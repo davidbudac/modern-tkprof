@@ -1534,6 +1534,212 @@ paths:
           description: no such session (envelope), or the session is not a 10053 file or has no such dump (plain text)
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/file:
+    get:
+      operationId: sessionDiagFile
+      summary: The facts and the top-level outline of a diag session's file
+      description: |
+        `diag.File`: the file's facts (release, version, whether the rules were tested on it, the lines of
+        10046 records it holds, the incident facts of an incident file), the diagnostic dump sections the
+        parser found, the count of lines no part takes (`unplaced`) and the top-level outline (`outline`):
+        the file header, then in file order every section and every run of lines between sections, the nodes
+        tiling the file. At most 2000 nodes are listed; `outlineTotal` says how many there are and the rest
+        is the children of the node `root` (`api/diag/outline`). The scan is made when the session opens.
+        404 (envelope) when the session is not a diag one.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "200":
+          description: the file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagFile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/outline:
+    get:
+      operationId: sessionDiagOutline
+      summary: The children of a node of a diag session's outline
+      description: |
+        The parts of node `node`, found by reading only that node's lines of the file (`root` is the top
+        level). A child can have children. At most 2000 are listed; `more` says how many follow and `next`
+        is the `after` that asks for the next page (the number of children already seen). The children lie
+        inside the node, in file order, and do not overlap. Ids are stable for a file and resolvable here.
+        404 (envelope) when the session is not a diag one or `node` is not a node of it.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: node
+          in: query
+          required: true
+          description: "a node id (`diag.Node.id`), or `root`"
+          schema:
+            type: string
+        - name: after
+          in: query
+          required: false
+          description: how many children the client already has (the `next` of the answer before)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: the children
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagOutline"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/reading:
+    get:
+      operationId: sessionDiagReading
+      summary: The computed reading of a node of a diag session's outline
+      description: |
+        The reading of node `node`: a JSON object whose first field is `kind` (the same string as
+        `DiagNode.reading`) followed by the fields of that kind: `heap` (`DiagHeapReading`: where a heap
+        dump's memory is by chunk type, comment and sub-heap, and its free lists, checked against the totals the
+        dump prints), `pga-summary` (`DiagPGASummary`) and `pga-detail` (`DiagPGADetail`: the PGA dumps' own
+        tables), `callstack` (`DiagCallStack`: a diagnostic dump's error, statement, PL/SQL stack, frames and
+        cursors), `procstate` (`DiagProcState`: a process, its session, wait, blockers and holds), `sysstate`
+        (`DiagSysState`: the process table and the blocker tree of a system state), `hang` (`DiagHangReading`:
+        the chains of a hang analysis) and `deadlock` (`DiagDeadlock`: the graph, the cycle and the sessions of
+        a deadlock). Readings are addressed by node because a heap dump can sit inside
+        another section (an errorstack, a banner of a PGA summary). A reading is computed on demand by scanning
+        the node's own lines (a heap of 500,000 lines in well under a second) and kept in a small cache; nothing
+        is persisted. 404 (envelope) for a node whose kind has no reading ("no reading for this kind of
+        section"), for an id that is not a node of the file, and for a session that is not a diag one; 400 without
+        `node`.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: node
+          in: query
+          required: true
+          description: "a node id (`diag.Node.id`) whose `reading` is set"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: the reading
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagReading"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/reading/lines:
+    get:
+      operationId: sessionDiagReadingLines
+      summary: The chunk lines of a comment of a heap reading
+      description: |
+        For a node of kind heap: the numbers of the chunk lines of its extents whose comment group is `comment`
+        (`DiagHeapComment.comment`, the part before "^"; `comment=` with nothing after it is the blank comment of
+        a free chunk) and, with `type`, whose type is `type` (a grouped type such as `recr`, or a printed one such
+        as `recrPC001`), in ascending order, after line `after`. At most 2000 are listed per answer; `more` says
+        how many follow and `next` is the `after` that asks for the next page. `comment` or `type` is required
+        (400). 404 (envelope) for a node that is not a heap dump or not a node of the file.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: node
+          in: query
+          required: true
+          description: "the id of a heap node"
+          schema:
+            type: string
+        - name: comment
+          in: query
+          required: false
+          description: the comment group (as `DiagHeapComment.comment` lists it)
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: false
+          description: the chunk type, grouped (`recr`) or as printed
+          schema:
+            type: string
+        - name: after
+          in: query
+          required: false
+          description: a line number; only lines after it are listed (the `next` of the answer before)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: the chunk lines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagHeapLines"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/path:
+    get:
+      operationId: sessionDiagPath
+      summary: The chain of outline nodes that hold a line, or lead to a node
+      description: |
+        `nodes`: the chain of nodes of a diag session's outline from the top-level node down to the deepest node
+        that holds line `line` (a heap nested in a PGA summary, a process of a system state: nodes a client has not
+        loaded), each inside the one before it, so that a client can show the where-am-I path for any line. With
+        `node` instead of `line`: the chain down to that node (its last element is the node itself). Only the
+        lines of the nodes on the way are read, up to the end of the child that holds the line, and an answer is
+        cached. At most 16 nodes. 400 without `line` or `node` or with a bad number; 404 (envelope) for a line
+        outside the file, for an id that is not a node of it and for a session that is not a diag one.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: line
+          in: query
+          required: false
+          description: "a line number of the file, 1 or more"
+          schema:
+            type: integer
+            minimum: 1
+        - name: node
+          in: query
+          required: false
+          description: "a node id (`DiagNode.id`); used instead of `line`"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: the chain of nodes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagPath"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /s/{id}/api/lines:
     get:
       operationId: sessionLines
@@ -3599,8 +3805,2792 @@ components:
   schemas:
     LineKind:
       type: string
-      description: the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one
-      enum: [unknown, blank, header, separator, marker, parsing-in-cursor, sql-text, end-of-stmt, call, wait, stat, binds, bind-line, xctend, error, parse-error, lob, rpc, optimizer]
+      description: "the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one; diagnostic is a line of a diagnostic dump section (a heap dump, an errorstack, a process state, ...; trace.Section)"
+      enum: [unknown, blank, header, separator, marker, parsing-in-cursor, sql-text, end-of-stmt, call, wait, stat, binds, bind-line, xctend, error, parse-error, lob, rpc, optimizer, diagnostic]
+    SessionView:
+      type: string
+      enum: ["10046", "10053", diag]
+      description: |
+        How a session reads its file. In the options of `POST /engine/sessions`: `10046` the SQL trace views,
+        `10053` the optimizer dump reader (also for the dumps of a 10046 trace that has them interleaved),
+        `diag` the dump reader (an outline of the file, which holds diagnostic dumps or not); absent: the file
+        decides (10046 records: `10046`; only optimizer dumps: `10053`; otherwise `diag`, also for a file with
+        nothing recognised). One file only: not for a set of several files (400) and not with `follow` (400);
+        `10053` for a file with no dump fails the session. In a session: the view it reads its file in; the
+        one asked for while it opens, set once it is ready.
+    DiagDoc:
+      type: object
+      description: "the `dump` member of the document of a diag session (report.DiagDoc); absent for every other session. The rest of such a document is that of a trace with no 10046 record. (The document's `diag` member is the parser's diagnostics.)"
+      required: [file]
+      additionalProperties: false
+      properties:
+        file:
+          $ref: "#/components/schemas/DiagFile"
+        digest:
+          $ref: "#/components/schemas/DiagDigest"
+    DiagDigest:
+      type: object
+      description: "the digest of a diag file, in a document made for a client without a server (mtkprof html, json, the default command, the engine's HTML and JSON export); a document served by a server leaves it out and the client reads the api/diag routes"
+      required: [outline]
+      additionalProperties: false
+      properties:
+        outline:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDigestNode"
+          description: every node of the top level with its own children (one level down, at most 100)
+        readings:
+          type: object
+          description: "the readings of the nodes of `outline` (top level and listed children) that have one, by node id: the first 200 of them in file order, as long as their JSON stays under 8 MB; each value is what `api/diag/reading` answers for that node. A heap dump nested deeper in a section (inside an errorstack, inside a banner of a PGA summary) is not here."
+          additionalProperties:
+            $ref: "#/components/schemas/DiagReading"
+        readingsOmitted:
+          type: integer
+          description: nodes with a reading that did not get one (the bounds above)
+    DiagDigestNode:
+      description: a node of the top level and its children
+      allOf:
+        - $ref: "#/components/schemas/DiagNode"
+        - type: object
+          required: [children]
+          properties:
+            children:
+              type: array
+              items:
+                $ref: "#/components/schemas/DiagNode"
+            more:
+              type: integer
+              description: children not listed
+    DiagFile:
+      type: object
+      description: what one pass over a trace file read as a diag file finds (diag.File)
+      required: [name, lines, release, version, tested, records10046, sections, unplaced, outline, outlineTotal]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: base name of the file
+        lines:
+          type: integer
+        release:
+          type: string
+          description: "prologue line 2, e.g. Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production; empty when the file has none"
+        version:
+          type: string
+          description: 'prologue "Version 19.27.0.0.0" as 19.27.0.0.0; empty when the file has none'
+        tested:
+          type: boolean
+          description: the version is a 19.x one (the rules were written for 19c; another version is read with them)
+        records10046:
+          type: integer
+          description: the lines of 10046 records in the file; 0 for a file this view is the default of
+        incident:
+          $ref: "#/components/schemas/DiagIncident"
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSection"
+          description: the diagnostic dumps the parser found, in file order
+        unplaced:
+          type: integer
+          description: the lines outside the header and every section that are none of blank, a marker, a rule line, a 10046 record
+        outline:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagNode"
+          description: "the top level (the nodes tile the file); at most 2000, see outlineTotal"
+        outlineTotal:
+          type: integer
+          description: the nodes of the top level; more than outline lists when over 2000 (the rest are the children of `root`)
+    DiagSection:
+      type: object
+      required: [kind, first, last]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident]
+        first:
+          type: integer
+        last:
+          type: integer
+        cut:
+          type: boolean
+          description: a kind that has an end line stopped without reaching it
+    DiagIncident:
+      type: object
+      description: the facts of an incident file
+      required: [dumpFile]
+      additionalProperties: false
+      properties:
+        dumpFile:
+          type: string
+          description: 'line 1, "Dump file <path>"'
+        continuedFrom:
+          type: string
+          description: 'the trace file of the session that raised the incident ("Dump continued from file:")'
+        id:
+          type: string
+          description: the incident number
+        problem:
+          type: string
+          description: '"ORA 6544 [pevm_peruws_callback-1]"'
+    DiagNode:
+      type: object
+      description: a row of the outline (diag.Node)
+      required: [id, kind, title, from, to, lines, hasChildren]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: 'unique in the file and stable for it ("heap:32-923:1:200"); `root` is the top level'
+        kind:
+          type: string
+          description: "header, other, trace10046; a section (heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident); inside one: title, banner, frame, process, so, chain, toc, extents, extent, freelists, bucket, unpinned, permanent, subheaps"
+        title:
+          type: string
+          description: 'plain words: "Heap dump: pga heap", "Diagnostic dump (level 2)", "Process 6: PMON", "Other lines"'
+        sub:
+          type: string
+          description: a short second line
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        hasChildren:
+          type: boolean
+        "n":
+          type: integer
+          description: "process, frame, chain, extent, bucket: its number; toc: the number of the marker"
+        name:
+          type: string
+          description: "heap: the heap name; process: the process name"
+        depth:
+          type: integer
+          description: 'heap: "dsx heap depth" of the header (0 a top heap, 1 a sub-heap of one, ...); absent when the header has none'
+        size:
+          type: integer
+          description: 'heap: "dsx heap size" of the header, in bytes'
+        records:
+          type: integer
+          description: trace10046 nodes - the number of 10046 records in the run
+        cut:
+          type: boolean
+          description: a section whose end line was not reached
+        reading:
+          type: string
+          enum: [heap, pga-summary, pga-detail, callstack, procstate]
+          description: "the kind of the computed reading the node has (`api/diag/reading?node=`); absent when it has none: heap for a heap dump, pga-summary, pga-detail, callstack for a diagnostic dump (also an incident file and its Dump for incident part), procstate for a process state and for a PROCESS n of a system state, sysstate, hang and deadlock for those sections."
+        fold:
+          type: string
+          description: "a short reason, in plain words, for a part whose text is noise by default (\"frame data: registers and memory of each frame\"): a client shows it closed. Set on child nodes only (the binary stack dump, the argument and register address dump, the process map dump, the fixed areas dump and its areas, pinned buffer history and block dumps, the compile-time constants, redo transport structures, SGA granule transfers, the diagnostic framework's actions); absent for every other part. Never set on a section"
+    DiagOutline:
+      type: object
+      description: the children of a node (diag.Outline)
+      required: [node, children, more]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+          description: the id asked for
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagNode"
+          description: at most 2000, in file order, inside the node, not overlapping
+        more:
+          type: integer
+          description: how many children follow those listed
+        next:
+          type: integer
+          description: when more > 0, the `after` to ask for the next page
+    DiagReading:
+      description: "a computed reading of a node; the first field `kind` says which (docs/PLAN-DIAG.md § The readings)"
+      oneOf:
+        - $ref: "#/components/schemas/DiagHeapReading"
+        - $ref: "#/components/schemas/DiagPGASummary"
+        - $ref: "#/components/schemas/DiagPGADetail"
+        - $ref: "#/components/schemas/DiagCallStack"
+        - $ref: "#/components/schemas/DiagProcState"
+        - $ref: "#/components/schemas/DiagSysState"
+        - $ref: "#/components/schemas/DiagHangReading"
+        - $ref: "#/components/schemas/DiagDeadlock"
+      discriminator:
+        propertyName: kind
+        mapping:
+          heap: "#/components/schemas/DiagHeapReading"
+          pga-summary: "#/components/schemas/DiagPGASummary"
+          pga-detail: "#/components/schemas/DiagPGADetail"
+          callstack: "#/components/schemas/DiagCallStack"
+          procstate: "#/components/schemas/DiagProcState"
+          sysstate: "#/components/schemas/DiagSysState"
+          hang: "#/components/schemas/DiagHangReading"
+          deadlock: "#/components/schemas/DiagDeadlock"
+    DiagHeapReading:
+      type: object
+      description: 'the reading of a heap dump (diag.HeapReading): where the memory is, by chunk type, comment and sub-heap, and the free lists, checked against the totals the dump prints. Answer of api/diag/reading for a node of kind heap (`reading` "heap"); the first field is `kind`.'
+      required: [kind, node, name, desc, from, to, lines, extents, chunks, bytes, heapSize, flags, checks, byType, byComment, comments, freeLists, subheaps, subheapsTotal, largest, run]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"heap"'
+        node:
+          type: string
+          description: 'the id of the node'
+        name:
+          type: string
+          description: 'the heap name as printed, trimmed ("pga heap", "sga heap(1,0)")'
+        desc:
+          type: string
+          description: 'the heap descriptor as printed ("0x7f952ce9a220")'
+        parent:
+          type: string
+          description: 'the descriptor of the parent heap; absent for a top heap'
+        parentNode:
+          type: string
+          description: 'the node of the parent heap''s own dump, when the file holds it (in the same dump run)'
+        depth:
+          type: integer
+          description: '"dsx heap depth"; absent when the header has none'
+        pdb:
+          type: integer
+          description: '"pdb id" of the header'
+        from:
+          type: integer
+          description: 'the node''s first line'
+        to:
+          type: integer
+          description: 'the node''s last line'
+        lines:
+          type: integer
+          description: 'to - from + 1'
+        extents:
+          type: integer
+          description: 'EXTENT lines'
+        chunks:
+          type: integer
+          description: 'chunk lines of the extents'
+        bytes:
+          type: integer
+          description: 'their sum: what the heap check compares with "Total heap size"'
+        heapSize:
+          type: integer
+          description: '"dsx heap size" of the header; 0 when it has none'
+        flags:
+          $ref: "#/components/schemas/DiagHeapFlags"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapCheck"
+          description: 'the sums compared with the totals the dump prints, in this order: heap, free, perm, and reserved when the dump has reserved free lists'
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapType"
+          description: 'by bytes, largest first'
+        byComment:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapComment"
+          description: 'the 300 comments with the most bytes (largest first, ties by name); otherComments sums the rest'
+        otherComments:
+          allOf:
+            - $ref: "#/components/schemas/DiagHeapOther"
+          description: 'the comments beyond the 300 listed, summed; absent when all are listed'
+        comments:
+          type: integer
+          description: 'how many comments there are in all (byComment and the ones in otherComments)'
+        freeLists:
+          $ref: "#/components/schemas/DiagHeapFreeLists"
+        permanent:
+          $ref: "#/components/schemas/DiagHeapPermanent"
+        unpinned:
+          $ref: "#/components/schemas/DiagHeapUnpinned"
+        subheaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapSub"
+          description: 'by size, largest first, at most 100; otherSubheaps sums the rest'
+        subheapsTotal:
+          type: integer
+          description: 'how many sub-heaps the dump shows in all'
+        otherSubheaps:
+          allOf:
+            - $ref: "#/components/schemas/DiagHeapOther"
+          description: 'the sub-heaps beyond the 100 listed (count, chunks, bytes held)'
+        largest:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapLargest"
+          description: 'the "N LARGEST SUB HEAPS" block, in the order printed'
+        run:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapRun"
+          description: 'the heaps of the same dump run (the heaps one command dumped, in file order), at most 400; a heap nested in another section is its own run'
+        runMore:
+          type: integer
+          description: 'heaps of the run left out of run'
+        runLabel:
+          type: string
+          description: 'a short label of the dump run when the file gives one: the oradebug command that took it (`oradebug: dump heapdump 5`), read from the `Processing Oradebug command` line before the run''s first heap. A heap dump prints nothing about its own level and the `*** ACTION NAME` marker before it is not something the dump says, so a dump taken by an event or by alter session has no label: the field is absent then, and for a heap nested in another section'
+    DiagHeapFlags:
+      type: object
+      description: 'what limits the reading'
+      additionalProperties: false
+      properties:
+        contents:
+          allOf:
+            - $ref: "#/components/schemas/DiagHeapContents"
+          description: 'the dump holds memory contents ("Dump of memory" blocks); they are skipped and counted'
+        pdbFiltered:
+          type: integer
+          description: 'the dump was taken inside a PDB and leaves out the chunks of other containers: the pdb id it is limited to'
+        sampled:
+          type: boolean
+          description: '"Dumping sample extents": some extents only, no totals'
+        sampledPercent:
+          type: integer
+          description: 'the percent of free memory the dump names'
+        noExtents:
+          type: boolean
+          description: 'the header is followed by no extent (the heap of a latch directory, IMCA_RO)'
+        cut:
+          type: boolean
+          description: 'the dump stops before its end'
+    DiagHeapContents:
+      type: object
+      description: 'the memory contents a dump taken with contents holds'
+      required: [blocks, lines]
+      additionalProperties: false
+      properties:
+        blocks:
+          type: integer
+          description: '"Dump of memory from ..." lines'
+        lines:
+          type: integer
+          description: 'those lines and the rows under them (all skipped)'
+    DiagHeapCheck:
+      type: object
+      description: 'one comparison of a sum over chunk lines with a total the dump prints'
+      required: [name, what, state, computed]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: 'heap, free, perm or reserved'
+        what:
+          type: string
+          description: 'in words, e.g. "chunks of the extents against Total heap size"'
+        state:
+          type: string
+          description: 'match, differ (with diff) or none (with reason)'
+        computed:
+          type: integer
+          description: 'the sum over the chunk lines'
+        printed:
+          type: integer
+          description: 'the number on the dump''s line; absent when the dump has none'
+        line:
+          type: integer
+          description: 'the printed line''s number'
+        diff:
+          type: integer
+          description: 'computed - printed, for differ'
+        reason:
+          type: string
+          description: 'why the check could not be made (state none), in plain words'
+    DiagHeapType:
+      type: object
+      description: 'the chunks of one type; the shared pool family recr<P|U><C|T|R><nnn> is one type "recr"'
+      required: [type, chunks, bytes]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapVariant"
+          description: 'for "recr": the printed types (recrPC001, ...), largest first'
+    DiagHeapVariant:
+      type: object
+      description: 'the chunks of one printed type of a family'
+      required: [type, chunks, bytes]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+    DiagHeapComment:
+      type: object
+      description: 'the chunks of one comment, grouped by the part before "^" (the shared pool puts a hash after it)'
+      required: [comment, types, chunks, bytes, line]
+      additionalProperties: false
+      properties:
+        comment:
+          type: string
+          description: 'trimmed; empty for the blank comment of a free chunk'
+        types:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapTypeShare"
+          description: 'the types it occurs with, largest first'
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+        line:
+          type: integer
+          description: 'the line of its first chunk'
+        suffixes:
+          type: integer
+          description: 'how many distinct "^suffix" values the group holds; absent for a comment without one'
+    DiagHeapTypeShare:
+      type: object
+      description: 'a comment''s chunks of one type'
+      required: [type, chunks, bytes]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+    DiagHeapOther:
+      type: object
+      description: 'what a bounded list leaves out, summed'
+      required: [count, chunks, bytes]
+      additionalProperties: false
+      properties:
+        count:
+          type: integer
+          description: 'comments (or sub-heaps) in it'
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+    DiagHeapFreeLists:
+      type: object
+      description: 'the free lists'
+      required: [present, chunks, bytes, buckets]
+      additionalProperties: false
+      properties:
+        present:
+          type: boolean
+          description: 'the dump prints FREE LISTS:'
+        line:
+          type: integer
+          description: 'of that line'
+        chunks:
+          type: integer
+          description: 'chunks in the lists (not the list heads)'
+        bytes:
+          type: integer
+        printed:
+          type: integer
+          description: '"Total free space"'
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapBucket"
+          description: 'every bucket the dump prints, empty ones too, in the order printed'
+        reserved:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapReserved"
+          description: 'the reserved free lists of an SGA heap, with their non-empty buckets'
+    DiagHeapBucket:
+      type: object
+      description: 'one free list'
+      required: [n, size, chunks, bytes]
+      additionalProperties: false
+      properties:
+        "n":
+          type: integer
+          description: '"Bucket N"'
+        size:
+          type: integer
+          description: '"size=": the smallest chunk the list holds'
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+    DiagHeapReserved:
+      type: object
+      description: 'a block of reserved free lists ("RESERVED FREE LISTS:", "... FOR SIZES 64KB to 256KB:")'
+      required: [title, line, chunks, bytes, buckets]
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+        line:
+          type: integer
+        chunks:
+          type: integer
+        bytes:
+          type: integer
+        printed:
+          type: integer
+          description: '"Total of this reserved free space"'
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHeapBucket"
+          description: 'the non-empty buckets'
+    DiagHeapPermanent:
+      type: object
+      description: 'the PERMANENT CHUNKS: part'
+      required: [line, chunks, bytes]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        chunks:
+          type: integer
+          description: 'chunk lines of type perm'
+        bytes:
+          type: integer
+        printed:
+          type: integer
+          description: '"Permanent space"'
+    DiagHeapUnpinned:
+      type: object
+      description: 'the unpinned part of an SGA heap ("Unpinned space = N rcr=N trn=N")'
+      required: [line, bytes, rcr, trn]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        bytes:
+          type: integer
+        rcr:
+          type: integer
+        trn:
+          type: integer
+    DiagHeapSub:
+      type: object
+      description: 'a sub-heap seen in this heap'
+      required: [desc, name, held, chunks, line]
+      additionalProperties: false
+      properties:
+        desc:
+          type: string
+          description: 'its descriptor ("0x7f952bcd11e8")'
+        name:
+          type: string
+          description: 'the comment of the chunk that holds its descriptor, else of its first chunk'
+        size:
+          type: integer
+          description: 'the ds line''s sz= (the sub-heap''s own size); absent when the dump has no ds line for it'
+        held:
+          type: integer
+          description: 'bytes of this heap''s chunks that carry ds=<desc>'
+        chunks:
+          type: integer
+          description: 'those chunks'
+        extents:
+          type: integer
+          description: 'the ds line''s ct='
+        line:
+          type: integer
+          description: 'the ds line, else the first chunk that carries the descriptor'
+        node:
+          type: string
+          description: 'the node of its own dump, when the file holds it'
+    DiagHeapLargest:
+      type: object
+      description: 'a line of the "N LARGEST SUB HEAPS" block'
+      required: [desc, name, size, line]
+      additionalProperties: false
+      properties:
+        desc:
+          type: string
+        name:
+          type: string
+        size:
+          type: integer
+          description: '"size=" as printed (a little more than the sub-heap''s own total)'
+        line:
+          type: integer
+        node:
+          type: string
+          description: 'the node of its own dump, when the file holds it'
+    DiagHeapRun:
+      type: object
+      description: 'a heap of the same dump run'
+      required: [node, name, desc, size, from, to]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+        name:
+          type: string
+        desc:
+          type: string
+        parent:
+          type: string
+          description: 'the node of its parent heap in this run'
+        depth:
+          type: integer
+        size:
+          type: integer
+          description: '"dsx heap size"'
+        from:
+          type: integer
+        to:
+          type: integer
+    DiagHeapLines:
+      type: object
+      description: 'the chunk lines of a comment (answer of api/diag/reading/lines)'
+      required: [node, lines, more, total]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+        lines:
+          type: array
+          items:
+            type: integer
+          description: 'line numbers of chunk lines of the extents, ascending, at most 2000'
+        more:
+          type: integer
+          description: 'how many matching lines follow those listed'
+        next:
+          type: integer
+          description: 'when more > 0, the `after` for the next page (the last line listed)'
+        total:
+          type: integer
+          description: 'how many chunk lines match in all'
+    DiagPGASummary:
+      type: object
+      description: 'the reading of a pga_summary dump (diag.PGASummary), answer of api/diag/reading for a node of kind pga-summary (`reading` "pga-summary"): the dump''s own tables. The figures are rounded, so nothing is checked.'
+      required: [kind, node, from, to, lines, note, top, private, instance, swap]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"pga-summary"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        note:
+          type: string
+          description: 'says the figures are rounded and nothing can be checked'
+        top:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAUse"
+          description: 'TOP 10 MEMORY USES FOR THIS PROCESS'
+        topLine:
+          type: integer
+          description: 'its line'
+        private:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGABlock"
+          description: 'PRIVATE HEAP SUMMARY DUMP and the "Summary of subheaps at depth N" blocks'
+        instance:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAInstance"
+          description: 'the instance-wide private memory usage figures ("Global SGA Info", "SGA Info (PDB 3)")'
+        processes:
+          $ref: "#/components/schemas/DiagPGAProcesses"
+        estimated:
+          $ref: "#/components/schemas/DiagPGAEstimated"
+        swap:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAKV"
+          description: 'the SWAP INFORMATION lines'
+    DiagPGAUse:
+      type: object
+      description: 'a row of the top uses of memory, of the estimated uses for all processes, or of a pga_detail_dump'
+      required: [line, size, count, unit, comment]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        percent:
+          type: integer
+          description: 'absent in a pga_detail_dump'
+        size:
+          $ref: "#/components/schemas/DiagPGASize"
+        count:
+          type: integer
+          description: 'chunks, processes or heaps, per unit'
+        unit:
+          type: string
+          description: 'chunks, processes, heaps'
+        comment:
+          type: string
+          description: 'trimmed'
+        category:
+          type: string
+          description: 'PL/SQL, SQL'
+        heap:
+          type: string
+          description: 'the heap the chunks are in (the line under the row), trimmed'
+        ds:
+          type: string
+          description: '"0x7f72d80b11e8"'
+        dsParent:
+          type: string
+          description: '"dsprt=", absent for (nil)'
+        chunks:
+          type: integer
+          description: 'estimated uses: the chunks of the line under the row'
+    DiagPGASize:
+      type: object
+      description: 'a size as the dump prints it, and in bytes'
+      required: [text, bytes]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          description: '"3429 KB", "108 MB", "3512312 bytes"'
+        bytes:
+          type: integer
+          description: 'the printed figure times 1024 per KB, 1024 squared per MB, ...'
+    DiagPGABlock:
+      type: object
+      description: 'a block of the private heap summary: the heap itself (depth 0) or the sub-heaps at one depth'
+      required: [line, title, depth, total, rows]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        title:
+          type: string
+        depth:
+          type: integer
+        total:
+          $ref: "#/components/schemas/DiagPGASize"
+        commented:
+          $ref: "#/components/schemas/DiagPGASize"
+        permanent:
+          $ref: "#/components/schemas/DiagPGASize"
+        free:
+          $ref: "#/components/schemas/DiagPGASize"
+        emptyExtents:
+          $ref: "#/components/schemas/DiagPGASize"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGABlockRow"
+    DiagPGABlockRow:
+      type: object
+      description: 'a line of a block: size, count of chunks or heaps, comment, free memory held'
+      required: [line, size, count, unit, comment]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        size:
+          $ref: "#/components/schemas/DiagPGASize"
+        count:
+          type: integer
+        unit:
+          type: string
+        comment:
+          type: string
+        freeHeld:
+          $ref: "#/components/schemas/DiagPGASize"
+    DiagPGAInstance:
+      type: object
+      description: 'a line of the instance-wide summary'
+      required: [line, scope, name, value]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        scope:
+          type: string
+        name:
+          type: string
+        value:
+          type: string
+          description: 'as printed: "512 MB", "0 %", "1"'
+    DiagPGAProcesses:
+      type: object
+      description: '"Private memory usage per Oracle process"'
+      required: [line, top, all]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        totalAllocated:
+          allOf:
+            - $ref: "#/components/schemas/DiagPGASize"
+          description: '"(percentage is of 644 MB total allocated memory)"'
+        mga:
+          type: string
+          description: '"MGA used size accounted under PGA values", the size as printed'
+        top:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAProc"
+          description: 'Top 10 processes'
+        all:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAProc"
+          description: 'All processes, at most 5000'
+        allOmitted:
+          type: integer
+          description: 'processes left out of all'
+    DiagPGAProc:
+      type: object
+      description: 'a process row: "17% ospid 2361 (MMON): 14 MB used, 108 MB alloc, 512 KB freeable"'
+      required: [line, ospid, name, used, alloc]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        percent:
+          type: integer
+          description: 'the top 10 only'
+        ospid:
+          type: string
+          description: 'as printed: "2361", "2299_2300" (a thread)'
+        name:
+          type: string
+          description: '"MMON"; blank for a foreground process'
+        pdb:
+          type: string
+          description: 'the "(3)" after the name'
+        used:
+          $ref: "#/components/schemas/DiagPGASize"
+        alloc:
+          $ref: "#/components/schemas/DiagPGASize"
+        freeable:
+          $ref: "#/components/schemas/DiagPGASize"
+        session:
+          allOf:
+            - $ref: "#/components/schemas/DiagPGASession"
+          description: 'the session detail printed under a process over 32 MB (under its row of `all`); the row of the same process in `top` carries the same detail'
+    DiagPGASession:
+      type: object
+      description: '"Begin session detail for pid N" ... "End session detail"'
+      required: [from, to, pid, sid, serial]
+      additionalProperties: false
+      properties:
+        from:
+          type: integer
+        to:
+          type: integer
+        pid:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        user:
+          type: string
+          description: '"0/SYS"'
+        pdb:
+          type: string
+          description: '"1/CDB$ROOT"'
+        ospid:
+          type: string
+        image:
+          type: string
+        machine:
+          type: string
+        program:
+          type: string
+        currentSql:
+          type: string
+          description: 'empty or "<none>" when there is none'
+    DiagPGAEstimated:
+      type: object
+      description: '"ESTIMATED MEMORY USES FOR ALL PROCESSES"'
+      required: [line, snapshots, processes, rows]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        snapshots:
+          type: integer
+          description: '"from 10 snapshots out of 74 processes"'
+        processes:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAUse"
+        omitted:
+          type: integer
+          description: 'rows left out (the 5000-row bound)'
+    DiagPGAKV:
+      type: object
+      description: 'a name and a value as printed'
+      required: [line, name, value]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        name:
+          type: string
+        value:
+          type: string
+    DiagPGADetail:
+      type: object
+      description: 'the reading of a pga_detail_dump (diag.PGADetail), answer of api/diag/reading for a node of kind pga-detail (`reading` "pga-detail"): the rows with exact bytes'
+      required: [kind, node, from, to, lines, rows, bytes, chunks]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"pga-detail"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        pid:
+          type: integer
+          description: '"PGA memory detail for pid 6, OS pid 14085"'
+        ospid:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPGAUse"
+          description: 'exact bytes: size.text is "3512312 bytes"'
+        bytes:
+          type: integer
+          description: 'the sum of the rows (a listing of the largest uses, not a total of the process)'
+        chunks:
+          type: integer
+        omitted:
+          type: integer
+          description: 'rows left out (the 5000-row bound)'
+    DiagCallStack:
+      type: object
+      description: 'the reading of a diagnostic dump (diag.CallStack), answer of api/diag/reading for a node of kind diagdump, an incident file (kind incident) or its "Dump for incident" part (kind toc) (`reading` "callstack"): the dump''s start line, its error, current statement, PL/SQL call stack, frames, cursors and the process state and heap dumps nested in it. Both frame sources are read (the binary stack dump''s frame headers and the Call Stack Trace table); the list is the binary one when the dump has it'
+      required: [kind, node, from, to, lines, start, barriers, plsql, frames, framesSource, binaryFrames, tableFrames, own, shortStack, shortStackNoOwn, cursors, cursorsTotal, links, notes]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"callstack"'
+        node:
+          type: string
+          description: 'the id of the node'
+        from:
+          type: integer
+          description: 'the node''s first line'
+        to:
+          type: integer
+          description: 'the node''s last line'
+        lines:
+          type: integer
+          description: 'to - from + 1'
+        start:
+          allOf:
+            - $ref: "#/components/schemas/DiagDumpStart"
+          description: 'the dump''s start line (`dbkedDefDump(): Starting ...`); line 0 when the node holds none'
+        error:
+          allOf:
+            - $ref: "#/components/schemas/DiagDumpError"
+          description: 'what the dump says about its error: ORA- lines, the signal line an event-written dump ends with, an incident''s problem key. Absent when the dump names none (a dump taken on request)'
+        barriers:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDumpLine"
+          description: 'the `<error barrier> at 0x... placed dbkda.c@298` lines of the Error Stack Dump and of an incident''s error stack dump with barriers (at most 20): where the error stack is rooted. A dump taken on request has one and no error'
+        statement:
+          allOf:
+            - $ref: "#/components/schemas/DiagDumpStatement"
+          description: 'the `Current SQL Statement for this session (sql_id=...)` section; absent when the dump has none'
+        plsql:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagPLSQLFrame"
+          description: 'the PL/SQL call stack, innermost first'
+        plsqlLine:
+          type: integer
+          description: 'the line of the PL/SQL Call Stack title; absent when the dump has none'
+        frames:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagStackFrame"
+          description: 'the call stack, innermost first (at most 1000)'
+        framesSource:
+          type: string
+          description: 'binary (the frame headers of the Binary Stack Dump), table (the Call Stack Trace table, names that wrap joined) or none'
+        framesLine:
+          type: integer
+          description: 'the line of the title of the source section'
+        binaryFrames:
+          type: integer
+          description: 'how many frames the Binary Stack Dump holds'
+        tableFrames:
+          type: integer
+          description: 'how many rows the Call Stack Trace table holds'
+        tableAgrees:
+          type: boolean
+          description: 'set when both sources exist: the table has the same functions and callees in the same order'
+        own:
+          type: integer
+          description: 'how many leading frames belong to the dump itself (frames[:own], each marked `own`): the leading frames whose function starts with ksedst, ksedmp, dbk or dbg (the rule and its fixture evidence are in internal/diag/stackrules.go)'
+        shortStack:
+          type: string
+          description: 'the stack in the form oradebug short_stack prints, `f1()+off<-f2()+off<-...`, innermost first, with the dump''s own frames'
+        shortStackNoOwn:
+          type: string
+          description: 'the same without the dump''s own frames'
+        cursors:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDumpCursor"
+          description: 'the session cursor dump''s cursors in file order, at most 100'
+        cursorsTotal:
+          type: integer
+          description: 'how many cursors the dump prints'
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDumpLink"
+          description: 'the process state and heap dumps nested in this dump, in file order: ask api/diag/reading for each. A heap dump inside a process state is not one (it is not a node of the outline)'
+        notes:
+          type: array
+          items:
+            type: string
+          description: 'plain-words notes: no start line, no call stack, frames read from the table, the two sources disagree, bind values redacted or dropped (digest and document only)'
+    DiagDumpStart:
+      type: object
+      description: 'the dump''s start line'
+      required: [line, incident, level, flags, mask]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+          description: '0 when the node holds none'
+        incident:
+          type: boolean
+          description: '`Starting incident default dumps` (an incident), else `Starting a non-incident diagnostic dump`'
+        level:
+          type: integer
+          description: 'level=N'
+        flags:
+          type: string
+          description: 'as printed: 0x0, 0x2'
+        mask:
+          type: string
+          description: 'as printed'
+        text:
+          type: string
+          description: 'the line, when it is not the usual one'
+    DiagDumpLine:
+      type: object
+      description: 'a line of the file with its number'
+      required: [line, text]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        text:
+          type: string
+          description: 'as printed, trimmed'
+    DiagDumpError:
+      type: object
+      description: 'what a dump says about the error that caused it'
+      required: [lines]
+      additionalProperties: false
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDumpLine"
+          description: 'the ORA- lines as printed (at most 20)'
+        signal:
+          allOf:
+            - $ref: "#/components/schemas/DiagDumpSignal"
+          description: 'the `about to signal 942` line an event-written dump ends with'
+        incident:
+          allOf:
+            - $ref: "#/components/schemas/DiagDumpIncident"
+          description: 'set for an incident file'
+    DiagDumpSignal:
+      type: object
+      description: '`about to signal 942` and the `Name:` line after it'
+      required: [line, code, ora]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        code:
+          type: integer
+          description: '942'
+        ora:
+          type: string
+          description: 'ORA-00942'
+        name:
+          type: string
+          description: 'the Name: line after it'
+    DiagDumpIncident:
+      type: object
+      description: 'what an incident file says about its problem'
+      required: [id, problem, args, line]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: '199651'
+        problem:
+          type: string
+          description: 'the problem key: ORA 6544 [pevm_peruws_callback-1]'
+        args:
+          type: array
+          items:
+            type: string
+          description: 'the bracketed arguments of the `ORA-6544 [pevm_peruws_callback-1] [27102] [] ...` line that opens the file''s error stack, trailing empty ones dropped'
+        line:
+          type: integer
+          description: 'that line; 0 when not found'
+    DiagDumpStatement:
+      type: object
+      description: 'the `Current SQL Statement for this session` section'
+      required: [sqlId, text, title, from, to]
+      additionalProperties: false
+      properties:
+        sqlId:
+          type: string
+        text:
+          type: string
+          description: 'the statement as printed, lines joined with a newline, at most 60 lines and 16 KiB'
+        truncated:
+          type: boolean
+          description: 'the text was cut'
+        title:
+          type: integer
+          description: 'the title''s line'
+        from:
+          type: integer
+          description: 'first line of the text'
+        to:
+          type: integer
+          description: 'last line of the text (from > to: the section is empty)'
+    DiagPLSQLFrame:
+      type: object
+      description: 'a row of the PL/SQL call stack'
+      required: [n, handle, line, object, type, name, at]
+      additionalProperties: false
+      properties:
+        "n":
+          type: integer
+          description: '1 = innermost'
+        handle:
+          type: string
+          description: '0x7b3c9620'
+        line:
+          type: integer
+          description: 'the line number in the object'
+        object:
+          type: string
+          description: 'as printed: procedure MTK.MTK_DIAG_INNER, anonymous block'
+        type:
+          type: string
+          description: 'procedure, anonymous block, package body ...'
+        name:
+          type: string
+          description: 'MTK.MTK_DIAG_INNER; empty for an anonymous block'
+        at:
+          type: integer
+          description: 'the line of this row in the file'
+    DiagStackFrame:
+      type: object
+      description: 'a frame of the call stack'
+      required: [n, function, text, callee, line]
+      additionalProperties: false
+      properties:
+        "n":
+          type: integer
+          description: '1 = innermost'
+        function:
+          type: string
+          description: 'the function name without parentheses'
+        offset:
+          type: integer
+          description: '+95; absent when the frame prints none (__sighandler())'
+        text:
+          type: string
+          description: 'as printed: ksedst1()+95'
+        callee:
+          type: string
+          description: 'kgdsdst()'
+        line:
+          type: integer
+          description: 'the frame''s header line (binary source) or its first line in the table'
+        tableLine:
+          type: integer
+          description: 'the frame''s line in the table when the list is the binary one and the table has the frame too'
+        own:
+          type: boolean
+          description: 'a frame of the dump itself'
+        component:
+          type: string
+          description: 'the COMPONENT of the frame''s `CALL TYPE: call   ERROR SIGNALED: no   COMPONENT: KSE` line (binary source only; (null) is not kept)'
+        errorSignaled:
+          type: boolean
+          description: 'ERROR SIGNALED: yes'
+    DiagDumpCursor:
+      type: object
+      description: 'a cursor of the session cursor dump'
+      required: [sqlId, group, from, to, bindCount, binds]
+      additionalProperties: false
+      properties:
+        sqlId:
+          type: string
+        group:
+          type: string
+          description: 'open (Session Open Cursors) or cached (the Session Cached Cursor Dump)'
+        number:
+          type: integer
+          description: 'Cursor#3 of an open cursor'
+        state:
+          type: string
+          description: 'BOUND, ROW ...'
+        statement:
+          type: string
+          description: 'the first line of the statement (ObjectName: Name=), at most 200 bytes'
+        from:
+          type: integer
+          description: 'the `Dump Cursor` title''s line'
+        to:
+          type: integer
+        bindCount:
+          type: integer
+          description: 'how many Bind# entries the cursor prints'
+        binds:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDumpBind"
+          description: 'the first 32 of them'
+    DiagDumpBind:
+      type: object
+      description: 'a bind of a cursor (`Bind#0` under `Bind Info (kkscoacd)`)'
+      required: [pos, dty]
+      additionalProperties: false
+      properties:
+        pos:
+          type: integer
+          description: 'the number printed after Bind#, from 0'
+        dty:
+          type: integer
+          description: 'oacdty'
+        type:
+          type: string
+          description: 'its name (VARCHAR2, NUMBER, DATE ...; DTY<n> when unknown); absent for a bind with no oacdef'
+        noDef:
+          type: boolean
+          description: '`No oacdef for this bind.`'
+        avl:
+          type: integer
+          description: 'the actual length (`avl=66` under kxsbbbfp); absent when not printed'
+        value:
+          type: string
+          description: 'the text after `value=` as printed (a string keeps its quotes), cut at 2000 bytes; what -redact-binds and -binds none act on in a digest'
+        line:
+          type: integer
+          description: 'the line of the value; 0 when the bind prints none'
+        lineTo:
+          type: integer
+          description: 'its last line when it spans several'
+    DiagDumpLink:
+      type: object
+      description: 'a dump nested in another'
+      required: [kind, node, title, from, to]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: 'procstate or heap'
+        node:
+          type: string
+          description: 'the node id'
+        title:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+    DiagProcState:
+      type: object
+      description: 'the reading of a process state (diag.ProcState), answer of api/diag/reading for a node of kind procstate or process (`reading` "procstate"): the state object tree of one Oracle process, as a PROCESS STATE dump prints it or as a system state prints it under PROCESS n. Who the process and its session are, what the session waits for and who blocks it, and what the process holds. Kinds of state object it does not read stay counted by type'
+      required: [kind, node, from, to, lines, scope, sessions, sessionsTotal, objects, enqueues, enqueuesTotal, transactions, transactionsTotal, dmlLocks, dmlLocksTotal, locks, locksTotal, pins, pinsTotal, notes]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"procstate"'
+        node:
+          type: string
+          description: 'the id of the node'
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        scope:
+          type: string
+          description: '`process state` for a PROCESS STATE dump, `process` for a PROCESS n: name of a system state'
+        process:
+          allOf:
+            - $ref: "#/components/schemas/DiagProcInfo"
+          description: 'the process''s own object; absent when the lines hold none'
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagProcSession"
+          description: 'the sessions the process owns, in file order, at most 20'
+        sessionsTotal:
+          type: integer
+          description: 'how many'
+        objects:
+          allOf:
+            - $ref: "#/components/schemas/DiagProcObjects"
+          description: 'the state objects counted by the type name printed; the counts sum to the total'
+        enqueues:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagProcEnqueue"
+          description: '`Enqueue Dump (enqueue) TX-...` lines with the mode held (`mode:`) or requested (`req:`), in file order, at most 50'
+        enqueuesTotal:
+          type: integer
+          description: 'how many there are'
+        enqueuesOther:
+          type: integer
+          description: '`Enqueue Dump` lines that name no resource (released enqueue or enqueue in flux, <no resource>)'
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagProcTransaction"
+          description: 'transaction state objects, at most 20'
+        transactionsTotal:
+          type: integer
+        dmlLocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagProcDMLLock"
+          description: 'DML lock state objects, at most 50'
+        dmlLocksTotal:
+          type: integer
+        locks:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagProcLibObject"
+          description: 'library object locks, in file order, at most 30'
+        locksTotal:
+          type: integer
+          description: 'how many there are'
+        pins:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagProcLibObject"
+          description: 'library object pins, at most 30'
+        pinsTotal:
+          type: integer
+          description: 'how many there are'
+        shortStack:
+          type: string
+          description: 'the process''s short stack when the dump prints one (`Short stack dump:` and the line after it), innermost first, as printed'
+        shortStackNoOwn:
+          type: string
+          description: 'the same without the entries of the signal handler that took it (the leading ksedsts ... __sighandler)'
+        shortStackOwn:
+          type: integer
+          description: 'how many entries those are'
+        shortStackLine:
+          type: integer
+        notes:
+          type: array
+          items:
+            type: string
+          description: 'plain-words notes: a level-1 system state has no child state objects; a statement address the dump does not describe'
+    DiagProcInfo:
+      type: object
+      description: 'the process''s state object'
+      required: [line, address]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+          description: 'its SO line'
+        address:
+          type: string
+          description: '0xa2eec2a0'
+        pid:
+          type: integer
+          description: 'Oracle pid'
+        serial:
+          type: integer
+          description: 'ser:'
+        ospid:
+          type: string
+          description: 'the OS process id (`O/S info: ... ospid:`)'
+        osUser:
+          type: string
+        name:
+          type: string
+          description: 'the process name a system state prints (PMON); absent for a PROCESS STATE dump and for a user process'
+        flags:
+          type: string
+          description: 'the process flags as printed: SYSTEM for a background process, - for none'
+        program:
+          type: string
+          description: 'the program of the first session that prints one (a process prints none itself)'
+    DiagProcSession:
+      type: object
+      description: 'a session state object with what its text says'
+      required: [address, line, from, to, sid, serial, key]
+      additionalProperties: false
+      properties:
+        address:
+          type: string
+        line:
+          type: integer
+          description: 'the `(session) sid:` line'
+        from:
+          type: integer
+          description: 'the session''s own text: its SO line to the line before the next SO line'
+        to:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+          description: 'sid.serial, as the 10046 session id'
+        userId:
+          type: integer
+        user:
+          type: string
+          description: 'user#/name:'
+        containerId:
+          type: integer
+        containerUid:
+          type: string
+        container:
+          type: string
+          description: 'con_id/con_uid/con_name:'
+        machine:
+          type: string
+        program:
+          type: string
+        clientOsUser:
+          type: string
+          description: 'client details: O/S info: user'
+        clientOspid:
+          type: string
+          description: 'client details: O/S info: ospid (the client process)'
+        module:
+          type: string
+          description: 'application name:'
+        action:
+          type: string
+          description: 'action name:'
+        service:
+          type: string
+          description: 'service name:'
+        command:
+          type: integer
+          description: 'oct (0 = none)'
+        commandName:
+          type: string
+          description: 'only for the codes a fixture shows by name: 3 SELECT, 47 PL/SQL EXECUTE'
+        commandLine:
+          type: integer
+        sql:
+          type: string
+          description: 'the address printed after `sql:`: the library handle of the top-level statement; absent for (nil)'
+        sqlId:
+          type: string
+          description: 'the SqlId= of the library object lock on that handle, when the dump prints it; absent for a dump with no child state objects'
+        sqlText:
+          type: string
+          description: 'the first line of that statement'
+        sqlLine:
+          type: integer
+          description: 'the line of the library object lock (or pin) state object on that handle'
+        prevSql:
+          type: string
+          description: 'the address after `psql:`: the previous statement (fixture big/diag_sysstate_l266, sid 45)'
+        prevSqlId:
+          type: string
+        prevSqlText:
+          type: string
+        prevSqlLine:
+          type: integer
+        wait:
+          allOf:
+            - $ref: "#/components/schemas/DiagProcWait"
+          description: 'the session''s wait; absent when its text prints none'
+    DiagProcWait:
+      type: object
+      description: 'what a session''s text says about its wait'
+      required: [inWait, stack, blocked, blockers, blockedCount, waiters, history, historyTotal]
+      additionalProperties: false
+      properties:
+        inWait:
+          type: boolean
+          description: 'the current wait stack has an entry'
+        line:
+          type: integer
+          description: 'the `Current Wait Stack:` line; absent when the session prints none'
+        stack:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagWaitEntry"
+          description: 'the wait stack''s entries, outermost first (entry 0 is the one waited for now)'
+        lastEndedSec:
+          type: number
+          description: '`Not in wait; last wait ended 0.001319 sec ago`'
+        blocked:
+          type: boolean
+          description: '`There is at least one session blocking this session.`'
+        blockers:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSessionRef"
+          description: 'the `Dumping N direct blocker(s)` the dump names'
+        blockersCount:
+          type: integer
+          description: 'N'
+        finalBlocker:
+          allOf:
+            - $ref: "#/components/schemas/DiagSessionRef"
+          description: 'the one under `Dumping final blocker:`'
+        blockedCount:
+          type: integer
+          description: 'N of `There are N sessions blocked by this session.`'
+        blockedLine:
+          type: integer
+        waiters:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagProcWaiter"
+          description: 'the blocked sessions the dump describes (`Dumping one waiter:`: one, however many there are)'
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagWaitHistory"
+          description: 'the Session Wait History, latest first, at most 30'
+        historyTotal:
+          type: integer
+          description: 'how many entries it prints'
+        historyLine:
+          type: integer
+        elapsedSec:
+          type: number
+          description: '`elapsed time of N sec since last wait`'
+    DiagWaitEntry:
+      type: object
+      description: 'an entry of the current wait stack'
+      required: [level, event, line]
+      additionalProperties: false
+      properties:
+        level:
+          type: integer
+        event:
+          type: string
+        params:
+          type: string
+          description: 'the parameter line as printed (`name|mode=0x54580006, usn<<16 | slot=0x80005, sequence=0x5817`)'
+        seconds:
+          type: number
+          description: '`total=` of the entry''s `wait times:` line: the time in wait so far'
+        line:
+          type: integer
+    DiagSessionRef:
+      type: object
+      description: 'a session the dump names (`inst: 1, sid: 52, ser: 41898`)'
+      required: [inst, sid, serial, key, line]
+      additionalProperties: false
+      properties:
+        inst:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+          description: 'sid.serial'
+        line:
+          type: integer
+    DiagProcWaiter:
+      type: object
+      description: 'a session blocked by this one that the dump describes (the fields of DiagSessionRef and)'
+      required: [inst, sid, serial, key, line, params]
+      additionalProperties: false
+      properties:
+        inst:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+          description: 'sid.serial'
+        line:
+          type: integer
+        event:
+          type: string
+          description: '`wait event:`'
+        params:
+          type: array
+          items:
+            type: string
+          description: 'the `p1: ''name|mode''=0x54580006` lines as printed'
+        rowWait:
+          allOf:
+            - $ref: "#/components/schemas/DiagRowWait"
+          description: '`row_wait_obj#: 108609, block#: 169252, row#: 6, file# 12`'
+        minBlockedSec:
+          type: integer
+          description: '`min_blocked_time: 3 secs`'
+    DiagRowWait:
+      type: object
+      description: 'the row a waiter waits for'
+      required: [obj, block, row, file, line]
+      additionalProperties: false
+      properties:
+        obj:
+          type: integer
+        block:
+          type: integer
+        row:
+          type: integer
+        file:
+          type: integer
+        line:
+          type: integer
+    DiagWaitHistory:
+      type: object
+      description: 'an entry of the Session Wait History'
+      required: [n, event, line]
+      additionalProperties: false
+      properties:
+        "n":
+          type: integer
+        event:
+          type: string
+        params:
+          type: string
+        seconds:
+          type: number
+          description: '`total=` of its first `wait times:` line'
+        line:
+          type: integer
+    DiagProcObjects:
+      type: object
+      description: 'the state objects counted'
+      required: [total, depth, byType]
+      additionalProperties: false
+      properties:
+        total:
+          type: integer
+        depth:
+          type: integer
+          description: 'the deepest level of the tree by owner links; the process is 1'
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagObjectType"
+          description: 'by count, largest first'
+        typesOther:
+          type: integer
+          description: 'objects of the types beyond the first 100'
+    DiagObjectType:
+      type: object
+      description: 'a count of state objects of one type'
+      required: [type, number, count]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          description: 'as printed: LIBRARY OBJECT LOCK, enqueue'
+        number:
+          type: integer
+          description: 'the number in parentheses'
+        count:
+          type: integer
+    DiagProcEnqueue:
+      type: object
+      description: 'an `Enqueue Dump` of the state objects'
+      required: [resource, type, mode, line]
+      additionalProperties: false
+      properties:
+        resource:
+          type: string
+          description: 'TX-00050016-00005A54-ED94F66A-00000000'
+        type:
+          type: string
+          description: 'TX'
+        mode:
+          type: string
+          description: 'NULL, SS, SX, S, SSX, X as printed'
+        requested:
+          type: boolean
+          description: 'the line is `req:` (requested), not `mode:` (held)'
+        flag:
+          type: string
+          description: 'lock_flag'
+        in:
+          type: string
+          description: 'the type of the state object whose text holds the dump'
+        session:
+          type: string
+          description: 'sid.serial of the session that object belongs to'
+        line:
+          type: integer
+    DiagProcTransaction:
+      type: object
+      description: 'a transaction state object'
+      required: [address, line, blocks, blocksTotal]
+      additionalProperties: false
+      properties:
+        address:
+          type: string
+        session:
+          type: string
+        line:
+          type: integer
+        xid:
+          type: string
+          description: '0x0005.016.00005a54'
+        undoBlocks:
+          type: integer
+          description: '`Undo blks: 1 recs: 3`'
+        undoRecords:
+          type: integer
+        begin:
+          type: string
+          description: 'the time of `Begin scn: ... ts:...[11/17/2026 21:34:26]`'
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagBlockRow"
+          description: 'the Block List under it, at most 10'
+        blocksTotal:
+          type: integer
+    DiagBlockRow:
+      type: object
+      description: 'a row of a Block List (`index itli rdba sql_id obj# savepoint`)'
+      required: [itli, rdba, sqlId, obj, line]
+      additionalProperties: false
+      properties:
+        itli:
+          type: integer
+        rdba:
+          type: string
+        sqlId:
+          type: string
+        obj:
+          type: integer
+        line:
+          type: integer
+    DiagProcDMLLock:
+      type: object
+      description: 'a DML lock state object'
+      required: [address, line, table]
+      additionalProperties: false
+      properties:
+        address:
+          type: string
+        session:
+          type: string
+        line:
+          type: integer
+        table:
+          type: integer
+          description: '`tab=108609`: the object id'
+        flags:
+          type: string
+          description: 'flg='
+        mode:
+          type: integer
+          description: '`mod=3` of the first history entry'
+        modeName:
+          type: string
+          description: '1 NULL 2 SS 3 SX 4 S 5 SSX 6 X (the v$lock numbering; fixture diag_procstate: mod=3 beside a TM enqueue of mode SX)'
+    DiagProcLibObject:
+      type: object
+      description: 'a library object lock or pin'
+      required: [address, line, handle, mode]
+      additionalProperties: false
+      properties:
+        address:
+          type: string
+          description: 'the state object'
+        session:
+          type: string
+        line:
+          type: integer
+        handle:
+          type: string
+          description: 'the library handle'
+        mode:
+          type: string
+          description: 'as printed: N, S, X'
+        namespace:
+          type: string
+          description: 'without its number: SQL AREA, TABLE/PROCEDURE'
+        type:
+          type: string
+          description: 'without its number: CURSOR, PROCEDURE'
+        name:
+          type: string
+          description: 'the handle''s `ObjectName:  Name=` (the first line of the text for a cursor)'
+        sqlId:
+          type: string
+          description: 'its SqlId= or the sql_id of its Parent Cursor line'
+        count:
+          type: integer
+          description: 'the Count= of a pin'
+    DiagSysState:
+      type: object
+      description: 'the reading of a system state (diag.SysState), answer of api/diag/reading for a node of kind sysstate (`reading` "sysstate"): one row per process of the Process Summary of the dump completed from each PROCESS body, the counts (idle by the event reference of the engine), and the blocker tree as the dump names it. Bounded: 3000 table rows (and the rows of blocked and blocking sessions beyond them) and 300 tree nodes, with the rest counted'
+      required: [kind, node, from, to, lines, level, shortStacks, titleLine, summaryMarks, bodyMarks, counts, processes, processesOmitted, tree, treeNodes, treeOmitted, blocked, roots, ended, notes]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"sysstate"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        level:
+          type: string
+          description: 'Level is the text in the parentheses of the title as printed ("level=10, with short stacks"); LevelNum the number after "level="; ShortStacks: the title says "with short stacks".'
+        levelNum:
+          type: integer
+        shortStacks:
+          type: boolean
+        titleLine:
+          type: integer
+        command:
+          type: string
+          description: 'Command is the oradebug command that took the dump ("dump systemstate 266"), from the line before the section when it prints one; absent for a dump taken any other way.'
+        commandLine:
+          type: integer
+        caller:
+          allOf:
+            - $ref: "#/components/schemas/DiagSysCaller"
+          description: 'Caller is the short stack of the process that took the dump, printed before the section ("System state caller''s stack:"); absent when there is none. Session is the session that wrote the trace ("sid.serial" of the "*** SESSION ID" marker in force at the section), when the file has one.'
+        session:
+          type: string
+        summaryLine:
+          type: integer
+          description: 'SummaryLine is the line of "Dumping the Process Summary" (0 when the section has none).'
+        summaryMarks:
+          type: boolean
+          description: 'SummaryMarks: the summary prints "Blocked by" / "Final Blocker" lines for some process (every level of the lab does).'
+        bodyMarks:
+          type: boolean
+          description: 'BodyMarks: the process bodies print "Dumping N direct blocker(s)" (every level of the lab does).'
+        counts:
+          $ref: "#/components/schemas/DiagSysCounts"
+        processes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSysProc"
+          description: 'Processes are the rows of the process table in the summary''s order: the first SysRowCap, then the rows of the sessions that block or are blocked beyond them; ProcessesOmitted counts the processes not listed.'
+        processesOmitted:
+          type: integer
+        tree:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSysTreeNode"
+          description: 'Tree is the blocker forest, the largest root first; TreeNodes counts the nodes listed, TreeOmitted those left out for the bound. Blocked counts the sessions that have a blocker, Roots the roots (listed or not).'
+        treeNodes:
+          type: integer
+        treeOmitted:
+          type: integer
+        blocked:
+          type: integer
+        roots:
+          type: integer
+        ended:
+          type: boolean
+          description: 'Ended: the section''s "END OF SYSTEM STATE" was reached.'
+        notes:
+          type: array
+          items:
+            type: string
+    DiagSysCaller:
+      type: object
+      description: 'the short stack of the process that took the system state, printed before the section'
+      required: [line, stack, stackNoOwn, own]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+          description: 'the line of the stack'
+        stack:
+          type: string
+          description: 'as printed, innermost first'
+        stackNoOwn:
+          type: string
+          description: 'StackNoOwn is the stack without the leading functions of the signal handler that took it (the ksedsts... entries); Own counts them.'
+        own:
+          type: integer
+    DiagSysCounts:
+      type: object
+      description: 'the counts of the processes of the summary (all of them, listed or not)'
+      required: [processes, user, background, pseudo, idle, idleBackground, withoutSession]
+      additionalProperties: false
+      properties:
+        processes:
+          type: integer
+        user:
+          type: integer
+          description: 'foreground (USER)'
+        background:
+          type: integer
+          description: 'named processes'
+        pseudo:
+          type: integer
+          description: 'the pseudo process'
+        idle:
+          type: integer
+          description: 'Idle counts the idle processes of every kind, IdleBackground those that are background ones (hidden in the text digest and by default in a client); WithoutSession those with no session (sid 0 ser 0 or the pseudo process).'
+        idleBackground:
+          type: integer
+        withoutSession:
+          type: integer
+        omitted:
+          type: integer
+          description: 'Omitted: summary entries past the bound of the memory kept for the summary (sysSummaryHard), 0 normally.'
+    DiagSysProc:
+      type: object
+      description: 'a row of the process table: the summary line completed from the process body'
+      required: [pid, name, kind, sid, serial, line, idle, background, blockedBy, body, inWait, blocks, blocked]
+      additionalProperties: false
+      properties:
+        pid:
+          type: integer
+          description: 'the Oracle process number: "6:" of the summary and "PROCESS 6:" of the body'
+        name:
+          type: string
+          description: '"PMON", "USER"; "PSEUDO" for the pseudo process'
+        kind:
+          type: string
+          description: 'foreground, background, pseudo'
+        ospid:
+          type: string
+          description: 'OSPid is as printed ("2188", or "2299_2300" for a thread of a multithreaded process); absent for the pseudo process.'
+        sid:
+          type: integer
+        serial:
+          type: integer
+          description: 'Serial is the session serial; 0 with sid 0 for a process the summary gives no session.'
+        session:
+          type: string
+          description: 'Session is "sid.serial"; absent for a process with no session.'
+        line:
+          type: integer
+          description: 'the summary line'
+        event:
+          type: string
+          description: 'Event is what the summary says the process waits for; absent when it prints none (the process that took the dump, a process not in a wait). Class is the wait class in the event reference, "" for an event it does not know.'
+        class:
+          type: string
+        bodyEvent:
+          type: string
+          description: 'the event of the current wait stack of the process body when it is not the summary one: the summary is written first and the bodies later, on a live system, so a process can have moved on (fixture big/diag_sysstate_l266: process 60 is waiting for `enq: JG - queue lock` in the summary and in `rdbms ipc message` in its body). `waitSec` is the time in wait of the body, so it belongs to `bodyEvent` when that is set. `idle` and `class` follow the summary'
+        idle:
+          type: boolean
+          description: 'Idle: the class is Idle, or the process has no session. Background: Kind is background.'
+        background:
+          type: boolean
+        caller:
+          type: boolean
+          description: 'Caller: the session of the process is the one that took the dump.'
+        cmd:
+          type: string
+          description: 'Cmd is the summary''s "Cmd:" line.'
+        blockedBy:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSessionRef"
+          description: 'Marks of the summary: the direct blockers ("Blocked by") and the final blocker ("Final Blocker").'
+        finalBlocker:
+          $ref: "#/components/schemas/DiagSessionRef"
+        node:
+          type: string
+          description: 'Node is the id of the PROCESS n node of the outline (its procstate reading is the process''s state objects); NodeLine is its first line. Absent when the section''s outline has no node for it.'
+        nodeLine:
+          type: integer
+        body:
+          type: boolean
+          description: 'Body: the process''s body was read for this row (the next fields come from it).'
+        flags:
+          type: string
+          description: 'the process''s flags as printed ("SYSTEM")'
+        user:
+          type: string
+        container:
+          type: string
+        module:
+          type: string
+        action:
+          type: string
+        program:
+          type: string
+        machine:
+          type: string
+        command:
+          type: integer
+          description: 'oct'
+        inWait:
+          type: boolean
+          description: 'InWait: the session''s current wait stack has an entry; WaitSec is its "total=" (the time in wait so far). LastWaitEndedSec: "Not in wait; last wait ended N sec ago".'
+        waitSec:
+          type: number
+        lastWaitEndedSec:
+          type: number
+        blocks:
+          type: integer
+          description: 'Blocks is N of "There are N sessions blocked by this session." (0 when the body prints none); Blocked: "There is at least one session blocking this session."'
+        blocked:
+          type: boolean
+        sqlId:
+          type: string
+          description: 'The session''s top-level statement, as the process state reading finds it: SqlID and SqlText (the first line, cut) where the level prints the library object lock of its handle (2, 258, 266), SqlLine the line of that lock; SqlHandle is the address the session prints after "sql:" (absent for none), the only thing a level 1 dump says.'
+        sqlText:
+          type: string
+        sqlLine:
+          type: integer
+        sqlHandle:
+          type: string
+        sessionLine:
+          type: integer
+          description: 'SessionLine is the "(session) sid:" line of the body.'
+    DiagSysTreeNode:
+      type: object
+      description: 'a session of the blocker tree; its children are the sessions it blocks directly'
+      required: [session, sid, serial, inWait, blocks, descendants, line, children]
+      additionalProperties: false
+      properties:
+        session:
+          type: string
+          description: '"sid.serial"'
+        sid:
+          type: integer
+        serial:
+          type: integer
+        inst:
+          type: integer
+          description: 'Inst is the instance a blocker line prints ("inst: 1").'
+        foreign:
+          type: boolean
+          description: 'Foreign: the session is not one of this dump''s processes (another instance, or a stale serial); only the dump''s mention of it is known (Line).'
+        cycle:
+          type: boolean
+          description: 'Cycle: the direct blockers of this session lead back to it; the tree is cut here, the session is a root.'
+        pid:
+          type: integer
+        user:
+          type: string
+        module:
+          type: string
+        action:
+          type: string
+        event:
+          type: string
+        waitSec:
+          type: number
+        inWait:
+          type: boolean
+        sqlId:
+          type: string
+        sqlText:
+          type: string
+        cmd:
+          type: string
+        blocks:
+          type: integer
+          description: 'Blocks is N of "There are N sessions blocked by this session." when the dump prints it for this session, else the number of sessions below this one in the tree; Descendants is the latter, always.'
+        descendants:
+          type: integer
+        finalBlocker:
+          type: string
+          description: 'FinalBlocker is the final blocker the dump names for this session ("sid.serial"); absent for a root.'
+        alsoBlockedBy:
+          type: array
+          items:
+            type: string
+          description: 'AlsoBlockedBy are the other direct blockers of the session (the tree has it under the first).'
+        node:
+          type: string
+          description: 'Node is the id of the session''s process node (a procstate reading); Line the line of the session ("(session) sid:" of the body, else the summary line, else the line that names a foreign session).'
+        line:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSysTreeNode"
+    DiagHangReading:
+      type: object
+      description: 'the reading of a hang analysis (diag.HangReading), answer of api/diag/reading for a node of kind hang (`reading` "hang"): the chains of sessions that wait for one another as the dump prints them (each in the order "is blocked by" gives), the chains most likely to have caused the hang, the node table and the dumps block'
+      required: [kind, node, from, to, lines, instances, headerLine, delays, listed, chains, chainsTotal, extra, ended, notes]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"hang"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        instances:
+          type: array
+          items:
+            type: string
+          description: 'Instances are the "instances (db_name.oracle_sid)" the analysis covers; Level the "oradebug_node_dump_level"; InitiatedBy the text after "analysis initiated by" ("oradebug"), absent when the dump prints none (the event form of the lab does not).'
+        level:
+          type: integer
+        initiatedBy:
+          type: string
+        headerLine:
+          type: integer
+        delays:
+          type: array
+          items:
+            type: string
+          description: 'Delays are the lines of "os thread scheduling delay history", as printed and trimmed.'
+        listed:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangListed"
+          description: 'Listed is the "Chains most likely to have caused the hang" list; Chains are the chains of the body.'
+        chains:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangChain"
+        chainsTotal:
+          type: integer
+        nodes:
+          allOf:
+            - $ref: "#/components/schemas/DiagHangNodes"
+          description: 'Nodes is the "State of ALL nodes" table, absent when the dump prints none.'
+        extra:
+          type: array
+          items:
+            type: string
+          description: 'Extra are the lines under "Extra information that will be dumped at higher levels".'
+        dumps:
+          allOf:
+            - $ref: "#/components/schemas/DiagHangDumps"
+          description: 'Dumps are the facts of the "HANG ANALYSIS DUMPS:" block, absent when the section has none.'
+        ended:
+          type: boolean
+          description: 'Ended: "END OF HANG ANALYSIS" was reached.'
+        notes:
+          type: array
+          items:
+            type: string
+    DiagHangListed:
+      type: object
+      description: 'an entry of the list of chains most likely to have caused the hang'
+      required: [letter, chain, signature, events, line]
+      additionalProperties: false
+      properties:
+        letter:
+          type: string
+          description: '"a" of " [a] Chain 1 Signature: ..."'
+        chain:
+          type: integer
+        signature:
+          type: string
+          description: 'Signature is as printed ("''PL/SQL lock timer''<=''enq: TX - row lock contention''"); Events its list, the head''s first.'
+        events:
+          type: array
+          items:
+            type: string
+        hash:
+          type: string
+          description: '"0x5e4fa8d6"'
+        line:
+          type: integer
+    DiagHangChain:
+      type: object
+      description: 'one chain of the hang analysis: the first session waits, each next one blocks the one before it, the last is the head of the chain'
+      required: [n, line, from, to, events, listed, sessions, sessionsTotal]
+      additionalProperties: false
+      properties:
+        n:
+          type: integer
+        line:
+          type: integer
+          description: '"Chain N:"'
+        from:
+          type: integer
+        to:
+          type: integer
+        group:
+          type: string
+          description: 'Group is the label over it: "Non-intersecting chains" or "Sessions in an involuntary wait or not in a wait".'
+        signature:
+          type: string
+          description: 'Signature, Events and Hash are the chain''s own "Chain N Signature:" lines (the list''s when it has none).'
+        events:
+          type: array
+          items:
+            type: string
+        hash:
+          type: string
+        listed:
+          type: boolean
+          description: 'Listed: the chain is in the "most likely" list; Letter is its letter there.'
+        letter:
+          type: string
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangSession"
+          description: 'Sessions are in the order the dump prints them: the first waits, each next one blocks the one before it, the last is the head of the chain. At most HangSessionCap; SessionsTotal counts them all.'
+        sessionsTotal:
+          type: integer
+    DiagHangSession:
+      type: object
+      description: 'one session of a chain: its identification block, wait info, current statement and wait history as printed. current sql_id is a number that is the high 32 bits of the sql_id of the statement (not its hash value)'
+      required: [position, line, from, to, sid, serial, key, waiting, params, history, historyTotal]
+      additionalProperties: false
+      properties:
+        position:
+          type: integer
+          description: '1 for the first'
+        line:
+          type: integer
+          description: '"Oracle session identified by:"'
+        from:
+          type: integer
+        to:
+          type: integer
+        instance:
+          type: string
+          description: 'The identification block, as printed. Instance is "1 (cdb1.cdb1)" as printed.'
+        osId:
+          type: string
+        processId:
+          type: integer
+          description: 'ProcessID is the Oracle process number; Process the rest of the line ("oracle@ol9-19-dg1.localdomain (J001)").'
+        process:
+          type: string
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+          description: '"sid.serial"'
+        module:
+          type: string
+          description: 'Module is the text of "module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))" in the outer parentheses, as printed: the dump joins the module with what follows it in a buffer, so the text can carry the tail of the machine name (fixture diag_hang: "DBMS_SCHEDULERstack_l1aldomain (TNS V1-V3)"). ModuleNum is the number before it, the container id on every fixture.'
+        moduleNum:
+          type: integer
+        pdbId:
+          type: integer
+        pdb:
+          type: string
+        waiting:
+          type: boolean
+          description: 'Waiting: "is waiting for ''<event>'' with wait info:". State is the line that says it, as printed. Event is absent for a session that is not waiting.'
+        event:
+          type: string
+        state:
+          type: string
+        params:
+          type: array
+          items:
+            type: string
+          description: 'Params are the wait parameters as printed ("p1: ''name|mode''=0x54580006").'
+        timeInWaitSec:
+          type: number
+          description: 'The wait info: time in wait, "heur. time in wait", "timeout after" (TimeoutText as printed: "55.970964 sec" or "never"), "wait id", "blocking: N session(s)".'
+        heurTimeInWaitSec:
+          type: number
+        timeoutSec:
+          type: number
+        timeoutText:
+          type: string
+        waitId:
+          type: integer
+        blocking:
+          type: integer
+        lastWaitText:
+          type: string
+          description: 'LastWaitText is "last wait:" of a session that is not waiting, as printed (not shown by a fixture).'
+        sqlIdHigh:
+          type: integer
+          format: int64
+          description: 'SqlIdHigh is "current sql_id": a number that is the high 32 bits of the statement''s sql_id, not its hash value (see the comment of this file). Absent when the dump prints none; 0 is no statement. SqlText is "current sql:" (at most HangTextCap bytes, SqlCut says it was cut), absent when the dump prints none.'
+        sqlText:
+          type: string
+        sqlCut:
+          type: boolean
+        shortStack:
+          type: string
+          description: 'ShortStack is the session''s "short stack:" as printed (functions joined by "<-", no offsets); ShortStackNoOwn without the leading entries of the signal handler that took it, ShortStackOwn how many those are.'
+        shortStackNoOwn:
+          type: string
+        shortStackOwn:
+          type: integer
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangWait"
+          description: 'History is the wait history, latest first, at most HangHistoryCap; HistoryTotal counts them.'
+        historyTotal:
+          type: integer
+        historyLine:
+          type: integer
+    DiagHangWait:
+      type: object
+      description: 'an entry of the wait history of a session'
+      required: [n, event, params, line]
+      additionalProperties: false
+      properties:
+        n:
+          type: integer
+          description: '1 is the latest'
+        event:
+          type: string
+        waitedSec:
+          type: number
+          description: '"time waited"'
+        gapSec:
+          type: number
+          description: 'GapSec is the "* time between wait #1 and #2: 0.000005 sec" line above the entry: the time between the wait before it (the current wait for entry 1) and this one; GapLabel is that line as printed.'
+        waitId:
+          type: integer
+        params:
+          type: array
+          items:
+            type: string
+        line:
+          type: integer
+        gapLabel:
+          type: string
+    DiagHangNodes:
+      type: object
+      description: 'a "State of ALL nodes" / "State of LOCAL nodes" table'
+      required: [line, rows, total]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        header:
+          type: string
+          description: '"([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):"'
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangNode"
+        total:
+          type: integer
+    DiagHangNode:
+      type: object
+      description: 'a row of a node table: "[254]/1/255/22508/0xa299efe8/13912/NLEAF/[51]"'
+      required: [line, num, cnode, sid, serial, key, session, ospid, state, adj]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        num:
+          type: integer
+        cnode:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+          description: '"sid.serial"'
+        session:
+          type: string
+          description: 'the session''s address, as printed'
+        ospid:
+          type: string
+        state:
+          type: string
+          description: 'SINGLE_NODE, NLEAF, LEAF, ...'
+        adj:
+          type: array
+          items:
+            type: integer
+          description: 'Adj is the adjacency list: the node numbers in brackets at the end of the row.'
+    DiagHangDumps:
+      type: object
+      description: 'the facts of the "HANG ANALYSIS DUMPS:" block'
+      required: [line, lines, ended]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        level:
+          type: integer
+          description: '"oradebug_node_dump_level: 3"'
+        local:
+          allOf:
+            - $ref: "#/components/schemas/DiagHangNodes"
+          description: 'Local is "State of LOCAL nodes".'
+        lines:
+          type: array
+          items:
+            type: string
+          description: 'Lines are the other lines of the block, as printed ("No processes qualify for dumping.").'
+        ended:
+          type: boolean
+          description: '"HANG ANALYSIS DUMPS: END"'
+    DiagDeadlock:
+      type: object
+      description: 'the reading of a deadlock graph (diag.Deadlock), answer of api/diag/reading for a node of kind deadlock (`reading` "deadlock"): the rows of the graph as printed (empty cells absent), the cycle between sessions, the information for waiting sessions, the victim (the session that wrote the trace), the rows waited on and the diagnostic dump that follows'
+      required: [kind, node, from, to, lines, ora, line, graph, cycle, sessions, sessionsTotal, sessionsEnded, notes]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"deadlock"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        ora:
+          type: string
+          description: 'ORA is "ORA-00060" of "DEADLOCK DETECTED ( ORA-00060 )", Line its line; Type the "[Transaction Deadlock]" line''s text.'
+        line:
+          type: integer
+        type:
+          type: string
+        graph:
+          $ref: "#/components/schemas/DiagDeadlockGraph"
+        cycle:
+          $ref: "#/components/schemas/DiagDeadlockCycle"
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDeadlockSession"
+          description: 'Sessions are the "Information for waiting sessions" blocks, in order.'
+        sessionsTotal:
+          type: integer
+        sessionsLine:
+          type: integer
+          description: 'SessionsLine is the "Information for waiting sessions" line (0 when the section has none); SessionsEnded: its end line was reached.'
+        sessionsEnded:
+          type: boolean
+        victim:
+          allOf:
+            - $ref: "#/components/schemas/DiagDeadlockVictim"
+          description: 'Victim is the session that wrote the trace; absent when the file has no session marker before the section.'
+        rowsWaited:
+          allOf:
+            - $ref: "#/components/schemas/DiagDeadlockRowsWaited"
+          description: 'RowsWaited is the "Rows waited on" block, absent when the dump prints none.'
+        dump:
+          allOf:
+            - $ref: "#/components/schemas/DiagDeadlockDump"
+          description: 'Dump is the diagnostic dump that follows the graph (its callstack reading), absent when there is none.'
+        notes:
+          type: array
+          items:
+            type: string
+    DiagDeadlockGraph:
+      type: object
+      description: 'the deadlock graph table'
+      required: [line, header, rows, rowsTotal]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+          description: '"Deadlock graph:"; 0 when the section has none'
+        header:
+          type: array
+          items:
+            type: string
+          description: 'Header are the two header lines as printed (the "Blocker(s)" / "Waiter(s)" rule and the column names).'
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDeadlockRow"
+        rowsTotal:
+          type: integer
+    DiagDeadlockRow:
+      type: object
+      description: 'a row of the graph: a resource, the session that holds it and the one that waits for it'
+      required: [line, resource, type, blocker, waiter]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        resource:
+          type: string
+          description: 'Resource is the name as printed ("TX-000A0009-00004D46-ED94F66A-00000000"); Type its first part ("TX").'
+        type:
+          type: string
+        blocker:
+          $ref: "#/components/schemas/DiagDeadlockParty"
+        waiter:
+          $ref: "#/components/schemas/DiagDeadlockParty"
+    DiagDeadlockParty:
+      type: object
+      description: 'one side of a row; a cell the dump leaves empty is absent'
+      additionalProperties: false
+      properties:
+        process:
+          type: integer
+        session:
+          type: integer
+        holds:
+          type: string
+          description: 'the mode held ("X")'
+        waits:
+          type: string
+          description: 'the mode waited for'
+        serial:
+          type: integer
+        key:
+          type: string
+          description: 'Key is "sid.serial" when both are printed.'
+    DiagDeadlockCycle:
+      type: object
+      description: 'the cycle of the rows seen as edges between sessions'
+      required: [closed, sessions, edges]
+      additionalProperties: false
+      properties:
+        closed:
+          type: boolean
+          description: 'Closed: the edges lead from a session back to it.'
+        sessions:
+          type: array
+          items:
+            type: string
+          description: 'Sessions are the sessions of the cycle in the order of the edges (each waits for the next, the last for the first).'
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDeadlockEdge"
+    DiagDeadlockEdge:
+      type: object
+      description: 'an edge of the cycle: Waiter waits for Resource, which Blocker holds'
+      required: [waiter, blocker, resource, line]
+      additionalProperties: false
+      properties:
+        waiter:
+          type: string
+        blocker:
+          type: string
+        resource:
+          type: string
+        mode:
+          type: string
+          description: 'Mode is the mode the waiter waits for, as printed in the waiter''s "waits" cell.'
+        line:
+          type: integer
+    DiagDeadlockSession:
+      type: object
+      description: 'a block of "Information for waiting sessions"'
+      required: [line, from, to, number, sid, serial, key, inGraph]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+          description: '"Session 255:"'
+        from:
+          type: integer
+        to:
+          type: integer
+        number:
+          type: integer
+          description: 'Number is the number after "Session" (the session id).'
+        heldResource:
+          type: string
+          description: 'HeldResource and Acquired: "Holds resource TX-... acquired 5 seconds ago."; AcquiredSec the seconds (absent when the text is not in that form).'
+        acquired:
+          type: string
+        acquiredSec:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+        audsid:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+        user:
+          type: string
+        container:
+          type: string
+          description: '"3/PDB1" of "pdb:" split'
+        containerId:
+          type: integer
+          description: 'ContainerID and ContainerName: "pdb: 3/PDB1".'
+        containerName:
+          type: string
+        pid:
+          type: integer
+        osUser:
+          type: string
+        ospid:
+          type: string
+        image:
+          type: string
+        clientOsUser:
+          type: string
+          description: 'The client''s: "client details:" then "O/S info:", "machine:", "program:", "application name:", "action name:".'
+        clientOspid:
+          type: string
+        machine:
+          type: string
+        program:
+          type: string
+        module:
+          type: string
+          description: '"application name:"'
+        action:
+          type: string
+          description: '"action name:"'
+        sqlText:
+          type: string
+          description: 'SqlText is "current SQL:" and the lines after it (at most DeadlockSQLLines lines and DeadlockSQLBytes bytes, SqlCut says it was cut); SqlLine is the first line of the text.'
+        sqlLine:
+          type: integer
+        sqlCut:
+          type: boolean
+        inGraph:
+          type: boolean
+          description: 'InGraph: the session is in a row of the graph.'
+    DiagDeadlockVictim:
+      type: object
+      description: 'the session that wrote the trace'
+      required: [session, line, inGraph]
+      additionalProperties: false
+      properties:
+        session:
+          type: string
+          description: '"sid.serial"'
+        line:
+          type: integer
+          description: 'Line is the "*** SESSION ID" marker that says so; InGraph: the session is in the graph; Statement the session''s current SQL of the "Information for waiting sessions" when it has a block there.'
+        inGraph:
+          type: boolean
+    DiagDeadlockRowsWaited:
+      type: object
+      description: 'the "Rows waited on" block'
+      required: [line, rows, total]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDeadlockRowWaits"
+        total:
+          type: integer
+    DiagDeadlockRowWaits:
+      type: object
+      description: 'an entry of "Rows waited on": a session and the row it waits on'
+      required: [line, session]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        session:
+          type: integer
+          description: 'the session id'
+        noRow:
+          type: boolean
+        obj:
+          type: string
+          description: '"0001A841" as printed'
+        rowid:
+          type: string
+          description: '"AAAahBAAMAAApUZAAD"'
+        objn:
+          type: integer
+          format: int64
+          description: 'Objn, File, Block and Slot of the dictionary line.'
+        file:
+          type: integer
+          format: int64
+        block:
+          type: integer
+          format: int64
+        slot:
+          type: integer
+          format: int64
+    DiagDeadlockDump:
+      type: object
+      description: 'the diagnostic dump nested in the deadlock section'
+      required: [node, from, to, title]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+          description: 'its id: ask api/diag/reading for its callstack reading'
+        from:
+          type: integer
+        to:
+          type: integer
+        title:
+          type: string
+    DiagPath:
+      type: object
+      description: 'the answer of api/diag/path: the nodes from the top level down, each inside the one before it'
+      required: [nodes]
+      additionalProperties: false
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagNode"
     OptDoc:
       type: object
       description: "the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record"
@@ -5552,6 +8542,17 @@ components:
           type: string
           format: date-time
           description: the time on its first SESSION ID line
+    PeekSection:
+      type: object
+      required: [kind, count]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident]
+          description: "the kind of diagnostic dump section: a heap dump, the PGA memory summary, the PGA memory detail dump, the diagnostic dump of an errorstack (call stack, current SQL, cursors), a process state, a system state, a hang analysis, a deadlock graph, the contents of an incident file"
+        count:
+          type: integer
     TracePeek:
       type: object
       required: [path, size, modified, elapsedUs, sqlTrace, sessions, sessionCount]
@@ -5609,8 +8610,13 @@ components:
           description: the file could not be read; the other fields hold what was read
         kind:
           type: string
-          enum: ["10046", "10053", "both"]
-          description: "what the file holds: 10046 (SQL trace records), 10053 (optimizer dumps and no 10046 record) or both (event 10046 and 10053 on in one session: an interleaved file); absent when neither was seen. The file is read to its end for it"
+          enum: ["10046", "10053", "both", "diag"]
+          description: "what the file holds: 10046 (SQL trace records), 10053 (optimizer dumps and no 10046 record), both (event 10046 and 10053 on in one session: an interleaved file) or diag (diagnostic dumps, see sections, and neither of the others); absent when none was seen. The file is read to its end for it"
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/PeekSection"
+          description: "the diagnostic dump sections of the file counted by kind, in the order the kinds first appear; absent when it has none. Set only for a file of kind diag: a 10046 or 10053 file is not searched for them"
         optDumps:
           type: integer
           description: "the number of optimizer (10053) dumps in the file (a dump starts at its first `Registered qb: ... (PARSER)` line)"
@@ -5675,6 +8681,20 @@ components:
           items:
             type: string
           description: for a 10053 session once it is ready, the distinct sql_ids of the dumps of its file, in file order; absent for every other session
+        diagSqlIds:
+          type: array
+          maxItems: 300
+          items:
+            type: string
+          description: "for a diag session once it is ready, the distinct sql_ids its file names (the `Current SQL Statement for this session (sql_id=...)` of its diagnostic dumps, `Dump Cursor sql_id=...` and the SqlId= of the library handles of a process state), in first-seen order, at most 300; collected in the scan pass. What a client marks when another tab holds the same statement; absent for every other session"
+        diagSessions:
+          type: array
+          maxItems: 300
+          items:
+            type: string
+          description: "for a diag session once it is ready, the distinct sessions its file names as `sid.serial` (the 10046 session id): the header's `*** SESSION ID:(...)`, the session state objects of its process and system states, the process summary of a system state, the `inst: 1, sid: 52, ser: 41898` lines naming blockers and waiters, a hang analysis and a deadlock; first-seen order, at most 300; sid 0 ser 0 is not one. Absent for every other session"
+        view:
+          $ref: "#/components/schemas/SessionView"
     SessionList:
       type: object
       required: [sessions]
@@ -5712,6 +8732,8 @@ components:
         thresholds:
           type: object
           description: finding thresholds (`mtkprof findings-config`); unknown keys are a 400
+        view:
+          $ref: "#/components/schemas/SessionView"
     OpenSessionRequest:
       type: object
       required: [paths]
@@ -6302,6 +9324,18 @@ components:
           items:
             type: string
           description: as in SessionInfo
+        diagSqlIds:
+          type: array
+          items:
+            type: string
+          description: as in SessionInfo
+        diagSessions:
+          type: array
+          items:
+            type: string
+          description: as in SessionInfo
+        view:
+          $ref: "#/components/schemas/SessionView"
     PromptEvent:
       type: object
       required: [id, connection, kind, text, echo, state]
@@ -6697,6 +9731,8 @@ components:
             type: object
         opt:
           $ref: "#/components/schemas/OptDoc"
+        dump:
+          $ref: "#/components/schemas/DiagDoc"
         stats:
           type: object
           properties:

@@ -36,10 +36,12 @@ type sessionReport struct {
 	base    string // download name without extension
 	planViz string
 	ss      *Session
-	opt     *slice.OptServer // the session's 10053 file; nil for any other
+	opt     *slice.OptServer  // the session's 10053 file; nil for any other
+	diag    *slice.DiagServer // the session's diag file; nil for any other
+	docM    *model.Model      // the model the documents are made of (the session's, or that of an empty 10046 model for a 10053 or diag view)
 }
 
-func newSessionReport(ss *Session, co *CacheOpened, planViz string, ot *slice.OptServer) *sessionReport {
+func newSessionReport(ss *Session, co *CacheOpened, planViz string, ot *slice.OptServer, dg *slice.DiagServer) *sessionReport {
 	base := "mtkprof"
 	if len(ss.paths) > 0 {
 		base = filepath.Base(strings.TrimSuffix(strings.TrimRight(ss.paths[0], "/\\"), ".trc"))
@@ -47,7 +49,21 @@ func newSessionReport(ss *Session, co *CacheOpened, planViz string, ot *slice.Op
 	if planViz == "" {
 		planViz = report.DefaultPlanVizURL
 	}
-	return &sessionReport{m: co.Model, src: co.Source, th: ss.th, base: base, planViz: planViz, ss: ss, opt: ot}
+	docM := co.Model
+	if ot != nil || dg != nil {
+		docM = co.Model.ViewModel()
+	}
+	return &sessionReport{m: co.Model, src: co.Source, th: ss.th, base: base, planViz: planViz, ss: ss, opt: ot, diag: dg, docM: docM}
+}
+
+// diagInput is the input of the documents and the text report of a diag session, made for a client
+// without a server: with the digest.
+func (sr *sessionReport) diagInput() (*report.DiagInput, error) {
+	in, err := sr.ss.diagInput(sr.diag, true)
+	if err != nil {
+		return nil, errorf(CodeInternal, "the diag file cannot be read: %v", err)
+	}
+	return in, nil
 }
 
 // optInput is the input of the documents and the text report of a 10053
@@ -108,6 +124,15 @@ func (sr *sessionReport) serve(w http.ResponseWriter, r *http.Request) {
 				return report.OptText(w, in)
 			}
 		}
+		if sr.diag != nil { // a diag file: its digest
+			write = func(w io.Writer) error {
+				in, err := sr.diagInput()
+				if err != nil {
+					return err
+				}
+				return report.DiagText(w, in)
+			}
+		}
 	case "json":
 		ctype, ext = "application/json", ".json"
 		write = func(w io.Writer) error {
@@ -120,11 +145,22 @@ func (sr *sessionReport) serve(w http.ResponseWriter, r *http.Request) {
 				defer done()
 				do.Opt = in
 			}
-			return report.JSON(w, sr.m, do)
+			if sr.diag != nil {
+				in, err := sr.diagInput()
+				if err != nil {
+					return err
+				}
+				do.Diag = in
+			}
+			return report.JSON(w, sr.docM, do)
 		}
 	case "csv":
 		if sr.opt != nil {
 			writeError(w, errorf(CodeBadRequest, "%s is a 10053 file: nothing to export as tables; format=text is its digest", sr.m.File.Files[0].Name))
+			return
+		}
+		if sr.diag != nil {
+			writeError(w, errorf(CodeBadRequest, "%s is open as a diag file (diagnostic dumps): nothing to export as tables; format=text is its digest", sr.m.File.Files[0].Name))
 			return
 		}
 		ctype, ext = "application/zip", ".csv.zip"
@@ -145,8 +181,15 @@ func (sr *sessionReport) serve(w http.ResponseWriter, r *http.Request) {
 				defer done()
 				do.Opt = in
 			}
+			if sr.diag != nil {
+				in, err := sr.diagInput()
+				if err != nil {
+					return err
+				}
+				do.Diag = in
+			}
 			return ui.WriteStandalone(w, func(w io.Writer) error {
-				return report.WriteDocument(w, sr.m, do)
+				return report.WriteDocument(w, sr.docM, do)
 			})
 		}
 	default:

@@ -14,6 +14,7 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/assist"
 	"github.com/davidbudac/modern-tkprof/internal/cut"
+	"github.com/davidbudac/modern-tkprof/internal/diag"
 	"github.com/davidbudac/modern-tkprof/internal/opt"
 	"github.com/davidbudac/modern-tkprof/internal/peek"
 	"github.com/davidbudac/modern-tkprof/internal/remote"
@@ -178,8 +179,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 45 {
-		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools and the 2 opt routes", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 50 {
+		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools, the 2 opt routes and the 5 diag routes", n)
 	}
 }
 
@@ -257,12 +258,34 @@ func TestContractSchemas(t *testing.T) {
 		"IOObjStat": analyze.IOObjStat{}, "IOStmtStat": analyze.IOStmtStat{}, "IODensity": analyze.IODensity{}, "IODensityPanel": analyze.IODensityPanel{},
 		"RefCounts": report.RefCounts{}, "RefStatus": RefStatus{}, "RefScript": RefScript{}, "RefPasteRequest": RefPasteRequest{}, "RefPasted": RefPasted{},
 		"CutPlan": cut.Plan{}, "CutPiece": cut.Piece{}, "CutRun": cut.Run{}, "CutFileRuns": cut.FileRuns{}, "CutStmt": cut.StmtCut{}, "CutCheck": cut.Check{},
-		"ListedFile": ListedFile{}, "FileList": FileList{}, "TracePeek": peek.Summary{}, "PeekSession": peek.Session{},
+		"ListedFile": ListedFile{}, "FileList": FileList{}, "TracePeek": peek.Summary{}, "PeekSession": peek.Session{}, "PeekSection": peek.SectionCount{},
 		"OptDoc": report.OptDoc{}, "OptDigest": report.OptDigest{}, "OptLines": report.OptLines{}, "OptRange": opt.Range{},
 		"OptFile": opt.File{}, "OptDumpInfo": opt.DumpInfo{}, "OptDump": opt.Dump{}, "OptNode": opt.Node{}, "OptVerdict": opt.Verdict{},
 		"OptLandmark": opt.Landmark{}, "OptFold": opt.Fold{}, "OptRun": opt.Run{}, "OptSQL": opt.SQL{}, "OptPlan": opt.Plan{},
 		"OptPlanRow": opt.PlanRow{}, "OptPlanQB": opt.PlanQB{}, "OptPlanPred": opt.PlanPred{}, "OptTerm": opt.Term{},
 		"OptBanner": opt.Banner{}, "OptHint": opt.Hint{}, "OptBind": opt.Bind{}, "OptParam": opt.Param{},
+		"DiagDoc": report.DiagDoc{}, "DiagDigest": diag.Digest{}, "DiagFile": diag.File{}, "DiagSection": diag.Section{}, "DiagIncident": diag.Incident{},
+		"DiagNode": diag.Node{}, "DiagOutline": diag.Outline{},
+		"DiagHeapReading": diag.HeapReading{}, "DiagHeapFlags": diag.HeapFlags{}, "DiagHeapContents": diag.HeapContents{}, "DiagHeapCheck": diag.HeapCheck{}, "DiagHeapType": diag.HeapType{},
+		"DiagHeapVariant": diag.HeapVariant{}, "DiagHeapComment": diag.HeapComment{}, "DiagHeapTypeShare": diag.HeapTypeShare{}, "DiagHeapOther": diag.HeapOther{},
+		"DiagHeapFreeLists": diag.HeapFreeLists{}, "DiagHeapBucket": diag.HeapBucket{}, "DiagHeapReserved": diag.HeapReserved{}, "DiagHeapPermanent": diag.HeapPermanent{},
+		"DiagHeapUnpinned": diag.HeapUnpinned{}, "DiagHeapSub": diag.HeapSub{}, "DiagHeapLargest": diag.HeapLargest{}, "DiagHeapRun": diag.HeapRun{}, "DiagHeapLines": diag.HeapLines{},
+		"DiagPGASummary": diag.PGASummary{}, "DiagPGAUse": diag.PGAUse{}, "DiagPGASize": diag.PGASize{}, "DiagPGABlock": diag.PGABlock{}, "DiagPGABlockRow": diag.PGABlockRow{},
+		"DiagPGAInstance": diag.PGAInstance{}, "DiagPGAProcesses": diag.PGAProcesses{}, "DiagPGAProc": diag.PGAProc{}, "DiagPGASession": diag.PGASession{},
+		"DiagPGAEstimated": diag.PGAEstimated{}, "DiagPGAKV": diag.PGAKV{}, "DiagPGADetail": diag.PGADetail{},
+		"DiagCallStack": diag.CallStack{}, "DiagDumpStart": diag.DumpStart{}, "DiagDumpLine": diag.DumpLine{}, "DiagDumpError": diag.DumpError{}, "DiagDumpSignal": diag.DumpSignal{},
+		"DiagDumpIncident": diag.DumpIncident{}, "DiagDumpStatement": diag.DumpStatement{}, "DiagPLSQLFrame": diag.PLSQLFrame{}, "DiagStackFrame": diag.StackFrame{},
+		"DiagDumpCursor": diag.DumpCursor{}, "DiagDumpBind": diag.DumpBind{}, "DiagDumpLink": diag.DumpLink{},
+		"DiagProcState": diag.ProcState{}, "DiagProcInfo": diag.ProcInfo{}, "DiagProcSession": diag.ProcSession{}, "DiagProcWait": diag.ProcWait{}, "DiagWaitEntry": diag.WaitEntry{},
+		"DiagSessionRef": diag.SessionRef{}, "DiagProcWaiter": diag.ProcWaiter{}, "DiagRowWait": diag.RowWait{}, "DiagWaitHistory": diag.WaitHistory{}, "DiagProcObjects": diag.ProcObjects{},
+		"DiagObjectType": diag.ObjectType{}, "DiagProcEnqueue": diag.ProcEnqueue{}, "DiagProcTransaction": diag.ProcTransaction{}, "DiagBlockRow": diag.BlockRow{},
+		"DiagProcDMLLock": diag.ProcDMLLock{}, "DiagProcLibObject": diag.ProcLibObject{},
+		"DiagSysState": diag.SysState{}, "DiagSysCaller": diag.SysCaller{}, "DiagSysCounts": diag.SysCounts{}, "DiagSysProc": diag.SysProc{}, "DiagSysTreeNode": diag.SysTreeNode{},
+		"DiagHangReading": diag.HangReading{}, "DiagHangListed": diag.HangListed{}, "DiagHangChain": diag.HangChain{}, "DiagHangSession": diag.HangSession{}, "DiagHangWait": diag.HangWait{},
+		"DiagHangNodes": diag.HangNodes{}, "DiagHangNode": diag.HangNode{}, "DiagHangDumps": diag.HangDumps{},
+		"DiagDeadlock": diag.Deadlock{}, "DiagDeadlockGraph": diag.DeadlockGraph{}, "DiagDeadlockRow": diag.DeadlockRow{}, "DiagDeadlockParty": diag.DeadlockParty{},
+		"DiagDeadlockCycle": diag.DeadlockCycle{}, "DiagDeadlockEdge": diag.DeadlockEdge{}, "DiagDeadlockSession": diag.DeadlockSession{}, "DiagDeadlockVictim": diag.DeadlockVictim{},
+		"DiagDeadlockRowsWaited": diag.DeadlockRowsWaited{}, "DiagDeadlockRowWaits": diag.DeadlockRowWaits{}, "DiagDeadlockDump": diag.DeadlockDump{}, "DiagPath": diag.Path{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

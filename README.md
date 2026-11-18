@@ -9,7 +9,9 @@ A modern analyzer for Oracle SQL trace files (event 10046 / `DBMS_MONITOR` /
 whole trace becomes a dimensional model (statements, cursors, calls, waits,
 binds, plans, sessions, time) that you can profile, slice and explore in an
 interactive UI, offline, from one file. It also reads optimizer traces (event
-10053; see "Optimizer traces" below).
+10053; see "Optimizer traces" below) and, best effort, the diagnostic dumps
+Oracle writes to trace files (heap dumps, errorstacks, process and system
+state, hang analysis, deadlock graphs; see "Diagnostic dumps" below).
 
 * **One static binary** for Linux, Windows, AIX and Solaris. Copy it next to
   the trace file like `tkprof`.
@@ -52,6 +54,8 @@ mtkprof compare a.trc b.trc -n 30       # text report of B against A: totals, pr
 mtkprof serve  a.trc b.trc -compare      # the UI with a Compare tab (also html, json): A/B toggle in the top bar switches the trace the views show
 mtkprof lint   trace.trc                 # what the parser saw: line kinds, events, unknown lines, optimizer (10053) dumps
 mtkprof report opt.trc                   # a file of optimizer (event 10053) dumps: the digest; html opens the 10053 view
+mtkprof report heapdump.trc              # a file of diagnostic dumps: its digest (outline, heap totals checked, call stack, ...)
+mtkprof serve  -view diag trace.trc      # open a file another way: -view 10046, 10053 (also an interleaved trace) or diag
 mtkprof report a.trc b.trc dir/          # several files / directories = one trace set (see "Trace sets")
 ```
 
@@ -257,7 +261,19 @@ The text and HTML reports share one model:
   entries each have a named source, search. `mtkprof report` prints a digest of
   the dumps. It reads the trace and computes nothing from the costs; 19c is the
   tested version. A trace with 10046 and 10053 written together still opens as a
-  10046 trace, with a note.
+  10046 trace, with a note; `-view 10053` (the desktop's *Open as 10053*) reads
+  its dumps.
+* **Diagnostic dumps** (best effort): a file of heap dumps, PGA memory dumps,
+  errorstacks, process state, system state, hang analysis, deadlock graphs or an
+  incident opens in the dump reader (the desktop app and `serve`; the standalone
+  HTML has its outline and readings, not the file's text): an outline loaded on
+  demand, the paged text with the bulk folded, search, and a computed reading
+  per kind. A heap dump's sums are checked against the totals the dump prints;
+  the call stack, the process, a system state's process table and blocker tree,
+  the hang chains and the deadlock cycle are read off the dump's own lines.
+  `mtkprof report` prints a digest. A 10046 trace that holds a dump stays a
+  10046 trace with a note (`-view diag` opens it in the reader). 19c is the
+  tested version.
 * **Pivot**: pick a fact table (calls or waits), one or two dimensions and the
   measures; download as CSV. `mtkprof pivot` gives the same group-by on the
   command line (any number of `-by` dimensions up to 4, `-window` as wall

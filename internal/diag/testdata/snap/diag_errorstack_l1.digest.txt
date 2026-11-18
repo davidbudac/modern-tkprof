@@ -1,0 +1,60 @@
+Diagnostic dump file diag_errorstack_l1.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  5,050 lines, 2 parts at the top level, 1 diagnostic dump section
+
+Outline: first-last line, number of lines, title
+   1-  31     31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-5050  5,019  Diagnostic dump (level 1)
+    diagnostic dump, level 1 (flags 0x0), starts at line 32
+    error: none named in the dump (taken on request, or by an event that names none)
+    error barrier: at 0x7ffc95d31c50 placed dbkda.c@298 (line 34)
+    statement 8fdx3ffur0ddr (lines 36-36):
+      alter session set events 'immediate trace name errorstack level 1'
+    PL/SQL call stack (innermost first, line 43):
+      MTK.MTK_DIAG_INNER (procedure)  line 11  0x7b3c9620
+      MTK.MTK_DIAG_OUTER (procedure)  line 3   0x7b3c2580
+      anonymous block                 line 1   0x79a008f0
+    stack as one line (the form oradebug short_stack prints; the Binary Stack Dump's frame headers, without the dump's own 10 frames):
+      kkyase()+15725<-kksExecuteCommand()+10100<-opiexe()+67739<-opipls()+2217<-opiodr()+1264<-rpidrus()+198<-skgmstack()+65<-rpidru()+132<-rpiswu2()+543<-rpidrv()+1266<-psddr0()+467<-psdnal()+624<-pevm_EXIM()+282<-pfrinstr_EXIM()+43<-pfrrun_no_tool()+52<-pfrrun()+904<-plsql_run()+752<-peicnt()+279<-kkxexe()+720<-opiexe()+31602<-kpoal8()+2301<-opiodr()+1264<-ttcpip()+1219<-opitsk()+1925<-opiino()+939<-opiodr()+1264<-opidrv()+1094<-sou2o()+165<-opimai_real()+422<-ssthrdmain()+417<-main()+256<-__libc_start_call_main()+128<-__libc_start_main()+128<-_start()+37
+    frames, innermost first (34 of 44; the dump's own 10 are left out):
+      11  kkyase()+15725             line 759
+      12  kksExecuteCommand()+10100  line 833   cursor
+      13  opiexe()+67739             line 914   Time_Limit
+      14  opipls()+2217              line 982   OPI
+      15  opiodr()+1264              line 1065  OPI
+      16  rpidrus()+198              line 1140  RPI
+      17  skgmstack()+65             line 1179
+      18  rpidru()+132               line 1192  RPI
+      19  rpiswu2()+543              line 1218  RPI
+      20  rpidrv()+1266              line 1293  RPI
+      21  psddr0()+467               line 1366  PROGINT_PLSQL
+      22  psdnal()+624               line 1439  PROGINT_PLSQL
+      23  pevm_EXIM()+282            line 1514  PLSQL_Code_Execution
+      24  pfrinstr_EXIM()+43         line 1555  PLSQL_Code_Execution
+      25  pfrrun_no_tool()+52        line 1569  PLSQL_Code_Execution
+      26  pfrrun()+904               line 1590  PLSQL_Code_Execution
+      27  plsql_run()+752            line 1665  PLSQL_PSD_Standalones
+      28  peicnt()+279               line 1737  PLSQL_Code_Execution
+      29  kkxexe()+720               line 1820  PROGINT_PLSQL
+      30  opiexe()+31602             line 1893  Time_Limit
+      ... 14 more frames (the stack line above lists them all)
+    33-  34      2  Error Stack Dump
+    35-  36      2  Current SQL Statement for this session (sql_id=8fdx3ffur0ddr)  [alter session set events 'immediate trace name errorstack level 1']
+    37-  41      5  Parser State
+    42-  42      1  PL/SQL Stack
+    43-  49      7  PL/SQL Call Stack
+    50- 187    138  Call Stack Trace
+   188-2699  2,512  Binary Stack Dump
+  2700-4838  2,139  Argument/Register Address Dump
+  4839-4839      1  End of Call Stack Trace
+  4840-5005    166  Process Map Dump
+  5006-5023     18  Process Resource Limits
+  5024-5024      1  Java Stack
+  5025-5038     14  KSWRDUMP START
+  5039-5039      1  KSWRDUMP END
+  5040-5045      6  KSMEM_DUMP START
+  5046-5046      1  KSMEM_DUMP END
+  5047-5048      2  KSM MGA PRIVATE DUMP START
+  5049-5049      1  KSM MGA PRIVATE DUMP END
+  5050-5050      1  VKTM Time Drifts Circular Buffer

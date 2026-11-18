@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -34,6 +35,41 @@ func FuzzParse(f *testing.F) {
 		}
 		if st.Bytes != int64(len(data)) {
 			t.Fatalf("%d bytes read of %d", st.Bytes, len(data))
+		}
+	})
+}
+
+// FuzzSections: whatever the bytes, the tracker of diagnostic dump sections
+// must keep its ranges ordered and inside the file, count every line once, and
+// have the sniffer agree with the parser about the file's kind.
+//
+//	go test ./internal/trace -run '^$' -fuzz '^FuzzSections$' -fuzztime 1m
+func FuzzSections(f *testing.F) {
+	for _, name := range []string{"diag_hang.trc", "diag_heap_large.trc", "diag_pga_detail.trc", "diag_heap_pga.trc"} {
+		b, err := os.ReadFile(filepath.Join("..", "..", "testdata", "diag", "19c", name))
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(b)
+	}
+	f.Add([]byte(strings.Join([]string{sEq79, sHang, sHangEnd, sEq79, "", sHangDump, sHangDEnd, sEq79, sRule, sHeap, "x", sRule, sRule, sHeap2, sRule, "SUBHEAP 1:",
+		sProc, sProcEnd, sSys, sSysEnd, sPGABegin, sPGAEnd, sEq28, sDiag, dSep, dPIC, dText, "END OF STMT", dExec, dStart, sProc, dEnd, sCont, sRule}, "\n") + "\n"))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		checkSections(t, "fuzz", data)
+		st, _ := Parse(bytes.NewReader(data), NopHandler{})
+		sn, err := SniffReader(bytes.NewReader(data), SniffOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sn.Lines != st.Lines {
+			t.Fatalf("sniff read %d lines, parser %d", sn.Lines, st.Lines)
+		}
+		prev := 0
+		for _, s := range sn.Sections {
+			if s.First <= prev || s.Last < s.First || s.Last > sn.Lines {
+				t.Fatalf("sniffed sections out of order: %v", sn.Sections)
+			}
+			prev = s.Last
 		}
 	})
 }

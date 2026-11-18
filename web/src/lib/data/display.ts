@@ -22,6 +22,7 @@ export const MUTE_GROUPS: readonly { name: string; label: string; kinds: readonl
   { name: 'markers', label: 'Markers (***)', kinds: ['marker'] },
   { name: 'waits', label: 'Waits', kinds: ['wait'] },
   { name: 'optimizer', label: 'Optimizer (10053) lines', kinds: ['optimizer'] },
+  { name: 'diagnostic', label: 'Diagnostic dump lines', kinds: ['diagnostic'] },
 ]
 
 /** The tabs of the side panel (icons: the label is the tab's name, its tooltip and the panel's heading, `title` says what it holds): the selected line translated, the outline of the file, the search hits, the bookmarks, a statement as run, and the display settings. */

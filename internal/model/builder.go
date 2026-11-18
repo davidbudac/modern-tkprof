@@ -254,6 +254,7 @@ func (b *Builder) EndFile(st trace.Stats) {
 	fe := &b.m.File.Files[b.curFile]
 	fe.Lines, fe.Size = st.Lines, st.Bytes
 	fe.Dumps = dumpRanges(st.Dumps)
+	fe.Sections = sectionRanges(st.Sections)
 }
 
 // flushPending accounts for what is still waiting for a parent or a call.
@@ -305,6 +306,7 @@ func (b *Builder) Finish(st trace.Stats) *Model {
 	m.Diag.UnknownLines = st.Unknown
 	m.Diag.BindMode = BindsKeep.String()
 	m.noteDumps()
+	m.noteSections()
 	if b.opts.NoFacts {
 		m.Diag.BindMode = BindsNone.String()
 		m.Diag.Notes = append(m.Diag.Notes, "bind values not retained (-lowmem)")

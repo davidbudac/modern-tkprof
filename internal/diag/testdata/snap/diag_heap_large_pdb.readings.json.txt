@@ -1,0 +1,191 @@
+== heap 32-39
+{
+  "byComment": [],
+  "byType": [],
+  "bytes": 0,
+  "checks": [
+    {
+      "computed": 0,
+      "name": "heap",
+      "reason": "the heap header has no extents: the dump lists no chunks and prints no totals",
+      "state": "none",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 0,
+      "name": "free",
+      "reason": "the heap header has no extents: the dump lists no chunks and prints no totals",
+      "state": "none",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 0,
+      "name": "perm",
+      "reason": "the heap header has no extents: the dump lists no chunks and prints no totals",
+      "state": "none",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 0,
+  "comments": 0,
+  "desc": "0x60354e60",
+  "extents": 0,
+  "flags": {
+    "noExtents": true
+  },
+  "freeLists": {
+    "buckets": [],
+    "bytes": 0,
+    "chunks": 0,
+    "present": false
+  },
+  "from": 32,
+  "heapSize": 0,
+  "kind": "heap",
+  "largest": [],
+  "lines": 8,
+  "name": "large pool",
+  "node": "heap:32-39:1:100",
+  "pdb": 1,
+  "run": [
+    {
+      "desc": "0x60354e60",
+      "from": 32,
+      "name": "large pool",
+      "node": "heap:32-39:1:100",
+      "size": 0,
+      "to": 39
+    },
+    {
+      "depth": 0,
+      "desc": "0x603567b8",
+      "from": 40,
+      "name": "large pool",
+      "node": "heap:40-72:1:100",
+      "size": 16777112,
+      "to": 72
+    }
+  ],
+  "subheaps": [],
+  "subheapsTotal": 0,
+  "to": 39
+}
+== heap 40-72
+{
+  "byComment": [],
+  "byType": [],
+  "bytes": 0,
+  "checks": [
+    {
+      "computed": 0,
+      "line": 54,
+      "name": "heap",
+      "printed": 16777112,
+      "reason": "the dump was taken inside a PDB and leaves out the chunks of other containers (only chunks clearly belonging to pdb id 3 are dumped)",
+      "state": "none",
+      "what": "chunks of the extents against Total heap size"
+    },
+    {
+      "computed": 0,
+      "line": 66,
+      "name": "free",
+      "printed": 16285328,
+      "reason": "the dump was taken inside a PDB and leaves out the chunks of other containers (only chunks clearly belonging to pdb id 3 are dumped)",
+      "state": "none",
+      "what": "chunks of the free lists against Total free space"
+    },
+    {
+      "computed": 0,
+      "line": 71,
+      "name": "perm",
+      "printed": 128,
+      "reason": "the dump was taken inside a PDB and leaves out the chunks of other containers (only chunks clearly belonging to pdb id 3 are dumped)",
+      "state": "none",
+      "what": "perm chunks under PERMANENT CHUNKS against Permanent space"
+    }
+  ],
+  "chunks": 0,
+  "comments": 0,
+  "depth": 0,
+  "desc": "0x603567b8",
+  "extents": 1,
+  "flags": {
+    "pdbFiltered": 3
+  },
+  "freeLists": {
+    "buckets": [
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 0,
+        "size": 8216
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 1,
+        "size": 16408
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 2,
+        "size": 32792
+      },
+      {
+        "bytes": 0,
+        "chunks": 0,
+        "n": 3,
+        "size": 65560
+      },
+      "... 6 more"
+    ],
+    "bytes": 0,
+    "chunks": 0,
+    "line": 55,
+    "present": true,
+    "printed": 16285328
+  },
+  "from": 40,
+  "heapSize": 16777112,
+  "kind": "heap",
+  "largest": [],
+  "lines": 33,
+  "name": "large pool",
+  "node": "heap:40-72:1:100",
+  "pdb": 1,
+  "permanent": {
+    "bytes": 0,
+    "chunks": 0,
+    "line": 70,
+    "printed": 128
+  },
+  "run": [
+    {
+      "desc": "0x60354e60",
+      "from": 32,
+      "name": "large pool",
+      "node": "heap:32-39:1:100",
+      "size": 0,
+      "to": 39
+    },
+    {
+      "depth": 0,
+      "desc": "0x603567b8",
+      "from": 40,
+      "name": "large pool",
+      "node": "heap:40-72:1:100",
+      "size": 16777112,
+      "to": 72
+    }
+  ],
+  "subheaps": [],
+  "subheapsTotal": 0,
+  "to": 72,
+  "unpinned": {
+    "bytes": 0,
+    "line": 69,
+    "rcr": 0,
+    "trn": 0
+  }
+}

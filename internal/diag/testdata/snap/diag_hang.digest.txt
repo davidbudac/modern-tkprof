@@ -1,0 +1,57 @@
+Diagnostic dump file diag_hang.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  279 lines, 4 parts at the top level, 1 diagnostic dump section
+  3 lines in no known part (they are in the parts called Other lines)
+
+Outline: first-last line, number of lines, title
+  1- 31   31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+ 32- 41   10  Other lines  [Processing Oradebug command 'setmypid']
+ 42-275  234  Hang analysis
+    hang analysis, instances cdb1.cdb1, node dump level 3, initiated by oradebug
+    chains most likely to have caused the hang (2; each signature lists the head's event first):
+      [a] chain 1: 'PL/SQL lock timer' <= 'enq: TX - row lock contention' <= 'enq: TX - row lock contention'  hash 0x5e4fa8d6
+      [b] chain 2: 'Streams AQ: waiting for messages in the queue'  hash 0xa00e2e87
+    chain 1 [a] (Non-intersecting chains, lines 65-188): 3 sessions; the first session waits, each next one blocks the one before it
+      1. session 255.22508 (instance 1 (cdb1.cdb1), os id 13912, process 61, pdb PDB1, module mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+         waits for 'enq: TX - row lock contention' 4.029036 s, timeout after 55.970964 sec, blocking 0
+           p1: 'name|mode'=0x54580006
+           p2: 'usn<<16 | slot'=0x90004
+           p3: 'sequence'=0x5d88
+         statement: current sql_id 3373088609 (the high 32 bits of the sql_id, not a hash value): select id from mtk_cust where id = 302 for update wait 60
+         short stack: semtimedop<-sskgpwwait<-skgpwwait<-ksliwat<-kslwaitctx<-ksqcmi<-ksqgtlctx<-ksqgelctx<-ktuGetTxForXid<-ktcwit1<-kdddgb<-kddlkr<-qerfuProcessFetchedRow<-qerfuLockingRowProcedure<-qerixFetchUniqueIndex<-...
+         wait history (latest first): SQL*Net message from client 0.000262 s; SQL*Net message to client 0.000001 s; PL/SQL lock timer 2.000067 s
+      2. session 52.55849 (instance 1 (cdb1.cdb1), os id 13914, process 68, pdb PDB1, module mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+         waits for 'enq: TX - row lock contention' 5.030909 s, timeout after 54.969091 sec, blocking 1
+           p1: 'name|mode'=0x54580006
+           p2: 'usn<<16 | slot'=0x10001
+           p3: 'sequence'=0x4e99
+         statement: current sql_id 3824709289 (the high 32 bits of the sql_id, not a hash value): select id from mtk_cust where id = 301 for update wait 60
+         short stack: semtimedop<-sskgpwwait<-skgpwwait<-ksliwat<-kslwaitctx<-ksqcmi<-ksqgtlctx<-ksqgelctx<-ktuGetTxForXid<-ktcwit1<-kdddgb<-kddlkr<-qerfuProcessFetchedRow<-qerfuLockingRowProcedure<-qerixFetchUniqueIndex<-...
+         wait history (latest first): SQL*Net message from client 0.000107 s; SQL*Net message to client 0 s; SQL*Net message from client 0.000109 s
+      3. session 61.26319 (instance 1 (cdb1.cdb1), os id 13909, process 6, pdb PDB1, module mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+         waits for 'PL/SQL lock timer' 6.103729 s, timeout after 9.896271 sec, blocking 2
+           p1: 'duration'=0x0
+         statement: current sql_id 325942433 (the high 32 bits of the sql_id, not a hash value): BEGIN dbms_session.sleep(16); END;
+         short stack: semtimedop<-sskgpwwait<-skgpwwait<-ksliwat<-kslwaitctx<-psdwat<-pevm_icd_call_common<-pfrinstr_ICAL<-pfrrun_no_tool<-pfrrun<-plsql_run<-peicnt<-kkxexe<-opiexe<-kpoal8<-opiodr<-ttcpip<-opitsk<-opiino<-...
+         wait history (latest first): SQL*Net message from client 0.000076 s; SQL*Net message to client 0 s; SQL*Net message from client 0.000088 s
+    chain 2 [b] (Sessions in an involuntary wait or not in a wait, lines 192-240): 1 session; the first session waits, each next one blocks the one before it
+      1. session 3.37475 (instance 1 (cdb1.cdb1), os id 12239, process 40, pdb CDB$ROOT, module DBMS_SCHEDULERstack_l1aldomain (TNS V1-V3))
+         waits for 'Streams AQ: waiting for messages in the queue' 4.26473 s, timeout after 0.735270 sec, blocking 0
+           p1: 'queue id'=0x14660
+           p2: 'process#'=0xa258d408
+           p3: 'wait time'=0x5
+         statement: current sql_id 2279214261 (the high 32 bits of the sql_id, not a hash value): DECLARE job BINARY_INTEGER := :job; next_date TIMESTAMP WITH TIME ZONE := :mydate; broken...
+         short stack: semtimedop<-sskgpwwait<-skgpwwait<-ksliwat<-kslwaitctx<-kwqidexfcy<-kwqidrdq<-kwqidsfmp<-kwqidafm0<-kwqididqx<-kwqidxdeq0<-kwqidxdeq102<-kwqiadtdeq<-spefcmpa<-spefmccallstd<-peftrusted<-psdexsp<-rpisw...
+         wait history (latest first): Streams AQ: waiting for messages in the queue 5.000091 s; Streams AQ: waiting for messages in the queue 5.000115 s; jobq slave wait 0.493097 s
+    state of all nodes (4 nodes; adjacency is the node the session is blocked by):
+      [2]    3.37475    12239  SINGLE_NODE
+      [51]   52.55849   13914  NLEAF        60
+      [60]   61.26319   13909  LEAF
+      [254]  255.22508  13912  NLEAF        51
+    analysis dumps (line 259): level 3; 4 local nodes; No processes qualify for dumping.
+   55- 61    7  Chains most likely to have caused the hang
+   62-244  183  Non-intersecting chains
+  245-258   14  State of ALL nodes
+  259-275   17  HANG ANALYSIS DUMPS
+276-279    4  Other lines  [markers and blank lines]

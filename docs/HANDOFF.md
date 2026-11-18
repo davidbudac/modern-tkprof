@@ -1,4 +1,4 @@
-# Handoff — state of mtkprof on 2026-11-11
+# Handoff — state of mtkprof on 2026-11-18
 
 Read this, then `docs/DESIGN.md` (the decisions), `docs/ARCHITECTURE.md` (how the code is shaped) and
 `docs/trace-format-19c.md` (what the parser must accept). Desktop: `desktop/CLAUDE.md`, the user guide
@@ -63,7 +63,8 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   the standalone HTML (`html`); a statement of a 10046 tab and a dump of the same sql_id jump to each other. It
   computes nothing from the costs. 19c is tested (ten lab scenarios and an interleaved file, `testdata/opt/19c`,
   `testdata/traces/19c/opt_interleaved.*`); another version opens best effort. An interleaved file (10046 and 10053
-  in one session) still opens as a 10046 trace, with a note. The scan (`internal/opt`) reads ~290 MB/s (Apple M4) in 24 MB for a
+  in one session) still opens as a 10046 trace, with a note (since the dump reader it can also be opened as
+  10053 on request, below). The scan (`internal/opt`) reads ~290 MB/s (Apple M4) in 24 MB for a
   two-million-line dump; snapshots pin its output. Released in **v0.8.0**
   (`docs/releases/v0.8.0.md`). Cache format 8 (`engine.CacheIndexFormat`, `model.PersistVersion`
   3): a session cached before holds unknown-line counts for a file with dumps.
@@ -73,6 +74,21 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   grids, fetches to the client, lanes with chapters and a scrub). Lib only, no engine work (`executions/trace` + the
   plan dump); one session (PX later). Verified on io_waits (stmt 22 hash join, stmt 21 sort) and opt_interleaved (cached
   adaptive plan) in the CLI's serve UI and the desktop's dev browser mode. Released in **v0.8.0**.
+- **The dump reader** (2026-11-17 to 18; DESIGN § Diagnostic dumps, `docs/PLAN-DIAG.md` with the dated log of the build,
+  ARCHITECTURE § The dump reader, DESKTOP § The dump reader; format `docs/trace-format-diag.md`; mock-up
+  `docs/mockups/diag-reader/`). The diagnostic dumps Oracle writes to trace files are a third input, a best-effort
+  add-on beside 10046 and 10053: the parser finds nine kinds of section (heap, PGA summary and detail, the diagnostic
+  dump of an errorstack, process state, system state, hang analysis, deadlock graph, incident) and counts their lines
+  as `diagnostic`; a file of dumps only opens in a *dump* tab with the dump reader (outline on demand, paged text,
+  search, line map, folds, a sourced guide, notes and bookmarks) and a computed reading for every kind (a heap's sums
+  checked against the totals the dump prints, and against `heapdump_analyzer`; the PGA tables; the call stack; the process; the system state's process table and blocker tree; the hang chains; the
+  deadlock cycle); the CLI prints a text digest and writes the standalone HTML; the session option `view` (`-view`)
+  opens a file another way (a 10046 trace with an errorstack in the dump reader, an interleaved file as 10053); a
+  statement or session of a 10046 tab and a dump that names it jump to each other (desktop). 19c is tested (15 lab
+  fixtures in `testdata/diag/19c`, `testdata/traces/19c/diag_in_10046.*` with tkprof output). **Built, unreleased, on
+  `main`** (merged on 2026-11-18, after v0.8.0); the draft notes are `docs/releases/next-diag.md`. Cache
+  format 9 (`engine.CacheIndexFormat`, `model.PersistVersion` 4): a session cached before holds unknown-line counts
+  for a file with sections.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -90,7 +106,8 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 | UI: Overview, Statements (Row flow, Dialogue, Replay, Execution Loom), Trace/Lines (raw and formatted), Waits, I/O map, Timeline, Sessions, Pivot, Compare; shell module; motion | `web/src/lib`, `web/src/app` → `internal/ui/dist/index.html` | `pnpm --filter mtkprof-web test` |
 | Desktop: tabs, settings, connections, notes and bookmarks, library, reports, assistant, open requests, file associations | `desktop/` | `pnpm typecheck`, `pnpm test` |
 | 10053 reader: dump tracking in the parser, `opt` scan and model (outline, landmarks, folds, runs, SQL versions, plan, digest), the 10053 view and its guide, peek kind, set exclusion | `internal/trace/dump.go`, `internal/opt`, `internal/peek`, `internal/model/optdump.go`, `web/src/lib/views/opt`, `web/src/lib/data/opt*.ts` | snapshot, parity, prefix and mutation tests (`go test ./internal/opt`); `pnpm --filter mtkprof-web test`; harness `web/dev/opt.html` |
-| Fixtures: 19.27, 21c XE, 23ai Free + tkprof output + generators; the 10053 ones in `testdata/opt/19c` | `testdata/` | real traces only |
+| Dump reader: sections in the parser, `diag` scan and model (outline on demand, paths, folds, marks), the readings (heap, PGA, call stack, process, system state, hang, deadlock), digest, `view` option, the reader and its readings, dump tab, picker filter, dump / 10046 marks | `internal/trace/section.go`, `internal/diag`, `internal/model/{sections,view}.go`, `internal/slice/diag.go`, `web/src/lib/views/diag`, `web/src/lib/data/diag*.ts` | snapshot, totals, `heapdump_analyzer`, invariant, prefix and mutation tests (`go test ./internal/diag`); guard rails in `internal/trace`, `internal/golden`; `pnpm --filter mtkprof-web test`; harness `web/dev/diag.html` |
+| Fixtures: 19.27, 21c XE, 23ai Free + tkprof output + generators; the 10053 ones in `testdata/opt/19c`, the diagnostic dumps in `testdata/diag/19c` | `testdata/` | real traces only |
 | CI and releases (no GitHub Actions, by decision) | `scripts/ci-local.sh`, `scripts/release-local.sh`, `desktop/scripts/{ci-local,release-local}.sh` | `ci-local.sh --strict` passes |
 
 ## Build, test, run
@@ -156,8 +173,9 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
   waits have a `file#` p1 that is not a datafile (`Event.IsFileP1` skips them).
 - **Wait classes** come from `internal/ref/data/event_name_19c.csv` (a real `v$event_name` export); idle
   detection uses the `Idle` class.
-- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 8; 8 is the
-  line kind `optimizer` and the dump ranges of a file in `FileEntry.Dumps`, `model.PersistVersion` 3); see CLAUDE.md.
+- **Cache formats**: a persisted struct change bumps its version and `engine.CacheIndexFormat` (now 9; 9 is the
+  line kind `diagnostic` and the section ranges of a file in `FileEntry.Sections`, `model.PersistVersion` 4; 8 was the
+  line kind `optimizer` and `FileEntry.Dumps`); see CLAUDE.md.
 - **An engine session's model has no waits** (aggregation-only): anything that needs the waits' obj# or file#
   reads `Model.WaitRefIDs` (the accumulator keeps them since 2026-11-08), not `m.Waits`.
 - **A dump can precede its statement's `PARSING IN CURSOR`.** In an interleaved file a statement with binds has
@@ -182,8 +200,36 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
   of the diff. `docs/mockups/10053-reader/data/two.trc` is a separate copy the parity test reads; it does not
   change.
 - **`peek.Summary.SQLTrace` is a 10046 property** (a line with `tim=`); a 10053-only file has it false and
-  `Kind` `"10053"`. Anything that filters on `SQLTrace` (the folder picker's *Only SQL and optimizer traces*) must look at `Kind`
-  too.
+  `Kind` `"10053"` (a file of diagnostic dumps `"diag"`). Anything that filters on `SQLTrace` (the folder picker's *Show* filter) must
+  look at `Kind` too.
+- **A diagnostic dump has no end line.** An errorstack's dump (`dbkedDefDump(): Starting …`), a PGA summary, a deadlock
+  graph and an incident run to the next line a primary format owns (a 10046 record, the 21-`=` separator, an optimizer
+  dump) or to the end of the file. Inside a 10046 trace that is the next 10046 record; seen on one fixture only
+  (`diag_in_10046`).
+- **A process state does have an end line**: `END OF PROCESS STATE`, in 19.27 too (the first reading of the lab files
+  missed it). A system state ends at `END OF SYSTEM STATE`, a hang analysis at `END OF HANG ANALYSIS` (and its `HANG
+  ANALYSIS DUMPS:` block's end when one follows).
+- **The `*` rules between heaps are shared.** A run of heaps (a level with sub-heaps, `heapdump`) is partitioned at its
+  rules: the rule above a `HEAP DUMP` line is the first line of that heap, the glue after a heap's end belongs to the
+  heap before. One section per `HEAP DUMP`.
+- **A section absorbs the starts inside it.** The process state and heap dumps inside an errorstack are parts of the
+  errorstack's section (and nodes nested in it); only heap dumps are split. A reading is therefore addressed by node,
+  not by section number.
+- **The peek does not look for sections in a 10046 or 10053 file**: it stops at the first record or optimizer dump
+  (searching on halved its speed). `peek.Summary.Sections` is set for diag-only files; a 10046 trace's sections come
+  from the parse.
+- **The document member is `dump`, not `diag`**: `doc.diag` is the parser's diagnostics (and the code says `diag` for
+  diagnostic dumps because "dump" names a 10053 dump in `trace.Dump`, `opt.Dump`, `api/opt/dump`; the UI says "dump").
+- **A hang analysis's `current sql_id` is not a hash value and not a sql_id**: it is the high 32 bits of the sql_id's
+  64-bit number (bytes 9 to 12 of `FullHashValue`); the 10046 `hv=` is the low 32 bits. `HangSession.sqlIdHigh`,
+  `diag.SQLIDParts`, `TestHangSqlIDHigh`.
+- **`psql:` of a session object is the previous statement**, `sql:` the address of the current one's library handle;
+  its sql_id is read from the library object lock the session holds on that handle. A system state of level 1 prints
+  no library locks, so there a statement is an address.
+- **The summary and the bodies of a system state are written at different moments**: a process can wait for another
+  event in its body than in the summary (`bodyEvent`); the blocker tree is built from both kinds of blocker line.
+- **Idle in a system state** is the event's class in `internal/ref/data/event_name_19c.csv`, or no session; an event
+  the reference does not know is not idle.
 - **Harness quirks** (Claude Code / T3): `cd` at the start of a Bash call is unreliable, use absolute paths;
   `pkill -f`/`pgrep -f` match the wrapper shell, find servers by port (`ss -ltnp | grep :8046`, `lsof -i` on
   macOS).
@@ -209,6 +255,12 @@ per snapshot, `api/doc?rev=` long poll (ARCHITECTURE § Engine mode).
 | SSH fetch | line speed, resume | 117.7 MB in 0.97 s (gzip), resume correct |
 | ADR (db) fetch | | 0.39 to ~1 MB/s |
 | minimap / Timeline pan, zoom; Lines LRU on 2 GB | 60 fps on WebView2 | **not measured** on WebView2, WKWebView or WebKitGTK |
+| dump reader: diag scan | ≥ 200 MB/s (`TestThroughput`) | 1.0 to 2.1 GB/s on every fixture incl. the 32.7 MB shared pool dump, 0.3 MB allocated (Apple M4); with the marks 1.3 to 1.9 GB/s |
+| dump reader: memory held by the scan | < 64 MB for a 2 GB file | 0.3 MB allocated on the fixtures; no 2 GB dump file to measure |
+| dump reader: children of a 100,000-line node | < 50 ms | 2 ms; 28 ms for a 357,000-line node |
+| dump reader: readings | | heap of 357,000 lines 43 ms, chunk lines of a 26,000-chunk comment 33 ms; call stack of 115,000 lines 13 ms; process state of 7,000 lines 1 ms; system state level 266 (83,000 lines) 16 ms, 40,000 synthetic processes (360,000 lines) 46 ms |
+| dump reader: fresh open of a 1 GB system state | < 5 s | **not measured** (the largest system state is 83,000 lines, 4.9 MB) |
+| 10046 parse of a trace without sections | within 2 % | 668-671 MB/s before and after the section tracker (`BenchmarkParseFile`, 1.2 GB) |
 
 CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1 GB → HTML 7.3 s / 2.1 GB
 (1.6 GB `-lowmem`); 10 GB → text report with `-aggregate` 32 s / 454 MB.
@@ -230,6 +282,10 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - **Remote** (`docs/REMOTE.md` § Open): TCPS (dbmint has no TCPS listener; needs a wallet and a listener
   restart), the AIX/Solaris scripts.
 - **Visualizer** has no LICENSE file. It shows "0ms" for µs-scale plans (its display rounds to ms).
+- **The dump reader** (on `main` since 2026-11-18, merged after v0.8.0): release it (version, tag;
+  `docs/releases/next-diag.md` is the draft). The lab's ADR holds five ORA-06544 incidents
+  (48 to 53) from the stage 1 out-of-memory attempts (`diag_oom`): purge them or keep them, your call; `run_gen.sh
+  diag_oom` writes another.
 - **History**: the stray 32 MB `mtkprof` binary (removed in `a89bc12`) is still in the history of the now
   public repo; rewriting it means a force-push.
 
@@ -254,8 +310,8 @@ Released in v0.8.0; see "Where things stand". Open:
 
 - **Candidates for later** (no order, chosen after use on real traces): a computed summary per statement; decision views
   (transformation ledger, access paths per table, join order explorer); the origin of a row estimate joined to the 10046
-  actual rows of the same plan; comparing two dumps; reading the dumps of an interleaved file; a digest tool for the
-  assistant and MCP; 21c and 23ai fixtures.
+  actual rows of the same plan; comparing two dumps; a digest tool for the assistant and MCP; 21c and 23ai fixtures.
+  (Reading the dumps of an interleaved file: done by the `view` option on the dump reader's branch.)
 - **Not in this version**: producing the trace from the app (turning the event on, `DBMS_SQLDIAG.DUMP_TRACE`); the
   assistant and `mtkprof mcp` do not open 10053 files; Compare and Cut on a 10053 tab.
 - **Not verified in the lab** (format reference § Not verified): 21c and 23ai (a 23.6 excerpt shows the bind section
@@ -284,6 +340,38 @@ Released in v0.8.0; see "Where things stand". Open:
 - **The plan band leaves the extra columns out** (Pstart, Pstop; TQ, IN-OUT, PQ Distrib) when it cannot keep 12
   characters of the operation and 6 of the name beside them (a parallel plan below about 1,300 px of window); the
   Text view has them.
+
+### The dump reader (2026-11-18; DESIGN § Diagnostic dumps, `docs/PLAN-DIAG.md`)
+
+Built and unreleased, on `main`; see "Where things stand". Open:
+
+- **Not verified** (format reference § Not verified): a real ORA-04030 or ORA-04036 trace (the lab fails the
+  allocation with ORA-27102, an ORA-06544 incident; the memory blocks are read from `pga_summary`, and that an
+  ORA-04030 trace prints the same blocks is not shown); any version but 19.27 (no committable public sample; local 10.2
+  XE and 11.2 RAC files without a licence); RAC and shared server; a system state of a busy instance (the lab's has
+  about 80 processes, three in a chain: it ships as "tested on a small lab system"); the end of a diagnostic dump
+  inside a 10046 trace (one fixture); a hang chain session not in a wait, a chain over two instances; ORA-04031 traces;
+  latch and mutex waits; a dump cut by `max_dump_file_size`. No reference tool for system state can be committed
+  (`ass109.awk` is Oracle Support's): snapshots only.
+- **Not built** (decided out or later): a resource table of holders and waiters; a cache part for the scan (only if a
+  fresh open of a 1 GB file measures over 5 s; the scan runs on every open, the cache keeps only the empty model);
+  block, redo, controlfile, buffer and library cache dumps, other event traces; taking a dump from the app; the
+  assistant and `mtkprof mcp`; Compare, Cut and follow on a dump tab.
+- **Rough spots**: the heaps inside a process state are not nodes of the outline, so a call stack reading links the
+  process state and only the heaps that are direct children of the dump; `RunLabel` (the oradebug command before a heap
+  run) is set by no fixture; the standalone HTML holds no text of the file, only the outline to two levels and at most
+  200 readings (8 MB of JSON), and a heap nested deeper has no reading there; the dump outline is not virtualised (a node's
+  children come in pages of 2,000); the marks (`diagSqlIds`, `diagSessions`) stop at 300 each; the hang analysis's
+  `current sql_id` cannot be matched to a 10046 statement by itself (no `diagSqlHashes`; `diag.SQLIDParts` splits a
+  sql_id); the interleaved 10053 note still says "not shown as 10053 yet" while the desktop offers *Open as 10053*
+  beside it (and the Lines view's help text for the `optimizer` kind says the same). Left unknown on purpose:
+  oradebug's wrapper lines, the caller's short stack before a system state, the `ksqdld_hdr_dump()` line before a
+  deadlock, the latch directory before the first shared pool heap.
+- **Decided without asking, to be corrected on the real view**: time in wait is shown for every process of a system
+  state and dimmed with the idle ones; the heap tree shows the selected heap's ancestors, siblings and children, not
+  the whole dump run.
+- **The lab's ADR** holds five ORA-06544 incidents (48 to 53) left by the out-of-memory attempts of stage 1; nothing
+  was deleted (Needs you).
 
 ### Left by the 2026-11-08 desktop review (reviewers' should-fix items and app-only checks)
 

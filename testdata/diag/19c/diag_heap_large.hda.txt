@@ -1,0 +1,10 @@
+
+  -- Heapdump Analyzer v1.03 by Tanel Poder ( https://blog.tanelpoder.com )
+
+    Total_size #Chunks  Chunk_size,        From_heap,       Chunk_type,  Alloc_reason
+  ------------ ------- ------------ ----------------- ----------------- -----------------
+      16285328    1     16285328 ,       large pool,             free,                 
+        491616    4       122904 ,       large pool,         freeable,  PX msg pool    
+           128    1          128 ,       large pool,             perm,  perm           
+            40    1           40 ,       large pool,          lastchk,  last-type chunk
+

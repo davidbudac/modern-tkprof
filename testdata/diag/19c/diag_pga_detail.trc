@@ -1,0 +1,1010 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_14083_mtk_diag_pga_detail.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 41
+Unix process pid: 14083, image: oracle@ol9-19-dg1.localdomain (TNS V1-V3)
+
+
+*** 2026-11-17T21:35:29.257832+00:00 (CDB$ROOT(1))
+*** SESSION ID:(255.11701) 2026-11-17T21:35:29.257851+00:00
+*** CLIENT ID:(mtk_client_diag_pga_detail) 2026-11-17T21:35:29.257854+00:00
+*** SERVICE NAME:(SYS$USERS) 2026-11-17T21:35:29.257856+00:00
+*** MODULE NAME:(mtk_diag_pga_detail) 2026-11-17T21:35:29.257859+00:00
+*** ACTION NAME:(start) 2026-11-17T21:35:29.257861+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-11-17T21:35:29.257864+00:00
+*** CONTAINER ID:(1) 2026-11-17T21:35:29.257866+00:00
+ 
+Processing Oradebug command 'setmypid'
+
+*** 2026-11-17T21:35:29.257880+00:00 (CDB$ROOT(1))
+Oradebug command 'setmypid' console output: <none>
+
+*** 2026-11-17T21:35:29.257990+00:00 (CDB$ROOT(1))
+Processing Oradebug command 'dump pga_detail_get          6'
+
+*** 2026-11-17T21:35:29.258056+00:00 (CDB$ROOT(1))
+Oradebug command 'dump pga_detail_get          6' console output: <none>
+
+*** 2026-11-17T21:35:34.261106+00:00 (CDB$ROOT(1))
+Processing Oradebug command 'dump pga_detail_dump          6'
+============================
+Begin PGA memory detail dump
+============================
+===============================================
+PGA memory detail for pid 6, OS pid 14085 
+===============================================
+  3512312 bytes, 217 chunks: "pl/sql vc2                "  PL/SQL
+          koh-kghu call   ds=0x7f584c9111e8  dsprt=0x7f584dae2220
+  2822576 bytes,  91 chunks: "sort key                  "  SQL
+          sort subheap    ds=0x7f584bda6858  dsprt=0x7f584bda4078
+  2349904 bytes, 148 chunks: "pl/sql vc2                "  PL/SQL
+          koh-kghu sessi  ds=0x7f584c135be8  dsprt=0x7f584c9182d0
+   575224 bytes,  12 chunks: "free memory               "  
+          top call heap   ds=0x7f584dae4b40  dsprt=(nil)
+   228712 bytes,   1 chunk : "Fixed Uga                 "  
+          Fixed UGA heap  ds=0x7f584d9c3c10  dsprt=0x7f584dae2220
+   114312 bytes,  78 chunks: "free memory               "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+    86176 bytes,   2 chunks: "row cache                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    77304 bytes,  19 chunks: "free memory               "  
+          callheap        ds=0x7f584dae3160  dsprt=0x7f584dae4b40
+    71696 bytes,   1 chunk : "ksectab: kseget           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    64384 bytes,  33 chunks: "free memory               "  SQL
+          sort subheap    ds=0x7f584bda6858  dsprt=0x7f584bda4078
+    62888 bytes,  10 chunks: "free memory               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    54832 bytes,   2 chunks: "dbgeInitProcessCtx:InvCtx "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+    40984 bytes,   1 chunk : "kfkio bucket              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    33968 bytes,   4 chunks: "7114.kgght                "  
+          7114.kgght      ds=0x7f584da32970  dsprt=0x7f584da33e70
+    33152 bytes,   4 chunks: "free memory               "  PL/SQL
+          koh-kghu call   ds=0x7f584c9111e8  dsprt=0x7f584dae2220
+    33024 bytes,   2 chunks: "alloc server hndl         "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+    32928 bytes,   4 chunks: "ttc conv buf alloc        "  
+          Alloc server h  ds=0x7f584c131dd0  dsprt=0x7f584c102a38
+    32880 bytes,   2 chunks: "kxsFrame16kPage           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+    29064 bytes,   7 chunks: "kxsFrame4kPage            "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+    24600 bytes,   1 chunk : "kfksb bucket              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    22752 bytes,  10 chunks: "koh-kghu session heap     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+    20608 bytes,   1 chunk : "callback hsn              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    20496 bytes,   1 chunk : "KTI PGA static            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    19440 bytes,   8 chunks: "free memory               "  
+          Alloc server h  ds=0x7f584c131dd0  dsprt=0x7f584c102a38
+    19264 bytes,   1 chunk : "NOSYNC FOB ptr            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    18056 bytes,  22 chunks: "free memory               "  PL/SQL
+          koh-kghu sessi  ds=0x7f584c137b98  dsprt=0x7f584c9182d0
+    17024 bytes,   1 chunk : "kgh stack                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    16984 bytes,   1 chunk : "KSRMA PGA                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    16432 bytes,   2 chunks: "PL/SQL STACK              "  PL/SQL
+          PLS PGA hp      ds=0x7f584d9feeb8  dsprt=0x7f584dae2220
+    14608 bytes,  11 chunks: "kxsc: kkspsc0 2           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+    13728 bytes, 266 chunks: "kgsc ht segs              "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+    12504 bytes,   1 chunk : "KSRPC PGA                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    12360 bytes,   2 chunks: "kgsc hash table           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+    11520 bytes,   1 chunk : "kgefa                     "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+    10312 bytes,   2 chunks: "curdefs                   "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     9448 bytes,   4 chunks: "free memory               "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     9032 bytes,   1 chunk : "KGLSPF_P ARRAY            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     8496 bytes,   1 chunk : "kqudgi                    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     8464 bytes,   1 chunk : "kfmspg                    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     8248 bytes,   1 chunk : "KFKPGA                    "  
+          KFK_IO_SUBHEAP  ds=0x7f584da147d8  dsprt=0x7f584dae2220
+     8216 bytes,   1 chunk : "slvmem_kfmdpg             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     8208 bytes,   1 chunk : "KSIPC bucket              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     7424 bytes,   2 chunks: "alloc error hndl          "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+     7336 bytes,   7 chunks: "pliost struct             "  PL/SQL
+          koh-kghu sessi  ds=0x7f584c136a98  dsprt=0x7f584c9182d0
+     7224 bytes,   1 chunk : "kzap audit context UGA li "  
+          auditLoadNextG  ds=0x7f584c101d80  dsprt=0x7f584c9182d0
+     7200 bytes,   1 chunk : "kohdr                     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     6928 bytes,   2 chunks: "free memory               "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+     6568 bytes,   1 chunk : "defFile:dbgtfNotify       "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     6448 bytes,   2 chunks: "FOB ptr array             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     6192 bytes,   2 chunks: "recursive addr reg file   "  PL/SQL
+          koh-kghu sessi  ds=0x7f584c13f1e8  dsprt=0x7f584c9182d0
+     5160 bytes,  13 chunks: "kxsuhpp                   "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     5144 bytes,   1 chunk : "Default Bucket            "  
+          qmd_init_pga:b  ds=0x7f584d9fe9a8  dsprt=0x7f584dae2220
+     5144 bytes,   1 chunk : "Binary XML Bucket         "  
+          qmd_init_pga:b  ds=0x7f584d9fe9a8  dsprt=0x7f584dae2220
+     5144 bytes,   1 chunk : "Query/Schema/XOB Bucket   "  
+          qmd_init_pga:b  ds=0x7f584d9fe9a8  dsprt=0x7f584dae2220
+     5144 bytes,   1 chunk : "Repository/Protocols Buck "  
+          qmd_init_pga:b  ds=0x7f584d9fe9a8  dsprt=0x7f584dae2220
+     5120 bytes,   4 chunks: "allocate challe           "  
+          Alloc server h  ds=0x7f584c131dd0  dsprt=0x7f584c102a38
+     5120 bytes,   3 chunks: "koh-kghu call heap        "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4888 bytes,   1 chunk : "ksdxwnfy: total           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4640 bytes,   9 chunks: "kgiob                     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     4368 bytes,   1 chunk : "rpi hst                   "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4304 bytes,   1 chunk : "kfmdpg                    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4224 bytes,   1 chunk : "alloc authentication hndl "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+     4224 bytes,   1 chunk : "kzap audit policy UGA lis "  
+          auditLoadNextG  ds=0x7f584c101d80  dsprt=0x7f584c9182d0
+     4200 bytes,   2 chunks: "KZTHSM SEGARR             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4160 bytes,   1 chunk : "kbcpctxp                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4144 bytes,   1 chunk : "dbgeccFCInit:FCbucket     "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     4144 bytes,   1 chunk : "kfktout hash              "  
+          KFK_IO_SUBHEAP  ds=0x7f584da147d8  dsprt=0x7f584dae2220
+     4120 bytes,   1 chunk : "kfnorpg aiobff_kfnorpg    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4112 bytes,   1 chunk : "sidlut_kfapg              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4112 bytes,   1 chunk : "dpslut_kfdpg              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     4024 bytes,   1 chunk : "kodpai image              "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     3872 bytes,   1 chunk : "kfdpoc context            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     3856 bytes,   1 chunk : "KKX ICD VECTOR            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     3808 bytes,   1 chunk : "free permanent memory     "  
+          sioheap_kdlwug  ds=0x7f584c95f248  dsprt=0x7f584c9182d0
+     3720 bytes,   4 chunks: "free memory               "  
+          dbgtc heap      ds=0x7f584da33e70  dsprt=0x7f584da9d7c8
+     3576 bytes,   3 chunks: "free permanent memory     "  
+          Alloc server h  ds=0x7f584c131dd0  dsprt=0x7f584c102a38
+     3480 bytes,   2 chunks: "KSFD pga                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     3312 bytes,   1 chunk : "jsksncb: 1                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     3248 bytes,   2 chunks: "ts encryption p           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     3216 bytes,   3 chunks: "5954.kgght                "  
+          5954.kgght      ds=0x7f584d9dd5e8  dsprt=0x7f584dae2220
+     3144 bytes,   1 chunk : "kxfpnfy:kxfpms            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     3056 bytes,   5 chunks: "kopolal void              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2856 bytes,   2 chunks: "free memory               "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+     2824 bytes,   1 chunk : "adr context               "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     2648 bytes,   1 chunk : "kga pga                   "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2600 bytes,   1 chunk : "kjztprq struct array      "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2576 bytes,   1 chunk : "KKX FXP VECTOR            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2536 bytes,   1 chunk : "fcctx:dbgeccFCInit        "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     2464 bytes,   1 chunk : "KGLSD_P ARRAY             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2464 bytes,   1 chunk : "free permanent memory     "  
+          KSFQ heap       ds=0x7f584d9c7248  dsprt=0x7f584dae2220
+     2448 bytes,   1 chunk : "time stat state           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2368 bytes,   1 chunk : "kpuinit env handle        "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     2368 bytes,   1 chunk : "kpuinit env handle        "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2280 bytes,   2 chunks: "kodmcon kodmc             "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     2272 bytes,   4 chunks: "615.kggec                 "  
+          615.kggec       ds=0x7f584da321e0  dsprt=0x7f584da33e70
+     2264 bytes,   1 chunk : "kews sqlstat stack        "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2224 bytes,   1 chunk : "ksvpgp                    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2160 bytes,   5 chunks: "dbgr cache entries        "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     2080 bytes,   1 chunk : "kodougi kodou             "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     2072 bytes,   1 chunk : "pmucalm coll              "  PL/SQL
+          koh-kghu sessi  ds=0x7f584c137b98  dsprt=0x7f584c9182d0
+     2072 bytes,   1 chunk : "kpplal dvoid              "  
+          koh-kghu sessi  ds=0x7f584c9593d8  dsprt=0x7f584c9182d0
+     2072 bytes,   1 chunk : "kokl lob id hash table    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     2072 bytes,   1 chunk : "kfnorpg aiosrq_kfnorpg    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     2000 bytes,   1 chunk : "free memory               "  PL/SQL
+          PLS PGA hp      ds=0x7f584d9feeb8  dsprt=0x7f584dae2220
+     1992 bytes,   1 chunk : "dbgf-date-opatc           "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     1992 bytes,   1 chunk : "dbgf-date-viewe           "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     1992 bytes,   1 chunk : "dbgf-date-emswb           "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     1992 bytes,   1 chunk : "dbgf-date-arb             "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     1992 bytes,   1 chunk : "dbgf-date-old-a           "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     1992 bytes,   1 chunk : "dbgf-date                 "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     1952 bytes,   1 chunk : "alloc statement hndl      "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+     1880 bytes,   2 chunks: "free memory               "  
+          Alloc authenti  ds=0x7f584c132e78  dsprt=0x7f584c102a38
+     1848 bytes,   1 chunk : "free permanent memory     "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     1848 bytes,   1 chunk : "free memory               "  
+          XVMsubheap      ds=0x7f584da08a90  dsprt=0x7f584dae2220
+     1816 bytes,   1 chunk : "alloc bind hndl           "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+     1624 bytes,   1 chunk : "private file op           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     1528 bytes,   1 chunk : "KGNFS pcontext            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     1488 bytes,   1 chunk : "kgsc:kxsc                 "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     1480 bytes,   1 chunk : "kghrmp_state              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     1472 bytes,   2 chunks: "free permanent memory     "  SQL
+          kxs-heap-d      ds=0x7f584b764078  dsprt=0x7f584c9182d0
+     1456 bytes,   1 chunk : "free memory               "  
+          KFK_IO_SUBHEAP  ds=0x7f584da147d8  dsprt=0x7f584dae2220
+     1456 bytes,   1 chunk : "ksir pga                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     1384 bytes,   1 chunk : "PEIDEF                    "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+     1384 bytes,   1 chunk : "kxfpnfy:kxfpds            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     1344 bytes,   1 chunk : "SKGFQ OSD conte           "  
+          KSFQ heap       ds=0x7f584d9c7248  dsprt=0x7f584dae2220
+     1328 bytes,   1 chunk : "kxsc: kkspbd0             "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     1328 bytes,  15 chunks: "parameter value memory    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     1320 bytes,   1 chunk : "LDI internal format       "  
+          Alloc authenti  ds=0x7f584c132e78  dsprt=0x7f584c102a38
+     1232 bytes,   1 chunk : "kwsbgcdpjini-kw           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     1192 bytes,   1 chunk : "free permanent memory     "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+     1168 bytes,   5 chunks: "dbgr lru list             "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+     1136 bytes,   2 chunks: "13753.kggec               "  
+          13753.kggec     ds=0x7f584c95ff60  dsprt=0x7f584c9182d0
+     1136 bytes,   2 chunks: "7100.kggec                "  
+          7100.kggec      ds=0x7f584da33db8  dsprt=0x7f584da33e70
+     1112 bytes,   2 chunks: "sort                      "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+     1104 bytes,   3 chunks: "free permanent memory     "  SQL
+          kxs-heap-p      ds=0x7f584c0f7788  dsprt=0x7f584c9182d0
+     1048 bytes,   4 chunks: "curCtx:keswxCur           "  SQL
+          kxs-heap-p      ds=0x7f584b9d4078  dsprt=0x7f584c9182d0
+     1048 bytes,   1 chunk : "koc koccn                 "  
+          koh-kghu sessi  ds=0x7f584c9593d8  dsprt=0x7f584c9182d0
+     1048 bytes,   1 chunk : "pl/sql cursor meta-data   "  PL/SQL
+          koh-kghu call   ds=0x7f584c165638  dsprt=0x7f584dae2220
+     1048 bytes,   1 chunk : "pmucalm coll              "  PL/SQL
+          koh-kghu call   ds=0x7f584c9111e8  dsprt=0x7f584dae2220
+     1040 bytes,   1 chunk : "kgsc htitcnt              "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     1040 bytes,   1 chunk : "kgsc htgnum               "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+     1040 bytes,   1 chunk : "KSU PRNG contex           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     1024 bytes,   2 chunks: "KGODM FHASHTABLE          "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+     1008 bytes,   2 chunks: "dbgrim IMDA               "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      976 bytes,   6 chunks: "free memory               "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+      960 bytes,  15 chunks: "pnl                       "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      944 bytes,   1 chunk : "free permanent memory     "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+      864 bytes,   8 chunks: "frame                     "  SQL
+          kxs-heap-p      ds=0x7f584b9d4078  dsprt=0x7f584c9182d0
+      840 bytes,   1 chunk : "free permanent memory     "  
+          auditLoadNextG  ds=0x7f584c101d80  dsprt=0x7f584c9182d0
+      840 bytes,   1 chunk : "free permanent memory     "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+      832 bytes,   3 chunks: "free memory               "  SQL
+          kxs-heap-p      ds=0x7f584b9d4078  dsprt=0x7f584c9182d0
+      784 bytes,   1 chunk : "adl context               "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      784 bytes,   1 chunk : "kfiac_pga                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      776 bytes,   1 chunk : "qjsngInitUga: J           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      776 bytes,   1 chunk : "KCFIS PGA                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      768 bytes,   8 chunks: "kghdsx                    "  PL/SQL
+          koh-kghu sessi  ds=0x7f584c135be8  dsprt=0x7f584c9182d0
+      768 bytes,   4 chunks: "allocate tsm context      "  
+          Alloc server h  ds=0x7f584c131dd0  dsprt=0x7f584c102a38
+      768 bytes,  12 chunks: "ksu_register_ta           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      768 bytes,   1 chunk : "KCB block plug            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      768 bytes,   1 chunk : "KCB block check           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      768 bytes,   1 chunk : "KCB block objec           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      752 bytes,   1 chunk : "KSGL PGA                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      736 bytes,   1 chunk : "joxp struct               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      696 bytes,   1 chunk : "type manager              "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      696 bytes,   1 chunk : "free memory               "  
+          qmxtiInitXtiCt  ds=0x7f584da10290  dsprt=0x7f584da08a90
+      688 bytes,   1 chunk : "free memory               "  
+          qmd_init_pga:b  ds=0x7f584d9fe9a8  dsprt=0x7f584dae2220
+      680 bytes,   1 chunk : "free permanent memory     "  JAVA
+          joxp heap       ds=0x7f584d9fec80  dsprt=0x7f584dae2220
+      648 bytes,   1 chunk : "free memory               "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+      640 bytes,   2 chunks: "free memory               "  
+          615.kggec       ds=0x7f584da321e0  dsprt=0x7f584da33e70
+      640 bytes,   2 chunks: "alloc server hn           "  
+          Alloc environm  ds=0x7f584d9c29a8  dsprt=0x7f584dae2220
+      632 bytes,   1 chunk : "KPDB PGA                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      608 bytes,   1 chunk : "session NCHAR language ha "  
+          Alloc authenti  ds=0x7f584c132e78  dsprt=0x7f584c102a38
+      608 bytes,   1 chunk : "session language handle   "  
+          Alloc authenti  ds=0x7f584c132e78  dsprt=0x7f584c102a38
+      608 bytes,   1 chunk : "client session lid        "  
+          Alloc authenti  ds=0x7f584c132e78  dsprt=0x7f584c102a38
+      592 bytes,   1 chunk : "kzupci: kzalpagu_iam UGA  "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      592 bytes,   1 chunk : "Session NCHAR language ha "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      592 bytes,   1 chunk : "session language handle   "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      592 bytes,   1 chunk : "krbabrPgaRespMsg          "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      592 bytes,   1 chunk : "kgxct                     "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      592 bytes,   1 chunk : "krbabrPgaReqMsg           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      584 bytes,   1 chunk : "dbgf-lxhnd                "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      584 bytes,   1 chunk : "tctx:dbgtcNotify          "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      576 bytes,   2 chunks: "free permanent memory     "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+      576 bytes,   1 chunk : "KGSK pga                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      568 bytes,   1 chunk : "joxp ht heap              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      568 bytes,   1 chunk : "joxp heap                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      544 bytes,   8 chunks: "peihstdep                 "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+      536 bytes,   2 chunks: "psdwc: UGA call           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      536 bytes,   1 chunk : "kokl transaction id hash  "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      520 bytes,   2 chunks: "koh session hea           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      520 bytes,   2 chunks: "koh call heap             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      512 bytes,   1 chunk : "pliu struct               "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      504 bytes,   1 chunk : "SEQ CACHE                 "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      504 bytes,   1 chunk : "tagctx:dbgeccTagInit      "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      496 bytes,   2 chunks: "kxsphpp                   "  
+          top call heap   ds=0x7f584dae4b40  dsprt=(nil)
+      480 bytes,   1 chunk : "Tablespace Encr           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      464 bytes,   1 chunk : "kokgenv                   "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      464 bytes,   1 chunk : "keumnfy:1                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      456 bytes,   1 chunk : "periodic callba           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      448 bytes,   1 chunk : "KSZ PGA                   "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      448 bytes,   1 chunk : "KSZ PGA structu           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      440 bytes,   1 chunk : "Allocated in peircalc     "  
+          callheap        ds=0x7f584dae3160  dsprt=0x7f584dae4b40
+      440 bytes,  15 chunks: "pnl.kkynlstr              "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      440 bytes,   1 chunk : "kga uga                   "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      440 bytes,   1 chunk : "koh proc dur he           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      432 bytes,   1 chunk : "krbabrPgaStbyRespMsg      "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      424 bytes,   1 chunk : "kgiobdtb                  "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      416 bytes,  10 chunks: "dbgeccTbvInit:tags        "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      408 bytes,   1 chunk : "kgscPGAInit               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      384 bytes,   4 chunks: "kghdsx                    "  SQL
+          kxs-heap-p      ds=0x7f584b9d4078  dsprt=0x7f584c9182d0
+      384 bytes,   4 chunks: "kghdsx                    "  
+          Alloc server h  ds=0x7f584c131dd0  dsprt=0x7f584c102a38
+      384 bytes,   1 chunk : "koipgi koipgcv            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      384 bytes,   1 chunk : "koi koipgdv               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      376 bytes,   2 chunks: "audXscLstce:kzap          "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      376 bytes,   1 chunk : "PLS cca hp desc           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      376 bytes,   1 chunk : "PLS cca hp desc           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      360 bytes,   2 chunks: "define var info           "  SQL
+          kxs-heap-p      ds=0x7f584b9d4078  dsprt=0x7f584c9182d0
+      352 bytes,   1 chunk : "Typecheck heap descriptor "  
+          callheap        ds=0x7f584dae3160  dsprt=0x7f584dae4b40
+      352 bytes,   1 chunk : "kocca                     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      352 bytes,   1 chunk : "GPGA kopefcs              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      352 bytes,   1 chunk : "KGQBT cmp func            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      344 bytes,   1 chunk : "sort subheap              "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+      336 bytes,   3 chunks: "user uac                  "  SQL
+          kxs-heap-p      ds=0x7f584b9d4078  dsprt=0x7f584c9182d0
+      320 bytes,   1 chunk : "alloc kpggupi             "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+      320 bytes,   1 chunk : "free memory               "  
+          13753.kggec     ds=0x7f584c95ff60  dsprt=0x7f584c9182d0
+      320 bytes,   1 chunk : "free memory               "  
+          7114.kgght      ds=0x7f584da32970  dsprt=0x7f584da33e70
+      320 bytes,   1 chunk : "free memory               "  
+          7100.kggec      ds=0x7f584da33db8  dsprt=0x7f584da33e70
+      320 bytes,   1 chunk : "free memory               "  
+          5954.kgght      ds=0x7f584d9dd5e8  dsprt=0x7f584dae2220
+      312 bytes,   1 chunk : "dbgeInitGlobalCtx:ddeGlob "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      304 bytes,   1 chunk : "bcheapd_kdlwugas          "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      280 bytes,   1 chunk : "continuous uac            "  SQL
+          kxs-heap-p      ds=0x7f584c0f7f40  dsprt=0x7f584c9182d0
+      280 bytes,   1 chunk : "qksbgCreateSess           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      280 bytes,   1 chunk : "kokahin kgglk             "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      272 bytes,   3 chunks: "free permanent memory     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      272 bytes,   1 chunk : "per slot read i           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      272 bytes,   1 chunk : "KCBFLC PGA                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      256 bytes,   4 chunks: "frame segment             "  SQL
+          kxs-heap-p      ds=0x7f584b9d4078  dsprt=0x7f584c9182d0
+      248 bytes,   1 chunk : "kolepgi: KOLE's           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      240 bytes,   1 chunk : "rwsStat:keswxSe           "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+      240 bytes,   1 chunk : "alloc service hndl        "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+      232 bytes,   1 chunk : "iovecheapd_kdlwpga        "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      224 bytes,   1 chunk : "rworalo : rword           "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+      224 bytes,   1 chunk : "plip struct               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      208 bytes,   1 chunk : "sioheapd_kdlwugas         "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      208 bytes,   2 chunks: "kgassf                    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      208 bytes,   1 chunk : "KFIO PGA structure        "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      200 bytes,   1 chunk : "GWM UGA                   "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      200 bytes,   1 chunk : "koltugi: hd_kol           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      200 bytes,   1 chunk : "kolrugi: hd_kol           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      200 bytes,   1 chunk : "kfnvpga                   "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      200 bytes,   1 chunk : "JOX joxjp->joxs           "  JAVA
+          joxp heap       ds=0x7f584d9fec80  dsprt=0x7f584dae2220
+      200 bytes,   1 chunk : "ksfv PGA contex           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      192 bytes,   2 chunks: "kghdsx                    "  
+          callheap        ds=0x7f584dae32a8  dsprt=0x7f584dae4b40
+      192 bytes,   2 chunks: "kghdsx                    "  SQL
+          kxs-heap-d      ds=0x7f584b764078  dsprt=0x7f584c9182d0
+      192 bytes,   2 chunks: "kghdsx                    "  
+          Alloc environm  ds=0x7f584c102a38  dsprt=0x7f584c9182d0
+      192 bytes,   2 chunks: "kghdsx                    "  PL/SQL
+          koh-kghu call   ds=0x7f584c165638  dsprt=0x7f584dae2220
+      192 bytes,   2 chunks: "kgasf                     "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      192 bytes,   2 chunks: "kghdsx                    "  
+          615.kggec       ds=0x7f584da321e0  dsprt=0x7f584da33e70
+      184 bytes,   1 chunk : "qersoStart : qb           "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+      184 bytes,   1 chunk : "k2dcur                    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      184 bytes,   1 chunk : "auditLoadNextGenOptions:H "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      184 bytes,   1 chunk : "pl_lut_alloc              "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+      184 bytes,   1 chunk : "pl_iot_alloc              "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+      184 bytes,   1 chunk : "kzxauscini                "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      184 bytes,   1 chunk : "13753.kggec               "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      184 bytes,   1 chunk : "615.kggec                 "  
+          dbgtc heap      ds=0x7f584da33e70  dsprt=0x7f584da9d7c8
+      184 bytes,   1 chunk : "7114.kgght                "  
+          dbgtc heap      ds=0x7f584da33e70  dsprt=0x7f584da9d7c8
+      184 bytes,   1 chunk : "7100.kggec                "  
+          dbgtc heap      ds=0x7f584da33e70  dsprt=0x7f584da9d7c8
+      184 bytes,   1 chunk : "sdbgrf: iosb              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      184 bytes,   1 chunk : "5954.kgght                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      184 bytes,   2 chunks: "control file cache        "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      184 bytes,   1 chunk : "615.kggec                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      176 bytes,   1 chunk : "kxfpugi:kxfpss            "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      176 bytes,   1 chunk : "lpxHeap:subheap           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      176 bytes,   1 chunk : "KTI-csh-des               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      176 bytes,   1 chunk : "KTI-csh-pre               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      168 bytes,   2 chunks: "gwm-autoons-cac           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      168 bytes,   1 chunk : "kdp_init_pgcbks           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      168 bytes,   1 chunk : "KFIO heap                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      168 bytes,   3 chunks: "post queue proc           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   2 chunks: "kwqaalag                  "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      160 bytes,   2 chunks: "kwqmahal                  "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      160 bytes,   2 chunks: "kwqidwh memory            "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      160 bytes,   2 chunks: "kwqb context memory       "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      160 bytes,   2 chunks: "kwqica hash table         "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      160 bytes,   1 chunk : "kope2pgi kope2p           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "dbgdutlHeapAlloc: kghalf  "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      160 bytes,   1 chunk : "heap:dbgtcNotify          "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      160 bytes,   1 chunk : "KXDBIO PGA                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "qmxtiInitXtiCtx:1         "  
+          XVMsubheap      ds=0x7f584da08a90  dsprt=0x7f584dae2220
+      160 bytes,   1 chunk : "kfdrelochist sl           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "qmd_init_pga:bucket heap  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "library cache             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "kglpgm                    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "regheapd_kdlwpga          "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "KSZ pga subheap descripto "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "ksws pq help svc mapping  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      160 bytes,   1 chunk : "KSFQ heap descriptor      "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      152 bytes,   1 chunk : "statement text alloc      "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+      152 bytes,   1 chunk : "kzscugaini: 0             "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      152 bytes,   1 chunk : "kxfpugi:subheap           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      152 bytes,   1 chunk : "KFK_IO_SUBHEAP            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      152 bytes,   1 chunk : "XVM_PGA_subheap           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      152 bytes,   1 chunk : "dsheap_kfdpg              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      152 bytes,   1 chunk : "kcnibr.c@2946             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      152 bytes,   1 chunk : "Fixed UGA ds              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      144 bytes,   1 chunk : "session NLS glo           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      144 bytes,   1 chunk : "dbgr-meta-data cache      "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      144 bytes,   1 chunk : "dbgf-glo                  "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      144 bytes,   1 chunk : "KKX CLIENT VECT           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      144 bytes,   1 chunk : "IPC clbmap                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      144 bytes,   1 chunk : "IPC rembmap               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      144 bytes,   1 chunk : "IPC jnbmap                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      136 bytes,   1 chunk : "GPGA kope2fcs             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      136 bytes,   1 chunk : "kohpg                     "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      136 bytes,   1 chunk : "KCFIS GCTX                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      128 bytes,   2 chunks: "kzap actn bit-v           "  
+          auditLoadNextG  ds=0x7f584c101d80  dsprt=0x7f584c9182d0
+      128 bytes,   1 chunk : "kqlpWrntoStr:string       "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      128 bytes,   1 chunk : "fstack:dbgtfNotify        "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+      128 bytes,   1 chunk : "pesldT01_Contex           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      128 bytes,   1 chunk : "KSMSQ PGA                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      120 bytes,   1 chunk : "FDO                       "  
+          Alloc server h  ds=0x7f584c131dd0  dsprt=0x7f584c102a38
+      120 bytes,   1 chunk : "kohug                     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      120 bytes,   1 chunk : "alloc FDO                 "  
+          Alloc server h  ds=0x7f584c90cbb0  dsprt=0x7f584d9c29a8
+      120 bytes,   1 chunk : "skgfzctx                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      120 bytes,   1 chunk : "kodopgi kopfdo            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      112 bytes,   2 chunks: "audXscLstcc:kzap          "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      112 bytes,   2 chunks: "allocator state           "  SQL
+          kxs-heap-d      ds=0x7f584b764078  dsprt=0x7f584c9182d0
+      112 bytes,   1 chunk : "alloc stmt cache ctx      "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+      112 bytes,   1 chunk : "dbgdInitEventGrp: eventGr "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      112 bytes,   1 chunk : "skgdllctx                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      112 bytes,   1 chunk : "KSFS DBFS ctx             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      104 bytes,   2 chunks: "audboi:allocate in xsc    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      104 bytes,   1 chunk : "realloc kwfcstm in stmt h "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+      104 bytes,   1 chunk : "hcsuga global             "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+      104 bytes,   1 chunk : "alloc stmtcache in user h "  
+          Alloc authenti  ds=0x7f584c132e78  dsprt=0x7f584c102a38
+      104 bytes,   1 chunk : "kngipga:1                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      104 bytes,   1 chunk : "kfnorpg                   "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      104 bytes,   1 chunk : "mdp_ksirpg                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      104 bytes,   1 chunk : "KSFQ pga                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+      104 bytes,   1 chunk : "kgopc pcontext            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       96 bytes,   1 chunk : "kghdsx                    "  
+          top call heap   ds=0x7f584dae4b40  dsprt=(nil)
+       96 bytes,   1 chunk : "kghdsx                    "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+       96 bytes,   2 chunks: "audbni:allocate in xsc    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       96 bytes,   2 chunks: "audtni:allocate in xsc    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       96 bytes,   1 chunk : "kghdsx                    "  SQL
+          sort subheap    ds=0x7f584bda6858  dsprt=0x7f584bda4078
+       96 bytes,   2 chunks: "bnrdef                    "  SQL
+          kxs-heap-p      ds=0x7f584c0f7f40  dsprt=0x7f584c9182d0
+       96 bytes,   1 chunk : "kghdsx                    "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+       96 bytes,   1 chunk : "kghdsx                    "  
+          Alloc authenti  ds=0x7f584c132e78  dsprt=0x7f584c102a38
+       96 bytes,   1 chunk : "kghdsx                    "  
+          auditLoadNextG  ds=0x7f584c101d80  dsprt=0x7f584c9182d0
+       96 bytes,   1 chunk : "kghdsx                    "  
+          koh-kghu sessi  ds=0x7f584c9593d8  dsprt=0x7f584c9182d0
+       96 bytes,   1 chunk : "kghdsx                    "  
+          top uga heap    ds=0x7f584dae4e00  dsprt=(nil)
+       96 bytes,   1 chunk : "kghdsx                    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       96 bytes,   1 chunk : "kohdt                     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       96 bytes,   1 chunk : "kghdsx                    "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+       96 bytes,   1 chunk : "kghdsx                    "  
+          sioheap_kdlwug  ds=0x7f584c95f248  dsprt=0x7f584c9182d0
+       96 bytes,   1 chunk : "kghdsx                    "  
+          13753.kggec     ds=0x7f584c95ff60  dsprt=0x7f584c9182d0
+       96 bytes,   1 chunk : "kghdsx                    "  PL/SQL
+          PLS PGA hp      ds=0x7f584d9feeb8  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "kghdsx                    "  
+          Fixed UGA heap  ds=0x7f584d9c3c10  dsprt=0x7f584dae2220
+       96 bytes,   2 chunks: "PLSQL Stack descriptor    "  PL/SQL
+          PLS PGA hp      ds=0x7f584d9feeb8  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "kghdsx                    "  
+          7114.kgght      ds=0x7f584da32970  dsprt=0x7f584da33e70
+       96 bytes,   1 chunk : "kghdsx                    "  
+          7100.kggec      ds=0x7f584da33db8  dsprt=0x7f584da33e70
+       96 bytes,   1 chunk : "kghdsx                    "  
+          dbgtc heap      ds=0x7f584da33e70  dsprt=0x7f584da9d7c8
+       96 bytes,   1 chunk : "kghdsx                    "  
+          KFK_IO_SUBHEAP  ds=0x7f584da147d8  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "kghdsx                    "  
+          XVMsubheap      ds=0x7f584da08a90  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "kghdsx                    "  
+          qmxtiInitXtiCt  ds=0x7f584da10290  dsprt=0x7f584da08a90
+       96 bytes,   1 chunk : "qmxtiInitXtiCtx:globctx_a "  
+          qmxtiInitXtiCt  ds=0x7f584da10290  dsprt=0x7f584da08a90
+       96 bytes,   1 chunk : "kghdsx                    "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "pspool_kfpg               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       96 bytes,   1 chunk : "kghdsx                    "  
+          qmd_init_pga:b  ds=0x7f584d9fe9a8  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "L2 pfob ptr arr           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       96 bytes,   1 chunk : "kghdsx                    "  JAVA
+          joxp heap       ds=0x7f584d9fec80  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "KJZT context              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       96 bytes,   1 chunk : "kghdsx                    "  
+          KSFQ heap       ds=0x7f584d9c7248  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "kghdsx                    "  
+          5954.kgght      ds=0x7f584d9dd5e8  dsprt=0x7f584dae2220
+       96 bytes,   1 chunk : "kghdsx                    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       88 bytes,   1 chunk : "pclid.kkyclidst           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       88 bytes,   1 chunk : "kdlw:UGA state            "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       80 bytes,   1 chunk : "kocug                     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       80 bytes,   1 chunk : "system trigger cache      "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       80 bytes,   1 chunk : "kolrugi: KOLR's           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       80 bytes,   1 chunk : "dbgdInitEventGrp: eventGr "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       80 bytes,   1 chunk : "dbgdInitEventGrp: eventGr "  
+          diag pga        ds=0x7f584da9d7c8  dsprt=0x7f584dae2220
+       80 bytes,   1 chunk : "kodopgi kodop             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       80 bytes,   1 chunk : "skgfzctx                  "  
+          KFK_IO_SUBHEAP  ds=0x7f584da147d8  dsprt=0x7f584dae2220
+       80 bytes,   1 chunk : "qcpgx: qciPGIni           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       72 bytes,   1 chunk : "heap mark                 "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+       72 bytes,   1 chunk : "kzap priv bit-v           "  
+          auditLoadNextG  ds=0x7f584c101d80  dsprt=0x7f584c9182d0
+       72 bytes,   1 chunk : "kgfspares                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       72 bytes,   1 chunk : "krbabrPgaReqCtx           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       72 bytes,   3 chunks: "post queue scan           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       64 bytes,   1 chunk : "rworaloRowsets:           "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+       64 bytes,   2 chunks: "def frame seg             "  SQL
+          kxs-heap-d      ds=0x7f584b764078  dsprt=0x7f584c9182d0
+       64 bytes,   1 chunk : "private oac inf           "  SQL
+          kxs-heap-p      ds=0x7f584c0f7f40  dsprt=0x7f584c9182d0
+       64 bytes,   1 chunk : "koltugi: KOLT's           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       64 bytes,   1 chunk : "kzialslti                 "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       64 bytes,   1 chunk : "KFR OSM PGA               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       64 bytes,   1 chunk : "kzsna:login name          "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       64 bytes,   1 chunk : "KFVACFS PGA               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       64 bytes,   1 chunk : "kolpgi: KOL's P           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       64 bytes,   1 chunk : "KSOSLS sampled            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       64 bytes,   1 chunk : "krbrpcact                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       64 bytes,   1 chunk : "kglsim pga                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       64 bytes,   1 chunk : "allocate kzthsmpctx       "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       56 bytes,   1 chunk : "ksulu : ksulueoftxt       "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       56 bytes,   1 chunk : "Bind length vector        "  
+          Alloc statemen  ds=0x7f584c129398  dsprt=0x7f584c102a38
+       56 bytes,   1 chunk : "kolaugi: KOLA's           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       56 bytes,   1 chunk : "pliuac                    "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+       56 bytes,   1 chunk : "GPGA kopoc                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       56 bytes,   1 chunk : "heap mark                 "  
+          Alloc server h  ds=0x7f584d9c1d98  dsprt=0x7f584d9c29a8
+       56 bytes,   1 chunk : "alloc dblink              "  
+          Alloc server h  ds=0x7f584d9c1d98  dsprt=0x7f584d9c29a8
+       56 bytes,   1 chunk : "kfzpg                     "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       56 bytes,   1 chunk : "qmtknfy:cbk               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       56 bytes,   1 chunk : "system event co           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       56 bytes,   1 chunk : "qmd_init_pga:bucket list  "  
+          qmd_init_pga:b  ds=0x7f584d9fe9a8  dsprt=0x7f584dae2220
+       56 bytes,   1 chunk : "KSWL PGA                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       56 bytes,   1 chunk : "KCFIS GCTX PGALINK        "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       56 bytes,   1 chunk : "KGODM pga context         "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       56 bytes,   1 chunk : "ksmxmctx                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       48 bytes,   1 chunk : "pclid: kkyLnkSl           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       48 bytes,   1 chunk : "kwqaugi                   "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       48 bytes,   1 chunk : "ptz                       "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       48 bytes,   1 chunk : "type manager              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       48 bytes,   1 chunk : "KGDDNFS CallBac           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       40 bytes,   1 chunk : "ICD allocated rc list     "  
+          callheap        ds=0x7f584dae3160  dsprt=0x7f584dae4b40
+       40 bytes,   1 chunk : "kxsclb@qesmmc.c           "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+       40 bytes,   1 chunk : "PL/SQL part of xsc        "  SQL
+          kxs-heap-p      ds=0x7f584c0f7788  dsprt=0x7f584c9182d0
+       40 bytes,   1 chunk : "kohcs                     "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       40 bytes,   1 chunk : "kokaugi kokah             "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       40 bytes,   1 chunk : "koddcal void              "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       40 bytes,   1 chunk : "koklug hxctx init         "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       40 bytes,   1 chunk : "koklug hlctx init         "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       40 bytes,   1 chunk : "plsiot                    "  PL/SQL
+          PLS UGA hp      ds=0x7f584c95dc58  dsprt=0x7f584c9182d0
+       40 bytes,   1 chunk : "kdlu:UGA state            "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       40 bytes,   1 chunk : "kttuga                    "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       40 bytes,   1 chunk : "psdwc: PGA call           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       40 bytes,   1 chunk : "kfthapg                   "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       40 bytes,   1 chunk : "KWQIPGA_INIT              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       40 bytes,   1 chunk : "INIT                      "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       40 bytes,   1 chunk : "qmxpgAl                   "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       32 bytes,   1 chunk : "qeesFindKafsInR           "  SQL
+          kxs-heap-w      ds=0x7f584bda4078  dsprt=0x7f584c9182d0
+       32 bytes,   1 chunk : "kolfugi: KOLF's           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       32 bytes,   1 chunk : "kpolon kpdlsid            "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       32 bytes,   1 chunk : "kpoauth kpdlsid           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       32 bytes,   1 chunk : "GWM : Service n           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       32 bytes,   1 chunk : "kxttugi: kgsupt           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       32 bytes,   1 chunk : "qksceUgaNotify:           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       32 bytes,   1 chunk : "kse_snap_ring_s           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       32 bytes,   1 chunk : "koipgi koipg              "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       32 bytes,   1 chunk : "kolfpgi: KOLF's           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       32 bytes,   1 chunk : "kfapg                     "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       32 bytes,   1 chunk : "KSRMF PGA                 "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       32 bytes,   1 chunk : "kpullbspgi: cli           "  
+          Alloc environm  ds=0x7f584d9c29a8  dsprt=0x7f584dae2220
+       24 bytes,   1 chunk : "kxs: ac ctx all           "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       24 bytes,   1 chunk : "ptz.kkytzstr              "  
+          session heap    ds=0x7f584c9182d0  dsprt=0x7f584dae4e00
+       24 bytes,   1 chunk : "sioheap dummy p           "  
+          sioheap_kdlwug  ds=0x7f584c95f248  dsprt=0x7f584c9182d0
+       24 bytes,   1 chunk : "kftmpg                    "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "kffspga                   "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "PGA Aux ptr               "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "KEBM PGA Spare            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "KFAS PGA                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "kodopgi kodmd             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "kzaac_vpga                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "ptr to kcflsoh            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "KTC Variable PG           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "IPC rebld sqtl            "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "IPC rebld nsqtl           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "IPC rebld state           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "KSFS pga                  "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "KSR PGA context           "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "SKGFQ wait cont           "  
+          KSFQ heap       ds=0x7f584d9c7248  dsprt=0x7f584dae2220
+       24 bytes,   1 chunk : "dbktat bitvec             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "os statistics             "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+       24 bytes,   1 chunk : "ksepg_ccsi                "  
+          pga heap        ds=0x7f584dae2220  dsprt=(nil)
+============================
+End PGA memory detail dump
+============================
+
+*** 2026-11-17T21:35:34.363793+00:00 (CDB$ROOT(1))
+Oradebug command 'dump pga_detail_dump          6' console output: <none>
+
+*** 2026-11-17T21:35:34.363916+00:00 (CDB$ROOT(1))
+Processing Oradebug command 'dump pga_detail_cancel          6'
+
+*** 2026-11-17T21:35:34.363935+00:00 (CDB$ROOT(1))
+Oradebug command 'dump pga_detail_cancel          6' console output: <none>

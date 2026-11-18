@@ -15,7 +15,9 @@ const MaxLines = 2000
 // as text/plain with the file's line count in X-Total-Lines. With annot=1 the
 // answer is JSON {"from","total","lines":[{"t","k"}]}: each line without its
 // terminator and its kind (trace.Kind.String(), see trace.Classify and
-// annotate for how the SQL-text state of a page that starts mid-file is seeded).
+// annotate for how the SQL-text state of a page that starts mid-file is seeded;
+// the lines of optimizer dumps and diagnostic dump sections are "optimizer"
+// and "diagnostic" where the server knows them).
 //
 // With annot=2 (only where a Server serves it, see Server.Handler; otherwise
 // it answers like annot=1) every line also carries the ids `at` would answer
@@ -26,16 +28,30 @@ func LinesHandler(lis []*trace.LineIndex) http.Handler { return linesHandler(lis
 // optimizer (10053) dumps of each file (dumps[fi]): their lines are annotated as
 // optimizer lines.
 func LinesHandlerDumps(lis []*trace.LineIndex, dumps [][]trace.Dump) http.Handler {
-	return linesHandler(lis, func(fi int) []trace.Dump {
+	return LinesHandlerRanges(lis, dumps, nil)
+}
+
+// LinesHandlerRanges is LinesHandlerDumps for a server that also knows the
+// diagnostic dump sections of each file (sections[fi]): their lines are
+// annotated as diagnostic lines.
+func LinesHandlerRanges(lis []*trace.LineIndex, dumps [][]trace.Dump, sections [][]trace.Section) http.Handler {
+	return linesHandler(lis, func(fi int) *marks {
+		var mk marks
 		if fi < len(dumps) {
-			return dumps[fi]
+			mk.dumps = dumps[fi]
 		}
-		return nil
+		if fi < len(sections) {
+			mk.sections = sections[fi]
+		}
+		if len(mk.dumps) == 0 && len(mk.sections) == 0 {
+			return nil
+		}
+		return &mk
 	}, nil)
 }
 
-// linesHandler is LinesHandler; dumps (when not nil) gives the optimizer dumps of file fi; ann2 (when not nil) serves annot=2 of file fi.
-func linesHandler(lis []*trace.LineIndex, dumps func(fi int) []trace.Dump, ann2 func(w http.ResponseWriter, fi int, from, n int)) http.Handler {
+// linesHandler is LinesHandler; marksOf (when not nil) gives the optimizer dumps and diagnostic sections of file fi; ann2 (when not nil) serves annot=2 of file fi.
+func linesHandler(lis []*trace.LineIndex, marksOf func(fi int) *marks, ann2 func(w http.ResponseWriter, fi int, from, n int)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fi, _ := strconv.Atoi(r.URL.Query().Get("file"))
 		if fi < 0 || fi >= len(lis) {
@@ -54,11 +70,11 @@ func linesHandler(lis []*trace.LineIndex, dumps func(fi int) []trace.Dump, ann2 
 			return
 		}
 		if annot == "1" || annot == "2" {
-			var ds []trace.Dump
-			if dumps != nil {
-				ds = dumps(fi)
+			var mk *marks
+			if marksOf != nil {
+				mk = marksOf(fi)
 			}
-			serveAnnotated(w, li, from, n, ds)
+			serveAnnotated(w, li, from, n, mk)
 			return
 		}
 		b, err := li.Read(from, n)

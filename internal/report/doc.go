@@ -59,6 +59,11 @@ type Document struct {
 	// and for a client without a server their digest. The rest of such a
 	// document is that of an empty 10046 model.
 	Opt *OptDoc `json:"opt,omitempty"`
+
+	// Dump is present for a diag session only (diag.go): the facts and the top-level outline of the file, and
+	// for a client without a server their digest. The rest of such a document is that of an empty 10046
+	// model. (Not "diag": that key is Diag, the parser's diagnostics.)
+	Dump *DiagDoc `json:"dump,omitempty"`
 }
 
 // Facts are the columnar fact tables as plain JSON arrays. The packed form
@@ -196,6 +201,9 @@ type DocOptions struct {
 	// Opt makes the document that of a 10053 file (Document.Opt); nil for
 	// every other file.
 	Opt *OptInput
+
+	// Diag makes the document that of a diag session (Document.Dump); nil for every other session. Not with Opt.
+	Diag *DiagInput
 }
 
 // BuildDocument assembles the document from a model. Fact tables, if asked
@@ -244,6 +252,10 @@ func buildDocument(m *model.Model, o DocOptions, withFacts bool) *Document {
 	if o.Opt != nil {
 		d.Opt = buildOpt(o.Opt)
 		d.Diag.Notes = withoutDumpNotes(m)
+		d.emptyLists()
+	} else if o.Diag != nil {
+		d.Dump = buildDiag(o.Diag)
+		d.Diag.Notes = withoutSectionNotes(m)
 		d.emptyLists()
 	}
 	return d

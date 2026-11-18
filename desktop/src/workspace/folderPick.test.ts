@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ListedFile, TracePeek } from '../engine'
 import { kindLabel, dumpsLabel, type PeekOpt } from './optTabs'
-import { type Peek, DEFAULT_SORT, filterRows, fmtEnd, fmtSpan, fmtStamp, notSQL, peekBatches, selectionSummary, sessionsText, sortRows, toRows } from './folderPick'
+import { type Peek, DEFAULT_SORT, FILTER_LABEL, dumpOnly, filterRows, fmtEnd, fmtSpan, fmtStamp, hiddenCounts, hiddenText, noTrace, notSQL, peekBatches, selectionSummary, sessionsText, sortRows, toRows } from './folderPick'
 
 const file = (name: string, size: number, modified: string): ListedFile => ({ path: `/t/${name}`, size, modified, dir: '/t' })
 const peek = (name: string, p: Partial<TracePeek> & PeekOpt): Peek => ({ path: `/t/${name}`, size: 0, modified: '', elapsedUs: 0, sqlTrace: true, sessions: [], sessionCount: 0, ...p })
@@ -72,5 +72,60 @@ describe('folder picker: 10053 files', () => {
 
   it('finds files by their kind', () => {
     expect(names(filterRows(withOpt, '10053', false)).sort()).toEqual(['p.trc', 'q.trc'])
+  })
+})
+
+describe('folder picker: dump files', () => {
+  const fs = [...files, file('heap.trc', 40, '2026-11-08T07:00:00Z'), file('stack.trc', 30, '2026-11-08T06:00:00Z')]
+  const withDump = toRows(fs, new Map([
+    ...peeks,
+    ['/t/heap.trc', peek('heap.trc', { sqlTrace: false, kind: 'diag', sections: [{ kind: 'heap', count: 3 }, { kind: 'procstate', count: 1 }] })],
+    ['/t/stack.trc', peek('stack.trc', { sqlTrace: false, kind: 'diag', sections: [{ kind: 'diagdump', count: 1 }] })],
+  ]))
+
+  it('tells a dump file from a background process trace: both have no SQL trace, only the second has nothing the app reads', () => {
+    const by = (n: string) => withDump.find((r) => r.name === n)!.peek
+    expect(dumpOnly(by('heap.trc'))).toBe(true)
+    expect(noTrace(by('heap.trc'))).toBe(false)
+    expect(noTrace(by('mmon.trc'))).toBe(true)
+    expect(dumpOnly(by('mmon.trc'))).toBe(false)
+    expect(dumpOnly(null)).toBe(false)
+  })
+
+  it('keeps hiding the files that are neither SQL nor optimizer traces by default, the dump files with them', () => {
+    expect(names(filterRows(withDump, '', 'sql')).sort()).toEqual(['a.trc', 'b.trc', 'c.trc'])
+    expect(names(filterRows(withDump, '', true)).sort()).toEqual(['a.trc', 'b.trc', 'c.trc']) // the old checkbox, on
+  })
+
+  it('lists the dump files too in its second state, and everything in its third', () => {
+    expect(names(filterRows(withDump, '', 'dumps')).sort()).toEqual(['a.trc', 'b.trc', 'c.trc', 'heap.trc', 'stack.trc'])
+    expect(names(filterRows(withDump, '', 'all')).sort()).toEqual(['a.trc', 'b.trc', 'c.trc', 'heap.trc', 'mmon.trc', 'stack.trc'])
+    expect(names(filterRows(withDump, '', false))).toHaveLength(6) // the old checkbox, off
+  })
+
+  it('finds a dump file by its kind and still filters by words under the third state', () => {
+    expect(names(filterRows(withDump, 'dump', 'all'))).toEqual(['heap.trc', 'stack.trc'])
+    expect(names(filterRows(withDump, 'heap', 'dumps'))).toEqual(['heap.trc'])
+    expect(names(filterRows(withDump, 'heap', 'sql'))).toEqual([])
+  })
+
+  it('says what each state hides', () => {
+    expect(hiddenCounts(withDump, 'sql')).toEqual({ dumps: 2, other: 1 })
+    expect(hiddenCounts(withDump, 'dumps')).toEqual({ dumps: 0, other: 1 })
+    expect(hiddenCounts(withDump, 'all')).toEqual({ dumps: 0, other: 0 })
+    expect(hiddenText({ dumps: 2, other: 1 })).toBe('2 dump files and 1 without SQL trace hidden')
+    expect(hiddenText({ dumps: 1, other: 0 })).toBe('1 dump file hidden')
+    expect(hiddenText({ dumps: 0, other: 3 })).toBe('3 without SQL trace hidden')
+    expect(hiddenText({ dumps: 0, other: 0 })).toBe('')
+    expect(notSQL(withDump)).toBe(1)
+  })
+
+  it('words the three states of the filter', () => {
+    expect(FILTER_LABEL).toEqual({ sql: 'SQL and optimizer traces', dumps: 'Also dump files', all: 'All files' })
+  })
+
+  it('shows the dump tag with its sections', () => {
+    const r = withDump.find((x) => x.name === 'heap.trc')!
+    expect([kindLabel(r.peek), dumpsLabel(r.peek)]).toEqual(['dump', '3 heap dumps, 1 process state'])
   })
 })

@@ -1,0 +1,776 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_14070_mtk_diag_pga_summary.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 6
+Unix process pid: 14070, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-11-17T21:35:23.027801+00:00 (PDB1(3))
+*** SESSION ID:(45.32777) 2026-11-17T21:35:23.027822+00:00
+*** CLIENT ID:(mtk_client_diag_pga_summary) 2026-11-17T21:35:23.027824+00:00
+*** SERVICE NAME:(pdb1) 2026-11-17T21:35:23.027827+00:00
+*** MODULE NAME:(mtk_diag_pga_summary) 2026-11-17T21:35:23.027830+00:00
+*** ACTION NAME:(pga_summary_1) 2026-11-17T21:35:23.027832+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-11-17T21:35:23.027834+00:00
+*** CONTAINER ID:(3) 2026-11-17T21:35:23.027836+00:00
+ 
+=======================================
+TOP 10 MEMORY USES FOR THIS PROCESS
+---------------------------------------
+32% 3429 KB, 217 chunks: "pl/sql vc2                "  PL/SQL
+         koh-kghu call   ds=0x7f72d80b11e8  dsprt=0x7f72d9282220
+26% 2756 KB,  91 chunks: "sort key                  "  SQL
+         sort subheap    ds=0x7f72d7537898  dsprt=0x7f72d7534078
+21% 2294 KB, 148 chunks: "pl/sql vc2                "  PL/SQL
+         koh-kghu sessi  ds=0x7f72d78d7de8  dsprt=0x7f72d80b82d0
+ 5%  497 KB,  10 chunks: "free memory               "  
+         top call heap   ds=0x7f72d9284b40  dsprt=(nil)
+ 2%  223 KB,   1 chunk : "Fixed Uga                 "  
+         Fixed UGA heap  ds=0x7f72d9163c10  dsprt=0x7f72d9282220
+ 1%   98 KB,  83 chunks: "free memory               "  
+         session heap    ds=0x7f72d80b82d0  dsprt=0x7f72d9284e00
+ 1%   84 KB,   2 chunks: "row cache                 "  
+         pga heap        ds=0x7f72d9282220  dsprt=(nil)
+ 1%   75 KB,  19 chunks: "free memory               "  
+         callheap        ds=0x7f72d9283160  dsprt=0x7f72d9284b40
+ 1%   70 KB,   1 chunk : "ksectab: kseget           "  
+         pga heap        ds=0x7f72d9282220  dsprt=(nil)
+ 1%   64 KB,  33 chunks: "free memory               "  SQL
+         sort subheap    ds=0x7f72d7537898  dsprt=0x7f72d7534078
+ 
+=======================================
+PRIVATE MEMORY SUMMARY FOR THIS PROCESS
+---------------------------------------
+******************************************************
+PRIVATE HEAP SUMMARY DUMP
+10 MB total:
+    10 MB commented, 376 KB permanent
+   557 KB free (384 KB in empty extents),
+    5566 KB,   1 heap:    "session heap   "           
+    3523 KB,   2 heaps:   "koh-kghu call  "            52 KB free held
+------------------------------------------------------
+Summary of subheaps at depth 1
+9673 KB total:
+  9376 KB commented, 83 KB permanent
+   214 KB free (71 KB in empty extents),
+    3462 KB, 217 chunks:  "pl/sql vc2                " 32 KB free held
+    2935 KB,   1 heap:    "kxs-heap-w     "            94 KB free held
+    2347 KB,  12 heaps:   "koh-kghu sessi "            3 KB free held
+------------------------------------------------------
+Summary of subheaps at depth 2
+5359 KB total:
+  5275 KB commented, 37 KB permanent
+    47 KB free (20 KB in empty extents),
+    2827 KB,   1 heap:    "sort subheap   "           
+    2312 KB, 148 chunks:  "pl/sql vc2                " 18 KB free held
+******************************************************
+HEAP DUMP heap name="top call heap"  desc=0x7f72d9284b40
+ extent sz=0x20c0 alt=320 het=32767 rec=0 flg=0x3 opc=0
+ parent=(nil) owner=(nil) nex=(nil) xsz=0xfff8 heap=(nil) lru=(nil)
+ fl2=0x60, fl3=0x0, nex=(nil), idx=0, dur=-1, dsxvers=1, dsxflg=0x0
+ dsx first ext=0x7f72d8090008
+ dsx empty ext bytes=393072  subheap rc link=0x7f72d809fc38,0x7f72d809a820
+ dsx heap size=589608, dsx heap depth=0
+ pdb id=1, src pdb id=1
+ Heap has significant amount of free memory (76 percent)
+ Dumping sample extents to show fragmentation pattern:
+EXTENT 0 addr=0x7f72d77e4008
+  Chunk     7f72d77e4018 sz=    65512    free      "               "
+EXTENT 6 addr=0x7f72d78f4008
+  Chunk     7f72d78f4018 sz=    22032    free      "               "
+  Chunk     7f72d78f9628 sz=     4224    freeable  "callheap       "  ds=0x7f72d9283160
+  Chunk     7f72d78fa6a8 sz=     4264    freeable  "callheap       "  ds=0x7f72d9283160
+  Chunk     7f72d78fb750 sz=    34992    free      "               "
+******************************************************
+KGH STACK DUMP
+No stack allocations
+ 
+=========================================
+REAL-FREE ALLOCATOR DUMP FOR THIS PROCESS
+-----------------------------------------
+ 
+Dump of Real-Free Memory Allocator Heap [0x7f72d8084000]
+mag=0xfefe0001 flg=0x5000007 fds=0x0 blksz=65536
+blkdstbl=0x7f72d8084018, iniblk=1024 maxblk=524288 numsegs=7
+In-use num=155 siz=10420224, Freeable num=0 siz=0, Free num=1 siz=1048576
+Client alloc 10420224 Client freeable 0
+ 
+Internal RfPga 10176K RgPga 843K
+==========================================
+INSTANCE-WIDE PRIVATE MEMORY USAGE SUMMARY
+------------------------------------------
+ 
+Dumping Work Area Table (level=1)
+=====================================
+ 
+  Global SGA Info
+  ---------------
+ 
+    global target:      512 MB
+    auto target:         70 MB
+    max pga:            200 MB
+    pga limit:            0 MB
+    pga limit known:  0
+    pga limit errors:     0
+ 
+    # workareas     :     1
+    # workareas(max):    18
+ 
+    pga inuse:          433 MB
+    pga alloc:          637 MB
+    pga freeable:        75 MB
+    pga freed:         5044 MB
+    pga to free:          0 %
+    broker request:       0
+ 
+    pga auto:             0 MB
+    pga manual:           0 MB
+ 
+    pga alloc  (max):   987 MB
+    pga auto   (max):    22 MB
+    pga manual (max):     0 MB
+ 
+ 
+  SGA Info (PDB 3)
+  -----------------
+ 
+    global target:        0 MB
+    auto target:          0 MB
+    pga inuse:            4 MB
+    pga alloc:            4 MB
+    pga freeable:         0 MB
+    pga freed:         1003 MB
+    pga to free:          0 %
+    broker request:       0
+ 
+    pga auto:             0 MB
+    pga manual:           0 MB
+ 
+    pga alloc  (max):   249 MB
+    pga auto   (max):    11 MB
+    pga manual (max):     0 MB
+ 
+ 
+ 
+================================
+PER-PROCESS PRIVATE MEMORY USAGE
+--------------------------------
+ 
+MGA used size accounted under PGA values = 0 KB
+ 
+ 
+Private memory usage per Oracle process
+ 
+-------------------------
+Top 10 processes:
+-------------------------
+(percentage is of 644 MB total allocated memory)
+17% ospid 2361        (MMON): 14 MB used, 108 MB alloc
+ 7% ospid 2933        (ARC1): 41 MB used, 43 MB alloc
+ 7% ospid 2937        (ARC3): 41 MB used, 43 MB alloc
+ 7% ospid 2927        (ARC0): 40 MB used, 42 MB alloc, 512 KB freeable
+ 7% ospid 2935        (ARC2): 40 MB used, 42 MB alloc
+ 6% ospid 7356        (M002): 24 MB used, 42 MB alloc, 15 MB freeable
+ 6% ospid 12239       (J001): 7260 KB used, 38 MB alloc, 31 MB freeable
+ 5% ospid 3286        (M004): 26 MB used, 32 MB alloc, 5184 KB freeable
+ 4% ospid 3262        (M003): 25 MB used, 28 MB alloc, 832 KB freeable
+ 4% ospid 3258        (M001): 20 MB used, 24 MB alloc, 1152 KB freeable
+ 
+-------------------------
+All processes:
+-------------------------
+(session detail when over 32 MB allocated)
+ 
+ospid 2188        (PMON): 1367 KB used, 1501 KB alloc
+ospid 2192        (CLMN): 1367 KB used, 1501 KB alloc
+ospid 2196        (PSP0): 1349 KB used, 1485 KB alloc
+ospid 2283        (VKTM): 1349 KB used, 1485 KB alloc
+ospid 14070       (    ) (3): 10 MB used, 11 MB alloc
+ospid 2289        (GEN0): 1381 KB used, 1805 KB alloc
+ospid 2433        (    ): 3685 KB used, 5434 KB alloc, 1024 KB freeable
+ospid 2295        (MMAN): 1349 KB used, 1485 KB alloc
+ospid 2299_2300   (GEN1): 1350 KB used, 1485 KB alloc
+ospid 2299_2299   (SCMN): 1207 KB used, 1355 KB alloc
+ospid 2302        (DIAG): 1349 KB used, 1485 KB alloc
+ospid 2304_2305   (OFSD): 1882 KB used, 2061 KB alloc
+ospid 2304_2304   (SCMN): 1207 KB used, 1355 KB alloc
+ospid 2307        (DBRM): 3077 KB used, 3196 KB alloc
+ospid 2311        (VKRM): 1349 KB used, 1485 KB alloc
+ospid 2313        (SVCB): 2539 KB used, 2637 KB alloc
+ospid 2315        (PMAN): 1352 KB used, 1485 KB alloc
+ospid 2319        (DIA0): 4378 KB used, 4540 KB alloc
+ospid 2321        (DBW0): 9259 KB used, 19 MB alloc, 9408 KB freeable
+ospid 2325        (LGWR): 12 MB used, 13 MB alloc, 128 KB freeable
+ospid 2329        (CKPT): 1410 KB used, 1974 KB alloc
+ospid 2333        (LG00): 1218 KB used, 1355 KB alloc
+ospid 2335        (SMON): 1708 KB used, 2253 KB alloc, 384 KB freeable
+ospid 2339        (LG01): 1218 KB used, 1355 KB alloc
+ospid 2341        (SMCO): 1349 KB used, 1485 KB alloc
+ospid 2343        (RECO): 1911 KB used, 2701 KB alloc, 448 KB freeable
+ospid 2345        (W000): 1649 KB used, 1803 KB alloc
+ospid 2347        (LREG): 2583 KB used, 3085 KB alloc, 128 KB freeable
+ospid 2351        (W001): 1508 KB used, 1611 KB alloc
+ospid 2353        (PXMN): 1349 KB used, 1485 KB alloc
+ospid 2355        (DMON): 2269 KB used, 5320 KB alloc, 2944 KB freeable
+ospid 2363        (MMNL): 1458 KB used, 1805 KB alloc
+ospid 2361        (MMON): 14 MB used, 108 MB alloc
+------------------------------------
+Begin session detail for pid 34
+  sid: 19 ser: 28589 audsid: 0 user: 0/SYS
+  pdb: 1/CDB$ROOT
+    flags: (0x8100051) USR/- flags2: (0x40409) -/-/INC
+    flags_idl: (0x1) status: BSY/-/-/- kill: -/-/-/-
+  pid: 34 O/S info: user: oracle, term: UNKNOWN, ospid: 2361
+    image: oracle@ol9-19-dg1.localdomain (MMON)
+  current SQL: <none>
+End session detail for pid 34
+------------------------------------
+ospid 2365        (D000): 1534 KB used, 1675 KB alloc
+ospid 2367        (S000): 867 KB used, 971 KB alloc
+ospid 2369        (TMON): 1349 KB used, 1485 KB alloc
+ospid 2675        (INSV): 1411 KB used, 1517 KB alloc
+ospid 3156        (QM02): 1297 KB used, 1675 KB alloc
+ospid 12239       (J001): 7260 KB used, 38 MB alloc, 31 MB freeable
+------------------------------------
+Begin session detail for pid 40
+  sid: 3 ser: 48564 audsid: 0 user: 0/SYS
+  pdb: 1/CDB$ROOT
+    flags: (0x41) USR/- flags2: (0x9) -/-/INC
+    flags_idl: (0x1) status: BSY/-/-/- kill: -/-/-/-
+  pid: 40 O/S info: user: oracle, term: UNKNOWN, ospid: 12239
+    image: oracle@ol9-19-dg1.localdomain (J001)
+  client details:
+    O/S info: user: oracle, term: UNKNOWN, ospid: 12239
+    machine: ol9-19-dg1.localdomain program: oracle@ol9-19-dg1.localdomain (J001)
+  current SQL: <none>
+End session detail for pid 40
+------------------------------------
+ospid 3133        (W003): 1455 KB used, 1867 KB alloc
+ospid 2875        (NSV2): 5566 KB used, 5693 KB alloc
+ospid 2665        (NSS2): 12 MB used, 12 MB alloc
+ospid 2667        (RVWR): 1329 KB used, 1805 KB alloc
+ospid 2925        (RSM0): 1735 KB used, 3196 KB alloc, 1088 KB freeable
+ospid 2927        (ARC0): 40 MB used, 42 MB alloc, 512 KB freeable
+------------------------------------
+Begin session detail for pid 47
+  sid: 258 ser: 42102 audsid: 0 user: 0/SYS
+  pdb: 1/CDB$ROOT
+    flags: (0x51) USR/- flags2: (0x409) -/-/INC
+    flags_idl: (0x1) status: BSY/-/-/- kill: -/-/-/-
+  pid: 47 O/S info: user: oracle, term: UNKNOWN, ospid: 2927
+    image: oracle@ol9-19-dg1.localdomain (ARC0)
+  current SQL: <none>
+End session detail for pid 47
+------------------------------------
+ospid 2929        (TT00): 18 MB used, 19 MB alloc, 128 KB freeable
+ospid 2931        (TT01): 1207 KB used, 1355 KB alloc
+ospid 2933        (ARC1): 41 MB used, 43 MB alloc
+------------------------------------
+Begin session detail for pid 50
+  sid: 28 ser: 60879 audsid: 0 user: 0/SYS
+  pdb: 1/CDB$ROOT
+    flags: (0x51) USR/- flags2: (0x409) -/-/INC
+    flags_idl: (0x1) status: BSY/-/-/- kill: -/-/-/-
+  pid: 50 O/S info: user: oracle, term: UNKNOWN, ospid: 2933
+    image: oracle@ol9-19-dg1.localdomain (ARC1)
+  current SQL: <none>
+End session detail for pid 50
+------------------------------------
+ospid 2935        (ARC2): 40 MB used, 42 MB alloc
+------------------------------------
+Begin session detail for pid 51
+  sid: 260 ser: 37005 audsid: 0 user: 0/SYS
+  pdb: 1/CDB$ROOT
+    flags: (0x51) USR/- flags2: (0x409) -/-/INC
+    flags_idl: (0x1) status: BSY/-/-/- kill: -/-/-/-
+  pid: 51 O/S info: user: oracle, term: UNKNOWN, ospid: 2935
+    image: oracle@ol9-19-dg1.localdomain (ARC2)
+  current SQL: <none>
+End session detail for pid 51
+------------------------------------
+ospid 2937        (ARC3): 41 MB used, 43 MB alloc
+------------------------------------
+Begin session detail for pid 52
+  sid: 29 ser: 17799 audsid: 0 user: 0/SYS
+  pdb: 1/CDB$ROOT
+    flags: (0x51) USR/- flags2: (0x409) -/-/INC
+    flags_idl: (0x1) status: BSY/-/-/- kill: -/-/-/-
+  pid: 52 O/S info: user: oracle, term: UNKNOWN, ospid: 2937
+    image: oracle@ol9-19-dg1.localdomain (ARC3)
+  current SQL: <none>
+End session detail for pid 52
+------------------------------------
+ospid 2939        (TT02): 1207 KB used, 1355 KB alloc
+ospid 2941        (AQPC): 1459 KB used, 1837 KB alloc
+ospid 2953        (W002): 1296 KB used, 1419 KB alloc
+ospid 2945        (P000): 1426 KB used, 6266 KB alloc, 4288 KB freeable
+ospid 2947        (P001): 1424 KB used, 1786 KB alloc
+ospid 2949        (P002): 1419 KB used, 1786 KB alloc
+ospid 2951        (P003): 1407 KB used, 3659 KB alloc, 1984 KB freeable
+ospid 3125        (CJQ0): 3345 KB used, 3829 KB alloc
+ospid 3145        (W004): 1653 KB used, 1867 KB alloc
+ospid 4593        (W007): 1625 KB used, 1739 KB alloc
+ospid 3160        (Q002): 3064 KB used, 3339 KB alloc
+ospid 3162        (Q003): 2942 KB used, 3322 KB alloc, 64 KB freeable
+ospid 3164        (Q004): 3157 KB used, 3531 KB alloc
+ospid 3453        (    ): 1542 KB used, 1739 KB alloc
+ospid 3176        (Q005): 1929 KB used, 2251 KB alloc, 192 KB freeable
+ospid 7356        (M002): 24 MB used, 42 MB alloc, 15 MB freeable
+------------------------------------
+Begin session detail for pid 70
+  sid: 79 ser: 18454 audsid: 0 user: 0/SYS
+  pdb: 1/CDB$ROOT
+    flags: (0x8100051) USR/- flags2: (0x40409) -/-/INC
+    flags_idl: (0x1) status: BSY/-/-/- kill: -/-/-/-
+  pid: 70 O/S info: user: oracle, term: UNKNOWN, ospid: 7356
+    image: oracle@ol9-19-dg1.localdomain (M002)
+  current SQL: <none>
+End session detail for pid 70
+------------------------------------
+ospid 3413        (CL00): 1224 KB used, 1371 KB alloc
+ospid 3455        (    ): 1475 KB used, 1611 KB alloc
+ospid 3742        (    ): 1524 KB used, 2059 KB alloc, 320 KB freeable
+ospid 3250        (W005): 1336 KB used, 1483 KB alloc
+ospid 3258        (M001): 20 MB used, 24 MB alloc, 1152 KB freeable
+ospid 3262        (M003): 25 MB used, 28 MB alloc, 832 KB freeable
+ospid 3297        (W006): 1545 KB used, 1675 KB alloc
+ospid 3286        (M004): 26 MB used, 32 MB alloc, 5184 KB freeable
+ 
+======================================================
+ESTIMATED MEMORY USES FOR ALL PROCESSES
+------------------------------------------------------
+ 
+MGA used size accounted under PGA values = 0 KB
+ 
+(from 10 snapshots out of 74 processes)
+40%    259 MB,   64 processes: "unsnapshotted               "   
+14%     87 MB,    5 processes: "free memory                 "   
+           top uga heap         19 chunks
+12%     81 MB,    5 processes: "KSFQ Buffers                "   
+           KSFQ heap            80 chunks
+10%     62 MB,    4 processes: "log read buffer             "   
+           pga heap             62 chunks
+ 6%     36 MB,   10 processes: "free memory                 "   
+           session heap         1352 chunks
+ 3%     22 MB,    4 processes: "XVM Storage                 "   
+           XVM subheap of       184 chunks
+ 3%     16 MB,    4 processes: "redo strand array           "   
+           pga heap             4 chunks
+ 2%     15 MB,   10 processes: "free memory                 "   
+           pga heap             371 chunks
+ 1%   8488 KB,    5 processes: "kxsFrame4kPage              "   
+           session heap         2125 chunks
+ 1%   6956 KB,    5 processes: "kxsFrame8kPage              "   
+           session heap         902 chunks
+ 1%   5525 KB,    4 processes: "redo read desc array        "   
+           pga heap             4 chunks
+ 1%   4423 KB,    5 processes: "kxsFrame32kPage             "   
+           session heap         139 chunks
+ 1%   4099 KB,    5 processes: "kxsFrame16kPage             "   
+           session heap         258 chunks
+ 1%   3897 KB,    5 processes: "free memory                 "   
+           regheap_kdlwpg       5 chunks
+ 1%   3386 KB,    4 processes: "redo overflow buffer        "   
+           pga heap             4 chunks
+ 0%   3278 KB,    4 processes: "change vector buffer        "   
+           pga heap             4 chunks
+ 0%   2383 KB,    5 processes: "static frame of inst        "  PL/SQL
+           koh-kghu sessi       111 chunks
+ 0%   2214 KB,   10 processes: "Fixed Uga                   "   
+           Fixed UGA heap       10 chunks
+ 0%   1700 KB,    5 processes: "recursive addr reg file     "  PL/SQL
+           koh-kghu sessi       86 chunks
+ 0%   1050 KB,   10 processes: "free memory                 "   
+           top call heap        28 chunks
+ 0%    886 KB,   10 processes: "koh-kghu session heap       "   
+           session heap         376 chunks
+ 0%    694 KB,   10 processes: "ksectab: kseget             "   
+           pga heap             10 chunks
+ 0%    641 KB,    5 processes: "krabucketmem                "   
+           pga heap             5 chunks
+ 0%    534 KB,    5 processes: "inode                       "   
+           buckets_kdliug       11 chunks
+ 0%    530 KB,   10 processes: "dbgeInitProcessCtx:InvCtx   "   
+           diag pga             20 chunks
+ 0%    501 KB,    5 processes: "alloc server hndl           "   
+           Alloc environm       32 chunks
+ 0%    414 KB,   10 processes: "row cache                   "   
+           pga heap             15 chunks
+ 0%    400 KB,    5 processes: "spc.segs_kdlispc            "   
+           buckets_kdliug       5 chunks
+ 0%    396 KB,   10 processes: "kfkio bucket                "   
+           pga heap             10 chunks
+ 0%    354 KB,    5 processes: "pl/sql cursor meta-data     "  PL/SQL
+           koh-kghu sessi       19 chunks
+ 0%    336 KB,    5 processes: "ttc conv buf alloc          "   
+           Alloc server h       43 chunks
+ 0%    328 KB,   10 processes: "7114.kgght                  "   
+           7114.kgght           40 chunks
+ 0%    291 KB,    5 processes: "frame segment               "  SQL
+           kxs-heap-p           235 chunks
+ 0%    270 KB,   10 processes: "kgsc ht segs                "   
+           session heap         3051 chunks
+ 0%    269 KB,   10 processes: "kxsuhpp                     "   
+           session heap         674 chunks
+ 0%    266 KB,    5 processes: "free memory                 "   
+           kolr heap ds i       12 chunks
+ 0%    257 KB,    4 processes: "lbuf mapping info           "   
+           pga heap             4 chunks
+ 0%    255 KB,    5 processes: "KSBPGA1                     "   
+           pga heap             360 chunks
+ 0%    250 KB,   10 processes: "kgiob                       "   
+           session heap         273 chunks
+ 0%    248 KB,    5 processes: "pliost struct               "  PL/SQL
+           koh-kghu sessi       244 chunks
+ 0%    238 KB,   10 processes: "kfksb bucket                "   
+           pga heap             10 chunks
+ 0%    237 KB,    5 processes: "pl/sql vc2                  "  PL/SQL
+           koh-kghu sessi       23 chunks
+ 0%    229 KB,    5 processes: "krsb_allocate_bhb.1         "   
+           pga heap             5 chunks
+ 0%    217 KB,    5 processes: "ktspscsc                    "   
+           session heap         139 chunks
+ 0%    216 KB,    5 processes: "kxsc: kkspsc0 2             "   
+           session heap         168 chunks
+ 0%    216 KB,    5 processes: "callback hsn                "   
+           pga heap             11 chunks
+ 0%    198 KB,   10 processes: "KTI PGA static              "   
+           pga heap             10 chunks
+ 0%    186 KB,   10 processes: "NOSYNC FOB ptr              "   
+           pga heap             10 chunks
+ 0%    183 KB,    5 processes: "KSBPGA3                     "   
+           pga heap             360 chunks
+ 0%    181 KB,   10 processes: "Default Bucket              "   
+           qmd_init_pga:b       12 chunks
+ 0%    179 KB,   10 processes: "kgh stack                   "   
+           pga heap             10 chunks
+ 0%    164 KB,   10 processes: "KSRMA PGA                   "   
+           pga heap             10 chunks
+ 0%    160 KB,    6 processes: "free permanent memory       "   
+           top call heap        6 chunks
+ 0%    158 KB,    4 processes: "qmxtgcalstrm1               "   
+           koh-kghu sessi       4 chunks
+ 0%    148 KB,    4 processes: "kgsc:kxsc                   "   
+           session heap         106 chunks
+ 0%    147 KB,   10 processes: "free permanent memory       "   
+           pga heap             34 chunks
+ 0%    145 KB,   10 processes: "koh-kghu call heap          "   
+           pga heap             70 chunks
+ 0%    145 KB,    4 processes: "pevmdyn.c: EXIM pedcup bu   "  PL/SQL
+           koh-kghu sessi       9 chunks
+ 0%    137 KB,   10 processes: "free permanent memory       "   
+           session heap         25 chunks
+ 0%    134 KB,    5 processes: "krse_allocate_kcrract.2     "   
+           pga heap             5 chunks
+ 0%    132 KB,    5 processes: "kopo object                 "   
+           koh-kghu sessi       15 chunks
+ 0%    131 KB,    5 processes: "krsb_allocate_bcb.3         "   
+           pga heap             5 chunks
+ 0%    130 KB,    6 processes: "kcrr kcrrpdi archlog LAD    "   
+           pga heap             6 chunks
+ 0%    128 KB,    4 processes: "NetSlave KSR Rc             "   
+           pga heap             4 chunks
+ 0%    128 KB,    1 process  : "krsg_allocate_kcrrgua.1     "   
+           pga heap             1 chunk
+ 0%    124 KB,   10 processes: "kgefa                       "   
+           pga heap             12 chunks
+ 0%    121 KB,   10 processes: "KSRPC PGA                   "   
+           pga heap             10 chunks
+ 0%    119 KB,   10 processes: "kgsc hash table             "   
+           session heap         20 chunks
+ 0%    111 KB,    4 processes: "free memory                 "   
+           XVM subheap of       37 chunks
+ 0%    110 KB,    5 processes: "kgich                       "   
+           session heap         318 chunks
+ 0%     99 KB,   10 processes: "curdefs                     "   
+           session heap         20 chunks
+ 0%     98 KB,    5 processes: "free memory                 "   
+           kti call subhe       5 chunks
+ 0%     97 KB,   10 processes: "kohdr                       "   
+           session heap         14 chunks
+ 0%     94 KB,    5 processes: "KSBPGA2                     "   
+           pga heap             360 chunks
+ 0%     87 KB,   10 processes: "KGLSPF_P ARRAY              "   
+           pga heap             10 chunks
+ 0%     85 KB,    5 processes: "free permanent memory       "  SQL
+           kxs-heap-d           130 chunks
+ 0%     82 KB,   10 processes: "kqudgi                      "   
+           session heap         10 chunks
+ 0%     81 KB,   10 processes: "kfmspg                      "   
+           pga heap             10 chunks
+ 0%     79 KB,   10 processes: "KFKPGA                      "   
+           KFK_IO_SUBHEAP       10 chunks
+ 0%     79 KB,   10 processes: "slvmem_kfmdpg               "   
+           pga heap             10 chunks
+ 0%     79 KB,   10 processes: "KSIPC bucket                "   
+           pga heap             10 chunks
+ 0%     79 KB,    5 processes: "ksbcpdb                     "   
+           pga heap             5 chunks
+ 0%     78 KB,    5 processes: "PL/SQL STACK                "  PL/SQL
+           PLS PGA hp           10 chunks
+ 0%     77 KB,    5 processes: "kgiobdtb                    "   
+           session heap         70 chunks
+ 0%     76 KB,    5 processes: "kprball hst                 "   
+           pga heap             18 chunks
+ 0%     73 KB,    5 processes: "KSFQ ctx                    "   
+           KSFQ heap            5 chunks
+ 0%     72 KB,    5 processes: "kolraloc-1                  "   
+           kolr heap ds i       341 chunks
+ 0%     69 KB,    5 processes: "continuous uac              "  SQL
+           kxs-heap-p           103 chunks
+ 0%     67 KB,    5 processes: "define var info             "  SQL
+           kxs-heap-p           130 chunks
+ 0%     63 KB,    5 processes: "user uac                    "  SQL
+           kxs-heap-p           427 chunks
+ 0%     63 KB,    4 processes: "PX PGA blackbox             "   
+           pga heap             4 chunks
+ 0%     63 KB,   10 processes: "defFile:dbgtfNotify         "   
+           diag pga             10 chunks
+ 0%     62 KB,   10 processes: "FOB ptr array               "   
+           pga heap             20 chunks
+ 0%     58 KB,    5 processes: "frame                       "  SQL
+           kxs-heap-p           298 chunks
+ 0%     57 KB,    5 processes: "rpi hst                     "   
+           pga heap             14 chunks
+ 0%     54 KB,    2 processes: "audXscLstce:kzap            "   
+           session heap         320 chunks
+ 0%     53 KB,   10 processes: "alloc error hndl            "   
+           Alloc environm       15 chunks
+ 0%     53 KB,    2 processes: "audunm:allocate in xsc      "   
+           session heap         201 chunks
+ 0%     52 KB,    5 processes: "allocate challe             "   
+           Alloc server h       43 chunks
+ 0%     50 KB,    5 processes: "tdata                       "   
+           buckets_kdliug       5 chunks
+ 0%     49 KB,   10 processes: "Binary XML Bucket           "   
+           qmd_init_pga:b       10 chunks
+ 0%     49 KB,   10 processes: "Query/Schema/XOB Bucket     "   
+           qmd_init_pga:b       10 chunks
+ 0%     49 KB,   10 processes: "Repository/Protocols Buck   "   
+           qmd_init_pga:b       10 chunks
+ 0%     49 KB,    5 processes: "kocht                       "   
+           session heap         20 chunks
+ 0%     47 KB,    2 processes: "kqdAllocFromUGA             "   
+           session heap         68 chunks
+ 0%     47 KB,   10 processes: "ksdxwnfy: total             "   
+           pga heap             10 chunks
+ 0%     43 KB,    5 processes: "curCtx:keswxCur             "  SQL
+           kxs-heap-p           151 chunks
+ 0%     42 KB,    5 processes: "free memory                 "  SQL
+           kxs-heap-p           161 chunks
+ 0%     42 KB,   10 processes: "kopolal void                "   
+           pga heap             62 chunks
+ 0%     42 KB,    5 processes: "free permanent memory       "   
+           Alloc server h       44 chunks
+ 0%     41 KB,   10 processes: "kfmdpg                      "   
+           pga heap             10 chunks
+ 0%     40 KB,   10 processes: "KZTHSM SEGARR               "   
+           pga heap             20 chunks
+ 0%     40 KB,   10 processes: "kbcpctxp                    "   
+           pga heap             10 chunks
+ 0%     40 KB,   10 processes: "dbgeccFCInit:FCbucket       "   
+           diag pga             10 chunks
+ 0%     40 KB,   10 processes: "kfktout hash                "   
+           KFK_IO_SUBHEAP       10 chunks
+ 0%     39 KB,   10 processes: "kfnorpg aiobff_kfnorpg      "   
+           pga heap             10 chunks
+ 0%     39 KB,   10 processes: "sidlut_kfapg                "   
+           pga heap             10 chunks
+ 0%     39 KB,   10 processes: "dpslut_kfdpg                "   
+           pga heap             10 chunks
+ 0%     39 KB,   10 processes: "free memory                 "   
+           diag pga             36 chunks
+ 0%     38 KB,   10 processes: "kodpai image                "   
+           session heap         10 chunks
+ 0%     38 KB,   10 processes: "free memory                 "  PL/SQL
+           PLS UGA hp           38 chunks
+ 0%     38 KB,    1 process  : "bg process poli             "   
+           pga heap             530 chunks
+ 0%     37 KB,   10 processes: "kfdpoc context              "   
+           pga heap             10 chunks
+ 0%     37 KB,   10 processes: "KKX ICD VECTOR              "   
+           pga heap             10 chunks
+ 0%     36 KB,    1 process  : "koc kochd                   "   
+           koh-kghu sessi       3 chunks
+ 0%     36 KB,   10 processes: "free permanent memory       "   
+           sioheap_kdlwug       10 chunks
+ 0%     35 KB,    5 processes: "free memory                 "   
+           Alloc server h       35 chunks
+ 0%     33 KB,    5 processes: "koc kocsc                   "   
+           koh-kghu sessi       5 chunks
+ 0%     33 KB,   10 processes: "KSFD pga                    "   
+           pga heap             20 chunks
+ 0%     33 KB,    5 processes: "KSBPGA4                     "   
+           pga heap             360 chunks
+ 0%     32 KB,    4 processes: "redo read buffer            "   
+           pga heap             4 chunks
+ 0%     32 KB,   10 processes: "jsksncb: 1                  "   
+           pga heap             10 chunks
+ 0%     31 KB,   10 processes: "free memory                 "   
+           callheap             21 chunks
+ 0%     31 KB,   10 processes: "ts encryption p             "   
+           pga heap             20 chunks
+ 0%     31 KB,   10 processes: "5954.kgght                  "   
+           5954.kgght           30 chunks
+ 0%     31 KB,    3 processes: "alloc statement hndl        "   
+           Alloc environm       17 chunks
+ 0%     30 KB,   10 processes: "kxfpnfy:kxfpms              "   
+           pga heap             10 chunks
+ 0%     29 KB,    1 process  : "koc kocds                   "   
+           koh-kghu sessi       2 chunks
+ 0%     29 KB,   10 processes: "free memory                 "   
+           Alloc environm       58 chunks
+ 0%     28 KB,    1 process  : "inode->map_kdlimem          "   
+           buckets_kdliug       1 chunk
+ 0%     28 KB,    2 processes: "kkxmixcx : kgmagv           "  SQL
+           kxs-heap-p           69 chunks
+ 0%     28 KB,   10 processes: "free memory                 "   
+           dbgtc heap           36 chunks
+ 0%     27 KB,    2 processes: "KGM Exec mem :              "  SQL
+           kxs-heap-i           68 chunks
+ 0%     27 KB,   10 processes: "adr context                 "   
+           diag pga             10 chunks
+ 0%     26 KB,    5 processes: "free permanent memory       "  SQL
+           kxs-heap-p           133 chunks
+ 0%     26 KB,    5 processes: "free memory                 "   
+           koh-kghu sessi       7 chunks
+ 0%     25 KB,   10 processes: "kga pga                     "   
+           pga heap             10 chunks
+ 0%     25 KB,   10 processes: "kjztprq struct array        "   
+           pga heap             10 chunks
+ 0%     24 KB,   10 processes: "KKX FXP VECTOR              "   
+           pga heap             10 chunks
+ 0%     24 KB,    5 processes: "free memory                 "   
+           buckets_kdliug       7 chunks
+ 0%     24 KB,   10 processes: "fcctx:dbgeccFCInit          "   
+           diag pga             10 chunks
+ 0%     24 KB,    4 processes: "redo validation buffer      "   
+           pga heap             4 chunks
+ 0%     24 KB,    5 processes: "kghdsx                      "  PL/SQL
+           koh-kghu sessi       259 chunks
+ 0%     23 KB,   10 processes: "KGLSD_P ARRAY               "   
+           pga heap             10 chunks
+ 0%     23 KB,   10 processes: "time stat state             "   
+           pga heap             10 chunks
+ 0%     23 KB,    4 processes: "free memory                 "   
+           kgc sub heap         4 chunks
+ 0%     22 KB,   10 processes: "kpuinit env handle          "   
+           session heap         10 chunks
+ 0%     22 KB,   10 processes: "kpuinit env handle          "   
+           pga heap             10 chunks
+ 0%     22 KB,    3 processes: "alloc define hndl           "   
+           Alloc statemen       16 chunks
+ 0%     22 KB,   10 processes: "kodmcon kodmc               "   
+           session heap         20 chunks
+ 0%     22 KB,   10 processes: "615.kggec                   "   
+           615.kggec            40 chunks
+ 0%     21 KB,   10 processes: "kews sqlstat stack          "   
+           pga heap             10 chunks
+ 0%     21 KB,   10 processes: "ksvpgp                      "   
+           pga heap             10 chunks
+ 0%     20 KB,    2 processes: "pmucalm coll                "  PL/SQL
+           koh-kghu sessi       2 chunks
+ 0%     20 KB,   10 processes: "dbgr cache entries          "   
+           diag pga             50 chunks
+ 0%     20 KB,    5 processes: "alloc authentication hndl   "   
+           Alloc environm       5 chunks
+ 0%     20 KB,   10 processes: "kodougi kodou               "   
+           session heap         10 chunks
+ 0%     20 KB,   10 processes: "kokl lob id hash table      "   
+           session heap         10 chunks
+ 0%     20 KB,   10 processes: "kfnorpg aiosrq_kfnorpg      "   
+           pga heap             10 chunks
+ 0%     19 KB,   10 processes: "dbgf-date-opatc             "   
+           diag pga             10 chunks
+ 0%     19 KB,   10 processes: "dbgf-date-viewe             "   
+           diag pga             10 chunks
+ 0%     19 KB,   10 processes: "dbgf-date-emswb             "   
+           diag pga             10 chunks
+ 0%     19 KB,   10 processes: "dbgf-date-arb               "   
+           diag pga             10 chunks
+ 0%     19 KB,   10 processes: "dbgf-date-old-a             "   
+           diag pga             10 chunks
+ 0%     19 KB,   10 processes: "dbgf-date                   "   
+           diag pga             10 chunks
+ 0%     19 KB,    1 process  : "kolrde_alloc                "   
+           koh-kghu sessi       1 chunk
+ 0%     18 KB,    4 processes: "log read control            "   
+           pga heap             62 chunks
+ 0%     17 KB,   10 processes: "koh session hea             "   
+           session heap         50 chunks
+ 0%     17 KB,    5 processes: "peihstdep                   "  PL/SQL
+           PLS UGA hp           271 chunks
+ 0%     17 KB,   10 processes: "free memory                 "   
+           KFK_IO_SUBHEAP       10 chunks
+ 0%     16 KB,    9 processes: "free permanent memory       "   
+           diag pga             9 chunks
+ 0%     16 KB,    4 processes: "XMLContextInitOCI: alloc    "   
+           qmxdContextEnc       4 chunks
+ 0%     15 KB,    5 processes: "free memory                 "   
+           koh dur heap d       20 chunks
+ 0%     15 KB,   10 processes: "private file op             "   
+           pga heap             10 chunks
+ 0%     15 KB,    2 processes: "kod_cdsalloc:cds            "   
+           koh-kghu sessi       2 chunks
+ 0%     14 KB,   10 processes: "KGNFS pcontext              "   
+           pga heap             10 chunks
+ 0%     14 KB,    1 process  : "kod object new              "   
+           koh-kghu sessi       1 chunk
+ 0%     14 KB,    1 process  : "kodpunp kohldscds           "   
+           koh-kghu sessi       1 chunk
+ 0%     14 KB,    1 process  : "koi korfp                   "   
+           koh-kghu sessi       1 chunk
+ 0%     14 KB,    1 process  : "koh korfp                   "   
+           koh-kghu sessi       1 chunk
+ 0%     14 KB,    1 process  : "kol varray                  "   
+           koh-kghu sessi       1 chunk
+ 0%     14 KB,    2 processes: "audbni:allocate in xsc      "   
+           session heap         297 chunks
+ 0%     14 KB,    2 processes: "kzap audit context UGA li   "   
+           auditLoadNextG       2 chunks
+ 0%     14 KB,   10 processes: "kghrmp_state                "   
+           pga heap             10 chunks
+ 0%     14 KB,   10 processes: "ksir pga                    "   
+           pga heap             10 chunks
+ 0%     13 KB,    2 processes: "audtni:allocate in xsc      "   
+           session heap         298 chunks
+ 0%     13 KB,    5 processes: "private oac inf             "  SQL
+           kxs-heap-p           103 chunks
+ 0%     13 KB,    9 processes: "free permanent memory       "   
+           KSFQ heap            9 chunks
+ 0%     13 KB,    1 process  : "qmx.c:2543:kollasg          "   
+           koh-kghu sessi       1 chunk
+ 0%     13 KB,    1 process  : "pmucpcon: tds               "  PL/SQL
+           koh-kghu sessi       1 chunk
+ 
+======================================================
+MGA MEMORY USAGE SUMMARY FOR ALL PROCESSES
+------------------------------------------------------
+ 
+MGA used size accounted under PGA values = 0 KB
+ 
+----- KSM MGA SYSTEM DUMP START -----
+ksm_mga_dump_all : no namespaces found
+----- KSM MGA SYSTEM DUMP - END -----
+ 
+================
+SWAP INFORMATION
+----------------
+Memory (Avail / Total) = 315.03M / 6475.71M
+Swap (Avail / Total) = 4092.21M /  4096.00M
+Commit (AS / Limit) = 4364.65M / 7333.85M

@@ -1,0 +1,236 @@
+Diagnostic dump file diag_heap_uga.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  4,404 lines, 7 parts at the top level, 5 diagnostic dump sections
+
+Outline: first-last line, number of lines, title
+   1-  31     31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-1480  1,449  Heap dump: session heap  [14.4 MB, depth 1]
+    Reading: heap "session heap", desc 0x7f81376782d0, depth 1, pdb id 3
+      parent heap 0x7f8138843e00
+      122 extents, 793 chunks, 15,146,824 bytes in the extents
+      Checked against the totals the dump prints:
+        match   chunks of the extents against Total heap size: 15,146,824 = 15,146,824 (line 1257)
+        match   chunks of the free lists against Total free space: 197,760 = 197,760 (line 1358)
+        match   perm chunks under PERMANENT CHUNKS against Permanent space: 62,232 = 62,232 (line 1479)
+      By type:
+        type      chunks       bytes  share
+        freeable     681  14,845,608  98.0%
+        free          74     197,760   1.3%
+        perm          13      62,232   0.4%
+        recreate      25      41,224   0.3%
+      By comment (15 of 58, most bytes first):
+        comment          types              chunks       bytes  share  first line
+        kxs-heap-w       freeable,recreate     131  12,114,184  80.0%          43
+        koh-kghu sessi   freeable,recreate     143   2,399,440  15.8%         307
+        (no comment)     free                   74     197,760   1.3%          42
+        kxsFrame16kPage  freeable                5      82,200   0.5%         164
+        kxsFrame4kPage   freeable               18      74,736   0.5%         114
+        perm             perm                   13      62,232   0.4%         170
+        Alloc environm   freeable,recreate      10      52,056   0.3%         891
+        kxsFrame32kPage  freeable                1      32,824   0.2%         290
+        koh-kghu sessio  freeable               13      30,312   0.2%         677
+        kxsc: kkspsc0 2  freeable               14      18,592   0.1%         161
+        kgsc ht segs     freeable              269      14,824   0.1%         183
+        auditLoadNextG   freeable,recreate       3      12,792   0.1%         930
+        kxsFrame8kPage   freeable                1       8,248   0.1%         167
+        kxs-heap-p       recreate,freeable       7       6,736   0.0%         289
+        kgiob            freeable               12       6,416   0.0%         812
+        43 more comments listed in the reading: 79 chunks, 33,472 bytes
+      Free lists (line 1258): 74 chunks, 197,760 bytes in 9 of 24 buckets
+        bucket 14  size 65,560    1 chunk  131,080 bytes
+        bucket 11  size 16,408    1 chunk   26,248 bytes
+        bucket 6      size 536  31 chunks   25,792 bytes
+        bucket 7    size 1,048   3 chunks    4,592 bytes
+        bucket 8    size 2,072   2 chunks    4,480 bytes
+        bucket 1       size 88  26 chunks    3,248 bytes
+        3 more buckets hold chunks
+      Permanent chunks (line 1360): 13 perm chunks, 62,232 bytes
+      Sub-heaps: 25 (8 largest listed)
+        name            desc                 size  held here  chunks  extents  dump
+        kxs-heap-w      0x7f8136753078  9,203,968  9,199,848      37       38
+        kxs-heap-w      0x7f8136e931d8  2,910,216  2,906,096      92       93
+        koh-kghu sessi  0x7f8136e96de8  2,369,032  2,367,792     125      126
+        Alloc environm  0x7f8136e61a38     52,056     51,344       9       10
+        auditLoadNextG  0x7f8136e60d80     12,792      8,376       2        3
+        koh-kghu sessi  0x7f8136eb0900      7,512      6,272       2        3
+        koh-kghu sessi  0x7f8136e95a98      5,400      4,160       1        2
+        PLS UGA hp      0x7f81376bdc58      4,144      2,136       1        2
+    41-1257  1,217  Extents  [122 extents]
+  1258-1358    101  Free lists
+  1359-1359      1  Unpinned recreatable chunks
+  1360-1480    121  Permanent chunks
+1481-1482      2  Other lines  [markers and blank lines]
+1483-2920  1,438  Heap dump: session heap  [14.4 MB, depth 1]
+    Reading: heap "session heap", desc 0x7f81376782d0, depth 1, pdb id 3
+      parent heap 0x7f8138843e00
+      121 extents, 789 chunks, 15,081,360 bytes in the extents
+      Checked against the totals the dump prints:
+        match   chunks of the extents against Total heap size: 15,081,360 = 15,081,360 (line 2700)
+        match   chunks of the free lists against Total free space: 205,512 = 205,512 (line 2798)
+        match   perm chunks under PERMANENT CHUNKS against Permanent space: 62,232 = 62,232 (line 2919)
+      By type:
+        type      chunks       bytes  share
+        freeable     680  14,772,392  98.0%
+        free          71     205,512   1.4%
+        perm          13      62,232   0.4%
+        recreate      25      41,224   0.3%
+      By comment (15 of 58, most bytes first):
+        comment          types              chunks       bytes  share  first line
+        kxs-heap-w       freeable,recreate     131  12,071,216  80.0%        1494
+        koh-kghu sessi   freeable,recreate     140   2,368,560  15.7%        1703
+        (no comment)     free                   71     205,512   1.4%        1493
+        kxsFrame16kPage  freeable                5      82,200   0.5%        1997
+        kxsFrame4kPage   freeable               18      74,736   0.5%        1890
+        perm             perm                   13      62,232   0.4%        2003
+        Alloc environm   freeable,recreate      10      52,056   0.3%        2334
+        kxsFrame32kPage  freeable                1      32,824   0.2%        2061
+        koh-kghu sessio  freeable               13      30,312   0.2%        2119
+        kxsc: kkspsc0 2  freeable               14      18,592   0.1%        1992
+        kgsc ht segs     freeable              270      15,168   0.1%        1679
+        auditLoadNextG   freeable,recreate       3      12,792   0.1%        2373
+        kxsFrame8kPage   freeable                1       8,248   0.1%        2000
+        kxs-heap-p       recreate,freeable       7       6,824   0.0%        1685
+        kgiob            freeable               12       6,416   0.0%        2060
+        43 more comments listed in the reading: 80 chunks, 33,672 bytes
+      Free lists (line 2701): 71 chunks, 205,512 bytes in 11 of 24 buckets
+        bucket 14  size 65,560    1 chunk  131,080 bytes
+        bucket 6      size 536  40 chunks   32,888 bytes
+        bucket 11  size 16,408    1 chunk   27,096 bytes
+        bucket 8    size 2,072   2 chunks    5,400 bytes
+        bucket 9    size 4,120    1 chunk    4,192 bytes
+        bucket 1       size 88  17 chunks    2,096 bytes
+        5 more buckets hold chunks
+      Permanent chunks (line 2800): 13 perm chunks, 62,232 bytes
+      Sub-heaps: 25 (8 largest listed)
+        name            desc                 size  held here  chunks  extents  dump
+        kxs-heap-w      0x7f8136e931d8  9,169,848  9,165,728      37       38
+        kxs-heap-w      0x7f8136753078  2,901,368  2,897,248      92       93
+        koh-kghu sessi  0x7f8136e96de8  2,338,152  2,336,912     122      123
+        Alloc environm  0x7f8136e61a38     52,056     51,344       9       10
+        auditLoadNextG  0x7f8136e60d80     12,792      8,376       2        3
+        koh-kghu sessi  0x7f8136eb0900      7,512      6,272       2        3
+        koh-kghu sessi  0x7f8136e95a98      5,400      4,160       1        2
+        PLS UGA hp      0x7f81376bdc58      4,144      2,136       1        2
+  1492-2700  1,209  Extents  [121 extents]
+  2701-2798     98  Free lists
+  2799-2799      1  Unpinned recreatable chunks
+  2800-2920    121  Permanent chunks
+2921-3816    896  Heap dump: pga heap  [4.5 MB, depth 0]
+    Reading: heap "pga heap", desc 0x7f8138841220, depth 0, pdb id 0
+      103 extents, 323 chunks, 4,707,160 bytes in the extents
+      Checked against the totals the dump prints:
+        match   chunks of the extents against Total heap size: 4,707,160 = 4,707,160 (line 3572)
+        match   chunks of the free lists against Total free space: 55,880 = 55,880 (line 3609)
+        match   perm chunks under PERMANENT CHUNKS against Permanent space: 392,464 = 392,464 (line 3814)
+      By type:
+        type      chunks      bytes  share
+        freeable     259  3,994,328  84.9%
+        perm          40    392,464   8.3%
+        recreate      14    264,488   5.6%
+        free          10     55,880   1.2%
+      By comment (15 of 58, most bytes first):
+        comment          types              chunks      bytes  share  first line
+        koh-kghu call    freeable,recreate     160  3,555,464  75.5%        2936
+        perm             perm                   40    392,464   8.3%        3314
+        Fixed UGA heap   recreate                1    228,904   4.9%        3330
+        diag pga         freeable,recreate      26    217,424   4.6%        2932
+        Alloc environm   freeable,recreate      10     63,752   1.4%        3329
+        (no comment)     free                   10     55,880   1.2%        2931
+        kfkio bucket     freeable                1     40,984   0.9%        3394
+        kfksb bucket     freeable                1     24,600   0.5%        3392
+        qmd_init_pga:b   freeable,recreate       5     21,672   0.5%        3410
+        PLS PGA hp       freeable,recreate       3     18,800   0.4%        3316
+        kgh stack        freeable                1     17,024   0.4%        3506
+        KFK_IO_SUBHEAP   recreate,freeable       3     14,200   0.3%        3396
+        koh-kghu call h  freeable                4      7,640   0.2%        3305
+        KZTHSM SEGARR    freeable                2      4,200   0.1%        3569
+        kbcpctxp         freeable                1      4,160   0.1%        3480
+        43 more comments listed in the reading: 55 chunks, 39,992 bytes
+      Free lists (line 3573): 10 chunks, 55,880 bytes in 6 of 24 buckets
+        bucket 11  size 16,408   1 chunk  32,752 bytes
+        bucket 10   size 8,216  2 chunks  16,512 bytes
+        bucket 9    size 4,120   1 chunk   6,024 bytes
+        bucket 1       size 88  3 chunks     304 bytes
+        bucket 3      size 168   1 chunk     176 bytes
+        bucket 0       size 56  2 chunks     112 bytes
+      Permanent chunks (line 3611): 40 perm chunks, 392,464 bytes
+      Sub-heaps: 14 (8 largest listed)
+        name            desc                 size  held here  chunks  extents  dump
+        koh-kghu call   0x7f81376711e8  3,552,984  3,551,744     157      158
+        Fixed UGA heap  0x7f8138722c10    228,904          0       0        1
+        diag pga        0x7f81387fc7c8    217,424    214,240      25       26
+        Alloc environm  0x7f81387219a8     63,752     62,448       9       10
+        qmd_init_pga:b  0x7f813875d9a8     21,672     20,736       4        5
+        PLS PGA hp      0x7f813875deb8     18,800     10,392       2        3
+        KFK_IO_SUBHEAP  0x7f81387737d8     14,200      5,760       2        3
+        KSFQ heap       0x7f8138726248      4,056          0       0        1
+  2930-3572    643  Extents  [103 extents]
+  3573-3609     37  Free lists
+  3610-3610      1  Unpinned recreatable chunks
+  3611-3816    206  Permanent chunks
+3817-3939    123  Heap dump: top call heap  [703.7 KB, depth 0]
+    Reading: heap "top call heap", desc 0x7f8138843b40, depth 0, pdb id 1
+      11 extents, 34 chunks, 720,632 bytes in the extents
+      Checked against the totals the dump prints:
+        match   chunks of the extents against Total heap size: 720,632 = 720,632 (line 3891)
+        match   chunks of the free lists against Total free space: 640,776 = 640,776 (line 3930)
+        match   perm chunks under PERMANENT CHUNKS against Permanent space: 656 = 656 (line 3938)
+      By type:
+        type      chunks    bytes  share
+        free          12  640,776  88.9%
+        freeable      18   77,232  10.7%
+        recreate       2    1,968   0.3%
+        perm           2      656   0.1%
+      By comment (3 of 3, most bytes first):
+        comment       types              chunks    bytes  share  first line
+        (no comment)  free                   12  640,776  88.9%        3827
+        callheap      freeable,recreate      20   79,200  11.0%        3842
+        perm          perm                    2      656   0.1%        3855
+      Free lists (line 3892): 12 chunks, 640,776 bytes in 4 of 24 buckets
+        bucket 13  size 49,176  9 chunks  580,408 bytes
+        bucket 12  size 32,792   1 chunk   43,208 bytes
+        bucket 11  size 16,408   1 chunk   16,408 bytes
+        bucket 6      size 536   1 chunk      752 bytes
+      Permanent chunks (line 3932): 2 perm chunks, 656 bytes
+      Sub-heaps: 2 (2 largest listed)
+        name      desc              size  held here  chunks  extents  dump
+        callheap  0x7f8138842160  78,216     77,232      18       19
+        callheap  0x7f81388422a8     984          0       0        1
+  3826-3891     66  Extents  [11 extents]
+  3892-3930     39  Free lists
+  3931-3931      1  Unpinned recreatable chunks
+  3932-3939      8  Permanent chunks
+3940-4404    465  Heap dump: top uga heap  [15.4 MB, depth 0]
+    Reading: heap "top uga heap", desc 0x7f8138843e00, depth 0, pdb id 1
+      121 extents, 151 chunks, 16,184,488 bytes in the extents
+      Checked against the totals the dump prints:
+        match   chunks of the extents against Total heap size: 16,184,488 = 16,184,488 (line 4342)
+        match   chunks of the free lists against Total free space: 1,098,136 = 1,098,136 (line 4398)
+        match   perm chunks under PERMANENT CHUNKS against Permanent space: 128 = 128 (line 4403)
+      By type:
+        type      chunks       bytes  share
+        freeable     120  15,020,840  92.8%
+        free          29   1,098,136   6.8%
+        recreate       1      65,384   0.4%
+        perm           1         128   0.0%
+      By comment (3 of 3, most bytes first):
+        comment       types              chunks       bytes  share  first line
+        session heap  freeable,recreate     121  15,086,224  93.2%        3950
+        (no comment)  free                   29   1,098,136   6.8%        3952
+        perm          perm                    1         128   0.0%        4219
+      Free lists (line 4343): 29 chunks, 1,098,136 bytes in 6 of 24 buckets
+        bucket 13  size 49,176  16 chunks  1,045,376 bytes
+        bucket 8    size 2,072   9 chunks     35,328 bytes
+        bucket 10   size 8,216    1 chunk     14,424 bytes
+        bucket 7    size 1,048    1 chunk      1,856 bytes
+        bucket 6      size 536    1 chunk        832 bytes
+        bucket 4      size 280    1 chunk        320 bytes
+      Permanent chunks (line 4400): 1 perm chunks, 128 bytes
+      Sub-heaps: 1 (1 largest listed)
+        name          desc                  size   held here  chunks  extents  dump
+        session heap  0x7f81376782d0  15,086,224  15,020,840     120      121  lines 1483-2920
+  3949-4342    394  Extents  [121 extents]
+  4343-4398     56  Free lists
+  4399-4399      1  Unpinned recreatable chunks
+  4400-4404      5  Permanent chunks

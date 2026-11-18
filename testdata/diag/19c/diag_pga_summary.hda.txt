@@ -1,0 +1,11 @@
+
+  -- Heapdump Analyzer v1.03 by Tanel Poder ( https://blog.tanelpoder.com )
+
+    Total_size #Chunks  Chunk_size,        From_heap,       Chunk_type,  Alloc_reason
+  ------------ ------- ------------ ----------------- ----------------- -----------------
+         65512    1        65512 ,    top call heap,             free,                 
+         34992    1        34992 ,    top call heap,             free,                 
+         22032    1        22032 ,    top call heap,             free,                 
+          4264    1         4264 ,    top call heap,         freeable,  callheap       
+          4224    1         4224 ,    top call heap,         freeable,  callheap       
+

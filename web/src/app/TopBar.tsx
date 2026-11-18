@@ -3,17 +3,17 @@ import { fmtWall, fmtTz, fmtBytes, fmtInt, optFacts, useStore, useActions, scope
 const themeNext = { auto: 'light', light: 'dark', dark: 'auto' } as const
 const themeGlyph = { auto: '◐', light: '○', dark: '●' } as const
 
-/** File, the whole-trace profile in miniature, the views, filters and theme. A 10053 file has none of the 10046 counts: `OptTopBar`. */
+/** File, the whole-trace profile in miniature, the views, filters and theme. A 10053 file or a dump file has none of the 10046 counts: `OptTopBar`. */
 export function TopBar(p: { doc: TraceDoc; onShowInfo?: () => void }) {
-  return p.doc.opt ? <OptTopBar {...p} /> : <TraceTopBar {...p} />
+  return p.doc.opt || p.doc.dump ? <OptTopBar {...p} /> : <TraceTopBar {...p} />
 }
 
-/** The top bar of a 10053 file: its name and size, the 10053 view's tab and the theme; no statement, wait or session counts (the file has none). */
+/** The top bar of a 10053 file or a dump file: its name and size, the reader's tab and the theme; no statement, wait or session counts (the file has none). */
 function OptTopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => void }) {
   const actions = useActions()
   const theme = useStore((s) => s.theme)
   const path = doc.file.traceFile || doc.file.path
-  const name = doc.opt?.file.name || path.split(/[\\/]/).pop() || path
+  const name = doc.opt?.file.name || doc.dump?.file.name || path.split(/[\\/]/).pop() || path
   return (
     <header className="topbar">
       <span className="brand">mtkprof</span>
@@ -73,7 +73,22 @@ function TraceTopBar({ doc, onShowInfo }: { doc: TraceDoc; onShowInfo?: () => vo
 
 /** Where the trace came from: database, session, module, time span. */
 export function SubBar({ doc, onClose }: { doc: TraceDoc; onClose: () => void }) {
-  return doc.opt ? <OptSubBar doc={doc} onClose={onClose} /> : <TraceSubBar doc={doc} onClose={onClose} />
+  return doc.dump ? <DumpSubBar doc={doc} onClose={onClose} /> : doc.opt ? <OptSubBar doc={doc} onClose={onClose} /> : <TraceSubBar doc={doc} onClose={onClose} />
+}
+
+/** The facts of a dump file that mean something: the release and version, the instance, the session and pluggable database of its markers, the lines. What the file holds is the reader's own line. */
+function DumpSubBar({ doc, onClose }: { doc: TraceDoc; onClose: () => void }) {
+  const f = optFacts(doc)
+  return (
+    <div className="subbar">
+      {(f.release || f.version) && <span>Oracle <b>{f.version.replace(/\.0\.0\.0$/, '') || f.release}</b>{doc.file.instance && <> · instance <b>{doc.file.instance}</b>{doc.file.node && <> on {doc.file.node.split('.')[0]}</>}</>}</span>}
+      {f.pdb && <span>pluggable database <b>{f.pdb}</b></span>}
+      {f.session && <span>session <b>{f.session}</b></span>}
+      <span><b>{fmtInt(doc.dump?.file.lines ?? 0)}</b> lines</span>
+      {doc.file.truncated && <span className="warn">cut by max_dump_file_size</span>}
+      <button className="quiet close" onClick={onClose} title="hide this bar (ⓘ in the top bar shows it again)" aria-label="Hide trace info bar">×</button>
+    </div>
+  )
 }
 
 /** The facts of a 10053 file that mean something: the release and version, the session and pluggable database of its markers, the dumps. */

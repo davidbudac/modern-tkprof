@@ -1,0 +1,1486 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_13717_mtk_diag_heap_pga.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 6
+Unix process pid: 13717, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-11-17T21:34:23.506584+00:00 (PDB1(3))
+*** SESSION ID:(22.34792) 2026-11-17T21:34:23.506609+00:00
+*** CLIENT ID:(mtk_client_diag_heap_pga) 2026-11-17T21:34:23.506612+00:00
+*** SERVICE NAME:(pdb1) 2026-11-17T21:34:23.506616+00:00
+*** MODULE NAME:(mtk_diag_heap_pga) 2026-11-17T21:34:23.506619+00:00
+*** ACTION NAME:(heapdump_1) 2026-11-17T21:34:23.506628+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-11-17T21:34:23.506631+00:00
+*** CONTAINER ID:(3) 2026-11-17T21:34:23.506633+00:00
+ 
+******************************************************
+HEAP DUMP heap name="pga heap"  desc=0x7f952ce9a220
+ extent sz=0x20c0 alt=272 het=32767 rec=0 flg=0x2 opc=0
+ parent=(nil) owner=(nil) nex=(nil) xsz=0xfff0 heap=(nil) lru=(nil)
+ fl2=0x60, fl3=0x0, nex=(nil), idx=0, dur=-1, dsxvers=1, dsxflg=0x0
+ dsx first ext=0x7f952cd79b60
+ dsx empty ext bytes=0  subheap rc link=0x7f952cd79c98,0x7f952b3b9288
+ dsx heap size=4707160, dsx heap depth=0
+ pdb id=0, src pdb id=0
+EXTENT 0 addr=0x7f952ae99010
+  Chunk     7f952ae99020 sz=     4328    free      "               "
+  Chunk     7f952ae9a108 sz=     6128    freeable  "diag pga       "  ds=0x7f952ce557c8
+  Chunk     7f952ae9b8f8 sz=    55048    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 1 addr=0x7f952aad9010
+  Chunk     7f952aad9020 sz=    65504    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 2 addr=0x7f952aac9010
+  Chunk     7f952aac9020 sz=    65504    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 3 addr=0x7f952aab9010
+  Chunk     7f952aab9020 sz=    65504    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 4 addr=0x7f952aaa9010
+  Chunk     7f952aaa9020 sz=    65504    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 5 addr=0x7f952b099010
+  Chunk     7f952b099020 sz=    32752    free      "               "
+  Chunk     7f952b0a1010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 6 addr=0x7f952b089010
+  Chunk     7f952b089020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b091010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 7 addr=0x7f952b079010
+  Chunk     7f952b079020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b081010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 8 addr=0x7f952b069010
+  Chunk     7f952b069020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b071010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 9 addr=0x7f952b059010
+  Chunk     7f952b059020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b061010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 10 addr=0x7f952b049010
+  Chunk     7f952b049020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b051010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 11 addr=0x7f952b039010
+  Chunk     7f952b039020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b041010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 12 addr=0x7f952b029010
+  Chunk     7f952b029020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b031010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 13 addr=0x7f952b019010
+  Chunk     7f952b019020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b021010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 14 addr=0x7f952b009010
+  Chunk     7f952b009020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b011010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 15 addr=0x7f952aff9010
+  Chunk     7f952aff9020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b001010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 16 addr=0x7f952afe9010
+  Chunk     7f952afe9020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aff1010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 17 addr=0x7f952afd9010
+  Chunk     7f952afd9020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952afe1010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 18 addr=0x7f952afc9010
+  Chunk     7f952afc9020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952afd1010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 19 addr=0x7f952afb9010
+  Chunk     7f952afb9020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952afc1010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 20 addr=0x7f952afa9010
+  Chunk     7f952afa9020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952afb1010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 21 addr=0x7f952af99010
+  Chunk     7f952af99020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952afa1010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 22 addr=0x7f952af89010
+  Chunk     7f952af89020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af91010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 23 addr=0x7f952af79010
+  Chunk     7f952af79020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af81010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 24 addr=0x7f952af69010
+  Chunk     7f952af69020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af71010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 25 addr=0x7f952af59010
+  Chunk     7f952af59020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af61010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 26 addr=0x7f952af49010
+  Chunk     7f952af49020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af51010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 27 addr=0x7f952af39010
+  Chunk     7f952af39020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af41010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 28 addr=0x7f952af29010
+  Chunk     7f952af29020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af31010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 29 addr=0x7f952af19010
+  Chunk     7f952af19020 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af21010 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 30 addr=0x7f952af09010
+  Chunk     7f952af09020 sz=    10248    free      "               "
+  Chunk     7f952af0b828 sz=     6128    freeable  "diag pga       "  ds=0x7f952ce557c8
+  Chunk     7f952af0d018 sz=    32752    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af15008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 31 addr=0x7f952aef9010
+  Chunk     7f952aef9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aefd018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af01010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952af05008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 32 addr=0x7f952aee9010
+  Chunk     7f952aee9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aeed018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aef1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aef5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 33 addr=0x7f952aed9010
+  Chunk     7f952aed9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aedd018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aee1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aee5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 34 addr=0x7f952aec9010
+  Chunk     7f952aec9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aecd018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aed1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aed5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 35 addr=0x7f952aeb9010
+  Chunk     7f952aeb9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aebd018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aec1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aec5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 36 addr=0x7f952aea9010
+  Chunk     7f952aea9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aead018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aeb1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952aeb5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 37 addr=0x7f952b299010
+  Chunk     7f952b299020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b29d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b2a1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b2a5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 38 addr=0x7f952b289010
+  Chunk     7f952b289020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b28d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b291010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b295008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 39 addr=0x7f952b279010
+  Chunk     7f952b279020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b27d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b281010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b285008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 40 addr=0x7f952b269010
+  Chunk     7f952b269020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b26d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b271010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b275008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 41 addr=0x7f952b259010
+  Chunk     7f952b259020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b25d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b261010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b265008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 42 addr=0x7f952b249010
+  Chunk     7f952b249020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b24d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b251010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b255008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 43 addr=0x7f952b239010
+  Chunk     7f952b239020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b23d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b241010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b245008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 44 addr=0x7f952b229010
+  Chunk     7f952b229020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b22d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b231010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b235008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 45 addr=0x7f952b219010
+  Chunk     7f952b219020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b21d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b221010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b225008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 46 addr=0x7f952b209010
+  Chunk     7f952b209020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b20d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b211010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b215008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 47 addr=0x7f952b1f9010
+  Chunk     7f952b1f9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1fd018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b201010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b205008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 48 addr=0x7f952b1e9010
+  Chunk     7f952b1e9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1ed018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1f1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1f5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 49 addr=0x7f952b1d9010
+  Chunk     7f952b1d9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1dd018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1e1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1e5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 50 addr=0x7f952b1c9010
+  Chunk     7f952b1c9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1cd018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1d1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1d5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 51 addr=0x7f952b1b9010
+  Chunk     7f952b1b9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1bd018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1c1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1c5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 52 addr=0x7f952b1a9010
+  Chunk     7f952b1a9020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1ad018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1b1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1b5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 53 addr=0x7f952b199010
+  Chunk     7f952b199020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b19d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1a1010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b1a5008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 54 addr=0x7f952b189010
+  Chunk     7f952b189020 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b18d018 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b191010 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b195008 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 55 addr=0x7f952b3b9010
+  Chunk     7f952b3b9020 sz=      600    free      "               "
+  Chunk     7f952b3b9278 sz=     1240    recreate  "koh-kghu call  "   
+     ds     7f952b3b9788 sz=     1240 ct=        1
+  Chunk     7f952b3b9750 sz=     2520    freeable  "koh-kghu call h"
+  Chunk     7f952b3ba128 sz=     1240    recreate  "koh-kghu call  "   
+     ds     7f952b3ba638 sz=     1240 ct=        1
+  Chunk     7f952b3ba600 sz=     2520    freeable  "koh-kghu call h"
+  Chunk     7f952b3bafd8 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b3befd0 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b3c2fc8 sz=    16376    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b3c6fc0 sz=     8256    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+EXTENT 56 addr=0x7f952b4cc010
+  Chunk     7f952b4cc020 sz=   118624    perm      "perm           "  alo=115224
+  Chunk     7f952b4e8f80 sz=     4160    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952b4e9fc0 sz=     8256    freeable  "PLS PGA hp     "  ds=0x7f952cdb6eb8
+EXTENT 57 addr=0x7f952bcd0010
+  Chunk     7f952bcd0020 sz=     1144    free      "               "
+  Chunk     7f952bcd0498 sz=     2112    freeable  "koh-kghu call  "  ds=0x7f952bcd11e8
+  Chunk     7f952bcd0cd8 sz=     1240    recreate  "koh-kghu call  "   
+     ds     7f952bcd11e8 sz=  3552984 ct=      158
+            7f952aad9020 sz=    65504
+            7f952aac9020 sz=    65504
+            7f952aab9020 sz=    65504
+            7f952aaa9020 sz=    65504
+            7f952b0a1010 sz=    32752
+            7f952b089020 sz=    32752
+            7f952b091010 sz=    32752
+            7f952b079020 sz=    32752
+            7f952b081010 sz=    32752
+            7f952b069020 sz=    32752
+            7f952b071010 sz=    32752
+            7f952b059020 sz=    32752
+            7f952b061010 sz=    32752
+            7f952b049020 sz=    32752
+            7f952b051010 sz=    32752
+            7f952b039020 sz=    32752
+            7f952b041010 sz=    32752
+            7f952b029020 sz=    32752
+            7f952b031010 sz=    32752
+            7f952b019020 sz=    32752
+            7f952b021010 sz=    32752
+            7f952b009020 sz=    32752
+            7f952b011010 sz=    32752
+            7f952aff9020 sz=    32752
+            7f952b001010 sz=    32752
+            7f952afe9020 sz=    32752
+            7f952aff1010 sz=    32752
+            7f952afd9020 sz=    32752
+            7f952afe1010 sz=    32752
+            7f952afc9020 sz=    32752
+            7f952afd1010 sz=    32752
+            7f952afb9020 sz=    32752
+            7f952afc1010 sz=    32752
+            7f952afa9020 sz=    32752
+            7f952afb1010 sz=    32752
+            7f952af99020 sz=    32752
+            7f952afa1010 sz=    32752
+            7f952af89020 sz=    32752
+            7f952af91010 sz=    32752
+            7f952af79020 sz=    32752
+            7f952af81010 sz=    32752
+            7f952af69020 sz=    32752
+            7f952af71010 sz=    32752
+            7f952af59020 sz=    32752
+            7f952af61010 sz=    32752
+            7f952af49020 sz=    32752
+            7f952af51010 sz=    32752
+            7f952af39020 sz=    32752
+            7f952af41010 sz=    32752
+            7f952af29020 sz=    32752
+            7f952af31010 sz=    32752
+            7f952af19020 sz=    32752
+            7f952af21010 sz=    32752
+            7f952af0d018 sz=    32752
+            7f952af15008 sz=    16376
+            7f952aef9020 sz=    16376
+            7f952aefd018 sz=    16376
+            7f952af01010 sz=    16376
+            7f952af05008 sz=    16376
+            7f952aee9020 sz=    16376
+            7f952aeed018 sz=    16376
+            7f952aef1010 sz=    16376
+            7f952aef5008 sz=    16376
+            7f952aed9020 sz=    16376
+            7f952aedd018 sz=    16376
+            7f952aee1010 sz=    16376
+            7f952aee5008 sz=    16376
+            7f952aec9020 sz=    16376
+            7f952aecd018 sz=    16376
+            7f952aed1010 sz=    16376
+            7f952aed5008 sz=    16376
+            7f952aeb9020 sz=    16376
+            7f952aebd018 sz=    16376
+            7f952aec1010 sz=    16376
+            7f952aec5008 sz=    16376
+            7f952aea9020 sz=    16376
+            7f952aead018 sz=    16376
+            7f952aeb1010 sz=    16376
+            7f952aeb5008 sz=    16376
+            7f952b299020 sz=    16376
+            7f952b29d018 sz=    16376
+            7f952b2a1010 sz=    16376
+            7f952b2a5008 sz=    16376
+            7f952b289020 sz=    16376
+            7f952b28d018 sz=    16376
+            7f952b291010 sz=    16376
+            7f952b295008 sz=    16376
+            7f952b279020 sz=    16376
+            7f952b27d018 sz=    16376
+            7f952b281010 sz=    16376
+            7f952b285008 sz=    16376
+            7f952b269020 sz=    16376
+            7f952b26d018 sz=    16376
+            7f952b271010 sz=    16376
+            7f952b275008 sz=    16376
+            7f952b259020 sz=    16376
+            7f952b25d018 sz=    16376
+            7f952b261010 sz=    16376
+            7f952b265008 sz=    16376
+            7f952b249020 sz=    16376
+            7f952b24d018 sz=    16376
+            7f952b251010 sz=    16376
+            7f952b255008 sz=    16376
+            7f952b239020 sz=    16376
+            7f952b23d018 sz=    16376
+            7f952b241010 sz=    16376
+            7f952b245008 sz=    16376
+            7f952b229020 sz=    16376
+            7f952b22d018 sz=    16376
+            7f952b231010 sz=    16376
+            7f952b235008 sz=    16376
+            7f952b219020 sz=    16376
+            7f952b21d018 sz=    16376
+            7f952b221010 sz=    16376
+            7f952b225008 sz=    16376
+            7f952b209020 sz=    16376
+            7f952b20d018 sz=    16376
+            7f952b211010 sz=    16376
+            7f952b215008 sz=    16376
+            7f952b1f9020 sz=    16376
+            7f952b1fd018 sz=    16376
+            7f952b201010 sz=    16376
+            7f952b205008 sz=    16376
+            7f952b1e9020 sz=    16376
+            7f952b1ed018 sz=    16376
+            7f952b1f1010 sz=    16376
+            7f952b1f5008 sz=    16376
+            7f952b1d9020 sz=    16376
+            7f952b1dd018 sz=    16376
+            7f952b1e1010 sz=    16376
+            7f952b1e5008 sz=    16376
+            7f952b1c9020 sz=    16376
+            7f952b1cd018 sz=    16376
+            7f952b1d1010 sz=    16376
+            7f952b1d5008 sz=    16376
+            7f952b1b9020 sz=    16376
+            7f952b1bd018 sz=    16376
+            7f952b1c1010 sz=    16376
+            7f952b1c5008 sz=    16376
+            7f952b1a9020 sz=    16376
+            7f952b1ad018 sz=    16376
+            7f952b1b1010 sz=    16376
+            7f952b1b5008 sz=    16376
+            7f952b199020 sz=    16376
+            7f952b19d018 sz=    16376
+            7f952b1a1010 sz=    16376
+            7f952b1a5008 sz=    16376
+            7f952b189020 sz=    16376
+            7f952b18d018 sz=    16376
+            7f952b191010 sz=    16376
+            7f952b195008 sz=    16376
+            7f952b3bafd8 sz=    16376
+            7f952b3befd0 sz=    16376
+            7f952b3c2fc8 sz=    16376
+            7f952b3c6fc0 sz=     8256
+            7f952b4e8f80 sz=     4160
+            7f952bcd0498 sz=     2112
+  Chunk     7f952bcd11b0 sz=     2520    freeable  "koh-kghu call h"
+  Chunk     7f952bcd1b88 sz=     8408    recreate  "PLS PGA hp     "   
+     ds     7f952cdb6eb8 sz=    18800 ct=        3
+            7f952b4e9fc0 sz=     8256
+            7f952bcc3238 sz=     2136
+  Chunk     7f952bcd3c60 sz=     4224    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcd4ce0 sz=     5248    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcd6160 sz=     8312    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcd81d8 sz=   228904    recreate  "Fixed UGA heap "   
+     ds     7f952cd7bc10 sz=   228904 ct=        1
+EXTENT 58 addr=0x7f952bcc0010
+  Chunk     7f952bcc0020 sz=    12648    perm      "perm           "  alo=12648
+  Chunk     7f952bcc3188 sz=      176    free      "               "
+  Chunk     7f952bcc3238 sz=     2136    freeable  "PLS PGA hp     "  ds=0x7f952cdb6eb8
+  Chunk     7f952bcc3a90 sz=     4224    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcc4b10 sz=     4184    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcc5b68 sz=     8312    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcc7be0 sz=     4184    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcc8c38 sz=    16552    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcccce0 sz=     8312    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bcced58 sz=     4184    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952bccfdb0 sz=      592    freeable  "kopolal void   "
+EXTENT 59 addr=0x7f952ce58768
+  Chunk     7f952ce58778 sz=     1512    perm      "perm           "  alo=1512
+  Chunk     7f952ce58d60 sz=      552    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+  Chunk     7f952ce58f88 sz=      456    freeable  "kopolal void   "
+  Chunk     7f952ce59150 sz=      592    freeable  "kopolal void   "
+  Chunk     7f952ce593a0 sz=     1072    freeable  "kopolal void   "
+  Chunk     7f952ce597d0 sz=     4184    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 60 addr=0x7f952ce12dd8
+  Chunk     7f952ce12de8 sz=    27456    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 61 addr=0x7f952ce0c258
+  Chunk     7f952ce0c268 sz=    27456    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 62 addr=0x7f952ce0a168
+  Chunk     7f952ce0a178 sz=     4184    freeable  "diag pga       "  ds=0x7f952ce557c8
+  Chunk     7f952ce0b1d0 sz=     4184    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 63 addr=0x7f952cdf4448
+  Chunk     7f952cdf4458 sz=     1760    freeable  "diag pga       "  ds=0x7f952ce557c8
+  Chunk     7f952cdf4b38 sz=     6608    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 64 addr=0x7f952ce06070
+  Chunk     7f952ce06080 sz=    16568    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 65 addr=0x7f952cdf0350
+  Chunk     7f952cdf0360 sz=    16568    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 66 addr=0x7f952cdee260
+  Chunk     7f952cdee270 sz=     4144    freeable  "diag pga       "  ds=0x7f952ce557c8
+  Chunk     7f952cdef2a0 sz=     4224    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 67 addr=0x7f952cdec170
+  Chunk     7f952cdec180 sz=      112    freeable  "dbgdInitEventGr"
+  Chunk     7f952cdec1f0 sz=     8256    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 68 addr=0x7f952cdea080
+  Chunk     7f952cdea090 sz=     4184    freeable  "diag pga       "  ds=0x7f952ce557c8
+  Chunk     7f952cdeb0e8 sz=     4184    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 69 addr=0x7f952cde7f90
+  Chunk     7f952cde7fa0 sz=     4184    freeable  "diag pga       "  ds=0x7f952ce557c8
+  Chunk     7f952cde8ff8 sz=     4184    freeable  "diag pga       "  ds=0x7f952ce557c8
+EXTENT 70 addr=0x7f952cde5ea0
+  Chunk     7f952cde5eb0 sz=     4136    perm      "perm           "  alo=4136
+  Chunk     7f952cde6ed8 sz=      112    freeable  "skgdllctx      "
+  Chunk     7f952cde6f48 sz=     4120    freeable  "kfnorpg aiobff_"
+EXTENT 71 addr=0x7f952cde3d30
+  Chunk     7f952cde3d40 sz=     8496    perm      "perm           "  alo=8496
+EXTENT 72 addr=0x7f952cde1c40
+  Chunk     7f952cde1c50 sz=     8248    perm      "perm           "  alo=8248
+  Chunk     7f952cde3c88 sz=      120    freeable  "skgfzctx       "
+EXTENT 73 addr=0x7f952cddfb50
+  Chunk     7f952cddfb60 sz=     4336    perm      "perm           "  alo=4336
+  Chunk     7f952cde0c50 sz=     3784    perm      "perm           "  alo=3784
+  Chunk     7f952cde1b18 sz=       64    freeable  "kzsna:login nam"
+  Chunk     7f952cde1b58 sz=      184    freeable  "sdbgrf: iosb   "
+EXTENT 74 addr=0x7f952cdd9af8
+  Chunk     7f952cdd9b08 sz=    24600    freeable  "kfksb bucket   "
+EXTENT 75 addr=0x7f952cdcfaa0
+  Chunk     7f952cdcfab0 sz=    40984    freeable  "kfkio bucket   "
+EXTENT 76 addr=0x7f952cdcd968
+  Chunk     7f952cdcd978 sz=     8440    recreate  "KFK_IO_SUBHEAP "   
+     ds     7f952cdcc7d8 sz=    14200 ct=        3
+            7f952cdcc8e0 sz=     4184
+            7f952cdc0d70 sz=     1576
+EXTENT 77 addr=0x7f952cdcb878
+  Chunk     7f952cdcb888 sz=     4120    perm      "perm           "  alo=4120
+  Chunk     7f952cdcc8a0 sz=       64    freeable  "KFVACFS PGA    "
+  Chunk     7f952cdcc8e0 sz=     4184    freeable  "KFK_IO_SUBHEAP "  ds=0x7f952cdcc7d8
+EXTENT 78 addr=0x7f952cdc9788
+  Chunk     7f952cdc9798 sz=     8280    perm      "perm           "  alo=8280
+  Chunk     7f952cdcb7f0 sz=       88    free      "               "
+EXTENT 79 addr=0x7f952cdc7698
+  Chunk     7f952cdc76a8 sz=     3184    recreate  "XVMsubheap     "   
+     ds     7f952cdc0a90 sz=     3184 ct=        1
+  Chunk     7f952cdc8318 sz=     5184    freeable  "qmd_init_pga:b "  ds=0x7f952cdb69a8
+EXTENT 80 addr=0x7f952cdc55a8
+  Chunk     7f952cdc55b8 sz=      904    freeable  "diag pga       "  ds=0x7f952ce557c8
+  Chunk     7f952cdc5940 sz=     2072    freeable  "kfnorpg aiosrq_"
+  Chunk     7f952cdc6158 sz=      208    freeable  "KFIO PGA struct"
+  Chunk     7f952cdc6228 sz=     5184    freeable  "qmd_init_pga:b "  ds=0x7f952cdb69a8
+EXTENT 81 addr=0x7f952cdc34b8
+  Chunk     7f952cdc34c8 sz=      112    free      "               "
+  Chunk     7f952cdc3538 sz=      344    freeable  "kopolal void   "
+  Chunk     7f952cdc3690 sz=      464    freeable  "keumnfy:1      "
+  Chunk     7f952cdc3860 sz=     2264    freeable  "kews sqlstat st"
+  Chunk     7f952cdc4138 sz=     5184    freeable  "qmd_init_pga:b "  ds=0x7f952cdb69a8
+EXTENT 82 addr=0x7f952cdc13c8
+  Chunk     7f952cdc13d8 sz=     3184    recreate  "diag pga       "   
+     ds     7f952ce557c8 sz=   213720 ct=       21
+            7f952af0b828 sz=     6128
+            7f952ae9a108 sz=     6128
+            7f952ae9b8f8 sz=    55048
+            7f952ce597d0 sz=     4184
+            7f952cdf4458 sz=     1760
+            7f952ce0a178 sz=     4184
+            7f952ce12de8 sz=    27456
+            7f952ce0c268 sz=    27456
+            7f952ce0b1d0 sz=     4184
+            7f952cdee270 sz=     4144
+            7f952cdf4b38 sz=     6608
+            7f952ce06080 sz=    16568
+            7f952cdf0360 sz=    16568
+            7f952cdef2a0 sz=     4224
+            7f952cdc55b8 sz=      904
+            7f952cdea090 sz=     4184
+            7f952cdec1f0 sz=     8256
+            7f952cdeb0e8 sz=     4184
+            7f952cde7fa0 sz=     4184
+            7f952cde8ff8 sz=     4184
+  Chunk     7f952cdc2048 sz=     5184    freeable  "qmd_init_pga:b "  ds=0x7f952cdb69a8
+EXTENT 83 addr=0x7f952cdbf2d8
+  Chunk     7f952cdbf2e8 sz=     6448    perm      "perm           "  alo=6448
+  Chunk     7f952cdc0c18 sz=      344    perm      "perm           "  alo=344
+  Chunk     7f952cdc0d70 sz=     1576    freeable  "KFK_IO_SUBHEAP "  ds=0x7f952cdcc7d8
+EXTENT 84 addr=0x7f952cdbd1e8
+  Chunk     7f952cdbd1f8 sz=     7432    perm      "perm           "  alo=7432
+  Chunk     7f952cdbef00 sz=      936    recreate  "qmd_init_pga:b "   
+     ds     7f952cdb69a8 sz=    21672 ct=        5
+            7f952cdc8318 sz=     5184
+            7f952cdc6228 sz=     5184
+            7f952cdc4138 sz=     5184
+            7f952cdc2048 sz=     5184
+EXTENT 85 addr=0x7f952cdbae40
+  Chunk     7f952cdbae50 sz=     9064    perm      "perm           "  alo=9064
+EXTENT 86 addr=0x7f952cdb4f58
+  Chunk     7f952cdb4f68 sz=     2496    perm      "perm           "  alo=2496
+  Chunk     7f952cdb5928 sz=     4136    perm      "perm           "  alo=4136
+  Chunk     7f952cdb6950 sz=       64    free      "               "
+  Chunk     7f952cdb6990 sz=      160    freeable  "qmd_init_pga:bu"
+  Chunk     7f952cdb6a30 sz=      568    freeable  "joxp ht heap   "
+  Chunk     7f952cdb6c68 sz=      568    freeable  "joxp heap      "
+  Chunk     7f952cdb6ea0 sz=      376    freeable  "PLS cca hp desc"
+EXTENT 87 addr=0x7f952cdafee8
+  Chunk     7f952cdafef8 sz=    20528    perm      "perm           "  alo=20528
+EXTENT 88 addr=0x7f952cdaddf8
+  Chunk     7f952cdade08 sz=     3784    perm      "perm           "  alo=3784
+  Chunk     7f952cdaecd0 sz=      208    perm      "perm           "  alo=208
+  Chunk     7f952cdaeda0 sz=       80    freeable  "koh-kghu call h"
+  Chunk     7f952cdaedf0 sz=      136    freeable  "KCFIS GCTX     "
+  Chunk     7f952cdaee78 sz=     4160    freeable  "kbcpctxp       "
+EXTENT 89 addr=0x7f952cda9258
+  Chunk     7f952cda9268 sz=    19296    perm      "perm           "  alo=19296
+EXTENT 90 addr=0x7f952cda7168
+  Chunk     7f952cda7178 sz=     6480    perm      "perm           "  alo=6480
+  Chunk     7f952cda8ac8 sz=      984    perm      "perm           "  alo=984
+  Chunk     7f952cda8ea0 sz=      208    perm      "perm           "  alo=208
+  Chunk     7f952cda8f70 sz=      104    freeable  "kfnorpg        "
+  Chunk     7f952cda8fd8 sz=      592    freeable  "krbabrPgaRespMs"
+EXTENT 91 addr=0x7f952cda5078
+  Chunk     7f952cda5088 sz=     5752    perm      "perm           "  alo=5752
+  Chunk     7f952cda6700 sz=     1512    perm      "perm           "  alo=1512
+  Chunk     7f952cda6ce8 sz=     1104    recreate  "joxp heap      "   
+     ds     7f952cdb6c80 sz=     1104 ct=        1
+EXTENT 92 addr=0x7f952cda2f88
+  Chunk     7f952cda2f98 sz=      800    perm      "perm           "  alo=800
+  Chunk     7f952cda32b8 sz=      168    freeable  "KFIO heap      "
+  Chunk     7f952cda3360 sz=      160    freeable  "regheapd_kdlwpg"
+  Chunk     7f952cda3400 sz=      232    freeable  "iovecheapd_kdlw"
+  Chunk     7f952cda34e8 sz=     2152    freeable  "5954.kgght     "  ds=0x7f952cd955e8
+  Chunk     7f952cda3d50 sz=     1128    freeable  "615.kggec      "  ds=0x7f952cd7c910
+  Chunk     7f952cda41b8 sz=     1128    freeable  "5954.kgght     "  ds=0x7f952cd955e8
+  Chunk     7f952cda4620 sz=     2600    freeable  "kjztprq struct "
+EXTENT 93 addr=0x7f952cda0e98
+  Chunk     7f952cda0ea8 sz=     8368    perm      "perm           "  alo=8368
+EXTENT 94 addr=0x7f952cd9cbd8
+  Chunk     7f952cd9cbe8 sz=    17024    freeable  "kgh stack      "
+EXTENT 95 addr=0x7f952cd98920
+  Chunk     7f952cd98930 sz=    17016    perm      "perm           "  alo=17016
+EXTENT 96 addr=0x7f952cd96830
+  Chunk     7f952cd96840 sz=     2256    perm      "perm           "  alo=2256
+  Chunk     7f952cd97110 sz=      536    perm      "perm           "  alo=536
+  Chunk     7f952cd97328 sz=     4912    perm      "perm           "  alo=4912
+  Chunk     7f952cd98658 sz=       72    freeable  "krbabrPgaReqCtx"
+  Chunk     7f952cd986a0 sz=      592    freeable  "krbabrPgaReqMsg"
+EXTENT 97 addr=0x7f952cd94740
+  Chunk     7f952cd94750 sz=     3608    perm      "perm           "  alo=3608
+  Chunk     7f952cd95568 sz=       48    free      "               "
+  Chunk     7f952cd95598 sz=       56    freeable  "KCFIS GCTX PGAL"
+  Chunk     7f952cd955d0 sz=      184    freeable  "5954.kgght     "
+  Chunk     7f952cd95688 sz=       96    freeable  "KJZT context   "
+  Chunk     7f952cd956e8 sz=      160    freeable  "KSZ pga subheap"
+  Chunk     7f952cd95788 sz=      160    freeable  "ksws pq help sv"
+  Chunk     7f952cd95828 sz=     4056    recreate  "KSFQ heap      "   
+     ds     7f952cd7f248 sz=     4056 ct=        1
+EXTENT 98 addr=0x7f952cd91608
+  Chunk     7f952cd91618 sz=    12536    perm      "perm           "  alo=12536
+EXTENT 99 addr=0x7f952cd7fd98
+  Chunk     7f952cd7fda8 sz=    71728    perm      "perm           "  alo=71728
+EXTENT 100 addr=0x7f952cd7dca8
+  Chunk     7f952cd7dcb8 sz=     4920    perm      "perm           "  alo=4920
+  Chunk     7f952cd7eff0 sz=      432    freeable  "krbabrPgaStbyRe"
+  Chunk     7f952cd7f1a0 sz=      144    freeable  "control file ca"
+  Chunk     7f952cd7f230 sz=      160    freeable  "KSFQ heap descr"
+  Chunk     7f952cd7f2d0 sz=      104    freeable  "kgopc pcontext "
+  Chunk     7f952cd7f338 sz=      872    freeable  "KGODM FHASHTABL"
+  Chunk     7f952cd7f6a0 sz=      152    freeable  "KGODM FHASHTABL"
+  Chunk     7f952cd7f738 sz=       56    freeable  "KGODM pga conte"
+  Chunk     7f952cd7f770 sz=     1528    freeable  "KGNFS pcontext "
+EXTENT 101 addr=0x7f952cd7bbb8
+  Chunk     7f952cd7bbc8 sz=     2160    perm      "perm           "  alo=2160
+  Chunk     7f952cd7c438 sz=       56    perm      "perm           "  alo=56
+  Chunk     7f952cd7c470 sz=      432    perm      "perm           "  alo=432
+  Chunk     7f952cd7c620 sz=       64    freeable  "krbrpcact      "
+  Chunk     7f952cd7c660 sz=       40    freeable  "control file ca"
+  Chunk     7f952cd7c688 sz=      624    recreate  "615.kggec      "   
+     ds     7f952cd7c910 sz=     1752 ct=        2
+            7f952cda3d50 sz=     1128
+  Chunk     7f952cd7c8f8 sz=      184    freeable  "615.kggec      "
+  Chunk     7f952cd7c9b0 sz=      624    recreate  "5954.kgght     "   
+     ds     7f952cd955e8 sz=     3904 ct=        3
+            7f952cda34e8 sz=     2152
+            7f952cda41b8 sz=     1128
+  Chunk     7f952cd7cc20 sz=     4184    freeable  "Alloc environm "  ds=0x7f952cd7a9a8
+EXTENT 102 addr=0x7f952cd79b60
+  Chunk     7f952cd79b70 sz=      128    perm      "perm           "  alo=128
+  Chunk     7f952cd79bf0 sz=      152    perm      "perm           "  alo=152
+  Chunk     7f952cd79c88 sz=     1304    recreate  "Alloc environm "   
+     ds     7f952cd7a9a8 sz=    73776 ct=       13
+            7f952ce58d60 sz=      552
+            7f952bcd3c60 sz=     4224
+            7f952bcd4ce0 sz=     5248
+            7f952bcc3a90 sz=     4224
+            7f952bcd6160 sz=     8312
+            7f952bcc4b10 sz=     4184
+            7f952bcc5b68 sz=     8312
+            7f952bcc7be0 sz=     4184
+            7f952bcc8c38 sz=    16552
+            7f952bcccce0 sz=     8312
+            7f952bcced58 sz=     4184
+            7f952cd7cc20 sz=     4184
+  Chunk     7f952cd7a1a0 sz=     2368    freeable  "kpuinit env han"
+  Chunk     7f952cd7aae0 sz=     3096    freeable  "KZTHSM SEGARR  "
+  Chunk     7f952cd7b6f8 sz=     1104    freeable  "KZTHSM SEGARR  "
+  Chunk     7f952cd7bb48 sz=       64    freeable  "allocate kzthsm"
+Total heap size    =  4707160
+FREE LISTS:
+ Bucket 0 size=56
+  Chunk     7f952cdb6950 sz=       64    free      "               "
+  Chunk     7f952cd95568 sz=       48    free      "               "
+  Chunk     7f952cd79ba0 sz=        0   kghdsx
+ Bucket 1 size=88
+  Chunk     7f952cdc34c8 sz=      112    free      "               "
+  Chunk     7f952cdcb7f0 sz=       88    free      "               "
+ Bucket 2 size=152
+ Bucket 3 size=168
+  Chunk     7f952bcc3188 sz=      176    free      "               "
+ Bucket 4 size=280
+ Bucket 5 size=496
+ Bucket 6 size=536
+  Chunk     7f952b3b9020 sz=      600    free      "               "
+ Bucket 7 size=1048
+  Chunk     7f952bcd0020 sz=     1144    free      "               "
+ Bucket 8 size=2072
+ Bucket 9 size=4120
+  Chunk     7f952ae99020 sz=     4328    free      "               "
+ Bucket 10 size=8216
+  Chunk     7f952af09020 sz=    10248    free      "               "
+ Bucket 11 size=16408
+  Chunk     7f952b099020 sz=    32752    free      "               "
+ Bucket 12 size=32792
+ Bucket 13 size=49176
+ Bucket 14 size=65560
+ Bucket 15 size=131096
+ Bucket 16 size=262168
+ Bucket 17 size=524312
+ Bucket 18 size=1048600
+ Bucket 19 size=2097176
+ Bucket 20 size=4194328
+ Bucket 21 size=8388632
+ Bucket 22 size=16777240
+ Bucket 23 size=33554456
+Total free space   =    49560
+UNPINNED RECREATABLE CHUNKS (lru first):
+PERMANENT CHUNKS:
+  Chunk     7f952b4cc020 sz=   118624    perm      "perm           "  alo=115224
+            7f952b4cc040 sz=    85776    cprm      "row cache      "
+            7f952b4e0f50 sz=     4368    cprm      "rpi hst        "
+            7f952b4e2060 sz=       40    cprm      "psdwc: PGA call"
+            7f952b4e2088 sz=    20608    cprm      "callback hsn   "
+            7f952b4e7108 sz=       32    cprm      "kse_snap_ring_s"
+            7f952b4e7128 sz=     4368    cprm      "kprball hst    "
+  Chunk     7f952bcc0020 sz=    12648    perm      "perm           "  alo=12648
+            7f952bcc0040 sz=    11520    cprm      "kgefa          "
+            7f952bcc2d40 sz=       64    cprm      "ksu_register_ta"
+            7f952bcc2d80 sz=       64    cprm      "ksu_register_ta"
+            7f952bcc2dc0 sz=      104    cprm      "kgassf         "
+            7f952bcc2e28 sz=       96    cprm      "kgasf          "
+            7f952bcc2e88 sz=       56    cprm      "GPGA kopoc     "
+            7f952bcc2ec0 sz=      352    cprm      "GPGA kopefcs   "
+            7f952bcc3020 sz=      136    cprm      "GPGA kope2fcs  "
+            7f952bcc30a8 sz=      160    cprm      "kope2pgi kope2p"
+            7f952bcc3148 sz=       64    cprm      "ksu_register_ta"
+  Chunk     7f952ce58778 sz=     1512    perm      "perm           "  alo=1512
+            7f952ce58798 sz=     1480    cprm      "kghrmp_state   "
+  Chunk     7f952cde5eb0 sz=     4136    perm      "perm           "  alo=4136
+            7f952cde5ed0 sz=     3312    cprm      "jsksncb: 1     "
+            7f952cde6bc0 sz=      160    cprm      "KXDBIO PGA     "
+            7f952cde6c60 sz=      632    cprm      "KPDB PGA       "
+  Chunk     7f952cde0c50 sz=     3784    perm      "perm           "  alo=3784
+            7f952cde0c70 sz=      200    cprm      "kfnvpga        "
+            7f952cde0d38 sz=       24    cprm      "kftmpg         "
+            7f952cde0d50 sz=       64    cprm      "KFR OSM PGA    "
+            7f952cde0d90 sz=      784    cprm      "kfiac_pga      "
+            7f952cde10a0 sz=       56    cprm      "kfzpg          "
+            7f952cde10d8 sz=       40    cprm      "kfthapg        "
+            7f952cde1100 sz=       24    cprm      "kffspga        "
+            7f952cde1118 sz=       24    cprm      "PGA Aux ptr    "
+            7f952cde1130 sz=       24    cprm      "KEBM PGA Spare "
+            7f952cde1148 sz=     2448    cprm      "time stat state"
+            7f952cde1ad8 sz=       64    cprm      "ksu_register_ta"
+  Chunk     7f952cde3d40 sz=     8496    perm      "perm           "  alo=8496
+            7f952cde3d60 sz=     8464    cprm      "kfmspg         "
+  Chunk     7f952cde1c50 sz=     8248    perm      "perm           "  alo=8248
+            7f952cde1c70 sz=     8216    cprm      "slvmem_kfmdpg  "
+  Chunk     7f952cddfb60 sz=     4336    perm      "perm           "  alo=4336
+            7f952cddfb80 sz=     4304    cprm      "kfmdpg         "
+  Chunk     7f952cdcb888 sz=     4120    perm      "perm           "  alo=4120
+            7f952cdcb8a8 sz=     3872    cprm      "kfdpoc context "
+            7f952cdcc7c8 sz=      152    cprm      "KFK_IO_SUBHEAP "
+            7f952cdcc860 sz=       64    cprm      "ksu_register_ta"
+  Chunk     7f952cdc0c18 sz=      344    perm      "perm           "  alo=344
+            7f952cdc0c38 sz=      152    cprm      "dsheap_kfdpg   "
+            7f952cdc0cd0 sz=      160    cprm      "kfdrelochist sl"
+  Chunk     7f952cdc9798 sz=     8280    perm      "perm           "  alo=8280
+            7f952cdc97b8 sz=     4112    cprm      "sidlut_kfapg   "
+            7f952cdca7c8 sz=       24    cprm      "KFAS PGA       "
+            7f952cdca7e0 sz=     4112    cprm      "dpslut_kfdpg   "
+  Chunk     7f952cdbf2e8 sz=     6448    perm      "perm           "  alo=6448
+            7f952cdbf308 sz=     1384    cprm      "kxfpnfy:kxfpds "
+            7f952cdbf870 sz=       64    cprm      "ksu_register_ta"
+            7f952cdbf8b0 sz=       64    cprm      "ksu_register_ta"
+            7f952cdbf8f0 sz=      104    cprm      "kngipga:1      "
+            7f952cdbf958 sz=      136    cprm      "kohpg          "
+            7f952cdbf9e0 sz=       72    cprm      "koh call heap  "
+            7f952cdbfa28 sz=      448    cprm      "koh call heap  "
+            7f952cdbfbe8 sz=      440    cprm      "koh proc dur he"
+            7f952cdbfda0 sz=       80    cprm      "kodopgi kodop  "
+            7f952cdbfdf0 sz=      120    cprm      "kodopgi kopfdo "
+            7f952cdbfe68 sz=       24    cprm      "kodopgi kodmd  "
+            7f952cdbfe80 sz=       32    cprm      "koipgi koipg   "
+            7f952cdbfea0 sz=      384    cprm      "koipgi koipgcv "
+            7f952cdc0020 sz=      384    cprm      "koi koipgdv    "
+            7f952cdc01a0 sz=       48    cprm      "type manager   "
+            7f952cdc01d0 sz=       32    cprm      "kolfpgi: KOLF's"
+            7f952cdc01f0 sz=       64    cprm      "kolpgi: KOL's P"
+            7f952cdc0230 sz=      248    cprm      "kolepgi: KOLE's"
+            7f952cdc0328 sz=      352    cprm      "KGQBT cmp func "
+            7f952cdc0488 sz=       40    cprm      "KWQIPGA_INIT   "
+            7f952cdc04b0 sz=       40    cprm      "INIT           "
+            7f952cdc04d8 sz=     1232    cprm      "kwsbgcdpjini-kw"
+            7f952cdc09a8 sz=      176    cprm      "lpxHeap:subheap"
+            7f952cdc0a58 sz=       40    cprm      "qmxpgAl        "
+            7f952cdc0a80 sz=      152    cprm      "XVM_PGA_subheap"
+            7f952cdc0b18 sz=       56    cprm      "qmtknfy:cbk    "
+            7f952cdc0b50 sz=       96    cprm      "pspool_kfpg    "
+            7f952cdc0bb0 sz=       72    cprm      "kgfspares      "
+            7f952cdc0bf8 sz=       32    cprm      "kfapg          "
+  Chunk     7f952cdbd1f8 sz=     7432    perm      "perm           "  alo=7432
+            7f952cdbd218 sz=     2576    cprm      "KKX FXP VECTOR "
+            7f952cdbdc28 sz=      224    cprm      "plip struct    "
+            7f952cdbdd08 sz=      408    cprm      "kgscPGAInit    "
+            7f952cdbdea0 sz=      128    cprm      "pesldT01_Contex"
+            7f952cdbdf20 sz=      736    cprm      "joxp struct    "
+            7f952cdbe200 sz=       56    cprm      "system event co"
+            7f952cdbe238 sz=       64    cprm      "ksu_register_ta"
+            7f952cdbe278 sz=       64    cprm      "ksu_register_ta"
+            7f952cdbe2b8 sz=     3144    cprm      "kxfpnfy:kxfpms "
+  Chunk     7f952cdb5928 sz=     4136    perm      "perm           "  alo=4136
+            7f952cdb5948 sz=       24    cprm      "kzaac_vpga     "
+            7f952cdb5960 sz=       80    cprm      "qcpgx: qciPGIni"
+            7f952cdb59b0 sz=      144    cprm      "KKX CLIENT VECT"
+            7f952cdb5a40 sz=     3856    cprm      "KKX ICD VECTOR "
+  Chunk     7f952cdbae50 sz=     9064    perm      "perm           "  alo=9064
+            7f952cdbae70 sz=     9032    cprm      "KGLSPF_P ARRAY "
+  Chunk     7f952cdb4f68 sz=     2496    perm      "perm           "  alo=2496
+            7f952cdb4f88 sz=     2464    cprm      "KGLSD_P ARRAY  "
+  Chunk     7f952cda6700 sz=     1512    perm      "perm           "  alo=1512
+            7f952cda6720 sz=      592    cprm      "kgxct          "
+            7f952cda6970 sz=      168    cprm      "kdp_init_pgcbks"
+            7f952cda6a18 sz=      400    cprm      "row cache      "
+            7f952cda6ba8 sz=      160    cprm      "library cache  "
+            7f952cda6c48 sz=      160    cprm      "kglpgm         "
+  Chunk     7f952cdaecd0 sz=      208    perm      "perm           "  alo=208
+            7f952cdaecf0 sz=      176    cprm      "KTI-csh-des    "
+  Chunk     7f952cda8ea0 sz=      208    perm      "perm           "  alo=208
+            7f952cda8ec0 sz=      176    cprm      "KTI-csh-pre    "
+  Chunk     7f952cdafef8 sz=    20528    perm      "perm           "  alo=20528
+            7f952cdaff18 sz=    20496    cprm      "KTI PGA static "
+  Chunk     7f952cda8ac8 sz=      984    perm      "perm           "  alo=984
+            7f952cda8ae8 sz=      776    cprm      "KCFIS PGA      "
+            7f952cda8df0 sz=      152    cprm      "kcnibr.c@2946  "
+            7f952cda8e88 sz=       24    cprm      "KTC Variable PG"
+  Chunk     7f952cdade08 sz=     3784    perm      "perm           "  alo=3784
+            7f952cdade28 sz=     3456    cprm      "KSFD pga       "
+            7f952cdaeba8 sz=       24    cprm      "ptr to kcflsoh "
+            7f952cdaebc0 sz=      272    cprm      "per slot read i"
+  Chunk     7f952cda9268 sz=    19296    perm      "perm           "  alo=19296
+            7f952cda9288 sz=    19264    cprm      "NOSYNC FOB ptr "
+  Chunk     7f952cda7178 sz=     6480    perm      "perm           "  alo=6480
+            7f952cda7198 sz=     3224    cprm      "FOB ptr array  "
+            7f952cda7e30 sz=     3224    cprm      "FOB ptr array  "
+  Chunk     7f952cda5088 sz=     5752    perm      "perm           "  alo=5752
+            7f952cda50a8 sz=     1624    cprm      "ts encryption p"
+            7f952cda5700 sz=     1624    cprm      "ts encryption p"
+            7f952cda5d58 sz=      480    cprm      "Tablespace Encr"
+            7f952cda5f38 sz=       96    cprm      "L2 pfob ptr arr"
+            7f952cda5f98 sz=      272    cprm      "KCBFLC PGA     "
+            7f952cda60a8 sz=     1624    cprm      "private file op"
+  Chunk     7f952cda2f98 sz=      800    perm      "perm           "  alo=800
+            7f952cda2fb8 sz=      768    cprm      "KCB block plug "
+  Chunk     7f952cd97328 sz=     4912    perm      "perm           "  alo=4912
+            7f952cd97348 sz=     1456    cprm      "ksir pga       "
+            7f952cd978f8 sz=      104    cprm      "mdp_ksirpg     "
+            7f952cd97960 sz=      448    cprm      "KSZ PGA        "
+            7f952cd97b20 sz=      448    cprm      "KSZ PGA structu"
+            7f952cd97ce0 sz=       32    cprm      "KSRMF PGA      "
+            7f952cd97d00 sz=      752    cprm      "KSGL PGA       "
+            7f952cd97ff0 sz=       48    cprm      "KGDDNFS CallBac"
+            7f952cd98020 sz=       56    cprm      "KSWL PGA       "
+            7f952cd98058 sz=      768    cprm      "KCB block check"
+            7f952cd98358 sz=      768    cprm      "KCB block objec"
+  Chunk     7f952cda0ea8 sz=     8368    perm      "perm           "  alo=8368
+            7f952cda0ec8 sz=     8208    cprm      "KSIPC bucket   "
+            7f952cda2ed8 sz=      128    cprm      "KSMSQ PGA      "
+  Chunk     7f952cd97110 sz=      536    perm      "perm           "  alo=536
+            7f952cd97130 sz=      144    cprm      "IPC clbmap     "
+            7f952cd971c0 sz=      144    cprm      "IPC rembmap    "
+            7f952cd97250 sz=      144    cprm      "IPC jnbmap     "
+            7f952cd972e0 sz=       24    cprm      "IPC rebld sqtl "
+            7f952cd972f8 sz=       24    cprm      "IPC rebld nsqtl"
+            7f952cd97310 sz=       24    cprm      "IPC rebld state"
+  Chunk     7f952cd98930 sz=    17016    perm      "perm           "  alo=17016
+            7f952cd98950 sz=    16984    cprm      "KSRMA PGA      "
+  Chunk     7f952cd96840 sz=     2256    perm      "perm           "  alo=2256
+            7f952cd96860 sz=     2224    cprm      "ksvpgp         "
+  Chunk     7f952cd94750 sz=     3608    perm      "perm           "  alo=3608
+            7f952cd94770 sz=     2648    cprm      "kga pga        "
+            7f952cd951c8 sz=      104    cprm      "KSFQ pga       "
+            7f952cd95230 sz=       24    cprm      "KSFS pga       "
+            7f952cd95248 sz=      112    cprm      "KSFS DBFS ctx  "
+            7f952cd952b8 sz=       24    cprm      "KSFD pga       "
+            7f952cd952d0 sz=      576    cprm      "KGSK pga       "
+            7f952cd95510 sz=       64    cprm      "ksu_register_ta"
+            7f952cd95550 sz=       24    cprm      "KSR PGA context"
+  Chunk     7f952cd7c470 sz=      432    perm      "perm           "  alo=432
+            7f952cd7c490 sz=      200    cprm      "ksfv PGA contex"
+            7f952cd7c558 sz=      104    cprm      "kgassf         "
+            7f952cd7c5c0 sz=       96    cprm      "kgasf          "
+  Chunk     7f952cd91618 sz=    12536    perm      "perm           "  alo=12536
+            7f952cd91638 sz=    12504    cprm      "KSRPC PGA      "
+  Chunk     7f952cd7c438 sz=       56    perm      "perm           "  alo=56
+            7f952cd7c458 sz=       24    cprm      "ksepg_ccsi     "
+  Chunk     7f952cd7fda8 sz=    71728    perm      "perm           "  alo=71728
+            7f952cd7fdc8 sz=    71696    cprm      "ksectab: kseget"
+  Chunk     7f952cd7dcb8 sz=     4920    perm      "perm           "  alo=4920
+            7f952cd7dcd8 sz=     4888    cprm      "ksdxwnfy: total"
+  Chunk     7f952cd7bbc8 sz=     2160    perm      "perm           "  alo=2160
+            7f952cd7bbe8 sz=       24    cprm      "dbktat bitvec  "
+            7f952cd7bc00 sz=      152    cprm      "Fixed UGA ds   "
+            7f952cd7bc98 sz=       24    cprm      "post queue scan"
+            7f952cd7bcb0 sz=       56    cprm      "post queue proc"
+            7f952cd7bce8 sz=       24    cprm      "post queue scan"
+            7f952cd7bd00 sz=       56    cprm      "post queue proc"
+            7f952cd7bd38 sz=       24    cprm      "post queue scan"
+            7f952cd7bd50 sz=       56    cprm      "post queue proc"
+            7f952cd7bd88 sz=      456    cprm      "periodic callba"
+            7f952cd7bf50 sz=     1040    cprm      "KSU PRNG contex"
+            7f952cd7c360 sz=       24    cprm      "os statistics  "
+            7f952cd7c378 sz=       64    cprm      "ksu_register_ta"
+            7f952cd7c3b8 sz=       64    cprm      "KSOSLS sampled "
+            7f952cd7c3f8 sz=       64    cprm      "ksu_register_ta"
+  Chunk     7f952cd79bf0 sz=      152    perm      "perm           "  alo=152
+            7f952cd79c10 sz=       64    cprm      "kglsim pga     "
+            7f952cd79c50 sz=       56    cprm      "ksmxmctx       "
+  Chunk     7f952cd79b70 sz=      128    perm      "perm           "  alo=128
+            7f952cd79b90 sz=       96    cprm      "kghdsx         "
+Permanent space    =   392464
+No stack allocations
+******************************************************
+******************************************************
+HEAP DUMP heap name="top call heap"  desc=0x7f952ce9cb40
+ extent sz=0x20c0 alt=320 het=32767 rec=0 flg=0x3 opc=0
+ parent=(nil) owner=(nil) nex=(nil) xsz=0xfff8 heap=(nil) lru=(nil)
+ fl2=0x60, fl3=0x0, nex=(nil), idx=0, dur=-1, dsxvers=1, dsxflg=0x0
+ dsx first ext=0x7f952bcb0008
+ dsx empty ext bytes=262048  subheap rc link=0x7f952bcbfc38,0x7f952bcba820
+ dsx heap size=458584, dsx heap depth=0
+ pdb id=1, src pdb id=1
+EXTENT 0 addr=0x7f952b3f9008
+  Chunk     7f952b3f9018 sz=    65512    free      "               "
+EXTENT 1 addr=0x7f952b3e9008
+  Chunk     7f952b3e9018 sz=    65512    free      "               "
+EXTENT 2 addr=0x7f952b3d9008
+  Chunk     7f952b3d9018 sz=    65512    free      "               "
+EXTENT 3 addr=0x7f952b3c9008
+  Chunk     7f952b3c9018 sz=      752    free      "               "
+  Chunk     7f952b3c9308 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952b3ca388 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952b3cb408 sz=    56312    free      "               "
+EXTENT 4 addr=0x7f952b3a9008
+  Chunk     7f952b3a9018 sz=    65512    free      "               "
+EXTENT 5 addr=0x7f952b51c008
+  Chunk     7f952b51c018 sz=     1240    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952b51c4f0 sz=    43208    free      "               "
+  Chunk     7f952b526db8 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952b527e38 sz=     8312    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952b529eb0 sz=     4264    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952b52af58 sz=     4264    freeable  "callheap       "  ds=0x7f952ce9b160
+EXTENT 6 addr=0x7f952bcb0008
+  Chunk     7f952bcb0018 sz=      128    perm      "perm           "  alo=128
+  Chunk     7f952bcb0098 sz=      528    perm      "perm           "  alo=528
+  Chunk     7f952bcb02a8 sz=     4288    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb1368 sz=     4264    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb2410 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb3490 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb4510 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb5590 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb6610 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb7690 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb8710 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcb9790 sz=     4224    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcba810 sz=      984    recreate  "callheap       "   
+     ds     7f952ce9b2a8 sz=      984 ct=        1
+  Chunk     7f952bcbabe8 sz=     4136    freeable  "callheap       "  ds=0x7f952ce9b160
+  Chunk     7f952bcbbc10 sz=    16408    free      "               "
+  Chunk     7f952bcbfc28 sz=      984    recreate  "callheap       "   
+     ds     7f952ce9b160 sz=    78216 ct=       19
+            7f952b3c9308 sz=     4224
+            7f952b526db8 sz=     4224
+            7f952b527e38 sz=     8312
+            7f952b3ca388 sz=     4224
+            7f952b51c018 sz=     1240
+            7f952b529eb0 sz=     4264
+            7f952b52af58 sz=     4264
+            7f952bcb02a8 sz=     4288
+            7f952bcb1368 sz=     4264
+            7f952bcb2410 sz=     4224
+            7f952bcb3490 sz=     4224
+            7f952bcb4510 sz=     4224
+            7f952bcb5590 sz=     4224
+            7f952bcb6610 sz=     4224
+            7f952bcb7690 sz=     4224
+            7f952bcb8710 sz=     4224
+            7f952bcb9790 sz=     4224
+            7f952bcbabe8 sz=     4136
+Total heap size    =   458584
+FREE LISTS:
+ Bucket 0 size=56
+  Chunk     7f952bcb0048 sz=        0   kghdsx
+ Bucket 1 size=88
+ Bucket 2 size=152
+ Bucket 3 size=168
+ Bucket 4 size=280
+ Bucket 5 size=496
+ Bucket 6 size=536
+  Chunk     7f952b3c9018 sz=      752    free      "               "
+ Bucket 7 size=1048
+ Bucket 8 size=2072
+ Bucket 9 size=4120
+ Bucket 10 size=8216
+ Bucket 11 size=16408
+  Chunk     7f952bcbbc10 sz=    16408    free      "               "
+ Bucket 12 size=32792
+  Chunk     7f952b51c4f0 sz=    43208    free      "               "
+ Bucket 13 size=49176
+  Chunk     7f952b3a9018 sz=    65512    free      "               "
+  Chunk     7f952b3cb408 sz=    56312    free      "               "
+  Chunk     7f952b3d9018 sz=    65512    free      "               "
+  Chunk     7f952b3e9018 sz=    65512    free      "               "
+  Chunk     7f952b3f9018 sz=    65512    free      "               "
+ Bucket 14 size=65560
+ Bucket 15 size=131096
+ Bucket 16 size=262168
+ Bucket 17 size=524312
+ Bucket 18 size=1048600
+ Bucket 19 size=2097176
+ Bucket 20 size=4194328
+ Bucket 21 size=8388632
+ Bucket 22 size=16777240
+ Bucket 23 size=33554456
+Total free space   =   378728
+UNPINNED RECREATABLE CHUNKS (lru first):
+PERMANENT CHUNKS:
+  Chunk     7f952bcb0098 sz=      528    perm      "perm           "  alo=528
+            7f952bcb00b8 sz=       72    cprm      "kxsphpp        "
+            7f952bcb0100 sz=      424    cprm      "kxsphpp        "
+  Chunk     7f952bcb0018 sz=      128    perm      "perm           "  alo=128
+            7f952bcb0038 sz=       96    cprm      "kghdsx         "
+Permanent space    =      656
+******************************************************
+******************************************************
+HEAP DUMP heap name="top uga heap"  desc=0x7f952ce9ce00
+ extent sz=0xffc0 alt=320 het=32767 rec=0 flg=0x2 opc=0
+ parent=(nil) owner=(nil) nex=(nil) xsz=0x3fff8 heap=(nil) lru=(nil)
+ fl2=0x60, fl3=0x0, nex=(nil), idx=0, dur=-1, dsxvers=1, dsxflg=0x0
+ dsx first ext=0x7f952b4ac008
+ dsx empty ext bytes=0  subheap rc link=0x7f952b4ac0a8,0x7f952b4ac0a8
+ dsx heap size=15725712, dsx heap depth=0
+ pdb id=1, src pdb id=1
+EXTENT 0 addr=0x7f952a2f9008
+  Chunk     7f952a2f9018 sz=   262120    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 1 addr=0x7f952a0f9008
+  Chunk     7f952a0f9018 sz=     3904    free      "               "
+  Chunk     7f952a0f9f58 sz=  2093224    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 2 addr=0x7f9529ff9008
+  Chunk     7f9529ff9018 sz=     1856    free      "               "
+  Chunk     7f9529ff9758 sz=  1046696    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 3 addr=0x7f9529f79008
+  Chunk     7f9529f79018 sz=      832    free      "               "
+  Chunk     7f9529f79358 sz=   523432    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 4 addr=0x7f9529f39008
+  Chunk     7f9529f39018 sz=      320    free      "               "
+  Chunk     7f9529f39158 sz=   261800    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 5 addr=0x7f9529f19008
+  Chunk     7f9529f19018 sz=   131048    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 6 addr=0x7f9529ef9008
+  Chunk     7f9529ef9018 sz=   131048    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 7 addr=0x7f9529ea9008
+  Chunk     7f9529ea9018 sz=    65304    free      "               "
+  Chunk     7f9529eb8f30 sz=   262352    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 8 addr=0x7f952aa49008
+  Chunk     7f952aa49018 sz=    65304    free      "               "
+  Chunk     7f952aa58f30 sz=   262352    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 9 addr=0x7f952a9f9008
+  Chunk     7f952a9f9018 sz=    65304    free      "               "
+  Chunk     7f952aa08f30 sz=   262352    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 10 addr=0x7f952a9a9008
+  Chunk     7f952a9a9018 sz=    65304    free      "               "
+  Chunk     7f952a9b8f30 sz=   262352    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 11 addr=0x7f952a959008
+  Chunk     7f952a959018 sz=    65304    free      "               "
+  Chunk     7f952a968f30 sz=   262352    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 12 addr=0x7f952a909008
+  Chunk     7f952a909018 sz=    65304    free      "               "
+  Chunk     7f952a918f30 sz=   262352    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 13 addr=0x7f952a8b9008
+  Chunk     7f952a8b9018 sz=    65304    free      "               "
+  Chunk     7f952a8c8f30 sz=   262352    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 14 addr=0x7f952a869008
+  Chunk     7f952a869018 sz=    65304    free      "               "
+  Chunk     7f952a878f30 sz=   262352    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 15 addr=0x7f952a829008
+  Chunk     7f952a829018 sz=     3928    free      "               "
+  Chunk     7f952a829f70 sz=   258192    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 16 addr=0x7f952a7e9008
+  Chunk     7f952a7e9018 sz=     3928    free      "               "
+  Chunk     7f952a7e9f70 sz=   258192    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 17 addr=0x7f952a7a9008
+  Chunk     7f952a7a9018 sz=     3928    free      "               "
+  Chunk     7f952a7a9f70 sz=   258192    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 18 addr=0x7f952a769008
+  Chunk     7f952a769018 sz=     3928    free      "               "
+  Chunk     7f952a769f70 sz=   258192    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 19 addr=0x7f952a729008
+  Chunk     7f952a729018 sz=     3928    free      "               "
+  Chunk     7f952a729f70 sz=   258192    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 20 addr=0x7f952a6e9008
+  Chunk     7f952a6e9018 sz=     3928    free      "               "
+  Chunk     7f952a6e9f70 sz=   258192    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 21 addr=0x7f952a6a9008
+  Chunk     7f952a6a9018 sz=     3928    free      "               "
+  Chunk     7f952a6a9f70 sz=   258192    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 22 addr=0x7f952ae59008
+  Chunk     7f952ae59018 sz=     3928    free      "               "
+  Chunk     7f952ae59f70 sz=   258192    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 23 addr=0x7f952ae39008
+  Chunk     7f952ae39018 sz=    14424    free      "               "
+  Chunk     7f952ae3c870 sz=   116624    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 24 addr=0x7f952ae29008
+  Chunk     7f952ae29018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 25 addr=0x7f952ae19008
+  Chunk     7f952ae19018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 26 addr=0x7f952ae09008
+  Chunk     7f952ae09018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 27 addr=0x7f952adf9008
+  Chunk     7f952adf9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 28 addr=0x7f952ade9008
+  Chunk     7f952ade9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 29 addr=0x7f952add9008
+  Chunk     7f952add9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 30 addr=0x7f952adc9008
+  Chunk     7f952adc9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 31 addr=0x7f952b439008
+  Chunk     7f952b439018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 32 addr=0x7f952b429008
+  Chunk     7f952b429018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 33 addr=0x7f952b419008
+  Chunk     7f952b419018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 34 addr=0x7f952b409008
+  Chunk     7f952b409018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 35 addr=0x7f952adb9008
+  Chunk     7f952adb9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 36 addr=0x7f952ada9008
+  Chunk     7f952ada9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 37 addr=0x7f952ad99008
+  Chunk     7f952ad99018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 38 addr=0x7f952ad89008
+  Chunk     7f952ad89018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 39 addr=0x7f952ad79008
+  Chunk     7f952ad79018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 40 addr=0x7f952ad69008
+  Chunk     7f952ad69018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 41 addr=0x7f952ad59008
+  Chunk     7f952ad59018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 42 addr=0x7f952ad49008
+  Chunk     7f952ad49018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 43 addr=0x7f952ad39008
+  Chunk     7f952ad39018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 44 addr=0x7f952ad29008
+  Chunk     7f952ad29018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 45 addr=0x7f952ad19008
+  Chunk     7f952ad19018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 46 addr=0x7f952ad09008
+  Chunk     7f952ad09018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 47 addr=0x7f952acf9008
+  Chunk     7f952acf9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 48 addr=0x7f952ace9008
+  Chunk     7f952ace9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 49 addr=0x7f952acd9008
+  Chunk     7f952acd9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 50 addr=0x7f952acc9008
+  Chunk     7f952acc9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 51 addr=0x7f952acb9008
+  Chunk     7f952acb9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 52 addr=0x7f952aca9008
+  Chunk     7f952aca9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 53 addr=0x7f952ac99008
+  Chunk     7f952ac99018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 54 addr=0x7f952ac89008
+  Chunk     7f952ac89018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 55 addr=0x7f952ac79008
+  Chunk     7f952ac79018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 56 addr=0x7f952ac69008
+  Chunk     7f952ac69018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 57 addr=0x7f952ac59008
+  Chunk     7f952ac59018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 58 addr=0x7f952ac49008
+  Chunk     7f952ac49018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 59 addr=0x7f952ac39008
+  Chunk     7f952ac39018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 60 addr=0x7f952ac29008
+  Chunk     7f952ac29018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 61 addr=0x7f952ac19008
+  Chunk     7f952ac19018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 62 addr=0x7f952ac09008
+  Chunk     7f952ac09018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 63 addr=0x7f952abf9008
+  Chunk     7f952abf9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 64 addr=0x7f952abe9008
+  Chunk     7f952abe9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 65 addr=0x7f952abd9008
+  Chunk     7f952abd9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 66 addr=0x7f952abc9008
+  Chunk     7f952abc9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 67 addr=0x7f952abb9008
+  Chunk     7f952abb9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 68 addr=0x7f952aba9008
+  Chunk     7f952aba9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 69 addr=0x7f952ab99008
+  Chunk     7f952ab99018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 70 addr=0x7f952ab89008
+  Chunk     7f952ab89018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 71 addr=0x7f952ab79008
+  Chunk     7f952ab79018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 72 addr=0x7f952ab69008
+  Chunk     7f952ab69018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 73 addr=0x7f952ab59008
+  Chunk     7f952ab59018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 74 addr=0x7f952ab49008
+  Chunk     7f952ab49018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 75 addr=0x7f952ab39008
+  Chunk     7f952ab39018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 76 addr=0x7f952ab29008
+  Chunk     7f952ab29018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 77 addr=0x7f952ab19008
+  Chunk     7f952ab19018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 78 addr=0x7f952ab09008
+  Chunk     7f952ab09018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 79 addr=0x7f952aaf9008
+  Chunk     7f952aaf9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 80 addr=0x7f952aae9008
+  Chunk     7f952aae9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 81 addr=0x7f952b179008
+  Chunk     7f952b179018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 82 addr=0x7f952b169008
+  Chunk     7f952b169018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 83 addr=0x7f952b159008
+  Chunk     7f952b159018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 84 addr=0x7f952b149008
+  Chunk     7f952b149018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 85 addr=0x7f952b139008
+  Chunk     7f952b139018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 86 addr=0x7f952b129008
+  Chunk     7f952b129018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 87 addr=0x7f952b119008
+  Chunk     7f952b119018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 88 addr=0x7f952b109008
+  Chunk     7f952b109018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 89 addr=0x7f952b0f9008
+  Chunk     7f952b0f9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 90 addr=0x7f952b0e9008
+  Chunk     7f952b0e9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 91 addr=0x7f952b0d9008
+  Chunk     7f952b0d9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 92 addr=0x7f952b0c9008
+  Chunk     7f952b0c9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 93 addr=0x7f952b0b9008
+  Chunk     7f952b0b9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 94 addr=0x7f952b0a9008
+  Chunk     7f952b0a9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 95 addr=0x7f952b399008
+  Chunk     7f952b399018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 96 addr=0x7f952b389008
+  Chunk     7f952b389018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 97 addr=0x7f952b379008
+  Chunk     7f952b379018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 98 addr=0x7f952b369008
+  Chunk     7f952b369018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 99 addr=0x7f952b359008
+  Chunk     7f952b359018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 100 addr=0x7f952b349008
+  Chunk     7f952b349018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 101 addr=0x7f952b339008
+  Chunk     7f952b339018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 102 addr=0x7f952b329008
+  Chunk     7f952b329018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 103 addr=0x7f952b319008
+  Chunk     7f952b319018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 104 addr=0x7f952b309008
+  Chunk     7f952b309018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 105 addr=0x7f952b2f9008
+  Chunk     7f952b2f9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 106 addr=0x7f952b2e9008
+  Chunk     7f952b2e9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 107 addr=0x7f952b2d9008
+  Chunk     7f952b2d9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 108 addr=0x7f952b2c9008
+  Chunk     7f952b2c9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 109 addr=0x7f952b2b9008
+  Chunk     7f952b2b9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 110 addr=0x7f952b2a9008
+  Chunk     7f952b2a9018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 111 addr=0x7f952b499008
+  Chunk     7f952b499018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 112 addr=0x7f952b489008
+  Chunk     7f952b489018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 113 addr=0x7f952b479008
+  Chunk     7f952b479018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 114 addr=0x7f952b469008
+  Chunk     7f952b469018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 115 addr=0x7f952b459008
+  Chunk     7f952b459018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 116 addr=0x7f952b449008
+  Chunk     7f952b449018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 117 addr=0x7f952b50c008
+  Chunk     7f952b50c018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 118 addr=0x7f952b4fc008
+  Chunk     7f952b4fc018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 119 addr=0x7f952b4ec008
+  Chunk     7f952b4ec018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 120 addr=0x7f952b4bc008
+  Chunk     7f952b4bc018 sz=    65512    freeable  "session heap   "  ds=0x7f952bcd82d0
+EXTENT 121 addr=0x7f952b4ac008
+  Chunk     7f952b4ac018 sz=      128    perm      "perm           "  alo=128
+  Chunk     7f952b4ac098 sz=    65384    recreate  "session heap   "   
+     ds     7f952bcd82d0 sz= 15150392 ct=      122
+            7f952a2f9018 sz=   262120
+            7f952a0f9f58 sz=  2093224
+            7f9529ff9758 sz=  1046696
+            7f9529f79358 sz=   523432
+            7f9529f39158 sz=   261800
+            7f9529f19018 sz=   131048
+            7f9529ef9018 sz=   131048
+            7f9529eb8f30 sz=   262352
+            7f952aa58f30 sz=   262352
+            7f952aa08f30 sz=   262352
+            7f952a9b8f30 sz=   262352
+            7f952a968f30 sz=   262352
+            7f952a918f30 sz=   262352
+            7f952a8c8f30 sz=   262352
+            7f952a878f30 sz=   262352
+            7f952a829f70 sz=   258192
+            7f952a7e9f70 sz=   258192
+            7f952a7a9f70 sz=   258192
+            7f952a769f70 sz=   258192
+            7f952a729f70 sz=   258192
+            7f952a6e9f70 sz=   258192
+            7f952a6a9f70 sz=   258192
+            7f952ae59f70 sz=   258192
+            7f952ae3c870 sz=   116624
+            7f952ae29018 sz=    65512
+            7f952ae19018 sz=    65512
+            7f952ae09018 sz=    65512
+            7f952adf9018 sz=    65512
+            7f952ade9018 sz=    65512
+            7f952add9018 sz=    65512
+            7f952adc9018 sz=    65512
+            7f952b439018 sz=    65512
+            7f952b429018 sz=    65512
+            7f952b419018 sz=    65512
+            7f952b409018 sz=    65512
+            7f952adb9018 sz=    65512
+            7f952ada9018 sz=    65512
+            7f952ad99018 sz=    65512
+            7f952ad89018 sz=    65512
+            7f952ad79018 sz=    65512
+            7f952ad69018 sz=    65512
+            7f952ad59018 sz=    65512
+            7f952ad49018 sz=    65512
+            7f952ad39018 sz=    65512
+            7f952ad29018 sz=    65512
+            7f952ad19018 sz=    65512
+            7f952ad09018 sz=    65512
+            7f952acf9018 sz=    65512
+            7f952ace9018 sz=    65512
+            7f952acd9018 sz=    65512
+            7f952acc9018 sz=    65512
+            7f952acb9018 sz=    65512
+            7f952aca9018 sz=    65512
+            7f952ac99018 sz=    65512
+            7f952ac89018 sz=    65512
+            7f952ac79018 sz=    65512
+            7f952ac69018 sz=    65512
+            7f952ac59018 sz=    65512
+            7f952ac49018 sz=    65512
+            7f952ac39018 sz=    65512
+            7f952ac29018 sz=    65512
+            7f952ac19018 sz=    65512
+            7f952ac09018 sz=    65512
+            7f952abf9018 sz=    65512
+            7f952abe9018 sz=    65512
+            7f952abd9018 sz=    65512
+            7f952abc9018 sz=    65512
+            7f952abb9018 sz=    65512
+            7f952aba9018 sz=    65512
+            7f952ab99018 sz=    65512
+            7f952ab89018 sz=    65512
+            7f952ab79018 sz=    65512
+            7f952ab69018 sz=    65512
+            7f952ab59018 sz=    65512
+            7f952ab49018 sz=    65512
+            7f952ab39018 sz=    65512
+            7f952ab29018 sz=    65512
+            7f952ab19018 sz=    65512
+            7f952ab09018 sz=    65512
+            7f952aaf9018 sz=    65512
+            7f952aae9018 sz=    65512
+            7f952b179018 sz=    65512
+            7f952b169018 sz=    65512
+            7f952b159018 sz=    65512
+            7f952b149018 sz=    65512
+            7f952b139018 sz=    65512
+            7f952b129018 sz=    65512
+            7f952b119018 sz=    65512
+            7f952b109018 sz=    65512
+            7f952b0f9018 sz=    65512
+            7f952b0e9018 sz=    65512
+            7f952b0d9018 sz=    65512
+            7f952b0c9018 sz=    65512
+            7f952b0b9018 sz=    65512
+            7f952b0a9018 sz=    65512
+            7f952b399018 sz=    65512
+            7f952b389018 sz=    65512
+            7f952b379018 sz=    65512
+            7f952b369018 sz=    65512
+            7f952b359018 sz=    65512
+            7f952b349018 sz=    65512
+            7f952b339018 sz=    65512
+            7f952b329018 sz=    65512
+            7f952b319018 sz=    65512
+            7f952b309018 sz=    65512
+            7f952b2f9018 sz=    65512
+            7f952b2e9018 sz=    65512
+            7f952b2d9018 sz=    65512
+            7f952b2c9018 sz=    65512
+            7f952b2b9018 sz=    65512
+            7f952b2a9018 sz=    65512
+            7f952b499018 sz=    65512
+            7f952b489018 sz=    65512
+            7f952b479018 sz=    65512
+            7f952b469018 sz=    65512
+            7f952b459018 sz=    65512
+            7f952b449018 sz=    65512
+            7f952b50c018 sz=    65512
+            7f952b4fc018 sz=    65512
+            7f952b4ec018 sz=    65512
+            7f952b4bc018 sz=    65512
+Total heap size    = 15725712
+FREE LISTS:
+ Bucket 0 size=56
+  Chunk     7f952b4ac048 sz=        0   kghdsx
+ Bucket 1 size=88
+ Bucket 2 size=152
+ Bucket 3 size=168
+ Bucket 4 size=280
+  Chunk     7f9529f39018 sz=      320    free      "               "
+ Bucket 5 size=496
+ Bucket 6 size=536
+  Chunk     7f9529f79018 sz=      832    free      "               "
+ Bucket 7 size=1048
+  Chunk     7f9529ff9018 sz=     1856    free      "               "
+ Bucket 8 size=2072
+  Chunk     7f952a0f9018 sz=     3904    free      "               "
+  Chunk     7f952a829018 sz=     3928    free      "               "
+  Chunk     7f952a7e9018 sz=     3928    free      "               "
+  Chunk     7f952a7a9018 sz=     3928    free      "               "
+  Chunk     7f952a769018 sz=     3928    free      "               "
+  Chunk     7f952a729018 sz=     3928    free      "               "
+  Chunk     7f952a6e9018 sz=     3928    free      "               "
+  Chunk     7f952a6a9018 sz=     3928    free      "               "
+  Chunk     7f952ae59018 sz=     3928    free      "               "
+ Bucket 9 size=4120
+ Bucket 10 size=8216
+  Chunk     7f952ae39018 sz=    14424    free      "               "
+ Bucket 11 size=16408
+ Bucket 12 size=32792
+ Bucket 13 size=49176
+  Chunk     7f9529ea9018 sz=    65304    free      "               "
+  Chunk     7f952aa49018 sz=    65304    free      "               "
+  Chunk     7f952a9f9018 sz=    65304    free      "               "
+  Chunk     7f952a9a9018 sz=    65304    free      "               "
+  Chunk     7f952a959018 sz=    65304    free      "               "
+  Chunk     7f952a909018 sz=    65304    free      "               "
+  Chunk     7f952a8b9018 sz=    65304    free      "               "
+  Chunk     7f952a869018 sz=    65304    free      "               "
+ Bucket 14 size=65560
+ Bucket 15 size=131096
+ Bucket 16 size=262168
+ Bucket 17 size=524312
+ Bucket 18 size=1048600
+ Bucket 19 size=2097176
+ Bucket 20 size=4194328
+ Bucket 21 size=8388632
+ Bucket 22 size=16777240
+ Bucket 23 size=33554456
+Total free space   =   575192
+UNPINNED RECREATABLE CHUNKS (lru first):
+PERMANENT CHUNKS:
+  Chunk     7f952b4ac018 sz=      128    perm      "perm           "  alo=128
+            7f952b4ac038 sz=       96    cprm      "kghdsx         "
+Permanent space    =      128
+******************************************************

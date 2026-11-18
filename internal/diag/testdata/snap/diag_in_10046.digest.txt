@@ -1,0 +1,107 @@
+Diagnostic dump file diag_in_10046.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  29,850 lines, 4 parts at the top level, 1 diagnostic dump section
+  99 lines of 10046 records (read it as a SQL trace for them)
+
+Outline: first-last line, number of lines, title
+    1-   31      31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+   32-  113      82  SQL trace (10046) lines  [44 10046 record lines]
+  114-29753  29,640  Diagnostic dump (level 2)
+    diagnostic dump, level 2 (flags 0x0), starts at line 114
+    error: about to signal ORA-00942 (line 29752), name MTK_NO_SUCH_TABLE
+    error barrier: at 0x7ffe5aa6ade0 placed dbkda.c@298 (line 116)
+    statement faaxujvpx61wd (lines 118-118):
+      select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid
+    stack as one line (the form oradebug short_stack prints; the Binary Stack Dump's frame headers, without the dump's own 11 frames):
+      qcsprfro()+968<-qcsprfro_tree()+387<-qcsprfro_tree()+153<-qcspafq()+289<-qcspqbDescendents()+273<-qcspqb()+283<-kkmdrv()+180<-opiSem()+2167<-opiDeferredSem()+436<-opitca()+461<-kksFullTypeCheck()+81<-rpiswu2()+2004<-kksSetBindType()+1787<-kksfbc()+15082<-opiexe()+2970<-kpoal8()+2301<-opiodr()+1264<-ttcpip()+1219<-opitsk()+1925<-opiino()+939<-opiodr()+1264<-opidrv()+1094<-sou2o()+165<-opimai_real()+422<-ssthrdmain()+417<-main()+256<-__libc_start_call_main()+128<-__libc_start_main()+128<-_start()+37
+    frames, innermost first (29 of 40; the dump's own 11 are left out):
+      12  qcsprfro()+968           line 631   SQL_Parser
+      13  qcsprfro_tree()+387      line 650   SQL_Parser
+      14  qcsprfro_tree()+153      line 669   SQL_Parser
+      15  qcspafq()+289            line 688   SQL_Parser
+      16  qcspqbDescendents()+273  line 729   SQL_Parser
+      17  qcspqb()+283             line 748   SQL_Parser
+      18  kkmdrv()+180             line 765   SQL_Semantic
+      19  opiSem()+2167            line 791   OPI
+      20  opiDeferredSem()+436     line 874   OPI
+      21  opitca()+461             line 941   OPI
+      22  kksFullTypeCheck()+81    line 1014  cursor
+      23  rpiswu2()+2004           line 1035  RPI
+      24  kksSetBindType()+1787    line 1118  cursor
+      25  kksfbc()+15082           line 1201  cursor
+      26  opiexe()+2970            line 1273  Time_Limit
+      27  kpoal8()+2301            line 1337  PROGINT_MISC
+      28  opiodr()+1264            line 1392  OPI
+      29  ttcpip()+1219            line 1471
+      30  opitsk()+1925            line 1554  OPI
+      31  opiino()+939             line 1615  OPI
+      ... 9 more frames (the stack line above lists them all)
+    cursors: 14 cursors (2 open, 12 cached among the 14 listed):
+      open #1 9zg9qd9bm4spu, 3 binds: update user$ set spare6=DECODE(to_char(:2, 'YYYY-MM-DD'), '0000-00-00', to_date(NULL), :2) where user#=:1
+          binds: #0 DATE no value; #1 - no oacdef; #2 NUMBER no value
+      open #2 faaxujvpx61wd, 1 bind: select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid
+          binds: #0 NUMBER no value
+      cached 0k8522rmdzg4k, 1 bind: select privilege# from sysauth$ where (grantee#=:1 or grantee#=1) and privilege#>0
+          binds: #0 NUMBER no value
+      cached 865qwpcdyggkk, 1 bind: select spare6 from user$ where user#=:1
+          binds: #0 NUMBER no value
+      cached 1wa4tjmvc60s5, 0 binds: 
+      cached f0h5rpzmhju11, 0 binds: select SYS_CONTEXT('USERENV', 'SERVER_HOST'), SYS_CONTEXT('USERENV', 'DB_UNIQUE_NAME'), SYS_CONTEXT('USERENV', 'INSTANCE_NAME'), SYS_CONTEXT('USERENV', 'INSTANCE'), STARTUP_TIME, SYS_CONTEXT('USERENV'...
+      cached d9q2q82g1tuzx, 1 bind: select decode(upper(failover_method), NULL, 0 , 'BASIC', 1, 'PRECONNECT', 2 , 'PREPARSE', 4 , 0), decode(upper(failover_type), NULL, 1,  'NONE', 1, 'SESSION', 2, 'SELECT',  4, 'TRANSACTION',  8, 'AUTO...
+          binds: #0 VARCHAR2 no value
+      cached 6u5zqzz2nm55c, 0 binds: SELECT DECODE(USER, 'XS$NULL',  XS_SYS_CONTEXT('XS$SESSION','USERNAME'), USER) FROM SYS.DUAL
+      ... 6 more cursors
+    nested: process state, lines 4337-9093
+    115-  116       2  Error Stack Dump
+    117-  118       2  Current SQL Statement for this session (sql_id=faaxujvpx61wd)  [select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid]
+    119-  124       6  Parser State
+    125-  252     128  Call Stack Trace
+    253- 2077   1,825  Binary Stack Dump
+   2078- 4124   2,047  Argument/Register Address Dump
+   4125- 4125       1  End of Call Stack Trace
+   4126- 4291     166  Process Map Dump
+   4292- 4309      18  Process Resource Limits
+   4310- 4310       1  Java Stack
+   4311- 4324      14  KSWRDUMP START
+   4325- 4325       1  KSWRDUMP END
+   4326- 4331       6  KSMEM_DUMP START
+   4332- 4332       1  KSMEM_DUMP END
+   4333- 4334       2  KSM MGA PRIVATE DUMP START
+   4335- 4335       1  KSM MGA PRIVATE DUMP END
+   4336- 4336       1  Process State Dump (2)
+   4337- 9093   4,757  Process state
+      process (Oracle pid 6, serial 36, OS pid 13847), 55 state objects, depth 4
+      session 61.29861 MTK in PDB1; sqlplus@ol9-19-dg1.localdomain (TNS V1-V3) on ol9-19-dg1.localdomain, module mtk_diag_in_10046, action error, service pdb1 (lines 4412-4648)
+        SELECT (oct 3); statement faaxujvpx61wd: select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid
+        previous statement at library handle 0x799b91c0 (not described in this dump)
+        wait: not in wait; last wait ended 0.052687 s ago
+        last waits (latest first): SQL*Net message from client 0.000102 s; SQL*Net message to client 0.000001 s; SQL*Net message from client 0.000098 s; SQL*Net message to client 0 s; SQL*Net message from client 0.000096 s, and 5 more
+      state objects by type: LIBRARY OBJECT LOCK 39, LIBRARY OBJECT PIN 2, call 2, channel handle 2, Block List 1, OS proc request holder 1, Temporary Tables State Object Type 1, cursor enqueues 1, dummy 1, enqueue 1, ksz parent 1, process 1, session 1, transaction 1
+      enqueues (1):
+        AE-00000086-ED94F66A-00000000-00000000  held S  (line 5834)
+      transaction 0x0002.00b.00005a70, undo 1 blocks 1 records, began 11/17/2026 21:34:26 (line 6024)
+      library object locks: 39
+        0x799b39c0 mode N: SQL AREA CURSOR (no name printed)
+        0x799b5118 mode N: faaxujvpx61wd select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid
+        0x79a08a40 mode N: SQL AREA CURSOR (no name printed)
+        0x79a0a198 mode N: gayh31j2d5htk BEGIN :cid := 11; END;
+        0x76f3f0f0 mode N: (the dump prints no text for it)
+        0x799c4d60 mode N: (the dump prints no text for it)
+        0x7ba52fc0 mode N: PDB1.SYS.DBMS_SESSION
+        0x8933da90 mode N: PDB1.SYS.DBMS_SESSION
+        ... 31 more
+      library object pins: 2
+        0x799abdc8 mode S: PDB1.PUBLIC.MTK_NO_SUCH_TABLE
+        0x799b1070 mode S: PDB1.MTK.MTK_NO_SUCH_TABLE
+   9094- 9094       1  PX Blackbox
+   9095- 9802     708  Pinned Buffer History
+   9803- 9803       1  end of leaf block Logical dump
+   9804-16384   6,581  end of leaf block dump
+  16385-18499   2,115  end of branch block dump
+  18500-18500       1  end of leaf block Logical dump
+  18501-29684  11,184  end of leaf block dump
+  29685-29688       4  IMDB Pinned Buffer History
+  29689-29750      62  Transaction Layer Metadata
+  29751-29753       3  Pluggagle DB Traces
+29754-29850      97  SQL trace (10046) lines  [55 10046 record lines]

@@ -68,6 +68,10 @@ type FileEntry struct {
 	// Dumps are the optimizer (10053) dumps found in the file, in file order;
 	// their lines are not 10046 lines (Diagnostics.LineKinds "optimizer").
 	Dumps []DumpRange `json:"dumps,omitempty"`
+	// Sections are the diagnostic dump sections found in the file (heap dump,
+	// errorstack, process state, ...), in file order; their lines are not 10046
+	// lines either (Diagnostics.LineKinds "diagnostic").
+	Sections []SectionRange `json:"sections,omitempty"`
 
 	offsetUs  int64 // wall µs - tim of the first anchor in this file
 	offsetSet bool
@@ -79,6 +83,14 @@ type DumpRange struct {
 	Last  int    `json:"last"`  // line of its END banner (the last line read of a cut dump)
 	SQLID string `json:"sqlId,omitempty"`
 	Cut   bool   `json:"cut,omitempty"` // the file ends inside the dump
+}
+
+// SectionRange is one diagnostic dump section in a trace file (trace.Section).
+type SectionRange struct {
+	Kind  string `json:"kind"`          // trace.SectionKind.String(): heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident
+	First int    `json:"first"`         // its first line (of a heap dump: the line of "*" above its start, when there is one)
+	Last  int    `json:"last"`          // its last line
+	Cut   bool   `json:"cut,omitempty"` // a kind with an end line stopped before it
 }
 
 // StatementKind distinguishes real SQL from synthetic statements.

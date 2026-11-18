@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { fmtBytes } from '@lib/data/format'
 import { send, useEngine } from '../engine'
-import { dumpsLabel, fileKindOf, kindLabel, kindTitle, optionsFor } from './optTabs'
+import { dumpsLabel, fileKindOf, kindLabel, kindTitle, optionsFor, tabKindForFile } from './optTabs'
 import { FolderIcon } from '../ui/FolderIcon'
 import { useWorkspace } from './WorkspaceProvider'
 import { baseName } from './traceSet'
 import type { FolderPick, OpenOptions } from './workspace'
 import {
-  DEFAULT_SORT, filterRows, fmtEnd, fmtSpan, fmtStamp, noTrace, notSQL, peekBatches, selectionSummary, sessionsText, sessionsTitle, sortRows, toRows,
-  type PickRow, type PickSort, type PickSortKey, type Peek,
+  DEFAULT_SORT, FILTER_LABEL, filterRows, fmtEnd, fmtSpan, fmtStamp, hiddenCounts, hiddenText, noTrace, peekBatches, selectionSummary, sessionsText, sessionsTitle, sortRows, toRows,
+  type PickFilter, type PickRow, type PickSort, type PickSortKey, type Peek,
 } from './folderPick'
 
 /** Peek requests in flight at once. */
@@ -28,7 +28,7 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
   const [peeks, setPeeks] = useState<ReadonlyMap<string, Peek>>(() => new Map())
   const [sort, setSort] = useState<PickSort>(DEFAULT_SORT)
   const [filter, setFilter] = useState('')
-  const [sqlOnly, setSqlOnly] = useState(true)
+  const [show, setShow] = useState<PickFilter>('sql')
   const [all, setAll] = useState(false)
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(files.filter((f) => !f.dir).map((f) => f.path)))
   const anchor = useRef<string | null>(null)
@@ -64,12 +64,14 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
   }, [client, status, files])
 
   const rows = useMemo(() => toRows(files, peeks), [files, peeks])
-  const shown = useMemo(() => sortRows(filterRows(rows, filter, sqlOnly), sort), [rows, filter, sqlOnly, sort])
-  const hidden = sqlOnly ? notSQL(rows) : 0
+  const shown = useMemo(() => sortRows(filterRows(rows, filter, show), sort), [rows, filter, show, sort])
+  const hidden = useMemo(() => hiddenCounts(rows, show), [rows, show])
   const drawn = all ? shown : shown.slice(0, ROWS)
   const chosen = useMemo(() => rows.filter((r) => selected.has(r.file.path)), [rows, selected])
   const sum = selectionSummary(chosen)
   const nOpt = chosen.filter((r) => fileKindOf(r.peek) === '10053').length
+  const nDump = chosen.filter((r) => fileKindOf(r.peek) === 'diag').length
+  const nOwn = nOpt + nDump // the files that are a tab of their own: optimizer traces and dump files
   const peeked = peeks.size
   const ready = status === 'ready'
 
@@ -100,9 +102,9 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
       return n
     })
 
-  /** Follow is one live file: a set of several opens without it, and so does a 10053 file (the engine refuses to follow it). */
+  /** Follow is one live file: a set of several opens without it, and so does a 10053 file or a dump file (the engine refuses to follow it). */
   const optionsOf = (n: number, path?: string): OpenOptions => optionsFor(pick.options, n, path ? fileKindOf(peeks.get(path)) : '')
-  // a 10053 file is a tab of its own: the 10046 files open as the set they form, each optimizer trace beside it
+  // a 10053 file and a dump file are a tab of their own: the 10046 files open as the set they form, each of those beside it
   const peekOf = (path: string) => peeks.get(path)
   const openSet = (paths: string[]) => {
     if (!paths.length) return
@@ -112,7 +114,7 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
   const openEach = (paths: string[]) => {
     if (!paths.length) return
     ws.closePick()
-    paths.forEach((p, i) => ws.open({ paths: [p], options: optionsOf(1, p) }, i === paths.length - 1, true, undefined, undefined, false, fileKindOf(peeks.get(p)) === '10053' ? '10053' : undefined))
+    paths.forEach((p, i) => ws.open({ paths: [p], options: optionsOf(1, p) }, i === paths.length - 1, true, undefined, undefined, false, tabKindForFile(fileKindOf(peeks.get(p)))))
   }
   // oldest first: the set's files (and the tabs of "each") in the order they were traced
   const paths = sortRows(chosen, { key: 'start', dir: 1 }).map((r) => r.file.path)
@@ -163,11 +165,13 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
               aria-label="Filter the files"
               spellCheck={false}
             />
-            <label className="check">
-              <input type="checkbox" checked={sqlOnly} onChange={(e) => setSqlOnly(e.target.checked)} />
-              Only SQL and optimizer traces
+            <label className="fp-show">
+              Show
+              <select value={show} onChange={(e) => setShow(e.target.value as PickFilter)} aria-label="Which files to list" title="A trace folder holds more than SQL traces: dumps (heap, errorstack, process or system state, ...) and background process traces. The default lists the SQL and optimizer traces.">
+                {(Object.keys(FILTER_LABEL) as PickFilter[]).map((k) => <option key={k} value={k}>{FILTER_LABEL[k]}</option>)}
+              </select>
             </label>
-            {hidden > 0 && <span className="muted small">{hidden} without SQL trace hidden</span>}
+            {hiddenText(hidden) && <span className="muted small">{hiddenText(hidden)}</span>}
           </div>
 
           <div className="fp-table-wrap">
@@ -198,8 +202,9 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
                 {shown.length === 0 && (
                   <tr>
                     <td colSpan={7} className="muted empty-row">
-                      {filter ? 'Nothing matches the filter.' : 'No SQL trace among these files.'}{' '}
-                      {sqlOnly && hidden > 0 && <button className="link" onClick={() => setSqlOnly(false)}>Show all files</button>}
+                      {filter ? 'Nothing matches the filter.' : show === 'all' ? 'No files.' : 'No SQL trace among these files.'}{' '}
+                      {show === 'sql' && hidden.dumps > 0 && <button className="link" onClick={() => setShow('dumps')}>Include the dump files</button>}
+                      {show !== 'all' && hidden.other + hidden.dumps > 0 && <> <button className="link" onClick={() => setShow('all')}>Show all files</button></>}
                     </td>
                   </tr>
                 )}
@@ -222,14 +227,14 @@ export function FolderPicker({ pick }: { pick: FolderPick }) {
                   {sum.start && <> · {fmtStamp(sum.start)} – {fmtEnd(sum.start, sum.end)}</>}
                   {offscreen > 0 && <span className="muted"> · {offscreen} not shown by the filter</span>}
                   {pick.options.follow && sum.files > 1 && <span className="muted"> · a set of several opens without follow</span>}
-                  {nOpt > 0 && sum.files > nOpt && <span className="muted"> · {nOpt === 1 ? 'the optimizer (10053) trace opens' : 'the optimizer (10053) traces open'} in {nOpt === 1 ? 'a tab' : 'tabs'} of {nOpt === 1 ? 'its' : 'their'} own</span>}
+                  {nOwn > 0 && sum.files > nOwn && <span className="muted"> · {nOwn === 1 ? `the ${nOpt ? 'optimizer (10053) trace' : 'dump file'} opens` : `${nOwn} ${nDump === 0 ? 'optimizer (10053) traces' : nOpt === 0 ? 'dump files' : 'optimizer and dump files'} open`} in {nOwn === 1 ? 'a tab' : 'tabs'} of {nOwn === 1 ? 'its' : 'their'} own</span>}
                 </>
               )}
             </span>
             <span className="fp-buttons">
               {sum.files > 1 && <button disabled={!ready} onClick={() => openEach(paths)}>Open each in a tab</button>}
               <button className="primary" disabled={!ready || sum.files === 0} onClick={() => openSet(paths)}>
-                {sum.files > 1 ? (nOpt > 0 ? (nOpt === sum.files ? `Open ${sum.files} optimizer traces` : `Open ${sum.files - nOpt} as one trace set, ${nOpt} on their own`) : `Open ${sum.files} as one trace set`) : 'Open'}
+                {sum.files > 1 ? (nOwn > 0 ? (nOwn === sum.files ? (nDump === 0 ? `Open ${sum.files} optimizer traces` : nOpt === 0 ? `Open ${sum.files} dump files` : `Open ${sum.files} files, each in a tab`) : `Open ${sum.files - nOwn} as one trace set, ${nOwn} on their own`) : `Open ${sum.files} as one trace set`) : 'Open'}
               </button>
             </span>
           </div>

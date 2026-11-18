@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { createStore } from '../state/store'
-import { makeDoc, makeOptDoc, optFileOf } from '../data/testdoc'
+import { makeDiagDoc, makeDoc, makeOptDoc, optFileOf } from '../data/testdoc'
 import { baseViews, currentView, shownViews, type SessionViewDef } from './views'
 
 describe('baseViews', () => {
-  it('lists the ten views in nav order with their labels and keys (the I/O map has a letter; 10053 shares ⌘1 with the Overview it never meets)', () => {
+  it('lists the views in nav order with their labels and keys (the I/O map has a letter; 10053 shares ⌘1 with the Overview it never meets)', () => {
     expect(baseViews.map((v) => [v.id, v.label, v.key])).toEqual([
-      ['opt', '10053', 1], ['compare', 'Compare', 0], ['overview', 'Overview', 1], ['lines', 'Trace', 2], ['statements', 'Statements', 3],
+      ['dump', 'Dump', 1], ['opt', '10053', 1], ['compare', 'Compare', 0], ['overview', 'Overview', 1], ['lines', 'Trace', 2], ['statements', 'Statements', 3],
       ['waits', 'Waits', 4], ['blocks', 'I/O map', 'i'], ['timeline', 'Timeline', 5], ['sessions', 'Sessions', 6], ['pivot', 'Pivot', 7],
     ])
   })
@@ -52,5 +52,19 @@ describe('shownViews', () => {
     expect(ids).not.toContain('opt')
     expect(ids).toContain('overview')
     expect(store.getState().view).toBe('overview')
+  })
+
+  it('shows a diag document the dump view and none of the 10046 or 10053 ones, and the tools of the tab', async () => {
+    const doc = await makeDiagDoc({ file: { name: 'd.trc', lines: 10, release: '', version: '19.27.0.0.0', tested: true, records10046: 0, sections: [], unplaced: 0, outline: [], outlineTotal: 0 } })
+    const store = createStore()
+    store.setLoaded({ doc, compare: null })
+    const tools: SessionViewDef[] = [
+      { id: 'annotations', label: 'Notes', key: 8, group: 'tools', render: () => null },
+      { id: 'cut', label: 'Cut', group: 'tools', show: (d) => !d.opt && !d.dump && !!d.slice, render: () => null },
+    ]
+    expect(shownViews([...baseViews, ...tools], doc, store.getState()).map((v) => v.id)).toEqual(['dump', 'annotations'])
+    expect(store.getState().view).toBe('dump')
+    store.setState({ view: 'statements' }) // asked for, not shown
+    expect(currentView(baseViews, doc, store.getState()).id).toBe('dump')
   })
 })

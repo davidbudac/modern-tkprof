@@ -43,7 +43,8 @@ function engine(docs: Record<string, unknown>, how: { refuseFollow?: boolean; he
     if (m) {
       const s = sessions.get(decodeURIComponent(m[1]))!
       const isOpt = !!(docs[s.paths[0]] as { opt?: unknown }).opt
-      return json({ id: s.id, state: 'ready', rev: 1, paths: s.paths, identity: `id-${s.paths[0]}`, hit: false, files: (how.held ? how.held(s.paths) : []).map((p) => ({ path: p, name: p })), ...(isOpt ? { optSqlIds: ['aaa', 'bbb'] } : null) })
+      const dump = (docs[s.paths[0]] as { dump?: { sqlIds?: string[]; sessions?: string[] } }).dump
+      return json({ id: s.id, state: 'ready', rev: 1, paths: s.paths, identity: `id-${s.paths[0]}`, hit: false, files: (how.held ? how.held(s.paths) : []).map((p) => ({ path: p, name: p })), ...(isOpt ? { optSqlIds: ['aaa', 'bbb'] } : null), ...(dump ? { view: 'diag', diagSqlIds: dump.sqlIds ?? [], diagSessions: dump.sessions ?? [] } : null) })
     }
     return json({})
   })
@@ -51,6 +52,8 @@ function engine(docs: Record<string, unknown>, how: { refuseFollow?: boolean; he
   vi.stubGlobal('fetch', async (url: string) => {
     const d = /\/s\/([^/]+)\/api\/doc$/.exec(String(url))
     if (d) return new Response(JSON.stringify(docs[sessions.get(decodeURIComponent(d[1]))!.paths[0]]), { headers: { 'content-type': 'application/json', 'X-Rev': '1' } })
+    // a dump session's search: the first line that names the key
+    if (/\/s\/[^/]+\/api\/search\?/.test(String(url))) return new Response('{"line":7,"col":0,"text":"x"}\n{"done":true,"scanned":9,"truncated":true}\n', { headers: { 'content-type': 'application/x-ndjson' } })
     return json({}, 404)
   })
   return { fetch, sessions, posts }
@@ -186,6 +189,84 @@ describe('the jump between a 10046 tab and a 10053 dump', () => {
     expect(ws.getSnapshot().route).toEqual({ kind: 'tab', key: p })
     expect(ws.tab(p)!.session!.store.getState().selection.stmt).toBe(1)
     expect(ws.tab(p)!.session!.store.getState().view).toBe('statements')
+  })
+})
+
+describe('the jump between a 10046 tab and a dump tab (the dump reader)', () => {
+  const dumpDoc = { statements: [], events: [], cursors: [], contexts: [], file: {}, dump: { sqlIds: ['aaa', 'faaxujvpx61wd'], sessions: ['22.14058', '52.41898'] } }
+  const traceDoc = { statements: [{ sqlId: 'q1' }, { sqlId: 'faaxujvpx61wd' }], events: [], cursors: [], contexts: [{ sessionId: '22.14058', id: 4 }, { sessionId: '9.9', id: 7 }], file: {} }
+  async function three() {
+    const ws = new Workspace()
+    const e = engine({ 'd.trc': dumpDoc, 't.trc': traceDoc, 'u.trc': traceDoc })
+    ws.bind({ client: { base: '', fetch: e.fetch } as never, addr: 'a', token: 't' })
+    const d = ws.open({ paths: ['d.trc'], options: opts }, false, true, undefined, undefined, false, 'dump')
+    const t = ws.open({ paths: ['t.trc'], options: opts })
+    const u = ws.open({ paths: ['u.trc'], options: opts })
+    await settle()
+    return { ws, d, t, u }
+  }
+
+  it('knows the statements and sessions a dump tab names from the engine\'s session', async () => {
+    const { ws, d } = await three()
+    expect(ws.tab(d)!.kind).toBe('dump')
+    expect(ws.tab(d)!.diagSqlIds).toEqual(['aaa', 'faaxujvpx61wd'])
+    expect(ws.tab(d)!.diagSessions).toEqual(['22.14058', '52.41898'])
+  })
+
+  it('marks a statement or a session of a SQL trace that a dump tab names, and nothing else', async () => {
+    const { ws, t, d } = await three()
+    const link = ws.diagLink(t)
+    expect(link.has({ sqlId: 'faaxujvpx61wd' })).toBe(true)
+    expect(link.has({ session: '22.14058' })).toBe(true)
+    expect(link.has({ sqlId: 'q1' })).toBe(false)
+    expect(link.has({ session: '9.9' })).toBe(false)
+    expect(link.has({ sqlId: '' })).toBe(false)
+    expect(ws.diagLink(d).has({ sqlId: 'aaa' })).toBe(false) // a dump tab has no mark of its own
+  })
+
+  it('shows the dump tab and asks it to go to the first line that names the statement; for a tab whose text cannot be searched it only shows it', async () => {
+    const { ws, t, d } = await three()
+    ws.go({ kind: 'tab', key: t })
+    ws.diagLink(t).open({ sqlId: 'faaxujvpx61wd' })
+    expect(ws.getSnapshot().route).toEqual({ kind: 'tab', key: d })
+    await settle()
+    expect(ws.tab(d)!.session!.store.getState()).toMatchObject({ view: 'dump', dumpGo: { line: 7, seq: 1 } })
+    ws.go({ kind: 'tab', key: t })
+    ws.diagLink(t).open({ session: '52.41898' })
+    await settle()
+    expect(ws.tab(d)!.session!.store.getState().dumpGo).toMatchObject({ line: 7, seq: 2 })
+  })
+
+  it('links the dump\'s statement back to the most recently shown SQL trace tab that has it, selecting the statement; a session opens in Sessions narrowed to it', async () => {
+    const { ws, d, t, u } = await three()
+    const link = ws.traceLink(d)
+    expect(link.has({ sqlId: 'faaxujvpx61wd' })).toBe(true)
+    expect(link.has({ sqlId: 'aaa' })).toBe(false)
+    expect(link.has({ session: '22.14058' })).toBe(true)
+    expect(link.has({ session: '52.41898' })).toBe(false)
+    ws.go({ kind: 'tab', key: t })
+    ws.go({ kind: 'tab', key: u })
+    ws.go({ kind: 'tab', key: d })
+    link.open({ sqlId: 'faaxujvpx61wd' })
+    expect(ws.getSnapshot().route).toEqual({ kind: 'tab', key: u })
+    expect(ws.tab(u)!.session!.store.getState().selection.stmt).toBe(1)
+    ws.go({ kind: 'tab', key: t })
+    ws.go({ kind: 'tab', key: d })
+    link.open({ session: '22.14058' })
+    expect(ws.getSnapshot().route).toEqual({ kind: 'tab', key: t })
+    expect(ws.tab(t)!.session!.store.getState().contexts).toEqual(new Set([4]))
+  })
+
+  it('has no link back in a SQL trace tab, and a dump tab is not a candidate for one', async () => {
+    const { ws, t, d } = await three()
+    expect(ws.traceLink(t).has({ sqlId: 'q1' })).toBe(true) // another trace tab has it
+    expect(ws.traceLink(d).has({ sqlId: 'q1' })).toBe(true)
+    const only = new Workspace()
+    const e = engine({ 'd.trc': dumpDoc })
+    only.bind({ client: { base: '', fetch: e.fetch } as never, addr: 'a', token: 't' })
+    const k = only.open({ paths: ['d.trc'], options: opts }, false, true, undefined, undefined, false, 'dump')
+    await settle()
+    expect(only.traceLink(k).has({ sqlId: 'aaa' })).toBe(false)
   })
 })
 

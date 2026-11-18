@@ -203,7 +203,8 @@ func (t *textWriter) header() {
 	if m.Diag.UnknownLines > 0 {
 		notes = append(notes, fmt.Sprintf("%d unrecognised lines", m.Diag.UnknownLines))
 	}
-	notes = append(notes, m.DumpNotes()...) // optimizer (10053) dumps interleaved with the records
+	notes = append(notes, m.DumpNotes()...)    // optimizer (10053) dumps interleaved with the records
+	notes = append(notes, m.SectionNotes()...) // diagnostic dumps (errorstack, heap dump, ...) between them
 	if m.Diag.ImplicitCursors > 0 {
 		notes = append(notes, fmt.Sprintf("%d cursors used before PARSE", m.Diag.ImplicitCursors))
 	}

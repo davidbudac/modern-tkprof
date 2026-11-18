@@ -1,6 +1,7 @@
 // A small hand-built trace set for the unit tests (not a trace fixture: it only has the columns the code under test reads).
 import { TraceDoc } from './doc'
 import type { OptDump, OptFile } from './opt'
+import type { RawDump } from './diag'
 import type { RawDocument, RawOpt, StmtStats, CallStats, FileEntry, Context, Event } from './types'
 
 export const zeroCallStats = (): CallStats => ({
@@ -78,6 +79,14 @@ export async function makeDoc(calls: CallSpec[], opts: { files?: FileEntry[]; co
 export async function makeOptDoc(opt: RawOpt, notes?: string[]): Promise<TraceDoc> {
   const d = await makeDoc([])
   Object.assign(d, { opt })
+  if (notes) Object.assign(d.diag, { notes })
+  return d
+}
+
+/** A diag document: the empty 10046 model plus `dump` (and, with `notes`, the document's notes). */
+export async function makeDiagDoc(dump: RawDump, notes?: string[]): Promise<TraceDoc> {
+  const d = await makeDoc([])
+  Object.assign(d, { dump })
   if (notes) Object.assign(d.diag, { notes })
   return d
 }

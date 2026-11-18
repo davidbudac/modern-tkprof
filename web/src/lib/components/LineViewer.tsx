@@ -31,9 +31,25 @@ const K_CALL = LINE_KINDS.indexOf('call'), K_WAIT = LINE_KINDS.indexOf('wait'), 
 /** How long the pointer rests on a line's text before its card opens. */
 const CARD_DELAY = 350
 const NO_FOLDS: readonly Fold[] = []
+/** A line that is only a rule: five or more `=`, `-` or `*`. */
+const RULE_LINE = /^\s*(?:={5,}|-{5,}|\*{5,})\s*$/
 const NO_MARKS: ReadonlyMap<number, number> = new Map()
 const NO_TABLES: readonly (readonly [number, number])[] = []
 const baseOf = (top: number) => Math.max(0, Math.floor(top / STEP) * STEP - OVERSCAN)
+
+/**
+ * The heading depth of line `n` (the owner's `dress`): the line is one itself, or comes right after one that is only a rule (a part of a file that starts at its
+ * rule, as a heap dump does, has its title on the next line, which is the heading the eye reads).
+ */
+function headOf(dress: ReadonlyMap<number, number> | undefined, rules: boolean | undefined, cache: PageCache, n: number): number | undefined {
+  if (!dress) return undefined
+  const d = dress.get(n)
+  if (d !== undefined || !rules || n < 2) return d
+  const up = dress.get(n - 1)
+  if (up === undefined) return undefined
+  const prev = cache.line(n - 1)
+  return prev && RULE_LINE.test(prev.text) ? up : undefined
+}
 
 /** The search whose matches are highlighted inside the rows. */
 export interface RowHighlight { q: string; regex: boolean; caseSensitive: boolean }
@@ -55,8 +71,8 @@ export interface ViewerApi {
   topLine(): number
   /** lines that fit the view */
   visibleRows(): number
-  /** scroll so that `line` is visible: in the middle (default) or with the least movement */
-  reveal(line: number, how?: 'center' | 'nearest'): void
+  /** scroll so that `line` is visible: in the middle (default), with the least movement, or at the top */
+  reveal(line: number, how?: 'center' | 'nearest' | 'top'): void
   focus(): void
 }
 
@@ -93,6 +109,12 @@ interface Props {
   times?: LineTimes
   /** kind indexes (into `LINE_KINDS`) whose rows are dimmed; line counts and scrolling are unchanged */
   mutedKinds?: ReadonlySet<number>
+  /** kind indexes whose rows are drawn in the ink instead of the kind's tone (the dump reader: its text is mostly `diagnostic` lines, which the Lines view dims) */
+  plainKinds?: ReadonlySet<number>
+  /** line → depth: the line is a heading of that depth (0 the outermost; the first line of a part of the file), dressed as one (the dump reader's outline nodes). Keep the map stable: rows are memoised on the depth */
+  dress?: ReadonlyMap<number, number>
+  /** a line that is only a rule (a run of `=`, `-` or `*`) is drawn as a hairline */
+  rules?: boolean
   /** a cursor id: the rows of any other cursor (and rows without one) are dimmed; -1 or omitted for none (needs the ids of `annot=2`) */
   focusCursor?: number
   /** the hover card of a line (null: nothing to show); omit for no cards */
@@ -156,7 +178,7 @@ interface Props {
  * The raw lines of one file: a scroll container whose scroll bar stands for the whole file, a layer with a window of rows
  * (~100) that moves with `transform`, pages from the cache. No React state changes per line or per pixel scrolled.
  */
-export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, focusCursor, links, onRef, refTitle, head, card, folds, deltaHits, foldable, onFold, readable, hlColors, tables, bands, deltaCol, spanUs, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
+export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, highlight, range, inlays, selLines, onLines, onHover, gap, heat, times, mutedKinds, plainKinds, dress, rules, focusCursor, links, onRef, refTitle, head, card, folds, deltaHits, foldable, onFold, readable, hlColors, tables, bands, deltaCol, spanUs, onAct, top, side, onViewChange, apiRef, topRef, onSelect, onBookmark, onError }: Props) {
   const sc = useRef<HTMLDivElement>(null)
   const layer = useRef<HTMLDivElement>(null)
   const [h, setH] = useState(0)
@@ -184,7 +206,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   const [shown, setShown] = useState<CardAt | null>(null)
   const cardTimer = useRef(0)
   const cardLine = useRef(0) // the line the card is open or about to open for
-  const pending = useRef<{ line: number; how: 'center' | 'nearest' } | null>(null) // a reveal asked for before the view had a size
+  const pending = useRef<{ line: number; how: 'center' | 'nearest' | 'top' } | null>(null) // a reveal asked for before the view had a size
 
   // the pinned header: recomputed when the first visible line moves, the state changes only with the header's key
   const [pinned, setPinned] = useState<{ key: string; node: ReactNode; lane?: string } | null>(null)
@@ -244,7 +266,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
   // band is read at the speed of the wheel and not flown past in one notch (`offsetOf`, `topFromOffset`, `settle`).
   const tallRef = useRef(false) // a row of the layer is a tall one (set while rendering)
   const wasTall = useRef(false)
-  const refine = useRef<{ row: number; how: 'center' | 'nearest' } | null>(null) // a reveal whose result is checked against the rows' real heights
+  const refine = useRef<{ row: number; how: 'center' | 'nearest' | 'top' } | null>(null) // a reveal whose result is checked against the rows' real heights
   /** The distance in px from the top of the layer to the top edge of the view when fractional row `top` is at it. */
   const offsetOf = useCallback((top: number): number => {
     const lay = layer.current, kids = lay?.children
@@ -667,7 +689,7 @@ export function LineViewer({ cache, marks, bookmarks, notes, selected, wrap, hig
     if (bandText !== undefined) tall = true
     const selIn = n === selected || (!!bd && !!f0?.sql && selected > n && selected <= f0.to) // the selected line is one of those folded into the band's row
     const hc = hlColors && l && l.stmt >= 0 ? hlColors.get(l.stmt) : undefined
-    rows.push(<Row key={n} n={n} rd={rd} hc={hc} dcol={!!deltaCol} span={spanUs ?? 0} phide={phide} tb={tb ? (n === tb.to ? 2 : 1) : 0} band={bd ? BAND_IN | (n === bd.from ? BAND_FIRST : 0) | (f0?.sql || n === bd.to ? BAND_LAST : 0) : 0} bandText={bandText} inline={!!f0?.inline} gapAbove={gapAbove} ruleTop={gapAbove && l?.kind === K_PARSING} opFold={hereFold} foldLabel={fold?.label} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={(marks ?? NO_MARKS).get(n) ?? 0} sel={selIn} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n) && !tbFirst && !binds && !f0?.inline} dh={deltaHits?.get(n)} filt={filt} />)
+    rows.push(<Row key={n} n={n} rd={rd} hc={hc} dcol={!!deltaCol} span={spanUs ?? 0} phide={phide} tb={tb ? (n === tb.to ? 2 : 1) : 0} band={bd ? BAND_IN | (n === bd.from ? BAND_FIRST : 0) | (f0?.sql || n === bd.to ? BAND_LAST : 0) : 0} bandText={bandText} inline={!!f0?.inline} gapAbove={gapAbove} ruleTop={gapAbove && l?.kind === K_PARSING} opFold={hereFold} foldLabel={fold?.label} foldUs={fold?.us} clk={clk} clkT={t?.clockTitle} dlt={dlt} dltT={t?.deltaTitle} anchor={!!t?.anchor} text={l?.text} kind={l?.kind ?? -1} ids={inlays ? l : undefined} inlays={inlays} gap={gap?.(n) ?? 0} inRange={inRange} heat={ela} mk={(marks ?? NO_MARKS).get(n) ?? 0} sel={selIn} bm={bookmarks.has(n)} note={notes?.get(n)} hl={highlight ?? undefined} win={win} muted={!!l && !!mutedKinds?.has(l.kind)} plain={!!l && !!plainKinds?.has(l.kind)} hd={headOf(dress, rules, cache, n)} rule={!!rules && !!l && RULE_LINE.test(l.text)} dim={focusCursor !== undefined && focusCursor >= 0 && !!l && l.cursor !== focusCursor} refs={!!links} fold={fold?.summary ?? null} foldable={!!foldable?.has(n) && !tbFirst && !binds && !f0?.inline} dh={deltaHits?.get(n)} filt={filt} />)
   }
   tallRef.current = tall
   const digits = String(Math.max(total, 1000)).length
@@ -713,7 +735,7 @@ const WIN_IN = 1, WIN_START = 2, WIN_END = 4
 /** A row's place in an SQL band (flags): in one, its first row, its last row. */
 const BAND_IN = 1, BAND_FIRST = 2, BAND_LAST = 4
 
-const Row = memo(function Row({ n, rd, hc, dcol, span, phide, tb, band, bandText, inline, gapAbove, ruleTop, opFold, foldLabel, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, dim, refs, fold, foldable, dh, filt }: {
+const Row = memo(function Row({ n, rd, hc, dcol, span, phide, tb, band, bandText, inline, gapAbove, ruleTop, opFold, foldLabel, foldUs, clk, clkT, dlt, dltT, anchor, text, kind, ids, inlays, gap, inRange, heat, mk, sel, bm, note, hl, win, muted, plain, hd, rule, dim, refs, fold, foldable, dh, filt }: {
   n: number; text: string | undefined; kind: number
   /** the readable row of the line (readable mode), undefined for the trace as written */
   rd?: ReadableCell
@@ -758,6 +780,12 @@ const Row = memo(function Row({ n, rd, hc, dcol, span, phide, tb, band, bandText
   win: number
   /** dimmed by the owner's muted kinds */
   muted: boolean
+  /** drawn in the ink, not the kind's tone */
+  plain: boolean
+  /** a heading of this depth (the owner's `dress`), undefined for none */
+  hd?: number
+  /** the line is only a rule: a hairline */
+  rule: boolean
   /** outside the focused cursor */
   dim: boolean
   /** render the references of the text as links (`data-act="ref"`) */
@@ -774,7 +802,7 @@ const Row = memo(function Row({ n, rd, hc, dcol, span, phide, tb, band, bandText
   const cut = text !== undefined && text.length > MAX_TEXT
   // a highlighted statement's call or wait carries the start bar in its colour (the same classes the selected statement's marks use), every one of its lines the tint
   const mkv = mk || (hc ? (kind === K_CALL ? 1 : kind === K_WAIT ? 2 : 0) : 0)
-  const cls = 'lv-row ' + (kind >= 0 ? toneClass[kind] : 'lv-pending') + (hc ? ' lv-hlrow' : '') + (mkv ? ` lv-mk${mkv}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '') + (inRange ? ' lv-range' : '')
+  const cls = 'lv-row ' + (kind >= 0 ? (plain ? 'lv-plain' : toneClass[kind]) : 'lv-pending') + (hd !== undefined ? ` lv-hd lv-hd${Math.min(hd, 2)}` : '') + (rule ? ' lv-rule' : '') + (hc ? ' lv-hlrow' : '') + (mkv ? ` lv-mk${mkv}` : '') + (sel ? ' lv-sel' : '') + (bm ? ' lv-bm' : '') + (note ? ' lv-note' : '') + (muted ? ' lv-mute' : '') + (dim ? ' lv-dim' : '') + (inRange ? ' lv-range' : '')
     + (win & WIN_IN ? ' lv-win' : '') + (win & WIN_START ? ' lv-win-start' : '') + (win & WIN_END ? ' lv-win-end' : '')
     + (dh !== undefined ? ' lv-dhit' : '') + (filt ? ' lv-filt' : '')
   const handle = (

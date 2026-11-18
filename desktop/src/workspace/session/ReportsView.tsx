@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { useClient, type TraceDoc } from '@lib'
+import { isReaderDoc, useClient, type TraceDoc } from '@lib'
 import { responseError } from '../../engine'
 import { openCached, safeFileName, saveAs } from '../../files'
 import { traceStem, useCurrentTab } from './useTab'
@@ -12,6 +12,14 @@ const FORMATS: { id: Format; label: string; ext: string; type: string; what: Rea
   { id: 'csv', label: 'CSV (zip)', ext: 'csv.zip', type: 'application/zip', what: <>the files <code>mtkprof export</code> writes: statements, calls, waits, binds, … in one zip</> },
   { id: 'html', label: 'Standalone HTML', ext: 'html', type: 'text/html', what: <>the single-file report (the UI with the document inlined), to send to someone</> },
 ]
+
+/** What the reports are for a file read as diagnostic dumps: the text digest (the outline and the readings as text) and the HTML with the digest exist; the CSV tables have no form for it. */
+const DUMP_FORMS: Record<Format, { what: ReactNode; off?: string }> = {
+  text: { what: <>the text digest of the file: its header, its outline with line numbers and, as they are built, each reading as text (<code>mtkprof report</code>)</> },
+  json: { what: <>the document <code>mtkprof json</code> writes: the file's facts and its outline to two levels</> },
+  csv: { what: <>statements, calls, waits, binds, … in one zip</>, off: 'A file of diagnostic dumps has no statements, calls or waits to export as tables' },
+  html: { what: <>the single-file report: the dump reader with the outline in it, to send to someone (the file's text is not in it: open the file with mtkprof serve or the desktop app to read it)</> },
+}
 
 /** What the reports are for a 10053 file: the text digest and the HTML with the digest exist; the CSV tables (statements, calls, waits) have no form for it. */
 const OPT_FORMS: Record<Format, { what: ReactNode; off?: string }> = {
@@ -51,7 +59,7 @@ export function ReportsView({ doc }: { doc: TraceDoc }) {
 
   const fetchReport = async (f: Format) => {
     const q = new URLSearchParams({ format: f })
-    if (f === 'text' && !doc.opt) { // the digest of an optimizer trace has none of the 10046 report's options
+    if (f === 'text' && !isReaderDoc(doc)) { // the digest of an optimizer trace or a dump file has none of the 10046 report's options
       q.set('sort', opts.sort)
       q.set('top', String(opts.top))
       q.set('execs', String(opts.execs))
@@ -101,7 +109,7 @@ export function ReportsView({ doc }: { doc: TraceDoc }) {
       </header>
       <ul className="report-list">
         {FORMATS.map((f0) => {
-          const f = doc.opt ? { ...f0, ...OPT_FORMS[f0.id] } : { ...f0, off: undefined as string | undefined }
+          const f = doc.dump ? { ...f0, ...DUMP_FORMS[f0.id] } : doc.opt ? { ...f0, ...OPT_FORMS[f0.id] } : { ...f0, off: undefined as string | undefined }
           return (
           <li key={f.id}>
             <div>
@@ -119,7 +127,7 @@ export function ReportsView({ doc }: { doc: TraceDoc }) {
                 </button>
               )}
             </span>
-            {f.id === 'text' && !doc.opt && (
+            {f.id === 'text' && !isReaderDoc(doc) && (
               <details className="rollout report-opts">
                 <summary>
                   <b>Options</b> · sort {opts.sort} · top {opts.top} · {opts.execs < 0 ? 'all' : opts.execs} executions · {opts.binds} bind sets · width {opts.width} · SYS {opts.sys ? 'on' : 'off'}

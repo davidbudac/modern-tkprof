@@ -1,0 +1,488 @@
+Diagnostic dump file diag_pga_detail.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  1,010 lines, 4 parts at the top level, 1 diagnostic dump section
+  5 lines in no known part (they are in the parts called Other lines)
+
+Outline: first-last line, number of lines, title
+   1-  31     31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-  45     14  Other lines  [Processing Oradebug command 'setmypid']
+  46-1001    956  PGA memory detail (pid 6)
+    Reading: PGA memory detail for pid 6, OS pid 14085
+      474 rows, 1,627 chunks, 10,959,840 bytes: the largest uses of this process, with exact bytes (a listing, not a total)
+          bytes  chunks  comment                    category  heap            ds              parent ds
+      3,512,312     217  pl/sql vc2                 PL/SQL    koh-kghu call   0x7f584c9111e8  0x7f584dae2220
+      2,822,576      91  sort key                   SQL       sort subheap    0x7f584bda6858  0x7f584bda4078
+      2,349,904     148  pl/sql vc2                 PL/SQL    koh-kghu sessi  0x7f584c135be8  0x7f584c9182d0
+        575,224      12  free memory                          top call heap   0x7f584dae4b40
+        228,712       1  Fixed Uga                            Fixed UGA heap  0x7f584d9c3c10  0x7f584dae2220
+        114,312      78  free memory                          session heap    0x7f584c9182d0  0x7f584dae4e00
+         86,176       2  row cache                            pga heap        0x7f584dae2220
+         77,304      19  free memory                          callheap        0x7f584dae3160  0x7f584dae4b40
+         71,696       1  ksectab: kseget                      pga heap        0x7f584dae2220
+         64,384      33  free memory                SQL       sort subheap    0x7f584bda6858  0x7f584bda4078
+         62,888      10  free memory                          pga heap        0x7f584dae2220
+         54,832       2  dbgeInitProcessCtx:InvCtx            diag pga        0x7f584da9d7c8  0x7f584dae2220
+         40,984       1  kfkio bucket                         pga heap        0x7f584dae2220
+         33,968       4  7114.kgght                           7114.kgght      0x7f584da32970  0x7f584da33e70
+         33,152       4  free memory                PL/SQL    koh-kghu call   0x7f584c9111e8  0x7f584dae2220
+         33,024       2  alloc server hndl                    Alloc environm  0x7f584c102a38  0x7f584c9182d0
+         32,928       4  ttc conv buf alloc                   Alloc server h  0x7f584c131dd0  0x7f584c102a38
+         32,880       2  kxsFrame16kPage                      session heap    0x7f584c9182d0  0x7f584dae4e00
+         29,064       7  kxsFrame4kPage                       session heap    0x7f584c9182d0  0x7f584dae4e00
+         24,600       1  kfksb bucket                         pga heap        0x7f584dae2220
+         22,752      10  koh-kghu session heap                session heap    0x7f584c9182d0  0x7f584dae4e00
+         20,608       1  callback hsn                         pga heap        0x7f584dae2220
+         20,496       1  KTI PGA static                       pga heap        0x7f584dae2220
+         19,440       8  free memory                          Alloc server h  0x7f584c131dd0  0x7f584c102a38
+         19,264       1  NOSYNC FOB ptr                       pga heap        0x7f584dae2220
+         18,056      22  free memory                PL/SQL    koh-kghu sessi  0x7f584c137b98  0x7f584c9182d0
+         17,024       1  kgh stack                            pga heap        0x7f584dae2220
+         16,984       1  KSRMA PGA                            pga heap        0x7f584dae2220
+         16,432       2  PL/SQL STACK               PL/SQL    PLS PGA hp      0x7f584d9feeb8  0x7f584dae2220
+         14,608      11  kxsc: kkspsc0 2                      session heap    0x7f584c9182d0  0x7f584dae4e00
+         13,728     266  kgsc ht segs                         session heap    0x7f584c9182d0  0x7f584dae4e00
+         12,504       1  KSRPC PGA                            pga heap        0x7f584dae2220
+         12,360       2  kgsc hash table                      session heap    0x7f584c9182d0  0x7f584dae4e00
+         11,520       1  kgefa                                pga heap        0x7f584dae2220
+         10,312       2  curdefs                              session heap    0x7f584c9182d0  0x7f584dae4e00
+          9,448       4  free memory                          diag pga        0x7f584da9d7c8  0x7f584dae2220
+          9,032       1  KGLSPF_P ARRAY                       pga heap        0x7f584dae2220
+          8,496       1  kqudgi                               session heap    0x7f584c9182d0  0x7f584dae4e00
+          8,464       1  kfmspg                               pga heap        0x7f584dae2220
+          8,248       1  KFKPGA                               KFK_IO_SUBHEAP  0x7f584da147d8  0x7f584dae2220
+          8,216       1  slvmem_kfmdpg                        pga heap        0x7f584dae2220
+          8,208       1  KSIPC bucket                         pga heap        0x7f584dae2220
+          7,424       2  alloc error hndl                     Alloc environm  0x7f584c102a38  0x7f584c9182d0
+          7,336       7  pliost struct              PL/SQL    koh-kghu sessi  0x7f584c136a98  0x7f584c9182d0
+          7,224       1  kzap audit context UGA li            auditLoadNextG  0x7f584c101d80  0x7f584c9182d0
+          7,200       1  kohdr                                session heap    0x7f584c9182d0  0x7f584dae4e00
+          6,928       2  free memory                SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+          6,568       1  defFile:dbgtfNotify                  diag pga        0x7f584da9d7c8  0x7f584dae2220
+          6,448       2  FOB ptr array                        pga heap        0x7f584dae2220
+          6,192       2  recursive addr reg file    PL/SQL    koh-kghu sessi  0x7f584c13f1e8  0x7f584c9182d0
+          5,160      13  kxsuhpp                              session heap    0x7f584c9182d0  0x7f584dae4e00
+          5,144       1  Default Bucket                       qmd_init_pga:b  0x7f584d9fe9a8  0x7f584dae2220
+          5,144       1  Binary XML Bucket                    qmd_init_pga:b  0x7f584d9fe9a8  0x7f584dae2220
+          5,144       1  Query/Schema/XOB Bucket              qmd_init_pga:b  0x7f584d9fe9a8  0x7f584dae2220
+          5,144       1  Repository/Protocols Buck            qmd_init_pga:b  0x7f584d9fe9a8  0x7f584dae2220
+          5,120       4  allocate challe                      Alloc server h  0x7f584c131dd0  0x7f584c102a38
+          5,120       3  koh-kghu call heap                   pga heap        0x7f584dae2220
+          4,888       1  ksdxwnfy: total                      pga heap        0x7f584dae2220
+          4,640       9  kgiob                                session heap    0x7f584c9182d0  0x7f584dae4e00
+          4,368       1  rpi hst                              pga heap        0x7f584dae2220
+          4,304       1  kfmdpg                               pga heap        0x7f584dae2220
+          4,224       1  alloc authentication hndl            Alloc environm  0x7f584c102a38  0x7f584c9182d0
+          4,224       1  kzap audit policy UGA lis            auditLoadNextG  0x7f584c101d80  0x7f584c9182d0
+          4,200       2  KZTHSM SEGARR                        pga heap        0x7f584dae2220
+          4,160       1  kbcpctxp                             pga heap        0x7f584dae2220
+          4,144       1  dbgeccFCInit:FCbucket                diag pga        0x7f584da9d7c8  0x7f584dae2220
+          4,144       1  kfktout hash                         KFK_IO_SUBHEAP  0x7f584da147d8  0x7f584dae2220
+          4,120       1  kfnorpg aiobff_kfnorpg               pga heap        0x7f584dae2220
+          4,112       1  sidlut_kfapg                         pga heap        0x7f584dae2220
+          4,112       1  dpslut_kfdpg                         pga heap        0x7f584dae2220
+          4,024       1  kodpai image                         session heap    0x7f584c9182d0  0x7f584dae4e00
+          3,872       1  kfdpoc context                       pga heap        0x7f584dae2220
+          3,856       1  KKX ICD VECTOR                       pga heap        0x7f584dae2220
+          3,808       1  free permanent memory                sioheap_kdlwug  0x7f584c95f248  0x7f584c9182d0
+          3,720       4  free memory                          dbgtc heap      0x7f584da33e70  0x7f584da9d7c8
+          3,576       3  free permanent memory                Alloc server h  0x7f584c131dd0  0x7f584c102a38
+          3,480       2  KSFD pga                             pga heap        0x7f584dae2220
+          3,312       1  jsksncb: 1                           pga heap        0x7f584dae2220
+          3,248       2  ts encryption p                      pga heap        0x7f584dae2220
+          3,216       3  5954.kgght                           5954.kgght      0x7f584d9dd5e8  0x7f584dae2220
+          3,144       1  kxfpnfy:kxfpms                       pga heap        0x7f584dae2220
+          3,056       5  kopolal void                         pga heap        0x7f584dae2220
+          2,856       2  free memory                          Alloc statemen  0x7f584c129398  0x7f584c102a38
+          2,824       1  adr context                          diag pga        0x7f584da9d7c8  0x7f584dae2220
+          2,648       1  kga pga                              pga heap        0x7f584dae2220
+          2,600       1  kjztprq struct array                 pga heap        0x7f584dae2220
+          2,576       1  KKX FXP VECTOR                       pga heap        0x7f584dae2220
+          2,536       1  fcctx:dbgeccFCInit                   diag pga        0x7f584da9d7c8  0x7f584dae2220
+          2,464       1  KGLSD_P ARRAY                        pga heap        0x7f584dae2220
+          2,464       1  free permanent memory                KSFQ heap       0x7f584d9c7248  0x7f584dae2220
+          2,448       1  time stat state                      pga heap        0x7f584dae2220
+          2,368       1  kpuinit env handle                   session heap    0x7f584c9182d0  0x7f584dae4e00
+          2,368       1  kpuinit env handle                   pga heap        0x7f584dae2220
+          2,280       2  kodmcon kodmc                        session heap    0x7f584c9182d0  0x7f584dae4e00
+          2,272       4  615.kggec                            615.kggec       0x7f584da321e0  0x7f584da33e70
+          2,264       1  kews sqlstat stack                   pga heap        0x7f584dae2220
+          2,224       1  ksvpgp                               pga heap        0x7f584dae2220
+          2,160       5  dbgr cache entries                   diag pga        0x7f584da9d7c8  0x7f584dae2220
+          2,080       1  kodougi kodou                        session heap    0x7f584c9182d0  0x7f584dae4e00
+          2,072       1  pmucalm coll               PL/SQL    koh-kghu sessi  0x7f584c137b98  0x7f584c9182d0
+          2,072       1  kpplal dvoid                         koh-kghu sessi  0x7f584c9593d8  0x7f584c9182d0
+          2,072       1  kokl lob id hash table               session heap    0x7f584c9182d0  0x7f584dae4e00
+          2,072       1  kfnorpg aiosrq_kfnorpg               pga heap        0x7f584dae2220
+          2,000       1  free memory                PL/SQL    PLS PGA hp      0x7f584d9feeb8  0x7f584dae2220
+          1,992       1  dbgf-date-opatc                      diag pga        0x7f584da9d7c8  0x7f584dae2220
+          1,992       1  dbgf-date-viewe                      diag pga        0x7f584da9d7c8  0x7f584dae2220
+          1,992       1  dbgf-date-emswb                      diag pga        0x7f584da9d7c8  0x7f584dae2220
+          1,992       1  dbgf-date-arb                        diag pga        0x7f584da9d7c8  0x7f584dae2220
+          1,992       1  dbgf-date-old-a                      diag pga        0x7f584da9d7c8  0x7f584dae2220
+          1,992       1  dbgf-date                            diag pga        0x7f584da9d7c8  0x7f584dae2220
+          1,952       1  alloc statement hndl                 Alloc environm  0x7f584c102a38  0x7f584c9182d0
+          1,880       2  free memory                          Alloc authenti  0x7f584c132e78  0x7f584c102a38
+          1,848       1  free permanent memory                diag pga        0x7f584da9d7c8  0x7f584dae2220
+          1,848       1  free memory                          XVMsubheap      0x7f584da08a90  0x7f584dae2220
+          1,816       1  alloc bind hndl                      Alloc statemen  0x7f584c129398  0x7f584c102a38
+          1,624       1  private file op                      pga heap        0x7f584dae2220
+          1,528       1  KGNFS pcontext                       pga heap        0x7f584dae2220
+          1,488       1  kgsc:kxsc                            session heap    0x7f584c9182d0  0x7f584dae4e00
+          1,480       1  kghrmp_state                         pga heap        0x7f584dae2220
+          1,472       2  free permanent memory      SQL       kxs-heap-d      0x7f584b764078  0x7f584c9182d0
+          1,456       1  free memory                          KFK_IO_SUBHEAP  0x7f584da147d8  0x7f584dae2220
+          1,456       1  ksir pga                             pga heap        0x7f584dae2220
+          1,384       1  PEIDEF                     PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+          1,384       1  kxfpnfy:kxfpds                       pga heap        0x7f584dae2220
+          1,344       1  SKGFQ OSD conte                      KSFQ heap       0x7f584d9c7248  0x7f584dae2220
+          1,328       1  kxsc: kkspbd0                        session heap    0x7f584c9182d0  0x7f584dae4e00
+          1,328      15  parameter value memory               session heap    0x7f584c9182d0  0x7f584dae4e00
+          1,320       1  LDI internal format                  Alloc authenti  0x7f584c132e78  0x7f584c102a38
+          1,232       1  kwsbgcdpjini-kw                      pga heap        0x7f584dae2220
+          1,192       1  free permanent memory      SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+          1,168       5  dbgr lru list                        diag pga        0x7f584da9d7c8  0x7f584dae2220
+          1,136       2  13753.kggec                          13753.kggec     0x7f584c95ff60  0x7f584c9182d0
+          1,136       2  7100.kggec                           7100.kggec      0x7f584da33db8  0x7f584da33e70
+          1,112       2  sort                       SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+          1,104       3  free permanent memory      SQL       kxs-heap-p      0x7f584c0f7788  0x7f584c9182d0
+          1,048       4  curCtx:keswxCur            SQL       kxs-heap-p      0x7f584b9d4078  0x7f584c9182d0
+          1,048       1  koc koccn                            koh-kghu sessi  0x7f584c9593d8  0x7f584c9182d0
+          1,048       1  pl/sql cursor meta-data    PL/SQL    koh-kghu call   0x7f584c165638  0x7f584dae2220
+          1,048       1  pmucalm coll               PL/SQL    koh-kghu call   0x7f584c9111e8  0x7f584dae2220
+          1,040       1  kgsc htitcnt                         session heap    0x7f584c9182d0  0x7f584dae4e00
+          1,040       1  kgsc htgnum                          session heap    0x7f584c9182d0  0x7f584dae4e00
+          1,040       1  KSU PRNG contex                      pga heap        0x7f584dae2220
+          1,024       2  KGODM FHASHTABLE                     pga heap        0x7f584dae2220
+          1,008       2  dbgrim IMDA                          diag pga        0x7f584da9d7c8  0x7f584dae2220
+            976       6  free memory                          Alloc environm  0x7f584c102a38  0x7f584c9182d0
+            960      15  pnl                                  session heap    0x7f584c9182d0  0x7f584dae4e00
+            944       1  free permanent memory                Alloc statemen  0x7f584c129398  0x7f584c102a38
+            864       8  frame                      SQL       kxs-heap-p      0x7f584b9d4078  0x7f584c9182d0
+            840       1  free permanent memory                auditLoadNextG  0x7f584c101d80  0x7f584c9182d0
+            840       1  free permanent memory      PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+            832       3  free memory                SQL       kxs-heap-p      0x7f584b9d4078  0x7f584c9182d0
+            784       1  adl context                          diag pga        0x7f584da9d7c8  0x7f584dae2220
+            784       1  kfiac_pga                            pga heap        0x7f584dae2220
+            776       1  qjsngInitUga: J                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            776       1  KCFIS PGA                            pga heap        0x7f584dae2220
+            768       8  kghdsx                     PL/SQL    koh-kghu sessi  0x7f584c135be8  0x7f584c9182d0
+            768       4  allocate tsm context                 Alloc server h  0x7f584c131dd0  0x7f584c102a38
+            768      12  ksu_register_ta                      pga heap        0x7f584dae2220
+            768       1  KCB block plug                       pga heap        0x7f584dae2220
+            768       1  KCB block check                      pga heap        0x7f584dae2220
+            768       1  KCB block objec                      pga heap        0x7f584dae2220
+            752       1  KSGL PGA                             pga heap        0x7f584dae2220
+            736       1  joxp struct                          pga heap        0x7f584dae2220
+            696       1  type manager                         session heap    0x7f584c9182d0  0x7f584dae4e00
+            696       1  free memory                          qmxtiInitXtiCt  0x7f584da10290  0x7f584da08a90
+            688       1  free memory                          qmd_init_pga:b  0x7f584d9fe9a8  0x7f584dae2220
+            680       1  free permanent memory      JAVA      joxp heap       0x7f584d9fec80  0x7f584dae2220
+            648       1  free memory                PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+            640       2  free memory                          615.kggec       0x7f584da321e0  0x7f584da33e70
+            640       2  alloc server hn                      Alloc environm  0x7f584d9c29a8  0x7f584dae2220
+            632       1  KPDB PGA                             pga heap        0x7f584dae2220
+            608       1  session NCHAR language ha            Alloc authenti  0x7f584c132e78  0x7f584c102a38
+            608       1  session language handle              Alloc authenti  0x7f584c132e78  0x7f584c102a38
+            608       1  client session lid                   Alloc authenti  0x7f584c132e78  0x7f584c102a38
+            592       1  kzupci: kzalpagu_iam UGA             session heap    0x7f584c9182d0  0x7f584dae4e00
+            592       1  Session NCHAR language ha            session heap    0x7f584c9182d0  0x7f584dae4e00
+            592       1  session language handle              session heap    0x7f584c9182d0  0x7f584dae4e00
+            592       1  krbabrPgaRespMsg                     pga heap        0x7f584dae2220
+            592       1  kgxct                                pga heap        0x7f584dae2220
+            592       1  krbabrPgaReqMsg                      pga heap        0x7f584dae2220
+            584       1  dbgf-lxhnd                           diag pga        0x7f584da9d7c8  0x7f584dae2220
+            584       1  tctx:dbgtcNotify                     diag pga        0x7f584da9d7c8  0x7f584dae2220
+            576       2  free permanent memory                Alloc environm  0x7f584c102a38  0x7f584c9182d0
+            576       1  KGSK pga                             pga heap        0x7f584dae2220
+            568       1  joxp ht heap                         pga heap        0x7f584dae2220
+            568       1  joxp heap                            pga heap        0x7f584dae2220
+            544       8  peihstdep                  PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+            536       2  psdwc: UGA call                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            536       1  kokl transaction id hash             session heap    0x7f584c9182d0  0x7f584dae4e00
+            520       2  koh session hea                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            520       2  koh call heap                        pga heap        0x7f584dae2220
+            512       1  pliu struct                          session heap    0x7f584c9182d0  0x7f584dae4e00
+            504       1  SEQ CACHE                            session heap    0x7f584c9182d0  0x7f584dae4e00
+            504       1  tagctx:dbgeccTagInit                 diag pga        0x7f584da9d7c8  0x7f584dae2220
+            496       2  kxsphpp                              top call heap   0x7f584dae4b40
+            480       1  Tablespace Encr                      pga heap        0x7f584dae2220
+            464       1  kokgenv                              session heap    0x7f584c9182d0  0x7f584dae4e00
+            464       1  keumnfy:1                            pga heap        0x7f584dae2220
+            456       1  periodic callba                      pga heap        0x7f584dae2220
+            448       1  KSZ PGA                              pga heap        0x7f584dae2220
+            448       1  KSZ PGA structu                      pga heap        0x7f584dae2220
+            440       1  Allocated in peircalc                callheap        0x7f584dae3160  0x7f584dae4b40
+            440      15  pnl.kkynlstr                         session heap    0x7f584c9182d0  0x7f584dae4e00
+            440       1  kga uga                              session heap    0x7f584c9182d0  0x7f584dae4e00
+            440       1  koh proc dur he                      pga heap        0x7f584dae2220
+            432       1  krbabrPgaStbyRespMsg                 pga heap        0x7f584dae2220
+            424       1  kgiobdtb                             session heap    0x7f584c9182d0  0x7f584dae4e00
+            416      10  dbgeccTbvInit:tags                   diag pga        0x7f584da9d7c8  0x7f584dae2220
+            408       1  kgscPGAInit                          pga heap        0x7f584dae2220
+            384       4  kghdsx                     SQL       kxs-heap-p      0x7f584b9d4078  0x7f584c9182d0
+            384       4  kghdsx                               Alloc server h  0x7f584c131dd0  0x7f584c102a38
+            384       1  koipgi koipgcv                       pga heap        0x7f584dae2220
+            384       1  koi koipgdv                          pga heap        0x7f584dae2220
+            376       2  audXscLstce:kzap                     session heap    0x7f584c9182d0  0x7f584dae4e00
+            376       1  PLS cca hp desc                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            376       1  PLS cca hp desc                      pga heap        0x7f584dae2220
+            360       2  define var info            SQL       kxs-heap-p      0x7f584b9d4078  0x7f584c9182d0
+            352       1  Typecheck heap descriptor            callheap        0x7f584dae3160  0x7f584dae4b40
+            352       1  kocca                                session heap    0x7f584c9182d0  0x7f584dae4e00
+            352       1  GPGA kopefcs                         pga heap        0x7f584dae2220
+            352       1  KGQBT cmp func                       pga heap        0x7f584dae2220
+            344       1  sort subheap               SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+            336       3  user uac                   SQL       kxs-heap-p      0x7f584b9d4078  0x7f584c9182d0
+            320       1  alloc kpggupi                        Alloc environm  0x7f584c102a38  0x7f584c9182d0
+            320       1  free memory                          13753.kggec     0x7f584c95ff60  0x7f584c9182d0
+            320       1  free memory                          7114.kgght      0x7f584da32970  0x7f584da33e70
+            320       1  free memory                          7100.kggec      0x7f584da33db8  0x7f584da33e70
+            320       1  free memory                          5954.kgght      0x7f584d9dd5e8  0x7f584dae2220
+            312       1  dbgeInitGlobalCtx:ddeGlob            diag pga        0x7f584da9d7c8  0x7f584dae2220
+            304       1  bcheapd_kdlwugas                     session heap    0x7f584c9182d0  0x7f584dae4e00
+            280       1  continuous uac             SQL       kxs-heap-p      0x7f584c0f7f40  0x7f584c9182d0
+            280       1  qksbgCreateSess                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            280       1  kokahin kgglk                        session heap    0x7f584c9182d0  0x7f584dae4e00
+            272       3  free permanent memory                session heap    0x7f584c9182d0  0x7f584dae4e00
+            272       1  per slot read i                      pga heap        0x7f584dae2220
+            272       1  KCBFLC PGA                           pga heap        0x7f584dae2220
+            256       4  frame segment              SQL       kxs-heap-p      0x7f584b9d4078  0x7f584c9182d0
+            248       1  kolepgi: KOLE's                      pga heap        0x7f584dae2220
+            240       1  rwsStat:keswxSe            SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+            240       1  alloc service hndl                   Alloc environm  0x7f584c102a38  0x7f584c9182d0
+            232       1  iovecheapd_kdlwpga                   pga heap        0x7f584dae2220
+            224       1  rworalo : rword            SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+            224       1  plip struct                          pga heap        0x7f584dae2220
+            208       1  sioheapd_kdlwugas                    session heap    0x7f584c9182d0  0x7f584dae4e00
+            208       2  kgassf                               pga heap        0x7f584dae2220
+            208       1  KFIO PGA structure                   pga heap        0x7f584dae2220
+            200       1  GWM UGA                              session heap    0x7f584c9182d0  0x7f584dae4e00
+            200       1  koltugi: hd_kol                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            200       1  kolrugi: hd_kol                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            200       1  kfnvpga                              pga heap        0x7f584dae2220
+            200       1  JOX joxjp->joxs            JAVA      joxp heap       0x7f584d9fec80  0x7f584dae2220
+            200       1  ksfv PGA contex                      pga heap        0x7f584dae2220
+            192       2  kghdsx                               callheap        0x7f584dae32a8  0x7f584dae4b40
+            192       2  kghdsx                     SQL       kxs-heap-d      0x7f584b764078  0x7f584c9182d0
+            192       2  kghdsx                               Alloc environm  0x7f584c102a38  0x7f584c9182d0
+            192       2  kghdsx                     PL/SQL    koh-kghu call   0x7f584c165638  0x7f584dae2220
+            192       2  kgasf                                pga heap        0x7f584dae2220
+            192       2  kghdsx                               615.kggec       0x7f584da321e0  0x7f584da33e70
+            184       1  qersoStart : qb            SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+            184       1  k2dcur                               session heap    0x7f584c9182d0  0x7f584dae4e00
+            184       1  auditLoadNextGenOptions:H            session heap    0x7f584c9182d0  0x7f584dae4e00
+            184       1  pl_lut_alloc               PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+            184       1  pl_iot_alloc               PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+            184       1  kzxauscini                           session heap    0x7f584c9182d0  0x7f584dae4e00
+            184       1  13753.kggec                          session heap    0x7f584c9182d0  0x7f584dae4e00
+            184       1  615.kggec                            dbgtc heap      0x7f584da33e70  0x7f584da9d7c8
+            184       1  7114.kgght                           dbgtc heap      0x7f584da33e70  0x7f584da9d7c8
+            184       1  7100.kggec                           dbgtc heap      0x7f584da33e70  0x7f584da9d7c8
+            184       1  sdbgrf: iosb                         pga heap        0x7f584dae2220
+            184       1  5954.kgght                           pga heap        0x7f584dae2220
+            184       2  control file cache                   pga heap        0x7f584dae2220
+            184       1  615.kggec                            pga heap        0x7f584dae2220
+            176       1  kxfpugi:kxfpss                       session heap    0x7f584c9182d0  0x7f584dae4e00
+            176       1  lpxHeap:subheap                      pga heap        0x7f584dae2220
+            176       1  KTI-csh-des                          pga heap        0x7f584dae2220
+            176       1  KTI-csh-pre                          pga heap        0x7f584dae2220
+            168       2  gwm-autoons-cac                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            168       1  kdp_init_pgcbks                      pga heap        0x7f584dae2220
+            168       1  KFIO heap                            pga heap        0x7f584dae2220
+            168       3  post queue proc                      pga heap        0x7f584dae2220
+            160       2  kwqaalag                             session heap    0x7f584c9182d0  0x7f584dae4e00
+            160       2  kwqmahal                             session heap    0x7f584c9182d0  0x7f584dae4e00
+            160       2  kwqidwh memory                       session heap    0x7f584c9182d0  0x7f584dae4e00
+            160       2  kwqb context memory                  session heap    0x7f584c9182d0  0x7f584dae4e00
+            160       2  kwqica hash table                    session heap    0x7f584c9182d0  0x7f584dae4e00
+            160       1  kope2pgi kope2p                      pga heap        0x7f584dae2220
+            160       1  dbgdutlHeapAlloc: kghalf             diag pga        0x7f584da9d7c8  0x7f584dae2220
+            160       1  heap:dbgtcNotify                     diag pga        0x7f584da9d7c8  0x7f584dae2220
+            160       1  KXDBIO PGA                           pga heap        0x7f584dae2220
+            160       1  qmxtiInitXtiCtx:1                    XVMsubheap      0x7f584da08a90  0x7f584dae2220
+            160       1  kfdrelochist sl                      pga heap        0x7f584dae2220
+            160       1  qmd_init_pga:bucket heap             pga heap        0x7f584dae2220
+            160       1  library cache                        pga heap        0x7f584dae2220
+            160       1  kglpgm                               pga heap        0x7f584dae2220
+            160       1  regheapd_kdlwpga                     pga heap        0x7f584dae2220
+            160       1  KSZ pga subheap descripto            pga heap        0x7f584dae2220
+            160       1  ksws pq help svc mapping             pga heap        0x7f584dae2220
+            160       1  KSFQ heap descriptor                 pga heap        0x7f584dae2220
+            152       1  statement text alloc                 Alloc statemen  0x7f584c129398  0x7f584c102a38
+            152       1  kzscugaini: 0                        session heap    0x7f584c9182d0  0x7f584dae4e00
+            152       1  kxfpugi:subheap                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            152       1  KFK_IO_SUBHEAP                       pga heap        0x7f584dae2220
+            152       1  XVM_PGA_subheap                      pga heap        0x7f584dae2220
+            152       1  dsheap_kfdpg                         pga heap        0x7f584dae2220
+            152       1  kcnibr.c@2946                        pga heap        0x7f584dae2220
+            152       1  Fixed UGA ds                         pga heap        0x7f584dae2220
+            144       1  session NLS glo                      session heap    0x7f584c9182d0  0x7f584dae4e00
+            144       1  dbgr-meta-data cache                 diag pga        0x7f584da9d7c8  0x7f584dae2220
+            144       1  dbgf-glo                             diag pga        0x7f584da9d7c8  0x7f584dae2220
+            144       1  KKX CLIENT VECT                      pga heap        0x7f584dae2220
+            144       1  IPC clbmap                           pga heap        0x7f584dae2220
+            144       1  IPC rembmap                          pga heap        0x7f584dae2220
+            144       1  IPC jnbmap                           pga heap        0x7f584dae2220
+            136       1  GPGA kope2fcs                        pga heap        0x7f584dae2220
+            136       1  kohpg                                pga heap        0x7f584dae2220
+            136       1  KCFIS GCTX                           pga heap        0x7f584dae2220
+            128       2  kzap actn bit-v                      auditLoadNextG  0x7f584c101d80  0x7f584c9182d0
+            128       1  kqlpWrntoStr:string                  session heap    0x7f584c9182d0  0x7f584dae4e00
+            128       1  fstack:dbgtfNotify                   diag pga        0x7f584da9d7c8  0x7f584dae2220
+            128       1  pesldT01_Contex                      pga heap        0x7f584dae2220
+            128       1  KSMSQ PGA                            pga heap        0x7f584dae2220
+            120       1  FDO                                  Alloc server h  0x7f584c131dd0  0x7f584c102a38
+            120       1  kohug                                session heap    0x7f584c9182d0  0x7f584dae4e00
+            120       1  alloc FDO                            Alloc server h  0x7f584c90cbb0  0x7f584d9c29a8
+            120       1  skgfzctx                             pga heap        0x7f584dae2220
+            120       1  kodopgi kopfdo                       pga heap        0x7f584dae2220
+            112       2  audXscLstcc:kzap                     session heap    0x7f584c9182d0  0x7f584dae4e00
+            112       2  allocator state            SQL       kxs-heap-d      0x7f584b764078  0x7f584c9182d0
+            112       1  alloc stmt cache ctx                 Alloc statemen  0x7f584c129398  0x7f584c102a38
+            112       1  dbgdInitEventGrp: eventGr            pga heap        0x7f584dae2220
+            112       1  skgdllctx                            pga heap        0x7f584dae2220
+            112       1  KSFS DBFS ctx                        pga heap        0x7f584dae2220
+            104       2  audboi:allocate in xsc               session heap    0x7f584c9182d0  0x7f584dae4e00
+            104       1  realloc kwfcstm in stmt h            Alloc statemen  0x7f584c129398  0x7f584c102a38
+            104       1  hcsuga global                        session heap    0x7f584c9182d0  0x7f584dae4e00
+            104       1  alloc stmtcache in user h            Alloc authenti  0x7f584c132e78  0x7f584c102a38
+            104       1  kngipga:1                            pga heap        0x7f584dae2220
+            104       1  kfnorpg                              pga heap        0x7f584dae2220
+            104       1  mdp_ksirpg                           pga heap        0x7f584dae2220
+            104       1  KSFQ pga                             pga heap        0x7f584dae2220
+            104       1  kgopc pcontext                       pga heap        0x7f584dae2220
+             96       1  kghdsx                               top call heap   0x7f584dae4b40
+             96       1  kghdsx                     SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+             96       2  audbni:allocate in xsc               session heap    0x7f584c9182d0  0x7f584dae4e00
+             96       2  audtni:allocate in xsc               session heap    0x7f584c9182d0  0x7f584dae4e00
+             96       1  kghdsx                     SQL       sort subheap    0x7f584bda6858  0x7f584bda4078
+             96       2  bnrdef                     SQL       kxs-heap-p      0x7f584c0f7f40  0x7f584c9182d0
+             96       1  kghdsx                               Alloc statemen  0x7f584c129398  0x7f584c102a38
+             96       1  kghdsx                               Alloc authenti  0x7f584c132e78  0x7f584c102a38
+             96       1  kghdsx                               auditLoadNextG  0x7f584c101d80  0x7f584c9182d0
+             96       1  kghdsx                               koh-kghu sessi  0x7f584c9593d8  0x7f584c9182d0
+             96       1  kghdsx                               top uga heap    0x7f584dae4e00
+             96       1  kghdsx                               session heap    0x7f584c9182d0  0x7f584dae4e00
+             96       1  kohdt                                session heap    0x7f584c9182d0  0x7f584dae4e00
+             96       1  kghdsx                     PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+             96       1  kghdsx                               sioheap_kdlwug  0x7f584c95f248  0x7f584c9182d0
+             96       1  kghdsx                               13753.kggec     0x7f584c95ff60  0x7f584c9182d0
+             96       1  kghdsx                     PL/SQL    PLS PGA hp      0x7f584d9feeb8  0x7f584dae2220
+             96       1  kghdsx                               Fixed UGA heap  0x7f584d9c3c10  0x7f584dae2220
+             96       2  PLSQL Stack descriptor     PL/SQL    PLS PGA hp      0x7f584d9feeb8  0x7f584dae2220
+             96       1  kghdsx                               7114.kgght      0x7f584da32970  0x7f584da33e70
+             96       1  kghdsx                               7100.kggec      0x7f584da33db8  0x7f584da33e70
+             96       1  kghdsx                               dbgtc heap      0x7f584da33e70  0x7f584da9d7c8
+             96       1  kghdsx                               KFK_IO_SUBHEAP  0x7f584da147d8  0x7f584dae2220
+             96       1  kghdsx                               XVMsubheap      0x7f584da08a90  0x7f584dae2220
+             96       1  kghdsx                               qmxtiInitXtiCt  0x7f584da10290  0x7f584da08a90
+             96       1  qmxtiInitXtiCtx:globctx_a            qmxtiInitXtiCt  0x7f584da10290  0x7f584da08a90
+             96       1  kghdsx                               diag pga        0x7f584da9d7c8  0x7f584dae2220
+             96       1  pspool_kfpg                          pga heap        0x7f584dae2220
+             96       1  kghdsx                               qmd_init_pga:b  0x7f584d9fe9a8  0x7f584dae2220
+             96       1  L2 pfob ptr arr                      pga heap        0x7f584dae2220
+             96       1  kghdsx                     JAVA      joxp heap       0x7f584d9fec80  0x7f584dae2220
+             96       1  KJZT context                         pga heap        0x7f584dae2220
+             96       1  kghdsx                               KSFQ heap       0x7f584d9c7248  0x7f584dae2220
+             96       1  kghdsx                               5954.kgght      0x7f584d9dd5e8  0x7f584dae2220
+             96       1  kghdsx                               pga heap        0x7f584dae2220
+             88       1  pclid.kkyclidst                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             88       1  kdlw:UGA state                       session heap    0x7f584c9182d0  0x7f584dae4e00
+             80       1  kocug                                session heap    0x7f584c9182d0  0x7f584dae4e00
+             80       1  system trigger cache                 session heap    0x7f584c9182d0  0x7f584dae4e00
+             80       1  kolrugi: KOLR's                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             80       1  dbgdInitEventGrp: eventGr            session heap    0x7f584c9182d0  0x7f584dae4e00
+             80       1  dbgdInitEventGrp: eventGr            diag pga        0x7f584da9d7c8  0x7f584dae2220
+             80       1  kodopgi kodop                        pga heap        0x7f584dae2220
+             80       1  skgfzctx                             KFK_IO_SUBHEAP  0x7f584da147d8  0x7f584dae2220
+             80       1  qcpgx: qciPGIni                      pga heap        0x7f584dae2220
+             72       1  heap mark                            Alloc statemen  0x7f584c129398  0x7f584c102a38
+             72       1  kzap priv bit-v                      auditLoadNextG  0x7f584c101d80  0x7f584c9182d0
+             72       1  kgfspares                            pga heap        0x7f584dae2220
+             72       1  krbabrPgaReqCtx                      pga heap        0x7f584dae2220
+             72       3  post queue scan                      pga heap        0x7f584dae2220
+             64       1  rworaloRowsets:            SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+             64       2  def frame seg              SQL       kxs-heap-d      0x7f584b764078  0x7f584c9182d0
+             64       1  private oac inf            SQL       kxs-heap-p      0x7f584c0f7f40  0x7f584c9182d0
+             64       1  koltugi: KOLT's                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             64       1  kzialslti                            session heap    0x7f584c9182d0  0x7f584dae4e00
+             64       1  KFR OSM PGA                          pga heap        0x7f584dae2220
+             64       1  kzsna:login name                     pga heap        0x7f584dae2220
+             64       1  KFVACFS PGA                          pga heap        0x7f584dae2220
+             64       1  kolpgi: KOL's P                      pga heap        0x7f584dae2220
+             64       1  KSOSLS sampled                       pga heap        0x7f584dae2220
+             64       1  krbrpcact                            pga heap        0x7f584dae2220
+             64       1  kglsim pga                           pga heap        0x7f584dae2220
+             64       1  allocate kzthsmpctx                  pga heap        0x7f584dae2220
+             56       1  ksulu : ksulueoftxt                  session heap    0x7f584c9182d0  0x7f584dae4e00
+             56       1  Bind length vector                   Alloc statemen  0x7f584c129398  0x7f584c102a38
+             56       1  kolaugi: KOLA's                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             56       1  pliuac                     PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+             56       1  GPGA kopoc                           pga heap        0x7f584dae2220
+             56       1  heap mark                            Alloc server h  0x7f584d9c1d98  0x7f584d9c29a8
+             56       1  alloc dblink                         Alloc server h  0x7f584d9c1d98  0x7f584d9c29a8
+             56       1  kfzpg                                pga heap        0x7f584dae2220
+             56       1  qmtknfy:cbk                          pga heap        0x7f584dae2220
+             56       1  system event co                      pga heap        0x7f584dae2220
+             56       1  qmd_init_pga:bucket list             qmd_init_pga:b  0x7f584d9fe9a8  0x7f584dae2220
+             56       1  KSWL PGA                             pga heap        0x7f584dae2220
+             56       1  KCFIS GCTX PGALINK                   pga heap        0x7f584dae2220
+             56       1  KGODM pga context                    pga heap        0x7f584dae2220
+             56       1  ksmxmctx                             pga heap        0x7f584dae2220
+             48       1  pclid: kkyLnkSl                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             48       1  kwqaugi                              session heap    0x7f584c9182d0  0x7f584dae4e00
+             48       1  ptz                                  session heap    0x7f584c9182d0  0x7f584dae4e00
+             48       1  type manager                         pga heap        0x7f584dae2220
+             48       1  KGDDNFS CallBac                      pga heap        0x7f584dae2220
+             40       1  ICD allocated rc list                callheap        0x7f584dae3160  0x7f584dae4b40
+             40       1  kxsclb@qesmmc.c            SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+             40       1  PL/SQL part of xsc         SQL       kxs-heap-p      0x7f584c0f7788  0x7f584c9182d0
+             40       1  kohcs                                session heap    0x7f584c9182d0  0x7f584dae4e00
+             40       1  kokaugi kokah                        session heap    0x7f584c9182d0  0x7f584dae4e00
+             40       1  koddcal void                         session heap    0x7f584c9182d0  0x7f584dae4e00
+             40       1  koklug hxctx init                    session heap    0x7f584c9182d0  0x7f584dae4e00
+             40       1  koklug hlctx init                    session heap    0x7f584c9182d0  0x7f584dae4e00
+             40       1  plsiot                     PL/SQL    PLS UGA hp      0x7f584c95dc58  0x7f584c9182d0
+             40       1  kdlu:UGA state                       session heap    0x7f584c9182d0  0x7f584dae4e00
+             40       1  kttuga                               session heap    0x7f584c9182d0  0x7f584dae4e00
+             40       1  psdwc: PGA call                      pga heap        0x7f584dae2220
+             40       1  kfthapg                              pga heap        0x7f584dae2220
+             40       1  KWQIPGA_INIT                         pga heap        0x7f584dae2220
+             40       1  INIT                                 pga heap        0x7f584dae2220
+             40       1  qmxpgAl                              pga heap        0x7f584dae2220
+             32       1  qeesFindKafsInR            SQL       kxs-heap-w      0x7f584bda4078  0x7f584c9182d0
+             32       1  kolfugi: KOLF's                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             32       1  kpolon kpdlsid                       session heap    0x7f584c9182d0  0x7f584dae4e00
+             32       1  kpoauth kpdlsid                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             32       1  GWM : Service n                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             32       1  kxttugi: kgsupt                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             32       1  qksceUgaNotify:                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             32       1  kse_snap_ring_s                      pga heap        0x7f584dae2220
+             32       1  koipgi koipg                         pga heap        0x7f584dae2220
+             32       1  kolfpgi: KOLF's                      pga heap        0x7f584dae2220
+             32       1  kfapg                                pga heap        0x7f584dae2220
+             32       1  KSRMF PGA                            pga heap        0x7f584dae2220
+             32       1  kpullbspgi: cli                      Alloc environm  0x7f584d9c29a8  0x7f584dae2220
+             24       1  kxs: ac ctx all                      session heap    0x7f584c9182d0  0x7f584dae4e00
+             24       1  ptz.kkytzstr                         session heap    0x7f584c9182d0  0x7f584dae4e00
+             24       1  sioheap dummy p                      sioheap_kdlwug  0x7f584c95f248  0x7f584c9182d0
+             24       1  kftmpg                               pga heap        0x7f584dae2220
+             24       1  kffspga                              pga heap        0x7f584dae2220
+             24       1  PGA Aux ptr                          pga heap        0x7f584dae2220
+             24       1  KEBM PGA Spare                       pga heap        0x7f584dae2220
+             24       1  KFAS PGA                             pga heap        0x7f584dae2220
+             24       1  kodopgi kodmd                        pga heap        0x7f584dae2220
+             24       1  kzaac_vpga                           pga heap        0x7f584dae2220
+             24       1  ptr to kcflsoh                       pga heap        0x7f584dae2220
+             24       1  KTC Variable PG                      pga heap        0x7f584dae2220
+             24       1  IPC rebld sqtl                       pga heap        0x7f584dae2220
+             24       1  IPC rebld nsqtl                      pga heap        0x7f584dae2220
+             24       1  IPC rebld state                      pga heap        0x7f584dae2220
+             24       1  KSFS pga                             pga heap        0x7f584dae2220
+             24       1  KSR PGA context                      pga heap        0x7f584dae2220
+             24       1  SKGFQ wait cont                      KSFQ heap       0x7f584d9c7248  0x7f584dae2220
+             24       1  dbktat bitvec                        pga heap        0x7f584dae2220
+             24       1  os statistics                        pga heap        0x7f584dae2220
+             24       1  ksepg_ccsi                           pga heap        0x7f584dae2220
+1002-1010      9  Other lines  [markers and blank lines]

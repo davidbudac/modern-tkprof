@@ -1,0 +1,250 @@
+== procstate 33-10394
+{
+  "dmlLocks": [
+    {
+      "address": "0x9ef06928",
+      "flags": "11",
+      "line": 767,
+      "mode": 3,
+      "modeName": "SX",
+      "session": "61.21652",
+      "table": 108609
+    }
+  ],
+  "dmlLocksTotal": 1,
+  "enqueues": [
+    {
+      "flag": "0x20",
+      "in": "transaction",
+      "line": 728,
+      "mode": "X",
+      "resource": "TX-00050016-00005A54-ED94F66A-00000000",
+      "session": "61.21652",
+      "type": "TX"
+    },
+    {
+      "flag": "0x20",
+      "in": "DML lock",
+      "line": 776,
+      "mode": "SX",
+      "resource": "TM-0001A841-00000000-ED94F66A-00000000",
+      "session": "61.21652",
+      "type": "TM"
+    },
+    {
+      "flag": "0x10",
+      "in": "enqueue",
+      "line": 1498,
+      "mode": "S",
+      "resource": "AE-00000086-ED94F66A-00000000-00000000",
+      "session": "61.21652",
+      "type": "AE"
+    }
+  ],
+  "enqueuesTotal": 3,
+  "from": 33,
+  "kind": "procstate",
+  "lines": 10362,
+  "locks": [
+    {
+      "address": "0x99f723d8",
+      "handle": "0x799d0d78",
+      "line": 334,
+      "mode": "N",
+      "session": "61.21652"
+    },
+    {
+      "address": "0x8f7b5798",
+      "handle": "0x799f39d8",
+      "line": 349,
+      "mode": "N",
+      "namespace": "SQL AREA",
+      "session": "61.21652",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x8f7b5818",
+      "handle": "0x7b3c6508",
+      "line": 394,
+      "mode": "N",
+      "name": "SELECT ID, AMOUNT FROM MTK_CUST WHERE ID BETWEEN :B1 AND :B1 + 10 ORDER BY ID",
+      "namespace": "SQL AREA",
+      "session": "61.21652",
+      "sqlId": "06wus0ktb61qb",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x8f7b5898",
+      "handle": "0x799fcb78",
+      "line": 427,
+      "mode": "N",
+      "namespace": "SQL AREA",
+      "session": "61.21652",
+      "type": "CURSOR"
+    },
+    "... 26 more"
+  ],
+  "locksTotal": 39,
+  "node": "procstate:33-10394:1:25",
+  "notes": [],
+  "objects": {
+    "byType": [
+      {
+        "count": 39,
+        "number": 118,
+        "type": "LIBRARY OBJECT LOCK"
+      },
+      {
+        "count": 2,
+        "number": 119,
+        "type": "LIBRARY OBJECT PIN"
+      },
+      {
+        "count": 2,
+        "number": 3,
+        "type": "call"
+      },
+      {
+        "count": 2,
+        "number": 19,
+        "type": "channel handle"
+      },
+      "... 9 more"
+    ],
+    "depth": 4,
+    "total": 54
+  },
+  "pins": [
+    {
+      "address": "0x8f77fae8",
+      "count": 3,
+      "handle": "0x7b3c9620",
+      "line": 1768,
+      "mode": "S",
+      "name": "PDB1.MTK.MTK_DIAG_INNER",
+      "namespace": "TABLE/PROCEDURE",
+      "type": "PROCEDURE"
+    },
+    {
+      "address": "0x8f7885d8",
+      "count": 3,
+      "handle": "0x7b3c2580",
+      "line": 1816,
+      "mode": "S",
+      "name": "PDB1.MTK.MTK_DIAG_OUTER",
+      "namespace": "TABLE/PROCEDURE",
+      "type": "PROCEDURE"
+    }
+  ],
+  "pinsTotal": 2,
+  "process": {
+    "address": "0xa2eec2a0",
+    "flags": "-",
+    "line": 39,
+    "osUser": "oracle",
+    "ospid": "13832",
+    "pid": 6,
+    "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+    "serial": 35
+  },
+  "scope": "process state",
+  "sessions": [
+    {
+      "action": "processstate_10",
+      "address": "0xa2ef7930",
+      "clientOsUser": "oracle",
+      "clientOspid": "13830",
+      "command": 47,
+      "commandLine": 125,
+      "commandName": "PL/SQL EXECUTE",
+      "container": "PDB1",
+      "containerId": 3,
+      "containerUid": "3985962602",
+      "from": 107,
+      "key": "61.21652",
+      "line": 115,
+      "machine": "ol9-19-dg1.localdomain",
+      "module": "mtk_diag_procstate",
+      "prevSql": "0x799d7ea0",
+      "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+      "serial": 21652,
+      "service": "pdb1",
+      "sid": 61,
+      "sql": "0x79a02048",
+      "sqlId": "f3j90cdzgg7d2",
+      "sqlLine": 667,
+      "sqlText": "begin mtk_diag_outer(:ev, :cid); end;",
+      "to": 333,
+      "user": "MTK",
+      "userId": 165,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.001335,
+        "history": [
+          {
+            "event": "SQL*Net message from client",
+            "line": 139,
+            "n": 0,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000156
+          },
+          {
+            "event": "SQL*Net message to client",
+            "line": 146,
+            "n": 1,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0
+          },
+          {
+            "event": "SQL*Net message from client",
+            "line": 153,
+            "n": 2,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000163
+          },
+          {
+            "event": "SQL*Net message to client",
+            "line": 160,
+            "n": 3,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0
+          },
+          "... 6 more"
+        ],
+        "historyLine": 137,
+        "historyTotal": 10,
+        "inWait": false,
+        "lastEndedSec": 0.001319,
+        "line": 133,
+        "stack": [],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 10394,
+  "transactions": [
+    {
+      "address": "0x9ef4a208",
+      "begin": "11/17/2026 21:34:26",
+      "blocks": [
+        {
+          "itli": 2,
+          "line": 765,
+          "obj": 108609,
+          "rdba": "0x3028f75",
+          "sqlId": "2t77xc2qrk3fy"
+        }
+      ],
+      "blocksTotal": 1,
+      "line": 700,
+      "session": "61.21652",
+      "undoBlocks": 1,
+      "undoRecords": 3,
+      "xid": "0x0005.016.00005a54"
+    }
+  ],
+  "transactionsTotal": 1
+}

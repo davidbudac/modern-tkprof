@@ -289,6 +289,8 @@ select { font-size: var(--text-sm); padding: 0.15rem 0.3rem; border: 1px solid v
 .fp-head p { margin: 0; }
 .fp-paths { overflow-wrap: anywhere; }
 .fp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); }
+.fp-show { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); }
+.fp-show select { font-size: var(--text-sm); max-inline-size: 18rem; }
 .fp-filter { inline-size: min(24rem, 100%); font-size: var(--text-sm); padding: 0.25rem 0.5rem; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--surface-raised); color: var(--ink); }
 .fp-table-wrap { overflow: auto; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-raised); }
 .fp-table { inline-size: 100%; font-size: var(--text-sm); border-collapse: collapse; }

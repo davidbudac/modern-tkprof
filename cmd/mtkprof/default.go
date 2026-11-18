@@ -50,6 +50,7 @@ func cmdDefault(args []string) error {
 	pv := planVizFlag(fs)
 	nf := addFollowFlag(fs)
 	addAggregateFlag(fs)
+	addViewFlag(fs)
 	files := parseArgs(fs, args)
 	th, err := loadThresholds(*fc)
 	if err != nil {
@@ -71,15 +72,18 @@ func cmdDefault(args []string) error {
 	if err != nil {
 		return err
 	}
-	oi, done, oerr := optInput(m, bf, true, true) // one scan for the text and the HTML
+	v, oerr := openView(m, bf, true, true) // one scan for the text and the HTML
 	if oerr != nil {
 		f.Close()
 		return oerr
 	}
-	defer done()
-	if oi != nil { // a 10053 file: the text report is its digest
-		err = report.OptText(f, oi)
-	} else {
+	defer v.done()
+	switch {
+	case v.opt != nil: // a 10053 file: the text report is its digest
+		err = report.OptText(f, v.opt)
+	case v.diag != nil: // a diag file: likewise
+		err = report.DiagText(f, v.diag)
+	default:
 		err = report.Text(f, m, opts)
 	}
 	if cerr := f.Close(); err == nil {
@@ -92,5 +96,5 @@ func cmdDefault(args []string) error {
 	if !ui.Built() {
 		return fmt.Errorf("built without the web UI (make web, then rebuild): %s.html not written", base)
 	}
-	return writeHTML(base+".html", m, report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th, Opt: oi})
+	return writeHTML(base+".html", v.dm, v.options(report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th}))
 }

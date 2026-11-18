@@ -1,0 +1,42 @@
+file diag_sysstate_l1.trc: 26094 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 4 unplaced
+section sysstate 40-26088
+outline:
+  1-34 (34) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  35-39 (5) other: Other lines  [Processing Oradebug command 'dump systemstate 1']
++ 40-26088 (26049) sysstate: System state (level=1) reading=sysstate
+      42-2237 (2196) title: Process summary
+    + 2238-2293 (56) process: Process 1 reading=procstate
+    + 2294-2576 (283) process: Process 2: PMON reading=procstate
+    + 2577-2859 (283) process: Process 3: CLMN reading=procstate
+    + 2860-3142 (283) process: Process 4: PSP0 reading=procstate
+    + 3143-3326 (184) process: Process 5: VKTM reading=procstate
+    + 3327-3642 (316) process: Process 6 reading=procstate
+    + 3643-3925 (283) process: Process 7: GEN0 reading=procstate
+    + 3926-4447 (522) process: Process 8 reading=procstate
+    + 4448-4730 (283) process: Process 9: MMAN reading=procstate
+    + 4731-5013 (283) process: Process 10: GEN1 reading=procstate
+    + 5014-5296 (283) process: Process 11: SCMN reading=procstate
+    + 5297-5579 (283) process: Process 12: DIAG reading=procstate
+    + 5580-5913 (334) process: Process 13: OFSD reading=procstate
+    + 5914-6196 (283) process: Process 14: SCMN reading=procstate
+    + 6197-6535 (339) process: Process 15: DBRM reading=procstate
+    + 6536-6748 (213) process: Process 16: VKRM reading=procstate
+    + 6749-7031 (283) process: Process 17: SVCB reading=procstate
+    + 7032-7314 (283) process: Process 18: PMAN reading=procstate
+    + 7315-7600 (286) process: Process 19: DIA0 reading=procstate
+    + 7601-7883 (283) process: Process 20: DBW0 reading=procstate
+    + 7884-8166 (283) process: Process 21: LGWR reading=procstate
+    + 8167-8461 (295) process: Process 22: CKPT reading=procstate
+    + 8462-8756 (295) process: Process 23: LG00 reading=procstate
+    ... 51 more children
+    + 23791-23846 (56) process: Process 79: P005 reading=procstate
+    + 23847-23902 (56) process: Process 80: P006 reading=procstate
+    + 23903-23958 (56) process: Process 81: P007 reading=procstate
+    + 23959-24258 (300) process: Process 105: W005 reading=procstate
+    + 24259-24710 (452) process: Process 106: M001 reading=procstate
+    + 24711-25255 (545) process: Process 109: M003 reading=procstate
+    + 25256-25549 (294) process: Process 110: W006 reading=procstate
+    + 25550-26084 (535) process: Process 113: M004 reading=procstate
+      26085-26086 (2) title: KSM MGA SYSTEM DUMP START
+      26087-26088 (2) title: KSM MGA SYSTEM DUMP - END fold="redo transport structures of the instance"
+  26089-26094 (6) other: Other lines  [markers and blank lines]

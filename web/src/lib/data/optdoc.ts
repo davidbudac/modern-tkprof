@@ -7,21 +7,29 @@ import type { Marker } from './types'
 /** The document is a 10053 file (the optimizer trace): the 10053 view is its only trace view. */
 export const isOptDoc = (doc: Pick<TraceDoc, 'opt'> | null | undefined): boolean => !!doc?.opt
 
+/** The document is a diag session (`dump`): the dump reader is its only trace view. */
+export const isDumpDoc = (doc: Pick<TraceDoc, 'dump'> | null | undefined): boolean => !!doc?.dump
+
+/** The document has no 10046 views: a 10053 file or a diag session. */
+export const isReaderDoc = (doc: Pick<TraceDoc, 'opt' | 'dump'> | null | undefined): boolean => !!doc && (!!doc.opt || !!doc.dump)
+
 /** The views of the tab rather than of the trace (the desktop's Notes and Reports) also work on a 10053 document. */
 const TOOL_VIEWS: ReadonlySet<string> = new Set(['annotations', 'reports'])
 
 /**
- * Whether `view` is one the document can show: `opt` only for a 10053 document, and for it nothing of the 10046 views (the tools of the tab
- * apart). A view that does not fit is never remembered (the store ignores it), so `opt` cannot become the view a 10046 tab starts on, nor a
- * 10046 view that of a 10053 tab.
+ * Whether `view` is one the document can show: `opt` only for a 10053 document and `dump` only for a diag session, and for either nothing of the
+ * 10046 views (the tools of the tab apart). A view that does not fit is never remembered (the store ignores it), so `opt` or `dump` cannot become the
+ * view a 10046 tab starts on, nor a 10046 view that of a 10053 or diag tab.
  */
-export function viewFits(doc: Pick<TraceDoc, 'opt'> | null | undefined, view: string): boolean {
+export function viewFits(doc: Pick<TraceDoc, 'opt' | 'dump'> | null | undefined, view: string): boolean {
   if (!doc) return true
-  return doc.opt ? view === 'opt' || TOOL_VIEWS.has(view) : view !== 'opt'
+  if (doc.dump) return view === 'dump' || TOOL_VIEWS.has(view)
+  if (doc.opt) return view === 'opt' || TOOL_VIEWS.has(view)
+  return view !== 'opt' && view !== 'dump'
 }
 
 /** The view a document opens on. */
-export const startView = (doc: Pick<TraceDoc, 'opt'>): 'opt' | 'overview' => (doc.opt ? 'opt' : 'overview')
+export const startView = (doc: Pick<TraceDoc, 'opt' | 'dump'>): 'dump' | 'opt' | 'overview' => (doc.dump ? 'dump' : doc.opt ? 'opt' : 'overview')
 
 /** The dump of the file that holds `line` (its view range), or null. */
 export function dumpOfLine(file: Pick<OptFile, 'dumps'>, line: number): number | null {
@@ -36,13 +44,13 @@ export function lineLabel(file: Pick<OptFile, 'dumps'>, line: number): string {
   return d ? `dump ${d.idx + 1}${d.sqlId ? ` · ${d.sqlId}` : ''}` : ''
 }
 
-/** The facts of the masthead that mean something for a 10053 file: the release, the session and the pluggable database, from the markers. */
+/** The facts of the masthead that mean something for a 10053 file (and for a diag file, which has the same prologue and markers): the release, the session and the pluggable database, from the markers. */
 export interface OptFacts { release: string; version: string; session: string; pdb: string }
 
 const markerText = (m: Marker) => m.text.replace(/^\*+\s*/, '')
 
-export function optFacts(doc: Pick<TraceDoc, 'opt' | 'file' | 'markers'>): OptFacts {
-  const f = doc.opt?.file
+export function optFacts(doc: Pick<TraceDoc, 'opt' | 'dump' | 'file' | 'markers'>): OptFacts {
+  const f = doc.opt?.file ?? doc.dump?.file
   let session = '', pdb = ''
   for (const m of doc.markers) {
     const t = markerText(m)

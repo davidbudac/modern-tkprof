@@ -1998,7 +1998,8 @@ The 10046 parser must not take a dump's lines for 10046 lines, so it tracks dump
 
 - **Peek** (`internal/peek`): `Summary.Kind` is `"10046"`, `"10053"` or `"both"` (`""` for a background process
   trace), `OptDumps` counts the dumps and `OptSQLIDs` lists the sql_ids of the first `MaxOptDumps` (100) in file
-  order. The folder picker reads them.
+  order. The folder picker reads them. Since the dump reader `Kind` can also be `"diag"`, with `Sections` (§ The dump
+  reader).
 - **An interleaved file** is a 10046 trace to the model: `model.FileEntry.Dumps` (`DumpRange`: first, last, sql_id,
   cut) keeps the ranges and `noteDumps` adds one note per file under the trace facts (`DumpNote`: "2 optimizer
   (10053) dumps in this file, lines 54-18356 and 18684-28072; not shown as 10053 yet", at most five ranges, then "and
@@ -2006,7 +2007,8 @@ The 10046 parser must not take a dump's lines for 10046 lines, so it tracks dump
   session cached from such a file holds unknown-line counts and no note).
 - **Sets**: `model.DropOptFiles` takes the files that hold only dumps out of a set that also has other files and returns
   one note per file ("opt_two.trc is a 10053 file; open it on its own"). A set of one file, or made only of 10053
-  files, is returned as it is.
+  files, is returned as it is. Since the dump reader it takes out the files of diagnostic dumps only as well ("x.trc
+  holds diagnostic dumps only; open it on its own").
 - **The engine session of a 10053 file** is a session of its own kind; it is never part of a set, and the desktop opens
   it in its own tab.
 
@@ -2014,7 +2016,9 @@ The 10046 parser must not take a dump's lines for 10046 lines, so it tracks dump
 
 - **The model of a 10053 file is empty.** `Model.OptOnly()` is true for a single file with dumps and none of the 10046
   record line kinds; the dumps are read by `internal/opt` from the file itself (`report.OptScan` returns nil for any
-  other model: an ordinary trace, an interleaved one, a set). So a 10053 session's dumps are never in the index cache;
+  other model: an ordinary trace, an interleaved one, a set; `report.OptScanView` with `explicit`, for a session opened
+  with `view` 10053, scans any single file that holds a dump, so an interleaved file opens as 10053 on request: § The
+  dump reader, the `view` option). So a 10053 session's dumps are never in the index cache;
   the cache holds the empty model, and the scan (about 290 MB/s on an Apple M4) runs when the session opens.
 - **The document**: `report.DocOptions.Opt` (`report.OptInput`: the scan, a line function, `Digest`, the bind text
   options) adds the member `opt` (`OptDoc`: `file` and, with `Digest`, `digest.dumps` and `digest.lines`, runs of
@@ -2143,3 +2147,351 @@ an eight-table join by `explain plan` (`opt_join8`); a table without statistics 
 (`opt_nostats_ds`); a partitioned table (`opt_part`); a parallel plan (`opt_parallel`, the coordinator's trace); three
 DML statements (`opt_dml`); a `UNION ALL` with a `WITH` clause (`opt_setop`); altered optimizer parameters and an
 `opt_param` hint (`opt_altered`); unified tracing, `trace[rdbms.SQL_Optimizer.*]` (`opt_unified`).
+
+### The dump reader (`internal/diag`, `internal/trace/section.go`, `web/src/lib/views/diag`)
+
+Decisions: DESIGN § Diagnostic dumps. Formats: `docs/trace-format-diag.md`. Plan, build contract and the dated log of
+the build: `docs/PLAN-DIAG.md`. Mock-up (layout A approved): `docs/mockups/diag-reader/` (its throwaway parser
+`tools/parse.mjs` found the totals check true on the 80 heaps of `diag_heap_sub` before the Go side existed).
+
+Pipeline for a diag file:
+
+1. **Sniff and parse** (`trace.SniffFile`, the parser, `internal/peek`): the parser's `sectionTracker` finds the
+   sections and counts their lines as `diagnostic`; the file kind is `diag` when it has sections and neither 10046
+   records nor optimizer dumps. The model keeps the sections per file (`model.FileEntry.Sections`).
+2. **View** (`model.ResolveView`): the session's `view` option, or the default (`model.DefaultView`). For `diag`:
+3. **Scan** (`diag.ScanFile` / `diag.ScanReader`): one streaming pass gives `diag.Scan` (`diag.File`, the whole top
+   level, the marks and the session markers).
+4. **Document or routes**: the document of a diag session is the document of an empty 10046 model plus **`dump`**
+   (`file` always; `digest` in a document made for a client without a server). The member is `dump`, not `diag`:
+   `doc.diag` is the parser's diagnostics. A server serves `api/diag/*` beside `api/lines` and `api/search`.
+5. **Source** (`DiagSource`, `data/diag.ts`, `data/diagsource.ts`): HTTP over the routes (the apps), the document's
+   digest (the standalone report: the outline to two levels and the readings it holds, no text), memory (tests and the
+   dev harness).
+6. **View** (`views/diag/DiagView.tsx`): the outline, the paged text, the reading behind *Reading | Text*, the guide.
+
+#### The parser's sections (`internal/trace/section.go`, `kind.go`, `parser.go`)
+
+The header comment of `section.go` is the reference; in short:
+
+- **Nine kinds**, each start verified on a 19c fixture: `heap` (`HEAP DUMP heap name=…`), `pga-summary` (`TOP 10 MEMORY
+  USES FOR THIS PROCESS`), `pga-detail` (`Begin PGA memory detail dump`), `diagdump` (`dbkedDefDump(): Starting …`:
+  errorstack, deadlock, incident), `procstate` (`PROCESS STATE`), `sysstate` (`SYSTEM STATE (level=N…)`), `hang`
+  (`HANG ANALYSIS:`), `deadlock` (`DEADLOCK DETECTED ( ORA-00060 )`), `incident` (`[TOC00000]`). `IsSectionStart` is
+  the one rule the tracker, the sniffer and the stateless callers share.
+- **Precedence**, as for the optimizer dumps: cursor text, `PARSE ERROR` text and the `BINDS` state first, then an
+  optimizer dump, then a section. The tracker is called only for a line no record matched, or while a section is open.
+  A section is ended by anything a primary format owns: a valid 10046 record or the 21-`=` separator, an optimizer dump's
+  first line or a line its tracker claims, `TRACE CONTINUES IN FILE`, the end of the file. `*** ` markers and blank
+  lines inside a section keep their kinds and do not end it; every other line is `KindDiag`.
+- **A section absorbs every other start** (the process state and heap dumps inside an errorstack are parts of that
+  section; reading them is `internal/diag`'s job), except a heap dump, which comes in runs and is split at each start.
+- **Ends.** `procstate` ends at `END OF PROCESS STATE`, `sysstate` at `END OF SYSTEM STATE`, `pga-detail` at `End PGA
+  memory detail dump` and its rule, `hang` at `END OF HANG ANALYSIS` and its rule (and, when a `HANG ANALYSIS DUMPS:`
+  block follows, at that block's end and rule), `heap` at its line of 54 `*`. A kind without an end line (`diagdump`,
+  `pga-summary`, `deadlock`, `incident`) runs to the first line of a primary format or the end of the file and is never
+  `Cut`; a kind with one that stops first is `Cut`.
+- **Heap runs**: the `*` rules between heaps are shared. After a heap's closing rule, the glue lines (more rules,
+  `SUBHEAP n: desc=…`, `No stack allocations`, blanks, markers) belong to the heap before; the rule right above a
+  `HEAP DUMP` line is the first line of that heap. So the heaps of a run are adjacent sections, one per `HEAP DUMP`.
+- `=` rules outside a section stay `KindSeparator` (holding every separator of a 10046 trace back a line to see whether
+  a start follows would cost the primary formats more than it is worth). `trace.MarkSections` gives a page's lines the
+  section kind for the stateless classifier (`api/lines`).
+- Left unknown on purpose: oradebug's wrapper lines, the caller's short stack before a system state, the
+  `ksqdld_hdr_dump()` line before a deadlock graph, the latch directory before the first shared pool heap.
+
+#### File kind, notes, sets, peek, the view (`internal/model/sections.go`, `view.go`, `optdump.go`, `internal/peek`)
+
+- `Stats.FileKind()` / `trace.SniffFile` give `FileKindDiag` for a file with sections and no record or optimizer dump.
+- **Notes**: `SectionNote` ("3 heap dumps in this file, lines 32-923, 924-1034 and 1035-1486"; of several kinds "5
+  diagnostic dumps (2 heap dumps, 1 process state and 2 hang analyses), lines …"; at most five ranges). A diag
+  session's document leaves these notes out (`withoutSectionNotes`): the reader shows the sections itself.
+- **Sets**: `DropOptFiles` / `OptInputs` take out the files of `FileKind10053` and `FileKindDiag` alike; `AllDiag` lets
+  a command refuse before it parses.
+- **Persisted**: `FileEntry.Sections` (`SectionRange`: kind, first, last, cut), `model.PersistVersion` 4,
+  `engine.CacheIndexFormat` **9**. A session cached before holds unknown-line counts for a file with sections.
+- **Peek**: `Summary.Kind` `"diag"` and `Sections` (kind and count, in order of first appearance). The peek looks for
+  section starts with `bytes.Index` on a few rare keys per chunk and only up to the first 10046 record or optimizer
+  dump: searching every file halved its speed on 10046 traces (5.9 to 2.65 GB/s). So `Sections` is set for diag-only
+  files; a 10046 trace's sections are found when it is parsed.
+- **`view`** (`model.ParseView`, `DefaultView`, `ResolveView`, `ViewModel`): `10046`, `10053`, `diag`. Default: records →
+  `10046`; `OptOnly` → `10053`; one file without dumps → `diag`; else `10046`. A view other than 10046 needs one file;
+  `10053` needs a dump. `ViewModel` is the model a document is made of when a file with records is opened as 10053 or
+  diag: the file facts and notes without the records (`Diagnostics` of the record kinds cleared).
+
+#### The model (`internal/diag/model.go`)
+
+`model.go` is the data contract (`TestJSONShape` pins it; `data/diag.ts` mirrors it and `data/diag.test.ts` reads the
+Go file and fails when the two drift; a field may be added, never renamed or removed, without the twin in the same
+commit). Lines are 1-based, ranges inclusive.
+
+| Part | What it is for |
+|---|---|
+| `File` | name, lines, release, version, `Tested` (19.x), `Records10046` (record lines of a 10046 trace opened as diag), `Incident` (dump file, continued from, id, problem), the parser's `Sections`, `Unplaced` (lines outside the header and every section that are not blank, a marker, a rule or a record), `Outline` (the first `Cap` = 2,000 top-level nodes) and `OutlineTotal` |
+| `Node` | `ID`, `Kind`, `Title`, `Sub`, `From`/`To`/`Lines`, `HasChildren` (known from the pass that found the node), per kind `N`, `Name`, `Depth`, `Size`, `Records`, `Cut`; `Reading` (the kind of its reading, absent when it has none); `Fold` (a reason, set on a part whose lines are bulk, never on a section) |
+| `Outline` | the answer for children: `node`, `children` (at most 2,000), `more`, `next` |
+
+- **Ids** are `kind:from-to:heading lines:rule set` (`heap:32-923:1:100`): stable across scans of the same file, so a
+  client, a bookmark's path and a reading can name a node without the server holding it. `root` is the top level.
+- **Node kinds**: top level only `header`, `other` (a run between sections), `trace10046` (a run that holds 10046
+  records); a section, top level or nested, by its `trace.SectionKind` name; inside a section `title` (`----- X
+  -----`), `banner` (a title framed by rules or underlined), `frame`, `process`, `so` (a state object), `chain`, `toc`,
+  and the parts of a heap dump (`extents`, `extent`, `freelists`, `bucket`, `unpinned`, `permanent`, `subheaps`).
+
+#### The outline rules (`internal/diag/rules.go`)
+
+A *head* is a line (or a few) that starts a part. The children of a node are the heads found in its lines; a head's part
+runs to the line before the next head of the same or a lower rank, or to its own end line where the kind has one. The
+table in `rules.go` names the fixture line behind every rule:
+
+| Rule | Matches | In |
+|---|---|---|
+| title | `----- Title -----` (3+ dashes each side), not a dash rule nor a column underline; a few titles nest under another (the cursor dumps) | diagnostic dump, deadlock, process and system state, PGA summary |
+| banner | rule, title, rule (`=` on top: a part of its own; dashes only: a leaf), or a title over an underline of about its length | as titles |
+| nested section | a section start inside another section (a process state in a diagnostic dump, a diagnostic dump in a deadlock), with its end line where the kind has one | diagnostic dump, deadlock |
+| nested heap | `HEAP DUMP` inside a PGA summary (a sampled heap), a part of the banner it stands in | PGA summary |
+| frame | `========== FRAME [n] (caller()+off -> callee()) ====` | diagnostic dump |
+| process | `PROCESS <n>: <name>` | system state |
+| state object | `SO: 0x…, type: name (n)`, nested by indentation | process and system state |
+| chain, hang labels | `Chain N:`, the lines that name the parts of a hang analysis | hang analysis |
+| summary | `Dumping the Process Summary` | system state |
+| toc | `[TOCnnnnn]` up to `[TOCnnnnn-END]`, titled from the table of contents at the end of the file | incident |
+| heap parts | `EXTENT n addr=…`, `FREE LISTS:` and its buckets, `UNPINNED RECREATABLE CHUNKS`, `PERMANENT CHUNKS:`, `N LARGEST SUB HEAPS` | heap |
+
+Which rules apply depends on the node's kind (`ownProfile`) plus the profile of the scan that found it, so what a scan
+of a parent finds in a node is what the scan of the node finds. **Folds**: `foldTable` (rules.go) lists the title
+prefixes of the bulk parts with a reason each (`Binary Stack Dump`: the registers and memory of each frame; the
+argument and register address dump; the process map; the fixed areas; compile-time constants; pinned buffer history
+and block dumps; redo transport structures; SGA granule transfers; the DDE actions); only a `title`, `banner` or `toc`
+part gets one.
+
+#### Children and paths on demand (`scan.go`, `children.go`, `walk.go`, `path.go`)
+
+- **The scan** is `trace.SniffReader` with a per-line hook (`SniffOptions.Line`): the sections are the parser's, the
+  titles of the top level come from the same pass. What it holds is the model: a window of a few lines, one record per
+  section start and per run between sections. In the same pass it collects the **marks** (`marks.go`: the sql_ids of
+  `Current SQL Statement`, `Dump Cursor` and library handles' `SqlId=`; the `sid.serial` of the `*** SESSION ID`
+  marker, session state objects, a system state's summary, blocker and waiter lines, a hang analysis's session pairs
+  and a deadlock's waiting sessions; first-seen order, at most `MarkCap` = 300 each) and the `*** SESSION ID` markers
+  (`SessionMarks`, at most 50,000; `SessionAt` says which session wrote a line). The scan is not cached: the index
+  cache keeps the (empty) model, and the scan runs when a session opens.
+- **`Reader.Children(id, after)`** reads only that node's lines through the line index (`Source`: `*trace.LineIndex`)
+  and answers at most 2,000 children; the last 16 answers are kept. `children` of `root` pages the top level.
+- **`Reader.Path(line)` / `PathTo(id)`** (`api/diag/path`): the chain of nodes from the top level down to the deepest
+  node that holds a line, at most `PathDepth` = 16. The top node is found by binary search (the top level tiles the
+  file); each level down reads the node it is in only from its start to the end of the child that holds the line, and
+  keeps nothing but that child. The last 32 paths are kept. It lets a client name a line in a part it has not loaded
+  (a heap nested in a PGA summary, a process of a system state).
+
+#### The readings (`reading.go` and one file per kind)
+
+`Reader.Reading(id)` dispatches on the node's kind (`ReadingKindOf`), scans the node's own lines once and keeps the
+last 8 readings; nothing is persisted. The JSON of each starts with `kind` (`TestReadingJSONShape`); the TypeScript
+twins are `data/diagreadings.ts` (`diagreadings.test.ts` compares).
+
+| Reading | On a node of kind | Go type |
+|---|---|---|
+| `heap` | `heap` | `HeapReading` (`heap.go`) |
+| `pga-summary`, `pga-detail` | `pga-summary`, `pga-detail` | `PGASummary`, `PGADetail` (`pga.go`) |
+| `callstack` | `diagdump` (top level or nested, also the one in a deadlock), `incident`, and the incident's "Dump for incident" part (`toc`) | `CallStack` (`stack.go`) |
+| `procstate` | `procstate` (also nested in a diagnostic dump), `process` of a system state | `ProcState` (`procstate.go`) |
+| `sysstate` | `sysstate` | `SysState` (`sysstate.go`) |
+| `hang` | `hang` | `HangReading` (`hang.go`) |
+| `deadlock` | `deadlock` | `Deadlock` (`deadlock.go`) |
+
+How the parts are decided:
+
+- **Heap.** One pass over the chunk lines (`Chunk <addr> sz=<bytes> <type> "<comment>"`); the free lists, the reserved
+  free lists and the permanent chunks are counted apart. **The checks**: the chunks of the extents against `Total heap
+  size`, the free-list chunks against `Total free space`, the perm chunks under `PERMANENT CHUNKS:` against `Permanent
+  space`, the reserved free lists against `Total of all reserved free space` where printed; each `match`, `differ`
+  (with the difference) or `none` with a reason (`HeapFlags`: PDB-filtered, sampled, no extents, cut; memory contents
+  are skipped and counted). **Types**: free, freeable, freeableU, recreate, perm, lastchk, R-free, R-freeable,
+  R-stopper, mfreeable; the shared pool's `recr<P|U><C|T|R><nnn>` family is one type `recr` with the printed ones as
+  variants. **Comments**: the 15 characters between the quotes, trimmed, grouped by the part before `^`
+  (`KGLH0^80b2c0e9`; `Suffixes` counts the folded ones); the largest `CommentCap` = 300, the rest in `OtherComments`.
+  **Sub-heaps** from the `ds` line after a descriptor chunk, the `ds=0x…` of the chunks, and the `N LARGEST SUB
+  HEAPS` block (at most 100); `Run` lists the heaps of the same dump run (at most 400) for the heap tree, `ParentNode`
+  links a parent's own dump. `RunLabel` is the oradebug command before the run when the file has one (no fixture does).
+  `Reader.HeapLines` (`api/diag/reading/lines`) gives the chunk lines of one comment group and type, 2,000 per answer.
+- **PGA.** The dump's tables read as tables, with each size as printed and in bytes (`PGASize`); rows bounded at 5,000
+  per table. The summary carries a note that its figures are rounded and nothing is checked.
+- **Call stack.** Seven parts, each found by the dump's own `----- Title -----` and read once (the first wins: a nested
+  process state repeats some titles): the start line, the error (`ORA-` lines, `<error barrier>` lines, `about to
+  signal`, an incident's problem key), the current statement and sql_id, the PL/SQL call stack, the frames, the cursors
+  (`Dump Cursor sql_id=…` with the statement's first line and `Bind Info` values; 100 cursors, 32 binds each), the
+  nested dumps. **Frames have two sources and both are always read**: the `FRAME [n]` headers of the Binary Stack Dump
+  and the `Call Stack Trace` table (wrapped names joined); the list is the binary one when there is one, and the reading
+  says which (`FramesSource`) and whether the table agrees (`TableAgrees`; they agree on every fixture). **The dump's
+  own frames** (`stackrules.go`) are the leading frames named `ksedst*`, `ksedmp`, `dbkedDef*`, `dbk*` or `dbg*`; the
+  first other frame and all after it are the process's (`ksqdld_hdr_dump`, which asked for a deadlock's dump, stays the
+  process's). A short stack of a system state or hang analysis drops the signal handler's entries through
+  `__sighandler`.
+- **Process state.** Read by the state object lines (`SO: 0x…, type: …`) at any indentation and their `owner:` links,
+  which give the tree and which session an object belongs to; the tree ends at the first `=` rule or titled `----- X
+  -----` line after it (the cursor dumps that follow are not part of it). **A session's statement**: the session object
+  prints only `sql: 0x…`, the address of a library handle; the session holds a library object lock on that handle,
+  whose text prints `SqlId=` and the statement, and the reading matches the two. A dump that prints no child state
+  objects (a system state of level 1) has no such lock and gives the address alone. `psql:` is the previous statement.
+  Holds: enqueues (held `mode:` or requested `req:`), transactions with their Block List rows, DML locks, library
+  object locks and pins; waits: the current wait stack, `Not in wait`, the blocker and waiter lines, the wait history.
+  Each list is bounded and counted.
+- **System state.** The `Process Summary` gives one row per process (pid, name, ospid, sid.serial, the event,
+  `Cmd:`, `Blocked by`, `Final Blocker`), completed from each `PROCESS n` body by the process state parser (user,
+  module, action, program, time in wait, the direct blockers, the statement where the level prints library locks:
+  2, 258 and 266; level 1 does not). **Blockers are taken as the dump names them**, from the summary and the bodies,
+  never inferred: each session is the child of its first direct blocker (others in `alsoBlockedBy`), the roots are the
+  final blockers, a blocker not in the dump is `foreign`, a cycle is cut where it closes. **Idle** is the event's class
+  Idle in `internal/ref/data/event_name_19c.csv` (the 10046 side's reference), or a process without a session; an
+  unknown event is not idle. The summary and the bodies are written at different moments, so a process can wait for
+  another event in its body (`bodyEvent`, and a note). Bounds: 3,000 rows plus the rows of blocked and blocking
+  sessions beyond them, 300 tree nodes. The caller's stack and the oradebug command are read from the lines before the
+  section.
+- **Hang analysis.** The header, the "most likely" list with signatures, each chain's sessions in the order printed
+  (the first waits, each next one blocks the one before; the signature lists the events the other way round), the
+  node tables, the extra and dumps blocks. **`current sql_id` is not a sql_id and not a hash value**: it is the high 32
+  bits of the sql_id's 64-bit number (bytes 9 to 12 of the statement's `FullHashValue`); the hash value (`hv=` of a
+  10046 trace) is the low 32 bits. The field is `sqlIdHigh`; `diag.SQLIDParts` splits a sql_id to match it
+  (`TestHangSqlIDHigh`).
+- **Deadlock.** The graph's rows by the header's column positions (each cell goes to the column whose right edge is
+  nearest its end; empty cells are absent), the cycle followed from the victim, the sessions' blocks, `Rows waited on`,
+  the nested diagnostic dump's node. The victim is the session of the `*** SESSION ID` marker in force at the section:
+  only the session that got ORA-00060 writes the graph.
+
+#### The digest and redaction (`digest.go`, `readingtext.go`, `stacktext.go`, `blocktext.go`, `redact.go`)
+
+- **`Reader.Digest`**: every top-level node with its children (at most `DigestChildren` = 100, the rest counted), and
+  the readings of those nodes that have one, by node id: at most `DigestReadings` = 200, under `DigestReadingBytes` = 8
+  MB of JSON, `readingsOmitted` counts the rest. A heap nested deeper is not in it.
+- **`WriteDigest`** (the text report): the facts, the outline to two levels with lines and counts, and each reading as
+  text with shorter lists than the reading's (15 comments of a heap, 5 when the file has more than 12 heaps; 8
+  sub-heaps; 20 frames; 8 cursors of 6 binds; 150 process rows, idle background processes left out and counted; 60
+  tree nodes; 12 chains of 12 sessions), each saying what it left out.
+- **Redaction** (`TextOptions`, `report.DiagBindText`): `-binds none` drops the cursors' bind values, `-redact-binds`
+  replaces them with the 10046 token (`model.RedactToken`, a string hashed without its quotes); in the text digest and
+  in the readings of `dump.digest`. The routes serve the file as it is; statement text keeps its literals.
+
+#### The Go side around it (`internal/report/diag.go`, `internal/slice/diag.go`, `internal/engine`, `cmd/mtkprof/view.go`)
+
+- **Document**: `report.DiagInput` (`NewDiagInput`: the reader, whether to make the digest, the bind options) adds the
+  member `dump` (`DiagDoc`: `file`, and `digest` for `html`, `json`, the default command and the engine's HTML and JSON
+  exports). The rest is the document of the empty model (`ViewModel`).
+- **Routes** (`slice.DiagServer`, mounted by `serve` and by each engine session at `/s/{id}/api/diag/…`; the envelope
+  `{"error": {code, message}}`; 404 "not a diag session" for any other session):
+
+  | Route | Answer |
+  |---|---|
+  | `GET api/diag/file` | `diag.File` |
+  | `GET api/diag/outline?node=ID[&after=N]` | `{node, children, more, next}`; `node=root` is the top level |
+  | `GET api/diag/reading?node=ID` | the reading, `{kind, …}`; 404 for a node whose kind has none or an id that is not a node, 400 without `node` |
+  | `GET api/diag/reading/lines?node=ID&comment=TEXT[&type=T][&after=N]` | the chunk lines of a heap reading's group: `{node, lines, more, next, total}` |
+  | `GET api/diag/path?line=N` or `?node=ID` | `{nodes: […]}`; 400 without either or with a bad number, 404 for a line outside the file or an id that is not a node |
+
+  The scan is made once per server; the lines are read through the session's line index.
+- **Engine session**: `options.view` on `POST /engine/sessions` (refused with `bad_request`: a view other than 10046
+  on a set, `view` 10053 or diag with `follow`, a bad value; `10053` on a file without a dump fails the open). The
+  session object and its events carry `view` (the one asked for while opening, the resolved one once ready) and, for
+  a diag session once ready, `diagSqlIds` and `diagSessions` (the scan's marks). The OpenAPI schemas are `DiagDoc`,
+  `DiagFile`, `DiagNode`, `DiagOutline`, `DiagReading` with `DiagHeapReading`, `DiagPGASummary`, `DiagPGADetail`,
+  `DiagCallStack`, `DiagProcState`, `DiagSysState`, `DiagHangReading`, `DiagDeadlock` and their parts; all additive,
+  `engine.Protocol` 1.
+- **Refusals** (`viewRefusal`): the assistant, the brief and the comparison answer a diag session with "x.trc is open
+  as a diag file (diagnostic dumps): …"; `api/report?format=csv` with "… nothing to export as tables; format=text is
+  its digest"; a local follow of a diag-only file with "follow: x.trc holds diagnostic dumps only; it cannot be
+  followed live: open it without follow". `mtkprof mcp` and the assistant's `open_trace` refuse files of diagnostic
+  dumps only (`model.AllDiag`).
+- **CLI** (`view.go`): `-view` on `report`, `html`, `json`, the default command and `serve`; `openView` resolves it and
+  opens the scan (with the line index when the text or the digest is needed). `pivot`, `export`, `plan`, `refscript`,
+  `ref -db`, `brief` and `compare` stop with "x.trc is a diag file (diagnostic dumps, no SQL trace records): nothing to
+  pivot; mtkprof report prints its digest" (`diagRefusal`). `lint` prints the line kind `diagnostic` and the sections
+  (`sections: N (diagnostic dumps)`, then range and kind).
+
+#### The browser side (`web/src/lib/data/diag*.ts`, `views/diag`)
+
+- **Data**: `diag.ts` (the model's twin, `DiagSource`, the memory source), `diagsource.ts` (`diagSourceOf`: a document
+  with `dump.digest` is read from itself, else the routes; one source object per document), `diagreadings.ts` (the
+  readings' twins), `diagoutline.ts` (the outline store), `diagfold.ts`, `diagguide.ts`, `diagmarks.ts`, `diagheap.ts`
+  and `diagstack.ts` (what the heap, call stack and process screens compute from their answers), `diagdoc.ts` (the
+  words for what a file holds), `diagsynth.ts` (a synthetic file of millions of lines made on demand).
+- **Outline store** (`outlineStoreOf(source)`): the top level from `file`, and the children of every node opened,
+  asked for when it is (pages of 2,000, a "N of M shown · load more" row). A file with at most three top-level
+  nodes that have children opens them at the start; *Expand* opens three levels, asking for what is not loaded.
+  `pathAt(line)` is the where-am-I path over what is loaded; where a line lies in a part not loaded, `fetchDeep`
+  asks `api/diag/path`. The outline is not virtualised.
+- **Viewer**: `components/LineViewer.tsx` over the page cache of `data/linecache.ts` (`api/lines`, 40 pages kept) and
+  the scroll map, as the Lines view; rows are lines, never re-rendered. **Folds** (`diagfold.ts`): a loaded node with a
+  `fold` reason is closed in Text, laid into the viewer's fold mechanism (`data/folds.ts`); a part that would hide
+  fewer than 3 lines is not folded. **Search** (`useDiagSearch.ts`): `api/search` on the server (RE2), at most 10,000
+  hits, counted on the loaded outline nodes. The line map draws the top-level nodes as bands, hits, bookmarks and the
+  chunk lines of a heap row selected in a reading.
+- **Readings** (`views/diag/readings`): `registry.ts` maps a reading kind to a component; `index.ts` registers them
+  (`heap.tsx`, `pga.tsx`, `callstack.tsx`, `procstate.tsx`, `sysstate.tsx`, `hang.tsx`, `deadlock.tsx`; the blocker
+  tree of a system state and the chains of a hang analysis share `blockers.tsx`). `ReadingHost.tsx` fetches the reading and keeps the answers per source; a kind without a component
+  says "This version has no view for this reading" and Text stays the way to read the node.
+- **State kept while another tab is shown**: a `WeakMap` per source holds the selection, the selected node, the mode,
+  the search, the left tab, the folds and the scroll position; the outline store and the readings' own state (a heap
+  table's tab, sorts and selected row) are kept per source too. **Persisted**: `mtkprof.diag.mode` (*Reading | Text*,
+  Reading to begin with), `mtkprof.diag.panes` (the side panels' widths and whether each is shown) and
+  `mtkprof.diag.sysstate.showIdle` (the system state's idle background processes, hidden to begin with).
+- **The shell**: `views/diag/DiagTab.tsx` puts the view in a tab (the document's notes with their buttons above it,
+  the tab's bookmarks on file 0, `State.dumpGo` requests to show a node or line); `shell/views.tsx` gives a document
+  with `dump` the one view *Dump* (key 1) and none of the 10046 views; `components/DumpMark.tsx` has the *dump* mark
+  of a 10046 view and the *10046* link of a reading (`OptLinks.toDump`, `toTrace`, `openAs`). The desktop side
+  (`desktop/src/workspace/optTabs.ts`, `workspace.ts`) is in `desktop/README.md`.
+
+#### Tests
+
+- **Snapshots** (`internal/diag/testdata/snap`): per fixture the outline (`*.outline.txt`), the readings
+  (`*.readings.json.txt`) and the text digest (`*.digest.txt`); `go test ./internal/diag -run Snapshot -update`
+  rewrites them (`TestSnapshots`, `TestDigestSnapshots`, `TestReadingSnapshots`), then read the diff.
+- **The totals test** (`TestHeapTotals`): every check of every heap of every fixture is `match` or `none` with a
+  reason, never `differ`. **`heapdump_analyzer`** (`TestHeapdumpAnalyzer`): its output, committed beside each heap
+  fixture as `<fixture>.hda.txt` (`testdata/diag/README.md` says how it was made), agrees with the reading on every
+  (heap, type, comment) group; the shared pool dump's output is compared when the ignored file is present.
+  `TestHeapdumpAnalyzerNegative` shows the comparison finds a difference.
+- **Invariants** (`TestInvariants` and per reading): the top level tiles the file, children lie inside their parent in
+  file order without overlap, ids are unique and resolve, ids are stable (`TestIDsStable`); each reading's numbers add
+  up. **Prefixes and mutations** (`TestPrefixes`, `TestMutations` and one pair per reading): cut and damaged fixtures,
+  no panic, the same invariants. **Shapes**: `TestJSONShape`, `TestReadingJSONShape`, `TestStackJSONShape`.
+- **The primary formats**: `TestFixtureKindsUnchanged` (`internal/trace`: the lint output of the 116 earlier fixtures
+  equals `internal/trace/testdata/fixture_kinds_before.txt`, made before sections existed), the section tests (starts, ends,
+  precedence, heap runs, cut at `TRACE CONTINUES IN FILE`, a growing file, prefixes, `FuzzSections`),
+  `TestDiagInTraceFixtureIsCompared` (`internal/golden`: tkprof parity on `diag_in_10046`, zero unknown lines,
+  29,371 before), `TestClassifyMatchesParser`, `internal/model` (`TestDiagOnlyFileOpensAsBefore`,
+  `TestSetLeavesOutDiagFiles`), `internal/peek` (`TestPeekSections`, `TestPeekSectionAcrossChunks`).
+- **Around it**: `internal/slice` (`TestDiagServerReadings`, `TestDiagServerPath`), `internal/engine` (`TestDiagSession`,
+  `TestViewOption`, `TestViewRefusals`, `TestDiagMarks`, the contract test with the five routes), `cmd/mtkprof`
+  (`TestDiagReportEveryFixture`, `TestViewFlag`, `TestDiagRefusals`, `TestDiagRedaction`, `lint`).
+- **Speed** (`perf_test.go`, skipped with `-short` and under the race detector): `TestThroughput` (the fixtures 12
+  times over, at least 200 MB/s), `TestBigFixtures` (the ignored `testdata/big/diag`: invariants, scan speed, memory
+  held, the children of the largest node), `TestChildrenSpeed`, `TestReadingSpeed`, and a speed test per reading.
+- **Browser side**: `web/src/lib/data/diag*.test.ts` (the Go/TS shape comparisons, source, outline store, folds, guide,
+  marks, heap), `views/diag/*.render.test.ts`, and the harness `web/dev/diag.html` (`pnpm --filter mtkprof-web dev`,
+  then `/dev/diag.html`; a real fixture, `diag_errorstack_l2`; `?digest=1` the standalone report's source, `?big=1` a
+  synthetic file of 5,000,000 lines, `?node=ID&line=N`, `?old=1` a 23.x file, `?theme=`).
+
+#### Regenerating the fixtures
+
+`testdata/gen/run_gen.sh diag` on the lab (the `dbmint-oracle-test` skill; `dangerouslyDisableSandbox`) runs the
+scenarios `sc_diag_*.sql` (helpers `_diag_*.sql`; `01_schema.sql` has the package `mtk_diag_mem`), or any by name.
+Not in the default run. `diag_hang`, `diag_hang_event` and `diag_sysstate` start three MTK sessions that wait in a
+chain on row locks (about 20 s) while a SYSDBA session takes the dump; `diag_deadlock` runs two sessions and keeps the
+trace that holds the graph; `diag_pga_detail` dumps another process; `diag_in_10046` and `diag_in_10046_l3` also run
+tkprof. `diag_oom` runs a local SYSDBA session under `ulimit -d` and **writes an incident to the lab's ADR**
+(ORA-06544, not the ORA-04030 it aims at); ask before running it. `diag_heap_shared` (the shared pool, about 31 MB) is
+not in the group and writes to `out/big/`. The script copies nothing into the repository: the small files go to
+`testdata/diag/19c/` (`diag_in_10046` and its tkprof output to `testdata/traces/19c/`), the large ones to the ignored
+`testdata/big/diag/`, and `heapdump_analyzer` is run by hand on each heap fixture (`testdata/diag/README.md`). A
+regenerated fixture changes the snapshots.
+
+#### Speed and memory, measured
+
+On an Apple M4 (2026-11-18, `docs/PLAN-DIAG.md` § Log): the scan 1.0 to 2.1 GB/s on every fixture including the 32.7 MB
+shared pool dump, 0.3 MB allocated (with the marks, 1.3 to 1.9 GB/s on the big fixtures); children of a 357,000-line
+node 28 ms, of a 100,000-line node 2 ms; the heap reading of the 357,000-line shared pool heap 43 ms, the chunk lines
+of a comment of 26,000 chunks 33 ms, the largest committed heap (17,000 lines) 1 ms; a call stack of 115,000 lines 13
+ms, a process state of 7,000 lines 1 ms; the system state of level 266 (83,000 lines) 16 ms, 5,000 synthetic
+processes (45,000 lines) 14 ms, 40,000 (360,000 lines) 46 ms; the path of a line reads 24,000 lines for the first 10
+processes of a 20,000-process dump (its summary is 20,000 lines). The 10046 parser on 1.2 GB of traces without
+sections: 668-671 MB/s before and after (`BenchmarkParseFile`). A fresh open of a 1 GB system state was not measured
+(no such file).

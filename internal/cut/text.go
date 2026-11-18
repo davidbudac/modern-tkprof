@@ -659,7 +659,9 @@ func (c *Cutter) walkFile(o *emitter, f int) error {
 			}
 			continue
 		case trace.KindBindLine, trace.KindUnknown, trace.KindBlank:
-			if recKind == trace.KindBinds || recKind == trace.KindParseError || (k == trace.KindBlank && recKind != 0) {
+			// a blank line after a separator is not a continuation: the separator is held back and
+			// a dropped blank line there leaves a gap (a diagnostic dump inside a trace has such lines)
+			if recKind == trace.KindBinds || recKind == trace.KindParseError || (k == trace.KindBlank && recKind != 0 && recKind != trace.KindSeparator) {
 				if recKeep {
 					if bindMask != nil && recKind == trace.KindBinds {
 						if out, keep := bindMask.line(b); keep {

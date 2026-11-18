@@ -3,7 +3,9 @@
 The desktop app opens Oracle 10046 trace files, one tab per trace, with the mtkprof engine running
 next to it. It shows the same views as `mtkprof serve` (Overview, Statements, Waits, I/O map,
 Timeline, Sessions, Pivot) plus the **Lines** viewer. A file of optimizer trace dumps (event 10053)
-opens in a tab of its own with the **10053** view (see "The 10053 view"). A *Tools ▾* menu follows after a divider: **Notes** and
+opens in a tab of its own with the **10053** view (see "The 10053 view"), and a file of diagnostic dumps (a heap
+dump, an errorstack, a process or system state, …) in a tab of its own with the **dump reader** (see "The dump
+reader"). A *Tools ▾* menu follows after a divider: **Notes** and
 **Reports** are tools of the tab, not views of the trace; while one of them is on screen the menu
 button names it (*Notes ▾*) and is marked as the current page. Saved Pivot configurations, an
 **Assistant** chat and **Connections** for fetching traces from other machines complete it.
@@ -96,13 +98,17 @@ the first and last `tim=`, at disk speed; rows say *reading…* until theirs is 
 yet.
 
 - Sort by a column header (newest first by default); filter by name, session, module, action,
-  client id, service, instance or kind (`10053`); *Only SQL and optimizer traces* (on) hides files that have
-  neither SQL trace lines nor optimizer dumps, such as an ADR folder's background process traces. A file of
+  client id, service, instance or kind (`10053`, `dump`). *Show* chooses which files are listed: *SQL and optimizer
+  traces* (the default) hides the files of diagnostic dumps and the files that have neither SQL trace lines nor
+  optimizer dumps, such as an ADR folder's background process traces; *Also dump files* lists the dump files too;
+  *All files* lists every file. A line beside it says what is hidden ("2 dump files and 3 without SQL trace
+  hidden"). A file of
   optimizer (10053) dumps stays: a tag after its name reads *10053* (*10046 + 10053* when one session wrote both
   events to it) with the number of dumps (*2 dumps*), and the tag's tooltip says what opening it does. Its *From*,
   *To* and *Traced* come from the `***` timestamp lines, because a dump has no `tim=`: *Traced* is a span of a
   fraction of a second, not a traced time. A 10053 file opens in a tab of its own, also when it is selected with
-  10046 files (below), see "The 10053 view".
+  10046 files (below), see "The 10053 view". A file of diagnostic dumps only is tagged *dump* with what it holds
+  (*2 heap dumps, 1 process state*) and opens in the dump reader, in a tab of its own (see "The dump reader").
 - Select with the checkboxes or a click on the row (Shift-click selects a range; the header box
   selects all shown). The bar at the bottom sums the selection (files, size, from – to).
 - *Open N as one trace set* opens the selection in one tab (oldest file first), *Open each in a
@@ -187,7 +193,7 @@ Lines or report exports.
 |---|---|
 | ⌘W | Close the tab; on a page (Settings, Connections, …) go back to the last tab |
 | ⌘T | The open screen |
-| ⌘1 … ⌘9 | The views of the trace (⌥⌘← / ⌥⌘→, Ctrl+PageUp / PageDown elsewhere, step through every view). A 10053 tab has one view, 10053, on ⌘1; Notes ⌘8 and Reports ⌘9 as for any tab |
+| ⌘1 … ⌘9 | The views of the trace (⌥⌘← / ⌥⌘→, Ctrl+PageUp / PageDown elsewhere, step through every view). A 10053 tab has one view, 10053, on ⌘1, a dump tab one view, Dump, on ⌘1; Notes ⌘8 and Reports ⌘9 as for any tab |
 | ⌘I | The I/O map (Ctrl+I elsewhere) |
 | ⌃1 … ⌃8 on macOS, Alt+1 … Alt+8 elsewhere; ⌃9 / Alt+9 | The tab at that position; ⌃9 / Alt+9 the last tab |
 | Ctrl+Tab, Ctrl+Shift+Tab; ⌘⇧] and ⌘⇧[ on macOS | Next / previous tab, wrapping around |
@@ -483,7 +489,9 @@ of the dump's other_xml section). The marks exist in the desktop only: `mtkprof 
 **An interleaved file.** A file in which one session wrote 10046 and 10053 together opens as a 10046 trace as before.
 Its dumps are no longer counted as unknown lines, and the notes of the Overview's *Trace* section (and the *Notes* line
 of `mtkprof report`) carry: "2 optimizer (10053) dumps in this file, lines 54-18356 and 18684-28072; not shown as 10053
-yet". To read the dumps, produce a file with the 10053 event alone.
+yet". Beside that note, *Open as 10053* opens the same file in a new tab as a 10053 tab: its dumps, with the 10046
+records between them left out (`mtkprof report -view 10053 file.trc` on the command line). A tab that already reads the
+file that way is shown instead.
 
 **What a 10053 tab does not have.** The 10046 views (Overview … Pivot, the I/O map, Lines), the filter bar, the Files
 panel and the time window, Cut (not offered), saved pivots, reference data import: a dump has no calls, waits or times.
@@ -513,6 +521,165 @@ are empty; literals in the SQL text and in the predicates stay. The view in a ta
 the file through the engine's routes and shows the binds as they are in the file; the Open options act on the Reports
 page's outputs. `mtkprof lint file.trc` lists the 10053 line kinds and the dumps (line range and sql_id).
 
+## The dump reader
+
+Besides SQL trace records, Oracle writes *diagnostic dumps* into trace files: heap dumps, PGA memory dumps, the error
+stack and call stack an errorstack writes, process state, system state, hang analysis, deadlock graphs, incident files.
+They are long and hard to read as they come (a heap dump is one line per chunk of memory, a system state a tree of
+state objects per process). The **dump reader** makes such a file navigable, and for the kinds it knows computes a
+*reading*: a summary of the part, with every fact linked to its line. It is an add-on beside the 10046 and 10053
+views, read best effort; 19c is the tested version.
+
+**What opens there.** A file that holds diagnostic dumps and neither 10046 records nor optimizer dumps opens as a
+**dump tab** (the *dump* badge in the tab strip and in Recent). Like a 10053 file it is never part of a trace set:
+the folder picker opens it in a tab of its own, and a file given with 10046 files in one request is left out of the set
+with the note "x.trc holds diagnostic dumps only; open it on its own" and an *Open x.trc* button. A file in which
+nothing is recognised opens there too, as an outline of its header and its other lines.
+
+**From a 10046 trace.** A 10046 trace that holds a dump (an errorstack written on an error, say) opens as a 10046 trace;
+its dump's lines are no longer unknown lines (kind *diagnostic* in the Lines view), and the Overview's *Trace* section
+carries a note such as "1 diagnostic dump in this file, lines 114-29753" with **Open in the dump reader**, which opens
+the same file in a new dump tab. There its 10046 records are runs titled *SQL trace (10046) lines*, and the information
+bar says how many record lines the file has, with **Open as SQL trace**, the way back. (On the command line: `mtkprof
+report -view diag file.trc`.)
+
+**Layout.** An information bar on top (the file name, what it holds, "2 heap dumps and 1 process state", the release
+and version, the lines; for an incident file its id and problem; for another version than 19c "read with the 19c
+rules; this file is …" and the number of lines outside any known part), the toolbar, then three columns: the
+**outline** with the Bookmarks tab on the left, the **centre**, the **Guide** on the right. A status bar below the
+centre: the visible lines, the folds closed and the lines they hide, the selected part. The side panels can be dragged
+wider, and hidden with the tab at their edge (kept across restarts).
+
+**The outline** lists the file in order: the *File header*, each section (*Heap dump: pga heap*, *Diagnostic dump
+(level 2)*, *System state (level=1)*, …) and the *Other lines* between them, each with its line count. Under a section
+are its parts: the titles and banners of an errorstack, its frames, the nested process state and heap dumps, the
+processes of a system state, the state objects of a process, the chains of a hang analysis, the extents and free lists
+of a heap, the entries of an incident file's table of contents. Parts are asked for when a row is opened, so a system
+state with thousands of processes opens at once; a part with more than 2,000 children shows "2,000 of 5,000 shown ·
+load more". *Expand* opens three levels, *Collapse* goes back to the first level and the way to the selection. A
+section the file ended inside (or a line of another format came first) is tagged *cut*. With a search on, each loaded
+row shows its hit count.
+
+**Reading | Text.** The selection decides what the centre shows: click a row of the outline (or a link inside a
+reading) and, when that part has a reading, the centre shows it, with a *Reading | Text* switch above (`v`); the choice
+is kept across restarts and is *Reading* to begin with. *Text* is the file's own lines, paged from the engine, so a
+file of gigabytes scrolls like the Lines view. Scrolling the text moves the where-am-I path above it and leaves the
+selection and the reading alone. A part without a reading shows its text.
+
+**The text.** Line numbers are the file's. Click a line to select it (`↑` `↓`, `PageUp` `PageDown`, `Home` `End`);
+`g` or the *Go to line* box jumps to a line. **Folds**: the parts that are bulk by default are closed, each as its
+heading and one row with its line count and the reason ("2,138 lines · memory around the arguments' and registers'
+addresses"): the registers and memory of each frame, the process map, the fixed areas, block dumps, and the like.
+Click the heading or press `z` to open or close one; *Unfold all* and *Fold all* in the toolbar. Where am I: above the
+text a path of links names the parts that hold the first visible line, down to the deepest, also inside parts the
+outline has not opened. The **line map** beside the scroll bar draws the top-level parts as bands, search hits,
+bookmarks and the visible range; click or drag on it.
+
+**Search.** The box searches the whole file on the engine (literal; `.*` for a regular expression, `Aa` to match case),
+shows "3 / 41", tints the hits in the text and on the line map, and counts them on the outline's loaded rows; it stops
+at 10,000 hits and says so. `/` or `⌘F` (`Ctrl+F`) focuses it, `Enter` / `F3` and `Shift+Enter` / `Shift+F3` step,
+`Esc` returns to the text.
+
+**The Guide** says what the selected part is: its lines, kind, children, folds, hits and reading, and a fixed text about
+its kind of section, written only where the format reference (`docs/trace-format-diag.md`) backs it, with the section it
+comes from; otherwise "No guide text for this kind of section". It says how to read a part, never what this dump means.
+
+**The readings.** Each fact links to its line (a click shows it in *Text*).
+
+- **Heap dump.** A header line (descriptor, depth, extents, chunks, lines), then **the check**: the sums of the chunk
+  lines against the totals the dump prints, one sentence each: "Chunks sum to 4,707,160 bytes: matches the dump's Total
+  heap size", the same for the free lists against *Total free space*, the permanent chunks against *Permanent space* and,
+  in an SGA heap, the reserved free lists. The block is **green** when every check that could be made matches, red
+  when one differs (with the difference), neutral when none could be made; a check that could not be made says why (a
+  dump taken inside a PDB lists that PDB's chunks only, a heap with much free memory lists sample extents only, a
+  header without extents lists nothing). Below: the **heap tree** (the selected heap's ancestors, siblings and children
+  in its dump, with their sizes; click to go to one), then three tables: *By comment* (the 15-character comment Oracle
+  gives each chunk; the shared pool's `KGLH0^80b2c0e9` and its kind are grouped by the part before `^`; the 300
+  largest, the rest summed in one row), *By type* (free, freeable, recreate, perm, …) and *Sub-heaps*, each with chunks,
+  bytes, share and a bar, sortable. A click on a row marks its chunk lines in the gutter and on the line map and opens a
+  stepper ("160 chunk lines of koh-kghu call", previous, next, *In text*, *Clear*). Then the free lists as a histogram
+  by bucket, the permanent chunks and the unpinned space.
+- **PGA memory summary** (`pga_summary`, the memory part of an out-of-memory trace) and **PGA detail dump**: the dump's
+  own tables as tables, sizes as printed with their bytes on hover: the top uses of the process, the private heap
+  summary by depth, the instance-wide figures, the memory of each Oracle process (with the session detail the dump
+  prints for the big ones), the estimated uses for all processes, swap. The summary's figures are rounded and it prints
+  no total, so nothing is checked and no row is green or red.
+- **Call stack** (an errorstack, the dump after a deadlock graph, an incident file): the error (the `ORA-` lines; a dump
+  taken on request has none), the current statement and its sql_id, the PL/SQL call stack, **the stack as one line**
+  (the form `oradebug short_stack` prints, to copy; *include the dump's own frames* adds them), the **frames**
+  innermost first with component and offset, the dump's own leading frames (the functions that wrote the dump) folded
+  into one row, the open and cached **cursors** with their binds, and the process state and heap dumps inside this
+  one, each a link to its reading. Function names are shown, not explained.
+- **Process** (a process state dump, or a *Process n* of a system state): the Oracle process (pid, OS pid, program, its
+  short stack), **who** the session is (sid.serial, user, container, program, module and action, client), what it
+  **runs** (the command and the statement; the statement is found through the library object lock the session holds
+  on it, so a system state of level 1, which prints no locks, gives only an address), what it **waits** for and for how
+  long, or "Not in wait", who blocks it and who it blocks (a session the dump names links to its process when that is
+  in the file), the wait history, and what it **holds**: enqueues (held or requested), transactions with their Block
+  List, DML locks, library object locks and pins.
+- **System state**: who took it (the oradebug command and the stack of the process that took it, when printed); the
+  **blocker tree** as the dump names it (the summary's *Blocked by* and *Final Blocker* lines, the bodies' *Dumping 1
+  direct blocker(s)*): the final blocker on top, each session below blocked by the one above, each a card with its wait
+  and statement; then the **process table** (pid, name, OS pid, sid.serial, waiting for, time in wait, blocked by, …;
+  sortable; a row opens that process's reading). **Idle background processes are hidden** with their count and a
+  *show idle background processes* switch (kept); a blocked or blocking session always shows. Idle means the wait event
+  is of class Idle in Oracle's event list, or the process has no session; idle rows that show are dimmed. The summary is
+  written before the bodies, so a process can have moved on between them; the row says so.
+- **Hang analysis**: the chains the analysis reports, each drawn as the same tree of session cards with the head of the
+  chain on top, the list of chains most likely to have caused the hang with their signatures, and the *State of ALL
+  nodes* table. The `current sql_id` a hang analysis prints is a number, not a sql_id: the reader shows it as the
+  *statement id* with the statement text the dump prints beside it.
+- **Deadlock graph**: ORA-00060 and the session that wrote the trace (the victim), the cycle drawn as sessions waiting
+  for a resource held by the next, the graph as the dump's own table, each waiting session's block, the rows waited on,
+  and the diagnostic dump that follows, a link to its call stack reading.
+
+**Bookmarks and notes.** `b` (or the bookmark button) bookmarks the selected line, or removes the bookmark; the
+*Bookmarks* tab lists them with the part they are in and a note box. They belong to the file by its content identity
+and are listed in **Notes**, where *line N* opens the dump reader at that line.
+
+**Keys** (`?` lists them in the view):
+
+| Key | Action |
+|---|---|
+| `/`, `⌘F` / `Ctrl+F` | Search |
+| `Enter`, `Shift+Enter` in the box; `F3`, `Shift+F3` | Next, previous hit |
+| `g` | Go to a line |
+| `b` | Bookmark the line |
+| `↑` `↓`, `PageUp` `PageDown`, `Home` `End` | Move the selection in the text |
+| `v` | Reading \| Text (a part that has a reading) |
+| `z` | Fold or unfold the part at the selection |
+| `?`, `Esc` | The keys list; close it |
+
+The keys act while the view is on screen and the focus is not in a text field, without ⌘, Ctrl or Alt (`F3` and `⌘F`
+also from the search box).
+
+**The dump and 10046 marks.** In a 10046 tab a **dump** mark stands beside a statement's sql_id (the Statements list,
+the statement's title) and beside a session (the Sessions view) when an open dump tab names that sql_id or that
+sid.serial (in a current statement, a cursor dump, a library handle, a session object, a blocker line, a chain, a
+deadlock's waiting sessions; the first 300 of each). A click switches to the dump tab most recently shown and selects
+the first line of the file that names it. In a dump tab a reading shows a **10046** link beside a statement or session
+that an open 10046 tab holds; a click selects the statement in that tab, or the session in its Sessions view. Nothing
+is joined: a dump has no times of the trace. Desktop only.
+
+**What a dump tab does not have.** The 10046 views, the filter bar, the Files panel, the time window; Cut (not
+offered); *Compare with…* (disabled: "A file of diagnostic dumps has nothing to compare"); the assistant ("The
+assistant does not read diagnostic dump files in this version") and *Copy brief…*; follow (the engine refuses: "follow:
+x.trc holds diagnostic dumps only; it cannot be followed live: open it without follow", and the folder picker opens such
+a file without follow). The *db* connection's reference data does not list dump tabs (a dump has no object, file or
+user ids to name).
+
+**Reports.** The Reports page of a dump tab has the *Text report*, the **digest**: the file's facts, the outline to two
+levels with line numbers and line counts, and each reading as text (shorter lists than the view's, each saying what it
+left out; idle background processes of a system state left out and counted). *JSON document* is the document `mtkprof
+json` writes (the file's facts and outline, and the digest). *Standalone HTML* is the dump reader in one file, fed with
+the digest: the outline to two levels and the readings it holds, **not the file's text** (the centre says "The text is
+not in this report"; open the file in the app or with `mtkprof serve` to read it). *CSV (zip)* is disabled. On the
+command line: `mtkprof report file.trc`, `mtkprof html file.trc`, `mtkprof json file.trc`; `-redact-binds` and `-binds
+none` act on the bind values of the cursor dumps in the digest and in the HTML, as on 10046 binds (literals in
+statement text stay); the dump tab itself shows the file as it is. `mtkprof lint file.trc` lists the line kind
+*diagnostic* and the sections with their ranges. `pivot`, `export`, `plan`, `refscript`, `compare` and `brief` stop with
+one line for a file of diagnostic dumps.
+
 ## Notes and bookmarks
 
 Notes belong to a trace's content (its identity), not to its file name: the same trace opened
@@ -528,6 +695,7 @@ Unsaved work survives switching tabs, visiting a page and collapsing the assista
 | Time window | set a window (drag in the minimap or the timeline), then *✎ Annotate window* in the Timeline, with an optional label. Window notes are chips above the timeline; a click applies the window | start and end |
 | Line | *Note…* in the selected line's *Actions* menu in Lines (also bookmarks the line); the side panel's *Bookmarks* tab shows the notes, the gutter marks noted lines with ✎ | file and line |
 | Line of a 10053 file | `b` in the 10053 view bookmarks the selected line; the *Bookmarks* tab of its left panel has a note box per bookmark | file and line |
+| Line of a dump file | `b` in the dump reader bookmarks the selected line; the *Bookmarks* tab of its left panel has a note box per bookmark | file and line |
 
 The **Notes** view of a tab lists them with links (statement → its detail, execution → its row,
 window → the Timeline with the window applied, line → the Lines view), edit and delete.

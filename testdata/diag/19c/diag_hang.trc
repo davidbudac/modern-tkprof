@@ -1,0 +1,279 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_13910_mtk_diag_hang.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 74
+Unix process pid: 13910, image: oracle@ol9-19-dg1.localdomain (TNS V1-V3)
+
+
+*** 2026-11-17T21:34:41.271670+00:00 (CDB$ROOT(1))
+*** SESSION ID:(56.7503) 2026-11-17T21:34:41.271689+00:00
+*** CLIENT ID:(mtk_client_diag_hang) 2026-11-17T21:34:41.271692+00:00
+*** SERVICE NAME:(SYS$USERS) 2026-11-17T21:34:41.271695+00:00
+*** MODULE NAME:(mtk_diag_hang) 2026-11-17T21:34:41.271697+00:00
+*** ACTION NAME:(start) 2026-11-17T21:34:41.271700+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-11-17T21:34:41.271702+00:00
+*** CONTAINER ID:(1) 2026-11-17T21:34:41.271704+00:00
+ 
+Processing Oradebug command 'setmypid'
+
+*** 2026-11-17T21:34:41.271718+00:00 (CDB$ROOT(1))
+Oradebug command 'setmypid' console output: <none>
+
+*** 2026-11-17T21:34:41.271880+00:00 (CDB$ROOT(1))
+Processing Oradebug command 'hanganalyze 3'
+
+*** 2026-11-17T21:34:41.409717+00:00 (CDB$ROOT(1))
+===============================================================================
+HANG ANALYSIS:
+  instances (db_name.oracle_sid): cdb1.cdb1
+  oradebug_node_dump_level: 3
+  analysis initiated by oradebug
+  os thread scheduling delay history: (sampling every 1.000000 secs)
+    0.000000 secs at [ 21:34:41 ]
+      NOTE: scheduling delay has not been sampled for 0.053973 secs
+    0.000000 secs from [ 21:34:37 - 21:34:42 ], 5 sec avg
+    0.000000 secs from [ 21:33:42 - 21:34:42 ], 1 min avg
+    0.000000 secs from [ 21:29:42 - 21:34:42 ], 5 min avg
+  vktm time drift history
+===============================================================================
+ 
+Chains most likely to have caused the hang:
+ [a] Chain 1 Signature: 'PL/SQL lock timer'<='enq: TX - row lock contention'<='enq: TX - row lock contention'
+     Chain 1 Signature Hash: 0x5e4fa8d6
+ [b] Chain 2 Signature: 'Streams AQ: waiting for messages in the queue'
+     Chain 2 Signature Hash: 0xa00e2e87
+ 
+===============================================================================
+Non-intersecting chains:
+ 
+-------------------------------------------------------------------------------
+Chain 1:
+-------------------------------------------------------------------------------
+    Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 13912
+              process id: 61, oracle@ol9-19-dg1.localdomain
+              session id: 255
+        session serial #: 22508
+             module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+                  pdb id: 3 (PDB1)
+    }
+    is waiting for 'enq: TX - row lock contention' with wait info:
+    {
+                      p1: 'name|mode'=0x54580006
+                      p2: 'usn<<16 | slot'=0x90004
+                      p3: 'sequence'=0x5d88
+            time in wait: 4.029036 sec
+           timeout after: 55.970964 sec
+                 wait id: 24
+                blocking: 0 sessions
+          current sql_id: 3373088609
+             current sql: select id from mtk_cust where id = 302 for update wait 60
+             short stack: ksedsts<-ksdxfstk<-ksdxcb<-sspuser<-__sighandler()<-semtimedop<-sskgpwwait<-skgpwwait<-ksliwat<-kslwaitctx<-ksqcmi<-ksqgtlctx<-ksqgelctx<-ktuGetTxForXid<-ktcwit1<-kdddgb<-kddlkr<-qerfuProcessFetchedRow<-qerfuLockingRowProcedure<-qerixFetchUniqueIndex<-qerfuStart<-selexe0<-opiexe<-kpoal8<-opiodr<-ttcpip<-opitsk<-opiino<-opiodr<-opidrv<-sou2o<-opimai_real<-ssthrdmain<-main<-__libc_start_call_main
+            wait history:
+              * time between current wait and wait #1: 0.000132 sec
+              1.       event: 'SQL*Net message from client'
+                 time waited: 0.000262 sec
+                     wait id: 23               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #1 and #2: 0.000005 sec
+              2.       event: 'SQL*Net message to client'
+                 time waited: 0.000001 sec
+                     wait id: 22               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #2 and #3: 0.000050 sec
+              3.       event: 'PL/SQL lock timer'
+                 time waited: 2.000067 sec
+                     wait id: 21               p1: 'duration'=0x0
+    }
+    and is blocked by
+ => Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 13914
+              process id: 68, oracle@ol9-19-dg1.localdomain
+              session id: 52
+        session serial #: 55849
+             module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+                  pdb id: 3 (PDB1)
+    }
+    which is waiting for 'enq: TX - row lock contention' with wait info:
+    {
+                      p1: 'name|mode'=0x54580006
+                      p2: 'usn<<16 | slot'=0x10001
+                      p3: 'sequence'=0x4e99
+            time in wait: 5.030909 sec
+           timeout after: 54.969091 sec
+                 wait id: 27
+                blocking: 1 session
+          current sql_id: 3824709289
+             current sql: select id from mtk_cust where id = 301 for update wait 60
+             short stack: ksedsts<-ksdxfstk<-ksdxcb<-sspuser<-__sighandler()<-semtimedop<-sskgpwwait<-skgpwwait<-ksliwat<-kslwaitctx<-ksqcmi<-ksqgtlctx<-ksqgelctx<-ktuGetTxForXid<-ktcwit1<-kdddgb<-kddlkr<-qerfuProcessFetchedRow<-qerfuLockingRowProcedure<-qerixFetchUniqueIndex<-qerfuStart<-selexe0<-opiexe<-kpoal8<-opiodr<-ttcpip<-opitsk<-opiino<-opiodr<-opidrv<-sou2o<-opimai_real<-ssthrdmain<-main<-__libc_start_call_main
+            wait history:
+              * time between current wait and wait #1: 0.000066 sec
+              1.       event: 'SQL*Net message from client'
+                 time waited: 0.000107 sec
+                     wait id: 26               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #1 and #2: 0.000001 sec
+              2.       event: 'SQL*Net message to client'
+                 time waited: 0.000000 sec
+                     wait id: 25               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #2 and #3: 0.000006 sec
+              3.       event: 'SQL*Net message from client'
+                 time waited: 0.000109 sec
+                     wait id: 24               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+    }
+    and is blocked by
+ => Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 13909
+              process id: 6, oracle@ol9-19-dg1.localdomain
+              session id: 61
+        session serial #: 26319
+             module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+                  pdb id: 3 (PDB1)
+    }
+    which is waiting for 'PL/SQL lock timer' with wait info:
+    {
+                      p1: 'duration'=0x0
+            time in wait: 6.103729 sec
+           timeout after: 9.896271 sec
+                 wait id: 28
+                blocking: 2 sessions
+          current sql_id: 325942433
+             current sql: BEGIN dbms_session.sleep(16); END;
+             short stack: ksedsts<-ksdxfstk<-ksdxcb<-sspuser<-__sighandler()<-semtimedop<-sskgpwwait<-skgpwwait<-ksliwat<-kslwaitctx<-psdwat<-pevm_icd_call_common<-pfrinstr_ICAL<-pfrrun_no_tool<-pfrrun<-plsql_run<-peicnt<-kkxexe<-opiexe<-kpoal8<-opiodr<-ttcpip<-opitsk<-opiino<-opiodr<-opidrv<-sou2o<-opimai_real<-ssthrdmain<-main<-__libc_start_call_main
+            wait history:
+              * time between current wait and wait #1: 0.000066 sec
+              1.       event: 'SQL*Net message from client'
+                 time waited: 0.000076 sec
+                     wait id: 27               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #1 and #2: 0.000001 sec
+              2.       event: 'SQL*Net message to client'
+                 time waited: 0.000000 sec
+                     wait id: 26               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+              * time between wait #2 and #3: 0.000006 sec
+              3.       event: 'SQL*Net message from client'
+                 time waited: 0.000088 sec
+                     wait id: 25               p1: 'driver id'=0x74637000
+                                               p2: '#bytes'=0x1
+    }
+ 
+Chain 1 Signature: 'PL/SQL lock timer'<='enq: TX - row lock contention'<='enq: TX - row lock contention'
+Chain 1 Signature Hash: 0x5e4fa8d6
+-------------------------------------------------------------------------------
+ 
+===============================================================================
+Sessions in an involuntary wait or not in a wait:
+ 
+-------------------------------------------------------------------------------
+Chain 2:
+-------------------------------------------------------------------------------
+    Oracle session identified by:
+    {
+                instance: 1 (cdb1.cdb1)
+                   os id: 12239
+              process id: 40, oracle@ol9-19-dg1.localdomain (J001)
+              session id: 3
+        session serial #: 37475
+             module name: 1 (DBMS_SCHEDULERstack_l1aldomain (TNS V1-V3))
+                  pdb id: 1 (CDB$ROOT)
+    }
+    is waiting for 'Streams AQ: waiting for messages in the queue' with wait info:
+    {
+                      p1: 'queue id'=0x14660
+                      p2: 'process#'=0xa258d408
+                      p3: 'wait time'=0x5
+            time in wait: 4.264730 sec
+      heur. time in wait: 14.265527 sec
+           timeout after: 0.735270 sec
+                 wait id: 10
+                blocking: 0 sessions
+          current sql_id: 2279214261
+             current sql: DECLARE job BINARY_INTEGER := :job;  next_date TIMESTAMP WITH TIME ZONE := :mydate;  broken BOOLEAN := FALSE;  job_name VARCHAR2(128) := :job_name;  job_subname VARCHAR2(128) := :job_subname;  job_owner VARCHAR2(128) := :job_owner;  job_start TIMESTAMP WITH TIME ZONE := :job_start;  job_scheduled_start TIMESTAMP WITH 
+             short stack: ksedsts<-ksdxfstk<-ksdxcb<-sspuser<-__sighandler()<-semtimedop<-sskgpwwait<-skgpwwait<-ksliwat<-kslwaitctx<-kwqidexfcy<-kwqidrdq<-kwqidsfmp<-kwqidafm0<-kwqididqx<-kwqidxdeq0<-kwqidxdeq102<-kwqiadtdeq<-spefcmpa<-spefmccallstd<-peftrusted<-psdexsp<-rpiswu2<-kxe_push_env_internal_pp_<-kkx_push_env_for_ICD_for_new_session<-psdextp<-pefccal<-pefcal<-pevm_FCAL<-pfrinstr_FCAL<-pfrrun_no_tool<-pfrrun<-plsql_run<-peicnt<-kkxexe<-opiexe<-kpoal8<-opiodr<-kpoodr<-upirtrc<-kpurcsc<-kpuexec<-OCIStmtExecute<-jslvec_execcb<-jslvs
+            wait history:
+              * time between current wait and wait #1: 0.000276 sec
+              1.       event: 'Streams AQ: waiting for messages in the queue'
+                 time waited: 5.000091 sec
+                     wait id: 9                p1: 'queue id'=0x14660
+                                               p2: 'process#'=0xa258d408
+                                               p3: 'wait time'=0x5
+              * time between wait #1 and #2: 0.000315 sec
+              2.       event: 'Streams AQ: waiting for messages in the queue'
+                 time waited: 5.000115 sec
+                     wait id: 8                p1: 'queue id'=0x14660
+                                               p2: 'process#'=0xa258d408
+                                               p3: 'wait time'=0x5
+              * time between wait #2 and #3: 0.002377 sec
+              3.       event: 'jobq slave wait'
+                 time waited: 0.493097 sec
+                     wait id: 7               
+    }
+ 
+Chain 2 Signature: 'Streams AQ: waiting for messages in the queue'
+Chain 2 Signature Hash: 0xa00e2e87
+-------------------------------------------------------------------------------
+ 
+===============================================================================
+Extra information that will be dumped at higher levels:
+[level  4] :   1 node dumps -- [LEAF] [LEAF_NW] 
+[level  5] :   3 node dumps -- [NO_WAIT] [INVOL_WT] [SINGLE_NODE] [NLEAF] [SINGLE_NODE_NW] 
+ 
+State of ALL nodes
+([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):
+[2]/1/3/37475/0xa272a008/12239/SINGLE_NODE/
+[51]/1/52/55849/0xa27a4370/13914/NLEAF/[60]
+[60]/1/61/26319/0xa27baa98/13909/LEAF/
+[254]/1/255/22508/0xa299efe8/13912/NLEAF/[51]
+
+*** 2026-11-17T21:34:41.410595+00:00 (CDB$ROOT(1))
+===============================================================================
+END OF HANG ANALYSIS
+===============================================================================
+
+*** 2026-11-17T21:34:41.410640+00:00 (CDB$ROOT(1))
+===============================================================================
+HANG ANALYSIS DUMPS:
+  oradebug_node_dump_level: 3
+===============================================================================
+ 
+State of LOCAL nodes
+([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):
+[2]/1/3/37475/0xa272a008/12239/SINGLE_NODE/
+[51]/1/52/55849/0xa27a4370/13914/NLEAF/[60]
+[60]/1/61/26319/0xa27baa98/13909/LEAF/
+[254]/1/255/22508/0xa299efe8/13912/NLEAF/[51]
+ 
+ 
+No processes qualify for dumping.
+ 
+===============================================================================
+HANG ANALYSIS DUMPS: END
+===============================================================================
+
+*** 2026-11-17T21:34:41.410712+00:00 (CDB$ROOT(1))
+Oradebug command 'hanganalyze 3' console output: 
+Hang Analysis in /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_13910_mtk_diag_hang.trc

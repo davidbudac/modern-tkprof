@@ -1,0 +1,11 @@
+file diag_heap_large_pdb.trc: 72 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 0 unplaced
+section heap 32-39
+section heap 40-72
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-39 (8) heap: Heap dump: large pool reading=heap
++ 40-72 (33) heap: Heap dump: large pool  [16.0 MB, depth 0] depth=0 size=16777112 reading=heap
+    + 53-54 (2) extents: Extents  [1 extent]
+    + 55-66 (12) freelists: Free lists
+      67-69 (3) unpinned: Unpinned recreatable chunks
+      70-72 (3) permanent: Permanent chunks

@@ -1,0 +1,182 @@
+
+  -- Heapdump Analyzer v1.03 by Tanel Poder ( https://blog.tanelpoder.com )
+
+    Total_size #Chunks  Chunk_size,        From_heap,       Chunk_type,  Alloc_reason
+  ------------ ------- ------------ ----------------- ----------------- -----------------
+       6354664   97        65512 ,     top uga heap,         freeable,  session heap   
+       2098816    8       262352 ,     top uga heap,         freeable,  session heap   
+       2093224    1      2093224 ,     top uga heap,         freeable,  session heap   
+       2065536    8       258192 ,     top uga heap,         freeable,  session heap   
+       1637600  100        16376 ,         pga heap,         freeable,  koh-kghu call  
+       1637600   50        32752 ,         pga heap,         freeable,  koh-kghu call  
+       1046696    1      1046696 ,     top uga heap,         freeable,  session heap   
+        523432    1       523432 ,     top uga heap,         freeable,  session heap   
+        522432    8        65304 ,     top uga heap,             free,                 
+        262120    1       262120 ,     top uga heap,         freeable,  session heap   
+        262096    2       131048 ,     top uga heap,         freeable,  session heap   
+        262048    4        65512 ,    top call heap,             free,                 
+        262016    4        65504 ,         pga heap,         freeable,  koh-kghu call  
+        261800    1       261800 ,     top uga heap,         freeable,  session heap   
+        228904    1       228904 ,         pga heap,         recreate,  Fixed UGA heap 
+        118624    1       118624 ,         pga heap,             perm,  perm           
+        116624    1       116624 ,     top uga heap,         freeable,  session heap   
+         71728    1        71728 ,         pga heap,             perm,  perm           
+         65384    1        65384 ,     top uga heap,         recreate,  session heap   
+         56312    1        56312 ,    top call heap,             free,                 
+         55048    1        55048 ,         pga heap,         freeable,  diag pga       
+         54912    2        27456 ,         pga heap,         freeable,  diag pga       
+         46464   11         4224 ,    top call heap,         freeable,  callheap       
+         43208    1        43208 ,    top call heap,             free,                 
+         40984    1        40984 ,         pga heap,         freeable,  kfkio bucket   
+         33136    2        16568 ,         pga heap,         freeable,  diag pga       
+         32752    1        32752 ,         pga heap,             free,                 
+         31424    8         3928 ,     top uga heap,             free,                 
+         29288    7         4184 ,         pga heap,         freeable,  diag pga       
+         24936    3         8312 ,         pga heap,         freeable,  Alloc environm 
+         24600    1        24600 ,         pga heap,         freeable,  kfksb bucket   
+         20736    4         5184 ,         pga heap,         freeable,  qmd_init_pga:b 
+         20528    1        20528 ,         pga heap,             perm,  perm           
+         19296    1        19296 ,         pga heap,             perm,  perm           
+         17024    1        17024 ,         pga heap,         freeable,  kgh stack      
+         17016    1        17016 ,         pga heap,             perm,  perm           
+         16736    4         4184 ,         pga heap,         freeable,  Alloc environm 
+         16552    1        16552 ,         pga heap,         freeable,  Alloc environm 
+         16408    1        16408 ,    top call heap,             free,                 
+         14424    1        14424 ,     top uga heap,             free,                 
+         12792    3         4264 ,    top call heap,         freeable,  callheap       
+         12648    1        12648 ,         pga heap,             perm,  perm           
+         12536    1        12536 ,         pga heap,             perm,  perm           
+         12256    2         6128 ,         pga heap,         freeable,  diag pga       
+         10248    1        10248 ,         pga heap,             free,                 
+          9064    1         9064 ,         pga heap,             perm,  perm           
+          8496    1         8496 ,         pga heap,             perm,  perm           
+          8448    2         4224 ,         pga heap,         freeable,  Alloc environm 
+          8440    1         8440 ,         pga heap,         recreate,  KFK_IO_SUBHEAP 
+          8408    1         8408 ,         pga heap,         recreate,  PLS PGA hp     
+          8368    1         8368 ,         pga heap,             perm,  perm           
+          8312    1         8312 ,    top call heap,         freeable,  callheap       
+          8280    1         8280 ,         pga heap,             perm,  perm           
+          8272    2         4136 ,         pga heap,             perm,  perm           
+          8256    1         8256 ,         pga heap,         freeable,  koh-kghu call  
+          8256    1         8256 ,         pga heap,         freeable,  diag pga       
+          8256    1         8256 ,         pga heap,         freeable,  PLS PGA hp     
+          8248    1         8248 ,         pga heap,             perm,  perm           
+          7568    2         3784 ,         pga heap,             perm,  perm           
+          7560    3         2520 ,         pga heap,         freeable,  koh-kghu call h
+          7432    1         7432 ,         pga heap,             perm,  perm           
+          6608    1         6608 ,         pga heap,         freeable,  diag pga       
+          6480    1         6480 ,         pga heap,             perm,  perm           
+          6448    1         6448 ,         pga heap,             perm,  perm           
+          5752    1         5752 ,         pga heap,             perm,  perm           
+          5248    1         5248 ,         pga heap,         freeable,  Alloc environm 
+          4920    1         4920 ,         pga heap,             perm,  perm           
+          4912    1         4912 ,         pga heap,             perm,  perm           
+          4336    1         4336 ,         pga heap,             perm,  perm           
+          4328    1         4328 ,         pga heap,             free,                 
+          4288    1         4288 ,    top call heap,         freeable,  callheap       
+          4224    1         4224 ,         pga heap,         freeable,  diag pga       
+          4184    1         4184 ,         pga heap,         freeable,  KFK_IO_SUBHEAP 
+          4160    1         4160 ,         pga heap,         freeable,  koh-kghu call  
+          4160    1         4160 ,         pga heap,         freeable,  kbcpctxp       
+          4144    1         4144 ,         pga heap,         freeable,  diag pga       
+          4136    1         4136 ,    top call heap,         freeable,  callheap       
+          4120    1         4120 ,         pga heap,         freeable,  kfnorpg aiobff_
+          4120    1         4120 ,         pga heap,             perm,  perm           
+          4056    1         4056 ,         pga heap,         recreate,  KSFQ heap      
+          3904    1         3904 ,     top uga heap,             free,                 
+          3720    3         1240 ,         pga heap,         recreate,  koh-kghu call  
+          3608    1         3608 ,         pga heap,             perm,  perm           
+          3184    1         3184 ,         pga heap,         recreate,  diag pga       
+          3184    1         3184 ,         pga heap,         recreate,  XVMsubheap     
+          3096    1         3096 ,         pga heap,         freeable,  KZTHSM SEGARR  
+          3024    2         1512 ,         pga heap,             perm,  perm           
+          2600    1         2600 ,         pga heap,         freeable,  kjztprq struct 
+          2496    1         2496 ,         pga heap,             perm,  perm           
+          2368    1         2368 ,         pga heap,         freeable,  kpuinit env han
+          2264    1         2264 ,         pga heap,         freeable,  kews sqlstat st
+          2256    1         2256 ,         pga heap,             perm,  perm           
+          2160    1         2160 ,         pga heap,             perm,  perm           
+          2152    1         2152 ,         pga heap,         freeable,  5954.kgght     
+          2136    1         2136 ,         pga heap,         freeable,  PLS PGA hp     
+          2112    1         2112 ,         pga heap,         freeable,  koh-kghu call  
+          2072    1         2072 ,         pga heap,         freeable,  kfnorpg aiosrq_
+          1968    2          984 ,    top call heap,         recreate,  callheap       
+          1856    1         1856 ,     top uga heap,             free,                 
+          1760    1         1760 ,         pga heap,         freeable,  diag pga       
+          1576    1         1576 ,         pga heap,         freeable,  KFK_IO_SUBHEAP 
+          1528    1         1528 ,         pga heap,         freeable,  KGNFS pcontext 
+          1304    1         1304 ,         pga heap,         recreate,  Alloc environm 
+          1240    1         1240 ,    top call heap,         freeable,  callheap       
+          1184    2          592 ,         pga heap,         freeable,  kopolal void   
+          1144    1         1144 ,         pga heap,             free,                 
+          1128    1         1128 ,         pga heap,         freeable,  615.kggec      
+          1128    1         1128 ,         pga heap,         freeable,  5954.kgght     
+          1104    1         1104 ,         pga heap,         recreate,  joxp heap      
+          1104    1         1104 ,         pga heap,         freeable,  KZTHSM SEGARR  
+          1072    1         1072 ,         pga heap,         freeable,  kopolal void   
+           984    1          984 ,         pga heap,             perm,  perm           
+           936    1          936 ,         pga heap,         recreate,  qmd_init_pga:b 
+           904    1          904 ,         pga heap,         freeable,  diag pga       
+           872    1          872 ,         pga heap,         freeable,  KGODM FHASHTABL
+           832    1          832 ,     top uga heap,             free,                 
+           800    1          800 ,         pga heap,             perm,  perm           
+           752    1          752 ,    top call heap,             free,                 
+           624    1          624 ,         pga heap,         recreate,  615.kggec      
+           624    1          624 ,         pga heap,         recreate,  5954.kgght     
+           600    1          600 ,         pga heap,             free,                 
+           592    1          592 ,         pga heap,         freeable,  krbabrPgaRespMs
+           592    1          592 ,         pga heap,         freeable,  krbabrPgaReqMsg
+           568    1          568 ,         pga heap,         freeable,  joxp ht heap   
+           568    1          568 ,         pga heap,         freeable,  joxp heap      
+           552    1          552 ,         pga heap,         freeable,  Alloc environm 
+           536    1          536 ,         pga heap,             perm,  perm           
+           528    1          528 ,    top call heap,             perm,  perm           
+           464    1          464 ,         pga heap,         freeable,  keumnfy:1      
+           456    1          456 ,         pga heap,         freeable,  kopolal void   
+           432    1          432 ,         pga heap,         freeable,  krbabrPgaStbyRe
+           432    1          432 ,         pga heap,             perm,  perm           
+           416    2          208 ,         pga heap,             perm,  perm           
+           376    1          376 ,         pga heap,         freeable,  PLS cca hp desc
+           344    1          344 ,         pga heap,         freeable,  kopolal void   
+           344    1          344 ,         pga heap,             perm,  perm           
+           320    1          320 ,     top uga heap,             free,                 
+           232    1          232 ,         pga heap,         freeable,  iovecheapd_kdlw
+           208    1          208 ,         pga heap,         freeable,  KFIO PGA struct
+           184    1          184 ,         pga heap,         freeable,  sdbgrf: iosb   
+           184    1          184 ,         pga heap,         freeable,  615.kggec      
+           184    1          184 ,         pga heap,         freeable,  5954.kgght     
+           176    1          176 ,         pga heap,             free,                 
+           168    1          168 ,         pga heap,         freeable,  KFIO heap      
+           160    1          160 ,         pga heap,         freeable,  regheapd_kdlwpg
+           160    1          160 ,         pga heap,         freeable,  qmd_init_pga:bu
+           160    1          160 ,         pga heap,         freeable,  ksws pq help sv
+           160    1          160 ,         pga heap,         freeable,  KSZ pga subheap
+           160    1          160 ,         pga heap,         freeable,  KSFQ heap descr
+           152    1          152 ,         pga heap,         freeable,  KGODM FHASHTABL
+           152    1          152 ,         pga heap,             perm,  perm           
+           144    1          144 ,         pga heap,         freeable,  control file ca
+           136    1          136 ,         pga heap,         freeable,  KCFIS GCTX     
+           128    1          128 ,    top call heap,             perm,  perm           
+           128    1          128 ,     top uga heap,             perm,  perm           
+           128    1          128 ,         pga heap,             perm,  perm           
+           120    1          120 ,         pga heap,         freeable,  skgfzctx       
+           112    1          112 ,         pga heap,         freeable,  skgdllctx      
+           112    1          112 ,         pga heap,         freeable,  dbgdInitEventGr
+           112    1          112 ,         pga heap,             free,                 
+           104    1          104 ,         pga heap,         freeable,  kgopc pcontext 
+           104    1          104 ,         pga heap,         freeable,  kfnorpg        
+            96    1           96 ,         pga heap,         freeable,  KJZT context   
+            88    1           88 ,         pga heap,             free,                 
+            80    1           80 ,         pga heap,         freeable,  koh-kghu call h
+            72    1           72 ,         pga heap,         freeable,  krbabrPgaReqCtx
+            64    1           64 ,         pga heap,         freeable,  kzsna:login nam
+            64    1           64 ,         pga heap,         freeable,  krbrpcact      
+            64    1           64 ,         pga heap,         freeable,  allocate kzthsm
+            64    1           64 ,         pga heap,         freeable,  KFVACFS PGA    
+            64    1           64 ,         pga heap,             free,                 
+            56    1           56 ,         pga heap,         freeable,  KGODM pga conte
+            56    1           56 ,         pga heap,         freeable,  KCFIS GCTX PGAL
+            56    1           56 ,         pga heap,             perm,  perm           
+            48    1           48 ,         pga heap,             free,                 
+            40    1           40 ,         pga heap,         freeable,  control file ca
+

@@ -20,7 +20,7 @@ function AssistantToggle() {
   const chord = isMac ? '⌘J' : 'Ctrl+J'
   return (
     <button className="tab assistant-toggle" aria-pressed={open} onClick={() => ws.setPanes(tab.key, { assistantOpen: !open })}
-      aria-label="Assistant" title={tab.kind === '10053' ? `The assistant does not read optimizer (10053) traces in this version (${chord})` : `Ask an assistant about this trace (${chord})`} aria-keyshortcuts={isMac ? 'Meta+J' : 'Control+J'}>
+      aria-label="Assistant" title={tab.kind ? `The assistant does not read ${tab.kind === 'dump' ? 'diagnostic dump files' : 'optimizer (10053) traces'} in this version (${chord})` : `Ask an assistant about this trace (${chord})`} aria-keyshortcuts={isMac ? 'Meta+J' : 'Control+J'}>
       <AssistantIcon /><kbd className="key-hint" data-for="views" aria-hidden="true">{chord}</kbd>
     </button>
   )
@@ -154,7 +154,7 @@ export function SessionNav() {
           <>
             <span className="tabs-divider" role="separator" />
             <span className="tools-slot">
-              <ToolsMenu over={over} tools={tools} onBrief={() => setBriefOpen(true)} briefOff={doc.opt ? 'The brief is made from a 10046 trace; an optimizer (10053) trace has none in this version' : undefined} />
+              <ToolsMenu over={over} tools={tools} onBrief={() => setBriefOpen(true)} briefOff={doc.dump ? 'The brief is made from a 10046 trace; a file of diagnostic dumps has none in this version' : doc.opt ? 'The brief is made from a 10046 trace; an optimizer (10053) trace has none in this version' : undefined} />
               {menuChords && <kbd className="key-hint" data-for="views" aria-hidden="true">{menuChords}</kbd>}
             </span>
           </>

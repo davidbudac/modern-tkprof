@@ -19,6 +19,17 @@ func (p *Parser) Stats() Stats {
 	if d, ok := p.opt.open(p.line); ok { // a dump in progress counts as cut
 		st.Dumps = append(slices.Clone(st.Dumps), d)
 	}
+	if sec, ok := p.sec.open(); ok { // so does a section in progress
+		st.Sections = append(slices.Clone(st.Sections), sec)
+	}
+	if p.sec.st == secHeld { // a rule that waits is, so far, a line like any other
+		if p.inHeader {
+			st.Kinds[KindHeader]++
+		} else {
+			st.Kinds[KindUnknown]++
+			st.Unknown++
+		}
+	}
 	return st
 }
 

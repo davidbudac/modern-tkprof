@@ -69,7 +69,7 @@ func (ss *Session) redactor(binds, salt string) (*assist.Redactor, error) {
 // values unless ?binds=keep.
 func (s *Server) toolHandler(ss *Session, co *CacheOpened, api http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := optRefusal(co.Model, "the assistant reads 10046 traces only in this version"); err != nil {
+		if err := viewRefusal(ss, co.Model, "the assistant reads 10046 traces only in this version"); err != nil {
 			writeError(w, err)
 			return
 		}
@@ -237,7 +237,7 @@ func (s *Server) createConversation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeConflict, "session %s is %s", ss.id, ss.Info().State))
 		return
 	}
-	if err := optRefusal(m, "the assistant reads 10046 traces only in this version"); err != nil {
+	if err := viewRefusal(ss, m, "the assistant reads 10046 traces only in this version"); err != nil {
 		writeError(w, err)
 		return
 	}

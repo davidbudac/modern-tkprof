@@ -1,0 +1,15 @@
+file diag_procstate.trc: 10394 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 0 unplaced
+section procstate 33-10394
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-32 (1) other: Other lines  [markers and blank lines]
++ 33-10394 (10362) procstate: Process state reading=procstate
+    + 39-1875 (1837) so: process (2)  [Oracle pid 6, ser 35]
+      1876-2132 (257) banner: CURRENT SESSION'S INSTANTIATION STATE
+    + 2133-2490 (358) title: Session Cursor Dump
+    + 2491-3404 (914) title: Session Cached Cursor Dump
+      3405-3405 (1) title: Fixed Areas Dump (level=65) fold="raw values of the fixed memory areas"
+      3406-9667 (6262) title: Dump of the Fixed PGA fold="raw values of a fixed memory area"
+      9668-10390 (723) title: Dump of the Fixed Generic PGA fold="raw values of a fixed memory area"
+      10391-10392 (2) title: KSM MGA PRIVATE DUMP START
+      10393-10394 (2) title: KSM MGA PRIVATE DUMP END

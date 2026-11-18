@@ -19,8 +19,17 @@ export { OptView } from './views/opt/OptView'
 export type { OptViewProps } from './views/opt/OptView'
 export { OptTab } from './views/opt/OptTab'
 export { OptMark } from './components/OptMark'
+export { DumpMark, TraceMark } from './components/DumpMark'
+// the dump reader (a diag session: `doc.dump`) and what it reads: a source of the file's facts, outline, readings and text
+export { DiagView } from './views/diag/DiagView'
+export type { DiagViewProps } from './views/diag/DiagView'
+export { DiagTab } from './views/diag/DiagTab'
+export { registerReading, readingView } from './views/diag/readings'
+export type { ReadingProps, ReadingView } from './views/diag/readings'
 export { OptLinksContext, useOptLinks } from './shell/optlinks'
 export type { OptLinks, Opt10053Link, NoteAction } from './shell/optlinks'
+export { firstLineNaming } from './data/diagmarks'
+export type { DiagKey, DiagLink } from './data/diagmarks'
 export { FilesPanel, FilesPane, FilesToggle } from './views/FilesPanel'
 
 // components
@@ -102,8 +111,13 @@ export { memoryOptSource, storeAnnotations, completeText, sparseText, splitLines
 export type { OptSource, OptText, OptFile, OptDump, OptDumpInfo, OptNode, OptAnnotations, Opt10046Link, OptRange } from './data/opt'
 // where the apps get the 10053 view's data (the document's digest, or the session's api/opt routes), and what a shell must know of a 10053 document
 export { digestSource, httpSource, optSourceOf, attachOptClient } from './data/optsource'
-export { isOptDoc, viewFits, startView, dumpOfLine, lineLabel, optFacts } from './data/optdoc'
+export { isOptDoc, isDumpDoc, isReaderDoc, viewFits, startView, dumpOfLine, lineLabel, optFacts } from './data/optdoc'
 export type { OptFacts } from './data/optdoc'
+// where the dump reader gets its data (the document's digest, or the session's api/diag routes and api/lines), and the words that describe a diag file
+export { memoryDiagSource, memoryText, NoReading } from './data/diag'
+export type { DiagSource, DiagFile, DiagNode, DiagOutline, DiagReading, DiagSection, RawDump } from './data/diag'
+export { diagSourceOf, digestDiagSource, httpDiagSource, attachDiagClient } from './data/diagsource'
+export { describeFile, sectionCounts, sectionNoun, releaseOf } from './data/diagdoc'
 // annotations (notes on statements, executions, windows, lines) and saved Pivot configurations
 export {
   textHash, stmtRef, resolveStmt, resolveExec, stmtNote, execNotes, execKey, makeAnnotation, newAnnotationId, bookmarkToAnnotation, annotationToBookmark,

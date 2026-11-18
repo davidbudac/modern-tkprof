@@ -98,6 +98,7 @@ export const lineTone: Record<LineKind, LineTone> = {
   lob: 'other',
   rpc: 'other',
   optimizer: 'dim',
+  diagnostic: 'dim',
   marker: 'dim',
   header: 'dim',
   separator: 'dim',

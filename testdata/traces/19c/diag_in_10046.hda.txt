@@ -1,0 +1,26 @@
+
+  -- Heapdump Analyzer v1.03 by Tanel Poder ( https://blog.tanelpoder.com )
+
+    Total_size #Chunks  Chunk_size,        From_heap,       Chunk_type,  Alloc_reason
+  ------------ ------- ------------ ----------------- ----------------- -----------------
+          2912    1         2912 ,   KGLH0^ebd3078d,             perm,  perm           
+          1632    1         1632 ,    SQLA^ebd3078d,             free,                 
+          1040    1         1040 ,    SQLA^ebd3078d,         freeable,  ctxdef:kksLoadC
+           688    1          688 ,   KGLH0^ebd3078d,             free,                 
+           304    2          152 ,   KGLH0^ebd3078d,         freeable,  kgltbtab       
+           296    1          296 ,    SQLA^ebd3078d,         freeable,  unmdef in opipr
+           152    1          152 ,    SQLA^ebd3078d,         freeable,  qcctx : kkmqccr
+           128    2           64 ,    SQLA^ebd3078d,         freeable,  kksol : kkscuf 
+           128    1          128 ,   KGLH0^ebd3078d,             perm,  perm           
+           128    1          128 ,    SQLA^ebd3078d,             perm,  perm           
+           120    1          120 ,    SQLA^ebd3078d,         freeable,  strdef: qcopCre
+            96    1           96 ,    SQLA^ebd3078d,         freeable,  bnddef_strdef :
+            88    1           88 ,    SQLA^ebd3078d,         freeable,  qcsctx: kkmqccr
+            80    1           80 ,    SQLA^ebd3078d,         freeable,  qcpctx: kkmqccr
+            56    1           56 ,    SQLA^ebd3078d,         freeable,  qctctx: kkmqccr
+            56    1           56 ,    SQLA^ebd3078d,         freeable,  qcmemctx : kkmq
+            40    1           40 ,    SQLA^ebd3078d,         freeable,  text[]: qcscbnd
+            40    1           40 ,    SQLA^ebd3078d,         freeable,  qcptgc: kkmqccr
+            40    1           40 ,    SQLA^ebd3078d,         freeable,  chedef : qcuatc
+            40    1           40 ,    SQLA^ebd3078d,         freeable,  bnddef * : opia
+

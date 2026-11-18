@@ -1,0 +1,72 @@
+Trace file /u01/app/oracle/diag/rdbms/cdb1/cdb1/trace/cdb1_ora_13780_mtk_diag_heap_large_pdb.trc
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.27.0.0.0
+Build label:    RDBMS_19.27.0.0.0DBRU_LINUX.X64_250331
+ORACLE_HOME:    /u01/app/oracle/product/19.0.0/dbhome_1
+System name:	Linux
+Node name:	ol9-19-dg1.localdomain
+Release:	5.15.0-316.196.4.2.el9uek.x86_64
+Version:	#2 SMP Thu Feb 5 11:29:51 PST 2026
+Machine:	x86_64
+CLID:	P
+Instance name: cdb1
+Instance number: 1
+Database name: cdb1 
+Database unique name: cdb1 
+Database id: 1214129087
+Database role: PRIMARY
+Redo thread mounted by this instance: 1
+Oracle process number: 6
+Unix process pid: 13780, image: oracle@ol9-19-dg1.localdomain
+
+
+*** 2026-11-17T21:34:25.261504+00:00 (PDB1(3))
+*** SESSION ID:(22.46772) 2026-11-17T21:34:25.261528+00:00
+*** CLIENT ID:(mtk_client_diag_heap_large_pdb) 2026-11-17T21:34:25.261530+00:00
+*** SERVICE NAME:(pdb1) 2026-11-17T21:34:25.261533+00:00
+*** MODULE NAME:(mtk_diag_heap_large_pdb) 2026-11-17T21:34:25.261535+00:00
+*** ACTION NAME:(heapdump_32) 2026-11-17T21:34:25.261538+00:00
+*** CLIENT DRIVER:(SQL*PLUS) 2026-11-17T21:34:25.261540+00:00
+*** CONTAINER ID:(3) 2026-11-17T21:34:25.261542+00:00
+ 
+******************************************************
+HEAP DUMP heap name="large pool"  desc=0x60354e60
+ extent sz=0xfe0 alt=352 het=32767 rec=9 flg=0x82 opc=0
+ parent=(nil) owner=(nil) nex=(nil) xsz=0x0 heap=(nil) lru=(nil)
+ fl2=0x24, fl3=0x0, nex=(nil), idx=0, dur=-1 
+ pdb id=1, src pdb id=1
+ ds for latch 1: 0x603567b8                                 
+ reserved granule count 0 (granule size 16777216)
+******************************************************
+HEAP DUMP heap name="large pool"  desc=0x603567b8
+ extent sz=0xfe0 alt=352 het=32767 rec=9 flg=0x82 opc=0
+ parent=(nil) owner=(nil) nex=(nil) xsz=0x1000000 heap=(nil) lru=0x6035e170
+ fl2=0x24, fl3=0x0, nex=(nil), idx=1, dur=0, dsxvers=1, dsxflg=0x0
+ dsx first ext=0xa3000000
+ dsx empty ext bytes=0  subheap rc link=0xa30000d8,0xa30000d8
+ dsx heap size=16777112, dsx heap depth=0
+ pdb id=1, src pdb id=1
+ latch set 1 of 1
+ durations disabled for this heap
+ reserved granules for root 0 (granule size 16777216)
+(only chunks clearly belonging to pdb id 3 will be dumped)
+EXTENT 0 addr=0xa3000000
+Total heap size    = 16777112
+FREE LISTS:
+ Bucket 0 size=8216
+ Bucket 1 size=16408
+ Bucket 2 size=32792
+ Bucket 3 size=65560
+ Bucket 4 size=131096
+ Bucket 5 size=262168
+ Bucket 6 size=524312
+ Bucket 7 size=1048600
+ Bucket 8 size=2097176
+ Bucket 9 size=4194328
+Total free space   = 16285328
+UNPINNED RECREATABLE CHUNKS (lru first):
+SEPARATOR
+Unpinned space     =        0  rcr=0 trn=0
+PERMANENT CHUNKS:
+Permanent space    =      128
+******************************************************

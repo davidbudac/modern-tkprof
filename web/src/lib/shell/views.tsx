@@ -11,6 +11,7 @@ import { Statements } from '../views/Statements'
 import { Timeline } from '../views/Timeline'
 import { Waits } from '../views/Waits'
 import { OptTab } from '../views/opt/OptTab'
+import { DiagTab } from '../views/diag/DiagTab'
 
 /**
  * A view of a trace, as both shells show it: one row of the view table, in nav order.
@@ -32,12 +33,14 @@ export interface SessionViewDef {
   render: (doc: TraceDoc, s: State) => ReactNode
 }
 
-/** The 10046 views are for a document that is not a 10053 file (`doc.opt`). */
-export const is10046 = (d: TraceDoc): boolean => !d.opt
+/** The 10046 views are for a document that is not a 10053 file (`doc.opt`) nor a diag session (`doc.dump`). */
+export const is10046 = (d: TraceDoc): boolean => !d.opt && !d.dump
 
 /** The lib's views in nav order. A shell can append its own rows (the desktop adds Notes 8 and Reports 9, group `tools`). The I/O map has a letter, not a digit. The 10053 view takes ⌘1: the Overview it never shares a document with. */
 export const baseViews: readonly SessionViewDef[] = [
-  // a 10053 file (the optimizer trace) has the 10053 view and none of the 10046 ones; every other trace the reverse (`is10046`)
+  // a 10053 file (the optimizer trace) has the 10053 view and none of the 10046 ones, a diag session (a file read as diagnostic dumps) the dump view and none
+  // of them either; every other trace the reverse (`is10046`)
+  { id: 'dump', label: 'Dump', key: 1, full: true, show: (d) => !!d.dump, render: (d) => d.dump && <DiagTab doc={d as TraceDoc & { dump: NonNullable<TraceDoc['dump']> }} /> },
   { id: 'opt', label: '10053', key: 1, full: true, show: (d) => !!d.opt, render: (d) => d.opt && <OptTab doc={d as TraceDoc & { opt: NonNullable<TraceDoc['opt']> }} /> },
   { id: 'compare', label: 'Compare', key: 0, show: (d, s) => is10046(d) && !!s.compare, render: (_, s) => s.compare && <Compare data={s.compare} /> },
   { id: 'overview', label: 'Overview', key: 1, show: is10046, render: (d) => <Overview doc={d} /> },

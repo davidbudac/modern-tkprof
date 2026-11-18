@@ -109,43 +109,55 @@ func (m *Model) OptOnly() bool {
 }
 
 // OptInputs is DropOptFiles for the entry points that read a 10053 file as
-// such (the CLI, the engine's sessions): a set made only of 10053 files is
-// cut to its first file, and the others are named in a note ("x.trc is a
-// 10053 file; open it on its own") like the files DropOptFiles leaves out of
-// a mixed set. Other sets and single files are returned as they are.
+// such (the CLI, the engine's sessions): a set made only of files that are not
+// 10046 traces (10053 files, files of diagnostic dumps only) is cut to its
+// first file, and the others are named in a note ("x.trc is a 10053 file; open
+// it on its own", "x.trc holds diagnostic dumps only; open it on its own") like
+// the files DropOptFiles leaves out of a mixed set. Other sets and single files
+// are returned as they are.
 func OptInputs(files []string) (kept, notes []string) {
 	if len(files) < 2 {
 		return files, nil
 	}
-	only, n := sniffOpt(files)
+	only, n := sniffOnly(files)
 	switch {
 	case n == 0:
 		return files, nil
 	case n == len(files):
-		for _, f := range files[1:] {
-			notes = append(notes, fmt.Sprintf("%s is a 10053 file; open it on its own", filepath.Base(f)))
+		for i, f := range files[1:] {
+			notes = append(notes, onlyNote(f, only[i+1]))
 		}
 		return files[:1], notes
 	}
 	return dropOnly(files, only)
 }
 
-// sniffOpt tells which of the files hold only optimizer dumps.
-func sniffOpt(files []string) (only []bool, n int) {
-	only = make([]bool, len(files))
+// sniffOnly tells which of the files hold no 10046 record: only optimizer
+// dumps (FileKind10053), or only diagnostic dump sections (FileKindDiag); the
+// others get FileKindNone. n counts the first two.
+func sniffOnly(files []string) (only []trace.FileKind, n int) {
+	only = make([]trace.FileKind, len(files))
 	for i, f := range files {
-		if sn, err := trace.SniffFile(f, trace.SniffOptions{StopAtRecord: true}); err == nil && sn.Kind == trace.FileKind10053 {
-			only[i] = true
+		if sn, err := trace.SniffFile(f, trace.SniffOptions{StopAtRecord: true}); err == nil && (sn.Kind == trace.FileKind10053 || sn.Kind == trace.FileKindDiag) {
+			only[i] = sn.Kind
 			n++
 		}
 	}
 	return only, n
 }
 
-func dropOnly(files []string, only []bool) (kept, notes []string) {
+// onlyNote is the note for a file left out because it has no 10046 record.
+func onlyNote(f string, kind trace.FileKind) string {
+	if kind == trace.FileKindDiag {
+		return fmt.Sprintf("%s holds diagnostic dumps only; open it on its own", filepath.Base(f))
+	}
+	return fmt.Sprintf("%s is a 10053 file; open it on its own", filepath.Base(f))
+}
+
+func dropOnly(files []string, only []trace.FileKind) (kept, notes []string) {
 	for i, f := range files {
-		if only[i] {
-			notes = append(notes, fmt.Sprintf("%s is a 10053 file; open it on its own", filepath.Base(f)))
+		if only[i] != trace.FileKindNone {
+			notes = append(notes, onlyNote(f, only[i]))
 		} else {
 			kept = append(kept, f)
 		}
@@ -153,19 +165,20 @@ func dropOnly(files []string, only []bool) (kept, notes []string) {
 	return kept, notes
 }
 
-// DropOptFiles takes the files that hold only optimizer (10053) dumps out of
-// a trace set that also has other files: a 10053 file is read on its own,
-// never as part of a set of 10046 traces. It returns the files that stay, in
-// their order, and one note per file left out ("opt_two.trc is a 10053 file;
-// open it on its own"). A set of one file, or one made only of 10053 files,
-// is returned as it is; a file that cannot be read stays (the build reports
-// it). Deciding costs the read of the start of each file up to its first
-// 10046 record, and of a 10053 file to its end.
+// DropOptFiles takes the files that hold no 10046 record out of a trace set
+// that also has other files: a 10053 file, or a file of diagnostic dumps only,
+// is read on its own, never as part of a set of 10046 traces. It returns the
+// files that stay, in their order, and one note per file left out
+// ("opt_two.trc is a 10053 file; open it on its own", "x.trc holds diagnostic
+// dumps only; open it on its own"). A set of one file, or one made only of such
+// files, is returned as it is; a file that cannot be read stays (the build
+// reports it). Deciding costs the read of the start of each file up to its
+// first 10046 record, and of a 10053 or diagnostic file to its end.
 func DropOptFiles(files []string) (kept, notes []string) {
 	if len(files) < 2 {
 		return files, nil
 	}
-	only, n := sniffOpt(files)
+	only, n := sniffOnly(files)
 	if n == 0 || n == len(files) {
 		return files, nil
 	}
@@ -183,6 +196,22 @@ func AllOpt(paths []string) (string, bool) {
 	}
 	for _, f := range files {
 		if sn, err := trace.SniffFile(f, trace.SniffOptions{StopAtRecord: true}); err != nil || sn.Kind != trace.FileKind10053 {
+			return "", false
+		}
+	}
+	return filepath.Base(files[0]), true
+}
+
+// AllDiag reports whether every file the paths name (directories expanded) holds diagnostic dumps and
+// neither 10046 records nor optimizer dumps, and gives the name of the first. Commands that read SQL traces
+// only use it to refuse before they parse anything. An unreadable path is not one.
+func AllDiag(paths []string) (string, bool) {
+	files, err := ExpandInputs(paths)
+	if err != nil || len(files) == 0 {
+		return "", false
+	}
+	for _, f := range files {
+		if sn, err := trace.SniffFile(f, trace.SniffOptions{StopAtRecord: true}); err != nil || sn.Kind != trace.FileKindDiag {
 			return "", false
 		}
 	}

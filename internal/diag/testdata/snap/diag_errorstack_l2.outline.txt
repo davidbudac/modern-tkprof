@@ -1,0 +1,36 @@
+file diag_errorstack_l2.trc: 36651 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 0 unplaced
+section diagdump 32-36651
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
++ 32-36651 (36620) diagdump: Diagnostic dump (level 2) reading=callstack
+      33-34 (2) title: Error Stack Dump
+      35-36 (2) title: Current SQL Statement for this session (sql_id=86trfcf9m9n9f)  [alter session set events 'immediate trace name errorstack level 2']
+      37-41 (5) title: Parser State
+      42-42 (1) title: PL/SQL Stack
+      43-49 (7) title: PL/SQL Call Stack
+      50-187 (138) title: Call Stack Trace
+    + 188-2695 (2508) title: Binary Stack Dump fold="frame data: registers and memory of each frame"
+      2696-4833 (2138) title: Argument/Register Address Dump fold="memory around the arguments' and registers' addresses"
+      4834-4834 (1) title: End of Call Stack Trace
+      4835-5000 (166) title: Process Map Dump fold="the process's memory map: address ranges of the binary and its libraries"
+      5001-5018 (18) title: Process Resource Limits
+      5019-5019 (1) title: Java Stack
+      5020-5033 (14) title: KSWRDUMP START
+      5034-5034 (1) title: KSWRDUMP END
+      5035-5040 (6) title: KSMEM_DUMP START
+      5041-5041 (1) title: KSMEM_DUMP END
+      5042-5043 (2) title: KSM MGA PRIVATE DUMP START
+      5044-5044 (1) title: KSM MGA PRIVATE DUMP END
+      5045-5045 (1) title: Process State Dump (2)
+    + 5046-8732 (3687) procstate: Process state reading=procstate
+      8733-8733 (1) title: PX Blackbox
+      8734-20124 (11391) title: Pinned Buffer History fold="block dumps of recently pinned buffers"
+      20125-22239 (2115) title: end of branch block dump fold="block dump lines"
+      22240-22240 (1) title: end of leaf block Logical dump fold="block dump lines"
+      22241-34056 (11816) title: end of leaf block dump fold="block dump lines"
+      34057-35779 (1723) title: end of branch block dump fold="block dump lines"
+      35780-35780 (1) title: end of leaf block Logical dump fold="block dump lines"
+      35781-36584 (804) title: end of leaf block dump fold="block dump lines"
+    + 36585-36588 (4) title: IMDB Pinned Buffer History
+      36589-36650 (62) title: Transaction Layer Metadata
+      36651-36651 (1) title: Pluggagle DB Traces

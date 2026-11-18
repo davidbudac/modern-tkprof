@@ -42,10 +42,10 @@ export function TabView({ tab }: { tab: Tab }) {
 function TabBody({ tab }: { tab: Tab }) {
   const ws = useWorkspace()
   const { tabs } = useWorkspaceState()
-  // what the views of this tab can do across tabs: the "10053" mark on a statement, the dump list's "10046" link, a button beside a note.
+  // what the views of this tab can do across tabs: the "10053" mark on a statement, the dump list's "10046" link, a button beside a note, a file opened again in another view.
   // A new object when the tabs change, so a mounted view redraws its marks.
   const links = useMemo<OptLinks>(
-    () => ({ to10053: ws.dumpLink(tab.key), to10046: ws.statementLink(tab.key), noteAction: (note) => ws.noteAction(tab.key, note) }),
+    () => ({ to10053: ws.dumpLink(tab.key), to10046: ws.statementLink(tab.key), toDump: ws.diagLink(tab.key), toTrace: ws.traceLink(tab.key), noteAction: (note) => ws.noteAction(tab.key, note), openAs: (view) => void ws.openAs(tab.key, view) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ws, tab.key, tabs],
   )
@@ -84,8 +84,8 @@ function TabBody({ tab }: { tab: Tab }) {
           {assistant && (
             <>
               <ResizeHandle anchor="end" min={280} className="resizer-assistant" label="Resize the assistant" onChange={(w) => ws.setPanes(tab.key, { assistantW: w ?? undefined })} />
-              {tab.kind === '10053'
-                ? <OptAssistantNotice onClose={() => ws.setPanes(tab.key, { assistantOpen: false })} />
+              {tab.kind
+                ? <OptAssistantNotice what={tab.kind === 'dump' ? 'diagnostic dump files' : 'optimizer (10053) traces'} onClose={() => ws.setPanes(tab.key, { assistantOpen: false })} />
                 : <ChatPanel tab={tab} focus={!wasOpen.current} onClose={() => ws.setPanes(tab.key, { assistantOpen: false })} />}
             </>
           )}

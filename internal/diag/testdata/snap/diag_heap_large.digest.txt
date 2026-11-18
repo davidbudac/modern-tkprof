@@ -1,0 +1,42 @@
+Diagnostic dump file diag_heap_large.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  82 lines, 3 parts at the top level, 2 diagnostic dump sections
+
+Outline: first-last line, number of lines, title
+ 1-31  31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+32-39   8  Heap dump: large pool
+    Reading: heap "large pool", desc 0x60354e60, depth ?, pdb id 1
+      0 extents, 0 chunks, 0 bytes in the extents
+      the header has no extents
+      Checked against the totals the dump prints:
+        none    chunks of the extents against Total heap size: the heap header has no extents: the dump lists no chunks and prints no totals
+        none    chunks of the free lists against Total free space: for the same reason
+        none    perm chunks under PERMANENT CHUNKS against Permanent space: for the same reason
+40-82  43  Heap dump: large pool  [16.0 MB, depth 0]
+    Reading: heap "large pool", desc 0x603567b8, depth 0, pdb id 1
+      1 extent, 7 chunks, 16,777,112 bytes in the extents
+      Checked against the totals the dump prints:
+        match   chunks of the extents against Total heap size: 16,777,112 = 16,777,112 (line 60)
+        match   chunks of the free lists against Total free space: 16,285,328 = 16,285,328 (line 74)
+        match   perm chunks under PERMANENT CHUNKS against Permanent space: 128 = 128 (line 81)
+      By type:
+        type      chunks       bytes  share
+        free           1  16,285,328  97.1%
+        freeable       4     491,616   2.9%
+        perm           1         128   0.0%
+        lastchk        1          40   0.0%
+      By comment (4 of 4, most bytes first):
+        comment          types     chunks       bytes  share  first line
+        (no comment)     free           1  16,285,328  97.1%          54
+        PX msg pool      freeable       4     491,616   2.9%          55
+        perm             perm           1         128   0.0%          53
+        last-type chunk  lastchk        1          40   0.0%          59
+      Free lists (line 61): 1 chunks, 16,285,328 bytes in 1 of 10 buckets
+        bucket 9  size 4,194,328  1 chunk  16,285,328 bytes
+      Permanent chunks (line 78): 1 perm chunks, 128 bytes
+      Unpinned space (line 77): 0 bytes, rcr=0 trn=0
+  52-60   9  Extents  [1 extent]
+  61-74  14  Free lists
+  75-77   3  Unpinned recreatable chunks
+  78-82   5  Permanent chunks

@@ -46,7 +46,7 @@ type BriefScope struct {
 // model and facts as text/markdown, the token estimate in a header.
 func briefHandler(ss *Session, co *CacheOpened) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := optRefusal(co.Model, "a brief is made of 10046 traces only in this version"); err != nil {
+		if err := viewRefusal(ss, co.Model, "a brief is made of 10046 traces only in this version"); err != nil {
 			writeError(w, err)
 			return
 		}
