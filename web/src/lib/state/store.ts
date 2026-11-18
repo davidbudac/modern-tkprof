@@ -8,7 +8,7 @@ import { contextsWithin, effectiveContexts, fileCount, normalizeFiles } from '..
 import type { KindGroup } from '../data/callkinds'
 import { startView, viewFits } from '../data/optdoc'
 
-export type View = 'opt' | 'overview' | 'statements' | 'waits' | 'blocks' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
+export type View = 'dump' | 'opt' | 'overview' | 'statements' | 'waits' | 'blocks' | 'timeline' | 'sessions' | 'pivot' | 'events' | 'raw' | 'lines' | 'compare'
   | 'annotations' | 'reports' | 'cut' // desktop shell views
 
 /** How the Statements list is ranked. */
@@ -91,6 +91,9 @@ export interface LiveStatus {
 /** A request to the 10053 view: open dump `dump` and, with `line`, that line of the file. */
 export interface OptGo { dump: number; line?: number; seq: number }
 
+/** A request to the dump reader: select this node and/or go to this line of the file. */
+export interface DumpGo { node?: string; line?: number; seq: number }
+
 /** The Lines view's position: `seq` changes when something outside asks it to move to `line` (a deep link, a jump), clicks inside only update `line`. */
 export interface LinesView {
   file: number; line: number; seq: number
@@ -141,6 +144,8 @@ export interface State {
   optGo: OptGo | null
   /** the 10053 view: the dump open (the one the user chose last; part of the URL state) */
   optDump: number
+  /** the dump reader: a request to go to this node and/or line of the file; a new `seq` is a new request. The view takes it when it mounts or sees it change (`DiagTab`) */
+  dumpGo: DumpGo | null
   /** notes on statements, executions and time windows (lines: `bookmarks`); kept for the page lifetime unless a shell persists them */
   annotations: Annotation[]
   /** show the add-note affordances (the desktop shell persists the notes) */
@@ -166,7 +171,7 @@ const initial: State = {
   window: null, block: null, lanesZoom: [], contexts: null, files: null, filesOpen: null, includeIdle: true, inclusive: false, stmtList: { q: '', hideSys: false, sort: 'resp' }, noteDrafts: {}, theme: 'auto',
   statementCallTypes: null,
   linesAvailable: false, lineViewer: null,
-  linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [], optGo: null, optDump: 0,
+  linesApi: false, lineRefTarget: 'drawer', linesView: { file: 0, line: 1, seq: 0 }, bookmarks: [], optGo: null, optDump: 0, dumpGo: null,
   annotations: [], annotationsEnabled: false, libraryEnabled: false,
   pivot: { fact: 'calls', by: ['stmt'], sort: { calls: 'e', waits: 'ela' }, limit: 1000, stmt: null, event: null, notice: null },
   blocks: { stmt: null, event: null },
@@ -212,7 +217,7 @@ export function createStore(): Store {
   }
   const subscribe: Store['subscribe'] = (l) => { listeners.add(l); return () => listeners.delete(l) }
   const setLoaded: Store['setLoaded'] = (l) => {
-    setState({ doc: l.doc, compare: l.compare, side: 'a', view: startView(l.doc), optGo: null, optDump: 0, files: null, block: null, lanesZoom: [], ioZoom: [], refImport: false, statementCallTypes: null, stmtList: initial.stmtList, noteDrafts: {}, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
+    setState({ doc: l.doc, compare: l.compare, side: 'a', view: startView(l.doc), optGo: null, optDump: 0, dumpGo: null, files: null, block: null, lanesZoom: [], ioZoom: [], refImport: false, statementCallTypes: null, stmtList: initial.stmtList, noteDrafts: {}, loading: false, error: null, bookmarks: [], annotations: [], linesView: { file: 0, line: 1, seq: 0 }, rev: state.rev + 1 })
   }
   const swapDoc: Store['swapDoc'] = (l) => {
     setState((s) => ({ ...carryOver(s, l.doc), compare: l.compare, rev: s.rev + 1, loading: false, error: null }))
@@ -270,6 +275,8 @@ function makeActions(setState: Store['setState']) {
     setView(view: View) { setState((s) => (viewFits(s.doc, view) ? { view } : {})) },
     /** Open the 10053 view at a dump (and a line of the file); the view takes the request when it is on screen. */
     openOpt(dump: number, line?: number) { setState((s) => ({ view: 'opt', optGo: { dump, ...(line ? { line } : null), seq: (s.optGo?.seq ?? 0) + 1 }, optDump: dump })) },
+    /** Open the dump reader at a node and/or a line of the file; the view takes the request when it is on screen. */
+    openDump(go: { node?: string; line?: number }) { setState((s) => ({ view: 'dump', dumpGo: { ...go, seq: (s.dumpGo?.seq ?? 0) + 1 } })) },
     /** The dump the 10053 view shows changed. */
     setOptDump(optDump: number) { setState((s) => (s.optDump === optDump ? {} : { optDump })) },
     /** Select a statement; selecting one opens it in the Statements workbench. */
@@ -475,5 +482,5 @@ export function waitFilter(s: Pick<State, 'doc' | 'window' | 'contexts' | 'inclu
 
 /** Whether the Files panel is shown: the user's choice, else open for a document of several files (none for a single file). */
 export function filesPanelOpen(s: Pick<State, 'doc' | 'filesOpen'>): boolean {
-  return !!s.doc?.multiFile && !s.doc.opt && (s.filesOpen ?? true)
+  return !!s.doc?.multiFile && !s.doc.opt && !s.doc.dump && (s.filesOpen ?? true)
 }

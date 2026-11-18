@@ -281,8 +281,8 @@ function RefData({ conn }: { conn: Entry }) {
     if (!client) return
     try {
       // a bundle is kept per trace identity; a live session has none
-      // (an optimizer (10053) trace has no object, file or user ids to name: its sessions are not offered)
-      const list = (await remoteApi.sessionsList(client)).sessions.filter((s) => s.state === 'ready' && s.identity && !s.optSqlIds)
+      // (an optimizer (10053) trace or a file of diagnostic dumps has no object, file or user ids to name: its sessions are not offered)
+      const list = (await remoteApi.sessionsList(client)).sessions.filter((s) => s.state === 'ready' && s.identity && !s.optSqlIds && s.view !== 'diag')
       setSessions(list)
       const active = bridge.activeSession?.()
       setTarget((t) => (t && list.some((s) => s.id === t) ? t : list.find((s) => s.id === active)?.id ?? list[0]?.id ?? ''))

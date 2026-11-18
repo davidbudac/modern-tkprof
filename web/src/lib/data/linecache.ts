@@ -121,8 +121,15 @@ export class PageCache {
     return this.load(from).then(() => undefined, () => undefined)
   }
 
-  /** Aborts every request on the way (the file or the server changed). */
-  close(): void { for (const ac of this.ctrls.values()) ac.abort() }
+  /**
+   * Aborts every request on the way (the file or the server changed) and forgets them, so that a page asked for again afterwards (a view that was
+   * unmounted and mounted again at once, as React's StrictMode does in development) is fetched anew instead of waiting on an aborted request.
+   */
+  close(): void {
+    for (const ac of this.ctrls.values()) ac.abort()
+    this.ctrls.clear()
+    this.loading.clear()
+  }
 
   /** The text, kind and model ids of line `n` when its page is cached (the ids are -1 when the page came without them). */
   line(n: number): CachedLine | undefined {

@@ -2,6 +2,7 @@ import type {
   RawDocument, Statement, Cursor, Context, Event, Plan, PlanLine, Transaction, ErrorEvent,
   StmtStats, Profile, EventAgg, Bucket, FileInfo, Span, Diagnostics, Marker, ID, Finding, ContextStats, RefObject, RefFile, Minimap, RawOpt,
 } from './types'
+import type { RawDump } from './diag'
 import { NONE } from './types'
 import { unpackTable, type NumCol } from './columns'
 
@@ -59,6 +60,8 @@ export class TraceDoc {
 
   /** a 10053 file (the optimizer trace): the file summary and, in a standalone report, the digest; absent for every 10046 trace */
   readonly opt?: RawOpt
+  /** a diag session (the dump reader): the file facts and outline and, in a standalone report, the digest; absent for every other document */
+  readonly dump?: RawDump
   readonly hasFacts: boolean
   /** the server that sent this document answers the slicing queries; without fact tables the views ask it (see source.ts) */
   readonly slice: boolean
@@ -104,6 +107,7 @@ export class TraceDoc {
     this.unknown = raw.unknown ?? []
     this.stats = { ...raw.stats, timeline: raw.stats.timeline ?? [], findings: raw.stats.findings ?? [], findingsConfig: raw.stats.findingsConfig ?? {}, contexts: raw.stats.contexts ?? [] }
     this.opt = raw.opt ?? undefined
+    this.dump = raw.dump ?? undefined
     this.hasFacts = !!raw.facts
     this.slice = !!raw.slice
     this.hasRef = !!(raw.objects?.length || raw.files?.length || raw.users?.length)

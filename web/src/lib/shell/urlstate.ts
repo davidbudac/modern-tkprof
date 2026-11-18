@@ -12,7 +12,8 @@ import { baseViews } from './views'
  * event name, `win` the window as microseconds from the start of the trace, `exec` one execution of the statement
  * (`<cursorLine>:<execNo>`, `execKey`), `contexts` the selected session contexts (`0,2`; absent = all), `files` the
  * shown input files (indexes, `0,2`; absent = all); the Lines view adds `file` (input file index) and `line`; the 10053 view (`view=opt`, the only
- * view of a 10053 file, and of no other) adds `dump` (the open dump, absent = the first). A view the document cannot have is dropped by `apply`.
+ * view of a 10053 file, and of no other) adds `dump` (the open dump, absent = the first); the dump reader is `view=dump`, the only view of a diag session.
+ * A view the document cannot have is dropped by `apply`.
  * The assistant's `mtkprof:` links are the same hash (engine/internal/assist/system_prompt.md).
  * The `?doc=` query string is left alone.
  */
@@ -161,7 +162,7 @@ export function apply(store: Store, doc: TraceDoc, hash: string): TraceDoc {
   const ctxs = w.contexts ? new Set([...w.contexts].filter((c) => c < doc.contexts.length)) : null // unknown contexts are ignored; none left = all
   store.setState({
     doc, side: cmp ? side : 'a',
-    view: view ?? (doc.opt ? startView(doc) : stmt !== null ? 'statements' : 'overview'),
+    view: view ?? (doc.opt || doc.dump ? startView(doc) : stmt !== null ? 'statements' : 'overview'),
     selection: { stmt, event: ev >= 0 ? ev : null, call: null, exec: execIn(doc, stmt, w.exec) },
     files: shown, contexts: contextsWithin(doc, ctxs && ctxs.size > 0 ? ctxs : null, shown),
     window: w.win && w.win[1] > w.win[0] ? { startTim: base + w.win[0], endTim: base + w.win[1] } : null,

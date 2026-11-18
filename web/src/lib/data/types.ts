@@ -1,5 +1,6 @@
 // Mirrors the JSON document written by internal/report/doc.go (format 3).
 import type { OptDump, OptFile } from './opt'
+import type { RawDump } from './diag'
 
 export type ID = number // -1 = none
 export const NONE: ID = -1
@@ -400,6 +401,8 @@ export interface RawDocument {
   facts?: RawFacts
   /** a 10053 file: the document of an empty 10046 model plus this */
   opt?: RawOpt | null
+  /** a diag session (the dump reader): the document of an empty 10046 model plus this (`file`, and in a document made for a client without a server, the digest) */
+  dump?: RawDump | null
   planViz?: string
   /** the server that sent the document answers the /api/pivot, /api/timeline, ... queries (`serve -facts=false`) */
   slice?: boolean

@@ -15,12 +15,14 @@ export interface NoteAction { label: string; title?: string; run(): void }
  * the marks and links are simply absent there.
  * - `to10053`: in a 10046 tab, the "10053" mark on a statement whose sql_id is among another open tab's dumps;
  * - `to10046`: in a 10053 tab, the dump list's "10046" link to an open 10046 tab that has the statement;
- * - `noteAction`: a button beside a note of the trace (`doc.diag.notes`).
+ * - `noteAction`: a button beside a note of the trace (`doc.diag.notes`);
+ * - `openAs`: open the tab's own file again in a new tab in another view (`view` of a session: the dump reader's "Open as SQL trace").
  */
 export interface OptLinks {
   to10053?: Opt10053Link
   to10046?: Opt10046Link
   noteAction?(note: string): NoteAction | null
+  openAs?(view: '10046' | '10053' | 'diag'): void
 }
 
 export const OptLinksContext = createContext<OptLinks>({})

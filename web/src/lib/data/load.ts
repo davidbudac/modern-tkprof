@@ -2,6 +2,7 @@ import type { RawDocument, RawCompareDocument, Comparison } from './types'
 import { TraceDoc } from './doc'
 import { attachRemote } from './source'
 import { attachOptClient } from './optsource'
+import { attachDiagClient } from './diagsource'
 import { createClient, type ApiClient } from './client'
 
 export type Source = { kind: 'inline' } | { kind: 'url'; url: string } | { kind: 'file'; file: File }
@@ -31,6 +32,7 @@ export async function fromRaw(raw: RawDocument | RawCompareDocument, client?: Ap
   const doc = await TraceDoc.fromRaw(raw as RawDocument)
   if (client && doc.slice && !doc.hasFacts) attachRemote(doc, client)
   if (client && doc.opt && !doc.opt.digest) attachOptClient(doc.opt, client) // the routes of a 10053 session are asked of the server the document came from
+  if (client && doc.dump && !doc.dump.digest) attachDiagClient(doc.dump, client) // the routes of a diag session likewise
   return { doc, compare: null }
 }
 

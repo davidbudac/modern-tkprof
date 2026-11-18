@@ -7,6 +7,7 @@ import { useSettings } from '../settings/settings'
 import { ago } from '../time'
 import { useWorkspace, useWorkspaceState } from './WorkspaceProvider'
 import { setSummary, setTooltip, titleOf } from './traceSet'
+import { kindBadge } from './optTabs'
 import { canCompare, defaultOpenOptions, openRequest, type OpenOptions } from './workspace'
 import { CompareTabsButton } from './CompareTabs'
 import { FolderIcon } from '../ui/FolderIcon'
@@ -142,7 +143,7 @@ function OpenChoices() {
           {recent.map((r, i) => (
             <li key={i}>
               <button className="recent-open" disabled={!ready} onClick={() => void ws.openOrPick(r.set)} title={setTooltip(r.set.paths)}>
-                <b className="mono recent-title">{r.dirs?.length ? <FolderIcon className="folder-mark" /> : null}<span>{titleOf(r.set.paths)}</span>{r.kind === '10053' && <span className="kind-badge" title="An optimizer (10053) trace">10053</span>}</b>
+                <b className="mono recent-title">{r.dirs?.length ? <FolderIcon className="folder-mark" /> : null}<span>{titleOf(r.set.paths)}</span>{kindBadge(r.kind) && <span className="kind-badge" title={kindBadge(r.kind)!.title}>{kindBadge(r.kind)!.text}</span>}</b>
                 <span className="muted small mono">{setSummary(r.set.paths, r.files, r.dirs)}</span>
               </button>
               <span className="recent-ago muted small">{r.set.options.binds !== 'keep' && `binds ${r.set.options.binds} · `}{ago(r.at)}</span>
