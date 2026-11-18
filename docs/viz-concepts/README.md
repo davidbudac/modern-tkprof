@@ -29,3 +29,11 @@ product does not reuse the code.
 
 The PNGs are the rendered sections at the time of the study (fallback fonts: headless Chromium
 had no Inter or SF).
+
+## Plan replay (2026-11-17)
+
+`plan-replay/`: the prototype of the user's idea "animate a walkthrough through the plan", built in the
+statement inspector as **Replay** (`docs/PLAN-REPLAY.md`). `plan-replay/build.sh` extracts four executions of
+public fixtures (io_waits stmts 22 and 21, opt_interleaved's cached adaptive plan, px_io's coordinator with its
+four slave traces) and writes `plan-replay/replay.html` (not committed); open it in a browser. The PX scene is
+ahead of the app (HANDOFF § Plan replay).

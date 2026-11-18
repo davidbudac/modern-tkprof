@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan replay</title>
+<style>
+:root {
+  --fg: var(--foreground, #e6e8ec);
+  --fg2: var(--muted-foreground, #8d94a0);
+  --line: var(--border, #2b3038);
+  --panel: var(--card, #15181d);
+  --c-cpu: var(--primary, #8fb3ff);
+  --c-obj1: var(--chart-1, #4f8ff7);
+  --c-obj2: var(--chart-5, #c58af9);
+  --c-obj3: var(--chart-6, #7fd1e8);
+  --c-obj4: #d6a2e8;
+  --c-twrite: var(--chart-4, #f0883e);
+  --c-tread: var(--chart-3, #3fb68b);
+  --c-client: var(--chart-2, #e5c07b);
+  --c-other: var(--muted-foreground, #8d94a0);
+  --c-s1: #5aa2ff;
+  --c-s2: #f472b6;
+  --c-s3: #34d399;
+  --c-s4: #fbbf24;
+  --mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  --sans: var(--font-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
+}
+body.standalone { background: #0e1014; color: #e6e8ec; margin: 0; padding: 20px; }
+body.standalone #app { max-width: 1100px; margin: 0 auto; }
+#app { font-family: var(--sans); color: var(--fg); font-size: 13px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--fg2); font: inherit; font-size: 12px; padding: 4px 9px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: color-mix(in srgb, var(--c-cpu) 18%, transparent); color: var(--fg); }
+.btn { border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 7px; font: inherit; font-size: 12px; padding: 4px 9px; cursor: pointer; min-width: 30px; }
+.clock { font-family: var(--mono); font-size: 12px; color: var(--fg2); margin-left: auto; font-variant-numeric: tabular-nums; }
+.clock b { color: var(--fg); font-weight: 600; }
+.sql { font-family: var(--mono); font-size: 11.5px; color: var(--fg2); margin: 0 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sql b { color: var(--fg); font-weight: 600; }
+canvas { display: block; width: 100%; }
+.cap { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: baseline; margin: 6px 0 8px; min-height: 38px; }
+.cap .k { color: var(--fg2); font-size: 11px; }
+.cap .v { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cap .v.chap { color: var(--fg); transition: opacity .35s; }
+.cap .v.now { color: var(--fg2); }
+#lanes { cursor: pointer; }
+.note { color: var(--fg2); font-size: 11.5px; line-height: 1.5; margin-top: 8px; }
+.note b { color: var(--fg); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 11.5px; color: var(--fg2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="bar">
+    <div class="seg" id="scenes"></div>
+    <button class="btn" id="prev" title="previous chapter (←)">⏮</button>
+    <button class="btn" id="play" title="play / pause (space)">❚❚</button>
+    <button class="btn" id="next" title="next chapter (→)">⏭</button>
+    <div class="seg" id="speeds"></div>
+    <div class="clock" id="clock"></div>
+  </div>
+  <div class="sql" id="sql"></div>
+  <canvas id="stage"></canvas>
+  <div class="cap">
+    <span class="k" id="chapk">chapter</span><span class="v chap" id="chap"></span>
+    <span class="k">now</span><span class="v now" id="now"></span>
+  </div>
+  <canvas id="lanes"></canvas>
+  <div class="legend" id="legend"></div>
+  <div class="note">
+    <b>From the trace:</b> every wait (event, ela, tim, obj#, file, block), the calls, rows per fetch, the STAT totals.
+    <b>Inferred</b> (≈): which plan line a wait belongs to (obj# of the line; TEMP I/O → the line that wrote to TEMP),
+    rows between the start and the end (in step with the blocks a line has read), and which lines are on CPU between
+    waits (the lines between the last and the next wait; a call without waits: the lines by their share of STAT self time).
+  </div>
+</div>
+<script>
+const SCENES = /*DATA*/;
+
+const $ = (s) => document.querySelector(s);
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+const ms = (us) => (us >= 1e6 ? (us / 1e6).toFixed(3) + ' s' : (us / 1000).toFixed(us < 1e4 ? 2 : 1) + ' ms');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const params = new URLSearchParams(location.search);
+const CAPTURE = params.has('capture');
+
+if (!getComputedStyle(document.documentElement).getPropertyValue('--background').trim()) document.body.classList.add('standalone');
+const probe = document.createElement('span');
+document.body.appendChild(probe);
+const css = (v) => { probe.style.color = `var(${v})`; return getComputedStyle(probe).color; };
+let C = {};
+function readColors() {
+  C = { fg: css('--fg'), fg2: css('--fg2'), line: css('--line'), panel: css('--panel'), cpu: css('--c-cpu'),
+        obj: ['--c-obj1', '--c-obj2', '--c-obj3', '--c-obj4'].map(css), slave: ['--c-s1', '--c-s2', '--c-s3', '--c-s4'].map(css),
+        twrite: css('--c-twrite'), tread: css('--c-tread'), client: css('--c-client'), other: css('--c-other') };
+  C.sans = getComputedStyle($('#app')).fontFamily;
+  C.mono = getComputedStyle($('.clock')).fontFamily;
+}
+
+function valueAt(knots, t) {
+  if (t <= knots[0][0]) return knots[0][1];
+  let lo = 0, hi = knots.length - 1;
+  if (t >= knots[hi][0]) return knots[hi][1];
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (knots[m][0] <= t) lo = m; else hi = m; }
+  const [t0, v0] = knots[lo], [t1, v1] = knots[hi];
+  return t1 === t0 ? v1 : v0 + (v1 - v0) * ((t - t0) / (t1 - t0));
+}
+const cumKnots = (ws, w8 = (w) => w.cnt || 1) => {
+  let s = 0; const k = [[0, 0]];
+  for (const w of ws) { k.push([w.start, s]); s += w8(w); k.push([w.end, s]); }
+  return { k, total: s };
+};
+const BLOCKING = /^(SORT|HASH GROUP BY|HASH UNIQUE|BUFFER SORT|WINDOW SORT)/;
+
+// ================================================================ model of one execution
+function prepare(d) {
+  const isPX = d.procs.length > 1;
+  const lines = d.plan.map((p) => ({ ...p, kids: [] }));
+  const byId = new Map(lines.map((l) => [l.id, l]));
+  for (const l of lines) if (byId.has(l.pid) && l.pid !== l.id) byId.get(l.pid).kids.push(l);
+  const root = lines.find((l) => !byId.has(l.pid)) || lines[0];
+  for (const l of lines) {
+    l.parent = byId.get(l.pid) || null;
+    l.objName = d.objs[l.obj] || '';
+    l.title = l.objName && l.op.endsWith(l.objName) ? l.op.slice(0, l.op.length - l.objName.length).trim() : l.op;
+  }
+  const depth = (l) => (l.parent ? depth(l.parent) + 1 : 0);
+  for (const l of lines) l.depth = depth(l);
+
+  const procs = d.procs.map((p, i) => {
+    const plan = new Map((i === 0 ? d.plan : p.plan || []).map((s) => [s.id, s]));
+    return { name: p.name, i, isQC: i === 0, plan, calls: [], waits: [], reads: new Map(), treads: new Map(), twrites: new Map(),
+             raw: p, color: i ? C.slave[(i - 1) % 4] : C.cpu };
+  });
+  const qc = procs[0], slaves = procs.slice(1);
+  for (const l of lines) {
+    const q = qc.plan.get(l.id);
+    l.slave = isPX && (!q || !q.str) && slaves.some((p) => p.plan.get(l.id)?.str);
+    l.procs = l.slave ? slaves.filter((p) => p.plan.get(l.id)?.str) : [qc];
+    l.cntOf = (p) => (p.plan.get(l.id)?.cnt || 0);
+    l.cntTotal = l.procs.reduce((s, p) => s + l.cntOf(p), 0);
+    l.strTotal = l.procs.reduce((s, p) => s + (p.plan.get(l.id)?.str || 0), 0);
+    l.timeTotal = l.procs.reduce((s, p) => s + (p.plan.get(l.id)?.time || 0), 0);
+    l.inactive = !l.strTotal && !l.cntTotal;
+  }
+  // PX SEND QC has no STAT in the slaves (str=0 everywhere): it passes its child's rows on
+  if (isPX) for (const l of [...lines].sort((a, b) => b.depth - a.depth)) {
+    if (l.slave || qc.plan.get(l.id)?.str) continue;
+    const k0 = l.kids.find((k) => k.slave);
+    if (!k0) continue;
+    l.slave = true; l.derived = true;
+    for (const p of slaves) { const e = p.plan.get(k0.id); if (e?.str) p.plan.set(l.id, { ...(p.plan.get(l.id) || {}), cnt: e.cnt, str: e.str, time: 0 }); }
+    l.procs = slaves.filter((p) => p.plan.get(l.id)?.str);
+    l.cntTotal = l.procs.reduce((s, p) => s + l.cntOf(p), 0);
+    l.strTotal = l.procs.reduce((s, p) => s + (p.plan.get(l.id)?.str || 0), 0);
+    l.inactive = false;
+  }
+  for (const l of lines) l.selfTime = Math.max(0, l.timeTotal - l.kids.reduce((s, k) => s + k.timeTotal, 0));
+  const partTop = (p) => (p.isQC ? root : lines.find((l) => l.slave && !(l.parent && l.parent.slave)));
+  const inPart = (l, p) => (p.isQC ? !l.slave : l.slave);
+  const objIdx = new Map();
+  for (const l of lines) if (l.obj && !objIdx.has(l.obj)) objIdx.set(l.obj, objIdx.size);
+
+  for (const p of procs) {
+    const pw = (l) => p.plan.get(l.id)?.pw || 0;
+    p.work = lines.filter((l) => inPart(l, p) && pw(l) - l.kids.reduce((s, k) => s + pw(k), 0) > 0)
+      .sort((a, b) => (pw(b) - pw(a)))[0] || null;
+    p.calls = p.raw.calls.map(([k, end, e, c, r]) => ({ kind: { E: 'EXEC', F: 'FETCH', C: 'CLOSE' }[k], end, start: end - e, e, c, r, p }));
+    const w7 = p.raw.waits;
+    for (let i = 0; i < w7.length; i += 7) {
+      const [ev, end, ela, obj, file, dba, cnt] = w7.slice(i, i + 7);
+      const n = p.raw.events[ev];
+      const w = { ev: n, end, start: end - ela, ela, obj, file, dba, cnt, p };
+      const lineOfObj = () => lines.find((l) => l.obj === obj && inPart(l, p)) || lines.find((l) => l.obj === obj) || null;
+      const push = (m, l) => { if (!m.has(l)) m.set(l, []); m.get(l).push(w); };
+      if (/temp/.test(n) && /write/.test(n)) { w.kind = 'twrite'; w.line = p.work || partTop(p); push(p.twrites, w.line); }
+      else if (/temp/.test(n) && cnt) { w.kind = 'tread'; w.line = p.work || partTop(p); push(p.treads, w.line); }
+      else if (/^SQL\*Net message from client/.test(n)) w.kind = 'client';
+      else if (/^SQL\*Net/.test(n)) w.kind = 'net';
+      else if (/^PX Deq: (Execute Reply|Table Q Normal)/.test(n) && p.isQC) { w.kind = 'pxwait'; w.line = lines.find((l) => /^PX COORDINATOR/.test(l.op)) || root; }
+      else if (/^PX Deq Credit/.test(n)) { w.kind = 'pxwait'; w.line = lines.find((l) => /^PX SEND/.test(l.op) && inPart(l, p)) || null; }
+      else if (/^PX Deq: Execution Msg|^PX Deq: Table Q/.test(n) && !p.isQC) w.kind = 'pxidle';
+      else if (cnt && obj > 0 && lineOfObj()) { w.kind = 'read'; w.line = lineOfObj(); push(p.reads, w.line); }
+      else w.kind = 'other';
+      p.waits.push(w);
+    }
+    p.waits.sort((a, b) => a.start - b.start);
+  }
+  const allWaits = procs.flatMap((p) => p.waits).sort((a, b) => a.start - b.start);
+  const allCalls = procs.flatMap((p) => p.calls);
+  const D = Math.max(...allCalls.map((c) => c.end), ...allWaits.map((w) => w.end));
+  for (const p of procs) {
+    const cs = p.calls.filter((c) => c.kind !== 'CLOSE');
+    p.start = Math.min(...cs.map((c) => c.start), ...(p.isQC ? [] : p.waits.map((w) => w.start)));
+    p.end = Math.max(...cs.map((c) => c.end));
+  }
+
+  // ---- rows over time
+  const fetches = qc.calls.filter((c) => c.kind === 'FETCH');
+  const fetchKnots = [[0, 0]];
+  let acc = 0;
+  for (const c of fetches) if (c.r) { fetchKnots.push([c.end - 1, acc]); acc += c.r; fetchKnots.push([c.end, acc]); }
+  const delivered = acc;
+  const firstRow = fetches.find((c) => c.r) || null;
+  const blockedAbove = (l) => { for (let x = l.parent; x; x = x.parent) if (BLOCKING.test(x.op) || /^HASH JOIN/.test(x.op) && x.kids[0] && contains(x.kids[0], l)) return true; return false; };
+  const contains = (a, b) => { for (let x = b; x; x = x.parent) if (x === a) return true; return false; };
+  const memo = new Map();
+  const doneMemo = new Map();
+  const linear = (a, b) => (t) => clamp((t - a) / Math.max(1, b - a), 0, 1);
+  const step = (t0) => (t) => (t >= t0 ? 1 : 0);
+  const fromCum = ({ k, total }) => (t) => valueAt(k, t) / total;
+  const leafReads = (l, p) => {
+    const own = p.reads.get(l);
+    if (own && own.length) return own;
+    if (BLOCKING.test(l.op)) return [];
+    const ks = /^HASH JOIN/.test(l.op) ? l.kids.slice(1) : l.kids;
+    return ks.flatMap((k) => leafReads(k, p));
+  };
+  function frac(l, p) {
+    const key = l.id + '|' + p.name;
+    if (memo.has(key)) return memo.get(key);
+    memo.set(key, () => 0);
+    let f;
+    const own = p.reads.get(l);
+    if (l === root && p.isQC && delivered) f = (t) => valueAt(fetchKnots, t) / delivered;
+    else if (l.inactive) f = () => 0;
+    else if (own && own.length) f = fromCum(cumKnots(own));
+    else if (/^HASH JOIN/.test(l.op)) {
+      const ws = [...(p.treads.get(l) || []), ...l.kids.slice(1).flatMap((k) => leafReads(k, p))].sort((a, b) => a.end - b.end);
+      f = ws.length ? fromCum(cumKnots(ws)) : step(kidsDone(l, p));
+    } else if (BLOCKING.test(l.op) && l.kids.length) {
+      const t0 = kidsDone(l, p);
+      const tr = (p.treads.get(l) || []).filter((w) => w.start >= t0);
+      f = tr.length ? fromCum(cumKnots(tr)) : step(t0);
+    } else if (l.kids.length) {
+      const k0 = l.kids.find((k) => !k.inactive) || l.kids[0];
+      f = k0.slave && !l.slave ? (t) => fracAll(k0, t) : frac(k0, p);
+    } else if (p.isQC) {
+      f = blockedAbove(l) ? linear(p.start, firstRow ? firstRow.start + firstRow.e * 0.98 : p.end)
+        : delivered ? (t) => valueAt(fetchKnots, t) / delivered : linear(p.start, p.end);
+    } else f = linear(p.start, p.end);
+    memo.set(key, f);
+    return f;
+  }
+  const rowsAt = (l, t) => l.procs.reduce((s, p) => s + l.cntOf(p) * frac(l, p)(t), 0);
+  const fracAll = (l, t) => (l.cntTotal ? rowsAt(l, t) / l.cntTotal : l.procs.reduce((s, p) => s + frac(l, p)(t), 0) / Math.max(1, l.procs.length));
+  function doneAt(l) {
+    if (doneMemo.has(l)) return doneMemo.get(l);
+    doneMemo.set(l, D);
+    let lo = 0, hi = D;
+    if (fracAll(l, D) < 0.9999) { doneMemo.set(l, D); return D; }
+    for (let i = 0; i < 44; i++) { const m = (lo + hi) / 2; if (fracAll(l, m) >= 0.9999) hi = m; else lo = m; }
+    doneMemo.set(l, hi);
+    return hi;
+  }
+  const doneP = new Map();
+  function doneAtP(l, p) {
+    const key = l.id + '|' + p.name;
+    if (doneP.has(key)) return doneP.get(key);
+    doneP.set(key, D);
+    const f = frac(l, p);
+    let lo = 0, hi = D;
+    if (f(D) >= 0.9999) { for (let i = 0; i < 44; i++) { const m = (lo + hi) / 2; if (f(m) >= 0.9999) hi = m; else lo = m; } }
+    doneP.set(key, hi);
+    return hi;
+  }
+  // a line's inputs are done: per process when the kid runs in the same process, else when all its processes are done
+  function kidsDone(l, p) {
+    const ks = l.kids.filter((k) => !k.inactive);
+    return ks.length ? Math.max(...ks.map((k) => (k.slave === l.slave ? doneAtP(k, p) : doneAt(k)))) : 0;
+  }
+  for (const l of lines) { l.exact = l === root && !!delivered; }
+
+  // ---- what each process does at each moment
+  const pathBetween = (a, b, p) => {
+    const top = partTop(p);
+    const up = (x) => { const r = []; while (x) { r.push(x); if (x === top) break; x = x.parent; } return r; };
+    const A = up(a), B = up(b), set = new Set(B), out = [];
+    for (const x of A) { out.push(x); if (set.has(x)) { for (const y of B) { if (y === x) break; out.push(y); } break; } }
+    return out;
+  };
+  const partLines = (p) => lines.filter((l) => inPart(l, p) && !l.inactive);
+  for (const p of procs) {
+    const segs = [];
+    const top = partTop(p);
+    const selfSum = partLines(p).reduce((s, l) => s + l.selfTime, 0);
+    const spread = selfSum ? new Map(partLines(p).filter((l) => l.selfTime / selfSum >= 0.03).map((l) => [l, l.selfTime / selfSum])) : null;
+    for (const c of p.calls) {
+      if (c.kind === 'CLOSE') continue;
+      const inner = p.waits.filter((w) => w.end > c.start && w.end <= c.end + 1);
+      const noLines = !inner.some((w) => w.line);
+      let t = c.start, prev = top;
+      const cpu = (a, b, path) => {
+        if (b <= a) return;
+        if (noLines && spread && spread.size > 1) { const mx = Math.max(...spread.values()); segs.push({ a, b, type: 'cpu', p, w8: new Map([...spread].map(([l, v]) => [l, v / mx])) }); }
+        else segs.push({ a, b, type: 'cpu', p, w8: new Map(path.map((l) => [l, 1])) });
+      };
+      for (const w of inner) {
+        if (w.start > t) cpu(t, w.start, pathBetween(prev, w.line || prev, p));
+        segs.push({ a: Math.max(w.start, t), b: w.end, type: w.kind === 'pxidle' ? 'idle' : 'wait', w, p });
+        t = Math.max(t, w.end);
+        if (w.line) prev = w.line;
+      }
+      cpu(t, c.end, pathBetween(prev, top, p));
+    }
+    for (const w of p.waits) if (w.kind === 'client') segs.push({ a: w.start, b: w.end, type: 'client', w, p });
+    segs.sort((x, y) => x.a - y.a);
+    p.segs = segs;
+  }
+
+  // ---- chapters
+  const slaveWin = slaves.length ? [Math.min(...slaves.map((p) => p.start)), Math.max(...slaves.map((p) => p.end))] : null;
+  const keyOf = (w, prev) => {
+    if (w.kind === 'read' && w.line) return 'read:' + w.line.id;
+    if (w.kind === 'tread') return 'back:' + w.line.id;
+    if (w.kind === 'twrite') return prev && prev.startsWith('read:') ? prev : 'spill:' + w.line.id;
+    if (slaveWin && w.p.isQC && w.kind !== 'client' && w.kind !== 'net') return w.end < slaveWin[0] ? 'qc:before' : w.start > slaveWin[1] ? 'qc:after' : prev;
+    return prev;
+  };
+  let runs = [], prev = null;
+  for (const w of allWaits) {
+    const k = keyOf(w, prev);
+    if (!k) continue;
+    if (runs.length && runs[runs.length - 1].key === k) runs[runs.length - 1].b = w.end;
+    else runs.push({ key: k, a: w.start, b: w.end });
+    prev = k;
+  }
+  if (!runs.length) runs = [{ key: 'all', a: 0, b: D }];
+  for (let i = 0; i < runs.length; i++) runs[i].a = i ? runs[i - 1].b : 0;
+  runs[runs.length - 1].b = D;
+  const merged = [];
+  for (const r of runs) {
+    const last = merged[merged.length - 1];
+    if (last && (r.b - r.a < D * 0.04 || last.key === r.key)) last.b = r.b;
+    else merged.push({ ...r });
+  }
+  if (merged.length > 1 && merged[0].b - merged[0].a < D * 0.04) { merged[1].a = 0; merged.shift(); }
+  const chapters = merged.map((r, i) => ({ ...r, i, label: chapterLabel(r) }));
+  function chapterLabel(r) {
+    const ws = allWaits.filter((w) => w.start >= r.a && w.end <= r.b);
+    const parts = [];
+    const reads = new Map();
+    for (const w of ws) if (w.kind === 'read') { const e = reads.get(w.line) || { n: 0, procs: new Set() }; e.n += w.cnt; e.procs.add(w.p); reads.set(w.line, e); }
+    for (const [l, e] of [...reads].sort((a, b) => b[1].n - a[1].n).slice(0, 3)) parts.push(`${l.objName || l.title} ${fmt(e.n)} blocks read${e.procs.size > 1 ? ` by ${e.procs.size} slaves` : ''}`);
+    const tw = ws.filter((w) => w.kind === 'twrite'), tr = ws.filter((w) => w.kind === 'tread');
+    if (tw.length) parts.push(`${tw[0].line.title} ${fmt(tw.length)} TEMP writes (${ms(tw.reduce((s, w) => s + w.ela, 0))})`);
+    if (tr.length) parts.push(`${tr[0].line.title} ${fmt(tr.length)} TEMP reads of ${fmt(new Set(tr.map((w) => w.dba)).size)} blocks`);
+    if (!parts.length) {
+      const by = new Map();
+      for (const w of ws) if (w.kind !== 'client' && w.kind !== 'net') { const e = by.get(w.ev) || { n: 0, us: 0 }; e.n++; e.us += w.ela; by.set(w.ev, e); }
+      for (const [ev, e] of [...by].sort((a, b) => b[1].us - a[1].us).slice(0, 2)) parts.push(`${ev} ×${fmt(e.n)} (${ms(e.us)})`);
+    }
+    const f = fetches.filter((c) => c.end > r.a && c.end <= r.b);
+    const rows = f.reduce((s, c) => s + c.r, 0);
+    if (f.length > 1) parts.push(`${fmt(f.length)} fetches, ${fmt(rows)} row${rows === 1 ? '' : 's'}`);
+    else if (rows) parts.push(`${fmt(rows)} row${rows > 1 ? 's' : ''} to the client`);
+    if (!parts.length) parts.push('CPU');
+    return parts.join(' · ');
+  }
+
+  // ---- block cells
+  const files = new Map();
+  for (const w of allWaits) {
+    if (!w.cnt || !w.file || (w.kind !== 'read' && w.kind !== 'tread' && w.kind !== 'twrite')) continue;
+    const temp = w.kind !== 'read';
+    const key = temp ? 'temp' : 'data';
+    if (!files.has(key)) files.set(key, { key, temp, nums: new Set(), ranges: [] });
+    const f = files.get(key);
+    f.nums.add(w.file);
+    f.ranges.push([w.file * 2 ** 32 + w.dba, w.file * 2 ** 32 + w.dba + w.cnt, w.kind === 'read' ? objIdx.get(w.line.obj) : -1, w.p.isQC ? -1 : w.p.i - 1]);
+  }
+  for (const f of files.values()) {
+    const rs = f.ranges.sort((a, b) => a[0] - b[0]);
+    f.cells = new Map(); f.owner = []; f.who = [];
+    let n = 0, lastFile = -1;
+    for (const [a, b, o, s] of rs) {
+      const file = Math.floor(a / 2 ** 32);
+      if (lastFile >= 0 && file !== lastFile) n += 1;   // a gap between files
+      lastFile = file;
+      for (let x = a; x < b; x++) if (!f.cells.has(x)) { f.cells.set(x, n); f.owner[n] = o; f.who[n] = s; n++; }
+    }
+    f.n = n; f.distinct = f.cells.size;
+    const nums = [...f.nums].sort((a, b) => a - b);
+    f.title = f.temp ? `TEMP · file${nums.length > 1 ? 's' : ''} ${nums.join(', ')}` : nums.length > 3 ? `${nums.length} datafiles` : `datafile${nums.length > 1 ? 's' : ''} ${nums.join(', ')}`;
+  }
+  return { d, isPX, lines, root, procs, qc, slaves, allWaits, allCalls, fetches, D, chapters, files, objIdx, firstRow, delivered,
+           rowsAt, fracAll, doneAt };
+}
+
+function segAt(p, t) {
+  const a = p.segs;
+  let lo = 0, hi = a.length - 1, best = null;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (a[m].a <= t) { best = m; lo = m + 1; } else hi = m - 1; }
+  if (best === null) return null;
+  for (let i = best; i >= Math.max(0, best - 4); i--) if (a[i].a <= t && t < a[i].b) return a[i];
+  return null;
+}
+function colorOf(w) {
+  if (w.kind === 'read') return S.isPX && !w.p.isQC ? C.slave[(w.p.i - 1) % 4] : C.obj[S.objIdx.get(w.line.obj) % 4];
+  if (w.kind === 'twrite') return C.twrite;
+  if (w.kind === 'tread') return C.tread;
+  if (w.kind === 'client' || w.kind === 'net') return C.client;
+  return C.other;
+}
+
+// ================================================================ layout
+const stage = $('#stage'), lanesCv = $('#lanes');
+let S, L, W = 700;
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+
+function layout() {
+  W = stage.clientWidth || 700;
+  const maxD = Math.max(...S.lines.map((l) => l.depth));
+  const leaves = S.lines.filter((l) => !l.kids.length).length;
+  const g = { W, nodes: new Map(), mode: S.lines.length <= 5 && maxD <= 2 && leaves <= 3 && W >= 560 ? 'cards' : 'tree' };
+  if (g.mode === 'cards') layoutCards(g, maxD); else layoutTree(g);
+  stage.style.height = g.H + 'px';
+  stage.width = W * DPR; stage.height = g.H * DPR;
+  L = g;
+  layoutLanes();
+}
+function layoutCards(g, maxD) {
+  g.H = 360;
+  const nw = clamp(W * 0.185, 124, 178), nh = 74, cw = clamp(W * 0.13, 92, 120);
+  const x0 = 12, xr = W - 12 - cw - Math.max(52, W * 0.085) - nw;
+  const stepX = maxD ? Math.min((xr - x0) / maxD, nw + 140) : 0;
+  const leaves = [];
+  const walk = (l) => { if (!l.kids.length) leaves.push(l); l.kids.forEach(walk); };
+  walk(S.root);
+  const top = 28, bottom = 206, slot = (bottom - top) / Math.max(1, leaves.length), yOf = new Map();
+  leaves.forEach((l, i) => yOf.set(l, top + slot * (i + 0.5)));
+  const ym = (l) => { if (yOf.has(l)) return yOf.get(l); const v = l.kids.reduce((s, k) => s + ym(k), 0) / l.kids.length; yOf.set(l, v); return v; };
+  for (const l of S.lines) {
+    const n = { x: xr - l.depth * stepX, y: ym(l) - nh / 2, w: nw, h: nh };
+    n.out = [n.x + n.w, n.y + n.h / 2]; n.in = [n.x, n.y + n.h / 2]; n.dock = [n.x + n.w / 2, n.y + n.h];
+    g.nodes.set(l, n);
+  }
+  const rn = g.nodes.get(S.root);
+  g.client = { x: W - 12 - cw, y: rn.y + nh / 2 - 32, w: cw, h: 64 };
+  g.client.in = [g.client.x, g.client.y + g.client.h / 2];
+  placeStrips(g, 12, W - 12, 268, 82, 'row');
+}
+function layoutTree(g) {
+  const n = S.lines.length;
+  const rh = n > 14 ? 24 : 28;
+  const treeR = S.files.size ? Math.max(330, Math.round(W * 0.6)) : W - 8;
+  const y0 = 46;
+  g.H = Math.max(300, y0 + n * rh + 14);
+  g.client = { x: 8, y: 8, w: treeR - 8, h: 26 };
+  g.client.in = [16, g.client.y + g.client.h];
+  S.lines.forEach((l, i) => {
+    const x = 8 + l.depth * 16, y = y0 + i * rh;
+    const node = { x, y, w: treeR - x, h: rh - 5, tree: true };
+    node.out = [x, y + node.h / 2];             // rows leave on the left
+    node.in = [x + 8, y + node.h];              // and arrive at the bottom of the parent, near its left
+    node.dock = [treeR, y + node.h / 2];
+    g.nodes.set(l, node);
+  });
+  placeStrips(g, treeR + 18, W - 8, 8, g.H - 12, 'col');
+}
+function placeStrips(g, x0, x1, y0, hTotal, dir) {
+  const fl = [...S.files.values()].sort((a, b) => a.temp - b.temp);
+  g.strips = [];
+  if (!fl.length) return;
+  if (dir === 'row') {
+    const gap = 18, sw = (x1 - x0 - gap * (fl.length - 1)) / fl.length;
+    fl.forEach((f, i) => g.strips.push(stripBox(f, x0 + i * (sw + gap), y0, sw, hTotal)));
+  } else {
+    const gap = 10, tot = fl.reduce((s, f) => s + Math.sqrt(f.n), 0);
+    let y = y0;
+    for (const f of fl) {
+      const h = Math.max(46, (hTotal - gap * (fl.length - 1)) * (Math.sqrt(f.n) / tot));
+      g.strips.push(stripBox(f, x0, y, x1 - x0, h));
+      y += h + gap;
+    }
+  }
+}
+function stripBox(f, x, y, w, h) {
+  const inner = h - 16;
+  let cell = clamp(Math.floor(Math.sqrt((w * inner) / Math.max(1, f.n))), 2, 14);
+  while (cell > 2 && Math.ceil(f.n / Math.floor(w / cell)) * cell > inner) cell--;
+  return { f, x, y: y + 16, w, h: inner, cell, cols: Math.max(1, Math.floor(w / cell)) };
+}
+
+function layoutLanes() {
+  const rows = [{ kind: 'cpu', p: S.qc, label: S.isPX ? 'QC on CPU' : 'CPU' }, ...S.lines.map((l) => ({ kind: 'line', l, label: `${l.id} ${l.title}${l.objName ? ' ' + l.objName : ''}` }))];
+  for (const p of S.slaves) rows.push({ kind: 'proc', p, label: `slave ${p.name}` });
+  if (S.allWaits.some((w) => w.kind === 'other')) rows.push({ kind: 'other', label: 'other waits' });
+  rows.push({ kind: 'client', label: 'client' });
+  const lh = rows.length > 14 ? 16 : 20, head = 22, axis = 18;
+  const LH = head + rows.length * lh + axis;
+  lanesCv.style.height = LH + 'px';
+  lanesCv.width = W * DPR; lanesCv.height = LH * DPR;
+  const gx = clamp(W * 0.27, 120, 230);
+  L.lanes = { rows, lh, head, gx, w: W - gx - 8 };
+  L.lanesImg = null;
+}
+
+function fitText(g, s, w) {
+  if (g.measureText(s).width <= w) return s;
+  while (s.length > 1 && g.measureText(s + '…').width > w) s = s.slice(0, -1);
+  return s + '…';
+}
+function rr(g, x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+
+// ================================================================ the static lanes picture
+function drawLanesStatic() {
+  const off = document.createElement('canvas');
+  off.width = lanesCv.width; off.height = lanesCv.height;
+  const g = off.getContext('2d');
+  g.scale(DPR, DPR);
+  const { rows, lh, head, gx, w } = L.lanes;
+  const X = (t) => gx + (t / S.D) * w;
+  g.font = `11px ${C.sans}`; g.textBaseline = 'middle';
+  S.chapters.forEach((c, i) => {
+    g.fillStyle = C.fg; g.globalAlpha = i % 2 ? 0.035 : 0.075;
+    g.fillRect(X(c.a), 0, X(c.b) - X(c.a), head + rows.length * lh);
+    g.globalAlpha = 1; g.fillStyle = C.fg2; g.fillText(String(i + 1), X(c.a) + 5, head / 2);
+  });
+  g.fillStyle = C.fg2; g.fillText('chapters', 4, head / 2);
+  rows.forEach((r, i) => {
+    const y = head + i * lh;
+    g.strokeStyle = C.line; g.globalAlpha = 0.6; g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); g.stroke(); g.globalAlpha = 1;
+    g.fillStyle = r.kind === 'line' ? (r.l.inactive ? C.fg2 : C.fg) : r.kind === 'proc' ? r.p.color : C.fg2;
+    const ind = 4 + (r.kind === 'line' ? Math.min(r.l.depth, 8) * 7 : 0);
+    g.font = `${lh < 18 ? 10 : 11}px ${C.sans}`;
+    g.fillText(fitText(g, r.label, gx - ind - 10), ind, y + lh / 2);
+    r.y = y;
+  });
+  const rowOfLine = new Map(rows.filter((r) => r.kind === 'line').map((r) => [r.l, r]));
+  const procRow = new Map(rows.filter((r) => r.kind === 'proc').map((r) => [r.p, r]));
+  const client = rows.find((r) => r.kind === 'client'), other = rows.find((r) => r.kind === 'other');
+  const box = (r, a, b, col, alpha = 1, inset = 4) => {
+    if (!r) return;
+    const ins = Math.min(inset, lh / 4);
+    g.fillStyle = col; g.globalAlpha = alpha;
+    const x = X(a); g.fillRect(x, r.y + ins, Math.max(X(b), x + 1) - x, lh - ins * 2); g.globalAlpha = 1;
+  };
+  for (const s of S.qc.segs) if (s.type === 'cpu') box(rows[0], s.a, s.b, C.cpu, 0.75);
+  for (const p of S.slaves) for (const s of p.segs) {
+    if (s.type === 'cpu') box(procRow.get(p), s.a, s.b, p.color, 0.3);
+    if (s.type === 'idle') box(procRow.get(p), s.a, s.b, C.fg2, 0.18);
+    if (s.type === 'wait') box(procRow.get(p), s.a, s.b, colorOf(s.w), 0.95);
+  }
+  for (const w of S.allWaits) {
+    if (w.kind === 'client' || w.kind === 'net') box(client, w.start, w.end, C.client, w.kind === 'net' ? 0.5 : 0.95);
+    else if (w.line) box(rowOfLine.get(w.line), w.start, w.end, colorOf(w), w.kind === 'pxwait' ? 0.45 : 0.95);
+    else if (w.kind === 'other' && w.p.isQC) box(other, w.start, w.end, C.other, 0.9);
+  }
+  for (const c of S.fetches) if (c.r) { g.fillStyle = C.fg; g.globalAlpha = 0.9; g.fillRect(X(c.end) - 0.5, client.y + 2, 1.5, lh - 4); g.globalAlpha = 1; }
+  const ay = head + rows.length * lh + 11;
+  g.fillStyle = C.fg2; g.font = `11px ${C.sans}`;
+  for (let i = 0; i <= 5; i++) {
+    const t = (S.D * i) / 5;
+    g.textAlign = i === 0 ? 'left' : i === 5 ? 'right' : 'center';
+    g.fillText(ms(t), X(t), ay);
+  }
+  g.textAlign = 'left';
+  if (S.firstRow) {
+    const x = X(S.firstRow.end);
+    g.strokeStyle = C.client; g.setLineDash([3, 3]);
+    g.beginPath(); g.moveTo(x + 0.5, head); g.lineTo(x + 0.5, head + rows.length * lh); g.stroke(); g.setLineDash([]);
+    g.fillStyle = C.client; g.textAlign = 'right'; g.fillText('first row', x - 5, client.y + lh / 2); g.textAlign = 'left';
+  }
+  L.lanesImg = off;
+}
+
+// ================================================================ animation state
+let T = 0, playing = true, speedMul = 1, lastWall = 0, lastT = 0;
+let particles = [], flights = [], packets = [], cellState = new Map(), waitCursor = 0, fetchCursor = 0, emitAcc = new Map();
+const FIT_SECONDS = +params.get('fit') || 22;
+const rate = () => (S.D / FIT_SECONDS) * speedMul;
+
+function resetDynamic() {
+  particles = []; flights = []; packets = []; emitAcc = new Map();
+  cellState = new Map();
+  for (const f of S.files.values()) cellState.set(f.key, { r: new Float32Array(f.n + 1), wr: new Float32Array(f.n + 1), last: new Float64Array(f.n + 1).fill(-1e12), kind: new Int8Array(f.n + 1) });
+  waitCursor = 0; fetchCursor = 0;
+  applyUpTo(T, false, 0);
+  lastT = T;
+}
+const fileOf = (w) => S.files.get(w.kind === 'read' ? 'data' : 'temp');
+const cellKey = (w, b) => w.file * 2 ** 32 + b;
+function touchCells(w, now, animate) {
+  const f = fileOf(w);
+  if (!f) return;
+  const st = cellState.get(f.key);
+  for (let k = w.dba; k < w.dba + w.cnt; k++) {
+    const b = cellKey(w, k);
+    const i = f.cells.get(b);
+    if (i === undefined) continue;
+    if (w.kind === 'twrite') st.wr[i] += 1; else st.r[i] += 1;
+    st.last[i] = animate ? now : -1e12;
+    st.kind[i] = w.kind === 'twrite' ? 1 : w.kind === 'tread' ? 2 : 0;
+  }
+}
+function cellXY(f, i) {
+  const s = L.strips.find((x) => x.f === f);
+  if (!s) return null;
+  const col = i % s.cols, row = Math.floor(i / s.cols);
+  return [s.x + col * s.cell + s.cell / 2, s.y + row * s.cell + s.cell / 2];
+}
+function applyUpTo(t, animate, now) {
+  const ws = S.allWaits, pending = [];
+  while (waitCursor < ws.length && ws[waitCursor].start <= t) {
+    const w = ws[waitCursor++];
+    if (w.kind === 'read' || w.kind === 'tread' || w.kind === 'twrite') { if (w.file) touchCells(w, now, animate); if (animate) pending.push(w); }
+  }
+  if (animate && pending.length) {
+    const keep = Math.max(1, Math.ceil(pending.length / 6));
+    for (let i = 0; i < pending.length; i += keep) spawnFlight(pending[i], now, Math.min(keep, pending.length - i));
+  }
+  const fs = S.fetches;
+  while (fetchCursor < fs.length && fs[fetchCursor].end <= t) {
+    const c = fs[fetchCursor++];
+    if (animate && c.r) {
+      const last = packets[packets.length - 1];
+      if (last && now - last.t0 < 160) { last.r += c.r; } else packets.push({ t0: now, r: c.r });
+    }
+  }
+}
+function spawnFlight(w, now, weight) {
+  const n = w.line && L.nodes.get(w.line);
+  if (!n) return;
+  let from;
+  const f = w.file ? fileOf(w) : null;
+  if (f) { const i = f.cells.get(cellKey(w, w.dba)); from = i === undefined ? null : cellXY(f, i); }
+  else {
+    // no block address (db file parallel read): a random cell of the object's blocks
+    const o = S.objIdx.get(w.line.obj);
+    for (const ff of S.files.values()) {
+      if (ff.temp) continue;
+      const idx = []; for (let i = 0; i < ff.n; i++) if (ff.owner[i] === o) idx.push(i);
+      if (idx.length) { from = cellXY(ff, idx[(Math.random() * idx.length) | 0]); break; }
+    }
+  }
+  if (!from) return;
+  const [cx, cy] = from;
+  const [nx, ny] = n.tree ? [n.dock[0] - 4, n.dock[1] + (Math.random() - 0.5) * 6] : [n.x + n.w * (0.25 + 0.5 * Math.random()), n.y + n.h];
+  const up = w.kind !== 'twrite';
+  flights.push({ t0: now, dur: 700 + Math.random() * 250, x0: up ? cx : nx, y0: up ? cy : ny, x1: up ? nx : cx, y1: up ? ny : cy,
+                 col: colorOf(w), size: clamp(2 + Math.sqrt(w.cnt * weight) * 0.9, 2.5, 7), arc: n.tree ? 10 : 18 });
+}
+
+// edge geometry: a point k ∈ [0,1] along the path rows take from child to parent
+function edgePoint(child, parent, k) {
+  const a = L.nodes.get(child).out, b = L.nodes.get(parent).in;
+  if (L.mode === 'cards') {
+    const [x0, y0] = a, [x1, y1] = b, mx = (x0 + x1) / 2, u = 1 - k;
+    return [u * u * u * x0 + 3 * u * u * k * mx + 3 * u * k * k * mx + k * k * k * x1, u * u * u * y0 + 3 * u * u * k * y0 + 3 * u * k * k * y1 + k * k * k * y1];
+  }
+  const [x0, y0] = a, [x1, y1] = b;
+  const l1 = x0 - x1, l2 = y0 - y1, tot = l1 + l2, d = k * tot;
+  return d <= l1 ? [x0 - d, y0] : [x1, y0 - (d - l1)];
+}
+function strokeEdge(g, child, parent) {
+  const a = L.nodes.get(child).out, b = L.nodes.get(parent).in;
+  g.beginPath(); g.moveTo(a[0], a[1]);
+  if (L.mode === 'cards') g.bezierCurveTo((a[0] + b[0]) / 2, a[1], (a[0] + b[0]) / 2, b[1], b[0], b[1]);
+  else { g.lineTo(b[0], a[1]); g.lineTo(b[0], b[1]); }
+  g.stroke();
+}
+
+// ================================================================ drawing the stage
+function stateAt(t) {
+  const st = new Map();   // line -> { col, k, weight, procs: Map(proc -> kind) }
+  const mark = (l, p, k, col, wgt = 1) => {
+    if (!l) return;
+    if (!st.has(l)) st.set(l, { col, k, wgt, procs: new Map() });
+    const e = st.get(l);
+    if (k === 'wait' && e.k !== 'wait') { e.k = 'wait'; e.col = col; }
+    e.wgt = Math.max(e.wgt, wgt);
+    e.procs.set(p, { k, col });
+  };
+  let clientBusy = false, procState = new Map();
+  for (const p of S.procs) {
+    const s = segAt(p, t);
+    procState.set(p, s);
+    if (!s) continue;
+    if (s.type === 'cpu') for (const [l, wgt] of s.w8) mark(l, p, 'cpu', C.cpu, wgt);
+    if (s.type === 'wait' && s.w.line) mark(s.w.line, p, 'wait', colorOf(s.w));
+    if (s.type === 'client') clientBusy = true;
+  }
+  return { st, clientBusy, procState };
+}
+
+function drawStage(now, dtWall) {
+  const g = stage.getContext('2d');
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.clearRect(0, 0, L.W, L.H);
+  const { st: active, clientBusy, procState } = stateAt(T);
+  const ended = T >= S.D - 1;
+  const pulse = 0.5 + 0.5 * Math.sin(now / 180);
+
+  // block grids
+  for (const s of L.strips) {
+    const cs = cellState.get(s.f.key);
+    g.font = `11px ${C.sans}`; g.fillStyle = C.fg2; g.textBaseline = 'alphabetic';
+    g.fillText(fitText(g, `${s.f.title} · ${fmt(s.f.distinct)} blocks touched`, s.w), s.x, s.y - 5);
+    const c = s.cell, pad = c > 3 ? 1 : 0;
+    for (let i = 0; i < s.f.n; i++) {
+      const col = i % s.cols, row = Math.floor(i / s.cols);
+      const x = s.x + col * c, y = s.y + row * c;
+      if (y + c > s.y + s.h + 1) break;
+      const o = s.f.owner[i];
+      if (o === undefined) continue;
+      const hit = cs.r[i] + cs.wr[i];
+      let base;
+      if (s.f.temp) base = cs.wr[i] ? C.twrite : C.line;
+      else if (S.isPX && s.f.who[i] >= 0) base = hit ? C.slave[s.f.who[i] % 4] : C.fg2;
+      else base = o >= 0 ? C.obj[o % 4] : C.other;
+      g.fillStyle = base;
+      g.globalAlpha = s.f.temp ? (cs.wr[i] ? clamp(0.28 + Math.log2(1 + cs.r[i]) * 0.11, 0.28, 0.95) : 0.35) : hit ? 0.6 : 0.12;
+      g.fillRect(x, y, c - pad, c - pad);
+      const age = (now - cs.last[i]) / 900;
+      if (age < 1) {
+        g.globalAlpha = (1 - age) * 0.95;
+        g.fillStyle = cs.kind[i] === 2 ? C.tread : cs.kind[i] === 1 ? C.twrite : C.fg;
+        g.fillRect(x - 0.5, y - 0.5, c - pad + 1, c - pad + 1);
+      }
+      g.globalAlpha = 1;
+    }
+  }
+
+  // edges and row particles
+  for (const l of S.lines) {
+    if (!l.parent) continue;
+    const on = active.has(l) && active.has(l.parent);
+    g.strokeStyle = on ? C.cpu : C.line; g.globalAlpha = l.inactive ? 0.35 : on ? 0.6 : 0.9; g.lineWidth = on ? 1.6 : 1.1;
+    strokeEdge(g, l, l.parent);
+    g.globalAlpha = 1; g.lineWidth = 1;
+    if (l.inactive) continue;
+    const rows = S.rowsAt(l, T), prevRows = S.rowsAt(l, lastT);
+    const per = Math.max(1, l.cntTotal / 240);
+    if (dtWall > 0 && rows > prevRows) {
+      let a = (emitAcc.get(l) || 0) + (rows - prevRows) / per, k = 0;
+      while (a >= 1 && k < 40) { a -= 1; k++; particles.push({ l, t0: now - Math.random() * 60, dur: 900 + Math.random() * 300, j: (Math.random() - 0.5) * 5 }); }
+      emitAcc.set(l, a);
+    }
+    if (L.mode === 'cards' && rows >= 1) {
+      const [x0, y0] = L.nodes.get(l).out;
+      g.fillStyle = C.fg2; g.font = `11px ${C.mono}`; g.textAlign = 'left';
+      g.fillText(`${l.exact || ended ? '' : '≈'}${fmt(rows)}`, x0 + 6, y0 - 6);
+    }
+  }
+  particles = particles.filter((p) => now - p.t0 < p.dur);
+  g.fillStyle = C.fg;
+  for (const p of particles) {
+    const k = (now - p.t0) / p.dur;
+    const [x, y] = edgePoint(p.l, p.l.parent, k);
+    g.globalAlpha = Math.sin(Math.PI * k) * 0.9;
+    g.beginPath(); g.arc(x + (L.mode === 'tree' ? p.j * 0.3 : 0), y + (L.mode === 'cards' ? p.j * Math.sin(Math.PI * k) : 0), 1.6, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+
+  // root -> client line
+  const rn = L.nodes.get(S.root), cn = L.client;
+  const rootOut = L.mode === 'cards' ? [rn.x + rn.w, rn.y + rn.h / 2] : [16, rn.y];
+  g.strokeStyle = C.line; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(...rootOut); g.lineTo(...cn.in); g.stroke(); g.setLineDash([]);
+
+  // block flights
+  flights = flights.filter((f) => now - f.t0 < f.dur);
+  for (const f of flights) {
+    const k = (now - f.t0) / f.dur;
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    const x = lerp(f.x0, f.x1, e), y = lerp(f.y0, f.y1, e) - Math.sin(Math.PI * e) * f.arc;
+    g.fillStyle = f.col; g.globalAlpha = 0.95 - k * 0.3;
+    g.fillRect(x - f.size / 2, y - f.size / 2, f.size, f.size);
+    g.globalAlpha *= 0.22; g.fillRect(x - f.size, y - f.size, f.size * 2, f.size * 2);
+  }
+  g.globalAlpha = 1;
+
+  // plan nodes
+  for (const l of S.lines) {
+    const n = L.nodes.get(l), a = active.get(l);
+    const frac = S.fracAll(l, T);
+    const done = !l.inactive && frac >= 0.999 && T > S.doneAt(l) && !a;
+    g.save();
+    if (l.inactive) g.globalAlpha = 0.4;
+    if (a) { g.shadowColor = a.col; g.shadowBlur = (a.k === 'wait' ? 12 + 9 * pulse : 13) * (0.35 + 0.65 * a.wgt); }
+    g.fillStyle = C.panel; rr(g, n.x, n.y, n.w, n.h, n.tree ? 6 : 9); g.fill();
+    g.restore();
+    g.globalAlpha = l.inactive ? 0.4 : 1;
+    g.strokeStyle = a ? a.col : C.line; g.lineWidth = a ? 1 + 0.7 * a.wgt : 1;
+    if (clientBusy && !S.isPX) g.setLineDash([3, 3]);
+    rr(g, n.x + 0.5, n.y + 0.5, n.w - 1, n.h - 1, n.tree ? 6 : 9); g.stroke(); g.setLineDash([]); g.lineWidth = 1;
+    const objCol = l.objName ? C.obj[S.objIdx.get(l.obj) % 4] : C.fg2;
+    g.fillStyle = objCol; g.globalAlpha = (l.inactive ? 0.4 : 1) * 0.85;
+    g.fillRect(n.x + 6, n.y + n.h - 3, Math.max(0, (n.w - 12) * frac), 1.5);
+    g.globalAlpha = l.inactive ? 0.4 : 1;
+    const exact = l.exact || ended;
+    const rows = S.rowsAt(l, T);
+    const rowTxt = `${exact || !rows ? '' : '≈'}${fmt(rows)}`;
+    let sub = '';
+    const tr = [], tw = [];
+    let blk = 0;
+    for (const p of l.procs) {
+      for (const w of p.reads.get(l) || []) if (w.start <= T) blk += w.cnt;
+      for (const w of p.treads.get(l) || []) if (w.start <= T) tr.push(w);
+      for (const w of p.twrites.get(l) || []) if (w.start <= T) tw.push(w);
+    }
+    const hasTemp = l.procs.some((p) => p.treads.has(l) || p.twrites.has(l));
+    if (l.procs.some((p) => p.reads.has(l))) sub = `${fmt(blk)} blk`;
+    if (hasTemp) sub = `TEMP ↓${fmt(tw.length)} ↑${fmt(tr.length)}`;
+    if (n.tree) {
+      g.textBaseline = 'middle';
+      const cy = n.y + n.h / 2;
+      g.font = `10.5px ${C.sans}`; g.fillStyle = C.fg2; g.fillText(String(l.id), n.x + 6, cy);
+      const idw = g.measureText(String(l.id)).width + 11;
+      g.font = `11px ${C.mono}`;
+      const right = l.inactive ? 'not started' : `${rowTxt}${done ? ' ✓' : ''}`;
+      const rw = g.measureText(right).width;
+      g.fillStyle = l.inactive ? C.fg2 : C.fg; g.textAlign = 'right'; g.fillText(right, n.x + n.w - 8, cy);
+      let used = rw + 16;
+      if (sub) { g.fillStyle = C.fg2; const sw = g.measureText(sub).width; if (n.w - idw - used - sw - 70 > 0) { g.fillText(sub, n.x + n.w - 8 - used, cy); used += sw + 10; } }
+      if (l.strTotal > 1) { g.fillStyle = C.fg2; const t = `×${fmt(l.strTotal)}`; const sw = g.measureText(t).width; if (n.w - idw - used - sw - 70 > 0) { g.fillText(t, n.x + n.w - 8 - used, cy); used += sw + 10; } }
+      if (l.slave) used += drawProcDots(g, l, a, n.x + n.w - 8 - used, cy) + 8;
+      g.textAlign = 'left';
+      g.font = `600 11px ${C.sans}`; g.fillStyle = C.fg;
+      const room = n.w - idw - used - 6;
+      const title = fitText(g, l.title, Math.max(30, room * (l.objName ? 0.62 : 1)));
+      g.fillText(title, n.x + idw, cy);
+      if (l.objName) { const tw2 = g.measureText(title).width + 6; g.font = `11px ${C.sans}`; g.fillStyle = objCol; g.fillText(fitText(g, l.objName, room - tw2), n.x + idw + tw2, cy); }
+      g.textBaseline = 'alphabetic';
+    } else {
+      g.fillStyle = C.fg2; g.font = `10.5px ${C.sans}`; g.fillText(String(l.id), n.x + 8, n.y + 15);
+      g.fillStyle = C.fg; g.font = `600 11.5px ${C.sans}`; g.fillText(fitText(g, l.title, n.w - 30), n.x + 22, n.y + 15);
+      g.font = `11px ${C.sans}`;
+      if (l.objName) { g.fillStyle = objCol; g.fillText(fitText(g, l.objName, n.w - 30), n.x + 22, n.y + 29); }
+      g.font = `11px ${C.mono}`; g.fillStyle = C.fg;
+      const ry = n.y + (l.objName ? 45 : 31);
+      g.fillText(`${rowTxt} rows`, n.x + 8, ry);
+      if (done) { g.fillStyle = C.fg2; g.fillText('done', n.x + n.w - 8 - g.measureText('done').width, ry); }
+      g.fillStyle = C.fg2;
+      if (sub) g.fillText(fitText(g, sub.replace(' blk', ' blocks read'), n.w - 16), n.x + 8, ry + 13);
+      if (a) {
+        const ps = [...a.procs.values()][0];
+        const tag = a.k === 'wait' ? (procState.get([...a.procs.keys()][0])?.w?.ev || '') : 'on CPU';
+        g.font = `10.5px ${C.sans}`;
+        const tw3 = g.measureText(tag).width + 12;
+        g.fillStyle = C.panel; rr(g, n.x, n.y + n.h + 4, tw3, 15, 7); g.fill();
+        g.fillStyle = a.col; g.globalAlpha = 0.18; rr(g, n.x, n.y + n.h + 4, tw3, 15, 7); g.fill(); g.globalAlpha = 1;
+        g.fillStyle = a.col; g.fillText(tag, n.x + 6, n.y + n.h + 15);
+      }
+    }
+    g.globalAlpha = 1;
+  }
+
+  // client
+  {
+    const n = L.client;
+    const got = S.fetches.filter((c) => c.end <= T).reduce((s, c) => s + c.r, 0);
+    const nf = S.fetches.filter((c) => c.end <= T).length;
+    g.save();
+    if (clientBusy) { g.shadowColor = C.client; g.shadowBlur = 12 + 8 * pulse; }
+    g.fillStyle = C.panel; rr(g, n.x, n.y, n.w, n.h, L.mode === 'tree' ? 6 : 9); g.fill(); g.restore();
+    g.strokeStyle = clientBusy ? C.client : C.line; g.lineWidth = clientBusy ? 1.6 : 1;
+    rr(g, n.x + 0.5, n.y + 0.5, n.w - 1, n.h - 1, L.mode === 'tree' ? 6 : 9); g.stroke(); g.lineWidth = 1;
+    if (L.mode === 'tree') {
+      g.textBaseline = 'middle';
+      const cy = n.y + n.h / 2;
+      g.font = `600 11px ${C.sans}`; g.fillStyle = C.fg; g.fillText('client', n.x + 8, cy);
+      g.font = `11px ${C.sans}`; g.fillStyle = clientBusy ? C.client : C.fg2;
+      if (clientBusy) g.fillText('SQL*Net message from client', n.x + 52, cy);
+      g.font = `11px ${C.mono}`; g.fillStyle = C.fg; g.textAlign = 'right';
+      g.fillText(`${fmt(got)} rows · ${fmt(nf)} fetch${nf === 1 ? '' : 'es'}`, n.x + n.w - 8, cy);
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    } else {
+      g.fillStyle = C.fg; g.font = `600 11.5px ${C.sans}`; g.fillText('client', n.x + 8, n.y + 16);
+      g.font = `11px ${C.mono}`; g.fillText(`${fmt(got)} rows`, n.x + 8, n.y + 32);
+      g.fillStyle = C.fg2; g.fillText(`${fmt(nf)} fetch${nf === 1 ? '' : 'es'}`, n.x + 8, n.y + 47);
+      if (clientBusy) {
+        g.font = `10.5px ${C.sans}`;
+        const tag = 'SQL*Net message from client', tw = g.measureText(tag).width + 12, tx = Math.min(n.x, L.W - tw - 2);
+        g.fillStyle = C.client; g.globalAlpha = 0.16; rr(g, tx, n.y + n.h + 4, tw, 15, 7); g.fill(); g.globalAlpha = 1;
+        g.fillText(tag, tx + 6, n.y + n.h + 15);
+      }
+    }
+  }
+  // fetch packets on top
+  packets = packets.filter((p) => now - p.t0 < 900);
+  for (const p of packets) {
+    const k = clamp((now - p.t0) / 900, 0, 1), e = 1 - Math.pow(1 - k, 3);
+    const [x0, y0] = rootOut, [x1, y1] = cn.in;
+    const x = lerp(x0, x1, e), y = lerp(y0, y1, e);
+    const pw = clamp(6 + Math.log10(p.r) * 5, 6, 26);
+    g.globalAlpha = 1 - Math.max(0, k - 0.75) * 4;
+    g.fillStyle = C.client;
+    if (L.mode === 'tree') { rr(g, x - 4, y - pw / 2, 8, pw, 4); g.fill(); }
+    else { rr(g, x - pw / 2, y - 4, pw, 8, 4); g.fill(); }
+    if (p === packets[packets.length - 1]) {
+      g.font = `10.5px ${C.mono}`;
+      const t = p.r === 1 ? '1 row' : '+' + fmt(p.r);
+      if (L.mode === 'tree') g.fillText(t, x + 8, y + 4); else { g.textAlign = 'center'; g.fillText(t, x, y - 9); g.textAlign = 'left'; }
+    }
+    g.globalAlpha = 1;
+  }
+  if (ended && L.mode === 'cards') {
+    g.fillStyle = C.fg2; g.font = `11px ${C.sans}`;
+    g.fillText('end of the execution · ⏮ or click the lanes to replay a part', 12, 14);
+  }
+}
+function drawProcDots(g, l, a, xr, cy) {
+  const ps = l.procs, r = 3.2, gap = 9;
+  const w = ps.length * gap;
+  ps.forEach((p, i) => {
+    const x = xr - w + i * gap + r, s = a && a.procs.get(p);
+    g.beginPath(); g.arc(x, cy, r, 0, Math.PI * 2);
+    if (s) { g.fillStyle = s.k === 'wait' ? s.col : p.color; g.fill(); }
+    else { g.strokeStyle = p.color; g.globalAlpha *= 0.6; g.stroke(); g.globalAlpha = l.inactive ? 0.4 : 1; }
+  });
+  return w;
+}
+
+function drawLanes() {
+  const g = lanesCv.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, lanesCv.width, lanesCv.height);
+  if (!L.lanesImg) drawLanesStatic();
+  g.drawImage(L.lanesImg, 0, 0);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const { rows, lh, head, gx, w } = L.lanes;
+  const x = gx + (T / S.D) * w, ch = chapterAt(T);
+  const xa = gx + (ch.a / S.D) * w, xb = gx + (ch.b / S.D) * w;
+  g.strokeStyle = C.cpu; g.globalAlpha = 0.6; g.strokeRect(xa + 0.5, 0.5, xb - xa - 1, head + rows.length * lh - 1);
+  g.fillStyle = C.fg; g.globalAlpha = 0.12; g.fillRect(gx, head, x - gx, rows.length * lh); g.globalAlpha = 1;
+  g.strokeStyle = C.fg; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, 2); g.lineTo(x, head + rows.length * lh); g.stroke(); g.lineWidth = 1;
+}
+const chapterAt = (t) => S.chapters.find((c) => t >= c.a && t < c.b) || S.chapters[S.chapters.length - 1];
+
+// ================================================================ captions and controls
+let shownChapter = -1;
+function captions() {
+  $('#clock').innerHTML = `<b>${ms(T)}</b> / ${ms(S.D)} · 1 s of replay = ${ms(rate())}`;
+  const ch = chapterAt(T);
+  if (ch.i !== shownChapter) {
+    shownChapter = ch.i;
+    const el = $('#chap');
+    el.style.opacity = 0;
+    setTimeout(() => { el.textContent = `${ms(ch.a)} – ${ms(ch.b)} · ${ch.label}`; el.style.opacity = 1; }, CAPTURE ? 0 : 120);
+    $('#chapk').textContent = `chapter ${ch.i + 1} of ${S.chapters.length}`;
+  }
+  const parts = [];
+  for (const p of S.procs) {
+    const s = segAt(p, T);
+    const who = S.isPX ? p.name + ' ' : '';
+    if (!s) { if (!S.isPX) parts.push(T >= S.D - 1 ? 'closed' : 'between calls'); continue; }
+    if (s.type === 'wait') parts.push(`${who}${s.w.line ? s.w.line.id + ' ' + s.w.line.title + ' · ' : ''}${s.w.ev} · ${ms(s.w.ela)}${s.w.file && s.w.cnt ? ` · file ${s.w.file} block ${fmt(s.w.dba)}${s.w.cnt > 1 ? ` +${s.w.cnt - 1}` : ''}` : ''}`);
+    else if (s.type === 'cpu') parts.push(`${who}on CPU · ≈ ${[...s.w8.keys()].map((l) => l.id).join(' ')}`);
+    else if (s.type === 'idle') parts.push(`${who}idle`);
+    else if (s.type === 'client') parts.push('client · SQL*Net message from client · ' + ms(s.w.ela));
+  }
+  $('#now').textContent = parts.join('   |   ');
+}
+function setScene(i) {
+  readColors();
+  S = prepare(SCENES[i]);
+  [...$('#scenes').children].forEach((b, j) => b.classList.toggle('on', j === i));
+  $('#sql').innerHTML = `<b>${S.d.sqlid}</b> ${S.d.sql.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}`;
+  layout();
+  T = 0; shownChapter = -1;
+  resetDynamic();
+  legend();
+  playing = true; $('#play').textContent = '❚❚';
+}
+function legend() {
+  const items = [];
+  if (S.isPX) S.slaves.forEach((p) => items.push([p.color, `slave ${p.name}`]));
+  else for (const [obj, i] of S.objIdx) if (S.allWaits.some((w) => w.kind === 'read' && w.line.obj === obj)) items.push([C.obj[i % 4], `read ${S.d.objs[obj] || obj}`]);
+  if (S.allWaits.some((w) => w.kind === 'twrite')) items.push([C.twrite, 'TEMP write']);
+  if (S.allWaits.some((w) => w.kind === 'tread')) items.push([C.tread, 'TEMP read']);
+  items.push([C.cpu, 'CPU (in a call, not waiting)']);
+  items.push([C.client, 'client / fetch']);
+  if (S.allWaits.some((w) => w.kind === 'other' || w.kind === 'pxwait')) items.push([C.other, S.isPX ? 'other and PX waits' : 'other waits']);
+  $('#legend').innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('');
+}
+function seek(t) { T = clamp(t, 0, S.D); resetDynamic(); if (!playing) $('#play').textContent = '▶'; }
+
+SCENES.forEach((s, i) => { const b = document.createElement('button'); b.textContent = s.short || s.label; b.title = s.label; b.onclick = () => setScene(i); $('#scenes').appendChild(b); });
+[0.25, 1, 4].forEach((v) => { const b = document.createElement('button'); b.textContent = v === 1 ? '1×' : v < 1 ? '¼×' : v + '×'; b.classList.toggle('on', v === 1); b.onclick = () => { speedMul = v; [...$('#speeds').children].forEach((x) => x.classList.toggle('on', x === b)); }; $('#speeds').appendChild(b); });
+$('#play').onclick = () => { if (T >= S.D) seek(0); playing = !playing; $('#play').textContent = playing ? '❚❚' : '▶'; };
+$('#prev').onclick = () => { const ch = chapterAt(T); seek(T - ch.a > S.D * 0.02 || ch.i === 0 ? ch.a : S.chapters[ch.i - 1].a); };
+$('#next').onclick = () => { const ch = chapterAt(T); if (ch.i < S.chapters.length - 1) seek(S.chapters[ch.i + 1].a); };
+window.addEventListener('keydown', (e) => {
+  if (e.key === ' ') { e.preventDefault(); $('#play').click(); }
+  if (e.key === 'ArrowLeft') $('#prev').click();
+  if (e.key === 'ArrowRight') $('#next').click();
+});
+let dragging = false;
+const laneSeek = (e) => { const r = lanesCv.getBoundingClientRect(); seek(((e.clientX - r.left - L.lanes.gx) / L.lanes.w) * S.D); };
+lanesCv.addEventListener('pointerdown', (e) => { dragging = true; laneSeek(e); });
+window.addEventListener('pointermove', (e) => { if (dragging) laneSeek(e); });
+window.addEventListener('pointerup', () => { dragging = false; });
+new ResizeObserver(() => { if (S && Math.abs(stage.clientWidth - W) > 2) { layout(); resetDynamic(); } }).observe(stage);
+
+function frame(now) {
+  const dt = lastWall ? Math.min(0.1, (now - lastWall) / 1000) : 0;
+  lastWall = now;
+  if (playing && T < S.D) {
+    T = Math.min(S.D, T + dt * rate());
+    applyUpTo(T, true, now);
+    if (T >= S.D) { playing = false; $('#play').textContent = '↺'; }
+  }
+  drawStage(now, playing ? dt : 0);
+  drawLanes();
+  captions();
+  lastT = T;
+  if (!CAPTURE) requestAnimationFrame(frame);
+}
+let vnow = 1000;
+window.__step = (dt) => { vnow += dt; frame(vnow); };
+window.__scene = (i) => setScene(i);
+setScene(+(params.get('scene') || 0));
+if (params.has('t')) seek(+params.get('t') * 1000);
+if (params.has('pause')) { playing = false; $('#play').textContent = '▶'; }
+if (!CAPTURE) requestAnimationFrame(frame);
+</script>
+</body>
+</html>
