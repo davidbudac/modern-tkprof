@@ -83,7 +83,11 @@ One view for every diag file, `web/src/lib/views/diag`, a tab kind of its own in
   `data/scrollmap.ts`, `api/lines`, `api/search`) with the row rendering of `OptViewer` as its pattern;
   `views/Lines.tsx` (1,600 lines, tied to the 10046 model) is not taken apart. Folds and landmarks come with
   the typed sections.
-- **Right: the reading of the selected section** (level 2), or "No reading for this kind of section".
+- **A reading is shown in the centre, behind a *Reading | Text* switch** (layout A of the mock-up, chosen by
+  the owner on 2026-11-18); the switch shows only for a node that has a reading. The right panel is the guide:
+  the selected node's facts and the sourced text about its kind.
+- **The selection decides which reading is shown** (an outline node, a link); scrolling the text moves the
+  where-am-I path and leaves the reading alone (owner, 2026-11-18).
 - **Also**: search with hit counts per outline node where the node is loaded, the where-am-I path, the line map,
   notes and bookmarks (desktop), as in the 10053 view.
 - **A jump to the primary formats, no joined data**: a section that names a sql_id or a session (sid.serial#)
@@ -117,7 +121,8 @@ One view for every diag file, `web/src/lib/views/diag`, a tab kind of its own in
 - **System state**: one row per process from the dump's own `Process Summary` (pid, name, ospid, session,
   waiting for), completed from each session's wait stack (time in wait) and from the blockers the dump names
   itself (`Dumping 1 direct blocker(s)`, `Dumping final blocker`, `There are N sessions blocked by this
-  session`), drawn as the blocker tree. A process opens with the process state reading, on demand. A resource
+  session`), drawn as the blocker tree. **Idle background processes are hidden by default**, with their count
+  and a switch; blocked and blocking sessions always show (owner, 2026-11-18). A process opens with the process state reading, on demand. A resource
   table of holders and waiters per enqueue, library object or latch is not built: the dump's blocker lines make
   it unnecessary for sessions, and the lab shows no latch or mutex wait to build it from (a candidate for
   later).
@@ -256,8 +261,10 @@ ROADMAP, README, the site's pages (not published), a release notes draft, this f
   - `GET api/diag/file` → `diag.File` (facts, the parser's sections, the top-level outline, which tiles the file).
   - `GET api/diag/outline?node=ID[&after=N]` → `{node, children, more, next}`; `node=root` is the top level; at
     most 2,000 children per answer.
-  - `GET api/diag/section?i=N` → the reading of section N; 404 "no reading for this kind of section" until a
-    stage adds one.
+  - `GET api/diag/reading?node=ID` → the reading of a node, `{kind, …}`; a node that has one says so
+    (`Node.reading`, the reading's kind). Readings are addressed by node, not by section number, because a heap
+    dump or a process state can sit inside another section. (Stage 2 shipped the seam as `api/diag/section?i=N`;
+    stage 3 replaces it.)
 - **`view`** on `POST /engine/sessions` and as `-view` on `report`, `html`, `json`, the default command and
   `serve`: `10046`, `10053`, `diag`. Default: 10046 records → `10046`; only optimizer dumps → `10053`; else one
   file → `diag`. `diag` opens any single file (its 10046 records are "SQL trace (10046) lines" runs); `10053`
@@ -363,3 +370,10 @@ the centre and the reading in the right panel). Its parser found the totals chec
 - **Built**: `internal/diag` (scan, top-level outline that tiles the file, children on demand, text digest), `internal/slice/diag.go` (`api/diag/file`, `outline`, `section`), the `view` option (`model.ResolveView`, engine session, `serve -view`, `-view` on report, html, json and the default command), `report.DiagInput` and the document member **`dump`** (the key `diag` is taken: it is the parser's diagnostics), refusals, OpenAPI (additive, protocol 1), `pnpm gen:api`.
 - **Scan** is `trace.SniffReader` with a new optional per-line hook (`SniffOptions.Line`): the sections are the parser's, the titles come from the same pass. Not cached.
 - **Measured** (Apple M4): scan 1.0 to 2.1 GB/s on every fixture including the 32.7 MB shared pool dump, 0.3 MB allocated; children of a 357,000-line node 28 ms, of a 100,000-line node 2 ms.
+
+### 2026-11-18: the owner on the mock-up
+
+Layout A (a *Reading | Text* switch in the centre); the selection alone decides which reading is shown; idle
+background processes of a system state are hidden by default. Decided without asking, to be corrected on the
+real view: time in wait is shown for every process and dimmed with the idle ones; the heap tree shows the
+selected heap's ancestors, siblings and children, not the whole dump run.
