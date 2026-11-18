@@ -292,6 +292,17 @@ slower than its loop (or after a ten times longer gap) stays outside it. A bar u
 puts CPU, the waits, the client gaps and the untimed rest to scale, with the time to first row.
 Hover a mark for its numbers, click it to pin them with the trace lines.
 
+**Replay.** In Statements, click one execution and switch its detail to *Replay*: the execution
+plays back on its plan, from the EXEC to the last FETCH, in about 22 seconds (¼× and 4× change that).
+A plan line lights up in the colour of the wait it is in, or blue while it is on CPU; rows travel
+along the plan as dots and the counters climb to the plan's totals; every block the execution read
+or wrote is a cell in a grid (datafiles, TEMP), and a read flies from its block to the line that read
+it. Fetches go to the client; while the client keeps the server waiting the plan's borders are
+dashed. Under it, the lanes show CPU, each line's waits and the client over the whole execution:
+click or drag there to jump, ⏮ ⏭ (or ← → with the figure focused) go by chapter, space plays and
+pauses. Numbers marked ≈ are inferred (the note under the lanes says how); without the plan's row
+source statistics for this execution, only the waits are replayed.
+
 ## The 10053 view
 
 An optimizer trace (event 10053) is the optimizer's log of one hard parse: the statistics it read, the estimates it

@@ -17,6 +17,7 @@ import { responseBaseUs, responseShare, responseUs, shareNote } from '../data/re
 import type { Scope } from '../state/store'
 import { ExecCompare } from './ExecCompare'
 import { Dialogue } from './Dialogue'
+import { Replay } from './Replay'
 import { planFindings, type Finding as PlanFinding } from '../data/advisor'
 import { NoteEditor, NoteBox } from '../components/Note'
 import { stmtRef, stmtNote, execNotes, execKey, makeAnnotation, type StmtRef } from '../data/annotations'
@@ -259,7 +260,7 @@ function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Sc
   useEffect(() => { if (wanted) { const e = exs.find((x) => x.cursor === wanted.cursor && x.execNo === wanted.execNo); if (e) setSel(e) } }, [wanted, exs])
   // one execution: nothing to choose, so its detail is open (its Binds | Dialogue switch in sight)
   useEffect(() => { if (exs.length === 1 && !wanted) setSel(exs[0]) }, [exs, wanted])
-  const [mode, setMode] = usePersisted<'binds' | 'dialogue'>('mtkprof.exec.detail', 'binds')
+  const [mode, setMode] = usePersisted<ExecDetail>('mtkprof.exec.detail', 'binds')
   const slowestEx = useMemo(() => exs.reduce<Execution | null>((m, e) => (!m || e.e > m.e ? e : m), null), [exs])
   const detailRef = useRef<HTMLDivElement>(null)
   const [scrollSeq, setScrollSeq] = useState(0)
@@ -314,7 +315,7 @@ function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Sc
     <section className="section">
       <header><h2>Executions</h2><span className="hint">{page.data.partial ? `${exs.length} slowest of ${total}` : total} · avg {fmtDur(avg)} · max {fmtDur(slow?.e ?? 0)}{' '}
         {exs.length > 1 && slowestEx ? <button className="link" onClick={() => openSlowest(false)} title="open the slowest execution">(#{slow?.execNo})</button> : `(#${slow?.execNo})`}
-        {exs.length > 1 && ' · click a row for its binds and Dialogue · tick two to compare'}</span>
+        {exs.length > 1 && ' · click a row for its binds, Dialogue and Replay · tick two to compare'}</span>
         <span className="tools"><ColumnChooser all={all.filter((c) => c.key !== 'n').map((c) => ({ key: c.key, label: c.header }))} hidden={hidden} onChange={setHidden} /></span></header>
       <DataTable label="Executions" columns={cols} rows={exs} rowKey={(e) => `${e.cursor}:${e.execNo}`} maxHeight="22rem" rowHeight={28}
         selectedKey={sel ? `${sel.cursor}:${sel.execNo}` : null} onRowClick={(e, ev) => (ev?.shiftKey ? togglePick(e) : setSel(sel && sel.exec === e.exec ? null : e))} />
@@ -335,8 +336,11 @@ function Executions({ doc, id, scope, jump }: { doc: TraceDoc; id: ID; scope: Sc
   )
 }
 
-/** One picked execution: its binds, or its Dialogue (the sequence diagram of its calls and waits). */
-function Binds({ doc, stmt, ex, mode, setMode }: { doc: TraceDoc; stmt: ID; ex: Execution; mode: 'binds' | 'dialogue'; setMode(m: 'binds' | 'dialogue'): void }) {
+/** What a picked execution shows: its binds, its Dialogue, or its replay on the plan. */
+type ExecDetail = 'binds' | 'dialogue' | 'replay'
+
+/** One picked execution: its binds, its Dialogue (the sequence diagram of its calls and waits), or its Replay (played back on its plan). */
+function Binds({ doc, stmt, ex, mode, setMode }: { doc: TraceDoc; stmt: ID; ex: Execution; mode: ExecDetail; setMode(m: ExecDetail): void }) {
   const source = sourceOf(doc)
   const detail = useSourceQuery(source, `detail:${stmt}:${ex.cursor}:${ex.execNo}`, (signal) => source.executionDetail(stmt, ex, signal), `detail:${stmt}:${ex.cursor}:${ex.execNo}`) // the key: another execution's binds never show under this one's heading
   const d = detail.data
@@ -349,9 +353,10 @@ function Binds({ doc, stmt, ex, mode, setMode }: { doc: TraceDoc; stmt: ID; ex: 
           <span className="seg" role="group" aria-label="Execution detail">
             <button type="button" aria-pressed={mode === 'binds'} onClick={() => setMode('binds')}>Binds</button>
             <button type="button" aria-pressed={mode === 'dialogue'} onClick={() => setMode('dialogue')} title="Dialogue: the execution as a sequence diagram between the client, the server and what it waited on">Dialogue</button>
+            <button type="button" aria-pressed={mode === 'replay'} onClick={() => setMode('replay')} title="Replay: the execution played back on its plan: which line read what, when, and the rows on their way to the client">Replay</button>
           </span>
         </span></header>
-      {mode === 'dialogue' ? <Dialogue doc={doc} stmt={stmt} exec={ex} /> : detail.error ? <p className="callout">{detail.error}</p> : !d ? null : binds.length === 0 ? <p className="small muted">No binds captured.</p> : (
+      {mode === 'dialogue' ? <Dialogue doc={doc} stmt={stmt} exec={ex} /> : mode === 'replay' ? <Replay key={`${ex.cursor}:${ex.execNo}`} doc={doc} stmt={stmt} exec={ex} /> : detail.error ? <p className="callout">{detail.error}</p> : !d ? null : binds.length === 0 ? <p className="small muted">No binds captured.</p> : (
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th className="num">pos</th><th>type</th><th>value</th></tr></thead>
           <tbody>{binds.map((b) => (

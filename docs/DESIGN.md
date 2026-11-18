@@ -1565,6 +1565,27 @@ computed summary per statement; decision views (transformation ledger, access pa
 the origin of a row estimate joined to the 10046 actual rows of the same plan; comparing two dumps; reading the dumps
 of an interleaved file; a digest tool for the assistant and MCP; 21c and 23ai fixtures.
 
+## Plan replay (decided 2026-11-17 and 2026-11-18, `docs/PLAN-REPLAY.md`)
+
+- **The user's idea** ("animate a walkthrough through the plan"), shaped in two rounds of questions over a prototype on
+  real data (`docs/viz-concepts/plan-replay/`): the stage is the plan graph with the blocks the execution touched (not an
+  animated Row flow, not a live plan table); it is a mode of one picked execution (`Binds | Dialogue | Replay`), as it
+  needs one execution's calls and waits; inferred values are shown and marked `≈`, with a note on what is read and what
+  is inferred. Phases are not named (no "build", "probe": DESIGN's facts-only rule); chapters are labelled by what they
+  hold (blocks read per object, TEMP writes and reads, fetches).
+- **Motion is the content here**, started by the user (opening Replay plays it): § Motion's budget is for the chrome.
+  With reduced motion it does not play by itself, and playing moves the playhead and counters only.
+- **What may be inferred**: the line of a wait (obj#; TEMP I/O → the line that wrote to TEMP), rows before a line's end
+  (blocks read; after its inputs for a blocking line), the lines on CPU between waits (the path between the lines of the
+  waits around it; by STAT self time in a call without waits). STAT time never drives the clock (it does not reconcile:
+  1.27 s of row-source time in a 0.8 s nested-loop execution of a field trace). STAT lines of another execution
+  (`plan_stat=first_execution`) give the structure only: no rows below the root.
+- **TEMP write and read are orange and green** (`--c-userio`, `--c-sysio`), not the Loom's browns: in a grid of small
+  cells and thin lanes the two browns cannot be told apart, as the block map found.
+- **PX later** (decided 2026-11-18): the first version replays one session. A coordinator's slaves are in other
+  sessions of the trace set; replaying them needs their rows of the same execution from the engine. The prototype shows
+  how: slave traces on the coordinator's clock, a grid coloured by slave (granules as stripes), a lane per slave.
+
 ## Project
 
 - Repository `davidbudac/modern-tkprof` is private for now; pushed after each

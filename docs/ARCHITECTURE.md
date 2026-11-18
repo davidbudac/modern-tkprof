@@ -1563,8 +1563,8 @@ api/                engine.openapi.yaml (the engine protocol, checked by interna
 web/                Vite + TypeScript UI (web/vendor/ora-plan-core: vendored shared plan core)
   web/src/lib/      the UI library (views, components, data incl. ApiClient, state, styles); imported as @lib; never imports app/
   web/src/lib/views/ the views; the three of docs/PLAN-VIEWS.md: RowFlow.tsx, Dialogue.tsx (statement inspector), BlockMap.tsx (tab),
-                    styled by styles/rowflow.css, dialogue.css, blockmap.css; opt/ the 10053 view (OptView.tsx and its panels), styles/opt.css
-  web/src/lib/data/ data code with its tests beside it: rowflow.ts, dialogue.ts, iomap.ts + blocklayout.ts for those views;
+                    styled by styles/rowflow.css, dialogue.css, blockmap.css; Replay.tsx + replayDraw.ts (docs/PLAN-REPLAY.md), styles/replay.css; opt/ the 10053 view (OptView.tsx and its panels), styles/opt.css
+  web/src/lib/data/ data code with its tests beside it: rowflow.ts, dialogue.ts, iomap.ts + blocklayout.ts for those views, replay.ts;
                     opt*.ts for the 10053 view (opt.ts mirrors internal/opt/model.go);
                     testdata/ the cases shared with Go (iomap-case.json, findings-*.json.gz, …)
   web/dev/          dev harnesses outside the production build (opt.html: the 10053 view on a model and a trace of the repository)
@@ -1705,6 +1705,39 @@ only when used, Disk, TEMP and Others. Plan: `docs/PLAN-VIEWS.md` § 5; mock-up 
   `data/testdata/findings-*.json.gz` documents through `LocalSource.executionTrace`; § 1's io_waits numbers on
   `findings-io_waits.json.gz` (written with the others by `go test ./internal/report -run FindingsDocs
   -update-findings-docs`).
+
+### Plan replay (`web/src/lib/views/Replay.tsx`, `views/replayDraw.ts`, `data/replay.ts`)
+
+A third mode of one picked execution in the statement inspector (`Binds | Dialogue | Replay`, persisted as
+`mtkprof.exec.detail`): the execution played back on its STAT plan. Plan: `docs/PLAN-REPLAY.md`; prototype
+`docs/viz-concepts/plan-replay/` (its build script writes the page from four public fixtures).
+
+- Data: the Loom's `executions/trace` rows (same query key) and the plan. `planOfExecution` takes the dump of the EXEC's
+  cursor and plan hash written after the EXEC and before the cursor's next EXEC (`exact`); else the nearest dump of the
+  plan hash, whose rows are not shown (`rowsKnown` false: STAT of another execution, the default `plan_stat`). A dump the
+  model split because other lines sit between its STAT lines (an interleaved 10053 trace) is joined again (`dumpLines`).
+- Model (`buildReplay`, pure, µs from the EXEC's start; the PARSE before it is only a number): waits of the own EXEC
+  and FETCHes; deeper ones are `recursive`. TEMP I/O → the line with the largest own `pw` (pw minus its children's; the
+  obj# of a TEMP wait repeats the last object read), block I/O → the line with its `obj`, else only the block grid,
+  `PX Deq: Execute Reply` → PX COORDINATOR, `SQL*Net message from client` → client. Segments: a wait; CPU between waits
+  inside a call on the lines between the previous wait's line and the next one's (the root at the call's ends); a call
+  with no wait on a line spreads its CPU over the lines by their STAT self time (≥ 3 %); recursive calls; client think
+  time. Rows: the root follows the fetches (exact); a line with reads follows its blocks read; HASH JOIN its probe
+  side's reads and TEMP reads; a blocking line (`BLOCKING`) outputs after its inputs are done (`doneAt`), along its TEMP
+  reads after that; a pipelined line follows its first started child; a leaf without reads follows the fetches or, under
+  a blocking line, runs from the EXEC to the first row. Chapters: runs of `read:<line>` (reads and the TEMP writes after
+  them) and `back:<line>` (TEMP reads); runs under 4 % join the one before. Block grids: datafiles and TEMP, the
+  distinct (file, block) of the block waits in order, a gap between files.
+- Layout (`stageLayout`, `lanesLayout`, tested): cards in a left-to-right graph for at most 5 lines, depth 2, 3 leaves
+  and 560 px; else rows in dump (DBMS_XPLAN) order with tree guides, the grids in a column to the right (the tree takes
+  the width without them). Lanes: CPU, one per plan line, recursive SQL and other waits when there are any, client.
+- Drawing (`ReplayScene`): canvas 2-D; the lanes are painted once into an offscreen canvas, the playhead per frame. Seek
+  replays the blocks' state from the start without motion. At most 6 block flights start per frame and 240 row dots
+  travel an edge over the execution. The frame loop runs while playing (and 1.2 s after, for what is in flight) and the
+  figure is on screen; captions are written into the DOM by refs, not React state. Colours: `--c-cpu`; TEMP write /
+  read `--c-userio` / `--c-sysio` (the Loom's two browns cannot be told apart in a grid of cells); objects `--ev-direct`,
+  `--ev-scat`, `--c-commit`, `--c-concurrency`; client time `--c-idle`; fetch packets ink. Reduced motion: no autoplay;
+  playing moves the playhead and counters without flights, dots or glow.
 
 ### I/O map (`web/src/lib/views/BlockMap.tsx`, `data/blocklayout.ts`, `data/iomap.ts`, `data/objnames.ts`, `data/iostats.ts`, `data/iohot.ts`, `data/iodensity.ts`, `data/densitylayout.ts`, `data/blockset.ts`)
 

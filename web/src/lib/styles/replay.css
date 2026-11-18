@@ -1,0 +1,20 @@
+/* Plan replay (views/Replay.tsx): one execution played back on its plan. The figure is canvas (views/replayDraw.ts). */
+.rpl { display: flex; flex-direction: column; gap: var(--sp-2); }
+.rpl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.rpl-bar > button.quiet { min-inline-size: 2rem; padding-inline: var(--sp-2); }
+.rpl-play { min-inline-size: 2.4rem; font-variant-numeric: tabular-nums; }
+.rpl-clock { color: var(--ink-2); font-size: var(--text-sm); }
+.rpl-stage { background: var(--surface-raised); border: 1px solid var(--hairline); border-radius: var(--radius); }
+.rpl-stage:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rpl-stage canvas, .rpl-lanes { display: block; inline-size: 100%; }
+.rpl-lanes { cursor: col-resize; touch-action: none; }
+.rpl-cap { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.15rem var(--sp-3); align-items: baseline; min-block-size: 2.4rem; }
+.rpl-k { color: var(--ink-2); font-size: var(--text-xs); white-space: nowrap; }
+.rpl-v { font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap; overflow: clip; text-overflow: ellipsis; }
+.rpl-now { color: var(--ink-2); }
+.rpl-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); align-items: center; color: var(--ink-2); font-size: var(--text-sm); }
+.rpl-legend span { display: inline-flex; gap: 0.35rem; align-items: center; }
+.rpl-key { display: inline-block; flex: none; inline-size: 0.65rem; block-size: 0.65rem; border-radius: 2px; }
+.rpl-na { padding: var(--sp-2) var(--sp-3); background: var(--wash); border-radius: var(--radius); margin: 0; }
+.rpl-note { margin: 0; line-height: 1.5; }
+.rpl-note b { color: var(--ink); font-weight: 600; }

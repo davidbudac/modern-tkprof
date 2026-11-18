@@ -67,6 +67,12 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   two-million-line dump; snapshots pin its output. **Unreleased, on `main`**; no version chosen
   (`docs/releases/next-10053.md` is the draft). Cache format 8 (`engine.CacheIndexFormat`, `model.PersistVersion`
   3): a session cached before holds unknown-line counts for a file with dumps.
+- **Plan replay** (2026-11-18; DESIGN § Plan replay, `docs/PLAN-REPLAY.md`, ARCHITECTURE § Plan replay, DESKTOP §
+  Replay; prototype `docs/viz-concepts/plan-replay/`): a third mode of a picked execution, `Binds | Dialogue | Replay`,
+  plays the execution back on its STAT plan (lines lit by their waits and CPU, rows as dots, the blocks touched as
+  grids, fetches to the client, lanes with chapters and a scrub). Lib only, no engine work (`executions/trace` + the
+  plan dump); one session (PX later). Verified on io_waits (stmt 22 hash join, stmt 21 sort) and opt_interleaved (cached
+  adaptive plan) in the CLI's serve UI and the desktop's dev browser mode. **Unreleased.**
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -81,7 +87,7 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 | Text report, JSON document (format 3, packed columns), CSV export, plan JSON, ref bundle + DBMS_XPLAN overlay | `internal/report`, `internal/ref` | done |
 | CLI: `report`, `pivot`, `html`, `serve` (`-slice`, `-spill`), `json`, `export`, `lint`, `plan`, `refscript`, `compare`, `findings-config`, `fetch`, `follow`, `trace`, `ref -db`, `open`, `mcp`, `engine` (+ `engine cache`) | `cmd/mtkprof` | done |
 | Engine: sessions, jobs, SSE, prompts, persistent index cache, remote (ssh, Oracle), live follow, OpenAPI contract | `internal/engine`, `internal/remote`, `api/engine.openapi.yaml` | protocol 1; contract test |
-| UI: Overview, Statements (Row flow, Dialogue, Execution Loom), Trace/Lines (raw and formatted), Waits, I/O map, Timeline, Sessions, Pivot, Compare; shell module; motion | `web/src/lib`, `web/src/app` → `internal/ui/dist/index.html` | `pnpm --filter mtkprof-web test` |
+| UI: Overview, Statements (Row flow, Dialogue, Replay, Execution Loom), Trace/Lines (raw and formatted), Waits, I/O map, Timeline, Sessions, Pivot, Compare; shell module; motion | `web/src/lib`, `web/src/app` → `internal/ui/dist/index.html` | `pnpm --filter mtkprof-web test` |
 | Desktop: tabs, settings, connections, notes and bookmarks, library, reports, assistant, open requests, file associations | `desktop/` | `pnpm typecheck`, `pnpm test` |
 | 10053 reader: dump tracking in the parser, `opt` scan and model (outline, landmarks, folds, runs, SQL versions, plan, digest), the 10053 view and its guide, peek kind, set exclusion | `internal/trace/dump.go`, `internal/opt`, `internal/peek`, `internal/model/optdump.go`, `web/src/lib/views/opt`, `web/src/lib/data/opt*.ts` | snapshot, parity, prefix and mutation tests (`go test ./internal/opt`); `pnpm --filter mtkprof-web test`; harness `web/dev/opt.html` |
 | Fixtures: 19.27, 21c XE, 23ai Free + tkprof output + generators; the 10053 ones in `testdata/opt/19c` | `testdata/` | real traces only |
@@ -226,6 +232,21 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 - **Visualizer** has no LICENSE file. It shows "0ms" for µs-scale plans (its display rounds to ms).
 - **History**: the stray 32 MB `mtkprof` binary (removed in `a89bc12`) is still in the history of the now
   public repo; rewriting it means a force-push.
+
+### Plan replay (2026-11-18; `docs/PLAN-REPLAY.md`)
+
+- **PX**: replay the slaves with their coordinator. Needs the attached slaves' calls and waits of the same execution
+  from the engine (an extended `executions/trace`); the prototype's PX scene (`px_io.trc` + 4 slave traces) shows the
+  drawing: a grid coloured by slave, dots per slave on the slave lines, a lane per slave; `PX SEND QC` has no STAT in
+  the slaves and takes its child's counts.
+- **A STAT dump split by other lines** (model bug, all views): `model.Builder.Stat` starts a new plan when STAT lines are
+  not adjacent, and an interleaved 10053 trace writes optimizer lines between them, so `opt_interleaved.trc`'s
+  8a01tvd45h89r has nine "plans" of one to three lines (Row flow and the plan table show them so). Replay joins them
+  (`dumpLines`). The fix: group by ids (another cursor, id=1, an id that does not grow, a parent not in the dump),
+  bump `engine.CacheIndexFormat`, fix `TestAtMatchesModel`'s `p.Line+i` (the slice's `at` already matches by id); and
+  give `PlanLine` its own trace line (persisted: `model.PersistVersion`), as Row flow links a line to `plan.line + index`.
+- Not tried: a long execution with hundreds of thousands of waits (the lanes paint every wait once), 21c and 23ai
+  fixtures, WebKitGTK and WebView2 frame rates.
 
 ### The 10053 reader (2026-11-11; DESIGN § The 10053 reader, `docs/PLAN-10053.md`)
 
