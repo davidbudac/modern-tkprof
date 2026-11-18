@@ -306,6 +306,35 @@ Outline (lines from-to, line count)
 
     <div class="feature flip">
       <div class="feature-text">
+        <h3>Diagnostic dumps</h3>
+        <p>Heap dumps, PGA memory dumps, errorstacks, process and system state, hang analysis and deadlock graphs open in a reader of their own. A best-effort add-on beside the SQL and optimizer traces.</p>
+        <ul class="ticks">
+          <li>An outline loaded on demand, the file's text paged, the bulk folded</li>
+          <li>A heap dump's sums checked against the totals the dump prints</li>
+          <li>The call stack, the process, a system state's blocker tree, the hang chains, the deadlock cycle</li>
+        </ul>
+      </div>
+      <figure class="shot agent-shot">
+        <pre class="terminal" aria-label="Parts of the digest that mtkprof report prints for a file of three heap dumps"><span class="p">$ </span>mtkprof report diag_heap_pga.trc
+Diagnostic dump file diag_heap_pga.trc
+  version 19.27.0.0.0 (the version the rules were tested on)
+  1,486 lines, 4 parts at the top level, 3 diagnostic dump sections
+
+Outline: first-last line, number of lines, title
+  32- 923    892  Heap dump: pga heap  [4.5 MB, depth 0]
+      103 extents, 321 chunks, 4,707,160 bytes in the extents
+      Checked against the totals the dump prints:
+        <span class="ok">match</span>   chunks of the extents against Total heap size: 4,707,160 = 4,707,160 (line 679)
+        <span class="ok">match</span>   chunks of the free lists against Total free space: 49,560 = 49,560 (line 716)
+        <span class="ok">match</span>   perm chunks under PERMANENT CHUNKS against Permanent space: 392,464 = 392,464 (line 921)
+      By comment (15 of 58, most bytes first):
+        koh-kghu call    freeable,recreate     160  3,555,464  75.5%          46
+        perm             perm                   40    392,464   8.3%         266 <span class="c">…</span></pre>
+      </figure>
+    </div>
+
+    <div class="feature">
+      <div class="feature-text">
         <h3>MCP server</h3>
         <p><code>mtkprof mcp</code> exposes the analysis as tools to Claude Code or any MCP client.</p>
         <ul class="ticks">
