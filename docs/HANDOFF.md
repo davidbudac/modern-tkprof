@@ -14,11 +14,11 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
 - `davidbudac/modern-tkprof` is **public**, `main` pushed. One repository, two clients (since 2026-11-02;
   `davidbudac/mtkprof-desktop` is archived): engine + CLI at the root, `web/` (CLI UI and the shared lib
   `web/src/lib`), `desktop/` (Electron since v0.7.0; Tauri 2 until `tauri-final`, see below). One version and one tag for both.
-- Latest release **v0.7.0** (2026-11-09, from `36f1e14`, PR #16): the first with the Electron app. CLI
-  binaries, the installers (DMG arm64/x64, deb, AppImage, NSIS) and the Tauri bridge (`.app.tar.gz` per
-  arch and `latest.json`, signed with `~/.tauri/mtkprof-updater.key`; no Windows entry) in one GitHub
-  release; notes `docs/releases/v0.7.0.md`. Every CI leg passed for it (the x64 smoke under Rosetta),
-  Windows unsmoked. v0.6.0 (Tauri) installs on macOS and Linux are offered it by their updater.
+- Latest release **v0.8.0** (2026-11-18): the 10053 reader and Plan replay, with the fixes since v0.7.0
+  (engine hardening, the answer cache's cap, Cut and tooltip fixes). CLI binaries, the installers (DMG
+  arm64/x64, deb, AppImage, NSIS) and the Tauri bridge (`.app.tar.gz` per arch and `latest.json`, signed with
+  `~/.tauri/mtkprof-updater.key`; no Windows entry) in one GitHub release; notes `docs/releases/v0.8.0.md`.
+  Windows unsmoked. Before it: v0.7.0 (2026-11-09, from `36f1e14`, PR #16), the first with the Electron app.
 - **2026-11-08 desktop review round** (`docs/REVIEW-DESKTOP-PERFORMANCE-UX-2026-11-08.md`): 14 findings on
   transitions, work preservation, opening, prompts, keyboard and the Cut view, all fixed on `main` after v0.6.0 in one
   multi-agent run (five parallel worktrees, reviewed, merged); the tracking table there has the evidence per finding,
@@ -64,15 +64,15 @@ sections, read them with `git show 27932c3:docs/HANDOFF.md`. Per-round detail is
   computes nothing from the costs. 19c is tested (ten lab scenarios and an interleaved file, `testdata/opt/19c`,
   `testdata/traces/19c/opt_interleaved.*`); another version opens best effort. An interleaved file (10046 and 10053
   in one session) still opens as a 10046 trace, with a note. The scan (`internal/opt`) reads ~290 MB/s (Apple M4) in 24 MB for a
-  two-million-line dump; snapshots pin its output. **Unreleased, on `main`**; no version chosen
-  (`docs/releases/next-10053.md` is the draft). Cache format 8 (`engine.CacheIndexFormat`, `model.PersistVersion`
+  two-million-line dump; snapshots pin its output. Released in **v0.8.0**
+  (`docs/releases/v0.8.0.md`). Cache format 8 (`engine.CacheIndexFormat`, `model.PersistVersion`
   3): a session cached before holds unknown-line counts for a file with dumps.
 - **Plan replay** (2026-11-18; DESIGN § Plan replay, `docs/PLAN-REPLAY.md`, ARCHITECTURE § Plan replay, DESKTOP §
   Replay; prototype `docs/viz-concepts/plan-replay/`): a third mode of a picked execution, `Binds | Dialogue | Replay`,
   plays the execution back on its STAT plan (lines lit by their waits and CPU, rows as dots, the blocks touched as
   grids, fetches to the client, lanes with chapters and a scrub). Lib only, no engine work (`executions/trace` + the
   plan dump); one session (PX later). Verified on io_waits (stmt 22 hash join, stmt 21 sort) and opt_interleaved (cached
-  adaptive plan) in the CLI's serve UI and the desktop's dev browser mode. **Unreleased.**
+  adaptive plan) in the CLI's serve UI and the desktop's dev browser mode. Released in **v0.8.0**.
 - Website `site/` is published on GitHub Pages (https://davidbudac.github.io/modern-tkprof/) with
   `scripts/publish-site.sh`; `gh-pages` matches `site/` as of `85d2c95`. Ask before publishing again.
 - The plan visualizer (`~/claude_projects/ora_explain_plan_viz`) is pushed, `@davidbudac/ora-plan-core`
@@ -250,7 +250,7 @@ CLI: 118 MB trace → text report 0.61 s / 220 MB RSS, HTML 12.7 MB in 0.78 s; 1
 
 ### The 10053 reader (2026-11-11; DESIGN § The 10053 reader, `docs/PLAN-10053.md`)
 
-Built and unreleased; see "Where things stand". Open:
+Released in v0.8.0; see "Where things stand". Open:
 
 - **Candidates for later** (no order, chosen after use on real traces): a computed summary per statement; decision views
   (transformation ledger, access paths per table, join order explorer); the origin of a row estimate joined to the 10046
