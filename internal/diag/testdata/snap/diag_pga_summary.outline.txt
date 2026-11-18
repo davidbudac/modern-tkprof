@@ -1,0 +1,15 @@
+file diag_pga_summary.trc: 776 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 0 unplaced
+section pga-summary 33-776
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-32 (1) other: Other lines  [markers and blank lines]
++ 33-776 (744) pga-summary: PGA memory summary
+      56-102 (47) banner: PRIVATE MEMORY SUMMARY FOR THIS PROCESS
+      103-113 (11) banner: REAL-FREE ALLOCATOR DUMP FOR THIS PROCESS
+      114-169 (56) banner: INSTANCE-WIDE PRIVATE MEMORY USAGE SUMMARY
+    + 170-353 (184) banner: PER-PROCESS PRIVATE MEMORY USAGE
+      354-760 (407) banner: ESTIMATED MEMORY USES FOR ALL PROCESSES
+      761-766 (6) banner: MGA MEMORY USAGE SUMMARY FOR ALL PROCESSES
+      767-768 (2) title: KSM MGA SYSTEM DUMP START
+      769-770 (2) title: KSM MGA SYSTEM DUMP - END
+      771-776 (6) banner: SWAP INFORMATION

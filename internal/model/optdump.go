@@ -201,3 +201,19 @@ func AllOpt(paths []string) (string, bool) {
 	}
 	return filepath.Base(files[0]), true
 }
+
+// AllDiag reports whether every file the paths name (directories expanded) holds diagnostic dumps and
+// neither 10046 records nor optimizer dumps, and gives the name of the first. Commands that read SQL traces
+// only use it to refuse before they parse anything. An unreadable path is not one.
+func AllDiag(paths []string) (string, bool) {
+	files, err := ExpandInputs(paths)
+	if err != nil || len(files) == 0 {
+		return "", false
+	}
+	for _, f := range files {
+		if sn, err := trace.SniffFile(f, trace.SniffOptions{StopAtRecord: true}); err != nil || sn.Kind != trace.FileKindDiag {
+			return "", false
+		}
+	}
+	return filepath.Base(files[0]), true
+}

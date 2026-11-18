@@ -46,6 +46,9 @@ func cmdMCP(args []string) error {
 	if name, ok := model.AllOpt(files); ok {
 		return fmt.Errorf("mcp: %s is a 10053 file; the assistant and MCP read 10046 traces only in this version", name)
 	}
+	if name, ok := model.AllDiag(files); ok {
+		return fmt.Errorf("mcp: %s holds diagnostic dumps only (a diag file); the assistant and MCP read 10046 traces only in this version", name)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	s := &assist.MCP{Name: "mtkprof", Version: version, Log: os.Stderr}

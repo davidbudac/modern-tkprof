@@ -245,16 +245,26 @@ Particular to a stage:
 DESIGN (§ Inputs and a new § Diagnostic dumps), ARCHITECTURE, DESKTOP, HANDOFF (state, the budgets measured),
 ROADMAP, README, the site's pages (not published), a release notes draft, this file's log.
 
-## Build contract (to be fixed at the start of stage 2)
+## Build contract (as built, 2026-11-18)
 
-- **The document** of a diag session is the document of an empty 10046 model plus `diag`: `file` always, and
-  `digest` (the readings and the digest's lines) in a document made for a client without a server. A shell that
-  sees `doc.diag` shows the reader and none of the 10046 views.
+- **The model**: `internal/diag/model.go` (`diag.File`, `diag.Node`, `diag.Outline`); `TestJSONShape` pins it. A
+  node's `id` (`heap:32-923:1:200`: kind, lines, heading lines, rule set) is stable across scans.
+- **The document** of a diag session is the document of an empty 10046 model plus **`dump`**: `file` always, and
+  `digest` in a document made for a client without a server. The member is `dump`, not `diag`: `doc.diag` already
+  holds the parser's diagnostics. A shell that sees `doc.dump` shows the reader and none of the 10046 views.
 - **Routes** of a diag session, beside `api/lines` and `api/search` which it serves as any session does:
-  - `GET api/diag/file` → `diag.File`.
-  - `GET api/diag/outline?node=ID` → the children of a node.
-  - `GET api/diag/section?i=N` → the reading of section N (404 for a kind without one).
-- **The session object** gains `view`, and `diagSqlIds` and `diagSessions` once ready.
+  - `GET api/diag/file` → `diag.File` (facts, the parser's sections, the top-level outline, which tiles the file).
+  - `GET api/diag/outline?node=ID[&after=N]` → `{node, children, more, next}`; `node=root` is the top level; at
+    most 2,000 children per answer.
+  - `GET api/diag/section?i=N` → the reading of section N; 404 "no reading for this kind of section" until a
+    stage adds one.
+- **`view`** on `POST /engine/sessions` and as `-view` on `report`, `html`, `json`, the default command and
+  `serve`: `10046`, `10053`, `diag`. Default: 10046 records → `10046`; only optimizer dumps → `10053`; else one
+  file → `diag`. `diag` opens any single file (its 10046 records are "SQL trace (10046) lines" runs); `10053`
+  opens an interleaved file. Refused with one line: a view on a set, live follow, `10053` on a file without a dump.
+- **The session object** carries `view`. `diagSqlIds` and `diagSessions` come with stage 4.
+- **Refused for a diag session**: the assistant, the brief, Compare, the CSV export, `mtkprof mcp`, and the CLI
+  commands with nothing to show.
 
 ## Budgets to measure
 
@@ -347,3 +357,9 @@ screenshots in `shots/`): the error stack, process, heap, system state and hang 
 dark, and two layouts for the owner to choose from (A: a *Reading | Text* switch in the centre; B: the text in
 the centre and the reading in the right panel). Its parser found the totals check true on all 80 heaps of
 `diag_heap_sub`. Not approved yet.
+
+### 2026-11-18: stage 2, the Go side of the reader at level 0
+
+- **Built**: `internal/diag` (scan, top-level outline that tiles the file, children on demand, text digest), `internal/slice/diag.go` (`api/diag/file`, `outline`, `section`), the `view` option (`model.ResolveView`, engine session, `serve -view`, `-view` on report, html, json and the default command), `report.DiagInput` and the document member **`dump`** (the key `diag` is taken: it is the parser's diagnostics), refusals, OpenAPI (additive, protocol 1), `pnpm gen:api`.
+- **Scan** is `trace.SniffReader` with a new optional per-line hook (`SniffOptions.Line`): the sections are the parser's, the titles come from the same pass. Not cached.
+- **Measured** (Apple M4): scan 1.0 to 2.1 GB/s on every fixture including the 32.7 MB shared pool dump, 0.3 MB allocated; children of a 357,000-line node 28 ms, of a 100,000-line node 2 ms.

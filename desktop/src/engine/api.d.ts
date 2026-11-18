@@ -1063,6 +1063,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/s/{id}/api/diag/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The facts and the top-level outline of a diag session's file
+         * @description `diag.File`: the file's facts (release, version, whether the rules were tested on it, the lines of
+         *     10046 records it holds, the incident facts of an incident file), the diagnostic dump sections the
+         *     parser found, the count of lines no part takes (`unplaced`) and the top-level outline (`outline`):
+         *     the file header, then in file order every section and every run of lines between sections, the nodes
+         *     tiling the file. At most 2000 nodes are listed; `outlineTotal` says how many there are and the rest
+         *     is the children of the node `root` (`api/diag/outline`). The scan is made when the session opens.
+         *     404 (envelope) when the session is not a diag one.
+         */
+        get: operations["sessionDiagFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/diag/outline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The children of a node of a diag session's outline
+         * @description The parts of node `node`, found by reading only that node's lines of the file (`root` is the top
+         *     level). A child can have children. At most 2000 are listed; `more` says how many follow and `next`
+         *     is the `after` that asks for the next page (the number of children already seen). The children lie
+         *     inside the node, in file order, and do not overlap. Ids are stable for a file and resolvable here.
+         *     404 (envelope) when the session is not a diag one or `node` is not a node of it.
+         */
+        get: operations["sessionDiagOutline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/s/{id}/api/diag/section": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The reading of one section of a diag session's file
+         * @description The computed reading of section `i` of `diag.File.sections` (a heap's totals, a call stack, a process
+         *     state). The readings are later stages of the dump reader: for now every section answers 404
+         *     (envelope) "no reading for this kind of section"; so does a session that is not a diag one, with
+         *     another message.
+         */
+        get: operations["sessionDiagSection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/s/{id}/api/lines": {
         parameters: {
             query?: never;
@@ -1943,6 +2016,113 @@ export interface components {
          * @enum {string}
          */
         LineKind: "unknown" | "blank" | "header" | "separator" | "marker" | "parsing-in-cursor" | "sql-text" | "end-of-stmt" | "call" | "wait" | "stat" | "binds" | "bind-line" | "xctend" | "error" | "parse-error" | "lob" | "rpc" | "optimizer" | "diagnostic";
+        /**
+         * @description How a session reads its file. In the options of `POST /engine/sessions`: `10046` the SQL trace views,
+         *     `10053` the optimizer dump reader (also for the dumps of a 10046 trace that has them interleaved),
+         *     `diag` the dump reader (an outline of the file, which holds diagnostic dumps or not); absent: the file
+         *     decides (10046 records: `10046`; only optimizer dumps: `10053`; otherwise `diag`, also for a file with
+         *     nothing recognised). One file only: not for a set of several files (400) and not with `follow` (400);
+         *     `10053` for a file with no dump fails the session. In a session: the view it reads its file in; the
+         *     one asked for while it opens, set once it is ready.
+         * @enum {string}
+         */
+        SessionView: "10046" | "10053" | "diag";
+        /** @description the `dump` member of the document of a diag session (report.DiagDoc); absent for every other session. The rest of such a document is that of a trace with no 10046 record. (The document's `diag` member is the parser's diagnostics.) */
+        DiagDoc: {
+            file: components["schemas"]["DiagFile"];
+            digest?: components["schemas"]["DiagDigest"];
+        };
+        /** @description the digest of a diag file, in a document made for a client without a server (mtkprof html, json, the default command, the engine's HTML and JSON export); a document served by a server leaves it out and the client reads the api/diag routes */
+        DiagDigest: {
+            /** @description every node of the top level with its own children (one level down, at most 100) */
+            outline: components["schemas"]["DiagDigestNode"][];
+        };
+        /** @description a node of the top level and its children */
+        DiagDigestNode: components["schemas"]["DiagNode"] & {
+            children: components["schemas"]["DiagNode"][];
+            /** @description children not listed */
+            more?: number;
+        };
+        /** @description what one pass over a trace file read as a diag file finds (diag.File) */
+        DiagFile: {
+            /** @description base name of the file */
+            name: string;
+            lines: number;
+            /** @description prologue line 2, e.g. Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production; empty when the file has none */
+            release: string;
+            /** @description prologue "Version 19.27.0.0.0" as 19.27.0.0.0; empty when the file has none */
+            version: string;
+            /** @description the version is a 19.x one (the rules were written for 19c; another version is read with them) */
+            tested: boolean;
+            /** @description the lines of 10046 records in the file; 0 for a file this view is the default of */
+            records10046: number;
+            incident?: components["schemas"]["DiagIncident"];
+            /** @description the diagnostic dumps the parser found, in file order */
+            sections: components["schemas"]["DiagSection"][];
+            /** @description the lines outside the header and every section that are none of blank, a marker, a rule line, a 10046 record */
+            unplaced: number;
+            /** @description the top level (the nodes tile the file); at most 2000, see outlineTotal */
+            outline: components["schemas"]["DiagNode"][];
+            /** @description the nodes of the top level; more than outline lists when over 2000 (the rest are the children of `root`) */
+            outlineTotal: number;
+        };
+        DiagSection: {
+            /** @enum {string} */
+            kind: "heap" | "pga-summary" | "pga-detail" | "diagdump" | "procstate" | "sysstate" | "hang" | "deadlock" | "incident";
+            first: number;
+            last: number;
+            /** @description a kind that has an end line stopped without reaching it */
+            cut?: boolean;
+        };
+        /** @description the facts of an incident file */
+        DiagIncident: {
+            /** @description line 1, "Dump file <path>" */
+            dumpFile: string;
+            /** @description the trace file of the session that raised the incident ("Dump continued from file:") */
+            continuedFrom?: string;
+            /** @description the incident number */
+            id?: string;
+            /** @description "ORA 6544 [pevm_peruws_callback-1]" */
+            problem?: string;
+        };
+        /** @description a row of the outline (diag.Node) */
+        DiagNode: {
+            /** @description unique in the file and stable for it ("heap:32-923:1:200"); `root` is the top level */
+            id: string;
+            /** @description header, other, trace10046; a section (heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident); inside one: title, banner, frame, process, so, chain, toc, extents, extent, freelists, bucket, unpinned, permanent, subheaps */
+            kind: string;
+            /** @description plain words: "Heap dump: pga heap", "Diagnostic dump (level 2)", "Process 6: PMON", "Other lines" */
+            title: string;
+            /** @description a short second line */
+            sub?: string;
+            from: number;
+            to: number;
+            lines: number;
+            hasChildren: boolean;
+            /** @description process, frame, chain, extent, bucket: its number; toc: the number of the marker */
+            n?: number;
+            /** @description heap: the heap name; process: the process name */
+            name?: string;
+            /** @description heap: "dsx heap depth" of the header (0 a top heap, 1 a sub-heap of one, ...); absent when the header has none */
+            depth?: number;
+            /** @description heap: "dsx heap size" of the header, in bytes */
+            size?: number;
+            /** @description trace10046 nodes - the number of 10046 records in the run */
+            records?: number;
+            /** @description a section whose end line was not reached */
+            cut?: boolean;
+        };
+        /** @description the children of a node (diag.Outline) */
+        DiagOutline: {
+            /** @description the id asked for */
+            node: string;
+            /** @description at most 2000, in file order, inside the node, not overlapping */
+            children: components["schemas"]["DiagNode"][];
+            /** @description how many children follow those listed */
+            more: number;
+            /** @description when more > 0, the `after` to ask for the next page */
+            next?: number;
+        };
         /** @description the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record */
         OptDoc: {
             file: components["schemas"]["OptFile"];
@@ -3073,6 +3253,7 @@ export interface components {
             error?: string;
             /** @description for a 10053 session once it is ready, the distinct sql_ids of the dumps of its file, in file order; absent for every other session */
             optSqlIds?: string[];
+            view?: components["schemas"]["SessionView"];
         };
         SessionList: {
             sessions: components["schemas"]["SessionInfo"][];
@@ -3099,6 +3280,7 @@ export interface components {
             salt?: string;
             /** @description finding thresholds (`mtkprof findings-config`); unknown keys are a 400 */
             thresholds?: Record<string, never>;
+            view?: components["schemas"]["SessionView"];
         };
         OpenSessionRequest: {
             /** @description trace files or directories of them */
@@ -3441,6 +3623,7 @@ export interface components {
             rev: number;
             /** @description as in SessionInfo */
             optSqlIds?: string[];
+            view?: components["schemas"]["SessionView"];
         };
         PromptEvent: {
             id: string;
@@ -3654,6 +3837,7 @@ export interface components {
             diag?: Record<string, never>;
             unknown?: Record<string, never>[];
             opt?: components["schemas"]["OptDoc"];
+            dump?: components["schemas"]["DiagDoc"];
             stats?: {
                 minimap?: {
                     bucketUs?: number;
@@ -5025,6 +5209,85 @@ export interface operations {
                 };
                 content?: never;
             };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionDiagFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiagFile"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionDiagOutline: {
+        parameters: {
+            query: {
+                /** @description a node id (`diag.Node.id`), or `root` */
+                node: string;
+                /** @description how many children the client already has (the `next` of the answer before) */
+                after?: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the children */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiagOutline"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sessionDiagSection: {
+        parameters: {
+            query: {
+                /** @description 0-based index into `diag.File.sections` */
+                i: number;
+            };
+            header?: never;
+            path: {
+                /** @description session id (s + 12 hex digits) */
+                id: components["parameters"]["SessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };

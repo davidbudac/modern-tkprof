@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
+	"github.com/davidbudac/modern-tkprof/internal/diag"
 	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/report"
 	"github.com/davidbudac/modern-tkprof/internal/slice"
@@ -43,6 +44,11 @@ type SessionOptions struct {
 	// 1000) and, when BatchMB > 0, after every BatchMB of new input.
 	BatchMs int `json:"batchMs,omitempty"`
 	BatchMB int `json:"batchMB,omitempty"`
+	// View opens a single file as a 10053 session ("10053": its optimizer dumps, also the ones of a 10046
+	// trace that has them interleaved) or as a diag session ("diag": an outline of the file, which holds
+	// diagnostic dumps or not); "10046" is the SQL trace views. Absent: the file decides (10046 records:
+	// 10046; only optimizer dumps: 10053; otherwise diag). Not with follow, nor for a set of several files.
+	View string `json:"view,omitempty"`
 }
 
 // FileInfo is one input file of a session.
@@ -72,6 +78,9 @@ type SessionInfo struct {
 	// OptSQLIDs are the distinct sql_ids of the dumps of a 10053 session (in
 	// file order), once it is ready; absent for every other session.
 	OptSQLIDs []string `json:"optSqlIds,omitempty"`
+	// View is how the session reads its file: 10046, 10053 or diag. The one asked for while the session is
+	// opening, else absent until it is ready (the file decides then); once ready always set.
+	View string `json:"view,omitempty"`
 }
 
 // SessionEvent is the payload of a session event.
@@ -81,6 +90,8 @@ type SessionEvent struct {
 	Rev   int    `json:"rev"`
 	// OptSQLIDs as in SessionInfo.
 	OptSQLIDs []string `json:"optSqlIds,omitempty"`
+	// View as in SessionInfo.
+	View string `json:"view,omitempty"`
 }
 
 // Session is one open trace set. Once ready it serves the handlers of
@@ -109,8 +120,10 @@ type Session struct {
 	hit   bool
 	ref   refState // ref.go
 
-	notes  []string // notes of the inputs (10053 files left out of the set), added to the document's notes
-	optIDs []string // OptSQLIDs, under mu
+	notes   []string // notes of the inputs (10053 files left out of the set), added to the document's notes
+	optIDs  []string // OptSQLIDs, under mu
+	reqView string   // the view asked for ("" the file decides)
+	view    string   // the view the session reads its file in, once ready; under mu
 
 	use sync.RWMutex // requests hold it shared, close exclusively
 	op  *opened      // set when ready; nil after close
@@ -138,9 +151,11 @@ func (ss *Session) end() {
 // opened is what a ready session serves from.
 type opened struct {
 	co      *CacheOpened
-	opt     *slice.OptServer // the routes of a 10053 file; nil for every other session
+	opt     *slice.OptServer  // the routes of a 10053 session; nil for every other session
+	diag    *slice.DiagServer // the routes of a diag session; nil for every other session
 	handler http.Handler
 	api     http.Handler  // the slice routes of co (the assist tools read through them)
+	view    string        // how the session reads its file: model.View10046, View10053 or ViewDiag
 	release func()        // instead of co.Close (a live session, live.go)
 	slice   *slice.Server // its kept answers go when the model changes (applyRefTo); nil for a live session
 }
@@ -159,6 +174,7 @@ func (o *opened) trace() (*CacheOpened, http.Handler) {
 // entry (its files stay).
 func (o *opened) close() {
 	o.opt.Close()
+	o.diag.Close()
 	if o.release != nil {
 		o.release()
 		return
@@ -172,13 +188,28 @@ func (ss *Session) Info() SessionInfo {
 	defer ss.mu.Unlock()
 	return SessionInfo{ID: ss.id, Paths: ss.paths, State: ss.state, Rev: ss.rev, Identity: ss.identity,
 		CacheIdentity: ss.cacheID, Hit: ss.hit, Files: ss.files, Opened: ss.opened.UTC().Format(time.RFC3339), Bytes: ss.bytes, Lines: ss.lines,
-		Job: ss.job.info.ID, Error: ss.err, OptSQLIDs: ss.optIDs}
+		Job: ss.job.info.ID, Error: ss.err, OptSQLIDs: ss.optIDs, View: ss.viewLocked()}
+}
+
+// viewLocked is the view of the session, the one asked for while it opens; the caller holds mu.
+func (ss *Session) viewLocked() string {
+	if ss.view != "" {
+		return ss.view
+	}
+	return ss.reqView
+}
+
+// currentView is the view of the session (as SessionInfo.View).
+func (ss *Session) currentView() string {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	return ss.viewLocked()
 }
 
 func (ss *Session) event() SessionEvent {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	return SessionEvent{ID: ss.id, State: ss.state, Rev: ss.rev, OptSQLIDs: ss.optIDs}
+	return SessionEvent{ID: ss.id, State: ss.state, Rev: ss.rev, OptSQLIDs: ss.optIDs, View: ss.viewLocked()}
 }
 
 // close waits for the requests in flight and releases what the session holds.
@@ -246,6 +277,15 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) {
 		}
 		th = &v
 	}
+	view, err := model.ParseView(o.View)
+	if err != nil {
+		writeError(w, errorf(CodeBadRequest, "%v", err))
+		return
+	}
+	if o.Follow && (view == model.ViewDiag || view == model.View10053) {
+		writeError(w, errorf(CodeBadRequest, "follow: view %s reads the file whole; it cannot be followed live: open it without follow", view))
+		return
+	}
 	paths := make([]string, len(body.Paths))
 	for i, p := range body.Paths {
 		abs, err := filepath.Abs(p)
@@ -275,10 +315,15 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, errorf(CodeBadRequest, "paths: %v", err))
 		return
 	}
-	// A 10053 file is a session of its own: in a set of 10046 files it is left
-	// out, of a set of 10053 files the first is opened (the others are named in
-	// a note). Before the identities, so the cache entry and the line indexes
-	// are those of the files that stay.
+	if view == model.ViewDiag || view == model.View10053 {
+		if len(inputs) != 1 {
+			writeError(w, errorf(CodeBadRequest, "view %s opens one file, not a set of %d", view, len(inputs)))
+			return
+		}
+	}
+	// A 10053 file (or a file of diagnostic dumps only) is a session of its own: in a set of 10046 files it
+	// is left out, of a set of such files the first is opened (the others are named in a note). Before the
+	// identities, so the cache entry and the line indexes are those of the files that stay.
 	inputs, notes := model.OptInputs(inputs)
 	ids, err := IdentityOfFiles(inputs)
 	if err != nil {
@@ -286,7 +331,8 @@ func (s *Server) openSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ss := &Session{id: newID("s"), paths: paths, inputs: inputs, identity: TraceIdentity(ids), opened: time.Now(),
-		bindMode: mode, salt: o.Salt, th: th, done: make(chan struct{}), state: SessionOpening, rev: 1, files: fileInfos(inputs), notes: notes}
+		bindMode: mode, salt: o.Salt, th: th, done: make(chan struct{}), state: SessionOpening, rev: 1, files: fileInfos(inputs), notes: notes,
+		reqView: view}
 	if ss.cacheID, err = CacheIdentity(inputs, ss.cacheOptions(nil)); err != nil {
 		writeError(w, errorf(CodeBadRequest, "paths: %v", err))
 		return
@@ -403,7 +449,7 @@ func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
 
 // sessionRoutes are the routes of a ready session, relative to /s/{id}.
 func sessionRoutes() []string {
-	out := []string{"GET /api/doc", "GET /api/report", "GET /api/opt/dump", "GET /api/opt/text", "GET /api/ref", "POST /api/ref", "GET /api/ref/script", "POST /api/ref/paste", "POST /api/brief", "POST /api/assist/tools/{name}"}
+	out := []string{"GET /api/doc", "GET /api/report", "GET /api/opt/dump", "GET /api/opt/text", "GET /api/diag/file", "GET /api/diag/outline", "GET /api/diag/section", "GET /api/ref", "POST /api/ref", "GET /api/ref/script", "POST /api/ref/paste", "POST /api/brief", "POST /api/assist/tools/{name}"}
 	for _, ep := range append(slice.Endpoints(), slice.LineEndpoints()...) {
 		out = append(out, "GET "+ep)
 	}
@@ -464,17 +510,47 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 	}
 	m := co.Model
 	m.Diag.Notes = append(m.Diag.Notes, ss.notes...)
-	if sc, err := report.OptScan(m); err != nil {
-		return nil, fmt.Errorf("%s: %w", m.File.Files[0].Name, err)
-	} else if sc != nil { // a 10053 file: its dumps are read from the file, not from the cache
-		op.opt = slice.NewOptServer(m.File.Files[0].Path, sc, co.Lines[0])
-		op.opt.AllowOrigin = slice.NoCORS
+	// How the file is read: the view asked for, else what the file is (model.DefaultView). A 10053 file is read
+	// from the file itself (its dumps are not in the cache), a diag file likewise.
+	view, err := model.ResolveView(m, ss.reqView, len(ss.inputs))
+	if err != nil {
+		return nil, err
 	}
+	switch view {
+	case model.View10053:
+		sc, err := report.OptScanView(m, ss.reqView == model.View10053)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", m.File.Files[0].Name, err)
+		}
+		if sc != nil {
+			op.opt = slice.NewOptServer(m.File.Files[0].Path, sc, co.Lines[0])
+			op.opt.AllowOrigin = slice.NoCORS
+		} else if ss.reqView == "" {
+			view = model.View10046 // not a pure 10053 file after all: read as the 10046 trace it is
+		} else {
+			return nil, fmt.Errorf("%s: no optimizer (10053) dump could be read", m.File.Files[0].Name)
+		}
+	case model.ViewDiag:
+		sc, err := diag.ScanFile(m.File.Files[0].Path)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", m.File.Files[0].Name, err)
+		}
+		op.diag = slice.NewDiagServer(m.File.Files[0].Path, sc, co.Lines[0])
+		op.diag.AllowOrigin = slice.NoCORS
+	}
+	op.view = view
+	ss.mu.Lock()
+	ss.view = view
+	ss.mu.Unlock()
 	b, gen := s.storedRefGen(ss) // a bundle kept for this trace (ref.go)
 	if b != nil {
 		model.ApplyRef(m, b)
 	}
-	doc, err := report.DocumentBytes(m, ss.docOptions(op.opt, false))
+	opts, err := ss.docOptions(op.opt, op.diag, false)
+	if err != nil {
+		return nil, err
+	}
+	doc, err := report.DocumentBytes(op.docModel(m), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -484,19 +560,45 @@ func (s *Server) buildSession(job *Job, ss *Session) (_ *opened, err error) {
 	ss.mu.Lock()
 	ss.ref.doc, ss.ref.gen = doc, gen
 	ss.mu.Unlock()
-	op.handler, op.api, op.slice = s.sessionMux(ss, co, doc, op.opt)
+	op.handler, op.api, op.slice = s.sessionMux(ss, co, doc, op.opt, op.diag)
 	return op, nil
 }
 
-// docOptions are the options of the session's document. o is the server of
-// its 10053 file (nil for any other file); digest puts the digest of the
-// dumps in the document (a report made for a client without a server).
-func (ss *Session) docOptions(o *slice.OptServer, digest bool) report.DocOptions {
+// docOptions are the options of the session's document. o is the server of its 10053 file and dg that of
+// its diag file (nil for any other session); digest puts the digest of the dumps in the document (a report
+// made for a client without a server).
+func (ss *Session) docOptions(o *slice.OptServer, dg *slice.DiagServer, digest bool) (report.DocOptions, error) {
 	d := report.DocOptions{Facts: false, Packed: true, Slice: true, Thresholds: ss.th}
 	if o != nil {
 		d.Opt = ss.optInput(o, digest)
 	}
-	return d
+	if dg != nil {
+		in, err := ss.diagInput(dg, digest)
+		if err != nil {
+			return d, err
+		}
+		d.Diag = in
+	}
+	return d, nil
+}
+
+// diagInput is what the documents and the text report of a diag session are made from.
+func (ss *Session) diagInput(dg *slice.DiagServer, digest bool) (*report.DiagInput, error) {
+	rd, err := dg.Reader()
+	if err != nil {
+		return nil, err
+	}
+	return report.NewDiagInput(rd, digest)
+}
+
+// docModel is the model the document of the session is made of: that of an empty 10046 model when the
+// session reads its file as 10053 or diag (a 10046 trace opened that way has records, which the document
+// leaves out), else the session's model itself.
+func (o *opened) docModel(m *model.Model) *model.Model {
+	if o.view == model.View10046 || o.view == "" {
+		return m
+	}
+	return m.ViewModel()
 }
 
 // optInput is what the documents and the text report of a 10053 session are
@@ -511,9 +613,9 @@ func (ss *Session) optInput(o *slice.OptServer, digest bool) *report.OptInput {
 
 // sessionMux serves the routes of a session (sessionRoutes) from an opened
 // trace and its document; api is its slice routes alone, ssrv the slice
-// server behind api. ot serves the two api/opt routes of a 10053 file (nil:
-// they answer 404).
-func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte, ot *slice.OptServer) (mux, api http.Handler, ssrv *slice.Server) {
+// server behind api. ot serves the two api/opt routes of a 10053 session, dg
+// the three api/diag routes of a diag one (nil: they answer 404).
+func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte, ot *slice.OptServer, dg *slice.DiagServer) (mux, api http.Handler, ssrv *slice.Server) {
 	ssrv = slice.NewServer(co.Model, co.Source).WithLines(co.Lines) // lines, lines/at, at, search
 	ssrv.AllowOrigin = slice.NoCORS                                 // the engine's middleware sets CORS
 	ssrv.Thresholds = ss.th                                         // api/findings: those of the document's findings
@@ -521,9 +623,12 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte, ot *slice.
 	ssrv.Checks = &ss.cutChecks                                     // api/cut/check: one at a time over the session's (live) snapshots
 	api = ssrv.Handler()
 	handlers := map[string]http.Handler{
-		"GET /api/report":   http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL, ot).serve),
-		"GET /api/opt/dump": ot.DumpHandler(), // 404 unless the session is a 10053 file
-		"GET /api/opt/text": ot.TextHandler(),
+		"GET /api/report":       http.HandlerFunc(newSessionReport(ss, co, s.opts.PlanVizURL, ot, dg).serve),
+		"GET /api/opt/dump":     ot.DumpHandler(), // 404 unless the session is a 10053 file
+		"GET /api/opt/text":     ot.TextHandler(),
+		"GET /api/diag/file":    dg.FileHandler(), // 404 unless the session is a diag one
+		"GET /api/diag/outline": dg.OutlineHandler(),
+		"GET /api/diag/section": dg.SectionHandler(),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// ?rev= is accepted and ignored here: the current document is served
 			// (its revision is the session's rev, which a reference bundle
@@ -735,12 +840,19 @@ func (s *Server) evictLoop(d time.Duration) {
 	}
 }
 
-// optRefusal is the error for what a 10053 session does not do in this
-// version (the assistant, the brief, the comparison): nil for any other
-// session.
-func optRefusal(m *model.Model, what string) error {
-	if m == nil || !m.OptOnly() {
+// viewRefusal is the error for what a 10053 or diag session does not do in this version (the assistant, the
+// brief, the comparison): nil for a 10046 session. A 10053 file is named by the file's nature, a session
+// that was opened as a 10053 or diag one by its view.
+func viewRefusal(ss *Session, m *model.Model, what string) error {
+	if m == nil || len(m.File.Files) == 0 {
 		return nil
 	}
-	return errorf(CodeBadRequest, "%s is a 10053 file: %s", m.File.Files[0].Name, what)
+	name := m.File.Files[0].Name
+	switch ss.currentView() {
+	case model.View10053:
+		return errorf(CodeBadRequest, "%s is a 10053 file: %s", name, what)
+	case model.ViewDiag:
+		return errorf(CodeBadRequest, "%s is open as a diag file (diagnostic dumps): %s", name, what)
+	}
+	return nil
 }

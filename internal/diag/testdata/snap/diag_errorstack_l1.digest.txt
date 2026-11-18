@@ -1,0 +1,27 @@
+Diagnostic dump file diag_errorstack_l1.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  5,050 lines, 2 parts at the top level, 1 diagnostic dump section
+
+Outline: first-last line, number of lines, title
+   1-  31     31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-5050  5,019  Diagnostic dump (level 1)
+    33-  34      2  Error Stack Dump
+    35-  36      2  Current SQL Statement for this session (sql_id=8fdx3ffur0ddr)  [alter session set events 'immediate trace name errorstack level 1']
+    37-  41      5  Parser State
+    42-  42      1  PL/SQL Stack
+    43-  49      7  PL/SQL Call Stack
+    50- 187    138  Call Stack Trace
+   188-2699  2,512  Binary Stack Dump
+  2700-4838  2,139  Argument/Register Address Dump
+  4839-4839      1  End of Call Stack Trace
+  4840-5005    166  Process Map Dump
+  5006-5023     18  Process Resource Limits
+  5024-5024      1  Java Stack
+  5025-5038     14  KSWRDUMP START
+  5039-5039      1  KSWRDUMP END
+  5040-5045      6  KSMEM_DUMP START
+  5046-5046      1  KSMEM_DUMP END
+  5047-5048      2  KSM MGA PRIVATE DUMP START
+  5049-5049      1  KSM MGA PRIVATE DUMP END
+  5050-5050      1  VKTM Time Drifts Circular Buffer

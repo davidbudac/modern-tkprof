@@ -398,7 +398,11 @@ func (s *Server) applyRefTo(ss *Session, b *ref.Bundle, gen uint64) (bool, error
 		if ss.op.slice != nil {
 			ss.op.slice.Invalidate() // answers kept from before have the old names, or none
 		}
-		doc, err := report.DocumentBytes(m, ss.docOptions(ss.op.opt, false))
+		opts, err := ss.docOptions(ss.op.opt, ss.op.diag, false)
+		if err != nil {
+			return false, err
+		}
+		doc, err := report.DocumentBytes(ss.op.docModel(m), opts)
 		if err != nil {
 			return false, err
 		}

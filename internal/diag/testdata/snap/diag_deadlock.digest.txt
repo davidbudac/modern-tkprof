@@ -1,0 +1,14 @@
+Diagnostic dump file diag_deadlock.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  10,478 lines, 4 parts at the top level, 1 diagnostic dump section
+  1 lines in no known part (they are in the parts called Other lines)
+
+Outline: first-last line, number of lines, title
+    1-   31      31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+   32-   32       1  Other lines  [2026-11-17 21:34:33.711*:ksq.c@13209:ksqdld_hdr_dump():]
+   33-10477  10,445  Deadlock (ORA-00060)
+     49-   81      33  Information for waiting sessions
+     82-   85       4  End of information for waiting sessions
+     86-10477  10,392  Diagnostic dump (level 1)
+10478-10478       1  Other lines  [markers and blank lines]

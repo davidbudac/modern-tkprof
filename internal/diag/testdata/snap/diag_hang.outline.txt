@@ -1,0 +1,11 @@
+file diag_hang.trc: 279 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 3 unplaced
+section hang 42-275
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-41 (10) other: Other lines  [Processing Oradebug command 'setmypid']
++ 42-275 (234) hang: Hang analysis
+      55-61 (7) title: Chains most likely to have caused the hang
+    + 62-244 (183) title: Non-intersecting chains
+      245-258 (14) title: State of ALL nodes
+      259-275 (17) title: HANG ANALYSIS DUMPS
+  276-279 (4) other: Other lines  [markers and blank lines]

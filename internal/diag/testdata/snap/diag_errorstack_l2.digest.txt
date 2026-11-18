@@ -1,0 +1,39 @@
+Diagnostic dump file diag_errorstack_l2.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  36,651 lines, 2 parts at the top level, 1 diagnostic dump section
+
+Outline: first-last line, number of lines, title
+    1-   31      31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+   32-36651  36,620  Diagnostic dump (level 2)
+     33-   34       2  Error Stack Dump
+     35-   36       2  Current SQL Statement for this session (sql_id=86trfcf9m9n9f)  [alter session set events 'immediate trace name errorstack level 2']
+     37-   41       5  Parser State
+     42-   42       1  PL/SQL Stack
+     43-   49       7  PL/SQL Call Stack
+     50-  187     138  Call Stack Trace
+    188- 2695   2,508  Binary Stack Dump
+   2696- 4833   2,138  Argument/Register Address Dump
+   4834- 4834       1  End of Call Stack Trace
+   4835- 5000     166  Process Map Dump
+   5001- 5018      18  Process Resource Limits
+   5019- 5019       1  Java Stack
+   5020- 5033      14  KSWRDUMP START
+   5034- 5034       1  KSWRDUMP END
+   5035- 5040       6  KSMEM_DUMP START
+   5041- 5041       1  KSMEM_DUMP END
+   5042- 5043       2  KSM MGA PRIVATE DUMP START
+   5044- 5044       1  KSM MGA PRIVATE DUMP END
+   5045- 5045       1  Process State Dump (2)
+   5046- 8732   3,687  Process state
+   8733- 8733       1  PX Blackbox
+   8734-20124  11,391  Pinned Buffer History
+  20125-22239   2,115  end of branch block dump
+  22240-22240       1  end of leaf block Logical dump
+  22241-34056  11,816  end of leaf block dump
+  34057-35779   1,723  end of branch block dump
+  35780-35780       1  end of leaf block Logical dump
+  35781-36584     804  end of leaf block dump
+  36585-36588       4  IMDB Pinned Buffer History
+  36589-36650      62  Transaction Layer Metadata
+  36651-36651       1  Pluggagle DB Traces

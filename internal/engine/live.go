@@ -211,8 +211,13 @@ func (s *Server) startLive(spec liveSpec) (*Session, error) {
 		}
 		// A 10053 file is read whole, not followed: refused (the part of a big
 		// file read for this is bounded).
-		if sn, err := trace.SniffFile(path, trace.SniffOptions{StopAtRecord: true, MaxBytes: 64 << 20}); err == nil && sn.Kind == trace.FileKind10053 {
-			return nil, errorf(CodeBadRequest, "follow: %s is a 10053 file (optimizer trace); it cannot be followed live: open it without follow", filepath.Base(path))
+		if sn, err := trace.SniffFile(path, trace.SniffOptions{StopAtRecord: true, MaxBytes: 64 << 20}); err == nil {
+			switch sn.Kind {
+			case trace.FileKind10053:
+				return nil, errorf(CodeBadRequest, "follow: %s is a 10053 file (optimizer trace); it cannot be followed live: open it without follow", filepath.Base(path))
+			case trace.FileKindDiag:
+				return nil, errorf(CodeBadRequest, "follow: %s holds diagnostic dumps only; it cannot be followed live: open it without follow", filepath.Base(path))
+			}
 		}
 	}
 	batch, err := liveBatch(spec.opts)
@@ -707,7 +712,7 @@ func (lv *live) snapshot() error {
 	co := &CacheOpened{Model: m, Source: src, Lines: lis}
 	lv.rev++
 	snap := &liveSnap{rev: lv.rev, doc: doc, co: co}
-	snap.handler, snap.api, _ = lv.srv.sessionMux(ss, co, doc, nil)
+	snap.handler, snap.api, _ = lv.srv.sessionMux(ss, co, doc, nil, nil)
 	lv.cur.Store(snap)
 	lv.mu.Lock()
 	close(lv.next)
@@ -715,7 +720,7 @@ func (lv *live) snapshot() error {
 	lv.mu.Unlock()
 	if lv.rev == 1 {
 		ss.use.Lock()
-		ss.op = &opened{co: co, handler: lv, release: lv.close}
+		ss.op = &opened{co: co, handler: lv, release: lv.close, view: model.View10046}
 		ss.use.Unlock()
 	}
 	files := make([]FileInfo, len(m.File.Files))
@@ -724,6 +729,7 @@ func (lv *live) snapshot() error {
 	}
 	ss.mu.Lock()
 	ss.state, ss.rev, ss.bytes, ss.lines = SessionLive, lv.rev, st.Bytes, int64(st.Lines)
+	ss.view = model.View10046 // a live session reads SQL trace records
 	ss.files = files
 	ss.mu.Unlock()
 	ss.job.Progress(st.Bytes, int64(st.Lines), int64(len(m.Statements)))

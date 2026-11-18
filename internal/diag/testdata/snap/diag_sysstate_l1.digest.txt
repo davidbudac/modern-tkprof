@@ -1,0 +1,96 @@
+Diagnostic dump file diag_sysstate_l1.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  26,094 lines, 4 parts at the top level, 1 diagnostic dump section
+  4 lines in no known part (they are in the parts called Other lines)
+
+Outline: first-last line, number of lines, title
+    1-   34      34  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+   35-   39       5  Other lines  [Processing Oradebug command 'dump systemstate 1']
+   40-26088  26,049  System state (level=1)
+     42- 2237   2,196  Process summary
+   2238- 2293      56  Process 1
+   2294- 2576     283  Process 2: PMON
+   2577- 2859     283  Process 3: CLMN
+   2860- 3142     283  Process 4: PSP0
+   3143- 3326     184  Process 5: VKTM
+   3327- 3642     316  Process 6
+   3643- 3925     283  Process 7: GEN0
+   3926- 4447     522  Process 8
+   4448- 4730     283  Process 9: MMAN
+   4731- 5013     283  Process 10: GEN1
+   5014- 5296     283  Process 11: SCMN
+   5297- 5579     283  Process 12: DIAG
+   5580- 5913     334  Process 13: OFSD
+   5914- 6196     283  Process 14: SCMN
+   6197- 6535     339  Process 15: DBRM
+   6536- 6748     213  Process 16: VKRM
+   6749- 7031     283  Process 17: SVCB
+   7032- 7314     283  Process 18: PMAN
+   7315- 7600     286  Process 19: DIA0
+   7601- 7883     283  Process 20: DBW0
+   7884- 8166     283  Process 21: LGWR
+   8167- 8461     295  Process 22: CKPT
+   8462- 8756     295  Process 23: LG00
+   8757- 9072     316  Process 24: SMON
+   9073- 9355     283  Process 25: LG01
+   9356- 9638     283  Process 26: SMCO
+   9639- 9947     309  Process 27: RECO
+   9948-10303     356  Process 28: W000
+  10304-10697     394  Process 29: LREG
+  10698-10988     291  Process 30: W001
+  10989-11271     283  Process 31: PXMN
+  11272-11563     292  Process 32: DMON
+  11564-11860     297  Process 33: MMNL
+  11861-12379     519  Process 34: MMON
+  12380-12435      56  Process 35: D000
+  12436-12491      56  Process 36: S000
+  12492-12774     283  Process 37: TMON
+  12775-13057     283  Process 38: INSV
+  13058-13359     302  Process 39: QM02
+  13360-13655     296  Process 40: J001
+  13656-13979     324  Process 42: W003
+  13980-14266     287  Process 43: NSV2
+  14267-14549     283  Process 44: NSS2
+  14550-14832     283  Process 45: RVWR
+  14833-15150     318  Process 46: RSM0
+  15151-15433     283  Process 47: ARC0
+  15434-15716     283  Process 48: TT00
+  15717-15999     283  Process 49: TT01
+  16000-16282     283  Process 50: ARC1
+  16283-16565     283  Process 51: ARC2
+  16566-16848     283  Process 52: ARC3
+  16849-17131     283  Process 53: TT02
+  17132-17433     302  Process 54: AQPC
+  17434-17725     292  Process 55: W002
+  17726-17781      56  Process 56: P000
+  17782-17837      56  Process 57: P001
+  17838-17893      56  Process 58: P002
+  17894-17949      56  Process 59: P003
+  17950-18495     546  Process 60: CJQ0
+  18496-18806     311  Process 61
+  18807-19104     298  Process 62: W004
+  19105-19401     297  Process 63: W007
+  19402-19970     569  Process 64: Q002
+  19971-20514     544  Process 65: Q003
+  20515-21184     670  Process 66: Q004
+  21185-21491     307  Process 67
+  21492-21811     320  Process 68
+  21812-22117     306  Process 69: Q005
+  22118-22495     378  Process 70: M002
+  22496-22778     283  Process 71: CL00
+  22779-23086     308  Process 72
+  23087-23442     356  Process 73
+  23443-23734     292  Process 74
+  23735-23790      56  Process 78: P004
+  23791-23846      56  Process 79: P005
+  23847-23902      56  Process 80: P006
+  23903-23958      56  Process 81: P007
+  23959-24258     300  Process 105: W005
+  24259-24710     452  Process 106: M001
+  24711-25255     545  Process 109: M003
+  25256-25549     294  Process 110: W006
+  25550-26084     535  Process 113: M004
+  26085-26086       2  KSM MGA SYSTEM DUMP START
+  26087-26088       2  KSM MGA SYSTEM DUMP - END
+26089-26094       6  Other lines  [markers and blank lines]

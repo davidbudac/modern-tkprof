@@ -1,0 +1,7 @@
+file diag_pga_detail.trc: 1010 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 5 unplaced
+section pga-detail 46-1001
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-45 (14) other: Other lines  [Processing Oradebug command 'setmypid']
+  46-1001 (956) pga-detail: PGA memory detail (pid 6)
+  1002-1010 (9) other: Other lines  [markers and blank lines]

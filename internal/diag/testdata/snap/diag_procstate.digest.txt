@@ -1,0 +1,18 @@
+Diagnostic dump file diag_procstate.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  10,394 lines, 3 parts at the top level, 1 diagnostic dump section
+
+Outline: first-last line, number of lines, title
+    1-   31      31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+   32-   32       1  Other lines  [markers and blank lines]
+   33-10394  10,362  Process state
+     39- 1875   1,837  process (2)  [Oracle pid 6, ser 35]
+   1876- 2132     257  CURRENT SESSION'S INSTANTIATION STATE
+   2133- 2490     358  Session Cursor Dump
+   2491- 3404     914  Session Cached Cursor Dump
+   3405- 3405       1  Fixed Areas Dump (level=65)
+   3406- 9667   6,262  Dump of the Fixed PGA
+   9668-10390     723  Dump of the Fixed Generic PGA
+  10391-10392       2  KSM MGA PRIVATE DUMP START
+  10393-10394       2  KSM MGA PRIVATE DUMP END

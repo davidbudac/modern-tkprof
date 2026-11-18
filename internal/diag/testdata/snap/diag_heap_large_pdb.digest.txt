@@ -1,0 +1,13 @@
+Diagnostic dump file diag_heap_large_pdb.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  72 lines, 3 parts at the top level, 2 diagnostic dump sections
+
+Outline: first-last line, number of lines, title
+ 1-31  31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+32-39   8  Heap dump: large pool
+40-72  33  Heap dump: large pool  [16.0 MB, depth 0]
+  53-54   2  Extents  [1 extent]
+  55-66  12  Free lists
+  67-69   3  Unpinned recreatable chunks
+  70-72   3  Permanent chunks

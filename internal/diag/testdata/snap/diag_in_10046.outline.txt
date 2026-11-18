@@ -1,0 +1,35 @@
+file diag_in_10046.trc: 29850 lines, version "19.27.0.0.0" tested=true, 99 10046 record lines, 0 unplaced
+section diagdump 114-29753
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-113 (82) trace10046: SQL trace (10046) lines  [44 10046 record lines]
++ 114-29753 (29640) diagdump: Diagnostic dump (level 2)
+      115-116 (2) title: Error Stack Dump
+      117-118 (2) title: Current SQL Statement for this session (sql_id=faaxujvpx61wd)  [select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid]
+      119-124 (6) title: Parser State
+      125-252 (128) title: Call Stack Trace
+    + 253-2077 (1825) title: Binary Stack Dump
+      2078-4124 (2047) title: Argument/Register Address Dump
+      4125-4125 (1) title: End of Call Stack Trace
+      4126-4291 (166) title: Process Map Dump
+      4292-4309 (18) title: Process Resource Limits
+      4310-4310 (1) title: Java Stack
+      4311-4324 (14) title: KSWRDUMP START
+      4325-4325 (1) title: KSWRDUMP END
+      4326-4331 (6) title: KSMEM_DUMP START
+      4332-4332 (1) title: KSMEM_DUMP END
+      4333-4334 (2) title: KSM MGA PRIVATE DUMP START
+      4335-4335 (1) title: KSM MGA PRIVATE DUMP END
+      4336-4336 (1) title: Process State Dump (2)
+    + 4337-9093 (4757) procstate: Process state
+      9094-9094 (1) title: PX Blackbox
+      9095-9802 (708) title: Pinned Buffer History
+      9803-9803 (1) title: end of leaf block Logical dump
+      9804-16384 (6581) title: end of leaf block dump
+      16385-18499 (2115) title: end of branch block dump
+      18500-18500 (1) title: end of leaf block Logical dump
+      18501-29684 (11184) title: end of leaf block dump
+    + 29685-29688 (4) title: IMDB Pinned Buffer History
+      29689-29750 (62) title: Transaction Layer Metadata
+      29751-29753 (3) title: Pluggagle DB Traces
+  29754-29850 (97) trace10046: SQL trace (10046) lines  [55 10046 record lines]

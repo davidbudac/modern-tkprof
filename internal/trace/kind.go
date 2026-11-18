@@ -54,6 +54,16 @@ type SniffOptions struct {
 	// MaxBytes stops the read after about this many bytes (0: no limit); the
 	// result is then not Complete and its Kind is what was seen so far.
 	MaxBytes int64
+	// Line, when set, is called for every line read, after the trackers have
+	// seen it, with its 1-based number, its text without the line terminator
+	// (valid during the call only), the kind the stateless classifier gives
+	// it (KindUnknown inside the text of a cursor) and the diagnostic dump
+	// section that is open after the line: its Kind and First, the zero
+	// Section when none is (a rule held back to see whether a heap dump
+	// follows counts as outside; a section that ends on a line where another
+	// begins shows the new one). It is how internal/diag reads what it needs
+	// of the lines in the same pass that finds the sections.
+	Line func(n int, line []byte, k Kind, open Section)
 }
 
 // Sniff is what SniffFile found.
@@ -122,6 +132,7 @@ func SniffReader(r io.Reader, o SniffOptions) (Sniff, error) {
 			if t.st != optOut || rk.kind == KindUnknown {
 				opt = t.line(res.Lines, line, rk)
 			}
+			wasText := inText
 			switch {
 			case inText: // the text of a cursor holds no section (nor does a BINDS block or a PARSE ERROR's text; those are not followed)
 				inText = string(line) != "END OF STMT"
@@ -132,6 +143,17 @@ func SniffReader(r io.Reader, o SniffOptions) (Sniff, error) {
 				}
 			case sec.st != secOut || rk.kind == KindUnknown:
 				sec.line(res.Lines, line, rk)
+			}
+			if o.Line != nil {
+				k := rk.kind
+				if wasText {
+					k = KindUnknown
+				}
+				var open Section
+				if sec.st != secOut && sec.st != secHeld {
+					open = sec.cur
+				}
+				o.Line(res.Lines, line, k, open)
 			}
 			inText = inText || rk.kind == KindParsingInCursor
 			if isRecordKind(rk.kind) {

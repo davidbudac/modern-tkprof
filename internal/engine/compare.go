@@ -35,7 +35,7 @@ func (s *Server) compareSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, o := range []*Session{sa, sb} {
-		if err := optRefusal(o.op.co.Model, "it cannot be compared in this version"); err != nil {
+		if err := viewRefusal(o, o.op.co.Model, "it cannot be compared in this version"); err != nil {
 			writeError(w, err)
 			return
 		}

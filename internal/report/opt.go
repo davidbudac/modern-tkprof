@@ -70,6 +70,27 @@ func OptScan(m *model.Model) (*opt.Scan, error) {
 	return sc, nil
 }
 
+// OptScanView is OptScan for a session that was asked to open the file as a 10053 file (view 10053): then
+// the file need only hold a dump. A 10046 trace with the dumps interleaved opens as a 10053 session; the
+// scan skips its 10046 records (opt.File.Records10046 counts them). Without explicit it is OptScan, which
+// leaves such a file a 10046 trace.
+func OptScanView(m *model.Model, explicit bool) (*opt.Scan, error) {
+	if !explicit {
+		return OptScan(m)
+	}
+	if m == nil || len(m.File.Files) == 0 || len(m.File.Files[0].Dumps) == 0 {
+		return nil, nil
+	}
+	sc, err := opt.ScanFile(m.File.Files[0].Path)
+	if err != nil {
+		return nil, err
+	}
+	if len(sc.File.Dumps) == 0 {
+		return nil, nil
+	}
+	return sc, nil
+}
+
 // OptBindText is the opt.TextOptions of a bind mode and salt, the same hash
 // the 10046 redaction uses (model.RedactToken): one value gives one token in
 // either kind of report. A value is hashed without the double quotes the

@@ -1534,6 +1534,101 @@ paths:
           description: no such session (envelope), or the session is not a 10053 file or has no such dump (plain text)
         "409":
           $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/file:
+    get:
+      operationId: sessionDiagFile
+      summary: The facts and the top-level outline of a diag session's file
+      description: |
+        `diag.File`: the file's facts (release, version, whether the rules were tested on it, the lines of
+        10046 records it holds, the incident facts of an incident file), the diagnostic dump sections the
+        parser found, the count of lines no part takes (`unplaced`) and the top-level outline (`outline`):
+        the file header, then in file order every section and every run of lines between sections, the nodes
+        tiling the file. At most 2000 nodes are listed; `outlineTotal` says how many there are and the rest
+        is the children of the node `root` (`api/diag/outline`). The scan is made when the session opens.
+        404 (envelope) when the session is not a diag one.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "200":
+          description: the file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagFile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/outline:
+    get:
+      operationId: sessionDiagOutline
+      summary: The children of a node of a diag session's outline
+      description: |
+        The parts of node `node`, found by reading only that node's lines of the file (`root` is the top
+        level). A child can have children. At most 2000 are listed; `more` says how many follow and `next`
+        is the `after` that asks for the next page (the number of children already seen). The children lie
+        inside the node, in file order, and do not overlap. Ids are stable for a file and resolvable here.
+        404 (envelope) when the session is not a diag one or `node` is not a node of it.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: node
+          in: query
+          required: true
+          description: "a node id (`diag.Node.id`), or `root`"
+          schema:
+            type: string
+        - name: after
+          in: query
+          required: false
+          description: how many children the client already has (the `next` of the answer before)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: the children
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagOutline"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/section:
+    get:
+      operationId: sessionDiagSection
+      summary: The reading of one section of a diag session's file
+      description: |
+        The computed reading of section `i` of `diag.File.sections` (a heap's totals, a call stack, a process
+        state). The readings are later stages of the dump reader: for now every section answers 404
+        (envelope) "no reading for this kind of section"; so does a session that is not a diag one, with
+        another message.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: i
+          in: query
+          required: true
+          description: 0-based index into `diag.File.sections`
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /s/{id}/api/lines:
     get:
       operationId: sessionLines
@@ -3601,6 +3696,190 @@ components:
       type: string
       description: "the parser's kind of a trace line (trace.Kind.String()); optimizer is a line of an optimizer (10053) dump, or of the adaptive-plan chatter after one; diagnostic is a line of a diagnostic dump section (a heap dump, an errorstack, a process state, ...; trace.Section)"
       enum: [unknown, blank, header, separator, marker, parsing-in-cursor, sql-text, end-of-stmt, call, wait, stat, binds, bind-line, xctend, error, parse-error, lob, rpc, optimizer, diagnostic]
+    SessionView:
+      type: string
+      enum: ["10046", "10053", diag]
+      description: |
+        How a session reads its file. In the options of `POST /engine/sessions`: `10046` the SQL trace views,
+        `10053` the optimizer dump reader (also for the dumps of a 10046 trace that has them interleaved),
+        `diag` the dump reader (an outline of the file, which holds diagnostic dumps or not); absent: the file
+        decides (10046 records: `10046`; only optimizer dumps: `10053`; otherwise `diag`, also for a file with
+        nothing recognised). One file only: not for a set of several files (400) and not with `follow` (400);
+        `10053` for a file with no dump fails the session. In a session: the view it reads its file in; the
+        one asked for while it opens, set once it is ready.
+    DiagDoc:
+      type: object
+      description: "the `dump` member of the document of a diag session (report.DiagDoc); absent for every other session. The rest of such a document is that of a trace with no 10046 record. (The document's `diag` member is the parser's diagnostics.)"
+      required: [file]
+      additionalProperties: false
+      properties:
+        file:
+          $ref: "#/components/schemas/DiagFile"
+        digest:
+          $ref: "#/components/schemas/DiagDigest"
+    DiagDigest:
+      type: object
+      description: "the digest of a diag file, in a document made for a client without a server (mtkprof html, json, the default command, the engine's HTML and JSON export); a document served by a server leaves it out and the client reads the api/diag routes"
+      required: [outline]
+      additionalProperties: false
+      properties:
+        outline:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDigestNode"
+          description: every node of the top level with its own children (one level down, at most 100)
+    DiagDigestNode:
+      description: a node of the top level and its children
+      allOf:
+        - $ref: "#/components/schemas/DiagNode"
+        - type: object
+          required: [children]
+          properties:
+            children:
+              type: array
+              items:
+                $ref: "#/components/schemas/DiagNode"
+            more:
+              type: integer
+              description: children not listed
+    DiagFile:
+      type: object
+      description: what one pass over a trace file read as a diag file finds (diag.File)
+      required: [name, lines, release, version, tested, records10046, sections, unplaced, outline, outlineTotal]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: base name of the file
+        lines:
+          type: integer
+        release:
+          type: string
+          description: "prologue line 2, e.g. Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production; empty when the file has none"
+        version:
+          type: string
+          description: 'prologue "Version 19.27.0.0.0" as 19.27.0.0.0; empty when the file has none'
+        tested:
+          type: boolean
+          description: the version is a 19.x one (the rules were written for 19c; another version is read with them)
+        records10046:
+          type: integer
+          description: the lines of 10046 records in the file; 0 for a file this view is the default of
+        incident:
+          $ref: "#/components/schemas/DiagIncident"
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSection"
+          description: the diagnostic dumps the parser found, in file order
+        unplaced:
+          type: integer
+          description: the lines outside the header and every section that are none of blank, a marker, a rule line, a 10046 record
+        outline:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagNode"
+          description: "the top level (the nodes tile the file); at most 2000, see outlineTotal"
+        outlineTotal:
+          type: integer
+          description: the nodes of the top level; more than outline lists when over 2000 (the rest are the children of `root`)
+    DiagSection:
+      type: object
+      required: [kind, first, last]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident]
+        first:
+          type: integer
+        last:
+          type: integer
+        cut:
+          type: boolean
+          description: a kind that has an end line stopped without reaching it
+    DiagIncident:
+      type: object
+      description: the facts of an incident file
+      required: [dumpFile]
+      additionalProperties: false
+      properties:
+        dumpFile:
+          type: string
+          description: 'line 1, "Dump file <path>"'
+        continuedFrom:
+          type: string
+          description: 'the trace file of the session that raised the incident ("Dump continued from file:")'
+        id:
+          type: string
+          description: the incident number
+        problem:
+          type: string
+          description: '"ORA 6544 [pevm_peruws_callback-1]"'
+    DiagNode:
+      type: object
+      description: a row of the outline (diag.Node)
+      required: [id, kind, title, from, to, lines, hasChildren]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: 'unique in the file and stable for it ("heap:32-923:1:200"); `root` is the top level'
+        kind:
+          type: string
+          description: "header, other, trace10046; a section (heap, pga-summary, pga-detail, diagdump, procstate, sysstate, hang, deadlock, incident); inside one: title, banner, frame, process, so, chain, toc, extents, extent, freelists, bucket, unpinned, permanent, subheaps"
+        title:
+          type: string
+          description: 'plain words: "Heap dump: pga heap", "Diagnostic dump (level 2)", "Process 6: PMON", "Other lines"'
+        sub:
+          type: string
+          description: a short second line
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        hasChildren:
+          type: boolean
+        "n":
+          type: integer
+          description: "process, frame, chain, extent, bucket: its number; toc: the number of the marker"
+        name:
+          type: string
+          description: "heap: the heap name; process: the process name"
+        depth:
+          type: integer
+          description: 'heap: "dsx heap depth" of the header (0 a top heap, 1 a sub-heap of one, ...); absent when the header has none'
+        size:
+          type: integer
+          description: 'heap: "dsx heap size" of the header, in bytes'
+        records:
+          type: integer
+          description: trace10046 nodes - the number of 10046 records in the run
+        cut:
+          type: boolean
+          description: a section whose end line was not reached
+    DiagOutline:
+      type: object
+      description: the children of a node (diag.Outline)
+      required: [node, children, more]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+          description: the id asked for
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagNode"
+          description: at most 2000, in file order, inside the node, not overlapping
+        more:
+          type: integer
+          description: how many children follow those listed
+        next:
+          type: integer
+          description: when more > 0, the `after` to ask for the next page
     OptDoc:
       type: object
       description: "the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record"
@@ -5691,6 +5970,8 @@ components:
           items:
             type: string
           description: for a 10053 session once it is ready, the distinct sql_ids of the dumps of its file, in file order; absent for every other session
+        view:
+          $ref: "#/components/schemas/SessionView"
     SessionList:
       type: object
       required: [sessions]
@@ -5728,6 +6009,8 @@ components:
         thresholds:
           type: object
           description: finding thresholds (`mtkprof findings-config`); unknown keys are a 400
+        view:
+          $ref: "#/components/schemas/SessionView"
     OpenSessionRequest:
       type: object
       required: [paths]
@@ -6318,6 +6601,8 @@ components:
           items:
             type: string
           description: as in SessionInfo
+        view:
+          $ref: "#/components/schemas/SessionView"
     PromptEvent:
       type: object
       required: [id, connection, kind, text, echo, state]
@@ -6713,6 +6998,8 @@ components:
             type: object
         opt:
           $ref: "#/components/schemas/OptDoc"
+        dump:
+          $ref: "#/components/schemas/DiagDoc"
         stats:
           type: object
           properties:

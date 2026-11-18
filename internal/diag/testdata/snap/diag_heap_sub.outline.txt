@@ -1,0 +1,512 @@
+file diag_heap_sub.trc: 18635 lines, version "19.27.0.0.0" tested=true, 0 10046 record lines, 0 unplaced
+section heap 32-933
+section heap 934-1344
+section heap 1345-1368
+section heap 1369-1498
+section heap 1499-1575
+section heap 1576-1610
+section heap 1611-1738
+section heap 1739-1822
+section heap 1823-1849
+section heap 1850-2322
+section heap 2323-3772
+section heap 3775-4680
+section heap 4681-5091
+section heap 5092-5115
+section heap 5116-5260
+section heap 5261-5321
+section heap 5322-5361
+section heap 5362-5393
+section heap 5394-5426
+section heap 5427-5592
+section heap 5593-5666
+section heap 5667-5711
+section heap 5712-5749
+section heap 5750-5789
+section heap 5790-5824
+section heap 5825-5952
+section heap 5953-6036
+section heap 6037-6063
+section heap 6064-6531
+section heap 6532-7990
+section heap 7991-8161
+section heap 8162-8297
+section heap 8298-8622
+section heap 8623-9082
+section heap 9083-9418
+section heap 9419-9487
+section heap 9488-9526
+section heap 9527-9571
+section heap 9572-9612
+section heap 9613-9645
+section heap 9648-11107
+section heap 11108-11278
+section heap 11279-11414
+section heap 11415-11739
+section heap 11740-12201
+section heap 12202-12537
+section heap 12538-12606
+section heap 12607-12645
+section heap 12646-12690
+section heap 12691-12731
+section heap 12732-12763
+section heap 12764-13669
+section heap 13670-14080
+section heap 14081-14104
+section heap 14105-14249
+section heap 14250-14310
+section heap 14311-14350
+section heap 14351-14382
+section heap 14383-14415
+section heap 14416-14581
+section heap 14582-14655
+section heap 14656-14700
+section heap 14701-14738
+section heap 14739-14778
+section heap 14779-14813
+section heap 14814-14941
+section heap 14942-15025
+section heap 15026-15052
+section heap 15053-15520
+section heap 15521-16980
+section heap 16981-17151
+section heap 17152-17287
+section heap 17288-17612
+section heap 17613-18072
+section heap 18073-18408
+section heap 18409-18477
+section heap 18478-18516
+section heap 18517-18561
+section heap 18562-18602
+section heap 18603-18635
+outline:
+  1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
++ 32-933 (902) heap: Heap dump: pga heap  [4.5 MB, depth 0] depth=0 size=4707160
+    + 41-679 (639) extents: Extents  [103 extents]
+    + 680-716 (37) freelists: Free lists
+      717-717 (1) unpinned: Unpinned recreatable chunks
+      718-921 (204) permanent: Permanent chunks
+      922-933 (12) subheaps: 5 largest sub-heaps  [of "pga heap"]
++ 934-1344 (411) heap: Heap dump: koh-kghu call  [3.4 MB, depth 1] depth=1 size=3546640
+    + 943-1324 (382) extents: Extents  [158 extents]
+    + 1325-1337 (13) freelists: Free lists
+      1338-1338 (1) unpinned: Unpinned recreatable chunks
+      1339-1344 (6) permanent: Permanent chunks
++ 1345-1368 (24) heap: Heap dump: Fixed UGA heap  [223.5 KB, depth 1] depth=1 size=228840
+    + 1354-1357 (4) extents: Extents  [1 extent]
+    + 1358-1361 (4) freelists: Free lists
+      1362-1362 (1) unpinned: Unpinned recreatable chunks
+      1363-1368 (6) permanent: Permanent chunks
++ 1369-1498 (130) heap: Heap dump: diag pga  [207.9 KB, depth 1] depth=1 size=212856
+    + 1378-1471 (94) extents: Extents  [21 extents]
+    + 1472-1477 (6) freelists: Free lists
+      1478-1478 (1) unpinned: Unpinned recreatable chunks
+      1479-1498 (20) permanent: Permanent chunks
++ 1499-1575 (77) heap: Heap dump: Alloc environm  [71.5 KB, depth 1] depth=1 size=73232
+    + 1508-1549 (42) extents: Extents  [13 extents]
+    + 1550-1564 (15) freelists: Free lists
+      1565-1565 (1) unpinned: Unpinned recreatable chunks
+      1566-1575 (10) permanent: Permanent chunks
++ 1576-1610 (35) heap: Heap dump: qmd_init_pga:b  [20.9 KB, depth 1] depth=1 size=21448
+    + 1585-1597 (13) extents: Extents  [5 extents]
+    + 1598-1602 (5) freelists: Free lists
+      1603-1603 (1) unpinned: Unpinned recreatable chunks
+      1604-1610 (7) permanent: Permanent chunks
++ 1611-1738 (128) heap: Heap dump: top call heap  [703.7 KB, depth 0] depth=0 size=720632
+    + 1620-1685 (66) extents: Extents  [11 extents]
+    + 1686-1724 (39) freelists: Free lists
+      1725-1725 (1) unpinned: Unpinned recreatable chunks
+      1726-1732 (7) permanent: Permanent chunks
+      1733-1738 (6) subheaps: 2 largest sub-heaps  [of "top call heap"]
++ 1739-1822 (84) heap: Heap dump: callheap  [75.6 KB, depth 1] depth=1 size=77432
+    + 1748-1791 (44) extents: Extents  [19 extents]
+    + 1792-1815 (24) freelists: Free lists
+      1816-1816 (1) unpinned: Unpinned recreatable chunks
+      1817-1822 (6) permanent: Permanent chunks
++ 1823-1849 (27) heap: Heap dump: callheap  [920 bytes, depth 1] depth=1 size=920
+    + 1832-1835 (4) extents: Extents  [1 extent]
+    + 1836-1842 (7) freelists: Free lists
+      1843-1843 (1) unpinned: Unpinned recreatable chunks
+      1844-1849 (6) permanent: Permanent chunks
++ 1850-2322 (473) heap: Heap dump: top uga heap  [15.6 MB, depth 0] depth=0 size=16315536
+    + 1859-2256 (398) extents: Extents  [122 extents]
+    + 2257-2313 (57) freelists: Free lists
+      2314-2314 (1) unpinned: Unpinned recreatable chunks
+      2315-2318 (4) permanent: Permanent chunks
+      2319-2322 (4) subheaps: 1 largest sub-heaps  [of "top uga heap"]
++ 2323-3772 (1450) heap: Heap dump: session heap  [14.4 MB, depth 1] depth=1 size=15146824
+    + 2332-3548 (1217) extents: Extents  [122 extents]
+    + 3549-3649 (101) freelists: Free lists
+      3650-3650 (1) unpinned: Unpinned recreatable chunks
+      3651-3772 (122) permanent: Permanent chunks
+  3773-3774 (2) other: Other lines  [markers and blank lines]
++ 3775-4680 (906) heap: Heap dump: pga heap  [4.5 MB, depth 0] depth=0 size=4707160
+    + 3784-4426 (643) extents: Extents  [103 extents]
+    + 4427-4463 (37) freelists: Free lists
+      4464-4464 (1) unpinned: Unpinned recreatable chunks
+      4465-4668 (204) permanent: Permanent chunks
+      4669-4680 (12) subheaps: 5 largest sub-heaps  [of "pga heap"]
++ 4681-5091 (411) heap: Heap dump: koh-kghu call  [3.4 MB, depth 1] depth=1 size=3546640
+    + 4690-5071 (382) extents: Extents  [158 extents]
+    + 5072-5084 (13) freelists: Free lists
+      5085-5085 (1) unpinned: Unpinned recreatable chunks
+      5086-5091 (6) permanent: Permanent chunks
++ 5092-5115 (24) heap: Heap dump: Fixed UGA heap  [223.5 KB, depth 1] depth=1 size=228840
+    + 5101-5104 (4) extents: Extents  [1 extent]
+    + 5105-5108 (4) freelists: Free lists
+      5109-5109 (1) unpinned: Unpinned recreatable chunks
+      5110-5115 (6) permanent: Permanent chunks
++ 5116-5260 (145) heap: Heap dump: diag pga  [211.3 KB, depth 1] depth=1 size=216360
+    + 5125-5229 (105) extents: Extents  [26 extents]
+    + 5230-5235 (6) freelists: Free lists
+      5236-5236 (1) unpinned: Unpinned recreatable chunks
+      5237-5254 (18) permanent: Permanent chunks
+      5255-5260 (6) subheaps: 2 largest sub-heaps  [of "diag pga"]
++ 5261-5321 (61) heap: Heap dump: dbgtc heap  [41.6 KB, depth 2] depth=2 size=42632
+    + 5270-5300 (31) extents: Extents  [6 extents]
+    + 5301-5308 (8) freelists: Free lists
+      5309-5309 (1) unpinned: Unpinned recreatable chunks
+      5310-5313 (4) permanent: Permanent chunks
+      5314-5321 (8) subheaps: 3 largest sub-heaps  [of "dbgtc heap"]
++ 5322-5361 (40) heap: Heap dump: 7114.kgght  [33.7 KB, depth 3] depth=3 size=34544
+    + 5331-5341 (11) extents: Extents  [4 extents]
+    + 5342-5346 (5) freelists: Free lists
+      5347-5347 (1) unpinned: Unpinned recreatable chunks
+      5348-5361 (14) permanent: Permanent chunks
++ 5362-5393 (32) heap: Heap dump: 615.kggec  [1.6 KB, depth 3] depth=3 size=1648
+    + 5371-5377 (7) extents: Extents  [2 extents]
+    + 5378-5382 (5) freelists: Free lists
+      5383-5383 (1) unpinned: Unpinned recreatable chunks
+      5384-5393 (10) permanent: Permanent chunks
++ 5394-5426 (33) heap: Heap dump: 7100.kggec  [1.6 KB, depth 3] depth=3 size=1648
+    + 5403-5409 (7) extents: Extents  [2 extents]
+    + 5410-5414 (5) freelists: Free lists
+      5415-5415 (1) unpinned: Unpinned recreatable chunks
+      5416-5426 (11) permanent: Permanent chunks
++ 5427-5592 (166) heap: Heap dump: dbgdutlHeapAll  [24.8 KB, depth 2] depth=2 size=25360
+    + 5436-5464 (29) extents: Extents  [9 extents]
+    + 5465-5471 (7) freelists: Free lists
+      5472-5472 (1) unpinned: Unpinned recreatable chunks
+      5473-5592 (120) permanent: Permanent chunks
++ 5593-5666 (74) heap: Heap dump: Alloc environm  [61.8 KB, depth 1] depth=1 size=63328
+    + 5602-5634 (33) extents: Extents  [10 extents]
+    + 5635-5649 (15) freelists: Free lists
+      5650-5650 (1) unpinned: Unpinned recreatable chunks
+      5651-5658 (8) permanent: Permanent chunks
+      5659-5666 (8) subheaps: 3 largest sub-heaps  [of "Alloc environm"]
++ 5667-5711 (45) heap: Heap dump: Alloc server h  [16.0 KB, depth 2] depth=2 size=16368
+    + 5676-5686 (11) extents: Extents  [3 extents]
+    + 5687-5699 (13) freelists: Free lists
+      5700-5700 (1) unpinned: Unpinned recreatable chunks
+      5701-5711 (11) permanent: Permanent chunks
++ 5712-5749 (38) heap: Heap dump: Alloc server h  [11.9 KB, depth 2] depth=2 size=12224
+    + 5721-5728 (8) extents: Extents  [2 extents]
+    + 5729-5740 (12) freelists: Free lists
+      5741-5741 (1) unpinned: Unpinned recreatable chunks
+      5742-5749 (8) permanent: Permanent chunks
++ 5750-5789 (40) heap: Heap dump: Alloc server h  [11.9 KB, depth 2] depth=2 size=12224
+    + 5759-5766 (8) extents: Extents  [2 extents]
+    + 5767-5778 (12) freelists: Free lists
+      5779-5779 (1) unpinned: Unpinned recreatable chunks
+      5780-5789 (10) permanent: Permanent chunks
++ 5790-5824 (35) heap: Heap dump: qmd_init_pga:b  [20.9 KB, depth 1] depth=1 size=21448
+    + 5799-5811 (13) extents: Extents  [5 extents]
+    + 5812-5816 (5) freelists: Free lists
+      5817-5817 (1) unpinned: Unpinned recreatable chunks
+      5818-5824 (7) permanent: Permanent chunks
++ 5825-5952 (128) heap: Heap dump: top call heap  [703.7 KB, depth 0] depth=0 size=720632
+    + 5834-5899 (66) extents: Extents  [11 extents]
+    + 5900-5938 (39) freelists: Free lists
+      5939-5939 (1) unpinned: Unpinned recreatable chunks
+      5940-5946 (7) permanent: Permanent chunks
+      5947-5952 (6) subheaps: 2 largest sub-heaps  [of "top call heap"]
++ 5953-6036 (84) heap: Heap dump: callheap  [75.6 KB, depth 1] depth=1 size=77432
+    + 5962-6005 (44) extents: Extents  [19 extents]
+    + 6006-6029 (24) freelists: Free lists
+      6030-6030 (1) unpinned: Unpinned recreatable chunks
+      6031-6036 (6) permanent: Permanent chunks
++ 6037-6063 (27) heap: Heap dump: callheap  [920 bytes, depth 1] depth=1 size=920
+    + 6046-6049 (4) extents: Extents  [1 extent]
+    + 6050-6056 (7) freelists: Free lists
+      6057-6057 (1) unpinned: Unpinned recreatable chunks
+      6058-6063 (6) permanent: Permanent chunks
++ 6064-6531 (468) heap: Heap dump: top uga heap  [15.4 MB, depth 0] depth=0 size=16184488
+    + 6073-6466 (394) extents: Extents  [121 extents]
+    + 6467-6522 (56) freelists: Free lists
+      6523-6523 (1) unpinned: Unpinned recreatable chunks
+      6524-6527 (4) permanent: Permanent chunks
+      6528-6531 (4) subheaps: 1 largest sub-heaps  [of "top uga heap"]
++ 6532-7990 (1459) heap: Heap dump: session heap  [14.4 MB, depth 1] depth=1 size=15081360
+    + 6541-7755 (1215) extents: Extents  [121 extents]
+    + 7756-7857 (102) freelists: Free lists
+      7858-7858 (1) unpinned: Unpinned recreatable chunks
+      7859-7978 (120) permanent: Permanent chunks
+      7979-7990 (12) subheaps: 5 largest sub-heaps  [of "session heap"]
++ 7991-8161 (171) heap: Heap dump: kxs-heap-w  [8.7 MB, depth 2] depth=2 size=9168304
+    + 8000-8119 (120) extents: Extents  [38 extents]
+    + 8120-8135 (16) freelists: Free lists
+      8136-8136 (1) unpinned: Unpinned recreatable chunks
+      8137-8157 (21) permanent: Permanent chunks
+      8158-8161 (4) subheaps: 1 largest sub-heaps  [of "kxs-heap-w"]
++ 8162-8297 (136) heap: Heap dump: QERHN hash-joi  [8.6 MB, depth 3] depth=3 size=9024208
+    + 8171-8256 (86) extents: Extents  [35 extents]
+    + 8257-8264 (8) freelists: Free lists
+      8265-8265 (1) unpinned: Unpinned recreatable chunks
+      8266-8297 (32) permanent: Permanent chunks
++ 8298-8622 (325) heap: Heap dump: kxs-heap-w  [2.8 MB, depth 2] depth=2 size=2898360
+    + 8307-8589 (283) extents: Extents  [93 extents]
+    + 8590-8606 (17) freelists: Free lists
+      8607-8607 (1) unpinned: Unpinned recreatable chunks
+      8608-8618 (11) permanent: Permanent chunks
+      8619-8622 (4) subheaps: 1 largest sub-heaps  [of "kxs-heap-w"]
++ 8623-9082 (460) heap: Heap dump: sort subheap  [2.8 MB, depth 3] depth=3 size=2884176
+    + 8632-8848 (217) extents: Extents  [91 extents]
+    + 8849-8892 (44) freelists: Free lists
+      8893-8893 (1) unpinned: Unpinned recreatable chunks
+      8894-9082 (189) permanent: Permanent chunks
++ 9083-9418 (336) heap: Heap dump: koh-kghu sessi  [2.2 MB, depth 2] depth=2 size=2333248
+    + 9092-9381 (290) extents: Extents  [123 extents]
+    + 9382-9411 (30) freelists: Free lists
+      9412-9412 (1) unpinned: Unpinned recreatable chunks
+      9413-9418 (6) permanent: Permanent chunks
++ 9419-9487 (69) heap: Heap dump: Alloc environm  [50.4 KB, depth 2] depth=2 size=51632
+    + 9428-9459 (32) extents: Extents  [10 extents]
+    + 9460-9472 (13) freelists: Free lists
+      9473-9473 (1) unpinned: Unpinned recreatable chunks
+      9474-9479 (6) permanent: Permanent chunks
+      9480-9487 (8) subheaps: 3 largest sub-heaps  [of "Alloc environm"]
++ 9488-9526 (39) heap: Heap dump: Alloc server h  [11.9 KB, depth 3] depth=3 size=12224
+    + 9497-9504 (8) extents: Extents  [2 extents]
+    + 9505-9516 (12) freelists: Free lists
+      9517-9517 (1) unpinned: Unpinned recreatable chunks
+      9518-9526 (9) permanent: Permanent chunks
++ 9527-9571 (45) heap: Heap dump: Alloc statemen  [6.1 KB, depth 3] depth=3 size=6272
+    + 9536-9547 (12) extents: Extents  [2 extents]
+    + 9548-9560 (13) freelists: Free lists
+      9561-9561 (1) unpinned: Unpinned recreatable chunks
+      9562-9571 (10) permanent: Permanent chunks
++ 9572-9612 (41) heap: Heap dump: Alloc authenti  [5.1 KB, depth 3] depth=3 size=5256
+    + 9581-9591 (11) extents: Extents  [2 extents]
+    + 9592-9604 (13) freelists: Free lists
+      9605-9605 (1) unpinned: Unpinned recreatable chunks
+      9606-9612 (7) permanent: Permanent chunks
++ 9613-9645 (33) heap: Heap dump: auditLoadNextG  [12.4 KB, depth 2] depth=2 size=12648
+    + 9622-9629 (8) extents: Extents  [3 extents]
+    + 9630-9633 (4) freelists: Free lists
+      9634-9634 (1) unpinned: Unpinned recreatable chunks
+      9635-9645 (11) permanent: Permanent chunks
+  9646-9647 (2) other: Other lines  [markers and blank lines]
++ 9648-11107 (1460) heap: Heap dump: session heap  [14.4 MB, depth 1] depth=1 size=15081360
+    + 9657-10872 (1216) extents: Extents  [121 extents]
+    + 10873-10974 (102) freelists: Free lists
+      10975-10975 (1) unpinned: Unpinned recreatable chunks
+      10976-11095 (120) permanent: Permanent chunks
+      11096-11107 (12) subheaps: 5 largest sub-heaps  [of "session heap"]
++ 11108-11278 (171) heap: Heap dump: kxs-heap-w  [8.7 MB, depth 2] depth=2 size=9168304
+    + 11117-11236 (120) extents: Extents  [38 extents]
+    + 11237-11252 (16) freelists: Free lists
+      11253-11253 (1) unpinned: Unpinned recreatable chunks
+      11254-11274 (21) permanent: Permanent chunks
+      11275-11278 (4) subheaps: 1 largest sub-heaps  [of "kxs-heap-w"]
++ 11279-11414 (136) heap: Heap dump: QERHN hash-joi  [8.6 MB, depth 3] depth=3 size=9024208
+    + 11288-11373 (86) extents: Extents  [35 extents]
+    + 11374-11381 (8) freelists: Free lists
+      11382-11382 (1) unpinned: Unpinned recreatable chunks
+      11383-11414 (32) permanent: Permanent chunks
++ 11415-11739 (325) heap: Heap dump: kxs-heap-w  [2.8 MB, depth 2] depth=2 size=2898360
+    + 11424-11706 (283) extents: Extents  [93 extents]
+    + 11707-11723 (17) freelists: Free lists
+      11724-11724 (1) unpinned: Unpinned recreatable chunks
+      11725-11735 (11) permanent: Permanent chunks
+      11736-11739 (4) subheaps: 1 largest sub-heaps  [of "kxs-heap-w"]
++ 11740-12201 (462) heap: Heap dump: sort subheap  [2.8 MB, depth 3] depth=3 size=2884176
+    + 11749-11967 (219) extents: Extents  [91 extents]
+    + 11968-12011 (44) freelists: Free lists
+      12012-12012 (1) unpinned: Unpinned recreatable chunks
+      12013-12201 (189) permanent: Permanent chunks
++ 12202-12537 (336) heap: Heap dump: koh-kghu sessi  [2.2 MB, depth 2] depth=2 size=2333248
+    + 12211-12500 (290) extents: Extents  [123 extents]
+    + 12501-12530 (30) freelists: Free lists
+      12531-12531 (1) unpinned: Unpinned recreatable chunks
+      12532-12537 (6) permanent: Permanent chunks
++ 12538-12606 (69) heap: Heap dump: Alloc environm  [50.4 KB, depth 2] depth=2 size=51632
+    + 12547-12578 (32) extents: Extents  [10 extents]
+    + 12579-12591 (13) freelists: Free lists
+      12592-12592 (1) unpinned: Unpinned recreatable chunks
+      12593-12598 (6) permanent: Permanent chunks
+      12599-12606 (8) subheaps: 3 largest sub-heaps  [of "Alloc environm"]
++ 12607-12645 (39) heap: Heap dump: Alloc server h  [11.9 KB, depth 3] depth=3 size=12224
+    + 12616-12623 (8) extents: Extents  [2 extents]
+    + 12624-12635 (12) freelists: Free lists
+      12636-12636 (1) unpinned: Unpinned recreatable chunks
+      12637-12645 (9) permanent: Permanent chunks
++ 12646-12690 (45) heap: Heap dump: Alloc statemen  [6.1 KB, depth 3] depth=3 size=6272
+    + 12655-12666 (12) extents: Extents  [2 extents]
+    + 12667-12679 (13) freelists: Free lists
+      12680-12680 (1) unpinned: Unpinned recreatable chunks
+      12681-12690 (10) permanent: Permanent chunks
++ 12691-12731 (41) heap: Heap dump: Alloc authenti  [5.1 KB, depth 3] depth=3 size=5256
+    + 12700-12710 (11) extents: Extents  [2 extents]
+    + 12711-12723 (13) freelists: Free lists
+      12724-12724 (1) unpinned: Unpinned recreatable chunks
+      12725-12731 (7) permanent: Permanent chunks
++ 12732-12763 (32) heap: Heap dump: auditLoadNextG  [12.4 KB, depth 2] depth=2 size=12648
+    + 12741-12748 (8) extents: Extents  [3 extents]
+    + 12749-12752 (4) freelists: Free lists
+      12753-12753 (1) unpinned: Unpinned recreatable chunks
+      12754-12763 (10) permanent: Permanent chunks
++ 12764-13669 (906) heap: Heap dump: pga heap  [4.5 MB, depth 0] depth=0 size=4707160
+    + 12773-13415 (643) extents: Extents  [103 extents]
+    + 13416-13452 (37) freelists: Free lists
+      13453-13453 (1) unpinned: Unpinned recreatable chunks
+      13454-13657 (204) permanent: Permanent chunks
+      13658-13669 (12) subheaps: 5 largest sub-heaps  [of "pga heap"]
++ 13670-14080 (411) heap: Heap dump: koh-kghu call  [3.4 MB, depth 1] depth=1 size=3546640
+    + 13679-14060 (382) extents: Extents  [158 extents]
+    + 14061-14073 (13) freelists: Free lists
+      14074-14074 (1) unpinned: Unpinned recreatable chunks
+      14075-14080 (6) permanent: Permanent chunks
++ 14081-14104 (24) heap: Heap dump: Fixed UGA heap  [223.5 KB, depth 1] depth=1 size=228840
+    + 14090-14093 (4) extents: Extents  [1 extent]
+    + 14094-14097 (4) freelists: Free lists
+      14098-14098 (1) unpinned: Unpinned recreatable chunks
+      14099-14104 (6) permanent: Permanent chunks
++ 14105-14249 (145) heap: Heap dump: diag pga  [211.3 KB, depth 1] depth=1 size=216360
+    + 14114-14218 (105) extents: Extents  [26 extents]
+    + 14219-14224 (6) freelists: Free lists
+      14225-14225 (1) unpinned: Unpinned recreatable chunks
+      14226-14243 (18) permanent: Permanent chunks
+      14244-14249 (6) subheaps: 2 largest sub-heaps  [of "diag pga"]
++ 14250-14310 (61) heap: Heap dump: dbgtc heap  [41.6 KB, depth 2] depth=2 size=42632
+    + 14259-14289 (31) extents: Extents  [6 extents]
+    + 14290-14297 (8) freelists: Free lists
+      14298-14298 (1) unpinned: Unpinned recreatable chunks
+      14299-14302 (4) permanent: Permanent chunks
+      14303-14310 (8) subheaps: 3 largest sub-heaps  [of "dbgtc heap"]
++ 14311-14350 (40) heap: Heap dump: 7114.kgght  [33.7 KB, depth 3] depth=3 size=34544
+    + 14320-14330 (11) extents: Extents  [4 extents]
+    + 14331-14335 (5) freelists: Free lists
+      14336-14336 (1) unpinned: Unpinned recreatable chunks
+      14337-14350 (14) permanent: Permanent chunks
++ 14351-14382 (32) heap: Heap dump: 615.kggec  [1.6 KB, depth 3] depth=3 size=1648
+    + 14360-14366 (7) extents: Extents  [2 extents]
+    + 14367-14371 (5) freelists: Free lists
+      14372-14372 (1) unpinned: Unpinned recreatable chunks
+      14373-14382 (10) permanent: Permanent chunks
++ 14383-14415 (33) heap: Heap dump: 7100.kggec  [1.6 KB, depth 3] depth=3 size=1648
+    + 14392-14398 (7) extents: Extents  [2 extents]
+    + 14399-14403 (5) freelists: Free lists
+      14404-14404 (1) unpinned: Unpinned recreatable chunks
+      14405-14415 (11) permanent: Permanent chunks
++ 14416-14581 (166) heap: Heap dump: dbgdutlHeapAll  [24.8 KB, depth 2] depth=2 size=25360
+    + 14425-14453 (29) extents: Extents  [9 extents]
+    + 14454-14460 (7) freelists: Free lists
+      14461-14461 (1) unpinned: Unpinned recreatable chunks
+      14462-14581 (120) permanent: Permanent chunks
++ 14582-14655 (74) heap: Heap dump: Alloc environm  [61.8 KB, depth 1] depth=1 size=63328
+    + 14591-14623 (33) extents: Extents  [10 extents]
+    + 14624-14638 (15) freelists: Free lists
+      14639-14639 (1) unpinned: Unpinned recreatable chunks
+      14640-14647 (8) permanent: Permanent chunks
+      14648-14655 (8) subheaps: 3 largest sub-heaps  [of "Alloc environm"]
++ 14656-14700 (45) heap: Heap dump: Alloc server h  [16.0 KB, depth 2] depth=2 size=16368
+    + 14665-14675 (11) extents: Extents  [3 extents]
+    + 14676-14688 (13) freelists: Free lists
+      14689-14689 (1) unpinned: Unpinned recreatable chunks
+      14690-14700 (11) permanent: Permanent chunks
++ 14701-14738 (38) heap: Heap dump: Alloc server h  [11.9 KB, depth 2] depth=2 size=12224
+    + 14710-14717 (8) extents: Extents  [2 extents]
+    + 14718-14729 (12) freelists: Free lists
+      14730-14730 (1) unpinned: Unpinned recreatable chunks
+      14731-14738 (8) permanent: Permanent chunks
++ 14739-14778 (40) heap: Heap dump: Alloc server h  [11.9 KB, depth 2] depth=2 size=12224
+    + 14748-14755 (8) extents: Extents  [2 extents]
+    + 14756-14767 (12) freelists: Free lists
+      14768-14768 (1) unpinned: Unpinned recreatable chunks
+      14769-14778 (10) permanent: Permanent chunks
++ 14779-14813 (35) heap: Heap dump: qmd_init_pga:b  [20.9 KB, depth 1] depth=1 size=21448
+    + 14788-14800 (13) extents: Extents  [5 extents]
+    + 14801-14805 (5) freelists: Free lists
+      14806-14806 (1) unpinned: Unpinned recreatable chunks
+      14807-14813 (7) permanent: Permanent chunks
++ 14814-14941 (128) heap: Heap dump: top call heap  [703.7 KB, depth 0] depth=0 size=720632
+    + 14823-14888 (66) extents: Extents  [11 extents]
+    + 14889-14927 (39) freelists: Free lists
+      14928-14928 (1) unpinned: Unpinned recreatable chunks
+      14929-14935 (7) permanent: Permanent chunks
+      14936-14941 (6) subheaps: 2 largest sub-heaps  [of "top call heap"]
++ 14942-15025 (84) heap: Heap dump: callheap  [75.6 KB, depth 1] depth=1 size=77432
+    + 14951-14994 (44) extents: Extents  [19 extents]
+    + 14995-15018 (24) freelists: Free lists
+      15019-15019 (1) unpinned: Unpinned recreatable chunks
+      15020-15025 (6) permanent: Permanent chunks
++ 15026-15052 (27) heap: Heap dump: callheap  [920 bytes, depth 1] depth=1 size=920
+    + 15035-15038 (4) extents: Extents  [1 extent]
+    + 15039-15045 (7) freelists: Free lists
+      15046-15046 (1) unpinned: Unpinned recreatable chunks
+      15047-15052 (6) permanent: Permanent chunks
++ 15053-15520 (468) heap: Heap dump: top uga heap  [15.4 MB, depth 0] depth=0 size=16184488
+    + 15062-15455 (394) extents: Extents  [121 extents]
+    + 15456-15511 (56) freelists: Free lists
+      15512-15512 (1) unpinned: Unpinned recreatable chunks
+      15513-15516 (4) permanent: Permanent chunks
+      15517-15520 (4) subheaps: 1 largest sub-heaps  [of "top uga heap"]
++ 15521-16980 (1460) heap: Heap dump: session heap  [14.4 MB, depth 1] depth=1 size=15081360
+    + 15530-16745 (1216) extents: Extents  [121 extents]
+    + 16746-16847 (102) freelists: Free lists
+      16848-16848 (1) unpinned: Unpinned recreatable chunks
+      16849-16968 (120) permanent: Permanent chunks
+      16969-16980 (12) subheaps: 5 largest sub-heaps  [of "session heap"]
++ 16981-17151 (171) heap: Heap dump: kxs-heap-w  [8.7 MB, depth 2] depth=2 size=9168304
+    + 16990-17109 (120) extents: Extents  [38 extents]
+    + 17110-17125 (16) freelists: Free lists
+      17126-17126 (1) unpinned: Unpinned recreatable chunks
+      17127-17147 (21) permanent: Permanent chunks
+      17148-17151 (4) subheaps: 1 largest sub-heaps  [of "kxs-heap-w"]
++ 17152-17287 (136) heap: Heap dump: QERHN hash-joi  [8.6 MB, depth 3] depth=3 size=9024208
+    + 17161-17246 (86) extents: Extents  [35 extents]
+    + 17247-17254 (8) freelists: Free lists
+      17255-17255 (1) unpinned: Unpinned recreatable chunks
+      17256-17287 (32) permanent: Permanent chunks
++ 17288-17612 (325) heap: Heap dump: kxs-heap-w  [2.8 MB, depth 2] depth=2 size=2898360
+    + 17297-17579 (283) extents: Extents  [93 extents]
+    + 17580-17596 (17) freelists: Free lists
+      17597-17597 (1) unpinned: Unpinned recreatable chunks
+      17598-17608 (11) permanent: Permanent chunks
+      17609-17612 (4) subheaps: 1 largest sub-heaps  [of "kxs-heap-w"]
++ 17613-18072 (460) heap: Heap dump: sort subheap  [2.8 MB, depth 3] depth=3 size=2884176
+    + 17622-17838 (217) extents: Extents  [91 extents]
+    + 17839-17882 (44) freelists: Free lists
+      17883-17883 (1) unpinned: Unpinned recreatable chunks
+      17884-18072 (189) permanent: Permanent chunks
++ 18073-18408 (336) heap: Heap dump: koh-kghu sessi  [2.2 MB, depth 2] depth=2 size=2333248
+    + 18082-18371 (290) extents: Extents  [123 extents]
+    + 18372-18401 (30) freelists: Free lists
+      18402-18402 (1) unpinned: Unpinned recreatable chunks
+      18403-18408 (6) permanent: Permanent chunks
++ 18409-18477 (69) heap: Heap dump: Alloc environm  [50.4 KB, depth 2] depth=2 size=51632
+    + 18418-18449 (32) extents: Extents  [10 extents]
+    + 18450-18462 (13) freelists: Free lists
+      18463-18463 (1) unpinned: Unpinned recreatable chunks
+      18464-18469 (6) permanent: Permanent chunks
+      18470-18477 (8) subheaps: 3 largest sub-heaps  [of "Alloc environm"]
++ 18478-18516 (39) heap: Heap dump: Alloc server h  [11.9 KB, depth 3] depth=3 size=12224
+    + 18487-18494 (8) extents: Extents  [2 extents]
+    + 18495-18506 (12) freelists: Free lists
+      18507-18507 (1) unpinned: Unpinned recreatable chunks
+      18508-18516 (9) permanent: Permanent chunks
++ 18517-18561 (45) heap: Heap dump: Alloc statemen  [6.1 KB, depth 3] depth=3 size=6272
+    + 18526-18537 (12) extents: Extents  [2 extents]
+    + 18538-18550 (13) freelists: Free lists
+      18551-18551 (1) unpinned: Unpinned recreatable chunks
+      18552-18561 (10) permanent: Permanent chunks
++ 18562-18602 (41) heap: Heap dump: Alloc authenti  [5.1 KB, depth 3] depth=3 size=5256
+    + 18571-18581 (11) extents: Extents  [2 extents]
+    + 18582-18594 (13) freelists: Free lists
+      18595-18595 (1) unpinned: Unpinned recreatable chunks
+      18596-18602 (7) permanent: Permanent chunks
++ 18603-18635 (33) heap: Heap dump: auditLoadNextG  [12.4 KB, depth 2] depth=2 size=12648
+    + 18612-18619 (8) extents: Extents  [3 extents]
+    + 18620-18623 (4) freelists: Free lists
+      18624-18624 (1) unpinned: Unpinned recreatable chunks
+      18625-18635 (11) permanent: Permanent chunks

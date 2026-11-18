@@ -1,0 +1,18 @@
+Diagnostic dump file diag_pga_summary.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  776 lines, 3 parts at the top level, 1 diagnostic dump section
+
+Outline: first-last line, number of lines, title
+  1- 31   31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+ 32- 32    1  Other lines  [markers and blank lines]
+ 33-776  744  PGA memory summary
+   56-102   47  PRIVATE MEMORY SUMMARY FOR THIS PROCESS
+  103-113   11  REAL-FREE ALLOCATOR DUMP FOR THIS PROCESS
+  114-169   56  INSTANCE-WIDE PRIVATE MEMORY USAGE SUMMARY
+  170-353  184  PER-PROCESS PRIVATE MEMORY USAGE
+  354-760  407  ESTIMATED MEMORY USES FOR ALL PROCESSES
+  761-766    6  MGA MEMORY USAGE SUMMARY FOR ALL PROCESSES
+  767-768    2  KSM MGA SYSTEM DUMP START
+  769-770    2  KSM MGA SYSTEM DUMP - END
+  771-776    6  SWAP INFORMATION

@@ -1,0 +1,33 @@
+Diagnostic dump file diag_heap_uga.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  4,404 lines, 7 parts at the top level, 5 diagnostic dump sections
+
+Outline: first-last line, number of lines, title
+   1-  31     31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-1480  1,449  Heap dump: session heap  [14.4 MB, depth 1]
+    41-1257  1,217  Extents  [122 extents]
+  1258-1358    101  Free lists
+  1359-1359      1  Unpinned recreatable chunks
+  1360-1480    121  Permanent chunks
+1481-1482      2  Other lines  [markers and blank lines]
+1483-2920  1,438  Heap dump: session heap  [14.4 MB, depth 1]
+  1492-2700  1,209  Extents  [121 extents]
+  2701-2798     98  Free lists
+  2799-2799      1  Unpinned recreatable chunks
+  2800-2920    121  Permanent chunks
+2921-3816    896  Heap dump: pga heap  [4.5 MB, depth 0]
+  2930-3572    643  Extents  [103 extents]
+  3573-3609     37  Free lists
+  3610-3610      1  Unpinned recreatable chunks
+  3611-3816    206  Permanent chunks
+3817-3939    123  Heap dump: top call heap  [703.7 KB, depth 0]
+  3826-3891     66  Extents  [11 extents]
+  3892-3930     39  Free lists
+  3931-3931      1  Unpinned recreatable chunks
+  3932-3939      8  Permanent chunks
+3940-4404    465  Heap dump: top uga heap  [15.4 MB, depth 0]
+  3949-4342    394  Extents  [121 extents]
+  4343-4398     56  Free lists
+  4399-4399      1  Unpinned recreatable chunks
+  4400-4404      5  Permanent chunks

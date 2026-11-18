@@ -376,6 +376,7 @@ func cmdReport(args []string) error {
 	fs.IntVar(&opts.Width, "width", 120, "report width")
 	nf := addFollowFlag(fs)
 	addAggregateFlag(fs)
+	addViewFlag(fs)
 	files := parseArgs(fs, args)
 	var err error
 	opts.Thresholds, err = loadThresholds(*fc)
@@ -396,13 +397,16 @@ func cmdReport(args []string) error {
 		return err
 	}
 	defer w.Close()
-	oi, done, err := optInput(m, bf, false, true)
+	v, err := openView(m, bf, false, true)
 	if err != nil {
 		return err
 	}
-	defer done()
-	if oi != nil { // a 10053 file: its digest
-		return report.OptText(w, oi)
+	defer v.done()
+	switch {
+	case v.opt != nil: // a 10053 file: its digest
+		return report.OptText(w, v.opt)
+	case v.diag != nil: // a diag file: its digest
+		return report.DiagText(w, v.diag)
 	}
 	return report.Text(w, m, opts)
 }
@@ -421,6 +425,7 @@ func cmdJSON(args []string) error {
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
 	addAggregateFlag(fs)
+	addViewFlag(fs)
 	files := parseArgs(fs, args)
 	th, err := loadThresholds(*fc)
 	if err != nil {
@@ -440,12 +445,12 @@ func cmdJSON(args []string) error {
 		return err
 	}
 	defer w.Close()
-	do, done, err := withOpt(report.DocOptions{Facts: *facts && !aggregate, Packed: *packed, PlanVizURL: *pv, Thresholds: th}, m, bf, true)
+	v, err := openView(m, bf, true, true)
 	if err != nil {
 		return err
 	}
-	defer done()
-	return report.JSON(w, m, do)
+	defer v.done()
+	return report.JSON(w, v.dm, v.options(report.DocOptions{Facts: *facts && !aggregate, Packed: *packed, PlanVizURL: *pv, Thresholds: th}))
 }
 
 func cmdHTML(args []string) error {
@@ -461,6 +466,7 @@ func cmdHTML(args []string) error {
 	bf := addBindFlags(fs)
 	nf := addFollowFlag(fs)
 	addAggregateFlag(fs)
+	addViewFlag(fs)
 	files := parseArgs(fs, args)
 	if !ui.Built() {
 		return fmt.Errorf("built without the web UI (make web, then rebuild)")
@@ -482,12 +488,12 @@ func cmdHTML(args []string) error {
 	if path == "" {
 		path = outBase(files) + ".html"
 	}
-	do, done, err := withOpt(report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th}, m, bf, true)
+	v, err := openView(m, bf, true, true)
 	if err != nil {
 		return err
 	}
-	defer done()
-	return writeHTML(path, m, do)
+	defer v.done()
+	return writeHTML(path, v.dm, v.options(report.DocOptions{Facts: *facts && !aggregate, Packed: true, PlanVizURL: *pv, Thresholds: th}))
 }
 
 // writeHTML writes the self-contained HTML report of m to path.
@@ -559,6 +565,7 @@ func cmdServe(args []string) error {
 	addAggregateFlag(fs)
 	fs.Var(&spillCfg, "spill", "-aggregate build + calls, waits and binds spilled to temp files in DIR (default system temp dir; -spill=DIR form); drill-downs scan them; removed on exit")
 	bf := addBindFlags(fs)
+	addViewFlag(fs)
 	files := parseArgs(fs, args)
 	// Without the fact tables in the document the browser has nothing to slice: the
 	// server keeps the model and answers the queries (docs/ARCHITECTURE.md § Server-side slicing).
@@ -588,13 +595,18 @@ func cmdServe(args []string) error {
 	}
 	bf.apply(m)
 	// A 10053 file: the document says so ("opt.file"), and the two api/opt routes
-	// answer for its dumps. No digest: the browser reads the routes.
-	oi, done, err := optInput(m, bf, false, false)
+	// answer for its dumps. A diag file: "dump.file", and the three api/diag routes. No digest: the
+	// browser reads the routes.
+	v, err := openView(m, bf, false, false)
 	if err != nil {
 		return err
 	}
-	defer done()
-	doc, err := report.DocumentBytes(m, report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th, Slice: slicing, Opt: oi})
+	defer v.done()
+	oi := v.opt
+	if v.diag != nil {
+		slicing = true // the file's lines and search are served by the slicing server, which needs no facts of an empty model
+	}
+	doc, err := report.DocumentBytes(v.dm, v.options(report.DocOptions{Facts: *facts, Packed: true, PlanVizURL: *pv, Thresholds: th, Slice: slicing}))
 	if err != nil {
 		return err
 	}
@@ -628,6 +640,12 @@ func cmdServe(args []string) error {
 		defer osrv.Close()
 		mux.Handle("/api/opt/dump", osrv.DumpHandler())
 		mux.Handle("/api/opt/text", osrv.TextHandler())
+	}
+	if dsrv := diagServer(m, v, lis); dsrv != nil {
+		defer dsrv.Close()
+		mux.Handle("/api/diag/file", dsrv.FileHandler())
+		mux.Handle("/api/diag/outline", dsrv.OutlineHandler())
+		mux.Handle("/api/diag/section", dsrv.SectionHandler())
 	}
 	// The slicing modes serve the line endpoints too (lines incl. annot=1,
 	// lines/at, at, search); /api/doc below is the longer pattern's exception.
@@ -703,9 +721,17 @@ func buildModel(files []string, noFollow bool) (*model.Model, error) {
 	// A 10053 file is a run of its own: left out of a set of 10046 files, the
 	// first of a set of 10053 files (the others are named in a note).
 	optNotes = nil
+	inputCount = len(files)
+	if exp, err := model.ExpandInputs(files); err == nil {
+		inputCount = len(exp)
+		if viewReq != "" && viewReq != model.View10046 && len(exp) != 1 {
+			return nil, fmt.Errorf("view %s opens one file, not a set of %d", viewReq, len(exp))
+		}
+	}
 	if exp, err := model.ExpandInputs(files); err == nil && len(exp) > 1 {
 		if kept, notes := model.OptInputs(exp); len(notes) > 0 {
 			files, optNotes = kept, notes
+			inputCount = len(kept) // a set of files with no 10046 record is read as its first file
 			for _, n := range notes {
 				fmt.Fprintln(os.Stderr, "note:", n)
 			}

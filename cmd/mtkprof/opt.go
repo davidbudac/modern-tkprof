@@ -31,6 +31,9 @@ func buildTrace(nothing string, files []string, noFollow bool) (*model.Model, er
 	if m.OptOnly() {
 		return nil, fmt.Errorf("%s is a 10053 file: %s; mtkprof report prints its digest", filepath.Base(m.File.Files[0].Path), nothing)
 	}
+	if msg := diagRefusal(m, nothing); msg != "" {
+		return nil, fmt.Errorf("%s", msg)
+	}
 	return m, nil
 }
 
@@ -40,7 +43,13 @@ func buildTrace(nothing string, files []string, noFollow bool) (*model.Model, er
 // (digest, and the text report's plan table); the returned function closes
 // it.
 func optInput(m *model.Model, bf *bindFlags, digest, lines bool) (*report.OptInput, func(), error) {
-	sc, err := report.OptScan(m)
+	return optInputView(m, bf, digest, lines, false)
+}
+
+// optInputView is optInput; explicit says the user asked for the 10053 view (-view 10053), which also
+// opens a trace that has its dumps interleaved with 10046 records.
+func optInputView(m *model.Model, bf *bindFlags, digest, lines, explicit bool) (*report.OptInput, func(), error) {
+	sc, err := report.OptScanView(m, explicit)
 	if err != nil || sc == nil {
 		return nil, func() {}, err
 	}

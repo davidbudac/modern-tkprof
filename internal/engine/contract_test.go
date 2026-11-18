@@ -14,6 +14,7 @@ import (
 	"github.com/davidbudac/modern-tkprof/internal/analyze"
 	"github.com/davidbudac/modern-tkprof/internal/assist"
 	"github.com/davidbudac/modern-tkprof/internal/cut"
+	"github.com/davidbudac/modern-tkprof/internal/diag"
 	"github.com/davidbudac/modern-tkprof/internal/opt"
 	"github.com/davidbudac/modern-tkprof/internal/peek"
 	"github.com/davidbudac/modern-tkprof/internal/remote"
@@ -178,8 +179,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 45 {
-		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools and the 2 opt routes", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 48 {
+		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools, the 2 opt routes and the 3 diag routes", n)
 	}
 }
 
@@ -263,6 +264,8 @@ func TestContractSchemas(t *testing.T) {
 		"OptLandmark": opt.Landmark{}, "OptFold": opt.Fold{}, "OptRun": opt.Run{}, "OptSQL": opt.SQL{}, "OptPlan": opt.Plan{},
 		"OptPlanRow": opt.PlanRow{}, "OptPlanQB": opt.PlanQB{}, "OptPlanPred": opt.PlanPred{}, "OptTerm": opt.Term{},
 		"OptBanner": opt.Banner{}, "OptHint": opt.Hint{}, "OptBind": opt.Bind{}, "OptParam": opt.Param{},
+		"DiagDoc": report.DiagDoc{}, "DiagDigest": diag.Digest{}, "DiagFile": diag.File{}, "DiagSection": diag.Section{}, "DiagIncident": diag.Incident{},
+		"DiagNode": diag.Node{}, "DiagOutline": diag.Outline{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

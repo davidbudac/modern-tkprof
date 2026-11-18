@@ -1,0 +1,11 @@
+Diagnostic dump file diag_pga_detail.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  1,010 lines, 4 parts at the top level, 1 diagnostic dump section
+  5 lines in no known part (they are in the parts called Other lines)
+
+Outline: first-last line, number of lines, title
+   1-  31     31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+  32-  45     14  Other lines  [Processing Oradebug command 'setmypid']
+  46-1001    956  PGA memory detail (pid 6)
+1002-1010      9  Other lines  [markers and blank lines]

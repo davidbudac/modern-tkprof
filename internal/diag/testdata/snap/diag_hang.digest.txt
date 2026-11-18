@@ -1,0 +1,15 @@
+Diagnostic dump file diag_hang.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  279 lines, 4 parts at the top level, 1 diagnostic dump section
+  3 lines in no known part (they are in the parts called Other lines)
+
+Outline: first-last line, number of lines, title
+  1- 31   31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+ 32- 41   10  Other lines  [Processing Oradebug command 'setmypid']
+ 42-275  234  Hang analysis
+   55- 61    7  Chains most likely to have caused the hang
+   62-244  183  Non-intersecting chains
+  245-258   14  State of ALL nodes
+  259-275   17  HANG ANALYSIS DUMPS
+276-279    4  Other lines  [markers and blank lines]

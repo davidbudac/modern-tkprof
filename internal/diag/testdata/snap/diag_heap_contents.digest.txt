@@ -1,0 +1,22 @@
+Diagnostic dump file diag_heap_contents.trc
+  Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+  version 19.27.0.0.0 (the version the rules were tested on)
+  26,247 lines, 4 parts at the top level, 3 diagnostic dump sections
+
+Outline: first-last line, number of lines, title
+    1-   31      31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
+   32-17213  17,182  Heap dump: pga heap  [1.1 MB, depth 0]
+     41-11655  11,615  Extents  [48 extents]
+  11656-11743      88  Free lists
+  11744-11744       1  Unpinned recreatable chunks
+  11745-17213   5,469  Permanent chunks
+17214-17808     595  Heap dump: top call heap  [64.0 KB, depth 0]
+  17223-17548     326  Extents  [1 extent]
+  17549-17780     232  Free lists
+  17781-17781       1  Unpinned recreatable chunks
+  17782-17808      27  Permanent chunks
+17809-26247   8,439  Heap dump: top uga heap  [255.9 KB, depth 0]
+  17818-26204   8,387  Extents  [4 extents]
+  26205-26231      27  Free lists
+  26232-26232       1  Unpinned recreatable chunks
+  26233-26247      15  Permanent chunks
