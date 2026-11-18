@@ -647,6 +647,7 @@ func cmdServe(args []string) error {
 		mux.Handle("/api/diag/outline", dsrv.OutlineHandler())
 		mux.Handle("/api/diag/reading", dsrv.ReadingHandler())
 		mux.Handle("/api/diag/reading/lines", dsrv.ReadingLinesHandler())
+		mux.Handle("/api/diag/path", dsrv.PathHandler())
 	}
 	// The slicing modes serve the line endpoints too (lines incl. annot=1,
 	// lines/at, at, search); /api/doc below is the longer pattern's exception.

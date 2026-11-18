@@ -7,6 +7,52 @@ Outline: first-last line, number of lines, title
   1- 31   31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
  32- 32    1  Other lines  [markers and blank lines]
  33-305  273  Hang analysis
+    hang analysis, instances cdb1.cdb1, node dump level 3
+    chains most likely to have caused the hang (3; each signature lists the head's event first):
+      [a] chain 1: 'PL/SQL lock timer' <= 'enq: TX - row lock contention' <= 'enq: TX - row lock contention'  hash 0x5e4fa8d6
+      [b] chain 2: 'Streams AQ: waiting for messages in the queue'  hash 0xa00e2e87
+      [c] chain 3: 'Redo Transport Attach'  hash 0xa4e49b5e
+    chain 1 [a] (Non-intersecting chains, lines 57-174): 3 sessions; the first session waits, each next one blocks the one before it
+      1. session 255.5904 (instance 1 (cdb1.cdb1), os id 14128, process 41, pdb PDB1, module mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+         waits for 'enq: TX - row lock contention' 4.009843 s, timeout after 55.990157 sec, blocking 0
+           p1: 'name|mode'=0x54580006
+           p2: 'usn<<16 | slot'=0x30011
+           p3: 'sequence'=0x5d6b
+         statement: current sql_id 3373088609 (the high 32 bits of the sql_id, not a hash value)
+         wait history (latest first): SQL*Net message from client 0.000246 s; SQL*Net message to client 0.000002 s; PL/SQL lock timer 2.000089 s
+      2. session 22.39906 (instance 1 (cdb1.cdb1), os id 14130, process 68, pdb PDB1, module mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+         waits for 'enq: TX - row lock contention' 4.968604 s, timeout after 55.031396 sec, blocking 1
+           p1: 'name|mode'=0x54580006
+           p2: 'usn<<16 | slot'=0x90010
+           p3: 'sequence'=0x5d8b
+         statement: current sql_id 3824709289 (the high 32 bits of the sql_id, not a hash value)
+         wait history (latest first): SQL*Net message from client 0.000148 s; SQL*Net message to client 0 s; SQL*Net message from client 0.000158 s
+      3. session 45.38231 (instance 1 (cdb1.cdb1), os id 14125, process 6, pdb PDB1, module mtk_diag_chain-dg1.localdomain (TNS V1-V3))
+         waits for 'PL/SQL lock timer' 6.049487 s, timeout after 9.950513 sec, blocking 2
+           p1: 'duration'=0x0
+         statement: current sql_id 325942433 (the high 32 bits of the sql_id, not a hash value)
+         wait history (latest first): SQL*Net message from client 0.000075 s; SQL*Net message to client 0.000001 s; SQL*Net message from client 0.000085 s
+    chain 2 [b] (Sessions in an involuntary wait or not in a wait, lines 178-226): 1 session; the first session waits, each next one blocks the one before it
+      1. session 3.48564 (instance 1 (cdb1.cdb1), os id 12239, process 40, pdb CDB$ROOT, module DBMS_SCHEDULER-dg1.localdomain (TNS V1-V3))
+         waits for 'Streams AQ: waiting for messages in the queue' 0.945994 s, timeout after 4.054006 sec, blocking 0
+           p1: 'queue id'=0x14660
+           p2: 'process#'=0xa258d408
+           p3: 'wait time'=0x5
+         statement: current sql_id 2279214261 (the high 32 bits of the sql_id, not a hash value)
+         wait history (latest first): Streams AQ: waiting for messages in the queue 5.000091 s; Streams AQ: waiting for messages in the queue 5.00009 s; Streams AQ: waiting for messages in the queue 5.000092 s
+    chain 3 [c] (Sessions in an involuntary wait or not in a wait, lines 227-268): 1 session; the first session waits, each next one blocks the one before it
+      1. session 27.50573 (instance 1 (cdb1.cdb1), os id 2929, process 48, pdb CDB$ROOT)
+         waits for 'Redo Transport Attach' 4.494975 s, timeout after never, blocking 0
+         statement: none (current sql_id 0)
+         wait history (latest first): Data Guard: Gap Manager 1.000071 s; control file sequential read 0.000001 s; control file sequential read 0.000001 s
+    state of all nodes (5 nodes; adjacency is the node the session is blocked by):
+      [2]    3.48564   12239  SINGLE_NODE
+      [21]   22.39906  14130  NLEAF        44
+      [26]   27.50573  2929   SINGLE_NODE
+      [44]   45.38231  14125  LEAF
+      [254]  255.5904  14128  NLEAF        21
+    analysis dumps (line 288): level 3; 5 local nodes; No processes qualify for dumping.
+    note: the dump does not say what initiated the analysis (the oradebug form prints "analysis initiated by oradebug")
    45- 53    9  Chains most likely to have caused the hang
    54-272  219  Non-intersecting chains
   273-287   15  State of ALL nodes

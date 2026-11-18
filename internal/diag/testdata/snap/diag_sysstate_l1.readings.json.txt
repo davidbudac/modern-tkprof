@@ -1,3 +1,208 @@
+== sysstate 40-26088
+{
+  "blocked": 2,
+  "bodyMarks": true,
+  "caller": {
+    "line": 38,
+    "own": 2,
+    "stack": "ksedsts()+426\u003c-ksdxfstk()+63\u003c-ksdxdocmdmultex()+5627\u003c-ksdxdocmdmult()+55\u003c-ksudmp_proc_short_stack()+373\u003c-ksudss_opt()+307\u003c-ksdxdmp()+1425\u003c-ksdxfdmp()+152\u003c-ksdxen_int()+3381\u003c-opiodr()+1264\u003c-ttcpip()+1219\u003c-opitsk()+1925\u003c-opiino()+939\u003c-opiodr()+1264\u003c-opidrv()+1094\u003c-sou2o()+165\u003c-opimai_real()+422\u003c-ssthrdmain()+417\u003c-main()+256\u003c-__libc_start_call_main()+128",
+    "stackNoOwn": "ksdxdocmdmultex()+5627\u003c-ksdxdocmdmult()+55\u003c-ksudmp_proc_short_stack()+373\u003c-ksudss_opt()+307\u003c-ksdxdmp()+1425\u003c-ksdxfdmp()+152\u003c-ksdxen_int()+3381\u003c-opiodr()+1264\u003c-ttcpip()+1219\u003c-opitsk()+1925\u003c-opiino()+939\u003c-opiodr()+1264\u003c-opidrv()+1094\u003c-sou2o()+165\u003c-opimai_real()+422\u003c-ssthrdmain()+417\u003c-main()+256\u003c-__libc_start_call_main()+128"
+  },
+  "command": "dump systemstate 1",
+  "commandLine": 35,
+  "counts": {
+    "background": 73,
+    "idle": 79,
+    "idleBackground": 73,
+    "processes": 82,
+    "pseudo": 1,
+    "user": 8,
+    "withoutSession": 11
+  },
+  "ended": true,
+  "from": 40,
+  "kind": "sysstate",
+  "level": "level=1",
+  "levelNum": 1,
+  "lines": 26049,
+  "node": "sysstate:40-26088:1:235",
+  "notes": [
+    "level 1 prints the process and its sessions only: no library object locks, so a statement is the address of its library handle"
+  ],
+  "processes": [
+    {
+      "background": false,
+      "blocked": false,
+      "blockedBy": [],
+      "blocks": 0,
+      "body": true,
+      "flags": "PSEUDO",
+      "idle": true,
+      "inWait": false,
+      "kind": "pseudo",
+      "line": 43,
+      "name": "PSEUDO",
+      "node": "process:2238-2293:1:235",
+      "nodeLine": 2238,
+      "pid": 1,
+      "serial": 0,
+      "sid": 0
+    },
+    {
+      "background": true,
+      "blocked": false,
+      "blockedBy": [],
+      "blocks": 0,
+      "body": true,
+      "class": "Idle",
+      "command": 0,
+      "container": "CDB$ROOT",
+      "event": "pmon timer",
+      "flags": "SYSTEM",
+      "idle": true,
+      "inWait": true,
+      "kind": "background",
+      "line": 44,
+      "name": "PMON",
+      "node": "process:2294-2576:1:235",
+      "nodeLine": 2294,
+      "ospid": "2188",
+      "pid": 2,
+      "serial": 13443,
+      "session": "1.13443",
+      "sessionLine": 2353,
+      "sid": 1,
+      "user": "SYS",
+      "waitSec": 2.313862
+    },
+    {
+      "background": true,
+      "blocked": false,
+      "blockedBy": [],
+      "blocks": 0,
+      "body": true,
+      "class": "Idle",
+      "command": 0,
+      "container": "CDB$ROOT",
+      "event": "pmon timer",
+      "flags": "SYSTEM",
+      "idle": true,
+      "inWait": true,
+      "kind": "background",
+      "line": 45,
+      "name": "CLMN",
+      "node": "process:2577-2859:1:235",
+      "nodeLine": 2577,
+      "ospid": "2192",
+      "pid": 3,
+      "serial": 5180,
+      "session": "238.5180",
+      "sessionLine": 2636,
+      "sid": 238,
+      "user": "SYS",
+      "waitSec": 2.32436
+    },
+    {
+      "background": true,
+      "blocked": false,
+      "blockedBy": [],
+      "blocks": 0,
+      "body": true,
+      "class": "Idle",
+      "command": 0,
+      "container": "CDB$ROOT",
+      "event": "rdbms ipc message",
+      "flags": "SYSTEM",
+      "idle": true,
+      "inWait": true,
+      "kind": "background",
+      "line": 46,
+      "name": "PSP0",
+      "node": "process:2860-3142:1:235",
+      "nodeLine": 2860,
+      "ospid": "2196",
+      "pid": 4,
+      "serial": 36989,
+      "session": "2.36989",
+      "sessionLine": 2919,
+      "sid": 2,
+      "user": "SYS",
+      "waitSec": 0.185249
+    },
+    "... 78 more"
+  ],
+  "processesOmitted": 0,
+  "roots": 1,
+  "session": "61.58038",
+  "shortStacks": false,
+  "summaryLine": 42,
+  "summaryMarks": true,
+  "titleLine": 40,
+  "to": 26088,
+  "tree": [
+    {
+      "action": "s1_holds_301",
+      "blocks": 2,
+      "children": [
+        {
+          "action": "s2_holds_302_waits_301",
+          "blocks": 1,
+          "children": [
+            {
+              "action": "s3_waits_302",
+              "blocks": 0,
+              "children": [],
+              "cmd": "SELECT",
+              "descendants": 0,
+              "event": "enq: TX - row lock contention",
+              "finalBlocker": "52.41898",
+              "inWait": true,
+              "line": 18559,
+              "module": "mtk_diag_chain",
+              "node": "process:18496-18806:1:235",
+              "pid": 61,
+              "serial": 62769,
+              "session": "255.62769",
+              "sid": 255,
+              "user": "MTK",
+              "waitSec": 4.025474
+            }
+          ],
+          "cmd": "SELECT",
+          "descendants": 1,
+          "event": "enq: TX - row lock contention",
+          "finalBlocker": "52.41898",
+          "inWait": true,
+          "line": 21555,
+          "module": "mtk_diag_chain",
+          "node": "process:21492-21811:1:235",
+          "pid": 68,
+          "serial": 12004,
+          "session": "45.12004",
+          "sid": 45,
+          "user": "MTK",
+          "waitSec": 5.05786
+        }
+      ],
+      "cmd": "PL/SQL EXECUTE",
+      "descendants": 2,
+      "event": "PL/SQL lock timer",
+      "inWait": true,
+      "inst": 1,
+      "line": 3390,
+      "module": "mtk_diag_chain",
+      "node": "process:3327-3642:1:235",
+      "pid": 6,
+      "serial": 41898,
+      "session": "52.41898",
+      "sid": 52,
+      "user": "MTK",
+      "waitSec": 6.003026
+    }
+  ],
+  "treeNodes": 3,
+  "treeOmitted": 0
+}
 == process 2238-2293
 {
   "dmlLocks": [],
@@ -1241,123 +1446,4 @@
   "transactions": [],
   "transactionsTotal": 0
 }
-== process 5297-5579
-{
-  "dmlLocks": [],
-  "dmlLocksTotal": 0,
-  "enqueues": [],
-  "enqueuesTotal": 0,
-  "from": 5297,
-  "kind": "procstate",
-  "lines": 283,
-  "locks": [],
-  "locksTotal": 0,
-  "node": "process:5297-5579:1:235",
-  "notes": [
-    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
-  ],
-  "objects": {
-    "byType": [
-      {
-        "count": 1,
-        "number": 2,
-        "type": "process"
-      },
-      {
-        "count": 1,
-        "number": 4,
-        "type": "session"
-      }
-    ],
-    "depth": 2,
-    "total": 2
-  },
-  "pins": [],
-  "pinsTotal": 0,
-  "process": {
-    "address": "0xa2eebfa0",
-    "flags": "SYSTEM",
-    "line": 5299,
-    "name": "DIAG",
-    "osUser": "oracle",
-    "ospid": "2302",
-    "pid": 12,
-    "serial": 1
-  },
-  "scope": "process",
-  "sessions": [
-    {
-      "address": "0xa2ef6ca0",
-      "command": 0,
-      "commandLine": 5365,
-      "container": "CDB$ROOT",
-      "containerId": 1,
-      "containerUid": "1",
-      "from": 5348,
-      "key": "6.14614",
-      "line": 5356,
-      "serial": 14614,
-      "service": "SYS$BACKGROUND",
-      "sid": 6,
-      "to": 5579,
-      "user": "SYS",
-      "userId": 0,
-      "wait": {
-        "blocked": false,
-        "blockedCount": 0,
-        "blockers": [],
-        "elapsedSec": 0.000004,
-        "history": [
-          {
-            "event": "DIAG idle wait",
-            "line": 5380,
-            "n": 0,
-            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
-            "seconds": 1.000066
-          },
-          {
-            "event": "DIAG idle wait",
-            "line": 5387,
-            "n": 1,
-            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
-            "seconds": 1.000065
-          },
-          {
-            "event": "DIAG idle wait",
-            "line": 5394,
-            "n": 2,
-            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
-            "seconds": 1.000066
-          },
-          {
-            "event": "DIAG idle wait",
-            "line": 5401,
-            "n": 3,
-            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
-            "seconds": 1.000064
-          },
-          "... 6 more"
-        ],
-        "historyLine": 5378,
-        "historyTotal": 10,
-        "inWait": true,
-        "line": 5368,
-        "stack": [
-          {
-            "event": "DIAG idle wait",
-            "level": 0,
-            "line": 5369,
-            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
-            "seconds": 0.188082
-          }
-        ],
-        "waiters": []
-      }
-    }
-  ],
-  "sessionsTotal": 1,
-  "to": 5579,
-  "transactions": [],
-  "transactionsTotal": 0
-}
-... and 70 more readings
+... and 71 more readings

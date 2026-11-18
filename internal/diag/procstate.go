@@ -409,8 +409,9 @@ type procParser struct {
 	order     []string
 }
 
-// procState reads the lines of a node of kind procstate or process.
-func (r *Reader) procState(id, kind string, from, to int) (*ProcState, error) {
+// newProcParser makes the reading and the parser that fills it for the lines of a node of kind procstate or
+// process (the first line of a process node, "PROCESS n: name", is read by the caller: see procHeader).
+func newProcParser(id, kind string, from, to int) (*ProcState, *procParser) {
 	ps := &ProcState{Kind: ReadingProcState, Node: id, From: from, To: to, Lines: to - from + 1, Scope: "process state",
 		// every list is allocated at its bound: the parser keeps pointers into them while it reads
 		Sessions: make([]ProcSession, 0, ProcSessionCap), Enqueues: []ProcEnqueue{}, Transactions: make([]ProcTransaction, 0, TransactionCap),
@@ -421,17 +422,33 @@ func (r *Reader) procState(id, kind string, from, to int) (*ProcState, error) {
 	}
 	p := &procParser{ps: ps, scope: ps.Scope, byAddr: map[string]*soRec{}, types: map[string]*ObjectType{}}
 	p.enqDone = make([]ProcEnqueue, 0, EnqueueCap)
+	return ps, p
+}
+
+// procHeader reads "PROCESS 6: " or "PROCESS 2: PMON": the number and the name (ok false for any other line).
+func procHeader(line []byte) (pid int, name string, ok bool) {
+	if len(line) <= 8 || string(line[:8]) != "PROCESS " {
+		return 0, "", false
+	}
+	num, k := digits(line[8:])
+	if k == 0 {
+		return 0, "", false
+	}
+	if 8+k < len(line) && line[8+k] == ':' {
+		name = strings.TrimSpace(string(line[8+k+1:]))
+	}
+	return num, name, true
+}
+
+// procState reads the lines of a node of kind procstate or process.
+func (r *Reader) procState(id, kind string, from, to int) (*ProcState, error) {
+	ps, p := newProcParser(id, kind, from, to)
 	name := ""
 	pid := 0
 	err := scanLines(r.src, from, to, func(n int, prev, line, next []byte) {
 		if n == from && kind == "process" {
-			// "PROCESS 6: " or "PROCESS 2: PMON"
-			if len(line) > 8 && string(line[:8]) == "PROCESS " {
-				num, k := digits(line[8:])
-				pid = num
-				if k > 0 && 8+k < len(line) && line[8+k] == ':' {
-					name = strings.TrimSpace(string(line[8+k+1:]))
-				}
+			if num, nm, ok := procHeader(line); ok {
+				pid, name = num, nm
 			}
 			return
 		}

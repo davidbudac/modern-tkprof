@@ -42,6 +42,12 @@ func writeReading(w io.Writer, indent string, rd Reading, o textOpts) {
 		writeCallStackText(w, indent, x)
 	case *ProcState:
 		writeProcText(w, indent, x, o)
+	case *SysState:
+		writeSysStateText(w, indent, x)
+	case *HangReading:
+		writeHangText(w, indent, x)
+	case *Deadlock:
+		writeDeadlockText(w, indent, x)
 	}
 }
 
@@ -487,6 +493,10 @@ func writeProcs(w io.Writer, ind, title string, procs []PGAProc, withPct bool) {
 		right = []bool{true, false, false, true, true, true}
 	}
 	table(w, ind+"      ", rows, right...)
+	if withPct {
+		// the top 10 rows carry the same session detail as their rows of the full list, which prints it
+		return
+	}
 	for _, pr := range procs {
 		if s := pr.Session; s != nil {
 			sql := s.CurrentSQL

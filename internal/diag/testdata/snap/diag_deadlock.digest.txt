@@ -8,6 +8,21 @@ Outline: first-last line, number of lines, title
     1-   31      31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
    32-   32       1  Other lines  [2026-11-17 21:34:33.711*:ksq.c@13209:ksqdld_hdr_dump():]
    33-10477  10,445  Deadlock (ORA-00060)
+    deadlock ORA-00060 [Transaction Deadlock], the trace was written by session 255.52110 (the victim)
+    deadlock graph (2 rows; line 43):
+      resource                                blocker process  session  holds  waits  serial  waiter process  session  holds  waits  serial
+      TX-000A0009-00004D46-ED94F66A-00000000  61               255      X             52110   6               61              X      27430
+      TX-00080010-000057D7-ED94F66A-00000000  6                61       X             27430   61              255             X      52110
+    cycle (closes): 255.52110 waits for TX-00080010-000057D7-ED94F66A-00000000 held by 61.27430; 61.27430 waits for TX-000A0009-00004D46-ED94F66A-00000000 held by 255.52110
+    session 255.52110 (lines 50-64): MTK, container 3/PDB1, sqlplus@ol9-19-dg1.localdomain (TNS V1-V3), module / action mtk_diag_deadlock_a / a_asks_202
+      holds TX-000A0009-00004D46-ED94F66A-00000000, acquired 5 seconds ago
+      current SQL (line 64): select id from mtk_cust where id = 202 for update wait 30
+    session 61.27430 (lines 66-80): MTK, container 3/PDB1, sqlplus@ol9-19-dg1.localdomain (TNS V1-V3), module / action mtk_diag_deadlock_b / b_asks_201
+      holds TX-00080010-000057D7-ED94F66A-00000000, acquired 5 seconds ago
+      current SQL (line 80): select id from mtk_cust where id = 201 for update wait 30
+    rows waited on: session 255: rowid AAAahBAAMAAApUZAAD (object 108609, file 12, block 169241, slot 3)
+    rows waited on: session 61: rowid AAAahBAAMAAApUZAAC (object 108609, file 12, block 169241, slot 2)
+    followed by the diagnostic dump (level 1), lines 86-10477 (its call stack reading is under that node)
      49-   81      33  Information for waiting sessions
      82-   85       4  End of information for waiting sessions
      86-10477  10,392  Diagnostic dump (level 1)

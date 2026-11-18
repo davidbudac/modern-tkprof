@@ -260,8 +260,25 @@ func TestDiagServe(t *testing.T) {
 		t.Fatalf("outline: %d %v %s", code, err, body)
 	}
 	code, _, body = get("/api/diag/reading?node=" + hang.ID)
+	if code != 200 || !strings.HasPrefix(string(body), `{"kind":"hang","node":`) {
+		t.Errorf("reading of a hang analysis: %d %.100s", code, body)
+	}
+	// a part of the analysis has none
+	code, _, body = get("/api/diag/reading?node=" + o.Children[0].ID)
 	if code != 404 || !strings.Contains(string(body), "no reading for this kind of section") {
-		t.Errorf("reading of a hang analysis: %d %s", code, body)
+		t.Errorf("reading of a part of a hang analysis: %d %s", code, body)
+	}
+	// the path of a line inside the second chain: the hang analysis, the group it is in, the chain
+	code, _, body = get("/api/diag/path?line=200")
+	var pth diag.Path
+	if err := json.Unmarshal(body, &pth); code != 200 || err != nil || len(pth.Nodes) < 2 || pth.Nodes[0].ID != hang.ID || pth.Nodes[len(pth.Nodes)-1].Kind != "chain" {
+		t.Errorf("path: %d %v %s", code, err, body)
+	}
+	if code, _, _ := get("/api/diag/path"); code != 400 {
+		t.Errorf("path without a line: %d", code)
+	}
+	if code, _, _ := get("/api/diag/path?line=999999"); code != 404 {
+		t.Errorf("path of a line past the end: %d", code)
 	}
 	if code, _, _ := get("/api/diag/reading"); code != 400 {
 		t.Errorf("reading without a node: %d", code)

@@ -282,6 +282,21 @@ ROADMAP, README, the site's pages (not published), a release notes draft, this f
   `procstate` (a PROCESS STATE dump, also the one nested in a diagnostic dump) and on a `process` node of a system
   state. Fields: `internal/diag/stack.go` and `procstate.go`; the OpenAPI schemas are `DiagCallStack` and
   `DiagProcState`. Both are computed on demand from the node's own lines (13 ms for 115,000 lines).
+- **Readings of stages 5 and 6**: `sysstate` on a node of kind `sysstate` (`internal/diag/sysstate.go`, `DiagSysState`: the
+  process table from the summary completed from each `PROCESS` body by the process state parser, the counts with the idle
+  flags from the event reference, the blocker tree; bounded: 3,000 rows and the rows of blocked and blocking sessions beyond
+  them, 300 tree nodes), `hang` on a node of kind `hang` (`hang.go`, `DiagHangReading`: header, the list of likely chains, each
+  chain's sessions in "is blocked by" order, the node tables, the dumps block) and `deadlock` on a node of kind `deadlock`
+  (`deadlock.go`, `DiagDeadlock`: graph rows with empty cells absent, the cycle, the sessions' blocks, the victim, the rows
+  waited on, the node of the nested dump). All three computed on demand from the node's lines; the text of each is in
+  `blocktext.go` and in the digest.
+- **`GET api/diag/path?line=N`** (or `node=ID`) → `{nodes: [...]}`: the chain of nodes from the top level down to the deepest
+  node that holds line N (or down to that node), at most 16, read from the lines of the nodes on the way and cached
+  (`internal/diag/path.go`); 400 without `line` or `node` or with a bad number, 404 for a line outside the file and an id
+  that is not a node.
+- **Also added** (stage 5/6, add-only): `HeapReading.runLabel` (the oradebug command before the run, when the file has one:
+  no fixture does, an event or alter session dump prints nothing about its level, and the `*** ACTION NAME` marker is a
+  habit of the lab scripts); the `session` of a `processes.top` row of a PGA summary (the same as its `all` row's).
 - **`Node.fold`**: a short reason, set on a child part whose lines are noise by default (the table `foldTable` in
   `internal/diag/rules.go`, with the fixture lines that show each part to be bulk); never on a section.
 - **Bind redaction** (`-redact-binds`, `-binds none`, the engine's bind mode for documents) acts on the values of the
@@ -432,3 +447,23 @@ selected heap's ancestors, siblings and children, not the whole dump run.
 - **Not done**: the reading of a hang analysis, a deadlock graph and a system state's process summary (stages 5, 6);
   the heaps inside a process state are not nodes of the outline, so a call stack reading links the process state and
   the heaps that are direct children of the dump only.
+
+### 2026-11-18: stages 5 and 6, hang analysis, deadlock graph and system state (Go side)
+
+- **Built**: `internal/diag/{hang,deadlock,sysstate,blocktext,path}.go`; readings `hang`, `deadlock`, `sysstate`; route
+  `api/diag/path`; `HeapReading.runLabel`; the top-row sessions of `PGAProc`; OpenAPI (additive, protocol 1), `pnpm gen:api`;
+  the contract test lists 5 diag routes. `Scan.SessionMarks` (the `*** SESSION ID` markers, for the victim of a deadlock and
+  the caller of a system state). No cache format changed.
+- **`current sql_id` of a hang analysis is not the 10046 `hv=`**: it is the high 32 bits of the sql_id's 64-bit number (bytes
+  9 to 12 of the statement's `FullHashValue`); the hash value is the low 32 bits. Evidence in `docs/trace-format-diag.md` §
+  Hang analysis and `TestHangSqlIDHigh` (3 statements in the hang fixture, 386 handles in the level 266 dump). The field is
+  `sqlIdHigh`; there is no `diagSqlHashes` on the session object (the number is no hash value; a sql_id can be matched to it
+  with `diag.SQLIDParts`).
+- **System state**: every level (1, 2, 258, 266) prints the summary's `Blocked by` / `Final Blocker` lines and the bodies'
+  direct blocker lines; the tree is built from both. The summary and the bodies are written at different moments (a
+  process can move on between them: `bodyEvent`). A process is idle by the event reference's class, or has no session.
+- **Measured** (Apple M4): the reading of the level 266 dump (83,000 lines) 16 ms, of 5,000 synthetic processes (45,000 lines)
+  14 ms, of 40,000 (360,000 lines) 46 ms; the path of a line 24,000 lines read for the first 10 processes of a 20,000-process
+  dump whose summary is 20,000 lines.
+- **Not done**: a resource table of holders and waiters (decided out); hang analysis of a RAC system (no sample), a session
+  not in a wait in a hang chain (the reader keeps the line's text, no fixture shows one); the UI side of all of this.

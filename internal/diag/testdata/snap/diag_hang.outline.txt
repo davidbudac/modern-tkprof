@@ -3,7 +3,7 @@ section hang 42-275
 outline:
   1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
   32-41 (10) other: Other lines  [Processing Oradebug command 'setmypid']
-+ 42-275 (234) hang: Hang analysis
++ 42-275 (234) hang: Hang analysis reading=hang
       55-61 (7) title: Chains most likely to have caused the hang
     + 62-244 (183) title: Non-intersecting chains
       245-258 (14) title: State of ALL nodes

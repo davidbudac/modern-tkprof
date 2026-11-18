@@ -22,6 +22,29 @@ type Scan struct {
 	// order, at most MarkCap each: what a client marks when another tab holds the same (marks.go).
 	MarkSQLIDs   []string
 	MarkSessions []string
+	// SessionMarks are the "*** SESSION ID:(sid.serial)" markers of the file in file order (a marker that repeats
+	// the session before it is left out), at most sessionMarkCap: SessionAt says which session wrote a line.
+	SessionMarks []SessionMark
+}
+
+// SessionMark is a "*** SESSION ID:(61.58038)" marker.
+type SessionMark struct {
+	Line int    `json:"line"`
+	Key  string `json:"key"` // "sid.serial"
+}
+
+// sessionMarkCap bounds Scan.SessionMarks.
+const sessionMarkCap = 50000
+
+// SessionAt is the session of the last "*** SESSION ID" marker at or before line, with the line of that marker;
+// "" when the file has no marker before it.
+func (s *Scan) SessionAt(line int) (markerLine int, key string) {
+	i := sort.Search(len(s.SessionMarks), func(i int) bool { return s.SessionMarks[i].Line > line })
+	if i == 0 {
+		return 0, ""
+	}
+	m := s.SessionMarks[i-1]
+	return m.Line, m.Key
 }
 
 // ScanFile reads the file at path in one streaming pass.
@@ -102,6 +125,8 @@ type scanner struct {
 	det      detector
 
 	marks marker
+
+	sessMarks []SessionMark
 }
 
 // detector finds out whether the open top-level section has parts of its own: the walker runs over its
@@ -139,6 +164,9 @@ func (s *scanner) line(n int, line []byte, k trace.Kind, open trace.Section) {
 	in := open.Kind != trace.SectionNone
 	s.n = n
 	s.marks.line(line)
+	if len(line) > 16 && line[0] == '*' && len(s.sessMarks) < sessionMarkCap && hasPrefix(line, "*** SESSION ID:(") {
+		s.sessionMark(n, line)
+	}
 	if n <= 200 {
 		s.early(n, line)
 	}
@@ -167,6 +195,24 @@ func (s *scanner) line(n int, line []byte, k trace.Kind, open trace.Section) {
 	s.gap(n, line, k, in, rec)
 	s.sections(n, line, open)
 	s.prevIn = in
+}
+
+// sessionMark keeps a "*** SESSION ID:(sid.serial) ..." marker whose session differs from the last one's.
+func (s *scanner) sessionMark(n int, line []byte) {
+	rest := line[len("*** SESSION ID:("):]
+	sid, k := num(rest)
+	if k == 0 || len(rest) <= k+1 || rest[k] != '.' {
+		return
+	}
+	ser, k2 := num(rest[k+1:])
+	if k2 == 0 {
+		return
+	}
+	key := itoa(sid) + "." + itoa(ser)
+	if m := len(s.sessMarks); m > 0 && s.sessMarks[m-1].Key == key {
+		return
+	}
+	s.sessMarks = append(s.sessMarks, SessionMark{Line: n, Key: key})
 }
 
 // early reads the prologue and the incident facts of the first lines.
@@ -408,7 +454,7 @@ func (s *scanner) result(name string, sn trace.Sniff) *Scan {
 	}
 	f.OutlineTotal = len(top)
 	f.Outline = append([]Node{}, top[:min(len(top), Cap)]...)
-	return &Scan{File: f, Top: top, MarkSQLIDs: s.marks.sqlIDs, MarkSessions: s.marks.sessions}
+	return &Scan{File: f, Top: top, MarkSQLIDs: s.marks.sqlIDs, MarkSessions: s.marks.sessions, SessionMarks: s.sessMarks}
 }
 
 // gapNode makes the node of a run of lines between sections (a, b) from the runs the pass kept.

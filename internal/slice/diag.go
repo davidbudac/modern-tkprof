@@ -27,12 +27,19 @@ import (
 //	                                    ascending, after line N, at most diag.LinesCap per answer:
 //	                                    {node, lines, more, next, total}. comment or type is required.
 //
+//	GET /api/diag/path?line=N           {nodes: [...]}: the chain of nodes from the top level down to the deepest node that
+//	                                    holds line N (a heap nested in a PGA summary, a process of a system state: nodes
+//	                                    the client has not loaded), each inside the one before; read from the lines of the
+//	                                    nodes on the way only, and cached. With node=ID instead of line: the chain down to
+//	                                    that node. 400 without line or node or with a bad number; 404 for a line outside the
+//	                                    file and for an id that is not a node of it.
+//
 // Errors are the engine's envelope {"error": {"code", "message"}}, also here: a diag session is the only
 // one that serves these routes; for any other session they answer 404 "not a diag session".
 
 // DiagRoutes are the paths a DiagServer serves (GET).
 func DiagRoutes() []string {
-	return []string{"/api/diag/file", "/api/diag/outline", "/api/diag/reading", "/api/diag/reading/lines"}
+	return []string{"/api/diag/file", "/api/diag/outline", "/api/diag/reading", "/api/diag/reading/lines", "/api/diag/path"}
 }
 
 // DiagServer serves the routes of one diag file. The scan of the file is made once and kept; the lines the
@@ -141,6 +148,9 @@ func (d *DiagServer) ReadingHandler() http.Handler { return d.handler(d.serveRea
 // ReadingLinesHandler serves GET /api/diag/reading/lines.
 func (d *DiagServer) ReadingLinesHandler() http.Handler { return d.handler(d.serveReadingLines) }
 
+// PathHandler serves GET /api/diag/path.
+func (d *DiagServer) PathHandler() http.Handler { return d.handler(d.servePath) }
+
 // Handler serves the routes.
 func (d *DiagServer) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -148,6 +158,7 @@ func (d *DiagServer) Handler() http.Handler {
 	mux.Handle("/api/diag/outline", d.OutlineHandler())
 	mux.Handle("/api/diag/reading", d.ReadingHandler())
 	mux.Handle("/api/diag/reading/lines", d.ReadingLinesHandler())
+	mux.Handle("/api/diag/path", d.PathHandler())
 	return mux
 }
 
@@ -321,6 +332,49 @@ func (d *DiagServer) serveReadingLines(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := rd.HeapLines(node, q.Get("comment"), q.Has("comment"), q.Get("type"), after)
 	if err != nil {
+		readerError(w, err)
+		return
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		writeEnvelope(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
+	writeJSONBytes(w, b)
+}
+
+func (d *DiagServer) servePath(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	node, ls := q.Get("node"), q.Get("line")
+	if node == "" && ls == "" {
+		writeEnvelope(w, http.StatusBadRequest, "bad_request", "line or node: want a line number of the file or the id of a node")
+		return
+	}
+	line := 0
+	if node == "" {
+		n, err := strconv.Atoi(ls)
+		if err != nil || n < 1 {
+			writeEnvelope(w, http.StatusBadRequest, "bad_request", "line: want a line number, 1 or more")
+			return
+		}
+		line = n
+	}
+	rd, err := d.Reader()
+	if err != nil {
+		writeEnvelope(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
+	var out *diag.Path
+	if node != "" {
+		out, err = rd.PathTo(node)
+	} else {
+		out, err = rd.Path(line)
+	}
+	if err != nil {
+		if errors.Is(err, diag.ErrNoLine) {
+			writeEnvelope(w, http.StatusNotFound, "not_found", err.Error())
+			return
+		}
 		readerError(w, err)
 		return
 	}

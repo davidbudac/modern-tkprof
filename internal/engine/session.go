@@ -462,7 +462,7 @@ func (ss *Session) cacheOptions(build CacheBuildFunc) CacheOpenOptions {
 
 // sessionRoutes are the routes of a ready session, relative to /s/{id}.
 func sessionRoutes() []string {
-	out := []string{"GET /api/doc", "GET /api/report", "GET /api/opt/dump", "GET /api/opt/text", "GET /api/diag/file", "GET /api/diag/outline", "GET /api/diag/reading", "GET /api/diag/reading/lines", "GET /api/ref", "POST /api/ref", "GET /api/ref/script", "POST /api/ref/paste", "POST /api/brief", "POST /api/assist/tools/{name}"}
+	out := []string{"GET /api/doc", "GET /api/report", "GET /api/opt/dump", "GET /api/opt/text", "GET /api/diag/file", "GET /api/diag/outline", "GET /api/diag/reading", "GET /api/diag/reading/lines", "GET /api/diag/path", "GET /api/ref", "POST /api/ref", "GET /api/ref/script", "POST /api/ref/paste", "POST /api/brief", "POST /api/assist/tools/{name}"}
 	for _, ep := range append(slice.Endpoints(), slice.LineEndpoints()...) {
 		out = append(out, "GET "+ep)
 	}
@@ -643,6 +643,7 @@ func (s *Server) sessionMux(ss *Session, co *CacheOpened, doc []byte, ot *slice.
 		"GET /api/diag/outline":       dg.OutlineHandler(),
 		"GET /api/diag/reading":       dg.ReadingHandler(),
 		"GET /api/diag/reading/lines": dg.ReadingLinesHandler(),
+		"GET /api/diag/path":          dg.PathHandler(),
 		"GET /api/doc": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// ?rev= is accepted and ignored here: the current document is served
 			// (its revision is the session's rev, which a reference bundle

@@ -1,0 +1,605 @@
+== hang 33-305
+{
+  "chains": [
+    {
+      "events": [
+        "PL/SQL lock timer",
+        "enq: TX - row lock contention",
+        "enq: TX - row lock contention"
+      ],
+      "from": 57,
+      "group": "Non-intersecting chains",
+      "hash": "0x5e4fa8d6",
+      "letter": "a",
+      "line": 57,
+      "listed": true,
+      "n": 1,
+      "sessions": [
+        {
+          "blocking": 0,
+          "event": "enq: TX - row lock contention",
+          "from": 59,
+          "history": [
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between current wait and wait #1: 0.000136 sec",
+              "gapSec": 0.000136,
+              "line": 81,
+              "n": 1,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 22,
+              "waitedSec": 0.000246
+            },
+            {
+              "event": "SQL*Net message to client",
+              "gapLabel": "* time between wait #1 and #2: 0.000003 sec",
+              "gapSec": 0.000003,
+              "line": 86,
+              "n": 2,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 21,
+              "waitedSec": 0.000002
+            },
+            {
+              "event": "PL/SQL lock timer",
+              "gapLabel": "* time between wait #2 and #3: 0.000052 sec",
+              "gapSec": 0.000052,
+              "line": 91,
+              "n": 3,
+              "params": [
+                "p1: 'duration'=0x0"
+              ],
+              "waitId": 20,
+              "waitedSec": 2.000089
+            }
+          ],
+          "historyLine": 79,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "255.5904",
+          "line": 59,
+          "module": "mtk_diag_chain-dg1.localdomain (TNS V1-V3)",
+          "moduleNum": 3,
+          "osId": "14128",
+          "params": [
+            "p1: 'name|mode'=0x54580006",
+            "p2: 'usn\u003c\u003c16 | slot'=0x30011",
+            "p3: 'sequence'=0x5d6b"
+          ],
+          "pdb": "PDB1",
+          "pdbId": 3,
+          "position": 1,
+          "process": "oracle@ol9-19-dg1.localdomain",
+          "processId": 41,
+          "serial": 5904,
+          "sid": 255,
+          "sqlIdHigh": 3373088609,
+          "state": "is waiting for 'enq: TX - row lock contention' with wait info:",
+          "timeInWaitSec": 4.009843,
+          "timeoutSec": 55.990157,
+          "timeoutText": "55.990157 sec",
+          "to": 95,
+          "waitId": 23,
+          "waiting": true
+        },
+        {
+          "blocking": 1,
+          "event": "enq: TX - row lock contention",
+          "from": 96,
+          "history": [
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between current wait and wait #1: 0.000068 sec",
+              "gapSec": 0.000068,
+              "line": 118,
+              "n": 1,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 27,
+              "waitedSec": 0.000148
+            },
+            {
+              "event": "SQL*Net message to client",
+              "gapLabel": "* time between wait #1 and #2: 0.000000 sec",
+              "gapSec": 0,
+              "line": 123,
+              "n": 2,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 26,
+              "waitedSec": 0
+            },
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between wait #2 and #3: 0.000008 sec",
+              "gapSec": 0.000008,
+              "line": 128,
+              "n": 3,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 25,
+              "waitedSec": 0.000158
+            }
+          ],
+          "historyLine": 116,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "22.39906",
+          "line": 96,
+          "module": "mtk_diag_chain-dg1.localdomain (TNS V1-V3)",
+          "moduleNum": 3,
+          "osId": "14130",
+          "params": [
+            "p1: 'name|mode'=0x54580006",
+            "p2: 'usn\u003c\u003c16 | slot'=0x90010",
+            "p3: 'sequence'=0x5d8b"
+          ],
+          "pdb": "PDB1",
+          "pdbId": 3,
+          "position": 2,
+          "process": "oracle@ol9-19-dg1.localdomain",
+          "processId": 68,
+          "serial": 39906,
+          "sid": 22,
+          "sqlIdHigh": 3824709289,
+          "state": "which is waiting for 'enq: TX - row lock contention' with wait info:",
+          "timeInWaitSec": 4.968604,
+          "timeoutSec": 55.031396,
+          "timeoutText": "55.031396 sec",
+          "to": 133,
+          "waitId": 28,
+          "waiting": true
+        },
+        {
+          "blocking": 2,
+          "event": "PL/SQL lock timer",
+          "from": 134,
+          "history": [
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between current wait and wait #1: 0.000056 sec",
+              "gapSec": 0.000056,
+              "line": 154,
+              "n": 1,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 24,
+              "waitedSec": 0.000075
+            },
+            {
+              "event": "SQL*Net message to client",
+              "gapLabel": "* time between wait #1 and #2: 0.000000 sec",
+              "gapSec": 0,
+              "line": 159,
+              "n": 2,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 23,
+              "waitedSec": 0.000001
+            },
+            {
+              "event": "SQL*Net message from client",
+              "gapLabel": "* time between wait #2 and #3: 0.000006 sec",
+              "gapSec": 0.000006,
+              "line": 164,
+              "n": 3,
+              "params": [
+                "p1: 'driver id'=0x74637000",
+                "p2: '#bytes'=0x1"
+              ],
+              "waitId": 22,
+              "waitedSec": 0.000085
+            }
+          ],
+          "historyLine": 152,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "45.38231",
+          "line": 134,
+          "module": "mtk_diag_chain-dg1.localdomain (TNS V1-V3)",
+          "moduleNum": 3,
+          "osId": "14125",
+          "params": [
+            "p1: 'duration'=0x0"
+          ],
+          "pdb": "PDB1",
+          "pdbId": 3,
+          "position": 3,
+          "process": "oracle@ol9-19-dg1.localdomain",
+          "processId": 6,
+          "serial": 38231,
+          "sid": 45,
+          "sqlIdHigh": 325942433,
+          "state": "which is waiting for 'PL/SQL lock timer' with wait info:",
+          "timeInWaitSec": 6.049487,
+          "timeoutSec": 9.950513,
+          "timeoutText": "9.950513 sec",
+          "to": 169,
+          "waitId": 25,
+          "waiting": true
+        }
+      ],
+      "sessionsTotal": 3,
+      "signature": "'PL/SQL lock timer'\u003c='enq: TX - row lock contention'\u003c='enq: TX - row lock contention'",
+      "to": 174
+    },
+    {
+      "events": [
+        "Streams AQ: waiting for messages in the queue"
+      ],
+      "from": 178,
+      "group": "Sessions in an involuntary wait or not in a wait",
+      "hash": "0xa00e2e87",
+      "letter": "b",
+      "line": 178,
+      "listed": true,
+      "n": 2,
+      "sessions": [
+        {
+          "blocking": 0,
+          "event": "Streams AQ: waiting for messages in the queue",
+          "from": 180,
+          "heurTimeInWaitSec": 20.947437,
+          "history": [
+            {
+              "event": "Streams AQ: waiting for messages in the queue",
+              "gapLabel": "* time between current wait and wait #1: 0.000293 sec",
+              "gapSec": 0.000293,
+              "line": 203,
+              "n": 1,
+              "params": [
+                "p1: 'queue id'=0x14660",
+                "p2: 'process#'=0xa258d408",
+                "p3: 'wait time'=0x5"
+              ],
+              "waitId": 14,
+              "waitedSec": 5.000091
+            },
+            {
+              "event": "Streams AQ: waiting for messages in the queue",
+              "gapLabel": "* time between wait #1 and #2: 0.000223 sec",
+              "gapSec": 0.000223,
+              "line": 209,
+              "n": 2,
+              "params": [
+                "p1: 'queue id'=0x14660",
+                "p2: 'process#'=0xa258d408",
+                "p3: 'wait time'=0x5"
+              ],
+              "waitId": 13,
+              "waitedSec": 5.00009
+            },
+            {
+              "event": "Streams AQ: waiting for messages in the queue",
+              "gapLabel": "* time between wait #2 and #3: 0.000284 sec",
+              "gapSec": 0.000284,
+              "line": 215,
+              "n": 3,
+              "params": [
+                "p1: 'queue id'=0x14660",
+                "p2: 'process#'=0xa258d408",
+                "p3: 'wait time'=0x5"
+              ],
+              "waitId": 12,
+              "waitedSec": 5.000092
+            }
+          ],
+          "historyLine": 201,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "3.48564",
+          "line": 180,
+          "module": "DBMS_SCHEDULER-dg1.localdomain (TNS V1-V3)",
+          "moduleNum": 1,
+          "osId": "12239",
+          "params": [
+            "p1: 'queue id'=0x14660",
+            "p2: 'process#'=0xa258d408",
+            "p3: 'wait time'=0x5"
+          ],
+          "pdb": "CDB$ROOT",
+          "pdbId": 1,
+          "position": 1,
+          "process": "oracle@ol9-19-dg1.localdomain (J001)",
+          "processId": 40,
+          "serial": 48564,
+          "sid": 3,
+          "sqlIdHigh": 2279214261,
+          "state": "is waiting for 'Streams AQ: waiting for messages in the queue' with wait info:",
+          "timeInWaitSec": 0.945994,
+          "timeoutSec": 4.054006,
+          "timeoutText": "4.054006 sec",
+          "to": 221,
+          "waitId": 15,
+          "waiting": true
+        }
+      ],
+      "sessionsTotal": 1,
+      "signature": "'Streams AQ: waiting for messages in the queue'",
+      "to": 226
+    },
+    {
+      "events": [
+        "Redo Transport Attach"
+      ],
+      "from": 227,
+      "group": "Sessions in an involuntary wait or not in a wait",
+      "hash": "0xa4e49b5e",
+      "letter": "c",
+      "line": 227,
+      "listed": true,
+      "n": 3,
+      "sessions": [
+        {
+          "blocking": 0,
+          "event": "Redo Transport Attach",
+          "from": 229,
+          "history": [
+            {
+              "event": "Data Guard: Gap Manager",
+              "gapLabel": "* time between current wait and wait #1: 0.000013 sec",
+              "gapSec": 0.000013,
+              "line": 247,
+              "n": 1,
+              "params": [],
+              "waitId": 617,
+              "waitedSec": 1.000071
+            },
+            {
+              "event": "control file sequential read",
+              "gapLabel": "* time between wait #1 and #2: 0.000005 sec",
+              "gapSec": 0.000005,
+              "line": 251,
+              "n": 2,
+              "params": [
+                "p1: 'file#'=0x0",
+                "p2: 'block#'=0x12",
+                "p3: 'blocks'=0x1"
+              ],
+              "waitId": 616,
+              "waitedSec": 0.000001
+            },
+            {
+              "event": "control file sequential read",
+              "gapLabel": "* time between wait #2 and #3: 0.000001 sec",
+              "gapSec": 0.000001,
+              "line": 257,
+              "n": 3,
+              "params": [
+                "p1: 'file#'=0x0",
+                "p2: 'block#'=0x10",
+                "p3: 'blocks'=0x1"
+              ],
+              "waitId": 615,
+              "waitedSec": 0.000001
+            }
+          ],
+          "historyLine": 245,
+          "historyTotal": 3,
+          "instance": "1 (cdb1.cdb1)",
+          "key": "27.50573",
+          "line": 229,
+          "osId": "2929",
+          "params": [],
+          "pdb": "CDB$ROOT",
+          "pdbId": 1,
+          "position": 1,
+          "process": "oracle@ol9-19-dg1.localdomain (TT00)",
+          "processId": 48,
+          "serial": 50573,
+          "sid": 27,
+          "sqlIdHigh": 0,
+          "state": "is waiting for 'Redo Transport Attach' with wait info:",
+          "timeInWaitSec": 4.494975,
+          "timeoutText": "never",
+          "to": 263,
+          "waitId": 618,
+          "waiting": true
+        }
+      ],
+      "sessionsTotal": 1,
+      "signature": "'Redo Transport Attach'",
+      "to": 268
+    }
+  ],
+  "chainsTotal": 3,
+  "delays": [
+    "os thread scheduling delay history: (sampling every 1.000000 secs)",
+    "0.000000 secs at [ 21:35:47 ]",
+    "NOTE: scheduling delay has not been sampled for 0.519027 secs",
+    "0.000000 secs from [ 21:35:43 - 21:35:48 ], 5 sec avg",
+    "... 3 more"
+  ],
+  "dumps": {
+    "ended": true,
+    "level": 3,
+    "line": 288,
+    "lines": [
+      "No processes qualify for dumping."
+    ],
+    "local": {
+      "header": "([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):",
+      "line": 292,
+      "rows": [
+        {
+          "adj": [],
+          "cnode": 1,
+          "key": "3.48564",
+          "line": 294,
+          "num": 2,
+          "ospid": "12239",
+          "serial": 48564,
+          "session": "0xa272a008",
+          "sid": 3,
+          "state": "SINGLE_NODE"
+        },
+        {
+          "adj": [
+            44
+          ],
+          "cnode": 1,
+          "key": "22.39906",
+          "line": 295,
+          "num": 21,
+          "ospid": "14130",
+          "serial": 39906,
+          "session": "0xa2759640",
+          "sid": 22,
+          "state": "NLEAF"
+        },
+        {
+          "adj": [],
+          "cnode": 1,
+          "key": "27.50573",
+          "line": 296,
+          "num": 26,
+          "ospid": "2929",
+          "serial": 50573,
+          "session": "0xa2765dc8",
+          "sid": 27,
+          "state": "SINGLE_NODE"
+        },
+        {
+          "adj": [],
+          "cnode": 1,
+          "key": "45.38231",
+          "line": 297,
+          "num": 44,
+          "ospid": "14125",
+          "serial": 38231,
+          "session": "0xa2792c18",
+          "sid": 45,
+          "state": "LEAF"
+        },
+        "... 1 more"
+      ],
+      "total": 5
+    }
+  },
+  "ended": true,
+  "extra": [
+    "[level  4] :   1 node dumps -- [LEAF] [LEAF_NW]",
+    "[level  5] :   4 node dumps -- [NO_WAIT] [INVOL_WT] [SINGLE_NODE] [NLEAF] [SINGLE_NODE_NW]"
+  ],
+  "from": 33,
+  "headerLine": 33,
+  "instances": [
+    "cdb1.cdb1"
+  ],
+  "kind": "hang",
+  "level": 3,
+  "lines": 273,
+  "listed": [
+    {
+      "chain": 1,
+      "events": [
+        "PL/SQL lock timer",
+        "enq: TX - row lock contention",
+        "enq: TX - row lock contention"
+      ],
+      "hash": "0x5e4fa8d6",
+      "letter": "a",
+      "line": 46,
+      "signature": "'PL/SQL lock timer'\u003c='enq: TX - row lock contention'\u003c='enq: TX - row lock contention'"
+    },
+    {
+      "chain": 2,
+      "events": [
+        "Streams AQ: waiting for messages in the queue"
+      ],
+      "hash": "0xa00e2e87",
+      "letter": "b",
+      "line": 48,
+      "signature": "'Streams AQ: waiting for messages in the queue'"
+    },
+    {
+      "chain": 3,
+      "events": [
+        "Redo Transport Attach"
+      ],
+      "hash": "0xa4e49b5e",
+      "letter": "c",
+      "line": 50,
+      "signature": "'Redo Transport Attach'"
+    }
+  ],
+  "node": "hang:33-305:1:40",
+  "nodes": {
+    "header": "([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):",
+    "line": 273,
+    "rows": [
+      {
+        "adj": [],
+        "cnode": 1,
+        "key": "3.48564",
+        "line": 275,
+        "num": 2,
+        "ospid": "12239",
+        "serial": 48564,
+        "session": "0xa272a008",
+        "sid": 3,
+        "state": "SINGLE_NODE"
+      },
+      {
+        "adj": [
+          44
+        ],
+        "cnode": 1,
+        "key": "22.39906",
+        "line": 276,
+        "num": 21,
+        "ospid": "14130",
+        "serial": 39906,
+        "session": "0xa2759640",
+        "sid": 22,
+        "state": "NLEAF"
+      },
+      {
+        "adj": [],
+        "cnode": 1,
+        "key": "27.50573",
+        "line": 277,
+        "num": 26,
+        "ospid": "2929",
+        "serial": 50573,
+        "session": "0xa2765dc8",
+        "sid": 27,
+        "state": "SINGLE_NODE"
+      },
+      {
+        "adj": [],
+        "cnode": 1,
+        "key": "45.38231",
+        "line": 278,
+        "num": 44,
+        "ospid": "14125",
+        "serial": 38231,
+        "session": "0xa2792c18",
+        "sid": 45,
+        "state": "LEAF"
+      },
+      "... 1 more"
+    ],
+    "total": 5
+  },
+  "notes": [
+    "the dump does not say what initiated the analysis (the oradebug form prints \"analysis initiated by oradebug\")"
+  ],
+  "to": 305
+}

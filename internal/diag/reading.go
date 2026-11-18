@@ -21,11 +21,15 @@ import (
 //	                                                 CallStack   (stack.go)
 //	procstate    a node of kind procstate or process (a PROCESS n of a system state)
 //	                                                 ProcState   (procstate.go)
+//	sysstate     a node of kind sysstate             SysState    (sysstate.go)
+//	hang         a node of kind hang                 HangReading (hang.go)
+//	deadlock     a node of kind deadlock             Deadlock    (deadlock.go)
 //
 // The JSON form of a reading is an object whose first field is "kind" (the same string as Node.Reading),
 // then the fields of that kind. TestReadingJSONShape pins the names.
 
-// Reading is the computed reading of a node: *HeapReading, *PGASummary, *PGADetail, *CallStack or *ProcState. The
+// Reading is the computed reading of a node: *HeapReading, *PGASummary, *PGADetail, *CallStack, *ProcState, *SysState,
+// *HangReading or *Deadlock. The
 // JSON form of each starts with its "kind".
 type Reading interface {
 	ReadingKind() string
@@ -38,6 +42,9 @@ const (
 	ReadingPGADetail  = "pga-detail"
 	ReadingCallStack  = "callstack"
 	ReadingProcState  = "procstate"
+	ReadingSysState   = "sysstate"
+	ReadingHang       = "hang"
+	ReadingDeadlock   = "deadlock"
 )
 
 // ReadingKindOf is the kind of the reading a node of this kind has, "" for a node without one. A node of kind
@@ -55,6 +62,12 @@ func ReadingKindOf(nodeKind string) string {
 		return ReadingCallStack
 	case "procstate", "process":
 		return ReadingProcState
+	case "sysstate":
+		return ReadingSysState
+	case "hang":
+		return ReadingHang
+	case "deadlock":
+		return ReadingDeadlock
 	}
 	return ""
 }
@@ -120,6 +133,12 @@ func (r *Reader) Reading(id string) (Reading, error) {
 		out, err = r.callStack(id, kind, from, to)
 	case ReadingProcState:
 		out, err = r.procState(id, kind, from, to)
+	case ReadingSysState:
+		out, err = r.sysState(id, from, to)
+	case ReadingHang:
+		out, err = r.hangReading(id, from, to)
+	case ReadingDeadlock:
+		out, err = r.deadlockReading(id, from, to)
 	}
 	if err != nil {
 		return nil, err

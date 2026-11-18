@@ -179,8 +179,8 @@ func TestContractRoutes(t *testing.T) {
 			t.Errorf("%s documents %s, which the engine does not serve", contractFile, r)
 		}
 	}
-	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 49 {
-		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools, the 2 opt routes and the 4 diag routes", n)
+	if n := len(slices.DeleteFunc(slices.Clone(have), func(r string) bool { return !strings.Contains(r, sessionPrefix+"/api/") })); n != 50 {
+		t.Errorf("%d session routes, want doc, report, the 21 slice endpoints, the 11 line endpoints, the 3 cut endpoints, ref (status, apply, script, paste), brief, the assist tools, the 2 opt routes and the 5 diag routes", n)
 	}
 }
 
@@ -280,6 +280,12 @@ func TestContractSchemas(t *testing.T) {
 		"DiagSessionRef": diag.SessionRef{}, "DiagProcWaiter": diag.ProcWaiter{}, "DiagRowWait": diag.RowWait{}, "DiagWaitHistory": diag.WaitHistory{}, "DiagProcObjects": diag.ProcObjects{},
 		"DiagObjectType": diag.ObjectType{}, "DiagProcEnqueue": diag.ProcEnqueue{}, "DiagProcTransaction": diag.ProcTransaction{}, "DiagBlockRow": diag.BlockRow{},
 		"DiagProcDMLLock": diag.ProcDMLLock{}, "DiagProcLibObject": diag.ProcLibObject{},
+		"DiagSysState": diag.SysState{}, "DiagSysCaller": diag.SysCaller{}, "DiagSysCounts": diag.SysCounts{}, "DiagSysProc": diag.SysProc{}, "DiagSysTreeNode": diag.SysTreeNode{},
+		"DiagHangReading": diag.HangReading{}, "DiagHangListed": diag.HangListed{}, "DiagHangChain": diag.HangChain{}, "DiagHangSession": diag.HangSession{}, "DiagHangWait": diag.HangWait{},
+		"DiagHangNodes": diag.HangNodes{}, "DiagHangNode": diag.HangNode{}, "DiagHangDumps": diag.HangDumps{},
+		"DiagDeadlock": diag.Deadlock{}, "DiagDeadlockGraph": diag.DeadlockGraph{}, "DiagDeadlockRow": diag.DeadlockRow{}, "DiagDeadlockParty": diag.DeadlockParty{},
+		"DiagDeadlockCycle": diag.DeadlockCycle{}, "DiagDeadlockEdge": diag.DeadlockEdge{}, "DiagDeadlockSession": diag.DeadlockSession{}, "DiagDeadlockVictim": diag.DeadlockVictim{},
+		"DiagDeadlockRowsWaited": diag.DeadlockRowsWaited{}, "DiagDeadlockRowWaits": diag.DeadlockRowWaits{}, "DiagDeadlockDump": diag.DeadlockDump{}, "DiagPath": diag.Path{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

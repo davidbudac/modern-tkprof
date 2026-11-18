@@ -8,6 +8,29 @@ Outline: first-last line, number of lines, title
     1-   34      34  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
    35-   39       5  Other lines  [Processing Oradebug command 'dump systemstate 1']
    40-26088  26,049  System state (level=1)
+    system state, level=1 (taken by oradebug "dump systemstate 1")
+    written by session 61.58038
+    caller's stack (line 38): ksdxdocmdmultex()+5627<-ksdxdocmdmult()+55<-ksudmp_proc_short_stack()+373<-ksudss_opt()+307<-ksdxdmp()+1425<-ksdxfdmp()+152<-ksdxen_int()+3381<-opiodr()+1264<-ttcpip()+1219<-opitsk()+1925<-opiino()+93...
+    82 processes: 8 user, 73 background, 1 pseudo; 79 idle (73 background), 11 without a session
+    blockers named in: the summary's Blocked by / Final Blocker lines, the bodies' direct blocker lines
+    process table (73 idle background processes left out): pid, name, ospid, session, waiting for, time in wait, user module / action, command, statement
+       1  PSEUDO         -          (no session)
+       6  USER    13945  52.41898   'PL/SQL lock timer' (Idle)                     6.003026 s   MTK mtk_diag_chain / s1_holds_301                  PL/SQL EXECUTE  handle 0x7977a128
+       8  USER    2433   21.55810   'SQL*Net message from client' (Idle)           0.03721 s    SYS emagent_SQL_oracle_database / pdbResponse_cdb
+      61  USER    13947  255.62769  'enq: TX - row lock contention' (Application)  4.025474 s   MTK mtk_diag_chain / s3_waits_302                  SELECT          handle 0x797b5b90
+      67  USER    3453   273.33484  'SQL*Net message from client' (Idle)           0.112214 s   SYS emagent_SQL_oracle_database / Response
+      68  USER    13949  45.12004   'enq: TX - row lock contention' (Application)  5.05786 s    MTK mtk_diag_chain / s2_holds_302_waits_301        SELECT          handle 0x797bac38
+      72  USER    3455   46.20057   'PL/SQL lock timer' (Idle)                     14.799042 s  SYS emagent                                        PL/SQL EXECUTE  handle 0x97765468
+      73  USER    3742   276.28655  'SQL*Net message from client' (Idle)           3 s          SYS emagent_SQL_oracle_database / dbFailover
+      74  USER    13944  61.58038   (not in wait)                                               SYS mtk_diag_sysstate / start                                                         caller
+    blocker tree: 3 sessions in 1 chain, 2 blocked (roots are the final blockers):
+      52.41898 (pid 6, MTK, mtk_diag_chain / s1_holds_301) 'PL/SQL lock timer' 6.003026 s, blocks 2
+          command PL/SQL EXECUTE
+        45.12004 (pid 68, MTK, mtk_diag_chain / s2_holds_302_waits_301) 'enq: TX - row lock contention' 5.05786 s, blocks 1
+            command SELECT
+          255.62769 (pid 61, MTK, mtk_diag_chain / s3_waits_302) 'enq: TX - row lock contention' 4.025474 s
+              command SELECT
+    note: level 1 prints the process and its sessions only: no library object locks, so a statement is the address of its library handle
      42- 2237   2,196  Process summary
    2238- 2293      56  Process 1
       process (Oracle pid 1, serial 0), 1 state object

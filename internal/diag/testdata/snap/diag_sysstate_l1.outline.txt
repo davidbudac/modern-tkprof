@@ -3,7 +3,7 @@ section sysstate 40-26088
 outline:
   1-34 (34) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
   35-39 (5) other: Other lines  [Processing Oradebug command 'dump systemstate 1']
-+ 40-26088 (26049) sysstate: System state (level=1)
++ 40-26088 (26049) sysstate: System state (level=1) reading=sysstate
       42-2237 (2196) title: Process summary
     + 2238-2293 (56) process: Process 1 reading=procstate
     + 2294-2576 (283) process: Process 2: PMON reading=procstate

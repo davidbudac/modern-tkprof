@@ -97,6 +97,13 @@ type HeapReading struct {
 	Largest   []HeapLargest  `json:"largest"` // the "N LARGEST SUB HEAPS" block, in the order printed
 	Run       []HeapRun      `json:"run"`     // the heaps of the same dump run, in file order, at most RunCap
 	RunMore   int            `json:"runMore,omitempty"`
+	// RunLabel is a short label of the dump run when the file gives one: the oradebug command that took it ("oradebug:
+	// dump heapdump 5"), read from the "Processing Oradebug command '...'" line before the run's first heap. A heap
+	// dump prints nothing about its own level (no fixture does), and the "*** ACTION NAME" marker before it is a habit
+	// of the lab scripts, not something the dump says, so a dump taken by an event or by alter session has no label:
+	// the field is absent then. Only a heap dump of the top level has one (a heap nested in another section is its
+	// own run).
+	RunLabel string `json:"runLabel,omitempty"`
 }
 
 // ReadingKind is "heap".
@@ -1321,6 +1328,9 @@ func (r *Reader) linkHeap(hr *HeapReading, p *heapParser, top *Node) {
 	idx := sort.Search(len(r.Scan.Top), func(i int) bool { return r.Scan.Top[i].From >= top.From })
 	run, at := r.runOf(idx)
 	ms := run.members
+	if len(ms) > 0 {
+		hr.RunLabel = r.runLabel(ms[0].node.From)
+	}
 	// parent of each member: the nearest earlier member with the descriptor named by its parent=
 	parentOf := func(k int) int {
 		if ms[k].parent == "" {
@@ -1375,6 +1385,39 @@ func (r *Reader) linkHeap(hr *HeapReading, p *heapParser, top *Node) {
 		}
 		hr.Run = append(hr.Run, e)
 	}
+}
+
+// runLabel reads the label of the dump run whose first heap starts at line first: the oradebug command on the
+// lines before it. It walks back over blank lines, "*** " markers and rules and stops at the first line that is
+// none of them: the command line, or no label.
+func (r *Reader) runLabel(first int) string {
+	if first <= 1 {
+		return ""
+	}
+	lo := max(1, first-24)
+	raw, err := r.src.Read(lo, first-lo)
+	if err != nil {
+		return ""
+	}
+	lines := splitLines(raw)
+	for i := len(lines) - 1; i >= 0; i-- {
+		l := bytes.TrimSpace(lines[i])
+		if len(l) == 0 || hasPrefix(l, "*** ") || isRule(l) || star54(l) {
+			continue
+		}
+		const pfx = "Processing Oradebug command '"
+		if hasPrefix(l, pfx) {
+			cmd := string(l[len(pfx):])
+			if j := strings.LastIndexByte(cmd, '\''); j >= 0 {
+				cmd = cmd[:j]
+			}
+			if cmd = strings.Join(strings.Fields(cmd), " "); cmd != "" {
+				return "oradebug: " + cmd
+			}
+		}
+		return ""
+	}
+	return ""
 }
 
 // ---- the chunk lines of a comment

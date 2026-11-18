@@ -361,6 +361,33 @@ END OF SYSTEM STATE
 - **Levels on the lab** (about 80 processes): 1 = processes and sessions only (1.1 MB, 26,094 lines); 2 = all
   state objects (4.3 MB); 258 = 2 with short stacks; 266 = 10 with short stacks (4.9 MB, 83,386 lines) *(big)*.
 - After the last process: Data Guard broker state and `KSM MGA SYSTEM DUMP`.
+- **What each level prints about blockers** (checked in stage 6 on the four fixtures; the three sessions of the chain are
+  sid 255 blocked by 45, blocked by 52, which sleeps): the same at levels 1, 2, 258 and 266.
+  1. The process summary marks the blocked sessions: under the line of a session that waits for a lock, `Blocked by inst:
+     1, sid: 45, ser: 12004` (the direct blocker) and `Final Blocker inst: 1, sid: 52, ser: 41898` (`diag_sysstate_l1:104-107`,
+     `:114-117`; the same lines at `:106-109` and `:116-119` in level 266). A session that blocks and is not blocked, and
+     every other session, has no mark. The summary has no "blocks N" line.
+  2. The body of each blocked session prints `There is at least one session blocking this session.`, `Dumping 1 direct
+     blocker(s):` and `Dumping final blocker:` each with `inst: 1, sid:, ser:` (level 1: `:18586-18588`, `:21582-21585`;
+     level 2: `:42312`, `:49312`; level 258: `:41718`, `:48732`; level 266: `:42451`, `:50387`).
+  3. The body of a session that blocks others prints `There are N sessions blocked by this session.` and `Dumping one
+     waiter:` with that waiter's `inst: 1, sid:, ser:`, `wait event:`, `p1:`..`p3:`, `row_wait_obj#:` and
+     `min_blocked_time:`: one waiter whatever N is (the holder, which blocks two, dumps only its direct waiter: level 1
+     `:3416-3417`, `:21586-21587`). N counts the sessions below it in the chain, direct or not.
+  What differs between the levels is what surrounds this: level 1 prints no child state objects, so a session's
+  statement is only the address of its library handle (`sql: 0x797b5b90`); levels 2, 258 and 266 print the library
+  object locks, so the statement and its sql_id are known (`LibraryHandle:` with `ObjectName:  Name=` and
+  `FullHashValue=... SqlId=...`); 258 and 266 add a `Short stack dump:` per process. The summary and the bodies are
+  written at different moments: on a live instance a process can move on between them (level 266, process 60, `CJQ0`:
+  the summary says `waiting for 'enq: JG - queue lock'`, its body is in `rdbms ipc message`).
+- **Summary lines**: `1: PSEUDO process` (no ospid, no sid); `35: D000 ospid 2365 sid 0 ser 0, ` (a process with no session
+  and no wait: dispatchers, parallel slaves `P000`); `10: GEN1 ospid 2299_2300 sid 5 ser 2712,` (a thread of a
+  multithreaded process: `ospid <pid>_<tid>`); the process that takes the dump has a session and no wait
+  (`74: USER ospid 13944 sid 61 ser 58038, `, the session of the `*** SESSION ID:(61.58038)` marker). Entries are in
+  Oracle process number order with gaps (no 41, 75-77, 82-104); a `PROCESS n:` body exists for each entry.
+- **Before the section** (outside it, as the parser leaves them): `Processing Oradebug command 'dump systemstate 266'`, then
+  `System state caller's stack:`, `Short stack dump: ` and the caller's stack on one line, `ksedsts()+426<-ksdxfstk()+63<-...`
+  (`diag_sysstate_l1:35-38`): the first two functions are the signal handler's, the rest is where the caller stood.
 
 ## Hang analysis
 
@@ -392,8 +419,41 @@ END OF SYSTEM STATE
       }
   ```
 
-- **`current sql_id` is a number here**, not the 13-character sql_id.
-- `State of ALL nodes` lists `[nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]`.
+- **`current sql_id` is a number, and it is the high half of the sql_id, not the hash value** (checked in stage 5).
+  A sql_id is the last 8 bytes of the statement's MD5 spelled in base 32 (alphabet `0123456789abcdfghjkmnpqrstuvwxyz`,
+  13 characters). The library handle of the statement prints the whole MD5 as `FullHashValue=`, and its last 4 bytes
+  as the hash value (`Hash=` on the `LibraryHandle:` line, `Identifier=` on the `FullHashValue` line, `hv=` of a 10046
+  trace). The number a hang analysis prints is the 4 bytes before those: bytes 9 to 12 of the `FullHashValue`. The
+  statements of `sc_diag_chain` appear in both kinds of dump:
+
+  | statement | sql_id | `FullHashValue` | hash value (`Hash=`) | `current sql_id` in `diag_hang` (`:86`, `:125`, `:214`) |
+  |---|---|---|---|---|
+  | `select id from mtk_cust where id = 302 for update wait 60` | `ck39zc6g6ufn3` | `ee9e4662e14b3f2e`**`c90d3f61`**`9e6d3a83` (`big/diag_sysstate_l266:42802`) | 2657958531 = 0x9e6d3a83 | 3373088609 = 0xc90d3f61 |
+  | `select id from mtk_cust where id = 301 for update wait 60` | `f7y3fp7r3u84f` | `397184b5a5b27134`**`e3f86ea9`**`ee3d208e` (`:50680`) | 3996983438 = 0xee3d208e | 3824709289 = 0xe3f86ea9 |
+  | `DECLARE job BINARY_INTEGER := :job; ...` (the scheduler job) | `8gqhcqqam4cth` | `ee4c5ff77583903b`**`87da0cb5`**`95323330` (`:32332`) | 2503095088 = 0x95323330 | 2279214261 = 0x87da0cb5 |
+
+  On all 386 statement handles of `big/diag_sysstate_l266` the sql_id spells the last 8 bytes of the `FullHashValue`,
+  and `Identifier=` and `Hash=` are its last 4 (`TestHangSqlIDHigh`). So the number is the **high 32 bits of the sql_id's
+  number** (the reader names it `sqlIdHigh`), it cannot be matched to a `hv=` of a 10046 trace, and it can be matched to
+  a `sqlid=` by decoding the sql_id (`diag.SQLIDParts`). `0` is no statement (`diag_hang_event` chain 3, a Data Guard
+  process). The first reading of this reference, which listed it as probably the 10046 `hv=`, was wrong.
+- **Other lines the reader reads** (stage 5): `process id: 40, oracle@ol9-19-dg1.localdomain (J001)` names the
+  background process in parentheses; `module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))` has the container id
+  before the parenthesis, and its text is the module joined with what follows it in the dump's buffer (the scheduler
+  job's reads `DBMS_SCHEDULERstack_l1aldomain (TNS V1-V3)` in `diag_hang` and `DBMS_SCHEDULER-dg1.localdomain (TNS
+  V1-V3)` in `diag_hang_event`: the tail of the previous string shows through), so the reader keeps it as printed;
+  `heur. time in wait:` (`diag_hang_event:196`) and `timeout after: never` (`:241`); a session that waits for nothing
+  that has a name prints no parameter lines (`Redo Transport Attach`); `current sql:` is on one line (cut in the
+  fixture lines shown above) and is absent from the event form (`diag_hang_event`), which also prints no `short stack:`
+  and no `analysis initiated by oradebug` line (the oradebug form prints it, `diag_hang:44`).
+- **Groups of chains**: `Non-intersecting chains:` (chains whose head waits for something), then `Sessions in an
+  involuntary wait or not in a wait:` for chains whose head waits for an event the dump does not count as a
+  blocking wait (here `Streams AQ`, `Redo Transport Attach`: `diag_hang:189`, `diag_hang_event:175`).
+- **The chain's order**: a chain's first session waits, each next one is the one `and is blocked by` / ` =>` names, the
+  last one is the head. The signature lists the events from the head: `'PL/SQL lock timer'<='enq: TX - row lock
+  contention'<='enq: TX - row lock contention'` for a chain whose sessions wait, in order, for the TX lock, the TX lock and
+  the timer. `blocking: N sessions` counts the sessions below it in the chain (0, 1, 2).
+- `State of ALL nodes` lists `[nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]`: one row per node of a chain (`[254]/1/255/22508/0xa299efe8/13912/NLEAF/[51]`); the adjacency is the node the session is blocked by (`[254]` is session 255, `[51]` session 52, which is the next in the chain).
 
 ## Deadlock graph
 
@@ -417,6 +477,15 @@ Holds resource TX-000A0009-00004D46-ED94F66A-00000000 acquired 5 seconds ago.
 - **Start**: `DEADLOCK DETECTED ( ORA-00060 )` (`diag_deadlock:33`), one line after a `ksqdld_hdr_dump()` line.
 - The graph is a fixed-column table, one row per resource. The sessions' blocks follow, each with its
   `current SQL:`.
+- **The graph's columns**: the header words give the right edge of each cell; the numbers and modes are right-aligned, an empty cell
+  is blank (a blocker that does not wait, a waiter that holds nothing: `diag_deadlock:46-47`), and the waiter's group sits
+  one character to the left of its header words. Both rows of the fixture: the blocker holds `X`, the waiter waits for `X`; the row
+  is `resource, blocker process/session/holds/waits/serial, waiter process/session/holds/waits/serial`.
+- **The trace is the victim's**: the process that received ORA-00060 writes it, so the `*** SESSION ID:(255.52110)` marker before
+  the graph (`diag_deadlock:24`) is the victim, session 255, whose statement is the `Current SQL Statement` of the dump that
+  follows. `Rows waited on:` (`diag_deadlock:4124`) is in the dump that follows the graph, after the heaps and areas, one
+  `Session N: obj - rowid = 0001A841 - AAAahBAAMAAApUZAAD` and one `(dictionary objn - 108609, file - 12, block - 169241, slot - 3)`
+  line per session.
 - **After `End of information for waiting sessions` a whole diagnostic dump follows** (level 1 with a process
   state and cursor dumps, 10,478 lines in all), so the graph is 50 lines of a 636 KB file.
 
@@ -478,6 +547,6 @@ adjacent, the other kinds as above. Lines no section takes: the `Processing Orad
 - **RAC and shared server**; a system state of a busy instance (the lab has about 80 processes, three in a
   chain).
 - **The end of a diagnostic dump inside a 10046 trace** is seen once (`diag_in_10046`).
-- **That hang analysis's numeric `current sql_id` is the 10046 `hv=`.**
+- **A session in a hang analysis chain that is not in a wait**, and a chain over two instances: the reader reads a line that does not say `waiting for '...'` as the state and keeps its text; no fixture shows one.
 - **ORA-04031** (shared pool) traces; latch and mutex waits in a system state; library object lock waits.
 - **A dump cut by `max_dump_file_size`.**

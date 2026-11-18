@@ -1612,8 +1612,10 @@ paths:
         dump's memory is by chunk type, comment and sub-heap, and its free lists, checked against the totals the
         dump prints), `pga-summary` (`DiagPGASummary`) and `pga-detail` (`DiagPGADetail`: the PGA dumps' own
         tables), `callstack` (`DiagCallStack`: a diagnostic dump's error, statement, PL/SQL stack, frames and
-        cursors) and `procstate` (`DiagProcState`: a process, its session, wait, blockers and holds). Later
-        stages add more kinds. Readings are addressed by node because a heap dump can sit inside
+        cursors), `procstate` (`DiagProcState`: a process, its session, wait, blockers and holds), `sysstate`
+        (`DiagSysState`: the process table and the blocker tree of a system state), `hang` (`DiagHangReading`:
+        the chains of a hang analysis) and `deadlock` (`DiagDeadlock`: the graph, the cycle and the sessions of
+        a deadlock). Readings are addressed by node because a heap dump can sit inside
         another section (an errorstack, a banner of a PGA summary). A reading is computed on demand by scanning
         the node's own lines (a heap of 500,000 lines in well under a second) and kept in a small cache; nothing
         is persisted. 404 (envelope) for a node whose kind has no reading ("no reading for this kind of
@@ -1688,6 +1690,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DiagHeapLines"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /s/{id}/api/diag/path:
+    get:
+      operationId: sessionDiagPath
+      summary: The chain of outline nodes that hold a line, or lead to a node
+      description: |
+        `nodes`: the chain of nodes of a diag session's outline from the top-level node down to the deepest node
+        that holds line `line` (a heap nested in a PGA summary, a process of a system state: nodes a client has not
+        loaded), each inside the one before it, so that a client can show the where-am-I path for any line. With
+        `node` instead of `line`: the chain down to that node (its last element is the node itself). Only the
+        lines of the nodes on the way are read, up to the end of the child that holds the line, and an answer is
+        cached. At most 16 nodes. 400 without `line` or `node` or with a bad number; 404 (envelope) for a line
+        outside the file, for an id that is not a node of it and for a session that is not a diag one.
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - name: line
+          in: query
+          required: false
+          description: "a line number of the file, 1 or more"
+          schema:
+            type: integer
+            minimum: 1
+        - name: node
+          in: query
+          required: false
+          description: "a node id (`DiagNode.id`); used instead of `line`"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: the chain of nodes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagPath"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3938,7 +3982,7 @@ components:
         reading:
           type: string
           enum: [heap, pga-summary, pga-detail, callstack, procstate]
-          description: "the kind of the computed reading the node has (`api/diag/reading?node=`); absent when it has none: heap for a heap dump, pga-summary, pga-detail, callstack for a diagnostic dump (also an incident file and its Dump for incident part), procstate for a process state and for a PROCESS n of a system state. Later stages add hang, deadlock, sysstate."
+          description: "the kind of the computed reading the node has (`api/diag/reading?node=`); absent when it has none: heap for a heap dump, pga-summary, pga-detail, callstack for a diagnostic dump (also an incident file and its Dump for incident part), procstate for a process state and for a PROCESS n of a system state, sysstate, hang and deadlock for those sections."
         fold:
           type: string
           description: "a short reason, in plain words, for a part whose text is noise by default (\"frame data: registers and memory of each frame\"): a client shows it closed. Set on child nodes only (the binary stack dump, the argument and register address dump, the process map dump, the fixed areas dump and its areas, pinned buffer history and block dumps, the compile-time constants, redo transport structures, SGA granule transfers, the diagnostic framework's actions); absent for every other part. Never set on a section"
@@ -3970,6 +4014,9 @@ components:
         - $ref: "#/components/schemas/DiagPGADetail"
         - $ref: "#/components/schemas/DiagCallStack"
         - $ref: "#/components/schemas/DiagProcState"
+        - $ref: "#/components/schemas/DiagSysState"
+        - $ref: "#/components/schemas/DiagHangReading"
+        - $ref: "#/components/schemas/DiagDeadlock"
       discriminator:
         propertyName: kind
         mapping:
@@ -3978,6 +4025,9 @@ components:
           pga-detail: "#/components/schemas/DiagPGADetail"
           callstack: "#/components/schemas/DiagCallStack"
           procstate: "#/components/schemas/DiagProcState"
+          sysstate: "#/components/schemas/DiagSysState"
+          hang: "#/components/schemas/DiagHangReading"
+          deadlock: "#/components/schemas/DiagDeadlock"
     DiagHeapReading:
       type: object
       description: 'the reading of a heap dump (diag.HeapReading): where the memory is, by chunk type, comment and sub-heap, and the free lists, checked against the totals the dump prints. Answer of api/diag/reading for a node of kind heap (`reading` "heap"); the first field is `kind`.'
@@ -4084,6 +4134,9 @@ components:
         runMore:
           type: integer
           description: 'heaps of the run left out of run'
+        runLabel:
+          type: string
+          description: 'a short label of the dump run when the file gives one: the oradebug command that took it (`oradebug: dump heapdump 5`), read from the `Processing Oradebug command` line before the run''s first heap. A heap dump prints nothing about its own level and the `*** ACTION NAME` marker before it is not something the dump says, so a dump taken by an event or by alter session has no label: the field is absent then, and for a heap nested in another section'
     DiagHeapFlags:
       type: object
       description: 'what limits the reading'
@@ -4632,7 +4685,7 @@ components:
         session:
           allOf:
             - $ref: "#/components/schemas/DiagPGASession"
-          description: 'the session detail printed under a process over 32 MB'
+          description: 'the session detail printed under a process over 32 MB (under its row of `all`); the row of the same process in `top` carries the same detail'
     DiagPGASession:
       type: object
       description: '"Begin session detail for pid N" ... "End session detail"'
@@ -5621,6 +5674,923 @@ components:
         count:
           type: integer
           description: 'the Count= of a pin'
+    DiagSysState:
+      type: object
+      description: 'the reading of a system state (diag.SysState), answer of api/diag/reading for a node of kind sysstate (`reading` "sysstate"): one row per process of the Process Summary of the dump completed from each PROCESS body, the counts (idle by the event reference of the engine), and the blocker tree as the dump names it. Bounded: 3000 table rows (and the rows of blocked and blocking sessions beyond them) and 300 tree nodes, with the rest counted'
+      required: [kind, node, from, to, lines, level, shortStacks, titleLine, summaryMarks, bodyMarks, counts, processes, processesOmitted, tree, treeNodes, treeOmitted, blocked, roots, ended, notes]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"sysstate"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        level:
+          type: string
+          description: 'Level is the text in the parentheses of the title as printed ("level=10, with short stacks"); LevelNum the number after "level="; ShortStacks: the title says "with short stacks".'
+        levelNum:
+          type: integer
+        shortStacks:
+          type: boolean
+        titleLine:
+          type: integer
+        command:
+          type: string
+          description: 'Command is the oradebug command that took the dump ("dump systemstate 266"), from the line before the section when it prints one; absent for a dump taken any other way.'
+        commandLine:
+          type: integer
+        caller:
+          allOf:
+            - $ref: "#/components/schemas/DiagSysCaller"
+          description: 'Caller is the short stack of the process that took the dump, printed before the section ("System state caller''s stack:"); absent when there is none. Session is the session that wrote the trace ("sid.serial" of the "*** SESSION ID" marker in force at the section), when the file has one.'
+        session:
+          type: string
+        summaryLine:
+          type: integer
+          description: 'SummaryLine is the line of "Dumping the Process Summary" (0 when the section has none).'
+        summaryMarks:
+          type: boolean
+          description: 'SummaryMarks: the summary prints "Blocked by" / "Final Blocker" lines for some process (every level of the lab does).'
+        bodyMarks:
+          type: boolean
+          description: 'BodyMarks: the process bodies print "Dumping N direct blocker(s)" (every level of the lab does).'
+        counts:
+          $ref: "#/components/schemas/DiagSysCounts"
+        processes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSysProc"
+          description: 'Processes are the rows of the process table in the summary''s order: the first SysRowCap, then the rows of the sessions that block or are blocked beyond them; ProcessesOmitted counts the processes not listed.'
+        processesOmitted:
+          type: integer
+        tree:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSysTreeNode"
+          description: 'Tree is the blocker forest, the largest root first; TreeNodes counts the nodes listed, TreeOmitted those left out for the bound. Blocked counts the sessions that have a blocker, Roots the roots (listed or not).'
+        treeNodes:
+          type: integer
+        treeOmitted:
+          type: integer
+        blocked:
+          type: integer
+        roots:
+          type: integer
+        ended:
+          type: boolean
+          description: 'Ended: the section''s "END OF SYSTEM STATE" was reached.'
+        notes:
+          type: array
+          items:
+            type: string
+    DiagSysCaller:
+      type: object
+      description: 'the short stack of the process that took the system state, printed before the section'
+      required: [line, stack, stackNoOwn, own]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+          description: 'the line of the stack'
+        stack:
+          type: string
+          description: 'as printed, innermost first'
+        stackNoOwn:
+          type: string
+          description: 'StackNoOwn is the stack without the leading functions of the signal handler that took it (the ksedsts... entries); Own counts them.'
+        own:
+          type: integer
+    DiagSysCounts:
+      type: object
+      description: 'the counts of the processes of the summary (all of them, listed or not)'
+      required: [processes, user, background, pseudo, idle, idleBackground, withoutSession]
+      additionalProperties: false
+      properties:
+        processes:
+          type: integer
+        user:
+          type: integer
+          description: 'foreground (USER)'
+        background:
+          type: integer
+          description: 'named processes'
+        pseudo:
+          type: integer
+          description: 'the pseudo process'
+        idle:
+          type: integer
+          description: 'Idle counts the idle processes of every kind, IdleBackground those that are background ones (hidden in the text digest and by default in a client); WithoutSession those with no session (sid 0 ser 0 or the pseudo process).'
+        idleBackground:
+          type: integer
+        withoutSession:
+          type: integer
+        omitted:
+          type: integer
+          description: 'Omitted: summary entries past the bound of the memory kept for the summary (sysSummaryHard), 0 normally.'
+    DiagSysProc:
+      type: object
+      description: 'a row of the process table: the summary line completed from the process body'
+      required: [pid, name, kind, sid, serial, line, idle, background, blockedBy, body, inWait, blocks, blocked]
+      additionalProperties: false
+      properties:
+        pid:
+          type: integer
+          description: 'the Oracle process number: "6:" of the summary and "PROCESS 6:" of the body'
+        name:
+          type: string
+          description: '"PMON", "USER"; "PSEUDO" for the pseudo process'
+        kind:
+          type: string
+          description: 'foreground, background, pseudo'
+        ospid:
+          type: string
+          description: 'OSPid is as printed ("2188", or "2299_2300" for a thread of a multithreaded process); absent for the pseudo process.'
+        sid:
+          type: integer
+        serial:
+          type: integer
+          description: 'Serial is the session serial; 0 with sid 0 for a process the summary gives no session.'
+        session:
+          type: string
+          description: 'Session is "sid.serial"; absent for a process with no session.'
+        line:
+          type: integer
+          description: 'the summary line'
+        event:
+          type: string
+          description: 'Event is what the summary says the process waits for; absent when it prints none (the process that took the dump, a process not in a wait). Class is the wait class in the event reference, "" for an event it does not know.'
+        class:
+          type: string
+        bodyEvent:
+          type: string
+          description: 'the event of the current wait stack of the process body when it is not the summary one: the summary is written first and the bodies later, on a live system, so a process can have moved on (fixture big/diag_sysstate_l266: process 60 is waiting for `enq: JG - queue lock` in the summary and in `rdbms ipc message` in its body). `waitSec` is the time in wait of the body, so it belongs to `bodyEvent` when that is set. `idle` and `class` follow the summary'
+        idle:
+          type: boolean
+          description: 'Idle: the class is Idle, or the process has no session. Background: Kind is background.'
+        background:
+          type: boolean
+        caller:
+          type: boolean
+          description: 'Caller: the session of the process is the one that took the dump.'
+        cmd:
+          type: string
+          description: 'Cmd is the summary''s "Cmd:" line.'
+        blockedBy:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSessionRef"
+          description: 'Marks of the summary: the direct blockers ("Blocked by") and the final blocker ("Final Blocker").'
+        finalBlocker:
+          $ref: "#/components/schemas/DiagSessionRef"
+        node:
+          type: string
+          description: 'Node is the id of the PROCESS n node of the outline (its procstate reading is the process''s state objects); NodeLine is its first line. Absent when the section''s outline has no node for it.'
+        nodeLine:
+          type: integer
+        body:
+          type: boolean
+          description: 'Body: the process''s body was read for this row (the next fields come from it).'
+        flags:
+          type: string
+          description: 'the process''s flags as printed ("SYSTEM")'
+        user:
+          type: string
+        container:
+          type: string
+        module:
+          type: string
+        action:
+          type: string
+        program:
+          type: string
+        machine:
+          type: string
+        command:
+          type: integer
+          description: 'oct'
+        inWait:
+          type: boolean
+          description: 'InWait: the session''s current wait stack has an entry; WaitSec is its "total=" (the time in wait so far). LastWaitEndedSec: "Not in wait; last wait ended N sec ago".'
+        waitSec:
+          type: number
+        lastWaitEndedSec:
+          type: number
+        blocks:
+          type: integer
+          description: 'Blocks is N of "There are N sessions blocked by this session." (0 when the body prints none); Blocked: "There is at least one session blocking this session."'
+        blocked:
+          type: boolean
+        sqlId:
+          type: string
+          description: 'The session''s top-level statement, as the process state reading finds it: SqlID and SqlText (the first line, cut) where the level prints the library object lock of its handle (2, 258, 266), SqlLine the line of that lock; SqlHandle is the address the session prints after "sql:" (absent for none), the only thing a level 1 dump says.'
+        sqlText:
+          type: string
+        sqlLine:
+          type: integer
+        sqlHandle:
+          type: string
+        sessionLine:
+          type: integer
+          description: 'SessionLine is the "(session) sid:" line of the body.'
+    DiagSysTreeNode:
+      type: object
+      description: 'a session of the blocker tree; its children are the sessions it blocks directly'
+      required: [session, sid, serial, inWait, blocks, descendants, line, children]
+      additionalProperties: false
+      properties:
+        session:
+          type: string
+          description: '"sid.serial"'
+        sid:
+          type: integer
+        serial:
+          type: integer
+        inst:
+          type: integer
+          description: 'Inst is the instance a blocker line prints ("inst: 1").'
+        foreign:
+          type: boolean
+          description: 'Foreign: the session is not one of this dump''s processes (another instance, or a stale serial); only the dump''s mention of it is known (Line).'
+        cycle:
+          type: boolean
+          description: 'Cycle: the direct blockers of this session lead back to it; the tree is cut here, the session is a root.'
+        pid:
+          type: integer
+        user:
+          type: string
+        module:
+          type: string
+        action:
+          type: string
+        event:
+          type: string
+        waitSec:
+          type: number
+        inWait:
+          type: boolean
+        sqlId:
+          type: string
+        sqlText:
+          type: string
+        cmd:
+          type: string
+        blocks:
+          type: integer
+          description: 'Blocks is N of "There are N sessions blocked by this session." when the dump prints it for this session, else the number of sessions below this one in the tree; Descendants is the latter, always.'
+        descendants:
+          type: integer
+        finalBlocker:
+          type: string
+          description: 'FinalBlocker is the final blocker the dump names for this session ("sid.serial"); absent for a root.'
+        alsoBlockedBy:
+          type: array
+          items:
+            type: string
+          description: 'AlsoBlockedBy are the other direct blockers of the session (the tree has it under the first).'
+        node:
+          type: string
+          description: 'Node is the id of the session''s process node (a procstate reading); Line the line of the session ("(session) sid:" of the body, else the summary line, else the line that names a foreign session).'
+        line:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagSysTreeNode"
+    DiagHangReading:
+      type: object
+      description: 'the reading of a hang analysis (diag.HangReading), answer of api/diag/reading for a node of kind hang (`reading` "hang"): the chains of sessions that wait for one another as the dump prints them (each in the order "is blocked by" gives), the chains most likely to have caused the hang, the node table and the dumps block'
+      required: [kind, node, from, to, lines, instances, headerLine, delays, listed, chains, chainsTotal, extra, ended, notes]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"hang"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        instances:
+          type: array
+          items:
+            type: string
+          description: 'Instances are the "instances (db_name.oracle_sid)" the analysis covers; Level the "oradebug_node_dump_level"; InitiatedBy the text after "analysis initiated by" ("oradebug"), absent when the dump prints none (the event form of the lab does not).'
+        level:
+          type: integer
+        initiatedBy:
+          type: string
+        headerLine:
+          type: integer
+        delays:
+          type: array
+          items:
+            type: string
+          description: 'Delays are the lines of "os thread scheduling delay history", as printed and trimmed.'
+        listed:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangListed"
+          description: 'Listed is the "Chains most likely to have caused the hang" list; Chains are the chains of the body.'
+        chains:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangChain"
+        chainsTotal:
+          type: integer
+        nodes:
+          allOf:
+            - $ref: "#/components/schemas/DiagHangNodes"
+          description: 'Nodes is the "State of ALL nodes" table, absent when the dump prints none.'
+        extra:
+          type: array
+          items:
+            type: string
+          description: 'Extra are the lines under "Extra information that will be dumped at higher levels".'
+        dumps:
+          allOf:
+            - $ref: "#/components/schemas/DiagHangDumps"
+          description: 'Dumps are the facts of the "HANG ANALYSIS DUMPS:" block, absent when the section has none.'
+        ended:
+          type: boolean
+          description: 'Ended: "END OF HANG ANALYSIS" was reached.'
+        notes:
+          type: array
+          items:
+            type: string
+    DiagHangListed:
+      type: object
+      description: 'an entry of the list of chains most likely to have caused the hang'
+      required: [letter, chain, signature, events, line]
+      additionalProperties: false
+      properties:
+        letter:
+          type: string
+          description: '"a" of " [a] Chain 1 Signature: ..."'
+        chain:
+          type: integer
+        signature:
+          type: string
+          description: 'Signature is as printed ("''PL/SQL lock timer''<=''enq: TX - row lock contention''"); Events its list, the head''s first.'
+        events:
+          type: array
+          items:
+            type: string
+        hash:
+          type: string
+          description: '"0x5e4fa8d6"'
+        line:
+          type: integer
+    DiagHangChain:
+      type: object
+      description: 'one chain of the hang analysis: the first session waits, each next one blocks the one before it, the last is the head of the chain'
+      required: [n, line, from, to, events, listed, sessions, sessionsTotal]
+      additionalProperties: false
+      properties:
+        n:
+          type: integer
+        line:
+          type: integer
+          description: '"Chain N:"'
+        from:
+          type: integer
+        to:
+          type: integer
+        group:
+          type: string
+          description: 'Group is the label over it: "Non-intersecting chains" or "Sessions in an involuntary wait or not in a wait".'
+        signature:
+          type: string
+          description: 'Signature, Events and Hash are the chain''s own "Chain N Signature:" lines (the list''s when it has none).'
+        events:
+          type: array
+          items:
+            type: string
+        hash:
+          type: string
+        listed:
+          type: boolean
+          description: 'Listed: the chain is in the "most likely" list; Letter is its letter there.'
+        letter:
+          type: string
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangSession"
+          description: 'Sessions are in the order the dump prints them: the first waits, each next one blocks the one before it, the last is the head of the chain. At most HangSessionCap; SessionsTotal counts them all.'
+        sessionsTotal:
+          type: integer
+    DiagHangSession:
+      type: object
+      description: 'one session of a chain: its identification block, wait info, current statement and wait history as printed. current sql_id is a number that is the high 32 bits of the sql_id of the statement (not its hash value)'
+      required: [position, line, from, to, sid, serial, key, waiting, params, history, historyTotal]
+      additionalProperties: false
+      properties:
+        position:
+          type: integer
+          description: '1 for the first'
+        line:
+          type: integer
+          description: '"Oracle session identified by:"'
+        from:
+          type: integer
+        to:
+          type: integer
+        instance:
+          type: string
+          description: 'The identification block, as printed. Instance is "1 (cdb1.cdb1)" as printed.'
+        osId:
+          type: string
+        processId:
+          type: integer
+          description: 'ProcessID is the Oracle process number; Process the rest of the line ("oracle@ol9-19-dg1.localdomain (J001)").'
+        process:
+          type: string
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+          description: '"sid.serial"'
+        module:
+          type: string
+          description: 'Module is the text of "module name: 3 (mtk_diag_chain-dg1.localdomain (TNS V1-V3))" in the outer parentheses, as printed: the dump joins the module with what follows it in a buffer, so the text can carry the tail of the machine name (fixture diag_hang: "DBMS_SCHEDULERstack_l1aldomain (TNS V1-V3)"). ModuleNum is the number before it, the container id on every fixture.'
+        moduleNum:
+          type: integer
+        pdbId:
+          type: integer
+        pdb:
+          type: string
+        waiting:
+          type: boolean
+          description: 'Waiting: "is waiting for ''<event>'' with wait info:". State is the line that says it, as printed. Event is absent for a session that is not waiting.'
+        event:
+          type: string
+        state:
+          type: string
+        params:
+          type: array
+          items:
+            type: string
+          description: 'Params are the wait parameters as printed ("p1: ''name|mode''=0x54580006").'
+        timeInWaitSec:
+          type: number
+          description: 'The wait info: time in wait, "heur. time in wait", "timeout after" (TimeoutText as printed: "55.970964 sec" or "never"), "wait id", "blocking: N session(s)".'
+        heurTimeInWaitSec:
+          type: number
+        timeoutSec:
+          type: number
+        timeoutText:
+          type: string
+        waitId:
+          type: integer
+        blocking:
+          type: integer
+        lastWaitText:
+          type: string
+          description: 'LastWaitText is "last wait:" of a session that is not waiting, as printed (not shown by a fixture).'
+        sqlIdHigh:
+          type: integer
+          format: int64
+          description: 'SqlIdHigh is "current sql_id": a number that is the high 32 bits of the statement''s sql_id, not its hash value (see the comment of this file). Absent when the dump prints none; 0 is no statement. SqlText is "current sql:" (at most HangTextCap bytes, SqlCut says it was cut), absent when the dump prints none.'
+        sqlText:
+          type: string
+        sqlCut:
+          type: boolean
+        shortStack:
+          type: string
+          description: 'ShortStack is the session''s "short stack:" as printed (functions joined by "<-", no offsets); ShortStackNoOwn without the leading entries of the signal handler that took it, ShortStackOwn how many those are.'
+        shortStackNoOwn:
+          type: string
+        shortStackOwn:
+          type: integer
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangWait"
+          description: 'History is the wait history, latest first, at most HangHistoryCap; HistoryTotal counts them.'
+        historyTotal:
+          type: integer
+        historyLine:
+          type: integer
+    DiagHangWait:
+      type: object
+      description: 'an entry of the wait history of a session'
+      required: [n, event, params, line]
+      additionalProperties: false
+      properties:
+        n:
+          type: integer
+          description: '1 is the latest'
+        event:
+          type: string
+        waitedSec:
+          type: number
+          description: '"time waited"'
+        gapSec:
+          type: number
+          description: 'GapSec is the "* time between wait #1 and #2: 0.000005 sec" line above the entry: the time between the wait before it (the current wait for entry 1) and this one; GapLabel is that line as printed.'
+        waitId:
+          type: integer
+        params:
+          type: array
+          items:
+            type: string
+        line:
+          type: integer
+        gapLabel:
+          type: string
+    DiagHangNodes:
+      type: object
+      description: 'a "State of ALL nodes" / "State of LOCAL nodes" table'
+      required: [line, rows, total]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        header:
+          type: string
+          description: '"([nodenum]/cnode/sid/sess_srno/session/ospid/state/[adjlist]):"'
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagHangNode"
+        total:
+          type: integer
+    DiagHangNode:
+      type: object
+      description: 'a row of a node table: "[254]/1/255/22508/0xa299efe8/13912/NLEAF/[51]"'
+      required: [line, num, cnode, sid, serial, key, session, ospid, state, adj]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        num:
+          type: integer
+        cnode:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+          description: '"sid.serial"'
+        session:
+          type: string
+          description: 'the session''s address, as printed'
+        ospid:
+          type: string
+        state:
+          type: string
+          description: 'SINGLE_NODE, NLEAF, LEAF, ...'
+        adj:
+          type: array
+          items:
+            type: integer
+          description: 'Adj is the adjacency list: the node numbers in brackets at the end of the row.'
+    DiagHangDumps:
+      type: object
+      description: 'the facts of the "HANG ANALYSIS DUMPS:" block'
+      required: [line, lines, ended]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        level:
+          type: integer
+          description: '"oradebug_node_dump_level: 3"'
+        local:
+          allOf:
+            - $ref: "#/components/schemas/DiagHangNodes"
+          description: 'Local is "State of LOCAL nodes".'
+        lines:
+          type: array
+          items:
+            type: string
+          description: 'Lines are the other lines of the block, as printed ("No processes qualify for dumping.").'
+        ended:
+          type: boolean
+          description: '"HANG ANALYSIS DUMPS: END"'
+    DiagDeadlock:
+      type: object
+      description: 'the reading of a deadlock graph (diag.Deadlock), answer of api/diag/reading for a node of kind deadlock (`reading` "deadlock"): the rows of the graph as printed (empty cells absent), the cycle between sessions, the information for waiting sessions, the victim (the session that wrote the trace), the rows waited on and the diagnostic dump that follows'
+      required: [kind, node, from, to, lines, ora, line, graph, cycle, sessions, sessionsTotal, sessionsEnded, notes]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          description: '"deadlock"'
+        node:
+          type: string
+        from:
+          type: integer
+        to:
+          type: integer
+        lines:
+          type: integer
+        ora:
+          type: string
+          description: 'ORA is "ORA-00060" of "DEADLOCK DETECTED ( ORA-00060 )", Line its line; Type the "[Transaction Deadlock]" line''s text.'
+        line:
+          type: integer
+        type:
+          type: string
+        graph:
+          $ref: "#/components/schemas/DiagDeadlockGraph"
+        cycle:
+          $ref: "#/components/schemas/DiagDeadlockCycle"
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDeadlockSession"
+          description: 'Sessions are the "Information for waiting sessions" blocks, in order.'
+        sessionsTotal:
+          type: integer
+        sessionsLine:
+          type: integer
+          description: 'SessionsLine is the "Information for waiting sessions" line (0 when the section has none); SessionsEnded: its end line was reached.'
+        sessionsEnded:
+          type: boolean
+        victim:
+          allOf:
+            - $ref: "#/components/schemas/DiagDeadlockVictim"
+          description: 'Victim is the session that wrote the trace; absent when the file has no session marker before the section.'
+        rowsWaited:
+          allOf:
+            - $ref: "#/components/schemas/DiagDeadlockRowsWaited"
+          description: 'RowsWaited is the "Rows waited on" block, absent when the dump prints none.'
+        dump:
+          allOf:
+            - $ref: "#/components/schemas/DiagDeadlockDump"
+          description: 'Dump is the diagnostic dump that follows the graph (its callstack reading), absent when there is none.'
+        notes:
+          type: array
+          items:
+            type: string
+    DiagDeadlockGraph:
+      type: object
+      description: 'the deadlock graph table'
+      required: [line, header, rows, rowsTotal]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+          description: '"Deadlock graph:"; 0 when the section has none'
+        header:
+          type: array
+          items:
+            type: string
+          description: 'Header are the two header lines as printed (the "Blocker(s)" / "Waiter(s)" rule and the column names).'
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDeadlockRow"
+        rowsTotal:
+          type: integer
+    DiagDeadlockRow:
+      type: object
+      description: 'a row of the graph: a resource, the session that holds it and the one that waits for it'
+      required: [line, resource, type, blocker, waiter]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        resource:
+          type: string
+          description: 'Resource is the name as printed ("TX-000A0009-00004D46-ED94F66A-00000000"); Type its first part ("TX").'
+        type:
+          type: string
+        blocker:
+          $ref: "#/components/schemas/DiagDeadlockParty"
+        waiter:
+          $ref: "#/components/schemas/DiagDeadlockParty"
+    DiagDeadlockParty:
+      type: object
+      description: 'one side of a row; a cell the dump leaves empty is absent'
+      additionalProperties: false
+      properties:
+        process:
+          type: integer
+        session:
+          type: integer
+        holds:
+          type: string
+          description: 'the mode held ("X")'
+        waits:
+          type: string
+          description: 'the mode waited for'
+        serial:
+          type: integer
+        key:
+          type: string
+          description: 'Key is "sid.serial" when both are printed.'
+    DiagDeadlockCycle:
+      type: object
+      description: 'the cycle of the rows seen as edges between sessions'
+      required: [closed, sessions, edges]
+      additionalProperties: false
+      properties:
+        closed:
+          type: boolean
+          description: 'Closed: the edges lead from a session back to it.'
+        sessions:
+          type: array
+          items:
+            type: string
+          description: 'Sessions are the sessions of the cycle in the order of the edges (each waits for the next, the last for the first).'
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDeadlockEdge"
+    DiagDeadlockEdge:
+      type: object
+      description: 'an edge of the cycle: Waiter waits for Resource, which Blocker holds'
+      required: [waiter, blocker, resource, line]
+      additionalProperties: false
+      properties:
+        waiter:
+          type: string
+        blocker:
+          type: string
+        resource:
+          type: string
+        mode:
+          type: string
+          description: 'Mode is the mode the waiter waits for, as printed in the waiter''s "waits" cell.'
+        line:
+          type: integer
+    DiagDeadlockSession:
+      type: object
+      description: 'a block of "Information for waiting sessions"'
+      required: [line, from, to, number, sid, serial, key, inGraph]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+          description: '"Session 255:"'
+        from:
+          type: integer
+        to:
+          type: integer
+        number:
+          type: integer
+          description: 'Number is the number after "Session" (the session id).'
+        heldResource:
+          type: string
+          description: 'HeldResource and Acquired: "Holds resource TX-... acquired 5 seconds ago."; AcquiredSec the seconds (absent when the text is not in that form).'
+        acquired:
+          type: string
+        acquiredSec:
+          type: integer
+        sid:
+          type: integer
+        serial:
+          type: integer
+        key:
+          type: string
+        audsid:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+        user:
+          type: string
+        container:
+          type: string
+          description: '"3/PDB1" of "pdb:" split'
+        containerId:
+          type: integer
+          description: 'ContainerID and ContainerName: "pdb: 3/PDB1".'
+        containerName:
+          type: string
+        pid:
+          type: integer
+        osUser:
+          type: string
+        ospid:
+          type: string
+        image:
+          type: string
+        clientOsUser:
+          type: string
+          description: 'The client''s: "client details:" then "O/S info:", "machine:", "program:", "application name:", "action name:".'
+        clientOspid:
+          type: string
+        machine:
+          type: string
+        program:
+          type: string
+        module:
+          type: string
+          description: '"application name:"'
+        action:
+          type: string
+          description: '"action name:"'
+        sqlText:
+          type: string
+          description: 'SqlText is "current SQL:" and the lines after it (at most DeadlockSQLLines lines and DeadlockSQLBytes bytes, SqlCut says it was cut); SqlLine is the first line of the text.'
+        sqlLine:
+          type: integer
+        sqlCut:
+          type: boolean
+        inGraph:
+          type: boolean
+          description: 'InGraph: the session is in a row of the graph.'
+    DiagDeadlockVictim:
+      type: object
+      description: 'the session that wrote the trace'
+      required: [session, line, inGraph]
+      additionalProperties: false
+      properties:
+        session:
+          type: string
+          description: '"sid.serial"'
+        line:
+          type: integer
+          description: 'Line is the "*** SESSION ID" marker that says so; InGraph: the session is in the graph; Statement the session''s current SQL of the "Information for waiting sessions" when it has a block there.'
+        inGraph:
+          type: boolean
+    DiagDeadlockRowsWaited:
+      type: object
+      description: 'the "Rows waited on" block'
+      required: [line, rows, total]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagDeadlockRowWaits"
+        total:
+          type: integer
+    DiagDeadlockRowWaits:
+      type: object
+      description: 'an entry of "Rows waited on": a session and the row it waits on'
+      required: [line, session]
+      additionalProperties: false
+      properties:
+        line:
+          type: integer
+        session:
+          type: integer
+          description: 'the session id'
+        noRow:
+          type: boolean
+        obj:
+          type: string
+          description: '"0001A841" as printed'
+        rowid:
+          type: string
+          description: '"AAAahBAAMAAApUZAAD"'
+        objn:
+          type: integer
+          format: int64
+          description: 'Objn, File, Block and Slot of the dictionary line.'
+        file:
+          type: integer
+          format: int64
+        block:
+          type: integer
+          format: int64
+        slot:
+          type: integer
+          format: int64
+    DiagDeadlockDump:
+      type: object
+      description: 'the diagnostic dump nested in the deadlock section'
+      required: [node, from, to, title]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+          description: 'its id: ask api/diag/reading for its callstack reading'
+        from:
+          type: integer
+        to:
+          type: integer
+        title:
+          type: string
+    DiagPath:
+      type: object
+      description: 'the answer of api/diag/path: the nodes from the top level down, each inside the one before it'
+      required: [nodes]
+      additionalProperties: false
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagNode"
     OptDoc:
       type: object
       description: "the `opt` member of the document of a 10053 file (report.OptDoc); absent for every other file. The rest of such a document is that of a trace with no 10046 record"

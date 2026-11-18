@@ -492,6 +492,13 @@ func attachSession(p *PGAProcesses, s *PGASession, last *PGAProc) {
 			pr := &(*list)[i]
 			if pr.Session == nil && s.OSPid != "" && pr.OSPid == s.OSPid && list == &p.AllProcs {
 				pr.Session = s
+				// the top 10 row of the same process carries the same detail (the top list is printed first, the detail
+				// belongs to the process, not to the list it is read under)
+				for j := range p.TopProcs {
+					if tp := &p.TopProcs[j]; tp.Session == nil && tp.OSPid == s.OSPid {
+						tp.Session = s
+					}
+				}
 				return
 			}
 		}

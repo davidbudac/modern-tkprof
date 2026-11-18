@@ -1,3 +1,190 @@
+== deadlock 33-10477
+{
+  "cycle": {
+    "closed": true,
+    "edges": [
+      {
+        "blocker": "61.27430",
+        "line": 47,
+        "mode": "X",
+        "resource": "TX-00080010-000057D7-ED94F66A-00000000",
+        "waiter": "255.52110"
+      },
+      {
+        "blocker": "255.52110",
+        "line": 46,
+        "mode": "X",
+        "resource": "TX-000A0009-00004D46-ED94F66A-00000000",
+        "waiter": "61.27430"
+      }
+    ],
+    "sessions": [
+      "255.52110",
+      "61.27430"
+    ]
+  },
+  "dump": {
+    "from": 86,
+    "node": "diagdump:86-10477:1:f",
+    "title": "Diagnostic dump (level 1)",
+    "to": 10477
+  },
+  "from": 33,
+  "graph": {
+    "header": [
+      "                                          ------------Blocker(s)-----------  ------------Waiter(s)------------",
+      "Resource Name                             process session holds waits serial  process session holds waits serial"
+    ],
+    "line": 43,
+    "rows": [
+      {
+        "blocker": {
+          "holds": "X",
+          "key": "255.52110",
+          "process": 61,
+          "serial": 52110,
+          "session": 255
+        },
+        "line": 46,
+        "resource": "TX-000A0009-00004D46-ED94F66A-00000000",
+        "type": "TX",
+        "waiter": {
+          "key": "61.27430",
+          "process": 6,
+          "serial": 27430,
+          "session": 61,
+          "waits": "X"
+        }
+      },
+      {
+        "blocker": {
+          "holds": "X",
+          "key": "61.27430",
+          "process": 6,
+          "serial": 27430,
+          "session": 61
+        },
+        "line": 47,
+        "resource": "TX-00080010-000057D7-ED94F66A-00000000",
+        "type": "TX",
+        "waiter": {
+          "key": "255.52110",
+          "process": 61,
+          "serial": 52110,
+          "session": 255,
+          "waits": "X"
+        }
+      }
+    ],
+    "rowsTotal": 2
+  },
+  "kind": "deadlock",
+  "line": 33,
+  "lines": 10445,
+  "node": "deadlock:33-10477:1:f",
+  "notes": [],
+  "ora": "ORA-00060",
+  "rowsWaited": {
+    "line": 4124,
+    "rows": [
+      {
+        "block": 169241,
+        "file": 12,
+        "line": 4125,
+        "obj": "0001A841",
+        "objn": 108609,
+        "rowid": "AAAahBAAMAAApUZAAD",
+        "session": 255,
+        "slot": 3
+      },
+      {
+        "block": 169241,
+        "file": 12,
+        "line": 4127,
+        "obj": "0001A841",
+        "objn": 108609,
+        "rowid": "AAAahBAAMAAApUZAAC",
+        "session": 61,
+        "slot": 2
+      }
+    ],
+    "total": 2
+  },
+  "sessions": [
+    {
+      "acquired": "5 seconds ago",
+      "acquiredSec": 5,
+      "action": "a_asks_202",
+      "audsid": 4273372,
+      "clientOsUser": "oracle",
+      "clientOspid": "13875",
+      "container": "3/PDB1",
+      "containerId": 3,
+      "containerName": "PDB1",
+      "from": 50,
+      "heldResource": "TX-000A0009-00004D46-ED94F66A-00000000",
+      "image": "oracle@ol9-19-dg1.localdomain",
+      "inGraph": true,
+      "key": "255.52110",
+      "line": 50,
+      "machine": "ol9-19-dg1.localdomain",
+      "module": "mtk_diag_deadlock_a",
+      "number": 255,
+      "osUser": "oracle",
+      "ospid": "13878",
+      "pid": 61,
+      "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+      "serial": 52110,
+      "sid": 255,
+      "sqlLine": 64,
+      "sqlText": "select id from mtk_cust where id = 202 for update wait 30",
+      "to": 64,
+      "user": "MTK",
+      "userId": 165
+    },
+    {
+      "acquired": "5 seconds ago",
+      "acquiredSec": 5,
+      "action": "b_asks_201",
+      "audsid": 4273371,
+      "clientOsUser": "oracle",
+      "clientOspid": "13876",
+      "container": "3/PDB1",
+      "containerId": 3,
+      "containerName": "PDB1",
+      "from": 66,
+      "heldResource": "TX-00080010-000057D7-ED94F66A-00000000",
+      "image": "oracle@ol9-19-dg1.localdomain",
+      "inGraph": true,
+      "key": "61.27430",
+      "line": 66,
+      "machine": "ol9-19-dg1.localdomain",
+      "module": "mtk_diag_deadlock_b",
+      "number": 61,
+      "osUser": "oracle",
+      "ospid": "13880",
+      "pid": 6,
+      "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+      "serial": 27430,
+      "sid": 61,
+      "sqlLine": 80,
+      "sqlText": "select id from mtk_cust where id = 201 for update wait 30",
+      "to": 80,
+      "user": "MTK",
+      "userId": 165
+    }
+  ],
+  "sessionsEnded": true,
+  "sessionsLine": 49,
+  "sessionsTotal": 2,
+  "to": 10477,
+  "type": "Transaction Deadlock",
+  "victim": {
+    "inGraph": true,
+    "line": 24,
+    "session": "255.52110"
+  }
+}
 == diagdump 86-10477
 {
   "barriers": [],

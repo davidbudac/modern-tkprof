@@ -3,7 +3,7 @@ section hang 33-305
 outline:
   1-31 (31) header: File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
   32-32 (1) other: Other lines  [markers and blank lines]
-+ 33-305 (273) hang: Hang analysis
++ 33-305 (273) hang: Hang analysis reading=hang
       45-53 (9) title: Chains most likely to have caused the hang
     + 54-272 (219) title: Non-intersecting chains
       273-287 (15) title: State of ALL nodes

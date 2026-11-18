@@ -331,6 +331,18 @@
         "name": "MMON",
         "ospid": "2361",
         "percent": 17,
+        "session": {
+          "currentSql": "\u003cnone\u003e",
+          "from": 233,
+          "image": "oracle@ol9-19-dg1.localdomain (MMON)",
+          "ospid": "2361",
+          "pdb": "1/CDB$ROOT",
+          "pid": 34,
+          "serial": 28589,
+          "sid": 19,
+          "to": 241,
+          "user": "0/SYS"
+        },
         "used": {
           "bytes": 14680064,
           "text": "14 MB"
@@ -345,6 +357,18 @@
         "name": "ARC1",
         "ospid": "2933",
         "percent": 7,
+        "session": {
+          "currentSql": "\u003cnone\u003e",
+          "from": 284,
+          "image": "oracle@ol9-19-dg1.localdomain (ARC1)",
+          "ospid": "2933",
+          "pdb": "1/CDB$ROOT",
+          "pid": 50,
+          "serial": 60879,
+          "sid": 28,
+          "to": 292,
+          "user": "0/SYS"
+        },
         "used": {
           "bytes": 42991616,
           "text": "41 MB"
@@ -359,6 +383,18 @@
         "name": "ARC3",
         "ospid": "2937",
         "percent": 7,
+        "session": {
+          "currentSql": "\u003cnone\u003e",
+          "from": 308,
+          "image": "oracle@ol9-19-dg1.localdomain (ARC3)",
+          "ospid": "2937",
+          "pdb": "1/CDB$ROOT",
+          "pid": 52,
+          "serial": 17799,
+          "sid": 29,
+          "to": 316,
+          "user": "0/SYS"
+        },
         "used": {
           "bytes": 42991616,
           "text": "41 MB"
@@ -377,6 +413,18 @@
         "name": "ARC0",
         "ospid": "2927",
         "percent": 7,
+        "session": {
+          "currentSql": "\u003cnone\u003e",
+          "from": 270,
+          "image": "oracle@ol9-19-dg1.localdomain (ARC0)",
+          "ospid": "2927",
+          "pdb": "1/CDB$ROOT",
+          "pid": 47,
+          "serial": 42102,
+          "sid": 258,
+          "to": 278,
+          "user": "0/SYS"
+        },
         "used": {
           "bytes": 41943040,
           "text": "40 MB"

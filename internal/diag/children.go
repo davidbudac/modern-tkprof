@@ -34,6 +34,7 @@ type Reader struct {
 	titles  map[int]string
 
 	readingState // the readings kept, see reading.go
+	pathState    // the paths kept, see path.go
 
 	closer func() error // OpenFile: closes the line index
 }
@@ -173,6 +174,10 @@ type builder struct {
 	after, cap int
 	last       int // the node's last line
 	lastTo     int // the last line of the part emitted last
+	// want, when set, makes the builder keep only the child that holds this line (Reader.Path); found is set when
+	// it has been emitted.
+	want  int
+	found bool
 }
 
 func (b *builder) add(h *head) {
@@ -224,6 +229,13 @@ func (b *builder) pop(to int) {
 
 func (b *builder) emitTop(h *head) {
 	b.lastTo = h.to
+	if b.want > 0 {
+		if !b.found && h.from <= b.want && b.want <= h.to {
+			b.out = append(b.out, headNode(h, b.base))
+			b.found = true
+		}
+		return
+	}
 	i := b.total
 	b.total++
 	if i >= b.after && len(b.out) < b.cap {
@@ -309,6 +321,11 @@ const chunkLines = 8192
 
 // scanLines calls fn for the lines from..to, with the lines around each (nil beyond the range).
 func scanLines(src Source, from, to int, fn func(n int, prev, line, next []byte)) error {
+	return scanLinesStop(src, from, to, func(n int, prev, line, next []byte) bool { fn(n, prev, line, next); return true })
+}
+
+// scanLinesStop is scanLines with a fn that says whether to go on: it stops at the first false.
+func scanLinesStop(src Source, from, to int, fn func(n int, prev, line, next []byte) bool) error {
 	var prev, prevBuf []byte
 	for pos := from; pos <= to; {
 		n := min(chunkLines, to-pos+1)
@@ -326,7 +343,9 @@ func scanLines(src Source, from, to int, fn func(n int, prev, line, next []byte)
 			if pos+i+1 <= to && i+1 < len(lines) {
 				next = lines[i+1]
 			}
-			fn(pos+i, prev, lines[i], next)
+			if !fn(pos+i, prev, lines[i], next) {
+				return nil
+			}
 			prev = lines[i]
 		}
 		pos += n
@@ -360,6 +379,12 @@ func splitLines(raw []byte) [][]byte {
 }
 
 func (r *Reader) scanChildren(id string, after, capN int) (*Outline, error) {
+	return r.scanChildrenFor(id, after, capN, 0)
+}
+
+// scanChildrenFor is scanChildren; with want > 0 it finds only the child that holds that line and stops reading
+// as soon as that child is complete (Out.Children has that child or none).
+func (r *Reader) scanChildrenFor(id string, after, capN, want int) (*Outline, error) {
 	kind, from, to, hl, base, err := parseID(id)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q", ErrNoNode, id)
@@ -370,25 +395,26 @@ func (r *Reader) scanChildren(id string, after, capN int) (*Outline, error) {
 	if base == 0 {
 		return &Outline{Node: id, Children: []Node{}}, nil
 	}
-	b := &builder{base: base, after: after, cap: capN, last: to}
+	b := &builder{base: base, after: after, cap: capN, last: to, want: want}
 	w := &walker{prof: base, skipTo: from + hl - 1, claimed: from + hl - 1, extents: kind == "extents"}
 	if base&pTOC != 0 {
 		w.titles = r.tocTitles()
 	}
 	w.emit = b.add
 	w.tocEnd = b.closeNamed
-	err = scanLines(r.src, from, to, func(n int, prev, line, next []byte) {
+	err = scanLinesStop(r.src, from, to, func(n int, prev, line, next []byte) bool {
 		if len(b.stack) > 0 {
 			b.endCheck(n, line, next)
 			b.facts(line)
 		}
 		w.prof = base | b.prof
 		w.line(n, prev, line, next)
+		return !b.found
 	})
 	if err != nil {
 		return nil, err
 	}
-	for len(b.stack) > 0 {
+	for len(b.stack) > 0 && !b.found {
 		b.pop(to)
 	}
 	out := &Outline{Node: id, Children: b.out}
