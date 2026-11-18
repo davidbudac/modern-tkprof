@@ -548,3 +548,59 @@ func tocTableLine(line []byte) (num int, title string, ok bool) {
 	}
 	return n, strings.TrimSpace(string(t[3+k+3:])), true
 }
+
+// The folds: parts whose text is noise by default, which a client shows closed (Node.Fold). A part is
+// matched by its kind (a title or banner of a dump, a toc part of an incident file, whose title comes from the
+// file's table of contents) and the start of its title. Each entry gives the reason shown, and the fixture
+// lines that show the part to be bulk (lines in the part).
+//
+//	title starts with                    reason                                                    evidence
+//	Binary Stack Dump                    frame data: registers and memory of each frame            diag_errorstack_l2:188-2695 (2,508)
+//	Argument/Register Address Dump       memory around the arguments' and registers' addresses     diag_errorstack_l2:2696-4833 (2,138)
+//	Process Map Dump                     the process's memory map: address ranges of the binary    diag_errorstack_l2:4835-5000 (166)
+//	                                     and its libraries
+//	Fixed Areas Dump (                   raw values of the fixed memory areas                      diag_procstate:3405-10390; big/diag_oom_incident:4699-79440 (74,742)
+//	Dump of the Fixed                    (the same, one area: PGA, DGA, SGA, PDB SGA, USGA ...)    big/diag_errorstack:5057-79753
+//	Dump of Compile-Time Constants       the compile-time constants of the instance                big/diag_errorstack:56358-77008 (20,651)
+//	Pinned Buffer History                block dumps of recently pinned buffers                    diag_errorstack_l2:8734-20124 (11,391)
+//	end of branch block dump,            (the same: the lines of the block dumps)                  diag_errorstack_l2:20125-36584
+//	end of leaf block dump,
+//	end of leaf block Logical dump
+//	Archival Runtime State               redo transport structures of the instance                 big/diag_oom_incident:95120-97745 (2,626)
+//	KSM MGA SYSTEM DUMP - END            (the same: the part's body is the redo transport dump)    big/diag_sysstate_l266:80651-83383 (2,733)
+//	Auto SGA Transfer History            SGA granule transfers of the instance                     big/diag_oom_incident:97759-99380 (1,622)
+//	START DDE Actions Dump               what the diagnostic framework's actions dumped            big/diag_oom_incident:99672-114947 (15,276)
+//
+// A part is not folded because it is large (the state objects of a process are not), but because its lines
+// are tables of memory or of the instance, not about what the session was doing.
+var foldTable = []struct{ prefix, reason string }{
+	{"Binary Stack Dump", "frame data: registers and memory of each frame"},
+	{"Argument/Register Address Dump", "memory around the arguments' and registers' addresses"},
+	{"Process Map Dump", "the process's memory map: address ranges of the binary and its libraries"},
+	{"Fixed Areas Dump (", "raw values of the fixed memory areas"},
+	{"Dump of the Fixed", "raw values of a fixed memory area"},
+	{"Dump of Compile-Time Constants", "the compile-time constants of the instance"},
+	{"Pinned Buffer History", "block dumps of recently pinned buffers"},
+	{"end of branch block dump", "block dump lines"},
+	{"end of leaf block dump", "block dump lines"},
+	{"end of leaf block Logical dump", "block dump lines"},
+	{"Archival Runtime State", "redo transport structures of the instance"},
+	{"KSM MGA SYSTEM DUMP - END", "redo transport structures of the instance"},
+	{"Auto SGA Transfer History", "SGA granule transfers of the instance"},
+	{"START DDE Actions Dump", "what the diagnostic framework's actions dumped"},
+}
+
+// foldFor is the Node.Fold of a part of this kind and title.
+func foldFor(kind, title string) string {
+	switch kind {
+	case "title", "banner", "toc":
+	default:
+		return ""
+	}
+	for _, f := range foldTable {
+		if strings.HasPrefix(title, f.prefix) {
+			return f.reason
+		}
+	}
+	return ""
+}

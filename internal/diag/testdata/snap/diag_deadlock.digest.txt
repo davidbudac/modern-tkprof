@@ -11,4 +11,47 @@ Outline: first-last line, number of lines, title
      49-   81      33  Information for waiting sessions
      82-   85       4  End of information for waiting sessions
      86-10477  10,392  Diagnostic dump (level 1)
+      diagnostic dump, level 1 (flags 0x0), starts at line 86
+      error: none named in the dump (taken on request, or by an event that names none)
+      statement 3rfdph8nztm6u (lines 89-89):
+        select id from mtk_cust where id = 202 for update wait 30
+      stack as one line (the form oradebug short_stack prints; the Binary Stack Dump's frame headers, without the dump's own 4 frames):
+        ksqdld_hdr_dump()+5018<-ksqcmi()+31860<-ksqgtlctx()+3587<-ksqgelctx()+836<-ktuGetTxForXid()+324<-ktcwit1()+493<-kdddgb()+6140<-kddlkr()+243<-qerfuProcessFetchedRow()+670<-qerfuLockingRowProcedure()+68<-qerixFetchUniqueIndex()+1038<-qerfuStart()+602<-selexe0()+3409<-opiexe()+11469<-kpoal8()+2301<-opiodr()+1264<-ttcpip()+1219<-opitsk()+1925<-opiino()+939<-opiodr()+1264<-opidrv()+1094<-sou2o()+165<-opimai_real()+422<-ssthrdmain()+417<-main()+256<-__libc_start_call_main()+128<-__libc_start_main()+128<-_start()+37
+      frames, innermost first (28 of 32; the dump's own 4 are left out):
+         5  ksqdld_hdr_dump()+5018         line 383   ksq             error signaled
+         6  ksqcmi()+31860                 line 450   ksq
+         7  ksqgtlctx()+3587               line 517   ksq
+         8  ksqgelctx()+836                line 588   ksq
+         9  ktuGetTxForXid()+324           line 660   Transactions
+        10  ktcwit1()+493                  line 691   AUTO_TXN_ABORT
+        11  kdddgb()+6140                  line 766   Data
+        12  kddlkr()+243                   line 812   Data
+        13  qerfuProcessFetchedRow()+670   line 840   SQL_Execution
+        14  qerfuLockingRowProcedure()+68  line 915   SQL_Execution
+        15  qerixFetchUniqueIndex()+1038   line 930   SQL_Execution
+        16  qerfuStart()+602               line 956   SQL_Execution
+        17  selexe0()+3409                 line 976
+        18  opiexe()+11469                 line 1023  Time_Limit
+        19  kpoal8()+2301                  line 1077  PROGINT_MISC
+        20  opiodr()+1264                  line 1132  OPI
+        21  ttcpip()+1219                  line 1212
+        22  opitsk()+1925                  line 1295  OPI
+        23  opiino()+939                   line 1356  OPI
+        24  opiodr()+1264                  line 1414  OPI
+        ... 8 more frames (the stack line above lists them all)
+      cursors: 17 cursors (2 open, 15 cached among the 17 listed):
+        open #1 9zg9qd9bm4spu, 3 binds: update user$ set spare6=DECODE(to_char(:2, 'YYYY-MM-DD'), '0000-00-00', to_date(NULL), :2) where user#=:1
+            binds: #0 DATE no value; #1 - no oacdef; #2 NUMBER no value
+        open #2 3rfdph8nztm6u, 0 binds: select id from mtk_cust where id = 202 for update wait 30
+        cached 0k8522rmdzg4k, 1 bind: select privilege# from sysauth$ where (grantee#=:1 or grantee#=1) and privilege#>0
+            binds: #0 NUMBER no value
+        cached 865qwpcdyggkk, 1 bind: select spare6 from user$ where user#=:1
+            binds: #0 NUMBER no value
+        cached 1wa4tjmvc60s5, 0 binds: 
+        cached f0h5rpzmhju11, 0 binds: select SYS_CONTEXT('USERENV', 'SERVER_HOST'), SYS_CONTEXT('USERENV', 'DB_UNIQUE_NAME'), SYS_CONTEXT('USERENV', 'INSTANCE_NAME'), SYS_CONTEXT('USERENV', 'INSTANCE'), STARTUP_TIME, SYS_CONTEXT('USERENV'...
+        cached d9q2q82g1tuzx, 1 bind: select decode(upper(failover_method), NULL, 0 , 'BASIC', 1, 'PRECONNECT', 2 , 'PREPARSE', 4 , 0), decode(upper(failover_type), NULL, 1,  'NONE', 1, 'SESSION', 2, 'SELECT',  4, 'TRANSACTION',  8, 'AUTO...
+            binds: #0 VARCHAR2 no value
+        cached 6u5zqzz2nm55c, 0 binds: SELECT DECODE(USER, 'XS$NULL',  XS_SYS_CONTEXT('XS$SESSION','USERNAME'), USER) FROM SYS.DUAL
+        ... 9 more cursors
+      nested: process state, lines 4139-10476
 10478-10478       1  Other lines  [markers and blank lines]

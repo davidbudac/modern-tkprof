@@ -78,6 +78,12 @@ type SessionInfo struct {
 	// OptSQLIDs are the distinct sql_ids of the dumps of a 10053 session (in
 	// file order), once it is ready; absent for every other session.
 	OptSQLIDs []string `json:"optSqlIds,omitempty"`
+	// DiagSQLIDs are the distinct sql_ids a diag session's file names (its current statements and cursor
+	// dumps), in first-seen order, at most diag.MarkCap, once it is ready; DiagSessions the distinct "sid.serial"
+	// sessions it names (header, session state objects, blockers and waiters, hang analysis, deadlock). Absent for
+	// every other session. Exactly parallel to OptSQLIDs: what a client marks when another tab holds the same.
+	DiagSQLIDs   []string `json:"diagSqlIds,omitempty"`
+	DiagSessions []string `json:"diagSessions,omitempty"`
 	// View is how the session reads its file: 10046, 10053 or diag. The one asked for while the session is
 	// opening, else absent until it is ready (the file decides then); once ready always set.
 	View string `json:"view,omitempty"`
@@ -88,8 +94,10 @@ type SessionEvent struct {
 	ID    string `json:"id"`
 	State string `json:"state"`
 	Rev   int    `json:"rev"`
-	// OptSQLIDs as in SessionInfo.
-	OptSQLIDs []string `json:"optSqlIds,omitempty"`
+	// OptSQLIDs, DiagSQLIDs and DiagSessions as in SessionInfo.
+	OptSQLIDs    []string `json:"optSqlIds,omitempty"`
+	DiagSQLIDs   []string `json:"diagSqlIds,omitempty"`
+	DiagSessions []string `json:"diagSessions,omitempty"`
 	// View as in SessionInfo.
 	View string `json:"view,omitempty"`
 }
@@ -122,6 +130,8 @@ type Session struct {
 
 	notes   []string // notes of the inputs (10053 files left out of the set), added to the document's notes
 	optIDs  []string // OptSQLIDs, under mu
+	diagIDs []string // DiagSQLIDs, under mu
+	diagSes []string // DiagSessions, under mu
 	reqView string   // the view asked for ("" the file decides)
 	view    string   // the view the session reads its file in, once ready; under mu
 
@@ -188,7 +198,7 @@ func (ss *Session) Info() SessionInfo {
 	defer ss.mu.Unlock()
 	return SessionInfo{ID: ss.id, Paths: ss.paths, State: ss.state, Rev: ss.rev, Identity: ss.identity,
 		CacheIdentity: ss.cacheID, Hit: ss.hit, Files: ss.files, Opened: ss.opened.UTC().Format(time.RFC3339), Bytes: ss.bytes, Lines: ss.lines,
-		Job: ss.job.info.ID, Error: ss.err, OptSQLIDs: ss.optIDs, View: ss.viewLocked()}
+		Job: ss.job.info.ID, Error: ss.err, OptSQLIDs: ss.optIDs, DiagSQLIDs: ss.diagIDs, DiagSessions: ss.diagSes, View: ss.viewLocked()}
 }
 
 // viewLocked is the view of the session, the one asked for while it opens; the caller holds mu.
@@ -209,7 +219,7 @@ func (ss *Session) currentView() string {
 func (ss *Session) event() SessionEvent {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	return SessionEvent{ID: ss.id, State: ss.state, Rev: ss.rev, OptSQLIDs: ss.optIDs, View: ss.viewLocked()}
+	return SessionEvent{ID: ss.id, State: ss.state, Rev: ss.rev, OptSQLIDs: ss.optIDs, DiagSQLIDs: ss.diagIDs, DiagSessions: ss.diagSes, View: ss.viewLocked()}
 }
 
 // close waits for the requests in flight and releases what the session holds.
@@ -415,6 +425,9 @@ func (s *Server) runOpen(ss *Session) {
 	if op.opt != nil {
 		ss.optIDs = op.opt.SQLIDs()
 	}
+	if op.diag != nil {
+		ss.diagIDs, ss.diagSes = op.diag.SQLIDs(), op.diag.Sessions()
+	}
 	ss.mu.Unlock()
 	job.mu.Lock()
 	job.info.Phase = "ready"
@@ -588,7 +601,7 @@ func (ss *Session) diagInput(dg *slice.DiagServer, digest bool) (*report.DiagInp
 	if err != nil {
 		return nil, err
 	}
-	return report.NewDiagInput(rd, digest)
+	return report.NewDiagInput(rd, digest, report.DiagBindText(ss.bindMode, ss.salt))
 }
 
 // docModel is the model the document of the session is made of: that of an empty 10046 model when the

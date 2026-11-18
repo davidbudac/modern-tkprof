@@ -273,6 +273,13 @@ func TestContractSchemas(t *testing.T) {
 		"DiagPGASummary": diag.PGASummary{}, "DiagPGAUse": diag.PGAUse{}, "DiagPGASize": diag.PGASize{}, "DiagPGABlock": diag.PGABlock{}, "DiagPGABlockRow": diag.PGABlockRow{},
 		"DiagPGAInstance": diag.PGAInstance{}, "DiagPGAProcesses": diag.PGAProcesses{}, "DiagPGAProc": diag.PGAProc{}, "DiagPGASession": diag.PGASession{},
 		"DiagPGAEstimated": diag.PGAEstimated{}, "DiagPGAKV": diag.PGAKV{}, "DiagPGADetail": diag.PGADetail{},
+		"DiagCallStack": diag.CallStack{}, "DiagDumpStart": diag.DumpStart{}, "DiagDumpLine": diag.DumpLine{}, "DiagDumpError": diag.DumpError{}, "DiagDumpSignal": diag.DumpSignal{},
+		"DiagDumpIncident": diag.DumpIncident{}, "DiagDumpStatement": diag.DumpStatement{}, "DiagPLSQLFrame": diag.PLSQLFrame{}, "DiagStackFrame": diag.StackFrame{},
+		"DiagDumpCursor": diag.DumpCursor{}, "DiagDumpBind": diag.DumpBind{}, "DiagDumpLink": diag.DumpLink{},
+		"DiagProcState": diag.ProcState{}, "DiagProcInfo": diag.ProcInfo{}, "DiagProcSession": diag.ProcSession{}, "DiagProcWait": diag.ProcWait{}, "DiagWaitEntry": diag.WaitEntry{},
+		"DiagSessionRef": diag.SessionRef{}, "DiagProcWaiter": diag.ProcWaiter{}, "DiagRowWait": diag.RowWait{}, "DiagWaitHistory": diag.WaitHistory{}, "DiagProcObjects": diag.ProcObjects{},
+		"DiagObjectType": diag.ObjectType{}, "DiagProcEnqueue": diag.ProcEnqueue{}, "DiagProcTransaction": diag.ProcTransaction{}, "DiagBlockRow": diag.BlockRow{},
+		"DiagProcDMLLock": diag.ProcDMLLock{}, "DiagProcLibObject": diag.ProcLibObject{},
 	} {
 		p := lookup(keys, "components", "schemas", name, "properties")
 		if p < 0 {

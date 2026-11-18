@@ -1,0 +1,1363 @@
+== process 2238-2293
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 2238,
+  "kind": "procstate",
+  "lines": 56,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:2238-2293:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds",
+    "this process prints no session state object"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      }
+    ],
+    "depth": 1,
+    "total": 1
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec520",
+    "flags": "PSEUDO",
+    "line": 2240,
+    "pid": 1,
+    "serial": 0
+  },
+  "scope": "process",
+  "sessions": [],
+  "sessionsTotal": 0,
+  "to": 2293,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 2294-2576
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 2294,
+  "kind": "procstate",
+  "lines": 283,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:2294-2576:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec4a0",
+    "flags": "SYSTEM",
+    "line": 2296,
+    "name": "PMON",
+    "osUser": "oracle",
+    "ospid": "2188",
+    "pid": 2,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2ef6f20",
+      "command": 0,
+      "commandLine": 2362,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 2345,
+      "key": "1.13443",
+      "line": 2353,
+      "serial": 13443,
+      "service": "SYS$BACKGROUND",
+      "sid": 1,
+      "to": 2576,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.000043,
+        "history": [
+          {
+            "event": "pmon timer",
+            "line": 2377,
+            "n": 0,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 3.000067
+          },
+          {
+            "event": "pmon timer",
+            "line": 2384,
+            "n": 1,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 3.00007
+          },
+          {
+            "event": "pmon timer",
+            "line": 2391,
+            "n": 2,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 3.000063
+          },
+          {
+            "event": "pmon timer",
+            "line": 2398,
+            "n": 3,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 3.000071
+          },
+          "... 6 more"
+        ],
+        "historyLine": 2375,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 2365,
+        "stack": [
+          {
+            "event": "pmon timer",
+            "level": 0,
+            "line": 2366,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 2.313862
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 2576,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 2577-2859
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 2577,
+  "kind": "procstate",
+  "lines": 283,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:2577-2859:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec420",
+    "flags": "SYSTEM",
+    "line": 2579,
+    "name": "CLMN",
+    "osUser": "oracle",
+    "ospid": "2192",
+    "pid": 3,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2efc0f0",
+      "command": 0,
+      "commandLine": 2645,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 2628,
+      "key": "238.5180",
+      "line": 2636,
+      "serial": 5180,
+      "service": "SYS$BACKGROUND",
+      "sid": 238,
+      "to": 2859,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.000016,
+        "history": [
+          {
+            "event": "pmon timer",
+            "line": 2660,
+            "n": 0,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 3.000073
+          },
+          {
+            "event": "pmon timer",
+            "line": 2667,
+            "n": 1,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 3.000066
+          },
+          {
+            "event": "pmon timer",
+            "line": 2674,
+            "n": 2,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 3.000064
+          },
+          {
+            "event": "pmon timer",
+            "line": 2681,
+            "n": 3,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 3.000065
+          },
+          "... 6 more"
+        ],
+        "historyLine": 2658,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 2648,
+        "stack": [
+          {
+            "event": "pmon timer",
+            "level": 0,
+            "line": 2649,
+            "params": "duration=0x12c, =0x0, =0x0",
+            "seconds": 2.32436
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 2859,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 2860-3142
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 2860,
+  "kind": "procstate",
+  "lines": 283,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:2860-3142:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec3a0",
+    "flags": "SYSTEM",
+    "line": 2862,
+    "name": "PSP0",
+    "osUser": "oracle",
+    "ospid": "2196",
+    "pid": 4,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2ef6ea0",
+      "command": 0,
+      "commandLine": 2928,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 2911,
+      "key": "2.36989",
+      "line": 2919,
+      "serial": 36989,
+      "service": "SYS$BACKGROUND",
+      "sid": 2,
+      "to": 3142,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.004256,
+        "history": [
+          {
+            "event": "rdbms ipc message",
+            "line": 2943,
+            "n": 0,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 1.000063
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 2950,
+            "n": 1,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 1.000064
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 2957,
+            "n": 2,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 1.000065
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 2964,
+            "n": 3,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 1.000067
+          },
+          "... 6 more"
+        ],
+        "historyLine": 2941,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 2931,
+        "stack": [
+          {
+            "event": "rdbms ipc message",
+            "level": 0,
+            "line": 2932,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 0.185249
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 3142,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 3143-3326
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 3143,
+  "kind": "procstate",
+  "lines": 184,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:3143-3326:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec320",
+    "flags": "SYSTEM",
+    "line": 3145,
+    "name": "VKTM",
+    "osUser": "oracle",
+    "ospid": "2283",
+    "pid": 5,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2efc070",
+      "command": 0,
+      "commandLine": 3211,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 3194,
+      "key": "239.22348",
+      "line": 3202,
+      "serial": 22348,
+      "service": "SYS$BACKGROUND",
+      "sid": 239,
+      "to": 3326,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0,
+        "history": [],
+        "historyLine": 3224,
+        "historyTotal": 0,
+        "inWait": true,
+        "line": 3214,
+        "stack": [
+          {
+            "event": "VKTM Logical Idle Wait",
+            "level": 0,
+            "line": 3215,
+            "params": "=0x0, =0x0, =0x0",
+            "seconds": 57
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 3326,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 3327-3642
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 3327,
+  "kind": "procstate",
+  "lines": 316,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:3327-3642:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds",
+    "session 52.41898: the statement is the library handle 0x7977a128, which this dump does not describe (no lock on it among the state objects), so its sql_id is not known"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec2a0",
+    "flags": "-",
+    "line": 3329,
+    "osUser": "oracle",
+    "ospid": "13945",
+    "pid": 6,
+    "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+    "serial": 40
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "action": "s1_holds_301",
+      "address": "0xa2ef7db0",
+      "clientOsUser": "oracle",
+      "clientOspid": "13939",
+      "command": 47,
+      "commandLine": 3400,
+      "commandName": "PL/SQL EXECUTE",
+      "container": "PDB1",
+      "containerId": 3,
+      "containerUid": "3985962602",
+      "from": 3382,
+      "key": "52.41898",
+      "line": 3390,
+      "machine": "ol9-19-dg1.localdomain",
+      "module": "mtk_diag_chain",
+      "prevSql": "0x797c8e30",
+      "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+      "serial": 41898,
+      "service": "pdb1",
+      "sid": 52,
+      "sql": "0x7977a128",
+      "to": 3642,
+      "user": "MTK",
+      "userId": 165,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 2,
+        "blockedLine": 3416,
+        "blockers": [],
+        "elapsedSec": 0.000109,
+        "history": [
+          {
+            "event": "SQL*Net message from client",
+            "line": 3429,
+            "n": 0,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000088
+          },
+          {
+            "event": "SQL*Net message to client",
+            "line": 3436,
+            "n": 1,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0
+          },
+          {
+            "event": "SQL*Net message from client",
+            "line": 3443,
+            "n": 2,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000082
+          },
+          {
+            "event": "SQL*Net message to client",
+            "line": 3450,
+            "n": 3,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0
+          },
+          "... 6 more"
+        ],
+        "historyLine": 3427,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 3408,
+        "stack": [
+          {
+            "event": "PL/SQL lock timer",
+            "level": 0,
+            "line": 3409,
+            "params": "duration=0x0, =0x0, =0x0",
+            "seconds": 6.003026
+          }
+        ],
+        "waiters": [
+          {
+            "event": "enq: TX - row lock contention",
+            "inst": 1,
+            "key": "45.12004",
+            "line": 3418,
+            "minBlockedSec": 3,
+            "params": [
+              "p1: 'name|mode'=0x54580006",
+              "p2: 'usn\u003c\u003c16 | slot'=0x80005",
+              "p3: 'sequence'=0x5817"
+            ],
+            "rowWait": {
+              "block": 169252,
+              "file": 12,
+              "line": 3423,
+              "obj": 108609,
+              "row": 5
+            },
+            "serial": 12004,
+            "sid": 45
+          }
+        ]
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 3642,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 3643-3925
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 3643,
+  "kind": "procstate",
+  "lines": 283,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:3643-3925:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec220",
+    "flags": "SYSTEM",
+    "line": 3645,
+    "name": "GEN0",
+    "osUser": "oracle",
+    "ospid": "2289",
+    "pid": 7,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2efbff0",
+      "command": 0,
+      "commandLine": 3711,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 3694,
+      "key": "240.35868",
+      "line": 3702,
+      "serial": 35868,
+      "service": "SYS$BACKGROUND",
+      "sid": 240,
+      "to": 3925,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.000043,
+        "history": [
+          {
+            "event": "rdbms ipc message",
+            "line": 3726,
+            "n": 0,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 3.000082
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 3733,
+            "n": 1,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 3.000066
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 3740,
+            "n": 2,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 3.000082
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 3747,
+            "n": 3,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 3.000082
+          },
+          "... 6 more"
+        ],
+        "historyLine": 3724,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 3714,
+        "stack": [
+          {
+            "event": "rdbms ipc message",
+            "level": 0,
+            "line": 3715,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 1.90224
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 3925,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 3926-4447
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 3926,
+  "kind": "procstate",
+  "lines": 522,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:3926-4447:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec1a0",
+    "flags": "-",
+    "line": 3928,
+    "osUser": "oracle",
+    "ospid": "2433",
+    "pid": 8,
+    "program": "emagent",
+    "serial": 4
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "action": "pdbResponse_cdb",
+      "address": "0xa2ef6520",
+      "clientOsUser": "oracle",
+      "clientOspid": "1234",
+      "command": 0,
+      "commandLine": 3994,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 3977,
+      "key": "21.55810",
+      "line": 3985,
+      "machine": "ol9-19-dg1.localdomain",
+      "module": "emagent_SQL_oracle_database",
+      "prevSql": "0x977e0e50",
+      "program": "emagent",
+      "serial": 55810,
+      "service": "SYS$USERS",
+      "sid": 21,
+      "to": 4447,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.000042,
+        "history": [
+          {
+            "event": "control file sequential read",
+            "line": 4014,
+            "n": 0,
+            "params": "file#=0x0, block#=0x30e, blocks=0x1",
+            "seconds": 0.000002
+          },
+          {
+            "event": "control file sequential read",
+            "line": 4021,
+            "n": 1,
+            "params": "file#=0x0, block#=0x12, blocks=0x1",
+            "seconds": 0.000002
+          },
+          {
+            "event": "control file sequential read",
+            "line": 4028,
+            "n": 2,
+            "params": "file#=0x0, block#=0x10, blocks=0x1",
+            "seconds": 0.000002
+          },
+          {
+            "event": "control file sequential read",
+            "line": 4035,
+            "n": 3,
+            "params": "file#=0x0, block#=0x1, blocks=0x1",
+            "seconds": 0.000002
+          },
+          "... 6 more"
+        ],
+        "historyLine": 4012,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 4002,
+        "stack": [
+          {
+            "event": "SQL*Net message from client",
+            "level": 0,
+            "line": 4003,
+            "params": "driver id=0x54435000, #bytes=0x1, =0x0",
+            "seconds": 0.03721
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 4447,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 4448-4730
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 4448,
+  "kind": "procstate",
+  "lines": 283,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:4448-4730:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec120",
+    "flags": "SYSTEM",
+    "line": 4450,
+    "name": "MMAN",
+    "osUser": "oracle",
+    "ospid": "2295",
+    "pid": 9,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2efe780",
+      "command": 0,
+      "commandLine": 4516,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 4499,
+      "key": "241.10587",
+      "line": 4507,
+      "serial": 10587,
+      "service": "SYS$BACKGROUND",
+      "sid": 241,
+      "to": 4730,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.000013,
+        "history": [
+          {
+            "event": "rdbms ipc message",
+            "line": 4531,
+            "n": 0,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 3.000064
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 4538,
+            "n": 1,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 3.000067
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 4545,
+            "n": 2,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 3.000065
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 4552,
+            "n": 3,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 3.000066
+          },
+          "... 6 more"
+        ],
+        "historyLine": 4529,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 4519,
+        "stack": [
+          {
+            "event": "rdbms ipc message",
+            "level": 0,
+            "line": 4520,
+            "params": "timeout=0x12c, =0x0, =0x0",
+            "seconds": 1.770954
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 4730,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 4731-5013
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 4731,
+  "kind": "procstate",
+  "lines": 283,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:4731-5013:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec0a0",
+    "flags": "SYSTEM",
+    "line": 4733,
+    "name": "GEN1",
+    "osUser": "oracle",
+    "ospid": "2299_2300",
+    "pid": 10,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2ef6d20",
+      "command": 0,
+      "commandLine": 4799,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 4782,
+      "key": "5.2712",
+      "line": 4790,
+      "serial": 2712,
+      "service": "SYS$BACKGROUND",
+      "sid": 5,
+      "to": 5013,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.000026,
+        "history": [
+          {
+            "event": "rdbms ipc message",
+            "line": 4814,
+            "n": 0,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 1.000066
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 4821,
+            "n": 1,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 1.000068
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 4828,
+            "n": 2,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 1.000069
+          },
+          {
+            "event": "rdbms ipc message",
+            "line": 4835,
+            "n": 3,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 1.000048
+          },
+          "... 6 more"
+        ],
+        "historyLine": 4812,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 4802,
+        "stack": [
+          {
+            "event": "rdbms ipc message",
+            "level": 0,
+            "line": 4803,
+            "params": "timeout=0x64, =0x0, =0x0",
+            "seconds": 0.361021
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 5013,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 5014-5296
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 5014,
+  "kind": "procstate",
+  "lines": 283,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:5014-5296:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eec020",
+    "flags": "SYSTEM",
+    "line": 5016,
+    "name": "SCMN",
+    "osUser": "oracle",
+    "ospid": "2299_2299",
+    "pid": 11,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2efe700",
+      "command": 0,
+      "commandLine": 5082,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 5065,
+      "key": "242.40553",
+      "line": 5073,
+      "serial": 40553,
+      "service": "SYS$BACKGROUND",
+      "sid": 242,
+      "to": 5296,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.000005,
+        "history": [
+          {
+            "event": "watchdog main loop",
+            "line": 5097,
+            "n": 0,
+            "params": "=0x0, =0x9, =0x0",
+            "seconds": 3.000086
+          },
+          {
+            "event": "watchdog main loop",
+            "line": 5104,
+            "n": 1,
+            "params": "=0x0, =0x9, =0x0",
+            "seconds": 3.000074
+          },
+          {
+            "event": "watchdog main loop",
+            "line": 5111,
+            "n": 2,
+            "params": "=0x0, =0x9, =0x0",
+            "seconds": 3.000083
+          },
+          {
+            "event": "watchdog main loop",
+            "line": 5118,
+            "n": 3,
+            "params": "=0x0, =0x9, =0x0",
+            "seconds": 3.000066
+          },
+          "... 6 more"
+        ],
+        "historyLine": 5095,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 5085,
+        "stack": [
+          {
+            "event": "watchdog main loop",
+            "level": 0,
+            "line": 5086,
+            "params": "=0x0, =0x9, =0x0",
+            "seconds": 2.227481
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 5296,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+== process 5297-5579
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [],
+  "enqueuesTotal": 0,
+  "from": 5297,
+  "kind": "procstate",
+  "lines": 283,
+  "locks": [],
+  "locksTotal": 0,
+  "node": "process:5297-5579:1:235",
+  "notes": [
+    "this dump prints the process and its sessions only (a system state of level 1): no child state objects, so no holds"
+  ],
+  "objects": {
+    "byType": [
+      {
+        "count": 1,
+        "number": 2,
+        "type": "process"
+      },
+      {
+        "count": 1,
+        "number": 4,
+        "type": "session"
+      }
+    ],
+    "depth": 2,
+    "total": 2
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eebfa0",
+    "flags": "SYSTEM",
+    "line": 5299,
+    "name": "DIAG",
+    "osUser": "oracle",
+    "ospid": "2302",
+    "pid": 12,
+    "serial": 1
+  },
+  "scope": "process",
+  "sessions": [
+    {
+      "address": "0xa2ef6ca0",
+      "command": 0,
+      "commandLine": 5365,
+      "container": "CDB$ROOT",
+      "containerId": 1,
+      "containerUid": "1",
+      "from": 5348,
+      "key": "6.14614",
+      "line": 5356,
+      "serial": 14614,
+      "service": "SYS$BACKGROUND",
+      "sid": 6,
+      "to": 5579,
+      "user": "SYS",
+      "userId": 0,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.000004,
+        "history": [
+          {
+            "event": "DIAG idle wait",
+            "line": 5380,
+            "n": 0,
+            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
+            "seconds": 1.000066
+          },
+          {
+            "event": "DIAG idle wait",
+            "line": 5387,
+            "n": 1,
+            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
+            "seconds": 1.000065
+          },
+          {
+            "event": "DIAG idle wait",
+            "line": 5394,
+            "n": 2,
+            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
+            "seconds": 1.000066
+          },
+          {
+            "event": "DIAG idle wait",
+            "line": 5401,
+            "n": 3,
+            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
+            "seconds": 1.000064
+          },
+          "... 6 more"
+        ],
+        "historyLine": 5378,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 5368,
+        "stack": [
+          {
+            "event": "DIAG idle wait",
+            "level": 0,
+            "line": 5369,
+            "params": "component=0x3, where=0x1, wait time(millisec)=0x0",
+            "seconds": 0.188082
+          }
+        ],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 5579,
+  "transactions": [],
+  "transactionsTotal": 0
+}
+... and 70 more readings

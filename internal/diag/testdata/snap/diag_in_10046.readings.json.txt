@@ -1,3 +1,403 @@
+== diagdump 114-29753
+{
+  "barriers": [
+    {
+      "line": 116,
+      "text": "\u003cerror barrier\u003e at 0x7ffe5aa6ade0 placed dbkda.c@298"
+    }
+  ],
+  "binaryFrames": 40,
+  "cursors": [
+    {
+      "bindCount": 3,
+      "binds": [
+        {
+          "dty": 12,
+          "pos": 0,
+          "type": "DATE"
+        },
+        {
+          "dty": 0,
+          "noDef": true,
+          "pos": 1
+        },
+        {
+          "dty": 2,
+          "pos": 2,
+          "type": "NUMBER"
+        }
+      ],
+      "from": 7479,
+      "group": "open",
+      "number": 1,
+      "sqlId": "9zg9qd9bm4spu",
+      "state": "BOUND",
+      "statement": "update user$ set spare6=DECODE(to_char(:2, 'YYYY-MM-DD'), '0000-00-00', to_date(NULL), :2) where user#=:1",
+      "to": 7551
+    },
+    {
+      "bindCount": 1,
+      "binds": [
+        {
+          "dty": 2,
+          "pos": 0,
+          "type": "NUMBER"
+        }
+      ],
+      "from": 7554,
+      "group": "open",
+      "number": 2,
+      "sqlId": "faaxujvpx61wd",
+      "state": "BOUND",
+      "statement": "select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid",
+      "to": 7639
+    },
+    {
+      "bindCount": 1,
+      "binds": [
+        {
+          "dty": 2,
+          "pos": 0,
+          "type": "NUMBER"
+        }
+      ],
+      "from": 8338,
+      "group": "cached",
+      "sqlId": "0k8522rmdzg4k",
+      "statement": "select privilege# from sysauth$ where (grantee#=:1 or grantee#=1) and privilege#\u003e0",
+      "to": 8433
+    },
+    {
+      "bindCount": 1,
+      "binds": [
+        {
+          "dty": 2,
+          "pos": 0,
+          "type": "NUMBER"
+        }
+      ],
+      "from": 8434,
+      "group": "cached",
+      "sqlId": "865qwpcdyggkk",
+      "statement": "select spare6 from user$ where user#=:1",
+      "to": 8493
+    },
+    "... 10 more"
+  ],
+  "cursorsTotal": 14,
+  "error": {
+    "lines": [],
+    "signal": {
+      "code": 942,
+      "line": 29752,
+      "name": "MTK_NO_SUCH_TABLE",
+      "ora": "ORA-00942"
+    }
+  },
+  "frames": [
+    {
+      "callee": "kgdsdst()",
+      "component": "KSE",
+      "function": "ksedst1",
+      "line": 256,
+      "n": 1,
+      "offset": 95,
+      "own": true,
+      "tableLine": 129,
+      "text": "ksedst1()+95"
+    },
+    {
+      "callee": "ksedst1()",
+      "component": "KSE",
+      "function": "ksedst",
+      "line": 283,
+      "n": 2,
+      "offset": 58,
+      "own": true,
+      "tableLine": 132,
+      "text": "ksedst()+58"
+    },
+    {
+      "callee": "ksedst()",
+      "component": "ddedmp",
+      "function": "dbkedDefDump",
+      "line": 303,
+      "n": 3,
+      "offset": 24347,
+      "own": true,
+      "tableLine": 135,
+      "text": "dbkedDefDump()+24347"
+    },
+    {
+      "callee": "dbkedDefDump()",
+      "component": "KSE",
+      "function": "ksedmp",
+      "line": 328,
+      "n": 4,
+      "offset": 577,
+      "own": true,
+      "tableLine": 138,
+      "text": "ksedmp()+577"
+    },
+    "... 36 more"
+  ],
+  "framesLine": 253,
+  "framesSource": "binary",
+  "from": 114,
+  "kind": "callstack",
+  "lines": 29640,
+  "links": [
+    {
+      "from": 4337,
+      "kind": "procstate",
+      "node": "procstate:4337-9093:2:2f",
+      "title": "Process state",
+      "to": 9093
+    }
+  ],
+  "node": "diagdump:114-29753:1:f",
+  "notes": [],
+  "own": 11,
+  "plsql": [],
+  "shortStack": "ksedst1()+95\u003c-ksedst()+58\u003c-dbkedDefDump()+24347\u003c-ksedmp()+577\u003c-dbkdaKsdActDriver()+2492\u003c-dbgdaExecuteAction()+354\u003c-dbgdaRunAction()+770\u003c-dbgdRunActions()+83\u003c-dbgdProcessEventActions()+525\u003c-dbgdChkEventKgErr()+394\u003c-dbkdChkEventRdbmsErr()+65\u003c-qcsprfro()+968\u003c-qcsprfro_tree()+387\u003c-qcsprfro_tree()+153\u003c-qcspafq()+289\u003c-qcspqbDescendents()+273\u003c-qcspqb()+283\u003c-kkmdrv()+180\u003c-opiSem()+2167\u003c-opiDeferredSem()+436\u003c-opitca()+461\u003c-kksFullTypeCheck()+81\u003c-rpiswu2()+2004\u003c-kksSetBindType()+1787\u003c-kksfbc()+15082\u003c-opiexe()+2970\u003c-kpoal8()+2301\u003c-opiodr()+1264\u003c-ttcpip()+1219\u003c-opitsk()+1925\u003c-opiino()+939\u003c-opiodr()+1264\u003c-opidrv()+1094\u003c-sou2o()+165\u003c-opimai_real()+422\u003c-ssthrdmain()+417\u003c-main()+256\u003c-__libc_start_call_main()+128\u003c-__libc_start_main()+128\u003c-_start()+37",
+  "shortStackNoOwn": "qcsprfro()+968\u003c-qcsprfro_tree()+387\u003c-qcsprfro_tree()+153\u003c-qcspafq()+289\u003c-qcspqbDescendents()+273\u003c-qcspqb()+283\u003c-kkmdrv()+180\u003c-opiSem()+2167\u003c-opiDeferredSem()+436\u003c-opitca()+461\u003c-kksFullTypeCheck()+81\u003c-rpiswu2()+2004\u003c-kksSetBindType()+1787\u003c-kksfbc()+15082\u003c-opiexe()+2970\u003c-kpoal8()+2301\u003c-opiodr()+1264\u003c-ttcpip()+1219\u003c-opitsk()+1925\u003c-opiino()+939\u003c-opiodr()+1264\u003c-opidrv()+1094\u003c-sou2o()+165\u003c-opimai_real()+422\u003c-ssthrdmain()+417\u003c-main()+256\u003c-__libc_start_call_main()+128\u003c-__libc_start_main()+128\u003c-_start()+37",
+  "start": {
+    "flags": "0x0",
+    "incident": false,
+    "level": 2,
+    "line": 114,
+    "mask": "0x0"
+  },
+  "statement": {
+    "from": 118,
+    "sqlId": "faaxujvpx61wd",
+    "text": "select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid",
+    "title": 117,
+    "to": 118
+  },
+  "tableAgrees": true,
+  "tableFrames": 40,
+  "to": 29753
+}
+== procstate 4337-9093
+{
+  "dmlLocks": [],
+  "dmlLocksTotal": 0,
+  "enqueues": [
+    {
+      "flag": "0x10",
+      "in": "enqueue",
+      "line": 5834,
+      "mode": "S",
+      "resource": "AE-00000086-ED94F66A-00000000-00000000",
+      "session": "61.29861",
+      "type": "AE"
+    }
+  ],
+  "enqueuesOther": 1,
+  "enqueuesTotal": 1,
+  "from": 4337,
+  "kind": "procstate",
+  "lines": 4757,
+  "locks": [
+    {
+      "address": "0x8f7a72d8",
+      "handle": "0x799b39c0",
+      "line": 4649,
+      "mode": "N",
+      "namespace": "SQL AREA",
+      "session": "61.29861",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x99fd9a88",
+      "handle": "0x799b5118",
+      "line": 4706,
+      "mode": "N",
+      "name": "select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid",
+      "namespace": "SQL AREA",
+      "session": "61.29861",
+      "sqlId": "faaxujvpx61wd",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x99fd9b88",
+      "handle": "0x79a08a40",
+      "line": 4752,
+      "mode": "N",
+      "namespace": "SQL AREA",
+      "session": "61.29861",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x99fc1858",
+      "handle": "0x79a0a198",
+      "line": 4812,
+      "mode": "N",
+      "name": "BEGIN :cid := 11; END;",
+      "namespace": "SQL AREA",
+      "session": "61.29861",
+      "sqlId": "gayh31j2d5htk",
+      "type": "CURSOR"
+    },
+    "... 26 more"
+  ],
+  "locksTotal": 39,
+  "node": "procstate:4337-9093:2:2f",
+  "notes": [],
+  "objects": {
+    "byType": [
+      {
+        "count": 39,
+        "number": 118,
+        "type": "LIBRARY OBJECT LOCK"
+      },
+      {
+        "count": 2,
+        "number": 119,
+        "type": "LIBRARY OBJECT PIN"
+      },
+      {
+        "count": 2,
+        "number": 3,
+        "type": "call"
+      },
+      {
+        "count": 2,
+        "number": 19,
+        "type": "channel handle"
+      },
+      "... 10 more"
+    ],
+    "depth": 4,
+    "total": 55
+  },
+  "pins": [
+    {
+      "address": "0x8f77a118",
+      "count": 1,
+      "handle": "0x799abdc8",
+      "line": 6232,
+      "mode": "S",
+      "name": "PDB1.PUBLIC.MTK_NO_SUCH_TABLE",
+      "namespace": "TABLE/PROCEDURE",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x99fcf208",
+      "count": 1,
+      "handle": "0x799b1070",
+      "line": 6295,
+      "mode": "S",
+      "name": "PDB1.MTK.MTK_NO_SUCH_TABLE",
+      "namespace": "TABLE/PROCEDURE",
+      "type": "CURSOR"
+    }
+  ],
+  "pinsTotal": 2,
+  "process": {
+    "address": "0xa2eec2a0",
+    "flags": "-",
+    "line": 4344,
+    "osUser": "oracle",
+    "ospid": "13847",
+    "pid": 6,
+    "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+    "serial": 36
+  },
+  "scope": "process state",
+  "sessions": [
+    {
+      "action": "error",
+      "address": "0xa2ef7930",
+      "clientOsUser": "oracle",
+      "clientOspid": "13845",
+      "command": 3,
+      "commandLine": 4430,
+      "commandName": "SELECT",
+      "container": "PDB1",
+      "containerId": 3,
+      "containerUid": "3985962602",
+      "from": 4412,
+      "key": "61.29861",
+      "line": 4420,
+      "machine": "ol9-19-dg1.localdomain",
+      "module": "mtk_diag_in_10046",
+      "prevSql": "0x799b91c0",
+      "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+      "serial": 29861,
+      "service": "pdb1",
+      "sid": 61,
+      "sql": "0x799b5118",
+      "sqlId": "faaxujvpx61wd",
+      "sqlLine": 4706,
+      "sqlText": "select /* mtk_diag_missing */ count(*) from mtk_no_such_table where id = :cid",
+      "to": 4648,
+      "user": "MTK",
+      "userId": 165,
+      "wait": {
+        "blocked": false,
+        "blockedCount": 0,
+        "blockers": [],
+        "elapsedSec": 0.052703,
+        "history": [
+          {
+            "event": "SQL*Net message from client",
+            "line": 4444,
+            "n": 0,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000102
+          },
+          {
+            "event": "SQL*Net message to client",
+            "line": 4451,
+            "n": 1,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000001
+          },
+          {
+            "event": "SQL*Net message from client",
+            "line": 4458,
+            "n": 2,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000098
+          },
+          {
+            "event": "SQL*Net message to client",
+            "line": 4465,
+            "n": 3,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0
+          },
+          "... 6 more"
+        ],
+        "historyLine": 4442,
+        "historyTotal": 10,
+        "inWait": false,
+        "lastEndedSec": 0.052687,
+        "line": 4438,
+        "stack": [],
+        "waiters": []
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 9093,
+  "transactions": [
+    {
+      "address": "0x9ef4a208",
+      "begin": "11/17/2026 21:34:26",
+      "blocks": [],
+      "blocksTotal": 0,
+      "line": 6024,
+      "session": "61.29861",
+      "undoBlocks": 1,
+      "undoRecords": 1,
+      "xid": "0x0002.00b.00005a70"
+    }
+  ],
+  "transactionsTotal": 1
+}
 == heap 6682-7041
 {
   "byComment": [

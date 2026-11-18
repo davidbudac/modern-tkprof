@@ -94,6 +94,28 @@ func (d *DiagServer) Reader() (*diag.Reader, error) {
 	return d.reader, nil
 }
 
+// SQLIDs are the sql_ids the file names (docs/PLAN-DIAG.md: the marks for a jump to a 10046 tab), in first-seen
+// order, at most diag.MarkCap: the current statements and cursor dumps of its dumps. The scan found them in its
+// one pass. nil when the file cannot be scanned.
+func (d *DiagServer) SQLIDs() []string {
+	sc, err := d.Scan()
+	if err != nil || sc == nil {
+		return nil
+	}
+	return sc.MarkSQLIDs
+}
+
+// Sessions are the sessions ("sid.serial", as the 10046 session id) the file names: its header, the session
+// state objects of its process and system states, the blockers and waiters they name, a hang analysis and a
+// deadlock. First-seen order, at most diag.MarkCap. nil when the file cannot be scanned.
+func (d *DiagServer) Sessions() []string {
+	sc, err := d.Scan()
+	if err != nil || sc == nil {
+		return nil
+	}
+	return sc.MarkSessions
+}
+
 // Close releases the line index the server made for itself.
 func (d *DiagServer) Close() {
 	if d == nil {

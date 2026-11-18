@@ -18,6 +18,10 @@ type Scan struct {
 	File File
 	// Top is the whole top level; File.Outline is its first page (Cap nodes).
 	Top []Node
+	// MarkSQLIDs and MarkSessions are the statements and the "sid.serial" sessions the file names, in first-seen
+	// order, at most MarkCap each: what a client marks when another tab holds the same (marks.go).
+	MarkSQLIDs   []string
+	MarkSessions []string
 }
 
 // ScanFile reads the file at path in one streaming pass.
@@ -96,6 +100,8 @@ type scanner struct {
 	// the top-level section that is open (its First) and the detector of its parts
 	curFirst int
 	det      detector
+
+	marks marker
 }
 
 // detector finds out whether the open top-level section has parts of its own: the walker runs over its
@@ -132,6 +138,7 @@ func hasPrefix(b []byte, p string) bool { return len(b) >= len(p) && string(b[:l
 func (s *scanner) line(n int, line []byte, k trace.Kind, open trace.Section) {
 	in := open.Kind != trace.SectionNone
 	s.n = n
+	s.marks.line(line)
 	if n <= 200 {
 		s.early(n, line)
 	}
@@ -401,7 +408,7 @@ func (s *scanner) result(name string, sn trace.Sniff) *Scan {
 	}
 	f.OutlineTotal = len(top)
 	f.Outline = append([]Node{}, top[:min(len(top), Cap)]...)
-	return &Scan{File: f, Top: top}
+	return &Scan{File: f, Top: top, MarkSQLIDs: s.marks.sqlIDs, MarkSessions: s.marks.sessions}
 }
 
 // gapNode makes the node of a run of lines between sections (a, b) from the runs the pass kept.

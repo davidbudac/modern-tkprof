@@ -25,7 +25,8 @@ const (
 
 // textOpts carries what the text of a reading depends on.
 type textOpts struct {
-	many bool // the file holds many heap dumps: shorter lists
+	many      bool // the file holds many heap dumps: shorter lists
+	manyProcs bool // the digest holds many process readings: one line each
 }
 
 // writeReading writes the text of a reading, every line indented by indent.
@@ -37,6 +38,10 @@ func writeReading(w io.Writer, indent string, rd Reading, o textOpts) {
 		writePGASummaryText(w, indent, x)
 	case *PGADetail:
 		writePGADetailText(w, indent, x)
+	case *CallStack:
+		writeCallStackText(w, indent, x)
+	case *ProcState:
+		writeProcText(w, indent, x, o)
 	}
 }
 

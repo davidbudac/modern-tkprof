@@ -110,10 +110,52 @@ func TestDiagSession(t *testing.T) {
 		}
 		envError(t, r.body)
 	}
-	// a node without a reading
-	r = e.req("GET", "/s/"+sid+"/api/diag/reading?node="+top.ID, nil)
+	// a node without a reading: the file header
+	r = e.req("GET", "/s/"+sid+"/api/diag/reading?node="+f.Outline[0].ID, nil)
 	if code, msg := envError(t, r.body); r.code != 404 || code != "not_found" || msg != "no reading for this kind of section" {
-		t.Errorf("reading of a diagnostic dump: %d %s %q", r.code, code, msg)
+		t.Errorf("reading of the file header: %d %s %q", r.code, code, msg)
+	}
+	// the diagnostic dump has one: the call stack
+	if top.Reading != "callstack" {
+		t.Errorf("node %s has reading %q", top.ID, top.Reading)
+	}
+	r = e.req("GET", "/s/"+sid+"/api/diag/reading?node="+top.ID, nil)
+	if r.code != 200 {
+		t.Fatalf("reading of a diagnostic dump: %d %s", r.code, r.body)
+	}
+	cs := decode[diag.CallStack](t, r.body)
+	if cs.Kind != "callstack" || cs.Node != top.ID || cs.Statement == nil || cs.Statement.SQLID != "86trfcf9m9n9f" || len(cs.Frames) != 44 || cs.Own != 10 || cs.CursorsTotal != 15 || len(cs.Links) != 1 {
+		t.Errorf("call stack reading: %.300s", r.body)
+	}
+	if !bytes.HasPrefix(r.body, []byte(`{"kind":"callstack"`)) {
+		t.Errorf("the first field of the reading is not kind: %.60s", r.body)
+	}
+	// ... and so has the process state nested in it, by the link
+	r = e.req("GET", "/s/"+sid+"/api/diag/reading?node="+cs.Links[0].Node, nil)
+	ps := decode[diag.ProcState](t, r.body)
+	if r.code != 200 || ps.Kind != "procstate" || len(ps.Sessions) != 1 || ps.Sessions[0].Key != "22.14058" || ps.Sessions[0].SqlID != "f3j90cdzgg7d2" {
+		t.Errorf("process state reading: %d %.300s", r.code, r.body)
+	}
+	// the nodes that fold, and why
+	folds := map[string]string{}
+	for _, c := range o.Children {
+		if c.Fold != "" {
+			folds[c.Title] = c.Fold
+		}
+	}
+	wantFolds := map[string]string{"Binary Stack Dump": "frame data: registers and memory of each frame", "Process Map Dump": "the process's memory map: address ranges of the binary and its libraries",
+		"Argument/Register Address Dump": "memory around the arguments' and registers' addresses", "Pinned Buffer History": "block dumps of recently pinned buffers",
+		"end of branch block dump": "block dump lines", "end of leaf block dump": "block dump lines", "end of leaf block Logical dump": "block dump lines"}
+	if len(folds) != len(wantFolds) {
+		t.Errorf("folds %v", folds)
+	}
+	for k, v := range wantFolds {
+		if folds[k] != v {
+			t.Errorf("node %q folds %q, want %q", k, folds[k], v)
+		}
+	}
+	if top.Fold != "" {
+		t.Errorf("a section has a fold: %q", top.Fold)
 	}
 	for q, want := range map[string]int{"": 400, "?node=heap:1-99999999:1:200": 404, "?node=nonsense": 404, "?node=root": 404} {
 		r := e.req("GET", "/s/"+sid+"/api/diag/reading"+q, nil)
@@ -430,4 +472,71 @@ func TestDiagReadings(t *testing.T) {
 	if !nh.Flags.Sampled || nh.Checks[0].State != diag.CheckNone || len(nh.Run) != 1 {
 		t.Errorf("sampled heap: %+v", nh.Flags)
 	}
+}
+
+// TestDiagMarks: the session object of a diag session names the statements and the sessions its file names
+// (what a client marks when another tab holds the same), once it is ready, parallel to optSqlIds; a 10046
+// session has neither.
+func TestDiagMarks(t *testing.T) {
+	e := newEnv(t)
+	sid := e.openReady([]string{diagErrorstack}, nil)
+	si := decode[SessionInfo](t, e.req("GET", "/engine/sessions/"+sid, nil).body)
+	if len(si.DiagSQLIDs) < 15 || si.DiagSQLIDs[0] != "86trfcf9m9n9f" || !contains(si.DiagSQLIDs, "f3j90cdzgg7d2") || !contains(si.DiagSQLIDs, "9zg9qd9bm4spu") {
+		t.Errorf("diagSqlIds %v", si.DiagSQLIDs)
+	}
+	if len(si.DiagSessions) == 0 || si.DiagSessions[0] != "22.14058" || len(si.DiagSessions) != len(uniq(si.DiagSessions)) {
+		t.Errorf("diagSessions %v", si.DiagSessions)
+	}
+	if si.OptSQLIDs != nil {
+		t.Errorf("optSqlIds %v on a diag session", si.OptSQLIDs)
+	}
+	e.srv.mu.Lock()
+	ev := e.srv.sessions[sid].event()
+	e.srv.mu.Unlock()
+	if len(ev.DiagSQLIDs) != len(si.DiagSQLIDs) || len(ev.DiagSessions) != len(si.DiagSessions) {
+		t.Errorf("session event: %v %v", ev.DiagSQLIDs, ev.DiagSessions)
+	}
+	list := decode[struct{ Sessions []SessionInfo }](t, e.req("GET", "/engine/sessions", nil).body)
+	if len(list.Sessions) != 1 || len(list.Sessions[0].DiagSQLIDs) != len(si.DiagSQLIDs) {
+		t.Errorf("session list: %+v", list.Sessions)
+	}
+	raw := string(e.req("GET", "/engine/sessions/"+sid, nil).body)
+	if !strings.Contains(raw, `"diagSqlIds":["86trfcf9m9n9f"`) || !strings.Contains(raw, `"diagSessions":["22.14058"`) {
+		t.Errorf("the JSON names: %.400s", raw)
+	}
+	// a system state names the chain's sessions
+	ss := e.openReady([]string{diagDir + "diag_sysstate_l1.trc"}, nil)
+	sx := decode[SessionInfo](t, e.req("GET", "/engine/sessions/"+ss, nil).body)
+	for _, k := range []string{"52.41898", "45.12004", "255.62769"} {
+		if !contains(sx.DiagSessions, k) {
+			t.Errorf("system state: diagSessions lacks %s", k)
+		}
+	}
+	// a 10046 session
+	ts := e.openReady([]string{"../../testdata/traces/19c/diag_in_10046.trc"}, map[string]any{"view": "10046"})
+	ti := decode[SessionInfo](t, e.req("GET", "/engine/sessions/"+ts, nil).body)
+	if ti.DiagSQLIDs != nil || ti.DiagSessions != nil || ti.View != "10046" {
+		t.Errorf("a 10046 session names %v %v", ti.DiagSQLIDs, ti.DiagSessions)
+	}
+}
+
+func contains(l []string, s string) bool {
+	for _, x := range l {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+func uniq(l []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, x := range l {
+		if !seen[x] {
+			seen[x] = true
+			out = append(out, x)
+		}
+	}
+	return out
 }

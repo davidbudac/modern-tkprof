@@ -7,6 +7,33 @@ Outline: first-last line, number of lines, title
     1-   31      31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
    32-   32       1  Other lines  [markers and blank lines]
    33-10394  10,362  Process state
+    process (Oracle pid 6, serial 35, OS pid 13832), 54 state objects, depth 4
+    session 61.21652 MTK in PDB1; sqlplus@ol9-19-dg1.localdomain (TNS V1-V3) on ol9-19-dg1.localdomain, module mtk_diag_procstate, action processstate_10, service pdb1 (lines 107-333)
+      PL/SQL EXECUTE (oct 47); statement f3j90cdzgg7d2: begin mtk_diag_outer(:ev, :cid); end;
+      previous statement at library handle 0x799d7ea0 (not described in this dump)
+      wait: not in wait; last wait ended 0.001319 s ago
+      last waits (latest first): SQL*Net message from client 0.000156 s; SQL*Net message to client 0 s; SQL*Net message from client 0.000163 s; SQL*Net message to client 0 s; SQL*Net message from client 0.00013 s, and 5 more
+    state objects by type: LIBRARY OBJECT LOCK 39, LIBRARY OBJECT PIN 2, call 2, channel handle 2, Block List 1, DML lock 1, OS proc request holder 1, dummy 1, enqueue 1, ksz parent 1, process 1, session 1, transaction 1
+    enqueues (3):
+      TX-00050016-00005A54-ED94F66A-00000000  held X  (line 728)
+      TM-0001A841-00000000-ED94F66A-00000000  held SX  (line 776)
+      AE-00000086-ED94F66A-00000000-00000000  held S  (line 1498)
+    transaction 0x0005.016.00005a54, undo 1 blocks 3 records, began 11/17/2026 21:34:26 (line 700)
+      block list: itli 2 rdba 0x3028f75 statement 2t77xc2qrk3fy object 108609
+    DML lock on object 108609, mod 3 (SX) (line 767)
+    library object locks: 39
+      0x799d0d78 mode N: (the dump prints no text for it)
+      0x799f39d8 mode N: SQL AREA CURSOR (no name printed)
+      0x7b3c6508 mode N: 06wus0ktb61qb SELECT ID, AMOUNT FROM MTK_CUST WHERE ID BETWEEN :B1 AND :B1 + 10 ORDER BY ID
+      0x799fcb78 mode N: SQL AREA CURSOR (no name printed)
+      0x7b3c6838 mode N: gw190d6bcqxcz SELECT ID, AMOUNT FROM MTK_ORDERS WHERE CUST_ID = :B1 AND AMOUNT > :B1 ORDER BY AMOUNT
+      0x7b3c9620 mode N: PDB1.MTK.MTK_DIAG_INNER
+      0x7b3c2580 mode N: PDB1.MTK.MTK_DIAG_OUTER
+      0x79a008f0 mode N: SQL AREA CURSOR (no name printed)
+      ... 31 more
+    library object pins: 2
+      0x7b3c9620 mode S: PDB1.MTK.MTK_DIAG_INNER
+      0x7b3c2580 mode S: PDB1.MTK.MTK_DIAG_OUTER
      39- 1875   1,837  process (2)  [Oracle pid 6, ser 35]
    1876- 2132     257  CURRENT SESSION'S INSTANTIATION STATE
    2133- 2490     358  Session Cursor Dump

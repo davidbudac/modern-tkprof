@@ -11,5 +11,5 @@ outline:
       354-760 (407) banner: ESTIMATED MEMORY USES FOR ALL PROCESSES
       761-766 (6) banner: MGA MEMORY USAGE SUMMARY FOR ALL PROCESSES
       767-768 (2) title: KSM MGA SYSTEM DUMP START
-      769-770 (2) title: KSM MGA SYSTEM DUMP - END
+      769-770 (2) title: KSM MGA SYSTEM DUMP - END fold="redo transport structures of the instance"
       771-776 (6) banner: SWAP INFORMATION

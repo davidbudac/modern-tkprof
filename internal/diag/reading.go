@@ -3,6 +3,7 @@ package diag
 import (
 	"errors"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -16,12 +17,16 @@ import (
 //	heap         a node of kind heap                  HeapReading (heap.go)
 //	pga-summary  a node of kind pga-summary           PGASummary  (pga.go)
 //	pga-detail   a node of kind pga-detail            PGADetail   (pga.go)
+//	callstack    a node of kind diagdump, an incident file and its "Dump for incident" part (kind toc)
+//	                                                 CallStack   (stack.go)
+//	procstate    a node of kind procstate or process (a PROCESS n of a system state)
+//	                                                 ProcState   (procstate.go)
 //
 // The JSON form of a reading is an object whose first field is "kind" (the same string as Node.Reading),
 // then the fields of that kind. TestReadingJSONShape pins the names.
 
-// Reading is the computed reading of a node: *HeapReading, *PGASummary or *PGADetail. The JSON form of each
-// starts with its "kind".
+// Reading is the computed reading of a node: *HeapReading, *PGASummary, *PGADetail, *CallStack or *ProcState. The
+// JSON form of each starts with its "kind".
 type Reading interface {
 	ReadingKind() string
 }
@@ -31,9 +36,13 @@ const (
 	ReadingHeap       = "heap"
 	ReadingPGASummary = "pga-summary"
 	ReadingPGADetail  = "pga-detail"
+	ReadingCallStack  = "callstack"
+	ReadingProcState  = "procstate"
 )
 
-// ReadingKindOf is the kind of the reading a node of this kind has, "" for a node without one.
+// ReadingKindOf is the kind of the reading a node of this kind has, "" for a node without one. A node of kind
+// toc has one only when it is the "Dump for incident" part of an incident file (readingKindFor says; the
+// reader checks it again from the lines).
 func ReadingKindOf(nodeKind string) string {
 	switch nodeKind {
 	case "heap":
@@ -42,8 +51,21 @@ func ReadingKindOf(nodeKind string) string {
 		return ReadingPGASummary
 	case "pga-detail":
 		return ReadingPGADetail
+	case "diagdump", "incident", "toc":
+		return ReadingCallStack
+	case "procstate", "process":
+		return ReadingProcState
 	}
 	return ""
+}
+
+// readingKindFor is the Node.Reading of a node of this kind and title: ReadingKindOf, except that a toc
+// part has a reading only when it holds the incident's dump.
+func readingKindFor(nodeKind, title string) string {
+	if nodeKind == "toc" && !strings.HasPrefix(title, "Dump for incident") {
+		return ""
+	}
+	return ReadingKindOf(nodeKind)
 }
 
 // ErrNoReading is the error for a node that has no reading (its kind has none).
@@ -94,6 +116,10 @@ func (r *Reader) Reading(id string) (Reading, error) {
 		out, err = r.pgaSummary(id, from, to)
 	case ReadingPGADetail:
 		out, err = r.pgaDetail(id, from, to)
+	case ReadingCallStack:
+		out, err = r.callStack(id, kind, from, to)
+	case ReadingProcState:
+		out, err = r.procState(id, kind, from, to)
 	}
 	if err != nil {
 		return nil, err

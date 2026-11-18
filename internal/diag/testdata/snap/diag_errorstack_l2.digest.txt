@@ -6,6 +6,56 @@ Diagnostic dump file diag_errorstack_l2.trc
 Outline: first-last line, number of lines, title
     1-   31      31  File header  [Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production]
    32-36651  36,620  Diagnostic dump (level 2)
+    diagnostic dump, level 2 (flags 0x0), starts at line 32
+    error: none named in the dump (taken on request, or by an event that names none)
+    error barrier: at 0x7ffc237922d0 placed dbkda.c@298 (line 34)
+    statement 86trfcf9m9n9f (lines 36-36):
+      alter session set events 'immediate trace name errorstack level 2'
+    PL/SQL call stack (innermost first, line 43):
+      MTK.MTK_DIAG_INNER (procedure)  line 11  0x7b3c9620
+      MTK.MTK_DIAG_OUTER (procedure)  line 3   0x7b3c2580
+      anonymous block                 line 1   0x79a008f0
+    stack as one line (the form oradebug short_stack prints; the Binary Stack Dump's frame headers, without the dump's own 10 frames):
+      kkyase()+15725<-kksExecuteCommand()+10100<-opiexe()+67739<-opipls()+2217<-opiodr()+1264<-rpidrus()+198<-skgmstack()+65<-rpidru()+132<-rpiswu2()+543<-rpidrv()+1266<-psddr0()+467<-psdnal()+624<-pevm_EXIM()+282<-pfrinstr_EXIM()+43<-pfrrun_no_tool()+52<-pfrrun()+904<-plsql_run()+752<-peicnt()+279<-kkxexe()+720<-opiexe()+31602<-kpoal8()+2301<-opiodr()+1264<-ttcpip()+1219<-opitsk()+1925<-opiino()+939<-opiodr()+1264<-opidrv()+1094<-sou2o()+165<-opimai_real()+422<-ssthrdmain()+417<-main()+256<-__libc_start_call_main()+128<-__libc_start_main()+128<-_start()+37
+    frames, innermost first (34 of 44; the dump's own 10 are left out):
+      11  kkyase()+15725             line 755
+      12  kksExecuteCommand()+10100  line 829   cursor
+      13  opiexe()+67739             line 910   Time_Limit
+      14  opipls()+2217              line 978   OPI
+      15  opiodr()+1264              line 1061  OPI
+      16  rpidrus()+198              line 1136  RPI
+      17  skgmstack()+65             line 1175
+      18  rpidru()+132               line 1188  RPI
+      19  rpiswu2()+543              line 1214  RPI
+      20  rpidrv()+1266              line 1289  RPI
+      21  psddr0()+467               line 1362  PROGINT_PLSQL
+      22  psdnal()+624               line 1435  PROGINT_PLSQL
+      23  pevm_EXIM()+282            line 1510  PLSQL_Code_Execution
+      24  pfrinstr_EXIM()+43         line 1551  PLSQL_Code_Execution
+      25  pfrrun_no_tool()+52        line 1565  PLSQL_Code_Execution
+      26  pfrrun()+904               line 1586  PLSQL_Code_Execution
+      27  plsql_run()+752            line 1661  PLSQL_PSD_Standalones
+      28  peicnt()+279               line 1733  PLSQL_Code_Execution
+      29  kkxexe()+720               line 1816  PROGINT_PLSQL
+      30  opiexe()+31602             line 1889  Time_Limit
+      ... 14 more frames (the stack line above lists them all)
+    cursors: 15 cursors (5 open, 10 cached among the 15 listed):
+      open #1 9zg9qd9bm4spu, 3 binds: update user$ set spare6=DECODE(to_char(:2, 'YYYY-MM-DD'), '0000-00-00', to_date(NULL), :2) where user#=:1
+          binds: #0 DATE no value; #1 - no oacdef; #2 NUMBER no value
+      open #2 f3j90cdzgg7d2, 2 binds: begin mtk_diag_outer(:ev, :cid); end;
+          binds: #0 VARCHAR2 "alter session set events 'immediate trace name errorstack level 2'"; #1 NUMBER 11
+      open #3 gw190d6bcqxcz, 2 binds: SELECT ID, AMOUNT FROM MTK_ORDERS WHERE CUST_ID = :B1 AND AMOUNT > :B1 ORDER BY AMOUNT
+          binds: #0 NUMBER 11; #1 NUMBER 11
+      open #4 06wus0ktb61qb, 2 binds: SELECT ID, AMOUNT FROM MTK_CUST WHERE ID BETWEEN :B1 AND :B1 + 10 ORDER BY ID
+          binds: #0 NUMBER 11; #1 NUMBER 11
+      open #5 86trfcf9m9n9f, 0 binds: 
+      cached 0k8522rmdzg4k, 1 bind: select privilege# from sysauth$ where (grantee#=:1 or grantee#=1) and privilege#>0
+          binds: #0 NUMBER no value
+      cached 865qwpcdyggkk, 1 bind: select spare6 from user$ where user#=:1
+          binds: #0 NUMBER no value
+      cached 1wa4tjmvc60s5, 0 binds: 
+      ... 7 more cursors
+    nested: process state, lines 5046-8732
      33-   34       2  Error Stack Dump
      35-   36       2  Current SQL Statement for this session (sql_id=86trfcf9m9n9f)  [alter session set events 'immediate trace name errorstack level 2']
      37-   41       5  Parser State
@@ -26,6 +76,29 @@ Outline: first-last line, number of lines, title
    5044- 5044       1  KSM MGA PRIVATE DUMP END
    5045- 5045       1  Process State Dump (2)
    5046- 8732   3,687  Process state
+      process (Oracle pid 6, serial 33, OS pid 13806), 53 state objects, depth 4
+      session 22.14058 MTK in PDB1; sqlplus@ol9-19-dg1.localdomain (TNS V1-V3) on ol9-19-dg1.localdomain, module mtk_diag_errorstack_l2, action errorstack_2, service pdb1 (lines 5121-5359)
+        PL/SQL EXECUTE (oct 47); statement f3j90cdzgg7d2: begin mtk_diag_outer(:ev, :cid); end;
+        previous statement at library handle 0x76fa22a8 (not described in this dump)
+        wait: not in wait; last wait ended 0.058207 s ago
+        last waits (latest first): SQL*Net message from client 0.000113 s; SQL*Net message to client 0 s; SQL*Net message from client 0.000088 s; SQL*Net message to client 0.000001 s; SQL*Net message from client 0.000103 s, and 5 more
+      state objects by type: LIBRARY OBJECT LOCK 39, LIBRARY OBJECT PIN 2, call 2, channel handle 2, Block List 1, OS proc request holder 1, dummy 1, enqueue 1, ksz parent 1, process 1, session 1, transaction 1
+      enqueues (1):
+        AE-00000086-ED94F66A-00000000-00000000  held S  (line 6871)
+      transaction 0x0009.007.00005d4e, undo 1 blocks 1 records, began 11/17/2026 21:34:25 (line 7061)
+      library object locks: 39
+        0x79a1fea0 mode N: (the dump prints no text for it)
+        0x799f39d8 mode N: SQL AREA CURSOR (no name printed)
+        0x7b3c6508 mode N: 06wus0ktb61qb SELECT ID, AMOUNT FROM MTK_CUST WHERE ID BETWEEN :B1 AND :B1 + 10 ORDER BY ID
+        0x799fcb78 mode N: SQL AREA CURSOR (no name printed)
+        0x7b3c6838 mode N: gw190d6bcqxcz SELECT ID, AMOUNT FROM MTK_ORDERS WHERE CUST_ID = :B1 AND AMOUNT > :B1 ORDER BY AMOUNT
+        0x7b3c9620 mode N: PDB1.MTK.MTK_DIAG_INNER
+        0x7b3c2580 mode N: PDB1.MTK.MTK_DIAG_OUTER
+        0x79a008f0 mode N: SQL AREA CURSOR (no name printed)
+        ... 31 more
+      library object pins: 2
+        0x7b3c9620 mode S: PDB1.MTK.MTK_DIAG_INNER
+        0x7b3c2580 mode S: PDB1.MTK.MTK_DIAG_OUTER
    8733- 8733       1  PX Blackbox
    8734-20124  11,391  Pinned Buffer History
   20125-22239   2,115  end of branch block dump

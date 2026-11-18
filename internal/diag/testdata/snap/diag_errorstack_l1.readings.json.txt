@@ -1,0 +1,117 @@
+== diagdump 32-5050
+{
+  "barriers": [
+    {
+      "line": 34,
+      "text": "\u003cerror barrier\u003e at 0x7ffc95d31c50 placed dbkda.c@298"
+    }
+  ],
+  "binaryFrames": 44,
+  "cursors": [],
+  "cursorsTotal": 0,
+  "frames": [
+    {
+      "callee": "kgdsdst()",
+      "component": "KSE",
+      "function": "ksedst1",
+      "line": 191,
+      "n": 1,
+      "offset": 95,
+      "own": true,
+      "tableLine": 54,
+      "text": "ksedst1()+95"
+    },
+    {
+      "callee": "ksedst1()",
+      "component": "KSE",
+      "function": "ksedst",
+      "line": 218,
+      "n": 2,
+      "offset": 58,
+      "own": true,
+      "tableLine": 57,
+      "text": "ksedst()+58"
+    },
+    {
+      "callee": "ksedst()",
+      "component": "ddedmp",
+      "function": "dbkedDefDump",
+      "line": 238,
+      "n": 3,
+      "offset": 24347,
+      "own": true,
+      "tableLine": 60,
+      "text": "dbkedDefDump()+24347"
+    },
+    {
+      "callee": "dbkedDefDump()",
+      "component": "KSE",
+      "function": "ksedmp",
+      "line": 310,
+      "n": 4,
+      "offset": 577,
+      "own": true,
+      "tableLine": 63,
+      "text": "ksedmp()+577"
+    },
+    "... 40 more"
+  ],
+  "framesLine": 188,
+  "framesSource": "binary",
+  "from": 32,
+  "kind": "callstack",
+  "lines": 5019,
+  "links": [],
+  "node": "diagdump:32-5050:1:f",
+  "notes": [],
+  "own": 10,
+  "plsql": [
+    {
+      "at": 46,
+      "handle": "0x7b3c9620",
+      "line": 11,
+      "n": 1,
+      "name": "MTK.MTK_DIAG_INNER",
+      "object": "procedure MTK.MTK_DIAG_INNER",
+      "type": "procedure"
+    },
+    {
+      "at": 47,
+      "handle": "0x7b3c2580",
+      "line": 3,
+      "n": 2,
+      "name": "MTK.MTK_DIAG_OUTER",
+      "object": "procedure MTK.MTK_DIAG_OUTER",
+      "type": "procedure"
+    },
+    {
+      "at": 48,
+      "handle": "0x79a008f0",
+      "line": 1,
+      "n": 3,
+      "name": "",
+      "object": "anonymous block",
+      "type": "anonymous block"
+    }
+  ],
+  "plsqlLine": 43,
+  "shortStack": "ksedst1()+95\u003c-ksedst()+58\u003c-dbkedDefDump()+24347\u003c-ksedmp()+577\u003c-dbkdaKsdActDriver()+2492\u003c-dbgdaExecuteAction()+354\u003c-dbgdaRunAction()+770\u003c-dbgdRunActions()+83\u003c-dbgdParseCmd()+3674\u003c-dbkdParseCmd()+602\u003c-kkyase()+15725\u003c-kksExecuteCommand()+10100\u003c-opiexe()+67739\u003c-opipls()+2217\u003c-opiodr()+1264\u003c-rpidrus()+198\u003c-skgmstack()+65\u003c-rpidru()+132\u003c-rpiswu2()+543\u003c-rpidrv()+1266\u003c-psddr0()+467\u003c-psdnal()+624\u003c-pevm_EXIM()+282\u003c-pfrinstr_EXIM()+43\u003c-pfrrun_no_tool()+52\u003c-pfrrun()+904\u003c-plsql_run()+752\u003c-peicnt()+279\u003c-kkxexe()+720\u003c-opiexe()+31602\u003c-kpoal8()+2301\u003c-opiodr()+1264\u003c-ttcpip()+1219\u003c-opitsk()+1925\u003c-opiino()+939\u003c-opiodr()+1264\u003c-opidrv()+1094\u003c-sou2o()+165\u003c-opimai_real()+422\u003c-ssthrdmain()+417\u003c-main()+256\u003c-__libc_start_call_main()+128\u003c-__libc_start_main()+128\u003c-_start()+37",
+  "shortStackNoOwn": "kkyase()+15725\u003c-kksExecuteCommand()+10100\u003c-opiexe()+67739\u003c-opipls()+2217\u003c-opiodr()+1264\u003c-rpidrus()+198\u003c-skgmstack()+65\u003c-rpidru()+132\u003c-rpiswu2()+543\u003c-rpidrv()+1266\u003c-psddr0()+467\u003c-psdnal()+624\u003c-pevm_EXIM()+282\u003c-pfrinstr_EXIM()+43\u003c-pfrrun_no_tool()+52\u003c-pfrrun()+904\u003c-plsql_run()+752\u003c-peicnt()+279\u003c-kkxexe()+720\u003c-opiexe()+31602\u003c-kpoal8()+2301\u003c-opiodr()+1264\u003c-ttcpip()+1219\u003c-opitsk()+1925\u003c-opiino()+939\u003c-opiodr()+1264\u003c-opidrv()+1094\u003c-sou2o()+165\u003c-opimai_real()+422\u003c-ssthrdmain()+417\u003c-main()+256\u003c-__libc_start_call_main()+128\u003c-__libc_start_main()+128\u003c-_start()+37",
+  "start": {
+    "flags": "0x0",
+    "incident": false,
+    "level": 1,
+    "line": 32,
+    "mask": "0x0"
+  },
+  "statement": {
+    "from": 36,
+    "sqlId": "8fdx3ffur0ddr",
+    "text": "alter session set events 'immediate trace name errorstack level 1'",
+    "title": 35,
+    "to": 36
+  },
+  "tableAgrees": true,
+  "tableFrames": 44,
+  "to": 5050
+}

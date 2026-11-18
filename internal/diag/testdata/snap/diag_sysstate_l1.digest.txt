@@ -10,87 +10,169 @@ Outline: first-last line, number of lines, title
    40-26088  26,049  System state (level=1)
      42- 2237   2,196  Process summary
    2238- 2293      56  Process 1
+      process (Oracle pid 1, serial 0), 1 state object
    2294- 2576     283  Process 2: PMON
+      process (Oracle pid 2, serial 1, OS pid 2188, PMON), session 1.13443 SYS in CDB$ROOT, waiting for 'pmon timer' for 2.313862 s, 2 state objects
    2577- 2859     283  Process 3: CLMN
+      process (Oracle pid 3, serial 1, OS pid 2192, CLMN), session 238.5180 SYS in CDB$ROOT, waiting for 'pmon timer' for 2.32436 s, 2 state objects
    2860- 3142     283  Process 4: PSP0
+      process (Oracle pid 4, serial 1, OS pid 2196, PSP0), session 2.36989 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.185249 s, 2 state objects
    3143- 3326     184  Process 5: VKTM
+      process (Oracle pid 5, serial 1, OS pid 2283, VKTM), session 239.22348 SYS in CDB$ROOT, waiting for 'VKTM Logical Idle Wait' for 57 s, 2 state objects
    3327- 3642     316  Process 6
+      process (Oracle pid 6, serial 40, OS pid 13945), session 52.41898 MTK in PDB1, waiting for 'PL/SQL lock timer' for 6.003026 s, blocks 2, 2 state objects
    3643- 3925     283  Process 7: GEN0
+      process (Oracle pid 7, serial 1, OS pid 2289, GEN0), session 240.35868 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 1.90224 s, 2 state objects
    3926- 4447     522  Process 8
+      process (Oracle pid 8, serial 4, OS pid 2433), session 21.55810 SYS in CDB$ROOT, waiting for 'SQL*Net message from client' for 0.03721 s, 2 state objects
    4448- 4730     283  Process 9: MMAN
+      process (Oracle pid 9, serial 1, OS pid 2295, MMAN), session 241.10587 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 1.770954 s, 2 state objects
    4731- 5013     283  Process 10: GEN1
+      process (Oracle pid 10, serial 1, OS pid 2299_2300, GEN1), session 5.2712 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.361021 s, 2 state objects
    5014- 5296     283  Process 11: SCMN
+      process (Oracle pid 11, serial 1, OS pid 2299_2299, SCMN), session 242.40553 SYS in CDB$ROOT, waiting for 'watchdog main loop' for 2.227481 s, 2 state objects
    5297- 5579     283  Process 12: DIAG
+      process (Oracle pid 12, serial 1, OS pid 2302, DIAG), session 6.14614 SYS in CDB$ROOT, waiting for 'DIAG idle wait' for 0.188082 s, 2 state objects
    5580- 5913     334  Process 13: OFSD
+      process (Oracle pid 13, serial 1, OS pid 2304_2305, OFSD), session 243.6310 SYS in CDB$ROOT, waiting for 'OFS idle' for 2.220309 s, 2 state objects
    5914- 6196     283  Process 14: SCMN
+      process (Oracle pid 14, serial 1, OS pid 2304_2304, SCMN), session 7.57885 SYS in CDB$ROOT, waiting for 'watchdog main loop' for 2.217903 s, 2 state objects
    6197- 6535     339  Process 15: DBRM
+      process (Oracle pid 15, serial 1, OS pid 2307, DBRM), session 244.63886 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.315809 s, 2 state objects
    6536- 6748     213  Process 16: VKRM
+      process (Oracle pid 16, serial 1, OS pid 2311, VKRM), session 8.14542 SYS in CDB$ROOT, waiting for 'VKRM Idle' for 56 s, 2 state objects
    6749- 7031     283  Process 17: SVCB
+      process (Oracle pid 17, serial 1, OS pid 2313, SVCB), session 245.44845 SYS in CDB$ROOT, waiting for 'wait for unread message on broadcast channel' for 0.499728 s, 2 state objects
    7032- 7314     283  Process 18: PMAN
+      process (Oracle pid 18, serial 1, OS pid 2315, PMAN), session 9.20901 SYS in CDB$ROOT, waiting for 'pman timer' for 2.178517 s, 2 state objects
    7315- 7600     286  Process 19: DIA0
+      process (Oracle pid 19, serial 1, OS pid 2319, DIA0), session 246.3855 SYS in CDB$ROOT, waiting for 'DIAG idle wait' for 0.987432 s, 2 state objects
    7601- 7883     283  Process 20: DBW0
+      process (Oracle pid 20, serial 1, OS pid 2321, DBW0), session 10.47543 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.735415 s, 2 state objects
    7884- 8166     283  Process 21: LGWR
+      process (Oracle pid 21, serial 1, OS pid 2325, LGWR), session 247.15680 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.955294 s, 2 state objects
    8167- 8461     295  Process 22: CKPT
+      process (Oracle pid 22, serial 1, OS pid 2329, CKPT), session 11.30128 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.605597 s, 2 state objects
    8462- 8756     295  Process 23: LG00
+      process (Oracle pid 23, serial 1, OS pid 2333, LG00), session 248.23745 SYS in CDB$ROOT, waiting for 'LGWR worker group idle' for 0.957285 s, 2 state objects
    8757- 9072     316  Process 24: SMON
+      process (Oracle pid 24, serial 1, OS pid 2335, SMON), session 12.17279 SYS in CDB$ROOT, waiting for 'smon timer' for 1 s, 2 state objects
    9073- 9355     283  Process 25: LG01
+      process (Oracle pid 25, serial 1, OS pid 2339, LG01), session 249.50417 SYS in CDB$ROOT, waiting for 'LGWR worker group idle' for 7.457781 s, 2 state objects
    9356- 9638     283  Process 26: SMCO
+      process (Oracle pid 26, serial 1, OS pid 2341, SMCO), session 13.52446 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 1.388104 s, 2 state objects
    9639- 9947     309  Process 27: RECO
+      process (Oracle pid 27, serial 1, OS pid 2343, RECO), session 250.13408 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 11 s, 2 state objects
    9948-10303     356  Process 28: W000
+      process (Oracle pid 28, serial 1, OS pid 2345, W000), session 14.17347 SYS in CDB$ROOT, waiting for 'Space Manager: slave idle wait' for 1.390192 s, 2 state objects
   10304-10697     394  Process 29: LREG
+      process (Oracle pid 29, serial 1, OS pid 2347, LREG), session 251.29622 SYS in CDB$ROOT, waiting for 'lreg timer' for 1.715258 s, 2 state objects
   10698-10988     291  Process 30: W001
+      process (Oracle pid 30, serial 1, OS pid 2351, W001), session 16.3637 SYS in CDB$ROOT, waiting for 'Space Manager: slave idle wait' for 1.392634 s, 2 state objects
   10989-11271     283  Process 31: PXMN
+      process (Oracle pid 31, serial 1, OS pid 2353, PXMN), session 252.59247 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 1.510915 s, 2 state objects
   11272-11563     292  Process 32: DMON
+      process (Oracle pid 32, serial 1, OS pid 2355, DMON), session 18.19846 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 12.549866 s, 2 state objects
   11564-11860     297  Process 33: MMNL
+      process (Oracle pid 33, serial 2, OS pid 2363, MMNL), session 253.5243 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.870576 s, 2 state objects
   11861-12379     519  Process 34: MMON
+      process (Oracle pid 34, serial 1, OS pid 2361, MMON), session 19.28589 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 2.764546 s, 2 state objects
   12380-12435      56  Process 35: D000
+      process (Oracle pid 35, serial 1, OS pid 2365, D000), 1 state object
   12436-12491      56  Process 36: S000
+      process (Oracle pid 36, serial 1, OS pid 2367, S000), 1 state object
   12492-12774     283  Process 37: TMON
+      process (Oracle pid 37, serial 1, OS pid 2369, TMON), session 254.22806 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 28.482032 s, 2 state objects
   12775-13057     283  Process 38: INSV
+      process (Oracle pid 38, serial 2, OS pid 2675, INSV), session 20.22460 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 2.508114 s, 2 state objects
   13058-13359     302  Process 39: QM02
+      process (Oracle pid 39, serial 4, OS pid 3156, QM02), session 237.49892 SYS in CDB$ROOT, waiting for 'Streams AQ: qmn coordinator idle wait' for 6.006453 s, 2 state objects
   13360-13655     296  Process 40: J001
+      process (Oracle pid 40, serial 73, OS pid 12239, J001), session 3.37475 C##DBM in CDB$ROOT, waiting for 'Streams AQ: waiting for messages in the queue' for 1.644169 s, 2 state objects
   13656-13979     324  Process 42: W003
+      process (Oracle pid 42, serial 8, OS pid 3133, W003), session 35.19003 SYS in CDB$ROOT, waiting for 'Space Manager: slave idle wait' for 2.403134 s, 2 state objects
   13980-14266     287  Process 43: NSV2
+      process (Oracle pid 43, serial 3, OS pid 2875, NSV2), session 257.35542 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 46.506912 s, 2 state objects
   14267-14549     283  Process 44: NSS2
+      process (Oracle pid 44, serial 1, OS pid 2665, NSS2), session 24.65189 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 2.73858 s, 2 state objects
   14550-14832     283  Process 45: RVWR
+      process (Oracle pid 45, serial 1, OS pid 2667, RVWR), session 256.19882 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.046213 s, 2 state objects
   14833-15150     318  Process 46: RSM0
+      process (Oracle pid 46, serial 2, OS pid 2925, RSM0), session 26.57605 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.204922 s, 2 state objects
   15151-15433     283  Process 47: ARC0
+      process (Oracle pid 47, serial 1, OS pid 2927, ARC0), session 258.42102 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 32.862141 s, 2 state objects
   15434-15716     283  Process 48: TT00
+      process (Oracle pid 48, serial 1, OS pid 2929, TT00), session 27.50573 SYS in CDB$ROOT, waiting for 'Data Guard: Gap Manager' for 15.377618 s, 2 state objects
   15717-15999     283  Process 49: TT01
+      process (Oracle pid 49, serial 1, OS pid 2931, TT01), session 259.40037 SYS in CDB$ROOT, waiting for 'Data Guard: Timer' for 28.493072 s, 2 state objects
   16000-16282     283  Process 50: ARC1
+      process (Oracle pid 50, serial 1, OS pid 2933, ARC1), session 28.60879 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 1 s, 2 state objects
   16283-16565     283  Process 51: ARC2
+      process (Oracle pid 51, serial 1, OS pid 2935, ARC2), session 260.37005 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 1 s, 2 state objects
   16566-16848     283  Process 52: ARC3
+      process (Oracle pid 52, serial 1, OS pid 2937, ARC3), session 29.17799 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 1 s, 2 state objects
   16849-17131     283  Process 53: TT02
+      process (Oracle pid 53, serial 1, OS pid 2939, TT02), session 262.18762 SYS in CDB$ROOT, waiting for 'heartbeat redo informer' for 0.993873 s, 2 state objects
   17132-17433     302  Process 54: AQPC
+      process (Oracle pid 54, serial 1, OS pid 2941, AQPC), session 33.7653 SYS in CDB$ROOT, waiting for 'AQPC idle' for 13.943808 s, 2 state objects
   17434-17725     292  Process 55: W002
+      process (Oracle pid 55, serial 2, OS pid 2953, W002), session 265.52082 SYS in CDB$ROOT, waiting for 'Space Manager: slave idle wait' for 3.416425 s, 2 state objects
   17726-17781      56  Process 56: P000
+      process (Oracle pid 56, serial 1, OS pid 2945, P000), 1 state object
   17782-17837      56  Process 57: P001
+      process (Oracle pid 57, serial 1, OS pid 2947, P001), 1 state object
   17838-17893      56  Process 58: P002
+      process (Oracle pid 58, serial 1, OS pid 2949, P002), 1 state object
   17894-17949      56  Process 59: P003
+      process (Oracle pid 59, serial 1, OS pid 2951, P003), 1 state object
   17950-18495     546  Process 60: CJQ0
+      process (Oracle pid 60, serial 1, OS pid 3125, CJQ0), session 32.5507 SYS in CDB$ROOT, waiting for 'rdbms ipc message' for 0.065581 s, 2 state objects
   18496-18806     311  Process 61
+      process (Oracle pid 61, serial 52, OS pid 13947), session 255.62769 MTK in PDB1, waiting for 'enq: TX - row lock contention' for 4.025474 s, blocked by 45.12004 (final 52.41898), 2 state objects
   18807-19104     298  Process 62: W004
+      process (Oracle pid 62, serial 1, OS pid 3145, W004), session 39.53380 SYS in CDB$ROOT, waiting for 'Space Manager: slave idle wait' for 4.421171 s, 2 state objects
   19105-19401     297  Process 63: W007
+      process (Oracle pid 63, serial 3, OS pid 4593, W007), session 269.56611 SYS in CDB$ROOT, waiting for 'Space Manager: slave idle wait' for 1.421985 s, 2 state objects
   19402-19970     569  Process 64: Q002
+      process (Oracle pid 64, serial 1, OS pid 3160, Q002), session 41.34531 SYS in CDB$ROOT, waiting for 'Streams AQ: qmn slave idle wait' for 6.028693 s, 2 state objects
   19971-20514     544  Process 65: Q003
+      process (Oracle pid 65, serial 1, OS pid 3162, Q003), session 271.40870 SYS in CDB$ROOT, waiting for 'Streams AQ: qmn slave idle wait' for 6.030483 s, 2 state objects
   20515-21184     670  Process 66: Q004
+      process (Oracle pid 66, serial 1, OS pid 3164, Q004), session 43.12411 SYS in CDB$ROOT, waiting for 'Streams AQ: waiting for time management or cleanup tasks' for 4 s, 2 state objects
   21185-21491     307  Process 67
+      process (Oracle pid 67, serial 2, OS pid 3453), session 273.33484 SYS in CDB$ROOT, waiting for 'SQL*Net message from client' for 0.112214 s, 2 state objects
   21492-21811     320  Process 68
+      process (Oracle pid 68, serial 39, OS pid 13949), session 45.12004 MTK in PDB1, waiting for 'enq: TX - row lock contention' for 5.05786 s, blocked by 52.41898 (final 52.41898), blocks 1, 2 state objects
   21812-22117     306  Process 69: Q005
+      process (Oracle pid 69, serial 2, OS pid 3176, Q005), session 275.63585 SYS in CDB$ROOT, waiting for 'Streams AQ: qmn slave idle wait' for 14.036696 s, 2 state objects
   22118-22495     378  Process 70: M002
+      process (Oracle pid 70, serial 10, OS pid 7356, M002), session 79.18454 SYS in CDB$ROOT, waiting for 'class slave wait' for 44.80871 s, 2 state objects
   22496-22778     283  Process 71: CL00
+      process (Oracle pid 71, serial 2, OS pid 3413, CL00), session 278.60191 SYS in CDB$ROOT, waiting for 'pmon timer' for 1.700428 s, 2 state objects
   22779-23086     308  Process 72
+      process (Oracle pid 72, serial 3, OS pid 3455), session 46.20057 SYS in CDB$ROOT, waiting for 'PL/SQL lock timer' for 14.799042 s, 2 state objects
   23087-23442     356  Process 73
+      process (Oracle pid 73, serial 5, OS pid 3742), session 276.28655 SYS in CDB$ROOT, waiting for 'SQL*Net message from client' for 3 s, 2 state objects
   23443-23734     292  Process 74
+      process (Oracle pid 74, serial 21, OS pid 13944), session 61.58038 SYS in CDB$ROOT, not in wait; last wait ended 0.09856 s ago, 2 state objects
   23735-23790      56  Process 78: P004
+      process (Oracle pid 78, serial 5, OS pid 12253, P004), 1 state object
   23791-23846      56  Process 79: P005
+      process (Oracle pid 79, serial 5, OS pid 12255, P005), 1 state object
   23847-23902      56  Process 80: P006
+      process (Oracle pid 80, serial 5, OS pid 12257, P006), 1 state object
   23903-23958      56  Process 81: P007
+      process (Oracle pid 81, serial 4, OS pid 12260, P007), 1 state object
   23959-24258     300  Process 105: W005
+      process (Oracle pid 105, serial 1, OS pid 3250, W005), session 279.25839 SYS in CDB$ROOT, waiting for 'Space Manager: slave idle wait' for 4.438768 s, 2 state objects
   24259-24710     452  Process 106: M001
+      process (Oracle pid 106, serial 2, OS pid 3258, M001), session 77.17258 SYS in CDB$ROOT, waiting for 'class slave wait' for 44.816427 s, 2 state objects
   24711-25255     545  Process 109: M003
+      process (Oracle pid 109, serial 1, OS pid 3262, M003), session 305.4249 SYS in CDB$ROOT, waiting for 'class slave wait' for 38.734166 s, 2 state objects
   25256-25549     294  Process 110: W006
+      process (Oracle pid 110, serial 3, OS pid 3297, W006), session 57.62604 SYS in CDB$ROOT, waiting for 'Space Manager: slave idle wait' for 1.442762 s, 2 state objects
   25550-26084     535  Process 113: M004
+      process (Oracle pid 113, serial 3, OS pid 3286, M004), session 285.41726 SYS in CDB$ROOT, waiting for 'class slave wait' for 38.724823 s, 3 state objects
   26085-26086       2  KSM MGA SYSTEM DUMP START
   26087-26088       2  KSM MGA SYSTEM DUMP - END
 26089-26094       6  Other lines  [markers and blank lines]

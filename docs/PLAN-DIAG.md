@@ -274,7 +274,19 @@ ROADMAP, README, the site's pages (not published), a release notes draft, this f
   `serve`: `10046`, `10053`, `diag`. Default: 10046 records → `10046`; only optimizer dumps → `10053`; else one
   file → `diag`. `diag` opens any single file (its 10046 records are "SQL trace (10046) lines" runs); `10053`
   opens an interleaved file. Refused with one line: a view on a set, live follow, `10053` on a file without a dump.
-- **The session object** carries `view`. `diagSqlIds` and `diagSessions` come with stage 4.
+- **The session object** carries `view`, and for a diag session once it is ready `diagSqlIds` and `diagSessions` (stage
+  4): the statements and the `sid.serial` sessions the file names, first-seen order, at most 300 each, collected in
+  the scan pass (`internal/diag/marks.go`, which lists the lines it reads), parallel to `optSqlIds`.
+- **Readings of stage 4**: `callstack` on a node of kind `diagdump` (top-level or nested, so also the one in a
+  deadlock), on an `incident` node and on its "Dump for incident" part (kind `toc`); `procstate` on a node of kind
+  `procstate` (a PROCESS STATE dump, also the one nested in a diagnostic dump) and on a `process` node of a system
+  state. Fields: `internal/diag/stack.go` and `procstate.go`; the OpenAPI schemas are `DiagCallStack` and
+  `DiagProcState`. Both are computed on demand from the node's own lines (13 ms for 115,000 lines).
+- **`Node.fold`**: a short reason, set on a child part whose lines are noise by default (the table `foldTable` in
+  `internal/diag/rules.go`, with the fixture lines that show each part to be bulk); never on a section.
+- **Bind redaction** (`-redact-binds`, `-binds none`, the engine's bind mode for documents) acts on the values of the
+  cursor dumps in the text digest and in the readings of `dump.digest`, with the 10046 token (`model.RedactToken`);
+  `diag.TextOptions`, `report.DiagBindText`. The live routes serve the file as it is.
 - **Refused for a diag session**: the assistant, the brief, Compare, the CSV export, `mtkprof mcp`, and the CLI
   commands with nothing to show.
 
@@ -399,3 +411,24 @@ selected heap's ancestors, siblings and children, not the whole dump run.
   reading too, and its run is itself. The digest holds only the readings of top-level nodes and their children.
 - **Measured** (Apple M4): the reading of the 357,000-line heap of the shared pool dump 43 ms, `reading/lines` for a
   comment of 26,000 chunks 33 ms, the largest committed heap (17,000 lines) 1 ms.
+
+### 2026-11-18: stage 4, the call stack and process state readings (Go side)
+
+- **Built**: `internal/diag/stack.go` (reading `callstack`), `procstate.go` (reading `procstate`), `stackrules.go` (the
+  dump's own frames), `marks.go`, `redact.go`, the text of both readings (`stacktext.go`), `Node.fold`; the session
+  object's `diagSqlIds` and `diagSessions`; OpenAPI (additive, protocol 1), `pnpm gen:api`. No cache format changed.
+- **Frames**: both sources are always read, the list is the binary stack dump's frame headers and the table's
+  (wrapped names joined) where the dump has none; they agree on every fixture (the table has a `*** timestamp` marker
+  in its middle on `diag_in_10046`, which the first reading took for a wrapped name: `TestCallStackFixtures`).
+- **The dump's own frames** are the leading frames named ksedst*, ksedmp, dbk* or dbg* (`stackrules.go` has the
+  fixture evidence per prefix). `ksqdld_hdr_dump`, which asked for the deadlock dump, stays the process's.
+- **Process state**: read by its state object lines and `owner:` links; the tree ends at the first `=====` rule or titled
+  `----- X -----` line (the cursor dumps that follow a process state are not part of it). A session's `sql:` is the
+  address of a library handle; the session holds a lock on it whose text prints the `SqlId=` and the statement, so
+  the sql_id is known when the dump prints child state objects and is not when it does not (a system state of level
+  1). `psql:` is the previous statement (fixture evidence in `ProcSession`).
+- **Measured** (Apple M4): call stack reading of 115,000 lines 13 ms, of a process state 7,000 lines 1 ms; the scan
+  with the marks 1.3 to 1.9 GB/s on the big fixtures (as before).
+- **Not done**: the reading of a hang analysis, a deadlock graph and a system state's process summary (stages 5, 6);
+  the heaps inside a process state are not nodes of the outline, so a call stack reading links the process state and
+  the heaps that are direct children of the dump only.

@@ -1,3 +1,455 @@
+== diagdump 86-10477
+{
+  "barriers": [],
+  "binaryFrames": 32,
+  "cursors": [
+    {
+      "bindCount": 3,
+      "binds": [
+        {
+          "dty": 12,
+          "pos": 0,
+          "type": "DATE"
+        },
+        {
+          "dty": 0,
+          "noDef": true,
+          "pos": 1
+        },
+        {
+          "dty": 2,
+          "pos": 2,
+          "type": "NUMBER"
+        }
+      ],
+      "from": 8672,
+      "group": "open",
+      "number": 1,
+      "sqlId": "9zg9qd9bm4spu",
+      "state": "BOUND",
+      "statement": "update user$ set spare6=DECODE(to_char(:2, 'YYYY-MM-DD'), '0000-00-00', to_date(NULL), :2) where user#=:1",
+      "to": 8744
+    },
+    {
+      "bindCount": 0,
+      "binds": [],
+      "from": 8747,
+      "group": "open",
+      "number": 2,
+      "sqlId": "3rfdph8nztm6u",
+      "state": "BOUND",
+      "statement": "select id from mtk_cust where id = 202 for update wait 30",
+      "to": 8808
+    },
+    {
+      "bindCount": 1,
+      "binds": [
+        {
+          "dty": 2,
+          "pos": 0,
+          "type": "NUMBER"
+        }
+      ],
+      "from": 9496,
+      "group": "cached",
+      "sqlId": "0k8522rmdzg4k",
+      "statement": "select privilege# from sysauth$ where (grantee#=:1 or grantee#=1) and privilege#\u003e0",
+      "to": 9591
+    },
+    {
+      "bindCount": 1,
+      "binds": [
+        {
+          "dty": 2,
+          "pos": 0,
+          "type": "NUMBER"
+        }
+      ],
+      "from": 9592,
+      "group": "cached",
+      "sqlId": "865qwpcdyggkk",
+      "statement": "select spare6 from user$ where user#=:1",
+      "to": 9651
+    },
+    "... 13 more"
+  ],
+  "cursorsTotal": 17,
+  "frames": [
+    {
+      "callee": "kgdsdst()",
+      "component": "KSE",
+      "function": "ksedst1",
+      "line": 202,
+      "n": 1,
+      "offset": 95,
+      "own": true,
+      "tableLine": 100,
+      "text": "ksedst1()+95"
+    },
+    {
+      "callee": "ksedst1()",
+      "component": "KSE",
+      "function": "ksedst",
+      "line": 229,
+      "n": 2,
+      "offset": 58,
+      "own": true,
+      "tableLine": 103,
+      "text": "ksedst()+58"
+    },
+    {
+      "callee": "ksedst()",
+      "component": "ddedmp",
+      "function": "dbkedDefDump",
+      "line": 249,
+      "n": 3,
+      "offset": 24347,
+      "own": true,
+      "tableLine": 106,
+      "text": "dbkedDefDump()+24347"
+    },
+    {
+      "callee": "dbkedDefDump()",
+      "component": "KSE",
+      "function": "ksedmp",
+      "line": 320,
+      "n": 4,
+      "offset": 577,
+      "own": true,
+      "tableLine": 109,
+      "text": "ksedmp()+577"
+    },
+    "... 28 more"
+  ],
+  "framesLine": 199,
+  "framesSource": "binary",
+  "from": 86,
+  "kind": "callstack",
+  "lines": 10392,
+  "links": [
+    {
+      "from": 4139,
+      "kind": "procstate",
+      "node": "procstate:4139-10476:2:2f",
+      "title": "Process state",
+      "to": 10476
+    }
+  ],
+  "node": "diagdump:86-10477:1:f",
+  "notes": [],
+  "own": 4,
+  "plsql": [],
+  "shortStack": "ksedst1()+95\u003c-ksedst()+58\u003c-dbkedDefDump()+24347\u003c-ksedmp()+577\u003c-ksqdld_hdr_dump()+5018\u003c-ksqcmi()+31860\u003c-ksqgtlctx()+3587\u003c-ksqgelctx()+836\u003c-ktuGetTxForXid()+324\u003c-ktcwit1()+493\u003c-kdddgb()+6140\u003c-kddlkr()+243\u003c-qerfuProcessFetchedRow()+670\u003c-qerfuLockingRowProcedure()+68\u003c-qerixFetchUniqueIndex()+1038\u003c-qerfuStart()+602\u003c-selexe0()+3409\u003c-opiexe()+11469\u003c-kpoal8()+2301\u003c-opiodr()+1264\u003c-ttcpip()+1219\u003c-opitsk()+1925\u003c-opiino()+939\u003c-opiodr()+1264\u003c-opidrv()+1094\u003c-sou2o()+165\u003c-opimai_real()+422\u003c-ssthrdmain()+417\u003c-main()+256\u003c-__libc_start_call_main()+128\u003c-__libc_start_main()+128\u003c-_start()+37",
+  "shortStackNoOwn": "ksqdld_hdr_dump()+5018\u003c-ksqcmi()+31860\u003c-ksqgtlctx()+3587\u003c-ksqgelctx()+836\u003c-ktuGetTxForXid()+324\u003c-ktcwit1()+493\u003c-kdddgb()+6140\u003c-kddlkr()+243\u003c-qerfuProcessFetchedRow()+670\u003c-qerfuLockingRowProcedure()+68\u003c-qerixFetchUniqueIndex()+1038\u003c-qerfuStart()+602\u003c-selexe0()+3409\u003c-opiexe()+11469\u003c-kpoal8()+2301\u003c-opiodr()+1264\u003c-ttcpip()+1219\u003c-opitsk()+1925\u003c-opiino()+939\u003c-opiodr()+1264\u003c-opidrv()+1094\u003c-sou2o()+165\u003c-opimai_real()+422\u003c-ssthrdmain()+417\u003c-main()+256\u003c-__libc_start_call_main()+128\u003c-__libc_start_main()+128\u003c-_start()+37",
+  "start": {
+    "flags": "0x0",
+    "incident": false,
+    "level": 1,
+    "line": 86,
+    "mask": "0x0"
+  },
+  "statement": {
+    "from": 89,
+    "sqlId": "3rfdph8nztm6u",
+    "text": "select id from mtk_cust where id = 202 for update wait 30",
+    "title": 88,
+    "to": 89
+  },
+  "tableAgrees": true,
+  "tableFrames": 32,
+  "to": 10477
+}
+== procstate 4139-10476
+{
+  "dmlLocks": [
+    {
+      "address": "0xa1f68a80",
+      "flags": "11",
+      "line": 4746,
+      "mode": 3,
+      "modeName": "SX",
+      "session": "255.52110",
+      "table": 108609
+    }
+  ],
+  "dmlLocksTotal": 1,
+  "enqueues": [
+    {
+      "flag": "0x20",
+      "in": "transaction",
+      "line": 4707,
+      "mode": "X",
+      "resource": "TX-000A0009-00004D46-ED94F66A-00000000",
+      "session": "255.52110",
+      "type": "TX"
+    },
+    {
+      "flag": "0x20",
+      "in": "DML lock",
+      "line": 4755,
+      "mode": "SX",
+      "resource": "TM-0001A841-00000000-ED94F66A-00000000",
+      "session": "255.52110",
+      "type": "TM"
+    },
+    {
+      "flag": "0x10",
+      "in": "enqueue",
+      "line": 5662,
+      "mode": "S",
+      "resource": "AE-00000086-ED94F66A-00000000-00000000",
+      "session": "255.52110",
+      "type": "AE"
+    },
+    {
+      "flag": "0x30",
+      "in": "enqueue",
+      "line": 5929,
+      "mode": "X",
+      "requested": true,
+      "resource": "TX-00080010-000057D7-ED94F66A-00000000",
+      "type": "TX"
+    }
+  ],
+  "enqueuesTotal": 4,
+  "from": 4139,
+  "kind": "procstate",
+  "lines": 6338,
+  "locks": [
+    {
+      "address": "0x99fd4ac8",
+      "handle": "0x798dfdb0",
+      "line": 4477,
+      "mode": "N",
+      "namespace": "SQL AREA",
+      "session": "255.52110",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x99fd4a48",
+      "handle": "0x798e1508",
+      "line": 4522,
+      "mode": "N",
+      "name": "select id from mtk_cust where id = 202 for update wait 30",
+      "namespace": "SQL AREA",
+      "session": "255.52110",
+      "sqlId": "3rfdph8nztm6u",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x99fd29a8",
+      "handle": "0x798e3e58",
+      "line": 4555,
+      "mode": "N",
+      "namespace": "SQL AREA",
+      "session": "255.52110",
+      "type": "CURSOR"
+    },
+    {
+      "address": "0x8f7ac598",
+      "handle": "0x798e55b0",
+      "line": 4583,
+      "mode": "N",
+      "name": "BEGIN dbms_application_info.set_action('a_asks_202'); END;",
+      "namespace": "SQL AREA",
+      "session": "255.52110",
+      "sqlId": "43s27tff30q0q",
+      "type": "CURSOR"
+    },
+    "... 26 more"
+  ],
+  "locksTotal": 42,
+  "node": "procstate:4139-10476:2:2f",
+  "notes": [],
+  "objects": {
+    "byType": [
+      {
+        "count": 42,
+        "number": 118,
+        "type": "LIBRARY OBJECT LOCK"
+      },
+      {
+        "count": 2,
+        "number": 19,
+        "type": "channel handle"
+      },
+      {
+        "count": 2,
+        "number": 11,
+        "type": "enqueue"
+      },
+      {
+        "count": 1,
+        "number": 84,
+        "type": "Block List"
+      },
+      "... 8 more"
+    ],
+    "depth": 4,
+    "total": 55
+  },
+  "pins": [],
+  "pinsTotal": 0,
+  "process": {
+    "address": "0xa2eecf30",
+    "flags": "-",
+    "line": 4146,
+    "osUser": "oracle",
+    "ospid": "13878",
+    "pid": 61,
+    "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+    "serial": 50
+  },
+  "scope": "process state",
+  "sessions": [
+    {
+      "action": "a_asks_202",
+      "address": "0xa2efe080",
+      "clientOsUser": "oracle",
+      "clientOspid": "13875",
+      "command": 3,
+      "commandLine": 4232,
+      "commandName": "SELECT",
+      "container": "PDB1",
+      "containerId": 3,
+      "containerUid": "3985962602",
+      "from": 4214,
+      "key": "255.52110",
+      "line": 4222,
+      "machine": "ol9-19-dg1.localdomain",
+      "module": "mtk_diag_deadlock_a",
+      "prevSql": "0x798e55b0",
+      "prevSqlId": "43s27tff30q0q",
+      "prevSqlLine": 4583,
+      "prevSqlText": "BEGIN dbms_application_info.set_action('a_asks_202'); END;",
+      "program": "sqlplus@ol9-19-dg1.localdomain (TNS V1-V3)",
+      "serial": 52110,
+      "service": "pdb1",
+      "sid": 255,
+      "sql": "0x798e1508",
+      "sqlId": "3rfdph8nztm6u",
+      "sqlLine": 4522,
+      "sqlText": "select id from mtk_cust where id = 202 for update wait 30",
+      "to": 4476,
+      "user": "MTK",
+      "userId": 165,
+      "wait": {
+        "blocked": true,
+        "blockedCount": 1,
+        "blockedLine": 4253,
+        "blockers": [
+          {
+            "inst": 1,
+            "key": "61.27430",
+            "line": 4250,
+            "serial": 27430,
+            "sid": 61
+          }
+        ],
+        "blockersCount": 1,
+        "elapsedSec": 0.000083,
+        "finalBlocker": {
+          "inst": 1,
+          "key": "61.27430",
+          "line": 4252,
+          "serial": 27430,
+          "sid": 61
+        },
+        "history": [
+          {
+            "event": "SQL*Net message from client",
+            "line": 4266,
+            "n": 0,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000119
+          },
+          {
+            "event": "SQL*Net message to client",
+            "line": 4273,
+            "n": 1,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000001
+          },
+          {
+            "event": "SQL*Net message from client",
+            "line": 4280,
+            "n": 2,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000288
+          },
+          {
+            "event": "SQL*Net message to client",
+            "line": 4287,
+            "n": 3,
+            "params": "driver id=0x74637000, #bytes=0x1, =0x0",
+            "seconds": 0.000001
+          },
+          "... 6 more"
+        ],
+        "historyLine": 4264,
+        "historyTotal": 10,
+        "inWait": true,
+        "line": 4240,
+        "stack": [
+          {
+            "event": "enq: TX - row lock contention",
+            "level": 0,
+            "line": 4241,
+            "params": "name|mode=0x54580006, usn\u003c\u003c16 | slot=0x80010, sequence=0x57d7",
+            "seconds": 3.049238
+          }
+        ],
+        "waiters": [
+          {
+            "event": "enq: TX - row lock contention",
+            "inst": 1,
+            "key": "61.27430",
+            "line": 4255,
+            "minBlockedSec": 0,
+            "params": [
+              "p1: 'name|mode'=0x54580006",
+              "p2: 'usn\u003c\u003c16 | slot'=0xa0009",
+              "p3: 'sequence'=0x4d46"
+            ],
+            "rowWait": {
+              "block": 169241,
+              "file": 12,
+              "line": 4260,
+              "obj": 108609,
+              "row": 2
+            },
+            "serial": 27430,
+            "sid": 61
+          }
+        ]
+      }
+    }
+  ],
+  "sessionsTotal": 1,
+  "to": 10476,
+  "transactions": [
+    {
+      "address": "0x9ef48168",
+      "begin": "11/17/2026 21:34:28",
+      "blocks": [
+        {
+          "itli": 2,
+          "line": 4744,
+          "obj": 108609,
+          "rdba": "0x3029519",
+          "sqlId": "752shv6d3b97v"
+        }
+      ],
+      "blocksTotal": 1,
+      "line": 4679,
+      "session": "255.52110",
+      "undoBlocks": 1,
+      "undoRecords": 1,
+      "xid": "0x000a.009.00004d46"
+    }
+  ],
+  "transactionsTotal": 1
+}
 == heap 7162-8118
 {
   "byComment": [

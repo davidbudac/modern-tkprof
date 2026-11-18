@@ -6,5 +6,5 @@ outline:
 + 33-10477 (10445) deadlock: Deadlock (ORA-00060)
       49-81 (33) title: Information for waiting sessions
       82-85 (4) title: End of information for waiting sessions
-    + 86-10477 (10392) diagdump: Diagnostic dump (level 1)
+    + 86-10477 (10392) diagdump: Diagnostic dump (level 1) reading=callstack
   10478-10478 (1) other: Other lines  [markers and blank lines]

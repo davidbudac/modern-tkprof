@@ -16,6 +16,8 @@ import (
 // DiagInput is what a document or a text report of a diag session is made from.
 type DiagInput struct {
 	Reader *diag.Reader
+	// Text is how the digest handles the bind values of the cursor dumps (DiagBindText); the zero value keeps them.
+	Text   diag.TextOptions
 	digest *diag.Digest // set when the document carries the digest
 }
 
@@ -23,10 +25,10 @@ type DiagInput struct {
 // the document: for a client without a server (mtkprof html, json, the default command, the engine's HTML
 // and JSON exports). A document made for a server leaves it out; the client then reads the api/diag
 // routes. The digest is made here (it reads the lines of the file), so that a failure is the caller's.
-func NewDiagInput(r *diag.Reader, digest bool) (*DiagInput, error) {
-	in := &DiagInput{Reader: r}
+func NewDiagInput(r *diag.Reader, digest bool, text diag.TextOptions) (*DiagInput, error) {
+	in := &DiagInput{Reader: r, Text: text}
 	if digest {
-		dg, err := r.Digest()
+		dg, err := r.DigestWith(text)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +44,29 @@ type DiagDoc struct {
 }
 
 // DiagText writes the text report of a diag file: its digest.
-func DiagText(w io.Writer, in *DiagInput) error { return diag.WriteDigest(w, in.Reader) }
+func DiagText(w io.Writer, in *DiagInput) error { return diag.WriteDigestWith(w, in.Reader, in.Text) }
+
+// DiagBindText is the diag.TextOptions of a bind mode and salt: the bind values of the cursor dumps are dropped
+// (-binds none) or replaced by the token the 10046 redaction makes of the same value (model.RedactToken: type
+// name, length, hash), so that one value has one token in a SQL trace report and in a diagnostic dump report. A
+// value is hashed without the double quotes a dump prints around a string, and its length is the printed avl,
+// else that of the unquoted value, as in the 10046 model.
+func DiagBindText(mode model.BindMode, salt string) diag.TextOptions {
+	switch mode {
+	case model.BindsNone:
+		return diag.TextOptions{DropBinds: true}
+	case model.BindsRedact:
+		return diag.TextOptions{RedactBind: func(typ, value string, avl int) string {
+			v := unquoteBind(value)
+			n := avl
+			if n <= 0 {
+				n = len(v)
+			}
+			return model.RedactToken(typ, v, n, salt)
+		}}
+	}
+	return diag.TextOptions{}
+}
 
 // buildDiag is the document's "dump" member.
 func buildDiag(in *DiagInput) *DiagDoc {

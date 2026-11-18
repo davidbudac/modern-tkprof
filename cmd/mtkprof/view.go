@@ -96,7 +96,7 @@ func openView(m *model.Model, bf *bindFlags, digest, lines bool) (*viewIn, error
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
 		}
-		in, err := report.NewDiagInput(rd, digest)
+		in, err := report.NewDiagInput(rd, digest, report.DiagBindText(bf.mode, bf.salt))
 		if err != nil {
 			rd.Close()
 			return nil, err

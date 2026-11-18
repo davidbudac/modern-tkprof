@@ -96,9 +96,14 @@ type Node struct {
 	Records int    `json:"records,omitempty"` // trace10046: the number of 10046 records in the run
 	Cut     bool   `json:"cut,omitempty"`     // a section whose end line was not reached
 	// Reading is the kind of the computed reading the node has (Reader.Reading, GET api/diag/reading): "heap" for
-	// a heap dump, "pga-summary", "pga-detail"; later stages add callstack, procstate, hang, deadlock, sysstate.
+	// a heap dump, "pga-summary", "pga-detail"; "callstack" for a diagnostic dump (and an incident file), "procstate" for a process state or a PROCESS n of a system
+	// state; later stages add hang, deadlock, sysstate.
 	// Absent when the node has none.
 	Reading string `json:"reading,omitempty"`
+	// Fold is a short reason, in plain words, for a part whose text is noise by default ("frame data: registers
+	// and memory of each frame"): a client shows it closed. Absent for every other part. The parts and the
+	// evidence for each are the table foldTable in rules.go.
+	Fold string `json:"fold,omitempty"`
 
 	unk int // other: lines that count as unplaced (the scan sums them for File.Unplaced)
 }

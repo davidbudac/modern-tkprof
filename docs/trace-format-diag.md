@@ -298,6 +298,42 @@ Process global information:
   Areas Dump (level=65)` and `KSM MGA PRIVATE DUMP END` (`diag_procstate:10393`). The line is nested in an
   outer dump (errorstack, deadlock) as a line like any other: the outer one has no end line.
 
+### Verified in stage 4 (`internal/diag/procstate.go`, `stack.go`)
+
+- **`sql:` and `psql:` of a session** are addresses of library handles: the current top-level statement and the
+  previous one (`big/diag_sysstate_l266`: sid 45, action `s2_holds_302_waits_301`, `sql:` is the `id = 301 ... wait 60`
+  statement, `psql:` the `id = 302 for update` one). The session holds a `LIBRARY OBJECT LOCK` on each handle it
+  used, whose text has `LibraryObjectLock:  Address= Handle=0x79a02048 Mode=N` and, under the `LibraryHandle:` line,
+  `ObjectName:  Name=<statement>` and `FullHashValue=... Namespace=SQL AREA(00) SqlId=f3j90cdzgg7d2 Type=CURSOR(00)`
+  (`diag_procstate:667-682`). A system state of level 1 prints no child state objects, so only the address is known.
+- **Enqueues** are `ksqdmc(): Enqueue Dump (enqueue) TX-00050016-00005A54-ED94F66A-00000000` lines inside the text of
+  several objects (the transaction, the DML lock, an `enqueue` object), each followed by `mode: X, lock_flag: 0x20` for a
+  held lock or `req: X, lock_flag: 0x30` for a requested one (`big/diag_sysstate_l266:51935`: the TX that sid 45 requests
+  carries the slot and sequence of its wait parameters and is the one the holder's transaction holds). `released
+  enqueue or enqueue in flux` and `<no resource>` name none.
+- **A transaction** prints `env [...]: (scn: ... xid: 0x0005.016.00005a54 ...)`, `Undo blks: 1 recs: 3` and `Begin scn:
+  ... ts:...[11/17/2026 21:34:26]`; its child `Block List` has `index itli rdba sql_id obj# savepoint` rows (the sql_id of
+  the statement that changed the block); a `DML lock` prints `DML LOCK: tab=108609 flg=11` and `his[0]: mod=3` (the
+  table's TM enqueue `TM-0001A841` is the same object in hex and has mode SX).
+- **Blockers**: `There is at least one session blocking this session.`, `Dumping 1 direct blocker(s):` and `Dumping final
+  blocker:` each with `inst: 1, sid: 52, ser: 41898`; `There are 2 sessions blocked by this session.` with `Dumping one
+  waiter:` (one is dumped however many there are), its `wait event:`, `p1:`...`p3:` lines, `row_wait_obj#: 108609,
+  block#: 169252, row#: 6, file# 12` and `min_blocked_time:`. A session blocked by another has the blocker in the Process
+  Summary as `Blocked by` and `Final Blocker` lines.
+- **The command**: the Process Summary's `Cmd:` line next to the session's `oct:` gives 3 `SELECT` and 47 `PL/SQL
+  EXECUTE` on the lab (levels 1, 2, 258, 266); 0 has no `Cmd:`. Other numbers are not named.
+- **A process in a system state may print no session object** (`big/diag_sysstate_l266:33578`, a job process that the
+  summary lists with a session).
+- **The tree of state objects ends** at the first line of `=` or titled `----- X -----` after it
+  (`diag_errorstack_l2:7338`, the instantiation state banner).
+- **The call stack table** can hold a `*** 2026-11-17T21:34:27.435785+00:00 (PDB1(3))` timestamp marker and a blank
+  line in its middle (`diag_in_10046:188`); its wrapped names are cut at the 20 characters of the first and third
+  column and continue on the next line in the same column. `CALL TYPE: call   ERROR SIGNALED: yes   COMPONENT: KSM`
+  under a frame header says the frame signalled the error (`big/diag_oom_incident`: frames 9 and 12).
+- **An event-written dump** (`diag_in_10046`) has no ORA- line: its error is `about to signal 942` and `Name:
+  MTK_NO_SUCH_TABLE` at its end (`:29752`). An incident file prints its ORA- lines before the dump (`[TOC00001]`,
+  `big/diag_oom_incident:36`) and in an `error stack dump with barriers` block (`:114740`).
+
 ## System state
 
 ```

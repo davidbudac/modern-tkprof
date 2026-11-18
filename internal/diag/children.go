@@ -235,7 +235,7 @@ func (b *builder) emitTop(h *head) {
 func headNode(h *head, base profile) Node {
 	n := Node{ID: nodeID(h.kind, h.from, h.to, h.hl, base|ownProfile(h.kind)), Kind: h.kind, Title: h.title, Sub: h.sub,
 		From: h.from, To: h.to, Lines: h.to - h.from + 1, HasChildren: h.nkid > 0,
-		N: h.n, Name: h.name, Depth: h.depth, Size: h.size, Cut: h.cut, Reading: ReadingKindOf(h.kind)}
+		N: h.n, Name: h.name, Depth: h.depth, Size: h.size, Cut: h.cut, Reading: readingKindFor(h.kind, h.title)}
 	if h.kind == "extents" {
 		n.Sub = pluralN(h.nkid, "extent")
 	}
@@ -243,6 +243,7 @@ func headNode(h *head, base profile) Node {
 		n.Title, n.Sub = h.sf.title(h.sk), h.sf.sub(h.sk)
 		n.Name, n.Depth, n.Size = h.sf.name, h.sf.depth, h.sf.size
 	}
+	n.Fold = foldFor(n.Kind, n.Title)
 	return n
 }
 

@@ -196,6 +196,9 @@ func outlineText(t testing.TB, r *Reader) string {
 		if n.Reading != "" {
 			extra += " reading=" + n.Reading
 		}
+		if n.Fold != "" {
+			extra += fmt.Sprintf(" fold=%q", n.Fold)
+		}
 		sub := ""
 		if n.Sub != "" {
 			sub = "  [" + n.Sub + "]"

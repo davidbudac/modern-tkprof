@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/davidbudac/modern-tkprof/internal/diag"
+	"github.com/davidbudac/modern-tkprof/internal/model"
 	"github.com/davidbudac/modern-tkprof/internal/ui"
 )
 
@@ -310,5 +311,69 @@ func TestDiagReportHeap(t *testing.T) {
 	pd := runTo(t, cmdReport, diagFixtures+"diag_pga_detail.trc")
 	if !strings.Contains(pd, "Reading: PGA memory detail for pid 6, OS pid 14085") || !strings.Contains(pd, "3,512,312") {
 		t.Errorf("the report of diag_pga_detail: %.400s", pd)
+	}
+}
+
+// TestDiagRedaction: -redact-binds and -binds none act on the bind values of the cursor dumps in the text
+// digest and in the document's readings, with the token the 10046 redaction makes of the same value; the
+// default keeps them.
+func TestDiagRedaction(t *testing.T) {
+	data, err := os.ReadFile(diagFixtures + "diag_errorstack_l2.trc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const secret = "Pa55w0rd-S3cr3t-9981"
+	old := `value="alter session set events 'immediate trace name errorstack level 2'"`
+	if bytes.Count(data, []byte(old)) != 1 {
+		t.Fatal("the bind value line moved")
+	}
+	trc := filepath.Join(t.TempDir(), "secret.trc")
+	if err := os.WriteFile(trc, bytes.Replace(data, []byte(old), []byte(`value="`+secret+`"`), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// the 10046 token for the same value: a VARCHAR2 bind of the same actual length (66)
+	token := model.RedactToken("VARCHAR2", secret, 66, "")
+	salted := model.RedactToken("VARCHAR2", secret, 66, "pepper")
+	b := &model.Bind{Dty: 1, Avl: 66, Value: secret}
+	if got := model.RedactedValueSalt(b, ""); got != token {
+		t.Fatalf("the 10046 token %s is not %s", got, token)
+	}
+	// the document writes the angle brackets of a token as they are or escaped, by the encoder it was made with
+	has := func(doc, tok string) bool {
+		return strings.Contains(doc, tok) || strings.Contains(doc, strings.NewReplacer("<", `\u003c`, ">", `\u003e`).Replace(tok))
+	}
+
+	for _, c := range []struct {
+		name string
+		args []string
+		text func(s string) bool
+		doc  func(s string) bool
+	}{
+		{"keep", nil, func(s string) bool { return strings.Contains(s, `"`+secret+`"`) }, func(s string) bool { return strings.Contains(s, secret) }},
+		{"redact", []string{"-redact-binds"}, func(s string) bool {
+			return strings.Contains(s, token) && !strings.Contains(s, secret) && strings.Contains(s, "bind values redacted")
+		},
+			func(s string) bool { return has(s, token) && !strings.Contains(s, secret) }},
+		{"salted", []string{"-redact-binds", "-redact-salt", "pepper"}, func(s string) bool {
+			return strings.Contains(s, salted) && !strings.Contains(s, token) && !strings.Contains(s, secret)
+		},
+			func(s string) bool { return has(s, salted) && !strings.Contains(s, secret) }},
+		{"none", []string{"-binds", "none"}, func(s string) bool {
+			return !strings.Contains(s, secret) && strings.Contains(s, "bind values dropped") && !strings.Contains(s, "binds: #")
+		},
+			func(s string) bool { return !strings.Contains(s, secret) && !strings.Contains(s, `"value":"11"`) }},
+	} {
+		text := runTo(t, cmdReport, append(append([]string{}, c.args...), trc)...)
+		if !c.text(text) {
+			t.Errorf("%s: text digest:\n%.1500s", c.name, text[strings.Index(text, "cursors:"):])
+		}
+		doc := runTo(t, cmdJSON, append(append([]string{}, c.args...), trc)...)
+		if !c.doc(doc) {
+			t.Errorf("%s: the document", c.name)
+		}
+		var d diagDoc
+		if err := json.Unmarshal([]byte(doc), &d); err != nil || d.Dump == nil || d.Dump.Digest == nil || len(d.Dump.Digest.Readings) == 0 {
+			t.Errorf("%s: the document has no readings: %v", c.name, err)
+		}
 	}
 }

@@ -35,6 +35,8 @@ type Digest struct {
 	ReadingsOmitted int `json:"readingsOmitted,omitempty"`
 
 	rd map[string]Reading // the same readings, typed (a digest made here, not one decoded from JSON)
+	// text carries the bind options the readings were made with (the text of a reading follows them).
+	text TextOptions
 }
 
 // DigestNode is a top-level node with its children.
@@ -45,8 +47,11 @@ type DigestNode struct {
 }
 
 // Digest makes the digest: one scan of the lines of every node that has children.
-func (r *Reader) Digest() (*Digest, error) {
-	d := &Digest{Outline: make([]DigestNode, 0, len(r.Scan.Top))}
+func (r *Reader) Digest() (*Digest, error) { return r.DigestWith(TextOptions{}) }
+
+// DigestWith is Digest with the bind values handled as o says (redact.go).
+func (r *Reader) DigestWith(o TextOptions) (*Digest, error) {
+	d := &Digest{Outline: make([]DigestNode, 0, len(r.Scan.Top)), text: o}
 	for _, n := range r.Scan.Top {
 		dn := DigestNode{Node: n, Children: []Node{}}
 		if n.HasChildren {
@@ -70,6 +75,7 @@ func (r *Reader) Digest() (*Digest, error) {
 			d.ReadingsOmitted++
 			continue
 		}
+		rd = redactReading(rd, o)
 		b, err := json.Marshal(rd)
 		if err != nil {
 			return nil, err
@@ -92,8 +98,12 @@ func (r *Reader) Digest() (*Digest, error) {
 // WriteDigest writes the text digest of a file: its facts, then the outline to two levels, with the first
 // and last line of each part and its line count, and under each part that has one its reading (heap totals and
 // the check against them, the PGA tables).
-func WriteDigest(w io.Writer, r *Reader) error {
-	d, err := r.Digest()
+func WriteDigest(w io.Writer, r *Reader) error { return WriteDigestWith(w, r, TextOptions{}) }
+
+// WriteDigestWith is WriteDigest with the bind values handled as o says: the digest says so under the file's
+// facts and prints the values of the cursors' binds redacted, or none.
+func WriteDigestWith(w io.Writer, r *Reader, o TextOptions) error {
+	d, err := r.DigestWith(o)
 	if err != nil {
 		return err
 	}
@@ -127,6 +137,11 @@ func WriteDigest(w io.Writer, r *Reader) error {
 			p("  continued from: %s\n", in.ContinuedFrom)
 		}
 	}
+	if o.DropBinds {
+		p("  bind values dropped\n")
+	} else if o.RedactBind != nil {
+		p("  bind values redacted\n")
+	}
 	p("  %s lines, %s at the top level", thousands(f.Lines), pluralN(f.OutlineTotal, "part"))
 	if n := len(f.Sections); n > 0 {
 		p(", %s", pluralN(n, "diagnostic dump section"))
@@ -153,7 +168,7 @@ func WriteDigest(w io.Writer, r *Reader) error {
 		}
 		p("%s%s  %*s  %s%s%s\n", strings.Repeat("  ", indent), rng, lw, thousands(n.Lines), n.Title, cut, sub)
 	}
-	opts := textOpts{many: countHeaps(d) > manyHeaps}
+	opts := textOpts{many: countHeaps(d) > manyHeaps, manyProcs: countProcs(d) > manyProcs}
 	for _, dn := range d.Outline {
 		row(0, dn.Node)
 		if rd, ok := d.rd[dn.ID]; ok {
@@ -162,6 +177,11 @@ func WriteDigest(w io.Writer, r *Reader) error {
 		for _, c := range dn.Children {
 			row(1, c)
 			if rd, ok := d.rd[c.ID]; ok {
+				// the "Dump for incident" part of an incident file reads the same lines as the file's own
+				// reading, printed above: once in the text (the document holds both)
+				if c.Kind == "toc" && dn.Reading == rd.ReadingKind() {
+					continue
+				}
 				writeReading(w, "      ", rd, opts)
 			}
 		}
@@ -173,6 +193,19 @@ func WriteDigest(w io.Writer, r *Reader) error {
 		p("\n%s of the parts that have a reading are shown without it (the digest holds at most %d readings, %d MB of them)\n", thousands(d.ReadingsOmitted), DigestReadings, DigestReadingBytes>>20)
 	}
 	return nil
+}
+
+// countProcs counts the process readings of the digest (a system state's processes).
+func countProcs(d *Digest) int {
+	n := 0
+	for _, dn := range d.Outline {
+		for _, c := range dn.Children {
+			if c.Kind == "process" {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 // countHeaps counts the heap dumps of the top level of the digest.
