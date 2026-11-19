@@ -64,9 +64,10 @@ traces (10053) stay the primary formats.
 ## SQL heat and the Search map (desktop and `mtkprof serve`)
 
 - **SQL heat**: a statement's plan has a third view, *Table | Row flow | SQL heat* (also a *SQL heat* button beside
-  *Row flow*): the SQL text with each part tinted by its share of the plan's time, the percentage in the margin, the
-  plan lines each part stands for, and what could not be placed. Matches the trace cannot prove are marked ≈; an
-  imported reference bundle makes them exact. A function that runs recursive SQL gets a ≈ note.
+  *Row flow*): the SQL text with each part tinted by its share of the time, the percentage in the margin, the
+  plan lines each part stands for, what could not be placed, and how much of the execution the plan accounts for.
+  Matches the trace cannot prove are marked ≈; an imported reference bundle makes them exact. A function that runs
+  recursive SQL gets a ≈ note, or, called outside the plan (the select list), a share of its own.
 - **Search map** (10053 view, *Search map* or `m`): one costing run's join-order search, each join order a column of
   the costs printed after each step on a log scale, abandoned orders ending at the best-so-far line, the winner
   marked, and a table of every run of the dump. It draws the costs the trace prints and computes none.

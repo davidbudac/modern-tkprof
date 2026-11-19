@@ -290,6 +290,12 @@ Decisions: DESIGN § SQL heat. A third plan view beside Table and Row flow; lib 
 - **Input** (`heatInput`, `heatDump`, `heatChildren`): the statement text, the picked dump's plan lines (a split dump
   joined with `dumpLines`, from any of its pieces) and the statement's recursive children (`StmtStats.children`,
   `Link { statement, calls, elapsed }`, with the per-execution count from the call facts when the document has them).
+- **Cover** (`heatCover`, `heatCoverOfTrace`, `useSqlHeat`): the executions the dump covers (as many as the top row
+  source's starts, the last ones of its cursor before the STAT line, Replay's `planOfExecution` rule) and their EXEC
+  and FETCH elapsed with the recursive SQL in them. With call facts it is exact; without them (the desktop, `serve
+  -facts=false`) the statement's numbers when the dump covers every execution, else a labelled average that
+  `useSqlHeat` replaces with the execution's trace from the source (`executions/trace`, a dump of one execution, when
+  the source's execution list is complete). All 178 dumps of the fixtures cover one execution.
 - **`sqlHeat`** is pure and never throws. It tokenises with `sqlTokens` (`data/optsql.ts`, unchanged: the Go formatter
   is pinned to it by a golden file), parses query blocks (inline views, scalar subqueries, WITH, set operators) into
   select list, FROM items with aliases and ANSI ON conditions, WHERE conjuncts split at top-level AND, GROUP BY,
@@ -299,7 +305,10 @@ Decisions: DESIGN § SQL heat. A third plan view beside Table and Row flow; lib 
   loop's inner index, an index under a cluster access, a name match, the one table no line reads, each marked ≈),
   joins to their ON or two-sided conjuncts, the clause operations, a FILTER without a predicate to the line below it
   (≈), a merge join's sorts to the join, FETCH FIRST's VIEW and window sort to that clause. Self time is Row flow's
-  rule; shares are of the sum of self times; the rest is `unplaced`. A result with `fallback` (DML, PL/SQL, an
+  rule; shares are of the sum of self times, the rest is `unplaced`. Each call of a non-built-in function is placed:
+  in no fragment a plan line evaluates, its recursive time is outside the plan; in such fragments, inside, unless
+  (exact cover only) it exceeds their self time, and the excess is outside; in both, the split is reported unknown.
+  Outside time is a group of its own and the shares become shares of the cover's time with a `rest` group. A result with `fallback` (DML, PL/SQL, an
   unparsable text, no statistics, no time, no lines) makes the view show the table with its note.
 - **Display**: the spans are carried onto `formatSql`'s lines by aligning non-blank characters; the margin and the
   mapping lines are per group. Not parsed: MODEL, PIVOT bodies, `AS OF`, hints that name indexes. On the two large

@@ -60,3 +60,8 @@
   .sh-margin { inline-size: 5.5rem; }
   .sh-bar { display: none; }
 }
+
+/* above the text: what the plan lines account for of the execution the dump covers, and what the shares are of */
+.sh-account { display: flex; flex-direction: column; gap: 1px; font-size: var(--text-xs); line-height: 1.45; color: var(--ink-2); }
+.sh-account p { margin: 0; overflow-wrap: anywhere; }
+.sh-account p:first-child { color: var(--ink); }

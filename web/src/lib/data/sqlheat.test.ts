@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url'
 import { TraceDoc } from './doc'
 import { formatSql } from './optsql'
 import type { Plan, PlanLine, RawDocument } from './types'
-import { heatChildren, heatDump, heatInput, heatTint, HEAT_MIN_SHARE, sqlHeat, type HeatChild, type HeatOk, type SqlHeat } from './sqlheat'
+import { LocalSource } from './source'
+import { dumpExecutions, heatChildren, heatCoverOfTrace, heatDump, heatInput, heatTint, HEAT_MIN_SHARE, sqlHeat, type HeatChild, type HeatCover, type HeatOk, type SqlHeat } from './sqlheat'
 
 const dir = fileURLToPath(new URL('./testdata/', import.meta.url))
 const load = (f: string) => TraceDoc.fromRaw((JSON.parse(gunzipSync(readFileSync(dir + f)).toString('utf8')) as { doc: RawDocument }).doc)
@@ -31,7 +32,8 @@ const painted = (h: HeatOk, ...ids: number[]) => {
   const k = h.groups.indexOf(group(h, ...ids))
   return h.lines.flatMap((l) => l.filter((s) => s.group === k).map((s) => s.text.trim())).filter(Boolean)
 }
-const sum = (h: HeatOk) => h.groups.reduce((a, g) => a + g.share, 0) + h.unplaced.share
+/** every share: the groups, the plan lines not placed, recursive SQL outside the plan not in the text, the rest of the calls */
+const sum = (h: HeatOk) => h.groups.reduce((a, g) => a + g.share, 0) + h.unplaced.share + (h.outside && h.outside.group < 0 ? h.outside.share : 0) + (h.rest?.share ?? 0)
 
 describe('sqlHeat on io_waits.trc (the hash join that spills)', async () => {
   const doc = await load('findings-io_waits.json.gz')
@@ -91,9 +93,57 @@ describe('sqlHeat on plsql_recursive.trc (a function that runs SQL)', async () =
 
   it('places an index read without its table by the name the index carries (≈)', () => {
     const h = ok(sqlHeat(heatInput(doc, doc.plansOf(st.id)[0])))
-    expect(h.groups).toHaveLength(1)
-    expect(h.groups[0].approx).toEqual(['the index name MTK_CUST_PK contains the table name MTK_CUST'])
+    expect(group(h, 1).approx).toEqual(['the index name MTK_CUST_PK contains the table name MTK_CUST'])
     expect(painted(h, 1)).toEqual(['FROM mtk_cust', 'WHERE id <= 5'])
+  })
+
+  // The plan's one line, the index range scan, reports 30 µs; the execution's EXEC and FETCH calls took 624 µs (19 + 313
+  // + 292), of which 253 µs are mtk_f's recursive SQL, run as the select list hands rows to the client: in no plan line.
+  it('compares the plan with the execution its dump covers, and gives recursive SQL outside the plan a share of its own', () => {
+    const h = ok(sqlHeat(heatInput(doc, doc.plansOf(st.id)[0])))
+    expect(h.cover).toEqual({ executions: 1, execNo: 1, elapsedUs: 624, recursiveUs: 253, exact: true })
+    expect(h.basis).toBe('calls')
+    expect(h.planUs).toBe(30)
+    expect(h.totalUs).toBe(624)
+    const r = h.groups[0]
+    expect(r).toMatchObject({ what: 'outside the plan: recursive SQL', selfUs: 253, parts: [], recursive: { fn: 'mtk_f', statement: child.id } })
+    expect(r.share).toBeCloseTo(253 / 624, 12)
+    expect(r.approx[0]).toBe('the recursive SQL is taken to run in mtk_f, the one function of the text that is not an Oracle built-in')
+    expect(h.lines[0].filter((s) => s.group === 0).map((s) => s.text)).toEqual(['mtk_f(id)'])
+    expect(h.outside).toMatchObject({ us: 253, group: 0 })
+    expect(group(h, 1).share).toBeCloseTo(30 / 624, 12)
+    expect(h.rest).toEqual({ us: 341, share: 341 / 624 })
+    expect(sum(h)).toBeCloseTo(1, 12)
+    expect(h.account).toEqual([
+      'The plan lines account for 30 µs of 624 µs, the EXEC and FETCH calls of the first execution, which this dump covers.',
+      'Recursive SQL outside the plan lines takes 253 µs (≈, on mtk_f), and 341 µs are in neither. The shares are of the 624 µs of these calls.',
+    ])
+  })
+
+  it('finds the same numbers in the execution\'s trace, which a document without call facts asks its source for', async () => {
+    const src = new LocalSource(doc)
+    const page = await src.executions(st.id, { window: null, files: null, contexts: null, includeIdle: true })
+    const trace = await src.executionTrace(st.id, page.rows[0])
+    expect(heatCoverOfTrace(trace!, [child.id])).toEqual({ executions: 1, execNo: 1, elapsedUs: 624, recursiveUs: 253, exact: true })
+  })
+
+  it('without call facts (the desktop): the statement\'s numbers, exact when the dump covers all its executions, else averages', async () => {
+    const raw = (JSON.parse(gunzipSync(readFileSync(dir + 'findings-plsql_recursive.json.gz')).toString('utf8')) as { doc: RawDocument }).doc
+    const bare = await TraceDoc.fromRaw({ ...raw, facts: undefined } as RawDocument)
+    expect(bare.hasFacts).toBe(false)
+    const h = ok(sqlHeat(heatInput(bare, bare.plansOf(st.id)[0])))
+    expect(h.cover).toEqual({ executions: 1, execNo: 1, elapsedUs: 624, recursiveUs: 253, exact: true })
+    expect(h.groups[0]).toMatchObject({ selfUs: 253, recursive: { fn: 'mtk_f' } })
+    expect(h.rest?.us).toBe(341)
+    const c = heatInput(bare, bare.plansOf(child.id)[0]).cover!
+    expect(c).toMatchObject({ executions: 1, execNo: 0, exact: false })
+    expect(c.elapsedUs).toBeCloseTo((bare.stats.statements[child.id].exec.elapsed + bare.stats.statements[child.id].fetch.elapsed) / 58, 9)
+  })
+
+  it('covers the first execution of a cursor whose dump follows it (58 executions)', () => {
+    expect(doc.stats.statements[child.id].executions).toBe(58)
+    const p = doc.plansOf(child.id)[0]
+    expect(heatInput(doc, p).cover).toEqual({ executions: 1, execNo: 1, elapsedUs: 71, recursiveUs: 0, exact: true })
   })
 
   it('gives SEQUENCE the NEXTVAL and FAST DUAL the DUAL', () => {
@@ -348,6 +398,90 @@ describe('sqlHeat rules (hand-written cases)', () => {
   })
 })
 
+describe('sqlHeat: recursive SQL inside or outside the plan lines', () => {
+  // parts / owners, invented: line 3 evaluates full_name(id) for every index entry (the subquery is the key of line 2)
+  const text = 'select id from parts where kind = :k and owner_id = (select id from owners where full_name(id) = :n)'
+  const lines = [
+    L(1, 0, 'TABLE ACCESS BY INDEX ROWID BATCHED', { object: 'PARTS', timeUs: 500, cr: 30 }),
+    L(2, 1, 'INDEX RANGE SCAN', { object: 'PARTS_OWNER_IX', timeUs: 450, cr: 25 }),
+    L(3, 2, 'INDEX FULL SCAN', { object: 'PK_OWNERS', timeUs: 440, cr: 24 }),
+  ]
+  const child: HeatChild = { statement: 9, executions: 40, elapsedUs: 3000, exact: true }
+  const run = (cover: HeatCover | null) => ok(sqlHeat({ text, lines, executions: 1, children: [child], cover }))
+
+  it('a function in a WHERE predicate a plan line evaluates: its recursive SQL is in that line, the shares stay of the plan', () => {
+    const h = run({ executions: 1, execNo: 1, elapsedUs: 700, recursiveUs: 300, exact: true })
+    expect(h.basis).toBe('plan')
+    expect(h.totalUs).toBe(500)
+    expect(h.outside).toBeNull()
+    expect(h.rest).toBeNull()
+    expect(group(h, 3).share).toBeCloseTo(0.88, 12)
+    expect(h.account).toEqual([
+      'The plan lines account for 500 µs of 700 µs, the EXEC and FETCH calls of the first execution, which this dump covers.',
+      'The recursive SQL under these calls, 300 µs, runs in plan lines (full_name is called only in fragments plan lines evaluate) and is part of their time.',
+      'The shares are of the plan lines\' 500 µs.',
+    ])
+    expect(h.callouts).toHaveLength(1)
+  })
+
+  it('more recursive SQL than the line that calls it holds: the excess is outside the plan, on the call', () => {
+    const h = run({ executions: 1, execNo: 1, elapsedUs: 700, recursiveUs: 500, exact: true })
+    expect(h.basis).toBe('calls')
+    expect(h.outside).toMatchObject({ us: 60 })
+    expect(h.totalUs).toBe(700)
+    expect(h.rest?.us).toBe(140)
+    const r = h.groups[h.outside!.group]
+    expect(r.recursive).toEqual({ fn: 'full_name', statement: 9 })
+    expect(h.lines.flatMap((l) => l.filter((s) => s.group === h.outside!.group).map((s) => s.text))).toEqual(['full_name(id)'])
+    expect(group(h, 3).share).toBeCloseTo(440 / 700, 12)
+    expect(sum(h)).toBeCloseTo(1, 12)
+  })
+
+  it('averages never claim more than the line holds, but a call in the select list is outside the plan with them too', () => {
+    expect(run({ executions: 1, execNo: 0, elapsedUs: 700, recursiveUs: 500, exact: false }).basis).toBe('plan')
+    const h = ok(sqlHeat({
+      text: 'select id, price_of(id) from parts where kind = :k', executions: 1, children: [child],
+      lines: [L(1, 0, 'TABLE ACCESS FULL', { object: 'PARTS', timeUs: 100 })],
+      cover: { executions: 1, execNo: 0, elapsedUs: 1000, recursiveUs: 600, exact: false },
+    }))
+    expect(h.basis).toBe('calls')
+    expect(painted(h, 1)).toEqual(['FROM parts', 'WHERE kind = :k'])
+    expect(group(h, 1).share).toBeCloseTo(0.1, 12)
+    expect(h.groups[0].share).toBeCloseTo(0.6, 12)
+    expect(h.groups[0].approx).toContain('averaged over the statement\'s executions')
+    expect(h.account[0]).toBe('The plan lines account for 100 µs; an execution of this statement takes 1.00 ms in its EXEC and FETCH calls on average (the document has no call facts for the execution this dump covers).')
+  })
+
+  it('several functions called outside the plan: their recursive SQL is outside it, listed but not tinted; in and out, the split is not known', () => {
+    const scan = [L(1, 0, 'TABLE ACCESS FULL', { object: 'PARTS', timeUs: 100 })]
+    const cover: HeatCover = { executions: 1, execNo: 1, elapsedUs: 1000, recursiveUs: 60, exact: true }
+    const two = ok(sqlHeat({ text: 'select price_of(id), owner_of(id) from parts', lines: scan, executions: 1, children: [child], cover }))
+    expect(two.basis).toBe('calls')
+    expect(two.outside).toMatchObject({ us: 60, group: -1 })
+    expect(two.groups.map((g) => g.what)).toEqual(['parts'])
+    expect(two.callouts).toEqual([])
+    expect(sum(two)).toBeCloseTo(1, 12)
+    expect(two.account[1]).toBe('Recursive SQL outside the plan lines takes 60 µs (≈, from price_of, owner_of: not placed in the text), and 840 µs are in neither. The shares are of the 1.00 ms of these calls.')
+    const mixed = ok(sqlHeat({ text: 'select price_of(id) from parts where price_of(id) > 0', lines: scan, executions: 1, children: [child], cover }))
+    expect(mixed.basis).toBe('plan')
+    expect(mixed.account[1]).toBe('The recursive SQL under these calls, 60 µs, may run partly outside the plan lines: price_of is called both in fragments plan lines evaluate and outside them, so the split is not known.')
+  })
+
+  it('without a cover the shares are of the plan, and the view says it cannot compare', () => {
+    const h = run(null)
+    expect(h.basis).toBe('plan')
+    expect(h.account).toEqual(['The shares are of the plan lines\' self time, 500 µs; the executions this dump covers are not known, so it is not compared with the statement\'s time.'])
+  })
+
+  it('counts the executions a dump adds up by its main row source\'s starts', () => {
+    expect(dumpExecutions(lines)).toBe(1)
+    expect(dumpExecutions([L(1, 0, 'SORT AGGREGATE', { starts: 3 }), L(2, 1, 'TABLE ACCESS FULL', { starts: 3 })])).toBe(3)
+    // a scalar subquery beside the main query starts once per row
+    expect(dumpExecutions([L(1, 0, 'SORT AGGREGATE', { starts: 50 }), L(2, 1, 'INDEX UNIQUE SCAN', { starts: 50 }), L(3, 0, 'TABLE ACCESS FULL', { pos: 2, starts: 2 })])).toBe(2)
+    expect(dumpExecutions([L(1, 0, 'PX COORDINATOR', { starts: 0 })])).toBe(1)
+  })
+})
+
 describe('sqlHeat falls back to the table, with a note', () => {
   const scan = [L(1, 0, 'TABLE ACCESS FULL', { object: 'T', timeUs: 10 })]
   it('for a PL/SQL block, a DML, other statements and text it cannot read', () => {
@@ -391,6 +525,7 @@ describe('sqlHeat on every fixture plan', async () => {
     const doc = await load(f)
     it(f, () => {
       let heated = 0
+      const switched: string[] = []
       for (const st of doc.statements) {
         for (const p of doc.plansOf(st.id)) {
           const input = heatInput(doc, p)
@@ -398,6 +533,9 @@ describe('sqlHeat on every fixture plan', async () => {
           if (!h.ok) { expect(h.note).toBeTruthy(); continue }
           heated++
           expect(sum(h), `${f} stmt ${st.id}`).toBeCloseTo(1, 9)
+          // nothing outside the plan: the shares stay of the plan lines' self time
+          if (h.basis === 'plan') expect(h.totalUs).toBe(h.planUs)
+          else switched.push(st.text.slice(0, 40))
           const ids = [...h.groups.flatMap((g) => g.parts), ...h.unplaced.parts].map((x) => x.id).sort((a, b) => a - b)
           const lineIds = input.lines.map((l) => l.id).sort((a, b) => a - b)
           expect(ids, `${f} stmt ${st.id}`).toEqual(lineIds)
@@ -406,6 +544,8 @@ describe('sqlHeat on every fixture plan', async () => {
         }
       }
       expect(heated).toBeGreaterThan(0)
+      // the one statement of the fixtures whose recursive SQL runs outside the plan
+      expect(switched).toEqual(f === 'findings-plsql_recursive.json.gz' ? ['select /* mtk_f_from_sql */ id, mtk_f(id'] : [])
     })
   }
 })

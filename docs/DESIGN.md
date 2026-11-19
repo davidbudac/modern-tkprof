@@ -1781,21 +1781,30 @@ Question: which part of my SQL text costs the time?
 - **Placement: a third plan view**, `Table | Row flow | SQL heat`, on the dump the Plans section has picked, and a
   *SQL heat* button beside *Row flow* in the statement's "Show this statement as" group (the same jump). The choice is
   the existing stored plan view (`mtkprof.plan.view`); an unknown stored value reads as Table.
-- **What it shows**: the statement formatted as `formatSql` prints it, each fragment tinted by the share of the plan's
-  self time that belongs to it (the Lines view's hot-spot red), a margin bar and percentage per hot fragment, one
-  muted line per mapped group naming its plan lines with their self time and self gets, and what could not be placed
-  ("not placed"), so the shares always sum to 100 %. Groups under 1 % share one line and are not tinted.
-- **Self time is Row flow's** (inclusive minus the children's, clamped at 0); the denominator is the sum of self
-  times, so a sampled parent smaller than its child does not break the sum.
+- **What it shows**: the statement formatted as `formatSql` prints it, each fragment tinted by its share (the Lines
+  view's hot-spot red), a margin bar and percentage per hot fragment, one muted line per mapped group naming its plan
+  lines with their self time and self gets, and what could not be placed ("not placed"), so the shares always sum to
+  100 %. Groups under 1 % share one line and are not tinted. A line above says **how much of the covered execution
+  the plan lines account for**: the dump covers as many executions as its top row source's starts, the last ones of
+  its cursor before the STAT line (Replay's rule), and the comparison is the plan's self times against those
+  executions' EXEC and FETCH elapsed, recursive SQL included (without call facts: the statement's numbers, or a
+  labelled average replaced by the execution's own trace when the source has it).
+- **Self time is Row flow's** (inclusive minus the children's, clamped at 0). The shares are of the sum of self
+  times (a sampled parent smaller than its child does not break the sum), unless recursive SQL runs outside the plan
+  (below): then they are of the covered calls' time, with an outside group and a "rest" line.
 - **Mapping, from the plan line to the text**: a table line goes to its FROM item and the WHERE conjuncts of that
   query block that name only it; an index line goes to the table of its parent ROWID access first, by name only
   after; joins go to their ON condition (else the conjuncts naming both inputs); sorts, group by, distinct, count
   stopkey, connect by, window and FILTER go to their clause. When the ref bundle gave `alias`, `qblock` and the
   predicates the mapping uses them and is exact; otherwise a heuristic match (a self-join, a name match) is marked
   **≈** and the view says why.
-- **Recursive SQL is an annotation, not a share**: plan-line time already holds it. When the statement has recursive
-  children and its text calls exactly one function that is not an Oracle built-in, a ≈ callout on that call names
-  the child statement, how often per execution and its time.
+- **Recursive SQL is inside or outside the plan.** Plan-line time holds the recursive SQL of a function called in a
+  fragment a plan line evaluates (a WHERE or ON predicate) when it fits in that fragment's self time; a ≈ callout on
+  the call names the child statement, how often per execution and its time. A function called elsewhere (the select
+  list, an ORDER BY expression), or recursive time larger than the fragments could hold, runs outside the plan: it
+  becomes a group of its own, tinted on the call (≈) when the text calls one function of its own, listed when it calls
+  several, and the shares switch to the calls' time. Calls both in and out of plan fragments: the view says the split
+  is not known.
 - **Never a wrong picture**: DML, PL/SQL blocks, text it cannot parse and dumps without statistics or time show the
   table with a note. A STAT dump split by other lines is joined first (Replay's `dumpLines`).
 - Not built from the concept: the hint underline and the data callouts (rows read, the TEMP spill).

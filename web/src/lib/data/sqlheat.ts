@@ -10,9 +10,11 @@
 // note, and the view shows the plan table.
 import type { TraceDoc } from './doc'
 import { CallKind, type ID, type Plan, type PlanLine } from './types'
+import type { ExecTrace } from './exectrace'
 import { formatSql, sqlTokens, type SqlTokenType } from './optsql'
 import { opText, rowFlow, type FlowNode, type RowFlow } from './rowflow'
 import { dumpLines } from './replay'
+import { fmtDur } from './format'
 
 // ---- the result
 
@@ -27,6 +29,24 @@ export interface HeatChild {
   exact: boolean
 }
 
+/**
+ * The executions a STAT dump covers and their time, which the plan lines are compared with. A dump's numbers add up the
+ * executions its main row source started (1 for a first-execution or per-execution dump); they are the last ones of the
+ * dump's cursor before it (Replay's rule, `planOfExecution`, read backwards).
+ */
+export interface HeatCover {
+  /** how many executions the dump adds up */
+  executions: number
+  /** the cursor's execution number of the first of them (1: the cursor's first); 0 = averaged, no particular one */
+  execNo: number
+  /** elapsed of their EXEC and FETCH calls, recursive SQL under them included, µs (the Executions table's Elapsed) */
+  elapsedUs: number
+  /** elapsed of the recursive statements that are not dictionary SQL, directly under those calls, µs */
+  recursiveUs: number
+  /** false: the statement's per-execution averages (the document has no call facts) */
+  exact: boolean
+}
+
 export interface HeatInput {
   text: string
   /** one STAT dump in dump order (a dump the model split joined again: `heatDump`) */
@@ -35,19 +55,24 @@ export interface HeatInput {
   executions: number
   /** recursive statements run under it that are not dictionary SQL, the slowest first */
   children?: readonly HeatChild[]
+  /** the executions the dump covers; absent: the shares stay of the plan lines' time, with no comparison */
+  cover?: HeatCover | null
 }
 
 /** One plan line of a group: its self time and self buffer gets (cr minus its children's). */
 export interface HeatPart { id: number; op: string; selfUs: number; selfCr: number; clamped: boolean }
 
 export interface HeatGroup {
-  /** the fragment: "MTK_CUST c", "join condition", "ORDER BY", … */
+  /** the fragment: "MTK_CUST c", "join condition", "ORDER BY", "outside the plan: recursive SQL", … */
   what: string
-  /** its plan lines, by id */
+  /** its plan lines, by id (none for recursive SQL outside the plan) */
   parts: HeatPart[]
+  /** its time, µs: the plan lines' self time, or the recursive SQL's elapsed */
   selfUs: number
-  /** of the sum of self times */
+  /** of `HeatOk.totalUs` */
   share: number
+  /** recursive SQL outside the plan, tinted on the function call it is taken to run in */
+  recursive?: { fn: string; statement: ID }
   /** why the match is inferred (≈); empty: exact */
   approx: string[]
   /** the formatted lines its fragments touch */
@@ -75,11 +100,27 @@ export interface HeatOk {
   ok: true
   /** the formatted text, one array of runs per line */
   lines: HeatSeg[][]
-  /** by self time, largest first */
+  /** by time, largest first */
   groups: HeatGroup[]
+  /** plan lines the text has no place for */
   unplaced: { parts: HeatPart[]; selfUs: number; share: number }
-  /** Σ self time, the denominator of every share */
+  /** Σ self time of the plan lines */
+  planUs: number
+  /**
+   * What the shares are of. 'plan': the plan lines' self time (`planUs`), which holds the recursive SQL a plan line runs.
+   * 'calls': recursive SQL runs outside the plan lines, so the shares are of the covered executions' EXEC and FETCH time.
+   */
+  basis: 'plan' | 'calls'
+  /** the denominator of every share, µs */
   totalUs: number
+  /** the executions the dump covers, null = unknown (no comparison) */
+  cover: HeatCover | null
+  /** recursive SQL that cannot sit in the plan lines; `group` its index in `groups` (tinted on the call), -1 = not in the text */
+  outside: { us: number; share: number; group: number; why: string } | null
+  /** basis 'calls': the covered calls' time in no plan line and no recursive SQL */
+  rest: { us: number; share: number } | null
+  /** what the plan lines account for, and what the shares are of: sentences for the view */
+  account: string[]
   callouts: HeatCallout[]
   /** Row flow's notes on the dump (clamped self times, left-out lines) */
   notes: string[]
@@ -201,6 +242,8 @@ interface Parsed {
   queryAt: Map<number, Paren>
   /** calls of functions that are not Oracle built-ins, first occurrence of each */
   fns: FnCall[]
+  /** every call of a function that is not an Oracle built-in */
+  calls: FnCall[]
   withAt: number
 }
 
@@ -627,6 +670,7 @@ function parse(text: string): Parsed | { why: HeatWhy; kind: string } {
 
   // ---- calls of functions that are not Oracle built-ins
   const fns: FnCall[] = []
+  const fnCalls: FnCall[] = []
   const seen = new Set<string>()
   for (let i = 0; i < n; i++) {
     const t = toks[i]
@@ -642,12 +686,14 @@ function parse(text: string): Parsed | { why: HeatWhy; kind: string } {
     const cteHead = parts.length === 1 && ctes.has(last) && U(match[j] + 1) === 'AS'
     if (!builtin && !cteHead) {
       const name = parts.join('.')
-      if (!seen.has(name)) { seen.add(name); fns.push({ name: text.slice(t.a, toks[j - 1].b), at: i, end: match[j] + 1 }) }
+      const call = { name: text.slice(t.a, toks[j - 1].b), at: i, end: match[j] + 1 }
+      fnCalls.push(call)
+      if (!seen.has(name)) { seen.add(name); fns.push(call) }
     }
     i = j - 1
   }
   const withAt = U(k0) === 'WITH' ? k0 : -1
-  return { toks, blocks, items, conjs, joins, parens, queryAt, fns, withAt }
+  return { toks, blocks, items, conjs, joins, parens, queryAt, fns, calls: fnCalls, withAt }
 }
 
 // ---- the mapping: plan line → fragment
@@ -1229,18 +1275,55 @@ function heat(input: HeatInput): SqlHeat {
     for (const j of t.joins) { raw.push(j.kw); if (j.cond) raw.push(j.cond) }
     return raw.filter(([a, b]) => b > a).flatMap(cut)
   }
-  const total = flow.selfSumUs
-  const cands = [...byTarget.entries()].map(([t, xs]) => ({ t, xs, spans: spansOf(t), selfUs: xs.reduce((a, x) => a + x.selfUs, 0) }))
+  const planUs = flow.selfSumUs
+  type Cand = { what: string; approx: string[]; xs: FlowNode[]; spans: Span[]; us: number; recursive?: { fn: string; statement: ID } }
+  const cands: Cand[] = [...byTarget.entries()]
+    .map(([t, xs]) => ({ what: t.what, approx: [...t.approx], xs, spans: spansOf(t), us: xs.reduce((a, x) => a + x.selfUs, 0) }))
     .filter((g) => g.spans.length > 0)
-    .sort((a, b) => b.selfUs - a.selfUs || a.spans[0][0] - b.spans[0][0])
   // paint: wide spans first, so a fragment inside another (a subquery's FROM in a predicate) keeps its own group
   const paint = new Int32Array(formatted.length).fill(-1)
-  const ops: { span: Span; g: number }[] = []
-  cands.forEach((g, gi) => { for (const s of g.spans) ops.push({ span: s, g: gi }) })
-  ops.sort((a, b) => (toks[b.span[1] - 1].b - toks[b.span[0]].a) - (toks[a.span[1] - 1].b - toks[a.span[0]].a))
-  for (const { span: [a, b], g } of ops) {
-    for (let i = a; i < b; i++) for (let o = toks[i].a; o < toks[i].b; o++) { const f = o2f[o]; if (f >= 0) paint[f] = g }
+  const paintSpans = (list: { span: Span; g: number }[]) => {
+    list.sort((a, b) => (toks[b.span[1] - 1].b - toks[b.span[0]].a) - (toks[a.span[1] - 1].b - toks[a.span[0]].a))
+    for (const { span: [a, b], g } of list) {
+      for (let i = a; i < b; i++) for (let o = toks[i].a; o < toks[i].b; o++) { const f = o2f[o]; if (f >= 0) paint[f] = g }
+    }
   }
+  paintSpans(cands.flatMap((g, gi) => g.spans.map((span) => ({ span, g: gi }))))
+
+  // Recursive SQL run by a row source is in that plan line's self time; run anywhere else (a function of the select list
+  // is called as rows are handed to the client, not by a plan line) it is in no plan line at all. Every call of a function
+  // that is not a built-in is placed: none in a fragment of a plan line, the recursive SQL is outside the plan; all in such
+  // fragments, it is inside, unless (exact numbers only) it took longer than those fragments' self time, when the excess
+  // is outside; some in and some out, the split is not known (only an excess is certain). Tinted on the calls when they
+  // call one function.
+  const cover = input.cover ?? null
+  const kids = input.children ?? []
+  const fn = P.fns.length === 1 ? P.fns[0] : null
+  const names = P.fns.map((f) => f.name).join(', ')
+  const holders = P.calls.map((c) => { const f = o2f[toks[c.at].a]; return f >= 0 ? paint[f] : -1 })
+  const where: Where = !P.calls.length ? 'none' : holders.every((h) => h < 0) ? 'outside' : holders.every((h) => h >= 0) ? 'inside' : 'mixed'
+  let outside: { us: number; why: string; tint: boolean } | null = null
+  if (cover && cover.recursiveUs > 0 && kids.length > 0) {
+    const room = where === 'none' ? planUs : [...new Set(holders.filter((h) => h >= 0))].reduce((a, h) => a + cands[h].us, 0)
+    if (where === 'outside') {
+      outside = { us: cover.recursiveUs, tint: !!fn, why: `${names} ${P.fns.length === 1 ? 'is' : 'are'} called outside every fragment a plan line evaluates, so the recursive SQL ${P.fns.length === 1 ? 'it runs' : 'they run'} is not in a plan line's time` }
+    } else if (cover.exact && cover.recursiveUs > room) {
+      outside = {
+        us: cover.recursiveUs - room, tint: where === 'inside' && !!fn,
+        why: `the recursive SQL under these calls (${fmtDur(cover.recursiveUs)}) took longer than ${where === 'none' ? 'the plan lines' : `the self time of the fragments that call ${names}`} (${fmtDur(room)}): the rest cannot be in a plan line`,
+      }
+    }
+  }
+  const basis: HeatOk['basis'] = outside ? 'calls' : 'plan'
+  const total = outside && cover ? Math.max(cover.elapsedUs, planUs + outside.us) : planUs
+  if (outside?.tint && fn) {
+    const mine = P.calls.filter((c) => c.name.toUpperCase() === fn.name.toUpperCase())
+    const approx = [`the recursive SQL is taken to run in ${fn.name}, the one function of the text that is not an Oracle built-in`, outside.why]
+    if (cover && !cover.exact) approx.push('averaged over the statement\'s executions')
+    cands.push({ what: 'outside the plan: recursive SQL', approx, xs: [], spans: mine.map((c): Span => [c.at, c.end]), us: outside.us, recursive: { fn: fn.name, statement: kids[0].statement } })
+    paintSpans(mine.map((c) => ({ span: [c.at, c.end] as Span, g: cands.length - 1 })))
+  }
+
   // blanks between two characters of one group on one line belong to it
   const starts: number[] = [0]
   for (let f = 0; f < formatted.length; f++) if (formatted[f] === '\n') starts.push(f + 1)
@@ -1264,6 +1347,11 @@ function heat(input: HeatInput): SqlHeat {
     if (first[g] < 0) first[g] = ln
     last[g] = ln
   }
+  // the groups that reached the text, by time; one that reached no character is not placed after all
+  const order = cands.map((_, gi) => gi).filter((gi) => first[gi] >= 0)
+    .sort((a, b) => cands[b].us - cands[a].us || cands[a].spans[0][0] - cands[b].spans[0][0])
+  const remap = new Int32Array(cands.length).fill(-1)
+  order.forEach((gi, k) => { remap[gi] = k })
   const out: HeatSeg[][] = []
   for (let k = 0; k < starts.length; k++) {
     const s = starts[k], e = k + 1 < starts.length ? starts[k + 1] - 1 : formatted.length
@@ -1271,37 +1359,35 @@ function heat(input: HeatInput): SqlHeat {
     for (let f = s; f < e;) {
       let g = f
       while (g < e && paint[g] === paint[f]) g++
-      segs.push({ text: formatted.slice(f, g), group: paint[f] })
+      segs.push({ text: formatted.slice(f, g), group: paint[f] >= 0 ? remap[paint[f]] : -1 })
       f = g
     }
     out.push(segs)
   }
-  // groups that reached no character of the text are not placed after all
-  const keep = cands.map((_, gi) => first[gi] >= 0)
-  const remap = new Int32Array(cands.length).fill(-1)
-  let kept = 0
-  keep.forEach((k, gi) => { if (k) remap[gi] = kept++ })
-  for (const segs of out) for (const s of segs) s.group = s.group >= 0 ? remap[s.group] : -1
-  const groups: HeatGroup[] = cands.flatMap((g, gi) => keep[gi]
-    ? [{
-      what: g.t.what,
+  const groups: HeatGroup[] = order.map((gi) => {
+    const g = cands[gi]
+    return {
+      what: g.what,
       parts: g.xs.map(part).sort((a, b) => a.id - b.id),
-      selfUs: g.selfUs,
-      share: g.selfUs / total,
-      approx: [...g.t.approx],
+      selfUs: g.us,
+      share: g.us / total,
+      ...(g.recursive ? { recursive: g.recursive } : {}),
+      approx: g.approx,
       firstLine: first[gi],
       lastLine: last[gi],
-    }]
-    : [])
-  const placed = new Set(cands.flatMap((g, gi) => (keep[gi] ? g.xs : [])))
-  const rest = nodes.filter((x) => !placed.has(x))
-  const restUs = rest.reduce((a, x) => a + x.selfUs, 0)
+    }
+  })
+  const placed = new Set(order.flatMap((gi) => cands[gi].xs))
+  const restLines = nodes.filter((x) => !placed.has(x))
+  const restLinesUs = restLines.reduce((a, x) => a + x.selfUs, 0)
+  const outGroup = groups.findIndex((g) => !!g.recursive)
+  const outsideRes = outside ? { us: outside.us, share: outside.us / total, group: outGroup, why: outside.why } : null
+  const restUs = outside ? Math.max(0, total - planUs - outside.us) : 0
+  const rest = outside ? { us: restUs, share: restUs / total } : null
 
   // ≈ the one function of the text that is not a built-in runs the recursive statement under this one
   const callouts: HeatCallout[] = []
-  const kids = input.children ?? []
-  if (P.fns.length === 1 && kids.length > 0) {
-    const fn = P.fns[0]
+  if (fn && kids.length > 0) {
     const f = o2f[toks[fn.at].a]
     if (f >= 0) {
       const ln = lineOf(f)
@@ -1309,15 +1395,65 @@ function heat(input: HeatInput): SqlHeat {
       callouts.push({ line: ln, col: f - starts[ln], fn: fn.name, child, perExec: input.executions > 0 ? child.executions / input.executions : 0, others: kids.length - 1 })
     }
   }
-  return {
+  const res: HeatOk = {
     ok: true,
     lines: out,
     groups,
-    unplaced: { parts: rest.map(part).sort((a, b) => a.id - b.id), selfUs: restUs, share: restUs / total },
+    unplaced: { parts: restLines.map(part).sort((a, b) => a.id - b.id), selfUs: restLinesUs, share: restLinesUs / total },
+    planUs,
+    basis,
     totalUs: total,
+    cover,
+    outside: outsideRes,
+    rest,
+    account: [],
     callouts,
     notes: flow.notes,
   }
+  res.account = accountOf(res, names, where)
+  return res
+}
+
+/** "the first execution", "execution #3", "the 4 executions", "an average execution" */
+export function coveredWord(c: HeatCover): string {
+  if (!c.exact && c.execNo === 0) return c.executions === 1 ? 'an average execution' : `${c.executions} average executions`
+  if (c.executions > 1) return `the ${c.executions} executions`
+  return c.execNo <= 1 ? 'the first execution' : `execution #${c.execNo}`
+}
+
+/** What the plan lines account for of the covered executions, and what the shares are of. */
+type Where = 'none' | 'inside' | 'outside' | 'mixed'
+
+/** What the plan lines account for of the covered executions, and what the shares are of. `names`: the functions of the text that are not built-ins; `where`: where their calls sit. */
+function accountOf(h: HeatOk, names: string, where: Where): string[] {
+  const c = h.cover
+  if (!c) return [`The shares are of the plan lines' self time, ${fmtDur(h.planUs)}; the executions this dump covers are not known, so it is not compared with the statement's time.`]
+  const which = coveredWord(c)
+  const out: string[] = []
+  if (!c.exact) {
+    out.push(c.executions === 1
+      ? `The plan lines account for ${fmtDur(h.planUs)}; an execution of this statement takes ${fmtDur(c.elapsedUs)} in its EXEC and FETCH calls on average (the document has no call facts for the execution this dump covers).`
+      : `The plan lines account for ${fmtDur(h.planUs)}; ${c.executions} executions of this statement take ${fmtDur(c.elapsedUs)} in their EXEC and FETCH calls on average (the document has no call facts for the executions this dump covers).`)
+  } else {
+    out.push(h.planUs > c.elapsedUs
+      ? `The plan lines report ${fmtDur(h.planUs)}, more than the ${fmtDur(c.elapsedUs)} of the EXEC and FETCH calls of ${which}, which this dump covers: row-source times are sampled.`
+      : `The plan lines account for ${fmtDur(h.planUs)} of ${fmtDur(c.elapsedUs)}, the EXEC and FETCH calls of ${which}, which this dump covers.`)
+  }
+  if (h.outside) {
+    const by = h.outside.group >= 0 ? ` (≈, on ${names})` : where === 'none' ? ' (≈, from no function of the text: not placed in it)' : ` (≈, from ${names}: not placed in the text)`
+    out.push(`Recursive SQL outside the plan lines takes ${fmtDur(h.outside.us)}${by}, and ${fmtDur(h.rest?.us ?? 0)} are in neither. The shares are of the ${fmtDur(h.totalUs)} of these calls.`)
+  } else {
+    if (c.recursiveUs > 0) {
+      const r = fmtDur(c.recursiveUs)
+      out.push(where === 'inside'
+        ? `The recursive SQL under these calls, ${r}, runs in plan lines (${names} ${names.includes(',') ? 'are' : 'is'} called only in fragments plan lines evaluate) and is part of their time.`
+        : where === 'mixed'
+          ? `The recursive SQL under these calls, ${r}, may run partly outside the plan lines: ${names} ${names.includes(',') ? 'are' : 'is'} called both in fragments plan lines evaluate and outside them, so the split is not known.`
+          : `The text calls no function of its own, so where the recursive SQL under these calls (${r}) runs is not known.`)
+    }
+    out.push(`The shares are of the plan lines' ${fmtDur(h.planUs)}.`)
+  }
+  return out
 }
 
 // ---- from the document
@@ -1380,13 +1516,85 @@ export function heatChildren(doc: TraceDoc, stmt: ID): HeatChild[] {
   return out.sort((a, b) => b.elapsedUs - a.elapsedUs)
 }
 
-/** What `sqlHeat` needs for one plan dump of a statement. */
+/** How many executions a dump's numbers add up: its main row source's starts (the last top line: a scalar subquery beside it starts once per row). */
+export function dumpExecutions(lines: readonly PlanLine[]): number {
+  const top = lines.filter((l) => l.parentId === 0)
+  const main = top.sort((a, b) => a.pos - b.pos || a.id - b.id)[top.length - 1]
+  return Math.max(1, main?.starts ?? 1)
+}
+
+/**
+ * The executions dump `plan` covers (`dumpExecutions` of them: the last ones of its cursor whose EXEC is before the dump)
+ * and their time: from the call facts when the document has them; else the statement's averages per execution (exact
+ * when the dump covers all of them). `userStmts`: the recursive statements that count (`heatChildren`). Null: no
+ * execution of the cursor before the dump, or nothing to go by.
+ */
+export function heatCover(doc: TraceDoc, plan: Plan, lines: readonly PlanLine[], userStmts: readonly ID[]): HeatCover | null {
+  try {
+    const n = dumpExecutions(lines)
+    const c = doc.calls
+    if (c.n > 0) {
+      const exs: { execNo: number; own: number[] }[] = []
+      for (const i of doc.callsByStmt.get(plan.statement)) {
+        if (c.cursor[i] !== plan.cursor || c.line[i] > plan.line) continue
+        if (c.kind[i] === CallKind.exec) exs.push({ execNo: c.execNo[i], own: [i] })
+        else if (c.kind[i] === CallKind.fetch && exs.length && exs[exs.length - 1].execNo === c.execNo[i]) exs[exs.length - 1].own.push(i)
+      }
+      if (!exs.length) return null
+      const covered = exs.slice(-n)
+      const own = new Set(covered.flatMap((e) => e.own))
+      let elapsedUs = 0
+      for (const i of own) elapsedUs += c.e[i]
+      let recursiveUs = 0
+      for (const s of userStmts) for (const i of doc.callsByStmt.get(s)) if (own.has(c.parent[i])) recursiveUs += c.e[i]
+      return { executions: covered.length, execNo: covered[0].execNo, elapsedUs, recursiveUs, exact: true }
+    }
+    const st = doc.stats.statements[plan.statement]
+    if (!st || st.executions <= 0) return null
+    const k = Math.min(n, st.executions)
+    const users = new Set(userStmts)
+    const rec = (st.children ?? []).filter((l) => users.has(l.statement)).reduce((a, l) => a + l.elapsed, 0)
+    const all = k >= st.executions
+    return {
+      executions: k, execNo: all ? 1 : 0, exact: all,
+      elapsedUs: ((st.exec.elapsed + st.fetch.elapsed) * k) / st.executions, recursiveUs: (rec * k) / st.executions,
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The cover of one execution from its execution trace (`DataSource.executionTrace`, for a document without call facts):
+ * its EXEC and FETCH calls and the recursive statements of `userStmts` directly under them. Null when the trace was cut.
+ */
+export function heatCoverOfTrace(trace: ExecTrace, userStmts: readonly ID[]): HeatCover | null {
+  try {
+    if (trace.truncated) return null
+    const own = trace.calls.filter((x) => x.kind === CallKind.exec || x.kind === CallKind.fetch)
+    const exec = own.find((x) => x.kind === CallKind.exec)
+    if (!exec) return null
+    const ids = new Set(own.map((x) => x.id))
+    const users = new Set(userStmts)
+    const recursiveUs = trace.children.filter((x) => ids.has(x.parent) && users.has(x.stmt)).reduce((a, x) => a + x.e, 0)
+    return { executions: 1, execNo: exec.execNo, elapsedUs: own.reduce((a, x) => a + x.e, 0), recursiveUs, exact: true }
+  } catch {
+    return null
+  }
+}
+
+/** What `sqlHeat` needs for one plan dump of a statement. Never throws. */
 export function heatInput(doc: TraceDoc, plan: Plan): HeatInput {
-  const st = doc.statements[plan.statement]
-  return {
-    text: st?.text ?? '',
-    lines: heatDump(doc, plan),
-    executions: doc.stats.statements[plan.statement]?.executions ?? 0,
-    children: heatChildren(doc, plan.statement),
+  const text = doc.statements[plan.statement]?.text ?? ''
+  try {
+    const lines = heatDump(doc, plan)
+    const children = heatChildren(doc, plan.statement)
+    return {
+      text, lines, children,
+      executions: doc.stats.statements[plan.statement]?.executions ?? 0,
+      cover: heatCover(doc, plan, lines, children.map((k) => k.statement)),
+    }
+  } catch {
+    return { text, lines: [], executions: 0 }
   }
 }

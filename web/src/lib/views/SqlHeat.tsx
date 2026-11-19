@@ -1,9 +1,47 @@
 import { Fragment, useMemo, useState, type CSSProperties } from 'react'
 import type { TraceDoc } from '../data/doc'
+import type { Plan } from '../data/types'
+import type { Execution } from '../data/derive'
+import type { Scope } from '../state/store'
 import { fmtInt, fmtDur, preview } from '../data/format'
-import { heatTint, HEAT_MIN_SHARE, type HeatCallout, type HeatGroup, type HeatOk, type HeatPart } from '../data/sqlheat'
+import { sourceOf, useSourceQuery } from '../data/source'
+import { scopeKey } from '../data/scopedstmts'
+import {
+  coveredWord, heatCoverOfTrace, heatInput, heatTint, sqlHeat, HEAT_MIN_SHARE,
+  type HeatCallout, type HeatGroup, type HeatOk, type HeatPart, type SqlHeat as SqlHeatData,
+} from '../data/sqlheat'
 import { StmtLink } from '../components/StmtLink'
 import '../styles/sqlheat.css'
+
+const WHOLE: Scope = { window: null, files: null, contexts: null, includeIdle: true }
+
+/**
+ * SQL heat of the dump `plan` when `on` (data/sqlheat.ts), compared with the execution the dump covers. A document without
+ * call facts (the desktop, `serve -facts=false`) has only the statement's averages for that execution: the source is asked
+ * for it (the statement's executions, then that one's trace, the queries the Executions list and Replay make), and its
+ * exact numbers replace the averages when they arrive. A dump of several executions keeps the averages.
+ */
+export function useSqlHeat(doc: TraceDoc, plan: Plan, on: boolean): SqlHeatData | null {
+  const input = useMemo(() => (on ? heatInput(doc, plan) : null), [on, doc, plan])
+  const source = sourceOf(doc)
+  const stmt = plan.statement
+  const want = !!input?.cover && !input.cover.exact && input.cover.executions === 1 && source.ready
+  const page = useSourceQuery(source, want ? `executions:${stmt}:${scopeKey(WHOLE)}` : 'sqlheat:none', (signal) => (want ? source.executions(stmt, WHOLE, signal) : null))
+  const ex = useMemo(() => {
+    const p = page.data
+    if (!want || !p || p.partial) return null // only the slowest executions: the one the dump covers may be missing
+    let best: Execution | null = null
+    for (const e of p.rows) if (e.cursor === plan.cursor && e.line < plan.line && (!best || e.line > best.line)) best = e
+    return best
+  }, [want, page.data, plan])
+  const trace = useSourceQuery(source, ex ? `loom:${stmt}:${ex.cursor}:${ex.execNo}` : 'sqlheat:none', (signal) => (ex ? source.executionTrace(stmt, ex, signal) : null))
+  return useMemo(() => {
+    if (!input) return null
+    const t = ex ? trace.data : null
+    const cover = t ? heatCoverOfTrace(t, (input.children ?? []).map((k) => k.statement)) : null
+    return sqlHeat(cover ? { ...input, cover } : input)
+  }, [input, ex, trace.data])
+}
 
 /** "94.6 %"; a share above 0 that rounds to nothing reads "< 0.1 %". */
 function pct(share: number): string {
@@ -38,10 +76,11 @@ function marginOf(heat: HeatOk): { entry: number[]; rule: number[] } {
 }
 
 /**
- * SQL heat (data/sqlheat.ts): the statement's text, formatted, each fragment tinted by the share of the plan's self time
- * of the plan lines that belong to it; a margin with the share of each tinted fragment; under it the plan lines of each
- * fragment and the ones the text has no place for. ≈ marks a match by inference. Hovering a fragment or its line below
- * lights up the other.
+ * SQL heat (data/sqlheat.ts): what the plan lines account for of the execution the dump covers; the statement's text,
+ * formatted, each fragment tinted by its share (of the plan lines' self time, or, when recursive SQL runs outside the plan
+ * lines, of the covered calls' time, the function call then tinted with that SQL's share); a margin with the share of each
+ * tinted fragment; under it the plan lines of each fragment and what has no place in the text. ≈ marks a match by
+ * inference. Hovering a fragment or its line below lights up the other.
  */
 export function SqlHeat({ doc, heat }: { doc: TraceDoc; heat: HeatOk }) {
   const [hot, setHot] = useState(-1)
@@ -51,18 +90,24 @@ export function SqlHeat({ doc, heat }: { doc: TraceDoc; heat: HeatOk }) {
     for (const c of heat.callouts) { const l = m.get(c.line); if (l) l.push(c); else m.set(c.line, [c]) }
     return m
   }, [heat])
+  // what the shares are of, in words
+  const basis = heat.basis === 'calls' && heat.cover
+    ? `the ${fmtDur(heat.totalUs)} of the EXEC and FETCH calls of ${coveredWord(heat.cover)}`
+    : `the plan lines' self time, ${fmtDur(heat.planUs)}`
   const tip = (g: HeatGroup) =>
-    `${g.what}: ${pct(g.share)} of the plan's self time (${fmtInt(g.selfUs)} of ${fmtInt(heat.totalUs)} µs) · ${lineWord(g.parts.map((p) => p.id))} ${partsText(g.parts)}` +
+    `${g.what}: ${pct(g.share)} of ${basis} (${fmtInt(g.selfUs)} of ${fmtInt(heat.totalUs)} µs)` +
+    (g.recursive ? ` · run by ${g.recursive.fn}` : ` · ${lineWord(g.parts.map((p) => p.id))} ${partsText(g.parts)}`) +
     (g.approx.length ? `\n≈ ${g.approx.join('; ')}` : '')
   const hover = (gi: number) => ({ onPointerEnter: () => setHot(gi), onPointerLeave: () => setHot((h) => (h === gi ? -1 : h)) })
-  const hotGroups = heat.groups.filter((g) => g.share >= HEAT_MIN_SHARE)
-  const cool = heat.groups.filter((g) => g.share < HEAT_MIN_SHARE)
+  const hotGroups = heat.groups.filter((g) => g.share >= HEAT_MIN_SHARE || g.recursive)
+  const cool = heat.groups.filter((g) => g.share < HEAT_MIN_SHARE && !g.recursive)
   const coolUs = cool.reduce((a, g) => a + g.selfUs, 0)
   const why = [...new Set(heat.groups.flatMap((g) => g.approx))]
   const top = heat.groups[0]
   return (
     <div className={'sh' + (hot >= 0 ? ' has-hot' : '')}>
-      <figure className="sh-fig" aria-label={`SQL heat: ${top ? `${pct(top.share)} of the plan's self time in ${top.what}` : 'no plan line placed in the text'}`}>
+      <div className="sh-account">{heat.account.map((a) => <p key={a}>{a}</p>)}</div>
+      <figure className="sh-fig" aria-label={`SQL heat: ${top ? `${pct(top.share)} of ${basis} in ${top.what}` : 'no plan line placed in the text'}`}>
         <div className="sh-code">
           <div className="sh-lines">
             {heat.lines.map((segs, i) => (
@@ -108,7 +153,10 @@ export function SqlHeat({ doc, heat }: { doc: TraceDoc; heat: HeatOk }) {
           const gi = heat.groups.indexOf(g)
           return (
             <p key={gi} className={hot === gi ? 'on' : undefined} {...hover(gi)} title={g.approx.length ? `≈ ${g.approx.join('; ')}` : undefined}>
-              {g.approx.length ? '≈ ' : ''}{lineWord(g.parts.map((p) => p.id))} {partsText(g.parts)} · <span className="mono">{fmtInt(g.selfUs)}</span> µs self
+              {g.approx.length ? '≈ ' : ''}
+              {g.recursive
+                ? <>outside the plan: recursive SQL run by {g.recursive.fn}, statement <StmtLink doc={doc} id={g.recursive.statement} /> · <span className="mono">{fmtInt(g.selfUs)}</span> µs</>
+                : <>{lineWord(g.parts.map((p) => p.id))} {partsText(g.parts)} · <span className="mono">{fmtInt(g.selfUs)}</span> µs self</>}
             </p>
           )
         })}
@@ -122,9 +170,19 @@ export function SqlHeat({ doc, heat }: { doc: TraceDoc; heat: HeatOk }) {
             not placed: {lineWord(heat.unplaced.parts.map((p) => p.id))} {partsText(heat.unplaced.parts)} · <span className="mono">{pct(heat.unplaced.share)}</span>
           </p>
         )}
+        {heat.outside && heat.outside.group < 0 && (
+          <p className="sh-rest" title={heat.outside.why}>
+            not placed: recursive SQL outside the plan lines · <span className="mono">{fmtInt(heat.outside.us)}</span> µs · <span className="mono">{pct(heat.outside.share)}</span>
+          </p>
+        )}
+        {heat.rest && heat.rest.us > 0 && (
+          <p className="sh-rest">
+            the rest of these EXEC and FETCH calls, in no plan line and not in the recursive SQL above · <span className="mono">{fmtInt(heat.rest.us)}</span> µs · <span className="mono">{pct(heat.rest.share)}</span>
+          </p>
+        )}
       </div>
       <p className="sh-legend">
-        tint = share of the plan's self time (
+        tint = share of {basis} (
         {[0.05, 0.25, 0.5, 0.95].map((s, k) => (
           <Fragment key={s}>{k > 0 && ' '}<i className="sh-sw" style={{ '--h': `${heatTint(s).toFixed(1)}%` } as CSSProperties} aria-hidden="true" />{Math.round(s * 100)} %</Fragment>
         ))}
@@ -142,7 +200,7 @@ function Callout({ doc, c }: { doc: TraceDoc; c: HeatCallout }) {
   return (
     <div className="sh-callout">
       <span className="sh-pad" aria-hidden="true">{' '.repeat(c.col)}</span>
-      <span className="sh-ct" title={`inferred: ${c.fn} is the only function in the text that is not an Oracle built-in. The time of the statement it runs is in the plan lines already; this is not a share of its own.`}>
+      <span className="sh-ct" title={`inferred: ${c.fn} is the only function in the text that is not an Oracle built-in. Called in a fragment a plan line evaluates, the time of the statement it runs is in that line's share; called anywhere else, it is a share of its own, outside the plan.`}>
         <i className="sh-lead" aria-hidden="true" />
         <b>≈</b> runs statement <StmtLink doc={doc} id={c.child.statement} />
         {c.perExec > 0 && <> {c.child.exact ? '' : 'about '}<span className="mono">{per}</span> time{c.perExec === 1 ? '' : 's'} per execution:</>}

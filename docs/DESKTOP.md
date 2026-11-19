@@ -290,13 +290,17 @@ it to light up its path to the client and everything under it (click again or Es
 choice of view and scale is kept. A plan dumped without row-source statistics stays a table.
 
 **SQL heat.** The third plan view (*Table | Row flow | SQL heat*, also the *SQL heat* button beside *Row flow*
-above the SQL text) shows the statement's text with each part tinted by its share of the plan's time: the table
-and its filters, the join condition, the ORDER BY. A bar and the percentage sit in the margin, and under the text
-each part names its plan lines with their own time and buffer gets. What cannot be placed in the text is listed as
-"not placed", so the shares add up to 100 %. A match the trace cannot prove (a table read twice, an index found by
-its name) is marked ≈; with an imported reference bundle (aliases, query blocks, predicates) the matches are exact.
-When the statement runs recursive SQL and calls one function of its own, a ≈ note on that call names the statement
-it runs and how often per execution. DML, PL/SQL blocks and plans without statistics show the table with a note.
+above the SQL text) shows the statement's text with each part tinted by its share of the time: the table and its
+filters, the join condition, the ORDER BY. A line above the text says how much of the execution the plan accounts
+for ("The plan lines account for 30 µs of 624 µs, the EXEC and FETCH calls of the first execution"). A bar and the
+percentage sit in the margin, and under the text each part names its plan lines with their own time and buffer gets.
+What cannot be placed in the text is listed as "not placed" (and, when the shares are of the calls' time, a "rest"
+line), so the shares add up to 100 %. A match the trace cannot prove (a table read twice, an index found by its name)
+is marked ≈; with an imported reference bundle (aliases, query blocks, predicates) the matches are exact. Recursive
+SQL run by a function of the statement: a function in a WHERE or ON condition runs inside the plan line, and a ≈ note
+on the call names the statement it runs and how often per execution; a function in the select list runs outside the
+plan, and its call is tinted with its own ≈ share. DML, PL/SQL blocks and plans without statistics show the table
+with a note.
 
 **Dialogue.** In Statements, click one execution and switch its detail from *Binds* to *Dialogue*
 (the choice is kept): the execution as a sequence diagram. The client's calls go to the server

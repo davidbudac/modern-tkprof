@@ -28,8 +28,7 @@ import { kindGroups, type KindGroup } from '../data/callkinds'
 import { CheckIcon, CopyIcon } from '../components/icons'
 import { RowFlow } from './RowFlow'
 import { NO_STATS_NOTE, type FlowScale } from '../data/rowflow'
-import { SqlHeat } from './SqlHeat'
-import { heatInput, sqlHeat } from '../data/sqlheat'
+import { SqlHeat, useSqlHeat } from './SqlHeat'
 import { isBlockIO } from '../data/iomap'
 import { Shimmer } from '../components/motion'
 import { OptMark } from '../components/OptMark'
@@ -106,7 +105,7 @@ export function StatementDetail({ doc, id, stats: scoped, narrowed = false }: { 
           )}
           {plansHere.length > 0 && (
             <button onClick={() => go('heat')} disabled={!flowOk}
-              title={flowOk ? 'SQL heat: the plan\'s self time painted on the SQL text, fragment by fragment' : 'SQL heat needs row-source statistics (STAT lines with times), which this plan has none of'}>
+              title={flowOk ? 'SQL heat: the time of the plan lines (and of recursive SQL run outside them) painted on the SQL text, fragment by fragment' : 'SQL heat needs row-source statistics (STAT lines with times), which this plan has none of'}>
               <HeatIcon /> SQL heat</button>
           )}
           {ready && stats.exec.count > 0 && (
@@ -420,8 +419,8 @@ function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale, s
   const findings = useMemo(() => planFindings(rows), [rows])
   const [focus, setFocus] = useState<{ id: number; seq: number } | null>(null)
   useEffect(() => setFocus(null), [plan])
-  // the dump picked above, its split pieces joined (data/sqlheat.ts heatDump)
-  const heat = useMemo(() => (view === 'heat' ? sqlHeat(heatInput(doc, plan)) : null), [view, doc, plan])
+  // the dump picked above, its split pieces joined (data/sqlheat.ts heatDump), against the execution it covers
+  const heat = useSqlHeat(doc, plan, view === 'heat')
   const [link, setLink] = useState<Link>({ state: 'pending' })
   useEffect(() => {
     let live = true
@@ -449,7 +448,7 @@ function PlanSection({ doc, hash, dumps, view, onView, flowScale, onFlowScale, s
             <button aria-pressed={view === 'flow'} onClick={() => onView('flow')}
               title={hasStats ? 'the rows flowing through the plan, leaves to the client (Sankey)' : 'no row-source statistics in this dump: the table stays, with a note'}>Row flow</button>
             <button aria-pressed={view === 'heat'} onClick={() => onView('heat')}
-              title={hasStats ? 'the SQL text, each fragment tinted by its share of the plan\'s self time' : 'no row-source statistics in this dump: the table stays, with a note'}>SQL heat</button>
+              title={hasStats ? 'the SQL text, each fragment tinted by its share of the time: the plan lines\', and recursive SQL run outside them' : 'no row-source statistics in this dump: the table stays, with a note'}>SQL heat</button>
           </span>
           {dumps.length > 1 && (
             <label className="small muted">dump:{' '}
